@@ -492,7 +492,9 @@ enum {
  * MXU pool 16
  */
 enum {
+    OPC_MXU_S32ALN   = 0x01,
     OPC_MXU_S32ALNI  = 0x02,
+    OPC_MXU_S32LUI   = 0x03,
     OPC_MXU_S32NOR   = 0x04,
     OPC_MXU_S32AND   = 0x05,
     OPC_MXU_S32OR    = 0x06,
@@ -3066,7 +3068,7 @@ static void gen_mxu_d32asum(DisasContext *ctx)
  *                 MXU instruction category: Miscellaneous
  *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- *               S32EXTR
+ *               S32EXTR      S32LUI
  *               S32EXTRV
  *                            Q16SAT
  */
@@ -3180,6 +3182,59 @@ static void gen_mxu_s32extrv(DisasContext *ctx)
 
     gen_set_label(l_done);
     gen_store_mxu_gpr(t0, XRa);
+}
+
+/*
+ *  S32LUI XRa, S8, optn3
+ *    Permutate the immediate S8 value to form a word
+ *    to update XRa.
+ */
+static void gen_mxu_s32lui(DisasContext *ctx)
+{
+    uint32_t XRa, s8, optn3, pad;
+
+    XRa   = extract32(ctx->opcode,  6, 4);
+    s8    = extract32(ctx->opcode, 10, 8);
+    pad   = extract32(ctx->opcode, 21, 2);
+    optn3 = extract32(ctx->opcode, 23, 3);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else {
+        uint32_t s16;
+        TCGv t0 = tcg_temp_new();
+
+        switch (optn3) {
+        case 0:
+            tcg_gen_movi_tl(t0, s8);
+            break;
+        case 1:
+            tcg_gen_movi_tl(t0, s8 << 8);
+            break;
+        case 2:
+            tcg_gen_movi_tl(t0, s8 << 16);
+            break;
+        case 3:
+            tcg_gen_movi_tl(t0, s8 << 24);
+            break;
+        case 4:
+            tcg_gen_movi_tl(t0, (s8 << 16) | s8);
+            break;
+        case 5:
+            tcg_gen_movi_tl(t0, (s8 << 24) | (s8 << 8));
+            break;
+        case 6:
+            s16 = (uint16_t)(int16_t)(int8_t)s8;
+            tcg_gen_movi_tl(t0, (s16 << 16) | s16);
+            break;
+        case 7:
+            tcg_gen_movi_tl(t0, (s8 << 24) | (s8 << 16) | (s8 << 8) | s8);
+            break;
+        }
+        gen_store_mxu_gpr(t0, XRa);
+    }
 }
 
 /*
@@ -3458,6 +3513,65 @@ static void gen_mxu_S32ALNI(DisasContext *ctx)
             }
             break;
         }
+    }
+}
+
+/*
+ *  S32ALN XRc, XRb, XRa, rs
+ *    Arrange bytes from XRb and XRc according to one of five sets of
+ *    rules determined by rs[2:0], and place the result in XRa.
+ */
+static void gen_mxu_S32ALN(DisasContext *ctx)
+{
+    uint32_t rs, XRc, XRb, XRa;
+
+    rs  = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to all 0s */
+        tcg_gen_movi_tl(mxu_gpr[XRa - 1], 0);
+    } else {
+        /* the most general case */
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+        TCGv t2 = tcg_temp_new();
+        TCGv t3 = tcg_temp_new();
+        TCGLabel *l_exit = gen_new_label();
+        TCGLabel *l_b_only = gen_new_label();
+        TCGLabel *l_c_only = gen_new_label();
+
+        gen_load_mxu_gpr(t0, XRb);
+        gen_load_mxu_gpr(t1, XRc);
+        gen_load_gpr(t2, rs);
+        tcg_gen_andi_tl(t2, t2, 0x07);
+
+        /* do nothing for undefined cases */
+        tcg_gen_brcondi_tl(TCG_COND_GE, t2, 5, l_exit);
+
+        tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l_b_only);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 4, l_c_only);
+
+        tcg_gen_shli_tl(t2, t2, 3);
+        tcg_gen_subfi_tl(t3, 32, t2);
+
+        tcg_gen_shl_tl(t0, t0, t2);
+        tcg_gen_shr_tl(t1, t1, t3);
+        tcg_gen_or_tl(mxu_gpr[XRa - 1], t0, t1);
+        tcg_gen_br(l_exit);
+
+        gen_set_label(l_b_only);
+        gen_store_mxu_gpr(t0, XRa);
+        tcg_gen_br(l_exit);
+
+        gen_set_label(l_c_only);
+        gen_store_mxu_gpr(t1, XRa);
+
+        gen_set_label(l_exit);
     }
 }
 
@@ -3889,8 +4003,14 @@ static void decode_opc_mxu__pool16(DisasContext *ctx)
     uint32_t opcode = extract32(ctx->opcode, 18, 3);
 
     switch (opcode) {
+    case OPC_MXU_S32ALN:
+        gen_mxu_S32ALN(ctx);
+        break;
     case OPC_MXU_S32ALNI:
         gen_mxu_S32ALNI(ctx);
+        break;
+    case OPC_MXU_S32LUI:
+        gen_mxu_s32lui(ctx);
         break;
     case OPC_MXU_S32NOR:
         gen_mxu_S32NOR(ctx);
