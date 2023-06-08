@@ -1428,7 +1428,7 @@ static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *reque
        [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
        [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
        [ 6 ..  7]   type    (NBD_CMD_READ, ...)
-       [ 8 .. 15]   handle
+       [ 8 .. 15]   cookie
        [16 .. 23]   from
        [24 .. 27]   len
      */
@@ -1436,7 +1436,7 @@ static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *reque
     magic = ldl_be_p(buf);
     request->flags  = lduw_be_p(buf + 4);
     request->type   = lduw_be_p(buf + 6);
-    request->handle = ldq_be_p(buf + 8);
+    request->cookie = ldq_be_p(buf + 8);
     request->from   = ldq_be_p(buf + 16);
     request->len    = ldl_be_p(buf + 24);
 
@@ -1885,11 +1885,11 @@ static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
 }
 
 static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
-                                       uint64_t handle)
+                                       uint64_t cookie)
 {
     stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
     stl_be_p(&reply->error, error);
-    stq_be_p(&reply->handle, handle);
+    stq_be_p(&reply->cookie, cookie);
 }
 
 static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
@@ -1908,9 +1908,9 @@ static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
 
     assert(!len || !nbd_err);
     assert(!client->structured_reply || request->type != NBD_CMD_READ);
-    trace_nbd_co_send_simple_reply(request->handle, nbd_err,
+    trace_nbd_co_send_simple_reply(request->cookie, nbd_err,
                                    nbd_err_lookup(nbd_err), len);
-    set_be_simple_reply(&reply, nbd_err, request->handle);
+    set_be_simple_reply(&reply, nbd_err, request->cookie);
 
     return nbd_co_send_iov(client, iov, 2, errp);
 }
@@ -1940,7 +1940,7 @@ static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
     stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
     stw_be_p(&chunk->flags, flags);
     stw_be_p(&chunk->type, type);
-    stq_be_p(&chunk->handle, request->handle);
+    stq_be_p(&chunk->cookie, request->cookie);
     stl_be_p(&chunk->length, length);
 }
 
@@ -1953,10 +1953,9 @@ static int coroutine_fn nbd_co_send_chunk_done(NBDClient *client,
         {.iov_base = &hdr},
     };
 
-    trace_nbd_co_send_chunk_done(request->handle);
+    trace_nbd_co_send_chunk_done(request->cookie);
     set_be_chunk(client, iov, 1, NBD_REPLY_FLAG_DONE,
                  NBD_REPLY_TYPE_NONE, request);
-
     return nbd_co_send_iov(client, iov, 1, errp);
 }
 
@@ -1977,7 +1976,7 @@ static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
     };
 
     assert(size);
-    trace_nbd_co_send_chunk_read(request->handle, offset, data, size);
+    trace_nbd_co_send_chunk_read(request->cookie, offset, data, size);
     set_be_chunk(client, iov, 3, final ? NBD_REPLY_FLAG_DONE : 0,
                  NBD_REPLY_TYPE_OFFSET_DATA, request);
     stq_be_p(&chunk.offset, offset);
@@ -2001,7 +2000,7 @@ static int coroutine_fn nbd_co_send_chunk_error(NBDClient *client,
     };
 
     assert(nbd_err);
-    trace_nbd_co_send_chunk_error(request->handle, nbd_err,
+    trace_nbd_co_send_chunk_error(request->cookie, nbd_err,
                                   nbd_err_lookup(nbd_err), msg ? msg : "");
     set_be_chunk(client, iov, 3, NBD_REPLY_FLAG_DONE,
                  NBD_REPLY_TYPE_ERROR, request);
@@ -2052,7 +2051,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                 {.iov_base = &chunk, .iov_len = sizeof(chunk)},
             };
 
-            trace_nbd_co_send_chunk_read_hole(request->handle,
+            trace_nbd_co_send_chunk_read_hole(request->cookie,
                                               offset + progress, pnum);
             set_be_chunk(client, iov, 2,
                          final ? NBD_REPLY_FLAG_DONE : 0,
@@ -2234,7 +2233,7 @@ nbd_co_send_extents(NBDClient *client, NBDRequest *request, NBDExtentArray *ea,
 
     nbd_extent_array_convert_to_be(ea);
 
-    trace_nbd_co_send_extents(request->handle, ea->count, context_id,
+    trace_nbd_co_send_extents(request->cookie, ea->count, context_id,
                               ea->total_length, last);
     set_be_chunk(client, iov, 3, last ? NBD_REPLY_FLAG_DONE : 0,
                  NBD_REPLY_TYPE_BLOCK_STATUS, request);
@@ -2337,7 +2336,7 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
         return ret;
     }
 
-    trace_nbd_co_receive_request_decode_type(request->handle, request->type,
+    trace_nbd_co_receive_request_decode_type(request->cookie, request->type,
                                              nbd_cmd_lookup(request->type));
 
     if (request->type != NBD_CMD_WRITE) {
@@ -2378,7 +2377,7 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
         }
         req->complete = true;
 
-        trace_nbd_co_receive_request_payload_received(request->handle,
+        trace_nbd_co_receive_request_payload_received(request->cookie,
                                                       request->len);
     }
 

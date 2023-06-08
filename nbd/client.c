@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -1350,14 +1350,14 @@ int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
-    trace_nbd_send_request(request->from, request->len, request->handle,
+    trace_nbd_send_request(request->from, request->len, request->cookie,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);
     stw_be_p(buf + 6, request->type);
-    stq_be_p(buf + 8, request->handle);
+    stq_be_p(buf + 8, request->cookie);
     stq_be_p(buf + 16, request->from);
     stl_be_p(buf + 24, request->len);
 
@@ -1383,7 +1383,7 @@ static int nbd_receive_simple_reply(QIOChannel *ioc, NBDSimpleReply *reply,
     }
 
     reply->error = be32_to_cpu(reply->error);
-    reply->handle = be64_to_cpu(reply->handle);
+    reply->cookie = be64_to_cpu(reply->cookie);
 
     return 0;
 }
@@ -1410,7 +1410,7 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
 
     chunk->flags = be16_to_cpu(chunk->flags);
     chunk->type = be16_to_cpu(chunk->type);
-    chunk->handle = be64_to_cpu(chunk->handle);
+    chunk->cookie = be64_to_cpu(chunk->cookie);
     chunk->length = be32_to_cpu(chunk->length);
 
     return 0;
@@ -1487,7 +1487,7 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
         }
         trace_nbd_receive_simple_reply(reply->simple.error,
                                        nbd_err_lookup(reply->simple.error),
-                                       reply->handle);
+                                       reply->cookie);
         break;
     case NBD_STRUCTURED_REPLY_MAGIC:
         ret = nbd_receive_structured_reply_chunk(ioc, &reply->structured, errp);
@@ -1497,7 +1497,7 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
         type = nbd_reply_type_lookup(reply->structured.type);
         trace_nbd_receive_structured_reply_chunk(reply->structured.flags,
                                                  reply->structured.type, type,
-                                                 reply->structured.handle,
+                                                 reply->structured.cookie,
                                                  reply->structured.length);
         break;
     default:
