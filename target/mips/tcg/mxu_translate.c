@@ -363,6 +363,8 @@ enum {
     OPC_MXU_D16MUL   = 0x08,
     OPC_MXU__POOL03  = 0x09,
     OPC_MXU_D16MAC   = 0x0A,
+    OPC_MXU_D16MACF  = 0x0B,
+    OPC_MXU_D16MACE  = 0x0F,
     OPC_MXU__POOL04  = 0x10,
     OPC_MXU__POOL05  = 0x11,
     OPC_MXU__POOL06  = 0x12,
@@ -772,10 +774,15 @@ static void gen_mxu_d16mul(DisasContext *ctx, bool fractional,
 }
 
 /*
- * D16MAC XRa, XRb, XRc, XRd, aptn2, optn2 - Signed 16 bit pattern multiply
- *                                           and accumulate
+ * D16MAC XRa, XRb, XRc, XRd, aptn2, optn2
+ *   Signed 16 bit pattern multiply and accumulate
+ * D16MACF XRa, XRb, XRc, aptn2, optn2
+ *   Signed Q15 fraction pattern multiply accumulate and pack
+ * D16MACE XRa, XRb, XRc, XRd, aptn2, optn2
+ *   Signed Q15 fraction pattern multiply and accumulate
  */
-static void gen_mxu_d16mac(DisasContext *ctx)
+static void gen_mxu_d16mac(DisasContext *ctx, bool fractional,
+                           bool packed_result)
 {
     TCGv t0, t1, t2, t3;
     uint32_t XRa, XRb, XRc, XRd, optn2, aptn2;
@@ -818,6 +825,11 @@ static void gen_mxu_d16mac(DisasContext *ctx)
         tcg_gen_mul_tl(t2, t1, t2);
         break;
     }
+
+    if (fractional) {
+        tcg_gen_shli_tl(t3, t3, 1);
+        tcg_gen_shli_tl(t2, t2, 1);
+    }
     gen_load_mxu_gpr(t0, XRa);
     gen_load_mxu_gpr(t1, XRd);
 
@@ -839,8 +851,52 @@ static void gen_mxu_d16mac(DisasContext *ctx)
         tcg_gen_sub_tl(t2, t1, t2);
         break;
     }
-    gen_store_mxu_gpr(t3, XRa);
-    gen_store_mxu_gpr(t2, XRd);
+
+    if (fractional) {
+        TCGLabel *l_done = gen_new_label();
+        TCGv rounding = tcg_temp_new();
+
+        tcg_gen_andi_tl(rounding, mxu_CR, 0x2);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, rounding, 0, l_done);
+        if (packed_result) {
+            TCGLabel *l_apply_bias_l = gen_new_label();
+            TCGLabel *l_apply_bias_r = gen_new_label();
+            TCGLabel *l_half_done = gen_new_label();
+            TCGv bias = tcg_temp_new();
+
+            /*
+             * D16MACF supports unbiased rounding aka "bankers rounding",
+             * "round to even", "convergent rounding"
+             */
+            tcg_gen_andi_tl(bias, mxu_CR, 0x4);
+            tcg_gen_brcondi_tl(TCG_COND_NE, bias, 0, l_apply_bias_l);
+            tcg_gen_andi_tl(t0, t3, 0x1ffff);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0x8000, l_half_done);
+            gen_set_label(l_apply_bias_l);
+            tcg_gen_addi_tl(t3, t3, 0x8000);
+            gen_set_label(l_half_done);
+            tcg_gen_brcondi_tl(TCG_COND_NE, bias, 0, l_apply_bias_r);
+            tcg_gen_andi_tl(t0, t2, 0x1ffff);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0x8000, l_done);
+            gen_set_label(l_apply_bias_r);
+            tcg_gen_addi_tl(t2, t2, 0x8000);
+        } else {
+            /* D16MACE doesn't support unbiased rounding */
+            tcg_gen_addi_tl(t3, t3, 0x8000);
+            tcg_gen_addi_tl(t2, t2, 0x8000);
+        }
+        gen_set_label(l_done);
+    }
+
+    if (!packed_result) {
+        gen_store_mxu_gpr(t3, XRa);
+        gen_store_mxu_gpr(t2, XRd);
+    } else {
+        tcg_gen_andi_tl(t3, t3, 0xffff0000);
+        tcg_gen_shri_tl(t2, t2, 16);
+        tcg_gen_or_tl(t3, t3, t2);
+        gen_store_mxu_gpr(t3, XRa);
+    }
 }
 
 /*
@@ -2698,7 +2754,13 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             gen_mxu_d16mul(ctx, false, false);
             break;
         case OPC_MXU_D16MAC:
-            gen_mxu_d16mac(ctx);
+            gen_mxu_d16mac(ctx, false, false);
+            break;
+        case OPC_MXU_D16MACF:
+            gen_mxu_d16mac(ctx, true, true);
+            break;
+        case OPC_MXU_D16MACE:
+            gen_mxu_d16mac(ctx, true, false);
             break;
         case OPC_MXU__POOL01:
             decode_opc_mxu__pool01(ctx);
