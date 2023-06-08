@@ -326,7 +326,7 @@
  *          ├─ 110111 ─ OPC_MXU_Q16SAR
  *          │                               23..22
  *          ├─ 111000 ─ OPC_MXU__POOL19 ─┬─ 00 ─ OPC_MXU_Q8MUL
- *          │                            └─ 01 ─ OPC_MXU_Q8MULSU
+ *          │                            └─ 10 ─ OPC_MXU_Q8MULSU
  *          │
  *          │                               20..18
  *          ├─ 111001 ─ OPC_MXU__POOL20 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
@@ -404,6 +404,7 @@ enum {
     OPC_MXU_Q16SAR   = 0x37,
     OPC_MXU__POOL19  = 0x38,
     OPC_MXU__POOL20  = 0x39,
+    OPC_MXU__POOL21  = 0x3A,
 };
 
 
@@ -539,7 +540,7 @@ enum {
  */
 enum {
     OPC_MXU_Q8MUL    = 0x00,
-    OPC_MXU_Q8MULSU  = 0x01,
+    OPC_MXU_Q8MULSU  = 0x02,
 };
 
 /*
@@ -553,6 +554,15 @@ enum {
     OPC_MXU_S32MOVZ  = 0x04,
     OPC_MXU_S32MOVN  = 0x05,
 };
+
+/*
+ * MXU pool 21
+ */
+enum {
+    OPC_MXU_Q8MAC    = 0x00,
+    OPC_MXU_Q8MACSU  = 0x02,
+};
+
 
 /* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
 #define MXU_APTN1_A    0
@@ -1328,13 +1338,17 @@ static void gen_mxu_s16mad(DisasContext *ctx)
 }
 
 /*
- * Q8MUL   XRa, XRb, XRc, XRd - Parallel unsigned 8 bit pattern multiply
- * Q8MULSU XRa, XRb, XRc, XRd - Parallel signed 8 bit pattern multiply
+ * Q8MUL   XRa, XRb, XRc, XRd - Parallel quad unsigned 8 bit multiply
+ * Q8MULSU XRa, XRb, XRc, XRd - Parallel quad signed 8 bit multiply
+ * Q8MAC   XRa, XRb, XRc, XRd - Parallel quad unsigned 8 bit multiply
+ *   and accumulate
+ * Q8MACSU XRa, XRb, XRc, XRd - Parallel quad signed 8 bit multiply
+ *   and accumulate
  */
-static void gen_mxu_q8mul_q8mulsu(DisasContext *ctx)
+static void gen_mxu_q8mul_mac(DisasContext *ctx, bool su, bool mac)
 {
     TCGv t0, t1, t2, t3, t4, t5, t6, t7;
-    uint32_t XRa, XRb, XRc, XRd, sel;
+    uint32_t XRa, XRb, XRc, XRd, aptn2;
 
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
@@ -1349,54 +1363,60 @@ static void gen_mxu_q8mul_q8mulsu(DisasContext *ctx)
     XRb = extract32(ctx->opcode, 10, 4);
     XRc = extract32(ctx->opcode, 14, 4);
     XRd = extract32(ctx->opcode, 18, 4);
-    sel = extract32(ctx->opcode, 22, 2);
+    aptn2 = extract32(ctx->opcode, 24, 2);
 
     gen_load_mxu_gpr(t3, XRb);
     gen_load_mxu_gpr(t7, XRc);
 
-    if (sel == 0x2) {
-        /* Q8MULSU */
-        tcg_gen_ext8s_tl(t0, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8s_tl(t1, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8s_tl(t2, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8s_tl(t3, t3);
+    if (su) {
+        /* Q8MULSU / Q8MACSU */
+        tcg_gen_sextract_tl(t0, t3,  0, 8);
+        tcg_gen_sextract_tl(t1, t3,  8, 8);
+        tcg_gen_sextract_tl(t2, t3, 16, 8);
+        tcg_gen_sextract_tl(t3, t3, 24, 8);
     } else {
-        /* Q8MUL */
-        tcg_gen_ext8u_tl(t0, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8u_tl(t1, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8u_tl(t2, t3);
-        tcg_gen_shri_tl(t3, t3, 8);
-        tcg_gen_ext8u_tl(t3, t3);
+        /* Q8MUL / Q8MAC */
+        tcg_gen_extract_tl(t0, t3,  0, 8);
+        tcg_gen_extract_tl(t1, t3,  8, 8);
+        tcg_gen_extract_tl(t2, t3, 16, 8);
+        tcg_gen_extract_tl(t3, t3, 24, 8);
     }
 
-    tcg_gen_ext8u_tl(t4, t7);
-    tcg_gen_shri_tl(t7, t7, 8);
-    tcg_gen_ext8u_tl(t5, t7);
-    tcg_gen_shri_tl(t7, t7, 8);
-    tcg_gen_ext8u_tl(t6, t7);
-    tcg_gen_shri_tl(t7, t7, 8);
-    tcg_gen_ext8u_tl(t7, t7);
+    tcg_gen_extract_tl(t4, t7,  0, 8);
+    tcg_gen_extract_tl(t5, t7,  8, 8);
+    tcg_gen_extract_tl(t6, t7, 16, 8);
+    tcg_gen_extract_tl(t7, t7, 24, 8);
 
     tcg_gen_mul_tl(t0, t0, t4);
     tcg_gen_mul_tl(t1, t1, t5);
     tcg_gen_mul_tl(t2, t2, t6);
     tcg_gen_mul_tl(t3, t3, t7);
 
-    tcg_gen_andi_tl(t0, t0, 0xFFFF);
-    tcg_gen_andi_tl(t1, t1, 0xFFFF);
-    tcg_gen_andi_tl(t2, t2, 0xFFFF);
-    tcg_gen_andi_tl(t3, t3, 0xFFFF);
+    if (mac) {
+        gen_load_mxu_gpr(t4, XRd);
+        gen_load_mxu_gpr(t5, XRa);
+        tcg_gen_extract_tl(t6, t4,  0, 16);
+        tcg_gen_extract_tl(t7, t4, 16, 16);
+        if (aptn2 & 1) {
+            tcg_gen_sub_tl(t0, t6, t0);
+            tcg_gen_sub_tl(t1, t7, t1);
+        } else {
+            tcg_gen_add_tl(t0, t6, t0);
+            tcg_gen_add_tl(t1, t7, t1);
+        }
+        tcg_gen_extract_tl(t6, t5,  0, 16);
+        tcg_gen_extract_tl(t7, t5, 16, 16);
+        if (aptn2 & 2) {
+            tcg_gen_sub_tl(t2, t6, t2);
+            tcg_gen_sub_tl(t3, t7, t3);
+        } else {
+            tcg_gen_add_tl(t2, t6, t2);
+            tcg_gen_add_tl(t3, t7, t3);
+        }
+    }
 
-    tcg_gen_shli_tl(t1, t1, 16);
-    tcg_gen_shli_tl(t3, t3, 16);
-
-    tcg_gen_or_tl(t0, t0, t1);
-    tcg_gen_or_tl(t1, t2, t3);
+    tcg_gen_deposit_tl(t0, t0, t1, 16, 16);
+    tcg_gen_deposit_tl(t1, t2, t3, 16, 16);
 
     gen_store_mxu_gpr(t0, XRd);
     gen_store_mxu_gpr(t1, XRa);
@@ -4548,12 +4568,14 @@ static void decode_opc_mxu__pool18(DisasContext *ctx)
 
 static void decode_opc_mxu__pool19(DisasContext *ctx)
 {
-    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+    uint32_t opcode = extract32(ctx->opcode, 22, 4);
 
     switch (opcode) {
     case OPC_MXU_Q8MUL:
+        gen_mxu_q8mul_mac(ctx, false, false);
+        break;
     case OPC_MXU_Q8MULSU:
-        gen_mxu_q8mul_q8mulsu(ctx);
+        gen_mxu_q8mul_mac(ctx, true, false);
         break;
     default:
         MIPS_INVAL("decode_opc_mxu");
@@ -4591,6 +4613,25 @@ static void decode_opc_mxu__pool20(DisasContext *ctx)
         break;
     }
 }
+
+static void decode_opc_mxu__pool21(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_Q8MAC:
+        gen_mxu_q8mul_mac(ctx, false, true);
+        break;
+    case OPC_MXU_Q8MACSU:
+        gen_mxu_q8mul_mac(ctx, true, true);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
 
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
@@ -4754,6 +4795,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL20:
             decode_opc_mxu__pool20(ctx);
+            break;
+        case OPC_MXU__POOL21:
+            decode_opc_mxu__pool21(ctx);
             break;
         default:
             return false;
