@@ -1,7 +1,7 @@
 
 variables:
-  # On stable branches this needs changing. Should also be
-  # overridden per pipeline if running pipelines concurrently
+  # On stable branches this is changed by later rules. Should also
+  # be overridden per pipeline if running pipelines concurrently
   # for different branches in contributor forks.
   QEMU_CI_CONTAINER_TAG: latest
 
@@ -15,6 +15,9 @@ variables:
 #
 # Thus we group them into a number of stages, ordered from
 # most restrictive to least restrictive
+#
+# For pipelines running for stable "staging-X.Y" branches
+# we must override QEMU_CI_CONTAINER_TAG
 #
 .base_job_template:
   variables:
@@ -61,11 +64,23 @@ variables:
     #############################################################
 
     # Optional jobs should not be run unless manually triggered
+    - if: '$QEMU_JOB_OPTIONAL && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /staging-[[:digit:]]+\.[[:digit:]]/'
+      when: manual
+      allow_failure: true
+      variables:
+        QEMU_CI_CONTAINER_TAG: $CI_COMMIT_REF_SLUG
+
     - if: '$QEMU_JOB_OPTIONAL'
       when: manual
       allow_failure: true
 
     # Skipped jobs should not be run unless manually triggered
+    - if: '$QEMU_JOB_SKIPPED && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /staging-[[:digit:]]+\.[[:digit:]]/'
+      when: manual
+      allow_failure: true
+      variables:
+        QEMU_CI_CONTAINER_TAG: $CI_COMMIT_REF_SLUG
+
     - if: '$QEMU_JOB_SKIPPED'
       when: manual
       allow_failure: true
@@ -87,4 +102,9 @@ variables:
       when: manual
 
     # Jobs can run if any jobs they depend on were successful
+    - if: '$QEMU_JOB_SKIPPED && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /staging-[[:digit:]]+\.[[:digit:]]/'
+      when: on_success
+      variables:
+        QEMU_CI_CONTAINER_TAG: $CI_COMMIT_REF_SLUG
+
     - when: on_success
