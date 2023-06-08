@@ -268,7 +268,7 @@
  *          │                               13..10
  *          ├─ 010111 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32SDIV
  *          │                            └─ 0001 ─ OPC_MXU_S32SDIVR
- *          ├─ 011000 ─ OPC_MXU_D32ADD
+ *          ├─ 011000 ─ OPC_MXU_D32ADD  (catches D32ADDC too)
  *          │                               23..22
  *   MXU    ├─ 011001 ─ OPC_MXU__POOL12 ─┬─ 00 ─ OPC_MXU_D32ACC
  * opcodes ─┤                            ├─ 01 ─ OPC_MXU_D32ACCM
@@ -2260,14 +2260,17 @@ static void gen_mxu_q16add(DisasContext *ctx)
 
 /*
  * D32ADD XRa, XRb, XRc, XRd, aptn2 - Double
- * 32 bit pattern addition/subtraction.
+ * 32 bit pattern addition/subtraction, set carry.
+ *
+ * D32ADDC XRa, XRb, XRc, XRd, aptn2 - Double
+ * 32 bit pattern addition/subtraction with carry.
  */
 static void gen_mxu_d32add(DisasContext *ctx)
 {
-    uint32_t aptn2, pad, XRc, XRb, XRa, XRd;
+    uint32_t aptn2, addc, XRc, XRb, XRa, XRd;
 
     aptn2 = extract32(ctx->opcode, 24, 2);
-    pad   = extract32(ctx->opcode, 22, 2);
+    addc  = extract32(ctx->opcode, 22, 2);
     XRd   = extract32(ctx->opcode, 18, 4);
     XRc   = extract32(ctx->opcode, 14, 4);
     XRb   = extract32(ctx->opcode, 10, 4);
@@ -2276,15 +2279,37 @@ static void gen_mxu_d32add(DisasContext *ctx)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
     TCGv t2 = tcg_temp_new();
-    TCGv carry = tcg_temp_new();
     TCGv cr = tcg_temp_new();
 
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
+    if (unlikely(addc > 1)) {
+        /* opcode incorrect -> do nothing */
+    } else if (addc == 1) {
+        if (unlikely(XRa == 0 && XRd == 0)) {
+            /* destinations are zero register -> do nothing */
+        } else {
+            /* FIXME ??? What if XRa == XRd ??? */
+            /* aptn2 is unused here */
+            gen_load_mxu_gpr(t0, XRb);
+            gen_load_mxu_gpr(t1, XRc);
+            gen_load_mxu_cr(cr);
+            if (XRa != 0) {
+                tcg_gen_extract_tl(t2, cr, 31, 1);
+                tcg_gen_add_tl(t0, t0, t2);
+                tcg_gen_add_tl(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
+            }
+            if (XRd != 0) {
+                tcg_gen_extract_tl(t2, cr, 30, 1);
+                tcg_gen_add_tl(t1, t1, t2);
+                tcg_gen_add_tl(mxu_gpr[XRd - 1], mxu_gpr[XRd - 1], t1);
+            }
+        }
     } else if (unlikely(XRa == 0 && XRd == 0)) {
         /* destinations are zero register -> do nothing */
     } else {
         /* common case */
+        /* FIXME ??? What if XRa == XRd ??? */
+        TCGv carry = tcg_temp_new();
+
         gen_load_mxu_gpr(t0, XRb);
         gen_load_mxu_gpr(t1, XRc);
         gen_load_mxu_cr(cr);
