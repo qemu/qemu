@@ -463,28 +463,6 @@ static int net_socket_fd_check(int fd, Error **errp)
     return so_type;
 }
 
-static NetSocketState *net_socket_fd_init(NetClientState *peer,
-                                          const char *model, const char *name,
-                                          int fd, int is_connected,
-                                          const char *mc, Error **errp)
-{
-    int so_type;
-
-    so_type = net_socket_fd_check(fd, errp);
-    if (so_type < 0) {
-        close(fd);
-        return NULL;
-    }
-    switch(so_type) {
-    case SOCK_DGRAM:
-        return net_socket_fd_init_dgram(peer, model, name, fd, is_connected,
-                                        mc, errp);
-    case SOCK_STREAM:
-        return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
-    }
-    return NULL;
-}
-
 static void net_socket_accept(void *opaque)
 {
     NetSocketState *s = opaque;
@@ -728,10 +706,14 @@ int net_init_socket(const Netdev *netdev, const char *name,
     }
 
     if (sock->fd) {
-        int fd, ret;
+        int fd, ret, so_type;
 
         fd = monitor_fd_param(monitor_cur(), sock->fd, errp);
         if (fd == -1) {
+            return -1;
+        }
+        so_type = net_socket_fd_check(fd, errp);
+        if (so_type < 0) {
             return -1;
         }
         ret = qemu_socket_try_set_nonblock(fd);
@@ -740,9 +722,18 @@ int net_init_socket(const Netdev *netdev, const char *name,
                              name, fd);
             return -1;
         }
-        if (!net_socket_fd_init(peer, "socket", name, fd, 1, sock->mcast,
-                                errp)) {
-            return -1;
+        switch (so_type) {
+        case SOCK_DGRAM:
+            if (!net_socket_fd_init_dgram(peer, "socket", name, fd, 1,
+                                          sock->mcast, errp)) {
+                return -1;
+            }
+            break;
+        case SOCK_STREAM:
+            if (!net_socket_fd_init_stream(peer, "socket", name, fd, 1)) {
+                return -1;
+            }
+            break;
         }
         return 0;
     }
