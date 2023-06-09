@@ -446,16 +446,32 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
     return s;
 }
 
+static int net_socket_fd_check(int fd, Error **errp)
+{
+    int so_type, optlen = sizeof(so_type);
+
+    if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
+        (socklen_t *)&optlen) < 0) {
+        error_setg(errp, "can't get socket option SO_TYPE");
+        return -1;
+    }
+    if (so_type != SOCK_DGRAM && so_type != SOCK_STREAM) {
+        error_setg(errp, "socket type=%d for fd=%d must be either"
+                   " SOCK_DGRAM or SOCK_STREAM", so_type, fd);
+        return -1;
+    }
+    return so_type;
+}
+
 static NetSocketState *net_socket_fd_init(NetClientState *peer,
                                           const char *model, const char *name,
                                           int fd, int is_connected,
                                           const char *mc, Error **errp)
 {
-    int so_type = -1, optlen=sizeof(so_type);
+    int so_type;
 
-    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
-        (socklen_t *)&optlen)< 0) {
-        error_setg(errp, "can't get socket option SO_TYPE");
+    so_type = net_socket_fd_check(fd, errp);
+    if (so_type < 0) {
         close(fd);
         return NULL;
     }
@@ -465,10 +481,6 @@ static NetSocketState *net_socket_fd_init(NetClientState *peer,
                                         mc, errp);
     case SOCK_STREAM:
         return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
-    default:
-        error_setg(errp, "socket type=%d for fd=%d must be either"
-                   " SOCK_DGRAM or SOCK_STREAM", so_type, fd);
-        close(fd);
     }
     return NULL;
 }
