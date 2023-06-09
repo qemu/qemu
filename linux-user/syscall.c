@@ -11676,7 +11676,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             g_autofree gid_t *grouplist = NULL;
             int i;
 
-            if (gidsetsize > NGROUPS_MAX) {
+            if (gidsetsize > NGROUPS_MAX || gidsetsize < 0) {
                 return -TARGET_EINVAL;
             }
             if (gidsetsize > 0) {
@@ -12012,7 +12012,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             g_autofree gid_t *grouplist = NULL;
             int i;
 
-            if (gidsetsize > NGROUPS_MAX) {
+            if (gidsetsize > NGROUPS_MAX || gidsetsize < 0) {
                 return -TARGET_EINVAL;
             }
             if (gidsetsize > 0) {
