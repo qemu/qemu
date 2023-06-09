@@ -587,7 +587,7 @@ static int net_socket_connect_init(NetClientState *peer,
             break;
         }
     }
-    s = net_socket_fd_init(peer, model, name, fd, connected, NULL, errp);
+    s = net_socket_fd_init_stream(peer, model, name, fd, connected);
     if (!s) {
         return -1;
     }
@@ -629,7 +629,7 @@ static int net_socket_mcast_init(NetClientState *peer,
         return -1;
     }
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, NULL, errp);
+    s = net_socket_fd_init_dgram(peer, model, name, fd, 0, NULL, errp);
     if (!s) {
         return -1;
     }
@@ -683,7 +683,7 @@ static int net_socket_udp_init(NetClientState *peer,
     }
     qemu_socket_set_nonblock(fd);
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, NULL, errp);
+    s = net_socket_fd_init_dgram(peer, model, name, fd, 0, NULL, errp);
     if (!s) {
         return -1;
     }
