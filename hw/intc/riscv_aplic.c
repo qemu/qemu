@@ -688,13 +688,13 @@ static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
          * domains).
          */
         if (aplic->num_children &&
-            !(aplic->smsicfgaddrH & APLIC_xMSICFGADDRH_L)) {
+            !(aplic->mmsicfgaddrH & APLIC_xMSICFGADDRH_L)) {
             aplic->smsicfgaddr = value;
         }
     } else if (aplic->mmode && aplic->msimode &&
                (addr == APLIC_SMSICFGADDRH)) {
         if (aplic->num_children &&
-            !(aplic->smsicfgaddrH & APLIC_xMSICFGADDRH_L)) {
+            !(aplic->mmsicfgaddrH & APLIC_xMSICFGADDRH_L)) {
             aplic->smsicfgaddrH = value & APLIC_xMSICFGADDRH_VALID_MASK;
         }
     } else if ((APLIC_SETIP_BASE <= addr) &&
