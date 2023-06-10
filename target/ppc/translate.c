@@ -75,6 +75,7 @@ static TCGv cpu_cfar;
 #endif
 static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca, cpu_ov32, cpu_ca32;
 static TCGv cpu_reserve;
+static TCGv cpu_reserve_length;
 static TCGv cpu_reserve_val;
 static TCGv cpu_reserve_val2;
 static TCGv cpu_fpscr;
@@ -143,6 +144,10 @@ void ppc_translate_init(void)
     cpu_reserve = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUPPCState, reserve_addr),
                                      "reserve_addr");
+    cpu_reserve_length = tcg_global_mem_new(cpu_env,
+                                            offsetof(CPUPPCState,
+                                                     reserve_length),
+                                            "reserve_length");
     cpu_reserve_val = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUPPCState, reserve_val),
                                          "reserve_val");
@@ -3469,8 +3474,8 @@ static void gen_load_locked(DisasContext *ctx, MemOp memop)
     gen_addr_reg_index(ctx, t0);
     tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop | MO_ALIGN);
     tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_movi_tl(cpu_reserve_length, memop_size(memop));
     tcg_gen_mov_tl(cpu_reserve_val, gpr);
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
 }
 
 #define LARX(name, memop)                  \
@@ -3692,35 +3697,32 @@ static void gen_stdat(DisasContext *ctx)
 
 static void gen_conditional_store(DisasContext *ctx, MemOp memop)
 {
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-    TCGv t0 = tcg_temp_new();
-    int reg = rS(ctx->opcode);
+    TCGLabel *lfail;
+    TCGv EA;
+    TCGv cr0;
+    TCGv t0;
+    int rs = rS(ctx->opcode);
 
-    gen_set_access_type(ctx, ACCESS_RES);
-    gen_addr_reg_index(ctx, t0);
-    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
-
+    lfail = gen_new_label();
+    EA = tcg_temp_new();
+    cr0 = tcg_temp_new();
     t0 = tcg_temp_new();
+
+    tcg_gen_mov_tl(cr0, cpu_so);
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lfail);
+    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_reserve_length, memop_size(memop), lfail);
+
     tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
-                              cpu_gpr[reg], ctx->mem_idx,
+                              cpu_gpr[rs], ctx->mem_idx,
                               DEF_MEMOP(memop) | MO_ALIGN);
     tcg_gen_setcond_tl(TCG_COND_EQ, t0, t0, cpu_reserve_val);
     tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
-    tcg_gen_or_tl(t0, t0, cpu_so);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], t0);
-    tcg_gen_br(l2);
+    tcg_gen_or_tl(cr0, cr0, t0);
 
-    gen_set_label(l1);
-
-    /*
-     * Address mismatch implies failure.  But we still need to provide
-     * the memory barrier semantics of the instruction.
-     */
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-
-    gen_set_label(l2);
+    gen_set_label(lfail);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cr0);
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
 
@@ -3765,6 +3767,8 @@ static void gen_lqarx(DisasContext *ctx)
     tcg_gen_qemu_ld_i128(t16, EA, ctx->mem_idx, DEF_MEMOP(MO_128 | MO_ALIGN));
     tcg_gen_extr_i128_i64(lo, hi, t16);
 
+    tcg_gen_mov_tl(cpu_reserve, EA);
+    tcg_gen_movi_tl(cpu_reserve_length, 16);
     tcg_gen_st_tl(hi, cpu_env, offsetof(CPUPPCState, reserve_val));
     tcg_gen_st_tl(lo, cpu_env, offsetof(CPUPPCState, reserve_val2));
 }
@@ -3772,24 +3776,26 @@ static void gen_lqarx(DisasContext *ctx)
 /* stqcx. */
 static void gen_stqcx_(DisasContext *ctx)
 {
-    TCGLabel *lab_fail, *lab_over;
-    int rs = rS(ctx->opcode);
+    TCGLabel *lfail;
     TCGv EA, t0, t1;
+    TCGv cr0;
     TCGv_i128 cmp, val;
+    int rs = rS(ctx->opcode);
 
     if (unlikely(rs & 1)) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
 
-    lab_fail = gen_new_label();
-    lab_over = gen_new_label();
-
-    gen_set_access_type(ctx, ACCESS_RES);
+    lfail = gen_new_label();
     EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
+    cr0 = tcg_temp_new();
 
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lab_fail);
+    tcg_gen_mov_tl(cr0, cpu_so);
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lfail);
+    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_reserve_length, 16, lfail);
 
     cmp = tcg_temp_new_i128();
     val = tcg_temp_new_i128();
@@ -3812,20 +3818,10 @@ static void gen_stqcx_(DisasContext *ctx)
 
     tcg_gen_setcondi_tl(TCG_COND_EQ, t0, t0, 0);
     tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
-    tcg_gen_or_tl(t0, t0, cpu_so);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], t0);
+    tcg_gen_or_tl(cr0, cr0, t0);
 
-    tcg_gen_br(lab_over);
-    gen_set_label(lab_fail);
-
-    /*
-     * Address mismatch implies failure.  But we still need to provide
-     * the memory barrier semantics of the instruction.
-     */
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-
-    gen_set_label(lab_over);
+    gen_set_label(lfail);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cr0);
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
 #endif /* defined(TARGET_PPC64) */

@@ -184,6 +184,7 @@ class TuxRunBaselineTest(QemuSystemTest):
 
     def ppc64_common_tuxrun(self, sums, prefix):
         # add device args to command line.
+        self.require_netdev('user')
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
                          '-device', 'virtio-net,netdev=vnet')
         self.vm.add_args('-netdev', '{"type":"user","id":"hostnet0"}',

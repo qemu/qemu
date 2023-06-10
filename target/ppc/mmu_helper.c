@@ -112,27 +112,6 @@ static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
     env->last_way = way;
 }
 
-/* Generic TLB search function for PowerPC embedded implementations */
-static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
-                             uint32_t pid)
-{
-    ppcemb_tlb_t *tlb;
-    hwaddr raddr;
-    int i, ret;
-
-    /* Default return value is no match */
-    ret = -1;
-    for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb.tlbe[i];
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
-            ret = i;
-            break;
-        }
-    }
-
-    return ret;
-}
-
 /* Helpers specific to PowerPC 40x implementations */
 static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
 {
@@ -167,15 +146,6 @@ static void booke206_flush_tlb(CPUPPCState *env, int flags,
 
     tlb_flush(env_cpu(env));
 }
-
-static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                target_ulong eaddr, MMUAccessType access_type,
-                                int type)
-{
-    return get_physical_address_wtlb(env, ctx, eaddr, access_type, type, 0);
-}
-
-
 
 /*****************************************************************************/
 /* BATs management */
@@ -643,7 +613,7 @@ target_ulong helper_rac(CPUPPCState *env, target_ulong addr)
      */
     nb_BATs = env->nb_BATs;
     env->nb_BATs = 0;
-    if (get_physical_address(env, &ctx, addr, 0, ACCESS_INT) == 0) {
+    if (get_physical_address_wtlb(env, &ctx, addr, 0, ACCESS_INT, 0) == 0) {
         ret = ctx.raddr;
     }
     env->nb_BATs = nb_BATs;

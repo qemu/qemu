@@ -163,7 +163,9 @@ static uint64_t pnv_xive2_vst_addr_indirect(PnvXive2 *xive, uint32_t type,
     ldq_be_dma(&address_space_memory, vsd_addr, &vsd, MEMTXATTRS_UNSPECIFIED);
 
     if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE2_DEBUG
         xive2_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
         return 0;
     }
 
@@ -185,7 +187,9 @@ static uint64_t pnv_xive2_vst_addr_indirect(PnvXive2 *xive, uint32_t type,
                    MEMTXATTRS_UNSPECIFIED);
 
         if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE2_DEBUG
             xive2_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
             return 0;
         }
 
@@ -955,6 +959,10 @@ static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
         val = xive->vc_regs[reg];
         break;
 
+    case VC_ESBC_CFG:
+        val = xive->vc_regs[reg];
+        break;
+
     /*
      * EAS cache updates (not modeled)
      */
@@ -1044,6 +1052,9 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     case VC_ESBC_FLUSH_POLL:
         xive->vc_regs[VC_ESBC_FLUSH_CTRL >> 3] |= VC_ESBC_FLUSH_CTRL_POLL_VALID;
         /* ESB update */
+        break;
+
+    case VC_ESBC_CFG:
         break;
 
     /*
@@ -1265,6 +1276,9 @@ static uint64_t pnv_xive2_ic_tctxt_read(void *opaque, hwaddr offset,
     case TCTXT_EN1_RESET:
         val = xive->tctxt_regs[TCTXT_EN1 >> 3];
         break;
+    case TCTXT_CFG:
+        val = xive->tctxt_regs[reg];
+        break;
     default:
         xive2_error(xive, "TCTXT: invalid read @%"HWADDR_PRIx, offset);
     }
@@ -1276,6 +1290,7 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
                                      uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    uint32_t reg = offset >> 3;
 
     switch (offset) {
     /*
@@ -1283,6 +1298,7 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
      */
     case TCTXT_EN0: /* Physical Thread Enable */
     case TCTXT_EN1: /* Physical Thread Enable (fused core) */
+        xive->tctxt_regs[reg] = val;
         break;
 
     case TCTXT_EN0_SET:
@@ -1297,7 +1313,9 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
     case TCTXT_EN1_RESET:
         xive->tctxt_regs[TCTXT_EN1 >> 3] &= ~val;
         break;
-
+    case TCTXT_CFG:
+        xive->tctxt_regs[reg] = val;
+        break;
     default:
         xive2_error(xive, "TCTXT: invalid write @%"HWADDR_PRIx, offset);
         return;
@@ -1648,6 +1666,8 @@ static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
+    offset &= TM_ADDRESS_MASK;
+
     /* TODO: should we switch the TM ops table instead ? */
     if (!gen1_tima_os && offset == HV_PUSH_OS_CTX_OFFSET) {
         xive2_tm_push_os_ctx(xptr, tctx, offset, value, size);
@@ -1666,6 +1686,8 @@ static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
     XivePresenter *xptr = XIVE_PRESENTER(xive);
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
+
+    offset &= TM_ADDRESS_MASK;
 
     /* TODO: should we switch the TM ops table instead ? */
     if (!gen1_tima_os && offset == HV_PULL_OS_CTX_OFFSET) {

@@ -249,7 +249,7 @@ static const uint8_t *xive_tm_views[] = {
 static uint64_t xive_tm_mask(hwaddr offset, unsigned size, bool write)
 {
     uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
-    uint8_t reg_offset = offset & 0x3F;
+    uint8_t reg_offset = offset & TM_REG_OFFSET;
     uint8_t reg_mask = write ? 0x1 : 0x2;
     uint64_t mask = 0x0;
     int i;
@@ -266,8 +266,8 @@ static uint64_t xive_tm_mask(hwaddr offset, unsigned size, bool write)
 static void xive_tm_raw_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
                               unsigned size)
 {
-    uint8_t ring_offset = offset & 0x30;
-    uint8_t reg_offset = offset & 0x3F;
+    uint8_t ring_offset = offset & TM_RING_OFFSET;
+    uint8_t reg_offset = offset & TM_REG_OFFSET;
     uint64_t mask = xive_tm_mask(offset, size, true);
     int i;
 
@@ -296,8 +296,8 @@ static void xive_tm_raw_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
 
 static uint64_t xive_tm_raw_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
 {
-    uint8_t ring_offset = offset & 0x30;
-    uint8_t reg_offset = offset & 0x3F;
+    uint8_t ring_offset = offset & TM_RING_OFFSET;
+    uint8_t reg_offset = offset & TM_REG_OFFSET;
     uint64_t mask = xive_tm_mask(offset, size, false);
     uint64_t ret;
     int i;
@@ -500,7 +500,7 @@ static const XiveTmOp xive_tm_operations[] = {
 static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 {
     uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
-    uint32_t op_offset = offset & 0xFFF;
+    uint32_t op_offset = offset & TM_ADDRESS_MASK;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(xive_tm_operations); i++) {
@@ -534,7 +534,7 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * First, check for special operations in the 2K region
      */
-    if (offset & 0x800) {
+    if (offset & TM_SPECIAL_OP) {
         xto = xive_tm_find_op(offset, size, true);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA "
@@ -573,7 +573,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * First, check for special operations in the 2K region
      */
-    if (offset & 0x800) {
+    if (offset & TM_SPECIAL_OP) {
         xto = xive_tm_find_op(offset, size, false);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access to TIMA"

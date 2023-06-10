@@ -232,6 +232,10 @@
 #define  VC_ESBC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(32, 35)
 #define  VC_ESBC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(36, 63) /* 28-bit */
 
+/* ESBC configuration */
+#define X_VC_ESBC_CFG                           0x148
+#define VC_ESBC_CFG                             0x240
+
 /* EASC flush control register */
 #define X_VC_EASC_FLUSH_CTRL                    0x160
 #define VC_EASC_FLUSH_CTRL                      0x300
@@ -404,6 +408,10 @@
 /* Physical Thread Enable1 Reset register */
 #define X_TCTXT_EN1_RESET                       0x307
 #define TCTXT_EN1_RESET                         0x038
+
+/* TCTXT Config register */
+#define X_TCTXT_CFG                             0x328
+#define TCTXT_CFG                               0x140
 
 /*
  * VSD Tables

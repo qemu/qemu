@@ -48,6 +48,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
+#include "hw/intc/intc.h"
 #endif
 
 /* #define PPC_DEBUG_SPR */
@@ -7083,7 +7084,7 @@ static void ppc_cpu_reset_hold(Object *obj)
         if (env->mmu_model != POWERPC_MMU_REAL) {
             ppc_tlb_invalidate_all(env);
         }
-        pmu_update_summaries(env);
+        pmu_mmcr01_updated(env);
     }
 
     /* clean any pending stop state */
@@ -7121,6 +7122,16 @@ static bool ppc_cpu_is_big_endian(CPUState *cs)
     cpu_synchronize_state(cs);
 
     return !FIELD_EX64(env->msr, MSR, LE);
+}
+
+static bool ppc_get_irq_stats(InterruptStatsProvider *obj,
+                              uint64_t **irq_counts, unsigned int *nb_irqs)
+{
+    CPUPPCState *env = &POWERPC_CPU(obj)->env;
+
+    *irq_counts = env->excp_stats;
+    *nb_irqs = ARRAY_SIZE(env->excp_stats);
+    return true;
 }
 
 #ifdef CONFIG_TCG
@@ -7286,6 +7297,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = ppc_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &ppc_sysemu_ops;
+    INTERRUPT_STATS_PROVIDER_CLASS(oc)->get_statistics = ppc_get_irq_stats;
 #endif
 
     cc->gdb_num_core_regs = 71;
@@ -7323,6 +7335,12 @@ static const TypeInfo ppc_cpu_type_info = {
     .abstract = true,
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,
+#ifndef CONFIG_USER_ONLY
+    .interfaces = (InterfaceInfo[]) {
+          { TYPE_INTERRUPT_STATS_PROVIDER },
+          { }
+    },
+#endif
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -7392,8 +7410,8 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
         qemu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    qemu_fprintf(f, " ]             RES " TARGET_FMT_lx "\n",
-                 env->reserve_addr);
+    qemu_fprintf(f, " ]     RES %03x@" TARGET_FMT_lx "\n",
+                 (int)env->reserve_length, env->reserve_addr);
 
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 32; i++) {

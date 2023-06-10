@@ -798,6 +798,8 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
     int64_t signed_decr;
 
     /* Truncate value to decr_width and sign extend for simplicity */
+    value = extract64(value, 0, nr_bits);
+    decr = extract64(decr, 0, nr_bits);
     signed_value = sextract64(value, 0, nr_bits);
     signed_decr = sextract64(decr, 0, nr_bits);
 
@@ -809,11 +811,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
     }
 
     /*
-     * Going from 2 -> 1, 1 -> 0 or 0 -> -1 is the event to generate a DEC
-     * interrupt.
-     *
-     * If we get a really small DEC value, we can assume that by the time we
-     * handled it we should inject an interrupt already.
+     * Going from 1 -> 0 or 0 -> -1 is the event to generate a DEC interrupt.
      *
      * On MSB level based DEC implementations the MSB always means the interrupt
      * is pending, so raise it on those.
@@ -821,8 +819,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
      * On MSB edge based DEC implementations the MSB going from 0 -> 1 triggers
      * an edge interrupt, so raise it here too.
      */
-    if ((value < 3) ||
-        ((tb_env->flags & PPC_DECR_UNDERFLOW_LEVEL) && signed_value < 0) ||
+    if (((tb_env->flags & PPC_DECR_UNDERFLOW_LEVEL) && signed_value < 0) ||
         ((tb_env->flags & PPC_DECR_UNDERFLOW_TRIGGERED) && signed_value < 0
           && signed_decr >= 0)) {
         (*raise_excp)(cpu);
