@@ -389,9 +389,8 @@ static void microvm_fix_kernel_cmdline(MachineState *machine)
     bus = sysbus_get_default();
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
-        ObjectClass *class = object_get_class(OBJECT(dev));
 
-        if (class == object_class_by_name(TYPE_VIRTIO_MMIO)) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MMIO)) {
             VirtIOMMIOProxy *mmio = VIRTIO_MMIO(OBJECT(dev));
             VirtioBusState *mmio_virtio_bus = &mmio->bus;
             BusState *mmio_bus = &mmio_virtio_bus->parent_obj;

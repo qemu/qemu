@@ -38,13 +38,13 @@ system memory as defined by the ``-m`` argument.
 Example
 =======
 
-First start you daemon.
+First start your daemon.
 
 .. parsed-literal::
 
   $ virtio-foo --socket-path=/var/run/foo.sock $OTHER_ARGS
 
-The you start your QEMU instance specifying the device, chardev and
+Then you start your QEMU instance specifying the device, chardev and
 memory objects.
 
 .. parsed-literal::

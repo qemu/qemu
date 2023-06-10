@@ -250,11 +250,12 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     /* Here job can only be NULL if queue->exit is true */
     job = QTAILQ_FIRST(&queue->jobs);
     vnc_unlock_queue(queue);
-    assert(job->vs->magic == VNC_MAGIC);
 
     if (queue->exit) {
         return -1;
     }
+
+    assert(job->vs->magic == VNC_MAGIC);
 
     vnc_lock_output(job->vs);
     if (job->vs->ioc == NULL || job->vs->abort == true) {

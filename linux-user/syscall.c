@@ -11670,13 +11670,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_setregid:
         return get_errno(setregid(low2highgid(arg1), low2highgid(arg2)));
     case TARGET_NR_getgroups:
-        {
+        { /* the same code as for TARGET_NR_getgroups32 */
             int gidsetsize = arg1;
             target_id *target_grouplist;
             g_autofree gid_t *grouplist = NULL;
             int i;
 
-            if (gidsetsize > NGROUPS_MAX) {
+            if (gidsetsize > NGROUPS_MAX || gidsetsize < 0) {
                 return -TARGET_EINVAL;
             }
             if (gidsetsize > 0) {
@@ -11701,7 +11701,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             return ret;
         }
     case TARGET_NR_setgroups:
-        {
+        { /* the same code as for TARGET_NR_setgroups32 */
             int gidsetsize = arg1;
             target_id *target_grouplist;
             g_autofree gid_t *grouplist = NULL;
@@ -12006,13 +12006,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_getgroups32
     case TARGET_NR_getgroups32:
-        {
+        { /* the same code as for TARGET_NR_getgroups */
             int gidsetsize = arg1;
             uint32_t *target_grouplist;
             g_autofree gid_t *grouplist = NULL;
             int i;
 
-            if (gidsetsize > NGROUPS_MAX) {
+            if (gidsetsize > NGROUPS_MAX || gidsetsize < 0) {
                 return -TARGET_EINVAL;
             }
             if (gidsetsize > 0) {
@@ -12038,7 +12038,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_setgroups32
     case TARGET_NR_setgroups32:
-        {
+        { /* the same code as for TARGET_NR_setgroups */
             int gidsetsize = arg1;
             uint32_t *target_grouplist;
             g_autofree gid_t *grouplist = NULL;
