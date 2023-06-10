@@ -134,7 +134,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     flags = FIELD_DP32(flags, TB_FLAGS, FS, fs);
     flags = FIELD_DP32(flags, TB_FLAGS, VS, vs);
     flags = FIELD_DP32(flags, TB_FLAGS, XL, env->xl);
-    if (env->cur_pmmask < (env->xl == MXL_RV32 ? UINT32_MAX : UINT64_MAX)) {
+    if (env->cur_pmmask != 0) {
         flags = FIELD_DP32(flags, TB_FLAGS, PM_MASK_ENABLED, 1);
     }
     if (env->cur_pmbase != 0) {
@@ -146,7 +146,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 
 void riscv_cpu_update_mask(CPURISCVState *env)
 {
-    target_ulong mask = -1, base = 0;
+    target_ulong mask = 0, base = 0;
     /*
      * TODO: Current RVJ spec does not specify
      * how the extension interacts with XLEN.
