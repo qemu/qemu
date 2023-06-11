@@ -19,6 +19,8 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "internal.h"
@@ -425,6 +427,8 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
 
 static void powerpc_mcheck_checkstop(CPUPPCState *env)
 {
+    /* KVM guests always have MSR[ME] enabled */
+#ifdef CONFIG_TCG
     CPUState *cs = env_cpu(env);
 
     if (FIELD_EX64(env->msr, MSR, ME)) {
@@ -437,9 +441,15 @@ static void powerpc_mcheck_checkstop(CPUPPCState *env)
     if (qemu_log_separate()) {
         qemu_log("Machine check while not allowed. "
                  "Entering checkstop state\n");
-    }
-    cs->halted = 1;
-    cpu_interrupt_exittb(cs);
+
+    /*
+     * This stops the machine and logs CPU state without killing QEMU
+     * (like cpu_abort()) so the machine can still be debugged (because
+     * it is often a guest error).
+     */
+    qemu_system_guest_panicked(NULL);
+    cpu_loop_exit_noexc(cs);
+#endif
 }
 
 static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
