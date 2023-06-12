@@ -36,6 +36,8 @@ static void allocate_ram(MemoryRegion *top, const char *name, uint32_t addr, uin
 static const ARMCPRegInfo it2g_cp_reginfo_tcg[] = {
     IT2G_CPREG_DEF(REG0, 0, 0, 7, 6, 0, PL1_RW, 0),
     IT2G_CPREG_DEF(REG1, 0, 0, 15, 2, 4, PL1_RW, 0),
+    IT2G_CPREG_DEF(REG1, 0, 0, 7, 14, 0, PL1_RW, 0),
+    IT2G_CPREG_DEF(REG1, 0, 0, 7, 10, 0, PL1_RW, 0),
 };
 
 static void ipod_touch_cpu_setup(MachineState *machine, MemoryRegion **sysmem, ARMCPU **cpu, AddressSpace **nsas)
