@@ -2499,7 +2499,12 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     }
     /* PSW.CDE = 1;*/
     psw |= MASK_PSW_CDE;
-    psw_write(env, psw);
+    /*
+     * we need to save PSW.CDE and not PSW.CDC into the CSAs. psw already
+     * contains the CDC from cdc_increment(), so we cannot call psw_write()
+     * here.
+     */
+    env->PSW |= MASK_PSW_CDE;
 
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
