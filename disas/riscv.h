@@ -159,6 +159,12 @@ typedef enum {
     rv_codec_zcmp_cm_pushpop,
     rv_codec_zcmp_cm_mv,
     rv_codec_zcmt_jt,
+    rv_codec_r2_imm5,
+    rv_codec_r2,
+    rv_codec_r2_imm6,
+    rv_codec_r_imm2,
+    rv_codec_r2_immhl,
+    rv_codec_r2_imm2_imm5,
 } rv_codec;
 
 /* structures */
@@ -185,6 +191,7 @@ typedef struct {
     uint64_t  inst;
     const rv_opcode_data *opcode_data;
     int32_t   imm;
+    int32_t   imm1;
     uint16_t  op;
     uint8_t   codec;
     uint8_t   rd;
@@ -283,5 +290,10 @@ enum {
 #define rv_fmt_push_rlist             "O\tx,-i"
 #define rv_fmt_pop_rlist              "O\tx,i"
 #define rv_fmt_zcmt_index             "O\ti"
+#define rv_fmt_rd_rs1_rs2_imm         "O\t0,1,2,i"
+#define rv_fmt_frd_rs1_rs2_imm        "O\t3,1,2,i"
+#define rv_fmt_rd_rs1_immh_imml       "O\t0,1,i,j"
+#define rv_fmt_rd_rs1_immh_imml_addr  "O\t0,(1),i,j"
+#define rv_fmt_rd2_imm                "O\t0,2,(1),i"
 
 #endif /* DISAS_RISCV_H */

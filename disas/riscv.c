@@ -18,11 +18,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "disas/dis-asm.h"
 #include "target/riscv/cpu_cfg.h"
 #include "disas/riscv.h"
 
 /* Vendor extensions */
+#include "disas/riscv-xthead.h"
 #include "disas/riscv-xventana.h"
 
 typedef enum {
@@ -3869,6 +3871,26 @@ static uint32_t operand_zcmp_rlist(rv_inst inst)
     return ((inst << 56) >> 60);
 }
 
+static uint32_t operand_imm6(rv_inst inst)
+{
+    return (inst << 38) >> 60;
+}
+
+static uint32_t operand_imm2(rv_inst inst)
+{
+    return (inst << 37) >> 62;
+}
+
+static uint32_t operand_immh(rv_inst inst)
+{
+    return (inst << 32) >> 58;
+}
+
+static uint32_t operand_imml(rv_inst inst)
+{
+    return (inst << 38) >> 58;
+}
+
 static uint32_t calculate_stack_adj(rv_isa isa, uint32_t rlist, uint32_t spimm)
 {
     int xlen_bytes_log2 = isa == rv64 ? 3 : 2;
@@ -4233,6 +4255,38 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
     case rv_codec_zcmt_jt:
         dec->imm = operand_tbl_index(inst);
         break;
+    case rv_codec_r2_imm5:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_rs2(inst);
+        break;
+    case rv_codec_r2:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        break;
+    case rv_codec_r2_imm6:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_imm6(inst);
+        break;
+    case rv_codec_r_imm2:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->rs2 = operand_rs2(inst);
+        dec->imm = operand_imm2(inst);
+        break;
+    case rv_codec_r2_immhl:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_immh(inst);
+        dec->imm1 = operand_imml(inst);
+        break;
+    case rv_codec_r2_imm2_imm5:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = sextract32(operand_rs2(inst), 0, 5);
+        dec->imm1 = operand_imm2(inst);
+        break;
     };
 }
 
@@ -4444,6 +4498,10 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             break;
         case 'u':
             snprintf(tmp, sizeof(tmp), "%u", ((uint32_t)dec->imm & 0b11111));
+            append(buf, tmp, buflen);
+            break;
+        case 'j':
+            snprintf(tmp, sizeof(tmp), "%d", dec->imm1);
             append(buf, tmp, buflen);
             break;
         case 'o':
@@ -4711,6 +4769,17 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
         void (*decode_func)(rv_decode *, rv_isa);
     } decoders[] = {
         { always_true_p, rvi_opcode_data, decode_inst_opcode },
+        { has_xtheadba_p, xthead_opcode_data, decode_xtheadba },
+        { has_xtheadbb_p, xthead_opcode_data, decode_xtheadbb },
+        { has_xtheadbs_p, xthead_opcode_data, decode_xtheadbs },
+        { has_xtheadcmo_p, xthead_opcode_data, decode_xtheadcmo },
+        { has_xtheadcondmov_p, xthead_opcode_data, decode_xtheadcondmov },
+        { has_xtheadfmemidx_p, xthead_opcode_data, decode_xtheadfmemidx },
+        { has_xtheadfmv_p, xthead_opcode_data, decode_xtheadfmv },
+        { has_xtheadmac_p, xthead_opcode_data, decode_xtheadmac },
+        { has_xtheadmemidx_p, xthead_opcode_data, decode_xtheadmemidx },
+        { has_xtheadmempair_p, xthead_opcode_data, decode_xtheadmempair },
+        { has_xtheadsync_p, xthead_opcode_data, decode_xtheadsync },
         { has_XVentanaCondOps_p, ventana_opcode_data, decode_xventanacondops },
     };
 
