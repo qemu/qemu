@@ -127,6 +127,9 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             case RPI_FIRMWARE_UART_CLK_ID:
                 stl_le_phys(&s->dma_as, value + 16, RPI_FIRMWARE_UART_CLK_RATE);
                 break;
+            case RPI_FIRMWARE_CORE_CLK_ID:
+                stl_le_phys(&s->dma_as, value + 16, RPI_FIRMWARE_CORE_CLK_RATE);
+                break;
             default:
                 stl_le_phys(&s->dma_as, value + 16,
                             RPI_FIRMWARE_DEFAULT_CLK_RATE);
