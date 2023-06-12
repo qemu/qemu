@@ -451,3 +451,13 @@ both, older and future versions of QEMU.
 The ``blacklist`` config file option has been renamed to ``block-rpcs``
 (to be in sync with the renaming of the corresponding command line
 option).
+
+Migration
+---------
+
+``skipped`` MigrationStats field (since 8.1)
+''''''''''''''''''''''''''''''''''''''''''''
+
+``skipped`` field in Migration stats has been deprecated.  It hasn't
+been used for more than 10 years.
+
