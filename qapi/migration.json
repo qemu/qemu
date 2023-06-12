@@ -67,13 +67,13 @@
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
-           'mbps' : 'number', 'dirty-sync-count' : 'int',
-           'postcopy-requests' : 'int', 'page-size' : 'int',
-           'multifd-bytes' : 'uint64', 'pages-per-second' : 'uint64',
-           'precopy-bytes' : 'uint64', 'downtime-bytes' : 'uint64',
-           'postcopy-bytes' : 'uint64',
-           'dirty-sync-missed-zero-copy' : 'uint64' } }
+           'normal-bytes': 'int', 'dirty-pages-rate': 'int',
+           'mbps': 'number', 'dirty-sync-count': 'int',
+           'postcopy-requests': 'int', 'page-size': 'int',
+           'multifd-bytes': 'uint64', 'pages-per-second': 'uint64',
+           'precopy-bytes': 'uint64', 'downtime-bytes': 'uint64',
+           'postcopy-bytes': 'uint64',
+           'dirty-sync-missed-zero-copy': 'uint64' } }
 
 ##
 # @XBZRLECacheStats:
@@ -264,7 +264,7 @@
            '*cpu-throttle-percentage': 'int',
            '*error-desc': 'str',
            '*blocked-reasons': ['str'],
-           '*postcopy-blocktime' : 'uint32',
+           '*postcopy-blocktime': 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
            '*compression': 'CompressionStats',
            '*socket-address': ['SocketAddress'] } }
@@ -526,7 +526,7 @@
 # Since: 1.2
 ##
 { 'struct': 'MigrationCapabilityStatus',
-  'data': { 'capability' : 'MigrationCapability', 'state' : 'bool' } }
+  'data': { 'capability': 'MigrationCapability', 'state': 'bool' } }
 
 ##
 # @migrate-set-capabilities:
@@ -1577,7 +1577,7 @@
 # Since: 2.9
 ##
 { 'command': 'xen-set-replication',
-  'data': { 'enable': 'bool', 'primary': 'bool', '*failover' : 'bool' },
+  'data': { 'enable': 'bool', 'primary': 'bool', '*failover': 'bool' },
   'if': 'CONFIG_REPLICATION' }
 
 ##
