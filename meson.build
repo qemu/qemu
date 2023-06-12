@@ -1323,6 +1323,30 @@ if not get_option('glusterfs').auto() or have_block
   endif
 endif
 
+hv_balloon = false
+if get_option('hv_balloon').allowed() and have_system
+  if cc.links('''
+    #include <string.h>
+    #include <gmodule.h>
+    int main(void) {
+        GTree *tree;
+
+        tree = g_tree_new((GCompareFunc)strcmp);
+        (void)g_tree_node_first(tree);
+        g_tree_destroy(tree);
+        return 0;
+    }
+  ''', dependencies: glib)
+    hv_balloon = true
+  else
+    if get_option('hv_balloon').enabled()
+      error('could not enable hv-balloon, update your glib')
+    else
+      warning('could not find glib support for hv-balloon, disabling')
+    endif
+  endif
+endif
+
 libssh = not_found
 if not get_option('libssh').auto() or have_block
   libssh = dependency('libssh', version: '>=0.8.7',
@@ -2855,7 +2879,8 @@ host_kconfig = \
   (targetos == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
   (have_pvrdma ? ['CONFIG_PVRDMA=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
-  (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : [])
+  (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : []) + \
+  (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : [])
 
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
@@ -4321,6 +4346,7 @@ if targetos == 'windows'
 endif
 summary_info += {'seccomp support':   seccomp}
 summary_info += {'GlusterFS support': glusterfs}
+summary_info += {'hv-balloon support': hv_balloon}
 summary_info += {'TPM support':       have_tpm}
 summary_info += {'libssh support':    libssh}
 summary_info += {'lzo support':       lzo}
