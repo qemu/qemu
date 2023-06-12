@@ -438,11 +438,11 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
                                            struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_simple_resource *res;
-    int h;
+    int h, bpp;
     uint32_t src_offset, dst_offset, stride;
-    int bpp;
     pixman_format_code_t format;
     struct virtio_gpu_transfer_to_host_2d t2d;
+    void *img_data;
 
     VIRTIO_GPU_FILL_CMD(t2d);
     virtio_gpu_t2d_bswap(&t2d);
@@ -471,23 +471,23 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     format = pixman_image_get_format(res->image);
     bpp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     stride = pixman_image_get_stride(res->image);
+    img_data = pixman_image_get_data(res->image);
 
-    if (t2d.offset || t2d.r.x || t2d.r.y ||
-        t2d.r.width != pixman_image_get_width(res->image)) {
-        void *img_data = pixman_image_get_data(res->image);
+    if (t2d.r.x || t2d.r.width != pixman_image_get_width(res->image)) {
         for (h = 0; h < t2d.r.height; h++) {
             src_offset = t2d.offset + stride * h;
             dst_offset = (t2d.r.y + h) * stride + (t2d.r.x * bpp);
 
             iov_to_buf(res->iov, res->iov_cnt, src_offset,
-                       (uint8_t *)img_data
-                       + dst_offset, t2d.r.width * bpp);
+                       (uint8_t *)img_data + dst_offset,
+                       t2d.r.width * bpp);
         }
     } else {
-        iov_to_buf(res->iov, res->iov_cnt, 0,
-                   pixman_image_get_data(res->image),
-                   pixman_image_get_stride(res->image)
-                   * pixman_image_get_height(res->image));
+        src_offset = t2d.offset;
+        dst_offset = t2d.r.y * stride + t2d.r.x * bpp;
+        iov_to_buf(res->iov, res->iov_cnt, src_offset,
+                   (uint8_t *)img_data + dst_offset,
+                   stride * t2d.r.height);
     }
 }
 
