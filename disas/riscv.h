@@ -192,6 +192,10 @@ typedef struct {
 } rv_comp_data;
 
 enum {
+    rv_op_illegal = 0
+};
+
+enum {
     rvcd_imm_nz = 0x1
 };
 
