@@ -22,6 +22,9 @@
 #include "target/riscv/cpu_cfg.h"
 #include "disas/riscv.h"
 
+/* Vendor extensions */
+#include "disas/riscv-xventana.h"
+
 typedef enum {
     /* 0 is reserved for rv_op_illegal. */
     rv_op_lui = 1,
@@ -4708,6 +4711,7 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
         void (*decode_func)(rv_decode *, rv_isa);
     } decoders[] = {
         { always_true_p, rvi_opcode_data, decode_inst_opcode },
+        { has_XVentanaCondOps_p, ventana_opcode_data, decode_xventanacondops },
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(decoders); i++) {
