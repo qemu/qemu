@@ -1186,12 +1186,12 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
  *
  * Return true if the pages has been saved, otherwise false is returned.
  */
-static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
+static bool control_save_page(PageSearchStatus *pss,
                               ram_addr_t offset, int *pages)
 {
     int ret;
 
-    ret = rdma_control_save_page(pss->pss_channel, block->offset, offset,
+    ret = rdma_control_save_page(pss->pss_channel, pss->block->offset, offset,
                                  TARGET_PAGE_SIZE);
     if (ret == RAM_SAVE_CONTROL_NOT_SUPP) {
         return false;
@@ -2111,7 +2111,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     int res;
 
-    if (control_save_page(pss, block, offset, &res)) {
+    if (control_save_page(pss, offset, &res)) {
         return res;
     }
 
