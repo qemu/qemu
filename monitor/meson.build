@@ -7,5 +7,5 @@ softmmu_ss.add(files(
 ))
 softmmu_ss.add([spice_headers, files('qmp-cmds.c')])
 
-specific_ss.add(when: 'CONFIG_SOFTMMU',
+specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
 		if_true: [files( 'hmp-cmds-target.c', 'hmp-target.c'), spice])
