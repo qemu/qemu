@@ -1144,13 +1144,12 @@ void ram_release_page(const char *rbname, uint64_t offset)
  *
  * @rs: current RAM state
  * @pss: current PSS channel
- * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  */
-static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
+static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
                           ram_addr_t offset)
 {
-    uint8_t *p = block->host + offset;
+    uint8_t *p = pss->block->host + offset;
     QEMUFile *file = pss->pss_channel;
     int len = 0;
 
@@ -1158,10 +1157,10 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
         return 0;
     }
 
-    len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+    len += save_page_header(pss, file, pss->block, offset | RAM_SAVE_FLAG_ZERO);
     qemu_put_byte(file, 0);
     len += 1;
-    ram_release_page(block->idstr, offset);
+    ram_release_page(pss->block->idstr, offset);
 
     stat64_add(&mig_stats.zero_pages, 1);
     ram_transferred_add(len);
@@ -1172,7 +1171,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
      */
     if (rs->xbzrle_started) {
         XBZRLE_cache_lock();
-        xbzrle_cache_zero_page(block->offset + offset);
+        xbzrle_cache_zero_page(pss->block->offset + offset);
         XBZRLE_cache_unlock();
     }
 
@@ -2119,7 +2118,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         return 1;
     }
 
-    if (save_zero_page(rs, pss, block, offset)) {
+    if (save_zero_page(rs, pss, offset)) {
         return 1;
     }
 
