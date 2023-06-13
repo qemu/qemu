@@ -501,3 +501,9 @@ void populate_compress(MigrationInfo *info)
     info->compression->compressed_size = compression_counters.compressed_size;
     info->compression->compression_rate = compression_counters.compression_rate;
 }
+
+uint64_t ram_compressed_pages(void)
+{
+    return compression_counters.pages;
+}
+

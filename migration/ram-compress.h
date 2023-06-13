@@ -69,5 +69,6 @@ int compress_threads_load_setup(QEMUFile *f);
 void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len);
 
 void populate_compress(MigrationInfo *info);
+uint64_t ram_compressed_pages(void);
 
 #endif
