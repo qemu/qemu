@@ -1096,8 +1096,15 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
         ms->possible_cpus->cpus[n].arch_id = n;
+
+        ms->possible_cpus->cpus[n].props.has_socket_id = true;
+        ms->possible_cpus->cpus[n].props.socket_id  =
+                                   n / (ms->smp.cores * ms->smp.threads);
         ms->possible_cpus->cpus[n].props.has_core_id = true;
-        ms->possible_cpus->cpus[n].props.core_id = n % ms->smp.cores;
+        ms->possible_cpus->cpus[n].props.core_id =
+                                   n / ms->smp.threads % ms->smp.cores;
+        ms->possible_cpus->cpus[n].props.has_thread_id = true;
+        ms->possible_cpus->cpus[n].props.thread_id = n % ms->smp.threads;
     }
     return ms->possible_cpus;
 }

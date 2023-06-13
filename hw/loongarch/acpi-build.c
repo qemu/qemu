@@ -438,6 +438,10 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     build_madt(tables_blob, tables->linker, lams);
 
     acpi_add_table(table_offsets, tables_blob);
+    build_pptt(tables_blob, tables->linker, machine,
+               lams->oem_id, lams->oem_table_id);
+
+    acpi_add_table(table_offsets, tables_blob);
     build_srat(tables_blob, tables->linker, machine);
 
     if (machine->numa_state->num_nodes) {
