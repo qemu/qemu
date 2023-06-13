@@ -481,14 +481,10 @@ void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
                 decomp_param[idx].len = len;
                 qemu_cond_signal(&decomp_param[idx].cond);
                 qemu_mutex_unlock(&decomp_param[idx].mutex);
-                break;
+                return;
             }
         }
-        if (idx < thread_count) {
-            break;
-        } else {
-            qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
-        }
+        qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
     }
 }
 
