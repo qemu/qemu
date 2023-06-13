@@ -1466,11 +1466,9 @@ int migrate_init(MigrationState *s, Error **errp)
     s->switchover_acked = false;
     s->rdma_migration = false;
     /*
-     * set mig_stats compression_counters memory to zero for a
-     * new migration
+     * set mig_stats memory to zero for a new migration
      */
     memset(&mig_stats, 0, sizeof(mig_stats));
-    memset(&compression_counters, 0, sizeof(compression_counters));
     migration_reset_vfio_bytes_transferred();
 
     return 0;

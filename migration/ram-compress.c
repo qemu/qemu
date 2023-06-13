@@ -430,6 +430,11 @@ int compress_threads_load_setup(QEMUFile *f)
         return 0;
     }
 
+    /*
+     * set compression_counters memory to zero for a new migration
+     */
+    memset(&compression_counters, 0, sizeof(compression_counters));
+
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
