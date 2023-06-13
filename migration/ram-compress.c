@@ -488,3 +488,16 @@ void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
         }
     }
 }
+
+void populate_compress(MigrationInfo *info)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+    info->compression = g_malloc0(sizeof(*info->compression));
+    info->compression->pages = compression_counters.pages;
+    info->compression->busy = compression_counters.busy;
+    info->compression->busy_rate = compression_counters.busy_rate;
+    info->compression->compressed_size = compression_counters.compressed_size;
+    info->compression->compression_rate = compression_counters.compression_rate;
+}
