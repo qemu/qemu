@@ -9,11 +9,11 @@ m68k_ss.add(files(
   'translate.c',
 ))
 
-m68k_softmmu_ss = ss.source_set()
-m68k_softmmu_ss.add(files(
+m68k_system_ss = ss.source_set()
+m68k_system_ss.add(files(
   'm68k-semi.c',
   'monitor.c'
 ))
 
 target_arch += {'m68k': m68k_ss}
-target_softmmu_arch += {'m68k': m68k_softmmu_ss}
+target_softmmu_arch += {'m68k': m68k_system_ss}

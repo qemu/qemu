@@ -42,4 +42,4 @@ libtcg_softmmu = static_library('tcg_softmmu',
 
 tcg_softmmu = declare_dependency(link_with: libtcg_softmmu,
                                  dependencies: tcg_ss.dependencies())
-softmmu_ss.add(tcg_softmmu)
+system_ss.add(tcg_softmmu)

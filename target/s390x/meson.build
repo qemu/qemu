@@ -18,8 +18,8 @@ gen_features_h = custom_target('gen-features.h',
 
 s390x_ss.add(gen_features_h)
 
-s390x_softmmu_ss = ss.source_set()
-s390x_softmmu_ss.add(files(
+s390x_system_ss = ss.source_set()
+s390x_system_ss.add(files(
   'helper.c',
   'arch_dump.c',
   'diag.c',
@@ -40,5 +40,5 @@ subdir('tcg')
 subdir('kvm')
 
 target_arch += {'s390x': s390x_ss}
-target_softmmu_arch += {'s390x': s390x_softmmu_ss}
+target_softmmu_arch += {'s390x': s390x_system_ss}
 target_user_arch += {'s390x': s390x_user_ss}

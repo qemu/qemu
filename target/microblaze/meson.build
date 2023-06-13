@@ -10,11 +10,11 @@ microblaze_ss.add(files(
   'translate.c',
 ))
 
-microblaze_softmmu_ss = ss.source_set()
-microblaze_softmmu_ss.add(files(
+microblaze_system_ss = ss.source_set()
+microblaze_system_ss.add(files(
   'mmu.c',
   'machine.c',
 ))
 
 target_arch += {'microblaze': microblaze_ss}
-target_softmmu_arch += {'microblaze': microblaze_softmmu_ss}
+target_softmmu_arch += {'microblaze': microblaze_system_ss}

@@ -8,14 +8,14 @@
 # cflags so:
 
 gdb_user_ss = ss.source_set()
-gdb_softmmu_ss = ss.source_set()
+gdb_system_ss = ss.source_set()
 
 # We build two versions of gdbstub, one for each mode
 gdb_user_ss.add(files('gdbstub.c', 'user.c'))
-gdb_softmmu_ss.add(files('gdbstub.c', 'softmmu.c'))
+gdb_system_ss.add(files('gdbstub.c', 'softmmu.c'))
 
 gdb_user_ss = gdb_user_ss.apply(config_host, strict: false)
-gdb_softmmu_ss = gdb_softmmu_ss.apply(config_host, strict: false)
+gdb_system_ss = gdb_system_ss.apply(config_host, strict: false)
 
 libgdb_user = static_library('gdb_user',
                              gdb_user_ss.sources() + genh,
@@ -24,14 +24,14 @@ libgdb_user = static_library('gdb_user',
                              build_by_default: have_user)
 
 libgdb_softmmu = static_library('gdb_softmmu',
-                                gdb_softmmu_ss.sources() + genh,
+                                gdb_system_ss.sources() + genh,
                                 name_suffix: 'fa',
                                 build_by_default: have_system)
 
 gdb_user = declare_dependency(link_whole: libgdb_user)
 user_ss.add(gdb_user)
 gdb_softmmu = declare_dependency(link_whole: libgdb_softmmu)
-softmmu_ss.add(gdb_softmmu)
+system_ss.add(gdb_softmmu)
 
 common_ss.add(files('syscalls.c'))
 

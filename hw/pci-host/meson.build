@@ -29,7 +29,7 @@ pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.c'))
 # HPPA devices
 pci_ss.add(when: 'CONFIG_DINO', if_true: files('dino.c'))
 
-softmmu_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
+system_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
 specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
   'pnv_phb3.c',

@@ -48,6 +48,6 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'sve_helper.c',
 ))
 
-arm_softmmu_ss.add(files(
+arm_system_ss.add(files(
   'psci.c',
 ))

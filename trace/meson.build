@@ -1,4 +1,4 @@
-softmmu_ss.add(files('trace-hmp-cmds.c'))
+system_ss.add(files('trace-hmp-cmds.c'))
 
 specific_ss.add(files('control-target.c'))
 

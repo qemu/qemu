@@ -14,12 +14,12 @@ openrisc_ss.add(files(
   'translate.c',
 ))
 
-openrisc_softmmu_ss = ss.source_set()
-openrisc_softmmu_ss.add(files(
+openrisc_system_ss = ss.source_set()
+openrisc_system_ss.add(files(
   'interrupt.c',
   'machine.c',
   'mmu.c',
 ))
 
 target_arch += {'openrisc': openrisc_ss}
-target_softmmu_arch += {'openrisc': openrisc_softmmu_ss}
+target_softmmu_arch += {'openrisc': openrisc_system_ss}
