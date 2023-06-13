@@ -2067,7 +2067,7 @@ static bool save_page_use_compression(RAMState *rs)
  * paths to handle it
  */
 static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
-                               RAMBlock *block, ram_addr_t offset)
+                               ram_addr_t offset)
 {
     if (!save_page_use_compression(rs)) {
         return false;
@@ -2083,12 +2083,13 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
      * We post the fist page as normal page as compression will take
      * much CPU resource.
      */
-    if (block != pss->last_sent_block) {
+    if (pss->block != pss->last_sent_block) {
         ram_flush_compressed_data(rs);
         return false;
     }
 
-    if (compress_page_with_multi_thread(block, offset, send_queued_data) > 0) {
+    if (compress_page_with_multi_thread(pss->block, offset,
+                                        send_queued_data) > 0) {
         return true;
     }
 
@@ -2114,7 +2115,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         return res;
     }
 
-    if (save_compress_page(rs, pss, block, offset)) {
+    if (save_compress_page(rs, pss, offset)) {
         return 1;
     }
 
