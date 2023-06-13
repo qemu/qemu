@@ -39,7 +39,7 @@
 #define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
 
 typedef enum VhostSetConfigType {
-    VHOST_SET_CONFIG_TYPE_MASTER = 0,
+    VHOST_SET_CONFIG_TYPE_FRONTEND = 0,
     VHOST_SET_CONFIG_TYPE_MIGRATION = 1,
 } VhostSetConfigType;
 
@@ -112,7 +112,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_MAX
 } VhostUserRequest;
 
-typedef enum VhostUserSlaveRequest {
+typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_NONE = 0,
     VHOST_USER_BACKEND_IOTLB_MSG = 1,
     VHOST_USER_BACKEND_CONFIG_CHANGE_MSG = 2,
@@ -120,7 +120,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_BACKEND_VRING_CALL = 4,
     VHOST_USER_BACKEND_VRING_ERR = 5,
     VHOST_USER_BACKEND_MAX
-}  VhostUserSlaveRequest;
+}  VhostUserBackendRequest;
 
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
@@ -296,8 +296,10 @@ typedef struct VuVirtqInflight {
      * Zero value indicates a vm reset happened. */
     uint16_t version;
 
-    /* The size of VuDescStateSplit array. It's equal to the virtqueue
-     * size. Slave could get it from queue size field of VhostUserInflight. */
+    /*
+     * The size of VuDescStateSplit array. It's equal to the virtqueue size.
+     * Backend could get it from queue size field of VhostUserInflight.
+     */
     uint16_t desc_num;
 
     /* The head of list that track the last batch of used descriptors. */
@@ -384,9 +386,9 @@ struct VuDev {
     VuVirtq *vq;
     VuDevInflightInfo inflight_info;
     int log_call_fd;
-    /* Must be held while using slave_fd */
-    pthread_mutex_t slave_mutex;
-    int slave_fd;
+    /* Must be held while using backend_fd */
+    pthread_mutex_t backend_mutex;
+    int backend_fd;
     uint64_t log_size;
     uint8_t *log_table;
     uint64_t features;
@@ -445,7 +447,7 @@ typedef struct VuVirtqElement {
  * vu_init:
  * @dev: a VuDev context
  * @max_queues: maximum number of virtqueues
- * @socket: the socket connected to vhost-user master
+ * @socket: the socket connected to vhost-user frontend
  * @panic: a panic callback
  * @set_watch: a set_watch callback
  * @remove_watch: a remove_watch callback

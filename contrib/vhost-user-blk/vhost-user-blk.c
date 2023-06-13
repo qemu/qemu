@@ -421,7 +421,7 @@ vub_set_config(VuDev *vu_dev, const uint8_t *data,
     int fd;
 
     /* don't support live migration */
-    if (flags != VHOST_SET_CONFIG_TYPE_MASTER) {
+    if (flags != VHOST_SET_CONFIG_TYPE_FRONTEND) {
         return -1;
     }
 

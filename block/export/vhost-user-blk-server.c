@@ -167,7 +167,7 @@ vu_blk_set_config(VuDev *vu_dev, const uint8_t *data,
     uint8_t wce;
 
     /* don't support live migration */
-    if (flags != VHOST_SET_CONFIG_TYPE_MASTER) {
+    if (flags != VHOST_SET_CONFIG_TYPE_FRONTEND) {
         return -EINVAL;
     }
 
