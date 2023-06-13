@@ -32,11 +32,14 @@
 #include "ram-compress.h"
 
 #include "qemu/error-report.h"
+#include "qemu/stats64.h"
 #include "migration.h"
 #include "options.h"
 #include "io/channel-null.h"
 #include "exec/target_page.h"
 #include "exec/ramblock.h"
+#include "ram.h"
+#include "migration-stats.h"
 
 CompressionStats compression_counters;
 
@@ -505,5 +508,19 @@ void populate_compress(MigrationInfo *info)
 uint64_t ram_compressed_pages(void)
 {
     return compression_counters.pages;
+}
+
+void update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
+{
+    ram_transferred_add(bytes_xmit);
+
+    if (param->result == RES_ZEROPAGE) {
+        stat64_add(&mig_stats.zero_pages, 1);
+        return;
+    }
+
+    /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+    compression_counters.compressed_size += bytes_xmit - 8;
+    compression_counters.pages++;
 }
 
