@@ -185,10 +185,10 @@ static int get_physical_address(CPULoongArchState *env, hwaddr *physical,
     }
 
     plv = kernel_mode | (user_mode << R_CSR_DMW_PLV3_SHIFT);
-    base_v = address >> TARGET_VIRT_ADDR_SPACE_BITS;
+    base_v = address >> R_CSR_DMW_VSEG_SHIFT;
     /* Check direct map window */
     for (int i = 0; i < 4; i++) {
-        base_c = env->CSR_DMW[i] >> TARGET_VIRT_ADDR_SPACE_BITS;
+        base_c = FIELD_EX64(env->CSR_DMW[i], CSR_DMW, VSEG);
         if ((plv & env->CSR_DMW[i]) && (base_c == base_v)) {
             *physical = dmw_va2pa(address);
             *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
