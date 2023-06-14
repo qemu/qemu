@@ -2284,10 +2284,18 @@ uint32_t helper_mulr_h(uint32_t arg00, uint32_t arg01,
     return (result1 & 0xffff0000) | (result0 >> 16);
 }
 
-uint32_t helper_crc32(uint32_t arg0, uint32_t arg1)
+uint32_t helper_crc32_be(uint32_t arg0, uint32_t arg1)
 {
     uint8_t buf[4];
     stl_be_p(buf, arg0);
+
+    return crc32(arg1, buf, 4);
+}
+
+uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[4];
+    stl_le_p(buf, arg0);
 
     return crc32(arg1, buf, 4);
 }

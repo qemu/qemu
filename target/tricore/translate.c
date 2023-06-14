@@ -6190,13 +6190,21 @@ static void decode_rr_divide(DisasContext *ctx)
         CHECK_REG_PAIR(r3);
         gen_unpack(cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1]);
         break;
-    case OPC2_32_RR_CRC32:
+    case OPC2_32_RR_CRC32: /* CRC32B.W in 1.6.2 */
         if (has_feature(ctx, TRICORE_FEATURE_161)) {
-            gen_helper_crc32(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+            gen_helper_crc32_be(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
         } else {
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
         break;
+    case OPC2_32_RR_CRC32L_W:
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            gen_helper_crc32_le(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
+
     case OPC2_32_RR_POPCNT_W:
         if (has_feature(ctx, TRICORE_FEATURE_162)) {
             tcg_gen_ctpop_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
