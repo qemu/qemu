@@ -75,11 +75,11 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_FLASH_VIRTUAL] =  {  0x80000000,  0x80000     },
 };
 
-static void opentitan_board_init(MachineState *machine)
+static void opentitan_machine_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    OpenTitanState *s = OPENTITAN_MACHINE(machine);
     const MemMapEntry *memmap = ibex_memmap;
-    OpenTitanState *s = g_new0(OpenTitanState, 1);
     MemoryRegion *sys_mem = get_system_memory();
 
     if (machine->ram_size != mc->default_ram_size) {
@@ -108,17 +108,17 @@ static void opentitan_board_init(MachineState *machine)
     }
 }
 
-static void opentitan_machine_init(MachineClass *mc)
+static void opentitan_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "RISC-V Board compatible with OpenTitan";
-    mc->init = opentitan_board_init;
+    mc->init = opentitan_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = TYPE_RISCV_CPU_IBEX;
     mc->default_ram_id = "riscv.lowrisc.ibex.ram";
     mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
-
-DEFINE_MACHINE("opentitan", opentitan_machine_init)
 
 static void lowrisc_ibex_soc_init(Object *obj)
 {
@@ -320,17 +320,19 @@ static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo lowrisc_ibex_soc_type_info = {
-    .name = TYPE_RISCV_IBEX_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(LowRISCIbexSoCState),
-    .instance_init = lowrisc_ibex_soc_init,
-    .class_init = lowrisc_ibex_soc_class_init,
+static const TypeInfo open_titan_types[] = {
+    {
+        .name           = TYPE_RISCV_IBEX_SOC,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(LowRISCIbexSoCState),
+        .instance_init  = lowrisc_ibex_soc_init,
+        .class_init     = lowrisc_ibex_soc_class_init,
+    }, {
+        .name           = TYPE_OPENTITAN_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .instance_size  = sizeof(OpenTitanState),
+        .class_init     = opentitan_machine_class_init,
+    }
 };
 
-static void lowrisc_ibex_soc_register_types(void)
-{
-    type_register_static(&lowrisc_ibex_soc_type_info);
-}
-
-type_init(lowrisc_ibex_soc_register_types)
+DEFINE_TYPES(open_titan_types)

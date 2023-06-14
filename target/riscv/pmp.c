@@ -26,10 +26,9 @@
 #include "trace.h"
 #include "exec/exec-all.h"
 
-static void pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
+static bool pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
                           uint8_t val);
 static uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
-static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index);
 
 /*
  * Accessor method to extract address matching type 'a field' from cfg reg
@@ -83,7 +82,7 @@ static inline uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t pmp_index)
  * Accessor to set the cfg reg for a specific PMP/HART
  * Bounds checks and relevant lock bit.
  */
-static void pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
+static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
 {
     if (pmp_index < MAX_RISCV_PMPS) {
         bool locked = true;
@@ -119,14 +118,17 @@ static void pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
 
         if (locked) {
             qemu_log_mask(LOG_GUEST_ERROR, "ignoring pmpcfg write - locked\n");
-        } else {
+        } else if (env->pmp_state.pmp[pmp_index].cfg_reg != val) {
             env->pmp_state.pmp[pmp_index].cfg_reg = val;
-            pmp_update_rule(env, pmp_index);
+            pmp_update_rule_addr(env, pmp_index);
+            return true;
         }
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ignoring pmpcfg write - out of bounds\n");
     }
+
+    return false;
 }
 
 static void pmp_decode_napot(target_ulong a, target_ulong *sa,
@@ -206,18 +208,6 @@ void pmp_update_rule_nums(CPURISCVState *env)
     }
 }
 
-/*
- * Convert cfg/addr reg values here into simple 'sa' --> start address and 'ea'
- *   end address values.
- *   This function is called relatively infrequently whereas the check that
- *   an address is within a pmp rule is called often, so optimise that one
- */
-static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index)
-{
-    pmp_update_rule_addr(env, pmp_index);
-    pmp_update_rule_nums(env);
-}
-
 static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
                            target_ulong addr)
 {
@@ -236,37 +226,34 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
 /*
  * Check if the address has required RWX privs when no PMP entry is matched.
  */
-static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
-                                       target_ulong size, pmp_priv_t privs,
+static bool pmp_hart_has_privs_default(CPURISCVState *env, pmp_priv_t privs,
                                        pmp_priv_t *allowed_privs,
                                        target_ulong mode)
 {
     bool ret;
 
-    if (riscv_cpu_cfg(env)->epmp) {
-        if (MSECCFG_MMWP_ISSET(env)) {
-            /*
-             * The Machine Mode Whitelist Policy (mseccfg.MMWP) is set
-             * so we default to deny all, even for M-mode.
-             */
+    if (MSECCFG_MMWP_ISSET(env)) {
+        /*
+         * The Machine Mode Whitelist Policy (mseccfg.MMWP) is set
+         * so we default to deny all, even for M-mode.
+         */
+        *allowed_privs = 0;
+        return false;
+    } else if (MSECCFG_MML_ISSET(env)) {
+        /*
+         * The Machine Mode Lockdown (mseccfg.MML) bit is set
+         * so we can only execute code in M-mode with an applicable
+         * rule. Other modes are disabled.
+         */
+        if (mode == PRV_M && !(privs & PMP_EXEC)) {
+            ret = true;
+            *allowed_privs = PMP_READ | PMP_WRITE;
+        } else {
+            ret = false;
             *allowed_privs = 0;
-            return false;
-        } else if (MSECCFG_MML_ISSET(env)) {
-            /*
-             * The Machine Mode Lockdown (mseccfg.MML) bit is set
-             * so we can only execute code in M-mode with an applicable
-             * rule. Other modes are disabled.
-             */
-            if (mode == PRV_M && !(privs & PMP_EXEC)) {
-                ret = true;
-                *allowed_privs = PMP_READ | PMP_WRITE;
-            } else {
-                ret = false;
-                *allowed_privs = 0;
-            }
-
-            return ret;
         }
+
+        return ret;
     }
 
     if (!riscv_cpu_cfg(env)->pmp || (mode == PRV_M)) {
@@ -296,26 +283,21 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
 
 /*
  * Check if the address has required RWX privs to complete desired operation
- * Return PMP rule index if a pmp rule match
- * Return MAX_RISCV_PMPS if default match
- * Return negtive value if no match
+ * Return true if a pmp rule match or default match
+ * Return false if no match
  */
-int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
-                       target_ulong size, pmp_priv_t privs,
-                       pmp_priv_t *allowed_privs, target_ulong mode)
+bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
+                        target_ulong size, pmp_priv_t privs,
+                        pmp_priv_t *allowed_privs, target_ulong mode)
 {
     int i = 0;
-    int ret = -1;
     int pmp_size = 0;
     target_ulong s = 0;
     target_ulong e = 0;
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        if (pmp_hart_has_privs_default(env, addr, size, privs,
-                                       allowed_privs, mode)) {
-            ret = MAX_RISCV_PMPS;
-        }
+        return pmp_hart_has_privs_default(env, privs, allowed_privs, mode);
     }
 
     if (size == 0) {
@@ -344,8 +326,8 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         if ((s + e) == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "pmp violation - access is partially inside\n");
-            ret = -1;
-            break;
+            *allowed_privs = 0;
+            return false;
         }
 
         /* fully inside */
@@ -452,20 +434,12 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
              * defined with PMP must be used. We shouldn't fallback on
              * finding default privileges.
              */
-            ret = i;
-            break;
+            return (privs & *allowed_privs) == privs;
         }
     }
 
     /* No rule matched */
-    if (ret == -1) {
-        if (pmp_hart_has_privs_default(env, addr, size, privs,
-                                       allowed_privs, mode)) {
-            ret = MAX_RISCV_PMPS;
-        }
-    }
-
-    return ret;
+    return pmp_hart_has_privs_default(env, privs, allowed_privs, mode);
 }
 
 /*
@@ -477,16 +451,20 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
     int i;
     uint8_t cfg_val;
     int pmpcfg_nums = 2 << riscv_cpu_mxl(env);
+    bool modified = false;
 
     trace_pmpcfg_csr_write(env->mhartid, reg_index, val);
 
     for (i = 0; i < pmpcfg_nums; i++) {
         cfg_val = (val >> 8 * i)  & 0xff;
-        pmp_write_cfg(env, (reg_index * 4) + i, cfg_val);
+        modified |= pmp_write_cfg(env, (reg_index * 4) + i, cfg_val);
     }
 
     /* If PMP permission of any addr has been changed, flush TLB pages. */
-    tlb_flush(env_cpu(env));
+    if (modified) {
+        pmp_update_rule_nums(env);
+        tlb_flush(env_cpu(env));
+    }
 }
 
 
@@ -517,6 +495,7 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
                        target_ulong val)
 {
     trace_pmpaddr_csr_write(env->mhartid, addr_index, val);
+    bool is_next_cfg_tor = false;
 
     if (addr_index < MAX_RISCV_PMPS) {
         /*
@@ -525,9 +504,9 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
          */
         if (addr_index + 1 < MAX_RISCV_PMPS) {
             uint8_t pmp_cfg = env->pmp_state.pmp[addr_index + 1].cfg_reg;
+            is_next_cfg_tor = PMP_AMATCH_TOR == pmp_get_a_field(pmp_cfg);
 
-            if (pmp_cfg & PMP_LOCK &&
-                PMP_AMATCH_TOR == pmp_get_a_field(pmp_cfg)) {
+            if (pmp_cfg & PMP_LOCK && is_next_cfg_tor) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "ignoring pmpaddr write - pmpcfg + 1 locked\n");
                 return;
@@ -535,8 +514,14 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
         }
 
         if (!pmp_is_locked(env, addr_index)) {
-            env->pmp_state.pmp[addr_index].addr_reg = val;
-            pmp_update_rule(env, addr_index);
+            if (env->pmp_state.pmp[addr_index].addr_reg != val) {
+                env->pmp_state.pmp[addr_index].addr_reg = val;
+                pmp_update_rule_addr(env, addr_index);
+                if (is_next_cfg_tor) {
+                    pmp_update_rule_addr(env, addr_index + 1);
+                }
+                tlb_flush(env_cpu(env));
+            }
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ignoring pmpaddr write - locked\n");
@@ -585,8 +570,15 @@ void mseccfg_csr_write(CPURISCVState *env, target_ulong val)
         }
     }
 
-    /* Sticky bits */
-    val |= (env->mseccfg & (MSECCFG_MMWP | MSECCFG_MML));
+    if (riscv_cpu_cfg(env)->epmp) {
+        /* Sticky bits */
+        val |= (env->mseccfg & (MSECCFG_MMWP | MSECCFG_MML));
+        if ((val ^ env->mseccfg) & (MSECCFG_MMWP | MSECCFG_MML)) {
+            tlb_flush(env_cpu(env));
+        }
+    } else {
+        val &= ~(MSECCFG_MMWP | MSECCFG_MML | MSECCFG_RLB);
+    }
 
     env->mseccfg = val;
 }
@@ -601,28 +593,67 @@ target_ulong mseccfg_csr_read(CPURISCVState *env)
 }
 
 /*
- * Calculate the TLB size if the start address or the end address of
- * PMP entry is presented in the TLB page.
+ * Calculate the TLB size.
+ * It's possible that PMP regions only cover partial of the TLB page, and
+ * this may split the page into regions with different permissions.
+ * For example if PMP0 is (0x80000008~0x8000000F, R) and PMP1 is (0x80000000
+ * ~0x80000FFF, RWX), then region 0x80000008~0x8000000F has R permission, and
+ * the other regions in this page have RWX permissions.
+ * A write access to 0x80000000 will match PMP1. However we cannot cache the
+ * translation result in the TLB since this will make the write access to
+ * 0x80000008 bypass the check of PMP0.
+ * To avoid this we return a size of 1 (which means no caching) if the PMP
+ * region only covers partial of the TLB page.
  */
-target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
-                              target_ulong tlb_sa, target_ulong tlb_ea)
+target_ulong pmp_get_tlb_size(CPURISCVState *env, target_ulong addr)
 {
-    target_ulong pmp_sa = env->pmp_state.addr[pmp_index].sa;
-    target_ulong pmp_ea = env->pmp_state.addr[pmp_index].ea;
+    target_ulong pmp_sa;
+    target_ulong pmp_ea;
+    target_ulong tlb_sa = addr & ~(TARGET_PAGE_SIZE - 1);
+    target_ulong tlb_ea = tlb_sa + TARGET_PAGE_SIZE - 1;
+    int i;
 
-    if (pmp_sa <= tlb_sa && pmp_ea >= tlb_ea) {
+    /*
+     * If PMP is not supported or there are no PMP rules, the TLB page will not
+     * be split into regions with different permissions by PMP so we set the
+     * size to TARGET_PAGE_SIZE.
+     */
+    if (!riscv_cpu_cfg(env)->pmp || !pmp_get_num_rules(env)) {
         return TARGET_PAGE_SIZE;
-    } else {
-        /*
-         * At this point we have a tlb_size that is the smallest possible size
-         * That fits within a TARGET_PAGE_SIZE and the PMP region.
-         *
-         * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
-         * This means the result isn't cached in the TLB and is only used for
-         * a single translation.
-         */
-        return 1;
     }
+
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        if (pmp_get_a_field(env->pmp_state.pmp[i].cfg_reg) == PMP_AMATCH_OFF) {
+            continue;
+        }
+
+        pmp_sa = env->pmp_state.addr[i].sa;
+        pmp_ea = env->pmp_state.addr[i].ea;
+
+        /*
+         * Only the first PMP entry that covers (whole or partial of) the TLB
+         * page really matters:
+         * If it covers the whole TLB page, set the size to TARGET_PAGE_SIZE,
+         * since the following PMP entries have lower priority and will not
+         * affect the permissions of the page.
+         * If it only covers partial of the TLB page, set the size to 1 since
+         * the allowed permissions of the region may be different from other
+         * region of the page.
+         */
+        if (pmp_sa <= tlb_sa && pmp_ea >= tlb_ea) {
+            return TARGET_PAGE_SIZE;
+        } else if ((pmp_sa >= tlb_sa && pmp_sa <= tlb_ea) ||
+                   (pmp_ea >= tlb_sa && pmp_ea <= tlb_ea)) {
+            return 1;
+        }
+    }
+
+    /*
+     * If no PMP entry matches the TLB page, the TLB page will also not be
+     * split into regions with different permissions by PMP so we set the size
+     * to TARGET_PAGE_SIZE.
+     */
+    return TARGET_PAGE_SIZE;
 }
 
 /*

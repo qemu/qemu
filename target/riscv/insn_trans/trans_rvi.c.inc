@@ -38,7 +38,9 @@ static bool trans_lui(DisasContext *ctx, arg_lui *a)
 
 static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
-    gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
+    TCGv target_pc = dest_gpr(ctx, a->rd);
+    gen_pc_plus_diff(target_pc, ctx, a->imm);
+    gen_set_gpr(ctx, a->rd, target_pc);
     return true;
 }
 
@@ -51,25 +53,33 @@ static bool trans_jal(DisasContext *ctx, arg_jal *a)
 static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
 {
     TCGLabel *misaligned = NULL;
+    TCGv target_pc = tcg_temp_new();
+    TCGv succ_pc = dest_gpr(ctx, a->rd);
 
-    tcg_gen_addi_tl(cpu_pc, get_gpr(ctx, a->rs1, EXT_NONE), a->imm);
-    tcg_gen_andi_tl(cpu_pc, cpu_pc, (target_ulong)-2);
+    tcg_gen_addi_tl(target_pc, get_gpr(ctx, a->rs1, EXT_NONE), a->imm);
+    tcg_gen_andi_tl(target_pc, target_pc, (target_ulong)-2);
 
-    gen_set_pc(ctx, cpu_pc);
-    if (!ctx->cfg_ptr->ext_zca) {
+    if (get_xl(ctx) == MXL_RV32) {
+        tcg_gen_ext32s_tl(target_pc, target_pc);
+    }
+
+    if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
         TCGv t0 = tcg_temp_new();
 
         misaligned = gen_new_label();
-        tcg_gen_andi_tl(t0, cpu_pc, 0x2);
+        tcg_gen_andi_tl(t0, target_pc, 0x2);
         tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0x0, misaligned);
     }
 
-    gen_set_gpri(ctx, a->rd, ctx->pc_succ_insn);
+    gen_pc_plus_diff(succ_pc, ctx, ctx->cur_insn_len);
+    gen_set_gpr(ctx, a->rd, succ_pc);
+
+    tcg_gen_mov_tl(cpu_pc, target_pc);
     lookup_and_goto_ptr(ctx);
 
     if (misaligned) {
         gen_set_label(misaligned);
-        gen_exception_inst_addr_mis(ctx);
+        gen_exception_inst_addr_mis(ctx, target_pc);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -153,6 +163,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     TCGLabel *l = gen_new_label();
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_SIGN);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_SIGN);
+    target_ulong orig_pc_save = ctx->pc_save;
 
     if (get_xl(ctx) == MXL_RV128) {
         TCGv src1h = get_gprh(ctx, a->rs1);
@@ -165,16 +176,21 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     } else {
         tcg_gen_brcond_tl(cond, src1, src2, l);
     }
-    gen_goto_tb(ctx, 1, ctx->pc_succ_insn);
+    gen_goto_tb(ctx, 1, ctx->cur_insn_len);
+    ctx->pc_save = orig_pc_save;
 
     gen_set_label(l); /* branch taken */
 
-    if (!ctx->cfg_ptr->ext_zca && ((ctx->base.pc_next + a->imm) & 0x3)) {
+    if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca &&
+        (a->imm & 0x3)) {
         /* misaligned */
-        gen_exception_inst_addr_mis(ctx);
+        TCGv target_pc = tcg_temp_new();
+        gen_pc_plus_diff(target_pc, ctx, a->imm);
+        gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
-        gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm);
+        gen_goto_tb(ctx, 0, a->imm);
     }
+    ctx->pc_save = -1;
     ctx->base.is_jmp = DISAS_NORETURN;
 
     return true;
@@ -767,7 +783,7 @@ static bool trans_pause(DisasContext *ctx, arg_pause *a)
      * PAUSE is a no-op in QEMU,
      * end the TB and return to main loop
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -791,7 +807,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * FENCE_I is a no-op in QEMU,
      * however we need to end the translation block
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -802,7 +818,7 @@ static bool do_csr_post(DisasContext *ctx)
     /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
     decode_save_opc(ctx);
     /* We may have changed important cpu state -- exit to main loop. */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;

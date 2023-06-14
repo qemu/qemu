@@ -33,7 +33,7 @@ static bool trans_wrs(DisasContext *ctx)
     /* Clear the load reservation  (if any).  */
     tcg_gen_movi_tl(load_res, -1);
 
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 

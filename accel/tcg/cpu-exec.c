@@ -313,6 +313,9 @@ static void log_cpu_exec(target_ulong pc, CPUState *cpu,
 #if defined(TARGET_I386)
                 flags |= CPU_DUMP_CCOP;
 #endif
+                if (qemu_loglevel_mask(CPU_LOG_TB_VPU)) {
+                    flags |= CPU_DUMP_VPU;
+                }
                 cpu_dump_state(cpu, logfile, flags);
                 qemu_log_unlock(logfile);
             }

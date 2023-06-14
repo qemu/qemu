@@ -999,7 +999,7 @@ static void gen_th_sync_local(DisasContext *ctx)
      * Emulate out-of-order barriers with pipeline flush
      * by exiting the translation block.
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
