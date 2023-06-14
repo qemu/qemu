@@ -430,7 +430,7 @@ enum {
     OPCM_32_ABS_STOREB_H                             = 0x25,
     OPC1_32_ABS_STOREQ                               = 0x65,
     OPC1_32_ABS_LD_Q                                 = 0x45,
-    OPC1_32_ABS_LEA                                  = 0xc5,
+    OPCM_32_ABS_LEA_LHA                              = 0xc5,
 /* ABSB Format */
     OPC1_32_ABSB_ST_T                                = 0xd5,
 /* B Format */
@@ -592,6 +592,13 @@ enum {
     OPC2_32_ABS_ST_B                             = 0x00,
     OPC2_32_ABS_ST_H                             = 0x02,
 };
+
+/* OPCM_32_ABS_LEA_LHA */
+enum {
+    OPC2_32_ABS_LEA                              = 0x00,
+    OPC2_32_ABS_LHA                              = 0x01,
+};
+
 /*
  * Bit Format
  */

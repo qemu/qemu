@@ -7931,7 +7931,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
 
 static void decode_32Bit_opc(DisasContext *ctx)
 {
-    int op1;
+    int op1, op2;
     int32_t r1, r2, r3;
     int32_t address, const16;
     int8_t b, const4;
@@ -7982,9 +7982,19 @@ static void decode_32Bit_opc(DisasContext *ctx)
         tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUW);
         tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
         break;
-    case OPC1_32_ABS_LEA:
+    case OPCM_32_ABS_LEA_LHA:
         address = MASK_OP_ABS_OFF18(ctx->opcode);
         r1 = MASK_OP_ABS_S1D(ctx->opcode);
+
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            op2 = MASK_OP_ABS_OP2(ctx->opcode);
+            if (op2 == OPC2_32_ABS_LHA) {
+                tcg_gen_movi_tl(cpu_gpr_a[r1], address << 14);
+                break;
+            }
+            /* otherwise translate regular LEA */
+        }
+
         tcg_gen_movi_tl(cpu_gpr_a[r1], EA_ABS_FORMAT(address));
         break;
 /* ABSB-format */
