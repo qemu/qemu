@@ -5236,7 +5236,7 @@ static void decode_rc_serviceroutine(DisasContext *ctx)
         gen_helper_1arg(bisr, const9);
         break;
     case OPC2_32_RC_SYSCALL:
-        /* TODO: Add exception generation */
+        generate_trap(ctx, TRAPC_SYSCALL, const9 & 0xff);
         break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
