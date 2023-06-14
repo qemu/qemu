@@ -30,7 +30,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/char/parallel.h"
+#include "hw/char/parallel-isa.h"
 #include "hw/loader.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/rtc/mc146818rtc.h"

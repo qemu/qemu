@@ -295,8 +295,16 @@ int main(int argc, char **argv)
 
     envlist = envlist_create();
 
-    /* add current environment into the list */
+    /*
+     * add current environment into the list
+     * envlist_setenv adds to the front of the list; to preserve environ
+     * order add from back to front
+     */
     for (wrk = environ; *wrk != NULL; wrk++) {
+        continue;
+    }
+    while (wrk != environ) {
+        wrk--;
         (void) envlist_setenv(envlist, *wrk);
     }
 

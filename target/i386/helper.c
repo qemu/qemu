@@ -580,9 +580,9 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
     return 1;
 }
 
-#if !defined(CONFIG_USER_ONLY)
 void do_cpu_init(X86CPU *cpu)
 {
+#if !defined(CONFIG_USER_ONLY)
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     CPUX86State *save = g_new(CPUX86State, 1);
@@ -601,22 +601,15 @@ void do_cpu_init(X86CPU *cpu)
         kvm_arch_do_init_vcpu(cpu);
     }
     apic_init_reset(cpu->apic_state);
+#endif /* CONFIG_USER_ONLY */
 }
+
+#ifndef CONFIG_USER_ONLY
 
 void do_cpu_sipi(X86CPU *cpu)
 {
     apic_sipi(cpu->apic_state);
 }
-#else
-void do_cpu_init(X86CPU *cpu)
-{
-}
-void do_cpu_sipi(X86CPU *cpu)
-{
-}
-#endif
-
-#ifndef CONFIG_USER_ONLY
 
 void cpu_load_efer(CPUX86State *env, uint64_t val)
 {
