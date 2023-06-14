@@ -8,3 +8,6 @@ config VMAPPLE_BDIF
 
 config VMAPPLE_CFG
     bool
+
+config VMAPPLE_VIRTIO_BLK
+    bool
