@@ -64,6 +64,7 @@ typedef struct DisasContext {
     target_ulong priv_ver;
     RISCVMXL misa_mxl_max;
     RISCVMXL xl;
+    RISCVMXL address_xl;
     uint32_t misa_ext;
     uint32_t opcode;
     RISCVExtStatus mstatus_fs;
@@ -127,6 +128,14 @@ static inline bool has_ext(DisasContext *ctx, uint32_t ext)
 #define get_xl(ctx)    MXL_RV64
 #else
 #define get_xl(ctx)    ((ctx)->xl)
+#endif
+
+#ifdef TARGET_RISCV32
+#define get_address_xl(ctx)    MXL_RV32
+#elif defined(CONFIG_USER_ONLY)
+#define get_address_xl(ctx)    MXL_RV64
+#else
+#define get_address_xl(ctx)    ((ctx)->address_xl)
 #endif
 
 /* The word size for this machine mode. */
@@ -575,12 +584,13 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
     tcg_gen_addi_tl(addr, src1, imm);
     if (ctx->pm_mask_enabled) {
         tcg_gen_andc_tl(addr, addr, pm_mask);
-    } else if (get_xl(ctx) == MXL_RV32) {
+    } else if (get_address_xl(ctx) == MXL_RV32) {
         tcg_gen_ext32u_tl(addr, addr);
     }
     if (ctx->pm_base_enabled) {
         tcg_gen_or_tl(addr, addr, pm_base);
     }
+
     return addr;
 }
 
@@ -1177,6 +1187,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
     ctx->misa_mxl_max = env->misa_mxl_max;
     ctx->xl = FIELD_EX32(tb_flags, TB_FLAGS, XL);
+    ctx->address_xl = FIELD_EX32(tb_flags, TB_FLAGS, AXL);
     ctx->cs = cs;
     ctx->pm_mask_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_MASK_ENABLED);
     ctx->pm_base_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_BASE_ENABLED);
