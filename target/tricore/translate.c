@@ -75,7 +75,7 @@ typedef struct DisasContext {
     int mem_idx;
     uint32_t hflags, saved_hflags;
     uint64_t features;
-    uint32_t icr_ie_mask;
+    uint32_t icr_ie_mask, icr_ie_offset;
 } DisasContext;
 
 static int has_feature(DisasContext *ctx, int feature)
@@ -7883,6 +7883,13 @@ static void decode_sys_interrupts(DisasContext *ctx)
     case OPC2_32_SYS_DISABLE:
         tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
         break;
+    case OPC2_32_SYS_DISABLE_D:
+        if (has_feature(ctx, TRICORE_FEATURE_16)) {
+            tcg_gen_extract_tl(cpu_gpr_d[r1], cpu_ICR, ctx->icr_ie_offset, 1);
+            tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
     case OPC2_32_SYS_DSYNC:
         break;
     case OPC2_32_SYS_ENABLE:
@@ -8302,8 +8309,10 @@ static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->features = env->features;
     if (has_feature(ctx, TRICORE_FEATURE_161)) {
         ctx->icr_ie_mask = R_ICR_IE_161_MASK;
+        ctx->icr_ie_offset = R_ICR_IE_161_SHIFT;
     } else {
         ctx->icr_ie_mask = R_ICR_IE_13_MASK;
+        ctx->icr_ie_offset = R_ICR_IE_13_SHIFT;
     }
 }
 

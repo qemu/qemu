@@ -1467,6 +1467,7 @@ enum {
 enum {
     OPC2_32_SYS_DEBUG                            = 0x04,
     OPC2_32_SYS_DISABLE                          = 0x0d,
+    OPC2_32_SYS_DISABLE_D                        = 0x0f, /* 1.6 up */
     OPC2_32_SYS_DSYNC                            = 0x12,
     OPC2_32_SYS_ENABLE                           = 0x0c,
     OPC2_32_SYS_ISYNC                            = 0x13,
