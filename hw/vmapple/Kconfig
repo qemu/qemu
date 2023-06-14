@@ -5,3 +5,6 @@ config VMAPPLE_AES
 
 config VMAPPLE_BDIF
     bool
+
+config VMAPPLE_CFG
+    bool
