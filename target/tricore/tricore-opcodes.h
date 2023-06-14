@@ -885,6 +885,7 @@ enum {
     OPC2_32_RC_SHAS                              = 0x02,
     OPC2_32_RC_XNOR                              = 0x0d,
     OPC2_32_RC_XOR                               = 0x0c,
+    OPC2_32_RC_SHUFFLE                           = 0x07, /* v1.6.2 only */
 };
 /* OPCM_32_RC_ACCUMULATOR                           */
 enum {

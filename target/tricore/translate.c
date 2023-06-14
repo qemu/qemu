@@ -5011,6 +5011,14 @@ static void decode_rc_logical_shift(DisasContext *ctx)
     case OPC2_32_RC_XOR:
         tcg_gen_xori_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], const9);
         break;
+    case OPC2_32_RC_SHUFFLE:
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            TCGv temp = tcg_constant_i32(const9);
+            gen_helper_shuffle(cpu_gpr_d[r2], cpu_gpr_d[r1], temp);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
