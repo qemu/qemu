@@ -187,8 +187,7 @@ static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
 }
 
 #if defined(TARGET_PPC64)
-static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
-                                target_ulong *msr)
+static int powerpc_reset_wakeup(CPUPPCState *env, int excp, target_ulong *msr)
 {
     /* We no longer are in a PM state */
     env->resume_as_sreset = false;
@@ -223,8 +222,8 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
         *msr |= SRR1_WAKEHVI;
         break;
     default:
-        cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
-                  excp);
+        cpu_abort(env_cpu(env),
+                  "Unsupported exception %d in Power Save mode\n", excp);
     }
     return POWERPC_EXCP_RESET;
 }
@@ -1440,7 +1439,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
      * P7/P8/P9
      */
     if (env->resume_as_sreset) {
-        excp = powerpc_reset_wakeup(cs, env, excp, &msr);
+        excp = powerpc_reset_wakeup(env, excp, &msr);
     }
 
     /*
