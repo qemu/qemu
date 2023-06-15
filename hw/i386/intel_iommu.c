@@ -3837,7 +3837,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                                   PCI_FUNC(vtd_as->devfn),
                                   vtd_get_domain_id(s, &ce, vtd_as->pasid),
                                   ce.hi, ce.lo);
-        if (vtd_as_has_map_notifier(vtd_as)) {
+        if (n->notifier_flags & IOMMU_NOTIFIER_MAP) {
             /* This is required only for MAP typed notifiers */
             vtd_page_walk_info info = {
                 .hook_fn = vtd_replay_hook,
