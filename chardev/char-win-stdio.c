@@ -190,7 +190,7 @@ static void qemu_chr_open_stdio(Chardev *chr,
         }
     }
 
-    dwMode |= ENABLE_LINE_INPUT;
+    dwMode |= ENABLE_LINE_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT;
 
     if (is_console) {
         /* set the terminal in raw mode */
