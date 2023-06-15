@@ -912,3 +912,7 @@ czero_nez   0000111  ..... ..... 111 ..... 0110011 @r
 # *** Zfbfmin Standard Extension ***
 fcvt_bf16_s       0100010  01000 ..... ... ..... 1010011 @r2_rm
 fcvt_s_bf16       0100000  00110 ..... ... ..... 1010011 @r2_rm
+
+# *** Zvfbfmin Standard Extension ***
+vfncvtbf16_f_f_w  010010 . ..... 11101 001 ..... 1010111 @r2_vm
+vfwcvtbf16_f_f_v  010010 . ..... 01101 001 ..... 1010111 @r2_vm
