@@ -3791,7 +3791,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
                              n->start, size);
 
     map.iova = n->start;
-    map.size = size;
+    map.size = size - 1; /* Inclusive */
     iova_tree_remove(as->iova_tree, map);
 }
 
