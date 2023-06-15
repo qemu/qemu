@@ -2653,8 +2653,7 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
     uint32_t excp = hreg_store_msr(env, val, 0);
 
     if (excp != 0) {
-        CPUState *cs = env_cpu(env);
-        cpu_interrupt_exittb(cs);
+        cpu_interrupt_exittb(env_cpu(env));
         raise_exception(env, excp);
     }
 }
@@ -2691,8 +2690,6 @@ void helper_pminsn(CPUPPCState *env, uint32_t insn)
 
 static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {
-    CPUState *cs = env_cpu(env);
-
     /* MSR:POW cannot be set by any form of rfi */
     msr &= ~(1ULL << MSR_POW);
 
@@ -2716,7 +2713,7 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
      * No need to raise an exception here, as rfi is always the last
      * insn of a TB
      */
-    cpu_interrupt_exittb(cs);
+    cpu_interrupt_exittb(env_cpu(env));
     /* Reset the reservation */
     env->reserve_addr = -1;
 
