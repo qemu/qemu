@@ -3554,6 +3554,17 @@ RVVCALL(OPFVF3, vfwmacc_vf_w, WOP_UUU_W, H8, H4, fwmacc32)
 GEN_VEXT_VF(vfwmacc_vf_h, 4)
 GEN_VEXT_VF(vfwmacc_vf_w, 8)
 
+static uint32_t fwmaccbf16(uint16_t a, uint16_t b, uint32_t d, float_status *s)
+{
+    return float32_muladd(bfloat16_to_float32(a, s),
+                          bfloat16_to_float32(b, s), d, 0, s);
+}
+
+RVVCALL(OPFVV3, vfwmaccbf16_vv, WOP_UUU_H, H4, H2, H2, fwmaccbf16)
+GEN_VEXT_VV_ENV(vfwmaccbf16_vv, 4)
+RVVCALL(OPFVF3, vfwmaccbf16_vf, WOP_UUU_H, H4, H2, fwmacc16)
+GEN_VEXT_VF(vfwmaccbf16_vf, 4)
+
 static uint32_t fwnmacc16(uint16_t a, uint16_t b, uint32_t d, float_status *s)
 {
     return float32_muladd(float16_to_float32(a, true, s),

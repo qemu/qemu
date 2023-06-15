@@ -916,3 +916,7 @@ fcvt_s_bf16       0100000  00110 ..... ... ..... 1010011 @r2_rm
 # *** Zvfbfmin Standard Extension ***
 vfncvtbf16_f_f_w  010010 . ..... 11101 001 ..... 1010111 @r2_vm
 vfwcvtbf16_f_f_v  010010 . ..... 01101 001 ..... 1010111 @r2_vm
+
+# *** Zvfbfwma Standard Extension ***
+vfwmaccbf16_vv    111011 . ..... ..... 001 ..... 1010111 @r_vm
+vfwmaccbf16_vf    111011 . ..... ..... 101 ..... 1010111 @r_vm
