@@ -593,3 +593,15 @@ uint64_t helper_fcvt_d_h(CPURISCVState *env, uint64_t rs1)
     float16 frs1 = check_nanbox_h(env, rs1);
     return float16_to_float64(frs1, true, &env->fp_status);
 }
+
+uint64_t helper_fcvt_bf16_s(CPURISCVState *env, uint64_t rs1)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    return nanbox_h(env, float32_to_bfloat16(frs1, &env->fp_status));
+}
+
+uint64_t helper_fcvt_s_bf16(CPURISCVState *env, uint64_t rs1)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    return nanbox_s(env, bfloat16_to_float32(frs1, &env->fp_status));
+}
