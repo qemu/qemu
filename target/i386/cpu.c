@@ -678,6 +678,8 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_SGX_12_0_EBX_FEATURES 0
 #define TCG_SGX_12_1_EAX_FEATURES 0
 
+#define TCG_8000_0008_EBX  CPUID_8000_0008_EBX_XSAVEERPTR
+
 FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -939,7 +941,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "amd-psfd", NULL, NULL, NULL,
         },
         .cpuid = { .eax = 0x80000008, .reg = R_EBX, },
-        .tcg_features = 0,
+        .tcg_features = TCG_8000_0008_EBX,
         .unmigratable_flags = 0,
     },
     [FEAT_8000_0021_EAX] = {
