@@ -1069,6 +1069,13 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .msr = {
             .index = MSR_IA32_ARCH_CAPABILITIES,
         },
+        /*
+         * FEAT_ARCH_CAPABILITIES only affects a read-only MSR, which
+         * cannot be read from user mode.  Therefore, it has no impact
+         > on any user-mode operation, and warnings about unsupported
+         * features do not matter.
+         */
+        .tcg_features = ~0U,
     },
     [FEAT_CORE_CAPABILITY] = {
         .type = MSR_FEATURE_WORD,
