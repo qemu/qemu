@@ -17,6 +17,8 @@
 #include "target/loongarch/internals.h"
 #include "trace.h"
 
+static void loongarch_ipi_writel(void *, hwaddr, uint64_t, unsigned);
+
 static uint64_t loongarch_ipi_readl(void *opaque, hwaddr addr, unsigned size)
 {
     IPICore *s = opaque;
@@ -75,13 +77,42 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
                       data, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
+static int archid_cmp(const void *a, const void *b)
+{
+   CPUArchId *archid_a = (CPUArchId *)a;
+   CPUArchId *archid_b = (CPUArchId *)b;
+
+   return archid_a->arch_id - archid_b->arch_id;
+}
+
+static CPUArchId *find_cpu_by_archid(MachineState *ms, uint32_t id)
+{
+    CPUArchId apic_id, *found_cpu;
+
+    apic_id.arch_id = id;
+    found_cpu = bsearch(&apic_id, ms->possible_cpus->cpus,
+        ms->possible_cpus->len, sizeof(*ms->possible_cpus->cpus),
+        archid_cmp);
+
+    return found_cpu;
+}
+
+static CPUState *ipi_getcpu(int arch_id)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    CPUArchId *archid;
+
+    archid = find_cpu_by_archid(machine, arch_id);
+    return CPU(archid->cpu);
+}
+
 static void ipi_send(uint64_t val)
 {
     uint32_t cpuid;
     uint8_t vector;
-    CPULoongArchState *env;
     CPUState *cs;
     LoongArchCPU *cpu;
+    LoongArchIPI *s;
 
     cpuid = extract32(val, 16, 10);
     if (cpuid >= LOONGARCH_MAX_CPUS) {
@@ -92,11 +123,10 @@ static void ipi_send(uint64_t val)
     /* IPI status vector */
     vector = extract8(val, 0, 5);
 
-    cs = qemu_get_cpu(cpuid);
+    cs = ipi_getcpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
-    env = &cpu->env;
-    address_space_stl(&env->address_space_iocsr, 0x1008,
-                      BIT(vector), MEMTXATTRS_UNSPECIFIED, NULL);
+    s = LOONGARCH_IPI(cpu->env.ipistate);
+    loongarch_ipi_writel(&s->ipi_core, CORE_SET_OFF, BIT(vector), 4);
 }
 
 static void mail_send(uint64_t val)
@@ -114,7 +144,7 @@ static void mail_send(uint64_t val)
     }
 
     addr = 0x1020 + (val & 0x1c);
-    cs = qemu_get_cpu(cpuid);
+    cs = ipi_getcpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     send_ipi_data(env, val, addr);
@@ -135,7 +165,7 @@ static void any_send(uint64_t val)
     }
 
     addr = val & 0xffff;
-    cs = qemu_get_cpu(cpuid);
+    cs = ipi_getcpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     send_ipi_data(env, val, addr);

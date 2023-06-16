@@ -164,11 +164,16 @@ static void fdt_add_cpu_nodes(const LoongArchMachineState *lams)
     for (num = smp_cpus - 1; num >= 0; num--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", num);
         LoongArchCPU *cpu = LOONGARCH_CPU(qemu_get_cpu(num));
+        CPUState *cs = CPU(cpu);
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "cpu");
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                                 cpu->dtb_compatible);
+        if (ms->possible_cpus->cpus[cs->cpu_index].props.has_node_id) {
+            qemu_fdt_setprop_cell(ms->fdt, nodename, "numa-node-id",
+                ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
+        }
         qemu_fdt_setprop_cell(ms->fdt, nodename, "reg", num);
         qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
                               qemu_fdt_alloc_phandle(ms->fdt));
@@ -277,6 +282,22 @@ static void fdt_add_irqchip_node(LoongArchMachineState *lams)
                                  2, PCH_PIC_ROUTE_ENTRY_OFFSET);
 
     qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", irqchip_phandle);
+    g_free(nodename);
+}
+
+static void fdt_add_memory_node(MachineState *ms,
+                                uint64_t base, uint64_t size, int node_id)
+{
+    char *nodename = g_strdup_printf("/memory@%" PRIx64, base);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "memory");
+
+    if (ms->numa_state && ms->numa_state->num_nodes) {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "numa-node-id", node_id);
+    }
+
     g_free(nodename);
 }
 
@@ -617,6 +638,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
             memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
                                 cpu));
+        env->ipistate = ipi;
     }
 
     /*
@@ -766,11 +788,17 @@ static void loongarch_init(MachineState *machine)
     const char *cpu_model = machine->cpu_type;
     ram_addr_t offset = 0;
     ram_addr_t ram_size = machine->ram_size;
-    uint64_t highram_size = 0;
+    uint64_t highram_size = 0, phyAddr = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
+    int nb_numa_nodes = machine->numa_state->num_nodes;
+    NodeInfo *numa_info = machine->numa_state->nodes;
     int i;
     hwaddr fdt_base;
+    const CPUArchIdList *possible_cpus;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    CPUState *cpu;
+    char *ramName = NULL;
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
@@ -787,21 +815,51 @@ static void loongarch_init(MachineState *machine)
     }
     create_fdt(lams);
     /* Init CPUs */
-    for (i = 0; i < machine->smp.cpus; i++) {
-        cpu_create(machine->cpu_type);
+
+    possible_cpus = mc->possible_cpu_arch_ids(machine);
+    for (i = 0; i < possible_cpus->len; i++) {
+        cpu = cpu_create(machine->cpu_type);
+        cpu->cpu_index = i;
+        machine->possible_cpus->cpus[i].cpu = OBJECT(cpu);
     }
     fdt_add_cpu_nodes(lams);
-    /* Add memory region */
-    memory_region_init_alias(&lams->lowmem, NULL, "loongarch.lowram",
-                             machine->ram, 0, 256 * MiB);
-    memory_region_add_subregion(address_space_mem, offset, &lams->lowmem);
-    offset += 256 * MiB;
-    memmap_add_entry(0, 256 * MiB, 1);
-    highram_size = ram_size - 256 * MiB;
-    memory_region_init_alias(&lams->highmem, NULL, "loongarch.highmem",
-                             machine->ram, offset, highram_size);
-    memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
-    memmap_add_entry(0x90000000, highram_size, 1);
+
+    /* Node0 memory */
+    memmap_add_entry(VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE, 1);
+    fdt_add_memory_node(machine, VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE, 0);
+    memory_region_init_alias(&lams->lowmem, NULL, "loongarch.node0.lowram",
+                             machine->ram, offset, VIRT_LOWMEM_SIZE);
+    memory_region_add_subregion(address_space_mem, phyAddr, &lams->lowmem);
+
+    offset += VIRT_LOWMEM_SIZE;
+    if (nb_numa_nodes > 0) {
+        assert(numa_info[0].node_mem > VIRT_LOWMEM_SIZE);
+        highram_size = numa_info[0].node_mem - VIRT_LOWMEM_SIZE;
+    } else {
+        highram_size = ram_size - VIRT_LOWMEM_SIZE;
+    }
+    phyAddr = VIRT_HIGHMEM_BASE;
+    memmap_add_entry(phyAddr, highram_size, 1);
+    fdt_add_memory_node(machine, phyAddr, highram_size, 0);
+    memory_region_init_alias(&lams->highmem, NULL, "loongarch.node0.highram",
+                              machine->ram, offset, highram_size);
+    memory_region_add_subregion(address_space_mem, phyAddr, &lams->highmem);
+
+    /* Node1 - Nodemax memory */
+    offset += highram_size;
+    phyAddr += highram_size;
+
+    for (i = 1; i < nb_numa_nodes; i++) {
+        MemoryRegion *nodemem = g_new(MemoryRegion, 1);
+        ramName = g_strdup_printf("loongarch.node%d.ram", i);
+        memory_region_init_alias(nodemem, NULL, ramName, machine->ram,
+                                 offset,  numa_info[i].node_mem);
+        memory_region_add_subregion(address_space_mem, phyAddr, nodemem);
+        memmap_add_entry(phyAddr, numa_info[i].node_mem, 1);
+        fdt_add_memory_node(machine, phyAddr, numa_info[i].node_mem, i);
+        offset += numa_info[i].node_mem;
+        phyAddr += numa_info[i].node_mem;
+    }
 
     /* initialize device memory address space */
     if (machine->ram_size < machine->maxram_size) {
@@ -1022,6 +1080,58 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
+{
+    int n;
+    unsigned int max_cpus = ms->smp.max_cpus;
+
+    if (ms->possible_cpus) {
+        assert(ms->possible_cpus->len == max_cpus);
+        return ms->possible_cpus;
+    }
+
+    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus->len = max_cpus;
+    for (n = 0; n < ms->possible_cpus->len; n++) {
+        ms->possible_cpus->cpus[n].type = ms->cpu_type;
+        ms->possible_cpus->cpus[n].arch_id = n;
+
+        ms->possible_cpus->cpus[n].props.has_socket_id = true;
+        ms->possible_cpus->cpus[n].props.socket_id  =
+                                   n / (ms->smp.cores * ms->smp.threads);
+        ms->possible_cpus->cpus[n].props.has_core_id = true;
+        ms->possible_cpus->cpus[n].props.core_id =
+                                   n / ms->smp.threads % ms->smp.cores;
+        ms->possible_cpus->cpus[n].props.has_thread_id = true;
+        ms->possible_cpus->cpus[n].props.thread_id = n % ms->smp.threads;
+    }
+    return ms->possible_cpus;
+}
+
+static CpuInstanceProperties
+virt_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
+
+    assert(cpu_index < possible_cpus->len);
+    return possible_cpus->cpus[cpu_index].props;
+}
+
+static int64_t virt_get_default_cpu_node_id(const MachineState *ms, int idx)
+{
+    int64_t nidx = 0;
+
+    if (ms->numa_state->num_nodes) {
+        nidx = idx / (ms->smp.cpus / ms->numa_state->num_nodes);
+        if (ms->numa_state->num_nodes <= nidx) {
+            nidx = ms->numa_state->num_nodes - 1;
+        }
+    }
+    return nidx;
+}
+
 static void loongarch_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1038,6 +1148,12 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
+    mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
+    mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
+    mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->numa_mem_supported = true;
+    mc->auto_enable_numa_with_memhp = true;
+    mc->auto_enable_numa_with_memdev = true;
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     mc->default_nic = "virtio-net-pci";
     hc->plug = loongarch_machine_device_plug_cb;

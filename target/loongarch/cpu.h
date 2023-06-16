@@ -351,6 +351,8 @@ typedef struct CPUArchState {
     MemoryRegion iocsr_mem;
     bool load_elf;
     uint64_t elf_address;
+    /* Store ipistate to access from this struct */
+    DeviceState *ipistate;
 #endif
 } CPULoongArchState;
 

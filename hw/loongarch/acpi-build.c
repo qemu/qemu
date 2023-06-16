@@ -34,6 +34,7 @@
 #include "sysemu/tpm.h"
 #include "hw/platform-bus.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/acpi/hmat.h"
 
 #define ACPI_BUILD_ALIGN_SIZE             0x1000
 #define ACPI_BUILD_TABLE_SIZE             0x20000
@@ -107,7 +108,9 @@ static void
 build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
 {
     MachineState *ms = MACHINE(lams);
-    int i;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(ms);
+    int i, arch_id;
     AcpiTable table = { .sig = "APIC", .rev = 1, .oem_id = lams->oem_id,
                         .oem_table_id = lams->oem_table_id };
 
@@ -117,13 +120,15 @@ build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
     build_append_int_noprefix(table_data, 0, 4);
     build_append_int_noprefix(table_data, 1 /* PCAT_COMPAT */, 4); /* Flags */
 
-    for (i = 0; i < ms->smp.cpus; i++) {
+    for (i = 0; i < arch_ids->len; i++) {
         /* Processor Core Interrupt Controller Structure */
+        arch_id = arch_ids->cpus[i].arch_id;
+
         build_append_int_noprefix(table_data, 17, 1);    /* Type */
         build_append_int_noprefix(table_data, 15, 1);    /* Length */
         build_append_int_noprefix(table_data, 1, 1);     /* Version */
         build_append_int_noprefix(table_data, i + 1, 4); /* ACPI Processor ID */
-        build_append_int_noprefix(table_data, i, 4);     /* Core ID */
+        build_append_int_noprefix(table_data, arch_id, 4); /* Core ID */
         build_append_int_noprefix(table_data, 1, 4);     /* Flags */
     }
 
@@ -159,9 +164,12 @@ build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
-    uint64_t i;
+    int i, arch_id, node_id;
+    uint64_t mem_len, mem_base;
+    int nb_numa_nodes = machine->numa_state->num_nodes;
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
-    MachineState *ms = MACHINE(lams);
+    MachineClass *mc = MACHINE_GET_CLASS(lams);
+    const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
     AcpiTable table = { .sig = "SRAT", .rev = 1, .oem_id = lams->oem_id,
                         .oem_table_id = lams->oem_table_id };
 
@@ -169,13 +177,16 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     build_append_int_noprefix(table_data, 1, 4); /* Reserved */
     build_append_int_noprefix(table_data, 0, 8); /* Reserved */
 
-    for (i = 0; i < ms->smp.cpus; ++i) {
+    for (i = 0; i < arch_ids->len; ++i) {
+        arch_id = arch_ids->cpus[i].arch_id;
+        node_id = arch_ids->cpus[i].props.node_id;
+
         /* Processor Local APIC/SAPIC Affinity Structure */
         build_append_int_noprefix(table_data, 0, 1);  /* Type  */
         build_append_int_noprefix(table_data, 16, 1); /* Length */
         /* Proximity Domain [7:0] */
-        build_append_int_noprefix(table_data, 0, 1);
-        build_append_int_noprefix(table_data, i, 1); /* APIC ID */
+        build_append_int_noprefix(table_data, node_id, 1);
+        build_append_int_noprefix(table_data, arch_id, 1); /* APIC ID */
         /* Flags, Table 5-36 */
         build_append_int_noprefix(table_data, 1, 4);
         build_append_int_noprefix(table_data, 0, 1); /* Local SAPIC EID */
@@ -184,16 +195,36 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         build_append_int_noprefix(table_data, 0, 4); /* Reserved */
     }
 
+    /* Node0 */
     build_srat_memory(table_data, VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE,
                       0, MEM_AFFINITY_ENABLED);
+    mem_base = VIRT_HIGHMEM_BASE;
+    if (!nb_numa_nodes) {
+        mem_len = machine->ram_size - VIRT_LOWMEM_SIZE;
+    } else {
+        mem_len = machine->numa_state->nodes[0].node_mem - VIRT_LOWMEM_SIZE;
+    }
+    if (mem_len)
+        build_srat_memory(table_data, mem_base, mem_len, 0, MEM_AFFINITY_ENABLED);
 
-    build_srat_memory(table_data, VIRT_HIGHMEM_BASE, machine->ram_size - VIRT_LOWMEM_SIZE,
-                      0, MEM_AFFINITY_ENABLED);
+    /* Node1 - Nodemax */
+    if (nb_numa_nodes) {
+        mem_base += mem_len;
+        for (i = 1; i < nb_numa_nodes; ++i) {
+            if (machine->numa_state->nodes[i].node_mem > 0) {
+                build_srat_memory(table_data, mem_base,
+                                  machine->numa_state->nodes[i].node_mem, i,
+                                  MEM_AFFINITY_ENABLED);
+                mem_base += machine->numa_state->nodes[i].node_mem;
+            }
+        }
+    }
 
-    if (ms->device_memory) {
-        build_srat_memory(table_data, ms->device_memory->base,
-                          memory_region_size(&ms->device_memory->mr),
-                          0, MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+    if (machine->device_memory) {
+        build_srat_memory(table_data, machine->device_memory->base,
+                          memory_region_size(&machine->device_memory->mr),
+                          nb_numa_nodes - 1,
+                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
 
     acpi_table_end(linker, &table);
@@ -407,7 +438,24 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     build_madt(tables_blob, tables->linker, lams);
 
     acpi_add_table(table_offsets, tables_blob);
+    build_pptt(tables_blob, tables->linker, machine,
+               lams->oem_id, lams->oem_table_id);
+
+    acpi_add_table(table_offsets, tables_blob);
     build_srat(tables_blob, tables->linker, machine);
+
+    if (machine->numa_state->num_nodes) {
+        if (machine->numa_state->have_numa_distance) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_slit(tables_blob, tables->linker, machine, lams->oem_id,
+                       lams->oem_table_id);
+        }
+        if (machine->numa_state->hmat_enabled) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_hmat(tables_blob, tables->linker, machine->numa_state,
+                       lams->oem_id, lams->oem_table_id);
+        }
+    }
 
     acpi_add_table(table_offsets, tables_blob);
     {
