@@ -5704,7 +5704,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             s->base.is_jmp = DISAS_EOB_ONLY;
         }
         break;
-#ifdef TARGET_X86_64
     case 0x105: /* syscall */
         /* For Intel SYSCALL is only valid in long mode */
         if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
@@ -5738,7 +5737,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_eob_worker(s, false, true);
         }
         break;
-#endif
     case 0x1a2: /* cpuid */
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
