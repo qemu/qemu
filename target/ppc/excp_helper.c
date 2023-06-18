@@ -154,6 +154,7 @@ static uint32_t ppc_ldl_code(CPUArchState *env, target_ulong addr)
 
     return insn;
 }
+
 #endif
 
 static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
@@ -425,21 +426,20 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
     env->reserve_addr = -1;
 }
 
-static void powerpc_mcheck_checkstop(CPUPPCState *env)
-{
-    /* KVM guests always have MSR[ME] enabled */
 #ifdef CONFIG_TCG
+/*
+ * This stops the machine and logs CPU state without killing QEMU (like
+ * cpu_abort()) because it is often a guest error as opposed to a QEMU error,
+ * so the machine can still be debugged.
+ */
+static G_NORETURN void powerpc_checkstop(CPUPPCState *env, const char *reason)
+{
     CPUState *cs = env_cpu(env);
     FILE *f;
 
-    if (FIELD_EX64(env->msr, MSR, ME)) {
-        return;
-    }
-
     f = qemu_log_trylock();
     if (f) {
-        fprintf(f, "Entering checkstop state: "
-                   "machine check with MSR[ME]=0\n");
+        fprintf(f, "Entering checkstop state: %s\n", reason);
         cpu_dump_state(cs, f, CPU_DUMP_FPU | CPU_DUMP_CCOP);
         qemu_log_unlock(f);
     }
@@ -451,6 +451,31 @@ static void powerpc_mcheck_checkstop(CPUPPCState *env)
      */
     qemu_system_guest_panicked(NULL);
     cpu_loop_exit_noexc(cs);
+}
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void helper_attn(CPUPPCState *env)
+{
+    /* POWER attn is unprivileged when enabled by HID, otherwise illegal */
+    if ((*env->check_attn)(env)) {
+        powerpc_checkstop(env, "host executed attn");
+    } else {
+        raise_exception_err(env, POWERPC_EXCP_HV_EMU,
+                            POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
+    }
+}
+#endif
+#endif /* CONFIG_TCG */
+
+static void powerpc_mcheck_checkstop(CPUPPCState *env)
+{
+    /* KVM guests always have MSR[ME] enabled */
+#ifdef CONFIG_TCG
+    if (FIELD_EX64(env->msr, MSR, ME)) {
+        return;
+    }
+
+    powerpc_checkstop(env, "machine check with MSR[ME]=0");
 #endif
 }
 

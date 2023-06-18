@@ -145,3 +145,13 @@ static bool trans_EIEIO(DisasContext *ctx, arg_EIEIO *a)
 
     return true;
 }
+
+static bool trans_ATTN(DisasContext *ctx, arg_ATTN *a)
+{
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    gen_helper_attn(tcg_env);
+    return true;
+#else
+    return false;
+#endif
+}
