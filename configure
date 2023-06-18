@@ -758,7 +758,7 @@ done
 
 if ! test -e "$source_path/.git"
 then
-    git_submodules_action="ignore"
+    git_submodules_action="validate"
 fi
 
 # test for any invalid configuration combinations

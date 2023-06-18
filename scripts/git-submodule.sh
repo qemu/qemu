@@ -9,12 +9,21 @@ command=$1
 shift
 maybe_modules="$@"
 
-# if not running in a git checkout, do nothing
-test "$command" = "ignore" && exit 0
-
+test -z "$maybe_modules" && exit 0
 test -z "$GIT" && GIT=$(command -v git)
 
 cd "$(dirname "$0")/.."
+
+no_git_error=
+if ! test -e ".git"; then
+    no_git_error='no git checkout exists'
+elif test -z "$GIT"; then
+    no_git_error='git binary not found'
+fi
+
+is_git() {
+    test -z "$no_git_error"
+}
 
 update_error() {
     echo "$0: $*"
@@ -34,7 +43,7 @@ update_error() {
 }
 
 validate_error() {
-    if test "$1" = "validate"; then
+    if is_git && test "$1" = "validate"; then
         echo "GIT submodules checkout is out of date, and submodules"
         echo "configured for validate only. Please run"
         echo "  scripts/git-submodule.sh update $maybe_modules"
@@ -51,42 +60,42 @@ check_updated() {
     test "$CURSTATUS" = "$OLDSTATUS"
 }
 
-if test -n "$maybe_modules" && ! test -e ".git"
-then
-    echo "$0: unexpectedly called with submodules but no git checkout exists"
-    exit 1
+if is_git; then
+    test -e $substat || touch $substat
+    modules=""
+    for m in $maybe_modules
+    do
+        $GIT submodule status $m 1> /dev/null 2>&1
+        if test $? = 0
+        then
+            modules="$modules $m"
+            grep $m $substat > /dev/null 2>&1 || $GIT submodule status $module >> $substat
+        else
+            echo "warn: ignoring non-existent submodule $m"
+        fi
+    done
+else
+    modules=$maybe_modules
 fi
-
-if test -n "$maybe_modules" && test -z "$GIT"
-then
-    echo "$0: unexpectedly called with submodules but git binary not found"
-    exit 1
-fi
-
-modules=""
-for m in $maybe_modules
-do
-    $GIT submodule status $m 1> /dev/null 2>&1
-    if test $? = 0
-    then
-        modules="$modules $m"
-    else
-        echo "warn: ignoring non-existent submodule $m"
-    fi
-done
 
 case "$command" in
 status|validate)
-    test -f "$substat" || validate_error "$command"
-    test -z "$maybe_modules" && exit 0
     for module in $modules; do
-        check_updated $module || validate_error "$command"
+        if is_git; then
+            check_updated $module || validate_error "$command"
+        elif ! (set xyz "$module"/* && test -e "$2"); then
+            # The directory does not exist or it contains no files
+            echo "$0: sources not available for $module and $no_git_error"
+            validate_error "$command"
+        fi
     done
-    exit 0
     ;;
+
 update)
-    test -e $substat || touch $substat
-    test -z "$maybe_modules" && exit 0
+    is_git || {
+        echo "$0: unexpectedly called with submodules but $no_git_error"
+        exit 1
+    }
 
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
