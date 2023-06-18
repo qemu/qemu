@@ -349,6 +349,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->pke_state = pke_state;
     memory_region_add_subregion(sysmem, PKE_MEM_BASE, &pke_state->iomem);
 
+    // init block device engine
+    dev = qdev_new("ipodtouch.blockdevice");
+    IPodTouchBlockDeviceState *bdev_state = IPOD_TOUCH_BLOCK_DEVICE(dev);
+    nms->bdev_state = bdev_state;
+    memory_region_add_subregion(sysmem, BLOCK_DEVICE_MEM_BASE, &bdev_state->iomem);
+
     qemu_register_reset(ipod_touch_cpu_reset, nms);
 }
 

@@ -6,10 +6,14 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
+#include "hw/hw.h"
 #include "hw/irq.h"
 
 #define TYPE_IPOD_TOUCH_FMSS                "ipodtouch.fmss"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchFMSSState, IPOD_TOUCH_FMSS)
+
+#define NAND_BYTES_PER_PAGE 2048
+#define NAND_BYTES_PER_SPARE 64
 
 #define FMSS__FMCTRL1             0x4
 #define FMSS__CS_IRQ              0xC0C
@@ -25,6 +29,10 @@ typedef struct IPodTouchFMSSState
     SysBusDevice parent_obj;
     MemoryRegion iomem;
     qemu_irq irq;
+
+    uint8_t *page_buffer;
+    uint8_t *page_spare_buffer;
+
     uint32_t reg_cs_irq_bit;
     uint32_t reg_cinfo_target_addr;
     uint32_t reg_pages_in_addr;

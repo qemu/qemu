@@ -8,40 +8,51 @@ static void write_chip_info(IPodTouchFMSSState *s)
 
 static void read_nand_pages(IPodTouchFMSSState *s)
 {
+    // patch the FTL_Read method
+    uint16_t *data = malloc(sizeof(uint16_t) * 9);
+    data[0] = 0xB500; // push {lr}
+    data[1] = 0x4B14; // ldr r3, [pc, #0x50]
+    data[2] = 0x6018; // str r0, [r3]
+    data[3] = 0x3304; // adds r3, #4
+    data[4] = 0x6019; // str r1, [r3]
+    data[5] = 0x3304; // adds r3, #4
+    data[6] = 0x601A; // str r1, [r3] -> this will trigger the block loading
+    data[7] = 0x2000; // movs r0, #0
+    data[8] = 0xBD00; // pop {pc}
+    cpu_physical_memory_write(0x0ff02d1c, (uint8_t *)data, 18);
+
+    uint32_t *data2 = malloc(sizeof(uint32_t) * 1);
+    data2[0] = 0x39400000;
+    cpu_physical_memory_write(0x0ff02d1c + 0x54, (uint8_t *)data2, 4);
+
     for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {
         uint32_t page_nr = 0;
         uint32_t page_out_addr = 0;
-        uint32_t page_spare_out_addr = 0;
         cpu_physical_memory_read(s->reg_pages_in_addr + page_ind, &page_nr, 0x4);
         cpu_physical_memory_read(s->reg_pages_out_addr + page_ind, &page_out_addr, 0x4);
-        if(page_nr == 524160) {
-            // NAND signature page
-            uint8_t *page = calloc(0x100, sizeof(uint8_t));
-            char *magic = "NANDDRIVERSIGN";
-            memcpy(page, magic, strlen(magic));
-            page[0x34] = 0x4; // length of the info
 
-            // signature (0x43313131)
-            page[0x38] = 0x31;
-            page[0x39] = 0x31;
-            page[0x3A] = 0x31;
-            page[0x3B] = 0x43;
-            printf("Will read page %d into address 0x%08x\n", page_nr, page_out_addr);
-            cpu_physical_memory_write(page_out_addr, page, 0x100);
+        printf("Will read page %d into address 0x%08x and spare into address 0x%08x\n", page_nr, page_out_addr, s->reg_page_spare_out_addr);
+
+        // prepare the page
+        char filename[200];
+        sprintf(filename, "/Users/martijndevos/Documents/generate_nand_it2g/nand/%d.page", page_nr);
+        struct stat st = {0};
+        if (stat(filename, &st) == -1) {
+            printf("Will preparing empty page %d", page_nr);
+            // page storage does not exist - initialize an empty buffer
+            memset(s->page_buffer, 0, NAND_BYTES_PER_PAGE);
+            memset(s->page_spare_buffer, 0, NAND_BYTES_PER_SPARE);
         }
-        else if(page_nr == 524161) {
-            // BBT page
-            uint8_t *page = calloc(0x100, sizeof(uint8_t));
-            char *magic = "DEVICEINFOBBT";
-            memcpy(page, magic, strlen(magic));
-            cpu_physical_memory_write(page_out_addr, page, 0x100);
+        else {
+            FILE *f = fopen(filename, "rb");
+            if (f == NULL) { hw_error("Unable to read file!"); }
+            fread(s->page_buffer, sizeof(char), NAND_BYTES_PER_PAGE, f);
+            fread(s->page_spare_buffer, sizeof(char), NAND_BYTES_PER_SPARE, f);
+            fclose(f);
         }
 
-        // write the spare
-        printf("Writing spare to 0x%08x\n", s->reg_page_spare_out_addr);
-        uint8_t *spare = calloc(0x10, sizeof(uint8_t));
-        spare[9] = 0x80;
-        cpu_physical_memory_write(s->reg_page_spare_out_addr, spare, 0x10);
+        cpu_physical_memory_write(page_out_addr, s->page_buffer, NAND_BYTES_PER_PAGE);
+        cpu_physical_memory_write(s->reg_page_spare_out_addr, s->page_spare_buffer, NAND_BYTES_PER_SPARE);
     }
 }
 
@@ -118,6 +129,9 @@ static void ipod_touch_fmss_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &fmss_ops, s, "fmss", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+
+    s->page_buffer = (uint8_t *)malloc(NAND_BYTES_PER_PAGE);
+    s->page_spare_buffer = (uint8_t *)malloc(NAND_BYTES_PER_SPARE);
 }
 
 static void ipod_touch_fmss_class_init(ObjectClass *klass, void *data)

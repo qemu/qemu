@@ -11,7 +11,7 @@
 #define TYPE_IPOD_TOUCH_SHA1                "ipodtouch.sha1"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSHA1State, IPOD_TOUCH_SHA1)
 
-#define SHA1_BUFFER_SIZE 1024 * 1024
+#define SHA1_BUFFER_SIZE 1024 * 1024 * 5
 
 #define SHA_CONFIG         0x0
 #define SHA_RESET          0x4

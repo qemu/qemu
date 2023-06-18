@@ -41,7 +41,7 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
             }
 
             buf = (uint8_t *) malloc(aesop->insize);
-            //printf("In size: %d, out size: %d, in addr: 0x%08x, in buf: 0x%08x, out addr: 0x%08x\n", aesop->insize, aesop->outsize, aesop->inaddr, ((uint32_t *)inbuf)[0], aesop->outaddr);
+            printf("In size: %d, out size: %d, in addr: 0x%08x, in buf: 0x%08x, out addr: 0x%08x\n", aesop->insize, aesop->outsize, aesop->inaddr, ((uint32_t *)inbuf)[0], aesop->outaddr);
 
             if(aesop->keytype == AESGID) {
                 // Unfortunately, we don't have access to the GID key.
@@ -59,6 +59,13 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                     char key[] = { 
                         0xb3, 0x63, 0x3a, 0xfb, 0xe0, 0x2e, 0x0e, 0x9b, 0xa4, 0xd7, 0x36, 0x6c, 0x47, 0xab, 0xe5, 0xa8, // IV
                         0x2d, 0x91, 0x6d, 0xab, 0xb6, 0xdf, 0xd4, 0x59, 0x4d, 0xbe, 0x36, 0x35, 0xb4, 0xc7, 0x16, 0x62, // key
+                    };
+                    for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
+                }
+                else if(aesop->gid_encryption_count == 2) { // kernelcache
+                    char key[] = { 
+                        0xa1, 0x91, 0x29, 0x12, 0x90, 0xd4, 0x87, 0xff, 0x07, 0x31, 0x96, 0x9c, 0x5f, 0xc8, 0xd9, 0x18, // IV
+                        0x0e, 0x4d, 0x23, 0xfa, 0x67, 0x59, 0x99, 0xd5, 0x95, 0x9d, 0xd1, 0x0c, 0x8d, 0xd7, 0x3d, 0x20, // key
                     };
                     for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
                 }

@@ -23,6 +23,7 @@
 #include "hw/arm/ipod_touch_lcd.h"
 #include "hw/arm/ipod_touch_mipi_dsi.h"
 #include "hw/arm/ipod_touch_fmss.h"
+#include "hw/arm/ipod_touch_block_device.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -65,6 +66,7 @@
 #define VIC0_MEM_BASE         0x38E00000
 #define VIC1_MEM_BASE         0x38E01000
 #define TVOUT_MEM_BASE        0x39300000
+#define BLOCK_DEVICE_MEM_BASE 0x39400000
 #define SYSIC_MEM_BASE        0x39700000
 #define DMAC1_MEM_BASE        0x39900000
 #define SPI0_MEM_BASE         0x3C300000
@@ -115,6 +117,7 @@ typedef struct {
 	IPodTouchLCDState *lcd_state;
 	IPodTouchMIPIDSIState *mipi_dsi_state;
 	IPodTouchFMSSState *fmss_state;
+	IPodTouchBlockDeviceState *bdev_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);
