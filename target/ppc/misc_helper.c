@@ -307,6 +307,72 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
     }
     bql_unlock();
 }
+
+/* Indirect SCOM (SPRC/SPRD) access to SCRATCH0-7 are implemented. */
+void helper_store_sprc(CPUPPCState *env, target_ulong val)
+{
+    if (val & ~0x3f8ULL) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid SPRC register value "
+                      TARGET_FMT_lx"\n", val);
+        return;
+    }
+    env->spr[SPR_POWER_SPRC] = val;
+}
+
+target_ulong helper_load_sprd(CPUPPCState *env)
+{
+    target_ulong sprc = env->spr[SPR_POWER_SPRC];
+
+    switch (sprc & 0x3c0) {
+    case 0: /* SCRATCH0-7 */
+        return env->scratch[(sprc >> 3) & 0x7];
+    default:
+        qemu_log_mask(LOG_UNIMP, "mfSPRD: Unimplemented SPRC:0x"
+                                  TARGET_FMT_lx"\n", sprc);
+        break;
+    }
+    return 0;
+}
+
+static void do_store_scratch(CPUPPCState *env, int nr, target_ulong val)
+{
+    CPUState *cs = env_cpu(env);
+    CPUState *ccs;
+    uint32_t nr_threads = cs->nr_threads;
+
+    /*
+     * Log stores to SCRATCH, because some firmware uses these for debugging
+     * and logging, but they would normally be read by the BMC, which is
+     * not implemented in QEMU yet. This gives a way to get at the information.
+     * Could also dump these upon checkstop.
+     */
+    qemu_log("SPRD write 0x" TARGET_FMT_lx " to SCRATCH%d\n", val, nr);
+
+    if (nr_threads == 1) {
+        env->scratch[nr] = val;
+        return;
+    }
+
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        CPUPPCState *cenv = &POWERPC_CPU(ccs)->env;
+        cenv->scratch[nr] = val;
+    }
+}
+
+void helper_store_sprd(CPUPPCState *env, target_ulong val)
+{
+    target_ulong sprc = env->spr[SPR_POWER_SPRC];
+
+    switch (sprc & 0x3c0) {
+    case 0: /* SCRATCH0-7 */
+        do_store_scratch(env, (sprc >> 3) & 0x7, val);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "mfSPRD: Unimplemented SPRC:0x"
+                                  TARGET_FMT_lx"\n", sprc);
+        break;
+    }
+}
 #endif /* defined(TARGET_PPC64) */
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)

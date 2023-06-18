@@ -1264,6 +1264,9 @@ struct CPUArchState {
     ppc_slb_t slb[MAX_SLB_ENTRIES]; /* PowerPC 64 SLB area */
     struct CPUBreakpoint *ciabr_breakpoint;
     struct CPUWatchpoint *dawr0_watchpoint;
+
+    /* POWER CPU regs/state */
+    target_ulong scratch[8]; /* SCRATCH registers (shared across core) */
 #endif
     target_ulong sr[32];   /* segment registers */
     uint32_t nb_BATs;      /* number of BATs */
@@ -1806,9 +1809,9 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_SPRG2             (0x112)
 #define SPR_SPRG3             (0x113)
 #define SPR_SPRG4             (0x114)
-#define SPR_SCOMC             (0x114)
+#define SPR_POWER_SPRC        (0x114)
 #define SPR_SPRG5             (0x115)
-#define SPR_SCOMD             (0x115)
+#define SPR_POWER_SPRD        (0x115)
 #define SPR_SPRG6             (0x116)
 #define SPR_SPRG7             (0x117)
 #define SPR_ASR               (0x118)
