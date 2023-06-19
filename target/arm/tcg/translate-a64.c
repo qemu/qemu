@@ -2313,119 +2313,77 @@ static bool trans_SYS(DisasContext *s, arg_SYS *a)
     return true;
 }
 
-/* Exception generation
- *
- *  31             24 23 21 20                     5 4   2 1  0
- * +-----------------+-----+------------------------+-----+----+
- * | 1 1 0 1 0 1 0 0 | opc |          imm16         | op2 | LL |
- * +-----------------------+------------------------+----------+
- */
-static void disas_exc(DisasContext *s, uint32_t insn)
+static bool trans_SVC(DisasContext *s, arg_i *a)
 {
-    int opc = extract32(insn, 21, 3);
-    int op2_ll = extract32(insn, 0, 5);
-    int imm16 = extract32(insn, 5, 16);
-    uint32_t syndrome;
-
-    switch (opc) {
-    case 0:
-        /* For SVC, HVC and SMC we advance the single-step state
-         * machine before taking the exception. This is architecturally
-         * mandated, to ensure that single-stepping a system call
-         * instruction works properly.
-         */
-        switch (op2_ll) {
-        case 1:                                                     /* SVC */
-            syndrome = syn_aa64_svc(imm16);
-            if (s->fgt_svc) {
-                gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
-                break;
-            }
-            gen_ss_advance(s);
-            gen_exception_insn(s, 4, EXCP_SWI, syndrome);
-            break;
-        case 2:                                                     /* HVC */
-            if (s->current_el == 0) {
-                unallocated_encoding(s);
-                break;
-            }
-            /* The pre HVC helper handles cases when HVC gets trapped
-             * as an undefined insn by runtime configuration.
-             */
-            gen_a64_update_pc(s, 0);
-            gen_helper_pre_hvc(cpu_env);
-            gen_ss_advance(s);
-            gen_exception_insn_el(s, 4, EXCP_HVC, syn_aa64_hvc(imm16), 2);
-            break;
-        case 3:                                                     /* SMC */
-            if (s->current_el == 0) {
-                unallocated_encoding(s);
-                break;
-            }
-            gen_a64_update_pc(s, 0);
-            gen_helper_pre_smc(cpu_env, tcg_constant_i32(syn_aa64_smc(imm16)));
-            gen_ss_advance(s);
-            gen_exception_insn_el(s, 4, EXCP_SMC, syn_aa64_smc(imm16), 3);
-            break;
-        default:
-            unallocated_encoding(s);
-            break;
-        }
-        break;
-    case 1:
-        if (op2_ll != 0) {
-            unallocated_encoding(s);
-            break;
-        }
-        /* BRK */
-        gen_exception_bkpt_insn(s, syn_aa64_bkpt(imm16));
-        break;
-    case 2:
-        if (op2_ll != 0) {
-            unallocated_encoding(s);
-            break;
-        }
-        /* HLT. This has two purposes.
-         * Architecturally, it is an external halting debug instruction.
-         * Since QEMU doesn't implement external debug, we treat this as
-         * it is required for halting debug disabled: it will UNDEF.
-         * Secondly, "HLT 0xf000" is the A64 semihosting syscall instruction.
-         */
-        if (semihosting_enabled(s->current_el == 0) && imm16 == 0xf000) {
-            gen_exception_internal_insn(s, EXCP_SEMIHOST);
-        } else {
-            unallocated_encoding(s);
-        }
-        break;
-    case 5:
-        if (op2_ll < 1 || op2_ll > 3) {
-            unallocated_encoding(s);
-            break;
-        }
-        /* DCPS1, DCPS2, DCPS3 */
-        unallocated_encoding(s);
-        break;
-    default:
-        unallocated_encoding(s);
-        break;
+    /*
+     * For SVC, HVC and SMC we advance the single-step state
+     * machine before taking the exception. This is architecturally
+     * mandated, to ensure that single-stepping a system call
+     * instruction works properly.
+     */
+    uint32_t syndrome = syn_aa64_svc(a->imm);
+    if (s->fgt_svc) {
+        gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
+        return true;
     }
+    gen_ss_advance(s);
+    gen_exception_insn(s, 4, EXCP_SWI, syndrome);
+    return true;
 }
 
-/* Branches, exception generating and system instructions */
-static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
+static bool trans_HVC(DisasContext *s, arg_i *a)
 {
-    switch (extract32(insn, 25, 7)) {
-    case 0x6a: /* Exception generation / System */
-        if (insn & (1 << 24)) {
-            unallocated_encoding(s);
-        } else {
-            disas_exc(s, insn);
-        }
-        break;
-    default:
+    if (s->current_el == 0) {
         unallocated_encoding(s);
-        break;
+        return true;
     }
+    /*
+     * The pre HVC helper handles cases when HVC gets trapped
+     * as an undefined insn by runtime configuration.
+     */
+    gen_a64_update_pc(s, 0);
+    gen_helper_pre_hvc(cpu_env);
+    /* Architecture requires ss advance before we do the actual work */
+    gen_ss_advance(s);
+    gen_exception_insn_el(s, 4, EXCP_HVC, syn_aa64_hvc(a->imm), 2);
+    return true;
+}
+
+static bool trans_SMC(DisasContext *s, arg_i *a)
+{
+    if (s->current_el == 0) {
+        unallocated_encoding(s);
+        return true;
+    }
+    gen_a64_update_pc(s, 0);
+    gen_helper_pre_smc(cpu_env, tcg_constant_i32(syn_aa64_smc(a->imm)));
+    /* Architecture requires ss advance before we do the actual work */
+    gen_ss_advance(s);
+    gen_exception_insn_el(s, 4, EXCP_SMC, syn_aa64_smc(a->imm), 3);
+    return true;
+}
+
+static bool trans_BRK(DisasContext *s, arg_i *a)
+{
+    gen_exception_bkpt_insn(s, syn_aa64_bkpt(a->imm));
+    return true;
+}
+
+static bool trans_HLT(DisasContext *s, arg_i *a)
+{
+    /*
+     * HLT. This has two purposes.
+     * Architecturally, it is an external halting debug instruction.
+     * Since QEMU doesn't implement external debug, we treat this as
+     * it is required for halting debug disabled: it will UNDEF.
+     * Secondly, "HLT 0xf000" is the A64 semihosting syscall instruction.
+     */
+    if (semihosting_enabled(s->current_el == 0) && a->imm == 0xf000) {
+        gen_exception_internal_insn(s, EXCP_SEMIHOST);
+    } else {
+        unallocated_encoding(s);
+    }
+    return true;
 }
 
 /*
@@ -14188,9 +14146,6 @@ static bool btype_destination_ok(uint32_t insn, bool bt, int btype)
 static void disas_a64_legacy(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 25, 4)) {
-    case 0xa: case 0xb: /* Branch, exception generation and system insns */
-        disas_b_exc_sys(s, insn);
-        break;
     case 0x4:
     case 0x6:
     case 0xc:

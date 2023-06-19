@@ -215,3 +215,18 @@ MSR_i_SVCR      1101 0101 0000 0 011 0100 0 mask:2 imm:1 011 11111
 SYS             1101 0101 00 l:1 01 op1:3 crn:4 crm:4 op2:3 rt:5 op0=1
 SYS             1101 0101 00 l:1 10 op1:3 crn:4 crm:4 op2:3 rt:5 op0=2
 SYS             1101 0101 00 l:1 11 op1:3 crn:4 crm:4 op2:3 rt:5 op0=3
+
+# Exception generation
+
+@i16            .... .... ... imm:16           ... .. &i
+SVC             1101 0100 000 ................ 000 01 @i16
+HVC             1101 0100 000 ................ 000 10 @i16
+SMC             1101 0100 000 ................ 000 11 @i16
+BRK             1101 0100 001 ................ 000 00 @i16
+HLT             1101 0100 010 ................ 000 00 @i16
+# These insns always UNDEF unless in halting debug state, which
+# we don't implement. So we don't need to decode them. The patterns
+# are listed here as documentation.
+# DCPS1         1101 0100 101 ................ 000 01 @i16
+# DCPS2         1101 0100 101 ................ 000 10 @i16
+# DCPS3         1101 0100 101 ................ 000 11 @i16
