@@ -1402,25 +1402,27 @@ void arm_cpu_post_init(Object *obj)
      * KVM does not currently allow us to lie to the guest about its
      * ID/feature registers, so the guest always sees what the host has.
      */
-    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)
-        ? cpu_isar_feature(aa64_fp_simd, cpu)
-        : cpu_isar_feature(aa32_vfp, cpu)) {
-        cpu->has_vfp = true;
-        if (!kvm_enabled()) {
-            qdev_property_add_static(DEVICE(obj), &arm_cpu_has_vfp_property);
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        if (cpu_isar_feature(aa64_fp_simd, cpu)) {
+            cpu->has_vfp = true;
+            cpu->has_vfp_d32 = true;
+            if (tcg_enabled() || qtest_enabled()) {
+                qdev_property_add_static(DEVICE(obj),
+                                         &arm_cpu_has_vfp_property);
+            }
         }
-    }
-
-    if (cpu->has_vfp && cpu_isar_feature(aa32_simd_r32, cpu)) {
-        cpu->has_vfp_d32 = true;
-        if (!kvm_enabled()) {
+    } else if (cpu_isar_feature(aa32_vfp, cpu)) {
+        cpu->has_vfp = true;
+        if (cpu_isar_feature(aa32_simd_r32, cpu)) {
+            cpu->has_vfp_d32 = true;
             /*
              * The permitted values of the SIMDReg bits [3:0] on
              * Armv8-A are either 0b0000 and 0b0010. On such CPUs,
              * make sure that has_vfp_d32 can not be set to false.
              */
-            if (!(arm_feature(&cpu->env, ARM_FEATURE_V8) &&
-                  !arm_feature(&cpu->env, ARM_FEATURE_M))) {
+            if ((tcg_enabled() || qtest_enabled())
+                && !(arm_feature(&cpu->env, ARM_FEATURE_V8)
+                     && !arm_feature(&cpu->env, ARM_FEATURE_M))) {
                 qdev_property_add_static(DEVICE(obj),
                                          &arm_cpu_has_vfp_d32_property);
             }
