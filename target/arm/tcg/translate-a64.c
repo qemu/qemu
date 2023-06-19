@@ -2652,22 +2652,12 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
     }
 }
 
-/* Update the Sixty-Four bit (SF) registersize. This logic is derived
+/*
+ * Compute the ISS.SF bit for syndrome information if an exception
+ * is taken on a load or store. This indicates whether the instruction
+ * is accessing a 32-bit or 64-bit register. This logic is derived
  * from the ARMv8 specs for LDR (Shared decode for all encodings).
  */
-static bool disas_ldst_compute_iss_sf(int size, bool is_signed, int opc)
-{
-    int opc0 = extract32(opc, 0, 1);
-    int regsize;
-
-    if (is_signed) {
-        regsize = opc0 ? 32 : 64;
-    } else {
-        regsize = size == 3 ? 64 : 32;
-    }
-    return regsize == 64;
-}
-
 static bool ldst_iss_sf(int size, bool sign, bool ext)
 {
 
@@ -3368,88 +3358,60 @@ static bool trans_LDRA(DisasContext *s, arg_LDRA *a)
     return true;
 }
 
-/*
- * LDAPR/STLR (unscaled immediate)
- *
- *  31  30            24    22  21       12    10    5     0
- * +------+-------------+-----+---+--------+-----+----+-----+
- * | size | 0 1 1 0 0 1 | opc | 0 |  imm9  | 0 0 | Rn |  Rt |
- * +------+-------------+-----+---+--------+-----+----+-----+
- *
- * Rt: source or destination register
- * Rn: base register
- * imm9: unscaled immediate offset
- * opc: 00: STLUR*, 01/10/11: various LDAPUR*
- * size: size of load/store
- */
-static void disas_ldst_ldapr_stlr(DisasContext *s, uint32_t insn)
+static bool trans_LDAPR_i(DisasContext *s, arg_ldapr_stlr_i *a)
 {
-    int rt = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int offset = sextract32(insn, 12, 9);
-    int opc = extract32(insn, 22, 2);
-    int size = extract32(insn, 30, 2);
     TCGv_i64 clean_addr, dirty_addr;
-    bool is_store = false;
-    bool extend = false;
-    bool iss_sf;
-    MemOp mop = size;
+    MemOp mop = a->sz | (a->sign ? MO_SIGN : 0);
+    bool iss_sf = ldst_iss_sf(a->sz, a->sign, a->ext);
 
     if (!dc_isar_feature(aa64_rcpc_8_4, s)) {
-        unallocated_encoding(s);
-        return;
+        return false;
     }
 
-    switch (opc) {
-    case 0: /* STLURB */
-        is_store = true;
-        break;
-    case 1: /* LDAPUR* */
-        break;
-    case 2: /* LDAPURS* 64-bit variant */
-        if (size == 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        mop |= MO_SIGN;
-        break;
-    case 3: /* LDAPURS* 32-bit variant */
-        if (size > 1) {
-            unallocated_encoding(s);
-            return;
-        }
-        mop |= MO_SIGN;
-        extend = true; /* zero-extend 32->64 after signed load */
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    iss_sf = disas_ldst_compute_iss_sf(size, (mop & MO_SIGN) != 0, opc);
-
-    if (rn == 31) {
+    if (a->rn == 31) {
         gen_check_sp_alignment(s);
     }
 
-    mop = check_ordered_align(s, rn, offset, is_store, mop);
-
-    dirty_addr = read_cpu_reg_sp(s, rn, 1);
-    tcg_gen_addi_i64(dirty_addr, dirty_addr, offset);
+    mop = check_ordered_align(s, a->rn, a->imm, false, mop);
+    dirty_addr = read_cpu_reg_sp(s, a->rn, 1);
+    tcg_gen_addi_i64(dirty_addr, dirty_addr, a->imm);
     clean_addr = clean_data_tbi(s, dirty_addr);
 
-    if (is_store) {
-        /* Store-Release semantics */
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-        do_gpr_st(s, cpu_reg(s, rt), clean_addr, mop, true, rt, iss_sf, true);
-    } else {
-        /*
-         * Load-AcquirePC semantics; we implement as the slightly more
-         * restrictive Load-Acquire.
-         */
-        do_gpr_ld(s, cpu_reg(s, rt), clean_addr, mop,
-                  extend, true, rt, iss_sf, true);
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    /*
+     * Load-AcquirePC semantics; we implement as the slightly more
+     * restrictive Load-Acquire.
+     */
+    do_gpr_ld(s, cpu_reg(s, a->rt), clean_addr, mop, a->ext, true,
+              a->rt, iss_sf, true);
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    return true;
+}
+
+static bool trans_STLR_i(DisasContext *s, arg_ldapr_stlr_i *a)
+{
+    TCGv_i64 clean_addr, dirty_addr;
+    MemOp mop = a->sz;
+    bool iss_sf = ldst_iss_sf(a->sz, a->sign, a->ext);
+
+    if (!dc_isar_feature(aa64_rcpc_8_4, s)) {
+        return false;
     }
+
+    /* TODO: ARMv8.4-LSE SCTLR.nAA */
+
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    mop = check_ordered_align(s, a->rn, a->imm, true, mop);
+    dirty_addr = read_cpu_reg_sp(s, a->rn, 1);
+    tcg_gen_addi_i64(dirty_addr, dirty_addr, a->imm);
+    clean_addr = clean_data_tbi(s, dirty_addr);
+
+    /* Store-Release semantics */
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    do_gpr_st(s, cpu_reg(s, a->rt), clean_addr, mop, true, a->rt, iss_sf, true);
+    return true;
 }
 
 /* AdvSIMD load/store multiple structures
@@ -3978,8 +3940,6 @@ static void disas_ldst(DisasContext *s, uint32_t insn)
     case 0x19:
         if (extract32(insn, 21, 1) != 0) {
             disas_ldst_tag(s, insn);
-        } else if (extract32(insn, 10, 2) == 0) {
-            disas_ldst_ldapr_stlr(s, insn);
         } else {
             unallocated_encoding(s);
         }
