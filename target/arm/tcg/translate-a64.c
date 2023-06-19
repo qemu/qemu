@@ -3226,7 +3226,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
 
     clean_addr = gen_mte_check1_mmuidx(s, dirty_addr, is_store,
                                        writeback || rn != 31,
-                                       size, is_unpriv, memidx);
+                                       memop, is_unpriv, memidx);
 
     if (is_vector) {
         if (is_store) {
