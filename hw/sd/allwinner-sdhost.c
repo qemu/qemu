@@ -193,7 +193,7 @@ static void allwinner_sdhost_update_irq(AwSdHostState *s)
     }
 
     trace_allwinner_sdhost_update_irq(irq);
-    qemu_set_irq(s->irq, irq);
+    qemu_set_irq(s->irq, !!irq);
 }
 
 static void allwinner_sdhost_update_transfer_cnt(AwSdHostState *s,
