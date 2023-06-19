@@ -3584,141 +3584,129 @@ static bool trans_ST_mult(DisasContext *s, arg_ldst_mult *a)
     return true;
 }
 
-/* AdvSIMD load/store single structure
- *
- *  31  30  29           23 22 21 20       16 15 13 12  11  10 9    5 4    0
- * +---+---+---------------+-----+-----------+-----+---+------+------+------+
- * | 0 | Q | 0 0 1 1 0 1 0 | L R | 0 0 0 0 0 | opc | S | size |  Rn  |  Rt  |
- * +---+---+---------------+-----+-----------+-----+---+------+------+------+
- *
- * AdvSIMD load/store single structure (post-indexed)
- *
- *  31  30  29           23 22 21 20       16 15 13 12  11  10 9    5 4    0
- * +---+---+---------------+-----+-----------+-----+---+------+------+------+
- * | 0 | Q | 0 0 1 1 0 1 1 | L R |     Rm    | opc | S | size |  Rn  |  Rt  |
- * +---+---+---------------+-----+-----------+-----+---+------+------+------+
- *
- * Rt: first (or only) SIMD&FP register to be transferred
- * Rn: base address or SP
- * Rm (post-index only): post-index register (when !31) or size dependent #imm
- * index = encoded in Q:S:size dependent on size
- *
- * lane_size = encoded in R, opc
- * transfer width = encoded in opc, S, size
- */
-static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
+static bool trans_ST_single(DisasContext *s, arg_ldst_single *a)
 {
-    int rt = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int rm = extract32(insn, 16, 5);
-    int size = extract32(insn, 10, 2);
-    int S = extract32(insn, 12, 1);
-    int opc = extract32(insn, 13, 3);
-    int R = extract32(insn, 21, 1);
-    int is_load = extract32(insn, 22, 1);
-    int is_postidx = extract32(insn, 23, 1);
-    int is_q = extract32(insn, 30, 1);
-
-    int scale = extract32(opc, 1, 2);
-    int selem = (extract32(opc, 0, 1) << 1 | R) + 1;
-    bool replicate = false;
-    int index = is_q << 3 | S << 2 | size;
-    int xs, total;
+    int xs, total, rt;
     TCGv_i64 clean_addr, tcg_rn, tcg_ebytes;
     MemOp mop;
 
-    if (extract32(insn, 31, 1)) {
-        unallocated_encoding(s);
-        return;
+    if (!a->p && a->rm != 0) {
+        return false;
     }
-    if (!is_postidx && rm != 0) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    switch (scale) {
-    case 3:
-        if (!is_load || S) {
-            unallocated_encoding(s);
-            return;
-        }
-        scale = size;
-        replicate = true;
-        break;
-    case 0:
-        break;
-    case 1:
-        if (extract32(size, 0, 1)) {
-            unallocated_encoding(s);
-            return;
-        }
-        index >>= 1;
-        break;
-    case 2:
-        if (extract32(size, 1, 1)) {
-            unallocated_encoding(s);
-            return;
-        }
-        if (!extract32(size, 0, 1)) {
-            index >>= 2;
-        } else {
-            if (S) {
-                unallocated_encoding(s);
-                return;
-            }
-            index >>= 3;
-            scale = 3;
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
     if (!fp_access_check(s)) {
-        return;
+        return true;
     }
 
-    if (rn == 31) {
+    if (a->rn == 31) {
         gen_check_sp_alignment(s);
     }
 
-    total = selem << scale;
-    tcg_rn = cpu_reg_sp(s, rn);
+    total = a->selem << a->scale;
+    tcg_rn = cpu_reg_sp(s, a->rn);
 
-    mop = finalize_memop_asimd(s, scale);
-
-    clean_addr = gen_mte_checkN(s, tcg_rn, !is_load, is_postidx || rn != 31,
+    mop = finalize_memop_asimd(s, a->scale);
+    clean_addr = gen_mte_checkN(s, tcg_rn, true, a->p || a->rn != 31,
                                 total, mop);
 
-    tcg_ebytes = tcg_constant_i64(1 << scale);
-    for (xs = 0; xs < selem; xs++) {
-        if (replicate) {
-            /* Load and replicate to all elements */
-            TCGv_i64 tcg_tmp = tcg_temp_new_i64();
-
-            tcg_gen_qemu_ld_i64(tcg_tmp, clean_addr, get_mem_index(s), mop);
-            tcg_gen_gvec_dup_i64(scale, vec_full_reg_offset(s, rt),
-                                 (is_q + 1) * 8, vec_full_reg_size(s),
-                                 tcg_tmp);
-        } else {
-            /* Load/store one element per register */
-            if (is_load) {
-                do_vec_ld(s, rt, index, clean_addr, mop);
-            } else {
-                do_vec_st(s, rt, index, clean_addr, mop);
-            }
-        }
+    tcg_ebytes = tcg_constant_i64(1 << a->scale);
+    for (xs = 0, rt = a->rt; xs < a->selem; xs++, rt = (rt + 1) % 32) {
+        do_vec_st(s, rt, a->index, clean_addr, mop);
         tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
-        rt = (rt + 1) % 32;
     }
 
-    if (is_postidx) {
-        if (rm == 31) {
+    if (a->p) {
+        if (a->rm == 31) {
             tcg_gen_addi_i64(tcg_rn, tcg_rn, total);
         } else {
-            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, rm));
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, a->rm));
         }
     }
+    return true;
+}
+
+static bool trans_LD_single(DisasContext *s, arg_ldst_single *a)
+{
+    int xs, total, rt;
+    TCGv_i64 clean_addr, tcg_rn, tcg_ebytes;
+    MemOp mop;
+
+    if (!a->p && a->rm != 0) {
+        return false;
+    }
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    total = a->selem << a->scale;
+    tcg_rn = cpu_reg_sp(s, a->rn);
+
+    mop = finalize_memop_asimd(s, a->scale);
+    clean_addr = gen_mte_checkN(s, tcg_rn, false, a->p || a->rn != 31,
+                                total, mop);
+
+    tcg_ebytes = tcg_constant_i64(1 << a->scale);
+    for (xs = 0, rt = a->rt; xs < a->selem; xs++, rt = (rt + 1) % 32) {
+        do_vec_ld(s, rt, a->index, clean_addr, mop);
+        tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
+    }
+
+    if (a->p) {
+        if (a->rm == 31) {
+            tcg_gen_addi_i64(tcg_rn, tcg_rn, total);
+        } else {
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, a->rm));
+        }
+    }
+    return true;
+}
+
+static bool trans_LD_single_repl(DisasContext *s, arg_LD_single_repl *a)
+{
+    int xs, total, rt;
+    TCGv_i64 clean_addr, tcg_rn, tcg_ebytes;
+    MemOp mop;
+
+    if (!a->p && a->rm != 0) {
+        return false;
+    }
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    total = a->selem << a->scale;
+    tcg_rn = cpu_reg_sp(s, a->rn);
+
+    mop = finalize_memop_asimd(s, a->scale);
+    clean_addr = gen_mte_checkN(s, tcg_rn, false, a->p || a->rn != 31,
+                                total, mop);
+
+    tcg_ebytes = tcg_constant_i64(1 << a->scale);
+    for (xs = 0, rt = a->rt; xs < a->selem; xs++, rt = (rt + 1) % 32) {
+        /* Load and replicate to all elements */
+        TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+
+        tcg_gen_qemu_ld_i64(tcg_tmp, clean_addr, get_mem_index(s), mop);
+        tcg_gen_gvec_dup_i64(a->scale, vec_full_reg_offset(s, rt),
+                             (a->q + 1) * 8, vec_full_reg_size(s), tcg_tmp);
+        tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
+    }
+
+    if (a->p) {
+        if (a->rm == 31) {
+            tcg_gen_addi_i64(tcg_rn, tcg_rn, total);
+        } else {
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, a->rm));
+        }
+    }
+    return true;
 }
 
 /*
@@ -3934,9 +3922,6 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
 static void disas_ldst(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 24, 6)) {
-    case 0x0d: /* AdvSIMD load/store single structure */
-        disas_ldst_single_struct(s, insn);
-        break;
     case 0x19:
         if (extract32(insn, 21, 1) != 0) {
             disas_ldst_tag(s, insn);

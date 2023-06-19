@@ -494,3 +494,37 @@ LD_mult         0 . 001100 . 1 0 ..... 0110 .. ..... ..... @ldst_mult rpt=3 sele
 LD_mult         0 . 001100 . 1 0 ..... 0111 .. ..... ..... @ldst_mult rpt=1 selem=1
 LD_mult         0 . 001100 . 1 0 ..... 1000 .. ..... ..... @ldst_mult rpt=1 selem=2
 LD_mult         0 . 001100 . 1 0 ..... 1010 .. ..... ..... @ldst_mult rpt=2 selem=1
+
+# Load/store single structure
+&ldst_single    rm rn rt p selem index scale
+
+%ldst_single_selem 13:1 21:1 !function=plus_1
+
+%ldst_single_index_b  30:1 10:3
+%ldst_single_index_h  30:1 11:2
+%ldst_single_index_s  30:1 12:1
+
+@ldst_single_b     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=0 selem=%ldst_single_selem \
+                   index=%ldst_single_index_b
+@ldst_single_h     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=1 selem=%ldst_single_selem \
+                   index=%ldst_single_index_h
+@ldst_single_s     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=2 selem=%ldst_single_selem \
+                   index=%ldst_single_index_s
+@ldst_single_d     . index:1 ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=3 selem=%ldst_single_selem
+
+ST_single          0 . 001101 . 0 . ..... 00 . ... ..... .....  @ldst_single_b
+ST_single          0 . 001101 . 0 . ..... 01 . ..0 ..... .....  @ldst_single_h
+ST_single          0 . 001101 . 0 . ..... 10 . .00 ..... .....  @ldst_single_s
+ST_single          0 . 001101 . 0 . ..... 10 . 001 ..... .....  @ldst_single_d
+
+LD_single          0 . 001101 . 1 . ..... 00 . ... ..... .....  @ldst_single_b
+LD_single          0 . 001101 . 1 . ..... 01 . ..0 ..... .....  @ldst_single_h
+LD_single          0 . 001101 . 1 . ..... 10 . .00 ..... .....  @ldst_single_s
+LD_single          0 . 001101 . 1 . ..... 10 . 001 ..... .....  @ldst_single_d
+
+# Replicating load case
+LD_single_repl  0 q:1 001101 p:1 1 . rm:5 11 . 0 scale:2 rn:5 rt:5 selem=%ldst_single_selem
