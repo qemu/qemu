@@ -442,3 +442,18 @@ STR_v           sz:2 111 1 00 00 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0
 STR_v           00 111 1 00 10 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0 sz=4
 LDR_v           sz:2 111 1 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0
 LDR_v           00 111 1 00 11 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0 sz=4
+
+# Atomic memory operations
+&atomic         rs rn rt a r sz
+@atomic         sz:2 ... . .. a:1 r:1 . rs:5 . ... .. rn:5 rt:5 &atomic
+LDADD           .. 111 0 00 . . 1 ..... 0000 00 ..... ..... @atomic
+LDCLR           .. 111 0 00 . . 1 ..... 0001 00 ..... ..... @atomic
+LDEOR           .. 111 0 00 . . 1 ..... 0010 00 ..... ..... @atomic
+LDSET           .. 111 0 00 . . 1 ..... 0011 00 ..... ..... @atomic
+LDSMAX          .. 111 0 00 . . 1 ..... 0100 00 ..... ..... @atomic
+LDSMIN          .. 111 0 00 . . 1 ..... 0101 00 ..... ..... @atomic
+LDUMAX          .. 111 0 00 . . 1 ..... 0110 00 ..... ..... @atomic
+LDUMIN          .. 111 0 00 . . 1 ..... 0111 00 ..... ..... @atomic
+SWP             .. 111 0 00 . . 1 ..... 1000 00 ..... ..... @atomic
+
+LDAPR           sz:2 111 0 00 1 0 1 11111 1100 00 rn:5 rt:5
