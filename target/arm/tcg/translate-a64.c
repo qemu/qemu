@@ -2816,229 +2816,225 @@ static bool trans_LD_lit_v(DisasContext *s, arg_ldlit *a)
     return true;
 }
 
-/*
- * LDNP (Load Pair - non-temporal hint)
- * LDP (Load Pair - non vector)
- * LDPSW (Load Pair Signed Word - non vector)
- * STNP (Store Pair - non-temporal hint)
- * STP (Store Pair - non vector)
- * LDNP (Load Pair of SIMD&FP - non-temporal hint)
- * LDP (Load Pair of SIMD&FP)
- * STNP (Store Pair of SIMD&FP - non-temporal hint)
- * STP (Store Pair of SIMD&FP)
- *
- *  31 30 29   27  26  25 24   23  22 21   15 14   10 9    5 4    0
- * +-----+-------+---+---+-------+---+-----------------------------+
- * | opc | 1 0 1 | V | 0 | index | L |  imm7 |  Rt2  |  Rn  | Rt   |
- * +-----+-------+---+---+-------+---+-------+-------+------+------+
- *
- * opc: LDP/STP/LDNP/STNP        00 -> 32 bit, 10 -> 64 bit
- *      LDPSW/STGP               01
- *      LDP/STP/LDNP/STNP (SIMD) 00 -> 32 bit, 01 -> 64 bit, 10 -> 128 bit
- *   V: 0 -> GPR, 1 -> Vector
- * idx: 00 -> signed offset with non-temporal hint, 01 -> post-index,
- *      10 -> signed offset, 11 -> pre-index
- *   L: 0 -> Store 1 -> Load
- *
- * Rt, Rt2 = GPR or SIMD registers to be stored
- * Rn = general purpose register containing address
- * imm7 = signed offset (multiple of 4 or 8 depending on size)
- */
-static void disas_ldst_pair(DisasContext *s, uint32_t insn)
+static void op_addr_ldstpair_pre(DisasContext *s, arg_ldstpair *a,
+                                 TCGv_i64 *clean_addr, TCGv_i64 *dirty_addr,
+                                 uint64_t offset, bool is_store, MemOp mop)
 {
-    int rt = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int rt2 = extract32(insn, 10, 5);
-    uint64_t offset = sextract64(insn, 15, 7);
-    int index = extract32(insn, 23, 2);
-    bool is_vector = extract32(insn, 26, 1);
-    bool is_load = extract32(insn, 22, 1);
-    int opc = extract32(insn, 30, 2);
-    bool is_signed = false;
-    bool postindex = false;
-    bool wback = false;
-    bool set_tag = false;
-    TCGv_i64 clean_addr, dirty_addr;
-    MemOp mop;
-    int size;
-
-    if (opc == 3) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (is_vector) {
-        size = 2 + opc;
-    } else if (opc == 1 && !is_load) {
-        /* STGP */
-        if (!dc_isar_feature(aa64_mte_insn_reg, s) || index == 0) {
-            unallocated_encoding(s);
-            return;
-        }
-        size = 3;
-        set_tag = true;
-    } else {
-        size = 2 + extract32(opc, 1, 1);
-        is_signed = extract32(opc, 0, 1);
-        if (!is_load && is_signed) {
-            unallocated_encoding(s);
-            return;
-        }
-    }
-
-    switch (index) {
-    case 1: /* post-index */
-        postindex = true;
-        wback = true;
-        break;
-    case 0:
-        /* signed offset with "non-temporal" hint. Since we don't emulate
-         * caches we don't care about hints to the cache system about
-         * data access patterns, and handle this identically to plain
-         * signed offset.
-         */
-        if (is_signed) {
-            /* There is no non-temporal-hint version of LDPSW */
-            unallocated_encoding(s);
-            return;
-        }
-        postindex = false;
-        break;
-    case 2: /* signed offset, rn not updated */
-        postindex = false;
-        break;
-    case 3: /* pre-index */
-        postindex = false;
-        wback = true;
-        break;
-    }
-
-    if (is_vector && !fp_access_check(s)) {
-        return;
-    }
-
-    offset <<= (set_tag ? LOG2_TAG_GRANULE : size);
-
-    if (rn == 31) {
+    if (a->rn == 31) {
         gen_check_sp_alignment(s);
     }
 
-    dirty_addr = read_cpu_reg_sp(s, rn, 1);
-    if (!postindex) {
+    *dirty_addr = read_cpu_reg_sp(s, a->rn, 1);
+    if (!a->p) {
+        tcg_gen_addi_i64(*dirty_addr, *dirty_addr, offset);
+    }
+
+    *clean_addr = gen_mte_checkN(s, *dirty_addr, is_store,
+                                 (a->w || a->rn != 31), 2 << a->sz, mop);
+}
+
+static void op_addr_ldstpair_post(DisasContext *s, arg_ldstpair *a,
+                                  TCGv_i64 dirty_addr, uint64_t offset)
+{
+    if (a->w) {
+        if (a->p) {
+            tcg_gen_addi_i64(dirty_addr, dirty_addr, offset);
+        }
+        tcg_gen_mov_i64(cpu_reg_sp(s, a->rn), dirty_addr);
+    }
+}
+
+static bool trans_STP(DisasContext *s, arg_ldstpair *a)
+{
+    uint64_t offset = a->imm << a->sz;
+    TCGv_i64 clean_addr, dirty_addr, tcg_rt, tcg_rt2;
+    MemOp mop = finalize_memop(s, a->sz);
+
+    op_addr_ldstpair_pre(s, a, &clean_addr, &dirty_addr, offset, true, mop);
+    tcg_rt = cpu_reg(s, a->rt);
+    tcg_rt2 = cpu_reg(s, a->rt2);
+    /*
+     * We built mop above for the single logical access -- rebuild it
+     * now for the paired operation.
+     *
+     * With LSE2, non-sign-extending pairs are treated atomically if
+     * aligned, and if unaligned one of the pair will be completely
+     * within a 16-byte block and that element will be atomic.
+     * Otherwise each element is separately atomic.
+     * In all cases, issue one operation with the correct atomicity.
+     */
+    mop = a->sz + 1;
+    if (s->align_mem) {
+        mop |= (a->sz == 2 ? MO_ALIGN_4 : MO_ALIGN_8);
+    }
+    mop = finalize_memop_pair(s, mop);
+    if (a->sz == 2) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+
+        if (s->be_data == MO_LE) {
+            tcg_gen_concat32_i64(tmp, tcg_rt, tcg_rt2);
+        } else {
+            tcg_gen_concat32_i64(tmp, tcg_rt2, tcg_rt);
+        }
+        tcg_gen_qemu_st_i64(tmp, clean_addr, get_mem_index(s), mop);
+    } else {
+        TCGv_i128 tmp = tcg_temp_new_i128();
+
+        if (s->be_data == MO_LE) {
+            tcg_gen_concat_i64_i128(tmp, tcg_rt, tcg_rt2);
+        } else {
+            tcg_gen_concat_i64_i128(tmp, tcg_rt2, tcg_rt);
+        }
+        tcg_gen_qemu_st_i128(tmp, clean_addr, get_mem_index(s), mop);
+    }
+    op_addr_ldstpair_post(s, a, dirty_addr, offset);
+    return true;
+}
+
+static bool trans_LDP(DisasContext *s, arg_ldstpair *a)
+{
+    uint64_t offset = a->imm << a->sz;
+    TCGv_i64 clean_addr, dirty_addr, tcg_rt, tcg_rt2;
+    MemOp mop = finalize_memop(s, a->sz);
+
+    op_addr_ldstpair_pre(s, a, &clean_addr, &dirty_addr, offset, false, mop);
+    tcg_rt = cpu_reg(s, a->rt);
+    tcg_rt2 = cpu_reg(s, a->rt2);
+
+    /*
+     * We built mop above for the single logical access -- rebuild it
+     * now for the paired operation.
+     *
+     * With LSE2, non-sign-extending pairs are treated atomically if
+     * aligned, and if unaligned one of the pair will be completely
+     * within a 16-byte block and that element will be atomic.
+     * Otherwise each element is separately atomic.
+     * In all cases, issue one operation with the correct atomicity.
+     *
+     * This treats sign-extending loads like zero-extending loads,
+     * since that reuses the most code below.
+     */
+    mop = a->sz + 1;
+    if (s->align_mem) {
+        mop |= (a->sz == 2 ? MO_ALIGN_4 : MO_ALIGN_8);
+    }
+    mop = finalize_memop_pair(s, mop);
+    if (a->sz == 2) {
+        int o2 = s->be_data == MO_LE ? 32 : 0;
+        int o1 = o2 ^ 32;
+
+        tcg_gen_qemu_ld_i64(tcg_rt, clean_addr, get_mem_index(s), mop);
+        if (a->sign) {
+            tcg_gen_sextract_i64(tcg_rt2, tcg_rt, o2, 32);
+            tcg_gen_sextract_i64(tcg_rt, tcg_rt, o1, 32);
+        } else {
+            tcg_gen_extract_i64(tcg_rt2, tcg_rt, o2, 32);
+            tcg_gen_extract_i64(tcg_rt, tcg_rt, o1, 32);
+        }
+    } else {
+        TCGv_i128 tmp = tcg_temp_new_i128();
+
+        tcg_gen_qemu_ld_i128(tmp, clean_addr, get_mem_index(s), mop);
+        if (s->be_data == MO_LE) {
+            tcg_gen_extr_i128_i64(tcg_rt, tcg_rt2, tmp);
+        } else {
+            tcg_gen_extr_i128_i64(tcg_rt2, tcg_rt, tmp);
+        }
+    }
+    op_addr_ldstpair_post(s, a, dirty_addr, offset);
+    return true;
+}
+
+static bool trans_STP_v(DisasContext *s, arg_ldstpair *a)
+{
+    uint64_t offset = a->imm << a->sz;
+    TCGv_i64 clean_addr, dirty_addr;
+    MemOp mop;
+
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    /* LSE2 does not merge FP pairs; leave these as separate operations. */
+    mop = finalize_memop_asimd(s, a->sz);
+    op_addr_ldstpair_pre(s, a, &clean_addr, &dirty_addr, offset, true, mop);
+    do_fp_st(s, a->rt, clean_addr, mop);
+    tcg_gen_addi_i64(clean_addr, clean_addr, 1 << a->sz);
+    do_fp_st(s, a->rt2, clean_addr, mop);
+    op_addr_ldstpair_post(s, a, dirty_addr, offset);
+    return true;
+}
+
+static bool trans_LDP_v(DisasContext *s, arg_ldstpair *a)
+{
+    uint64_t offset = a->imm << a->sz;
+    TCGv_i64 clean_addr, dirty_addr;
+    MemOp mop;
+
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    /* LSE2 does not merge FP pairs; leave these as separate operations. */
+    mop = finalize_memop_asimd(s, a->sz);
+    op_addr_ldstpair_pre(s, a, &clean_addr, &dirty_addr, offset, false, mop);
+    do_fp_ld(s, a->rt, clean_addr, mop);
+    tcg_gen_addi_i64(clean_addr, clean_addr, 1 << a->sz);
+    do_fp_ld(s, a->rt2, clean_addr, mop);
+    op_addr_ldstpair_post(s, a, dirty_addr, offset);
+    return true;
+}
+
+static bool trans_STGP(DisasContext *s, arg_ldstpair *a)
+{
+    TCGv_i64 clean_addr, dirty_addr, tcg_rt, tcg_rt2;
+    uint64_t offset = a->imm << LOG2_TAG_GRANULE;
+    MemOp mop;
+    TCGv_i128 tmp;
+
+    if (!dc_isar_feature(aa64_mte_insn_reg, s)) {
+        return false;
+    }
+
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    dirty_addr = read_cpu_reg_sp(s, a->rn, 1);
+    if (!a->p) {
         tcg_gen_addi_i64(dirty_addr, dirty_addr, offset);
     }
 
-    if (set_tag) {
-        if (!s->ata) {
-            /*
-             * TODO: We could rely on the stores below, at least for
-             * system mode, if we arrange to add MO_ALIGN_16.
-             */
-            gen_helper_stg_stub(cpu_env, dirty_addr);
-        } else if (tb_cflags(s->base.tb) & CF_PARALLEL) {
-            gen_helper_stg_parallel(cpu_env, dirty_addr, dirty_addr);
-        } else {
-            gen_helper_stg(cpu_env, dirty_addr, dirty_addr);
-        }
-    }
-
-    if (is_vector) {
-        mop = finalize_memop_asimd(s, size);
-    } else {
-        mop = finalize_memop(s, size);
-    }
-    clean_addr = gen_mte_checkN(s, dirty_addr, !is_load,
-                                (wback || rn != 31) && !set_tag,
-                                2 << size, mop);
-
-    if (is_vector) {
-        /* LSE2 does not merge FP pairs; leave these as separate operations. */
-        if (is_load) {
-            do_fp_ld(s, rt, clean_addr, mop);
-        } else {
-            do_fp_st(s, rt, clean_addr, mop);
-        }
-        tcg_gen_addi_i64(clean_addr, clean_addr, 1 << size);
-        if (is_load) {
-            do_fp_ld(s, rt2, clean_addr, mop);
-        } else {
-            do_fp_st(s, rt2, clean_addr, mop);
-        }
-    } else {
-        TCGv_i64 tcg_rt = cpu_reg(s, rt);
-        TCGv_i64 tcg_rt2 = cpu_reg(s, rt2);
-
+    if (!s->ata) {
         /*
-         * We built mop above for the single logical access -- rebuild it
-         * now for the paired operation.
-         *
-         * With LSE2, non-sign-extending pairs are treated atomically if
-         * aligned, and if unaligned one of the pair will be completely
-         * within a 16-byte block and that element will be atomic.
-         * Otherwise each element is separately atomic.
-         * In all cases, issue one operation with the correct atomicity.
-         *
-         * This treats sign-extending loads like zero-extending loads,
-         * since that reuses the most code below.
+         * TODO: We could rely on the stores below, at least for
+         * system mode, if we arrange to add MO_ALIGN_16.
          */
-        mop = size + 1;
-        if (s->align_mem) {
-            mop |= (size == 2 ? MO_ALIGN_4 : MO_ALIGN_8);
-        }
-        mop = finalize_memop_pair(s, mop);
-
-        if (is_load) {
-            if (size == 2) {
-                int o2 = s->be_data == MO_LE ? 32 : 0;
-                int o1 = o2 ^ 32;
-
-                tcg_gen_qemu_ld_i64(tcg_rt, clean_addr, get_mem_index(s), mop);
-                if (is_signed) {
-                    tcg_gen_sextract_i64(tcg_rt2, tcg_rt, o2, 32);
-                    tcg_gen_sextract_i64(tcg_rt, tcg_rt, o1, 32);
-                } else {
-                    tcg_gen_extract_i64(tcg_rt2, tcg_rt, o2, 32);
-                    tcg_gen_extract_i64(tcg_rt, tcg_rt, o1, 32);
-                }
-            } else {
-                TCGv_i128 tmp = tcg_temp_new_i128();
-
-                tcg_gen_qemu_ld_i128(tmp, clean_addr, get_mem_index(s), mop);
-                if (s->be_data == MO_LE) {
-                    tcg_gen_extr_i128_i64(tcg_rt, tcg_rt2, tmp);
-                } else {
-                    tcg_gen_extr_i128_i64(tcg_rt2, tcg_rt, tmp);
-                }
-            }
-        } else {
-            if (size == 2) {
-                TCGv_i64 tmp = tcg_temp_new_i64();
-
-                if (s->be_data == MO_LE) {
-                    tcg_gen_concat32_i64(tmp, tcg_rt, tcg_rt2);
-                } else {
-                    tcg_gen_concat32_i64(tmp, tcg_rt2, tcg_rt);
-                }
-                tcg_gen_qemu_st_i64(tmp, clean_addr, get_mem_index(s), mop);
-            } else {
-                TCGv_i128 tmp = tcg_temp_new_i128();
-
-                if (s->be_data == MO_LE) {
-                    tcg_gen_concat_i64_i128(tmp, tcg_rt, tcg_rt2);
-                } else {
-                    tcg_gen_concat_i64_i128(tmp, tcg_rt2, tcg_rt);
-                }
-                tcg_gen_qemu_st_i128(tmp, clean_addr, get_mem_index(s), mop);
-            }
-        }
+        gen_helper_stg_stub(cpu_env, dirty_addr);
+    } else if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+        gen_helper_stg_parallel(cpu_env, dirty_addr, dirty_addr);
+    } else {
+        gen_helper_stg(cpu_env, dirty_addr, dirty_addr);
     }
 
-    if (wback) {
-        if (postindex) {
-            tcg_gen_addi_i64(dirty_addr, dirty_addr, offset);
-        }
-        tcg_gen_mov_i64(cpu_reg_sp(s, rn), dirty_addr);
+    mop = finalize_memop(s, a->sz);
+    clean_addr = gen_mte_checkN(s, dirty_addr, true, false, 2 << a->sz, mop);
+
+    tcg_rt = cpu_reg(s, a->rt);
+    tcg_rt2 = cpu_reg(s, a->rt2);
+
+    assert(a->sz == 3);
+
+    tmp = tcg_temp_new_i128();
+    if (s->be_data == MO_LE) {
+        tcg_gen_concat_i64_i128(tmp, tcg_rt, tcg_rt2);
+    } else {
+        tcg_gen_concat_i64_i128(tmp, tcg_rt2, tcg_rt);
     }
+    tcg_gen_qemu_st_i128(tmp, clean_addr, get_mem_index(s), mop);
+
+    op_addr_ldstpair_post(s, a, dirty_addr, offset);
+    return true;
 }
 
 /*
@@ -4184,10 +4180,6 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
 static void disas_ldst(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 24, 6)) {
-    case 0x28: case 0x29:
-    case 0x2c: case 0x2d: /* Load/store pair (all forms) */
-        disas_ldst_pair(s, insn);
-        break;
     case 0x38: case 0x39:
     case 0x3c: case 0x3d: /* Load/store register (all forms) */
         disas_ldst_reg(s, insn);
