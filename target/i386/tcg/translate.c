@@ -5669,9 +5669,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         s->base.is_jmp = DISAS_NORETURN;
         break;
     case 0x134: /* sysenter */
-        /* For Intel SYSENTER is valid on 64-bit */
-        if (CODE64(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+        /* For AMD SYSENTER is not valid in long mode */
+        if (LMA(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
             goto illegal_op;
+        }
         if (!PE(s)) {
             gen_exception_gpf(s);
         } else {
@@ -5680,9 +5681,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         }
         break;
     case 0x135: /* sysexit */
-        /* For Intel SYSEXIT is valid on 64-bit */
-        if (CODE64(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+        /* For AMD SYSEXIT is not valid in long mode */
+        if (LMA(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
             goto illegal_op;
+        }
         if (!PE(s)) {
             gen_exception_gpf(s);
         } else {
