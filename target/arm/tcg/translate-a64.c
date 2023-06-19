@@ -2787,62 +2787,33 @@ static bool trans_CAS(DisasContext *s, arg_CAS *a)
     return true;
 }
 
-/*
- * Load register (literal)
- *
- *  31 30 29   27  26 25 24 23                5 4     0
- * +-----+-------+---+-----+-------------------+-------+
- * | opc | 0 1 1 | V | 0 0 |     imm19         |  Rt   |
- * +-----+-------+---+-----+-------------------+-------+
- *
- * V: 1 -> vector (simd/fp)
- * opc (non-vector): 00 -> 32 bit, 01 -> 64 bit,
- *                   10-> 32 bit signed, 11 -> prefetch
- * opc (vector): 00 -> 32 bit, 01 -> 64 bit, 10 -> 128 bit (11 unallocated)
- */
-static void disas_ld_lit(DisasContext *s, uint32_t insn)
+static bool trans_LD_lit(DisasContext *s, arg_ldlit *a)
 {
-    int rt = extract32(insn, 0, 5);
-    int64_t imm = sextract32(insn, 5, 19) << 2;
-    bool is_vector = extract32(insn, 26, 1);
-    int opc = extract32(insn, 30, 2);
-    bool is_signed = false;
-    int size = 2;
-    TCGv_i64 tcg_rt, clean_addr;
+    bool iss_sf = ldst_iss_sf(a->sz, a->sign, false);
+    TCGv_i64 tcg_rt = cpu_reg(s, a->rt);
+    TCGv_i64 clean_addr = tcg_temp_new_i64();
+    MemOp memop = finalize_memop(s, a->sz + a->sign * MO_SIGN);
+
+    gen_pc_plus_diff(s, clean_addr, a->imm);
+    do_gpr_ld(s, tcg_rt, clean_addr, memop,
+              false, true, a->rt, iss_sf, false);
+    return true;
+}
+
+static bool trans_LD_lit_v(DisasContext *s, arg_ldlit *a)
+{
+    /* Load register (literal), vector version */
+    TCGv_i64 clean_addr;
     MemOp memop;
 
-    if (is_vector) {
-        if (opc == 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        size = 2 + opc;
-        if (!fp_access_check(s)) {
-            return;
-        }
-        memop = finalize_memop_asimd(s, size);
-    } else {
-        if (opc == 3) {
-            /* PRFM (literal) : prefetch */
-            return;
-        }
-        size = 2 + extract32(opc, 0, 1);
-        is_signed = extract32(opc, 1, 1);
-        memop = finalize_memop(s, size + is_signed * MO_SIGN);
+    if (!fp_access_check(s)) {
+        return true;
     }
-
-    tcg_rt = cpu_reg(s, rt);
-
+    memop = finalize_memop_asimd(s, a->sz);
     clean_addr = tcg_temp_new_i64();
-    gen_pc_plus_diff(s, clean_addr, imm);
-
-    if (is_vector) {
-        do_fp_ld(s, rt, clean_addr, memop);
-    } else {
-        /* Only unsigned 32bit loads target 32bit registers.  */
-        bool iss_sf = opc != 0;
-        do_gpr_ld(s, tcg_rt, clean_addr, memop, false, true, rt, iss_sf, false);
-    }
+    gen_pc_plus_diff(s, clean_addr, a->imm);
+    do_fp_ld(s, a->rt, clean_addr, memop);
+    return true;
 }
 
 /*
@@ -4213,9 +4184,6 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
 static void disas_ldst(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 24, 6)) {
-    case 0x18: case 0x1c: /* Load register (literal) */
-        disas_ld_lit(s, insn);
-        break;
     case 0x28: case 0x29:
     case 0x2c: case 0x2d: /* Load/store pair (all forms) */
         disas_ldst_pair(s, insn);
