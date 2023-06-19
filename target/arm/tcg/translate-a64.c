@@ -3150,104 +3150,95 @@ static bool trans_LDR_v_i(DisasContext *s, arg_ldst_imm *a)
     return true;
 }
 
-/*
- * Load/store (register offset)
- *
- * 31 30 29   27  26 25 24 23 22 21  20  16 15 13 12 11 10 9  5 4  0
- * +----+-------+---+-----+-----+---+------+-----+--+-----+----+----+
- * |size| 1 1 1 | V | 0 0 | opc | 1 |  Rm  | opt | S| 1 0 | Rn | Rt |
- * +----+-------+---+-----+-----+---+------+-----+--+-----+----+----+
- *
- * For non-vector:
- *   size: 00-> byte, 01 -> 16 bit, 10 -> 32bit, 11 -> 64bit
- *   opc: 00 -> store, 01 -> loadu, 10 -> loads 64, 11 -> loads 32
- * For vector:
- *   size is opc<1>:size<1:0> so 100 -> 128 bit; 110 and 111 unallocated
- *   opc<0>: 0 -> store, 1 -> load
- * V: 1 -> vector/simd
- * opt: extend encoding (see DecodeRegExtend)
- * S: if S=1 then scale (essentially index by sizeof(size))
- * Rt: register to transfer into/out of
- * Rn: address register or SP for base
- * Rm: offset register or ZR for offset
- */
-static void disas_ldst_reg_roffset(DisasContext *s, uint32_t insn,
-                                   int opc,
-                                   int size,
-                                   int rt,
-                                   bool is_vector)
+static void op_addr_ldst_pre(DisasContext *s, arg_ldst *a,
+                             TCGv_i64 *clean_addr, TCGv_i64 *dirty_addr,
+                             bool is_store, MemOp memop)
 {
-    int rn = extract32(insn, 5, 5);
-    int shift = extract32(insn, 12, 1);
-    int rm = extract32(insn, 16, 5);
-    int opt = extract32(insn, 13, 3);
-    bool is_signed = false;
-    bool is_store = false;
-    bool is_extended = false;
-    TCGv_i64 tcg_rm, clean_addr, dirty_addr;
-    MemOp memop;
+    TCGv_i64 tcg_rm;
 
-    if (extract32(opt, 1, 1) == 0) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (is_vector) {
-        size |= (opc & 2) << 1;
-        if (size > 4) {
-            unallocated_encoding(s);
-            return;
-        }
-        is_store = !extract32(opc, 0, 1);
-        if (!fp_access_check(s)) {
-            return;
-        }
-        memop = finalize_memop_asimd(s, size);
-    } else {
-        if (size == 3 && opc == 2) {
-            /* PRFM - prefetch */
-            return;
-        }
-        if (opc == 3 && size > 1) {
-            unallocated_encoding(s);
-            return;
-        }
-        is_store = (opc == 0);
-        is_signed = !is_store && extract32(opc, 1, 1);
-        is_extended = (size < 3) && extract32(opc, 0, 1);
-        memop = finalize_memop(s, size + is_signed * MO_SIGN);
-    }
-
-    if (rn == 31) {
+    if (a->rn == 31) {
         gen_check_sp_alignment(s);
     }
-    dirty_addr = read_cpu_reg_sp(s, rn, 1);
+    *dirty_addr = read_cpu_reg_sp(s, a->rn, 1);
 
-    tcg_rm = read_cpu_reg(s, rm, 1);
-    ext_and_shift_reg(tcg_rm, tcg_rm, opt, shift ? size : 0);
+    tcg_rm = read_cpu_reg(s, a->rm, 1);
+    ext_and_shift_reg(tcg_rm, tcg_rm, a->opt, a->s ? a->sz : 0);
 
-    tcg_gen_add_i64(dirty_addr, dirty_addr, tcg_rm);
+    tcg_gen_add_i64(*dirty_addr, *dirty_addr, tcg_rm);
+    *clean_addr = gen_mte_check1(s, *dirty_addr, is_store, true, memop);
+}
 
-    clean_addr = gen_mte_check1(s, dirty_addr, is_store, true, memop);
+static bool trans_LDR(DisasContext *s, arg_ldst *a)
+{
+    TCGv_i64 clean_addr, dirty_addr, tcg_rt;
+    bool iss_sf = ldst_iss_sf(a->sz, a->sign, a->ext);
+    MemOp memop;
 
-    if (is_vector) {
-        if (is_store) {
-            do_fp_st(s, rt, clean_addr, memop);
-        } else {
-            do_fp_ld(s, rt, clean_addr, memop);
-        }
-    } else {
-        TCGv_i64 tcg_rt = cpu_reg(s, rt);
-        bool iss_sf = disas_ldst_compute_iss_sf(size, is_signed, opc);
-
-        if (is_store) {
-            do_gpr_st(s, tcg_rt, clean_addr, memop,
-                      true, rt, iss_sf, false);
-        } else {
-            do_gpr_ld(s, tcg_rt, clean_addr, memop,
-                      is_extended, true, rt, iss_sf, false);
-        }
+    if (extract32(a->opt, 1, 1) == 0) {
+        return false;
     }
+
+    memop = finalize_memop(s, a->sz + a->sign * MO_SIGN);
+    op_addr_ldst_pre(s, a, &clean_addr, &dirty_addr, false, memop);
+    tcg_rt = cpu_reg(s, a->rt);
+    do_gpr_ld(s, tcg_rt, clean_addr, memop,
+              a->ext, true, a->rt, iss_sf, false);
+    return true;
+}
+
+static bool trans_STR(DisasContext *s, arg_ldst *a)
+{
+    TCGv_i64 clean_addr, dirty_addr, tcg_rt;
+    bool iss_sf = ldst_iss_sf(a->sz, a->sign, a->ext);
+    MemOp memop;
+
+    if (extract32(a->opt, 1, 1) == 0) {
+        return false;
+    }
+
+    memop = finalize_memop(s, a->sz);
+    op_addr_ldst_pre(s, a, &clean_addr, &dirty_addr, true, memop);
+    tcg_rt = cpu_reg(s, a->rt);
+    do_gpr_st(s, tcg_rt, clean_addr, memop, true, a->rt, iss_sf, false);
+    return true;
+}
+
+static bool trans_LDR_v(DisasContext *s, arg_ldst *a)
+{
+    TCGv_i64 clean_addr, dirty_addr;
+    MemOp memop;
+
+    if (extract32(a->opt, 1, 1) == 0) {
+        return false;
+    }
+
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    memop = finalize_memop_asimd(s, a->sz);
+    op_addr_ldst_pre(s, a, &clean_addr, &dirty_addr, false, memop);
+    do_fp_ld(s, a->rt, clean_addr, memop);
+    return true;
+}
+
+static bool trans_STR_v(DisasContext *s, arg_ldst *a)
+{
+    TCGv_i64 clean_addr, dirty_addr;
+    MemOp memop;
+
+    if (extract32(a->opt, 1, 1) == 0) {
+        return false;
+    }
+
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    memop = finalize_memop_asimd(s, a->sz);
+    op_addr_ldst_pre(s, a, &clean_addr, &dirty_addr, true, memop);
+    do_fp_st(s, a->rt, clean_addr, memop);
+    return true;
 }
 
 /* Atomic memory operations
@@ -3528,7 +3519,6 @@ static void disas_ldst_ldapr_stlr(DisasContext *s, uint32_t insn)
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
     int rt = extract32(insn, 0, 5);
-    int opc = extract32(insn, 22, 2);
     bool is_vector = extract32(insn, 26, 1);
     int size = extract32(insn, 30, 2);
 
@@ -3542,8 +3532,7 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
             disas_ldst_atomic(s, insn, size, rt, is_vector);
             return;
         case 2:
-            disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
-            return;
+            break;
         default:
             disas_ldst_pac(s, insn, size, rt, is_vector);
             return;
