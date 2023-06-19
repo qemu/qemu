@@ -5692,7 +5692,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         break;
 #ifdef TARGET_X86_64
     case 0x105: /* syscall */
-        /* XXX: is it usable in real mode ? */
+        /* For Intel SYSCALL is only valid in long mode */
+        if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
+            goto illegal_op;
+        }
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
         gen_helper_syscall(cpu_env, cur_insn_len_i32(s));
@@ -5702,6 +5705,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         gen_eob_worker(s, false, true);
         break;
     case 0x107: /* sysret */
+        /* For Intel SYSRET is only valid in long mode */
+        if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
+            goto illegal_op;
+        }
         if (!PE(s)) {
             gen_exception_gpf(s);
         } else {
