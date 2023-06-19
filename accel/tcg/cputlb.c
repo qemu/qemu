@@ -2727,6 +2727,7 @@ static uint64_t do_st16_leN(CPUArchState *env, MMULookupPageData *p,
          * and so neither is atomic.
          */
     case MO_ATOM_IFALIGN:
+    case MO_ATOM_WITHIN16:
     case MO_ATOM_NONE:
         stq_le_p(p->haddr, int128_getlo(val_le));
         return store_bytes_leN(p->haddr + 8, p->size - 8,
