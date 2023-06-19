@@ -2652,6 +2652,95 @@ static bool disas_ldst_compute_iss_sf(int size, bool is_signed, int opc)
     return regsize == 64;
 }
 
+static bool ldst_iss_sf(int size, bool sign, bool ext)
+{
+
+    if (sign) {
+        /*
+         * Signed loads are 64 bit results if we are not going to
+         * do a zero-extend from 32 to 64 after the load.
+         * (For a store, sign and ext are always false.)
+         */
+        return !ext;
+    } else {
+        /* Unsigned loads/stores work at the specified size */
+        return size == MO_64;
+    }
+}
+
+static bool trans_STXR(DisasContext *s, arg_stxr *a)
+{
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    if (a->lasr) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    }
+    gen_store_exclusive(s, a->rs, a->rt, a->rt2, a->rn, a->sz, false);
+    return true;
+}
+
+static bool trans_LDXR(DisasContext *s, arg_stxr *a)
+{
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    gen_load_exclusive(s, a->rt, a->rt2, a->rn, a->sz, false);
+    if (a->lasr) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    }
+    return true;
+}
+
+static bool trans_STLR(DisasContext *s, arg_stlr *a)
+{
+    TCGv_i64 clean_addr;
+    MemOp memop;
+    bool iss_sf = ldst_iss_sf(a->sz, false, false);
+
+    /*
+     * StoreLORelease is the same as Store-Release for QEMU, but
+     * needs the feature-test.
+     */
+    if (!a->lasr && !dc_isar_feature(aa64_lor, s)) {
+        return false;
+    }
+    /* Generate ISS for non-exclusive accesses including LASR.  */
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    memop = check_ordered_align(s, a->rn, 0, true, a->sz);
+    clean_addr = gen_mte_check1(s, cpu_reg_sp(s, a->rn),
+                                true, a->rn != 31, memop);
+    do_gpr_st(s, cpu_reg(s, a->rt), clean_addr, memop, true, a->rt,
+              iss_sf, a->lasr);
+    return true;
+}
+
+static bool trans_LDAR(DisasContext *s, arg_stlr *a)
+{
+    TCGv_i64 clean_addr;
+    MemOp memop;
+    bool iss_sf = ldst_iss_sf(a->sz, false, false);
+
+    /* LoadLOAcquire is the same as Load-Acquire for QEMU.  */
+    if (!a->lasr && !dc_isar_feature(aa64_lor, s)) {
+        return false;
+    }
+    /* Generate ISS for non-exclusive accesses including LASR.  */
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    memop = check_ordered_align(s, a->rn, 0, false, a->sz);
+    clean_addr = gen_mte_check1(s, cpu_reg_sp(s, a->rn),
+                                false, a->rn != 31, memop);
+    do_gpr_ld(s, cpu_reg(s, a->rt), clean_addr, memop, false, true,
+              a->rt, iss_sf, a->lasr);
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    return true;
+}
+
 /* Load/store exclusive
  *
  *  31 30 29         24  23  22   21  20  16  15  14   10 9    5 4    0
@@ -2674,70 +2763,8 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
     int is_lasr = extract32(insn, 15, 1);
     int o2_L_o1_o0 = extract32(insn, 21, 3) * 2 | is_lasr;
     int size = extract32(insn, 30, 2);
-    TCGv_i64 clean_addr;
-    MemOp memop;
 
     switch (o2_L_o1_o0) {
-    case 0x0: /* STXR */
-    case 0x1: /* STLXR */
-        if (rn == 31) {
-            gen_check_sp_alignment(s);
-        }
-        if (is_lasr) {
-            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-        }
-        gen_store_exclusive(s, rs, rt, rt2, rn, size, false);
-        return;
-
-    case 0x4: /* LDXR */
-    case 0x5: /* LDAXR */
-        if (rn == 31) {
-            gen_check_sp_alignment(s);
-        }
-        gen_load_exclusive(s, rt, rt2, rn, size, false);
-        if (is_lasr) {
-            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
-        }
-        return;
-
-    case 0x8: /* STLLR */
-        if (!dc_isar_feature(aa64_lor, s)) {
-            break;
-        }
-        /* StoreLORelease is the same as Store-Release for QEMU.  */
-        /* fall through */
-    case 0x9: /* STLR */
-        /* Generate ISS for non-exclusive accesses including LASR.  */
-        if (rn == 31) {
-            gen_check_sp_alignment(s);
-        }
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-        memop = check_ordered_align(s, rn, 0, true, size);
-        clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
-                                    true, rn != 31, memop);
-        do_gpr_st(s, cpu_reg(s, rt), clean_addr, memop, true, rt,
-                  disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
-        return;
-
-    case 0xc: /* LDLAR */
-        if (!dc_isar_feature(aa64_lor, s)) {
-            break;
-        }
-        /* LoadLOAcquire is the same as Load-Acquire for QEMU.  */
-        /* fall through */
-    case 0xd: /* LDAR */
-        /* Generate ISS for non-exclusive accesses including LASR.  */
-        if (rn == 31) {
-            gen_check_sp_alignment(s);
-        }
-        memop = check_ordered_align(s, rn, 0, false, size);
-        clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
-                                    false, rn != 31, memop);
-        do_gpr_ld(s, cpu_reg(s, rt), clean_addr, memop, false, true,
-                  rt, disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
-        return;
-
     case 0x2: case 0x3: /* CASP / STXP */
         if (size & 2) { /* STXP / STLXP */
             if (rn == 31) {
@@ -2786,6 +2813,9 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
             gen_compare_and_swap(s, rs, rt, rn, size);
             return;
         }
+        break;
+    default:
+        /* Handled in decodetree */
         break;
     }
     unallocated_encoding(s);

@@ -230,3 +230,14 @@ HLT             1101 0100 010 ................ 000 00 @i16
 # DCPS1         1101 0100 101 ................ 000 01 @i16
 # DCPS2         1101 0100 101 ................ 000 10 @i16
 # DCPS3         1101 0100 101 ................ 000 11 @i16
+
+# Loads and stores
+
+&stxr           rn rt rt2 rs sz lasr
+&stlr           rn rt sz lasr
+@stxr           sz:2 ...... ... rs:5 lasr:1 rt2:5 rn:5 rt:5 &stxr
+@stlr           sz:2 ...... ... ..... lasr:1 ..... rn:5 rt:5 &stlr
+STXR            .. 001000 000 ..... . ..... ..... ..... @stxr  # inc STLXR
+LDXR            .. 001000 010 ..... . ..... ..... ..... @stxr  # inc LDAXR
+STLR            .. 001000 100 11111 . 11111 ..... ..... @stlr  # inc STLLR
+LDAR            .. 001000 110 11111 . 11111 ..... ..... @stlr  # inc LDLAR
