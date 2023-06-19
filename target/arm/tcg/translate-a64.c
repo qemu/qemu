@@ -1649,133 +1649,167 @@ static bool trans_ERETA(DisasContext *s, arg_reta *a)
     return true;
 }
 
-/* HINT instruction group, including various allocated HINTs */
-static void handle_hint(DisasContext *s, uint32_t insn,
-                        unsigned int op1, unsigned int op2, unsigned int crm)
+static bool trans_NOP(DisasContext *s, arg_NOP *a)
 {
-    unsigned int selector = crm << 3 | op2;
+    return true;
+}
 
-    if (op1 != 3) {
-        unallocated_encoding(s);
-        return;
+static bool trans_YIELD(DisasContext *s, arg_YIELD *a)
+{
+    /*
+     * When running in MTTCG we don't generate jumps to the yield and
+     * WFE helpers as it won't affect the scheduling of other vCPUs.
+     * If we wanted to more completely model WFE/SEV so we don't busy
+     * spin unnecessarily we would need to do something more involved.
+     */
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        s->base.is_jmp = DISAS_YIELD;
     }
+    return true;
+}
 
-    switch (selector) {
-    case 0b00000: /* NOP */
-        break;
-    case 0b00011: /* WFI */
-        s->base.is_jmp = DISAS_WFI;
-        break;
-    case 0b00001: /* YIELD */
-        /* When running in MTTCG we don't generate jumps to the yield and
-         * WFE helpers as it won't affect the scheduling of other vCPUs.
-         * If we wanted to more completely model WFE/SEV so we don't busy
-         * spin unnecessarily we would need to do something more involved.
+static bool trans_WFI(DisasContext *s, arg_WFI *a)
+{
+    s->base.is_jmp = DISAS_WFI;
+    return true;
+}
+
+static bool trans_WFE(DisasContext *s, arg_WFI *a)
+{
+    /*
+     * When running in MTTCG we don't generate jumps to the yield and
+     * WFE helpers as it won't affect the scheduling of other vCPUs.
+     * If we wanted to more completely model WFE/SEV so we don't busy
+     * spin unnecessarily we would need to do something more involved.
+     */
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        s->base.is_jmp = DISAS_WFE;
+    }
+    return true;
+}
+
+static bool trans_XPACLRI(DisasContext *s, arg_XPACLRI *a)
+{
+    if (s->pauth_active) {
+        gen_helper_xpaci(cpu_X[30], cpu_env, cpu_X[30]);
+    }
+    return true;
+}
+
+static bool trans_PACIA1716(DisasContext *s, arg_PACIA1716 *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+    }
+    return true;
+}
+
+static bool trans_PACIB1716(DisasContext *s, arg_PACIB1716 *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+    }
+    return true;
+}
+
+static bool trans_AUTIA1716(DisasContext *s, arg_AUTIA1716 *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+    }
+    return true;
+}
+
+static bool trans_AUTIB1716(DisasContext *s, arg_AUTIB1716 *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+    }
+    return true;
+}
+
+static bool trans_ESB(DisasContext *s, arg_ESB *a)
+{
+    /* Without RAS, we must implement this as NOP. */
+    if (dc_isar_feature(aa64_ras, s)) {
+        /*
+         * QEMU does not have a source of physical SErrors,
+         * so we are only concerned with virtual SErrors.
+         * The pseudocode in the ARM for this case is
+         *   if PSTATE.EL IN {EL0, EL1} && EL2Enabled() then
+         *      AArch64.vESBOperation();
+         * Most of the condition can be evaluated at translation time.
+         * Test for EL2 present, and defer test for SEL2 to runtime.
          */
-        if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-            s->base.is_jmp = DISAS_YIELD;
+        if (s->current_el <= 1 && arm_dc_feature(s, ARM_FEATURE_EL2)) {
+            gen_helper_vesb(cpu_env);
         }
-        break;
-    case 0b00010: /* WFE */
-        if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-            s->base.is_jmp = DISAS_WFE;
-        }
-        break;
-    case 0b00100: /* SEV */
-    case 0b00101: /* SEVL */
-    case 0b00110: /* DGH */
-        /* we treat all as NOP at least for now */
-        break;
-    case 0b00111: /* XPACLRI */
-        if (s->pauth_active) {
-            gen_helper_xpaci(cpu_X[30], cpu_env, cpu_X[30]);
-        }
-        break;
-    case 0b01000: /* PACIA1716 */
-        if (s->pauth_active) {
-            gen_helper_pacia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
-        }
-        break;
-    case 0b01010: /* PACIB1716 */
-        if (s->pauth_active) {
-            gen_helper_pacib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
-        }
-        break;
-    case 0b01100: /* AUTIA1716 */
-        if (s->pauth_active) {
-            gen_helper_autia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
-        }
-        break;
-    case 0b01110: /* AUTIB1716 */
-        if (s->pauth_active) {
-            gen_helper_autib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
-        }
-        break;
-    case 0b10000: /* ESB */
-        /* Without RAS, we must implement this as NOP. */
-        if (dc_isar_feature(aa64_ras, s)) {
-            /*
-             * QEMU does not have a source of physical SErrors,
-             * so we are only concerned with virtual SErrors.
-             * The pseudocode in the ARM for this case is
-             *   if PSTATE.EL IN {EL0, EL1} && EL2Enabled() then
-             *      AArch64.vESBOperation();
-             * Most of the condition can be evaluated at translation time.
-             * Test for EL2 present, and defer test for SEL2 to runtime.
-             */
-            if (s->current_el <= 1 && arm_dc_feature(s, ARM_FEATURE_EL2)) {
-                gen_helper_vesb(cpu_env);
-            }
-        }
-        break;
-    case 0b11000: /* PACIAZ */
-        if (s->pauth_active) {
-            gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30],
-                             tcg_constant_i64(0));
-        }
-        break;
-    case 0b11001: /* PACIASP */
-        if (s->pauth_active) {
-            gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
-        }
-        break;
-    case 0b11010: /* PACIBZ */
-        if (s->pauth_active) {
-            gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30],
-                             tcg_constant_i64(0));
-        }
-        break;
-    case 0b11011: /* PACIBSP */
-        if (s->pauth_active) {
-            gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
-        }
-        break;
-    case 0b11100: /* AUTIAZ */
-        if (s->pauth_active) {
-            gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30],
-                             tcg_constant_i64(0));
-        }
-        break;
-    case 0b11101: /* AUTIASP */
-        if (s->pauth_active) {
-            gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
-        }
-        break;
-    case 0b11110: /* AUTIBZ */
-        if (s->pauth_active) {
-            gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30],
-                             tcg_constant_i64(0));
-        }
-        break;
-    case 0b11111: /* AUTIBSP */
-        if (s->pauth_active) {
-            gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
-        }
-        break;
-    default:
-        /* default specified as NOP equivalent */
-        break;
     }
+    return true;
+}
+
+static bool trans_PACIAZ(DisasContext *s, arg_PACIAZ *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30], tcg_constant_i64(0));
+    }
+    return true;
+}
+
+static bool trans_PACIASP(DisasContext *s, arg_PACIASP *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+    }
+    return true;
+}
+
+static bool trans_PACIBZ(DisasContext *s, arg_PACIBZ *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30], tcg_constant_i64(0));
+    }
+    return true;
+}
+
+static bool trans_PACIBSP(DisasContext *s, arg_PACIBSP *a)
+{
+    if (s->pauth_active) {
+        gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+    }
+    return true;
+}
+
+static bool trans_AUTIAZ(DisasContext *s, arg_AUTIAZ *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30], tcg_constant_i64(0));
+    }
+    return true;
+}
+
+static bool trans_AUTIASP(DisasContext *s, arg_AUTIASP *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+    }
+    return true;
+}
+
+static bool trans_AUTIBZ(DisasContext *s, arg_AUTIBZ *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], tcg_constant_i64(0));
+    }
+    return true;
+}
+
+static bool trans_AUTIBSP(DisasContext *s, arg_AUTIBSP *a)
+{
+    if (s->pauth_active) {
+        gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+    }
+    return true;
 }
 
 static void gen_clrex(DisasContext *s, uint32_t insn)
@@ -2302,9 +2336,6 @@ static void disas_system(DisasContext *s, uint32_t insn)
             return;
         }
         switch (crn) {
-        case 2: /* HINT (including allocated hints like NOP, YIELD, etc) */
-            handle_hint(s, insn, op1, op2, crm);
-            break;
         case 3: /* CLREX, DSB, DMB, ISB */
             handle_sync(s, insn, op1, op2, crm);
             break;
