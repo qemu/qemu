@@ -207,6 +207,14 @@ static void vhost_vdpa_cleanup(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
 
+    /*
+     * If a peer NIC is attached, do not cleanup anything.
+     * Cleanup will happen as a part of qemu_cleanup() -> net_cleanup()
+     * when the guest is shutting down.
+     */
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_NIC) {
+        return;
+    }
     munmap(s->cvq_cmd_out_buffer, vhost_vdpa_net_cvq_cmd_page_len());
     munmap(s->status, vhost_vdpa_net_cvq_cmd_page_len());
     if (s->vhost_net) {
