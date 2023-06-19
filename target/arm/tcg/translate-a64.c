@@ -2122,7 +2122,7 @@ static void gen_sysreg_undef(DisasContext *s, bool isread,
  * These are all essentially the same insn in 'read' and 'write'
  * versions, with varying op0 fields.
  */
-static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
+static void handle_sys(DisasContext *s, bool isread,
                        unsigned int op0, unsigned int op1, unsigned int op2,
                        unsigned int crn, unsigned int crm, unsigned int rt)
 {
@@ -2307,28 +2307,10 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     }
 }
 
-/* System
- *  31                 22 21  20 19 18 16 15   12 11    8 7   5 4    0
- * +---------------------+---+-----+-----+-------+-------+-----+------+
- * | 1 1 0 1 0 1 0 1 0 0 | L | op0 | op1 |  CRn  |  CRm  | op2 |  Rt  |
- * +---------------------+---+-----+-----+-------+-------+-----+------+
- */
-static void disas_system(DisasContext *s, uint32_t insn)
+static bool trans_SYS(DisasContext *s, arg_SYS *a)
 {
-    unsigned int l, op0, op1, crn, crm, op2, rt;
-    l = extract32(insn, 21, 1);
-    op0 = extract32(insn, 19, 2);
-    op1 = extract32(insn, 16, 3);
-    crn = extract32(insn, 12, 4);
-    crm = extract32(insn, 8, 4);
-    op2 = extract32(insn, 5, 3);
-    rt = extract32(insn, 0, 5);
-
-    if (op0 == 0) {
-        unallocated_encoding(s);
-        return;
-    }
-    handle_sys(s, insn, l, op0, op1, op2, crn, crm, rt);
+    handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm, a->rt);
+    return true;
 }
 
 /* Exception generation
@@ -2435,11 +2417,7 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
     switch (extract32(insn, 25, 7)) {
     case 0x6a: /* Exception generation / System */
         if (insn & (1 << 24)) {
-            if (extract32(insn, 22, 2) == 0) {
-                disas_system(s, insn);
-            } else {
-                unallocated_encoding(s);
-            }
+            unallocated_encoding(s);
         } else {
             disas_exc(s, insn);
         }
