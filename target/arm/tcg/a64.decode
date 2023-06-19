@@ -528,3 +528,28 @@ LD_single          0 . 001101 . 1 . ..... 10 . 001 ..... .....  @ldst_single_d
 
 # Replicating load case
 LD_single_repl  0 q:1 001101 p:1 1 . rm:5 11 . 0 scale:2 rn:5 rt:5 selem=%ldst_single_selem
+
+%tag_offset     12:s9 !function=scale_by_log2_tag_granule
+&ldst_tag       rn rt imm p w
+@ldst_tag       ........ .. . ......... .. rn:5 rt:5 &ldst_tag imm=%tag_offset
+@ldst_tag_mult  ........ .. . 000000000 .. rn:5 rt:5 &ldst_tag imm=0
+
+STZGM           11011001 00 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+STG             11011001 00 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STG             11011001 00 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STG             11011001 00 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+LDG             11011001 01 1 ......... 00 ..... ..... @ldst_tag p=0 w=0
+STZG            11011001 01 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STZG            11011001 01 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STZG            11011001 01 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+STGM            11011001 10 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+ST2G            11011001 10 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+ST2G            11011001 10 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+ST2G            11011001 10 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+LDGM            11011001 11 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+STZ2G           11011001 11 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STZ2G           11011001 11 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STZ2G           11011001 11 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
