@@ -5685,7 +5685,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (LMA(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
             goto illegal_op;
         }
-        if (!PE(s)) {
+        if (!PE(s) || CPL(s) != 0) {
             gen_exception_gpf(s);
         } else {
             gen_helper_sysexit(cpu_env, tcg_constant_i32(dflag - 1));
@@ -5711,7 +5711,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
             goto illegal_op;
         }
-        if (!PE(s)) {
+        if (!PE(s) || CPL(s) != 0) {
             gen_exception_gpf(s);
         } else {
             gen_helper_sysret(cpu_env, tcg_constant_i32(dflag - 1));
