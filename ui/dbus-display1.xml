@@ -39,8 +39,9 @@
       "Text" (see :dbus:prop:`Type` and other properties).
 
       Interactions with a console may be done with
-      :dbus:iface:`org.qemu.Display1.Keyboard` and
-      :dbus:iface:`org.qemu.Display1.Mouse` interfaces when available.
+      :dbus:iface:`org.qemu.Display1.Keyboard`,
+      :dbus:iface:`org.qemu.Display1.Mouse` and
+      :dbus:iface:`org.qemu.Display1.MultiTouch` interfaces when available.
   -->
   <interface name="org.qemu.Display1.Console">
     <!--
@@ -234,6 +235,46 @@
         Whether the mouse is using absolute movements.
     -->
     <property name="IsAbsolute" type="b" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.MultiTouch:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console` documentation).
+
+      .. _dbus-kind-values:
+
+      **Kind values**::
+
+        Begin       = 0
+        Update      = 1
+        End         = 2
+        Cancel      = 3
+  -->
+  <interface name="org.qemu.Display1.MultiTouch">
+    <!--
+        SendEvent:
+        @kind: The touch event kind
+        @num_slot: The slot number.
+        @x: The x coordinates.
+        @y: The y coordinates.
+
+        Send a touch gesture event.
+    -->
+    <method name="SendEvent">
+      <arg type="u" name="kind" direction="in"/>
+      <arg type="t" name="num_slot" direction="in"/>
+      <arg type="d" name="x" direction="in"/>
+      <arg type="d" name="y" direction="in"/>
+    </method>
+
+    <!--
+        MaxSlots:
+
+        The maximum number of slots.
+    -->
+    <property name="MaxSlots" type="i" access="read"/>
   </interface>
 
   <!--

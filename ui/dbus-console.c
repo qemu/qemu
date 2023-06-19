@@ -32,6 +32,8 @@
 
 #include "dbus.h"
 
+static struct touch_slot touch_slots[INPUT_EVENT_SLOTS_MAX];
+
 struct _DBusDisplayConsole {
     GDBusObjectSkeleton parent_instance;
     DisplayChangeListener dcl;
@@ -44,6 +46,7 @@ struct _DBusDisplayConsole {
     QKbdState *kbd;
 
     QemuDBusDisplay1Mouse *iface_mouse;
+    QemuDBusDisplay1MultiTouch *iface_touch;
     gboolean last_set;
     guint last_x;
     guint last_y;
@@ -346,6 +349,46 @@ dbus_mouse_rel_motion(DBusDisplayConsole *ddc,
 }
 
 static gboolean
+dbus_touch_send_event(DBusDisplayConsole *ddc,
+                      GDBusMethodInvocation *invocation,
+                      guint kind, uint64_t num_slot,
+                      double x, double y)
+{
+    Error *error = NULL;
+    int width, height;
+    trace_dbus_touch_send_event(kind, num_slot, x, y);
+
+    if (kind != INPUT_MULTI_TOUCH_TYPE_BEGIN &&
+        kind != INPUT_MULTI_TOUCH_TYPE_UPDATE &&
+        kind != INPUT_MULTI_TOUCH_TYPE_CANCEL &&
+        kind != INPUT_MULTI_TOUCH_TYPE_END)
+    {
+        g_dbus_method_invocation_return_error(
+            invocation, DBUS_DISPLAY_ERROR,
+            DBUS_DISPLAY_ERROR_INVALID,
+            "Invalid touch event kind");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+    width = qemu_console_get_width(ddc->dcl.con, 0);
+    height = qemu_console_get_height(ddc->dcl.con, 0);
+
+    console_handle_touch_event(ddc->dcl.con, touch_slots,
+                               num_slot, width, height,
+                               x, y, kind, &error);
+    if (error != NULL) {
+        g_dbus_method_invocation_return_error(
+            invocation, DBUS_DISPLAY_ERROR,
+            DBUS_DISPLAY_ERROR_INVALID,
+            error_get_pretty(error), NULL);
+        error_free(error);
+    } else {
+        qemu_dbus_display1_multi_touch_complete_send_event(ddc->iface_touch,
+                                                           invocation);
+    }
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
+static gboolean
 dbus_mouse_set_pos(DBusDisplayConsole *ddc,
                    GDBusMethodInvocation *invocation,
                    guint x, guint y)
@@ -440,7 +483,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
     g_autofree char *label = NULL;
     char device_addr[256] = "";
     DBusDisplayConsole *ddc;
-    int idx;
+    int idx, i;
 
     assert(display);
     assert(con);
@@ -494,6 +537,20 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         NULL);
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
         G_DBUS_INTERFACE_SKELETON(ddc->iface_mouse));
+
+    ddc->iface_touch = qemu_dbus_display1_multi_touch_skeleton_new();
+    g_object_connect(ddc->iface_touch,
+        "swapped-signal::handle-send-event", dbus_touch_send_event, ddc,
+        NULL);
+    qemu_dbus_display1_multi_touch_set_max_slots(ddc->iface_touch,
+                                                 INPUT_EVENT_SLOTS_MAX);
+    g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
+        G_DBUS_INTERFACE_SKELETON(ddc->iface_touch));
+
+    for (i = 0; i < INPUT_EVENT_SLOTS_MAX; i++) {
+        struct touch_slot *slot = &touch_slots[i];
+        slot->tracking_id = -1;
+    }
 
     register_displaychangelistener(&ddc->dcl);
     ddc->mouse_mode_notifier.notify = dbus_mouse_mode_change;
