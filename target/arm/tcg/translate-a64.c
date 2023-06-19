@@ -3414,99 +3414,28 @@ static bool trans_STLR_i(DisasContext *s, arg_ldapr_stlr_i *a)
     return true;
 }
 
-/* AdvSIMD load/store multiple structures
- *
- *  31  30  29           23 22  21         16 15    12 11  10 9    5 4    0
- * +---+---+---------------+---+-------------+--------+------+------+------+
- * | 0 | Q | 0 0 1 1 0 0 0 | L | 0 0 0 0 0 0 | opcode | size |  Rn  |  Rt  |
- * +---+---+---------------+---+-------------+--------+------+------+------+
- *
- * AdvSIMD load/store multiple structures (post-indexed)
- *
- *  31  30  29           23 22  21  20     16 15    12 11  10 9    5 4    0
- * +---+---+---------------+---+---+---------+--------+------+------+------+
- * | 0 | Q | 0 0 1 1 0 0 1 | L | 0 |   Rm    | opcode | size |  Rn  |  Rt  |
- * +---+---+---------------+---+---+---------+--------+------+------+------+
- *
- * Rt: first (or only) SIMD&FP register to be transferred
- * Rn: base address or SP
- * Rm (post-index only): post-index register (when !31) or size dependent #imm
- */
-static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
+static bool trans_LD_mult(DisasContext *s, arg_ldst_mult *a)
 {
-    int rt = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int rm = extract32(insn, 16, 5);
-    int size = extract32(insn, 10, 2);
-    int opcode = extract32(insn, 12, 4);
-    bool is_store = !extract32(insn, 22, 1);
-    bool is_postidx = extract32(insn, 23, 1);
-    bool is_q = extract32(insn, 30, 1);
     TCGv_i64 clean_addr, tcg_rn, tcg_ebytes;
     MemOp endian, align, mop;
 
     int total;    /* total bytes */
     int elements; /* elements per vector */
-    int rpt;    /* num iterations */
-    int selem;  /* structure elements */
     int r;
+    int size = a->sz;
 
-    if (extract32(insn, 31, 1) || extract32(insn, 21, 1)) {
-        unallocated_encoding(s);
-        return;
+    if (!a->p && a->rm != 0) {
+        /* For non-postindexed accesses the Rm field must be 0 */
+        return false;
     }
-
-    if (!is_postidx && rm != 0) {
-        unallocated_encoding(s);
-        return;
+    if (size == 3 && !a->q && a->selem != 1) {
+        return false;
     }
-
-    /* From the shared decode logic */
-    switch (opcode) {
-    case 0x0:
-        rpt = 1;
-        selem = 4;
-        break;
-    case 0x2:
-        rpt = 4;
-        selem = 1;
-        break;
-    case 0x4:
-        rpt = 1;
-        selem = 3;
-        break;
-    case 0x6:
-        rpt = 3;
-        selem = 1;
-        break;
-    case 0x7:
-        rpt = 1;
-        selem = 1;
-        break;
-    case 0x8:
-        rpt = 1;
-        selem = 2;
-        break;
-    case 0xa:
-        rpt = 2;
-        selem = 1;
-        break;
-    default:
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (size == 3 && !is_q && selem != 1) {
-        /* reserved */
-        unallocated_encoding(s);
-        return;
-    }
-
     if (!fp_access_check(s)) {
-        return;
+        return true;
     }
 
-    if (rn == 31) {
+    if (a->rn == 31) {
         gen_check_sp_alignment(s);
     }
 
@@ -3516,22 +3445,22 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
         endian = MO_LE;
     }
 
-    total = rpt * selem * (is_q ? 16 : 8);
-    tcg_rn = cpu_reg_sp(s, rn);
+    total = a->rpt * a->selem * (a->q ? 16 : 8);
+    tcg_rn = cpu_reg_sp(s, a->rn);
 
     /*
      * Issue the MTE check vs the logical repeat count, before we
      * promote consecutive little-endian elements below.
      */
-    clean_addr = gen_mte_checkN(s, tcg_rn, is_store, is_postidx || rn != 31,
-                                total, finalize_memop_asimd(s, size));
+    clean_addr = gen_mte_checkN(s, tcg_rn, false, a->p || a->rn != 31, total,
+                                finalize_memop_asimd(s, size));
 
     /*
      * Consecutive little-endian elements from a single register
      * can be promoted to a larger little-endian operation.
      */
     align = MO_ALIGN;
-    if (selem == 1 && endian == MO_LE) {
+    if (a->selem == 1 && endian == MO_LE) {
         align = pow2_align(size);
         size = 3;
     }
@@ -3540,45 +3469,119 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     }
     mop = endian | size | align;
 
-    elements = (is_q ? 16 : 8) >> size;
+    elements = (a->q ? 16 : 8) >> size;
     tcg_ebytes = tcg_constant_i64(1 << size);
-    for (r = 0; r < rpt; r++) {
+    for (r = 0; r < a->rpt; r++) {
         int e;
         for (e = 0; e < elements; e++) {
             int xs;
-            for (xs = 0; xs < selem; xs++) {
-                int tt = (rt + r + xs) % 32;
-                if (is_store) {
-                    do_vec_st(s, tt, e, clean_addr, mop);
-                } else {
-                    do_vec_ld(s, tt, e, clean_addr, mop);
-                }
+            for (xs = 0; xs < a->selem; xs++) {
+                int tt = (a->rt + r + xs) % 32;
+                do_vec_ld(s, tt, e, clean_addr, mop);
                 tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
             }
         }
     }
 
-    if (!is_store) {
-        /* For non-quad operations, setting a slice of the low
-         * 64 bits of the register clears the high 64 bits (in
-         * the ARM ARM pseudocode this is implicit in the fact
-         * that 'rval' is a 64 bit wide variable).
-         * For quad operations, we might still need to zero the
-         * high bits of SVE.
-         */
-        for (r = 0; r < rpt * selem; r++) {
-            int tt = (rt + r) % 32;
-            clear_vec_high(s, is_q, tt);
+    /*
+     * For non-quad operations, setting a slice of the low 64 bits of
+     * the register clears the high 64 bits (in the ARM ARM pseudocode
+     * this is implicit in the fact that 'rval' is a 64 bit wide
+     * variable).  For quad operations, we might still need to zero
+     * the high bits of SVE.
+     */
+    for (r = 0; r < a->rpt * a->selem; r++) {
+        int tt = (a->rt + r) % 32;
+        clear_vec_high(s, a->q, tt);
+    }
+
+    if (a->p) {
+        if (a->rm == 31) {
+            tcg_gen_addi_i64(tcg_rn, tcg_rn, total);
+        } else {
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, a->rm));
+        }
+    }
+    return true;
+}
+
+static bool trans_ST_mult(DisasContext *s, arg_ldst_mult *a)
+{
+    TCGv_i64 clean_addr, tcg_rn, tcg_ebytes;
+    MemOp endian, align, mop;
+
+    int total;    /* total bytes */
+    int elements; /* elements per vector */
+    int r;
+    int size = a->sz;
+
+    if (!a->p && a->rm != 0) {
+        /* For non-postindexed accesses the Rm field must be 0 */
+        return false;
+    }
+    if (size == 3 && !a->q && a->selem != 1) {
+        return false;
+    }
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    if (a->rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    /* For our purposes, bytes are always little-endian.  */
+    endian = s->be_data;
+    if (size == 0) {
+        endian = MO_LE;
+    }
+
+    total = a->rpt * a->selem * (a->q ? 16 : 8);
+    tcg_rn = cpu_reg_sp(s, a->rn);
+
+    /*
+     * Issue the MTE check vs the logical repeat count, before we
+     * promote consecutive little-endian elements below.
+     */
+    clean_addr = gen_mte_checkN(s, tcg_rn, true, a->p || a->rn != 31, total,
+                                finalize_memop_asimd(s, size));
+
+    /*
+     * Consecutive little-endian elements from a single register
+     * can be promoted to a larger little-endian operation.
+     */
+    align = MO_ALIGN;
+    if (a->selem == 1 && endian == MO_LE) {
+        align = pow2_align(size);
+        size = 3;
+    }
+    if (!s->align_mem) {
+        align = 0;
+    }
+    mop = endian | size | align;
+
+    elements = (a->q ? 16 : 8) >> size;
+    tcg_ebytes = tcg_constant_i64(1 << size);
+    for (r = 0; r < a->rpt; r++) {
+        int e;
+        for (e = 0; e < elements; e++) {
+            int xs;
+            for (xs = 0; xs < a->selem; xs++) {
+                int tt = (a->rt + r + xs) % 32;
+                do_vec_st(s, tt, e, clean_addr, mop);
+                tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
+            }
         }
     }
 
-    if (is_postidx) {
-        if (rm == 31) {
+    if (a->p) {
+        if (a->rm == 31) {
             tcg_gen_addi_i64(tcg_rn, tcg_rn, total);
         } else {
-            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, rm));
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, a->rm));
         }
     }
+    return true;
 }
 
 /* AdvSIMD load/store single structure
@@ -3931,9 +3934,6 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
 static void disas_ldst(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 24, 6)) {
-    case 0x0c: /* AdvSIMD load/store multiple structures */
-        disas_ldst_multiple_struct(s, insn);
-        break;
     case 0x0d: /* AdvSIMD load/store single structure */
         disas_ldst_single_struct(s, insn);
         break;
