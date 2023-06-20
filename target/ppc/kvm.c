@@ -1728,6 +1728,10 @@ int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits)
         .addr = (uintptr_t) &bits,
     };
 
+    if (!kvm_enabled()) {
+        return 0;
+    }
+
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
 }
 
@@ -1740,6 +1744,10 @@ int kvmppc_clear_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits)
         .id = KVM_REG_PPC_CLEAR_TSR,
         .addr = (uintptr_t) &bits,
     };
+
+    if (!kvm_enabled()) {
+        return 0;
+    }
 
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
 }
@@ -1754,6 +1762,10 @@ int kvmppc_set_tcr(PowerPCCPU *cpu)
         .id = KVM_REG_PPC_TCR,
         .addr = (uintptr_t) &tcr,
     };
+
+    if (!kvm_enabled()) {
+        return 0;
+    }
 
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
 }
