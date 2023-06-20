@@ -133,6 +133,26 @@ static void dump_hcall(CPUPPCState *env)
                   env->nip);
 }
 
+#ifdef CONFIG_TCG
+/* Return true iff byteswap is needed to load instruction */
+static inline bool insn_need_byteswap(CPUArchState *env)
+{
+    /* SYSTEM builds TARGET_BIG_ENDIAN. Need to swap when MSR[LE] is set */
+    return !!(env->msr & ((target_ulong)1 << MSR_LE));
+}
+
+static uint32_t ppc_ldl_code(CPUArchState *env, hwaddr addr)
+{
+    uint32_t insn = cpu_ldl_code(env, addr);
+
+    if (insn_need_byteswap(env)) {
+        insn = bswap32(insn);
+    }
+
+    return insn;
+}
+#endif
+
 static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
 {
     const char *es;
@@ -3104,7 +3124,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 
     /* Restore state and reload the insn we executed, for filling in DSISR.  */
     cpu_restore_state(cs, retaddr);
-    insn = cpu_ldl_code(env, env->nip);
+    insn = ppc_ldl_code(env, env->nip);
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_4xx:
