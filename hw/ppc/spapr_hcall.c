@@ -1773,6 +1773,7 @@ out_restore_l1:
     env->cfar = spapr_cpu->nested_host_state->cfar;
     env->xer = spapr_cpu->nested_host_state->xer;
     env->so = spapr_cpu->nested_host_state->so;
+    env->ca = spapr_cpu->nested_host_state->ca;
     env->ov = spapr_cpu->nested_host_state->ov;
     env->ov32 = spapr_cpu->nested_host_state->ov32;
     env->ca32 = spapr_cpu->nested_host_state->ca32;
