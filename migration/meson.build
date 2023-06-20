@@ -9,7 +9,7 @@ migration_files = files(
   'yank_functions.c',
 )
 
-softmmu_ss.add(files(
+system_ss.add(files(
   'block-dirty-bitmap.c',
   'channel.c',
   'channel-block.c',
@@ -31,15 +31,15 @@ softmmu_ss.add(files(
 ), gnutls)
 
 if get_option('replication').allowed()
-  softmmu_ss.add(files('colo-failover.c', 'colo.c'))
+  system_ss.add(files('colo-failover.c', 'colo.c'))
 endif
 
-softmmu_ss.add(when: rdma, if_true: files('rdma.c'))
+system_ss.add(when: rdma, if_true: files('rdma.c'))
 if get_option('live_block_migration').allowed()
-  softmmu_ss.add(files('block.c'))
+  system_ss.add(files('block.c'))
 endif
-softmmu_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
+system_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
 
-specific_ss.add(when: 'CONFIG_SOFTMMU',
+specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
                 if_true: files('ram.c',
                                'target.c'))

@@ -9,7 +9,7 @@
 #define X86_64_LOAD_EXTRACT_AL16_AL8_H
 
 #ifdef CONFIG_INT128_TYPE
-#include "host/cpuinfo.h"
+#include "host/atomic128-ldst.h"
 
 /**
  * load_atom_extract_al16_or_al8:
@@ -26,7 +26,7 @@ load_atom_extract_al16_or_al8(void *pv, int s)
     uintptr_t pi = (uintptr_t)pv;
     __int128_t *ptr_align = (__int128_t *)(pi & ~7);
     int shr = (pi & 7) * 8;
-    Int128Alias r;
+    X86Int128Union r;
 
     /*
      * ptr_align % 16 is now only 0 or 8.
@@ -35,9 +35,9 @@ load_atom_extract_al16_or_al8(void *pv, int s)
      * when ptr_align % 16 == 0 for 16-byte atomicity.
      */
     if ((cpuinfo & CPUINFO_ATOMIC_VMOVDQU) || (pi & 8)) {
-        asm("vmovdqu %1, %0" : "=x" (r.i) : "m" (*ptr_align));
+        asm("vmovdqu %1, %0" : "=x" (r.v) : "m" (*ptr_align));
     } else {
-        asm("vmovdqa %1, %0" : "=x" (r.i) : "m" (*ptr_align));
+        asm("vmovdqa %1, %0" : "=x" (r.v) : "m" (*ptr_align));
     }
     return int128_getlo(int128_urshift(r.s, shr));
 }

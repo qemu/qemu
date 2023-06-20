@@ -1,1 +1,1 @@
-softmmu_ss.add(files('stats-hmp-cmds.c', 'stats-qmp-cmds.c'))
+system_ss.add(files('stats-hmp-cmds.c', 'stats-qmp-cmds.c'))

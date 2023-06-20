@@ -6,8 +6,8 @@ fsdev_ss.add(when: ['CONFIG_FSDEV_9P'], if_true: files(
   '9p-marshal.c',
   'qemu-fsdev.c',
 ), if_false: files('qemu-fsdev-dummy.c'))
-softmmu_ss.add_all(when: 'CONFIG_LINUX', if_true: fsdev_ss)
-softmmu_ss.add_all(when: 'CONFIG_DARWIN', if_true: fsdev_ss)
+system_ss.add_all(when: 'CONFIG_LINUX', if_true: fsdev_ss)
+system_ss.add_all(when: 'CONFIG_DARWIN', if_true: fsdev_ss)
 
 if have_virtfs_proxy_helper
   executable('virtfs-proxy-helper',

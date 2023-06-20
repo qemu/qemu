@@ -1,5 +1,5 @@
 specific_ss.add(files('accel-common.c', 'accel-blocker.c'))
-softmmu_ss.add(files('accel-softmmu.c'))
+system_ss.add(files('accel-softmmu.c'))
 user_ss.add(files('accel-user.c'))
 
 subdir('tcg')
@@ -12,4 +12,4 @@ if have_system
 endif
 
 # qtest
-softmmu_ss.add(files('dummy-cpus.c'))
+system_ss.add(files('dummy-cpus.c'))

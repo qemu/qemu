@@ -5,8 +5,8 @@ nios2_ss.add(files(
   'translate.c',
 ))
 
-nios2_softmmu_ss = ss.source_set()
-nios2_softmmu_ss.add(files(
+nios2_system_ss = ss.source_set()
+nios2_system_ss.add(files(
   'helper.c',
   'monitor.c',
   'mmu.c',
@@ -14,4 +14,4 @@ nios2_softmmu_ss.add(files(
 ))
 
 target_arch += {'nios2': nios2_ss}
-target_softmmu_arch += {'nios2': nios2_softmmu_ss}
+target_softmmu_arch += {'nios2': nios2_system_ss}

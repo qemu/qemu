@@ -1,4 +1,4 @@
-softmmu_ss.add([files(
+system_ss.add([files(
   'cryptodev-builtin.c',
   'cryptodev-hmp-cmds.c',
   'cryptodev.c',
@@ -10,20 +10,20 @@ softmmu_ss.add([files(
   'confidential-guest-support.c',
 ), numa])
 
-softmmu_ss.add(when: 'CONFIG_POSIX', if_true: files('rng-random.c'))
-softmmu_ss.add(when: 'CONFIG_POSIX', if_true: files('hostmem-file.c'))
-softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files('hostmem-memfd.c'))
+system_ss.add(when: 'CONFIG_POSIX', if_true: files('rng-random.c'))
+system_ss.add(when: 'CONFIG_POSIX', if_true: files('hostmem-file.c'))
+system_ss.add(when: 'CONFIG_LINUX', if_true: files('hostmem-memfd.c'))
 if keyutils.found()
-    softmmu_ss.add(keyutils, files('cryptodev-lkcf.c'))
+    system_ss.add(keyutils, files('cryptodev-lkcf.c'))
 endif
 if have_vhost_user
-  softmmu_ss.add(when: 'CONFIG_VIRTIO', if_true: files('vhost-user.c'))
+  system_ss.add(when: 'CONFIG_VIRTIO', if_true: files('vhost-user.c'))
 endif
-softmmu_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('cryptodev-vhost.c'))
+system_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('cryptodev-vhost.c'))
 if have_vhost_user_crypto
-  softmmu_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('cryptodev-vhost-user.c'))
+  system_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('cryptodev-vhost-user.c'))
 endif
-softmmu_ss.add(when: gio, if_true: files('dbus-vmstate.c'))
-softmmu_ss.add(when: 'CONFIG_SGX', if_true: files('hostmem-epc.c'))
+system_ss.add(when: gio, if_true: files('dbus-vmstate.c'))
+system_ss.add(when: 'CONFIG_SGX', if_true: files('hostmem-epc.c'))
 
 subdir('tpm')

@@ -24,8 +24,8 @@ riscv_ss.add(files(
 ))
 riscv_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
 
-riscv_softmmu_ss = ss.source_set()
-riscv_softmmu_ss.add(files(
+riscv_system_ss = ss.source_set()
+riscv_system_ss.add(files(
   'arch_dump.c',
   'pmp.c',
   'debug.c',
@@ -37,4 +37,4 @@ riscv_softmmu_ss.add(files(
 ))
 
 target_arch += {'riscv': riscv_ss}
-target_softmmu_arch += {'riscv': riscv_softmmu_ss}
+target_softmmu_arch += {'riscv': riscv_system_ss}

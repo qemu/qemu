@@ -16,8 +16,8 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'gdbstub64.c',
 ))
 
-arm_softmmu_ss = ss.source_set()
-arm_softmmu_ss.add(files(
+arm_system_ss = ss.source_set()
+arm_system_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
   'arm-qmp-cmds.c',
@@ -35,4 +35,4 @@ else
 endif
 
 target_arch += {'arm': arm_ss}
-target_softmmu_arch += {'arm': arm_softmmu_ss}
+target_softmmu_arch += {'arm': arm_system_ss}

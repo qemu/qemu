@@ -15,8 +15,8 @@ xtensa_ss.add(files(
   'xtensa-isa.c',
 ))
 
-xtensa_softmmu_ss = ss.source_set()
-xtensa_softmmu_ss.add(files(
+xtensa_system_ss = ss.source_set()
+xtensa_system_ss.add(files(
   'dbg_helper.c',
   'mmu_helper.c',
   'monitor.c',
@@ -24,4 +24,4 @@ xtensa_softmmu_ss.add(files(
 ))
 
 target_arch += {'xtensa': xtensa_ss}
-target_softmmu_arch += {'xtensa': xtensa_softmmu_ss}
+target_softmmu_arch += {'xtensa': xtensa_system_ss}

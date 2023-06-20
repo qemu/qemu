@@ -183,9 +183,9 @@ Target-independent emulator sourcesets:
   This includes error handling infrastructure, standard data structures,
   platform portability wrapper functions, etc.
 
-  Target-independent code lives in the ``common_ss``, ``softmmu_ss`` and
+  Target-independent code lives in the ``common_ss``, ``system_ss`` and
   ``user_ss`` sourcesets.  ``common_ss`` is linked into all emulators,
-  ``softmmu_ss`` only in system emulators, ``user_ss`` only in user-mode
+  ``system_ss`` only in system emulators, ``user_ss`` only in user-mode
   emulators.
 
   Target-independent sourcesets must exercise particular care when using
@@ -197,11 +197,11 @@ Target-independent emulator sourcesets:
   symbol::
 
     # Some targets have CONFIG_ACPI, some don't, so this is not enough
-    softmmu_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
+    system_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
                                         if_false: files('acpi-stub.c'))
 
     # This is required as well:
-    softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
+    system_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
 
 Target-dependent emulator sourcesets:
   In the target-dependent set lives CPU emulation, some device emulation and
@@ -229,16 +229,16 @@ Target-dependent emulator sourcesets:
   for all emulators and for system emulators only.  For example::
 
     arm_ss = ss.source_set()
-    arm_softmmu_ss = ss.source_set()
+    arm_system_ss = ss.source_set()
     ...
     target_arch += {'arm': arm_ss}
-    target_softmmu_arch += {'arm': arm_softmmu_ss}
+    target_softmmu_arch += {'arm': arm_system_ss}
 
 Module sourcesets:
   There are two dictionaries for modules: ``modules`` is used for
   target-independent modules and ``target_modules`` is used for
   target-dependent modules.  When modules are disabled the ``module``
-  source sets are added to ``softmmu_ss`` and the ``target_modules``
+  source sets are added to ``system_ss`` and the ``target_modules``
   source sets are added to ``specific_ss``.
 
   Both dictionaries are nested.  One dictionary is created per

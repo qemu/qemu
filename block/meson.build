@@ -42,8 +42,8 @@ block_ss.add(files(
   'write-threshold.c',
 ), zstd, zlib, gnutls)
 
-softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
-softmmu_ss.add(files('block-ram-registrar.c'))
+system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+system_ss.add(files('block-ram-registrar.c'))
 
 if get_option('qcow1').allowed()
   block_ss.add(files('qcow.c'))
@@ -159,7 +159,7 @@ block_ss.add(block_gen_c)
 
 block_ss.add(files('stream.c'))
 
-softmmu_ss.add(files('qapi-sysemu.c'))
+system_ss.add(files('qapi-sysemu.c'))
 
 subdir('export')
 subdir('monitor')

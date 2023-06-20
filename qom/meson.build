@@ -7,4 +7,4 @@ qom_ss.add(files(
 ))
 
 qmp_ss.add(files('qom-qmp-cmds.c'))
-softmmu_ss.add(files('qom-hmp-cmds.c'))
+system_ss.add(files('qom-hmp-cmds.c'))

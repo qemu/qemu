@@ -11,8 +11,8 @@ alpha_ss.add(files(
   'vax_helper.c',
 ))
 
-alpha_softmmu_ss = ss.source_set()
-alpha_softmmu_ss.add(files('machine.c'))
+alpha_system_ss = ss.source_set()
+alpha_system_ss.add(files('machine.c'))
 
 target_arch += {'alpha': alpha_ss}
-target_softmmu_arch += {'alpha': alpha_softmmu_ss}
+target_softmmu_arch += {'alpha': alpha_system_ss}

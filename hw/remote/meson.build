@@ -14,4 +14,4 @@ remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: libvfio_user_dep)
 specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('memory.c'))
 specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listener.c'))
 
-softmmu_ss.add_all(when: 'CONFIG_MULTIPROCESS', if_true: remote_ss)
+system_ss.add_all(when: 'CONFIG_MULTIPROCESS', if_true: remote_ss)
