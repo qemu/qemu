@@ -1591,6 +1591,10 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
             vhc->hypercall(cpu->vhyp, cpu);
             return;
         }
+        if (env->insns_flags2 & PPC2_ISA310) {
+            /* ISAv3.1 puts LEV into SRR1 */
+            msr |= lev << 20;
+        }
         if (lev == 1) {
             new_msr |= (target_ulong)MSR_HVB;
         }
