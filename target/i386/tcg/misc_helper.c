@@ -75,12 +75,6 @@ void helper_rdtsc(CPUX86State *env)
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
-void helper_rdtscp(CPUX86State *env)
-{
-    helper_rdtsc(env);
-    env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
-}
-
 G_NORETURN void helper_rdpmc(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
@@ -136,4 +130,19 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
 
     env->pkru = val;
     tlb_flush(cs);
+}
+
+target_ulong HELPER(rdpid)(CPUX86State *env)
+{
+#if defined CONFIG_SOFTMMU
+    return env->tsc_aux;
+#elif defined CONFIG_LINUX && defined CONFIG_GETCPU
+    unsigned cpu, node;
+    getcpu(&cpu, &node);
+    return (node << 12) | (cpu & 0xfff);
+#elif defined CONFIG_SCHED_GETCPU
+    return sched_getcpu();
+#else
+    return 0;
+#endif
 }

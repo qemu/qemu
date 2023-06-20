@@ -3924,13 +3924,25 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_cmpxchg8b(s, env, modrm);
             break;
 
-        case 7: /* RDSEED */
+        case 7: /* RDSEED, RDPID with f3 prefix */
             if (mod != 3 ||
-                (s->prefix & (PREFIX_LOCK | PREFIX_REPZ | PREFIX_REPNZ)) ||
-                !(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_RDSEED)) {
+                (s->prefix & (PREFIX_LOCK | PREFIX_REPNZ))) {
                 goto illegal_op;
             }
-            goto do_rdrand;
+            if (s->prefix & PREFIX_REPZ) {
+                if (!(s->cpuid_ext_features & CPUID_7_0_ECX_RDPID)) {
+                    goto illegal_op;
+                }
+                gen_helper_rdpid(s->T0, cpu_env);
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_mov_reg_v(s, dflag, rm, s->T0);
+                break;
+            } else {
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_RDSEED)) {
+                    goto illegal_op;
+                }
+                goto do_rdrand;
+            }
 
         case 6: /* RDRAND */
             if (mod != 3 ||
@@ -6125,7 +6137,9 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
             translator_io_start(&s->base);
-            gen_helper_rdtscp(cpu_env);
+            gen_helper_rdtsc(cpu_env);
+            gen_helper_rdpid(s->T0, cpu_env);
+            gen_op_mov_reg_v(s, dflag, R_ECX, s->T0);
             break;
 
         default:
