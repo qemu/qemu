@@ -1105,6 +1105,7 @@ static MemoryListener kvm_coalesced_pio_listener = {
     .name = "kvm-coalesced-pio",
     .coalesced_io_add = kvm_coalesce_pio_add,
     .coalesced_io_del = kvm_coalesce_pio_del,
+    .priority = MEMORY_LISTENER_PRIORITY_MIN,
 };
 
 int kvm_check_extension(KVMState *s, unsigned int extension)

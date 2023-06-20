@@ -341,6 +341,7 @@ static MemoryListener devlistener = {
     .name = "kvm-arm",
     .region_add = kvm_arm_devlistener_add,
     .region_del = kvm_arm_devlistener_del,
+    .priority = MEMORY_LISTENER_PRIORITY_MIN,
 };
 
 static void kvm_arm_set_device_addr(KVMDevice *kd)
