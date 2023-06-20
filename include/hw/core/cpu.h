@@ -226,7 +226,7 @@ struct CPUWatchpoint {
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 };
 
-#if defined(CONFIG_PLUGIN) && !defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_PLUGIN
 /*
  * For plugins we sometime need to save the resolved iotlb data before
  * the memory regions get moved around  by io_writex.
@@ -410,11 +410,9 @@ struct CPUState {
 
 #ifdef CONFIG_PLUGIN
     GArray *plugin_mem_cbs;
-#if !defined(CONFIG_USER_ONLY)
     /* saved iotlb data from io_writex */
     SavedIOTLB saved_iotlb;
-#endif /* !CONFIG_USER_ONLY */
-#endif /* CONFIG_PLUGIN */
+#endif
 
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index;
