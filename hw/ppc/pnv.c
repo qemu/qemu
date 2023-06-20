@@ -799,7 +799,8 @@ static void pnv_init(MachineState *machine)
     DeviceState *dev;
 
     if (kvm_enabled()) {
-        error_report("The powernv machine does not work with KVM acceleration");
+        error_report("machine %s does not support the KVM accelerator",
+                     mc->name);
         exit(EXIT_FAILURE);
     }
 
