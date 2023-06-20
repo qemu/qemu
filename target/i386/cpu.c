@@ -666,7 +666,10 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
  * and therefore using the 32-bit ABI; the CPU itself might be 64-bit
  * but again the difference is only visible in kernel mode.
  */
-#if defined CONFIG_USER_ONLY
+#if defined CONFIG_LINUX_USER
+#define CPUID_EXT2_KERNEL_FEATURES (CPUID_EXT2_LM | CPUID_EXT2_FFXSR)
+#elif defined CONFIG_USER_ONLY
+/* FIXME: Long mode not yet supported for i386 bsd-user */
 #define CPUID_EXT2_KERNEL_FEATURES CPUID_EXT2_FFXSR
 #else
 #define CPUID_EXT2_KERNEL_FEATURES 0
@@ -5539,7 +5542,15 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     }
 #ifndef TARGET_X86_64
     if (w == FEAT_8000_0001_EDX) {
-        r &= ~CPUID_EXT2_LM;
+        /*
+         * 32-bit TCG can emulate 64-bit compatibility mode.  If there is no
+         * way for userspace to get out of its 32-bit jail, we can leave
+         * the LM bit set.
+         */
+        uint32_t unavail = tcg_enabled()
+            ? CPUID_EXT2_LM & ~CPUID_EXT2_KERNEL_FEATURES
+            : CPUID_EXT2_LM;
+        r &= ~unavail;
     }
 #endif
     if (migratable_only) {
