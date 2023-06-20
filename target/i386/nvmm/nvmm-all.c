@@ -1128,7 +1128,7 @@ static MemoryListener nvmm_memory_listener = {
     .region_add = nvmm_region_add,
     .region_del = nvmm_region_del,
     .log_sync = nvmm_log_sync,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
 };
 
 static void

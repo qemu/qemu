@@ -811,6 +811,8 @@ struct IOMMUMemoryRegion {
 #define IOMMU_NOTIFIER_FOREACH(n, mr) \
     QLIST_FOREACH((n), &(mr)->iommu_notify, node)
 
+#define MEMORY_LISTENER_PRIORITY_ACCEL          10
+
 /**
  * struct MemoryListener: callbacks structure for updates to the physical memory map
  *

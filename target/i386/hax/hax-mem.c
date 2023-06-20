@@ -291,7 +291,7 @@ static MemoryListener hax_memory_listener = {
     .region_add = hax_region_add,
     .region_del = hax_region_del,
     .log_sync = hax_log_sync,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
 };
 
 static void hax_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
