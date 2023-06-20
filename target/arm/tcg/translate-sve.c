@@ -4329,7 +4329,7 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
     /* Predicate register stores can be any multiple of 2.  */
     if (len_remain >= 8) {
         t0 = tcg_temp_new_i64();
-        tcg_gen_st_i64(t0, base, vofs + len_align);
+        tcg_gen_ld_i64(t0, base, vofs + len_align);
         tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEUQ | MO_ATOM_NONE);
         len_remain -= 8;
         len_align += 8;
