@@ -2284,12 +2284,64 @@ uint32_t helper_mulr_h(uint32_t arg00, uint32_t arg01,
     return (result1 & 0xffff0000) | (result0 >> 16);
 }
 
-uint32_t helper_crc32(uint32_t arg0, uint32_t arg1)
+uint32_t helper_crc32b(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[1] = { arg0 & 0xff };
+
+    return crc32(arg1, buf, 1);
+}
+
+
+uint32_t helper_crc32_be(uint32_t arg0, uint32_t arg1)
 {
     uint8_t buf[4];
     stl_be_p(buf, arg0);
 
     return crc32(arg1, buf, 4);
+}
+
+uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[4];
+    stl_le_p(buf, arg0);
+
+    return crc32(arg1, buf, 4);
+}
+
+uint32_t helper_shuffle(uint32_t arg0, uint32_t arg1)
+{
+    uint32_t resb;
+    uint32_t byte_select;
+    uint32_t res = 0;
+
+    byte_select = arg1 & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 0;
+
+    byte_select = (arg1 >> 2) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 8;
+
+    byte_select = (arg1 >> 4) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 16;
+
+    byte_select = (arg1 >> 6) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 24;
+
+    if (arg1 & 0x100) {
+        /* Assign the correct nibble position.  */
+        res = ((res & 0xf0f0f0f0) >> 4)
+          | ((res & 0x0f0f0f0f) << 4);
+        /* Assign the correct bit position.  */
+        res = ((res & 0x88888888) >> 3)
+          | ((res & 0x44444444) >> 1)
+          | ((res & 0x22222222) << 1)
+          | ((res & 0x11111111) << 3);
+    }
+
+    return res;
 }
 
 /* context save area (CSA) related helpers */
@@ -2447,7 +2499,12 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     }
     /* PSW.CDE = 1;*/
     psw |= MASK_PSW_CDE;
-    psw_write(env, psw);
+    /*
+     * we need to save PSW.CDE and not PSW.CDC into the CSAs. psw already
+     * contains the CDC from cdc_increment(), so we cannot call psw_write()
+     * here.
+     */
+    env->PSW |= MASK_PSW_CDE;
 
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
@@ -2527,12 +2584,12 @@ void helper_ret(CPUTriCoreState *env)
     /* PCXI = new_PCXI; */
     env->PCXI = new_PCXI;
 
-    if (tricore_feature(env, TRICORE_FEATURE_13)) {
-        /* PSW = new_PSW */
-        psw_write(env, new_PSW);
-    } else {
+    if (tricore_feature(env, TRICORE_FEATURE_131)) {
         /* PSW = {new_PSW[31:26], PSW[25:24], new_PSW[23:0]}; */
         psw_write(env, (new_PSW & ~(0x3000000)) + (psw & (0x3000000)));
+    } else { /* TRICORE_FEATURE_13 only */
+        /* PSW = new_PSW */
+        psw_write(env, new_PSW);
     }
 }
 
