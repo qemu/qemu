@@ -415,14 +415,21 @@ static void q800_machine_init(MachineState *machine)
 
     /* NuBus */
 
-    dev = qdev_new(TYPE_MAC_NUBUS_BRIDGE);
-    qdev_prop_set_uint32(dev, "slot-available-mask",
+    object_initialize_child(OBJECT(machine), "mac-nubus-bridge",
+                            &m->mac_nubus_bridge,
+                            TYPE_MAC_NUBUS_BRIDGE);
+    sysbus = SYS_BUS_DEVICE(&m->mac_nubus_bridge);
+    dev = DEVICE(&m->mac_nubus_bridge);
+    qdev_prop_set_uint32(DEVICE(&m->mac_nubus_bridge), "slot-available-mask",
                          Q800_NUBUS_SLOTS_AVAILABLE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
-                    MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
-                    MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(get_system_memory(),
+                                MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE,
+                                sysbus_mmio_get_region(sysbus, 0));
+    memory_region_add_subregion(get_system_memory(),
+                                NUBUS_SLOT_BASE +
+                                MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE,
+                                sysbus_mmio_get_region(sysbus, 1));
     qdev_connect_gpio_out(dev, 9,
                           qdev_get_gpio_in_named(DEVICE(&m->via2), "nubus-irq",
                           VIA2_NUBUS_IRQ_INTVIDEO));

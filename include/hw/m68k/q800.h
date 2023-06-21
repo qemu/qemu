@@ -34,6 +34,7 @@
 #include "hw/or-irq.h"
 #include "hw/scsi/esp.h"
 #include "hw/block/swim.h"
+#include "hw/nubus/mac-nubus-bridge.h"
 
 /*
  * The main Q800 machine
@@ -52,6 +53,7 @@ struct Q800MachineState {
     OrIRQState escc_orgate;
     SysBusESPState esp;
     Swim swim;
+    MacNubusBridge mac_nubus_bridge;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
