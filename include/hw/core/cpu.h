@@ -241,8 +241,6 @@ typedef struct SavedIOTLB {
 struct KVMState;
 struct kvm_run;
 
-struct hvf_vcpu_state;
-
 /* work queue */
 
 /* The union type allows passing of 64 bit target pointers on 32 bit
@@ -442,8 +440,6 @@ struct CPUState {
 
     /* Used for user-only emulation of prctl(PR_SET_UNALIGN). */
     bool prctl_unalign_sigbus;
-
-    struct hvf_vcpu_state *hvf;
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;

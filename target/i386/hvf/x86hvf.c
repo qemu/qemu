@@ -77,7 +77,7 @@ void hvf_put_xsave(CPUState *cs)
 
     x86_cpu_xsave_all_areas(X86_CPU(cs), xsave, xsave_len);
 
-    if (hv_vcpu_write_fpstate(cs->hvf->fd, xsave, xsave_len)) {
+    if (hv_vcpu_write_fpstate(cs->accel->fd, xsave, xsave_len)) {
         abort();
     }
 }
@@ -87,19 +87,19 @@ static void hvf_put_segments(CPUState *cs)
     CPUX86State *env = &X86_CPU(cs)->env;
     struct vmx_segment seg;
     
-    wvmcs(cs->hvf->fd, VMCS_GUEST_IDTR_LIMIT, env->idt.limit);
-    wvmcs(cs->hvf->fd, VMCS_GUEST_IDTR_BASE, env->idt.base);
+    wvmcs(cs->accel->fd, VMCS_GUEST_IDTR_LIMIT, env->idt.limit);
+    wvmcs(cs->accel->fd, VMCS_GUEST_IDTR_BASE, env->idt.base);
 
-    wvmcs(cs->hvf->fd, VMCS_GUEST_GDTR_LIMIT, env->gdt.limit);
-    wvmcs(cs->hvf->fd, VMCS_GUEST_GDTR_BASE, env->gdt.base);
+    wvmcs(cs->accel->fd, VMCS_GUEST_GDTR_LIMIT, env->gdt.limit);
+    wvmcs(cs->accel->fd, VMCS_GUEST_GDTR_BASE, env->gdt.base);
 
-    /* wvmcs(cs->hvf->fd, VMCS_GUEST_CR2, env->cr[2]); */
-    wvmcs(cs->hvf->fd, VMCS_GUEST_CR3, env->cr[3]);
+    /* wvmcs(cs->accel->fd, VMCS_GUEST_CR2, env->cr[2]); */
+    wvmcs(cs->accel->fd, VMCS_GUEST_CR3, env->cr[3]);
     vmx_update_tpr(cs);
-    wvmcs(cs->hvf->fd, VMCS_GUEST_IA32_EFER, env->efer);
+    wvmcs(cs->accel->fd, VMCS_GUEST_IA32_EFER, env->efer);
 
-    macvm_set_cr4(cs->hvf->fd, env->cr[4]);
-    macvm_set_cr0(cs->hvf->fd, env->cr[0]);
+    macvm_set_cr4(cs->accel->fd, env->cr[4]);
+    macvm_set_cr0(cs->accel->fd, env->cr[0]);
 
     hvf_set_segment(cs, &seg, &env->segs[R_CS], false);
     vmx_write_segment_descriptor(cs, &seg, R_CS);
@@ -130,24 +130,24 @@ void hvf_put_msrs(CPUState *cs)
 {
     CPUX86State *env = &X86_CPU(cs)->env;
 
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_IA32_SYSENTER_CS,
+    hv_vcpu_write_msr(cs->accel->fd, MSR_IA32_SYSENTER_CS,
                       env->sysenter_cs);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_IA32_SYSENTER_ESP,
+    hv_vcpu_write_msr(cs->accel->fd, MSR_IA32_SYSENTER_ESP,
                       env->sysenter_esp);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_IA32_SYSENTER_EIP,
+    hv_vcpu_write_msr(cs->accel->fd, MSR_IA32_SYSENTER_EIP,
                       env->sysenter_eip);
 
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_STAR, env->star);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_STAR, env->star);
 
 #ifdef TARGET_X86_64
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_CSTAR, env->cstar);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_KERNELGSBASE, env->kernelgsbase);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_FMASK, env->fmask);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_LSTAR, env->lstar);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_CSTAR, env->cstar);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_KERNELGSBASE, env->kernelgsbase);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_FMASK, env->fmask);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_LSTAR, env->lstar);
 #endif
 
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_GSBASE, env->segs[R_GS].base);
-    hv_vcpu_write_msr(cs->hvf->fd, MSR_FSBASE, env->segs[R_FS].base);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_GSBASE, env->segs[R_GS].base);
+    hv_vcpu_write_msr(cs->accel->fd, MSR_FSBASE, env->segs[R_FS].base);
 }
 
 
@@ -156,7 +156,7 @@ void hvf_get_xsave(CPUState *cs)
     void *xsave = X86_CPU(cs)->env.xsave_buf;
     uint32_t xsave_len = X86_CPU(cs)->env.xsave_buf_len;
 
-    if (hv_vcpu_read_fpstate(cs->hvf->fd, xsave, xsave_len)) {
+    if (hv_vcpu_read_fpstate(cs->accel->fd, xsave, xsave_len)) {
         abort();
     }
 
@@ -195,17 +195,17 @@ static void hvf_get_segments(CPUState *cs)
     vmx_read_segment_descriptor(cs, &seg, R_LDTR);
     hvf_get_segment(&env->ldt, &seg);
 
-    env->idt.limit = rvmcs(cs->hvf->fd, VMCS_GUEST_IDTR_LIMIT);
-    env->idt.base = rvmcs(cs->hvf->fd, VMCS_GUEST_IDTR_BASE);
-    env->gdt.limit = rvmcs(cs->hvf->fd, VMCS_GUEST_GDTR_LIMIT);
-    env->gdt.base = rvmcs(cs->hvf->fd, VMCS_GUEST_GDTR_BASE);
+    env->idt.limit = rvmcs(cs->accel->fd, VMCS_GUEST_IDTR_LIMIT);
+    env->idt.base = rvmcs(cs->accel->fd, VMCS_GUEST_IDTR_BASE);
+    env->gdt.limit = rvmcs(cs->accel->fd, VMCS_GUEST_GDTR_LIMIT);
+    env->gdt.base = rvmcs(cs->accel->fd, VMCS_GUEST_GDTR_BASE);
 
-    env->cr[0] = rvmcs(cs->hvf->fd, VMCS_GUEST_CR0);
+    env->cr[0] = rvmcs(cs->accel->fd, VMCS_GUEST_CR0);
     env->cr[2] = 0;
-    env->cr[3] = rvmcs(cs->hvf->fd, VMCS_GUEST_CR3);
-    env->cr[4] = rvmcs(cs->hvf->fd, VMCS_GUEST_CR4);
+    env->cr[3] = rvmcs(cs->accel->fd, VMCS_GUEST_CR3);
+    env->cr[4] = rvmcs(cs->accel->fd, VMCS_GUEST_CR4);
     
-    env->efer = rvmcs(cs->hvf->fd, VMCS_GUEST_IA32_EFER);
+    env->efer = rvmcs(cs->accel->fd, VMCS_GUEST_IA32_EFER);
 }
 
 void hvf_get_msrs(CPUState *cs)
@@ -213,27 +213,27 @@ void hvf_get_msrs(CPUState *cs)
     CPUX86State *env = &X86_CPU(cs)->env;
     uint64_t tmp;
     
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_IA32_SYSENTER_CS, &tmp);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_IA32_SYSENTER_CS, &tmp);
     env->sysenter_cs = tmp;
     
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_IA32_SYSENTER_ESP, &tmp);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_IA32_SYSENTER_ESP, &tmp);
     env->sysenter_esp = tmp;
 
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_IA32_SYSENTER_EIP, &tmp);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_IA32_SYSENTER_EIP, &tmp);
     env->sysenter_eip = tmp;
 
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_STAR, &env->star);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_STAR, &env->star);
 
 #ifdef TARGET_X86_64
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_CSTAR, &env->cstar);
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_KERNELGSBASE, &env->kernelgsbase);
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_FMASK, &env->fmask);
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_LSTAR, &env->lstar);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_CSTAR, &env->cstar);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_KERNELGSBASE, &env->kernelgsbase);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_FMASK, &env->fmask);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_LSTAR, &env->lstar);
 #endif
 
-    hv_vcpu_read_msr(cs->hvf->fd, MSR_IA32_APICBASE, &tmp);
+    hv_vcpu_read_msr(cs->accel->fd, MSR_IA32_APICBASE, &tmp);
     
-    env->tsc = rdtscp() + rvmcs(cs->hvf->fd, VMCS_TSC_OFFSET);
+    env->tsc = rdtscp() + rvmcs(cs->accel->fd, VMCS_TSC_OFFSET);
 }
 
 int hvf_put_registers(CPUState *cs)
@@ -241,26 +241,26 @@ int hvf_put_registers(CPUState *cs)
     X86CPU *x86cpu = X86_CPU(cs);
     CPUX86State *env = &x86cpu->env;
 
-    wreg(cs->hvf->fd, HV_X86_RAX, env->regs[R_EAX]);
-    wreg(cs->hvf->fd, HV_X86_RBX, env->regs[R_EBX]);
-    wreg(cs->hvf->fd, HV_X86_RCX, env->regs[R_ECX]);
-    wreg(cs->hvf->fd, HV_X86_RDX, env->regs[R_EDX]);
-    wreg(cs->hvf->fd, HV_X86_RBP, env->regs[R_EBP]);
-    wreg(cs->hvf->fd, HV_X86_RSP, env->regs[R_ESP]);
-    wreg(cs->hvf->fd, HV_X86_RSI, env->regs[R_ESI]);
-    wreg(cs->hvf->fd, HV_X86_RDI, env->regs[R_EDI]);
-    wreg(cs->hvf->fd, HV_X86_R8, env->regs[8]);
-    wreg(cs->hvf->fd, HV_X86_R9, env->regs[9]);
-    wreg(cs->hvf->fd, HV_X86_R10, env->regs[10]);
-    wreg(cs->hvf->fd, HV_X86_R11, env->regs[11]);
-    wreg(cs->hvf->fd, HV_X86_R12, env->regs[12]);
-    wreg(cs->hvf->fd, HV_X86_R13, env->regs[13]);
-    wreg(cs->hvf->fd, HV_X86_R14, env->regs[14]);
-    wreg(cs->hvf->fd, HV_X86_R15, env->regs[15]);
-    wreg(cs->hvf->fd, HV_X86_RFLAGS, env->eflags);
-    wreg(cs->hvf->fd, HV_X86_RIP, env->eip);
+    wreg(cs->accel->fd, HV_X86_RAX, env->regs[R_EAX]);
+    wreg(cs->accel->fd, HV_X86_RBX, env->regs[R_EBX]);
+    wreg(cs->accel->fd, HV_X86_RCX, env->regs[R_ECX]);
+    wreg(cs->accel->fd, HV_X86_RDX, env->regs[R_EDX]);
+    wreg(cs->accel->fd, HV_X86_RBP, env->regs[R_EBP]);
+    wreg(cs->accel->fd, HV_X86_RSP, env->regs[R_ESP]);
+    wreg(cs->accel->fd, HV_X86_RSI, env->regs[R_ESI]);
+    wreg(cs->accel->fd, HV_X86_RDI, env->regs[R_EDI]);
+    wreg(cs->accel->fd, HV_X86_R8, env->regs[8]);
+    wreg(cs->accel->fd, HV_X86_R9, env->regs[9]);
+    wreg(cs->accel->fd, HV_X86_R10, env->regs[10]);
+    wreg(cs->accel->fd, HV_X86_R11, env->regs[11]);
+    wreg(cs->accel->fd, HV_X86_R12, env->regs[12]);
+    wreg(cs->accel->fd, HV_X86_R13, env->regs[13]);
+    wreg(cs->accel->fd, HV_X86_R14, env->regs[14]);
+    wreg(cs->accel->fd, HV_X86_R15, env->regs[15]);
+    wreg(cs->accel->fd, HV_X86_RFLAGS, env->eflags);
+    wreg(cs->accel->fd, HV_X86_RIP, env->eip);
    
-    wreg(cs->hvf->fd, HV_X86_XCR0, env->xcr0);
+    wreg(cs->accel->fd, HV_X86_XCR0, env->xcr0);
     
     hvf_put_xsave(cs);
     
@@ -268,14 +268,14 @@ int hvf_put_registers(CPUState *cs)
     
     hvf_put_msrs(cs);
     
-    wreg(cs->hvf->fd, HV_X86_DR0, env->dr[0]);
-    wreg(cs->hvf->fd, HV_X86_DR1, env->dr[1]);
-    wreg(cs->hvf->fd, HV_X86_DR2, env->dr[2]);
-    wreg(cs->hvf->fd, HV_X86_DR3, env->dr[3]);
-    wreg(cs->hvf->fd, HV_X86_DR4, env->dr[4]);
-    wreg(cs->hvf->fd, HV_X86_DR5, env->dr[5]);
-    wreg(cs->hvf->fd, HV_X86_DR6, env->dr[6]);
-    wreg(cs->hvf->fd, HV_X86_DR7, env->dr[7]);
+    wreg(cs->accel->fd, HV_X86_DR0, env->dr[0]);
+    wreg(cs->accel->fd, HV_X86_DR1, env->dr[1]);
+    wreg(cs->accel->fd, HV_X86_DR2, env->dr[2]);
+    wreg(cs->accel->fd, HV_X86_DR3, env->dr[3]);
+    wreg(cs->accel->fd, HV_X86_DR4, env->dr[4]);
+    wreg(cs->accel->fd, HV_X86_DR5, env->dr[5]);
+    wreg(cs->accel->fd, HV_X86_DR6, env->dr[6]);
+    wreg(cs->accel->fd, HV_X86_DR7, env->dr[7]);
     
     return 0;
 }
@@ -285,40 +285,40 @@ int hvf_get_registers(CPUState *cs)
     X86CPU *x86cpu = X86_CPU(cs);
     CPUX86State *env = &x86cpu->env;
 
-    env->regs[R_EAX] = rreg(cs->hvf->fd, HV_X86_RAX);
-    env->regs[R_EBX] = rreg(cs->hvf->fd, HV_X86_RBX);
-    env->regs[R_ECX] = rreg(cs->hvf->fd, HV_X86_RCX);
-    env->regs[R_EDX] = rreg(cs->hvf->fd, HV_X86_RDX);
-    env->regs[R_EBP] = rreg(cs->hvf->fd, HV_X86_RBP);
-    env->regs[R_ESP] = rreg(cs->hvf->fd, HV_X86_RSP);
-    env->regs[R_ESI] = rreg(cs->hvf->fd, HV_X86_RSI);
-    env->regs[R_EDI] = rreg(cs->hvf->fd, HV_X86_RDI);
-    env->regs[8] = rreg(cs->hvf->fd, HV_X86_R8);
-    env->regs[9] = rreg(cs->hvf->fd, HV_X86_R9);
-    env->regs[10] = rreg(cs->hvf->fd, HV_X86_R10);
-    env->regs[11] = rreg(cs->hvf->fd, HV_X86_R11);
-    env->regs[12] = rreg(cs->hvf->fd, HV_X86_R12);
-    env->regs[13] = rreg(cs->hvf->fd, HV_X86_R13);
-    env->regs[14] = rreg(cs->hvf->fd, HV_X86_R14);
-    env->regs[15] = rreg(cs->hvf->fd, HV_X86_R15);
+    env->regs[R_EAX] = rreg(cs->accel->fd, HV_X86_RAX);
+    env->regs[R_EBX] = rreg(cs->accel->fd, HV_X86_RBX);
+    env->regs[R_ECX] = rreg(cs->accel->fd, HV_X86_RCX);
+    env->regs[R_EDX] = rreg(cs->accel->fd, HV_X86_RDX);
+    env->regs[R_EBP] = rreg(cs->accel->fd, HV_X86_RBP);
+    env->regs[R_ESP] = rreg(cs->accel->fd, HV_X86_RSP);
+    env->regs[R_ESI] = rreg(cs->accel->fd, HV_X86_RSI);
+    env->regs[R_EDI] = rreg(cs->accel->fd, HV_X86_RDI);
+    env->regs[8] = rreg(cs->accel->fd, HV_X86_R8);
+    env->regs[9] = rreg(cs->accel->fd, HV_X86_R9);
+    env->regs[10] = rreg(cs->accel->fd, HV_X86_R10);
+    env->regs[11] = rreg(cs->accel->fd, HV_X86_R11);
+    env->regs[12] = rreg(cs->accel->fd, HV_X86_R12);
+    env->regs[13] = rreg(cs->accel->fd, HV_X86_R13);
+    env->regs[14] = rreg(cs->accel->fd, HV_X86_R14);
+    env->regs[15] = rreg(cs->accel->fd, HV_X86_R15);
     
-    env->eflags = rreg(cs->hvf->fd, HV_X86_RFLAGS);
-    env->eip = rreg(cs->hvf->fd, HV_X86_RIP);
+    env->eflags = rreg(cs->accel->fd, HV_X86_RFLAGS);
+    env->eip = rreg(cs->accel->fd, HV_X86_RIP);
    
     hvf_get_xsave(cs);
-    env->xcr0 = rreg(cs->hvf->fd, HV_X86_XCR0);
+    env->xcr0 = rreg(cs->accel->fd, HV_X86_XCR0);
     
     hvf_get_segments(cs);
     hvf_get_msrs(cs);
     
-    env->dr[0] = rreg(cs->hvf->fd, HV_X86_DR0);
-    env->dr[1] = rreg(cs->hvf->fd, HV_X86_DR1);
-    env->dr[2] = rreg(cs->hvf->fd, HV_X86_DR2);
-    env->dr[3] = rreg(cs->hvf->fd, HV_X86_DR3);
-    env->dr[4] = rreg(cs->hvf->fd, HV_X86_DR4);
-    env->dr[5] = rreg(cs->hvf->fd, HV_X86_DR5);
-    env->dr[6] = rreg(cs->hvf->fd, HV_X86_DR6);
-    env->dr[7] = rreg(cs->hvf->fd, HV_X86_DR7);
+    env->dr[0] = rreg(cs->accel->fd, HV_X86_DR0);
+    env->dr[1] = rreg(cs->accel->fd, HV_X86_DR1);
+    env->dr[2] = rreg(cs->accel->fd, HV_X86_DR2);
+    env->dr[3] = rreg(cs->accel->fd, HV_X86_DR3);
+    env->dr[4] = rreg(cs->accel->fd, HV_X86_DR4);
+    env->dr[5] = rreg(cs->accel->fd, HV_X86_DR5);
+    env->dr[6] = rreg(cs->accel->fd, HV_X86_DR6);
+    env->dr[7] = rreg(cs->accel->fd, HV_X86_DR7);
     
     x86_update_hflags(env);
     return 0;
@@ -327,16 +327,16 @@ int hvf_get_registers(CPUState *cs)
 static void vmx_set_int_window_exiting(CPUState *cs)
 {
      uint64_t val;
-     val = rvmcs(cs->hvf->fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cs->hvf->fd, VMCS_PRI_PROC_BASED_CTLS, val |
+     val = rvmcs(cs->accel->fd, VMCS_PRI_PROC_BASED_CTLS);
+     wvmcs(cs->accel->fd, VMCS_PRI_PROC_BASED_CTLS, val |
              VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
 void vmx_clear_int_window_exiting(CPUState *cs)
 {
      uint64_t val;
-     val = rvmcs(cs->hvf->fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cs->hvf->fd, VMCS_PRI_PROC_BASED_CTLS, val &
+     val = rvmcs(cs->accel->fd, VMCS_PRI_PROC_BASED_CTLS);
+     wvmcs(cs->accel->fd, VMCS_PRI_PROC_BASED_CTLS, val &
              ~VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
@@ -372,7 +372,7 @@ bool hvf_inject_interrupts(CPUState *cs)
     uint64_t info = 0;
     if (have_event) {
         info = vector | intr_type | VMCS_INTR_VALID;
-        uint64_t reason = rvmcs(cs->hvf->fd, VMCS_EXIT_REASON);
+        uint64_t reason = rvmcs(cs->accel->fd, VMCS_EXIT_REASON);
         if (env->nmi_injected && reason != EXIT_REASON_TASK_SWITCH) {
             vmx_clear_nmi_blocking(cs);
         }
@@ -381,17 +381,17 @@ bool hvf_inject_interrupts(CPUState *cs)
             info &= ~(1 << 12); /* clear undefined bit */
             if (intr_type == VMCS_INTR_T_SWINTR ||
                 intr_type == VMCS_INTR_T_SWEXCEPTION) {
-                wvmcs(cs->hvf->fd, VMCS_ENTRY_INST_LENGTH, env->ins_len);
+                wvmcs(cs->accel->fd, VMCS_ENTRY_INST_LENGTH, env->ins_len);
             }
             
             if (env->has_error_code) {
-                wvmcs(cs->hvf->fd, VMCS_ENTRY_EXCEPTION_ERROR,
+                wvmcs(cs->accel->fd, VMCS_ENTRY_EXCEPTION_ERROR,
                       env->error_code);
                 /* Indicate that VMCS_ENTRY_EXCEPTION_ERROR is valid */
                 info |= VMCS_INTR_DEL_ERRCODE;
             }
             /*printf("reinject  %lx err %d\n", info, err);*/
-            wvmcs(cs->hvf->fd, VMCS_ENTRY_INTR_INFO, info);
+            wvmcs(cs->accel->fd, VMCS_ENTRY_INTR_INFO, info);
         };
     }
 
@@ -399,7 +399,7 @@ bool hvf_inject_interrupts(CPUState *cs)
         if (!(env->hflags2 & HF2_NMI_MASK) && !(info & VMCS_INTR_VALID)) {
             cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
             info = VMCS_INTR_VALID | VMCS_INTR_T_NMI | EXCP02_NMI;
-            wvmcs(cs->hvf->fd, VMCS_ENTRY_INTR_INFO, info);
+            wvmcs(cs->accel->fd, VMCS_ENTRY_INTR_INFO, info);
         } else {
             vmx_set_nmi_window_exiting(cs);
         }
@@ -411,7 +411,7 @@ bool hvf_inject_interrupts(CPUState *cs)
         int line = cpu_get_pic_interrupt(&x86cpu->env);
         cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
         if (line >= 0) {
-            wvmcs(cs->hvf->fd, VMCS_ENTRY_INTR_INFO, line |
+            wvmcs(cs->accel->fd, VMCS_ENTRY_INTR_INFO, line |
                   VMCS_INTR_VALID | VMCS_INTR_T_HWINTR);
         }
     }
@@ -429,7 +429,7 @@ int hvf_process_events(CPUState *cs)
 
     if (!cs->vcpu_dirty) {
         /* light weight sync for CPU_INTERRUPT_HARD and IF_MASK */
-        env->eflags = rreg(cs->hvf->fd, HV_X86_RFLAGS);
+        env->eflags = rreg(cs->accel->fd, HV_X86_RFLAGS);
     }
 
     if (cs->interrupt_request & CPU_INTERRUPT_INIT) {

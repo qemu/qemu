@@ -61,11 +61,11 @@ bool x86_read_segment_descriptor(struct CPUState *cpu,
     }
 
     if (GDT_SEL == sel.ti) {
-        base  = rvmcs(cpu->hvf->fd, VMCS_GUEST_GDTR_BASE);
-        limit = rvmcs(cpu->hvf->fd, VMCS_GUEST_GDTR_LIMIT);
+        base  = rvmcs(cpu->accel->fd, VMCS_GUEST_GDTR_BASE);
+        limit = rvmcs(cpu->accel->fd, VMCS_GUEST_GDTR_LIMIT);
     } else {
-        base  = rvmcs(cpu->hvf->fd, VMCS_GUEST_LDTR_BASE);
-        limit = rvmcs(cpu->hvf->fd, VMCS_GUEST_LDTR_LIMIT);
+        base  = rvmcs(cpu->accel->fd, VMCS_GUEST_LDTR_BASE);
+        limit = rvmcs(cpu->accel->fd, VMCS_GUEST_LDTR_LIMIT);
     }
 
     if (sel.index * 8 >= limit) {
@@ -84,11 +84,11 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
     uint32_t limit;
     
     if (GDT_SEL == sel.ti) {
-        base  = rvmcs(cpu->hvf->fd, VMCS_GUEST_GDTR_BASE);
-        limit = rvmcs(cpu->hvf->fd, VMCS_GUEST_GDTR_LIMIT);
+        base  = rvmcs(cpu->accel->fd, VMCS_GUEST_GDTR_BASE);
+        limit = rvmcs(cpu->accel->fd, VMCS_GUEST_GDTR_LIMIT);
     } else {
-        base  = rvmcs(cpu->hvf->fd, VMCS_GUEST_LDTR_BASE);
-        limit = rvmcs(cpu->hvf->fd, VMCS_GUEST_LDTR_LIMIT);
+        base  = rvmcs(cpu->accel->fd, VMCS_GUEST_LDTR_BASE);
+        limit = rvmcs(cpu->accel->fd, VMCS_GUEST_LDTR_LIMIT);
     }
     
     if (sel.index * 8 >= limit) {
@@ -102,8 +102,8 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
 bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc,
                         int gate)
 {
-    target_ulong base  = rvmcs(cpu->hvf->fd, VMCS_GUEST_IDTR_BASE);
-    uint32_t limit = rvmcs(cpu->hvf->fd, VMCS_GUEST_IDTR_LIMIT);
+    target_ulong base  = rvmcs(cpu->accel->fd, VMCS_GUEST_IDTR_BASE);
+    uint32_t limit = rvmcs(cpu->accel->fd, VMCS_GUEST_IDTR_LIMIT);
 
     memset(idt_desc, 0, sizeof(*idt_desc));
     if (gate * 8 >= limit) {
@@ -117,7 +117,7 @@ bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc,
 
 bool x86_is_protected(struct CPUState *cpu)
 {
-    uint64_t cr0 = rvmcs(cpu->hvf->fd, VMCS_GUEST_CR0);
+    uint64_t cr0 = rvmcs(cpu->accel->fd, VMCS_GUEST_CR0);
     return cr0 & CR0_PE_MASK;
 }
 
@@ -135,7 +135,7 @@ bool x86_is_v8086(struct CPUState *cpu)
 
 bool x86_is_long_mode(struct CPUState *cpu)
 {
-    return rvmcs(cpu->hvf->fd, VMCS_GUEST_IA32_EFER) & MSR_EFER_LMA;
+    return rvmcs(cpu->accel->fd, VMCS_GUEST_IA32_EFER) & MSR_EFER_LMA;
 }
 
 bool x86_is_long64_mode(struct CPUState *cpu)
@@ -148,13 +148,13 @@ bool x86_is_long64_mode(struct CPUState *cpu)
 
 bool x86_is_paging_mode(struct CPUState *cpu)
 {
-    uint64_t cr0 = rvmcs(cpu->hvf->fd, VMCS_GUEST_CR0);
+    uint64_t cr0 = rvmcs(cpu->accel->fd, VMCS_GUEST_CR0);
     return cr0 & CR0_PG_MASK;
 }
 
 bool x86_is_pae_enabled(struct CPUState *cpu)
 {
-    uint64_t cr4 = rvmcs(cpu->hvf->fd, VMCS_GUEST_CR4);
+    uint64_t cr4 = rvmcs(cpu->accel->fd, VMCS_GUEST_CR4);
     return cr4 & CR4_PAE_MASK;
 }
 
