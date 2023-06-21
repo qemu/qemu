@@ -413,16 +413,16 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
  * Finally, return the host address for a page that is backed by RAM,
  * or NULL if the page requires I/O.
  */
-void *probe_access(CPUArchState *env, target_ulong addr, int size,
+void *probe_access(CPUArchState *env, vaddr addr, int size,
                    MMUAccessType access_type, int mmu_idx, uintptr_t retaddr);
 
-static inline void *probe_write(CPUArchState *env, target_ulong addr, int size,
+static inline void *probe_write(CPUArchState *env, vaddr addr, int size,
                                 int mmu_idx, uintptr_t retaddr)
 {
     return probe_access(env, addr, size, MMU_DATA_STORE, mmu_idx, retaddr);
 }
 
-static inline void *probe_read(CPUArchState *env, target_ulong addr, int size,
+static inline void *probe_read(CPUArchState *env, vaddr addr, int size,
                                int mmu_idx, uintptr_t retaddr)
 {
     return probe_access(env, addr, size, MMU_DATA_LOAD, mmu_idx, retaddr);
@@ -447,7 +447,7 @@ static inline void *probe_read(CPUArchState *env, target_ulong addr, int size,
  * Do handle clean pages, so exclude TLB_NOTDIRY from the returned flags.
  * For simplicity, all "mmio-like" flags are folded to TLB_MMIO.
  */
-int probe_access_flags(CPUArchState *env, target_ulong addr, int size,
+int probe_access_flags(CPUArchState *env, vaddr addr, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr);
 
@@ -460,7 +460,7 @@ int probe_access_flags(CPUArchState *env, target_ulong addr, int size,
  * and must be consumed or copied immediately, before any further
  * access or changes to TLB @mmu_idx.
  */
-int probe_access_full(CPUArchState *env, target_ulong addr, int size,
+int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool nonfault, void **phost,
                       CPUTLBEntryFull **pfull, uintptr_t retaddr);
@@ -581,7 +581,7 @@ struct MemoryRegionSection *iotlb_to_section(CPUState *cpu,
  *
  * Note: this function can trigger an exception.
  */
-tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
+tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
                                         void **hostp);
 
 /**
@@ -596,7 +596,7 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
  * Note: this function can trigger an exception.
  */
 static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
-                                                target_ulong addr)
+                                                vaddr addr)
 {
     return get_page_addr_code_hostp(env, addr, NULL);
 }
