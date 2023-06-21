@@ -212,7 +212,6 @@ static void q800_machine_init(MachineState *machine)
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
-    DeviceState *via2_dev;
     DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
@@ -285,9 +284,10 @@ static void q800_machine_init(MachineState *machine)
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     /* VIA 2 */
-    via2_dev = qdev_new(TYPE_MOS6522_Q800_VIA2);
-    sysbus = SYS_BUS_DEVICE(via2_dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    object_initialize_child(OBJECT(machine), "via2", &m->via2,
+                            TYPE_MOS6522_Q800_VIA2);
+    sysbus = SYS_BUS_DEVICE(&m->via2);
+    sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, VIA_BASE - IO_BASE + VIA_SIZE,
                                 sysbus_mmio_get_region(sysbus, 1));
     sysbus_connect_irq(sysbus, 0,
@@ -382,10 +382,14 @@ static void q800_machine_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     /* SCSI and SCSI data IRQs are negative edge triggered */
-    sysbus_connect_irq(sysbus, 0, qemu_irq_invert(qdev_get_gpio_in(via2_dev,
-                                                  VIA2_IRQ_SCSI_BIT)));
-    sysbus_connect_irq(sysbus, 1, qemu_irq_invert(qdev_get_gpio_in(via2_dev,
-                                                  VIA2_IRQ_SCSI_DATA_BIT)));
+    sysbus_connect_irq(sysbus, 0,
+                       qemu_irq_invert(
+                           qdev_get_gpio_in(DEVICE(&m->via2),
+                                                   VIA2_IRQ_SCSI_BIT)));
+    sysbus_connect_irq(sysbus, 1,
+                       qemu_irq_invert(
+                           qdev_get_gpio_in(DEVICE(&m->via2),
+                                                   VIA2_IRQ_SCSI_DATA_BIT)));
     memory_region_add_subregion(&m->macio, ESP_BASE - IO_BASE,
                                 sysbus_mmio_get_region(sysbus, 0));
     memory_region_add_subregion(&m->macio, ESP_PDMA - IO_BASE,
@@ -411,11 +415,12 @@ static void q800_machine_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
     qdev_connect_gpio_out(dev, 9,
-                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                          qdev_get_gpio_in_named(DEVICE(&m->via2), "nubus-irq",
                           VIA2_NUBUS_IRQ_INTVIDEO));
     for (i = 1; i < VIA2_NUBUS_IRQ_NB; i++) {
         qdev_connect_gpio_out(dev, 9 + i,
-                              qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                              qdev_get_gpio_in_named(DEVICE(&m->via2),
+                                                     "nubus-irq",
                                                      VIA2_NUBUS_IRQ_9 + i));
     }
 
@@ -424,7 +429,7 @@ static void q800_machine_init(MachineState *machine)
      * IRQ via GLUE for use by SONIC Ethernet in classic mode
      */
     qdev_connect_gpio_out(DEVICE(&m->glue), GLUE_IRQ_NUBUS_9,
-                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                          qdev_get_gpio_in_named(DEVICE(&m->via2), "nubus-irq",
                                                  VIA2_NUBUS_IRQ_9));
 
     nubus = &NUBUS_BRIDGE(dev)->bus;

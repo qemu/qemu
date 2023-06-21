@@ -41,6 +41,7 @@ struct Q800MachineState {
     MemoryRegion rom;
     GLUEState glue;
     MOS6522Q800VIA1State via1;
+    MOS6522Q800VIA2State via2;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
