@@ -231,22 +231,19 @@ static void glue_class_init(ObjectClass *klass, void *data)
     nc->nmi_monitor_handler = glue_nmi;
 }
 
-static const TypeInfo glue_info = {
-    .name = TYPE_GLUE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GLUEState),
-    .instance_init = glue_init,
-    .instance_finalize = glue_finalize,
-    .class_init = glue_class_init,
-    .interfaces = (InterfaceInfo[]) {
-         { TYPE_NMI },
-         { }
+static const TypeInfo glue_info_types[] = {
+    {
+        .name = TYPE_GLUE,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(GLUEState),
+        .instance_init = glue_init,
+        .instance_finalize = glue_finalize,
+        .class_init = glue_class_init,
+        .interfaces = (InterfaceInfo[]) {
+             { TYPE_NMI },
+             { }
+        },
     },
 };
 
-static void glue_register_types(void)
-{
-    type_register_static(&glue_info);
-}
-
-type_init(glue_register_types)
+DEFINE_TYPES(glue_info_types)
