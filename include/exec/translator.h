@@ -142,8 +142,8 @@ typedef struct TranslatorOps {
  * - When too many instructions have been translated.
  */
 void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                     target_ulong pc, void *host_pc,
-                     const TranslatorOps *ops, DisasContextBase *db);
+                     vaddr pc, void *host_pc, const TranslatorOps *ops,
+                     DisasContextBase *db);
 
 /**
  * translator_use_goto_tb
@@ -153,7 +153,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
  * Return true if goto_tb is allowed between the current TB
  * and the destination PC.
  */
-bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
+bool translator_use_goto_tb(DisasContextBase *db, vaddr dest);
 
 /**
  * translator_io_start
