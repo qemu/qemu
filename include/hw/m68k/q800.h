@@ -33,6 +33,7 @@
 #include "hw/char/escc.h"
 #include "hw/or-irq.h"
 #include "hw/scsi/esp.h"
+#include "hw/block/swim.h"
 
 /*
  * The main Q800 machine
@@ -50,6 +51,7 @@ struct Q800MachineState {
     ESCCState escc;
     OrIRQState escc_orgate;
     SysBusESPState esp;
+    Swim swim;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
