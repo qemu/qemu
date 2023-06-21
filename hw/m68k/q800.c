@@ -100,6 +100,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(GLUEState, GLUE)
 
 struct GLUEState {
     SysBusDevice parent_obj;
+
     M68kCPU *cpu;
     uint8_t ipr;
     uint8_t auxmode;
