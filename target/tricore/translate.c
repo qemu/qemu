@@ -7964,7 +7964,9 @@ static void decode_sys_interrupts(DisasContext *ctx)
     case OPC2_32_SYS_RESTORE:
         if (has_feature(ctx, TRICORE_FEATURE_16)) {
             if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
-                tcg_gen_deposit_tl(cpu_ICR, cpu_ICR, cpu_gpr_d[r1], 8, 1);
+                tcg_gen_deposit_tl(cpu_ICR, cpu_ICR, cpu_gpr_d[r1],
+                        ctx->icr_ie_offset, 1);
+                ctx->base.is_jmp = DISAS_EXIT_UPDATE;
             } else {
                 generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
             }
