@@ -346,7 +346,9 @@ static void q800_machine_init(MachineState *machine)
 
     /* SCC */
 
-    dev = qdev_new(TYPE_ESCC);
+    object_initialize_child(OBJECT(machine), "escc", &m->escc,
+                            TYPE_ESCC);
+    dev = DEVICE(&m->escc);
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", MAC_CLOCK);
     qdev_prop_set_uint32(dev, "it_shift", 1);
@@ -356,7 +358,7 @@ static void q800_machine_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "chnBtype", 0);
     qdev_prop_set_uint32(dev, "chnAtype", 0);
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
 
     /* Logically OR both its IRQs together */
     escc_orgate = DEVICE(object_new(TYPE_OR_IRQ));

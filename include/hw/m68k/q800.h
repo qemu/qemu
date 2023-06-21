@@ -30,6 +30,7 @@
 #include "hw/m68k/q800-glue.h"
 #include "hw/misc/mac_via.h"
 #include "hw/net/dp8393x.h"
+#include "hw/char/escc.h"
 
 /*
  * The main Q800 machine
@@ -44,6 +45,7 @@ struct Q800MachineState {
     MOS6522Q800VIA1State via1;
     MOS6522Q800VIA2State via2;
     dp8393xState dp8393x;
+    ESCCState escc;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
