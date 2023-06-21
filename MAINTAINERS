@@ -1236,6 +1236,7 @@ F: include/hw/misc/mac_via.h
 F: include/hw/nubus/*
 F: include/hw/display/macfb.h
 F: include/hw/block/swim.h
+F: include/hw/m68k/q800.h
 
 virt
 M: Laurent Vivier <laurent@vivier.eu>
