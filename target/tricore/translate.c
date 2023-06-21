@@ -334,7 +334,6 @@ static void gen_swapmsk(DisasContext *ctx, int reg, TCGv ea)
     tcg_gen_mov_tl(cpu_gpr_d[reg], temp);
 }
 
-
 /* We generate loads and store to core special function register (csfr) through
    the function gen_mfcr and gen_mtcr. To handle access permissions, we use 3
    makros R, A and E, which allow read-only, all and endinit protected access.
@@ -382,6 +381,7 @@ static inline void gen_mtcr(DisasContext *ctx, TCGv r1,
         /* since we're caching PSW make this a special case */
         if (offset == 0xfe04) {
             gen_helper_psw_write(cpu_env, r1);
+            ctx->base.is_jmp = DISAS_EXIT_UPDATE;
         } else {
             switch (offset) {
 #include "csfr.h.inc"
