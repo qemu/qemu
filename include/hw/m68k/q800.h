@@ -25,6 +25,7 @@
 
 #include "hw/boards.h"
 #include "qom/object.h"
+#include "target/m68k/cpu-qom.h"
 
 /*
  * The main Q800 machine
@@ -32,6 +33,8 @@
 
 struct Q800MachineState {
     MachineState parent_obj;
+
+    M68kCPU cpu;
 };
 
 #define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")
