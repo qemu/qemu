@@ -28,6 +28,7 @@
 #include "target/m68k/cpu-qom.h"
 #include "exec/memory.h"
 #include "hw/m68k/q800-glue.h"
+#include "hw/misc/mac_via.h"
 
 /*
  * The main Q800 machine
@@ -39,6 +40,7 @@ struct Q800MachineState {
     M68kCPU cpu;
     MemoryRegion rom;
     GLUEState glue;
+    MOS6522Q800VIA1State via1;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
