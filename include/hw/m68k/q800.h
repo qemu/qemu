@@ -31,6 +31,7 @@
 #include "hw/misc/mac_via.h"
 #include "hw/net/dp8393x.h"
 #include "hw/char/escc.h"
+#include "hw/or-irq.h"
 
 /*
  * The main Q800 machine
@@ -46,6 +47,7 @@ struct Q800MachineState {
     MOS6522Q800VIA2State via2;
     dp8393xState dp8393x;
     ESCCState escc;
+    OrIRQState escc_orgate;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };

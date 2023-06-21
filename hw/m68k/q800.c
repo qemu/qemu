@@ -212,7 +212,6 @@ static void q800_machine_init(MachineState *machine)
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
-    DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
     SysBusDevice *sysbus;
@@ -361,12 +360,15 @@ static void q800_machine_init(MachineState *machine)
     sysbus_realize(sysbus, &error_fatal);
 
     /* Logically OR both its IRQs together */
-    escc_orgate = DEVICE(object_new(TYPE_OR_IRQ));
-    object_property_set_int(OBJECT(escc_orgate), "num-lines", 2, &error_fatal);
-    qdev_realize_and_unref(escc_orgate, NULL, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(escc_orgate, 0));
-    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(escc_orgate, 1));
-    qdev_connect_gpio_out(escc_orgate, 0,
+    object_initialize_child(OBJECT(machine), "escc_orgate", &m->escc_orgate,
+                            TYPE_OR_IRQ);
+    object_property_set_int(OBJECT(&m->escc_orgate), "num-lines", 2,
+                            &error_fatal);
+    dev = DEVICE(&m->escc_orgate);
+    qdev_realize(dev, NULL, &error_fatal);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(dev, 0));
+    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(dev, 1));
+    qdev_connect_gpio_out(dev, 0,
                           qdev_get_gpio_in(DEVICE(&m->glue),
                                            GLUE_IRQ_IN_ESCC));
     memory_region_add_subregion(&m->macio, SCC_BASE - IO_BASE,
