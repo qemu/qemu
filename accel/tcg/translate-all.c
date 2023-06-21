@@ -274,7 +274,7 @@ void page_init(void)
  * Return the size of the generated code, or negative on error.
  */
 static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
-                           target_ulong pc, void *host_pc,
+                           vaddr pc, void *host_pc,
                            int *max_insns, int64_t *ti)
 {
     int ret = sigsetjmp(tcg_ctx->jmp_trans, 0);
@@ -302,7 +302,7 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
 
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
-                              target_ulong pc, target_ulong cs_base,
+                              vaddr pc, uint64_t cs_base,
                               uint32_t flags, int cflags)
 {
     CPUArchState *env = cpu->env_ptr;
@@ -634,10 +634,10 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cpu->cflags_next_tb = curr_cflags(cpu) | CF_MEMI_ONLY | CF_LAST_IO | n;
 
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
-        target_ulong pc = log_pc(cpu, tb);
+        vaddr pc = log_pc(cpu, tb);
         if (qemu_log_in_addr_range(pc)) {
-            qemu_log("cpu_io_recompile: rewound execution of TB to "
-                     TARGET_FMT_lx "\n", pc);
+            qemu_log("cpu_io_recompile: rewound execution of TB to %"
+                     VADDR_PRIx "\n", pc);
         }
     }
 

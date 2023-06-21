@@ -42,8 +42,8 @@ void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 #endif /* CONFIG_SOFTMMU */
 
-TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
-                              target_ulong cs_base, uint32_t flags,
+TranslationBlock *tb_gen_code(CPUState *cpu, vaddr pc,
+                              uint64_t cs_base, uint32_t flags,
                               int cflags);
 void page_init(void);
 void tb_htable_init(void);
@@ -55,7 +55,7 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc);
 
 /* Return the current PC from CPU, which may be cached in TB. */
-static inline target_ulong log_pc(CPUState *cpu, const TranslationBlock *tb)
+static inline vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
 {
     if (tb_cflags(tb) & CF_PCREL) {
         return cpu->cc->get_pc(cpu);
