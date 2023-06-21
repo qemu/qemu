@@ -452,7 +452,9 @@ static void q800_machine_init(MachineState *machine)
 
     /* framebuffer in nubus slot #9 */
 
-    dev = qdev_new(TYPE_NUBUS_MACFB);
+    object_initialize_child(OBJECT(machine), "macfb", &m->macfb,
+                            TYPE_NUBUS_MACFB);
+    dev = DEVICE(&m->macfb);
     qdev_prop_set_uint32(dev, "slot", 9);
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
@@ -462,7 +464,7 @@ static void q800_machine_init(MachineState *machine)
     } else {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_VGA);
     }
-    qdev_realize_and_unref(dev, BUS(nubus), &error_fatal);
+    qdev_realize(dev, BUS(nubus), &error_fatal);
 
     macfb_mode = (NUBUS_MACFB(dev)->macfb).mode;
 
