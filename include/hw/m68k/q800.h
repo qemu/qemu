@@ -40,6 +40,7 @@ struct Q800MachineState {
     MemoryRegion rom;
     GLUEState glue;
     MemoryRegion macio;
+    MemoryRegion macio_alias;
 };
 
 #define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")
