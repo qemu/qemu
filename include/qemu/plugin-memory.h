@@ -37,7 +37,7 @@ struct qemu_plugin_hwaddr {
  * It would only fail if not called from an instrumented memory access
  * which would be an abuse of the API.
  */
-bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
+bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
                        bool is_store, struct qemu_plugin_hwaddr *data);
 
 #endif /* PLUGIN_MEMORY_H */

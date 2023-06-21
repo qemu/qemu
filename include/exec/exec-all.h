@@ -94,7 +94,7 @@ void tlb_destroy(CPUState *cpu);
  * Flush one page from the TLB of the specified CPU, for all
  * MMU indexes.
  */
-void tlb_flush_page(CPUState *cpu, target_ulong addr);
+void tlb_flush_page(CPUState *cpu, vaddr addr);
 /**
  * tlb_flush_page_all_cpus:
  * @cpu: src CPU of the flush
@@ -103,7 +103,7 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr);
  * Flush one page from the TLB of the specified CPU, for all
  * MMU indexes.
  */
-void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr);
+void tlb_flush_page_all_cpus(CPUState *src, vaddr addr);
 /**
  * tlb_flush_page_all_cpus_synced:
  * @cpu: src CPU of the flush
@@ -115,7 +115,7 @@ void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr);
  * the source vCPUs safe work is complete. This will depend on when
  * the guests translation ends the TB.
  */
-void tlb_flush_page_all_cpus_synced(CPUState *src, target_ulong addr);
+void tlb_flush_page_all_cpus_synced(CPUState *src, vaddr addr);
 /**
  * tlb_flush:
  * @cpu: CPU whose TLB should be flushed
@@ -150,7 +150,7 @@ void tlb_flush_all_cpus_synced(CPUState *src_cpu);
  * Flush one page from the TLB of the specified CPU, for the specified
  * MMU indexes.
  */
-void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr,
+void tlb_flush_page_by_mmuidx(CPUState *cpu, vaddr addr,
                               uint16_t idxmap);
 /**
  * tlb_flush_page_by_mmuidx_all_cpus:
@@ -161,7 +161,7 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr,
  * Flush one page from the TLB of all CPUs, for the specified
  * MMU indexes.
  */
-void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
+void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, vaddr addr,
                                        uint16_t idxmap);
 /**
  * tlb_flush_page_by_mmuidx_all_cpus_synced:
@@ -175,7 +175,7 @@ void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
  * complete once  the source vCPUs safe work is complete. This will
  * depend on when the guests translation ends the TB.
  */
-void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *cpu, target_ulong addr,
+void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *cpu, vaddr addr,
                                               uint16_t idxmap);
 /**
  * tlb_flush_by_mmuidx:
@@ -218,14 +218,14 @@ void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu, uint16_t idxmap);
  *
  * Similar to tlb_flush_page_mask, but with a bitmap of indexes.
  */
-void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
+void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, vaddr addr,
                                    uint16_t idxmap, unsigned bits);
 
 /* Similarly, with broadcast and syncing. */
-void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
+void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *cpu, vaddr addr,
                                             uint16_t idxmap, unsigned bits);
 void tlb_flush_page_bits_by_mmuidx_all_cpus_synced
-    (CPUState *cpu, target_ulong addr, uint16_t idxmap, unsigned bits);
+    (CPUState *cpu, vaddr addr, uint16_t idxmap, unsigned bits);
 
 /**
  * tlb_flush_range_by_mmuidx
@@ -238,17 +238,17 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced
  * For each mmuidx in @idxmap, flush all pages within [@addr,@addr+@len),
  * comparing only the low @bits worth of each virtual page.
  */
-void tlb_flush_range_by_mmuidx(CPUState *cpu, target_ulong addr,
-                               target_ulong len, uint16_t idxmap,
+void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
+                               vaddr len, uint16_t idxmap,
                                unsigned bits);
 
 /* Similarly, with broadcast and syncing. */
-void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
-                                        target_ulong len, uint16_t idxmap,
+void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu, vaddr addr,
+                                        vaddr len, uint16_t idxmap,
                                         unsigned bits);
 void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
-                                               target_ulong addr,
-                                               target_ulong len,
+                                               vaddr addr,
+                                               vaddr len,
                                                uint16_t idxmap,
                                                unsigned bits);
 
@@ -256,7 +256,7 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
  * tlb_set_page_full:
  * @cpu: CPU context
  * @mmu_idx: mmu index of the tlb to modify
- * @vaddr: virtual address of the entry to add
+ * @addr: virtual address of the entry to add
  * @full: the details of the tlb entry
  *
  * Add an entry to @cpu tlb index @mmu_idx.  All of the fields of
@@ -271,13 +271,13 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
  * single TARGET_PAGE_SIZE region is mapped; @full->lg_page_size is only
  * used by tlb_flush_page.
  */
-void tlb_set_page_full(CPUState *cpu, int mmu_idx, target_ulong vaddr,
+void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr,
                        CPUTLBEntryFull *full);
 
 /**
  * tlb_set_page_with_attrs:
  * @cpu: CPU to add this TLB entry for
- * @vaddr: virtual address of page to add entry for
+ * @addr: virtual address of page to add entry for
  * @paddr: physical address of the page
  * @attrs: memory transaction attributes
  * @prot: access permissions (PAGE_READ/PAGE_WRITE/PAGE_EXEC bits)
@@ -285,7 +285,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, target_ulong vaddr,
  * @size: size of the page in bytes
  *
  * Add an entry to this CPU's TLB (a mapping from virtual address
- * @vaddr to physical address @paddr) with the specified memory
+ * @addr to physical address @paddr) with the specified memory
  * transaction attributes. This is generally called by the target CPU
  * specific code after it has been called through the tlb_fill()
  * entry point and performed a successful page table walk to find
@@ -296,18 +296,18 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, target_ulong vaddr,
  * single TARGET_PAGE_SIZE region is mapped; the supplied @size is only
  * used by tlb_flush_page.
  */
-void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+void tlb_set_page_with_attrs(CPUState *cpu, vaddr addr,
                              hwaddr paddr, MemTxAttrs attrs,
-                             int prot, int mmu_idx, target_ulong size);
+                             int prot, int mmu_idx, vaddr size);
 /* tlb_set_page:
  *
  * This function is equivalent to calling tlb_set_page_with_attrs()
  * with an @attrs argument of MEMTXATTRS_UNSPECIFIED. It's provided
  * as a convenience for CPUs which don't use memory transaction attributes.
  */
-void tlb_set_page(CPUState *cpu, target_ulong vaddr,
+void tlb_set_page(CPUState *cpu, vaddr addr,
                   hwaddr paddr, int prot,
-                  int mmu_idx, target_ulong size);
+                  int mmu_idx, vaddr size);
 #else
 static inline void tlb_init(CPUState *cpu)
 {
@@ -315,14 +315,13 @@ static inline void tlb_init(CPUState *cpu)
 static inline void tlb_destroy(CPUState *cpu)
 {
 }
-static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
+static inline void tlb_flush_page(CPUState *cpu, vaddr addr)
 {
 }
-static inline void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
+static inline void tlb_flush_page_all_cpus(CPUState *src, vaddr addr)
 {
 }
-static inline void tlb_flush_page_all_cpus_synced(CPUState *src,
-                                                  target_ulong addr)
+static inline void tlb_flush_page_all_cpus_synced(CPUState *src, vaddr addr)
 {
 }
 static inline void tlb_flush(CPUState *cpu)
@@ -335,7 +334,7 @@ static inline void tlb_flush_all_cpus_synced(CPUState *src_cpu)
 {
 }
 static inline void tlb_flush_page_by_mmuidx(CPUState *cpu,
-                                            target_ulong addr, uint16_t idxmap)
+                                            vaddr addr, uint16_t idxmap)
 {
 }
 
@@ -343,12 +342,12 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
 }
 static inline void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu,
-                                                     target_ulong addr,
+                                                     vaddr addr,
                                                      uint16_t idxmap)
 {
 }
 static inline void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *cpu,
-                                                            target_ulong addr,
+                                                            vaddr addr,
                                                             uint16_t idxmap)
 {
 }
@@ -361,37 +360,37 @@ static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
 {
 }
 static inline void tlb_flush_page_bits_by_mmuidx(CPUState *cpu,
-                                                 target_ulong addr,
+                                                 vaddr addr,
                                                  uint16_t idxmap,
                                                  unsigned bits)
 {
 }
 static inline void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *cpu,
-                                                          target_ulong addr,
+                                                          vaddr addr,
                                                           uint16_t idxmap,
                                                           unsigned bits)
 {
 }
 static inline void
-tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *cpu, target_ulong addr,
+tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *cpu, vaddr addr,
                                               uint16_t idxmap, unsigned bits)
 {
 }
-static inline void tlb_flush_range_by_mmuidx(CPUState *cpu, target_ulong addr,
-                                             target_ulong len, uint16_t idxmap,
+static inline void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
+                                             vaddr len, uint16_t idxmap,
                                              unsigned bits)
 {
 }
 static inline void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu,
-                                                      target_ulong addr,
-                                                      target_ulong len,
+                                                      vaddr addr,
+                                                      vaddr len,
                                                       uint16_t idxmap,
                                                       unsigned bits)
 {
 }
 static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
-                                                             target_ulong addr,
-                                                             target_long len,
+                                                             vaddr addr,
+                                                             vaddr len,
                                                              uint16_t idxmap,
                                                              unsigned bits)
 {
@@ -663,7 +662,7 @@ static inline void mmap_lock(void) {}
 static inline void mmap_unlock(void) {}
 
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
-void tlb_set_dirty(CPUState *cpu, target_ulong vaddr);
+void tlb_set_dirty(CPUState *cpu, vaddr addr);
 
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,

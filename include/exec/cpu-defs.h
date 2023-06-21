@@ -147,8 +147,8 @@ typedef struct CPUTLBDesc {
      * we must flush the entire tlb.  The region is matched if
      * (addr & large_page_mask) == large_page_addr.
      */
-    target_ulong large_page_addr;
-    target_ulong large_page_mask;
+    vaddr large_page_addr;
+    vaddr large_page_mask;
     /* host time (in ns) at the beginning of the time window */
     int64_t window_begin_ns;
     /* maximum number of entries observed in the window */
