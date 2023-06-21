@@ -1729,7 +1729,7 @@ bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
 typedef struct MMULookupPageData {
     CPUTLBEntryFull *full;
     void *haddr;
-    target_ulong addr;
+    vaddr addr;
     int flags;
     int size;
 } MMULookupPageData;
@@ -1756,7 +1756,7 @@ typedef struct MMULookupLocals {
 static bool mmu_lookup1(CPUArchState *env, MMULookupPageData *data,
                         int mmu_idx, MMUAccessType access_type, uintptr_t ra)
 {
-    target_ulong addr = data->addr;
+    vaddr addr = data->addr;
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
     uint64_t tlb_addr = tlb_read_idx(entry, access_type);
@@ -1796,7 +1796,7 @@ static void mmu_watch_or_dirty(CPUArchState *env, MMULookupPageData *data,
                                MMUAccessType access_type, uintptr_t ra)
 {
     CPUTLBEntryFull *full = data->full;
-    target_ulong addr = data->addr;
+    vaddr addr = data->addr;
     int flags = data->flags;
     int size = data->size;
 
@@ -1827,7 +1827,7 @@ static void mmu_watch_or_dirty(CPUArchState *env, MMULookupPageData *data,
  * Resolve the translation for the page(s) beginning at @addr, for MemOp.size
  * bytes.  Return true if the lookup crosses a page boundary.
  */
-static bool mmu_lookup(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static bool mmu_lookup(CPUArchState *env, vaddr addr, MemOpIdx oi,
                        uintptr_t ra, MMUAccessType type, MMULookupLocals *l)
 {
     unsigned a_bits;
@@ -2024,7 +2024,7 @@ static uint64_t do_ld_mmio_beN(CPUArchState *env, MMULookupPageData *p,
                                MMUAccessType type, uintptr_t ra)
 {
     CPUTLBEntryFull *full = p->full;
-    target_ulong addr = p->addr;
+    vaddr addr = p->addr;
     int i, size = p->size;
 
     QEMU_IOTHREAD_LOCK_GUARD();
@@ -2333,7 +2333,7 @@ static uint64_t do_ld_8(CPUArchState *env, MMULookupPageData *p, int mmu_idx,
     return ret;
 }
 
-static uint8_t do_ld1_mmu(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static uint8_t do_ld1_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
                           uintptr_t ra, MMUAccessType access_type)
 {
     MMULookupLocals l;
@@ -2352,7 +2352,7 @@ tcg_target_ulong helper_ldub_mmu(CPUArchState *env, uint64_t addr,
     return do_ld1_mmu(env, addr, oi, retaddr, MMU_DATA_LOAD);
 }
 
-static uint16_t do_ld2_mmu(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static uint16_t do_ld2_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
                            uintptr_t ra, MMUAccessType access_type)
 {
     MMULookupLocals l;
@@ -2383,7 +2383,7 @@ tcg_target_ulong helper_lduw_mmu(CPUArchState *env, uint64_t addr,
     return do_ld2_mmu(env, addr, oi, retaddr, MMU_DATA_LOAD);
 }
 
-static uint32_t do_ld4_mmu(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static uint32_t do_ld4_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
                            uintptr_t ra, MMUAccessType access_type)
 {
     MMULookupLocals l;
@@ -2410,7 +2410,7 @@ tcg_target_ulong helper_ldul_mmu(CPUArchState *env, uint64_t addr,
     return do_ld4_mmu(env, addr, oi, retaddr, MMU_DATA_LOAD);
 }
 
-static uint64_t do_ld8_mmu(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static uint64_t do_ld8_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
                            uintptr_t ra, MMUAccessType access_type)
 {
     MMULookupLocals l;
@@ -2460,7 +2460,7 @@ tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, uint64_t addr,
     return (int32_t)helper_ldul_mmu(env, addr, oi, retaddr);
 }
 
-static Int128 do_ld16_mmu(CPUArchState *env, target_ulong addr,
+static Int128 do_ld16_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
@@ -2617,7 +2617,7 @@ static uint64_t do_st_mmio_leN(CPUArchState *env, MMULookupPageData *p,
                                uint64_t val_le, int mmu_idx, uintptr_t ra)
 {
     CPUTLBEntryFull *full = p->full;
-    target_ulong addr = p->addr;
+    vaddr addr = p->addr;
     int i, size = p->size;
 
     QEMU_IOTHREAD_LOCK_GUARD();
@@ -2808,7 +2808,7 @@ void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
     do_st_1(env, &l.page[0], val, l.mmu_idx, ra);
 }
 
-static void do_st2_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+static void do_st2_mmu(CPUArchState *env, vaddr addr, uint16_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
@@ -2837,7 +2837,7 @@ void helper_stw_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
     do_st2_mmu(env, addr, val, oi, retaddr);
 }
 
-static void do_st4_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+static void do_st4_mmu(CPUArchState *env, vaddr addr, uint32_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
@@ -2864,7 +2864,7 @@ void helper_stl_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
     do_st4_mmu(env, addr, val, oi, retaddr);
 }
 
-static void do_st8_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+static void do_st8_mmu(CPUArchState *env, vaddr addr, uint64_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
@@ -2891,7 +2891,7 @@ void helper_stq_mmu(CPUArchState *env, uint64_t addr, uint64_t val,
     do_st8_mmu(env, addr, val, oi, retaddr);
 }
 
-static void do_st16_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+static void do_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
                         MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
