@@ -1225,6 +1225,7 @@ q800
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: hw/m68k/q800.c
+F: hw/m68k/q800-glue.c
 F: hw/misc/mac_via.c
 F: hw/nubus/*
 F: hw/display/macfb.c
@@ -1237,6 +1238,7 @@ F: include/hw/nubus/*
 F: include/hw/display/macfb.h
 F: include/hw/block/swim.h
 F: include/hw/m68k/q800.h
+F: include/hw/m68k/q800-glue.h
 
 virt
 M: Laurent Vivier <laurent@vivier.eu>
