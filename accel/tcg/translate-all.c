@@ -580,7 +580,8 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
         /* The exception probably happened in a helper.  The CPU state should
            have been saved before calling it. Fetch the PC from there.  */
         CPUArchState *env = cpu->env_ptr;
-        target_ulong pc, cs_base;
+        vaddr pc;
+        uint64_t cs_base;
         tb_page_addr_t addr;
         uint32_t flags;
 

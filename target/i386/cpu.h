@@ -2275,8 +2275,8 @@ static inline int cpu_mmu_index_kernel(CPUX86State *env)
 #include "hw/i386/apic.h"
 #endif
 
-static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUX86State *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     *cs_base = env->segs[R_CS].base;
     *pc = *cs_base + env->eip;

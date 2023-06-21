@@ -408,7 +408,8 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
 {
     CPUState *cpu = env_cpu(env);
     TranslationBlock *tb;
-    target_ulong cs_base, pc;
+    vaddr pc;
+    uint64_t cs_base;
     uint32_t flags, cflags;
 
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
@@ -529,7 +530,8 @@ void cpu_exec_step_atomic(CPUState *cpu)
 {
     CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
-    target_ulong cs_base, pc;
+    vaddr pc;
+    uint64_t cs_base;
     uint32_t flags, cflags;
     int tb_exit;
 
@@ -942,7 +944,8 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
 
         while (!cpu_handle_interrupt(cpu, &last_tb)) {
             TranslationBlock *tb;
-            target_ulong cs_base, pc;
+            vaddr pc;
+            uint64_t cs_base;
             uint32_t flags, cflags;
 
             cpu_get_tb_cpu_state(cpu->env_ptr, &pc, &cs_base, &flags);

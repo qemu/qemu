@@ -302,8 +302,8 @@ FIELD(TBFLAGS, CRS0, 0, 1)  /* Set if CRS == 0. */
 FIELD(TBFLAGS, U, 1, 1)     /* Overlaps CR_STATUS_U */
 FIELD(TBFLAGS, R0_0, 2, 1)  /* Set if R0 == 0. */
 
-static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUNios2State *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     unsigned crs = FIELD_EX32(env->ctrl[CR_STATUS], CR_STATUS, CRS);
 

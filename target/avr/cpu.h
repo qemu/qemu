@@ -190,8 +190,8 @@ enum {
     TB_FLAGS_SKIP = 2,
 };
 
-static inline void cpu_get_tb_cpu_state(CPUAVRState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *pflags)
+static inline void cpu_get_tb_cpu_state(CPUAVRState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *pflags)
 {
     uint32_t flags = 0;
 
