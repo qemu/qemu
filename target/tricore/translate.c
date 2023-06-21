@@ -39,6 +39,7 @@
 
 #define DISAS_EXIT        DISAS_TARGET_0
 #define DISAS_EXIT_UPDATE DISAS_TARGET_1
+#define DISAS_JUMP        DISAS_TARGET_2
 
 /*
  * TCG registers
@@ -6077,8 +6078,9 @@ static void decode_rr_idirect(DisasContext *ctx)
         break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        return;
     }
-    ctx->base.is_jmp = DISAS_EXIT;
+    ctx->base.is_jmp = DISAS_JUMP;
 }
 
 static void decode_rr_divide(DisasContext *ctx)
@@ -8394,6 +8396,9 @@ static void tricore_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         /* fall through */
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
+        break;
+    case DISAS_JUMP:
+        tcg_gen_lookup_and_goto_ptr();
         break;
     case DISAS_NORETURN:
         break;
