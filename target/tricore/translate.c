@@ -388,7 +388,7 @@ static inline void gen_mtcr(DisasContext *ctx, TCGv r1,
             }
         }
     } else {
-        /* generate privilege trap */
+        generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
     }
 }
 
@@ -3375,7 +3375,11 @@ static void decode_sc_opc(DisasContext *ctx, int op1)
         tcg_gen_andi_tl(cpu_gpr_d[15], cpu_gpr_d[15], const16);
         break;
     case OPC1_16_SC_BISR:
-        gen_helper_1arg(bisr, const16 & 0xff);
+        if (ctx->priv == TRICORE_PRIV_SM) {
+            gen_helper_1arg(bisr, const16 & 0xff);
+        } else {
+            generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+        }
         break;
     case OPC1_16_SC_LD_A:
         gen_offset_ld(ctx, cpu_gpr_a[15], cpu_gpr_a[10], const16 * 4, MO_LESL);
@@ -5236,7 +5240,11 @@ static void decode_rc_serviceroutine(DisasContext *ctx)
 
     switch (op2) {
     case OPC2_32_RC_BISR:
-        gen_helper_1arg(bisr, const9);
+        if (ctx->priv == TRICORE_PRIV_SM) {
+            gen_helper_1arg(bisr, const9);
+        } else {
+            generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+        }
         break;
     case OPC2_32_RC_SYSCALL:
         generate_trap(ctx, TRAPC_SYSCALL, const9 & 0xff);
@@ -7890,20 +7898,33 @@ static void decode_sys_interrupts(DisasContext *ctx)
         /* raise EXCP_DEBUG */
         break;
     case OPC2_32_SYS_DISABLE:
-        tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
+        if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
+            tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
+        } else {
+            generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+        }
         break;
     case OPC2_32_SYS_DISABLE_D:
         if (has_feature(ctx, TRICORE_FEATURE_16)) {
-            tcg_gen_extract_tl(cpu_gpr_d[r1], cpu_ICR, ctx->icr_ie_offset, 1);
-            tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
+            if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
+                tcg_gen_extract_tl(cpu_gpr_d[r1], cpu_ICR,
+                        ctx->icr_ie_offset, 1);
+                tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
+            } else {
+                generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+            }
         } else {
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
     case OPC2_32_SYS_DSYNC:
         break;
     case OPC2_32_SYS_ENABLE:
-        tcg_gen_ori_tl(cpu_ICR, cpu_ICR, ctx->icr_ie_mask);
-        ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+        if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
+            tcg_gen_ori_tl(cpu_ICR, cpu_ICR, ctx->icr_ie_mask);
+            ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+        } else {
+            generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+        }
         break;
     case OPC2_32_SYS_ISYNC:
         break;
@@ -7931,7 +7952,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
             gen_set_label(l1);
             ctx->base.is_jmp = DISAS_EXIT;
         } else {
-            /* generate privilege trap */
+            generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
         }
         break;
     case OPC2_32_SYS_RSLCX:
@@ -7944,7 +7965,9 @@ static void decode_sys_interrupts(DisasContext *ctx)
         if (has_feature(ctx, TRICORE_FEATURE_16)) {
             if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
                 tcg_gen_deposit_tl(cpu_ICR, cpu_ICR, cpu_gpr_d[r1], 8, 1);
-            } /* else raise privilege trap */
+            } else {
+                generate_trap(ctx, TRAPC_PROT, TIN1_PRIV);
+            }
         } else {
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
