@@ -263,10 +263,11 @@ void icr_set_ie(CPUTriCoreState *env, uint32_t val);
 #define MASK_DBGSR_PEVT 0x40
 #define MASK_DBGSR_EVTSRC 0x1f00
 
-#define TRICORE_HFLAG_KUU     0x3
-#define TRICORE_HFLAG_UM0     0x00002 /* user mode-0 flag          */
-#define TRICORE_HFLAG_UM1     0x00001 /* user mode-1 flag          */
-#define TRICORE_HFLAG_SM      0x00000 /* kernel mode flag          */
+enum tricore_priv_levels {
+    TRICORE_PRIV_UM0 = 0x0, /* user mode-0 flag */
+    TRICORE_PRIV_UM1 = 0x1, /* user mode-1 flag */
+    TRICORE_PRIV_SM  = 0x2, /* kernel mode flag */
+};
 
 enum tricore_features {
     TRICORE_FEATURE_13,
@@ -378,15 +379,21 @@ static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
 
 #include "exec/cpu-all.h"
 
+FIELD(TB_FLAGS, PRIV, 0, 2)
+
 void cpu_state_reset(CPUTriCoreState *s);
 void tricore_tcg_init(void);
 
 static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
+    uint32_t new_flags = 0;
     *pc = env->PC;
     *cs_base = 0;
-    *flags = 0;
+
+    new_flags |= FIELD_DP32(new_flags, TB_FLAGS, PRIV,
+            extract32(env->PSW, 10, 2));
+    *flags = new_flags;
 }
 
 #define TRICORE_CPU_TYPE_SUFFIX "-" TYPE_TRICORE_CPU

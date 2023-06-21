@@ -76,7 +76,7 @@ typedef struct DisasContext {
     uint32_t opcode;
     /* Routine used to access memory */
     int mem_idx;
-    uint32_t hflags, saved_hflags;
+    int priv;
     uint64_t features;
     uint32_t icr_ie_mask, icr_ie_offset;
 } DisasContext;
@@ -378,7 +378,7 @@ static inline void gen_mfcr(DisasContext *ctx, TCGv ret, int32_t offset)
 static inline void gen_mtcr(DisasContext *ctx, TCGv r1,
                             int32_t offset)
 {
-    if ((ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_SM) {
+    if (ctx->priv == TRICORE_PRIV_SM) {
         /* since we're caching PSW make this a special case */
         if (offset == 0xfe04) {
             gen_helper_psw_write(cpu_env, r1);
@@ -7920,7 +7920,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
         ctx->base.is_jmp = DISAS_EXIT;
         break;
     case OPC2_32_SYS_RFM:
-        if ((ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_SM) {
+        if (ctx->priv  == TRICORE_PRIV_SM) {
             tmp = tcg_temp_new();
             l1 = gen_new_label();
 
@@ -7942,8 +7942,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
         break;
     case OPC2_32_SYS_RESTORE:
         if (has_feature(ctx, TRICORE_FEATURE_16)) {
-            if ((ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_SM ||
-                (ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_UM1) {
+            if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {
                 tcg_gen_deposit_tl(cpu_ICR, cpu_ICR, cpu_gpr_d[r1], 8, 1);
             } /* else raise privilege trap */
         } else {
@@ -8313,7 +8312,10 @@ static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUTriCoreState *env = cs->env_ptr;
     ctx->mem_idx = cpu_mmu_index(env, false);
-    ctx->hflags = (uint32_t)ctx->base.tb->flags;
+
+    uint32_t tb_flags = (uint32_t)ctx->base.tb->flags;
+    ctx->priv = FIELD_EX32(tb_flags, TB_FLAGS, PRIV);
+
     ctx->features = env->features;
     if (has_feature(ctx, TRICORE_FEATURE_161)) {
         ctx->icr_ie_mask = R_ICR_IE_161_MASK;
