@@ -2525,7 +2525,7 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
     int ret;
     unsigned int smp_threads = ms->smp.threads;
 
-    if (!kvm_enabled() && (smp_threads > 1)) {
+    if (tcg_enabled() && (smp_threads > 1)) {
         error_setg(errp, "TCG cannot support more than 1 thread/core "
                    "on a pseries machine");
         return;
