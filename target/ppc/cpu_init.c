@@ -6755,6 +6755,7 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     PowerPCCPU *cpu = POWERPC_CPU(dev);
+    CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
 
@@ -6785,6 +6786,10 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
     qemu_init_vcpu(cs);
 
     pcc->parent_realize(dev, errp);
+
+    if (env_cpu(env)->nr_threads > 1) {
+        env->flags |= POWERPC_FLAG_SMT;
+    }
 
     return;
 
