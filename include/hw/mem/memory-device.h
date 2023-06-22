@@ -38,6 +38,10 @@ typedef struct MemoryDeviceState MemoryDeviceState;
  * address in guest physical memory can either be specified explicitly
  * or get assigned automatically.
  *
+ * Some memory device might not own a memory region in certain device
+ * configurations. Such devices can logically get (un)plugged, however,
+ * empty memory devices are mostly ignored by the memory device code.
+ *
  * Conceptually, memory devices only span one memory region. If multiple
  * successive memory regions are used, a covering memory region has to
  * be provided. Scattered memory regions are not supported for single
@@ -91,7 +95,8 @@ struct MemoryDeviceClass {
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md, Error **errp);
 
     /*
-     * Return the memory region of the memory device.
+     * Return the memory region of the memory device. If the device is
+     * completely empty, returns NULL without an error.
      *
      * Called when (un)plugging the memory device, to (un)map the
      * memory region in guest physical memory, but also to detect the

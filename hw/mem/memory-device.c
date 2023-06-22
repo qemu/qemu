@@ -20,6 +20,22 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 
+static bool memory_device_is_empty(const MemoryDeviceState *md)
+{
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    Error *local_err = NULL;
+    MemoryRegion *mr;
+
+    /* dropping const here is fine as we don't touch the memory region */
+    mr = mdc->get_memory_region((MemoryDeviceState *)md, &local_err);
+    if (local_err) {
+        /* Not empty, we'll report errors later when ontaining the MR again. */
+        error_free(local_err);
+        return false;
+    }
+    return !mr;
+}
+
 static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 {
     const MemoryDeviceState *md_a = MEMORY_DEVICE(a);
@@ -249,6 +265,10 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
         uint64_t next_addr;
         Range tmp;
 
+        if (memory_device_is_empty(md)) {
+            continue;
+        }
+
         range_init_nofail(&tmp, mdc->get_addr(md),
                           memory_device_get_region_size(md, &error_abort));
 
@@ -292,6 +312,7 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(item->data);
         MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
 
+        /* Let's query infotmation even for empty memory devices. */
         mdc->fill_device_info(md, info);
 
         QAPI_LIST_APPEND(tail, info);
@@ -311,7 +332,7 @@ static int memory_device_plugged_size(Object *obj, void *opaque)
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(obj);
 
-        if (dev->realized) {
+        if (dev->realized && !memory_device_is_empty(md)) {
             *size += mdc->get_plugged_size(md, &error_abort);
         }
     }
@@ -336,6 +357,11 @@ void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
     Error *local_err = NULL;
     uint64_t addr, align = 0;
     MemoryRegion *mr;
+
+    /* We support empty memory devices even without device memory. */
+    if (memory_device_is_empty(md)) {
+        return;
+    }
 
     if (!ms->device_memory) {
         error_setg(errp, "the configuration is not prepared for memory devices"
@@ -380,9 +406,16 @@ out:
 void memory_device_plug(MemoryDeviceState *md, MachineState *ms)
 {
     const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
-    const unsigned int memslots = memory_device_get_memslots(md);
-    const uint64_t addr = mdc->get_addr(md);
+    unsigned int memslots;
+    uint64_t addr;
     MemoryRegion *mr;
+
+    if (memory_device_is_empty(md)) {
+        return;
+    }
+
+    memslots = memory_device_get_memslots(md);
+    addr = mdc->get_addr(md);
 
     /*
      * We expect that a previous call to memory_device_pre_plug() succeeded, so
@@ -407,6 +440,10 @@ void memory_device_unplug(MemoryDeviceState *md, MachineState *ms)
     const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
     const unsigned int memslots = memory_device_get_memslots(md);
     MemoryRegion *mr;
+
+    if (memory_device_is_empty(md)) {
+        return;
+    }
 
     /*
      * We expect that a previous call to memory_device_pre_plug() succeeded, so
