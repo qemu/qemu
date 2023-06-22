@@ -438,7 +438,7 @@ void spr_write_generic32(DisasContext *ctx, int sprn, int gprn)
 #endif
 }
 
-void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
+static void spr_write_CTRL_ST(DisasContext *ctx, int sprn, int gprn)
 {
     /* This does not implement >1 thread */
     TCGv t0 = tcg_temp_new();
@@ -447,6 +447,22 @@ void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_shli_tl(t1, t0, 8); /* Duplicate the bit in TS */
     tcg_gen_or_tl(t1, t1, t0);
     gen_store_spr(sprn, t1);
+}
+
+void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
+{
+    if (!(ctx->flags & POWERPC_FLAG_SMT)) {
+        spr_write_CTRL_ST(ctx, sprn, gprn);
+        goto out;
+    }
+
+    if (!gen_serialize(ctx)) {
+        return;
+    }
+
+    gen_helper_spr_write_CTRL(cpu_env, tcg_constant_i32(sprn),
+                              cpu_gpr[gprn]);
+out:
     spr_store_dump_spr(sprn);
 
     /*
