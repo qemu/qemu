@@ -3186,22 +3186,42 @@ void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
 }
 
 /*
- * sends a message to other threads that are on the same
+ * sends a message to another thread  on the same
  * multi-threaded processor
  */
 void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
 {
-    int pir = env->spr_cb[SPR_PIR].default_value;
+    CPUState *cs = env_cpu(env);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUState *ccs;
+    uint32_t nr_threads = cs->nr_threads;
+    int ttir = rb & PPC_BITMASK(57, 63);
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgsndp", HFSCR_IC_MSGP);
 
-    if (!dbell_type_server(rb)) {
+    if (!dbell_type_server(rb) || ttir >= nr_threads) {
         return;
     }
 
-    /* TODO: TCG supports only one thread */
+    if (nr_threads == 1) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, 1);
+        return;
+    }
 
-    book3s_msgsnd_common(pir, PPC_INTERRUPT_DOORBELL);
+    /* Does iothread need to be locked for walking CPU list? */
+    qemu_mutex_lock_iothread();
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        PowerPCCPU *ccpu = POWERPC_CPU(ccs);
+        uint32_t thread_id = ppc_cpu_tir(ccpu);
+
+        if (ttir == thread_id) {
+            ppc_set_irq(ccpu, PPC_INTERRUPT_DOORBELL, 1);
+            qemu_mutex_unlock_iothread();
+            return;
+        }
+    }
+
+    g_assert_not_reached();
 }
 #endif /* TARGET_PPC64 */
 
