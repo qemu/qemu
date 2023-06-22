@@ -124,6 +124,7 @@ static void cxl_t3d_deprecated(void)
 
     qtest_start(cmdline->str);
     qtest_end();
+    rmdir(tmpfs);
 }
 
 static void cxl_t3d_persistent(void)
@@ -138,6 +139,7 @@ static void cxl_t3d_persistent(void)
 
     qtest_start(cmdline->str);
     qtest_end();
+    rmdir(tmpfs);
 }
 
 static void cxl_t3d_volatile(void)
