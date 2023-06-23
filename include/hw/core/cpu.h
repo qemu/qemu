@@ -422,7 +422,7 @@ struct CPUState {
     int32_t exception_index;
 
     AccelCPUState *accel;
-    /* shared by kvm, hax and hvf */
+    /* shared by kvm and hvf */
     bool vcpu_dirty;
 
     /* Used to keep track of an outstanding cpu throttle thread for migration

@@ -140,7 +140,6 @@ if cpu in ['x86', 'x86_64', 'arm', 'aarch64']
 endif
 if cpu in ['x86', 'x86_64']
   accelerator_targets += {
-    'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_HVF': ['x86_64-softmmu'],
     'CONFIG_NVMM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
@@ -661,11 +660,6 @@ if get_option('hvf').allowed()
                    required: get_option('hvf'))
   if hvf.found()
     accelerators += 'CONFIG_HVF'
-  endif
-endif
-if get_option('hax').allowed()
-  if get_option('hax').enabled() or targetos in ['windows', 'darwin', 'netbsd']
-    accelerators += 'CONFIG_HAX'
   endif
 endif
 if targetos == 'netbsd'
@@ -4140,7 +4134,6 @@ endif
 summary_info = {}
 if have_system
   summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
-  summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
   summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
   summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
