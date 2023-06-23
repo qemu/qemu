@@ -1060,10 +1060,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "rdctl-no", "ibrs-all", "rsba", "skip-l1dfl-vmentry",
             "ssb-no", "mds-no", "pschange-mc-no", "tsx-ctrl",
             "taa-no", NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, "sbdr-ssdp-no", "fbsdp-no", "psdp-no",
             NULL, "fb-clear", NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            "pbrsb-no", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
         .msr = {
