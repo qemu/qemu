@@ -86,6 +86,7 @@ Emulated Devices
    devices/ccid.rst
    devices/cxl.rst
    devices/ivshmem.rst
+   devices/keyboard.rst
    devices/net.rst
    devices/nvme.rst
    devices/usb.rst
