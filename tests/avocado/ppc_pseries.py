@@ -29,6 +29,17 @@ class pseriesMachine(QemuSystemTest):
                          '-append', kernel_command_line)
         self.vm.launch()
 
+    def test_ppc64_vof_linux_boot(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        """
+
+        self.vm.add_args('-machine', 'x-vof=on')
+        self.do_test_ppc64_linux_boot()
+        console_pattern = 'VFS: Cannot open root device'
+        wait_for_console_pattern(self, console_pattern, self.panic_message)
+
     def test_ppc64_linux_boot(self):
         """
         :avocado: tags=arch:ppc64
