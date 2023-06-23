@@ -264,37 +264,27 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
          * From gdbstub, do not use softmmu so that we don't modify the
          * state of the cpu at all, including softmmu tlb contents.
          */
-        if (regime_is_stage2(s2_mmu_idx)) {
-            S1Translate s2ptw = {
-                .in_mmu_idx = s2_mmu_idx,
-                .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
-                .in_secure = s2_mmu_idx == ARMMMUIdx_Stage2_S,
-                .in_space = (s2_mmu_idx == ARMMMUIdx_Stage2_S ? ARMSS_Secure
-                             : space == ARMSS_Realm ? ARMSS_Realm
-                             : ARMSS_NonSecure),
-                .in_debug = true,
-            };
-            GetPhysAddrResult s2 = { };
+        S1Translate s2ptw = {
+            .in_mmu_idx = s2_mmu_idx,
+            .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
+            .in_secure = s2_mmu_idx == ARMMMUIdx_Stage2_S,
+            .in_space = (s2_mmu_idx == ARMMMUIdx_Stage2_S ? ARMSS_Secure
+                         : space == ARMSS_Realm ? ARMSS_Realm
+                         : ARMSS_NonSecure),
+            .in_debug = true,
+        };
+        GetPhysAddrResult s2 = { };
 
-            if (get_phys_addr_lpae(env, &s2ptw, addr, MMU_DATA_LOAD,
-                                   false, &s2, fi)) {
-                goto fail;
-            }
-            ptw->out_phys = s2.f.phys_addr;
-            pte_attrs = s2.cacheattrs.attrs;
-            ptw->out_secure = s2.f.attrs.secure;
-            ptw->out_space = s2.f.attrs.space;
-        } else {
-            /* Regime is physical. */
-            ptw->out_phys = addr;
-            pte_attrs = 0;
-            ptw->out_secure = s2_mmu_idx == ARMMMUIdx_Phys_S;
-            ptw->out_space = (s2_mmu_idx == ARMMMUIdx_Phys_S ? ARMSS_Secure
-                              : space == ARMSS_Realm ? ARMSS_Realm
-                              : ARMSS_NonSecure);
+        if (get_phys_addr_with_struct(env, &s2ptw, addr,
+                                      MMU_DATA_LOAD, &s2, fi)) {
+            goto fail;
         }
+        ptw->out_phys = s2.f.phys_addr;
+        pte_attrs = s2.cacheattrs.attrs;
         ptw->out_host = NULL;
         ptw->out_rw = false;
+        ptw->out_secure = s2.f.attrs.secure;
+        ptw->out_space = s2.f.attrs.space;
     } else {
 #ifdef CONFIG_TCG
         CPUTLBEntryFull *full;
