@@ -436,19 +436,19 @@ static const Nios2Instruction i_type_instructions[] = {
     INSTRUCTION_FLG(gen_cmpxxsi, TCG_COND_GE),        /* cmpgei */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_ILLEGAL(),
-    INSTRUCTION_FLG(gen_ldx, MO_UW),                  /* ldhu */
+    INSTRUCTION_FLG(gen_ldx, MO_TEUW),                /* ldhu */
     INSTRUCTION(andi),                                /* andi */
-    INSTRUCTION_FLG(gen_stx, MO_UW),                  /* sth */
+    INSTRUCTION_FLG(gen_stx, MO_TEUW),                /* sth */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_GE),            /* bge */
-    INSTRUCTION_FLG(gen_ldx, MO_SW),                  /* ldh */
+    INSTRUCTION_FLG(gen_ldx, MO_TESW),                /* ldh */
     INSTRUCTION_FLG(gen_cmpxxsi, TCG_COND_LT),        /* cmplti */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_NOP(),                                /* initda */
     INSTRUCTION(ori),                                 /* ori */
-    INSTRUCTION_FLG(gen_stx, MO_UL),                  /* stw */
+    INSTRUCTION_FLG(gen_stx, MO_TEUL),                /* stw */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_LT),            /* blt */
-    INSTRUCTION_FLG(gen_ldx, MO_UL),                  /* ldw */
+    INSTRUCTION_FLG(gen_ldx, MO_TEUL),                /* ldw */
     INSTRUCTION_FLG(gen_cmpxxsi, TCG_COND_NE),        /* cmpnei */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_ILLEGAL(),
@@ -468,19 +468,19 @@ static const Nios2Instruction i_type_instructions[] = {
     INSTRUCTION_FLG(gen_cmpxxui, TCG_COND_GEU),       /* cmpgeui */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_ILLEGAL(),
-    INSTRUCTION_FLG(gen_ldx, MO_UW),                  /* ldhuio */
+    INSTRUCTION_FLG(gen_ldx, MO_TEUW),                /* ldhuio */
     INSTRUCTION(andhi),                               /* andhi */
-    INSTRUCTION_FLG(gen_stx, MO_UW),                  /* sthio */
+    INSTRUCTION_FLG(gen_stx, MO_TEUW),                /* sthio */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_GEU),           /* bgeu */
-    INSTRUCTION_FLG(gen_ldx, MO_SW),                  /* ldhio */
+    INSTRUCTION_FLG(gen_ldx, MO_TESW),                /* ldhio */
     INSTRUCTION_FLG(gen_cmpxxui, TCG_COND_LTU),       /* cmpltui */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_UNIMPLEMENTED(),                      /* custom */
     INSTRUCTION_NOP(),                                /* initd */
     INSTRUCTION(orhi),                                /* orhi */
-    INSTRUCTION_FLG(gen_stx, MO_SL),                  /* stwio */
+    INSTRUCTION_FLG(gen_stx, MO_TESL),                /* stwio */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_LTU),           /* bltu */
-    INSTRUCTION_FLG(gen_ldx, MO_UL),                  /* ldwio */
+    INSTRUCTION_FLG(gen_ldx, MO_TEUL),                /* ldwio */
     INSTRUCTION(rdprs),                               /* rdprs */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_FLG(handle_r_type_instr, 0),          /* R-Type */
