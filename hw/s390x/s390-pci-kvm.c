@@ -14,7 +14,7 @@
 #include <linux/kvm.h>
 
 #include "kvm/kvm_s390x.h"
-#include "hw/s390x/pv.h"
+#include "target/s390x/kvm/pv.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-kvm.h"
 #include "hw/s390x/s390-pci-inst.h"

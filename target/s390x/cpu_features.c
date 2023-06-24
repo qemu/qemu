@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "cpu_features.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/s390x/pv.h"
+#include "target/s390x/kvm/pv.h"
 #endif
 
 #define DEF_FEAT(_FEAT, _NAME, _TYPE, _BIT, _DESC) \

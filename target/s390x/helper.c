@@ -24,7 +24,7 @@
 #include "gdbstub/helpers.h"
 #include "qemu/timer.h"
 #include "hw/s390x/ioinst.h"
-#include "hw/s390x/pv.h"
+#include "target/s390x/kvm/pv.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
 
