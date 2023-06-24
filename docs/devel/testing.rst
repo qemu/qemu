@@ -558,7 +558,7 @@ When CI tasks, maintainers or yourself report a Docker test failure, follow the
 below steps to debug it:
 
 1. Locally reproduce the failure with the reported command line. E.g. run
-   ``make docker-test-mingw@fedora J=8``.
+   ``make docker-test-mingw@fedora-win64-cross J=8``.
 2. Add "V=1" to the command line, try again, to see the verbose output.
 3. Further add "DEBUG=1" to the command line. This will pause in a shell prompt
    in the container right before testing starts. You could either manually
