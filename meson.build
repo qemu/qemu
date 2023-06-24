@@ -661,8 +661,8 @@ endif
 if get_option('whpx').allowed() and targetos == 'windows'
   if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
     error('WHPX requires 64-bit host')
-  elif cc.has_header('WinHvPlatform.h', required: get_option('whpx')) and \
-       cc.has_header('WinHvEmulation.h', required: get_option('whpx'))
+  elif cc.has_header('winhvplatform.h', required: get_option('whpx')) and \
+       cc.has_header('winhvemulation.h', required: get_option('whpx'))
     accelerators += 'CONFIG_WHPX'
   endif
 endif
