@@ -1187,6 +1187,7 @@ void spr_write_tfmr(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_lpcr(DisasContext *ctx, int sprn, int gprn)
 {
+    translator_io_start(&ctx->base);
     gen_helper_store_lpcr(cpu_env, cpu_gpr[gprn]);
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
@@ -4012,6 +4013,7 @@ static void gen_doze(DisasContext *ctx)
     TCGv_i32 t;
 
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     t = tcg_constant_i32(PPC_PM_DOZE);
     gen_helper_pminsn(cpu_env, t);
     /* Stop translation, as the CPU is supposed to sleep from now */
@@ -4027,6 +4029,7 @@ static void gen_nap(DisasContext *ctx)
     TCGv_i32 t;
 
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     t = tcg_constant_i32(PPC_PM_NAP);
     gen_helper_pminsn(cpu_env, t);
     /* Stop translation, as the CPU is supposed to sleep from now */
@@ -4042,6 +4045,7 @@ static void gen_stop(DisasContext *ctx)
     TCGv_i32 t;
 
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     t = tcg_constant_i32(PPC_PM_STOP);
     gen_helper_pminsn(cpu_env, t);
     /* Stop translation, as the CPU is supposed to sleep from now */
@@ -4057,6 +4061,7 @@ static void gen_sleep(DisasContext *ctx)
     TCGv_i32 t;
 
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     t = tcg_constant_i32(PPC_PM_SLEEP);
     gen_helper_pminsn(cpu_env, t);
     /* Stop translation, as the CPU is supposed to sleep from now */
@@ -4072,6 +4077,7 @@ static void gen_rvwinkle(DisasContext *ctx)
     TCGv_i32 t;
 
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     t = tcg_constant_i32(PPC_PM_RVWINKLE);
     gen_helper_pminsn(cpu_env, t);
     /* Stop translation, as the CPU is supposed to sleep from now */
@@ -4468,6 +4474,7 @@ static void gen_hrfid(DisasContext *ctx)
 #else
     /* Restore CPU state */
     CHK_HV(ctx);
+    translator_io_start(&ctx->base);
     gen_helper_hrfid(cpu_env);
     ctx->base.is_jmp = DISAS_EXIT;
 #endif
