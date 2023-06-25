@@ -122,6 +122,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
 {
     FWCfgState *fw_cfg;
     uint64_t val;
+    const char qemu_version[] = QEMU_VERSION;
 
     fw_cfg = fw_cfg_init_mem(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, ms->smp.cpus);
@@ -146,6 +147,10 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_config.order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+
+    fw_cfg_add_file(fw_cfg, "/etc/qemu-version",
+                    g_memdup(qemu_version, sizeof(qemu_version)),
+                    sizeof(qemu_version));
 
     return fw_cfg;
 }
@@ -418,10 +423,16 @@ static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
 
     /* Start all CPUs at the firmware entry point.
      *  Monarch CPU will initialize firmware, secondary CPUs
-     *  will enter a small idle look and wait for rendevouz. */
+     *  will enter a small idle loop and wait for rendevouz. */
     for (i = 0; i < smp_cpus; i++) {
-        cpu_set_pc(CPU(cpu[i]), firmware_entry);
+        CPUState *cs = CPU(cpu[i]);
+
+        cpu_set_pc(cs, firmware_entry);
+        cpu[i]->env.psw = PSW_Q;
         cpu[i]->env.gr[5] = CPU_HPA + i * 0x1000;
+
+        cs->exception_index = -1;
+        cs->halted = 0;
     }
 
     /* already initialized by machine_hppa_init()? */
