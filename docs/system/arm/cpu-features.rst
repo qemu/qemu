@@ -435,3 +435,26 @@ As with ``sve-default-vector-length``, if the default length is larger
 than the maximum vector length enabled, the actual vector length will
 be reduced.  If this property is set to ``-1`` then the default vector
 length is set to the maximum possible length.
+
+RME CPU Properties
+==================
+
+The status of RME support with QEMU is experimental.  At this time we
+only support RME within the CPU proper, not within the SMMU or GIC.
+The feature is enabled by the CPU property ``x-rme``, with the ``x-``
+prefix present as a reminder of the experimental status, and defaults off.
+
+The method for enabling RME will change in some future QEMU release
+without notice or backward compatibility.
+
+RME Level 0 GPT Size Property
+-----------------------------
+
+To aid firmware developers in testing different possible CPU
+configurations, ``x-l0gptsz=S`` may be used to specify the value
+to encode into ``GPCCR_EL3.L0GPTSZ``, a read-only field that
+specifies the size of the Level 0 Granule Protection Table.
+Legal values for ``S`` are 30, 34, 36, and 39; the default is 30.
+
+As with ``x-rme``, the ``x-l0gptsz`` property may be renamed or
+removed in some future QEMU release.

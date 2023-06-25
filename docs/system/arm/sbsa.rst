@@ -46,6 +46,9 @@ to be a complete compliant DT. It currently reports:
    - platform version
    - GIC addresses
 
+Platform version
+''''''''''''''''
+
 The platform version is only for informing platform firmware about
 what kind of ``sbsa-ref`` board it is running on. It is neither
 a QEMU versioned machine type nor a reflection of the level of the
@@ -54,3 +57,14 @@ SBSA/SystemReady SR support provided.
 The ``machine-version-major`` value is updated when changes breaking
 fw compatibility are introduced. The ``machine-version-minor`` value
 is updated when features are added that don't break fw compatibility.
+
+Platform version changes:
+
+0.0
+  Devicetree holds information about CPUs, memory and platform version.
+
+0.1
+  GIC information is present in devicetree.
+
+0.2
+  GIC ITS information is present in devicetree.
