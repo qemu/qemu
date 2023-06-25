@@ -107,6 +107,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(SunGEMState, SUNGEM)
 #define RXDMA_FTAG        0x0110UL    /* RX FIFO Tag */
 #define RXDMA_FSZ         0x0120UL    /* RX FIFO Size */
 
+/* WOL Registers */
+#define SUNGEM_MMIO_WOL_SIZE   0x14
+
+#define WOL_MATCH0        0x0000UL
+#define WOL_MATCH1        0x0004UL
+#define WOL_MATCH2        0x0008UL
+#define WOL_MCOUNT        0x000CUL
+#define WOL_WAKECSR       0x0010UL
+
 /* MAC Registers */
 #define SUNGEM_MMIO_MAC_SIZE   0x200
 
@@ -168,6 +177,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SunGEMState, SUNGEM)
 #define SUNGEM_MMIO_PCS_SIZE   0x60
 #define PCS_MIISTAT       0x0004UL    /* PCS MII Status Register */
 #define PCS_ISTAT         0x0018UL    /* PCS Interrupt Status Reg */
+
 #define PCS_SSTATE        0x005CUL    /* Serialink State Register */
 
 /* Descriptors */
@@ -200,6 +210,7 @@ struct SunGEMState {
     MemoryRegion greg;
     MemoryRegion txdma;
     MemoryRegion rxdma;
+    MemoryRegion wol;
     MemoryRegion mac;
     MemoryRegion mif;
     MemoryRegion pcs;
@@ -1076,6 +1087,43 @@ static const MemoryRegionOps sungem_mmio_rxdma_ops = {
     },
 };
 
+static void sungem_mmio_wol_write(void *opaque, hwaddr addr, uint64_t val,
+                                    unsigned size)
+{
+    trace_sungem_mmio_wol_write(addr, val);
+
+    switch (addr) {
+    case WOL_WAKECSR:
+        if (val != 0) {
+            qemu_log_mask(LOG_UNIMP, "sungem: WOL not supported\n");
+        }
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "sungem: WOL not supported\n");
+    }
+}
+
+static uint64_t sungem_mmio_wol_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint32_t val = -1;
+
+    qemu_log_mask(LOG_UNIMP, "sungem: WOL not supported\n");
+
+    trace_sungem_mmio_wol_read(addr, val);
+
+    return val;
+}
+
+static const MemoryRegionOps sungem_mmio_wol_ops = {
+    .read = sungem_mmio_wol_read,
+    .write = sungem_mmio_wol_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
 static void sungem_mmio_mac_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
@@ -1343,6 +1391,10 @@ static void sungem_realize(PCIDevice *pci_dev, Error **errp)
     memory_region_init_io(&s->rxdma, OBJECT(s), &sungem_mmio_rxdma_ops, s,
                           "sungem.rxdma", SUNGEM_MMIO_RXDMA_SIZE);
     memory_region_add_subregion(&s->sungem, 0x4000, &s->rxdma);
+
+    memory_region_init_io(&s->wol, OBJECT(s), &sungem_mmio_wol_ops, s,
+                          "sungem.wol", SUNGEM_MMIO_WOL_SIZE);
+    memory_region_add_subregion(&s->sungem, 0x3000, &s->wol);
 
     memory_region_init_io(&s->mac, OBJECT(s), &sungem_mmio_mac_ops, s,
                           "sungem.mac", SUNGEM_MMIO_MAC_SIZE);
