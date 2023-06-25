@@ -1175,6 +1175,16 @@ void spr_write_hmer(DisasContext *ctx, int sprn, int gprn)
     spr_store_dump_spr(sprn);
 }
 
+void spr_read_tfmr(DisasContext *ctx, int gprn, int sprn)
+{
+    gen_helper_load_tfmr(cpu_gpr[gprn], cpu_env);
+}
+
+void spr_write_tfmr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_tfmr(cpu_env, cpu_gpr[gprn]);
+}
+
 void spr_write_lpcr(DisasContext *ctx, int sprn, int gprn)
 {
     gen_helper_store_lpcr(cpu_env, cpu_gpr[gprn]);
