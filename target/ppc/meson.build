@@ -28,7 +28,7 @@ gen = [
                      extra_args: ['--static-decode=decode_insn64',
                                   '--insnwidth=64']),
 ]
-ppc_ss.add(gen)
+ppc_ss.add(when: 'CONFIG_TCG', if_true: gen)
 
 ppc_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
 ppc_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user_only_helper.c'))
