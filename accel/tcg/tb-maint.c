@@ -98,7 +98,7 @@ static void tb_remove_all(void)
 /* Call with mmap_lock held. */
 static void tb_record(TranslationBlock *tb, PageDesc *p1, PageDesc *p2)
 {
-    target_ulong addr;
+    vaddr addr;
     int flags;
 
     assert_memory_lock();

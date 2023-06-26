@@ -125,6 +125,12 @@ typedef struct CPUTLBEntryFull {
     uint8_t lg_page_size;
 
     /*
+     * Additional tlb flags for use by the slow path. If non-zero,
+     * the corresponding CPUTLBEntry comparator must have TLB_FORCE_SLOW.
+     */
+    uint8_t slow_flags[MMU_ACCESS_COUNT];
+
+    /*
      * Allow target-specific additions to this structure.
      * This may be used to cache items from the guest cpu
      * page tables for later use by the implementation.
@@ -147,8 +153,8 @@ typedef struct CPUTLBDesc {
      * we must flush the entire tlb.  The region is matched if
      * (addr & large_page_mask) == large_page_addr.
      */
-    target_ulong large_page_addr;
-    target_ulong large_page_mask;
+    vaddr large_page_addr;
+    vaddr large_page_mask;
     /* host time (in ns) at the beginning of the time window */
     int64_t window_begin_ns;
     /* maximum number of entries observed in the window */

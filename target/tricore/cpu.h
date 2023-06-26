@@ -384,8 +384,8 @@ FIELD(TB_FLAGS, PRIV, 0, 2)
 void cpu_state_reset(CPUTriCoreState *s);
 void tricore_tcg_init(void);
 
-static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     uint32_t new_flags = 0;
     *pc = env->PC;

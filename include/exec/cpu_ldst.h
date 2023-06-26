@@ -328,8 +328,8 @@ static inline void clear_helper_retaddr(void)
 
 #include "tcg/oversized-guest.h"
 
-static inline target_ulong tlb_read_idx(const CPUTLBEntry *entry,
-                                        MMUAccessType access_type)
+static inline uint64_t tlb_read_idx(const CPUTLBEntry *entry,
+                                    MMUAccessType access_type)
 {
     /* Do not rearrange the CPUTLBEntry structure members. */
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBEntry, addr_read) !=
@@ -355,14 +355,14 @@ static inline target_ulong tlb_read_idx(const CPUTLBEntry *entry,
 #endif
 }
 
-static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
+static inline uint64_t tlb_addr_write(const CPUTLBEntry *entry)
 {
     return tlb_read_idx(entry, MMU_DATA_STORE);
 }
 
 /* Find the TLB index corresponding to the mmu_idx + address pair.  */
 static inline uintptr_t tlb_index(CPUArchState *env, uintptr_t mmu_idx,
-                                  target_ulong addr)
+                                  vaddr addr)
 {
     uintptr_t size_mask = env_tlb(env)->f[mmu_idx].mask >> CPU_TLB_ENTRY_BITS;
 
@@ -371,7 +371,7 @@ static inline uintptr_t tlb_index(CPUArchState *env, uintptr_t mmu_idx,
 
 /* Find the TLB entry corresponding to the mmu_idx + address pair.  */
 static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
-                                     target_ulong addr)
+                                     vaddr addr)
 {
     return &env_tlb(env)->f[mmu_idx].table[tlb_index(env, mmu_idx, addr)];
 }

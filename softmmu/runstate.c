@@ -727,18 +727,9 @@ static bool main_loop_should_exit(int *status)
 int qemu_main_loop(void)
 {
     int status = EXIT_SUCCESS;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
 
     while (!main_loop_should_exit(&status)) {
-#ifdef CONFIG_PROFILER
-        ti = profile_getclock();
-#endif
         main_loop_wait(false);
-#ifdef CONFIG_PROFILER
-        dev_time += profile_getclock() - ti;
-#endif
     }
 
     return status;

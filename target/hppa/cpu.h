@@ -268,9 +268,8 @@ static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
 #define TB_FLAG_PRIV_SHIFT  8
 #define TB_FLAG_UNALIGN     0x400
 
-static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
-                                        target_ulong *cs_base,
-                                        uint32_t *pflags)
+static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *pflags)
 {
     uint32_t flags = env->psw_n * PSW_N;
 

@@ -218,8 +218,8 @@ void hreg_update_pmu_hflags(CPUPPCState *env)
 }
 
 #ifdef CONFIG_DEBUG_TCG
-void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
-                          target_ulong *cs_base, uint32_t *flags)
+void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
 {
     uint32_t hflags_current = env->hflags;
     uint32_t hflags_rebuilt;

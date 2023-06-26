@@ -153,8 +153,8 @@ struct ArchCPU {
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 
-static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     uint32_t hex_flags = 0;
     *pc = env->gpr[HEX_REG_PC];

@@ -427,10 +427,8 @@ static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
 #define HW_FLAGS_EUEN_FPE   0x04
 #define HW_FLAGS_EUEN_SXE   0x08
 
-static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
-                                        target_ulong *pc,
-                                        target_ulong *cs_base,
-                                        uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPULoongArchState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = 0;
