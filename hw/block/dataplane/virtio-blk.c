@@ -19,7 +19,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
-#include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-blk.h"
 #include "virtio-blk.h"
 #include "block/aio.h"

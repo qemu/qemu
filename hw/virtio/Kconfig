@@ -56,14 +56,20 @@ config VIRTIO_MEM
     depends on VIRTIO_MEM_SUPPORTED
     select MEM_DEVICE
 
+config VHOST_VSOCK_COMMON
+    bool
+    depends on VIRTIO
+
 config VHOST_VSOCK
     bool
     default y
+    select VHOST_VSOCK_COMMON
     depends on VIRTIO && VHOST_KERNEL
 
 config VHOST_USER_VSOCK
     bool
     default y
+    select VHOST_VSOCK_COMMON
     depends on VIRTIO && VHOST_USER
 
 config VHOST_USER_I2C

@@ -452,7 +452,7 @@ vhost_user_gpu_set_config(VirtIODevice *vdev,
 
     ret = vhost_dev_set_config(&g->vhost->dev, config_data,
                                0, sizeof(struct virtio_gpu_config),
-                               VHOST_SET_CONFIG_TYPE_MASTER);
+                               VHOST_SET_CONFIG_TYPE_FRONTEND);
     if (ret) {
         error_report("vhost-user-gpu: set device config space failed");
         return;

@@ -402,7 +402,7 @@ static inline bool virtio_has_feature(uint64_t features, unsigned int fbit)
     return !!(features & (1ULL << fbit));
 }
 
-static inline bool virtio_vdev_has_feature(VirtIODevice *vdev,
+static inline bool virtio_vdev_has_feature(const VirtIODevice *vdev,
                                            unsigned int fbit)
 {
     return virtio_has_feature(vdev->guest_features, fbit);

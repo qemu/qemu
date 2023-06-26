@@ -1125,7 +1125,16 @@ static void virtio_scsi_drained_begin(SCSIBus *bus)
     uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
                             s->parent_obj.conf.num_queues;
 
-    if (!s->dataplane_started) {
+    /*
+     * Drain is called when stopping dataplane but the host notifier has
+     * already been detached. Detaching multiple times is a no-op if nothing
+     * else is using the monitoring same file descriptor, but avoid it just in
+     * case.
+     *
+     * Also, don't detach if dataplane has not even been started yet because
+     * the host notifier isn't attached.
+     */
+    if (s->dataplane_stopping || !s->dataplane_started) {
         return;
     }
 
@@ -1143,7 +1152,14 @@ static void virtio_scsi_drained_end(SCSIBus *bus)
     uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
                             s->parent_obj.conf.num_queues;
 
-    if (!s->dataplane_started) {
+    /*
+     * Drain is called when stopping dataplane. Keep the host notifier detached
+     * so it's not left dangling after dataplane is stopped.
+     *
+     * Also, don't attach if dataplane has not even been started yet. We're not
+     * ready.
+     */
+    if (s->dataplane_stopping || !s->dataplane_started) {
         return;
     }
 

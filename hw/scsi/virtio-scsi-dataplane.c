@@ -19,7 +19,6 @@
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/virtio/virtio-access.h"
 
 /* Context: QEMU global mutex held */
 void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)

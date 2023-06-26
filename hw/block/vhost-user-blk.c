@@ -81,7 +81,7 @@ static void vhost_user_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     ret = vhost_dev_set_config(&s->dev, &blkcfg->wce,
                                offsetof(struct virtio_blk_config, wce),
                                sizeof(blkcfg->wce),
-                               VHOST_SET_CONFIG_TYPE_MASTER);
+                               VHOST_SET_CONFIG_TYPE_FRONTEND);
     if (ret) {
         error_report("set device config space failed");
         return;

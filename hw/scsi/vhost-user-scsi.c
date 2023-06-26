@@ -26,7 +26,6 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/vhost-user-scsi.h"
 #include "hw/virtio/virtio.h"
-#include "hw/virtio/virtio-access.h"
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 

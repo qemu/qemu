@@ -211,7 +211,7 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
     if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
         vhost_net_set_config(get_vhost_net(nc->peer),
                              (uint8_t *)&netcfg, 0, n->config_size,
-                             VHOST_SET_CONFIG_TYPE_MASTER);
+                             VHOST_SET_CONFIG_TYPE_FRONTEND);
       }
 }
 
@@ -874,7 +874,7 @@ static uint64_t virtio_net_guest_offloads_by_features(uint32_t features)
     return guest_offloads_mask & features;
 }
 
-static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
+uint64_t virtio_net_supported_guest_offloads(const VirtIONet *n)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     return virtio_net_guest_offloads_by_features(vdev->guest_features);
@@ -3733,7 +3733,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         struct virtio_net_config netcfg = {};
         memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
         vhost_net_set_config(get_vhost_net(nc->peer),
-            (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_MASTER);
+            (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_FRONTEND);
     }
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;

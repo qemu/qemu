@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
@@ -123,13 +124,13 @@ typedef enum VhostUserRequest {
     VHOST_USER_MAX
 } VhostUserRequest;
 
-typedef enum VhostUserSlaveRequest {
+typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_NONE = 0,
     VHOST_USER_BACKEND_IOTLB_MSG = 1,
     VHOST_USER_BACKEND_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG = 3,
     VHOST_USER_BACKEND_MAX
-}  VhostUserSlaveRequest;
+}  VhostUserBackendRequest;
 
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
@@ -163,13 +164,24 @@ typedef struct VhostUserConfig {
 
 #define VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN    512
 #define VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN  64
+#define VHOST_CRYPTO_ASYM_MAX_KEY_LEN  1024
 
 typedef struct VhostUserCryptoSession {
+    uint64_t op_code;
+    union {
+        struct {
+            CryptoDevBackendSymSessionInfo session_setup_data;
+            uint8_t key[VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN];
+            uint8_t auth_key[VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN];
+        } sym;
+        struct {
+            CryptoDevBackendAsymSessionInfo session_setup_data;
+            uint8_t key[VHOST_CRYPTO_ASYM_MAX_KEY_LEN];
+        } asym;
+    } u;
+
     /* session id for success, -1 on errors */
     int64_t session_id;
-    CryptoDevBackendSymSessionInfo session_setup_data;
-    uint8_t key[VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN];
-    uint8_t auth_key[VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN];
 } VhostUserCryptoSession;
 
 static VhostUserConfig c __attribute__ ((unused));
@@ -233,8 +245,8 @@ struct vhost_user {
     struct vhost_dev *dev;
     /* Shared between vhost devs of the same virtio device */
     VhostUserState *user;
-    QIOChannel *slave_ioc;
-    GSource *slave_src;
+    QIOChannel *backend_ioc;
+    GSource *backend_src;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
     uint64_t           postcopy_client_bases[VHOST_USER_MAX_RAM_SLOTS];
@@ -1483,7 +1495,7 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return vhost_user_write(dev, &msg, NULL, 0);
 }
 
-static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
+static int vhost_user_backend_handle_config_change(struct vhost_dev *dev)
 {
     if (!dev->config_ops || !dev->config_ops->vhost_dev_config_notifier) {
         return -ENOSYS;
@@ -1520,7 +1532,7 @@ static VhostUserHostNotifier *fetch_or_create_notifier(VhostUserState *u,
     return n;
 }
 
-static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
+static int vhost_user_backend_handle_vring_host_notifier(struct vhost_dev *dev,
                                                        VhostUserVringArea *area,
                                                        int fd)
 {
@@ -1582,16 +1594,16 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
-static void close_slave_channel(struct vhost_user *u)
+static void close_backend_channel(struct vhost_user *u)
 {
-    g_source_destroy(u->slave_src);
-    g_source_unref(u->slave_src);
-    u->slave_src = NULL;
-    object_unref(OBJECT(u->slave_ioc));
-    u->slave_ioc = NULL;
+    g_source_destroy(u->backend_src);
+    g_source_unref(u->backend_src);
+    u->backend_src = NULL;
+    object_unref(OBJECT(u->backend_ioc));
+    u->backend_ioc = NULL;
 }
 
-static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
+static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
                            gpointer opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -1633,10 +1645,10 @@ static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
         ret = vhost_backend_handle_iotlb_msg(dev, &payload.iotlb);
         break;
     case VHOST_USER_BACKEND_CONFIG_CHANGE_MSG:
-        ret = vhost_user_slave_handle_config_change(dev);
+        ret = vhost_user_backend_handle_config_change(dev);
         break;
     case VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG:
-        ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
+        ret = vhost_user_backend_handle_vring_host_notifier(dev, &payload.area,
                                                           fd ? fd[0] : -1);
         break;
     default:
@@ -1672,7 +1684,7 @@ static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
     goto fdcleanup;
 
 err:
-    close_slave_channel(u);
+    close_backend_channel(u);
     rc = G_SOURCE_REMOVE;
 
 fdcleanup:
@@ -1684,7 +1696,7 @@ fdcleanup:
     return rc;
 }
 
-static int vhost_setup_slave_channel(struct vhost_dev *dev)
+static int vhost_setup_backend_channel(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_SET_BACKEND_REQ_FD,
@@ -1713,10 +1725,10 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
         error_report_err(local_err);
         return -ECONNREFUSED;
     }
-    u->slave_ioc = ioc;
-    u->slave_src = qio_channel_add_watch_source(u->slave_ioc,
+    u->backend_ioc = ioc;
+    u->backend_src = qio_channel_add_watch_source(u->backend_ioc,
                                                 G_IO_IN | G_IO_HUP,
-                                                slave_read, dev, NULL, NULL);
+                                                backend_read, dev, NULL, NULL);
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
@@ -1734,7 +1746,7 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
 out:
     close(sv[1]);
     if (ret) {
-        close_slave_channel(u);
+        close_backend_channel(u);
     }
 
     return ret;
@@ -2060,7 +2072,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                  virtio_has_feature(dev->protocol_features,
                     VHOST_USER_PROTOCOL_F_REPLY_ACK))) {
             error_setg(errp, "IOMMU support requires reply-ack and "
-                       "slave-req protocol features.");
+                       "backend-req protocol features.");
             return -EINVAL;
         }
 
@@ -2096,7 +2108,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
     }
 
     if (dev->vq_index == 0) {
-        err = vhost_setup_slave_channel(dev);
+        err = vhost_setup_backend_channel(dev);
         if (err < 0) {
             error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
             return -EPROTO;
@@ -2126,8 +2138,8 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
         close(u->postcopy_fd.fd);
         u->postcopy_fd.handler = NULL;
     }
-    if (u->slave_ioc) {
-        close_slave_channel(u);
+    if (u->backend_ioc) {
+        close_backend_channel(u);
     }
     g_free(u->region_rb);
     u->region_rb = NULL;
@@ -2223,7 +2235,7 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
         return ret;
     }
 
-    /* If reply_ack supported, slave has to ack specified MTU is valid */
+    /* If reply_ack supported, backend has to ack specified MTU is valid */
     if (reply_supported) {
         return process_message_reply(dev, &msg);
     }
@@ -2357,7 +2369,7 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
     int ret;
     bool crypto_session = virtio_has_feature(dev->protocol_features,
                                        VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
-    CryptoDevBackendSymSessionInfo *sess_info = session_info;
+    CryptoDevBackendSessionInfo *backend_info = session_info;
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_CREATE_CRYPTO_SESSION,
         .hdr.flags = VHOST_USER_VERSION,
@@ -2371,16 +2383,53 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
         return -ENOTSUP;
     }
 
-    memcpy(&msg.payload.session.session_setup_data, sess_info,
-              sizeof(CryptoDevBackendSymSessionInfo));
-    if (sess_info->key_len) {
-        memcpy(&msg.payload.session.key, sess_info->cipher_key,
-               sess_info->key_len);
+    if (backend_info->op_code == VIRTIO_CRYPTO_AKCIPHER_CREATE_SESSION) {
+        CryptoDevBackendAsymSessionInfo *sess = &backend_info->u.asym_sess_info;
+        size_t keylen;
+
+        memcpy(&msg.payload.session.u.asym.session_setup_data, sess,
+               sizeof(CryptoDevBackendAsymSessionInfo));
+        if (sess->keylen) {
+            keylen = sizeof(msg.payload.session.u.asym.key);
+            if (sess->keylen > keylen) {
+                error_report("Unsupported asymmetric key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.asym.key, sess->key,
+                   sess->keylen);
+        }
+    } else {
+        CryptoDevBackendSymSessionInfo *sess = &backend_info->u.sym_sess_info;
+        size_t keylen;
+
+        memcpy(&msg.payload.session.u.sym.session_setup_data, sess,
+               sizeof(CryptoDevBackendSymSessionInfo));
+        if (sess->key_len) {
+            keylen = sizeof(msg.payload.session.u.sym.key);
+            if (sess->key_len > keylen) {
+                error_report("Unsupported cipher key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.sym.key, sess->cipher_key,
+                   sess->key_len);
+        }
+
+        if (sess->auth_key_len > 0) {
+            keylen = sizeof(msg.payload.session.u.sym.auth_key);
+            if (sess->auth_key_len > keylen) {
+                error_report("Unsupported auth key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.sym.auth_key, sess->auth_key,
+                   sess->auth_key_len);
+        }
     }
-    if (sess_info->auth_key_len > 0) {
-        memcpy(&msg.payload.session.auth_key, sess_info->auth_key,
-               sess_info->auth_key_len);
-    }
+
+    msg.payload.session.op_code = backend_info->op_code;
+    msg.payload.session.session_id = backend_info->session_id;
     ret = vhost_user_write(dev, &msg, NULL, 0);
     if (ret < 0) {
         error_report("vhost_user_write() return %d, create session failed",

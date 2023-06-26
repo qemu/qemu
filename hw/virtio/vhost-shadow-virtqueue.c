@@ -649,7 +649,7 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
 void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
                      VirtQueue *vq, VhostIOVATree *iova_tree)
 {
-    size_t desc_size, driver_size, device_size;
+    size_t desc_size;
 
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     svq->next_guest_avail_elem = NULL;
@@ -662,14 +662,14 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
 
     svq->vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
     svq->num_free = svq->vring.num;
-    driver_size = vhost_svq_driver_area_size(svq);
-    device_size = vhost_svq_device_area_size(svq);
-    svq->vring.desc = qemu_memalign(qemu_real_host_page_size(), driver_size);
+    svq->vring.desc = mmap(NULL, vhost_svq_driver_area_size(svq),
+                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                           -1, 0);
     desc_size = sizeof(vring_desc_t) * svq->vring.num;
     svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
-    memset(svq->vring.desc, 0, driver_size);
-    svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
-    memset(svq->vring.used, 0, device_size);
+    svq->vring.used = mmap(NULL, vhost_svq_device_area_size(svq),
+                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                           -1, 0);
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
@@ -712,8 +712,8 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
     svq->vq = NULL;
     g_free(svq->desc_next);
     g_free(svq->desc_state);
-    qemu_vfree(svq->vring.desc);
-    qemu_vfree(svq->vring.used);
+    munmap(svq->vring.desc, vhost_svq_driver_area_size(svq));
+    munmap(svq->vring.used, vhost_svq_device_area_size(svq));
     event_notifier_set_handler(&svq->hdev_call, NULL);
 }
 

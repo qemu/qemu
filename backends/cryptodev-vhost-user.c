@@ -232,9 +232,9 @@ static void cryptodev_vhost_user_init(
     backend->conf.max_auth_key_len = VHOST_USER_MAX_AUTH_KEY_LEN;
 }
 
-static int64_t cryptodev_vhost_user_sym_create_session(
+static int64_t cryptodev_vhost_user_crypto_create_session(
            CryptoDevBackend *backend,
-           CryptoDevBackendSymSessionInfo *sess_info,
+           CryptoDevBackendSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
     CryptoDevBackendClient *cc =
@@ -266,18 +266,17 @@ static int cryptodev_vhost_user_create_session(
            void *opaque)
 {
     uint32_t op_code = sess_info->op_code;
-    CryptoDevBackendSymSessionInfo *sym_sess_info;
     int64_t ret;
     Error *local_error = NULL;
     int status;
 
     switch (op_code) {
     case VIRTIO_CRYPTO_CIPHER_CREATE_SESSION:
+    case VIRTIO_CRYPTO_AKCIPHER_CREATE_SESSION:
     case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
     case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
     case VIRTIO_CRYPTO_AEAD_CREATE_SESSION:
-        sym_sess_info = &sess_info->u.sym_sess_info;
-        ret = cryptodev_vhost_user_sym_create_session(backend, sym_sess_info,
+        ret = cryptodev_vhost_user_crypto_create_session(backend, sess_info,
                    queue_index, &local_error);
         break;
 

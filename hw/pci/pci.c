@@ -36,6 +36,7 @@
 #include "migration/vmstate.h"
 #include "net/net.h"
 #include "sysemu/numa.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
@@ -2308,11 +2309,17 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
 static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
                                Error **errp)
 {
-    int64_t size;
+    int64_t size = 0;
     g_autofree char *path = NULL;
-    void *ptr;
     char name[32];
     const VMStateDescription *vmsd;
+
+    /*
+     * In case of incoming migration ROM will come with migration stream, no
+     * reason to load the file.  Neither we want to fail if local ROM file
+     * mismatches with specified romsize.
+     */
+    bool load_file = !runstate_check(RUN_STATE_INMIGRATE);
 
     if (!pdev->romfile || !strlen(pdev->romfile)) {
         return;
@@ -2343,32 +2350,35 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         return;
     }
 
-    path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
-    if (path == NULL) {
-        path = g_strdup(pdev->romfile);
-    }
+    if (load_file || pdev->romsize == -1) {
+        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
+        if (path == NULL) {
+            path = g_strdup(pdev->romfile);
+        }
 
-    size = get_image_size(path);
-    if (size < 0) {
-        error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
-        return;
-    } else if (size == 0) {
-        error_setg(errp, "romfile \"%s\" is empty", pdev->romfile);
-        return;
-    } else if (size > 2 * GiB) {
-        error_setg(errp, "romfile \"%s\" too large (size cannot exceed 2 GiB)",
-                   pdev->romfile);
-        return;
-    }
-    if (pdev->romsize != -1) {
-        if (size > pdev->romsize) {
-            error_setg(errp, "romfile \"%s\" (%u bytes) "
-                       "is too large for ROM size %u",
-                       pdev->romfile, (uint32_t)size, pdev->romsize);
+        size = get_image_size(path);
+        if (size < 0) {
+            error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
+            return;
+        } else if (size == 0) {
+            error_setg(errp, "romfile \"%s\" is empty", pdev->romfile);
+            return;
+        } else if (size > 2 * GiB) {
+            error_setg(errp,
+                       "romfile \"%s\" too large (size cannot exceed 2 GiB)",
+                       pdev->romfile);
             return;
         }
-    } else {
-        pdev->romsize = pow2ceil(size);
+        if (pdev->romsize != -1) {
+            if (size > pdev->romsize) {
+                error_setg(errp, "romfile \"%s\" (%u bytes) "
+                           "is too large for ROM size %u",
+                           pdev->romfile, (uint32_t)size, pdev->romsize);
+                return;
+            }
+        } else {
+            pdev->romsize = pow2ceil(size);
+        }
     }
 
     vmsd = qdev_get_vmsd(DEVICE(pdev));
@@ -2379,15 +2389,18 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize,
                            &error_fatal);
 
-    ptr = memory_region_get_ram_ptr(&pdev->rom);
-    if (load_image_size(path, ptr, size) < 0) {
-        error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
-        return;
-    }
+    if (load_file) {
+        void *ptr = memory_region_get_ram_ptr(&pdev->rom);
 
-    if (is_default_rom) {
-        /* Only the default rom images will be patched (if needed). */
-        pci_patch_ids(pdev, ptr, size);
+        if (load_image_size(path, ptr, size) < 0) {
+            error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
+            return;
+        }
+
+        if (is_default_rom) {
+            /* Only the default rom images will be patched (if needed). */
+            pci_patch_ids(pdev, ptr, size);
+        }
     }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);

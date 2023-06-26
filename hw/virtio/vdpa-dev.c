@@ -25,7 +25,6 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/virtio/virtio-access.h"
 #include "hw/virtio/vdpa-dev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
@@ -204,7 +203,7 @@ vhost_vdpa_device_set_config(VirtIODevice *vdev, const uint8_t *config)
     int ret;
 
     ret = vhost_dev_set_config(&s->dev, s->config, 0, s->config_size,
-                               VHOST_SET_CONFIG_TYPE_MASTER);
+                               VHOST_SET_CONFIG_TYPE_FRONTEND);
     if (ret) {
         error_report("set device config space failed");
         return;
