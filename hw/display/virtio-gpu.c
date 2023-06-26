@@ -24,7 +24,6 @@
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/display/edid.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -207,23 +206,6 @@ void virtio_gpu_get_display_info(VirtIOGPU *g,
                              sizeof(display_info));
 }
 
-static void
-virtio_gpu_generate_edid(VirtIOGPU *g, int scanout,
-                         struct virtio_gpu_resp_edid *edid)
-{
-    VirtIOGPUBase *b = VIRTIO_GPU_BASE(g);
-    qemu_edid_info info = {
-        .width_mm = b->req_state[scanout].width_mm,
-        .height_mm = b->req_state[scanout].height_mm,
-        .prefx = b->req_state[scanout].width,
-        .prefy = b->req_state[scanout].height,
-        .refresh_rate = b->req_state[scanout].refresh_rate,
-    };
-
-    edid->size = cpu_to_le32(sizeof(edid->edid));
-    qemu_edid_generate(edid->edid, sizeof(edid->edid), &info);
-}
-
 void virtio_gpu_get_edid(VirtIOGPU *g,
                          struct virtio_gpu_ctrl_command *cmd)
 {
@@ -242,7 +224,7 @@ void virtio_gpu_get_edid(VirtIOGPU *g,
     trace_virtio_gpu_cmd_get_edid(get_edid.scanout);
     memset(&edid, 0, sizeof(edid));
     edid.hdr.type = VIRTIO_GPU_RESP_OK_EDID;
-    virtio_gpu_generate_edid(g, get_edid.scanout, &edid);
+    virtio_gpu_base_generate_edid(VIRTIO_GPU_BASE(g), get_edid.scanout, &edid);
     virtio_gpu_ctrl_response(g, cmd, &edid.hdr, sizeof(edid));
 }
 

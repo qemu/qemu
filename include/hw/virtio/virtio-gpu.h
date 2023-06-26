@@ -242,6 +242,8 @@ void virtio_gpu_base_reset(VirtIOGPUBase *g);
 void virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
                         struct virtio_gpu_resp_display_info *dpy_info);
 
+void virtio_gpu_base_generate_edid(VirtIOGPUBase *g, int scanout,
+                                   struct virtio_gpu_resp_edid *edid);
 /* virtio-gpu.c */
 void virtio_gpu_ctrl_response(VirtIOGPU *g,
                               struct virtio_gpu_ctrl_command *cmd,
