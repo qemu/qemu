@@ -303,6 +303,53 @@ vg_get_display_info(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
     cmd->state = VG_CMD_STATE_PENDING;
 }
 
+static gboolean
+get_edid_cb(gint fd, GIOCondition condition, gpointer user_data)
+{
+    struct virtio_gpu_resp_edid resp_edid;
+    VuGpu *vg = user_data;
+    struct virtio_gpu_ctrl_command *cmd = QTAILQ_LAST(&vg->fenceq);
+
+    g_debug("get edid cb");
+    assert(cmd->cmd_hdr.type == VIRTIO_GPU_CMD_GET_EDID);
+    if (!vg_recv_msg(vg, VHOST_USER_GPU_GET_EDID,
+                     sizeof(resp_edid), &resp_edid)) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    QTAILQ_REMOVE(&vg->fenceq, cmd, next);
+    vg_ctrl_response(vg, cmd, &resp_edid.hdr, sizeof(resp_edid));
+
+    vg->wait_in = 0;
+    vg_handle_ctrl(&vg->dev.parent, 0);
+
+    return G_SOURCE_REMOVE;
+}
+
+void
+vg_get_edid(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virtio_gpu_cmd_get_edid get_edid;
+
+    VUGPU_FILL_CMD(get_edid);
+    virtio_gpu_bswap_32(&get_edid, sizeof(get_edid));
+
+    VhostUserGpuMsg msg = {
+        .request = VHOST_USER_GPU_GET_EDID,
+        .size = sizeof(VhostUserGpuEdidRequest),
+        .payload.edid_req = {
+                .scanout_id = get_edid.scanout,
+        },
+    };
+
+    assert(vg->wait_in == 0);
+
+    vg_send_msg(vg, &msg, -1);
+    vg->wait_in = g_unix_fd_add(vg->sock_fd, G_IO_IN | G_IO_HUP,
+                               get_edid_cb, vg);
+    cmd->state = VG_CMD_STATE_PENDING;
+}
+
 static void
 vg_resource_create_2d(VuGpu *g,
                       struct virtio_gpu_ctrl_command *cmd)
@@ -837,8 +884,9 @@ vg_process_cmd(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
     case VIRTIO_GPU_CMD_RESOURCE_DETACH_BACKING:
         vg_resource_detach_backing(vg, cmd);
         break;
-    /* case VIRTIO_GPU_CMD_GET_EDID: */
-    /*     break */
+    case VIRTIO_GPU_CMD_GET_EDID:
+        vg_get_edid(vg, cmd);
+        break;
     default:
         g_warning("TODO handle ctrl %x\n", cmd->cmd_hdr.type);
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
@@ -1022,25 +1070,35 @@ vg_queue_set_started(VuDev *dev, int qidx, bool started)
 static gboolean
 protocol_features_cb(gint fd, GIOCondition condition, gpointer user_data)
 {
+    const uint64_t protocol_edid = (1 << VHOST_USER_GPU_PROTOCOL_F_EDID);
     VuGpu *g = user_data;
-    uint64_t u64;
+    uint64_t protocol_features;
     VhostUserGpuMsg msg = {
         .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES
     };
 
-    if (!vg_recv_msg(g, msg.request, sizeof(u64), &u64)) {
+    if (!vg_recv_msg(g, msg.request,
+                     sizeof(protocol_features), &protocol_features)) {
         return G_SOURCE_CONTINUE;
     }
+
+    protocol_features &= protocol_edid;
 
     msg = (VhostUserGpuMsg) {
         .request = VHOST_USER_GPU_SET_PROTOCOL_FEATURES,
         .size = sizeof(uint64_t),
-        .payload.u64 = 0
+        .payload.u64 = protocol_features,
     };
     vg_send_msg(g, &msg, -1);
 
     g->wait_in = 0;
     vg_handle_ctrl(&g->dev.parent, 0);
+
+    if (g->edid_inited && !(protocol_features & protocol_edid)) {
+        g_printerr("EDID feature set by the frontend but it does not support "
+                   "the EDID vhost-user-gpu protocol.\n");
+        exit(EXIT_FAILURE);
+    }
 
     return G_SOURCE_REMOVE;
 }
@@ -1049,7 +1107,7 @@ static void
 set_gpu_protocol_features(VuGpu *g)
 {
     VhostUserGpuMsg msg = {
-        .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES
+        .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES,
     };
 
     vg_send_msg(g, &msg, -1);
@@ -1086,6 +1144,7 @@ vg_get_features(VuDev *dev)
     if (opt_virgl) {
         features |= 1 << VIRTIO_GPU_F_VIRGL;
     }
+    features |= 1 << VIRTIO_GPU_F_EDID;
 
     return features;
 }
@@ -1102,6 +1161,8 @@ vg_set_features(VuDev *dev, uint64_t features)
         }
         g->virgl_inited = true;
     }
+
+    g->edid_inited = !!(features & (1 << VIRTIO_GPU_F_EDID));
 
     g->virgl = virgl;
 }
