@@ -501,6 +501,17 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
     return count;
 }
 
+static uint32_t pnv_xive2_presenter_get_config(XivePresenter *xptr)
+{
+    PnvXive2 *xive = PNV_XIVE2(xptr);
+    uint32_t cfg = 0;
+
+    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS) {
+        cfg |= XIVE_PRESENTER_GEN1_TIMA_OS;
+    }
+    return cfg;
+}
+
 static uint8_t pnv_xive2_get_block_id(Xive2Router *xrtr)
 {
     return pnv_xive2_block_id(PNV_XIVE2(xrtr));
@@ -1645,17 +1656,6 @@ static const MemoryRegionOps pnv_xive2_ic_tm_indirect_ops = {
 /*
  * TIMA ops
  */
-
-/*
- * Special TIMA offsets to handle accesses in a POWER10 way.
- *
- * Only the CAM line updates done by the hypervisor should be handled
- * specifically.
- */
-#define HV_PAGE_OFFSET         (XIVE_TM_HV_PAGE << TM_SHIFT)
-#define HV_PUSH_OS_CTX_OFFSET  (HV_PAGE_OFFSET | (TM_QW1_OS + TM_WORD2))
-#define HV_PULL_OS_CTX_OFFSET  (HV_PAGE_OFFSET | TM_SPC_PULL_OS_CTX)
-
 static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
@@ -1663,18 +1663,7 @@ static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
     PnvXive2 *xive = pnv_xive2_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
-    bool gen1_tima_os =
-        xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
-    offset &= TM_ADDRESS_MASK;
-
-    /* TODO: should we switch the TM ops table instead ? */
-    if (!gen1_tima_os && offset == HV_PUSH_OS_CTX_OFFSET) {
-        xive2_tm_push_os_ctx(xptr, tctx, offset, value, size);
-        return;
-    }
-
-    /* Other TM ops are the same as XIVE1 */
     xive_tctx_tm_write(xptr, tctx, offset, value, size);
 }
 
@@ -1684,17 +1673,7 @@ static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
     PnvXive2 *xive = pnv_xive2_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
-    bool gen1_tima_os =
-        xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
-    offset &= TM_ADDRESS_MASK;
-
-    /* TODO: should we switch the TM ops table instead ? */
-    if (!gen1_tima_os && offset == HV_PULL_OS_CTX_OFFSET) {
-        return xive2_tm_pull_os_ctx(xptr, tctx, offset, size);
-    }
-
-    /* Other TM ops are the same as XIVE1 */
     return xive_tctx_tm_read(xptr, tctx, offset, size);
 }
 
@@ -1987,6 +1966,7 @@ static void pnv_xive2_class_init(ObjectClass *klass, void *data)
     xnc->notify    = pnv_xive2_notify;
 
     xpc->match_nvt  = pnv_xive2_match_nvt;
+    xpc->get_config = pnv_xive2_presenter_get_config;
 };
 
 static const TypeInfo pnv_xive2_info = {

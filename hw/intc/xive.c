@@ -20,6 +20,7 @@
 #include "monitor/monitor.h"
 #include "hw/irq.h"
 #include "hw/ppc/xive.h"
+#include "hw/ppc/xive2.h"
 #include "hw/ppc/xive_regs.h"
 #include "trace.h"
 
@@ -461,6 +462,13 @@ static void xive_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     }
 }
 
+static uint32_t xive_presenter_get_config(XivePresenter *xptr)
+{
+    XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
+
+    return xpc->get_config(xptr);
+}
+
 /*
  * Define a mapping of "special" operations depending on the TIMA page
  * offset and the size of the operation.
@@ -497,14 +505,47 @@ static const XiveTmOp xive_tm_operations[] = {
     { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  8, NULL, xive_tm_pull_pool_ctx },
 };
 
-static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
+static const XiveTmOp xive2_tm_operations[] = {
+    /*
+     * MMIOs below 2K : raw values and special operations without side
+     * effects
+     */
+    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,   1, xive_tm_set_os_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,  4, xive2_tm_push_os_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR, 1, xive_tm_set_hv_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, xive_tm_vt_push, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, NULL, xive_tm_vt_poll },
+
+    /* MMIOs above 2K : special operations with side effects */
+    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,     2, NULL, xive_tm_ack_os_reg },
+    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING, 1, xive_tm_set_os_pending, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,    4, NULL, xive2_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,    8, NULL, xive2_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,     2, NULL, xive_tm_ack_hv_reg },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  4, NULL, xive_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  8, NULL, xive_tm_pull_pool_ctx },
+};
+
+static const XiveTmOp *xive_tm_find_op(XivePresenter *xptr, hwaddr offset,
+                                       unsigned size, bool write)
 {
     uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
     uint32_t op_offset = offset & TM_ADDRESS_MASK;
-    int i;
+    const XiveTmOp *tm_ops;
+    int i, tm_ops_count;
+    uint32_t cfg;
 
-    for (i = 0; i < ARRAY_SIZE(xive_tm_operations); i++) {
-        const XiveTmOp *xto = &xive_tm_operations[i];
+    cfg = xive_presenter_get_config(xptr);
+    if (cfg & XIVE_PRESENTER_GEN1_TIMA_OS) {
+        tm_ops = xive_tm_operations;
+        tm_ops_count = ARRAY_SIZE(xive_tm_operations);
+    } else {
+        tm_ops = xive2_tm_operations;
+        tm_ops_count = ARRAY_SIZE(xive2_tm_operations);
+    }
+
+    for (i = 0; i < tm_ops_count; i++) {
+        const XiveTmOp *xto = &tm_ops[i];
 
         /* Accesses done from a more privileged TIMA page is allowed */
         if (xto->page_offset >= page_offset &&
@@ -535,7 +576,7 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
      * First, check for special operations in the 2K region
      */
     if (offset & TM_SPECIAL_OP) {
-        xto = xive_tm_find_op(offset, size, true);
+        xto = xive_tm_find_op(tctx->xptr, offset, size, true);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA "
                           "@%"HWADDR_PRIx"\n", offset);
@@ -548,7 +589,7 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * Then, for special operations in the region below 2K.
      */
-    xto = xive_tm_find_op(offset, size, true);
+    xto = xive_tm_find_op(tctx->xptr, offset, size, true);
     if (xto) {
         xto->write_handler(xptr, tctx, offset, value, size);
         return;
@@ -574,7 +615,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
      * First, check for special operations in the 2K region
      */
     if (offset & TM_SPECIAL_OP) {
-        xto = xive_tm_find_op(offset, size, false);
+        xto = xive_tm_find_op(tctx->xptr, offset, size, false);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access to TIMA"
                           "@%"HWADDR_PRIx"\n", offset);
@@ -587,7 +628,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * Then, for special operations in the region below 2K.
      */
-    xto = xive_tm_find_op(offset, size, false);
+    xto = xive_tm_find_op(tctx->xptr, offset, size, false);
     if (xto) {
         ret = xto->read_handler(xptr, tctx, offset, size);
         goto out;

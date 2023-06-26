@@ -234,6 +234,28 @@ struct opc_handler_t {
     void (*handler)(DisasContext *ctx);
 };
 
+static inline bool gen_serialize(DisasContext *ctx)
+{
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
+    return true;
+}
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+static inline bool gen_serialize_core(DisasContext *ctx)
+{
+    if (ctx->flags & POWERPC_FLAG_SMT) {
+        return gen_serialize(ctx);
+    }
+
+    return true;
+}
+#endif
+
 /* SPR load/store helpers */
 static inline void gen_load_spr(TCGv t, int reg)
 {
@@ -416,9 +438,32 @@ void spr_write_generic32(DisasContext *ctx, int sprn, int gprn)
 #endif
 }
 
+static void spr_write_CTRL_ST(DisasContext *ctx, int sprn, int gprn)
+{
+    /* This does not implement >1 thread */
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    tcg_gen_extract_tl(t0, cpu_gpr[gprn], 0, 1); /* Extract RUN field */
+    tcg_gen_shli_tl(t1, t0, 8); /* Duplicate the bit in TS */
+    tcg_gen_or_tl(t1, t1, t0);
+    gen_store_spr(sprn, t1);
+}
+
 void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
 {
-    spr_write_generic32(ctx, sprn, gprn);
+    if (!(ctx->flags & POWERPC_FLAG_SMT)) {
+        spr_write_CTRL_ST(ctx, sprn, gprn);
+        goto out;
+    }
+
+    if (!gen_serialize(ctx)) {
+        return;
+    }
+
+    gen_helper_spr_write_CTRL(cpu_env, tcg_constant_i32(sprn),
+                              cpu_gpr[gprn]);
+out:
+    spr_store_dump_spr(sprn);
 
     /*
      * SPR_CTRL writes must force a new translation block,
@@ -770,11 +815,19 @@ void spr_write_pcr(DisasContext *ctx, int sprn, int gprn)
 /* DPDES */
 void spr_read_dpdes(DisasContext *ctx, int gprn, int sprn)
 {
+    if (!gen_serialize_core(ctx)) {
+        return;
+    }
+
     gen_helper_load_dpdes(cpu_gpr[gprn], cpu_env);
 }
 
 void spr_write_dpdes(DisasContext *ctx, int sprn, int gprn)
 {
+    if (!gen_serialize_core(ctx)) {
+        return;
+    }
+
     gen_helper_store_dpdes(cpu_env, cpu_gpr[gprn]);
 }
 #endif
@@ -4422,7 +4475,12 @@ static void gen_sc(DisasContext *ctx)
 {
     uint32_t lev;
 
-    lev = (ctx->opcode >> 5) & 0x7F;
+    /*
+     * LEV is a 7-bit field, but the top 6 bits are treated as a reserved
+     * field (i.e., ignored). ISA v3.1 changes that to 5 bits, but that is
+     * for Ultravisor which TCG does not support, so just ignore the top 6.
+     */
+    lev = (ctx->opcode >> 5) & 0x1;
     gen_exception_err(ctx, POWERPC_SYSCALL, lev);
 }
 

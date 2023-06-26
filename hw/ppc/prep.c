@@ -45,7 +45,6 @@
 #include "trace.h"
 #include "elf.h"
 #include "qemu/units.h"
-#include "kvm_ppc.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -245,6 +244,12 @@ static void ibm_40p_init(MachineState *machine)
     long kernel_size = 0, initrd_size = 0;
     char boot_device;
 
+    if (kvm_enabled()) {
+        error_report("machine %s does not support the KVM accelerator",
+                     MACHINE_GET_CLASS(machine)->name);
+        exit(EXIT_FAILURE);
+    }
+
     /* init CPU */
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -392,18 +397,7 @@ static void ibm_40p_init(MachineState *machine)
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
 
-    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_IS_KVM, kvm_enabled());
-    if (kvm_enabled()) {
-        uint8_t *hypercall;
-
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
-        hypercall = g_malloc(16);
-        kvmppc_get_hypercall(env, hypercall, 16);
-        fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
-    } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, NANOSECONDS_PER_SECOND);
-    }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, NANOSECONDS_PER_SECOND);
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, boot_device);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 

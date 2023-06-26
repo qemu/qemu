@@ -61,6 +61,7 @@
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_nested.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/vof.h"
 #include "hw/qdev-properties.h"
@@ -2524,10 +2525,19 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
     int ret;
     unsigned int smp_threads = ms->smp.threads;
 
-    if (!kvm_enabled() && (smp_threads > 1)) {
-        error_setg(errp, "TCG cannot support more than 1 thread/core "
-                   "on a pseries machine");
-        return;
+    if (tcg_enabled()) {
+        if (smp_threads > 1 &&
+            !ppc_type_check_compat(ms->cpu_type, CPU_POWERPC_LOGICAL_2_07, 0,
+                                   spapr->max_compat_pvr)) {
+            error_setg(errp, "TCG only supports SMT on POWER8 or newer CPUs");
+            return;
+        }
+
+        if (smp_threads > 8) {
+            error_setg(errp, "TCG cannot support more than 8 threads/core "
+                       "on a pseries machine");
+            return;
+        }
     }
     if (!is_power_of_2(smp_threads)) {
         error_setg(errp, "Cannot support %d threads/core on a pseries "

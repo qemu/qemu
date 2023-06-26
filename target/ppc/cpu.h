@@ -672,6 +672,8 @@ enum {
     POWERPC_FLAG_TM       = 0x00100000,
     /* Has SCV (ISA 3.00)                                                    */
     POWERPC_FLAG_SCV      = 0x00200000,
+    /* Has >1 thread per core                                                */
+    POWERPC_FLAG_SMT      = 0x00400000,
 };
 
 /*
@@ -1268,6 +1270,13 @@ struct CPUArchState {
     uint64_t pmu_base_time;
 };
 
+#define _CORE_ID(cs)                                            \
+    (POWERPC_CPU(cs)->env.spr_cb[SPR_PIR].default_value & ~(cs->nr_threads - 1))
+
+#define THREAD_SIBLING_FOREACH(cs, cs_sibling)                  \
+    CPU_FOREACH(cs_sibling)                                     \
+        if (_CORE_ID(cs) == _CORE_ID(cs_sibling))
+
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
 do {                                            \
     env->fit_period[0] = (a_);                  \
@@ -1647,6 +1656,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_HMER              (0x150)
 #define SPR_HMEER             (0x151)
 #define SPR_PCR               (0x152)
+#define SPR_HEIR              (0x153)
 #define SPR_BOOKE_LPIDR       (0x152)
 #define SPR_BOOKE_TCR         (0x154)
 #define SPR_BOOKE_TLB0PS      (0x158)

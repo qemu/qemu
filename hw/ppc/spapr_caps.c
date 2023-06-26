@@ -473,6 +473,20 @@ static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
                 error_append_hint(errp,
                                   "Try appending -machine cap-nested-hv=off\n");
         }
+    } else if (tcg_enabled()) {
+        MachineState *ms = MACHINE(spapr);
+        unsigned int smp_threads = ms->smp.threads;
+
+        /*
+         * Nested-HV vCPU env state to L2, so SMT-shared SPR updates, for
+         * example, do not necessarily update the correct SPR value on sibling
+         * threads that are in a different guest/host context.
+         */
+        if (smp_threads > 1) {
+            error_setg(errp, "TCG does not support nested-HV with SMT");
+            error_append_hint(errp, "Try appending -machine cap-nested-hv=off "
+                                    "or use threads=1 with -smp\n");
+        }
     }
 }
 

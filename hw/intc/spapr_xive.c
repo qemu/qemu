@@ -475,6 +475,21 @@ static int spapr_xive_match_nvt(XivePresenter *xptr, uint8_t format,
     return count;
 }
 
+static uint32_t spapr_xive_presenter_get_config(XivePresenter *xptr)
+{
+    uint32_t cfg = 0;
+
+    /*
+     * Let's claim GEN1 TIMA format. If running with KVM on P10, the
+     * correct answer is deep in the hardware and not accessible to
+     * us.  But it shouldn't matter as it only affects the presenter
+     * as seen by a guest OS.
+     */
+    cfg |= XIVE_PRESENTER_GEN1_TIMA_OS;
+
+    return cfg;
+}
+
 static uint8_t spapr_xive_get_block_id(XiveRouter *xrtr)
 {
     return SPAPR_XIVE_BLOCK_ID;
@@ -832,6 +847,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->post_load = spapr_xive_post_load;
 
     xpc->match_nvt  = spapr_xive_match_nvt;
+    xpc->get_config = spapr_xive_presenter_get_config;
     xpc->in_kernel  = spapr_xive_in_kernel_xptr;
 }
 

@@ -43,6 +43,31 @@ void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
              env->spr[sprn]);
 }
 
+void helper_spr_write_CTRL(CPUPPCState *env, uint32_t sprn,
+                           target_ulong val)
+{
+    CPUState *cs = env_cpu(env);
+    CPUState *ccs;
+    uint32_t run = val & 1;
+    uint32_t ts, ts_mask;
+
+    assert(sprn == SPR_CTRL);
+
+    env->spr[sprn] &= ~1U;
+    env->spr[sprn] |= run;
+
+    ts_mask = ~(1U << (8 + env->spr[SPR_TIR]));
+    ts = run << (8 + env->spr[SPR_TIR]);
+
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        CPUPPCState *cenv = &POWERPC_CPU(ccs)->env;
+
+        cenv->spr[sprn] &= ts_mask;
+        cenv->spr[sprn] |= ts;
+    }
+}
+
+
 #ifdef TARGET_PPC64
 static void raise_hv_fu_exception(CPUPPCState *env, uint32_t bit,
                                   const char *caller, uint32_t cause,
@@ -159,14 +184,31 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
  */
 target_ulong helper_load_dpdes(CPUPPCState *env)
 {
+    CPUState *cs = env_cpu(env);
+    CPUState *ccs;
+    uint32_t nr_threads = cs->nr_threads;
     target_ulong dpdes = 0;
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "load DPDES", HFSCR_IC_MSGP);
 
-    /* TODO: TCG supports only one thread */
-    if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
-        dpdes = 1;
+    if (nr_threads == 1) {
+        if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
+            dpdes = 1;
+        }
+        return dpdes;
     }
+
+    qemu_mutex_lock_iothread();
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        PowerPCCPU *ccpu = POWERPC_CPU(ccs);
+        CPUPPCState *cenv = &ccpu->env;
+        uint32_t thread_id = ppc_cpu_tir(ccpu);
+
+        if (cenv->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
+            dpdes |= (0x1 << thread_id);
+        }
+    }
+    qemu_mutex_unlock_iothread();
 
     return dpdes;
 }
@@ -174,17 +216,32 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
 void helper_store_dpdes(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
+    CPUState *ccs;
+    uint32_t nr_threads = cs->nr_threads;
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "store DPDES", HFSCR_IC_MSGP);
 
-    /* TODO: TCG supports only one thread */
-    if (val & ~0x1) {
+    if (val & ~(nr_threads - 1)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid DPDES register value "
                       TARGET_FMT_lx"\n", val);
+        val &= (nr_threads - 1); /* Ignore the invalid bits */
+    }
+
+    if (nr_threads == 1) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, val & 0x1);
         return;
     }
 
-    ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, val & 0x1);
+    /* Does iothread need to be locked for walking CPU list? */
+    qemu_mutex_lock_iothread();
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        PowerPCCPU *ccpu = POWERPC_CPU(ccs);
+        uint32_t thread_id = ppc_cpu_tir(ccpu);
+
+        ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, val & (0x1 << thread_id));
+    }
+    qemu_mutex_unlock_iothread();
 }
 #endif /* defined(TARGET_PPC64) */
 
