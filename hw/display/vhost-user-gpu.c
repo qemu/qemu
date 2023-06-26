@@ -31,6 +31,7 @@ typedef enum VhostUserGpuRequest {
     VHOST_USER_GPU_UPDATE,
     VHOST_USER_GPU_DMABUF_SCANOUT,
     VHOST_USER_GPU_DMABUF_UPDATE,
+    VHOST_USER_GPU_GET_EDID,
 } VhostUserGpuRequest;
 
 typedef struct VhostUserGpuDisplayInfoReply {
@@ -78,6 +79,10 @@ typedef struct VhostUserGpuDMABUFScanout {
     int fd_drm_fourcc;
 } QEMU_PACKED VhostUserGpuDMABUFScanout;
 
+typedef struct VhostUserGpuEdidRequest {
+    uint32_t scanout_id;
+} QEMU_PACKED VhostUserGpuEdidRequest;
+
 typedef struct VhostUserGpuMsg {
     uint32_t request; /* VhostUserGpuRequest */
     uint32_t flags;
@@ -88,6 +93,8 @@ typedef struct VhostUserGpuMsg {
         VhostUserGpuScanout scanout;
         VhostUserGpuUpdate update;
         VhostUserGpuDMABUFScanout dmabuf_scanout;
+        VhostUserGpuEdidRequest edid_req;
+        struct virtio_gpu_resp_edid resp_edid;
         struct virtio_gpu_resp_display_info display_info;
         uint64_t u64;
     } payload;
@@ -98,6 +105,8 @@ static VhostUserGpuMsg m __attribute__ ((unused));
     (sizeof(m.request) + sizeof(m.size) + sizeof(m.flags))
 
 #define VHOST_USER_GPU_MSG_FLAG_REPLY 0x4
+
+#define VHOST_USER_GPU_PROTOCOL_F_EDID 0
 
 static void vhost_user_gpu_update_blocked(VhostUserGPU *g, bool blocked);
 
@@ -161,6 +170,9 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
             .request = msg->request,
             .flags = VHOST_USER_GPU_MSG_FLAG_REPLY,
             .size = sizeof(uint64_t),
+            .payload = {
+                .u64 = (1 << VHOST_USER_GPU_PROTOCOL_F_EDID)
+            }
         };
 
         vhost_user_gpu_send_msg(g, &reply);
@@ -181,6 +193,26 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         virtio_gpu_base_fill_display_info(VIRTIO_GPU_BASE(g), &display_info);
         memcpy(&reply.payload.display_info, &display_info,
                sizeof(display_info));
+        vhost_user_gpu_send_msg(g, &reply);
+        break;
+    }
+    case VHOST_USER_GPU_GET_EDID: {
+        VhostUserGpuEdidRequest *m = &msg->payload.edid_req;
+        struct virtio_gpu_resp_edid resp = { {} };
+        VhostUserGpuMsg reply = {
+            .request = msg->request,
+            .flags = VHOST_USER_GPU_MSG_FLAG_REPLY,
+            .size = sizeof(reply.payload.resp_edid),
+        };
+
+        if (m->scanout_id >= g->parent_obj.conf.max_outputs) {
+            error_report("invalid scanout: %d", m->scanout_id);
+            break;
+        }
+
+        resp.hdr.type = VIRTIO_GPU_RESP_OK_EDID;
+        virtio_gpu_base_generate_edid(VIRTIO_GPU_BASE(g), m->scanout_id, &resp);
+        memcpy(&reply.payload.resp_edid, &resp, sizeof(resp));
         vhost_user_gpu_send_msg(g, &reply);
         break;
     }
