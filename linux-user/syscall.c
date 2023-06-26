@@ -4539,14 +4539,14 @@ static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
 }
 #endif
 
-static inline abi_ulong do_shmat(CPUArchState *cpu_env,
-                                 int shmid, abi_ulong shmaddr, int shmflg)
+static abi_ulong do_shmat(CPUArchState *cpu_env, int shmid,
+                          abi_ulong shmaddr, int shmflg)
 {
     CPUState *cpu = env_cpu(cpu_env);
-    abi_long raddr;
+    abi_ulong raddr;
     void *host_raddr;
     struct shmid_ds shm_info;
-    int i,ret;
+    int i, ret;
     abi_ulong shmlba;
 
     /* shmat pointers are always untagged */
@@ -4602,9 +4602,9 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
 
     if (host_raddr == (void *)-1) {
         mmap_unlock();
-        return get_errno((long)host_raddr);
+        return get_errno((intptr_t)host_raddr);
     }
-    raddr=h2g((unsigned long)host_raddr);
+    raddr = h2g((uintptr_t)host_raddr);
 
     page_set_flags(raddr, raddr + shm_info.shm_segsz - 1,
                    PAGE_VALID | PAGE_RESET | PAGE_READ |
@@ -4621,7 +4621,6 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
 
     mmap_unlock();
     return raddr;
-
 }
 
 static inline abi_long do_shmdt(abi_ulong shmaddr)
