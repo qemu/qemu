@@ -26,7 +26,6 @@
 #include "tcg/helper-tcg.h"
 #include "../seg_helper.h"
 
-#ifdef TARGET_X86_64
 void helper_syscall(CPUX86State *env, int next_eip_addend)
 {
     int selector;
@@ -35,6 +34,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
         raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
     }
     selector = (env->star >> 32) & 0xffff;
+#ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
         int code64;
 
@@ -61,7 +61,9 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
         } else {
             env->eip = env->cstar;
         }
-    } else {
+    } else
+#endif
+    {
         env->regs[R_ECX] = (uint32_t)(env->eip + next_eip_addend);
 
         env->eflags &= ~(IF_MASK | RF_MASK | VM_MASK);
@@ -78,7 +80,6 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
         env->eip = (uint32_t)env->star;
     }
 }
-#endif /* TARGET_X86_64 */
 
 void handle_even_inj(CPUX86State *env, int intno, int is_int,
                      int error_code, int is_hw, int rm)
