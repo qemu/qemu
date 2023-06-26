@@ -15,3 +15,7 @@ bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 void vhost_user_cleanup(VhostUserState *user)
 {
 }
+
+void vhost_toggle_device_iotlb(VirtIODevice *vdev)
+{
+}
