@@ -93,7 +93,34 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset);
 
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
 
-#else
+#define kvmppc_eieio() \
+    do {                                          \
+        if (kvm_enabled()) {                          \
+            asm volatile("eieio" : : : "memory"); \
+        } \
+    } while (0)
+
+/* Store data cache blocks back to memory */
+static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.dcache_line_size) {
+        asm volatile("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+}
+
+/* Invalidate instruction cache blocks */
+static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.icache_line_size) {
+        asm volatile("icbi 0,%0" : : "r"(p));
+    }
+}
+
+#else /* !CONFIG_KVM */
 
 static inline uint32_t kvmppc_get_tbfreq(void)
 {
@@ -440,10 +467,6 @@ static inline bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
     return false;
 }
 
-#endif
-
-#ifndef CONFIG_KVM
-
 #define kvmppc_eieio() do { } while (0)
 
 static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
@@ -452,35 +475,6 @@ static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 
 static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 {
-}
-
-#else   /* CONFIG_KVM */
-
-#define kvmppc_eieio() \
-    do {                                          \
-        if (kvm_enabled()) {                          \
-            asm volatile("eieio" : : : "memory"); \
-        } \
-    } while (0)
-
-/* Store data cache blocks back to memory */
-static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
-{
-    uint8_t *p;
-
-    for (p = addr; p < addr + len; p += cpu->env.dcache_line_size) {
-        asm volatile("dcbst 0,%0" : : "r"(p) : "memory");
-    }
-}
-
-/* Invalidate instruction cache blocks */
-static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
-{
-    uint8_t *p;
-
-    for (p = addr; p < addr + len; p += cpu->env.icache_line_size) {
-        asm volatile("icbi 0,%0" : : "r"(p));
-    }
 }
 
 #endif  /* CONFIG_KVM */
