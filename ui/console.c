@@ -1898,6 +1898,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     static const char placeholder_msg[] = "Display output is not active.";
     DisplayState *s = con->ds;
     DisplaySurface *old_surface = con->surface;
+    DisplaySurface *new_surface = surface;
     DisplayChangeListener *dcl;
     int width;
     int height;
@@ -1911,19 +1912,19 @@ void dpy_gfx_replace_surface(QemuConsole *con,
             height = 480;
         }
 
-        surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
+        new_surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
     }
 
-    assert(old_surface != surface);
+    assert(old_surface != new_surface);
 
     con->scanout.kind = SCANOUT_SURFACE;
-    con->surface = surface;
-    dpy_gfx_create_texture(con, surface);
+    con->surface = new_surface;
+    dpy_gfx_create_texture(con, new_surface);
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (con != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
-        displaychangelistener_gfx_switch(dcl, surface, FALSE);
+        displaychangelistener_gfx_switch(dcl, new_surface, surface ? FALSE : TRUE);
     }
     dpy_gfx_destroy_texture(con, old_surface);
     qemu_free_displaysurface(old_surface);

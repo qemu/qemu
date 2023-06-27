@@ -1397,6 +1397,7 @@ void virtio_gpu_reset(VirtIODevice *vdev)
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
     struct virtio_gpu_ctrl_command *cmd;
+    int i = 0;
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
         virtio_gpu_resource_destroy(g, res);
@@ -1413,6 +1414,10 @@ void virtio_gpu_reset(VirtIODevice *vdev)
         QTAILQ_REMOVE(&g->fenceq, cmd, next);
         g->inflight--;
         g_free(cmd);
+    }
+
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
