@@ -19,7 +19,8 @@ _start:
     larl    %r15,stack + STACK_SIZE - STACK_FRAME_SIZE   /* Set up stack */
 
     /* clear bss */
-    larl    %r2,__bss_start
+    larl    %r2,bss_start_literal   /* __bss_start might be unaligned ... */
+    lg      %r2,0(%r2)              /* ... so load it indirectly */
     larl    %r3,_end
     slgr    %r3,%r2    /* get sizeof bss */
     ltgr    %r3,%r3    /* bss empty? */
@@ -44,7 +45,6 @@ done:
 
 memsetxc:
     xc      0(1,%r1),0(%r1)
-
 
 /*
  * void disabled_wait(void)
@@ -113,6 +113,8 @@ io_new_code:
     br      %r14
 
     .align  8
+bss_start_literal:
+    .quad   __bss_start
 disabled_wait_psw:
     .quad   0x0002000180000000,0x0000000000000000
 enabled_wait_psw:
