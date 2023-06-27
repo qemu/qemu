@@ -583,7 +583,12 @@ static void gd_gl_release_dmabuf(DisplayChangeListener *dcl,
                                  QemuDmaBuf *dmabuf)
 {
 #ifdef CONFIG_GBM
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
     egl_dmabuf_release_texture(dmabuf);
+    if (vc->gfx.guest_fb.dmabuf == dmabuf) {
+        vc->gfx.guest_fb.dmabuf = NULL;
+    }
 #endif
 }
 
