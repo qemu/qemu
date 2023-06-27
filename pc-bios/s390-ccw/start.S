@@ -121,3 +121,9 @@ external_new_mask:
     .quad   0x0000000180000000
 io_new_mask:
     .quad   0x0000000180000000
+
+.bss
+    .align  8
+stack:
+    .space  STACK_SIZE
+    .size   stack,STACK_SIZE
