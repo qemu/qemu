@@ -13,8 +13,6 @@
 #include "exec/hwaddr.h"
 #include "cpu.h"
 
-#define TYPE_HOST_POWERPC_CPU POWERPC_CPU_TYPE_NAME("host")
-
 #ifdef CONFIG_KVM
 
 uint32_t kvmppc_get_tbfreq(void);
