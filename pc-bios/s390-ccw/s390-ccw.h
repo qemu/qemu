@@ -17,10 +17,6 @@ typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
-typedef unsigned char      __u8;
-typedef unsigned short     __u16;
-typedef unsigned int       __u32;
-typedef unsigned long long __u64;
 
 #define true 1
 #define false 0
