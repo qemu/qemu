@@ -507,7 +507,12 @@ VHostNetState *get_vhost_net(NetClientState *nc)
     switch (nc->info->type) {
     case NET_CLIENT_DRIVER_TAP:
         vhost_net = tap_get_vhost_net(nc);
-        assert(vhost_net);
+        /*
+         * tap_get_vhost_net() can return NULL if a tap net-device backend is
+         * created with 'vhost=off' option, 'vhostforce=off' or no vhost or
+         * vhostforce or vhostfd options at all. Please see net_init_tap_one().
+         * Hence, we omit the assertion here.
+         */
         break;
 #ifdef CONFIG_VHOST_NET_USER
     case NET_CLIENT_DRIVER_VHOST_USER:
