@@ -4147,10 +4147,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0xff);
                                 tcg_gen_st32_tl(cpu_tmp0, cpu_env,
                                                 offsetof(CPUSPARCState, asi));
-                                /* End TB to notice changed ASI.  */
+                                /*
+                                 * End TB to notice changed ASI.
+                                 * TODO: Could notice src1 = %g0 and IS_IMM,
+                                 * update DisasContext and not exit the TB.
+                                 */
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(NULL, 0);
+                                tcg_gen_lookup_and_goto_ptr();
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0x6: /* V9 wrfprs */
