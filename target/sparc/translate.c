@@ -5058,7 +5058,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         gen_check_align(cpu_tmp0, 3);
                         gen_address_mask(dc, cpu_tmp0);
                         tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
-                        dc->npc = DYNAMIC_PC;
+                        dc->npc = DYNAMIC_PC_LOOKUP;
                     }
                     goto jmp_insn;
 #if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
