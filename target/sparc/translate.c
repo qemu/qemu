@@ -37,9 +37,12 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
-#define DYNAMIC_PC  1 /* dynamic pc value */
-#define JUMP_PC     2 /* dynamic pc value which takes only two values
-                         according to jump_pc[T2] */
+/* Dynamic PC, must exit to main loop. */
+#define DYNAMIC_PC         1
+/* Dynamic PC, one of two values according to jump_pc[T2]. */
+#define JUMP_PC            2
+/* Dynamic PC, may lookup next TB. */
+#define DYNAMIC_PC_LOOKUP  3
 
 #define DISAS_EXIT  DISAS_TARGET_0
 
@@ -125,7 +128,7 @@ static int sign_extend(int x, int len)
 
 #define IS_IMM (insn & (1<<13))
 
-static inline void gen_update_fprs_dirty(DisasContext *dc, int rd)
+static void gen_update_fprs_dirty(DisasContext *dc, int rd)
 {
 #if defined(TARGET_SPARC64)
     int bit = (rd < 32) ? 1 : 2;
@@ -264,7 +267,7 @@ static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 #endif
 #endif
 
-static inline void gen_address_mask(DisasContext *dc, TCGv addr)
+static void gen_address_mask(DisasContext *dc, TCGv addr)
 {
 #ifdef TARGET_SPARC64
     if (AM_CHECK(dc))
@@ -272,7 +275,7 @@ static inline void gen_address_mask(DisasContext *dc, TCGv addr)
 #endif
 }
 
-static inline TCGv gen_load_gpr(DisasContext *dc, int reg)
+static TCGv gen_load_gpr(DisasContext *dc, int reg)
 {
     if (reg > 0) {
         assert(reg < 32);
@@ -284,7 +287,7 @@ static inline TCGv gen_load_gpr(DisasContext *dc, int reg)
     }
 }
 
-static inline void gen_store_gpr(DisasContext *dc, int reg, TCGv v)
+static void gen_store_gpr(DisasContext *dc, int reg, TCGv v)
 {
     if (reg > 0) {
         assert(reg < 32);
@@ -292,7 +295,7 @@ static inline void gen_store_gpr(DisasContext *dc, int reg, TCGv v)
     }
 }
 
-static inline TCGv gen_dest_gpr(DisasContext *dc, int reg)
+static TCGv gen_dest_gpr(DisasContext *dc, int reg)
 {
     if (reg > 0) {
         assert(reg < 32);
@@ -318,39 +321,39 @@ static void gen_goto_tb(DisasContext *s, int tb_num,
         tcg_gen_movi_tl(cpu_npc, npc);
         tcg_gen_exit_tb(s->base.tb, tb_num);
     } else {
-        /* jump to another page: currently not optimized */
+        /* jump to another page: we can use an indirect jump */
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb(NULL, 0);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
 // XXX suboptimal
-static inline void gen_mov_reg_N(TCGv reg, TCGv_i32 src)
+static void gen_mov_reg_N(TCGv reg, TCGv_i32 src)
 {
     tcg_gen_extu_i32_tl(reg, src);
     tcg_gen_extract_tl(reg, reg, PSR_NEG_SHIFT, 1);
 }
 
-static inline void gen_mov_reg_Z(TCGv reg, TCGv_i32 src)
+static void gen_mov_reg_Z(TCGv reg, TCGv_i32 src)
 {
     tcg_gen_extu_i32_tl(reg, src);
     tcg_gen_extract_tl(reg, reg, PSR_ZERO_SHIFT, 1);
 }
 
-static inline void gen_mov_reg_V(TCGv reg, TCGv_i32 src)
+static void gen_mov_reg_V(TCGv reg, TCGv_i32 src)
 {
     tcg_gen_extu_i32_tl(reg, src);
     tcg_gen_extract_tl(reg, reg, PSR_OVF_SHIFT, 1);
 }
 
-static inline void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
+static void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
 {
     tcg_gen_extu_i32_tl(reg, src);
     tcg_gen_extract_tl(reg, reg, PSR_CARRY_SHIFT, 1);
 }
 
-static inline void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
+static void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
@@ -465,7 +468,7 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     }
 }
 
-static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
+static void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
@@ -538,7 +541,7 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     }
 }
 
-static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
+static void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
 {
     TCGv r_temp, zero, t0;
 
@@ -577,7 +580,7 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
-static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
+static void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
 {
 #if TARGET_LONG_BITS == 32
     if (sign_ext) {
@@ -602,32 +605,32 @@ static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
 #endif
 }
 
-static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
+static void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
 {
     /* zero-extend truncated operands before multiplication */
     gen_op_multiply(dst, src1, src2, 0);
 }
 
-static inline void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
+static void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
 {
     /* sign-extend truncated operands before multiplication */
     gen_op_multiply(dst, src1, src2, 1);
 }
 
 // 1
-static inline void gen_op_eval_ba(TCGv dst)
+static void gen_op_eval_ba(TCGv dst)
 {
     tcg_gen_movi_tl(dst, 1);
 }
 
 // Z
-static inline void gen_op_eval_be(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_be(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_Z(dst, src);
 }
 
 // Z | (N ^ V)
-static inline void gen_op_eval_ble(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_ble(TCGv dst, TCGv_i32 src)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_N(t0, src);
@@ -638,7 +641,7 @@ static inline void gen_op_eval_ble(TCGv dst, TCGv_i32 src)
 }
 
 // N ^ V
-static inline void gen_op_eval_bl(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bl(TCGv dst, TCGv_i32 src)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_V(t0, src);
@@ -647,7 +650,7 @@ static inline void gen_op_eval_bl(TCGv dst, TCGv_i32 src)
 }
 
 // C | Z
-static inline void gen_op_eval_bleu(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bleu(TCGv dst, TCGv_i32 src)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_Z(t0, src);
@@ -656,73 +659,73 @@ static inline void gen_op_eval_bleu(TCGv dst, TCGv_i32 src)
 }
 
 // C
-static inline void gen_op_eval_bcs(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bcs(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_C(dst, src);
 }
 
 // V
-static inline void gen_op_eval_bvs(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bvs(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_V(dst, src);
 }
 
 // 0
-static inline void gen_op_eval_bn(TCGv dst)
+static void gen_op_eval_bn(TCGv dst)
 {
     tcg_gen_movi_tl(dst, 0);
 }
 
 // N
-static inline void gen_op_eval_bneg(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bneg(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_N(dst, src);
 }
 
 // !Z
-static inline void gen_op_eval_bne(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bne(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_Z(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !(Z | (N ^ V))
-static inline void gen_op_eval_bg(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bg(TCGv dst, TCGv_i32 src)
 {
     gen_op_eval_ble(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !(N ^ V)
-static inline void gen_op_eval_bge(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bge(TCGv dst, TCGv_i32 src)
 {
     gen_op_eval_bl(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !(C | Z)
-static inline void gen_op_eval_bgu(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bgu(TCGv dst, TCGv_i32 src)
 {
     gen_op_eval_bleu(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !C
-static inline void gen_op_eval_bcc(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bcc(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_C(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !N
-static inline void gen_op_eval_bpos(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bpos(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_N(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !V
-static inline void gen_op_eval_bvc(TCGv dst, TCGv_i32 src)
+static void gen_op_eval_bvc(TCGv dst, TCGv_i32 src)
 {
     gen_mov_reg_V(dst, src);
     tcg_gen_xori_tl(dst, dst, 0x1);
@@ -735,23 +738,21 @@ static inline void gen_op_eval_bvc(TCGv dst, TCGv_i32 src)
    2 >
    3 unordered
 */
-static inline void gen_mov_reg_FCC0(TCGv reg, TCGv src,
+static void gen_mov_reg_FCC0(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
     tcg_gen_shri_tl(reg, src, FSR_FCC0_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
-static inline void gen_mov_reg_FCC1(TCGv reg, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_mov_reg_FCC1(TCGv reg, TCGv src, unsigned int fcc_offset)
 {
     tcg_gen_shri_tl(reg, src, FSR_FCC1_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
 // !0: FCC0 | FCC1
-static inline void gen_op_eval_fbne(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbne(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -760,8 +761,7 @@ static inline void gen_op_eval_fbne(TCGv dst, TCGv src,
 }
 
 // 1 or 2: FCC0 ^ FCC1
-static inline void gen_op_eval_fblg(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fblg(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -770,15 +770,13 @@ static inline void gen_op_eval_fblg(TCGv dst, TCGv src,
 }
 
 // 1 or 3: FCC0
-static inline void gen_op_eval_fbul(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbul(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     gen_mov_reg_FCC0(dst, src, fcc_offset);
 }
 
 // 1: FCC0 & !FCC1
-static inline void gen_op_eval_fbl(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbl(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -787,15 +785,13 @@ static inline void gen_op_eval_fbl(TCGv dst, TCGv src,
 }
 
 // 2 or 3: FCC1
-static inline void gen_op_eval_fbug(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbug(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     gen_mov_reg_FCC1(dst, src, fcc_offset);
 }
 
 // 2: !FCC0 & FCC1
-static inline void gen_op_eval_fbg(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbg(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -804,8 +800,7 @@ static inline void gen_op_eval_fbg(TCGv dst, TCGv src,
 }
 
 // 3: FCC0 & FCC1
-static inline void gen_op_eval_fbu(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbu(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -814,8 +809,7 @@ static inline void gen_op_eval_fbu(TCGv dst, TCGv src,
 }
 
 // 0: !(FCC0 | FCC1)
-static inline void gen_op_eval_fbe(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbe(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -825,8 +819,7 @@ static inline void gen_op_eval_fbe(TCGv dst, TCGv src,
 }
 
 // 0 or 3: !(FCC0 ^ FCC1)
-static inline void gen_op_eval_fbue(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbue(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -836,16 +829,14 @@ static inline void gen_op_eval_fbue(TCGv dst, TCGv src,
 }
 
 // 0 or 2: !FCC0
-static inline void gen_op_eval_fbge(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbge(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     gen_mov_reg_FCC0(dst, src, fcc_offset);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !1: !(FCC0 & !FCC1)
-static inline void gen_op_eval_fbuge(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbuge(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -855,16 +846,14 @@ static inline void gen_op_eval_fbuge(TCGv dst, TCGv src,
 }
 
 // 0 or 1: !FCC1
-static inline void gen_op_eval_fble(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fble(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     gen_mov_reg_FCC1(dst, src, fcc_offset);
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 // !2: !(!FCC0 & FCC1)
-static inline void gen_op_eval_fbule(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbule(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -874,8 +863,7 @@ static inline void gen_op_eval_fbule(TCGv dst, TCGv src,
 }
 
 // !3: !(FCC0 & FCC1)
-static inline void gen_op_eval_fbo(TCGv dst, TCGv src,
-                                    unsigned int fcc_offset)
+static void gen_op_eval_fbo(TCGv dst, TCGv src, unsigned int fcc_offset)
 {
     TCGv t0 = tcg_temp_new();
     gen_mov_reg_FCC0(dst, src, fcc_offset);
@@ -884,8 +872,8 @@ static inline void gen_op_eval_fbo(TCGv dst, TCGv src,
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
-static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
-                               target_ulong pc2, TCGv r_cond)
+static void gen_branch2(DisasContext *dc, target_ulong pc1,
+                        target_ulong pc2, TCGv r_cond)
 {
     TCGLabel *l1 = gen_new_label();
 
@@ -916,26 +904,29 @@ static void gen_branch_n(DisasContext *dc, target_ulong pc1)
 {
     target_ulong npc = dc->npc;
 
-    if (likely(npc != DYNAMIC_PC)) {
+    if (npc & 3) {
+        switch (npc) {
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
+            tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc,
+                               cpu_cond, tcg_constant_tl(0),
+                               tcg_constant_tl(pc1), cpu_npc);
+            dc->pc = npc;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
         dc->pc = npc;
         dc->jump_pc[0] = pc1;
         dc->jump_pc[1] = npc + 4;
         dc->npc = JUMP_PC;
-    } else {
-        TCGv t, z;
-
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-
-        tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
-        t = tcg_constant_tl(pc1);
-        z = tcg_constant_tl(0);
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, z, t, cpu_npc);
-
-        dc->pc = DYNAMIC_PC;
     }
 }
 
-static inline void gen_generic_branch(DisasContext *dc)
+static void gen_generic_branch(DisasContext *dc)
 {
     TCGv npc0 = tcg_constant_tl(dc->jump_pc[0]);
     TCGv npc1 = tcg_constant_tl(dc->jump_pc[1]);
@@ -946,25 +937,34 @@ static inline void gen_generic_branch(DisasContext *dc)
 
 /* call this function before using the condition register as it may
    have been set for a jump */
-static inline void flush_cond(DisasContext *dc)
+static void flush_cond(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
         gen_generic_branch(dc);
-        dc->npc = DYNAMIC_PC;
+        dc->npc = DYNAMIC_PC_LOOKUP;
     }
 }
 
-static inline void save_npc(DisasContext *dc)
+static void save_npc(DisasContext *dc)
 {
-    if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc);
-        dc->npc = DYNAMIC_PC;
-    } else if (dc->npc != DYNAMIC_PC) {
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case JUMP_PC:
+            gen_generic_branch(dc);
+            dc->npc = DYNAMIC_PC_LOOKUP;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
         tcg_gen_movi_tl(cpu_npc, dc->npc);
     }
 }
 
-static inline void update_psr(DisasContext *dc)
+static void update_psr(DisasContext *dc)
 {
     if (dc->cc_op != CC_OP_FLAGS) {
         dc->cc_op = CC_OP_FLAGS;
@@ -972,7 +972,7 @@ static inline void update_psr(DisasContext *dc)
     }
 }
 
-static inline void save_state(DisasContext *dc)
+static void save_state(DisasContext *dc)
 {
     tcg_gen_movi_tl(cpu_pc, dc->pc);
     save_npc(dc);
@@ -990,21 +990,29 @@ static void gen_check_align(TCGv addr, int mask)
     gen_helper_check_align(cpu_env, addr, tcg_constant_i32(mask));
 }
 
-static inline void gen_mov_pc_npc(DisasContext *dc)
+static void gen_mov_pc_npc(DisasContext *dc)
 {
-    if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc);
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-        dc->pc = DYNAMIC_PC;
-    } else if (dc->npc == DYNAMIC_PC) {
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-        dc->pc = DYNAMIC_PC;
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case JUMP_PC:
+            gen_generic_branch(dc);
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            dc->pc = DYNAMIC_PC_LOOKUP;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            dc->pc = dc->npc;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
         dc->pc = dc->npc;
     }
 }
 
-static inline void gen_op_next_insn(void)
+static void gen_op_next_insn(void)
 {
     tcg_gen_mov_tl(cpu_pc, cpu_npc);
     tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
@@ -1305,7 +1313,7 @@ static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
     cmp->c2 = tcg_constant_tl(0);
 }
 
-static inline void gen_cond_reg(TCGv r_dst, int cond, TCGv r_src)
+static void gen_cond_reg(TCGv r_dst, int cond, TCGv r_src)
 {
     DisasCompare cmp;
     gen_compare_reg(&cmp, cond, r_src);
@@ -1414,7 +1422,7 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     }
 }
 
-static inline void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
+static void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
@@ -1432,7 +1440,7 @@ static inline void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
     }
 }
 
-static inline void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
+static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     switch (fccno) {
     case 0:
@@ -1450,7 +1458,7 @@ static inline void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     }
 }
 
-static inline void gen_op_fcmpq(int fccno)
+static void gen_op_fcmpq(int fccno)
 {
     switch (fccno) {
     case 0:
@@ -1468,7 +1476,7 @@ static inline void gen_op_fcmpq(int fccno)
     }
 }
 
-static inline void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
+static void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
@@ -1486,7 +1494,7 @@ static inline void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
     }
 }
 
-static inline void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
+static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     switch (fccno) {
     case 0:
@@ -1504,7 +1512,7 @@ static inline void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     }
 }
 
-static inline void gen_op_fcmpeq(int fccno)
+static void gen_op_fcmpeq(int fccno)
 {
     switch (fccno) {
     case 0:
@@ -1524,32 +1532,32 @@ static inline void gen_op_fcmpeq(int fccno)
 
 #else
 
-static inline void gen_op_fcmps(int fccno, TCGv r_rs1, TCGv r_rs2)
+static void gen_op_fcmps(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
     gen_helper_fcmps(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
-static inline void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
+static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     gen_helper_fcmpd(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
-static inline void gen_op_fcmpq(int fccno)
+static void gen_op_fcmpq(int fccno)
 {
     gen_helper_fcmpq(cpu_fsr, cpu_env);
 }
 
-static inline void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
+static void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
     gen_helper_fcmpes(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
-static inline void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
+static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     gen_helper_fcmped(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
-static inline void gen_op_fcmpeq(int fccno)
+static void gen_op_fcmpeq(int fccno)
 {
     gen_helper_fcmpeq(cpu_fsr, cpu_env);
 }
@@ -1573,12 +1581,12 @@ static int gen_trap_ifnofpu(DisasContext *dc)
     return 0;
 }
 
-static inline void gen_op_clear_ieee_excp_and_FTT(void)
+static void gen_op_clear_ieee_excp_and_FTT(void)
 {
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_CEXC_NMASK);
 }
 
-static inline void gen_fop_FF(DisasContext *dc, int rd, int rs,
+static void gen_fop_FF(DisasContext *dc, int rd, int rs,
                               void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i32))
 {
     TCGv_i32 dst, src;
@@ -1592,8 +1600,8 @@ static inline void gen_fop_FF(DisasContext *dc, int rd, int rs,
     gen_store_fpr_F(dc, rd, dst);
 }
 
-static inline void gen_ne_fop_FF(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_i32, TCGv_i32))
+static void gen_ne_fop_FF(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_i32, TCGv_i32))
 {
     TCGv_i32 dst, src;
 
@@ -1605,7 +1613,7 @@ static inline void gen_ne_fop_FF(DisasContext *dc, int rd, int rs,
     gen_store_fpr_F(dc, rd, dst);
 }
 
-static inline void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
+static void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
                         void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 dst, src1, src2;
@@ -1621,8 +1629,8 @@ static inline void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
 }
 
 #ifdef TARGET_SPARC64
-static inline void gen_ne_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
-                                  void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32))
+static void gen_ne_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
+                           void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 dst, src1, src2;
 
@@ -1636,8 +1644,8 @@ static inline void gen_ne_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
 }
 #endif
 
-static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i64))
+static void gen_fop_DD(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i64))
 {
     TCGv_i64 dst, src;
 
@@ -1651,8 +1659,8 @@ static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
 }
 
 #ifdef TARGET_SPARC64
-static inline void gen_ne_fop_DD(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_i64, TCGv_i64))
+static void gen_ne_fop_DD(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_i64, TCGv_i64))
 {
     TCGv_i64 dst, src;
 
@@ -1665,7 +1673,7 @@ static inline void gen_ne_fop_DD(DisasContext *dc, int rd, int rs,
 }
 #endif
 
-static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+static void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
                         void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 dst, src1, src2;
@@ -1681,8 +1689,8 @@ static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 }
 
 #ifdef TARGET_SPARC64
-static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
-                                  void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64))
+static void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 dst, src1, src2;
 
@@ -1695,8 +1703,8 @@ static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
     gen_store_fpr_D(dc, rd, dst);
 }
 
-static inline void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
-                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+static void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+                            void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 dst, src1, src2;
 
@@ -1709,8 +1717,8 @@ static inline void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
     gen_store_fpr_D(dc, rd, dst);
 }
 
-static inline void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
-                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+static void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
+                            void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 dst, src0, src1, src2;
 
@@ -1725,8 +1733,8 @@ static inline void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
 }
 #endif
 
-static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_ptr))
+static void gen_fop_QQ(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_ptr))
 {
     gen_op_load_fpr_QT1(QFPREG(rs));
 
@@ -1738,8 +1746,8 @@ static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
 }
 
 #ifdef TARGET_SPARC64
-static inline void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_ptr))
+static void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_ptr))
 {
     gen_op_load_fpr_QT1(QFPREG(rs));
 
@@ -1750,8 +1758,8 @@ static inline void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
 }
 #endif
 
-static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
-                               void (*gen)(TCGv_ptr))
+static void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
+                        void (*gen)(TCGv_ptr))
 {
     gen_op_load_fpr_QT0(QFPREG(rs1));
     gen_op_load_fpr_QT1(QFPREG(rs2));
@@ -1763,7 +1771,7 @@ static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
     gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
-static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
+static void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
                         void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32, TCGv_i32))
 {
     TCGv_i64 dst;
@@ -1779,8 +1787,8 @@ static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
     gen_store_fpr_D(dc, rd, dst);
 }
 
-static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
-                               void (*gen)(TCGv_ptr, TCGv_i64, TCGv_i64))
+static void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
+                        void (*gen)(TCGv_ptr, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 src1, src2;
 
@@ -1795,8 +1803,8 @@ static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
 }
 
 #ifdef TARGET_SPARC64
-static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
+static void gen_fop_DF(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
 {
     TCGv_i64 dst;
     TCGv_i32 src;
@@ -1811,8 +1819,8 @@ static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
 }
 #endif
 
-static inline void gen_ne_fop_DF(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
+static void gen_ne_fop_DF(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
 {
     TCGv_i64 dst;
     TCGv_i32 src;
@@ -1825,8 +1833,8 @@ static inline void gen_ne_fop_DF(DisasContext *dc, int rd, int rs,
     gen_store_fpr_D(dc, rd, dst);
 }
 
-static inline void gen_fop_FD(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i64))
+static void gen_fop_FD(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i64))
 {
     TCGv_i32 dst;
     TCGv_i64 src;
@@ -1840,8 +1848,8 @@ static inline void gen_fop_FD(DisasContext *dc, int rd, int rs,
     gen_store_fpr_F(dc, rd, dst);
 }
 
-static inline void gen_fop_FQ(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_i32, TCGv_ptr))
+static void gen_fop_FQ(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_i32, TCGv_ptr))
 {
     TCGv_i32 dst;
 
@@ -1854,8 +1862,8 @@ static inline void gen_fop_FQ(DisasContext *dc, int rd, int rs,
     gen_store_fpr_F(dc, rd, dst);
 }
 
-static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
-                              void (*gen)(TCGv_i64, TCGv_ptr))
+static void gen_fop_DQ(DisasContext *dc, int rd, int rs,
+                       void (*gen)(TCGv_i64, TCGv_ptr))
 {
     TCGv_i64 dst;
 
@@ -1868,8 +1876,8 @@ static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
     gen_store_fpr_D(dc, rd, dst);
 }
 
-static inline void gen_ne_fop_QF(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_ptr, TCGv_i32))
+static void gen_ne_fop_QF(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_ptr, TCGv_i32))
 {
     TCGv_i32 src;
 
@@ -1881,8 +1889,8 @@ static inline void gen_ne_fop_QF(DisasContext *dc, int rd, int rs,
     gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
-static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
-                                 void (*gen)(TCGv_ptr, TCGv_i64))
+static void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
+                          void (*gen)(TCGv_ptr, TCGv_i64))
 {
     TCGv_i64 src;
 
@@ -2813,7 +2821,7 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 }
 
 #ifndef CONFIG_USER_ONLY
-static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_env cpu_env)
+static void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_env cpu_env)
 {
     TCGv_i32 r_tl = tcg_temp_new_i32();
 
@@ -4139,10 +4147,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0xff);
                                 tcg_gen_st32_tl(cpu_tmp0, cpu_env,
                                                 offsetof(CPUSPARCState, asi));
-                                /* End TB to notice changed ASI.  */
+                                /*
+                                 * End TB to notice changed ASI.
+                                 * TODO: Could notice src1 = %g0 and IS_IMM,
+                                 * update DisasContext and not exit the TB.
+                                 */
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(NULL, 0);
+                                tcg_gen_lookup_and_goto_ptr();
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0x6: /* V9 wrfprs */
@@ -5021,7 +5033,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 gen_mov_pc_npc(dc);
                 gen_check_align(cpu_tmp0, 3);
                 tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
-                dc->npc = DYNAMIC_PC;
+                dc->npc = DYNAMIC_PC_LOOKUP;
                 goto jmp_insn;
 #endif
             } else {
@@ -5050,7 +5062,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         gen_check_align(cpu_tmp0, 3);
                         gen_address_mask(dc, cpu_tmp0);
                         tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
-                        dc->npc = DYNAMIC_PC;
+                        dc->npc = DYNAMIC_PC_LOOKUP;
                     }
                     goto jmp_insn;
 #if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
@@ -5516,13 +5528,21 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         break;
     }
     /* default case for non jump instructions */
-    if (dc->npc == DYNAMIC_PC) {
-        dc->pc = DYNAMIC_PC;
-        gen_op_next_insn();
-    } else if (dc->npc == JUMP_PC) {
-        /* we can do a static jump */
-        gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
-        dc->base.is_jmp = DISAS_NORETURN;
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            dc->pc = dc->npc;
+            gen_op_next_insn();
+            break;
+        case JUMP_PC:
+            /* we can do a static jump */
+            gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+            dc->base.is_jmp = DISAS_NORETURN;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
         dc->pc = dc->npc;
         dc->npc = dc->npc + 4;
@@ -5593,13 +5613,23 @@ static void sparc_tr_tb_start(DisasContextBase *db, CPUState *cs)
 static void sparc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    target_ulong npc = dc->npc;
 
-    if (dc->npc & JUMP_PC) {
-        assert(dc->jump_pc[1] == dc->pc + 4);
-        tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
-    } else {
-        tcg_gen_insn_start(dc->pc, dc->npc);
+    if (npc & 3) {
+        switch (npc) {
+        case JUMP_PC:
+            assert(dc->jump_pc[1] == dc->pc + 4);
+            npc = dc->jump_pc[0] | JUMP_PC;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            npc = DYNAMIC_PC;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
+    tcg_gen_insn_start(dc->pc, npc);
 }
 
 static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
@@ -5623,19 +5653,37 @@ static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    bool may_lookup;
 
     switch (dc->base.is_jmp) {
     case DISAS_NEXT:
     case DISAS_TOO_MANY:
-        if (dc->pc != DYNAMIC_PC &&
-            (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
+        if (((dc->pc | dc->npc) & 3) == 0) {
             /* static PC and NPC: we can use direct chaining */
             gen_goto_tb(dc, 0, dc->pc, dc->npc);
-        } else {
-            if (dc->pc != DYNAMIC_PC) {
-                tcg_gen_movi_tl(cpu_pc, dc->pc);
+            break;
+        }
+
+        if (dc->pc & 3) {
+            switch (dc->pc) {
+            case DYNAMIC_PC_LOOKUP:
+                may_lookup = true;
+                break;
+            case DYNAMIC_PC:
+                may_lookup = false;
+                break;
+            default:
+                g_assert_not_reached();
             }
-            save_npc(dc);
+        } else {
+            tcg_gen_movi_tl(cpu_pc, dc->pc);
+            may_lookup = true;
+        }
+
+        save_npc(dc);
+        if (may_lookup) {
+            tcg_gen_lookup_and_goto_ptr();
+        } else {
             tcg_gen_exit_tb(NULL, 0);
         }
         break;
