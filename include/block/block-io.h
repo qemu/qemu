@@ -224,6 +224,13 @@ bdrv_co_debug_event(BlockDriverState *bs, BlkdebugEvent event);
 void co_wrapper_mixed_bdrv_rdlock
 bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event);
 
+#define BLKDBG_CO_EVENT(child, evt) \
+    do { \
+        if (child) { \
+            bdrv_co_debug_event(child->bs, evt); \
+        } \
+    } while (0)
+
 #define BLKDBG_EVENT(child, evt) \
     do { \
         if (child) { \

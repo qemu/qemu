@@ -122,7 +122,7 @@ int coroutine_fn qed_read_l1_table_sync(BDRVQEDState *s)
 int coroutine_fn qed_write_l1_table(BDRVQEDState *s, unsigned int index,
                                     unsigned int n)
 {
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
     return qed_write_table(s, s->header.l1_table_offset,
                            s->l1_table, index, n, false);
 }
@@ -150,7 +150,7 @@ int coroutine_fn qed_read_l2_table(BDRVQEDState *s, QEDRequest *request,
     request->l2_table = qed_alloc_l2_cache_entry(&s->l2_cache);
     request->l2_table->table = qed_alloc_table(s);
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L2_LOAD);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L2_LOAD);
     ret = qed_read_table(s, offset, request->l2_table->table);
 
     if (ret) {
@@ -183,7 +183,7 @@ int coroutine_fn qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                                     unsigned int index, unsigned int n,
                                     bool flush)
 {
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
     return qed_write_table(s, request->l2_table->offset,
                            request->l2_table->table, index, n, flush);
 }

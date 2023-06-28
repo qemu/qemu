@@ -1250,12 +1250,13 @@ exit:
  *
  * Returns the file offset start of the new payload block
  */
-static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
-                               uint64_t *new_offset, bool *need_zero)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
+                    uint64_t *new_offset, bool *need_zero)
 {
     int64_t current_len;
 
-    current_len = bdrv_getlength(bs->file->bs);
+    current_len = bdrv_co_getlength(bs->file->bs);
     if (current_len < 0) {
         return current_len;
     }
@@ -1271,16 +1272,16 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     if (*need_zero) {
         int ret;
 
-        ret = bdrv_truncate(bs->file, *new_offset + s->block_size, false,
-                            PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE, NULL);
+        ret = bdrv_co_truncate(bs->file, *new_offset + s->block_size, false,
+                               PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE, NULL);
         if (ret != -ENOTSUP) {
             *need_zero = false;
             return ret;
         }
     }
 
-    return bdrv_truncate(bs->file, *new_offset + s->block_size, false,
-                         PREALLOC_MODE_OFF, 0, NULL);
+    return bdrv_co_truncate(bs->file, *new_offset + s->block_size, false,
+                            PREALLOC_MODE_OFF, 0, NULL);
 }
 
 /*
@@ -1572,12 +1573,10 @@ exit:
  * The first 64KB of the Metadata section is reserved for the metadata
  * header and entries; beyond that, the metadata items themselves reside.
  */
-static int vhdx_create_new_metadata(BlockBackend *blk,
-                                    uint64_t image_size,
-                                    uint32_t block_size,
-                                    uint32_t sector_size,
-                                    uint64_t metadata_offset,
-                                    VHDXImageType type)
+static int coroutine_fn
+vhdx_create_new_metadata(BlockBackend *blk, uint64_t image_size,
+                         uint32_t block_size, uint32_t sector_size,
+                         uint64_t metadata_offset, VHDXImageType type)
 {
     int ret = 0;
     uint32_t offset = 0;
@@ -1668,13 +1667,13 @@ static int vhdx_create_new_metadata(BlockBackend *blk,
                                    VHDX_META_FLAGS_IS_VIRTUAL_DISK;
     vhdx_metadata_entry_le_export(&md_table_entry[4]);
 
-    ret = blk_pwrite(blk, metadata_offset, VHDX_HEADER_BLOCK_SIZE, buffer, 0);
+    ret = blk_co_pwrite(blk, metadata_offset, VHDX_HEADER_BLOCK_SIZE, buffer, 0);
     if (ret < 0) {
         goto exit;
     }
 
-    ret = blk_pwrite(blk, metadata_offset + (64 * KiB),
-                     VHDX_METADATA_ENTRY_BUFFER_SIZE, entry_buffer, 0);
+    ret = blk_co_pwrite(blk, metadata_offset + (64 * KiB),
+                        VHDX_METADATA_ENTRY_BUFFER_SIZE, entry_buffer, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -1694,10 +1693,11 @@ exit:
  *  Fixed images: default state of the BAT is fully populated, with
  *                file offsets and state PAYLOAD_BLOCK_FULLY_PRESENT.
  */
-static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
-                           uint64_t image_size, VHDXImageType type,
-                           bool use_zero_blocks, uint64_t file_offset,
-                           uint32_t length, Error **errp)
+static int coroutine_fn
+vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
+                uint64_t image_size, VHDXImageType type,
+                bool use_zero_blocks, uint64_t file_offset,
+                uint32_t length, Error **errp)
 {
     int ret = 0;
     uint64_t data_file_offset;
@@ -1718,14 +1718,14 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
     if (type == VHDX_TYPE_DYNAMIC) {
         /* All zeroes, so we can just extend the file - the end of the BAT
          * is the furthest thing we have written yet */
-        ret = blk_truncate(blk, data_file_offset, false, PREALLOC_MODE_OFF,
-                           0, errp);
+        ret = blk_co_truncate(blk, data_file_offset, false, PREALLOC_MODE_OFF,
+                              0, errp);
         if (ret < 0) {
             goto exit;
         }
     } else if (type == VHDX_TYPE_FIXED) {
-        ret = blk_truncate(blk, data_file_offset + image_size, false,
-                           PREALLOC_MODE_OFF, 0, errp);
+        ret = blk_co_truncate(blk, data_file_offset + image_size, false,
+                              PREALLOC_MODE_OFF, 0, errp);
         if (ret < 0) {
             goto exit;
         }
@@ -1759,7 +1759,7 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
             s->bat[sinfo.bat_idx] = cpu_to_le64(s->bat[sinfo.bat_idx]);
             sector_num += s->sectors_per_block;
         }
-        ret = blk_pwrite(blk, file_offset, length, s->bat, 0);
+        ret = blk_co_pwrite(blk, file_offset, length, s->bat, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to write the BAT");
             goto exit;
@@ -1780,15 +1780,12 @@ exit:
  * to create the BAT itself, we will also cause the BAT to be
  * created.
  */
-static int vhdx_create_new_region_table(BlockBackend *blk,
-                                        uint64_t image_size,
-                                        uint32_t block_size,
-                                        uint32_t sector_size,
-                                        uint32_t log_size,
-                                        bool use_zero_blocks,
-                                        VHDXImageType type,
-                                        uint64_t *metadata_offset,
-                                        Error **errp)
+static int coroutine_fn
+vhdx_create_new_region_table(BlockBackend *blk, uint64_t image_size,
+                             uint32_t block_size, uint32_t sector_size,
+                             uint32_t log_size, bool use_zero_blocks,
+                             VHDXImageType type, uint64_t *metadata_offset,
+                             Error **errp)
 {
     int ret = 0;
     uint32_t offset = 0;
@@ -1863,15 +1860,15 @@ static int vhdx_create_new_region_table(BlockBackend *blk,
     }
 
     /* Now write out the region headers to disk */
-    ret = blk_pwrite(blk, VHDX_REGION_TABLE_OFFSET, VHDX_HEADER_BLOCK_SIZE,
-                     buffer, 0);
+    ret = blk_co_pwrite(blk, VHDX_REGION_TABLE_OFFSET, VHDX_HEADER_BLOCK_SIZE,
+                        buffer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write first region table");
         goto exit;
     }
 
-    ret = blk_pwrite(blk, VHDX_REGION_TABLE2_OFFSET, VHDX_HEADER_BLOCK_SIZE,
-                     buffer, 0);
+    ret = blk_co_pwrite(blk, VHDX_REGION_TABLE2_OFFSET, VHDX_HEADER_BLOCK_SIZE,
+                        buffer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write second region table");
         goto exit;
