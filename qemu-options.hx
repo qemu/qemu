@@ -2143,6 +2143,9 @@ SRST
 
         ``show-menubar=on|off`` : Display the main window menubar, defaults to "on"
 
+        ``zoom-to-fit=on|off`` : Expand video output to the window size,
+                                 defaults to "off"
+
     ``curses[,charset=<encoding>]``
         Display video output via curses. For graphics device models
         which support a text mode, QEMU can display this output using a
