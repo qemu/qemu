@@ -941,7 +941,7 @@ static void flush_cond(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
         gen_generic_branch(dc);
-        dc->npc = DYNAMIC_PC;
+        dc->npc = DYNAMIC_PC_LOOKUP;
     }
 }
 
@@ -951,7 +951,7 @@ static void save_npc(DisasContext *dc)
         switch (dc->npc) {
         case JUMP_PC:
             gen_generic_branch(dc);
-            dc->npc = DYNAMIC_PC;
+            dc->npc = DYNAMIC_PC_LOOKUP;
             break;
         case DYNAMIC_PC:
         case DYNAMIC_PC_LOOKUP:
@@ -997,7 +997,7 @@ static void gen_mov_pc_npc(DisasContext *dc)
         case JUMP_PC:
             gen_generic_branch(dc);
             tcg_gen_mov_tl(cpu_pc, cpu_npc);
-            dc->pc = DYNAMIC_PC;
+            dc->pc = DYNAMIC_PC_LOOKUP;
             break;
         case DYNAMIC_PC:
         case DYNAMIC_PC_LOOKUP:
