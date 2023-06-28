@@ -159,6 +159,7 @@ static const TypeInfo allwinner_sramc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_init = allwinner_sramc_init,
     .instance_size = sizeof(AwSRAMCState),
+    .class_size    = sizeof(AwSRAMCClass),
     .class_init    = allwinner_sramc_class_init,
 };
 
