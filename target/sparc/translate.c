@@ -37,9 +37,12 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
-#define DYNAMIC_PC  1 /* dynamic pc value */
-#define JUMP_PC     2 /* dynamic pc value which takes only two values
-                         according to jump_pc[T2] */
+/* Dynamic PC, must exit to main loop. */
+#define DYNAMIC_PC         1
+/* Dynamic PC, one of two values according to jump_pc[T2]. */
+#define JUMP_PC            2
+/* Dynamic PC, may lookup next TB. */
+#define DYNAMIC_PC_LOOKUP  3
 
 #define DISAS_EXIT  DISAS_TARGET_0
 
@@ -901,22 +904,25 @@ static void gen_branch_n(DisasContext *dc, target_ulong pc1)
 {
     target_ulong npc = dc->npc;
 
-    if (likely(npc != DYNAMIC_PC)) {
+    if (npc & 3) {
+        switch (npc) {
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
+            tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc,
+                               cpu_cond, tcg_constant_tl(0),
+                               tcg_constant_tl(pc1), cpu_npc);
+            dc->pc = npc;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
         dc->pc = npc;
         dc->jump_pc[0] = pc1;
         dc->jump_pc[1] = npc + 4;
         dc->npc = JUMP_PC;
-    } else {
-        TCGv t, z;
-
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-
-        tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
-        t = tcg_constant_tl(pc1);
-        z = tcg_constant_tl(0);
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, z, t, cpu_npc);
-
-        dc->pc = DYNAMIC_PC;
     }
 }
 
@@ -941,10 +947,19 @@ static void flush_cond(DisasContext *dc)
 
 static void save_npc(DisasContext *dc)
 {
-    if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc);
-        dc->npc = DYNAMIC_PC;
-    } else if (dc->npc != DYNAMIC_PC) {
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case JUMP_PC:
+            gen_generic_branch(dc);
+            dc->npc = DYNAMIC_PC;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
         tcg_gen_movi_tl(cpu_npc, dc->npc);
     }
 }
@@ -977,13 +992,21 @@ static void gen_check_align(TCGv addr, int mask)
 
 static void gen_mov_pc_npc(DisasContext *dc)
 {
-    if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc);
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-        dc->pc = DYNAMIC_PC;
-    } else if (dc->npc == DYNAMIC_PC) {
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-        dc->pc = DYNAMIC_PC;
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case JUMP_PC:
+            gen_generic_branch(dc);
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            dc->pc = DYNAMIC_PC;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            dc->pc = dc->npc;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
         dc->pc = dc->npc;
     }
@@ -5501,13 +5524,21 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         break;
     }
     /* default case for non jump instructions */
-    if (dc->npc == DYNAMIC_PC) {
-        dc->pc = DYNAMIC_PC;
-        gen_op_next_insn();
-    } else if (dc->npc == JUMP_PC) {
-        /* we can do a static jump */
-        gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
-        dc->base.is_jmp = DISAS_NORETURN;
+    if (dc->npc & 3) {
+        switch (dc->npc) {
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            dc->pc = dc->npc;
+            gen_op_next_insn();
+            break;
+        case JUMP_PC:
+            /* we can do a static jump */
+            gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+            dc->base.is_jmp = DISAS_NORETURN;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
         dc->pc = dc->npc;
         dc->npc = dc->npc + 4;
@@ -5578,13 +5609,23 @@ static void sparc_tr_tb_start(DisasContextBase *db, CPUState *cs)
 static void sparc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    target_ulong npc = dc->npc;
 
-    if (dc->npc == JUMP_PC) {
-        assert(dc->jump_pc[1] == dc->pc + 4);
-        tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
-    } else {
-        tcg_gen_insn_start(dc->pc, dc->npc);
+    if (npc & 3) {
+        switch (npc) {
+        case JUMP_PC:
+            assert(dc->jump_pc[1] == dc->pc + 4);
+            npc = dc->jump_pc[0] | JUMP_PC;
+            break;
+        case DYNAMIC_PC:
+        case DYNAMIC_PC_LOOKUP:
+            npc = DYNAMIC_PC;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
+    tcg_gen_insn_start(dc->pc, npc);
 }
 
 static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
@@ -5608,19 +5649,37 @@ static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    bool may_lookup;
 
     switch (dc->base.is_jmp) {
     case DISAS_NEXT:
     case DISAS_TOO_MANY:
-        if (dc->pc != DYNAMIC_PC &&
-            (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
+        if (((dc->pc | dc->npc) & 3) == 0) {
             /* static PC and NPC: we can use direct chaining */
             gen_goto_tb(dc, 0, dc->pc, dc->npc);
-        } else {
-            if (dc->pc != DYNAMIC_PC) {
-                tcg_gen_movi_tl(cpu_pc, dc->pc);
+            break;
+        }
+
+        if (dc->pc & 3) {
+            switch (dc->pc) {
+            case DYNAMIC_PC_LOOKUP:
+                may_lookup = true;
+                break;
+            case DYNAMIC_PC:
+                may_lookup = false;
+                break;
+            default:
+                g_assert_not_reached();
             }
-            save_npc(dc);
+        } else {
+            tcg_gen_movi_tl(cpu_pc, dc->pc);
+            may_lookup = true;
+        }
+
+        save_npc(dc);
+        if (may_lookup) {
+            tcg_gen_lookup_and_goto_ptr();
+        } else {
             tcg_gen_exit_tb(NULL, 0);
         }
         break;
