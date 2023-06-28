@@ -697,7 +697,6 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     case MIGRATION_STATUS_CANCELLING:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_FAILED:
-        bytes_transferred = 0;
         /*
          * If setting the device in RUNNING state fails, the device should
          * be reset. To do so, use ERROR state as a recover state.
@@ -816,6 +815,11 @@ static int vfio_migration_init(VFIODevice *vbasedev)
 int64_t vfio_mig_bytes_transferred(void)
 {
     return bytes_transferred;
+}
+
+void vfio_reset_bytes_transferred(void)
+{
+    bytes_transferred = 0;
 }
 
 int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
