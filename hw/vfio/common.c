@@ -381,13 +381,19 @@ static unsigned int vfio_migratable_device_num(void)
     return device_num;
 }
 
-int vfio_block_multiple_devices_migration(Error **errp)
+int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
 {
     int ret;
 
     if (multiple_devices_migration_blocker ||
         vfio_migratable_device_num() <= 1) {
         return 0;
+    }
+
+    if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
+        error_setg(errp, "Migration is currently not supported with multiple "
+                         "VFIO devices");
+        return -EINVAL;
     }
 
     error_setg(&multiple_devices_migration_blocker,
@@ -427,13 +433,19 @@ static bool vfio_viommu_preset(void)
     return false;
 }
 
-int vfio_block_giommu_migration(Error **errp)
+int vfio_block_giommu_migration(VFIODevice *vbasedev, Error **errp)
 {
     int ret;
 
     if (giommu_migration_blocker ||
         !vfio_viommu_preset()) {
         return 0;
+    }
+
+    if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
+        error_setg(errp,
+                   "Migration is currently not supported with vIOMMU enabled");
+        return -EINVAL;
     }
 
     error_setg(&giommu_migration_blocker,

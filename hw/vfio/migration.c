@@ -724,14 +724,6 @@ static int vfio_migration_query_flags(VFIODevice *vbasedev, uint64_t *mig_flags)
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIGRATION;
     if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-        if (errno == ENOTTY) {
-            error_report("%s: VFIO migration is not supported in kernel",
-                         vbasedev->name);
-        } else {
-            error_report("%s: Failed to query VFIO migration support, err: %s",
-                         vbasedev->name, strerror(errno));
-        }
-
         return -errno;
     }
 
@@ -810,6 +802,27 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     return 0;
 }
 
+static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
+{
+    int ret;
+
+    if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
+        error_propagate(errp, err);
+        return -EINVAL;
+    }
+
+    vbasedev->migration_blocker = error_copy(err);
+    error_free(err);
+
+    ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
+    if (ret < 0) {
+        error_free(vbasedev->migration_blocker);
+        vbasedev->migration_blocker = NULL;
+    }
+
+    return ret;
+}
+
 /* ---------------------------------------------------------------------- */
 
 int64_t vfio_mig_bytes_transferred(void)
@@ -824,40 +837,54 @@ void vfio_reset_bytes_transferred(void)
 
 int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
-    int ret = -ENOTSUP;
+    Error *err = NULL;
+    int ret;
 
-    if (!vbasedev->enable_migration) {
-        goto add_blocker;
+    if (vbasedev->enable_migration == ON_OFF_AUTO_OFF) {
+        error_setg(&err, "%s: Migration is disabled for VFIO device",
+                   vbasedev->name);
+        return vfio_block_migration(vbasedev, err, errp);
     }
 
     ret = vfio_migration_init(vbasedev);
     if (ret) {
-        goto add_blocker;
+        if (ret == -ENOTTY) {
+            error_setg(&err, "%s: VFIO migration is not supported in kernel",
+                       vbasedev->name);
+        } else {
+            error_setg(&err,
+                       "%s: Migration couldn't be initialized for VFIO device, "
+                       "err: %d (%s)",
+                       vbasedev->name, ret, strerror(-ret));
+        }
+
+        return vfio_block_migration(vbasedev, err, errp);
     }
 
-    ret = vfio_block_multiple_devices_migration(errp);
+    if (!vbasedev->dirty_pages_supported) {
+        if (vbasedev->enable_migration == ON_OFF_AUTO_AUTO) {
+            error_setg(&err,
+                       "%s: VFIO device doesn't support device dirty tracking",
+                       vbasedev->name);
+            return vfio_block_migration(vbasedev, err, errp);
+        }
+
+        warn_report("%s: VFIO device doesn't support device dirty tracking",
+                    vbasedev->name);
+    }
+
+    ret = vfio_block_multiple_devices_migration(vbasedev, errp);
     if (ret) {
         return ret;
     }
 
-    ret = vfio_block_giommu_migration(errp);
+    ret = vfio_block_giommu_migration(vbasedev, errp);
     if (ret) {
         return ret;
     }
 
-    trace_vfio_migration_probe(vbasedev->name);
+    trace_vfio_migration_realize(vbasedev->name);
     return 0;
-
-add_blocker:
-    error_setg(&vbasedev->migration_blocker,
-               "VFIO device doesn't support migration");
-
-    ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
-    if (ret < 0) {
-        error_free(vbasedev->migration_blocker);
-        vbasedev->migration_blocker = NULL;
-    }
-    return ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
