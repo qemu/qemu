@@ -5594,7 +5594,7 @@ static void sparc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    if (dc->npc & JUMP_PC) {
+    if (dc->npc == JUMP_PC) {
         assert(dc->jump_pc[1] == dc->pc + 4);
         tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
     } else {
