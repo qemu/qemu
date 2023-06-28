@@ -5029,7 +5029,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 gen_mov_pc_npc(dc);
                 gen_check_align(cpu_tmp0, 3);
                 tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
-                dc->npc = DYNAMIC_PC;
+                dc->npc = DYNAMIC_PC_LOOKUP;
                 goto jmp_insn;
 #endif
             } else {
