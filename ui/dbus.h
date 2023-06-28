@@ -62,6 +62,12 @@ struct DBusDisplay {
     Notifier notifier;
 };
 
+#ifdef WIN32
+bool
+dbus_win32_import_socket(GDBusMethodInvocation *invocation,
+                         GVariant *arg_listener, int *socket);
+#endif
+
 #define TYPE_DBUS_DISPLAY "dbus-display"
 OBJECT_DECLARE_SIMPLE_TYPE(DBusDisplay, DBUS_DISPLAY)
 

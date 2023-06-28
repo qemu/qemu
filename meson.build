@@ -838,6 +838,8 @@ if gdbus_codegen.found() and get_option('cfi')
   gdbus_codegen_error = '@0@ uses gdbus-codegen, which does not support control flow integrity'
 endif
 
+xml_pp = find_program('scripts/xml-preprocess.py')
+
 lttng = not_found
 if 'ust' in get_option('trace_backends')
   lttng = dependency('lttng-ust', required: true, version: '>= 2.1',
@@ -1070,6 +1072,12 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
                      required: get_option('virglrenderer'))
+  if virgl.found()
+    config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+                         cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
+                                       prefix: '#include <virglrenderer.h>',
+                                       dependencies: virgl))
+  endif
 endif
 blkio = not_found
 if not get_option('blkio').auto() or have_block
@@ -1985,8 +1993,6 @@ dbus_display = get_option('dbus_display') \
            error_message: '-display dbus requires glib>=2.64') \
   .require(gdbus_codegen.found(),
            error_message: gdbus_codegen_error.format('-display dbus')) \
-  .require(targetos != 'windows',
-           error_message: '-display dbus is not available on Windows') \
   .allowed()
 
 have_virtfs = get_option('virtfs') \

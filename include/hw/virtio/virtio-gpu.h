@@ -48,6 +48,9 @@ struct virtio_gpu_simple_resource {
     unsigned int iov_cnt;
     uint32_t scanout_bitmask;
     pixman_image_t *image;
+#ifdef WIN32
+    HANDLE handle;
+#endif
     uint64_t hostmem;
 
     uint64_t blob_size;

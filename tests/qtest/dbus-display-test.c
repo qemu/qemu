@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/sockets.h"
 #include "qemu/dbus.h"
 #include "qemu/sockets.h"
 #include <gio/gio.h>
@@ -14,7 +15,11 @@ test_dbus_p2p_from_fd(int fd)
     g_autoptr(GSocketConnection) socketc = NULL;
     GDBusConnection *conn;
 
+#ifdef WIN32
+    socket = g_socket_new_from_fd(_get_osfhandle(fd), &err);
+#else
     socket = g_socket_new_from_fd(fd, &err);
+#endif
     g_assert_no_error(err);
 
     socketc = g_socket_connection_factory_create_connection(socket);
@@ -126,7 +131,10 @@ test_dbus_console_registered(GObject *source_object,
 
     qemu_dbus_display1_console_call_register_listener_finish(
         QEMU_DBUS_DISPLAY1_CONSOLE(source_object),
-        NULL, res, &err);
+#ifndef WIN32
+        NULL,
+#endif
+        res, &err);
     g_assert_no_error(err);
 
     test->listener_conn = g_thread_join(test->thread);
@@ -145,17 +153,25 @@ test_dbus_display_console(void)
     g_autoptr(GError) err = NULL;
     g_autoptr(GDBusConnection) conn = NULL;
     g_autoptr(QemuDBusDisplay1ConsoleProxy) console = NULL;
-    g_autoptr(GUnixFDList) fd_list = NULL;
     g_autoptr(GMainLoop) loop = NULL;
     QTestState *qts = NULL;
-    int pair[2], idx;
+    int pair[2];
     TestDBusConsoleRegister test;
+#ifdef WIN32
+    WSAPROTOCOL_INFOW info;
+    g_autoptr(GVariant) listener = NULL;
+#else
+    g_autoptr(GUnixFDList) fd_list = NULL;
+    int idx;
+#endif
 
     test_setup(&qts, &conn);
 
     g_assert_cmpint(qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, pair), ==, 0);
+#ifndef WIN32
     fd_list = g_unix_fd_list_new();
     idx = g_unix_fd_list_append(fd_list, pair[1], NULL);
+#endif
 
     console = QEMU_DBUS_DISPLAY1_CONSOLE_PROXY(
         qemu_dbus_display1_console_proxy_new_sync(
@@ -171,12 +187,33 @@ test_dbus_display_console(void)
     test.thread = g_thread_new(NULL, test_dbus_p2p_server_setup_thread,
                                GINT_TO_POINTER(pair[0]));
 
+#ifdef WIN32
+    if (WSADuplicateSocketW(_get_osfhandle(pair[1]),
+                            GetProcessId((HANDLE) qtest_pid(qts)),
+                            &info) == SOCKET_ERROR)
+    {
+        g_autofree char *emsg = g_win32_error_message(WSAGetLastError());
+        g_error("WSADuplicateSocket failed: %s", emsg);
+    }
+    close(pair[1]);
+    listener = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE,
+                                         &info,
+                                         sizeof(info),
+                                         1);
+#endif
+
     qemu_dbus_display1_console_call_register_listener(
         QEMU_DBUS_DISPLAY1_CONSOLE(console),
+#ifdef WIN32
+        listener,
+#else
         g_variant_new_handle(idx),
+#endif
         G_DBUS_CALL_FLAGS_NONE,
         -1,
+#ifndef WIN32
         fd_list,
+#endif
         NULL,
         test_dbus_console_registered,
         &test);

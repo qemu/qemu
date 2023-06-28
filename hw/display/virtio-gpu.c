@@ -258,6 +258,16 @@ static uint32_t calc_image_hostmem(pixman_format_code_t pformat,
     return height * stride;
 }
 
+#ifdef WIN32
+static void
+win32_pixman_image_destroy(pixman_image_t *image, void *data)
+{
+    HANDLE handle = data;
+
+    qemu_win32_map_free(pixman_image_get_data(image), handle, &error_warn);
+}
+#endif
+
 static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
                                           struct virtio_gpu_ctrl_command *cmd)
 {
@@ -304,12 +314,27 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
 
     res->hostmem = calc_image_hostmem(pformat, c2d.width, c2d.height);
     if (res->hostmem + g->hostmem < g->conf_max_hostmem) {
+        void *bits = NULL;
+#ifdef WIN32
+        bits = qemu_win32_map_alloc(res->hostmem, &res->handle, &error_warn);
+        if (!bits) {
+            goto end;
+        }
+#endif
         res->image = pixman_image_create_bits(pformat,
                                               c2d.width,
                                               c2d.height,
-                                              NULL, 0);
+                                              bits, res->hostmem / c2d.height);
+#ifdef WIN32
+        if (res->image) {
+            pixman_image_set_destroy_function(res->image, win32_pixman_image_destroy, res->handle);
+        }
+#endif
     }
 
+#ifdef WIN32
+end:
+#endif
     if (!res->image) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: resource creation failed %d %d %d\n",
@@ -438,11 +463,11 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
                                            struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_simple_resource *res;
-    int h;
+    int h, bpp;
     uint32_t src_offset, dst_offset, stride;
-    int bpp;
     pixman_format_code_t format;
     struct virtio_gpu_transfer_to_host_2d t2d;
+    void *img_data;
 
     VIRTIO_GPU_FILL_CMD(t2d);
     virtio_gpu_t2d_bswap(&t2d);
@@ -471,23 +496,23 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     format = pixman_image_get_format(res->image);
     bpp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     stride = pixman_image_get_stride(res->image);
+    img_data = pixman_image_get_data(res->image);
 
-    if (t2d.offset || t2d.r.x || t2d.r.y ||
-        t2d.r.width != pixman_image_get_width(res->image)) {
-        void *img_data = pixman_image_get_data(res->image);
+    if (t2d.r.x || t2d.r.width != pixman_image_get_width(res->image)) {
         for (h = 0; h < t2d.r.height; h++) {
             src_offset = t2d.offset + stride * h;
             dst_offset = (t2d.r.y + h) * stride + (t2d.r.x * bpp);
 
             iov_to_buf(res->iov, res->iov_cnt, src_offset,
-                       (uint8_t *)img_data
-                       + dst_offset, t2d.r.width * bpp);
+                       (uint8_t *)img_data + dst_offset,
+                       t2d.r.width * bpp);
         }
     } else {
-        iov_to_buf(res->iov, res->iov_cnt, 0,
-                   pixman_image_get_data(res->image),
-                   pixman_image_get_stride(res->image)
-                   * pixman_image_get_height(res->image));
+        src_offset = t2d.offset;
+        dst_offset = t2d.r.y * stride + t2d.r.x * bpp;
+        iov_to_buf(res->iov, res->iov_cnt, src_offset,
+                   (uint8_t *)img_data + dst_offset,
+                   stride * t2d.r.height);
     }
 }
 
@@ -498,6 +523,8 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     struct virtio_gpu_resource_flush rf;
     struct virtio_gpu_scanout *scanout;
     pixman_region16_t flush_region;
+    bool within_bounds = false;
+    bool update_submitted = false;
     int i;
 
     VIRTIO_GPU_FILL_CMD(rf);
@@ -518,13 +545,28 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
                 rf.r.x < scanout->x + scanout->width &&
                 rf.r.x + rf.r.width >= scanout->x &&
                 rf.r.y < scanout->y + scanout->height &&
-                rf.r.y + rf.r.height >= scanout->y &&
-                console_has_gl(scanout->con)) {
-                dpy_gl_update(scanout->con, 0, 0, scanout->width,
-                              scanout->height);
+                rf.r.y + rf.r.height >= scanout->y) {
+                within_bounds = true;
+
+                if (console_has_gl(scanout->con)) {
+                    dpy_gl_update(scanout->con, 0, 0, scanout->width,
+                                  scanout->height);
+                    update_submitted = true;
+                }
             }
         }
-        return;
+
+        if (update_submitted) {
+            return;
+        }
+        if (!within_bounds) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: flush bounds outside scanouts"
+                          " bounds for flush %d: %d %d %d %d\n",
+                          __func__, rf.resource_id, rf.r.x, rf.r.y,
+                          rf.r.width, rf.r.height);
+            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
+            return;
+        }
     }
 
     if (!res->blob &&
@@ -634,8 +676,10 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
         if (console_has_gl(scanout->con)) {
             if (!virtio_gpu_update_dmabuf(g, scanout_id, res, fb, r)) {
                 virtio_gpu_update_scanout(g, scanout_id, res, r);
-                return;
+            } else {
+                *error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
             }
+            return;
         }
 
         data = res->blob;
@@ -666,6 +710,9 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
             *error = VIRTIO_GPU_RESP_ERR_UNSPEC;
             return;
         }
+#ifdef WIN32
+        qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, fb->offset);
+#endif
 
         pixman_image_unref(rect);
         dpy_gfx_replace_surface(g->parent_obj.scanout[scanout_id].con,
@@ -1209,6 +1256,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_scanout *scanout;
     uint32_t resource_id, pformat;
+    void *bits = NULL;
     int i;
 
     g->hostmem = 0;
@@ -1233,15 +1281,23 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             g_free(res);
             return -EINVAL;
         }
+
+        res->hostmem = calc_image_hostmem(pformat, res->width, res->height);
+#ifdef WIN32
+        bits = qemu_win32_map_alloc(res->hostmem, &res->handle, &error_warn);
+        if (!bits) {
+            g_free(res);
+            return -EINVAL;
+        }
+#endif
         res->image = pixman_image_create_bits(pformat,
                                               res->width, res->height,
-                                              NULL, 0);
+                                              bits, res->hostmem / res->height);
         if (!res->image) {
             g_free(res);
             return -EINVAL;
         }
 
-        res->hostmem = calc_image_hostmem(pformat, res->width, res->height);
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
@@ -1302,6 +1358,9 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         if (!scanout->ds) {
             return -EINVAL;
         }
+#ifdef WIN32
+        qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, 0);
+#endif
 
         dpy_gfx_replace_surface(scanout->con, scanout->ds);
         dpy_gfx_update_full(scanout->con);

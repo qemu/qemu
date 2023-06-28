@@ -130,11 +130,6 @@ typedef struct VCChardev VCChardev;
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
                          TYPE_CHARDEV_VC)
 
-struct touch_slot {
-    int x;
-    int y;
-    int tracking_id;
-};
 static struct touch_slot touch_slots[INPUT_EVENT_SLOTS_MAX];
 
 bool gtk_use_gl_area;
@@ -588,7 +583,12 @@ static void gd_gl_release_dmabuf(DisplayChangeListener *dcl,
                                  QemuDmaBuf *dmabuf)
 {
 #ifdef CONFIG_GBM
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
     egl_dmabuf_release_texture(dmabuf);
+    if (vc->gfx.guest_fb.dmabuf == dmabuf) {
+        vc->gfx.guest_fb.dmabuf = NULL;
+    }
 #endif
 }
 
@@ -1068,27 +1068,12 @@ static gboolean gd_touch_event(GtkWidget *widget, GdkEventTouch *touch,
                                void *opaque)
 {
     VirtualConsole *vc = opaque;
-    struct touch_slot *slot;
     uint64_t num_slot = GPOINTER_TO_UINT(touch->sequence);
-    bool needs_sync = false;
-    int update;
     int type = -1;
-    int i;
-
-    if (num_slot >= INPUT_EVENT_SLOTS_MAX) {
-        warn_report("gtk: unexpected touch slot number: % " PRId64" >= %d\n",
-                    num_slot, INPUT_EVENT_SLOTS_MAX);
-        return FALSE;
-    }
-
-    slot = &touch_slots[num_slot];
-    slot->x = touch->x;
-    slot->y = touch->y;
 
     switch (touch->type) {
     case GDK_TOUCH_BEGIN:
         type = INPUT_MULTI_TOUCH_TYPE_BEGIN;
-        slot->tracking_id = num_slot;
         break;
     case GDK_TOUCH_UPDATE:
         type = INPUT_MULTI_TOUCH_TYPE_UPDATE;
@@ -1099,44 +1084,13 @@ static gboolean gd_touch_event(GtkWidget *widget, GdkEventTouch *touch,
         break;
     default:
         warn_report("gtk: unexpected touch event type\n");
+        return FALSE;
     }
 
-    for (i = 0; i < INPUT_EVENT_SLOTS_MAX; ++i) {
-        if (i == num_slot) {
-            update = type;
-        } else {
-            update = INPUT_MULTI_TOUCH_TYPE_UPDATE;
-        }
-
-        slot = &touch_slots[i];
-
-        if (slot->tracking_id == -1) {
-            continue;
-        }
-
-        if (update == INPUT_MULTI_TOUCH_TYPE_END) {
-            slot->tracking_id = -1;
-            qemu_input_queue_mtt(vc->gfx.dcl.con, update, i, slot->tracking_id);
-            needs_sync = true;
-        } else {
-            qemu_input_queue_mtt(vc->gfx.dcl.con, update, i, slot->tracking_id);
-            qemu_input_queue_btn(vc->gfx.dcl.con, INPUT_BUTTON_TOUCH, true);
-            qemu_input_queue_mtt_abs(vc->gfx.dcl.con,
-                                     INPUT_AXIS_X, (int) slot->x,
-                                     0, surface_width(vc->gfx.ds),
-                                     i, slot->tracking_id);
-            qemu_input_queue_mtt_abs(vc->gfx.dcl.con,
-                                     INPUT_AXIS_Y, (int) slot->y,
-                                     0, surface_height(vc->gfx.ds),
-                                     i, slot->tracking_id);
-            needs_sync = true;
-        }
-    }
-
-    if (needs_sync) {
-        qemu_input_event_sync();
-    }
-
+    console_handle_touch_event(vc->gfx.dcl.con, touch_slots,
+                               num_slot, surface_width(vc->gfx.ds),
+                               surface_height(vc->gfx.ds), touch->x,
+                               touch->y, type, &error_warn);
     return TRUE;
 }
 

@@ -47,10 +47,8 @@ static DBusDisplay *dbus_display;
 static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
                                          QEMUGLParams *params)
 {
-#ifdef CONFIG_GBM
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
-#endif
     return qemu_egl_create_context(dgc, params);
 }
 
@@ -59,9 +57,7 @@ dbus_is_compatible_dcl(DisplayGLCtx *dgc,
                        DisplayChangeListener *dcl)
 {
     return
-#ifdef CONFIG_GBM
         dcl->ops == &dbus_gl_dcl_ops ||
-#endif
         dcl->ops == &dbus_console_dcl_ops;
 }
 

@@ -104,7 +104,7 @@ qtests_i386 = \
    'numa-test'
   ]
 
-if dbus_display and targetos != 'windows'
+if dbus_display
   qtests_i386 += ['dbus-display-test']
 endif
 

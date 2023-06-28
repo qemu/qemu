@@ -27,7 +27,9 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 
+#ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
 
 #include "dbus.h"
 
@@ -112,13 +114,20 @@ static gboolean
 dbus_chr_register(
     DBusChardev *dc,
     GDBusMethodInvocation *invocation,
+#ifdef G_OS_UNIX
     GUnixFDList *fd_list,
+#endif
     GVariant *arg_stream,
     QemuDBusDisplay1Chardev *object)
 {
     g_autoptr(GError) err = NULL;
     int fd;
 
+#ifdef G_OS_WIN32
+    if (!dbus_win32_import_socket(invocation, arg_stream, &fd)) {
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+#else
     fd = g_unix_fd_list_get(fd_list, g_variant_get_handle(arg_stream), &err);
     if (err) {
         g_dbus_method_invocation_return_error(
@@ -128,13 +137,18 @@ dbus_chr_register(
             "Couldn't get peer FD: %s", err->message);
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
+#endif
 
     if (qemu_chr_add_client(CHARDEV(dc), fd) < 0) {
         g_dbus_method_invocation_return_error(invocation,
                                               DBUS_DISPLAY_ERROR,
                                               DBUS_DISPLAY_ERROR_FAILED,
                                               "Couldn't register FD!");
+#ifdef G_OS_WIN32
+        closesocket(fd);
+#else
         close(fd);
+#endif
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
@@ -142,7 +156,11 @@ dbus_chr_register(
                  "owner", g_dbus_method_invocation_get_sender(invocation),
                  NULL);
 
-    qemu_dbus_display1_chardev_complete_register(object, invocation, NULL);
+    qemu_dbus_display1_chardev_complete_register(object, invocation
+#ifndef G_OS_WIN32
+                                                 , NULL
+#endif
+        );
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
 

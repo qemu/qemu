@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "ui/console.h"
 #include "standard-headers/drm/drm_fourcc.h"
+#include "trace.h"
 
 PixelFormat qemu_pixelformat_from_pixman(pixman_format_code_t format)
 {
