@@ -318,10 +318,10 @@ static void gen_goto_tb(DisasContext *s, int tb_num,
         tcg_gen_movi_tl(cpu_npc, npc);
         tcg_gen_exit_tb(s->base.tb, tb_num);
     } else {
-        /* jump to another page: currently not optimized */
+        /* jump to another page: we can use an indirect jump */
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb(NULL, 0);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
