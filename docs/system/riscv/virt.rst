@@ -93,6 +93,7 @@ The following machine-specific options are supported:
 
   When this option is "on", ACLINT devices will be emulated instead of
   SiFive CLINT. When not specified, this option is assumed to be "off".
+  This option is restricted to the TCG accelerator.
 
 - aia=[none|aplic|aplic-imsic]
 

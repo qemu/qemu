@@ -44,6 +44,7 @@
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
 #include "sysemu/tpm.h"
 #include "hw/pci/pci.h"
@@ -776,7 +777,7 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
 
         g_free(clust_name);
 
-        if (!kvm_enabled()) {
+        if (tcg_enabled()) {
             if (s->have_aclint) {
                 create_fdt_socket_aclint(s, memmap, socket,
                     &intc_phandles[phandle_pos]);
@@ -1370,7 +1371,7 @@ static void virt_machine_init(MachineState *machine)
                                 hart_count, &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->soc[i]), &error_fatal);
 
-        if (!kvm_enabled()) {
+        if (tcg_enabled()) {
             if (s->have_aclint) {
                 if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
                     /* Per-socket ACLINT MTIMER */
@@ -1682,12 +1683,13 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
 
-    object_class_property_add_bool(oc, "aclint", virt_get_aclint,
-                                   virt_set_aclint);
-    object_class_property_set_description(oc, "aclint",
-                                          "Set on/off to enable/disable "
-                                          "emulating ACLINT devices");
-
+    if (tcg_enabled()) {
+        object_class_property_add_bool(oc, "aclint", virt_get_aclint,
+                                       virt_set_aclint);
+        object_class_property_set_description(oc, "aclint",
+                                              "Set on/off to enable/disable "
+                                              "emulating ACLINT devices");
+    }
     object_class_property_add_str(oc, "aia", virt_get_aia,
                                   virt_set_aia);
     object_class_property_set_description(oc, "aia",
