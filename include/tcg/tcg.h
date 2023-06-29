@@ -1135,12 +1135,6 @@ uint64_t dup_const(unsigned vece, uint64_t c);
         : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
 
-#ifdef CONFIG_DEBUG_TCG
-void tcg_assert_listed_vecop(TCGOpcode);
-#else
-static inline void tcg_assert_listed_vecop(TCGOpcode op) { }
-#endif
-
 static inline const TCGOpcode *tcg_swap_vecop_list(const TCGOpcode *n)
 {
 #ifdef CONFIG_DEBUG_TCG
