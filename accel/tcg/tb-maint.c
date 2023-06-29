@@ -1092,6 +1092,9 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
     TranslationBlock *current_tb = retaddr ? tcg_tb_lookup(retaddr) : NULL;
 #endif /* TARGET_HAS_PRECISE_SMC */
 
+    /* Range may not cross a page. */
+    tcg_debug_assert(((start ^ last) & TARGET_PAGE_MASK) == 0);
+
     /*
      * We remove all the TBs in the range [start, last].
      * XXX: see if in some cases it could be faster to invalidate all the code
