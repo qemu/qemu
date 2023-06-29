@@ -1182,15 +1182,17 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
     index_last = last >> TARGET_PAGE_BITS;
     for (index = start >> TARGET_PAGE_BITS; index <= index_last; index++) {
         PageDesc *pd = page_find(index);
-        tb_page_addr_t bound;
+        tb_page_addr_t page_start, page_last;
 
         if (pd == NULL) {
             continue;
         }
         assert_page_locked(pd);
-        bound = (index << TARGET_PAGE_BITS) | ~TARGET_PAGE_MASK;
-        bound = MIN(bound, last);
-        tb_invalidate_phys_page_range__locked(pages, pd, start, bound, 0);
+        page_start = index << TARGET_PAGE_BITS;
+        page_last = page_start | ~TARGET_PAGE_MASK;
+        page_last = MIN(page_last, last);
+        tb_invalidate_phys_page_range__locked(pages, pd,
+                                              page_start, page_last, 0);
     }
     page_collection_unlock(pages);
 }
