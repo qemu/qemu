@@ -3224,6 +3224,9 @@ out_deregister:
     if (vdev->irqchip_change_notifier.notify) {
         kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
     }
+    if (vdev->intx.mmap_timer) {
+        timer_free(vdev->intx.mmap_timer);
+    }
 out_teardown:
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
