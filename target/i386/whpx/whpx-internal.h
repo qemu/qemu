@@ -2,8 +2,8 @@
 #define TARGET_I386_WHPX_INTERNAL_H
 
 #include <windows.h>
-#include <WinHvPlatform.h>
-#include <WinHvEmulation.h>
+#include <winhvplatform.h>
+#include <winhvemulation.h>
 
 typedef enum WhpxBreakpointState {
     WHPX_BP_CLEARED = 0,

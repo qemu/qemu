@@ -49,7 +49,7 @@ struct HVFState {
 };
 extern HVFState *hvf_state;
 
-struct hvf_vcpu_state {
+struct AccelCPUState {
     uint64_t fd;
     void *exit;
     bool vtimer_masked;

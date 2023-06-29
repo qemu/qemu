@@ -217,7 +217,7 @@ void proxy_memory_listener_configure(ProxyMemoryListener *proxy_listener,
     proxy_listener->listener.commit = proxy_memory_listener_commit;
     proxy_listener->listener.region_add = proxy_memory_listener_region_addnop;
     proxy_listener->listener.region_nop = proxy_memory_listener_region_addnop;
-    proxy_listener->listener.priority = 10;
+    proxy_listener->listener.priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND;
     proxy_listener->listener.name = "proxy";
 
     memory_listener_register(&proxy_listener->listener,

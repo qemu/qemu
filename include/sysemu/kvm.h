@@ -11,9 +11,12 @@
  *
  */
 
+/* header to be included in non-KVM-specific code */
+
 #ifndef QEMU_KVM_H
 #define QEMU_KVM_H
 
+#include "exec/memattrs.h"
 #include "qemu/accel.h"
 #include "qom/object.h"
 

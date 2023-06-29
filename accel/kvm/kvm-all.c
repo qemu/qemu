@@ -1105,6 +1105,7 @@ static MemoryListener kvm_coalesced_pio_listener = {
     .name = "kvm-coalesced-pio",
     .coalesced_io_add = kvm_coalesce_pio_add,
     .coalesced_io_del = kvm_coalesce_pio_del,
+    .priority = MEMORY_LISTENER_PRIORITY_MIN,
 };
 
 int kvm_check_extension(KVMState *s, unsigned int extension)
@@ -1777,7 +1778,7 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
     kml->listener.commit = kvm_region_commit;
     kml->listener.log_start = kvm_log_start;
     kml->listener.log_stop = kvm_log_stop;
-    kml->listener.priority = 10;
+    kml->listener.priority = MEMORY_LISTENER_PRIORITY_ACCEL;
     kml->listener.name = name;
 
     if (s->kvm_dirty_ring_size) {
@@ -1802,7 +1803,7 @@ static MemoryListener kvm_io_listener = {
     .name = "kvm-io",
     .eventfd_add = kvm_io_ioeventfd_add,
     .eventfd_del = kvm_io_ioeventfd_del,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND,
 };
 
 int kvm_set_irq(KVMState *s, int irq, int level)

@@ -155,7 +155,7 @@ MemoryListener xen_io_listener = {
     .name = "xen-io",
     .region_add = xen_io_add,
     .region_del = xen_io_del,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
 };
 
 DeviceListener xen_device_listener = {

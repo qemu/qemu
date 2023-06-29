@@ -1444,7 +1444,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .log_sync = vhost_log_sync,
         .log_global_start = vhost_log_global_start,
         .log_global_stop = vhost_log_global_stop,
-        .priority = 10
+        .priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND
     };
 
     hdev->iommu_listener = (MemoryListener) {

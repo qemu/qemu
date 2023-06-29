@@ -765,7 +765,9 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
     tlb->mas7_3 = 0;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 
+#ifdef CONFIG_KVM
     env->tlb_dirty = true;
+#endif
 }
 
 static void ppce500_cpu_reset_sec(void *opaque)

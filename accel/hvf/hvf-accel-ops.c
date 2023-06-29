@@ -304,7 +304,7 @@ static void hvf_region_del(MemoryListener *listener,
 
 static MemoryListener hvf_memory_listener = {
     .name = "hvf",
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
     .region_add = hvf_region_add,
     .region_del = hvf_region_del,
     .log_start = hvf_log_start,
@@ -372,19 +372,19 @@ type_init(hvf_type_init);
 
 static void hvf_vcpu_destroy(CPUState *cpu)
 {
-    hv_return_t ret = hv_vcpu_destroy(cpu->hvf->fd);
+    hv_return_t ret = hv_vcpu_destroy(cpu->accel->fd);
     assert_hvf_ok(ret);
 
     hvf_arch_vcpu_destroy(cpu);
-    g_free(cpu->hvf);
-    cpu->hvf = NULL;
+    g_free(cpu->accel);
+    cpu->accel = NULL;
 }
 
 static int hvf_init_vcpu(CPUState *cpu)
 {
     int r;
 
-    cpu->hvf = g_malloc0(sizeof(*cpu->hvf));
+    cpu->accel = g_new0(AccelCPUState, 1);
 
     /* init cpu signals */
     struct sigaction sigact;
@@ -393,18 +393,19 @@ static int hvf_init_vcpu(CPUState *cpu)
     sigact.sa_handler = dummy_signal;
     sigaction(SIG_IPI, &sigact, NULL);
 
-    pthread_sigmask(SIG_BLOCK, NULL, &cpu->hvf->unblock_ipi_mask);
-    sigdelset(&cpu->hvf->unblock_ipi_mask, SIG_IPI);
+    pthread_sigmask(SIG_BLOCK, NULL, &cpu->accel->unblock_ipi_mask);
+    sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
 
 #ifdef __aarch64__
-    r = hv_vcpu_create(&cpu->hvf->fd, (hv_vcpu_exit_t **)&cpu->hvf->exit, NULL);
+    r = hv_vcpu_create(&cpu->accel->fd,
+                       (hv_vcpu_exit_t **)&cpu->accel->exit, NULL);
 #else
-    r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf->fd, HV_VCPU_DEFAULT);
+    r = hv_vcpu_create((hv_vcpuid_t *)&cpu->accel->fd, HV_VCPU_DEFAULT);
 #endif
     cpu->vcpu_dirty = 1;
     assert_hvf_ok(r);
 
-    cpu->hvf->guest_debug_enabled = false;
+    cpu->accel->guest_debug_enabled = false;
 
     return hvf_arch_init_vcpu(cpu);
 }

@@ -45,7 +45,7 @@ static MemoryListener xen_memory_listener = {
     .log_sync = NULL,
     .log_global_start = NULL,
     .log_global_stop = NULL,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
 };
 
 struct XenArmState {
