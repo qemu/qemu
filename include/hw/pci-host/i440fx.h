@@ -25,9 +25,6 @@ struct PCII440FXState {
     PCIDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion *system_memory;
-    MemoryRegion *pci_address_space;
-    MemoryRegion *ram_memory;
     PAMMemoryRegion pam_regions[PAM_REGIONS_COUNT];
     MemoryRegion smram_region;
     MemoryRegion smram, low_smram;
