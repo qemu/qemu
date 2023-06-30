@@ -31,7 +31,7 @@ endforeach
 
 if dbus_display
     module_ss = ss.source_set()
-    module_ss.add(when: gio, if_true: files('dbusaudio.c'))
+    module_ss.add(when: [gio, pixman], if_true: files('dbusaudio.c'))
     audio_modules += {'dbus': module_ss}
 endif
 
