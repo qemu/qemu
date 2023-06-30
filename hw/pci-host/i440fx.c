@@ -27,7 +27,6 @@
 #include "qemu/range.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/i440fx.h"
 #include "hw/qdev-properties.h"
@@ -49,6 +48,7 @@ struct I440FXState {
     PCIHostState parent_obj;
 
     MemoryRegion *system_memory;
+    MemoryRegion *io_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *ram_memory;
     Range pci_hole;
@@ -237,17 +237,22 @@ static void i440fx_pcihost_initfn(Object *obj)
     object_property_add_link(obj, PCI_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->system_memory,
                              qdev_prop_allow_set_link_before_realize, 0);
+
+    object_property_add_link(obj, PCI_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->io_memory,
+                             qdev_prop_allow_set_link_before_realize, 0);
 }
 
 static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 {
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_add_subregion(phb->bus->address_space_io, 0xcf8, &phb->conf_mem);
+    memory_region_add_subregion(s->io_memory, 0xcf8, &phb->conf_mem);
     sysbus_init_ioports(sbd, 0xcf8, 4);
 
-    memory_region_add_subregion(phb->bus->address_space_io, 0xcfc, &phb->data_mem);
+    memory_region_add_subregion(s->io_memory, 0xcfc, &phb->data_mem);
     sysbus_init_ioports(sbd, 0xcfc, 4);
 
     /* register i440fx 0xcf8 port as coalesced pio */
@@ -273,11 +278,12 @@ PCIBus *i440fx_init(const char *pci_type,
     unsigned i;
 
     s->system_memory = address_space_mem;
+    s->io_memory = address_space_io;
     s->pci_address_space = pci_address_space;
     s->ram_memory = ram_memory;
 
     b = pci_root_bus_new(dev, NULL, s->pci_address_space,
-                         address_space_io, 0, TYPE_PCI_BUS);
+                         s->io_memory, 0, TYPE_PCI_BUS);
     phb->bus = b;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
