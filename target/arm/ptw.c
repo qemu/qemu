@@ -628,7 +628,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
                              uint64_t new_val, S1Translate *ptw,
                              ARMMMUFaultInfo *fi)
 {
-#ifdef TARGET_AARCH64
+#if defined(TARGET_AARCH64) && defined(CONFIG_TCG)
     uint64_t cur_val;
     void *host = ptw->out_host;
 
@@ -709,7 +709,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
 
     return cur_val;
 #else
-    /* AArch32 does not have FEAT_HADFS. */
+    /* AArch32 does not have FEAT_HADFS; non-TCG guests only use debug-mode. */
     g_assert_not_reached();
 #endif
 }
