@@ -8,6 +8,8 @@
 #include "../../../pc-bios/s390-ccw/start.S"
 #undef main
 
+.text
+
 main_pre:
     aghi %r15,-160                     /* reserve stack for C code */
     brasl %r14,sclp_setup
@@ -24,8 +26,3 @@ success_psw:
     .quad 0x2000180000000,0xfff        /* see is_special_wait_psw() */
 failure_psw:
     .quad 0x2000180000000,0            /* disabled wait */
-
-    .section .bss
-    .align 0x1000
-stack:
-    .skip 0x8000

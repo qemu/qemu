@@ -17,11 +17,6 @@ typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
-typedef unsigned long      ulong;
-typedef unsigned char      __u8;
-typedef unsigned short     __u16;
-typedef unsigned int       __u32;
-typedef unsigned long long __u64;
 
 #define true 1
 #define false 0
@@ -55,7 +50,6 @@ void consume_io_int(void);
 /* main.c */
 void write_subsystem_identification(void);
 void write_iplb_location(void);
-extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 unsigned int get_loadparm_index(void);
 void main(void);
 
@@ -67,11 +61,11 @@ void sclp_get_loadparm_ascii(char *loadparm);
 int sclp_read(char *str, size_t count);
 
 /* virtio.c */
-unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
-                                 ulong subchan_id, void *load_addr);
+unsigned long virtio_load_direct(unsigned long rec_list1, unsigned long rec_list2,
+                                 unsigned long subchan_id, void *load_addr);
 bool virtio_is_supported(SubChannelId schid);
 int virtio_blk_setup_device(SubChannelId schid);
-int virtio_read(ulong sector, void *load_addr);
+int virtio_read(unsigned long sector, void *load_addr);
 
 /* bootmap.c */
 void zipl_load(void);

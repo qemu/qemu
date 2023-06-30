@@ -10,49 +10,52 @@
  * directory.
  */
 
-        .globl _start
+#define STACK_SIZE        0x8000
+#define STACK_FRAME_SIZE  160
+
+    .globl _start
 _start:
 
-	larl   %r15, stack + 0x8000	/* Set up stack */
+    larl    %r15,stack + STACK_SIZE - STACK_FRAME_SIZE   /* Set up stack */
 
-	/* clear bss */
-	larl %r2, __bss_start
-	larl %r3, _end
-	slgr %r3, %r2		/* get sizeof bss */
-	ltgr	%r3,%r3 	/* bss empty? */
-	jz	done
-	aghi	%r3,-1
-	srlg	%r4,%r3,8	/* how many 256 byte chunks? */
-	ltgr	%r4,%r4
-	lgr	%r1,%r2
-	jz	remainder
+    /* clear bss */
+    larl    %r2,bss_start_literal   /* __bss_start might be unaligned ... */
+    lg      %r2,0(%r2)              /* ... so load it indirectly */
+    larl    %r3,_end
+    slgr    %r3,%r2    /* get sizeof bss */
+    ltgr    %r3,%r3    /* bss empty? */
+    jz      done
+    aghi    %r3,-1
+    srlg    %r4,%r3,8  /* how many 256 byte chunks? */
+    ltgr    %r4,%r4
+    lgr     %r1,%r2
+    jz      remainder
 loop:
-	xc	0(256,%r1),0(%r1)
-	la	%r1,256(%r1)
-	brctg	%r4,loop
+    xc      0(256,%r1),0(%r1)
+    la      %r1,256(%r1)
+    brctg   %r4,loop
 remainder:
-	larl	%r2,memsetxc
-	ex	%r3,0(%r2)
+    larl    %r2,memsetxc
+    ex      %r3,0(%r2)
 done:
-        /* set up a pgm exception disabled wait psw */
-        larl	%r2, disabled_wait_psw
-        mvc	0x01d0(16), 0(%r2)
-        j      main		/* And call C */
+    /* set up a pgm exception disabled wait psw */
+    larl    %r2,disabled_wait_psw
+    mvc     0x01d0(16),0(%r2)
+    j       main       /* And call C */
 
 memsetxc:
-	xc	0(1,%r1),0(%r1)
-
+    xc      0(1,%r1),0(%r1)
 
 /*
  * void disabled_wait(void)
  *
  * stops the current guest cpu.
  */
-	.globl disabled_wait
+    .globl disabled_wait
 disabled_wait:
-	larl	%r1,disabled_wait_psw
-	lpswe	0(%r1)
-1:	j	1b
+    larl    %r1,disabled_wait_psw
+    lpswe   0(%r1)
+1:  j       1b
 
 
 /*
@@ -60,61 +63,69 @@ disabled_wait:
  *
  * eats one sclp interrupt
  */
-        .globl consume_sclp_int
+    .globl consume_sclp_int
 consume_sclp_int:
-        /* enable service interrupts in cr0 */
-        stctg   %c0,%c0,0(%r15)
-        oi      6(%r15),0x2
-        lctlg   %c0,%c0,0(%r15)
-        /* prepare external call handler */
-        larl %r1, external_new_code
-        stg %r1, 0x1b8
-        larl %r1, external_new_mask
-        mvc 0x1b0(8),0(%r1)
-        /* load enabled wait PSW */
-        larl %r1, enabled_wait_psw
-        lpswe 0(%r1)
+    /* enable service interrupts in cr0 */
+    stctg   %c0,%c0,0(%r15)
+    oi      6(%r15),0x2
+    lctlg   %c0,%c0,0(%r15)
+    /* prepare external call handler */
+    larl    %r1,external_new_code
+    stg     %r1,0x1b8
+    larl    %r1,external_new_mask
+    mvc     0x1b0(8),0(%r1)
+    /* load enabled wait PSW */
+    larl    %r1,enabled_wait_psw
+    lpswe   0(%r1)
 
 /*
  * void consume_io_int(void)
  *
  * eats one I/O interrupt
  */
-        .globl consume_io_int
+    .globl consume_io_int
 consume_io_int:
-        /* enable I/O interrupts in cr6 */
-        stctg %c6,%c6,0(%r15)
-        oi    4(%r15), 0xff
-        lctlg %c6,%c6,0(%r15)
-        /* prepare i/o call handler */
-        larl  %r1, io_new_code
-        stg   %r1, 0x1f8
-        larl  %r1, io_new_mask
-        mvc   0x1f0(8),0(%r1)
-        /* load enabled wait PSW */
-        larl  %r1, enabled_wait_psw
-        lpswe 0(%r1)
+    /* enable I/O interrupts in cr6 */
+    stctg   %c6,%c6,0(%r15)
+    oi      4(%r15), 0xff
+    lctlg   %c6,%c6,0(%r15)
+    /* prepare i/o call handler */
+    larl    %r1,io_new_code
+    stg     %r1,0x1f8
+    larl    %r1,io_new_mask
+    mvc     0x1f0(8),0(%r1)
+    /* load enabled wait PSW */
+    larl    %r1,enabled_wait_psw
+    lpswe   0(%r1)
 
 external_new_code:
-        /* disable service interrupts in cr0 */
-        stctg   %c0,%c0,0(%r15)
-        ni      6(%r15),0xfd
-        lctlg   %c0,%c0,0(%r15)
-        br      %r14
+    /* disable service interrupts in cr0 */
+    stctg   %c0,%c0,0(%r15)
+    ni      6(%r15),0xfd
+    lctlg   %c0,%c0,0(%r15)
+    br      %r14
 
 io_new_code:
-        /* disable I/O interrupts in cr6 */
-        stctg %c6,%c6,0(%r15)
-        ni    4(%r15), 0x00
-        lctlg %c6,%c6,0(%r15)
-        br    %r14
+    /* disable I/O interrupts in cr6 */
+    stctg   %c6,%c6,0(%r15)
+    ni      4(%r15),0x00
+    lctlg   %c6,%c6,0(%r15)
+    br      %r14
 
-        .align  8
+    .align  8
+bss_start_literal:
+    .quad   __bss_start
 disabled_wait_psw:
-        .quad   0x0002000180000000,0x0000000000000000
+    .quad   0x0002000180000000,0x0000000000000000
 enabled_wait_psw:
-        .quad   0x0302000180000000,0x0000000000000000
+    .quad   0x0302000180000000,0x0000000000000000
 external_new_mask:
-        .quad   0x0000000180000000
+    .quad   0x0000000180000000
 io_new_mask:
-        .quad   0x0000000180000000
+    .quad   0x0000000180000000
+
+.bss
+    .align  8
+stack:
+    .space  STACK_SIZE
+    .size   stack,STACK_SIZE
