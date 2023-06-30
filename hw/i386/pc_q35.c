@@ -218,13 +218,13 @@ static void pc_q35_init(MachineState *machine)
     pc_memory_init(pcms, system_memory, rom_memory, pci_hole64_size);
 
     object_property_add_child(OBJECT(machine), "q35", phb);
-    object_property_set_link(phb, MCH_HOST_PROP_RAM_MEM,
+    object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
                              OBJECT(machine->ram), NULL);
-    object_property_set_link(phb, MCH_HOST_PROP_PCI_MEM,
+    object_property_set_link(phb, PCI_HOST_PROP_PCI_MEM,
                              OBJECT(pci_memory), NULL);
-    object_property_set_link(phb, MCH_HOST_PROP_SYSTEM_MEM,
+    object_property_set_link(phb, PCI_HOST_PROP_SYSTEM_MEM,
                              OBJECT(system_memory), NULL);
-    object_property_set_link(phb, MCH_HOST_PROP_IO_MEM,
+    object_property_set_link(phb, PCI_HOST_PROP_IO_MEM,
                              OBJECT(system_io), NULL);
     object_property_set_int(phb, PCI_HOST_BELOW_4G_MEM_SIZE,
                             x86ms->below_4g_mem_size, NULL);
