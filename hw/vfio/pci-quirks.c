@@ -1490,6 +1490,9 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
  * +---------------------------------+---------------------------------+
  *
  * https://lists.gnu.org/archive/html/qemu-devel/2017-08/pdfUda5iEpgOS.pdf
+ *
+ * Specification for Turning and later GPU architectures:
+ * https://lists.gnu.org/archive/html/qemu-devel/2023-06/pdf142OR4O4c2.pdf
  */
 static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
@@ -1530,7 +1533,9 @@ const PropertyInfo qdev_prop_nv_gpudirect_clique = {
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
-    int ret, pos = 0xC8;
+    int ret, pos;
+    bool c8_conflict = false, d4_conflict = false;
+    uint8_t tmp;
 
     if (vdev->nv_gpudirect_clique == 0xFF) {
         return 0;
@@ -1544,6 +1549,40 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
     if (pci_get_byte(pdev->config + PCI_CLASS_DEVICE + 1) !=
         PCI_BASE_CLASS_DISPLAY) {
         error_setg(errp, "NVIDIA GPUDirect Clique ID: unsupported PCI class");
+        return -EINVAL;
+    }
+
+    /*
+     * Per the updated specification above, it's recommended to use offset
+     * D4h for Turing and later GPU architectures due to a conflict of the
+     * MSI-X capability at C8h.  We don't know how to determine the GPU
+     * architecture, instead we walk the capability chain to mark conflicts
+     * and choose one or error based on the result.
+     *
+     * NB. Cap list head in pdev->config is already cleared, read from device.
+     */
+    ret = pread(vdev->vbasedev.fd, &tmp, 1,
+                vdev->config_offset + PCI_CAPABILITY_LIST);
+    if (ret != 1 || !tmp) {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: error getting cap list");
+        return -EINVAL;
+    }
+
+    do {
+        if (tmp == 0xC8) {
+            c8_conflict = true;
+        } else if (tmp == 0xD4) {
+            d4_conflict = true;
+        }
+        tmp = pdev->config[tmp + PCI_CAP_LIST_NEXT];
+    } while (tmp);
+
+    if (!c8_conflict) {
+        pos = 0xC8;
+    } else if (!d4_conflict) {
+        pos = 0xD4;
+    } else {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: invalid config space");
         return -EINVAL;
     }
 
