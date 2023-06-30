@@ -249,9 +249,14 @@ static void i440fx_pcihost_initfn(Object *obj)
 
 static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    PCIBus *b;
+    PCIDevice *d;
+    PCII440FXState *f;
+    unsigned i;
 
     memory_region_add_subregion(s->io_memory, 0xcf8, &phb->conf_mem);
     sysbus_init_ioports(sbd, 0xcf8, 4);
@@ -262,36 +267,10 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
     /* register i440fx 0xcf8 port as coalesced pio */
     memory_region_set_flush_coalesced(&phb->data_mem);
     memory_region_add_coalescing(&phb->conf_mem, 0, 4);
-}
-
-PCIBus *i440fx_init(const char *pci_type,
-                    DeviceState *dev,
-                    MemoryRegion *address_space_mem,
-                    MemoryRegion *address_space_io,
-                    ram_addr_t below_4g_mem_size,
-                    ram_addr_t above_4g_mem_size,
-                    MemoryRegion *pci_address_space,
-                    MemoryRegion *ram_memory)
-{
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
-    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
-    PCIBus *b;
-    PCIDevice *d;
-    PCII440FXState *f;
-    unsigned i;
-
-    s->system_memory = address_space_mem;
-    s->io_memory = address_space_io;
-    s->pci_address_space = pci_address_space;
-    s->ram_memory = ram_memory;
-    s->below_4g_mem_size = below_4g_mem_size;
-    s->above_4g_mem_size = above_4g_mem_size;
-    s->pci_type = (char *)pci_type;
 
     b = pci_root_bus_new(dev, NULL, s->pci_address_space,
                          s->io_memory, 0, TYPE_PCI_BUS);
     phb->bus = b;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     d = pci_create_simple(b, 0, s->pci_type);
     f = I440FX_PCI_DEVICE(d);
@@ -335,8 +314,6 @@ PCIBus *i440fx_init(const char *pci_type,
     d->config[I440FX_COREBOOT_RAM_SIZE] = ram_size;
 
     i440fx_update_memory_mappings(f);
-
-    return b;
 }
 
 static void i440fx_class_init(ObjectClass *klass, void *data)
