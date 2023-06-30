@@ -15,6 +15,8 @@
 #include "hw/pci-host/pam.h"
 #include "qom/object.h"
 
+#define I440FX_HOST_PROP_PCI_TYPE "pci-type"
+
 #define TYPE_I440FX_PCI_HOST_BRIDGE "i440FX-pcihost"
 #define TYPE_I440FX_PCI_DEVICE "i440FX"
 
