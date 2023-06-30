@@ -1,3 +1,5 @@
+.. _tcg:
+
 TCG Emulation
 -------------
 
