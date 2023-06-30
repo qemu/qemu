@@ -869,7 +869,7 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyS0,115200 '
-                               'root=/dev/mmcblk0 rootwait rw '
+                               'root=b300 rootwait rw '
                                'panic=-1 noreboot')
         self.vm.add_args('-kernel', kernel_path,
                          '-dtb', dtb_path,
@@ -885,7 +885,7 @@ class BootLinuxConsole(LinuxKernelTest):
         exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
                                                 'Allwinner sun8i Family')
         exec_command_and_wait_for_pattern(self, 'cat /proc/partitions',
-                                                'mmcblk0')
+                                                'mmcblk')
         exec_command_and_wait_for_pattern(self, 'ifconfig eth0 up',
                                                  'eth0: Link is Up')
         exec_command_and_wait_for_pattern(self, 'udhcpc eth0',
