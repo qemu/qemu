@@ -122,11 +122,11 @@ static void pc_init1(MachineState *machine,
     BusState *idebus[MAX_IDE_BUS];
     ISADevice *rtc_state;
     MemoryRegion *ram_memory;
-    MemoryRegion *pci_memory;
-    MemoryRegion *rom_memory;
+    MemoryRegion *pci_memory = NULL;
+    MemoryRegion *rom_memory = system_memory;
     ram_addr_t lowmem;
-    uint64_t hole64_size;
-    DeviceState *i440fx_host;
+    uint64_t hole64_size = 0;
+    DeviceState *i440fx_host = NULL;
 
     /*
      * Calculate ram split, for memory below and above 4G.  It's a bit
@@ -205,11 +205,6 @@ static void pc_init1(MachineState *machine,
         hole64_size = object_property_get_uint(OBJECT(i440fx_host),
                                                PCI_HOST_PROP_PCI_HOLE64_SIZE,
                                                &error_abort);
-    } else {
-        pci_memory = NULL;
-        rom_memory = system_memory;
-        i440fx_host = NULL;
-        hole64_size = 0;
     }
 
     pc_guest_info_init(pcms);
