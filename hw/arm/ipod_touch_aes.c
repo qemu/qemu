@@ -41,7 +41,7 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
             }
 
             buf = (uint8_t *) malloc(aesop->insize);
-            printf("In size: %d, out size: %d, in addr: 0x%08x, in buf: 0x%08x, out addr: 0x%08x\n", aesop->insize, aesop->outsize, aesop->inaddr, ((uint32_t *)inbuf)[0], aesop->outaddr);
+            printf("In size: %d, out size: %d, in addr: 0x%08x, in buf: 0x%08x, out addr: 0x%08x, %d\n", aesop->insize, aesop->outsize, aesop->inaddr, ((uint32_t *)inbuf)[0], aesop->outaddr, aesop->gid_encryption_count);
 
             if(aesop->keytype == AESGID) {
                 // Unfortunately, we don't have access to the GID key.
@@ -69,6 +69,13 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                     };
                     for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
                 }
+                else if(aesop->gid_encryption_count == 3) { // device tree
+                    char key[] = { 
+                        0xcc, 0xff, 0x63, 0x4e, 0xe1, 0x27, 0x35, 0xf0, 0x19, 0x16, 0xc4, 0xa6, 0xb2, 0x0f, 0xf1, 0x45, // IV
+                        0xe1, 0x7b, 0xcd, 0x56, 0x8d, 0xf1, 0xcd, 0xdc, 0x8f, 0xec, 0xbf, 0x54, 0x87, 0xd5, 0xc3, 0xce, // key
+                    };
+                    for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
+                }
 
                 aesop->gid_encryption_count++;
             }
@@ -76,10 +83,18 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                 AES_cbc_encrypt(inbuf, buf, aesop->insize, &aesop->decryptKey, (uint8_t *)aesop->ivec, AES_DECRYPT);
             }
 
-            if(aesop->outaddr != 0x220100ac) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
+            if(aesop->outaddr != 0x220100ac && aesop->outaddr != 0x0bf08468) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
+                // BUG: after decrypting the kernel, we update the Adler CRC code and number of expected bytes.
+                if(aesop->outaddr == 0x0b000020) {
+                    printf("Adjusting sizes for the kernel...\n");
+                    uint32_t *cast_buf = (uint32_t *)buf;
+                    cast_buf[2] = 0xA7886041; // adler
+                    cast_buf[3] = 0xF5D37E00; // 8311797 in big endian
+                }
+
                 cpu_physical_memory_write((aesop->outaddr), buf, aesop->insize);
             }
-            
+
             memset(aesop->custkey, 0, 0x20);
             memset(aesop->ivec, 0, 0x10);
             free(inbuf);

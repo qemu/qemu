@@ -25,6 +25,10 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     data2[0] = 0x39400000;
     cpu_physical_memory_write(0x0ff02d1c + 0x54, (uint8_t *)data2, 4);
 
+    // boot args
+    char *boot_args = "boot-args=debug=0x8 kextlog=0xfff cpus=1 rd=disk0s1 serial=1 io=0xffff8fff";
+    cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
+
     for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {
         uint32_t page_nr = 0;
         uint32_t page_out_addr = 0;
