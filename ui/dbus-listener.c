@@ -177,6 +177,7 @@ fail:
 }
 #endif /* WIN32 */
 
+#if defined(CONFIG_GBM) || defined(WIN32)
 static void dbus_update_gl_cb(GObject *source_object,
                               GAsyncResult *res,
                               gpointer user_data)
@@ -203,11 +204,14 @@ static void dbus_update_gl_cb(GObject *source_object,
     graphic_hw_gl_block(ddl->dcl.con, false);
     g_object_unref(ddl);
 }
+#endif
 
 static void dbus_call_update_gl(DisplayChangeListener *dcl,
                                 int x, int y, int w, int h)
 {
+#if defined(CONFIG_GBM) || defined(WIN32)
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+#endif
 
     trace_dbus_update_gl(x, y, w, h);
 

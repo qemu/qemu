@@ -281,9 +281,15 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
     /* Note that start and size have already been aligned by mmap_find_vma. */
 
     end_addr = start + size;
+    /*
+     * Start at the top of the address space, ignoring the last page.
+     * If reserved_va == UINT32_MAX, then end_addr wraps to 0,
+     * throwing the rest of the calculations off.
+     * TODO: rewrite using last_addr instead.
+     * TODO: use the interval tree instead of probing every page.
+     */
     if (start > reserved_va - size) {
-        /* Start at the top of the address space.  */
-        end_addr = ((reserved_va + 1 - size) & -align) + size;
+        end_addr = ((reserved_va - size) & -align) + size;
         looped = true;
     }
 
@@ -296,8 +302,8 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
                 /* Failure.  The entire address space has been searched.  */
                 return (abi_ulong)-1;
             }
-            /* Re-start at the top of the address space.  */
-            addr = end_addr = ((reserved_va + 1 - size) & -align) + size;
+            /* Re-start at the top of the address space (see above). */
+            addr = end_addr = ((reserved_va - size) & -align) + size;
             looped = true;
         } else {
             prot = page_get_flags(addr);
