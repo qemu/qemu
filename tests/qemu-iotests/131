@@ -44,10 +44,13 @@ _supported_os Linux
 inuse_offset=$((0x2c))
 
 size=$((64 * 1024 * 1024))
-CLUSTER_SIZE=$((64 * 1024))
 IMGFMT=parallels
 _make_test_img $size
 
+# get cluster size in sectors from "tracks" header field
+CLUSTER_SIZE_OFFSET=28
+CLUSTER_SIZE=$(peek_file_le $TEST_IMG $CLUSTER_SIZE_OFFSET 4)
+CLUSTER_SIZE=$((CLUSTER_SIZE * 512))
 CLUSTER_HALF_SIZE=$((CLUSTER_SIZE / 2))
 CLUSTER_DBL_SIZE=$((CLUSTER_SIZE * 2))
 
