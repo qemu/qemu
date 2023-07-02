@@ -88,8 +88,16 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
-    allocate_ram(sysmem, "tvout", TVOUT_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "mbx1", MBX1_MEM_BASE, 0x1000000);
+    allocate_ram(sysmem, "mbx2", MBX2_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "tvout1", TVOUT1_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "tvout2", TVOUT2_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "tvout3", TVOUT3_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, 0x400000);
+    allocate_ram(sysmem, "edgeic", EDGEIC_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "swi", SWI_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "sdio", SDIO_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "h264", H264_MEM_BASE, 0x4000);
 
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;

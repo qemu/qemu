@@ -86,10 +86,15 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
             if(aesop->outaddr != 0x220100ac && aesop->outaddr != 0x0bf08468) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
                 // BUG: after decrypting the kernel, we update the Adler CRC code and number of expected bytes.
                 if(aesop->outaddr == 0x0b000020) {
-                    printf("Adjusting sizes for the kernel...\n");
                     uint32_t *cast_buf = (uint32_t *)buf;
                     cast_buf[2] = 0xA7886041; // adler
                     cast_buf[3] = 0xF5D37E00; // 8311797 in big endian
+                }
+
+                // BUG: after decrypting the device tree, the last few bytes are incorrect
+                if(aesop->outaddr == 0x0bf00020) {
+                    uint32_t *cast_buf = (uint32_t *)buf;
+                    cast_buf[8429] = 0x4; // setting the size of the AAPL,phandle property to 4
                 }
 
                 cpu_physical_memory_write((aesop->outaddr), buf, aesop->insize);

@@ -63,12 +63,19 @@
 #define DISPLAY_MEM_BASE      0x38900000
 #define FMSS_MEM_BASE         0x38A00000
 #define AES_MEM_BASE          0x38C00000
+#define SDIO_MEM_BASE         0x38D00000
 #define VIC0_MEM_BASE         0x38E00000
 #define VIC1_MEM_BASE         0x38E01000
-#define TVOUT_MEM_BASE        0x39300000
+#define EDGEIC_MEM_BASE       0x38E02000
+#define H264_MEM_BASE         0x38F00000
+#define TVOUT1_MEM_BASE       0x39100000
+#define TVOUT2_MEM_BASE       0x39200000
+#define TVOUT3_MEM_BASE       0x39300000
 #define BLOCK_DEVICE_MEM_BASE 0x39400000
 #define SYSIC_MEM_BASE        0x39700000
 #define DMAC1_MEM_BASE        0x39900000
+#define MBX1_MEM_BASE         0x3B000000
+#define MBX2_MEM_BASE         0x39400000
 #define SPI0_MEM_BASE         0x3C300000
 #define USBPHYS_MEM_BASE      0x3C400000
 #define CLOCK0_MEM_BASE       0x3C500000
@@ -87,6 +94,7 @@
 #define UART1_MEM_BASE        0x3DB00000
 #define UART2_MEM_BASE        0x3DC00000
 #define UART3_MEM_BASE        0x3DD00000
+#define SWI_MEM_BASE          0x3DE00000
 #define CLOCK1_MEM_BASE       0x3E000000
 #define SPI4_MEM_BASE         0x3E100000
 

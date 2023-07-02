@@ -129,7 +129,7 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
             uint32_t size_bit = (s->seg_size_reg >> 6);
             if(size_bit == 0) { s->segment_size = 256; }
             else if(size_bit == 1) { s->segment_size = 128; }
-            else { hw_error("Unsupported segment size bit %d!", size_bit); }
+            else { }
             printf("Segment size: %d\n", s->segment_size);
 
             break;
