@@ -3160,6 +3160,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     return;
 
 out_deregister:
+    if (vdev->interrupt == VFIO_INT_INTx) {
+        vfio_intx_disable(vdev);
+    }
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     if (vdev->irqchip_change_notifier.notify) {
         kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
