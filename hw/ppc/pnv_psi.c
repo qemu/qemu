@@ -863,6 +863,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), "nr-irqs", PSIHB9_NUM_IRQS,
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), "xive", OBJECT(psi), &error_abort);
+    object_property_set_int(OBJECT(xsrc), "reset-pq", XIVE_ESB_RESET,
+                            &error_abort);
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
