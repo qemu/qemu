@@ -1232,8 +1232,7 @@ static void xive_source_reset(void *dev)
 
     /* Do not clear the LSI bitmap */
 
-    /* PQs are initialized to 0b01 (Q=1) which corresponds to "ints off" */
-    memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
+    memset(xsrc->status, xsrc->reset_pq, xsrc->nr_irqs);
 }
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
@@ -1287,6 +1286,11 @@ static Property xive_source_properties[] = {
     DEFINE_PROP_UINT64("flags", XiveSource, esb_flags, 0),
     DEFINE_PROP_UINT32("nr-irqs", XiveSource, nr_irqs, 0),
     DEFINE_PROP_UINT32("shift", XiveSource, esb_shift, XIVE_ESB_64K_2PAGE),
+    /*
+     * By default, PQs are initialized to 0b01 (Q=1) which corresponds
+     * to "ints off"
+     */
+    DEFINE_PROP_UINT8("reset-pq", XiveSource, reset_pq, XIVE_ESB_OFF),
     DEFINE_PROP_LINK("xive", XiveSource, xive, TYPE_XIVE_NOTIFIER,
                      XiveNotifier *),
     DEFINE_PROP_END_OF_LIST(),
