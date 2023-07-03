@@ -878,9 +878,10 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
         return ret;
     }
 
-    ret = vfio_block_giommu_migration(vbasedev, errp);
-    if (ret) {
-        return ret;
+    if (vfio_viommu_preset(vbasedev)) {
+        error_setg(&err, "%s: Migration is currently not supported "
+                   "with vIOMMU enabled", vbasedev->name);
+        return vfio_block_migration(vbasedev, err, errp);
     }
 
     trace_vfio_migration_realize(vbasedev->name);
