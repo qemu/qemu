@@ -802,6 +802,17 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     return 0;
 }
 
+static void vfio_migration_deinit(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    remove_migration_state_change_notifier(&migration->migration_state);
+    qemu_del_vm_change_state_handler(migration->vm_state);
+    unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
+    vfio_migration_free(vbasedev);
+    vfio_unblock_multiple_devices_migration();
+}
+
 static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
 {
     int ret;
@@ -866,7 +877,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
             error_setg(&err,
                        "%s: VFIO device doesn't support device dirty tracking",
                        vbasedev->name);
-            return vfio_block_migration(vbasedev, err, errp);
+            goto add_blocker;
         }
 
         warn_report("%s: VFIO device doesn't support device dirty tracking",
@@ -875,29 +886,31 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 
     ret = vfio_block_multiple_devices_migration(vbasedev, errp);
     if (ret) {
-        return ret;
+        goto out_deinit;
     }
 
     if (vfio_viommu_preset(vbasedev)) {
         error_setg(&err, "%s: Migration is currently not supported "
                    "with vIOMMU enabled", vbasedev->name);
-        return vfio_block_migration(vbasedev, err, errp);
+        goto add_blocker;
     }
 
     trace_vfio_migration_realize(vbasedev->name);
     return 0;
+
+add_blocker:
+    ret = vfio_block_migration(vbasedev, err, errp);
+out_deinit:
+    if (ret) {
+        vfio_migration_deinit(vbasedev);
+    }
+    return ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
 {
     if (vbasedev->migration) {
-        VFIOMigration *migration = vbasedev->migration;
-
-        remove_migration_state_change_notifier(&migration->migration_state);
-        qemu_del_vm_change_state_handler(migration->vm_state);
-        unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
-        vfio_migration_free(vbasedev);
-        vfio_unblock_multiple_devices_migration();
+        vfio_migration_deinit(vbasedev);
     }
 
     if (vbasedev->migration_blocker) {
