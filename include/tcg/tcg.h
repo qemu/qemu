@@ -846,9 +846,6 @@ static inline TCGv_ptr tcg_temp_new_ptr(void)
     return temp_tcgv_ptr(t);
 }
 
-void tcg_dump_info(GString *buf);
-void tcg_dump_op_count(GString *buf);
-
 #define TCG_CT_CONST  1 /* any constant of register size */
 
 typedef struct TCGArgConstraint {
