@@ -1235,9 +1235,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
             dinfo = drive_get(IF_SD, 0, 0);
             blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-            carddev = qdev_new(TYPE_SD_CARD);
+            carddev = qdev_new(TYPE_SD_CARD_SPI);
             qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-            qdev_prop_set_bit(carddev, "spi", true);
             qdev_realize_and_unref(carddev,
                                    qdev_get_child_bus(sddev, "sd-bus"),
                                    &error_fatal);

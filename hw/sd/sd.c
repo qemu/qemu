@@ -115,7 +115,6 @@ struct SDState {
 
     uint8_t spec_version;
     BlockBackend *blk;
-    bool spi;
 
     /* Runtime changeables */
 
@@ -157,6 +156,13 @@ static const struct SDProto *sd_proto(SDState *sd)
     SDCardClass *sc = SD_CARD_GET_CLASS(sd);
 
     return sc->proto;
+}
+
+static const SDProto sd_proto_spi;
+
+static bool sd_is_spi(SDState *sd)
+{
+    return sd_proto(sd) == &sd_proto_spi;
 }
 
 static const char *sd_version_str(enum SDPhySpecificationVersion version)
@@ -336,7 +342,7 @@ static void sd_set_ocr(SDState *sd)
     /* All voltages OK */
     sd->ocr = R_OCR_VDD_VOLTAGE_WIN_HI_MASK;
 
-    if (sd->spi) {
+    if (sd_is_spi(sd)) {
         /*
          * We don't need to emulate power up sequence in SPI-mode.
          * Thus, the card's power up status bit should be set to 1 when reset.
@@ -741,13 +747,12 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
     SDState *sd;
     Error *err = NULL;
 
-    obj = object_new(TYPE_SD_CARD);
+    obj = object_new(is_spi ? TYPE_SD_CARD_SPI : TYPE_SD_CARD);
     dev = DEVICE(obj);
     if (!qdev_prop_set_drive_err(dev, "drive", blk, &err)) {
         error_reportf_err(err, "sd_init failed: ");
         return NULL;
     }
-    qdev_prop_set_bit(dev, "spi", is_spi);
 
     /*
      * Realizing the device properly would put it into the QOM
@@ -1027,7 +1032,7 @@ static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
         sd_reset(DEVICE(sd));
     }
 
-    return sd->spi ? sd_r1 : sd_r0;
+    return sd_is_spi(sd) ? sd_r1 : sd_r0;
 }
 
 static sd_rsp_type_t sd_cmd_SEND_OP_CMD(SDState *sd, SDRequest req)
@@ -1203,7 +1208,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
         /* No response if not exactly one VHS bit is set.  */
         if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
-            return sd->spi ? sd_r7 : sd_r0;
+            return sd_is_spi(sd) ? sd_r7 : sd_r0;
         }
 
         /* Accept.  */
@@ -1219,8 +1224,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             return sd_r2_s;
 
         case sd_transfer_state:
-            if (!sd->spi)
+            if (!sd_is_spi(sd)) {
                 break;
+            }
             sd->state = sd_sendingdata_state;
             memcpy(sd->data, sd->csd, 16);
             sd->data_start = addr;
@@ -1241,8 +1247,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             return sd_r2_i;
 
         case sd_transfer_state:
-            if (!sd->spi)
+            if (!sd_is_spi(sd)) {
                 break;
+            }
             sd->state = sd_sendingdata_state;
             memcpy(sd->data, sd->cid, 16);
             sd->data_start = addr;
@@ -1274,7 +1281,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     case 13:  /* CMD13:  SEND_STATUS */
         switch (sd->mode) {
         case sd_data_transfer_mode:
-            if (!sd->spi && sd->rca != rca) {
+            if (!sd_is_spi(sd) && sd->rca != rca) {
                 return sd_r0;
             }
 
@@ -1531,7 +1538,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         default:
             break;
         }
-        if (!sd->spi) {
+        if (!sd_is_spi(sd)) {
             if (sd->rca != rca) {
                 return sd_r0;
             }
@@ -2184,10 +2191,7 @@ static void sd_instance_finalize(Object *obj)
 static void sd_realize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SD_CARD(dev);
-    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
     int ret;
-
-    sc->proto = sd->spi ? &sd_proto_spi : &sd_proto_sd;
 
     switch (sd->spec_version) {
     case SD_PHY_SPECv1_10_VERS
@@ -2245,7 +2249,6 @@ static Property sd_properties[] = {
      * whether card should be in SSI or MMC/SD mode.  It is also up to the
      * board to ensure that ssi transfers only occur when the chip select
      * is asserted.  */
-    DEFINE_PROP_BOOL("spi", SDState, spi, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -2272,6 +2275,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
     sc->enable = sd_enable;
     sc->get_inserted = sd_get_inserted;
     sc->get_readonly = sd_get_readonly;
+    sc->proto = &sd_proto_sd;
 }
 
 static const TypeInfo sd_info = {
@@ -2284,9 +2288,31 @@ static const TypeInfo sd_info = {
     .instance_finalize = sd_instance_finalize,
 };
 
+/*
+ * We do not model the chip select pin, so allow the board to select
+ * whether card should be in SSI or MMC/SD mode.  It is also up to the
+ * board to ensure that ssi transfers only occur when the chip select
+ * is asserted.
+ */
+static void sd_spi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SDCardClass *sc = SD_CARD_CLASS(klass);
+
+    dc->desc = "SD SPI";
+    sc->proto = &sd_proto_spi;
+}
+
+static const TypeInfo sd_spi_info = {
+    .name = TYPE_SD_CARD_SPI,
+    .parent = TYPE_SD_CARD,
+    .class_init = sd_spi_class_init,
+};
+
 static void sd_register_types(void)
 {
     type_register_static(&sd_info);
+    type_register_static(&sd_spi_info);
 }
 
 type_init(sd_register_types)
