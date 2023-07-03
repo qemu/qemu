@@ -846,7 +846,12 @@ void vfio_reset_bytes_transferred(void)
     bytes_transferred = 0;
 }
 
-int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
+/*
+ * Return true when either migration initialized or blocker registered.
+ * Currently only return false when adding blocker fails which will
+ * de-register vfio device.
+ */
+bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
     Error *err = NULL;
     int ret;
@@ -854,7 +859,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
     if (vbasedev->enable_migration == ON_OFF_AUTO_OFF) {
         error_setg(&err, "%s: Migration is disabled for VFIO device",
                    vbasedev->name);
-        return vfio_block_migration(vbasedev, err, errp);
+        return !vfio_block_migration(vbasedev, err, errp);
     }
 
     ret = vfio_migration_init(vbasedev);
@@ -869,7 +874,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
                        vbasedev->name, ret, strerror(-ret));
         }
 
-        return vfio_block_migration(vbasedev, err, errp);
+        return !vfio_block_migration(vbasedev, err, errp);
     }
 
     if (!vbasedev->dirty_pages_supported) {
@@ -896,7 +901,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
     }
 
     trace_vfio_migration_realize(vbasedev->name);
-    return 0;
+    return true;
 
 add_blocker:
     ret = vfio_block_migration(vbasedev, err, errp);
@@ -904,7 +909,7 @@ out_deinit:
     if (ret) {
         vfio_migration_deinit(vbasedev);
     }
-    return ret;
+    return !ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)

@@ -3207,8 +3207,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     if (!pdev->failover_pair_id) {
-        ret = vfio_migration_realize(vbasedev, errp);
-        if (ret) {
+        if (!vfio_migration_realize(vbasedev, errp)) {
             goto out_deregister;
         }
     }
