@@ -24,6 +24,7 @@
 #include "hw/arm/ipod_touch_mipi_dsi.h"
 #include "hw/arm/ipod_touch_fmss.h"
 #include "hw/arm/ipod_touch_block_device.h"
+#include "hw/arm/ipod_touch_mbx.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -41,6 +42,7 @@
 #define S5L8720_I2C0_IRQ 0x15
 #define S5L8720_SPI3_IRQ 0x1C
 #define S5L8720_I2C1_IRQ 0x16
+#define S5L8720_FMSS_IRQ 0x36
 #define S5L8720_SPI4_IRQ 0x37
 
 #define IT2G_CPREG_VAR_NAME(name) cpreg_##name
@@ -126,6 +128,7 @@ typedef struct {
 	IPodTouchMIPIDSIState *mipi_dsi_state;
 	IPodTouchFMSSState *fmss_state;
 	IPodTouchBlockDeviceState *bdev_state;
+	IPodTouchMBXState *mbx_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);

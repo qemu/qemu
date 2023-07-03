@@ -17,6 +17,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchFMSSState, IPOD_TOUCH_FMSS)
 
 #define FMSS__FMCTRL1             0x4
 #define FMSS__CS_IRQ              0xC0C
+#define FMSS__CS_IRQMASK          0xC10
 #define FMSS__CS_BUF_RST_OK       0xC64
 #define FMSS_CINFO_TARGET_ADDR    0xD08
 #define FMSS_PAGES_IN_ADDR        0xD0C

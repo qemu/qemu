@@ -26,7 +26,7 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     cpu_physical_memory_write(0x0ff02d1c + 0x54, (uint8_t *)data2, 4);
 
     // boot args
-    char *boot_args = "boot-args=debug=0x8 kextlog=0xfff cpus=1 rd=disk0s1 serial=1 io=0xffff8fff";
+    char *boot_args = "kextlog=0xfff debug=0x8 cpus=1 rd=disk0s1 serial=1 io=0xffff8fff";
     cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
 
     for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {
@@ -62,7 +62,7 @@ static void read_nand_pages(IPodTouchFMSSState *s)
 
 static uint64_t ipod_touch_fmss_read(void *opaque, hwaddr addr, unsigned size)
 {
-    //fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
+    fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
 
     IPodTouchFMSSState *s = (IPodTouchFMSSState *)opaque;
     switch(addr)
@@ -71,8 +71,12 @@ static uint64_t ipod_touch_fmss_read(void *opaque, hwaddr addr, unsigned size)
             return 0x1;
         case FMSS__CS_IRQ:
             return s->reg_cs_irq_bit;
+        case FMSS__CS_IRQMASK:
+            return 0x1;
         case FMSS__FMCTRL1:
             return (0x1 << 30);
+        case 0xD00:
+            return 42;
         default:
             // hw_error("%s: read invalid location 0x%08x.\n", __func__, addr);
             break;
@@ -88,9 +92,11 @@ static void ipod_touch_fmss_write(void *opaque, hwaddr addr, uint64_t val, unsig
     switch(addr) {
         case 0xC00:
             if(val == 0x0000ffb5) { s->reg_cs_irq_bit = 1; } // TODO ugly and hard-coded
+            if(val == 0xfff5) { s->reg_cs_irq_bit = 1; qemu_set_irq(s->irq, 1); }
             break;
         case FMSS__CS_IRQ:
-            if(val == 0xD) { s->reg_cs_irq_bit = 0; } // clear interrupt bit
+            s->reg_cs_irq_bit = 0;
+            qemu_set_irq(s->irq, 0);
             break;
         case FMSS_CINFO_TARGET_ADDR:
             s->reg_cinfo_target_addr = val;

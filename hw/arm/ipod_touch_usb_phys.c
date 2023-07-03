@@ -17,7 +17,8 @@ static uint64_t ipod_touch_usb_phys_read(void *opaque, hwaddr addr, unsigned siz
     case REG_OPHYTUNE:
         return s->usb_ophytune;
     default:
-        hw_error("%s: read invalid location 0x%08x\n", __func__, addr);
+        return 0x0;
+        //hw_error("%s: read invalid location 0x%08x\n", __func__, addr);
     }
 }
 

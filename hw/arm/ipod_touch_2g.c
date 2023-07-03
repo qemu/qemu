@@ -88,7 +88,6 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
-    allocate_ram(sysmem, "mbx1", MBX1_MEM_BASE, 0x1000000);
     allocate_ram(sysmem, "mbx2", MBX2_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "tvout1", TVOUT1_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "tvout2", TVOUT2_MEM_BASE, 0x1000);
@@ -308,6 +307,8 @@ static void ipod_touch_machine_init(MachineState *machine)
     dev = qdev_new("ipodtouch.fmss");
     IPodTouchFMSSState *fmss_state = IPOD_TOUCH_FMSS(dev);
     nms->fmss_state = fmss_state;
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_FMSS_IRQ));
     memory_region_add_subregion(sysmem, FMSS_MEM_BASE, &fmss_state->iomem);
 
     dev = qdev_new("ipodtouch.i2c");
@@ -362,6 +363,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     IPodTouchBlockDeviceState *bdev_state = IPOD_TOUCH_BLOCK_DEVICE(dev);
     nms->bdev_state = bdev_state;
     memory_region_add_subregion(sysmem, BLOCK_DEVICE_MEM_BASE, &bdev_state->iomem);
+
+    // init the MBX
+    dev = qdev_new("ipodtouch.mbx");
+    IPodTouchMBXState *mbx_state = IPOD_TOUCH_MBX(dev);
+    nms->mbx_state = mbx_state;
+    memory_region_add_subregion(sysmem, MBX1_MEM_BASE, &mbx_state->iomem);
 
     qemu_register_reset(ipod_touch_cpu_reset, nms);
 }
