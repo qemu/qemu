@@ -1694,6 +1694,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+#ifdef CONFIG_USER_ONLY
+    /*
+     * User mode relies on IC IVAU instructions to catch modification of
+     * dual-mapped code.
+     *
+     * Clear CTR_EL0.DIC to ensure that software that honors these flags uses
+     * IC IVAU even if the emulated processor does not normally require it.
+     */
+    cpu->ctr = FIELD_DP64(cpu->ctr, CTR_EL0, DIC, 0);
+#endif
+
     if (arm_feature(env, ARM_FEATURE_AARCH64) &&
         cpu->has_vfp != cpu->has_neon) {
         /*

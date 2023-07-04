@@ -5234,6 +5234,36 @@ static void mdcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+#ifdef CONFIG_USER_ONLY
+/*
+ * `IC IVAU` is handled to improve compatibility with JITs that dual-map their
+ * code to get around W^X restrictions, where one region is writable and the
+ * other is executable.
+ *
+ * Since the executable region is never written to we cannot detect code
+ * changes when running in user mode, and rely on the emulated JIT telling us
+ * that the code has changed by executing this instruction.
+ */
+static void ic_ivau_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    uint64_t icache_line_mask, start_address, end_address;
+    const ARMCPU *cpu;
+
+    cpu = env_archcpu(env);
+
+    icache_line_mask = (4 << extract32(cpu->ctr, 0, 4)) - 1;
+    start_address = value & ~icache_line_mask;
+    end_address = value | icache_line_mask;
+
+    mmap_lock();
+
+    tb_invalidate_phys_range(start_address, end_address);
+
+    mmap_unlock();
+}
+#endif
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /*
      * Minimal set of EL0-visible registers. This will need to be expanded
@@ -5273,7 +5303,10 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "CURRENTEL", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 2, .crn = 4, .crm = 2,
       .access = PL1_R, .type = ARM_CP_CURRENTEL },
-    /* Cache ops: all NOPs since we don't emulate caches */
+    /*
+     * Instruction cache ops. All of these except `IC IVAU` NOP because we
+     * don't emulate caches.
+     */
     { .name = "IC_IALLUIS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 1, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NOP,
@@ -5286,9 +5319,17 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .accessfn = access_tocu },
     { .name = "IC_IVAU", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 5, .opc2 = 1,
-      .access = PL0_W, .type = ARM_CP_NOP,
+      .access = PL0_W,
       .fgt = FGT_ICIVAU,
-      .accessfn = access_tocu },
+      .accessfn = access_tocu,
+#ifdef CONFIG_USER_ONLY
+      .type = ARM_CP_NO_RAW,
+      .writefn = ic_ivau_write
+#else
+      .type = ARM_CP_NOP
+#endif
+    },
+    /* Cache ops: all NOPs since we don't emulate caches */
     { .name = "DC_IVAC", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 1,
       .access = PL1_W, .accessfn = aa64_cacheop_poc_access,
