@@ -103,6 +103,21 @@ static TCGv_ptr get_tile_rowcol(DisasContext *s, int esz, int rs,
     return addr;
 }
 
+/*
+ * Resolve tile.size[0] to a host pointer.
+ * Used by e.g. outer product insns where we require the entire tile.
+ */
+static TCGv_ptr get_tile(DisasContext *s, int esz, int tile)
+{
+    TCGv_ptr addr = tcg_temp_new_ptr();
+    int offset;
+
+    offset = tile * sizeof(ARMVectorReg) + offsetof(CPUARMState, zarray);
+
+    tcg_gen_addi_ptr(addr, cpu_env, offset);
+    return addr;
+}
+
 static bool trans_ZERO(DisasContext *s, arg_ZERO *a)
 {
     if (!dc_isar_feature(aa64_sme, s)) {
@@ -279,8 +294,7 @@ static bool do_adda(DisasContext *s, arg_adda *a, MemOp esz,
         return true;
     }
 
-    /* Sum XZR+zad to find ZAd. */
-    za = get_tile_rowcol(s, esz, 31, a->zad, false);
+    za = get_tile(s, esz, a->zad);
     zn = vec_full_reg_ptr(s, a->zn);
     pn = pred_full_reg_ptr(s, a->pn);
     pm = pred_full_reg_ptr(s, a->pm);
@@ -310,8 +324,7 @@ static bool do_outprod(DisasContext *s, arg_op *a, MemOp esz,
         return true;
     }
 
-    /* Sum XZR+zad to find ZAd. */
-    za = get_tile_rowcol(s, esz, 31, a->zad, false);
+    za = get_tile(s, esz, a->zad);
     zn = vec_full_reg_ptr(s, a->zn);
     zm = vec_full_reg_ptr(s, a->zm);
     pn = pred_full_reg_ptr(s, a->pn);
@@ -337,8 +350,7 @@ static bool do_outprod_fpst(DisasContext *s, arg_op *a, MemOp esz,
         return true;
     }
 
-    /* Sum XZR+zad to find ZAd. */
-    za = get_tile_rowcol(s, esz, 31, a->zad, false);
+    za = get_tile(s, esz, a->zad);
     zn = vec_full_reg_ptr(s, a->zn);
     zm = vec_full_reg_ptr(s, a->zm);
     pn = pred_full_reg_ptr(s, a->pn);
