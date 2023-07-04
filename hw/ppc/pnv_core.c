@@ -167,6 +167,47 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+/*
+ * POWER10 core controls
+ */
+
+static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
+                                           unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = 0;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
+                  addr);
+    }
+
+    return val;
+}
+
+static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
+                      addr);
+    }
+}
+
+static const MemoryRegionOps pnv_core_power10_xscom_ops = {
+    .read = pnv_core_power10_xscom_read,
+    .write = pnv_core_power10_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
@@ -315,8 +356,7 @@ static void pnv_core_power10_class_init(ObjectClass *oc, void *data)
 {
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
-    /* TODO: Use the P9 XSCOMs for now on P10 */
-    pcc->xscom_ops = &pnv_core_power9_xscom_ops;
+    pcc->xscom_ops = &pnv_core_power10_xscom_ops;
 }
 
 static void pnv_core_class_init(ObjectClass *oc, void *data)
