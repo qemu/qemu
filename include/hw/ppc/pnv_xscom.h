@@ -129,7 +129,7 @@ struct PnvXScomInterfaceClass {
 
 #define PNV10_XSCOM_EQ_BASE(core)     \
     ((uint64_t) PNV10_XSCOM_EQ(PNV10_XSCOM_EQ_CHIPLET(core)))
-#define PNV10_XSCOM_EQ_SIZE        0x100000
+#define PNV10_XSCOM_EQ_SIZE        0x20000
 
 #define PNV10_XSCOM_EC_BASE(core) \
     ((uint64_t) PNV10_XSCOM_EQ_BASE(core) | PNV10_XSCOM_EC(core & 0x3))

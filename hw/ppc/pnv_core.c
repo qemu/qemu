@@ -404,6 +404,47 @@ static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+/*
+ * POWER10 Quads
+ */
+
+static uint64_t pnv_quad_power10_xscom_read(void *opaque, hwaddr addr,
+                                            unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = -1;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: reading @0x%08x\n", __func__,
+                      offset);
+    }
+
+    return val;
+}
+
+static void pnv_quad_power10_xscom_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+                      offset);
+    }
+}
+
+static const MemoryRegionOps pnv_quad_power10_xscom_ops = {
+    .read = pnv_quad_power10_xscom_read,
+    .write = pnv_quad_power10_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void pnv_quad_realize(DeviceState *dev, Error **errp)
 {
     PnvQuad *eq = PNV_QUAD(dev);
@@ -430,6 +471,14 @@ static void pnv_quad_power9_class_init(ObjectClass *oc, void *data)
     pqc->xscom_size = PNV9_XSCOM_EQ_SIZE;
 }
 
+static void pnv_quad_power10_class_init(ObjectClass *oc, void *data)
+{
+    PnvQuadClass *pqc = PNV_QUAD_CLASS(oc);
+
+    pqc->xscom_ops = &pnv_quad_power10_xscom_ops;
+    pqc->xscom_size = PNV10_XSCOM_EQ_SIZE;
+}
+
 static void pnv_quad_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -452,6 +501,11 @@ static const TypeInfo pnv_quad_infos[] = {
         .parent = TYPE_PNV_QUAD,
         .name = PNV_QUAD_TYPE_NAME("power9"),
         .class_init = pnv_quad_power9_class_init,
+    },
+    {
+        .parent = TYPE_PNV_QUAD,
+        .name = PNV_QUAD_TYPE_NAME("power10"),
+        .class_init = pnv_quad_power10_class_init,
     },
 };
 
