@@ -303,10 +303,11 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
             goto end;
         }
 #endif
-        res->image = pixman_image_create_bits(pformat,
-                                              c2d.width,
-                                              c2d.height,
-                                              bits, res->hostmem / c2d.height);
+        res->image = pixman_image_create_bits(
+            pformat,
+            c2d.width,
+            c2d.height,
+            bits, c2d.height ? res->hostmem / c2d.height : 0);
 #ifdef WIN32
         if (res->image) {
             pixman_image_set_destroy_function(res->image, win32_pixman_image_destroy, res->handle);
@@ -1272,9 +1273,10 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             return -EINVAL;
         }
 #endif
-        res->image = pixman_image_create_bits(pformat,
-                                              res->width, res->height,
-                                              bits, res->hostmem / res->height);
+        res->image = pixman_image_create_bits(
+            pformat,
+            res->width, res->height,
+            bits, res->height ? res->hostmem / res->height : 0);
         if (!res->image) {
             g_free(res);
             return -EINVAL;
