@@ -2941,7 +2941,7 @@ static DisasJumpType op_lctlg(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lra(DisasContext *s, DisasOps *o)
 {
-    gen_helper_lra(o->out, cpu_env, o->in2);
+    gen_helper_lra(o->out, cpu_env, o->out, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
 }

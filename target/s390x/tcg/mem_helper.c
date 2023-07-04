@@ -2374,7 +2374,7 @@ void HELPER(purge)(CPUS390XState *env)
 }
 
 /* load real address */
-uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
+uint64_t HELPER(lra)(CPUS390XState *env, uint64_t r1, uint64_t addr)
 {
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     uint64_t ret, tec;
@@ -2388,7 +2388,7 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
     exc = mmu_translate(env, addr, MMU_S390_LRA, asc, &ret, &flags, &tec);
     if (exc) {
         cc = 3;
-        ret = exc | 0x80000000;
+        ret = (r1 & 0xFFFFFFFF00000000ULL) | exc | 0x80000000;
     } else {
         cc = 0;
         ret |= addr & ~TARGET_PAGE_MASK;
