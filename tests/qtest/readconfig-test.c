@@ -48,7 +48,7 @@ static QTestState *qtest_init_with_config(const char *cfgdata)
     return qts;
 }
 
-static void test_x86_memdev_resp(QObject *res)
+static void test_x86_memdev_resp(QObject *res, const char *mem_id, int size)
 {
     Visitor *v;
     g_autoptr(MemdevList) memdevs = NULL;
@@ -63,8 +63,8 @@ static void test_x86_memdev_resp(QObject *res)
     g_assert(!memdevs->next);
 
     memdev = memdevs->value;
-    g_assert_cmpstr(memdev->id, ==, "ram");
-    g_assert_cmpint(memdev->size, ==, 200 * MiB);
+    g_assert_cmpstr(memdev->id, ==, mem_id);
+    g_assert_cmpint(memdev->size, ==, size * MiB);
 
     visit_free(v);
 }
@@ -80,7 +80,7 @@ static void test_x86_memdev(void)
     qts = qtest_init_with_config(cfgdata);
     /* Test valid command */
     resp = qtest_qmp(qts, "{ 'execute': 'query-memdev' }");
-    test_x86_memdev_resp(qdict_get(resp, "return"));
+    test_x86_memdev_resp(qdict_get(resp, "return"), "ram", 200);
     qobject_unref(resp);
 
     qtest_quit(qts);
