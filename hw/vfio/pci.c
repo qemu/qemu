@@ -1752,9 +1752,11 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
 
         vfio_bar_quirk_finalize(vdev, i);
         vfio_region_finalize(&bar->region);
-        if (bar->size) {
+        if (bar->mr) {
+            assert(bar->size);
             object_unparent(OBJECT(bar->mr));
             g_free(bar->mr);
+            bar->mr = NULL;
         }
     }
 
