@@ -323,7 +323,9 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region", __func__);
+        trace_vhost_vdpa_listener_region_add_unaligned(v, section->mr->name,
+                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
+                       section->offset_within_region & ~TARGET_PAGE_MASK);
         return;
     }
 
@@ -405,7 +407,9 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region", __func__);
+        trace_vhost_vdpa_listener_region_del_unaligned(v, section->mr->name,
+                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
+                       section->offset_within_region & ~TARGET_PAGE_MASK);
         return;
     }
 
