@@ -1082,6 +1082,24 @@ static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                          i, q[1], q[0], (i & 1 ? "\n" : " "));
         }
     }
+
+    if (cpu_isar_feature(aa64_sme, cpu) &&
+        FIELD_EX64(env->svcr, SVCR, ZA) &&
+        sme_exception_el(env, el) == 0) {
+        int zcr_len = sve_vqm1_for_el_sm(env, el, true);
+        int svl = (zcr_len + 1) * 16;
+        int svl_lg10 = svl < 100 ? 2 : 3;
+
+        for (i = 0; i < svl; i++) {
+            qemu_fprintf(f, "ZA[%0*d]=", svl_lg10, i);
+            for (j = zcr_len; j >= 0; --j) {
+                qemu_fprintf(f, "%016" PRIx64 ":%016" PRIx64 "%c",
+                             env->zarray[i].d[2 * j + 1],
+                             env->zarray[i].d[2 * j],
+                             j ? ':' : '\n');
+            }
+        }
+    }
 }
 
 #else
