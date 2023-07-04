@@ -407,18 +407,28 @@ static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
 static void pnv_quad_realize(DeviceState *dev, Error **errp)
 {
     PnvQuad *eq = PNV_QUAD(dev);
+    PnvQuadClass *pqc = PNV_QUAD_GET_CLASS(eq);
     char name[32];
 
     snprintf(name, sizeof(name), "xscom-quad.%d", eq->quad_id);
     pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev),
-                          &pnv_quad_power9_xscom_ops,
-                          eq, name, PNV9_XSCOM_EQ_SIZE);
+                          pqc->xscom_ops,
+                          eq, name,
+                          pqc->xscom_size);
 }
 
 static Property pnv_quad_properties[] = {
     DEFINE_PROP_UINT32("quad-id", PnvQuad, quad_id, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void pnv_quad_power9_class_init(ObjectClass *oc, void *data)
+{
+    PnvQuadClass *pqc = PNV_QUAD_CLASS(oc);
+
+    pqc->xscom_ops = &pnv_quad_power9_xscom_ops;
+    pqc->xscom_size = PNV9_XSCOM_EQ_SIZE;
+}
 
 static void pnv_quad_class_init(ObjectClass *oc, void *data)
 {
@@ -429,16 +439,20 @@ static void pnv_quad_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_quad_info = {
-    .name          = TYPE_PNV_QUAD,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvQuad),
-    .class_init    = pnv_quad_class_init,
+static const TypeInfo pnv_quad_infos[] = {
+    {
+        .name          = TYPE_PNV_QUAD,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(PnvQuad),
+        .class_size    = sizeof(PnvQuadClass),
+        .class_init    = pnv_quad_class_init,
+        .abstract      = true,
+    },
+    {
+        .parent = TYPE_PNV_QUAD,
+        .name = PNV_QUAD_TYPE_NAME("power9"),
+        .class_init = pnv_quad_power9_class_init,
+    },
 };
 
-static void pnv_core_register_types(void)
-{
-    type_register_static(&pnv_quad_info);
-}
-
-type_init(pnv_core_register_types)
+DEFINE_TYPES(pnv_quad_infos);
