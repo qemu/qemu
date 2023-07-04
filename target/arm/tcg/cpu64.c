@@ -502,6 +502,31 @@ static void define_neoverse_n1_cp_reginfo(ARMCPU *cpu)
     define_arm_cp_regs(cpu, neoverse_n1_cp_reginfo);
 }
 
+static const ARMCPRegInfo neoverse_v1_cp_reginfo[] = {
+    { .name = "CPUECTLR2_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 5,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPPMCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 2, .opc2 = 0,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPPMCR2_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 2, .opc2 = 1,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPPMCR3_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 2, .opc2 = 6,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+};
+
+static void define_neoverse_v1_cp_reginfo(ARMCPU *cpu)
+{
+    /*
+     * The Neoverse V1 has all of the Neoverse N1's IMPDEF
+     * registers and a few more of its own.
+     */
+    define_arm_cp_regs(cpu, neoverse_n1_cp_reginfo);
+    define_arm_cp_regs(cpu, neoverse_v1_cp_reginfo);
+}
+
 static void aarch64_neoverse_n1_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -571,6 +596,108 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     cpu->isar.reset_pmcr_el0 = 0x410c3000;
 
     define_neoverse_n1_cp_reginfo(cpu);
+}
+
+static void aarch64_neoverse_v1_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,neoverse-v1";
+    set_feature(&cpu->env, ARM_FEATURE_V8);
+    set_feature(&cpu->env, ARM_FEATURE_NEON);
+    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+    set_feature(&cpu->env, ARM_FEATURE_EL2);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
+    set_feature(&cpu->env, ARM_FEATURE_PMU);
+
+    /* Ordered by 3.2.4 AArch64 registers by functional group */
+    cpu->clidr = 0x82000023;
+    cpu->ctr = 0xb444c004; /* With DIC and IDC set */
+    cpu->dcz_blocksize = 4;
+    cpu->id_aa64afr0 = 0x00000000;
+    cpu->id_aa64afr1 = 0x00000000;
+    cpu->isar.id_aa64dfr0  = 0x000001f210305519ull;
+    cpu->isar.id_aa64dfr1 = 0x00000000;
+    cpu->isar.id_aa64isar0 = 0x1011111110212120ull; /* with FEAT_RNG */
+    cpu->isar.id_aa64isar1 = 0x0111000001211032ull;
+    cpu->isar.id_aa64mmfr0 = 0x0000000000101125ull;
+    cpu->isar.id_aa64mmfr1 = 0x0000000010212122ull;
+    cpu->isar.id_aa64mmfr2 = 0x0220011102101011ull;
+    cpu->isar.id_aa64pfr0  = 0x1101110120111112ull; /* GIC filled in later */
+    cpu->isar.id_aa64pfr1  = 0x0000000000000020ull;
+    cpu->id_afr0       = 0x00000000;
+    cpu->isar.id_dfr0  = 0x15011099;
+    cpu->isar.id_isar0 = 0x02101110;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232042;
+    cpu->isar.id_isar3 = 0x01112131;
+    cpu->isar.id_isar4 = 0x00010142;
+    cpu->isar.id_isar5 = 0x11011121;
+    cpu->isar.id_isar6 = 0x01100111;
+    cpu->isar.id_mmfr0 = 0x10201105;
+    cpu->isar.id_mmfr1 = 0x40000000;
+    cpu->isar.id_mmfr2 = 0x01260000;
+    cpu->isar.id_mmfr3 = 0x02122211;
+    cpu->isar.id_mmfr4 = 0x01021110;
+    cpu->isar.id_pfr0  = 0x21110131;
+    cpu->isar.id_pfr1  = 0x00010000; /* GIC filled in later */
+    cpu->isar.id_pfr2  = 0x00000011;
+    cpu->midr = 0x411FD402;          /* r1p2 */
+    cpu->revidr = 0;
+
+    /*
+     * The Neoverse-V1 r1p2 TRM lists 32-bit format CCSIDR_EL1 values,
+     * but also says it implements CCIDX, which means they should be
+     * 64-bit format. So we here use values which are based on the textual
+     * information in chapter 2 of the TRM (and on the fact that
+     * sets * associativity * linesize == cachesize).
+     *
+     * The 64-bit CCSIDR_EL1 format is:
+     *   [55:32] number of sets - 1
+     *   [23:3]  associativity - 1
+     *   [2:0]   log2(linesize) - 4
+     *           so 0 == 16 bytes, 1 == 32 bytes, 2 == 64 bytes, etc
+     *
+     * L1: 4-way set associative 64-byte line size, total size 64K,
+     * so sets is 256.
+     *
+     * L2: 8-way set associative, 64 byte line size, either 512K or 1MB.
+     * We pick 1MB, so this has 2048 sets.
+     *
+     * L3: No L3 (this matches the CLIDR_EL1 value).
+     */
+    cpu->ccsidr[0] = 0x000000ff0000001aull; /* 64KB L1 dcache */
+    cpu->ccsidr[1] = 0x000000ff0000001aull; /* 64KB L1 icache */
+    cpu->ccsidr[2] = 0x000007ff0000003aull; /* 1MB L2 cache */
+
+    /* From 3.2.115 SCTLR_EL3 */
+    cpu->reset_sctlr = 0x30c50838;
+
+    /* From 3.4.8 ICC_CTLR_EL3 and 3.4.23 ICH_VTR_EL2 */
+    cpu->gic_num_lrs = 4;
+    cpu->gic_vpribits = 5;
+    cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
+
+    /* From 3.5.1 AdvSIMD AArch64 register summary */
+    cpu->isar.mvfr0 = 0x10110222;
+    cpu->isar.mvfr1 = 0x13211111;
+    cpu->isar.mvfr2 = 0x00000043;
+
+    /* From 3.7.5 ID_AA64ZFR0_EL1 */
+    cpu->isar.id_aa64zfr0 = 0x0000100000100000;
+    cpu->sve_vq.supported = (1 << 0)  /* 128bit */
+                            | (1 << 1);  /* 256bit */
+
+    /* From 5.5.1 AArch64 PMU register summary */
+    cpu->isar.reset_pmcr_el0 = 0x41213000;
+
+    define_neoverse_v1_cp_reginfo(cpu);
+
+    aarch64_add_pauth_properties(obj);
+    aarch64_add_sve_properties(obj);
 }
 
 /*
@@ -763,6 +890,7 @@ static const ARMCPUInfo aarch64_cpus[] = {
     { .name = "cortex-a76",         .initfn = aarch64_a76_initfn },
     { .name = "a64fx",              .initfn = aarch64_a64fx_initfn },
     { .name = "neoverse-n1",        .initfn = aarch64_neoverse_n1_initfn },
+    { .name = "neoverse-v1",        .initfn = aarch64_neoverse_v1_initfn },
 };
 
 static void aarch64_cpu_register_types(void)
