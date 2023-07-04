@@ -19,7 +19,7 @@ The ``sbsa-ref`` board supports:
   - A configurable number of AArch64 CPUs
   - GIC version 3
   - System bus AHCI controller
-  - System bus EHCI controller
+  - System bus XHCI controller
   - CDROM and hard disc on AHCI bus
   - E1000E ethernet card on PCIe bus
   - Bochs display adapter on PCIe bus
@@ -68,3 +68,6 @@ Platform version changes:
 
 0.2
   GIC ITS information is present in devicetree.
+
+0.3
+  The USB controller is an XHCI device, not EHCI
