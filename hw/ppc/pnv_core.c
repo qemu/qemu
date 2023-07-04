@@ -116,6 +116,8 @@ static const MemoryRegionOps pnv_core_power8_xscom_ops = {
 #define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP 0xf010d
 #define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR 0xf010a
 
+#define PNV9_XSCOM_EC_CORE_THREAD_STATE    0x10ab3
+
 static uint64_t pnv_core_power9_xscom_read(void *opaque, hwaddr addr,
                                            unsigned int width)
 {
@@ -133,6 +135,9 @@ static uint64_t pnv_core_power9_xscom_read(void *opaque, hwaddr addr,
     case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP:
     case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
         val = 0x0;
+        break;
+    case PNV9_XSCOM_EC_CORE_THREAD_STATE:
+        val = 0;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
@@ -171,6 +176,8 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
  * POWER10 core controls
  */
 
+#define PNV10_XSCOM_EC_CORE_THREAD_STATE    0x412
+
 static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
                                            unsigned int width)
 {
@@ -178,6 +185,9 @@ static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
     uint64_t val = 0;
 
     switch (offset) {
+    case PNV10_XSCOM_EC_CORE_THREAD_STATE:
+        val = 0;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
                   addr);
