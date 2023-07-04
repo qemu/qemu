@@ -23,16 +23,6 @@
 #include "block/block-io.h"
 
 /*
- * Keep the QEMU BlockDriver names identical to the libblkio driver names.
- * Using macros instead of typing out the string literals avoids typos.
- */
-#define DRIVER_IO_URING "io_uring"
-#define DRIVER_NVME_IO_URING "nvme-io_uring"
-#define DRIVER_VIRTIO_BLK_VFIO_PCI "virtio-blk-vfio-pci"
-#define DRIVER_VIRTIO_BLK_VHOST_USER "virtio-blk-vhost-user"
-#define DRIVER_VIRTIO_BLK_VHOST_VDPA "virtio-blk-vhost-vdpa"
-
-/*
  * Allocated bounce buffers are kept in a list sorted by buffer address.
  */
 typedef struct BlkioBounceBuf {
@@ -744,15 +734,15 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
-    if (strcmp(blkio_driver, DRIVER_IO_URING) == 0) {
+    if (strcmp(blkio_driver, "io_uring") == 0) {
         ret = blkio_io_uring_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, DRIVER_NVME_IO_URING) == 0) {
+    } else if (strcmp(blkio_driver, "nvme-io_uring") == 0) {
         ret = blkio_nvme_io_uring(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VFIO_PCI) == 0) {
+    } else if (strcmp(blkio_driver, "virtio-blk-vfio-pci") == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_USER) == 0) {
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-user") == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_VDPA) == 0) {
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else {
         g_assert_not_reached();
@@ -1028,49 +1018,63 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
  * - truncate
  */
 
-#define BLKIO_DRIVER(name, ...) \
-    { \
-        .format_name             = name, \
-        .protocol_name           = name, \
-        .instance_size           = sizeof(BDRVBlkioState), \
-        .bdrv_file_open          = blkio_file_open, \
-        .bdrv_close              = blkio_close, \
-        .bdrv_co_getlength       = blkio_co_getlength, \
-        .bdrv_co_truncate        = blkio_truncate, \
-        .bdrv_co_get_info        = blkio_co_get_info, \
-        .bdrv_attach_aio_context = blkio_attach_aio_context, \
-        .bdrv_detach_aio_context = blkio_detach_aio_context, \
-        .bdrv_co_pdiscard        = blkio_co_pdiscard, \
-        .bdrv_co_preadv          = blkio_co_preadv, \
-        .bdrv_co_pwritev         = blkio_co_pwritev, \
-        .bdrv_co_flush_to_disk   = blkio_co_flush, \
-        .bdrv_co_pwrite_zeroes   = blkio_co_pwrite_zeroes, \
-        .bdrv_refresh_limits     = blkio_refresh_limits, \
-        .bdrv_register_buf       = blkio_register_buf, \
-        .bdrv_unregister_buf     = blkio_unregister_buf, \
-        __VA_ARGS__ \
-    }
+/*
+ * Do not include .format_name and .protocol_name because module_block.py
+ * does not parse macros in the source code.
+ */
+#define BLKIO_DRIVER_COMMON \
+    .instance_size           = sizeof(BDRVBlkioState), \
+    .bdrv_file_open          = blkio_file_open, \
+    .bdrv_close              = blkio_close, \
+    .bdrv_co_getlength       = blkio_co_getlength, \
+    .bdrv_co_truncate        = blkio_truncate, \
+    .bdrv_co_get_info        = blkio_co_get_info, \
+    .bdrv_attach_aio_context = blkio_attach_aio_context, \
+    .bdrv_detach_aio_context = blkio_detach_aio_context, \
+    .bdrv_co_pdiscard        = blkio_co_pdiscard, \
+    .bdrv_co_preadv          = blkio_co_preadv, \
+    .bdrv_co_pwritev         = blkio_co_pwritev, \
+    .bdrv_co_flush_to_disk   = blkio_co_flush, \
+    .bdrv_co_pwrite_zeroes   = blkio_co_pwrite_zeroes, \
+    .bdrv_refresh_limits     = blkio_refresh_limits, \
+    .bdrv_register_buf       = blkio_register_buf, \
+    .bdrv_unregister_buf     = blkio_unregister_buf,
 
-static BlockDriver bdrv_io_uring = BLKIO_DRIVER(
-    DRIVER_IO_URING,
+/*
+ * Use the same .format_name and .protocol_name as the libblkio driver name for
+ * consistency.
+ */
+
+static BlockDriver bdrv_io_uring = {
+    .format_name         = "io_uring",
+    .protocol_name       = "io_uring",
     .bdrv_needs_filename = true,
-);
+    BLKIO_DRIVER_COMMON
+};
 
-static BlockDriver bdrv_nvme_io_uring = BLKIO_DRIVER(
-    DRIVER_NVME_IO_URING,
-);
+static BlockDriver bdrv_nvme_io_uring = {
+    .format_name         = "nvme-io_uring",
+    .protocol_name       = "nvme-io_uring",
+    BLKIO_DRIVER_COMMON
+};
 
-static BlockDriver bdrv_virtio_blk_vfio_pci = BLKIO_DRIVER(
-    DRIVER_VIRTIO_BLK_VFIO_PCI
-);
+static BlockDriver bdrv_virtio_blk_vfio_pci = {
+    .format_name         = "virtio-blk-vfio-pci",
+    .protocol_name       = "virtio-blk-vfio-pci",
+    BLKIO_DRIVER_COMMON
+};
 
-static BlockDriver bdrv_virtio_blk_vhost_user = BLKIO_DRIVER(
-    DRIVER_VIRTIO_BLK_VHOST_USER
-);
+static BlockDriver bdrv_virtio_blk_vhost_user = {
+    .format_name         = "virtio-blk-vhost-user",
+    .protocol_name       = "virtio-blk-vhost-user",
+    BLKIO_DRIVER_COMMON
+};
 
-static BlockDriver bdrv_virtio_blk_vhost_vdpa = BLKIO_DRIVER(
-    DRIVER_VIRTIO_BLK_VHOST_VDPA
-);
+static BlockDriver bdrv_virtio_blk_vhost_vdpa = {
+    .format_name         = "virtio-blk-vhost-vdpa",
+    .protocol_name       = "virtio-blk-vhost-vdpa",
+    BLKIO_DRIVER_COMMON
+};
 
 static void bdrv_blkio_init(void)
 {
