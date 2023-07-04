@@ -514,6 +514,7 @@ void HELPER(mvcrl)(CPUS390XState *env, uint64_t l, uint64_t dest, uint64_t src)
     int32_t i;
 
     /* MVCRL always copies one more byte than specified - maximum is 256 */
+    l &= 0xff;
     l++;
 
     access_prepare(&srca, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
