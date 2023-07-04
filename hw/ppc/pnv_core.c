@@ -360,8 +360,8 @@ DEFINE_TYPES(pnv_core_infos)
 
 #define P9X_EX_NCU_SPEC_BAR                     0x11010
 
-static uint64_t pnv_quad_xscom_read(void *opaque, hwaddr addr,
-                                    unsigned int width)
+static uint64_t pnv_quad_power9_xscom_read(void *opaque, hwaddr addr,
+                                           unsigned int width)
 {
     uint32_t offset = addr >> 3;
     uint64_t val = -1;
@@ -372,15 +372,15 @@ static uint64_t pnv_quad_xscom_read(void *opaque, hwaddr addr,
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: reading @0x%08x\n", __func__,
                       offset);
     }
 
     return val;
 }
 
-static void pnv_quad_xscom_write(void *opaque, hwaddr addr, uint64_t val,
-                                 unsigned int width)
+static void pnv_quad_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
+                                        unsigned int width)
 {
     uint32_t offset = addr >> 3;
 
@@ -394,9 +394,9 @@ static void pnv_quad_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static const MemoryRegionOps pnv_quad_xscom_ops = {
-    .read = pnv_quad_xscom_read,
-    .write = pnv_quad_xscom_write,
+static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
+    .read = pnv_quad_power9_xscom_read,
+    .write = pnv_quad_power9_xscom_write,
     .valid.min_access_size = 8,
     .valid.max_access_size = 8,
     .impl.min_access_size = 8,
@@ -410,7 +410,8 @@ static void pnv_quad_realize(DeviceState *dev, Error **errp)
     char name[32];
 
     snprintf(name, sizeof(name), "xscom-quad.%d", eq->quad_id);
-    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev), &pnv_quad_xscom_ops,
+    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev),
+                          &pnv_quad_power9_xscom_ops,
                           eq, name, PNV9_XSCOM_EQ_SIZE);
 }
 
