@@ -219,13 +219,6 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
-    /*
-     * These fields are visible to the IOThread so we rely on implicit barriers
-     * in aio_context_acquire() on the write side and aio_notify_accept() on
-     * the read side.
-     */
-    s->starting = false;
-    vblk->dataplane_started = true;
     trace_virtio_blk_data_plane_start(s);
 
     old_context = blk_get_aio_context(s->conf->conf.blk);
@@ -243,6 +236,18 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
         event_notifier_set(virtio_queue_get_host_notifier(vq));
     }
+
+    /*
+     * These fields must be visible to the IOThread when it processes the
+     * virtqueue, otherwise it will think dataplane has not started yet.
+     *
+     * Make sure ->dataplane_started is false when blk_set_aio_context() is
+     * called above so that draining does not cause the host notifier to be
+     * detached/attached prematurely.
+     */
+    s->starting = false;
+    vblk->dataplane_started = true;
+    smp_wmb(); /* paired with aio_notify_accept() on the read side */
 
     /* Get this show started by hooking up our callbacks */
     if (!blk_in_drain(s->conf->conf.blk)) {
@@ -273,7 +278,6 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
   fail_guest_notifiers:
     vblk->dataplane_disabled = true;
     s->starting = false;
-    vblk->dataplane_started = true;
     return -ENOSYS;
 }
 
@@ -327,19 +331,6 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
         aio_wait_bh_oneshot(s->ctx, virtio_blk_data_plane_stop_bh, s);
     }
 
-    aio_context_acquire(s->ctx);
-
-    /* Wait for virtio_blk_dma_restart_bh() and in flight I/O to complete */
-    blk_drain(s->conf->conf.blk);
-
-    /*
-     * Try to switch bs back to the QEMU main loop. If other users keep the
-     * BlockBackend in the iothread, that's ok
-     */
-    blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context(), NULL);
-
-    aio_context_release(s->ctx);
-
     /*
      * Batch all the host notifiers in a single transaction to avoid
      * quadratic time complexity in address_space_update_ioeventfds().
@@ -360,12 +351,30 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
 
+    /*
+     * Set ->dataplane_started to false before draining so that host notifiers
+     * are not detached/attached anymore.
+     */
+    vblk->dataplane_started = false;
+
+    aio_context_acquire(s->ctx);
+
+    /* Wait for virtio_blk_dma_restart_bh() and in flight I/O to complete */
+    blk_drain(s->conf->conf.blk);
+
+    /*
+     * Try to switch bs back to the QEMU main loop. If other users keep the
+     * BlockBackend in the iothread, that's ok
+     */
+    blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context(), NULL);
+
+    aio_context_release(s->ctx);
+
     qemu_bh_cancel(s->bh);
     notify_guest_bh(s); /* final chance to notify guest */
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, nvqs, false);
 
-    vblk->dataplane_started = false;
     s->stopping = false;
 }
