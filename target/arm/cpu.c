@@ -2069,13 +2069,38 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (tcg_enabled()) {
         /*
-         * Don't report the Statistical Profiling Extension in the ID
-         * registers, because TCG doesn't implement it yet (not even a
-         * minimal stub version) and guests will fall over when they
-         * try to access the non-existent system registers for it.
+         * Don't report some architectural features in the ID registers
+         * where TCG does not yet implement it (not even a minimal
+         * stub version). This avoids guests falling over when they
+         * try to access the non-existent system registers for them.
          */
+        /* FEAT_SPE (Statistical Profiling Extension) */
         cpu->isar.id_aa64dfr0 =
             FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMSVER, 0);
+        /* FEAT_TRF (Self-hosted Trace Extension) */
+        cpu->isar.id_aa64dfr0 =
+            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, TRACEFILT, 0);
+        cpu->isar.id_dfr0 =
+            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, TRACEFILT, 0);
+        /* Trace Macrocell system register access */
+        cpu->isar.id_aa64dfr0 =
+            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, TRACEVER, 0);
+        cpu->isar.id_dfr0 =
+            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, COPTRC, 0);
+        /* Memory mapped trace */
+        cpu->isar.id_dfr0 =
+            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, MMAPTRC, 0);
+        /* FEAT_AMU (Activity Monitors Extension) */
+        cpu->isar.id_aa64pfr0 =
+            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, AMU, 0);
+        cpu->isar.id_pfr0 =
+            FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, AMU, 0);
+        /* FEAT_MPAM (Memory Partitioning and Monitoring Extension) */
+        cpu->isar.id_aa64pfr0 =
+            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, MPAM, 0);
+        /* FEAT_NV (Nested Virtualization) */
+        cpu->isar.id_aa64mmfr2 =
+            FIELD_DP64(cpu->isar.id_aa64mmfr2, ID_AA64MMFR2, NV, 0);
     }
 
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu
