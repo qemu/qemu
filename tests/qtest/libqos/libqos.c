@@ -137,56 +137,9 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
     migrate_allocator(&from->alloc, &to->alloc);
 }
 
-bool have_qemu_img(void)
-{
-    char *rpath;
-    const char *path = getenv("QTEST_QEMU_IMG");
-    if (!path) {
-        return false;
-    }
-
-    rpath = realpath(path, NULL);
-    if (!rpath) {
-        return false;
-    } else {
-        free(rpath);
-        return true;
-    }
-}
-
-void mkimg(const char *file, const char *fmt, unsigned size_mb)
-{
-    gchar *cli;
-    bool ret;
-    int rc;
-    GError *err = NULL;
-    char *qemu_img_path;
-    gchar *out, *out2;
-    char *qemu_img_abs_path;
-
-    qemu_img_path = getenv("QTEST_QEMU_IMG");
-    g_assert(qemu_img_path);
-    qemu_img_abs_path = realpath(qemu_img_path, NULL);
-    g_assert(qemu_img_abs_path);
-
-    cli = g_strdup_printf("%s create -f %s %s %uM", qemu_img_abs_path,
-                          fmt, file, size_mb);
-    ret = g_spawn_command_line_sync(cli, &out, &out2, &rc, &err);
-    if (err || !g_spawn_check_exit_status(rc, &err)) {
-        fprintf(stderr, "%s\n", err->message);
-        g_error_free(err);
-    }
-    g_assert(ret && !err);
-
-    g_free(out);
-    g_free(out2);
-    g_free(cli);
-    free(qemu_img_abs_path);
-}
-
 void mkqcow2(const char *file, unsigned size_mb)
 {
-    return mkimg(file, "qcow2", size_mb);
+    g_assert_true(mkimg(file, "qcow2", size_mb));
 }
 
 void prepare_blkdebug_script(const char *debug_fn, const char *event)
