@@ -5794,7 +5794,7 @@ static TCGv gen_ri2(DisasContext *s)
 
     disas_jdest(s, i2, is_imm, imm, ri2);
     if (is_imm) {
-        ri2 = tcg_constant_i64(s->base.pc_next + imm * 2);
+        ri2 = tcg_constant_i64(s->base.pc_next + (int64_t)imm * 2);
     }
 
     return ri2;
