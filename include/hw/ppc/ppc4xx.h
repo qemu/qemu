@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
+#define TYPE_PPC460EX_PCIE_HOST "ppc460ex-pcie-host"
 
 /*
  * Generic DCR device

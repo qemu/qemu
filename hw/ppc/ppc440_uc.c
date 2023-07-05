@@ -770,7 +770,6 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
  */
 #include "hw/pci/pcie_host.h"
 
-#define TYPE_PPC460EX_PCIE_HOST "ppc460ex-pcie-host"
 OBJECT_DECLARE_SIMPLE_TYPE(PPC460EXPCIEState, PPC460EX_PCIE_HOST)
 
 struct PPC460EXPCIEState {
@@ -798,9 +797,6 @@ struct PPC460EXPCIEState {
     uint32_t special;
     uint32_t cfg;
 };
-
-#define DCRN_PCIE0_BASE 0x100
-#define DCRN_PCIE1_BASE 0x120
 
 enum {
     PEGPL_CFGBAH = 0x0,
@@ -1096,20 +1092,3 @@ static void ppc460ex_pcie_register(void)
 }
 
 type_init(ppc460ex_pcie_register)
-
-void ppc460ex_pcie_init(PowerPCCPU *cpu)
-{
-    DeviceState *dev;
-
-    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
-    qdev_prop_set_int32(dev, "busnum", 0);
-    qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE0_BASE);
-    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
-    qdev_prop_set_int32(dev, "busnum", 1);
-    qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE1_BASE);
-    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-}

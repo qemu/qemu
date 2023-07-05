@@ -45,6 +45,9 @@
 /* dd bs=1 skip=$(($(stat -c '%s' updater/updater-460) - 0x80000)) \
      if=updater/updater-460 of=u-boot-sam460-20100605.bin */
 
+#define PCIE0_DCRN_BASE 0x100
+#define PCIE1_DCRN_BASE 0x120
+
 /* from Sam460 U-Boot include/configs/Sam460ex.h */
 #define FLASH_BASE             0xfff00000
 #define FLASH_BASE_H           0x4
@@ -421,8 +424,20 @@ static void sam460ex_init(MachineState *machine)
     usb_create_simple(usb_bus_find(-1), "usb-kbd");
     usb_create_simple(usb_bus_find(-1), "usb-mouse");
 
+    /* PCIe buses */
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 0);
+    qdev_prop_set_int32(dev, "dcrn-base", PCIE0_DCRN_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 1);
+    qdev_prop_set_int32(dev, "dcrn-base", PCIE1_DCRN_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
     /* PCI bus */
-    ppc460ex_pcie_init(cpu);
     /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
     dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000,
                                qdev_get_gpio_in(uic[1], 0));
