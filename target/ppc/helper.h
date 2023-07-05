@@ -704,6 +704,7 @@ DEF_HELPER_3(store_dcr, void, env, tl, tl)
 
 DEF_HELPER_2(load_dump_spr, void, env, i32)
 DEF_HELPER_2(store_dump_spr, void, env, i32)
+DEF_HELPER_3(spr_core_write_generic, void, env, i32, tl)
 DEF_HELPER_3(spr_write_CTRL, void, env, i32, tl)
 
 DEF_HELPER_4(fscr_facility_check, void, env, i32, i32, i32)
