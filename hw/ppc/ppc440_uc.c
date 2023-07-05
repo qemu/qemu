@@ -1002,56 +1002,36 @@ static void ppc460ex_set_irq(void *opaque, int irq_num, int level)
        qemu_set_irq(s->irq[irq_num], level);
 }
 
+#define PPC440_PCIE_DCR(s, dcrn) \
+    ppc_dcr_register(&(s)->cpu->env, (s)->dcrn_base + (dcrn), (s), \
+                     &dcr_read_pcie, &dcr_write_pcie)
+
+
 static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s)
 {
-    CPUPPCState *env = &s->cpu->env;
-
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_CFGBAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_CFGBAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_CFGMSK, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_MSGBAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_MSGBAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_MSGMSK, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR1BAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR1BAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR1MSKH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR1MSKL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR2BAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR2BAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR2MSKH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR2MSKL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR3BAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR3BAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR3MSKH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_OMR3MSKL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_REGBAH, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_REGBAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_REGMSK, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_SPECIAL, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
-    ppc_dcr_register(env, s->dcrn_base + PEGPL_CFG, s,
-                     &dcr_read_pcie, &dcr_write_pcie);
+    PPC440_PCIE_DCR(s, PEGPL_CFGBAH);
+    PPC440_PCIE_DCR(s, PEGPL_CFGBAL);
+    PPC440_PCIE_DCR(s, PEGPL_CFGMSK);
+    PPC440_PCIE_DCR(s, PEGPL_MSGBAH);
+    PPC440_PCIE_DCR(s, PEGPL_MSGBAL);
+    PPC440_PCIE_DCR(s, PEGPL_MSGMSK);
+    PPC440_PCIE_DCR(s, PEGPL_OMR1BAH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR1BAL);
+    PPC440_PCIE_DCR(s, PEGPL_OMR1MSKH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR1MSKL);
+    PPC440_PCIE_DCR(s, PEGPL_OMR2BAH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR2BAL);
+    PPC440_PCIE_DCR(s, PEGPL_OMR2MSKH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR2MSKL);
+    PPC440_PCIE_DCR(s, PEGPL_OMR3BAH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR3BAL);
+    PPC440_PCIE_DCR(s, PEGPL_OMR3MSKH);
+    PPC440_PCIE_DCR(s, PEGPL_OMR3MSKL);
+    PPC440_PCIE_DCR(s, PEGPL_REGBAH);
+    PPC440_PCIE_DCR(s, PEGPL_REGBAL);
+    PPC440_PCIE_DCR(s, PEGPL_REGMSK);
+    PPC440_PCIE_DCR(s, PEGPL_SPECIAL);
+    PPC440_PCIE_DCR(s, PEGPL_CFG);
 }
 
 static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
