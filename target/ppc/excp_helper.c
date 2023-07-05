@@ -3130,6 +3130,10 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgsndp", HFSCR_IC_MSGP);
 
+    if (!(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+        nr_threads = 1; /* msgsndp behaves as 1-thread in LPAR-per-thread mode*/
+    }
+
     if (!dbell_type_server(rb) || ttir >= nr_threads) {
         return;
     }

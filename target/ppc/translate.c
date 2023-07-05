@@ -246,9 +246,9 @@ static inline bool gen_serialize(DisasContext *ctx)
 }
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-static inline bool gen_serialize_core(DisasContext *ctx)
+static inline bool gen_serialize_core_lpar(DisasContext *ctx)
 {
-    if (ctx->flags & POWERPC_FLAG_SMT) {
+    if (ctx->flags & POWERPC_FLAG_SMT_1LPAR) {
         return gen_serialize(ctx);
     }
 
@@ -451,7 +451,8 @@ static void spr_write_CTRL_ST(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
 {
-    if (!(ctx->flags & POWERPC_FLAG_SMT)) {
+    if (!(ctx->flags & POWERPC_FLAG_SMT_1LPAR)) {
+        /* CTRL behaves as 1-thread in LPAR-per-thread mode */
         spr_write_CTRL_ST(ctx, sprn, gprn);
         goto out;
     }
@@ -815,7 +816,7 @@ void spr_write_pcr(DisasContext *ctx, int sprn, int gprn)
 /* DPDES */
 void spr_read_dpdes(DisasContext *ctx, int gprn, int sprn)
 {
-    if (!gen_serialize_core(ctx)) {
+    if (!gen_serialize_core_lpar(ctx)) {
         return;
     }
 
@@ -824,7 +825,7 @@ void spr_read_dpdes(DisasContext *ctx, int gprn, int sprn)
 
 void spr_write_dpdes(DisasContext *ctx, int sprn, int gprn)
 {
-    if (!gen_serialize_core(ctx)) {
+    if (!gen_serialize_core_lpar(ctx)) {
         return;
     }
 

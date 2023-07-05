@@ -6629,6 +6629,18 @@ void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     env->msr_mask &= ~MSR_HVB;
 }
 
+void cpu_ppc_set_1lpar(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /*
+     * pseries SMT means "LPAR per core" mode, e.g., msgsndp is usable
+     * between threads.
+     */
+    if (env->flags & POWERPC_FLAG_SMT) {
+        env->flags |= POWERPC_FLAG_SMT_1LPAR;
+    }
+}
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #endif /* defined(TARGET_PPC64) */

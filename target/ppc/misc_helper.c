@@ -191,6 +191,10 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "load DPDES", HFSCR_IC_MSGP);
 
+    if (!(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+        nr_threads = 1; /* DPDES behaves as 1-thread in LPAR-per-thread mode */
+    }
+
     if (nr_threads == 1) {
         if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
             dpdes = 1;
@@ -221,6 +225,10 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
     uint32_t nr_threads = cs->nr_threads;
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "store DPDES", HFSCR_IC_MSGP);
+
+    if (!(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+        nr_threads = 1; /* DPDES behaves as 1-thread in LPAR-per-thread mode */
+    }
 
     if (val & ~(nr_threads - 1)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid DPDES register value "
