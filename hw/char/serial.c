@@ -226,7 +226,7 @@ static gboolean serial_watch_cb(void *do_not_use, GIOCondition cond,
     SerialState *s = opaque;
     s->watch_tag = 0;
     serial_xmit(s);
-    return FALSE;
+    return G_SOURCE_REMOVE;
 }
 
 static void serial_xmit(SerialState *s)
