@@ -776,6 +776,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PPC460EXPCIEState, PPC460EX_PCIE_HOST)
 struct PPC460EXPCIEState {
     PCIExpressHost parent_obj;
 
+    MemoryRegion busmem;
     MemoryRegion iomem;
     qemu_irq irq[4];
     int32_t dcrn_base;
@@ -1056,15 +1057,17 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "invalid PCIe DCRN base");
         return;
     }
+    snprintf(buf, sizeof(buf), "pcie%d-mem", id);
+    memory_region_init(&s->busmem, OBJECT(s), buf, UINT64_MAX);
     snprintf(buf, sizeof(buf), "pcie%d-io", id);
-    memory_region_init(&s->iomem, OBJECT(s), buf, UINT64_MAX);
+    memory_region_init(&s->iomem, OBJECT(s), buf, 64 * KiB);
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
     }
     snprintf(buf, sizeof(buf), "pcie.%d", id);
     pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
-                                pci_swizzle_map_irq_fn, s, &s->iomem,
-                                get_system_io(), 0, 4, TYPE_PCIE_BUS);
+                                pci_swizzle_map_irq_fn, s, &s->busmem,
+                                &s->iomem, 0, 4, TYPE_PCIE_BUS);
     ppc460ex_pcie_register_dcrs(s);
 }
 
