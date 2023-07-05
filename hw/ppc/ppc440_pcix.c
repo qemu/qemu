@@ -64,6 +64,7 @@ struct PPC440PCIXState {
     MemoryRegion container;
     MemoryRegion iomem;
     MemoryRegion busmem;
+    MemoryRegion regs;
 };
 
 #define PPC440_REG_BASE     0x80000
@@ -507,11 +508,11 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
                           h, "pci-conf-idx", 4);
     memory_region_init_io(&h->data_mem, OBJECT(s), &pci_host_data_le_ops,
                           h, "pci-conf-data", 4);
-    memory_region_init_io(&s->iomem, OBJECT(s), &pci_reg_ops, s,
-                          "pci.reg", PPC440_REG_SIZE);
+    memory_region_init_io(&s->regs, OBJECT(s), &pci_reg_ops, s, "pci-reg",
+                          PPC440_REG_SIZE);
     memory_region_add_subregion(&s->container, PCIC0_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIC0_CFGDATA, &h->data_mem);
-    memory_region_add_subregion(&s->container, PPC440_REG_BASE, &s->iomem);
+    memory_region_add_subregion(&s->container, PPC440_REG_BASE, &s->regs);
     sysbus_init_mmio(sbd, &s->container);
 }
 
