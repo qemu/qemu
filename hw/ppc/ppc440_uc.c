@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "sysemu/reset.h"
+#include "cpu.h"
 #include "ppc440.h"
 
 /*****************************************************************************/
@@ -1108,17 +1109,17 @@ static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s, CPUPPCState *env)
                      &dcr_read_pcie, &dcr_write_pcie);
 }
 
-void ppc460ex_pcie_init(CPUPPCState *env)
+void ppc460ex_pcie_init(PowerPCCPU *cpu)
 {
     DeviceState *dev;
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE0_BASE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), env);
+    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), &cpu->env);
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE1_BASE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), env);
+    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), &cpu->env);
 }
