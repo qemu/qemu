@@ -779,6 +779,7 @@ struct PPC460EXPCIEState {
     MemoryRegion busmem;
     MemoryRegion iomem;
     qemu_irq irq[4];
+    int32_t num;
     int32_t dcrn_base;
     PowerPCCPU *cpu;
 
@@ -1039,32 +1040,25 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
 {
     PPC460EXPCIEState *s = PPC460EX_PCIE_HOST(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    int i, id;
-    char buf[16];
+    int i;
+    char buf[20];
 
     if (!s->cpu) {
         error_setg(errp, "cpu link property must be set");
         return;
     }
-    switch (s->dcrn_base) {
-    case DCRN_PCIE0_BASE:
-        id = 0;
-        break;
-    case DCRN_PCIE1_BASE:
-        id = 1;
-        break;
-    default:
-        error_setg(errp, "invalid PCIe DCRN base");
+    if (s->num < 0 || s->dcrn_base < 0) {
+        error_setg(errp, "busnum and dcrn-base properties must be set");
         return;
     }
-    snprintf(buf, sizeof(buf), "pcie%d-mem", id);
+    snprintf(buf, sizeof(buf), "pcie%d-mem", s->num);
     memory_region_init(&s->busmem, OBJECT(s), buf, UINT64_MAX);
-    snprintf(buf, sizeof(buf), "pcie%d-io", id);
+    snprintf(buf, sizeof(buf), "pcie%d-io", s->num);
     memory_region_init(&s->iomem, OBJECT(s), buf, 64 * KiB);
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
     }
-    snprintf(buf, sizeof(buf), "pcie.%d", id);
+    snprintf(buf, sizeof(buf), "pcie.%d", s->num);
     pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
                                 pci_swizzle_map_irq_fn, s, &s->busmem,
                                 &s->iomem, 0, 4, TYPE_PCIE_BUS);
@@ -1072,6 +1066,7 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
 }
 
 static Property ppc460ex_pcie_props[] = {
+    DEFINE_PROP_INT32("busnum", PPC460EXPCIEState, num, -1),
     DEFINE_PROP_INT32("dcrn-base", PPC460EXPCIEState, dcrn_base, -1),
     DEFINE_PROP_LINK("cpu", PPC460EXPCIEState, cpu, TYPE_POWERPC_CPU,
                      PowerPCCPU *),
@@ -1107,11 +1102,13 @@ void ppc460ex_pcie_init(PowerPCCPU *cpu)
     DeviceState *dev;
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 0);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE0_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 1);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE1_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
