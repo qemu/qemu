@@ -10,7 +10,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchMBXState, IPOD_TOUCH_MBX)
 
 typedef struct IPodTouchMBXState {
     SysBusDevice busdev;
-    MemoryRegion iomem;
+    MemoryRegion iomem1;
+    MemoryRegion iomem2;
 } IPodTouchMBXState;
 
 #endif

@@ -1,6 +1,6 @@
 #include "hw/arm/ipod_touch_mbx.h"
 
-static uint64_t ipod_touch_mbx_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t ipod_touch_mbx1_read(void *opaque, hwaddr addr, unsigned size)
 {
     printf("%s: read from location 0x%08x\n", __func__, addr);
     switch(addr)
@@ -17,15 +17,38 @@ static uint64_t ipod_touch_mbx_read(void *opaque, hwaddr addr, unsigned size)
     return 0;
 }
 
-static void ipod_touch_mbx_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+static void ipod_touch_mbx1_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     IPodTouchMBXState *s = (IPodTouchMBXState *)opaque;
     fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, val, addr);
 }
 
-static const MemoryRegionOps ipod_touch_mbx_ops = {
-    .read = ipod_touch_mbx_read,
-    .write = ipod_touch_mbx_write,
+static uint64_t ipod_touch_mbx2_read(void *opaque, hwaddr addr, unsigned size)
+{
+    printf("%s: read from location 0x%08x\n", __func__, addr);
+    switch(addr)
+    {
+        default:
+            break;
+    }
+    return 0;
+}
+
+static void ipod_touch_mbx2_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+{
+    IPodTouchMBXState *s = (IPodTouchMBXState *)opaque;
+    fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, val, addr);
+}
+
+static const MemoryRegionOps ipod_touch_mbx1_ops = {
+    .read = ipod_touch_mbx1_read,
+    .write = ipod_touch_mbx1_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static const MemoryRegionOps ipod_touch_mbx2_ops = {
+    .read = ipod_touch_mbx2_read,
+    .write = ipod_touch_mbx2_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -34,8 +57,10 @@ static void ipod_touch_mbx_init(Object *obj)
     IPodTouchMBXState *s = IPOD_TOUCH_MBX(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, obj, &ipod_touch_mbx_ops, s, TYPE_IPOD_TOUCH_MBX, 0x1000000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&s->iomem1, obj, &ipod_touch_mbx1_ops, s, TYPE_IPOD_TOUCH_MBX, 0x10000);
+    sysbus_init_mmio(sbd, &s->iomem1);
+    memory_region_init_io(&s->iomem2, obj, &ipod_touch_mbx2_ops, s, TYPE_IPOD_TOUCH_MBX, 0x10000);
+    sysbus_init_mmio(sbd, &s->iomem2);
 }
 
 static void ipod_touch_mbx_class_init(ObjectClass *klass, void *data)

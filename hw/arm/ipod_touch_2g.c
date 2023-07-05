@@ -368,7 +368,8 @@ static void ipod_touch_machine_init(MachineState *machine)
     dev = qdev_new("ipodtouch.mbx");
     IPodTouchMBXState *mbx_state = IPOD_TOUCH_MBX(dev);
     nms->mbx_state = mbx_state;
-    memory_region_add_subregion(sysmem, MBX1_MEM_BASE, &mbx_state->iomem);
+    memory_region_add_subregion(sysmem, MBX1_MEM_BASE, &mbx_state->iomem1);
+    memory_region_add_subregion(sysmem, MBX2_MEM_BASE, &mbx_state->iomem2);
 
     qemu_register_reset(ipod_touch_cpu_reset, nms);
 }
