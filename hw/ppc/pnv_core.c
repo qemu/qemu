@@ -218,12 +218,13 @@ static const MemoryRegionOps pnv_core_power10_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
+static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
+                                 int thread_index)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
-    int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
+    ppc_spr_t *tir = &env->spr_cb[SPR_TIR];
     Error *local_err = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(pc->chip);
 
@@ -239,11 +240,7 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
 
     core_pir = object_property_get_uint(OBJECT(pc), "pir", &error_abort);
 
-    /*
-     * The PIR of a thread is the core PIR + the thread index. We will
-     * need to find a way to get the thread index when TCG supports
-     * more than 1. We could use the object name ?
-     */
+    tir->default_value = thread_index;
     pir->default_value = core_pir + thread_index;
 
     /* Set time-base frequency to 512 MHz */
@@ -292,7 +289,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        pnv_core_cpu_realize(pc, pc->threads[j], &local_err);
+        pnv_core_cpu_realize(pc, pc->threads[j], &local_err, j);
         if (local_err) {
             goto err;
         }

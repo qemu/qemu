@@ -887,6 +887,18 @@ static void pnv_init(MachineState *machine)
 
     pnv->num_chips =
         machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
+
+    if (machine->smp.threads > 8) {
+        error_report("Cannot support more than 8 threads/core "
+                     "on a powernv machine");
+        exit(1);
+    }
+    if (!is_power_of_2(machine->smp.threads)) {
+        error_report("Cannot support %d threads/core on a powernv"
+                     "machine because it must be a power of 2",
+                     machine->smp.threads);
+        exit(1);
+    }
     /*
      * TODO: should we decide on how many chips we can create based
      * on #cores and Venice vs. Murano vs. Naples chip type etc...,
