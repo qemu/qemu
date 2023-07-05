@@ -566,7 +566,7 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
 {
     const XiveTmOp *xto;
 
-    trace_xive_tctx_tm_write(offset, size, value);
+    trace_xive_tctx_tm_write(tctx->cs->cpu_index, offset, size, value);
 
     /*
      * TODO: check V bit in Q[0-3]W2
@@ -639,7 +639,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
      */
     ret = xive_tm_raw_read(tctx, offset, size);
 out:
-    trace_xive_tctx_tm_read(offset, size, ret);
+    trace_xive_tctx_tm_read(tctx->cs->cpu_index, offset, size, ret);
     return ret;
 }
 
