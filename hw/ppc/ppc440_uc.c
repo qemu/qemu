@@ -774,7 +774,7 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
 OBJECT_DECLARE_SIMPLE_TYPE(PPC460EXPCIEState, PPC460EX_PCIE_HOST)
 
 struct PPC460EXPCIEState {
-    PCIExpressHost host;
+    PCIExpressHost parent_obj;
 
     MemoryRegion iomem;
     qemu_irq irq[4];
