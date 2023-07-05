@@ -25,6 +25,7 @@
 #include "hw/virtio/virtio.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
+#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -1106,12 +1107,12 @@ static int virtio_iommu_set_page_size_mask(IOMMUMemoryRegion *mr,
     }
 
     /*
-     * After the machine is finalized, we can't change the mask anymore. If by
+     * Once the granule is frozen we can't change the mask anymore. If by
      * chance the hotplugged device supports the same granule, we can still
      * accept it. Having a different masks is possible but the guest will use
      * sub-optimal block sizes, so warn about it.
      */
-    if (phase_check(PHASE_MACHINE_READY)) {
+    if (s->granule_frozen) {
         int new_granule = ctz64(new_mask);
         int cur_granule = ctz64(cur_mask);
 
@@ -1144,6 +1145,28 @@ static void virtio_iommu_system_reset(void *opaque)
     s->config.bypass = s->boot_bypass;
     virtio_iommu_switch_address_space_all(s);
 
+}
+
+static void virtio_iommu_freeze_granule(Notifier *notifier, void *data)
+{
+    VirtIOIOMMU *s = container_of(notifier, VirtIOIOMMU, machine_done);
+    int granule;
+
+    if (likely(s->config.bypass)) {
+        /*
+         * Transient IOMMU MR enable to collect page_size_mask requirements
+         * through memory_region_iommu_set_page_size_mask() called by
+         * VFIO region_add() callback
+         */
+         s->config.bypass = false;
+         virtio_iommu_switch_address_space_all(s);
+         /* restore default */
+         s->config.bypass = true;
+         virtio_iommu_switch_address_space_all(s);
+    }
+    s->granule_frozen = true;
+    granule = ctz64(s->config.page_size_mask);
+    trace_virtio_iommu_freeze_granule(BIT(granule));
 }
 
 static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
@@ -1189,6 +1212,9 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "VIRTIO-IOMMU is not attached to any PCI bus!");
     }
 
+    s->machine_done.notify = virtio_iommu_freeze_granule;
+    qemu_add_machine_init_done_notifier(&s->machine_done);
+
     qemu_register_reset(virtio_iommu_system_reset, s);
 }
 
@@ -1198,6 +1224,7 @@ static void virtio_iommu_device_unrealize(DeviceState *dev)
     VirtIOIOMMU *s = VIRTIO_IOMMU(dev);
 
     qemu_unregister_reset(virtio_iommu_system_reset, s);
+    qemu_remove_machine_init_done_notifier(&s->machine_done);
 
     g_hash_table_destroy(s->as_by_busptr);
     if (s->domains) {
