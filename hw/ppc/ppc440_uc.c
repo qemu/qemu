@@ -828,78 +828,78 @@ enum {
 
 static uint32_t dcr_read_pcie(void *opaque, int dcrn)
 {
-    PPC460EXPCIEState *state = opaque;
+    PPC460EXPCIEState *s = opaque;
     uint32_t ret = 0;
 
-    switch (dcrn - state->dcrn_base) {
+    switch (dcrn - s->dcrn_base) {
     case PEGPL_CFGBAH:
-        ret = state->cfg_base >> 32;
+        ret = s->cfg_base >> 32;
         break;
     case PEGPL_CFGBAL:
-        ret = state->cfg_base;
+        ret = s->cfg_base;
         break;
     case PEGPL_CFGMSK:
-        ret = state->cfg_mask;
+        ret = s->cfg_mask;
         break;
     case PEGPL_MSGBAH:
-        ret = state->msg_base >> 32;
+        ret = s->msg_base >> 32;
         break;
     case PEGPL_MSGBAL:
-        ret = state->msg_base;
+        ret = s->msg_base;
         break;
     case PEGPL_MSGMSK:
-        ret = state->msg_mask;
+        ret = s->msg_mask;
         break;
     case PEGPL_OMR1BAH:
-        ret = state->omr1_base >> 32;
+        ret = s->omr1_base >> 32;
         break;
     case PEGPL_OMR1BAL:
-        ret = state->omr1_base;
+        ret = s->omr1_base;
         break;
     case PEGPL_OMR1MSKH:
-        ret = state->omr1_mask >> 32;
+        ret = s->omr1_mask >> 32;
         break;
     case PEGPL_OMR1MSKL:
-        ret = state->omr1_mask;
+        ret = s->omr1_mask;
         break;
     case PEGPL_OMR2BAH:
-        ret = state->omr2_base >> 32;
+        ret = s->omr2_base >> 32;
         break;
     case PEGPL_OMR2BAL:
-        ret = state->omr2_base;
+        ret = s->omr2_base;
         break;
     case PEGPL_OMR2MSKH:
-        ret = state->omr2_mask >> 32;
+        ret = s->omr2_mask >> 32;
         break;
     case PEGPL_OMR2MSKL:
-        ret = state->omr3_mask;
+        ret = s->omr3_mask;
         break;
     case PEGPL_OMR3BAH:
-        ret = state->omr3_base >> 32;
+        ret = s->omr3_base >> 32;
         break;
     case PEGPL_OMR3BAL:
-        ret = state->omr3_base;
+        ret = s->omr3_base;
         break;
     case PEGPL_OMR3MSKH:
-        ret = state->omr3_mask >> 32;
+        ret = s->omr3_mask >> 32;
         break;
     case PEGPL_OMR3MSKL:
-        ret = state->omr3_mask;
+        ret = s->omr3_mask;
         break;
     case PEGPL_REGBAH:
-        ret = state->reg_base >> 32;
+        ret = s->reg_base >> 32;
         break;
     case PEGPL_REGBAL:
-        ret = state->reg_base;
+        ret = s->reg_base;
         break;
     case PEGPL_REGMSK:
-        ret = state->reg_mask;
+        ret = s->reg_mask;
         break;
     case PEGPL_SPECIAL:
-        ret = state->special;
+        ret = s->special;
         break;
     case PEGPL_CFG:
-        ret = state->cfg;
+        ret = s->cfg;
         break;
     }
 
