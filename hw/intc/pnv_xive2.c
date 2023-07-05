@@ -1624,6 +1624,7 @@ static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
                                               unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
     hwaddr hw_page_offset;
     uint32_t pir;
     XiveTCTX *tctx;
@@ -1633,7 +1634,7 @@ static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
     hw_page_offset = pnv_xive2_ic_tm_get_hw_page_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        val = xive_tctx_tm_read(NULL, tctx, hw_page_offset, size);
+        val = xive_tctx_tm_read(xptr, tctx, hw_page_offset, size);
     }
 
     return val;
@@ -1643,6 +1644,7 @@ static void pnv_xive2_ic_tm_indirect_write(void *opaque, hwaddr offset,
                                            uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
     hwaddr hw_page_offset;
     uint32_t pir;
     XiveTCTX *tctx;
@@ -1651,7 +1653,7 @@ static void pnv_xive2_ic_tm_indirect_write(void *opaque, hwaddr offset,
     hw_page_offset = pnv_xive2_ic_tm_get_hw_page_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        xive_tctx_tm_write(NULL, tctx, hw_page_offset, val, size);
+        xive_tctx_tm_write(xptr, tctx, hw_page_offset, val, size);
     }
 }
 
