@@ -779,6 +779,7 @@ struct PPC460EXPCIEState {
     MemoryRegion iomem;
     qemu_irq irq[4];
     int32_t dcrn_base;
+    PowerPCCPU *cpu;
 
     uint64_t cfg_base;
     uint32_t cfg_mask;
@@ -1001,66 +1002,10 @@ static void ppc460ex_set_irq(void *opaque, int irq_num, int level)
        qemu_set_irq(s->irq[irq_num], level);
 }
 
-static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
+static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s)
 {
-    PPC460EXPCIEState *s = PPC460EX_PCIE_HOST(dev);
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    int i, id;
-    char buf[16];
+    CPUPPCState *env = &s->cpu->env;
 
-    switch (s->dcrn_base) {
-    case DCRN_PCIE0_BASE:
-        id = 0;
-        break;
-    case DCRN_PCIE1_BASE:
-        id = 1;
-        break;
-    default:
-        error_setg(errp, "invalid PCIe DCRN base");
-        return;
-    }
-    snprintf(buf, sizeof(buf), "pcie%d-io", id);
-    memory_region_init(&s->iomem, OBJECT(s), buf, UINT64_MAX);
-    for (i = 0; i < 4; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
-    }
-    snprintf(buf, sizeof(buf), "pcie.%d", id);
-    pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
-                                pci_swizzle_map_irq_fn, s, &s->iomem,
-                                get_system_io(), 0, 4, TYPE_PCIE_BUS);
-}
-
-static Property ppc460ex_pcie_props[] = {
-    DEFINE_PROP_INT32("dcrn-base", PPC460EXPCIEState, dcrn_base, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ppc460ex_pcie_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = ppc460ex_pcie_realize;
-    device_class_set_props(dc, ppc460ex_pcie_props);
-    dc->hotpluggable = false;
-}
-
-static const TypeInfo ppc460ex_pcie_host_info = {
-    .name = TYPE_PPC460EX_PCIE_HOST,
-    .parent = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(PPC460EXPCIEState),
-    .class_init = ppc460ex_pcie_class_init,
-};
-
-static void ppc460ex_pcie_register(void)
-{
-    type_register_static(&ppc460ex_pcie_host_info);
-}
-
-type_init(ppc460ex_pcie_register)
-
-static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s, CPUPPCState *env)
-{
     ppc_dcr_register(env, s->dcrn_base + PEGPL_CFGBAH, s,
                      &dcr_read_pcie, &dcr_write_pcie);
     ppc_dcr_register(env, s->dcrn_base + PEGPL_CFGBAL, s,
@@ -1109,17 +1054,82 @@ static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s, CPUPPCState *env)
                      &dcr_read_pcie, &dcr_write_pcie);
 }
 
+static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
+{
+    PPC460EXPCIEState *s = PPC460EX_PCIE_HOST(dev);
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    int i, id;
+    char buf[16];
+
+    if (!s->cpu) {
+        error_setg(errp, "cpu link property must be set");
+        return;
+    }
+    switch (s->dcrn_base) {
+    case DCRN_PCIE0_BASE:
+        id = 0;
+        break;
+    case DCRN_PCIE1_BASE:
+        id = 1;
+        break;
+    default:
+        error_setg(errp, "invalid PCIe DCRN base");
+        return;
+    }
+    snprintf(buf, sizeof(buf), "pcie%d-io", id);
+    memory_region_init(&s->iomem, OBJECT(s), buf, UINT64_MAX);
+    for (i = 0; i < 4; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+    }
+    snprintf(buf, sizeof(buf), "pcie.%d", id);
+    pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
+                                pci_swizzle_map_irq_fn, s, &s->iomem,
+                                get_system_io(), 0, 4, TYPE_PCIE_BUS);
+    ppc460ex_pcie_register_dcrs(s);
+}
+
+static Property ppc460ex_pcie_props[] = {
+    DEFINE_PROP_INT32("dcrn-base", PPC460EXPCIEState, dcrn_base, -1),
+    DEFINE_PROP_LINK("cpu", PPC460EXPCIEState, cpu, TYPE_POWERPC_CPU,
+                     PowerPCCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc460ex_pcie_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->realize = ppc460ex_pcie_realize;
+    device_class_set_props(dc, ppc460ex_pcie_props);
+    dc->hotpluggable = false;
+}
+
+static const TypeInfo ppc460ex_pcie_host_info = {
+    .name = TYPE_PPC460EX_PCIE_HOST,
+    .parent = TYPE_PCIE_HOST_BRIDGE,
+    .instance_size = sizeof(PPC460EXPCIEState),
+    .class_init = ppc460ex_pcie_class_init,
+};
+
+static void ppc460ex_pcie_register(void)
+{
+    type_register_static(&ppc460ex_pcie_host_info);
+}
+
+type_init(ppc460ex_pcie_register)
+
 void ppc460ex_pcie_init(PowerPCCPU *cpu)
 {
     DeviceState *dev;
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE0_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), &cpu->env);
 
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE1_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), &cpu->env);
 }
