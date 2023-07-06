@@ -621,20 +621,20 @@ static int virtio_mem_unplug_all(VirtIOMEM *vmem)
 {
     RAMBlock *rb = vmem->memdev->mr.ram_block;
 
-    if (virtio_mem_is_busy()) {
-        return -EBUSY;
-    }
-
-    if (ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb))) {
-        return -EBUSY;
-    }
-    virtio_mem_notify_unplug_all(vmem);
-
-    bitmap_clear(vmem->bitmap, 0, vmem->bitmap_size);
     if (vmem->size) {
+        if (virtio_mem_is_busy()) {
+            return -EBUSY;
+        }
+        if (ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb))) {
+            return -EBUSY;
+        }
+        virtio_mem_notify_unplug_all(vmem);
+
+        bitmap_clear(vmem->bitmap, 0, vmem->bitmap_size);
         vmem->size = 0;
         notifier_list_notify(&vmem->size_change_notifiers, &vmem->size);
     }
+
     trace_virtio_mem_unplugged_all();
     virtio_mem_resize_usable_region(vmem, vmem->requested_size, true);
     return 0;
