@@ -70,17 +70,7 @@ typedef struct PageDesc PageDesc;
  */
 #define assert_page_locked(pd) tcg_debug_assert(have_mmap_lock())
 
-static inline void page_lock_pair(PageDesc **ret_p1, tb_page_addr_t phys1,
-                                  PageDesc **ret_p2, tb_page_addr_t phys2,
-                                  bool alloc)
-{
-    *ret_p1 = NULL;
-    *ret_p2 = NULL;
-}
-
-static inline void page_unlock(PageDesc *pd) { }
-static inline void page_lock_tb(const TranslationBlock *tb) { }
-static inline void page_unlock_tb(const TranslationBlock *tb) { }
+static inline void tb_lock_pages(const TranslationBlock *tb) { }
 
 /*
  * For user-only, since we are protecting all of memory with a single lock,
@@ -96,7 +86,7 @@ static void tb_remove_all(void)
 }
 
 /* Call with mmap_lock held. */
-static void tb_record(TranslationBlock *tb, PageDesc *p1, PageDesc *p2)
+static void tb_record(TranslationBlock *tb)
 {
     vaddr addr;
     int flags;
@@ -391,10 +381,106 @@ static void page_lock(PageDesc *pd)
     qemu_spin_lock(&pd->lock);
 }
 
+/* Like qemu_spin_trylock, returns false on success */
+static bool page_trylock(PageDesc *pd)
+{
+    bool busy = qemu_spin_trylock(&pd->lock);
+    if (!busy) {
+        page_lock__debug(pd);
+    }
+    return busy;
+}
+
 static void page_unlock(PageDesc *pd)
 {
     qemu_spin_unlock(&pd->lock);
     page_unlock__debug(pd);
+}
+
+void tb_lock_page0(tb_page_addr_t paddr)
+{
+    page_lock(page_find_alloc(paddr >> TARGET_PAGE_BITS, true));
+}
+
+void tb_lock_page1(tb_page_addr_t paddr0, tb_page_addr_t paddr1)
+{
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr1 >> TARGET_PAGE_BITS;
+    PageDesc *pd0, *pd1;
+
+    if (pindex0 == pindex1) {
+        /* Identical pages, and the first page is already locked. */
+        return;
+    }
+
+    pd1 = page_find_alloc(pindex1, true);
+    if (pindex0 < pindex1) {
+        /* Correct locking order, we may block. */
+        page_lock(pd1);
+        return;
+    }
+
+    /* Incorrect locking order, we cannot block lest we deadlock. */
+    if (!page_trylock(pd1)) {
+        return;
+    }
+
+    /*
+     * Drop the lock on page0 and get both page locks in the right order.
+     * Restart translation via longjmp.
+     */
+    pd0 = page_find_alloc(pindex0, false);
+    page_unlock(pd0);
+    page_lock(pd1);
+    page_lock(pd0);
+    siglongjmp(tcg_ctx->jmp_trans, -3);
+}
+
+void tb_unlock_page1(tb_page_addr_t paddr0, tb_page_addr_t paddr1)
+{
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr1 >> TARGET_PAGE_BITS;
+
+    if (pindex0 != pindex1) {
+        page_unlock(page_find_alloc(pindex1, false));
+    }
+}
+
+static void tb_lock_pages(TranslationBlock *tb)
+{
+    tb_page_addr_t paddr0 = tb_page_addr0(tb);
+    tb_page_addr_t paddr1 = tb_page_addr1(tb);
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr1 >> TARGET_PAGE_BITS;
+
+    if (unlikely(paddr0 == -1)) {
+        return;
+    }
+    if (unlikely(paddr1 != -1) && pindex0 != pindex1) {
+        if (pindex0 < pindex1) {
+            page_lock(page_find_alloc(pindex0, true));
+            page_lock(page_find_alloc(pindex1, true));
+            return;
+        }
+        page_lock(page_find_alloc(pindex1, true));
+    }
+    page_lock(page_find_alloc(pindex0, true));
+}
+
+void tb_unlock_pages(TranslationBlock *tb)
+{
+    tb_page_addr_t paddr0 = tb_page_addr0(tb);
+    tb_page_addr_t paddr1 = tb_page_addr1(tb);
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr1 >> TARGET_PAGE_BITS;
+
+    if (unlikely(paddr0 == -1)) {
+        return;
+    }
+    if (unlikely(paddr1 != -1) && pindex0 != pindex1) {
+        page_unlock(page_find_alloc(pindex1, false));
+    }
+    page_unlock(page_find_alloc(pindex0, false));
 }
 
 static inline struct page_entry *
@@ -420,13 +506,10 @@ static void page_entry_destroy(gpointer p)
 /* returns false on success */
 static bool page_entry_trylock(struct page_entry *pe)
 {
-    bool busy;
-
-    busy = qemu_spin_trylock(&pe->pd->lock);
+    bool busy = page_trylock(pe->pd);
     if (!busy) {
         g_assert(!pe->locked);
         pe->locked = true;
-        page_lock__debug(pe->pd);
     }
     return busy;
 }
@@ -604,8 +687,7 @@ static void tb_remove_all(void)
  * Add the tb in the target page and protect it if necessary.
  * Called with @p->lock held.
  */
-static inline void tb_page_add(PageDesc *p, TranslationBlock *tb,
-                               unsigned int n)
+static void tb_page_add(PageDesc *p, TranslationBlock *tb, unsigned int n)
 {
     bool page_already_protected;
 
@@ -625,15 +707,21 @@ static inline void tb_page_add(PageDesc *p, TranslationBlock *tb,
     }
 }
 
-static void tb_record(TranslationBlock *tb, PageDesc *p1, PageDesc *p2)
+static void tb_record(TranslationBlock *tb)
 {
-    tb_page_add(p1, tb, 0);
-    if (unlikely(p2)) {
-        tb_page_add(p2, tb, 1);
+    tb_page_addr_t paddr0 = tb_page_addr0(tb);
+    tb_page_addr_t paddr1 = tb_page_addr1(tb);
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr0 >> TARGET_PAGE_BITS;
+
+    assert(paddr0 != -1);
+    if (unlikely(paddr1 != -1) && pindex0 != pindex1) {
+        tb_page_add(page_find_alloc(pindex1, false), tb, 1);
     }
+    tb_page_add(page_find_alloc(pindex0, false), tb, 0);
 }
 
-static inline void tb_page_remove(PageDesc *pd, TranslationBlock *tb)
+static void tb_page_remove(PageDesc *pd, TranslationBlock *tb)
 {
     TranslationBlock *tb1;
     uintptr_t *pprev;
@@ -653,74 +741,16 @@ static inline void tb_page_remove(PageDesc *pd, TranslationBlock *tb)
 
 static void tb_remove(TranslationBlock *tb)
 {
-    PageDesc *pd;
+    tb_page_addr_t paddr0 = tb_page_addr0(tb);
+    tb_page_addr_t paddr1 = tb_page_addr1(tb);
+    tb_page_addr_t pindex0 = paddr0 >> TARGET_PAGE_BITS;
+    tb_page_addr_t pindex1 = paddr0 >> TARGET_PAGE_BITS;
 
-    pd = page_find(tb->page_addr[0] >> TARGET_PAGE_BITS);
-    tb_page_remove(pd, tb);
-    if (unlikely(tb->page_addr[1] != -1)) {
-        pd = page_find(tb->page_addr[1] >> TARGET_PAGE_BITS);
-        tb_page_remove(pd, tb);
+    assert(paddr0 != -1);
+    if (unlikely(paddr1 != -1) && pindex0 != pindex1) {
+        tb_page_remove(page_find_alloc(pindex1, false), tb);
     }
-}
-
-static void page_lock_pair(PageDesc **ret_p1, tb_page_addr_t phys1,
-                           PageDesc **ret_p2, tb_page_addr_t phys2, bool alloc)
-{
-    PageDesc *p1, *p2;
-    tb_page_addr_t page1;
-    tb_page_addr_t page2;
-
-    assert_memory_lock();
-    g_assert(phys1 != -1);
-
-    page1 = phys1 >> TARGET_PAGE_BITS;
-    page2 = phys2 >> TARGET_PAGE_BITS;
-
-    p1 = page_find_alloc(page1, alloc);
-    if (ret_p1) {
-        *ret_p1 = p1;
-    }
-    if (likely(phys2 == -1)) {
-        page_lock(p1);
-        return;
-    } else if (page1 == page2) {
-        page_lock(p1);
-        if (ret_p2) {
-            *ret_p2 = p1;
-        }
-        return;
-    }
-    p2 = page_find_alloc(page2, alloc);
-    if (ret_p2) {
-        *ret_p2 = p2;
-    }
-    if (page1 < page2) {
-        page_lock(p1);
-        page_lock(p2);
-    } else {
-        page_lock(p2);
-        page_lock(p1);
-    }
-}
-
-/* lock the page(s) of a TB in the correct acquisition order */
-static void page_lock_tb(const TranslationBlock *tb)
-{
-    page_lock_pair(NULL, tb_page_addr0(tb), NULL, tb_page_addr1(tb), false);
-}
-
-static void page_unlock_tb(const TranslationBlock *tb)
-{
-    PageDesc *p1 = page_find(tb_page_addr0(tb) >> TARGET_PAGE_BITS);
-
-    page_unlock(p1);
-    if (unlikely(tb_page_addr1(tb) != -1)) {
-        PageDesc *p2 = page_find(tb_page_addr1(tb) >> TARGET_PAGE_BITS);
-
-        if (p2 != p1) {
-            page_unlock(p2);
-        }
-    }
+    tb_page_remove(page_find_alloc(pindex0, false), tb);
 }
 #endif /* CONFIG_USER_ONLY */
 
@@ -925,18 +955,16 @@ static void tb_phys_invalidate__locked(TranslationBlock *tb)
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     if (page_addr == -1 && tb_page_addr0(tb) != -1) {
-        page_lock_tb(tb);
+        tb_lock_pages(tb);
         do_tb_phys_invalidate(tb, true);
-        page_unlock_tb(tb);
+        tb_unlock_pages(tb);
     } else {
         do_tb_phys_invalidate(tb, false);
     }
 }
 
 /*
- * Add a new TB and link it to the physical page tables. phys_page2 is
- * (-1) to indicate that only one page contains the TB.
- *
+ * Add a new TB and link it to the physical page tables.
  * Called with mmap_lock held for user-mode emulation.
  *
  * Returns a pointer @tb, or a pointer to an existing TB that matches @tb.
@@ -944,43 +972,29 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
  * for the same block of guest code that @tb corresponds to. In that case,
  * the caller should discard the original @tb, and use instead the returned TB.
  */
-TranslationBlock *tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
-                               tb_page_addr_t phys_page2)
+TranslationBlock *tb_link_page(TranslationBlock *tb)
 {
-    PageDesc *p;
-    PageDesc *p2 = NULL;
     void *existing_tb = NULL;
     uint32_t h;
 
     assert_memory_lock();
     tcg_debug_assert(!(tb->cflags & CF_INVALID));
 
-    /*
-     * Add the TB to the page list, acquiring first the pages's locks.
-     * We keep the locks held until after inserting the TB in the hash table,
-     * so that if the insertion fails we know for sure that the TBs are still
-     * in the page descriptors.
-     * Note that inserting into the hash table first isn't an option, since
-     * we can only insert TBs that are fully initialized.
-     */
-    page_lock_pair(&p, phys_pc, &p2, phys_page2, true);
-    tb_record(tb, p, p2);
+    tb_record(tb);
 
     /* add in the hash table */
-    h = tb_hash_func(phys_pc, (tb->cflags & CF_PCREL ? 0 : tb->pc),
+    h = tb_hash_func(tb_page_addr0(tb), (tb->cflags & CF_PCREL ? 0 : tb->pc),
                      tb->flags, tb->cs_base, tb->cflags);
     qht_insert(&tb_ctx.htable, tb, h, &existing_tb);
 
     /* remove TB from the page(s) if we couldn't insert it */
     if (unlikely(existing_tb)) {
         tb_remove(tb);
-        tb = existing_tb;
+        tb_unlock_pages(tb);
+        return existing_tb;
     }
 
-    if (p2 && p2 != p) {
-        page_unlock(p2);
-    }
-    page_unlock(p);
+    tb_unlock_pages(tb);
     return tb;
 }
 

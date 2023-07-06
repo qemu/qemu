@@ -536,6 +536,26 @@ static void cpu_exec_longjmp_cleanup(CPUState *cpu)
     if (have_mmap_lock()) {
         mmap_unlock();
     }
+#else
+    /*
+     * For softmmu, a tlb_fill fault during translation will land here,
+     * and we need to release any page locks held.  In system mode we
+     * have one tcg_ctx per thread, so we know it was this cpu doing
+     * the translation.
+     *
+     * Alternative 1: Install a cleanup to be called via an exception
+     * handling safe longjmp.  It seems plausible that all our hosts
+     * support such a thing.  We'd have to properly register unwind info
+     * for the JIT for EH, rather that just for GDB.
+     *
+     * Alternative 2: Set and restore cpu->jmp_env in tb_gen_code to
+     * capture the cpu_loop_exit longjmp, perform the cleanup, and
+     * jump again to arrive here.
+     */
+    if (tcg_ctx->gen_tb) {
+        tb_unlock_pages(tcg_ctx->gen_tb);
+        tcg_ctx->gen_tb = NULL;
+    }
 #endif
     if (qemu_mutex_iothread_locked()) {
         qemu_mutex_unlock_iothread();
