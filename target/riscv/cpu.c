@@ -1860,6 +1860,14 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_misa_properties(obj);
 
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
+#ifndef CONFIG_USER_ONLY
+        if (kvm_enabled()) {
+            /* Check if KVM created the property already */
+            if (object_property_find(obj, prop->name)) {
+                continue;
+            }
+        }
+#endif
         qdev_property_add_static(dev, prop);
     }
 
