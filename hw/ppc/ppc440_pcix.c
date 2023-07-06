@@ -498,7 +498,8 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
                          ppc440_pcix_map_irq, &s->irq, &s->busmem, &s->iomem,
                          PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
 
-    s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0), "ppc4xx-host-bridge");
+    s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0),
+                               TYPE_PPC4xx_HOST_BRIDGE);
 
     memory_region_init(&s->bm, OBJECT(s), "bm-ppc440-pcix", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
