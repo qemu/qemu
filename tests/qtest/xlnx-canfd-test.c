@@ -170,23 +170,23 @@ static void generate_random_data(uint32_t *buf_tx, bool is_canfd_frame)
     /* Generate random TX data for CANFD frame. */
     if (is_canfd_frame) {
         for (int i = 0; i < CANFD_FRAME_SIZE - 2; i++) {
-            buf_tx[2 + i] = rand();
+            buf_tx[2 + i] = g_random_int();
         }
     } else {
         /* Generate random TX data for CAN frame. */
         for (int i = 0; i < CAN_FRAME_SIZE - 2; i++) {
-            buf_tx[2 + i] = rand();
+            buf_tx[2 + i] = g_random_int();
         }
     }
 }
 
-static void read_data(QTestState *qts, uint64_t can_base_addr, uint32_t *buf_rx)
+static void read_data(QTestState *qts, uint64_t can_base_addr, uint32_t *buf_rx,
+                      uint32_t frame_size)
 {
     uint32_t int_status;
     uint32_t fifo_status_reg_value;
     /* At which RX FIFO the received data is stored. */
     uint8_t store_ind = 0;
-    bool is_canfd_frame = false;
 
     /* Read the interrupt on CANFD rx. */
     int_status = qtest_readl(qts, can_base_addr + R_ISR_OFFSET) & ISR_RXOK;
@@ -207,16 +207,9 @@ static void read_data(QTestState *qts, uint64_t can_base_addr, uint32_t *buf_rx)
     buf_rx[0] = qtest_readl(qts, can_base_addr + R_RX0_ID_OFFSET);
     buf_rx[1] = qtest_readl(qts, can_base_addr + R_RX0_DLC_OFFSET);
 
-    is_canfd_frame = (buf_rx[1] >> DLC_FD_BIT_SHIFT) & 1;
-
-    if (is_canfd_frame) {
-        for (int i = 0; i < CANFD_FRAME_SIZE - 2; i++) {
-            buf_rx[i + 2] = qtest_readl(qts,
-                                    can_base_addr + R_RX0_DATA1_OFFSET + 4 * i);
-        }
-    } else {
-        buf_rx[2] = qtest_readl(qts, can_base_addr + R_RX0_DATA1_OFFSET);
-        buf_rx[3] = qtest_readl(qts, can_base_addr + R_RX0_DATA2_OFFSET);
+    for (int i = 0; i < frame_size - 2; i++) {
+        buf_rx[i + 2] = qtest_readl(qts,
+                                can_base_addr + R_RX0_DATA1_OFFSET + 4 * i);
     }
 
     /* Clear the RX interrupt. */
@@ -272,10 +265,6 @@ static void match_rx_tx_data(const uint32_t *buf_tx, const uint32_t *buf_rx,
             g_assert_cmpint((buf_rx[size] & DLC_FD_BIT_MASK), ==,
                             (buf_tx[size] & DLC_FD_BIT_MASK));
         } else {
-            if (!is_canfd_frame && size == 4) {
-                break;
-            }
-
             g_assert_cmpint(buf_rx[size], ==, buf_tx[size]);
         }
 
@@ -318,7 +307,7 @@ static void test_can_data_transfer(void)
     write_data(qts, CANFD0_BASE_ADDR, buf_tx, false);
 
     send_data(qts, CANFD0_BASE_ADDR);
-    read_data(qts, CANFD1_BASE_ADDR, buf_rx);
+    read_data(qts, CANFD1_BASE_ADDR, buf_rx, CAN_FRAME_SIZE);
     match_rx_tx_data(buf_tx, buf_rx, false);
 
     qtest_quit(qts);
@@ -358,7 +347,7 @@ static void test_canfd_data_transfer(void)
     write_data(qts, CANFD0_BASE_ADDR, buf_tx, true);
 
     send_data(qts, CANFD0_BASE_ADDR);
-    read_data(qts, CANFD1_BASE_ADDR, buf_rx);
+    read_data(qts, CANFD1_BASE_ADDR, buf_rx, CANFD_FRAME_SIZE);
     match_rx_tx_data(buf_tx, buf_rx, true);
 
     qtest_quit(qts);
@@ -397,7 +386,7 @@ static void test_can_loopback(void)
     write_data(qts, CANFD0_BASE_ADDR, buf_tx, true);
 
     send_data(qts, CANFD0_BASE_ADDR);
-    read_data(qts, CANFD0_BASE_ADDR, buf_rx);
+    read_data(qts, CANFD0_BASE_ADDR, buf_rx, CANFD_FRAME_SIZE);
     match_rx_tx_data(buf_tx, buf_rx, true);
 
     generate_random_data(buf_tx, true);
@@ -405,7 +394,7 @@ static void test_can_loopback(void)
     write_data(qts, CANFD1_BASE_ADDR, buf_tx, true);
 
     send_data(qts, CANFD1_BASE_ADDR);
-    read_data(qts, CANFD1_BASE_ADDR, buf_rx);
+    read_data(qts, CANFD1_BASE_ADDR, buf_rx, CANFD_FRAME_SIZE);
     match_rx_tx_data(buf_tx, buf_rx, true);
 
     qtest_quit(qts);
