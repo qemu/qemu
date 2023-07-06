@@ -45,8 +45,7 @@ struct PLBInMap {
     MemoryRegion mr;
 };
 
-#define TYPE_PPC440_PCIX_HOST_BRIDGE "ppc440-pcix-host"
-OBJECT_DECLARE_SIMPLE_TYPE(PPC440PCIXState, PPC440_PCIX_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPC440PCIXState, PPC440_PCIX_HOST)
 
 #define PPC440_PCIX_NR_POMS 3
 #define PPC440_PCIX_NR_PIMS 3
@@ -399,7 +398,7 @@ static const MemoryRegionOps pci_reg_ops = {
 
 static void ppc440_pcix_reset(DeviceState *dev)
 {
-    struct PPC440PCIXState *s = PPC440_PCIX_HOST_BRIDGE(dev);
+    struct PPC440PCIXState *s = PPC440_PCIX_HOST(dev);
     int i;
 
     for (i = 0; i < PPC440_PCIX_NR_POMS; i++) {
@@ -489,7 +488,7 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
     PCIHostState *h;
 
     h = PCI_HOST_BRIDGE(dev);
-    s = PPC440_PCIX_HOST_BRIDGE(dev);
+    s = PPC440_PCIX_HOST(dev);
 
     sysbus_init_irq(sbd, &s->irq);
     memory_region_init(&s->busmem, OBJECT(dev), "pci-mem", UINT64_MAX);
@@ -529,7 +528,7 @@ static void ppc440_pcix_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppc440_pcix_info = {
-    .name          = TYPE_PPC440_PCIX_HOST_BRIDGE,
+    .name          = TYPE_PPC440_PCIX_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC440PCIXState),
     .class_init    = ppc440_pcix_class_init,
