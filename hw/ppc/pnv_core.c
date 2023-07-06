@@ -298,9 +298,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
-    /* TODO: check PNV_XSCOM_EX_SIZE for p10 */
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), pcc->xscom_ops,
-                          pc, name, PNV_XSCOM_EX_SIZE);
+                          pc, name, pcc->xscom_size);
 
     qemu_register_reset(pnv_core_reset, pc);
     return;
@@ -352,6 +351,7 @@ static void pnv_core_power8_class_init(ObjectClass *oc, void *data)
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     pcc->xscom_ops = &pnv_core_power8_xscom_ops;
+    pcc->xscom_size = PNV_XSCOM_EX_SIZE;
 }
 
 static void pnv_core_power9_class_init(ObjectClass *oc, void *data)
@@ -359,6 +359,7 @@ static void pnv_core_power9_class_init(ObjectClass *oc, void *data)
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     pcc->xscom_ops = &pnv_core_power9_xscom_ops;
+    pcc->xscom_size = PNV_XSCOM_EX_SIZE;
 }
 
 static void pnv_core_power10_class_init(ObjectClass *oc, void *data)
@@ -366,6 +367,7 @@ static void pnv_core_power10_class_init(ObjectClass *oc, void *data)
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     pcc->xscom_ops = &pnv_core_power10_xscom_ops;
+    pcc->xscom_size = PNV10_XSCOM_EC_SIZE;
 }
 
 static void pnv_core_class_init(ObjectClass *oc, void *data)
