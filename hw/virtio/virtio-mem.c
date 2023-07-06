@@ -18,6 +18,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-mem.h"
@@ -901,11 +902,23 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    ret = ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb));
-    if (ret) {
-        error_setg_errno(errp, -ret, "Unexpected error discarding RAM");
-        ram_block_coordinated_discard_require(false);
-        return;
+    /*
+     * We don't know at this point whether shared RAM is migrated using
+     * QEMU or migrated using the file content. "x-ignore-shared" will be
+     * configured after realizing the device. So in case we have an
+     * incoming migration, simply always skip the discard step.
+     *
+     * Otherwise, make sure that we start with a clean slate: either the
+     * memory backend might get reused or the shared file might still have
+     * memory allocated.
+     */
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        ret = ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb));
+        if (ret) {
+            error_setg_errno(errp, -ret, "Unexpected error discarding RAM");
+            ram_block_coordinated_discard_require(false);
+            return;
+        }
     }
 
     virtio_mem_resize_usable_region(vmem, vmem->requested_size, true);
@@ -977,10 +990,6 @@ static int virtio_mem_post_load(void *opaque, int version_id)
     RamDiscardListener *rdl;
     int ret;
 
-    if (vmem->prealloc && !vmem->early_migration) {
-        warn_report("Proper preallocation with migration requires a newer QEMU machine");
-    }
-
     /*
      * We started out with all memory discarded and our memory region is mapped
      * into an address space. Replay, now that we updated the bitmap.
@@ -991,6 +1000,18 @@ static int virtio_mem_post_load(void *opaque, int version_id)
         if (ret) {
             return ret;
         }
+    }
+
+    /*
+     * If shared RAM is migrated using the file content and not using QEMU,
+     * don't mess with preallocation and postcopy.
+     */
+    if (migrate_ram_is_ignored(vmem->memdev->mr.ram_block)) {
+        return 0;
+    }
+
+    if (vmem->prealloc && !vmem->early_migration) {
+        warn_report("Proper preallocation with migration requires a newer QEMU machine");
     }
 
     if (migration_in_incoming_postcopy()) {
@@ -1022,6 +1043,14 @@ static int virtio_mem_post_load_early(void *opaque, int version_id)
     int ret;
 
     if (!vmem->prealloc) {
+        return 0;
+    }
+
+    /*
+     * If shared RAM is migrated using the file content and not using QEMU,
+     * don't mess with preallocation and postcopy.
+     */
+    if (migrate_ram_is_ignored(rb)) {
         return 0;
     }
 
