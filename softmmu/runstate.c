@@ -804,21 +804,21 @@ void qemu_cleanup(void)
      */
     blk_exp_close_all();
 
-    /*
-     * We must cancel all block jobs while the block layer is drained,
-     * or cancelling will be affected by throttling and thus may block
-     * for an extended period of time.
-     * vm_shutdown() will bdrv_drain_all(), so we may as well include
-     * it in the drained section.
-     * We do not need to end this section, because we do not want any
-     * requests happening from here on anyway.
-     */
-    bdrv_drain_all_begin();
 
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
     replay_finish();
 
+    /*
+     * We must cancel all block jobs while the block layer is drained,
+     * or cancelling will be affected by throttling and thus may block
+     * for an extended period of time.
+     * Begin the drained section after vm_shutdown() to avoid requests being
+     * stuck in the BlockBackend's request queue.
+     * We do not need to end this section, because we do not want any
+     * requests happening from here on anyway.
+     */
+    bdrv_drain_all_begin();
     job_cancel_sync_all();
     bdrv_close_all();
 
