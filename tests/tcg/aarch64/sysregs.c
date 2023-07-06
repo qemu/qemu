@@ -25,9 +25,14 @@
 /*
  * Older assemblers don't recognize newer system register names,
  * but we can still access them by the Sn_n_Cn_Cn_n syntax.
+ * This also means we don't need to specifically request that the
+ * assembler enables whatever architectural features the ID registers
+ * syntax might be gated behind.
  */
 #define SYS_ID_AA64ISAR2_EL1 S3_0_C0_C6_2
 #define SYS_ID_AA64MMFR2_EL1 S3_0_C0_C7_2
+#define SYS_ID_AA64ZFR0_EL1 S3_0_C0_C4_4
+#define SYS_ID_AA64SMFR0_EL1 S3_0_C0_C4_5
 
 int failed_bit_count;
 
@@ -132,10 +137,8 @@ int main(void)
     /* all hidden, DebugVer fixed to 0x6 (ARMv8 debug architecture) */
     get_cpu_reg_check_mask(id_aa64dfr0_el1,  _m(0000,0000,0000,0006));
     get_cpu_reg_check_zero(id_aa64dfr1_el1);
-    get_cpu_reg_check_mask(id_aa64zfr0_el1,  _m(0ff0,ff0f,00ff,00ff));
-#ifdef HAS_ARMV9_SME
-    get_cpu_reg_check_mask(id_aa64smfr0_el1, _m(80f1,00fd,0000,0000));
-#endif
+    get_cpu_reg_check_mask(SYS_ID_AA64ZFR0_EL1,  _m(0ff0,ff0f,00ff,00ff));
+    get_cpu_reg_check_mask(SYS_ID_AA64SMFR0_EL1, _m(80f1,00fd,0000,0000));
 
     get_cpu_reg_check_zero(id_aa64afr0_el1);
     get_cpu_reg_check_zero(id_aa64afr1_el1);
