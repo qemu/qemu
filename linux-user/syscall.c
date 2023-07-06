@@ -806,7 +806,7 @@ static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
-    target_brk = new_brk;
+    target_brk = TARGET_PAGE_ALIGN(new_brk);
     brk_page = HOST_PAGE_ALIGN(target_brk);
 }
 
