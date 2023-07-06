@@ -85,8 +85,8 @@ static uint64_t pnv_core_power8_xscom_read(void *opaque, hwaddr addr,
         val = 0x24f000000000000ull;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
     }
 
     return val;
@@ -95,8 +95,10 @@ static uint64_t pnv_core_power8_xscom_read(void *opaque, hwaddr addr,
 static void pnv_core_power8_xscom_write(void *opaque, hwaddr addr, uint64_t val,
                                         unsigned int width)
 {
-    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+    uint32_t offset = addr >> 3;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                  offset);
 }
 
 static const MemoryRegionOps pnv_core_power8_xscom_ops = {
@@ -140,8 +142,8 @@ static uint64_t pnv_core_power9_xscom_read(void *opaque, hwaddr addr,
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
     }
 
     return val;
@@ -157,8 +159,8 @@ static void pnv_core_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                      addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
     }
 }
 
@@ -189,8 +191,8 @@ static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
     }
 
     return val;
@@ -203,8 +205,8 @@ static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
 
     switch (offset) {
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                      addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
     }
 }
 
@@ -419,7 +421,7 @@ static uint64_t pnv_quad_power9_xscom_read(void *opaque, hwaddr addr,
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: reading @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
                       offset);
     }
 
@@ -436,7 +438,7 @@ static void pnv_quad_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     case P9X_EX_NCU_SPEC_BAR + 0x400: /* Second EX */
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
                   offset);
     }
 }
@@ -463,7 +465,7 @@ static uint64_t pnv_quad_power10_xscom_read(void *opaque, hwaddr addr,
 
     switch (offset) {
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: reading @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
                       offset);
     }
 
@@ -477,7 +479,7 @@ static void pnv_quad_power10_xscom_write(void *opaque, hwaddr addr,
 
     switch (offset) {
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
                       offset);
     }
 }
