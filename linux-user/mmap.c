@@ -222,73 +222,76 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 }
 
 /* map an incomplete host page */
-static int mmap_frag(abi_ulong real_start,
-                     abi_ulong start, abi_ulong end,
-                     int prot, int flags, int fd, off_t offset)
+static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
+                      int prot, int flags, int fd, off_t offset)
 {
-    abi_ulong real_end, addr;
+    abi_ulong real_last;
     void *host_start;
-    int prot1, prot_new;
+    int prot_old, prot_new;
+    int host_prot_old, host_prot_new;
 
-    real_end = real_start + qemu_host_page_size;
-    host_start = g2h_untagged(real_start);
-
-    /* get the protection of the target pages outside the mapping */
-    prot1 = 0;
-    for (addr = real_start; addr < real_end; addr++) {
-        if (addr < start || addr >= end) {
-            prot1 |= page_get_flags(addr);
-        }
+    if (!(flags & MAP_ANONYMOUS)
+        && (flags & MAP_TYPE) == MAP_SHARED
+        && (prot & PROT_WRITE)) {
+        /*
+         * msync() won't work with the partial page, so we return an
+         * error if write is possible while it is a shared mapping.
+         */
+        errno = EINVAL;
+        return false;
     }
 
-    if (prot1 == 0) {
-        /* no page was there, so we allocate one */
+    real_last = real_start + qemu_host_page_size - 1;
+    host_start = g2h_untagged(real_start);
+
+    /* Get the protection of the target pages outside the mapping. */
+    prot_old = 0;
+    for (abi_ulong a = real_start; a < start; a += TARGET_PAGE_SIZE) {
+        prot_old |= page_get_flags(a);
+    }
+    for (abi_ulong a = real_last; a > last; a -= TARGET_PAGE_SIZE) {
+        prot_old |= page_get_flags(a);
+    }
+
+    if (prot_old == 0) {
+        /*
+         * Since !(prot_old & PAGE_VALID), there were no guest pages
+         * outside of the fragment we need to map.  Allocate a new host
+         * page to cover, discarding whatever else may have been present.
+         */
         void *p = mmap(host_start, qemu_host_page_size,
                        target_to_host_prot(prot),
                        flags | MAP_ANONYMOUS, -1, 0);
         if (p == MAP_FAILED) {
-            return -1;
+            return false;
         }
-        prot1 = prot;
+        prot_old = prot;
     }
-    prot1 &= PAGE_BITS;
+    prot_new = prot | prot_old;
 
-    prot_new = prot | prot1;
-    if (!(flags & MAP_ANONYMOUS)) {
-        /*
-         * msync() won't work here, so we return an error if write is
-         * possible while it is a shared mapping.
-         */
-        if ((flags & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE)) {
-            return -1;
-        }
+    host_prot_old = target_to_host_prot(prot_old);
+    host_prot_new = target_to_host_prot(prot_new);
 
-        /* adjust protection to be able to read */
-        if (!(prot1 & PROT_WRITE)) {
-            mprotect(host_start, qemu_host_page_size,
-                     target_to_host_prot(prot1) | PROT_WRITE);
-        }
+    /* Adjust protection to be able to write. */
+    if (!(host_prot_old & PROT_WRITE)) {
+        host_prot_old |= PROT_WRITE;
+        mprotect(host_start, qemu_host_page_size, host_prot_old);
+    }
 
-        /* read the corresponding file data */
-        if (pread(fd, g2h_untagged(start), end - start, offset) == -1) {
-            return -1;
-        }
-
-        /* put final protection */
-        if (prot_new != (prot1 | PROT_WRITE)) {
-            mprotect(host_start, qemu_host_page_size,
-                     target_to_host_prot(prot_new));
-        }
+    /* Read or zero the new guest pages. */
+    if (flags & MAP_ANONYMOUS) {
+        memset(g2h_untagged(start), 0, last - start + 1);
     } else {
-        if (prot_new != prot1) {
-            mprotect(host_start, qemu_host_page_size,
-                     target_to_host_prot(prot_new));
-        }
-        if (prot_new & PROT_WRITE) {
-            memset(g2h_untagged(start), 0, end - start);
+        if (pread(fd, g2h_untagged(start), last - start + 1, offset) == -1) {
+            return false;
         }
     }
-    return 0;
+
+    /* Put final protection */
+    if (host_prot_new != host_prot_old) {
+        mprotect(host_start, qemu_host_page_size, host_prot_new);
+    }
+    return true;
 }
 
 #if HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
@@ -681,27 +684,25 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         if (start > real_start) {
             if (real_end == real_start + qemu_host_page_size) {
                 /* one single host page */
-                ret = mmap_frag(real_start, start, end,
-                                target_prot, flags, fd, offset);
-                if (ret == -1) {
+                if (!mmap_frag(real_start, start, end - 1,
+                               target_prot, flags, fd, offset)) {
                     goto fail;
                 }
                 goto the_end1;
             }
-            ret = mmap_frag(real_start, start, real_start + qemu_host_page_size,
-                            target_prot, flags, fd, offset);
-            if (ret == -1) {
+            if (!mmap_frag(real_start, start,
+                           real_start + qemu_host_page_size - 1,
+                           target_prot, flags, fd, offset)) {
                 goto fail;
             }
             real_start += qemu_host_page_size;
         }
         /* handle the end of the mapping */
         if (end < real_end) {
-            ret = mmap_frag(real_end - qemu_host_page_size,
-                            real_end - qemu_host_page_size, end,
-                            target_prot, flags, fd,
-                            offset + real_end - qemu_host_page_size - start);
-            if (ret == -1) {
+            if (!mmap_frag(real_end - qemu_host_page_size,
+                           real_end - qemu_host_page_size, end - 1,
+                           target_prot, flags, fd,
+                           offset + real_end - qemu_host_page_size - start)) {
                 goto fail;
             }
             real_end -= qemu_host_page_size;
