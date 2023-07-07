@@ -120,8 +120,11 @@ static int target_to_host_prot(int prot)
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 {
-    abi_ulong end, host_start, host_end, addr;
-    int prot1, ret, page_flags;
+    abi_ulong starts[3];
+    abi_ulong lens[3];
+    int prots[3];
+    abi_ulong host_start, host_last, last;
+    int prot1, ret, page_flags, nranges;
 
     trace_target_mprotect(start, len, target_prot);
 
@@ -132,63 +135,88 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     if (!page_flags) {
         return -TARGET_EINVAL;
     }
-    len = TARGET_PAGE_ALIGN(len);
-    end = start + len;
-    if (!guest_range_valid_untagged(start, len)) {
-        return -TARGET_ENOMEM;
-    }
     if (len == 0) {
         return 0;
     }
+    len = TARGET_PAGE_ALIGN(len);
+    if (!guest_range_valid_untagged(start, len)) {
+        return -TARGET_ENOMEM;
+    }
+
+    last = start + len - 1;
+    host_start = start & qemu_host_page_mask;
+    host_last = HOST_PAGE_ALIGN(last) - 1;
+    nranges = 0;
 
     mmap_lock();
-    host_start = start & qemu_host_page_mask;
-    host_end = HOST_PAGE_ALIGN(end);
-    if (start > host_start) {
-        /* handle host page containing start */
+
+    if (host_last - host_start < qemu_host_page_size) {
+        /* Single host page contains all guest pages: sum the prot. */
         prot1 = target_prot;
-        for (addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
-            prot1 |= page_get_flags(addr);
+        for (abi_ulong a = host_start; a < start; a += TARGET_PAGE_SIZE) {
+            prot1 |= page_get_flags(a);
         }
-        if (host_end == host_start + qemu_host_page_size) {
-            for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
-                prot1 |= page_get_flags(addr);
+        for (abi_ulong a = last; a < host_last; a += TARGET_PAGE_SIZE) {
+            prot1 |= page_get_flags(a + 1);
+        }
+        starts[nranges] = host_start;
+        lens[nranges] = qemu_host_page_size;
+        prots[nranges] = prot1;
+        nranges++;
+    } else {
+        if (host_start < start) {
+            /* Host page contains more than one guest page: sum the prot. */
+            prot1 = target_prot;
+            for (abi_ulong a = host_start; a < start; a += TARGET_PAGE_SIZE) {
+                prot1 |= page_get_flags(a);
             }
-            end = host_end;
+            /* If the resulting sum differs, create a new range. */
+            if (prot1 != target_prot) {
+                starts[nranges] = host_start;
+                lens[nranges] = qemu_host_page_size;
+                prots[nranges] = prot1;
+                nranges++;
+                host_start += qemu_host_page_size;
+            }
         }
-        ret = mprotect(g2h_untagged(host_start), qemu_host_page_size,
-                       target_to_host_prot(prot1));
-        if (ret != 0) {
-            goto error;
+
+        if (last < host_last) {
+            /* Host page contains more than one guest page: sum the prot. */
+            prot1 = target_prot;
+            for (abi_ulong a = last; a < host_last; a += TARGET_PAGE_SIZE) {
+                prot1 |= page_get_flags(a + 1);
+            }
+            /* If the resulting sum differs, create a new range. */
+            if (prot1 != target_prot) {
+                host_last -= qemu_host_page_size;
+                starts[nranges] = host_last + 1;
+                lens[nranges] = qemu_host_page_size;
+                prots[nranges] = prot1;
+                nranges++;
+            }
         }
-        host_start += qemu_host_page_size;
-    }
-    if (end < host_end) {
-        prot1 = target_prot;
-        for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
-            prot1 |= page_get_flags(addr);
+
+        /* Create a range for the middle, if any remains. */
+        if (host_start < host_last) {
+            starts[nranges] = host_start;
+            lens[nranges] = host_last - host_start + 1;
+            prots[nranges] = target_prot;
+            nranges++;
         }
-        ret = mprotect(g2h_untagged(host_end - qemu_host_page_size),
-                       qemu_host_page_size, target_to_host_prot(prot1));
-        if (ret != 0) {
-            goto error;
-        }
-        host_end -= qemu_host_page_size;
     }
 
-    /* handle the pages in the middle */
-    if (host_start < host_end) {
-        ret = mprotect(g2h_untagged(host_start), host_end - host_start,
-                       target_to_host_prot(target_prot));
+    for (int i = 0; i < nranges; ++i) {
+        ret = mprotect(g2h_untagged(starts[i]), lens[i],
+                       target_to_host_prot(prots[i]));
         if (ret != 0) {
             goto error;
         }
     }
 
-    page_set_flags(start, start + len - 1, page_flags);
+    page_set_flags(start, last, page_flags);
     ret = 0;
 
-error:
+ error:
     mmap_unlock();
     return ret;
 }
