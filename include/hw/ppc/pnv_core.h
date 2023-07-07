@@ -66,6 +66,9 @@ struct PnvQuadClass {
 
     const MemoryRegionOps *xscom_ops;
     uint64_t xscom_size;
+
+    const MemoryRegionOps *xscom_qme_ops;
+    uint64_t xscom_qme_size;
 };
 
 #define TYPE_PNV_QUAD "powernv-cpu-quad"
@@ -80,5 +83,6 @@ struct PnvQuad {
 
     uint32_t quad_id;
     MemoryRegion xscom_regs;
+    MemoryRegion xscom_qme_regs;
 };
 #endif /* PPC_PNV_CORE_H */
