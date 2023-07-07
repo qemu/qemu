@@ -25,7 +25,7 @@ def run_test():
     gdb.execute("si")
     report("larl\t" in gdb.execute("x/i $pc", False, True), "insn #2")
     gdb.execute("si")
-    report("lghi\t" in gdb.execute("x/i $pc", False, True), "insn #3")
+    report("lgrl\t" in gdb.execute("x/i $pc", False, True), "insn #3")
     gdb.execute("si")
     report("svc\t" in gdb.execute("x/i $pc", False, True), "insn #4")
     gdb.execute("si")
