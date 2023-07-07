@@ -898,23 +898,6 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     return new_addr;
 }
 
-static bool can_passthrough_madvise(abi_ulong start, abi_ulong end)
-{
-    ulong addr;
-
-    if ((start | end) & ~qemu_host_page_mask) {
-        return false;
-    }
-
-    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        if (!(page_get_flags(addr) & PAGE_PASSTHROUGH)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
 {
     abi_ulong len, end;
@@ -964,9 +947,8 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      *
      * A straight passthrough for those may not be safe because qemu sometimes
      * turns private file-backed mappings into anonymous mappings.
-     * can_passthrough_madvise() helps to check if a passthrough is possible by
-     * comparing mappings that are known to have the same semantics in the host
-     * and the guest. In this case passthrough is safe.
+     * If all guest pages have PAGE_PASSTHROUGH set, mappings have the
+     * same semantics for the host as for the guest.
      *
      * We pass through MADV_WIPEONFORK and MADV_KEEPONFORK if possible and
      * return failure if not.
@@ -984,7 +966,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
         ret = -EINVAL;
         /* fall through */
     case MADV_DONTNEED:
-        if (can_passthrough_madvise(start, end)) {
+        if (page_check_range(start, len, PAGE_PASSTHROUGH)) {
             ret = get_errno(madvise(g2h_untagged(start), len, advice));
             if ((advice == MADV_DONTNEED) && (ret == 0)) {
                 page_reset_target_data(start, start + len - 1);
