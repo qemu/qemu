@@ -666,6 +666,58 @@ static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
         }
     }
 
+    /*
+     * According to VirtIO standard, "The device MUST have an
+     * empty MAC filtering table on reset.".
+     *
+     * Therefore, there is no need to send this CVQ command if the
+     * driver also sets an empty MAC filter table, which aligns with
+     * the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX) ||
+        n->mac_table.in_use == 0) {
+        return 0;
+    }
+
+    uint32_t uni_entries = n->mac_table.first_multi,
+             uni_macs_size = uni_entries * ETH_ALEN,
+             mul_entries = n->mac_table.in_use - uni_entries,
+             mul_macs_size = mul_entries * ETH_ALEN;
+    struct virtio_net_ctrl_mac uni = {
+        .entries = cpu_to_le32(uni_entries),
+    };
+    struct virtio_net_ctrl_mac mul = {
+        .entries = cpu_to_le32(mul_entries),
+    };
+    const struct iovec data[] = {
+        {
+            .iov_base = &uni,
+            .iov_len = sizeof(uni),
+        }, {
+            .iov_base = n->mac_table.macs,
+            .iov_len = uni_macs_size,
+        }, {
+            .iov_base = &mul,
+            .iov_len = sizeof(mul),
+        }, {
+            .iov_base = &n->mac_table.macs[uni_macs_size],
+            .iov_len = mul_macs_size,
+        },
+    };
+    ssize_t dev_written = vhost_vdpa_net_load_cmd(s,
+                                VIRTIO_NET_CTRL_MAC,
+                                VIRTIO_NET_CTRL_MAC_TABLE_SET,
+                                data, ARRAY_SIZE(data));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+    if (*s->status != VIRTIO_NET_OK) {
+        return -EIO;
+    }
+
     return 0;
 }
 
