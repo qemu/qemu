@@ -8122,7 +8122,7 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
             max = h2g_valid(max - 1) ?
                 max : (uintptr_t) g2h_untagged(GUEST_ADDR_MAX) + 1;
 
-            if (page_check_range(h2g(min), max - min, flags) == -1) {
+            if (!page_check_range(h2g(min), max - min, flags)) {
                 continue;
             }
 

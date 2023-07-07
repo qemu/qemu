@@ -267,7 +267,7 @@ abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2);
 
 static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
 {
-    return page_check_range((target_ulong)addr, size, type) == 0;
+    return page_check_range((target_ulong)addr, size, type);
 }
 
 /*

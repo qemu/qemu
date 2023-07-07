@@ -1191,7 +1191,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_PNFL: /* Primary no-fault LE */
     case ASI_SNF:  /* Secondary no-fault */
     case ASI_SNFL: /* Secondary no-fault LE */
-        if (page_check_range(addr, size, PAGE_READ) == -1) {
+        if (!page_check_range(addr, size, PAGE_READ)) {
             ret = 0;
             break;
         }
