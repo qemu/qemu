@@ -722,14 +722,14 @@ fail:
     return -1;
 }
 
-static void mmap_reserve(abi_ulong start, abi_ulong len)
+static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
 {
     abi_ulong real_start;
     abi_ulong real_last;
     abi_ulong real_len;
     abi_ulong last;
     abi_ulong a;
-    void *host_start, *ptr;
+    void *host_start;
     int prot;
 
     last = start + len - 1;
@@ -776,9 +776,15 @@ static void mmap_reserve(abi_ulong start, abi_ulong len)
     real_len = real_last - real_start + 1;
     host_start = g2h_untagged(real_start);
 
-    ptr = mmap(host_start, real_len, PROT_NONE,
-               MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-    assert(ptr == host_start);
+    if (reserved_va) {
+        void *ptr = mmap(host_start, real_len, PROT_NONE,
+                         MAP_FIXED | MAP_ANONYMOUS
+                         | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+        assert(ptr == host_start);
+    } else {
+        int ret = munmap(host_start, real_len);
+        assert(ret == 0);
+    }
 }
 
 int target_munmap(abi_ulong start, abi_ulong len)
@@ -830,11 +836,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     ret = 0;
     /* unmap what we can */
     if (real_start < real_end) {
-        if (reserved_va) {
-            mmap_reserve(real_start, real_end - real_start);
-        } else {
-            ret = munmap(g2h_untagged(real_start), real_end - real_start);
-        }
+        mmap_reserve_or_unmap(real_start, real_end - real_start);
     }
 
     if (ret == 0) {
@@ -871,7 +873,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
              * If new and old addresses overlap then the above mremap will
              * already have failed with EINVAL.
              */
-            mmap_reserve(old_addr, old_size);
+            mmap_reserve_or_unmap(old_addr, old_size);
         }
     } else if (flags & MREMAP_MAYMOVE) {
         abi_ulong mmap_start;
@@ -886,7 +888,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                                flags | MREMAP_FIXED,
                                g2h_untagged(mmap_start));
             if (reserved_va) {
-                mmap_reserve(old_addr, old_size);
+                mmap_reserve_or_unmap(old_addr, old_size);
             }
         }
     } else {
@@ -912,7 +914,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                     errno = ENOMEM;
                     host_addr = MAP_FAILED;
                 } else if (reserved_va && old_size > new_size) {
-                    mmap_reserve(old_addr + old_size, old_size - new_size);
+                    mmap_reserve_or_unmap(old_addr + old_size,
+                                          old_size - new_size);
                 }
             }
         } else {
