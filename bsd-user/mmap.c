@@ -222,50 +222,16 @@ unsigned long last_brk;
 static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
                                         abi_ulong alignment)
 {
-    abi_ulong addr;
-    abi_ulong end_addr;
-    int prot;
-    int looped = 0;
+    abi_ulong ret;
 
-    if (size > reserved_va) {
-        return (abi_ulong)-1;
-    }
-
-    size = HOST_PAGE_ALIGN(size) + alignment;
-    end_addr = start + size;
-    if (end_addr > reserved_va) {
-        end_addr = reserved_va + 1;
-    }
-    addr = end_addr - qemu_host_page_size;
-
-    while (1) {
-        if (addr > end_addr) {
-            if (looped) {
-                return (abi_ulong)-1;
-            }
-            end_addr = reserved_va + 1;
-            addr = end_addr - qemu_host_page_size;
-            looped = 1;
-            continue;
-        }
-        prot = page_get_flags(addr);
-        if (prot) {
-            end_addr = addr;
-        }
-        if (end_addr - addr >= size) {
-            break;
-        }
-        addr -= qemu_host_page_size;
+    ret = page_find_range_empty(start, reserved_va, size, alignment);
+    if (ret == -1 && start > TARGET_PAGE_SIZE) {
+        /* Restart at the beginning of the address space. */
+        ret = page_find_range_empty(TARGET_PAGE_SIZE, start - 1,
+                                    size, alignment);
     }
 
-    if (start == mmap_next_start) {
-        mmap_next_start = addr;
-    }
-    /* addr is sufficiently low to align it up */
-    if (alignment != 0) {
-        addr = (addr + alignment) & ~(alignment - 1);
-    }
-    return addr;
+    return ret;
 }
 
 /*
