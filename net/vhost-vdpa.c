@@ -794,6 +794,87 @@ static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
     return 0;
 }
 
+static int vhost_vdpa_net_load_rx_mode(VhostVDPAState *s,
+                                       uint8_t cmd,
+                                       uint8_t on)
+{
+    const struct iovec data = {
+        .iov_base = &on,
+        .iov_len = sizeof(on),
+    };
+    return vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_RX,
+                                   cmd, &data, 1);
+}
+
+static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
+                                  const VirtIONet *n)
+{
+    ssize_t dev_written;
+
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX)) {
+        return 0;
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns promiscuous mode
+     * on by default.
+     *
+     * Addtionally, according to VirtIO standard, "Since there are
+     * no guarantees, it can use a hash filter or silently switch to
+     * allmulti or promiscuous mode if it is given too many addresses.".
+     * QEMU marks `n->mac_table.uni_overflow` if guest sets too many
+     * non-multicast MAC addresses, indicating that promiscuous mode
+     * should be enabled.
+     *
+     * Therefore, QEMU should only send this CVQ command if the
+     * `n->mac_table.uni_overflow` is not marked and `n->promisc` is off,
+     * which sets promiscuous mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (!n->mac_table.uni_overflow && !n->promisc) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_PROMISC, 0);
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns all-multicast mode
+     * off by default.
+     *
+     * According to VirtIO standard, "Since there are no guarantees,
+     * it can use a hash filter or silently switch to allmulti or
+     * promiscuous mode if it is given too many addresses.". QEMU marks
+     * `n->mac_table.multi_overflow` if guest sets too many
+     * non-multicast MAC addresses.
+     *
+     * Therefore, QEMU should only send this CVQ command if the
+     * `n->mac_table.multi_overflow` is marked or `n->allmulti` is on,
+     * which sets all-multicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->mac_table.multi_overflow || n->allmulti) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_ALLMULTI, 1);
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    return 0;
+}
+
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -817,6 +898,10 @@ static int vhost_vdpa_net_load(NetClientState *nc)
         return r;
     }
     r = vhost_vdpa_net_load_offloads(s, n);
+    if (unlikely(r)) {
+        return r;
+    }
+    r = vhost_vdpa_net_load_rx(s, n);
     if (unlikely(r)) {
         return r;
     }
