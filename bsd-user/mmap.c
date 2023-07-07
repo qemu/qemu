@@ -609,7 +609,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
 
         /* Reject the mapping if any page within the range is mapped */
-        if ((flags & MAP_EXCL) && page_check_range(start, len, 0) < 0) {
+        if ((flags & MAP_EXCL) && !page_check_range_empty(start, end - 1)) {
             errno = EINVAL;
             goto fail;
         }
