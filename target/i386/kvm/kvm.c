@@ -432,6 +432,10 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         uint32_t eax;
         host_cpuid(7, 1, &eax, &unused, &unused, &unused);
         ret |= eax & (CPUID_7_1_EAX_FZRM | CPUID_7_1_EAX_FSRS | CPUID_7_1_EAX_FSRC);
+    } else if (function == 7 && index == 2 && reg == R_EDX) {
+        uint32_t edx;
+        host_cpuid(7, 2, &unused, &unused, &unused, &edx);
+        ret |= edx & CPUID_7_2_EDX_MCDT_NO;
     } else if (function == 0xd && index == 0 &&
                (reg == R_EAX || reg == R_EDX)) {
         /*

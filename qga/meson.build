@@ -9,7 +9,7 @@ endif
 have_qga_vss = get_option('qga_vss') \
   .require(targetos == 'windows',
            error_message: 'VSS support requires Windows') \
-  .require(link_language == 'cpp',
+  .require('cpp' in all_languages,
            error_message: 'VSS support requires a C++ compiler') \
   .require(have_vss, error_message: '''VSS support requires VSS headers.
     If your Visual Studio installation doesn't have the VSS headers,
