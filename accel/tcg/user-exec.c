@@ -561,8 +561,8 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
         }
 
         missing = flags & ~p->flags;
-        if (missing & PAGE_READ) {
-            ret = -1; /* page not readable */
+        if (missing & ~PAGE_WRITE) {
+            ret = -1; /* page doesn't match */
             break;
         }
         if (missing & PAGE_WRITE) {
