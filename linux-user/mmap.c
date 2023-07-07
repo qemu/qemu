@@ -318,55 +318,15 @@ unsigned long last_brk;
 static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
                                         abi_ulong align)
 {
-    abi_ulong addr, end_addr, incr = qemu_host_page_size;
-    int prot;
-    bool looped = false;
+    target_ulong ret;
 
-    if (size > reserved_va) {
-        return (abi_ulong)-1;
+    ret = page_find_range_empty(start, reserved_va, size, align);
+    if (ret == -1 && start > mmap_min_addr) {
+        /* Restart at the beginning of the address space. */
+        ret = page_find_range_empty(mmap_min_addr, start - 1, size, align);
     }
 
-    /* Note that start and size have already been aligned by mmap_find_vma. */
-
-    end_addr = start + size;
-    /*
-     * Start at the top of the address space, ignoring the last page.
-     * If reserved_va == UINT32_MAX, then end_addr wraps to 0,
-     * throwing the rest of the calculations off.
-     * TODO: rewrite using last_addr instead.
-     * TODO: use the interval tree instead of probing every page.
-     */
-    if (start > reserved_va - size) {
-        end_addr = ((reserved_va - size) & -align) + size;
-        looped = true;
-    }
-
-    /* Search downward from END_ADDR, checking to see if a page is in use.  */
-    addr = end_addr;
-    while (1) {
-        addr -= incr;
-        if (addr > end_addr) {
-            if (looped) {
-                /* Failure.  The entire address space has been searched.  */
-                return (abi_ulong)-1;
-            }
-            /* Re-start at the top of the address space (see above). */
-            addr = end_addr = ((reserved_va - size) & -align) + size;
-            looped = true;
-        } else {
-            prot = page_get_flags(addr);
-            if (prot) {
-                /* Page in use.  Restart below this page.  */
-                addr = end_addr = ((addr - size) & -align) + size;
-            } else if (addr && addr + size == end_addr) {
-                /* Success!  All pages between ADDR and END_ADDR are free.  */
-                if (start == mmap_next_start) {
-                    mmap_next_start = addr;
-                }
-                return addr;
-            }
-        }
-    }
+    return ret;
 }
 
 /*
