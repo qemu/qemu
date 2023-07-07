@@ -732,7 +732,7 @@ static void layout_arg_by_ref(TCGCumulativeArgs *cum, TCGHelperInfo *info)
             .ref_slot = cum->ref_slot + i,
         };
     }
-    cum->info_in_idx += n;
+    cum->info_in_idx += n - 1;  /* i=0 accounted for in layout_arg_1 */
     cum->ref_slot += n;
 }
 
