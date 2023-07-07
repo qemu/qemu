@@ -244,10 +244,14 @@ static void ipod_touch_machine_init(MachineState *machine)
     set_spi_base(0);
     dev = sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
     IPodTouchSPIState *spi0_state = IPOD_TOUCH_SPI(dev);
+    nms->spi0_state = spi0_state;
     strcpy(spi0_state->nor->nor_path, nms->nor_path);
 
     set_spi_base(1);
-    sysbus_create_simple("ipodtouch.spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI1_IRQ));
+    dev = sysbus_create_simple("ipodtouch.spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI1_IRQ));
+    IPodTouchSPIState *spi1_state = IPOD_TOUCH_SPI(dev);
+    nms->spi1_state = spi1_state;
+    strcpy(spi1_state->nor->nor_path, nms->nor_path);
 
     set_spi_base(2);
     sysbus_create_simple("ipodtouch.spi", SPI2_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI2_IRQ));

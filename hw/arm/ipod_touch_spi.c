@@ -284,14 +284,17 @@ static void ipod_touch_spi_realize(DeviceState *dev, struct Error **errp)
     fifo8_create(&s->rx_fifo, R_FIFO_DEPTH);
 
     // create the peripheral
+    IPodTouchNORSPIState *nor;
     switch(s->base) {
         case 0:
             ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_NOR_SPI);
-            IPodTouchNORSPIState *nor = IPOD_TOUCH_NOR_SPI(dev);
+            nor = IPOD_TOUCH_NOR_SPI(dev);
             s->nor = nor;
             break;
         case 1:
-            //ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_LCD_PANEL);
+            ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_NOR_SPI);
+            nor = IPOD_TOUCH_NOR_SPI(dev);
+            s->nor = nor;
             break;
         case 2:
         {

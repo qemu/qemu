@@ -115,6 +115,8 @@ typedef struct {
 	IPodTouchClockState *clock0;
 	IPodTouchClockState *clock1;
 	IPodTouchTimerState *timer1;
+	IPodTouchSPIState *spi0_state;
+	IPodTouchSPIState *spi1_state;
 	IPodTouchChipIDState *chipid_state;
 	IPodTouchGPIOState *gpio_state;
 	IPodTouchSYSICState *sysic;

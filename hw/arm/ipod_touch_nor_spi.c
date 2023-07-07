@@ -13,7 +13,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
 {
     IPodTouchNORSPIState *s = IPOD_TOUCH_NOR_SPI(dev);
 
-    //printf("NOR SPI received value 0x%08x\n", value);
+    printf("NOR SPI received value 0x%08x\n", value);
     if(value == NOR_GET_JEDECID) {
         printf("RECEIVED JEDCID VALUE\n");
     }
@@ -36,6 +36,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
         if(value == NOR_GET_STATUS_CMD) {
             s->in_buf_size = 1;
             s->out_buf_size = 1;
+            s->out_buf[0] = 0;
         }
         else if(value == NOR_READ_DATA_CMD) {
             printf("Received read command!\n");
@@ -43,7 +44,6 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
             s->out_buf_size = 4096;
         }
         else if(value == NOR_GET_JEDECID) {
-            printf("WILL RETURN JEDCID\n");
             s->in_buf_size = 1;
             s->out_buf_size = 3;
             s->out_buf[0] = 0x1F; // vendor: atmel, device: 0x02 -> AT25DF081A
