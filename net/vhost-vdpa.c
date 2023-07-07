@@ -626,29 +626,38 @@ static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
 }
 
 static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
-                                       uint8_t cmd, const void *data,
-                                       size_t data_size)
+                                       uint8_t cmd, const struct iovec *data_sg,
+                                       size_t data_num)
 {
     const struct virtio_net_ctrl_hdr ctrl = {
         .class = class,
         .cmd = cmd,
     };
+    size_t data_size = iov_size(data_sg, data_num);
 
     assert(data_size < vhost_vdpa_net_cvq_cmd_page_len() - sizeof(ctrl));
 
+    /* pack the CVQ command header */
     memcpy(s->cvq_cmd_out_buffer, &ctrl, sizeof(ctrl));
-    memcpy(s->cvq_cmd_out_buffer + sizeof(ctrl), data, data_size);
 
-    return vhost_vdpa_net_cvq_add(s, sizeof(ctrl) + data_size,
+    /* pack the CVQ command command-specific-data */
+    iov_to_buf(data_sg, data_num, 0,
+               s->cvq_cmd_out_buffer + sizeof(ctrl), data_size);
+
+    return vhost_vdpa_net_cvq_add(s, data_size + sizeof(ctrl),
                                   sizeof(virtio_net_ctrl_ack));
 }
 
 static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
 {
     if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        const struct iovec data = {
+            .iov_base = (void *)n->mac,
+            .iov_len = sizeof(n->mac),
+        };
         ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MAC,
                                                   VIRTIO_NET_CTRL_MAC_ADDR_SET,
-                                                  n->mac, sizeof(n->mac));
+                                                  &data, 1);
         if (unlikely(dev_written < 0)) {
             return dev_written;
         }
@@ -671,9 +680,13 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
     }
 
     mq.virtqueue_pairs = cpu_to_le16(n->curr_queue_pairs);
+    const struct iovec data = {
+        .iov_base = &mq,
+        .iov_len = sizeof(mq),
+    };
     dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MQ,
-                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET, &mq,
-                                          sizeof(mq));
+                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET,
+                                          &data, 1);
     if (unlikely(dev_written < 0)) {
         return dev_written;
     }
@@ -712,9 +725,13 @@ static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
     }
 
     offloads = cpu_to_le64(n->curr_guest_offloads);
+    const struct iovec data = {
+        .iov_base = &offloads,
+        .iov_len = sizeof(offloads),
+    };
     dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
                                           VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET,
-                                          &offloads, sizeof(offloads));
+                                          &data, 1);
     if (unlikely(dev_written < 0)) {
         return dev_written;
     }
