@@ -900,28 +900,17 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
 
 abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
 {
-    abi_ulong len, end;
+    abi_ulong len;
     int ret = 0;
 
     if (start & ~TARGET_PAGE_MASK) {
         return -TARGET_EINVAL;
     }
-    len = TARGET_PAGE_ALIGN(len_in);
-
-    if (len_in && !len) {
-        return -TARGET_EINVAL;
-    }
-
-    end = start + len;
-    if (end < start) {
-        return -TARGET_EINVAL;
-    }
-
-    if (end == start) {
+    if (len_in == 0) {
         return 0;
     }
-
-    if (!guest_range_valid_untagged(start, len)) {
+    len = TARGET_PAGE_ALIGN(len_in);
+    if (len == 0 || !guest_range_valid_untagged(start, len)) {
         return -TARGET_EINVAL;
     }
 
