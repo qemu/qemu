@@ -922,6 +922,148 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
     .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+/*
+ * Forward the excessive VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command to
+ * vdpa device.
+ *
+ * Considering that QEMU cannot send the entire filter table to the
+ * vdpa device, it should send the VIRTIO_NET_CTRL_RX_PROMISC CVQ
+ * command to enable promiscuous mode to receive all packets,
+ * according to VirtIO standard, "Since there are no guarantees,
+ * it can use a hash filter or silently switch to allmulti or
+ * promiscuous mode if it is given too many addresses.".
+ *
+ * Since QEMU ignores MAC addresses beyond `MAC_TABLE_ENTRIES` and
+ * marks `n->mac_table.x_overflow` accordingly, it should have
+ * the same effect on the device model to receive
+ * (`MAC_TABLE_ENTRIES` + 1) or more non-multicast MAC addresses.
+ * The same applies to multicast MAC addresses.
+ *
+ * Therefore, QEMU can provide the device model with a fake
+ * VIRTIO_NET_CTRL_MAC_TABLE_SET command with (`MAC_TABLE_ENTRIES` + 1)
+ * non-multicast MAC addresses and (`MAC_TABLE_ENTRIES` + 1) multicast
+ * MAC addresses. This ensures that the device model marks
+ * `n->mac_table.uni_overflow` and `n->mac_table.multi_overflow`,
+ * allowing all packets to be received, which aligns with the
+ * state of the vdpa device.
+ */
+static int vhost_vdpa_net_excessive_mac_filter_cvq_add(VhostVDPAState *s,
+                                                       VirtQueueElement *elem,
+                                                       struct iovec *out)
+{
+    struct virtio_net_ctrl_mac mac_data, *mac_ptr;
+    struct virtio_net_ctrl_hdr *hdr_ptr;
+    uint32_t cursor;
+    ssize_t r;
+
+    /* parse the non-multicast MAC address entries from CVQ command */
+    cursor = sizeof(*hdr_ptr);
+    r = iov_to_buf(elem->out_sg, elem->out_num, cursor,
+                   &mac_data, sizeof(mac_data));
+    if (unlikely(r != sizeof(mac_data))) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+    cursor += sizeof(mac_data) + le32_to_cpu(mac_data.entries) * ETH_ALEN;
+
+    /* parse the multicast MAC address entries from CVQ command */
+    r = iov_to_buf(elem->out_sg, elem->out_num, cursor,
+                   &mac_data, sizeof(mac_data));
+    if (r != sizeof(mac_data)) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+    cursor += sizeof(mac_data) + le32_to_cpu(mac_data.entries) * ETH_ALEN;
+
+    /* validate the CVQ command */
+    if (iov_size(elem->out_sg, elem->out_num) != cursor) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+
+    /*
+     * According to VirtIO standard, "Since there are no guarantees,
+     * it can use a hash filter or silently switch to allmulti or
+     * promiscuous mode if it is given too many addresses.".
+     *
+     * Therefore, considering that QEMU is unable to send the entire
+     * filter table to the vdpa device, it should send the
+     * VIRTIO_NET_CTRL_RX_PROMISC CVQ command to enable promiscuous mode
+     */
+    r = vhost_vdpa_net_load_rx_mode(s, VIRTIO_NET_CTRL_RX_PROMISC, 1);
+    if (unlikely(r < 0)) {
+        return r;
+    }
+    if (*s->status != VIRTIO_NET_OK) {
+        return sizeof(*s->status);
+    }
+
+    /*
+     * QEMU should also send a fake VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ
+     * command to the device model, including (`MAC_TABLE_ENTRIES` + 1)
+     * non-multicast MAC addresses and (`MAC_TABLE_ENTRIES` + 1)
+     * multicast MAC addresses.
+     *
+     * By doing so, the device model can mark `n->mac_table.uni_overflow`
+     * and `n->mac_table.multi_overflow`, enabling all packets to be
+     * received, which aligns with the state of the vdpa device.
+     */
+    cursor = 0;
+    uint32_t fake_uni_entries = MAC_TABLE_ENTRIES + 1,
+             fake_mul_entries = MAC_TABLE_ENTRIES + 1,
+             fake_cvq_size = sizeof(struct virtio_net_ctrl_hdr) +
+                             sizeof(mac_data) + fake_uni_entries * ETH_ALEN +
+                             sizeof(mac_data) + fake_mul_entries * ETH_ALEN;
+
+    assert(fake_cvq_size < vhost_vdpa_net_cvq_cmd_page_len());
+    out->iov_len = fake_cvq_size;
+
+    /* pack the header for fake CVQ command */
+    hdr_ptr = out->iov_base + cursor;
+    hdr_ptr->class = VIRTIO_NET_CTRL_MAC;
+    hdr_ptr->cmd = VIRTIO_NET_CTRL_MAC_TABLE_SET;
+    cursor += sizeof(*hdr_ptr);
+
+    /*
+     * Pack the non-multicast MAC addresses part for fake CVQ command.
+     *
+     * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
+     * addresses provieded in CVQ command. Therefore, only the entries
+     * field need to be prepared in the CVQ command.
+     */
+    mac_ptr = out->iov_base + cursor;
+    mac_ptr->entries = cpu_to_le32(fake_uni_entries);
+    cursor += sizeof(*mac_ptr) + fake_uni_entries * ETH_ALEN;
+
+    /*
+     * Pack the multicast MAC addresses part for fake CVQ command.
+     *
+     * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
+     * addresses provieded in CVQ command. Therefore, only the entries
+     * field need to be prepared in the CVQ command.
+     */
+    mac_ptr = out->iov_base + cursor;
+    mac_ptr->entries = cpu_to_le32(fake_mul_entries);
+
+    /*
+     * Simulating QEMU poll a vdpa device used buffer
+     * for VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+     */
+    return sizeof(*s->status);
+}
+
 /**
  * Validate and copy control virtqueue commands.
  *
@@ -949,7 +1091,7 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
 
     out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                              s->cvq_cmd_out_buffer,
-                             vhost_vdpa_net_cvq_cmd_len());
+                             vhost_vdpa_net_cvq_cmd_page_len());
 
     ctrl = s->cvq_cmd_out_buffer;
     if (ctrl->class == VIRTIO_NET_CTRL_ANNOUNCE) {
@@ -959,6 +1101,24 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
          */
         dev_written = sizeof(status);
         *s->status = VIRTIO_NET_OK;
+    } else if (unlikely(ctrl->class == VIRTIO_NET_CTRL_MAC &&
+                        ctrl->cmd == VIRTIO_NET_CTRL_MAC_TABLE_SET &&
+                        iov_size(elem->out_sg, elem->out_num) > out.iov_len)) {
+        /*
+         * Due to the size limitation of the out buffer sent to the vdpa device,
+         * which is determined by vhost_vdpa_net_cvq_cmd_page_len(), excessive
+         * MAC addresses set by the driver for the filter table can cause
+         * truncation of the CVQ command in QEMU. As a result, the vdpa device
+         * rejects the flawed CVQ command.
+         *
+         * Therefore, QEMU must handle this situation instead of sending
+         * the CVQ command direclty.
+         */
+        dev_written = vhost_vdpa_net_excessive_mac_filter_cvq_add(s, elem,
+                                                                  &out);
+        if (unlikely(dev_written < 0)) {
+            goto out;
+        }
     } else {
         dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
         if (unlikely(dev_written < 0)) {
