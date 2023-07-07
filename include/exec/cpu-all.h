@@ -237,6 +237,21 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 bool page_check_range_empty(target_ulong start, target_ulong last);
 
 /**
+ * page_find_range_empty
+ * @min: first byte of search range
+ * @max: last byte of search range
+ * @len: size of the hole required
+ * @align: alignment of the hole required (power of 2)
+ *
+ * If there is a range [x, x+@len) within [@min, @max] such that
+ * x % @align == 0, then return x.  Otherwise return -1.
+ * The memory lock must be held, as the caller will want to ensure
+ * the returned range stays empty until a new mapping can be installed.
+ */
+target_ulong page_find_range_empty(target_ulong min, target_ulong max,
+                                   target_ulong len, target_ulong align);
+
+/**
  * page_get_target_data(address)
  * @address: guest virtual address
  *
