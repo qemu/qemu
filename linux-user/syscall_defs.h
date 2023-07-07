@@ -1227,17 +1227,6 @@ struct target_winsize {
 
 #include "termbits.h"
 
-#if defined(TARGET_MIPS) || defined(TARGET_XTENSA)
-#define TARGET_PROT_SEM         0x10
-#else
-#define TARGET_PROT_SEM         0x08
-#endif
-
-#ifdef TARGET_AARCH64
-#define TARGET_PROT_BTI         0x10
-#define TARGET_PROT_MTE         0x20
-#endif
-
 #include "target_mman.h"
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32))     \

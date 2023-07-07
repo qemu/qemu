@@ -1,6 +1,8 @@
 #ifndef MIPS_TARGET_MMAN_H
 #define MIPS_TARGET_MMAN_H
 
+#define TARGET_PROT_SEM                 0x10
+
 #define TARGET_MAP_NORESERVE            0x0400
 #define TARGET_MAP_ANONYMOUS            0x0800
 #define TARGET_MAP_GROWSDOWN            0x1000

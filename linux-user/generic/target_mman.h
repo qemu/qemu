@@ -23,7 +23,11 @@
 #define TARGET_MAP_NORESERVE            0x4000
 #endif
 
-/* Other MAP flags are defined in asm-generic/mman-common.h */
+/* Defined in asm-generic/mman-common.h */
+#ifndef TARGET_PROT_SEM
+#define TARGET_PROT_SEM                 0x08
+#endif
+
 #ifndef TARGET_MAP_TYPE
 #define TARGET_MAP_TYPE                 0x0f
 #endif
