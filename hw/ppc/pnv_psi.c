@@ -121,7 +121,11 @@
 #define PSIHB9_BAR_MASK                 0x00fffffffff00000ull
 #define PSIHB9_FSPBAR_MASK              0x00ffffff00000000ull
 
+/* mmio address to xscom address */
 #define PSIHB_REG(addr) (((addr) >> 3) + PSIHB_XSCOM_BAR)
+
+/* xscom address to mmio address */
+#define PSIHB_MMIO(reg) ((reg - PSIHB_XSCOM_BAR) << 3)
 
 static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 {
@@ -769,24 +773,31 @@ static const MemoryRegionOps pnv_psi_p9_mmio_ops = {
 
 static uint64_t pnv_psi_p9_xscom_read(void *opaque, hwaddr addr, unsigned size)
 {
-    /* No read are expected */
-    qemu_log_mask(LOG_GUEST_ERROR, "PSI: xscom read at 0x%" PRIx64 "\n", addr);
-    return -1;
+    uint32_t reg = addr >> 3;
+    uint64_t val = -1;
+
+    if (reg < PSIHB_XSCOM_BAR) {
+        /* FIR, not modeled */
+        qemu_log_mask(LOG_UNIMP, "PSI: xscom read at 0x%08x\n", reg);
+    } else {
+        val = pnv_psi_p9_mmio_read(opaque, PSIHB_MMIO(reg), size);
+    }
+    return val;
 }
 
 static void pnv_psi_p9_xscom_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     PnvPsi *psi = PNV_PSI(opaque);
+    uint32_t reg = addr >> 3;
 
-    /* XSCOM is only used to set the PSIHB MMIO region */
-    switch (addr >> 3) {
-    case PSIHB_XSCOM_BAR:
+    if (reg < PSIHB_XSCOM_BAR) {
+        /* FIR, not modeled */
+        qemu_log_mask(LOG_UNIMP, "PSI: xscom write at 0x%08x\n", reg);
+    } else if (reg == PSIHB_XSCOM_BAR) {
         pnv_psi_set_bar(psi, val);
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "PSI: xscom write at 0x%" PRIx64 "\n",
-                      addr);
+    } else {
+        pnv_psi_p9_mmio_write(opaque, PSIHB_MMIO(reg), val, size);
     }
 }
 
@@ -852,6 +863,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), "nr-irqs", PSIHB9_NUM_IRQS,
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), "xive", OBJECT(psi), &error_abort);
+    object_property_set_int(OBJECT(xsrc), "reset-pq", XIVE_ESB_RESET,
+                            &error_abort);
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }

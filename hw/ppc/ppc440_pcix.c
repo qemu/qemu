@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/units.h"
 #include "hw/irq.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
@@ -44,8 +45,7 @@ struct PLBInMap {
     MemoryRegion mr;
 };
 
-#define TYPE_PPC440_PCIX_HOST_BRIDGE "ppc440-pcix-host"
-OBJECT_DECLARE_SIMPLE_TYPE(PPC440PCIXState, PPC440_PCIX_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPC440PCIXState, PPC440_PCIX_HOST)
 
 #define PPC440_PCIX_NR_POMS 3
 #define PPC440_PCIX_NR_PIMS 3
@@ -64,6 +64,7 @@ struct PPC440PCIXState {
     MemoryRegion container;
     MemoryRegion iomem;
     MemoryRegion busmem;
+    MemoryRegion regs;
 };
 
 #define PPC440_REG_BASE     0x80000
@@ -397,7 +398,7 @@ static const MemoryRegionOps pci_reg_ops = {
 
 static void ppc440_pcix_reset(DeviceState *dev)
 {
-    struct PPC440PCIXState *s = PPC440_PCIX_HOST_BRIDGE(dev);
+    struct PPC440PCIXState *s = PPC440_PCIX_HOST(dev);
     int i;
 
     for (i = 0; i < PPC440_PCIX_NR_POMS; i++) {
@@ -487,15 +488,17 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
     PCIHostState *h;
 
     h = PCI_HOST_BRIDGE(dev);
-    s = PPC440_PCIX_HOST_BRIDGE(dev);
+    s = PPC440_PCIX_HOST(dev);
 
     sysbus_init_irq(sbd, &s->irq);
-    memory_region_init(&s->busmem, OBJECT(dev), "pci bus memory", UINT64_MAX);
+    memory_region_init(&s->busmem, OBJECT(dev), "pci-mem", UINT64_MAX);
+    memory_region_init(&s->iomem, OBJECT(dev), "pci-io", 64 * KiB);
     h->bus = pci_register_root_bus(dev, NULL, ppc440_pcix_set_irq,
-                         ppc440_pcix_map_irq, &s->irq, &s->busmem,
-                         get_system_io(), PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
+                         ppc440_pcix_map_irq, &s->irq, &s->busmem, &s->iomem,
+                         PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
 
-    s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0), "ppc4xx-host-bridge");
+    s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0),
+                               TYPE_PPC4xx_HOST_BRIDGE);
 
     memory_region_init(&s->bm, OBJECT(s), "bm-ppc440-pcix", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
@@ -507,12 +510,13 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
                           h, "pci-conf-idx", 4);
     memory_region_init_io(&h->data_mem, OBJECT(s), &pci_host_data_le_ops,
                           h, "pci-conf-data", 4);
-    memory_region_init_io(&s->iomem, OBJECT(s), &pci_reg_ops, s,
-                          "pci.reg", PPC440_REG_SIZE);
+    memory_region_init_io(&s->regs, OBJECT(s), &pci_reg_ops, s, "pci-reg",
+                          PPC440_REG_SIZE);
     memory_region_add_subregion(&s->container, PCIC0_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIC0_CFGDATA, &h->data_mem);
-    memory_region_add_subregion(&s->container, PPC440_REG_BASE, &s->iomem);
+    memory_region_add_subregion(&s->container, PPC440_REG_BASE, &s->regs);
     sysbus_init_mmio(sbd, &s->container);
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 static void ppc440_pcix_class_init(ObjectClass *klass, void *data)
@@ -524,7 +528,7 @@ static void ppc440_pcix_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppc440_pcix_info = {
-    .name          = TYPE_PPC440_PCIX_HOST_BRIDGE,
+    .name          = TYPE_PPC440_PCIX_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC440PCIXState),
     .class_init    = ppc440_pcix_class_init,

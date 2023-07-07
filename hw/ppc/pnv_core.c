@@ -85,8 +85,8 @@ static uint64_t pnv_core_power8_xscom_read(void *opaque, hwaddr addr,
         val = 0x24f000000000000ull;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
     }
 
     return val;
@@ -95,8 +95,10 @@ static uint64_t pnv_core_power8_xscom_read(void *opaque, hwaddr addr,
 static void pnv_core_power8_xscom_write(void *opaque, hwaddr addr, uint64_t val,
                                         unsigned int width)
 {
-    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+    uint32_t offset = addr >> 3;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                  offset);
 }
 
 static const MemoryRegionOps pnv_core_power8_xscom_ops = {
@@ -116,6 +118,8 @@ static const MemoryRegionOps pnv_core_power8_xscom_ops = {
 #define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP 0xf010d
 #define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR 0xf010a
 
+#define PNV9_XSCOM_EC_CORE_THREAD_STATE    0x10ab3
+
 static uint64_t pnv_core_power9_xscom_read(void *opaque, hwaddr addr,
                                            unsigned int width)
 {
@@ -134,9 +138,12 @@ static uint64_t pnv_core_power9_xscom_read(void *opaque, hwaddr addr,
     case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
         val = 0x0;
         break;
+    case PNV9_XSCOM_EC_CORE_THREAD_STATE:
+        val = 0;
+        break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
     }
 
     return val;
@@ -152,8 +159,8 @@ static void pnv_core_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                      addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
     }
 }
 
@@ -167,12 +174,59 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
+/*
+ * POWER10 core controls
+ */
+
+#define PNV10_XSCOM_EC_CORE_THREAD_STATE    0x412
+
+static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
+                                           unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = 0;
+
+    switch (offset) {
+    case PNV10_XSCOM_EC_CORE_THREAD_STATE:
+        val = 0;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
+    }
+
+    return val;
+}
+
+static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
+    }
+}
+
+static const MemoryRegionOps pnv_core_power10_xscom_ops = {
+    .read = pnv_core_power10_xscom_read,
+    .write = pnv_core_power10_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
+                                 int thread_index)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
-    int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
+    ppc_spr_t *tir = &env->spr_cb[SPR_TIR];
     Error *local_err = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(pc->chip);
 
@@ -188,11 +242,7 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
 
     core_pir = object_property_get_uint(OBJECT(pc), "pir", &error_abort);
 
-    /*
-     * The PIR of a thread is the core PIR + the thread index. We will
-     * need to find a way to get the thread index when TCG supports
-     * more than 1. We could use the object name ?
-     */
+    tir->default_value = thread_index;
     pir->default_value = core_pir + thread_index;
 
     /* Set time-base frequency to 512 MHz */
@@ -241,16 +291,15 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        pnv_core_cpu_realize(pc, pc->threads[j], &local_err);
+        pnv_core_cpu_realize(pc, pc->threads[j], &local_err, j);
         if (local_err) {
             goto err;
         }
     }
 
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
-    /* TODO: check PNV_XSCOM_EX_SIZE for p10 */
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), pcc->xscom_ops,
-                          pc, name, PNV_XSCOM_EX_SIZE);
+                          pc, name, pcc->xscom_size);
 
     qemu_register_reset(pnv_core_reset, pc);
     return;
@@ -302,6 +351,7 @@ static void pnv_core_power8_class_init(ObjectClass *oc, void *data)
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     pcc->xscom_ops = &pnv_core_power8_xscom_ops;
+    pcc->xscom_size = PNV_XSCOM_EX_SIZE;
 }
 
 static void pnv_core_power9_class_init(ObjectClass *oc, void *data)
@@ -309,14 +359,15 @@ static void pnv_core_power9_class_init(ObjectClass *oc, void *data)
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     pcc->xscom_ops = &pnv_core_power9_xscom_ops;
+    pcc->xscom_size = PNV_XSCOM_EX_SIZE;
 }
 
 static void pnv_core_power10_class_init(ObjectClass *oc, void *data)
 {
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
-    /* TODO: Use the P9 XSCOMs for now on P10 */
-    pcc->xscom_ops = &pnv_core_power9_xscom_ops;
+    pcc->xscom_ops = &pnv_core_power10_xscom_ops;
+    pcc->xscom_size = PNV10_XSCOM_EC_SIZE;
 }
 
 static void pnv_core_class_init(ObjectClass *oc, void *data)
@@ -360,8 +411,8 @@ DEFINE_TYPES(pnv_core_infos)
 
 #define P9X_EX_NCU_SPEC_BAR                     0x11010
 
-static uint64_t pnv_quad_xscom_read(void *opaque, hwaddr addr,
-                                    unsigned int width)
+static uint64_t pnv_quad_power9_xscom_read(void *opaque, hwaddr addr,
+                                           unsigned int width)
 {
     uint32_t offset = addr >> 3;
     uint64_t val = -1;
@@ -372,15 +423,15 @@ static uint64_t pnv_quad_xscom_read(void *opaque, hwaddr addr,
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
                       offset);
     }
 
     return val;
 }
 
-static void pnv_quad_xscom_write(void *opaque, hwaddr addr, uint64_t val,
-                                 unsigned int width)
+static void pnv_quad_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
+                                        unsigned int width)
 {
     uint32_t offset = addr >> 3;
 
@@ -389,14 +440,14 @@ static void pnv_quad_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     case P9X_EX_NCU_SPEC_BAR + 0x400: /* Second EX */
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
                   offset);
     }
 }
 
-static const MemoryRegionOps pnv_quad_xscom_ops = {
-    .read = pnv_quad_xscom_read,
-    .write = pnv_quad_xscom_write,
+static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
+    .read = pnv_quad_power9_xscom_read,
+    .write = pnv_quad_power9_xscom_write,
     .valid.min_access_size = 8,
     .valid.max_access_size = 8,
     .impl.min_access_size = 8,
@@ -404,14 +455,124 @@ static const MemoryRegionOps pnv_quad_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_quad_realize(DeviceState *dev, Error **errp)
+/*
+ * POWER10 Quads
+ */
+
+static uint64_t pnv_quad_power10_xscom_read(void *opaque, hwaddr addr,
+                                            unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = -1;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
+    }
+
+    return val;
+}
+
+static void pnv_quad_power10_xscom_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
+    }
+}
+
+static const MemoryRegionOps pnv_quad_power10_xscom_ops = {
+    .read = pnv_quad_power10_xscom_read,
+    .write = pnv_quad_power10_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+#define P10_QME_SPWU_HYP 0x83c
+#define P10_QME_SSH_HYP  0x82c
+
+static uint64_t pnv_qme_power10_xscom_read(void *opaque, hwaddr addr,
+                                            unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = -1;
+
+    /*
+     * Forth nibble selects the core within a quad, mask it to process read
+     * for any core.
+     */
+    switch (offset & ~0xf000) {
+    case P10_QME_SPWU_HYP:
+    case P10_QME_SSH_HYP:
+        return 0;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
+                      offset);
+    }
+
+    return val;
+}
+
+static void pnv_qme_power10_xscom_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
+                      offset);
+    }
+}
+
+static const MemoryRegionOps pnv_qme_power10_xscom_ops = {
+    .read = pnv_qme_power10_xscom_read,
+    .write = pnv_qme_power10_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_quad_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvQuad *eq = PNV_QUAD(dev);
+    PnvQuadClass *pqc = PNV_QUAD_GET_CLASS(eq);
     char name[32];
 
     snprintf(name, sizeof(name), "xscom-quad.%d", eq->quad_id);
-    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev), &pnv_quad_xscom_ops,
-                          eq, name, PNV9_XSCOM_EQ_SIZE);
+    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev),
+                          pqc->xscom_ops,
+                          eq, name,
+                          pqc->xscom_size);
+}
+
+static void pnv_quad_power10_realize(DeviceState *dev, Error **errp)
+{
+    PnvQuad *eq = PNV_QUAD(dev);
+    PnvQuadClass *pqc = PNV_QUAD_GET_CLASS(eq);
+    char name[32];
+
+    snprintf(name, sizeof(name), "xscom-quad.%d", eq->quad_id);
+    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev),
+                          pqc->xscom_ops,
+                          eq, name,
+                          pqc->xscom_size);
+
+    snprintf(name, sizeof(name), "xscom-qme.%d", eq->quad_id);
+    pnv_xscom_region_init(&eq->xscom_qme_regs, OBJECT(dev),
+                          pqc->xscom_qme_ops,
+                          eq, name,
+                          pqc->xscom_qme_size);
 }
 
 static Property pnv_quad_properties[] = {
@@ -419,25 +580,58 @@ static Property pnv_quad_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void pnv_quad_power9_class_init(ObjectClass *oc, void *data)
+{
+    PnvQuadClass *pqc = PNV_QUAD_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = pnv_quad_power9_realize;
+
+    pqc->xscom_ops = &pnv_quad_power9_xscom_ops;
+    pqc->xscom_size = PNV9_XSCOM_EQ_SIZE;
+}
+
+static void pnv_quad_power10_class_init(ObjectClass *oc, void *data)
+{
+    PnvQuadClass *pqc = PNV_QUAD_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = pnv_quad_power10_realize;
+
+    pqc->xscom_ops = &pnv_quad_power10_xscom_ops;
+    pqc->xscom_size = PNV10_XSCOM_EQ_SIZE;
+
+    pqc->xscom_qme_ops = &pnv_qme_power10_xscom_ops;
+    pqc->xscom_qme_size = PNV10_XSCOM_QME_SIZE;
+}
+
 static void pnv_quad_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = pnv_quad_realize;
     device_class_set_props(dc, pnv_quad_properties);
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_quad_info = {
-    .name          = TYPE_PNV_QUAD,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvQuad),
-    .class_init    = pnv_quad_class_init,
+static const TypeInfo pnv_quad_infos[] = {
+    {
+        .name          = TYPE_PNV_QUAD,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(PnvQuad),
+        .class_size    = sizeof(PnvQuadClass),
+        .class_init    = pnv_quad_class_init,
+        .abstract      = true,
+    },
+    {
+        .parent = TYPE_PNV_QUAD,
+        .name = PNV_QUAD_TYPE_NAME("power9"),
+        .class_init = pnv_quad_power9_class_init,
+    },
+    {
+        .parent = TYPE_PNV_QUAD,
+        .name = PNV_QUAD_TYPE_NAME("power10"),
+        .class_init = pnv_quad_power10_class_init,
+    },
 };
 
-static void pnv_core_register_types(void)
-{
-    type_register_static(&pnv_quad_info);
-}
-
-type_init(pnv_core_register_types)
+DEFINE_TYPES(pnv_quad_infos);

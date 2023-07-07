@@ -44,6 +44,8 @@
 #define PROM_ADDR     0xfff00000
 #define PROM_SIZE     0x80000
 
+#define INITRD_MIN_ADDR 0x600000
+
 #define KVMPPC_HCALL_BASE    0xf000
 #define KVMPPC_H_RTAS        (KVMPPC_HCALL_BASE + 0x0)
 #define KVMPPC_H_VOF_CLIENT  (KVMPPC_HCALL_BASE + 0x5)
@@ -80,6 +82,8 @@ struct Pegasos2MachineState {
     uint64_t kernel_addr;
     uint64_t kernel_entry;
     uint64_t kernel_size;
+    uint64_t initrd_addr;
+    uint64_t initrd_size;
 };
 
 static void *build_fdt(MachineState *machine, int *fdt_size);
@@ -117,7 +121,8 @@ static void pegasos2_init(MachineState *machine)
     I2CBus *i2c_bus;
     const char *fwname = machine->firmware ?: PROM_FILENAME;
     char *filename;
-    int i, sz;
+    int i;
+    ssize_t sz;
     uint8_t *spd_data;
 
     /* init CPU */
@@ -211,6 +216,20 @@ static void pegasos2_init(MachineState *machine)
         }
     } else if (pm->vof && !qtest_enabled()) {
         warn_report("Using Virtual OpenFirmware but no -kernel option.");
+    }
+
+    if (machine->initrd_filename) {
+        pm->initrd_addr = pm->kernel_addr + pm->kernel_size + 64 * KiB;
+        pm->initrd_addr = ROUND_UP(pm->initrd_addr, 4);
+        pm->initrd_addr = MAX(pm->initrd_addr, INITRD_MIN_ADDR);
+        sz = load_image_targphys(machine->initrd_filename, pm->initrd_addr,
+                                 machine->ram_size - pm->initrd_addr);
+        if (sz <= 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
+        pm->initrd_size = sz;
     }
 
     if (!pm->vof && machine->kernel_cmdline && machine->kernel_cmdline[0]) {
@@ -333,6 +352,11 @@ static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
     if (pm->kernel_size &&
         vof_claim(pm->vof, pm->kernel_addr, pm->kernel_size, 0) == -1) {
         error_report("Memory for kernel is in use");
+        exit(1);
+    }
+    if (pm->initrd_size &&
+        vof_claim(pm->vof, pm->initrd_addr, pm->initrd_size, 0) == -1) {
+        error_report("Memory for initrd is in use");
         exit(1);
     }
     fdt = build_fdt(machine, &sz);
@@ -966,6 +990,12 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_string(fdt, "/memory@0", "name", "memory");
 
     qemu_fdt_add_subnode(fdt, "/chosen");
+    if (pm->initrd_addr && pm->initrd_size) {
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                              pm->initrd_addr + pm->initrd_size);
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                              pm->initrd_addr);
+    }
     qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                             machine->kernel_cmdline ?: "");
     qemu_fdt_setprop_string(fdt, "/chosen", "name", "chosen");
