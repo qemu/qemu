@@ -789,9 +789,6 @@ static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
 
 int target_munmap(abi_ulong start, abi_ulong len)
 {
-    abi_ulong end, real_start, real_end, addr;
-    int prot, ret;
-
     trace_target_munmap(start, len);
 
     if (start & ~TARGET_PAGE_MASK) {
@@ -803,47 +800,11 @@ int target_munmap(abi_ulong start, abi_ulong len)
     }
 
     mmap_lock();
-    end = start + len;
-    real_start = start & qemu_host_page_mask;
-    real_end = HOST_PAGE_ALIGN(end);
-
-    if (start > real_start) {
-        /* handle host page containing start */
-        prot = 0;
-        for (addr = real_start; addr < start; addr += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(addr);
-        }
-        if (real_end == real_start + qemu_host_page_size) {
-            for (addr = end; addr < real_end; addr += TARGET_PAGE_SIZE) {
-                prot |= page_get_flags(addr);
-            }
-            end = real_end;
-        }
-        if (prot != 0) {
-            real_start += qemu_host_page_size;
-        }
-    }
-    if (end < real_end) {
-        prot = 0;
-        for (addr = end; addr < real_end; addr += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(addr);
-        }
-        if (prot != 0) {
-            real_end -= qemu_host_page_size;
-        }
-    }
-
-    ret = 0;
-    /* unmap what we can */
-    if (real_start < real_end) {
-        mmap_reserve_or_unmap(real_start, real_end - real_start);
-    }
-
-    if (ret == 0) {
-        page_set_flags(start, start + len - 1, 0);
-    }
+    mmap_reserve_or_unmap(start, len);
+    page_set_flags(start, start + len - 1, 0);
     mmap_unlock();
-    return ret;
+
+    return 0;
 }
 
 abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
