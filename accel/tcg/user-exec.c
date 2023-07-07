@@ -598,6 +598,13 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
     return ret;
 }
 
+bool page_check_range_empty(target_ulong start, target_ulong last)
+{
+    assert(last >= start);
+    assert_memory_lock();
+    return pageflags_find(start, last) == NULL;
+}
+
 void page_protect(tb_page_addr_t address)
 {
     PageFlagsNode *p;
