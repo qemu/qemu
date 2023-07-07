@@ -46,15 +46,21 @@ struct syscallname {
  */
 struct flags {
     abi_long    f_value;  /* flag */
+    abi_long    f_mask;   /* mask */
     const char  *f_string; /* stringified flag */
 };
 
+/* No 'struct flags' element should have a zero mask. */
+#define FLAG_BASIC(V, M, N)      { V, M | QEMU_BUILD_BUG_ON_ZERO(!(M)), N }
+
 /* common flags for all architectures */
-#define FLAG_GENERIC(name) { name, #name }
+#define FLAG_GENERIC_MASK(V, M)  FLAG_BASIC(V, M, #V)
+#define FLAG_GENERIC(V)          FLAG_BASIC(V, V, #V)
 /* target specific flags (syscall_defs.h has TARGET_<flag>) */
-#define FLAG_TARGET(name)  { TARGET_ ## name, #name }
+#define FLAG_TARGET_MASK(V, M)   FLAG_BASIC(TARGET_##V, TARGET_##M, #V)
+#define FLAG_TARGET(V)           FLAG_BASIC(TARGET_##V, TARGET_##V, #V)
 /* end of flags array */
-#define FLAG_END           { 0, NULL }
+#define FLAG_END           { 0, 0, NULL }
 
 /* Structure used to translate enumerated values into strings */
 struct enums {
@@ -963,7 +969,7 @@ print_syscall_ret_ioctl(CPUArchState *cpu_env, const struct syscallname *name,
 #endif
 
 UNUSED static const struct flags access_flags[] = {
-    FLAG_GENERIC(F_OK),
+    FLAG_GENERIC_MASK(F_OK, R_OK | W_OK | X_OK),
     FLAG_GENERIC(R_OK),
     FLAG_GENERIC(W_OK),
     FLAG_GENERIC(X_OK),
@@ -999,9 +1005,9 @@ UNUSED static const struct flags mode_flags[] = {
 };
 
 UNUSED static const struct flags open_access_flags[] = {
-    FLAG_TARGET(O_RDONLY),
-    FLAG_TARGET(O_WRONLY),
-    FLAG_TARGET(O_RDWR),
+    FLAG_TARGET_MASK(O_RDONLY, O_ACCMODE),
+    FLAG_TARGET_MASK(O_WRONLY, O_ACCMODE),
+    FLAG_TARGET_MASK(O_RDWR, O_ACCMODE),
     FLAG_END,
 };
 
@@ -1010,7 +1016,9 @@ UNUSED static const struct flags open_flags[] = {
     FLAG_TARGET(O_CREAT),
     FLAG_TARGET(O_DIRECTORY),
     FLAG_TARGET(O_EXCL),
+#if TARGET_O_LARGEFILE != 0
     FLAG_TARGET(O_LARGEFILE),
+#endif
     FLAG_TARGET(O_NOCTTY),
     FLAG_TARGET(O_NOFOLLOW),
     FLAG_TARGET(O_NONBLOCK),      /* also O_NDELAY */
@@ -1075,7 +1083,7 @@ UNUSED static const struct flags umount2_flags[] = {
 };
 
 UNUSED static const struct flags mmap_prot_flags[] = {
-    FLAG_GENERIC(PROT_NONE),
+    FLAG_GENERIC_MASK(PROT_NONE, PROT_READ | PROT_WRITE | PROT_EXEC),
     FLAG_GENERIC(PROT_EXEC),
     FLAG_GENERIC(PROT_READ),
     FLAG_GENERIC(PROT_WRITE),
@@ -1103,7 +1111,7 @@ UNUSED static const struct flags mmap_flags[] = {
 #ifdef MAP_POPULATE
     FLAG_TARGET(MAP_POPULATE),
 #endif
-#ifdef TARGET_MAP_UNINITIALIZED
+#if defined(TARGET_MAP_UNINITIALIZED) && TARGET_MAP_UNINITIALIZED != 0
     FLAG_TARGET(MAP_UNINITIALIZED),
 #endif
     FLAG_TARGET(MAP_HUGETLB),
@@ -1201,13 +1209,13 @@ UNUSED static const struct flags statx_flags[] = {
     FLAG_GENERIC(AT_SYMLINK_NOFOLLOW),
 #endif
 #ifdef AT_STATX_SYNC_AS_STAT
-    FLAG_GENERIC(AT_STATX_SYNC_AS_STAT),
+    FLAG_GENERIC_MASK(AT_STATX_SYNC_AS_STAT, AT_STATX_SYNC_TYPE),
 #endif
 #ifdef AT_STATX_FORCE_SYNC
-    FLAG_GENERIC(AT_STATX_FORCE_SYNC),
+    FLAG_GENERIC_MASK(AT_STATX_FORCE_SYNC, AT_STATX_SYNC_TYPE),
 #endif
 #ifdef AT_STATX_DONT_SYNC
-    FLAG_GENERIC(AT_STATX_DONT_SYNC),
+    FLAG_GENERIC_MASK(AT_STATX_DONT_SYNC, AT_STATX_SYNC_TYPE),
 #endif
     FLAG_END,
 };
@@ -1481,14 +1489,10 @@ print_flags(const struct flags *f, abi_long flags, int last)
     const char *sep = "";
     int n;
 
-    if ((flags == 0) && (f->f_value == 0)) {
-        qemu_log("%s%s", f->f_string, get_comma(last));
-        return;
-    }
     for (n = 0; f->f_string != NULL; f++) {
-        if ((f->f_value != 0) && ((flags & f->f_value) == f->f_value)) {
+        if ((flags & f->f_mask) == f->f_value) {
             qemu_log("%s%s", sep, f->f_string);
-            flags &= ~f->f_value;
+            flags &= ~f->f_mask;
             sep = "|";
             n++;
         }
