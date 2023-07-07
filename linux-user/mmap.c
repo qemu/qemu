@@ -509,7 +509,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
      * If the user is asking for the kernel to find a location, do that
      * before we truncate the length for mapping files below.
      */
-    if (!(flags & MAP_FIXED)) {
+    if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
         host_len = len + offset - host_offset;
         host_len = HOST_PAGE_ALIGN(host_len);
         start = mmap_find_vma(real_start, host_len, TARGET_PAGE_SIZE);
@@ -551,7 +551,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         }
     }
 
-    if (!(flags & MAP_FIXED)) {
+    if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
         unsigned long host_start;
         void *p;
 
@@ -600,6 +600,13 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             goto fail;
         }
 
+        /* Validate that the chosen range is empty. */
+        if ((flags & MAP_FIXED_NOREPLACE)
+            && !page_check_range_empty(start, end - 1)) {
+            errno = EEXIST;
+            goto fail;
+        }
+
         /*
          * worst case: we cannot map the file because the offset is not
          * aligned, so we read it
@@ -615,7 +622,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                 goto fail;
             }
             retaddr = target_mmap(start, len, target_prot | PROT_WRITE,
-                                  MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
+                                  (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))
+                                  | MAP_PRIVATE | MAP_ANONYMOUS,
                                   -1, 0);
             if (retaddr == -1) {
                 goto fail;
