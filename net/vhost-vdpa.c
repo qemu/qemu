@@ -525,7 +525,16 @@ out:
         error_report("Bad device CVQ written length");
     }
     vhost_svq_push_elem(svq, elem, MIN(in_len, sizeof(status)));
-    g_free(elem);
+    /*
+     * `elem` belongs to vhost_vdpa_net_handle_ctrl_avail() only when
+     * the function successfully forwards the CVQ command, indicated
+     * by a non-negative value of `dev_written`. Otherwise, it still
+     * belongs to SVQ.
+     * This function should only free the `elem` when it owns.
+     */
+    if (dev_written >= 0) {
+        g_free(elem);
+    }
     return dev_written < 0 ? dev_written : 0;
 }
 
