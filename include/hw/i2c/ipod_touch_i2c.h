@@ -47,6 +47,7 @@ typedef struct IPodTouchI2CState {
     MemoryRegion iomem;
     I2CBus *bus;
     qemu_irq irq;
+    uint8_t base;
 
     uint8_t control;
     uint8_t status;

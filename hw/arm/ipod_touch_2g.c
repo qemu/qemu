@@ -292,9 +292,10 @@ static void ipod_touch_machine_init(MachineState *machine)
     sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
 
-    // Init I2C
+    // Init I2C0
     dev = qdev_new("ipodtouch.i2c");
     IPodTouchI2CState *i2c_state = IPOD_TOUCH_I2C(dev);
+    i2c_state->base = 0;
     nms->i2c0_state = i2c_state;
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C0_IRQ));
@@ -303,6 +304,21 @@ static void ipod_touch_machine_init(MachineState *machine)
     // init the PMU
     i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
 
+    // init the accelerometer
+    I2CSlave *accelerometer = i2c_slave_create_simple(i2c_state->bus, "lis302dl", 0x1D);
+
+    // Init I2C1
+    dev = qdev_new("ipodtouch.i2c");
+    i2c_state = IPOD_TOUCH_I2C(dev);
+    nms->i2c1_state = i2c_state;
+    i2c_state->base = 1;
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C1_IRQ));
+    memory_region_add_subregion(sysmem, I2C1_MEM_BASE, &i2c_state->iomem);
+
+    // init the Mikey
+    i2c_slave_create_simple(i2c_state->bus, "cd3272mikey", 0x39);
+
     // init the FMSS flash controller
     dev = qdev_new("ipodtouch.fmss");
     IPodTouchFMSSState *fmss_state = IPOD_TOUCH_FMSS(dev);
@@ -310,13 +326,6 @@ static void ipod_touch_machine_init(MachineState *machine)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_FMSS_IRQ));
     memory_region_add_subregion(sysmem, FMSS_MEM_BASE, &fmss_state->iomem);
-
-    dev = qdev_new("ipodtouch.i2c");
-    i2c_state = IPOD_TOUCH_I2C(dev);
-    nms->i2c1_state = i2c_state;
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C1_IRQ));
-    memory_region_add_subregion(sysmem, I2C1_MEM_BASE, &i2c_state->iomem);
 
     // init the chip ID module
     dev = qdev_new("ipodtouch.usbphys");

@@ -96,7 +96,7 @@ static void ipod_touch_i2c_write(void *opaque, hwaddr offset, uint64_t value, un
     IPodTouchI2CState *s = (IPodTouchI2CState *)opaque;
     int mode;
 
-    //fprintf(stderr, "s5l8900_i2c_write: offset = 0x%08x, val = 0x%08x\n", offset, value);
+    //printf("s5l8900_i2c_write (base %d): offset = 0x%08x, val = 0x%08x\n", s->base, offset, value);
 
     qemu_irq_lower(s->irq);
 
@@ -198,6 +198,8 @@ static const MemoryRegionOps ipod_touch_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static int i2c_index = 0;
+
 static void ipod_touch_i2c_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -207,7 +209,12 @@ static void ipod_touch_i2c_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &ipod_touch_i2c_ops, s, TYPE_IPOD_TOUCH_I2C, 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    s->bus = i2c_init_bus(dev, "i2c");
+
+    char bus_name[5];
+    sprintf(bus_name, "i2c%d", i2c_index);
+
+    s->bus = i2c_init_bus(dev, bus_name);
+    i2c_index += 1;
 }
 
 static void ipod_touch_i2c_reset(DeviceState *d)

@@ -12,9 +12,9 @@ static uint64_t ipod_touch_mipi_dsi_read(void *opaque, hwaddr addr, unsigned siz
         case REG_INTSRC:
             return rDSIM_INTSRC_RxDatDone;
         case REG_RXFIFO:
-            printf("READ ABC\n");
             if(!s->return_panel_id) {
                 s->return_panel_id = true;
+                // TODO this should be rewritten as a proper queue!
                 return DSIM_RSP_LONG_READ | (3 << 8); // the latter part indicates the length of the response (the panel ID)
             } else {
                 s->return_panel_id = false;
