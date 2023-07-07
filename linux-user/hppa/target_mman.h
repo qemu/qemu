@@ -1,6 +1,16 @@
 #ifndef HPPA_TARGET_MMAN_H
 #define HPPA_TARGET_MMAN_H
 
+#define TARGET_MAP_TYPE                 0x2b
+#define TARGET_MAP_FIXED                0x04
+#define TARGET_MAP_ANONYMOUS            0x10
+#define TARGET_MAP_GROWSDOWN            0x8000
+#define TARGET_MAP_POPULATE             0x10000
+#define TARGET_MAP_NONBLOCK             0x20000
+#define TARGET_MAP_STACK                0x40000
+#define TARGET_MAP_HUGETLB              0x80000
+#define TARGET_MAP_UNINITIALIZED        0
+
 #define TARGET_MADV_MERGEABLE 65
 #define TARGET_MADV_UNMERGEABLE 66
 #define TARGET_MADV_HUGEPAGE 67
