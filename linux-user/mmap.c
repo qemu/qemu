@@ -196,7 +196,7 @@ error:
 /* map an incomplete host page */
 static int mmap_frag(abi_ulong real_start,
                      abi_ulong start, abi_ulong end,
-                     int prot, int flags, int fd, abi_ulong offset)
+                     int prot, int flags, int fd, off_t offset)
 {
     abi_ulong real_end, addr;
     void *host_start;
@@ -463,11 +463,12 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
 
 /* NOTE: all the constants are the HOST ones */
 abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
-                     int flags, int fd, abi_ulong offset)
+                     int flags, int fd, off_t offset)
 {
-    abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len,
+    abi_ulong ret, end, real_start, real_end, retaddr, host_len,
               passthrough_start = -1, passthrough_end = -1;
     int page_flags;
+    off_t host_offset;
 
     mmap_lock();
     trace_target_mmap(start, len, target_prot, flags, fd, offset);
@@ -559,7 +560,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
     }
 
     if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
-        unsigned long host_start;
+        uintptr_t host_start;
         int host_prot;
         void *p;
 
@@ -578,7 +579,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             goto fail;
         }
         /* update start so that it points to the file position at 'offset' */
-        host_start = (unsigned long)p;
+        host_start = (uintptr_t)p;
         if (!(flags & MAP_ANONYMOUS)) {
             p = mmap(g2h_untagged(start), len, host_prot,
                      flags | MAP_FIXED, fd, host_offset);
@@ -681,7 +682,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* map the middle (easier) */
         if (real_start < real_end) {
             void *p;
-            unsigned long offset1;
+            off_t offset1;
+
             if (flags & MAP_ANONYMOUS) {
                 offset1 = 0;
             } else {
