@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/core/cpu.h"
 #include "target/arm/cpu.h"

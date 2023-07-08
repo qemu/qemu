@@ -1220,7 +1220,7 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-void migrate_fd_error(MigrationState *s, const Error *error)
+static void migrate_fd_error(MigrationState *s, const Error *error)
 {
     trace_migrate_fd_error(error_get_pretty(error));
     assert(s->to_dst_file == NULL);
@@ -1637,6 +1637,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
+    bool resume_requested;
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     const char *p = NULL;
@@ -1646,13 +1647,14 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
+    resume_requested = has_resume && resume;
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
-                         has_resume && resume, errp)) {
+                         resume_requested, errp)) {
         /* Error detected, put into errp */
         return;
     }
 
-    if (!(has_resume && resume)) {
+    if (!resume_requested) {
         if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
             return;
         }
@@ -1671,7 +1673,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
     } else {
-        if (!(has_resume && resume)) {
+        if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
@@ -1683,7 +1685,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (local_err) {
-        if (!(has_resume && resume)) {
+        if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
         migrate_fd_error(s, local_err);
