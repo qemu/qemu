@@ -7132,6 +7132,10 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         if (ret >= 0) {
             ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
+            /* tell 32-bit guests it uses largefile on 64-bit hosts: */
+            if (O_LARGEFILE == 0 && HOST_LONG_BITS == 64) {
+                ret |= TARGET_O_LARGEFILE;
+            }
         }
         break;
 
