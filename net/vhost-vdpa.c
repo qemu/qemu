@@ -873,6 +873,94 @@ static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
         }
     }
 
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX_EXTRA)) {
+        return 0;
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns all-unicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets all-unicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->alluni) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_ALLUNI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-multicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-multicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nomulti) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOMULTI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-unicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-unicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nouni) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOUNI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-broadcast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-broadcast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nobcast) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOBCAST, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
     return 0;
 }
 
