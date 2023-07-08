@@ -391,8 +391,10 @@ static void pl080_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PL080State *s = PL080(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&s->iomem1, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem1);
+    memory_region_init_io(&s->iomem2, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem2);
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->interr);
     sysbus_init_irq(sbd, &s->inttc);

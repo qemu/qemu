@@ -9,6 +9,7 @@
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"
 #include "hw/arm/ipod_touch_nor_spi.h"
+#include "hw/arm/ipod_touch_multitouch.h"
 
 #define TYPE_IPOD_TOUCH_SPI "ipodtouch.spi"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSPIState, IPOD_TOUCH_SPI)
@@ -49,7 +50,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSPIState, IPOD_TOUCH_SPI)
 #define R_WORD_DELAY            0x038
 #define R_TXCNT                 0x04c
 
-#define R_FIFO_DEPTH            16
+#define R_FIFO_TX_DEPTH         50000
+#define R_FIFO_RX_DEPTH         16
 
 #define REG(_s,_v)             ((_s)->regs[(_v)>>2])
 #define MMIO_SIZE              (0x4000)
@@ -60,16 +62,17 @@ typedef struct IPodTouchSPIState {
 
     MemoryRegion iomem;
     SSIBus *spi;
+    IPodTouchMultitouchState *mt;
 
     qemu_irq irq;
     uint32_t last_irq;
     qemu_irq cs_line;
 
-    Fifo8 rx_fifo;
-    Fifo8 tx_fifo;
     uint32_t regs[MMIO_SIZE >> 2];
     uint8_t base;
     IPodTouchNORSPIState *nor;
+    Fifo8 rx_fifo;
+    Fifo8 tx_fifo;
 } IPodTouchSPIState;
 
 void set_spi_base(uint32_t base);

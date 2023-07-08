@@ -13,7 +13,6 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
 {
     IPodTouchNORSPIState *s = IPOD_TOUCH_NOR_SPI(dev);
 
-    printf("NOR SPI received value 0x%08x\n", value);
     if(value == NOR_GET_JEDECID) {
         printf("RECEIVED JEDCID VALUE\n");
     }

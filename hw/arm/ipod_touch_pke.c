@@ -71,7 +71,6 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
             s->num_started = 0;
             break;
         case 0x10:
-            printf("Seg sign: %d\n", value);
             break;
         case REG_PKE_SEG_START ... (REG_PKE_SEG_START + 1024):
         {
@@ -82,22 +81,6 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
         case REG_PKE_START:
         {
             s->num_started++;
-
-            if(s->num_started == 5) {
-                printf("Base: 0x");
-                uint32_t *cast = (uint32_t *)(&s->segments[s->segment_size]); // segment 1
-                for(int i = (s->segment_size / 4 - 1); i >= 0; i--) {
-                    printf("%08x", cast[i]);
-                }
-                printf("\n");
-
-                printf("Mod: 0x");
-                cast = (uint32_t *)s->segments; // segment 0
-                for(int i = (s->segment_size / 4 - 1); i >= 0; i--) {
-                    printf("%08x", cast[i]);
-                }
-                printf("\n\n");
-            }
 
             if(s->num_started == 5) { // TODO this is arbitrary!
                 
@@ -112,8 +95,8 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
                 BIGNUM *res = BN_new();
                 BN_CTX *ctx = BN_CTX_new();
                 BN_mod_exp(res, base_bn, exp_bn, mod_bn, ctx);
-                BN_print(BIO_new_fp(stdout, BIO_NOCLOSE), res);
-                printf("\n\n");
+                // BN_print(BIO_new_fp(stdout, BIO_NOCLOSE), res);
+                // printf("\n\n");
 
                 char *res_hex = datahex(BN_bn2hex(res));
 
@@ -124,14 +107,11 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
             break;
         }
         case REG_PKE_SEG_SIZE:
-            printf("Setting size: %d\n", value);
             s->seg_size_reg = value;
             uint32_t size_bit = (s->seg_size_reg >> 6);
             if(size_bit == 0) { s->segment_size = 256; }
             else if(size_bit == 1) { s->segment_size = 128; }
             else { }
-            printf("Segment size: %d\n", s->segment_size);
-
             break;
         case REG_PKE_SWRESET:
             s->num_started = 0;

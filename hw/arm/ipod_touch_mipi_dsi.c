@@ -12,7 +12,6 @@ static uint64_t ipod_touch_mipi_dsi_read(void *opaque, hwaddr addr, unsigned siz
         case REG_INTSRC:
             return rDSIM_INTSRC_RxDatDone;
         case REG_RXFIFO:
-            return 0;
             if(!s->return_panel_id) {
                 s->return_panel_id = true;
                 // TODO this should be rewritten as a proper queue!

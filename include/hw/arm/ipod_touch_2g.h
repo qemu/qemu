@@ -25,6 +25,7 @@
 #include "hw/arm/ipod_touch_fmss.h"
 #include "hw/arm/ipod_touch_block_device.h"
 #include "hw/arm/ipod_touch_mbx.h"
+#include "hw/arm/ipod_touch_scaler_csc.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -62,6 +63,7 @@
 #define SHA1_MEM_BASE         0x38000000
 #define DMAC0_MEM_BASE        0x38200000
 #define USBOTG_MEM_BASE       0x38400000
+#define DMAC1_0_MEM_BASE      0x38700000
 #define DISPLAY_MEM_BASE      0x38900000
 #define FMSS_MEM_BASE         0x38A00000
 #define BLOCK_DEVICE_MEM_BASE 0x38A00F00
@@ -71,12 +73,13 @@
 #define VIC1_MEM_BASE         0x38E01000
 #define EDGEIC_MEM_BASE       0x38E02000
 #define H264_MEM_BASE         0x38F00000
+#define SCALER_CSC_MEM_BASE   0x39000000
 #define TVOUT1_MEM_BASE       0x39100000
 #define TVOUT2_MEM_BASE       0x39200000
 #define TVOUT3_MEM_BASE       0x39300000
 //#define BLOCK_DEVICE_MEM_BASE 0x39400000
 #define SYSIC_MEM_BASE        0x39700000
-#define DMAC1_MEM_BASE        0x39900000
+#define DMAC1_1_MEM_BASE      0x39900000
 #define MBX1_MEM_BASE         0x3B000000
 #define MBX2_MEM_BASE         0x39400000
 #define SPI0_MEM_BASE         0x3C300000
@@ -117,6 +120,7 @@ typedef struct {
 	IPodTouchTimerState *timer1;
 	IPodTouchSPIState *spi0_state;
 	IPodTouchSPIState *spi1_state;
+	IPodTouchSPIState *spi4_state;
 	IPodTouchChipIDState *chipid_state;
 	IPodTouchGPIOState *gpio_state;
 	IPodTouchSYSICState *sysic;
@@ -132,6 +136,7 @@ typedef struct {
 	IPodTouchFMSSState *fmss_state;
 	IPodTouchBlockDeviceState *bdev_state;
 	IPodTouchMBXState *mbx_state;
+	IPodTouchScalerCSCState *scaler_csc_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);

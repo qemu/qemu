@@ -280,8 +280,8 @@ static void ipod_touch_spi_realize(DeviceState *dev, struct Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
     s->base = base_addr;
 
-    fifo8_create(&s->tx_fifo, R_FIFO_DEPTH);
-    fifo8_create(&s->rx_fifo, R_FIFO_DEPTH);
+    fifo8_create(&s->tx_fifo, R_FIFO_TX_DEPTH);
+    fifo8_create(&s->rx_fifo, R_FIFO_RX_DEPTH);
 
     // create the peripheral
     IPodTouchNORSPIState *nor;
@@ -296,11 +296,11 @@ static void ipod_touch_spi_realize(DeviceState *dev, struct Error **errp)
             nor = IPOD_TOUCH_NOR_SPI(dev);
             s->nor = nor;
             break;
-        case 2:
+        case 4:
         {
-            // DeviceState *dev = ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_MULTITOUCH);
-            // IPodTouchMultitouchState *mt = IPOD_TOUCH_MULTITOUCH(dev);
-            // s->mt = mt;
+            DeviceState *dev = ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_MULTITOUCH);
+            IPodTouchMultitouchState *mt = IPOD_TOUCH_MULTITOUCH(dev);
+            s->mt = mt;
             break;
         }
     }

@@ -88,7 +88,6 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
-    allocate_ram(sysmem, "mbx2", MBX2_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "tvout1", TVOUT1_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "tvout2", TVOUT2_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "tvout3", TVOUT3_MEM_BASE, 0x1000);
@@ -260,7 +259,9 @@ static void ipod_touch_machine_init(MachineState *machine)
     sysbus_create_simple("ipodtouch.spi", SPI3_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI3_IRQ));
 
     set_spi_base(4);
-    sysbus_create_simple("ipodtouch.spi", SPI4_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI4_IRQ));
+    dev = sysbus_create_simple("ipodtouch.spi", SPI4_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI4_IRQ));
+    IPodTouchSPIState *spi4_state = IPOD_TOUCH_SPI(dev);
+    nms->spi4_state = spi4_state;
 
     // init the chip ID module
     dev = qdev_new("ipodtouch.chipid");
@@ -283,7 +284,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     dev = qdev_new("pl080");
     PL080State *pl080_1 = PL080(dev);
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem), &error_fatal);
-    memory_region_add_subregion(sysmem, DMAC0_MEM_BASE, &pl080_1->iomem);
+    memory_region_add_subregion(sysmem, DMAC0_MEM_BASE, &pl080_1->iomem1);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
@@ -291,10 +292,11 @@ static void ipod_touch_machine_init(MachineState *machine)
     dev = qdev_new("pl080");
     PL080State *pl080_2 = PL080(dev);
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem), &error_fatal);
-    memory_region_add_subregion(sysmem, DMAC1_MEM_BASE, &pl080_2->iomem);
+    memory_region_add_subregion(sysmem, DMAC1_0_MEM_BASE, &pl080_2->iomem1);
+    memory_region_add_subregion(sysmem, DMAC1_1_MEM_BASE, &pl080_2->iomem2);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize(busdev, &error_fatal);
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC1_IRQ));
 
     // Init I2C0
     dev = qdev_new("ipodtouch.i2c");
@@ -302,11 +304,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     i2c_state->base = 0;
     nms->i2c0_state = i2c_state;
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C0_IRQ));
     memory_region_add_subregion(sysmem, I2C0_MEM_BASE, &i2c_state->iomem);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C0_IRQ));
 
     // init the PMU
-    i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
+    I2CSlave * pmu = i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
 
     // init the accelerometer
     I2CSlave *accelerometer = i2c_slave_create_simple(i2c_state->bus, "lis302dl", 0x1D);
@@ -317,19 +320,21 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->i2c1_state = i2c_state;
     i2c_state->base = 1;
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C1_IRQ));
     memory_region_add_subregion(sysmem, I2C1_MEM_BASE, &i2c_state->iomem);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C1_IRQ));
 
     // init the Mikey
-    i2c_slave_create_simple(i2c_state->bus, "cd3272mikey", 0x39);
+    I2CSlave *cd327mikey = i2c_slave_create_simple(i2c_state->bus, "cd3272mikey", 0x39);
 
     // init the FMSS flash controller
     dev = qdev_new("ipodtouch.fmss");
     IPodTouchFMSSState *fmss_state = IPOD_TOUCH_FMSS(dev);
     nms->fmss_state = fmss_state;
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_FMSS_IRQ));
     memory_region_add_subregion(sysmem, FMSS_MEM_BASE, &fmss_state->iomem);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_FMSS_IRQ));
 
     // init the chip ID module
     dev = qdev_new("ipodtouch.usbphys");
@@ -348,9 +353,19 @@ static void ipod_touch_machine_init(MachineState *machine)
     // init LCD
     dev = qdev_new("ipodtouch.lcd");
     IPodTouchLCDState *lcd_state = IPOD_TOUCH_LCD(dev);
+    lcd_state->sysmem = sysmem;
     nms->lcd_state = lcd_state;
-    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_LCD_IRQ));
+    busdev = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(sysmem, DISPLAY_MEM_BASE, &lcd_state->iomem);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_LCD_IRQ));
+
+    // init scaler / CSC
+    dev = qdev_new("ipodtouch.scalercsc");
+    IPodTouchScalerCSCState *scaler_csc_state = IPOD_TOUCH_SCALER_CSC(dev);
+    nms->scaler_csc_state = scaler_csc_state;
+    busdev = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(sysmem, SCALER_CSC_MEM_BASE, &scaler_csc_state->iomem);
     sysbus_realize(busdev, &error_fatal);
 
     // init SHA1 engine

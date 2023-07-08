@@ -83,14 +83,13 @@ static void read_nand_pages(IPodTouchFMSSState *s)
         cpu_physical_memory_read(s->reg_pages_in_addr + page_ind, &page_nr, 0x4);
         cpu_physical_memory_read(s->reg_pages_out_addr + page_ind, &page_out_addr, 0x4);
 
-        printf("Will read page %d into address 0x%08x and spare into address 0x%08x\n", page_nr, page_out_addr, s->reg_page_spare_out_addr);
+        //printf("Will read page %d into address 0x%08x and spare into address 0x%08x\n", page_nr, page_out_addr, s->reg_page_spare_out_addr);
 
         // prepare the page
         char filename[200];
         sprintf(filename, "/Users/martijndevos/Documents/generate_nand_it2g/nand/%d.page", page_nr);
         struct stat st = {0};
         if (stat(filename, &st) == -1) {
-            printf("Will preparing empty page %d", page_nr);
             // page storage does not exist - initialize an empty buffer
             memset(s->page_buffer, 0, NAND_BYTES_PER_PAGE);
             memset(s->page_spare_buffer, 0, NAND_BYTES_PER_SPARE);

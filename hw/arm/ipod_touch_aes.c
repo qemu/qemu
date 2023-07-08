@@ -23,9 +23,13 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
     uint8_t *buf;
 
     // fprintf(stderr, "%s: offset 0x%08x value 0x%08x\n", __FUNCTION__, offset, value);
+    uint32_t *data = malloc(sizeof(uint16_t) * 9);
 
     switch(offset) {
         case AES_GO:
+            // PATCH OUT
+            // in iBoot, we also patch the length check after LZSS compression since that can lead to issues
+
             inbuf = (uint8_t *)malloc(aesop->insize);
             cpu_physical_memory_read((aesop->inaddr), inbuf, aesop->insize);
 
@@ -62,14 +66,26 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                     };
                     for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
                 }
-                else if(aesop->gid_encryption_count == 2) { // kernelcache
+                else if(aesop->gid_encryption_count == 2) { // apple logo
+
+                    // very ugly - we patch out here the LZSS check
+                    data[0] = 0x0; // NOP
+                    cpu_physical_memory_write(0x0ff119f0, (uint8_t *)data, 4);
+
+                    char key[] = { 
+                        0x64, 0x23, 0x8f, 0xb0, 0x32, 0x91, 0x42, 0x25, 0x22, 0xb5, 0xdd, 0x28, 0x3f, 0xc3, 0x89, 0x5c, // IV
+                        0x85, 0x9f, 0xd4, 0xd3, 0x82, 0xb8, 0x38, 0x51, 0x56, 0xfc, 0x58, 0x1a, 0x7f, 0x1d, 0x97, 0x22, // key
+                    };
+                    for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
+                }
+                else if(aesop->gid_encryption_count == 3) { // kernelcache
                     char key[] = { 
                         0xa1, 0x91, 0x29, 0x12, 0x90, 0xd4, 0x87, 0xff, 0x07, 0x31, 0x96, 0x9c, 0x5f, 0xc8, 0xd9, 0x18, // IV
                         0x0e, 0x4d, 0x23, 0xfa, 0x67, 0x59, 0x99, 0xd5, 0x95, 0x9d, 0xd1, 0x0c, 0x8d, 0xd7, 0x3d, 0x20, // key
                     };
                     for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
                 }
-                else if(aesop->gid_encryption_count == 3) { // device tree
+                else if(aesop->gid_encryption_count == 4) { // device tree
                     char key[] = { 
                         0xcc, 0xff, 0x63, 0x4e, 0xe1, 0x27, 0x35, 0xf0, 0x19, 0x16, 0xc4, 0xa6, 0xb2, 0x0f, 0xf1, 0x45, // IV
                         0xe1, 0x7b, 0xcd, 0x56, 0x8d, 0xf1, 0xcd, 0xdc, 0x8f, 0xec, 0xbf, 0x54, 0x87, 0xd5, 0xc3, 0xce, // key
@@ -83,7 +99,7 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                 AES_cbc_encrypt(inbuf, buf, aesop->insize, &aesop->decryptKey, (uint8_t *)aesop->ivec, AES_DECRYPT);
             }
 
-            if(aesop->outaddr != 0x220100ac && aesop->outaddr != 0x0bf08468) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
+            if(aesop->outaddr != 0x220100ac && aesop->outaddr != 0x0bf08468 && aesop->outaddr != 0x0fb9bcdc) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
                 // BUG: after decrypting the kernel, we update the Adler CRC code and number of expected bytes.
                 if(aesop->outaddr == 0x0b000020) {
                     uint32_t *cast_buf = (uint32_t *)buf;

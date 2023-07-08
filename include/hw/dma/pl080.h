@@ -49,7 +49,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(PL080State, PL080)
 struct PL080State {
     SysBusDevice parent_obj;
 
-    MemoryRegion iomem;
+    MemoryRegion iomem1;
+    MemoryRegion iomem2;
     uint8_t tc_int;
     uint8_t tc_mask;
     uint8_t err_int;
