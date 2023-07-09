@@ -3440,7 +3440,17 @@ static abi_long do_accept4(int fd, abi_ulong target_addr,
     abi_long ret;
     int host_flags;
 
-    host_flags = target_to_host_bitmask(flags, fcntl_flags_tbl);
+    if (flags & ~(TARGET_SOCK_CLOEXEC | TARGET_SOCK_NONBLOCK)) {
+        return -TARGET_EINVAL;
+    }
+
+    host_flags = 0;
+    if (flags & TARGET_SOCK_NONBLOCK) {
+        host_flags |= SOCK_NONBLOCK;
+    }
+    if (flags & TARGET_SOCK_CLOEXEC) {
+        host_flags |= SOCK_CLOEXEC;
+    }
 
     if (target_addr == 0) {
         return get_errno(safe_accept4(fd, NULL, NULL, host_flags));
@@ -7132,6 +7142,10 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         ret = get_errno(safe_fcntl(fd, host_cmd, arg));
         if (ret >= 0) {
             ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
+            /* tell 32-bit guests it uses largefile on 64-bit hosts: */
+            if (O_LARGEFILE == 0 && HOST_LONG_BITS == 64) {
+                ret |= TARGET_O_LARGEFILE;
+            }
         }
         break;
 
