@@ -28,7 +28,10 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
+#include "qemu/bitops.h"
 #include "crypto/aes.h"
+#include "crypto/aes-round.h"
 
 typedef uint32_t u32;
 typedef uint8_t u8;
@@ -108,277 +111,151 @@ const uint8_t AES_isbox[256] = {
     0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
 };
 
-const uint8_t AES_shifts[16] = {
-    0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11
+/* AES ShiftRows, for complete unrolling. */
+#define AES_SH(X)   (((X) * 5) & 15)
+
+/* AES InvShiftRows, for complete unrolling. */
+#define AES_ISH(X)  (((X) * 13) & 15)
+
+/*
+ * MixColumns lookup table, for use with rot32.
+ */
+static const uint32_t AES_mc_rot[256] = {
+    0x00000000, 0x03010102, 0x06020204, 0x05030306,
+    0x0c040408, 0x0f05050a, 0x0a06060c, 0x0907070e,
+    0x18080810, 0x1b090912, 0x1e0a0a14, 0x1d0b0b16,
+    0x140c0c18, 0x170d0d1a, 0x120e0e1c, 0x110f0f1e,
+    0x30101020, 0x33111122, 0x36121224, 0x35131326,
+    0x3c141428, 0x3f15152a, 0x3a16162c, 0x3917172e,
+    0x28181830, 0x2b191932, 0x2e1a1a34, 0x2d1b1b36,
+    0x241c1c38, 0x271d1d3a, 0x221e1e3c, 0x211f1f3e,
+    0x60202040, 0x63212142, 0x66222244, 0x65232346,
+    0x6c242448, 0x6f25254a, 0x6a26264c, 0x6927274e,
+    0x78282850, 0x7b292952, 0x7e2a2a54, 0x7d2b2b56,
+    0x742c2c58, 0x772d2d5a, 0x722e2e5c, 0x712f2f5e,
+    0x50303060, 0x53313162, 0x56323264, 0x55333366,
+    0x5c343468, 0x5f35356a, 0x5a36366c, 0x5937376e,
+    0x48383870, 0x4b393972, 0x4e3a3a74, 0x4d3b3b76,
+    0x443c3c78, 0x473d3d7a, 0x423e3e7c, 0x413f3f7e,
+    0xc0404080, 0xc3414182, 0xc6424284, 0xc5434386,
+    0xcc444488, 0xcf45458a, 0xca46468c, 0xc947478e,
+    0xd8484890, 0xdb494992, 0xde4a4a94, 0xdd4b4b96,
+    0xd44c4c98, 0xd74d4d9a, 0xd24e4e9c, 0xd14f4f9e,
+    0xf05050a0, 0xf35151a2, 0xf65252a4, 0xf55353a6,
+    0xfc5454a8, 0xff5555aa, 0xfa5656ac, 0xf95757ae,
+    0xe85858b0, 0xeb5959b2, 0xee5a5ab4, 0xed5b5bb6,
+    0xe45c5cb8, 0xe75d5dba, 0xe25e5ebc, 0xe15f5fbe,
+    0xa06060c0, 0xa36161c2, 0xa66262c4, 0xa56363c6,
+    0xac6464c8, 0xaf6565ca, 0xaa6666cc, 0xa96767ce,
+    0xb86868d0, 0xbb6969d2, 0xbe6a6ad4, 0xbd6b6bd6,
+    0xb46c6cd8, 0xb76d6dda, 0xb26e6edc, 0xb16f6fde,
+    0x907070e0, 0x937171e2, 0x967272e4, 0x957373e6,
+    0x9c7474e8, 0x9f7575ea, 0x9a7676ec, 0x997777ee,
+    0x887878f0, 0x8b7979f2, 0x8e7a7af4, 0x8d7b7bf6,
+    0x847c7cf8, 0x877d7dfa, 0x827e7efc, 0x817f7ffe,
+    0x9b80801b, 0x98818119, 0x9d82821f, 0x9e83831d,
+    0x97848413, 0x94858511, 0x91868617, 0x92878715,
+    0x8388880b, 0x80898909, 0x858a8a0f, 0x868b8b0d,
+    0x8f8c8c03, 0x8c8d8d01, 0x898e8e07, 0x8a8f8f05,
+    0xab90903b, 0xa8919139, 0xad92923f, 0xae93933d,
+    0xa7949433, 0xa4959531, 0xa1969637, 0xa2979735,
+    0xb398982b, 0xb0999929, 0xb59a9a2f, 0xb69b9b2d,
+    0xbf9c9c23, 0xbc9d9d21, 0xb99e9e27, 0xba9f9f25,
+    0xfba0a05b, 0xf8a1a159, 0xfda2a25f, 0xfea3a35d,
+    0xf7a4a453, 0xf4a5a551, 0xf1a6a657, 0xf2a7a755,
+    0xe3a8a84b, 0xe0a9a949, 0xe5aaaa4f, 0xe6abab4d,
+    0xefacac43, 0xecadad41, 0xe9aeae47, 0xeaafaf45,
+    0xcbb0b07b, 0xc8b1b179, 0xcdb2b27f, 0xceb3b37d,
+    0xc7b4b473, 0xc4b5b571, 0xc1b6b677, 0xc2b7b775,
+    0xd3b8b86b, 0xd0b9b969, 0xd5baba6f, 0xd6bbbb6d,
+    0xdfbcbc63, 0xdcbdbd61, 0xd9bebe67, 0xdabfbf65,
+    0x5bc0c09b, 0x58c1c199, 0x5dc2c29f, 0x5ec3c39d,
+    0x57c4c493, 0x54c5c591, 0x51c6c697, 0x52c7c795,
+    0x43c8c88b, 0x40c9c989, 0x45caca8f, 0x46cbcb8d,
+    0x4fcccc83, 0x4ccdcd81, 0x49cece87, 0x4acfcf85,
+    0x6bd0d0bb, 0x68d1d1b9, 0x6dd2d2bf, 0x6ed3d3bd,
+    0x67d4d4b3, 0x64d5d5b1, 0x61d6d6b7, 0x62d7d7b5,
+    0x73d8d8ab, 0x70d9d9a9, 0x75dadaaf, 0x76dbdbad,
+    0x7fdcdca3, 0x7cdddda1, 0x79dedea7, 0x7adfdfa5,
+    0x3be0e0db, 0x38e1e1d9, 0x3de2e2df, 0x3ee3e3dd,
+    0x37e4e4d3, 0x34e5e5d1, 0x31e6e6d7, 0x32e7e7d5,
+    0x23e8e8cb, 0x20e9e9c9, 0x25eaeacf, 0x26ebebcd,
+    0x2fececc3, 0x2cededc1, 0x29eeeec7, 0x2aefefc5,
+    0x0bf0f0fb, 0x08f1f1f9, 0x0df2f2ff, 0x0ef3f3fd,
+    0x07f4f4f3, 0x04f5f5f1, 0x01f6f6f7, 0x02f7f7f5,
+    0x13f8f8eb, 0x10f9f9e9, 0x15fafaef, 0x16fbfbed,
+    0x1ffcfce3, 0x1cfdfde1, 0x19fefee7, 0x1affffe5,
 };
 
-const uint8_t AES_ishifts[16] = {
-    0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3
+/*
+ * Inverse MixColumns lookup table, for use with rot32.
+ */
+static const uint32_t AES_imc_rot[256] = {
+    0x00000000, 0x0b0d090e, 0x161a121c, 0x1d171b12,
+    0x2c342438, 0x27392d36, 0x3a2e3624, 0x31233f2a,
+    0x58684870, 0x5365417e, 0x4e725a6c, 0x457f5362,
+    0x745c6c48, 0x7f516546, 0x62467e54, 0x694b775a,
+    0xb0d090e0, 0xbbdd99ee, 0xa6ca82fc, 0xadc78bf2,
+    0x9ce4b4d8, 0x97e9bdd6, 0x8afea6c4, 0x81f3afca,
+    0xe8b8d890, 0xe3b5d19e, 0xfea2ca8c, 0xf5afc382,
+    0xc48cfca8, 0xcf81f5a6, 0xd296eeb4, 0xd99be7ba,
+    0x7bbb3bdb, 0x70b632d5, 0x6da129c7, 0x66ac20c9,
+    0x578f1fe3, 0x5c8216ed, 0x41950dff, 0x4a9804f1,
+    0x23d373ab, 0x28de7aa5, 0x35c961b7, 0x3ec468b9,
+    0x0fe75793, 0x04ea5e9d, 0x19fd458f, 0x12f04c81,
+    0xcb6bab3b, 0xc066a235, 0xdd71b927, 0xd67cb029,
+    0xe75f8f03, 0xec52860d, 0xf1459d1f, 0xfa489411,
+    0x9303e34b, 0x980eea45, 0x8519f157, 0x8e14f859,
+    0xbf37c773, 0xb43ace7d, 0xa92dd56f, 0xa220dc61,
+    0xf66d76ad, 0xfd607fa3, 0xe07764b1, 0xeb7a6dbf,
+    0xda595295, 0xd1545b9b, 0xcc434089, 0xc74e4987,
+    0xae053edd, 0xa50837d3, 0xb81f2cc1, 0xb31225cf,
+    0x82311ae5, 0x893c13eb, 0x942b08f9, 0x9f2601f7,
+    0x46bde64d, 0x4db0ef43, 0x50a7f451, 0x5baafd5f,
+    0x6a89c275, 0x6184cb7b, 0x7c93d069, 0x779ed967,
+    0x1ed5ae3d, 0x15d8a733, 0x08cfbc21, 0x03c2b52f,
+    0x32e18a05, 0x39ec830b, 0x24fb9819, 0x2ff69117,
+    0x8dd64d76, 0x86db4478, 0x9bcc5f6a, 0x90c15664,
+    0xa1e2694e, 0xaaef6040, 0xb7f87b52, 0xbcf5725c,
+    0xd5be0506, 0xdeb30c08, 0xc3a4171a, 0xc8a91e14,
+    0xf98a213e, 0xf2872830, 0xef903322, 0xe49d3a2c,
+    0x3d06dd96, 0x360bd498, 0x2b1ccf8a, 0x2011c684,
+    0x1132f9ae, 0x1a3ff0a0, 0x0728ebb2, 0x0c25e2bc,
+    0x656e95e6, 0x6e639ce8, 0x737487fa, 0x78798ef4,
+    0x495ab1de, 0x4257b8d0, 0x5f40a3c2, 0x544daacc,
+    0xf7daec41, 0xfcd7e54f, 0xe1c0fe5d, 0xeacdf753,
+    0xdbeec879, 0xd0e3c177, 0xcdf4da65, 0xc6f9d36b,
+    0xafb2a431, 0xa4bfad3f, 0xb9a8b62d, 0xb2a5bf23,
+    0x83868009, 0x888b8907, 0x959c9215, 0x9e919b1b,
+    0x470a7ca1, 0x4c0775af, 0x51106ebd, 0x5a1d67b3,
+    0x6b3e5899, 0x60335197, 0x7d244a85, 0x7629438b,
+    0x1f6234d1, 0x146f3ddf, 0x097826cd, 0x02752fc3,
+    0x335610e9, 0x385b19e7, 0x254c02f5, 0x2e410bfb,
+    0x8c61d79a, 0x876cde94, 0x9a7bc586, 0x9176cc88,
+    0xa055f3a2, 0xab58faac, 0xb64fe1be, 0xbd42e8b0,
+    0xd4099fea, 0xdf0496e4, 0xc2138df6, 0xc91e84f8,
+    0xf83dbbd2, 0xf330b2dc, 0xee27a9ce, 0xe52aa0c0,
+    0x3cb1477a, 0x37bc4e74, 0x2aab5566, 0x21a65c68,
+    0x10856342, 0x1b886a4c, 0x069f715e, 0x0d927850,
+    0x64d90f0a, 0x6fd40604, 0x72c31d16, 0x79ce1418,
+    0x48ed2b32, 0x43e0223c, 0x5ef7392e, 0x55fa3020,
+    0x01b79aec, 0x0aba93e2, 0x17ad88f0, 0x1ca081fe,
+    0x2d83bed4, 0x268eb7da, 0x3b99acc8, 0x3094a5c6,
+    0x59dfd29c, 0x52d2db92, 0x4fc5c080, 0x44c8c98e,
+    0x75ebf6a4, 0x7ee6ffaa, 0x63f1e4b8, 0x68fcedb6,
+    0xb1670a0c, 0xba6a0302, 0xa77d1810, 0xac70111e,
+    0x9d532e34, 0x965e273a, 0x8b493c28, 0x80443526,
+    0xe90f427c, 0xe2024b72, 0xff155060, 0xf418596e,
+    0xc53b6644, 0xce366f4a, 0xd3217458, 0xd82c7d56,
+    0x7a0ca137, 0x7101a839, 0x6c16b32b, 0x671bba25,
+    0x5638850f, 0x5d358c01, 0x40229713, 0x4b2f9e1d,
+    0x2264e947, 0x2969e049, 0x347efb5b, 0x3f73f255,
+    0x0e50cd7f, 0x055dc471, 0x184adf63, 0x1347d66d,
+    0xcadc31d7, 0xc1d138d9, 0xdcc623cb, 0xd7cb2ac5,
+    0xe6e815ef, 0xede51ce1, 0xf0f207f3, 0xfbff0efd,
+    0x92b479a7, 0x99b970a9, 0x84ae6bbb, 0x8fa362b5,
+    0xbe805d9f, 0xb58d5491, 0xa89a4f83, 0xa397468d,
 };
-
-/* AES_imc[x][0] = [x].[0e, 09, 0d, 0b]; */
-/* AES_imc[x][1] = [x].[0b, 0e, 09, 0d]; */
-/* AES_imc[x][2] = [x].[0d, 0b, 0e, 09]; */
-/* AES_imc[x][3] = [x].[09, 0d, 0b, 0e]; */
-const uint32_t AES_imc[256][4] = {
-    { 0x00000000, 0x00000000, 0x00000000, 0x00000000, }, /* x=00 */
-    { 0x0E090D0B, 0x0B0E090D, 0x0D0B0E09, 0x090D0B0E, }, /* x=01 */
-    { 0x1C121A16, 0x161C121A, 0x1A161C12, 0x121A161C, }, /* x=02 */
-    { 0x121B171D, 0x1D121B17, 0x171D121B, 0x1B171D12, }, /* x=03 */
-    { 0x3824342C, 0x2C382434, 0x342C3824, 0x24342C38, }, /* x=04 */
-    { 0x362D3927, 0x27362D39, 0x3927362D, 0x2D392736, }, /* x=05 */
-    { 0x24362E3A, 0x3A24362E, 0x2E3A2436, 0x362E3A24, }, /* x=06 */
-    { 0x2A3F2331, 0x312A3F23, 0x23312A3F, 0x3F23312A, }, /* x=07 */
-    { 0x70486858, 0x58704868, 0x68587048, 0x48685870, }, /* x=08 */
-    { 0x7E416553, 0x537E4165, 0x65537E41, 0x4165537E, }, /* x=09 */
-    { 0x6C5A724E, 0x4E6C5A72, 0x724E6C5A, 0x5A724E6C, }, /* x=0A */
-    { 0x62537F45, 0x4562537F, 0x7F456253, 0x537F4562, }, /* x=0B */
-    { 0x486C5C74, 0x74486C5C, 0x5C74486C, 0x6C5C7448, }, /* x=0C */
-    { 0x4665517F, 0x7F466551, 0x517F4665, 0x65517F46, }, /* x=0D */
-    { 0x547E4662, 0x62547E46, 0x4662547E, 0x7E466254, }, /* x=0E */
-    { 0x5A774B69, 0x695A774B, 0x4B695A77, 0x774B695A, }, /* x=0F */
-    { 0xE090D0B0, 0xB0E090D0, 0xD0B0E090, 0x90D0B0E0, }, /* x=10 */
-    { 0xEE99DDBB, 0xBBEE99DD, 0xDDBBEE99, 0x99DDBBEE, }, /* x=11 */
-    { 0xFC82CAA6, 0xA6FC82CA, 0xCAA6FC82, 0x82CAA6FC, }, /* x=12 */
-    { 0xF28BC7AD, 0xADF28BC7, 0xC7ADF28B, 0x8BC7ADF2, }, /* x=13 */
-    { 0xD8B4E49C, 0x9CD8B4E4, 0xE49CD8B4, 0xB4E49CD8, }, /* x=14 */
-    { 0xD6BDE997, 0x97D6BDE9, 0xE997D6BD, 0xBDE997D6, }, /* x=15 */
-    { 0xC4A6FE8A, 0x8AC4A6FE, 0xFE8AC4A6, 0xA6FE8AC4, }, /* x=16 */
-    { 0xCAAFF381, 0x81CAAFF3, 0xF381CAAF, 0xAFF381CA, }, /* x=17 */
-    { 0x90D8B8E8, 0xE890D8B8, 0xB8E890D8, 0xD8B8E890, }, /* x=18 */
-    { 0x9ED1B5E3, 0xE39ED1B5, 0xB5E39ED1, 0xD1B5E39E, }, /* x=19 */
-    { 0x8CCAA2FE, 0xFE8CCAA2, 0xA2FE8CCA, 0xCAA2FE8C, }, /* x=1A */
-    { 0x82C3AFF5, 0xF582C3AF, 0xAFF582C3, 0xC3AFF582, }, /* x=1B */
-    { 0xA8FC8CC4, 0xC4A8FC8C, 0x8CC4A8FC, 0xFC8CC4A8, }, /* x=1C */
-    { 0xA6F581CF, 0xCFA6F581, 0x81CFA6F5, 0xF581CFA6, }, /* x=1D */
-    { 0xB4EE96D2, 0xD2B4EE96, 0x96D2B4EE, 0xEE96D2B4, }, /* x=1E */
-    { 0xBAE79BD9, 0xD9BAE79B, 0x9BD9BAE7, 0xE79BD9BA, }, /* x=1F */
-    { 0xDB3BBB7B, 0x7BDB3BBB, 0xBB7BDB3B, 0x3BBB7BDB, }, /* x=20 */
-    { 0xD532B670, 0x70D532B6, 0xB670D532, 0x32B670D5, }, /* x=21 */
-    { 0xC729A16D, 0x6DC729A1, 0xA16DC729, 0x29A16DC7, }, /* x=22 */
-    { 0xC920AC66, 0x66C920AC, 0xAC66C920, 0x20AC66C9, }, /* x=23 */
-    { 0xE31F8F57, 0x57E31F8F, 0x8F57E31F, 0x1F8F57E3, }, /* x=24 */
-    { 0xED16825C, 0x5CED1682, 0x825CED16, 0x16825CED, }, /* x=25 */
-    { 0xFF0D9541, 0x41FF0D95, 0x9541FF0D, 0x0D9541FF, }, /* x=26 */
-    { 0xF104984A, 0x4AF10498, 0x984AF104, 0x04984AF1, }, /* x=27 */
-    { 0xAB73D323, 0x23AB73D3, 0xD323AB73, 0x73D323AB, }, /* x=28 */
-    { 0xA57ADE28, 0x28A57ADE, 0xDE28A57A, 0x7ADE28A5, }, /* x=29 */
-    { 0xB761C935, 0x35B761C9, 0xC935B761, 0x61C935B7, }, /* x=2A */
-    { 0xB968C43E, 0x3EB968C4, 0xC43EB968, 0x68C43EB9, }, /* x=2B */
-    { 0x9357E70F, 0x0F9357E7, 0xE70F9357, 0x57E70F93, }, /* x=2C */
-    { 0x9D5EEA04, 0x049D5EEA, 0xEA049D5E, 0x5EEA049D, }, /* x=2D */
-    { 0x8F45FD19, 0x198F45FD, 0xFD198F45, 0x45FD198F, }, /* x=2E */
-    { 0x814CF012, 0x12814CF0, 0xF012814C, 0x4CF01281, }, /* x=2F */
-    { 0x3BAB6BCB, 0xCB3BAB6B, 0x6BCB3BAB, 0xAB6BCB3B, }, /* x=30 */
-    { 0x35A266C0, 0xC035A266, 0x66C035A2, 0xA266C035, }, /* x=31 */
-    { 0x27B971DD, 0xDD27B971, 0x71DD27B9, 0xB971DD27, }, /* x=32 */
-    { 0x29B07CD6, 0xD629B07C, 0x7CD629B0, 0xB07CD629, }, /* x=33 */
-    { 0x038F5FE7, 0xE7038F5F, 0x5FE7038F, 0x8F5FE703, }, /* x=34 */
-    { 0x0D8652EC, 0xEC0D8652, 0x52EC0D86, 0x8652EC0D, }, /* x=35 */
-    { 0x1F9D45F1, 0xF11F9D45, 0x45F11F9D, 0x9D45F11F, }, /* x=36 */
-    { 0x119448FA, 0xFA119448, 0x48FA1194, 0x9448FA11, }, /* x=37 */
-    { 0x4BE30393, 0x934BE303, 0x03934BE3, 0xE303934B, }, /* x=38 */
-    { 0x45EA0E98, 0x9845EA0E, 0x0E9845EA, 0xEA0E9845, }, /* x=39 */
-    { 0x57F11985, 0x8557F119, 0x198557F1, 0xF1198557, }, /* x=3A */
-    { 0x59F8148E, 0x8E59F814, 0x148E59F8, 0xF8148E59, }, /* x=3B */
-    { 0x73C737BF, 0xBF73C737, 0x37BF73C7, 0xC737BF73, }, /* x=3C */
-    { 0x7DCE3AB4, 0xB47DCE3A, 0x3AB47DCE, 0xCE3AB47D, }, /* x=3D */
-    { 0x6FD52DA9, 0xA96FD52D, 0x2DA96FD5, 0xD52DA96F, }, /* x=3E */
-    { 0x61DC20A2, 0xA261DC20, 0x20A261DC, 0xDC20A261, }, /* x=3F */
-    { 0xAD766DF6, 0xF6AD766D, 0x6DF6AD76, 0x766DF6AD, }, /* x=40 */
-    { 0xA37F60FD, 0xFDA37F60, 0x60FDA37F, 0x7F60FDA3, }, /* x=41 */
-    { 0xB16477E0, 0xE0B16477, 0x77E0B164, 0x6477E0B1, }, /* x=42 */
-    { 0xBF6D7AEB, 0xEBBF6D7A, 0x7AEBBF6D, 0x6D7AEBBF, }, /* x=43 */
-    { 0x955259DA, 0xDA955259, 0x59DA9552, 0x5259DA95, }, /* x=44 */
-    { 0x9B5B54D1, 0xD19B5B54, 0x54D19B5B, 0x5B54D19B, }, /* x=45 */
-    { 0x894043CC, 0xCC894043, 0x43CC8940, 0x4043CC89, }, /* x=46 */
-    { 0x87494EC7, 0xC787494E, 0x4EC78749, 0x494EC787, }, /* x=47 */
-    { 0xDD3E05AE, 0xAEDD3E05, 0x05AEDD3E, 0x3E05AEDD, }, /* x=48 */
-    { 0xD33708A5, 0xA5D33708, 0x08A5D337, 0x3708A5D3, }, /* x=49 */
-    { 0xC12C1FB8, 0xB8C12C1F, 0x1FB8C12C, 0x2C1FB8C1, }, /* x=4A */
-    { 0xCF2512B3, 0xB3CF2512, 0x12B3CF25, 0x2512B3CF, }, /* x=4B */
-    { 0xE51A3182, 0x82E51A31, 0x3182E51A, 0x1A3182E5, }, /* x=4C */
-    { 0xEB133C89, 0x89EB133C, 0x3C89EB13, 0x133C89EB, }, /* x=4D */
-    { 0xF9082B94, 0x94F9082B, 0x2B94F908, 0x082B94F9, }, /* x=4E */
-    { 0xF701269F, 0x9FF70126, 0x269FF701, 0x01269FF7, }, /* x=4F */
-    { 0x4DE6BD46, 0x464DE6BD, 0xBD464DE6, 0xE6BD464D, }, /* x=50 */
-    { 0x43EFB04D, 0x4D43EFB0, 0xB04D43EF, 0xEFB04D43, }, /* x=51 */
-    { 0x51F4A750, 0x5051F4A7, 0xA75051F4, 0xF4A75051, }, /* x=52 */
-    { 0x5FFDAA5B, 0x5B5FFDAA, 0xAA5B5FFD, 0xFDAA5B5F, }, /* x=53 */
-    { 0x75C2896A, 0x6A75C289, 0x896A75C2, 0xC2896A75, }, /* x=54 */
-    { 0x7BCB8461, 0x617BCB84, 0x84617BCB, 0xCB84617B, }, /* x=55 */
-    { 0x69D0937C, 0x7C69D093, 0x937C69D0, 0xD0937C69, }, /* x=56 */
-    { 0x67D99E77, 0x7767D99E, 0x9E7767D9, 0xD99E7767, }, /* x=57 */
-    { 0x3DAED51E, 0x1E3DAED5, 0xD51E3DAE, 0xAED51E3D, }, /* x=58 */
-    { 0x33A7D815, 0x1533A7D8, 0xD81533A7, 0xA7D81533, }, /* x=59 */
-    { 0x21BCCF08, 0x0821BCCF, 0xCF0821BC, 0xBCCF0821, }, /* x=5A */
-    { 0x2FB5C203, 0x032FB5C2, 0xC2032FB5, 0xB5C2032F, }, /* x=5B */
-    { 0x058AE132, 0x32058AE1, 0xE132058A, 0x8AE13205, }, /* x=5C */
-    { 0x0B83EC39, 0x390B83EC, 0xEC390B83, 0x83EC390B, }, /* x=5D */
-    { 0x1998FB24, 0x241998FB, 0xFB241998, 0x98FB2419, }, /* x=5E */
-    { 0x1791F62F, 0x2F1791F6, 0xF62F1791, 0x91F62F17, }, /* x=5F */
-    { 0x764DD68D, 0x8D764DD6, 0xD68D764D, 0x4DD68D76, }, /* x=60 */
-    { 0x7844DB86, 0x867844DB, 0xDB867844, 0x44DB8678, }, /* x=61 */
-    { 0x6A5FCC9B, 0x9B6A5FCC, 0xCC9B6A5F, 0x5FCC9B6A, }, /* x=62 */
-    { 0x6456C190, 0x906456C1, 0xC1906456, 0x56C19064, }, /* x=63 */
-    { 0x4E69E2A1, 0xA14E69E2, 0xE2A14E69, 0x69E2A14E, }, /* x=64 */
-    { 0x4060EFAA, 0xAA4060EF, 0xEFAA4060, 0x60EFAA40, }, /* x=65 */
-    { 0x527BF8B7, 0xB7527BF8, 0xF8B7527B, 0x7BF8B752, }, /* x=66 */
-    { 0x5C72F5BC, 0xBC5C72F5, 0xF5BC5C72, 0x72F5BC5C, }, /* x=67 */
-    { 0x0605BED5, 0xD50605BE, 0xBED50605, 0x05BED506, }, /* x=68 */
-    { 0x080CB3DE, 0xDE080CB3, 0xB3DE080C, 0x0CB3DE08, }, /* x=69 */
-    { 0x1A17A4C3, 0xC31A17A4, 0xA4C31A17, 0x17A4C31A, }, /* x=6A */
-    { 0x141EA9C8, 0xC8141EA9, 0xA9C8141E, 0x1EA9C814, }, /* x=6B */
-    { 0x3E218AF9, 0xF93E218A, 0x8AF93E21, 0x218AF93E, }, /* x=6C */
-    { 0x302887F2, 0xF2302887, 0x87F23028, 0x2887F230, }, /* x=6D */
-    { 0x223390EF, 0xEF223390, 0x90EF2233, 0x3390EF22, }, /* x=6E */
-    { 0x2C3A9DE4, 0xE42C3A9D, 0x9DE42C3A, 0x3A9DE42C, }, /* x=6F */
-    { 0x96DD063D, 0x3D96DD06, 0x063D96DD, 0xDD063D96, }, /* x=70 */
-    { 0x98D40B36, 0x3698D40B, 0x0B3698D4, 0xD40B3698, }, /* x=71 */
-    { 0x8ACF1C2B, 0x2B8ACF1C, 0x1C2B8ACF, 0xCF1C2B8A, }, /* x=72 */
-    { 0x84C61120, 0x2084C611, 0x112084C6, 0xC6112084, }, /* x=73 */
-    { 0xAEF93211, 0x11AEF932, 0x3211AEF9, 0xF93211AE, }, /* x=74 */
-    { 0xA0F03F1A, 0x1AA0F03F, 0x3F1AA0F0, 0xF03F1AA0, }, /* x=75 */
-    { 0xB2EB2807, 0x07B2EB28, 0x2807B2EB, 0xEB2807B2, }, /* x=76 */
-    { 0xBCE2250C, 0x0CBCE225, 0x250CBCE2, 0xE2250CBC, }, /* x=77 */
-    { 0xE6956E65, 0x65E6956E, 0x6E65E695, 0x956E65E6, }, /* x=78 */
-    { 0xE89C636E, 0x6EE89C63, 0x636EE89C, 0x9C636EE8, }, /* x=79 */
-    { 0xFA877473, 0x73FA8774, 0x7473FA87, 0x877473FA, }, /* x=7A */
-    { 0xF48E7978, 0x78F48E79, 0x7978F48E, 0x8E7978F4, }, /* x=7B */
-    { 0xDEB15A49, 0x49DEB15A, 0x5A49DEB1, 0xB15A49DE, }, /* x=7C */
-    { 0xD0B85742, 0x42D0B857, 0x5742D0B8, 0xB85742D0, }, /* x=7D */
-    { 0xC2A3405F, 0x5FC2A340, 0x405FC2A3, 0xA3405FC2, }, /* x=7E */
-    { 0xCCAA4D54, 0x54CCAA4D, 0x4D54CCAA, 0xAA4D54CC, }, /* x=7F */
-    { 0x41ECDAF7, 0xF741ECDA, 0xDAF741EC, 0xECDAF741, }, /* x=80 */
-    { 0x4FE5D7FC, 0xFC4FE5D7, 0xD7FC4FE5, 0xE5D7FC4F, }, /* x=81 */
-    { 0x5DFEC0E1, 0xE15DFEC0, 0xC0E15DFE, 0xFEC0E15D, }, /* x=82 */
-    { 0x53F7CDEA, 0xEA53F7CD, 0xCDEA53F7, 0xF7CDEA53, }, /* x=83 */
-    { 0x79C8EEDB, 0xDB79C8EE, 0xEEDB79C8, 0xC8EEDB79, }, /* x=84 */
-    { 0x77C1E3D0, 0xD077C1E3, 0xE3D077C1, 0xC1E3D077, }, /* x=85 */
-    { 0x65DAF4CD, 0xCD65DAF4, 0xF4CD65DA, 0xDAF4CD65, }, /* x=86 */
-    { 0x6BD3F9C6, 0xC66BD3F9, 0xF9C66BD3, 0xD3F9C66B, }, /* x=87 */
-    { 0x31A4B2AF, 0xAF31A4B2, 0xB2AF31A4, 0xA4B2AF31, }, /* x=88 */
-    { 0x3FADBFA4, 0xA43FADBF, 0xBFA43FAD, 0xADBFA43F, }, /* x=89 */
-    { 0x2DB6A8B9, 0xB92DB6A8, 0xA8B92DB6, 0xB6A8B92D, }, /* x=8A */
-    { 0x23BFA5B2, 0xB223BFA5, 0xA5B223BF, 0xBFA5B223, }, /* x=8B */
-    { 0x09808683, 0x83098086, 0x86830980, 0x80868309, }, /* x=8C */
-    { 0x07898B88, 0x8807898B, 0x8B880789, 0x898B8807, }, /* x=8D */
-    { 0x15929C95, 0x9515929C, 0x9C951592, 0x929C9515, }, /* x=8E */
-    { 0x1B9B919E, 0x9E1B9B91, 0x919E1B9B, 0x9B919E1B, }, /* x=8F */
-    { 0xA17C0A47, 0x47A17C0A, 0x0A47A17C, 0x7C0A47A1, }, /* x=90 */
-    { 0xAF75074C, 0x4CAF7507, 0x074CAF75, 0x75074CAF, }, /* x=91 */
-    { 0xBD6E1051, 0x51BD6E10, 0x1051BD6E, 0x6E1051BD, }, /* x=92 */
-    { 0xB3671D5A, 0x5AB3671D, 0x1D5AB367, 0x671D5AB3, }, /* x=93 */
-    { 0x99583E6B, 0x6B99583E, 0x3E6B9958, 0x583E6B99, }, /* x=94 */
-    { 0x97513360, 0x60975133, 0x33609751, 0x51336097, }, /* x=95 */
-    { 0x854A247D, 0x7D854A24, 0x247D854A, 0x4A247D85, }, /* x=96 */
-    { 0x8B432976, 0x768B4329, 0x29768B43, 0x4329768B, }, /* x=97 */
-    { 0xD134621F, 0x1FD13462, 0x621FD134, 0x34621FD1, }, /* x=98 */
-    { 0xDF3D6F14, 0x14DF3D6F, 0x6F14DF3D, 0x3D6F14DF, }, /* x=99 */
-    { 0xCD267809, 0x09CD2678, 0x7809CD26, 0x267809CD, }, /* x=9A */
-    { 0xC32F7502, 0x02C32F75, 0x7502C32F, 0x2F7502C3, }, /* x=9B */
-    { 0xE9105633, 0x33E91056, 0x5633E910, 0x105633E9, }, /* x=9C */
-    { 0xE7195B38, 0x38E7195B, 0x5B38E719, 0x195B38E7, }, /* x=9D */
-    { 0xF5024C25, 0x25F5024C, 0x4C25F502, 0x024C25F5, }, /* x=9E */
-    { 0xFB0B412E, 0x2EFB0B41, 0x412EFB0B, 0x0B412EFB, }, /* x=9F */
-    { 0x9AD7618C, 0x8C9AD761, 0x618C9AD7, 0xD7618C9A, }, /* x=A0 */
-    { 0x94DE6C87, 0x8794DE6C, 0x6C8794DE, 0xDE6C8794, }, /* x=A1 */
-    { 0x86C57B9A, 0x9A86C57B, 0x7B9A86C5, 0xC57B9A86, }, /* x=A2 */
-    { 0x88CC7691, 0x9188CC76, 0x769188CC, 0xCC769188, }, /* x=A3 */
-    { 0xA2F355A0, 0xA0A2F355, 0x55A0A2F3, 0xF355A0A2, }, /* x=A4 */
-    { 0xACFA58AB, 0xABACFA58, 0x58ABACFA, 0xFA58ABAC, }, /* x=A5 */
-    { 0xBEE14FB6, 0xB6BEE14F, 0x4FB6BEE1, 0xE14FB6BE, }, /* x=A6 */
-    { 0xB0E842BD, 0xBDB0E842, 0x42BDB0E8, 0xE842BDB0, }, /* x=A7 */
-    { 0xEA9F09D4, 0xD4EA9F09, 0x09D4EA9F, 0x9F09D4EA, }, /* x=A8 */
-    { 0xE49604DF, 0xDFE49604, 0x04DFE496, 0x9604DFE4, }, /* x=A9 */
-    { 0xF68D13C2, 0xC2F68D13, 0x13C2F68D, 0x8D13C2F6, }, /* x=AA */
-    { 0xF8841EC9, 0xC9F8841E, 0x1EC9F884, 0x841EC9F8, }, /* x=AB */
-    { 0xD2BB3DF8, 0xF8D2BB3D, 0x3DF8D2BB, 0xBB3DF8D2, }, /* x=AC */
-    { 0xDCB230F3, 0xF3DCB230, 0x30F3DCB2, 0xB230F3DC, }, /* x=AD */
-    { 0xCEA927EE, 0xEECEA927, 0x27EECEA9, 0xA927EECE, }, /* x=AE */
-    { 0xC0A02AE5, 0xE5C0A02A, 0x2AE5C0A0, 0xA02AE5C0, }, /* x=AF */
-    { 0x7A47B13C, 0x3C7A47B1, 0xB13C7A47, 0x47B13C7A, }, /* x=B0 */
-    { 0x744EBC37, 0x37744EBC, 0xBC37744E, 0x4EBC3774, }, /* x=B1 */
-    { 0x6655AB2A, 0x2A6655AB, 0xAB2A6655, 0x55AB2A66, }, /* x=B2 */
-    { 0x685CA621, 0x21685CA6, 0xA621685C, 0x5CA62168, }, /* x=B3 */
-    { 0x42638510, 0x10426385, 0x85104263, 0x63851042, }, /* x=B4 */
-    { 0x4C6A881B, 0x1B4C6A88, 0x881B4C6A, 0x6A881B4C, }, /* x=B5 */
-    { 0x5E719F06, 0x065E719F, 0x9F065E71, 0x719F065E, }, /* x=B6 */
-    { 0x5078920D, 0x0D507892, 0x920D5078, 0x78920D50, }, /* x=B7 */
-    { 0x0A0FD964, 0x640A0FD9, 0xD9640A0F, 0x0FD9640A, }, /* x=B8 */
-    { 0x0406D46F, 0x6F0406D4, 0xD46F0406, 0x06D46F04, }, /* x=B9 */
-    { 0x161DC372, 0x72161DC3, 0xC372161D, 0x1DC37216, }, /* x=BA */
-    { 0x1814CE79, 0x791814CE, 0xCE791814, 0x14CE7918, }, /* x=BB */
-    { 0x322BED48, 0x48322BED, 0xED48322B, 0x2BED4832, }, /* x=BC */
-    { 0x3C22E043, 0x433C22E0, 0xE0433C22, 0x22E0433C, }, /* x=BD */
-    { 0x2E39F75E, 0x5E2E39F7, 0xF75E2E39, 0x39F75E2E, }, /* x=BE */
-    { 0x2030FA55, 0x552030FA, 0xFA552030, 0x30FA5520, }, /* x=BF */
-    { 0xEC9AB701, 0x01EC9AB7, 0xB701EC9A, 0x9AB701EC, }, /* x=C0 */
-    { 0xE293BA0A, 0x0AE293BA, 0xBA0AE293, 0x93BA0AE2, }, /* x=C1 */
-    { 0xF088AD17, 0x17F088AD, 0xAD17F088, 0x88AD17F0, }, /* x=C2 */
-    { 0xFE81A01C, 0x1CFE81A0, 0xA01CFE81, 0x81A01CFE, }, /* x=C3 */
-    { 0xD4BE832D, 0x2DD4BE83, 0x832DD4BE, 0xBE832DD4, }, /* x=C4 */
-    { 0xDAB78E26, 0x26DAB78E, 0x8E26DAB7, 0xB78E26DA, }, /* x=C5 */
-    { 0xC8AC993B, 0x3BC8AC99, 0x993BC8AC, 0xAC993BC8, }, /* x=C6 */
-    { 0xC6A59430, 0x30C6A594, 0x9430C6A5, 0xA59430C6, }, /* x=C7 */
-    { 0x9CD2DF59, 0x599CD2DF, 0xDF599CD2, 0xD2DF599C, }, /* x=C8 */
-    { 0x92DBD252, 0x5292DBD2, 0xD25292DB, 0xDBD25292, }, /* x=C9 */
-    { 0x80C0C54F, 0x4F80C0C5, 0xC54F80C0, 0xC0C54F80, }, /* x=CA */
-    { 0x8EC9C844, 0x448EC9C8, 0xC8448EC9, 0xC9C8448E, }, /* x=CB */
-    { 0xA4F6EB75, 0x75A4F6EB, 0xEB75A4F6, 0xF6EB75A4, }, /* x=CC */
-    { 0xAAFFE67E, 0x7EAAFFE6, 0xE67EAAFF, 0xFFE67EAA, }, /* x=CD */
-    { 0xB8E4F163, 0x63B8E4F1, 0xF163B8E4, 0xE4F163B8, }, /* x=CE */
-    { 0xB6EDFC68, 0x68B6EDFC, 0xFC68B6ED, 0xEDFC68B6, }, /* x=CF */
-    { 0x0C0A67B1, 0xB10C0A67, 0x67B10C0A, 0x0A67B10C, }, /* x=D0 */
-    { 0x02036ABA, 0xBA02036A, 0x6ABA0203, 0x036ABA02, }, /* x=D1 */
-    { 0x10187DA7, 0xA710187D, 0x7DA71018, 0x187DA710, }, /* x=D2 */
-    { 0x1E1170AC, 0xAC1E1170, 0x70AC1E11, 0x1170AC1E, }, /* x=D3 */
-    { 0x342E539D, 0x9D342E53, 0x539D342E, 0x2E539D34, }, /* x=D4 */
-    { 0x3A275E96, 0x963A275E, 0x5E963A27, 0x275E963A, }, /* x=D5 */
-    { 0x283C498B, 0x8B283C49, 0x498B283C, 0x3C498B28, }, /* x=D6 */
-    { 0x26354480, 0x80263544, 0x44802635, 0x35448026, }, /* x=D7 */
-    { 0x7C420FE9, 0xE97C420F, 0x0FE97C42, 0x420FE97C, }, /* x=D8 */
-    { 0x724B02E2, 0xE2724B02, 0x02E2724B, 0x4B02E272, }, /* x=D9 */
-    { 0x605015FF, 0xFF605015, 0x15FF6050, 0x5015FF60, }, /* x=DA */
-    { 0x6E5918F4, 0xF46E5918, 0x18F46E59, 0x5918F46E, }, /* x=DB */
-    { 0x44663BC5, 0xC544663B, 0x3BC54466, 0x663BC544, }, /* x=DC */
-    { 0x4A6F36CE, 0xCE4A6F36, 0x36CE4A6F, 0x6F36CE4A, }, /* x=DD */
-    { 0x587421D3, 0xD3587421, 0x21D35874, 0x7421D358, }, /* x=DE */
-    { 0x567D2CD8, 0xD8567D2C, 0x2CD8567D, 0x7D2CD856, }, /* x=DF */
-    { 0x37A10C7A, 0x7A37A10C, 0x0C7A37A1, 0xA10C7A37, }, /* x=E0 */
-    { 0x39A80171, 0x7139A801, 0x017139A8, 0xA8017139, }, /* x=E1 */
-    { 0x2BB3166C, 0x6C2BB316, 0x166C2BB3, 0xB3166C2B, }, /* x=E2 */
-    { 0x25BA1B67, 0x6725BA1B, 0x1B6725BA, 0xBA1B6725, }, /* x=E3 */
-    { 0x0F853856, 0x560F8538, 0x38560F85, 0x8538560F, }, /* x=E4 */
-    { 0x018C355D, 0x5D018C35, 0x355D018C, 0x8C355D01, }, /* x=E5 */
-    { 0x13972240, 0x40139722, 0x22401397, 0x97224013, }, /* x=E6 */
-    { 0x1D9E2F4B, 0x4B1D9E2F, 0x2F4B1D9E, 0x9E2F4B1D, }, /* x=E7 */
-    { 0x47E96422, 0x2247E964, 0x642247E9, 0xE9642247, }, /* x=E8 */
-    { 0x49E06929, 0x2949E069, 0x692949E0, 0xE0692949, }, /* x=E9 */
-    { 0x5BFB7E34, 0x345BFB7E, 0x7E345BFB, 0xFB7E345B, }, /* x=EA */
-    { 0x55F2733F, 0x3F55F273, 0x733F55F2, 0xF2733F55, }, /* x=EB */
-    { 0x7FCD500E, 0x0E7FCD50, 0x500E7FCD, 0xCD500E7F, }, /* x=EC */
-    { 0x71C45D05, 0x0571C45D, 0x5D0571C4, 0xC45D0571, }, /* x=ED */
-    { 0x63DF4A18, 0x1863DF4A, 0x4A1863DF, 0xDF4A1863, }, /* x=EE */
-    { 0x6DD64713, 0x136DD647, 0x47136DD6, 0xD647136D, }, /* x=EF */
-    { 0xD731DCCA, 0xCAD731DC, 0xDCCAD731, 0x31DCCAD7, }, /* x=F0 */
-    { 0xD938D1C1, 0xC1D938D1, 0xD1C1D938, 0x38D1C1D9, }, /* x=F1 */
-    { 0xCB23C6DC, 0xDCCB23C6, 0xC6DCCB23, 0x23C6DCCB, }, /* x=F2 */
-    { 0xC52ACBD7, 0xD7C52ACB, 0xCBD7C52A, 0x2ACBD7C5, }, /* x=F3 */
-    { 0xEF15E8E6, 0xE6EF15E8, 0xE8E6EF15, 0x15E8E6EF, }, /* x=F4 */
-    { 0xE11CE5ED, 0xEDE11CE5, 0xE5EDE11C, 0x1CE5EDE1, }, /* x=F5 */
-    { 0xF307F2F0, 0xF0F307F2, 0xF2F0F307, 0x07F2F0F3, }, /* x=F6 */
-    { 0xFD0EFFFB, 0xFBFD0EFF, 0xFFFBFD0E, 0x0EFFFBFD, }, /* x=F7 */
-    { 0xA779B492, 0x92A779B4, 0xB492A779, 0x79B492A7, }, /* x=F8 */
-    { 0xA970B999, 0x99A970B9, 0xB999A970, 0x70B999A9, }, /* x=F9 */
-    { 0xBB6BAE84, 0x84BB6BAE, 0xAE84BB6B, 0x6BAE84BB, }, /* x=FA */
-    { 0xB562A38F, 0x8FB562A3, 0xA38FB562, 0x62A38FB5, }, /* x=FB */
-    { 0x9F5D80BE, 0xBE9F5D80, 0x80BE9F5D, 0x5D80BE9F, }, /* x=FC */
-    { 0x91548DB5, 0xB591548D, 0x8DB59154, 0x548DB591, }, /* x=FD */
-    { 0x834F9AA8, 0xA8834F9A, 0x9AA8834F, 0x4F9AA883, }, /* x=FE */
-    { 0x8D4697A3, 0xA38D4697, 0x97A38D46, 0x4697A38D, }, /* x=FF */
-};
-
 
 
 /*
@@ -395,7 +272,7 @@ AES_Td3[x] = Si[x].[09, 0d, 0b, 0e];
 AES_Td4[x] = Si[x].[01, 01, 01, 01];
 */
 
-const uint32_t AES_Te0[256] = {
+static const uint32_t AES_Te0[256] = {
     0xc66363a5U, 0xf87c7c84U, 0xee777799U, 0xf67b7b8dU,
     0xfff2f20dU, 0xd66b6bbdU, 0xde6f6fb1U, 0x91c5c554U,
     0x60303050U, 0x02010103U, 0xce6767a9U, 0x562b2b7dU,
@@ -461,7 +338,8 @@ const uint32_t AES_Te0[256] = {
     0x824141c3U, 0x299999b0U, 0x5a2d2d77U, 0x1e0f0f11U,
     0x7bb0b0cbU, 0xa85454fcU, 0x6dbbbbd6U, 0x2c16163aU,
 };
-const uint32_t AES_Te1[256] = {
+
+static const uint32_t AES_Te1[256] = {
     0xa5c66363U, 0x84f87c7cU, 0x99ee7777U, 0x8df67b7bU,
     0x0dfff2f2U, 0xbdd66b6bU, 0xb1de6f6fU, 0x5491c5c5U,
     0x50603030U, 0x03020101U, 0xa9ce6767U, 0x7d562b2bU,
@@ -527,7 +405,8 @@ const uint32_t AES_Te1[256] = {
     0xc3824141U, 0xb0299999U, 0x775a2d2dU, 0x111e0f0fU,
     0xcb7bb0b0U, 0xfca85454U, 0xd66dbbbbU, 0x3a2c1616U,
 };
-const uint32_t AES_Te2[256] = {
+
+static const uint32_t AES_Te2[256] = {
     0x63a5c663U, 0x7c84f87cU, 0x7799ee77U, 0x7b8df67bU,
     0xf20dfff2U, 0x6bbdd66bU, 0x6fb1de6fU, 0xc55491c5U,
     0x30506030U, 0x01030201U, 0x67a9ce67U, 0x2b7d562bU,
@@ -593,8 +472,8 @@ const uint32_t AES_Te2[256] = {
     0x41c38241U, 0x99b02999U, 0x2d775a2dU, 0x0f111e0fU,
     0xb0cb7bb0U, 0x54fca854U, 0xbbd66dbbU, 0x163a2c16U,
 };
-const uint32_t AES_Te3[256] = {
 
+static const uint32_t AES_Te3[256] = {
     0x6363a5c6U, 0x7c7c84f8U, 0x777799eeU, 0x7b7b8df6U,
     0xf2f20dffU, 0x6b6bbdd6U, 0x6f6fb1deU, 0xc5c55491U,
     0x30305060U, 0x01010302U, 0x6767a9ceU, 0x2b2b7d56U,
@@ -660,7 +539,8 @@ const uint32_t AES_Te3[256] = {
     0x4141c382U, 0x9999b029U, 0x2d2d775aU, 0x0f0f111eU,
     0xb0b0cb7bU, 0x5454fca8U, 0xbbbbd66dU, 0x16163a2cU,
 };
-const uint32_t AES_Te4[256] = {
+
+static const uint32_t AES_Te4[256] = {
     0x63636363U, 0x7c7c7c7cU, 0x77777777U, 0x7b7b7b7bU,
     0xf2f2f2f2U, 0x6b6b6b6bU, 0x6f6f6f6fU, 0xc5c5c5c5U,
     0x30303030U, 0x01010101U, 0x67676767U, 0x2b2b2b2bU,
@@ -726,7 +606,8 @@ const uint32_t AES_Te4[256] = {
     0x41414141U, 0x99999999U, 0x2d2d2d2dU, 0x0f0f0f0fU,
     0xb0b0b0b0U, 0x54545454U, 0xbbbbbbbbU, 0x16161616U,
 };
-const uint32_t AES_Td0[256] = {
+
+static const uint32_t AES_Td0[256] = {
     0x51f4a750U, 0x7e416553U, 0x1a17a4c3U, 0x3a275e96U,
     0x3bab6bcbU, 0x1f9d45f1U, 0xacfa58abU, 0x4be30393U,
     0x2030fa55U, 0xad766df6U, 0x88cc7691U, 0xf5024c25U,
@@ -792,7 +673,8 @@ const uint32_t AES_Td0[256] = {
     0x39a80171U, 0x080cb3deU, 0xd8b4e49cU, 0x6456c190U,
     0x7bcb8461U, 0xd532b670U, 0x486c5c74U, 0xd0b85742U,
 };
-const uint32_t AES_Td1[256] = {
+
+static const uint32_t AES_Td1[256] = {
     0x5051f4a7U, 0x537e4165U, 0xc31a17a4U, 0x963a275eU,
     0xcb3bab6bU, 0xf11f9d45U, 0xabacfa58U, 0x934be303U,
     0x552030faU, 0xf6ad766dU, 0x9188cc76U, 0x25f5024cU,
@@ -858,7 +740,8 @@ const uint32_t AES_Td1[256] = {
     0x7139a801U, 0xde080cb3U, 0x9cd8b4e4U, 0x906456c1U,
     0x617bcb84U, 0x70d532b6U, 0x74486c5cU, 0x42d0b857U,
 };
-const uint32_t AES_Td2[256] = {
+
+static const uint32_t AES_Td2[256] = {
     0xa75051f4U, 0x65537e41U, 0xa4c31a17U, 0x5e963a27U,
     0x6bcb3babU, 0x45f11f9dU, 0x58abacfaU, 0x03934be3U,
     0xfa552030U, 0x6df6ad76U, 0x769188ccU, 0x4c25f502U,
@@ -925,7 +808,8 @@ const uint32_t AES_Td2[256] = {
     0x017139a8U, 0xb3de080cU, 0xe49cd8b4U, 0xc1906456U,
     0x84617bcbU, 0xb670d532U, 0x5c74486cU, 0x5742d0b8U,
 };
-const uint32_t AES_Td3[256] = {
+
+static const uint32_t AES_Td3[256] = {
     0xf4a75051U, 0x4165537eU, 0x17a4c31aU, 0x275e963aU,
     0xab6bcb3bU, 0x9d45f11fU, 0xfa58abacU, 0xe303934bU,
     0x30fa5520U, 0x766df6adU, 0xcc769188U, 0x024c25f5U,
@@ -991,7 +875,8 @@ const uint32_t AES_Td3[256] = {
     0xa8017139U, 0x0cb3de08U, 0xb4e49cd8U, 0x56c19064U,
     0xcb84617bU, 0x32b670d5U, 0x6c5c7448U, 0xb85742d0U,
 };
-const uint32_t AES_Td4[256] = {
+
+static const uint32_t AES_Td4[256] = {
     0x52525252U, 0x09090909U, 0x6a6a6a6aU, 0xd5d5d5d5U,
     0x30303030U, 0x36363636U, 0xa5a5a5a5U, 0x38383838U,
     0xbfbfbfbfU, 0x40404040U, 0xa3a3a3a3U, 0x9e9e9e9eU,
@@ -1057,11 +942,350 @@ const uint32_t AES_Td4[256] = {
     0xe1e1e1e1U, 0x69696969U, 0x14141414U, 0x63636363U,
     0x55555555U, 0x21212121U, 0x0c0c0c0cU, 0x7d7d7d7dU,
 };
+
 static const u32 rcon[] = {
         0x01000000, 0x02000000, 0x04000000, 0x08000000,
         0x10000000, 0x20000000, 0x40000000, 0x80000000,
         0x1B000000, 0x36000000, /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
+
+/*
+ * Perform MixColumns.
+ */
+static inline void
+aesenc_MC_swap(AESState *r, const AESState *st, bool swap)
+{
+    int swap_b = swap * 0xf;
+    int swap_w = swap * 0x3;
+    bool be = HOST_BIG_ENDIAN ^ swap;
+    uint32_t t;
+
+    /* Note that AES_mc_rot is encoded for little-endian. */
+    t = (      AES_mc_rot[st->b[swap_b ^ 0x0]] ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x1]], 8) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x2]], 16) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x3]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 0] = t;
+
+    t = (      AES_mc_rot[st->b[swap_b ^ 0x4]] ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x5]], 8) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x6]], 16) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x7]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 1] = t;
+
+    t = (      AES_mc_rot[st->b[swap_b ^ 0x8]] ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0x9]], 8) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0xA]], 16) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0xB]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 2] = t;
+
+    t = (      AES_mc_rot[st->b[swap_b ^ 0xC]] ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0xD]], 8) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0xE]], 16) ^
+         rol32(AES_mc_rot[st->b[swap_b ^ 0xF]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 3] = t;
+}
+
+void aesenc_MC_gen(AESState *r, const AESState *st)
+{
+    aesenc_MC_swap(r, st, false);
+}
+
+void aesenc_MC_genrev(AESState *r, const AESState *st)
+{
+    aesenc_MC_swap(r, st, true);
+}
+
+/*
+ * Perform SubBytes + ShiftRows + AddRoundKey.
+ */
+static inline void
+aesenc_SB_SR_AK_swap(AESState *ret, const AESState *st,
+                     const AESState *rk, bool swap)
+{
+    const int swap_b = swap ? 15 : 0;
+    AESState t;
+
+    t.b[swap_b ^ 0x0] = AES_sbox[st->b[swap_b ^ AES_SH(0x0)]];
+    t.b[swap_b ^ 0x1] = AES_sbox[st->b[swap_b ^ AES_SH(0x1)]];
+    t.b[swap_b ^ 0x2] = AES_sbox[st->b[swap_b ^ AES_SH(0x2)]];
+    t.b[swap_b ^ 0x3] = AES_sbox[st->b[swap_b ^ AES_SH(0x3)]];
+    t.b[swap_b ^ 0x4] = AES_sbox[st->b[swap_b ^ AES_SH(0x4)]];
+    t.b[swap_b ^ 0x5] = AES_sbox[st->b[swap_b ^ AES_SH(0x5)]];
+    t.b[swap_b ^ 0x6] = AES_sbox[st->b[swap_b ^ AES_SH(0x6)]];
+    t.b[swap_b ^ 0x7] = AES_sbox[st->b[swap_b ^ AES_SH(0x7)]];
+    t.b[swap_b ^ 0x8] = AES_sbox[st->b[swap_b ^ AES_SH(0x8)]];
+    t.b[swap_b ^ 0x9] = AES_sbox[st->b[swap_b ^ AES_SH(0x9)]];
+    t.b[swap_b ^ 0xa] = AES_sbox[st->b[swap_b ^ AES_SH(0xA)]];
+    t.b[swap_b ^ 0xb] = AES_sbox[st->b[swap_b ^ AES_SH(0xB)]];
+    t.b[swap_b ^ 0xc] = AES_sbox[st->b[swap_b ^ AES_SH(0xC)]];
+    t.b[swap_b ^ 0xd] = AES_sbox[st->b[swap_b ^ AES_SH(0xD)]];
+    t.b[swap_b ^ 0xe] = AES_sbox[st->b[swap_b ^ AES_SH(0xE)]];
+    t.b[swap_b ^ 0xf] = AES_sbox[st->b[swap_b ^ AES_SH(0xF)]];
+
+    /*
+     * Perform the AddRoundKey with generic vectors.
+     * This may be expanded to either host integer or host vector code.
+     * The key and output endianness match, so no bswap required.
+     */
+    ret->v = t.v ^ rk->v;
+}
+
+void aesenc_SB_SR_AK_gen(AESState *r, const AESState *s, const AESState *k)
+{
+    aesenc_SB_SR_AK_swap(r, s, k, false);
+}
+
+void aesenc_SB_SR_AK_genrev(AESState *r, const AESState *s, const AESState *k)
+{
+    aesenc_SB_SR_AK_swap(r, s, k, true);
+}
+
+/*
+ * Perform SubBytes + ShiftRows + MixColumns + AddRoundKey.
+ */
+static inline void
+aesenc_SB_SR_MC_AK_swap(AESState *r, const AESState *st,
+                        const AESState *rk, bool swap)
+{
+    int swap_b = swap * 0xf;
+    int swap_w = swap * 0x3;
+    bool be = HOST_BIG_ENDIAN ^ swap;
+    uint32_t w0, w1, w2, w3;
+
+    w0 = (AES_Te0[st->b[swap_b ^ AES_SH(0x0)]] ^
+          AES_Te1[st->b[swap_b ^ AES_SH(0x1)]] ^
+          AES_Te2[st->b[swap_b ^ AES_SH(0x2)]] ^
+          AES_Te3[st->b[swap_b ^ AES_SH(0x3)]]);
+
+    w1 = (AES_Te0[st->b[swap_b ^ AES_SH(0x4)]] ^
+          AES_Te1[st->b[swap_b ^ AES_SH(0x5)]] ^
+          AES_Te2[st->b[swap_b ^ AES_SH(0x6)]] ^
+          AES_Te3[st->b[swap_b ^ AES_SH(0x7)]]);
+
+    w2 = (AES_Te0[st->b[swap_b ^ AES_SH(0x8)]] ^
+          AES_Te1[st->b[swap_b ^ AES_SH(0x9)]] ^
+          AES_Te2[st->b[swap_b ^ AES_SH(0xA)]] ^
+          AES_Te3[st->b[swap_b ^ AES_SH(0xB)]]);
+
+    w3 = (AES_Te0[st->b[swap_b ^ AES_SH(0xC)]] ^
+          AES_Te1[st->b[swap_b ^ AES_SH(0xD)]] ^
+          AES_Te2[st->b[swap_b ^ AES_SH(0xE)]] ^
+          AES_Te3[st->b[swap_b ^ AES_SH(0xF)]]);
+
+    /* Note that AES_TeX is encoded for big-endian. */
+    if (!be) {
+        w0 = bswap32(w0);
+        w1 = bswap32(w1);
+        w2 = bswap32(w2);
+        w3 = bswap32(w3);
+    }
+
+    r->w[swap_w ^ 0] = rk->w[swap_w ^ 0] ^ w0;
+    r->w[swap_w ^ 1] = rk->w[swap_w ^ 1] ^ w1;
+    r->w[swap_w ^ 2] = rk->w[swap_w ^ 2] ^ w2;
+    r->w[swap_w ^ 3] = rk->w[swap_w ^ 3] ^ w3;
+}
+
+void aesenc_SB_SR_MC_AK_gen(AESState *r, const AESState *st,
+                            const AESState *rk)
+{
+    aesenc_SB_SR_MC_AK_swap(r, st, rk, false);
+}
+
+void aesenc_SB_SR_MC_AK_genrev(AESState *r, const AESState *st,
+                               const AESState *rk)
+{
+    aesenc_SB_SR_MC_AK_swap(r, st, rk, true);
+}
+
+/*
+ * Perform InvMixColumns.
+ */
+static inline void
+aesdec_IMC_swap(AESState *r, const AESState *st, bool swap)
+{
+    int swap_b = swap * 0xf;
+    int swap_w = swap * 0x3;
+    bool be = HOST_BIG_ENDIAN ^ swap;
+    uint32_t t;
+
+    /* Note that AES_imc_rot is encoded for little-endian. */
+    t = (      AES_imc_rot[st->b[swap_b ^ 0x0]] ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x1]], 8) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x2]], 16) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x3]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 0] = t;
+
+    t = (      AES_imc_rot[st->b[swap_b ^ 0x4]] ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x5]], 8) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x6]], 16) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x7]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 1] = t;
+
+    t = (      AES_imc_rot[st->b[swap_b ^ 0x8]] ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0x9]], 8) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0xA]], 16) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0xB]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 2] = t;
+
+    t = (      AES_imc_rot[st->b[swap_b ^ 0xC]] ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0xD]], 8) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0xE]], 16) ^
+         rol32(AES_imc_rot[st->b[swap_b ^ 0xF]], 24));
+    if (be) {
+        t = bswap32(t);
+    }
+    r->w[swap_w ^ 3] = t;
+}
+
+void aesdec_IMC_gen(AESState *r, const AESState *st)
+{
+    aesdec_IMC_swap(r, st, false);
+}
+
+void aesdec_IMC_genrev(AESState *r, const AESState *st)
+{
+    aesdec_IMC_swap(r, st, true);
+}
+
+/*
+ * Perform InvSubBytes + InvShiftRows + AddRoundKey.
+ */
+static inline void
+aesdec_ISB_ISR_AK_swap(AESState *ret, const AESState *st,
+                       const AESState *rk, bool swap)
+{
+    const int swap_b = swap ? 15 : 0;
+    AESState t;
+
+    t.b[swap_b ^ 0x0] = AES_isbox[st->b[swap_b ^ AES_ISH(0x0)]];
+    t.b[swap_b ^ 0x1] = AES_isbox[st->b[swap_b ^ AES_ISH(0x1)]];
+    t.b[swap_b ^ 0x2] = AES_isbox[st->b[swap_b ^ AES_ISH(0x2)]];
+    t.b[swap_b ^ 0x3] = AES_isbox[st->b[swap_b ^ AES_ISH(0x3)]];
+    t.b[swap_b ^ 0x4] = AES_isbox[st->b[swap_b ^ AES_ISH(0x4)]];
+    t.b[swap_b ^ 0x5] = AES_isbox[st->b[swap_b ^ AES_ISH(0x5)]];
+    t.b[swap_b ^ 0x6] = AES_isbox[st->b[swap_b ^ AES_ISH(0x6)]];
+    t.b[swap_b ^ 0x7] = AES_isbox[st->b[swap_b ^ AES_ISH(0x7)]];
+    t.b[swap_b ^ 0x8] = AES_isbox[st->b[swap_b ^ AES_ISH(0x8)]];
+    t.b[swap_b ^ 0x9] = AES_isbox[st->b[swap_b ^ AES_ISH(0x9)]];
+    t.b[swap_b ^ 0xa] = AES_isbox[st->b[swap_b ^ AES_ISH(0xA)]];
+    t.b[swap_b ^ 0xb] = AES_isbox[st->b[swap_b ^ AES_ISH(0xB)]];
+    t.b[swap_b ^ 0xc] = AES_isbox[st->b[swap_b ^ AES_ISH(0xC)]];
+    t.b[swap_b ^ 0xd] = AES_isbox[st->b[swap_b ^ AES_ISH(0xD)]];
+    t.b[swap_b ^ 0xe] = AES_isbox[st->b[swap_b ^ AES_ISH(0xE)]];
+    t.b[swap_b ^ 0xf] = AES_isbox[st->b[swap_b ^ AES_ISH(0xF)]];
+
+    /*
+     * Perform the AddRoundKey with generic vectors.
+     * This may be expanded to either host integer or host vector code.
+     * The key and output endianness match, so no bswap required.
+     */
+    ret->v = t.v ^ rk->v;
+}
+
+void aesdec_ISB_ISR_AK_gen(AESState *r, const AESState *s, const AESState *k)
+{
+    aesdec_ISB_ISR_AK_swap(r, s, k, false);
+}
+
+void aesdec_ISB_ISR_AK_genrev(AESState *r, const AESState *s, const AESState *k)
+{
+    aesdec_ISB_ISR_AK_swap(r, s, k, true);
+}
+
+/*
+ * Perform InvSubBytes + InvShiftRows + InvMixColumns + AddRoundKey.
+ */
+static inline void
+aesdec_ISB_ISR_IMC_AK_swap(AESState *r, const AESState *st,
+                           const AESState *rk, bool swap)
+{
+    int swap_b = swap * 0xf;
+    int swap_w = swap * 0x3;
+    bool be = HOST_BIG_ENDIAN ^ swap;
+    uint32_t w0, w1, w2, w3;
+
+    w0 = (AES_Td0[st->b[swap_b ^ AES_ISH(0x0)]] ^
+          AES_Td1[st->b[swap_b ^ AES_ISH(0x1)]] ^
+          AES_Td2[st->b[swap_b ^ AES_ISH(0x2)]] ^
+          AES_Td3[st->b[swap_b ^ AES_ISH(0x3)]]);
+
+    w1 = (AES_Td0[st->b[swap_b ^ AES_ISH(0x4)]] ^
+          AES_Td1[st->b[swap_b ^ AES_ISH(0x5)]] ^
+          AES_Td2[st->b[swap_b ^ AES_ISH(0x6)]] ^
+          AES_Td3[st->b[swap_b ^ AES_ISH(0x7)]]);
+
+    w2 = (AES_Td0[st->b[swap_b ^ AES_ISH(0x8)]] ^
+          AES_Td1[st->b[swap_b ^ AES_ISH(0x9)]] ^
+          AES_Td2[st->b[swap_b ^ AES_ISH(0xA)]] ^
+          AES_Td3[st->b[swap_b ^ AES_ISH(0xB)]]);
+
+    w3 = (AES_Td0[st->b[swap_b ^ AES_ISH(0xC)]] ^
+          AES_Td1[st->b[swap_b ^ AES_ISH(0xD)]] ^
+          AES_Td2[st->b[swap_b ^ AES_ISH(0xE)]] ^
+          AES_Td3[st->b[swap_b ^ AES_ISH(0xF)]]);
+
+    /* Note that AES_TdX is encoded for big-endian. */
+    if (!be) {
+        w0 = bswap32(w0);
+        w1 = bswap32(w1);
+        w2 = bswap32(w2);
+        w3 = bswap32(w3);
+    }
+
+    r->w[swap_w ^ 0] = rk->w[swap_w ^ 0] ^ w0;
+    r->w[swap_w ^ 1] = rk->w[swap_w ^ 1] ^ w1;
+    r->w[swap_w ^ 2] = rk->w[swap_w ^ 2] ^ w2;
+    r->w[swap_w ^ 3] = rk->w[swap_w ^ 3] ^ w3;
+}
+
+void aesdec_ISB_ISR_IMC_AK_gen(AESState *r, const AESState *st,
+                               const AESState *rk)
+{
+    aesdec_ISB_ISR_IMC_AK_swap(r, st, rk, false);
+}
+
+void aesdec_ISB_ISR_IMC_AK_genrev(AESState *r, const AESState *st,
+                                  const AESState *rk)
+{
+    aesdec_ISB_ISR_IMC_AK_swap(r, st, rk, true);
+}
+
+void aesdec_ISB_ISR_AK_IMC_gen(AESState *ret, const AESState *st,
+                               const AESState *rk)
+{
+    aesdec_ISB_ISR_AK_gen(ret, st, rk);
+    aesdec_IMC_gen(ret, ret);
+}
+
+void aesdec_ISB_ISR_AK_IMC_genrev(AESState *ret, const AESState *st,
+                                  const AESState *rk)
+{
+    aesdec_ISB_ISR_AK_genrev(ret, st, rk);
+    aesdec_IMC_genrev(ret, ret);
+}
 
 /**
  * Expand the cipher key into the encryption key schedule.

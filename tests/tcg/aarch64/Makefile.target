@@ -74,6 +74,10 @@ ifneq ($(CROSS_CC_HAS_SVE),)
 AARCH64_TESTS += sve-ioctls
 sve-ioctls: CFLAGS+=-march=armv8.1-a+sve
 
+AARCH64_TESTS += test-aes
+test-aes: CFLAGS += -O -march=armv8-a+aes
+test-aes: test-aes-main.c.inc
+
 # Vector SHA1
 sha1-vector: CFLAGS=-O3
 sha1-vector: sha1.c
