@@ -165,6 +165,7 @@ typedef enum {
     rv_codec_r_imm2,
     rv_codec_r2_immhl,
     rv_codec_r2_imm2_imm5,
+    rv_codec_fli,
 } rv_codec;
 
 /* structures */
@@ -229,6 +230,7 @@ enum {
 #define rv_fmt_rd_offset              "O\t0,o"
 #define rv_fmt_rd_rs1_rs2             "O\t0,1,2"
 #define rv_fmt_frd_rs1                "O\t3,1"
+#define rv_fmt_frd_rs1_rs2            "O\t3,1,2"
 #define rv_fmt_frd_frs1               "O\t3,4"
 #define rv_fmt_rd_frs1                "O\t0,4"
 #define rv_fmt_rd_frs1_frs2           "O\t0,4,5"
@@ -295,5 +297,6 @@ enum {
 #define rv_fmt_rd_rs1_immh_imml       "O\t0,1,i,j"
 #define rv_fmt_rd_rs1_immh_imml_addr  "O\t0,(1),i,j"
 #define rv_fmt_rd2_imm                "O\t0,2,(1),i"
+#define rv_fmt_fli                    "O\t3,h"
 
 #endif /* DISAS_RISCV_H */
