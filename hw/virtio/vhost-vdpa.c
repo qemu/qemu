@@ -42,7 +42,8 @@ static Int128 vhost_vdpa_section_end(const MemoryRegionSection *section)
 
 static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
                                                 uint64_t iova_min,
-                                                uint64_t iova_max)
+                                                uint64_t iova_max,
+                                                int page_mask)
 {
     Int128 llend;
 
@@ -313,7 +314,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
     int ret;
 
     if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
-                                            v->iova_range.last)) {
+                                            v->iova_range.last, TARGET_PAGE_MASK)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
@@ -398,7 +399,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     int ret;
 
     if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
-                                            v->iova_range.last)) {
+                                            v->iova_range.last, TARGET_PAGE_MASK)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
