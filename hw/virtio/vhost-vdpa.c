@@ -331,7 +331,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         return;
     }
 
-    iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
+    iova = ROUND_UP(section->offset_within_address_space, TARGET_PAGE_SIZE);
     llend = vhost_vdpa_section_end(section, TARGET_PAGE_MASK);
     if (int128_ge(int128_make64(iova), llend)) {
         return;
@@ -415,7 +415,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
         return;
     }
 
-    iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
+    iova = ROUND_UP(section->offset_within_address_space, TARGET_PAGE_SIZE);
     llend = vhost_vdpa_section_end(section, TARGET_PAGE_MASK);
 
     trace_vhost_vdpa_listener_region_del(v, iova,
