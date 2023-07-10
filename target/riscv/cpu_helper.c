@@ -47,7 +47,8 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 
         if (mode == PRV_M && get_field(status, MSTATUS_MPRV)) {
             mode = get_field(env->mstatus, MSTATUS_MPP);
-            virt = get_field(env->mstatus, MSTATUS_MPV);
+            virt = get_field(env->mstatus, MSTATUS_MPV) &&
+                   (mode != PRV_M);
             if (virt) {
                 status = env->vsstatus;
             }
@@ -134,6 +135,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
     flags = FIELD_DP32(flags, TB_FLAGS, FS, fs);
     flags = FIELD_DP32(flags, TB_FLAGS, VS, vs);
     flags = FIELD_DP32(flags, TB_FLAGS, XL, env->xl);
+    flags = FIELD_DP32(flags, TB_FLAGS, AXL, cpu_address_xl(env));
     if (env->cur_pmmask != 0) {
         flags = FIELD_DP32(flags, TB_FLAGS, PM_MASK_ENABLED, 1);
     }
@@ -147,13 +149,16 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
 void riscv_cpu_update_mask(CPURISCVState *env)
 {
     target_ulong mask = 0, base = 0;
+    RISCVMXL xl = env->xl;
     /*
      * TODO: Current RVJ spec does not specify
      * how the extension interacts with XLEN.
      */
 #ifndef CONFIG_USER_ONLY
+    int mode = cpu_address_mode(env);
+    xl = cpu_get_xl(env, mode);
     if (riscv_has_ext(env, RVJ)) {
-        switch (env->priv) {
+        switch (mode) {
         case PRV_M:
             if (env->mmte & M_PM_ENABLE) {
                 mask = env->mpmmask;
@@ -177,7 +182,7 @@ void riscv_cpu_update_mask(CPURISCVState *env)
         }
     }
 #endif
-    if (env->xl == MXL_RV32) {
+    if (xl == MXL_RV32) {
         env->cur_pmmask = mask & UINT32_MAX;
         env->cur_pmbase = base & UINT32_MAX;
     } else {
@@ -1277,7 +1282,6 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         if (ret == TRANSLATE_G_STAGE_FAIL) {
             first_stage_error = false;
             two_stage_indirect_error = true;
-            access_type = MMU_DATA_LOAD;
         }
 
         qemu_log_mask(CPU_LOG_MMU,

@@ -41,7 +41,10 @@
 
 #define RV(x) ((target_ulong)1 << (x - 'A'))
 
-/* Consider updating misa_ext_cfgs[] when adding new MISA bits here */
+/*
+ * Consider updating misa_ext_info_arr[] and misa_ext_cfgs[]
+ * when adding new MISA bits here.
+ */
 #define RVI RV('I')
 #define RVE RV('E') /* E and I are mutually exclusive */
 #define RVM RV('M')
@@ -56,6 +59,8 @@
 #define RVJ RV('J')
 #define RVG RV('G')
 
+const char *riscv_get_misa_ext_name(uint32_t bit);
+const char *riscv_get_misa_ext_description(uint32_t bit);
 
 /* Privileged specification version */
 enum {
@@ -500,6 +505,7 @@ FIELD(TB_FLAGS, ITRIGGER, 22, 1)
 /* Virtual mode enabled */
 FIELD(TB_FLAGS, VIRT_ENABLED, 23, 1)
 FIELD(TB_FLAGS, PRIV, 24, 2)
+FIELD(TB_FLAGS, AXL, 26, 2)
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
@@ -516,13 +522,20 @@ static inline const RISCVCPUConfig *riscv_cpu_cfg(CPURISCVState *env)
     return &env_archcpu(env)->cfg;
 }
 
-#if defined(TARGET_RISCV32)
-#define cpu_recompute_xl(env)  ((void)(env), MXL_RV32)
-#else
-static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
+#if !defined(CONFIG_USER_ONLY)
+static inline int cpu_address_mode(CPURISCVState *env)
+{
+    int mode = env->priv;
+
+    if (mode == PRV_M && get_field(env->mstatus, MSTATUS_MPRV)) {
+        mode = get_field(env->mstatus, MSTATUS_MPP);
+    }
+    return mode;
+}
+
+static inline RISCVMXL cpu_get_xl(CPURISCVState *env, target_ulong mode)
 {
     RISCVMXL xl = env->misa_mxl;
-#if !defined(CONFIG_USER_ONLY)
     /*
      * When emulating a 32-bit-only cpu, use RV32.
      * When emulating a 64-bit cpu, and MXL has been reduced to RV32,
@@ -530,7 +543,7 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
      * back to RV64 for lower privs.
      */
     if (xl != MXL_RV32) {
-        switch (env->priv) {
+        switch (mode) {
         case PRV_M:
             break;
         case PRV_U:
@@ -541,8 +554,35 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
             break;
         }
     }
-#endif
     return xl;
+}
+#endif
+
+#if defined(TARGET_RISCV32)
+#define cpu_recompute_xl(env)  ((void)(env), MXL_RV32)
+#else
+static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    return cpu_get_xl(env, env->priv);
+#else
+    return env->misa_mxl;
+#endif
+}
+#endif
+
+#if defined(TARGET_RISCV32)
+#define cpu_address_xl(env)  ((void)(env), MXL_RV32)
+#else
+static inline RISCVMXL cpu_address_xl(CPURISCVState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return env->xl;
+#else
+    int mode = cpu_address_mode(env);
+
+    return cpu_get_xl(env, mode);
+#endif
 }
 #endif
 

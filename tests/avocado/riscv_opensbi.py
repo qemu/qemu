@@ -6,7 +6,6 @@
 # later.  See the COPYING file in the top-level directory.
 
 from avocado_qemu import QemuSystemTest
-from avocado import skip
 from avocado_qemu import wait_for_console_pattern
 
 class RiscvOpenSBI(QemuSystemTest):
@@ -21,7 +20,6 @@ class RiscvOpenSBI(QemuSystemTest):
         wait_for_console_pattern(self, 'Platform Name')
         wait_for_console_pattern(self, 'Boot HART MEDELEG')
 
-    @skip("requires OpenSBI fix to work")
     def test_riscv32_spike(self):
         """
         :avocado: tags=arch:riscv32
