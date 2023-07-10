@@ -84,6 +84,11 @@ Options
   Comma-separated list of RPCs to disable (no spaces, use ``help`` to
   list available RPCs).
 
+.. option:: -a, --allow-rpcs=LIST
+
+  Comma-separated list of RPCs to enable (no spaces, use ``help`` to
+  list available RPCs).
+
 .. option:: -D, --dump-conf
 
   Dump the configuration in a format compatible with ``qemu-ga.conf``
