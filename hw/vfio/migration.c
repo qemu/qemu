@@ -802,6 +802,17 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     return 0;
 }
 
+static void vfio_migration_deinit(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    remove_migration_state_change_notifier(&migration->migration_state);
+    qemu_del_vm_change_state_handler(migration->vm_state);
+    unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
+    vfio_migration_free(vbasedev);
+    vfio_unblock_multiple_devices_migration();
+}
+
 static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
 {
     int ret;
@@ -835,7 +846,12 @@ void vfio_reset_bytes_transferred(void)
     bytes_transferred = 0;
 }
 
-int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
+/*
+ * Return true when either migration initialized or blocker registered.
+ * Currently only return false when adding blocker fails which will
+ * de-register vfio device.
+ */
+bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
     Error *err = NULL;
     int ret;
@@ -843,7 +859,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
     if (vbasedev->enable_migration == ON_OFF_AUTO_OFF) {
         error_setg(&err, "%s: Migration is disabled for VFIO device",
                    vbasedev->name);
-        return vfio_block_migration(vbasedev, err, errp);
+        return !vfio_block_migration(vbasedev, err, errp);
     }
 
     ret = vfio_migration_init(vbasedev);
@@ -858,7 +874,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
                        vbasedev->name, ret, strerror(-ret));
         }
 
-        return vfio_block_migration(vbasedev, err, errp);
+        return !vfio_block_migration(vbasedev, err, errp);
     }
 
     if (!vbasedev->dirty_pages_supported) {
@@ -866,7 +882,7 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
             error_setg(&err,
                        "%s: VFIO device doesn't support device dirty tracking",
                        vbasedev->name);
-            return vfio_block_migration(vbasedev, err, errp);
+            goto add_blocker;
         }
 
         warn_report("%s: VFIO device doesn't support device dirty tracking",
@@ -875,28 +891,31 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 
     ret = vfio_block_multiple_devices_migration(vbasedev, errp);
     if (ret) {
-        return ret;
+        goto out_deinit;
     }
 
-    ret = vfio_block_giommu_migration(vbasedev, errp);
-    if (ret) {
-        return ret;
+    if (vfio_viommu_preset(vbasedev)) {
+        error_setg(&err, "%s: Migration is currently not supported "
+                   "with vIOMMU enabled", vbasedev->name);
+        goto add_blocker;
     }
 
     trace_vfio_migration_realize(vbasedev->name);
-    return 0;
+    return true;
+
+add_blocker:
+    ret = vfio_block_migration(vbasedev, err, errp);
+out_deinit:
+    if (ret) {
+        vfio_migration_deinit(vbasedev);
+    }
+    return !ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
 {
     if (vbasedev->migration) {
-        VFIOMigration *migration = vbasedev->migration;
-
-        remove_migration_state_change_notifier(&migration->migration_state);
-        qemu_del_vm_change_state_handler(migration->vm_state);
-        unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
-        vfio_migration_free(vbasedev);
-        vfio_unblock_multiple_devices_migration();
+        vfio_migration_deinit(vbasedev);
     }
 
     if (vbasedev->migration_blocker) {

@@ -1530,6 +1530,12 @@ const PropertyInfo qdev_prop_nv_gpudirect_clique = {
     .set = set_nv_gpudirect_clique_id,
 };
 
+static bool is_valid_std_cap_offset(uint8_t pos)
+{
+    return (pos >= PCI_STD_HEADER_SIZEOF &&
+            pos <= (PCI_CFG_SPACE_SIZE - PCI_CAP_SIZEOF));
+}
+
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -1563,7 +1569,7 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
      */
     ret = pread(vdev->vbasedev.fd, &tmp, 1,
                 vdev->config_offset + PCI_CAPABILITY_LIST);
-    if (ret != 1 || !tmp) {
+    if (ret != 1 || !is_valid_std_cap_offset(tmp)) {
         error_setg(errp, "NVIDIA GPUDirect Clique ID: error getting cap list");
         return -EINVAL;
     }
@@ -1575,7 +1581,7 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
             d4_conflict = true;
         }
         tmp = pdev->config[tmp + PCI_CAP_LIST_NEXT];
-    } while (tmp);
+    } while (is_valid_std_cap_offset(tmp));
 
     if (!c8_conflict) {
         pos = 0xC8;

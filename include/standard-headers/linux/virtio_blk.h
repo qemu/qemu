@@ -138,11 +138,11 @@ struct virtio_blk_config {
 
 	/* Zoned block device characteristics (if VIRTIO_BLK_F_ZONED) */
 	struct virtio_blk_zoned_characteristics {
-		uint32_t zone_sectors;
-		uint32_t max_open_zones;
-		uint32_t max_active_zones;
-		uint32_t max_append_sectors;
-		uint32_t write_granularity;
+		__virtio32 zone_sectors;
+		__virtio32 max_open_zones;
+		__virtio32 max_active_zones;
+		__virtio32 max_append_sectors;
+		__virtio32 write_granularity;
 		uint8_t model;
 		uint8_t unused2[3];
 	} zoned;
@@ -239,11 +239,11 @@ struct virtio_blk_outhdr {
  */
 struct virtio_blk_zone_descriptor {
 	/* Zone capacity */
-	uint64_t z_cap;
+	__virtio64 z_cap;
 	/* The starting sector of the zone */
-	uint64_t z_start;
+	__virtio64 z_start;
 	/* Zone write pointer position in sectors */
-	uint64_t z_wp;
+	__virtio64 z_wp;
 	/* Zone type */
 	uint8_t z_type;
 	/* Zone state */
@@ -252,7 +252,7 @@ struct virtio_blk_zone_descriptor {
 };
 
 struct virtio_blk_zone_report {
-	uint64_t nr_zones;
+	__virtio64 nr_zones;
 	uint8_t reserved[56];
 	struct virtio_blk_zone_descriptor zones[];
 };
