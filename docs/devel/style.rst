@@ -567,7 +567,8 @@ For example, instead of
 
 .. code-block:: c
 
-    int somefunc(void) {
+    int somefunc(void)
+    {
         int ret = -1;
         char *foo = g_strdup_printf("foo%", "wibble");
         GList *bar = .....
@@ -588,7 +589,8 @@ Using g_autofree/g_autoptr enables the code to be written as:
 
 .. code-block:: c
 
-    int somefunc(void) {
+    int somefunc(void)
+    {
         g_autofree char *foo = g_strdup_printf("foo%", "wibble");
         g_autoptr (GList) bar = .....
 
@@ -613,7 +615,8 @@ are still some caveats to beware of
 
 .. code-block:: c
 
-    char *somefunc(void) {
+    char *somefunc(void)
+    {
         g_autofree char *foo = g_strdup_printf("foo%", "wibble");
         g_autoptr (GList) bar = .....
 

@@ -21,9 +21,9 @@
 #include "qom/object_interfaces.h"
 #include "exec/confidential-guest-support.h"
 #include "hw/s390x/ipl.h"
-#include "hw/s390x/pv.h"
 #include "hw/s390x/sclp.h"
 #include "target/s390x/kvm/kvm_s390x.h"
+#include "target/s390x/kvm/pv.h"
 
 static bool info_valid;
 static struct kvm_s390_pv_info_vm info_vm;

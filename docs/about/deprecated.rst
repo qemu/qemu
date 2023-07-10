@@ -116,6 +116,11 @@ Use "whpx" (on Windows) or "hvf" (on macOS) instead.
 
 Use ``-run-with async-teardown=on`` instead.
 
+``-chroot`` (since 8.1)
+'''''''''''''''''''''''
+
+Use ``-run-with chroot=dir`` instead.
+
 ``-singlestep`` (since 8.1)
 '''''''''''''''''''''''''''
 

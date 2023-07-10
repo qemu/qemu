@@ -20,6 +20,7 @@ ASM_TESTS =                                                                    \
     sam                                                                        \
     lpsw                                                                       \
     lpswe-early                                                                \
+    lra                                                                        \
     ssm-early                                                                  \
     stosm-early                                                                \
     unaligned-lowcore

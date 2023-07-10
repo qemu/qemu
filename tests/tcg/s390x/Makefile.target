@@ -36,6 +36,9 @@ TESTS+=rxsbg
 TESTS+=ex-relative-long
 TESTS+=ex-branch
 TESTS+=mxdb
+TESTS+=epsw
+TESTS+=larl
+TESTS+=mdeb
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread

@@ -19,9 +19,9 @@
 #include "sysemu/cpus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
-#include "hw/s390x/pv.h"
 #include "sysemu/kvm.h"
 #include "kvm/kvm_s390x.h"
+#include "target/s390x/kvm/pv.h"
 #include "qemu/error-report.h"
 
 

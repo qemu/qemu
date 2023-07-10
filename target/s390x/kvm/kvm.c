@@ -50,7 +50,7 @@
 #include "exec/memattrs.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/s390-virtio-hcall.h"
-#include "hw/s390x/pv.h"
+#include "target/s390x/kvm/pv.h"
 
 #ifndef DEBUG_KVM
 #define DEBUG_KVM  0

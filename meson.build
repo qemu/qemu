@@ -20,7 +20,7 @@ config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
-if add_languages('cpp', required: false, native: false)
+if targetos == 'windows' and add_languages('cpp', required: false, native: false)
   all_languages += ['cpp']
   cxx = meson.get_compiler('cpp')
 endif
