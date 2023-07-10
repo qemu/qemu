@@ -1384,6 +1384,11 @@ variable as shown on the code snippet below to skip the test:
   def test(self):
       do_something()
 
+QEMU_TEST_FLAKY_TESTS
+^^^^^^^^^^^^^^^^^^^^^
+Some tests are not working reliably and thus are disabled by default.
+Set this environment variable to enable them.
+
 Uninstalling Avocado
 ~~~~~~~~~~~~~~~~~~~~
 
