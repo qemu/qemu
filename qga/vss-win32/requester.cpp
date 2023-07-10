@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "vss-common.h"
+#include "vss-debug.h"
 #include "requester.h"
 #include "install.h"
 #include <vswriter.h>
@@ -59,13 +60,13 @@ STDAPI requester_init(void)
         NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
         RPC_C_IMP_LEVEL_IDENTIFY, NULL, EOAC_NONE, NULL);
     if (FAILED(hr)) {
-        fprintf(stderr, "failed to CoInitializeSecurity (error %lx)\n", hr);
+        qga_debug("failed to CoInitializeSecurity (error %lx)", hr);
         return hr;
     }
 
     hLib = LoadLibraryA("VSSAPI.DLL");
     if (!hLib) {
-        fprintf(stderr, "failed to load VSSAPI.DLL\n");
+        qga_debug("failed to load VSSAPI.DLL");
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
@@ -78,14 +79,14 @@ STDAPI requester_init(void)
 #endif
         );
     if (!pCreateVssBackupComponents) {
-        fprintf(stderr, "failed to get proc address from VSSAPI.DLL\n");
+        qga_debug("failed to get proc address from VSSAPI.DLL");
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
     pVssFreeSnapshotProperties = (t_VssFreeSnapshotProperties)
         GetProcAddress(hLib, "VssFreeSnapshotProperties");
     if (!pVssFreeSnapshotProperties) {
-        fprintf(stderr, "failed to get proc address from VSSAPI.DLL\n");
+        qga_debug("failed to get proc address from VSSAPI.DLL");
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
