@@ -365,16 +365,13 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_loongson_ipi;
 }
 
-static const TypeInfo loongson_ipi_info = {
-    .name          = TYPE_LOONGSON_IPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongsonIPI),
-    .class_init    = loongson_ipi_class_init,
+static const TypeInfo loongson_ipi_types[] = {
+    {
+        .name               = TYPE_LOONGSON_IPI,
+        .parent             = TYPE_SYS_BUS_DEVICE,
+        .instance_size      = sizeof(LoongsonIPI),
+        .class_init         = loongson_ipi_class_init,
+    }
 };
 
-static void loongson_ipi_register_types(void)
-{
-    type_register_static(&loongson_ipi_info);
-}
-
-type_init(loongson_ipi_register_types)
+DEFINE_TYPES(loongson_ipi_types)
