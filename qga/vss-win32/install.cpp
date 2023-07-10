@@ -100,6 +100,8 @@ HRESULT put_Value(ICatalogObject *pObj, LPCWSTR name, T val)
 /* Lookup Administrators group name from winmgmt */
 static HRESULT GetAdminName(_bstr_t *name)
 {
+    qga_debug_begin;
+
     HRESULT hr;
     COMPointer<IWbemLocator> pLoc;
     COMPointer<IWbemServices> pSvc;
@@ -142,6 +144,7 @@ static HRESULT GetAdminName(_bstr_t *name)
     }
 
 out:
+    qga_debug_end;
     return hr;
 }
 
@@ -149,6 +152,8 @@ out:
 static HRESULT getNameByStringSID(
     const wchar_t *sid, LPWSTR buffer, LPDWORD bufferLen)
 {
+    qga_debug_begin;
+
     HRESULT hr = S_OK;
     PSID psid = NULL;
     SID_NAME_USE groupType;
@@ -168,6 +173,7 @@ static HRESULT getNameByStringSID(
     LocalFree(psid);
 
 out:
+    qga_debug_end;
     return hr;
 }
 
@@ -175,6 +181,8 @@ out:
 static HRESULT QGAProviderFind(
     HRESULT (*found)(ICatalogCollection *, int, void *), void *arg)
 {
+    qga_debug_begin;
+
     HRESULT hr;
     COMInitializer initializer;
     COMPointer<IUnknown> pUnknown;
@@ -205,41 +213,53 @@ static HRESULT QGAProviderFind(
     chk(pColl->SaveChanges(&n));
 
 out:
+    qga_debug_end;
     return hr;
 }
 
 /* Count QGA VSS provider in COM+ Application Catalog */
 static HRESULT QGAProviderCount(ICatalogCollection *coll, int i, void *arg)
 {
+    qga_debug_begin;
+
     (*(int *)arg)++;
+
+    qga_debug_end;
     return S_OK;
 }
 
 /* Remove QGA VSS provider from COM+ Application Catalog Collection */
 static HRESULT QGAProviderRemove(ICatalogCollection *coll, int i, void *arg)
 {
+    qga_debug_begin;
     HRESULT hr;
 
     qga_debug("Removing COM+ Application: %s", QGA_PROVIDER_NAME);
     chk(coll->Remove(i));
 out:
+    qga_debug_end;
     return hr;
 }
 
 /* Unregister this module from COM+ Applications Catalog */
 STDAPI COMUnregister(void)
 {
+    qga_debug_begin;
+
     HRESULT hr;
 
     DllUnregisterServer();
     chk(QGAProviderFind(QGAProviderRemove, NULL));
 out:
+    qga_debug_end;
     return hr;
 }
 
 /* Register this module to COM+ Applications Catalog */
 STDAPI COMRegister(void)
 {
+    qga_debug_begin;
+
     HRESULT hr;
     COMInitializer initializer;
     COMPointer<IUnknown> pUnknown;
@@ -259,12 +279,14 @@ STDAPI COMRegister(void)
 
     if (!g_hinstDll) {
         errmsg(E_FAIL, "Failed to initialize DLL");
+        qga_debug_end;
         return E_FAIL;
     }
 
     chk(QGAProviderFind(QGAProviderCount, (void *)&count));
     if (count) {
         errmsg(E_ABORT, "QGA VSS Provider is already installed");
+        qga_debug_end;
         return E_ABORT;
     }
 
@@ -354,6 +376,7 @@ out:
         COMUnregister();
     }
 
+    qga_debug_end;
     return hr;
 }
 
@@ -369,6 +392,8 @@ STDAPI_(void) CALLBACK DLLCOMUnregister(HWND, HINSTANCE, LPSTR, int)
 
 static BOOL CreateRegistryKey(LPCTSTR key, LPCTSTR value, LPCTSTR data)
 {
+    qga_debug_begin;
+
     HKEY  hKey;
     LONG  ret;
     DWORD size;
@@ -389,6 +414,7 @@ static BOOL CreateRegistryKey(LPCTSTR key, LPCTSTR value, LPCTSTR data)
     RegCloseKey(hKey);
 
 out:
+    qga_debug_end;
     if (ret != ERROR_SUCCESS) {
         /* As we cannot printf within DllRegisterServer(), show a dialog. */
         errmsg_dialog(ret, "Cannot add registry", key);
@@ -400,6 +426,8 @@ out:
 /* Register this dll as a VSS provider */
 STDAPI DllRegisterServer(void)
 {
+    qga_debug_begin;
+
     COMInitializer initializer;
     COMPointer<IVssAdmin> pVssAdmin;
     HRESULT hr = E_FAIL;
@@ -478,12 +506,15 @@ out:
         DllUnregisterServer();
     }
 
+    qga_debug_end;
     return hr;
 }
 
 /* Unregister this VSS hardware provider from the system */
 STDAPI DllUnregisterServer(void)
 {
+    qga_debug_begin;
+
     TCHAR key[256];
     COMInitializer initializer;
     COMPointer<IVssAdmin> pVssAdmin;
@@ -501,6 +532,7 @@ STDAPI DllUnregisterServer(void)
     SHDeleteKey(HKEY_CLASSES_ROOT, key);
     SHDeleteKey(HKEY_CLASSES_ROOT, g_szProgid);
 
+    qga_debug_end;
     return S_OK; /* Uninstall should never fail */
 }
 
@@ -527,6 +559,8 @@ namespace _com_util
 /* Stop QGA VSS provider service using Winsvc API  */
 STDAPI StopService(void)
 {
+    qga_debug_begin;
+
     HRESULT hr = S_OK;
     SC_HANDLE manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     SC_HANDLE service = NULL;
@@ -551,5 +585,6 @@ STDAPI StopService(void)
 out:
     CloseServiceHandle(service);
     CloseServiceHandle(manager);
+    qga_debug_end;
     return hr;
 }
