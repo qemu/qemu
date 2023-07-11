@@ -84,6 +84,12 @@ def generate_cirrus(target, trailer=None):
     generate(filename, cmd, trailer)
 
 
+def generate_pkglist(vm, target):
+    filename = Path(src_dir, "tests", "vm", "generated", vm + ".json")
+    cmd = lcitool_cmd + ["variables", "--format", "json", target, "qemu"]
+    generate(filename, cmd, None)
+
+
 # Netmap still needs to be manually built as it is yet to be packaged
 # into a distro. We also add cscope and gtags which are used in the CI
 # test
@@ -190,6 +196,11 @@ try:
     #
     generate_cirrus("freebsd-13")
     generate_cirrus("macos-12")
+
+    #
+    # VM packages lists
+    #
+    generate_pkglist("freebsd", "freebsd-13")
 
     sys.exit(0)
 except Exception as ex:
