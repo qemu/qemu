@@ -2055,18 +2055,6 @@ void HELPER(sve2_pmull_h)(void *vd, void *vn, void *vm, uint32_t desc)
     }
 }
 
-static uint64_t pmull_d(uint64_t op1, uint64_t op2)
-{
-    uint64_t result = 0;
-    int i;
-
-    for (i = 0; i < 32; ++i) {
-        uint64_t mask = -((op1 >> i) & 1);
-        result ^= (op2 << i) & mask;
-    }
-    return result;
-}
-
 void HELPER(sve2_pmull_d)(void *vd, void *vn, void *vm, uint32_t desc)
 {
     intptr_t sel = H4(simd_data(desc));
@@ -2075,7 +2063,7 @@ void HELPER(sve2_pmull_d)(void *vd, void *vn, void *vm, uint32_t desc)
     uint64_t *d = vd;
 
     for (i = 0; i < opr_sz / 8; ++i) {
-        d[i] = pmull_d(n[2 * i + sel], m[2 * i + sel]);
+        d[i] = clmul_32(n[2 * i + sel], m[2 * i + sel]);
     }
 }
 #endif
