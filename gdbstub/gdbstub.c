@@ -2051,8 +2051,17 @@ void gdb_read_byte(uint8_t ch)
             return;
     }
     if (runstate_is_running()) {
-        /* when the CPU is running, we cannot do anything except stop
-           it when receiving a char */
+        /*
+         * When the CPU is running, we cannot do anything except stop
+         * it when receiving a char. This is expected on a Ctrl-C in the
+         * gdb client. Because we are in all-stop mode, gdb sends a
+         * 0x03 byte which is not a usual packet, so we handle it specially
+         * here, but it does expect a stop reply.
+         */
+        if (ch != 0x03) {
+            warn_report("gdbstub: client sent packet while target running\n");
+        }
+        gdbserver_state.allow_stop_reply = true;
         vm_stop(RUN_STATE_PAUSED);
     } else
 #endif
