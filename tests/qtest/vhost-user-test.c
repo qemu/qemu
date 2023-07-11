@@ -33,6 +33,7 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_net.h"
 #include "standard-headers/linux/virtio_gpio.h"
+#include "standard-headers/linux/virtio_scmi.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
@@ -145,6 +146,7 @@ enum {
 enum {
     VHOST_USER_NET,
     VHOST_USER_GPIO,
+    VHOST_USER_SCMI,
 };
 
 typedef struct TestServer {
@@ -1157,3 +1159,45 @@ static void register_vhost_gpio_test(void)
                  "vhost-user-gpio", test_read_guest_mem, &opts);
 }
 libqos_init(register_vhost_gpio_test);
+
+static uint64_t vu_scmi_get_features(TestServer *s)
+{
+    return 0x1ULL << VIRTIO_F_VERSION_1 |
+        0x1ULL << VIRTIO_SCMI_F_P2A_CHANNELS |
+        0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+}
+
+static void vu_scmi_get_protocol_features(TestServer *s, CharBackend *chr,
+                                          VhostUserMsg *msg)
+{
+    msg->flags |= VHOST_USER_REPLY_MASK;
+    msg->size = sizeof(m.payload.u64);
+    msg->payload.u64 = 1ULL << VHOST_USER_PROTOCOL_F_MQ;
+
+    qemu_chr_fe_write_all(chr, (uint8_t *)msg, VHOST_USER_HDR_SIZE + msg->size);
+}
+
+static struct vhost_user_ops g_vu_scmi_ops = {
+    .type = VHOST_USER_SCMI,
+
+    .append_opts = append_vhost_gpio_opts,
+
+    .get_features = vu_scmi_get_features,
+    .set_features = vu_net_set_features,
+    .get_protocol_features = vu_scmi_get_protocol_features,
+};
+
+static void register_vhost_scmi_test(void)
+{
+    QOSGraphTestOptions opts = {
+        .before = vhost_user_test_setup,
+        .subprocess = true,
+        .arg = &g_vu_scmi_ops,
+    };
+
+    qemu_add_opts(&qemu_chardev_opts);
+
+    qos_add_test("scmi/read-guest-mem/memfile",
+                 "vhost-user-scmi", test_read_guest_mem, &opts);
+}
+libqos_init(register_vhost_scmi_test);

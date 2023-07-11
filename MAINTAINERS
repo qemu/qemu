@@ -2215,6 +2215,13 @@ F: hw/virtio/vhost-user-gpio*
 F: include/hw/virtio/vhost-user-gpio.h
 F: tests/qtest/libqos/virtio-gpio.*
 
+vhost-user-scmi
+R: mzamazal@redhat.com
+S: Supported
+F: hw/virtio/vhost-user-scmi*
+F: include/hw/virtio/vhost-user-scmi.h
+F: tests/qtest/libqos/virtio-scmi.*
+
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
 S: Supported

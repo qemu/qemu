@@ -74,11 +74,6 @@ struct Q35PCIHost {
  * gmch part
  */
 
-#define MCH_HOST_PROP_RAM_MEM "ram-mem"
-#define MCH_HOST_PROP_PCI_MEM "pci-mem"
-#define MCH_HOST_PROP_SYSTEM_MEM "system-mem"
-#define MCH_HOST_PROP_IO_MEM "io-mem"
-
 /* PCI configuration */
 #define MCH_HOST_BRIDGE                        "MCH"
 

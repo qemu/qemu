@@ -367,7 +367,7 @@ static int process_message_reply(struct vhost_dev *dev,
     return msg_reply.payload.u64 ? -EIO : 0;
 }
 
-static bool vhost_user_one_time_request(VhostUserRequest request)
+static bool vhost_user_per_device_request(VhostUserRequest request)
 {
     switch (request) {
     case VHOST_USER_SET_OWNER:
@@ -375,6 +375,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
     case VHOST_USER_NET_SET_MTU:
+    case VHOST_USER_RESET_DEVICE:
     case VHOST_USER_ADD_MEM_REG:
     case VHOST_USER_REM_MEM_REG:
         return true;
@@ -392,11 +393,17 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     int ret, size = VHOST_USER_HDR_SIZE + msg->hdr.size;
 
     /*
-     * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
-     * we just need send it once in the first time. For later such
-     * request, we just ignore it.
+     * Some devices, like virtio-scsi, are implemented as a single vhost_dev,
+     * while others, like virtio-net, contain multiple vhost_devs. For
+     * operations such as configuring device memory mappings or issuing device
+     * resets, which affect the whole device instead of individual VQs,
+     * vhost-user messages should only be sent once.
+     * 
+     * Devices with multiple vhost_devs are given an associated dev->vq_index
+     * so per_device requests are only sent if vq_index is 0.
      */
-    if (vhost_user_one_time_request(msg->hdr.request) && dev->vq_index != 0) {
+    if (vhost_user_per_device_request(msg->hdr.request)
+        && dev->vq_index != 0) {
         msg->hdr.flags &= ~VHOST_USER_NEED_REPLY_MASK;
         return 0;
     }
@@ -1256,7 +1263,7 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
         .hdr.flags = VHOST_USER_VERSION,
     };
 
-    if (vhost_user_one_time_request(request) && dev->vq_index != 0) {
+    if (vhost_user_per_device_request(request) && dev->vq_index != 0) {
         return 0;
     }
 

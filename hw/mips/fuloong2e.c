@@ -297,7 +297,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     /* South bridge -> IP5 */
     pci_dev = pci_create_simple_multifunction(pci_bus,
                                               PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
-                                              true, TYPE_VT82C686B_ISA);
+                                              TYPE_VT82C686B_ISA);
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(OBJECT(pci_dev),
                                                             "rtc"),

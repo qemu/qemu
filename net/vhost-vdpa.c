@@ -110,6 +110,8 @@ static const uint64_t vdpa_svq_device_features =
     BIT_ULL(VIRTIO_NET_F_MRG_RXBUF) |
     BIT_ULL(VIRTIO_NET_F_STATUS) |
     BIT_ULL(VIRTIO_NET_F_CTRL_VQ) |
+    BIT_ULL(VIRTIO_NET_F_CTRL_RX) |
+    BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA) |
     BIT_ULL(VIRTIO_NET_F_MQ) |
     BIT_ULL(VIRTIO_F_ANY_LAYOUT) |
     BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR) |
@@ -626,34 +628,96 @@ static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
 }
 
 static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
-                                       uint8_t cmd, const void *data,
-                                       size_t data_size)
+                                       uint8_t cmd, const struct iovec *data_sg,
+                                       size_t data_num)
 {
     const struct virtio_net_ctrl_hdr ctrl = {
         .class = class,
         .cmd = cmd,
     };
+    size_t data_size = iov_size(data_sg, data_num);
 
     assert(data_size < vhost_vdpa_net_cvq_cmd_page_len() - sizeof(ctrl));
 
+    /* pack the CVQ command header */
     memcpy(s->cvq_cmd_out_buffer, &ctrl, sizeof(ctrl));
-    memcpy(s->cvq_cmd_out_buffer + sizeof(ctrl), data, data_size);
 
-    return vhost_vdpa_net_cvq_add(s, sizeof(ctrl) + data_size,
+    /* pack the CVQ command command-specific-data */
+    iov_to_buf(data_sg, data_num, 0,
+               s->cvq_cmd_out_buffer + sizeof(ctrl), data_size);
+
+    return vhost_vdpa_net_cvq_add(s, data_size + sizeof(ctrl),
                                   sizeof(virtio_net_ctrl_ack));
 }
 
 static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
 {
     if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        const struct iovec data = {
+            .iov_base = (void *)n->mac,
+            .iov_len = sizeof(n->mac),
+        };
         ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MAC,
                                                   VIRTIO_NET_CTRL_MAC_ADDR_SET,
-                                                  n->mac, sizeof(n->mac));
+                                                  &data, 1);
         if (unlikely(dev_written < 0)) {
             return dev_written;
         }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
 
-        return *s->status != VIRTIO_NET_OK;
+    /*
+     * According to VirtIO standard, "The device MUST have an
+     * empty MAC filtering table on reset.".
+     *
+     * Therefore, there is no need to send this CVQ command if the
+     * driver also sets an empty MAC filter table, which aligns with
+     * the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX) ||
+        n->mac_table.in_use == 0) {
+        return 0;
+    }
+
+    uint32_t uni_entries = n->mac_table.first_multi,
+             uni_macs_size = uni_entries * ETH_ALEN,
+             mul_entries = n->mac_table.in_use - uni_entries,
+             mul_macs_size = mul_entries * ETH_ALEN;
+    struct virtio_net_ctrl_mac uni = {
+        .entries = cpu_to_le32(uni_entries),
+    };
+    struct virtio_net_ctrl_mac mul = {
+        .entries = cpu_to_le32(mul_entries),
+    };
+    const struct iovec data[] = {
+        {
+            .iov_base = &uni,
+            .iov_len = sizeof(uni),
+        }, {
+            .iov_base = n->mac_table.macs,
+            .iov_len = uni_macs_size,
+        }, {
+            .iov_base = &mul,
+            .iov_len = sizeof(mul),
+        }, {
+            .iov_base = &n->mac_table.macs[uni_macs_size],
+            .iov_len = mul_macs_size,
+        },
+    };
+    ssize_t dev_written = vhost_vdpa_net_load_cmd(s,
+                                VIRTIO_NET_CTRL_MAC,
+                                VIRTIO_NET_CTRL_MAC_TABLE_SET,
+                                data, ARRAY_SIZE(data));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+    if (*s->status != VIRTIO_NET_OK) {
+        return -EIO;
     }
 
     return 0;
@@ -670,14 +734,21 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
     }
 
     mq.virtqueue_pairs = cpu_to_le16(n->curr_queue_pairs);
+    const struct iovec data = {
+        .iov_base = &mq,
+        .iov_len = sizeof(mq),
+    };
     dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MQ,
-                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET, &mq,
-                                          sizeof(mq));
+                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET,
+                                          &data, 1);
     if (unlikely(dev_written < 0)) {
         return dev_written;
     }
+    if (*s->status != VIRTIO_NET_OK) {
+        return -EIO;
+    }
 
-    return *s->status != VIRTIO_NET_OK;
+    return 0;
 }
 
 static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
@@ -708,14 +779,190 @@ static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
     }
 
     offloads = cpu_to_le64(n->curr_guest_offloads);
+    const struct iovec data = {
+        .iov_base = &offloads,
+        .iov_len = sizeof(offloads),
+    };
     dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
                                           VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET,
-                                          &offloads, sizeof(offloads));
+                                          &data, 1);
     if (unlikely(dev_written < 0)) {
         return dev_written;
     }
+    if (*s->status != VIRTIO_NET_OK) {
+        return -EIO;
+    }
 
-    return *s->status != VIRTIO_NET_OK;
+    return 0;
+}
+
+static int vhost_vdpa_net_load_rx_mode(VhostVDPAState *s,
+                                       uint8_t cmd,
+                                       uint8_t on)
+{
+    const struct iovec data = {
+        .iov_base = &on,
+        .iov_len = sizeof(on),
+    };
+    return vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_RX,
+                                   cmd, &data, 1);
+}
+
+static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
+                                  const VirtIONet *n)
+{
+    ssize_t dev_written;
+
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX)) {
+        return 0;
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns promiscuous mode
+     * on by default.
+     *
+     * Addtionally, according to VirtIO standard, "Since there are
+     * no guarantees, it can use a hash filter or silently switch to
+     * allmulti or promiscuous mode if it is given too many addresses.".
+     * QEMU marks `n->mac_table.uni_overflow` if guest sets too many
+     * non-multicast MAC addresses, indicating that promiscuous mode
+     * should be enabled.
+     *
+     * Therefore, QEMU should only send this CVQ command if the
+     * `n->mac_table.uni_overflow` is not marked and `n->promisc` is off,
+     * which sets promiscuous mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (!n->mac_table.uni_overflow && !n->promisc) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_PROMISC, 0);
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns all-multicast mode
+     * off by default.
+     *
+     * According to VirtIO standard, "Since there are no guarantees,
+     * it can use a hash filter or silently switch to allmulti or
+     * promiscuous mode if it is given too many addresses.". QEMU marks
+     * `n->mac_table.multi_overflow` if guest sets too many
+     * non-multicast MAC addresses.
+     *
+     * Therefore, QEMU should only send this CVQ command if the
+     * `n->mac_table.multi_overflow` is marked or `n->allmulti` is on,
+     * which sets all-multicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->mac_table.multi_overflow || n->allmulti) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_ALLMULTI, 1);
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX_EXTRA)) {
+        return 0;
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns all-unicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets all-unicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->alluni) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_ALLUNI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-multicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-multicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nomulti) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOMULTI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-unicast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-unicast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nouni) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOUNI, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    /*
+     * According to virtio_net_reset(), device turns non-broadcast mode
+     * off by default.
+     *
+     * Therefore, QEMU should only send this CVQ command if the driver
+     * sets non-broadcast mode on, different from the device's defaults.
+     *
+     * Note that the device's defaults can mismatch the driver's
+     * configuration only at live migration.
+     */
+    if (n->nobcast) {
+        dev_written = vhost_vdpa_net_load_rx_mode(s,
+                                            VIRTIO_NET_CTRL_RX_NOBCAST, 1);
+        if (dev_written < 0) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EIO;
+        }
+    }
+
+    return 0;
 }
 
 static int vhost_vdpa_net_load(NetClientState *nc)
@@ -744,6 +991,10 @@ static int vhost_vdpa_net_load(NetClientState *nc)
     if (unlikely(r)) {
         return r;
     }
+    r = vhost_vdpa_net_load_rx(s, n);
+    if (unlikely(r)) {
+        return r;
+    }
 
     return 0;
 }
@@ -761,6 +1012,148 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
     .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+/*
+ * Forward the excessive VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command to
+ * vdpa device.
+ *
+ * Considering that QEMU cannot send the entire filter table to the
+ * vdpa device, it should send the VIRTIO_NET_CTRL_RX_PROMISC CVQ
+ * command to enable promiscuous mode to receive all packets,
+ * according to VirtIO standard, "Since there are no guarantees,
+ * it can use a hash filter or silently switch to allmulti or
+ * promiscuous mode if it is given too many addresses.".
+ *
+ * Since QEMU ignores MAC addresses beyond `MAC_TABLE_ENTRIES` and
+ * marks `n->mac_table.x_overflow` accordingly, it should have
+ * the same effect on the device model to receive
+ * (`MAC_TABLE_ENTRIES` + 1) or more non-multicast MAC addresses.
+ * The same applies to multicast MAC addresses.
+ *
+ * Therefore, QEMU can provide the device model with a fake
+ * VIRTIO_NET_CTRL_MAC_TABLE_SET command with (`MAC_TABLE_ENTRIES` + 1)
+ * non-multicast MAC addresses and (`MAC_TABLE_ENTRIES` + 1) multicast
+ * MAC addresses. This ensures that the device model marks
+ * `n->mac_table.uni_overflow` and `n->mac_table.multi_overflow`,
+ * allowing all packets to be received, which aligns with the
+ * state of the vdpa device.
+ */
+static int vhost_vdpa_net_excessive_mac_filter_cvq_add(VhostVDPAState *s,
+                                                       VirtQueueElement *elem,
+                                                       struct iovec *out)
+{
+    struct virtio_net_ctrl_mac mac_data, *mac_ptr;
+    struct virtio_net_ctrl_hdr *hdr_ptr;
+    uint32_t cursor;
+    ssize_t r;
+
+    /* parse the non-multicast MAC address entries from CVQ command */
+    cursor = sizeof(*hdr_ptr);
+    r = iov_to_buf(elem->out_sg, elem->out_num, cursor,
+                   &mac_data, sizeof(mac_data));
+    if (unlikely(r != sizeof(mac_data))) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+    cursor += sizeof(mac_data) + le32_to_cpu(mac_data.entries) * ETH_ALEN;
+
+    /* parse the multicast MAC address entries from CVQ command */
+    r = iov_to_buf(elem->out_sg, elem->out_num, cursor,
+                   &mac_data, sizeof(mac_data));
+    if (r != sizeof(mac_data)) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+    cursor += sizeof(mac_data) + le32_to_cpu(mac_data.entries) * ETH_ALEN;
+
+    /* validate the CVQ command */
+    if (iov_size(elem->out_sg, elem->out_num) != cursor) {
+        /*
+         * If the CVQ command is invalid, we should simulate the vdpa device
+         * to reject the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+         */
+        *s->status = VIRTIO_NET_ERR;
+        return sizeof(*s->status);
+    }
+
+    /*
+     * According to VirtIO standard, "Since there are no guarantees,
+     * it can use a hash filter or silently switch to allmulti or
+     * promiscuous mode if it is given too many addresses.".
+     *
+     * Therefore, considering that QEMU is unable to send the entire
+     * filter table to the vdpa device, it should send the
+     * VIRTIO_NET_CTRL_RX_PROMISC CVQ command to enable promiscuous mode
+     */
+    r = vhost_vdpa_net_load_rx_mode(s, VIRTIO_NET_CTRL_RX_PROMISC, 1);
+    if (unlikely(r < 0)) {
+        return r;
+    }
+    if (*s->status != VIRTIO_NET_OK) {
+        return sizeof(*s->status);
+    }
+
+    /*
+     * QEMU should also send a fake VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ
+     * command to the device model, including (`MAC_TABLE_ENTRIES` + 1)
+     * non-multicast MAC addresses and (`MAC_TABLE_ENTRIES` + 1)
+     * multicast MAC addresses.
+     *
+     * By doing so, the device model can mark `n->mac_table.uni_overflow`
+     * and `n->mac_table.multi_overflow`, enabling all packets to be
+     * received, which aligns with the state of the vdpa device.
+     */
+    cursor = 0;
+    uint32_t fake_uni_entries = MAC_TABLE_ENTRIES + 1,
+             fake_mul_entries = MAC_TABLE_ENTRIES + 1,
+             fake_cvq_size = sizeof(struct virtio_net_ctrl_hdr) +
+                             sizeof(mac_data) + fake_uni_entries * ETH_ALEN +
+                             sizeof(mac_data) + fake_mul_entries * ETH_ALEN;
+
+    assert(fake_cvq_size < vhost_vdpa_net_cvq_cmd_page_len());
+    out->iov_len = fake_cvq_size;
+
+    /* pack the header for fake CVQ command */
+    hdr_ptr = out->iov_base + cursor;
+    hdr_ptr->class = VIRTIO_NET_CTRL_MAC;
+    hdr_ptr->cmd = VIRTIO_NET_CTRL_MAC_TABLE_SET;
+    cursor += sizeof(*hdr_ptr);
+
+    /*
+     * Pack the non-multicast MAC addresses part for fake CVQ command.
+     *
+     * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
+     * addresses provieded in CVQ command. Therefore, only the entries
+     * field need to be prepared in the CVQ command.
+     */
+    mac_ptr = out->iov_base + cursor;
+    mac_ptr->entries = cpu_to_le32(fake_uni_entries);
+    cursor += sizeof(*mac_ptr) + fake_uni_entries * ETH_ALEN;
+
+    /*
+     * Pack the multicast MAC addresses part for fake CVQ command.
+     *
+     * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
+     * addresses provieded in CVQ command. Therefore, only the entries
+     * field need to be prepared in the CVQ command.
+     */
+    mac_ptr = out->iov_base + cursor;
+    mac_ptr->entries = cpu_to_le32(fake_mul_entries);
+
+    /*
+     * Simulating QEMU poll a vdpa device used buffer
+     * for VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+     */
+    return sizeof(*s->status);
+}
+
 /**
  * Validate and copy control virtqueue commands.
  *
@@ -773,6 +1166,7 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
 {
     VhostVDPAState *s = opaque;
     size_t in_len;
+    const struct virtio_net_ctrl_hdr *ctrl;
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
     /* Out buffer sent to both the vdpa device and the device model */
     struct iovec out = {
@@ -787,14 +1181,34 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
 
     out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                              s->cvq_cmd_out_buffer,
-                             vhost_vdpa_net_cvq_cmd_len());
-    if (*(uint8_t *)s->cvq_cmd_out_buffer == VIRTIO_NET_CTRL_ANNOUNCE) {
+                             vhost_vdpa_net_cvq_cmd_page_len());
+
+    ctrl = s->cvq_cmd_out_buffer;
+    if (ctrl->class == VIRTIO_NET_CTRL_ANNOUNCE) {
         /*
          * Guest announce capability is emulated by qemu, so don't forward to
          * the device.
          */
         dev_written = sizeof(status);
         *s->status = VIRTIO_NET_OK;
+    } else if (unlikely(ctrl->class == VIRTIO_NET_CTRL_MAC &&
+                        ctrl->cmd == VIRTIO_NET_CTRL_MAC_TABLE_SET &&
+                        iov_size(elem->out_sg, elem->out_num) > out.iov_len)) {
+        /*
+         * Due to the size limitation of the out buffer sent to the vdpa device,
+         * which is determined by vhost_vdpa_net_cvq_cmd_page_len(), excessive
+         * MAC addresses set by the driver for the filter table can cause
+         * truncation of the CVQ command in QEMU. As a result, the vdpa device
+         * rejects the flawed CVQ command.
+         *
+         * Therefore, QEMU must handle this situation instead of sending
+         * the CVQ command direclty.
+         */
+        dev_written = vhost_vdpa_net_excessive_mac_filter_cvq_add(s, elem,
+                                                                  &out);
+        if (unlikely(dev_written < 0)) {
+            goto out;
+        }
     } else {
         dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
         if (unlikely(dev_written < 0)) {
@@ -824,7 +1238,16 @@ out:
         error_report("Bad device CVQ written length");
     }
     vhost_svq_push_elem(svq, elem, MIN(in_len, sizeof(status)));
-    g_free(elem);
+    /*
+     * `elem` belongs to vhost_vdpa_net_handle_ctrl_avail() only when
+     * the function successfully forwards the CVQ command, indicated
+     * by a non-negative value of `dev_written`. Otherwise, it still
+     * belongs to SVQ.
+     * This function should only free the `elem` when it owns.
+     */
+    if (dev_written >= 0) {
+        g_free(elem);
+    }
     return dev_written < 0 ? dev_written : 0;
 }
 

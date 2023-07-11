@@ -323,7 +323,9 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region", __func__);
+        trace_vhost_vdpa_listener_region_add_unaligned(v, section->mr->name,
+                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
+                       section->offset_within_region & ~TARGET_PAGE_MASK);
         return;
     }
 
@@ -405,7 +407,9 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region", __func__);
+        trace_vhost_vdpa_listener_region_del_unaligned(v, section->mr->name,
+                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
+                       section->offset_within_region & ~TARGET_PAGE_MASK);
         return;
     }
 
@@ -859,7 +863,7 @@ static int vhost_vdpa_reset_device(struct vhost_dev *dev)
     uint8_t status = 0;
 
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
-    trace_vhost_vdpa_reset_device(dev, status);
+    trace_vhost_vdpa_reset_device(dev);
     v->suspended = false;
     return ret;
 }
