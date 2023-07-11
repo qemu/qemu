@@ -54,4 +54,11 @@ uint64_t clmul_16x2_even(uint64_t, uint64_t);
  */
 uint64_t clmul_16x2_odd(uint64_t, uint64_t);
 
+/**
+ * clmul_32:
+ *
+ * Perform a 32x32->64 carry-less multiply.
+ */
+uint64_t clmul_32(uint32_t, uint32_t);
+
 #endif /* CRYPTO_CLMUL_H */

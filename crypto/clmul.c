@@ -79,3 +79,16 @@ uint64_t clmul_16x2_odd(uint64_t n, uint64_t m)
 {
     return clmul_16x2_even(n >> 16, m >> 16);
 }
+
+uint64_t clmul_32(uint32_t n, uint32_t m32)
+{
+    uint64_t r = 0;
+    uint64_t m = m32;
+
+    for (int i = 0; i < 32; ++i) {
+        r ^= n & 1 ? m : 0;
+        n >>= 1;
+        m <<= 1;
+    }
+    return r;
+}
