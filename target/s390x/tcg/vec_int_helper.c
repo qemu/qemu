@@ -21,13 +21,6 @@ static bool s390_vec_is_zero(const S390Vector *v)
     return !v->doubleword[0] && !v->doubleword[1];
 }
 
-static void s390_vec_xor(S390Vector *res, const S390Vector *a,
-                         const S390Vector *b)
-{
-    res->doubleword[0] = a->doubleword[0] ^ b->doubleword[0];
-    res->doubleword[1] = a->doubleword[1] ^ b->doubleword[1];
-}
-
 static void s390_vec_and(S390Vector *res, const S390Vector *a,
                          const S390Vector *b)
 {
@@ -166,26 +159,6 @@ DEF_VCTZ(16)
 
 /* like binary multiplication, but XOR instead of addition */
 
-static S390Vector galois_multiply64(uint64_t a, uint64_t b)
-{
-    S390Vector res = {};
-    S390Vector va = {
-        .doubleword[1] = a,
-    };
-    S390Vector vb = {
-        .doubleword[1] = b,
-    };
-
-    while (!s390_vec_is_zero(&vb)) {
-        if (vb.doubleword[1] & 0x1) {
-            s390_vec_xor(&res, &res, &va);
-        }
-        s390_vec_shl(&va, &va, 1);
-        s390_vec_shr(&vb, &vb, 1);
-    }
-    return res;
-}
-
 /*
  * There is no carry across the two doublewords, so their order does
  * not matter.  Nor is there partial overlap between registers.
@@ -265,32 +238,25 @@ void HELPER(gvec_vgfma32)(void *v1, const void *v2, const void *v3,
 void HELPER(gvec_vgfm64)(void *v1, const void *v2, const void *v3,
                          uint32_t desc)
 {
-    S390Vector tmp1, tmp2;
-    uint64_t a, b;
+    uint64_t *q1 = v1;
+    const uint64_t *q2 = v2, *q3 = v3;
+    Int128 r;
 
-    a = s390_vec_read_element64(v2, 0);
-    b = s390_vec_read_element64(v3, 0);
-    tmp1 = galois_multiply64(a, b);
-    a = s390_vec_read_element64(v2, 1);
-    b = s390_vec_read_element64(v3, 1);
-    tmp2 = galois_multiply64(a, b);
-    s390_vec_xor(v1, &tmp1, &tmp2);
+    r = int128_xor(clmul_64(q2[0], q3[0]), clmul_64(q2[1], q3[1]));
+    q1[0] = int128_gethi(r);
+    q1[1] = int128_getlo(r);
 }
 
 void HELPER(gvec_vgfma64)(void *v1, const void *v2, const void *v3,
                           const void *v4, uint32_t desc)
 {
-    S390Vector tmp1, tmp2;
-    uint64_t a, b;
+    uint64_t *q1 = v1;
+    const uint64_t *q2 = v2, *q3 = v3, *q4 = v4;
+    Int128 r;
 
-    a = s390_vec_read_element64(v2, 0);
-    b = s390_vec_read_element64(v3, 0);
-    tmp1 = galois_multiply64(a, b);
-    a = s390_vec_read_element64(v2, 1);
-    b = s390_vec_read_element64(v3, 1);
-    tmp2 = galois_multiply64(a, b);
-    s390_vec_xor(&tmp1, &tmp1, &tmp2);
-    s390_vec_xor(v1, &tmp1, v4);
+    r = int128_xor(clmul_64(q2[0], q3[0]), clmul_64(q2[1], q3[1]));
+    q1[0] = q4[0] ^ int128_gethi(r);
+    q1[1] = q4[1] ^ int128_getlo(r);
 }
 
 #define DEF_VMAL(BITS)                                                         \
