@@ -32,4 +32,10 @@ struct VirtIOMDPCI {
     VirtIOPCIProxy parent_obj;
 };
 
+void virtio_md_pci_pre_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp);
+void virtio_md_pci_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp);
+void virtio_md_pci_unplug_request(VirtIOMDPCI *vmd, MachineState *ms,
+                                  Error **errp);
+void virtio_md_pci_unplug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp);
+
 #endif

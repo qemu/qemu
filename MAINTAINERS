@@ -2234,6 +2234,7 @@ M: David Hildenbrand <david@redhat.com>
 S: Supported
 F: hw/virtio/virtio-md-pci.c
 F: include/hw/virtio/virtio-md-pci.h
+F: stubs/virtio-md-pci.c
 
 virtio-mem
 M: David Hildenbrand <david@redhat.com>
