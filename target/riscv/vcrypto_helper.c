@@ -22,6 +22,8 @@
 #include "qemu/bitops.h"
 #include "qemu/bswap.h"
 #include "cpu.h"
+#include "crypto/aes.h"
+#include "crypto/aes-round.h"
 #include "exec/memop.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -195,3 +197,203 @@ RVVCALL(OPIVX2, vwsll_vx_w, WOP_UUU_W, H8, H4, DO_SLL)
 GEN_VEXT_VX(vwsll_vx_b, 2)
 GEN_VEXT_VX(vwsll_vx_h, 4)
 GEN_VEXT_VX(vwsll_vx_w, 8)
+
+void HELPER(egs_check)(uint32_t egs, CPURISCVState *env)
+{
+    uint32_t vl = env->vl;
+    uint32_t vstart = env->vstart;
+
+    if (vl % egs != 0 || vstart % egs != 0) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    }
+}
+
+static inline void xor_round_key(AESState *round_state, AESState *round_key)
+{
+    round_state->v = round_state->v ^ round_key->v;
+}
+
+#define GEN_ZVKNED_HELPER_VV(NAME, ...)                                   \
+    void HELPER(NAME)(void *vd, void *vs2, CPURISCVState *env,            \
+                      uint32_t desc)                                      \
+    {                                                                     \
+        uint32_t vl = env->vl;                                            \
+        uint32_t total_elems = vext_get_total_elems(env, desc, 4);        \
+        uint32_t vta = vext_vta(desc);                                    \
+                                                                          \
+        for (uint32_t i = env->vstart / 4; i < env->vl / 4; i++) {        \
+            AESState round_key;                                           \
+            round_key.d[0] = *((uint64_t *)vs2 + H8(i * 2 + 0));          \
+            round_key.d[1] = *((uint64_t *)vs2 + H8(i * 2 + 1));          \
+            AESState round_state;                                         \
+            round_state.d[0] = *((uint64_t *)vd + H8(i * 2 + 0));         \
+            round_state.d[1] = *((uint64_t *)vd + H8(i * 2 + 1));         \
+            __VA_ARGS__;                                                  \
+            *((uint64_t *)vd + H8(i * 2 + 0)) = round_state.d[0];         \
+            *((uint64_t *)vd + H8(i * 2 + 1)) = round_state.d[1];         \
+        }                                                                 \
+        env->vstart = 0;                                                  \
+        /* set tail elements to 1s */                                     \
+        vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);              \
+    }
+
+#define GEN_ZVKNED_HELPER_VS(NAME, ...)                                   \
+    void HELPER(NAME)(void *vd, void *vs2, CPURISCVState *env,            \
+                      uint32_t desc)                                      \
+    {                                                                     \
+        uint32_t vl = env->vl;                                            \
+        uint32_t total_elems = vext_get_total_elems(env, desc, 4);        \
+        uint32_t vta = vext_vta(desc);                                    \
+                                                                          \
+        for (uint32_t i = env->vstart / 4; i < env->vl / 4; i++) {        \
+            AESState round_key;                                           \
+            round_key.d[0] = *((uint64_t *)vs2 + H8(0));                  \
+            round_key.d[1] = *((uint64_t *)vs2 + H8(1));                  \
+            AESState round_state;                                         \
+            round_state.d[0] = *((uint64_t *)vd + H8(i * 2 + 0));         \
+            round_state.d[1] = *((uint64_t *)vd + H8(i * 2 + 1));         \
+            __VA_ARGS__;                                                  \
+            *((uint64_t *)vd + H8(i * 2 + 0)) = round_state.d[0];         \
+            *((uint64_t *)vd + H8(i * 2 + 1)) = round_state.d[1];         \
+        }                                                                 \
+        env->vstart = 0;                                                  \
+        /* set tail elements to 1s */                                     \
+        vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);              \
+    }
+
+GEN_ZVKNED_HELPER_VV(vaesef_vv, aesenc_SB_SR_AK(&round_state,
+                                                &round_state,
+                                                &round_key,
+                                                false);)
+GEN_ZVKNED_HELPER_VS(vaesef_vs, aesenc_SB_SR_AK(&round_state,
+                                                &round_state,
+                                                &round_key,
+                                                false);)
+GEN_ZVKNED_HELPER_VV(vaesdf_vv, aesdec_ISB_ISR_AK(&round_state,
+                                                  &round_state,
+                                                  &round_key,
+                                                  false);)
+GEN_ZVKNED_HELPER_VS(vaesdf_vs, aesdec_ISB_ISR_AK(&round_state,
+                                                  &round_state,
+                                                  &round_key,
+                                                  false);)
+GEN_ZVKNED_HELPER_VV(vaesem_vv, aesenc_SB_SR_MC_AK(&round_state,
+                                                   &round_state,
+                                                   &round_key,
+                                                   false);)
+GEN_ZVKNED_HELPER_VS(vaesem_vs, aesenc_SB_SR_MC_AK(&round_state,
+                                                   &round_state,
+                                                   &round_key,
+                                                   false);)
+GEN_ZVKNED_HELPER_VV(vaesdm_vv, aesdec_ISB_ISR_AK_IMC(&round_state,
+                                                      &round_state,
+                                                      &round_key,
+                                                      false);)
+GEN_ZVKNED_HELPER_VS(vaesdm_vs, aesdec_ISB_ISR_AK_IMC(&round_state,
+                                                      &round_state,
+                                                      &round_key,
+                                                      false);)
+GEN_ZVKNED_HELPER_VS(vaesz_vs, xor_round_key(&round_state, &round_key);)
+
+void HELPER(vaeskf1_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
+                        CPURISCVState *env, uint32_t desc)
+{
+    uint32_t *vd = vd_vptr;
+    uint32_t *vs2 = vs2_vptr;
+    uint32_t vl = env->vl;
+    uint32_t total_elems = vext_get_total_elems(env, desc, 4);
+    uint32_t vta = vext_vta(desc);
+
+    uimm &= 0b1111;
+    if (uimm > 10 || uimm == 0) {
+        uimm ^= 0b1000;
+    }
+
+    for (uint32_t i = env->vstart / 4; i < env->vl / 4; i++) {
+        uint32_t rk[8], tmp;
+        static const uint32_t rcon[] = {
+            0x00000001, 0x00000002, 0x00000004, 0x00000008, 0x00000010,
+            0x00000020, 0x00000040, 0x00000080, 0x0000001B, 0x00000036,
+        };
+
+        rk[0] = vs2[i * 4 + H4(0)];
+        rk[1] = vs2[i * 4 + H4(1)];
+        rk[2] = vs2[i * 4 + H4(2)];
+        rk[3] = vs2[i * 4 + H4(3)];
+        tmp = ror32(rk[3], 8);
+
+        rk[4] = rk[0] ^ (((uint32_t)AES_sbox[(tmp >> 24) & 0xff] << 24) |
+                         ((uint32_t)AES_sbox[(tmp >> 16) & 0xff] << 16) |
+                         ((uint32_t)AES_sbox[(tmp >> 8) & 0xff] << 8) |
+                         ((uint32_t)AES_sbox[(tmp >> 0) & 0xff] << 0))
+                      ^ rcon[uimm - 1];
+        rk[5] = rk[1] ^ rk[4];
+        rk[6] = rk[2] ^ rk[5];
+        rk[7] = rk[3] ^ rk[6];
+
+        vd[i * 4 + H4(0)] = rk[4];
+        vd[i * 4 + H4(1)] = rk[5];
+        vd[i * 4 + H4(2)] = rk[6];
+        vd[i * 4 + H4(3)] = rk[7];
+    }
+    env->vstart = 0;
+    /* set tail elements to 1s */
+    vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);
+}
+
+void HELPER(vaeskf2_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
+                        CPURISCVState *env, uint32_t desc)
+{
+    uint32_t *vd = vd_vptr;
+    uint32_t *vs2 = vs2_vptr;
+    uint32_t vl = env->vl;
+    uint32_t total_elems = vext_get_total_elems(env, desc, 4);
+    uint32_t vta = vext_vta(desc);
+
+    uimm &= 0b1111;
+    if (uimm > 14 || uimm < 2) {
+        uimm ^= 0b1000;
+    }
+
+    for (uint32_t i = env->vstart / 4; i < env->vl / 4; i++) {
+        uint32_t rk[12], tmp;
+        static const uint32_t rcon[] = {
+            0x00000001, 0x00000002, 0x00000004, 0x00000008, 0x00000010,
+            0x00000020, 0x00000040, 0x00000080, 0x0000001B, 0x00000036,
+        };
+
+        rk[0] = vd[i * 4 + H4(0)];
+        rk[1] = vd[i * 4 + H4(1)];
+        rk[2] = vd[i * 4 + H4(2)];
+        rk[3] = vd[i * 4 + H4(3)];
+        rk[4] = vs2[i * 4 + H4(0)];
+        rk[5] = vs2[i * 4 + H4(1)];
+        rk[6] = vs2[i * 4 + H4(2)];
+        rk[7] = vs2[i * 4 + H4(3)];
+
+        if (uimm % 2 == 0) {
+            tmp = ror32(rk[7], 8);
+            rk[8] = rk[0] ^ (((uint32_t)AES_sbox[(tmp >> 24) & 0xff] << 24) |
+                             ((uint32_t)AES_sbox[(tmp >> 16) & 0xff] << 16) |
+                             ((uint32_t)AES_sbox[(tmp >> 8) & 0xff] << 8) |
+                             ((uint32_t)AES_sbox[(tmp >> 0) & 0xff] << 0))
+                          ^ rcon[(uimm - 1) / 2];
+        } else {
+            rk[8] = rk[0] ^ (((uint32_t)AES_sbox[(rk[7] >> 24) & 0xff] << 24) |
+                             ((uint32_t)AES_sbox[(rk[7] >> 16) & 0xff] << 16) |
+                             ((uint32_t)AES_sbox[(rk[7] >> 8) & 0xff] << 8) |
+                             ((uint32_t)AES_sbox[(rk[7] >> 0) & 0xff] << 0));
+        }
+        rk[9] = rk[1] ^ rk[8];
+        rk[10] = rk[2] ^ rk[9];
+        rk[11] = rk[3] ^ rk[10];
+
+        vd[i * 4 + H4(0)] = rk[8];
+        vd[i * 4 + H4(1)] = rk[9];
+        vd[i * 4 + H4(2)] = rk[10];
+        vd[i * 4 + H4(3)] = rk[11];
+    }
+    env->vstart = 0;
+    /* set tail elements to 1s */
+    vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);
+}
