@@ -371,3 +371,132 @@ static bool vaeskf2_check(DisasContext *s, arg_vaeskf2_vi *a)
 
 GEN_VI_UNMASKED_TRANS(vaeskf1_vi, vaeskf1_check, ZVKNED_EGS)
 GEN_VI_UNMASKED_TRANS(vaeskf2_vi, vaeskf2_check, ZVKNED_EGS)
+
+/*
+ * Zvknh
+ */
+
+#define ZVKNH_EGS 4
+
+#define GEN_VV_UNMASKED_TRANS(NAME, CHECK, EGS)                               \
+    static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                    \
+    {                                                                         \
+        if (CHECK(s, a)) {                                                    \
+            uint32_t data = 0;                                                \
+            TCGLabel *over = gen_new_label();                                 \
+            TCGv_i32 egs;                                                     \
+                                                                              \
+            if (!s->vstart_eq_zero || !s->vl_eq_vlmax) {                      \
+                /* save opcode for unwinding in case we throw an exception */ \
+                decode_save_opc(s);                                           \
+                egs = tcg_constant_i32(EGS);                                  \
+                gen_helper_egs_check(egs, cpu_env);                           \
+                tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);    \
+            }                                                                 \
+                                                                              \
+            data = FIELD_DP32(data, VDATA, VM, a->vm);                        \
+            data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                    \
+            data = FIELD_DP32(data, VDATA, VTA, s->vta);                      \
+            data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);    \
+            data = FIELD_DP32(data, VDATA, VMA, s->vma);                      \
+                                                                              \
+            tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),       \
+                               vreg_ofs(s, a->rs2), cpu_env,                  \
+                               s->cfg_ptr->vlen / 8, s->cfg_ptr->vlen / 8,    \
+                               data, gen_helper_##NAME);                      \
+                                                                              \
+            mark_vs_dirty(s);                                                 \
+            gen_set_label(over);                                              \
+            return true;                                                      \
+        }                                                                     \
+        return false;                                                         \
+    }
+
+static bool vsha_check_sew(DisasContext *s)
+{
+    return (s->cfg_ptr->ext_zvknha == true && s->sew == MO_32) ||
+           (s->cfg_ptr->ext_zvknhb == true &&
+            (s->sew == MO_32 || s->sew == MO_64));
+}
+
+static bool vsha_check(DisasContext *s, arg_rmrr *a)
+{
+    int egw_bytes = ZVKNH_EGS << s->sew;
+    int mult = 1 << MAX(s->lmul, 0);
+    return opivv_check(s, a) &&
+           vsha_check_sew(s) &&
+           MAXSZ(s) >= egw_bytes &&
+           !is_overlapped(a->rd, mult, a->rs1, mult) &&
+           !is_overlapped(a->rd, mult, a->rs2, mult) &&
+           s->lmul >= 0;
+}
+
+GEN_VV_UNMASKED_TRANS(vsha2ms_vv, vsha_check, ZVKNH_EGS)
+
+static bool trans_vsha2cl_vv(DisasContext *s, arg_rmrr *a)
+{
+    if (vsha_check(s, a)) {
+        uint32_t data = 0;
+        TCGLabel *over = gen_new_label();
+        TCGv_i32 egs;
+
+        if (!s->vstart_eq_zero || !s->vl_eq_vlmax) {
+            /* save opcode for unwinding in case we throw an exception */
+            decode_save_opc(s);
+            egs = tcg_constant_i32(ZVKNH_EGS);
+            gen_helper_egs_check(egs, cpu_env);
+            tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+        }
+
+        data = FIELD_DP32(data, VDATA, VM, a->vm);
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);
+        data = FIELD_DP32(data, VDATA, VMA, s->vma);
+
+        tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),
+            vreg_ofs(s, a->rs2), cpu_env, s->cfg_ptr->vlen / 8,
+            s->cfg_ptr->vlen / 8, data,
+            s->sew == MO_32 ?
+                gen_helper_vsha2cl32_vv : gen_helper_vsha2cl64_vv);
+
+        mark_vs_dirty(s);
+        gen_set_label(over);
+        return true;
+    }
+    return false;
+}
+
+static bool trans_vsha2ch_vv(DisasContext *s, arg_rmrr *a)
+{
+    if (vsha_check(s, a)) {
+        uint32_t data = 0;
+        TCGLabel *over = gen_new_label();
+        TCGv_i32 egs;
+
+        if (!s->vstart_eq_zero || !s->vl_eq_vlmax) {
+            /* save opcode for unwinding in case we throw an exception */
+            decode_save_opc(s);
+            egs = tcg_constant_i32(ZVKNH_EGS);
+            gen_helper_egs_check(egs, cpu_env);
+            tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+        }
+
+        data = FIELD_DP32(data, VDATA, VM, a->vm);
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);
+        data = FIELD_DP32(data, VDATA, VMA, s->vma);
+
+        tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),
+            vreg_ofs(s, a->rs2), cpu_env, s->cfg_ptr->vlen / 8,
+            s->cfg_ptr->vlen / 8, data,
+            s->sew == MO_32 ?
+                gen_helper_vsha2ch32_vv : gen_helper_vsha2ch64_vv);
+
+        mark_vs_dirty(s);
+        gen_set_label(over);
+        return true;
+    }
+    return false;
+}
