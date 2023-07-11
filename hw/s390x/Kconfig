@@ -8,6 +8,7 @@ config S390_CCW_VIRTIO
     imply PCIE_DEVICES
     select PCI_EXPRESS
     select S390_FLIC
+    select S390_FLIC_KVM if KVM
     select SCLPCONSOLE
     select VIRTIO_CCW
     select MSI_NONBROKEN
