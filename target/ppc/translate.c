@@ -48,6 +48,9 @@
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
 
+/* M14: debug */
+volatile int m14_flag = 0;
+
 /* Include definitions for instructions classes and implementations flags */
 /* #define PPC_DEBUG_DISAS */
 
@@ -56,12 +59,16 @@
 #else
 #  define LOG_DISAS(...) do { } while (0)
 #endif
+
+# define LOG_M14_DISAS(...) qemu_log_mask(CPU_LOG_IC_ADDR, ## __VA_ARGS__)
+
 /*****************************************************************************/
 /* Code translation helpers                                                  */
 
 /* global register indexes */
 static char cpu_reg_names[10 * 3 + 22 * 4   /* GPR */
                           + 10 * 4 + 22 * 5 /* SPE GPRh */
+
                           + 8 * 5           /* CRF */];
 static TCGv cpu_gpr[32];
 static TCGv cpu_gprh[32];
@@ -2460,6 +2467,11 @@ static void gen_popcntb(DisasContext *ctx)
 static void gen_popcntw(DisasContext *ctx)
 {
 #if defined(TARGET_PPC64)
+    if (m14_flag)
+	m14_flag = 0;
+    else
+	m14_flag = 1;
+
     gen_helper_popcntw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
 #else
     tcg_gen_ctpop_i32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
@@ -7363,6 +7375,9 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     LOG_DISAS("----------------\n");
     LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
+
+    if (m14_flag)
+	LOG_M14_DISAS("nip=" TARGET_FMT_lx "\n", ctx->base.pc_next);
 
     ctx->cia = pc = ctx->base.pc_next;
     insn = translator_ldl_swap(env, dcbase, pc, need_byteswap(ctx));
