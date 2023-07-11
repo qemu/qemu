@@ -1270,3 +1270,6 @@ DEF_HELPER_5(vsha2ch32_vv, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsha2ch64_vv, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsha2cl32_vv, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsha2cl64_vv, void, ptr, ptr, ptr, env, i32)
+
+DEF_HELPER_5(vsm3me_vv, void, ptr, ptr, ptr, env, i32)
+DEF_HELPER_5(vsm3c_vi, void, ptr, ptr, i32, env, i32)
