@@ -1726,6 +1726,9 @@ if test "$linux" = "yes" ; then
   mips64)
     linux_arch=mips
     ;;
+  riscv32|riscv64)
+    linux_arch=riscv
+    ;;
   *)
     # For most CPUs the kernel architecture name and QEMU CPU name match.
     linux_arch="$cpu"
