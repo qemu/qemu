@@ -142,14 +142,11 @@ static void virtio_mem_pci_instance_init(Object *obj)
 
 static const VirtioPCIDeviceTypeInfo virtio_mem_pci_info = {
     .base_name = TYPE_VIRTIO_MEM_PCI,
+    .parent = TYPE_VIRTIO_MD_PCI,
     .generic_name = "virtio-mem-pci",
     .instance_size = sizeof(VirtIOMEMPCI),
     .instance_init = virtio_mem_pci_instance_init,
     .class_init = virtio_mem_pci_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_MEMORY_DEVICE },
-        { }
-    },
 };
 
 static void virtio_mem_pci_register_types(void)
