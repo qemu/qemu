@@ -2481,7 +2481,7 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_qmp(from, uri, "{}");
 
-    migrate_wait_for_dirty_mem(from, to);
+    migrate_wait_for_dirty_mem(from, to2);
 
     migrate_ensure_converge(from);
 
