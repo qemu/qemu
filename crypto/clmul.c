@@ -58,3 +58,24 @@ uint64_t clmul_8x4_packed(uint32_t n, uint32_t m)
 {
     return clmul_8x4_even_int(unpack_8_to_16(n), unpack_8_to_16(m));
 }
+
+uint64_t clmul_16x2_even(uint64_t n, uint64_t m)
+{
+    uint64_t r = 0;
+
+    n &= 0x0000ffff0000ffffull;
+    m &= 0x0000ffff0000ffffull;
+
+    for (int i = 0; i < 16; ++i) {
+        uint64_t mask = (n & 0x0000000100000001ull) * 0xffffffffull;
+        r ^= m & mask;
+        n >>= 1;
+        m <<= 1;
+    }
+    return r;
+}
+
+uint64_t clmul_16x2_odd(uint64_t n, uint64_t m)
+{
+    return clmul_16x2_even(n >> 16, m >> 16);
+}
