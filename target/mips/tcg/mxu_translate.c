@@ -2434,8 +2434,12 @@ static void gen_mxu_S32SLT(DisasContext *ctx)
         tcg_gen_movi_tl(mxu_gpr[XRa - 1], 0);
     } else {
         /* the most general case */
-        tcg_gen_setcond_tl(TCG_COND_LT, mxu_gpr[XRa - 1],
-                           mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+
+        gen_load_mxu_gpr(t0, XRb);
+        gen_load_mxu_gpr(t1, XRc);
+        tcg_gen_setcond_tl(TCG_COND_LT, mxu_gpr[XRa - 1], t0, t1);
     }
 }
 
