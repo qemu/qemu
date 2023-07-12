@@ -13,10 +13,6 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
 {
     IPodTouchNORSPIState *s = IPOD_TOUCH_NOR_SPI(dev);
 
-    if(value == NOR_GET_JEDECID) {
-        printf("RECEIVED JEDCID VALUE\n");
-    }
-
     if(s->cur_cmd == NOR_READ_DATA_CMD && s->in_buf_cur_ind == s->in_buf_size && value != 0xFF) {
         // if we are currently reading from the NOR data and we receive a value that's not the sentinel, reset the current command.
         s->cur_cmd = 0;
@@ -25,22 +21,47 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
     if(s->cur_cmd == 0) {
         // this is a new command -> set it
         s->cur_cmd = value;
+        printf("NEW CMD %d\n", s->cur_cmd);
         s->out_buf = malloc(0x1000);
-        s->in_buf = malloc(0x100);
+        s->in_buf = malloc(0x1000);
         s->in_buf[0] = value;
         s->in_buf_size = 0;
         s->in_buf_cur_ind = 1;
         s->out_buf_cur_ind = 0;
 
-        if(value == NOR_GET_STATUS_CMD) {
+        if(value == NOR_WRITE_TO_STATUS_REG) {
             s->in_buf_size = 1;
             s->out_buf_size = 1;
             s->out_buf[0] = 0;
+        }
+        else if(value == NOR_GET_STATUS_CMD) {
+            printf("GET STATUS\n");
+            s->in_buf_size = 1;
+            s->out_buf_size = 1;
+            s->out_buf[0] = 0;
+        }
+        else if(value == NOR_WRITE_DATA_CMD) {
+            s->in_buf_size = 4;
+            s->out_buf_size = 256;
+            for(int i = 0; i < 256; i++) { s->out_buf[i] = 0; }; // TODO we ignore this command for now
         }
         else if(value == NOR_READ_DATA_CMD) {
             printf("Received read command!\n");
             s->in_buf_size = 4;
             s->out_buf_size = 4096;
+        }
+        else if(value == NOR_ERASE_BLOCK) {
+            s->in_buf_size = 1;
+            s->out_buf_size = 3;
+            for(int i = 0; i < 3; i++) { s->out_buf[i] = 0x0; } // TODO we ignore this command for now
+        }
+        else if(value == NOR_ENABLE_WRITE) {
+            s->write_enabled = 1;
+            s->cur_cmd = 0;
+        }
+        else if(value == NOR_DISABLE_WRITE) {
+            s->write_enabled = 0;
+            s->cur_cmd = 0;
         }
         else if(value == NOR_GET_JEDECID) {
             s->in_buf_size = 1;
@@ -50,6 +71,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
             s->out_buf[2] = 0x02;
         }
         else {
+            printf("Unknown command %d!\n", value);
             hw_error("Unknown command 0x%02x!", value);
         }
 

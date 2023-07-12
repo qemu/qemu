@@ -68,13 +68,8 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     // aux_data[1] = 0xc0db0640; // NAND FTL object
     cpu_physical_memory_write(0x858fdd4 + 0x5C, (uint8_t *)aux_data, 4);
 
-    // TEMP - replace the IOService wait
-    data[0] = 0x00BF;
-    cpu_physical_memory_write(0x8176482, (uint8_t *)data, 2);
-
-
     // boot args
-    char *boot_args = "kextlog=0xfff debug=0x8 cpus=1 rd=disk0s1 serial=1 io=0xffffffff debug-usb=0xffffffff";
+    char *boot_args = "kextlog=0xfff debug=0x8 cpus=1 rd=disk0s1 serial=1 io=0xffff8fff debug-usb=0xffffffff";
     cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
 
     for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {

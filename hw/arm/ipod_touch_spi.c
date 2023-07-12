@@ -94,6 +94,9 @@ static void apple_spi_run(IPodTouchSPIState *s)
 
     apple_spi_update_xfer_tx(s);
 
+    //printf("TX queue: %d, RX queue: %d\n", REG(s, R_TXCNT), REG(s, R_RXCNT));
+    //printf("TX buffer size: %d, RX buffer size: %d\n", fifo8_num_used(&s->tx_fifo), fifo8_num_used(&s->rx_fifo));
+
     while (REG(s, R_TXCNT) && !fifo8_is_empty(&s->tx_fifo)) {
         tx = (uint32_t)fifo8_pop(&s->tx_fifo);
         rx = ssi_transfer(s->spi, tx);
@@ -129,6 +132,8 @@ static void apple_spi_run(IPodTouchSPIState *s)
     if (REG(s, R_RXCNT) == 0 && REG(s, R_TXCNT) == 0) {
         REG(s, R_STATUS) |= R_STATUS_COMPLETE;
     }
+
+    //printf("<after> TX buffer size: %d, RX buffer size: %d\n", fifo8_num_used(&s->tx_fifo), fifo8_num_used(&s->rx_fifo));
 }
 
 static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
@@ -201,6 +206,7 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         }
         break;
     case R_STATUS:
+        run = true;
         r = old & (~r);
         break;
     case R_PIN:
@@ -208,12 +214,8 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         break;
     case R_TXDATA ... R_TXDATA + 3: {
         int word_size = apple_spi_word_size(s);
-        if ((fifo8_is_full(&s->tx_fifo))
-            || (fifo8_num_free(&s->tx_fifo) < word_size)) {
+        if (fifo8_is_full(&s->tx_fifo) || fifo8_num_free(&s->tx_fifo) < word_size) {
             hw_error("Tx buffer overflow: %d\n", fifo8_num_free(&s->tx_fifo));
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: tx overflow\n", __func__);
-            r = 0;
-            break;
         }
         fifo8_push_all(&s->tx_fifo, (uint8_t *)&r, word_size);
         break;
@@ -292,9 +294,9 @@ static void ipod_touch_spi_realize(DeviceState *dev, struct Error **errp)
             s->nor = nor;
             break;
         case 1:
-            ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_NOR_SPI);
-            nor = IPOD_TOUCH_NOR_SPI(dev);
-            s->nor = nor;
+            //ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_NOR_SPI);
+            //nor = IPOD_TOUCH_NOR_SPI(dev);
+            //s->nor = nor;
             break;
         case 4:
         {
