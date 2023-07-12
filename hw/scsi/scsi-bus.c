@@ -413,19 +413,35 @@ static const struct SCSIReqOps reqops_invalid_opcode = {
 
 /* SCSIReqOps implementation for unit attention conditions.  */
 
+static void scsi_fetch_unit_attention_sense(SCSIRequest *req)
+{
+    SCSISense *ua = NULL;
+
+    if (req->dev->unit_attention.key == UNIT_ATTENTION) {
+        ua = &req->dev->unit_attention;
+    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
+        ua = &req->bus->unit_attention;
+    }
+
+    /*
+     * Fetch the unit attention sense immediately so that another
+     * scsi_req_new does not use reqops_unit_attention.
+     */
+    if (ua) {
+        scsi_req_build_sense(req, *ua);
+        *ua = SENSE_CODE(NO_SENSE);
+    }
+}
+
 static int32_t scsi_unit_attention(SCSIRequest *req, uint8_t *buf)
 {
-    if (req->dev->unit_attention.key == UNIT_ATTENTION) {
-        scsi_req_build_sense(req, req->dev->unit_attention);
-    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
-        scsi_req_build_sense(req, req->bus->unit_attention);
-    }
     scsi_req_complete(req, CHECK_CONDITION);
     return 0;
 }
 
 static const struct SCSIReqOps reqops_unit_attention = {
     .size         = sizeof(SCSIRequest),
+    .init_req     = scsi_fetch_unit_attention_sense,
     .send_command = scsi_unit_attention
 };
 
@@ -699,6 +715,11 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
     notifier_list_init(&req->cancel_notifiers);
+
+    if (reqops->init_req) {
+        reqops->init_req(req);
+    }
+
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
@@ -798,6 +819,15 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
 static void scsi_clear_unit_attention(SCSIRequest *req)
 {
     SCSISense *ua;
+
+    /*
+     * scsi_fetch_unit_attention_sense() already cleaned the unit attention
+     * in this case.
+     */
+    if (req->ops == &reqops_unit_attention) {
+        return;
+    }
+
     if (req->dev->unit_attention.key != UNIT_ATTENTION &&
         req->bus->unit_attention.key != UNIT_ATTENTION) {
         return;
