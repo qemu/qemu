@@ -22,6 +22,7 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static void scsi_req_dequeue(SCSIRequest *req);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
+static void scsi_clear_reported_luns_changed(SCSIRequest *req);
 
 static int next_scsi_bus;
 
@@ -518,6 +519,14 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
 
     /* store the LUN list length */
     stl_be_p(&r->buf[0], len - 8);
+
+    /*
+     * If a REPORT LUNS command enters the enabled command state, [...]
+     * the device server shall clear any pending unit attention condition
+     * with an additional sense code of REPORTED LUNS DATA HAS CHANGED.
+     */
+    scsi_clear_reported_luns_changed(&r->req);
+
     return true;
 }
 
@@ -816,17 +825,9 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
     return req->ops->get_buf(req);
 }
 
-static void scsi_clear_unit_attention(SCSIRequest *req)
+static void scsi_clear_reported_luns_changed(SCSIRequest *req)
 {
     SCSISense *ua;
-
-    /*
-     * scsi_fetch_unit_attention_sense() already cleaned the unit attention
-     * in this case.
-     */
-    if (req->ops == &reqops_unit_attention) {
-        return;
-    }
 
     if (req->dev->unit_attention.key == UNIT_ATTENTION) {
         ua = &req->dev->unit_attention;
@@ -836,13 +837,7 @@ static void scsi_clear_unit_attention(SCSIRequest *req)
         return;
     }
 
-    /*
-     * If a REPORT LUNS command enters the enabled command state, [...]
-     * the device server shall clear any pending unit attention condition
-     * with an additional sense code of REPORTED LUNS DATA HAS CHANGED.
-     */
-    if (req->cmd.buf[0] == REPORT_LUNS &&
-        ua->asc == SENSE_CODE(REPORTED_LUNS_CHANGED).asc &&
+    if (ua->asc == SENSE_CODE(REPORTED_LUNS_CHANGED).asc &&
         ua->ascq == SENSE_CODE(REPORTED_LUNS_CHANGED).ascq) {
         *ua = SENSE_CODE(NO_SENSE);
     }
@@ -1527,13 +1522,6 @@ void scsi_req_complete(SCSIRequest *req, int status)
         req->dev->sense_len = 0;
         req->dev->sense_is_ua = false;
     }
-
-    /*
-     * Unit attention state is now stored in the device's sense buffer
-     * if the HBA didn't do autosense.  Clear the pending unit attention
-     * flags.
-     */
-    scsi_clear_unit_attention(req);
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);
