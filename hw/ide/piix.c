@@ -118,7 +118,7 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_word(pci_conf + PCI_COMMAND, 0x0000);
     pci_set_word(pci_conf + PCI_STATUS,
                  PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
-    pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
+    pci_set_long(pci_conf + 0x20, 0x1);  /* BMIBA: 20-23h */
 }
 
 static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
