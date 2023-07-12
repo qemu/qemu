@@ -70,6 +70,17 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
                              "{ 'execute': 'migrate', 'arguments': %p}", args);
 }
 
+void migrate_set_capability(QTestState *who, const char *capability,
+                            bool value)
+{
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-capabilities',"
+                             "'arguments': { "
+                             "'capabilities': [ { "
+                             "'capability': %s, 'state': %i } ] } }",
+                             capability, value);
+}
+
 /*
  * Note: caller is responsible to free the returned object via
  * qobject_unref() after use
