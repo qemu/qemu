@@ -36,11 +36,10 @@
 extern XBZRLECacheStats xbzrle_counters;
 extern CompressionStats compression_counters;
 
-bool ramblock_is_ignored(RAMBlock *block);
 /* Should be holding either ram_list.mutex, or the RCU lock. */
 #define RAMBLOCK_FOREACH_NOT_IGNORED(block)            \
     INTERNAL_RAMBLOCK_FOREACH(block)                   \
-        if (ramblock_is_ignored(block)) {} else
+        if (migrate_ram_is_ignored(block)) {} else
 
 #define RAMBLOCK_FOREACH_MIGRATABLE(block)             \
     INTERNAL_RAMBLOCK_FOREACH(block)                   \
