@@ -1293,8 +1293,8 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
 
             memcpy(buf + addr % page_size, hbuf, n);
             addr += n;
-            if (addr % page_size == 0) {
-                /* we filled up the page */
+            if (addr % page_size == 0 || addr >= block->target_end) {
+                /* we filled up the page or the current block is finished */
                 break;
             }
         } else {
