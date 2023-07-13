@@ -262,9 +262,10 @@ void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
     }
 
     gd_egl_scanout_texture(dcl, dmabuf->texture,
-                           dmabuf->y0_top, dmabuf->width, dmabuf->height,
-                           dmabuf->x, dmabuf->y, dmabuf->scanout_width,
-                           dmabuf->scanout_height, NULL);
+                           dmabuf->y0_top,
+                           dmabuf->backing_width, dmabuf->backing_height,
+                           dmabuf->x, dmabuf->y, dmabuf->width,
+                           dmabuf->height, NULL);
 
     if (dmabuf->allow_fences) {
         vc->gfx.guest_fb.dmabuf = dmabuf;
@@ -284,7 +285,8 @@ void gd_egl_cursor_dmabuf(DisplayChangeListener *dcl,
         if (!dmabuf->texture) {
             return;
         }
-        egl_fb_setup_for_tex(&vc->gfx.cursor_fb, dmabuf->width, dmabuf->height,
+        egl_fb_setup_for_tex(&vc->gfx.cursor_fb,
+                             dmabuf->backing_width, dmabuf->backing_height,
                              dmabuf->texture, false);
     } else {
         egl_fb_destroy(&vc->gfx.cursor_fb);

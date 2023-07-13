@@ -415,13 +415,13 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                backing_width, backing_height, x, y, w, h);
 #ifdef CONFIG_GBM
     QemuDmaBuf dmabuf = {
-        .width = backing_width,
-        .height = backing_height,
+        .width = w,
+        .height = h,
         .y0_top = backing_y_0_top,
         .x = x,
         .y = y,
-        .scanout_width = w,
-        .scanout_height = h,
+        .backing_width = backing_width,
+        .backing_height = backing_height,
     };
 
     assert(tex_id);
