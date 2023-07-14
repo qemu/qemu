@@ -365,7 +365,7 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
     } while (TRUE);
 
     /* Save the Buffer Descriptor Pointers to last bd that was not
-     * succesfully closed */
+     * successfully closed */
     etsec->regs[TBPTR0 + ring_nbr].value = bd_addr;
 
     /* Set transmit halt THLTx */

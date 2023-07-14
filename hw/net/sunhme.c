@@ -901,7 +901,7 @@ static void sunhme_reset(DeviceState *ds)
     /* Configure internal transceiver */
     s->mifregs[HME_MIFI_CFG >> 2] |= HME_MIF_CFG_MDI0;
 
-    /* Advetise auto, 100Mbps FD */
+    /* Advertise auto, 100Mbps FD */
     s->miiregs[MII_ANAR] = MII_ANAR_TXFD;
     s->miiregs[MII_BMSR] = MII_BMSR_AUTONEG | MII_BMSR_100TX_FD |
                            MII_BMSR_AN_COMP;

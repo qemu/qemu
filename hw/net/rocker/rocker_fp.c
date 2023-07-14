@@ -134,7 +134,7 @@ static ssize_t fp_port_receive_iov(NetClientState *nc, const struct iovec *iov,
     FpPort *port = qemu_get_nic_opaque(nc);
 
     /* If the port is disabled, we want to drop this pkt
-     * now rather than queing it for later.  We don't want
+     * now rather than queueing it for later.  We don't want
      * any stale pkts getting into the device when the port
      * transitions to enabled.
      */

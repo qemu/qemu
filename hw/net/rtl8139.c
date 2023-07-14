@@ -100,7 +100,7 @@ enum RTL8139_registers {
     MAC0 = 0,        /* Ethernet hardware address. */
     MAR0 = 8,        /* Multicast filter. */
     TxStatus0 = 0x10,/* Transmit status (Four 32bit registers). C mode only */
-                     /* Dump Tally Conter control register(64bit). C+ mode only */
+                     /* Dump Tally Counter control register(64bit). C+ mode only */
     TxAddr0 = 0x20,  /* Tx descriptors (also four 32bit). */
     RxBuf = 0x30,
     ChipCmd = 0x37,

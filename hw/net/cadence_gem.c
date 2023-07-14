@@ -81,8 +81,8 @@
 #define GEM_IPGSTRETCH    (0x000000BC / 4) /* IPG Stretch reg */
 #define GEM_SVLAN         (0x000000C0 / 4) /* Stacked VLAN reg */
 #define GEM_MODID         (0x000000FC / 4) /* Module ID reg */
-#define GEM_OCTTXLO       (0x00000100 / 4) /* Octects transmitted Low reg */
-#define GEM_OCTTXHI       (0x00000104 / 4) /* Octects transmitted High reg */
+#define GEM_OCTTXLO       (0x00000100 / 4) /* Octets transmitted Low reg */
+#define GEM_OCTTXHI       (0x00000104 / 4) /* Octets transmitted High reg */
 #define GEM_TXCNT         (0x00000108 / 4) /* Error-free Frames transmitted */
 #define GEM_TXBCNT        (0x0000010C / 4) /* Error-free Broadcast Frames */
 #define GEM_TXMCNT        (0x00000110 / 4) /* Error-free Multicast Frame */
@@ -101,8 +101,8 @@
 #define GEM_LATECOLLCNT   (0x00000144 / 4) /* Late Collision Frames */
 #define GEM_DEFERTXCNT    (0x00000148 / 4) /* Deferred Transmission Frames */
 #define GEM_CSENSECNT     (0x0000014C / 4) /* Carrier Sense Error Counter */
-#define GEM_OCTRXLO       (0x00000150 / 4) /* Octects Received register Low */
-#define GEM_OCTRXHI       (0x00000154 / 4) /* Octects Received register High */
+#define GEM_OCTRXLO       (0x00000150 / 4) /* Octets Received register Low */
+#define GEM_OCTRXHI       (0x00000154 / 4) /* Octets Received register High */
 #define GEM_RXCNT         (0x00000158 / 4) /* Error-free Frames Received */
 #define GEM_RXBROADCNT    (0x0000015C / 4) /* Error-free Broadcast Frames RX */
 #define GEM_RXMULTICNT    (0x00000160 / 4) /* Error-free Multicast Frames RX */
@@ -954,7 +954,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Is this destination MAC address "for us" ? */
     maf = gem_mac_address_filter(s, buf);
     if (maf == GEM_RX_REJECT) {
-        return size;  /* no, drop siliently b/c it's not an error */
+        return size;  /* no, drop silently b/c it's not an error */
     }
 
     /* Discard packets with receive length error enabled ? */

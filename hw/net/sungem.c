@@ -1228,7 +1228,7 @@ static void sungem_mmio_mif_write(void *opaque, hwaddr addr, uint64_t val,
     case MIF_SMACHINE:
         return; /* No actual write */
     case MIF_CFG:
-        /* Maintain the RO MDI bits to advertize an MDIO PHY on MDI0 */
+        /* Maintain the RO MDI bits to advertise an MDIO PHY on MDI0 */
         val &= ~MIF_CFG_MDI1;
         val |= MIF_CFG_MDI0;
         break;
