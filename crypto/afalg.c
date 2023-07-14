@@ -73,7 +73,7 @@ qcrypto_afalg_comm_alloc(const char *type, const char *name,
     QCryptoAFAlg *afalg;
 
     afalg = g_new0(QCryptoAFAlg, 1);
-    /* initilize crypto API socket */
+    /* initialize crypto API socket */
     afalg->opfd = -1;
     afalg->tfmfd = qcrypto_afalg_socket_bind(type, name, errp);
     if (afalg->tfmfd == -1) {

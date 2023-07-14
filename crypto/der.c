@@ -76,7 +76,7 @@ enum QCryptoDERTagEnc {
 /**
  * qcrypto_der_encode_length:
  * @src_len: the length of source data
- * @dst: distination to save the encoded 'length', if dst is NULL, only compute
+ * @dst: destination to save the encoded 'length', if dst is NULL, only compute
  * the expected buffer size in bytes.
  * @dst_len: output parameter, indicates how many bytes wrote.
  *

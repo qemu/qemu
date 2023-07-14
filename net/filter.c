@@ -91,8 +91,8 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
     next = netfilter_next(nf, direction);
     while (next) {
         /*
-         * if qemu_netfilter_pass_to_next been called, means that
-         * the packet has been hold by filter and has already retured size
+         * if qemu_netfilter_pass_to_next has been called, it means that
+         * the packet was held by  a filter and has already returned size
          * to the sender, so sent_cb shouldn't be called later, just
          * pass NULL to next.
          */
@@ -106,7 +106,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
 
     /*
      * We have gone through all filters, pass it to receiver.
-     * Do the valid check again incase sender or receiver been
+     * Do the valid check again in case sender or receiver been
      * deleted while we go through filters.
      */
     if (sender && sender->peer) {
