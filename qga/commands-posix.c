@@ -3249,7 +3249,7 @@ GuestUserList *qmp_guest_get_users(Error **errp)
 
 #endif
 
-/* Replace escaped special characters with theire real values. The replacement
+/* Replace escaped special characters with their real values. The replacement
  * is done in place -- returned value is in the original string.
  */
 static void ga_osrelease_replace_special(gchar *value)

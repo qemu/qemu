@@ -382,7 +382,7 @@ test_add_keys(void)
                                       &err);
     g_assert(err == NULL);
 
-    /*  key2 came first, and should'nt be duplicated */
+    /*  key2 came first, and shouldn't be duplicated */
     test_authorized_keys_equal("algo key2 comments\n"
                                "algo key1 comments");
 }
