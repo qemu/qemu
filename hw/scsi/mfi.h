@@ -65,7 +65,7 @@
 #define MFI_IQPH        0xc4            /* Inbound queue port (high bytes)  */
 #define MFI_DIAG        0xf8            /* Host diag */
 #define MFI_SEQ         0xfc            /* Sequencer offset */
-#define MFI_1078_EIM    0x80000004      /* 1078 enable intrrupt mask  */
+#define MFI_1078_EIM    0x80000004      /* 1078 enable interrupt mask  */
 #define MFI_RMI         0x2             /* reply message interrupt  */
 #define MFI_1078_RM     0x80000000      /* reply 1078 message interrupt  */
 #define MFI_ODC         0x4             /* outbound doorbell change interrupt */

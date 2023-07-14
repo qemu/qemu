@@ -202,7 +202,7 @@ static void exynos4210_rtc_update_freq(Exynos4210RTCState *s,
     uint32_t freq;
 
     freq = s->freq;
-    /* set frequncy for time generator */
+    /* set frequency for time generator */
     s->freq = RTC_BASE_FREQ / (1 << TICCKSEL(reg_value));
 
     if (freq != s->freq) {

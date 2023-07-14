@@ -247,7 +247,7 @@ static void omap_dma_deactivate_channel(struct omap_dma_s *s,
         return;
     }
 
-    /* Don't deactive the channel if it is synchronized and the DMA request is
+    /* Don't deactivate the channel if it is synchronized and the DMA request is
        active */
     if (ch->sync && ch->enable && (s->dma->drqbmp & (1ULL << ch->sync)))
         return;
@@ -422,7 +422,7 @@ static void omap_dma_transfer_generic(struct soc_dma_ch_s *dma)
 
         if (ch->fs && ch->bs) {
             a->pck_element ++;
-            /* Check if a full packet has beed transferred.  */
+            /* Check if a full packet has been transferred.  */
             if (a->pck_element == a->pck_elements) {
                 a->pck_element = 0;
 

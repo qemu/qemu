@@ -191,7 +191,7 @@ static MemTxResult extioi_writew(void *opaque, hwaddr addr,
         cpu = attrs.requester_id;
         old_data = s->coreisr[cpu][index];
         s->coreisr[cpu][index] = old_data & ~val;
-        /* write 1 to clear interrrupt */
+        /* write 1 to clear interrupt */
         old_data &= val;
         irq = ctz32(old_data);
         while (irq != 32) {

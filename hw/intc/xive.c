@@ -1608,7 +1608,7 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  *
  * It receives notification requests sent by the IVRE to find one
  * matching NVT (or more) dispatched on the processor threads. In case
- * of a single NVT notification, the process is abreviated and the
+ * of a single NVT notification, the process is abbreviated and the
  * thread is signaled if a match is found. In case of a logical server
  * notification (bits ignored at the end of the NVT identifier), the
  * IVPE and IVRE select a winning thread using different filters. This

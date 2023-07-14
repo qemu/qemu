@@ -197,7 +197,7 @@ CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds, CXLClearEventPayload *
 
     QEMU_LOCK_GUARD(&log->lock);
     /*
-     * Must itterate the queue twice.
+     * Must iterate the queue twice.
      * "The device shall verify the event record handles specified in the input
      * payload are in temporal order. If the device detects an older event
      * record that will not be cleared when Clear Event Records is executed,

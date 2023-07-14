@@ -538,7 +538,7 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
                                      FIRST_ERROR_POINTER, cxl_err->type);
             } else {
                 /*
-                 * If no more errors, then follow recomendation of PCI spec
+                 * If no more errors, then follow recommendation of PCI spec
                  * r6.0 6.2.4.2 to set the first error pointer to a status
                  * bit that will never be used.
                  */
@@ -697,7 +697,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &ct3d->cxl_dstate.device_registers);
 
-    /* MSI(-X) Initailization */
+    /* MSI(-X) Initialization */
     rc = msix_init_exclusive_bar(pci_dev, msix_num, 4, NULL);
     if (rc) {
         goto err_address_space_free;
@@ -706,7 +706,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
         msix_vector_use(pci_dev, i);
     }
 
-    /* DOE Initailization */
+    /* DOE Initialization */
     pcie_doe_init(pci_dev, &ct3d->doe_cdat, 0x190, doe_cdat_prot, true, 0);
 
     cxl_cstate->cdat.build_cdat_table = ct3_build_cdat_table;

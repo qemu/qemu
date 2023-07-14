@@ -988,7 +988,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
      */
     case VC_SBC_CONFIG: /* Store EOI configuration */
         /*
-         * Configure store EOI if required by firwmare (skiboot has removed
+         * Configure store EOI if required by firmware (skiboot has removed
          * support recently though)
          */
         if (val & (VC_SBC_CONF_CPLX_CIST | VC_SBC_CONF_CIST_BOTH)) {

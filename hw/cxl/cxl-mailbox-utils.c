@@ -39,7 +39,7 @@
  *    fill the output data into cmd->payload (overwriting what was there),
  *    setting the length, and returning a valid return code.
  *
- *  XXX: The handler need not worry about endianess. The payload is read out of
+ *  XXX: The handler need not worry about endianness. The payload is read out of
  *  a register interface that already deals with it.
  */
 
@@ -501,7 +501,7 @@ static CXLRetCode cmd_media_get_poison_list(struct cxl_cmd *cmd,
     uint16_t out_pl_len;
 
     query_start = ldq_le_p(&in->pa);
-    /* 64 byte alignemnt required */
+    /* 64 byte alignment required */
     if (query_start & 0x3f) {
         return CXL_MBOX_INVALID_INPUT;
     }
