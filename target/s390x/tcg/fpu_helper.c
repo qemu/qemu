@@ -87,7 +87,7 @@ static void handle_exceptions(CPUS390XState *env, bool XxC, uintptr_t retaddr)
 
     /*
      * FIXME:
-     * 1. Right now, all inexact conditions are inidicated as
+     * 1. Right now, all inexact conditions are indicated as
      *    "truncated" (0) and never as "incremented" (1) in the DXC.
      * 2. Only traps due to invalid/divbyzero are suppressing. Other traps
      *    are completing, meaning the target register has to be written!

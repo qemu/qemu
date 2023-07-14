@@ -85,7 +85,7 @@ int main(void)
         }
     }
 
-    /* test if MVC works now correctly accross page boundaries */
+    /* test if MVC works now correctly across page boundaries */
     mvc_256(dst + 4096 - 128, src + 4096 - 128);
     for (i = 0; i < ALLOC_SIZE; i++) {
         if (src[i] != 0xff) {
