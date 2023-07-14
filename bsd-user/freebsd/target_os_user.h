@@ -26,7 +26,7 @@
 struct target_priority {
     uint8_t     pri_class;      /* Scheduling class. */
     uint8_t     pri_level;      /* Normal priority level. */
-    uint8_t     pri_native;     /* Priority before propogation. */
+    uint8_t     pri_native;     /* Priority before propagation. */
     uint8_t     pri_user;       /* User priority based on p_cpu and p_nice. */
 };
 
