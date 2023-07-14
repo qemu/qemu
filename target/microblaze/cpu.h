@@ -205,7 +205,7 @@ typedef struct CPUArchState CPUMBState;
 #define PVR10_TARGET_FAMILY_MASK        0xFF000000
 #define PVR10_ASIZE_SHIFT               18
 
-/* MMU descrtiption */
+/* MMU description */
 #define PVR11_USE_MMU                   0xC0000000
 #define PVR11_MMU_ITLB_SIZE             0x38000000
 #define PVR11_MMU_DTLB_SIZE             0x07000000

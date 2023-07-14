@@ -1964,7 +1964,7 @@ static void do_page_zero(DisasContext *ctx)
 {
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
-       next insn within the privilaged page.  */
+       next insn within the privileged page.  */
     switch (ctx->null_cond.c) {
     case TCG_COND_NEVER:
         break;

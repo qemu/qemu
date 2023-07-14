@@ -273,7 +273,7 @@ static void gen_div(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 
     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_ov, srcb, 0);
     /* The result of divide-by-zero is undefined.
-       Supress the host-side exception by dividing by 1.  */
+       Suppress the host-side exception by dividing by 1. */
     tcg_gen_or_tl(t0, srcb, cpu_sr_ov);
     tcg_gen_div_tl(dest, srca, t0);
 
@@ -287,7 +287,7 @@ static void gen_divu(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 
     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_cy, srcb, 0);
     /* The result of divide-by-zero is undefined.
-       Supress the host-side exception by dividing by 1.  */
+       Suppress the host-side exception by dividing by 1. */
     tcg_gen_or_tl(t0, srcb, cpu_sr_cy);
     tcg_gen_divu_tl(dest, srca, t0);
 

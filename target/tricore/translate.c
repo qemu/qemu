@@ -128,7 +128,7 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f, int flags)
  * Functions to generate micro-ops
  */
 
-/* Makros for generating helpers */
+/* Macros for generating helpers */
 
 #define gen_helper_1arg(name, arg) do {                           \
     TCGv_i32 helper_tmp = tcg_constant_i32(arg);                  \
@@ -336,8 +336,8 @@ static void gen_swapmsk(DisasContext *ctx, int reg, TCGv ea)
 
 /* We generate loads and store to core special function register (csfr) through
    the function gen_mfcr and gen_mtcr. To handle access permissions, we use 3
-   makros R, A and E, which allow read-only, all and endinit protected access.
-   These makros also specify in which ISA version the csfr was introduced. */
+   macros R, A and E, which allow read-only, all and endinit protected access.
+   These macros also specify in which ISA version the csfr was introduced. */
 #define R(ADDRESS, REG, FEATURE)                                         \
     case ADDRESS:                                                        \
         if (has_feature(ctx, FEATURE)) {                             \
@@ -362,7 +362,7 @@ static inline void gen_mfcr(DisasContext *ctx, TCGv ret, int32_t offset)
 #undef E
 
 #define R(ADDRESS, REG, FEATURE) /* don't gen writes to read-only reg,
-                                    since no execption occurs */
+                                    since no exception occurs */
 #define A(ADDRESS, REG, FEATURE) R(ADDRESS, REG, FEATURE)                \
     case ADDRESS:                                                        \
         if (has_feature(ctx, FEATURE)) {                             \
