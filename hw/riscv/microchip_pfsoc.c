@@ -659,7 +659,7 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "microchip.icicle.kit.ram";
 
     /*
-     * Map 513 MiB high memory, the mimimum required high memory size, because
+     * Map 513 MiB high memory, the minimum required high memory size, because
      * HSS will do memory test against the high memory address range regardless
      * of physical memory installed.
      *

@@ -3215,7 +3215,7 @@ static int write_hvipriox(CPURISCVState *env, int first_index,
                RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
     }
 
-    /* Fill-up priority arrary */
+    /* Fill-up priority array */
     for (i = 0; i < num_irqs; i++) {
         if (riscv_cpu_hviprio_index2irq(first_index + i, &irq, &rdzero)) {
             continue;
@@ -3884,7 +3884,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
     if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
         !env->virt_enabled) {
         /*
-         * We are in HS mode. Add 1 to the effective privledge level to
+         * We are in HS mode. Add 1 to the effective privilege level to
          * allow us to access the Hypervisor CSRs.
          */
         effective_priv++;
