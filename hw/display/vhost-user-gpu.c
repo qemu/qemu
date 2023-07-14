@@ -32,6 +32,7 @@ typedef enum VhostUserGpuRequest {
     VHOST_USER_GPU_DMABUF_SCANOUT,
     VHOST_USER_GPU_DMABUF_UPDATE,
     VHOST_USER_GPU_GET_EDID,
+    VHOST_USER_GPU_DMABUF_SCANOUT2,
 } VhostUserGpuRequest;
 
 typedef struct VhostUserGpuDisplayInfoReply {
@@ -79,6 +80,11 @@ typedef struct VhostUserGpuDMABUFScanout {
     int fd_drm_fourcc;
 } QEMU_PACKED VhostUserGpuDMABUFScanout;
 
+typedef struct VhostUserGpuDMABUFScanout2 {
+    struct VhostUserGpuDMABUFScanout dmabuf_scanout;
+    uint64_t modifier;
+} QEMU_PACKED VhostUserGpuDMABUFScanout2;
+
 typedef struct VhostUserGpuEdidRequest {
     uint32_t scanout_id;
 } QEMU_PACKED VhostUserGpuEdidRequest;
@@ -93,6 +99,7 @@ typedef struct VhostUserGpuMsg {
         VhostUserGpuScanout scanout;
         VhostUserGpuUpdate update;
         VhostUserGpuDMABUFScanout dmabuf_scanout;
+        VhostUserGpuDMABUFScanout2 dmabuf_scanout2;
         VhostUserGpuEdidRequest edid_req;
         struct virtio_gpu_resp_edid resp_edid;
         struct virtio_gpu_resp_display_info display_info;
@@ -107,6 +114,7 @@ static VhostUserGpuMsg m __attribute__ ((unused));
 #define VHOST_USER_GPU_MSG_FLAG_REPLY 0x4
 
 #define VHOST_USER_GPU_PROTOCOL_F_EDID 0
+#define VHOST_USER_GPU_PROTOCOL_F_DMABUF2 1
 
 static void vhost_user_gpu_update_blocked(VhostUserGPU *g, bool blocked);
 
@@ -171,7 +179,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
             .flags = VHOST_USER_GPU_MSG_FLAG_REPLY,
             .size = sizeof(uint64_t),
             .payload = {
-                .u64 = (1 << VHOST_USER_GPU_PROTOCOL_F_EDID)
+                .u64 = (1 << VHOST_USER_GPU_PROTOCOL_F_EDID) |
+                       (1 << VHOST_USER_GPU_PROTOCOL_F_DMABUF2)
             }
         };
 
@@ -236,6 +245,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
 
         break;
     }
+    case VHOST_USER_GPU_DMABUF_SCANOUT2:
     case VHOST_USER_GPU_DMABUF_SCANOUT: {
         VhostUserGpuDMABUFScanout *m = &msg->payload.dmabuf_scanout;
         int fd = qemu_chr_fe_get_msgfd(&g->vhost_chr);
@@ -269,6 +279,11 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
             .fourcc = m->fd_drm_fourcc,
             .y0_top = m->fd_flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
         };
+        if (msg->request == VHOST_USER_GPU_DMABUF_SCANOUT2) {
+            VhostUserGpuDMABUFScanout2 *m2 = &msg->payload.dmabuf_scanout2;
+            dmabuf->modifier = m2->modifier;
+        }
+
         dpy_gl_scanout_dmabuf(con, dmabuf);
         break;
     }
