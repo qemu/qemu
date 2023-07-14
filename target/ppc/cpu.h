@@ -428,7 +428,7 @@ FIELD(MSR, LE, MSR_LE, 1)
 
 /* PMU bits */
 #define MMCR0_FC     PPC_BIT(32)         /* Freeze Counters  */
-#define MMCR0_PMAO   PPC_BIT(56)         /* Perf Monitor Alert Ocurred */
+#define MMCR0_PMAO   PPC_BIT(56)         /* Perf Monitor Alert Occurred */
 #define MMCR0_PMAE   PPC_BIT(37)         /* Perf Monitor Alert Enable */
 #define MMCR0_EBE    PPC_BIT(43)         /* Perf Monitor EBB Enable */
 #define MMCR0_FCECE  PPC_BIT(38)         /* FC on Enabled Cond or Event */

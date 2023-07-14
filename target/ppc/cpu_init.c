@@ -5347,7 +5347,7 @@ static void register_970_lpar_sprs(CPUPPCState *env)
 static void register_power5p_lpar_sprs(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
-    /* Logical partitionning */
+    /* Logical partitioning */
     spr_register_kvm_hv(env, SPR_LPCR, "LPCR",
                         SPR_NOACCESS, SPR_NOACCESS,
                         SPR_NOACCESS, SPR_NOACCESS,
@@ -5760,7 +5760,7 @@ static void register_power9_mmu_sprs(CPUPPCState *env)
 static void register_power10_hash_sprs(CPUPPCState *env)
 {
     /*
-     * it's the OS responsability to generate a random value for the registers
+     * it's the OS responsibility to generate a random value for the registers
      * in each process' context. So, initialize it with 0 here.
      */
     uint64_t hashkeyr_initial_value = 0, hashpkeyr_initial_value = 0;

@@ -738,7 +738,7 @@ static target_ulong _cpu_ppc_load_decr(CPUPPCState *env, int64_t now)
     decr = __cpu_ppc_load_decr(env, now, tb_env->decr_next);
 
     /*
-     * If large decrementer is enabled then the decrementer is signed extened
+     * If large decrementer is enabled then the decrementer is signed extended
      * to 64 bits, otherwise it is a 32 bit value.
      */
     if (env->spr[SPR_LPCR] & LPCR_LD) {

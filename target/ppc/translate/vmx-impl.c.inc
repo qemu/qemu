@@ -119,7 +119,7 @@ static void gen_stve##name(DisasContext *ctx)                           \
     }
 
 GEN_VR_LDX(lvx, 0x07, 0x03);
-/* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
+/* As we don't emulate the cache, lvxl is strictly equivalent to lvx */
 GEN_VR_LDX(lvxl, 0x07, 0x0B);
 
 GEN_VR_LVE(bx, 0x07, 0x00, 1);
@@ -127,7 +127,7 @@ GEN_VR_LVE(hx, 0x07, 0x01, 2);
 GEN_VR_LVE(wx, 0x07, 0x02, 4);
 
 GEN_VR_STX(svx, 0x07, 0x07);
-/* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
+/* As we don't emulate the cache, stvxl is strictly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
 
 GEN_VR_STVE(bx, 0x07, 0x04, 1);
@@ -1526,7 +1526,7 @@ static void gen_vprtyb_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
 {
     int i;
     TCGv_vec tmp = tcg_temp_new_vec_matching(b);
-    /* MO_32 is 2, so 2 iteractions for MO_32 and 3 for MO_64 */
+    /* MO_32 is 2, so 2 iterations for MO_32 and 3 for MO_64 */
     for (i = 0; i < vece; i++) {
         tcg_gen_shri_vec(vece, tmp, b, (4 << (vece - i)));
         tcg_gen_xor_vec(vece, b, tmp, b);

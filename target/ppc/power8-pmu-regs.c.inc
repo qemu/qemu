@@ -16,7 +16,7 @@
  * Checks whether the Group A SPR (MMCR0, MMCR2, MMCRA, and the
  * PMCs) has problem state read access.
  *
- * Read acccess is granted for all PMCC values but 0b01, where a
+ * Read access is granted for all PMCC values but 0b01, where a
  * Facility Unavailable Interrupt will occur.
  */
 static bool spr_groupA_read_allowed(DisasContext *ctx)
@@ -33,7 +33,7 @@ static bool spr_groupA_read_allowed(DisasContext *ctx)
  * Checks whether the Group A SPR (MMCR0, MMCR2, MMCRA, and the
  * PMCs) has problem state write access.
  *
- * Write acccess is granted for PMCC values 0b10 and 0b11. Userspace
+ * Write access is granted for PMCC values 0b10 and 0b11. Userspace
  * writing with PMCC 0b00 will generate a Hypervisor Emulation
  * Assistance Interrupt. Userspace writing with PMCC 0b01 will
  * generate a Facility Unavailable Interrupt.

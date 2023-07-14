@@ -378,7 +378,7 @@ static target_ulong h_scm_bind_mem(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     /*
      * Currently continue token should be zero qemu has already bound
-     * everything and this hcall doesnt return H_BUSY.
+     * everything and this hcall doesn't return H_BUSY.
      */
     if (continue_token > 0) {
         return H_P5;
@@ -589,7 +589,7 @@ void spapr_nvdimm_finish_flushes(void)
      * Called on reset path, the main loop thread which calls
      * the pending BHs has gotten out running in the reset path,
      * finally reaching here. Other code path being guest
-     * h_client_architecture_support, thats early boot up.
+     * h_client_architecture_support, that's early boot up.
      */
     nvdimms = nvdimm_get_device_list();
     for (list = nvdimms; list; list = list->next) {
