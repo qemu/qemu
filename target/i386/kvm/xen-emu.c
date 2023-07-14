@@ -1033,7 +1033,7 @@ static int do_set_periodic_timer(CPUState *target, uint64_t period_ns)
 #define MILLISECS(_ms)  ((int64_t)((_ms) * 1000000ULL))
 #define MICROSECS(_us)  ((int64_t)((_us) * 1000ULL))
 #define STIME_MAX ((time_t)((int64_t)~0ull >> 1))
-/* Chosen so (NOW() + delta) wont overflow without an uptime of 200 years */
+/* Chosen so (NOW() + delta) won't overflow without an uptime of 200 years */
 #define STIME_DELTA_MAX ((int64_t)((uint64_t)~0ull >> 2))
 
 static int vcpuop_set_periodic_timer(CPUState *cs, CPUState *target,

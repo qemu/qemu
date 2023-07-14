@@ -31,7 +31,7 @@
  *
  * This code should be compatible with AMD's "Extended Method" described at:
  *   AMD CPUID Specification (Publication #25481)
- *   Section 3: Multiple Core Calcuation
+ *   Section 3: Multiple Core Calculation
  * as long as:
  *  nr_threads is set to 1;
  *  OFFSET_IDX is assumed to be 0;

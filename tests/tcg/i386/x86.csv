@@ -19,7 +19,7 @@
 #
 # 4. The instruction encoding. For example, "C1 /4 ib".
 #
-# 5. The validity of the instruction in 32-bit (aka compatiblity, legacy) mode.
+# 5. The validity of the instruction in 32-bit (aka compatibility, legacy) mode.
 #
 # 6. The validity of the instruction in 64-bit mode.
 #

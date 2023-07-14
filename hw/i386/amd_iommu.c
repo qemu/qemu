@@ -259,7 +259,7 @@ static void amdvi_log_command_error(AMDVIState *s, hwaddr addr)
     pci_word_test_and_set_mask(s->pci.dev.config + PCI_STATUS,
             PCI_STATUS_SIG_TARGET_ABORT);
 }
-/* log an illegal comand event
+/* log an illegal command event
  *   @addr : address of illegal command
  */
 static void amdvi_log_illegalcom_error(AMDVIState *s, uint16_t info,
@@ -767,7 +767,7 @@ static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case AMDVI_MMIO_COMMAND_BASE:
         amdvi_mmio_reg_write(s, size, val, addr);
-        /* FIXME - make sure System Software has finished writing incase
+        /* FIXME - make sure System Software has finished writing in case
          * it writes in chucks less than 8 bytes in a robust way.As for
          * now, this hacks works for the linux driver
          */
