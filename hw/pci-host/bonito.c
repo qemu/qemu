@@ -62,7 +62,7 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-/* from linux soure code. include/asm-mips/mips-boards/bonito64.h*/
+/* from linux source code. include/asm-mips/mips-boards/bonito64.h*/
 #define BONITO_BOOT_BASE        0x1fc00000
 #define BONITO_BOOT_SIZE        0x00100000
 #define BONITO_BOOT_TOP         (BONITO_BOOT_BASE + BONITO_BOOT_SIZE - 1)

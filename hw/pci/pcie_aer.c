@@ -324,7 +324,7 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
          * it isn't implemented in qemu right now.
          * So just discard the error for now.
          * OS which cares of aer would receive errors via
-         * native aer mechanims, so this wouldn't matter.
+         * native aer mechanisms, so this wouldn't matter.
          */
     }
 
