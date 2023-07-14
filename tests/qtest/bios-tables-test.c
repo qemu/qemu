@@ -26,7 +26,7 @@
  * 4. Run
  *      make check V=2
  * this will produce a bunch of warnings about differences
- * beween actual and expected ACPI tables. If you have IASL installed,
+ * between actual and expected ACPI tables. If you have IASL installed,
  * they will also be disassembled so you can look at the disassembled
  * output. If not - disassemble them yourself in any way you like.
  * Look at the differences - make sure they make sense and match what the

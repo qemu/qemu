@@ -41,7 +41,7 @@ _supported_fmt qcow2
 _supported_proto file fuse
 _require_drivers blkdebug blkverify
 # blkdebug can only inject errors on bs->file, not on the data_file,
-# so thie test does not work with external data files
+# so this test does not work with external data files
 _unsupported_imgopts data_file
 
 do_run_qemu()

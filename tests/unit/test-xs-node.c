@@ -362,7 +362,7 @@ static void test_xs_node_simple(void)
     g_assert(data->len == strlen("something"));
     g_assert(!memcmp(data->data, "something", data->len));
 
-    /* Even if we use an abolute path */
+    /* Even if we use an absolute path */
     g_byte_array_set_size(data, 0);
     err = xs_impl_read(s, DOMID_GUEST, XBT_NULL,
                        "/local/domain/1/some/relative/path", data);

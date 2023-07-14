@@ -454,7 +454,7 @@ static void test_timer_schedule(void)
 
     g_assert_cmpint(data.n, ==, 0);
 
-    /* timer_mod may well cause an event notifer to have gone off,
+    /* timer_mod may well cause an event notifier to have gone off,
      * so clear that
      */
     do {} while (aio_poll(ctx, false));

@@ -846,9 +846,9 @@ static void generic_pre_fuzz(QTestState *s)
  *          functionality B
  *
  * This function attempts to produce an input that:
- * Ouptut: maps a device's BARs, set up three DMA patterns, triggers
- *          functionality A device, replaces the DMA patterns with a single
- *          patten, and triggers device functionality B.
+ * Output: maps a device's BARs, set up three DMA patterns, triggers
+ *          device functionality A, replaces the DMA patterns with a single
+ *          pattern, and triggers device functionality B.
  */
 static size_t generic_fuzz_crossover(const uint8_t *data1, size_t size1, const
                                      uint8_t *data2, size_t size2, uint8_t *out,

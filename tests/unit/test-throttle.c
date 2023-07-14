@@ -135,7 +135,7 @@ static void test_compute_wait(void)
         g_assert(double_cmp(bkt.burst_level, 0));
         g_assert(double_cmp(bkt.level, (i + 1) * (bkt.max - bkt.avg) / 10));
         /* We can do bursts for the 2 seconds we have configured in
-         * burst_length. We have 100 extra miliseconds of burst
+         * burst_length. We have 100 extra milliseconds of burst
          * because bkt.level has been leaking during this time.
          * After that, we have to wait. */
         result = i < 21 ? 0 : 1.8 * NANOSECONDS_PER_SECOND;
@@ -375,11 +375,11 @@ static void test_is_valid_for_value(int value, bool should_be_valid)
 
 static void test_is_valid(void)
 {
-    /* negative number are invalid */
+    /* negative numbesr are invalid */
     test_is_valid_for_value(-1, false);
-    /* zero are valids */
+    /* zero is valid */
     test_is_valid_for_value(0, true);
-    /* positives numers are valids */
+    /* positives numbers are valid */
     test_is_valid_for_value(1, true);
 }
 

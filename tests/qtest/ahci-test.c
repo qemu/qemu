@@ -330,7 +330,7 @@ static void ahci_test_pci_spec(AHCIQState *ahci)
     ASSERT_BIT_CLEAR(datal, ~0xFF);
     g_assert_cmphex(datal, !=, 0);
 
-    /* Check specification adherence for capability extenstions. */
+    /* Check specification adherence for capability extensions. */
     data = qpci_config_readw(ahci->dev, datal);
 
     switch (ahci->fingerprint) {

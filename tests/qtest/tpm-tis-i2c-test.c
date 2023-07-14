@@ -468,7 +468,7 @@ static void tpm_tis_i2c_test_check_access_reg_release(const void *data)
                            TPM_TIS_ACCESS_ACTIVE_LOCALITY);
         /*
          * highest locality should now be active; release it and make sure the
-         * next higest locality is active afterwards
+         * next highest locality is active afterwards
          */
         for (l = TPM_TIS_NUM_LOCALITIES - 2; l >= 0; l--) {
             if (l == locty) {

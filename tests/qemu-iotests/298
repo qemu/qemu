@@ -140,8 +140,8 @@ class TestTruncate(iotests.QMPTestCase):
         stat = os.stat(disk)
         refstat = os.stat(refdisk)
 
-        # Probably we'll want preallocate filter to keep align to cluster when
-        # shrink preallocation, so, ignore small differece
+        # The preallocate filter may keep cluster alignment when shrinking,
+        # so ignore small differences
         self.assertLess(abs(stat.st_size - refstat.st_size), 64 * 1024)
 
         # Preallocate filter may leak some internal clusters (for example, if
