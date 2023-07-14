@@ -111,7 +111,7 @@ def print_event(eid, name, string=None, event_count=None):
 # Decoders for each event type
 
 def decode_unimp(eid, name, _unused_dumpfile):
-    "Unimplimented decoder, will trigger exit"
+    "Unimplemented decoder, will trigger exit"
     print("%s not handled - will now stop" % (name))
     return False
 

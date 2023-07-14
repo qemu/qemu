@@ -81,7 +81,7 @@ class QAPIGen:
         if odir:
             os.makedirs(odir, exist_ok=True)
 
-        # use os.open for O_CREAT to create and read a non-existant file
+        # use os.open for O_CREAT to create and read a non-existent file
         fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
         with os.fdopen(fd, 'r+', encoding='utf-8') as fp:
             text = self.get_content()

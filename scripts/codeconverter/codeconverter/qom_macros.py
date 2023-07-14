@@ -142,7 +142,7 @@ class FullStructTypedefMatch(TypedefMatch):
         return name
 
     def strip_typedef(self) -> Patch:
-        """generate patch that will strip typedef from the struct declartion
+        """generate patch that will strip typedef from the struct declaration
 
         The caller is responsible for readding the typedef somewhere else.
         """
