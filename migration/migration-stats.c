@@ -48,7 +48,7 @@ uint64_t migration_rate_get(void)
 void migration_rate_set(uint64_t limit)
 {
     /*
-     * 'limit' is per second.  But we check it each BUFER_DELAY miliseconds.
+     * 'limit' is per second.  But we check it each BUFFER_DELAY milliseconds.
      */
     stat64_set(&mig_stats.rate_limit_max, limit / XFER_LIMIT_RATIO);
 }

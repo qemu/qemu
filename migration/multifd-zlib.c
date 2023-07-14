@@ -57,7 +57,7 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
         err_msg = "deflate init failed";
         goto err_free_z;
     }
-    /* This is the maxium size of the compressed buffer */
+    /* This is the maximum size of the compressed buffer */
     z->zbuff_len = compressBound(MULTIFD_PACKET_SIZE);
     z->zbuff = g_try_malloc(z->zbuff_len);
     if (!z->zbuff) {
