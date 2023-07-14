@@ -79,7 +79,7 @@ cryptodev_vhost_init(
  * cryptodev_vhost_cleanup:
  * @crypto: the cryptodev backend common vhost object
  *
- * Clean the resouce associated with @crypto that realizaed
+ * Clean the resource associated with @crypto that realizaed
  * by cryptodev_vhost_init()
  *
  */

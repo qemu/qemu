@@ -76,7 +76,7 @@
 #define PMU_INT_WAITING_CHARGER    0x01    /* ??? */
 #define PMU_INT_AUTO_SRQ_POLL      0x02    /* ??? */
 
-/* Bits in the environement message (either obtained via PMU_GET_COVER,
+/* Bits in the environment message (either obtained via PMU_GET_COVER,
  * or via PMU_INT_ENVIRONMENT on core99 */
 #define PMU_ENV_LID_CLOSED     0x01    /* The lid is closed */
 

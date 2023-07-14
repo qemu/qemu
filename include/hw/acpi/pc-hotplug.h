@@ -13,7 +13,7 @@
 #define PC_HOTPLUG_H
 
 /*
- * ONLY DEFINEs are permited in this file since it's shared
+ * ONLY DEFINEs are permitted in this file since it's shared
  * between C and ASL code.
  */
 

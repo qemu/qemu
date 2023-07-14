@@ -115,7 +115,7 @@ int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize);
 
 /**
  * tpm_backend_had_startup_error:
- * @s: the backend to query for a statup error
+ * @s: the backend to query for a startup error
  *
  * Check whether the backend had an error during startup. Returns
  * false if no error occurred and the backend can be used, true

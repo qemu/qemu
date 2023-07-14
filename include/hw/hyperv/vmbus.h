@@ -51,7 +51,7 @@ struct VMBusDeviceClass {
     uint16_t channel_flags;
     uint16_t mmio_size_mb;
 
-    /* Extentions to standard device callbacks */
+    /* Extensions to standard device callbacks */
     void (*vmdev_realize)(VMBusDevice *vdev, Error **errp);
     void (*vmdev_unrealize)(VMBusDevice *vdev);
     void (*vmdev_reset)(VMBusDevice *vdev);
