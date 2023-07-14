@@ -165,7 +165,7 @@ enum FslIMX7MemoryMap {
      * Some versions of the reference manual claim that UART2 is @
      * 0x30870000, but experiments with HW + DT files in upstream
      * Linux kernel show that not to be true and that block is
-     * acutally located @ 0x30890000
+     * actually located @ 0x30890000
      */
     FSL_IMX7_UART2_ADDR           = 0x30890000,
     FSL_IMX7_UART3_ADDR           = 0x30880000,

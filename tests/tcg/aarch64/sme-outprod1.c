@@ -28,7 +28,7 @@ asm(
 "	fmopa za1.s, p0/m, p0/m, z0.s, z0.s\n"
 /*
  * Read the first 4x4 sub-matrix of elements from tile 1:
- * Note that za1h should be interchangable here.
+ * Note that za1h should be interchangeable here.
  */
 "	mov w12, #0\n"
 "	mova z0.s, p0/m, za1v.s[w12, #0]\n"

@@ -2182,7 +2182,7 @@ static bool trans_VMOV_to_2gp(DisasContext *s, arg_VMOV_to_2gp *a)
      * execution if it is not in an IT block. For us this means
      * only that if PSR.ECI says we should not be executing the beat
      * corresponding to the lane of the vector register being accessed
-     * then we should skip perfoming the move, and that we need to do
+     * then we should skip performing the move, and that we need to do
      * the usual check for bad ECI state and advance of ECI state.
      * (If PSR.ECI is non-zero then we cannot be in an IT block.)
      */
@@ -2225,7 +2225,7 @@ static bool trans_VMOV_from_2gp(DisasContext *s, arg_VMOV_to_2gp *a)
      * execution if it is not in an IT block. For us this means
      * only that if PSR.ECI says we should not be executing the beat
      * corresponding to the lane of the vector register being accessed
-     * then we should skip perfoming the move, and that we need to do
+     * then we should skip performing the move, and that we need to do
      * the usual check for bad ECI state and advance of ECI state.
      * (If PSR.ECI is non-zero then we cannot be in an IT block.)
      */

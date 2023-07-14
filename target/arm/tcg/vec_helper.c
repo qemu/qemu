@@ -2626,7 +2626,7 @@ void HELPER(gvec_bfmmla)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
          * Process the entire segment at once, writing back the
          * results only after we've consumed all of the inputs.
          *
-         * Key to indicies by column:
+         * Key to indices by column:
          *               i   j           i   k             j   k
          */
         sum00 = a[s + H4(0 + 0)];

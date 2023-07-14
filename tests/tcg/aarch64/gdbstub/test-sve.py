@@ -1,6 +1,6 @@
 from __future__ import print_function
 #
-# Test the SVE registers are visable and changeable via gdbstub
+# Test the SVE registers are visible and changeable via gdbstub
 #
 # This is launched via tests/guest-debug/run-test.py
 #

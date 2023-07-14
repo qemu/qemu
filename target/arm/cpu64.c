@@ -95,7 +95,7 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
 
         if (kvm_enabled()) {
             /*
-             * For KVM we have to automatically enable all supported unitialized
+             * For KVM we have to automatically enable all supported uninitialized
              * lengths, even when the smaller lengths are not all powers-of-two.
              */
             vq_map |= vq_supported & ~vq_init & vq_mask;
