@@ -459,7 +459,7 @@ static bool try_find_variable(Context *c, YYLTYPE *locp,
     return false;
 }
 
-/* Calls `try_find_variable` and asserts succcess. */
+/* Calls `try_find_variable` and asserts success. */
 static void find_variable(Context *c, YYLTYPE *locp,
                           HexValue *dst,
                           HexValue *varid)
@@ -549,7 +549,7 @@ HexValue gen_bin_cmp(Context *c,
             ");\n");
         break;
     default:
-        fprintf(stderr, "Error in evalutating immediateness!");
+        fprintf(stderr, "Error in evaluating immediateness!");
         abort();
     }
     return res;
@@ -1164,7 +1164,7 @@ void gen_rdeposit_op(Context *c,
 {
     /*
      * Otherwise if the width is not known, we fallback on reimplementing
-     * desposit in TCG.
+     * deposit in TCG.
      */
     HexValue begin_m = *begin;
     HexValue value_m = *value;

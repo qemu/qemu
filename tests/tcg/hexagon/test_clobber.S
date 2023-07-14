@@ -1,5 +1,5 @@
 /*
- * Purpose: demonstrate the succesful operation of the register save mechanism,
+ * Purpose: demonstrate the successful operation of the register save mechanism,
  * in which the caller saves the registers that will be clobbered, and restores
  * them after the call.
  */

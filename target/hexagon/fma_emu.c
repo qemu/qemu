@@ -415,7 +415,7 @@ static SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
      * We want to normalize left until we have a leading one in bit 24 \
      * Theoretically, we only need to shift a maximum of one to the left if we \
      * shifted out lots of bits from B, or if we had no shift / 1 shift sticky \
-     * shoudl be 0  \
+     * should be 0  \
      */ \
     while ((int128_getlo(a.mant) & (1ULL << MANTBITS)) == 0) { \
         a = accum_norm_left(a); \

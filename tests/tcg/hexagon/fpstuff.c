@@ -52,7 +52,7 @@ static void check_compare_exception(void)
     uint32_t cmp;
     uint32_t usr;
 
-    /* Check that FP compares are quiet (don't raise any execptions) */
+    /* Check that FP compares are quiet (don't raise any exceptions) */
     asm (CLEAR_FPSTATUS
          "p0 = sfcmp.eq(%2, %3)\n\t"
          "%0 = p0\n\t"
