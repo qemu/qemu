@@ -48,7 +48,7 @@ static inline uint64_t makedev_dotl(uint32_t dev_major, uint32_t dev_minor)
 /*
  * Converts given device number from host's device number format to Linux
  * device number format. As both the size of type dev_t and encoding of
- * dev_t is system dependant, we have to convert them for Linux guests if
+ * dev_t is system dependent, we have to convert them for Linux guests if
  * host is not running Linux.
  */
 static inline uint64_t host_dev_to_dotl_dev(dev_t dev)

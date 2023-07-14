@@ -493,7 +493,7 @@ static int synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
         node = dir_node;
         goto out;
     }
-    /* search for the name in the childern */
+    /* search for the name in the children */
     rcu_read_lock();
     QLIST_FOREACH(node, &dir_node->child, sibling) {
         if (!strcmp(node->name, name)) {
