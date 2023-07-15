@@ -41,7 +41,7 @@ CMPXCHG_HELPER(cmpxchgq_be, uint64_t)
 CMPXCHG_HELPER(cmpxchgq_le, uint64_t)
 #endif
 
-#ifdef CONFIG_CMPXCHG128
+#if HAVE_CMPXCHG128
 CMPXCHG_HELPER(cmpxchgo_be, Int128)
 CMPXCHG_HELPER(cmpxchgo_le, Int128)
 #endif

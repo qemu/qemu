@@ -778,7 +778,7 @@ typedef void (*gen_atomic_op_i64)(TCGv_i64, TCGv_env, TCGv_i64,
 #else
 # define WITH_ATOMIC64(X)
 #endif
-#ifdef CONFIG_CMPXCHG128
+#if HAVE_CMPXCHG128
 # define WITH_ATOMIC128(X) X,
 #else
 # define WITH_ATOMIC128(X)

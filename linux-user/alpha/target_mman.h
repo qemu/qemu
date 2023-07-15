@@ -1,6 +1,19 @@
 #ifndef ALPHA_TARGET_MMAN_H
 #define ALPHA_TARGET_MMAN_H
 
+#define TARGET_MAP_ANONYMOUS            0x10
+#define TARGET_MAP_FIXED                0x100
+#define TARGET_MAP_GROWSDOWN            0x01000
+#define TARGET_MAP_DENYWRITE            0x02000
+#define TARGET_MAP_EXECUTABLE           0x04000
+#define TARGET_MAP_LOCKED               0x08000
+#define TARGET_MAP_NORESERVE            0x10000
+#define TARGET_MAP_POPULATE             0x20000
+#define TARGET_MAP_NONBLOCK             0x40000
+#define TARGET_MAP_STACK                0x80000
+#define TARGET_MAP_HUGETLB              0x100000
+#define TARGET_MAP_FIXED_NOREPLACE      0x200000
+
 #define TARGET_MADV_DONTNEED 6
 
 #define TARGET_MS_ASYNC 1

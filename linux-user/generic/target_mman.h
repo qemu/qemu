@@ -1,6 +1,64 @@
 #ifndef LINUX_USER_TARGET_MMAN_H
 #define LINUX_USER_TARGET_MMAN_H
 
+/* These are defined in linux/mmap.h */
+#define TARGET_MAP_SHARED               0x01
+#define TARGET_MAP_PRIVATE              0x02
+#define TARGET_MAP_SHARED_VALIDATE      0x03
+
+/* 0x0100 - 0x4000 flags are defined in asm-generic/mman.h */
+#ifndef TARGET_MAP_GROWSDOWN
+#define TARGET_MAP_GROWSDOWN            0x0100
+#endif
+#ifndef TARGET_MAP_DENYWRITE
+#define TARGET_MAP_DENYWRITE            0x0800
+#endif
+#ifndef TARGET_MAP_EXECUTABLE
+#define TARGET_MAP_EXECUTABLE           0x1000
+#endif
+#ifndef TARGET_MAP_LOCKED
+#define TARGET_MAP_LOCKED               0x2000
+#endif
+#ifndef TARGET_MAP_NORESERVE
+#define TARGET_MAP_NORESERVE            0x4000
+#endif
+
+/* Defined in asm-generic/mman-common.h */
+#ifndef TARGET_PROT_SEM
+#define TARGET_PROT_SEM                 0x08
+#endif
+
+#ifndef TARGET_MAP_TYPE
+#define TARGET_MAP_TYPE                 0x0f
+#endif
+#ifndef TARGET_MAP_FIXED
+#define TARGET_MAP_FIXED                0x10
+#endif
+#ifndef TARGET_MAP_ANONYMOUS
+#define TARGET_MAP_ANONYMOUS            0x20
+#endif
+#ifndef TARGET_MAP_POPULATE
+#define TARGET_MAP_POPULATE             0x008000
+#endif
+#ifndef TARGET_MAP_NONBLOCK
+#define TARGET_MAP_NONBLOCK             0x010000
+#endif
+#ifndef TARGET_MAP_STACK
+#define TARGET_MAP_STACK                0x020000
+#endif
+#ifndef TARGET_MAP_HUGETLB
+#define TARGET_MAP_HUGETLB              0x040000
+#endif
+#ifndef TARGET_MAP_SYNC
+#define TARGET_MAP_SYNC                 0x080000
+#endif
+#ifndef TARGET_MAP_FIXED_NOREPLACE
+#define TARGET_MAP_FIXED_NOREPLACE      0x100000
+#endif
+#ifndef TARGET_MAP_UNINITIALIZED
+#define TARGET_MAP_UNINITIALIZED        0x4000000
+#endif
+
 #ifndef TARGET_MADV_NORMAL
 #define TARGET_MADV_NORMAL 0
 #endif

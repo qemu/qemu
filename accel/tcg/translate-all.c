@@ -290,7 +290,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 {
     CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb, *existing_tb;
-    tb_page_addr_t phys_pc;
+    tb_page_addr_t phys_pc, phys_p2;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size, max_insns;
     int64_t ti;
@@ -313,6 +313,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     QEMU_BUILD_BUG_ON(CF_COUNT_MASK + 1 != TCG_MAX_INSNS);
 
  buffer_overflow:
+    assert_no_pages_locked();
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
         /* flush must be done */
@@ -333,6 +334,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->cflags = cflags;
     tb_set_page_addr0(tb, phys_pc);
     tb_set_page_addr1(tb, -1);
+    if (phys_pc != -1) {
+        tb_lock_page0(phys_pc);
+    }
+
     tcg_ctx->gen_tb = tb;
     tcg_ctx->addr_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
 #ifdef CONFIG_SOFTMMU
@@ -349,8 +354,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->guest_mo = TCG_MO_ALL;
 #endif
 
- tb_overflow:
-
+ restart_translate:
     trace_translate_block(tb, pc, tb->tc.ptr);
 
     gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns, &ti);
@@ -369,6 +373,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
                           "Restarting code generation for "
                           "code_gen_buffer overflow\n");
+            tb_unlock_pages(tb);
             goto buffer_overflow;
 
         case -2:
@@ -387,14 +392,39 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                           "Restarting code generation with "
                           "smaller translation block (max %d insns)\n",
                           max_insns);
-            goto tb_overflow;
+
+            /*
+             * The half-sized TB may not cross pages.
+             * TODO: Fix all targets that cross pages except with
+             * the first insn, at which point this can't be reached.
+             */
+            phys_p2 = tb_page_addr1(tb);
+            if (unlikely(phys_p2 != -1)) {
+                tb_unlock_page1(phys_pc, phys_p2);
+                tb_set_page_addr1(tb, -1);
+            }
+            goto restart_translate;
+
+        case -3:
+            /*
+             * We had a page lock ordering problem.  In order to avoid
+             * deadlock we had to drop the lock on page0, which means
+             * that everything we translated so far is compromised.
+             * Restart with locks held on both pages.
+             */
+            qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
+                          "Restarting code generation with re-locked pages");
+            goto restart_translate;
 
         default:
             g_assert_not_reached();
         }
     }
+    tcg_ctx->gen_tb = NULL;
+
     search_size = encode_search(tb, (void *)gen_code_buf + gen_code_size);
     if (unlikely(search_size < 0)) {
+        tb_unlock_pages(tb);
         goto buffer_overflow;
     }
     tb->tc.size = gen_code_size;
@@ -504,6 +534,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * before attempting to link to other TBs or add to the lookup table.
      */
     if (tb_page_addr0(tb) == -1) {
+        assert_no_pages_locked();
         return tb;
     }
 
@@ -518,7 +549,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * No explicit memory barrier is required -- tb_link_page() makes the
      * TB visible in a consistent state.
      */
-    existing_tb = tb_link_page(tb, tb_page_addr0(tb), tb_page_addr1(tb));
+    existing_tb = tb_link_page(tb);
+    assert_no_pages_locked();
+
     /* if the TB already exists, discard what we just translated */
     if (unlikely(existing_tb != tb)) {
         uintptr_t orig_aligned = (uintptr_t)gen_code_buf;
