@@ -801,12 +801,13 @@ static inline int host_to_target_sock_type(int host_type)
     return target_type;
 }
 
-static abi_ulong target_brk;
+static abi_ulong target_brk, initial_target_brk;
 static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
     target_brk = TARGET_PAGE_ALIGN(new_brk);
+    initial_target_brk = target_brk;
     brk_page = HOST_PAGE_ALIGN(target_brk);
 }
 
@@ -822,6 +823,11 @@ abi_long do_brk(abi_ulong brk_val)
     /* return old brk value if brk_val unchanged or zero */
     if (!brk_val || brk_val == target_brk) {
         return target_brk;
+    }
+
+    /* do not allow to shrink below initial brk value */
+    if (brk_val < initial_target_brk) {
+        brk_val = initial_target_brk;
     }
 
     new_brk = TARGET_PAGE_ALIGN(brk_val);
