@@ -323,7 +323,11 @@ static void *nbd_client_thread(void *arg)
                 opts->device, srcpath);
     } else {
         /* Close stderr so that the qemu-nbd process exits.  */
-        dup2(STDOUT_FILENO, STDERR_FILENO);
+        if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
+            error_report("Could not set stderr to /dev/null: %s",
+                         strerror(errno));
+            exit(EXIT_FAILURE);
+        }
     }
 
     if (nbd_client(fd) < 0) {
@@ -1171,7 +1175,11 @@ int main(int argc, char **argv)
     }
 
     if (fork_process) {
-        dup2(STDOUT_FILENO, STDERR_FILENO);
+        if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
+            error_report("Could not set stderr to /dev/null: %s",
+                         strerror(errno));
+            exit(EXIT_FAILURE);
+        }
     }
 
     state = RUNNING;
