@@ -624,7 +624,7 @@ static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
 static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         int directory_index, bool *huge_page, bool *hgpg_directory_hit,
         uint64_t *pw_entrylo0, uint64_t *pw_entrylo1,
-        int directory_shift, int leaf_shift)
+        unsigned directory_shift, unsigned leaf_shift)
 {
     int dph = (env->CP0_PWCtl >> CP0PC_DPH) & 0x1;
     int psn = (env->CP0_PWCtl >> CP0PC_PSN) & 0x3F;
@@ -730,21 +730,11 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
 
     /* Other HTW configs */
     int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
-
-    /* HTW Shift values (depend on entry size) */
-    int directory_shift = (ptew > 1) ? -1 :
-            (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
-    int leaf_shift = (ptew > 1) ? -1 :
-            (ptew == 1) ? native_shift + 1 : native_shift;
+    unsigned directory_shift, leaf_shift;
 
     /* Offsets into tables */
-    int goffset = gindex << directory_shift;
-    int uoffset = uindex << directory_shift;
-    int moffset = mindex << directory_shift;
-    int ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
-    int ptoffset1 = ptoffset0 | (1 << (leaf_shift));
-
-    uint32_t leafentry_size = 1 << (leaf_shift + 3);
+    unsigned goffset, uoffset, moffset, ptoffset0, ptoffset1;
+    uint32_t leafentry_size;
 
     /* Starting address - Page Table Base */
     uint64_t vaddr = env->CP0_PWBase;
@@ -766,9 +756,21 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         /* no structure to walk */
         return false;
     }
-    if ((directory_shift == -1) || (leaf_shift == -1)) {
+    if (ptew > 1) {
         return false;
     }
+
+    /* HTW Shift values (depend on entry size) */
+    directory_shift = (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
+    leaf_shift = (ptew == 1) ? native_shift + 1 : native_shift;
+
+    goffset = gindex << directory_shift;
+    uoffset = uindex << directory_shift;
+    moffset = mindex << directory_shift;
+    ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
+    ptoffset1 = ptoffset0 | (1 << (leaf_shift));
+
+    leafentry_size = 1 << (leaf_shift + 3);
 
     /* Global Directory */
     if (gdw > 0) {
