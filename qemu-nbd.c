@@ -73,7 +73,6 @@
 
 #define MBR_SIZE 512
 
-static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
 static int persistent = 0;
@@ -275,6 +274,7 @@ static void *show_parts(void *arg)
 struct NbdClientOpts {
     char *device;
     bool fork_process;
+    bool verbose;
 };
 
 static void *nbd_client_thread(void *arg)
@@ -318,7 +318,7 @@ static void *nbd_client_thread(void *arg)
     /* update partition table */
     pthread_create(&show_parts_thread, NULL, show_parts, opts->device);
 
-    if (verbose && !opts->fork_process) {
+    if (opts->verbose && !opts->fork_process) {
         fprintf(stderr, "NBD device %s is now connected to %s\n",
                 opts->device, srcpath);
     } else {
@@ -582,6 +582,7 @@ int main(int argc, char **argv)
     const char *tlshostname = NULL;
     bool imageOpts = false;
     bool writethrough = false; /* Client will flush as needed. */
+    bool verbose = false;
     bool fork_process = false;
     bool list = false;
     unsigned socket_activation;
@@ -746,7 +747,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'v':
-            verbose = 1;
+            verbose = true;
             break;
         case 'V':
             version(argv[0]);
@@ -1147,6 +1148,7 @@ int main(int argc, char **argv)
         struct NbdClientOpts opts = {
             .device = device,
             .fork_process = fork_process,
+            .verbose = verbose,
         };
 
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, &opts);
