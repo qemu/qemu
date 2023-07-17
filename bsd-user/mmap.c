@@ -32,6 +32,7 @@ void mmap_lock(void)
 
 void mmap_unlock(void)
 {
+    assert(mmap_lock_count > 0);
     if (--mmap_lock_count == 0) {
         pthread_mutex_unlock(&mmap_mutex);
     }
