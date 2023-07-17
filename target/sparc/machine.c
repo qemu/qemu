@@ -168,7 +168,8 @@ const VMStateDescription vmstate_sparc_cpu = {
         VMSTATE_UINT64_ARRAY(env.bgregs, SPARCCPU, 8),
         VMSTATE_UINT64_ARRAY(env.igregs, SPARCCPU, 8),
         VMSTATE_UINT64_ARRAY(env.mgregs, SPARCCPU, 8),
-        VMSTATE_UINT64(env.fprs, SPARCCPU),
+        VMSTATE_UNUSED(4), /* was unused high half of uint64_t fprs */
+        VMSTATE_UINT32(env.fprs, SPARCCPU),
         VMSTATE_UINT64(env.tick_cmpr, SPARCCPU),
         VMSTATE_UINT64(env.stick_cmpr, SPARCCPU),
         VMSTATE_CPU_TIMER(env.tick, SPARCCPU),
