@@ -19,10 +19,50 @@
 #endif
 
 typedef struct S1Translate {
+    /*
+     * in_mmu_idx : specifies which TTBR, TCR, etc to use for the walk.
+     * Together with in_space, specifies the architectural translation regime.
+     */
     ARMMMUIdx in_mmu_idx;
+    /*
+     * in_ptw_idx: specifies which mmuidx to use for the actual
+     * page table descriptor load operations. This will be one of the
+     * ARMMMUIdx_Stage2* or one of the ARMMMUIdx_Phys_* indexes.
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     */
     ARMMMUIdx in_ptw_idx;
+    /*
+     * in_space: the security space for this walk. This plus
+     * the in_mmu_idx specify the architectural translation regime.
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     *
+     * Note that the security space for the in_ptw_idx may be different
+     * from that for the in_mmu_idx. We do not need to explicitly track
+     * the in_ptw_idx security space because:
+     *  - if the in_ptw_idx is an ARMMMUIdx_Phys_* then the mmuidx
+     *    itself specifies the security space
+     *  - if the in_ptw_idx is an ARMMMUIdx_Stage2* then the security
+     *    space used for ptw reads is the same as that of the security
+     *    space of the stage 1 translation for all cases except where
+     *    stage 1 is Secure; in that case the only possibilities for
+     *    the ptw read are Secure and NonSecure, and the in_ptw_idx
+     *    value being Stage2 vs Stage2_S distinguishes those.
+     */
     ARMSecuritySpace in_space;
+    /*
+     * in_secure: whether the translation regime is a Secure one.
+     * This is always equal to arm_space_is_secure(in_space).
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     */
     bool in_secure;
+    /*
+     * in_debug: is this a QEMU debug access (gdbstub, etc)? Debug
+     * accesses will not update the guest page table access flags
+     * and will not change the state of the softmmu TLBs.
+     */
     bool in_debug;
     /*
      * If this is stage 2 of a stage 1+2 page table walk, then this must
