@@ -272,9 +272,13 @@ static void *show_parts(void *arg)
     return NULL;
 }
 
+struct NbdClientOpts {
+    char *device;
+};
+
 static void *nbd_client_thread(void *arg)
 {
-    char *device = arg;
+    struct NbdClientOpts *opts = arg;
     NBDExportInfo info = { .request_sizes = false, .name = g_strdup("") };
     QIOChannelSocket *sioc;
     int fd = -1;
@@ -298,10 +302,10 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
-    fd = open(device, O_RDWR);
+    fd = open(opts->device, O_RDWR);
     if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
-        error_report("Failed to open %s: %m", device);
+        error_report("Failed to open %s: %m", opts->device);
         goto out;
     }
 
@@ -311,11 +315,11 @@ static void *nbd_client_thread(void *arg)
     }
 
     /* update partition table */
-    pthread_create(&show_parts_thread, NULL, show_parts, device);
+    pthread_create(&show_parts_thread, NULL, show_parts, opts->device);
 
     if (verbose) {
         fprintf(stderr, "NBD device %s is now connected to %s\n",
-                device, srcpath);
+                opts->device, srcpath);
     } else {
         /* Close stderr so that the qemu-nbd process exits.  */
         dup2(STDOUT_FILENO, STDERR_FILENO);
@@ -1121,8 +1125,11 @@ int main(int argc, char **argv)
     if (device) {
 #if HAVE_NBD_DEVICE
         int ret;
+        struct NbdClientOpts opts = {
+            .device = device,
+        };
 
-        ret = pthread_create(&client_thread, NULL, nbd_client_thread, device);
+        ret = pthread_create(&client_thread, NULL, nbd_client_thread, &opts);
         if (ret != 0) {
             error_report("Failed to create client thread: %s", strerror(ret));
             exit(EXIT_FAILURE);
