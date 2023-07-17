@@ -19,10 +19,50 @@
 #endif
 
 typedef struct S1Translate {
+    /*
+     * in_mmu_idx : specifies which TTBR, TCR, etc to use for the walk.
+     * Together with in_space, specifies the architectural translation regime.
+     */
     ARMMMUIdx in_mmu_idx;
+    /*
+     * in_ptw_idx: specifies which mmuidx to use for the actual
+     * page table descriptor load operations. This will be one of the
+     * ARMMMUIdx_Stage2* or one of the ARMMMUIdx_Phys_* indexes.
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     */
     ARMMMUIdx in_ptw_idx;
+    /*
+     * in_space: the security space for this walk. This plus
+     * the in_mmu_idx specify the architectural translation regime.
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     *
+     * Note that the security space for the in_ptw_idx may be different
+     * from that for the in_mmu_idx. We do not need to explicitly track
+     * the in_ptw_idx security space because:
+     *  - if the in_ptw_idx is an ARMMMUIdx_Phys_* then the mmuidx
+     *    itself specifies the security space
+     *  - if the in_ptw_idx is an ARMMMUIdx_Stage2* then the security
+     *    space used for ptw reads is the same as that of the security
+     *    space of the stage 1 translation for all cases except where
+     *    stage 1 is Secure; in that case the only possibilities for
+     *    the ptw read are Secure and NonSecure, and the in_ptw_idx
+     *    value being Stage2 vs Stage2_S distinguishes those.
+     */
     ARMSecuritySpace in_space;
+    /*
+     * in_secure: whether the translation regime is a Secure one.
+     * This is always equal to arm_space_is_secure(in_space).
+     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
+     * this field is updated accordingly.
+     */
     bool in_secure;
+    /*
+     * in_debug: is this a QEMU debug access (gdbstub, etc)? Debug
+     * accesses will not update the guest page table access flags
+     * and will not change the state of the softmmu TLBs.
+     */
     bool in_debug;
     /*
      * If this is stage 2 of a stage 1+2 page table walk, then this must
@@ -445,11 +485,39 @@ static bool S2_attrs_are_device(uint64_t hcr, uint8_t attrs)
     }
 }
 
+static ARMSecuritySpace S2_security_space(ARMSecuritySpace s1_space,
+                                          ARMMMUIdx s2_mmu_idx)
+{
+    /*
+     * Return the security space to use for stage 2 when doing
+     * the S1 page table descriptor load.
+     */
+    if (regime_is_stage2(s2_mmu_idx)) {
+        /*
+         * The security space for ptw reads is almost always the same
+         * as that of the security space of the stage 1 translation.
+         * The only exception is when stage 1 is Secure; in that case
+         * the ptw read might be to the Secure or the NonSecure space
+         * (but never Realm or Root), and the s2_mmu_idx tells us which.
+         * Root translations are always single-stage.
+         */
+        if (s1_space == ARMSS_Secure) {
+            return arm_secure_to_space(s2_mmu_idx == ARMMMUIdx_Stage2_S);
+        } else {
+            assert(s2_mmu_idx != ARMMMUIdx_Stage2_S);
+            assert(s1_space != ARMSS_Root);
+            return s1_space;
+        }
+    } else {
+        /* ptw loads are from phys: the mmu idx itself says which space */
+        return arm_phys_to_space(s2_mmu_idx);
+    }
+}
+
 /* Translate a S1 pagetable walk through S2 if needed.  */
 static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
                              hwaddr addr, ARMMMUFaultInfo *fi)
 {
-    ARMSecuritySpace space = ptw->in_space;
     bool is_secure = ptw->in_secure;
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     ARMMMUIdx s2_mmu_idx = ptw->in_ptw_idx;
@@ -462,13 +530,12 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
          * From gdbstub, do not use softmmu so that we don't modify the
          * state of the cpu at all, including softmmu tlb contents.
          */
+        ARMSecuritySpace s2_space = S2_security_space(ptw->in_space, s2_mmu_idx);
         S1Translate s2ptw = {
             .in_mmu_idx = s2_mmu_idx,
             .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
-            .in_secure = s2_mmu_idx == ARMMMUIdx_Stage2_S,
-            .in_space = (s2_mmu_idx == ARMMMUIdx_Stage2_S ? ARMSS_Secure
-                         : space == ARMSS_Realm ? ARMSS_Realm
-                         : ARMSS_NonSecure),
+            .in_secure = arm_space_is_secure(s2_space),
+            .in_space = s2_space,
             .in_debug = true,
         };
         GetPhysAddrResult s2 = { };
@@ -3051,6 +3118,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     hwaddr ipa;
     int s1_prot, s1_lgpgsz;
     bool is_secure = ptw->in_secure;
+    ARMSecuritySpace in_space = ptw->in_space;
     bool ret, ipa_secure;
     ARMCacheAttrs cacheattrs1;
     ARMSecuritySpace ipa_space;
@@ -3133,11 +3201,13 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
      * Check if IPA translates to secure or non-secure PA space.
      * Note that VSTCR overrides VTCR and {N}SW overrides {N}SA.
      */
-    result->f.attrs.secure =
-        (is_secure
-         && !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
-         && (ipa_secure
-             || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))));
+    if (in_space == ARMSS_Secure) {
+        result->f.attrs.secure =
+            !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
+            && (ipa_secure
+                || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW)));
+        result->f.attrs.space = arm_secure_to_space(result->f.attrs.secure);
+    }
 
     return false;
 }
