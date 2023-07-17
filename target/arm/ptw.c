@@ -3118,6 +3118,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     hwaddr ipa;
     int s1_prot, s1_lgpgsz;
     bool is_secure = ptw->in_secure;
+    ARMSecuritySpace in_space = ptw->in_space;
     bool ret, ipa_secure;
     ARMCacheAttrs cacheattrs1;
     ARMSecuritySpace ipa_space;
@@ -3200,11 +3201,13 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
      * Check if IPA translates to secure or non-secure PA space.
      * Note that VSTCR overrides VTCR and {N}SW overrides {N}SA.
      */
-    result->f.attrs.secure =
-        (is_secure
-         && !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
-         && (ipa_secure
-             || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))));
+    if (in_space == ARMSS_Secure) {
+        result->f.attrs.secure =
+            !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
+            && (ipa_secure
+                || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW)));
+        result->f.attrs.space = arm_secure_to_space(result->f.attrs.secure);
+    }
 
     return false;
 }
