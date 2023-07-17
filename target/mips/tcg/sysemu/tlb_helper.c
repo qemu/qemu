@@ -623,18 +623,13 @@ static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
 
 static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         int directory_index, bool *huge_page, bool *hgpg_directory_hit,
-        uint64_t *pw_entrylo0, uint64_t *pw_entrylo1)
+        uint64_t *pw_entrylo0, uint64_t *pw_entrylo1,
+        int directory_shift, int leaf_shift)
 {
     int dph = (env->CP0_PWCtl >> CP0PC_DPH) & 0x1;
     int psn = (env->CP0_PWCtl >> CP0PC_PSN) & 0x3F;
     int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
     int pf_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
-    int ptew = (env->CP0_PWSize >> CP0PS_PTEW) & 0x3F;
-    int native_shift = (((env->CP0_PWSize >> CP0PS_PS) & 1) == 0) ? 2 : 3;
-    int directory_shift = (ptew > 1) ? -1 :
-            (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
-    int leaf_shift = (ptew > 1) ? -1 :
-            (ptew == 1) ? native_shift + 1 : native_shift;
     uint32_t direntry_size = 1 << (directory_shift + 3);
     uint32_t leafentry_size = 1 << (leaf_shift + 3);
     uint64_t entry;
@@ -779,7 +774,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     if (gdw > 0) {
         vaddr |= goffset;
         switch (walk_directory(env, &vaddr, pf_gdw, &huge_page, &hgpg_gdhit,
-                               &pw_entrylo0, &pw_entrylo1))
+                               &pw_entrylo0, &pw_entrylo1,
+                               directory_shift, leaf_shift))
         {
         case 0:
             return false;
@@ -795,7 +791,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     if (udw > 0) {
         vaddr |= uoffset;
         switch (walk_directory(env, &vaddr, pf_udw, &huge_page, &hgpg_udhit,
-                               &pw_entrylo0, &pw_entrylo1))
+                               &pw_entrylo0, &pw_entrylo1,
+                               directory_shift, leaf_shift))
         {
         case 0:
             return false;
@@ -811,7 +808,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     if (mdw > 0) {
         vaddr |= moffset;
         switch (walk_directory(env, &vaddr, pf_mdw, &huge_page, &hgpg_mdhit,
-                               &pw_entrylo0, &pw_entrylo1))
+                               &pw_entrylo0, &pw_entrylo1,
+                               directory_shift, leaf_shift))
         {
         case 0:
             return false;
