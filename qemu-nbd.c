@@ -274,6 +274,7 @@ static void *show_parts(void *arg)
 
 struct NbdClientOpts {
     char *device;
+    bool fork_process;
 };
 
 static void *nbd_client_thread(void *arg)
@@ -317,7 +318,7 @@ static void *nbd_client_thread(void *arg)
     /* update partition table */
     pthread_create(&show_parts_thread, NULL, show_parts, opts->device);
 
-    if (verbose) {
+    if (verbose && !opts->fork_process) {
         fprintf(stderr, "NBD device %s is now connected to %s\n",
                 opts->device, srcpath);
     } else {
@@ -579,7 +580,6 @@ int main(int argc, char **argv)
     bool writethrough = false; /* Client will flush as needed. */
     bool fork_process = false;
     bool list = false;
-    int old_stderr = -1;
     unsigned socket_activation;
     const char *pid_file_name = NULL;
     const char *selinux_label = NULL;
@@ -934,11 +934,6 @@ int main(int argc, char **argv)
         } else if (pid == 0) {
             close(stderr_fd[0]);
 
-            /* Remember parent's stderr if we will be restoring it. */
-            if (fork_process) {
-                old_stderr = dup(STDERR_FILENO);
-            }
-
             ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
@@ -1127,6 +1122,7 @@ int main(int argc, char **argv)
         int ret;
         struct NbdClientOpts opts = {
             .device = device,
+            .fork_process = fork_process,
         };
 
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, &opts);
@@ -1155,8 +1151,7 @@ int main(int argc, char **argv)
     }
 
     if (fork_process) {
-        dup2(old_stderr, STDERR_FILENO);
-        close(old_stderr);
+        dup2(STDOUT_FILENO, STDERR_FILENO);
     }
 
     state = RUNNING;
