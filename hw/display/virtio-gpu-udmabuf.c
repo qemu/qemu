@@ -181,13 +181,13 @@ static VGPUDMABuf
     }
 
     dmabuf = g_new0(VGPUDMABuf, 1);
-    dmabuf->buf.width = fb->width;
-    dmabuf->buf.height = fb->height;
+    dmabuf->buf.width = r->width;
+    dmabuf->buf.height = r->height;
     dmabuf->buf.stride = fb->stride;
     dmabuf->buf.x = r->x;
     dmabuf->buf.y = r->y;
-    dmabuf->buf.scanout_width = r->width;
-    dmabuf->buf.scanout_height = r->height;
+    dmabuf->buf.backing_width = fb->width;
+    dmabuf->buf.backing_height = fb->height;
     dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
     dmabuf->buf.fd = res->dmabuf_fd;
     dmabuf->buf.allow_fences = true;
@@ -218,8 +218,8 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
 
     g->dmabuf.primary[scanout_id] = new_primary;
     qemu_console_resize(scanout->con,
-                        new_primary->buf.scanout_width,
-                        new_primary->buf.scanout_height);
+                        new_primary->buf.width,
+                        new_primary->buf.height);
     dpy_gl_scanout_dmabuf(scanout->con, &new_primary->buf);
 
     if (old_primary) {

@@ -1,5 +1,5 @@
 /*
- * QEMU Pipewire audio driver
+ * QEMU PipeWire audio driver
  *
  * Copyright (c) 2023 Red Hat Inc.
  *
@@ -65,6 +65,9 @@ typedef struct PWVoiceIn {
     HWVoiceIn hw;
     PWVoice v;
 } PWVoiceIn;
+
+#define PW_VOICE_IN(v) ((PWVoiceIn *)v)
+#define PW_VOICE_OUT(v) ((PWVoiceOut *)v)
 
 static void
 stream_destroy(void *data)
@@ -197,16 +200,6 @@ on_stream_state_changed(void *data, enum pw_stream_state old,
 
     trace_pw_state_changed(pw_stream_get_node_id(v->stream),
                            pw_stream_state_as_string(state));
-
-    switch (state) {
-    case PW_STREAM_STATE_ERROR:
-    case PW_STREAM_STATE_UNCONNECTED:
-        break;
-    case PW_STREAM_STATE_PAUSED:
-    case PW_STREAM_STATE_CONNECTING:
-    case PW_STREAM_STATE_STREAMING:
-        break;
-    }
 }
 
 static const struct pw_stream_events capture_stream_events = {
@@ -424,8 +417,8 @@ pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
 }
 
 static int
-create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
-              const char *name, enum spa_direction dir)
+qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
+               const char *name, enum spa_direction dir)
 {
     int res;
     uint32_t n_params;
@@ -436,6 +429,10 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
     struct pw_properties *props;
 
     props = pw_properties_new(NULL, NULL);
+    if (!props) {
+        error_report("Failed to create PW properties: %s", g_strerror(errno));
+        return -1;
+    }
 
     /* 75% of the timer period for faster updates */
     buf_samples = (uint64_t)v->g->dev->timer_period * v->info.rate
@@ -448,8 +445,8 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
         pw_properties_set(props, PW_KEY_TARGET_OBJECT, name);
     }
     v->stream = pw_stream_new(c->core, stream_name, props);
-
     if (v->stream == NULL) {
+        error_report("Failed to create PW stream: %s", g_strerror(errno));
         return -1;
     }
 
@@ -477,6 +474,7 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
                             PW_STREAM_FLAG_MAP_BUFFERS |
                             PW_STREAM_FLAG_RT_PROCESS, params, n_params);
     if (res < 0) {
+        error_report("Failed to connect PW stream: %s", g_strerror(errno));
         pw_stream_destroy(v->stream);
         return -1;
     }
@@ -484,71 +482,37 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
     return 0;
 }
 
-static int
-qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
-               const char *name, enum spa_direction dir)
+static void
+qpw_set_position(uint32_t channels, uint32_t position[SPA_AUDIO_MAX_CHANNELS])
 {
-    int r;
-
-    switch (v->info.channels) {
+    memcpy(position, (uint32_t[SPA_AUDIO_MAX_CHANNELS]) { SPA_AUDIO_CHANNEL_UNKNOWN, },
+           sizeof(uint32_t) * SPA_AUDIO_MAX_CHANNELS);
+    /*
+     * TODO: This currently expects the only frontend supporting more than 2
+     * channels is the usb-audio.  We will need some means to set channel
+     * order when a new frontend gains multi-channel support.
+     */
+    switch (channels) {
     case 8:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RL;
-        v->info.position[5] = SPA_AUDIO_CHANNEL_RR;
-        v->info.position[6] = SPA_AUDIO_CHANNEL_SL;
-        v->info.position[7] = SPA_AUDIO_CHANNEL_SR;
-        break;
+        position[6] = SPA_AUDIO_CHANNEL_SL;
+        position[7] = SPA_AUDIO_CHANNEL_SR;
+        /* fallthrough */
     case 6:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RL;
-        v->info.position[5] = SPA_AUDIO_CHANNEL_RR;
-        break;
-    case 5:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RC;
-        break;
-    case 4:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_RC;
-        break;
-    case 3:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_LFE;
-        break;
+        position[2] = SPA_AUDIO_CHANNEL_FC;
+        position[3] = SPA_AUDIO_CHANNEL_LFE;
+        position[4] = SPA_AUDIO_CHANNEL_RL;
+        position[5] = SPA_AUDIO_CHANNEL_RR;
+        /* fallthrough */
     case 2:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
+        position[0] = SPA_AUDIO_CHANNEL_FL;
+        position[1] = SPA_AUDIO_CHANNEL_FR;
         break;
     case 1:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_MONO;
+        position[0] = SPA_AUDIO_CHANNEL_MONO;
         break;
     default:
-        for (size_t i = 0; i < v->info.channels; i++) {
-            v->info.position[i] = SPA_AUDIO_CHANNEL_UNKNOWN;
-        }
-        break;
+        dolog("Internal error: unsupported channel count %d\n", channels);
     }
-
-    /* create a new unconnected pwstream */
-    r = create_stream(c, v, stream_name, name, dir);
-    if (r < 0) {
-        AUD_log(AUDIO_CAP, "Failed to create stream.");
-        return -1;
-    }
-
-    return r;
 }
 
 static int
@@ -566,6 +530,7 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 
     v->info.format = audfmt_to_pw(as->fmt, as->endianness);
     v->info.channels = as->nchannels;
+    qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
@@ -579,7 +544,6 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
     r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
                        ppdo->name, SPA_DIRECTION_OUTPUT);
     if (r < 0) {
-        error_report("qpw_stream_new for playback failed");
         pw_thread_loop_unlock(c->thread_loop);
         return -1;
     }
@@ -613,6 +577,7 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     v->info.format = audfmt_to_pw(as->fmt, as->endianness);
     v->info.channels = as->nchannels;
+    qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
@@ -623,7 +588,6 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
                        ppdo->name, SPA_DIRECTION_INPUT);
     if (r < 0) {
-        error_report("qpw_stream_new for recording failed");
         pw_thread_loop_unlock(c->thread_loop);
         return -1;
     }
@@ -640,40 +604,34 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 }
 
 static void
+qpw_voice_fini(PWVoice *v)
+{
+    pwaudio *c = v->g;
+
+    if (!v->stream) {
+        return;
+    }
+    pw_thread_loop_lock(c->thread_loop);
+    pw_stream_destroy(v->stream);
+    v->stream = NULL;
+    pw_thread_loop_unlock(c->thread_loop);
+}
+
+static void
 qpw_fini_out(HWVoiceOut *hw)
 {
-    PWVoiceOut *pw = (PWVoiceOut *) hw;
-    PWVoice *v = &pw->v;
-
-    if (v->stream) {
-        pwaudio *c = v->g;
-        pw_thread_loop_lock(c->thread_loop);
-        pw_stream_destroy(v->stream);
-        v->stream = NULL;
-        pw_thread_loop_unlock(c->thread_loop);
-    }
+    qpw_voice_fini(&PW_VOICE_OUT(hw)->v);
 }
 
 static void
 qpw_fini_in(HWVoiceIn *hw)
 {
-    PWVoiceIn *pw = (PWVoiceIn *) hw;
-    PWVoice *v = &pw->v;
-
-    if (v->stream) {
-        pwaudio *c = v->g;
-        pw_thread_loop_lock(c->thread_loop);
-        pw_stream_destroy(v->stream);
-        v->stream = NULL;
-        pw_thread_loop_unlock(c->thread_loop);
-    }
+    qpw_voice_fini(&PW_VOICE_IN(hw)->v);
 }
 
 static void
-qpw_enable_out(HWVoiceOut *hw, bool enable)
+qpw_voice_set_enabled(PWVoice *v, bool enable)
 {
-    PWVoiceOut *po = (PWVoiceOut *) hw;
-    PWVoice *v = &po->v;
     pwaudio *c = v->g;
     pw_thread_loop_lock(c->thread_loop);
     pw_stream_set_active(v->stream, enable);
@@ -681,64 +639,50 @@ qpw_enable_out(HWVoiceOut *hw, bool enable)
 }
 
 static void
+qpw_enable_out(HWVoiceOut *hw, bool enable)
+{
+    qpw_voice_set_enabled(&PW_VOICE_OUT(hw)->v, enable);
+}
+
+static void
 qpw_enable_in(HWVoiceIn *hw, bool enable)
 {
-    PWVoiceIn *pi = (PWVoiceIn *) hw;
-    PWVoice *v = &pi->v;
+    qpw_voice_set_enabled(&PW_VOICE_IN(hw)->v, enable);
+}
+
+static void
+qpw_voice_set_volume(PWVoice *v, Volume *vol)
+{
     pwaudio *c = v->g;
+    int i, ret;
+
     pw_thread_loop_lock(c->thread_loop);
-    pw_stream_set_active(v->stream, enable);
+    v->volume.channels = vol->channels;
+
+    for (i = 0; i < vol->channels; ++i) {
+        v->volume.values[i] = (float)vol->vol[i] / 255;
+    }
+
+    ret = pw_stream_set_control(v->stream,
+        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
+    trace_pw_vol(ret == 0 ? "success" : "failed");
+
+    v->muted = vol->mute;
+    float val = v->muted ? 1.f : 0.f;
+    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
     pw_thread_loop_unlock(c->thread_loop);
 }
 
 static void
 qpw_volume_out(HWVoiceOut *hw, Volume *vol)
 {
-    PWVoiceOut *pw = (PWVoiceOut *) hw;
-    PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
-    int i, ret;
-
-    pw_thread_loop_lock(c->thread_loop);
-    v->volume.channels = vol->channels;
-
-    for (i = 0; i < vol->channels; ++i) {
-        v->volume.values[i] = (float)vol->vol[i] / 255;
-    }
-
-    ret = pw_stream_set_control(v->stream,
-        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
-    trace_pw_vol(ret == 0 ? "success" : "failed");
-
-    v->muted = vol->mute;
-    float val = v->muted ? 1.f : 0.f;
-    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
-    pw_thread_loop_unlock(c->thread_loop);
+    qpw_voice_set_volume(&PW_VOICE_OUT(hw)->v, vol);
 }
 
 static void
 qpw_volume_in(HWVoiceIn *hw, Volume *vol)
 {
-    PWVoiceIn *pw = (PWVoiceIn *) hw;
-    PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
-    int i, ret;
-
-    pw_thread_loop_lock(c->thread_loop);
-    v->volume.channels = vol->channels;
-
-    for (i = 0; i < vol->channels; ++i) {
-        v->volume.values[i] = (float)vol->vol[i] / 255;
-    }
-
-    ret = pw_stream_set_control(v->stream,
-        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
-    trace_pw_vol(ret == 0 ? "success" : "failed");
-
-    v->muted = vol->mute;
-    float val = v->muted ? 1.f : 0.f;
-    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
-    pw_thread_loop_unlock(c->thread_loop);
+    qpw_voice_set_volume(&PW_VOICE_IN(hw)->v, vol);
 }
 
 static int wait_resync(pwaudio *pw)
@@ -760,6 +704,7 @@ static int wait_resync(pwaudio *pw)
     }
     return 0;
 }
+
 static void
 on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 {
@@ -794,27 +739,28 @@ static void *
 qpw_audio_init(Audiodev *dev)
 {
     g_autofree pwaudio *pw = g_new0(pwaudio, 1);
+
+    assert(dev->driver == AUDIODEV_DRIVER_PIPEWIRE);
+    trace_pw_audio_init();
+
     pw_init(NULL, NULL);
 
-    trace_pw_audio_init();
-    assert(dev->driver == AUDIODEV_DRIVER_PIPEWIRE);
-
     pw->dev = dev;
-    pw->thread_loop = pw_thread_loop_new("Pipewire thread loop", NULL);
+    pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
     if (pw->thread_loop == NULL) {
-        error_report("Could not create Pipewire loop");
+        error_report("Could not create PipeWire loop: %s", g_strerror(errno));
         goto fail;
     }
 
     pw->context =
         pw_context_new(pw_thread_loop_get_loop(pw->thread_loop), NULL, 0);
     if (pw->context == NULL) {
-        error_report("Could not create Pipewire context");
+        error_report("Could not create PipeWire context: %s", g_strerror(errno));
         goto fail;
     }
 
     if (pw_thread_loop_start(pw->thread_loop) < 0) {
-        error_report("Could not start Pipewire loop");
+        error_report("Could not start PipeWire loop: %s", g_strerror(errno));
         goto fail;
     }
 
@@ -844,12 +790,8 @@ fail:
     if (pw->thread_loop) {
         pw_thread_loop_stop(pw->thread_loop);
     }
-    if (pw->context) {
-        g_clear_pointer(&pw->context, pw_context_destroy);
-    }
-    if (pw->thread_loop) {
-        g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
-    }
+    g_clear_pointer(&pw->context, pw_context_destroy);
+    g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
     return NULL;
 }
 

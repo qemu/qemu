@@ -303,10 +303,11 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
             goto end;
         }
 #endif
-        res->image = pixman_image_create_bits(pformat,
-                                              c2d.width,
-                                              c2d.height,
-                                              bits, res->hostmem / c2d.height);
+        res->image = pixman_image_create_bits(
+            pformat,
+            c2d.width,
+            c2d.height,
+            bits, c2d.height ? res->hostmem / c2d.height : 0);
 #ifdef WIN32
         if (res->image) {
             pixman_image_set_destroy_function(res->image, win32_pixman_image_destroy, res->handle);
@@ -1272,9 +1273,10 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             return -EINVAL;
         }
 #endif
-        res->image = pixman_image_create_bits(pformat,
-                                              res->width, res->height,
-                                              bits, res->hostmem / res->height);
+        res->image = pixman_image_create_bits(
+            pformat,
+            res->width, res->height,
+            bits, res->height ? res->hostmem / res->height : 0);
         if (!res->image) {
             g_free(res);
             return -EINVAL;
@@ -1395,6 +1397,7 @@ void virtio_gpu_reset(VirtIODevice *vdev)
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
     struct virtio_gpu_ctrl_command *cmd;
+    int i = 0;
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
         virtio_gpu_resource_destroy(g, res);
@@ -1411,6 +1414,10 @@ void virtio_gpu_reset(VirtIODevice *vdev)
         QTAILQ_REMOVE(&g->fenceq, cmd, next);
         g->inflight--;
         g_free(cmd);
+    }
+
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));

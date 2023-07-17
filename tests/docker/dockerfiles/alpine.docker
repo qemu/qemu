@@ -77,6 +77,7 @@ RUN apk update && \
         numactl-dev \
         openssh-client \
         pcre-dev \
+        pipewire-dev \
         pixman-dev \
         pkgconf \
         pulseaudio-dev \

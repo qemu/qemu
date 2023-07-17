@@ -32,6 +32,8 @@ static void gtk_egl_set_scanout_mode(VirtualConsole *vc, bool scanout)
 
     vc->gfx.scanout_mode = scanout;
     if (!vc->gfx.scanout_mode) {
+        eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                       vc->gfx.esurface, vc->gfx.ectx);
         egl_fb_destroy(&vc->gfx.guest_fb);
         if (vc->gfx.surface) {
             surface_gl_destroy_texture(vc->gfx.gls, vc->gfx.ds);
@@ -135,6 +137,8 @@ void gd_egl_update(DisplayChangeListener *dcl,
                    vc->gfx.esurface, vc->gfx.ectx);
     surface_gl_update_texture(vc->gfx.gls, vc->gfx.ds, x, y, w, h);
     vc->gfx.glupdates++;
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                   EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void gd_egl_refresh(DisplayChangeListener *dcl)
@@ -143,6 +147,10 @@ void gd_egl_refresh(DisplayChangeListener *dcl)
 
     gd_update_monitor_refresh_rate(
             vc, vc->window ? vc->window : vc->gfx.drawing_area);
+
+    if (vc->gfx.guest_fb.dmabuf && vc->gfx.guest_fb.dmabuf->draw_submitted) {
+        return;
+    }
 
     if (!vc->gfx.esurface) {
         gd_egl_init(vc);
@@ -238,7 +246,6 @@ void gd_egl_scanout_texture(DisplayChangeListener *dcl,
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
 
-    gtk_egl_set_scanout_mode(vc, true);
     egl_fb_setup_for_tex(&vc->gfx.guest_fb, backing_width, backing_height,
                          backing_id, false);
 }
@@ -258,9 +265,10 @@ void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
     }
 
     gd_egl_scanout_texture(dcl, dmabuf->texture,
-                           dmabuf->y0_top, dmabuf->width, dmabuf->height,
-                           dmabuf->x, dmabuf->y, dmabuf->scanout_width,
-                           dmabuf->scanout_height, NULL);
+                           dmabuf->y0_top,
+                           dmabuf->backing_width, dmabuf->backing_height,
+                           dmabuf->x, dmabuf->y, dmabuf->width,
+                           dmabuf->height, NULL);
 
     if (dmabuf->allow_fences) {
         vc->gfx.guest_fb.dmabuf = dmabuf;
@@ -280,7 +288,8 @@ void gd_egl_cursor_dmabuf(DisplayChangeListener *dcl,
         if (!dmabuf->texture) {
             return;
         }
-        egl_fb_setup_for_tex(&vc->gfx.cursor_fb, dmabuf->width, dmabuf->height,
+        egl_fb_setup_for_tex(&vc->gfx.cursor_fb,
+                             dmabuf->backing_width, dmabuf->backing_height,
                              dmabuf->texture, false);
     } else {
         egl_fb_destroy(&vc->gfx.cursor_fb);
@@ -347,6 +356,7 @@ void gd_egl_flush(DisplayChangeListener *dcl,
     if (vc->gfx.guest_fb.dmabuf && !vc->gfx.guest_fb.dmabuf->draw_submitted) {
         graphic_hw_gl_block(vc->gfx.dcl.con, true);
         vc->gfx.guest_fb.dmabuf->draw_submitted = true;
+        gtk_egl_set_scanout_mode(vc, true);
         gtk_widget_queue_draw_area(area, x, y, w, h);
         return;
     }

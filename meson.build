@@ -4251,7 +4251,7 @@ if targetos == 'linux'
   summary_info += {'ALSA support':    alsa}
   summary_info += {'PulseAudio support': pulse}
 endif
-summary_info += {'Pipewire support':  pipewire}
+summary_info += {'PipeWire support':  pipewire}
 summary_info += {'JACK support':      jack}
 summary(summary_info, bool_yn: true, section: 'Audio backends')
 

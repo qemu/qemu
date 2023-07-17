@@ -148,8 +148,8 @@ void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
     if (src->dmabuf) {
         x1 = src->dmabuf->x;
         y1 = src->dmabuf->y;
-        w = src->dmabuf->scanout_width;
-        h = src->dmabuf->scanout_height;
+        w = src->dmabuf->width;
+        h = src->dmabuf->height;
     }
 
     w = (x1 + w) > src->width ? src->width - x1 : w;
@@ -314,9 +314,9 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
     }
 
     attrs[i++] = EGL_WIDTH;
-    attrs[i++] = dmabuf->width;
+    attrs[i++] = dmabuf->backing_width;
     attrs[i++] = EGL_HEIGHT;
-    attrs[i++] = dmabuf->height;
+    attrs[i++] = dmabuf->backing_height;
     attrs[i++] = EGL_LINUX_DRM_FOURCC_EXT;
     attrs[i++] = dmabuf->fourcc;
 

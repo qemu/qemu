@@ -963,10 +963,10 @@ SRST
         to honor this value but actual latencies may be lower or higher.
 
 ``-audiodev pipewire,id=id[,prop[=value][,...]]``
-    Creates a backend using Pipewire. This backend is available on
+    Creates a backend using PipeWire. This backend is available on
     most systems.
 
-    Pipewire specific options are:
+    PipeWire specific options are:
 
     ``in|out.latency=usecs``
         Desired latency in microseconds.
