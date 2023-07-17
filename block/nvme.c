@@ -501,8 +501,9 @@ static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
            q->sq.tail * NVME_SQ_ENTRY_BYTES, cmd, sizeof(*cmd));
     q->sq.tail = (q->sq.tail + 1) % NVME_QUEUE_SIZE;
     q->need_kick++;
-    blk_io_plug_call(nvme_unplug_fn, q);
     qemu_mutex_unlock(&q->lock);
+
+    blk_io_plug_call(nvme_unplug_fn, q);
 }
 
 static void nvme_admin_cmd_sync_cb(void *opaque, int ret)
