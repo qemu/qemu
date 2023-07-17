@@ -2546,11 +2546,10 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
         ptrdiff_t offset = tcg_tbrel_diff(s, (void *)ptr);
         tcg_out_mem_long(s, LD, LDX, TCG_REG_TB, TCG_REG_TB, offset);
     
-        /* Direct branch will be patched by tb_target_set_jmp_target. */
+        /* TODO: Use direct branches when possible. */
         set_jmp_insn_offset(s, which);
         tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
 
-        /* When branch is out of range, fall through to indirect. */
         tcg_out32(s, BCCTR | BO_ALWAYS);
 
         /* For the unlinked case, need to reset TCG_REG_TB.  */
@@ -2578,10 +2577,12 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     intptr_t diff = addr - jmp_rx;
     tcg_insn_unit insn;
 
+    if (USE_REG_TB) {
+        return;
+    }
+
     if (in_range_b(diff)) {
         insn = B | (diff & 0x3fffffc);
-    } else if (USE_REG_TB) {
-        insn = MTSPR | RS(TCG_REG_TB) | CTR;
     } else {
         insn = NOP;
     }
