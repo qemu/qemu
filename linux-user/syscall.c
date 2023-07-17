@@ -860,12 +860,13 @@ abi_long do_brk(abi_ulong brk_val)
      * itself); instead we treat "mapped but at wrong address" as
      * a failure and unmap again.
      */
-    new_alloc_size = new_host_brk_page - brk_page;
-    if (new_alloc_size) {
+    if (new_host_brk_page > brk_page) {
+        new_alloc_size = new_host_brk_page - brk_page;
         mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_PRIVATE, 0, 0));
     } else {
+        new_alloc_size = 0;
         mapped_addr = brk_page;
     }
 
