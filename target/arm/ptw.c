@@ -485,11 +485,39 @@ static bool S2_attrs_are_device(uint64_t hcr, uint8_t attrs)
     }
 }
 
+static ARMSecuritySpace S2_security_space(ARMSecuritySpace s1_space,
+                                          ARMMMUIdx s2_mmu_idx)
+{
+    /*
+     * Return the security space to use for stage 2 when doing
+     * the S1 page table descriptor load.
+     */
+    if (regime_is_stage2(s2_mmu_idx)) {
+        /*
+         * The security space for ptw reads is almost always the same
+         * as that of the security space of the stage 1 translation.
+         * The only exception is when stage 1 is Secure; in that case
+         * the ptw read might be to the Secure or the NonSecure space
+         * (but never Realm or Root), and the s2_mmu_idx tells us which.
+         * Root translations are always single-stage.
+         */
+        if (s1_space == ARMSS_Secure) {
+            return arm_secure_to_space(s2_mmu_idx == ARMMMUIdx_Stage2_S);
+        } else {
+            assert(s2_mmu_idx != ARMMMUIdx_Stage2_S);
+            assert(s1_space != ARMSS_Root);
+            return s1_space;
+        }
+    } else {
+        /* ptw loads are from phys: the mmu idx itself says which space */
+        return arm_phys_to_space(s2_mmu_idx);
+    }
+}
+
 /* Translate a S1 pagetable walk through S2 if needed.  */
 static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
                              hwaddr addr, ARMMMUFaultInfo *fi)
 {
-    ARMSecuritySpace space = ptw->in_space;
     bool is_secure = ptw->in_secure;
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     ARMMMUIdx s2_mmu_idx = ptw->in_ptw_idx;
@@ -502,13 +530,12 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
          * From gdbstub, do not use softmmu so that we don't modify the
          * state of the cpu at all, including softmmu tlb contents.
          */
+        ARMSecuritySpace s2_space = S2_security_space(ptw->in_space, s2_mmu_idx);
         S1Translate s2ptw = {
             .in_mmu_idx = s2_mmu_idx,
             .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
-            .in_secure = s2_mmu_idx == ARMMMUIdx_Stage2_S,
-            .in_space = (s2_mmu_idx == ARMMMUIdx_Stage2_S ? ARMSS_Secure
-                         : space == ARMSS_Realm ? ARMSS_Realm
-                         : ARMSS_NonSecure),
+            .in_secure = arm_space_is_secure(s2_space),
+            .in_space = s2_space,
             .in_debug = true,
         };
         GetPhysAddrResult s2 = { };
