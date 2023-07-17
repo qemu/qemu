@@ -829,10 +829,8 @@ abi_long do_brk(abi_ulong brk_val)
 
     /* brk_val and old target_brk might be on the same page */
     if (new_brk == TARGET_PAGE_ALIGN(target_brk)) {
-        if (brk_val > target_brk) {
-            /* empty remaining bytes in (possibly larger) host page */
-            memset(g2h_untagged(target_brk), 0, new_host_brk_page - target_brk);
-        }
+        /* empty remaining bytes in (possibly larger) host page */
+        memset(g2h_untagged(new_brk), 0, new_host_brk_page - new_brk);
         target_brk = brk_val;
         return target_brk;
     }
@@ -840,7 +838,7 @@ abi_long do_brk(abi_ulong brk_val)
     /* Release heap if necesary */
     if (new_brk < target_brk) {
         /* empty remaining bytes in (possibly larger) host page */
-        memset(g2h_untagged(brk_val), 0, new_host_brk_page - brk_val);
+        memset(g2h_untagged(new_brk), 0, new_host_brk_page - new_brk);
 
         /* free unused host pages and set new brk_page */
         target_munmap(new_host_brk_page, brk_page - new_host_brk_page);
@@ -873,7 +871,7 @@ abi_long do_brk(abi_ulong brk_val)
          * come from the remaining part of the previous page: it may
          * contains garbage data due to a previous heap usage (grown
          * then shrunken).  */
-        memset(g2h_untagged(target_brk), 0, brk_page - target_brk);
+        memset(g2h_untagged(brk_page), 0, HOST_PAGE_ALIGN(brk_page) - brk_page);
 
         target_brk = brk_val;
         brk_page = new_host_brk_page;
