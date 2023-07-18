@@ -188,7 +188,8 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     idx = sector_num / s->tracks;
     to_allocate = DIV_ROUND_UP(sector_num + *pnum, s->tracks) - idx;
 
-    /* This function is called only by parallels_co_writev(), which will never
+    /*
+     * This function is called only by parallels_co_writev(), which will never
      * pass a sector_num at or beyond the end of the image (because the block
      * layer never passes such a sector_num to that function). Therefore, idx
      * is always below s->bat_size.
@@ -196,7 +197,8 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
      * exceed the image end. Therefore, idx + to_allocate cannot exceed
      * s->bat_size.
      * Note that s->bat_size is an unsigned int, therefore idx + to_allocate
-     * will always fit into a uint32_t. */
+     * will always fit into a uint32_t.
+     */
     assert(idx < s->bat_size && idx + to_allocate <= s->bat_size);
 
     space = to_allocate * s->tracks;
@@ -230,13 +232,15 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         }
     }
 
-    /* Try to read from backing to fill empty clusters
+    /*
+     * Try to read from backing to fill empty clusters
      * FIXME: 1. previous write_zeroes may be redundant
      *        2. most of data we read from backing will be rewritten by
      *           parallels_co_writev. On aligned-to-cluster write we do not need
      *           this read at all.
      *        3. it would be good to combine write of data from backing and new
-     *           data into one write call */
+     *           data into one write call.
+     */
     if (bs->backing) {
         int64_t nb_cow_sectors = to_allocate * s->tracks;
         int64_t nb_cow_bytes = nb_cow_sectors << BDRV_SECTOR_BITS;
@@ -864,8 +868,10 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         s->data_end = ROUND_UP(bat_entry_off(s->bat_size), BDRV_SECTOR_SIZE);
     }
     if (s->data_end < s->header_size) {
-        /* there is not enough unused space to fit to block align between BAT
-           and actual data. We can't avoid read-modify-write... */
+        /*
+         * There is not enough unused space to fit to block align between BAT
+         * and actual data. We can't avoid read-modify-write...
+         */
         s->header_size = size;
     }
 
