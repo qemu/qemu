@@ -136,6 +136,12 @@ static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
     return MIN(nb_sectors, ret);
 }
 
+static uint32_t host_cluster_index(BDRVParallelsState *s, int64_t off)
+{
+    off -= s->data_start << BDRV_SECTOR_BITS;
+    return off / s->cluster_size;
+}
+
 static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
                             int nb_sectors, int *pnum)
 {
@@ -533,6 +539,139 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
     return 0;
 }
 
+static int coroutine_fn GRAPH_RDLOCK
+parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
+                          BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t host_off, host_sector, guest_sector;
+    unsigned long *bitmap;
+    uint32_t i, bitmap_size, cluster_index, bat_entry;
+    int n, ret = 0;
+    uint64_t *buf = NULL;
+    bool fixed = false;
+
+    /*
+     * Create a bitmap of used clusters.
+     * If a bit is set, there is a BAT entry pointing to this cluster.
+     * Loop through the BAT entries, check bits relevant to an entry offset.
+     * If bit is set, this entry is duplicated. Otherwise set the bit.
+     *
+     * We shouldn't worry about newly allocated clusters outside the image
+     * because they are created higher then any existing cluster pointed by
+     * a BAT entry.
+     */
+    bitmap_size = host_cluster_index(s, res->image_end_offset);
+    if (bitmap_size == 0) {
+        return 0;
+    }
+    if (res->image_end_offset % s->cluster_size) {
+        /* A not aligned image end leads to a bitmap shorter by 1 */
+        bitmap_size++;
+    }
+
+    bitmap = bitmap_new(bitmap_size);
+
+    buf = qemu_blockalign(bs, s->cluster_size);
+
+    for (i = 0; i < s->bat_size; i++) {
+        host_off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        if (host_off == 0) {
+            continue;
+        }
+
+        cluster_index = host_cluster_index(s, host_off);
+        assert(cluster_index < bitmap_size);
+        if (!test_bit(cluster_index, bitmap)) {
+            bitmap_set(bitmap, cluster_index, 1);
+            continue;
+        }
+
+        /* this cluster duplicates another one */
+        fprintf(stderr, "%s duplicate offset in BAT entry %u\n",
+                fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
+
+        res->corruptions++;
+
+        if (!(fix & BDRV_FIX_ERRORS)) {
+            continue;
+        }
+
+        /*
+         * Reset the entry and allocate a new cluster
+         * for the relevant guest offset. In this way we let
+         * the lower layer to place the new cluster properly.
+         * Copy the original cluster to the allocated one.
+         * But before save the old offset value for repairing
+         * if we have an error.
+         */
+        bat_entry = s->bat_bitmap[i];
+        parallels_set_bat_entry(s, i, 0);
+
+        ret = bdrv_co_pread(bs->file, host_off, s->cluster_size, buf, 0);
+        if (ret < 0) {
+            res->check_errors++;
+            goto out_repair_bat;
+        }
+
+        guest_sector = (i * (int64_t)s->cluster_size) >> BDRV_SECTOR_BITS;
+        host_sector = allocate_clusters(bs, guest_sector, s->tracks, &n);
+        if (host_sector < 0) {
+            res->check_errors++;
+            goto out_repair_bat;
+        }
+        host_off = host_sector << BDRV_SECTOR_BITS;
+
+        ret = bdrv_co_pwrite(bs->file, host_off, s->cluster_size, buf, 0);
+        if (ret < 0) {
+            res->check_errors++;
+            goto out_repair_bat;
+        }
+
+        if (host_off + s->cluster_size > res->image_end_offset) {
+            res->image_end_offset = host_off + s->cluster_size;
+        }
+
+        /*
+         * In the future allocate_cluster() will reuse holed offsets
+         * inside the image. Keep the used clusters bitmap content
+         * consistent for the new allocated clusters too.
+         *
+         * Note, clusters allocated outside the current image are not
+         * considered, and the bitmap size doesn't change.
+         */
+        cluster_index = host_cluster_index(s, host_off);
+        if (cluster_index < bitmap_size) {
+            bitmap_set(bitmap, cluster_index, 1);
+        }
+
+        fixed = true;
+        res->corruptions_fixed++;
+
+    }
+
+    if (fixed) {
+        /*
+         * When new clusters are allocated, the file size increases by
+         * 128 Mb. We need to truncate the file to the right size. Let
+         * the leak fix code make its job without res changing.
+         */
+        ret = parallels_check_leak(bs, res, fix, false);
+    }
+
+out_free:
+    g_free(buf);
+    g_free(bitmap);
+    return ret;
+/*
+ * We can get here only from places where index and old_offset have
+ * meaningful values.
+ */
+out_repair_bat:
+    s->bat_bitmap[i] = bat_entry;
+    goto out_free;
+}
+
 static void parallels_collect_statistics(BlockDriverState *bs,
                                          BdrvCheckResult *res,
                                          BdrvCheckMode fix)
@@ -580,6 +719,11 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
         }
 
         ret = parallels_check_leak(bs, res, fix, true);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = parallels_check_duplicate(bs, res, fix);
         if (ret < 0) {
             return ret;
         }
