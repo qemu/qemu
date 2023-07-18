@@ -488,7 +488,7 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
 
 static int coroutine_fn GRAPH_RDLOCK
 parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
-                     BdrvCheckMode fix)
+                     BdrvCheckMode fix, bool explicit)
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t size;
@@ -503,10 +503,13 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
     if (size > res->image_end_offset) {
         int64_t count;
         count = DIV_ROUND_UP(size - res->image_end_offset, s->cluster_size);
-        fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
-                fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
-                size - res->image_end_offset);
-        res->leaks += count;
+        if (explicit) {
+            fprintf(stderr,
+                    "%s space leaked at the end of the image %" PRId64 "\n",
+                    fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
+                    size - res->image_end_offset);
+            res->leaks += count;
+        }
         if (fix & BDRV_FIX_LEAKS) {
             Error *local_err = NULL;
 
@@ -521,7 +524,9 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
                 res->check_errors++;
                 return ret;
             }
-            res->leaks_fixed += count;
+            if (explicit) {
+                res->leaks_fixed += count;
+            }
         }
     }
 
@@ -574,7 +579,7 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
             return ret;
         }
 
-        ret = parallels_check_leak(bs, res, fix);
+        ret = parallels_check_leak(bs, res, fix, true);
         if (ret < 0) {
             return ret;
         }
