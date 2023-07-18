@@ -874,6 +874,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
          */
         s->header_size = size;
     }
+    if (s->data_end > file_nb_sectors) {
+        error_setg(errp, "Invalid image: incorrect data_off field");
+        ret = -EINVAL;
+        goto fail;
+    }
 
     ret = bdrv_pread(bs->file, 0, s->header_size, s->header, 0);
     if (ret < 0) {
