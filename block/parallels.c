@@ -500,7 +500,7 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
     int64_t size;
     int ret;
 
-    size = bdrv_getlength(bs->file->bs);
+    size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
