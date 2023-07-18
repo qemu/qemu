@@ -1032,9 +1032,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     ParallelsHeader ph;
     int ret, size, i;
     int64_t file_nb_sectors, sector;
+    uint32_t data_start;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     char *buf;
+    bool data_off_is_correct;
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -1092,18 +1094,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto fail;
     }
-    s->data_start = le32_to_cpu(ph.data_off);
-    if (s->data_start == 0) {
-        s->data_start = DIV_ROUND_UP(size, BDRV_SECTOR_SIZE);
-    }
-    s->data_end = s->data_start;
-    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
-        /*
-         * There is not enough unused space to fit to block align between BAT
-         * and actual data. We can't avoid read-modify-write...
-         */
-        s->header_size = size;
-    }
 
     ret = bdrv_pread(bs->file, 0, s->header_size, s->header, 0);
     if (ret < 0) {
@@ -1113,6 +1103,18 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
         s->header_unclean = true;
+    }
+
+    data_off_is_correct = parallels_test_data_off(s, file_nb_sectors,
+                                                  &data_start);
+    s->data_start = data_start;
+    s->data_end = s->data_start;
+    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
+        /*
+         * There is not enough unused space to fit to block align between BAT
+         * and actual data. We can't avoid read-modify-write...
+         */
+        s->header_size = size;
     }
 
     opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, errp);
@@ -1197,7 +1199,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
      * Repair the image if it's dirty or
      * out-of-image corruption was detected.
      */
-    if (s->data_end > file_nb_sectors || s->header_unclean) {
+    if (s->data_end > file_nb_sectors || s->header_unclean
+        || !data_off_is_correct) {
         BdrvCheckResult res;
         ret = bdrv_check(bs, &res, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
         if (ret < 0) {
