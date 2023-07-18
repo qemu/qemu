@@ -75,6 +75,7 @@ typedef struct BDRVParallelsState {
     uint32_t *bat_bitmap;
     unsigned int bat_size;
 
+    int64_t  data_start;
     int64_t  data_end;
     uint64_t prealloc_size;
     ParallelsPreallocMode prealloc_mode;

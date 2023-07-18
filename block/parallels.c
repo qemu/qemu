@@ -868,10 +868,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto fail;
     }
-    s->data_end = le32_to_cpu(ph.data_off);
-    if (s->data_end == 0) {
-        s->data_end = DIV_ROUND_UP(size, BDRV_SECTOR_SIZE);
+    s->data_start = le32_to_cpu(ph.data_off);
+    if (s->data_start == 0) {
+        s->data_start = DIV_ROUND_UP(size, BDRV_SECTOR_SIZE);
     }
+    s->data_end = s->data_start;
     if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
         /*
          * There is not enough unused space to fit to block align between BAT
