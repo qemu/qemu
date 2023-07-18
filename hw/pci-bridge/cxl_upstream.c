@@ -274,10 +274,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
         };
     }
 
-    *cdat_table = g_malloc0(sizeof(*cdat_table) * CXL_USP_CDAT_NUM_ENTRIES);
-    if (!*cdat_table) {
-        return -ENOMEM;
-    }
+    *cdat_table = g_new0(CDATSubHeader *, CXL_USP_CDAT_NUM_ENTRIES);
 
     /* Header always at start of structure */
     (*cdat_table)[CXL_USP_CDAT_SSLBIS_LAT] = g_steal_pointer(&sslbis_latency);
