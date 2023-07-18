@@ -450,6 +450,81 @@ static void parallels_check_unclean(BlockDriverState *bs,
     }
 }
 
+/*
+ * Returns true if data_off is correct, otherwise false. In both cases
+ * correct_offset is set to the proper value.
+ */
+static bool parallels_test_data_off(BDRVParallelsState *s,
+                                    int64_t file_nb_sectors,
+                                    uint32_t *correct_offset)
+{
+    uint32_t data_off, min_off;
+    bool old_magic;
+
+    /*
+     * There are two slightly different image formats: with "WithoutFreeSpace"
+     * or "WithouFreSpacExt" magic words. Call the first one as "old magic".
+     * In such images data_off field can be zero. In this case the offset is
+     * calculated as the end of BAT table plus some padding to ensure sector
+     * size alignment.
+     */
+    old_magic = !memcmp(s->header->magic, HEADER_MAGIC, 16);
+
+    min_off = DIV_ROUND_UP(bat_entry_off(s->bat_size), BDRV_SECTOR_SIZE);
+    if (!old_magic) {
+        min_off = ROUND_UP(min_off, s->cluster_size / BDRV_SECTOR_SIZE);
+    }
+
+    if (correct_offset) {
+        *correct_offset = min_off;
+    }
+
+    data_off = le32_to_cpu(s->header->data_off);
+    if (data_off == 0 && old_magic) {
+        return true;
+    }
+
+    if (data_off < min_off || data_off > file_nb_sectors) {
+        return false;
+    }
+
+    if (correct_offset) {
+        *correct_offset = data_off;
+    }
+
+    return true;
+}
+
+static int coroutine_fn GRAPH_RDLOCK
+parallels_check_data_off(BlockDriverState *bs, BdrvCheckResult *res,
+                         BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t file_size;
+    uint32_t data_off;
+
+    file_size = bdrv_co_nb_sectors(bs->file->bs);
+    if (file_size < 0) {
+        res->check_errors++;
+        return file_size;
+    }
+
+    if (parallels_test_data_off(s, file_size, &data_off)) {
+        return 0;
+    }
+
+    res->corruptions++;
+    if (fix & BDRV_FIX_ERRORS) {
+        s->header->data_off = cpu_to_le32(data_off);
+        res->corruptions_fixed++;
+    }
+
+    fprintf(stderr, "%s data_off field has incorrect value\n",
+            fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
+
+    return 0;
+}
+
 static int coroutine_fn GRAPH_RDLOCK
 parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
                               BdrvCheckMode fix)
@@ -712,6 +787,11 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         parallels_check_unclean(bs, res, fix);
+
+        ret = parallels_check_data_off(bs, res, fix);
+        if (ret < 0) {
+            return ret;
+        }
 
         ret = parallels_check_outside_image(bs, res, fix);
         if (ret < 0) {
