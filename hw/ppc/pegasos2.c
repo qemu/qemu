@@ -324,9 +324,13 @@ static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
 
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 2) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x409);
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 2) << 8) |
+                              PCI_COMMAND, 2, 0x7);
 
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 3) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x409);
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 3) << 8) |
+                              PCI_COMMAND, 2, 0x7);
 
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 4) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x9);
