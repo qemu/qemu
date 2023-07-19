@@ -5660,6 +5660,16 @@ static void register_power_common_book4_sprs(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_tfmr, &spr_write_tfmr,
                  0x00000000);
+    spr_register_hv(env, SPR_TRIG1, "TRIG1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_access_nop, &spr_write_generic,
+                 &spr_access_nop, &spr_write_generic,
+                 0x00000000);
+    spr_register_hv(env, SPR_TRIG2, "TRIG2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_access_nop, &spr_write_generic,
+                 &spr_access_nop, &spr_write_generic,
+                 0x00000000);
 #endif
 }
 
