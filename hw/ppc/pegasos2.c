@@ -739,6 +739,13 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
                                      pci_get_word(&d->config[PCI_VENDOR_ID]),
                                      pci_get_word(&d->config[PCI_DEVICE_ID]));
 
+    if (pci_get_word(&d->config[PCI_CLASS_DEVICE])  ==
+        PCI_CLASS_NETWORK_ETHERNET) {
+        name = "ethernet";
+    } else if (pci_get_word(&d->config[PCI_CLASS_DEVICE]) >> 8 ==
+        PCI_BASE_CLASS_DISPLAY) {
+        name = "display";
+    }
     for (i = 0; device_map[i].id; i++) {
         if (!strcmp(pn, device_map[i].id)) {
             name = device_map[i].name;
@@ -929,6 +936,7 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-display-device", 0);
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size", 20);
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-version", 1);
+    qemu_fdt_setprop_string(fdt, "/rtas", "name", "rtas");
 
     /* cpus */
     qemu_fdt_add_subnode(fdt, "/cpus");
