@@ -766,7 +766,11 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
         if (!d->io_regions[i].size) {
             continue;
         }
-        cells[j] = cpu_to_be32(d->devfn << 8 | (PCI_BASE_ADDRESS_0 + i * 4));
+        cells[j] = PCI_BASE_ADDRESS_0 + i * 4;
+        if (cells[j] == 0x28) {
+            cells[j] = 0x30;
+        }
+        cells[j] = cpu_to_be32(d->devfn << 8 | cells[j]);
         if (d->io_regions[i].type & PCI_BASE_ADDRESS_SPACE_IO) {
             cells[j] |= cpu_to_be32(1 << 24);
         } else {
