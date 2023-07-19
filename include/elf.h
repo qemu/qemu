@@ -596,25 +596,53 @@ typedef struct {
 
 /* Bits present in AT_HWCAP for s390.  */
 
-#define HWCAP_S390_ESAN3        1
-#define HWCAP_S390_ZARCH        2
-#define HWCAP_S390_STFLE        4
-#define HWCAP_S390_MSA          8
-#define HWCAP_S390_LDISP        16
-#define HWCAP_S390_EIMM         32
-#define HWCAP_S390_DFP          64
-#define HWCAP_S390_HPAGE        128
-#define HWCAP_S390_ETF3EH       256
-#define HWCAP_S390_HIGH_GPRS    512
-#define HWCAP_S390_TE           1024
-#define HWCAP_S390_VXRS         2048
-#define HWCAP_S390_VXRS_BCD     4096
-#define HWCAP_S390_VXRS_EXT     8192
-#define HWCAP_S390_GS           16384
-#define HWCAP_S390_VXRS_EXT2    32768
-#define HWCAP_S390_VXRS_PDE     65536
-#define HWCAP_S390_SORT         131072
-#define HWCAP_S390_DFLT         262144
+#define HWCAP_S390_NR_ESAN3      0
+#define HWCAP_S390_NR_ZARCH      1
+#define HWCAP_S390_NR_STFLE      2
+#define HWCAP_S390_NR_MSA        3
+#define HWCAP_S390_NR_LDISP      4
+#define HWCAP_S390_NR_EIMM       5
+#define HWCAP_S390_NR_DFP        6
+#define HWCAP_S390_NR_HPAGE      7
+#define HWCAP_S390_NR_ETF3EH     8
+#define HWCAP_S390_NR_HIGH_GPRS  9
+#define HWCAP_S390_NR_TE        10
+#define HWCAP_S390_NR_VXRS      11
+#define HWCAP_S390_NR_VXRS_BCD  12
+#define HWCAP_S390_NR_VXRS_EXT  13
+#define HWCAP_S390_NR_GS        14
+#define HWCAP_S390_NR_VXRS_EXT2 15
+#define HWCAP_S390_NR_VXRS_PDE  16
+#define HWCAP_S390_NR_SORT      17
+#define HWCAP_S390_NR_DFLT      18
+#define HWCAP_S390_NR_VXRS_PDE2 19
+#define HWCAP_S390_NR_NNPA      20
+#define HWCAP_S390_NR_PCI_MIO   21
+#define HWCAP_S390_NR_SIE       22
+
+#define HWCAP_S390_ESAN3     (1 << HWCAP_S390_NR_ESAN3)
+#define HWCAP_S390_ZARCH     (1 << HWCAP_S390_NR_ZARCH)
+#define HWCAP_S390_STFLE     (1 << HWCAP_S390_NR_STFLE)
+#define HWCAP_S390_MSA       (1 << HWCAP_S390_NR_MSA)
+#define HWCAP_S390_LDISP     (1 << HWCAP_S390_NR_LDISP)
+#define HWCAP_S390_EIMM      (1 << HWCAP_S390_NR_EIMM)
+#define HWCAP_S390_DFP       (1 << HWCAP_S390_NR_DFP)
+#define HWCAP_S390_HPAGE     (1 << HWCAP_S390_NR_HPAGE)
+#define HWCAP_S390_ETF3EH    (1 << HWCAP_S390_NR_ETF3EH)
+#define HWCAP_S390_HIGH_GPRS (1 << HWCAP_S390_NR_HIGH_GPRS)
+#define HWCAP_S390_TE        (1 << HWCAP_S390_NR_TE)
+#define HWCAP_S390_VXRS      (1 << HWCAP_S390_NR_VXRS)
+#define HWCAP_S390_VXRS_BCD  (1 << HWCAP_S390_NR_VXRS_BCD)
+#define HWCAP_S390_VXRS_EXT  (1 << HWCAP_S390_NR_VXRS_EXT)
+#define HWCAP_S390_GS        (1 << HWCAP_S390_NR_GS)
+#define HWCAP_S390_VXRS_EXT2 (1 << HWCAP_S390_NR_VXRS_EXT2)
+#define HWCAP_S390_VXRS_PDE  (1 << HWCAP_S390_NR_VXRS_PDE)
+#define HWCAP_S390_SORT      (1 << HWCAP_S390_NR_SORT)
+#define HWCAP_S390_DFLT      (1 << HWCAP_S390_NR_DFLT)
+#define HWCAP_S390_VXRS_PDE2 (1 << HWCAP_S390_NR_VXRS_PDE2)
+#define HWCAP_S390_NNPA      (1 << HWCAP_S390_NR_NNPA)
+#define HWCAP_S390_PCI_MIO   (1 << HWCAP_S390_NR_PCI_MIO)
+#define HWCAP_S390_SIE       (1 << HWCAP_S390_NR_SIE)
 
 /* M68K specific definitions. */
 /* We use the top 24 bits to encode information about the
