@@ -8,6 +8,9 @@
  * C_On_Im(...) defines a constraint set with <n> outputs and <m> inputs.
  * Each operand should be a sequence of constraint letters as defined by
  * tcg-target-con-str.h; the constraint combination is inclusive or.
+ *
+ * C_Nn_Om_Ik(...) defines a constraint set with <n + m> outputs and <k>
+ * inputs, except that the first <n> outputs must use new registers.
  */
 C_O0_I1(r)
 C_O0_I2(L, L)
@@ -41,6 +44,5 @@ C_O1_I4(r, r, rA, rI, r)
 C_O2_I2(o, m, 0, r)
 C_O2_I2(o, m, r, r)
 C_O2_I3(o, m, 0, 1, r)
-C_O2_I4(r, r, 0, 1, rA, r)
-C_O2_I4(r, r, 0, 1, ri, r)
-C_O2_I4(r, r, 0, 1, r, r)
+C_N1_O1_I4(r, r, 0, 1, ri, r)
+C_N1_O1_I4(r, r, 0, 1, rA, r)
