@@ -652,10 +652,9 @@
 #     10), [10, 50), [50, 100), [100, +inf).
 #
 # @bins: list of io request counts corresponding to histogram
-#     intervals.
-#     len(@bins) = len(@boundaries) + 1
-#     For the example above, @bins may be something like [3, 1, 5, 2],
-#     and corresponding histogram looks like:
+#     intervals, one more element than @boundaries has.  For the
+#     example above, @bins may be something like [3, 1, 5, 2], and
+#     corresponding histogram looks like:
 #
 # ::
 #
