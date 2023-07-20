@@ -60,9 +60,6 @@
 #
 # Returns: a list of @TraceEventInfo for the matching events
 #
-# An event is returned if its name matches the @name pattern
-# (There are no longer any per-vCPU events).
-#
 # Since: 2.2
 #
 # Example:
@@ -90,10 +87,8 @@
 # @vcpu: The vCPU to act upon (all by default; since 2.7).
 #
 # Features:
-# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
-# An event is enabled if its name matches the @name pattern
-# (There are no longer any per-vCPU events).
+# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Since: 2.2
 #
