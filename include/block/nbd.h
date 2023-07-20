@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2022 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -26,24 +26,26 @@
 #include "qapi/error.h"
 #include "qemu/bswap.h"
 
+typedef struct NBDExport NBDExport;
+typedef struct NBDClient NBDClient;
+typedef struct NBDClientConnection NBDClientConnection;
+
 extern const BlockExportDriver blk_exp_nbd;
 
 /* Handshake phase structs - this struct is passed on the wire */
 
-struct NBDOption {
+typedef struct NBDOption {
     uint64_t magic; /* NBD_OPTS_MAGIC */
     uint32_t option; /* NBD_OPT_* */
     uint32_t length;
-} QEMU_PACKED;
-typedef struct NBDOption NBDOption;
+} QEMU_PACKED NBDOption;
 
-struct NBDOptionReply {
+typedef struct NBDOptionReply {
     uint64_t magic; /* NBD_REP_MAGIC */
     uint32_t option; /* NBD_OPT_* */
     uint32_t type; /* NBD_REP_* */
     uint32_t length;
-} QEMU_PACKED;
-typedef struct NBDOptionReply NBDOptionReply;
+} QEMU_PACKED NBDOptionReply;
 
 typedef struct NBDOptionReplyMetaContext {
     NBDOptionReply h; /* h.type = NBD_REP_META_CONTEXT, h.length > 4 */
@@ -51,24 +53,33 @@ typedef struct NBDOptionReplyMetaContext {
     /* metadata context name follows */
 } QEMU_PACKED NBDOptionReplyMetaContext;
 
+/* Track results of negotiation */
+typedef enum NBDMode {
+    /* Keep this list in a continuum of increasing features. */
+    NBD_MODE_OLDSTYLE,     /* server lacks newstyle negotiation */
+    NBD_MODE_EXPORT_NAME,  /* newstyle but only OPT_EXPORT_NAME safe */
+    NBD_MODE_SIMPLE,       /* newstyle but only simple replies */
+    NBD_MODE_STRUCTURED,   /* newstyle, structured replies enabled */
+    /* TODO add NBD_MODE_EXTENDED */
+} NBDMode;
+
 /* Transmission phase structs
  *
  * Note: these are _NOT_ the same as the network representation of an NBD
  * request and reply!
  */
-struct NBDRequest {
-    uint64_t handle;
+typedef struct NBDRequest {
+    uint64_t cookie;
     uint64_t from;
     uint32_t len;
     uint16_t flags; /* NBD_CMD_FLAG_* */
     uint16_t type; /* NBD_CMD_* */
-};
-typedef struct NBDRequest NBDRequest;
+} NBDRequest;
 
 typedef struct NBDSimpleReply {
     uint32_t magic;  /* NBD_SIMPLE_REPLY_MAGIC */
     uint32_t error;
-    uint64_t handle;
+    uint64_t cookie;
 } QEMU_PACKED NBDSimpleReply;
 
 /* Header of all structured replies */
@@ -76,7 +87,7 @@ typedef struct NBDStructuredReplyChunk {
     uint32_t magic;  /* NBD_STRUCTURED_REPLY_MAGIC */
     uint16_t flags;  /* combination of NBD_REPLY_FLAG_* */
     uint16_t type;   /* NBD_REPLY_TYPE_* */
-    uint64_t handle; /* request handle */
+    uint64_t cookie; /* request handle */
     uint32_t length; /* length of payload */
 } QEMU_PACKED NBDStructuredReplyChunk;
 
@@ -84,40 +95,41 @@ typedef union NBDReply {
     NBDSimpleReply simple;
     NBDStructuredReplyChunk structured;
     struct {
-        /* @magic and @handle fields have the same offset and size both in
+        /*
+         * @magic and @cookie fields have the same offset and size both in
          * simple reply and structured reply chunk, so let them be accessible
          * without ".simple." or ".structured." specification
          */
         uint32_t magic;
         uint32_t _skip;
-        uint64_t handle;
+        uint64_t cookie;
     } QEMU_PACKED;
 } NBDReply;
 
 /* Header of chunk for NBD_REPLY_TYPE_OFFSET_DATA */
 typedef struct NBDStructuredReadData {
-    NBDStructuredReplyChunk h; /* h.length >= 9 */
+    /* header's .length >= 9 */
     uint64_t offset;
     /* At least one byte of data payload follows, calculated from h.length */
 } QEMU_PACKED NBDStructuredReadData;
 
 /* Complete chunk for NBD_REPLY_TYPE_OFFSET_HOLE */
 typedef struct NBDStructuredReadHole {
-    NBDStructuredReplyChunk h; /* h.length == 12 */
+    /* header's length == 12 */
     uint64_t offset;
     uint32_t length;
 } QEMU_PACKED NBDStructuredReadHole;
 
 /* Header of all NBD_REPLY_TYPE_ERROR* errors */
 typedef struct NBDStructuredError {
-    NBDStructuredReplyChunk h; /* h.length >= 6 */
+    /* header's length >= 6 */
     uint32_t error;
     uint16_t message_length;
 } QEMU_PACKED NBDStructuredError;
 
 /* Header of NBD_REPLY_TYPE_BLOCK_STATUS */
 typedef struct NBDStructuredMeta {
-    NBDStructuredReplyChunk h; /* h.length >= 12 (at least one extent) */
+    /* header's length >= 12 (at least one extent) */
     uint32_t context_id;
     /* extents follows */
 } QEMU_PACKED NBDStructuredMeta;
@@ -282,7 +294,7 @@ static inline bool nbd_reply_type_is_error(int type)
 #define NBD_ESHUTDOWN  108
 
 /* Details collected by NBD_OPT_EXPORT_NAME and NBD_OPT_GO */
-struct NBDExportInfo {
+typedef struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
     bool request_sizes;
     char *x_dirty_bitmap;
@@ -310,8 +322,7 @@ struct NBDExportInfo {
     char *description;
     int n_contexts;
     char **contexts;
-};
-typedef struct NBDExportInfo NBDExportInfo;
+} NBDExportInfo;
 
 int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
                           QCryptoTLSCreds *tlscreds,
@@ -329,9 +340,6 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 int nbd_errno_to_system_errno(int err);
-
-typedef struct NBDExport NBDExport;
-typedef struct NBDClient NBDClient;
 
 void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk);
 
@@ -407,10 +415,9 @@ const char *nbd_rep_lookup(uint32_t rep);
 const char *nbd_info_lookup(uint16_t info);
 const char *nbd_cmd_lookup(uint16_t info);
 const char *nbd_err_lookup(int err);
+const char *nbd_mode_lookup(NBDMode mode);
 
 /* nbd/client-connection.c */
-typedef struct NBDClientConnection NBDClientConnection;
-
 void nbd_client_connection_enable_retry(NBDClientConnection *conn);
 
 NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,

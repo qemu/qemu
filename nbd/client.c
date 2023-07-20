@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -650,19 +650,20 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
                                Error **errp)
 {
     int ret;
-    uint32_t export_len = strlen(export);
+    uint32_t export_len;
     uint32_t queries = !!query;
     uint32_t query_len = 0;
     uint32_t data_len;
     char *data;
     char *p;
 
+    assert(strnlen(export, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
+    export_len = strlen(export);
     data_len = sizeof(export_len) + export_len + sizeof(queries);
-    assert(export_len <= NBD_MAX_STRING_SIZE);
     if (query) {
+        assert(strnlen(query, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
         query_len = strlen(query);
         data_len += sizeof(query_len) + query_len;
-        assert(query_len <= NBD_MAX_STRING_SIZE);
     } else {
         assert(opt == NBD_OPT_LIST_META_CONTEXT);
     }
@@ -874,10 +875,7 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
  * Start the handshake to the server.  After a positive return, the server
  * is ready to accept additional NBD_OPT requests.
  * Returns: negative errno: failure talking to server
- *          0: server is oldstyle, must call nbd_negotiate_finish_oldstyle
- *          1: server is newstyle, but can only accept EXPORT_NAME
- *          2: server is newstyle, but lacks structured replies
- *          3: server is newstyle and set up for structured replies
+ *          non-negative: enum NBDMode describing server abilities
  */
 static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                                QCryptoTLSCreds *tlscreds,
@@ -968,16 +966,16 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                     return -EINVAL;
                 }
             }
-            return 2 + result;
+            return result ? NBD_MODE_STRUCTURED : NBD_MODE_SIMPLE;
         } else {
-            return 1;
+            return NBD_MODE_EXPORT_NAME;
         }
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (tlscreds) {
             error_setg(errp, "Server does not support STARTTLS");
             return -EINVAL;
         }
-        return 0;
+        return NBD_MODE_OLDSTYLE;
     } else {
         error_setg(errp, "Bad server magic received: 0x%" PRIx64, magic);
         return -EINVAL;
@@ -1031,6 +1029,9 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
                                  info->structured_reply, &zeroes, errp);
+    if (result < 0) {
+        return result;
+    }
 
     info->structured_reply = false;
     info->base_allocation = false;
@@ -1038,8 +1039,8 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
         ioc = *outioc;
     }
 
-    switch (result) {
-    case 3: /* newstyle, with structured replies */
+    switch ((NBDMode)result) {
+    case NBD_MODE_STRUCTURED:
         info->structured_reply = true;
         if (base_allocation) {
             result = nbd_negotiate_simple_meta_context(ioc, info, errp);
@@ -1049,7 +1050,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
             info->base_allocation = result == 1;
         }
         /* fall through */
-    case 2: /* newstyle, try OPT_GO */
+    case NBD_MODE_SIMPLE:
         /* Try NBD_OPT_GO first - if it works, we are done (it
          * also gives us a good message if the server requires
          * TLS).  If it is not available, fall back to
@@ -1072,7 +1073,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
             return -EINVAL;
         }
         /* fall through */
-    case 1: /* newstyle, but limited to EXPORT_NAME */
+    case NBD_MODE_EXPORT_NAME:
         /* write the export name request */
         if (nbd_send_option_request(ioc, NBD_OPT_EXPORT_NAME, -1, info->name,
                                     errp) < 0) {
@@ -1088,7 +1089,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
             return -EINVAL;
         }
         break;
-    case 0: /* oldstyle, parse length and flags */
+    case NBD_MODE_OLDSTYLE:
         if (*info->name) {
             error_setg(errp, "Server does not support non-empty export names");
             return -EINVAL;
@@ -1098,7 +1099,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
         }
         break;
     default:
-        return result;
+        g_assert_not_reached();
     }
 
     trace_nbd_receive_negotiate_size_flags(info->size, info->flags);
@@ -1154,10 +1155,13 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     if (tlscreds && sioc) {
         ioc = sioc;
     }
+    if (result < 0) {
+        goto out;
+    }
 
-    switch (result) {
-    case 2:
-    case 3:
+    switch ((NBDMode)result) {
+    case NBD_MODE_SIMPLE:
+    case NBD_MODE_STRUCTURED:
         /* newstyle - use NBD_OPT_LIST to populate array, then try
          * NBD_OPT_INFO on each array member. If structured replies
          * are enabled, also try NBD_OPT_LIST_META_CONTEXT. */
@@ -1178,7 +1182,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].structured_reply = result == 3;
+            array[count - 1].structured_reply = result == NBD_MODE_STRUCTURED;
         }
 
         for (i = 0; i < count; i++) {
@@ -1194,7 +1198,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                 break;
             }
 
-            if (result == 3 &&
+            if (result == NBD_MODE_STRUCTURED &&
                 nbd_list_meta_contexts(ioc, &array[i], errp) < 0) {
                 goto out;
             }
@@ -1203,11 +1207,12 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         /* Send NBD_OPT_ABORT as a courtesy before hanging up */
         nbd_send_opt_abort(ioc);
         break;
-    case 1: /* newstyle, but limited to EXPORT_NAME */
+    case NBD_MODE_EXPORT_NAME:
         error_setg(errp, "Server does not support export lists");
         /* We can't even send NBD_OPT_ABORT, so merely hang up */
         goto out;
-    case 0: /* oldstyle, parse length and flags */
+    case NBD_MODE_OLDSTYLE:
+        /* Lone export name is implied, but we can parse length and flags */
         array = g_new0(NBDExportInfo, 1);
         array->name = g_strdup("");
         count = 1;
@@ -1225,7 +1230,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         }
         break;
     default:
-        goto out;
+        g_assert_not_reached();
     }
 
     *info = array;
@@ -1349,14 +1354,14 @@ int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
-    trace_nbd_send_request(request->from, request->len, request->handle,
+    trace_nbd_send_request(request->from, request->len, request->cookie,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);
     stw_be_p(buf + 6, request->type);
-    stq_be_p(buf + 8, request->handle);
+    stq_be_p(buf + 8, request->cookie);
     stq_be_p(buf + 16, request->from);
     stl_be_p(buf + 24, request->len);
 
@@ -1382,7 +1387,7 @@ static int nbd_receive_simple_reply(QIOChannel *ioc, NBDSimpleReply *reply,
     }
 
     reply->error = be32_to_cpu(reply->error);
-    reply->handle = be64_to_cpu(reply->handle);
+    reply->cookie = be64_to_cpu(reply->cookie);
 
     return 0;
 }
@@ -1409,8 +1414,20 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
 
     chunk->flags = be16_to_cpu(chunk->flags);
     chunk->type = be16_to_cpu(chunk->type);
-    chunk->handle = be64_to_cpu(chunk->handle);
+    chunk->cookie = be64_to_cpu(chunk->cookie);
     chunk->length = be32_to_cpu(chunk->length);
+
+    /*
+     * Because we use BLOCK_STATUS with REQ_ONE, and cap READ requests
+     * at 32M, no valid server should send us payload larger than
+     * this.  Even if we stopped using REQ_ONE, sane servers will cap
+     * the number of extents they return for block status.
+     */
+    if (chunk->length > NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData)) {
+        error_setg(errp, "server chunk %" PRIu32 " (%s) payload is too long",
+                   chunk->type, nbd_rep_lookup(chunk->type));
+        return -EINVAL;
+    }
 
     return 0;
 }
@@ -1486,7 +1503,7 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
         }
         trace_nbd_receive_simple_reply(reply->simple.error,
                                        nbd_err_lookup(reply->simple.error),
-                                       reply->handle);
+                                       reply->cookie);
         break;
     case NBD_STRUCTURED_REPLY_MAGIC:
         ret = nbd_receive_structured_reply_chunk(ioc, &reply->structured, errp);
@@ -1496,7 +1513,7 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
         type = nbd_reply_type_lookup(reply->structured.type);
         trace_nbd_receive_structured_reply_chunk(reply->structured.flags,
                                                  reply->structured.type, type,
-                                                 reply->structured.handle,
+                                                 reply->structured.cookie,
                                                  reply->structured.length);
         break;
     default:
