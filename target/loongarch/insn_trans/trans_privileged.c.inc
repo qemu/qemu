@@ -99,13 +99,7 @@ static const CSRInfo csr_info[] = {
     CSR_OFF(PWCH),
     CSR_OFF(STLBPS),
     CSR_OFF(RVACFG),
-    [LOONGARCH_CSR_CPUID] = {
-        .offset = (int)offsetof(CPUState, cpu_index)
-                  - (int)offsetof(LoongArchCPU, env),
-        .flags = CSRFL_READONLY,
-        .readfn = NULL,
-        .writefn = NULL
-    },
+    CSR_OFF_FUNCS(CPUID, CSRFL_READONLY, gen_helper_csrrd_cpuid, NULL),
     CSR_OFF_FLAGS(PRCFG1, CSRFL_READONLY),
     CSR_OFF_FLAGS(PRCFG2, CSRFL_READONLY),
     CSR_OFF_FLAGS(PRCFG3, CSRFL_READONLY),
