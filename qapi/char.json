@@ -18,7 +18,7 @@
 # @filename: the filename of the character device
 #
 # @frontend-open: shows whether the frontend device attached to this
-#     backend (eg. with the chardev=... option) is in open or closed
+#     backend (e.g. with the chardev=... option) is in open or closed
 #     state (since 2.1)
 #
 # Notes: @filename is encoded using the QEMU command line character

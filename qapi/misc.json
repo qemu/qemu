@@ -18,7 +18,7 @@
 # fail and the FD will be closed.
 #
 # @protocol: protocol name.  Valid names are "vnc", "spice",
-#     "@dbus-display" or the name of a character device (eg. from
+#     "@dbus-display" or the name of a character device (e.g. from
 #     -chardev id=XXXX)
 #
 # @fdname: file descriptor name previously passed via 'getfd' command
