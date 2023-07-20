@@ -136,7 +136,7 @@
 #
 # @filename: Name of the extent file
 #
-# @format: Extent type (e.g.  FLAT or SPARSE)
+# @format: Extent type (e.g. FLAT or SPARSE)
 #
 # @virtual-size: Number of bytes covered by this extent
 #
@@ -853,9 +853,8 @@
 # @min_wr_latency_ns: Minimum latency of write operations in the
 #     defined interval, in nanoseconds.
 #
-# @min_zone_append_latency_ns: Minimum latency of zone append operations
-#                              in the defined interval, in nanoseconds
-#                              (since 8.1)
+# @min_zone_append_latency_ns: Minimum latency of zone append
+#     operations in the defined interval, in nanoseconds (since 8.1)
 #
 # @min_flush_latency_ns: Minimum latency of flush operations in the
 #     defined interval, in nanoseconds.
@@ -866,9 +865,8 @@
 # @max_wr_latency_ns: Maximum latency of write operations in the
 #     defined interval, in nanoseconds.
 #
-# @max_zone_append_latency_ns: Maximum latency of zone append operations
-#                              in the defined interval, in nanoseconds
-#                              (since 8.1)
+# @max_zone_append_latency_ns: Maximum latency of zone append
+#     operations in the defined interval, in nanoseconds (since 8.1)
 #
 # @max_flush_latency_ns: Maximum latency of flush operations in the
 #     defined interval, in nanoseconds.
@@ -879,9 +877,8 @@
 # @avg_wr_latency_ns: Average latency of write operations in the
 #     defined interval, in nanoseconds.
 #
-# @avg_zone_append_latency_ns: Average latency of zone append operations
-#                              in the defined interval, in nanoseconds
-#                              (since 8.1)
+# @avg_zone_append_latency_ns: Average latency of zone append
+#     operations in the defined interval, in nanoseconds (since 8.1)
 #
 # @avg_flush_latency_ns: Average latency of flush operations in the
 #     defined interval, in nanoseconds.
@@ -893,8 +890,7 @@
 #     the defined interval.
 #
 # @avg_zone_append_queue_depth: Average number of pending zone append
-#                               operations in the defined interval
-#                               (since 8.1).
+#     operations in the defined interval (since 8.1).
 #
 # Since: 2.5
 ##
@@ -919,8 +915,8 @@
 #
 # @wr_bytes: The number of bytes written by the device.
 #
-# @zone_append_bytes: The number of bytes appended by the zoned devices
-#                     (since 8.1)
+# @zone_append_bytes: The number of bytes appended by the zoned
+#     devices (since 8.1)
 #
 # @unmap_bytes: The number of bytes unmapped by the device (Since 4.2)
 #
@@ -930,8 +926,8 @@
 # @wr_operations: The number of write operations performed by the
 #     device.
 #
-# @zone_append_operations: The number of zone append operations performed
-#                          by the zoned devices (since 8.1)
+# @zone_append_operations: The number of zone append operations
+#     performed by the zoned devices (since 8.1)
 #
 # @flush_operations: The number of cache flush operations performed by
 #     the device (since 0.15)
@@ -946,7 +942,7 @@
 #     0.15).
 #
 # @zone_append_total_time_ns: Total time spent on zone append writes
-#                             in nanoseconds (since 8.1)
+#     in nanoseconds (since 8.1)
 #
 # @flush_total_time_ns: Total time spent on cache flushes in
 #     nanoseconds (since 0.15).
@@ -965,8 +961,8 @@
 # @wr_merged: Number of write requests that have been merged into
 #     another request (Since 2.3).
 #
-# @zone_append_merged: Number of zone append requests that have been merged
-#                      into another request (since 8.1)
+# @zone_append_merged: Number of zone append requests that have been
+#     merged into another request (since 8.1)
 #
 # @unmap_merged: Number of unmap requests that have been merged into
 #     another request (Since 4.2)
@@ -981,9 +977,8 @@
 # @failed_wr_operations: The number of failed write operations
 #     performed by the device (Since 2.5)
 #
-# @failed_zone_append_operations: The number of failed zone append write
-#                                 operations performed by the zoned devices
-#                                 (since 8.1)
+# @failed_zone_append_operations: The number of failed zone append
+#     write operations performed by the zoned devices (since 8.1)
 #
 # @failed_flush_operations: The number of failed flush operations
 #     performed by the device (Since 2.5)
@@ -997,8 +992,8 @@
 # @invalid_wr_operations: The number of invalid write operations
 #     performed by the device (Since 2.5)
 #
-# @invalid_zone_append_operations: The number of invalid zone append operations
-#                                  performed by the zoned device (since 8.1)
+# @invalid_zone_append_operations: The number of invalid zone append
+#     operations performed by the zoned device (since 8.1)
 #
 # @invalid_flush_operations: The number of invalid flush operations
 #     performed by the device (Since 2.5)
@@ -1019,7 +1014,8 @@
 #
 # @wr_latency_histogram: @BlockLatencyHistogramInfo.  (Since 4.0)
 #
-# @zone_append_latency_histogram: @BlockLatencyHistogramInfo.  (since 8.1)
+# @zone_append_latency_histogram: @BlockLatencyHistogramInfo.
+#     (since 8.1)
 #
 # @flush_latency_histogram: @BlockLatencyHistogramInfo.  (Since 4.0)
 #
@@ -1126,7 +1122,7 @@
 #
 # @parent: This describes the file block device if it has one.
 #     Contains recursively the statistics of the underlying protocol
-#     (e.g. the host file for a qcow2 image). If there is no
+#     (e.g. the host file for a qcow2 image).  If there is no
 #     underlying protocol, this field is omitted
 #
 # @backing: This describes the backing block device if it has one.
@@ -1486,7 +1482,7 @@
 # @format: the format of the overlay image, default is 'qcow2'.
 #
 # @mode: whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
+#     'absolute-paths'.
 ##
 { 'struct': 'BlockdevSnapshotSync',
   'data': { '*device': 'str', '*node-name': 'str',
@@ -1550,7 +1546,7 @@
 #
 # @bitmap: The name of a dirty bitmap to use.  Must be present if sync
 #     is "bitmap" or "incremental". Can be present if sync is "full"
-#     or "top". Must not be present otherwise.
+#     or "top".  Must not be present otherwise.
 #     (Since 2.4 (drive-backup), 3.1 (blockdev-backup))
 #
 # @bitmap-mode: Specifies the type of data the bitmap should contain
@@ -3477,16 +3473,16 @@
 # @pass-discard-other: whether discard requests for the data source
 #     should be issued on other occasions where a cluster gets freed
 #
-# @discard-no-unref: when enabled, discards from the guest will not cause
-#     cluster allocations to be relinquished. This prevents qcow2 fragmentation
-#     that would be caused by such discards. Besides potential
-#     performance degradation, such fragmentation can lead to increased
-#     allocation of clusters past the end of the image file,
-#     resulting in image files whose file length can grow much larger
-#     than their guest disk size would suggest.
-#     If image file length is of concern (e.g. when storing qcow2
-#     images directly on block devices), you should consider enabling
-#     this option. (since 8.1)
+# @discard-no-unref: when enabled, discards from the guest will not
+#     cause cluster allocations to be relinquished.  This prevents
+#     qcow2 fragmentation that would be caused by such discards.
+#     Besides potential performance degradation, such fragmentation
+#     can lead to increased allocation of clusters past the end of the
+#     image file, resulting in image files whose file length can grow
+#     much larger than their guest disk size would suggest.  If image
+#     file length is of concern (e.g. when storing qcow2 images
+#     directly on block devices), you should consider enabling this
+#     option.  (since 8.1)
 #
 # @overlap-check: which overlap checks to perform for writes to the
 #     image, defaults to 'cached' (since 2.2)
@@ -5240,9 +5236,9 @@
 #
 # @subformat: vhdx subformat (default: dynamic)
 #
-# @block-state-zero: Force use of payload blocks of type
-#     'ZERO'. Non-standard, but default.  Do not set to 'off' when
-#     using 'qemu-img convert' with subformat=dynamic.
+# @block-state-zero: Force use of payload blocks of type 'ZERO'.
+#     Non-standard, but default.  Do not set to 'off' when using
+#     'qemu-img convert' with subformat=dynamic.
 #
 # Since: 2.12
 ##

@@ -534,8 +534,8 @@
 # @boundaries-write: list of interval boundary values for write
 #     latency histogram.
 #
-# @boundaries-zap: list of interval boundary values for zone append write
-#                  latency histogram.
+# @boundaries-zap: list of interval boundary values for zone append
+#     write latency histogram.
 #
 # @boundaries-flush: list of interval boundary values for flush
 #     latency histogram.

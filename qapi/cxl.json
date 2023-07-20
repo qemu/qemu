@@ -172,8 +172,8 @@
 #
 # @temperature: Device temperature in degrees Celsius.
 #
-# @dirty-shutdown-count: Number of times the device has been unable
-#     to determine whether data loss may have occurred.
+# @dirty-shutdown-count: Number of times the device has been unable to
+#     determine whether data loss may have occurred.
 #
 # @corrected-volatile-error-count: Total number of correctable errors
 #     in volatile memory.

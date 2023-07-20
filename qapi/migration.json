@@ -465,8 +465,8 @@
 #     block devices (and thus take locks) immediately at the end of
 #     migration.  (since 3.0)
 #
-# @x-ignore-shared: If enabled, QEMU will not migrate shared memory that is
-#     accessible on the destination machine. (since 4.0)
+# @x-ignore-shared: If enabled, QEMU will not migrate shared memory
+#     that is accessible on the destination machine.  (since 4.0)
 #
 # @validate-uuid: Send the UUID of the source to allow the destination
 #     to ensure it is the same.  (since 4.2)
@@ -490,9 +490,9 @@
 # @switchover-ack: If enabled, migration will not stop the source VM
 #     and complete the migration until an ACK is received from the
 #     destination that it's OK to do so.  Exactly when this ACK is
-#     sent depends on the migrated devices that use this feature.
-#     For example, a device can use it to make sure some of its data
-#     is sent and loaded in the destination before doing switchover.
+#     sent depends on the migrated devices that use this feature.  For
+#     example, a device can use it to make sure some of its data is
+#     sent and loaded in the destination before doing switchover.
 #     This can reduce downtime if devices that support this capability
 #     are present.  'return-path' capability must be enabled to use
 #     it.  (since 8.1)

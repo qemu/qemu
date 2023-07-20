@@ -38,6 +38,7 @@
 # @vcpu: Whether this is a per-vCPU event (since 2.7).
 #
 # Features:
+#
 # @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Since: 2.2
@@ -56,6 +57,7 @@
 # @vcpu: The vCPU to query (since 2.7).
 #
 # Features:
+#
 # @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Returns: a list of @TraceEventInfo for the matching events
