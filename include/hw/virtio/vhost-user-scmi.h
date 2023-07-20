@@ -25,6 +25,7 @@ struct VHostUserSCMI {
     VirtQueue *cmd_vq;
     VirtQueue *event_vq;
     bool connected;
+    bool started_vu;
 };
 
 #endif /* _QEMU_VHOST_USER_SCMI_H */
