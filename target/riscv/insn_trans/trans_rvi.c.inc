@@ -1069,3 +1069,8 @@ static bool trans_csrrci(DisasContext *ctx, arg_csrrci * a)
                              ctx->zero, ctx->zero, mask, ctx->zero);
     }
 }
+
+static bool trans_mvp(DisasContext *ctx, arg_mvp * a){
+    printf("Hello, MVP\n");
+    return true;
+}

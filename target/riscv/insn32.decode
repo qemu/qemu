@@ -946,3 +946,6 @@ vfwcvtbf16_f_f_v  010010 . ..... 01101 001 ..... 1010111 @r2_vm
 # *** Zvfbfwma Standard Extension ***
 vfwmaccbf16_vv    111011 . ..... ..... 001 ..... 1010111 @r_vm
 vfwmaccbf16_vf    111011 . ..... ..... 101 ..... 1010111 @r_vm
+# *** Matrix Multiplication Extension ***
+mvp     0000011 .......... 111 ..... 0001011 @r
+mvp     0000100 .......... 111 ..... 0001011 @r
