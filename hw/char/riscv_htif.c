@@ -146,7 +146,8 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
             htifstate->env->mtohost = 0; /* clear to indicate we read */
             return;
         } else if (cmd == 0x1) {
-            qemu_chr_fe_write(&htifstate->chr, (uint8_t *)&payload, 1);
+            uint8_t ch = (uint8_t)payload;
+            qemu_chr_fe_write(&htifstate->chr, &ch, 1);
             resp = 0x100 | (uint8_t)payload;
         } else {
             qemu_log("HTIF device %d: unknown command\n", device);
