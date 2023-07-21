@@ -3321,7 +3321,7 @@ static void virtio_queue_packed_set_last_avail_idx(VirtIODevice *vdev,
     vq->last_avail_wrap_counter =
         vq->shadow_avail_wrap_counter = !!(idx & 0x8000);
     idx >>= 16;
-    vq->used_idx = idx & 0x7ffff;
+    vq->used_idx = idx & 0x7fff;
     vq->used_wrap_counter = !!(idx & 0x8000);
 }
 
