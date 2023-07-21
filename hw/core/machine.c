@@ -1312,7 +1312,7 @@ static void validate_cpu_cluster_to_numa_boundary(MachineState *ms)
     const CPUArchId *cpus = possible_cpus->cpus;
     int i, j;
 
-    if (state->num_nodes <= 1 || possible_cpus->len <= 1) {
+    if (qtest_enabled() || state->num_nodes <= 1 || possible_cpus->len <= 1) {
         return;
     }
 
