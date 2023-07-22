@@ -128,7 +128,11 @@ static inline void rb_link_node(RBNode *node, RBNode *parent, RBNode **rb_link)
     node->rb_parent_color = (uintptr_t)parent;
     node->rb_left = node->rb_right = NULL;
 
-    qatomic_set(rb_link, node);
+    /*
+     * Ensure that node is initialized before insertion,
+     * as viewed by a concurrent search.
+     */
+    qatomic_mb_set(rb_link, node);
 }
 
 static RBNode *rb_next(RBNode *node)
