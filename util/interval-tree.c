@@ -68,9 +68,14 @@ typedef struct RBAugmentCallbacks {
     void (*rotate)(RBNode *old, RBNode *new);
 } RBAugmentCallbacks;
 
+static inline RBNode *pc_parent(uintptr_t pc)
+{
+    return (RBNode *)(pc & ~1);
+}
+
 static inline RBNode *rb_parent(const RBNode *n)
 {
-    return (RBNode *)(n->rb_parent_color & ~1);
+    return pc_parent(n->rb_parent_color);
 }
 
 static inline RBNode *rb_red_parent(const RBNode *n)
@@ -532,7 +537,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
          * so as to bypass rb_erase_color() later on.
          */
         pc = node->rb_parent_color;
-        parent = rb_parent(node);
+        parent = pc_parent(pc);
         rb_change_child(node, child, parent, root);
         if (child) {
             child->rb_parent_color = pc;
@@ -544,7 +549,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
     } else if (!child) {
         /* Still case 1, but this time the child is node->rb_left */
         pc = node->rb_parent_color;
-        parent = rb_parent(node);
+        parent = pc_parent(pc);
         tmp->rb_parent_color = pc;
         rb_change_child(node, tmp, parent, root);
         rebalance = NULL;
@@ -600,7 +605,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         rb_set_parent(tmp, successor);
 
         pc = node->rb_parent_color;
-        tmp = rb_parent(node);
+        tmp = pc_parent(pc);
         rb_change_child(node, successor, tmp, root);
 
         if (child2) {
