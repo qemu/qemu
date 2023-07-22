@@ -3618,13 +3618,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 
     if (elf_interpreter) {
         load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
-        /*
-         * adjust brk address if the interpreter was loaded above the main
-         * executable, e.g. happens with static binaries on armhf
-         */
-        if (interp_info.brk > info->brk) {
-            info->brk = interp_info.brk;
-        }
 
         /* If the program interpreter is one of these two, then assume
            an iBCS2 image.  Otherwise assume a native linux image.  */
