@@ -48,12 +48,6 @@
  *
  * It also guarantees that if the lookup returns an element it is the 'correct'
  * one. But not returning an element does _NOT_ mean it's not present.
- *
- * NOTE:
- *
- * Stores to __rb_parent_color are not important for simple lookups so those
- * are left undone as of now. Nor did I check for loops involving parent
- * pointers.
  */
 
 typedef enum RBColor
@@ -68,6 +62,16 @@ typedef struct RBAugmentCallbacks {
     void (*rotate)(RBNode *old, RBNode *new);
 } RBAugmentCallbacks;
 
+static inline uintptr_t rb_pc(const RBNode *n)
+{
+    return qatomic_read(&n->rb_parent_color);
+}
+
+static inline void rb_set_pc(RBNode *n, uintptr_t pc)
+{
+    qatomic_set(&n->rb_parent_color, pc);
+}
+
 static inline RBNode *pc_parent(uintptr_t pc)
 {
     return (RBNode *)(pc & ~1);
@@ -75,12 +79,12 @@ static inline RBNode *pc_parent(uintptr_t pc)
 
 static inline RBNode *rb_parent(const RBNode *n)
 {
-    return pc_parent(n->rb_parent_color);
+    return pc_parent(rb_pc(n));
 }
 
 static inline RBNode *rb_red_parent(const RBNode *n)
 {
-    return (RBNode *)n->rb_parent_color;
+    return (RBNode *)rb_pc(n);
 }
 
 static inline RBColor pc_color(uintptr_t pc)
@@ -100,27 +104,27 @@ static inline bool pc_is_black(uintptr_t pc)
 
 static inline RBColor rb_color(const RBNode *n)
 {
-    return pc_color(n->rb_parent_color);
+    return pc_color(rb_pc(n));
 }
 
 static inline bool rb_is_red(const RBNode *n)
 {
-    return pc_is_red(n->rb_parent_color);
+    return pc_is_red(rb_pc(n));
 }
 
 static inline bool rb_is_black(const RBNode *n)
 {
-    return pc_is_black(n->rb_parent_color);
+    return pc_is_black(rb_pc(n));
 }
 
 static inline void rb_set_black(RBNode *n)
 {
-    n->rb_parent_color |= RB_BLACK;
+    rb_set_pc(n, rb_pc(n) | RB_BLACK);
 }
 
 static inline void rb_set_parent_color(RBNode *n, RBNode *p, RBColor color)
 {
-    n->rb_parent_color = (uintptr_t)p | color;
+    rb_set_pc(n, (uintptr_t)p | color);
 }
 
 static inline void rb_set_parent(RBNode *n, RBNode *p)
@@ -186,9 +190,10 @@ static inline void rb_change_child(RBNode *old, RBNode *new,
 static inline void rb_rotate_set_parents(RBNode *old, RBNode *new,
                                          RBRoot *root, RBColor color)
 {
-    RBNode *parent = rb_parent(old);
+    uintptr_t pc = rb_pc(old);
+    RBNode *parent = pc_parent(pc);
 
-    new->rb_parent_color = old->rb_parent_color;
+    rb_set_pc(new, pc);
     rb_set_parent_color(old, new, color);
     rb_change_child(old, new, parent, root);
 }
@@ -536,11 +541,11 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
          * and node must be black due to 4). We adjust colors locally
          * so as to bypass rb_erase_color() later on.
          */
-        pc = node->rb_parent_color;
+        pc = rb_pc(node);
         parent = pc_parent(pc);
         rb_change_child(node, child, parent, root);
         if (child) {
-            child->rb_parent_color = pc;
+            rb_set_pc(child, pc);
             rebalance = NULL;
         } else {
             rebalance = pc_is_black(pc) ? parent : NULL;
@@ -548,9 +553,9 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         tmp = parent;
     } else if (!child) {
         /* Still case 1, but this time the child is node->rb_left */
-        pc = node->rb_parent_color;
+        pc = rb_pc(node);
         parent = pc_parent(pc);
-        tmp->rb_parent_color = pc;
+        rb_set_pc(tmp, pc);
         rb_change_child(node, tmp, parent, root);
         rebalance = NULL;
         tmp = parent;
@@ -604,7 +609,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         qatomic_set(&successor->rb_left, tmp);
         rb_set_parent(tmp, successor);
 
-        pc = node->rb_parent_color;
+        pc = rb_pc(node);
         tmp = pc_parent(pc);
         rb_change_child(node, successor, tmp, root);
 
@@ -614,7 +619,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         } else {
             rebalance = rb_is_black(successor) ? parent : NULL;
         }
-        successor->rb_parent_color = pc;
+        rb_set_pc(successor, pc);
         tmp = successor;
     }
 
