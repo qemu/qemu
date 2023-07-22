@@ -745,8 +745,9 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
          * Loop invariant: start <= node->subtree_last
          * (Cond2 is satisfied by one of the subtree nodes)
          */
-        if (node->rb.rb_left) {
-            IntervalTreeNode *left = rb_to_itree(node->rb.rb_left);
+        RBNode *tmp = qatomic_read(&node->rb.rb_left);
+        if (tmp) {
+            IntervalTreeNode *left = rb_to_itree(tmp);
 
             if (start <= left->subtree_last) {
                 /*
@@ -765,8 +766,9 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
             if (start <= node->last) {     /* Cond2 */
                 return node; /* node is leftmost match */
             }
-            if (node->rb.rb_right) {
-                node = rb_to_itree(node->rb.rb_right);
+            tmp = qatomic_read(&node->rb.rb_right);
+            if (tmp) {
+                node = rb_to_itree(tmp);
                 if (start <= node->subtree_last) {
                     continue;
                 }
@@ -814,8 +816,9 @@ IntervalTreeNode *interval_tree_iter_first(IntervalTreeRoot *root,
 IntervalTreeNode *interval_tree_iter_next(IntervalTreeNode *node,
                                           uint64_t start, uint64_t last)
 {
-    RBNode *rb = node->rb.rb_right, *prev;
+    RBNode *rb, *prev;
 
+    rb = qatomic_read(&node->rb.rb_right);
     while (true) {
         /*
          * Loop invariants:
@@ -840,7 +843,7 @@ IntervalTreeNode *interval_tree_iter_next(IntervalTreeNode *node,
             }
             prev = &node->rb;
             node = rb_to_itree(rb);
-            rb = node->rb.rb_right;
+            rb = qatomic_read(&node->rb.rb_right);
         } while (prev == rb);
 
         /* Check if the node intersects [start;last] */
