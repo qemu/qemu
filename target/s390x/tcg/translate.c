@@ -5992,6 +5992,12 @@ static void in2_ra2(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in2_ra2 0
 
+static void in2_ra2_E(DisasContext *s, DisasOps *o)
+{
+    return in2_ra2(s, o);
+}
+#define SPEC_in2_ra2_E SPEC_r2_even
+
 static void in2_a2(DisasContext *s, DisasOps *o)
 {
     int x2 = have_field(s, x2) ? get_field(s, x2) : 0;
