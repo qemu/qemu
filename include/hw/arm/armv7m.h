@@ -52,6 +52,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(ARMv7MState, ARMV7M)
  * + Property "vfp": enable VFP (forwarded to CPU object)
  * + Property "dsp": enable DSP (forwarded to CPU object)
  * + Property "enable-bitband": expose bitbanded IO
+ * + Property "mpu-ns-regions": number of Non-Secure MPU regions (forwarded
+ *   to CPU object pmsav7-dregion property; default is whatever the default
+ *   for the CPU is)
+ * + Property "mpu-s-regions": number of Secure MPU regions (default is
+ *   whatever the default for the CPU is; must currently be set to the same
+ *   value as mpu-ns-regions if the CPU implements the Security Extension)
  * + Clock input "refclk" is the external reference clock for the systick timers
  * + Clock input "cpuclk" is the main CPU clock
  */
@@ -95,6 +101,8 @@ struct ARMv7MState {
     Object *idau;
     uint32_t init_svtor;
     uint32_t init_nsvtor;
+    uint32_t mpu_ns_regions;
+    uint32_t mpu_s_regions;
     bool enable_bitband;
     bool start_powered_off;
     bool vfp;
