@@ -16,6 +16,7 @@ LDFLAGS=-nostdlib -static
 
 ASM_TESTS =                                                                    \
     bal                                                                        \
+    cksm                                                                       \
     exrl-ssm-early                                                             \
     sam                                                                        \
     lpsw                                                                       \
