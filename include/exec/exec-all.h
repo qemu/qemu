@@ -629,6 +629,15 @@ void TSA_NO_TSA mmap_lock(void);
 void TSA_NO_TSA mmap_unlock(void);
 bool have_mmap_lock(void);
 
+static inline void mmap_unlock_guard(void *unused)
+{
+    mmap_unlock();
+}
+
+#define WITH_MMAP_LOCK_GUARD()                                            \
+    for (int _mmap_lock_iter __attribute__((cleanup(mmap_unlock_guard)))  \
+         = (mmap_lock(), 0); _mmap_lock_iter == 0; _mmap_lock_iter = 1)
+
 /**
  * adjust_signal_pc:
  * @pc: raw pc from the host signal ucontext_t.
@@ -683,6 +692,7 @@ G_NORETURN void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
 #else
 static inline void mmap_lock(void) {}
 static inline void mmap_unlock(void) {}
+#define WITH_MMAP_LOCK_GUARD()
 
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
 void tlb_set_dirty(CPUState *cpu, vaddr addr);
