@@ -1,6 +1,8 @@
 #ifndef QEMU_TESTS_S390X_VX_H
 #define QEMU_TESTS_S390X_VX_H
 
+#include <stdint.h>
+
 typedef union S390Vector {
     uint64_t d[2];  /* doubleword */
     uint32_t w[4];  /* word */
