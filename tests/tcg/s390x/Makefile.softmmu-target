@@ -19,6 +19,7 @@ ASM_TESTS =                                                                    \
     cksm                                                                       \
     clm                                                                        \
     exrl-ssm-early                                                             \
+    icm                                                                        \
     sam                                                                        \
     lpsw                                                                       \
     lpswe-early                                                                \
