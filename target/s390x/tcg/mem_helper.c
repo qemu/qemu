@@ -704,6 +704,11 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
     HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%" PRIx64 "\n", __func__, r1,
                mask, addr);
 
+    if (!mask) {
+        /* Recognize access exceptions for the first byte */
+        probe_read(env, addr, 1, cpu_mmu_index(env, false), ra);
+    }
+
     while (mask) {
         if (mask & 8) {
             uint8_t d = cpu_ldub_data_ra(env, addr, ra);
