@@ -39,11 +39,16 @@ TESTS+=mxdb
 TESTS+=epsw
 TESTS+=larl
 TESTS+=mdeb
+TESTS+=cgebra
+TESTS+=clgebr
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
 
 rxsbg: CFLAGS+=-O2
+
+cgebra: LDFLAGS+=-lm
+clgebr: LDFLAGS+=-lm
 
 include $(S390X_SRC)/pgm-specification.mak
 $(PGM_SPECIFICATION_TESTS): pgm-specification-user.o
