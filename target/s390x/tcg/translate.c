@@ -3350,9 +3350,9 @@ static DisasJumpType op_mc(DisasContext *s, DisasOps *o)
 #if !defined(CONFIG_USER_ONLY)
     TCGv_i32 i2;
 #endif
-    const uint16_t monitor_class = get_field(s, i2);
+    const uint8_t monitor_class = get_field(s, i2);
 
-    if (monitor_class & 0xff00) {
+    if (monitor_class & 0xf0) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
