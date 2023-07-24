@@ -56,6 +56,9 @@
  *    (matching the hardware) is that for CPU0 in an IoTKit and CPU1 in an
  *    SSE-200 both are present; CPU0 in an SSE-200 has neither.
  *    Since the IoTKit has only one CPU, it does not have the CPU1_* properties.
+ *  + QOM properties "CPU0_MPU_NS", "CPU0_MPU_S", "CPU1_MPU_NS" and "CPU1_MPU_S"
+ *    which set the number of MPU regions on the CPUs. If there is only one
+ *    CPU the CPU1 properties are not present.
  *  + Named GPIO inputs "EXP_IRQ" 0..n are the expansion interrupts for CPU 0,
  *    which are wired to its NVIC lines 32 .. n+32
  *  + Named GPIO inputs "EXP_CPU1_IRQ" 0..n are the expansion interrupts for
@@ -221,6 +224,8 @@ struct ARMSSE {
     uint32_t exp_numirq;
     uint32_t sram_addr_width;
     uint32_t init_svtor;
+    uint32_t cpu_mpu_ns[SSE_MAX_CPUS];
+    uint32_t cpu_mpu_s[SSE_MAX_CPUS];
     bool cpu_fpu[SSE_MAX_CPUS];
     bool cpu_dsp[SSE_MAX_CPUS];
 };
