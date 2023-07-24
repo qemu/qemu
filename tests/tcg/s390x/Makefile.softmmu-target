@@ -16,13 +16,18 @@ LDFLAGS=-nostdlib -static
 
 ASM_TESTS =                                                                    \
     bal                                                                        \
+    cksm                                                                       \
+    clm                                                                        \
     exrl-ssm-early                                                             \
+    icm                                                                        \
     sam                                                                        \
     lpsw                                                                       \
     lpswe-early                                                                \
     lra                                                                        \
+    mc                                                                         \
     ssm-early                                                                  \
     stosm-early                                                                \
+    stpq                                                                       \
     unaligned-lowcore
 
 include $(S390X_SRC)/pgm-specification.mak

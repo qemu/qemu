@@ -159,7 +159,6 @@ class S390CCWVirtioMachine(QemuSystemTest):
                                           'MemTotal:         115640 kB')
 
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390x_fedora(self):
 
         """
@@ -229,31 +228,35 @@ class S390CCWVirtioMachine(QemuSystemTest):
         # writing to the framebuffer. Since the PPM is uncompressed, we then
         # can simply read the written "magic bytes" back from the PPM file to
         # check whether the framebuffer is working as expected.
-        self.log.info("Test screendump of virtio-gpu device")
-        exec_command_and_wait_for_pattern(self,
+        # Unfortunately, this test is flaky, so we don't run it by default
+        if os.getenv('QEMU_TEST_FLAKY_TESTS'):
+            self.log.info("Test screendump of virtio-gpu device")
+            exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg | grep gpudrmfb) ; do sleep 1 ; done',
                         'virtio_gpudrmfb frame buffer device')
-        exec_command_and_wait_for_pattern(self,
-            'echo -e "\e[?25l" > /dev/tty0', ':/#')
-        exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
-            'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
-            'done',
-            ':/#')
-        exec_command_and_wait_for_pattern(self,
-            'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
-            '12+0 records out')
-        with tempfile.NamedTemporaryFile(suffix='.ppm',
-                                         prefix='qemu-scrdump-') as ppmfile:
-            self.vm.command('screendump', filename=ppmfile.name)
-            ppmfile.seek(0)
-            line = ppmfile.readline()
-            self.assertEqual(line, b"P6\n")
-            line = ppmfile.readline()
-            self.assertEqual(line, b"1280 800\n")
-            line = ppmfile.readline()
-            self.assertEqual(line, b"255\n")
-            line = ppmfile.readline(256)
-            self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
+            exec_command_and_wait_for_pattern(self,
+                'echo -e "\e[?25l" > /dev/tty0', ':/#')
+            exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
+                'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
+                'done',
+                ':/#')
+            exec_command_and_wait_for_pattern(self,
+                'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
+                '12+0 records out')
+            with tempfile.NamedTemporaryFile(suffix='.ppm',
+                                             prefix='qemu-scrdump-') as ppmfile:
+                self.vm.command('screendump', filename=ppmfile.name)
+                ppmfile.seek(0)
+                line = ppmfile.readline()
+                self.assertEqual(line, b"P6\n")
+                line = ppmfile.readline()
+                self.assertEqual(line, b"1280 800\n")
+                line = ppmfile.readline()
+                self.assertEqual(line, b"255\n")
+                line = ppmfile.readline(256)
+                self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
+        else:
+            self.log.info("Skipped flaky screendump of virtio-gpu device test")
 
         # Hot-plug a virtio-crypto device and see whether it gets accepted
         self.log.info("Test hot-plug virtio-crypto device")

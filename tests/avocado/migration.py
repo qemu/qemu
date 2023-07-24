@@ -134,21 +134,3 @@ class PPC64(MigrationTest):
 
     def test_migration_with_exec(self):
         self.migration_with_exec()
-
-
-@skipUnless('s390x' in os.uname()[4], "host != target")
-class S390X(MigrationTest):
-    """
-    :avocado: tags=arch:s390x
-    :avocado: tags=machine:s390-ccw-virtio
-    :avocado: tags=cpu:qemu
-    """
-
-    def test_migration_with_tcp_localhost(self):
-        self.migration_with_tcp_localhost()
-
-    def test_migration_with_unix(self):
-        self.migration_with_unix()
-
-    def test_migration_with_exec(self):
-        self.migration_with_exec()

@@ -2515,6 +2515,12 @@ static DisasJumpType op_icm(DisasContext *s, DisasOps *o)
         ccm = ((1ull << len) - 1) << pos;
         break;
 
+    case 0:
+        /* Recognize access exceptions for the first byte.  */
+        tcg_gen_qemu_ld_i64(tmp, o->in2, get_mem_index(s), MO_UB);
+        gen_op_movi_cc(s, 0);
+        return DISAS_NEXT;
+
     default:
         /* This is going to be a sequence of loads and inserts.  */
         pos = base + 32 - 8;
@@ -3171,9 +3177,9 @@ static DisasJumpType op_lcbb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_mc(DisasContext *s, DisasOps *o)
 {
-    const uint16_t monitor_class = get_field(s, i2);
+    const uint8_t monitor_class = get_field(s, i2);
 
-    if (monitor_class & 0xff00) {
+    if (monitor_class & 0xf0) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
@@ -5778,6 +5784,12 @@ static void in2_ra2(DisasContext *s, DisasOps *o)
     gen_addi_and_wrap_i64(s, o->in2, regs[r2], 0);
 }
 #define SPEC_in2_ra2 0
+
+static void in2_ra2_E(DisasContext *s, DisasOps *o)
+{
+    return in2_ra2(s, o);
+}
+#define SPEC_in2_ra2_E SPEC_r2_even
 
 static void in2_a2(DisasContext *s, DisasOps *o)
 {
