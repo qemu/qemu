@@ -845,6 +845,7 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
     QLIST_INIT(&s->bounce_bufs);
     s->blkioq = blkio_get_queue(s->blkio, 0);
     s->completion_fd = blkioq_get_completion_fd(s->blkioq);
+    blkioq_set_completion_fd_enabled(s->blkioq, true);
 
     blkio_attach_aio_context(bs, bdrv_get_aio_context(bs));
     return 0;
