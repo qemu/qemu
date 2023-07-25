@@ -134,6 +134,10 @@ def error_with_file(file, lineno, *args):
     global output_file
     global output_fd
 
+    # For the test suite expected-errors case, don't print the
+    # string "error: ", so they don't turn up as false positives
+    # if you grep the meson logs for strings like that.
+    end = 'error: ' if not testforerror else 'detected: '
     prefix = ''
     if file:
         prefix += f'{file}:'
@@ -141,7 +145,7 @@ def error_with_file(file, lineno, *args):
         prefix += f'{lineno}:'
     if prefix:
         prefix += ' '
-    print(prefix, end='error: ', file=sys.stderr)
+    print(prefix, end=end, file=sys.stderr)
     print(*args, file=sys.stderr)
 
     if output_file and output_fd:
