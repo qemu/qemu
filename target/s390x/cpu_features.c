@@ -249,7 +249,7 @@ static void init_groups(void)
 {
     int i;
 
-    /* init all bitmaps from gnerated data initially */
+    /* init all bitmaps from generated data initially */
     for (i = 0; i < ARRAY_SIZE(s390_feature_groups); i++) {
         s390_init_feat_bitmap(s390_feature_groups[i].init,
                               s390_feature_groups[i].feat);

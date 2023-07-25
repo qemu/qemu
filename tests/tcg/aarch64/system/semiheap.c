@@ -86,7 +86,7 @@ int main(int argc, char *argv[argc])
         }
         ptr_to_heap++;
     }
-    ml_printf("r/w to heap upto %p\n", ptr_to_heap);
+    ml_printf("r/w to heap up to %p\n", ptr_to_heap);
 
     ml_printf("Passed HeapInfo checks\n");
     return 0;

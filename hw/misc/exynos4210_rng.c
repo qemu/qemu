@@ -1,5 +1,5 @@
 /*
- *  Exynos4210 Pseudo Random Nubmer Generator Emulation
+ *  Exynos4210 Pseudo Random Number Generator Emulation
  *
  *  Copyright (c) 2017 Krzysztof Kozlowski <krzk@kernel.org>
  *

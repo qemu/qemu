@@ -3,7 +3,7 @@
 # Multiarch system tests
 #
 # We just collect the tests together here and rely on the actual guest
-# architecture to add to the test dependancies and deal with the
+# architecture to add to the test dependencies and deal with the
 # complications of building.
 #
 

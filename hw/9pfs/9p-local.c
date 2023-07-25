@@ -624,7 +624,7 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
         /*
          * Initiate a writeback. This is not a data integrity sync.
          * We want to ensure that we don't leave dirty pages in the cache
-         * after write when writeout=immediate is sepcified.
+         * after write when writeout=immediate is specified.
          */
         sync_file_range(fs->fd, offset, ret,
                         SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
@@ -843,7 +843,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         }
         credp->fc_mode = credp->fc_mode | S_IFREG;
         if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-            /* Set cleint credentials in xattr */
+            /* Set client credentials in xattr */
             err = local_set_xattrat(dirfd, name, credp);
         } else {
             err = local_set_mapped_file_attrat(dirfd, name, credp);
@@ -912,7 +912,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         if (write_size != oldpath_size) {
             goto err_end;
         }
-        /* Set cleint credentials in symlink's xattr */
+        /* Set client credentials in symlink's xattr */
         credp->fc_mode = credp->fc_mode | S_IFLNK;
 
         if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
@@ -1418,7 +1418,7 @@ static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **er
     struct statfs stbuf;
 
     /*
-     * use ioc_getversion only if the ioctl is definied
+     * use ioc_getversion only if the ioctl is defined
      */
     if (fstatfs(data->mountfd, &stbuf) < 0) {
         error_setg_errno(errp, errno,

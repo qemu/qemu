@@ -677,7 +677,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     }
 
     /*
-     * The PSTATE bits only mask the interrupt if we have not overriden the
+     * The PSTATE bits only mask the interrupt if we have not overridden the
      * ability above.
      */
     return unmasked || pstate_unmasked;

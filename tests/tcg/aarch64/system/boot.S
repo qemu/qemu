@@ -9,7 +9,7 @@
 
 /*
  * Semihosting interface on ARM AArch64
- * See "Semihosting for AArch32 and AArch64 Relase 2.0" by ARM
+ * See "Semihosting for AArch32 and AArch64 Release 2.0" by ARM
  * w0 - semihosting call number
  * x1 - semihosting parameter
  */
@@ -147,7 +147,7 @@ __start:
 	 * T0SZ[5:0]  = 2^(64 - 25)
 	 *
 	 * The size of T0SZ controls what the initial lookup level. It
-	 * would be nice to start at level 2 but unfortunatly for a
+	 * would be nice to start at level 2 but unfortunately for a
 	 * flat-mapping on the virt machine we need to handle IA's
 	 * with at least 1gb range to see RAM. So we start with a
 	 * level 1 lookup.
@@ -189,7 +189,7 @@ __start:
 	msr	cpacr_el1, x0
 
 	/* Setup some stack space and enter the test code.
-	 * Assume everthing except the return value is garbage when we
+	 * Assume everything except the return value is garbage when we
 	 * return, we won't need it.
 	 */
 	adrp	x0, stack_end

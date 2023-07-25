@@ -734,7 +734,7 @@ static void next_irq(void *opaque, int number, int level)
     M68kCPU *cpu = s->cpu;
     int shift = 0;
 
-    /* first switch sets interupt status */
+    /* first switch sets interrupt status */
     /* DPRINTF("IRQ %i\n",number); */
     switch (number) {
     /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */

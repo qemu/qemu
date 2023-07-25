@@ -290,7 +290,7 @@ typedef struct CPUArchState {
     int is_counting;
 
     uint32_t picmr;         /* Interrupt mask register */
-    uint32_t picsr;         /* Interrupt contrl register*/
+    uint32_t picsr;         /* Interrupt control register */
 #endif
 } CPUOpenRISCState;
 

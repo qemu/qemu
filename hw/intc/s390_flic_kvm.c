@@ -380,7 +380,7 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
  * @size: ignored
  *
  * Note: Pass buf and len to kernel. Start with one page and
- * increase until buffer is sufficient or maxium size is
+ * increase until buffer is sufficient or maximum size is
  * reached
  */
 static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,

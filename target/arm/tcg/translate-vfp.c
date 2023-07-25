@@ -144,7 +144,7 @@ static void gen_preserve_fp_state(DisasContext *s, bool skip_context_update)
  * Generate code for M-profile FP context handling: update the
  * ownership of the FP context, and create a new context if
  * necessary. This corresponds to the parts of the pseudocode
- * ExecuteFPCheck() after the inital PreserveFPState() call.
+ * ExecuteFPCheck() after the initial PreserveFPState() call.
  */
 static void gen_update_fp_context(DisasContext *s)
 {

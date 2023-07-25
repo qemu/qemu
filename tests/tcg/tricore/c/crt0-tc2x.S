@@ -263,7 +263,7 @@ __copy_table_next:
     ld.w    %d3,[%a13+]4            # %d3 = block length
     jeq %d3,-1,__copy_table_done    # length == -1 => end of table
     sh  %d0,%d3,-3          # %d0 = length / 8 (doublewords)
-    and %d1,%d3,7           # %d1 = lenght % 8 (rem. bytes)
+    and %d1,%d3,7           # %d1 = length % 8 (rem. bytes)
     jz  %d0,__copy_word         # block size < 8 => copy word
     addi    %d0,%d0,-1          # else doublewords -= 1
     mov.a   %a2,%d0             # %a2 = loop counter
@@ -274,7 +274,7 @@ __copy_dword:
 __copy_word:
     jz  %d1,__copy_table_next
     sh  %d0,%d1,-2          # %d0 = length / 4 (words)
-    and %d1,%d1,3           # %d1 = lenght % 4 (rem. bytes)
+    and %d1,%d1,3           # %d1 = length % 4 (rem. bytes)
     jz  %d0,__copy_hword        # block size < 4 => copy hword
     ld.w    %d14,[%a15+]4           # copy one word
     st.w    [%a14+]4,%d14

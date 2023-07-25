@@ -87,7 +87,7 @@
  * - we work on a private copy of the SCCB, since there are several length
  *   fields, that would cause a security nightmare if we allow the guest to
  *   alter the structure while we parse it. We cannot use ldl_p and friends
- *   either without doing pointer arithmetics
+ *   either without doing pointer arithmetic
  * So we have to double check that all users of sclp data structures use the
  * right endianness wrappers.
  */

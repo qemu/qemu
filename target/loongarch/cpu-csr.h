@@ -10,7 +10,7 @@
 
 #include "hw/registerfields.h"
 
-/* Base on kernal definitions: arch/loongarch/include/asm/loongarch.h */
+/* Based on kernel definitions: arch/loongarch/include/asm/loongarch.h */
 
 /* Basic CSRs */
 #define LOONGARCH_CSR_CRMD           0x0 /* Current mode info */

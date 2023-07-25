@@ -368,7 +368,7 @@ static const MemoryRegionOps allwinner_r40_detect_ops = {
 
 /*
  * mctl_r40_detect_rank_count in u-boot will write the high 1G of DDR
- * to detect wether the board support dual_rank or not. Create a virtual memory
+ * to detect whether the board support dual_rank or not. Create a virtual memory
  * if the board's ram_size less or equal than 1G, and set read time out flag of
  * REG_DRAMCTL_PGSR when the user touch this high dram.
  */

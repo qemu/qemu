@@ -878,7 +878,7 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
      qemu_sem_post(&p->sem_sync);
      /*
       * Although multifd_send_thread is not created, but main migration
-      * thread neet to judge whether it is running, so we need to mark
+      * thread need to judge whether it is running, so we need to mark
       * its status.
       */
      p->quit = true;

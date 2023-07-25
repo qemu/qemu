@@ -134,7 +134,7 @@ struct MigrationIncomingState {
     /*
      * Always set by the main vm load thread only, but can be read by the
      * postcopy preempt thread.  "volatile" makes sure all reads will be
-     * uptodate across cores.
+     * up-to-date across cores.
      */
     volatile PreemptThreadStatus preempt_thread_status;
     /*
@@ -409,7 +409,7 @@ struct MigrationState {
      *   channel itself.
      *
      * - postcopy preempt channel will be created at the switching phase
-     *   from precopy -> postcopy (to avoid race condtion of misordered
+     *   from precopy -> postcopy (to avoid race condition of misordered
      *   creation of channels).
      *
      * NOTE: See message-id <ZBoShWArKDPpX/D7@work-vm> on qemu-devel
