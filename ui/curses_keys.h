@@ -210,6 +210,12 @@ static const int _curses2keycode[CURSES_CHARS] = {
     ['N' - '@'] = 49 | CNTRL, /* Control + n */
     /* Control + m collides with the keycode for Enter */
 
+    ['@' - '@']  =  3 | CNTRL, /* Control + @ */
+    /* Control + [ collides with the keycode for Escape */
+    ['\\' - '@'] = 43 | CNTRL, /* Control + Backslash */
+    [']' - '@']  = 27 | CNTRL, /* Control + ] */
+    ['^' - '@']  =  7 | CNTRL, /* Control + ^ */
+    ['_' - '@']  = 12 | CNTRL, /* Control + Underscore */
 };
 
 static const int _curseskey2keycode[CURSES_KEYS] = {
