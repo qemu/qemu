@@ -21,6 +21,10 @@ static int arm_debug_target_el(CPUARMState *env)
     bool secure = arm_is_secure(env);
     bool route_to_el2 = false;
 
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        return 1;
+    }
+
     if (arm_is_el2_enabled(env)) {
         route_to_el2 = env->cp15.hcr_el2 & HCR_TGE ||
                        env->cp15.mdcr_el2 & MDCR_TDE;
@@ -434,18 +438,20 @@ static uint32_t arm_debug_exception_fsr(CPUARMState *env)
 {
     ARMMMUFaultInfo fi = { .type = ARMFault_Debug };
     int target_el = arm_debug_target_el(env);
-    bool using_lpae = false;
+    bool using_lpae;
 
-    if (target_el == 2 || arm_el_is_aa64(env, target_el)) {
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        using_lpae = false;
+    } else if (target_el == 2 || arm_el_is_aa64(env, target_el)) {
         using_lpae = true;
     } else if (arm_feature(env, ARM_FEATURE_PMSA) &&
                arm_feature(env, ARM_FEATURE_V8)) {
         using_lpae = true;
+    } else if (arm_feature(env, ARM_FEATURE_LPAE) &&
+               (env->cp15.tcr_el[target_el] & TTBCR_EAE)) {
+        using_lpae = true;
     } else {
-        if (arm_feature(env, ARM_FEATURE_LPAE) &&
-            (env->cp15.tcr_el[target_el] & TTBCR_EAE)) {
-            using_lpae = true;
-        }
+        using_lpae = false;
     }
 
     if (using_lpae) {
