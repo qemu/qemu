@@ -1408,8 +1408,15 @@ int xen_evtchn_bind_interdomain_op(struct evtchn_bind_interdomain *interdomain)
         XenEvtchnPort *rp = &s->port_table[interdomain->remote_port];
         XenEvtchnPort *lp = &s->port_table[interdomain->local_port];
 
-        if (rp->type == EVTCHNSTAT_unbound && rp->type_val == 0) {
-            /* It's a match! */
+        /*
+         * The 'remote' port for loopback must be an unbound port allocated for
+         * communication with the local domain (as indicated by rp->type_val
+         * being zero, not PORT_INFO_TYPEVAL_REMOTE_QEMU), and must *not* be
+         * the port that was just allocated for the local end.
+         */
+        if (interdomain->local_port != interdomain->remote_port &&
+            rp->type == EVTCHNSTAT_unbound && rp->type_val == 0) {
+
             rp->type = EVTCHNSTAT_interdomain;
             rp->type_val = interdomain->local_port;
 
