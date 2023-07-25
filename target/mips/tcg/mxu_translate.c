@@ -609,7 +609,7 @@ enum {
 static TCGv mxu_gpr[NUMBER_OF_MXU_REGISTERS - 1];
 static TCGv mxu_CR;
 
-static const char mxuregnames[][4] = {
+static const char mxuregnames[NUMBER_OF_MXU_REGISTERS][4] = {
     "XR1",  "XR2",  "XR3",  "XR4",  "XR5",  "XR6",  "XR7",  "XR8",
     "XR9",  "XR10", "XR11", "XR12", "XR13", "XR14", "XR15", "XCR",
 };
@@ -641,6 +641,16 @@ static inline void gen_store_mxu_gpr(TCGv t, unsigned int reg)
 {
     if (reg > 0 && reg <= 15) {
         tcg_gen_mov_tl(mxu_gpr[reg - 1], t);
+    }
+}
+
+static inline void gen_extract_mxu_gpr(TCGv t, unsigned int reg,
+                                       unsigned int ofs, unsigned int len)
+{
+    if (reg == 0) {
+        tcg_gen_movi_tl(t, 0);
+    } else if (reg <= 15) {
+        tcg_gen_extract_tl(t, mxu_gpr[reg - 1], ofs, len);
     }
 }
 
@@ -2434,8 +2444,12 @@ static void gen_mxu_S32SLT(DisasContext *ctx)
         tcg_gen_movi_tl(mxu_gpr[XRa - 1], 0);
     } else {
         /* the most general case */
-        tcg_gen_setcond_tl(TCG_COND_LT, mxu_gpr[XRa - 1],
-                           mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+
+        gen_load_mxu_gpr(t0, XRb);
+        gen_load_mxu_gpr(t1, XRc);
+        tcg_gen_setcond_tl(TCG_COND_LT, mxu_gpr[XRa - 1], t0, t1);
     }
 }
 
@@ -3000,10 +3014,10 @@ static void gen_mxu_q8adde(DisasContext *ctx, bool accumulate)
         TCGv t5 = tcg_temp_new();
 
         if (XRa != 0) {
-            tcg_gen_extract_tl(t0, mxu_gpr[XRb - 1], 16, 8);
-            tcg_gen_extract_tl(t1, mxu_gpr[XRc - 1], 16, 8);
-            tcg_gen_extract_tl(t2, mxu_gpr[XRb - 1], 24, 8);
-            tcg_gen_extract_tl(t3, mxu_gpr[XRc - 1], 24, 8);
+            gen_extract_mxu_gpr(t0, XRb, 16, 8);
+            gen_extract_mxu_gpr(t1, XRc, 16, 8);
+            gen_extract_mxu_gpr(t2, XRb, 24, 8);
+            gen_extract_mxu_gpr(t3, XRc, 24, 8);
             if (aptn2 & 2) {
                 tcg_gen_sub_tl(t0, t0, t1);
                 tcg_gen_sub_tl(t2, t2, t3);
@@ -3023,10 +3037,10 @@ static void gen_mxu_q8adde(DisasContext *ctx, bool accumulate)
             tcg_gen_or_tl(t4, t2, t0);
         }
         if (XRd != 0) {
-            tcg_gen_extract_tl(t0, mxu_gpr[XRb - 1], 0, 8);
-            tcg_gen_extract_tl(t1, mxu_gpr[XRc - 1], 0, 8);
-            tcg_gen_extract_tl(t2, mxu_gpr[XRb - 1], 8, 8);
-            tcg_gen_extract_tl(t3, mxu_gpr[XRc - 1], 8, 8);
+            gen_extract_mxu_gpr(t0, XRb, 0, 8);
+            gen_extract_mxu_gpr(t1, XRc, 0, 8);
+            gen_extract_mxu_gpr(t2, XRb, 8, 8);
+            gen_extract_mxu_gpr(t3, XRc, 8, 8);
             if (aptn2 & 1) {
                 tcg_gen_sub_tl(t0, t0, t1);
                 tcg_gen_sub_tl(t2, t2, t3);

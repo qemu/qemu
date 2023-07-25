@@ -447,7 +447,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
 
     pci_vga_init(pci_bus);
 
-    if (defaults_enabled()) {
+    if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
         usb_create_simple(usb_bus_find(-1), "usb-kbd");
         usb_create_simple(usb_bus_find(-1), "usb-tablet");

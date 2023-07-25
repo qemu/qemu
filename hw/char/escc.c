@@ -653,7 +653,9 @@ static void escc_mem_write(void *opaque, hwaddr addr,
         escc_update_irq(s);
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { /* tx enabled */
-            if (qemu_chr_fe_backend_connected(&s->chr)) {
+            if (s->wregs[W_MISC2] & MISC2_LCL_LOOP) {
+                serial_receive_byte(s, s->tx);
+            } else if (qemu_chr_fe_backend_connected(&s->chr)) {
                 /*
                  * XXX this blocks entire thread. Rewrite to use
                  * qemu_chr_fe_write and background I/O callbacks
