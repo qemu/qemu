@@ -103,7 +103,7 @@ update)
         check_updated $module || echo Updated "$module"
     done
 
-    (while read -r; do
+    (while read -r REPLY; do
         for module in $modules; do
             case $REPLY in
                 *" $module "*) continue 2 ;;
