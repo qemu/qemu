@@ -338,6 +338,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     return true;
 }
 
+#ifdef CONFIG_OPENGL
 static bool
 dbus_scanout_share_d3d_texture(
     DBusDisplayListener *ddl,
@@ -399,7 +400,8 @@ dbus_scanout_share_d3d_texture(
 
     return true;
 }
-#endif
+#endif /* CONFIG_OPENGL */
+#endif /* WIN32 */
 
 #ifdef CONFIG_OPENGL
 static void dbus_scanout_texture(DisplayChangeListener *dcl,
