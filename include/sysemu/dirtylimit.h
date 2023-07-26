@@ -34,4 +34,6 @@ void dirtylimit_set_vcpu(int cpu_index,
 void dirtylimit_set_all(uint64_t quota,
                         bool enable);
 void dirtylimit_vcpu_execute(CPUState *cpu);
+uint64_t dirtylimit_throttle_time_per_round(void);
+uint64_t dirtylimit_ring_full_time(void);
 #endif

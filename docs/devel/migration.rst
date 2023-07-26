@@ -594,8 +594,7 @@ Postcopy
 'Postcopy' migration is a way to deal with migrations that refuse to converge
 (or take too long to converge) its plus side is that there is an upper bound on
 the amount of migration traffic and time it takes, the down side is that during
-the postcopy phase, a failure of *either* side or the network connection causes
-the guest to be lost.
+the postcopy phase, a failure of *either* side causes the guest to be lost.
 
 In postcopy the destination CPUs are started before all the memory has been
 transferred, and accesses to pages that are yet to be transferred cause
@@ -721,6 +720,42 @@ processing.
    is no longer used by migration, while the listen thread carries on servicing
    page data until the end of migration.
 
+Postcopy Recovery
+-----------------
+
+Comparing to precopy, postcopy is special on error handlings.  When any
+error happens (in this case, mostly network errors), QEMU cannot easily
+fail a migration because VM data resides in both source and destination
+QEMU instances.  On the other hand, when issue happens QEMU on both sides
+will go into a paused state.  It'll need a recovery phase to continue a
+paused postcopy migration.
+
+The recovery phase normally contains a few steps:
+
+  - When network issue occurs, both QEMU will go into PAUSED state
+
+  - When the network is recovered (or a new network is provided), the admin
+    can setup the new channel for migration using QMP command
+    'migrate-recover' on destination node, preparing for a resume.
+
+  - On source host, the admin can continue the interrupted postcopy
+    migration using QMP command 'migrate' with resume=true flag set.
+
+  - After the connection is re-established, QEMU will continue the postcopy
+    migration on both sides.
+
+During a paused postcopy migration, the VM can logically still continue
+running, and it will not be impacted from any page access to pages that
+were already migrated to destination VM before the interruption happens.
+However, if any of the missing pages got accessed on destination VM, the VM
+thread will be halted waiting for the page to be migrated, it means it can
+be halted until the recovery is complete.
+
+The impact of accessing missing pages can be relevant to different
+configurations of the guest.  For example, when with async page fault
+enabled, logically the guest can proactively schedule out the threads
+accessing missing pages.
+
 Postcopy states
 ---------------
 
@@ -765,36 +800,31 @@ ADVISE->DISCARD->LISTEN->RUNNING->END
     (although it can't do the cleanup it would do as it
     finishes a normal migration).
 
+ - Paused
+
+    Postcopy can run into a paused state (normally on both sides when
+    happens), where all threads will be temporarily halted mostly due to
+    network errors.  When reaching paused state, migration will make sure
+    the qemu binary on both sides maintain the data without corrupting
+    the VM.  To continue the migration, the admin needs to fix the
+    migration channel using the QMP command 'migrate-recover' on the
+    destination node, then resume the migration using QMP command 'migrate'
+    again on source node, with resume=true flag set.
+
  - End
 
     The listen thread can now quit, and perform the cleanup of migration
     state, the migration is now complete.
 
-Source side page maps
----------------------
+Source side page map
+--------------------
 
-The source side keeps two bitmaps during postcopy; 'the migration bitmap'
-and 'unsent map'.  The 'migration bitmap' is basically the same as in
-the precopy case, and holds a bit to indicate that page is 'dirty' -
-i.e. needs sending.  During the precopy phase this is updated as the CPU
-dirties pages, however during postcopy the CPUs are stopped and nothing
-should dirty anything any more.
-
-The 'unsent map' is used for the transition to postcopy. It is a bitmap that
-has a bit cleared whenever a page is sent to the destination, however during
-the transition to postcopy mode it is combined with the migration bitmap
-to form a set of pages that:
-
-   a) Have been sent but then redirtied (which must be discarded)
-   b) Have not yet been sent - which also must be discarded to cause any
-      transparent huge pages built during precopy to be broken.
-
-Note that the contents of the unsentmap are sacrificed during the calculation
-of the discard set and thus aren't valid once in postcopy.  The dirtymap
-is still valid and is used to ensure that no page is sent more than once.  Any
-request for a page that has already been sent is ignored.  Duplicate requests
-such as this can happen as a page is sent at about the same time the
-destination accesses it.
+The 'migration bitmap' in postcopy is basically the same as in the precopy,
+where each of the bit to indicate that page is 'dirty' - i.e. needs
+sending.  During the precopy phase this is updated as the CPU dirties
+pages, however during postcopy the CPUs are stopped and nothing should
+dirty anything any more. Instead, dirty bits are cleared when the relevant
+pages are sent during postcopy.
 
 Postcopy with hugepages
 -----------------------
@@ -852,6 +882,16 @@ Retro-fitting postcopy to existing clients is possible:
      identified and the implication understood; for example if the
      guest memory access is made while holding a lock then all other
      threads waiting for that lock will also be blocked.
+
+Postcopy Preemption Mode
+------------------------
+
+Postcopy preempt is a new capability introduced in 8.0 QEMU release, it
+allows urgent pages (those got page fault requested from destination QEMU
+explicitly) to be sent in a separate preempt channel, rather than queued in
+the background migration channel.  Anyone who cares about latencies of page
+faults during a postcopy migration should enable this feature.  By default,
+it's not enabled.
 
 Firmware
 ========

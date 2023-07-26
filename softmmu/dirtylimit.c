@@ -24,6 +24,9 @@
 #include "hw/boards.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
+#include "migration/misc.h"
+#include "migration/migration.h"
+#include "migration/options.h"
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -75,14 +78,21 @@ static bool dirtylimit_quit;
 
 static void vcpu_dirty_rate_stat_collect(void)
 {
+    MigrationState *s = migrate_get_current();
     VcpuStat stat;
     int i = 0;
+    int64_t period = DIRTYLIMIT_CALC_TIME_MS;
+
+    if (migrate_dirty_limit() &&
+        migration_is_active(s)) {
+        period = s->parameters.x_vcpu_dirty_limit_period;
+    }
 
     /* calculate vcpu dirtyrate */
-    vcpu_calculate_dirtyrate(DIRTYLIMIT_CALC_TIME_MS,
-                             &stat,
-                             GLOBAL_DIRTY_LIMIT,
-                             false);
+    vcpu_calculate_dirtyrate(period,
+                              &stat,
+                              GLOBAL_DIRTY_LIMIT,
+                              false);
 
     for (i = 0; i < stat.nvcpu; i++) {
         vcpu_dirty_rate_stat->stat.rates[i].id = i;
@@ -426,6 +436,23 @@ static void dirtylimit_cleanup(void)
     dirtylimit_state_finalize();
 }
 
+/*
+ * dirty page rate limit is not allowed to set if migration
+ * is running with dirty-limit capability enabled.
+ */
+static bool dirtylimit_is_allowed(void)
+{
+    MigrationState *ms = migrate_get_current();
+
+    if (migration_is_running(ms->state) &&
+        (!qemu_thread_is_self(&ms->thread)) &&
+        migrate_dirty_limit() &&
+        dirtylimit_in_service()) {
+        return false;
+    }
+    return true;
+}
+
 void qmp_cancel_vcpu_dirty_limit(bool has_cpu_index,
                                  int64_t cpu_index,
                                  Error **errp)
@@ -436,6 +463,12 @@ void qmp_cancel_vcpu_dirty_limit(bool has_cpu_index,
 
     if (has_cpu_index && !dirtylimit_vcpu_index_valid(cpu_index)) {
         error_setg(errp, "incorrect cpu index specified");
+        return;
+    }
+
+    if (!dirtylimit_is_allowed()) {
+        error_setg(errp, "can't cancel dirty page rate limit while"
+                   " migration is running");
         return;
     }
 
@@ -489,6 +522,12 @@ void qmp_set_vcpu_dirty_limit(bool has_cpu_index,
         return;
     }
 
+    if (!dirtylimit_is_allowed()) {
+        error_setg(errp, "can't set dirty page rate limit while"
+                   " migration is running");
+        return;
+    }
+
     if (!dirty_rate) {
         qmp_cancel_vcpu_dirty_limit(has_cpu_index, cpu_index, errp);
         return;
@@ -515,14 +554,54 @@ void hmp_set_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
 
-    qmp_set_vcpu_dirty_limit(!!(cpu_index != -1), cpu_index, dirty_rate, &err);
-    if (err) {
-        hmp_handle_error(mon, err);
-        return;
+    if (dirty_rate < 0) {
+        error_setg(&err, "invalid dirty page limit %" PRId64, dirty_rate);
+        goto out;
     }
 
-    monitor_printf(mon, "[Please use 'info vcpu_dirty_limit' to query "
-                   "dirty limit for virtual CPU]\n");
+    qmp_set_vcpu_dirty_limit(!!(cpu_index != -1), cpu_index, dirty_rate, &err);
+
+out:
+    hmp_handle_error(mon, err);
+}
+
+/* Return the max throttle time of each virtual CPU */
+uint64_t dirtylimit_throttle_time_per_round(void)
+{
+    CPUState *cpu;
+    int64_t max = 0;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->throttle_us_per_full > max) {
+            max = cpu->throttle_us_per_full;
+        }
+    }
+
+    return max;
+}
+
+/*
+ * Estimate average dirty ring full time of each virtaul CPU.
+ * Return 0 if guest doesn't dirty memory.
+ */
+uint64_t dirtylimit_ring_full_time(void)
+{
+    CPUState *cpu;
+    uint64_t curr_rate = 0;
+    int nvcpus = 0;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->running) {
+            nvcpus++;
+            curr_rate += vcpu_dirty_rate_get(cpu->cpu_index);
+        }
+    }
+
+    if (!curr_rate || !nvcpus) {
+        return 0;
+    }
+
+    return dirtylimit_dirty_ring_full_time(curr_rate / nvcpus);
 }
 
 static struct DirtyLimitInfo *dirtylimit_query_vcpu(int cpu_index)

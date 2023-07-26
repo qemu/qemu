@@ -86,16 +86,15 @@ int qemu_fclose(QEMUFile *f);
 uint64_t qemu_file_transferred(QEMUFile *f);
 
 /*
- * qemu_file_transferred_fast:
+ * qemu_file_transferred_noflush:
  *
- * As qemu_file_transferred except for writable
- * files, where no flush is performed and the reported
- * amount will include the size of any queued buffers,
- * on top of the amount actually transferred.
+ * As qemu_file_transferred except for writable files, where no flush
+ * is performed and the reported amount will include the size of any
+ * queued buffers, on top of the amount actually transferred.
  *
  * Returns: the total bytes transferred and queued
  */
-uint64_t qemu_file_transferred_fast(QEMUFile *f);
+uint64_t qemu_file_transferred_noflush(QEMUFile *f);
 
 /*
  * put_buffer without copying the buffer.
@@ -103,8 +102,6 @@ uint64_t qemu_file_transferred_fast(QEMUFile *f);
  */
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
                            bool may_free);
-bool qemu_file_mode_is_not_valid(const char *mode);
-bool qemu_file_is_writable(QEMUFile *f);
 
 #include "migration/qemu-file-types.h"
 
@@ -130,7 +127,6 @@ void qemu_file_skip(QEMUFile *f, int size);
  * accounting information tracks the total migration traffic.
  */
 void qemu_file_credit_transfer(QEMUFile *f, size_t size);
-int qemu_file_get_error_obj(QEMUFile *f, Error **errp);
 int qemu_file_get_error_obj_any(QEMUFile *f1, QEMUFile *f2, Error **errp);
 void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err);
 void qemu_file_set_error(QEMUFile *f, int ret);
