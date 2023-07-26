@@ -4,7 +4,7 @@
  * Copyright (c) 2021-2022 Canokeys.org <contact@canokeys.org>
  * Written by Hongren (Zenithal) Zheng <i@zenithal.me>
  *
- * This code is licensed under the Apache-2.0.
+ * This code is licensed under the GPL v2 or later.
  */
 
 #ifndef CANOKEY_H
