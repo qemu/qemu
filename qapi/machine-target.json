@@ -61,7 +61,7 @@
 # @CpuModelCompareResult:
 #
 # An enumeration of CPU model comparison results.  The result is
-# usually calculated using e.g.  CPU features or CPU generations.
+# usually calculated using e.g. CPU features or CPU generations.
 #
 # @incompatible: If model A is incompatible to model B, model A is not
 #     guaranteed to run where model B runs and the other way around.

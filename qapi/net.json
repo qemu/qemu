@@ -663,7 +663,6 @@
 # @type: Specify the driver used for interpreting remaining arguments.
 #
 # Since: 1.2
-#
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
