@@ -686,15 +686,18 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
      * layer through the "/dev/fdset/N" special path.
      */
     if (fd_supported) {
-        int open_flags;
-
-        if (flags & BDRV_O_RDWR) {
-            open_flags = O_RDWR;
-        } else {
-            open_flags = O_RDONLY;
-        }
-
-        fd = qemu_open(path, open_flags, errp);
+        /*
+         * `path` can contain the path of a character device
+         * (e.g. /dev/vhost-vdpa-0 or /dev/vfio/vfio) or a unix socket.
+         *
+         * So, we should always open it with O_RDWR flag, also if BDRV_O_RDWR
+         * is not set in the open flags, because the exchange of IOCTL commands
+         * for example will fail.
+         *
+         * In order to open the device read-only, we are using the `read-only`
+         * property of the libblkio driver in blkio_file_open().
+         */
+        fd = qemu_open(path, O_RDWR, errp);
         if (fd < 0) {
             return -EINVAL;
         }
