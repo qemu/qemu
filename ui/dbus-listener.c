@@ -232,7 +232,7 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
         egl_fb_read_rect(ddl->ds, &ddl->fb, x, y, w, h);
         dbus_gfx_update(dcl, x, y, w, h);
         break;
-    case SHARE_KIND_D3DTEX:
+    case SHARE_KIND_D3DTEX: {
         Error *err = NULL;
         assert(ddl->d3d_texture);
 
@@ -249,6 +249,7 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
             dbus_update_gl_cb,
             g_object_ref(ddl));
         break;
+    }
     default:
         g_warn_if_reached();
     }
