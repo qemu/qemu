@@ -3209,6 +3209,15 @@ F: qapi/migration.json
 F: tests/migration/
 F: util/userfaultfd.c
 
+Migration dirty limit and dirty page rate
+M: Hyman Huang <yong.huang@smartx.com>
+S: Maintained
+F: softmmu/dirtylimit.c
+F: include/sysemu/dirtylimit.h
+F: migration/dirtyrate.c
+F: migration/dirtyrate.h
+F: include/sysemu/dirtyrate.h
+
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
