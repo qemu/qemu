@@ -711,19 +711,19 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
          * In order to open the device read-only, we are using the `read-only`
          * property of the libblkio driver in blkio_file_open().
          */
-        fd = qemu_open(path, O_RDWR, errp);
+        fd = qemu_open(path, O_RDWR, NULL);
         if (fd < 0) {
-            return -EINVAL;
+            fd_supported = false;
+        } else {
+            ret = blkio_set_int(s->blkio, "fd", fd);
+            if (ret < 0) {
+                fd_supported = false;
+                qemu_close(fd);
+            }
         }
+    }
 
-        ret = blkio_set_int(s->blkio, "fd", fd);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "failed to set fd: %s",
-                             blkio_get_error_msg());
-            qemu_close(fd);
-            return ret;
-        }
-    } else {
+    if (!fd_supported) {
         ret = blkio_set_str(s->blkio, "path", path);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "failed to set path: %s",
