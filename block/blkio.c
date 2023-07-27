@@ -603,8 +603,8 @@ static void blkio_unregister_buf(BlockDriverState *bs, void *host, size_t size)
     }
 }
 
-static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
-                               Error **errp)
+static int blkio_io_uring_connect(BlockDriverState *bs, QDict *options,
+                                  int flags, Error **errp)
 {
     const char *filename = qdict_get_str(options, "filename");
     BDRVBlkioState *s = bs->opaque;
@@ -627,11 +627,18 @@ static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    ret = blkio_connect(s->blkio);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
+    }
+
     return 0;
 }
 
-static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
-                               Error **errp)
+static int blkio_nvme_io_uring_connect(BlockDriverState *bs, QDict *options,
+                                       int flags, Error **errp)
 {
     const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
@@ -655,11 +662,18 @@ static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    ret = blkio_connect(s->blkio);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
+    }
+
     return 0;
 }
 
-static int blkio_virtio_blk_common_open(BlockDriverState *bs,
-        QDict *options, int flags, Error **errp)
+static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
+                                    int flags, Error **errp)
 {
     const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
@@ -718,6 +732,13 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
         }
     }
 
+    ret = blkio_connect(s->blkio);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
+    }
+
     qdict_del(options, "path");
 
     return 0;
@@ -737,24 +758,6 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
-    if (strcmp(blkio_driver, "io_uring") == 0) {
-        ret = blkio_io_uring_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "nvme-io_uring") == 0) {
-        ret = blkio_nvme_io_uring(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vfio-pci") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vhost-user") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else {
-        g_assert_not_reached();
-    }
-    if (ret < 0) {
-        blkio_destroy(&s->blkio);
-        return ret;
-    }
-
     if (!(flags & BDRV_O_RDWR)) {
         ret = blkio_set_bool(s->blkio, "read-only", true);
         if (ret < 0) {
@@ -765,10 +768,20 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    ret = blkio_connect(s->blkio);
+    if (strcmp(blkio_driver, "io_uring") == 0) {
+        ret = blkio_io_uring_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "nvme-io_uring") == 0) {
+        ret = blkio_nvme_io_uring_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vfio-pci") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-user") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else {
+        g_assert_not_reached();
+    }
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
-                         blkio_get_error_msg());
         blkio_destroy(&s->blkio);
         return ret;
     }
