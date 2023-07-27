@@ -690,7 +690,7 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
         return -EINVAL;
     }
 
-    if (blkio_get_int(s->blkio, "fd", &fd) == 0) {
+    if (blkio_set_int(s->blkio, "fd", -1) == 0) {
         fd_supported = true;
     }
 
