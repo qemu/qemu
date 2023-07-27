@@ -715,7 +715,7 @@ static void create_fdt_pmu(RISCVVirtState *s)
     MachineState *mc = MACHINE(s);
     RISCVCPU hart = s->soc[0].harts[0];
 
-    pmu_name = g_strdup_printf("/soc/pmu");
+    pmu_name = g_strdup_printf("/pmu");
     qemu_fdt_add_subnode(mc->fdt, pmu_name);
     qemu_fdt_setprop_string(mc->fdt, pmu_name, "compatible", "riscv,pmu");
     riscv_pmu_generate_fdt_node(mc->fdt, hart.cfg.pmu_num, pmu_name);
