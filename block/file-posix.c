@@ -1232,7 +1232,6 @@ static int hdev_get_max_hw_transfer(int fd, struct stat *st)
 static int get_sysfs_str_val(struct stat *st, const char *attribute,
                              char **val) {
     g_autofree char *sysfspath = NULL;
-    int ret;
     size_t len;
 
     if (!S_ISBLK(st->st_mode)) {
@@ -1242,8 +1241,7 @@ static int get_sysfs_str_val(struct stat *st, const char *attribute,
     sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/%s",
                                 major(st->st_rdev), minor(st->st_rdev),
                                 attribute);
-    ret = g_file_get_contents(sysfspath, val, &len, NULL);
-    if (ret == -1) {
+    if (!g_file_get_contents(sysfspath, val, &len, NULL)) {
         return -ENOENT;
     }
 
@@ -1253,7 +1251,7 @@ static int get_sysfs_str_val(struct stat *st, const char *attribute,
     if (*(p + len - 1) == '\n') {
         *(p + len - 1) = '\0';
     }
-    return ret;
+    return 0;
 }
 #endif
 
