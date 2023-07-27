@@ -57,9 +57,9 @@ static void ipod_touch_mbx_init(Object *obj)
     IPodTouchMBXState *s = IPOD_TOUCH_MBX(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem1, obj, &ipod_touch_mbx1_ops, s, TYPE_IPOD_TOUCH_MBX, 0x10000);
+    memory_region_init_io(&s->iomem1, obj, &ipod_touch_mbx1_ops, s, TYPE_IPOD_TOUCH_MBX, 0x1000000);
     sysbus_init_mmio(sbd, &s->iomem1);
-    memory_region_init_io(&s->iomem2, obj, &ipod_touch_mbx2_ops, s, TYPE_IPOD_TOUCH_MBX, 0x10000);
+    memory_region_init_io(&s->iomem2, obj, &ipod_touch_mbx2_ops, s, TYPE_IPOD_TOUCH_MBX, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem2);
 }
 

@@ -111,6 +111,7 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                 if(aesop->outaddr == 0x0bf00020) {
                     uint32_t *cast_buf = (uint32_t *)buf;
                     cast_buf[8429] = 0x4; // setting the size of the AAPL,phandle property to 4
+                    cast_buf[8430] = 0x0011C4F0; // set the right handle
                 }
 
                 cpu_physical_memory_write((aesop->outaddr), buf, aesop->insize);
