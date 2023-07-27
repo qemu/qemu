@@ -1058,6 +1058,7 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         return NULL;
     }
 
+    /* Must use malloc(): this is freed via scsi_free_scsi_task() */
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
         error_report("iSCSI: Failed to allocate task for scsi command. %s",
