@@ -25,6 +25,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchFMSSState, IPOD_TOUCH_FMSS)
 #define FMSS_NUM_PAGES            0xD18
 #define FMSS_PAGE_SPARE_OUT_ADDR  0xD1C
 #define FMSS_PAGES_OUT_ADDR       0xD20
+#define FMSS_CSGENRC              0xD30
 
 typedef struct IPodTouchFMSSState
 {
@@ -42,6 +43,7 @@ typedef struct IPodTouchFMSSState
     uint32_t reg_num_pages;
     uint32_t reg_page_spare_out_addr;
     uint32_t reg_pages_out_addr;
+    uint32_t reg_csgenrc;
 } IPodTouchFMSSState;
 
 #endif

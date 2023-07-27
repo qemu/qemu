@@ -22,6 +22,12 @@ static void write_chip_info(IPodTouchFMSSState *s)
     cpu_physical_memory_write(s->reg_cinfo_target_addr, &chipid, 0x10);
 }
 
+static void dump_registers(IPodTouchFMSSState *s) {
+    printf("FMSS_PAGES_IN_ADDR: 0x%08x\n", s->reg_pages_in_addr);
+    printf("FMSS_CS_BUF_ADDR: 0x%08x\n", s->reg_cs_buf_addr);
+    printf("FMSS_NUM_PAGES: 0x%08x\n", s->reg_num_pages);
+}
+
 static void read_nand_pages(IPodTouchFMSSState *s)
 {
     // boot args
@@ -29,14 +35,22 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
 
     int page_out_buf_ind = 0;
+    //dump_registers(s);
+    //printf("Start CMD...\n");
     for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {
         uint32_t page_nr = 0;
         uint32_t page_out_addr = 0;
         uint32_t cs = 0;
         cpu_physical_memory_read(s->reg_pages_in_addr + (page_ind * sizeof(uint32_t)), &page_nr, sizeof(uint32_t));
-        
         cpu_physical_memory_read(s->reg_cs_buf_addr + (page_ind * sizeof(uint32_t)), &cs, sizeof(uint32_t));
+        uint32_t og_cs = cs;
         cs = find_bit_index(cs);
+
+        if(cs > 3) {
+            printf("CS %d invalid! (og CS: %d, reading page %d)\n", cs, og_cs, page_nr);
+            dump_registers(s);
+            hw_error("CS %d invalid!", cs);
+        }
 
         // prepare the page
         char filename[200];
@@ -63,7 +77,7 @@ static void read_nand_pages(IPodTouchFMSSState *s)
         for(int i = 0; i < 2; i++) {
             cpu_physical_memory_read(s->reg_pages_out_addr + (page_out_buf_ind * sizeof(uint32_t)), &page_out_addr, sizeof(uint32_t));
             cpu_physical_memory_write(page_out_addr, s->page_buffer + i * write_buf_size, write_buf_size);
-            // printf("Will read page %d @ cs %d into address 0x%08x and spare into address 0x%08x\n", page_nr, cs, page_out_addr, s->reg_page_spare_out_addr);
+            //printf("Will read page %d @ cs %d into address 0x%08x and spare into address 0x%08x\n", page_nr, cs, page_out_addr, s->reg_page_spare_out_addr);
             page_out_buf_ind++;
 
         }
@@ -130,8 +144,13 @@ static void ipod_touch_fmss_write(void *opaque, hwaddr addr, uint64_t val, unsig
         case FMSS_PAGES_OUT_ADDR:
             s->reg_pages_out_addr = val;
             break;
+        case FMSS_CSGENRC:
+            s->reg_csgenrc = val;
+            break;
         case 0xD38:
-            read_nand_pages(s);
+            if(s->reg_csgenrc == 0xa01) { read_nand_pages(s); }
+            else { printf("NAND write not suported yet!\n"); }
+            
     }
 }
 
