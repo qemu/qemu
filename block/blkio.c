@@ -733,6 +733,35 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     }
 
     ret = blkio_connect(s->blkio);
+    /*
+     * If the libblkio driver doesn't support the `fd` property, blkio_connect()
+     * will fail with -EINVAL. So let's try calling blkio_connect() again by
+     * directly setting `path`.
+     */
+    if (fd_supported && ret == -EINVAL) {
+        qemu_close(fd);
+
+        /*
+         * We need to clear the `fd` property we set previously by setting
+         * it to -1.
+         */
+        ret = blkio_set_int(s->blkio, "fd", -1);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set fd: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+
+        ret = blkio_set_str(s->blkio, "path", path);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set path: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+
+        ret = blkio_connect(s->blkio);
+    }
+
     if (ret < 0) {
         error_setg_errno(errp, -ret, "blkio_connect failed: %s",
                          blkio_get_error_msg());
