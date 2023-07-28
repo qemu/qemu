@@ -199,12 +199,15 @@ static bool throttle_compute_timer(ThrottleState *ts,
 void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                         AioContext *new_context)
 {
-    tt->timers[THROTTLE_READ] =
-        aio_timer_new(new_context, tt->clock_type, SCALE_NS,
-                      tt->timer_cb[THROTTLE_READ], tt->timer_opaque);
-    tt->timers[THROTTLE_WRITE] =
-        aio_timer_new(new_context, tt->clock_type, SCALE_NS,
-                      tt->timer_cb[THROTTLE_WRITE], tt->timer_opaque);
+    ThrottleDirection dir;
+
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+        if (tt->timer_cb[dir]) {
+            tt->timers[dir] =
+                aio_timer_new(new_context, tt->clock_type, SCALE_NS,
+                              tt->timer_cb[dir], tt->timer_opaque);
+        }
+    }
 }
 
 /*
@@ -235,6 +238,7 @@ void throttle_timers_init(ThrottleTimers *tt,
                           QEMUTimerCB *write_timer_cb,
                           void *timer_opaque)
 {
+    assert(read_timer_cb || write_timer_cb);
     memset(tt, 0, sizeof(ThrottleTimers));
 
     tt->clock_type = clock_type;
@@ -247,7 +251,9 @@ void throttle_timers_init(ThrottleTimers *tt,
 /* destroy a timer */
 static void throttle_timer_destroy(QEMUTimer **timer)
 {
-    assert(*timer != NULL);
+    if (*timer == NULL) {
+        return;
+    }
 
     timer_free(*timer);
     *timer = NULL;
@@ -256,10 +262,10 @@ static void throttle_timer_destroy(QEMUTimer **timer)
 /* Remove timers from event loop */
 void throttle_timers_detach_aio_context(ThrottleTimers *tt)
 {
-    int i;
+    ThrottleDirection dir;
 
-    for (i = 0; i < THROTTLE_MAX; i++) {
-        throttle_timer_destroy(&tt->timers[i]);
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+        throttle_timer_destroy(&tt->timers[dir]);
     }
 }
 
@@ -272,8 +278,12 @@ void throttle_timers_destroy(ThrottleTimers *tt)
 /* is any throttling timer configured */
 bool throttle_timers_are_initialized(ThrottleTimers *tt)
 {
-    if (tt->timers[0]) {
-        return true;
+    ThrottleDirection dir;
+
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+        if (tt->timers[dir]) {
+            return true;
+        }
     }
 
     return false;
@@ -424,7 +434,11 @@ bool throttle_schedule_timer(ThrottleState *ts,
 {
     int64_t now = qemu_clock_get_ns(tt->clock_type);
     int64_t next_timestamp;
+    QEMUTimer *timer;
     bool must_wait;
+
+    timer = is_write ? tt->timers[THROTTLE_WRITE] : tt->timers[THROTTLE_READ];
+    assert(timer);
 
     must_wait = throttle_compute_timer(ts,
                                        is_write,
@@ -437,12 +451,12 @@ bool throttle_schedule_timer(ThrottleState *ts,
     }
 
     /* request throttled and timer pending -> do nothing */
-    if (timer_pending(tt->timers[is_write])) {
+    if (timer_pending(timer)) {
         return true;
     }
 
     /* request throttled and timer not pending -> arm timer */
-    timer_mod(tt->timers[is_write], next_timestamp);
+    timer_mod(timer, next_timestamp);
     return true;
 }
 
