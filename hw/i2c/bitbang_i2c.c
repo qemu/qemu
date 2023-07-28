@@ -70,7 +70,7 @@ static int bitbang_i2c_ret(bitbang_i2c_interface *i2c, int level)
     return level & i2c->last_data;
 }
 
-/* Leave device data pin unodified.  */
+/* Leave device data pin unmodified.  */
 static int bitbang_i2c_nop(bitbang_i2c_interface *i2c)
 {
     return bitbang_i2c_ret(i2c, i2c->device_out);
