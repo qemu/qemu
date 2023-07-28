@@ -603,8 +603,8 @@ static void blkio_unregister_buf(BlockDriverState *bs, void *host, size_t size)
     }
 }
 
-static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
-                               Error **errp)
+static int blkio_io_uring_connect(BlockDriverState *bs, QDict *options,
+                                  int flags, Error **errp)
 {
     const char *filename = qdict_get_str(options, "filename");
     BDRVBlkioState *s = bs->opaque;
@@ -627,11 +627,18 @@ static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    ret = blkio_connect(s->blkio);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
+    }
+
     return 0;
 }
 
-static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
-                               Error **errp)
+static int blkio_nvme_io_uring_connect(BlockDriverState *bs, QDict *options,
+                                       int flags, Error **errp)
 {
     const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
@@ -655,11 +662,18 @@ static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    ret = blkio_connect(s->blkio);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
+    }
+
     return 0;
 }
 
-static int blkio_virtio_blk_common_open(BlockDriverState *bs,
-        QDict *options, int flags, Error **errp)
+static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
+                                    int flags, Error **errp)
 {
     const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
@@ -676,7 +690,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    if (blkio_get_int(s->blkio, "fd", &fd) == 0) {
+    if (blkio_set_int(s->blkio, "fd", -1) == 0) {
         fd_supported = true;
     }
 
@@ -686,33 +700,72 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
      * layer through the "/dev/fdset/N" special path.
      */
     if (fd_supported) {
-        int open_flags;
-
-        if (flags & BDRV_O_RDWR) {
-            open_flags = O_RDWR;
-        } else {
-            open_flags = O_RDONLY;
-        }
-
-        fd = qemu_open(path, open_flags, errp);
+        /*
+         * `path` can contain the path of a character device
+         * (e.g. /dev/vhost-vdpa-0 or /dev/vfio/vfio) or a unix socket.
+         *
+         * So, we should always open it with O_RDWR flag, also if BDRV_O_RDWR
+         * is not set in the open flags, because the exchange of IOCTL commands
+         * for example will fail.
+         *
+         * In order to open the device read-only, we are using the `read-only`
+         * property of the libblkio driver in blkio_file_open().
+         */
+        fd = qemu_open(path, O_RDWR, NULL);
         if (fd < 0) {
-            return -EINVAL;
+            fd_supported = false;
+        } else {
+            ret = blkio_set_int(s->blkio, "fd", fd);
+            if (ret < 0) {
+                fd_supported = false;
+                qemu_close(fd);
+            }
         }
+    }
 
-        ret = blkio_set_int(s->blkio, "fd", fd);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "failed to set fd: %s",
-                             blkio_get_error_msg());
-            qemu_close(fd);
-            return ret;
-        }
-    } else {
+    if (!fd_supported) {
         ret = blkio_set_str(s->blkio, "path", path);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "failed to set path: %s",
                              blkio_get_error_msg());
             return ret;
         }
+    }
+
+    ret = blkio_connect(s->blkio);
+    /*
+     * If the libblkio driver doesn't support the `fd` property, blkio_connect()
+     * will fail with -EINVAL. So let's try calling blkio_connect() again by
+     * directly setting `path`.
+     */
+    if (fd_supported && ret == -EINVAL) {
+        qemu_close(fd);
+
+        /*
+         * We need to clear the `fd` property we set previously by setting
+         * it to -1.
+         */
+        ret = blkio_set_int(s->blkio, "fd", -1);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set fd: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+
+        ret = blkio_set_str(s->blkio, "path", path);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set path: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+
+        ret = blkio_connect(s->blkio);
+    }
+
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
+                         blkio_get_error_msg());
+        return ret;
     }
 
     qdict_del(options, "path");
@@ -734,24 +787,6 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
-    if (strcmp(blkio_driver, "io_uring") == 0) {
-        ret = blkio_io_uring_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "nvme-io_uring") == 0) {
-        ret = blkio_nvme_io_uring(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vfio-pci") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vhost-user") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
-    } else {
-        g_assert_not_reached();
-    }
-    if (ret < 0) {
-        blkio_destroy(&s->blkio);
-        return ret;
-    }
-
     if (!(flags & BDRV_O_RDWR)) {
         ret = blkio_set_bool(s->blkio, "read-only", true);
         if (ret < 0) {
@@ -762,10 +797,20 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    ret = blkio_connect(s->blkio);
+    if (strcmp(blkio_driver, "io_uring") == 0) {
+        ret = blkio_io_uring_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "nvme-io_uring") == 0) {
+        ret = blkio_nvme_io_uring_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vfio-pci") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-user") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0) {
+        ret = blkio_virtio_blk_connect(bs, options, flags, errp);
+    } else {
+        g_assert_not_reached();
+    }
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "blkio_connect failed: %s",
-                         blkio_get_error_msg());
         blkio_destroy(&s->blkio);
         return ret;
     }
@@ -845,6 +890,7 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
     QLIST_INIT(&s->bounce_bufs);
     s->blkioq = blkio_get_queue(s->blkio, 0);
     s->completion_fd = blkioq_get_completion_fd(s->blkioq);
+    blkioq_set_completion_fd_enabled(s->blkioq, true);
 
     blkio_attach_aio_context(bs, bdrv_get_aio_context(bs));
     return 0;

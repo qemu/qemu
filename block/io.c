@@ -1710,7 +1710,11 @@ static int bdrv_pad_request(BlockDriverState *bs,
     int sliced_niov;
     size_t sliced_head, sliced_tail;
 
-    bdrv_check_qiov_request(*offset, *bytes, *qiov, *qiov_offset, &error_abort);
+    /* Should have been checked by the caller already */
+    ret = bdrv_check_request32(*offset, *bytes, *qiov, *qiov_offset);
+    if (ret < 0) {
+        return ret;
+    }
 
     if (!bdrv_init_padding(bs, *offset, *bytes, write, pad)) {
         if (padded) {
@@ -1723,7 +1727,7 @@ static int bdrv_pad_request(BlockDriverState *bs,
                                   &sliced_head, &sliced_tail,
                                   &sliced_niov);
 
-    /* Guaranteed by bdrv_check_qiov_request() */
+    /* Guaranteed by bdrv_check_request32() */
     assert(*bytes <= SIZE_MAX);
     ret = bdrv_create_padded_qiov(bs, pad, sliced_iov, sliced_niov,
                                   sliced_head, *bytes);
