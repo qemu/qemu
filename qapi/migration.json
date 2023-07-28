@@ -519,14 +519,11 @@
 #     are present.  'return-path' capability must be enabled to use
 #     it.  (since 8.1)
 #
-# @dirty-limit: If enabled, migration will use the dirty-limit
-#     algorithim to throttle down guest instead of auto-converge
-#     algorithim. Throttle algorithim only works when vCPU's dirtyrate
-#     greater than 'vcpu-dirty-limit', read processes in guest os
-#     aren't penalized any more, so this algorithim can improve
-#     performance of vCPU during live migration. This is an optional
-#     performance feature and should not affect the correctness of the
-#     existing auto-converge algorithim.  (Since 8.1)
+# @dirty-limit: If enabled, migration will throttle vCPUs as needed to
+#     keep their dirty page rate within @vcpu-dirty-limit.  This can
+#     improve responsiveness of large guests during live migration,
+#     and can result in more stable read performance.  Requires KVM
+#     with accelerator property "dirty-ring-size" set.  (Since 8.1)
 #
 # Features:
 #
