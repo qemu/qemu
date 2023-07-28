@@ -4132,6 +4132,9 @@ static void pmu_count_insns(DisasContext *ctx)
 
 static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
+    if (unlikely(ctx->singlestep_enabled)) {
+        return false;
+    }
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
