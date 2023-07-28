@@ -248,7 +248,7 @@ static int spapr_tce_table_post_load(void *opaque, int version_id)
         memcpy(tcet->table, tcet->mig_table,
                tcet->nb_table * sizeof(tcet->table[0]));
 
-        free(tcet->mig_table);
+        g_free(tcet->mig_table);
         tcet->mig_table = NULL;
     }
 
