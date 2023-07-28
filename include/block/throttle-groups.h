@@ -37,7 +37,7 @@ typedef struct ThrottleGroupMember {
     AioContext   *aio_context;
     /* throttled_reqs_lock protects the CoQueues for throttled requests.  */
     CoMutex      throttled_reqs_lock;
-    CoQueue      throttled_reqs[2];
+    CoQueue      throttled_reqs[THROTTLE_MAX];
 
     /* Nonzero if the I/O limits are currently being ignored; generally
      * it is zero.  Accessed with atomic operations.
@@ -54,7 +54,7 @@ typedef struct ThrottleGroupMember {
      * throttle_state tells us if I/O limits are configured. */
     ThrottleState *throttle_state;
     ThrottleTimers throttle_timers;
-    unsigned       pending_reqs[2];
+    unsigned       pending_reqs[THROTTLE_MAX];
     QLIST_ENTRY(ThrottleGroupMember) round_robin;
 
 } ThrottleGroupMember;
@@ -78,7 +78,7 @@ void throttle_group_restart_tgm(ThrottleGroupMember *tgm);
 
 void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm,
                                                         int64_t bytes,
-                                                        bool is_write);
+                                                        ThrottleDirection direction);
 void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
                                        AioContext *new_context);
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm);

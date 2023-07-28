@@ -1341,7 +1341,7 @@ blk_co_do_preadv_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     /* throttling disk I/O */
     if (blk->public.throttle_group_member.throttle_state) {
         throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
-                bytes, false);
+                bytes, THROTTLE_READ);
     }
 
     ret = bdrv_co_preadv_part(blk->root, offset, bytes, qiov, qiov_offset,
@@ -1415,7 +1415,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
     /* throttling disk I/O */
     if (blk->public.throttle_group_member.throttle_state) {
         throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
-                bytes, true);
+                bytes, THROTTLE_WRITE);
     }
 
     if (!blk->enable_write_cache) {
