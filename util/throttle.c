@@ -136,11 +136,11 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
 
 /* This function compute the time that must be waited while this IO
  *
- * @is_write:   true if the current IO is a write, false if it's a read
+ * @direction:  throttle direction
  * @ret:        time to wait
  */
 static int64_t throttle_compute_wait_for(ThrottleState *ts,
-                                         bool is_write)
+                                         ThrottleDirection direction)
 {
     BucketType to_check[2][4] = { {THROTTLE_BPS_TOTAL,
                                    THROTTLE_OPS_TOTAL,
@@ -154,7 +154,7 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
     int i;
 
     for (i = 0; i < 4; i++) {
-        BucketType index = to_check[is_write][i];
+        BucketType index = to_check[direction][i];
         wait = throttle_compute_wait(&ts->cfg.buckets[index]);
         if (wait > max_wait) {
             max_wait = wait;
@@ -166,13 +166,13 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
 
 /* compute the timer for this type of operation
  *
- * @is_write:   the type of operation
+ * @direction:  throttle direction
  * @now:        the current clock timestamp
  * @next_timestamp: the resulting timer
  * @ret:        true if a timer must be set
  */
 static bool throttle_compute_timer(ThrottleState *ts,
-                                   bool is_write,
+                                   ThrottleDirection direction,
                                    int64_t now,
                                    int64_t *next_timestamp)
 {
@@ -182,7 +182,7 @@ static bool throttle_compute_timer(ThrottleState *ts,
     throttle_do_leak(ts, now);
 
     /* compute the wait time if any */
-    wait = throttle_compute_wait_for(ts, is_write);
+    wait = throttle_compute_wait_for(ts, direction);
 
     /* if the code must wait compute when the next timer should fire */
     if (wait) {
@@ -425,23 +425,24 @@ void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg)
  * NOTE: this function is not unit tested due to it's usage of timer_mod
  *
  * @tt:       the timers structure
- * @is_write: the type of operation (read/write)
+ * @direction: throttle direction
  * @ret:      true if the timer has been scheduled else false
  */
 bool throttle_schedule_timer(ThrottleState *ts,
                              ThrottleTimers *tt,
-                             bool is_write)
+                             ThrottleDirection direction)
 {
     int64_t now = qemu_clock_get_ns(tt->clock_type);
     int64_t next_timestamp;
     QEMUTimer *timer;
     bool must_wait;
 
-    timer = is_write ? tt->timers[THROTTLE_WRITE] : tt->timers[THROTTLE_READ];
+    assert(direction < THROTTLE_MAX);
+    timer = tt->timers[direction];
     assert(timer);
 
     must_wait = throttle_compute_timer(ts,
-                                       is_write,
+                                       direction,
                                        now,
                                        &next_timestamp);
 
@@ -462,10 +463,11 @@ bool throttle_schedule_timer(ThrottleState *ts,
 
 /* do the accounting for this operation
  *
- * @is_write: the type of operation (read/write)
+ * @direction: throttle direction
  * @size:     the size of the operation
  */
-void throttle_account(ThrottleState *ts, bool is_write, uint64_t size)
+void throttle_account(ThrottleState *ts, ThrottleDirection direction,
+                      uint64_t size)
 {
     const BucketType bucket_types_size[2][2] = {
         { THROTTLE_BPS_TOTAL, THROTTLE_BPS_READ },
@@ -478,6 +480,7 @@ void throttle_account(ThrottleState *ts, bool is_write, uint64_t size)
     double units = 1.0;
     unsigned i;
 
+    assert(direction < THROTTLE_MAX);
     /* if cfg.op_size is defined and smaller than size we compute unit count */
     if (ts->cfg.op_size && size > ts->cfg.op_size) {
         units = (double) size / ts->cfg.op_size;
@@ -486,13 +489,13 @@ void throttle_account(ThrottleState *ts, bool is_write, uint64_t size)
     for (i = 0; i < 2; i++) {
         LeakyBucket *bkt;
 
-        bkt = &ts->cfg.buckets[bucket_types_size[is_write][i]];
+        bkt = &ts->cfg.buckets[bucket_types_size[direction][i]];
         bkt->level += size;
         if (bkt->burst_length > 1) {
             bkt->burst_level += size;
         }
 
-        bkt = &ts->cfg.buckets[bucket_types_units[is_write][i]];
+        bkt = &ts->cfg.buckets[bucket_types_units[direction][i]];
         bkt->level += units;
         if (bkt->burst_length > 1) {
             bkt->burst_level += units;
