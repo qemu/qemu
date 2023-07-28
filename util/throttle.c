@@ -142,7 +142,8 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
 static int64_t throttle_compute_wait_for(ThrottleState *ts,
                                          ThrottleDirection direction)
 {
-    BucketType to_check[2][4] = { {THROTTLE_BPS_TOTAL,
+    static const BucketType to_check[THROTTLE_MAX][4] = {
+                                  {THROTTLE_BPS_TOTAL,
                                    THROTTLE_OPS_TOTAL,
                                    THROTTLE_BPS_READ,
                                    THROTTLE_OPS_READ},
@@ -153,7 +154,7 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
     int64_t wait, max_wait = 0;
     int i;
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < ARRAY_SIZE(to_check[THROTTLE_READ]); i++) {
         BucketType index = to_check[direction][i];
         wait = throttle_compute_wait(&ts->cfg.buckets[index]);
         if (wait > max_wait) {
@@ -469,11 +470,11 @@ bool throttle_schedule_timer(ThrottleState *ts,
 void throttle_account(ThrottleState *ts, ThrottleDirection direction,
                       uint64_t size)
 {
-    const BucketType bucket_types_size[2][2] = {
+    static const BucketType bucket_types_size[THROTTLE_MAX][2] = {
         { THROTTLE_BPS_TOTAL, THROTTLE_BPS_READ },
         { THROTTLE_BPS_TOTAL, THROTTLE_BPS_WRITE }
     };
-    const BucketType bucket_types_units[2][2] = {
+    static const BucketType bucket_types_units[THROTTLE_MAX][2] = {
         { THROTTLE_OPS_TOTAL, THROTTLE_OPS_READ },
         { THROTTLE_OPS_TOTAL, THROTTLE_OPS_WRITE }
     };
@@ -486,7 +487,7 @@ void throttle_account(ThrottleState *ts, ThrottleDirection direction,
         units = (double) size / ts->cfg.op_size;
     }
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < ARRAY_SIZE(bucket_types_size[THROTTLE_READ]); i++) {
         LeakyBucket *bkt;
 
         bkt = &ts->cfg.buckets[bucket_types_size[direction][i]];
