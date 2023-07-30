@@ -77,7 +77,7 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 
 #ifdef CONFIG_VNC_JPEG
 static const struct {
-    double jpeg_freq_min;       /* Don't send JPEG if the freq is bellow */
+    double jpeg_freq_min;       /* Don't send JPEG if the freq is below */
     double jpeg_freq_threshold; /* Always send JPEG if the freq is above */
     int jpeg_idx;               /* Allow indexed JPEG */
     int jpeg_full;              /* Allow full color JPEG */
