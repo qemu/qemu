@@ -374,6 +374,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                           "Restarting code generation for "
                           "code_gen_buffer overflow\n");
             tb_unlock_pages(tb);
+            tcg_ctx->gen_tb = NULL;
             goto buffer_overflow;
 
         case -2:

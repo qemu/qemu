@@ -48,12 +48,6 @@
  *
  * It also guarantees that if the lookup returns an element it is the 'correct'
  * one. But not returning an element does _NOT_ mean it's not present.
- *
- * NOTE:
- *
- * Stores to __rb_parent_color are not important for simple lookups so those
- * are left undone as of now. Nor did I check for loops involving parent
- * pointers.
  */
 
 typedef enum RBColor
@@ -68,14 +62,29 @@ typedef struct RBAugmentCallbacks {
     void (*rotate)(RBNode *old, RBNode *new);
 } RBAugmentCallbacks;
 
+static inline uintptr_t rb_pc(const RBNode *n)
+{
+    return qatomic_read(&n->rb_parent_color);
+}
+
+static inline void rb_set_pc(RBNode *n, uintptr_t pc)
+{
+    qatomic_set(&n->rb_parent_color, pc);
+}
+
+static inline RBNode *pc_parent(uintptr_t pc)
+{
+    return (RBNode *)(pc & ~1);
+}
+
 static inline RBNode *rb_parent(const RBNode *n)
 {
-    return (RBNode *)(n->rb_parent_color & ~1);
+    return pc_parent(rb_pc(n));
 }
 
 static inline RBNode *rb_red_parent(const RBNode *n)
 {
-    return (RBNode *)n->rb_parent_color;
+    return (RBNode *)rb_pc(n);
 }
 
 static inline RBColor pc_color(uintptr_t pc)
@@ -95,27 +104,27 @@ static inline bool pc_is_black(uintptr_t pc)
 
 static inline RBColor rb_color(const RBNode *n)
 {
-    return pc_color(n->rb_parent_color);
+    return pc_color(rb_pc(n));
 }
 
 static inline bool rb_is_red(const RBNode *n)
 {
-    return pc_is_red(n->rb_parent_color);
+    return pc_is_red(rb_pc(n));
 }
 
 static inline bool rb_is_black(const RBNode *n)
 {
-    return pc_is_black(n->rb_parent_color);
+    return pc_is_black(rb_pc(n));
 }
 
 static inline void rb_set_black(RBNode *n)
 {
-    n->rb_parent_color |= RB_BLACK;
+    rb_set_pc(n, rb_pc(n) | RB_BLACK);
 }
 
 static inline void rb_set_parent_color(RBNode *n, RBNode *p, RBColor color)
 {
-    n->rb_parent_color = (uintptr_t)p | color;
+    rb_set_pc(n, (uintptr_t)p | color);
 }
 
 static inline void rb_set_parent(RBNode *n, RBNode *p)
@@ -128,7 +137,11 @@ static inline void rb_link_node(RBNode *node, RBNode *parent, RBNode **rb_link)
     node->rb_parent_color = (uintptr_t)parent;
     node->rb_left = node->rb_right = NULL;
 
-    qatomic_set(rb_link, node);
+    /*
+     * Ensure that node is initialized before insertion,
+     * as viewed by a concurrent search.
+     */
+    qatomic_set_mb(rb_link, node);
 }
 
 static RBNode *rb_next(RBNode *node)
@@ -177,9 +190,10 @@ static inline void rb_change_child(RBNode *old, RBNode *new,
 static inline void rb_rotate_set_parents(RBNode *old, RBNode *new,
                                          RBRoot *root, RBColor color)
 {
-    RBNode *parent = rb_parent(old);
+    uintptr_t pc = rb_pc(old);
+    RBNode *parent = pc_parent(pc);
 
-    new->rb_parent_color = old->rb_parent_color;
+    rb_set_pc(new, pc);
     rb_set_parent_color(old, new, color);
     rb_change_child(old, new, parent, root);
 }
@@ -527,11 +541,11 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
          * and node must be black due to 4). We adjust colors locally
          * so as to bypass rb_erase_color() later on.
          */
-        pc = node->rb_parent_color;
-        parent = rb_parent(node);
+        pc = rb_pc(node);
+        parent = pc_parent(pc);
         rb_change_child(node, child, parent, root);
         if (child) {
-            child->rb_parent_color = pc;
+            rb_set_pc(child, pc);
             rebalance = NULL;
         } else {
             rebalance = pc_is_black(pc) ? parent : NULL;
@@ -539,9 +553,9 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         tmp = parent;
     } else if (!child) {
         /* Still case 1, but this time the child is node->rb_left */
-        pc = node->rb_parent_color;
-        parent = rb_parent(node);
-        tmp->rb_parent_color = pc;
+        pc = rb_pc(node);
+        parent = pc_parent(pc);
+        rb_set_pc(tmp, pc);
         rb_change_child(node, tmp, parent, root);
         rebalance = NULL;
         tmp = parent;
@@ -595,8 +609,8 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         qatomic_set(&successor->rb_left, tmp);
         rb_set_parent(tmp, successor);
 
-        pc = node->rb_parent_color;
-        tmp = rb_parent(node);
+        pc = rb_pc(node);
+        tmp = pc_parent(pc);
         rb_change_child(node, successor, tmp, root);
 
         if (child2) {
@@ -605,7 +619,7 @@ static void rb_erase_augmented(RBNode *node, RBRoot *root,
         } else {
             rebalance = rb_is_black(successor) ? parent : NULL;
         }
-        successor->rb_parent_color = pc;
+        rb_set_pc(successor, pc);
         tmp = successor;
     }
 
@@ -745,8 +759,9 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
          * Loop invariant: start <= node->subtree_last
          * (Cond2 is satisfied by one of the subtree nodes)
          */
-        if (node->rb.rb_left) {
-            IntervalTreeNode *left = rb_to_itree(node->rb.rb_left);
+        RBNode *tmp = qatomic_read(&node->rb.rb_left);
+        if (tmp) {
+            IntervalTreeNode *left = rb_to_itree(tmp);
 
             if (start <= left->subtree_last) {
                 /*
@@ -765,8 +780,9 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
             if (start <= node->last) {     /* Cond2 */
                 return node; /* node is leftmost match */
             }
-            if (node->rb.rb_right) {
-                node = rb_to_itree(node->rb.rb_right);
+            tmp = qatomic_read(&node->rb.rb_right);
+            if (tmp) {
+                node = rb_to_itree(tmp);
                 if (start <= node->subtree_last) {
                     continue;
                 }
@@ -814,8 +830,9 @@ IntervalTreeNode *interval_tree_iter_first(IntervalTreeRoot *root,
 IntervalTreeNode *interval_tree_iter_next(IntervalTreeNode *node,
                                           uint64_t start, uint64_t last)
 {
-    RBNode *rb = node->rb.rb_right, *prev;
+    RBNode *rb, *prev;
 
+    rb = qatomic_read(&node->rb.rb_right);
     while (true) {
         /*
          * Loop invariants:
@@ -840,7 +857,7 @@ IntervalTreeNode *interval_tree_iter_next(IntervalTreeNode *node,
             }
             prev = &node->rb;
             node = rb_to_itree(rb);
-            rb = node->rb.rb_right;
+            rb = qatomic_read(&node->rb.rb_right);
         } while (prev == rb);
 
         /* Check if the node intersects [start;last] */
