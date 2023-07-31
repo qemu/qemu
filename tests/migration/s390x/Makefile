@@ -6,8 +6,8 @@ all: a-b-bios.h
 fwdir=../../../pc-bios/s390-ccw
 
 CFLAGS+=-ffreestanding -fno-delete-null-pointer-checks -fPIE -Os \
-	-msoft-float -march=z900 -fno-asynchronous-unwind-tables -Wl,-pie \
-	-Wl,--build-id=none -nostdlib
+	-msoft-float -march=z900 -fno-asynchronous-unwind-tables \
+	-fno-stack-protector -Wl,-pie -Wl,--build-id=none -nostdlib
 
 a-b-bios.h: s390x.elf
 	echo "$$__note" > header.tmp
