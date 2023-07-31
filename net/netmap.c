@@ -371,7 +371,7 @@ static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
 }
 
 static void netmap_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
-                               int ecn, int ufo)
+                               int ecn, int ufo, int uso4, int uso6)
 {
     NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
 

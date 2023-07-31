@@ -2852,7 +2852,7 @@ e1000e_update_rx_offloads(E1000ECore *core)
 
     if (core->has_vnet) {
         qemu_set_offload(qemu_get_queue(core->owner_nic)->peer,
-                         cso_state, 0, 0, 0, 0);
+                         cso_state, 0, 0, 0, 0, 0, 0);
     }
 }
 

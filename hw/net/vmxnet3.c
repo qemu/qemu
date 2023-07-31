@@ -1341,6 +1341,8 @@ static void vmxnet3_update_features(VMXNET3State *s)
                          s->lro_supported,
                          s->lro_supported,
                          0,
+                         0,
+                         0,
                          0);
     }
 }

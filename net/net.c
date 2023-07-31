@@ -532,13 +532,13 @@ void qemu_using_vnet_hdr(NetClientState *nc, bool enable)
 }
 
 void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
-                          int ecn, int ufo)
+                          int ecn, int ufo, int uso4, int uso6)
 {
     if (!nc || !nc->info->set_offload) {
         return;
     }
 
-    nc->info->set_offload(nc, csum, tso4, tso6, ecn, ufo);
+    nc->info->set_offload(nc, csum, tso4, tso6, ecn, ufo, uso4, uso6);
 }
 
 int qemu_get_vnet_hdr_len(NetClientState *nc)
