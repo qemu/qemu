@@ -316,6 +316,11 @@ static int fill_context(KDDEBUGGER_DATA64 *kdbg,
             return 1;
         }
 
+        if (!Prcb) {
+            eprintf("Context for CPU #%d is missing\n", i);
+            continue;
+        }
+
         if (va_space_rw(vs, Prcb + kdbg->OffsetPrcbContext,
                     &Context, sizeof(Context), 0)) {
             eprintf("Failed to read CPU #%d ContextFrame location\n", i);

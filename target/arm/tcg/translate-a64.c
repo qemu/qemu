@@ -3004,6 +3004,9 @@ static bool trans_STGP(DisasContext *s, arg_ldstpair *a)
     MemOp mop;
     TCGv_i128 tmp;
 
+    /* STGP only comes in one size. */
+    tcg_debug_assert(a->sz == MO_64);
+
     if (!dc_isar_feature(aa64_mte_insn_reg, s)) {
         return false;
     }
@@ -3029,13 +3032,25 @@ static bool trans_STGP(DisasContext *s, arg_ldstpair *a)
         gen_helper_stg(cpu_env, dirty_addr, dirty_addr);
     }
 
-    mop = finalize_memop(s, a->sz);
-    clean_addr = gen_mte_checkN(s, dirty_addr, true, false, 2 << a->sz, mop);
+    mop = finalize_memop(s, MO_64);
+    clean_addr = gen_mte_checkN(s, dirty_addr, true, false, 2 << MO_64, mop);
 
     tcg_rt = cpu_reg(s, a->rt);
     tcg_rt2 = cpu_reg(s, a->rt2);
 
-    assert(a->sz == 3);
+    /*
+     * STGP is defined as two 8-byte memory operations and one tag operation.
+     * We implement it as one single 16-byte memory operation for convenience.
+     * Rebuild mop as for STP.
+     * TODO: The atomicity with LSE2 is stronger than required.
+     * Need a form of MO_ATOM_WITHIN16_PAIR that never requires
+     * 16-byte atomicity.
+     */
+    mop = MO_128;
+    if (s->align_mem) {
+        mop |= MO_ALIGN_8;
+    }
+    mop = finalize_memop_pair(s, mop);
 
     tmp = tcg_temp_new_i128();
     if (s->be_data == MO_LE) {
