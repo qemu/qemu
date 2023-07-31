@@ -173,6 +173,18 @@ int tap_probe_has_ufo(int fd)
     return 1;
 }
 
+int tap_probe_has_uso(int fd)
+{
+    unsigned offload;
+
+    offload = TUN_F_CSUM | TUN_F_USO4 | TUN_F_USO6;
+
+    if (ioctl(fd, TUNSETOFFLOAD, offload) < 0) {
+        return 0;
+    }
+    return 1;
+}
+
 /* Verify that we can assign given length */
 int tap_probe_vnet_hdr_len(int fd, int len)
 {
