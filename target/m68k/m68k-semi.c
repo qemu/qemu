@@ -166,7 +166,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG64(2);
         GET_ARG64(3);
         semihost_sys_lseek(cs, m68k_semi_u64_cb, arg0,
-                           deposit64(arg2, arg1, 32, 32), arg3);
+                           deposit64(arg2, 32, 32, arg1), arg3);
         break;
 
     case HOSTED_RENAME:
