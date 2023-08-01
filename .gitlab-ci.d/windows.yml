@@ -23,10 +23,34 @@
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
       mkdir msys64\var\cache
     }
-  - If ( !(Test-Path -Path msys64\var\cache\msys2.exe ) ) {
+  - Invoke-WebRequest
+    "https://repo.msys2.org/distrib/msys2-x86_64-latest.sfx.exe.sig"
+    -outfile "msys2.exe.sig"
+  - if ( Test-Path -Path msys64\var\cache\msys2.exe.sig ) {
+      Write-Output "Cached installer sig" ;
+      if ( ((Get-FileHash msys2.exe.sig).Hash -ne (Get-FileHash msys64\var\cache\msys2.exe.sig).Hash) ) {
+        Write-Output "Mis-matched installer sig, new installer download required" ;
+        Remove-Item -Path msys64\var\cache\msys2.exe.sig ;
+        if ( Test-Path -Path msys64\var\cache\msys2.exe ) {
+          Remove-Item -Path msys64\var\cache\msys2.exe
+        }
+      } else {
+        Write-Output "Matched installer sig, cached installer still valid"
+      }
+    } else {
+      Write-Output "No cached installer sig, new installer download required" ;
+      if ( Test-Path -Path msys64\var\cache\msys2.exe ) {
+        Remove-Item -Path msys64\var\cache\msys2.exe
+      }
+    }
+  - if ( !(Test-Path -Path msys64\var\cache\msys2.exe ) ) {
+      Write-Output "Fetching latest installer" ;
       Invoke-WebRequest
-      "https://github.com/msys2/msys2-installer/releases/download/2022-06-03/msys2-base-x86_64-20220603.sfx.exe"
-      -outfile "msys64\var\cache\msys2.exe"
+      "https://repo.msys2.org/distrib/msys2-x86_64-latest.sfx.exe"
+      -outfile "msys64\var\cache\msys2.exe" ;
+      Copy-Item -Path msys2.exe.sig -Destination msys64\var\cache\msys2.exe.sig
+    } else {
+      Write-Output "Using cached installer"
     }
   - Write-Output "Invoking msys2.exe installer at $(Get-Date -Format u)"
   - msys64\var\cache\msys2.exe -y
