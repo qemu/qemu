@@ -537,7 +537,7 @@ static GDBThreadIdKind read_thread_id(const char *buf, const char **end_buf,
         /* Skip '.' */
         buf++;
     } else {
-        p = 1;
+        p = 0;
     }
 
     ret = qemu_strtoul(buf, &buf, 16, &t);
