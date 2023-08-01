@@ -32,6 +32,8 @@
 #include "cpu.h"
 #include "qom/object.h"
 
+#include "trace.h"
+
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
 
@@ -49,12 +51,6 @@
 #define VMMOUSE_LEFT_BUTTON        0x20
 #define VMMOUSE_RIGHT_BUTTON       0x10
 #define VMMOUSE_MIDDLE_BUTTON      0x08
-
-#ifdef DEBUG_VMMOUSE
-#define DPRINTF(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...) do { } while (0)
-#endif
 
 #define TYPE_VMMOUSE "vmmouse"
 OBJECT_DECLARE_SIMPLE_TYPE(VMMouseState, VMMOUSE)
@@ -93,7 +89,8 @@ static void vmmouse_set_data(const uint32_t *data)
 
 static uint32_t vmmouse_get_status(VMMouseState *s)
 {
-    DPRINTF("vmmouse_get_status()\n");
+    trace_vmmouse_get_status();
+
     return (s->status << 16) | s->nb_queue;
 }
 
@@ -105,8 +102,7 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
     if (s->nb_queue > (VMMOUSE_QUEUE_SIZE - 4))
         return;
 
-    DPRINTF("vmmouse_mouse_event(%d, %d, %d, %d)\n",
-            x, y, dz, buttons_state);
+    trace_vmmouse_mouse_event(x, y, dz, buttons_state);
 
     if ((buttons_state & MOUSE_EVENT_LBUTTON))
         buttons |= VMMOUSE_LEFT_BUTTON;
@@ -160,7 +156,7 @@ static void vmmouse_update_handler(VMMouseState *s, int absolute)
 
 static void vmmouse_read_id(VMMouseState *s)
 {
-    DPRINTF("vmmouse_read_id()\n");
+    trace_vmmouse_read_id();
 
     if (s->nb_queue == VMMOUSE_QUEUE_SIZE)
         return;
@@ -172,19 +168,22 @@ static void vmmouse_read_id(VMMouseState *s)
 
 static void vmmouse_request_relative(VMMouseState *s)
 {
-    DPRINTF("vmmouse_request_relative()\n");
+    trace_vmmouse_request_relative();
+
     vmmouse_update_handler(s, 0);
 }
 
 static void vmmouse_request_absolute(VMMouseState *s)
 {
-    DPRINTF("vmmouse_request_absolute()\n");
+    trace_vmmouse_request_absolute();
+
     vmmouse_update_handler(s, 1);
 }
 
 static void vmmouse_disable(VMMouseState *s)
 {
-    DPRINTF("vmmouse_disable()\n");
+    trace_vmmouse_disable();
+
     s->status = 0xffff;
     vmmouse_remove_handler(s);
 }
@@ -193,7 +192,7 @@ static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
 {
     int i;
 
-    DPRINTF("vmmouse_data(%d)\n", size);
+    trace_vmmouse_data(size);
 
     if (size == 0 || size > 6 || size > s->nb_queue) {
         printf("vmmouse: driver requested too much data %d\n", size);
@@ -293,7 +292,7 @@ static void vmmouse_realizefn(DeviceState *dev, Error **errp)
 {
     VMMouseState *s = VMMOUSE(dev);
 
-    DPRINTF("vmmouse_init\n");
+    trace_vmmouse_init();
 
     if (!s->i8042) {
         error_setg(errp, "'i8042' link is not set");

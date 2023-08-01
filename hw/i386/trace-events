@@ -121,3 +121,13 @@ x86_pic_interrupt(int irqn, int level) "PIC interrupt #%d level:%d"
 # port92.c
 port92_read(uint8_t val) "port92: read 0x%02x"
 port92_write(uint8_t val) "port92: write 0x%02x"
+
+# vmmouse.c
+vmmouse_get_status(void) ""
+vmmouse_mouse_event(int x, int y, int dz, int buttons_state) "event: x=%d y=%d dz=%d state=%d"
+vmmouse_init(void) ""
+vmmouse_read_id(void) ""
+vmmouse_request_relative(void) ""
+vmmouse_request_absolute(void) ""
+vmmouse_disable(void) ""
+vmmouse_data(uint32_t size) "data: size=%" PRIu32
