@@ -19,6 +19,7 @@
     reports:
       junit: "build/meson-logs/testlog.junit.xml"
   before_script:
+  - Write-Output "Acquiring msys2.exe installer at $(Get-Date -Format u)"
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
       mkdir msys64\var\cache
     }
@@ -27,6 +28,7 @@
       "https://github.com/msys2/msys2-installer/releases/download/2022-06-03/msys2-base-x86_64-20220603.sfx.exe"
       -outfile "msys64\var\cache\msys2.exe"
     }
+  - Write-Output "Invoking msys2.exe installer at $(Get-Date -Format u)"
   - msys64\var\cache\msys2.exe -y
   - ((Get-Content -path .\msys64\etc\\post-install\\07-pacman-key.post -Raw)
       -replace '--refresh-keys', '--version') |
@@ -36,6 +38,7 @@
   - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
   - taskkill /F /FI "MODULES eq msys-2.0.dll"
   script:
+  - Write-Output "Installing mingw packages at $(Get-Date -Format u)"
   - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
       bison diffutils flex
       git grep make sed
@@ -66,6 +69,7 @@
       $MINGW_TARGET-spice
       $MINGW_TARGET-usbredir
       $MINGW_TARGET-zstd "
+  - Write-Output "Running build at $(Get-Date -Format u)"
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
   - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
   - mkdir build
@@ -73,6 +77,7 @@
   - ..\msys64\usr\bin\bash -lc "../configure --enable-fdt=system $CONFIGURE_ARGS"
   - ..\msys64\usr\bin\bash -lc "make"
   - ..\msys64\usr\bin\bash -lc "make check MTESTARGS='$TEST_ARGS' || { cat meson-logs/testlog.txt; exit 1; } ;"
+  - Write-Output "Finished build at $(Get-Date -Format u)"
 
 msys2-64bit:
   extends: .shared_msys2_builder
