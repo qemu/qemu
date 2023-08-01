@@ -35,97 +35,63 @@
   - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Core update
   - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
   - taskkill /F /FI "MODULES eq msys-2.0.dll"
+  script:
+  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
+      bison diffutils flex
+      git grep make sed
+      $MINGW_TARGET-capstone
+      $MINGW_TARGET-curl
+      $MINGW_TARGET-cyrus-sasl
+      $MINGW_TARGET-dtc
+      $MINGW_TARGET-gcc
+      $MINGW_TARGET-glib2
+      $MINGW_TARGET-gnutls
+      $MINGW_TARGET-gtk3
+      $MINGW_TARGET-libgcrypt
+      $MINGW_TARGET-libjpeg-turbo
+      $MINGW_TARGET-libnfs
+      $MINGW_TARGET-libpng
+      $MINGW_TARGET-libssh
+      $MINGW_TARGET-libtasn1
+      $MINGW_TARGET-libusb
+      $MINGW_TARGET-lzo2
+      $MINGW_TARGET-nettle
+      $MINGW_TARGET-ninja
+      $MINGW_TARGET-pixman
+      $MINGW_TARGET-pkgconf
+      $MINGW_TARGET-python
+      $MINGW_TARGET-SDL2
+      $MINGW_TARGET-SDL2_image
+      $MINGW_TARGET-snappy
+      $MINGW_TARGET-spice
+      $MINGW_TARGET-usbredir
+      $MINGW_TARGET-zstd "
+  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
+  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
+  - mkdir build
+  - cd build
+  - ..\msys64\usr\bin\bash -lc "../configure --enable-fdt=system $CONFIGURE_ARGS"
+  - ..\msys64\usr\bin\bash -lc "make"
+  - ..\msys64\usr\bin\bash -lc "make check MTESTARGS='$TEST_ARGS' || { cat meson-logs/testlog.txt; exit 1; } ;"
 
 msys2-64bit:
   extends: .shared_msys2_builder
-  script:
-  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
-      bison diffutils flex
-      git grep make sed
-      mingw-w64-x86_64-capstone
-      mingw-w64-x86_64-curl
-      mingw-w64-x86_64-cyrus-sasl
-      mingw-w64-x86_64-dtc
-      mingw-w64-x86_64-gcc
-      mingw-w64-x86_64-glib2
-      mingw-w64-x86_64-gnutls
-      mingw-w64-x86_64-gtk3
-      mingw-w64-x86_64-libgcrypt
-      mingw-w64-x86_64-libjpeg-turbo
-      mingw-w64-x86_64-libnfs
-      mingw-w64-x86_64-libpng
-      mingw-w64-x86_64-libssh
-      mingw-w64-x86_64-libtasn1
-      mingw-w64-x86_64-libusb
-      mingw-w64-x86_64-lzo2
-      mingw-w64-x86_64-nettle
-      mingw-w64-x86_64-ninja
-      mingw-w64-x86_64-pixman
-      mingw-w64-x86_64-pkgconf
-      mingw-w64-x86_64-python
-      mingw-w64-x86_64-SDL2
-      mingw-w64-x86_64-SDL2_image
-      mingw-w64-x86_64-snappy
-      mingw-w64-x86_64-spice
-      mingw-w64-x86_64-usbredir
-      mingw-w64-x86_64-zstd "
-  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
-  - $env:MSYSTEM = 'MINGW64'     # Start a 64-bit MinGW environment
-  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
-  - mkdir build
-  - cd build
-  # Note: do not remove "--without-default-devices"!
-  # commit 9f8e6cad65a6 ("gitlab-ci: Speed up the msys2-64bit job by using --without-default-devices"
-  # changed to compile QEMU with the --without-default-devices switch
-  # for the msys2 64-bit job, due to the build could not complete within
-  # the project timeout.
-  - ..\msys64\usr\bin\bash -lc '../configure --target-list=x86_64-softmmu
-      --without-default-devices --enable-fdt=system'
-  - ..\msys64\usr\bin\bash -lc 'make'
-  # qTests don't run successfully with "--without-default-devices",
-  # so let's exclude the qtests from CI for now.
-  - ..\msys64\usr\bin\bash -lc 'make check MTESTARGS=\"--no-suite qtest\" || { cat meson-logs/testlog.txt; exit 1; } ;'
+  variables:
+    MINGW_TARGET: mingw-w64-x86_64
+    MSYSTEM: MINGW64
+    # do not remove "--without-default-devices"!
+    # commit 9f8e6cad65a6 ("gitlab-ci: Speed up the msys2-64bit job by using --without-default-devices"
+    # changed to compile QEMU with the --without-default-devices switch
+    # for the msys2 64-bit job, due to the build could not complete within
+    CONFIGURE_ARGS:  --target-list=x86_64-softmmu --without-default-devices
+    # qTests don't run successfully with "--without-default-devices",
+    # so let's exclude the qtests from CI for now.
+    TEST_ARGS: --no-suite qtest
 
 msys2-32bit:
   extends: .shared_msys2_builder
-  script:
-  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
-      bison diffutils flex
-      git grep make sed
-      mingw-w64-i686-capstone
-      mingw-w64-i686-curl
-      mingw-w64-i686-cyrus-sasl
-      mingw-w64-i686-dtc
-      mingw-w64-i686-gcc
-      mingw-w64-i686-glib2
-      mingw-w64-i686-gnutls
-      mingw-w64-i686-gtk3
-      mingw-w64-i686-libgcrypt
-      mingw-w64-i686-libjpeg-turbo
-      mingw-w64-i686-libnfs
-      mingw-w64-i686-libpng
-      mingw-w64-i686-libssh
-      mingw-w64-i686-libtasn1
-      mingw-w64-i686-libusb
-      mingw-w64-i686-lzo2
-      mingw-w64-i686-nettle
-      mingw-w64-i686-ninja
-      mingw-w64-i686-pixman
-      mingw-w64-i686-pkgconf
-      mingw-w64-i686-python
-      mingw-w64-i686-SDL2
-      mingw-w64-i686-SDL2_image
-      mingw-w64-i686-snappy
-      mingw-w64-i686-spice
-      mingw-w64-i686-usbredir
-      mingw-w64-i686-zstd "
-  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
-  - $env:MSYSTEM = 'MINGW32'     # Start a 32-bit MinGW environment
-  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
-  - mkdir build
-  - cd build
-  - ..\msys64\usr\bin\bash -lc '../configure --target-list=ppc64-softmmu
-                                --enable-fdt=system'
-  - ..\msys64\usr\bin\bash -lc 'make'
-  - ..\msys64\usr\bin\bash -lc 'make check MTESTARGS=\"--no-suite qtest\" ||
-                                { cat meson-logs/testlog.txt; exit 1; }'
+  variables:
+    MINGW_TARGET: mingw-w64-i686
+    MSYSTEM: MINGW32
+    CONFIGURE_ARGS:  --target-list=ppc64-softmmu
+    TEST_ARGS: --no-suite qtest
