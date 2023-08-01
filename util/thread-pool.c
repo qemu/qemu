@@ -120,13 +120,13 @@ static void *worker_thread(void *opaque)
 
     pool->cur_threads--;
     qemu_cond_signal(&pool->worker_stopped);
-    qemu_mutex_unlock(&pool->lock);
 
     /*
      * Wake up another thread, in case we got a wakeup but decided
      * to exit due to pool->cur_threads > pool->max_threads.
      */
     qemu_cond_signal(&pool->request_cond);
+    qemu_mutex_unlock(&pool->lock);
     return NULL;
 }
 

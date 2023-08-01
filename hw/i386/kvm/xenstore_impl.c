@@ -1022,6 +1022,7 @@ static int transaction_commit(XenstoreImplState *s, XsTransaction *tx)
 {
     struct walk_op op;
     XsNode **n;
+    int ret;
 
     if (s->root_tx != tx->base_tx) {
         return EAGAIN;
@@ -1032,7 +1033,16 @@ static int transaction_commit(XenstoreImplState *s, XsTransaction *tx)
     s->root_tx = tx->tx_id;
     s->nr_nodes = tx->nr_nodes;
 
-    init_walk_op(s, &op, XBT_NULL, tx->dom_id, "/", &n);
+    ret = init_walk_op(s, &op, XBT_NULL, tx->dom_id, "/", &n);
+    /*
+     * There are two reasons why init_walk_op() may fail: an invalid tx_id,
+     * or an invalid path. We pass XBT_NULL and "/", and it cannot fail.
+     * If it does, the world is broken. And returning 'ret' would be weird
+     * because the transaction *was* committed, and all this tree walk is
+     * trying to do is fire the resulting watches on newly-committed nodes.
+     */
+    g_assert(!ret);
+
     op.deleted_in_tx = false;
     op.mutating = true;
 

@@ -765,8 +765,8 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
 }
 
 static void xen_do_ioreq_register(XenIOState *state,
-                                           unsigned int max_cpus,
-                                           MemoryListener xen_memory_listener)
+                                  unsigned int max_cpus,
+                                  const MemoryListener *xen_memory_listener)
 {
     int i, rc;
 
@@ -824,7 +824,7 @@ static void xen_do_ioreq_register(XenIOState *state,
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
-    state->memory_listener = xen_memory_listener;
+    state->memory_listener = *xen_memory_listener;
     memory_listener_register(&state->memory_listener, &address_space_memory);
 
     state->io_listener = xen_io_listener;
@@ -842,7 +842,7 @@ err:
 }
 
 void xen_register_ioreq(XenIOState *state, unsigned int max_cpus,
-                        MemoryListener xen_memory_listener)
+                        const MemoryListener *xen_memory_listener)
 {
     int rc;
 

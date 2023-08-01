@@ -458,7 +458,7 @@ static void xen_log_global_stop(MemoryListener *listener)
     xen_in_migration = false;
 }
 
-static MemoryListener xen_memory_listener = {
+static const MemoryListener xen_memory_listener = {
     .name = "xen-memory",
     .region_add = xen_region_add,
     .region_del = xen_region_del,
@@ -582,7 +582,7 @@ void xen_hvm_init_pc(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     state = g_new0(XenIOState, 1);
 
-    xen_register_ioreq(state, max_cpus, xen_memory_listener);
+    xen_register_ioreq(state, max_cpus, &xen_memory_listener);
 
     QLIST_INIT(&xen_physmap);
     xen_read_physmap(state);

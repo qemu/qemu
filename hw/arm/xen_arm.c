@@ -37,7 +37,7 @@
 #define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpvh")
 OBJECT_DECLARE_SIMPLE_TYPE(XenArmState, XEN_ARM)
 
-static MemoryListener xen_memory_listener = {
+static const MemoryListener xen_memory_listener = {
     .region_add = xen_region_add,
     .region_del = xen_region_del,
     .log_start = NULL,
@@ -108,7 +108,7 @@ static void xen_arm_init(MachineState *machine)
 
     xam->state =  g_new0(XenIOState, 1);
 
-    xen_register_ioreq(xam->state, machine->smp.cpus, xen_memory_listener);
+    xen_register_ioreq(xam->state, machine->smp.cpus, &xen_memory_listener);
 
 #ifdef CONFIG_TPM
     if (xam->cfg.tpm_base_addr) {
