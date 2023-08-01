@@ -52,6 +52,11 @@
 #define VMMOUSE_RIGHT_BUTTON       0x10
 #define VMMOUSE_MIDDLE_BUTTON      0x08
 
+#define VMMOUSE_MIN_X 0
+#define VMMOUSE_MIN_Y 0
+#define VMMOUSE_MAX_X 0xFFFF
+#define VMMOUSE_MAX_Y 0xFFFF
+
 #define TYPE_VMMOUSE "vmmouse"
 OBJECT_DECLARE_SIMPLE_TYPE(VMMouseState, VMMOUSE)
 
@@ -112,8 +117,12 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
         buttons |= VMMOUSE_MIDDLE_BUTTON;
 
     if (s->absolute) {
-        x <<= 1;
-        y <<= 1;
+        x = qemu_input_scale_axis(x,
+                                  INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX,
+                                  VMMOUSE_MIN_X, VMMOUSE_MAX_X);
+        y = qemu_input_scale_axis(y,
+                                  INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX,
+                                  VMMOUSE_MIN_Y, VMMOUSE_MAX_Y);
     } else{
         /* add for guest vmmouse driver to judge this is a relative packet. */
         buttons |= VMMOUSE_RELATIVE_PACKET;
