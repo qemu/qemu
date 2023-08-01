@@ -7,7 +7,7 @@
   cache:
     key: "${CI_JOB_NAME}-cache"
     paths:
-      - ${CI_PROJECT_DIR}/msys64/var/cache
+      - msys64/var/cache
   needs: []
   stage: build
   timeout: 80m
