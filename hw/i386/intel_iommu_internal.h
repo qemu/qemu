@@ -321,12 +321,21 @@ typedef enum VTDFaultReason {
 
 /* Interrupt Entry Cache Invalidation Descriptor: VT-d 6.5.2.7. */
 struct VTDInvDescIEC {
+#if HOST_BIG_ENDIAN
+    uint64_t reserved_2:16;
+    uint64_t index:16;          /* Start index to invalidate */
+    uint64_t index_mask:5;      /* 2^N for continuous int invalidation */
+    uint64_t resved_1:22;
+    uint64_t granularity:1;     /* If set, it's global IR invalidation */
+    uint64_t type:4;            /* Should always be 0x4 */
+#else
     uint32_t type:4;            /* Should always be 0x4 */
     uint32_t granularity:1;     /* If set, it's global IR invalidation */
     uint32_t resved_1:22;
     uint32_t index_mask:5;      /* 2^N for continuous int invalidation */
     uint32_t index:16;          /* Start index to invalidate */
     uint32_t reserved_2:16;
+#endif
 };
 typedef struct VTDInvDescIEC VTDInvDescIEC;
 
