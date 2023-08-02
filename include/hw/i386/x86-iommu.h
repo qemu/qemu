@@ -87,40 +87,42 @@ struct X86IOMMU_MSIMessage {
     union {
         struct {
 #if HOST_BIG_ENDIAN
-            uint32_t __addr_head:12; /* 0xfee */
-            uint32_t dest:8;
-            uint32_t __reserved:8;
-            uint32_t redir_hint:1;
-            uint32_t dest_mode:1;
-            uint32_t __not_used:2;
+            uint64_t __addr_hi:32;
+            uint64_t __addr_head:12; /* 0xfee */
+            uint64_t dest:8;
+            uint64_t __reserved:8;
+            uint64_t redir_hint:1;
+            uint64_t dest_mode:1;
+            uint64_t __not_used:2;
 #else
-            uint32_t __not_used:2;
-            uint32_t dest_mode:1;
-            uint32_t redir_hint:1;
-            uint32_t __reserved:8;
-            uint32_t dest:8;
-            uint32_t __addr_head:12; /* 0xfee */
+            uint64_t __not_used:2;
+            uint64_t dest_mode:1;
+            uint64_t redir_hint:1;
+            uint64_t __reserved:8;
+            uint64_t dest:8;
+            uint64_t __addr_head:12; /* 0xfee */
+            uint64_t __addr_hi:32;
 #endif
-            uint32_t __addr_hi;
         } QEMU_PACKED;
         uint64_t msi_addr;
     };
     union {
         struct {
 #if HOST_BIG_ENDIAN
-            uint16_t trigger_mode:1;
-            uint16_t level:1;
-            uint16_t __resved:3;
-            uint16_t delivery_mode:3;
-            uint16_t vector:8;
+            uint32_t __resved1:16;
+            uint32_t trigger_mode:1;
+            uint32_t level:1;
+            uint32_t __resved:3;
+            uint32_t delivery_mode:3;
+            uint32_t vector:8;
 #else
-            uint16_t vector:8;
-            uint16_t delivery_mode:3;
-            uint16_t __resved:3;
-            uint16_t level:1;
-            uint16_t trigger_mode:1;
+            uint32_t vector:8;
+            uint32_t delivery_mode:3;
+            uint32_t __resved:3;
+            uint32_t level:1;
+            uint32_t trigger_mode:1;
+            uint32_t __resved1:16;
 #endif
-            uint16_t __resved1;
         } QEMU_PACKED;
         uint32_t msi_data;
     };
