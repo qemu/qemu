@@ -942,7 +942,7 @@ struct MemoryListener {
      *
      * @listener: The #MemoryListener.
      * @last_stage: The last stage to synchronize the log during migration.
-     * The caller should gurantee that the synchronization with true for
+     * The caller should guarantee that the synchronization with true for
      * @last_stage is triggered for once after all VCPUs have been stopped.
      */
     void (*log_sync_global)(MemoryListener *listener, bool last_stage);

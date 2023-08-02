@@ -43,6 +43,7 @@
 
 static void xen_vcpu_singleshot_timer_event(void *opaque);
 static void xen_vcpu_periodic_timer_event(void *opaque);
+static int vcpuop_stop_singleshot_timer(CPUState *cs);
 
 #ifdef TARGET_X86_64
 #define hypercall_compat32(longmode) (!(longmode))
@@ -466,6 +467,7 @@ void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
     }
 }
 
+/* Must always be called with xen_timers_lock held */
 static int kvm_xen_set_vcpu_timer(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -483,6 +485,7 @@ static int kvm_xen_set_vcpu_timer(CPUState *cs)
 
 static void do_set_vcpu_timer_virq(CPUState *cs, run_on_cpu_data data)
 {
+    QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
     kvm_xen_set_vcpu_timer(cs);
 }
 
@@ -545,7 +548,6 @@ static void do_vcpu_soft_reset(CPUState *cs, run_on_cpu_data data)
     env->xen_vcpu_time_info_gpa = INVALID_GPA;
     env->xen_vcpu_runstate_gpa = INVALID_GPA;
     env->xen_vcpu_callback_vector = 0;
-    env->xen_singleshot_timer_ns = 0;
     memset(env->xen_virq, 0, sizeof(env->xen_virq));
 
     set_vcpu_info(cs, INVALID_GPA);
@@ -555,8 +557,13 @@ static void do_vcpu_soft_reset(CPUState *cs, run_on_cpu_data data)
                           INVALID_GPA);
     if (kvm_xen_has_cap(EVTCHN_SEND)) {
         kvm_xen_set_vcpu_callback_vector(cs);
+
+        QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
+        env->xen_singleshot_timer_ns = 0;
         kvm_xen_set_vcpu_timer(cs);
-    }
+    } else {
+        vcpuop_stop_singleshot_timer(cs);
+    };
 
 }
 
@@ -1059,6 +1066,10 @@ static int vcpuop_stop_periodic_timer(CPUState *target)
     return 0;
 }
 
+/*
+ * Userspace handling of timer, for older kernels.
+ * Must always be called with xen_timers_lock held.
+ */
 static int do_set_singleshot_timer(CPUState *cs, uint64_t timeout_abs,
                                    bool future, bool linux_wa)
 {
@@ -1086,12 +1097,8 @@ static int do_set_singleshot_timer(CPUState *cs, uint64_t timeout_abs,
         timeout_abs = now + delta;
     }
 
-    qemu_mutex_lock(&env->xen_timers_lock);
-
     timer_mod_ns(env->xen_singleshot_timer, qemu_now + delta);
     env->xen_singleshot_timer_ns = now + delta;
-
-    qemu_mutex_unlock(&env->xen_timers_lock);
     return 0;
 }
 
@@ -1115,6 +1122,7 @@ static int vcpuop_set_singleshot_timer(CPUState *cs, uint64_t arg)
         return -EFAULT;
     }
 
+    QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
     return do_set_singleshot_timer(cs, sst.timeout_abs_ns,
                                    !!(sst.flags & VCPU_SSHOTTMR_future),
                                    false);
@@ -1141,6 +1149,7 @@ static bool kvm_xen_hcall_set_timer_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     if (unlikely(timeout == 0)) {
         err = vcpuop_stop_singleshot_timer(CPU(cpu));
     } else {
+        QEMU_LOCK_GUARD(&X86_CPU(cpu)->env.xen_timers_lock);
         err = do_set_singleshot_timer(CPU(cpu), timeout, false, true);
     }
     exit->u.hcall.result = err;
@@ -1826,6 +1835,7 @@ int kvm_put_xen_state(CPUState *cs)
          * If the kernel has EVTCHN_SEND support then it handles timers too,
          * so the timer will be restored by kvm_xen_set_vcpu_timer() below.
          */
+        QEMU_LOCK_GUARD(&env->xen_timers_lock);
         if (env->xen_singleshot_timer_ns) {
             ret = do_set_singleshot_timer(cs, env->xen_singleshot_timer_ns,
                                     false, false);
@@ -1844,10 +1854,8 @@ int kvm_put_xen_state(CPUState *cs)
     }
 
     if (env->xen_virq[VIRQ_TIMER]) {
-        ret = kvm_xen_set_vcpu_timer(cs);
-        if (ret < 0) {
-            return ret;
-        }
+        do_set_vcpu_timer_virq(cs,
+                               RUN_ON_CPU_HOST_INT(env->xen_virq[VIRQ_TIMER]));
     }
     return 0;
 }
@@ -1896,6 +1904,15 @@ int kvm_get_xen_state(CPUState *cs)
         if (ret < 0) {
             return ret;
         }
+
+        /*
+         * This locking is fairly pointless, and is here to appease Coverity.
+         * There is an unavoidable race condition if a different vCPU sets a
+         * timer for this vCPU after the value has been read out. But that's
+         * OK in practice because *all* the vCPUs need to be stopped before
+         * we set about migrating their state.
+         */
+        QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
         env->xen_singleshot_timer_ns = va.u.timer.expires_ns;
     }
 

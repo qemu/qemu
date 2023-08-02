@@ -30,7 +30,7 @@ user configuration.
 Creating a QOM class
 ====================
 
-A simple minimal device implementation may look something like bellow:
+A simple minimal device implementation may look something like below:
 
 .. code-block:: c
    :caption: Creating a minimal type

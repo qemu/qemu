@@ -232,7 +232,7 @@ parameters:
   Set the number of Reclaim Groups.
 
 ``fdp.nruh`` (default: ``0``)
-  Set the number of Reclaim Unit Handles. This is a mandatory paramater and
+  Set the number of Reclaim Unit Handles. This is a mandatory parameter and
   must be non-zero.
 
 ``fdp.runs`` (default: ``96M``)

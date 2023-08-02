@@ -133,8 +133,8 @@ void do_nios2_semihosting(CPUNios2State *env)
     args = env->regs[R_ARG1];
     switch (nr) {
     case HOSTED_EXIT:
-        gdb_exit(env->regs[R_ARG0]);
-        exit(env->regs[R_ARG0]);
+        gdb_exit(env->regs[R_ARG1]);
+        exit(env->regs[R_ARG1]);
 
     case HOSTED_OPEN:
         GET_ARG(0);
@@ -169,7 +169,7 @@ void do_nios2_semihosting(CPUNios2State *env)
         GET_ARG64(2);
         GET_ARG64(3);
         semihost_sys_lseek(cs, nios2_semi_u64_cb, arg0,
-                           deposit64(arg2, arg1, 32, 32), arg3);
+                           deposit64(arg2, 32, 32, arg1), arg3);
         break;
 
     case HOSTED_RENAME:
