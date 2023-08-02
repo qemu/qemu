@@ -25,10 +25,19 @@
  * TASK_UNMAPPED_BASE: For mmap without hint (addr != 0), the search
  * for unused virtual memory begins at TASK_UNMAPPED_BASE.
  *
- * task_unmapped_base: When the guest address space is limited via -R,
- * the value of TASK_UNMAPPED_BASE is adjusted to fit.
+ * ELF_ET_DYN_BASE: When the executable is ET_DYN (i.e. PIE), and requires
+ * an interpreter (i.e. not -static-pie), use ELF_ET_DYN_BASE instead of
+ * TASK_UNMAPPED_BASE for selecting the address of the executable.
+ * This provides some distance between the executable and the interpreter,
+ * which allows the initial brk to be placed immediately after the
+ * executable and also have room to grow.
+ *
+ * task_unmapped_base, elf_et_dyn_base: When the guest address space is
+ * limited via -R, the values of TASK_UNMAPPED_BASE and ELF_ET_DYN_BASE
+ * must be adjusted to fit.
  */
 extern abi_ulong task_unmapped_base;
+extern abi_ulong elf_et_dyn_base;
 
 /*
  * mmap_next_start: The base address for the next mmap without hint,
