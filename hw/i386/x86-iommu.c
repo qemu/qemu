@@ -63,7 +63,7 @@ void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *msg_out)
     msg.redir_hint = irq->redir_hint;
     msg.dest = irq->dest;
     msg.__addr_hi = irq->dest & 0xffffff00;
-    msg.__addr_head = cpu_to_le32(0xfee);
+    msg.__addr_head = 0xfee;
     /* Keep this from original MSI address bits */
     msg.__not_used = irq->msi_addr_last_bits;
 
