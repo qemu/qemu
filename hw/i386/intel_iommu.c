@@ -3323,14 +3323,15 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         return -VTD_FR_IR_ROOT_INVAL;
     }
 
-    trace_vtd_ir_irte_get(index, le64_to_cpu(entry->data[1]),
-                          le64_to_cpu(entry->data[0]));
+    entry->data[0] = le64_to_cpu(entry->data[0]);
+    entry->data[1] = le64_to_cpu(entry->data[1]);
+
+    trace_vtd_ir_irte_get(index, entry->data[1], entry->data[0]);
 
     if (!entry->irte.present) {
         error_report_once("%s: detected non-present IRTE "
                           "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
-                          __func__, index, le64_to_cpu(entry->data[1]),
-                          le64_to_cpu(entry->data[0]));
+                          __func__, index, entry->data[1], entry->data[0]);
         return -VTD_FR_IR_ENTRY_P;
     }
 
@@ -3338,14 +3339,13 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         entry->irte.__reserved_2) {
         error_report_once("%s: detected non-zero reserved IRTE "
                           "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
-                          __func__, index, le64_to_cpu(entry->data[1]),
-                          le64_to_cpu(entry->data[0]));
+                          __func__, index, entry->data[1], entry->data[0]);
         return -VTD_FR_IR_IRTE_RSVD;
     }
 
     if (sid != X86_IOMMU_SID_INVALID) {
         /* Validate IRTE SID */
-        source_id = le32_to_cpu(entry->irte.source_id);
+        source_id = entry->irte.source_id;
         switch (entry->irte.sid_vtype) {
         case VTD_SVT_NONE:
             break;
@@ -3399,7 +3399,7 @@ static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
     irq->trigger_mode = irte.irte.trigger_mode;
     irq->vector = irte.irte.vector;
     irq->delivery_mode = irte.irte.delivery_mode;
-    irq->dest = le32_to_cpu(irte.irte.dest_id);
+    irq->dest = irte.irte.dest_id;
     if (!iommu->intr_eime) {
 #define  VTD_IR_APIC_DEST_MASK         (0xff00ULL)
 #define  VTD_IR_APIC_DEST_SHIFT        (8)
