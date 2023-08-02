@@ -755,6 +755,8 @@ static int vtd_get_pdire_from_pdir_table(dma_addr_t pasid_dir_base,
         return -VTD_FR_PASID_TABLE_INV;
     }
 
+    pdire->val = le64_to_cpu(pdire->val);
+
     return 0;
 }
 
@@ -778,6 +780,9 @@ static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
     if (dma_memory_read(&address_space_memory, addr,
                         pe, entry_size, MEMTXATTRS_UNSPECIFIED)) {
         return -VTD_FR_PASID_TABLE_INV;
+    }
+    for (size_t i = 0; i < ARRAY_SIZE(pe->val); i++) {
+        pe->val[i] = le64_to_cpu(pe->val[i]);
     }
 
     /* Do translation type check */
