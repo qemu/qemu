@@ -3459,7 +3459,7 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
         goto out;
     }
 
-    index = addr.addr.index_h << 15 | le16_to_cpu(addr.addr.index_l);
+    index = addr.addr.index_h << 15 | addr.addr.index_l;
 
 #define  VTD_IR_MSI_DATA_SUBHANDLE       (0x0000ffff)
 #define  VTD_IR_MSI_DATA_RESERVED        (0xffff0000)
