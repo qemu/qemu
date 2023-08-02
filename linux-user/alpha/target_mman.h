@@ -20,6 +20,14 @@
 #define TARGET_MS_SYNC 2
 #define TARGET_MS_INVALIDATE 4
 
+/*
+ * arch/alpha/include/asm/processor.h:
+ *
+ * TASK_UNMAPPED_BASE           TASK_SIZE / 2
+ * TASK_SIZE                    0x40000000000UL
+ */
+#define TASK_UNMAPPED_BASE      0x20000000000ull
+
 #include "../generic/target_mman.h"
 
 #endif

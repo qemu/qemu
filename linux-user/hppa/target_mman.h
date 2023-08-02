@@ -24,6 +24,9 @@
 #define TARGET_MS_ASYNC 2
 #define TARGET_MS_INVALIDATE 4
 
+/* arch/parisc/include/asm/processor.h: DEFAULT_MAP_BASE32 */
+#define TASK_UNMAPPED_BASE      0x40000000
+
 #include "../generic/target_mman.h"
 
 #endif
