@@ -258,17 +258,17 @@
 #     blocked.  Present and non-empty when migration is blocked.
 #     (since 6.0)
 #
-# @dirty-limit-throttle-time-per-round: Maximum throttle time (in microseconds) of virtual
-#                                       CPUs each dirty ring full round, which shows how
-#                                       MigrationCapability dirty-limit affects the guest
-#                                       during live migration. (since 8.1)
+# @dirty-limit-throttle-time-per-round: Maximum throttle time
+#     (in microseconds) of virtual CPUs each dirty ring full round,
+#     which shows how MigrationCapability dirty-limit affects the
+#     guest during live migration.  (Since 8.1)
 #
-# @dirty-limit-ring-full-time: Estimated average dirty ring full time (in microseconds)
-#                              each dirty ring full round, note that the value equals
-#                              dirty ring memory size divided by average dirty page rate
-#                              of virtual CPU, which can be used to observe the average
-#                              memory load of virtual CPU indirectly. Note that zero
-#                              means guest doesn't dirty memory (since 8.1)
+# @dirty-limit-ring-full-time: Estimated average dirty ring full time
+#     (in microseconds) for each dirty ring full round.  The value
+#     equals the dirty ring memory size divided by the average dirty
+#     page rate of the virtual CPU, which can be used to observe the
+#     average memory load of the virtual CPU indirectly.  Note that
+#     zero means guest doesn't dirty memory.  (Since 8.1)
 #
 # Since: 0.14
 ##
@@ -519,15 +519,11 @@
 #     are present.  'return-path' capability must be enabled to use
 #     it.  (since 8.1)
 #
-# @dirty-limit: If enabled, migration will use the dirty-limit algo to
-#               throttle down guest instead of auto-converge algo.
-#               Throttle algo only works when vCPU's dirtyrate greater
-#               than 'vcpu-dirty-limit', read processes in guest os
-#               aren't penalized any more, so this algo can improve
-#               performance of vCPU during live migration. This is an
-#               optional performance feature and should not affect the
-#               correctness of the existing auto-converge algo.
-#               (since 8.1)
+# @dirty-limit: If enabled, migration will throttle vCPUs as needed to
+#     keep their dirty page rate within @vcpu-dirty-limit.  This can
+#     improve responsiveness of large guests during live migration,
+#     and can result in more stable read performance.  Requires KVM
+#     with accelerator property "dirty-ring-size" set.  (Since 8.1)
 #
 # Features:
 #
@@ -822,17 +818,17 @@
 #     Nodes are mapped to their block device name if there is one, and
 #     to their node name otherwise.  (Since 5.2)
 #
-# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty limit during
-#                             live migration. Should be in the range 1 to 1000ms,
-#                             defaults to 1000ms. (Since 8.1)
+# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
+#     limit during live migration.  Should be in the range 1 to 1000ms.
+#     Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
-#                    Defaults to 1. (Since 8.1)
+#     Defaults to 1.  (Since 8.1)
 #
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#            are experimental.
+#     are experimental.
 #
 # Since: 2.4
 ##
@@ -988,17 +984,17 @@
 #     Nodes are mapped to their block device name if there is one, and
 #     to their node name otherwise.  (Since 5.2)
 #
-# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty limit during
-#                             live migration. Should be in the range 1 to 1000ms,
-#                             defaults to 1000ms. (Since 8.1)
+# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
+#     limit during live migration.  Should be in the range 1 to 1000ms.
+#     Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
-#                    Defaults to 1. (Since 8.1)
+#     Defaults to 1.  (Since 8.1)
 #
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#            are experimental.
+#     are experimental.
 #
 # TODO: either fuse back into MigrationParameters, or make
 #     MigrationParameters members mandatory
@@ -1191,17 +1187,17 @@
 #     Nodes are mapped to their block device name if there is one, and
 #     to their node name otherwise.  (Since 5.2)
 #
-# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty limit during
-#                             live migration. Should be in the range 1 to 1000ms,
-#                             defaults to 1000ms. (Since 8.1)
+# @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
+#     limit during live migration.  Should be in the range 1 to 1000ms.
+#     Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
-#                    Defaults to 1. (Since 8.1)
+#     Defaults to 1.  (Since 8.1)
 #
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#            are experimental.
+#     are experimental.
 #
 # Since: 2.4
 ##
