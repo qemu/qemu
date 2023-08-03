@@ -21,7 +21,7 @@ void colo_checkpoint_delay_set(void)
 
 void migrate_start_colo_process(MigrationState *s)
 {
-    error_report("Impossible happend: trying to start COLO when COLO "
+    error_report("Impossible happened: trying to start COLO when COLO "
                  "module is not built in");
     abort();
 }
