@@ -678,7 +678,7 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
     bool fd_supported = false;
-    int fd, ret;
+    int fd = -1, ret;
 
     if (!path) {
         error_setg(errp, "missing 'path' option");
@@ -719,6 +719,7 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
             if (ret < 0) {
                 fd_supported = false;
                 qemu_close(fd);
+                fd = -1;
             }
         }
     }
@@ -733,14 +734,18 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     }
 
     ret = blkio_connect(s->blkio);
+    if (ret < 0 && fd >= 0) {
+        /* Failed to give the FD to libblkio, close it */
+        qemu_close(fd);
+        fd = -1;
+    }
+
     /*
      * If the libblkio driver doesn't support the `fd` property, blkio_connect()
      * will fail with -EINVAL. So let's try calling blkio_connect() again by
      * directly setting `path`.
      */
     if (fd_supported && ret == -EINVAL) {
-        qemu_close(fd);
-
         /*
          * We need to clear the `fd` property we set previously by setting
          * it to -1.
