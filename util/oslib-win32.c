@@ -480,8 +480,9 @@ int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
 }
 
 EXCEPTION_DISPOSITION
-win32_close_exception_handler(struct _EXCEPTION_RECORD*,
-                              void*, struct _CONTEXT*, void*)
+win32_close_exception_handler(struct _EXCEPTION_RECORD *exception_record,
+                              void *registration, struct _CONTEXT *context,
+                              void *dispatcher)
 {
     return EXCEPTION_EXECUTE_HANDLER;
 }

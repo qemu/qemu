@@ -757,6 +757,9 @@ for opt do
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
+  # Pass through -Dxxxx options to meson
+  -D*) meson_options="$meson_options $opt"
+  ;;
   esac
 done
 
@@ -846,6 +849,7 @@ $(echo Available targets: $default_target_list | \
   --target-list-exclude=LIST exclude a set of targets from the default target-list
 
 Advanced options (experts only):
+  -Dmesonoptname=val       passthrough option to meson unmodified
   --cross-prefix=PREFIX    use PREFIX for compile tools, PREFIX can be blank [$cross_prefix]
   --cc=CC                  use C compiler CC [$cc]
   --host-cc=CC             use C compiler CC [$host_cc] for code run at
