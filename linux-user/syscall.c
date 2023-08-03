@@ -8557,9 +8557,12 @@ static int open_hardware(CPUArchState *cpu_env, int fd)
 }
 #endif
 
-int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
+
+int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *fname,
                     int flags, mode_t mode, bool safe)
 {
+    g_autofree char *proc_name = NULL;
+    const char *pathname;
     struct fake_open {
         const char *filename;
         int (*fill)(CPUArchState *cpu_env, int fd);
@@ -8584,6 +8587,14 @@ int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
 #endif
         { NULL, NULL, NULL }
     };
+
+    /* if this is a file from /proc/ filesystem, expand full name */
+    proc_name = realpath(fname, NULL);
+    if (proc_name && strncmp(proc_name, "/proc/", 6) == 0) {
+        pathname = proc_name;
+    } else {
+        pathname = fname;
+    }
 
     if (is_proc_myself(pathname, "exe")) {
         if (safe) {
