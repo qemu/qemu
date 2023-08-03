@@ -2211,47 +2211,37 @@ static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
     }
 }
 
-/* Map and zero the bss.  We need to explicitly zero any fractional pages
-   after the data section (i.e. bss).  */
-static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
+/**
+ * zero_bss:
+ *
+ * Map and zero the bss.  We need to explicitly zero any fractional pages
+ * after the data section (i.e. bss).  Return false on mapping failure.
+ */
+static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss, int prot)
 {
-    uintptr_t host_start, host_map_start, host_end;
+    abi_ulong align_bss;
 
-    last_bss = TARGET_PAGE_ALIGN(last_bss);
+    align_bss = TARGET_PAGE_ALIGN(start_bss);
+    end_bss = TARGET_PAGE_ALIGN(end_bss);
 
-    /* ??? There is confusion between qemu_real_host_page_size and
-       qemu_host_page_size here and elsewhere in target_mmap, which
-       may lead to the end of the data section mapping from the file
-       not being mapped.  At least there was an explicit test and
-       comment for that here, suggesting that "the file size must
-       be known".  The comment probably pre-dates the introduction
-       of the fstat system call in target_mmap which does in fact
-       find out the size.  What isn't clear is if the workaround
-       here is still actually needed.  For now, continue with it,
-       but merge it with the "normal" mmap that would allocate the bss.  */
+    if (start_bss < align_bss) {
+        int flags = page_get_flags(start_bss);
 
-    host_start = (uintptr_t) g2h_untagged(elf_bss);
-    host_end = (uintptr_t) g2h_untagged(last_bss);
-    host_map_start = REAL_HOST_PAGE_ALIGN(host_start);
-
-    if (host_map_start < host_end) {
-        void *p = mmap((void *)host_map_start, host_end - host_map_start,
-                       prot, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (p == MAP_FAILED) {
-            perror("cannot mmap brk");
-            exit(-1);
+        if (!(flags & PAGE_VALID)) {
+            /* Map the start of the bss. */
+            align_bss -= TARGET_PAGE_SIZE;
+        } else if (flags & PAGE_WRITE) {
+            /* The page is already mapped writable. */
+            memset(g2h_untagged(start_bss), 0, align_bss - start_bss);
+        } else {
+            /* Read-only zeros? */
+            g_assert_not_reached();
         }
     }
 
-    /* Ensure that the bss page(s) are valid */
-    if ((page_get_flags(last_bss-1) & prot) != prot) {
-        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss - 1,
-                       prot | PAGE_VALID);
-    }
-
-    if (host_start < host_map_start) {
-        memset((void *)host_start, 0, host_map_start - host_start);
-    }
+    return align_bss >= end_bss ||
+           target_mmap(align_bss, end_bss - align_bss, prot,
+                       MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0) != -1;
 }
 
 #if defined(TARGET_ARM)
@@ -3255,8 +3245,9 @@ static void load_elf_image(const char *image_name, int image_fd,
                 /*
                  * If the load segment requests extra zeros (e.g. bss), map it.
                  */
-                if (eppnt->p_filesz < eppnt->p_memsz) {
-                    zero_bss(vaddr_ef, vaddr_em, elf_prot);
+                if (eppnt->p_filesz < eppnt->p_memsz &&
+                    !zero_bss(vaddr_ef, vaddr_em, elf_prot)) {
+                    goto exit_mmap;
                 }
             } else if (eppnt->p_memsz != 0) {
                 vaddr_len = eppnt->p_memsz + vaddr_po;
