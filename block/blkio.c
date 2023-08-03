@@ -713,6 +713,12 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
          */
         fd = qemu_open(path, O_RDWR, NULL);
         if (fd < 0) {
+            /*
+             * qemu_open() can fail if the user specifies a path that is not
+             * a file or device, for example in the case of Unix Domain Socket
+             * for the virtio-blk-vhost-user driver. In such cases let's have
+             * libblkio open the path directly.
+             */
             fd_supported = false;
         } else {
             ret = blkio_set_int(s->blkio, "fd", fd);
@@ -741,9 +747,12 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     }
 
     /*
-     * If the libblkio driver doesn't support the `fd` property, blkio_connect()
-     * will fail with -EINVAL. So let's try calling blkio_connect() again by
-     * directly setting `path`.
+     * Before https://gitlab.com/libblkio/libblkio/-/merge_requests/208
+     * (libblkio <= v1.3.0), setting the `fd` property is not enough to check
+     * whether the driver supports the `fd` property or not. In that case,
+     * blkio_connect() will fail with -EINVAL.
+     * So let's try calling blkio_connect() again by directly setting `path`
+     * to cover this scenario.
      */
     if (fd_supported && ret == -EINVAL) {
         /*
