@@ -1,1 +1,1 @@
-/* No target-specific /proc support */
+#include "../arm/target_proc.h"
