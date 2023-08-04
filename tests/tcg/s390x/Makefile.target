@@ -75,6 +75,7 @@ ifneq ($(CROSS_CC_HAS_Z15),)
 Z15_TESTS=vxeh2_vs
 Z15_TESTS+=vxeh2_vcvt
 Z15_TESTS+=vxeh2_vlstr
+Z15_TESTS+=vxeh2_vstrs
 $(Z15_TESTS): CFLAGS+=-march=z15 -O2
 TESTS+=$(Z15_TESTS)
 endif
