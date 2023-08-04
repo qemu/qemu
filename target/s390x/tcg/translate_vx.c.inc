@@ -3047,7 +3047,7 @@ static DisasJumpType op_vfmax(DisasContext *s, DisasOps *o)
     const uint8_t m5 = get_field(s, m5);
     gen_helper_gvec_3_ptr *fn;
 
-    if (m6 == 5 || m6 == 6 || m6 == 7 || m6 >= 13) {
+    if (m6 == 5 || m6 == 6 || m6 == 7 || m6 >= 13 || (m5 & 7)) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
