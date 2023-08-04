@@ -222,10 +222,6 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
         NICInfo *nd = &nd_table[i];
         DeviceState *dev;
 
-        if (!nd->model) {
-            nd->model = g_strdup("virtio");
-        }
-
         qemu_check_nic_model(nd, "virtio");
 
         dev = qdev_new(name);
