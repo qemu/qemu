@@ -52,16 +52,6 @@
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "target/s390x/kvm/pv.h"
 
-#ifndef DEBUG_KVM
-#define DEBUG_KVM  0
-#endif
-
-#define DPRINTF(fmt, ...) do {                \
-    if (DEBUG_KVM) {                          \
-        fprintf(stderr, fmt, ## __VA_ARGS__); \
-    }                                         \
-} while (0)
-
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
 
@@ -912,11 +902,11 @@ static void determine_sw_breakpoint_instr(void)
         if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_USER_INSTR0, 0)) {
             sw_bp_inst = diag_501;
             sw_bp_ilen = sizeof(diag_501);
-            DPRINTF("KVM: will use 4-byte sw breakpoints.\n");
+            trace_kvm_sw_breakpoint(4);
         } else {
             sw_bp_inst = instr_0x0000;
             sw_bp_ilen = sizeof(instr_0x0000);
-            DPRINTF("KVM: will use 2-byte sw breakpoints.\n");
+            trace_kvm_sw_breakpoint(2);
         }
 }
 
@@ -1307,7 +1297,7 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     default:
         rc = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xb2%x\n", ipa1);
+        trace_kvm_insn_unhandled_priv(ipa1);
         break;
     }
 
@@ -1487,7 +1477,7 @@ static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xb9%x\n", ipa1);
+        trace_kvm_insn_unhandled_priv(ipa1);
         break;
     }
 
@@ -1511,7 +1501,7 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipbl);
+        trace_kvm_insn_unhandled_priv(ipbl);
         break;
     }
 
@@ -1531,7 +1521,7 @@ static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xe3%x\n", ipbl);
+        trace_kvm_insn_unhandled_priv(ipbl);
         break;
     }
 
@@ -1654,7 +1644,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         r = handle_sw_breakpoint(cpu, run);
         break;
     default:
-        DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
+        trace_kvm_insn_diag(func_code);
         kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
         break;
     }
@@ -1684,8 +1674,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
     int r = -1;
 
-    DPRINTF("handle_instruction 0x%x 0x%x\n",
-            run->s390_sieic.ipa, run->s390_sieic.ipb);
+    trace_kvm_insn(run->s390_sieic.ipa, run->s390_sieic.ipb);
     switch (ipa0) {
     case IPA0_B2:
         r = handle_b2(cpu, run, ipa1);
@@ -1765,7 +1754,7 @@ static int handle_intercept(S390CPU *cpu)
     int icpt_code = run->s390_sieic.icptcode;
     int r = 0;
 
-    DPRINTF("intercept: 0x%x (at 0x%lx)\n", icpt_code, (long)run->psw_addr);
+    trace_kvm_intercept(icpt_code, (long)run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
         case ICPT_PV_INSTR:
@@ -2150,13 +2139,13 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
 
     if (!dev) {
-        DPRINTF("add_msi_route no pci device\n");
+        trace_kvm_msi_route_fixup("no pci device");
         return -ENODEV;
     }
 
     pbdev = s390_pci_find_dev_by_target(s390_get_phb(), DEVICE(dev)->id);
     if (!pbdev) {
-        DPRINTF("add_msi_route no zpci device\n");
+        trace_kvm_msi_route_fixup("no zpci device");
         return -ENODEV;
     }
 
