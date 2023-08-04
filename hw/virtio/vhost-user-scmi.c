@@ -63,6 +63,7 @@ static int vu_scmi_start(VirtIODevice *vdev)
         error_report("Error starting vhost-user-scmi: %d", ret);
         goto err_guest_notifiers;
     }
+    scmi->started_vu = true;
 
     /*
      * guest_notifier_mask/pending not used yet, so just unmask
@@ -89,6 +90,12 @@ static void vu_scmi_stop(VirtIODevice *vdev)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     struct vhost_dev *vhost_dev = &scmi->vhost_dev;
     int ret;
+
+    /* vhost_dev_is_started() check in the callers is not fully reliable. */
+    if (!scmi->started_vu) {
+        return;
+    }
+    scmi->started_vu = false;
 
     if (!k->set_guest_notifiers) {
         return;

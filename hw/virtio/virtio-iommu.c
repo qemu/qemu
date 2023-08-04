@@ -728,13 +728,15 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOIOMMU *s = VIRTIO_IOMMU(vdev);
     struct virtio_iommu_req_head head;
     struct virtio_iommu_req_tail tail = {};
-    size_t output_size = sizeof(tail), sz;
     VirtQueueElement *elem;
     unsigned int iov_cnt;
     struct iovec *iov;
     void *buf = NULL;
+    size_t sz;
 
     for (;;) {
+        size_t output_size = sizeof(tail);
+
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
             return;
@@ -852,17 +854,19 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     VirtIOIOMMUEndpoint *ep;
     uint32_t sid, flags;
     bool bypass_allowed;
+    int granule;
     bool found;
     int i;
 
     interval.low = addr;
     interval.high = addr + 1;
+    granule = ctz64(s->config.page_size_mask);
 
     IOMMUTLBEntry entry = {
         .target_as = &address_space_memory,
         .iova = addr,
         .translated_addr = addr,
-        .addr_mask = (1 << ctz32(s->config.page_size_mask)) - 1,
+        .addr_mask = BIT_ULL(granule) - 1,
         .perm = IOMMU_NONE,
     };
 
@@ -1115,7 +1119,7 @@ static int virtio_iommu_set_page_size_mask(IOMMUMemoryRegion *mr,
     if (s->granule_frozen) {
         int cur_granule = ctz64(cur_mask);
 
-        if (!(BIT(cur_granule) & new_mask)) {
+        if (!(BIT_ULL(cur_granule) & new_mask)) {
             error_setg(errp, "virtio-iommu %s does not support frozen granule 0x%llx",
                        mr->parent_obj.name, BIT_ULL(cur_granule));
             return -1;
@@ -1161,7 +1165,7 @@ static void virtio_iommu_freeze_granule(Notifier *notifier, void *data)
     }
     s->granule_frozen = true;
     granule = ctz64(s->config.page_size_mask);
-    trace_virtio_iommu_freeze_granule(BIT(granule));
+    trace_virtio_iommu_freeze_granule(BIT_ULL(granule));
 }
 
 static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
