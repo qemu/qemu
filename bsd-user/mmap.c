@@ -214,8 +214,6 @@ static int mmap_frag(abi_ulong real_start,
 #endif
 abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
 
-unsigned long last_brk;
-
 /*
  * Subroutine of mmap_find_vma, used when we have pre-allocated a chunk of guest
  * address space.
