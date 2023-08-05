@@ -469,6 +469,13 @@ else
   echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
 fi
 
+case "$cpu" in
+  riscv*)
+    host_arch=riscv ;;
+  *)
+    host_arch="$cpu" ;;
+esac
+
 # Normalise host CPU name and set multilib cflags.  The canonicalization
 # isn't really necessary, because the architectures that we check for
 # should not hit the 'uname -m' case, but better safe than sorry.
@@ -803,7 +810,7 @@ default_target_list=""
 mak_wilds=""
 
 if [ "$linux_user" != no ]; then
-    if [ "$targetos" = linux ] && [ -d "$source_path/linux-user/include/host/$cpu" ]; then
+    if [ "$targetos" = linux ] && [ -d "$source_path/linux-user/include/host/$host_arch" ]; then
         linux_user=yes
     elif [ "$linux_user" = yes ]; then
         error_exit "linux-user not supported on this architecture"
