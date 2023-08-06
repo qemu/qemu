@@ -697,19 +697,12 @@ static inline int ext_opsize(int ext, int pos)
  */
 static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
 {
-    TCGv tmp;
     switch (opsize) {
     case OS_BYTE:
-        tcg_gen_andi_i32(reg, reg, 0xffffff00);
-        tmp = tcg_temp_new();
-        tcg_gen_ext8u_i32(tmp, val);
-        tcg_gen_or_i32(reg, reg, tmp);
+        tcg_gen_deposit_i32(reg, reg, val, 0, 8);
         break;
     case OS_WORD:
-        tcg_gen_andi_i32(reg, reg, 0xffff0000);
-        tmp = tcg_temp_new();
-        tcg_gen_ext16u_i32(tmp, val);
-        tcg_gen_or_i32(reg, reg, tmp);
+        tcg_gen_deposit_i32(reg, reg, val, 0, 16);
         break;
     case OS_LONG:
     case OS_SINGLE:
