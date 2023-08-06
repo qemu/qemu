@@ -263,7 +263,11 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
         void *p = mmap(host_start, qemu_host_page_size,
                        target_to_host_prot(prot),
                        flags | MAP_ANONYMOUS, -1, 0);
-        if (p == MAP_FAILED) {
+        if (p != host_start) {
+            if (p != MAP_FAILED) {
+                munmap(p, qemu_host_page_size);
+                errno = EEXIST;
+            }
             return false;
         }
         prot_old = prot;
@@ -309,8 +313,6 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
 #endif
 #endif
 abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
-
-unsigned long last_brk;
 
 /*
  * Subroutine of mmap_find_vma, used when we have pre-allocated
@@ -603,11 +605,26 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             goto fail;
         }
 
-        /* Validate that the chosen range is empty. */
-        if ((flags & MAP_FIXED_NOREPLACE)
-            && !page_check_range_empty(start, last)) {
-            errno = EEXIST;
-            goto fail;
+        if (flags & MAP_FIXED_NOREPLACE) {
+            /* Validate that the chosen range is empty. */
+            if (!page_check_range_empty(start, last)) {
+                errno = EEXIST;
+                goto fail;
+            }
+
+            /*
+             * With reserved_va, the entire address space is mmaped in the
+             * host to ensure it isn't accidentally used for something else.
+             * We have just checked that the guest address is not mapped
+             * within the guest, but need to replace the host reservation.
+             *
+             * Without reserved_va, despite the guest address check above,
+             * keep MAP_FIXED_NOREPLACE so that the guest does not overwrite
+             * any host address mappings.
+             */
+            if (reserved_va) {
+                flags = (flags & ~MAP_FIXED_NOREPLACE) | MAP_FIXED;
+            }
         }
 
         /*
@@ -672,17 +689,25 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
 
         /* map the middle (easier) */
         if (real_start < real_last) {
-            void *p;
+            void *p, *want_p;
             off_t offset1;
+            size_t len1;
 
             if (flags & MAP_ANONYMOUS) {
                 offset1 = 0;
             } else {
                 offset1 = offset + real_start - start;
             }
-            p = mmap(g2h_untagged(real_start), real_last - real_start + 1,
-                     target_to_host_prot(target_prot), flags, fd, offset1);
-            if (p == MAP_FAILED) {
+            len1 = real_last - real_start + 1;
+            want_p = g2h_untagged(real_start);
+
+            p = mmap(want_p, len1, target_to_host_prot(target_prot),
+                     flags, fd, offset1);
+            if (p != want_p) {
+                if (p != MAP_FAILED) {
+                    munmap(p, len1);
+                    errno = EEXIST;
+                }
                 goto fail;
             }
             passthrough_start = real_start;
