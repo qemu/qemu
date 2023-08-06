@@ -2620,7 +2620,8 @@ static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
 static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
                                long align, uintptr_t offset)
 {
-    GSList *maps, *iter;
+    IntervalTreeRoot *maps;
+    IntervalTreeNode *iter;
     uintptr_t this_start, this_end, next_start, brk;
     intptr_t ret = -1;
 
@@ -2638,12 +2639,15 @@ static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
     /* The first hole is before the first map entry. */
     this_start = mmap_min_addr;
 
-    for (iter = maps; iter;
-         this_start = next_start, iter = g_slist_next(iter)) {
+    for (iter = interval_tree_iter_first(maps, 0, -1);
+         iter;
+         this_start = next_start,
+         iter = interval_tree_iter_next(iter, 0, -1)) {
+        MapInfo *info = container_of(iter, MapInfo, itree);
         uintptr_t align_start, hole_size;
 
-        this_end = ((MapInfo *)iter->data)->start;
-        next_start = ((MapInfo *)iter->data)->end;
+        this_end = info->itree.start;
+        next_start = info->itree.last + 1;
         align_start = ROUND_UP(this_start + offset, align);
 
         /* Skip holes that are too small. */
