@@ -1507,7 +1507,7 @@ static void nvme_post_cqes(void *opaque)
         req->cqe.status = cpu_to_le16((req->status << 1) | cq->phase);
         req->cqe.sq_id = cpu_to_le16(sq->sqid);
         req->cqe.sq_head = cpu_to_le16(sq->head);
-        addr = cq->dma_addr + cq->tail * n->cqe_size;
+        addr = cq->dma_addr + (cq->tail << NVME_CQES);
         ret = pci_dma_write(PCI_DEVICE(n), addr, (void *)&req->cqe,
                             sizeof(req->cqe));
         if (ret) {
@@ -5120,6 +5120,11 @@ static uint16_t nvme_fdp_events(NvmeCtrl *n, uint32_t endgrpid,
     }
 
     log_size = sizeof(NvmeFdpEventsLog) + ebuf->nelems * sizeof(NvmeFdpEvent);
+
+    if (off >= log_size) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
     trans_len = MIN(log_size - off, buf_len);
     elog = g_malloc0(log_size);
     elog->num_events = cpu_to_le32(ebuf->nelems);
@@ -5295,9 +5300,17 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeRequest *req)
     uint16_t qsize = le16_to_cpu(c->qsize);
     uint16_t qflags = le16_to_cpu(c->cq_flags);
     uint64_t prp1 = le64_to_cpu(c->prp1);
+    uint32_t cc = ldq_le_p(&n->bar.cc);
+    uint8_t iocqes = NVME_CC_IOCQES(cc);
+    uint8_t iosqes = NVME_CC_IOSQES(cc);
 
     trace_pci_nvme_create_cq(prp1, cqid, vector, qsize, qflags,
                              NVME_CQ_FLAGS_IEN(qflags) != 0);
+
+    if (iosqes != NVME_SQES || iocqes != NVME_CQES) {
+        trace_pci_nvme_err_invalid_create_cq_entry_size(iosqes, iocqes);
+        return NVME_MAX_QSIZE_EXCEEDED | NVME_DNR;
+    }
 
     if (unlikely(!cqid || cqid > n->conf_ioqpairs || n->cq[cqid] != NULL)) {
         trace_pci_nvme_err_invalid_create_cq_cqid(cqid);
@@ -6995,7 +7008,7 @@ static void nvme_process_sq(void *opaque)
     }
 
     while (!(nvme_sq_empty(sq) || QTAILQ_EMPTY(&sq->req_list))) {
-        addr = sq->dma_addr + sq->head * n->sqe_size;
+        addr = sq->dma_addr + (sq->head << NVME_SQES);
         if (nvme_addr_read(n, addr, (void *)&cmd, sizeof(cmd))) {
             trace_pci_nvme_err_addr_read(addr);
             trace_pci_nvme_err_cfs();
@@ -7220,34 +7233,6 @@ static int nvme_start_ctrl(NvmeCtrl *n)
                     NVME_CAP_MPSMAX(cap));
         return -1;
     }
-    if (unlikely(NVME_CC_IOCQES(cc) <
-                 NVME_CTRL_CQES_MIN(n->id_ctrl.cqes))) {
-        trace_pci_nvme_err_startfail_cqent_too_small(
-                    NVME_CC_IOCQES(cc),
-                    NVME_CTRL_CQES_MIN(cap));
-        return -1;
-    }
-    if (unlikely(NVME_CC_IOCQES(cc) >
-                 NVME_CTRL_CQES_MAX(n->id_ctrl.cqes))) {
-        trace_pci_nvme_err_startfail_cqent_too_large(
-                    NVME_CC_IOCQES(cc),
-                    NVME_CTRL_CQES_MAX(cap));
-        return -1;
-    }
-    if (unlikely(NVME_CC_IOSQES(cc) <
-                 NVME_CTRL_SQES_MIN(n->id_ctrl.sqes))) {
-        trace_pci_nvme_err_startfail_sqent_too_small(
-                    NVME_CC_IOSQES(cc),
-                    NVME_CTRL_SQES_MIN(cap));
-        return -1;
-    }
-    if (unlikely(NVME_CC_IOSQES(cc) >
-                 NVME_CTRL_SQES_MAX(n->id_ctrl.sqes))) {
-        trace_pci_nvme_err_startfail_sqent_too_large(
-                    NVME_CC_IOSQES(cc),
-                    NVME_CTRL_SQES_MAX(cap));
-        return -1;
-    }
     if (unlikely(!NVME_AQA_ASQS(aqa))) {
         trace_pci_nvme_err_startfail_asqent_sz_zero();
         return -1;
@@ -7260,8 +7245,6 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     n->page_bits = page_bits;
     n->page_size = page_size;
     n->max_prp_ents = n->page_size / sizeof(uint64_t);
-    n->cqe_size = 1 << NVME_CC_IOCQES(cc);
-    n->sqe_size = 1 << NVME_CC_IOSQES(cc);
     nvme_init_cq(&n->admin_cq, n, acq, 0, 0, NVME_AQA_ACQS(aqa) + 1, 1);
     nvme_init_sq(&n->admin_sq, n, asq, 0, 0, NVME_AQA_ASQS(aqa) + 1);
 
@@ -8230,8 +8213,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->wctemp = cpu_to_le16(NVME_TEMPERATURE_WARNING);
     id->cctemp = cpu_to_le16(NVME_TEMPERATURE_CRITICAL);
 
-    id->sqes = (0x6 << 4) | 0x6;
-    id->cqes = (0x4 << 4) | 0x4;
+    id->sqes = (NVME_SQES << 4) | NVME_SQES;
+    id->cqes = (NVME_CQES << 4) | NVME_CQES;
     id->nn = cpu_to_le32(NVME_MAX_NAMESPACES);
     id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROES | NVME_ONCS_TIMESTAMP |
                            NVME_ONCS_FEATURES | NVME_ONCS_DSM |
