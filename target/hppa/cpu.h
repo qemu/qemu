@@ -41,6 +41,11 @@
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
+/* No need to flush MMU_PHYS_IDX  */
+#define HPPA_MMU_FLUSH_MASK                             \
+        (1 << MMU_KERNEL_IDX | 1 << MMU_PL1_IDX |       \
+         1 << MMU_PL2_IDX    | 1 << MMU_USER_IDX)
+
 /* Hardware exceptions, interrupts, faults, and traps.  */
 #define EXCP_HPMC                1  /* high priority machine check */
 #define EXCP_POWER_FAIL          2

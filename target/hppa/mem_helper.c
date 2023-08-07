@@ -50,8 +50,7 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, hppa_tlb_entry *ent)
     trace_hppa_tlb_flush_ent(env, ent, ent->va_b, ent->va_e, ent->pa);
 
     for (i = 0; i < n; ++i, addr += TARGET_PAGE_SIZE) {
-        /* Do not flush MMU_PHYS_IDX.  */
-        tlb_flush_page_by_mmuidx(cs, addr, 0xf);
+        tlb_flush_page_by_mmuidx(cs, addr, HPPA_MMU_FLUSH_MASK);
     }
 
     memset(ent, 0, sizeof(*ent));
@@ -335,13 +334,13 @@ void HELPER(ptlbe)(CPUHPPAState *env)
 {
     trace_hppa_tlb_ptlbe(env);
     memset(env->tlb, 0, sizeof(env->tlb));
-    tlb_flush_by_mmuidx(env_cpu(env), 0xf);
+    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
 }
 
 void cpu_hppa_change_prot_id(CPUHPPAState *env)
 {
     if (env->psw & PSW_P) {
-        tlb_flush_by_mmuidx(env_cpu(env), 0xf);
+        tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
     }
 }
 
