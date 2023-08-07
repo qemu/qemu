@@ -44,6 +44,12 @@
 
 #define VMMOUSE_VERSION		0x3442554a
 
+#define VMMOUSE_RELATIVE_PACKET    0x00010000
+
+#define VMMOUSE_LEFT_BUTTON        0x20
+#define VMMOUSE_RIGHT_BUTTON       0x10
+#define VMMOUSE_MIDDLE_BUTTON      0x08
+
 #ifdef DEBUG_VMMOUSE
 #define DPRINTF(fmt, ...) printf(fmt, ## __VA_ARGS__)
 #else
@@ -103,15 +109,18 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
             x, y, dz, buttons_state);
 
     if ((buttons_state & MOUSE_EVENT_LBUTTON))
-        buttons |= 0x20;
+        buttons |= VMMOUSE_LEFT_BUTTON;
     if ((buttons_state & MOUSE_EVENT_RBUTTON))
-        buttons |= 0x10;
+        buttons |= VMMOUSE_RIGHT_BUTTON;
     if ((buttons_state & MOUSE_EVENT_MBUTTON))
-        buttons |= 0x08;
+        buttons |= VMMOUSE_MIDDLE_BUTTON;
 
     if (s->absolute) {
         x <<= 1;
         y <<= 1;
+    } else{
+        /* add for guest vmmouse driver to judge this is a relative packet. */
+        buttons |= VMMOUSE_RELATIVE_PACKET;
     }
 
     s->queue[s->nb_queue++] = buttons;
