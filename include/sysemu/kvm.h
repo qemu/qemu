@@ -428,10 +428,8 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
 int kvm_arch_remove_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type);
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type);
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type);
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type);
 void kvm_arch_remove_all_hw_breakpoints(void);
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
