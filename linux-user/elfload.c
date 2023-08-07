@@ -2560,9 +2560,6 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     if (test != addr) {
         pgb_fail_in_use(image_name);
     }
-    qemu_log_mask(CPU_LOG_PAGE,
-                  "%s: base @ %p for %" PRIu64 " bytes\n",
-                  __func__, addr, (uint64_t)guest_hiaddr - guest_loaddr + 1);
 }
 
 /**
@@ -2605,9 +2602,6 @@ static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
             if (mmap_start != MAP_FAILED) {
                 munmap(mmap_start, guest_size);
                 if (mmap_start == (void *) align_start) {
-                    qemu_log_mask(CPU_LOG_PAGE,
-                                  "%s: base @ %p for %" PRIdPTR" bytes\n",
-                                  __func__, mmap_start + offset, guest_size);
                     return (uintptr_t) mmap_start + offset;
                 }
             }
@@ -2689,13 +2683,6 @@ static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
         }
     }
     free_self_maps(maps);
-
-    if (ret != -1) {
-        qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %" PRIxPTR
-                      " for %" PRIuPTR " bytes\n",
-                      __func__, ret, guest_size);
-    }
-
     return ret;
 }
 
@@ -2747,9 +2734,6 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
     }
 
     guest_base = addr;
-
-    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %"PRIxPTR" for %" PRIuPTR" bytes\n",
-                  __func__, addr, hiaddr - loaddr);
 }
 
 static void pgb_dynamic(const char *image_name, long align)
@@ -2807,9 +2791,6 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
                      reserved_va + 1, test, strerror(errno));
         exit(EXIT_FAILURE);
     }
-
-    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %p for %lu bytes\n",
-                  __func__, addr, reserved_va + 1);
 }
 
 void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
