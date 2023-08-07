@@ -397,7 +397,7 @@ QEMU_BUILD_BUG_ON(TLB_FLAGS_MASK & TLB_SLOW_FLAGS_MASK);
  * @addr: virtual address to test (must be page aligned)
  * @tlb_addr: TLB entry address (a CPUTLBEntry addr_read/write/code value)
  */
-static inline bool tlb_hit_page(target_ulong tlb_addr, target_ulong addr)
+static inline bool tlb_hit_page(uint64_t tlb_addr, vaddr addr)
 {
     return addr == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
 }
@@ -408,7 +408,7 @@ static inline bool tlb_hit_page(target_ulong tlb_addr, target_ulong addr)
  * @addr: virtual address to test (need not be page aligned)
  * @tlb_addr: TLB entry address (a CPUTLBEntry addr_read/write/code value)
  */
-static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
+static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr)
 {
     return tlb_hit_page(tlb_addr, addr & TARGET_PAGE_MASK);
 }
