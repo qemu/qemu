@@ -39,14 +39,14 @@ DECLARE_INSTANCE_CHECKER(HVFState, HVF_STATE,
 
 #ifdef NEED_CPU_H
 struct hvf_sw_breakpoint {
-    target_ulong pc;
-    target_ulong saved_insn;
+    vaddr pc;
+    vaddr saved_insn;
     int use_count;
     QTAILQ_ENTRY(hvf_sw_breakpoint) entry;
 };
 
 struct hvf_sw_breakpoint *hvf_find_sw_breakpoint(CPUState *cpu,
-                                                 target_ulong pc);
+                                                 vaddr pc);
 int hvf_sw_breakpoints_active(CPUState *cpu);
 
 int hvf_arch_insert_sw_breakpoint(CPUState *cpu, struct hvf_sw_breakpoint *bp);
