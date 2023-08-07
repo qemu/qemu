@@ -73,7 +73,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot)
 {
     hwaddr phys;
-    int prot, r_prot, w_prot, x_prot;
+    int prot, r_prot, w_prot, x_prot, priv;
     hppa_tlb_entry *ent;
     int ret = -1;
 
@@ -97,9 +97,10 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     phys = ent->pa + (addr & ~TARGET_PAGE_MASK);
 
     /* Map TLB access_rights field to QEMU protection.  */
-    r_prot = (mmu_idx <= ent->ar_pl1) * PAGE_READ;
-    w_prot = (mmu_idx <= ent->ar_pl2) * PAGE_WRITE;
-    x_prot = (ent->ar_pl2 <= mmu_idx && mmu_idx <= ent->ar_pl1) * PAGE_EXEC;
+    priv = MMU_IDX_TO_PRIV(mmu_idx);
+    r_prot = (priv <= ent->ar_pl1) * PAGE_READ;
+    w_prot = (priv <= ent->ar_pl2) * PAGE_WRITE;
+    x_prot = (ent->ar_pl2 <= priv && priv <= ent->ar_pl1) * PAGE_EXEC;
     switch (ent->ar_type) {
     case 0: /* read-only: data page */
         prot = r_prot;
