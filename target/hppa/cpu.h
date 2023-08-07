@@ -36,6 +36,9 @@
 #define MMU_USER_IDX     3
 #define MMU_PHYS_IDX     4
 
+#define PRIV_TO_MMU_IDX(priv)    (priv)
+#define MMU_IDX_TO_PRIV(mmu_idx) (mmu_idx)
+
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* Hardware exceptions, interrupts, faults, and traps.  */
@@ -236,7 +239,7 @@ static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
     return MMU_USER_IDX;
 #else
     if (env->psw & (ifetch ? PSW_C : PSW_D)) {
-        return env->iaoq_f & 3;
+        return PRIV_TO_MMU_IDX(env->iaoq_f & 3);
     }
     return MMU_PHYS_IDX;  /* mmu disabled */
 #endif
