@@ -31,8 +31,11 @@
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
 #define MMU_KERNEL_IDX   0
+#define MMU_PL1_IDX      1
+#define MMU_PL2_IDX      2
 #define MMU_USER_IDX     3
 #define MMU_PHYS_IDX     4
+
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* Hardware exceptions, interrupts, faults, and traps.  */
