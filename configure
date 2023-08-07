@@ -1352,7 +1352,7 @@ probe_target_compiler() {
     sh4) container_hosts=x86_64 ;;
     sparc64) container_hosts=x86_64 ;;
     tricore) container_hosts=x86_64 ;;
-    x86_64) container_hosts="aarch64 ppc64el x86_64" ;;
+    x86_64) container_hosts="aarch64 ppc64le x86_64" ;;
     xtensa*) container_hosts=x86_64 ;;
   esac
 
@@ -1459,7 +1459,6 @@ probe_target_compiler() {
         container_cross_prefix=x86_64-linux-gnu-
         ;;
       xtensa*)
-        container_hosts=x86_64
         container_image=debian-xtensa-cross
 
         # default to the dc232b cpu
