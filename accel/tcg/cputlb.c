@@ -1108,7 +1108,7 @@ static void tlb_add_large_page(CPUArchState *env, int mmu_idx,
 }
 
 static inline void tlb_set_compare(CPUTLBEntryFull *full, CPUTLBEntry *ent,
-                                   target_ulong address, int flags,
+                                   vaddr address, int flags,
                                    MMUAccessType access_type, bool enable)
 {
     if (enable) {
