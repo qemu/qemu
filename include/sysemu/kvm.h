@@ -413,14 +413,14 @@ struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
 
 struct kvm_sw_breakpoint {
-    target_ulong pc;
-    target_ulong saved_insn;
+    vaddr pc;
+    vaddr saved_insn;
     int use_count;
     QTAILQ_ENTRY(kvm_sw_breakpoint) entry;
 };
 
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
-                                                 target_ulong pc);
+                                                 vaddr pc);
 
 int kvm_sw_breakpoints_active(CPUState *cpu);
 
