@@ -2504,6 +2504,157 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #endif
 #endif
 
+/**
+ * pgb_try_mmap:
+ * @addr: host start address
+ * @addr_last: host last address
+ * @keep: do not unmap the probe region
+ *
+ * Return 1 if [@addr, @addr_last] is not mapped in the host,
+ * return 0 if it is not available to map, and -1 on mmap error.
+ * If @keep, the region is left mapped on success, otherwise unmapped.
+ */
+static int pgb_try_mmap(uintptr_t addr, uintptr_t addr_last, bool keep)
+{
+    size_t size = addr_last - addr + 1;
+    void *p = mmap((void *)addr, size, PROT_NONE,
+                   MAP_ANONYMOUS | MAP_PRIVATE |
+                   MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+    int ret;
+
+    if (p == MAP_FAILED) {
+        return errno == EEXIST ? 0 : -1;
+    }
+    ret = p == (void *)addr;
+    if (!keep || !ret) {
+        munmap(p, size);
+    }
+    return ret;
+}
+
+/**
+ * pgb_try_mmap_skip_brk(uintptr_t addr, uintptr_t size, uintptr_t brk)
+ * @addr: host address
+ * @addr_last: host last address
+ * @brk: host brk
+ *
+ * Like pgb_try_mmap, but additionally reserve some memory following brk.
+ */
+static int pgb_try_mmap_skip_brk(uintptr_t addr, uintptr_t addr_last,
+                                 uintptr_t brk, bool keep)
+{
+    uintptr_t brk_last = brk + 16 * MiB - 1;
+
+    /* Do not map anything close to the host brk. */
+    if (addr <= brk_last && brk <= addr_last) {
+        return 0;
+    }
+    return pgb_try_mmap(addr, addr_last, keep);
+}
+
+/**
+ * pgb_try_mmap_set:
+ * @ga: set of guest addrs
+ * @base: guest_base
+ * @brk: host brk
+ *
+ * Return true if all @ga can be mapped by the host at @base.
+ * On success, retain the mapping at index 0 for reserved_va.
+ */
+
+typedef struct PGBAddrs {
+    uintptr_t bounds[3][2]; /* start/last pairs */
+    int nbounds;
+} PGBAddrs;
+
+static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
+{
+    for (int i = ga->nbounds - 1; i >= 0; --i) {
+        if (pgb_try_mmap_skip_brk(ga->bounds[i][0] + base,
+                                  ga->bounds[i][1] + base,
+                                  brk, i == 0 && reserved_va) <= 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * pgb_addr_set:
+ * @ga: output set of guest addrs
+ * @guest_loaddr: guest image low address
+ * @guest_loaddr: guest image high address
+ * @identity: create for identity mapping
+ *
+ * Fill in @ga with the image, COMMPAGE and NULL page.
+ */
+static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
+                         abi_ulong guest_hiaddr, bool try_identity)
+{
+    int n;
+
+    /*
+     * With a low commpage, or a guest mapped very low,
+     * we may not be able to use the identity map.
+     */
+    if (try_identity) {
+        if (LO_COMMPAGE != -1 && LO_COMMPAGE < mmap_min_addr) {
+            return false;
+        }
+        if (guest_loaddr != 0 && guest_loaddr < mmap_min_addr) {
+            return false;
+        }
+    }
+
+    memset(ga, 0, sizeof(*ga));
+    n = 0;
+
+    if (reserved_va) {
+        ga->bounds[n][0] = try_identity ? mmap_min_addr : 0;
+        ga->bounds[n][1] = reserved_va;
+        n++;
+        /* LO_COMMPAGE and NULL handled by reserving from 0. */
+    } else {
+        /* Add any LO_COMMPAGE or NULL page. */
+        if (LO_COMMPAGE != -1) {
+            ga->bounds[n][0] = 0;
+            ga->bounds[n][1] = LO_COMMPAGE + TARGET_PAGE_SIZE - 1;
+            n++;
+        } else if (!try_identity) {
+            ga->bounds[n][0] = 0;
+            ga->bounds[n][1] = TARGET_PAGE_SIZE - 1;
+            n++;
+        }
+
+        /* Add the guest image for ET_EXEC. */
+        if (guest_loaddr) {
+            ga->bounds[n][0] = guest_loaddr;
+            ga->bounds[n][1] = guest_hiaddr;
+            n++;
+        }
+    }
+
+    /*
+     * Temporarily disable
+     *   "comparison is always false due to limited range of data type"
+     * due to comparison between unsigned and (possible) 0.
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+
+    /* Add any HI_COMMPAGE not covered by reserved_va. */
+    if (reserved_va < HI_COMMPAGE) {
+        ga->bounds[n][0] = HI_COMMPAGE & qemu_host_page_mask;
+        ga->bounds[n][1] = HI_COMMPAGE + TARGET_PAGE_SIZE - 1;
+        n++;
+    }
+
+#pragma GCC diagnostic pop
+
+    ga->nbounds = n;
+    return true;
+}
+
 static void pgb_fail_in_use(const char *image_name)
 {
     error_report("%s: requires virtual address space that is in use "
@@ -2512,33 +2663,21 @@ static void pgb_fail_in_use(const char *image_name)
     exit(EXIT_FAILURE);
 }
 
-static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
-                                abi_ulong guest_hiaddr, long align)
+static void pgb_fixed(const char *image_name, uintptr_t guest_loaddr,
+                      uintptr_t guest_hiaddr, uintptr_t align)
 {
-    const int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-    void *addr, *test;
+    PGBAddrs ga;
+    uintptr_t brk = (uintptr_t)sbrk(0);
 
     if (!QEMU_IS_ALIGNED(guest_base, align)) {
         fprintf(stderr, "Requested guest base %p does not satisfy "
-                "host minimum alignment (0x%lx)\n",
+                "host minimum alignment (0x%" PRIxPTR ")\n",
                 (void *)guest_base, align);
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Expand the allocation to the entire reserved_va.
-     * Exclude the mmap_min_addr hole.
-     */
-    if (reserved_va) {
-        guest_loaddr = (guest_base >= mmap_min_addr ? 0
-                        : mmap_min_addr - guest_base);
-        guest_hiaddr = reserved_va;
-    }
-
-    /* Reserve the address space for the binary, or reserved_va. */
-    test = g2h_untagged(guest_loaddr);
-    addr = mmap(test, guest_hiaddr - guest_loaddr + 1, PROT_NONE, flags, -1, 0);
-    if (test != addr) {
+    if (!pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, !guest_base)
+        || !pgb_try_mmap_set(&ga, guest_base, brk)) {
         pgb_fail_in_use(image_name);
     }
 }
@@ -2784,7 +2923,7 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
     }
 
     if (have_guest_base) {
-        pgb_have_guest_base(image_name, guest_loaddr, guest_hiaddr, align);
+        pgb_fixed(image_name, guest_loaddr, guest_hiaddr, align);
     } else if (reserved_va) {
         pgb_reserved_va(image_name, guest_loaddr, guest_hiaddr, align);
     } else if (guest_loaddr) {
@@ -2795,13 +2934,8 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
 
     /* Reserve and initialize the commpage. */
     if (!init_guest_commpage()) {
-        /*
-         * With have_guest_base, the user has selected the address and
-         * we are trying to work with that.  Otherwise, we have selected
-         * free space and init_guest_commpage must succeeded.
-         */
-        assert(have_guest_base);
-        pgb_fail_in_use(image_name);
+        /* We have already probed for the commpage being free. */
+        g_assert_not_reached();
     }
 
     assert(QEMU_IS_ALIGNED(guest_base, align));
