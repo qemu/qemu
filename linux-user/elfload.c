@@ -2683,220 +2683,143 @@ static void pgb_fixed(const char *image_name, uintptr_t guest_loaddr,
 }
 
 /**
- * pgd_find_hole_fallback: potential mmap address
- * @guest_size: size of available space
- * @brk: location of break
- * @align: memory alignment
+ * pgb_find_fallback:
  *
- * This is a fallback method for finding a hole in the host address
- * space if we don't have the benefit of being able to access
- * /proc/self/map. It can potentially take a very long time as we can
- * only dumbly iterate up the host address space seeing if the
- * allocation would work.
+ * This is a fallback method for finding holes in the host address space
+ * if we don't have the benefit of being able to access /proc/self/map.
+ * It can potentially take a very long time as we can only dumbly iterate
+ * up the host address space seeing if the allocation would work.
  */
-static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
-                                        long align, uintptr_t offset)
+static uintptr_t pgb_find_fallback(const PGBAddrs *ga, uintptr_t align,
+                                   uintptr_t brk)
 {
-    uintptr_t base;
+    /* TODO: come up with a better estimate of how much to skip. */
+    uintptr_t skip = sizeof(uintptr_t) == 4 ? MiB : GiB;
 
-    /* Start (aligned) at the bottom and work our way up */
-    base = ROUND_UP(mmap_min_addr, align);
-
-    while (true) {
-        uintptr_t align_start, end;
-        align_start = ROUND_UP(base, align);
-        end = align_start + guest_size + offset;
-
-        /* if brk is anywhere in the range give ourselves some room to grow. */
-        if (align_start <= brk && brk < end) {
-            base = brk + (16 * MiB);
-            continue;
-        } else if (align_start + guest_size < align_start) {
-            /* we have run out of space */
+    for (uintptr_t base = skip; ; base += skip) {
+        base = ROUND_UP(base, align);
+        if (pgb_try_mmap_set(ga, base, brk)) {
+            return base;
+        }
+        if (base >= -skip) {
             return -1;
-        } else {
-            int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE |
-                MAP_FIXED_NOREPLACE;
-            void * mmap_start = mmap((void *) align_start, guest_size,
-                                     PROT_NONE, flags, -1, 0);
-            if (mmap_start != MAP_FAILED) {
-                munmap(mmap_start, guest_size);
-                if (mmap_start == (void *) align_start) {
-                    return (uintptr_t) mmap_start + offset;
-                }
-            }
-            base += qemu_host_page_size;
         }
     }
 }
 
-/* Return value for guest_base, or -1 if no hole found. */
-static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
-                               long align, uintptr_t offset)
+static uintptr_t pgb_try_itree(const PGBAddrs *ga, uintptr_t base,
+                               IntervalTreeRoot *root)
 {
-    IntervalTreeRoot *maps;
-    IntervalTreeNode *iter;
-    uintptr_t this_start, this_end, next_start, brk;
-    intptr_t ret = -1;
+    for (int i = ga->nbounds - 1; i >= 0; --i) {
+        uintptr_t s = base + ga->bounds[i][0];
+        uintptr_t l = base + ga->bounds[i][1];
+        IntervalTreeNode *n;
+
+        if (l < s) {
+            /* Wraparound. Skip to advance S to mmap_min_addr. */
+            return mmap_min_addr - s;
+        }
+
+        n = interval_tree_iter_first(root, s, l);
+        if (n != NULL) {
+            /* Conflict.  Skip to advance S to LAST + 1. */
+            return n->last - s + 1;
+        }
+    }
+    return 0;  /* success */
+}
+
+static uintptr_t pgb_find_itree(const PGBAddrs *ga, IntervalTreeRoot *root,
+                                uintptr_t align, uintptr_t brk)
+{
+    uintptr_t last = mmap_min_addr;
+    uintptr_t base, skip;
+
+    while (true) {
+        base = ROUND_UP(last, align);
+        if (base < last) {
+            return -1;
+        }
+
+        skip = pgb_try_itree(ga, base, root);
+        if (skip == 0) {
+            break;
+        }
+
+        last = base + skip;
+        if (last < base) {
+            return -1;
+        }
+    }
+
+    /*
+     * We've chosen 'base' based on holes in the interval tree,
+     * but we don't yet know if it is a valid host address.
+     * Because it is the first matching hole, if the host addresses
+     * are invalid we know there are no further matches.
+     */
+    return pgb_try_mmap_set(ga, base, brk) ? base : -1;
+}
+
+static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
+                        uintptr_t guest_hiaddr, uintptr_t align)
+{
+    IntervalTreeRoot *root;
+    uintptr_t brk, ret;
+    PGBAddrs ga;
 
     assert(QEMU_IS_ALIGNED(guest_loaddr, align));
 
-    maps = read_self_maps();
+    /* Try the identity map first. */
+    if (pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, true)) {
+        brk = (uintptr_t)sbrk(0);
+        if (pgb_try_mmap_set(&ga, 0, brk)) {
+            guest_base = 0;
+            return;
+        }
+    }
+
+    /*
+     * Rebuild the address set for non-identity map.
+     * This differs in the mapping of the guest NULL page.
+     */
+    pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, false);
+
+    root = read_self_maps();
 
     /* Read brk after we've read the maps, which will malloc. */
     brk = (uintptr_t)sbrk(0);
 
-    if (!maps) {
-        return pgd_find_hole_fallback(guest_size, brk, align, offset);
-    }
-
-    /* The first hole is before the first map entry. */
-    this_start = mmap_min_addr;
-
-    for (iter = interval_tree_iter_first(maps, 0, -1);
-         iter;
-         this_start = next_start,
-         iter = interval_tree_iter_next(iter, 0, -1)) {
-        MapInfo *info = container_of(iter, MapInfo, itree);
-        uintptr_t align_start, hole_size;
-
-        this_end = info->itree.start;
-        next_start = info->itree.last + 1;
-        align_start = ROUND_UP(this_start + offset, align);
-
-        /* Skip holes that are too small. */
-        if (align_start >= this_end) {
-            continue;
-        }
-        hole_size = this_end - align_start;
-        if (hole_size < guest_size) {
-            continue;
-        }
-
-        /* If this hole contains brk, give ourselves some room to grow. */
-        if (this_start <= brk && brk < this_end) {
-            hole_size -= guest_size;
-            if (sizeof(uintptr_t) == 8 && hole_size >= 1 * GiB) {
-                align_start += 1 * GiB;
-            } else if (hole_size >= 16 * MiB) {
-                align_start += 16 * MiB;
-            } else {
-                align_start = (this_end - guest_size) & -align;
-                if (align_start < this_start) {
-                    continue;
-                }
-            }
-        }
-
-        /* Record the lowest successful match. */
-        if (ret < 0) {
-            ret = align_start;
-        }
-        /* If this hole contains the identity map, select it. */
-        if (align_start <= guest_loaddr &&
-            guest_loaddr + guest_size <= this_end) {
-            ret = 0;
-        }
-        /* If this hole ends above the identity map, stop looking. */
-        if (this_end >= guest_loaddr) {
-            break;
-        }
-    }
-    free_self_maps(maps);
-    return ret;
-}
-
-static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
-                       abi_ulong orig_hiaddr, long align)
-{
-    uintptr_t loaddr = orig_loaddr;
-    uintptr_t hiaddr = orig_hiaddr;
-    uintptr_t offset = 0;
-    uintptr_t addr;
-
-    loaddr &= -align;
-    if (HI_COMMPAGE) {
+    if (!root) {
+        ret = pgb_find_fallback(&ga, align, brk);
+    } else {
         /*
-         * Extend the allocation to include the commpage.
-         * For a 64-bit host, this is just 4GiB; for a 32-bit host we
-         * need to ensure there is space bellow the guest_base so we
-         * can map the commpage in the place needed when the address
-         * arithmetic wraps around.
+         * Reserve the area close to the host brk.
+         * This will be freed with the rest of the tree.
          */
-        if (sizeof(uintptr_t) == 8 || loaddr >= 0x80000000u) {
-            hiaddr = UINT32_MAX;
-        } else {
-            offset = -(HI_COMMPAGE & -align);
-        }
-    } else if (LO_COMMPAGE != -1) {
-        loaddr = MIN(loaddr, LO_COMMPAGE & -align);
+        IntervalTreeNode *b = g_new0(IntervalTreeNode, 1);
+        b->start = brk;
+        b->last = brk + 16 * MiB - 1;
+        interval_tree_insert(b, root);
+
+        ret = pgb_find_itree(&ga, root, align, brk);
+        free_self_maps(root);
     }
 
-    addr = pgb_find_hole(loaddr, hiaddr - loaddr + 1, align, offset);
-    if (addr == -1) {
-        /*
-         * If HI_COMMPAGE, there *might* be a non-consecutive allocation
-         * that can satisfy both.  But as the normal arm32 link base address
-         * is ~32k, and we extend down to include the commpage, making the
-         * overhead only ~96k, this is unlikely.
-         */
-        error_report("%s: Unable to allocate %#zx bytes of "
-                     "virtual address space", image_name,
-                     (size_t)(hiaddr - loaddr));
+    if (ret == -1) {
+        int w = TARGET_LONG_BITS / 4;
+
+        error_report("%s: Unable to find a guest_base to satisfy all "
+                     "guest address mapping requirements", image_name);
+
+        for (int i = 0; i < ga.nbounds; ++i) {
+            error_printf("  %0*" PRIx64 "-%0*" PRIx64 "\n",
+                         w, (uint64_t)ga.bounds[i][0],
+                         w, (uint64_t)ga.bounds[i][1]);
+        }
         exit(EXIT_FAILURE);
     }
-
-    guest_base = addr;
-}
-
-static void pgb_dynamic(const char *image_name, long align)
-{
-    /*
-     * The executable is dynamic and does not require a fixed address.
-     * All we need is a commpage that satisfies align.
-     * If we do not need a commpage, leave guest_base == 0.
-     */
-    if (HI_COMMPAGE) {
-        uintptr_t addr, commpage;
-
-        /* 64-bit hosts should have used reserved_va. */
-        assert(sizeof(uintptr_t) == 4);
-
-        /*
-         * By putting the commpage at the first hole, that puts guest_base
-         * just above that, and maximises the positive guest addresses.
-         */
-        commpage = HI_COMMPAGE & -align;
-        addr = pgb_find_hole(commpage, -commpage, align, 0);
-        assert(addr != -1);
-        guest_base = addr;
-    }
-}
-
-static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
-                            abi_ulong guest_hiaddr, long align)
-{
-    int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-    void *addr, *test;
-
-    /* Widen the "image" to the entire reserved address space. */
-    pgb_static(image_name, 0, reserved_va, align);
-
-    /* osdep.h defines this as 0 if it's missing */
-    flags |= MAP_FIXED_NOREPLACE;
-
-    /* Reserve the memory on the host. */
-    assert(guest_base != 0);
-    test = g2h_untagged(0);
-    addr = mmap(test, reserved_va + 1, PROT_NONE, flags, -1, 0);
-    if (addr == MAP_FAILED || addr != test) {
-        error_report("Unable to reserve 0x%lx bytes of virtual address "
-                     "space at %p (%s) for use as guest address space (check your "
-                     "virtual memory ulimit setting, mmap_min_addr or reserve less "
-                     "using qemu-user's -R option)",
-                     reserved_va + 1, test, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    guest_base = ret;
 }
 
 void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
@@ -2924,12 +2847,8 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
 
     if (have_guest_base) {
         pgb_fixed(image_name, guest_loaddr, guest_hiaddr, align);
-    } else if (reserved_va) {
-        pgb_reserved_va(image_name, guest_loaddr, guest_hiaddr, align);
-    } else if (guest_loaddr) {
-        pgb_static(image_name, guest_loaddr, guest_hiaddr, align);
     } else {
-        pgb_dynamic(image_name, align);
+        pgb_dynamic(image_name, guest_loaddr, guest_hiaddr, align);
     }
 
     /* Reserve and initialize the commpage. */
