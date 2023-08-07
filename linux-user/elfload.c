@@ -2525,25 +2525,6 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
         exit(EXIT_FAILURE);
     }
 
-    /* Sanity check the guest binary. */
-    if (reserved_va) {
-        if (guest_hiaddr > reserved_va) {
-            error_report("%s: requires more than reserved virtual "
-                         "address space (0x%" PRIx64 " > 0x%lx)",
-                         image_name, (uint64_t)guest_hiaddr, reserved_va);
-            exit(EXIT_FAILURE);
-        }
-    } else {
-#if HOST_LONG_BITS < TARGET_ABI_BITS
-        if ((guest_hiaddr - guest_base) > ~(uintptr_t)0) {
-            error_report("%s: requires more virtual address space "
-                         "than the host can provide (0x%" PRIx64 ")",
-                         image_name, (uint64_t)guest_hiaddr + 1 - guest_base);
-            exit(EXIT_FAILURE);
-        }
-#endif
-    }
-
     /*
      * Expand the allocation to the entire reserved_va.
      * Exclude the mmap_min_addr hole.
@@ -2694,13 +2675,6 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
     uintptr_t offset = 0;
     uintptr_t addr;
 
-    if (hiaddr != orig_hiaddr) {
-        error_report("%s: requires virtual address space that the "
-                     "host cannot provide (0x%" PRIx64 ")",
-                     image_name, (uint64_t)orig_hiaddr + 1);
-        exit(EXIT_FAILURE);
-    }
-
     loaddr &= -align;
     if (HI_COMMPAGE) {
         /*
@@ -2766,13 +2740,6 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
     void *addr, *test;
 
-    if (guest_hiaddr > reserved_va) {
-        error_report("%s: requires more than reserved virtual "
-                     "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
-        exit(EXIT_FAILURE);
-    }
-
     /* Widen the "image" to the entire reserved address space. */
     pgb_static(image_name, 0, reserved_va, align);
 
@@ -2798,6 +2765,23 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
 {
     /* In order to use host shmat, we must be able to honor SHMLBA.  */
     uintptr_t align = MAX(SHMLBA, qemu_host_page_size);
+
+    /* Sanity check the guest binary. */
+    if (reserved_va) {
+        if (guest_hiaddr > reserved_va) {
+            error_report("%s: requires more than reserved virtual "
+                         "address space (0x%" PRIx64 " > 0x%lx)",
+                         image_name, (uint64_t)guest_hiaddr, reserved_va);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        if (guest_hiaddr != (uintptr_t)guest_hiaddr) {
+            error_report("%s: requires more virtual address space "
+                         "than the host can provide (0x%" PRIx64 ")",
+                         image_name, (uint64_t)guest_hiaddr + 1);
+            exit(EXIT_FAILURE);
+        }
+    }
 
     if (have_guest_base) {
         pgb_have_guest_base(image_name, guest_loaddr, guest_hiaddr, align);
