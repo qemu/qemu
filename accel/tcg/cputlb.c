@@ -74,8 +74,9 @@
     } while (0)
 
 /* run_on_cpu_data.target_ptr should always be big enough for a
- * target_ulong even on 32 bit builds */
-QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
+ * vaddr even on 32 bit builds
+ */
+QEMU_BUILD_BUG_ON(sizeof(vaddr) > sizeof(run_on_cpu_data));
 
 /* We currently can't handle more than 16 bits in the MMUIDX bitmask.
  */
