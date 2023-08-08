@@ -7408,8 +7408,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Honor single stepping. */
-    if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)
-        && (nip <= 0x100 || nip > 0xf00)) {
+    if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)) {
         switch (is_jmp) {
         case DISAS_TOO_MANY:
         case DISAS_EXIT_UPDATE:
