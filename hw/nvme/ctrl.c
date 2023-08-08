@@ -6877,7 +6877,7 @@ static uint16_t nvme_directive_receive(NvmeCtrl *n, NvmeRequest *req)
     case NVME_DIRECTIVE_IDENTIFY:
         switch (doper) {
         case NVME_DIRECTIVE_RETURN_PARAMS:
-            if (ns->endgrp->fdp.enabled) {
+            if (ns->endgrp && ns->endgrp->fdp.enabled) {
                 id.supported |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
                 id.enabled |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
                 id.persistent |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
