@@ -23,3 +23,10 @@ meson = { accepted = ">=0.63.0", installed = "0.63.3", canary = "meson" }
 [docs]
 sphinx = { accepted = ">=1.6", installed = "5.3.0", canary = "sphinx-build" }
 sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.1.1" }
+
+[avocado]
+# Note that qemu.git/python/ is always implicitly installed.
+# Prefer an LTS version when updating the accepted versions of
+# avocado-framework, for example right now the limit is 92.x.
+avocado-framework = { accepted = "(>=88.1, <93.0)", installed = "88.1", canary = "avocado" }
+pycdlib = { accepted = ">=1.11.0" }

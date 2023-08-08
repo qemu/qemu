@@ -964,14 +964,11 @@ def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
             "Python >=3.11 does not have tomllib... what have you done!?"
         )
 
-    try:
-        # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
-        # Debian bullseye-backports) and v2.0.x
-        with open(file, "r", encoding="ascii") as depfile:
-            contents = depfile.read()
-            return tomllib.loads(contents)  # type: ignore
-    except tomllib.TOMLDecodeError as exc:
-        raise Ouch(f"parsing {file} failed: {exc}") from exc
+    # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
+    # Debian bullseye-backports) and v2.0.x
+    with open(file, "r", encoding="ascii") as depfile:
+        contents = depfile.read()
+        return tomllib.loads(contents)  # type: ignore
 
 
 def ensure_group(
