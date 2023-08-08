@@ -208,6 +208,14 @@ static int cpu_pre_save(void *opaque)
     /* Used to retain migration compatibility for pre 6.0 for 601 machines. */
     env->hflags_compat_nmsr = 0;
 
+    if (tcg_enabled()) {
+        /*
+         * TCG does not maintain the DECR spr (unlike KVM) so have to save
+         * it here.
+         */
+        env->spr[SPR_DECR] = cpu_ppc_load_decr(env);
+    }
+
     return 0;
 }
 
@@ -318,6 +326,12 @@ static int cpu_post_load(void *opaque, int version_id)
         ppc_update_ciabr(env);
         ppc_update_daw0(env);
 #endif
+        /*
+         * TCG needs to re-start the decrementer timer and/or raise the
+         * interrupt. This works for level-triggered decrementer. Edge
+         * triggered types (including HDEC) would need to carry more state.
+         */
+        cpu_ppc_store_decr(env, env->spr[SPR_DECR]);
         pmu_mmcr01_updated(env);
     }
 
