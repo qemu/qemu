@@ -472,6 +472,8 @@ fi
 case "$cpu" in
   riscv*)
     host_arch=riscv ;;
+  x32)
+    host_arch=x86_64 ;;
   *)
     host_arch="$cpu" ;;
 esac
