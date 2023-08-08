@@ -133,7 +133,8 @@ RUN /usr/bin/pip3.8 install \
                     meson==0.63.2 \
                     pillow \
                     sphinx \
-                    sphinx-rtd-theme
+                    sphinx-rtd-theme \
+                    tomli
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
