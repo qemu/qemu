@@ -1018,6 +1018,12 @@ fi
 python="$python -B"
 mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
+# Finish preparing the virtual environment using vendored .whl files
+
+if $python -c 'import sys; sys.exit(sys.version_info >= (3,11))'; then
+    $mkvenv ensure --dir "${source_path}/python/wheels" \
+        'tomli>=1.2.0' || exit 1
+fi
 if ! $mkvenv ensure \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
