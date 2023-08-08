@@ -497,7 +497,8 @@ uint64_t cpu_ppc_load_tbl (CPUPPCState *env)
         return env->spr[SPR_TBL];
     }
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                        tb_env->tb_offset);
     trace_ppc_tb_load(tb);
 
     return tb;
@@ -508,7 +509,8 @@ static inline uint32_t _cpu_ppc_load_tbu(CPUPPCState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                        tb_env->tb_offset);
     trace_ppc_tb_load(tb);
 
     return tb >> 32;
@@ -565,7 +567,8 @@ uint64_t cpu_ppc_load_atbl (CPUPPCState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                        tb_env->atb_offset);
     trace_ppc_tb_load(tb);
 
     return tb;
@@ -576,7 +579,8 @@ uint32_t cpu_ppc_load_atbu (CPUPPCState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                        tb_env->atb_offset);
     trace_ppc_tb_load(tb);
 
     return tb >> 32;
@@ -1040,10 +1044,11 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
         tb_env->flags |= PPC_DECR_UNDERFLOW_LEVEL;
     }
     /* Create new timer */
-    tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_decr_cb, cpu);
+    tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                      &cpu_ppc_decr_cb, cpu);
     if (env->has_hv_mode && !cpu->vhyp) {
-        tb_env->hdecr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_hdecr_cb,
-                                                cpu);
+        tb_env->hdecr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                           &cpu_ppc_hdecr_cb, cpu);
     } else {
         tb_env->hdecr_timer = NULL;
     }
