@@ -4361,7 +4361,13 @@ static uint16_t nvme_io_mgmt_send_ruh_update(NvmeCtrl *n, NvmeRequest *req)
     uint32_t npid = (cdw10 >> 1) + 1;
     unsigned int i = 0;
     g_autofree uint16_t *pids = NULL;
-    uint32_t maxnpid = n->subsys->endgrp.fdp.nrg * n->subsys->endgrp.fdp.nruh;
+    uint32_t maxnpid;
+
+    if (!ns->endgrp || !ns->endgrp->fdp.enabled) {
+        return NVME_FDP_DISABLED | NVME_DNR;
+    }
+
+    maxnpid = n->subsys->endgrp.fdp.nrg * n->subsys->endgrp.fdp.nruh;
 
     if (unlikely(npid >= MIN(NVME_FDP_MAXPIDS, maxnpid))) {
         return NVME_INVALID_FIELD | NVME_DNR;
