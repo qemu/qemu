@@ -46,6 +46,9 @@ options:
 
 """
 
+# The duplication between importlib and pkg_resources does not help
+# pylint: disable=too-many-lines
+
 # Copyright (C) 2022-2023 Red Hat, Inc.
 #
 # Authors:
@@ -69,6 +72,7 @@ import sysconfig
 from types import SimpleNamespace
 from typing import (
     Any,
+    Dict,
     Iterator,
     Optional,
     Sequence,
@@ -786,43 +790,67 @@ def pip_install(
     )
 
 
+def _make_version_constraint(info: Dict[str, str], install: bool) -> str:
+    """
+    Construct the version constraint part of a PEP 508 dependency
+    specification (for example '>=0.61.5') from the accepted and
+    installed keys of the provided dictionary.
+
+    :param info: A dictionary corresponding to a TOML key-value list.
+    :param install: True generates install constraints, False generates
+        presence constraints
+    """
+    if install and "installed" in info:
+        return "==" + info["installed"]
+
+    dep_spec = info.get("accepted", "")
+    dep_spec = dep_spec.strip()
+    # Double check that they didn't just use a version number
+    if dep_spec and dep_spec[0] not in "!~><=(":
+        raise Ouch(
+            "invalid dependency specifier " + dep_spec + " in dependency file"
+        )
+
+    return dep_spec
+
+
 def _do_ensure(
-    dep_specs: Sequence[str],
+    group: Dict[str, Dict[str, str]],
     online: bool = False,
     wheels_dir: Optional[Union[str, Path]] = None,
-    prog: Optional[str] = None,
 ) -> Optional[Tuple[str, bool]]:
     """
-    Use pip to ensure we have the package specified by @dep_specs.
+    Use pip to ensure we have the packages specified in @group.
 
-    If the package is already installed, do nothing. If online and
+    If the packages are already installed, do nothing. If online and
     wheels_dir are both provided, prefer packages found in wheels_dir
     first before connecting to PyPI.
 
-    :param dep_specs:
-        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
+    :param group: A dictionary of dictionaries, corresponding to a
+        section in a pythondeps.toml file.
     :param online: If True, fall back to PyPI.
     :param wheels_dir: If specified, search this path for packages.
     """
     absent = []
     present = []
     canary = None
-    for spec in dep_specs:
-        matcher = distlib.version.LegacyMatcher(spec)
-        ver = _get_version(matcher.name)
+    for name, info in group.items():
+        constraint = _make_version_constraint(info, False)
+        matcher = distlib.version.LegacyMatcher(name + constraint)
+        ver = _get_version(name)
         if (
             ver is None
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
-            or not _is_system_package(matcher.name)
+            or not _is_system_package(name)
             or not matcher.match(distlib.version.LegacyVersion(ver))
         ):
-            absent.append(spec)
-            if spec == dep_specs[0]:
-                canary = prog
+            absent.append(name + _make_version_constraint(info, True))
+            if len(absent) == 1:
+                canary = info.get("canary", None)
         else:
-            logger.info("found %s %s", matcher.name, ver)
-            present.append(matcher.name)
+            logger.info("found %s %s", name, ver)
+            present.append(name)
 
     if present:
         generate_console_scripts(present)
@@ -875,7 +903,24 @@ def ensure(
     if not HAVE_DISTLIB:
         raise Ouch("a usable distlib could not be found, please install it")
 
-    result = _do_ensure(dep_specs, online, wheels_dir, prog)
+    # Convert the depspecs to a dictionary, as if they came
+    # from a section in a pythondeps.toml file
+    group: Dict[str, Dict[str, str]] = {}
+    for spec in dep_specs:
+        name = distlib.version.LegacyMatcher(spec).name
+        group[name] = {}
+
+        spec = spec.strip()
+        pos = len(name)
+        ver = spec[pos:].strip()
+        if ver:
+            group[name]["accepted"] = ver
+
+        if prog:
+            group[name]["canary"] = prog
+            prog = None
+
+    result = _do_ensure(group, online, wheels_dir)
     if result:
         # Well, that's not good.
         if result[1]:
