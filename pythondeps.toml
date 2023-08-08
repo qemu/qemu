@@ -1,0 +1,17 @@
+# This file describes Python package requirements to be
+# installed in the pyvenv Python virtual environment.
+#
+# Packages are placed in groups, which are installed using
+# the ensuregroup subcommand of python/scripts/mkvenv.py.
+# Each group forms a TOML section and each entry in the
+# section is a TOML key-value list describing a package.
+# All fields are optional; valid fields are:
+#
+# - accepted: accepted versions when using a system package
+# - installed: fixed version to install in the virtual environment
+#              if a system package is not found; if not specified,
+#              the minimum and maximum
+# - canary: if specified, use this program name to present more
+#           precise error diagnostics to the user.  For example,
+#           'sphinx-build' can be used as a bellwether for the
+#           presence of 'sphinx' in the system.

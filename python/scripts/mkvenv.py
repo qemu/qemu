@@ -14,6 +14,8 @@ Commands:
     post_init
               post-venv initialization
     ensure    Ensure that the specified package is installed.
+    ensuregroup
+              Ensure that the specified package group is installed.
 
 --------------------------------------------------
 
@@ -38,6 +40,19 @@ usage: mkvenv ensure [-h] [--online] [--dir DIR] dep_spec...
 
 positional arguments:
   dep_spec    PEP 508 Dependency specification, e.g. 'meson>=0.61.5'
+
+options:
+  -h, --help  show this help message and exit
+  --online    Install packages from PyPI, if necessary.
+  --dir DIR   Path to vendored packages where we may install from.
+
+--------------------------------------------------
+
+usage: mkvenv ensuregroup [-h] [--online] [--dir DIR] file group...
+
+positional arguments:
+  file        pointer to a TOML file
+  group       section name in the TOML file
 
 options:
   -h, --help  show this help message and exit
@@ -98,6 +113,18 @@ except ImportError:
         import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
     except ImportError:
         HAVE_DISTLIB = False
+
+# Try to load tomllib, with a fallback to tomli.
+# HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
+# outside the venv or before a potential call to ensurepip in checkpip().
+HAVE_TOMLLIB = True
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        HAVE_TOMLLIB = False
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
@@ -837,6 +864,7 @@ def _do_ensure(
     for name, info in group.items():
         constraint = _make_version_constraint(info, False)
         matcher = distlib.version.LegacyMatcher(name + constraint)
+        print(f"mkvenv: checking for {matcher}", file=sys.stderr)
         ver = _get_version(name)
         if (
             ver is None
@@ -898,7 +926,6 @@ def ensure(
         be presented to the user. e.g., 'sphinx-build' can be used as a
         bellwether for the presence of 'sphinx'.
     """
-    print(f"mkvenv: checking for {', '.join(dep_specs)}", file=sys.stderr)
 
     if not HAVE_DISTLIB:
         raise Ouch("a usable distlib could not be found, please install it")
@@ -921,6 +948,64 @@ def ensure(
             prog = None
 
     result = _do_ensure(group, online, wheels_dir)
+    if result:
+        # Well, that's not good.
+        if result[1]:
+            raise Ouch(result[0])
+        raise SystemExit(f"\n{result[0]}\n\n")
+
+
+def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
+    if not HAVE_TOMLLIB:
+        if sys.version_info < (3, 11):
+            raise Ouch("found no usable tomli, please install it")
+
+        raise Ouch(
+            "Python >=3.11 does not have tomllib... what have you done!?"
+        )
+
+    try:
+        # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
+        # Debian bullseye-backports) and v2.0.x
+        with open(file, "r", encoding="ascii") as depfile:
+            contents = depfile.read()
+            return tomllib.loads(contents)  # type: ignore
+    except tomllib.TOMLDecodeError as exc:
+        raise Ouch(f"parsing {file} failed: {exc}") from exc
+
+
+def ensure_group(
+    file: str,
+    groups: Sequence[str],
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to ensure we have the package specified by @dep_specs.
+
+    If the package is already installed, do nothing. If online and
+    wheels_dir are both provided, prefer packages found in wheels_dir
+    first before connecting to PyPI.
+
+    :param dep_specs:
+        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
+    :param online: If True, fall back to PyPI.
+    :param wheels_dir: If specified, search this path for packages.
+    """
+
+    if not HAVE_DISTLIB:
+        raise Ouch("found no usable distlib, please install it")
+
+    parsed_deps = _parse_groups(file)
+
+    to_install: Dict[str, Dict[str, str]] = {}
+    for group in groups:
+        try:
+            to_install.update(parsed_deps[group])
+        except KeyError as exc:
+            raise Ouch(f"group {group} not defined") from exc
+
+    result = _do_ensure(to_install, online, wheels_dir)
     if result:
         # Well, that's not good.
         if result[1]:
@@ -953,6 +1038,37 @@ def _add_create_subcommand(subparsers: Any) -> None:
 
 def _add_post_init_subcommand(subparsers: Any) -> None:
     subparsers.add_parser("post_init", help="post-venv initialization")
+
+
+def _add_ensuregroup_subcommand(subparsers: Any) -> None:
+    subparser = subparsers.add_parser(
+        "ensuregroup",
+        help="Ensure that the specified package group is installed.",
+    )
+    subparser.add_argument(
+        "--online",
+        action="store_true",
+        help="Install packages from PyPI, if necessary.",
+    )
+    subparser.add_argument(
+        "--dir",
+        type=str,
+        action="store",
+        help="Path to vendored packages where we may install from.",
+    )
+    subparser.add_argument(
+        "file",
+        type=str,
+        action="store",
+        help=("Path to a TOML file describing package groups"),
+    )
+    subparser.add_argument(
+        "group",
+        type=str,
+        action="store",
+        help="One or more package group names",
+        nargs="+",
+    )
 
 
 def _add_ensure_subcommand(subparsers: Any) -> None:
@@ -1012,6 +1128,7 @@ def main() -> int:
     _add_create_subcommand(subparsers)
     _add_post_init_subcommand(subparsers)
     _add_ensure_subcommand(subparsers)
+    _add_ensuregroup_subcommand(subparsers)
 
     args = parser.parse_args()
     try:
@@ -1029,6 +1146,13 @@ def main() -> int:
                 online=args.online,
                 wheels_dir=args.dir,
                 prog=args.diagnose,
+            )
+        if args.command == "ensuregroup":
+            ensure_group(
+                file=args.file,
+                groups=args.group,
+                online=args.online,
+                wheels_dir=args.dir,
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:
