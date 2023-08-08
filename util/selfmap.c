@@ -10,74 +10,98 @@
 #include "qemu/cutils.h"
 #include "qemu/selfmap.h"
 
-GSList *read_self_maps(void)
+IntervalTreeRoot *read_self_maps(void)
 {
-    gchar *maps;
-    GSList *map_info = NULL;
+    IntervalTreeRoot *root;
+    gchar *maps, **lines;
+    guint i, nlines;
 
-    if (g_file_get_contents("/proc/self/maps", &maps, NULL, NULL)) {
-        gchar **lines = g_strsplit(maps, "\n", 0);
-        int i, entries = g_strv_length(lines);
+    if (!g_file_get_contents("/proc/self/maps", &maps, NULL, NULL)) {
+        return NULL;
+    }
 
-        for (i = 0; i < entries; i++) {
-            gchar **fields = g_strsplit(lines[i], " ", 6);
-            if (g_strv_length(fields) > 4) {
-                MapInfo *e = g_new0(MapInfo, 1);
-                int errors = 0;
-                const char *end;
+    root = g_new0(IntervalTreeRoot, 1);
+    lines = g_strsplit(maps, "\n", 0);
+    nlines = g_strv_length(lines);
 
-                errors |= qemu_strtoul(fields[0], &end, 16, &e->start);
-                errors |= qemu_strtoul(end + 1, NULL, 16, &e->end);
+    for (i = 0; i < nlines; i++) {
+        gchar **fields = g_strsplit(lines[i], " ", 6);
+        guint nfields = g_strv_length(fields);
+
+        if (nfields > 4) {
+            uint64_t start, end, offset, inode;
+            int errors = 0;
+            const char *p;
+
+            errors |= qemu_strtou64(fields[0], &p, 16, &start);
+            errors |= qemu_strtou64(p + 1, NULL, 16, &end);
+            errors |= qemu_strtou64(fields[2], NULL, 16, &offset);
+            errors |= qemu_strtou64(fields[4], NULL, 10, &inode);
+
+            if (!errors) {
+                size_t dev_len, path_len;
+                MapInfo *e;
+
+                dev_len = strlen(fields[3]) + 1;
+                if (nfields == 6) {
+                    p = fields[5];
+                    p += strspn(p, " ");
+                    path_len = strlen(p) + 1;
+                } else {
+                    p = NULL;
+                    path_len = 0;
+                }
+
+                e = g_malloc0(sizeof(*e) + dev_len + path_len);
+
+                e->itree.start = start;
+                e->itree.last = end - 1;
+                e->offset = offset;
+                e->inode = inode;
 
                 e->is_read  = fields[1][0] == 'r';
                 e->is_write = fields[1][1] == 'w';
                 e->is_exec  = fields[1][2] == 'x';
                 e->is_priv  = fields[1][3] == 'p';
 
-                errors |= qemu_strtoul(fields[2], NULL, 16, &e->offset);
-                e->dev = g_strdup(fields[3]);
-                errors |= qemu_strtou64(fields[4], NULL, 10, &e->inode);
-
-                if (!errors) {
-                    /*
-                     * The last field may have leading spaces which we
-                     * need to strip.
-                     */
-                    if (g_strv_length(fields) == 6) {
-                        e->path = g_strdup(g_strchug(fields[5]));
-                    }
-                    map_info = g_slist_prepend(map_info, e);
-                } else {
-                    g_free(e->dev);
-                    g_free(e);
+                memcpy(e->dev, fields[3], dev_len);
+                if (path_len) {
+                    e->path = memcpy(e->dev + dev_len, p, path_len);
                 }
+
+                interval_tree_insert(&e->itree, root);
             }
-
-            g_strfreev(fields);
         }
-        g_strfreev(lines);
-        g_free(maps);
+        g_strfreev(fields);
     }
+    g_strfreev(lines);
+    g_free(maps);
 
-    /* ensure the map data is in the same order we collected it */
-    return g_slist_reverse(map_info);
+    return root;
 }
 
 /**
  * free_self_maps:
- * @info: a GSlist
+ * @root: an interval tree
  *
- * Free a list of MapInfo structures.
+ * Free a tree of MapInfo structures.
+ * Since we allocated each MapInfo in one chunk, we need not consider the
+ * contents and can simply free each RBNode.
  */
-static void free_info(gpointer data)
+
+static void free_rbnode(RBNode *n)
 {
-    MapInfo *e = (MapInfo *) data;
-    g_free(e->dev);
-    g_free(e->path);
-    g_free(e);
+    if (n) {
+        free_rbnode(n->rb_left);
+        free_rbnode(n->rb_right);
+        g_free(n);
+    }
 }
 
-void free_self_maps(GSList *info)
+void free_self_maps(IntervalTreeRoot *root)
 {
-    g_slist_free_full(info, &free_info);
+    if (root) {
+        free_rbnode(root->rb_root.rb_node);
+        g_free(root);
+    }
 }

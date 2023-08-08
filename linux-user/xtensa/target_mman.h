@@ -14,6 +14,16 @@
 #define TARGET_MAP_STACK                0x40000
 #define TARGET_MAP_HUGETLB              0x80000
 
+/*
+ * arch/xtensa/include/asm/processor.h:
+ * TASK_UNMAPPED_BASE           (TASK_SIZE / 2)
+ */
+#define TASK_UNMAPPED_BASE      (1u << (TARGET_VIRT_ADDR_SPACE_BITS - 1))
+
+/* arch/xtensa/include/asm/elf.h */
+#define ELF_ET_DYN_BASE \
+    TARGET_PAGE_ALIGN((1u << TARGET_VIRT_ADDR_SPACE_BITS) / 3)
+
 #include "../generic/target_mman.h"
 
 #endif

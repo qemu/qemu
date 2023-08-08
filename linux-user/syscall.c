@@ -8070,16 +8070,17 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
 {
     CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = cpu->opaque;
-    GSList *map_info = read_self_maps();
-    GSList *s;
+    IntervalTreeRoot *map_info = read_self_maps();
+    IntervalTreeNode *s;
     int count;
 
-    for (s = map_info; s; s = g_slist_next(s)) {
-        MapInfo *e = (MapInfo *) s->data;
+    for (s = interval_tree_iter_first(map_info, 0, -1); s;
+         s = interval_tree_iter_next(s, 0, -1)) {
+        MapInfo *e = container_of(s, MapInfo, itree);
 
-        if (h2g_valid(e->start)) {
-            unsigned long min = e->start;
-            unsigned long max = e->end;
+        if (h2g_valid(e->itree.start)) {
+            unsigned long min = e->itree.start;
+            unsigned long max = e->itree.last + 1;
             int flags = page_get_flags(h2g(min));
             const char *path;
 

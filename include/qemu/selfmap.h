@@ -9,9 +9,10 @@
 #ifndef SELFMAP_H
 #define SELFMAP_H
 
+#include "qemu/interval-tree.h"
+
 typedef struct {
-    unsigned long start;
-    unsigned long end;
+    IntervalTreeNode itree;
 
     /* flags */
     bool is_read;
@@ -19,26 +20,25 @@ typedef struct {
     bool is_exec;
     bool is_priv;
 
-    unsigned long offset;
-    gchar *dev;
+    uint64_t offset;
     uint64_t inode;
-    gchar *path;
+    const char *path;
+    char dev[];
 } MapInfo;
-
 
 /**
  * read_self_maps:
  *
- * Read /proc/self/maps and return a list of MapInfo structures.
+ * Read /proc/self/maps and return a tree of MapInfo structures.
  */
-GSList *read_self_maps(void);
+IntervalTreeRoot *read_self_maps(void);
 
 /**
  * free_self_maps:
- * @info: a GSlist
+ * @info: an interval tree
  *
- * Free a list of MapInfo structures.
+ * Free a tree of MapInfo structures.
  */
-void free_self_maps(GSList *info);
+void free_self_maps(IntervalTreeRoot *root);
 
 #endif /* SELFMAP_H */
