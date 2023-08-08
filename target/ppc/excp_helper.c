@@ -843,6 +843,7 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
             PPCVirtualHypervisorClass *vhc =
                 PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
             vhc->hypercall(cpu->vhyp, cpu);
+            powerpc_reset_excp_state(cpu);
             return;
         }
 
@@ -1014,6 +1015,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
             PPCVirtualHypervisorClass *vhc =
                 PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
             vhc->hypercall(cpu->vhyp, cpu);
+            powerpc_reset_excp_state(cpu);
             return;
         }
 
@@ -1526,6 +1528,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
             PPCVirtualHypervisorClass *vhc =
                 PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
             vhc->hypercall(cpu->vhyp, cpu);
+            powerpc_reset_excp_state(cpu);
             return;
         }
         if (env->insns_flags2 & PPC2_ISA310) {
