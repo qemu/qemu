@@ -739,7 +739,9 @@ target_ulong cpu_ppc_load_decr(CPUPPCState *env)
      * to 64 bits, otherwise it is a 32 bit value.
      */
     if (env->spr[SPR_LPCR] & LPCR_LD) {
-        return decr;
+        PowerPCCPU *cpu = env_archcpu(env);
+        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+        return sextract64(decr, 0, pcc->lrg_decr_bits);
     }
     return (uint32_t) decr;
 }
@@ -758,7 +760,7 @@ target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
      * extended to 64 bits, otherwise it is 32 bits.
      */
     if (pcc->lrg_decr_bits > 32) {
-        return hdecr;
+        return sextract64(hdecr, 0, pcc->lrg_decr_bits);
     }
     return (uint32_t) hdecr;
 }
