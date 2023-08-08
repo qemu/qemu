@@ -806,6 +806,7 @@ def _do_ensure(
     """
     absent = []
     present = []
+    canary = None
     for spec in dep_specs:
         matcher = distlib.version.LegacyMatcher(spec)
         ver = _get_version(matcher.name)
@@ -817,6 +818,8 @@ def _do_ensure(
             or not matcher.match(distlib.version.LegacyVersion(ver))
         ):
             absent.append(spec)
+            if spec == dep_specs[0]:
+                canary = prog
         else:
             logger.info("found %s %s", matcher.name, ver)
             present.append(matcher.name)
@@ -839,7 +842,7 @@ def _do_ensure(
             absent[0],
             online,
             wheels_dir,
-            prog if absent[0] == dep_specs[0] else None,
+            canary,
         )
 
     return None
