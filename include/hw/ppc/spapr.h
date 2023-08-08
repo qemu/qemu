@@ -204,6 +204,7 @@ struct SpaprMachineState {
     uint32_t fdt_size;
     uint32_t fdt_initial_size;
     void *fdt_blob;
+    uint8_t fdt_rng_seed[32];
     long kernel_size;
     bool kernel_le;
     uint64_t kernel_addr;
