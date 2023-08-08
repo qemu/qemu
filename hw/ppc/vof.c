@@ -1024,6 +1024,8 @@ void vof_cleanup(Vof *vof)
     }
     vof->claimed = NULL;
     vof->of_instances = NULL;
+    vof->of_instance_last = 0;
+    vof->claimed_base = 0;
 }
 
 void vof_build_dt(void *fdt, Vof *vof)
