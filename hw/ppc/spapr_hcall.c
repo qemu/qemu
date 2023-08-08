@@ -3,6 +3,7 @@
 #include "qapi/error.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
+#include "sysemu/tcg.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -789,6 +790,54 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_mode_resource_set_ciabr(PowerPCCPU *cpu,
+                                                  SpaprMachineState *spapr,
+                                                  target_ulong mflags,
+                                                  target_ulong value1,
+                                                  target_ulong value2)
+{
+    CPUPPCState *env = &cpu->env;
+
+    assert(tcg_enabled()); /* KVM will have handled this */
+
+    if (mflags) {
+        return H_UNSUPPORTED_FLAG;
+    }
+    if (value2) {
+        return H_P4;
+    }
+    if ((value1 & PPC_BITMASK(62, 63)) == 0x3) {
+        return H_P3;
+    }
+
+    ppc_store_ciabr(env, value1);
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_set_mode_resource_set_dawr0(PowerPCCPU *cpu,
+                                                  SpaprMachineState *spapr,
+                                                  target_ulong mflags,
+                                                  target_ulong value1,
+                                                  target_ulong value2)
+{
+    CPUPPCState *env = &cpu->env;
+
+    assert(tcg_enabled()); /* KVM will have handled this */
+
+    if (mflags) {
+        return H_UNSUPPORTED_FLAG;
+    }
+    if (value2 & PPC_BIT(61)) {
+        return H_P4;
+    }
+
+    ppc_store_dawr0(env, value1);
+    ppc_store_dawrx0(env, value2);
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
                                            SpaprMachineState *spapr,
                                            target_ulong mflags,
@@ -858,6 +907,14 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, SpaprMachineState *spapr,
     target_ulong ret = H_P2;
 
     switch (resource) {
+    case H_SET_MODE_RESOURCE_SET_CIABR:
+        ret = h_set_mode_resource_set_ciabr(cpu, spapr, args[0], args[2],
+                                            args[3]);
+        break;
+    case H_SET_MODE_RESOURCE_SET_DAWR0:
+        ret = h_set_mode_resource_set_dawr0(cpu, spapr, args[0], args[2],
+                                            args[3]);
+        break;
     case H_SET_MODE_RESOURCE_LE:
         ret = h_set_mode_resource_le(cpu, spapr, args[0], args[2], args[3]);
         break;
