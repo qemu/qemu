@@ -316,6 +316,7 @@ static int cpu_post_load(void *opaque, int version_id)
         /* Re-set breaks based on regs */
 #if defined(TARGET_PPC64)
         ppc_update_ciabr(env);
+        ppc_update_daw0(env);
 #endif
         pmu_mmcr01_updated(env);
     }
