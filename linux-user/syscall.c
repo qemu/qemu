@@ -455,7 +455,6 @@ static const bitmask_transtbl fcntl_flags_tbl[] = {
 #if TARGET_O_LARGEFILE != 0 || O_LARGEFILE != 0
   { TARGET_O_LARGEFILE, TARGET_O_LARGEFILE, O_LARGEFILE, O_LARGEFILE, },
 #endif
-  { 0, 0, 0, 0 }
 };
 
 _syscall2(int, sys_getcwd1, char *, buf, size_t, size)
@@ -5813,7 +5812,6 @@ static const bitmask_transtbl iflag_tbl[] = {
         { TARGET_IXOFF, TARGET_IXOFF, IXOFF, IXOFF },
         { TARGET_IMAXBEL, TARGET_IMAXBEL, IMAXBEL, IMAXBEL },
         { TARGET_IUTF8, TARGET_IUTF8, IUTF8, IUTF8},
-        { 0, 0, 0, 0 }
 };
 
 static const bitmask_transtbl oflag_tbl[] = {
@@ -5841,7 +5839,6 @@ static const bitmask_transtbl oflag_tbl[] = {
 	{ TARGET_VTDLY, TARGET_VT1, VTDLY, VT1 },
 	{ TARGET_FFDLY, TARGET_FF0, FFDLY, FF0 },
 	{ TARGET_FFDLY, TARGET_FF1, FFDLY, FF1 },
-	{ 0, 0, 0, 0 }
 };
 
 static const bitmask_transtbl cflag_tbl[] = {
@@ -5876,7 +5873,6 @@ static const bitmask_transtbl cflag_tbl[] = {
 	{ TARGET_HUPCL, TARGET_HUPCL, HUPCL, HUPCL },
 	{ TARGET_CLOCAL, TARGET_CLOCAL, CLOCAL, CLOCAL },
 	{ TARGET_CRTSCTS, TARGET_CRTSCTS, CRTSCTS, CRTSCTS },
-	{ 0, 0, 0, 0 }
 };
 
 static const bitmask_transtbl lflag_tbl[] = {
@@ -5896,7 +5892,6 @@ static const bitmask_transtbl lflag_tbl[] = {
   { TARGET_PENDIN, TARGET_PENDIN, PENDIN, PENDIN },
   { TARGET_IEXTEN, TARGET_IEXTEN, IEXTEN, IEXTEN },
   { TARGET_EXTPROC, TARGET_EXTPROC, EXTPROC, EXTPROC},
-  { 0, 0, 0, 0 }
 };
 
 static void target_to_host_termios (void *dst, const void *src)
@@ -6008,7 +6003,6 @@ static const bitmask_transtbl mmap_flags_tbl[] = {
       MAP_FIXED_NOREPLACE, MAP_FIXED_NOREPLACE },
     { TARGET_MAP_UNINITIALIZED, TARGET_MAP_UNINITIALIZED,
       MAP_UNINITIALIZED, MAP_UNINITIALIZED },
-    { 0, 0, 0, 0 }
 };
 
 /*
