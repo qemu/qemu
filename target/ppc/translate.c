@@ -336,7 +336,7 @@ static void gen_ppc_maybe_interrupt(DisasContext *ctx)
  * The exception can be either POWERPC_EXCP_TRACE (on most PowerPCs) or
  * POWERPC_EXCP_DEBUG (on BookE).
  */
-static void gen_debug_exception(DisasContext *ctx)
+static void gen_debug_exception(DisasContext *ctx, bool rfi_type)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (ctx->flags & POWERPC_FLAG_DE) {
@@ -355,10 +355,12 @@ static void gen_debug_exception(DisasContext *ctx)
                                    tcg_constant_i32(POWERPC_EXCP_DEBUG));
         ctx->base.is_jmp = DISAS_NORETURN;
     } else {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_movi_tl(t0, ctx->cia);
-        gen_helper_book3s_trace(cpu_env, t0);
-        ctx->base.is_jmp = DISAS_NORETURN;
+        if (!rfi_type) { /* BookS does not single step rfi type instructions */
+            TCGv t0 = tcg_temp_new();
+            tcg_gen_movi_tl(t0, ctx->cia);
+            gen_helper_book3s_trace(cpu_env, t0);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        }
     }
 #endif
 }
@@ -7410,6 +7412,8 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 
     /* Honor single stepping. */
     if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)) {
+        bool rfi_type = false;
+
         switch (is_jmp) {
         case DISAS_TOO_MANY:
         case DISAS_EXIT_UPDATE:
@@ -7418,12 +7422,19 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             break;
         case DISAS_EXIT:
         case DISAS_CHAIN:
+            /*
+             * This is a heuristic, to put it kindly. The rfi class of
+             * instructions are among the few outside branches that change
+             * NIP without taking an interrupt. Single step trace interrupts
+             * do not fire on completion of these instructions.
+             */
+            rfi_type = true;
             break;
         default:
             g_assert_not_reached();
         }
 
-        gen_debug_exception(ctx);
+        gen_debug_exception(ctx, rfi_type);
         return;
     }
 
