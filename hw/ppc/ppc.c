@@ -482,14 +482,26 @@ void ppce500_set_mpic_proxy(bool enabled)
 /*****************************************************************************/
 /* PowerPC time base and decrementer emulation */
 
+/*
+ * Conversion between QEMU_CLOCK_VIRTUAL ns and timebase (TB) ticks:
+ * TB ticks are arrived at by multiplying tb_freq then dividing by
+ * ns per second, and rounding down. TB ticks drive all clocks and
+ * timers in the target machine.
+ *
+ * Converting TB intervals to ns for the purpose of setting a
+ * QEMU_CLOCK_VIRTUAL timer should go the other way, but rounding
+ * up. Rounding down could cause the timer to fire before the TB
+ * value has been reached.
+ */
 static uint64_t ns_to_tb(uint32_t freq, int64_t clock)
 {
     return muldiv64(clock, freq, NANOSECONDS_PER_SECOND);
 }
 
-static int64_t tb_to_ns(uint32_t freq, uint64_t tb)
+/* virtual clock in TB ticks, not adjusted by TB offset */
+static int64_t tb_to_ns_round_up(uint32_t freq, uint64_t tb)
 {
-    return muldiv64(tb, NANOSECONDS_PER_SECOND, freq);
+    return muldiv64_round_up(tb, NANOSECONDS_PER_SECOND, freq);
 }
 
 uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk, int64_t tb_offset)
@@ -847,7 +859,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
 
     /* Calculate the next timer event */
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    next = now + tb_to_ns(tb_env->decr_freq, value);
+    next = now + tb_to_ns_round_up(tb_env->decr_freq, value);
     *nextp = next;
 
     /* Adjust timer */
@@ -1139,9 +1151,7 @@ static void cpu_4xx_fit_cb (void *opaque)
         /* Cannot occur, but makes gcc happy */
         return;
     }
-    next = now + tb_to_ns(tb_env->tb_freq, next);
-    if (next == now)
-        next++;
+    next = now + tb_to_ns_round_up(tb_env->tb_freq, next);
     timer_mod(ppc40x_timer->fit_timer, next);
     env->spr[SPR_40x_TSR] |= 1 << 26;
     if ((env->spr[SPR_40x_TCR] >> 23) & 0x1) {
@@ -1167,11 +1177,10 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
     } else {
         trace_ppc4xx_pit_start(ppc40x_timer->pit_reload);
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        next = now + tb_to_ns(tb_env->decr_freq, ppc40x_timer->pit_reload);
+        next = now + tb_to_ns_round_up(tb_env->decr_freq,
+                                       ppc40x_timer->pit_reload);
         if (is_excp)
             next += tb_env->decr_next - now;
-        if (next == now)
-            next++;
         timer_mod(tb_env->decr_timer, next);
         tb_env->decr_next = next;
     }
@@ -1226,9 +1235,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
         /* Cannot occur, but makes gcc happy */
         return;
     }
-    next = now + tb_to_ns(tb_env->decr_freq, next);
-    if (next == now)
-        next++;
+    next = now + tb_to_ns_round_up(tb_env->decr_freq, next);
     trace_ppc4xx_wdt(env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
     switch ((env->spr[SPR_40x_TSR] >> 30) & 0x3) {
     case 0x0:
