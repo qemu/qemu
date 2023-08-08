@@ -557,8 +557,9 @@ void spr_write_lr(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_mov_tl(cpu_lr, cpu_gpr[gprn]);
 }
 
-/* CFAR */
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+/* Debug facilities */
+/* CFAR */
 void spr_read_cfar(DisasContext *ctx, int gprn, int sprn)
 {
     tcg_gen_mov_tl(cpu_gpr[gprn], cpu_cfar);
@@ -567,6 +568,13 @@ void spr_read_cfar(DisasContext *ctx, int gprn, int sprn)
 void spr_write_cfar(DisasContext *ctx, int sprn, int gprn)
 {
     tcg_gen_mov_tl(cpu_cfar, cpu_gpr[gprn]);
+}
+
+/* Breakpoint */
+void spr_write_ciabr(DisasContext *ctx, int sprn, int gprn)
+{
+    translator_io_start(&ctx->base);
+    gen_helper_store_ciabr(cpu_env, cpu_gpr[gprn]);
 }
 #endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
 

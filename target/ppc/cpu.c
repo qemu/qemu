@@ -102,6 +102,33 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 
     ppc_maybe_interrupt(env);
 }
+
+#if defined(TARGET_PPC64)
+void ppc_update_ciabr(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong ciabr = env->spr[SPR_CIABR];
+    target_ulong ciea, priv;
+
+    ciea = ciabr & PPC_BITMASK(0, 61);
+    priv = ciabr & PPC_BITMASK(62, 63);
+
+    if (env->ciabr_breakpoint) {
+        cpu_breakpoint_remove_by_ref(cs, env->ciabr_breakpoint);
+        env->ciabr_breakpoint = NULL;
+    }
+
+    if (priv) {
+        cpu_breakpoint_insert(cs, ciea, BP_CPU, &env->ciabr_breakpoint);
+    }
+}
+
+void ppc_store_ciabr(CPUPPCState *env, target_ulong val)
+{
+    env->spr[SPR_CIABR] = val;
+    ppc_update_ciabr(env);
+}
+#endif
 #endif
 
 static inline void fpscr_set_rounding_mode(CPUPPCState *env)

@@ -5127,7 +5127,7 @@ static void register_book3s_207_dbg_sprs(CPUPPCState *env)
     spr_register_kvm_hv(env, SPR_CIABR, "CIABR",
                         SPR_NOACCESS, SPR_NOACCESS,
                         SPR_NOACCESS, SPR_NOACCESS,
-                        &spr_read_generic, &spr_write_generic,
+                        &spr_read_generic, &spr_write_ciabr,
                         KVM_REG_PPC_CIABR, 0x00000000);
 }
 
@@ -7159,6 +7159,7 @@ static void ppc_cpu_reset_hold(Object *obj)
     env->nip = env->hreset_vector | env->excp_prefix;
 
     if (tcg_enabled()) {
+        cpu_breakpoint_remove_all(s, BP_CPU);
         if (env->mmu_model != POWERPC_MMU_REAL) {
             ppc_tlb_invalidate_all(env);
         }
@@ -7346,6 +7347,8 @@ static const struct TCGCPUOps ppc_tcg_ops = {
   .cpu_exec_exit = ppc_cpu_exec_exit,
   .do_unaligned_access = ppc_cpu_do_unaligned_access,
   .do_transaction_failed = ppc_cpu_do_transaction_failed,
+  .debug_excp_handler = ppc_cpu_debug_excp_handler,
+  .debug_check_breakpoint = ppc_cpu_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */

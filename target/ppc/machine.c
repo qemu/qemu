@@ -313,6 +313,10 @@ static int cpu_post_load(void *opaque, int version_id)
     post_load_update_msr(env);
 
     if (tcg_enabled()) {
+        /* Re-set breaks based on regs */
+#if defined(TARGET_PPC64)
+        ppc_update_ciabr(env);
+#endif
         pmu_mmcr01_updated(env);
     }
 
