@@ -415,7 +415,7 @@ BlockDriverState *bdrv_new(void)
     for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
         QLIST_INIT(&bs->op_blockers[i]);
     }
-    qemu_co_mutex_init(&bs->reqs_lock);
+    qemu_mutex_init(&bs->reqs_lock);
     qemu_mutex_init(&bs->dirty_bitmap_mutex);
     bs->refcnt = 1;
     bs->aio_context = qemu_get_aio_context();
@@ -5475,6 +5475,8 @@ static void bdrv_delete(BlockDriverState *bs)
     QTAILQ_REMOVE(&all_bdrv_states, bs, bs_list);
 
     bdrv_close(bs);
+
+    qemu_mutex_destroy(&bs->reqs_lock);
 
     g_free(bs);
 }
