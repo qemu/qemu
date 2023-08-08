@@ -482,10 +482,20 @@ void ppce500_set_mpic_proxy(bool enabled)
 /*****************************************************************************/
 /* PowerPC time base and decrementer emulation */
 
+static uint64_t ns_to_tb(uint32_t freq, int64_t clock)
+{
+    return muldiv64(clock, freq, NANOSECONDS_PER_SECOND);
+}
+
+static int64_t tb_to_ns(uint32_t freq, uint64_t tb)
+{
+    return muldiv64(tb, NANOSECONDS_PER_SECOND, freq);
+}
+
 uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk, int64_t tb_offset)
 {
     /* TB time in tb periods */
-    return muldiv64(vmclk, tb_env->tb_freq, NANOSECONDS_PER_SECOND) + tb_offset;
+    return ns_to_tb(tb_env->tb_freq, vmclk) + tb_offset;
 }
 
 uint64_t cpu_ppc_load_tbl (CPUPPCState *env)
@@ -526,8 +536,7 @@ uint32_t cpu_ppc_load_tbu (CPUPPCState *env)
 static inline void cpu_ppc_store_tb(ppc_tb_t *tb_env, uint64_t vmclk,
                                     int64_t *tb_offsetp, uint64_t value)
 {
-    *tb_offsetp = value -
-        muldiv64(vmclk, tb_env->tb_freq, NANOSECONDS_PER_SECOND);
+    *tb_offsetp = value - ns_to_tb(tb_env->tb_freq, vmclk);
 
     trace_ppc_tb_store(value, *tb_offsetp);
 }
@@ -690,11 +699,11 @@ static inline int64_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
 
     diff = next - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     if (diff >= 0) {
-        decr = muldiv64(diff, tb_env->decr_freq, NANOSECONDS_PER_SECOND);
+        decr = ns_to_tb(tb_env->decr_freq, diff);
     } else if (tb_env->flags & PPC_TIMER_BOOKE) {
         decr = 0;
     }  else {
-        decr = -muldiv64(-diff, tb_env->decr_freq, NANOSECONDS_PER_SECOND);
+        decr = -ns_to_tb(tb_env->decr_freq, -diff);
     }
     trace_ppc_decr_load(decr);
 
@@ -834,7 +843,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
 
     /* Calculate the next timer event */
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    next = now + muldiv64(value, NANOSECONDS_PER_SECOND, tb_env->decr_freq);
+    next = now + tb_to_ns(tb_env->decr_freq, value);
     *nextp = next;
 
     /* Adjust timer */
@@ -1125,7 +1134,7 @@ static void cpu_4xx_fit_cb (void *opaque)
         /* Cannot occur, but makes gcc happy */
         return;
     }
-    next = now + muldiv64(next, NANOSECONDS_PER_SECOND, tb_env->tb_freq);
+    next = now + tb_to_ns(tb_env->tb_freq, next);
     if (next == now)
         next++;
     timer_mod(ppc40x_timer->fit_timer, next);
@@ -1153,8 +1162,7 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
     } else {
         trace_ppc4xx_pit_start(ppc40x_timer->pit_reload);
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        next = now + muldiv64(ppc40x_timer->pit_reload,
-                              NANOSECONDS_PER_SECOND, tb_env->decr_freq);
+        next = now + tb_to_ns(tb_env->decr_freq, ppc40x_timer->pit_reload);
         if (is_excp)
             next += tb_env->decr_next - now;
         if (next == now)
@@ -1213,7 +1221,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
         /* Cannot occur, but makes gcc happy */
         return;
     }
-    next = now + muldiv64(next, NANOSECONDS_PER_SECOND, tb_env->decr_freq);
+    next = now + tb_to_ns(tb_env->decr_freq, next);
     if (next == now)
         next++;
     trace_ppc4xx_wdt(env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
