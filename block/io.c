@@ -593,8 +593,14 @@ static void coroutine_fn tracked_request_end(BdrvTrackedRequest *req)
 
     qemu_co_mutex_lock(&req->bs->reqs_lock);
     QLIST_REMOVE(req, list);
-    qemu_co_queue_restart_all(&req->wait_queue);
     qemu_co_mutex_unlock(&req->bs->reqs_lock);
+
+    /*
+     * At this point qemu_co_queue_wait(&req->wait_queue, ...) won't be called
+     * anymore because the request has been removed from the list, so it's safe
+     * to restart the queue outside reqs_lock to minimize the critical section.
+     */
+    qemu_co_queue_restart_all(&req->wait_queue);
 }
 
 /**
