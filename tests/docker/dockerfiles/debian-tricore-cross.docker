@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-FROM docker.io/library/debian:buster-slim
+FROM docker.io/library/debian:11-slim
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
