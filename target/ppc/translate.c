@@ -336,8 +336,9 @@ static void gen_ppc_maybe_interrupt(DisasContext *ctx)
  * The exception can be either POWERPC_EXCP_TRACE (on most PowerPCs) or
  * POWERPC_EXCP_DEBUG (on BookE).
  */
-static uint32_t gen_prep_dbgex(DisasContext *ctx)
+static void gen_debug_exception(DisasContext *ctx)
 {
+#if !defined(CONFIG_USER_ONLY)
     if (ctx->flags & POWERPC_FLAG_DE) {
         target_ulong dbsr = 0;
         if (ctx->singlestep_enabled & CPU_SINGLE_STEP) {
@@ -350,16 +351,16 @@ static uint32_t gen_prep_dbgex(DisasContext *ctx)
         gen_load_spr(t0, SPR_BOOKE_DBSR);
         tcg_gen_ori_tl(t0, t0, dbsr);
         gen_store_spr(SPR_BOOKE_DBSR, t0);
-        return POWERPC_EXCP_DEBUG;
+        gen_helper_raise_exception(cpu_env,
+                                   tcg_constant_i32(POWERPC_EXCP_DEBUG));
+        ctx->base.is_jmp = DISAS_NORETURN;
     } else {
-        return POWERPC_EXCP_TRACE;
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_movi_tl(t0, ctx->cia);
+        gen_helper_book3s_trace(cpu_env, t0);
+        ctx->base.is_jmp = DISAS_NORETURN;
     }
-}
-
-static void gen_debug_exception(DisasContext *ctx)
-{
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
-    ctx->base.is_jmp = DISAS_NORETURN;
+#endif
 }
 
 static inline void gen_inval_exception(DisasContext *ctx, uint32_t error)
@@ -4182,7 +4183,7 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 static void gen_lookup_and_goto_ptr(DisasContext *ctx)
 {
     if (unlikely(ctx->singlestep_enabled)) {
-        gen_debug_exception(ctx);
+        gen_debug_exception(ctx, false);
     } else {
         /*
          * tcg_gen_lookup_and_goto_ptr will exit the TB if

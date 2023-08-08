@@ -1571,9 +1571,11 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
             }
         }
         break;
+    case POWERPC_EXCP_TRACE:     /* Trace exception                          */
+        msr |= env->error_code;
+        /* fall through */
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
     case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
-    case POWERPC_EXCP_TRACE:     /* Trace exception                          */
     case POWERPC_EXCP_SDOOR:     /* Doorbell interrupt                       */
     case POWERPC_EXCP_PERFM:     /* Performance monitor interrupt            */
         break;
@@ -3167,6 +3169,18 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
     g_assert_not_reached();
 }
 #endif /* TARGET_PPC64 */
+
+/* Single-step tracing */
+void helper_book3s_trace(CPUPPCState *env, target_ulong prev_ip)
+{
+    uint32_t error_code = 0;
+    if (env->insns_flags2 & PPC2_ISA207S) {
+        /* Load/store reporting, SRR1[35, 36] and SDAR, are not implemented. */
+        env->spr[SPR_POWER_SIAR] = prev_ip;
+        error_code = PPC_BIT(33);
+    }
+    raise_exception_err(env, POWERPC_EXCP_TRACE, error_code);
+}
 
 void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                  MMUAccessType access_type,
