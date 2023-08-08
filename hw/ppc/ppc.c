@@ -704,13 +704,13 @@ bool ppc_decr_clear_on_delivery(CPUPPCState *env)
     return ((tb_env->flags & flags) == PPC_DECR_UNDERFLOW_TRIGGERED);
 }
 
-static inline int64_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
+static inline int64_t __cpu_ppc_load_decr(CPUPPCState *env, int64_t now,
+                                          uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
-    uint64_t now, n;
+    uint64_t n;
     int64_t decr;
 
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     n = ns_to_tb(tb_env->decr_freq, now);
     if (next > n && tb_env->flags & PPC_TIMER_BOOKE) {
         decr = 0;
@@ -723,16 +723,12 @@ static inline int64_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
     return decr;
 }
 
-target_ulong cpu_ppc_load_decr(CPUPPCState *env)
+static target_ulong _cpu_ppc_load_decr(CPUPPCState *env, int64_t now)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t decr;
 
-    if (kvm_enabled()) {
-        return env->spr[SPR_DECR];
-    }
-
-    decr = _cpu_ppc_load_decr(env, tb_env->decr_next);
+    decr = __cpu_ppc_load_decr(env, now, tb_env->decr_next);
 
     /*
      * If large decrementer is enabled then the decrementer is signed extened
@@ -746,14 +742,23 @@ target_ulong cpu_ppc_load_decr(CPUPPCState *env)
     return (uint32_t) decr;
 }
 
-target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
+target_ulong cpu_ppc_load_decr(CPUPPCState *env)
+{
+    if (kvm_enabled()) {
+        return env->spr[SPR_DECR];
+    } else {
+        return _cpu_ppc_load_decr(env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    }
+}
+
+static target_ulong _cpu_ppc_load_hdecr(CPUPPCState *env, int64_t now)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t hdecr;
 
-    hdecr =  _cpu_ppc_load_decr(env, tb_env->hdecr_next);
+    hdecr =  __cpu_ppc_load_decr(env, now, tb_env->hdecr_next);
 
     /*
      * If we have a large decrementer (POWER9 or later) then hdecr is sign
@@ -763,6 +768,11 @@ target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
         return sextract64(hdecr, 0, pcc->lrg_decr_bits);
     }
     return (uint32_t) hdecr;
+}
+
+target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
+{
+    return _cpu_ppc_load_hdecr(env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 uint64_t cpu_ppc_load_purr (CPUPPCState *env)
@@ -809,7 +819,7 @@ static inline void cpu_ppc_hdecr_lower(PowerPCCPU *cpu)
     ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 0);
 }
 
-static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
+static void __cpu_ppc_store_decr(PowerPCCPU *cpu, int64_t now, uint64_t *nextp,
                                  QEMUTimer *timer,
                                  void (*raise_excp)(void *),
                                  void (*lower_excp)(PowerPCCPU *),
@@ -818,7 +828,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
 {
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env = env->tb_env;
-    uint64_t now, next;
+    uint64_t next;
     int64_t signed_value;
     int64_t signed_decr;
 
@@ -830,18 +840,12 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
 
     trace_ppc_decr_store(nr_bits, decr, value);
 
-    if (kvm_enabled()) {
-        /* KVM handles decrementer exceptions, we don't need our own timer */
-        return;
-    }
-
     /*
      * Calculate the next decrementer event and set a timer.
      * decr_next is in timebase units to keep rounding simple. Note it is
      * not adjusted by tb_offset because if TB changes via tb_offset changing,
      * decrementer does not change, so not directly comparable with TB.
      */
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     next = ns_to_tb(tb_env->decr_freq, now) + value;
     *nextp = next; /* nextp is in timebase units */
 
@@ -870,12 +874,13 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
     timer_mod(timer, tb_to_ns_round_up(tb_env->decr_freq, next));
 }
 
-static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, target_ulong decr,
-                                       target_ulong value, int nr_bits)
+static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, int64_t now,
+                                       target_ulong decr, target_ulong value,
+                                       int nr_bits)
 {
     ppc_tb_t *tb_env = cpu->env.tb_env;
 
-    __cpu_ppc_store_decr(cpu, &tb_env->decr_next, tb_env->decr_timer,
+    __cpu_ppc_store_decr(cpu, now, &tb_env->decr_next, tb_env->decr_timer,
                          tb_env->decr_timer->cb, &cpu_ppc_decr_lower,
                          tb_env->flags, decr, value, nr_bits);
 }
@@ -884,13 +889,22 @@ void cpu_ppc_store_decr(CPUPPCState *env, target_ulong value)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    int64_t now;
+    target_ulong decr;
     int nr_bits = 32;
+
+    if (kvm_enabled()) {
+        /* KVM handles decrementer exceptions, we don't need our own timer */
+        return;
+    }
 
     if (env->spr[SPR_LPCR] & LPCR_LD) {
         nr_bits = pcc->lrg_decr_bits;
     }
 
-    _cpu_ppc_store_decr(cpu, cpu_ppc_load_decr(env), value, nr_bits);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    decr = _cpu_ppc_load_decr(env, now);
+    _cpu_ppc_store_decr(cpu, now, decr, value, nr_bits);
 }
 
 static void cpu_ppc_decr_cb(void *opaque)
@@ -900,14 +914,15 @@ static void cpu_ppc_decr_cb(void *opaque)
     cpu_ppc_decr_excp(cpu);
 }
 
-static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, target_ulong hdecr,
-                                        target_ulong value, int nr_bits)
+static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, int64_t now,
+                                        target_ulong hdecr, target_ulong value,
+                                        int nr_bits)
 {
     ppc_tb_t *tb_env = cpu->env.tb_env;
 
     if (tb_env->hdecr_timer != NULL) {
         /* HDECR (Book3S 64bit) is edge-based, not level like DECR */
-        __cpu_ppc_store_decr(cpu, &tb_env->hdecr_next, tb_env->hdecr_timer,
+        __cpu_ppc_store_decr(cpu, now, &tb_env->hdecr_next, tb_env->hdecr_timer,
                              tb_env->hdecr_timer->cb, &cpu_ppc_hdecr_lower,
                              PPC_DECR_UNDERFLOW_TRIGGERED,
                              hdecr, value, nr_bits);
@@ -918,9 +933,12 @@ void cpu_ppc_store_hdecr(CPUPPCState *env, target_ulong value)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    int64_t now;
+    target_ulong hdecr;
 
-    _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value,
-                         pcc->lrg_decr_bits);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    hdecr = _cpu_ppc_load_hdecr(env, now);
+    _cpu_ppc_store_hdecr(cpu, now, hdecr, value, pcc->lrg_decr_bits);
 }
 
 static void cpu_ppc_hdecr_cb(void *opaque)
@@ -930,12 +948,16 @@ static void cpu_ppc_hdecr_cb(void *opaque)
     cpu_ppc_hdecr_excp(cpu);
 }
 
-void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
+static void _cpu_ppc_store_purr(CPUPPCState *env, int64_t now, uint64_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
-    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-                     &tb_env->purr_offset, value);
+    cpu_ppc_store_tb(tb_env, now, &tb_env->purr_offset, value);
+}
+
+void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
+{
+    _cpu_ppc_store_purr(env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), value);
 }
 
 static void timebase_save(PPCTimebase *tb)
