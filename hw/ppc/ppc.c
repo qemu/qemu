@@ -938,23 +938,6 @@ void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
                      &tb_env->purr_offset, value);
 }
 
-static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
-{
-    CPUPPCState *env = opaque;
-    PowerPCCPU *cpu = env_archcpu(env);
-    ppc_tb_t *tb_env = env->tb_env;
-
-    tb_env->tb_freq = freq;
-    tb_env->decr_freq = freq;
-    /* There is a bug in Linux 2.4 kernels:
-     * if a decrementer exception is pending when it enables msr_ee at startup,
-     * it's not ready to handle it...
-     */
-    _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
-    _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
-    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
-}
-
 static void timebase_save(PPCTimebase *tb)
 {
     uint64_t ticks = cpu_get_host_ticks();
@@ -1056,7 +1039,7 @@ const VMStateDescription vmstate_ppc_timebase = {
 };
 
 /* Set up (once) timebase frequency (in Hz) */
-clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
+void cpu_ppc_tb_init(CPUPPCState *env, uint32_t freq)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env;
@@ -1076,9 +1059,33 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     } else {
         tb_env->hdecr_timer = NULL;
     }
-    cpu_ppc_set_tb_clk(env, freq);
 
-    return &cpu_ppc_set_tb_clk;
+    tb_env->tb_freq = freq;
+    tb_env->decr_freq = freq;
+}
+
+void cpu_ppc_tb_reset(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    ppc_tb_t *tb_env = env->tb_env;
+
+    timer_del(tb_env->decr_timer);
+    ppc_set_irq(cpu, PPC_INTERRUPT_DECR, 0);
+    tb_env->decr_next = 0;
+    if (tb_env->hdecr_timer != NULL) {
+        timer_del(tb_env->hdecr_timer);
+        ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 0);
+        tb_env->hdecr_next = 0;
+    }
+
+    /*
+     * There is a bug in Linux 2.4 kernels:
+     * if a decrementer exception is pending when it enables msr_ee at startup,
+     * it's not ready to handle it...
+     */
+    cpu_ppc_store_decr(env, -1);
+    cpu_ppc_store_hdecr(env, -1);
+    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
 }
 
 void cpu_ppc_tb_free(CPUPPCState *env)
