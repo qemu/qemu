@@ -15,3 +15,11 @@
 #           precise error diagnostics to the user.  For example,
 #           'sphinx-build' can be used as a bellwether for the
 #           presence of 'sphinx' in the system.
+
+[meson]
+# The install key should match the version in python/wheels/
+meson = { accepted = ">=0.63.0", installed = "0.63.3", canary = "meson" }
+
+[docs]
+sphinx = { accepted = ">=1.6", installed = "5.3.0", canary = "sphinx-build" }
+sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.1.1" }
