@@ -85,7 +85,7 @@ packages:
  - pam
  - pcre-static
  - pixman
- - pipewire
+ - libpipewire-dev
  - pkg-config
  - pulseaudio
  - python3

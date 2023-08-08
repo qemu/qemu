@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross mips64el debian-11 qemu
+#  $ lcitool dockerfile --layers all --cross-arch mips64el debian-11 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
