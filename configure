@@ -1018,13 +1018,7 @@ fi
 python="$python -B"
 mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
-mkvenv_flags=""
-if test "$download" = "enabled" ; then
-    mkvenv_flags="--online"
-fi
-
 if ! $mkvenv ensure \
-     $mkvenv_flags \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
      "meson>=0.63.0" ;
