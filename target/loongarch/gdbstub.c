@@ -88,10 +88,9 @@ static int loongarch_gdb_get_fpu(CPULoongArchState *env,
 {
     if (0 <= n && n < 32) {
         return gdb_get_reg64(mem_buf, env->fpr[n].vreg.D(0));
-    } else if (n == 32) {
-        uint64_t val = read_fcc(env);
-        return gdb_get_reg64(mem_buf, val);
-    } else if (n == 33) {
+    } else if (32 <= n && n < 40) {
+        return gdb_get_reg8(mem_buf, env->cf[n - 32]);
+    } else if (n == 40) {
         return gdb_get_reg32(mem_buf, env->fcsr0);
     }
     return 0;
@@ -105,11 +104,10 @@ static int loongarch_gdb_set_fpu(CPULoongArchState *env,
     if (0 <= n && n < 32) {
         env->fpr[n].vreg.D(0) = ldq_p(mem_buf);
         length = 8;
-    } else if (n == 32) {
-        uint64_t val = ldq_p(mem_buf);
-        write_fcc(env, val);
-        length = 8;
-    } else if (n == 33) {
+    } else if (32 <= n && n < 40) {
+        env->cf[n - 32] = ldub_p(mem_buf);
+        length = 1;
+    } else if (n == 40) {
         env->fcsr0 = ldl_p(mem_buf);
         length = 4;
     }
