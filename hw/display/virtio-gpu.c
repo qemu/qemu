@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/iov.h"
+#include "sysemu/cpus.h"
 #include "ui/console.h"
 #include "trace.h"
 #include "sysemu/dma.h"
@@ -41,6 +42,7 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
 
 static void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
                                        struct virtio_gpu_simple_resource *res);
+static void virtio_gpu_reset_bh(void *opaque);
 
 void virtio_gpu_update_cursor_data(VirtIOGPU *g,
                                    struct virtio_gpu_scanout *s,
@@ -1387,20 +1389,55 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
                                      &qdev->mem_reentrancy_guard);
     g->cursor_bh = qemu_bh_new_guarded(virtio_gpu_cursor_bh, g,
                                        &qdev->mem_reentrancy_guard);
+    g->reset_bh = qemu_bh_new(virtio_gpu_reset_bh, g);
+    qemu_cond_init(&g->reset_cond);
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
 }
 
-void virtio_gpu_reset(VirtIODevice *vdev)
+static void virtio_gpu_device_unrealize(DeviceState *qdev)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+
+    g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
+    g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
+    g_clear_pointer(&g->reset_bh, qemu_bh_delete);
+    qemu_cond_destroy(&g->reset_cond);
+    virtio_gpu_base_device_unrealize(qdev);
+}
+
+static void virtio_gpu_reset_bh(void *opaque)
+{
+    VirtIOGPU *g = VIRTIO_GPU(opaque);
     struct virtio_gpu_simple_resource *res, *tmp;
-    struct virtio_gpu_ctrl_command *cmd;
     int i = 0;
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
         virtio_gpu_resource_destroy(g, res);
+    }
+
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
+    }
+
+    g->reset_finished = true;
+    qemu_cond_signal(&g->reset_cond);
+}
+
+void virtio_gpu_reset(VirtIODevice *vdev)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    struct virtio_gpu_ctrl_command *cmd;
+
+    if (qemu_in_vcpu_thread()) {
+        g->reset_finished = false;
+        qemu_bh_schedule(g->reset_bh);
+        while (!g->reset_finished) {
+            qemu_cond_wait_iothread(&g->reset_cond);
+        }
+    } else {
+        virtio_gpu_reset_bh(g);
     }
 
     while (!QTAILQ_EMPTY(&g->cmdq)) {
@@ -1414,10 +1451,6 @@ void virtio_gpu_reset(VirtIODevice *vdev)
         QTAILQ_REMOVE(&g->fenceq, cmd, next);
         g->inflight--;
         g_free(cmd);
-    }
-
-    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
-        dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
@@ -1492,6 +1525,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vgbc->gl_flushed = virtio_gpu_handle_gl_flushed;
 
     vdc->realize = virtio_gpu_device_realize;
+    vdc->unrealize = virtio_gpu_device_unrealize;
     vdc->reset = virtio_gpu_reset;
     vdc->get_config = virtio_gpu_get_config;
     vdc->set_config = virtio_gpu_set_config;
