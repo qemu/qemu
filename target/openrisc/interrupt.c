@@ -34,9 +34,7 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     int exception = cs->exception_index;
 
     env->epcr = env->pc;
-    if (exception == EXCP_SYSCALL) {
-        env->epcr += 4;
-    }
+
     /* When we have an illegal instruction the error effective address
        shall be set to the illegal instruction address.  */
     if (exception == EXCP_ILLEGAL) {
@@ -63,6 +61,9 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
         env->epcr -= 4;
     } else {
         env->sr &= ~SR_DSX;
+        if (exception == EXCP_SYSCALL || exception == EXCP_FPE) {
+            env->epcr += 4;
+        }
     }
 
     if (exception > 0 && exception < EXCP_NR) {
