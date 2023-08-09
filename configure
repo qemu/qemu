@@ -1271,6 +1271,7 @@ fi
 : ${cross_prefix_sh4="sh4-linux-gnu-"}
 : ${cross_prefix_sparc64="sparc64-linux-gnu-"}
 : ${cross_prefix_sparc="$cross_prefix_sparc64"}
+: ${cross_prefix_tricore="tricore-"}
 : ${cross_prefix_x86_64="x86_64-linux-gnu-"}
 
 : ${cross_cc_aarch64_be="$cross_cc_aarch64"}
@@ -1458,10 +1459,6 @@ probe_target_compiler() {
       tricore)
         container_image=debian-tricore-cross
         container_cross_prefix=tricore-
-        container_cross_as=tricore-as
-        container_cross_ld=tricore-ld
-        container_cross_cc=tricore-gcc
-        break
         ;;
       x86_64)
         container_image=debian-amd64-cross
