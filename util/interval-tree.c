@@ -797,7 +797,7 @@ IntervalTreeNode *interval_tree_iter_first(IntervalTreeRoot *root,
 {
     IntervalTreeNode *node, *leftmost;
 
-    if (!root->rb_root.rb_node) {
+    if (!root || !root->rb_root.rb_node) {
         return NULL;
     }
 
