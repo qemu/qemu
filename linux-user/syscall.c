@@ -8160,13 +8160,15 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
             }
 
             count = dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
-                            " %c%c%c%c %08" PRIx64 " %s %"PRId64,
+                            " %c%c%c%c %08" PRIx64 " %02x:%02x %"PRId64,
                             h2g(min), h2g(max - 1) + 1,
                             (flags & PAGE_READ) ? 'r' : '-',
                             (flags & PAGE_WRITE_ORG) ? 'w' : '-',
                             (flags & PAGE_EXEC) ? 'x' : '-',
                             e->is_priv ? 'p' : 's',
-                            (uint64_t) e->offset, e->dev, e->inode);
+                            (uint64_t)e->offset,
+                            major(e->dev), minor(e->dev),
+                            (uint64_t)e->inode);
             if (path) {
                 dprintf(fd, "%*s%s\n", 73 - count, "", path);
             } else {

@@ -20,10 +20,10 @@ typedef struct {
     bool is_exec;
     bool is_priv;
 
+    dev_t dev;
+    ino_t inode;
     uint64_t offset;
-    uint64_t inode;
     const char *path;
-    char dev[];
 } MapInfo;
 
 /**
