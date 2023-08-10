@@ -2074,6 +2074,11 @@ void gdb_read_byte(uint8_t ch)
                 gdbserver_state.line_buf_index = 0;
                 gdbserver_state.line_sum = 0;
                 gdbserver_state.state = RS_GETLINE;
+            } else if (ch == '+') {
+                /*
+                 * do nothing, gdb may preemptively send out ACKs on
+                 * initial connection
+                 */
             } else {
                 trace_gdbstub_err_garbage(ch);
             }
