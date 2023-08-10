@@ -3784,3 +3784,46 @@ GEN_INT_EXT_TRANS(vzext_vf8, 3, 2)
 GEN_INT_EXT_TRANS(vsext_vf2, 1, 3)
 GEN_INT_EXT_TRANS(vsext_vf4, 2, 4)
 GEN_INT_EXT_TRANS(vsext_vf8, 3, 5)
+
+#define MATRIX_SIZE 128
+#define VECTOR_SIZE 128
+#define ELEMENT_SIZE 16
+
+static void mvp(TCGv_ptr matrix_ptr, TCGv_ptr vector_ptr, TCGv_ptr result_ptr) {
+    TCGv_vec matrix[MATRIX_SIZE];
+    TCGv_vec vector;
+    TCGv_vec result = tcg_temp_new_vec(TCG_TYPE_V128);
+    
+    // Load the matrix and vector from memory
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        matrix[i] = tcg_temp_new_vec(TCG_TYPE_V128);
+        tcg_gen_ld_vec(matrix[i], matrix_ptr, i * ELEMENT_SIZE);
+    }
+    vector = tcg_temp_new_vec(TCG_TYPE_V128);
+    tcg_gen_ld_vec(vector, vector_ptr, 0);
+
+    //Perform matrix-vector product
+    tcg_gen_mov_vec(result, tcg_temp_new_vec(TCG_TYPE_V128));
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        TCGv_vec temp = tcg_temp_new_vec(TCG_TYPE_V128);
+        tcg_gen_shli_vec(MATRIX_SIZE, temp, vector, 0); 
+        tcg_gen_mul_vec(MATRIX_SIZE, temp, temp, matrix[i]); 
+        tcg_gen_add_vec(MATRIX_SIZE, result, result, temp); 
+    }
+
+    // Store the result back to memory
+    tcg_gen_st_vec(result, result_ptr, 0);
+
+    // Free temporary vectors
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        tcg_temp_free_vec(matrix[i]);
+    }
+    tcg_temp_free_vec(vector);
+    tcg_temp_free_vec(result);
+}
+
+static bool trans_mvp(DisasContext *ctx, arg_mvp *a) {
+    printf("HULLO MVP!\n");
+    mvp((TCGv_ptr)get_gpr(ctx, a->rs1, 0), (TCGv_ptr)get_gpr(ctx, a->rs2, 0),  (TCGv_ptr)get_gpr(ctx, a->rd, 0));
+    return true;
+}

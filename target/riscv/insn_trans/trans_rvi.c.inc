@@ -1071,6 +1071,22 @@ static bool trans_csrrci(DisasContext *ctx, arg_csrrci * a)
 }
 
 static bool trans_mvp(DisasContext *ctx, arg_mvp * a){
-    printf("Hello, MVP\n");
+    printf("Hello MVP");
+    printf("%d",a->rs1);
+    printf("%d",a->rs2);
+    printf("%d",a->rd);
+
+    // TCGv_i64 tmp_result = tcg_temp_new_i64();
+    // TCGv_ptr ptr_matrix = tcg_temp_local_new_ptr();
+    // TCGv_ptr ptr_vector = tcg_temp_local_new_ptr();
+
+    // tcg_gen_ld_i64(ptr_matrix, cpu_env, a->rs1);
+    // tcg_gen_ld_i64(ptr_vector, cpu_env, a->rs2);
+
+    // tcg_gen_st_i64(tmp_result, cpu_env, a->rd);
+
+    // tcg_temp_free_i64(tmp_result);
+    // tcg_temp_free_ptr(ptr_matrix);
+    // tcg_temp_free_ptr(ptr_vector);
     return true;
 }
