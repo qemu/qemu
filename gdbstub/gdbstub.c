@@ -2059,9 +2059,10 @@ void gdb_read_byte(uint8_t ch)
          * here, but it does expect a stop reply.
          */
         if (ch != 0x03) {
-            warn_report("gdbstub: client sent packet while target running\n");
+            trace_gdbstub_err_unexpected_runpkt(ch);
+        } else {
+            gdbserver_state.allow_stop_reply = true;
         }
-        gdbserver_state.allow_stop_reply = true;
         vm_stop(RUN_STATE_PAUSED);
     } else
 #endif
@@ -2073,6 +2074,11 @@ void gdb_read_byte(uint8_t ch)
                 gdbserver_state.line_buf_index = 0;
                 gdbserver_state.line_sum = 0;
                 gdbserver_state.state = RS_GETLINE;
+            } else if (ch == '+') {
+                /*
+                 * do nothing, gdb may preemptively send out ACKs on
+                 * initial connection
+                 */
             } else {
                 trace_gdbstub_err_garbage(ch);
             }
