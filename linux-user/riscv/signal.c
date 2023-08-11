@@ -38,8 +38,8 @@ struct target_sigcontext {
 }; /* cf. riscv-linux:arch/riscv/include/uapi/asm/ptrace.h */
 
 struct target_ucontext {
-    unsigned long uc_flags;
-    struct target_ucontext *uc_link;
+    abi_ulong uc_flags;
+    abi_ptr uc_link;
     target_stack_t uc_stack;
     target_sigset_t uc_sigmask;
     uint8_t   __unused[1024 / 8 - sizeof(target_sigset_t)];
