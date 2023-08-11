@@ -32,7 +32,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 1
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+qemu-img: Could not create snapshot 'foo': Invalid argument
 Leaked cluster 6 refcount=1 reference=0
 
 1 leaked clusters were found on the image.
@@ -44,7 +44,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 2
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'baz': -22 (Invalid argument)
+qemu-img: Could not create snapshot 'baz': Invalid argument
 Leaked cluster 7 refcount=1 reference=0
 
 1 leaked clusters were found on the image.
@@ -75,7 +75,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 64
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+qemu-img: Could not create snapshot 'foo': Invalid argument
 Leaked cluster 5 refcount=18446744073709551615 reference=1
 Leaked cluster 6 refcount=1 reference=0
 

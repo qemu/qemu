@@ -3468,8 +3468,8 @@ static int img_snapshot(int argc, char **argv)
 
         ret = bdrv_snapshot_create(bs, &sn);
         if (ret) {
-            error_report("Could not create snapshot '%s': %d (%s)",
-                snapshot_name, ret, strerror(-ret));
+            error_report("Could not create snapshot '%s': %s",
+                snapshot_name, strerror(-ret));
         }
         break;
 

@@ -33,7 +33,7 @@ qemu-io: can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
 
 == Hitting snapshot table size limit ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: Could not create snapshot 'test': -27 (File too large)
+qemu-img: Could not create snapshot 'test': File too large
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -56,8 +56,8 @@ qemu-io: can't open device TEST_DIR/t.qcow2: Backing file name too long
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'test': -27 (File too large)
-qemu-img: Could not create snapshot 'test': -11 (Resource temporarily unavailable)
+qemu-img: Could not create snapshot 'test': File too large
+qemu-img: Could not create snapshot 'test': Resource temporarily unavailable
 
 == Invalid snapshot L1 table offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
