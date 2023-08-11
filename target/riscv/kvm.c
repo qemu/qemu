@@ -852,12 +852,19 @@ void kvm_arch_init_irq_routing(KVMState *s)
 static int kvm_vcpu_set_machine_ids(RISCVCPU *cpu, CPUState *cs)
 {
     CPURISCVState *env = &cpu->env;
+    target_ulong reg;
     uint64_t id;
     int ret;
 
     id = kvm_riscv_reg_id(env, KVM_REG_RISCV_CONFIG,
                           KVM_REG_RISCV_CONFIG_REG(mvendorid));
-    ret = kvm_set_one_reg(cs, id, &cpu->cfg.mvendorid);
+    /*
+     * cfg.mvendorid is an uint32 but a target_ulong will
+     * be written. Assign it to a target_ulong var to avoid
+     * writing pieces of other cpu->cfg fields in the reg.
+     */
+    reg = cpu->cfg.mvendorid;
+    ret = kvm_set_one_reg(cs, id, &reg);
     if (ret != 0) {
         return ret;
     }
