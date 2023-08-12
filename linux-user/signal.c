@@ -32,6 +32,7 @@
 #include "signal-common.h"
 #include "host-signal.h"
 #include "user/safe-syscall.h"
+#include "tcg/tcg.h"
 
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
@@ -779,6 +780,50 @@ static inline void rewind_if_in_safe_syscall(void *puc)
     }
 }
 
+static G_NORETURN
+void die_from_signal(siginfo_t *info)
+{
+    char sigbuf[4], codebuf[12];
+    const char *sig, *code = NULL;
+
+    switch (info->si_signo) {
+    case SIGSEGV:
+        sig = "SEGV";
+        switch (info->si_code) {
+        case SEGV_MAPERR:
+            code = "MAPERR";
+            break;
+        case SEGV_ACCERR:
+            code = "ACCERR";
+            break;
+        }
+        break;
+    case SIGBUS:
+        sig = "BUS";
+        switch (info->si_code) {
+        case BUS_ADRALN:
+            code = "ADRALN";
+            break;
+        case BUS_ADRERR:
+            code = "ADRERR";
+            break;
+        }
+        break;
+    default:
+        snprintf(sigbuf, sizeof(sigbuf), "%d", info->si_signo);
+        sig = sigbuf;
+        break;
+    }
+    if (code == NULL) {
+        snprintf(codebuf, sizeof(sigbuf), "%d", info->si_code);
+        code = codebuf;
+    }
+
+    error_report("QEMU internal SIG%s {code=%s, addr=%p}",
+                 sig, code, info->si_addr);
+    die_with_signal(info->si_signo);
+}
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUState *cpu = thread_cpu;
@@ -814,16 +859,28 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
         is_write = host_signal_write(info, uc);
         access_type = adjust_signal_pc(&pc, is_write);
 
+        /* If this was a write to a TB protected page, restart. */
+        if (is_write
+            && host_sig == SIGSEGV
+            && info->si_code == SEGV_ACCERR
+            && h2g_valid(host_addr)
+            && handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
+            return;
+        }
+
+        /*
+         * If the access was not on behalf of the guest, within the executable
+         * mapping of the generated code buffer, then it is a host bug.
+         */
+        if (access_type != MMU_INST_FETCH
+            && !in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+            die_from_signal(info);
+        }
+
         if (host_sig == SIGSEGV) {
             bool maperr = true;
 
             if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
-                /* If this was a write to a TB protected page, restart. */
-                if (is_write &&
-                    handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
-                    return;
-                }
-
                 /*
                  * With reserved_va, the whole address space is PROT_NONE,
                  * which means that we may get ACCERR when we want MAPERR.
