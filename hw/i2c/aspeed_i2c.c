@@ -297,6 +297,10 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
 
     if (SHARED_ARRAY_FIELD_EX32(bus->regs, reg_cmd, RX_BUFF_EN)) {
         uint8_t *pool_base = aic->bus_pool_base(bus);
+        if (SHARED_ARRAY_FIELD_EX32(bus->regs, reg_pool_ctrl,
+                                    BUF_ORGANIZATION)) {
+            pool_base += 16;
+        }
 
         for (i = 0; i < pool_rx_count; i++) {
             pool_base[i] = i2c_recv(bus->bus);
