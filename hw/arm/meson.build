@@ -65,7 +65,7 @@ arm_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmuv3.c'))
 arm_ss.add(when: 'CONFIG_FSL_IMX6UL', if_true: files('fsl-imx6ul.c', 'mcimx6ul-evk.c'))
 arm_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_soc.c'))
 arm_ss.add(when: 'CONFIG_XEN', if_true: files('xen_arm.c'))
-arm_ss.add(when: 'CONFIG_IPOD_TOUCH_2G', if_true: files('ipod_touch_2g.c', 'ipod_touch_clock.c', 'ipod_touch_chipid.c', 'ipod_touch_gpio.c', 'ipod_touch_sysic.c', 'ipod_touch_timer.c', 'ipod_touch_usb_otg.c', 'ipod_touch_usb_phys.c', 'ipod_touch_spi.c', 'ipod_touch_nor_spi.c', 'ipod_touch_sha1.c', 'ipod_touch_aes.c', 'ipod_touch_pke.c', 'ipod_touch_pcf50633_pmu.c', 'ipod_touch_unknown1.c', 'ipod_touch_lcd.c', 'ipod_touch_mipi_dsi.c', 'ipod_touch_fmss.c', 'ipod_touch_block_device.c', 'ipod_touch_mbx.c', 'ipod_touch_cd3272_mikey.c', 'ipod_touch_lis302dl.c', 'ipod_touch_multitouch.c', 'ipod_touch_scaler_csc.c'))
+arm_ss.add(when: 'CONFIG_IPOD_TOUCH_2G', if_true: files('ipod_touch_2g.c', 'ipod_touch_clock.c', 'ipod_touch_chipid.c', 'ipod_touch_gpio.c', 'ipod_touch_sysic.c', 'ipod_touch_timer.c', 'ipod_touch_usb_otg.c', 'ipod_touch_usb_phys.c', 'ipod_touch_spi.c', 'ipod_touch_nor_spi.c', 'ipod_touch_sha1.c', 'ipod_touch_aes.c', 'ipod_touch_pke.c', 'ipod_touch_pcf50633_pmu.c', 'ipod_touch_unknown1.c', 'ipod_touch_lcd.c', 'ipod_touch_mipi_dsi.c', 'ipod_touch_fmss.c', 'ipod_touch_block_device.c', 'ipod_touch_mbx.c', 'ipod_touch_cd3272_mikey.c', 'ipod_touch_lis302dl.c', 'ipod_touch_multitouch.c', 'ipod_touch_scaler_csc.c', 'ipod_touch_sdio.c'))
 
 system_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmu-common.c'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4_boards.c'))

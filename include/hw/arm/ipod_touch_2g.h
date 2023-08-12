@@ -26,6 +26,7 @@
 #include "hw/arm/ipod_touch_block_device.h"
 #include "hw/arm/ipod_touch_mbx.h"
 #include "hw/arm/ipod_touch_scaler_csc.h"
+#include "hw/arm/ipod_touch_sdio.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -137,6 +138,7 @@ typedef struct {
 	IPodTouchBlockDeviceState *bdev_state;
 	IPodTouchMBXState *mbx_state;
 	IPodTouchScalerCSCState *scaler_csc_state;
+	IPodTouchSDIOState *sdio_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);

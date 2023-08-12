@@ -94,7 +94,6 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, 0x400000);
     allocate_ram(sysmem, "edgeic", EDGEIC_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "swi", SWI_MEM_BASE, 0x1000);
-    allocate_ram(sysmem, "sdio", SDIO_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "h264", H264_MEM_BASE, 0x4000);
 
     // load the bootrom (vrom)
@@ -208,6 +207,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     IPodTouchGPIOState *gpio_state = IPOD_TOUCH_GPIO(dev);
     nms->gpio_state = gpio_state;
     memory_region_add_subregion(sysmem, GPIO_MEM_BASE, &gpio_state->iomem);
+
+    // init SDIO
+    dev = qdev_new("ipodtouch.sdio");
+    IPodTouchSDIOState *sdio_state = IPOD_TOUCH_SDIO(dev);
+    nms->sdio_state = sdio_state;
+    memory_region_add_subregion(sysmem, SDIO_MEM_BASE, &sdio_state->iomem);
 
     dev = exynos4210_uart_create(UART0_MEM_BASE, 256, 0, serial_hd(0), nms->irq[0][24]);
     if (!dev) {
