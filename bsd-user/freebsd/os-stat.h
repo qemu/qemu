@@ -24,6 +24,17 @@ int freebsd11_stat(const char *path, struct freebsd11_stat *stat);
 __sym_compat(stat, freebsd11_stat, FBSD_1.0);
 int freebsd11_lstat(const char *path, struct freebsd11_stat *stat);
 __sym_compat(lstat, freebsd11_lstat, FBSD_1.0);
+int freebsd11_fstat(int fd, struct freebsd11_stat *stat);
+__sym_compat(fstat, freebsd11_fstat, FBSD_1.0);
+int freebsd11_fstatat(int fd, const char *path, struct freebsd11_stat *stat,
+        int flag);
+__sym_compat(fstatat, freebsd11_fstatat, FBSD_1.1);
+
+int freebsd11_fhstat(const fhandle_t *fhandle, struct freebsd11_stat *stat);
+__sym_compat(fhstat, freebsd11_fhstat, FBSD_1.0);
+int freebsd11_fhstatfs(const fhandle_t *fhandle, struct freebsd11_statfs * buf);
+__sym_compat(fhstatfs, freebsd11_fhstatfs, FBSD_1.0);
+int freebsd11_statfs(const char *path, struct freebsd11_statfs *buf);
 
 /* stat(2) */
 static inline abi_long do_freebsd11_stat(abi_long arg1, abi_long arg2)
@@ -58,6 +69,19 @@ static inline abi_long do_freebsd11_lstat(abi_long arg1, abi_long arg2)
 }
 
 /* fstat(2) */
+static inline abi_long do_freebsd11_fstat(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    struct freebsd11_stat st;
+
+    ret = get_errno(freebsd11_fstat(arg1, &st));
+    if (!is_error(ret))  {
+        ret = h2t_freebsd11_stat(arg2, &st);
+    }
+    return ret;
+}
+
+/* fstat(2) */
 static inline abi_long do_freebsd_fstat(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
@@ -66,6 +90,23 @@ static inline abi_long do_freebsd_fstat(abi_long arg1, abi_long arg2)
     ret = get_errno(fstat(arg1, &st));
     if (!is_error(ret))  {
         ret = h2t_freebsd_stat(arg2, &st);
+    }
+    return ret;
+}
+
+/* fstatat(2) */
+static inline abi_long do_freebsd11_fstatat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+    struct freebsd11_stat st;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(freebsd11_fstatat(arg1, p, &st, arg4));
+    UNLOCK_PATH(p, arg2);
+    if (!is_error(ret) && arg3) {
+        ret = h2t_freebsd11_stat(arg3, &st);
     }
     return ret;
 }
@@ -179,6 +220,24 @@ static inline abi_long do_freebsd_fhopen(abi_long arg1, abi_long arg2)
 }
 
 /* fhstat(2) */
+static inline abi_long do_freebsd11_fhstat(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    fhandle_t host_fh;
+    struct freebsd11_stat host_sb;
+
+    ret = t2h_freebsd_fhandle(&host_fh, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+    ret = get_errno(freebsd11_fhstat(&host_fh, &host_sb));
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd11_stat(arg2, &host_sb);
+}
+
+/* fhstat(2) */
 static inline abi_long do_freebsd_fhstat(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
@@ -194,6 +253,25 @@ static inline abi_long do_freebsd_fhstat(abi_long arg1, abi_long arg2)
         return ret;
     }
     return h2t_freebsd_stat(arg2, &host_sb);
+}
+
+/* fhstatfs(2) */
+static inline abi_long do_freebsd11_fhstatfs(abi_ulong target_fhp_addr,
+        abi_ulong target_stfs_addr)
+{
+    abi_long ret;
+    fhandle_t host_fh;
+    struct freebsd11_statfs host_stfs;
+
+    ret = t2h_freebsd_fhandle(&host_fh, target_fhp_addr);
+    if (is_error(ret)) {
+        return ret;
+    }
+    ret = get_errno(freebsd11_fhstatfs(&host_fh, &host_stfs));
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd11_statfs(target_stfs_addr, &host_stfs);
 }
 
 /* fhstatfs(2) */
