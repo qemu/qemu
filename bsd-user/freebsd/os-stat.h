@@ -32,9 +32,15 @@ __sym_compat(fstatat, freebsd11_fstatat, FBSD_1.1);
 
 int freebsd11_fhstat(const fhandle_t *fhandle, struct freebsd11_stat *stat);
 __sym_compat(fhstat, freebsd11_fhstat, FBSD_1.0);
+int freebsd11_getfsstat(struct freebsd11_statfs *buf, long bufsize, int mode);
+__sym_compat(getfsstat, freebsd11_getfsstat, FBSD_1.0);
 int freebsd11_fhstatfs(const fhandle_t *fhandle, struct freebsd11_statfs * buf);
 __sym_compat(fhstatfs, freebsd11_fhstatfs, FBSD_1.0);
 int freebsd11_statfs(const char *path, struct freebsd11_statfs *buf);
+__sym_compat(statfs, freebsd11_statfs, FBSD_1.0);
+int freebsd11_fstatfs(int fd, struct freebsd11_statfs *buf);
+__sym_compat(fstatfs, freebsd11_fstatfs, FBSD_1.0);
+
 
 /* stat(2) */
 static inline abi_long do_freebsd11_stat(abi_long arg1, abi_long arg2)
@@ -294,6 +300,23 @@ static inline abi_long do_freebsd_fhstatfs(abi_ulong target_fhp_addr,
 }
 
 /* statfs(2) */
+static inline abi_long do_freebsd11_statfs(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+    struct freebsd11_statfs host_stfs;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(freebsd11_statfs(path(p), &host_stfs));
+    UNLOCK_PATH(p, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+
+    return h2t_freebsd11_statfs(arg2, &host_stfs);
+}
+
+/* statfs(2) */
 static inline abi_long do_freebsd_statfs(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
@@ -311,6 +334,20 @@ static inline abi_long do_freebsd_statfs(abi_long arg1, abi_long arg2)
 }
 
 /* fstatfs(2) */
+static inline abi_long do_freebsd11_fstatfs(abi_long fd, abi_ulong target_addr)
+{
+    abi_long ret;
+    struct freebsd11_statfs host_stfs;
+
+    ret = get_errno(freebsd11_fstatfs(fd, &host_stfs));
+    if (is_error(ret)) {
+        return ret;
+    }
+
+    return h2t_freebsd11_statfs(target_addr, &host_stfs);
+}
+
+/* fstatfs(2) */
 static inline abi_long do_freebsd_fstatfs(abi_long fd, abi_ulong target_addr)
 {
     abi_long ret;
@@ -322,6 +359,44 @@ static inline abi_long do_freebsd_fstatfs(abi_long fd, abi_ulong target_addr)
     }
 
     return h2t_freebsd_statfs(target_addr, &host_stfs);
+}
+
+/* getfsstat(2) */
+static inline abi_long do_freebsd11_getfsstat(abi_ulong target_addr,
+        abi_long bufsize, abi_long flags)
+{
+    abi_long ret;
+    struct freebsd11_statfs *host_stfs;
+    int count;
+    long host_bufsize;
+
+    count = bufsize / sizeof(struct target_freebsd11_statfs);
+
+    /* if user buffer is NULL then return number of mounted FS's */
+    if (target_addr == 0 || count == 0) {
+        return get_errno(freebsd11_getfsstat(NULL, 0, flags));
+    }
+
+    /* XXX check count to be reasonable */
+    host_bufsize = sizeof(struct freebsd11_statfs) * count;
+    host_stfs = alloca(host_bufsize);
+    if (!host_stfs) {
+        return -TARGET_EINVAL;
+    }
+
+    ret = count = get_errno(freebsd11_getfsstat(host_stfs, host_bufsize, flags));
+    if (is_error(ret)) {
+        return ret;
+    }
+
+    while (count--) {
+        if (h2t_freebsd11_statfs((target_addr +
+                        (count * sizeof(struct target_freebsd11_statfs))),
+                    &host_stfs[count])) {
+            return -TARGET_EFAULT;
+        }
+    }
+    return ret;
 }
 
 /* getfsstat(2) */
