@@ -276,6 +276,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_MOVL_GvEv	(0x8b)		/* loads, more or less */
 #define OPC_MOVB_EvIz   (0xc6)
 #define OPC_MOVL_EvIz	(0xc7)
+#define OPC_MOVB_Ib     (0xb0)
 #define OPC_MOVL_Iv     (0xb8)
 #define OPC_MOVBE_GyMy  (0xf0 | P_EXT38)
 #define OPC_MOVBE_MyGy  (0xf1 | P_EXT38)
@@ -2750,13 +2751,30 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     OP_32_64(deposit):
         if (args[3] == 0 && args[4] == 8) {
             /* load bits 0..7 */
-            tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM, a2, a0);
+            if (const_a2) {
+                tcg_out_opc(s, OPC_MOVB_Ib | P_REXB_RM | LOWREGMASK(a0),
+                            0, a0, 0);
+                tcg_out8(s, a2);
+            } else {
+                tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM, a2, a0);
+            }
         } else if (TCG_TARGET_REG_BITS == 32 && args[3] == 8 && args[4] == 8) {
             /* load bits 8..15 */
-            tcg_out_modrm(s, OPC_MOVB_EvGv, a2, a0 + 4);
+            if (const_a2) {
+                tcg_out8(s, OPC_MOVB_Ib + a0 + 4);
+                tcg_out8(s, a2);
+            } else {
+                tcg_out_modrm(s, OPC_MOVB_EvGv, a2, a0 + 4);
+            }
         } else if (args[3] == 0 && args[4] == 16) {
             /* load bits 0..15 */
-            tcg_out_modrm(s, OPC_MOVL_EvGv | P_DATA16, a2, a0);
+            if (const_a2) {
+                tcg_out_opc(s, OPC_MOVL_Iv | P_DATA16 | LOWREGMASK(a0),
+                            0, a0, 0);
+                tcg_out16(s, a2);
+            } else {
+                tcg_out_modrm(s, OPC_MOVL_EvGv | P_DATA16, a2, a0);
+            }
         } else {
             g_assert_not_reached();
         }
@@ -3311,7 +3329,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
-        return C_O1_I2(q, 0, q);
+        return C_O1_I2(q, 0, qi);
 
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:
