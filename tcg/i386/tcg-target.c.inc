@@ -144,7 +144,6 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 # define TCG_REG_L1 TCG_REG_EDX
 #endif
 
-#define ALL_BYTEH_REGS         0x0000000fu
 #if TCG_TARGET_REG_BITS == 64
 # define ALL_GENERAL_REGS      0x0000ffffu
 # define ALL_VECTOR_REGS       0xffff0000u
@@ -152,7 +151,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #else
 # define ALL_GENERAL_REGS      0x000000ffu
 # define ALL_VECTOR_REGS       0x00ff0000u
-# define ALL_BYTEL_REGS        ALL_BYTEH_REGS
+# define ALL_BYTEL_REGS        0x0000000fu
 #endif
 #ifdef CONFIG_SOFTMMU
 # define SOFTMMU_RESERVE_REGS  ((1 << TCG_REG_L0) | (1 << TCG_REG_L1))
@@ -2752,7 +2751,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (args[3] == 0 && args[4] == 8) {
             /* load bits 0..7 */
             tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM, a2, a0);
-        } else if (args[3] == 8 && args[4] == 8) {
+        } else if (TCG_TARGET_REG_BITS == 32 && args[3] == 8 && args[4] == 8) {
             /* load bits 8..15 */
             tcg_out_modrm(s, OPC_MOVB_EvGv, a2, a0 + 4);
         } else if (args[3] == 0 && args[4] == 16) {
@@ -3312,7 +3311,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
-        return C_O1_I2(Q, 0, Q);
+        return C_O1_I2(q, 0, q);
 
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:

@@ -227,8 +227,8 @@ typedef enum {
 #define TCG_TARGET_HAS_cmpsel_vec       -1
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
-    (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \
-     ((ofs) == 0 && (len) == 16))
+    (((ofs) == 0 && ((len) == 8 || (len) == 16)) || \
+     (TCG_TARGET_REG_BITS == 32 && (ofs) == 8 && (len) == 8))
 #define TCG_TARGET_deposit_i64_valid    TCG_TARGET_deposit_i32_valid
 
 /* Check for the possibility of high-byte extraction and, for 64-bit,
