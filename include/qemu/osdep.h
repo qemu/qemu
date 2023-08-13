@@ -88,6 +88,19 @@ QEMU_EXTERN_C int daemon(int, int);
 #define __USE_MINGW_ANSI_STDIO 1
 #endif
 
+/*
+ * We need the FreeBSD "legacy" definitions. Rust needs the FreeBSD 11 system
+ * calls since it doesn't use libc at all, so we have to emulate that despite
+ * FreeBSD 11 being EOL'd.
+ */
+#ifdef __FreeBSD__
+#define _WANT_FREEBSD11_STAT
+#define _WANT_FREEBSD11_STATFS
+#define _WANT_FREEBSD11_DIRENT
+#define _WANT_KERNEL_ERRNO
+#define _WANT_SEMUN
+#endif
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>

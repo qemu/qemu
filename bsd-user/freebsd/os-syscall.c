@@ -17,17 +17,6 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-/*
- * We need the FreeBSD "legacy" definitions. Rust needs the FreeBSD 11 system
- * calls since it doesn't use libc at all, so we have to emulate that despite
- * FreeBSD 11 being EOL'd.
- */
-#define _WANT_FREEBSD11_STAT
-#define _WANT_FREEBSD11_STATFS
-#define _WANT_FREEBSD11_DIRENT
-#define _WANT_KERNEL_ERRNO
-#define _WANT_SEMUN
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/path.h"
