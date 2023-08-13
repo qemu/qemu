@@ -351,4 +351,78 @@ static inline abi_long do_freebsd_getdirentries(abi_long arg1,
     return ret;
 }
 
+/* fcntl(2) */
+static inline abi_long do_freebsd_fcntl(abi_long arg1, abi_long arg2,
+        abi_ulong arg3)
+{
+    abi_long ret;
+    int host_cmd;
+    struct flock fl;
+    struct target_freebsd_flock *target_fl;
+
+    host_cmd = target_to_host_fcntl_cmd(arg2);
+    if (host_cmd < 0) {
+        return host_cmd;
+    }
+    switch (arg2) {
+    case TARGET_F_GETLK:
+        if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) {
+            return -TARGET_EFAULT;
+        }
+        __get_user(fl.l_type, &target_fl->l_type);
+        __get_user(fl.l_whence, &target_fl->l_whence);
+        __get_user(fl.l_start, &target_fl->l_start);
+        __get_user(fl.l_len, &target_fl->l_len);
+        __get_user(fl.l_pid, &target_fl->l_pid);
+        __get_user(fl.l_sysid, &target_fl->l_sysid);
+        unlock_user_struct(target_fl, arg3, 0);
+        ret = get_errno(safe_fcntl(arg1, host_cmd, &fl));
+        if (!is_error(ret)) {
+            if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0)) {
+                return -TARGET_EFAULT;
+            }
+            __put_user(fl.l_type, &target_fl->l_type);
+            __put_user(fl.l_whence, &target_fl->l_whence);
+            __put_user(fl.l_start, &target_fl->l_start);
+            __put_user(fl.l_len, &target_fl->l_len);
+            __put_user(fl.l_pid, &target_fl->l_pid);
+            __put_user(fl.l_sysid, &target_fl->l_sysid);
+            unlock_user_struct(target_fl, arg3, 1);
+        }
+        break;
+
+    case TARGET_F_SETLK:
+    case TARGET_F_SETLKW:
+        if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) {
+            return -TARGET_EFAULT;
+        }
+        __get_user(fl.l_type, &target_fl->l_type);
+        __get_user(fl.l_whence, &target_fl->l_whence);
+        __get_user(fl.l_start, &target_fl->l_start);
+        __get_user(fl.l_len, &target_fl->l_len);
+        __get_user(fl.l_pid, &target_fl->l_pid);
+        __get_user(fl.l_sysid, &target_fl->l_sysid);
+        unlock_user_struct(target_fl, arg3, 0);
+        ret = get_errno(safe_fcntl(arg1, host_cmd, &fl));
+        break;
+
+    case TARGET_F_DUPFD:
+    case TARGET_F_DUP2FD:
+    case TARGET_F_GETOWN:
+    case TARGET_F_SETOWN:
+    case TARGET_F_GETFD:
+    case TARGET_F_SETFD:
+    case TARGET_F_GETFL:
+    case TARGET_F_SETFL:
+    case TARGET_F_READAHEAD:
+    case TARGET_F_RDAHEAD:
+    case TARGET_F_ADD_SEALS:
+    case TARGET_F_GET_SEALS:
+    default:
+        ret = get_errno(safe_fcntl(arg1, host_cmd, arg3));
+        break;
+    }
+    return ret;
+}
+
 #endif /* BSD_USER_FREEBSD_OS_STAT_H */
