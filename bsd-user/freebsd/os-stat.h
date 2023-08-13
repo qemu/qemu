@@ -127,4 +127,87 @@ static abi_long do_freebsd11_nlstat(abi_long arg1, abi_long arg2)
     return ret;
 }
 
+/* getfh(2) */
+static abi_long do_freebsd_getfh(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+    fhandle_t host_fh;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(getfh(path(p), &host_fh));
+    UNLOCK_PATH(p, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd_fhandle(arg2, &host_fh);
+}
+
+/* lgetfh(2) */
+static inline abi_long do_freebsd_lgetfh(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+    fhandle_t host_fh;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lgetfh(path(p), &host_fh));
+    UNLOCK_PATH(p, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd_fhandle(arg2, &host_fh);
+}
+
+/* fhopen(2) */
+static inline abi_long do_freebsd_fhopen(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    fhandle_t host_fh;
+
+    ret = t2h_freebsd_fhandle(&host_fh, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+
+    return get_errno(fhopen(&host_fh, arg2));
+}
+
+/* fhstat(2) */
+static inline abi_long do_freebsd_fhstat(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    fhandle_t host_fh;
+    struct stat host_sb;
+
+    ret = t2h_freebsd_fhandle(&host_fh, arg1);
+    if (is_error(ret)) {
+        return ret;
+    }
+    ret = get_errno(fhstat(&host_fh, &host_sb));
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd_stat(arg2, &host_sb);
+}
+
+/* fhstatfs(2) */
+static inline abi_long do_freebsd_fhstatfs(abi_ulong target_fhp_addr,
+        abi_ulong target_stfs_addr)
+{
+    abi_long ret;
+    fhandle_t host_fh;
+    struct statfs host_stfs;
+
+    ret = t2h_freebsd_fhandle(&host_fh, target_fhp_addr);
+    if (is_error(ret)) {
+        return ret;
+    }
+    ret = get_errno(fhstatfs(&host_fh, &host_stfs));
+    if (is_error(ret)) {
+        return ret;
+    }
+    return h2t_freebsd_statfs(target_stfs_addr, &host_stfs);
+}
+
 #endif /* BSD_USER_FREEBSD_OS_STAT_H */
