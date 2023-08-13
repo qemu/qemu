@@ -46,6 +46,13 @@ __sym_compat(getdirentries, freebsd11_getdirentries, FBSD_1.0);
 ssize_t freebsd11_getdents(int fd, char *buf, size_t nbytes);
 __sym_compat(getdents, freebsd11_getdents, FBSD_1.0);
 
+/* undocumented nstat system calls */
+int freebsd11_nstat(const char *path, struct freebsd11_stat *sb);
+__sym_compat(nstat, freebsd11_nstat, FBSD_1.0);
+int freebsd11_nlstat(const char *path, struct freebsd11_stat *sb);
+__sym_compat(nlstat, freebsd11_nlstat, FBSD_1.0);
+int freebsd11_nfstat(int fd, struct freebsd11_stat *sb);
+__sym_compat(nfstat, freebsd11_nfstat, FBSD_1.0);
 
 /* stat(2) */
 static inline abi_long do_freebsd11_stat(abi_long arg1, abi_long arg2)
