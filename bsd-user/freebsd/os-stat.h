@@ -20,6 +20,11 @@
 #ifndef BSD_USER_FREEBSD_OS_STAT_H
 #define BSD_USER_FREEBSD_OS_STAT_H
 
+int freebsd11_stat(const char *path, struct freebsd11_stat *stat);
+__sym_compat(stat, freebsd11_stat, FBSD_1.0);
+int freebsd11_lstat(const char *path, struct freebsd11_stat *stat);
+__sym_compat(lstat, freebsd11_lstat, FBSD_1.0);
+
 /* stat(2) */
 static inline abi_long do_freebsd11_stat(abi_long arg1, abi_long arg2)
 {
