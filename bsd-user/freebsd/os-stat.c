@@ -92,3 +92,40 @@ abi_long h2t_freebsd11_nstat(abi_ulong target_addr,
     return 0;
 }
 
+/*
+ * file handle conversion
+ */
+abi_long t2h_freebsd_fhandle(fhandle_t *host_fh, abi_ulong target_addr)
+{
+    target_freebsd_fhandle_t *target_fh;
+
+    if (!lock_user_struct(VERIFY_READ, target_fh, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+    __get_user(host_fh->fh_fsid.val[0], &target_fh->fh_fsid.val[0]);
+    __get_user(host_fh->fh_fsid.val[1], &target_fh->fh_fsid.val[0]);
+    __get_user(host_fh->fh_fid.fid_len, &target_fh->fh_fid.fid_len);
+    /* u_short         fid_data0; */
+    memcpy(host_fh->fh_fid.fid_data, target_fh->fh_fid.fid_data,
+        TARGET_MAXFIDSZ);
+    unlock_user_struct(target_fh, target_addr, 0);
+    return 0;
+}
+
+abi_long h2t_freebsd_fhandle(abi_ulong target_addr, fhandle_t *host_fh)
+{
+    target_freebsd_fhandle_t *target_fh;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_fh, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __put_user(host_fh->fh_fsid.val[0], &target_fh->fh_fsid.val[0]);
+    __put_user(host_fh->fh_fsid.val[1], &target_fh->fh_fsid.val[0]);
+    __put_user(host_fh->fh_fid.fid_len, &target_fh->fh_fid.fid_len);
+    /* u_short         fid_data0; */
+    memcpy(target_fh->fh_fid.fid_data, host_fh->fh_fid.fid_data,
+            TARGET_MAXFIDSZ);
+    unlock_user_struct(target_fh, target_addr, 1);
+    return 0;
+}
+
