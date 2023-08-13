@@ -1279,12 +1279,49 @@ static bool fold_ctpop(OptContext *ctx, TCGOp *op)
 
 static bool fold_deposit(OptContext *ctx, TCGOp *op)
 {
+    TCGOpcode and_opc;
+
     if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
         uint64_t t1 = arg_info(op->args[1])->val;
         uint64_t t2 = arg_info(op->args[2])->val;
 
         t1 = deposit64(t1, op->args[3], op->args[4], t2);
         return tcg_opt_gen_movi(ctx, op, op->args[0], t1);
+    }
+
+    switch (ctx->type) {
+    case TCG_TYPE_I32:
+        and_opc = INDEX_op_and_i32;
+        break;
+    case TCG_TYPE_I64:
+        and_opc = INDEX_op_and_i64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Inserting a value into zero at offset 0. */
+    if (arg_is_const(op->args[1])
+        && arg_info(op->args[1])->val == 0
+        && op->args[3] == 0) {
+        uint64_t mask = MAKE_64BIT_MASK(0, op->args[4]);
+
+        op->opc = and_opc;
+        op->args[1] = op->args[2];
+        op->args[2] = temp_arg(tcg_constant_internal(ctx->type, mask));
+        ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
+        return false;
+    }
+
+    /* Inserting zero into a value. */
+    if (arg_is_const(op->args[2])
+        && arg_info(op->args[2])->val == 0) {
+        uint64_t mask = deposit64(-1, op->args[3], op->args[4], 0);
+
+        op->opc = and_opc;
+        op->args[2] = temp_arg(tcg_constant_internal(ctx->type, mask));
+        ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
+        return false;
     }
 
     ctx->z_mask = deposit64(arg_info(op->args[1])->z_mask,
