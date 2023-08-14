@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # ebpf-rss.c
 ebpf_error(const char *s1, const char *s2) "error in %s: %s"
