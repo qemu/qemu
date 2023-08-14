@@ -173,9 +173,23 @@ static const TypeInfo aspeed_ast2600_sbc_info = {
     .class_init = aspeed_ast2600_sbc_class_init,
 };
 
+static void aspeed_ast2700_sbc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "AST2700 Secure Boot Controller";
+}
+
+static const TypeInfo aspeed_ast2700_sbc_info = {
+    .name = TYPE_ASPEED_AST2700_SBC,
+    .parent = TYPE_ASPEED_SBC,
+    .class_init = aspeed_ast2700_sbc_class_init,
+};
+
 static void aspeed_sbc_register_types(void)
 {
     type_register_static(&aspeed_ast2600_sbc_info);
+    type_register_static(&aspeed_ast2700_sbc_info);
     type_register_static(&aspeed_sbc_info);
 }
 

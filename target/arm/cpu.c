@@ -1712,7 +1712,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * more flexible and permits VFP-no-Neon and Neon-no-VFP.
          */
         error_setg(errp,
-                   "AArch64 CPUs must have both VFP and Neon or neither");
+                   "AArch64 CPUs must have both VFP and Neon or neither vfp=%d neon=%d", cpu->has_vfp , cpu->has_neon);
         return;
     }
 

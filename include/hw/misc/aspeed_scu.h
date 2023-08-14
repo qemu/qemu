@@ -19,10 +19,12 @@ OBJECT_DECLARE_TYPE(AspeedSCUState, AspeedSCUClass, ASPEED_SCU)
 #define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
 #define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
 #define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"
+#define TYPE_ASPEED_2700_SCU TYPE_ASPEED_SCU "-ast2700"
 #define TYPE_ASPEED_1030_SCU TYPE_ASPEED_SCU "-ast1030"
 
 #define ASPEED_SCU_NR_REGS (0x1A8 >> 2)
 #define ASPEED_AST2600_SCU_NR_REGS (0xE20 >> 2)
+#define ASPEED_AST2700_SCU_NR_REGS (0xE20 >> 2)
 
 struct AspeedSCUState {
     /*< private >*/
@@ -46,6 +48,7 @@ struct AspeedSCUState {
 #define AST2600_A1_SILICON_REV   0x05010303U
 #define AST2600_A2_SILICON_REV   0x05020303U
 #define AST2600_A3_SILICON_REV   0x05030303U
+#define AST2700_A1_SILICON_REV   0x05030303U
 #define AST1030_A0_SILICON_REV   0x80000000U
 #define AST1030_A1_SILICON_REV   0x80010000U
 
@@ -338,6 +341,24 @@ uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s);
  */
 #define SCU_AST2600_H_PLL_BYPASS_EN                        (0x1 << 24)
 #define SCU_AST2600_H_PLL_OFF                              (0x1 << 23)
+
+/*
+ * SCU200   H-PLL Parameter Register (for Aspeed AST2700 SOC)
+ *
+ *  28:26  H-PLL Parameters
+ *  25     Enable H-PLL reset
+ *  24     Enable H-PLL bypass mode
+ *  23     Turn off H-PLL
+ *  22:19  H-PLL Post Divider (P)
+ *  18:13  H-PLL Numerator (M)
+ *  12:0   H-PLL Denumerator (N)
+ *
+ *  (Output frequency) = CLKIN(25MHz) * [(M+1) / (N+1)] / (P+1)
+ *
+ * The default frequency is 1200Mhz when CLKIN = 25MHz
+ */
+#define SCU_AST2700_H_PLL_BYPASS_EN                        (0x1 << 24)
+#define SCU_AST2700_H_PLL_OFF                              (0x1 << 23)
 
 /*
  * SCU310   Clock Selection Register Set 4 (for Aspeed AST1030 SOC)

@@ -745,6 +745,22 @@ static const TypeInfo aspeed_2600_timer_info = {
     .class_init = aspeed_2600_timer_class_init,
 };
 
+static void aspeed_2700_timer_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedTimerClass *awc = ASPEED_TIMER_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 Timer";
+    awc->read = aspeed_2600_timer_read;
+    awc->write = aspeed_2600_timer_write;
+}
+
+static const TypeInfo aspeed_2700_timer_info = {
+    .name = TYPE_ASPEED_2700_TIMER,
+    .parent = TYPE_ASPEED_TIMER,
+    .class_init = aspeed_2700_timer_class_init,
+};
+
 static void aspeed_1030_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -767,6 +783,7 @@ static void aspeed_timer_register_types(void)
     type_register_static(&aspeed_2400_timer_info);
     type_register_static(&aspeed_2500_timer_info);
     type_register_static(&aspeed_2600_timer_info);
+    type_register_static(&aspeed_2700_timer_info);
     type_register_static(&aspeed_1030_timer_info);
 }
 

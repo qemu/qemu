@@ -173,6 +173,30 @@ static const TypeInfo aspeed_2600_xdma_info = {
     .class_init = aspeed_2600_xdma_class_init,
 };
 
+static void aspeed_2700_xdma_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedXDMAClass *axc = ASPEED_XDMA_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 XDMA Controller";
+
+    axc->cmdq_endp = XDMA_AST2600_BMC_CMDQ_ENDP;
+    axc->cmdq_wrp = XDMA_AST2600_BMC_CMDQ_WRP;
+    axc->cmdq_rdp = XDMA_AST2600_BMC_CMDQ_RDP;
+    axc->intr_ctrl = XDMA_AST2600_IRQ_CTRL;
+    axc->intr_ctrl_mask = XDMA_AST2600_IRQ_CTRL_W_MASK;
+    axc->intr_status = XDMA_AST2600_IRQ_STATUS;
+    axc->intr_complete = XDMA_AST2600_IRQ_STATUS_US_COMP |
+        XDMA_AST2600_IRQ_STATUS_DS_COMP;
+}
+
+static const TypeInfo aspeed_2700_xdma_info = {
+    .name = TYPE_ASPEED_2700_XDMA,
+    .parent = TYPE_ASPEED_XDMA,
+    .class_init = aspeed_2700_xdma_class_init,
+};
+
+
 static void aspeed_2500_xdma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -241,5 +265,6 @@ static void aspeed_xdma_register_type(void)
     type_register_static(&aspeed_2400_xdma_info);
     type_register_static(&aspeed_2500_xdma_info);
     type_register_static(&aspeed_2600_xdma_info);
+    type_register_static(&aspeed_2700_xdma_info);
 }
 type_init(aspeed_xdma_register_type);
