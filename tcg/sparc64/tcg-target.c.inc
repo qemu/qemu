@@ -962,6 +962,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_movi_s13(s, TCG_REG_O0, 0);
 }
 
+static void tcg_out_tb_start(TCGContext *s)
+{
+    /* nothing to do */
+}
+
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 {
     int i;

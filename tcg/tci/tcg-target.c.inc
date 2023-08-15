@@ -955,6 +955,11 @@ static inline void tcg_target_qemu_prologue(TCGContext *s)
 {
 }
 
+static void tcg_out_tb_start(TCGContext *s)
+{
+    /* nothing to do */
+}
+
 bool tcg_target_has_memory_bswap(MemOp memop)
 {
     return true;
