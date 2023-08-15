@@ -595,6 +595,9 @@ static void tcg_out_vex_opc(TCGContext *s, int opc, int r, int v,
 {
     int tmp;
 
+    if (opc & P_GS) {
+        tcg_out8(s, 0x65);
+    }
     /* Use the two byte form if possible, which cannot encode
        VEX.W, VEX.B, VEX.X, or an m-mmmm field other than P_EXT.  */
     if ((opc & (P_EXT | P_EXT38 | P_EXT3A | P_VEXW)) == P_EXT
