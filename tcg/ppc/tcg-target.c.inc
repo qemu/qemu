@@ -362,6 +362,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
 #define CRNAND XO19(225)
 #define CROR   XO19(449)
 #define CRNOR  XO19( 33)
+#define ADDPCIS XO19( 2)
 
 #define EXTSB  XO31(954)
 #define EXTSH  XO31(922)
@@ -857,6 +858,19 @@ static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 static inline void tcg_out_sari64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
     tcg_out32(s, SRADI | RA(dst) | RS(src) | SH(c & 0x1f) | ((c >> 4) & 2));
+}
+
+static void tcg_out_addpcis(TCGContext *s, TCGReg dst, intptr_t imm)
+{
+    uint32_t d0, d1, d2;
+
+    tcg_debug_assert((imm & 0xffff) == 0);
+    tcg_debug_assert(imm == (int32_t)imm);
+
+    d2 = extract32(imm, 16, 1);
+    d1 = extract32(imm, 17, 5);
+    d0 = extract32(imm, 22, 10);
+    tcg_out32(s, ADDPCIS | RT(dst) | (d1 << 16) | (d0 << 6) | d2);
 }
 
 static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
@@ -2534,9 +2548,14 @@ static void tcg_out_tb_start(TCGContext *s)
 {
     /* Load TCG_REG_TB. */
     if (USE_REG_TB) {
-        /* bcl 20,31,$+4 (preferred form for getting nia) */
-        tcg_out32(s, BC | BO_ALWAYS | BI(7, CR_SO) | 0x4 | LK);
-        tcg_out32(s, MFSPR | RT(TCG_REG_TB) | LR);
+        if (have_isa_3_00) {
+            /* lnia REG_TB */
+            tcg_out_addpcis(s, TCG_REG_TB, 0);
+        } else {
+            /* bcl 20,31,$+4 (preferred form for getting nia) */
+            tcg_out32(s, BC | BO_ALWAYS | BI(7, CR_SO) | 0x4 | LK);
+            tcg_out32(s, MFSPR | RT(TCG_REG_TB) | LR);
+        }
     }
 }
 
