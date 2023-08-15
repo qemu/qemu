@@ -1055,6 +1055,19 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
+    /* Load addresses within 2GB with 2 insns. */
+    if (have_isa_3_00) {
+        intptr_t hi = tcg_pcrel_diff(s, (void *)arg) - 4;
+        int16_t lo = hi;
+
+        hi -= lo;
+        if (hi == (int32_t)hi) {
+            tcg_out_addpcis(s, TCG_REG_TMP2, hi);
+            tcg_out32(s, ADDI | TAI(ret, TCG_REG_TMP2, lo));
+            return;
+        }
+    }
+
     /* Load addresses within 2GB of TB with 2 (or rarely 3) insns.  */
     if (!in_prologue && USE_REG_TB && tb_diff == (int32_t)tb_diff) {
         tcg_out_mem_long(s, ADDI, ADD, ret, TCG_REG_TB, tb_diff);
