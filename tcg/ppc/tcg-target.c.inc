@@ -215,6 +215,12 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R31
 };
 
+/* For PPC, we use TB+4 instead of TB as the base. */
+static inline ptrdiff_t ppc_tbrel_diff(TCGContext *s, const void *target)
+{
+    return tcg_tbrel_diff(s, target) - 4;
+}
+
 static inline bool in_range_b(tcg_target_long target)
 {
     return target == sextract64(target, 0, 26);
@@ -991,7 +997,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     }
 
     /* Load addresses within the TB with one insn.  */
-    tb_diff = tcg_tbrel_diff(s, (void *)arg);
+    tb_diff = ppc_tbrel_diff(s, (void *)arg);
     if (!in_prologue && USE_REG_TB && tb_diff == (int16_t)tb_diff) {
         tcg_out32(s, ADDI | TAI(ret, TCG_REG_TB, tb_diff));
         return;
@@ -1044,7 +1050,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     /* Use the constant pool, if possible.  */
     if (!in_prologue && USE_REG_TB) {
         new_pool_label(s, arg, R_PPC_ADDR16, s->code_ptr,
-                       tcg_tbrel_diff(s, NULL));
+                       ppc_tbrel_diff(s, NULL));
         tcg_out32(s, LD | TAI(ret, TCG_REG_TB, 0));
         return;
     }
@@ -1104,7 +1110,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
      */
     if (USE_REG_TB) {
         rel = R_PPC_ADDR16;
-        add = tcg_tbrel_diff(s, NULL);
+        add = ppc_tbrel_diff(s, NULL);
     } else {
         rel = R_PPC_ADDR32;
         add = 0;
@@ -2531,7 +2537,6 @@ static void tcg_out_tb_start(TCGContext *s)
         /* bcl 20,31,$+4 (preferred form for getting nia) */
         tcg_out32(s, BC | BO_ALWAYS | BI(7, CR_SO) | 0x4 | LK);
         tcg_out32(s, MFSPR | RT(TCG_REG_TB) | LR);
-        tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, -4));
     }
 }
 
@@ -2551,7 +2556,7 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
 
     /* When branch is out of range, fall through to indirect. */
     if (USE_REG_TB) {
-        ptrdiff_t offset = tcg_tbrel_diff(s, (void *)ptr);
+        ptrdiff_t offset = ppc_tbrel_diff(s, (void *)ptr);
         tcg_out_mem_long(s, LD, LDX, TCG_REG_TMP1, TCG_REG_TB, offset);
     } else {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP1, ptr - (int16_t)ptr);
