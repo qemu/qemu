@@ -273,7 +273,14 @@ static void elfN(process)(FILE *outf, void *buf, bool need_bswap)
                 errors++;
                 break;
 
+            case PT_LOPROC + 3:
+                if (ehdr->e_machine == EM_PPC64) {
+                    break;  /* DT_PPC64_OPT: integer bitmask */
+                }
+                goto do_default;
+
             default:
+            do_default:
                 /* This is probably something target specific. */
                 fprintf(stderr, "VDSO has unknown DYNAMIC entry (%lx)\n",
                         (unsigned long)tag);

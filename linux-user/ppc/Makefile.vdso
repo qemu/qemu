@@ -1,0 +1,20 @@
+include $(BUILD_DIR)/tests/tcg/ppc64-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/ppc
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso-32.so $(SUBDIR)/vdso-64.so $(SUBDIR)/vdso-64le.so
+
+LDFLAGS32 = -nostdlib -shared -Wl,-T,$(SUBDIR)/vdso-32.ld \
+            -Wl,-h,linux-vdso32.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+LDFLAGS64 = -nostdlib -shared -Wl,-T,$(SUBDIR)/vdso-64.ld \
+            -Wl,-h,linux-vdso64.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+
+$(SUBDIR)/vdso-32.so: vdso.S vdso-32.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS32) -m32 $<
+
+$(SUBDIR)/vdso-64.so: vdso.S vdso-64.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS64) -mbig-endian $<
+
+$(SUBDIR)/vdso-64le.so: vdso.S vdso-64.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS64) -mlittle-endian $<
