@@ -1,6 +1,6 @@
 project('qemu', ['c'], meson_version: '>=0.63.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
-                          'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
+                          'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true', 'b_staticpic=true'],
         version: files('VERSION'))
 
 add_test_setup('quick', exclude_suites: ['slow', 'thorough'], is_default: true)
@@ -3829,6 +3829,14 @@ foreach target : target_dirs
                link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
                link_args: link_args,
                win_subsystem: exe['win_subsystem'])
+    
+    libemulator = library(exe_name, exe['sources'],
+               install: true,
+               c_args: c_args,
+               dependencies: arch_deps + deps + exe['dependencies'],
+               objects: lib.extract_all_objects(recursive: true),
+               link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
+               link_args: link_args)
 
     if targetos == 'darwin'
       icon = 'pc-bios/qemu.rsrc'

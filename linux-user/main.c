@@ -1015,3 +1015,8 @@ int main(int argc, char **argv, char **envp)
     /* never exits */
     return 0;
 }
+
+extern int qemuUserEmulator(int argc, char **argv, char **envp);
+int qemuUserEmulator(int argc, char **argv, char **envp){
+    return main(argc,argv,envp);
+}
