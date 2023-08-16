@@ -143,8 +143,6 @@ static uint32_t get_elf_hwcap(void)
 }
 
 #ifdef TARGET_X86_64
-#define ELF_START_MMAP 0x2aaaaab000ULL
-
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
 
@@ -220,8 +218,6 @@ static bool init_guest_commpage(void)
 }
 #endif
 #else
-
-#define ELF_START_MMAP 0x80000000
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -307,8 +303,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #ifndef TARGET_AARCH64
 /* 32 bit ARM definitions */
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_ARCH        EM_ARM
 #define ELF_CLASS       ELFCLASS32
@@ -600,7 +594,6 @@ static const char *get_elf_platform(void)
 
 #else
 /* 64 bit ARM definitions */
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_ARCH        EM_AARCH64
 #define ELF_CLASS       ELFCLASS64
@@ -871,7 +864,6 @@ const char *elf_hwcap2_str(uint32_t bit)
 #ifdef TARGET_SPARC
 #ifdef TARGET_SPARC64
 
-#define ELF_START_MMAP 0x80000000
 #define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
                     | HWCAP_SPARC_MULDIV | HWCAP_SPARC_V9)
 #ifndef TARGET_ABI32
@@ -883,7 +875,6 @@ const char *elf_hwcap2_str(uint32_t bit)
 #define ELF_CLASS   ELFCLASS64
 #define ELF_ARCH    EM_SPARCV9
 #else
-#define ELF_START_MMAP 0x80000000
 #define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
                     | HWCAP_SPARC_MULDIV)
 #define ELF_CLASS   ELFCLASS32
@@ -905,7 +896,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #ifdef TARGET_PPC
 
 #define ELF_MACHINE    PPC_ELF_MACHINE
-#define ELF_START_MMAP 0x80000000
 
 #if defined(TARGET_PPC64)
 
@@ -1108,8 +1098,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 
 #ifdef TARGET_LOONGARCH64
 
-#define ELF_START_MMAP 0x80000000
-
 #define ELF_CLASS   ELFCLASS64
 #define ELF_ARCH    EM_LOONGARCH
 #define EXSTACK_DEFAULT true
@@ -1199,8 +1187,6 @@ static uint32_t get_elf_hwcap(void)
 #endif /* TARGET_LOONGARCH64 */
 
 #ifdef TARGET_MIPS
-
-#define ELF_START_MMAP 0x80000000
 
 #ifdef TARGET_MIPS64
 #define ELF_CLASS   ELFCLASS64
@@ -1359,8 +1345,6 @@ static uint32_t get_elf_hwcap(void)
 
 #ifdef TARGET_MICROBLAZE
 
-#define ELF_START_MMAP 0x80000000
-
 #define elf_check_arch(x) ( (x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 
 #define ELF_CLASS   ELFCLASS32
@@ -1400,8 +1384,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 #endif /* TARGET_MICROBLAZE */
 
 #ifdef TARGET_NIOS2
-
-#define ELF_START_MMAP 0x80000000
 
 #define elf_check_arch(x) ((x) == EM_ALTERA_NIOS2)
 
@@ -1498,8 +1480,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_OPENRISC
 
-#define ELF_START_MMAP 0x08000000
-
 #define ELF_ARCH EM_OPENRISC
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2MSB
@@ -1535,8 +1515,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #endif /* TARGET_OPENRISC */
 
 #ifdef TARGET_SH4
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_SH
@@ -1618,8 +1596,6 @@ static uint32_t get_elf_hwcap(void)
 
 #ifdef TARGET_CRIS
 
-#define ELF_START_MMAP 0x80000000
-
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_CRIS
 
@@ -1634,8 +1610,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif
 
 #ifdef TARGET_M68K
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_68K
@@ -1686,8 +1660,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 
 #ifdef TARGET_ALPHA
 
-#define ELF_START_MMAP (0x30000000000ULL)
-
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_ALPHA
 
@@ -1704,8 +1676,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif /* TARGET_ALPHA */
 
 #ifdef TARGET_S390X
-
-#define ELF_START_MMAP (0x20000000000ULL)
 
 #define ELF_CLASS	ELFCLASS64
 #define ELF_DATA	ELFDATA2MSB
@@ -1817,7 +1787,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_RISCV
 
-#define ELF_START_MMAP 0x80000000
 #define ELF_ARCH  EM_RISCV
 
 #ifdef TARGET_RISCV32
@@ -1853,7 +1822,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifdef TARGET_HPPA
 
-#define ELF_START_MMAP  0x80000000
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_PARISC
 #define ELF_PLATFORM    "PARISC"
@@ -1904,8 +1872,6 @@ static bool init_guest_commpage(void)
 #endif /* TARGET_HPPA */
 
 #ifdef TARGET_XTENSA
-
-#define ELF_START_MMAP 0x20000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_XTENSA
@@ -1971,8 +1937,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #endif /* TARGET_XTENSA */
 
 #ifdef TARGET_HEXAGON
-
-#define ELF_START_MMAP 0x20000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_HEXAGON
@@ -3689,8 +3653,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 #ifdef TARGET_MIPS
     interp_info.fp_abi = MIPS_ABI_FP_UNKNOWN;
 #endif
-
-    info->start_mmap = (abi_ulong)ELF_START_MMAP;
 
     load_elf_image(bprm->filename, bprm->fd, info,
                    &elf_interpreter, bprm->buf);
