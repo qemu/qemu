@@ -8125,6 +8125,8 @@ static void open_self_maps_4(const struct open_self_maps_data *d,
 
     if (test_stack(start, end, info->stack_limit)) {
         path = "[stack]";
+    } else if (start == info->brk) {
+        path = "[heap]";
     }
 
     /* Except null device (MAP_ANON), adjust offset for this fragment. */
