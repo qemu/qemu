@@ -106,11 +106,27 @@ static void pty_chr_update_read_handler(Chardev *chr)
 static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
+    GPollFD pfd;
+    int rc;
 
-    if (!s->connected) {
-        return len;
+    if (s->connected) {
+        return io_channel_send(s->ioc, buf, len);
     }
-    return io_channel_send(s->ioc, buf, len);
+
+    /*
+     * The other side might already be re-connected, but the timer might
+     * not have fired yet. So let's check here whether we can write again:
+     */
+    pfd.fd = QIO_CHANNEL_FILE(s->ioc)->fd;
+    pfd.events = G_IO_OUT;
+    pfd.revents = 0;
+    rc = RETRY_ON_EINTR(g_poll(&pfd, 1, 0));
+    g_assert(rc >= 0);
+    if (!(pfd.revents & G_IO_HUP) && (pfd.revents & G_IO_OUT)) {
+        io_channel_send(s->ioc, buf, len);
+    }
+
+    return len;
 }
 
 static GSource *pty_chr_add_watch(Chardev *chr, GIOCondition cond)
