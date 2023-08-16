@@ -3919,6 +3919,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     const VdsoImageInfo *vdso = vdso_image_info();
     if (vdso) {
         load_elf_vdso(&vdso_info, vdso);
+        info->vdso = vdso_info.load_bias;
     } else if (TARGET_ARCH_HAS_SIGTRAMP_PAGE) {
         abi_long tramp_page = target_mmap(0, TARGET_PAGE_SIZE,
                                           PROT_READ | PROT_WRITE,
