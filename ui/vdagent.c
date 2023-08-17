@@ -926,6 +926,9 @@ static void vdagent_chr_fini(Object *obj)
 
     migrate_del_blocker(vd->migration_blocker);
     vdagent_disconnect(vd);
+    if (vd->mouse_hs) {
+        qemu_input_handler_unregister(vd->mouse_hs);
+    }
     buffer_free(&vd->outbuf);
     error_free(vd->migration_blocker);
 }
