@@ -70,6 +70,9 @@ typedef struct QJackClient {
     int             buffersize;
     jack_port_t   **port;
     QJackBuffer     fifo;
+
+    /* Used as workspace by qjack_process() */
+    float **process_buffers;
 }
 QJackClient;
 
@@ -267,22 +270,21 @@ static int qjack_process(jack_nframes_t nframes, void *arg)
     }
 
     /* get the buffers for the ports */
-    float *buffers[c->nchannels];
     for (int i = 0; i < c->nchannels; ++i) {
-        buffers[i] = jack_port_get_buffer(c->port[i], nframes);
+        c->process_buffers[i] = jack_port_get_buffer(c->port[i], nframes);
     }
 
     if (c->out) {
         if (likely(c->enabled)) {
-            qjack_buffer_read_l(&c->fifo, buffers, nframes);
+            qjack_buffer_read_l(&c->fifo, c->process_buffers, nframes);
         } else {
             for (int i = 0; i < c->nchannels; ++i) {
-                memset(buffers[i], 0, nframes * sizeof(float));
+                memset(c->process_buffers[i], 0, nframes * sizeof(float));
             }
         }
     } else {
         if (likely(c->enabled)) {
-            qjack_buffer_write_l(&c->fifo, buffers, nframes);
+            qjack_buffer_write_l(&c->fifo, c->process_buffers, nframes);
         }
     }
 
@@ -448,6 +450,9 @@ static int qjack_client_init(QJackClient *c)
           jack_get_client_name(c->client));
     }
 
+    /* Allocate working buffer for process callback */
+    c->process_buffers = g_new(float *, c->nchannels);
+
     jack_set_process_callback(c->client, qjack_process , c);
     jack_set_port_registration_callback(c->client, qjack_port_registration, c);
     jack_set_xrun_callback(c->client, qjack_xrun, c);
@@ -579,6 +584,7 @@ static void qjack_client_fini_locked(QJackClient *c)
 
         qjack_buffer_free(&c->fifo);
         g_free(c->port);
+        g_free(c->process_buffers);
 
         c->state = QJACK_STATE_DISCONNECTED;
         /* fallthrough */
