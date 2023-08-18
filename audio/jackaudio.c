@@ -400,7 +400,8 @@ static void qjack_client_connect_ports(QJackClient *c)
 static int qjack_client_init(QJackClient *c)
 {
     jack_status_t status;
-    char client_name[jack_client_name_size()];
+    int client_name_len = jack_client_name_size(); /* includes NUL */
+    g_autofree char *client_name = g_new(char, client_name_len);
     jack_options_t options = JackNullOption;
 
     if (c->state == QJACK_STATE_RUNNING) {
@@ -409,7 +410,7 @@ static int qjack_client_init(QJackClient *c)
 
     c->connect_ports = true;
 
-    snprintf(client_name, sizeof(client_name), "%s-%s",
+    snprintf(client_name, client_name_len, "%s-%s",
         c->out ? "out" : "in",
         c->opt->client_name ? c->opt->client_name : audio_application_name());
 
