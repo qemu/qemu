@@ -738,7 +738,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     /* OK, This is the point of no return */
     info->end_data = 0;
     info->end_code = 0;
-    info->mmap = 0;
     elf_entry = (abi_ulong) elf_ex.e_entry;
 
     /* XXX Join this with PT_INTERP search? */
