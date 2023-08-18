@@ -916,7 +916,7 @@ static void riscv_cpu_reset_hold(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->cfg.debug) {
-        riscv_trigger_init(env);
+        riscv_trigger_reset_hold(env);
     }
 
     if (kvm_enabled()) {
@@ -1490,6 +1490,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
+
+#ifndef CONFIG_USER_ONLY
+    if (cpu->cfg.debug) {
+        riscv_trigger_realize(&cpu->env);
+    }
+#endif
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
