@@ -50,7 +50,6 @@ struct image_info {
     abi_ulong end_code;
     abi_ulong start_data;
     abi_ulong end_data;
-    abi_ulong start_brk;
     abi_ulong brk;
     abi_ulong rss;
     abi_ulong start_stack;

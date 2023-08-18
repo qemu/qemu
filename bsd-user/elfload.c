@@ -811,7 +811,7 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                                        bprm->stringp, &elf_ex, load_addr,
                                        et_dyn_addr, interp_load_addr, info);
     info->load_addr = reloc_func_desc;
-    info->start_brk = info->brk = elf_brk;
+    info->brk = elf_brk;
     info->start_stack = bprm->p;
     info->load_bias = 0;
 
