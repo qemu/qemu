@@ -1017,9 +1017,8 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
 {
     CPUState *cpu = env_cpu(cpu_env);
     abi_ulong raddr;
-    void *host_raddr;
     struct shmid_ds shm_info;
-    int i, ret;
+    int ret;
     abi_ulong shmlba;
 
     /* shmat pointers are always untagged */
@@ -1044,7 +1043,43 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
         return -TARGET_EINVAL;
     }
 
-    mmap_lock();
+    WITH_MMAP_LOCK_GUARD() {
+        void *host_raddr;
+
+        if (shmaddr) {
+            host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
+        } else {
+            abi_ulong mmap_start;
+
+            /* In order to use the host shmat, we need to honor host SHMLBA.  */
+            mmap_start = mmap_find_vma(0, shm_info.shm_segsz,
+                                       MAX(SHMLBA, shmlba));
+
+            if (mmap_start == -1) {
+                return -TARGET_ENOMEM;
+            }
+            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
+                               shmflg | SHM_REMAP);
+        }
+
+        if (host_raddr == (void *)-1) {
+            return get_errno(-1);
+        }
+        raddr = h2g(host_raddr);
+
+        page_set_flags(raddr, raddr + shm_info.shm_segsz - 1,
+                       PAGE_VALID | PAGE_RESET | PAGE_READ |
+                       (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
+
+        for (int i = 0; i < N_SHM_REGIONS; i++) {
+            if (!shm_regions[i].in_use) {
+                shm_regions[i].in_use = true;
+                shm_regions[i].start = raddr;
+                shm_regions[i].size = shm_info.shm_segsz;
+                break;
+            }
+        }
+    }
 
     /*
      * We're mapping shared memory, so ensure we generate code for parallel
@@ -1057,65 +1092,24 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
         tb_flush(cpu);
     }
 
-    if (shmaddr) {
-        host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
-    } else {
-        abi_ulong mmap_start;
-
-        /* In order to use the host shmat, we need to honor host SHMLBA.  */
-        mmap_start = mmap_find_vma(0, shm_info.shm_segsz, MAX(SHMLBA, shmlba));
-
-        if (mmap_start == -1) {
-            errno = ENOMEM;
-            host_raddr = (void *)-1;
-        } else {
-            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
-                               shmflg | SHM_REMAP);
-        }
-    }
-
-    if (host_raddr == (void *)-1) {
-        mmap_unlock();
-        return get_errno((intptr_t)host_raddr);
-    }
-    raddr = h2g((uintptr_t)host_raddr);
-
-    page_set_flags(raddr, raddr + shm_info.shm_segsz - 1,
-                   PAGE_VALID | PAGE_RESET | PAGE_READ |
-                   (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
-
-    for (i = 0; i < N_SHM_REGIONS; i++) {
-        if (!shm_regions[i].in_use) {
-            shm_regions[i].in_use = true;
-            shm_regions[i].start = raddr;
-            shm_regions[i].size = shm_info.shm_segsz;
-            break;
-        }
-    }
-
-    mmap_unlock();
     return raddr;
 }
 
 abi_long target_shmdt(abi_ulong shmaddr)
 {
-    int i;
     abi_long rv;
 
     /* shmdt pointers are always untagged */
 
-    mmap_lock();
-
-    for (i = 0; i < N_SHM_REGIONS; ++i) {
-        if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
-            shm_regions[i].in_use = false;
-            page_set_flags(shmaddr, shmaddr + shm_regions[i].size - 1, 0);
-            break;
+    WITH_MMAP_LOCK_GUARD() {
+        for (int i = 0; i < N_SHM_REGIONS; ++i) {
+            if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
+                shm_regions[i].in_use = false;
+                page_set_flags(shmaddr, shmaddr + shm_regions[i].size - 1, 0);
+                break;
+            }
         }
+        rv = get_errno(shmdt(g2h_untagged(shmaddr)));
     }
-    rv = get_errno(shmdt(g2h_untagged(shmaddr)));
-
-    mmap_unlock();
-
     return rv;
 }
