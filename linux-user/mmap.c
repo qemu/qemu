@@ -24,17 +24,10 @@
 #include "user-internals.h"
 #include "user-mmap.h"
 #include "target_mman.h"
+#include "qemu/interval-tree.h"
 
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
-
-#define N_SHM_REGIONS  32
-
-static struct shm_region {
-    abi_ulong start;
-    abi_ulong size;
-    bool in_use;
-} shm_regions[N_SHM_REGIONS];
 
 void mmap_lock(void)
 {
@@ -70,6 +63,44 @@ void mmap_fork_end(int child)
         pthread_mutex_init(&mmap_mutex, NULL);
     } else {
         pthread_mutex_unlock(&mmap_mutex);
+    }
+}
+
+/* Protected by mmap_lock. */
+static IntervalTreeRoot shm_regions;
+
+static void shm_region_add(abi_ptr start, abi_ptr last)
+{
+    IntervalTreeNode *i = g_new0(IntervalTreeNode, 1);
+
+    i->start = start;
+    i->last = last;
+    interval_tree_insert(i, &shm_regions);
+}
+
+static abi_ptr shm_region_find(abi_ptr start)
+{
+    IntervalTreeNode *i;
+
+    for (i = interval_tree_iter_first(&shm_regions, start, start); i;
+         i = interval_tree_iter_next(i, start, start)) {
+        if (i->start == start) {
+            return i->last;
+        }
+    }
+    return 0;
+}
+
+static void shm_region_rm_complete(abi_ptr start, abi_ptr last)
+{
+    IntervalTreeNode *i, *n;
+
+    for (i = interval_tree_iter_first(&shm_regions, start, last); i; i = n) {
+        n = interval_tree_iter_next(i, start, last);
+        if (i->start >= start && i->last <= last) {
+            interval_tree_remove(i, &shm_regions);
+            g_free(i);
+        }
     }
 }
 
@@ -729,6 +760,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             page_set_flags(passthrough_last + 1, last, page_flags);
         }
     }
+    shm_region_rm_complete(start, last);
  the_end:
     trace_target_mmap_complete(start);
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
@@ -826,6 +858,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     mmap_lock();
     mmap_reserve_or_unmap(start, len);
     page_set_flags(start, start + len - 1, 0);
+    shm_region_rm_complete(start, start + len - 1);
     mmap_unlock();
 
     return 0;
@@ -915,8 +948,10 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         new_addr = h2g(host_addr);
         prot = page_get_flags(old_addr);
         page_set_flags(old_addr, old_addr + old_size - 1, 0);
+        shm_region_rm_complete(old_addr, old_addr + old_size - 1);
         page_set_flags(new_addr, new_addr + new_size - 1,
                        prot | PAGE_VALID | PAGE_RESET);
+        shm_region_rm_complete(new_addr, new_addr + new_size - 1);
     }
     mmap_unlock();
     return new_addr;
@@ -1045,6 +1080,7 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
 
     WITH_MMAP_LOCK_GUARD() {
         void *host_raddr;
+        abi_ulong last;
 
         if (shmaddr) {
             host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
@@ -1066,19 +1102,14 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
             return get_errno(-1);
         }
         raddr = h2g(host_raddr);
+        last = raddr + shm_info.shm_segsz - 1;
 
-        page_set_flags(raddr, raddr + shm_info.shm_segsz - 1,
+        page_set_flags(raddr, last,
                        PAGE_VALID | PAGE_RESET | PAGE_READ |
                        (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
 
-        for (int i = 0; i < N_SHM_REGIONS; i++) {
-            if (!shm_regions[i].in_use) {
-                shm_regions[i].in_use = true;
-                shm_regions[i].start = raddr;
-                shm_regions[i].size = shm_info.shm_segsz;
-                break;
-            }
-        }
+        shm_region_rm_complete(raddr, last);
+        shm_region_add(raddr, last);
     }
 
     /*
@@ -1102,23 +1133,17 @@ abi_long target_shmdt(abi_ulong shmaddr)
     /* shmdt pointers are always untagged */
 
     WITH_MMAP_LOCK_GUARD() {
-        int i;
-
-        for (i = 0; i < N_SHM_REGIONS; ++i) {
-            if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
-                break;
-            }
-        }
-        if (i == N_SHM_REGIONS) {
+        abi_ulong last = shm_region_find(shmaddr);
+        if (last == 0) {
             return -TARGET_EINVAL;
         }
 
         rv = get_errno(shmdt(g2h_untagged(shmaddr)));
         if (rv == 0) {
-            abi_ulong size = shm_regions[i].size;
+            abi_ulong size = last - shmaddr + 1;
 
-            shm_regions[i].in_use = false;
-            page_set_flags(shmaddr, shmaddr + size - 1, 0);
+            page_set_flags(shmaddr, last, 0);
+            shm_region_rm_complete(shmaddr, last);
             mmap_reserve_or_unmap(shmaddr, size);
         }
     }
