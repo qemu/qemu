@@ -1102,14 +1102,25 @@ abi_long target_shmdt(abi_ulong shmaddr)
     /* shmdt pointers are always untagged */
 
     WITH_MMAP_LOCK_GUARD() {
-        for (int i = 0; i < N_SHM_REGIONS; ++i) {
+        int i;
+
+        for (i = 0; i < N_SHM_REGIONS; ++i) {
             if (shm_regions[i].in_use && shm_regions[i].start == shmaddr) {
-                shm_regions[i].in_use = false;
-                page_set_flags(shmaddr, shmaddr + shm_regions[i].size - 1, 0);
                 break;
             }
         }
+        if (i == N_SHM_REGIONS) {
+            return -TARGET_EINVAL;
+        }
+
         rv = get_errno(shmdt(g2h_untagged(shmaddr)));
+        if (rv == 0) {
+            abi_ulong size = shm_regions[i].size;
+
+            shm_regions[i].in_use = false;
+            page_set_flags(shmaddr, shmaddr + size - 1, 0);
+            mmap_reserve_or_unmap(shmaddr, size);
+        }
     }
     return rv;
 }
