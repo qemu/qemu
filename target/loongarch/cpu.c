@@ -726,8 +726,18 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 #endif
 }
 
+static gchar *loongarch32_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("loongarch32");
+}
+
 static void loongarch32_cpu_class_init(ObjectClass *c, void *data)
 {
+    CPUClass *cc = CPU_CLASS(c);
+
+    cc->gdb_num_core_regs = 35;
+    cc->gdb_core_xml_file = "loongarch-base32.xml";
+    cc->gdb_arch_name = loongarch32_gdb_arch_name;
 }
 
 static gchar *loongarch64_gdb_arch_name(CPUState *cs)
