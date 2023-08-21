@@ -726,6 +726,10 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 #endif
 }
 
+static void loongarch32_cpu_class_init(ObjectClass *c, void *data)
+{
+}
+
 static gchar *loongarch64_gdb_arch_name(CPUState *cs)
 {
     return g_strdup("loongarch64");
@@ -757,6 +761,13 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .abstract = true,
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
+    },
+    {
+        .name = TYPE_LOONGARCH32_CPU,
+        .parent = TYPE_LOONGARCH_CPU,
+
+        .abstract = true,
+        .class_init = loongarch32_cpu_class_init,
     },
     {
         .name = TYPE_LOONGARCH64_CPU,
