@@ -24,7 +24,7 @@ Choosing a board model
 
 For QEMU's RISC-V system emulation, you must specify which board
 model you want to use with the ``-M`` or ``--machine`` option;
-there is no default.
+the default value is spike.
 
 Because RISC-V systems differ so much and in fundamental ways, typically
 operating system or firmware images intended to run on one machine
