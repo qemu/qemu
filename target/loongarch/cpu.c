@@ -734,9 +734,9 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 #endif
 }
 
-#define DEFINE_LOONGARCH_CPU_TYPE(model, initfn) \
+#define DEFINE_LOONGARCH_CPU_TYPE(size, model, initfn) \
     { \
-        .parent = TYPE_LOONGARCH_CPU, \
+        .parent = TYPE_LOONGARCH##size##_CPU, \
         .instance_init = initfn, \
         .name = LOONGARCH_CPU_TYPE_NAME(model), \
     }
@@ -752,7 +752,13 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
     },
-    DEFINE_LOONGARCH_CPU_TYPE("la464", loongarch_la464_initfn),
+    {
+        .name = TYPE_LOONGARCH64_CPU,
+        .parent = TYPE_LOONGARCH_CPU,
+
+        .abstract = true,
+    },
+    DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
