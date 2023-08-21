@@ -517,6 +517,7 @@ typedef struct {
  *   round_mask: bits below lsb which must be rounded
  * The following optional modifiers are available:
  *   arm_althp: handle ARM Alternative Half Precision
+ *   m68k_denormal: explicit integer bit for extended precision may be 1
  */
 typedef struct {
     int exp_size;
@@ -526,6 +527,7 @@ typedef struct {
     int frac_size;
     int frac_shift;
     bool arm_althp;
+    bool m68k_denormal;
     uint64_t round_mask;
 } FloatFmt;
 
@@ -576,7 +578,12 @@ static const FloatFmt float128_params = {
 static const FloatFmt floatx80_params[3] = {
     [floatx80_precision_s] = { FLOATX80_PARAMS(23) },
     [floatx80_precision_d] = { FLOATX80_PARAMS(52) },
-    [floatx80_precision_x] = { FLOATX80_PARAMS(64) },
+    [floatx80_precision_x] = {
+        FLOATX80_PARAMS(64),
+#ifdef TARGET_M68K
+        .m68k_denormal = true,
+#endif
+    },
 };
 
 /* Unpack a float to parts, but do not canonicalize.  */
