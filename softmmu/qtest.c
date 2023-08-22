@@ -397,8 +397,10 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         || strcmp(words[0], "irq_intercept_in") == 0) {
         DeviceState *dev;
         NamedGPIOList *ngl;
+        bool is_outbound;
 
         g_assert(words[1]);
+        is_outbound = words[0][14] == 'o';
         dev = DEVICE(object_resolve_path(words[1], NULL));
         if (!dev) {
             qtest_send_prefix(chr);
@@ -417,14 +419,14 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support intercept of named GPIOs yet */
-            if (ngl->name) {
-                continue;
-            }
-            if (words[0][14] == 'o') {
-                int i;
-                for (i = 0; i < ngl->num_out; ++i) {
-                    qtest_install_gpio_out_intercept(dev, ngl->name, i);
+            /* We don't support inbound interception of named GPIOs yet */
+            if (is_outbound) {
+                /* NULL is valid and matchable, for "unnamed GPIO" */
+                if (g_strcmp0(ngl->name, words[2]) == 0) {
+                    int i;
+                    for (i = 0; i < ngl->num_out; ++i) {
+                        qtest_install_gpio_out_intercept(dev, ngl->name, i);
+                    }
                 }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
