@@ -52,13 +52,6 @@ typedef struct S1Translate {
      */
     ARMSecuritySpace in_space;
     /*
-     * in_secure: whether the translation regime is a Secure one.
-     * This is always equal to arm_space_is_secure(in_space).
-     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
-     * this field is updated accordingly.
-     */
-    bool in_secure;
-    /*
      * in_debug: is this a QEMU debug access (gdbstub, etc)? Debug
      * accesses will not update the guest page table access flags
      * and will not change the state of the softmmu TLBs.
@@ -547,7 +540,6 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
         S1Translate s2ptw = {
             .in_mmu_idx = s2_mmu_idx,
             .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
-            .in_secure = arm_space_is_secure(s2_space),
             .in_space = s2_space,
             .in_debug = true,
         };
@@ -1784,7 +1776,6 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         QEMU_BUILD_BUG_ON(ARMMMUIdx_Phys_S + 1 != ARMMMUIdx_Phys_NS);
         QEMU_BUILD_BUG_ON(ARMMMUIdx_Stage2_S + 1 != ARMMMUIdx_Stage2);
         ptw->in_ptw_idx += 1;
-        ptw->in_secure = false;
         ptw->in_space = ARMSS_NonSecure;
     }
 
@@ -3167,7 +3158,6 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 
     ptw->in_s1_is_el0 = ptw->in_mmu_idx == ARMMMUIdx_Stage1_E0;
     ptw->in_mmu_idx = ipa_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
-    ptw->in_secure = ipa_secure;
     ptw->in_space = ipa_space;
     ptw->in_ptw_idx = ptw_idx_for_stage_2(env, ptw->in_mmu_idx);
 
@@ -3403,7 +3393,6 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
 {
     S1Translate ptw = {
         .in_mmu_idx = mmu_idx,
-        .in_secure = is_secure,
         .in_space = arm_secure_to_space(is_secure),
     };
     return get_phys_addr_gpc(env, &ptw, address, access_type, result, fi);
@@ -3475,7 +3464,6 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     }
 
     ptw.in_space = ss;
-    ptw.in_secure = arm_space_is_secure(ss);
     return get_phys_addr_gpc(env, &ptw, address, access_type, result, fi);
 }
 
@@ -3489,7 +3477,6 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
     S1Translate ptw = {
         .in_mmu_idx = mmu_idx,
         .in_space = ss,
-        .in_secure = arm_space_is_secure(ss),
         .in_debug = true,
     };
     GetPhysAddrResult res = {};
