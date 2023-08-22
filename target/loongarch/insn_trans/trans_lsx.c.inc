@@ -4315,14 +4315,13 @@ static bool trans_vldx(DisasContext *ctx, arg_vrr *a)
 
     CHECK_SXE;
 
-    addr = tcg_temp_new();
     src1 = gpr_src(ctx, a->rj, EXT_NONE);
     src2 = gpr_src(ctx, a->rk, EXT_NONE);
     val = tcg_temp_new_i128();
     rl = tcg_temp_new_i64();
     rh = tcg_temp_new_i64();
 
-    tcg_gen_add_tl(addr, src1, src2);
+    addr = make_address_x(ctx, src1, src2);
     tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
     tcg_gen_extr_i128_i64(rl, rh, val);
     set_vreg64(rh, a->vd, 1);
@@ -4339,14 +4338,13 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
 
     CHECK_SXE;
 
-    addr = tcg_temp_new();
     src1 = gpr_src(ctx, a->rj, EXT_NONE);
     src2 = gpr_src(ctx, a->rk, EXT_NONE);
     val = tcg_temp_new_i128();
     ah = tcg_temp_new_i64();
     al = tcg_temp_new_i64();
 
-    tcg_gen_add_tl(addr, src1, src2);
+    addr = make_address_x(ctx, src1, src2);
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
     tcg_gen_concat_i64_i128(val, al, ah);
