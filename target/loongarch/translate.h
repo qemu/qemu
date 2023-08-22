@@ -10,9 +10,11 @@
 
 #include "exec/translator.h"
 
-#define TRANS(NAME, FUNC, ...) \
+#define TRANS(NAME, AVAIL, FUNC, ...) \
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
-    { return FUNC(ctx, a, __VA_ARGS__); }
+    { return avail_##AVAIL(ctx) && FUNC(ctx, a, __VA_ARGS__); }
+
+#define avail_ALL(C)   true
 
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
