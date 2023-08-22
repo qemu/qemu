@@ -437,6 +437,10 @@ static bool trans_ldpte(DisasContext *ctx, arg_ldpte *a)
     TCGv_i32 mem_idx = tcg_constant_i32(ctx->mem_idx);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
 
+    if (!avail_LSPW(ctx)) {
+        return true;
+    }
+
     if (check_plv(ctx)) {
         return false;
     }
@@ -449,6 +453,10 @@ static bool trans_lddir(DisasContext *ctx, arg_lddir *a)
     TCGv_i32 mem_idx = tcg_constant_i32(ctx->mem_idx);
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
+
+    if (!avail_LSPW(ctx)) {
+        return true;
+    }
 
     if (check_plv(ctx)) {
         return false;
