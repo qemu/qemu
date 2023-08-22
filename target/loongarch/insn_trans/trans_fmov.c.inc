@@ -15,6 +15,10 @@ static bool trans_fsel(DisasContext *ctx, arg_fsel *a)
     TCGv src2 = get_fpr(ctx, a->fk);
     TCGv cond;
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     cond = tcg_temp_new();
@@ -48,6 +52,10 @@ static bool gen_r2f(DisasContext *ctx, arg_fr *a,
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
     TCGv dest = get_fpr(ctx, a->fd);
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     func(dest, src);
@@ -62,6 +70,10 @@ static bool gen_f2r(DisasContext *ctx, arg_rf *a,
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src = get_fpr(ctx, a->fj);
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     func(dest, src);
@@ -74,6 +86,10 @@ static bool trans_movgr2fcsr(DisasContext *ctx, arg_movgr2fcsr *a)
 {
     uint32_t mask = fcsr_mask[a->fcsrd];
     TCGv Rj = gpr_src(ctx, a->rj, EXT_NONE);
+
+    if (!avail_FP(ctx)) {
+        return false;
+    }
 
     CHECK_FPE;
 
@@ -105,6 +121,10 @@ static bool trans_movfcsr2gr(DisasContext *ctx, arg_movfcsr2gr *a)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     tcg_gen_ld32u_i64(dest, cpu_env, offsetof(CPULoongArchState, fcsr0));
@@ -134,6 +154,10 @@ static bool trans_movfr2cf(DisasContext *ctx, arg_movfr2cf *a)
     TCGv t0;
     TCGv src = get_fpr(ctx, a->fj);
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     t0 = tcg_temp_new();
@@ -146,6 +170,10 @@ static bool trans_movfr2cf(DisasContext *ctx, arg_movfr2cf *a)
 static bool trans_movcf2fr(DisasContext *ctx, arg_movcf2fr *a)
 {
     TCGv dest = get_fpr(ctx, a->fd);
+
+    if (!avail_FP(ctx)) {
+        return false;
+    }
 
     CHECK_FPE;
 
@@ -160,6 +188,10 @@ static bool trans_movgr2cf(DisasContext *ctx, arg_movgr2cf *a)
 {
     TCGv t0;
 
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     t0 = tcg_temp_new();
@@ -171,6 +203,10 @@ static bool trans_movgr2cf(DisasContext *ctx, arg_movgr2cf *a)
 
 static bool trans_movcf2gr(DisasContext *ctx, arg_movcf2gr *a)
 {
+    if (!avail_FP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     tcg_gen_ld8u_tl(gpr_dst(ctx, a->rd, EXT_NONE), cpu_env,
@@ -178,11 +214,11 @@ static bool trans_movcf2gr(DisasContext *ctx, arg_movcf2gr *a)
     return true;
 }
 
-TRANS(fmov_s, ALL, gen_f2f, tcg_gen_mov_tl, true)
-TRANS(fmov_d, ALL, gen_f2f, tcg_gen_mov_tl, false)
-TRANS(movgr2fr_w, ALL, gen_r2f, gen_movgr2fr_w)
+TRANS(fmov_s, FP_SP, gen_f2f, tcg_gen_mov_tl, true)
+TRANS(fmov_d, FP_DP, gen_f2f, tcg_gen_mov_tl, false)
+TRANS(movgr2fr_w, FP_SP, gen_r2f, gen_movgr2fr_w)
 TRANS(movgr2fr_d, 64, gen_r2f, tcg_gen_mov_tl)
-TRANS(movgr2frh_w, ALL, gen_r2f, gen_movgr2frh_w)
-TRANS(movfr2gr_s, ALL, gen_f2r, tcg_gen_ext32s_tl)
+TRANS(movgr2frh_w, FP_DP, gen_r2f, gen_movgr2frh_w)
+TRANS(movfr2gr_s, FP_SP, gen_f2r, tcg_gen_ext32s_tl)
 TRANS(movfr2gr_d, 64, gen_f2r, tcg_gen_mov_tl)
-TRANS(movfrh2gr_s, ALL, gen_f2r, gen_movfrh2gr_s)
+TRANS(movfrh2gr_s, FP_DP, gen_f2r, gen_movfrh2gr_s)

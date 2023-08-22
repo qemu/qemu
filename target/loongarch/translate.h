@@ -17,6 +17,9 @@
 #define avail_ALL(C)   true
 #define avail_64(C)    (FIELD_EX32((C)->cpucfg1, CPUCFG1, ARCH) == \
                         CPUCFG1_ARCH_LA64)
+#define avail_FP(C)    (FIELD_EX32((C)->cpucfg2, CPUCFG2, FP))
+#define avail_FP_SP(C) (FIELD_EX32((C)->cpucfg2, CPUCFG2, FP_SP))
+#define avail_FP_DP(C) (FIELD_EX32((C)->cpucfg2, CPUCFG2, FP_DP))
 
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
@@ -40,6 +43,7 @@ typedef struct DisasContext {
     bool la64; /* LoongArch64 mode */
     bool va32; /* 32-bit virtual address */
     uint32_t cpucfg1;
+    uint32_t cpucfg2;
 } DisasContext;
 
 void generate_exception(DisasContext *ctx, int excp);
