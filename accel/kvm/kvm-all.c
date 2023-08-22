@@ -2527,6 +2527,11 @@ static int kvm_init(MachineState *ms)
         type = kvm_arch_get_default_type(ms);
     }
 
+    if (type < 0) {
+        ret = -EINVAL;
+        goto err;
+    }
+
     do {
         ret = kvm_ioctl(s, KVM_CREATE_VM, type);
     } while (ret == -EINTR);
