@@ -1115,6 +1115,7 @@ struct ArchCPU {
 };
 
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu);
+void gt_rme_post_el_change(ARMCPU *cpu, void *opaque);
 
 void arm_cpu_post_init(Object *obj);
 
@@ -1742,6 +1743,9 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 
 #define HSTR_TTEE (1 << 16)
 #define HSTR_TJDBX (1 << 17)
+
+#define CNTHCTL_CNTVMASK      (1 << 18)
+#define CNTHCTL_CNTPMASK      (1 << 19)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);
