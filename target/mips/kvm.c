@@ -1278,6 +1278,7 @@ int kvm_arch_get_default_type(MachineState *machine)
     }
 #endif
 
+    error_report("KVM_VM_MIPS_VZ type is not available");
     return -1;
 }
 
