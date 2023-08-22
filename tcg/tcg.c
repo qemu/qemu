@@ -2000,9 +2000,8 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_extract2_i64:
         return TCG_TARGET_HAS_extract2_i64;
     case INDEX_op_extrl_i64_i32:
-        return TCG_TARGET_HAS_extrl_i64_i32;
     case INDEX_op_extrh_i64_i32:
-        return TCG_TARGET_HAS_extrh_i64_i32;
+        return TCG_TARGET_HAS_extr_i64_i32;
     case INDEX_op_ext8s_i64:
         return TCG_TARGET_HAS_ext8s_i64;
     case INDEX_op_ext16s_i64:

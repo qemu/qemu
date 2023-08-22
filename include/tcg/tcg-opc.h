@@ -152,10 +152,10 @@ DEF(extract2_i64, 1, 2, 1, IMPL64 | IMPL(TCG_TARGET_HAS_extract2_i64))
 DEF(ext_i32_i64, 1, 1, 0, IMPL64)
 DEF(extu_i32_i64, 1, 1, 0, IMPL64)
 DEF(extrl_i64_i32, 1, 1, 0,
-    IMPL(TCG_TARGET_HAS_extrl_i64_i32)
+    IMPL(TCG_TARGET_HAS_extr_i64_i32)
     | (TCG_TARGET_REG_BITS == 32 ? TCG_OPF_NOT_PRESENT : 0))
 DEF(extrh_i64_i32, 1, 1, 0,
-    IMPL(TCG_TARGET_HAS_extrh_i64_i32)
+    IMPL(TCG_TARGET_HAS_extr_i64_i32)
     | (TCG_TARGET_REG_BITS == 32 ? TCG_OPF_NOT_PRESENT : 0))
 
 DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_COND_BRANCH | IMPL64)
