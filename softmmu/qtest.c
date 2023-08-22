@@ -365,6 +365,15 @@ void qtest_set_command_cb(bool (*pc_cb)(CharBackend *chr, gchar **words))
     process_command_cb = pc_cb;
 }
 
+static void qtest_install_gpio_out_intercept(DeviceState *dev, const char *name, int n)
+{
+    qemu_irq *disconnected = g_new0(qemu_irq, 1);
+    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+                                      disconnected, n);
+
+    *disconnected = qdev_intercept_gpio_out(dev, icpt, name, n);
+}
+
 static void qtest_process_command(CharBackend *chr, gchar **words)
 {
     const gchar *command;
@@ -415,12 +424,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
             if (words[0][14] == 'o') {
                 int i;
                 for (i = 0; i < ngl->num_out; ++i) {
-                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
-                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
-                                                      disconnected, i);
-
-                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
-                                                            ngl->name, i);
+                    qtest_install_gpio_out_intercept(dev, ngl->name, i);
                 }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
