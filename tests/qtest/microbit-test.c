@@ -393,6 +393,49 @@ static void test_nrf51_gpio(void)
     qtest_quit(qts);
 }
 
+static void test_nrf51_gpio_detect(void)
+{
+    QTestState *qts = qtest_init("-M microbit");
+    int i;
+
+    /* Connect input buffer on pins 1-7, configure SENSE for high level */
+    for (i = 1; i <= 7; i++) {
+        qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START + i * 4,
+                     deposit32(0, 16, 2, 2));
+    }
+
+    qtest_irq_intercept_out_named(qts, "/machine/nrf51/gpio", "detect");
+
+    for (i = 1; i <= 7; i++) {
+        /* Set pin high */
+        qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", i, 1);
+        uint32_t actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN);
+        g_assert_cmpuint(actual, ==, 1 << i);
+
+        /* Check that DETECT is high */
+        g_assert_true(qtest_get_irq(qts, 0));
+
+        /* Set pin low, check that DETECT goes low. */
+        qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", i, 0);
+        actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN);
+        g_assert_cmpuint(actual, ==, 0x0);
+        g_assert_false(qtest_get_irq(qts, 0));
+    }
+
+    /* Set pin 0 high, check that DETECT doesn't fire */
+    qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 1);
+    g_assert_false(qtest_get_irq(qts, 0));
+    qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 0);
+
+    /* Set pins 1, 2, and 3 high, then set 3 low. Check DETECT is still high */
+    for (i = 1; i <= 3; i++) {
+        qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", i, 1);
+    }
+    g_assert_true(qtest_get_irq(qts, 0));
+    qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 3, 0);
+    g_assert_true(qtest_get_irq(qts, 0));
+}
+
 static void timer_task(QTestState *qts, hwaddr task)
 {
     qtest_writel(qts, NRF51_TIMER_BASE + task, NRF51_TRIGGER_TASK);
@@ -499,6 +542,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/microbit/nrf51/uart", test_nrf51_uart);
     qtest_add_func("/microbit/nrf51/gpio", test_nrf51_gpio);
+    qtest_add_func("/microbit/nrf51/gpio_detect", test_nrf51_gpio_detect);
     qtest_add_func("/microbit/nrf51/nvmc", test_nrf51_nvmc);
     qtest_add_func("/microbit/nrf51/timer", test_nrf51_timer);
     qtest_add_func("/microbit/microbit/i2c", test_microbit_i2c);
