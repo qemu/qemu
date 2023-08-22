@@ -488,26 +488,6 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
     info->si_value.sival_ptr = (void *)(long)sival_ptr;
 }
 
-static int fatal_signal (int sig)
-{
-    switch (sig) {
-    case TARGET_SIGCHLD:
-    case TARGET_SIGURG:
-    case TARGET_SIGWINCH:
-        /* Ignored by default.  */
-        return 0;
-    case TARGET_SIGCONT:
-    case TARGET_SIGSTOP:
-    case TARGET_SIGTSTP:
-    case TARGET_SIGTTIN:
-    case TARGET_SIGTTOU:
-        /* Job control signals.  */
-        return 0;
-    default:
-        return 1;
-    }
-}
-
 /* returns 1 if given signal should dump core if not handled */
 static int core_dump_signal(int sig)
 {
@@ -602,8 +582,9 @@ void signal_init(void)
            SIGSEGV and SIGBUS, to detect exceptions.  We can not just
            trap all signals because it affects syscall interrupt
            behavior.  But do trap all default-fatal signals.  */
-        if (fatal_signal (i))
+        if (core_dump_signal(i)) {
             sigaction(host_sig, &act, NULL);
+        }
     }
 }
 
@@ -997,7 +978,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact, abi_ulong ka_restorer)
 {
     struct target_sigaction *k;
-    struct sigaction act1;
     int host_sig;
     int ret = 0;
 
@@ -1057,22 +1037,27 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             return 0;
         }
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
+            struct sigaction act1;
+
             sigfillset(&act1.sa_mask);
             act1.sa_flags = SA_SIGINFO;
-            if (k->sa_flags & TARGET_SA_RESTART)
-                act1.sa_flags |= SA_RESTART;
-            /* NOTE: it is important to update the host kernel signal
-               ignore state to avoid getting unexpected interrupted
-               syscalls */
             if (k->_sa_handler == TARGET_SIG_IGN) {
+                /*
+                 * It is important to update the host kernel signal ignore
+                 * state to avoid getting unexpected interrupted syscalls.
+                 */
                 act1.sa_sigaction = (void *)SIG_IGN;
             } else if (k->_sa_handler == TARGET_SIG_DFL) {
-                if (fatal_signal (sig))
+                if (core_dump_signal(sig)) {
                     act1.sa_sigaction = host_signal_handler;
-                else
+                } else {
                     act1.sa_sigaction = (void *)SIG_DFL;
+                }
             } else {
                 act1.sa_sigaction = host_signal_handler;
+                if (k->sa_flags & TARGET_SA_RESTART) {
+                    act1.sa_flags |= SA_RESTART;
+                }
             }
             ret = sigaction(host_sig, &act1, NULL);
         }
