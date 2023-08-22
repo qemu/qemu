@@ -375,6 +375,22 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
     return 0;
 }
 
+static int vhost_vdpa_net_data_load(NetClientState *nc)
+{
+    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+    bool has_cvq = v->dev->vq_index_end % 2;
+
+    if (has_cvq) {
+        return 0;
+    }
+
+    for (int i = 0; i < v->dev->nvqs; ++i) {
+        vhost_vdpa_set_vring_ready(v, i + v->dev->vq_index);
+    }
+    return 0;
+}
+
 static void vhost_vdpa_net_client_stop(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -397,6 +413,7 @@ static NetClientInfo net_vhost_vdpa_info = {
         .size = sizeof(VhostVDPAState),
         .receive = vhost_vdpa_receive,
         .start = vhost_vdpa_net_data_start,
+        .load = vhost_vdpa_net_data_load,
         .stop = vhost_vdpa_net_client_stop,
         .cleanup = vhost_vdpa_cleanup,
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
@@ -1022,30 +1039,34 @@ static int vhost_vdpa_net_cvq_load(NetClientState *nc)
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
-    if (!v->shadow_vqs_enabled) {
-        return 0;
+    vhost_vdpa_set_vring_ready(v, v->dev->vq_index);
+
+    if (v->shadow_vqs_enabled) {
+        n = VIRTIO_NET(v->dev->vdev);
+        r = vhost_vdpa_net_load_mac(s, n);
+        if (unlikely(r < 0)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_mq(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_offloads(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_rx(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_vlan(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
     }
 
-    n = VIRTIO_NET(v->dev->vdev);
-    r = vhost_vdpa_net_load_mac(s, n);
-    if (unlikely(r < 0)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_mq(s, n);
-    if (unlikely(r)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_offloads(s, n);
-    if (unlikely(r)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_rx(s, n);
-    if (unlikely(r)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_vlan(s, n);
-    if (unlikely(r)) {
-        return r;
+    for (int i = 0; i < v->dev->vq_index; ++i) {
+        vhost_vdpa_set_vring_ready(v, i);
     }
 
     return 0;

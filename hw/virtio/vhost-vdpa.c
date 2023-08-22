@@ -1303,9 +1303,6 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         if (unlikely(!ok)) {
             return -1;
         }
-        for (int i = 0; i < dev->nvqs; ++i) {
-            vhost_vdpa_set_vring_ready(v, dev->vq_index + i);
-        }
     } else {
         vhost_vdpa_suspend(dev);
         vhost_vdpa_svqs_stop(dev);
