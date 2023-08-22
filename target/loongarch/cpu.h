@@ -443,6 +443,11 @@ static inline bool is_va32(CPULoongArchState *env)
     return va32;
 }
 
+static inline void set_pc(CPULoongArchState *env, uint64_t value)
+{
+    env->pc = value;
+}
+
 /*
  * LoongArch CPUs hardware flags.
  */
