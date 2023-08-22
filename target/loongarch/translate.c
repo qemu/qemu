@@ -238,6 +238,9 @@ static TCGv make_address_i(DisasContext *ctx, TCGv base, target_long ofs)
 
 static uint64_t make_address_pc(DisasContext *ctx, uint64_t addr)
 {
+    if (ctx->va32) {
+        addr = (int32_t)addr;
+    }
     return addr;
 }
 
