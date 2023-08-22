@@ -445,7 +445,11 @@ static inline bool is_va32(CPULoongArchState *env)
 
 static inline void set_pc(CPULoongArchState *env, uint64_t value)
 {
-    env->pc = value;
+    if (is_va32(env)) {
+        env->pc = (uint32_t)value;
+    } else {
+        env->pc = value;
+    }
 }
 
 /*
