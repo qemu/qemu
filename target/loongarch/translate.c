@@ -127,6 +127,8 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->va32 = (ctx->base.tb->flags & HW_FLAGS_VA32) != 0;
 
     ctx->zero = tcg_constant_tl(0);
+
+    ctx->cpucfg1 = env->cpucfg[1];
 }
 
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
