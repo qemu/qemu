@@ -4255,7 +4255,7 @@ TRANS(vextrins_d, gen_vv_i, gen_helper_vextrins_d)
 
 static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
 {
-    TCGv addr, temp;
+    TCGv addr;
     TCGv_i64 rl, rh;
     TCGv_i128 val;
 
@@ -4266,11 +4266,7 @@ static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
     rl = tcg_temp_new_i64();
     rh = tcg_temp_new_i64();
 
-    if (a->imm) {
-        temp = tcg_temp_new();
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
+    addr = make_address_i(ctx, addr, a->imm);
 
     tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
     tcg_gen_extr_i128_i64(rl, rh, val);
@@ -4282,7 +4278,7 @@ static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
 
 static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
 {
-    TCGv addr, temp;
+    TCGv addr;
     TCGv_i128 val;
     TCGv_i64 ah, al;
 
@@ -4293,11 +4289,7 @@ static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
     ah = tcg_temp_new_i64();
     al = tcg_temp_new_i64();
 
-    if (a->imm) {
-        temp = tcg_temp_new();
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
+    addr = make_address_i(ctx, addr, a->imm);
 
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
@@ -4356,7 +4348,7 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
 #define VLDREPL(NAME, MO)                                                 \
 static bool trans_## NAME (DisasContext *ctx, arg_vr_i *a)                \
 {                                                                         \
-    TCGv addr, temp;                                                      \
+    TCGv addr;                                                            \
     TCGv_i64 val;                                                         \
                                                                           \
     CHECK_SXE;                                                            \
@@ -4364,11 +4356,7 @@ static bool trans_## NAME (DisasContext *ctx, arg_vr_i *a)                \
     addr = gpr_src(ctx, a->rj, EXT_NONE);                                 \
     val = tcg_temp_new_i64();                                             \
                                                                           \
-    if (a->imm) {                                                         \
-        temp = tcg_temp_new();                                            \
-        tcg_gen_addi_tl(temp, addr, a->imm);                              \
-        addr = temp;                                                      \
-    }                                                                     \
+    addr = make_address_i(ctx, addr, a->imm);                             \
                                                                           \
     tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, MO);                     \
     tcg_gen_gvec_dup_i64(MO, vec_full_offset(a->vd), 16, ctx->vl/8, val); \
@@ -4384,7 +4372,7 @@ VLDREPL(vldrepl_d, MO_64)
 #define VSTELM(NAME, MO, E)                                                  \
 static bool trans_## NAME (DisasContext *ctx, arg_vr_ii *a)                  \
 {                                                                            \
-    TCGv addr, temp;                                                         \
+    TCGv addr;                                                               \
     TCGv_i64 val;                                                            \
                                                                              \
     CHECK_SXE;                                                               \
@@ -4392,11 +4380,7 @@ static bool trans_## NAME (DisasContext *ctx, arg_vr_ii *a)                  \
     addr = gpr_src(ctx, a->rj, EXT_NONE);                                    \
     val = tcg_temp_new_i64();                                                \
                                                                              \
-    if (a->imm) {                                                            \
-        temp = tcg_temp_new();                                               \
-        tcg_gen_addi_tl(temp, addr, a->imm);                                 \
-        addr = temp;                                                         \
-    }                                                                        \
+    addr = make_address_i(ctx, addr, a->imm);                                \
                                                                              \
     tcg_gen_ld_i64(val, cpu_env,                                             \
                    offsetof(CPULoongArchState, fpr[a->vd].vreg.E(a->imm2))); \

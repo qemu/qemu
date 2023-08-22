@@ -7,9 +7,8 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv t0 = tcg_temp_new();
+    TCGv t0 = make_address_i(ctx, src1, a->imm);
 
-    tcg_gen_addi_tl(t0, src1, a->imm);
     tcg_gen_qemu_ld_i64(dest, t0, ctx->mem_idx, mop);
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPULoongArchState, lladdr));
     tcg_gen_st_tl(dest, cpu_env, offsetof(CPULoongArchState, llval));
@@ -61,6 +60,8 @@ static bool gen_am(DisasContext *ctx, arg_rrr *a,
                       ctx->base.pc_next - 4);
         return false;
     }
+
+    addr = make_address_i(ctx, addr, 0);
 
     func(dest, addr, val, ctx->mem_idx, mop);
     gen_set_gpr(a->rd, dest, EXT_NONE);
