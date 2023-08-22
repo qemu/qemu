@@ -2504,17 +2504,19 @@ static inline bool arm_is_secure(CPUARMState *env)
 
 /*
  * Return true if the current security state has AArch64 EL2 or AArch32 Hyp.
- * This corresponds to the pseudocode EL2Enabled()
+ * This corresponds to the pseudocode EL2Enabled().
  */
-static inline bool arm_is_el2_enabled_secstate(CPUARMState *env, bool secure)
+static inline bool arm_is_el2_enabled_secstate(CPUARMState *env,
+                                               ARMSecuritySpace space)
 {
+    assert(space != ARMSS_Root);
     return arm_feature(env, ARM_FEATURE_EL2)
-           && (!secure || (env->cp15.scr_el3 & SCR_EEL2));
+           && (space != ARMSS_Secure || (env->cp15.scr_el3 & SCR_EEL2));
 }
 
 static inline bool arm_is_el2_enabled(CPUARMState *env)
 {
-    return arm_is_el2_enabled_secstate(env, arm_is_secure_below_el3(env));
+    return arm_is_el2_enabled_secstate(env, arm_security_space_below_el3(env));
 }
 
 #else
@@ -2538,7 +2540,8 @@ static inline bool arm_is_secure(CPUARMState *env)
     return false;
 }
 
-static inline bool arm_is_el2_enabled_secstate(CPUARMState *env, bool secure)
+static inline bool arm_is_el2_enabled_secstate(CPUARMState *env,
+                                               ARMSecuritySpace space)
 {
     return false;
 }
