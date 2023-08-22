@@ -514,6 +514,17 @@ static ARMSecuritySpace S2_security_space(ARMSecuritySpace s1_space,
     }
 }
 
+static bool fault_s1ns(ARMSecuritySpace space, ARMMMUIdx s2_mmu_idx)
+{
+    /*
+     * For stage 2 faults in Secure EL22, S1NS indicates
+     * whether the faulting IPA is in the Secure or NonSecure
+     * IPA space. For all other kinds of fault, it is false.
+     */
+    return space == ARMSS_Secure && regime_is_stage2(s2_mmu_idx)
+        && s2_mmu_idx == ARMMMUIdx_Stage2_S;
+}
+
 /* Translate a S1 pagetable walk through S2 if needed.  */
 static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
                              hwaddr addr, ARMMMUFaultInfo *fi)
@@ -586,7 +597,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             fi->s2addr = addr;
             fi->stage2 = true;
             fi->s1ptw = true;
-            fi->s1ns = !is_secure;
+            fi->s1ns = fault_s1ns(ptw->in_space, s2_mmu_idx);
             return false;
         }
     }
@@ -602,7 +613,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
     fi->s2addr = addr;
     fi->stage2 = regime_is_stage2(s2_mmu_idx);
     fi->s1ptw = fi->stage2;
-    fi->s1ns = !is_secure;
+    fi->s1ns = fault_s1ns(ptw->in_space, s2_mmu_idx);
     return false;
 }
 
@@ -729,7 +740,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
             fi->s2addr = ptw->out_virt;
             fi->stage2 = true;
             fi->s1ptw = true;
-            fi->s1ns = !ptw->in_secure;
+            fi->s1ns = fault_s1ns(ptw->in_space, ptw->in_ptw_idx);
             return 0;
         }
 
@@ -2030,7 +2041,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     fi->level = level;
     /* Tag the error as S2 for failed S1 PTW at S2 or ordinary S2.  */
     fi->stage2 = fi->s1ptw || regime_is_stage2(mmu_idx);
-    fi->s1ns = mmu_idx == ARMMMUIdx_Stage2;
+    fi->s1ns = fault_s1ns(ptw->in_space, mmu_idx);
     return true;
 }
 
