@@ -811,6 +811,80 @@ void die_from_signal(siginfo_t *info)
     die_with_signal(info->si_signo);
 }
 
+static void host_sigsegv_handler(CPUState *cpu, siginfo_t *info,
+                                 host_sigcontext *uc)
+{
+    uintptr_t host_addr = (uintptr_t)info->si_addr;
+    /*
+     * Convert forcefully to guest address space: addresses outside
+     * reserved_va are still valid to report via SEGV_MAPERR.
+     */
+    bool is_valid = h2g_valid(host_addr);
+    abi_ptr guest_addr = h2g_nocheck(host_addr);
+    uintptr_t pc = host_signal_pc(uc);
+    bool is_write = host_signal_write(info, uc);
+    MMUAccessType access_type = adjust_signal_pc(&pc, is_write);
+    bool maperr;
+
+    /* If this was a write to a TB protected page, restart. */
+    if (is_write
+        && is_valid
+        && info->si_code == SEGV_ACCERR
+        && handle_sigsegv_accerr_write(cpu, host_signal_mask(uc),
+                                       pc, guest_addr)) {
+        return;
+    }
+
+    /*
+     * If the access was not on behalf of the guest, within the executable
+     * mapping of the generated code buffer, then it is a host bug.
+     */
+    if (access_type != MMU_INST_FETCH
+        && !in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+        die_from_signal(info);
+    }
+
+    maperr = true;
+    if (is_valid && info->si_code == SEGV_ACCERR) {
+        /*
+         * With reserved_va, the whole address space is PROT_NONE,
+         * which means that we may get ACCERR when we want MAPERR.
+         */
+        if (page_get_flags(guest_addr) & PAGE_VALID) {
+            maperr = false;
+        } else {
+            info->si_code = SEGV_MAPERR;
+        }
+    }
+
+    sigprocmask(SIG_SETMASK, host_signal_mask(uc), NULL);
+    cpu_loop_exit_sigsegv(cpu, guest_addr, access_type, maperr, pc);
+}
+
+static void host_sigbus_handler(CPUState *cpu, siginfo_t *info,
+                                host_sigcontext *uc)
+{
+    uintptr_t pc = host_signal_pc(uc);
+    bool is_write = host_signal_write(info, uc);
+    MMUAccessType access_type = adjust_signal_pc(&pc, is_write);
+
+    /*
+     * If the access was not on behalf of the guest, within the executable
+     * mapping of the generated code buffer, then it is a host bug.
+     */
+    if (!in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+        die_from_signal(info);
+    }
+
+    if (info->si_code == BUS_ADRALN) {
+        uintptr_t host_addr = (uintptr_t)info->si_addr;
+        abi_ptr guest_addr = h2g_nocheck(host_addr);
+
+        sigprocmask(SIG_SETMASK, host_signal_mask(uc), NULL);
+        cpu_loop_exit_sigbus(cpu, guest_addr, access_type, pc);
+    }
+}
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUState *cpu = thread_cpu;
@@ -822,73 +896,23 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
     int guest_sig;
     uintptr_t pc = 0;
     bool sync_sig = false;
-    void *sigmask = host_signal_mask(uc);
+    void *sigmask;
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
      * handling wrt signal blocking and unwinding.
      */
-    if ((host_sig == SIGSEGV || host_sig == SIGBUS) && info->si_code > 0) {
-        MMUAccessType access_type;
-        uintptr_t host_addr;
-        abi_ptr guest_addr;
-        bool is_write;
-
-        host_addr = (uintptr_t)info->si_addr;
-
-        /*
-         * Convert forcefully to guest address space: addresses outside
-         * reserved_va are still valid to report via SEGV_MAPERR.
-         */
-        guest_addr = h2g_nocheck(host_addr);
-
-        pc = host_signal_pc(uc);
-        is_write = host_signal_write(info, uc);
-        access_type = adjust_signal_pc(&pc, is_write);
-
-        /* If this was a write to a TB protected page, restart. */
-        if (is_write
-            && host_sig == SIGSEGV
-            && info->si_code == SEGV_ACCERR
-            && h2g_valid(host_addr)
-            && handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
+    if (info->si_code > 0) {
+        switch (host_sig) {
+        case SIGSEGV:
+            /* Only returns on handle_sigsegv_accerr_write success. */
+            host_sigsegv_handler(cpu, info, uc);
             return;
+        case SIGBUS:
+            host_sigbus_handler(cpu, info, uc);
+            sync_sig = true;
+            break;
         }
-
-        /*
-         * If the access was not on behalf of the guest, within the executable
-         * mapping of the generated code buffer, then it is a host bug.
-         */
-        if (access_type != MMU_INST_FETCH
-            && !in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
-            die_from_signal(info);
-        }
-
-        if (host_sig == SIGSEGV) {
-            bool maperr = true;
-
-            if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
-                /*
-                 * With reserved_va, the whole address space is PROT_NONE,
-                 * which means that we may get ACCERR when we want MAPERR.
-                 */
-                if (page_get_flags(guest_addr) & PAGE_VALID) {
-                    maperr = false;
-                } else {
-                    info->si_code = SEGV_MAPERR;
-                }
-            }
-
-            sigprocmask(SIG_SETMASK, sigmask, NULL);
-            cpu_loop_exit_sigsegv(cpu, guest_addr, access_type, maperr, pc);
-        } else {
-            sigprocmask(SIG_SETMASK, sigmask, NULL);
-            if (info->si_code == BUS_ADRALN) {
-                cpu_loop_exit_sigbus(cpu, guest_addr, access_type, pc);
-            }
-        }
-
-        sync_sig = true;
     }
 
     /* get target signal number */
@@ -929,6 +953,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
      * would write 0xff bytes off the end of the structure and trash
      * data on the struct.
      */
+    sigmask = host_signal_mask(uc);
     memset(sigmask, 0xff, SIGSET_T_SIZE);
     sigdelset(sigmask, SIGSEGV);
     sigdelset(sigmask, SIGBUS);
