@@ -1822,6 +1822,14 @@ void tcg_gen_bswap16_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
     }
 }
 
+/*
+ * bswap32_i64: 32-bit byte swap on the low bits of a 64-bit value.
+ *
+ * Byte pattern: xxxxabcd -> yyyydcba
+ *
+ * With TCG_BSWAP_IZ, x == zero, else undefined.
+ * With TCG_BSWAP_OZ, y == zero, with TCG_BSWAP_OS y == sign, else undefined.
+ */
 void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
 {
     /* Only one extension flag may be present. */
@@ -1855,7 +1863,8 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
         } else {
             tcg_gen_shri_i64(t1, t1, 32);   /*  t1 = ....dc.. */
         }
-        tcg_gen_or_i64(ret, t0, t1);        /* ret = ssssdcba */
+        tcg_gen_or_i64(ret, t0, t1);        /* ret = ssssdcba (OS) */
+                                            /*       ....dcba (else) */
 
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
