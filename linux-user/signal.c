@@ -796,6 +796,43 @@ void die_from_signal(siginfo_t *info)
             break;
         }
         break;
+    case SIGILL:
+        sig = "ILL";
+        switch (info->si_code) {
+        case ILL_ILLOPC:
+            code = "ILLOPC";
+            break;
+        case ILL_ILLOPN:
+            code = "ILLOPN";
+            break;
+        case ILL_ILLADR:
+            code = "ILLADR";
+            break;
+        case ILL_PRVOPC:
+            code = "PRVOPC";
+            break;
+        case ILL_PRVREG:
+            code = "PRVREG";
+            break;
+        case ILL_COPROC:
+            code = "COPROC";
+            break;
+        }
+        break;
+    case SIGFPE:
+        sig = "FPE";
+        switch (info->si_code) {
+        case FPE_INTDIV:
+            code = "INTDIV";
+            break;
+        case FPE_INTOVF:
+            code = "INTOVF";
+            break;
+        }
+        break;
+    case SIGTRAP:
+        sig = "TRAP";
+        break;
     default:
         snprintf(sigbuf, sizeof(sigbuf), "%d", info->si_signo);
         sig = sigbuf;
@@ -900,7 +937,8 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
-     * handling wrt signal blocking and unwinding.
+     * handling wrt signal blocking and unwinding.  Non-spoofed SIGILL,
+     * SIGFPE, SIGTRAP are always host bugs.
      */
     if (info->si_code > 0) {
         switch (host_sig) {
@@ -912,6 +950,10 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
             host_sigbus_handler(cpu, info, uc);
             sync_sig = true;
             break;
+        case SIGILL:
+        case SIGFPE:
+        case SIGTRAP:
+            die_from_signal(info);
         }
     }
 
