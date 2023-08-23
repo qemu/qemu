@@ -1108,6 +1108,11 @@ void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg)
     }
 }
 
+/*
+ * hswap_i32: Swap 16-bit halfwords within a 32-bit value.
+ *
+ * Byte pattern: abcd -> cdab
+ */
 void tcg_gen_hswap_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
     /* Swapping 2 16-bit elements is a rotate. */
@@ -1921,19 +1926,25 @@ void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
     }
 }
 
+/*
+ * hswap_i64: Swap 16-bit halfwords within a 64-bit value.
+ * See also include/qemu/bitops.h, hswap64.
+ *
+ * Byte pattern: abcdefgh -> ghefcdab
+ */
 void tcg_gen_hswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
     uint64_t m = 0x0000ffff0000ffffull;
     TCGv_i64 t0 = tcg_temp_ebb_new_i64();
     TCGv_i64 t1 = tcg_temp_ebb_new_i64();
 
-    /* See include/qemu/bitops.h, hswap64. */
-    tcg_gen_rotli_i64(t1, arg, 32);
-    tcg_gen_andi_i64(t0, t1, m);
-    tcg_gen_shli_i64(t0, t0, 16);
-    tcg_gen_shri_i64(t1, t1, 16);
-    tcg_gen_andi_i64(t1, t1, m);
-    tcg_gen_or_i64(ret, t0, t1);
+                                        /* arg = abcdefgh */
+    tcg_gen_rotli_i64(t1, arg, 32);     /*  t1 = efghabcd */
+    tcg_gen_andi_i64(t0, t1, m);        /*  t0 = ..gh..cd */
+    tcg_gen_shli_i64(t0, t0, 16);       /*  t0 = gh..cd.. */
+    tcg_gen_shri_i64(t1, t1, 16);       /*  t1 = ..efghab */
+    tcg_gen_andi_i64(t1, t1, m);        /*  t1 = ..ef..ab */
+    tcg_gen_or_i64(ret, t0, t1);        /* ret = ghefcdab */
 
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
