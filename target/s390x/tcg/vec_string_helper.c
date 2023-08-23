@@ -474,9 +474,9 @@ DEF_VSTRC_CC_RT_HELPER(32)
 static int vstrs(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                  const S390Vector *v4, uint8_t es, bool zs)
 {
-    int substr_elen, substr_0, str_elen, i, j, k, cc;
+    int substr_elen, i, j, k, cc;
     int nelem = 16 >> es;
-    bool eos = false;
+    int str_leftmost_0;
 
     substr_elen = s390_vec_read_element8(v4, 7) >> es;
 
@@ -498,47 +498,20 @@ static int vstrs(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     }
 
     /* If ZS, look for eos in the searched string. */
+    str_leftmost_0 = nelem;
     if (zs) {
         for (k = 0; k < nelem; k++) {
             if (s390_vec_read_element(v2, k, es) == 0) {
-                eos = true;
+                str_leftmost_0 = k;
                 break;
             }
         }
-        str_elen = k;
-    } else {
-        str_elen = nelem;
     }
 
-    substr_0 = s390_vec_read_element(v3, 0, es);
-
-    for (k = 0; ; k++) {
-        for (; k < str_elen; k++) {
-            if (s390_vec_read_element(v2, k, es) == substr_0) {
-                break;
-            }
-        }
-
-        /* If we reached the end of the string, no match. */
-        if (k == str_elen) {
-            cc = eos; /* no match (with or without zero char) */
-            goto done;
-        }
-
-        /* If the substring is only one char, match. */
-        if (substr_elen == 1) {
-            cc = 2; /* full match */
-            goto done;
-        }
-
-        /* If the match begins at the last char, we have a partial match. */
-        if (k == str_elen - 1) {
-            cc = 3; /* partial match */
-            goto done;
-        }
-
+    cc = str_leftmost_0 == nelem ? 0 : 1;  /* No match. */
+    for (k = 0; k < nelem; k++) {
         i = MIN(nelem, k + substr_elen);
-        for (j = k + 1; j < i; j++) {
+        for (j = k; j < i; j++) {
             uint32_t e2 = s390_vec_read_element(v2, j, es);
             uint32_t e3 = s390_vec_read_element(v3, j - k, es);
             if (e2 != e3) {
@@ -546,9 +519,16 @@ static int vstrs(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
             }
         }
         if (j == i) {
-            /* Matched up until "end". */
-            cc = i - k == substr_elen ? 2 : 3; /* full or partial match */
-            goto done;
+            /* All elements matched. */
+            if (k > str_leftmost_0) {
+                cc = 1;  /* Ignored match. */
+                k = nelem;
+            } else if (i - k == substr_elen) {
+                cc = 2;  /* Full match. */
+            } else {
+                cc = 3;  /* Partial match. */
+            }
+            break;
         }
     }
 
