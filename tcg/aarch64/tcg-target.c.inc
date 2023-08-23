@@ -3098,7 +3098,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 #if !defined(CONFIG_SOFTMMU)
     /*
      * Note that XZR cannot be encoded in the address base register slot,
-     * as that actaully encodes SP.  Depending on the guest, we may need
+     * as that actually encodes SP.  Depending on the guest, we may need
      * to zero-extend the guest address via the address index register slot,
      * therefore we need to load even a zero guest base into a register.
      */

@@ -69,7 +69,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 
 static const int tcg_target_reg_alloc_order[] = {
     /* Call saved registers */
-    /* TCG_REG_S0 reservered for TCG_AREG0 */
+    /* TCG_REG_S0 reserved for TCG_AREG0 */
     TCG_REG_S1,
     TCG_REG_S2,
     TCG_REG_S3,
@@ -260,7 +260,7 @@ typedef enum {
     /* Zba: Bit manipulation extension, address generation */
     OPC_ADD_UW = 0x0800003b,
 
-    /* Zbb: Bit manipulation extension, basic bit manipulaton */
+    /* Zbb: Bit manipulation extension, basic bit manipulation */
     OPC_ANDN   = 0x40007033,
     OPC_CLZ    = 0x60001013,
     OPC_CLZW   = 0x6000101b,
