@@ -558,10 +558,7 @@ static void signal_table_init(void)
 void signal_init(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
-    struct sigaction act;
-    struct sigaction oact;
-    int i;
-    int host_sig;
+    struct sigaction act, oact;
 
     /* initialize signal conversion tables */
     signal_table_init();
@@ -572,23 +569,28 @@ void signal_init(void)
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
-    for(i = 1; i <= TARGET_NSIG; i++) {
-        host_sig = target_to_host_signal(i);
-        sigaction(host_sig, NULL, &oact);
-        if (oact.sa_sigaction == (void *)SIG_IGN) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_IGN;
-        } else if (oact.sa_sigaction == (void *)SIG_DFL) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_DFL;
+
+    /*
+     * A parent process may configure ignored signals, but all other
+     * signals are default.  For any target signals that have no host
+     * mapping, set to ignore.  For all core_dump_signal, install our
+     * host signal handler so that we may invoke dump_core_and_abort.
+     * This includes SIGSEGV and SIGBUS, which are also need our signal
+     * handler for paging and exceptions.
+     */
+    for (int tsig = 1; tsig <= TARGET_NSIG; tsig++) {
+        int hsig = target_to_host_signal(tsig);
+        abi_ptr thand = TARGET_SIG_IGN;
+
+        if (hsig < _NSIG) {
+            struct sigaction *iact = core_dump_signal(tsig) ? &act : NULL;
+
+            sigaction(hsig, iact, &oact);
+            if (oact.sa_sigaction != (void *)SIG_IGN) {
+                thand = TARGET_SIG_DFL;
+            }
         }
-        /* If there's already a handler installed then something has
-           gone horribly wrong, so don't even try to handle that case.  */
-        /* Install some handlers for our own use.  We need at least
-           SIGSEGV and SIGBUS, to detect exceptions.  We can not just
-           trap all signals because it affects syscall interrupt
-           behavior.  But do trap all default-fatal signals.  */
-        if (core_dump_signal(i)) {
-            sigaction(host_sig, &act, NULL);
-        }
+        sigact_table[tsig - 1]._sa_handler = thand;
     }
 }
 
