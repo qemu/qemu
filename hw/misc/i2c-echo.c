@@ -1,3 +1,13 @@
+/*
+ * Example I2C device using asynchronous I2C send.
+ *
+ * Copyright (C) 2023 Samsung Electronics Co., Ltd. All Rights Reserved.
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2.  See
+ * the COPYING file in the top-level directory.
+ *
+ */
+
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
