@@ -44,9 +44,8 @@ abi_ulong default_sigreturn;
 abi_ulong default_rt_sigreturn;
 
 /*
- * System includes define _NSIG as SIGRTMAX + 1,
- * but qemu (like the kernel) defines TARGET_NSIG as TARGET_SIGRTMAX
- * and the first signal is SIGHUP defined as 1
+ * System includes define _NSIG as SIGRTMAX + 1, but qemu (like the kernel)
+ * defines TARGET_NSIG as TARGET_SIGRTMAX and the first signal is 1.
  * Signal number 0 is reserved for use as kill(pid, 0), to test whether
  * a process exists without sending it a signal.
  */
@@ -57,7 +56,6 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
 #define MAKE_SIG_ENTRY(sig)     [sig] = TARGET_##sig,
         MAKE_SIGNAL_LIST
 #undef MAKE_SIG_ENTRY
-    /* next signals stay the same */
 };
 
 static uint8_t target_to_host_signal_table[TARGET_NSIG + 1];
@@ -65,8 +63,11 @@ static uint8_t target_to_host_signal_table[TARGET_NSIG + 1];
 /* valid sig is between 1 and _NSIG - 1 */
 int host_to_target_signal(int sig)
 {
-    if (sig < 1 || sig >= _NSIG) {
+    if (sig < 1) {
         return sig;
+    }
+    if (sig >= _NSIG) {
+        return TARGET_NSIG + 1;
     }
     return host_to_target_signal_table[sig];
 }
@@ -74,8 +75,11 @@ int host_to_target_signal(int sig)
 /* valid sig is between 1 and TARGET_NSIG */
 int target_to_host_signal(int sig)
 {
-    if (sig < 1 || sig > TARGET_NSIG) {
+    if (sig < 1) {
         return sig;
+    }
+    if (sig > TARGET_NSIG) {
+        return _NSIG;
     }
     return target_to_host_signal_table[sig];
 }
@@ -507,48 +511,48 @@ static int core_dump_signal(int sig)
 
 static void signal_table_init(void)
 {
-    int host_sig, target_sig, count;
+    int hsig, tsig, count;
 
     /*
      * Signals are supported starting from TARGET_SIGRTMIN and going up
-     * until we run out of host realtime signals.
-     * glibc at least uses only the lower 2 rt signals and probably
-     * nobody's using the upper ones.
-     * it's why SIGRTMIN (34) is generally greater than __SIGRTMIN (32)
-     * To fix this properly we need to do manual signal delivery multiplexed
-     * over a single host signal.
+     * until we run out of host realtime signals.  Glibc uses the lower 2
+     * RT signals and (hopefully) nobody uses the upper ones.
+     * This is why SIGRTMIN (34) is generally greater than __SIGRTMIN (32).
+     * To fix this properly we would need to do manual signal delivery
+     * multiplexed over a single host signal.
      * Attempts for configure "missing" signals via sigaction will be
      * silently ignored.
      */
-    for (host_sig = SIGRTMIN; host_sig <= SIGRTMAX; host_sig++) {
-        target_sig = host_sig - SIGRTMIN + TARGET_SIGRTMIN;
-        if (target_sig <= TARGET_NSIG) {
-            host_to_target_signal_table[host_sig] = target_sig;
+    for (hsig = SIGRTMIN; hsig <= SIGRTMAX; hsig++) {
+        tsig = hsig - SIGRTMIN + TARGET_SIGRTMIN;
+        if (tsig <= TARGET_NSIG) {
+            host_to_target_signal_table[hsig] = tsig;
         }
     }
 
-    /* generate signal conversion tables */
-    for (target_sig = 1; target_sig <= TARGET_NSIG; target_sig++) {
-        target_to_host_signal_table[target_sig] = _NSIG; /* poison */
-    }
-    for (host_sig = 1; host_sig < _NSIG; host_sig++) {
-        if (host_to_target_signal_table[host_sig] == 0) {
-            host_to_target_signal_table[host_sig] = host_sig;
-        }
-        target_sig = host_to_target_signal_table[host_sig];
-        if (target_sig <= TARGET_NSIG) {
-            target_to_host_signal_table[target_sig] = host_sig;
+    /* Invert the mapping that has already been assigned. */
+    for (hsig = 1; hsig < _NSIG; hsig++) {
+        tsig = host_to_target_signal_table[hsig];
+        if (tsig) {
+            assert(target_to_host_signal_table[tsig] == 0);
+            target_to_host_signal_table[tsig] = hsig;
         }
     }
 
-    if (trace_event_get_state_backends(TRACE_SIGNAL_TABLE_INIT)) {
-        for (target_sig = 1, count = 0; target_sig <= TARGET_NSIG; target_sig++) {
-            if (target_to_host_signal_table[target_sig] == _NSIG) {
-                count++;
-            }
+    /* Map everything else out-of-bounds. */
+    for (hsig = 1; hsig < _NSIG; hsig++) {
+        if (host_to_target_signal_table[hsig] == 0) {
+            host_to_target_signal_table[hsig] = TARGET_NSIG + 1;
         }
-        trace_signal_table_init(count);
     }
+    for (count = 0, tsig = 1; tsig <= TARGET_NSIG; tsig++) {
+        if (target_to_host_signal_table[tsig] == 0) {
+            target_to_host_signal_table[tsig] = _NSIG;
+            count++;
+        }
+    }
+
+    trace_signal_table_init(count);
 }
 
 void signal_init(void)
