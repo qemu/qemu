@@ -1625,6 +1625,31 @@ static MemoryRegion *hv_balloon_md_get_memory_region(MemoryDeviceState *md,
     return balloon->mr;
 }
 
+static void hv_balloon_md_fill_device_info(const MemoryDeviceState *md,
+                                           MemoryDeviceInfo *info)
+{
+    HvBalloonDeviceInfo *hi = g_new0(HvBalloonDeviceInfo, 1);
+    const HvBalloon *balloon = HV_BALLOON(md);
+    DeviceState *dev = DEVICE(md);
+
+    if (dev->id) {
+        hi->id = g_strdup(dev->id);
+    }
+
+    if (balloon->hostmem) {
+        hi->memdev = object_get_canonical_path(OBJECT(balloon->hostmem));
+        hi->memaddr = balloon->addr;
+        hi->has_memaddr = true;
+        hi->max_size = memory_region_size(balloon->mr);
+        /* TODO: expose current provided size or something else? */
+    } else {
+        hi->max_size = 0;
+    }
+
+    info->u.hv_balloon.data = hi;
+    info->type = MEMORY_DEVICE_INFO_KIND_HV_BALLOON;
+}
+
 static void hv_balloon_decide_memslots(MemoryDeviceState *md,
                                        unsigned int limit)
 {
@@ -1712,5 +1737,5 @@ static void hv_balloon_class_init(ObjectClass *klass, void *data)
     mdc->get_memory_region = hv_balloon_md_get_memory_region;
     mdc->decide_memslots = hv_balloon_decide_memslots;
     mdc->get_memslots = hv_balloon_get_memslots;
-    /* implement fill_device_info */
+    mdc->fill_device_info = hv_balloon_md_fill_device_info;
 }
