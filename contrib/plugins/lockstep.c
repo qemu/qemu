@@ -108,7 +108,7 @@ static void report_divergance(ExecState *us, ExecState *them)
 
     /*
      * If we have diverged before did we get back on track or are we
-     * totally loosing it?
+     * totally losing it?
      */
     if (divergence_log) {
         DivergeState *last = (DivergeState *) divergence_log->data;

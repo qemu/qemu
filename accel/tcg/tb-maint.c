@@ -1,5 +1,5 @@
 /*
- * Translation Block Maintaince
+ * Translation Block Maintenance
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
