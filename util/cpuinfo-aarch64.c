@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
- * Host specific cpu indentification for AArch64.
+ * Host specific cpu identification for AArch64.
  */
 
 #include "qemu/osdep.h"
@@ -33,7 +33,7 @@ static bool sysctl_for_bool(const char *name)
     /*
      * We might in the future ask for properties not present in older kernels,
      * but we're only asking about static properties, all of which should be
-     * 'int'.  So we shouln't see ENOMEM (val too small), or any of the other
+     * 'int'.  So we shouldn't see ENOMEM (val too small), or any of the other
      * more exotic errors.
      */
     assert(errno == ENOENT);

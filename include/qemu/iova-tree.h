@@ -15,7 +15,7 @@
  * Currently the iova tree will only allow to keep ranges
  * information, and no extra user data is allowed for each element.  A
  * benefit is that we can merge adjacent ranges internally within the
- * tree.  It can save a lot of memory when the ranges are splitted but
+ * tree.  It can save a lot of memory when the ranges are split but
  * mostly continuous.
  *
  * Note that current implementation does not provide any thread
@@ -128,7 +128,7 @@ const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova);
  * iova_tree_foreach:
  *
  * @tree: the iova tree to iterate on
- * @iterator: the interator for the mappings, return true to stop
+ * @iterator: the iterator for the mappings, return true to stop
  *
  * Iterate over the iova tree.
  *
