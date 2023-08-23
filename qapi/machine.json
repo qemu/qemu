@@ -1138,6 +1138,68 @@
   'data': { 'actual': 'int' } }
 
 ##
+# @HvBalloonInfo:
+#
+# hv-balloon guest-provided memory status information.
+#
+# @committed: the amount of memory in use inside the guest plus the
+#     amount of the memory unusable inside the guest (ballooned out,
+#     offline, etc.)
+#
+# @available: the amount of the memory inside the guest available for
+#     new allocations ("free")
+#
+# Since: 8.2
+##
+{ 'struct': 'HvBalloonInfo',
+  'data': { 'committed': 'size', 'available': 'size' } }
+
+##
+# @query-hv-balloon-status-report:
+#
+# Returns the hv-balloon driver data contained in the last received "STATUS"
+# message from the guest.
+#
+# Returns:
+# - @HvBalloonInfo on success
+# - If no hv-balloon device is present, guest memory status reporting
+#   is not enabled or no guest memory status report received yet,
+#   GenericError
+#
+# Since: 8.2
+#
+# Example:
+#
+# -> { "execute": "query-hv-balloon-status-report" }
+# <- { "return": {
+#          "committed": 816640000,
+#          "available": 3333054464
+#       }
+#    }
+##
+{ 'command': 'query-hv-balloon-status-report', 'returns': 'HvBalloonInfo' }
+
+##
+# @HV_BALLOON_STATUS_REPORT:
+#
+# Emitted when the hv-balloon driver receives a "STATUS" message from
+# the guest.
+#
+# Note: this event is rate-limited.
+#
+# Since: 8.2
+#
+# Example:
+#
+# <- { "event": "HV_BALLOON_STATUS_REPORT",
+#      "data": { "committed": 816640000, "available": 3333054464 },
+#      "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#
+##
+{ 'event': 'HV_BALLOON_STATUS_REPORT',
+  'data': 'HvBalloonInfo' }
+
+##
 # @MemoryInfo:
 #
 # Actual memory information in bytes.

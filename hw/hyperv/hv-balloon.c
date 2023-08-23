@@ -1102,7 +1102,35 @@ static void hv_balloon_handle_status_report(HvBalloon *balloon,
     balloon->status_report.available *= HV_BALLOON_PAGE_SIZE;
     balloon->status_report.received = true;
 
-    /* report event */
+    qapi_event_send_hv_balloon_status_report(balloon->status_report.committed,
+                                             balloon->status_report.available);
+}
+
+HvBalloonInfo *qmp_query_hv_balloon_status_report(Error **errp)
+{
+    HvBalloon *balloon;
+    HvBalloonInfo *info;
+
+    balloon = HV_BALLOON(object_resolve_path_type("", TYPE_HV_BALLOON, NULL));
+    if (!balloon) {
+        error_setg(errp, "no %s device present", TYPE_HV_BALLOON);
+        return NULL;
+    }
+
+    if (!balloon->status_report.enabled) {
+        error_setg(errp, "guest memory status reporting not enabled");
+        return NULL;
+    }
+
+    if (!balloon->status_report.received) {
+        error_setg(errp, "no guest memory status report received yet");
+        return NULL;
+    }
+
+    info = g_malloc0(sizeof(*info));
+    info->committed = balloon->status_report.committed;
+    info->available = balloon->status_report.available;
+    return info;
 }
 
 static void hv_balloon_handle_unballoon_response(HvBalloon *balloon,
