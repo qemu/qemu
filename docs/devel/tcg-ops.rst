@@ -718,7 +718,9 @@ E.g. VECL = 1 -> 64 << 1 -> v128, and VECE = 2 -> 1 << 2 -> i32.
 .. list-table::
 
    * - mov_vec *v0*, *v1*
+
        ld_vec *v0*, *t1*
+
        st_vec *v0*, *t1*
 
      - | Move, load and store.
