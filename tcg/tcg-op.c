@@ -1078,6 +1078,11 @@ void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg, int flags)
     }
 }
 
+/*
+ * bswap32_i32: 32-bit byte swap on a 32-bit value.
+ *
+ * Byte pattern: abcd -> dcba
+ */
 void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
     if (TCG_TARGET_HAS_bswap32_i32) {
