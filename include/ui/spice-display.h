@@ -42,7 +42,7 @@
 #define NUM_MEMSLOTS_GROUPS 2
 
 /*
- * Internal enum to differenciate between options for
+ * Internal enum to differentiate between options for
  * io calls that have a sync (old) version and an _async (new)
  * version:
  *  QXL_SYNC: use the old version
