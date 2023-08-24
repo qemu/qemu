@@ -1412,11 +1412,9 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     BlockZoneModel zoned;
     int ret;
 
-    bs->bl.zoned = BLK_Z_NONE;
-
     ret = get_sysfs_zoned_model(st, &zoned);
     if (ret < 0 || zoned == BLK_Z_NONE) {
-        return;
+        goto no_zoned;
     }
     bs->bl.zoned = zoned;
 
@@ -1437,10 +1435,10 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to read chunk_sectors "
                                      "sysfs attribute");
-        return;
+        goto no_zoned;
     } else if (!ret) {
         error_setg(errp, "Read 0 from chunk_sectors sysfs attribute");
-        return;
+        goto no_zoned;
     }
     bs->bl.zone_size = ret << BDRV_SECTOR_BITS;
 
@@ -1448,10 +1446,10 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to read nr_zones "
                                      "sysfs attribute");
-        return;
+        goto no_zoned;
     } else if (!ret) {
         error_setg(errp, "Read 0 from nr_zones sysfs attribute");
-        return;
+        goto no_zoned;
     }
     bs->bl.nr_zones = ret;
 
@@ -1472,10 +1470,15 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     ret = get_zones_wp(bs, s->fd, 0, bs->bl.nr_zones, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "report wps failed");
-        bs->wps = NULL;
-        return;
+        goto no_zoned;
     }
     qemu_co_mutex_init(&bs->wps->colock);
+    return;
+
+no_zoned:
+    bs->bl.zoned = BLK_Z_NONE;
+    g_free(bs->wps);
+    bs->wps = NULL;
 }
 #else /* !defined(CONFIG_BLKZONED) */
 static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
