@@ -1043,7 +1043,7 @@ static void of_dpa_flow_ig_tbl(OfDpaFlowContext *fc, uint32_t tbl_id)
 static ssize_t of_dpa_ig(World *world, uint32_t pport,
                          const struct iovec *iov, int iovcnt)
 {
-    struct iovec iov_copy[iovcnt + 2];
+    g_autofree struct iovec *iov_copy = g_new(struct iovec, iovcnt + 2);
     OfDpaFlowContext fc = {
         .of_dpa = world_private(world),
         .in_pport = pport,
