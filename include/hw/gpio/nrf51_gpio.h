@@ -64,6 +64,7 @@ struct NRF51GPIOState {
     uint32_t old_out_connected;
 
     qemu_irq output[NRF51_GPIO_PINS];
+    qemu_irq detect;
 };
 
 
