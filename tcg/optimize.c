@@ -2269,6 +2269,19 @@ static bool fold_tcg_st_memcopy(OptContext *ctx, TCGOp *op)
     src = arg_temp(op->args[0]);
     ofs = op->args[2];
     type = ctx->type;
+
+    /*
+     * Eliminate duplicate stores of a constant.
+     * This happens frequently when the target ISA zero-extends.
+     */
+    if (ts_is_const(src)) {
+        TCGTemp *prev = find_mem_copy_for(ctx, type, ofs);
+        if (src == prev) {
+            tcg_op_remove(ctx->tcg, op);
+            return true;
+        }
+    }
+
     last = ofs + tcg_type_size(type) - 1;
     remove_mem_copy_in(ctx, ofs, last);
     record_mem_copy(ctx, type, src, ofs, last);
