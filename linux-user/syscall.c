@@ -8167,7 +8167,7 @@ static void open_self_maps_4(const struct open_self_maps_data *d,
                 "Private_Clean:         0 kB\n"
                 "Private_Dirty:         0 kB\n"
                 "Referenced:            0 kB\n"
-                "Anonymous:             0 kB\n"
+                "Anonymous:             %lu kB\n"
                 "LazyFree:              0 kB\n"
                 "AnonHugePages:         0 kB\n"
                 "ShmemPmdMapped:        0 kB\n"
@@ -8180,6 +8180,7 @@ static void open_self_maps_4(const struct open_self_maps_data *d,
                 "THPeligible:    0\n"
                 "VmFlags:%s%s%s%s%s%s%s%s\n",
                 size_kb, page_size_kb, page_size_kb,
+                (flags & PAGE_ANON ? size_kb : 0),
                 (flags & PAGE_READ) ? " rd" : "",
                 (flags & PAGE_WRITE_ORG) ? " wr" : "",
                 (flags & PAGE_EXEC) ? " ex" : "",
