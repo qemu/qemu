@@ -121,6 +121,8 @@ option('avx512bw', type: 'feature', value: 'auto',
        description: 'AVX512BW optimizations')
 option('keyring', type: 'feature', value: 'auto',
        description: 'Linux keyring support')
+option('libkeyutils', type: 'feature', value: 'auto',
+       description: 'Linux keyutils support')
 
 option('af_xdp', type : 'feature', value : 'auto',
        description: 'AF_XDP network backend support')
