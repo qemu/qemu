@@ -722,6 +722,13 @@ static struct TCGCPUOps loongarch_tcg_ops = {
 static const struct SysemuCPUOps loongarch_sysemu_ops = {
     .get_phys_page_debug = loongarch_cpu_get_phys_page_debug,
 };
+
+static int64_t loongarch_cpu_get_arch_id(CPUState *cs)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+
+    return cpu->phy_id;
+}
 #endif
 
 static void loongarch_cpu_class_init(ObjectClass *c, void *data)
@@ -742,6 +749,7 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->set_pc = loongarch_cpu_set_pc;
     cc->get_pc = loongarch_cpu_get_pc;
 #ifndef CONFIG_USER_ONLY
+    cc->get_arch_id = loongarch_cpu_get_arch_id;
     dc->vmsd = &vmstate_loongarch_cpu;
     cc->sysemu_ops = &loongarch_sysemu_ops;
 #endif

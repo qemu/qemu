@@ -376,6 +376,7 @@ struct ArchCPU {
     CPUNegativeOffsetState neg;
     CPULoongArchState env;
     QEMUTimer timer;
+    uint32_t  phy_id;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
