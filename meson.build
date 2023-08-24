@@ -1771,8 +1771,9 @@ if gnutls.found()
                      method: 'pkg-config')
 endif
 keyutils = not_found
-if get_option('keyring').enabled()
-  keyutils = dependency('libkeyutils', required: false, method: 'pkg-config')
+if not get_option('libkeyutils').auto() or have_block
+  keyutils = dependency('libkeyutils', required: get_option('libkeyutils'),
+                        method: 'pkg-config')
 endif
 
 has_gettid = cc.has_function('gettid')
@@ -4211,6 +4212,7 @@ endif
 summary_info += {'AF_ALG support':    have_afalg}
 summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
+summary_info += {'Linux keyutils':    keyutils}
 summary(summary_info, bool_yn: true, section: 'Crypto')
 
 # UI
