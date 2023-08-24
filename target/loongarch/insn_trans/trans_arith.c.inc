@@ -72,7 +72,7 @@ static bool gen_pc(DisasContext *ctx, arg_r_i *a,
                    target_ulong (*func)(target_ulong, int))
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
-    target_ulong addr = func(ctx->base.pc_next, a->imm);
+    target_ulong addr = make_address_pc(ctx, func(ctx->base.pc_next, a->imm));
 
     tcg_gen_movi_tl(dest, addr);
     gen_set_gpr(a->rd, dest, EXT_NONE);
@@ -199,6 +199,10 @@ static bool trans_lu32i_d(DisasContext *ctx, arg_lu32i_d *a)
     TCGv src1 = gpr_src(ctx, a->rd, EXT_NONE);
     TCGv src2 = tcg_constant_tl(a->imm);
 
+    if (!avail_64(ctx)) {
+        return false;
+    }
+
     tcg_gen_deposit_tl(dest, src1, src2, 32, 32);
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
@@ -210,6 +214,10 @@ static bool trans_lu52i_d(DisasContext *ctx, arg_lu52i_d *a)
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
     TCGv src2 = tcg_constant_tl(a->imm);
+
+    if (!avail_64(ctx)) {
+        return false;
+    }
 
     tcg_gen_deposit_tl(dest, src1, src2, 52, 12);
     gen_set_gpr(a->rd, dest, EXT_NONE);
@@ -242,51 +250,55 @@ static bool trans_addu16i_d(DisasContext *ctx, arg_addu16i_d *a)
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
 
+    if (!avail_64(ctx)) {
+        return false;
+    }
+
     tcg_gen_addi_tl(dest, src1, a->imm << 16);
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
     return true;
 }
 
-TRANS(add_w, gen_rrr, EXT_NONE, EXT_NONE, EXT_SIGN, tcg_gen_add_tl)
-TRANS(add_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_add_tl)
-TRANS(sub_w, gen_rrr, EXT_NONE, EXT_NONE, EXT_SIGN, tcg_gen_sub_tl)
-TRANS(sub_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_sub_tl)
-TRANS(and, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_and_tl)
-TRANS(or, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_or_tl)
-TRANS(xor, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_xor_tl)
-TRANS(nor, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_nor_tl)
-TRANS(andn, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_andc_tl)
-TRANS(orn, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_orc_tl)
-TRANS(slt, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_slt)
-TRANS(sltu, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_sltu)
-TRANS(mul_w, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, tcg_gen_mul_tl)
-TRANS(mul_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_mul_tl)
-TRANS(mulh_w, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_NONE, gen_mulh_w)
-TRANS(mulh_wu, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_NONE, gen_mulh_w)
-TRANS(mulh_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_mulh_d)
-TRANS(mulh_du, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_mulh_du)
-TRANS(mulw_d_w, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_NONE, tcg_gen_mul_tl)
-TRANS(mulw_d_wu, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_NONE, tcg_gen_mul_tl)
-TRANS(div_w, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, gen_div_w)
-TRANS(mod_w, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, gen_rem_w)
-TRANS(div_wu, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_SIGN, gen_div_du)
-TRANS(mod_wu, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_SIGN, gen_rem_du)
-TRANS(div_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_div_d)
-TRANS(mod_d, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_rem_d)
-TRANS(div_du, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_div_du)
-TRANS(mod_du, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_rem_du)
-TRANS(slti, gen_rri_v, EXT_NONE, EXT_NONE, gen_slt)
-TRANS(sltui, gen_rri_v, EXT_NONE, EXT_NONE, gen_sltu)
-TRANS(addi_w, gen_rri_c, EXT_NONE, EXT_SIGN, tcg_gen_addi_tl)
-TRANS(addi_d, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_addi_tl)
-TRANS(alsl_w, gen_rrr_sa, EXT_NONE, EXT_SIGN, gen_alsl)
-TRANS(alsl_wu, gen_rrr_sa, EXT_NONE, EXT_ZERO, gen_alsl)
-TRANS(alsl_d, gen_rrr_sa, EXT_NONE, EXT_NONE, gen_alsl)
-TRANS(pcaddi, gen_pc, gen_pcaddi)
-TRANS(pcalau12i, gen_pc, gen_pcalau12i)
-TRANS(pcaddu12i, gen_pc, gen_pcaddu12i)
-TRANS(pcaddu18i, gen_pc, gen_pcaddu18i)
-TRANS(andi, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_andi_tl)
-TRANS(ori, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_ori_tl)
-TRANS(xori, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_xori_tl)
+TRANS(add_w, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_SIGN, tcg_gen_add_tl)
+TRANS(add_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_add_tl)
+TRANS(sub_w, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_SIGN, tcg_gen_sub_tl)
+TRANS(sub_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_sub_tl)
+TRANS(and, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_and_tl)
+TRANS(or, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_or_tl)
+TRANS(xor, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_xor_tl)
+TRANS(nor, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_nor_tl)
+TRANS(andn, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_andc_tl)
+TRANS(orn, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_orc_tl)
+TRANS(slt, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_slt)
+TRANS(sltu, ALL, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_sltu)
+TRANS(mul_w, ALL, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, tcg_gen_mul_tl)
+TRANS(mul_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, tcg_gen_mul_tl)
+TRANS(mulh_w, ALL, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_NONE, gen_mulh_w)
+TRANS(mulh_wu, ALL, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_NONE, gen_mulh_w)
+TRANS(mulh_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_mulh_d)
+TRANS(mulh_du, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_mulh_du)
+TRANS(mulw_d_w, 64, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_NONE, tcg_gen_mul_tl)
+TRANS(mulw_d_wu, 64, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_NONE, tcg_gen_mul_tl)
+TRANS(div_w, ALL, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, gen_div_w)
+TRANS(mod_w, ALL, gen_rrr, EXT_SIGN, EXT_SIGN, EXT_SIGN, gen_rem_w)
+TRANS(div_wu, ALL, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_SIGN, gen_div_du)
+TRANS(mod_wu, ALL, gen_rrr, EXT_ZERO, EXT_ZERO, EXT_SIGN, gen_rem_du)
+TRANS(div_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_div_d)
+TRANS(mod_d, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_rem_d)
+TRANS(div_du, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_div_du)
+TRANS(mod_du, 64, gen_rrr, EXT_NONE, EXT_NONE, EXT_NONE, gen_rem_du)
+TRANS(slti, ALL, gen_rri_v, EXT_NONE, EXT_NONE, gen_slt)
+TRANS(sltui, ALL, gen_rri_v, EXT_NONE, EXT_NONE, gen_sltu)
+TRANS(addi_w, ALL, gen_rri_c, EXT_NONE, EXT_SIGN, tcg_gen_addi_tl)
+TRANS(addi_d, 64, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_addi_tl)
+TRANS(alsl_w, ALL, gen_rrr_sa, EXT_NONE, EXT_SIGN, gen_alsl)
+TRANS(alsl_wu, 64, gen_rrr_sa, EXT_NONE, EXT_ZERO, gen_alsl)
+TRANS(alsl_d, 64, gen_rrr_sa, EXT_NONE, EXT_NONE, gen_alsl)
+TRANS(pcaddi, ALL, gen_pc, gen_pcaddi)
+TRANS(pcalau12i, ALL, gen_pc, gen_pcalau12i)
+TRANS(pcaddu12i, ALL, gen_pc, gen_pcaddu12i)
+TRANS(pcaddu18i, 64, gen_pc, gen_pcaddu18i)
+TRANS(andi, ALL, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_andi_tl)
+TRANS(ori, ALL, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_ori_tl)
+TRANS(xori, ALL, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_xori_tl)

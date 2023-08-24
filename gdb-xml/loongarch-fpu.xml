@@ -45,6 +45,13 @@
   <reg name="f29" bitsize="64" type="fputype" group="float"/>
   <reg name="f30" bitsize="64" type="fputype" group="float"/>
   <reg name="f31" bitsize="64" type="fputype" group="float"/>
-  <reg name="fcc" bitsize="64" type="uint64" group="float"/>
+  <reg name="fcc0" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc1" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc2" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc3" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc4" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc5" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc6" bitsize="8" type="uint8" group="float"/>
+  <reg name="fcc7" bitsize="8" type="uint8" group="float"/>
   <reg name="fcsr" bitsize="32" type="uint32" group="float"/>
 </feature>
