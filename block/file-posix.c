@@ -2506,11 +2506,10 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
 
 out:
 #if defined(CONFIG_BLKZONED)
-{
-    BlockZoneWps *wps = bs->wps;
-    if (ret == 0) {
-        if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
-            bs->bl.zoned != BLK_Z_NONE) {
+    if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
+        bs->bl.zoned != BLK_Z_NONE) {
+        BlockZoneWps *wps = bs->wps;
+        if (ret == 0) {
             uint64_t *wp = &wps->wp[offset / bs->bl.zone_size];
             if (!BDRV_ZT_IS_CONV(*wp)) {
                 if (type & QEMU_AIO_ZONE_APPEND) {
@@ -2523,19 +2522,12 @@ out:
                     *wp = offset + bytes;
                 }
             }
-        }
-    } else {
-        if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
-            bs->bl.zoned != BLK_Z_NONE) {
+        } else {
             update_zones_wp(bs, s->fd, 0, 1);
         }
-    }
 
-    if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
-        bs->blk.zoned != BLK_Z_NONE) {
         qemu_co_mutex_unlock(&wps->colock);
     }
-}
 #endif
     return ret;
 }
