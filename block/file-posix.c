@@ -2525,7 +2525,8 @@ out:
             }
         }
     } else {
-        if (type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) {
+        if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
+            bs->bl.zoned != BLK_Z_NONE) {
             update_zones_wp(bs, s->fd, 0, 1);
         }
     }
