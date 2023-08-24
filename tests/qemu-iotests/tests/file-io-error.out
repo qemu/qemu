@@ -1,0 +1,33 @@
+QA output created by file-io-error
+{'execute': 'qmp_capabilities'}
+{"return": {}}
+{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': 'blkdebug',
+          'node-name': 'node0',
+          'inject-error': [{'event': 'none'}],
+          'image': {
+              'driver': 'null-co'
+          }
+      }}
+{"return": {}}
+{'execute': 'block-export-add',
+      'arguments': {
+          'id': 'exp0',
+          'type': 'fuse',
+          'node-name': 'node0',
+          'mountpoint': 'TEST_DIR/fuse-export',
+          'writable': true
+      }}
+{"return": {}}
+
+write failed: Input/output error
+
+{'execute': 'block-export-del',
+      'arguments': {'id': 'exp0'}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "exp0"}}
+{'execute': 'blockdev-del',
+      'arguments': {'node-name': 'node0'}}
+{"return": {}}
+*** done

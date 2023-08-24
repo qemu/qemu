@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# group: rw
+#
+# Produce an I/O error in file-posix, and hope that it is not catastrophic.
+# Regression test for: https://bugzilla.redhat.com/show_bug.cgi?id=2234374
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq=$(basename "$0")
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm -f "$TEST_DIR/fuse-export"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+. ../common.qemu
+
+# Format-agnostic (we do not use any), but we do test the file protocol
+_supported_proto file
+_require_drivers blkdebug null-co
+
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    # We need `$QEMU_IO -f file` to work; IMGOPTSSYNTAX uses --image-opts,
+    # breaking -f.
+    _unsupported_fmt $IMGFMT
+fi
+
+# This is a regression test of a bug in which flie-posix would access zone
+# information in case of an I/O error even when there is no zone information,
+# resulting in a division by zero.
+# To reproduce the problem, we need to trigger an I/O error inside of
+# file-posix, which can be done (rootless) by providing a FUSE export that
+# presents only errors when accessed.
+
+_launch_qemu
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': 'blkdebug',
+          'node-name': 'node0',
+          'inject-error': [{'event': 'none'}],
+          'image': {
+              'driver': 'null-co'
+          }
+      }}" \
+    'return'
+
+# FUSE mountpoint must exist and be a regular file
+touch "$TEST_DIR/fuse-export"
+
+# The grep -v to filter fusermount's (benign) error when /etc/fuse.conf does
+# not contain user_allow_other and the subsequent check for missing FUSE support
+# have both been taken from iotest 308.
+output=$(_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'block-export-add',
+      'arguments': {
+          'id': 'exp0',
+          'type': 'fuse',
+          'node-name': 'node0',
+          'mountpoint': '$TEST_DIR/fuse-export',
+          'writable': true
+      }}" \
+    'return' \
+    | grep -v 'option allow_other only allowed if')
+
+if echo "$output" | grep -q "Parameter 'type' does not accept value 'fuse'"; then
+    _notrun 'No FUSE support'
+fi
+echo "$output"
+
+echo
+# This should fail, but gracefully, i.e. just print an I/O error, not crash.
+$QEMU_IO -f file -c 'write 0 64M' "$TEST_DIR/fuse-export" | _filter_qemu_io
+echo
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'block-export-del',
+      'arguments': {'id': 'exp0'}}" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    '' \
+    'BLOCK_EXPORT_DELETED'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-del',
+      'arguments': {'node-name': 'node0'}}" \
+    'return'
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
