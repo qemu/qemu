@@ -2523,7 +2523,10 @@ out:
                 }
             }
         } else {
-            update_zones_wp(bs, s->fd, 0, 1);
+            /*
+             * write and append write are not allowed to cross zone boundaries
+             */
+            update_zones_wp(bs, s->fd, offset, 1);
         }
 
         qemu_co_mutex_unlock(&wps->colock);
@@ -3470,7 +3473,7 @@ static int coroutine_fn raw_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
                         len >> BDRV_SECTOR_BITS);
     ret = raw_thread_pool_submit(handle_aiocb_zone_mgmt, &acb);
     if (ret != 0) {
-        update_zones_wp(bs, s->fd, offset, i);
+        update_zones_wp(bs, s->fd, offset, nrz);
         error_report("ioctl %s failed %d", op_name, ret);
         return ret;
     }
