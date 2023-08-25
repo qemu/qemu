@@ -45,7 +45,7 @@ static const char *hmp_cmds[] = {
     "log all",
     "log none",
     "memsave 0 4096 \"/dev/null\"",
-    "migrate_set_parameter xbzrle-cache-size 1",
+    "migrate_set_parameter xbzrle-cache-size 64k",
     "migrate_set_parameter downtime-limit 1",
     "migrate_set_parameter max-bandwidth 1",
     "netdev_add user,id=net1",
