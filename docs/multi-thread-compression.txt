@@ -117,13 +117,13 @@ to support the multiple thread compression migration:
     {qemu} migrate_set_capability compress on
 
 3. Set the compression thread count on source:
-    {qemu} migrate_set_parameter compress_threads 12
+    {qemu} migrate_set_parameter compress-threads 12
 
 4. Set the compression level on the source:
-    {qemu} migrate_set_parameter compress_level 1
+    {qemu} migrate_set_parameter compress-level 1
 
 5. Set the decompression thread count on destination:
-    {qemu} migrate_set_parameter decompress_threads 3
+    {qemu} migrate_set_parameter decompress-threads 3
 
 6. Start outgoing migration:
     {qemu} migrate -d tcp:destination.host:4444
@@ -133,9 +133,9 @@ to support the multiple thread compression migration:
 
 The following are the default settings:
     compress: off
-    compress_threads: 8
-    decompress_threads: 2
-    compress_level: 1 (which means best speed)
+    compress-threads: 8
+    decompress-threads: 2
+    compress-level: 1 (which means best speed)
 
 So, only the first two steps are required to use the multiple
 thread compression in migration. You can do more if the default

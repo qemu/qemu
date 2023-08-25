@@ -109,7 +109,7 @@ if [ ${QEMU_STATUS[$dest]} -lt 0 ]; then
     _notrun 'Postcopy is not supported'
 fi
 
-_send_qemu_cmd $src 'migrate_set_parameter max_bandwidth 4k' "(qemu)"
+_send_qemu_cmd $src 'migrate_set_parameter max-bandwidth 4k' "(qemu)"
 _send_qemu_cmd $src 'migrate_set_capability postcopy-ram on' "(qemu)"
 _send_qemu_cmd $src "migrate -d unix:${MIG_SOCKET}" "(qemu)"
 _send_qemu_cmd $src 'migrate_start_postcopy' "(qemu)"
