@@ -1350,23 +1350,6 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                           mmu_idx, retaddr);
 }
 
-static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
-                                          vaddr addr, unsigned size,
-                                          MMUAccessType access_type,
-                                          int mmu_idx, MemTxAttrs attrs,
-                                          MemTxResult response,
-                                          uintptr_t retaddr)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (!cpu->ignore_memory_transaction_failures &&
-        cc->tcg_ops->do_transaction_failed) {
-        cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
-                                           access_type, mmu_idx, attrs,
-                                           response, retaddr);
-    }
-}
-
 static MemoryRegionSection *
 io_prepare(hwaddr *out_offset, CPUArchState *env, hwaddr xlat,
            MemTxAttrs attrs, vaddr addr, uintptr_t retaddr)
@@ -1390,9 +1373,19 @@ static void io_failed(CPUArchState *env, CPUTLBEntryFull *full, vaddr addr,
                       unsigned size, MMUAccessType access_type, int mmu_idx,
                       MemTxResult response, uintptr_t retaddr)
 {
-    hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
-    cpu_transaction_failed(env_cpu(env), physaddr, addr, size, access_type,
-                           mmu_idx, full->attrs, response, retaddr);
+    CPUState *cpu = env_cpu(env);
+
+    if (!cpu->ignore_memory_transaction_failures) {
+        CPUClass *cc = CPU_GET_CLASS(cpu);
+
+        if (cc->tcg_ops->do_transaction_failed) {
+            hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
+
+            cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
+                                               access_type, mmu_idx,
+                                               full->attrs, response, retaddr);
+        }
+    }
 }
 
 static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
