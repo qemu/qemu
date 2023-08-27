@@ -1388,32 +1388,6 @@ static void io_failed(CPUArchState *env, CPUTLBEntryFull *full, vaddr addr,
     }
 }
 
-static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
-                         int mmu_idx, vaddr addr, uintptr_t retaddr,
-                         MMUAccessType access_type, MemOp op)
-{
-    MemoryRegionSection *section;
-    hwaddr mr_offset;
-    MemoryRegion *mr;
-    MemTxResult r;
-    uint64_t val;
-
-    section = io_prepare(&mr_offset, env, full->xlat_section,
-                         full->attrs, addr, retaddr);
-    mr = section->mr;
-
-    {
-        QEMU_IOTHREAD_LOCK_GUARD();
-        r = memory_region_dispatch_read(mr, mr_offset, &val, op, full->attrs);
-    }
-
-    if (r != MEMTX_OK) {
-        io_failed(env, full, addr, memop_size(op), access_type, mmu_idx,
-                  r, retaddr);
-    }
-    return val;
-}
-
 static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
                       int mmu_idx, uint64_t val, vaddr addr,
                       uintptr_t retaddr, MemOp op)
@@ -2062,40 +2036,42 @@ static uint64_t do_ld_mmio_beN(CPUArchState *env, CPUTLBEntryFull *full,
                                uint64_t ret_be, vaddr addr, int size,
                                int mmu_idx, MMUAccessType type, uintptr_t ra)
 {
-    uint64_t t;
+    MemoryRegionSection *section;
+    hwaddr mr_offset;
+    MemoryRegion *mr;
+    MemTxAttrs attrs;
 
     tcg_debug_assert(size > 0 && size <= 8);
+
+    attrs = full->attrs;
+    section = io_prepare(&mr_offset, env, full->xlat_section, attrs, addr, ra);
+    mr = section->mr;
+
     do {
+        MemOp this_mop;
+        unsigned this_size;
+        uint64_t val;
+        MemTxResult r;
+
         /* Read aligned pieces up to 8 bytes. */
-        switch ((size | (int)addr) & 7) {
-        case 1:
-        case 3:
-        case 5:
-        case 7:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_UB);
-            ret_be = (ret_be << 8) | t;
-            size -= 1;
-            addr += 1;
-            break;
-        case 2:
-        case 6:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUW);
-            ret_be = (ret_be << 16) | t;
-            size -= 2;
-            addr += 2;
-            break;
-        case 4:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUL);
-            ret_be = (ret_be << 32) | t;
-            size -= 4;
-            addr += 4;
-            break;
-        case 0:
-            return io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUQ);
-        default:
-            qemu_build_not_reached();
+        this_mop = ctz32(size | (int)addr | 8);
+        this_size = 1 << this_mop;
+        this_mop |= MO_BE;
+
+        r = memory_region_dispatch_read(mr, mr_offset, &val, this_mop, attrs);
+        if (unlikely(r != MEMTX_OK)) {
+            io_failed(env, full, addr, this_size, type, mmu_idx, r, ra);
         }
+        if (this_size == 8) {
+            return val;
+        }
+
+        ret_be = (ret_be << (this_size * 8)) | val;
+        addr += this_size;
+        mr_offset += this_size;
+        size -= this_size;
     } while (size);
+
     return ret_be;
 }
 
