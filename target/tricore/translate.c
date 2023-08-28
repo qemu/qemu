@@ -6290,7 +6290,11 @@ static void decode_rr_divide(DisasContext *ctx)
         gen_helper_ftou(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
         break;
     case OPC2_32_RR_FTOUZ:
-        gen_helper_ftouz(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        if (has_feature(ctx, TRICORE_FEATURE_131)) {
+            gen_helper_ftouz(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
         break;
     case OPC2_32_RR_UPDFL:
         gen_helper_updfl(cpu_env, cpu_gpr_d[r1]);
