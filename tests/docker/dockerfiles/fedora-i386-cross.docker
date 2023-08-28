@@ -24,6 +24,7 @@ ENV PACKAGES \
     nettle-devel.i686 \
     pcre-devel.i686 \
     pixman-devel.i686 \
+    python3-tomli \
     sysprof-capture-devel.i686 \
     zlib-devel.i686
 

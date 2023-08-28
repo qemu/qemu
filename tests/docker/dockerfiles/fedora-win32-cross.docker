@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross mingw32 fedora-38 qemu
+#  $ lcitool dockerfile --layers all --cross-arch mingw32 fedora-38 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 

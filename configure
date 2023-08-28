@@ -1018,19 +1018,14 @@ fi
 python="$python -B"
 mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
-mkvenv_flags=""
-if test "$download" = "enabled" ; then
-    mkvenv_flags="--online"
-fi
+# Finish preparing the virtual environment using vendored .whl files
 
-if ! $mkvenv ensure \
-     $mkvenv_flags \
-     --dir "${source_path}/python/wheels" \
-     --diagnose "meson" \
-     "meson>=0.63.0" ;
-then
-    exit 1
+if $python -c 'import sys; sys.exit(sys.version_info >= (3,11))'; then
+    $mkvenv ensure --dir "${source_path}/python/wheels" \
+        'tomli>=1.2.0' || exit 1
 fi
+$mkvenv ensuregroup --dir "${source_path}/python/wheels" \
+     ${source_path}/pythondeps.toml meson || exit 1
 
 # At this point, we expect Meson to be installed and available.
 # We expect mkvenv or pip to have created pyvenv/bin/meson for us.
@@ -1047,10 +1042,9 @@ if test "$download" = "enabled" -a "$docs" = "enabled" ; then
 fi
 
 if test "$docs" != "disabled" ; then
-    if ! $mkvenv ensure \
+    if ! $mkvenv ensuregroup \
          $mkvenv_flags \
-         --diagnose "sphinx-build" \
-         "sphinx>=1.6.0" "sphinx-rtd-theme>=0.5.0";
+         ${source_path}/pythondeps.toml docs;
     then
         if test "$docs" = "enabled" ; then
             exit 1
@@ -1271,6 +1265,7 @@ fi
 : ${cross_prefix_sh4="sh4-linux-gnu-"}
 : ${cross_prefix_sparc64="sparc64-linux-gnu-"}
 : ${cross_prefix_sparc="$cross_prefix_sparc64"}
+: ${cross_prefix_tricore="tricore-"}
 : ${cross_prefix_x86_64="x86_64-linux-gnu-"}
 
 : ${cross_cc_aarch64_be="$cross_cc_aarch64"}
@@ -1357,7 +1352,7 @@ probe_target_compiler() {
     sh4) container_hosts=x86_64 ;;
     sparc64) container_hosts=x86_64 ;;
     tricore) container_hosts=x86_64 ;;
-    x86_64) container_hosts="aarch64 ppc64el x86_64" ;;
+    x86_64) container_hosts="aarch64 ppc64le x86_64" ;;
     xtensa*) container_hosts=x86_64 ;;
   esac
 
@@ -1458,17 +1453,12 @@ probe_target_compiler() {
       tricore)
         container_image=debian-tricore-cross
         container_cross_prefix=tricore-
-        container_cross_as=tricore-as
-        container_cross_ld=tricore-ld
-        container_cross_cc=tricore-gcc
-        break
         ;;
       x86_64)
         container_image=debian-amd64-cross
         container_cross_prefix=x86_64-linux-gnu-
         ;;
       xtensa*)
-        container_hosts=x86_64
         container_image=debian-xtensa-cross
 
         # default to the dc232b cpu
@@ -1785,7 +1775,6 @@ fi
 for target in $target_list; do
     target_dir="$target"
     target_name=$(echo $target | cut -d '-' -f 1)$EXESUF
-    mkdir -p "$target_dir"
     case $target in
         *-user) symlink "../qemu-$target_name" "$target_dir/qemu-$target_name" ;;
         *) symlink "../qemu-system-$target_name" "$target_dir/qemu-system-$target_name" ;;
