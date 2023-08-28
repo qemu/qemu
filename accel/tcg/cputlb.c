@@ -1367,21 +1367,6 @@ static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
     }
 }
 
-/*
- * Save a potentially trashed CPUTLBEntryFull for later lookup by plugin.
- * This is read by tlb_plugin_lookup if the fulltlb entry doesn't match
- * because of the side effect of io_writex changing memory layout.
- */
-static void save_iotlb_data(CPUState *cs, MemoryRegionSection *section,
-                            hwaddr mr_offset)
-{
-#ifdef CONFIG_PLUGIN
-    SavedIOTLB *saved = &cs->saved_iotlb;
-    saved->section = section;
-    saved->mr_offset = mr_offset;
-#endif
-}
-
 static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
                          int mmu_idx, vaddr addr, uintptr_t retaddr,
                          MMUAccessType access_type, MemOp op)
@@ -1400,12 +1385,6 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
     if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
-
-    /*
-     * The memory_region_dispatch may trigger a flush/resize
-     * so for plugins we save the iotlb_data just in case.
-     */
-    save_iotlb_data(cpu, section, mr_offset);
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
@@ -1440,12 +1419,6 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
         cpu_io_recompile(cpu, retaddr);
     }
     cpu->mem_io_pc = retaddr;
-
-    /*
-     * The memory_region_dispatch may trigger a flush/resize
-     * so for plugins we save the iotlb_data just in case.
-     */
-    save_iotlb_data(cpu, section, mr_offset);
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
@@ -1729,45 +1702,39 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
  * in the softmmu lookup code (or helper). We don't handle re-fills or
  * checking the victim table. This is purely informational.
  *
- * This almost never fails as the memory access being instrumented
- * should have just filled the TLB. The one corner case is io_writex
- * which can cause TLB flushes and potential resizing of the TLBs
- * losing the information we need. In those cases we need to recover
- * data from a copy of the CPUTLBEntryFull. As long as this always occurs
- * from the same thread (which a mem callback will be) this is safe.
+ * The one corner case is i/o write, which can cause changes to the
+ * address space.  Those changes, and the corresponding tlb flush,
+ * should be delayed until the next TB, so even then this ought not fail.
+ * But check, Just in Case.
  */
-
 bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
                        bool is_store, struct qemu_plugin_hwaddr *data)
 {
     CPUArchState *env = cpu->env_ptr;
     CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
-    uint64_t tlb_addr = is_store ? tlb_addr_write(tlbe) : tlbe->addr_read;
+    MMUAccessType access_type = is_store ? MMU_DATA_STORE : MMU_DATA_LOAD;
+    uint64_t tlb_addr = tlb_read_idx(tlbe, access_type);
 
-    if (likely(tlb_hit(tlb_addr, addr))) {
-        /* We must have an iotlb entry for MMIO */
-        if (tlb_addr & TLB_MMIO) {
-            CPUTLBEntryFull *full;
-            full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
-            data->is_io = true;
-            data->v.io.section =
-                iotlb_to_section(cpu, full->xlat_section, full->attrs);
-            data->v.io.offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
-        } else {
-            data->is_io = false;
-            data->v.ram.hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
-        }
-        return true;
-    } else {
-        SavedIOTLB *saved = &cpu->saved_iotlb;
-        data->is_io = true;
-        data->v.io.section = saved->section;
-        data->v.io.offset = saved->mr_offset;
-        return true;
+    if (unlikely(!tlb_hit(tlb_addr, addr))) {
+        return false;
     }
-}
 
+    /* We must have an iotlb entry for MMIO */
+    if (tlb_addr & TLB_MMIO) {
+        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
+        hwaddr xlat = full->xlat_section;
+
+        data->is_io = true;
+        data->v.io.offset = (xlat & TARGET_PAGE_MASK) + addr;
+        data->v.io.section =
+            iotlb_to_section(cpu, xlat & ~TARGET_PAGE_MASK, full->attrs);
+    } else {
+        data->is_io = false;
+        data->v.ram.hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
+    }
+    return true;
+}
 #endif
 
 /*
