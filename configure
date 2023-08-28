@@ -248,7 +248,6 @@ done
 
 git_submodules_action="update"
 git="git"
-debug_tcg="no"
 docs="auto"
 EXESUF=""
 prefix="/usr/local"
@@ -727,13 +726,9 @@ for opt do
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
   ;;
-  --enable-debug-tcg) debug_tcg="yes"
-  ;;
-  --disable-debug-tcg) debug_tcg="no"
-  ;;
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
-      debug_tcg="yes"
+      meson_option_parse --enable-debug-tcg ""
       meson_option_parse --enable-debug-graph-lock ""
       meson_option_parse --enable-debug-mutex ""
       meson_option_add -Doptimization=0
@@ -933,7 +928,6 @@ cat << EOF
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
-  debug-tcg       TCG debugging (default is disabled)
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1684,9 +1678,6 @@ echo >> $config_host_mak
 
 echo all: >> $config_host_mak
 
-if test "$debug_tcg" = "yes" ; then
-  echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
-fi
 if test "$targetos" = "windows"; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
