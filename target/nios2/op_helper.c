@@ -22,7 +22,6 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
-#include "qemu/main-loop.h"
 
 void helper_raise_exception(CPUNios2State *env, uint32_t index)
 {

@@ -17,7 +17,6 @@
  */
 
 #include "cpu.h"
-#include "qemu/main-loop.h"
 
 bool riscv_pmu_ctr_monitor_instructions(CPURISCVState *env,
                                         uint32_t target_ctr);
