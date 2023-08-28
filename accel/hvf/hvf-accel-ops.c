@@ -474,7 +474,7 @@ static void hvf_start_vcpu_thread(CPUState *cpu)
                        cpu, QEMU_THREAD_JOINABLE);
 }
 
-static int hvf_insert_breakpoint(CPUState *cpu, int type, hwaddr addr, hwaddr len)
+static int hvf_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
 {
     struct hvf_sw_breakpoint *bp;
     int err;
@@ -512,7 +512,7 @@ static int hvf_insert_breakpoint(CPUState *cpu, int type, hwaddr addr, hwaddr le
     return 0;
 }
 
-static int hvf_remove_breakpoint(CPUState *cpu, int type, hwaddr addr, hwaddr len)
+static int hvf_remove_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
 {
     struct hvf_sw_breakpoint *bp;
     int err;
