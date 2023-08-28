@@ -8793,6 +8793,10 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 #define RISCV_HWPROBE_KEY_IMA_EXT_0     4
 #define     RISCV_HWPROBE_IMA_FD       (1 << 0)
 #define     RISCV_HWPROBE_IMA_C        (1 << 1)
+#define     RISCV_HWPROBE_IMA_V        (1 << 2)
+#define     RISCV_HWPROBE_EXT_ZBA      (1 << 3)
+#define     RISCV_HWPROBE_EXT_ZBB      (1 << 4)
+#define     RISCV_HWPROBE_EXT_ZBS      (1 << 5)
 
 #define RISCV_HWPROBE_KEY_CPUPERF_0     5
 #define     RISCV_HWPROBE_MISALIGNED_UNKNOWN     (0 << 0)
@@ -8840,7 +8844,15 @@ static void risc_hwprobe_fill_pairs(CPURISCVState *env,
                     riscv_has_ext(env, RVD) ?
                     RISCV_HWPROBE_IMA_FD : 0;
             value |= riscv_has_ext(env, RVC) ?
-                     RISCV_HWPROBE_IMA_C : pair->value;
+                     RISCV_HWPROBE_IMA_C : 0;
+            value |= riscv_has_ext(env, RVV) ?
+                     RISCV_HWPROBE_IMA_V : 0;
+            value |= cfg->ext_zba ?
+                     RISCV_HWPROBE_EXT_ZBA : 0;
+            value |= cfg->ext_zbb ?
+                     RISCV_HWPROBE_EXT_ZBB : 0;
+            value |= cfg->ext_zbs ?
+                     RISCV_HWPROBE_EXT_ZBS : 0;
             __put_user(value, &pair->value);
             break;
         case RISCV_HWPROBE_KEY_CPUPERF_0:
