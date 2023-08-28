@@ -321,7 +321,7 @@ qtests = {
 }
 
 if vnc.found()
-  gvnc = dependency('gvnc-1.0', required: false)
+  gvnc = dependency('gvnc-1.0', method: 'pkg-config', required: false)
   if gvnc.found()
     qtests += {'vnc-display-test': [gvnc]}
     qtests_generic += [ 'vnc-display-test' ]
