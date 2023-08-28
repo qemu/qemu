@@ -1267,7 +1267,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
      * (non-page-aligned) vaddr of the eventual memory access to get
      * the MemoryRegion offset for the access. Note that the vaddr we
      * subtract here is that of the page base, and not the same as the
-     * vaddr we add back in io_readx()/io_writex()/get_page_addr_code().
+     * vaddr we add back in io_prepare()/get_page_addr_code().
      */
     desc->fulltlb[index] = *full;
     full = &desc->fulltlb[index];
@@ -1367,24 +1367,51 @@ static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
     }
 }
 
-static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
-                         int mmu_idx, vaddr addr, uintptr_t retaddr,
-                         MMUAccessType access_type, MemOp op)
+static MemoryRegionSection *
+io_prepare(hwaddr *out_offset, CPUArchState *env, hwaddr xlat,
+           MemTxAttrs attrs, vaddr addr, uintptr_t retaddr)
 {
     CPUState *cpu = env_cpu(env);
-    hwaddr mr_offset;
     MemoryRegionSection *section;
-    MemoryRegion *mr;
-    uint64_t val;
-    MemTxResult r;
+    hwaddr mr_offset;
 
-    section = iotlb_to_section(cpu, full->xlat_section, full->attrs);
-    mr = section->mr;
-    mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
+    section = iotlb_to_section(cpu, xlat, attrs);
+    mr_offset = (xlat & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
     if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
+
+    *out_offset = mr_offset;
+    return section;
+}
+
+static void io_failed(CPUArchState *env, CPUTLBEntryFull *full, vaddr addr,
+                      unsigned size, MMUAccessType access_type, int mmu_idx,
+                      MemTxResult response, uintptr_t retaddr,
+                      MemoryRegionSection *section, hwaddr mr_offset)
+{
+    hwaddr physaddr = (mr_offset +
+                       section->offset_within_address_space -
+                       section->offset_within_region);
+
+    cpu_transaction_failed(env_cpu(env), physaddr, addr, size, access_type,
+                           mmu_idx, full->attrs, response, retaddr);
+}
+
+static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
+                         int mmu_idx, vaddr addr, uintptr_t retaddr,
+                         MMUAccessType access_type, MemOp op)
+{
+    MemoryRegionSection *section;
+    hwaddr mr_offset;
+    MemoryRegion *mr;
+    MemTxResult r;
+    uint64_t val;
+
+    section = io_prepare(&mr_offset, env, full->xlat_section,
+                         full->attrs, addr, retaddr);
+    mr = section->mr;
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
@@ -1392,12 +1419,8 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
     }
 
     if (r != MEMTX_OK) {
-        hwaddr physaddr = mr_offset +
-            section->offset_within_address_space -
-            section->offset_within_region;
-
-        cpu_transaction_failed(cpu, physaddr, addr, memop_size(op), access_type,
-                               mmu_idx, full->attrs, r, retaddr);
+        io_failed(env, full, addr, memop_size(op), access_type, mmu_idx,
+                  r, retaddr, section, mr_offset);
     }
     return val;
 }
@@ -1406,19 +1429,14 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
                       int mmu_idx, uint64_t val, vaddr addr,
                       uintptr_t retaddr, MemOp op)
 {
-    CPUState *cpu = env_cpu(env);
-    hwaddr mr_offset;
     MemoryRegionSection *section;
+    hwaddr mr_offset;
     MemoryRegion *mr;
     MemTxResult r;
 
-    section = iotlb_to_section(cpu, full->xlat_section, full->attrs);
+    section = io_prepare(&mr_offset, env, full->xlat_section,
+                         full->attrs, addr, retaddr);
     mr = section->mr;
-    mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
-    if (!cpu->can_do_io) {
-        cpu_io_recompile(cpu, retaddr);
-    }
-    cpu->mem_io_pc = retaddr;
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
@@ -1426,13 +1444,8 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
     }
 
     if (r != MEMTX_OK) {
-        hwaddr physaddr = mr_offset +
-            section->offset_within_address_space -
-            section->offset_within_region;
-
-        cpu_transaction_failed(cpu, physaddr, addr, memop_size(op),
-                               MMU_DATA_STORE, mmu_idx, full->attrs, r,
-                               retaddr);
+        io_failed(env, full, addr, memop_size(op), MMU_DATA_STORE, mmu_idx,
+                  r, retaddr, section, mr_offset);
     }
 }
 
