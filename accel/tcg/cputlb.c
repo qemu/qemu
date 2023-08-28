@@ -1388,13 +1388,9 @@ io_prepare(hwaddr *out_offset, CPUArchState *env, hwaddr xlat,
 
 static void io_failed(CPUArchState *env, CPUTLBEntryFull *full, vaddr addr,
                       unsigned size, MMUAccessType access_type, int mmu_idx,
-                      MemTxResult response, uintptr_t retaddr,
-                      MemoryRegionSection *section, hwaddr mr_offset)
+                      MemTxResult response, uintptr_t retaddr)
 {
-    hwaddr physaddr = (mr_offset +
-                       section->offset_within_address_space -
-                       section->offset_within_region);
-
+    hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
     cpu_transaction_failed(env_cpu(env), physaddr, addr, size, access_type,
                            mmu_idx, full->attrs, response, retaddr);
 }
@@ -1420,7 +1416,7 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
 
     if (r != MEMTX_OK) {
         io_failed(env, full, addr, memop_size(op), access_type, mmu_idx,
-                  r, retaddr, section, mr_offset);
+                  r, retaddr);
     }
     return val;
 }
@@ -1445,7 +1441,7 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
 
     if (r != MEMTX_OK) {
         io_failed(env, full, addr, memop_size(op), MMU_DATA_STORE, mmu_idx,
-                  r, retaddr, section, mr_offset);
+                  r, retaddr);
     }
 }
 
