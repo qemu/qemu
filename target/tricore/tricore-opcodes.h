@@ -1153,6 +1153,7 @@ enum {
     OPC2_32_RR_CMP_F                             = 0x00,
     OPC2_32_RR_FTOIZ                             = 0x13,
     OPC2_32_RR_FTOHP                             = 0x25, /* 1.6.2 only */
+    OPC2_32_RR_HPTOF                             = 0x24, /* 1.6.2 only */
     OPC2_32_RR_FTOQ31                            = 0x11,
     OPC2_32_RR_FTOQ31Z                           = 0x18,
     OPC2_32_RR_FTOU                              = 0x12,
