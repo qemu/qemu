@@ -8398,7 +8398,7 @@ static bool insn_crosses_page(CPUTriCoreState *env, DisasContext *ctx)
      * 4 bytes from the page boundary, so we cross the page if the first
      * 16 bits indicate that this is a 32 bit insn.
      */
-    uint16_t insn = cpu_lduw_code(env, ctx->base.pc_next);
+    uint16_t insn = translator_lduw(env, &ctx->base, ctx->base.pc_next);
 
     return !tricore_insn_is_16bit(insn);
 }
@@ -8411,14 +8411,15 @@ static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     uint16_t insn_lo;
     bool is_16bit;
 
-    insn_lo = cpu_lduw_code(env, ctx->base.pc_next);
+    insn_lo = translator_lduw(env, &ctx->base, ctx->base.pc_next);
     is_16bit = tricore_insn_is_16bit(insn_lo);
     if (is_16bit) {
         ctx->opcode = insn_lo;
         ctx->pc_succ_insn = ctx->base.pc_next + 2;
         decode_16Bit_opc(ctx);
     } else {
-        uint32_t insn_hi = cpu_lduw_code(env, ctx->base.pc_next + 2);
+        uint32_t insn_hi = translator_lduw(env, &ctx->base,
+                                           ctx->base.pc_next + 2);
         ctx->opcode = insn_hi << 16 | insn_lo;
         ctx->pc_succ_insn = ctx->base.pc_next + 4;
         decode_32Bit_opc(ctx);
