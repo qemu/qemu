@@ -9,6 +9,7 @@ CFLAGS = -mtc162 -c -I$(TESTS_PATH)
 TESTS += test_abs.asm.tst
 TESTS += test_bmerge.asm.tst
 TESTS += test_clz.asm.tst
+TESTS += test_crcn.asm.tst
 TESTS += test_dextr.asm.tst
 TESTS += test_dvstep.asm.tst
 TESTS += test_fadd.asm.tst

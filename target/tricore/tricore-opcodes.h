@@ -1247,6 +1247,7 @@ enum {
     OPC2_32_RRR_SUB_F                            = 0x03,
     OPC2_32_RRR_MADD_F                           = 0x06,
     OPC2_32_RRR_MSUB_F                           = 0x07,
+    OPC2_32_RRR_CRCN                             = 0x01, /* 1.6.2 up */
 };
 /*
  * RRR1 Format

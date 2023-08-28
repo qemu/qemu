@@ -2308,6 +2308,69 @@ uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
     return crc32(arg1, buf, 4);
 }
 
+static uint32_t crc_div(uint32_t crc_in, uint32_t data, uint32_t gen,
+                        uint32_t n, uint32_t m)
+{
+    uint32_t i;
+
+    data = data << n;
+    for (i = 0; i < m; i++) {
+        if (crc_in & (1u << (n - 1))) {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+            crc_in ^= gen;
+        } else {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+        }
+        data <<= 1;
+    }
+
+    return crc_in;
+}
+
+uint32_t helper_crcn(uint32_t arg0, uint32_t arg1, uint32_t arg2)
+{
+    uint32_t crc_out, crc_in;
+    uint32_t n = extract32(arg0, 12, 4) + 1;
+    uint32_t gen = extract32(arg0, 16, n);
+    uint32_t inv = extract32(arg0, 9, 1);
+    uint32_t le = extract32(arg0, 8, 1);
+    uint32_t m = extract32(arg0, 0, 3) + 1;
+    uint32_t data = extract32(arg1, 0, m);
+    uint32_t seed = extract32(arg2, 0, n);
+
+    if (le == 1) {
+        if (m == 0) {
+            data = 0;
+        } else {
+            data = revbit32(data) >> (32 - m);
+        }
+    }
+
+    if (inv == 1) {
+        seed = ~seed;
+    }
+
+    if (m > n) {
+        crc_in = (data >> (m - n)) ^ seed;
+    } else {
+        crc_in = (data << (n - m)) ^ seed;
+    }
+
+    crc_out = crc_div(crc_in, data, gen, n, m);
+
+    if (inv) {
+        crc_out = ~crc_out;
+    }
+
+    return extract32(crc_out, 0, n);
+}
+
 uint32_t helper_shuffle(uint32_t arg0, uint32_t arg1)
 {
     uint32_t resb;
