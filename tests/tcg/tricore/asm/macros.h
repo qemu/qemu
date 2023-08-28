@@ -169,6 +169,15 @@ test_ ## num:                                                    \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm1, imm2;   \
     )
 
+#define TEST_D_DIE(insn, num, result, rs1, imm1, rs2_lo, rs2_hi)\
+    TEST_CASE(num, DREG_CALC_RESULT, result,                    \
+    LI(DREG_RS1, rs1);                                          \
+    LI(EREG_RS2_LO, rs2_lo);                                    \
+    LI(EREG_RS2_HI, rs2_hi);                                    \
+    rstv;                                                       \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1, EREG_RS2;            \
+    )
+
 #define TEST_D_DIII(insn, num, result, rs1, imm1, imm2, imm3)\
     TEST_CASE(num, DREG_CALC_RESULT, result,                 \
     LI(DREG_RS1, rs1);                                       \

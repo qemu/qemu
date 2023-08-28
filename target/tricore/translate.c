@@ -8223,12 +8223,12 @@ static void decode_32Bit_opc(DisasContext *ctx)
         temp2 = tcg_temp_new(); /* width*/
         temp3 = tcg_temp_new(); /* pos */
 
-        CHECK_REG_PAIR(r3);
+        CHECK_REG_PAIR(r2);
 
-        tcg_gen_andi_tl(temp2, cpu_gpr_d[r3+1], 0x1f);
-        tcg_gen_andi_tl(temp3, cpu_gpr_d[r3], 0x1f);
+        tcg_gen_andi_tl(temp2, cpu_gpr_d[r2 + 1], 0x1f);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r2], 0x1f);
 
-        gen_insert(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, temp2, temp3);
+        gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], temp, temp2, temp3);
         break;
 /* RCRW Format */
     case OPCM_32_RCRW_MASK_INSERT:
