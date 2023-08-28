@@ -1724,23 +1724,25 @@ bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     MMUAccessType access_type = is_store ? MMU_DATA_STORE : MMU_DATA_LOAD;
     uint64_t tlb_addr = tlb_read_idx(tlbe, access_type);
+    CPUTLBEntryFull *full;
 
     if (unlikely(!tlb_hit(tlb_addr, addr))) {
         return false;
     }
 
+    full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
+    data->phys_addr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
+
     /* We must have an iotlb entry for MMIO */
     if (tlb_addr & TLB_MMIO) {
-        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
-        hwaddr xlat = full->xlat_section;
-
+        MemoryRegionSection *section =
+            iotlb_to_section(cpu, full->xlat_section & ~TARGET_PAGE_MASK,
+                             full->attrs);
         data->is_io = true;
-        data->v.io.offset = (xlat & TARGET_PAGE_MASK) + addr;
-        data->v.io.section =
-            iotlb_to_section(cpu, xlat & ~TARGET_PAGE_MASK, full->attrs);
+        data->mr = section->mr;
     } else {
         data->is_io = false;
-        data->v.ram.hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
+        data->mr = NULL;
     }
     return true;
 }
