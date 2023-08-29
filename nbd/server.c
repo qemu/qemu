@@ -143,7 +143,7 @@ struct NBDClient {
 
     uint32_t check_align; /* If non-zero, check for aligned client requests */
 
-    bool structured_reply;
+    NBDMode mode;
     NBDExportMetaContexts export_meta;
 
     uint32_t opt; /* Current option being negotiated */
@@ -502,7 +502,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     }
 
     myflags = client->exp->nbdflags;
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
     trace_nbd_negotiate_new_style_size_flags(client->exp->size, myflags);
@@ -687,7 +687,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
 
     /* Send NBD_INFO_EXPORT always */
     myflags = exp->nbdflags;
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
     trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
@@ -985,7 +985,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     size_t i;
     size_t count = 0;
 
-    if (client->opt == NBD_OPT_SET_META_CONTEXT && !client->structured_reply) {
+    if (client->opt == NBD_OPT_SET_META_CONTEXT &&
+        client->mode < NBD_MODE_STRUCTURED) {
         return nbd_opt_invalid(client, errp,
                                "request option '%s' when structured reply "
                                "is not negotiated",
@@ -1122,10 +1123,12 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
     if (nbd_read32(client->ioc, &flags, "flags", errp) < 0) {
         return -EIO;
     }
+    client->mode = NBD_MODE_EXPORT_NAME;
     trace_nbd_negotiate_options_flags(flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
         fixedNewstyle = true;
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
+        client->mode = NBD_MODE_SIMPLE;
     }
     if (flags & NBD_FLAG_C_NO_ZEROES) {
         no_zeroes = true;
@@ -1261,13 +1264,13 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
             case NBD_OPT_STRUCTURED_REPLY:
                 if (length) {
                     ret = nbd_reject_length(client, false, errp);
-                } else if (client->structured_reply) {
+                } else if (client->mode >= NBD_MODE_STRUCTURED) {
                     ret = nbd_negotiate_send_rep_err(
                         client, NBD_REP_ERR_INVALID, errp,
                         "structured reply already negotiated");
                 } else {
                     ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
-                    client->structured_reply = true;
+                    client->mode = NBD_MODE_STRUCTURED;
                 }
                 break;
 
@@ -1895,7 +1898,9 @@ static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
     };
 
     assert(!len || !nbd_err);
-    assert(!client->structured_reply || request->type != NBD_CMD_READ);
+    assert(client->mode < NBD_MODE_STRUCTURED ||
+           (client->mode == NBD_MODE_STRUCTURED &&
+            request->type != NBD_CMD_READ));
     trace_nbd_co_send_simple_reply(request->cookie, nbd_err,
                                    nbd_err_lookup(nbd_err), len);
     set_be_simple_reply(&reply, nbd_err, request->cookie);
@@ -1971,7 +1976,7 @@ static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
 
     return nbd_co_send_iov(client, iov, 3, errp);
 }
-/*ebb*/
+
 static int coroutine_fn nbd_co_send_chunk_error(NBDClient *client,
                                                 NBDRequest *request,
                                                 uint32_t error,
@@ -2397,7 +2402,7 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
                                               client->check_align);
     }
     valid_flags = NBD_CMD_FLAG_FUA;
-    if (request->type == NBD_CMD_READ && client->structured_reply) {
+    if (request->type == NBD_CMD_READ && client->mode >= NBD_MODE_STRUCTURED) {
         valid_flags |= NBD_CMD_FLAG_DF;
     } else if (request->type == NBD_CMD_WRITE_ZEROES) {
         valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
@@ -2423,7 +2428,7 @@ static coroutine_fn int nbd_send_generic_reply(NBDClient *client,
                                                const char *error_msg,
                                                Error **errp)
 {
-    if (client->structured_reply && ret < 0) {
+    if (client->mode >= NBD_MODE_STRUCTURED && ret < 0) {
         return nbd_co_send_chunk_error(client, request, -ret, error_msg, errp);
     } else {
         return nbd_co_send_simple_reply(client, request, ret < 0 ? -ret : 0,
@@ -2451,8 +2456,8 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
         }
     }
 
-    if (client->structured_reply && !(request->flags & NBD_CMD_FLAG_DF) &&
-        request->len)
+    if (client->mode >= NBD_MODE_STRUCTURED &&
+        !(request->flags & NBD_CMD_FLAG_DF) && request->len)
     {
         return nbd_co_send_sparse_read(client, request, request->from,
                                        data, request->len, errp);
@@ -2464,7 +2469,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                       "reading from file failed", errp);
     }
 
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         if (request->len) {
             return nbd_co_send_chunk_read(client, request, request->from, data,
                                           request->len, true, errp);

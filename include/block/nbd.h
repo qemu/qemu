@@ -305,7 +305,7 @@ typedef struct NBDExportInfo {
 
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
-    bool structured_reply;
+    NBDMode mode; /* input maximum mode tolerated; output actual mode chosen */
     bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
     /* Set by server results during nbd_receive_negotiate() and

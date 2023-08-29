@@ -463,7 +463,8 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
             nbd_channel_error(s, ret);
             return ret;
         }
-        if (nbd_reply_is_structured(&s->reply) && !s->info.structured_reply) {
+        if (nbd_reply_is_structured(&s->reply) &&
+            s->info.mode < NBD_MODE_STRUCTURED) {
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
@@ -866,7 +867,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
 
     /* handle structured reply chunk */
-    assert(s->info.structured_reply);
+    assert(s->info.mode >= NBD_MODE_STRUCTURED);
     chunk = &s->reply.structured;
 
     if (chunk->type == NBD_REPLY_TYPE_NONE) {
@@ -1070,7 +1071,8 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
     void *payload = NULL;
     Error *local_err = NULL;
 
-    NBD_FOREACH_REPLY_CHUNK(s, iter, cookie, s->info.structured_reply,
+    NBD_FOREACH_REPLY_CHUNK(s, iter, cookie,
+                            s->info.mode >= NBD_MODE_STRUCTURED,
                             qiov, &reply, &payload)
     {
         int ret;
