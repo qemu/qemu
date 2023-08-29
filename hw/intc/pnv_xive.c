@@ -225,6 +225,11 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
+        if (type != VST_TSEL_VPDT) {
+            xive_error(xive, "VST: invalid access on remote VST %s %x/%x !?",
+                       info->name, blk, idx);
+            return 0;
+        }
         xive = pnv_xive_get_remote(blk);
 
         return xive ? pnv_xive_vst_addr(xive, type, blk, idx) : 0;
@@ -294,12 +299,26 @@ static int pnv_xive_vst_write(PnvXive *xive, uint32_t type, uint8_t blk,
 static int pnv_xive_get_end(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
                             XiveEND *end)
 {
+    PnvXive *xive = PNV_XIVE(xrtr);
+
+    if (pnv_xive_block_id(xive) != blk) {
+        xive_error(xive, "VST: END %x/%x is remote !?", blk, idx);
+        return -1;
+    }
+
     return pnv_xive_vst_read(PNV_XIVE(xrtr), VST_TSEL_EQDT, blk, idx, end);
 }
 
 static int pnv_xive_write_end(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
                               XiveEND *end, uint8_t word_number)
 {
+    PnvXive *xive = PNV_XIVE(xrtr);
+
+    if (pnv_xive_block_id(xive) != blk) {
+        xive_error(xive, "VST: END %x/%x is remote !?", blk, idx);
+        return -1;
+    }
+
     return pnv_xive_vst_write(PNV_XIVE(xrtr), VST_TSEL_EQDT, blk, idx, end,
                               word_number);
 }
@@ -1368,6 +1387,50 @@ static const MemoryRegionOps pnv_xive_ic_reg_ops = {
 #define PNV_XIVE_SYNC_PUSH          0xf00 /* Sync push context */
 #define PNV_XIVE_SYNC_VPC           0xf80 /* Sync remove VPC store */
 
+static void pnv_xive_end_notify(XiveRouter *xrtr, XiveEAS *eas)
+{
+    PnvXive *xive = PNV_XIVE(xrtr);
+    uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
+    uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
+    uint32_t end_data = xive_get_field64(EAS_END_DATA, eas->w);
+    uint64_t end_vsd = xive->vsds[VST_TSEL_EQDT][end_blk];
+
+    switch (GETFIELD(VSD_MODE, end_vsd)) {
+    case VSD_MODE_EXCLUSIVE:
+        /* Perform the END notification on the local IC. */
+        xive_router_end_notify(xrtr, eas);
+        break;
+
+    case VSD_MODE_FORWARD: {
+        MemTxResult result;
+        uint64_t notif_port = end_vsd & VSD_ADDRESS_MASK;
+        uint64_t data = XIVE_TRIGGER_END | XIVE_TRIGGER_PQ |
+            be64_to_cpu(eas->w);
+
+        /* Forward the store on the remote IC notify page. */
+        address_space_stq_be(&address_space_memory, notif_port, data,
+                             MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            xive_error(xive, "IC: Forward notif END %x/%x [%x] failed @%"
+                       HWADDR_PRIx, end_blk, end_idx, end_data, notif_port);
+            return;
+        }
+        break;
+    }
+
+    case VSD_MODE_INVALID:
+    default:
+        /* Set FIR */
+        xive_error(xive, "IC: Invalid END VSD for block %x", end_blk);
+        return;
+    }
+}
+
+/*
+ * The notify page can either be used to receive trigger events from
+ * the HW controllers (PHB, PSI) or to reroute interrupts between
+ * Interrupt controllers.
+ */
 static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
 {
     uint8_t blk;
@@ -1376,8 +1439,8 @@ static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
     trace_pnv_xive_ic_hw_trigger(addr, val);
 
     if (val & XIVE_TRIGGER_END) {
-        xive_error(xive, "IC: END trigger at @0x%"HWADDR_PRIx" data 0x%"PRIx64,
-                   addr, val);
+        val = cpu_to_be64(val);
+        pnv_xive_end_notify(XIVE_ROUTER(xive), (XiveEAS *) &val);
         return;
     }
 
@@ -1917,6 +1980,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&xive->ic_notify_mmio, OBJECT(dev),
                           &pnv_xive_ic_notify_ops,
                           xive, "xive-ic-notify", 1 << xive->ic_shift);
+    xive->ic_notify_mmio.disable_reentrancy_guard = true;
 
     /* The Pervasive LSI trigger and EOI pages (not modeled) */
     memory_region_init_io(&xive->ic_lsi_mmio, OBJECT(dev), &pnv_xive_ic_lsi_ops,
@@ -2017,6 +2081,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
     xrc->get_block_id = pnv_xive_get_block_id;
+    xrc->end_notify = pnv_xive_end_notify;
 
     xnc->notify = pnv_xive_notify;
     xpc->match_nvt  = pnv_xive_match_nvt;
