@@ -1174,10 +1174,10 @@ SRST
 ERST
 
 DEF("hda", HAS_ARG, QEMU_OPTION_hda,
-    "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n", QEMU_ARCH_ALL)
+    "-hda/-hdb file  use 'file' as hard disk 0/1 image\n", QEMU_ARCH_ALL)
 DEF("hdb", HAS_ARG, QEMU_OPTION_hdb, "", QEMU_ARCH_ALL)
 DEF("hdc", HAS_ARG, QEMU_OPTION_hdc,
-    "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n", QEMU_ARCH_ALL)
+    "-hdc/-hdd file  use 'file' as hard disk 2/3 image\n", QEMU_ARCH_ALL)
 DEF("hdd", HAS_ARG, QEMU_OPTION_hdd, "", QEMU_ARCH_ALL)
 SRST
 ``-hda file``
@@ -1187,18 +1187,22 @@ SRST
 ``-hdc file``
   \ 
 ``-hdd file``
-    Use file as hard disk 0, 1, 2 or 3 image (see the :ref:`disk images`
-    chapter in the System Emulation Users Guide).
+    Use file as hard disk 0, 1, 2 or 3 image on the default bus of the
+    emulated machine (this is for example the IDE bus on most x86 machines,
+    but it can also be SCSI, virtio or something else on other target
+    architectures). See also the :ref:`disk images` chapter in the System
+    Emulation Users Guide.
 ERST
 
 DEF("cdrom", HAS_ARG, QEMU_OPTION_cdrom,
-    "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n",
+    "-cdrom file     use 'file' as CD-ROM image\n",
     QEMU_ARCH_ALL)
 SRST
 ``-cdrom file``
-    Use file as CD-ROM image (you cannot use ``-hdc`` and ``-cdrom`` at
-    the same time). You can use the host CD-ROM by using ``/dev/cdrom``
-    as filename.
+    Use file as CD-ROM image on the default bus of the emulated machine
+    (which is IDE1 master on x86, so you cannot use ``-hdc`` and ``-cdrom``
+    at the same time there). On systems that support it, you can use the
+    host CD-ROM by using ``/dev/cdrom`` as filename.
 ERST
 
 DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,
