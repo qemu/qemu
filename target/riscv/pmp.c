@@ -45,6 +45,10 @@ static inline uint8_t pmp_get_a_field(uint8_t cfg)
  */
 static inline int pmp_is_locked(CPURISCVState *env, uint32_t pmp_index)
 {
+    /* mseccfg.RLB is set */
+    if (MSECCFG_RLB_ISSET(env)) {
+        return 0;
+    }
 
     if (env->pmp_state.pmp[pmp_index].cfg_reg & PMP_LOCK) {
         return 1;
