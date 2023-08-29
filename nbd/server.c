@@ -2317,11 +2317,16 @@ static int coroutine_fn nbd_co_send_bitmap(NBDClient *client,
  * to the client (although the caller may still need to disconnect after
  * reporting the error).
  */
-static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
+static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
+                                               NBDRequest *request,
                                                Error **errp)
 {
     NBDClient *client = req->client;
-    int valid_flags;
+    bool check_length = false;
+    bool check_rofs = false;
+    bool allocate_buffer = false;
+    unsigned payload_len = 0;
+    int valid_flags = NBD_CMD_FLAG_FUA;
     int ret;
 
     g_assert(qemu_in_coroutine());
@@ -2333,55 +2338,88 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
 
     trace_nbd_co_receive_request_decode_type(request->cookie, request->type,
                                              nbd_cmd_lookup(request->type));
-
-    if (request->type != NBD_CMD_WRITE) {
-        /* No payload, we are ready to read the next request.  */
-        req->complete = true;
-    }
-
-    if (request->type == NBD_CMD_DISC) {
+    switch (request->type) {
+    case NBD_CMD_DISC:
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
+        req->complete = true;
         return -EIO;
+
+    case NBD_CMD_READ:
+        if (client->mode >= NBD_MODE_STRUCTURED) {
+            valid_flags |= NBD_CMD_FLAG_DF;
+        }
+        check_length = true;
+        allocate_buffer = true;
+        break;
+
+    case NBD_CMD_WRITE:
+        payload_len = request->len;
+        check_length = true;
+        allocate_buffer = true;
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_FLUSH:
+        break;
+
+    case NBD_CMD_TRIM:
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_CACHE:
+        check_length = true;
+        break;
+
+    case NBD_CMD_WRITE_ZEROES:
+        valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_BLOCK_STATUS:
+        valid_flags |= NBD_CMD_FLAG_REQ_ONE;
+        break;
+
+    default:
+        /* Unrecognized, will fail later */
+        ;
     }
 
-    if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE ||
-        request->type == NBD_CMD_CACHE)
-    {
-        if (request->len > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "len (%" PRIu64 ") is larger than max len (%u)",
-                       request->len, NBD_MAX_BUFFER_SIZE);
-            return -EINVAL;
-        }
-
-        if (request->type != NBD_CMD_CACHE) {
-            req->data = blk_try_blockalign(client->exp->common.blk,
-                                           request->len);
-            if (req->data == NULL) {
-                error_setg(errp, "No memory");
-                return -ENOMEM;
-            }
+    /* Payload and buffer handling. */
+    if (!payload_len) {
+        req->complete = true;
+    }
+    if (check_length && request->len > NBD_MAX_BUFFER_SIZE) {
+        /* READ, WRITE, CACHE */
+        error_setg(errp, "len (%" PRIu64 ") is larger than max len (%u)",
+                   request->len, NBD_MAX_BUFFER_SIZE);
+        return -EINVAL;
+    }
+    if (allocate_buffer) {
+        /* READ, WRITE */
+        req->data = blk_try_blockalign(client->exp->common.blk,
+                                       request->len);
+        if (req->data == NULL) {
+            error_setg(errp, "No memory");
+            return -ENOMEM;
         }
     }
-
-    if (request->type == NBD_CMD_WRITE) {
-        assert(request->len <= NBD_MAX_BUFFER_SIZE);
-        if (nbd_read(client->ioc, req->data, request->len, "CMD_WRITE data",
-                     errp) < 0)
-        {
+    if (payload_len) {
+        /* WRITE */
+        assert(req->data);
+        ret = nbd_read(client->ioc, req->data, payload_len,
+                       "CMD_WRITE data", errp);
+        if (ret < 0) {
             return -EIO;
         }
         req->complete = true;
-
         trace_nbd_co_receive_request_payload_received(request->cookie,
-                                                      request->len);
+                                                      payload_len);
     }
 
     /* Sanity checks. */
-    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY &&
-        (request->type == NBD_CMD_WRITE ||
-         request->type == NBD_CMD_WRITE_ZEROES ||
-         request->type == NBD_CMD_TRIM)) {
+    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY && check_rofs) {
+        /* WRITE, TRIM, WRITE_ZEROES */
         error_setg(errp, "Export is read-only");
         return -EROFS;
     }
@@ -2403,14 +2441,6 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
                                               request->from,
                                               request->len,
                                               client->check_align);
-    }
-    valid_flags = NBD_CMD_FLAG_FUA;
-    if (request->type == NBD_CMD_READ && client->mode >= NBD_MODE_STRUCTURED) {
-        valid_flags |= NBD_CMD_FLAG_DF;
-    } else if (request->type == NBD_CMD_WRITE_ZEROES) {
-        valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
-    } else if (request->type == NBD_CMD_BLOCK_STATUS) {
-        valid_flags |= NBD_CMD_FLAG_REQ_ONE;
     }
     if (request->flags & ~valid_flags) {
         error_setg(errp, "unsupported flags for command %s (got 0x%x)",
