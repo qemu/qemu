@@ -353,7 +353,9 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
      */
     test = sextract64(ptr, bot_bit, top_bit - bot_bit);
     if (test != 0 && test != -1) {
-        if (pauth_feature == PauthFeat_EPAC) {
+        if (pauth_feature >= PauthFeat_2) {
+            /* No action required */
+        } else if (pauth_feature == PauthFeat_EPAC) {
             pac = 0;
         } else {
             /*
@@ -368,6 +370,9 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
      * Preserve the determination between upper and lower at bit 55,
      * and insert pointer authentication code.
      */
+    if (pauth_feature >= PauthFeat_2) {
+        pac ^= ptr;
+    }
     if (param.tbi) {
         ptr &= ~MAKE_64BIT_MASK(bot_bit, 55 - bot_bit + 1);
         pac &= MAKE_64BIT_MASK(bot_bit, 54 - bot_bit + 1);
@@ -394,18 +399,26 @@ static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
 static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber)
 {
+    ARMCPU *cpu = env_archcpu(env);
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
     ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data, false);
+    ARMPauthFeature pauth_feature = cpu_isar_feature(pauth_feature, cpu);
     int bot_bit, top_bit;
-    uint64_t pac, orig_ptr, test;
+    uint64_t pac, orig_ptr, cmp_mask;
 
     orig_ptr = pauth_original_ptr(ptr, param);
     pac = pauth_computepac(env, orig_ptr, modifier, *key);
     bot_bit = 64 - param.tsz;
     top_bit = 64 - 8 * param.tbi;
 
-    test = (pac ^ ptr) & ~MAKE_64BIT_MASK(55, 1);
-    if (unlikely(extract64(test, bot_bit, top_bit - bot_bit))) {
+    cmp_mask = MAKE_64BIT_MASK(bot_bit, top_bit - bot_bit);
+    cmp_mask &= ~MAKE_64BIT_MASK(55, 1);
+
+    if (pauth_feature >= PauthFeat_2) {
+        return ptr ^ (pac & cmp_mask);
+    }
+
+    if ((pac ^ ptr) & cmp_mask) {
         int error_code = (keynumber << 1) | (keynumber ^ 1);
         if (param.tbi) {
             return deposit64(orig_ptr, 53, 2, error_code);
