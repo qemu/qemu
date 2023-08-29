@@ -1349,6 +1349,7 @@ int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     uint8_t buf[NBD_REQUEST_SIZE];
 
     assert(request->mode <= NBD_MODE_STRUCTURED); /* TODO handle extended */
+    assert(request->len <= UINT32_MAX);
     trace_nbd_send_request(request->from, request->len, request->cookie,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));
