@@ -474,7 +474,7 @@ void aarch64_add_sme_properties(Object *obj)
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 {
     ARMPauthFeature features = cpu_isar_feature(pauth_feature, cpu);
-    uint64_t isar1;
+    uint64_t isar1, isar2;
 
     /*
      * These properties enable or disable Pauth as a whole, or change
@@ -489,6 +489,10 @@ void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
     isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, GPA, 0);
     isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, API, 0);
     isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, GPI, 0);
+
+    isar2 = cpu->isar.id_aa64isar2;
+    isar2 = FIELD_DP64(isar2, ID_AA64ISAR2, APA3, 0);
+    isar2 = FIELD_DP64(isar2, ID_AA64ISAR2, GPA3, 0);
 
     if (kvm_enabled() || hvf_enabled()) {
         /*
@@ -510,26 +514,39 @@ void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
         }
 
         if (cpu->prop_pauth) {
+            if (cpu->prop_pauth_impdef && cpu->prop_pauth_qarma3) {
+                error_setg(errp,
+                           "cannot enable both pauth-impdef and pauth-qarma3");
+                return;
+            }
+
             if (cpu->prop_pauth_impdef) {
                 isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, API, features);
                 isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, GPI, 1);
+            } else if (cpu->prop_pauth_qarma3) {
+                isar2 = FIELD_DP64(isar2, ID_AA64ISAR2, APA3, features);
+                isar2 = FIELD_DP64(isar2, ID_AA64ISAR2, GPA3, 1);
             } else {
                 isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, APA, features);
                 isar1 = FIELD_DP64(isar1, ID_AA64ISAR1, GPA, 1);
             }
-        } else if (cpu->prop_pauth_impdef) {
-            error_setg(errp, "cannot enable pauth-impdef without pauth");
+        } else if (cpu->prop_pauth_impdef || cpu->prop_pauth_qarma3) {
+            error_setg(errp, "cannot enable pauth-impdef or "
+                       "pauth-qarma3 without pauth");
             error_append_hint(errp, "Add pauth=on to the CPU property list.\n");
         }
     }
 
     cpu->isar.id_aa64isar1 = isar1;
+    cpu->isar.id_aa64isar2 = isar2;
 }
 
 static Property arm_cpu_pauth_property =
     DEFINE_PROP_BOOL("pauth", ARMCPU, prop_pauth, true);
 static Property arm_cpu_pauth_impdef_property =
     DEFINE_PROP_BOOL("pauth-impdef", ARMCPU, prop_pauth_impdef, false);
+static Property arm_cpu_pauth_qarma3_property =
+    DEFINE_PROP_BOOL("pauth-qarma3", ARMCPU, prop_pauth_qarma3, false);
 
 void aarch64_add_pauth_properties(Object *obj)
 {
@@ -549,6 +566,7 @@ void aarch64_add_pauth_properties(Object *obj)
         cpu->prop_pauth = cpu_isar_feature(aa64_pauth, cpu);
     } else {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_impdef_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_qarma3_property);
     }
 }
 
