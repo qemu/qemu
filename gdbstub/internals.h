@@ -33,6 +33,7 @@ typedef struct GDBProcess {
     uint32_t pid;
     bool attached;
 
+    /* If gdb sends qXfer:features:read:target.xml this will be populated */
     char *target_xml;
 } GDBProcess;
 
