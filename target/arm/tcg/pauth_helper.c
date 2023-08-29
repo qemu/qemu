@@ -396,6 +396,14 @@ static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
     }
 }
 
+static G_NORETURN
+void pauth_fail_exception(CPUARMState *env, bool data,
+                          int keynumber, uintptr_t ra)
+{
+    raise_exception_ra(env, EXCP_UDEF, syn_pacfail(data, keynumber),
+                       exception_target_el(env), ra);
+}
+
 static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber,
                            uintptr_t ra, bool is_combined)
@@ -416,7 +424,15 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
     cmp_mask &= ~MAKE_64BIT_MASK(55, 1);
 
     if (pauth_feature >= PauthFeat_2) {
-        return ptr ^ (pac & cmp_mask);
+        ARMPauthFeature fault_feature =
+            is_combined ? PauthFeat_FPACCOMBINED : PauthFeat_FPAC;
+        uint64_t result = ptr ^ (pac & cmp_mask);
+
+        if (pauth_feature >= fault_feature
+            && ((result ^ sextract64(result, 55, 1)) & cmp_mask)) {
+            pauth_fail_exception(env, data, keynumber, ra);
+        }
+        return result;
     }
 
     if ((pac ^ ptr) & cmp_mask) {
