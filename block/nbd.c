@@ -339,7 +339,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
          * We have connected, but must fail for other reasons.
          * Send NBD_CMD_DISC as a courtesy to the server.
          */
-        NBDRequest request = { .type = NBD_CMD_DISC };
+        NBDRequest request = { .type = NBD_CMD_DISC, .mode = s->info.mode };
 
         nbd_send_request(s->ioc, &request);
 
@@ -520,6 +520,7 @@ nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
 
     qemu_co_mutex_lock(&s->send_mutex);
     request->cookie = INDEX_TO_COOKIE(i);
+    request->mode = s->info.mode;
 
     assert(s->ioc);
 
@@ -1465,7 +1466,7 @@ static void nbd_yank(void *opaque)
 static void nbd_client_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    NBDRequest request = { .type = NBD_CMD_DISC };
+    NBDRequest request = { .type = NBD_CMD_DISC, .mode = s->info.mode };
 
     if (s->ioc) {
         nbd_send_request(s->ioc, &request);

@@ -63,17 +63,19 @@ typedef enum NBDMode {
     /* TODO add NBD_MODE_EXTENDED */
 } NBDMode;
 
-/* Transmission phase structs
- *
- * Note: these are _NOT_ the same as the network representation of an NBD
- * request and reply!
+/* Transmission phase structs */
+
+/*
+ * Note: NBDRequest is _NOT_ the same as the network representation of an NBD
+ * request!
  */
 typedef struct NBDRequest {
     uint64_t cookie;
     uint64_t from;
     uint32_t len;
     uint16_t flags; /* NBD_CMD_FLAG_* */
-    uint16_t type; /* NBD_CMD_* */
+    uint16_t type;  /* NBD_CMD_* */
+    NBDMode mode;   /* Determines which network representation to use */
 } NBDRequest;
 
 typedef struct NBDSimpleReply {
