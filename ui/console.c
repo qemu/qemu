@@ -196,6 +196,7 @@ static void text_console_update_cursor(void *opaque);
 static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl);
 static bool console_compatible_with(QemuConsole *con,
                                     DisplayChangeListener *dcl, Error **errp);
+static QemuConsole *qemu_graphic_console_lookup_unused(void);
 
 static void gui_update(void *opaque)
 {
@@ -2184,7 +2185,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     QemuConsole *s;
     DisplaySurface *surface;
 
-    s = qemu_console_lookup_unused();
+    s = qemu_graphic_console_lookup_unused();
     if (s) {
         trace_console_gfx_reuse(s->index);
         width = qemu_console_get_width(s, 0);
@@ -2289,13 +2290,13 @@ QemuConsole *qemu_console_lookup_by_device_name(const char *device_id,
     return con;
 }
 
-QemuConsole *qemu_console_lookup_unused(void)
+static QemuConsole *qemu_graphic_console_lookup_unused(void)
 {
     QemuConsole *con;
     Object *obj;
 
     QTAILQ_FOREACH(con, &consoles, next) {
-        if (con->hw_ops != &unused_ops) {
+        if (!QEMU_IS_GRAPHIC_CONSOLE(con) || con->hw_ops != &unused_ops) {
             continue;
         }
         obj = object_property_get_link(OBJECT(con),
