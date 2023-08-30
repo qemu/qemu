@@ -1135,15 +1135,11 @@ static void kbd_send_chars(QemuTextConsole *s)
 }
 
 /* called when an ascii key is pressed */
-void kbd_put_keysym_console(QemuConsole *con, int keysym)
+void kbd_put_keysym_console(QemuTextConsole *s, int keysym)
 {
-    QemuTextConsole *s = (QemuTextConsole *)object_dynamic_cast(OBJECT(con), TYPE_QEMU_TEXT_CONSOLE);
     uint8_t buf[16], *q;
     int c;
     uint32_t num_free;
-
-    if (!s)
-        return;
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
@@ -1214,7 +1210,7 @@ static const int ctrl_qcode_to_keysym[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_PGDN]   = QEMU_KEY_CTRL_PAGEDOWN,
 };
 
-bool kbd_put_qcode_console(QemuConsole *s, int qcode, bool ctrl)
+bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl)
 {
     int keysym;
 
@@ -1226,7 +1222,7 @@ bool kbd_put_qcode_console(QemuConsole *s, int qcode, bool ctrl)
     return true;
 }
 
-void kbd_put_string_console(QemuConsole *s, const char *str, int len)
+void kbd_put_string_console(QemuTextConsole *s, const char *str, int len)
 {
     int i;
 
@@ -1237,7 +1233,9 @@ void kbd_put_string_console(QemuConsole *s, const char *str, int len)
 
 void kbd_put_keysym(int keysym)
 {
-    kbd_put_keysym_console(active_console, keysym);
+    if (QEMU_IS_TEXT_CONSOLE(active_console)) {
+        kbd_put_keysym_console(QEMU_TEXT_CONSOLE(active_console), keysym);
+    }
 }
 
 static void text_console_invalidate(void *opaque)

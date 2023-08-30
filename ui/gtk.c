@@ -1187,7 +1187,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
                                  GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
-    QemuConsole *con = vc->gfx.dcl.con;
+    QemuTextConsole *con = QEMU_TEXT_CONSOLE(vc->gfx.dcl.con);
 
     if (key->keyval == GDK_KEY_Delete) {
         kbd_put_qcode_console(con, Q_KEY_CODE_DELETE, false);
