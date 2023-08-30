@@ -425,14 +425,6 @@ static void text_console_resize(QemuConsole *s)
     s->cells = cells;
 }
 
-static inline void text_update_xy(QemuConsole *s, int x, int y)
-{
-    s->text_x[0] = MIN(s->text_x[0], x);
-    s->text_x[1] = MAX(s->text_x[1], x);
-    s->text_y[0] = MIN(s->text_y[0], y);
-    s->text_y[1] = MAX(s->text_y[1], y);
-}
-
 static void invalidate_xy(QemuConsole *s, int x, int y)
 {
     if (!qemu_console_is_visible(s)) {
@@ -453,7 +445,10 @@ static void update_xy(QemuConsole *s, int x, int y)
     TextCell *c;
     int y1, y2;
 
-    text_update_xy(s, x, y);
+    s->text_x[0] = MIN(s->text_x[0], x);
+    s->text_x[1] = MAX(s->text_x[1], x);
+    s->text_y[0] = MIN(s->text_y[0], y);
+    s->text_y[1] = MAX(s->text_y[1], y);
 
     y1 = (s->y_base + y) % s->total_height;
     y2 = y1 - s->y_displayed;
