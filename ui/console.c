@@ -1413,9 +1413,20 @@ qemu_text_console_class_init(ObjectClass *oc, void *data)
     }
 }
 
+static const GraphicHwOps text_console_ops = {
+    .invalidate  = text_console_invalidate,
+    .text_update = text_console_update,
+};
+
 static void
 qemu_text_console_init(Object *obj)
 {
+    QemuTextConsole *c = QEMU_TEXT_CONSOLE(obj);
+
+    fifo8_create(&c->out_fifo, 16);
+    c->total_height = DEFAULT_BACKSCROLL;
+    QEMU_CONSOLE(c)->hw_ops = &text_console_ops;
+    QEMU_CONSOLE(c)->hw = c;
 }
 
 static void
@@ -2528,11 +2539,6 @@ static void text_console_update_cursor(void *opaque)
     }
 }
 
-static const GraphicHwOps text_console_ops = {
-    .invalidate  = text_console_invalidate,
-    .text_update = text_console_update,
-};
-
 static void vc_chr_open(Chardev *chr,
                         ChardevBackend *backend,
                         bool *be_opened,
@@ -2570,9 +2576,6 @@ static void vc_chr_open(Chardev *chr,
     s->chr = chr;
     drv->console = s;
 
-    fifo8_create(&s->out_fifo, 16);
-
-    s->total_height = DEFAULT_BACKSCROLL;
     if (QEMU_CONSOLE(s)->scanout.kind != SCANOUT_SURFACE) {
         if (active_console && active_console->scanout.kind == SCANOUT_SURFACE) {
             g_width = qemu_console_get_width(active_console, g_width);
@@ -2581,9 +2584,6 @@ static void vc_chr_open(Chardev *chr,
         QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(g_width, g_height);
         QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
     }
-
-    QEMU_CONSOLE(s)->hw_ops = &text_console_ops;
-    QEMU_CONSOLE(s)->hw = s;
 
     /* set current text attributes to default */
     drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
