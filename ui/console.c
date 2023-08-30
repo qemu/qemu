@@ -174,7 +174,7 @@ static QEMUTimer *cursor_timer;
 
 static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
-static void text_console_update_cursor(void *opaque);
+static void qemu_text_console_update_cursor(void *opaque);
 static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl);
 static bool console_compatible_with(QemuConsole *con,
                                     DisplayChangeListener *dcl, Error **errp);
@@ -1065,6 +1065,13 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
     }
 }
 
+static void
+qemu_text_console_select(QemuTextConsole *c)
+{
+    dpy_text_resize(QEMU_CONSOLE(c), c->width, c->height);
+    qemu_text_console_update_cursor(NULL);
+}
+
 void console_select(unsigned int index)
 {
     DisplayChangeListener *dcl;
@@ -1084,8 +1091,7 @@ void console_select(unsigned int index)
         }
 
         if (QEMU_IS_TEXT_CONSOLE(s)) {
-            dpy_text_resize(s, QEMU_TEXT_CONSOLE(s)->width, QEMU_TEXT_CONSOLE(s)->height);
-            text_console_update_cursor(NULL);
+            qemu_text_console_select(QEMU_TEXT_CONSOLE(s));
         }
     }
 }
@@ -1135,18 +1141,11 @@ static void kbd_send_chars(QemuTextConsole *s)
 }
 
 /* called when an ascii key is pressed */
-void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym)
+static void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
 {
     uint8_t buf[16], *q;
     int c;
     uint32_t num_free;
-
-    if (!s) {
-        if (!QEMU_IS_TEXT_CONSOLE(active_console)) {
-            return;
-        }
-        s = QEMU_TEXT_CONSOLE(active_console);
-    }
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
@@ -1190,6 +1189,18 @@ void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym)
         kbd_send_chars(s);
         break;
     }
+}
+
+void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym)
+{
+    if (!s) {
+        if (!QEMU_IS_TEXT_CONSOLE(active_console)) {
+            return;
+        }
+        s = QEMU_TEXT_CONSOLE(active_console);
+    }
+
+    qemu_text_console_handle_keysym(s, keysym);
 }
 
 static const int qcode_to_keysym[Q_KEY_CODE__MAX] = {
@@ -1395,7 +1406,7 @@ qemu_text_console_class_init(ObjectClass *oc, void *data)
 {
     if (!cursor_timer) {
         cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
-                                    text_console_update_cursor, NULL);
+                                    qemu_text_console_update_cursor, NULL);
     }
 }
 
@@ -1701,7 +1712,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
         dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(con));
     }
-    text_console_update_cursor(NULL);
+    qemu_text_console_update_cursor(NULL);
 }
 
 void update_displaychangelistener(DisplayChangeListener *dcl,
@@ -2388,6 +2399,13 @@ bool qemu_console_is_multihead(DeviceState *dev)
     return false;
 }
 
+
+static const char *
+qemu_text_console_get_label(QemuTextConsole *c)
+{
+    return c->chr ? c->chr->label : NULL;
+}
+
 char *qemu_console_get_label(QemuConsole *con)
 {
     if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
@@ -2411,9 +2429,9 @@ char *qemu_console_get_label(QemuConsole *con)
         }
         return g_strdup("VGA");
     } else if (QEMU_IS_TEXT_CONSOLE(con)) {
-        QemuTextConsole *c = QEMU_TEXT_CONSOLE(con);
-        if (c->chr && c->chr->label) {
-            return g_strdup(c->chr->label);
+        const char *label = qemu_text_console_get_label(QEMU_TEXT_CONSOLE(con));
+        if (label) {
+            return g_strdup(label);
         }
     }
 
@@ -2513,7 +2531,7 @@ int qemu_invalidate_text_consoles(void)
     return count;
 }
 
-static void text_console_update_cursor(void *opaque)
+static void qemu_text_console_update_cursor(void *opaque)
 {
     cursor_visible_phase = !cursor_visible_phase;
 
