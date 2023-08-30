@@ -2569,17 +2569,12 @@ static void vc_chr_open(Chardev *chr,
         height = qemu_console_get_height(NULL, 24 * FONT_HEIGHT);
     } else {
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
-        QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
-        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(width, height);
     }
+
+    dpy_gfx_replace_surface(QEMU_CONSOLE(s), qemu_create_displaysurface(width, height));
 
     s->chr = chr;
     drv->console = s;
-
-    if (QEMU_CONSOLE(s)->scanout.kind != SCANOUT_SURFACE) {
-        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(width, height);
-        QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
-    }
 
     /* set current text attributes to default */
     drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
