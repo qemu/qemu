@@ -391,12 +391,11 @@ static bool do_op2(unsigned vece, TCGv_vec r, TCGv_vec a, TCGOpcode opc)
 
 void tcg_gen_not_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
 {
-    const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
-
-    if (!TCG_TARGET_HAS_not_vec || !do_op2(vece, r, a, INDEX_op_not_vec)) {
+    if (TCG_TARGET_HAS_not_vec) {
+        vec_gen_op2(INDEX_op_not_vec, 0, r, a);
+    } else {
         tcg_gen_xor_vec(0, r, a, tcg_constant_vec_matching(r, 0, -1));
     }
-    tcg_swap_vecop_list(hold_list);
 }
 
 void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
