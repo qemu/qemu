@@ -47,6 +47,12 @@
 # define PIXMAN_LE_x8r8g8b8   PIXMAN_x8r8g8b8
 #endif
 
+#define QEMU_PIXMAN_COLOR(r, g, b)                                               \
+    { .red = r << 8, .green = g << 8, .blue = b << 8, .alpha = 0xffff }
+
+#define QEMU_PIXMAN_COLOR_BLACK QEMU_PIXMAN_COLOR(0x00, 0x00, 0x00)
+#define QEMU_PIXMAN_COLOR_GRAY QEMU_PIXMAN_COLOR(0xaa, 0xaa, 0xaa)
+
 /* -------------------------------------------------------------------- */
 
 typedef struct PixelFormat {
