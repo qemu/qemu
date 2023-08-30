@@ -10,8 +10,10 @@ system_ss.add([files(
   'confidential-guest-support.c',
 ), numa])
 
-system_ss.add(when: 'CONFIG_POSIX', if_true: files('rng-random.c'))
-system_ss.add(when: 'CONFIG_POSIX', if_true: files('hostmem-file.c'))
+if targetos != 'windows'
+  system_ss.add(files('rng-random.c'))
+  system_ss.add(files('hostmem-file.c'))
+endif
 if targetos == 'linux'
   system_ss.add(files('hostmem-memfd.c'))
 endif

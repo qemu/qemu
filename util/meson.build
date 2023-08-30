@@ -3,28 +3,31 @@ util_ss.add(files('thread-context.c'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
 endif
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('aio-posix.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('fdmon-poll.c'))
-if config_host_data.get('CONFIG_EPOLL_CREATE1')
-  util_ss.add(files('fdmon-epoll.c'))
+if targetos != 'windows'
+  util_ss.add(files('aio-posix.c'))
+  util_ss.add(files('fdmon-poll.c'))
+  if config_host_data.get('CONFIG_EPOLL_CREATE1')
+    util_ss.add(files('fdmon-epoll.c'))
+  endif
+  util_ss.add(files('compatfd.c'))
+  util_ss.add(files('event_notifier-posix.c'))
+  util_ss.add(files('mmap-alloc.c'))
+  freebsd_dep = []
+  if targetos == 'freebsd'
+    freebsd_dep = util
+  endif
+  util_ss.add(files('oslib-posix.c'), freebsd_dep)
+  util_ss.add(files('qemu-thread-posix.c'))
+  util_ss.add(files('memfd.c'))
+  util_ss.add(files('drm.c'))
+else
+  util_ss.add(files('aio-win32.c'))
+  util_ss.add(files('event_notifier-win32.c'))
+  util_ss.add(files('oslib-win32.c'))
+  util_ss.add(files('qemu-thread-win32.c'))
+  util_ss.add(winmm, pathcch)
 endif
 util_ss.add(when: linux_io_uring, if_true: files('fdmon-io_uring.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('compatfd.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('event_notifier-posix.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('mmap-alloc.c'))
-freebsd_dep = []
-if targetos == 'freebsd'
-  freebsd_dep = util
-endif
-util_ss.add(when: 'CONFIG_POSIX', if_true: [files('oslib-posix.c'), freebsd_dep])
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('qemu-thread-posix.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('memfd.c'))
-util_ss.add(when: 'CONFIG_WIN32', if_true: files('aio-win32.c'))
-util_ss.add(when: 'CONFIG_WIN32', if_true: files('event_notifier-win32.c'))
-util_ss.add(when: 'CONFIG_WIN32', if_true: files('oslib-win32.c'))
-util_ss.add(when: 'CONFIG_WIN32', if_true: files('qemu-thread-win32.c'))
-util_ss.add(when: 'CONFIG_WIN32', if_true: winmm)
-util_ss.add(when: 'CONFIG_WIN32', if_true: pathcch)
 if glib_has_gslice
   util_ss.add(files('qtree.c'))
 endif
@@ -56,7 +59,6 @@ util_ss.add(files('reserved-region.c'))
 util_ss.add(files('stats64.c'))
 util_ss.add(files('systemd.c'))
 util_ss.add(files('transactions.c'))
-util_ss.add(when: 'CONFIG_POSIX', if_true: files('drm.c'))
 util_ss.add(files('guest-random.c'))
 util_ss.add(files('yank.c'))
 util_ss.add(files('int128.c'))

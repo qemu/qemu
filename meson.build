@@ -2885,9 +2885,7 @@ endif
 ########################
 
 minikconf = find_program('scripts/minikconf.py')
-config_targetos = {
-  (targetos == 'windows' ? 'CONFIG_WIN32' : 'CONFIG_POSIX'): 'y'
-}
+config_targetos = {}
 
 config_all = {}
 config_all_devices = {}
@@ -3480,8 +3478,11 @@ if have_block
 
   # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
   # os-win32.c does not
-  blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
-  system_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+  if targetos == 'windows'
+    system_ss.add(files('os-win32.c'))
+  else
+    blockdev_ss.add(files('os-posix.c'))
+  endif
 endif
 
 common_ss.add(files('cpu-common.c'))

@@ -12,19 +12,21 @@ chardev_ss.add(files(
   'char-udp.c',
   'char.c',
 ))
-chardev_ss.add(when: 'CONFIG_POSIX', if_true: [files(
-  'char-fd.c',
-  'char-pty.c',
-), util])
-if targetos in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
-  chardev_ss.add(files('char-parallel.c'))
+if targetos == 'windows'
+  chardev_ss.add(files(
+    'char-console.c',
+    'char-win-stdio.c',
+    'char-win.c',
+  ))
+else
+  chardev_ss.add(files(
+      'char-fd.c',
+      'char-pty.c',
+    ), util)
+  if targetos in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
+    chardev_ss.add(files('char-parallel.c'))
+  endif
 endif
-
-chardev_ss.add(when: 'CONFIG_WIN32', if_true: files(
-  'char-console.c',
-  'char-win-stdio.c',
-  'char-win.c',
-))
 
 chardev_ss = chardev_ss.apply(config_targetos, strict: false)
 

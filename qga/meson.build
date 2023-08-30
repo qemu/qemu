@@ -67,22 +67,25 @@ qga_ss.add(files(
   'main.c',
   'cutils.c',
 ))
-qga_ss.add(when: 'CONFIG_POSIX', if_true: files(
-  'channel-posix.c',
-  'commands-posix.c',
-  'commands-posix-ssh.c',
-))
-if targetos == 'linux'
-  qga_ss.add(files('commands-linux.c'))
-elif targetos in bsd_oses
-  qga_ss.add(files('commands-bsd.c'))
+if targetos == 'windows'
+  qga_ss.add(files(
+    'channel-win32.c',
+    'commands-win32.c',
+    'service-win32.c',
+    'vss-win32.c'
+  ))
+else
+  qga_ss.add(files(
+    'channel-posix.c',
+    'commands-posix.c',
+    'commands-posix-ssh.c',
+  ))
+  if targetos == 'linux'
+    qga_ss.add(files('commands-linux.c'))
+  elif targetos in bsd_oses
+    qga_ss.add(files('commands-bsd.c'))
+  endif
 endif
-qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
-  'channel-win32.c',
-  'commands-win32.c',
-  'service-win32.c',
-  'vss-win32.c'
-))
 
 qga_ss = qga_ss.apply(config_targetos, strict: false)
 
