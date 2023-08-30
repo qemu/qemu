@@ -197,6 +197,7 @@ static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl);
 static bool console_compatible_with(QemuConsole *con,
                                     DisplayChangeListener *dcl, Error **errp);
 static QemuConsole *qemu_graphic_console_lookup_unused(void);
+static void dpy_set_ui_info_timer(void *opaque);
 
 static void gui_update(void *opaque)
 {
@@ -1334,6 +1335,9 @@ qemu_console_register(QemuConsole *c)
 static void
 qemu_console_finalize(Object *obj)
 {
+    QemuConsole *c = QEMU_CONSOLE(obj);
+
+    g_clear_pointer(&c->ui_timer, timer_free);
     /* TODO: should unregister from consoles and free itself  */
 }
 
@@ -1367,6 +1371,8 @@ qemu_console_init(Object *obj)
     qemu_co_queue_init(&c->dump_queue);
     c->ds = ds;
     c->window_id = -1;
+    c->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                               dpy_set_ui_info_timer, c);
     qemu_console_register(c);
 }
 
@@ -2193,8 +2199,6 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     } else {
         trace_console_gfx_new();
         s = (QemuConsole *)object_new(TYPE_QEMU_GRAPHIC_CONSOLE);
-        s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
-                                   dpy_set_ui_info_timer, s);
     }
     s->head = head;
     graphic_console_set_hwops(s, hw_ops, opaque);
