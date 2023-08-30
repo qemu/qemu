@@ -2549,8 +2549,6 @@ static void vc_chr_open(Chardev *chr,
     QemuTextConsole *s;
     unsigned width = 0;
     unsigned height = 0;
-    int g_width = 80 * FONT_WIDTH;
-    int g_height = 24 * FONT_HEIGHT;
 
     if (vc->has_width) {
         width = vc->width;
@@ -2567,6 +2565,8 @@ static void vc_chr_open(Chardev *chr,
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_TEXT_CONSOLE));
+        width = qemu_console_get_width(NULL, 80 * FONT_WIDTH);
+        height = qemu_console_get_height(NULL, 24 * FONT_HEIGHT);
     } else {
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
         QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
@@ -2577,9 +2577,7 @@ static void vc_chr_open(Chardev *chr,
     drv->console = s;
 
     if (QEMU_CONSOLE(s)->scanout.kind != SCANOUT_SURFACE) {
-        g_width = qemu_console_get_width(NULL, g_width);
-        g_height = qemu_console_get_height(NULL, g_height);
-        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(g_width, g_height);
+        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(width, height);
         QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
     }
 
