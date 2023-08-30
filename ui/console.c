@@ -71,17 +71,10 @@ enum TTYState {
     TTY_STATE_CSI,
 };
 
-typedef enum {
-    GRAPHIC_CONSOLE,
-    TEXT_CONSOLE,
-    TEXT_CONSOLE_FIXED_SIZE
-} console_type_t;
-
 struct QemuConsole {
     Object parent;
 
     int index;
-    console_type_t console_type;
     DisplayState *ds;
     DisplaySurface *surface;
     DisplayScanout scanout;
@@ -126,7 +119,7 @@ struct QemuConsole {
     QTAILQ_ENTRY(QemuConsole) next;
 };
 
-OBJECT_DEFINE_TYPE(QemuConsole, qemu_console, QEMU_CONSOLE, OBJECT)
+OBJECT_DEFINE_ABSTRACT_TYPE(QemuConsole, qemu_console, QEMU_CONSOLE, OBJECT)
 
 typedef struct QemuGraphicConsole {
     QemuConsole parent;
@@ -1156,7 +1149,7 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
     int c;
     uint32_t num_free;
 
-    if (!s || (s->console_type == GRAPHIC_CONSOLE))
+    if (!s || QEMU_IS_GRAPHIC_CONSOLE(s))
         return;
 
     switch(keysym) {
@@ -1258,7 +1251,7 @@ static void text_console_invalidate(void *opaque)
 {
     QemuConsole *s = (QemuConsole *) opaque;
 
-    if (s->console_type == TEXT_CONSOLE) {
+    if (QEMU_IS_TEXT_CONSOLE(s) && !QEMU_IS_FIXED_TEXT_CONSOLE(s)) {
         text_console_resize(s);
     }
     console_refresh(s);
@@ -1294,20 +1287,19 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
 }
 
 static void
-qemu_console_register(QemuConsole *c, console_type_t console_type)
+qemu_console_register(QemuConsole *c)
 {
     int i;
 
-    if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
-                            (console_type == GRAPHIC_CONSOLE))) {
+    if (!active_console || (!QEMU_IS_GRAPHIC_CONSOLE(active_console) &&
+                            QEMU_IS_GRAPHIC_CONSOLE(c))) {
         active_console = c;
     }
-    c->console_type = console_type;
 
     if (QTAILQ_EMPTY(&consoles)) {
         c->index = 0;
         QTAILQ_INSERT_TAIL(&consoles, c, next);
-    } else if (console_type != GRAPHIC_CONSOLE || phase_check(PHASE_MACHINE_READY)) {
+    } else if (!QEMU_IS_GRAPHIC_CONSOLE(c) || phase_check(PHASE_MACHINE_READY)) {
         QemuConsole *last = QTAILQ_LAST(&consoles);
         c->index = last->index + 1;
         QTAILQ_INSERT_TAIL(&consoles, c, next);
@@ -1320,11 +1312,10 @@ qemu_console_register(QemuConsole *c, console_type_t console_type)
          */
         QemuConsole *it = QTAILQ_FIRST(&consoles);
 
-        while (QTAILQ_NEXT(it, next) != NULL &&
-               it->console_type == GRAPHIC_CONSOLE) {
+        while (QTAILQ_NEXT(it, next) != NULL && QEMU_IS_GRAPHIC_CONSOLE(it)) {
             it = QTAILQ_NEXT(it, next);
         }
-        if (it->console_type == GRAPHIC_CONSOLE) {
+        if (QEMU_IS_GRAPHIC_CONSOLE(it)) {
             /* have no text consoles */
             c->index = it->index + 1;
             QTAILQ_INSERT_AFTER(&consoles, it, c, next);
@@ -1422,14 +1413,14 @@ qemu_fixed_text_console_init(Object *obj)
 {
 }
 
-static QemuConsole *new_console(console_type_t console_type,
+static QemuConsole *new_console(const char *typename,
                                 uint32_t head)
 {
-    QemuConsole *c = QEMU_CONSOLE(object_new(TYPE_QEMU_CONSOLE));
+    QemuConsole *c = QEMU_CONSOLE(object_new(typename));
 
     c->head = head;
     /* TODO: move to console_init() once there is a type hierarchy */
-    qemu_console_register(c, console_type);
+    qemu_console_register(c);
 
     return c;
 }
@@ -2211,7 +2202,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
         height = qemu_console_get_height(s, 0);
     } else {
         trace_console_gfx_new();
-        s = new_console(GRAPHIC_CONSOLE, head);
+        s = new_console(TYPE_QEMU_GRAPHIC_CONSOLE, head);
         s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
                                    dpy_set_ui_info_timer, s);
     }
@@ -2345,7 +2336,7 @@ bool qemu_console_is_graphic(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
-    return con && (con->console_type == GRAPHIC_CONSOLE);
+    return con && QEMU_IS_GRAPHIC_CONSOLE(con);
 }
 
 bool qemu_console_is_fixedsize(QemuConsole *con)
@@ -2353,7 +2344,7 @@ bool qemu_console_is_fixedsize(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
-    return con && (con->console_type != TEXT_CONSOLE);
+    return con && (QEMU_IS_GRAPHIC_CONSOLE(con) || QEMU_IS_FIXED_TEXT_CONSOLE(con));
 }
 
 bool qemu_console_is_gl_blocked(QemuConsole *con)
@@ -2389,7 +2380,7 @@ bool qemu_console_is_multihead(DeviceState *dev)
 
 char *qemu_console_get_label(QemuConsole *con)
 {
-    if (con->console_type == GRAPHIC_CONSOLE) {
+    if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
         if (con->device) {
             DeviceState *dev;
             bool multihead;
@@ -2588,9 +2579,9 @@ static void vc_chr_open(Chardev *chr,
 
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
-        s = new_console(TEXT_CONSOLE, 0);
+        s = new_console(TYPE_QEMU_TEXT_CONSOLE, 0);
     } else {
-        s = new_console(TEXT_CONSOLE_FIXED_SIZE, 0);
+        s = new_console(TYPE_QEMU_FIXED_TEXT_CONSOLE, 0);
         s->scanout.kind = SCANOUT_SURFACE;
         s->surface = qemu_create_displaysurface(width, height);
     }
@@ -2610,7 +2601,7 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
 {
     DisplaySurface *surface = qemu_console_surface(s);
 
-    assert(s->console_type == GRAPHIC_CONSOLE);
+    assert(QEMU_IS_GRAPHIC_CONSOLE(s));
 
     if ((s->scanout.kind != SCANOUT_SURFACE ||
          (surface && surface->flags & QEMU_ALLOCATED_FLAG)) &&
