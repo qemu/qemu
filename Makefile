@@ -313,7 +313,7 @@ endif
 	@echo  'Documentation targets:'
 	$(call print-help,html man,Build documentation in specified format)
 	@echo  ''
-ifdef CONFIG_WIN32
+ifneq ($(filter msi, $(ninja-targets)),)
 	@echo  'Windows targets:'
 	$(call print-help,installer,Build NSIS-based installer for QEMU)
 	$(call print-help,msi,Build MSI-based installer for qemu-ga)

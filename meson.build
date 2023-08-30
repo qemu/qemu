@@ -2069,10 +2069,15 @@ config_host_data.set('CONFIG_MODULE_UPGRADES', get_option('module_upgrades'))
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BDRV_WHITELIST_TOOLS', get_option('block_drv_whitelist_in_tools'))
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
+config_host_data.set('CONFIG_BSD', targetos in bsd_oses)
 config_host_data.set('CONFIG_COCOA', cocoa.found())
+config_host_data.set('CONFIG_DARWIN', targetos == 'darwin')
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
+config_host_data.set('CONFIG_LINUX', targetos == 'linux')
+config_host_data.set('CONFIG_POSIX', targetos != 'windows')
+config_host_data.set('CONFIG_WIN32', targetos == 'windows')
 config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_BLKIO', blkio.found())
@@ -2799,6 +2804,18 @@ endif
 ########################
 
 minikconf = find_program('scripts/minikconf.py')
+config_targetos = {
+  (targetos == 'windows' ? 'CONFIG_WIN32' : 'CONFIG_POSIX'): 'y'
+}
+if targetos == 'darwin'
+  config_targetos += {'CONFIG_DARWIN': 'y'}
+elif targetos == 'linux'
+  config_targetos += {'CONFIG_LINUX': 'y'}
+endif
+if targetos in bsd_oses
+  config_targetos += {'CONFIG_BSD': 'y'}
+endif
+
 config_all = {}
 config_all_devices = {}
 config_all_disas = {}
@@ -2842,7 +2859,7 @@ host_kconfig = \
   (have_vhost_vdpa ? ['CONFIG_VHOST_VDPA=y'] : []) + \
   (have_vhost_kernel ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
   (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
-  ('CONFIG_LINUX' in config_host ? ['CONFIG_LINUX=y'] : []) + \
+  (targetos == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
   (have_pvrdma ? ['CONFIG_PVRDMA=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : [])
@@ -2863,7 +2880,7 @@ foreach target : target_dirs
     endif
     config_target += { 'CONFIG_LINUX_USER': 'y' }
   elif target.endswith('bsd-user')
-    if 'CONFIG_BSD' not in config_host
+    if targetos not in bsd_oses
       if default_targets
         continue
       endif
@@ -2994,7 +3011,7 @@ target_dirs = actual_target_dirs
 # pseudo symbol replaces it.
 
 config_all += config_all_devices
-config_all += config_host
+config_all += config_targetos
 config_all += config_all_disas
 config_all += {
   'CONFIG_XEN': xen.found(),
@@ -3341,7 +3358,7 @@ if enable_modules
   modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
 endif
 
-qom_ss = qom_ss.apply(config_host, strict: false)
+qom_ss = qom_ss.apply(config_targetos, strict: false)
 libqom = static_library('qom', qom_ss.sources() + genh,
                         dependencies: [qom_ss.dependencies()],
                         name_suffix: 'fa')
@@ -3515,7 +3532,7 @@ foreach d, list : target_modules
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
-          config_target += config_host
+          config_target += config_targetos
           target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
           c_args = ['-DNEED_CPU_H',
                     '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
@@ -3576,7 +3593,7 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
-authz_ss = authz_ss.apply(config_host, strict: false)
+authz_ss = authz_ss.apply(config_targetos, strict: false)
 libauthz = static_library('authz', authz_ss.sources() + genh,
                           dependencies: [authz_ss.dependencies()],
                           name_suffix: 'fa',
@@ -3585,7 +3602,7 @@ libauthz = static_library('authz', authz_ss.sources() + genh,
 authz = declare_dependency(link_whole: libauthz,
                            dependencies: qom)
 
-crypto_ss = crypto_ss.apply(config_host, strict: false)
+crypto_ss = crypto_ss.apply(config_targetos, strict: false)
 libcrypto = static_library('crypto', crypto_ss.sources() + genh,
                            dependencies: [crypto_ss.dependencies()],
                            name_suffix: 'fa',
@@ -3594,7 +3611,7 @@ libcrypto = static_library('crypto', crypto_ss.sources() + genh,
 crypto = declare_dependency(link_whole: libcrypto,
                             dependencies: [authz, qom])
 
-io_ss = io_ss.apply(config_host, strict: false)
+io_ss = io_ss.apply(config_targetos, strict: false)
 libio = static_library('io', io_ss.sources() + genh,
                        dependencies: [io_ss.dependencies()],
                        link_with: libqemuutil,
@@ -3610,7 +3627,7 @@ migration = declare_dependency(link_with: libmigration,
                                dependencies: [zlib, qom, io])
 system_ss.add(migration)
 
-block_ss = block_ss.apply(config_host, strict: false)
+block_ss = block_ss.apply(config_targetos, strict: false)
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
                           link_depends: block_syms,
@@ -3621,7 +3638,7 @@ block = declare_dependency(link_whole: [libblock],
                            link_args: '@block.syms',
                            dependencies: [crypto, io])
 
-blockdev_ss = blockdev_ss.apply(config_host, strict: false)
+blockdev_ss = blockdev_ss.apply(config_targetos, strict: false)
 libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
                              dependencies: blockdev_ss.dependencies(),
                              name_suffix: 'fa',
@@ -3630,7 +3647,7 @@ libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
 blockdev = declare_dependency(link_whole: [libblockdev],
                               dependencies: [block, event_loop_base])
 
-qmp_ss = qmp_ss.apply(config_host, strict: false)
+qmp_ss = qmp_ss.apply(config_targetos, strict: false)
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         dependencies: qmp_ss.dependencies(),
                         name_suffix: 'fa',
@@ -3645,7 +3662,7 @@ libchardev = static_library('chardev', chardev_ss.sources() + genh,
 
 chardev = declare_dependency(link_whole: libchardev)
 
-hwcore_ss = hwcore_ss.apply(config_host, strict: false)
+hwcore_ss = hwcore_ss.apply(config_targetos, strict: false)
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
                            name_suffix: 'fa',
                            build_by_default: false)
@@ -3702,7 +3719,7 @@ foreach target : target_dirs
             '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
   link_args = emulator_link_args
 
-  config_target += config_host
+  config_target += config_targetos
   target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
   if targetos == 'linux'
     target_inc += include_directories('linux-headers', is_system: true)

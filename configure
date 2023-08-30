@@ -1683,31 +1683,13 @@ echo >> $config_host_mak
 echo all: >> $config_host_mak
 
 if test "$targetos" = "windows"; then
-  echo "CONFIG_WIN32=y" >> $config_host_mak
   echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
   echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO-Linux}" >> $config_host_mak
   echo "QEMU_GA_VERSION=${QEMU_GA_VERSION-$(cat "$source_path"/VERSION)}" >> $config_host_mak
-else
-  echo "CONFIG_POSIX=y" >> $config_host_mak
-fi
-
-if test "$targetos" = "linux" ; then
-  echo "CONFIG_LINUX=y" >> $config_host_mak
-fi
-
-if test "$targetos" = "darwin" ; then
-  echo "CONFIG_DARWIN=y" >> $config_host_mak
 fi
 
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-
-# XXX: suppress that
-case $targetos in
-  gnu/kfreebsd | freebsd | dragonfly | netbsd | openbsd | darwin)
-    echo "CONFIG_BSD=y" >> $config_host_mak
-    ;;
-esac
 
 if test -n "$gdb_bin"; then
     gdb_version=$($gdb_bin --version | head -n 1)
