@@ -132,7 +132,6 @@ struct DisplayState {
     uint64_t last_update;
     uint64_t update_interval;
     bool refreshing;
-    bool have_gfx;
 
     QLIST_HEAD(, DisplayChangeListener) listeners;
 };
@@ -183,14 +182,10 @@ static void gui_setup_refresh(DisplayState *ds)
 {
     DisplayChangeListener *dcl;
     bool need_timer = false;
-    bool have_gfx = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->ops->dpy_refresh != NULL) {
             need_timer = true;
-        }
-        if (dcl->ops->dpy_gfx_update != NULL) {
-            have_gfx = true;
         }
     }
 
@@ -202,8 +197,6 @@ static void gui_setup_refresh(DisplayState *ds)
         timer_free(ds->gui_timer);
         ds->gui_timer = NULL;
     }
-
-    ds->have_gfx = have_gfx;
 }
 
 void graphic_hw_update_done(QemuConsole *con)
