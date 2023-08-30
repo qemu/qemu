@@ -1047,13 +1047,11 @@ void console_select(unsigned int index)
         DisplayState *ds = s->ds;
 
         active_console = s;
-        if (ds->have_gfx) {
-            QLIST_FOREACH(dcl, &ds->listeners, next) {
-                if (dcl->con != NULL) {
-                    continue;
-                }
-                displaychangelistener_display_console(dcl, s, NULL);
+        QLIST_FOREACH (dcl, &ds->listeners, next) {
+            if (dcl->con != NULL) {
+                continue;
             }
+            displaychangelistener_display_console(dcl, s, NULL);
         }
         dpy_text_resize(s, s->width, s->height);
         text_console_update_cursor(NULL);
