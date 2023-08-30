@@ -1169,13 +1169,13 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
             *q++ = '[';
             *q++ = keysym & 0xff;
         } else if (s->echo && (keysym == '\r' || keysym == '\n')) {
-            vc_chr_write(s->chr, (const uint8_t *) "\r", 1);
+            qemu_chr_write(s->chr, (uint8_t *)"\r", 1, true);
             *q++ = '\n';
         } else {
             *q++ = keysym;
         }
         if (s->echo) {
-            vc_chr_write(s->chr, buf, q - buf);
+            qemu_chr_write(s->chr, buf, q - buf, true);
         }
         num_free = fifo8_num_free(&s->out_fifo);
         fifo8_push_all(&s->out_fifo, buf, MIN(num_free, q - buf));
@@ -2474,7 +2474,7 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
         s->t_attrib.bgcol = QEMU_COLOR_BLUE;
         msg = g_strdup_printf("%s console\r\n", chr->label);
-        vc_chr_write(chr, (uint8_t *)msg, strlen(msg));
+        qemu_chr_write(chr, (uint8_t *)msg, strlen(msg), true);
         g_free(msg);
         s->t_attrib = s->t_attrib_default;
     }
