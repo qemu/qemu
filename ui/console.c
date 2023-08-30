@@ -427,20 +427,18 @@ static void text_console_resize(QemuTextConsole *t)
     t->width = w;
     t->height = h;
 
-    w1 = last_width;
-    if (t->width < w1)
-        w1 = t->width;
+    w1 = MIN(t->width, last_width);
 
     cells = g_new(TextCell, t->width * t->total_height + 1);
-    for(y = 0; y < t->total_height; y++) {
+    for (y = 0; y < t->total_height; y++) {
         c = &cells[y * t->width];
         if (w1 > 0) {
             c1 = &t->cells[y * last_width];
-            for(x = 0; x < w1; x++) {
+            for (x = 0; x < w1; x++) {
                 *c++ = *c1++;
             }
         }
-        for(x = w1; x < t->width; x++) {
+        for (x = w1; x < t->width; x++) {
             c->ch = ' ';
             c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             c++;
