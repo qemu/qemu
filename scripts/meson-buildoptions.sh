@@ -40,6 +40,7 @@ meson_options_help() {
   printf "%s\n" '                           jemalloc/system/tcmalloc)'
   printf "%s\n" '  --enable-module-upgrades try to load modules from alternate paths for'
   printf "%s\n" '                           upgrades'
+  printf "%s\n" '  --enable-plugins         TCG plugins via shared library loading'
   printf "%s\n" '  --enable-rng-none        dummy RNG, avoid using /dev/(u)random and'
   printf "%s\n" '                           getrandom()'
   printf "%s\n" '  --enable-safe-stack      SafeStack Stack Smash Protection (requires'
@@ -401,6 +402,8 @@ _meson_option_parse() {
     --enable-pipewire) printf "%s" -Dpipewire=enabled ;;
     --disable-pipewire) printf "%s" -Dpipewire=disabled ;;
     --with-pkgversion=*) quote_sh "-Dpkgversion=$2" ;;
+    --enable-plugins) printf "%s" -Dplugins=true ;;
+    --disable-plugins) printf "%s" -Dplugins=false ;;
     --enable-png) printf "%s" -Dpng=enabled ;;
     --disable-png) printf "%s" -Dpng=disabled ;;
     --enable-pvrdma) printf "%s" -Dpvrdma=enabled ;;

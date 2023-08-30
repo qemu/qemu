@@ -730,7 +730,7 @@ glib_cflags = []
 if enable_modules
   gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
                        method: 'pkg-config')
-elif config_host.has_key('CONFIG_PLUGIN')
+elif get_option('plugins')
   gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
                        method: 'pkg-config')
 else
@@ -2115,6 +2115,7 @@ if numa.found()
                                        dependencies: numa))
 endif
 config_host_data.set('CONFIG_OPENGL', opengl.found())
+config_host_data.set('CONFIG_PLUGIN', get_option('plugins'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
 config_host_data.set('CONFIG_SAFESTACK', get_option('safe_stack'))
@@ -3883,7 +3884,7 @@ endforeach
 
 # Other build targets
 
-if 'CONFIG_PLUGIN' in config_host
+if get_option('plugins')
   install_headers('include/qemu/qemu-plugin.h')
 endif
 
@@ -4156,7 +4157,7 @@ if config_all.has_key('CONFIG_TCG')
   else
     summary_info += {'TCG backend':   'native (@0@)'.format(cpu)}
   endif
-  summary_info += {'TCG plugins': config_host.has_key('CONFIG_PLUGIN')}
+  summary_info += {'TCG plugins':       get_option('plugins')}
   summary_info += {'TCG debug enabled': get_option('debug_tcg')}
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}

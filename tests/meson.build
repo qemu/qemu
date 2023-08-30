@@ -80,10 +80,8 @@ if 'CONFIG_TCG' in config_all
   subdir('fp')
 endif
 
-if get_option('tcg').allowed()
-  if 'CONFIG_PLUGIN' in config_host
-    subdir('plugin')
-  endif
+if get_option('plugins')
+  subdir('plugin')
 endif
 
 subdir('unit')

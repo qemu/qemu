@@ -73,7 +73,7 @@ $(TCG_TESTS_TARGETS:%=distclean-tcg-tests-%): distclean-tcg-tests-%:
 build-tcg: $(BUILD_TCG_TARGET_RULES)
 
 .PHONY: check-tcg
-.ninja-goals.check-tcg = all $(if $(CONFIG_PLUGIN),test-plugins)
+.ninja-goals.check-tcg = all
 check-tcg: $(RUN_TCG_TARGET_RULES)
 
 .PHONY: clean-tcg
