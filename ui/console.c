@@ -440,8 +440,9 @@ static void invalidate_xy(QemuConsole *s, int x, int y)
         s->update_y1 = (y + 1) * FONT_HEIGHT;
 }
 
-static void update_xy(QemuConsole *s, int x, int y)
+static void vc_update_xy(VCChardev *vc, int x, int y)
 {
+    QemuConsole *s = vc->console;
     TextCell *c;
     int y1, y2;
 
@@ -555,8 +556,9 @@ static void console_scroll(QemuConsole *s, int ydelta)
     console_refresh(s);
 }
 
-static void console_put_lf(QemuConsole *s)
+static void vc_put_lf(VCChardev *vc)
 {
+    QemuConsole *s = vc->console;
     TextCell *c;
     int x, y1;
 
@@ -603,8 +605,9 @@ static void console_put_lf(QemuConsole *s)
  * NOTE: I know this code is not very efficient (checking every color for it
  * self) but it is more readable and better maintainable.
  */
-static void console_handle_escape(QemuConsole *s)
+static void vc_handle_escape(VCChardev *vc)
 {
+    QemuConsole *s = vc->console;
     int i;
 
     for (i=0; i<s->nb_esc_params; i++) {
@@ -696,8 +699,9 @@ static void console_handle_escape(QemuConsole *s)
     }
 }
 
-static void console_clear_xy(QemuConsole *s, int x, int y)
+static void vc_clear_xy(VCChardev *vc, int x, int y)
 {
+    QemuConsole *s = vc->console;
     int y1 = (s->y_base + y) % s->total_height;
     if (x >= s->width) {
         x = s->width - 1;
@@ -705,37 +709,40 @@ static void console_clear_xy(QemuConsole *s, int x, int y)
     TextCell *c = &s->cells[y1 * s->width + x];
     c->ch = ' ';
     c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
-    update_xy(s, x, y);
+    vc_update_xy(vc, x, y);
 }
 
-static void console_put_one(QemuConsole *s, int ch)
+static void vc_put_one(VCChardev *vc, int ch)
 {
+    QemuConsole *s = vc->console;
     TextCell *c;
     int y1;
     if (s->x >= s->width) {
         /* line wrap */
         s->x = 0;
-        console_put_lf(s);
+        vc_put_lf(vc);
     }
     y1 = (s->y_base + s->y) % s->total_height;
     c = &s->cells[y1 * s->width + s->x];
     c->ch = ch;
     c->t_attrib = s->t_attrib;
-    update_xy(s, s->x, s->y);
+    vc_update_xy(vc, s->x, s->y);
     s->x++;
 }
 
-static void console_respond_str(QemuConsole *s, const char *buf)
+static void vc_respond_str(VCChardev *vc, const char *buf)
 {
     while (*buf) {
-        console_put_one(s, *buf);
+        vc_put_one(vc, *buf);
         buf++;
     }
 }
 
 /* set cursor, checking bounds */
-static void set_cursor(QemuConsole *s, int x, int y)
+static void vc_set_cursor(VCChardev *vc, int x, int y)
 {
+    QemuConsole *s = vc->console;
+
     if (x < 0) {
         x = 0;
     }
@@ -753,8 +760,9 @@ static void set_cursor(QemuConsole *s, int x, int y)
     s->y = y;
 }
 
-static void console_putchar(QemuConsole *s, int ch)
+static void vc_putchar(VCChardev *vc, int ch)
 {
+    QemuConsole *s = vc->console;
     int i;
     int x, y;
     char response[40];
@@ -766,7 +774,7 @@ static void console_putchar(QemuConsole *s, int ch)
             s->x = 0;
             break;
         case '\n':  /* newline */
-            console_put_lf(s);
+            vc_put_lf(vc);
             break;
         case '\b':  /* backspace */
             if (s->x > 0)
@@ -775,7 +783,7 @@ static void console_putchar(QemuConsole *s, int ch)
         case '\t':  /* tabspace */
             if (s->x + (8 - (s->x % 8)) > s->width) {
                 s->x = 0;
-                console_put_lf(s);
+                vc_put_lf(vc);
             } else {
                 s->x = s->x + (8 - (s->x % 8));
             }
@@ -793,7 +801,7 @@ static void console_putchar(QemuConsole *s, int ch)
             s->state = TTY_STATE_ESC;
             break;
         default:
-            console_put_one(s, ch);
+            vc_put_one(vc, ch);
             break;
         }
         break;
@@ -831,37 +839,37 @@ static void console_putchar(QemuConsole *s, int ch)
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
-                set_cursor(s, s->x, s->y - s->esc_params[0]);
+                vc_set_cursor(vc, s->x, s->y - s->esc_params[0]);
                 break;
             case 'B':
                 /* move cursor down */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
-                set_cursor(s, s->x, s->y + s->esc_params[0]);
+                vc_set_cursor(vc, s->x, s->y + s->esc_params[0]);
                 break;
             case 'C':
                 /* move cursor right */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
-                set_cursor(s, s->x + s->esc_params[0], s->y);
+                vc_set_cursor(vc, s->x + s->esc_params[0], s->y);
                 break;
             case 'D':
                 /* move cursor left */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
-                set_cursor(s, s->x - s->esc_params[0], s->y);
+                vc_set_cursor(vc, s->x - s->esc_params[0], s->y);
                 break;
             case 'G':
                 /* move cursor to column */
-                set_cursor(s, s->esc_params[0] - 1, s->y);
+                vc_set_cursor(vc, s->esc_params[0] - 1, s->y);
                 break;
             case 'f':
             case 'H':
                 /* move cursor to row, column */
-                set_cursor(s, s->esc_params[1] - 1, s->esc_params[0] - 1);
+                vc_set_cursor(vc, s->esc_params[1] - 1, s->esc_params[0] - 1);
                 break;
             case 'J':
                 switch (s->esc_params[0]) {
@@ -872,7 +880,7 @@ static void console_putchar(QemuConsole *s, int ch)
                             if (y == s->y && x < s->x) {
                                 continue;
                             }
-                            console_clear_xy(s, x, y);
+                            vc_clear_xy(vc, x, y);
                         }
                     }
                     break;
@@ -883,7 +891,7 @@ static void console_putchar(QemuConsole *s, int ch)
                             if (y == s->y && x > s->x) {
                                 break;
                             }
-                            console_clear_xy(s, x, y);
+                            vc_clear_xy(vc, x, y);
                         }
                     }
                     break;
@@ -891,7 +899,7 @@ static void console_putchar(QemuConsole *s, int ch)
                     /* clear entire screen */
                     for (y = 0; y <= s->height; y++) {
                         for (x = 0; x < s->width; x++) {
-                            console_clear_xy(s, x, y);
+                            vc_clear_xy(vc, x, y);
                         }
                     }
                     break;
@@ -902,38 +910,38 @@ static void console_putchar(QemuConsole *s, int ch)
                 case 0:
                     /* clear to eol */
                     for(x = s->x; x < s->width; x++) {
-                        console_clear_xy(s, x, s->y);
+                        vc_clear_xy(vc, x, s->y);
                     }
                     break;
                 case 1:
                     /* clear from beginning of line */
                     for (x = 0; x <= s->x && x < s->width; x++) {
-                        console_clear_xy(s, x, s->y);
+                        vc_clear_xy(vc, x, s->y);
                     }
                     break;
                 case 2:
                     /* clear entire line */
                     for(x = 0; x < s->width; x++) {
-                        console_clear_xy(s, x, s->y);
+                        vc_clear_xy(vc, x, s->y);
                     }
                     break;
                 }
                 break;
             case 'm':
-                console_handle_escape(s);
+                vc_handle_escape(vc);
                 break;
             case 'n':
                 switch (s->esc_params[0]) {
                 case 5:
                     /* report console status (always succeed)*/
-                    console_respond_str(s, "\033[0n");
+                    vc_respond_str(vc, "\033[0n");
                     break;
                 case 6:
                     /* report cursor position */
                     sprintf(response, "\033[%d;%dR",
                            (s->y_base + s->y) % s->total_height + 1,
                             s->x + 1);
-                    console_respond_str(s, response);
+                    vc_respond_str(vc, response);
                     break;
                 }
                 break;
@@ -1072,7 +1080,7 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     s->update_y1 = 0;
     console_show_cursor(s, 0);
     for(i = 0; i < len; i++) {
-        console_putchar(s, buf[i]);
+        vc_putchar(drv, buf[i]);
     }
     console_show_cursor(s, 1);
     if (s->update_x0 < s->update_x1) {
