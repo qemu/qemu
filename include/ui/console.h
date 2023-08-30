@@ -152,7 +152,6 @@ typedef struct ScanoutTexture {
 } ScanoutTexture;
 
 typedef struct DisplaySurface {
-    pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
 #ifdef CONFIG_OPENGL
@@ -436,21 +435,21 @@ static inline int surface_height(DisplaySurface *s)
     return pixman_image_get_height(s->image);
 }
 
+static inline pixman_format_code_t surface_format(DisplaySurface *s)
+{
+    return pixman_image_get_format(s->image);
+}
+
 static inline int surface_bits_per_pixel(DisplaySurface *s)
 {
-    int bits = PIXMAN_FORMAT_BPP(s->format);
+    int bits = PIXMAN_FORMAT_BPP(surface_format(s));
     return bits;
 }
 
 static inline int surface_bytes_per_pixel(DisplaySurface *s)
 {
-    int bits = PIXMAN_FORMAT_BPP(s->format);
+    int bits = PIXMAN_FORMAT_BPP(surface_format(s));
     return DIV_ROUND_UP(bits, 8);
-}
-
-static inline pixman_format_code_t surface_format(DisplaySurface *s)
-{
-    return s->format;
 }
 
 typedef uint32_t console_ch_t;

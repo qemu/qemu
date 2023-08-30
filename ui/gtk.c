@@ -514,7 +514,7 @@ static void gd_switch(DisplayChangeListener *dcl,
     }
     vc->gfx.ds = surface;
 
-    if (surface->format == PIXMAN_x8r8g8b8) {
+    if (surface_format(surface) == PIXMAN_x8r8g8b8) {
         /*
          * PIXMAN_x8r8g8b8 == CAIRO_FORMAT_RGB24
          *

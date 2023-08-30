@@ -1493,8 +1493,7 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     trace_displaysurface_create_from(surface, width, height, format);
-    surface->format = format;
-    surface->image = pixman_image_create_bits(surface->format,
+    surface->image = pixman_image_create_bits(format,
                                               width, height,
                                               (void *)data, linesize);
     assert(surface->image != NULL);
@@ -1511,7 +1510,6 @@ DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image)
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     trace_displaysurface_create_pixman(surface);
-    surface->format = pixman_image_get_format(image);
     surface->image = pixman_image_ref(image);
 
     return surface;

@@ -833,7 +833,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     /* guest surface */
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
-    vd->guest.format = surface->format;
+    vd->guest.format = surface_format(surface);
 
 
     if (pageflip) {
