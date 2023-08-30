@@ -128,6 +128,45 @@ struct QemuConsole {
 
 OBJECT_DEFINE_TYPE(QemuConsole, qemu_console, QEMU_CONSOLE, OBJECT)
 
+typedef struct QemuGraphicConsole {
+    QemuConsole parent;
+} QemuGraphicConsole;
+
+typedef QemuConsoleClass QemuGraphicConsoleClass;
+
+#define TYPE_QEMU_GRAPHIC_CONSOLE "qemu-graphic-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuGraphicConsole, QEMU_GRAPHIC_CONSOLE)
+OBJECT_DEFINE_TYPE(QemuGraphicConsole, qemu_graphic_console, QEMU_GRAPHIC_CONSOLE, QEMU_CONSOLE)
+
+#define QEMU_IS_GRAPHIC_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_GRAPHIC_CONSOLE)
+
+typedef struct QemuTextConsole {
+    QemuConsole parent;
+} QemuTextConsole;
+
+typedef QemuConsoleClass QemuTextConsoleClass;
+
+#define TYPE_QEMU_TEXT_CONSOLE "qemu-text-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuTextConsole, QEMU_TEXT_CONSOLE)
+OBJECT_DEFINE_TYPE(QemuTextConsole, qemu_text_console, QEMU_TEXT_CONSOLE, QEMU_CONSOLE)
+
+#define QEMU_IS_TEXT_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_TEXT_CONSOLE)
+
+typedef struct QemuFixedTextConsole {
+    QemuTextConsole parent;
+} QemuFixedTextConsole;
+
+typedef QemuTextConsoleClass QemuFixedTextConsoleClass;
+
+#define TYPE_QEMU_FIXED_TEXT_CONSOLE "qemu-fixed-text-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuFixedTextConsole, QEMU_FIXED_TEXT_CONSOLE)
+OBJECT_DEFINE_TYPE(QemuFixedTextConsole, qemu_fixed_text_console, QEMU_FIXED_TEXT_CONSOLE, QEMU_TEXT_CONSOLE)
+
+#define QEMU_IS_FIXED_TEXT_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_FIXED_TEXT_CONSOLE)
+
 struct VCChardev {
     Chardev parent;
     QemuConsole *console;
@@ -1336,6 +1375,51 @@ qemu_console_init(Object *obj)
     qemu_co_queue_init(&c->dump_queue);
     c->ds = ds;
     c->window_id = -1;
+}
+
+static void
+qemu_graphic_console_finalize(Object *obj)
+{
+}
+
+static void
+qemu_graphic_console_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static void
+qemu_graphic_console_init(Object *obj)
+{
+}
+
+static void
+qemu_text_console_finalize(Object *obj)
+{
+}
+
+static void
+qemu_text_console_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static void
+qemu_text_console_init(Object *obj)
+{
+}
+
+static void
+qemu_fixed_text_console_finalize(Object *obj)
+{
+}
+
+static void
+qemu_fixed_text_console_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static void
+qemu_fixed_text_console_init(Object *obj)
+{
 }
 
 static QemuConsole *new_console(console_type_t console_type,
