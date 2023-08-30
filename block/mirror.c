@@ -283,8 +283,8 @@ static int coroutine_fn mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
     need_cow |= !test_bit((*offset + *bytes - 1) / s->granularity,
                           s->cow_bitmap);
     if (need_cow) {
-        bdrv_round_to_clusters(blk_bs(s->target), *offset, *bytes,
-                               &align_offset, &align_bytes);
+        bdrv_round_to_subclusters(blk_bs(s->target), *offset, *bytes,
+                                  &align_offset, &align_bytes);
     }
 
     if (align_bytes > max_bytes) {
@@ -576,8 +576,8 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
             int64_t target_offset;
             int64_t target_bytes;
             WITH_GRAPH_RDLOCK_GUARD() {
-                bdrv_round_to_clusters(blk_bs(s->target), offset, io_bytes,
-                                       &target_offset, &target_bytes);
+                bdrv_round_to_subclusters(blk_bs(s->target), offset, io_bytes,
+                                          &target_offset, &target_bytes);
             }
             if (target_offset == offset &&
                 target_bytes == io_bytes) {
