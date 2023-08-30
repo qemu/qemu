@@ -331,9 +331,8 @@ void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
     }
 }
 
-static void vga_fill_rect(QemuConsole *con,
-                          int posx, int posy, int width, int height,
-                          pixman_color_t color)
+static void qemu_console_fill_rect(QemuConsole *con, int posx, int posy,
+                                   int width, int height, pixman_color_t color)
 {
     DisplaySurface *surface = qemu_console_surface(con);
     pixman_rectangle16_t rect = {
@@ -345,8 +344,8 @@ static void vga_fill_rect(QemuConsole *con,
 }
 
 /* copy from (xs, ys) to (xd, yd) a rectangle of size (w, h) */
-static void vga_bitblt(QemuConsole *con,
-                       int xs, int ys, int xd, int yd, int w, int h)
+static void qemu_console_bitblt(QemuConsole *con,
+                                int xs, int ys, int xd, int yd, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(con);
 
@@ -526,8 +525,8 @@ static void console_refresh(QemuTextConsole *s)
     s->text_y[1] = s->height - 1;
     s->cursor_invalidate = 1;
 
-    vga_fill_rect(QEMU_CONSOLE(s), 0, 0, surface_width(surface), surface_height(surface),
-                  color_table_rgb[0][QEMU_COLOR_BLACK]);
+    qemu_console_fill_rect(QEMU_CONSOLE(s), 0, 0, surface_width(surface), surface_height(surface),
+                           color_table_rgb[0][QEMU_COLOR_BLACK]);
     y1 = s->y_displayed;
     for (y = 0; y < s->height; y++) {
         c = s->cells + y1 * s->width;
@@ -605,12 +604,12 @@ static void vc_put_lf(VCChardev *vc)
             s->text_x[1] = s->width - 1;
             s->text_y[1] = s->height - 1;
 
-            vga_bitblt(QEMU_CONSOLE(s), 0, FONT_HEIGHT, 0, 0,
-                       s->width * FONT_WIDTH,
-                       (s->height - 1) * FONT_HEIGHT);
-            vga_fill_rect(QEMU_CONSOLE(s), 0, (s->height - 1) * FONT_HEIGHT,
-                          s->width * FONT_WIDTH, FONT_HEIGHT,
-                          color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
+            qemu_console_bitblt(QEMU_CONSOLE(s), 0, FONT_HEIGHT, 0, 0,
+                                s->width * FONT_WIDTH,
+                                (s->height - 1) * FONT_HEIGHT);
+            qemu_console_fill_rect(QEMU_CONSOLE(s), 0, (s->height - 1) * FONT_HEIGHT,
+                                   s->width * FONT_WIDTH, FONT_HEIGHT,
+                                   color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
             s->update_x0 = 0;
             s->update_y0 = 0;
             s->update_x1 = s->width * FONT_WIDTH;
