@@ -295,8 +295,8 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
-    if (nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc),
-                              NULL, NULL, NULL, &info, &local_error) < 0) {
+    if (nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, NULL, NULL,
+                              &info, &local_error) < 0) {
         if (local_error) {
             error_report_err(local_error);
         }
