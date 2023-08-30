@@ -339,6 +339,7 @@ static void qemu_console_fill_rect(QemuConsole *con, int posx, int posy,
         .x = posx, .y = posy, .width = width, .height = height
     };
 
+    assert(surface);
     pixman_image_fill_rectangles(PIXMAN_OP_SRC, surface->image,
                                  &color, 1, &rect);
 }
@@ -349,6 +350,7 @@ static void qemu_console_bitblt(QemuConsole *con,
 {
     DisplaySurface *surface = qemu_console_surface(con);
 
+    assert(surface);
     pixman_image_composite(PIXMAN_OP_SRC,
                            surface->image, NULL, surface->image,
                            xs, ys, 0, 0, xd, yd, w, h);
@@ -392,6 +394,7 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
     DisplaySurface *surface = qemu_console_surface(s);
     pixman_color_t fgcol, bgcol;
 
+    assert(surface);
     if (t_attrib->invers) {
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
         fgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
@@ -519,6 +522,7 @@ static void console_refresh(QemuTextConsole *s)
     TextCell *c;
     int x, y, y1;
 
+    assert(surface);
     s->text_x[0] = 0;
     s->text_y[0] = 0;
     s->text_x[1] = s->width - 1;
