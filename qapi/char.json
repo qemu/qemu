@@ -390,6 +390,10 @@
 #
 # @rows: console height, in chars
 #
+# Note: the options are only effective when the VNC or SDL graphical
+# display backend is active. They are ignored with the GTK, Spice, VNC
+# and D-Bus display backends.
+#
 # Since: 1.5
 ##
 { 'struct': 'ChardevVC',

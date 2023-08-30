@@ -96,6 +96,11 @@ static void vc_chr_set_echo(Chardev *chr, bool echo)
     /* TODO: set echo for frontends QMP and qtest */
 }
 
+static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
+{
+    /* fqdn is dealt with in vc_chr_open() */
+}
+
 static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     VCChardevClass *vc = CHARDEV_VC_CLASS(oc);
@@ -103,7 +108,7 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 
     vc->parent_open = cc->open;
 
-    cc->parse = qemu_chr_parse_vc;
+    cc->parse = vc_chr_parse;
     cc->open = vc_chr_open;
     cc->chr_set_echo = vc_chr_set_echo;
 }
