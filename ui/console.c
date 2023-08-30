@@ -1067,10 +1067,6 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     QemuConsole *s = drv->console;
     int i;
 
-    if (!s->ds) {
-        return 0;
-    }
-
     s->update_x0 = s->width * FONT_WIDTH;
     s->update_y0 = s->height * FONT_HEIGHT;
     s->update_x1 = 0;
