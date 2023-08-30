@@ -133,7 +133,6 @@ struct DisplayState {
     uint64_t update_interval;
     bool refreshing;
     bool have_gfx;
-    bool have_text;
 
     QLIST_HEAD(, DisplayChangeListener) listeners;
 };
@@ -185,7 +184,6 @@ static void gui_setup_refresh(DisplayState *ds)
     DisplayChangeListener *dcl;
     bool need_timer = false;
     bool have_gfx = false;
-    bool have_text = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->ops->dpy_refresh != NULL) {
@@ -193,9 +191,6 @@ static void gui_setup_refresh(DisplayState *ds)
         }
         if (dcl->ops->dpy_gfx_update != NULL) {
             have_gfx = true;
-        }
-        if (dcl->ops->dpy_text_update != NULL) {
-            have_text = true;
         }
     }
 
@@ -209,7 +204,6 @@ static void gui_setup_refresh(DisplayState *ds)
     }
 
     ds->have_gfx = have_gfx;
-    ds->have_text = have_text;
 }
 
 void graphic_hw_update_done(QemuConsole *con)
@@ -456,9 +450,7 @@ static void update_xy(QemuConsole *s, int x, int y)
     TextCell *c;
     int y1, y2;
 
-    if (s->ds->have_text) {
-        text_update_xy(s, x, y);
-    }
+    text_update_xy(s, x, y);
 
     y1 = (s->y_base + y) % s->total_height;
     y2 = y1 - s->y_displayed;
@@ -482,9 +474,7 @@ static void console_show_cursor(QemuConsole *s, int show)
     int y, y1;
     int x = s->x;
 
-    if (s->ds->have_text) {
-        s->cursor_invalidate = 1;
-    }
+    s->cursor_invalidate = 1;
 
     if (x >= s->width) {
         x = s->width - 1;
@@ -513,13 +503,11 @@ static void console_refresh(QemuConsole *s)
     TextCell *c;
     int x, y, y1;
 
-    if (s->ds->have_text) {
-        s->text_x[0] = 0;
-        s->text_y[0] = 0;
-        s->text_x[1] = s->width - 1;
-        s->text_y[1] = s->height - 1;
-        s->cursor_invalidate = 1;
-    }
+    s->text_x[0] = 0;
+    s->text_y[0] = 0;
+    s->text_x[1] = s->width - 1;
+    s->text_y[1] = s->height - 1;
+    s->cursor_invalidate = 1;
 
     vga_fill_rect(s, 0, 0, surface_width(surface), surface_height(surface),
                   color_table_rgb[0][QEMU_COLOR_BLACK]);
@@ -594,12 +582,10 @@ static void console_put_lf(QemuConsole *s)
             c++;
         }
         if (s->y_displayed == s->y_base) {
-            if (s->ds->have_text) {
-                s->text_x[0] = 0;
-                s->text_y[0] = 0;
-                s->text_x[1] = s->width - 1;
-                s->text_y[1] = s->height - 1;
-            }
+            s->text_x[0] = 0;
+            s->text_y[0] = 0;
+            s->text_x[1] = s->width - 1;
+            s->text_y[1] = s->height - 1;
 
             vga_bitblt(s, 0, FONT_HEIGHT, 0, 0,
                        s->width * FONT_WIDTH,
@@ -1069,9 +1055,7 @@ void console_select(unsigned int index)
                 displaychangelistener_display_console(dcl, s, NULL);
             }
         }
-        if (ds->have_text) {
-            dpy_text_resize(s, s->width, s->height);
-        }
+        dpy_text_resize(s, s->width, s->height);
         text_console_update_cursor(NULL);
     }
 }
@@ -1239,7 +1223,7 @@ static void text_console_invalidate(void *opaque)
 {
     QemuConsole *s = (QemuConsole *) opaque;
 
-    if (s->ds->have_text && s->console_type == TEXT_CONSOLE) {
+    if (s->console_type == TEXT_CONSOLE) {
         text_console_resize(s);
     }
     console_refresh(s);
