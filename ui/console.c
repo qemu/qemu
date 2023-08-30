@@ -1414,16 +1414,6 @@ qemu_fixed_text_console_init(Object *obj)
 {
 }
 
-static QemuConsole *new_console(const char *typename,
-                                uint32_t head)
-{
-    QemuConsole *c = QEMU_CONSOLE(object_new(typename));
-
-    c->head = head;
-
-    return c;
-}
-
 #ifdef WIN32
 void qemu_displaysurface_win32_set_handle(DisplaySurface *surface,
                                           HANDLE h, uint32_t offset)
@@ -2163,7 +2153,7 @@ DisplayState *init_displaystate(void)
     QemuConsole *con;
 
     QTAILQ_FOREACH(con, &consoles, next) {
-        /* Hook up into the qom tree here (not in new_console()), once
+        /* Hook up into the qom tree here (not in object_new()), once
          * all QemuConsoles are created and the order / numbering
          * doesn't change any more */
         name = g_strdup_printf("console[%d]", con->index);
@@ -2201,7 +2191,8 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
         height = qemu_console_get_height(s, 0);
     } else {
         trace_console_gfx_new();
-        s = new_console(TYPE_QEMU_GRAPHIC_CONSOLE, head);
+        s = (QemuConsole *)object_new(TYPE_QEMU_GRAPHIC_CONSOLE);
+        s->head = head;
         s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
                                    dpy_set_ui_info_timer, s);
     }
@@ -2578,9 +2569,9 @@ static void vc_chr_open(Chardev *chr,
 
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
-        s = new_console(TYPE_QEMU_TEXT_CONSOLE, 0);
+        s = (QemuConsole *)object_new(TYPE_QEMU_TEXT_CONSOLE);
     } else {
-        s = new_console(TYPE_QEMU_FIXED_TEXT_CONSOLE, 0);
+        s = (QemuConsole *)object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE);
         s->scanout.kind = SCANOUT_SURFACE;
         s->surface = qemu_create_displaysurface(width, height);
     }
