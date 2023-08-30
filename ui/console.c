@@ -28,8 +28,8 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qemu/coroutine.h"
-#include "qemu/error-report.h"
 #include "qemu/fifo8.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -37,11 +37,7 @@
 #include "chardev/char.h"
 #include "trace.h"
 #include "exec/memory.h"
-#include "io/channel-file.h"
 #include "qom/object.h"
-#ifdef CONFIG_PNG
-#include <png.h>
-#endif
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -239,6 +235,22 @@ void graphic_hw_update(QemuConsole *con)
     }
 }
 
+static void graphic_hw_update_bh(void *con)
+{
+    graphic_hw_update(con);
+}
+
+void qemu_console_co_wait_update(QemuConsole *con)
+{
+    if (qemu_co_queue_empty(&con->dump_queue)) {
+        /* Defer the update, it will restart the pending coroutines */
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                graphic_hw_update_bh, con);
+    }
+    qemu_co_queue_wait(&con->dump_queue, NULL);
+
+}
+
 static void graphic_hw_gl_unblock_timer(void *opaque)
 {
     warn_report("console: no gl-unblock within one second");
@@ -289,196 +301,6 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
     if (con && con->hw_ops->invalidate) {
         con->hw_ops->invalidate(con->hw);
-    }
-}
-
-#ifdef CONFIG_PNG
-/**
- * png_save: Take a screenshot as PNG
- *
- * Saves screendump as a PNG file
- *
- * Returns true for success or false for error.
- *
- * @fd: File descriptor for PNG file.
- * @image: Image data in pixman format.
- * @errp: Pointer to an error.
- */
-static bool png_save(int fd, pixman_image_t *image, Error **errp)
-{
-    int width = pixman_image_get_width(image);
-    int height = pixman_image_get_height(image);
-    png_struct *png_ptr;
-    png_info *info_ptr;
-    g_autoptr(pixman_image_t) linebuf =
-        qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
-    uint8_t *buf = (uint8_t *)pixman_image_get_data(linebuf);
-    FILE *f = fdopen(fd, "wb");
-    int y;
-    if (!f) {
-        error_setg_errno(errp, errno,
-                         "Failed to create file from file descriptor");
-        return false;
-    }
-
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,
-                                      NULL, NULL);
-    if (!png_ptr) {
-        error_setg(errp, "PNG creation failed. Unable to write struct");
-        fclose(f);
-        return false;
-    }
-
-    info_ptr = png_create_info_struct(png_ptr);
-
-    if (!info_ptr) {
-        error_setg(errp, "PNG creation failed. Unable to write info");
-        fclose(f);
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        return false;
-    }
-
-    png_init_io(png_ptr, f);
-
-    png_set_IHDR(png_ptr, info_ptr, width, height, 8,
-                 PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-
-    png_write_info(png_ptr, info_ptr);
-
-    for (y = 0; y < height; ++y) {
-        qemu_pixman_linebuf_fill(linebuf, image, width, 0, y);
-        png_write_row(png_ptr, buf);
-    }
-
-    png_write_end(png_ptr, NULL);
-
-    png_destroy_write_struct(&png_ptr, &info_ptr);
-
-    if (fclose(f) != 0) {
-        error_setg_errno(errp, errno,
-                         "PNG creation failed. Unable to close file");
-        return false;
-    }
-
-    return true;
-}
-
-#else /* no png support */
-
-static bool png_save(int fd, pixman_image_t *image, Error **errp)
-{
-    error_setg(errp, "Enable PNG support with libpng for screendump");
-    return false;
-}
-
-#endif /* CONFIG_PNG */
-
-static bool ppm_save(int fd, pixman_image_t *image, Error **errp)
-{
-    int width = pixman_image_get_width(image);
-    int height = pixman_image_get_height(image);
-    g_autoptr(Object) ioc = OBJECT(qio_channel_file_new_fd(fd));
-    g_autofree char *header = NULL;
-    g_autoptr(pixman_image_t) linebuf = NULL;
-    int y;
-
-    trace_ppm_save(fd, image);
-
-    header = g_strdup_printf("P6\n%d %d\n%d\n", width, height, 255);
-    if (qio_channel_write_all(QIO_CHANNEL(ioc),
-                              header, strlen(header), errp) < 0) {
-        return false;
-    }
-
-    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
-    for (y = 0; y < height; y++) {
-        qemu_pixman_linebuf_fill(linebuf, image, width, 0, y);
-        if (qio_channel_write_all(QIO_CHANNEL(ioc),
-                                  (char *)pixman_image_get_data(linebuf),
-                                  pixman_image_get_stride(linebuf), errp) < 0) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static void graphic_hw_update_bh(void *con)
-{
-    graphic_hw_update(con);
-}
-
-/* Safety: coroutine-only, concurrent-coroutine safe, main thread only */
-void coroutine_fn
-qmp_screendump(const char *filename, const char *device,
-               bool has_head, int64_t head,
-               bool has_format, ImageFormat format, Error **errp)
-{
-    g_autoptr(pixman_image_t) image = NULL;
-    QemuConsole *con;
-    DisplaySurface *surface;
-    int fd;
-
-    if (device) {
-        con = qemu_console_lookup_by_device_name(device, has_head ? head : 0,
-                                                 errp);
-        if (!con) {
-            return;
-        }
-    } else {
-        if (has_head) {
-            error_setg(errp, "'head' must be specified together with 'device'");
-            return;
-        }
-        con = qemu_console_lookup_by_index(0);
-        if (!con) {
-            error_setg(errp, "There is no console to take a screendump from");
-            return;
-        }
-    }
-
-    if (qemu_co_queue_empty(&con->dump_queue)) {
-        /* Defer the update, it will restart the pending coroutines */
-        aio_bh_schedule_oneshot(qemu_get_aio_context(),
-                                graphic_hw_update_bh, con);
-    }
-    qemu_co_queue_wait(&con->dump_queue, NULL);
-
-    /*
-     * All pending coroutines are woken up, while the BQL is held.  No
-     * further graphic update are possible until it is released.  Take
-     * an image ref before that.
-     */
-    surface = qemu_console_surface(con);
-    if (!surface) {
-        error_setg(errp, "no surface");
-        return;
-    }
-    image = pixman_image_ref(surface->image);
-
-    fd = qemu_open_old(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-    if (fd == -1) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
-        return;
-    }
-
-    /*
-     * The image content could potentially be updated as the coroutine
-     * yields and releases the BQL. It could produce corrupted dump, but
-     * it should be otherwise safe.
-     */
-    if (has_format && format == IMAGE_FORMAT_PNG) {
-        /* PNG format specified for screendump */
-        if (!png_save(fd, image, errp)) {
-            qemu_unlink(filename);
-        }
-    } else {
-        /* PPM format specified/default for screendump */
-        if (!ppm_save(fd, image, errp)) {
-            qemu_unlink(filename);
-        }
     }
 }
 
