@@ -46,6 +46,11 @@
 #include "sysemu/runstate.h"
 #include "hw/riscv/numa.h"
 
+void riscv_kvm_aplic_request(void *opaque, int irq, int level)
+{
+    kvm_set_irq(kvm_state, irq, !!level);
+}
+
 static uint64_t kvm_riscv_reg_id(CPURISCVState *env, uint64_t type,
                                  uint64_t idx)
 {
