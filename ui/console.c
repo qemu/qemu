@@ -2577,10 +2577,8 @@ static void vc_chr_open(Chardev *chr,
     drv->console = s;
 
     if (QEMU_CONSOLE(s)->scanout.kind != SCANOUT_SURFACE) {
-        if (active_console && active_console->scanout.kind == SCANOUT_SURFACE) {
-            g_width = qemu_console_get_width(active_console, g_width);
-            g_height = qemu_console_get_height(active_console, g_height);
-        }
+        g_width = qemu_console_get_width(NULL, g_width);
+        g_height = qemu_console_get_height(NULL, g_height);
         QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(g_width, g_height);
         QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
     }
