@@ -187,7 +187,6 @@ static QTAILQ_HEAD(, QemuConsole) consoles =
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
 
-static void text_console_do_init(Chardev *chr);
 static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
@@ -2534,20 +2533,46 @@ static const GraphicHwOps text_console_ops = {
     .text_update = text_console_update,
 };
 
-static void text_console_do_init(Chardev *chr)
+static void vc_chr_open(Chardev *chr,
+                        ChardevBackend *backend,
+                        bool *be_opened,
+                        Error **errp)
 {
+    ChardevVC *vc = backend->u.vc.data;
     VCChardev *drv = VC_CHARDEV(chr);
-    QemuTextConsole *s = drv->console;
+    QemuTextConsole *s;
+    unsigned width = 0;
+    unsigned height = 0;
     int g_width = 80 * FONT_WIDTH;
     int g_height = 24 * FONT_HEIGHT;
 
+    if (vc->has_width) {
+        width = vc->width;
+    } else if (vc->has_cols) {
+        width = vc->cols * FONT_WIDTH;
+    }
+
+    if (vc->has_height) {
+        height = vc->height;
+    } else if (vc->has_rows) {
+        height = vc->rows * FONT_HEIGHT;
+    }
+
+    trace_console_txt_new(width, height);
+    if (width == 0 || height == 0) {
+        s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_TEXT_CONSOLE));
+    } else {
+        s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
+        QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
+        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(width, height);
+    }
+
+    s->chr = chr;
+    drv->console = s;
+
     fifo8_create(&s->out_fifo, 16);
 
-    s->y_displayed = 0;
-    s->y_base = 0;
     s->total_height = DEFAULT_BACKSCROLL;
-    s->x = 0;
-    s->y = 0;
     if (QEMU_CONSOLE(s)->scanout.kind != SCANOUT_SURFACE) {
         if (active_console && active_console->scanout.kind == SCANOUT_SURFACE) {
             g_width = qemu_console_get_width(active_console, g_width);
@@ -2574,50 +2599,7 @@ static void text_console_do_init(Chardev *chr)
         drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     }
 
-    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-}
-
-static void vc_chr_open(Chardev *chr,
-                        ChardevBackend *backend,
-                        bool *be_opened,
-                        Error **errp)
-{
-    ChardevVC *vc = backend->u.vc.data;
-    VCChardev *drv = VC_CHARDEV(chr);
-    QemuTextConsole *s;
-    unsigned width = 0;
-    unsigned height = 0;
-
-    if (vc->has_width) {
-        width = vc->width;
-    } else if (vc->has_cols) {
-        width = vc->cols * FONT_WIDTH;
-    }
-
-    if (vc->has_height) {
-        height = vc->height;
-    } else if (vc->has_rows) {
-        height = vc->rows * FONT_HEIGHT;
-    }
-
-    trace_console_txt_new(width, height);
-    if (width == 0 || height == 0) {
-        s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_TEXT_CONSOLE));
-    } else {
-        s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
-        QEMU_CONSOLE(s)->scanout.kind = SCANOUT_SURFACE;
-        QEMU_CONSOLE(s)->surface = qemu_create_displaysurface(width, height);
-    }
-
-    s->chr = chr;
-    drv->console = s;
-
-    text_console_do_init(chr);
-
-    /* console/chardev init sometimes completes elsewhere in a 2nd
-     * stage, so defer OPENED events until they are fully initialized
-     */
-    *be_opened = false;
+    *be_opened = true;
 }
 
 void qemu_console_resize(QemuConsole *s, int width, int height)
