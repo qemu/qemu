@@ -49,10 +49,10 @@ void sdl2_process_key(struct sdl2_console *scon,
         if (ev->type == SDL_KEYDOWN) {
             switch (qcode) {
             case Q_KEY_CODE_RET:
-                kbd_put_keysym_console(s, '\n');
+                qemu_text_console_put_keysym(s, '\n');
                 break;
             default:
-                kbd_put_qcode_console(s, qcode, ctrl);
+                qemu_text_console_put_qcode(s, qcode, ctrl);
                 break;
             }
         }

@@ -1135,7 +1135,7 @@ static void kbd_send_chars(QemuTextConsole *s)
 }
 
 /* called when an ascii key is pressed */
-void kbd_put_keysym_console(QemuTextConsole *s, int keysym)
+void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym)
 {
     uint8_t buf[16], *q;
     int c;
@@ -1217,7 +1217,7 @@ static const int ctrl_qcode_to_keysym[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_PGDN]   = QEMU_KEY_CTRL_PAGEDOWN,
 };
 
-bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl)
+bool qemu_text_console_put_qcode(QemuTextConsole *s, int qcode, bool ctrl)
 {
     int keysym;
 
@@ -1225,16 +1225,16 @@ bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl)
     if (keysym == 0) {
         return false;
     }
-    kbd_put_keysym_console(s, keysym);
+    qemu_text_console_put_keysym(s, keysym);
     return true;
 }
 
-void kbd_put_string_console(QemuTextConsole *s, const char *str, int len)
+void qemu_text_console_put_string(QemuTextConsole *s, const char *str, int len)
 {
     int i;
 
     for (i = 0; i < len && str[i]; i++) {
-        kbd_put_keysym_console(s, str[i]);
+        qemu_text_console_put_keysym(s, str[i]);
     }
 }
 

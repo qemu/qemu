@@ -112,9 +112,9 @@ bool qemu_mouse_set(int index, Error **errp);
 #define QEMU_KEY_CTRL_PAGEUP     0xe406
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
-void kbd_put_keysym_console(QemuTextConsole *s, int keysym);
-bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl);
-void kbd_put_string_console(QemuTextConsole *s, const char *str, int len);
+void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym);
+bool qemu_text_console_put_qcode(QemuTextConsole *s, int qcode, bool ctrl);
+void qemu_text_console_put_string(QemuTextConsole *s, const char *str, int len);
 
 /* Touch devices */
 typedef struct touch_slot {
