@@ -1337,8 +1337,11 @@ qemu_console_finalize(Object *obj)
 {
     QemuConsole *c = QEMU_CONSOLE(obj);
 
+    /* TODO: check this code path, and unregister from consoles */
+    g_clear_pointer(&c->device, object_unref);
+    g_clear_pointer(&c->surface, qemu_free_displaysurface);
+    g_clear_pointer(&c->gl_unblock_timer, timer_free);
     g_clear_pointer(&c->ui_timer, timer_free);
-    /* TODO: should unregister from consoles and free itself  */
 }
 
 static void
