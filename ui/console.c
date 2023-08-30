@@ -106,10 +106,8 @@ struct QemuConsole {
     int total_height;
     int backscroll_height;
     int x, y;
-    int x_saved, y_saved;
     int y_displayed;
     int y_base;
-    TextAttributes t_attrib; /* currently active text attributes */
     TextCell *cells;
     int text_x[2], text_y[2], cursor_invalidate;
     int echo;
@@ -118,10 +116,6 @@ struct QemuConsole {
     int update_y0;
     int update_x1;
     int update_y1;
-
-    enum TTYState state;
-    int esc_params[MAX_ESC_PARAMS];
-    int nb_esc_params;
 
     Chardev *chr;
     /* fifo for key pressed */
@@ -134,6 +128,12 @@ struct QemuConsole {
 struct VCChardev {
     Chardev parent;
     QemuConsole *console;
+
+    enum TTYState state;
+    int esc_params[MAX_ESC_PARAMS];
+    int nb_esc_params;
+    TextAttributes t_attrib; /* currently active text attributes */
+    int x_saved, y_saved;
 };
 typedef struct VCChardev VCChardev;
 
@@ -607,93 +607,92 @@ static void vc_put_lf(VCChardev *vc)
  */
 static void vc_handle_escape(VCChardev *vc)
 {
-    QemuConsole *s = vc->console;
     int i;
 
-    for (i=0; i<s->nb_esc_params; i++) {
-        switch (s->esc_params[i]) {
+    for (i = 0; i < vc->nb_esc_params; i++) {
+        switch (vc->esc_params[i]) {
             case 0: /* reset all console attributes to default */
-                s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
+                vc->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
                 break;
             case 1:
-                s->t_attrib.bold = 1;
+                vc->t_attrib.bold = 1;
                 break;
             case 4:
-                s->t_attrib.uline = 1;
+                vc->t_attrib.uline = 1;
                 break;
             case 5:
-                s->t_attrib.blink = 1;
+                vc->t_attrib.blink = 1;
                 break;
             case 7:
-                s->t_attrib.invers = 1;
+                vc->t_attrib.invers = 1;
                 break;
             case 8:
-                s->t_attrib.unvisible = 1;
+                vc->t_attrib.unvisible = 1;
                 break;
             case 22:
-                s->t_attrib.bold = 0;
+                vc->t_attrib.bold = 0;
                 break;
             case 24:
-                s->t_attrib.uline = 0;
+                vc->t_attrib.uline = 0;
                 break;
             case 25:
-                s->t_attrib.blink = 0;
+                vc->t_attrib.blink = 0;
                 break;
             case 27:
-                s->t_attrib.invers = 0;
+                vc->t_attrib.invers = 0;
                 break;
             case 28:
-                s->t_attrib.unvisible = 0;
+                vc->t_attrib.unvisible = 0;
                 break;
             /* set foreground color */
             case 30:
-                s->t_attrib.fgcol = QEMU_COLOR_BLACK;
+                vc->t_attrib.fgcol = QEMU_COLOR_BLACK;
                 break;
             case 31:
-                s->t_attrib.fgcol = QEMU_COLOR_RED;
+                vc->t_attrib.fgcol = QEMU_COLOR_RED;
                 break;
             case 32:
-                s->t_attrib.fgcol = QEMU_COLOR_GREEN;
+                vc->t_attrib.fgcol = QEMU_COLOR_GREEN;
                 break;
             case 33:
-                s->t_attrib.fgcol = QEMU_COLOR_YELLOW;
+                vc->t_attrib.fgcol = QEMU_COLOR_YELLOW;
                 break;
             case 34:
-                s->t_attrib.fgcol = QEMU_COLOR_BLUE;
+                vc->t_attrib.fgcol = QEMU_COLOR_BLUE;
                 break;
             case 35:
-                s->t_attrib.fgcol = QEMU_COLOR_MAGENTA;
+                vc->t_attrib.fgcol = QEMU_COLOR_MAGENTA;
                 break;
             case 36:
-                s->t_attrib.fgcol = QEMU_COLOR_CYAN;
+                vc->t_attrib.fgcol = QEMU_COLOR_CYAN;
                 break;
             case 37:
-                s->t_attrib.fgcol = QEMU_COLOR_WHITE;
+                vc->t_attrib.fgcol = QEMU_COLOR_WHITE;
                 break;
             /* set background color */
             case 40:
-                s->t_attrib.bgcol = QEMU_COLOR_BLACK;
+                vc->t_attrib.bgcol = QEMU_COLOR_BLACK;
                 break;
             case 41:
-                s->t_attrib.bgcol = QEMU_COLOR_RED;
+                vc->t_attrib.bgcol = QEMU_COLOR_RED;
                 break;
             case 42:
-                s->t_attrib.bgcol = QEMU_COLOR_GREEN;
+                vc->t_attrib.bgcol = QEMU_COLOR_GREEN;
                 break;
             case 43:
-                s->t_attrib.bgcol = QEMU_COLOR_YELLOW;
+                vc->t_attrib.bgcol = QEMU_COLOR_YELLOW;
                 break;
             case 44:
-                s->t_attrib.bgcol = QEMU_COLOR_BLUE;
+                vc->t_attrib.bgcol = QEMU_COLOR_BLUE;
                 break;
             case 45:
-                s->t_attrib.bgcol = QEMU_COLOR_MAGENTA;
+                vc->t_attrib.bgcol = QEMU_COLOR_MAGENTA;
                 break;
             case 46:
-                s->t_attrib.bgcol = QEMU_COLOR_CYAN;
+                vc->t_attrib.bgcol = QEMU_COLOR_CYAN;
                 break;
             case 47:
-                s->t_attrib.bgcol = QEMU_COLOR_WHITE;
+                vc->t_attrib.bgcol = QEMU_COLOR_WHITE;
                 break;
         }
     }
@@ -725,7 +724,7 @@ static void vc_put_one(VCChardev *vc, int ch)
     y1 = (s->y_base + s->y) % s->total_height;
     c = &s->cells[y1 * s->width + s->x];
     c->ch = ch;
-    c->t_attrib = s->t_attrib;
+    c->t_attrib = vc->t_attrib;
     vc_update_xy(vc, s->x, s->y);
     s->x++;
 }
@@ -767,7 +766,7 @@ static void vc_putchar(VCChardev *vc, int ch)
     int x, y;
     char response[40];
 
-    switch(s->state) {
+    switch(vc->state) {
     case TTY_STATE_NORM:
         switch(ch) {
         case '\r':  /* carriage return */
@@ -798,7 +797,7 @@ static void vc_putchar(VCChardev *vc, int ch)
             /* SO (shift out), character set 1 (ignored) */
             break;
         case 27:    /* esc (introducing an escape sequence) */
-            s->state = TTY_STATE_ESC;
+            vc->state = TTY_STATE_ESC;
             break;
         default:
             vc_put_one(vc, ch);
@@ -808,71 +807,71 @@ static void vc_putchar(VCChardev *vc, int ch)
     case TTY_STATE_ESC: /* check if it is a terminal escape sequence */
         if (ch == '[') {
             for(i=0;i<MAX_ESC_PARAMS;i++)
-                s->esc_params[i] = 0;
-            s->nb_esc_params = 0;
-            s->state = TTY_STATE_CSI;
+                vc->esc_params[i] = 0;
+            vc->nb_esc_params = 0;
+            vc->state = TTY_STATE_CSI;
         } else {
-            s->state = TTY_STATE_NORM;
+            vc->state = TTY_STATE_NORM;
         }
         break;
     case TTY_STATE_CSI: /* handle escape sequence parameters */
         if (ch >= '0' && ch <= '9') {
-            if (s->nb_esc_params < MAX_ESC_PARAMS) {
-                int *param = &s->esc_params[s->nb_esc_params];
+            if (vc->nb_esc_params < MAX_ESC_PARAMS) {
+                int *param = &vc->esc_params[vc->nb_esc_params];
                 int digit = (ch - '0');
 
                 *param = (*param <= (INT_MAX - digit) / 10) ?
                          *param * 10 + digit : INT_MAX;
             }
         } else {
-            if (s->nb_esc_params < MAX_ESC_PARAMS)
-                s->nb_esc_params++;
+            if (vc->nb_esc_params < MAX_ESC_PARAMS)
+                vc->nb_esc_params++;
             if (ch == ';' || ch == '?') {
                 break;
             }
-            trace_console_putchar_csi(s->esc_params[0], s->esc_params[1],
-                                      ch, s->nb_esc_params);
-            s->state = TTY_STATE_NORM;
+            trace_console_putchar_csi(vc->esc_params[0], vc->esc_params[1],
+                                      ch, vc->nb_esc_params);
+            vc->state = TTY_STATE_NORM;
             switch(ch) {
             case 'A':
                 /* move cursor up */
-                if (s->esc_params[0] == 0) {
-                    s->esc_params[0] = 1;
+                if (vc->esc_params[0] == 0) {
+                    vc->esc_params[0] = 1;
                 }
-                vc_set_cursor(vc, s->x, s->y - s->esc_params[0]);
+                vc_set_cursor(vc, s->x, s->y - vc->esc_params[0]);
                 break;
             case 'B':
                 /* move cursor down */
-                if (s->esc_params[0] == 0) {
-                    s->esc_params[0] = 1;
+                if (vc->esc_params[0] == 0) {
+                    vc->esc_params[0] = 1;
                 }
-                vc_set_cursor(vc, s->x, s->y + s->esc_params[0]);
+                vc_set_cursor(vc, s->x, s->y + vc->esc_params[0]);
                 break;
             case 'C':
                 /* move cursor right */
-                if (s->esc_params[0] == 0) {
-                    s->esc_params[0] = 1;
+                if (vc->esc_params[0] == 0) {
+                    vc->esc_params[0] = 1;
                 }
-                vc_set_cursor(vc, s->x + s->esc_params[0], s->y);
+                vc_set_cursor(vc, s->x + vc->esc_params[0], s->y);
                 break;
             case 'D':
                 /* move cursor left */
-                if (s->esc_params[0] == 0) {
-                    s->esc_params[0] = 1;
+                if (vc->esc_params[0] == 0) {
+                    vc->esc_params[0] = 1;
                 }
-                vc_set_cursor(vc, s->x - s->esc_params[0], s->y);
+                vc_set_cursor(vc, s->x - vc->esc_params[0], s->y);
                 break;
             case 'G':
                 /* move cursor to column */
-                vc_set_cursor(vc, s->esc_params[0] - 1, s->y);
+                vc_set_cursor(vc, vc->esc_params[0] - 1, s->y);
                 break;
             case 'f':
             case 'H':
                 /* move cursor to row, column */
-                vc_set_cursor(vc, s->esc_params[1] - 1, s->esc_params[0] - 1);
+                vc_set_cursor(vc, vc->esc_params[1] - 1, vc->esc_params[0] - 1);
                 break;
             case 'J':
-                switch (s->esc_params[0]) {
+                switch (vc->esc_params[0]) {
                 case 0:
                     /* clear to end of screen */
                     for (y = s->y; y < s->height; y++) {
@@ -906,7 +905,7 @@ static void vc_putchar(VCChardev *vc, int ch)
                 }
                 break;
             case 'K':
-                switch (s->esc_params[0]) {
+                switch (vc->esc_params[0]) {
                 case 0:
                     /* clear to eol */
                     for(x = s->x; x < s->width; x++) {
@@ -931,7 +930,7 @@ static void vc_putchar(VCChardev *vc, int ch)
                 vc_handle_escape(vc);
                 break;
             case 'n':
-                switch (s->esc_params[0]) {
+                switch (vc->esc_params[0]) {
                 case 5:
                     /* report console status (always succeed)*/
                     vc_respond_str(vc, "\033[0n");
@@ -947,13 +946,13 @@ static void vc_putchar(VCChardev *vc, int ch)
                 break;
             case 's':
                 /* save cursor position */
-                s->x_saved = s->x;
-                s->y_saved = s->y;
+                vc->x_saved = s->x;
+                vc->y_saved = s->y;
                 break;
             case 'u':
                 /* restore cursor position */
-                s->x = s->x_saved;
-                s->y = s->y_saved;
+                s->x = vc->x_saved;
+                s->y = vc->y_saved;
                 break;
             default:
                 trace_console_putchar_unhandled(ch);
@@ -2427,17 +2426,17 @@ static void text_console_do_init(Chardev *chr)
     s->hw = s;
 
     /* set current text attributes to default */
-    s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
+    drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     text_console_resize(s);
 
     if (chr->label) {
         char *msg;
 
-        s->t_attrib.bgcol = QEMU_COLOR_BLUE;
+        drv->t_attrib.bgcol = QEMU_COLOR_BLUE;
         msg = g_strdup_printf("%s console\r\n", chr->label);
         qemu_chr_write(chr, (uint8_t *)msg, strlen(msg), true);
         g_free(msg);
-        s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
+        drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
