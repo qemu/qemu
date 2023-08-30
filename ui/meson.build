@@ -6,6 +6,7 @@ system_ss.add(png)
 system_ss.add(files(
   'clipboard.c',
   'console.c',
+  'console-vc.c',
   'cursor.c',
   'input-keymap.c',
   'input-legacy.c',
