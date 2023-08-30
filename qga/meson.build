@@ -87,7 +87,7 @@ else
   endif
 endif
 
-qga_ss = qga_ss.apply(config_targetos, strict: false)
+qga_ss = qga_ss.apply({})
 
 gen_tlb = []
 qga_libs = []
