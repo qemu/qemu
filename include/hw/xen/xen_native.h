@@ -539,4 +539,12 @@ static inline int xendevicemodel_set_irq_level(xendevicemodel_handle *dmod,
 #define GUEST_VIRTIO_MMIO_SPI_LAST    43
 #endif
 
+#if defined(__i386__) || defined(__x86_64__)
+#define GUEST_RAM_BANKS   2
+#define GUEST_RAM0_BASE   0x40000000ULL /* 3GB of low RAM @ 1GB */
+#define GUEST_RAM0_SIZE   0xc0000000ULL
+#define GUEST_RAM1_BASE   0x0200000000ULL /* 1016GB of RAM @ 8GB */
+#define GUEST_RAM1_SIZE   0xfe00000000ULL
+#endif
+
 #endif /* QEMU_HW_XEN_NATIVE_H */
