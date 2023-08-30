@@ -1141,6 +1141,13 @@ void kbd_put_keysym_console(QemuTextConsole *s, int keysym)
     int c;
     uint32_t num_free;
 
+    if (!s) {
+        if (!QEMU_IS_TEXT_CONSOLE(active_console)) {
+            return;
+        }
+        s = QEMU_TEXT_CONSOLE(active_console);
+    }
+
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
         console_scroll(s, -1);
@@ -1228,13 +1235,6 @@ void kbd_put_string_console(QemuTextConsole *s, const char *str, int len)
 
     for (i = 0; i < len && str[i]; i++) {
         kbd_put_keysym_console(s, str[i]);
-    }
-}
-
-void kbd_put_keysym(int keysym)
-{
-    if (QEMU_IS_TEXT_CONSOLE(active_console)) {
-        kbd_put_keysym_console(QEMU_TEXT_CONSOLE(active_console), keysym);
     }
 }
 

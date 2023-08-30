@@ -784,7 +784,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 
     if (keysym) {
-        kbd_put_keysym(keysym);
+        kbd_put_keysym_console(NULL, keysym);
     }
 }
 
