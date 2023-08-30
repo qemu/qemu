@@ -523,4 +523,20 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
                                                  enable);
 }
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION <= 41500
+static inline int xendevicemodel_set_irq_level(xendevicemodel_handle *dmod,
+                                               domid_t domid, uint32_t irq,
+                                               unsigned int level)
+{
+    return 0;
+}
+#endif
+
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION <= 41700
+#define GUEST_VIRTIO_MMIO_BASE   xen_mk_ullong(0x02000000)
+#define GUEST_VIRTIO_MMIO_SIZE   xen_mk_ullong(0x00100000)
+#define GUEST_VIRTIO_MMIO_SPI_FIRST   33
+#define GUEST_VIRTIO_MMIO_SPI_LAST    43
+#endif
+
 #endif /* QEMU_HW_XEN_NATIVE_H */
