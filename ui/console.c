@@ -83,17 +83,10 @@ struct QemuConsole {
     int gl_block;
     QEMUTimer *gl_unblock_timer;
     int window_id;
-
-    /* Graphic console state.  */
-    Object *device;
-    uint32_t head;
     QemuUIInfo ui_info;
     QEMUTimer *ui_timer;
-    QEMUCursor *cursor;
-    int cursor_x, cursor_y, cursor_on;
     const GraphicHwOps *hw_ops;
     void *hw;
-
     CoQueue dump_queue;
 
     QTAILQ_ENTRY(QemuConsole) next;
@@ -103,6 +96,12 @@ OBJECT_DEFINE_ABSTRACT_TYPE(QemuConsole, qemu_console, QEMU_CONSOLE, OBJECT)
 
 typedef struct QemuGraphicConsole {
     QemuConsole parent;
+
+    Object *device;
+    uint32_t head;
+
+    QEMUCursor *cursor;
+    int cursor_x, cursor_y, cursor_on;
 } QemuGraphicConsole;
 
 typedef QemuConsoleClass QemuGraphicConsoleClass;
@@ -1343,31 +1342,14 @@ qemu_console_finalize(Object *obj)
     QemuConsole *c = QEMU_CONSOLE(obj);
 
     /* TODO: check this code path, and unregister from consoles */
-    g_clear_pointer(&c->device, object_unref);
     g_clear_pointer(&c->surface, qemu_free_displaysurface);
     g_clear_pointer(&c->gl_unblock_timer, timer_free);
     g_clear_pointer(&c->ui_timer, timer_free);
 }
 
 static void
-qemu_console_prop_get_head(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
-{
-    QemuConsole *c = QEMU_CONSOLE(obj);
-
-    visit_type_uint32(v, name, &c->head, errp);
-}
-
-static void
 qemu_console_class_init(ObjectClass *oc, void *data)
 {
-    object_class_property_add_link(oc, "device", TYPE_DEVICE,
-                                   offsetof(QemuConsole, device),
-                                   object_property_allow_set_link,
-                                   OBJ_PROP_LINK_STRONG);
-    object_class_property_add(oc, "head", "uint32",
-                              qemu_console_prop_get_head,
-                              NULL, NULL, NULL);
 }
 
 static void
@@ -1387,11 +1369,30 @@ qemu_console_init(Object *obj)
 static void
 qemu_graphic_console_finalize(Object *obj)
 {
+    QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(obj);
+
+    g_clear_pointer(&c->device, object_unref);
+}
+
+static void
+qemu_graphic_console_prop_get_head(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(obj);
+
+    visit_type_uint32(v, name, &c->head, errp);
 }
 
 static void
 qemu_graphic_console_class_init(ObjectClass *oc, void *data)
 {
+    object_class_property_add_link(oc, "device", TYPE_DEVICE,
+                                   offsetof(QemuGraphicConsole, device),
+                                   object_property_allow_set_link,
+                                   OBJ_PROP_LINK_STRONG);
+    object_class_property_add(oc, "head", "uint32",
+                              qemu_graphic_console_prop_get_head,
+                              NULL, NULL, NULL);
 }
 
 static void
@@ -1676,6 +1677,16 @@ void qemu_console_set_display_gl_ctx(QemuConsole *con, DisplayGLCtx *gl)
     con->gl = gl;
 }
 
+static void
+dcl_set_graphic_cursor(DisplayChangeListener *dcl, QemuGraphicConsole *con)
+{
+    if (con && con->cursor && dcl->ops->dpy_cursor_define) {
+        dcl->ops->dpy_cursor_define(dcl, con->cursor);
+    }
+    if (con && dcl->ops->dpy_mouse_set) {
+        dcl->ops->dpy_mouse_set(dcl, con->cursor_x, con->cursor_y, con->cursor_on);
+    }
+}
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     QemuConsole *con;
@@ -1693,11 +1704,8 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         con = active_console;
     }
     displaychangelistener_display_console(dcl, con, dcl->con ? &error_fatal : NULL);
-    if (con && con->cursor && dcl->ops->dpy_cursor_define) {
-        dcl->ops->dpy_cursor_define(dcl, con->cursor);
-    }
-    if (con && dcl->ops->dpy_mouse_set) {
-        dcl->ops->dpy_mouse_set(dcl, con->cursor_x, con->cursor_y, con->cursor_on);
+    if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
+        dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(con));
     }
     text_console_update_cursor(NULL);
 }
@@ -1728,8 +1736,9 @@ void unregister_displaychangelistener(DisplayChangeListener *dcl)
 static void dpy_set_ui_info_timer(void *opaque)
 {
     QemuConsole *con = opaque;
+    uint32_t head = qemu_console_get_head(con);
 
-    con->hw_ops->ui_info(con->hw, con->head, &con->ui_info);
+    con->hw_ops->ui_info(con->hw, head, &con->ui_info);
 }
 
 bool dpy_ui_info_supported(QemuConsole *con)
@@ -1939,19 +1948,20 @@ void dpy_text_resize(QemuConsole *con, int w, int h)
     }
 }
 
-void dpy_mouse_set(QemuConsole *con, int x, int y, int on)
+void dpy_mouse_set(QemuConsole *c, int x, int y, int on)
 {
-    DisplayState *s = con->ds;
+    QemuGraphicConsole *con = QEMU_GRAPHIC_CONSOLE(c);
+    DisplayState *s = c->ds;
     DisplayChangeListener *dcl;
 
     con->cursor_x = x;
     con->cursor_y = y;
     con->cursor_on = on;
-    if (!qemu_console_is_visible(con)) {
+    if (!qemu_console_is_visible(c)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (c != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
         if (dcl->ops->dpy_mouse_set) {
@@ -1960,18 +1970,19 @@ void dpy_mouse_set(QemuConsole *con, int x, int y, int on)
     }
 }
 
-void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor)
+void dpy_cursor_define(QemuConsole *c, QEMUCursor *cursor)
 {
-    DisplayState *s = con->ds;
+    QemuGraphicConsole *con = QEMU_GRAPHIC_CONSOLE(c);
+    DisplayState *s = c->ds;
     DisplayChangeListener *dcl;
 
     cursor_unref(con->cursor);
     con->cursor = cursor_ref(cursor);
-    if (!qemu_console_is_visible(con)) {
+    if (!qemu_console_is_visible(c)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (c != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
         if (dcl->ops->dpy_cursor_define) {
@@ -2210,7 +2221,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
         trace_console_gfx_new();
         s = (QemuConsole *)object_new(TYPE_QEMU_GRAPHIC_CONSOLE);
     }
-    s->head = head;
+    QEMU_GRAPHIC_CONSOLE(s)->head = head;
     graphic_console_set_hwops(s, hw_ops, opaque);
     if (dev) {
         object_property_set_link(OBJECT(s), "device", OBJECT(dev),
@@ -2328,7 +2339,7 @@ QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
-    return con ? con->cursor : NULL;
+    return QEMU_IS_GRAPHIC_CONSOLE(con) ? QEMU_GRAPHIC_CONSOLE(con)->cursor : NULL;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)
@@ -2386,21 +2397,22 @@ bool qemu_console_is_multihead(DeviceState *dev)
 char *qemu_console_get_label(QemuConsole *con)
 {
     if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
-        if (con->device) {
+        QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(con);
+        if (c->device) {
             DeviceState *dev;
             bool multihead;
 
-            dev = DEVICE(con->device);
+            dev = DEVICE(c->device);
             multihead = qemu_console_is_multihead(dev);
             if (multihead) {
                 return g_strdup_printf("%s.%d", dev->id ?
                                        dev->id :
-                                       object_get_typename(con->device),
-                                       con->head);
+                                       object_get_typename(c->device),
+                                       c->head);
             } else {
                 return g_strdup_printf("%s", dev->id ?
                                        dev->id :
-                                       object_get_typename(con->device));
+                                       object_get_typename(c->device));
             }
         }
         return g_strdup("VGA");
@@ -2427,7 +2439,13 @@ uint32_t qemu_console_get_head(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
-    return con ? con->head : -1;
+    if (con == NULL) {
+        return -1;
+    }
+    if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
+        return QEMU_GRAPHIC_CONSOLE(con)->head;
+    }
+    return 0;
 }
 
 int qemu_console_get_width(QemuConsole *con, int fallback)
