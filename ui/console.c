@@ -1087,7 +1087,7 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
         console_putchar(s, buf[i]);
     }
     console_show_cursor(s, 1);
-    if (s->ds->have_gfx && s->update_x0 < s->update_x1) {
+    if (s->update_x0 < s->update_x1) {
         dpy_gfx_update(s, s->update_x0, s->update_y0,
                        s->update_x1 - s->update_x0,
                        s->update_y1 - s->update_y0);
