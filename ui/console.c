@@ -52,6 +52,11 @@ typedef struct TextAttributes {
     uint8_t unvisible:1;
 } TextAttributes;
 
+#define TEXT_ATTRIBUTES_DEFAULT ((TextAttributes) { \
+    .fgcol = QEMU_COLOR_WHITE,                      \
+    .bgcol = QEMU_COLOR_BLACK                       \
+})
+
 typedef struct TextCell {
     uint8_t ch;
     TextAttributes t_attrib;
@@ -104,7 +109,6 @@ struct QemuConsole {
     int x_saved, y_saved;
     int y_displayed;
     int y_base;
-    TextAttributes t_attrib_default; /* default text attributes */
     TextAttributes t_attrib; /* currently active text attributes */
     TextCell *cells;
     int text_x[2], text_y[2], cursor_invalidate;
@@ -413,7 +417,7 @@ static void text_console_resize(QemuConsole *s)
         }
         for(x = w1; x < s->width; x++) {
             c->ch = ' ';
-            c->t_attrib = s->t_attrib_default;
+            c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             c++;
         }
     }
@@ -486,7 +490,7 @@ static void console_show_cursor(QemuConsole *s, int show)
     if (y < s->height) {
         c = &s->cells[y1 * s->width + x];
         if (show && cursor_visible_phase) {
-            TextAttributes t_attrib = s->t_attrib_default;
+            TextAttributes t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
             vga_putcharxy(s, x, y, c->ch, &t_attrib);
         } else {
@@ -577,7 +581,7 @@ static void console_put_lf(QemuConsole *s)
         c = &s->cells[y1 * s->width];
         for(x = 0; x < s->width; x++) {
             c->ch = ' ';
-            c->t_attrib = s->t_attrib_default;
+            c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             c++;
         }
         if (s->y_displayed == s->y_base) {
@@ -591,7 +595,7 @@ static void console_put_lf(QemuConsole *s)
                        (s->height - 1) * FONT_HEIGHT);
             vga_fill_rect(s, 0, (s->height - 1) * FONT_HEIGHT,
                           s->width * FONT_WIDTH, FONT_HEIGHT,
-                          color_table_rgb[0][s->t_attrib_default.bgcol]);
+                          color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
             s->update_x0 = 0;
             s->update_y0 = 0;
             s->update_x1 = s->width * FONT_WIDTH;
@@ -611,7 +615,7 @@ static void console_handle_escape(QemuConsole *s)
     for (i=0; i<s->nb_esc_params; i++) {
         switch (s->esc_params[i]) {
             case 0: /* reset all console attributes to default */
-                s->t_attrib = s->t_attrib_default;
+                s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
                 break;
             case 1:
                 s->t_attrib.bold = 1;
@@ -705,7 +709,7 @@ static void console_clear_xy(QemuConsole *s, int x, int y)
     }
     TextCell *c = &s->cells[y1 * s->width + x];
     c->ch = ' ';
-    c->t_attrib = s->t_attrib_default;
+    c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     update_xy(s, x, y);
 }
 
@@ -2419,16 +2423,8 @@ static void text_console_do_init(Chardev *chr)
     s->hw_ops = &text_console_ops;
     s->hw = s;
 
-    /* Set text attribute defaults */
-    s->t_attrib_default.bold = 0;
-    s->t_attrib_default.uline = 0;
-    s->t_attrib_default.blink = 0;
-    s->t_attrib_default.invers = 0;
-    s->t_attrib_default.unvisible = 0;
-    s->t_attrib_default.fgcol = QEMU_COLOR_WHITE;
-    s->t_attrib_default.bgcol = QEMU_COLOR_BLACK;
     /* set current text attributes to default */
-    s->t_attrib = s->t_attrib_default;
+    s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     text_console_resize(s);
 
     if (chr->label) {
@@ -2438,7 +2434,7 @@ static void text_console_do_init(Chardev *chr)
         msg = g_strdup_printf("%s console\r\n", chr->label);
         qemu_chr_write(chr, (uint8_t *)msg, strlen(msg), true);
         g_free(msg);
-        s->t_attrib = s->t_attrib_default;
+        s->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
