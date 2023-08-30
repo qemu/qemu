@@ -106,12 +106,7 @@ typedef struct QemuGraphicConsole {
 
 typedef QemuConsoleClass QemuGraphicConsoleClass;
 
-#define TYPE_QEMU_GRAPHIC_CONSOLE "qemu-graphic-console"
-OBJECT_DECLARE_SIMPLE_TYPE(QemuGraphicConsole, QEMU_GRAPHIC_CONSOLE)
 OBJECT_DEFINE_TYPE(QemuGraphicConsole, qemu_graphic_console, QEMU_GRAPHIC_CONSOLE, QEMU_CONSOLE)
-
-#define QEMU_IS_GRAPHIC_CONSOLE(c) \
-    object_dynamic_cast(OBJECT(c), TYPE_QEMU_GRAPHIC_CONSOLE)
 
 typedef struct QemuTextConsole {
     QemuConsole parent;
@@ -139,12 +134,7 @@ typedef struct QemuTextConsole {
 
 typedef QemuConsoleClass QemuTextConsoleClass;
 
-#define TYPE_QEMU_TEXT_CONSOLE "qemu-text-console"
-OBJECT_DECLARE_SIMPLE_TYPE(QemuTextConsole, QEMU_TEXT_CONSOLE)
 OBJECT_DEFINE_TYPE(QemuTextConsole, qemu_text_console, QEMU_TEXT_CONSOLE, QEMU_CONSOLE)
-
-#define QEMU_IS_TEXT_CONSOLE(c) \
-    object_dynamic_cast(OBJECT(c), TYPE_QEMU_TEXT_CONSOLE)
 
 typedef struct QemuFixedTextConsole {
     QemuTextConsole parent;
@@ -152,12 +142,7 @@ typedef struct QemuFixedTextConsole {
 
 typedef QemuTextConsoleClass QemuFixedTextConsoleClass;
 
-#define TYPE_QEMU_FIXED_TEXT_CONSOLE "qemu-fixed-text-console"
-OBJECT_DECLARE_SIMPLE_TYPE(QemuFixedTextConsole, QEMU_FIXED_TEXT_CONSOLE)
 OBJECT_DEFINE_TYPE(QemuFixedTextConsole, qemu_fixed_text_console, QEMU_FIXED_TEXT_CONSOLE, QEMU_TEXT_CONSOLE)
-
-#define QEMU_IS_FIXED_TEXT_CONSOLE(c) \
-    object_dynamic_cast(OBJECT(c), TYPE_QEMU_FIXED_TEXT_CONSOLE)
 
 struct VCChardev {
     Chardev parent;
