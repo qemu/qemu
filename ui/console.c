@@ -1366,6 +1366,7 @@ qemu_console_init(Object *obj)
     qemu_co_queue_init(&c->dump_queue);
     c->ds = ds;
     c->window_id = -1;
+    qemu_console_register(c);
 }
 
 static void
@@ -1419,8 +1420,6 @@ static QemuConsole *new_console(const char *typename,
     QemuConsole *c = QEMU_CONSOLE(object_new(typename));
 
     c->head = head;
-    /* TODO: move to console_init() once there is a type hierarchy */
-    qemu_console_register(c);
 
     return c;
 }
