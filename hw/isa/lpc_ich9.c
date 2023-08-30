@@ -304,6 +304,21 @@ static PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
             route.irq = -1;
         }
     } else {
+        /*
+         * Strictly speaking, this is wrong. The PIRQ should be routed
+         * to *both* the I/O APIC and the PIC, on different pins. The
+         * I/O APIC has a fixed mapping to IRQ16-23, while the PIC is
+         * routed according to the PIRQx_ROUT configuration. But QEMU
+         * doesn't (yet) cope with the concept of pin numbers differing
+         * between PIC and I/O APIC, and neither does the in-kernel KVM
+         * irqchip support. So we route to the I/O APIC *only* if the
+         * routing to the PIC is disabled in the PIRQx_ROUT settings.
+         *
+         * This seems to work even if we boot a Linux guest with 'noapic'
+         * to make it use the legacy PIC, and then kexec directly into a
+         * new kernel which uses the I/O APIC. The new kernel explicitly
+         * disables the PIRQ routing even though it doesn't need to care.
+         */
         route.irq = ich9_pirq_to_gsi(pirq_pin);
     }
 
