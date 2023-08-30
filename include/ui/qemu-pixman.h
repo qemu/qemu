@@ -78,7 +78,6 @@ pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
                                           pixman_image_t *image);
 void qemu_pixman_image_unref(pixman_image_t *image);
 
-pixman_color_t qemu_pixman_color(PixelFormat *pf, uint32_t color);
 pixman_image_t *qemu_pixman_glyph_from_vgafont(int height, const uint8_t *font,
                                                unsigned int ch);
 void qemu_pixman_glyph_render(pixman_image_t *glyph,

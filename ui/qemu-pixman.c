@@ -226,17 +226,6 @@ void qemu_pixman_image_unref(pixman_image_t *image)
     pixman_image_unref(image);
 }
 
-pixman_color_t qemu_pixman_color(PixelFormat *pf, uint32_t color)
-{
-    pixman_color_t c;
-
-    c.red   = ((color & pf->rmask) >> pf->rshift) << (16 - pf->rbits);
-    c.green = ((color & pf->gmask) >> pf->gshift) << (16 - pf->gbits);
-    c.blue  = ((color & pf->bmask) >> pf->bshift) << (16 - pf->bbits);
-    c.alpha = ((color & pf->amask) >> pf->ashift) << (16 - pf->abits);
-    return c;
-}
-
 pixman_image_t *qemu_pixman_glyph_from_vgafont(int height, const uint8_t *font,
                                                unsigned int ch)
 {
