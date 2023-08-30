@@ -877,8 +877,7 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
  * Returns: negative errno: failure talking to server
  *          non-negative: enum NBDMode describing server abilities
  */
-static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
-                               QCryptoTLSCreds *tlscreds,
+static int nbd_start_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                                const char *hostname, QIOChannel **outioc,
                                bool structured_reply, bool *zeroes,
                                Error **errp)
@@ -946,10 +945,6 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                     return -EINVAL;
                 }
                 ioc = *outioc;
-                if (aio_context) {
-                    qio_channel_set_blocking(ioc, false, NULL);
-                    qio_channel_attach_aio_context(ioc, aio_context);
-                }
             } else {
                 error_setg(errp, "Server does not support STARTTLS");
                 return -EINVAL;
@@ -1026,7 +1021,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     assert(info->name && strlen(info->name) <= NBD_MAX_STRING_SIZE);
     trace_nbd_receive_negotiate_name(info->name);
 
-    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, outioc,
+    result = nbd_start_negotiate(ioc, tlscreds, hostname, outioc,
                                  info->structured_reply, &zeroes, errp);
     if (result < 0) {
         return result;
@@ -1149,7 +1144,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     QIOChannel *sioc = NULL;
 
     *info = NULL;
-    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc, true,
+    result = nbd_start_negotiate(ioc, tlscreds, hostname, &sioc, true,
                                  NULL, errp);
     if (tlscreds && sioc) {
         ioc = sioc;
