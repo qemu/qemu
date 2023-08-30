@@ -2500,12 +2500,10 @@ static void vc_chr_set_echo(Chardev *chr, bool echo)
     drv->console->echo = echo;
 }
 
-static void text_console_update_cursor(void *opaque)
+int qemu_invalidate_text_consoles(void)
 {
     QemuConsole *s;
     int count = 0;
-
-    cursor_visible_phase = !cursor_visible_phase;
 
     QTAILQ_FOREACH(s, &consoles, next) {
         if (qemu_console_is_graphic(s) ||
@@ -2516,7 +2514,14 @@ static void text_console_update_cursor(void *opaque)
         graphic_hw_invalidate(s);
     }
 
-    if (count) {
+    return count;
+}
+
+static void text_console_update_cursor(void *opaque)
+{
+    cursor_visible_phase = !cursor_visible_phase;
+
+    if (qemu_invalidate_text_consoles()) {
         timer_mod(cursor_timer,
                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
     }
