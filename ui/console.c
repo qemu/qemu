@@ -2480,11 +2480,6 @@ static void vc_chr_open(Chardev *chr,
         s->surface = qemu_create_displaysurface(width, height);
     }
 
-    if (!s) {
-        error_setg(errp, "cannot create text console");
-        return;
-    }
-
     s->chr = chr;
     drv->console = s;
 
