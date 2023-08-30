@@ -143,7 +143,7 @@ static QTAILQ_HEAD(, QemuConsole) consoles =
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
 
-static void text_console_do_init(Chardev *chr, DisplayState *ds);
+static void text_console_do_init(Chardev *chr);
 static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
@@ -1249,9 +1249,9 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
-                                uint32_t head)
+static QemuConsole *new_console(console_type_t console_type, uint32_t head)
 {
+    DisplayState *ds = get_alloc_displaystate();
     Object *obj;
     QemuConsole *s;
     int i;
@@ -2049,13 +2049,7 @@ DisplayState *init_displaystate(void)
     gchar *name;
     QemuConsole *con;
 
-    get_alloc_displaystate();
     QTAILQ_FOREACH(con, &consoles, next) {
-        if (con->console_type != GRAPHIC_CONSOLE &&
-            con->ds == NULL) {
-            text_console_do_init(con->chr, display_state);
-        }
-
         /* Hook up into the qom tree here (not in new_console()), once
          * all QemuConsoles are created and the order / numbering
          * doesn't change any more */
@@ -2085,10 +2079,8 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     int width = 640;
     int height = 480;
     QemuConsole *s;
-    DisplayState *ds;
     DisplaySurface *surface;
 
-    ds = get_alloc_displaystate();
     s = qemu_console_lookup_unused();
     if (s) {
         trace_console_gfx_reuse(s->index);
@@ -2096,7 +2088,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
         height = qemu_console_get_height(s, 0);
     } else {
         trace_console_gfx_new();
-        s = new_console(ds, GRAPHIC_CONSOLE, head);
+        s = new_console(GRAPHIC_CONSOLE, head);
         s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
                                    dpy_set_ui_info_timer, s);
     }
@@ -2405,7 +2397,7 @@ static const GraphicHwOps text_console_ops = {
     .text_update = text_console_update,
 };
 
-static void text_console_do_init(Chardev *chr, DisplayState *ds)
+static void text_console_do_init(Chardev *chr)
 {
     VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s = drv->console;
@@ -2413,7 +2405,6 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
     int g_height = 24 * FONT_HEIGHT;
 
     fifo8_create(&s->out_fifo, 16);
-    s->ds = ds;
 
     s->y_displayed = 0;
     s->y_base = 0;
@@ -2482,9 +2473,9 @@ static void vc_chr_open(Chardev *chr,
 
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
-        s = new_console(NULL, TEXT_CONSOLE, 0);
+        s = new_console(TEXT_CONSOLE, 0);
     } else {
-        s = new_console(NULL, TEXT_CONSOLE_FIXED_SIZE, 0);
+        s = new_console(TEXT_CONSOLE_FIXED_SIZE, 0);
         s->scanout.kind = SCANOUT_SURFACE;
         s->surface = qemu_create_displaysurface(width, height);
     }
@@ -2497,9 +2488,7 @@ static void vc_chr_open(Chardev *chr,
     s->chr = chr;
     drv->console = s;
 
-    if (display_state) {
-        text_console_do_init(chr, display_state);
-    }
+    text_console_do_init(chr);
 
     /* console/chardev init sometimes completes elsewhere in a 2nd
      * stage, so defer OPENED events until they are fully initialized
