@@ -127,6 +127,12 @@ struct QemuConsole {
     QTAILQ_ENTRY(QemuConsole) next;
 };
 
+struct VCChardev {
+    Chardev parent;
+    QemuConsole *console;
+};
+typedef struct VCChardev VCChardev;
+
 struct DisplayState {
     QEMUTimer *gui_timer;
     uint64_t last_update;
@@ -1050,12 +1056,6 @@ void console_select(unsigned int index)
         text_console_update_cursor(NULL);
     }
 }
-
-struct VCChardev {
-    Chardev parent;
-    QemuConsole *console;
-};
-typedef struct VCChardev VCChardev;
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
