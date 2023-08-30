@@ -26,8 +26,28 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
             if(addr == 0x2) { s->registers[0x3] = data; } // if we write to register 2, we also write the same result to register 3 (this is the enabled functions register)
             printf("Writing %d to register %d\n", data, addr);
         } else {
-            s->resp0 = s->registers[addr];
+            if(addr == 0x1000e) {
+                // misc register
+                s->resp0 = (1 << 6); // enable ALP clock
+            }
+            else {
+                s->resp0 = s->registers[addr];
+            }
         }
+    }
+    else if(cmd_type == 0x35) {
+        // CMD53 - block transfer
+        // TODO implement
+        // toggle IRQ register
+        printf("SDIO: Executing cmd53 with block size %d and %d blocks (reg address: 0x%08x, destination address: 0x%08x)\n", s->blklen, s->numblk, addr, s->baddr);
+
+        if(addr == 0x8000) {
+            // chip ID register
+            uint32_t chipid[] = { 0x5 << 0x10 };
+            cpu_physical_memory_write(s->baddr, &chipid, 0x4);
+        }
+
+        s->irq_reg = 0x1;
     }
     else {
         hw_error("Unknown SDIO command %d", cmd_type);
@@ -62,6 +82,15 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
         case SDIO_IRQMASK:
             s->irq_mask = value;
             break;
+        case SDIO_BADDR:
+            s->baddr = value;
+            break;
+        case SDIO_BLKLEN:
+            s->blklen = value;
+            break;
+        case SDIO_NUMBLK:
+            s->numblk = value;
+            break;
         default:
             break;
     }
@@ -94,8 +123,16 @@ static uint64_t ipod_touch_sdio_read(void *opaque, hwaddr addr, unsigned size)
             return s->resp3;
         case SDIO_CSR:
             return s->csr;
+        case SDIO_IRQ:
+            return s->irq_reg;
         case SDIO_IRQMASK:
             return s->irq_mask;
+        case SDIO_BADDR:
+            return s->baddr;
+        case SDIO_BLKLEN:
+            return s->blklen;
+        case SDIO_NUMBLK:
+            return s->numblk;
         default:
             break;
     }

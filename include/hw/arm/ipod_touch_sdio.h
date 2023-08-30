@@ -20,7 +20,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSDIOState, IPOD_TOUCH_SDIO)
 #define SDIO_RESP2      0x28
 #define SDIO_RESP3      0x2C
 #define SDIO_CSR        0x34
+#define SDIO_IRQ        0x38
 #define SDIO_IRQMASK    0x3C
+#define SDIO_BADDR      0x44
+#define SDIO_BLKLEN     0x48
+#define SDIO_NUMBLK     0x4C
 
 #define CMD5_FUNC_OFFSET 28
 #define CIS_OFFSET 0xC8
@@ -45,7 +49,11 @@ typedef struct IPodTouchSDIOState
     uint32_t resp1;
     uint32_t resp2;
     uint32_t resp3;
+    uint32_t irq_reg;
     uint32_t irq_mask;
+    uint32_t baddr;
+    uint32_t blklen;
+    uint32_t numblk;
     uint8_t registers[0x200];
 } IPodTouchSDIOState;
 
