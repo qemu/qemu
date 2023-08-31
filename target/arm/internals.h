@@ -1247,12 +1247,6 @@ void arm_log_exception(CPUState *cs);
 #endif /* !CONFIG_USER_ONLY */
 
 /*
- * The log2 of the words in the tag block, for GMID_EL1.BS.
- * The is the maximum, 256 bytes, which manipulates 64-bits of tags.
- */
-#define GMID_EL1_BS  6
-
-/*
  * SVE predicates are 1/8 the size of SVE vectors, and cannot use
  * the same simd_desc() encoding due to restrictions on size.
  * Use these instead.

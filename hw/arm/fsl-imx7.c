@@ -36,6 +36,9 @@ static void fsl_imx7_init(Object *obj)
     char name[NAME_SIZE];
     int i;
 
+    /*
+     * CPUs
+     */
     for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX7_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
         object_initialize_child(obj, name, &s->cpu[i],
@@ -49,7 +52,7 @@ static void fsl_imx7_init(Object *obj)
                             TYPE_A15MPCORE_PRIV);
 
     /*
-     * GPIOs 1 to 7
+     * GPIOs
      */
     for (i = 0; i < FSL_IMX7_NUM_GPIOS; i++) {
         snprintf(name, NAME_SIZE, "gpio%d", i);
@@ -57,7 +60,7 @@ static void fsl_imx7_init(Object *obj)
     }
 
     /*
-     * GPT1, 2, 3, 4
+     * GPTs
      */
     for (i = 0; i < FSL_IMX7_NUM_GPTS; i++) {
         snprintf(name, NAME_SIZE, "gpt%d", i);
@@ -79,19 +82,29 @@ static void fsl_imx7_init(Object *obj)
      */
     object_initialize_child(obj, "gpcv2", &s->gpcv2, TYPE_IMX_GPCV2);
 
+    /*
+     * SRC
+     */
+    object_initialize_child(obj, "src", &s->src, TYPE_IMX7_SRC);
+
+    /*
+     * ECSPIs
+     */
     for (i = 0; i < FSL_IMX7_NUM_ECSPIS; i++) {
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
         object_initialize_child(obj, name, &s->spi[i], TYPE_IMX_SPI);
     }
 
-
+    /*
+     * I2Cs
+     */
     for (i = 0; i < FSL_IMX7_NUM_I2CS; i++) {
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
         object_initialize_child(obj, name, &s->i2c[i], TYPE_IMX_I2C);
     }
 
     /*
-     * UART
+     * UARTs
      */
     for (i = 0; i < FSL_IMX7_NUM_UARTS; i++) {
             snprintf(name, NAME_SIZE, "uart%d", i);
@@ -99,7 +112,7 @@ static void fsl_imx7_init(Object *obj)
     }
 
     /*
-     * Ethernet
+     * Ethernets
      */
     for (i = 0; i < FSL_IMX7_NUM_ETHS; i++) {
             snprintf(name, NAME_SIZE, "eth%d", i);
@@ -107,7 +120,7 @@ static void fsl_imx7_init(Object *obj)
     }
 
     /*
-     * SDHCI
+     * SDHCIs
      */
     for (i = 0; i < FSL_IMX7_NUM_USDHCS; i++) {
             snprintf(name, NAME_SIZE, "usdhc%d", i);
@@ -120,7 +133,7 @@ static void fsl_imx7_init(Object *obj)
     object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
 
     /*
-     * Watchdog
+     * Watchdogs
      */
     for (i = 0; i < FSL_IMX7_NUM_WDTS; i++) {
             snprintf(name, NAME_SIZE, "wdt%d", i);
@@ -132,8 +145,14 @@ static void fsl_imx7_init(Object *obj)
      */
     object_initialize_child(obj, "gpr", &s->gpr, TYPE_IMX7_GPR);
 
+    /*
+     * PCIE
+     */
     object_initialize_child(obj, "pcie", &s->pcie, TYPE_DESIGNWARE_PCIE_HOST);
 
+    /*
+     * USBs
+     */
     for (i = 0; i < FSL_IMX7_NUM_USBS; i++) {
         snprintf(name, NAME_SIZE, "usb%d", i);
         object_initialize_child(obj, name, &s->usb[i], TYPE_CHIPIDEA);
@@ -156,6 +175,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /*
+     * CPUs
+     */
     for (i = 0; i < smp_cpus; i++) {
         o = OBJECT(&s->cpu[i]);
 
@@ -206,10 +228,10 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
      * A7MPCORE DAP
      */
     create_unimplemented_device("a7mpcore-dap", FSL_IMX7_A7MPCORE_DAP_ADDR,
-                                0x100000);
+                                FSL_IMX7_A7MPCORE_DAP_SIZE);
 
     /*
-     * GPT1, 2, 3, 4
+     * GPTs
      */
     for (i = 0; i < FSL_IMX7_NUM_GPTS; i++) {
         static const hwaddr FSL_IMX7_GPTn_ADDR[FSL_IMX7_NUM_GPTS] = {
@@ -234,6 +256,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
                                             FSL_IMX7_GPTn_IRQ[i]));
     }
 
+    /*
+     * GPIOs
+     */
     for (i = 0; i < FSL_IMX7_NUM_GPIOS; i++) {
         static const hwaddr FSL_IMX7_GPIOn_ADDR[FSL_IMX7_NUM_GPIOS] = {
             FSL_IMX7_GPIO1_ADDR,
@@ -281,16 +306,10 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * IOMUXC and IOMUXC_LPSR
      */
-    for (i = 0; i < FSL_IMX7_NUM_IOMUXCS; i++) {
-        static const hwaddr FSL_IMX7_IOMUXCn_ADDR[FSL_IMX7_NUM_IOMUXCS] = {
-            FSL_IMX7_IOMUXC_ADDR,
-            FSL_IMX7_IOMUXC_LPSR_ADDR,
-        };
-
-        snprintf(name, NAME_SIZE, "iomuxc%d", i);
-        create_unimplemented_device(name, FSL_IMX7_IOMUXCn_ADDR[i],
-                                    FSL_IMX7_IOMUXCn_SIZE);
-    }
+    create_unimplemented_device("iomuxc", FSL_IMX7_IOMUXC_ADDR,
+                                FSL_IMX7_IOMUXC_SIZE);
+    create_unimplemented_device("iomuxc_lspr", FSL_IMX7_IOMUXC_LPSR_ADDR,
+                                FSL_IMX7_IOMUXC_LPSR_SIZE);
 
     /*
      * CCM
@@ -310,7 +329,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->gpcv2), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpcv2), 0, FSL_IMX7_GPC_ADDR);
 
-    /* Initialize all ECSPI */
+    /*
+     * ECSPIs
+     */
     for (i = 0; i < FSL_IMX7_NUM_ECSPIS; i++) {
         static const hwaddr FSL_IMX7_SPIn_ADDR[FSL_IMX7_NUM_ECSPIS] = {
             FSL_IMX7_ECSPI1_ADDR,
@@ -335,6 +356,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
                                             FSL_IMX7_SPIn_IRQ[i]));
     }
 
+    /*
+     * I2Cs
+     */
     for (i = 0; i < FSL_IMX7_NUM_I2CS; i++) {
         static const hwaddr FSL_IMX7_I2Cn_ADDR[FSL_IMX7_NUM_I2CS] = {
             FSL_IMX7_I2C1_ADDR,
@@ -359,7 +383,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * UART
+     * UARTs
      */
     for (i = 0; i < FSL_IMX7_NUM_UARTS; i++) {
         static const hwaddr FSL_IMX7_UARTn_ADDR[FSL_IMX7_NUM_UARTS] = {
@@ -394,7 +418,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * Ethernet
+     * Ethernets
      *
      * We must use two loops since phy_connected affects the other interface
      * and we have to set all properties before calling sysbus_realize().
@@ -434,7 +458,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * USDHC
+     * USDHCs
      */
     for (i = 0; i < FSL_IMX7_NUM_USDHCS; i++) {
         static const hwaddr FSL_IMX7_USDHCn_ADDR[FSL_IMX7_NUM_USDHCS] = {
@@ -464,15 +488,16 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
      * SNVS
      */
     sysbus_realize(SYS_BUS_DEVICE(&s->snvs), &error_abort);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->snvs), 0, FSL_IMX7_SNVS_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->snvs), 0, FSL_IMX7_SNVS_HP_ADDR);
 
     /*
      * SRC
      */
-    create_unimplemented_device("src", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
+    sysbus_realize(SYS_BUS_DEVICE(&s->src), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->src), 0, FSL_IMX7_SRC_ADDR);
 
     /*
-     * Watchdog
+     * Watchdogs
      */
     for (i = 0; i < FSL_IMX7_NUM_WDTS; i++) {
         static const hwaddr FSL_IMX7_WDOGn_ADDR[FSL_IMX7_NUM_WDTS] = {
@@ -509,25 +534,49 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("caam", FSL_IMX7_CAAM_ADDR, FSL_IMX7_CAAM_SIZE);
 
     /*
-     * PWM
+     * PWMs
      */
-    create_unimplemented_device("pwm1", FSL_IMX7_PWM1_ADDR, FSL_IMX7_PWMn_SIZE);
-    create_unimplemented_device("pwm2", FSL_IMX7_PWM2_ADDR, FSL_IMX7_PWMn_SIZE);
-    create_unimplemented_device("pwm3", FSL_IMX7_PWM3_ADDR, FSL_IMX7_PWMn_SIZE);
-    create_unimplemented_device("pwm4", FSL_IMX7_PWM4_ADDR, FSL_IMX7_PWMn_SIZE);
+    for (i = 0; i < FSL_IMX7_NUM_PWMS; i++) {
+        static const hwaddr FSL_IMX7_PWMn_ADDR[FSL_IMX7_NUM_PWMS] = {
+            FSL_IMX7_PWM1_ADDR,
+            FSL_IMX7_PWM2_ADDR,
+            FSL_IMX7_PWM3_ADDR,
+            FSL_IMX7_PWM4_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "pwm%d", i);
+        create_unimplemented_device(name, FSL_IMX7_PWMn_ADDR[i],
+                                    FSL_IMX7_PWMn_SIZE);
+    }
 
     /*
-     * CAN
+     * CANs
      */
-    create_unimplemented_device("can1", FSL_IMX7_CAN1_ADDR, FSL_IMX7_CANn_SIZE);
-    create_unimplemented_device("can2", FSL_IMX7_CAN2_ADDR, FSL_IMX7_CANn_SIZE);
+    for (i = 0; i < FSL_IMX7_NUM_CANS; i++) {
+        static const hwaddr FSL_IMX7_CANn_ADDR[FSL_IMX7_NUM_CANS] = {
+            FSL_IMX7_CAN1_ADDR,
+            FSL_IMX7_CAN2_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "can%d", i);
+        create_unimplemented_device(name, FSL_IMX7_CANn_ADDR[i],
+                                    FSL_IMX7_CANn_SIZE);
+    }
 
     /*
-     * SAI (Audio SSI (Synchronous Serial Interface))
+     * SAIs (Audio SSI (Synchronous Serial Interface))
      */
-    create_unimplemented_device("sai1", FSL_IMX7_SAI1_ADDR, FSL_IMX7_SAIn_SIZE);
-    create_unimplemented_device("sai2", FSL_IMX7_SAI2_ADDR, FSL_IMX7_SAIn_SIZE);
-    create_unimplemented_device("sai2", FSL_IMX7_SAI3_ADDR, FSL_IMX7_SAIn_SIZE);
+    for (i = 0; i < FSL_IMX7_NUM_SAIS; i++) {
+        static const hwaddr FSL_IMX7_SAIn_ADDR[FSL_IMX7_NUM_SAIS] = {
+            FSL_IMX7_SAI1_ADDR,
+            FSL_IMX7_SAI2_ADDR,
+            FSL_IMX7_SAI3_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "sai%d", i);
+        create_unimplemented_device(name, FSL_IMX7_SAIn_ADDR[i],
+                                    FSL_IMX7_SAIn_SIZE);
+    }
 
     /*
      * OCOTP
@@ -535,9 +584,15 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("ocotp", FSL_IMX7_OCOTP_ADDR,
                                 FSL_IMX7_OCOTP_SIZE);
 
+    /*
+     * GPR
+     */
     sysbus_realize(SYS_BUS_DEVICE(&s->gpr), &error_abort);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0, FSL_IMX7_GPR_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0, FSL_IMX7_IOMUXC_GPR_ADDR);
 
+    /*
+     * PCIE
+     */
     sysbus_realize(SYS_BUS_DEVICE(&s->pcie), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->pcie), 0, FSL_IMX7_PCIE_REG_ADDR);
 
@@ -550,7 +605,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore), FSL_IMX7_PCI_INTD_IRQ);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 3, irq);
 
-
+    /*
+     * USBs
+     */
     for (i = 0; i < FSL_IMX7_NUM_USBS; i++) {
         static const hwaddr FSL_IMX7_USBMISCn_ADDR[FSL_IMX7_NUM_USBS] = {
             FSL_IMX7_USBMISC1_ADDR,
@@ -612,6 +669,70 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
      */
     create_unimplemented_device("pcie-phy", FSL_IMX7_PCIE_PHY_ADDR,
                                 FSL_IMX7_PCIE_PHY_SIZE);
+
+    /*
+     * CSU
+     */
+    create_unimplemented_device("csu", FSL_IMX7_CSU_ADDR,
+                                FSL_IMX7_CSU_SIZE);
+
+    /*
+     * TZASC
+     */
+    create_unimplemented_device("tzasc", FSL_IMX7_TZASC_ADDR,
+                                FSL_IMX7_TZASC_SIZE);
+
+    /*
+     * OCRAM memory
+     */
+    memory_region_init_ram(&s->ocram, NULL, "imx7.ocram",
+                           FSL_IMX7_OCRAM_MEM_SIZE,
+                           &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_MEM_ADDR,
+                                &s->ocram);
+
+    /*
+     * OCRAM EPDC memory
+     */
+    memory_region_init_ram(&s->ocram_epdc, NULL, "imx7.ocram_epdc",
+                           FSL_IMX7_OCRAM_EPDC_SIZE,
+                           &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_EPDC_ADDR,
+                                &s->ocram_epdc);
+
+    /*
+     * OCRAM PXP memory
+     */
+    memory_region_init_ram(&s->ocram_pxp, NULL, "imx7.ocram_pxp",
+                           FSL_IMX7_OCRAM_PXP_SIZE,
+                           &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_PXP_ADDR,
+                                &s->ocram_pxp);
+
+    /*
+     * OCRAM_S memory
+     */
+    memory_region_init_ram(&s->ocram_s, NULL, "imx7.ocram_s",
+                           FSL_IMX7_OCRAM_S_SIZE,
+                           &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_OCRAM_S_ADDR,
+                                &s->ocram_s);
+
+    /*
+     * ROM memory
+     */
+    memory_region_init_rom(&s->rom, OBJECT(dev), "imx7.rom",
+                           FSL_IMX7_ROM_SIZE, &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_ROM_ADDR,
+                                &s->rom);
+
+    /*
+     * CAAM memory
+     */
+    memory_region_init_rom(&s->caam, OBJECT(dev), "imx7.caam",
+                           FSL_IMX7_CAAM_MEM_SIZE, &error_abort);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX7_CAAM_MEM_ADDR,
+                                &s->caam);
 }
 
 static Property fsl_imx7_properties[] = {

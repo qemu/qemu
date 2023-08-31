@@ -68,7 +68,7 @@ static time_t qemu_ref_timedate(QEMUClockType clock)
     return value;
 }
 
-void qemu_get_timedate(struct tm *tm, int offset)
+void qemu_get_timedate(struct tm *tm, time_t offset)
 {
     time_t ti = qemu_ref_timedate(rtc_clock);
 
@@ -85,7 +85,7 @@ void qemu_get_timedate(struct tm *tm, int offset)
     }
 }
 
-int qemu_timedate_diff(struct tm *tm)
+time_t qemu_timedate_diff(struct tm *tm)
 {
     time_t seconds;
 
