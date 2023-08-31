@@ -83,6 +83,11 @@ static void fsl_imx7_init(Object *obj)
     object_initialize_child(obj, "gpcv2", &s->gpcv2, TYPE_IMX_GPCV2);
 
     /*
+     * SRC
+     */
+    object_initialize_child(obj, "src", &s->src, TYPE_IMX7_SRC);
+
+    /*
      * ECSPIs
      */
     for (i = 0; i < FSL_IMX7_NUM_ECSPIS; i++) {
@@ -488,7 +493,8 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * SRC
      */
-    create_unimplemented_device("src", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
+    sysbus_realize(SYS_BUS_DEVICE(&s->src), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->src), 0, FSL_IMX7_SRC_ADDR);
 
     /*
      * Watchdogs
