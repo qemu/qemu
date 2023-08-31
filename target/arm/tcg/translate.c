@@ -4538,6 +4538,20 @@ void gen_gvec_uaba(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
 }
 
+static bool aa32_cpreg_encoding_in_impdef_space(uint8_t crn, uint8_t crm)
+{
+    static const uint16_t mask[3] = {
+        0b0000000111100111,  /* crn ==  9, crm == {c0-c2, c5-c8}   */
+        0b0000000100010011,  /* crn == 10, crm == {c0, c1, c4, c8} */
+        0b1000000111111111,  /* crn == 11, crm == {c0-c8, c15}     */
+    };
+
+    if (crn >= 9 && crn <= 11) {
+        return (mask[crn - 9] >> crm) & 1;
+    }
+    return false;
+}
+
 static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                            int opc1, int crn, int crm, int opc2,
                            bool isread, int rt, int rt2)
@@ -4616,6 +4630,19 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
              */
             s->base.is_jmp = DISAS_NEXT;
             set_disas_label(s, over);
+        }
+    }
+
+    if (cpnum == 15 && aa32_cpreg_encoding_in_impdef_space(crn, crm)) {
+        /*
+         * Check for TIDCP trap, which must take precedence over the UNDEF
+         * for "no such register" etc.  It shares precedence with HSTR,
+         * but raises the same exception, so order doesn't matter.
+         */
+        switch (s->current_el) {
+        case 1:
+            gen_helper_tidcp_el1(cpu_env, tcg_constant_i32(syndrome));
+            break;
         }
     }
 
