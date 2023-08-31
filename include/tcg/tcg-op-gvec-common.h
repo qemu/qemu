@@ -374,6 +374,12 @@ void tcg_gen_gvec_rotrv(unsigned vece, uint32_t dofs, uint32_t aofs,
 void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
                       uint32_t aofs, uint32_t bofs,
                       uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_cmpi(TCGCond cond, unsigned vece, uint32_t dofs,
+                       uint32_t aofs, int64_t c,
+                       uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
+                       uint32_t aofs, TCGv_i64 c,
+                       uint32_t oprsz, uint32_t maxsz);
 
 /*
  * Perform vector bit select: d = (b & a) | (c & ~a).

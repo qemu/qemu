@@ -1042,6 +1042,32 @@ DO_CMP2(64)
 #undef DO_CMP1
 #undef DO_CMP2
 
+#define DO_CMP1(NAME, TYPE, OP)                                            \
+void HELPER(NAME)(void *d, void *a, uint64_t b64, uint32_t desc)           \
+{                                                                          \
+    intptr_t oprsz = simd_oprsz(desc);                                     \
+    TYPE inv = simd_data(desc), b = b64;                                   \
+    for (intptr_t i = 0; i < oprsz; i += sizeof(TYPE)) {                   \
+        *(TYPE *)(d + i) = -((*(TYPE *)(a + i) OP b) ^ inv);               \
+    }                                                                      \
+    clear_high(d, oprsz, desc);                                            \
+}
+
+#define DO_CMP2(SZ) \
+    DO_CMP1(gvec_eqs##SZ, uint##SZ##_t, ==)    \
+    DO_CMP1(gvec_lts##SZ, int##SZ##_t, <)      \
+    DO_CMP1(gvec_les##SZ, int##SZ##_t, <=)     \
+    DO_CMP1(gvec_ltus##SZ, uint##SZ##_t, <)    \
+    DO_CMP1(gvec_leus##SZ, uint##SZ##_t, <=)
+
+DO_CMP2(8)
+DO_CMP2(16)
+DO_CMP2(32)
+DO_CMP2(64)
+
+#undef DO_CMP1
+#undef DO_CMP2
+
 void HELPER(gvec_ssadd8)(void *d, void *a, void *b, uint32_t desc)
 {
     intptr_t oprsz = simd_oprsz(desc);
