@@ -4640,6 +4640,12 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
          * but raises the same exception, so order doesn't matter.
          */
         switch (s->current_el) {
+        case 0:
+            if (arm_dc_feature(s, ARM_FEATURE_AARCH64)
+                && dc_isar_feature(aa64_tidcp1, s)) {
+                gen_helper_tidcp_el0(cpu_env, tcg_constant_i32(syndrome));
+            }
+            break;
         case 1:
             gen_helper_tidcp_el1(cpu_env, tcg_constant_i32(syndrome));
             break;

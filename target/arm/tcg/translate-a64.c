@@ -2163,6 +2163,11 @@ static void handle_sys(DisasContext *s, bool isread,
          */
         syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
         switch (s->current_el) {
+        case 0:
+            if (dc_isar_feature(aa64_tidcp1, s)) {
+                gen_helper_tidcp_el0(cpu_env, tcg_constant_i32(syndrome));
+            }
+            break;
         case 1:
             gen_helper_tidcp_el1(cpu_env, tcg_constant_i32(syndrome));
             break;
