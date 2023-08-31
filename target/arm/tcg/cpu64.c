@@ -560,7 +560,8 @@ static void define_neoverse_n1_cp_reginfo(ARMCPU *cpu)
 static const ARMCPRegInfo neoverse_v1_cp_reginfo[] = {
     { .name = "CPUECTLR2_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 5,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "CPUPPMCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 2, .opc2 = 0,
       .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
