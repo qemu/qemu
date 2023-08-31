@@ -42,7 +42,7 @@
  * The behaviour of the clock whose value this function returns will
  * depend on the -rtc command line option passed by the user.
  */
-void qemu_get_timedate(struct tm *tm, int offset);
+void qemu_get_timedate(struct tm *tm, time_t offset);
 
 /**
  * qemu_timedate_diff: Return difference between a struct tm and the RTC
@@ -53,6 +53,6 @@ void qemu_get_timedate(struct tm *tm, int offset);
  * a timestamp one hour further ahead than the current RTC time
  * then this function will return 3600.
  */
-int qemu_timedate_diff(struct tm *tm);
+time_t qemu_timedate_diff(struct tm *tm);
 
 #endif
