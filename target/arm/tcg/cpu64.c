@@ -24,8 +24,35 @@
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
+#include "qemu/units.h"
 #include "internals.h"
 #include "cpregs.h"
+
+static uint64_t make_ccsidr64(unsigned assoc, unsigned linesize,
+                              unsigned cachesize)
+{
+    unsigned lg_linesize = ctz32(linesize);
+    unsigned sets;
+
+    /*
+     * The 64-bit CCSIDR_EL1 format is:
+     *   [55:32] number of sets - 1
+     *   [23:3]  associativity - 1
+     *   [2:0]   log2(linesize) - 4
+     *           so 0 == 16 bytes, 1 == 32 bytes, 2 == 64 bytes, etc
+     */
+    assert(assoc != 0);
+    assert(is_power_of_2(linesize));
+    assert(lg_linesize >= 4 && lg_linesize <= 7 + 4);
+
+    /* sets * associativity * linesize == cachesize. */
+    sets = cachesize / (assoc * linesize);
+    assert(cachesize % (assoc * linesize) == 0);
+
+    return ((uint64_t)(sets - 1) << 32)
+         | ((assoc - 1) << 3)
+         | (lg_linesize - 4);
+}
 
 static void aarch64_a35_initfn(Object *obj)
 {
@@ -651,26 +678,15 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
      * The Neoverse-V1 r1p2 TRM lists 32-bit format CCSIDR_EL1 values,
      * but also says it implements CCIDX, which means they should be
      * 64-bit format. So we here use values which are based on the textual
-     * information in chapter 2 of the TRM (and on the fact that
-     * sets * associativity * linesize == cachesize).
+     * information in chapter 2 of the TRM:
      *
-     * The 64-bit CCSIDR_EL1 format is:
-     *   [55:32] number of sets - 1
-     *   [23:3]  associativity - 1
-     *   [2:0]   log2(linesize) - 4
-     *           so 0 == 16 bytes, 1 == 32 bytes, 2 == 64 bytes, etc
-     *
-     * L1: 4-way set associative 64-byte line size, total size 64K,
-     * so sets is 256.
-     *
+     * L1: 4-way set associative 64-byte line size, total size 64K.
      * L2: 8-way set associative, 64 byte line size, either 512K or 1MB.
-     * We pick 1MB, so this has 2048 sets.
-     *
      * L3: No L3 (this matches the CLIDR_EL1 value).
      */
-    cpu->ccsidr[0] = 0x000000ff0000001aull; /* 64KB L1 dcache */
-    cpu->ccsidr[1] = 0x000000ff0000001aull; /* 64KB L1 icache */
-    cpu->ccsidr[2] = 0x000007ff0000003aull; /* 1MB L2 cache */
+    cpu->ccsidr[0] = make_ccsidr64(4, 64, 64 * KiB); /* L1 dcache */
+    cpu->ccsidr[1] = cpu->ccsidr[0];                 /* L1 icache */
+    cpu->ccsidr[2] = make_ccsidr64(8, 64, 1 * MiB);  /* L2 cache */
 
     /* From 3.2.115 SCTLR_EL3 */
     cpu->reset_sctlr = 0x30c50838;
