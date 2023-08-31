@@ -33,7 +33,8 @@ typedef struct GDBProcess {
     uint32_t pid;
     bool attached;
 
-    char target_xml[1024];
+    /* If gdb sends qXfer:features:read:target.xml this will be populated */
+    char *target_xml;
 } GDBProcess;
 
 enum RSState {
