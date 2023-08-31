@@ -3615,8 +3615,6 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_MULTU_G_2E:
     case OPC_MULTU_G_2F:
-        tcg_gen_ext32u_tl(t0, t0);
-        tcg_gen_ext32u_tl(t1, t1);
         tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
         tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
         break;
