@@ -2056,16 +2056,26 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                                        ID_PFR1, VIRTUALIZATION, 0);
     }
 
+    if (cpu_isar_feature(aa64_mte, cpu)) {
+        /*
+         * The architectural range of GM blocksize is 2-6, however qemu
+         * doesn't support blocksize of 2 (see HELPER(ldgm)).
+         */
+        if (tcg_enabled()) {
+            assert(cpu->gm_blocksize >= 3 && cpu->gm_blocksize <= 6);
+        }
+
 #ifndef CONFIG_USER_ONLY
-    if (cpu->tag_memory == NULL && cpu_isar_feature(aa64_mte, cpu)) {
         /*
          * Disable the MTE feature bits if we do not have tag-memory
          * provided by the machine.
          */
-        cpu->isar.id_aa64pfr1 =
-            FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
-    }
+        if (cpu->tag_memory == NULL) {
+            cpu->isar.id_aa64pfr1 =
+                FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
+        }
 #endif
+    }
 
     if (tcg_enabled()) {
         /*
