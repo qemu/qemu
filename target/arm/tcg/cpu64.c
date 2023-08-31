@@ -463,10 +463,30 @@ static void aarch64_a64fx_initfn(Object *obj)
     /* TODO:  Add A64FX specific HPC extension registers */
 }
 
+static CPAccessResult access_actlr_w(CPUARMState *env, const ARMCPRegInfo *r,
+                                     bool read)
+{
+    if (!read) {
+        int el = arm_current_el(env);
+
+        /* Because ACTLR_EL2 is constant 0, writes below EL2 trap to EL2. */
+        if (el < 2 && arm_is_el2_enabled(env)) {
+            return CP_ACCESS_TRAP_EL2;
+        }
+        /* Because ACTLR_EL3 is constant 0, writes below EL3 trap to EL3. */
+        if (el < 3 && arm_feature(env, ARM_FEATURE_EL3)) {
+            return CP_ACCESS_TRAP_EL3;
+        }
+    }
+    return CP_ACCESS_OK;
+}
+
 static const ARMCPRegInfo neoverse_n1_cp_reginfo[] = {
     { .name = "ATCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 7, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      /* Traps and enables are the same as for TCR_EL1. */
+      .accessfn = access_tvm_trvm, .fgt = FGT_TCR_EL1, },
     { .name = "ATCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 7, .opc2 = 0,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
@@ -481,13 +501,16 @@ static const ARMCPRegInfo neoverse_n1_cp_reginfo[] = {
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "CPUACTLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "CPUACTLR2_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 1,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "CPUACTLR3_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 2,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     /*
      * Report CPUCFR_EL1.SCU as 1, as we do not implement the DSU
      * (and in particular its system registers).
@@ -497,7 +520,8 @@ static const ARMCPRegInfo neoverse_n1_cp_reginfo[] = {
       .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 4 },
     { .name = "CPUECTLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 4,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0x961563010 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0x961563010,
+      .accessfn = access_actlr_w },
     { .name = "CPUPCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 8, .opc2 = 1,
       .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
@@ -512,16 +536,20 @@ static const ARMCPRegInfo neoverse_n1_cp_reginfo[] = {
       .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "CPUPWRCTLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 7,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "ERXPFGCDN_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 2,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "ERXPFGCTL_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 1,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
     { .name = "ERXPFGF_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
 };
 
 static void define_neoverse_n1_cp_reginfo(ARMCPU *cpu)
