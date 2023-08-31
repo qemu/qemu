@@ -2067,12 +2067,13 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
         /*
-         * Disable the MTE feature bits if we do not have tag-memory
-         * provided by the machine.
+         * If we do not have tag-memory provided by the machine,
+         * reduce MTE support to instructions enabled at EL0.
+         * This matches Cortex-A710 BROADCASTMTE input being LOW.
          */
         if (cpu->tag_memory == NULL) {
             cpu->isar.id_aa64pfr1 =
-                FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
+                FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 1);
         }
 #endif
     }
