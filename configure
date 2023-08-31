@@ -1126,14 +1126,6 @@ else
     done
 fi
 
-# see if system emulation was really requested
-case " $target_list " in
-  *"-softmmu "*) softmmu=yes
-  ;;
-  *) softmmu=no
-  ;;
-esac
-
 if test "$tcg" = "auto"; then
   if test -z "$target_list"; then
     tcg="disabled"
