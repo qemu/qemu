@@ -64,11 +64,6 @@ static void fsl_imx6ul_init(Object *obj)
     object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
 
     /*
-     * GPR
-     */
-    object_initialize_child(obj, "gpr", &s->gpr, TYPE_IMX7_GPR);
-
-    /*
      * GPIOs 1 to 5
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPIOS; i++) {
@@ -536,12 +531,6 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->a7mpcore),
                                             FSL_IMX6UL_WDOGn_IRQ[i]));
     }
-
-    /*
-     * GPR
-     */
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpr), &error_abort);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0, FSL_IMX6UL_IOMUXC_GPR_ADDR);
 
     /*
      * SDMA

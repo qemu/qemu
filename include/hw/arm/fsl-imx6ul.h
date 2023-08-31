@@ -22,7 +22,6 @@
 #include "hw/misc/imx6ul_ccm.h"
 #include "hw/misc/imx6_src.h"
 #include "hw/misc/imx7_snvs.h"
-#include "hw/misc/imx7_gpr.h"
 #include "hw/intc/imx_gpcv2.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "hw/gpio/imx_gpio.h"
@@ -74,7 +73,6 @@ struct FslIMX6ULState {
     IMX6SRCState       src;
     IMX7SNVSState      snvs;
     IMXGPCv2State      gpcv2;
-    IMX7GPRState       gpr;
     IMXSPIState        spi[FSL_IMX6UL_NUM_ECSPIS];
     IMXI2CState        i2c[FSL_IMX6UL_NUM_I2CS];
     IMXSerialState     uart[FSL_IMX6UL_NUM_UARTS];
