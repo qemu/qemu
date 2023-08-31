@@ -148,24 +148,17 @@ target_ulong HELPER(aes64ks1i)(target_ulong rs1, target_ulong rnum)
 
     uint8_t enc_rnum = rnum;
     uint32_t temp = (RS1 >> 32) & 0xFFFFFFFF;
-    uint8_t rcon_ = 0;
-    target_ulong result;
+    AESState t, rc = {};
 
     if (enc_rnum != 0xA) {
         temp = ror32(temp, 8); /* Rotate right by 8 */
-        rcon_ = round_consts[enc_rnum];
+        rc.w[0] = rc.w[1] = round_consts[enc_rnum];
     }
 
-    temp = ((uint32_t)AES_sbox[(temp >> 24) & 0xFF] << 24) |
-           ((uint32_t)AES_sbox[(temp >> 16) & 0xFF] << 16) |
-           ((uint32_t)AES_sbox[(temp >> 8) & 0xFF] << 8) |
-           ((uint32_t)AES_sbox[(temp >> 0) & 0xFF] << 0);
+    t.w[0] = t.w[1] = t.w[2] = t.w[3] = temp;
+    aesenc_SB_SR_AK(&t, &t, &rc, false);
 
-    temp ^= rcon_;
-
-    result = ((uint64_t)temp << 32) | temp;
-
-    return result;
+    return t.d[0];
 }
 
 target_ulong HELPER(aes64im)(target_ulong rs1)
