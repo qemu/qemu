@@ -2888,7 +2888,6 @@ minikconf = find_program('scripts/minikconf.py')
 
 config_all = {}
 config_all_devices = {}
-config_all_disas = {}
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
@@ -3014,7 +3013,6 @@ foreach target : target_dirs
     if host_arch.startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
       foreach sym: v
         config_target += { sym: 'y' }
-        config_all_disas += { sym: 'y' }
       endforeach
     endif
   endforeach
@@ -3072,24 +3070,6 @@ foreach target : target_dirs
   config_target_mak += {target: config_target}
 endforeach
 target_dirs = actual_target_dirs
-
-# This configuration is used to build files that are shared by
-# multiple binaries, and then extracted out of the "common"
-# static_library target.
-#
-# We do not use all_sources()/all_dependencies(), because it would
-# build literally all source files, including devices only used by
-# targets that are not built for this compilation.  The CONFIG_ALL
-# pseudo symbol replaces it.
-
-config_all += config_all_devices
-config_all += config_all_disas
-config_all += {
-  'CONFIG_XEN': xen.found(),
-  'CONFIG_SYSTEM_ONLY': have_system,
-  'CONFIG_USER_ONLY': have_user,
-  'CONFIG_ALL': true,
-}
 
 target_configs_h = []
 foreach target: target_dirs
@@ -3556,7 +3536,7 @@ foreach d, list : modules
 
   foreach m, module_ss : list
     if enable_modules
-      module_ss = module_ss.apply(config_all, strict: false)
+      module_ss = module_ss.apply(config_all_devices, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
       if d == 'block'
@@ -3751,13 +3731,15 @@ common_ss.add(qom, qemuutil)
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
 
-common_all = common_ss.apply(config_all, strict: false)
+# Note that this library is never used directly (only through extract_objects)
+# and is not built by default; therefore, source files not used by the build
+# configuration will be in build.ninja, but are never built by default.
 common_all = static_library('common',
                             build_by_default: false,
-                            sources: common_all.sources() + genh,
+                            sources: common_ss.all_sources() + genh,
                             include_directories: common_user_inc,
                             implicit_include_directories: false,
-                            dependencies: common_all.dependencies(),
+                            dependencies: common_ss.all_dependencies(),
                             name_suffix: 'fa')
 
 feature_to_c = find_program('scripts/feature_to_c.py')
@@ -4230,7 +4212,7 @@ if have_system
   if xen.found()
     summary_info += {'xen ctrl version':  xen.version()}
   endif
-  summary_info += {'Xen emulation':     config_all.has_key('CONFIG_XEN_EMU')}
+  summary_info += {'Xen emulation':     config_all_devices.has_key('CONFIG_XEN_EMU')}
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')

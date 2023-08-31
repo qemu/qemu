@@ -256,21 +256,6 @@ Target-independent emulator sourcesets:
   ``system_ss`` only in system emulators, ``user_ss`` only in user-mode
   emulators.
 
-  Target-independent sourcesets must exercise particular care when using
-  ``if_false`` rules.  The ``if_false`` rule will be used correctly when linking
-  emulator binaries; however, when *compiling* target-independent files
-  into .o files, Meson may need to pick *both* the ``if_true`` and
-  ``if_false`` sides to cater for targets that want either side.  To
-  achieve that, you can add a special rule using the ``CONFIG_ALL``
-  symbol::
-
-    # Some targets have CONFIG_ACPI, some don't, so this is not enough
-    system_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
-                                        if_false: files('acpi-stub.c'))
-
-    # This is required as well:
-    system_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
-
 Target-dependent emulator sourcesets:
   In the target-dependent set lives CPU emulation, some device emulation and
   much glue code. This sometimes also has to be compiled multiple times,
