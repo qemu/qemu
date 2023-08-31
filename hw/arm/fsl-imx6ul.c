@@ -583,6 +583,10 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
             FSL_IMX6UL_PWM2_ADDR,
             FSL_IMX6UL_PWM3_ADDR,
             FSL_IMX6UL_PWM4_ADDR,
+            FSL_IMX6UL_PWM5_ADDR,
+            FSL_IMX6UL_PWM6_ADDR,
+            FSL_IMX6UL_PWM7_ADDR,
+            FSL_IMX6UL_PWM8_ADDR,
         };
 
         snprintf(name, NAME_SIZE, "pwm%d", i);
@@ -635,6 +639,18 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
      */
     create_unimplemented_device("lcdif", FSL_IMX6UL_LCDIF_ADDR,
                                 FSL_IMX6UL_LCDIF_SIZE);
+
+    /*
+     * CSU
+     */
+    create_unimplemented_device("csu", FSL_IMX6UL_CSU_ADDR,
+                                FSL_IMX6UL_CSU_SIZE);
+
+    /*
+     * TZASC
+     */
+    create_unimplemented_device("tzasc", FSL_IMX6UL_TZASC_ADDR,
+                                FSL_IMX6UL_TZASC_SIZE);
 
     /*
      * ROM memory

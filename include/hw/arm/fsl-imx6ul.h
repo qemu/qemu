@@ -60,7 +60,7 @@ enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_USBS         = 2,
     FSL_IMX6UL_NUM_SAIS         = 3,
     FSL_IMX6UL_NUM_CANS         = 2,
-    FSL_IMX6UL_NUM_PWMS         = 4,
+    FSL_IMX6UL_NUM_PWMS         = 8,
 };
 
 struct FslIMX6ULState {
