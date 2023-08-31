@@ -421,46 +421,54 @@ void HELPER(st2g_stub)(CPUARMState *env, uint64_t ptr)
     }
 }
 
-#define LDGM_STGM_SIZE  (4 << GMID_EL1_BS)
-
 uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
 {
     int mmu_idx = cpu_mmu_index(env, false);
     uintptr_t ra = GETPC();
+    int gm_bs = env_archcpu(env)->gm_blocksize;
+    int gm_bs_bytes = 4 << gm_bs;
     void *tag_mem;
 
-    ptr = QEMU_ALIGN_DOWN(ptr, LDGM_STGM_SIZE);
+    ptr = QEMU_ALIGN_DOWN(ptr, gm_bs_bytes);
 
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD,
-                                 LDGM_STGM_SIZE, MMU_DATA_LOAD,
-                                 LDGM_STGM_SIZE / (2 * TAG_GRANULE), ra);
+                                 gm_bs_bytes, MMU_DATA_LOAD,
+                                 gm_bs_bytes / (2 * TAG_GRANULE), ra);
 
     /* The tag is squashed to zero if the page does not support tags.  */
     if (!tag_mem) {
         return 0;
     }
 
-    QEMU_BUILD_BUG_ON(GMID_EL1_BS != 6);
     /*
-     * We are loading 64-bits worth of tags.  The ordering of elements
-     * within the word corresponds to a 64-bit little-endian operation.
+     * The ordering of elements within the word corresponds to
+     * a little-endian operation.
      */
-    return ldq_le_p(tag_mem);
+    switch (gm_bs) {
+    case 6:
+        /* 256 bytes -> 16 tags -> 64 result bits */
+        return ldq_le_p(tag_mem);
+    default:
+        /* cpu configured with unsupported gm blocksize. */
+        g_assert_not_reached();
+    }
 }
 
 void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
 {
     int mmu_idx = cpu_mmu_index(env, false);
     uintptr_t ra = GETPC();
+    int gm_bs = env_archcpu(env)->gm_blocksize;
+    int gm_bs_bytes = 4 << gm_bs;
     void *tag_mem;
 
-    ptr = QEMU_ALIGN_DOWN(ptr, LDGM_STGM_SIZE);
+    ptr = QEMU_ALIGN_DOWN(ptr, gm_bs_bytes);
 
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE,
-                                 LDGM_STGM_SIZE, MMU_DATA_LOAD,
-                                 LDGM_STGM_SIZE / (2 * TAG_GRANULE), ra);
+                                 gm_bs_bytes, MMU_DATA_LOAD,
+                                 gm_bs_bytes / (2 * TAG_GRANULE), ra);
 
     /*
      * Tag store only happens if the page support tags,
@@ -470,12 +478,18 @@ void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
         return;
     }
 
-    QEMU_BUILD_BUG_ON(GMID_EL1_BS != 6);
     /*
-     * We are storing 64-bits worth of tags.  The ordering of elements
-     * within the word corresponds to a 64-bit little-endian operation.
+     * The ordering of elements within the word corresponds to
+     * a little-endian operation.
      */
-    stq_le_p(tag_mem, val);
+    switch (gm_bs) {
+    case 6:
+        stq_le_p(tag_mem, val);
+        break;
+    default:
+        /* cpu configured with unsupported gm blocksize. */
+        g_assert_not_reached();
+    }
 }
 
 void HELPER(stzgm_tags)(CPUARMState *env, uint64_t ptr, uint64_t val)
