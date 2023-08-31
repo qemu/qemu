@@ -1207,7 +1207,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                                       bs, &child_of_bds, extent_role, false,
                                       &local_err);
         g_free(extent_path);
-        if (local_err) {
+        if (!extent_file) {
             error_propagate(errp, local_err);
             ret = -EINVAL;
             goto out;
