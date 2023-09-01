@@ -40,17 +40,6 @@
 #include <sys/prctl.h>
 #endif
 
-/*
- * Must set all three of these at once.
- * Legal combinations are              unset   by name   by uid
- */
-static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
-static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
-static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
-
-static const char *chroot_dir;
-static int daemonize;
-static int daemon_pipe;
 
 void os_setup_early_signal_handling(void)
 {
@@ -96,6 +85,15 @@ void os_set_proc_name(const char *s)
     exit(1);
 #endif
 }
+
+
+/*
+ * Must set all three of these at once.
+ * Legal combinations are              unset   by name   by uid
+ */
+static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
+static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
+static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
 
 /*
  * Prepare to change user ID. optarg can be one of 3 forms:
@@ -174,6 +172,9 @@ static void change_process_uid(void)
     }
 }
 
+
+static const char *chroot_dir;
+
 void os_set_chroot(const char *optarg)
 {
     chroot_dir = optarg;
@@ -192,6 +193,21 @@ static void change_root(void)
         }
     }
 
+}
+
+
+static int daemonize;
+static int daemon_pipe;
+
+bool is_daemonized(void)
+{
+    return daemonize;
+}
+
+int os_set_daemonize(bool d)
+{
+    daemonize = d;
+    return 0;
 }
 
 void os_daemonize(void)
@@ -285,17 +301,6 @@ void os_setup_post(void)
 void os_set_line_buffering(void)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
-}
-
-bool is_daemonized(void)
-{
-    return daemonize;
-}
-
-int os_set_daemonize(bool d)
-{
-    daemonize = d;
-    return 0;
 }
 
 int os_mlock(void)
