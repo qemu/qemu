@@ -102,14 +102,27 @@ void os_set_proc_name(const char *s)
 #endif
 }
 
-
-static bool os_parse_runas_uid_gid(const char *optarg)
+/*
+ * Prepare to change user ID. optarg can be one of 3 forms:
+ *   - a username, in which case user ID will be changed to its uid,
+ *     with primary and supplementary groups set up too;
+ *   - a numeric uid, in which case only the uid will be set;
+ *   - a pair of numeric uid:gid.
+ */
+bool os_set_runas(const char *optarg)
 {
     unsigned long lv;
     const char *ep;
     uid_t got_uid;
     gid_t got_gid;
     int rc;
+
+    user_pwd = getpwnam(optarg);
+    if (user_pwd) {
+        user_uid = -1;
+        user_gid = -1;
+        return true;
+    }
 
     rc = qemu_strtoul(optarg, &ep, 0, &lv);
     got_uid = lv; /* overflow here is ID in C99 */
@@ -137,11 +150,7 @@ int os_parse_cmd_args(int index, const char *optarg)
 {
     switch (index) {
     case QEMU_OPTION_runas:
-        user_pwd = getpwnam(optarg);
-        if (user_pwd) {
-            user_uid = -1;
-            user_gid = -1;
-        } else if (!os_parse_runas_uid_gid(optarg)) {
+        if (!os_set_runas(optarg)) {
             error_report("User \"%s\" doesn't exist"
                          " (and is not <uid>:<gid>)",
                          optarg);

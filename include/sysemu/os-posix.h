@@ -50,6 +50,7 @@ void os_setup_signal_handling(void);
 int os_set_daemonize(bool d);
 bool is_daemonized(void);
 void os_daemonize(void);
+bool os_set_runas(const char *optarg);
 void os_setup_post(void);
 int os_mlock(void);
 
