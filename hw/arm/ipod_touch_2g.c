@@ -213,6 +213,9 @@ static void ipod_touch_machine_init(MachineState *machine)
     IPodTouchSDIOState *sdio_state = IPOD_TOUCH_SDIO(dev);
     nms->sdio_state = sdio_state;
     memory_region_add_subregion(sysmem, SDIO_MEM_BASE, &sdio_state->iomem);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_SDIO_IRQ));
 
     dev = exynos4210_uart_create(UART0_MEM_BASE, 256, 0, serial_hd(0), nms->irq[0][24]);
     if (!dev) {

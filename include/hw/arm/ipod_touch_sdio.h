@@ -6,6 +6,7 @@
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 
 #define TYPE_IPOD_TOUCH_SDIO                "ipodtouch.sdio"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSDIOState, IPOD_TOUCH_SDIO)
@@ -39,6 +40,7 @@ typedef struct IPodTouchSDIOState
 {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
+    qemu_irq irq;
 
     uint32_t cmd;
     uint32_t arg;
@@ -54,7 +56,7 @@ typedef struct IPodTouchSDIOState
     uint32_t baddr;
     uint32_t blklen;
     uint32_t numblk;
-    uint8_t registers[0x200];
+    uint8_t registers[0x10000];
 } IPodTouchSDIOState;
 
 #endif

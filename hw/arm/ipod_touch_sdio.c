@@ -24,30 +24,38 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
             uint8_t data = s->arg & 0xFF;
             s->registers[addr] = data;
             if(addr == 0x2) { s->registers[0x3] = data; } // if we write to register 2, we also write the same result to register 3 (this is the enabled functions register)
-            printf("Writing %d to register %d\n", data, addr);
+            printf("SDIO: Executing cmd52 by writing 0x%02x to register 0x%02x\n", data, addr);
         } else {
             if(addr == 0x1000e) {
                 // misc register
-                s->resp0 = (1 << 6); // enable ALP clock
+                s->resp0 = (1 << 6) /* enable ALP clock */ | (1 << 7); /* enable HT clock */
             }
             else {
+                printf("Loading as response reg 0x%02x 0x%02x\n", s->registers[addr], addr);
                 s->resp0 = s->registers[addr];
             }
         }
     }
     else if(cmd_type == 0x35) {
         // CMD53 - block transfer
-        // TODO implement
-        // toggle IRQ register
         printf("SDIO: Executing cmd53 with block size %d and %d blocks (reg address: 0x%08x, destination address: 0x%08x)\n", s->blklen, s->numblk, addr, s->baddr);
 
-        if(addr == 0x8000) {
-            // chip ID register
-            uint32_t chipid[] = { 0x5 << 0x10 };
-            cpu_physical_memory_write(s->baddr, &chipid, 0x4);
+        addr = addr & 0x7fff;
+
+        bool is_write = (s->arg >> 31) != 0;
+        if(is_write) {
+            cpu_physical_memory_read(s->baddr, &s->registers[addr], s->blklen * s->numblk);
+        } else {
+            if(addr == 0x0) {
+                // chip ID register
+                uint32_t chipid[] = { 0x5 << 0x10 };
+                cpu_physical_memory_write(s->baddr, &chipid, 0x4);
+            }
         }
 
+        // toggle IRQ register
         s->irq_reg = 0x1;
+        qemu_irq_raise(s->irq);
     }
     else {
         hw_error("Unknown SDIO command %d", cmd_type);
@@ -78,6 +86,9 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
             break;
         case SDIO_CSR:
             s->csr = value;
+            break;
+        case SDIO_IRQ:
+            qemu_irq_lower(s->irq);
             break;
         case SDIO_IRQMASK:
             s->irq_mask = value;
@@ -174,6 +185,7 @@ static void ipod_touch_sdio_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &ipod_touch_sdio_ops, s, TYPE_IPOD_TOUCH_SDIO, 4096);
     sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 }
 
 static void ipod_touch_sdio_class_init(ObjectClass *klass, void *data)
