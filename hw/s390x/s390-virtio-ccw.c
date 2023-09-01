@@ -438,10 +438,20 @@ static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
     switch (reset_type) {
     case S390_RESET_EXTERNAL:
     case S390_RESET_REIPL:
+        /*
+         * Reset the subsystem which includes a AP reset. If a PV
+         * guest had APQNs attached the AP reset is a prerequisite to
+         * unprotecting since the UV checks if all APQNs are reset.
+         */
+        subsystem_reset();
         if (s390_is_pv()) {
             s390_machine_unprotect(ms);
         }
 
+        /*
+         * Device reset includes CPU clear resets so this has to be
+         * done AFTER the unprotect call above.
+         */
         qemu_devices_reset(reason);
         s390_crypto_reset();
 
