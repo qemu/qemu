@@ -47,12 +47,11 @@ void os_set_line_buffering(void);
 void os_setup_early_signal_handling(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);
+int os_set_daemonize(bool d);
+bool is_daemonized(void);
 void os_daemonize(void);
 void os_setup_post(void);
 int os_mlock(void);
-
-int os_set_daemonize(bool d);
-bool is_daemonized(void);
 
 /**
  * qemu_alloc_stack:
