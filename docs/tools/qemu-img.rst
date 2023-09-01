@@ -106,7 +106,11 @@ by the used format or see the format descriptions below for details.
 
 .. option:: -c
 
-  Indicates that target image must be compressed (qcow format only).
+  Indicates that target image must be compressed (qcow/qcow2 and vmdk with
+  streamOptimized subformat only).
+
+  For qcow2, the compression algorithm can be specified with the ``-o
+  compression_type=...`` option (see below).
 
 .. option:: -h
 
@@ -776,7 +780,7 @@ Supported image file formats:
 
   QEMU image format, the most versatile format. Use it to have smaller
   images (useful if your filesystem does not supports holes, for example
-  on Windows), optional AES encryption, zlib based compression and
+  on Windows), optional AES encryption, zlib or zstd based compression and
   support of multiple VM snapshots.
 
   Supported options:
@@ -793,6 +797,17 @@ Supported image file formats:
 
   ``backing_fmt``
     Image format of the base image
+
+  ``compression_type``
+    This option configures which compression algorithm will be used for
+    compressed clusters on the image. Note that setting this option doesn't yet
+    cause the image to actually receive compressed writes. It is most commonly
+    used with the ``-c`` option of ``qemu-img convert``, but can also be used
+    with the ``compress`` filter driver or backup block jobs with compression
+    enabled.
+
+    Valid values are ``zlib`` and ``zstd``. For images that use
+    ``compat=0.10``, only ``zlib`` compression is available.
 
   ``encryption``
     If this option is set to ``on``, the image is encrypted with
