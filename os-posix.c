@@ -159,7 +159,7 @@ int os_parse_cmd_args(int index, const char *optarg)
         break;
     case QEMU_OPTION_chroot:
         warn_report("option is deprecated, use '-run-with chroot=...' instead");
-        chroot_dir = optarg;
+        os_set_chroot(optarg);
         break;
     case QEMU_OPTION_daemonize:
         daemonize = 1;
@@ -184,7 +184,7 @@ int os_parse_cmd_args(int index, const char *optarg)
 #endif
         str = qemu_opt_get(opts, "chroot");
         if (str) {
-            chroot_dir = str;
+            os_set_chroot(str);
         }
         break;
     }
@@ -230,6 +230,11 @@ static void change_process_uid(void)
             exit(1);
         }
     }
+}
+
+void os_set_chroot(const char *optarg)
+{
+    chroot_dir = optarg;
 }
 
 static void change_root(void)
