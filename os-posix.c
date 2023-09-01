@@ -29,8 +29,6 @@
 #include <grp.h>
 #include <libgen.h>
 
-/* Needed early for CONFIG_BSD etc. */
-#include "net/slirp.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "sysemu/runstate.h"
