@@ -49,6 +49,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/accel.h"
+#include "qemu/async-teardown.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"
 #include "hw/scsi/scsi.h"
@@ -747,6 +748,33 @@ static QemuOptsList qemu_smp_opts = {
         { /*End of list */ }
     },
 };
+
+#if defined(CONFIG_POSIX)
+static QemuOptsList qemu_run_with_opts = {
+    .name = "run-with",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_run_with_opts.head),
+    .desc = {
+#if defined(CONFIG_LINUX)
+        {
+            .name = "async-teardown",
+            .type = QEMU_OPT_BOOL,
+        },
+#endif
+        {
+            .name = "chroot",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+#define qemu_add_run_with_opts() qemu_add_opts(&qemu_run_with_opts)
+
+#else
+
+#define qemu_add_run_with_opts()
+
+#endif /* CONFIG_POSIX */
 
 static void realtime_init(void)
 {
@@ -2704,6 +2732,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3522,11 +3551,52 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
-            default:
-                if (os_parse_cmd_args(popt->index, optarg)) {
-                    error_report("Option not supported in this build");
+#if defined(CONFIG_POSIX)
+            case QEMU_OPTION_runas:
+                if (!os_set_runas(optarg)) {
+                    error_report("User \"%s\" doesn't exist"
+                                 " (and is not <uid>:<gid>)",
+                                 optarg);
                     exit(1);
                 }
+                break;
+            case QEMU_OPTION_chroot:
+                warn_report("option is deprecated,"
+                            " use '-run-with chroot=...' instead");
+                os_set_chroot(optarg);
+                break;
+            case QEMU_OPTION_daemonize:
+                os_set_daemonize(true);
+                break;
+#if defined(CONFIG_LINUX)
+            /* deprecated */
+            case QEMU_OPTION_asyncteardown:
+                init_async_teardown();
+                break;
+#endif
+            case QEMU_OPTION_run_with: {
+                const char *str;
+                opts = qemu_opts_parse_noisily(qemu_find_opts("run-with"),
+                                                         optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+#if defined(CONFIG_LINUX)
+                if (qemu_opt_get_bool(opts, "async-teardown", false)) {
+                    init_async_teardown();
+                }
+#endif
+                str = qemu_opt_get(opts, "chroot");
+                if (str) {
+                    os_set_chroot(str);
+                }
+                break;
+            }
+#endif /* CONFIG_POSIX */
+
+            default:
+                error_report("Option not supported in this build");
+                exit(1);
             }
         }
     }

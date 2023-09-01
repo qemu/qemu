@@ -31,18 +31,13 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "net/slirp.h"
-#include "qemu/qemu-options.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "sysemu/runstate.h"
 #include "qemu/cutils.h"
-#include "qemu/config-file.h"
-#include "qemu/option.h"
-#include "qemu/module.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
-#include "qemu/async-teardown.h"
 #endif
 
 /*
@@ -140,59 +135,6 @@ bool os_set_runas(const char *optarg)
     user_uid = got_uid;
     user_gid = got_gid;
     return true;
-}
-
-/*
- * Parse OS specific command line options.
- * return 0 if option handled, -1 otherwise
- */
-int os_parse_cmd_args(int index, const char *optarg)
-{
-    switch (index) {
-    case QEMU_OPTION_runas:
-        if (!os_set_runas(optarg)) {
-            error_report("User \"%s\" doesn't exist"
-                         " (and is not <uid>:<gid>)",
-                         optarg);
-            exit(1);
-        }
-        break;
-    case QEMU_OPTION_chroot:
-        warn_report("option is deprecated, use '-run-with chroot=...' instead");
-        os_set_chroot(optarg);
-        break;
-    case QEMU_OPTION_daemonize:
-        daemonize = 1;
-        break;
-#if defined(CONFIG_LINUX)
-    /* deprecated */
-    case QEMU_OPTION_asyncteardown:
-        init_async_teardown();
-        break;
-#endif
-    case QEMU_OPTION_run_with: {
-        const char *str;
-        QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("run-with"),
-                                                 optarg, false);
-        if (!opts) {
-            exit(1);
-        }
-#if defined(CONFIG_LINUX)
-        if (qemu_opt_get_bool(opts, "async-teardown", false)) {
-            init_async_teardown();
-        }
-#endif
-        str = qemu_opt_get(opts, "chroot");
-        if (str) {
-            os_set_chroot(str);
-        }
-        break;
-    }
-    default:
-        return -1;
-    }
-
-    return 0;
 }
 
 static void change_process_uid(void)
@@ -371,27 +313,3 @@ int os_mlock(void)
     return -ENOSYS;
 #endif
 }
-
-static QemuOptsList qemu_run_with_opts = {
-    .name = "run-with",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_run_with_opts.head),
-    .desc = {
-#if defined(CONFIG_LINUX)
-        {
-            .name = "async-teardown",
-            .type = QEMU_OPT_BOOL,
-        },
-#endif
-        {
-            .name = "chroot",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-
-static void register_runwith(void)
-{
-    qemu_add_opts(&qemu_run_with_opts);
-}
-opts_init(register_runwith);
