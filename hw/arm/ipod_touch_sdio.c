@@ -1,10 +1,18 @@
 #include "hw/arm/ipod_touch_sdio.h"
 
+static void trigger_irq(void *opaque)
+{
+    IPodTouchSDIOState *s = (IPodTouchSDIOState *)opaque;
+    s->irq_reg = 0x3;
+    qemu_irq_raise(s->irq);
+}
+
 void sdio_exec_cmd(IPodTouchSDIOState *s)
 {
     uint32_t cmd_type = s->cmd & 0x3f;
     uint32_t addr = (s->arg >> 9) & 0x1ffff;
-    printf("SDIO CMD: %d, ADDR: %d\n", cmd_type, addr);
+    uint32_t func = (s->arg >> 28) & 0x7;
+    printf("SDIO CMD: %d, ADDR: %d, FUNC: %d\n", cmd_type, addr, func);
     if(cmd_type == 0x3) {
         // RCA request - ignore
     }
@@ -38,13 +46,20 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
     }
     else if(cmd_type == 0x35) {
         // CMD53 - block transfer
-        printf("SDIO: Executing cmd53 with block size %d and %d blocks (reg address: 0x%08x, destination address: 0x%08x)\n", s->blklen, s->numblk, addr, s->baddr);
-
         addr = addr & 0x7fff;
-
         bool is_write = (s->arg >> 31) != 0;
+        printf("SDIO: Executing cmd53 with block size %d and %d blocks (reg address: 0x%08x, destination address: 0x%08x, write? %d)\n", s->blklen, s->numblk, addr, s->baddr, is_write);
+        
         if(is_write) {
-            cpu_physical_memory_read(s->baddr, &s->registers[addr], s->blklen * s->numblk);
+            if(func == 0x1) {
+                cpu_physical_memory_read(s->baddr, &s->registers[addr], s->blklen * s->numblk);
+            }
+            else if(func == 0x2) {
+                // this is a BCM4325 command - schedule the IRQ request to indicate that the command has been completed
+                s->irq_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, trigger_irq, s);
+                timer_mod(s->irq_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 50);
+                printf("INT SCHED\n");
+            }
         } else {
             if(addr == 0x0) {
                 // chip ID register
@@ -56,6 +71,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
         // toggle IRQ register
         s->irq_reg = 0x1;
         qemu_irq_raise(s->irq);
+        printf("Raised IRQ\n");
     }
     else {
         hw_error("Unknown SDIO command %d", cmd_type);
@@ -89,6 +105,7 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
             break;
         case SDIO_IRQ:
             qemu_irq_lower(s->irq);
+            printf("Lowered IRQ\n");
             break;
         case SDIO_IRQMASK:
             s->irq_mask = value;

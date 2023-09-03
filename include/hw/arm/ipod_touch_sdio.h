@@ -56,6 +56,7 @@ typedef struct IPodTouchSDIOState
     uint32_t baddr;
     uint32_t blklen;
     uint32_t numblk;
+    QEMUTimer *irq_timer;
     uint8_t registers[0x10000];
 } IPodTouchSDIOState;
 
