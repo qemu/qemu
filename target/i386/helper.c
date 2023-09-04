@@ -22,10 +22,10 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "sysemu/runstate.h"
-#include "kvm/kvm_i386.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/hw_accel.h"
 #include "monitor/monitor.h"
+#include "kvm/kvm_i386.h"
 #endif
 #include "qemu/log.h"
 #ifdef CONFIG_TCG
