@@ -925,8 +925,8 @@ DO_1OP_IMM(vorri, DO_ORRI)
         bool qc = false;                                                \
         for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
             bool sat = false;                                           \
-            TYPE r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], &sat);          \
-            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+            TYPE r_ = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], &sat);         \
+            mergemask(&d[H##ESIZE(e)], r_, mask);                       \
             qc |= sat & mask & 1;                                       \
         }                                                               \
         if (qc) {                                                       \
@@ -1250,11 +1250,11 @@ DO_2OP_SAT(vqsubsw, 4, int32_t, DO_SQSUB_W)
 #define WRAP_QRSHL_HELPER(FN, N, M, ROUND, satp)                        \
     ({                                                                  \
         uint32_t su32 = 0;                                              \
-        typeof(N) r = FN(N, (int8_t)(M), sizeof(N) * 8, ROUND, &su32);  \
+        typeof(N) qrshl_ret = FN(N, (int8_t)(M), sizeof(N) * 8, ROUND, &su32); \
         if (su32) {                                                     \
             *satp = true;                                               \
         }                                                               \
-        r;                                                              \
+        qrshl_ret;                                                      \
     })
 
 #define DO_SQSHL_OP(N, M, satp) \
@@ -1292,12 +1292,12 @@ DO_2OP_SAT_U(vqrshlu, DO_UQRSHL_OP)
         for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
             bool sat = false;                                           \
             if ((e & 1) == XCHG) {                                      \
-                TYPE r = FN(n[H##ESIZE(e)],                             \
+                TYPE vqdmladh_ret = FN(n[H##ESIZE(e)],                  \
                             m[H##ESIZE(e - XCHG)],                      \
                             n[H##ESIZE(e + (1 - 2 * XCHG))],            \
                             m[H##ESIZE(e + (1 - XCHG))],                \
                             ROUND, &sat);                               \
-                mergemask(&d[H##ESIZE(e)], r, mask);                    \
+                mergemask(&d[H##ESIZE(e)], vqdmladh_ret, mask);         \
                 qc |= sat & mask & 1;                                   \
             }                                                           \
         }                                                               \
@@ -2454,7 +2454,7 @@ static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
             return extval;
         }
     } else if (shift < 48) {
-        int64_t extval = sextract64(src << shift, 0, 48);
+        extval = sextract64(src << shift, 0, 48);
         if (!sat || src == (extval >> shift)) {
             return extval;
         }
@@ -2486,7 +2486,7 @@ static inline uint64_t do_uqrshl48_d(uint64_t src, int64_t shift,
             return extval;
         }
     } else if (shift < 48) {
-        uint64_t extval = extract64(src << shift, 0, 48);
+        extval = extract64(src << shift, 0, 48);
         if (!sat || src == (extval >> shift)) {
             return extval;
         }
