@@ -262,7 +262,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
                 .length = sslbis_size,
             },
             .data_type = HMATLB_DATA_TYPE_ACCESS_BANDWIDTH,
-            .entry_base_unit = 1000,
+            .entry_base_unit = 1024,
         },
     };
 
