@@ -4962,8 +4962,6 @@ static void decode_rc_logical_shift(DisasContext *ctx)
     const9 = MASK_OP_RC_CONST9(ctx->opcode);
     op2 = MASK_OP_RC_OP2(ctx->opcode);
 
-    temp = tcg_temp_new();
-
     switch (op2) {
     case OPC2_32_RC_AND:
         tcg_gen_andi_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], const9);
@@ -4972,10 +4970,12 @@ static void decode_rc_logical_shift(DisasContext *ctx)
         tcg_gen_andi_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], ~const9);
         break;
     case OPC2_32_RC_NAND:
+        temp = tcg_temp_new();
         tcg_gen_movi_tl(temp, const9);
         tcg_gen_nand_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], temp);
         break;
     case OPC2_32_RC_NOR:
+        temp = tcg_temp_new();
         tcg_gen_movi_tl(temp, const9);
         tcg_gen_nor_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], temp);
         break;
@@ -5013,7 +5013,7 @@ static void decode_rc_logical_shift(DisasContext *ctx)
         break;
     case OPC2_32_RC_SHUFFLE:
         if (has_feature(ctx, TRICORE_FEATURE_162)) {
-            TCGv temp = tcg_constant_i32(const9);
+            temp = tcg_constant_i32(const9);
             gen_helper_shuffle(cpu_gpr_d[r2], cpu_gpr_d[r1], temp);
         } else {
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
