@@ -1223,8 +1223,8 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
             ret = 1; /* "already allocated", so nothing will be copied */
             pnum = MIN(align_bytes, max_transfer);
         } else {
-            ret = bdrv_is_allocated(bs, align_offset,
-                                    MIN(align_bytes, max_transfer), &pnum);
+            ret = bdrv_co_is_allocated(bs, align_offset,
+                                       MIN(align_bytes, max_transfer), &pnum);
             if (ret < 0) {
                 /*
                  * Safe to treat errors in querying allocation as if
@@ -1371,7 +1371,7 @@ bdrv_aligned_preadv(BdrvChild *child, BdrvTrackedRequest *req,
         /* The flag BDRV_REQ_COPY_ON_READ has reached its addressee */
         flags &= ~BDRV_REQ_COPY_ON_READ;
 
-        ret = bdrv_is_allocated(bs, offset, bytes, &pnum);
+        ret = bdrv_co_is_allocated(bs, offset, bytes, &pnum);
         if (ret < 0) {
             goto out;
         }

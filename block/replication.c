@@ -276,10 +276,10 @@ replication_co_writev(BlockDriverState *bs, int64_t sector_num,
     while (remaining_sectors > 0) {
         int64_t count;
 
-        ret = bdrv_is_allocated_above(top->bs, base->bs, false,
-                                      sector_num * BDRV_SECTOR_SIZE,
-                                      remaining_sectors * BDRV_SECTOR_SIZE,
-                                      &count);
+        ret = bdrv_co_is_allocated_above(top->bs, base->bs, false,
+                                         sector_num * BDRV_SECTOR_SIZE,
+                                         remaining_sectors * BDRV_SECTOR_SIZE,
+                                         &count);
         if (ret < 0) {
             goto out1;
         }
