@@ -36,11 +36,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSDIOState, IPOD_TOUCH_SDIO)
 #define BCM4325_MANUFACTURER 0x4D50
 #define BCM4325_PRODUCT_ID 0x4D48
 
+typedef struct BCM4325FrameHeaderPacket
+{
+    uint16_t frame_length;
+    uint16_t checksum;
+} __attribute__((__packed__)) BCM4325FrameHeaderPacket;
+
 typedef struct IPodTouchSDIOState
 {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-    qemu_irq irq;
 
     uint32_t cmd;
     uint32_t arg;
@@ -57,6 +62,9 @@ typedef struct IPodTouchSDIOState
     uint32_t blklen;
     uint32_t numblk;
     QEMUTimer *irq_timer;
+    qemu_irq irq;
+    qemu_irq irq2;
+    GQueue *rx_fifo;
     uint8_t registers[0x10000];
 } IPodTouchSDIOState;
 

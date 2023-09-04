@@ -45,41 +45,17 @@ static void patch_kernel()
     data[0] = reverse_byte_order(0x0640A0E1); // mov r4, r6
     data[1] = reverse_byte_order(0x9C309FE5); // ldr r3, [pc, #0x9c]
     data[2] = reverse_byte_order(0x33FF2FE1); // blx r3
-    cpu_physical_memory_write(0x8324a00, (uint8_t *)data, sizeof(uint32_t) * 3);
+    data[3] = reverse_byte_order(0x00F020E3); // NOP
+    data[4] = reverse_byte_order(0x00F020E3); // NOP
+    data[5] = reverse_byte_order(0x00F020E3); // NOP
+    cpu_physical_memory_write(0x8324a00, (uint8_t *)data, sizeof(uint32_t) * 6);
 
     // fill in the driver load subroutine
     data = malloc(sizeof(uint32_t) * 200);
     data[0] = reverse_byte_order(0xFE402DE9); // push on stack
 
-    // create the OSData object containing the BCM4325Vars string
-    data[1] = reverse_byte_order(0xF4009FE5); // ldr r0, [pc, #0xf4]
-    data[2] = reverse_byte_order(0x2010B0E3); // movs r1, #0x20
-    data[3] = reverse_byte_order(0xF0309FE5); // ldr r3, [pc, #0xf0]
-    data[4] = reverse_byte_order(0x33FF2FE1); // blx r3 <- calling OSData::withBytes
-    data[5] = reverse_byte_order(0x0050A0E1); // mov r5, r0 (to save the created object)
-
-    // create the OSDictionary object that we will pass to AppleBCM4325::init
-    data[6] = reverse_byte_order(0x0100B0E3); // movs r0, #0x1
-    data[7] = reverse_byte_order(0xE4309FE5); // ldr r3, [pc, #0xe4]
-    data[8] = reverse_byte_order(0x33FF2FE1); // blx r3 <- calling OSDictionary::withCapacity
-    data[9] = reverse_byte_order(0x0060A0E1); // mov r6, r0 (to save the created object)
-
-    // call OSDictionary::setObject
-    data[10] = reverse_byte_order(0x00C096E5); // ldr r12, [r6, #0x0] (get the vtable of the OSDictionary)
-    data[11] = reverse_byte_order(0xD8109FE5); // ldr r1, [pc, #0xd8]
-    data[12] = reverse_byte_order(0x0520A0E1); // mov r2, r5
-    data[13] = reverse_byte_order(0x0FE0A0E1); // mov lr, pc
-    data[14] = reverse_byte_order(0x98F09CE5); // ldr pc, [r12, #0x98]
-
-    // create the AppleBCM4325 object
-    data[15] = reverse_byte_order(0x010AB0E3); // movs r0, #0x1000
-    data[16] = reverse_byte_order(0xC8309FE5); // ldr r3, [pc, #0xc8]
-    data[17] = reverse_byte_order(0x33FF2FE1); // blx r3 <- calling OSObject::operator.new
-    data[18] = reverse_byte_order(0x0050A0E1); // mov r5, r0 (to save the new object somewhere)
-
-    // call AppleBCM4325 object initialization
-    data[19] = reverse_byte_order(0xC0309FE5); // ldr r3, [pc, #0xc0]
-    data[20] = reverse_byte_order(0x33FF2FE1); // blx r3
+    // TODO I should clean this up
+    for(int i = 1; i < 21; i++) { data[i] = reverse_byte_order(0x00F020E3); } // NOP
 
     // call the IONetworkController metaclass initialization
     data[21] = reverse_byte_order(0x0100B0E3); // movs r0, #0x1
@@ -93,21 +69,7 @@ static void patch_kernel()
     data[27] = reverse_byte_order(0xB0209FE5); // ldr r2, [pc, #0xd8]
     data[28] = reverse_byte_order(0x32FF2FE1); // blx r2
 
-    // call AppleBCM4325::init
-    data[29] = reverse_byte_order(0x00C095E5); // ldr r12, [r5, #0x0] (get the vtable)
-    data[30] = reverse_byte_order(0x0500A0E1); // mov r0, r5
-    data[31] = reverse_byte_order(0x0610A0E1); // mov r1, r6
-    data[32] = reverse_byte_order(0x0FE0A0E1); // mov lr, pc
-    data[33] = reverse_byte_order(0x6CF09CE5); // ldr pc, [r12, #0x6c]
-
-    // call AppleBCM4325::start
-    data[34] = reverse_byte_order(0x00C095E5); // ldr r12, [r5, #0x0] (get the vtable)
-    data[35] = reverse_byte_order(0x0500A0E1); // mov r0, r5
-    data[36] = reverse_byte_order(0x0410A0E1); // mov r1, r4
-    data[37] = reverse_byte_order(0x0FE0A0E1); // mov lr, pc
-    data[38] = reverse_byte_order(0x78F19CE5); // ldr pc, [r12, #0x178]
-
-    data[39] = reverse_byte_order(0xFE80BDE8); // pop from stack
+    data[29] = reverse_byte_order(0xFE80BDE8); // pop from stack
 
     cpu_physical_memory_write(0x8460000, (uint8_t *)data, sizeof(uint32_t) * 50);
 
@@ -125,9 +87,6 @@ static void patch_kernel()
     data[9] = 0xc015de01; // the kmod_load_request method
 
     cpu_physical_memory_write(0x8460100, (uint8_t *)data, sizeof(uint32_t) * 10);
-
-    // write the BCM4325Vars string
-    cpu_physical_memory_write(0x8460200, (uint8_t *)bcm4325_vars, strlen(bcm4325_vars));
 }
 
 static uint64_t ipod_touch_mbx2_read(void *opaque, hwaddr addr, unsigned size)

@@ -2,8 +2,9 @@
 
 static void trigger_irq(void *opaque)
 {
+    printf("ABChere\n");
     IPodTouchSDIOState *s = (IPodTouchSDIOState *)opaque;
-    s->irq_reg = 0x3;
+    s->irq_reg = 0x2;
     qemu_irq_raise(s->irq);
 }
 
@@ -38,6 +39,10 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
                 // misc register
                 s->resp0 = (1 << 6) /* enable ALP clock */ | (1 << 7); /* enable HT clock */
             }
+            else if(addr == 0x2020) {
+                // some indication that packets are ready??
+                s->resp0 = (1 << 6);
+            }
             else {
                 printf("Loading as response reg 0x%02x 0x%02x\n", s->registers[addr], addr);
                 s->resp0 = s->registers[addr];
@@ -55,17 +60,36 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
                 cpu_physical_memory_read(s->baddr, &s->registers[addr], s->blklen * s->numblk);
             }
             else if(func == 0x2) {
-                // this is a BCM4325 command - schedule the IRQ request to indicate that the command has been completed
-                s->irq_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, trigger_irq, s);
-                timer_mod(s->irq_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 50);
+                // this is a BCM4325 command - add a frame to the queue and schedule the IRQ request to indicate that the command has been completed
+                BCM4325FrameHeaderPacket *frame_header = calloc(sizeof(BCM4325FrameHeaderPacket), sizeof(uint8_t *));
+                uint16_t length = 14;
+                frame_header->frame_length = length;
+                frame_header->checksum = length ^ 0xffff;
+                g_queue_push_tail(s->rx_fifo, frame_header);
+
+                timer_mod(s->irq_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + NANOSECONDS_PER_SECOND / 50);
                 printf("INT SCHED\n");
             }
         } else {
-            if(addr == 0x0) {
-                // chip ID register
-                uint32_t chipid[] = { 0x5 << 0x10 };
-                cpu_physical_memory_write(s->baddr, &chipid, 0x4);
+            if(func == 0x1) {
+                if(addr == 0x0) {
+                    // chip ID register
+                    uint32_t chipid[] = { 0x5 << 0x10 };
+                    cpu_physical_memory_write(s->baddr, &chipid, 0x4);
+                }
             }
+            else if(func == 0x2) {
+                // we're reading a frame
+                BCM4325FrameHeaderPacket *frame_header = (BCM4325FrameHeaderPacket *) g_queue_pop_head(s->rx_fifo);
+
+                if(!frame_header) {
+                    // create an empty frame
+                    printf("Creating empty response frame\n");
+                    frame_header = calloc(sizeof(BCM4325FrameHeaderPacket), sizeof(uint8_t *));
+                }
+                cpu_physical_memory_write(s->baddr, frame_header, sizeof(BCM4325FrameHeaderPacket));
+            }
+            
         }
 
         // toggle IRQ register
@@ -191,18 +215,24 @@ static void ipod_touch_sdio_init(Object *obj)
     s->registers[CIS_OFFSET + 4] = BCM4325_PRODUCT_ID & 0xFF;
     s->registers[CIS_OFFSET + 5] = (BCM4325_PRODUCT_ID >> 8) & 0xFF;
 
-    // set the MAC address
+    // set the MAC address (00:23:32:6E:AA:10)
     s->registers[CIS_OFFSET + 6] = CIS_FUNCTION_EXTENSION;
     s->registers[CIS_OFFSET + 8] = 0x4; // unknown
     s->registers[CIS_OFFSET + 9] = 0x6; // the length of the MAC address
-
-    for(int i = 0; i < 6; i++) { // TODO should be fixed
-        s->registers[CIS_OFFSET + 10 + i] = 0x42;
-    }    
+    s->registers[CIS_OFFSET + 10] = 0x0;
+    s->registers[CIS_OFFSET + 11] = 0x23;
+    s->registers[CIS_OFFSET + 12] = 0x32;
+    s->registers[CIS_OFFSET + 13] = 0x6E;
+    s->registers[CIS_OFFSET + 14] = 0xAA;
+    s->registers[CIS_OFFSET + 15] = 0x10;
 
     memory_region_init_io(&s->iomem, obj, &ipod_touch_sdio_ops, s, TYPE_IPOD_TOUCH_SDIO, 4096);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+
+    s->irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, trigger_irq, s);
+
+    s->rx_fifo = g_queue_new();
 }
 
 static void ipod_touch_sdio_class_init(ObjectClass *klass, void *data)
