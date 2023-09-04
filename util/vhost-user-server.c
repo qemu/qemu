@@ -278,7 +278,7 @@ set_watch(VuDev *vu_dev, int fd, int vu_evt,
     VuFdWatch *vu_fd_watch = find_vu_fd_watch(server, fd);
 
     if (!vu_fd_watch) {
-        VuFdWatch *vu_fd_watch = g_new0(VuFdWatch, 1);
+        vu_fd_watch = g_new0(VuFdWatch, 1);
 
         QTAILQ_INSERT_TAIL(&server->vu_fd_watches, vu_fd_watch, next);
 
