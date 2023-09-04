@@ -78,4 +78,6 @@ bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
 
 #endif /* CONFIG_KVM */
 
+void kvm_pc_setup_irq_routing(bool pci_enabled);
+
 #endif
