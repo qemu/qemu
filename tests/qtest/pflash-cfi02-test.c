@@ -406,7 +406,7 @@ static void test_geometry(const void *opaque)
 
     for (int region = 0; region < nb_erase_regions; ++region) {
         for (uint32_t i = 0; i < c->nb_blocs[region]; ++i) {
-            uint64_t byte_addr = (uint64_t)i * c->sector_len[region];
+            byte_addr = (uint64_t)i * c->sector_len[region];
             g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
         }
     }
