@@ -129,13 +129,10 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
                                                       ms->smp.max_cpus - 1) + 1;
 
     /*
-     * Can we support APIC ID 255 or higher?
-     *
-     * Under Xen: yes.
-     * With userspace emulated lapic: no
-     * With KVM's in-kernel lapic: only if X2APIC API is enabled.
+     * Can we support APIC ID 255 or higher?  With KVM, that requires
+     * both in-kernel lapic and X2APIC userspace API.
      */
-    if (x86ms->apic_id_limit > 255 && !xen_enabled() &&
+    if (x86ms->apic_id_limit > 255 && kvm_enabled() &&
         (!kvm_irqchip_in_kernel() || !kvm_enable_x2apic())) {
         error_report("current -smp configuration requires kernel "
                      "irqchip and X2APIC API support.");

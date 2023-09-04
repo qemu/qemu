@@ -12,13 +12,6 @@
 #include "qemu/osdep.h"
 #include "kvm_i386.h"
 
-#ifndef __OPTIMIZE__
-bool kvm_enable_x2apic(void)
-{
-    return false;
-}
-#endif
-
 bool kvm_hv_vpindex_settable(void)
 {
     return false;
