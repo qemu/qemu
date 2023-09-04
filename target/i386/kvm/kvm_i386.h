@@ -13,8 +13,6 @@
 
 #include "sysemu/kvm.h"
 
-#define kvm_apic_in_kernel() (kvm_irqchip_in_kernel())
-
 #ifdef CONFIG_KVM
 
 #define kvm_pit_in_kernel() \
