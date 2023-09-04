@@ -1934,16 +1934,16 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t rt = (syndrome >> 5) & 0x1f;
         uint32_t reg = syndrome & SYSREG_MASK;
         uint64_t val;
-        int ret = 0;
+        int sysreg_ret = 0;
 
         if (isread) {
-            ret = hvf_sysreg_read(cpu, reg, rt);
+            sysreg_ret = hvf_sysreg_read(cpu, reg, rt);
         } else {
             val = hvf_get_reg(cpu, rt);
-            ret = hvf_sysreg_write(cpu, reg, val);
+            sysreg_ret = hvf_sysreg_write(cpu, reg, val);
         }
 
-        advance_pc = !ret;
+        advance_pc = !sysreg_ret;
         break;
     }
     case EC_WFX_TRAP:
