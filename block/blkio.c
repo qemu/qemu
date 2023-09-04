@@ -713,7 +713,7 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
          * for example will fail.
          *
          * In order to open the device read-only, we are using the `read-only`
-         * property of the libblkio driver in blkio_file_open().
+         * property of the libblkio driver in blkio_open().
          */
         fd = qemu_open(path, O_RDWR, NULL);
         if (fd < 0) {
@@ -791,8 +791,8 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     return 0;
 }
 
-static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
-                           Error **errp)
+static int blkio_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
 {
     const char *blkio_driver = bs->drv->protocol_name;
     BDRVBlkioState *s = bs->opaque;
@@ -1088,7 +1088,7 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
  */
 #define BLKIO_DRIVER_COMMON \
     .instance_size           = sizeof(BDRVBlkioState), \
-    .bdrv_open               = blkio_file_open, \
+    .bdrv_open               = blkio_open, \
     .bdrv_close              = blkio_close, \
     .bdrv_co_getlength       = blkio_co_getlength, \
     .bdrv_co_truncate        = blkio_truncate, \
