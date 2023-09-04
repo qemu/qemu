@@ -610,11 +610,8 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x10B0:
     case 0x10C0:
     case 0x10D0:
-        {
-            int idx;
-            idx = (addr - 0x10A0) >> 4;
-            write_IRQreg_ivpr(opp, opp->irq_ipi0 + idx, val);
-        }
+        idx = (addr - 0x10A0) >> 4;
+        write_IRQreg_ivpr(opp, opp->irq_ipi0 + idx, val);
         break;
     case 0x10E0: /* SPVE */
         opp->spve = val & opp->vector_mask;
