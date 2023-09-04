@@ -147,16 +147,18 @@ bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
                      int64_t *pnum);
-int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
-                      int64_t *pnum);
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
+                  int64_t bytes, int64_t *pnum);
 
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                            bool include_base, int64_t offset, int64_t bytes,
                            int64_t *pnum);
-int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
-                            bool include_base, int64_t offset, int64_t bytes,
-                            int64_t *pnum);
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_is_allocated_above(BlockDriverState *bs, BlockDriverState *base,
+                        bool include_base, int64_t offset,
+                        int64_t bytes, int64_t *pnum);
 
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset, int64_t bytes);

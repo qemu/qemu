@@ -2777,45 +2777,6 @@ int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t offset,
     return !!(ret & BDRV_BLOCK_ALLOCATED);
 }
 
-int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
-                      int64_t *pnum)
-{
-    int ret;
-    int64_t dummy;
-    IO_CODE();
-
-    ret = bdrv_common_block_status_above(bs, bs, true, false, offset,
-                                         bytes, pnum ? pnum : &dummy, NULL,
-                                         NULL, NULL);
-    if (ret < 0) {
-        return ret;
-    }
-    return !!(ret & BDRV_BLOCK_ALLOCATED);
-}
-
-/* See bdrv_is_allocated_above for documentation */
-int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
-                                            BlockDriverState *base,
-                                            bool include_base, int64_t offset,
-                                            int64_t bytes, int64_t *pnum)
-{
-    int depth;
-    int ret;
-    IO_CODE();
-
-    ret = bdrv_co_common_block_status_above(top, base, include_base, false,
-                                            offset, bytes, pnum, NULL, NULL,
-                                            &depth);
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (ret & BDRV_BLOCK_ALLOCATED) {
-        return depth;
-    }
-    return 0;
-}
-
 /*
  * Given an image chain: ... -> [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
@@ -2833,18 +2794,18 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
  * words, the result is not necessarily the maximum possible range);
  * but 'pnum' will only be 0 when end of file is reached.
  */
-int bdrv_is_allocated_above(BlockDriverState *top,
-                            BlockDriverState *base,
-                            bool include_base, int64_t offset,
-                            int64_t bytes, int64_t *pnum)
+int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *bs,
+                                            BlockDriverState *base,
+                                            bool include_base, int64_t offset,
+                                            int64_t bytes, int64_t *pnum)
 {
     int depth;
     int ret;
     IO_CODE();
 
-    ret = bdrv_common_block_status_above(top, base, include_base, false,
-                                         offset, bytes, pnum, NULL, NULL,
-                                         &depth);
+    ret = bdrv_co_common_block_status_above(bs, base, include_base, false,
+                                            offset, bytes, pnum, NULL, NULL,
+                                            &depth);
     if (ret < 0) {
         return ret;
     }
