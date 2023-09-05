@@ -108,7 +108,7 @@ static void snapshot_access_child_perm(BlockDriverState *bs, BdrvChild *c,
     *nshared = BLK_PERM_ALL;
 }
 
-BlockDriver bdrv_snapshot_access_drv = {
+static BlockDriver bdrv_snapshot_access_drv = {
     .format_name = "snapshot-access",
 
     .bdrv_open                  = snapshot_access_open,
