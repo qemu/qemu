@@ -190,6 +190,12 @@ static void output_hint_r_i(DisasContext *ctx, arg_hint_r_i *a,
     output(ctx, mnemonic, "%d, r%d, %d", a->hint, a->rj, a->imm);
 }
 
+static void output_hint_rr(DisasContext *ctx, arg_hint_rr *a,
+                           const char *mnemonic)
+{
+    output(ctx, mnemonic, "%d, r%d, r%d", a->hint, a->rj, a->rk);
+}
+
 static void output_i(DisasContext *ctx, arg_i *a, const char *mnemonic)
 {
     output(ctx, mnemonic, "%d", a->imm);
@@ -549,6 +555,7 @@ INSN(ld_bu,        rr_i)
 INSN(ld_hu,        rr_i)
 INSN(ld_wu,        rr_i)
 INSN(preld,        hint_r_i)
+INSN(preldx,       hint_rr)
 INSN(fld_s,        fr_i)
 INSN(fst_s,        fr_i)
 INSN(fld_d,        fr_i)
