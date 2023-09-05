@@ -32,6 +32,12 @@
 
 #define ATI_DEBUG_HW_CURSOR 0
 
+#ifdef CONFIG_PIXMAN
+#define DEFAULT_X_PIXMAN 3
+#else
+#define DEFAULT_X_PIXMAN 0
+#endif
+
 static const struct {
     const char *name;
     uint16_t dev_id;
@@ -946,6 +952,12 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     ATIVGAState *s = ATI_VGA(dev);
     VGACommonState *vga = &s->vga;
 
+#ifndef CONFIG_PIXMAN
+    if (s->use_pixman != 0) {
+        warn_report("x-pixman != 0, not effective without PIXMAN");
+    }
+#endif
+
     if (s->model) {
         int i;
         for (i = 0; i < ARRAY_SIZE(ati_model_aliases); i++) {
@@ -1033,7 +1045,8 @@ static Property ati_vga_properties[] = {
     DEFINE_PROP_UINT16("x-device-id", ATIVGAState, dev_id,
                        PCI_DEVICE_ID_ATI_RAGE128_PF),
     DEFINE_PROP_BOOL("guest_hwcursor", ATIVGAState, cursor_guest_mode, false),
-    DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, 3),
+    /* this is a debug option, prefer PROP_UINT over PROP_BIT for simplicity */
+    DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
     DEFINE_PROP_END_OF_LIST()
 };
 
