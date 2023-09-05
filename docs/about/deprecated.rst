@@ -37,14 +37,6 @@ coverage.
 System emulator command line arguments
 --------------------------------------
 
-``QEMU_AUDIO_`` environment variables and ``-audio-help`` (since 4.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``-audiodev`` argument is now the preferred way to specify audio
-backend settings instead of environment variables.  To ease migration to
-the new format, the ``-audiodev-help`` option can be used to convert
-the current values of the environment variables to ``-audiodev`` options.
-
 Creating sound card devices without ``audiodev=`` property (since 4.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

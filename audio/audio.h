@@ -172,7 +172,6 @@ void audio_define(Audiodev *audio);
 void audio_parse_option(const char *opt);
 bool audio_init_audiodevs(void);
 void audio_help(void);
-void audio_legacy_help(void);
 
 AudioState *audio_state_by_name(const char *name, Error **errp);
 const char *audio_get_id(QEMUSoundCard *card);

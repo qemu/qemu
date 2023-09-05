@@ -843,7 +843,6 @@ static struct audio_driver pw_audio_driver = {
     .init = qpw_audio_init,
     .fini = qpw_audio_fini,
     .pcm_ops = &qpw_pcm_ops,
-    .can_be_default = 1,
     .max_voices_out = INT_MAX,
     .max_voices_in = INT_MAX,
     .voice_size_out = sizeof(PWVoiceOut),

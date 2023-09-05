@@ -32,6 +32,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-audio.h"
 #include "qapi/qapi-commands-audio.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -62,19 +63,22 @@ const char *audio_prio_list[] = {
     "spice",
     CONFIG_AUDIO_DRIVERS
     "none",
-    "wav",
     NULL
 };
 
 static QLIST_HEAD(, audio_driver) audio_drivers;
-static AudiodevListHead audiodevs = QSIMPLEQ_HEAD_INITIALIZER(audiodevs);
+static AudiodevListHead audiodevs =
+    QSIMPLEQ_HEAD_INITIALIZER(audiodevs);
+static AudiodevListHead default_audiodevs =
+    QSIMPLEQ_HEAD_INITIALIZER(default_audiodevs);
+
 
 void audio_driver_register(audio_driver *drv)
 {
     QLIST_INSERT_HEAD(&audio_drivers, drv, next);
 }
 
-audio_driver *audio_driver_lookup(const char *name)
+static audio_driver *audio_driver_lookup(const char *name)
 {
     struct audio_driver *d;
     Error *local_err = NULL;
@@ -111,8 +115,6 @@ const struct mixeng_volume nominal_volume = {
     .l = 1ULL << 32,
 #endif
 };
-
-static bool legacy_config = true;
 
 int audio_bug (const char *funcname, int cond)
 {
@@ -1688,17 +1690,41 @@ static const VMStateDescription vmstate_audio = {
 
 static void audio_validate_opts(Audiodev *dev, Error **errp);
 
-static AudiodevListEntry *audiodev_find(
-    AudiodevListHead *head, const char *drvname)
+static void audio_create_default_audiodevs(void)
 {
-    AudiodevListEntry *e;
-    QSIMPLEQ_FOREACH(e, head, next) {
-        if (strcmp(AudiodevDriver_str(e->dev->driver), drvname) == 0) {
-            return e;
-        }
+    const char *drvname = getenv("QEMU_AUDIO_DRV");
+
+    /* QEMU_AUDIO_DRV=none is used by libqtest.  */
+    if (drvname && !g_str_equal(drvname, "none")) {
+        error_report("Please use -audiodev instead of QEMU_AUDIO_*");
+        exit(1);
     }
 
-    return NULL;
+    for (int i = 0; audio_prio_list[i]; i++) {
+        if (drvname && !g_str_equal(drvname, audio_prio_list[i])) {
+            continue;
+        }
+
+        if (audio_driver_lookup(audio_prio_list[i])) {
+            QDict *dict = qdict_new();
+            Audiodev *dev = NULL;
+            AudiodevListEntry *e;
+            Visitor *v;
+
+            qdict_put_str(dict, "driver", audio_prio_list[i]);
+            qdict_put_str(dict, "id", "#default");
+
+            v = qobject_input_visitor_new_keyval(QOBJECT(dict));
+            qobject_unref(dict);
+            visit_type_Audiodev(v, NULL, &dev, &error_fatal);
+            visit_free(v);
+
+            audio_validate_opts(dev, &error_abort);
+            e = g_new0(AudiodevListEntry, 1);
+            e->dev = dev;
+            QSIMPLEQ_INSERT_TAIL(&default_audiodevs, e, next);
+        }
+    }
 }
 
 /*
@@ -1710,31 +1736,11 @@ static AudiodevListEntry *audiodev_find(
 static AudioState *audio_init(Audiodev *dev)
 {
     static bool atexit_registered;
-    size_t i;
     int done = 0;
     const char *drvname;
     VMChangeStateEntry *vmse;
     AudioState *s;
     struct audio_driver *driver;
-    /* silence gcc warning about uninitialized variable */
-    AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
-
-    if (using_spice) {
-        /*
-         * When using spice allow the spice audio driver being picked
-         * as default.
-         *
-         * Temporary hack.  Using audio devices without explicit
-         * audiodev= property is already deprecated.  Same goes for
-         * the -soundhw switch.  Once this support gets finally
-         * removed we can also drop the concept of a default audio
-         * backend and this can go away.
-         */
-        driver = audio_driver_lookup("spice");
-        if (driver) {
-            driver->can_be_default = 1;
-        }
-    }
 
     s = g_new0(AudioState, 1);
 
@@ -1759,45 +1765,23 @@ static AudioState *audio_init(Audiodev *dev)
             dolog ("Unknown audio driver `%s'\n", drvname);
         }
         if (!done) {
-            free_audio_state(s);
-            return NULL;
+            goto out;
         }
     } else {
-        /* legacy implicit initialization */
-        head = audio_handle_legacy_opts();
-        /*
-         * In case of legacy initialization, all Audiodevs in the list will have
-         * the same configuration (except the driver), so it doesn't matter which
-         * one we chose.  We need an Audiodev to set up AudioState before we can
-         * init a driver.  Also note that dev at this point is still in the
-         * list.
-         */
-        dev = QSIMPLEQ_FIRST(&head)->dev;
-        audio_validate_opts(dev, &error_abort);
-
-        for (i = 0; audio_prio_list[i]; i++) {
-            AudiodevListEntry *e = audiodev_find(&head, audio_prio_list[i]);
-            driver = audio_driver_lookup(audio_prio_list[i]);
-
-            if (e && driver) {
-                s->dev = dev = e->dev;
-                audio_validate_opts(dev, &error_abort);
-                done = !audio_driver_init(s, driver, false, dev);
-                if (done) {
-                    e->dev = NULL;
-                    break;
-                }
+        for (;;) {
+            AudiodevListEntry *e = QSIMPLEQ_FIRST(&default_audiodevs);
+            if (!e) {
+                dolog("no default audio driver available\n");
+                goto out;
             }
+            s->dev = dev = e->dev;
+            drvname = AudiodevDriver_str(dev->driver);
+            driver = audio_driver_lookup(drvname);
+            if (!audio_driver_init(s, driver, false, dev)) {
+                break;
+            }
+            QSIMPLEQ_REMOVE_HEAD(&default_audiodevs, next);
         }
-
-        audio_free_audiodev_list(&head);
-    }
-
-    if (!done) {
-        driver = audio_driver_lookup("none");
-        done = !audio_driver_init(s, driver, false, dev);
-        assert(done);
-        dolog("warning: Using timer based audio emulation\n");
     }
 
     if (dev->timer_period <= 0) {
@@ -1816,29 +1800,26 @@ static AudioState *audio_init(Audiodev *dev)
     QLIST_INIT (&s->card_head);
     vmstate_register (NULL, 0, &vmstate_audio, s);
     return s;
-}
 
-void audio_free_audiodev_list(AudiodevListHead *head)
-{
-    AudiodevListEntry *e;
-    while ((e = QSIMPLEQ_FIRST(head))) {
-        QSIMPLEQ_REMOVE_HEAD(head, next);
-        qapi_free_Audiodev(e->dev);
-        g_free(e);
-    }
+out:
+    free_audio_state(s);
+    return NULL;
 }
 
 void AUD_register_card (const char *name, QEMUSoundCard *card)
 {
     if (!card->state) {
         if (!QTAILQ_EMPTY(&audio_states)) {
-            if (!legacy_config) {
+            if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
                 dolog("Device %s: audiodev default parameter is deprecated, please "
                       "specify audiodev=%s\n", name,
                       QTAILQ_FIRST(&audio_states)->dev->id);
             }
             card->state = QTAILQ_FIRST(&audio_states);
         } else {
+            if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
+                audio_create_default_audiodevs();
+            }
             card->state = audio_init(NULL);
         }
     }
@@ -2170,7 +2151,6 @@ void audio_define(Audiodev *dev)
     e = g_new0(AudiodevListEntry, 1);
     e->dev = dev;
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
-    legacy_config = false;
 }
 
 bool audio_init_audiodevs(void)
