@@ -293,11 +293,10 @@ query_dirty_rate_info(TimeUnit calc_time_unit)
     return info;
 }
 
-static void init_dirtyrate_stat(int64_t start_time,
-                                struct DirtyRateConfig config)
+static void init_dirtyrate_stat(struct DirtyRateConfig config)
 {
     DirtyStat.dirty_rate = -1;
-    DirtyStat.start_time = start_time;
+    DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) / 1000;
     DirtyStat.calc_time_ms = config.calc_time_ms;
     DirtyStat.sample_pages = config.sample_pages_per_gigabytes;
 
@@ -633,7 +632,7 @@ static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
     record_dirtypages_bitmap(&dirty_pages, true);
 
     start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-    DirtyStat.start_time = start_time / 1000;
+    DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) / 1000;
 
     DirtyStat.calc_time_ms = dirty_stat_wait(config.calc_time_ms, start_time);
 
@@ -659,7 +658,7 @@ static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
     /* start log sync */
     global_dirty_log_change(GLOBAL_DIRTY_DIRTY_RATE, true);
 
-    DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
+    DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) / 1000;
 
     /* calculate vcpu dirtyrate */
     DirtyStat.calc_time_ms = vcpu_calculate_dirtyrate(config.calc_time_ms,
@@ -685,6 +684,7 @@ static void calculate_dirtyrate_sample_vm(struct DirtyRateConfig config)
 
     rcu_read_lock();
     initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) / 1000;
     if (!record_ramblock_hash_info(&block_dinfo, config, &block_count)) {
         goto out;
     }
@@ -692,7 +692,6 @@ static void calculate_dirtyrate_sample_vm(struct DirtyRateConfig config)
 
     DirtyStat.calc_time_ms = dirty_stat_wait(config.calc_time_ms,
                                              initial_time);
-    DirtyStat.start_time = initial_time / 1000;
 
     rcu_read_lock();
     if (!compare_page_hash_info(block_dinfo, block_count)) {
@@ -756,7 +755,6 @@ void qmp_calc_dirty_rate(int64_t calc_time,
     static struct DirtyRateConfig config;
     QemuThread thread;
     int ret;
-    int64_t start_time;
 
     /*
      * If the dirty rate is already being measured, don't attempt to start.
@@ -833,8 +831,7 @@ void qmp_calc_dirty_rate(int64_t calc_time,
      **/
     dirtyrate_mode = mode;
 
-    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
-    init_dirtyrate_stat(start_time, config);
+    init_dirtyrate_stat(config);
 
     qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
                        (void *)&config, QEMU_THREAD_DETACHED);
