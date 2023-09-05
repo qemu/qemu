@@ -189,10 +189,9 @@ retry:
     return duration;
 }
 
-static bool is_sample_period_valid(int64_t sec)
+static bool is_calc_time_valid(int64_t msec)
 {
-    if (sec < MIN_FETCH_DIRTYRATE_TIME_SEC ||
-        sec > MAX_FETCH_DIRTYRATE_TIME_SEC) {
+    if ((msec < MIN_CALC_TIME_MS) || (msec > MAX_CALC_TIME_MS)) {
         return false;
     }
 
@@ -216,7 +215,39 @@ static int dirtyrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
-static struct DirtyRateInfo *query_dirty_rate_info(void)
+/* Decimal power of given time unit relative to one second */
+static int time_unit_to_power(TimeUnit time_unit)
+{
+    switch (time_unit) {
+    case TIME_UNIT_SECOND:
+        return 0;
+    case TIME_UNIT_MILLISECOND:
+        return -3;
+    default:
+        assert(false); /* unreachable */
+        return 0;
+    }
+}
+
+static int64_t convert_time_unit(int64_t value, TimeUnit unit_from,
+                                 TimeUnit unit_to)
+{
+    int power = time_unit_to_power(unit_from) -
+                time_unit_to_power(unit_to);
+    while (power < 0) {
+        value /= 10;
+        power += 1;
+    }
+    while (power > 0) {
+        value *= 10;
+        power -= 1;
+    }
+    return value;
+}
+
+
+static struct DirtyRateInfo *
+query_dirty_rate_info(TimeUnit calc_time_unit)
 {
     int i;
     int64_t dirty_rate = DirtyStat.dirty_rate;
@@ -225,7 +256,10 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
 
     info->status = CalculatingState;
     info->start_time = DirtyStat.start_time;
-    info->calc_time = DirtyStat.calc_time;
+    info->calc_time = convert_time_unit(DirtyStat.calc_time_ms,
+                                        TIME_UNIT_MILLISECOND,
+                                        calc_time_unit);
+    info->calc_time_unit = calc_time_unit;
     info->sample_pages = DirtyStat.sample_pages;
     info->mode = dirtyrate_mode;
 
@@ -264,7 +298,7 @@ static void init_dirtyrate_stat(int64_t start_time,
 {
     DirtyStat.dirty_rate = -1;
     DirtyStat.start_time = start_time;
-    DirtyStat.calc_time = config.sample_period_seconds;
+    DirtyStat.calc_time_ms = config.calc_time_ms;
     DirtyStat.sample_pages = config.sample_pages_per_gigabytes;
 
     switch (config.mode) {
@@ -574,7 +608,6 @@ static inline void dirtyrate_manual_reset_protect(void)
 
 static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
 {
-    int64_t msec = 0;
     int64_t start_time;
     DirtyPageRecord dirty_pages;
 
@@ -602,9 +635,7 @@ static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
     start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     DirtyStat.start_time = start_time / 1000;
 
-    msec = config.sample_period_seconds * 1000;
-    msec = dirty_stat_wait(msec, start_time);
-    DirtyStat.calc_time = msec / 1000;
+    DirtyStat.calc_time_ms = dirty_stat_wait(config.calc_time_ms, start_time);
 
     /*
      * do two things.
@@ -615,12 +646,12 @@ static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
 
     record_dirtypages_bitmap(&dirty_pages, false);
 
-    DirtyStat.dirty_rate = do_calculate_dirtyrate(dirty_pages, msec);
+    DirtyStat.dirty_rate = do_calculate_dirtyrate(dirty_pages,
+                                                  DirtyStat.calc_time_ms);
 }
 
 static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
 {
-    int64_t duration;
     uint64_t dirtyrate = 0;
     uint64_t dirtyrate_sum = 0;
     int i = 0;
@@ -631,12 +662,10 @@ static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
     DirtyStat.start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
 
     /* calculate vcpu dirtyrate */
-    duration = vcpu_calculate_dirtyrate(config.sample_period_seconds * 1000,
-                                        &DirtyStat.dirty_ring,
-                                        GLOBAL_DIRTY_DIRTY_RATE,
-                                        true);
-
-    DirtyStat.calc_time = duration / 1000;
+    DirtyStat.calc_time_ms = vcpu_calculate_dirtyrate(config.calc_time_ms,
+                                                      &DirtyStat.dirty_ring,
+                                                      GLOBAL_DIRTY_DIRTY_RATE,
+                                                      true);
 
     /* calculate vm dirtyrate */
     for (i = 0; i < DirtyStat.dirty_ring.nvcpu; i++) {
@@ -652,7 +681,6 @@ static void calculate_dirtyrate_sample_vm(struct DirtyRateConfig config)
 {
     struct RamblockDirtyInfo *block_dinfo = NULL;
     int block_count = 0;
-    int64_t msec = 0;
     int64_t initial_time;
 
     rcu_read_lock();
@@ -662,17 +690,16 @@ static void calculate_dirtyrate_sample_vm(struct DirtyRateConfig config)
     }
     rcu_read_unlock();
 
-    msec = config.sample_period_seconds * 1000;
-    msec = dirty_stat_wait(msec, initial_time);
+    DirtyStat.calc_time_ms = dirty_stat_wait(config.calc_time_ms,
+                                             initial_time);
     DirtyStat.start_time = initial_time / 1000;
-    DirtyStat.calc_time = msec / 1000;
 
     rcu_read_lock();
     if (!compare_page_hash_info(block_dinfo, block_count)) {
         goto out;
     }
 
-    update_dirtyrate(msec);
+    update_dirtyrate(DirtyStat.calc_time_ms);
 
 out:
     rcu_read_unlock();
@@ -718,6 +745,8 @@ void *get_dirtyrate_thread(void *arg)
 }
 
 void qmp_calc_dirty_rate(int64_t calc_time,
+                         bool has_calc_time_unit,
+                         TimeUnit calc_time_unit,
                          bool has_sample_pages,
                          int64_t sample_pages,
                          bool has_mode,
@@ -737,10 +766,15 @@ void qmp_calc_dirty_rate(int64_t calc_time,
         return;
     }
 
-    if (!is_sample_period_valid(calc_time)) {
-        error_setg(errp, "calc-time is out of range[%d, %d].",
-                         MIN_FETCH_DIRTYRATE_TIME_SEC,
-                         MAX_FETCH_DIRTYRATE_TIME_SEC);
+    int64_t calc_time_ms = convert_time_unit(
+        calc_time,
+        has_calc_time_unit ? calc_time_unit : TIME_UNIT_SECOND,
+        TIME_UNIT_MILLISECOND
+    );
+
+    if (!is_calc_time_valid(calc_time_ms)) {
+        error_setg(errp, "Calculation time is out of range [%dms, %dms].",
+                         MIN_CALC_TIME_MS, MAX_CALC_TIME_MS);
         return;
     }
 
@@ -787,7 +821,7 @@ void qmp_calc_dirty_rate(int64_t calc_time,
         return;
     }
 
-    config.sample_period_seconds = calc_time;
+    config.calc_time_ms = calc_time_ms;
     config.sample_pages_per_gigabytes = sample_pages;
     config.mode = mode;
 
@@ -806,14 +840,18 @@ void qmp_calc_dirty_rate(int64_t calc_time,
                        (void *)&config, QEMU_THREAD_DETACHED);
 }
 
-struct DirtyRateInfo *qmp_query_dirty_rate(Error **errp)
+
+struct DirtyRateInfo *qmp_query_dirty_rate(bool has_calc_time_unit,
+                                           TimeUnit calc_time_unit,
+                                           Error **errp)
 {
-    return query_dirty_rate_info();
+    return query_dirty_rate_info(
+        has_calc_time_unit ? calc_time_unit : TIME_UNIT_SECOND);
 }
 
 void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
 {
-    DirtyRateInfo *info = query_dirty_rate_info();
+    DirtyRateInfo *info = query_dirty_rate_info(TIME_UNIT_SECOND);
 
     monitor_printf(mon, "Status: %s\n",
                    DirtyRateStatus_str(info->status));
@@ -873,8 +911,11 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
         mode = DIRTY_RATE_MEASURE_MODE_DIRTY_RING;
     }
 
-    qmp_calc_dirty_rate(sec, has_sample_pages, sample_pages, true,
-                        mode, &err);
+    qmp_calc_dirty_rate(sec, /* calc-time */
+                        false, TIME_UNIT_SECOND, /* calc-time-unit */
+                        has_sample_pages, sample_pages,
+                        true, mode,
+                        &err);
     if (err) {
         hmp_handle_error(mon, err);
         return;
