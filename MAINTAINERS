@@ -543,14 +543,6 @@ F: include/sysemu/xen.h
 F: include/sysemu/xen-mapcache.h
 F: stubs/xen-hw-stub.c
 
-Guest CPU Cores (HAXM)
----------------------
-X86 HAXM CPUs
-S: Orphan
-F: accel/stubs/hax-stub.c
-F: include/sysemu/hax.h
-F: target/i386/hax/
-
 Guest CPU Cores (NVMM)
 ----------------------
 NetBSD Virtual Machine Monitor (NVMM) CPU support

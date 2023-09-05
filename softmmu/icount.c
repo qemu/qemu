@@ -325,7 +325,7 @@ void icount_start_warp_timer(void)
              * vCPU is sleeping and warp can't be started.
              * It is probably a race condition: notification sent
              * to vCPU was processed in advance and vCPU went to sleep.
-             * Therefore we have to wake it up for doing someting.
+             * Therefore we have to wake it up for doing something.
              */
             if (replay_has_event()) {
                 qemu_clock_notify(QEMU_CLOCK_VIRTUAL);

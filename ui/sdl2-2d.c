@@ -150,7 +150,7 @@ bool sdl2_2d_check_format(DisplayChangeListener *dcl,
 {
     /*
      * We let SDL convert for us a few more formats than,
-     * the native ones. Thes are the ones I have tested.
+     * the native ones. These are the ones I have tested.
      */
     return (format == PIXMAN_x8r8g8b8 ||
             format == PIXMAN_a8r8g8b8 ||

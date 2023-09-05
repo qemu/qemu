@@ -44,7 +44,7 @@ typedef struct {
 /* "up" flag */
 #define SCANCODE_UP     0x80
 
-/* Additional modifiers to use if not catched another way. */
+/* Additional modifiers to use if not caught another way. */
 #define SCANCODE_SHIFT  0x100
 #define SCANCODE_CTRL   0x200
 #define SCANCODE_ALT    0x400

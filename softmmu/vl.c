@@ -86,7 +86,6 @@
 #include "migration/colo.h"
 #include "migration/postcopy-ram.h"
 #include "sysemu/kvm.h"
-#include "sysemu/hax.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -2546,11 +2545,6 @@ static void qemu_init_board(void)
     drive_check_orphaned();
 
     realtime_init();
-
-    if (hax_enabled()) {
-        /* FIXME: why isn't cpu_synchronize_all_post_init enough? */
-        hax_sync_vcpus();
-    }
 }
 
 static void qemu_create_cli_devices(void)

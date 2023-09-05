@@ -25,7 +25,7 @@ typedef void (YankFn)(void *opaque);
  * @instance: The instance.
  * @errp: Error object.
  *
- * Returns true on success or false if an error occured.
+ * Returns true on success or false if an error occurred.
  */
 bool yank_register_instance(const YankInstance *instance, Error **errp);
 

@@ -1809,7 +1809,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
             uint32_t *dst = (uint32_t *)data;
 
             memcpy(dst, target_data, len);
-            /* fix endianess of first 32-bit word */
+            /* fix endianness of first 32-bit word */
             if (len >= sizeof(uint32_t)) {
                 *dst = tswap32(*dst);
             }
@@ -2920,7 +2920,7 @@ get_timeout:
                 unlock_user(results, optval_addr, 0);
                 return ret;
             }
-            /* swap host endianess to target endianess. */
+            /* swap host endianness to target endianness. */
             for (i = 0; i < (len / sizeof(uint32_t)); i++) {
                 results[i] = tswap32(results[i]);
             }
