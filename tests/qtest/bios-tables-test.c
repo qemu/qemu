@@ -2138,7 +2138,9 @@ int main(int argc, char *argv[])
                 qtest_add_func("acpi/q35/core-count2",
                                test_acpi_q35_tcg_core_count2);
             }
-            qtest_add_func("acpi/q35/viot", test_acpi_q35_viot);
+            if (qtest_has_device("virtio-iommu-pci")) {
+                qtest_add_func("acpi/q35/viot", test_acpi_q35_viot);
+            }
 #ifdef CONFIG_POSIX
             qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
 #endif
@@ -2173,7 +2175,9 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/virt/memhp", test_acpi_virt_tcg_memhp);
             qtest_add_func("acpi/virt/pxb", test_acpi_virt_tcg_pxb);
             qtest_add_func("acpi/virt/oem-fields", test_acpi_virt_oem_fields);
-            qtest_add_func("acpi/virt/viot", test_acpi_virt_viot);
+            if (qtest_has_device("virtio-iommu-pci")) {
+                qtest_add_func("acpi/virt/viot", test_acpi_virt_viot);
+            }
         }
     }
     ret = g_test_run();

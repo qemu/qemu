@@ -25,6 +25,7 @@ ASM_TESTS =                                                                    \
     lpswe-early                                                                \
     lra                                                                        \
     mc                                                                         \
+    precise-smc-softmmu                                                        \
     ssm-early                                                                  \
     stosm-early                                                                \
     stpq                                                                       \
