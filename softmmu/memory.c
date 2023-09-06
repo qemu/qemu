@@ -1620,18 +1620,17 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       uint32_t ram_flags,
                                       const char *path,
                                       ram_addr_t offset,
-                                      bool readonly,
                                       Error **errp)
 {
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
-    mr->readonly = readonly;
+    mr->readonly = !!(ram_flags & RAM_READONLY);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->align = align;
     mr->ram_block = qemu_ram_alloc_from_file(size, mr, ram_flags, path,
-                                             offset, readonly, &err);
+                                             offset, &err);
     if (err) {
         mr->size = int128_zero();
         object_unparent(OBJECT(mr));
@@ -1651,10 +1650,11 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->readonly = !!(ram_flags & RAM_READONLY);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc_from_fd(size, mr, ram_flags, fd, offset,
-                                           false, &err);
+                                           &err);
     if (err) {
         mr->size = int128_zero();
         object_unparent(OBJECT(mr));

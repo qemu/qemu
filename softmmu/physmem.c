@@ -1350,7 +1350,6 @@ static int file_ram_open(const char *path,
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             int fd,
-                            bool readonly,
                             bool truncate,
                             off_t offset,
                             Error **errp)
@@ -1408,7 +1407,7 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    qemu_map_flags = readonly ? QEMU_MAP_READONLY : 0;
+    qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
     qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
     qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
     qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
@@ -1876,7 +1875,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 #ifdef CONFIG_POSIX
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
-                                 bool readonly, Error **errp)
+                                 Error **errp)
 {
     RAMBlock *new_block;
     Error *local_err = NULL;
@@ -1884,7 +1883,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
     /* Just support these ram flags by now. */
     assert((ram_flags & ~(RAM_SHARED | RAM_PMEM | RAM_NORESERVE |
-                          RAM_PROTECTED | RAM_NAMED_FILE)) == 0);
+                          RAM_PROTECTED | RAM_NAMED_FILE | RAM_READONLY |
+                          RAM_READONLY_FD)) == 0);
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
@@ -1919,8 +1919,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = ram_flags;
-    new_block->host = file_ram_alloc(new_block, size, fd, readonly,
-                                     !file_size, offset, errp);
+    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, offset,
+                                     errp);
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
@@ -1939,20 +1939,19 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    uint32_t ram_flags, const char *mem_path,
-                                   off_t offset, bool readonly, Error **errp)
+                                   off_t offset, Error **errp)
 {
     int fd;
     bool created;
     RAMBlock *block;
 
-    fd = file_ram_open(mem_path, memory_region_name(mr), readonly, &created,
-                       errp);
+    fd = file_ram_open(mem_path, memory_region_name(mr),
+                       !!(ram_flags & RAM_READONLY_FD), &created, errp);
     if (fd < 0) {
         return NULL;
     }
 
-    block = qemu_ram_alloc_from_fd(size, mr, ram_flags, fd, offset, readonly,
-                                   errp);
+    block = qemu_ram_alloc_from_fd(size, mr, ram_flags, fd, offset, errp);
     if (!block) {
         if (created) {
             unlink(mem_path);
