@@ -2253,6 +2253,7 @@ M: Jeuk Kim <jeuk20.kim@samsung.com>
 S: Supported
 F: hw/ufs/*
 F: include/block/ufs.h
+F: tests/qtest/ufs-test.c
 
 megasas
 M: Hannes Reinecke <hare@suse.com>

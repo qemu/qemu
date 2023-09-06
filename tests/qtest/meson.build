@@ -269,6 +269,7 @@ qos_test_ss.add(
   'virtio-iommu-test.c',
   'vmxnet3-test.c',
   'igb-test.c',
+  'ufs-test.c',
 )
 
 if config_all_devices.has_key('CONFIG_VIRTIO_SERIAL')
