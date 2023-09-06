@@ -255,16 +255,21 @@ struct NbdClientOpts {
     char *device;
     char *srcpath;
     SocketAddress *saddr;
+    int old_stderr;
     bool fork_process;
     bool verbose;
 };
 
-static void nbd_client_release_pipe(void)
+static void nbd_client_release_pipe(int old_stderr)
 {
     /* Close stderr so that the qemu-nbd process exits.  */
-    if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
+    if (dup2(old_stderr, STDERR_FILENO) < 0) {
         error_report("Could not release pipe to parent: %s",
                      strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    if (old_stderr != STDOUT_FILENO && close(old_stderr) < 0) {
+        error_report("Could not release qemu-nbd: %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
 }
@@ -332,7 +337,7 @@ static void *nbd_client_thread(void *arg)
         fprintf(stderr, "NBD device %s is now connected to %s\n",
                 opts->device, opts->srcpath);
     } else {
-        nbd_client_release_pipe();
+        nbd_client_release_pipe(opts->old_stderr);
     }
 
     if (nbd_client(fd) < 0) {
@@ -597,6 +602,7 @@ int main(int argc, char **argv)
         .device = NULL,
         .srcpath = NULL,
         .saddr = NULL,
+        .old_stderr = STDOUT_FILENO,
     };
 
 #ifdef CONFIG_POSIX
@@ -951,6 +957,16 @@ int main(int argc, char **argv)
 
             close(stderr_fd[0]);
 
+            /* Remember parent's stderr if we will be restoring it. */
+            if (opts.verbose /* fork_process is set */) {
+                opts.old_stderr = dup(STDERR_FILENO);
+                if (opts.old_stderr < 0) {
+                    error_report("Could not dup original stderr: %s",
+                                 strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            }
+
             ret = qemu_daemon(1, 0);
             saved_errno = errno;    /* dup2 will overwrite error below */
 
@@ -1181,7 +1197,7 @@ int main(int argc, char **argv)
     }
 
     if (opts.fork_process) {
-        nbd_client_release_pipe();
+        nbd_client_release_pipe(opts.old_stderr);
     }
 
     state = RUNNING;
