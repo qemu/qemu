@@ -1299,6 +1299,25 @@ static int file_ram_open(const char *path,
     for (;;) {
         fd = open(path, readonly ? O_RDONLY : O_RDWR);
         if (fd >= 0) {
+            /*
+             * open(O_RDONLY) won't fail with EISDIR. Check manually if we
+             * opened a directory and fail similarly to how we fail ENOENT
+             * in readonly mode. Note that mkstemp() would imply O_RDWR.
+             */
+            if (readonly) {
+                struct stat file_stat;
+
+                if (fstat(fd, &file_stat)) {
+                    close(fd);
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    return -errno;
+                } else if (S_ISDIR(file_stat.st_mode)) {
+                    close(fd);
+                    return -EISDIR;
+                }
+            }
             /* @path names an existing file, use it */
             break;
         }
