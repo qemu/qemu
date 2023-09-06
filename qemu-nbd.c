@@ -73,7 +73,6 @@
 
 #define MBR_SIZE 512
 
-static SocketAddress *saddr;
 static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATED } state;
 static int shared = 1;
@@ -255,6 +254,7 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
 struct NbdClientOpts {
     char *device;
     char *srcpath;
+    SocketAddress *saddr;
     bool fork_process;
     bool verbose;
 };
@@ -289,7 +289,7 @@ static void *nbd_client_thread(void *arg)
 
     sioc = qio_channel_socket_new();
     if (qio_channel_socket_connect_sync(sioc,
-                                        saddr,
+                                        opts->saddr,
                                         &local_error) < 0) {
         error_report_err(local_error);
         goto out;
@@ -591,6 +591,7 @@ int main(int argc, char **argv)
         .verbose = false,
         .device = NULL,
         .srcpath = NULL,
+        .saddr = NULL,
     };
 
 #ifdef CONFIG_POSIX
@@ -892,8 +893,8 @@ int main(int argc, char **argv)
     }
 
     if (list) {
-        saddr = nbd_build_socket_address(sockpath, bindto, port);
-        return qemu_nbd_client_list(saddr, tlscreds,
+        opts.saddr = nbd_build_socket_address(sockpath, bindto, port);
+        return qemu_nbd_client_list(opts.saddr, tlscreds,
                                     tlshostname ? tlshostname : bindto);
     }
 
@@ -1024,8 +1025,8 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
 #endif
-        saddr = nbd_build_socket_address(sockpath, bindto, port);
-        if (qio_net_listener_open_sync(server, saddr, backlog,
+        opts.saddr = nbd_build_socket_address(sockpath, bindto, port);
+        if (qio_net_listener_open_sync(server, opts.saddr, backlog,
                                        &local_err) < 0) {
             object_unref(OBJECT(server));
             error_report_err(local_err);
