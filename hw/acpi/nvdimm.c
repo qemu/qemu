@@ -670,7 +670,8 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
 }
 
 static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
-                                           uint32_t offset, uint32_t length)
+                                           uint32_t offset, uint32_t length,
+                                           bool is_write)
 {
     uint32_t ret = NVDIMM_DSM_RET_STATUS_INVALID;
 
@@ -688,6 +689,10 @@ static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
         trace_acpi_nvdimm_label_xfer_exceed(length,
                                             nvdimm_get_max_xfer_label_size());
         return ret;
+    }
+
+    if (is_write && nvdimm->readonly) {
+        return NVDIMM_DSM_RET_STATUS_UNSUPPORT;
     }
 
     return NVDIMM_DSM_RET_STATUS_SUCCESS;
@@ -713,7 +718,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
                                  get_label_data->length);
 
     status = nvdimm_rw_label_data_check(nvdimm, get_label_data->offset,
-                                        get_label_data->length);
+                                        get_label_data->length, false);
     if (status != NVDIMM_DSM_RET_STATUS_SUCCESS) {
         nvdimm_dsm_no_payload(status, dsm_mem_addr);
         return;
@@ -752,7 +757,7 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
                                   set_label_data->length);
 
     status = nvdimm_rw_label_data_check(nvdimm, set_label_data->offset,
-                                        set_label_data->length);
+                                        set_label_data->length, true);
     if (status != NVDIMM_DSM_RET_STATUS_SUCCESS) {
         nvdimm_dsm_no_payload(status, dsm_mem_addr);
         return;
