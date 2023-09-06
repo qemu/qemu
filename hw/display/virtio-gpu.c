@@ -1283,7 +1283,9 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             g_free(res);
             return -EINVAL;
         }
-
+#ifdef WIN32
+        pixman_image_set_destroy_function(res->image, win32_pixman_image_destroy, res->handle);
+#endif
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
