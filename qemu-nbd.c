@@ -253,6 +253,12 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
 }
 
 
+struct NbdClientOpts {
+    char *device;
+    bool fork_process;
+    bool verbose;
+};
+
 #if HAVE_NBD_DEVICE
 static void *show_parts(void *arg)
 {
@@ -270,12 +276,6 @@ static void *show_parts(void *arg)
     }
     return NULL;
 }
-
-struct NbdClientOpts {
-    char *device;
-    bool fork_process;
-    bool verbose;
-};
 
 static void *nbd_client_thread(void *arg)
 {
@@ -519,7 +519,6 @@ int main(int argc, char **argv)
     const char *bindto = NULL;
     const char *port = NULL;
     char *sockpath = NULL;
-    char *device = NULL;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
     const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:AB:L";
@@ -582,16 +581,16 @@ int main(int argc, char **argv)
     const char *tlshostname = NULL;
     bool imageOpts = false;
     bool writethrough = false; /* Client will flush as needed. */
-    bool verbose = false;
-    bool fork_process = false;
     bool list = false;
     unsigned socket_activation;
     const char *pid_file_name = NULL;
     const char *selinux_label = NULL;
     BlockExportOptions *export_opts;
-#if HAVE_NBD_DEVICE
-    struct NbdClientOpts opts;
-#endif
+    struct NbdClientOpts opts = {
+        .fork_process = false,
+        .verbose = false,
+        .device = NULL,
+    };
 
 #ifdef CONFIG_POSIX
     os_setup_early_signal_handling();
@@ -719,7 +718,7 @@ int main(int argc, char **argv)
             disconnect = true;
             break;
         case 'c':
-            device = optarg;
+            opts.device = optarg;
             break;
         case 'e':
             if (qemu_strtoi(optarg, NULL, 0, &shared) < 0 ||
@@ -750,7 +749,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'v':
-            verbose = true;
+            opts.verbose = true;
             break;
         case 'V':
             version(argv[0]);
@@ -782,7 +781,7 @@ int main(int argc, char **argv)
             tlsauthz = optarg;
             break;
         case QEMU_NBD_OPT_FORK:
-            fork_process = true;
+            opts.fork_process = true;
             break;
         case 'L':
             list = true;
@@ -802,12 +801,12 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
         if (export_name || export_description || dev_offset ||
-            device || disconnect || fmt || sn_id_or_name || bitmaps ||
+            opts.device || disconnect || fmt || sn_id_or_name || bitmaps ||
             alloc_depth || seen_aio || seen_discard || seen_cache) {
             error_report("List mode is incompatible with per-device settings");
             exit(EXIT_FAILURE);
         }
-        if (fork_process) {
+        if (opts.fork_process) {
             error_report("List mode is incompatible with forking");
             exit(EXIT_FAILURE);
         }
@@ -832,7 +831,8 @@ int main(int argc, char **argv)
         }
     } else {
         /* Using socket activation - check user didn't use -p etc. */
-        const char *err_msg = socket_activation_validate_opts(device, sockpath,
+        const char *err_msg = socket_activation_validate_opts(opts.device,
+                                                              sockpath,
                                                               bindto, port,
                                                               selinux_label,
                                                               list);
@@ -850,7 +850,7 @@ int main(int argc, char **argv)
     }
 
     if (tlscredsid) {
-        if (device) {
+        if (opts.device) {
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
         }
@@ -880,7 +880,7 @@ int main(int argc, char **argv)
 
     if (selinux_label) {
 #ifdef CONFIG_SELINUX
-        if (sockpath == NULL && device == NULL) {
+        if (sockpath == NULL && opts.device == NULL) {
             error_report("--selinux-label is not permitted without --socket");
             exit(EXIT_FAILURE);
         }
@@ -897,7 +897,7 @@ int main(int argc, char **argv)
     }
 
 #if !HAVE_NBD_DEVICE
-    if (disconnect || device) {
+    if (disconnect || opts.device) {
         error_report("Kernel /dev/nbdN support not available");
         exit(EXIT_FAILURE);
     }
@@ -919,7 +919,7 @@ int main(int argc, char **argv)
     }
 #endif
 
-    if ((device && !verbose) || fork_process) {
+    if ((opts.device && !opts.verbose) || opts.fork_process) {
 #ifndef WIN32
         g_autoptr(GError) err = NULL;
         int stderr_fd[2];
@@ -1002,9 +1002,9 @@ int main(int argc, char **argv)
 #endif /* WIN32 */
     }
 
-    if (device != NULL && sockpath == NULL) {
+    if (opts.device != NULL && sockpath == NULL) {
         sockpath = g_malloc(128);
-        snprintf(sockpath, 128, SOCKET_PATH, basename(device));
+        snprintf(sockpath, 128, SOCKET_PATH, basename(opts.device));
     }
 
     server = qio_net_listener_new();
@@ -1145,15 +1145,9 @@ int main(int argc, char **argv)
     blk_exp_add(export_opts, &error_fatal);
     qapi_free_BlockExportOptions(export_opts);
 
-    if (device) {
+    if (opts.device) {
 #if HAVE_NBD_DEVICE
         int ret;
-        opts = (struct NbdClientOpts) {
-            .device = device,
-            .fork_process = fork_process,
-            .verbose = verbose,
-        };
-
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, &opts);
         if (ret != 0) {
             error_report("Failed to create client thread: %s", strerror(ret));
@@ -1179,7 +1173,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (fork_process) {
+    if (opts.fork_process) {
         if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
             error_report("Could not release pipe to parent: %s",
                          strerror(errno));
@@ -1203,7 +1197,7 @@ int main(int argc, char **argv)
 
     qemu_opts_del(sn_opts);
 
-    if (device) {
+    if (opts.device) {
         void *ret;
         pthread_join(client_thread, &ret);
         exit(ret != NULL);
