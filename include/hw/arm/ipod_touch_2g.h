@@ -27,6 +27,7 @@
 #include "hw/arm/ipod_touch_mbx.h"
 #include "hw/arm/ipod_touch_scaler_csc.h"
 #include "hw/arm/ipod_touch_sdio.h"
+#include "hw/arm/ipod_touch_tvout.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -44,6 +45,7 @@
 #define S5L8720_I2C0_IRQ 0x15
 #define S5L8720_SPI3_IRQ 0x1C
 #define S5L8720_I2C1_IRQ 0x16
+#define S5L8720_TVOUT_SDO_IRQ 0x1E
 #define S5L8720_SDIO_IRQ 0x2A
 #define S5L8720_FMSS_IRQ 0x36
 #define S5L8720_SPI4_IRQ 0x37
@@ -76,10 +78,9 @@
 #define EDGEIC_MEM_BASE       0x38E02000
 #define H264_MEM_BASE         0x38F00000
 #define SCALER_CSC_MEM_BASE   0x39000000
-#define TVOUT1_MEM_BASE       0x39100000
-#define TVOUT2_MEM_BASE       0x39200000
-#define TVOUT3_MEM_BASE       0x39300000
-//#define BLOCK_DEVICE_MEM_BASE 0x39400000
+#define TVOUT_MIXER2_MEM_BASE 0x39100000
+#define TVOUT_MIXER1_MEM_BASE 0x39200000
+#define TVOUT_SDO_MEM_BASE    0x39300000
 #define SYSIC_MEM_BASE        0x39700000
 #define DMAC1_1_MEM_BASE      0x39900000
 #define MBX1_MEM_BASE         0x3B000000
@@ -140,6 +141,7 @@ typedef struct {
 	IPodTouchMBXState *mbx_state;
 	IPodTouchScalerCSCState *scaler_csc_state;
 	IPodTouchSDIOState *sdio_state;
+	IPodTouchTVOutState *tvout_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);

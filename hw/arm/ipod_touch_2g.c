@@ -88,9 +88,6 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
-    allocate_ram(sysmem, "tvout1", TVOUT1_MEM_BASE, 0x1000);
-    allocate_ram(sysmem, "tvout2", TVOUT2_MEM_BASE, 0x1000);
-    allocate_ram(sysmem, "tvout3", TVOUT3_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, 0x400000);
     allocate_ram(sysmem, "edgeic", EDGEIC_MEM_BASE, 0x1000);
     allocate_ram(sysmem, "swi", SWI_MEM_BASE, 0x1000);
@@ -277,6 +274,17 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->chipid_state = chipid_state;
     memory_region_add_subregion(sysmem, CHIPID_MEM_BASE, &chipid_state->iomem);
 
+    // init the TVOut instance
+    dev = qdev_new("ipodtouch.tvout");
+    IPodTouchTVOutState *tvout_state = IPOD_TOUCH_TVOUT(dev);
+    nms->tvout_state = tvout_state;
+    memory_region_add_subregion(sysmem, TVOUT_MIXER1_MEM_BASE, &tvout_state->mixer1_iomem);
+    memory_region_add_subregion(sysmem, TVOUT_MIXER2_MEM_BASE, &tvout_state->mixer2_iomem);
+    memory_region_add_subregion(sysmem, TVOUT_SDO_MEM_BASE, &tvout_state->sdo_iomem);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_TVOUT_SDO_IRQ));
+
     // init the unknown1 module
     dev = qdev_new("ipodtouch.unknown1");
     IPodTouchUnknown1State *unknown1_state = IPOD_TOUCH_UNKNOWN1(dev);
@@ -344,7 +352,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_FMSS_IRQ));
 
-    // init the chip ID module
+    // init the USB module
     dev = qdev_new("ipodtouch.usbphys");
     IPodTouchUSBPhysState *usb_phys_state = IPOD_TOUCH_USB_PHYS(dev);
     nms->usb_phys_state = usb_phys_state;
