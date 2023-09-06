@@ -26,6 +26,30 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque);
 
+/* Whether this field should exist for either save or load the VM? */
+static bool
+vmstate_field_exists(const VMStateDescription *vmsd, const VMStateField *field,
+                     void *opaque, int version_id)
+{
+    bool result;
+
+    if (field->field_exists) {
+        /* If there's the function checker, that's the solo truth */
+        result = field->field_exists(opaque, version_id);
+        trace_vmstate_field_exists(vmsd->name, field->name, field->version_id,
+                                   version_id, result);
+    } else {
+        /*
+         * Otherwise, we only save/load if field version is same or older.
+         * For example, when loading from an old binary with old version,
+         * we ignore new fields with newer version_ids.
+         */
+        result = field->version_id <= version_id;
+    }
+
+    return result;
+}
+
 static int vmstate_n_elems(void *opaque, const VMStateField *field)
 {
     int n_elems = 1;
@@ -105,10 +129,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     }
     while (field->name) {
         trace_vmstate_load_state_field(vmsd->name, field->name);
-        if ((field->field_exists &&
-             field->field_exists(opaque, version_id)) ||
-            (!field->field_exists &&
-             field->version_id <= version_id)) {
+        if (vmstate_field_exists(vmsd, field, opaque, version_id)) {
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
@@ -349,10 +370,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
     }
 
     while (field->name) {
-        if ((field->field_exists &&
-             field->field_exists(opaque, version_id)) ||
-            (!field->field_exists &&
-             field->version_id <= version_id)) {
+        if (vmstate_field_exists(vmsd, field, opaque, version_id)) {
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
