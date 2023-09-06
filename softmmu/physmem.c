@@ -1288,8 +1288,7 @@ static int64_t get_file_align(int fd)
 static int file_ram_open(const char *path,
                          const char *region_name,
                          bool readonly,
-                         bool *created,
-                         Error **errp)
+                         bool *created)
 {
     char *filename;
     char *sanitized_name;
@@ -1304,6 +1303,10 @@ static int file_ram_open(const char *path,
             break;
         }
         if (errno == ENOENT) {
+            if (readonly) {
+                /* Refuse to create new, readonly files. */
+                return -ENOENT;
+            }
             /* @path names a file that doesn't exist, create it */
             fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
             if (fd >= 0) {
@@ -1333,10 +1336,7 @@ static int file_ram_open(const char *path,
             g_free(filename);
         }
         if (errno != EEXIST && errno != EINTR) {
-            error_setg_errno(errp, errno,
-                             "can't open backing store %s for guest RAM",
-                             path);
-            return -1;
+            return -errno;
         }
         /*
          * Try again on EINTR and EEXIST.  The latter happens when
@@ -1946,8 +1946,10 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     RAMBlock *block;
 
     fd = file_ram_open(mem_path, memory_region_name(mr),
-                       !!(ram_flags & RAM_READONLY_FD), &created, errp);
+                       !!(ram_flags & RAM_READONLY_FD), &created);
     if (fd < 0) {
+        error_setg_errno(errp, -fd, "can't open backing store %s for guest RAM",
+                         mem_path);
         return NULL;
     }
 
