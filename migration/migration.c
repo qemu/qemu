@@ -1392,8 +1392,15 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
-void migrate_init(MigrationState *s)
+int migrate_init(MigrationState *s, Error **errp)
 {
+    int ret;
+
+    ret = qemu_savevm_state_prepare(errp);
+    if (ret) {
+        return ret;
+    }
+
     /*
      * Reinitialise all migration state, except
      * parameters/capabilities that the user set, and
@@ -1432,6 +1439,8 @@ void migrate_init(MigrationState *s)
     memset(&mig_stats, 0, sizeof(mig_stats));
     memset(&compression_counters, 0, sizeof(compression_counters));
     migration_reset_vfio_bytes_transferred();
+
+    return 0;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -1641,7 +1650,9 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         migrate_set_block_incremental(true);
     }
 
-    migrate_init(s);
+    if (migrate_init(s, errp)) {
+        return false;
+    }
 
     return true;
 }
