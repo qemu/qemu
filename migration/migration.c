@@ -1425,6 +1425,13 @@ void migrate_init(MigrationState *s)
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
     s->switchover_acked = false;
+    /*
+     * set mig_stats compression_counters memory to zero for a
+     * new migration
+     */
+    memset(&mig_stats, 0, sizeof(mig_stats));
+    memset(&compression_counters, 0, sizeof(compression_counters));
+    migration_reset_vfio_bytes_transferred();
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -1635,13 +1642,6 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     migrate_init(s);
-    /*
-     * set mig_stats compression_counters memory to zero for a
-     * new migration
-     */
-    memset(&mig_stats, 0, sizeof(mig_stats));
-    memset(&compression_counters, 0, sizeof(compression_counters));
-    migration_reset_vfio_bytes_transferred();
 
     return true;
 }
