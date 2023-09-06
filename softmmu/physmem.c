@@ -1969,6 +1969,25 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     if (fd < 0) {
         error_setg_errno(errp, -fd, "can't open backing store %s for guest RAM",
                          mem_path);
+        if (!(ram_flags & RAM_READONLY_FD) && !(ram_flags & RAM_SHARED) &&
+            fd == -EACCES) {
+            /*
+             * If we can open the file R/O (note: will never create a new file)
+             * and we are dealing with a private mapping, there are still ways
+             * to consume such files and get RAM instead of ROM.
+             */
+            fd = file_ram_open(mem_path, memory_region_name(mr), true,
+                               &created);
+            if (fd < 0) {
+                return NULL;
+            }
+            assert(!created);
+            close(fd);
+            error_append_hint(errp, "Consider opening the backing store"
+                " read-only but still creating writable RAM using"
+                " '-object memory-backend-file,readonly=on,rom=off...'"
+                " (see \"VM templating\" documentation)\n");
+        }
         return NULL;
     }
 
