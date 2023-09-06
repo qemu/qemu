@@ -26,6 +26,9 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
+#ifdef CONFIG_OPENGL
+#include <pixman.h>
+#endif
 #ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
 #endif
@@ -59,11 +62,14 @@ struct _DBusDisplayListener {
 
     QemuDBusDisplay1Listener *proxy;
 
+#ifdef CONFIG_OPENGL
+    /* Keep track of the damage region */
+    pixman_region32_t gl_damage;
+#endif
+
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     enum share_kind ds_share;
-
-    int gl_updates;
 
     bool ds_mapped;
     bool can_share_map;
@@ -539,11 +545,16 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
         return;
     }
 
-    if (ddl->gl_updates) {
-        dbus_call_update_gl(dcl, 0, 0,
-                            surface_width(ddl->ds), surface_height(ddl->ds));
-        ddl->gl_updates = 0;
+    int n_rects = pixman_region32_n_rects(&ddl->gl_damage);
+
+    for (int i = 0; i < n_rects; i++) {
+        pixman_box32_t *box;
+        box = pixman_region32_rectangles(&ddl->gl_damage, NULL) + i;
+        /* TODO: Add a UpdateList call to send multiple updates at once */
+        dbus_call_update_gl(dcl, box->x1, box->y1,
+                            box->x2 - box->x1, box->y2 - box->y1);
     }
+    pixman_region32_clear(&ddl->gl_damage);
 }
 #endif /* OPENGL */
 
@@ -558,7 +569,10 @@ static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    ddl->gl_updates++;
+    pixman_region32_t rect_region;
+    pixman_region32_init_rect(&rect_region, x, y, w, h);
+    pixman_region32_union(&ddl->gl_damage, &ddl->gl_damage, &rect_region);
+    pixman_region32_fini(&rect_region);
 }
 #endif
 
@@ -738,6 +752,7 @@ dbus_display_listener_dispose(GObject *object)
     g_clear_object(&ddl->d3d11_proxy);
     g_clear_pointer(&ddl->peer_process, CloseHandle);
 #ifdef CONFIG_OPENGL
+    pixman_region32_fini(&ddl->gl_damage);
     egl_fb_destroy(&ddl->fb);
 #endif
 #endif
@@ -772,6 +787,9 @@ dbus_display_listener_class_init(DBusDisplayListenerClass *klass)
 static void
 dbus_display_listener_init(DBusDisplayListener *ddl)
 {
+#ifdef CONFIG_OPENGL
+    pixman_region32_init(&ddl->gl_damage);
+#endif
 }
 
 const char *

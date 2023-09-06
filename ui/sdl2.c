@@ -483,10 +483,9 @@ static void handle_textinput(SDL_Event *ev)
         return;
     }
 
-    if (qemu_console_is_graphic(con)) {
-        return;
+    if (QEMU_IS_TEXT_CONSOLE(con)) {
+        kbd_put_string_console(QEMU_TEXT_CONSOLE(con), ev->text.text, strlen(ev->text.text));
     }
-    kbd_put_string_console(con, ev->text.text, strlen(ev->text.text));
 }
 
 static void handle_mousemotion(SDL_Event *ev)

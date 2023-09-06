@@ -1187,7 +1187,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
                                  GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
-    QemuConsole *con = vc->gfx.dcl.con;
+    QemuTextConsole *con = QEMU_TEXT_CONSOLE(vc->gfx.dcl.con);
 
     if (key->keyval == GDK_KEY_Delete) {
         kbd_put_qcode_console(con, Q_KEY_CODE_DELETE, false);
@@ -1860,7 +1860,6 @@ static void char_gd_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_vc;
     cc->open = gd_vc_open;
     cc->chr_write = gd_vc_chr_write;
     cc->chr_accept_input = gd_vc_chr_accept_input;
@@ -2360,7 +2359,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     VirtualConsole *vc;
 
-    GtkDisplayState *s = g_malloc0(sizeof(*s));
+    GtkDisplayState *s;
     GdkDisplay *window_display;
     GtkIconTheme *theme;
     char *dir;
@@ -2370,6 +2369,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         exit(1);
     }
     assert(opts->type == DISPLAY_TYPE_GTK);
+    s = g_malloc0(sizeof(*s));
     s->opts = opts;
 
     theme = gtk_icon_theme_get_default();
