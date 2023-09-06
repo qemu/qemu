@@ -259,6 +259,16 @@ struct NbdClientOpts {
     bool verbose;
 };
 
+static void nbd_client_release_pipe(void)
+{
+    /* Close stderr so that the qemu-nbd process exits.  */
+    if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
+        error_report("Could not release pipe to parent: %s",
+                     strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+}
+
 #if HAVE_NBD_DEVICE
 static void *show_parts(void *arg)
 {
@@ -322,12 +332,7 @@ static void *nbd_client_thread(void *arg)
         fprintf(stderr, "NBD device %s is now connected to %s\n",
                 opts->device, opts->srcpath);
     } else {
-        /* Close stderr so that the qemu-nbd process exits.  */
-        if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
-            error_report("Could not release pipe to parent: %s",
-                         strerror(errno));
-            exit(EXIT_FAILURE);
-        }
+        nbd_client_release_pipe();
     }
 
     if (nbd_client(fd) < 0) {
@@ -1176,11 +1181,7 @@ int main(int argc, char **argv)
     }
 
     if (opts.fork_process) {
-        if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
-            error_report("Could not release pipe to parent: %s",
-                         strerror(errno));
-            exit(EXIT_FAILURE);
-        }
+        nbd_client_release_pipe();
     }
 
     state = RUNNING;
