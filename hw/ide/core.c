@@ -2491,18 +2491,18 @@ static void ide_dummy_transfer_stop(IDEState *s)
 
 void ide_bus_reset(IDEBus *bus)
 {
-    bus->unit = 0;
-    bus->cmd = 0;
-    ide_reset(&bus->ifs[0]);
-    ide_reset(&bus->ifs[1]);
-    ide_clear_hob(bus);
-
-    /* pending async DMA */
+    /* pending async DMA - needs the IDEState before it is reset */
     if (bus->dma->aiocb) {
         trace_ide_bus_reset_aio();
         blk_aio_cancel(bus->dma->aiocb);
         bus->dma->aiocb = NULL;
     }
+
+    bus->unit = 0;
+    bus->cmd = 0;
+    ide_reset(&bus->ifs[0]);
+    ide_reset(&bus->ifs[1]);
+    ide_clear_hob(bus);
 
     /* reset dma provider too */
     if (bus->dma->ops->reset) {
