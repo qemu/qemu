@@ -15,7 +15,7 @@
 #endif
 
 #ifdef CONFIG_VFIO
-void populate_vfio_info(MigrationInfo *info)
+void migration_populate_vfio_info(MigrationInfo *info)
 {
     if (vfio_mig_active()) {
         info->vfio = g_malloc0(sizeof(*info->vfio));
@@ -23,16 +23,16 @@ void populate_vfio_info(MigrationInfo *info)
     }
 }
 
-void reset_vfio_bytes_transferred(void)
+void migration_reset_vfio_bytes_transferred(void)
 {
     vfio_reset_bytes_transferred();
 }
 #else
-void populate_vfio_info(MigrationInfo *info)
+void migration_populate_vfio_info(MigrationInfo *info)
 {
 }
 
-void reset_vfio_bytes_transferred(void)
+void migration_reset_vfio_bytes_transferred(void)
 {
 }
 #endif
