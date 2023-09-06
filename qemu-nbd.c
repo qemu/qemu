@@ -73,7 +73,6 @@
 
 #define MBR_SIZE 512
 
-static char *srcpath;
 static SocketAddress *saddr;
 static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATED } state;
@@ -255,6 +254,7 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
 
 struct NbdClientOpts {
     char *device;
+    char *srcpath;
     bool fork_process;
     bool verbose;
 };
@@ -320,7 +320,7 @@ static void *nbd_client_thread(void *arg)
 
     if (opts->verbose && !opts->fork_process) {
         fprintf(stderr, "NBD device %s is now connected to %s\n",
-                opts->device, srcpath);
+                opts->device, opts->srcpath);
     } else {
         /* Close stderr so that the qemu-nbd process exits.  */
         if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
@@ -590,6 +590,7 @@ int main(int argc, char **argv)
         .fork_process = false,
         .verbose = false,
         .device = NULL,
+        .srcpath = NULL,
     };
 
 #ifdef CONFIG_POSIX
@@ -1059,19 +1060,19 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(qemu_nbd_shutdown);
 
-    srcpath = argv[optind];
+    opts.srcpath = argv[optind];
     if (imageOpts) {
-        QemuOpts *opts;
+        QemuOpts *o;
         if (fmt) {
             error_report("--image-opts and -f are mutually exclusive");
             exit(EXIT_FAILURE);
         }
-        opts = qemu_opts_parse_noisily(&file_opts, srcpath, true);
-        if (!opts) {
+        o = qemu_opts_parse_noisily(&file_opts, opts.srcpath, true);
+        if (!o) {
             qemu_opts_reset(&file_opts);
             exit(EXIT_FAILURE);
         }
-        options = qemu_opts_to_qdict(opts, NULL);
+        options = qemu_opts_to_qdict(o, NULL);
         qemu_opts_reset(&file_opts);
         blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     } else {
@@ -1079,7 +1080,7 @@ int main(int argc, char **argv)
             options = qdict_new();
             qdict_put_str(options, "driver", fmt);
         }
-        blk = blk_new_open(srcpath, NULL, options, flags, &local_err);
+        blk = blk_new_open(opts.srcpath, NULL, options, flags, &local_err);
     }
 
     if (!blk) {
