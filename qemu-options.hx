@@ -4995,7 +4995,7 @@ SRST
     they are specified. Note that the 'id' property must be set. These
     objects are placed in the '/objects' path.
 
-    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off``
+    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off,rom=on|off|auto``
         Creates a memory file backend object, which can be used to back
         the guest RAM with huge pages.
 
@@ -5084,6 +5084,20 @@ SRST
 
         The ``readonly`` option specifies whether the backing file is opened
         read-only or read-write (default).
+
+        The ``rom`` option specifies whether to create Read Only Memory
+        (ROM) that cannot be modified by the VM. Any write attempts to such
+        ROM will be denied. Most use cases want proper RAM instead of ROM.
+        However, selected use cases, like R/O NVDIMMs, can benefit from
+        ROM. If set to ``on``, create ROM; if set to ``off``, create
+        writable RAM; if set to ``auto`` (default), the value of the
+        ``readonly`` option is used. This option is primarily helpful when
+        we want to have writable RAM in configurations that would
+        traditionally create ROM before the ``rom`` option was introduced:
+        VM templating, where we want to open a file readonly
+        (``readonly=on``) and mark the memory to be private for QEMU
+        (``share=off``). For this use case, we need writable RAM instead
+        of ROM, and want to also set ``rom=off``.
 
     ``-object memory-backend-ram,id=id,merge=on|off,dump=on|off,share=on|off,prealloc=on|off,size=size,host-nodes=host-nodes,policy=default|preferred|bind|interleave``
         Creates a memory backend object, which can be used to back the
