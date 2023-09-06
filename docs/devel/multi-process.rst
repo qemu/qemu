@@ -409,8 +409,9 @@ the initial messages sent to the emulation process is a guest memory
 table. Each entry in this table consists of a file descriptor and size
 that the emulation process can ``mmap()`` to directly access guest
 memory, similar to ``vhost_user_set_mem_table()``. Note guest memory
-must be backed by file descriptors, such as when QEMU is given the
-*-mem-path* command line option.
+must be backed by shared file-backed memory, for example, using
+*-object memory-backend-file,share=on* and setting that memory backend
+as RAM for the machine.
 
 IOMMU operations
 ^^^^^^^^^^^^^^^^
