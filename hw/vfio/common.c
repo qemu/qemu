@@ -394,8 +394,7 @@ int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
 {
     int ret;
 
-    if (multiple_devices_migration_blocker ||
-        vfio_multiple_devices_migration_is_supported()) {
+    if (vfio_multiple_devices_migration_is_supported()) {
         return 0;
     }
 
@@ -403,6 +402,10 @@ int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
         error_setg(errp, "Multiple VFIO devices migration is supported only if "
                          "all of them support P2P migration");
         return -EINVAL;
+    }
+
+    if (multiple_devices_migration_blocker) {
+        return 0;
     }
 
     error_setg(&multiple_devices_migration_blocker,
