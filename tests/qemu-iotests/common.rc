@@ -979,10 +979,15 @@ _require_drivers()
 #
 _require_large_file()
 {
-    if ! truncate --size="$1" "$TEST_IMG"; then
+    if [ -z "$TEST_IMG_FILE" ]; then
+        FILENAME="$TEST_IMG"
+    else
+        FILENAME="$TEST_IMG_FILE"
+    fi
+    if ! truncate --size="$1" "$FILENAME"; then
         _notrun "file system on $TEST_DIR does not support large enough files"
     fi
-    rm "$TEST_IMG"
+    rm "$FILENAME"
 }
 
 # Check that a set of devices is available in the QEMU binary
