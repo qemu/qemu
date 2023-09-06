@@ -2248,6 +2248,12 @@ F: tests/qtest/nvme-test.c
 F: docs/system/devices/nvme.rst
 T: git git://git.infradead.org/qemu-nvme.git nvme-next
 
+ufs
+M: Jeuk Kim <jeuk20.kim@samsung.com>
+S: Supported
+F: hw/ufs/*
+F: include/block/ufs.h
+
 megasas
 M: Hannes Reinecke <hare@suse.com>
 L: qemu-block@nongnu.org
