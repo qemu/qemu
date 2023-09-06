@@ -340,7 +340,8 @@ static int vfio_save_prepare(void *opaque, Error **errp)
     VFIODevice *vbasedev = opaque;
 
     /*
-     * Snapshot doesn't use postcopy, so allow snapshot even if postcopy is on.
+     * Snapshot doesn't use postcopy nor background snapshot, so allow snapshot
+     * even if they are on.
      */
     if (runstate_check(RUN_STATE_SAVE_VM)) {
         return 0;
@@ -349,6 +350,14 @@ static int vfio_save_prepare(void *opaque, Error **errp)
     if (migrate_postcopy_ram()) {
         error_setg(
             errp, "%s: VFIO migration is not supported with postcopy migration",
+            vbasedev->name);
+        return -EOPNOTSUPP;
+    }
+
+    if (migrate_background_snapshot()) {
+        error_setg(
+            errp,
+            "%s: VFIO migration is not supported with background snapshot",
             vbasedev->name);
         return -EOPNOTSUPP;
     }
