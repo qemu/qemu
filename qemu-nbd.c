@@ -324,7 +324,7 @@ static void *nbd_client_thread(void *arg)
     } else {
         /* Close stderr so that the qemu-nbd process exits.  */
         if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
-            error_report("Could not set stderr to /dev/null: %s",
+            error_report("Could not release pipe to parent: %s",
                          strerror(errno));
             exit(EXIT_FAILURE);
         }
@@ -1181,7 +1181,7 @@ int main(int argc, char **argv)
 
     if (fork_process) {
         if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
-            error_report("Could not set stderr to /dev/null: %s",
+            error_report("Could not release pipe to parent: %s",
                          strerror(errno));
             exit(EXIT_FAILURE);
         }
