@@ -2069,6 +2069,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     ram_addr_t offset;
     int flags;
     void *area, *vaddr;
+    int prot;
 
     RAMBLOCK_FOREACH(block) {
         offset = addr - block->offset;
@@ -2083,13 +2084,14 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                 flags |= block->flags & RAM_SHARED ?
                          MAP_SHARED : MAP_PRIVATE;
                 flags |= block->flags & RAM_NORESERVE ? MAP_NORESERVE : 0;
+                prot = PROT_READ;
+                prot |= block->flags & RAM_READONLY ? 0 : PROT_WRITE;
                 if (block->fd >= 0) {
-                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                flags, block->fd, offset + block->fd_offset);
+                    area = mmap(vaddr, length, prot, flags, block->fd,
+                                offset + block->fd_offset);
                 } else {
                     flags |= MAP_ANONYMOUS;
-                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                flags, -1, 0);
+                    area = mmap(vaddr, length, prot, flags, -1, 0);
                 }
                 if (area != vaddr) {
                     error_report("Could not remap addr: "
