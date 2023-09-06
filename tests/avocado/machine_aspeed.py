@@ -316,8 +316,8 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         """
 
         image_url = ('https://github.com/AspeedTech-BMC/openbmc/releases/'
-                     'download/v08.01/ast2500-default-obmc.tar.gz')
-        image_hash = ('5375f82b4c43a79427909342a1e18b4e48bd663e38466862145d27bb358796fd')
+                     'download/v08.06/ast2500-default-obmc.tar.gz')
+        image_hash = ('e1755f3cadff69190438c688d52dd0f0d399b70a1e14b1d3d5540fc4851d38ca')
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
         archive.extract(image_path, self.workdir)
@@ -334,8 +334,8 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         """
 
         image_url = ('https://github.com/AspeedTech-BMC/openbmc/releases/'
-                     'download/v08.01/ast2600-default-obmc.tar.gz')
-        image_hash = ('f12ef15e8c1f03a214df3b91c814515c5e2b2f56119021398c1dbdd626817d15')
+                     'download/v08.06/ast2600-a2-obmc.tar.gz')
+        image_hash = ('9083506135f622d5e7351fcf7d4e1c7125cee5ba16141220c0ba88931f3681a4')
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
         archive.extract(image_path, self.workdir)
@@ -345,8 +345,8 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         self.vm.add_args('-device',
                          'ds1338,bus=aspeed.i2c.bus.5,address=0x32');
         self.do_test_arm_aspeed_sdk_start(
-            self.workdir + '/ast2600-default/image-bmc')
-        self.wait_for_console_pattern('nodistro.0 ast2600-default ttyS4')
+            self.workdir + '/ast2600-a2/image-bmc')
+        self.wait_for_console_pattern('nodistro.0 ast2600-a2 ttyS4')
 
         self.ssh_connect('root', '0penBmc', False)
         self.ssh_command('dmesg -c > /dev/null')
