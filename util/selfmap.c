@@ -30,19 +30,21 @@ IntervalTreeRoot *read_self_maps(void)
 
         if (nfields > 4) {
             uint64_t start, end, offset, inode;
+            unsigned dev_maj, dev_min;
             int errors = 0;
             const char *p;
 
             errors |= qemu_strtou64(fields[0], &p, 16, &start);
             errors |= qemu_strtou64(p + 1, NULL, 16, &end);
             errors |= qemu_strtou64(fields[2], NULL, 16, &offset);
+            errors |= qemu_strtoui(fields[3], &p, 16, &dev_maj);
+            errors |= qemu_strtoui(p + 1, NULL, 16, &dev_min);
             errors |= qemu_strtou64(fields[4], NULL, 10, &inode);
 
             if (!errors) {
-                size_t dev_len, path_len;
+                size_t path_len;
                 MapInfo *e;
 
-                dev_len = strlen(fields[3]) + 1;
                 if (nfields == 6) {
                     p = fields[5];
                     p += strspn(p, " ");
@@ -52,11 +54,12 @@ IntervalTreeRoot *read_self_maps(void)
                     path_len = 0;
                 }
 
-                e = g_malloc0(sizeof(*e) + dev_len + path_len);
+                e = g_malloc0(sizeof(*e) + path_len);
 
                 e->itree.start = start;
                 e->itree.last = end - 1;
                 e->offset = offset;
+                e->dev = makedev(dev_maj, dev_min);
                 e->inode = inode;
 
                 e->is_read  = fields[1][0] == 'r';
@@ -64,9 +67,8 @@ IntervalTreeRoot *read_self_maps(void)
                 e->is_exec  = fields[1][2] == 'x';
                 e->is_priv  = fields[1][3] == 'p';
 
-                memcpy(e->dev, fields[3], dev_len);
                 if (path_len) {
-                    e->path = memcpy(e->dev + dev_len, p, path_len);
+                    e->path = memcpy(e + 1, p, path_len);
                 }
 
                 interval_tree_insert(&e->itree, root);

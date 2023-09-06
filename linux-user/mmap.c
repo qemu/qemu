@@ -17,12 +17,14 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include <sys/shm.h>
 #include "trace.h"
 #include "exec/log.h"
 #include "qemu.h"
 #include "user-internals.h"
 #include "user-mmap.h"
 #include "target_mman.h"
+#include "qemu/interval-tree.h"
 
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
@@ -61,6 +63,44 @@ void mmap_fork_end(int child)
         pthread_mutex_init(&mmap_mutex, NULL);
     } else {
         pthread_mutex_unlock(&mmap_mutex);
+    }
+}
+
+/* Protected by mmap_lock. */
+static IntervalTreeRoot shm_regions;
+
+static void shm_region_add(abi_ptr start, abi_ptr last)
+{
+    IntervalTreeNode *i = g_new0(IntervalTreeNode, 1);
+
+    i->start = start;
+    i->last = last;
+    interval_tree_insert(i, &shm_regions);
+}
+
+static abi_ptr shm_region_find(abi_ptr start)
+{
+    IntervalTreeNode *i;
+
+    for (i = interval_tree_iter_first(&shm_regions, start, start); i;
+         i = interval_tree_iter_next(i, start, start)) {
+        if (i->start == start) {
+            return i->last;
+        }
+    }
+    return 0;
+}
+
+static void shm_region_rm_complete(abi_ptr start, abi_ptr last)
+{
+    IntervalTreeNode *i, *n;
+
+    for (i = interval_tree_iter_first(&shm_regions, start, last); i; i = n) {
+        n = interval_tree_iter_next(i, start, last);
+        if (i->start >= start && i->last <= last) {
+            interval_tree_remove(i, &shm_regions);
+            g_free(i);
+        }
     }
 }
 
@@ -720,6 +760,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             page_set_flags(passthrough_last + 1, last, page_flags);
         }
     }
+    shm_region_rm_complete(start, last);
  the_end:
     trace_target_mmap_complete(start);
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
@@ -817,6 +858,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     mmap_lock();
     mmap_reserve_or_unmap(start, len);
     page_set_flags(start, start + len - 1, 0);
+    shm_region_rm_complete(start, start + len - 1);
     mmap_unlock();
 
     return 0;
@@ -906,8 +948,10 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         new_addr = h2g(host_addr);
         prot = page_get_flags(old_addr);
         page_set_flags(old_addr, old_addr + old_size - 1, 0);
+        shm_region_rm_complete(old_addr, old_addr + old_size - 1);
         page_set_flags(new_addr, new_addr + new_size - 1,
                        prot | PAGE_VALID | PAGE_RESET);
+        shm_region_rm_complete(new_addr, new_addr + new_size - 1);
     }
     mmap_unlock();
     return new_addr;
@@ -980,4 +1024,128 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     mmap_unlock();
 
     return ret;
+}
+
+#ifndef TARGET_FORCE_SHMLBA
+/*
+ * For most architectures, SHMLBA is the same as the page size;
+ * some architectures have larger values, in which case they should
+ * define TARGET_FORCE_SHMLBA and provide a target_shmlba() function.
+ * This corresponds to the kernel arch code defining __ARCH_FORCE_SHMLBA
+ * and defining its own value for SHMLBA.
+ *
+ * The kernel also permits SHMLBA to be set by the architecture to a
+ * value larger than the page size without setting __ARCH_FORCE_SHMLBA;
+ * this means that addresses are rounded to the large size if
+ * SHM_RND is set but addresses not aligned to that size are not rejected
+ * as long as they are at least page-aligned. Since the only architecture
+ * which uses this is ia64 this code doesn't provide for that oddity.
+ */
+static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
+{
+    return TARGET_PAGE_SIZE;
+}
+#endif
+
+abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
+                       abi_ulong shmaddr, int shmflg)
+{
+    CPUState *cpu = env_cpu(cpu_env);
+    abi_ulong raddr;
+    struct shmid_ds shm_info;
+    int ret;
+    abi_ulong shmlba;
+
+    /* shmat pointers are always untagged */
+
+    /* find out the length of the shared memory segment */
+    ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
+    if (is_error(ret)) {
+        /* can't get length, bail out */
+        return ret;
+    }
+
+    shmlba = target_shmlba(cpu_env);
+
+    if (shmaddr & (shmlba - 1)) {
+        if (shmflg & SHM_RND) {
+            shmaddr &= ~(shmlba - 1);
+        } else {
+            return -TARGET_EINVAL;
+        }
+    }
+    if (!guest_range_valid_untagged(shmaddr, shm_info.shm_segsz)) {
+        return -TARGET_EINVAL;
+    }
+
+    WITH_MMAP_LOCK_GUARD() {
+        void *host_raddr;
+        abi_ulong last;
+
+        if (shmaddr) {
+            host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
+        } else {
+            abi_ulong mmap_start;
+
+            /* In order to use the host shmat, we need to honor host SHMLBA.  */
+            mmap_start = mmap_find_vma(0, shm_info.shm_segsz,
+                                       MAX(SHMLBA, shmlba));
+
+            if (mmap_start == -1) {
+                return -TARGET_ENOMEM;
+            }
+            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
+                               shmflg | SHM_REMAP);
+        }
+
+        if (host_raddr == (void *)-1) {
+            return get_errno(-1);
+        }
+        raddr = h2g(host_raddr);
+        last = raddr + shm_info.shm_segsz - 1;
+
+        page_set_flags(raddr, last,
+                       PAGE_VALID | PAGE_RESET | PAGE_READ |
+                       (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
+
+        shm_region_rm_complete(raddr, last);
+        shm_region_add(raddr, last);
+    }
+
+    /*
+     * We're mapping shared memory, so ensure we generate code for parallel
+     * execution and flush old translations.  This will work up to the level
+     * supported by the host -- anything that requires EXCP_ATOMIC will not
+     * be atomic with respect to an external process.
+     */
+    if (!(cpu->tcg_cflags & CF_PARALLEL)) {
+        cpu->tcg_cflags |= CF_PARALLEL;
+        tb_flush(cpu);
+    }
+
+    return raddr;
+}
+
+abi_long target_shmdt(abi_ulong shmaddr)
+{
+    abi_long rv;
+
+    /* shmdt pointers are always untagged */
+
+    WITH_MMAP_LOCK_GUARD() {
+        abi_ulong last = shm_region_find(shmaddr);
+        if (last == 0) {
+            return -TARGET_EINVAL;
+        }
+
+        rv = get_errno(shmdt(g2h_untagged(shmaddr)));
+        if (rv == 0) {
+            abi_ulong size = last - shmaddr + 1;
+
+            page_set_flags(shmaddr, last, 0);
+            shm_region_rm_complete(shmaddr, last);
+            mmap_reserve_or_unmap(shmaddr, size);
+        }
+    }
+    return rv;
 }

@@ -58,4 +58,8 @@ abi_ulong mmap_find_vma(abi_ulong, abi_ulong, abi_ulong);
 void mmap_fork_start(void);
 void mmap_fork_end(int child);
 
+abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
+                       abi_ulong shmaddr, int shmflg);
+abi_long target_shmdt(abi_ulong shmaddr);
+
 #endif /* LINUX_USER_USER_MMAP_H */
