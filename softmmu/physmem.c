@@ -3482,6 +3482,16 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
              */
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
             /*
+             * fallocate() will fail with readonly files. Let's print a
+             * proper error message.
+             */
+            if (rb->flags & RAM_READONLY_FD) {
+                error_report("ram_block_discard_range: Discarding RAM"
+                             " with readonly files is not supported");
+                goto err;
+
+            }
+            /*
              * We'll discard data from the actual file, even though we only
              * have a MAP_PRIVATE mapping, possibly messing with other
              * MAP_PRIVATE/MAP_SHARED mappings. There is no easy way to
