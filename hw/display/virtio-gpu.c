@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/qdev-properties.h"
+#include "migration/blocker.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -39,6 +40,8 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
                                const char *caller, uint32_t *error);
 
 static void virtio_gpu_reset_bh(void *opaque);
+
+static Error *blob_mig_blocker;
 
 void virtio_gpu_update_cursor_data(VirtIOGPU *g,
                                    struct virtio_gpu_scanout *s,
@@ -1373,6 +1376,14 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
             error_setg(errp, "blobs and virgl are not compatible (yet)");
             return;
         }
+
+        if (!blob_mig_blocker) {
+            error_setg(&blob_mig_blocker,
+                       "virtio-gpu blob VMs are currently not migratable.");
+        }
+        if (migrate_add_blocker(blob_mig_blocker, errp)) {
+            return;
+        }
     }
 
     if (!virtio_gpu_base_device_realize(qdev,
@@ -1399,6 +1410,9 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
+    if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
+        migrate_del_blocker(blob_mig_blocker);
+    }
     g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
     g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
     g_clear_pointer(&g->reset_bh, qemu_bh_delete);
