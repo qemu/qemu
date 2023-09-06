@@ -34,6 +34,10 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     const char *boot_args = "kextlog=0xfff debug=0x8 cpus=1 rd=disk0s1 serial=1 pmu-debug=0x1 io=0xffff8fff debug-usb=0xffffffff"; // if not const then overwritten
     cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
 
+    // patch iBoot - we want to inject the bluetooth MAC address which is located as sub-node of uart1 and not uart3 in the device tree...
+    char *chr = "arm-io/uart1/bluetooth";
+    cpu_physical_memory_write(0x0ff2206c, chr, strlen(chr));
+
     int page_out_buf_ind = 0;
     //dump_registers(s);
     //printf("Start CMD...\n");

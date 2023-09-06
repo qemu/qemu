@@ -2,7 +2,6 @@
 
 static void trigger_irq(void *opaque)
 {
-    printf("ABChere\n");
     IPodTouchSDIOState *s = (IPodTouchSDIOState *)opaque;
     s->irq_reg = 0x2;
     qemu_irq_raise(s->irq);
@@ -13,14 +12,14 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
     uint32_t cmd_type = s->cmd & 0x3f;
     uint32_t addr = (s->arg >> 9) & 0x1ffff;
     uint32_t func = (s->arg >> 28) & 0x7;
-    printf("SDIO CMD: %d, ADDR: %d, FUNC: %d\n", cmd_type, addr, func);
+    //printf("SDIO CMD: %d, ADDR: %d, FUNC: %d\n", cmd_type, addr, func);
     if(cmd_type == 0x3) {
         // RCA request - ignore
     }
     else if(cmd_type == 0x5) {
         if(addr == 0) {
             // reading slot 0 - make sure there is a device here
-            s->resp0 = (1 << 31) /* indicate ready */ | (BCM4325_FUNCTIONS << CMD5_FUNC_OFFSET) /* number of functions */;
+            //s->resp0 = (1 << 31) /* indicate ready */ | (BCM4325_FUNCTIONS << CMD5_FUNC_OFFSET) /* number of functions */;
         }
     }
     else if(cmd_type == 0x7) {
@@ -44,7 +43,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
                 s->resp0 = (1 << 6);
             }
             else {
-                printf("Loading as response reg 0x%02x 0x%02x\n", s->registers[addr], addr);
+                printf("SDIO: Executing cmd52 by reading from 0x%02x (value: 0x%02x)\n", addr, s->registers[addr]);
                 s->resp0 = s->registers[addr];
             }
         }
@@ -68,7 +67,6 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
                 g_queue_push_tail(s->rx_fifo, frame_header);
 
                 timer_mod(s->irq_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + NANOSECONDS_PER_SECOND / 50);
-                printf("INT SCHED\n");
             }
         } else {
             if(func == 0x1) {
@@ -84,7 +82,6 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
 
                 if(!frame_header) {
                     // create an empty frame
-                    printf("Creating empty response frame\n");
                     frame_header = calloc(sizeof(BCM4325FrameHeaderPacket), sizeof(uint8_t *));
                 }
                 cpu_physical_memory_write(s->baddr, frame_header, sizeof(BCM4325FrameHeaderPacket));
@@ -95,7 +92,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
         // toggle IRQ register
         s->irq_reg = 0x1;
         qemu_irq_raise(s->irq);
-        printf("Raised IRQ\n");
+        //printf("Raised IRQ\n");
     }
     else {
         hw_error("Unknown SDIO command %d", cmd_type);
@@ -104,7 +101,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
 
 static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
 {
-    printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, addr);
+    //printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, addr);
     
     IPodTouchSDIOState *s = (struct IPodTouchSDIOState *) opaque;
 
@@ -129,7 +126,6 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
             break;
         case SDIO_IRQ:
             qemu_irq_lower(s->irq);
-            printf("Lowered IRQ\n");
             break;
         case SDIO_IRQMASK:
             s->irq_mask = value;
@@ -150,7 +146,7 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
 
 static uint64_t ipod_touch_sdio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    printf("%s: offset = 0x%08x\n", __func__, addr);
+    //printf("%s: offset = 0x%08x\n", __func__, addr);
 
     IPodTouchSDIOState *s = (struct IPodTouchSDIOState *) opaque;
 
