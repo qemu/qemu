@@ -409,6 +409,8 @@
 #
 # @zero: whether the virtual blocks read as zeroes
 #
+# @compressed: true if the data is stored compressed (since 8.2)
+#
 # @depth: number of layers (0 = top image, 1 = top image's backing
 #     file, ..., n - 1 = bottom image (where n is the number of images
 #     in the chain)) before reaching one for which the range is
@@ -426,8 +428,8 @@
 ##
 { 'struct': 'MapEntry',
   'data': {'start': 'int', 'length': 'int', 'data': 'bool',
-           'zero': 'bool', 'depth': 'int', 'present': 'bool',
-           '*offset': 'int', '*filename': 'str' } }
+           'zero': 'bool', 'compressed': 'bool', 'depth': 'int',
+           'present': 'bool', '*offset': 'int', '*filename': 'str' } }
 
 ##
 # @BlockdevCacheInfo:

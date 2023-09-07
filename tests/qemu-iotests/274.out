@@ -20,18 +20,18 @@ read 1048576/1048576 bytes at offset 1048576
 0/1048576 bytes allocated at offset 1 MiB
 
 === Checking map ===
-[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680}]
 
 Offset          Length          Mapped to       File
 0               0x200000        0x50000         TEST_DIR/PID-base
 
-[{ "start": 0, "length": 1048576, "depth": 1, "present": true, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 1048576, "depth": 1, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680}]
 
 Offset          Length          Mapped to       File
 0               0x100000        0x50000         TEST_DIR/PID-base
 
-[{ "start": 0, "length": 1048576, "depth": 2, "present": true, "zero": false, "data": true, "offset": 327680},
-{ "start": 1048576, "length": 1048576, "depth": 0, "present": false, "zero": true, "data": false}]
+[{ "start": 0, "length": 1048576, "depth": 2, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680},
+{ "start": 1048576, "length": 1048576, "depth": 0, "present": false, "zero": true, "data": false, "compressed": false}]
 
 Offset          Length          Mapped to       File
 0               0x100000        0x50000         TEST_DIR/PID-base
@@ -186,8 +186,8 @@ read 65536/65536 bytes at offset 5368709120
 1 GiB (0x40000000) bytes not allocated at offset 0 bytes (0x0)
 7 GiB (0x1c0000000) bytes     allocated at offset 1 GiB (0x40000000)
 
-[{ "start": 0, "length": 1073741824, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 1073741824, "length": 7516192768, "depth": 0, "present": true, "zero": true, "data": false}]
+[{ "start": 0, "length": 1073741824, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 1073741824, "length": 7516192768, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false}]
 
 === preallocation=metadata ===
 wrote 65536/65536 bytes at offset 33285996544
@@ -201,13 +201,13 @@ read 65536/65536 bytes at offset 33285996544
 30 GiB (0x780000000) bytes not allocated at offset 0 bytes (0x0)
 3 GiB (0xc0000000) bytes     allocated at offset 30 GiB (0x780000000)
 
-[{ "start": 0, "length": 32212254720, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 32212254720, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 327680},
-{ "start": 32749125632, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 537264128},
-{ "start": 33285996544, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 1074200576},
-{ "start": 33822867456, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 1611137024},
-{ "start": 34359738368, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 2148139008},
-{ "start": 34896609280, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "offset": 2685075456}]
+[{ "start": 0, "length": 32212254720, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 32212254720, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 327680},
+{ "start": 32749125632, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 537264128},
+{ "start": 33285996544, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 1074200576},
+{ "start": 33822867456, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 1611137024},
+{ "start": 34359738368, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 2148139008},
+{ "start": 34896609280, "length": 536870912, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 2685075456}]
 
 === preallocation=falloc ===
 wrote 65536/65536 bytes at offset 9437184
@@ -221,8 +221,8 @@ read 65536/65536 bytes at offset 9437184
 5 MiB (0x500000) bytes not allocated at offset 0 bytes (0x0)
 10 MiB (0xa00000) bytes     allocated at offset 5 MiB (0x500000)
 
-[{ "start": 0, "length": 5242880, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 5242880, "length": 10485760, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 5242880, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 5242880, "length": 10485760, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680}]
 
 === preallocation=full ===
 wrote 65536/65536 bytes at offset 11534336
@@ -236,8 +236,8 @@ read 65536/65536 bytes at offset 11534336
 8 MiB (0x800000) bytes not allocated at offset 0 bytes (0x0)
 4 MiB (0x400000) bytes     allocated at offset 8 MiB (0x800000)
 
-[{ "start": 0, "length": 8388608, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 8388608, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680}]
+[{ "start": 0, "length": 8388608, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 8388608, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680}]
 
 === preallocation=off ===
 wrote 65536/65536 bytes at offset 259072
@@ -251,9 +251,9 @@ read 65536/65536 bytes at offset 259072
 192 KiB (0x30000) bytes not allocated at offset 0 bytes (0x0)
 320 KiB (0x50000) bytes     allocated at offset 192 KiB (0x30000)
 
-[{ "start": 0, "length": 196608, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 196608, "length": 65536, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680},
-{ "start": 262144, "length": 262144, "depth": 0, "present": true, "zero": true, "data": false}]
+[{ "start": 0, "length": 196608, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 196608, "length": 65536, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680},
+{ "start": 262144, "length": 262144, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false}]
 
 === preallocation=off ===
 wrote 65536/65536 bytes at offset 344064
@@ -267,8 +267,8 @@ read 65536/65536 bytes at offset 344064
 256 KiB (0x40000) bytes not allocated at offset 0 bytes (0x0)
 256 KiB (0x40000) bytes     allocated at offset 256 KiB (0x40000)
 
-[{ "start": 0, "length": 262144, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 262144, "length": 262144, "depth": 0, "present": true, "zero": true, "data": false}]
+[{ "start": 0, "length": 262144, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 262144, "length": 262144, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false}]
 
 === preallocation=off ===
 wrote 65536/65536 bytes at offset 446464
@@ -282,6 +282,6 @@ read 65536/65536 bytes at offset 446464
 256 KiB (0x40000) bytes not allocated at offset 0 bytes (0x0)
 244 KiB (0x3d000) bytes     allocated at offset 256 KiB (0x40000)
 
-[{ "start": 0, "length": 262144, "depth": 1, "present": false, "zero": true, "data": false},
-{ "start": 262144, "length": 249856, "depth": 0, "present": true, "zero": true, "data": false}]
+[{ "start": 0, "length": 262144, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false},
+{ "start": 262144, "length": 249856, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false}]
 
