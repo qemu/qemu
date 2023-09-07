@@ -2162,6 +2162,9 @@ qcow2_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
     {
         status |= BDRV_BLOCK_RECURSE;
     }
+    if (type == QCOW2_SUBCLUSTER_COMPRESSED) {
+        status |= BDRV_BLOCK_COMPRESSED;
+    }
     return status;
 }
 
