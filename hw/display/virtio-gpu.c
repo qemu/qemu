@@ -1267,7 +1267,6 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
 {
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;
-    struct virtio_gpu_scanout *scanout;
     uint32_t resource_id, pformat;
     void *bits = NULL;
     int i;
@@ -1337,6 +1336,17 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
 
     /* load & apply scanout state */
     vmstate_load_state(f, &vmstate_virtio_gpu_scanouts, g, 1);
+
+    return 0;
+}
+
+static int virtio_gpu_post_load(void *opaque, int version_id)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_scanout *scanout;
+    struct virtio_gpu_simple_resource *res;
+    int i;
+
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         /* FIXME: should take scanout.r.{x,y} into account */
         scanout = &g->parent_obj.scanout[i];
@@ -1520,6 +1530,7 @@ static const VMStateDescription vmstate_virtio_gpu = {
         } /* device */,
         VMSTATE_END_OF_LIST()
     },
+    .post_load = virtio_gpu_post_load,
 };
 
 static Property virtio_gpu_properties[] = {
