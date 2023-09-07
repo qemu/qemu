@@ -37,7 +37,7 @@ all: $(SONAMES)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 lib%.so: %.o
-	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)
+	$(CC) -shared -o $@ $^ $(LDLIBS)
 
 clean:
 	rm -f *.o *.so *.d
