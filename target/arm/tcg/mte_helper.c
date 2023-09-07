@@ -57,7 +57,6 @@ static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
  * @ptr_access: the access to use for the virtual address
  * @ptr_size: the number of bytes in the normal memory access
  * @tag_access: the access to use for the tag memory
- * @tag_size: the number of bytes in the tag memory access
  * @ra: the return address for exception handling
  *
  * Our tag memory is formatted as a sequence of little-endian nibbles.
@@ -69,15 +68,12 @@ static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
  * a pointer to the corresponding tag byte.  Exit with exception if the
  * virtual address is not accessible for @ptr_access.
  *
- * The @ptr_size and @tag_size values may not have an obvious relation
- * due to the alignment of @ptr, and the number of tag checks required.
- *
  * If there is no tag storage corresponding to @ptr, return NULL.
  */
 static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
                                    uint64_t ptr, MMUAccessType ptr_access,
                                    int ptr_size, MMUAccessType tag_access,
-                                   int tag_size, uintptr_t ra)
+                                   uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
     uint64_t clean_ptr = useronly_clean_ptr(ptr);
@@ -275,7 +271,7 @@ uint64_t HELPER(ldg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
 
     /* Trap if accessing an invalid page.  */
     mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD, 1,
-                             MMU_DATA_LOAD, 1, GETPC());
+                             MMU_DATA_LOAD, GETPC());
 
     /* Load if page supports tags. */
     if (mem) {
@@ -329,7 +325,7 @@ static inline void do_stg(CPUARMState *env, uint64_t ptr, uint64_t xt,
 
     /* Trap if accessing an invalid page.  */
     mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE, TAG_GRANULE,
-                             MMU_DATA_STORE, 1, ra);
+                             MMU_DATA_STORE, ra);
 
     /* Store if page supports tags. */
     if (mem) {
@@ -372,10 +368,10 @@ static inline void do_st2g(CPUARMState *env, uint64_t ptr, uint64_t xt,
     if (ptr & TAG_GRANULE) {
         /* Two stores unaligned mod TAG_GRANULE*2 -- modify two bytes. */
         mem1 = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE,
-                                  TAG_GRANULE, MMU_DATA_STORE, 1, ra);
+                                  TAG_GRANULE, MMU_DATA_STORE, ra);
         mem2 = allocation_tag_mem(env, mmu_idx, ptr + TAG_GRANULE,
                                   MMU_DATA_STORE, TAG_GRANULE,
-                                  MMU_DATA_STORE, 1, ra);
+                                  MMU_DATA_STORE, ra);
 
         /* Store if page(s) support tags. */
         if (mem1) {
@@ -387,7 +383,7 @@ static inline void do_st2g(CPUARMState *env, uint64_t ptr, uint64_t xt,
     } else {
         /* Two stores aligned mod TAG_GRANULE*2 -- modify one byte. */
         mem1 = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE,
-                                  2 * TAG_GRANULE, MMU_DATA_STORE, 1, ra);
+                                  2 * TAG_GRANULE, MMU_DATA_STORE, ra);
         if (mem1) {
             tag |= tag << 4;
             qatomic_set(mem1, tag);
@@ -435,8 +431,7 @@ uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
 
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD,
-                                 gm_bs_bytes, MMU_DATA_LOAD,
-                                 gm_bs_bytes / (2 * TAG_GRANULE), ra);
+                                 gm_bs_bytes, MMU_DATA_LOAD, ra);
 
     /* The tag is squashed to zero if the page does not support tags.  */
     if (!tag_mem) {
@@ -495,8 +490,7 @@ void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
 
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE,
-                                 gm_bs_bytes, MMU_DATA_LOAD,
-                                 gm_bs_bytes / (2 * TAG_GRANULE), ra);
+                                 gm_bs_bytes, MMU_DATA_LOAD, ra);
 
     /*
      * Tag store only happens if the page support tags,
@@ -552,7 +546,7 @@ void HELPER(stzgm_tags)(CPUARMState *env, uint64_t ptr, uint64_t val)
     ptr &= -dcz_bytes;
 
     mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE, dcz_bytes,
-                             MMU_DATA_STORE, tag_bytes, ra);
+                             MMU_DATA_STORE, ra);
     if (mem) {
         int tag_pair = (val & 0xf) * 0x11;
         memset(mem, tag_pair, tag_bytes);
@@ -732,8 +726,7 @@ static int mte_probe_int(CPUARMState *env, uint32_t desc, uint64_t ptr,
     int mmu_idx, ptr_tag, bit55;
     uint64_t ptr_last, prev_page, next_page;
     uint64_t tag_first, tag_last;
-    uint64_t tag_byte_first, tag_byte_last;
-    uint32_t sizem1, tag_count, tag_size, n, c;
+    uint32_t sizem1, tag_count, n, c;
     uint8_t *mem1, *mem2;
     MMUAccessType type;
 
@@ -763,19 +756,14 @@ static int mte_probe_int(CPUARMState *env, uint32_t desc, uint64_t ptr,
     tag_last = QEMU_ALIGN_DOWN(ptr_last, TAG_GRANULE);
     tag_count = ((tag_last - tag_first) / TAG_GRANULE) + 1;
 
-    /* Round the bounds to twice the tag granule, and compute the bytes. */
-    tag_byte_first = QEMU_ALIGN_DOWN(ptr, 2 * TAG_GRANULE);
-    tag_byte_last = QEMU_ALIGN_DOWN(ptr_last, 2 * TAG_GRANULE);
-
     /* Locate the page boundaries. */
     prev_page = ptr & TARGET_PAGE_MASK;
     next_page = prev_page + TARGET_PAGE_SIZE;
 
     if (likely(tag_last - prev_page < TARGET_PAGE_SIZE)) {
         /* Memory access stays on one page. */
-        tag_size = ((tag_byte_last - tag_byte_first) / (2 * TAG_GRANULE)) + 1;
         mem1 = allocation_tag_mem(env, mmu_idx, ptr, type, sizem1 + 1,
-                                  MMU_DATA_LOAD, tag_size, ra);
+                                  MMU_DATA_LOAD, ra);
         if (!mem1) {
             return 1;
         }
@@ -783,14 +771,12 @@ static int mte_probe_int(CPUARMState *env, uint32_t desc, uint64_t ptr,
         n = checkN(mem1, ptr & TAG_GRANULE, ptr_tag, tag_count);
     } else {
         /* Memory access crosses to next page. */
-        tag_size = (next_page - tag_byte_first) / (2 * TAG_GRANULE);
         mem1 = allocation_tag_mem(env, mmu_idx, ptr, type, next_page - ptr,
-                                  MMU_DATA_LOAD, tag_size, ra);
+                                  MMU_DATA_LOAD, ra);
 
-        tag_size = ((tag_byte_last - next_page) / (2 * TAG_GRANULE)) + 1;
         mem2 = allocation_tag_mem(env, mmu_idx, next_page, type,
                                   ptr_last - next_page + 1,
-                                  MMU_DATA_LOAD, tag_size, ra);
+                                  MMU_DATA_LOAD, ra);
 
         /*
          * Perform all of the comparisons.
@@ -918,7 +904,7 @@ uint64_t HELPER(mte_check_zva)(CPUARMState *env, uint32_t desc, uint64_t ptr)
     mmu_idx = FIELD_EX32(desc, MTEDESC, MIDX);
     (void) probe_write(env, ptr, 1, mmu_idx, ra);
     mem = allocation_tag_mem(env, mmu_idx, align_ptr, MMU_DATA_STORE,
-                             dcz_bytes, MMU_DATA_LOAD, tag_bytes, ra);
+                             dcz_bytes, MMU_DATA_LOAD, ra);
     if (!mem) {
         goto done;
     }
