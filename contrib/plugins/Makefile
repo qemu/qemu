@@ -6,11 +6,11 @@
 # programs that the main configure has already done for us.
 #
 
-BUILD_DIR := $(CURDIR)/../..
+include config-host.mak
 
-include $(BUILD_DIR)/config-host.mak
+TOP_SRC_PATH = $(SRC_PATH)/../..
 
-VPATH += $(SRC_PATH)/contrib/plugins
+VPATH += $(SRC_PATH)
 
 NAMES :=
 NAMES += execlog
@@ -26,15 +26,14 @@ SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
 # The main QEMU uses Glib extensively so it's perfectly fine to use it
 # in plugins (which many example do).
-CFLAGS := $(shell $(PKG_CONFIG) --cflags glib-2.0)
-CFLAGS += -fPIC -Wall
-CFLAGS += $(if $(CONFIG_DEBUG_TCG), -ggdb -O0)
-CFLAGS += -I$(SRC_PATH)/include/qemu
+PLUGIN_CFLAGS := $(shell $(PKG_CONFIG) --cflags glib-2.0)
+PLUGIN_CFLAGS += -fPIC -Wall
+PLUGIN_CFLAGS += -I$(TOP_SRC_PATH)/include/qemu
 
 all: $(SONAMES)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<
 
 lib%.so: %.o
 ifeq ($(CONFIG_DARWIN),y)
@@ -48,3 +47,4 @@ clean:
 	rm -Rf .libs
 
 .PHONY: all clean
+.SECONDARY:
