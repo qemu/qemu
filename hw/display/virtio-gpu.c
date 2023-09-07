@@ -1216,6 +1216,9 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
     assert(QTAILQ_EMPTY(&g->cmdq));
 
     QTAILQ_FOREACH(res, &g->reslist, next) {
+        if (res->blob_size) {
+            continue;
+        }
         qemu_put_be32(f, res->resource_id);
         qemu_put_be32(f, res->width);
         qemu_put_be32(f, res->height);
@@ -1336,6 +1339,74 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
 
     /* load & apply scanout state */
     vmstate_load_state(f, &vmstate_virtio_gpu_scanouts, g, 1);
+
+    return 0;
+}
+
+static int virtio_gpu_blob_save(QEMUFile *f, void *opaque, size_t size,
+                                const VMStateField *field, JSONWriter *vmdesc)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_simple_resource *res;
+    int i;
+
+    /* in 2d mode we should never find unprocessed commands here */
+    assert(QTAILQ_EMPTY(&g->cmdq));
+
+    QTAILQ_FOREACH(res, &g->reslist, next) {
+        if (!res->blob_size) {
+            continue;
+        }
+        qemu_put_be32(f, res->resource_id);
+        qemu_put_be32(f, res->blob_size);
+        qemu_put_be32(f, res->iov_cnt);
+        for (i = 0; i < res->iov_cnt; i++) {
+            qemu_put_be64(f, res->addrs[i]);
+            qemu_put_be32(f, res->iov[i].iov_len);
+        }
+    }
+    qemu_put_be32(f, 0); /* end of list */
+
+    return 0;
+}
+
+static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
+                                const VMStateField *field)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_simple_resource *res;
+    uint32_t resource_id;
+    int i;
+
+    resource_id = qemu_get_be32(f);
+    while (resource_id != 0) {
+        res = virtio_gpu_find_resource(g, resource_id);
+        if (res) {
+            return -EINVAL;
+        }
+
+        res = g_new0(struct virtio_gpu_simple_resource, 1);
+        res->resource_id = resource_id;
+        res->blob_size = qemu_get_be32(f);
+        res->iov_cnt = qemu_get_be32(f);
+        res->addrs = g_new(uint64_t, res->iov_cnt);
+        res->iov = g_new(struct iovec, res->iov_cnt);
+
+        /* read data */
+        for (i = 0; i < res->iov_cnt; i++) {
+            res->addrs[i] = qemu_get_be64(f);
+            res->iov[i].iov_len = qemu_get_be32(f);
+        }
+
+        if (!virtio_gpu_load_restore_mapping(g, res)) {
+            g_free(res);
+            return -EINVAL;
+        }
+
+        virtio_gpu_init_udmabuf(res);
+
+        resource_id = qemu_get_be32(f);
+    }
 
     return 0;
 }
@@ -1505,6 +1576,32 @@ virtio_gpu_set_config(VirtIODevice *vdev, const uint8_t *config)
     }
 }
 
+static bool virtio_gpu_blob_state_needed(void *opaque)
+{
+    VirtIOGPU *g = VIRTIO_GPU(opaque);
+
+    return virtio_gpu_blob_enabled(g->parent_obj.conf);
+}
+
+const VMStateDescription vmstate_virtio_gpu_blob_state = {
+    .name = "virtio-gpu/blob",
+    .minimum_version_id = VIRTIO_GPU_VM_VERSION,
+    .version_id = VIRTIO_GPU_VM_VERSION,
+    .needed = virtio_gpu_blob_state_needed,
+    .fields = (const VMStateField[]){
+        {
+            .name = "virtio-gpu/blob",
+            .info = &(const VMStateInfo) {
+                .name = "blob",
+                .get = virtio_gpu_blob_load,
+                .put = virtio_gpu_blob_save,
+            },
+            .flags = VMS_SINGLE,
+        } /* device */,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 /*
  * For historical reasons virtio_gpu does not adhere to virtio migration
  * scheme as described in doc/virtio-migration.txt, in a sense that no
@@ -1529,6 +1626,10 @@ static const VMStateDescription vmstate_virtio_gpu = {
             .flags = VMS_SINGLE,
         } /* device */,
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_virtio_gpu_blob_state,
+        NULL
     },
     .post_load = virtio_gpu_post_load,
 };
