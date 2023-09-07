@@ -22,7 +22,7 @@ if get_option('tcg_interpreter')
   tcg_ss.add(files('tci.c'))
 endif
 
-tcg_ss = tcg_ss.apply(config_host, strict: false)
+tcg_ss = tcg_ss.apply(config_targetos, strict: false)
 
 libtcg_user = static_library('tcg_user',
                              tcg_ss.sources() + genh,

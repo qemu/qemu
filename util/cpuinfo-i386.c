@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
- * Host specific cpu indentification for x86.
+ * Host specific cpu identification for x86.
  */
 
 #include "qemu/osdep.h"
@@ -74,7 +74,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
                  * of their memory operands to be 16-byte aligned.
                  *
                  * AMD has provided an even stronger guarantee that processors
-                 * with AVX provide 16-byte atomicity for all cachable,
+                 * with AVX provide 16-byte atomicity for all cacheable,
                  * naturally aligned single loads and stores, e.g. MOVDQU.
                  *
                  * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104688

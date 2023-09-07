@@ -728,21 +728,21 @@ BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs)
 }
 
 /**
- * Round a region to cluster boundaries
+ * Round a region to subcluster (if supported) or cluster boundaries
  */
 void coroutine_fn GRAPH_RDLOCK
-bdrv_round_to_clusters(BlockDriverState *bs, int64_t offset, int64_t bytes,
-                       int64_t *cluster_offset, int64_t *cluster_bytes)
+bdrv_round_to_subclusters(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          int64_t *align_offset, int64_t *align_bytes)
 {
     BlockDriverInfo bdi;
     IO_CODE();
-    if (bdrv_co_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
-        *cluster_offset = offset;
-        *cluster_bytes = bytes;
+    if (bdrv_co_get_info(bs, &bdi) < 0 || bdi.subcluster_size == 0) {
+        *align_offset = offset;
+        *align_bytes = bytes;
     } else {
-        int64_t c = bdi.cluster_size;
-        *cluster_offset = QEMU_ALIGN_DOWN(offset, c);
-        *cluster_bytes = QEMU_ALIGN_UP(offset - *cluster_offset + bytes, c);
+        int64_t c = bdi.subcluster_size;
+        *align_offset = QEMU_ALIGN_DOWN(offset, c);
+        *align_bytes = QEMU_ALIGN_UP(offset - *align_offset + bytes, c);
     }
 }
 
@@ -1168,8 +1168,8 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
     void *bounce_buffer = NULL;
 
     BlockDriver *drv = bs->drv;
-    int64_t cluster_offset;
-    int64_t cluster_bytes;
+    int64_t align_offset;
+    int64_t align_bytes;
     int64_t skip_bytes;
     int ret;
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
@@ -1203,28 +1203,28 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
      * BDRV_REQUEST_MAX_BYTES (even when the original read did not), which
      * is one reason we loop rather than doing it all at once.
      */
-    bdrv_round_to_clusters(bs, offset, bytes, &cluster_offset, &cluster_bytes);
-    skip_bytes = offset - cluster_offset;
+    bdrv_round_to_subclusters(bs, offset, bytes, &align_offset, &align_bytes);
+    skip_bytes = offset - align_offset;
 
     trace_bdrv_co_do_copy_on_readv(bs, offset, bytes,
-                                   cluster_offset, cluster_bytes);
+                                   align_offset, align_bytes);
 
-    while (cluster_bytes) {
+    while (align_bytes) {
         int64_t pnum;
 
         if (skip_write) {
             ret = 1; /* "already allocated", so nothing will be copied */
-            pnum = MIN(cluster_bytes, max_transfer);
+            pnum = MIN(align_bytes, max_transfer);
         } else {
-            ret = bdrv_is_allocated(bs, cluster_offset,
-                                    MIN(cluster_bytes, max_transfer), &pnum);
+            ret = bdrv_is_allocated(bs, align_offset,
+                                    MIN(align_bytes, max_transfer), &pnum);
             if (ret < 0) {
                 /*
                  * Safe to treat errors in querying allocation as if
                  * unallocated; we'll probably fail again soon on the
                  * read, but at least that will set a decent errno.
                  */
-                pnum = MIN(cluster_bytes, max_transfer);
+                pnum = MIN(align_bytes, max_transfer);
             }
 
             /* Stop at EOF if the image ends in the middle of the cluster */
@@ -1242,7 +1242,7 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
             /* Must copy-on-read; use the bounce buffer */
             pnum = MIN(pnum, MAX_BOUNCE_BUFFER);
             if (!bounce_buffer) {
-                int64_t max_we_need = MAX(pnum, cluster_bytes - pnum);
+                int64_t max_we_need = MAX(pnum, align_bytes - pnum);
                 int64_t max_allowed = MIN(max_transfer, MAX_BOUNCE_BUFFER);
                 int64_t bounce_buffer_len = MIN(max_we_need, max_allowed);
 
@@ -1254,7 +1254,7 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
             }
             qemu_iovec_init_buf(&local_qiov, bounce_buffer, pnum);
 
-            ret = bdrv_driver_preadv(bs, cluster_offset, pnum,
+            ret = bdrv_driver_preadv(bs, align_offset, pnum,
                                      &local_qiov, 0, 0);
             if (ret < 0) {
                 goto err;
@@ -1266,13 +1266,13 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
                 /* FIXME: Should we (perhaps conditionally) be setting
                  * BDRV_REQ_MAY_UNMAP, if it will allow for a sparser copy
                  * that still correctly reads as zero? */
-                ret = bdrv_co_do_pwrite_zeroes(bs, cluster_offset, pnum,
+                ret = bdrv_co_do_pwrite_zeroes(bs, align_offset, pnum,
                                                BDRV_REQ_WRITE_UNCHANGED);
             } else {
                 /* This does not change the data on the disk, it is not
                  * necessary to flush even in cache=writethrough mode.
                  */
-                ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
+                ret = bdrv_driver_pwritev(bs, align_offset, pnum,
                                           &local_qiov, 0,
                                           BDRV_REQ_WRITE_UNCHANGED);
             }
@@ -1301,8 +1301,8 @@ bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
             }
         }
 
-        cluster_offset += pnum;
-        cluster_bytes -= pnum;
+        align_offset += pnum;
+        align_bytes -= pnum;
         progress += pnum - skip_bytes;
         skip_bytes = 0;
     }

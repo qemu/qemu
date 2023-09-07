@@ -136,11 +136,10 @@ static const MemoryRegionOps aspeed_rtc_ops = {
 
 static const VMStateDescription vmstate_aspeed_rtc = {
     .name = TYPE_ASPEED_RTC,
-    .version_id = 1,
+    .version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(reg, AspeedRtcState, 0x18),
-        VMSTATE_INT32(offset, AspeedRtcState),
-        VMSTATE_INT32(offset, AspeedRtcState),
+        VMSTATE_INT64(offset, AspeedRtcState),
         VMSTATE_END_OF_LIST()
     }
 };

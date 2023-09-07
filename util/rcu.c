@@ -355,7 +355,7 @@ void drain_call_rcu(void)
      *
      * Note that since we have only one global queue of the RCU callbacks,
      * we also end up waiting for most of RCU callbacks that were registered
-     * on the other threads, but this is a side effect that shoudn't be
+     * on the other threads, but this is a side effect that shouldn't be
      * assumed.
      */
 

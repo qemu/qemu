@@ -82,7 +82,7 @@ static int inet_get_free_port_socket_ipv6(int sock)
 
 static int inet_get_free_port_multiple(int nb, int *port, bool ipv6)
 {
-    int sock[nb];
+    g_autofree int *sock = g_new(int, nb);
     int i;
 
     for (i = 0; i < nb; i++) {

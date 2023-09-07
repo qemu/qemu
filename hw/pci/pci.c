@@ -1613,7 +1613,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
         range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_mappings(d);
 
-    if (range_covers_byte(addr, l, PCI_COMMAND)) {
+    if (ranges_overlap(addr, l, PCI_COMMAND, 2)) {
         pci_update_irq_disabled(d, was_irq_disabled);
         memory_region_set_enabled(&d->bus_master_enable_region,
                                   (pci_get_word(d->config + PCI_COMMAND)

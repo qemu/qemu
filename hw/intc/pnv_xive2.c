@@ -240,12 +240,20 @@ static int pnv_xive2_vst_read(PnvXive2 *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t addr = pnv_xive2_vst_addr(xive, type, blk, idx);
+    MemTxResult result;
 
     if (!addr) {
         return -1;
     }
 
-    cpu_physical_memory_read(addr, data, info->size);
+    result = address_space_read(&address_space_memory, addr,
+                                MEMTXATTRS_UNSPECIFIED, data,
+                                info->size);
+    if (result != MEMTX_OK) {
+        xive2_error(xive, "VST: read failed at @0x%" HWADDR_PRIx
+                   " for VST %s %x/%x\n", addr, info->name, blk, idx);
+        return -1;
+    }
     return 0;
 }
 
@@ -256,16 +264,27 @@ static int pnv_xive2_vst_write(PnvXive2 *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t addr = pnv_xive2_vst_addr(xive, type, blk, idx);
+    MemTxResult result;
 
     if (!addr) {
         return -1;
     }
 
     if (word_number == XIVE_VST_WORD_ALL) {
-        cpu_physical_memory_write(addr, data, info->size);
+        result = address_space_write(&address_space_memory, addr,
+                                     MEMTXATTRS_UNSPECIFIED, data,
+                                     info->size);
     } else {
-        cpu_physical_memory_write(addr + word_number * 4,
-                                  data + word_number * 4, 4);
+        result = address_space_write(&address_space_memory,
+                                     addr + word_number * 4,
+                                     MEMTXATTRS_UNSPECIFIED,
+                                     data + word_number * 4, 4);
+    }
+
+    if (result != MEMTX_OK) {
+        xive2_error(xive, "VST: write failed at @0x%" HWADDR_PRIx
+                   "for VST %s %x/%x\n", addr, info->name, blk, idx);
+        return -1;
     }
     return 0;
 }

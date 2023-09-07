@@ -124,6 +124,10 @@ struct MPS2TZMachineClass {
     int uart_overflow_irq; /* number of the combined UART overflow IRQ */
     uint32_t init_svtor; /* init-svtor setting for SSE */
     uint32_t sram_addr_width; /* SRAM_ADDR_WIDTH setting for SSE */
+    uint32_t cpu0_mpu_ns; /* CPU0_MPU_NS setting for SSE */
+    uint32_t cpu0_mpu_s; /* CPU0_MPU_S setting for SSE */
+    uint32_t cpu1_mpu_ns; /* CPU1_MPU_NS setting for SSE */
+    uint32_t cpu1_mpu_s; /* CPU1_MPU_S setting for SSE */
     const RAMInfo *raminfo;
     const char *armsse_type;
     uint32_t boot_ram_size; /* size of ram at address 0; 0 == find in raminfo */
@@ -182,6 +186,9 @@ OBJECT_DECLARE_TYPE(MPS2TZMachineState, MPS2TZMachineClass, MPS2TZ_MACHINE)
 #else
 #define MPS3_DDR_SIZE (2 * GiB)
 #endif
+
+/* For cpu{0,1}_mpu_{ns,s}, means "leave at SSE's default value" */
+#define MPU_REGION_DEFAULT UINT32_MAX
 
 static const uint32_t an505_oscclk[] = {
     40000000,
@@ -828,6 +835,20 @@ static void mps2tz_common_init(MachineState *machine)
                              OBJECT(system_memory), &error_abort);
     qdev_prop_set_uint32(iotkitdev, "EXP_NUMIRQ", mmc->numirq);
     qdev_prop_set_uint32(iotkitdev, "init-svtor", mmc->init_svtor);
+    if (mmc->cpu0_mpu_ns != MPU_REGION_DEFAULT) {
+        qdev_prop_set_uint32(iotkitdev, "CPU0_MPU_NS", mmc->cpu0_mpu_ns);
+    }
+    if (mmc->cpu0_mpu_s != MPU_REGION_DEFAULT) {
+        qdev_prop_set_uint32(iotkitdev, "CPU0_MPU_S", mmc->cpu0_mpu_s);
+    }
+    if (object_property_find(OBJECT(iotkitdev), "CPU1_MPU_NS")) {
+        if (mmc->cpu1_mpu_ns != MPU_REGION_DEFAULT) {
+            qdev_prop_set_uint32(iotkitdev, "CPU1_MPU_NS", mmc->cpu1_mpu_ns);
+        }
+        if (mmc->cpu1_mpu_s != MPU_REGION_DEFAULT) {
+            qdev_prop_set_uint32(iotkitdev, "CPU1_MPU_S", mmc->cpu1_mpu_s);
+        }
+    }
     qdev_prop_set_uint32(iotkitdev, "SRAM_ADDR_WIDTH", mmc->sram_addr_width);
     qdev_connect_clock_in(iotkitdev, "MAINCLK", mms->sysclk);
     qdev_connect_clock_in(iotkitdev, "S32KCLK", mms->s32kclk);
@@ -1256,10 +1277,17 @@ static void mps2tz_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(oc);
+    MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
 
     mc->init = mps2tz_common_init;
     mc->reset = mps2_machine_reset;
     iic->check = mps2_tz_idau_check;
+
+    /* Most machines leave these at the SSE defaults */
+    mmc->cpu0_mpu_ns = MPU_REGION_DEFAULT;
+    mmc->cpu0_mpu_s = MPU_REGION_DEFAULT;
+    mmc->cpu1_mpu_ns = MPU_REGION_DEFAULT;
+    mmc->cpu1_mpu_s = MPU_REGION_DEFAULT;
 }
 
 static void mps2tz_set_default_ram_info(MPS2TZMachineClass *mmc)
@@ -1396,6 +1424,7 @@ static void mps3tz_an547_class_init(ObjectClass *oc, void *data)
     mmc->numirq = 96;
     mmc->uart_overflow_irq = 48;
     mmc->init_svtor = 0x00000000;
+    mmc->cpu0_mpu_s = mmc->cpu0_mpu_ns = 16;
     mmc->sram_addr_width = 21;
     mmc->raminfo = an547_raminfo;
     mmc->armsse_type = TYPE_SSE300;

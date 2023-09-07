@@ -26,8 +26,6 @@
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "qemu/host-utils.h"
-#include "qemu/main-loop.h"
-#include "exec/cpu_ldst.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -77,7 +75,9 @@ static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca, cpu_ov32, cpu_ca32;
 static TCGv cpu_reserve;
 static TCGv cpu_reserve_length;
 static TCGv cpu_reserve_val;
+#if defined(TARGET_PPC64)
 static TCGv cpu_reserve_val2;
+#endif
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
@@ -151,9 +151,11 @@ void ppc_translate_init(void)
     cpu_reserve_val = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUPPCState, reserve_val),
                                          "reserve_val");
+#if defined(TARGET_PPC64)
     cpu_reserve_val2 = tcg_global_mem_new(cpu_env,
                                           offsetof(CPUPPCState, reserve_val2),
                                           "reserve_val2");
+#endif
 
     cpu_fpscr = tcg_global_mem_new(cpu_env,
                                    offsetof(CPUPPCState, fpscr), "fpscr");
@@ -338,8 +340,9 @@ static void gen_ppc_maybe_interrupt(DisasContext *ctx)
  * The exception can be either POWERPC_EXCP_TRACE (on most PowerPCs) or
  * POWERPC_EXCP_DEBUG (on BookE).
  */
-static uint32_t gen_prep_dbgex(DisasContext *ctx)
+static void gen_debug_exception(DisasContext *ctx, bool rfi_type)
 {
+#if !defined(CONFIG_USER_ONLY)
     if (ctx->flags & POWERPC_FLAG_DE) {
         target_ulong dbsr = 0;
         if (ctx->singlestep_enabled & CPU_SINGLE_STEP) {
@@ -352,16 +355,18 @@ static uint32_t gen_prep_dbgex(DisasContext *ctx)
         gen_load_spr(t0, SPR_BOOKE_DBSR);
         tcg_gen_ori_tl(t0, t0, dbsr);
         gen_store_spr(SPR_BOOKE_DBSR, t0);
-        return POWERPC_EXCP_DEBUG;
+        gen_helper_raise_exception(cpu_env,
+                                   tcg_constant_i32(POWERPC_EXCP_DEBUG));
+        ctx->base.is_jmp = DISAS_NORETURN;
     } else {
-        return POWERPC_EXCP_TRACE;
+        if (!rfi_type) { /* BookS does not single step rfi type instructions */
+            TCGv t0 = tcg_temp_new();
+            tcg_gen_movi_tl(t0, ctx->cia);
+            gen_helper_book3s_trace(cpu_env, t0);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        }
     }
-}
-
-static void gen_debug_exception(DisasContext *ctx)
-{
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
-    ctx->base.is_jmp = DISAS_NORETURN;
+#endif
 }
 
 static inline void gen_inval_exception(DisasContext *ctx, uint32_t error)
@@ -556,8 +561,9 @@ void spr_write_lr(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_mov_tl(cpu_lr, cpu_gpr[gprn]);
 }
 
-/* CFAR */
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+/* Debug facilities */
+/* CFAR */
 void spr_read_cfar(DisasContext *ctx, int gprn, int sprn)
 {
     tcg_gen_mov_tl(cpu_gpr[gprn], cpu_cfar);
@@ -566,6 +572,26 @@ void spr_read_cfar(DisasContext *ctx, int gprn, int sprn)
 void spr_write_cfar(DisasContext *ctx, int sprn, int gprn)
 {
     tcg_gen_mov_tl(cpu_cfar, cpu_gpr[gprn]);
+}
+
+/* Breakpoint */
+void spr_write_ciabr(DisasContext *ctx, int sprn, int gprn)
+{
+    translator_io_start(&ctx->base);
+    gen_helper_store_ciabr(cpu_env, cpu_gpr[gprn]);
+}
+
+/* Watchpoint */
+void spr_write_dawr0(DisasContext *ctx, int sprn, int gprn)
+{
+    translator_io_start(&ctx->base);
+    gen_helper_store_dawr0(cpu_env, cpu_gpr[gprn]);
+}
+
+void spr_write_dawrx0(DisasContext *ctx, int sprn, int gprn)
+{
+    translator_io_start(&ctx->base);
+    gen_helper_store_dawrx0(cpu_env, cpu_gpr[gprn]);
 }
 #endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
 
@@ -4184,7 +4210,7 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 static void gen_lookup_and_goto_ptr(DisasContext *ctx)
 {
     if (unlikely(ctx->singlestep_enabled)) {
-        gen_debug_exception(ctx);
+        gen_debug_exception(ctx, false);
     } else {
         /*
          * tcg_gen_lookup_and_goto_ptr will exit the TB if
@@ -7410,8 +7436,9 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Honor single stepping. */
-    if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)
-        && (nip <= 0x100 || nip > 0xf00)) {
+    if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)) {
+        bool rfi_type = false;
+
         switch (is_jmp) {
         case DISAS_TOO_MANY:
         case DISAS_EXIT_UPDATE:
@@ -7420,12 +7447,19 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             break;
         case DISAS_EXIT:
         case DISAS_CHAIN:
+            /*
+             * This is a heuristic, to put it kindly. The rfi class of
+             * instructions are among the few outside branches that change
+             * NIP without taking an interrupt. Single step trace interrupts
+             * do not fire on completion of these instructions.
+             */
+            rfi_type = true;
             break;
         default:
             g_assert_not_reached();
         }
 
-        gen_debug_exception(ctx);
+        gen_debug_exception(ctx, rfi_type);
         return;
     }
 

@@ -210,7 +210,7 @@ void qdist_bin__internal(struct qdist *to, const struct qdist *from, size_t n)
 
         /*
          * To avoid double-counting we capture [left, right) ranges, except for
-         * the righmost bin, which captures a [left, right] range.
+         * the rightmost bin, which captures a [left, right] range.
          */
         while (j < from->n && (from->entries[j].x < right || i == n - 1)) {
             struct qdist_entry *o = &from->entries[j];

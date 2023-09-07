@@ -28,7 +28,6 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "trace.h"
 #include "hw/boards.h"
-#include "sysemu/hax.h"
 #include "sysemu/kvm.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -271,7 +270,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
 
     /* Note: We need at least 1M to map the VAPIC option ROM */
     if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK &&
-        !hax_enabled() && current_machine->ram_size >= 1024 * 1024) {
+            current_machine->ram_size >= 1024 * 1024) {
         vapic = sysbus_create_simple("kvmvapic", -1, NULL);
     }
     s->vapic = vapic;

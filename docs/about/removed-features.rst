@@ -659,15 +659,18 @@ Use ``Icelake-Server`` instead.
 System accelerators
 -------------------
 
-Userspace local APIC with KVM (x86, removed 8.0)
-''''''''''''''''''''''''''''''''''''''''''''''''
+Userspace local APIC with KVM (x86, removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
 
 ``-M kernel-irqchip=off`` cannot be used on KVM if the CPU model includes
 a local APIC.  The ``split`` setting is supported, as is using ``-M
 kernel-irqchip=off`` when the CPU does not have a local APIC.
 
-System accelerators
--------------------
+HAXM (``-accel hax``) (removed in 8.2)
+''''''''''''''''''''''''''''''''''''''
+
+The HAXM project has been retired (see https://github.com/intel/haxm#status).
+Use "whpx" (on Windows) or "hvf" (on macOS) instead.
 
 MIPS "Trap-and-Emulate" KVM support (removed in 8.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''

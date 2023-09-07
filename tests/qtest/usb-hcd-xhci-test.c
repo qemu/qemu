@@ -56,8 +56,12 @@ int main(int argc, char **argv)
 
     qtest_add_func("/xhci/pci/init", test_xhci_init);
     qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
-    qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
-    qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
+    if (qtest_has_device("usb-uas")) {
+        qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
+    }
+    if (qtest_has_device("usb-ccid")) {
+        qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
+    }
 
     qtest_start("-device nec-usb-xhci,id=xhci"
                 " -drive id=drive0,if=none,file=null-co://,"

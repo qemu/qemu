@@ -51,7 +51,7 @@ void assert_hvf_ok(hv_return_t ret)
     abort();
 }
 
-struct hvf_sw_breakpoint *hvf_find_sw_breakpoint(CPUState *cpu, target_ulong pc)
+struct hvf_sw_breakpoint *hvf_find_sw_breakpoint(CPUState *cpu, vaddr pc)
 {
     struct hvf_sw_breakpoint *bp;
 

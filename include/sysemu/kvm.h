@@ -188,7 +188,6 @@ extern bool kvm_msi_use_devid;
 #endif  /* CONFIG_KVM_IS_POSSIBLE */
 
 struct kvm_run;
-struct kvm_lapic_state;
 struct kvm_irq_routing_entry;
 
 typedef struct KVMCapabilityInfo {
@@ -222,7 +221,6 @@ int kvm_has_vcpu_events(void);
 int kvm_has_robust_singlestep(void);
 int kvm_has_debugregs(void);
 int kvm_max_nested_state_length(void);
-int kvm_has_pit_state2(void);
 int kvm_has_many_ioeventfds(void);
 int kvm_has_gsi_routing(void);
 int kvm_has_intx_set_mask(void);
@@ -369,6 +367,8 @@ int kvm_arch_get_registers(CPUState *cpu);
 
 int kvm_arch_put_registers(CPUState *cpu, int level);
 
+int kvm_arch_get_default_type(MachineState *ms);
+
 int kvm_arch_init(MachineState *ms, KVMState *s);
 
 int kvm_arch_init_vcpu(CPUState *cpu);
@@ -405,20 +405,18 @@ void kvm_irqchip_add_change_notifier(Notifier *n);
 void kvm_irqchip_remove_change_notifier(Notifier *n);
 void kvm_irqchip_change_notify(void);
 
-void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
-
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
 
 struct kvm_sw_breakpoint {
-    target_ulong pc;
-    target_ulong saved_insn;
+    vaddr pc;
+    vaddr saved_insn;
     int use_count;
     QTAILQ_ENTRY(kvm_sw_breakpoint) entry;
 };
 
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
-                                                 target_ulong pc);
+                                                 vaddr pc);
 
 int kvm_sw_breakpoints_active(CPUState *cpu);
 
@@ -426,10 +424,8 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
 int kvm_arch_remove_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type);
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type);
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type);
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type);
 void kvm_arch_remove_all_hw_breakpoints(void);
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
@@ -463,11 +459,6 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         memcpy(cap.args, args_tmp, n * sizeof(cap.args[0]));         \
         kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
     })
-
-uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
-                                      uint32_t index, int reg);
-uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
-
 
 void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len);
 
@@ -523,7 +514,6 @@ int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
 int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n,
                                       qemu_irq irq);
 void kvm_irqchip_set_qemuirq_gsi(KVMState *s, qemu_irq irq, int gsi);
-void kvm_pc_setup_irq_routing(bool pci_enabled);
 void kvm_init_irq_routing(KVMState *s);
 
 bool kvm_kernel_irqchip_allowed(void);

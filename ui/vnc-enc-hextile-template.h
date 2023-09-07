@@ -7,6 +7,8 @@
 #define NAME BPP
 #endif
 
+#define MAX_BYTES_PER_PIXEL 4
+
 static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              int x, int y, int w, int h,
                                              void *last_bg_,
@@ -25,9 +27,12 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     int bg_count = 0;
     int fg_count = 0;
     int flags = 0;
-    uint8_t data[(vs->client_pf.bytes_per_pixel + 2) * 16 * 16];
+    uint8_t data[(MAX_BYTES_PER_PIXEL + 2) * 16 * 16];
     int n_data = 0;
     int n_subtiles = 0;
+
+    /* Enforced by set_pixel_format() */
+    assert(vs->client_pf.bytes_per_pixel <= MAX_BYTES_PER_PIXEL);
 
     for (j = 0; j < h; j++) {
         for (i = 0; i < w; i++) {
@@ -205,6 +210,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     }
 }
 
+#undef MAX_BYTES_PER_PIXEL
 #undef NAME
 #undef pixel_t
 #undef CONCAT_I

@@ -140,7 +140,6 @@ if cpu in ['x86', 'x86_64', 'arm', 'aarch64']
 endif
 if cpu in ['x86', 'x86_64']
   accelerator_targets += {
-    'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_HVF': ['x86_64-softmmu'],
     'CONFIG_NVMM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
@@ -224,7 +223,9 @@ qemu_ldflags = []
 if targetos == 'darwin'
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
-  qemu_common_flags += '-DOS_OBJECT_USE_OBJC=0'
+  if compiler.get_id() == 'gcc'
+    qemu_common_flags += '-DOS_OBJECT_USE_OBJC=0'
+  endif
 elif targetos == 'solaris'
   # needed for CMSG_ macros in sys/socket.h
   qemu_common_flags += '-D_XOPEN_SOURCE=600'
@@ -663,11 +664,6 @@ if get_option('hvf').allowed()
     accelerators += 'CONFIG_HVF'
   endif
 endif
-if get_option('hax').allowed()
-  if get_option('hax').enabled() or targetos in ['windows', 'darwin', 'netbsd']
-    accelerators += 'CONFIG_HAX'
-  endif
-endif
 if targetos == 'netbsd'
   nvmm = cc.find_library('nvmm', required: get_option('nvmm'))
   if nvmm.found()
@@ -678,9 +674,7 @@ endif
 tcg_arch = host_arch
 if get_option('tcg').allowed()
   if host_arch == 'unknown'
-    if get_option('tcg_interpreter')
-      warning('Unsupported CPU @0@, will use TCG with TCI (slow)'.format(cpu))
-    else
+    if not get_option('tcg_interpreter')
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
   elif get_option('tcg_interpreter')
@@ -693,7 +687,6 @@ if get_option('tcg').allowed()
   endif
   if get_option('tcg_interpreter')
     tcg_arch = 'tci'
-    config_host += { 'CONFIG_TCG_INTERPRETER': 'y' }
   elif host_arch == 'x86_64'
     tcg_arch = 'i386'
   elif host_arch == 'ppc64'
@@ -703,7 +696,6 @@ if get_option('tcg').allowed()
                         language: all_languages)
 
   accelerators += 'CONFIG_TCG'
-  config_host += { 'CONFIG_TCG': 'y' }
 endif
 
 if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
@@ -732,7 +724,7 @@ glib_cflags = []
 if enable_modules
   gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
                        method: 'pkg-config')
-elif config_host.has_key('CONFIG_PLUGIN')
+elif get_option('plugins')
   gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
                        method: 'pkg-config')
 else
@@ -2071,10 +2063,15 @@ config_host_data.set('CONFIG_MODULE_UPGRADES', get_option('module_upgrades'))
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BDRV_WHITELIST_TOOLS', get_option('block_drv_whitelist_in_tools'))
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
+config_host_data.set('CONFIG_BSD', targetos in bsd_oses)
 config_host_data.set('CONFIG_COCOA', cocoa.found())
+config_host_data.set('CONFIG_DARWIN', targetos == 'darwin')
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
+config_host_data.set('CONFIG_LINUX', targetos == 'linux')
+config_host_data.set('CONFIG_POSIX', targetos != 'windows')
+config_host_data.set('CONFIG_WIN32', targetos == 'windows')
 config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_BLKIO', blkio.found())
@@ -2117,6 +2114,7 @@ if numa.found()
                                        dependencies: numa))
 endif
 config_host_data.set('CONFIG_OPENGL', opengl.found())
+config_host_data.set('CONFIG_PLUGIN', get_option('plugins'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
 config_host_data.set('CONFIG_SAFESTACK', get_option('safe_stack'))
@@ -2127,6 +2125,11 @@ if seccomp.found()
   config_host_data.set('CONFIG_SECCOMP_SYSRAWRC', seccomp_has_sysrawrc)
 endif
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
+config_host_data.set('CONFIG_SOLARIS', targetos == 'sunos')
+if get_option('tcg').allowed()
+  config_host_data.set('CONFIG_TCG', 1)
+  config_host_data.set('CONFIG_TCG_INTERPRETER', tcg_arch == 'tci')
+endif
 config_host_data.set('CONFIG_TPM', have_tpm)
 config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
@@ -2201,6 +2204,7 @@ config_host_data.set10('CONFIG_COROUTINE_POOL', have_coroutine_pool)
 config_host_data.set('CONFIG_DEBUG_GRAPH_LOCK', get_option('debug_graph_lock'))
 config_host_data.set('CONFIG_DEBUG_MUTEX', get_option('debug_mutex'))
 config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage'))
+config_host_data.set('CONFIG_DEBUG_TCG', get_option('debug_tcg'))
 config_host_data.set('CONFIG_GPROF', get_option('gprof'))
 config_host_data.set('CONFIG_LIVE_BLOCK_MIGRATION', get_option('live_block_migration').allowed())
 config_host_data.set('CONFIG_QOM_CAST_DEBUG', get_option('qom_cast_debug'))
@@ -2754,12 +2758,6 @@ if targetos == 'windows' and 'cpp' in all_languages
 endif
 config_host_data.set('HAVE_VSS_SDK', have_vss_sdk)
 
-foreach k, v: config_host
-  if k.startswith('CONFIG_')
-    config_host_data.set(k, v == 'y' ? 1 : v)
-  endif
-endforeach
-
 # Older versions of MinGW do not import _lock_file and _unlock_file properly.
 # This was fixed for v6.0.0 with commit b48e3ac8969d.
 if targetos == 'windows'
@@ -2798,6 +2796,18 @@ endif
 ########################
 
 minikconf = find_program('scripts/minikconf.py')
+config_targetos = {
+  (targetos == 'windows' ? 'CONFIG_WIN32' : 'CONFIG_POSIX'): 'y'
+}
+if targetos == 'darwin'
+  config_targetos += {'CONFIG_DARWIN': 'y'}
+elif targetos == 'linux'
+  config_targetos += {'CONFIG_LINUX': 'y'}
+endif
+if targetos in bsd_oses
+  config_targetos += {'CONFIG_BSD': 'y'}
+endif
+
 config_all = {}
 config_all_devices = {}
 config_all_disas = {}
@@ -2841,7 +2851,7 @@ host_kconfig = \
   (have_vhost_vdpa ? ['CONFIG_VHOST_VDPA=y'] : []) + \
   (have_vhost_kernel ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
   (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
-  ('CONFIG_LINUX' in config_host ? ['CONFIG_LINUX=y'] : []) + \
+  (targetos == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
   (have_pvrdma ? ['CONFIG_PVRDMA=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : [])
@@ -2862,7 +2872,7 @@ foreach target : target_dirs
     endif
     config_target += { 'CONFIG_LINUX_USER': 'y' }
   elif target.endswith('bsd-user')
-    if 'CONFIG_BSD' not in config_host
+    if targetos not in bsd_oses
       if default_targets
         continue
       endif
@@ -2993,7 +3003,7 @@ target_dirs = actual_target_dirs
 # pseudo symbol replaces it.
 
 config_all += config_all_devices
-config_all += config_host
+config_all += config_targetos
 config_all += config_all_disas
 config_all += {
   'CONFIG_XEN': xen.found(),
@@ -3340,7 +3350,7 @@ if enable_modules
   modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
 endif
 
-qom_ss = qom_ss.apply(config_host, strict: false)
+qom_ss = qom_ss.apply(config_targetos, strict: false)
 libqom = static_library('qom', qom_ss.sources() + genh,
                         dependencies: [qom_ss.dependencies()],
                         name_suffix: 'fa')
@@ -3514,7 +3524,7 @@ foreach d, list : target_modules
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
-          config_target += config_host
+          config_target += config_targetos
           target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
           c_args = ['-DNEED_CPU_H',
                     '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
@@ -3575,7 +3585,7 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
-authz_ss = authz_ss.apply(config_host, strict: false)
+authz_ss = authz_ss.apply(config_targetos, strict: false)
 libauthz = static_library('authz', authz_ss.sources() + genh,
                           dependencies: [authz_ss.dependencies()],
                           name_suffix: 'fa',
@@ -3584,7 +3594,7 @@ libauthz = static_library('authz', authz_ss.sources() + genh,
 authz = declare_dependency(link_whole: libauthz,
                            dependencies: qom)
 
-crypto_ss = crypto_ss.apply(config_host, strict: false)
+crypto_ss = crypto_ss.apply(config_targetos, strict: false)
 libcrypto = static_library('crypto', crypto_ss.sources() + genh,
                            dependencies: [crypto_ss.dependencies()],
                            name_suffix: 'fa',
@@ -3593,7 +3603,7 @@ libcrypto = static_library('crypto', crypto_ss.sources() + genh,
 crypto = declare_dependency(link_whole: libcrypto,
                             dependencies: [authz, qom])
 
-io_ss = io_ss.apply(config_host, strict: false)
+io_ss = io_ss.apply(config_targetos, strict: false)
 libio = static_library('io', io_ss.sources() + genh,
                        dependencies: [io_ss.dependencies()],
                        link_with: libqemuutil,
@@ -3609,7 +3619,7 @@ migration = declare_dependency(link_with: libmigration,
                                dependencies: [zlib, qom, io])
 system_ss.add(migration)
 
-block_ss = block_ss.apply(config_host, strict: false)
+block_ss = block_ss.apply(config_targetos, strict: false)
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
                           link_depends: block_syms,
@@ -3620,7 +3630,7 @@ block = declare_dependency(link_whole: [libblock],
                            link_args: '@block.syms',
                            dependencies: [crypto, io])
 
-blockdev_ss = blockdev_ss.apply(config_host, strict: false)
+blockdev_ss = blockdev_ss.apply(config_targetos, strict: false)
 libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
                              dependencies: blockdev_ss.dependencies(),
                              name_suffix: 'fa',
@@ -3629,7 +3639,7 @@ libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
 blockdev = declare_dependency(link_whole: [libblockdev],
                               dependencies: [block, event_loop_base])
 
-qmp_ss = qmp_ss.apply(config_host, strict: false)
+qmp_ss = qmp_ss.apply(config_targetos, strict: false)
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         dependencies: qmp_ss.dependencies(),
                         name_suffix: 'fa',
@@ -3644,7 +3654,7 @@ libchardev = static_library('chardev', chardev_ss.sources() + genh,
 
 chardev = declare_dependency(link_whole: libchardev)
 
-hwcore_ss = hwcore_ss.apply(config_host, strict: false)
+hwcore_ss = hwcore_ss.apply(config_targetos, strict: false)
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
                            name_suffix: 'fa',
                            build_by_default: false)
@@ -3701,7 +3711,7 @@ foreach target : target_dirs
             '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
   link_args = emulator_link_args
 
-  config_target += config_host
+  config_target += config_targetos
   target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
   if targetos == 'linux'
     target_inc += include_directories('linux-headers', is_system: true)
@@ -3884,7 +3894,7 @@ endforeach
 
 # Other build targets
 
-if 'CONFIG_PLUGIN' in config_host
+if get_option('plugins')
   install_headers('include/qemu/qemu-plugin.h')
 endif
 
@@ -4140,7 +4150,6 @@ endif
 summary_info = {}
 if have_system
   summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
-  summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
   summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
   summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
@@ -4157,8 +4166,8 @@ if config_all.has_key('CONFIG_TCG')
   else
     summary_info += {'TCG backend':   'native (@0@)'.format(cpu)}
   endif
-  summary_info += {'TCG plugins': config_host.has_key('CONFIG_PLUGIN')}
-  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
+  summary_info += {'TCG plugins':       get_option('plugins')}
+  summary_info += {'TCG debug enabled': get_option('debug_tcg')}
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system
@@ -4317,28 +4326,37 @@ summary_info += {'selinux':           selinux}
 summary_info += {'libdw':             libdw}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
-if not supported_cpus.contains(cpu)
+if host_arch == 'unknown'
   message()
-  warning('SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!')
+  warning('UNSUPPORTED HOST CPU')
   message()
-  message('CPU host architecture ' + cpu + ' support is not currently maintained.')
-  message('The QEMU project intends to remove support for this host CPU in')
-  message('a future release if nobody volunteers to maintain it and to')
-  message('provide a build host for our continuous integration setup.')
-  message('configure has succeeded and you can continue to build, but')
-  message('if you care about QEMU on this platform you should contact')
-  message('us upstream at qemu-devel@nongnu.org.')
+  message('Support for CPU host architecture ' + cpu + ' is not currently')
+  message('maintained. The QEMU project does not guarantee that QEMU will')
+  message('compile or work on this host CPU. You can help by volunteering')
+  message('to maintain it and providing a build host for our continuous')
+  message('integration setup.')
+  if get_option('tcg').allowed() and target_dirs.length() > 0
+    message()
+    message('configure has succeeded and you can continue to build, but')
+    message('QEMU will use a slow interpreter to emulate the target CPU.')
+  endif
 endif
 
 if not supported_oses.contains(targetos)
   message()
-  warning('WARNING: SUPPORT FOR THIS HOST OS WILL GO AWAY IN FUTURE RELEASES!')
+  warning('UNSUPPORTED HOST OS')
   message()
-  message('Host OS ' + targetos + 'support is not currently maintained.')
-  message('The QEMU project intends to remove support for this host OS in')
-  message('a future release if nobody volunteers to maintain it and to')
-  message('provide a build host for our continuous integration setup.')
+  message('Support for host OS ' + targetos + 'is not currently maintained.')
   message('configure has succeeded and you can continue to build, but')
-  message('if you care about QEMU on this platform you should contact')
-  message('us upstream at qemu-devel@nongnu.org.')
+  message('the QEMU project does not guarantee that QEMU will compile or')
+  message('work on this operating system. You can help by volunteering')
+  message('to maintain it and providing a build host for our continuous')
+  message('integration setup. This will ensure that future versions of QEMU')
+  message('will keep working on ' + targetos + '.')
+endif
+
+if host_arch == 'unknown' or not supported_oses.contains(targetos)
+  message()
+  message('If you want to help supporting QEMU on this platform, please')
+  message('contact the developers at qemu-devel@nongnu.org.')
 endif

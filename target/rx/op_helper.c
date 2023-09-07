@@ -216,19 +216,19 @@ void helper_scmpu(CPURXState *env)
 }
 
 static uint32_t (* const cpu_ldufn[])(CPUArchState *env,
-                                     target_ulong ptr,
+                                     abi_ptr ptr,
                                      uintptr_t retaddr) = {
     cpu_ldub_data_ra, cpu_lduw_data_ra, cpu_ldl_data_ra,
 };
 
 static uint32_t (* const cpu_ldfn[])(CPUArchState *env,
-                                     target_ulong ptr,
+                                     abi_ptr ptr,
                                      uintptr_t retaddr) = {
     cpu_ldub_data_ra, cpu_lduw_data_ra, cpu_ldl_data_ra,
 };
 
 static void (* const cpu_stfn[])(CPUArchState *env,
-                                 target_ulong ptr,
+                                 abi_ptr ptr,
                                  uint32_t val,
                                  uintptr_t retaddr) = {
     cpu_stb_data_ra, cpu_stw_data_ra, cpu_stl_data_ra,

@@ -365,6 +365,15 @@ void qtest_set_command_cb(bool (*pc_cb)(CharBackend *chr, gchar **words))
     process_command_cb = pc_cb;
 }
 
+static void qtest_install_gpio_out_intercept(DeviceState *dev, const char *name, int n)
+{
+    qemu_irq *disconnected = g_new0(qemu_irq, 1);
+    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+                                      disconnected, n);
+
+    *disconnected = qdev_intercept_gpio_out(dev, icpt, name, n);
+}
+
 static void qtest_process_command(CharBackend *chr, gchar **words)
 {
     const gchar *command;
@@ -388,12 +397,23 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         || strcmp(words[0], "irq_intercept_in") == 0) {
         DeviceState *dev;
         NamedGPIOList *ngl;
+        bool is_named;
+        bool is_outbound;
+        bool interception_succeeded = false;
 
         g_assert(words[1]);
+        is_named = words[2] != NULL;
+        is_outbound = words[0][14] == 'o';
         dev = DEVICE(object_resolve_path(words[1], NULL));
         if (!dev) {
             qtest_send_prefix(chr);
             qtest_send(chr, "FAIL Unknown device\n");
+            return;
+        }
+
+        if (is_named && !is_outbound) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Interception of named in-GPIOs not yet supported\n");
             return;
         }
 
@@ -408,28 +428,30 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support intercept of named GPIOs yet */
-            if (ngl->name) {
-                continue;
-            }
-            if (words[0][14] == 'o') {
-                int i;
-                for (i = 0; i < ngl->num_out; ++i) {
-                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
-                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
-                                                      disconnected, i);
-
-                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
-                                                            ngl->name, i);
+            /* We don't support inbound interception of named GPIOs yet */
+            if (is_outbound) {
+                /* NULL is valid and matchable, for "unnamed GPIO" */
+                if (g_strcmp0(ngl->name, words[2]) == 0) {
+                    int i;
+                    for (i = 0; i < ngl->num_out; ++i) {
+                        qtest_install_gpio_out_intercept(dev, ngl->name, i);
+                    }
+                    interception_succeeded = true;
                 }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
                                       ngl->num_in);
+                interception_succeeded = true;
             }
         }
-        irq_intercept_dev = dev;
+
         qtest_send_prefix(chr);
-        qtest_send(chr, "OK\n");
+        if (interception_succeeded) {
+            irq_intercept_dev = dev;
+            qtest_send(chr, "OK\n");
+        } else {
+            qtest_send(chr, "FAIL No intercepts installed\n");
+        }
     } else if (strcmp(words[0], "set_irq_in") == 0) {
         DeviceState *dev;
         qemu_irq irq;

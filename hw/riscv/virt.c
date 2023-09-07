@@ -1350,6 +1350,11 @@ static void virt_machine_init(MachineState *machine)
         exit(1);
     }
 
+    if (!tcg_enabled() && s->have_aclint) {
+        error_report("'aclint' is only available with TCG acceleration");
+        exit(1);
+    }
+
     /* Initialize sockets */
     mmio_irqchip = virtio_irqchip = pcie_irqchip = NULL;
     for (i = 0; i < socket_count; i++) {
@@ -1683,13 +1688,14 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
 
-    if (tcg_enabled()) {
-        object_class_property_add_bool(oc, "aclint", virt_get_aclint,
-                                       virt_set_aclint);
-        object_class_property_set_description(oc, "aclint",
-                                              "Set on/off to enable/disable "
-                                              "emulating ACLINT devices");
-    }
+
+    object_class_property_add_bool(oc, "aclint", virt_get_aclint,
+                                   virt_set_aclint);
+    object_class_property_set_description(oc, "aclint",
+                                          "(TCG only) Set on/off to "
+                                          "enable/disable emulating "
+                                          "ACLINT devices");
+
     object_class_property_add_str(oc, "aia", virt_get_aia,
                                   virt_set_aia);
     object_class_property_set_description(oc, "aia",

@@ -51,7 +51,7 @@ struct AspeedSCUState {
 
 #define ASPEED_IS_AST2500(si_rev)     ((((si_rev) >> 24) & 0xff) == 0x04)
 
-extern bool is_supported_silicon_rev(uint32_t silicon_rev);
+bool is_supported_silicon_rev(uint32_t silicon_rev);
 
 
 struct AspeedSCUClass {

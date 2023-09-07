@@ -798,11 +798,6 @@ static void loongarch_init(MachineState *machine)
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
     }
 
-    if (!strstr(cpu_model, "la464")) {
-        error_report("LoongArch/TCG needs cpu type la464");
-        exit(1);
-    }
-
     if (ram_size < 1 * GiB) {
         error_report("ram_size must be greater than 1G.");
         exit(1);
@@ -815,6 +810,8 @@ static void loongarch_init(MachineState *machine)
         cpu = cpu_create(machine->cpu_type);
         cpu->cpu_index = i;
         machine->possible_cpus->cpus[i].cpu = OBJECT(cpu);
+        lacpu = LOONGARCH_CPU(cpu);
+        lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
     }
     fdt_add_cpu_nodes(lams);
 

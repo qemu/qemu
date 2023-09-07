@@ -150,6 +150,8 @@ dbus_display_console_dispose(GObject *object)
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
     unregister_displaychangelistener(&ddc->dcl);
+    g_clear_object(&ddc->iface_touch);
+    g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
     g_clear_object(&ddc->iface);
     g_clear_pointer(&ddc->listeners, g_hash_table_unref);

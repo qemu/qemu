@@ -58,7 +58,7 @@ typedef enum NPCM7xxSMBusStatus {
  * @sclht: The SCL high time register.
  * @fif_ctl: The FIFO control register.
  * @fif_cts: The FIFO control status register.
- * @fair_per: The fair preriod register.
+ * @fair_per: The fair period register.
  * @txf_ctl: The transmit FIFO control register.
  * @t_out: The SMBus timeout register.
  * @txf_sts: The transmit FIFO status register.

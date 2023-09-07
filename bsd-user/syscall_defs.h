@@ -45,9 +45,9 @@
  *
  */
 #if (!defined(TARGET_I386))
-typedef int64_t target_freebsd_time_t;
+typedef int64_t target_time_t;
 #else
-typedef int32_t target_freebsd_time_t;
+typedef int32_t target_time_t;
 #endif
 
 struct target_iovec {
@@ -102,7 +102,7 @@ typedef abi_long target_freebsd_suseconds_t;
 
 /* compare to sys/timespec.h */
 struct target_freebsd_timespec {
-    target_freebsd_time_t   tv_sec;     /* seconds */
+    target_time_t   tv_sec;     /* seconds */
     abi_long                tv_nsec;    /* and nanoseconds */
 #if !defined(TARGET_I386) && TARGET_ABI_BITS == 32
     abi_long _pad;
@@ -120,7 +120,7 @@ struct target_freebsd__umtx_time {
 };
 
 struct target_freebsd_timeval {
-    target_freebsd_time_t       tv_sec; /* seconds */
+    target_time_t       tv_sec; /* seconds */
     target_freebsd_suseconds_t  tv_usec;/* and microseconds */
 #if !defined(TARGET_I386) && TARGET_ABI_BITS == 32
     abi_long _pad;
@@ -179,6 +179,217 @@ struct target_freebsd__wrusage {
     struct target_freebsd_rusage wru_children;
 };
 
+/*
+ * sys/stat.h
+ */
+struct target_freebsd11_stat {
+    uint32_t  st_dev;       /* inode's device */
+    uint32_t  st_ino;       /* inode's number */
+    int16_t   st_mode;      /* inode protection mode */
+    int16_t   st_nlink;     /* number of hard links */
+    uint32_t  st_uid;       /* user ID of the file's owner */
+    uint32_t  st_gid;       /* group ID of the file's group */
+    uint32_t  st_rdev;      /* device type */
+    struct  target_freebsd_timespec st_atim; /* time last accessed */
+    struct  target_freebsd_timespec st_mtim; /* time last data modification */
+    struct  target_freebsd_timespec st_ctim; /* time last file status change */
+    int64_t    st_size;     /* file size, in bytes */
+    int64_t    st_blocks;   /* blocks allocated for file */
+    uint32_t   st_blksize;  /* optimal blocksize for I/O */
+    uint32_t   st_flags;    /* user defined flags for file */
+    uint32_t   st_gen;      /* file generation number */
+    int32_t    st_lspare;
+    struct target_freebsd_timespec st_birthtim; /* time of file creation */
+    /*
+     * Explicitly pad st_birthtim to 16 bytes so that the size of
+     * struct stat is backwards compatible.  We use bitfields instead
+     * of an array of chars so that this doesn't require a C99 compiler
+     * to compile if the size of the padding is 0.  We use 2 bitfields
+     * to cover up to 64 bits on 32-bit machines.  We assume that
+     * CHAR_BIT is 8...
+     */
+    unsigned int:(8 / 2) * (16 - (int)sizeof(struct target_freebsd_timespec));
+    unsigned int:(8 / 2) * (16 - (int)sizeof(struct target_freebsd_timespec));
+} __packed;
+
+#if defined(__i386__)
+#define TARGET_HAS_STAT_TIME_T_EXT       1
+#endif
+
+struct target_stat {
+    uint64_t  st_dev;               /* inode's device */
+    uint64_t  st_ino;               /* inode's number */
+    uint64_t  st_nlink;             /* number of hard links */
+    int16_t   st_mode;              /* inode protection mode */
+    int16_t   st_padding0;
+    uint32_t  st_uid;               /* user ID of the file's owner */
+    uint32_t  st_gid;               /* group ID of the file's group */
+    int32_t   st_padding1;
+    uint64_t  st_rdev;              /* device type */
+#ifdef TARGET_HAS_STAT_TIME_T_EXT
+    int32_t   st_atim_ext;
+#endif
+    struct  target_freebsd_timespec st_atim; /* time of last access */
+#ifdef TARGET_HAS_STAT_TIME_T_EXT
+    int32_t   st_mtim_ext;
+#endif
+    struct  target_freebsd_timespec st_mtim; /* time of last data modification */
+#ifdef TARGET_HAS_STAT_TIME_T_EXT
+    int32_t st_ctim_ext;
+#endif
+    struct  target_freebsd_timespec st_ctim;/* time of last file status change */
+#ifdef TARGET_HAS_STAT_TIME_T_EXT
+    int32_t st_btim_ext;
+#endif
+    struct  target_freebsd_timespec st_birthtim;   /* time of file creation */
+    int64_t   st_size;              /* file size, in bytes */
+    int64_t   st_blocks;            /* blocks allocated for file */
+    uint32_t  st_blksize;           /* optimal blocksize for I/O */
+    uint32_t  st_flags;             /* user defined flags for file */
+    uint64_t  st_gen;               /* file generation number */
+    uint64_t  st_spare[10];
+};
+
+
+/* struct nstat is the same as stat above but without the st_lspare field */
+struct target_freebsd11_nstat {
+    uint32_t  st_dev;       /* inode's device */
+    uint32_t  st_ino;       /* inode's number */
+    int16_t   st_mode;      /* inode protection mode */
+    int16_t   st_nlink;     /* number of hard links */
+    uint32_t  st_uid;       /* user ID of the file's owner */
+    uint32_t  st_gid;       /* group ID of the file's group */
+    uint32_t  st_rdev;      /* device type */
+    struct  target_freebsd_timespec st_atim; /* time last accessed */
+    struct  target_freebsd_timespec st_mtim; /* time last data modification */
+    struct  target_freebsd_timespec st_ctim; /* time last file status change */
+    int64_t    st_size;     /* file size, in bytes */
+    int64_t    st_blocks;   /* blocks allocated for file */
+    uint32_t   st_blksize;  /* optimal blocksize for I/O */
+    uint32_t   st_flags;    /* user defined flags for file */
+    uint32_t   st_gen;      /* file generation number */
+    struct target_freebsd_timespec st_birthtim; /* time of file creation */
+    /*
+     * Explicitly pad st_birthtim to 16 bytes so that the size of
+     * struct stat is backwards compatible.  We use bitfields instead
+     * of an array of chars so that this doesn't require a C99 compiler
+     * to compile if the size of the padding is 0.  We use 2 bitfields
+     * to cover up to 64 bits on 32-bit machines.  We assume that
+     * CHAR_BIT is 8...
+     */
+    unsigned int:(8 / 2) * (16 - (int)sizeof(struct target_freebsd_timespec));
+    unsigned int:(8 / 2) * (16 - (int)sizeof(struct target_freebsd_timespec));
+} __packed;
+
+/*
+ * sys/mount.h
+ */
+
+/* filesystem id type */
+typedef struct target_freebsd_fsid { int32_t val[2]; } target_freebsd_fsid_t;
+
+/* filesystem statistics */
+struct target_freebsd11_statfs {
+    uint32_t f_version; /* structure version number */
+    uint32_t f_type;    /* type of filesystem */
+    uint64_t f_flags;   /* copy of mount exported flags */
+    uint64_t f_bsize;   /* filesystem fragment size */
+    uint64_t f_iosize;  /* optimal transfer block size */
+    uint64_t f_blocks;  /* total data blocks in filesystem */
+    uint64_t f_bfree;   /* free blocks in filesystem */
+    int64_t  f_bavail;  /* free blocks avail to non-superuser */
+    uint64_t f_files;   /* total file nodes in filesystem */
+    int64_t  f_ffree;   /* free nodes avail to non-superuser */
+    uint64_t f_syncwrites;  /* count of sync writes since mount */
+    uint64_t f_asyncwrites; /* count of async writes since mount */
+    uint64_t f_syncreads;   /* count of sync reads since mount */
+    uint64_t f_asyncreads;  /* count of async reads since mount */
+    uint64_t f_spare[10];   /* unused spare */
+    uint32_t f_namemax; /* maximum filename length */
+    uint32_t f_owner;   /* user that mounted the filesystem */
+    target_freebsd_fsid_t   f_fsid; /* filesystem id */
+    char     f_charspare[80];           /* spare string space */
+    char     f_fstypename[16];   /* filesys type name */
+    char     f_mntfromname[88];    /* mount filesystem */
+    char     f_mntonname[88];      /* dir on which mounted*/
+};
+
+struct target_statfs {
+    uint32_t f_version;             /* structure version number */
+    uint32_t f_type;                /* type of filesystem */
+    uint64_t f_flags;               /* copy of mount exported flags */
+    uint64_t f_bsize;               /* filesystem fragment size */
+    uint64_t f_iosize;              /* optimal transfer block size */
+    uint64_t f_blocks;              /* total data blocks in filesystem */
+    uint64_t f_bfree;               /* free blocks in filesystem */
+    int64_t  f_bavail;              /* free blocks avail to non-superuser */
+    uint64_t f_files;               /* total file nodes in filesystem */
+    int64_t  f_ffree;               /* free nodes avail to non-superuser */
+    uint64_t f_syncwrites;          /* count of sync writes since mount */
+    uint64_t f_asyncwrites;         /* count of async writes since mount */
+    uint64_t f_syncreads;           /* count of sync reads since mount */
+    uint64_t f_asyncreads;          /* count of async reads since mount */
+    uint64_t f_spare[10];           /* unused spare */
+    uint32_t f_namemax;             /* maximum filename length */
+    uint32_t f_owner;               /* user that mounted the filesystem */
+    target_freebsd_fsid_t f_fsid;   /* filesystem id */
+    char      f_charspare[80];      /* spare string space */
+    char      f_fstypename[16];     /* filesystem type name */
+    char      f_mntfromname[1024];  /* mounted filesystem */
+    char      f_mntonname[1024];    /* directory on which mounted */
+};
+
+/* File identifier. These are unique per filesystem on a single machine. */
+#define TARGET_MAXFIDSZ     16
+
+struct target_freebsd_fid {
+    uint16_t    fid_len;            /* len of data in bytes */
+    uint16_t    fid_data0;          /* force longword align */
+    char        fid_data[TARGET_MAXFIDSZ];  /* data (variable len) */
+};
+
+/* Generic file handle */
+struct target_freebsd_fhandle {
+    target_freebsd_fsid_t   fh_fsid;    /* Filesystem id of mount point */
+    struct target_freebsd_fid fh_fid;   /* Filesys specific id */
+};
+typedef struct target_freebsd_fhandle target_freebsd_fhandle_t;
+
+/*
+ * sys/fcntl.h
+ */
+#define TARGET_F_DUPFD              0
+#define TARGET_F_GETFD              1
+#define TARGET_F_SETFD              2
+#define TARGET_F_GETFL              3
+#define TARGET_F_SETFL              4
+#define TARGET_F_GETOWN             5
+#define TARGET_F_SETOWN             6
+#define TARGET_F_OGETLK             7
+#define TARGET_F_OSETLK             8
+#define TARGET_F_OSETLKW            9
+#define TARGET_F_DUP2FD             10
+#define TARGET_F_GETLK              11
+#define TARGET_F_SETLK              12
+#define TARGET_F_SETLKW             13
+#define TARGET_F_SETLK_REMOTE       14
+#define TARGET_F_READAHEAD          15
+#define TARGET_F_RDAHEAD            16
+#define TARGET_F_DUPFD_CLOEXEC     17
+#define TARGET_F_DUP2FD_CLOEXEC    18
+/* FreeBSD-specific */
+#define TARGET_F_ADD_SEALS          19
+#define TARGET_F_GET_SEALS          20
+
+struct target_freebsd_flock {
+    int64_t l_start;
+    int64_t l_len;
+    int32_t l_pid;
+    int16_t l_type;
+    int16_t l_whence;
+    int32_t l_sysid;
+} QEMU_PACKED;
+
 #define safe_syscall0(type, name) \
 type safe_##name(void) \
 { \
@@ -226,8 +437,12 @@ type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
     return safe_syscall(SYS_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
 }
 
+#define safe_fcntl(...) safe_syscall(SYS_fcntl, __VA_ARGS__)
+
 /* So far all target and host bitmasks are the same */
+#undef  target_to_host_bitmask
 #define target_to_host_bitmask(x, tbl) (x)
+#undef  host_to_target_bitmask
 #define host_to_target_bitmask(x, tbl) (x)
 
 #endif /* SYSCALL_DEFS_H */

@@ -1,5 +1,3 @@
-i386_ss.add(when: 'CONFIG_KVM', if_false: files('kvm-stub.c'))
-
 i386_softmmu_kvm_ss = ss.source_set()
 
 i386_softmmu_kvm_ss.add(files(

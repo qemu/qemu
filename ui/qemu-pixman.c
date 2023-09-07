@@ -200,14 +200,6 @@ void qemu_pixman_linebuf_fill(pixman_image_t *linebuf, pixman_image_t *fb,
                            x, y, 0, 0, 0, 0, width, 1);
 }
 
-/* copy linebuf to framebuffer */
-void qemu_pixman_linebuf_copy(pixman_image_t *fb, int width, int x, int y,
-                              pixman_image_t *linebuf)
-{
-    pixman_image_composite(PIXMAN_OP_SRC, linebuf, NULL, fb,
-                           0, 0, 0, 0, x, y, width, 1);
-}
-
 pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
                                           pixman_image_t *image)
 {
@@ -224,17 +216,6 @@ void qemu_pixman_image_unref(pixman_image_t *image)
         return;
     }
     pixman_image_unref(image);
-}
-
-pixman_color_t qemu_pixman_color(PixelFormat *pf, uint32_t color)
-{
-    pixman_color_t c;
-
-    c.red   = ((color & pf->rmask) >> pf->rshift) << (16 - pf->rbits);
-    c.green = ((color & pf->gmask) >> pf->gshift) << (16 - pf->gbits);
-    c.blue  = ((color & pf->bmask) >> pf->bshift) << (16 - pf->bbits);
-    c.alpha = ((color & pf->amask) >> pf->ashift) << (16 - pf->abits);
-    return c;
 }
 
 pixman_image_t *qemu_pixman_glyph_from_vgafont(int height, const uint8_t *font,

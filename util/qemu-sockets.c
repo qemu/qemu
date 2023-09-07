@@ -929,7 +929,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     if (pathbuf != NULL) {
         /*
-         * This dummy fd usage silences the mktemp() unsecure warning.
+         * This dummy fd usage silences the mktemp() insecure warning.
          * Using mkstemp() doesn't make things more secure here
          * though.  bind() complains about existing files, so we have
          * to unlink first and thus re-open the race window.  The

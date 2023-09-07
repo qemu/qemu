@@ -13,8 +13,10 @@ if not enable_modules
   endif
 endif
 
-specific_ss.add(when: 'CONFIG_PLUGIN', if_true: [files(
-  'loader.c',
-  'core.c',
-  'api.c',
-), declare_dependency(link_args: plugin_ldflags)])
+if get_option('plugins')
+  specific_ss.add(files(
+    'loader.c',
+    'core.c',
+    'api.c',
+  ), declare_dependency(link_args: plugin_ldflags))
+endif
