@@ -37,7 +37,11 @@ all: $(SONAMES)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 lib%.so: %.o
+ifeq ($(CONFIG_DARWIN),y)
+	$(CC) -bundle -Wl,-undefined,dynamic_lookup -o $@ $^ $(LDLIBS)
+else
 	$(CC) -shared -o $@ $^ $(LDLIBS)
+endif
 
 clean:
 	rm -f *.o *.so *.d
