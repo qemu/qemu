@@ -301,6 +301,9 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                    MMUAccessType access_type,
                                    int mmu_idx, MemTxAttrs attrs,
                                    MemTxResult response, uintptr_t retaddr);
+void ppc_cpu_debug_excp_handler(CPUState *cs);
+bool ppc_cpu_debug_check_breakpoint(CPUState *cs);
+bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
 #endif
 
 FIELD(GER_MSK, XMSK, 0, 4)

@@ -85,28 +85,6 @@ static uint8_t pnv_xive_block_id(PnvXive *xive)
 }
 
 /*
- * Remote access to controllers. HW uses MMIOs. For now, a simple scan
- * of the chips is good enough.
- *
- * TODO: Block scope support
- */
-static PnvXive *pnv_xive_get_remote(uint8_t blk)
-{
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-    int i;
-
-    for (i = 0; i < pnv->num_chips; i++) {
-        Pnv9Chip *chip9 = PNV9_CHIP(pnv->chips[i]);
-        PnvXive *xive = &chip9->xive;
-
-        if (pnv_xive_block_id(xive) == blk) {
-            return xive;
-        }
-    }
-    return NULL;
-}
-
-/*
  * VST accessors for SBE, EAT, ENDT, NVT
  *
  * Indirect VST tables are arrays of VSDs pointing to a page (of same
@@ -209,6 +187,42 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
     return pnv_xive_vst_addr_direct(xive, type, vsd, (idx % vst_per_page));
 }
 
+/*
+ * This is a simplified model of operation forwarding on a remote IC.
+ *
+ * A PC MMIO address is built to identify the NVT structure. The load
+ * on the remote IC will return the address of the structure in RAM,
+ * which will then be used by pnv_xive_vst_write/read to perform the
+ * RAM operation.
+ */
+static uint64_t pnv_xive_vst_addr_remote(PnvXive *xive, uint32_t type,
+                                         uint64_t vsd, uint8_t blk,
+                                         uint32_t idx)
+{
+    const XiveVstInfo *info = &vst_infos[type];
+    uint64_t remote_addr = vsd & VSD_ADDRESS_MASK;
+    uint64_t vst_addr;
+    MemTxResult result;
+
+    if (type != VST_TSEL_VPDT) {
+        xive_error(xive, "VST: invalid access on remote VST %s %x/%x !?",
+                   info->name, blk, idx);
+        return 0;
+    }
+
+    remote_addr |= idx << xive->pc_shift;
+
+    vst_addr = address_space_ldq_be(&address_space_memory, remote_addr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        xive_error(xive, "VST: read failed at @0x%"  HWADDR_PRIx
+                   " for NVT %x/%x\n", remote_addr, blk, idx);
+        return 0;
+    }
+
+    return vst_addr;
+}
+
 static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
                                   uint32_t idx)
 {
@@ -225,9 +239,7 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
-        xive = pnv_xive_get_remote(blk);
-
-        return xive ? pnv_xive_vst_addr(xive, type, blk, idx) : 0;
+        return pnv_xive_vst_addr_remote(xive, type, vsd, blk, idx);
     }
 
     if (VSD_INDIRECT & vsd) {
@@ -242,12 +254,20 @@ static int pnv_xive_vst_read(PnvXive *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t addr = pnv_xive_vst_addr(xive, type, blk, idx);
+    MemTxResult result;
 
     if (!addr) {
         return -1;
     }
 
-    cpu_physical_memory_read(addr, data, info->size);
+    result = address_space_read(&address_space_memory, addr,
+                                MEMTXATTRS_UNSPECIFIED, data,
+                                info->size);
+    if (result != MEMTX_OK) {
+        xive_error(xive, "VST: read failed at @0x%" HWADDR_PRIx
+                   " for VST %s %x/%x\n", addr, info->name, blk, idx);
+        return -1;
+    }
     return 0;
 }
 
@@ -258,16 +278,27 @@ static int pnv_xive_vst_write(PnvXive *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t addr = pnv_xive_vst_addr(xive, type, blk, idx);
+    MemTxResult result;
 
     if (!addr) {
         return -1;
     }
 
     if (word_number == XIVE_VST_WORD_ALL) {
-        cpu_physical_memory_write(addr, data, info->size);
+        result = address_space_write(&address_space_memory, addr,
+                                     MEMTXATTRS_UNSPECIFIED, data,
+                                     info->size);
     } else {
-        cpu_physical_memory_write(addr + word_number * 4,
-                                  data + word_number * 4, 4);
+        result = address_space_write(&address_space_memory,
+                                     addr + word_number * 4,
+                                     MEMTXATTRS_UNSPECIFIED,
+                                     data + word_number * 4, 4);
+    }
+
+    if (result != MEMTX_OK) {
+        xive_error(xive, "VST: write failed at @0x%" HWADDR_PRIx
+                    "for VST %s %x/%x\n", addr, info->name, blk, idx);
+        return -1;
     }
     return 0;
 }
@@ -275,12 +306,26 @@ static int pnv_xive_vst_write(PnvXive *xive, uint32_t type, uint8_t blk,
 static int pnv_xive_get_end(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
                             XiveEND *end)
 {
+    PnvXive *xive = PNV_XIVE(xrtr);
+
+    if (pnv_xive_block_id(xive) != blk) {
+        xive_error(xive, "VST: END %x/%x is remote !?", blk, idx);
+        return -1;
+    }
+
     return pnv_xive_vst_read(PNV_XIVE(xrtr), VST_TSEL_EQDT, blk, idx, end);
 }
 
 static int pnv_xive_write_end(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
                               XiveEND *end, uint8_t word_number)
 {
+    PnvXive *xive = PNV_XIVE(xrtr);
+
+    if (pnv_xive_block_id(xive) != blk) {
+        xive_error(xive, "VST: END %x/%x is remote !?", blk, idx);
+        return -1;
+    }
+
     return pnv_xive_vst_write(PNV_XIVE(xrtr), VST_TSEL_EQDT, blk, idx, end,
                               word_number);
 }
@@ -1349,6 +1394,50 @@ static const MemoryRegionOps pnv_xive_ic_reg_ops = {
 #define PNV_XIVE_SYNC_PUSH          0xf00 /* Sync push context */
 #define PNV_XIVE_SYNC_VPC           0xf80 /* Sync remove VPC store */
 
+static void pnv_xive_end_notify(XiveRouter *xrtr, XiveEAS *eas)
+{
+    PnvXive *xive = PNV_XIVE(xrtr);
+    uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
+    uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
+    uint32_t end_data = xive_get_field64(EAS_END_DATA, eas->w);
+    uint64_t end_vsd = xive->vsds[VST_TSEL_EQDT][end_blk];
+
+    switch (GETFIELD(VSD_MODE, end_vsd)) {
+    case VSD_MODE_EXCLUSIVE:
+        /* Perform the END notification on the local IC. */
+        xive_router_end_notify(xrtr, eas);
+        break;
+
+    case VSD_MODE_FORWARD: {
+        MemTxResult result;
+        uint64_t notif_port = end_vsd & VSD_ADDRESS_MASK;
+        uint64_t data = XIVE_TRIGGER_END | XIVE_TRIGGER_PQ |
+            be64_to_cpu(eas->w);
+
+        /* Forward the store on the remote IC notify page. */
+        address_space_stq_be(&address_space_memory, notif_port, data,
+                             MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            xive_error(xive, "IC: Forward notif END %x/%x [%x] failed @%"
+                       HWADDR_PRIx, end_blk, end_idx, end_data, notif_port);
+            return;
+        }
+        break;
+    }
+
+    case VSD_MODE_INVALID:
+    default:
+        /* Set FIR */
+        xive_error(xive, "IC: Invalid END VSD for block %x", end_blk);
+        return;
+    }
+}
+
+/*
+ * The notify page can either be used to receive trigger events from
+ * the HW controllers (PHB, PSI) or to reroute interrupts between
+ * Interrupt controllers.
+ */
 static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
 {
     uint8_t blk;
@@ -1357,8 +1446,8 @@ static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
     trace_pnv_xive_ic_hw_trigger(addr, val);
 
     if (val & XIVE_TRIGGER_END) {
-        xive_error(xive, "IC: END trigger at @0x%"HWADDR_PRIx" data 0x%"PRIx64,
-                   addr, val);
+        val = cpu_to_be64(val);
+        pnv_xive_end_notify(XIVE_ROUTER(xive), (XiveEAS *) &val);
         return;
     }
 
@@ -1703,16 +1792,20 @@ static const MemoryRegionOps pnv_xive_vc_ops = {
 };
 
 /*
- * Presenter Controller MMIO region. The Virtualization Controller
- * updates the IPB in the NVT table when required. Not modeled.
+ * Presenter Controller MMIO region. Points to the NVT sets.
+ *
+ * HW implements all possible mem ops to the underlying NVT structure
+ * but QEMU does not need to be so precise. The model implementation
+ * simply returns the RAM address of the NVT structure which is then
+ * used by pnv_xive_vst_write/read to perform the RAM operation.
  */
-static uint64_t pnv_xive_pc_read(void *opaque, hwaddr addr,
-                                 unsigned size)
+static uint64_t pnv_xive_pc_read(void *opaque, hwaddr offset, unsigned size)
 {
     PnvXive *xive = PNV_XIVE(opaque);
+    uint32_t nvt_idx = offset >> xive->pc_shift;
+    uint8_t blk = pnv_xive_block_id(xive); /* TODO: VDT -> block xlate */
 
-    xive_error(xive, "PC: invalid read @%"HWADDR_PRIx, addr);
-    return -1;
+    return pnv_xive_vst_addr(xive, VST_TSEL_VPDT, blk, nvt_idx);
 }
 
 static void pnv_xive_pc_write(void *opaque, hwaddr addr,
@@ -1898,6 +1991,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&xive->ic_notify_mmio, OBJECT(dev),
                           &pnv_xive_ic_notify_ops,
                           xive, "xive-ic-notify", 1 << xive->ic_shift);
+    xive->ic_notify_mmio.disable_reentrancy_guard = true;
 
     /* The Pervasive LSI trigger and EOI pages (not modeled) */
     memory_region_init_io(&xive->ic_lsi_mmio, OBJECT(dev), &pnv_xive_ic_lsi_ops,
@@ -1933,6 +2027,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     /* Presenter Controller MMIO region (not modeled) */
     memory_region_init_io(&xive->pc_mmio, OBJECT(xive), &pnv_xive_pc_ops, xive,
                           "xive-pc", PNV9_XIVE_PC_SIZE);
+    xive->pc_mmio.disable_reentrancy_guard = true;
 
     /* Thread Interrupt Management Area (Direct) */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &pnv_xive_tm_ops,
@@ -1998,6 +2093,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
     xrc->get_block_id = pnv_xive_get_block_id;
+    xrc->end_notify = pnv_xive_end_notify;
 
     xnc->notify = pnv_xive_notify;
     xpc->match_nvt  = pnv_xive_match_nvt;

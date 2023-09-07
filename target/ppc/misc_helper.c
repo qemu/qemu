@@ -199,6 +199,21 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
     env->spr[SPR_PCR] = value & pcc->pcr_mask;
 }
 
+void helper_store_ciabr(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_ciabr(env, value);
+}
+
+void helper_store_dawr0(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawr0(env, value);
+}
+
+void helper_store_dawrx0(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawrx0(env, value);
+}
+
 /*
  * DPDES register is shared. Each bit reflects the state of the
  * doorbell interrupt of a thread of the same core.

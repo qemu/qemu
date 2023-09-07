@@ -1518,6 +1518,13 @@ static void xive_router_realize(DeviceState *dev, Error **errp)
     assert(xrtr->xfb);
 }
 
+static void xive_router_end_notify_handler(XiveRouter *xrtr, XiveEAS *eas)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->end_notify(xrtr, eas);
+}
+
 /*
  * Encode the HW CAM line in the block group mode format :
  *
@@ -1664,8 +1671,7 @@ static bool xive_router_end_es_notify(XiveRouter *xrtr, uint8_t end_blk,
  * another chip. We don't model the PowerBus but the END trigger
  * message has the same parameters than in the function below.
  */
-static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
-                                   uint32_t end_idx, uint32_t end_data)
+void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
 {
     XiveEND end;
     uint8_t priority;
@@ -1674,6 +1680,10 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     uint32_t nvt_idx;
     XiveNVT nvt;
     bool found;
+
+    uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
+    uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
+    uint32_t end_data = xive_get_field64(EAS_END_DATA,  eas->w);
 
     /* END cache lookup */
     if (xive_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -1817,10 +1827,7 @@ do_escalation:
     /*
      * The END trigger becomes an Escalation trigger
      */
-    xive_router_end_notify(xrtr,
-                           xive_get_field32(END_W4_ESC_END_BLOCK, end.w4),
-                           xive_get_field32(END_W4_ESC_END_INDEX, end.w4),
-                           xive_get_field32(END_W5_ESC_END_DATA,  end.w5));
+    xive_router_end_notify_handler(xrtr, (XiveEAS *) &end.w4);
 }
 
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
@@ -1871,10 +1878,7 @@ void xive_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
     /*
      * The event trigger becomes an END trigger
      */
-    xive_router_end_notify(xrtr,
-                           xive_get_field64(EAS_END_BLOCK, eas.w),
-                           xive_get_field64(EAS_END_INDEX, eas.w),
-                           xive_get_field64(EAS_END_DATA,  eas.w));
+    xive_router_end_notify_handler(xrtr, &eas);
 }
 
 static Property xive_router_properties[] = {
@@ -1887,12 +1891,16 @@ static void xive_router_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
+    XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
 
     dc->desc    = "XIVE Router Engine";
     device_class_set_props(dc, xive_router_properties);
     /* Parent is SysBusDeviceClass. No need to call its realize hook */
     dc->realize = xive_router_realize;
     xnc->notify = xive_router_notify;
+
+    /* By default, the router handles END triggers locally */
+    xrc->end_notify = xive_router_end_notify;
 }
 
 static const TypeInfo xive_router_info = {
