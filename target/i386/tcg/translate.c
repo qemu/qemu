@@ -4619,7 +4619,11 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 case 0x0a: /* grp d9/2 */
                     switch (rm) {
                     case 0: /* fnop */
-                        /* check exceptions (FreeBSD FPU probe) */
+                        /*
+                         * check exceptions (FreeBSD FPU probe)
+                         * needs to be treated as I/O because of ferr_irq
+                         */
+                        translator_io_start(&s->base);
                         gen_helper_fwait(cpu_env);
                         update_fip = false;
                         break;
@@ -5548,6 +5552,8 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             (HF_MP_MASK | HF_TS_MASK)) {
             gen_exception(s, EXCP07_PREX);
         } else {
+            /* needs to be treated as I/O because of ferr_irq */
+            translator_io_start(&s->base);
             gen_helper_fwait(cpu_env);
         }
         break;

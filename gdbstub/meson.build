@@ -14,8 +14,8 @@ gdb_system_ss = ss.source_set()
 gdb_user_ss.add(files('gdbstub.c', 'user.c'))
 gdb_system_ss.add(files('gdbstub.c', 'softmmu.c'))
 
-gdb_user_ss = gdb_user_ss.apply(config_host, strict: false)
-gdb_system_ss = gdb_system_ss.apply(config_host, strict: false)
+gdb_user_ss = gdb_user_ss.apply(config_targetos, strict: false)
+gdb_system_ss = gdb_system_ss.apply(config_targetos, strict: false)
 
 libgdb_user = static_library('gdb_user',
                              gdb_user_ss.sources() + genh,

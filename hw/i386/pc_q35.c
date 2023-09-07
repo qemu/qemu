@@ -34,6 +34,7 @@
 #include "hw/loader.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/pci-host/q35.h"
@@ -57,6 +58,7 @@
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/i386/acpi-build.h"
+#include "target/i386/cpu.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6

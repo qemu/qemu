@@ -41,15 +41,17 @@ if have_vhost_net_user
   system_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-user-stub.c'))
 endif
 
-system_ss.add(when: 'CONFIG_LINUX', if_true: files('tap-linux.c'))
-system_ss.add(when: 'CONFIG_BSD', if_true: files('tap-bsd.c'))
-system_ss.add(when: 'CONFIG_SOLARIS', if_true: files('tap-solaris.c'))
-tap_posix = ['tap.c']
-if not config_host.has_key('CONFIG_LINUX') and not config_host.has_key('CONFIG_BSD') and not config_host.has_key('CONFIG_SOLARIS')
-  tap_posix += 'tap-stub.c'
+if targetos == 'windows'
+  system_ss.add(files('tap-win32.c'))
+elif targetos == 'linux'
+  system_ss.add(files('tap.c', 'tap-linux.c'))
+elif targetos in bsd_oses
+  system_ss.add(files('tap.c', 'tap-bsd.c'))
+elif targetos == 'solaris'
+  system_ss.add(files('tap.c', 'tap-solaris.c'))
+else
+  system_ss.add(files('tap.c', 'tap-stub.c'))
 endif
-system_ss.add(when: 'CONFIG_POSIX', if_true: files(tap_posix))
-system_ss.add(when: 'CONFIG_WIN32', if_true: files('tap-win32.c'))
 if have_vhost_net_vdpa
   system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-vdpa.c'), if_false: files('vhost-vdpa-stub.c'))
   system_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-vdpa-stub.c'))
