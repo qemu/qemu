@@ -42,17 +42,15 @@ wrote 2048/2048 bytes at offset 28672
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2048/2048 bytes at offset 34816
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Offset          Length          File
-0               0x7000          TEST_DIR/t.IMGFMT
-0x7000          0x800           TEST_DIR/t.wrap.IMGFMT
-0x7800          0x1000          TEST_DIR/t.IMGFMT
-0x8800          0x800           TEST_DIR/t.wrap.IMGFMT
-0x9000          0x7000          TEST_DIR/t.IMGFMT
+28 KiB (0x7000) bytes not allocated at offset 0 bytes (0x0)
+2 KiB (0x800) bytes     allocated at offset 28 KiB (0x7000)
+4 KiB (0x1000) bytes not allocated at offset 30 KiB (0x7800)
+2 KiB (0x800) bytes     allocated at offset 34 KiB (0x8800)
+28 KiB (0x7000) bytes not allocated at offset 36 KiB (0x9000)
 read 4096/4096 bytes at offset 30720
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Offset          Length          File
-0               0x7000          TEST_DIR/t.IMGFMT
-0x7000          0x2000          TEST_DIR/t.wrap.IMGFMT
-0x9000          0x7000          TEST_DIR/t.IMGFMT
+28 KiB (0x7000) bytes not allocated at offset 0 bytes (0x0)
+8 KiB (0x2000) bytes     allocated at offset 28 KiB (0x7000)
+28 KiB (0x7000) bytes not allocated at offset 36 KiB (0x9000)
 No errors were found on the image.
 *** done
