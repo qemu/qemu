@@ -43,6 +43,9 @@
 #include "hw/sparc/grlib.h"
 #include "hw/misc/grlib_ahb_apb_pnp.h"
 
+/* EMA Specific Includes*/
+#include "ssr_fpga.h"
+
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)
 
@@ -244,6 +247,9 @@ static void leon3_generic_hw_init(MachineState *machine)
     reset_info->cpu   = cpu;
     reset_info->sp    = LEON3_RAM_OFFSET + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
+
+    /* EMA Specific addition */
+    ssr_fpga_create(0xC0000000);
 
     ahb_pnp = GRLIB_AHB_PNP(qdev_new(TYPE_GRLIB_AHB_PNP));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ahb_pnp), &error_fatal);
