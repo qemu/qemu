@@ -11,11 +11,6 @@
 #include "libqtest-single.h"
 #include "libqos/usb.h"
 
-
-static void test_xhci_init(void)
-{
-}
-
 static void test_xhci_hotplug(void)
 {
     usb_test_hotplug(global_qtest, "xhci", "1", NULL);
@@ -54,7 +49,6 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("/xhci/pci/init", test_xhci_init);
     qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
     if (qtest_has_device("usb-uas")) {
         qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
