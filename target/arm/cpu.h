@@ -3208,11 +3208,7 @@ static inline bool bswap_code(bool sctlr_b)
      * The invalid combination SCTLR.B=1/CPSR.E=1/TARGET_BIG_ENDIAN=0
      * would also end up as a mixed-endian mode with BE code, LE data.
      */
-    return
-#if TARGET_BIG_ENDIAN
-        1 ^
-#endif
-        sctlr_b;
+    return TARGET_BIG_ENDIAN ^ sctlr_b;
 #else
     /* All code access in ARM is little endian, and there are no loaders
      * doing swaps that need to be reversed
@@ -3224,11 +3220,7 @@ static inline bool bswap_code(bool sctlr_b)
 #ifdef CONFIG_USER_ONLY
 static inline bool arm_cpu_bswap_data(CPUARMState *env)
 {
-    return
-#if TARGET_BIG_ENDIAN
-       1 ^
-#endif
-       arm_cpu_data_is_big_endian(env);
+    return TARGET_BIG_ENDIAN ^ arm_cpu_data_is_big_endian(env);
 }
 #endif
 

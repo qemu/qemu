@@ -870,7 +870,6 @@ static uint64_t load_kernel(void)
     uint64_t kernel_entry, kernel_high, initrd_size;
     long kernel_size;
     ram_addr_t initrd_offset;
-    int big_endian;
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
@@ -878,16 +877,10 @@ static uint64_t load_kernel(void)
     char rng_seed_hex[sizeof(rng_seed) * 2 + 1];
     size_t rng_seed_prom_offset;
 
-#if TARGET_BIG_ENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
-
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL,
-                           &kernel_high, NULL, big_endian, EM_MIPS,
+                           &kernel_high, NULL, TARGET_BIG_ENDIAN, EM_MIPS,
                            1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
@@ -1107,7 +1100,6 @@ void mips_malta_init(MachineState *machine)
     I2CBus *smbus;
     DriveInfo *dinfo;
     int fl_idx = 0;
-    int be;
     MaltaState *s;
     PCIDevice *piix4;
     DeviceState *dev;
@@ -1144,12 +1136,6 @@ void mips_malta_init(MachineState *machine)
                                     ram_low_postio);
     }
 
-#if TARGET_BIG_ENDIAN
-    be = 1;
-#else
-    be = 0;
-#endif
-
     /* FPGA */
 
     /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
@@ -1161,7 +1147,8 @@ void mips_malta_init(MachineState *machine)
                                FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                65536,
-                               4, 0x0000, 0x0000, 0x0000, 0x0000, be);
+                               4, 0x0000, 0x0000, 0x0000, 0x0000,
+                               TARGET_BIG_ENDIAN);
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
     if (kernel_filename) {
@@ -1245,7 +1232,7 @@ void mips_malta_init(MachineState *machine)
 
     /* Northbridge */
     dev = qdev_new("gt64120");
-    qdev_prop_set_bit(dev, "cpu-little-endian", !be);
+    qdev_prop_set_bit(dev, "cpu-little-endian", !TARGET_BIG_ENDIAN);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     pci_bus_map_irqs(pci_bus, malta_pci_slot_get_pirq);
