@@ -1333,7 +1333,7 @@ static bool check_is_frozen(GAState *s)
     /* check if a previous instance of qemu-ga exited with filesystems' state
      * marked as frozen. this could be a stale value (a non-qemu-ga process
      * or reboot may have since unfrozen them), but better to require an
-     * uneeded unfreeze than to risk hanging on start-up
+     * unneeded unfreeze than to risk hanging on start-up
      */
     struct stat st;
     if (stat(s->state_filepath_isfrozen, &st) == -1) {

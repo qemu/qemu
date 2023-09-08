@@ -54,7 +54,7 @@ struct QOSStackElement {
     int length;
 };
 
-/* Each enty in these hash table will consist of <string, node/edge> pair. */
+/* Each entry in these hash table will consist of <string, node/edge> pair. */
 static GHashTable *edge_table;
 static GHashTable *node_table;
 
@@ -214,7 +214,7 @@ static QOSGraphEdge *search_list_edges(QOSGraphEdgeList *edgelist,
 /**
  * search_machine(): search for a machine @name in the node hash
  * table. A machine is the child of the root node.
- * This function forces the research in the childs of the root,
+ * This function forces the research in the children of the root,
  * to check the node is a proper machine
  *
  * Returns: on success: the %QOSGraphNode

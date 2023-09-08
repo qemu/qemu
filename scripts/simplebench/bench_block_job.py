@@ -39,7 +39,7 @@ def bench_block_job(cmd, cmd_args, qemu_args):
                  binary
 
     Returns {'seconds': int} on success and {'error': str} on failure, dict may
-    contain addional 'vm-log' field. Return value is compatible with
+    contain additional 'vm-log' field. Return value is compatible with
     simplebench lib.
     """
 

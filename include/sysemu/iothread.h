@@ -59,7 +59,7 @@ void iothread_stop(IOThread *iothread);
 void iothread_destroy(IOThread *iothread);
 
 /*
- * Returns true if executing withing IOThread context,
+ * Returns true if executing within IOThread context,
  * false otherwise.
  */
 bool qemu_in_iothread(void);

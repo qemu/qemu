@@ -7158,7 +7158,7 @@ static int test_opcode_table(opc_handler_t **table, int len)
                 tmp = test_opcode_table(ind_table(table[i]),
                     PPC_CPU_INDIRECT_OPCODES_LEN);
                 if (tmp == 0) {
-                    free(table[i]);
+                    g_free(table[i]);
                     table[i] = &invalid_handler;
                 } else {
                     count++;

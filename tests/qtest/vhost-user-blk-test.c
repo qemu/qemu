@@ -961,7 +961,7 @@ static void *vhost_user_blk_test_setup(GString *cmd_line, void *arg)
  * Setup for hotplug.
  *
  * Since vhost-user server only serves one vhost-user client one time,
- * another exprot
+ * another export
  *
  */
 static void *vhost_user_blk_hotplug_test_setup(GString *cmd_line, void *arg)

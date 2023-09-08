@@ -204,7 +204,7 @@ static inline bool clock_set_ns(Clock *clk, unsigned ns)
  * Propagate the clock period that has been previously configured using
  * @clock_set(). This will update recursively all connected clocks.
  * It is an error to call this function on a clock which has a source.
- * Note: this function must not be called during device inititialization
+ * Note: this function must not be called during device initialization
  * or migration.
  */
 void clock_propagate(Clock *clk);

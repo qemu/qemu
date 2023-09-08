@@ -95,7 +95,7 @@ static uint32_t reader_count(void)
 
     QEMU_LOCK_GUARD(&aio_context_list_lock);
 
-    /* rd can temporarly be negative, but the total will *always* be >= 0 */
+    /* rd can temporarily be negative, but the total will *always* be >= 0 */
     rd = orphaned_reader_count;
     QTAILQ_FOREACH(brdv_graph, &aio_context_list, next_aio) {
         rd += qatomic_read(&brdv_graph->reader_count);

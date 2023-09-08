@@ -418,7 +418,7 @@ enum {
 #define AC_UNSOL_RES_CP_STATE		(1<<1)	/* content protection */
 #define AC_UNSOL_RES_CP_READY		(1<<0)	/* content protection */
 
-/* Pin widget capabilies */
+/* Pin widget capabilities */
 #define AC_PINCAP_IMP_SENSE		(1<<0)	/* impedance sense capable */
 #define AC_PINCAP_TRIG_REQ		(1<<1)	/* trigger required */
 #define AC_PINCAP_PRES_DETECT		(1<<2)	/* presence detect capable */
@@ -483,7 +483,7 @@ enum {
 #define AC_PWRST_D2			0x02
 #define AC_PWRST_D3			0x03
 
-/* Processing capabilies */
+/* Processing capabilities */
 #define AC_PCAP_BENIGN			(1<<0)
 #define AC_PCAP_NUM_COEF		(0xff<<8)
 #define AC_PCAP_NUM_COEF_SHIFT		8

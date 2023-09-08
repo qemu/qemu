@@ -148,16 +148,11 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
     if (kernel_filename) {
         int kernel_size, fdt_size;
         uint64_t entry, high;
-        int big_endian = 0;
-
-#if TARGET_BIG_ENDIAN
-        big_endian = 1;
-#endif
 
         /* Boots a kernel elf binary. */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, NULL, &high, NULL,
-                               big_endian, EM_ALTERA_NIOS2, 0, 0);
+                               TARGET_BIG_ENDIAN, EM_ALTERA_NIOS2, 0, 0);
         if ((uint32_t)entry == 0xc0000000) {
             /*
              * The Nios II processor reference guide documents that the
@@ -168,7 +163,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
             kernel_size = load_elf(kernel_filename, NULL,
                                    translate_kernel_address, NULL,
                                    &entry, NULL, NULL, NULL,
-                                   big_endian, EM_ALTERA_NIOS2, 0, 0);
+                                   TARGET_BIG_ENDIAN, EM_ALTERA_NIOS2, 0, 0);
             boot_info.bootstrap_pc = ddr_base + 0xc0000000 +
                 (entry & 0x07ffffff);
         } else {

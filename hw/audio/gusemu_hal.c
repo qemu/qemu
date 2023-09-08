@@ -154,7 +154,7 @@ unsigned int gus_read(GUSEmuState * state, int port, int size)
         case 0x8d:
             {
                 int             offset = 2 * (GUSregb(FunkSelReg3x3) & 0x0f);
-                offset += ((int) GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /* = Voice*32 + Funktion*2 */
+                offset += ((int) GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /* = Voice*32 + Function*2 */
                 value_read = GUSregw(offset);
             }
             break;
@@ -353,7 +353,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
                     if (!(GUSregb(GUS4cReset) & 0x01))
                         break;  /* reset flag active? */
                     offset = 2 * (GUSregb(FunkSelReg3x3) & 0x0f);
-                    offset += (GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /*  = Voice*32 + Funktion*2 */
+                    offset += (GUSregb(VoiceSelReg3x2) & 0x1f) << 5; /*  = Voice*32 + Function*2 */
                     GUSregw(offset) = (uint16_t) ((GUSregw(offset) & readmask) | writedata);
                 }
                 break;

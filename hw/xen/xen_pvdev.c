@@ -89,7 +89,7 @@ char *xenstore_read_str(const char *base, const char *node)
     str = qemu_xen_xs_read(xenstore, 0, abspath, &len);
     if (str != NULL) {
         /* move to qemu-allocated memory to make sure
-         * callers can savely g_free() stuff. */
+         * callers can safely g_free() stuff. */
         ret = g_strdup(str);
         free(str);
     }

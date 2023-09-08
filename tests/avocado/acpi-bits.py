@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # group: rw quick
-# Exercize QEMU generated ACPI/SMBIOS tables using biosbits,
+# Exercise QEMU generated ACPI/SMBIOS tables using biosbits,
 # https://biosbits.org/
 #
 # This program is free software; you can redistribute it and/or modify
@@ -366,7 +366,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         super().tearDown()
 
     def test_acpi_smbios_bits(self):
-        """The main test case implementaion."""
+        """The main test case implementation."""
 
         iso_file = os.path.join(self._workDir,
                                 'bits-%d.iso' %self._bitsInternalVer)

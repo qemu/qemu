@@ -94,7 +94,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 
 /* similar to visitor_input_test_init(), but does not expect a string
  * literal/format json_string argument and so can be used for
- * programatically generated strings (and we can't pass in programatically
+ * programmatically generated strings (and we can't pass in programmatically
  * generated strings via %s format parameters since qobject_from_jsonv()
  * will wrap those in double-quotes and treat the entire object as a
  * string)

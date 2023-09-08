@@ -420,11 +420,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 
 bool target_words_bigendian(void)
 {
-#if TARGET_BIG_ENDIAN
-    return true;
-#else
-    return false;
-#endif
+    return TARGET_BIG_ENDIAN;
 }
 
 const char *target_name(void)

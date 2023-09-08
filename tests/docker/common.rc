@@ -12,7 +12,7 @@
 # the top-level directory.
 
 # This might be set by ENV of a docker container... it is always
-# overriden by TARGET_LIST if the user sets it. We special case
+# overridden by TARGET_LIST if the user sets it. We special case
 # "none" to allow for other options like --disable-tcg to restrict the
 # builds we eventually do.
 if test "$DEF_TARGET_LIST" = "none"; then

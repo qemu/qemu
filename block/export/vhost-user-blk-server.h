@@ -1,5 +1,5 @@
 /*
- * Sharing QEMU block devices via vhost-user protocal
+ * Sharing QEMU block devices via vhost-user protocol
  *
  * Copyright (c) Coiby Xu <coiby.xu@gmail.com>.
  * Copyright (c) 2020 Red Hat, Inc.

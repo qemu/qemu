@@ -98,9 +98,9 @@ static BlockDriverState *exclusive_writer_node(const char *name)
  *                                    | perm: write, read
  *                                    | shared: except write
  *                                    v
- *  +-------------------+           +----------------+
- *  | passtrough filter |---------->|  null-co node  |
- *  +-------------------+           +----------------+
+ *  +--------------------+          +----------------+
+ *  | passthrough filter |--------->|  null-co node  |
+ *  +--------------------+          +----------------+
  *
  *
  * and then, tries to append filter under node. Expected behavior: fail.
@@ -114,9 +114,9 @@ static BlockDriverState *exclusive_writer_node(const char *name)
  *                         | perm: write, read
  *                         | shared: except write
  *                         v
- *                +-------------------+
- *                | passtrough filter |
- *                +-------------------+
+ *                +--------------------+
+ *                | passthrough filter |
+ *                +--------------------+
  *                       |   |
  *     perm: write, read |   | perm: write, read
  *  shared: except write |   | shared: except write

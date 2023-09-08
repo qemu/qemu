@@ -1,5 +1,5 @@
 /*
- * Sharing QEMU block devices via vhost-user protocal
+ * Sharing QEMU block devices via vhost-user protocol
  *
  * Parts of the code based on nbd/server.c.
  *

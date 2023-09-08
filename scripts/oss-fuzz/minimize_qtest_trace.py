@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-This takes a crashing qtest trace and tries to remove superflous operations
+This takes a crashing qtest trace and tries to remove superfluous operations
 """
 
 import sys
@@ -38,7 +38,7 @@ crash by setting CRASH_TOKEN=
 Options:
 
 -M1: enable a loop around the remove minimizer, which may help decrease some
-     timing dependant instructions. Off by default.
+     timing dependent instructions. Off by default.
 -M2: try setting bits in operand of write/out to zero. Off by default.
 
 """.format((sys.argv[0])))
@@ -177,7 +177,7 @@ def remove_lines(newtrace, outpath):
         # it into two separate write commands. If splitting the data operand
         # from length/2^n bytes to the left does not work, try to move the pivot
         # to the right side, then add one to n, until length/2^n == 0. The idea
-        # is to prune unneccessary bytes from long writes, while accommodating
+        # is to prune unnecessary bytes from long writes, while accommodating
         # arbitrary MemoryRegion access sizes and alignments.
 
         # This algorithm will fail under some rare situations.
@@ -292,7 +292,7 @@ def minimize_trace(inpath, outpath):
     old_len = len(newtrace) + 1
     while(old_len > len(newtrace)):
         old_len = len(newtrace)
-        print("trace lenth = ", old_len)
+        print("trace length = ", old_len)
         remove_lines(newtrace, outpath)
         if not M1 and not M2:
             break

@@ -2645,7 +2645,7 @@ rebuild_refcount_structure(BlockDriverState *bs, BdrvCheckResult *res,
      * repeat all this until the reftable stops growing.
      *
      * (This loop will terminate, because with every cluster the
-     * reftable grows, it can accomodate a multitude of more refcounts,
+     * reftable grows, it can accommodate a multitude of more refcounts,
      * so that at some point this must be able to cover the reftable
      * and all refblocks describing it.)
      *

@@ -104,7 +104,7 @@ struct XlnxZynqMPQSPIPS {
 
     uint32_t regs[XLNX_ZYNQMP_SPIPS_R_MAX];
 
-    /* GQSPI has seperate tx/rx fifos */
+    /* GQSPI has separate tx/rx fifos */
     Fifo8 rx_fifo_g;
     Fifo8 tx_fifo_g;
     Fifo32 fifo_g;

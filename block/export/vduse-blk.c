@@ -138,7 +138,7 @@ static void vduse_blk_enable_queue(VduseDev *dev, VduseVirtq *vq)
 
     aio_set_fd_handler(vblk_exp->export.ctx, vduse_queue_get_fd(vq),
                        on_vduse_vq_kick, NULL, NULL, NULL, vq);
-    /* Make sure we don't miss any kick afer reconnecting */
+    /* Make sure we don't miss any kick after reconnecting */
     eventfd_write(vduse_queue_get_fd(vq), 1);
 }
 

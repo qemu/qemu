@@ -440,7 +440,7 @@ interested part of the grammar.
 
 Run-time errors can be divided between lexing and parsing errors, lexing errors
 are hard to detect, since the ``var`` token will catch everything which is not
-catched by other tokens, but easy to fix, because most of the time a simple
+caught by other tokens, but easy to fix, because most of the time a simple
 regex editing will be enough.
 
 idef-parser features a fancy parsing error reporting scheme, which for each

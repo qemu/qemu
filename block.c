@@ -7589,7 +7589,7 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
     /*
      * Recursion phase: go through all nodes of the graph.
      * Take care of checking that all nodes support changing AioContext
-     * and drain them, builing a linear list of callbacks to run if everything
+     * and drain them, building a linear list of callbacks to run if everything
      * is successful (the transaction itself).
      */
     tran = tran_new();

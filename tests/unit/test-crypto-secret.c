@@ -244,7 +244,7 @@ static void test_secret_keyring_bad_key_access_right(void)
     char key_str[16];
     Object *sec;
 
-    g_test_skip("TODO: Need responce from Linux kernel maintainers");
+    g_test_skip("TODO: Need response from Linux kernel maintainers");
     return;
 
     int32_t key = add_key("user", DESCRIPTION, PAYLOAD,

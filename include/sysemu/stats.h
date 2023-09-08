@@ -34,7 +34,7 @@ void add_stats_schema(StatsSchemaList **, StatsProvider, StatsTarget,
                       StatsSchemaValueList *);
 
 /*
- * True if a string matches the filter passed to the stats_fn callabck,
+ * True if a string matches the filter passed to the stats_fn callback,
  * false otherwise.
  *
  * Note that an empty list means no filtering, i.e. all strings will

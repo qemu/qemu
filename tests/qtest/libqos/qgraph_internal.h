@@ -197,7 +197,7 @@ char *qos_graph_edge_get_name(QOSGraphEdge *edge);
  * qos_graph_get_machine(): returns the machine assigned
  * to that @node name.
  *
- * It performs a search only trough the list of machines
+ * It performs a search only through the list of machines
  * (i.e. the QOS_ROOT child).
  *
  * Returns: on success: the %QOSGraphNode

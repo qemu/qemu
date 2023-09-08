@@ -32,7 +32,7 @@
  * sector.
  *
  * <example>
- *   <title>Encrypting block data with initialiation vectors</title>
+ *   <title>Encrypting block data with initialization vectors</title>
  *   <programlisting>
  * uint8_t *data = ....data to encrypt...
  * size_t ndata = XXX;
@@ -147,7 +147,7 @@ QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
  * @niv: the number of bytes in @iv
  * @errp: pointer to a NULL-initialized error object
  *
- * Calculate a new initialiation vector for the data
+ * Calculate a new initialization vector for the data
  * to be stored in sector @sector. The IV will be
  * written into the buffer @iv of size @niv.
  *

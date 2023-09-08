@@ -28,7 +28,7 @@ static void virtio_gpio_cleanup(QVhostUserGPIO *gpio)
 
 /*
  * This handles the VirtIO setup from the point of view of the driver
- * frontend and therefor doesn't present any vhost specific features
+ * frontend and therefore doesn't present any vhost specific features
  * and in fact masks of the re-used bit.
  */
 static void virtio_gpio_setup(QVhostUserGPIO *gpio)

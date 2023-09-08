@@ -19,7 +19,7 @@
 
 #define VGID_GUID "324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"
 #define VMGENID_GUID_OFFSET 40   /* allow space for
-                                  * OVMF SDT Header Probe Supressor
+                                  * OVMF SDT Header Probe Suppressor
                                   */
 #define RSDP_ADDR_INVALID 0x100000 /* RSDP must be below this address */
 

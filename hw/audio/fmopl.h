@@ -69,7 +69,7 @@ typedef struct fm_opl_f {
 	/* FM channel slots */
 	OPL_CH *P_CH;		/* pointer of CH                     */
 	int	max_ch;			/* maximum channel                   */
-	/* Rhythm sention */
+	/* Rhythm section */
 	uint8_t rhythm;		/* Rhythm mode , key flag */
 	/* time tables */
 	int32_t AR_TABLE[76];	/* attack rate tables  */

@@ -13,7 +13,7 @@
 
 #define VMGENID_FW_CFG_SIZE      4096 /* Occupy a page of memory */
 #define VMGENID_GUID_OFFSET      40   /* allow space for
-                                       * OVMF SDT Header Probe Supressor
+                                       * OVMF SDT Header Probe Suppressor
                                        */
 
 OBJECT_DECLARE_SIMPLE_TYPE(VmGenIdState, VMGENID)

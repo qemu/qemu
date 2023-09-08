@@ -249,7 +249,7 @@ void qcrypto_der_encode_octet_str(QCryptoEncodeContext *ctx,
  * Start encoding a octet string, All fields between
  * qcrypto_der_encode_octet_str_begin and qcrypto_der_encode_octet_str_end
  * are encoded as an octet string. This is useful when we need to encode a
- * encoded SEQUNCE as OCTET STRING.
+ * encoded SEQUENCE as OCTET STRING.
  */
 void qcrypto_der_encode_octet_str_begin(QCryptoEncodeContext *ctx);
 
@@ -260,7 +260,7 @@ void qcrypto_der_encode_octet_str_begin(QCryptoEncodeContext *ctx);
  * Finish encoding a octet string, All fields between
  * qcrypto_der_encode_octet_str_begin and qcrypto_der_encode_octet_str_end
  * are encoded as an octet string. This is useful when we need to encode a
- * encoded SEQUNCE as OCTET STRING.
+ * encoded SEQUENCE as OCTET STRING.
  */
 void qcrypto_der_encode_octet_str_end(QCryptoEncodeContext *ctx);
 
@@ -275,7 +275,7 @@ size_t qcrypto_der_encode_ctx_buffer_len(QCryptoEncodeContext *ctx);
 /**
  * qcrypto_der_encode_ctx_flush_and_free:
  * @ctx: the encode context.
- * @dst: the distination to save the encoded data, the length of dst should
+ * @dst: the destination to save the encoded data, the length of dst should
  * not less than qcrypto_der_encode_cxt_buffer_len
  *
  * Flush all encoded data into dst, then free ctx.

@@ -574,7 +574,7 @@ static void riscv_itrigger_update_count(CPURISCVState *env)
     int count, executed;
     /*
      * Record last icount, so that we can evaluate the executed instructions
-     * since last priviledge mode change or timer expire.
+     * since last privilege mode change or timer expire.
      */
     int64_t last_icount = env->last_icount, current_icount;
     current_icount = env->last_icount = icount_get_raw();
@@ -588,14 +588,14 @@ static void riscv_itrigger_update_count(CPURISCVState *env)
             continue;
         }
         /*
-         * Only when priviledge is changed or itrigger timer expires,
+         * Only when privilege is changed or itrigger timer expires,
          * the count field in itrigger tdata1 register is updated.
          * And the count field in itrigger only contains remaining value.
          */
         if (check_itrigger_priv(env, i)) {
             /*
-             * If itrigger enabled in this priviledge mode, the number of
-             * executed instructions since last priviledge change
+             * If itrigger enabled in this privilege mode, the number of
+             * executed instructions since last privilege change
              * should be reduced from current itrigger count.
              */
             executed = current_icount - last_icount;
@@ -605,7 +605,7 @@ static void riscv_itrigger_update_count(CPURISCVState *env)
             }
         } else {
             /*
-             * If itrigger is not enabled in this priviledge mode,
+             * If itrigger is not enabled in this privilege mode,
              * the number of executed instructions will be discard and
              * the count field in itrigger will not change.
              */

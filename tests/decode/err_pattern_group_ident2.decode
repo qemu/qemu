@@ -7,5 +7,5 @@
 {
   top      00000000 00000000 00000000 00000000
   sub1     00000000 00000000 00000000 ........ %sub1
-# comments are suposed to be indented
+# comments are supposed to be indented
 }

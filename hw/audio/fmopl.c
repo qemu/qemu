@@ -355,7 +355,7 @@ static void set_algorithm( OPL_CH *CH)
 	CH->connect2 = carrier;
 }
 
-/* ---------- frequency counter for operater update ---------- */
+/* ---------- frequency counter for operator update ---------- */
 static inline void CALC_FCSLOT(OPL_CH *CH,OPL_SLOT *SLOT)
 {
 	int ksr;
@@ -640,7 +640,7 @@ static int OPLOpenTable( void )
 		TL_TABLE[t] = TL_TABLE[TL_MAX+t] = 0;
 	}
 
-	/* make sinwave table (total level offet) */
+	/* make sinwave table (total level offset) */
 	/* degree 0 = degree 180                   = off */
 	SIN_TABLE[0] = SIN_TABLE[SIN_ENT/2]         = &TL_TABLE[EG_ENT-1];
 	for (s = 1;s <= SIN_ENT/4;s++){
@@ -1075,7 +1075,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	char *ptr;
 	FM_OPL *OPL;
 	int state_size;
-	int max_ch = 9; /* normaly 9 channels */
+	int max_ch = 9; /* normally 9 channels */
 
 	if( OPL_LockTable() ==-1) return NULL;
 	/* allocate OPL state space */
@@ -1092,7 +1092,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	OPL->clock = clock;
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
-	/* init grobal tables */
+	/* init global tables */
 	OPL_initialize(OPL);
 	/* reset chip */
 	OPLResetChip(OPL);

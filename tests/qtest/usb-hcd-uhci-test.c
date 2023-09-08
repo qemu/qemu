@@ -17,10 +17,6 @@
 
 static QOSState *qs;
 
-static void test_uhci_init(void)
-{
-}
-
 static void test_port(int port)
 {
     struct qhc uhci;
@@ -71,7 +67,6 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    qtest_add_func("/uhci/pci/init", test_uhci_init);
     qtest_add_func("/uhci/pci/port1", test_port_1);
     qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
     if (qtest_has_device("usb-storage")) {

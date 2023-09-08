@@ -244,7 +244,7 @@ qcrypto_block_luks_has_format(const uint8_t *buf,
  *
  * When calculating ESSIV IVs, the cipher length used by ESSIV
  * may be different from the cipher length used for the block
- * encryption, becauses dm-crypt uses the hash digest length
+ * encryption, because dm-crypt uses the hash digest length
  * as the key size. ie, if you have AES 128 as the block cipher
  * and SHA 256 as ESSIV hash, then ESSIV will use AES 256 as
  * the cipher since that gets a key length matching the digest
@@ -393,7 +393,7 @@ qcrypto_block_luks_from_disk_endian(QCryptoBlockLUKSHeader *hdr)
 }
 
 /*
- * Stores the main LUKS header, taking care of endianess
+ * Stores the main LUKS header, taking care of endianness
  */
 static int
 qcrypto_block_luks_store_header(QCryptoBlock *block,
@@ -423,7 +423,7 @@ qcrypto_block_luks_store_header(QCryptoBlock *block,
 }
 
 /*
- * Loads the main LUKS header,and byteswaps it to native endianess
+ * Loads the main LUKS header, and byteswaps it to native endianness
  * And run basic sanity checks on it
  */
 static int

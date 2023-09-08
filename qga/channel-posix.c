@@ -152,7 +152,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
 #ifdef __FreeBSD__
         /*
          * In the default state channel sends echo of every command to a
-         * client. The client programm doesn't expect this and raises an
+         * client. The client program doesn't expect this and raises an
          * error. Suppress echo by resetting ECHO terminal flag.
          */
         struct termios tio;

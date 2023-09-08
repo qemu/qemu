@@ -273,8 +273,8 @@ def test_rsdp():
 
     # Checksum the first 20 bytes per ACPI 1.0
     csum = sum(ord(c) for c in data[:20]) % 0x100
-    testsuite.test('ACPI 1.0 table first 20 bytes cummulative checksum must equal 0', csum == 0)
-    testsuite.print_detail("Cummulative checksum = {} (Expected 0)".format(csum))
+    testsuite.test('ACPI 1.0 table first 20 bytes cumulative checksum must equal 0', csum == 0)
+    testsuite.print_detail("Cumulative checksum = {} (Expected 0)".format(csum))
 
     test_table_checksum(data)
     rsdp = acpi.parse_rsdp()

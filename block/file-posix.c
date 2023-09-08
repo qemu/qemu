@@ -1159,9 +1159,9 @@ static int raw_reopen_prepare(BDRVReopenState *state,
      * As part of reopen prepare we also want to create new fd by
      * raw_reconfigure_getfd(). But it wants updated "perm", when in
      * bdrv_reopen_multiple() .bdrv_reopen_prepare() callback called prior to
-     * permission update. Happily, permission update is always a part (a seprate
-     * stage) of bdrv_reopen_multiple() so we can rely on this fact and
-     * reconfigure fd in raw_check_perm().
+     * permission update. Happily, permission update is always a part
+     * (a separate stage) of bdrv_reopen_multiple() so we can rely on this
+     * fact and reconfigure fd in raw_check_perm().
      */
 
     s->reopen_state = state;
@@ -3374,7 +3374,7 @@ static void raw_account_discard(BDRVRawState *s, uint64_t nbytes, int ret)
  * of an array of zone descriptors.
  * zones is an array of zone descriptors to hold zone information on reply;
  * offset can be any byte within the entire size of the device;
- * nr_zones is the maxium number of sectors the command should operate on.
+ * nr_zones is the maximum number of sectors the command should operate on.
  */
 #if defined(CONFIG_BLKZONED)
 static int coroutine_fn raw_co_zone_report(BlockDriverState *bs, int64_t offset,

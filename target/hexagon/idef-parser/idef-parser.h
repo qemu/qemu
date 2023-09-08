@@ -73,7 +73,7 @@ typedef struct HexTmp {
 } HexTmp;
 
 /**
- * Enum of the possible immediated, an immediate is a value which is known
+ * Enum of the possible immediate, an immediate is a value which is known
  * at tinycode generation time, e.g. an integer value, not a TCGv
  */
 enum ImmUnionTag {

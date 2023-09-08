@@ -55,7 +55,7 @@ static void print_pte_header(Monitor *mon)
 static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
                       hwaddr paddr, target_ulong size, int attr)
 {
-    /* santity check on vaddr */
+    /* sanity check on vaddr */
     if (vaddr >= (1UL << va_bits)) {
         return;
     }

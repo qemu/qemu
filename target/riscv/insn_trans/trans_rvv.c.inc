@@ -2240,7 +2240,7 @@ GEN_OPIWI_NARROW_TRANS(vnclip_wi, IMM_ZX, vnclip_wx)
  *
  * If SEW < FLEN, check whether input fp register is a valid
  * NaN-boxed value, in which case the least-significant SEW bits
- * of the f regsiter are used, else the canonical NaN value is used.
+ * of the f register are used, else the canonical NaN value is used.
  */
 static void do_nanbox(DisasContext *s, TCGv_i64 out, TCGv_i64 in)
 {
@@ -3282,7 +3282,7 @@ static void load_element(TCGv_i64 dest, TCGv_ptr base,
     }
 }
 
-/* offset of the idx element with base regsiter r */
+/* offset of the idx element with base register r */
 static uint32_t endian_ofs(DisasContext *s, int r, int idx)
 {
 #if HOST_BIG_ENDIAN

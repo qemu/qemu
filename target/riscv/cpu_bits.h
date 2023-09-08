@@ -656,7 +656,7 @@ typedef enum {
 /* Leaf page shift amount */
 #define PGSHIFT             12
 
-/* Default Reset Vector adress */
+/* Default Reset Vector address */
 #define DEFAULT_RSTVEC      0x1000
 
 /* Exception causes */
@@ -740,7 +740,7 @@ typedef enum RISCVException {
 #define PM_CURRENT      0x00000002ULL
 #define PM_INSN         0x00000004ULL
 
-/* Execution enviornment configuration bits */
+/* Execution environment configuration bits */
 #define MENVCFG_FIOM                       BIT(0)
 #define MENVCFG_CBIE                       (3UL << 4)
 #define MENVCFG_CBCFE                      BIT(6)

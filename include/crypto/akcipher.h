@@ -30,7 +30,7 @@ typedef struct QCryptoAkCipher QCryptoAkCipher;
  * qcrypto_akcipher_supports:
  * @opts: the asymmetric key algorithm and related options
  *
- * Determine if asymmetric key cipher decribed with @opts is
+ * Determine if asymmetric key cipher described with @opts is
  * supported by the current configured build
  *
  * Returns: true if it is supported, false otherwise.

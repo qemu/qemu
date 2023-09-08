@@ -239,7 +239,7 @@ helper_funcs_generated.c.inc.  There are also several helpers used for debugging
 
 VLIW packet semantics differ from serial semantics in that all input operands
 are read, then the operations are performed, then all the results are written.
-For exmaple, this packet performs a swap of registers r0 and r1
+For example, this packet performs a swap of registers r0 and r1
     { r0 = r1; r1 = r0 }
 Note that the result is different if the instructions are executed serially.
 

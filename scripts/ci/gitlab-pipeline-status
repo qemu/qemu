@@ -28,7 +28,7 @@ class CommunicationFailure(Exception):
 
 
 class NoPipelineFound(Exception):
-    """Communication is successfull but pipeline is not found."""
+    """Communication is successful but pipeline is not found."""
 
 
 def get_local_branch_commit(branch):

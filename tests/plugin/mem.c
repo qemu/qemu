@@ -98,7 +98,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
             } else if (g_strcmp0(tokens[1], "rw") == 0) {
                 rw = QEMU_PLUGIN_MEM_RW;
             } else {
-                fprintf(stderr, "invaild value for argument track: %s\n", opt);
+                fprintf(stderr, "invalid value for argument track: %s\n", opt);
                 return -1;
             }
         } else if (g_strcmp0(tokens[0], "inline") == 0) {

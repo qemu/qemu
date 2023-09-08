@@ -821,7 +821,7 @@ static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
      * According to virtio_net_reset(), device turns promiscuous mode
      * on by default.
      *
-     * Addtionally, according to VirtIO standard, "Since there are
+     * Additionally, according to VirtIO standard, "Since there are
      * no guarantees, it can use a hash filter or silently switch to
      * allmulti or promiscuous mode if it is given too many addresses.".
      * QEMU marks `n->mac_table.uni_overflow` if guest sets too many
@@ -1130,7 +1130,7 @@ static int vhost_vdpa_net_excessive_mac_filter_cvq_add(VhostVDPAState *s,
      * Pack the non-multicast MAC addresses part for fake CVQ command.
      *
      * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
-     * addresses provieded in CVQ command. Therefore, only the entries
+     * addresses provided in CVQ command. Therefore, only the entries
      * field need to be prepared in the CVQ command.
      */
     mac_ptr = out->iov_base + cursor;
@@ -1141,7 +1141,7 @@ static int vhost_vdpa_net_excessive_mac_filter_cvq_add(VhostVDPAState *s,
      * Pack the multicast MAC addresses part for fake CVQ command.
      *
      * According to virtio_net_handle_mac(), QEMU doesn't verify the MAC
-     * addresses provieded in CVQ command. Therefore, only the entries
+     * addresses provided in CVQ command. Therefore, only the entries
      * field need to be prepared in the CVQ command.
      */
     mac_ptr = out->iov_base + cursor;
@@ -1202,7 +1202,7 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
          * rejects the flawed CVQ command.
          *
          * Therefore, QEMU must handle this situation instead of sending
-         * the CVQ command direclty.
+         * the CVQ command directly.
          */
         dev_written = vhost_vdpa_net_excessive_mac_filter_cvq_add(s, elem,
                                                                   &out);
