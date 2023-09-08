@@ -1695,6 +1695,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         [TCG_COND_LTU] = {OPC_VSLTI_BU, OPC_VSLTI_HU, OPC_VSLTI_WU, OPC_VSLTI_DU},
     };
     LoongArchInsn insn;
+    static const LoongArchInsn neg_vec_insn[4] = {
+        OPC_VNEG_B, OPC_VNEG_H, OPC_VNEG_W, OPC_VNEG_D
+    };
 
     a0 = args[0];
     a1 = args[1];
@@ -1793,6 +1796,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sub_vec:
         tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], false);
         break;
+    case INDEX_op_neg_vec:
+        tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], a0, a1));
+        break;
     case INDEX_op_dupm_vec:
         tcg_out_dupm_vec(s, type, vece, a0, a1, a2);
         break;
@@ -1818,6 +1824,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_xor_vec:
     case INDEX_op_nor_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_neg_vec:
         return 1;
     default:
         return 0;
@@ -1995,6 +2002,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(w, w, w);
 
     case INDEX_op_not_vec:
+    case INDEX_op_neg_vec:
         return C_O1_I1(w, w);
 
     default:
