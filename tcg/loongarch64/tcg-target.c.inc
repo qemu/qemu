@@ -1081,6 +1081,48 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     }
 }
 
+static void tcg_out_qemu_ldst_i128(TCGContext *s, TCGReg data_lo, TCGReg data_hi,
+                                   TCGReg addr_reg, MemOpIdx oi, bool is_ld)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr(s, &h, addr_reg, oi, is_ld);
+
+    if (h.aa.atom == MO_128) {
+        /*
+         * Use VLDX/VSTX when 128-bit atomicity is required.
+         * If address is aligned to 16-bytes, the 128-bit load/store is atomic.
+         */
+        if (is_ld) {
+            tcg_out_opc_vldx(s, TCG_VEC_TMP0, h.base, h.index);
+            tcg_out_opc_vpickve2gr_d(s, data_lo, TCG_VEC_TMP0, 0);
+            tcg_out_opc_vpickve2gr_d(s, data_hi, TCG_VEC_TMP0, 1);
+        } else {
+            tcg_out_opc_vinsgr2vr_d(s, TCG_VEC_TMP0, data_lo, 0);
+            tcg_out_opc_vinsgr2vr_d(s, TCG_VEC_TMP0, data_hi, 1);
+            tcg_out_opc_vstx(s, TCG_VEC_TMP0, h.base, h.index);
+        }
+    } else {
+        /* Otherwise use a pair of LD/ST. */
+        tcg_out_opc_add_d(s, TCG_REG_TMP0, h.base, h.index);
+        if (is_ld) {
+            tcg_out_opc_ld_d(s, data_lo, TCG_REG_TMP0, 0);
+            tcg_out_opc_ld_d(s, data_hi, TCG_REG_TMP0, 8);
+        } else {
+            tcg_out_opc_st_d(s, data_lo, TCG_REG_TMP0, 0);
+            tcg_out_opc_st_d(s, data_hi, TCG_REG_TMP0, 8);
+        }
+    }
+
+    if (ldst) {
+        ldst->type = TCG_TYPE_I128;
+        ldst->datalo_reg = data_lo;
+        ldst->datahi_reg = data_hi;
+        ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
+    }
+}
+
 /*
  * Entry-points
  */
@@ -1145,6 +1187,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a0 = args[0];
     TCGArg a1 = args[1];
     TCGArg a2 = args[2];
+    TCGArg a3 = args[3];
     int c2 = const_args[2];
 
     switch (opc) {
@@ -1507,6 +1550,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld_a64_i64:
         tcg_out_qemu_ld(s, a0, a1, a2, TCG_TYPE_I64);
         break;
+    case INDEX_op_qemu_ld_a32_i128:
+    case INDEX_op_qemu_ld_a64_i128:
+        tcg_out_qemu_ldst_i128(s, a0, a1, a2, a3, true);
+        break;
     case INDEX_op_qemu_st_a32_i32:
     case INDEX_op_qemu_st_a64_i32:
         tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I32);
@@ -1514,6 +1561,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_st_a32_i64:
     case INDEX_op_qemu_st_a64_i64:
         tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I64);
+        break;
+    case INDEX_op_qemu_st_a32_i128:
+    case INDEX_op_qemu_st_a64_i128:
+        tcg_out_qemu_ldst_i128(s, a0, a1, a2, a3, false);
         break;
 
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
@@ -1995,6 +2046,14 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_qemu_st_a32_i64:
     case INDEX_op_qemu_st_a64_i64:
         return C_O0_I2(rZ, r);
+
+    case INDEX_op_qemu_ld_a32_i128:
+    case INDEX_op_qemu_ld_a64_i128:
+        return C_O2_I1(r, r, r);
+
+    case INDEX_op_qemu_st_a32_i128:
+    case INDEX_op_qemu_st_a64_i128:
+        return C_O0_I3(r, r, r);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
