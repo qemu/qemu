@@ -40,7 +40,6 @@ qemu_moddir = get_option('libdir') / get_option('qemu_suffix')
 qemu_desktopdir = get_option('datadir') / 'applications'
 qemu_icondir = get_option('datadir') / 'icons'
 
-config_host_data = configuration_data()
 genh = []
 qapi_trace_events = []
 
@@ -233,12 +232,6 @@ elif cpu in ['riscv64']
 else
   kvm_targets = []
 endif
-
-kvm_targets_c = '""'
-if get_option('kvm').allowed() and targetos == 'linux'
-  kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
-endif
-config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
 accelerator_targets = { 'CONFIG_KVM': kvm_targets }
 
 if cpu in ['x86', 'x86_64']
@@ -1191,12 +1184,6 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
                      required: get_option('virglrenderer'))
-  if virgl.found()
-    config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
-                         cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
-                                       prefix: '#include <virglrenderer.h>',
-                                       dependencies: virgl))
-  endif
 endif
 rutabaga = not_found
 if not get_option('rutabaga_gfx').auto() or have_system or have_vhost_user_gpu
@@ -2008,6 +1995,8 @@ endif
 # config-host.h #
 #################
 
+config_host_data = configuration_data()
+
 audio_drivers_selected = []
 if have_system
   audio_drivers_available = {
@@ -2137,6 +2126,12 @@ endif
 
 config_host_data.set('HOST_' + host_arch.to_upper(), 1)
 
+kvm_targets_c = '""'
+if get_option('kvm').allowed() and targetos == 'linux'
+  kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
+endif
+config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
+
 if get_option('module_upgrades') and not enable_modules
   error('Cannot enable module-upgrades as modules are not enabled')
 endif
@@ -2236,6 +2231,12 @@ config_host_data.set('CONFIG_PNG', png.found())
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
+if virgl.found()
+  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+                       cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
+                                     prefix: '#include <virglrenderer.h>',
+                                     dependencies: virgl))
+endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
