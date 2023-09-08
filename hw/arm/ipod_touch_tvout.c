@@ -5,9 +5,13 @@ static uint64_t ipod_touch_tvout_sdo_read(void *opaque, hwaddr offset, unsigned 
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: offset = 0x%08x\n", __func__, offset);
+    //printf("%s: offset = 0x%08x\n", __func__, offset);
 
     switch(offset) {
+        case SDO_CLKCON:
+            return s->sdo_clkcon;
+        case SDO_CONFIG:
+            return s->sdo_config;
         case SDO_IRQ:
             return s->sdo_irq;
         case SDO_IRQMASK:
@@ -23,12 +27,17 @@ static void ipod_touch_tvout_sdo_write(void *opaque, hwaddr offset, uint64_t val
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
+    //printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
 
     switch(offset) {
+        case SDO_CLKCON:
+            s->sdo_clkcon = value;
+            return;
+        case SDO_CONFIG:
+            s->sdo_config = value;
+            return;
         case SDO_IRQ:
-            s->sdo_irq = value;
-            printf("LOWERING SDO IRQ\n");
+            s->sdo_irq = 0x0;
             qemu_irq_lower(s->irq);
             return;
         case SDO_IRQMASK:
@@ -41,11 +50,11 @@ static uint64_t ipod_touch_tvout_mixer1_read(void *opaque, hwaddr offset, unsign
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: offset = 0x%08x\n", __func__, offset);
+    //printf("%s: offset = 0x%08x\n", __func__, offset);
 
     switch(offset) {
         case MXR_STATUS:
-            return s->mixer1_status;
+            return 0x4;
         case MXR_CFG:
             return s->mixer1_cfg;
         default:
@@ -59,13 +68,13 @@ static void ipod_touch_tvout_mixer1_write(void *opaque, hwaddr offset, uint64_t 
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
+    //printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
 
     switch(offset) {
         case MXR_STATUS:
-            s->mixer1_status = value;
-            if(value == 0x185 && (s->sdo_irq_mask & 1) == 0) {
-                printf("Raising SDO irq\n");
+            if((value & 0x1) && (s->sdo_irq_mask & 1) == 0 && s->irq_count < 2) {
+                s->sdo_irq = 0x1;
+                s->irq_count += 1; // ugly hack for now
                 qemu_irq_raise(s->irq);
             }
             break;
@@ -79,7 +88,7 @@ static uint64_t ipod_touch_tvout_mixer2_read(void *opaque, hwaddr offset, unsign
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: offset = 0x%08x\n", __func__, offset);
+    //printf("%s: offset = 0x%08x\n", __func__, offset);
 
     switch(offset) {
         case MXR_STATUS:
@@ -97,7 +106,7 @@ static void ipod_touch_tvout_mixer2_write(void *opaque, hwaddr offset, uint64_t 
 {
     IPodTouchTVOutState *s = (IPodTouchTVOutState *)opaque;
 
-    printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
+    //printf("%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
 
     switch(offset) {
         case MXR_STATUS:

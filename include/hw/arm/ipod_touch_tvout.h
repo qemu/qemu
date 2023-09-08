@@ -8,6 +8,8 @@
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 
+#define SDO_CLKCON 0x0
+#define SDO_CONFIG 0x8
 #define SDO_IRQ 0x280
 #define SDO_IRQMASK 0x284
 
@@ -31,8 +33,12 @@ typedef struct IPodTouchTVOutState {
     uint32_t mixer2_status;
     uint32_t mixer2_cfg;
 
+    uint32_t sdo_clkcon;
+    uint32_t sdo_config;
     uint32_t sdo_irq;
     uint32_t sdo_irq_mask;
+
+    uint32_t irq_count;
 } IPodTouchTVOutState;
 
 #endif
