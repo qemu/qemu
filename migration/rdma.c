@@ -3103,22 +3103,23 @@ static GSource *qio_channel_rdma_create_watch(QIOChannel *ioc,
 }
 
 static void qio_channel_rdma_set_aio_fd_handler(QIOChannel *ioc,
-                                                  AioContext *ctx,
-                                                  IOHandler *io_read,
-                                                  IOHandler *io_write,
-                                                  void *opaque)
+                                                AioContext *read_ctx,
+                                                IOHandler *io_read,
+                                                AioContext *write_ctx,
+                                                IOHandler *io_write,
+                                                void *opaque)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
     if (io_read) {
-        aio_set_fd_handler(ctx, rioc->rdmain->recv_comp_channel->fd, io_read,
-                           io_write, NULL, NULL, opaque);
-        aio_set_fd_handler(ctx, rioc->rdmain->send_comp_channel->fd, io_read,
-                           io_write, NULL, NULL, opaque);
+        aio_set_fd_handler(read_ctx, rioc->rdmain->recv_comp_channel->fd,
+                           io_read, io_write, NULL, NULL, opaque);
+        aio_set_fd_handler(read_ctx, rioc->rdmain->send_comp_channel->fd,
+                           io_read, io_write, NULL, NULL, opaque);
     } else {
-        aio_set_fd_handler(ctx, rioc->rdmaout->recv_comp_channel->fd, io_read,
-                           io_write, NULL, NULL, opaque);
-        aio_set_fd_handler(ctx, rioc->rdmaout->send_comp_channel->fd, io_read,
-                           io_write, NULL, NULL, opaque);
+        aio_set_fd_handler(write_ctx, rioc->rdmaout->recv_comp_channel->fd,
+                           io_read, io_write, NULL, NULL, opaque);
+        aio_set_fd_handler(write_ctx, rioc->rdmaout->send_comp_channel->fd,
+                           io_read, io_write, NULL, NULL, opaque);
     }
 }
 

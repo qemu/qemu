@@ -352,7 +352,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
     }
 
     qio_channel_set_blocking(s->ioc, false, NULL);
-    qio_channel_attach_aio_context(s->ioc, bdrv_get_aio_context(bs));
+    qio_channel_set_follow_coroutine_ctx(s->ioc, true);
 
     /* successfully connected */
     WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
@@ -397,7 +397,6 @@ static void coroutine_fn GRAPH_RDLOCK nbd_reconnect_attempt(BDRVNBDState *s)
 
     /* Finalize previous connection if any */
     if (s->ioc) {
-        qio_channel_detach_aio_context(s->ioc);
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
         object_unref(OBJECT(s->ioc));
@@ -2089,10 +2088,6 @@ static void nbd_attach_aio_context(BlockDriverState *bs,
      * the reconnect_delay_timer cannot be active here.
      */
     assert(!s->reconnect_delay_timer);
-
-    if (s->ioc) {
-        qio_channel_attach_aio_context(s->ioc, new_context);
-    }
 }
 
 static void nbd_detach_aio_context(BlockDriverState *bs)
@@ -2101,10 +2096,6 @@ static void nbd_detach_aio_context(BlockDriverState *bs)
 
     assert(!s->open_timer);
     assert(!s->reconnect_delay_timer);
-
-    if (s->ioc) {
-        qio_channel_detach_aio_context(s->ioc);
-    }
 }
 
 static BlockDriver bdrv_nbd = {

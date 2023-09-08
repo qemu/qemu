@@ -324,8 +324,7 @@ typedef struct NBDExportInfo {
     char **contexts;
 } NBDExportInfo;
 
-int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
-                          QCryptoTLSCreds *tlscreds,
+int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                           const char *hostname, QIOChannel **outioc,
                           NBDExportInfo *info, Error **errp);
 void nbd_free_export_list(NBDExportInfo *info, int count);

@@ -1333,6 +1333,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
      */
 
     qio_channel_set_blocking(client->ioc, false, NULL);
+    qio_channel_set_follow_coroutine_ctx(client->ioc, true);
 
     trace_nbd_negotiate_begin();
     memcpy(buf, "NBDMAGIC", 8);
@@ -1350,11 +1351,6 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
             error_prepend(errp, "option negotiation failed: ");
         }
         return ret;
-    }
-
-    /* Attach the channel to the same AioContext as the export */
-    if (client->exp && client->exp->common.ctx) {
-        qio_channel_attach_aio_context(client->ioc, client->exp->common.ctx);
     }
 
     assert(!client->optlen);
@@ -1465,7 +1461,6 @@ void nbd_client_put(NBDClient *client)
          */
         assert(client->closing);
 
-        qio_channel_detach_aio_context(client->ioc);
         object_unref(OBJECT(client->sioc));
         object_unref(OBJECT(client->ioc));
         if (client->tlscreds) {
@@ -1544,8 +1539,6 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
     exp->common.ctx = ctx;
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
-        qio_channel_attach_aio_context(client->ioc, ctx);
-
         assert(client->nb_requests == 0);
         assert(client->recv_coroutine == NULL);
         assert(client->send_coroutine == NULL);
@@ -1555,13 +1548,8 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
 static void blk_aio_detach(void *opaque)
 {
     NBDExport *exp = opaque;
-    NBDClient *client;
 
     trace_nbd_blk_aio_detach(exp->name, exp->common.ctx);
-
-    QTAILQ_FOREACH(client, &exp->clients, next) {
-        qio_channel_detach_aio_context(client->ioc);
-    }
 
     exp->common.ctx = NULL;
 }

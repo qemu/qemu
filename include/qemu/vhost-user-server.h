@@ -43,6 +43,7 @@ typedef struct {
     unsigned int in_flight; /* atomic */
 
     /* Protected by ctx lock */
+    bool in_qio_channel_yield;
     bool wait_idle;
     VuDev vu_dev;
     QIOChannel *ioc; /* The I/O channel with the client */

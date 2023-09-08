@@ -146,8 +146,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
         return 0;
     }
 
-    ret = nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc), tlscreds,
-                                tlshostname,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), tlscreds, tlshostname,
                                 outioc, info, errp);
     if (ret < 0) {
         /*

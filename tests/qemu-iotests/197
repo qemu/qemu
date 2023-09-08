@@ -136,18 +136,18 @@ IMGPROTO=file IMGFMT=qcow2 TEST_IMG_FILE="$TEST_WRAP" \
 $QEMU_IO -c "write -P 0xaa 0 64k" "$TEST_IMG" | _filter_qemu_io
 
 # Allocate individual subclusters in the top image, and not the whole cluster
-$QEMU_IO -c "write -P 0xbb 28K 2K" -c "write -P 0xcc 34K 2K" "$TEST_WRAP" \
+$QEMU_IO -f qcow2 -c "write -P 0xbb 28K 2K" -c "write -P 0xcc 34K 2K" "$TEST_WRAP" \
     | _filter_qemu_io
 
 # Only 2 subclusters should be allocated in the top image at this point
-$QEMU_IMG map "$TEST_WRAP" | _filter_qemu_img_map
+$QEMU_IO -f qcow2 -c map "$TEST_WRAP"
 
 # Actual copy-on-read operation
-$QEMU_IO -C -c "read -P 0xaa 30K 4K" "$TEST_WRAP" | _filter_qemu_io
+$QEMU_IO -f qcow2 -C -c "read -P 0xaa 30K 4K" "$TEST_WRAP" | _filter_qemu_io
 
 # And here we should have 4 subclusters allocated right in the middle of the
 # top image. Make sure the whole cluster remains unallocated
-$QEMU_IMG map "$TEST_WRAP" | _filter_qemu_img_map
+$QEMU_IO -f qcow2 -c map "$TEST_WRAP"
 
 _check_test_img
 
