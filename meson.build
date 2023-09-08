@@ -1622,6 +1622,25 @@ if not gnutls_crypto.found()
   endif
 endif
 
+capstone = not_found
+if not get_option('capstone').auto() or have_system or have_user
+  capstone = dependency('capstone', version: '>=3.0.5',
+                        method: 'pkg-config',
+                        required: get_option('capstone'))
+
+  # Some versions of capstone have broken pkg-config file
+  # that reports a wrong -I path, causing the #include to
+  # fail later. If the system has such a broken version
+  # do not use it.
+  if capstone.found() and not cc.compiles('#include <capstone.h>',
+                                          dependencies: [capstone])
+    capstone = not_found
+    if get_option('capstone').enabled()
+      error('capstone requested, but it does not appear to work')
+    endif
+  endif
+endif
+
 gmp = dependency('gmp', required: false, method: 'pkg-config')
 if nettle.found() and gmp.found()
   hogweed = dependency('hogweed', version: '>=3.4',
@@ -2127,6 +2146,7 @@ config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BDRV_WHITELIST_TOOLS', get_option('block_drv_whitelist_in_tools'))
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_BSD', targetos in bsd_oses)
+config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_DARWIN', targetos == 'darwin')
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
@@ -2190,6 +2210,7 @@ if seccomp.found()
   config_host_data.set('CONFIG_SECCOMP_SYSRAWRC', seccomp_has_sysrawrc)
 endif
 config_host_data.set('CONFIG_PIXMAN', pixman.found())
+config_host_data.set('CONFIG_SLIRP', slirp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_SOLARIS', targetos == 'sunos')
 if get_option('tcg').allowed()
@@ -3093,28 +3114,9 @@ genh += custom_target('config-poison.h',
                       command: [find_program('scripts/make-config-poison.sh'),
                                 target_configs_h])
 
-##############
-# Submodules #
-##############
-
-capstone = not_found
-if not get_option('capstone').auto() or have_system or have_user
-  capstone = dependency('capstone', version: '>=3.0.5',
-                        method: 'pkg-config',
-                        required: get_option('capstone'))
-
-  # Some versions of capstone have broken pkg-config file
-  # that reports a wrong -I path, causing the #include to
-  # fail later. If the system has such a broken version
-  # do not use it.
-  if capstone.found() and not cc.compiles('#include <capstone.h>',
-                                          dependencies: [capstone])
-    capstone = not_found
-    if get_option('capstone').enabled()
-      error('capstone requested, but it does not appear to work')
-    endif
-  endif
-endif
+###############
+# Subprojects #
+###############
 
 libvfio_user_dep = not_found
 if have_system and vfio_user_server_allowed
@@ -3158,9 +3160,19 @@ else
   fdt_opt = 'disabled'
 endif
 
-config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_FDT', fdt.found())
-config_host_data.set('CONFIG_SLIRP', slirp.found())
+
+vhost_user = not_found
+if targetos == 'linux' and have_vhost_user
+  libvhost_user = subproject('libvhost-user')
+  vhost_user = libvhost_user.get_variable('vhost_user_dep')
+endif
+
+libvduse = not_found
+if have_libvduse
+  libvduse_proj = subproject('libvduse')
+  libvduse = libvduse_proj.get_variable('libvduse_dep')
+endif
 
 #####################
 # Generated sources #
@@ -3389,18 +3401,6 @@ if have_system or have_user
     'target/s390x/kvm',
     'target/sparc',
   ]
-endif
-
-vhost_user = not_found
-if targetos == 'linux' and have_vhost_user
-  libvhost_user = subproject('libvhost-user')
-  vhost_user = libvhost_user.get_variable('vhost_user_dep')
-endif
-
-libvduse = not_found
-if have_libvduse
-  libvduse_proj = subproject('libvduse')
-  libvduse = libvduse_proj.get_variable('libvduse_dep')
 endif
 
 # NOTE: the trace/ subdirectory needs the qapi_trace_events variable
