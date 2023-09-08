@@ -1828,12 +1828,12 @@ if not get_option('smartcard').auto() or have_system
                       version: '>=2.5.1', method: 'pkg-config')
 endif
 u2f = not_found
-if have_system
+if not get_option('u2f').auto() or have_system
   u2f = dependency('u2f-emu', required: get_option('u2f'),
                    method: 'pkg-config')
 endif
 canokey = not_found
-if have_system
+if not get_option('canokey').auto() or have_system
   canokey = dependency('canokey-qemu', required: get_option('canokey'),
                    method: 'pkg-config')
 endif
