@@ -47,7 +47,7 @@ elif targetos == 'linux'
   system_ss.add(files('tap.c', 'tap-linux.c'))
 elif targetos in bsd_oses
   system_ss.add(files('tap.c', 'tap-bsd.c'))
-elif targetos == 'solaris'
+elif targetos == 'sunos'
   system_ss.add(files('tap.c', 'tap-solaris.c'))
 else
   system_ss.add(files('tap.c', 'tap-stub.c'))
