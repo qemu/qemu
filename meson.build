@@ -19,20 +19,7 @@ ss = import('sourceset')
 fs = import('fs')
 
 targetos = host_machine.system()
-sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-
-cc = meson.get_compiler('c')
-all_languages = ['c']
-if targetos == 'windows' and add_languages('cpp', required: false, native: false)
-  all_languages += ['cpp']
-  cxx = meson.get_compiler('cpp')
-endif
-if targetos == 'darwin' and \
-   add_languages('objc', required: get_option('cocoa'), native: false)
-  all_languages += ['objc']
-  objc = meson.get_compiler('objc')
-endif
 
 # Temporary directory used for files created while
 # configure runs. Since it is in the build directory
@@ -65,6 +52,62 @@ supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv32', 'riscv64', 'x86', 'x86_64'
 cpu = host_machine.cpu_family()
 
 target_dirs = config_host['TARGET_DIRS'].split()
+
+############
+# Programs #
+############
+
+sh = find_program('sh')
+python = import('python').find_installation()
+
+cc = meson.get_compiler('c')
+all_languages = ['c']
+if targetos == 'windows' and add_languages('cpp', required: false, native: false)
+  all_languages += ['cpp']
+  cxx = meson.get_compiler('cpp')
+endif
+if targetos == 'darwin' and \
+   add_languages('objc', required: get_option('cocoa'), native: false)
+  all_languages += ['objc']
+  objc = meson.get_compiler('objc')
+endif
+
+dtrace = not_found
+stap = not_found
+if 'dtrace' in get_option('trace_backends')
+  dtrace = find_program('dtrace', required: true)
+  stap = find_program('stap', required: false)
+  if stap.found()
+    # Workaround to avoid dtrace(1) producing a file with 'hidden' symbol
+    # visibility. Define STAP_SDT_V2 to produce 'default' symbol visibility
+    # instead. QEMU --enable-modules depends on this because the SystemTap
+    # semaphores are linked into the main binary and not the module's shared
+    # object.
+    add_global_arguments('-DSTAP_SDT_V2',
+                         native: false, language: all_languages)
+  endif
+endif
+
+if get_option('iasl') == ''
+  iasl = find_program('iasl', required: false)
+else
+  iasl = find_program(get_option('iasl'), required: true)
+endif
+
+edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
+unpack_edk2_blobs = false
+foreach target : edk2_targets
+  if target in target_dirs
+    bzip2 = find_program('bzip2', required: get_option('install_blobs'))
+    unpack_edk2_blobs = bzip2.found()
+    break
+  endif
+endforeach
+
+#####################
+# Option validation #
+#####################
+
 have_linux_user = false
 have_bsd_user = false
 have_system = false
@@ -89,12 +132,6 @@ enable_modules = get_option('modules') \
            error_message: 'Modules are incompatible with static linking') \
   .allowed()
 have_block = have_system or have_tools
-
-############
-# Programs #
-############
-
-python = import('python').find_installation()
 
 #######################################
 # Variables for host and accelerators #
@@ -165,38 +202,6 @@ modular_tcg = []
 # Darwin does not support references to thread-local variables in modules
 if targetos != 'darwin'
   modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
-endif
-
-edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
-unpack_edk2_blobs = false
-foreach target : edk2_targets
-  if target in target_dirs
-    bzip2 = find_program('bzip2', required: get_option('install_blobs'))
-    unpack_edk2_blobs = bzip2.found()
-    break
-  endif
-endforeach
-
-dtrace = not_found
-stap = not_found
-if 'dtrace' in get_option('trace_backends')
-  dtrace = find_program('dtrace', required: true)
-  stap = find_program('stap', required: false)
-  if stap.found()
-    # Workaround to avoid dtrace(1) producing a file with 'hidden' symbol
-    # visibility. Define STAP_SDT_V2 to produce 'default' symbol visibility
-    # instead. QEMU --enable-modules depends on this because the SystemTap
-    # semaphores are linked into the main binary and not the module's shared
-    # object.
-    add_global_arguments('-DSTAP_SDT_V2',
-                         native: false, language: all_languages)
-  endif
-endif
-
-if get_option('iasl') == ''
-  iasl = find_program('iasl', required: false)
-else
-  iasl = find_program(get_option('iasl'), required: true)
 endif
 
 ##################
