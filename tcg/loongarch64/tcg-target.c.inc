@@ -177,6 +177,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_C12   0x1000
 #define TCG_CT_CONST_WSZ   0x2000
 #define TCG_CT_CONST_VCMP  0x4000
+#define TCG_CT_CONST_VADD  0x8000
 
 #define ALL_GENERAL_REGS   MAKE_64BIT_MASK(0, 32)
 #define ALL_VECTOR_REGS    MAKE_64BIT_MASK(32, 32)
@@ -212,6 +213,9 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
     }
     int64_t vec_val = sextract64(val, 0, 8 << vece);
     if ((ct & TCG_CT_CONST_VCMP) && -0x10 <= vec_val && vec_val <= 0x1f) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_VADD) && -0x1f <= vec_val && vec_val <= 0x1f) {
         return true;
     }
     return false;
@@ -1621,6 +1625,51 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
     }
 }
 
+static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
+                               const TCGArg a1, const TCGArg a2,
+                               bool a2_is_const, bool is_add)
+{
+    static const LoongArchInsn add_vec_insn[4] = {
+        OPC_VADD_B, OPC_VADD_H, OPC_VADD_W, OPC_VADD_D
+    };
+    static const LoongArchInsn add_vec_imm_insn[4] = {
+        OPC_VADDI_BU, OPC_VADDI_HU, OPC_VADDI_WU, OPC_VADDI_DU
+    };
+    static const LoongArchInsn sub_vec_insn[4] = {
+        OPC_VSUB_B, OPC_VSUB_H, OPC_VSUB_W, OPC_VSUB_D
+    };
+    static const LoongArchInsn sub_vec_imm_insn[4] = {
+        OPC_VSUBI_BU, OPC_VSUBI_HU, OPC_VSUBI_WU, OPC_VSUBI_DU
+    };
+
+    if (a2_is_const) {
+        int64_t value = sextract64(a2, 0, 8 << vece);
+        if (!is_add) {
+            value = -value;
+        }
+
+        /* Try vaddi/vsubi */
+        if (0 <= value && value <= 0x1f) {
+            tcg_out32(s, encode_vdvjuk5_insn(add_vec_imm_insn[vece], a0, \
+                                             a1, value));
+            return;
+        } else if (-0x1f <= value && value < 0) {
+            tcg_out32(s, encode_vdvjuk5_insn(sub_vec_imm_insn[vece], a0, \
+                                             a1, -value));
+            return;
+        }
+
+        /* constraint TCG_CT_CONST_VADD ensures unreachable */
+        g_assert_not_reached();
+    }
+
+    if (is_add) {
+        tcg_out32(s, encode_vdvjvk_insn(add_vec_insn[vece], a0, a1, a2));
+    } else {
+        tcg_out32(s, encode_vdvjvk_insn(sub_vec_insn[vece], a0, a1, a2));
+    }
+}
+
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
                            const TCGArg args[TCG_MAX_OP_ARGS],
@@ -1712,6 +1761,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
         break;
+    case INDEX_op_add_vec:
+        tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], true);
+        break;
+    case INDEX_op_sub_vec:
+        tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], false);
+        break;
     case INDEX_op_dupm_vec:
         tcg_out_dupm_vec(s, type, vece, a0, a1, a2);
         break;
@@ -1728,6 +1783,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_dup_vec:
     case INDEX_op_dupm_vec:
     case INDEX_op_cmp_vec:
+    case INDEX_op_add_vec:
+    case INDEX_op_sub_vec:
         return 1;
     default:
         return 0;
@@ -1891,6 +1948,10 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_cmp_vec:
         return C_O1_I2(w, w, wM);
+
+    case INDEX_op_add_vec:
+    case INDEX_op_sub_vec:
+        return C_O1_I2(w, w, wA);
 
     default:
         g_assert_not_reached();
