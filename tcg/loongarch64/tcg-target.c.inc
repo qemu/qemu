@@ -1743,6 +1743,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static const LoongArchInsn sari_vec_insn[4] = {
         OPC_VSRAI_B, OPC_VSRAI_H, OPC_VSRAI_W, OPC_VSRAI_D
     };
+    static const LoongArchInsn rotrv_vec_insn[4] = {
+        OPC_VROTR_B, OPC_VROTR_H, OPC_VROTR_W, OPC_VROTR_D
+    };
 
     a0 = args[0];
     a1 = args[1];
@@ -1889,6 +1892,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sari_vec:
         tcg_out32(s, encode_vdvjuk3_insn(sari_vec_insn[vece], a0, a1, a2));
+        break;
+    case INDEX_op_rotrv_vec:
+        tcg_out32(s, encode_vdvjvk_insn(rotrv_vec_insn[vece], a0, a1, a2));
+        break;
+    case INDEX_op_rotlv_vec:
+        /* rotlv_vec a1, a2 = rotrv_vec a1, -a2 */
+        tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], temp_vec, a2));
+        tcg_out32(s, encode_vdvjvk_insn(rotrv_vec_insn[vece], a0, a1,
+                                        temp_vec));
         break;
     case INDEX_op_bitsel_vec:
         /* vbitsel vd, vj, vk, va = bitsel_vec vd, va, vk, vj */
@@ -2119,6 +2131,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shlv_vec:
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
+    case INDEX_op_rotrv_vec:
+    case INDEX_op_rotlv_vec:
         return C_O1_I2(w, w, w);
 
     case INDEX_op_not_vec:
