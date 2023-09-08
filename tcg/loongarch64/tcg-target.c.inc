@@ -1902,6 +1902,26 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out32(s, encode_vdvjvk_insn(rotrv_vec_insn[vece], a0, a1,
                                         temp_vec));
         break;
+    case INDEX_op_rotli_vec:
+        /* rotli_vec a1, a2 = rotri_vec a1, -a2 */
+        a2 = extract32(-a2, 0, 3 + vece);
+        switch (vece) {
+        case MO_8:
+            tcg_out_opc_vrotri_b(s, a0, a1, a2);
+            break;
+        case MO_16:
+            tcg_out_opc_vrotri_h(s, a0, a1, a2);
+            break;
+        case MO_32:
+            tcg_out_opc_vrotri_w(s, a0, a1, a2);
+            break;
+        case MO_64:
+            tcg_out_opc_vrotri_d(s, a0, a1, a2);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     case INDEX_op_bitsel_vec:
         /* vbitsel vd, vj, vk, va = bitsel_vec vd, va, vk, vj */
         tcg_out_opc_vbitsel_v(s, a0, a3, a2, a1);
@@ -2140,6 +2160,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
+    case INDEX_op_rotli_vec:
         return C_O1_I1(w, w);
 
     case INDEX_op_bitsel_vec:
