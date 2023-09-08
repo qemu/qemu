@@ -415,6 +415,10 @@ typedef struct GlobalProperty {
     bool optional;
 } GlobalProperty;
 
+DeviceState *qdev_create(BusState *bus, const char *name);
+DeviceState *qdev_try_create(BusState *bus, const char *name);
+void qdev_init_nofail(DeviceState *dev);
+
 static inline void
 compat_props_add(GPtrArray *arr,
                  GlobalProperty props[], size_t nelem)

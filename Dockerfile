@@ -20,7 +20,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 1
 
 RUN mkdir -p build
 WORKDIR /src/build
-# RUN ../configure --target-list=sparc-softmmu --enable-debug
+RUN ../configure --target-list=sparc-softmmu --enable-debug
 # RUN make
 
 

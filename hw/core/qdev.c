@@ -145,6 +145,55 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
     return true;
 }
 
+/* EMA Specific Addition */
+
+/* Create a new device.  This only initializes the device state structure
+   and allows properties to be set.  qdev_init should be called to
+   initialize the actual device emulation.  */
+DeviceState *qdev_create(BusState *bus, const char *name)
+{
+    DeviceState *dev;
+
+    dev = qdev_try_create(bus, name);
+    if (!dev) {
+        if (bus) {
+            /*error_report("Unknown device '%s' for bus '%s'", name,
+                         object_get_typename(OBJECT(bus))); */
+            fprintf(stderr, "Unknown device %s for bus %s", name, object_get_typename(OBJECT(bus)));
+        } else {
+            /*error_report("Unknown device '%s' for default sysbus", name);*/
+            fprintf(stderr, "Unknown device %s for default sysbus", name);
+        }
+        abort();
+    }
+
+    return dev;
+}
+
+/* EMA Specific Addition */
+DeviceState *qdev_try_create(BusState *bus, const char *type)
+{
+    DeviceState *dev;
+
+    Error *err = NULL;
+
+    if (object_class_by_name(type) == NULL) {
+        return NULL;
+    }
+    dev = DEVICE(object_new(type));
+    if (!dev) {
+        return NULL;
+    }
+
+    if (!bus) {
+        bus = sysbus_get_default();
+    }
+
+    qdev_set_parent_bus(dev, bus, &err);
+    object_unref(OBJECT(dev));
+    return dev;
+}
+
 DeviceState *qdev_new(const char *name)
 {
     ObjectClass *oc = object_class_by_name(name);
@@ -323,6 +372,33 @@ void qdev_assert_realized_properly(void)
 {
     object_child_foreach_recursive(object_get_root(),
                                    qdev_assert_realized_properly_cb, NULL);
+}
+
+/* EMA Specific Addition */
+
+/* Like qdev_init(), but terminate program via error_report() instead of
+   returning an error value.  This is okay during machine creation.
+   Don't use for hotplug, because there callers need to recover from
+   failure.  Exception: if you know the device's init() callback can't
+   fail, then qdev_init_nofail() can't fail either, and is therefore
+   usable even then.  But relying on the device implementation that
+   way is somewhat unclean, and best avoided.  */
+void qdev_init_nofail(DeviceState *dev)
+{
+    Error *err = NULL;
+
+    assert(!dev->realized);
+
+    object_property_set_bool(OBJECT(dev), "realized", true, &err);
+    if (err) {
+        /*error_report("Initialization of device %s failed: %s",
+                     object_get_typename(OBJECT(dev)),
+                     error_get_pretty(err));*/
+        fprintf(stderr, "Initialization of device %s failed: %s",
+                     object_get_typename(OBJECT(dev)),
+                     error_get_pretty(err));
+        exit(1);
+    }
 }
 
 bool qdev_machine_modified(void)
