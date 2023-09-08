@@ -26,6 +26,7 @@
 #define PCI_CLASS_STORAGE_SATA           0x0106
 #define PCI_CLASS_STORAGE_SAS            0x0107
 #define PCI_CLASS_STORAGE_EXPRESS        0x0108
+#define PCI_CLASS_STORAGE_UFS            0x0109
 #define PCI_CLASS_STORAGE_OTHER          0x0180
 
 #define PCI_BASE_CLASS_NETWORK           0x02
