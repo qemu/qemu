@@ -9,6 +9,10 @@ add_test_setup('thorough', env: ['G_TEST_SLOW=1', 'SPEED=thorough'])
 
 meson.add_postconf_script(find_program('scripts/symlink-install-tree.py'))
 
+####################
+# Global variables #
+####################
+
 not_found = dependency('', required: false)
 keyval = import('keyval')
 ss = import('sourceset')
@@ -86,7 +90,15 @@ enable_modules = get_option('modules') \
   .allowed()
 have_block = have_system or have_tools
 
+############
+# Programs #
+############
+
 python = import('python').find_installation()
+
+#######################################
+# Variables for host and accelerators #
+#######################################
 
 if cpu not in supported_cpus
   host_arch = 'unknown'
@@ -518,9 +530,9 @@ if sparse.found()
                        '-Wno-non-pointer-null'])
 endif
 
-###########################################
-# Target-specific checks and dependencies #
-###########################################
+#####################
+# Option validation #
+#####################
 
 # Fuzzing
 if get_option('fuzzing') and get_option('fuzzing_engine') == '' and \
@@ -3524,9 +3536,9 @@ specific_ss.add_all(when: 'CONFIG_TCG_BUILTIN', if_true: tcg_module_ss)
 target_modules += { 'accel' : { 'qtest': qtest_module_ss,
                                 'tcg': tcg_real_module_ss }}
 
-########################
-# Library dependencies #
-########################
+##############################################
+# Internal static_libraries and dependencies #
+##############################################
 
 modinfo_collect = find_program('scripts/modinfo-collect.py')
 modinfo_generate = find_program('scripts/modinfo-generate.py')
