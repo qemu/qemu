@@ -228,6 +228,7 @@
  *       VSD and is only meant to be used in indirect mode !
  */
 #define VSD_MODE                PPC_BITMASK(0, 1)
+#define  VSD_MODE_INVALID       0
 #define  VSD_MODE_SHARED        1
 #define  VSD_MODE_EXCLUSIVE     2
 #define  VSD_MODE_FORWARD       3

@@ -543,14 +543,6 @@ F: include/sysemu/xen.h
 F: include/sysemu/xen-mapcache.h
 F: stubs/xen-hw-stub.c
 
-Guest CPU Cores (HAXM)
----------------------
-X86 HAXM CPUs
-S: Orphan
-F: accel/stubs/hax-stub.c
-F: include/sysemu/hax.h
-F: target/i386/hax/
-
 Guest CPU Cores (NVMM)
 ----------------------
 NetBSD Virtual Machine Monitor (NVMM) CPU support
@@ -3701,6 +3693,7 @@ S: Supported
 F: block/parallels.c
 F: block/parallels-ext.c
 F: docs/interop/parallels.txt
+T: git https://src.openvz.org/scm/~den/qemu.git parallels
 
 qed
 M: Stefan Hajnoczi <stefanha@redhat.com>

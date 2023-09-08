@@ -1097,13 +1097,13 @@ static int send_palette_rect(VncState *vs, int x, int y,
     switch (vs->client_pf.bytes_per_pixel) {
     case 4:
     {
-        size_t old_offset, offset;
-        uint32_t header[palette_size(palette)];
+        size_t old_offset, offset, palette_sz = palette_size(palette);
+        g_autofree uint32_t *header = g_new(uint32_t, palette_sz);
         struct palette_cb_priv priv = { vs, (uint8_t *)header };
 
         old_offset = vs->output.offset;
         palette_iter(palette, write_palette, &priv);
-        vnc_write(vs, header, sizeof(header));
+        vnc_write(vs, header, palette_sz * sizeof(uint32_t));
 
         if (vs->tight->pixel24) {
             tight_pack24(vs, vs->output.buffer + old_offset, colors, &offset);
@@ -1115,11 +1115,12 @@ static int send_palette_rect(VncState *vs, int x, int y,
     }
     case 2:
     {
-        uint16_t header[palette_size(palette)];
+        size_t palette_sz = palette_size(palette);
+        g_autofree uint16_t *header = g_new(uint16_t, palette_sz);
         struct palette_cb_priv priv = { vs, (uint8_t *)header };
 
         palette_iter(palette, write_palette, &priv);
-        vnc_write(vs, header, sizeof(header));
+        vnc_write(vs, header, palette_sz * sizeof(uint16_t));
         tight_encode_indexed_rect16(vs->tight->tight.buffer, w * h, palette);
         break;
     }

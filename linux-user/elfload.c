@@ -143,8 +143,6 @@ static uint32_t get_elf_hwcap(void)
 }
 
 #ifdef TARGET_X86_64
-#define ELF_START_MMAP 0x2aaaaab000ULL
-
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
 
@@ -220,8 +218,6 @@ static bool init_guest_commpage(void)
 }
 #endif
 #else
-
-#define ELF_START_MMAP 0x80000000
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -307,8 +303,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #ifndef TARGET_AARCH64
 /* 32 bit ARM definitions */
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_ARCH        EM_ARM
 #define ELF_CLASS       ELFCLASS32
@@ -466,7 +460,7 @@ static bool init_guest_commpage(void)
 #define ELF_HWCAP get_elf_hwcap()
 #define ELF_HWCAP2 get_elf_hwcap2()
 
-static uint32_t get_elf_hwcap(void)
+uint32_t get_elf_hwcap(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
     uint32_t hwcaps = 0;
@@ -508,7 +502,7 @@ static uint32_t get_elf_hwcap(void)
     return hwcaps;
 }
 
-static uint32_t get_elf_hwcap2(void)
+uint32_t get_elf_hwcap2(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
     uint32_t hwcaps = 0;
@@ -519,6 +513,49 @@ static uint32_t get_elf_hwcap2(void)
     GET_FEATURE_ID(aa32_sha2, ARM_HWCAP2_ARM_SHA2);
     GET_FEATURE_ID(aa32_crc32, ARM_HWCAP2_ARM_CRC32);
     return hwcaps;
+}
+
+const char *elf_hwcap_str(uint32_t bit)
+{
+    static const char *hwcap_str[] = {
+    [__builtin_ctz(ARM_HWCAP_ARM_SWP      )] = "swp",
+    [__builtin_ctz(ARM_HWCAP_ARM_HALF     )] = "half",
+    [__builtin_ctz(ARM_HWCAP_ARM_THUMB    )] = "thumb",
+    [__builtin_ctz(ARM_HWCAP_ARM_26BIT    )] = "26bit",
+    [__builtin_ctz(ARM_HWCAP_ARM_FAST_MULT)] = "fast_mult",
+    [__builtin_ctz(ARM_HWCAP_ARM_FPA      )] = "fpa",
+    [__builtin_ctz(ARM_HWCAP_ARM_VFP      )] = "vfp",
+    [__builtin_ctz(ARM_HWCAP_ARM_EDSP     )] = "edsp",
+    [__builtin_ctz(ARM_HWCAP_ARM_JAVA     )] = "java",
+    [__builtin_ctz(ARM_HWCAP_ARM_IWMMXT   )] = "iwmmxt",
+    [__builtin_ctz(ARM_HWCAP_ARM_CRUNCH   )] = "crunch",
+    [__builtin_ctz(ARM_HWCAP_ARM_THUMBEE  )] = "thumbee",
+    [__builtin_ctz(ARM_HWCAP_ARM_NEON     )] = "neon",
+    [__builtin_ctz(ARM_HWCAP_ARM_VFPv3    )] = "vfpv3",
+    [__builtin_ctz(ARM_HWCAP_ARM_VFPv3D16 )] = "vfpv3d16",
+    [__builtin_ctz(ARM_HWCAP_ARM_TLS      )] = "tls",
+    [__builtin_ctz(ARM_HWCAP_ARM_VFPv4    )] = "vfpv4",
+    [__builtin_ctz(ARM_HWCAP_ARM_IDIVA    )] = "idiva",
+    [__builtin_ctz(ARM_HWCAP_ARM_IDIVT    )] = "idivt",
+    [__builtin_ctz(ARM_HWCAP_ARM_VFPD32   )] = "vfpd32",
+    [__builtin_ctz(ARM_HWCAP_ARM_LPAE     )] = "lpae",
+    [__builtin_ctz(ARM_HWCAP_ARM_EVTSTRM  )] = "evtstrm",
+    };
+
+    return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
+}
+
+const char *elf_hwcap2_str(uint32_t bit)
+{
+    static const char *hwcap_str[] = {
+    [__builtin_ctz(ARM_HWCAP2_ARM_AES  )] = "aes",
+    [__builtin_ctz(ARM_HWCAP2_ARM_PMULL)] = "pmull",
+    [__builtin_ctz(ARM_HWCAP2_ARM_SHA1 )] = "sha1",
+    [__builtin_ctz(ARM_HWCAP2_ARM_SHA2 )] = "sha2",
+    [__builtin_ctz(ARM_HWCAP2_ARM_CRC32)] = "crc32",
+    };
+
+    return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
 }
 
 #undef GET_FEATURE
@@ -557,7 +594,6 @@ static const char *get_elf_platform(void)
 
 #else
 /* 64 bit ARM definitions */
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_ARCH        EM_AARCH64
 #define ELF_CLASS       ELFCLASS64
@@ -668,7 +704,7 @@ enum {
 #define GET_FEATURE_ID(feat, hwcap) \
     do { if (cpu_isar_feature(feat, cpu)) { hwcaps |= hwcap; } } while (0)
 
-static uint32_t get_elf_hwcap(void)
+uint32_t get_elf_hwcap(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
     uint32_t hwcaps = 0;
@@ -706,7 +742,7 @@ static uint32_t get_elf_hwcap(void)
     return hwcaps;
 }
 
-static uint32_t get_elf_hwcap2(void)
+uint32_t get_elf_hwcap2(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
     uint32_t hwcaps = 0;
@@ -741,6 +777,85 @@ static uint32_t get_elf_hwcap2(void)
     return hwcaps;
 }
 
+const char *elf_hwcap_str(uint32_t bit)
+{
+    static const char *hwcap_str[] = {
+    [__builtin_ctz(ARM_HWCAP_A64_FP      )] = "fp",
+    [__builtin_ctz(ARM_HWCAP_A64_ASIMD   )] = "asimd",
+    [__builtin_ctz(ARM_HWCAP_A64_EVTSTRM )] = "evtstrm",
+    [__builtin_ctz(ARM_HWCAP_A64_AES     )] = "aes",
+    [__builtin_ctz(ARM_HWCAP_A64_PMULL   )] = "pmull",
+    [__builtin_ctz(ARM_HWCAP_A64_SHA1    )] = "sha1",
+    [__builtin_ctz(ARM_HWCAP_A64_SHA2    )] = "sha2",
+    [__builtin_ctz(ARM_HWCAP_A64_CRC32   )] = "crc32",
+    [__builtin_ctz(ARM_HWCAP_A64_ATOMICS )] = "atomics",
+    [__builtin_ctz(ARM_HWCAP_A64_FPHP    )] = "fphp",
+    [__builtin_ctz(ARM_HWCAP_A64_ASIMDHP )] = "asimdhp",
+    [__builtin_ctz(ARM_HWCAP_A64_CPUID   )] = "cpuid",
+    [__builtin_ctz(ARM_HWCAP_A64_ASIMDRDM)] = "asimdrdm",
+    [__builtin_ctz(ARM_HWCAP_A64_JSCVT   )] = "jscvt",
+    [__builtin_ctz(ARM_HWCAP_A64_FCMA    )] = "fcma",
+    [__builtin_ctz(ARM_HWCAP_A64_LRCPC   )] = "lrcpc",
+    [__builtin_ctz(ARM_HWCAP_A64_DCPOP   )] = "dcpop",
+    [__builtin_ctz(ARM_HWCAP_A64_SHA3    )] = "sha3",
+    [__builtin_ctz(ARM_HWCAP_A64_SM3     )] = "sm3",
+    [__builtin_ctz(ARM_HWCAP_A64_SM4     )] = "sm4",
+    [__builtin_ctz(ARM_HWCAP_A64_ASIMDDP )] = "asimddp",
+    [__builtin_ctz(ARM_HWCAP_A64_SHA512  )] = "sha512",
+    [__builtin_ctz(ARM_HWCAP_A64_SVE     )] = "sve",
+    [__builtin_ctz(ARM_HWCAP_A64_ASIMDFHM)] = "asimdfhm",
+    [__builtin_ctz(ARM_HWCAP_A64_DIT     )] = "dit",
+    [__builtin_ctz(ARM_HWCAP_A64_USCAT   )] = "uscat",
+    [__builtin_ctz(ARM_HWCAP_A64_ILRCPC  )] = "ilrcpc",
+    [__builtin_ctz(ARM_HWCAP_A64_FLAGM   )] = "flagm",
+    [__builtin_ctz(ARM_HWCAP_A64_SSBS    )] = "ssbs",
+    [__builtin_ctz(ARM_HWCAP_A64_SB      )] = "sb",
+    [__builtin_ctz(ARM_HWCAP_A64_PACA    )] = "paca",
+    [__builtin_ctz(ARM_HWCAP_A64_PACG    )] = "pacg",
+    };
+
+    return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
+}
+
+const char *elf_hwcap2_str(uint32_t bit)
+{
+    static const char *hwcap_str[] = {
+    [__builtin_ctz(ARM_HWCAP2_A64_DCPODP       )] = "dcpodp",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVE2         )] = "sve2",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEAES       )] = "sveaes",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEPMULL     )] = "svepmull",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEBITPERM   )] = "svebitperm",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVESHA3      )] = "svesha3",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVESM4       )] = "svesm4",
+    [__builtin_ctz(ARM_HWCAP2_A64_FLAGM2       )] = "flagm2",
+    [__builtin_ctz(ARM_HWCAP2_A64_FRINT        )] = "frint",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEI8MM      )] = "svei8mm",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEF32MM     )] = "svef32mm",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEF64MM     )] = "svef64mm",
+    [__builtin_ctz(ARM_HWCAP2_A64_SVEBF16      )] = "svebf16",
+    [__builtin_ctz(ARM_HWCAP2_A64_I8MM         )] = "i8mm",
+    [__builtin_ctz(ARM_HWCAP2_A64_BF16         )] = "bf16",
+    [__builtin_ctz(ARM_HWCAP2_A64_DGH          )] = "dgh",
+    [__builtin_ctz(ARM_HWCAP2_A64_RNG          )] = "rng",
+    [__builtin_ctz(ARM_HWCAP2_A64_BTI          )] = "bti",
+    [__builtin_ctz(ARM_HWCAP2_A64_MTE          )] = "mte",
+    [__builtin_ctz(ARM_HWCAP2_A64_ECV          )] = "ecv",
+    [__builtin_ctz(ARM_HWCAP2_A64_AFP          )] = "afp",
+    [__builtin_ctz(ARM_HWCAP2_A64_RPRES        )] = "rpres",
+    [__builtin_ctz(ARM_HWCAP2_A64_MTE3         )] = "mte3",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME          )] = "sme",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_I16I64   )] = "sme_i16i64",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_F64F64   )] = "sme_f64f64",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_I8I32    )] = "sme_i8i32",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_F16F32   )] = "sme_f16f32",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_B16F32   )] = "sme_b16f32",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_F32F32   )] = "sme_f32f32",
+    [__builtin_ctz(ARM_HWCAP2_A64_SME_FA64     )] = "sme_fa64",
+    };
+
+    return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
+}
+
 #undef GET_FEATURE_ID
 
 #endif /* not TARGET_AARCH64 */
@@ -749,7 +864,6 @@ static uint32_t get_elf_hwcap2(void)
 #ifdef TARGET_SPARC
 #ifdef TARGET_SPARC64
 
-#define ELF_START_MMAP 0x80000000
 #define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
                     | HWCAP_SPARC_MULDIV | HWCAP_SPARC_V9)
 #ifndef TARGET_ABI32
@@ -761,7 +875,6 @@ static uint32_t get_elf_hwcap2(void)
 #define ELF_CLASS   ELFCLASS64
 #define ELF_ARCH    EM_SPARCV9
 #else
-#define ELF_START_MMAP 0x80000000
 #define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
                     | HWCAP_SPARC_MULDIV)
 #define ELF_CLASS   ELFCLASS32
@@ -783,7 +896,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #ifdef TARGET_PPC
 
 #define ELF_MACHINE    PPC_ELF_MACHINE
-#define ELF_START_MMAP 0x80000000
 
 #if defined(TARGET_PPC64)
 
@@ -986,8 +1098,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 
 #ifdef TARGET_LOONGARCH64
 
-#define ELF_START_MMAP 0x80000000
-
 #define ELF_CLASS   ELFCLASS64
 #define ELF_ARCH    EM_LOONGARCH
 #define EXSTACK_DEFAULT true
@@ -1077,8 +1187,6 @@ static uint32_t get_elf_hwcap(void)
 #endif /* TARGET_LOONGARCH64 */
 
 #ifdef TARGET_MIPS
-
-#define ELF_START_MMAP 0x80000000
 
 #ifdef TARGET_MIPS64
 #define ELF_CLASS   ELFCLASS64
@@ -1237,8 +1345,6 @@ static uint32_t get_elf_hwcap(void)
 
 #ifdef TARGET_MICROBLAZE
 
-#define ELF_START_MMAP 0x80000000
-
 #define elf_check_arch(x) ( (x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 
 #define ELF_CLASS   ELFCLASS32
@@ -1278,8 +1384,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 #endif /* TARGET_MICROBLAZE */
 
 #ifdef TARGET_NIOS2
-
-#define ELF_START_MMAP 0x80000000
 
 #define elf_check_arch(x) ((x) == EM_ALTERA_NIOS2)
 
@@ -1376,8 +1480,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_OPENRISC
 
-#define ELF_START_MMAP 0x08000000
-
 #define ELF_ARCH EM_OPENRISC
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2MSB
@@ -1413,8 +1515,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #endif /* TARGET_OPENRISC */
 
 #ifdef TARGET_SH4
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_SH
@@ -1496,8 +1596,6 @@ static uint32_t get_elf_hwcap(void)
 
 #ifdef TARGET_CRIS
 
-#define ELF_START_MMAP 0x80000000
-
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_CRIS
 
@@ -1512,8 +1610,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif
 
 #ifdef TARGET_M68K
-
-#define ELF_START_MMAP 0x80000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_68K
@@ -1564,8 +1660,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 
 #ifdef TARGET_ALPHA
 
-#define ELF_START_MMAP (0x30000000000ULL)
-
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_ALPHA
 
@@ -1582,8 +1676,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif /* TARGET_ALPHA */
 
 #ifdef TARGET_S390X
-
-#define ELF_START_MMAP (0x20000000000ULL)
 
 #define ELF_CLASS	ELFCLASS64
 #define ELF_DATA	ELFDATA2MSB
@@ -1614,6 +1706,7 @@ uint32_t get_elf_hwcap(void)
     }
     GET_FEATURE(S390_FEAT_VECTOR, HWCAP_S390_VXRS);
     GET_FEATURE(S390_FEAT_VECTOR_ENH, HWCAP_S390_VXRS_EXT);
+    GET_FEATURE(S390_FEAT_VECTOR_ENH2, HWCAP_S390_VXRS_EXT2);
 
     return hwcap;
 }
@@ -1694,7 +1787,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_RISCV
 
-#define ELF_START_MMAP 0x80000000
 #define ELF_ARCH  EM_RISCV
 
 #ifdef TARGET_RISCV32
@@ -1730,7 +1822,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifdef TARGET_HPPA
 
-#define ELF_START_MMAP  0x80000000
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_PARISC
 #define ELF_PLATFORM    "PARISC"
@@ -1781,8 +1872,6 @@ static bool init_guest_commpage(void)
 #endif /* TARGET_HPPA */
 
 #ifdef TARGET_XTENSA
-
-#define ELF_START_MMAP 0x20000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_XTENSA
@@ -1848,8 +1937,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #endif /* TARGET_XTENSA */
 
 #ifdef TARGET_HEXAGON
-
-#define ELF_START_MMAP 0x20000000
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_HEXAGON
@@ -1959,15 +2046,6 @@ struct exec
 #define NMAGIC 0410
 #define ZMAGIC 0413
 #define QMAGIC 0314
-
-/* Necessary parameters */
-#define TARGET_ELF_EXEC_PAGESIZE \
-        (((eppnt->p_align & ~qemu_host_page_mask) != 0) ? \
-         TARGET_PAGE_SIZE : MAX(qemu_host_page_size, TARGET_PAGE_SIZE))
-#define TARGET_ELF_PAGELENGTH(_v) ROUND_UP((_v), TARGET_ELF_EXEC_PAGESIZE)
-#define TARGET_ELF_PAGESTART(_v) ((_v) & \
-                                 ~(abi_ulong)(TARGET_ELF_EXEC_PAGESIZE-1))
-#define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
 #define DLINFO_ITEMS 16
 
@@ -2220,47 +2298,37 @@ static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
     }
 }
 
-/* Map and zero the bss.  We need to explicitly zero any fractional pages
-   after the data section (i.e. bss).  */
-static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
+/**
+ * zero_bss:
+ *
+ * Map and zero the bss.  We need to explicitly zero any fractional pages
+ * after the data section (i.e. bss).  Return false on mapping failure.
+ */
+static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss, int prot)
 {
-    uintptr_t host_start, host_map_start, host_end;
+    abi_ulong align_bss;
 
-    last_bss = TARGET_PAGE_ALIGN(last_bss);
+    align_bss = TARGET_PAGE_ALIGN(start_bss);
+    end_bss = TARGET_PAGE_ALIGN(end_bss);
 
-    /* ??? There is confusion between qemu_real_host_page_size and
-       qemu_host_page_size here and elsewhere in target_mmap, which
-       may lead to the end of the data section mapping from the file
-       not being mapped.  At least there was an explicit test and
-       comment for that here, suggesting that "the file size must
-       be known".  The comment probably pre-dates the introduction
-       of the fstat system call in target_mmap which does in fact
-       find out the size.  What isn't clear is if the workaround
-       here is still actually needed.  For now, continue with it,
-       but merge it with the "normal" mmap that would allocate the bss.  */
+    if (start_bss < align_bss) {
+        int flags = page_get_flags(start_bss);
 
-    host_start = (uintptr_t) g2h_untagged(elf_bss);
-    host_end = (uintptr_t) g2h_untagged(last_bss);
-    host_map_start = REAL_HOST_PAGE_ALIGN(host_start);
-
-    if (host_map_start < host_end) {
-        void *p = mmap((void *)host_map_start, host_end - host_map_start,
-                       prot, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (p == MAP_FAILED) {
-            perror("cannot mmap brk");
-            exit(-1);
+        if (!(flags & PAGE_VALID)) {
+            /* Map the start of the bss. */
+            align_bss -= TARGET_PAGE_SIZE;
+        } else if (flags & PAGE_WRITE) {
+            /* The page is already mapped writable. */
+            memset(g2h_untagged(start_bss), 0, align_bss - start_bss);
+        } else {
+            /* Read-only zeros? */
+            g_assert_not_reached();
         }
     }
 
-    /* Ensure that the bss page(s) are valid */
-    if ((page_get_flags(last_bss-1) & prot) != prot) {
-        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss - 1,
-                       prot | PAGE_VALID);
-    }
-
-    if (host_start < host_map_start) {
-        memset((void *)host_start, 0, host_map_start - host_start);
-    }
+    return align_bss >= end_bss ||
+           target_mmap(align_bss, end_bss - align_bss, prot,
+                       MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0) != -1;
 }
 
 #if defined(TARGET_ARM)
@@ -2523,6 +2591,157 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #endif
 #endif
 
+/**
+ * pgb_try_mmap:
+ * @addr: host start address
+ * @addr_last: host last address
+ * @keep: do not unmap the probe region
+ *
+ * Return 1 if [@addr, @addr_last] is not mapped in the host,
+ * return 0 if it is not available to map, and -1 on mmap error.
+ * If @keep, the region is left mapped on success, otherwise unmapped.
+ */
+static int pgb_try_mmap(uintptr_t addr, uintptr_t addr_last, bool keep)
+{
+    size_t size = addr_last - addr + 1;
+    void *p = mmap((void *)addr, size, PROT_NONE,
+                   MAP_ANONYMOUS | MAP_PRIVATE |
+                   MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+    int ret;
+
+    if (p == MAP_FAILED) {
+        return errno == EEXIST ? 0 : -1;
+    }
+    ret = p == (void *)addr;
+    if (!keep || !ret) {
+        munmap(p, size);
+    }
+    return ret;
+}
+
+/**
+ * pgb_try_mmap_skip_brk(uintptr_t addr, uintptr_t size, uintptr_t brk)
+ * @addr: host address
+ * @addr_last: host last address
+ * @brk: host brk
+ *
+ * Like pgb_try_mmap, but additionally reserve some memory following brk.
+ */
+static int pgb_try_mmap_skip_brk(uintptr_t addr, uintptr_t addr_last,
+                                 uintptr_t brk, bool keep)
+{
+    uintptr_t brk_last = brk + 16 * MiB - 1;
+
+    /* Do not map anything close to the host brk. */
+    if (addr <= brk_last && brk <= addr_last) {
+        return 0;
+    }
+    return pgb_try_mmap(addr, addr_last, keep);
+}
+
+/**
+ * pgb_try_mmap_set:
+ * @ga: set of guest addrs
+ * @base: guest_base
+ * @brk: host brk
+ *
+ * Return true if all @ga can be mapped by the host at @base.
+ * On success, retain the mapping at index 0 for reserved_va.
+ */
+
+typedef struct PGBAddrs {
+    uintptr_t bounds[3][2]; /* start/last pairs */
+    int nbounds;
+} PGBAddrs;
+
+static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
+{
+    for (int i = ga->nbounds - 1; i >= 0; --i) {
+        if (pgb_try_mmap_skip_brk(ga->bounds[i][0] + base,
+                                  ga->bounds[i][1] + base,
+                                  brk, i == 0 && reserved_va) <= 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * pgb_addr_set:
+ * @ga: output set of guest addrs
+ * @guest_loaddr: guest image low address
+ * @guest_loaddr: guest image high address
+ * @identity: create for identity mapping
+ *
+ * Fill in @ga with the image, COMMPAGE and NULL page.
+ */
+static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
+                         abi_ulong guest_hiaddr, bool try_identity)
+{
+    int n;
+
+    /*
+     * With a low commpage, or a guest mapped very low,
+     * we may not be able to use the identity map.
+     */
+    if (try_identity) {
+        if (LO_COMMPAGE != -1 && LO_COMMPAGE < mmap_min_addr) {
+            return false;
+        }
+        if (guest_loaddr != 0 && guest_loaddr < mmap_min_addr) {
+            return false;
+        }
+    }
+
+    memset(ga, 0, sizeof(*ga));
+    n = 0;
+
+    if (reserved_va) {
+        ga->bounds[n][0] = try_identity ? mmap_min_addr : 0;
+        ga->bounds[n][1] = reserved_va;
+        n++;
+        /* LO_COMMPAGE and NULL handled by reserving from 0. */
+    } else {
+        /* Add any LO_COMMPAGE or NULL page. */
+        if (LO_COMMPAGE != -1) {
+            ga->bounds[n][0] = 0;
+            ga->bounds[n][1] = LO_COMMPAGE + TARGET_PAGE_SIZE - 1;
+            n++;
+        } else if (!try_identity) {
+            ga->bounds[n][0] = 0;
+            ga->bounds[n][1] = TARGET_PAGE_SIZE - 1;
+            n++;
+        }
+
+        /* Add the guest image for ET_EXEC. */
+        if (guest_loaddr) {
+            ga->bounds[n][0] = guest_loaddr;
+            ga->bounds[n][1] = guest_hiaddr;
+            n++;
+        }
+    }
+
+    /*
+     * Temporarily disable
+     *   "comparison is always false due to limited range of data type"
+     * due to comparison between unsigned and (possible) 0.
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+
+    /* Add any HI_COMMPAGE not covered by reserved_va. */
+    if (reserved_va < HI_COMMPAGE) {
+        ga->bounds[n][0] = HI_COMMPAGE & qemu_host_page_mask;
+        ga->bounds[n][1] = HI_COMMPAGE + TARGET_PAGE_SIZE - 1;
+        n++;
+    }
+
+#pragma GCC diagnostic pop
+
+    ga->nbounds = n;
+    return true;
+}
+
 static void pgb_fail_in_use(const char *image_name)
 {
     error_report("%s: requires virtual address space that is in use "
@@ -2531,18 +2750,170 @@ static void pgb_fail_in_use(const char *image_name)
     exit(EXIT_FAILURE);
 }
 
-static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
-                                abi_ulong guest_hiaddr, long align)
+static void pgb_fixed(const char *image_name, uintptr_t guest_loaddr,
+                      uintptr_t guest_hiaddr, uintptr_t align)
 {
-    const int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-    void *addr, *test;
+    PGBAddrs ga;
+    uintptr_t brk = (uintptr_t)sbrk(0);
 
     if (!QEMU_IS_ALIGNED(guest_base, align)) {
         fprintf(stderr, "Requested guest base %p does not satisfy "
-                "host minimum alignment (0x%lx)\n",
+                "host minimum alignment (0x%" PRIxPTR ")\n",
                 (void *)guest_base, align);
         exit(EXIT_FAILURE);
     }
+
+    if (!pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, !guest_base)
+        || !pgb_try_mmap_set(&ga, guest_base, brk)) {
+        pgb_fail_in_use(image_name);
+    }
+}
+
+/**
+ * pgb_find_fallback:
+ *
+ * This is a fallback method for finding holes in the host address space
+ * if we don't have the benefit of being able to access /proc/self/map.
+ * It can potentially take a very long time as we can only dumbly iterate
+ * up the host address space seeing if the allocation would work.
+ */
+static uintptr_t pgb_find_fallback(const PGBAddrs *ga, uintptr_t align,
+                                   uintptr_t brk)
+{
+    /* TODO: come up with a better estimate of how much to skip. */
+    uintptr_t skip = sizeof(uintptr_t) == 4 ? MiB : GiB;
+
+    for (uintptr_t base = skip; ; base += skip) {
+        base = ROUND_UP(base, align);
+        if (pgb_try_mmap_set(ga, base, brk)) {
+            return base;
+        }
+        if (base >= -skip) {
+            return -1;
+        }
+    }
+}
+
+static uintptr_t pgb_try_itree(const PGBAddrs *ga, uintptr_t base,
+                               IntervalTreeRoot *root)
+{
+    for (int i = ga->nbounds - 1; i >= 0; --i) {
+        uintptr_t s = base + ga->bounds[i][0];
+        uintptr_t l = base + ga->bounds[i][1];
+        IntervalTreeNode *n;
+
+        if (l < s) {
+            /* Wraparound. Skip to advance S to mmap_min_addr. */
+            return mmap_min_addr - s;
+        }
+
+        n = interval_tree_iter_first(root, s, l);
+        if (n != NULL) {
+            /* Conflict.  Skip to advance S to LAST + 1. */
+            return n->last - s + 1;
+        }
+    }
+    return 0;  /* success */
+}
+
+static uintptr_t pgb_find_itree(const PGBAddrs *ga, IntervalTreeRoot *root,
+                                uintptr_t align, uintptr_t brk)
+{
+    uintptr_t last = mmap_min_addr;
+    uintptr_t base, skip;
+
+    while (true) {
+        base = ROUND_UP(last, align);
+        if (base < last) {
+            return -1;
+        }
+
+        skip = pgb_try_itree(ga, base, root);
+        if (skip == 0) {
+            break;
+        }
+
+        last = base + skip;
+        if (last < base) {
+            return -1;
+        }
+    }
+
+    /*
+     * We've chosen 'base' based on holes in the interval tree,
+     * but we don't yet know if it is a valid host address.
+     * Because it is the first matching hole, if the host addresses
+     * are invalid we know there are no further matches.
+     */
+    return pgb_try_mmap_set(ga, base, brk) ? base : -1;
+}
+
+static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
+                        uintptr_t guest_hiaddr, uintptr_t align)
+{
+    IntervalTreeRoot *root;
+    uintptr_t brk, ret;
+    PGBAddrs ga;
+
+    assert(QEMU_IS_ALIGNED(guest_loaddr, align));
+
+    /* Try the identity map first. */
+    if (pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, true)) {
+        brk = (uintptr_t)sbrk(0);
+        if (pgb_try_mmap_set(&ga, 0, brk)) {
+            guest_base = 0;
+            return;
+        }
+    }
+
+    /*
+     * Rebuild the address set for non-identity map.
+     * This differs in the mapping of the guest NULL page.
+     */
+    pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, false);
+
+    root = read_self_maps();
+
+    /* Read brk after we've read the maps, which will malloc. */
+    brk = (uintptr_t)sbrk(0);
+
+    if (!root) {
+        ret = pgb_find_fallback(&ga, align, brk);
+    } else {
+        /*
+         * Reserve the area close to the host brk.
+         * This will be freed with the rest of the tree.
+         */
+        IntervalTreeNode *b = g_new0(IntervalTreeNode, 1);
+        b->start = brk;
+        b->last = brk + 16 * MiB - 1;
+        interval_tree_insert(b, root);
+
+        ret = pgb_find_itree(&ga, root, align, brk);
+        free_self_maps(root);
+    }
+
+    if (ret == -1) {
+        int w = TARGET_LONG_BITS / 4;
+
+        error_report("%s: Unable to find a guest_base to satisfy all "
+                     "guest address mapping requirements", image_name);
+
+        for (int i = 0; i < ga.nbounds; ++i) {
+            error_printf("  %0*" PRIx64 "-%0*" PRIx64 "\n",
+                         w, (uint64_t)ga.bounds[i][0],
+                         w, (uint64_t)ga.bounds[i][1]);
+        }
+        exit(EXIT_FAILURE);
+    }
+    guest_base = ret;
+}
+
+void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
+                      abi_ulong guest_hiaddr)
+{
+    /* In order to use host shmat, we must be able to honor SHMLBA.  */
+    uintptr_t align = MAX(SHMLBA, qemu_host_page_size);
 
     /* Sanity check the guest binary. */
     if (reserved_va) {
@@ -2553,305 +2924,24 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
             exit(EXIT_FAILURE);
         }
     } else {
-#if HOST_LONG_BITS < TARGET_ABI_BITS
-        if ((guest_hiaddr - guest_base) > ~(uintptr_t)0) {
+        if (guest_hiaddr != (uintptr_t)guest_hiaddr) {
             error_report("%s: requires more virtual address space "
                          "than the host can provide (0x%" PRIx64 ")",
-                         image_name, (uint64_t)guest_hiaddr + 1 - guest_base);
+                         image_name, (uint64_t)guest_hiaddr + 1);
             exit(EXIT_FAILURE);
         }
-#endif
     }
-
-    /*
-     * Expand the allocation to the entire reserved_va.
-     * Exclude the mmap_min_addr hole.
-     */
-    if (reserved_va) {
-        guest_loaddr = (guest_base >= mmap_min_addr ? 0
-                        : mmap_min_addr - guest_base);
-        guest_hiaddr = reserved_va;
-    }
-
-    /* Reserve the address space for the binary, or reserved_va. */
-    test = g2h_untagged(guest_loaddr);
-    addr = mmap(test, guest_hiaddr - guest_loaddr + 1, PROT_NONE, flags, -1, 0);
-    if (test != addr) {
-        pgb_fail_in_use(image_name);
-    }
-    qemu_log_mask(CPU_LOG_PAGE,
-                  "%s: base @ %p for %" PRIu64 " bytes\n",
-                  __func__, addr, (uint64_t)guest_hiaddr - guest_loaddr + 1);
-}
-
-/**
- * pgd_find_hole_fallback: potential mmap address
- * @guest_size: size of available space
- * @brk: location of break
- * @align: memory alignment
- *
- * This is a fallback method for finding a hole in the host address
- * space if we don't have the benefit of being able to access
- * /proc/self/map. It can potentially take a very long time as we can
- * only dumbly iterate up the host address space seeing if the
- * allocation would work.
- */
-static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
-                                        long align, uintptr_t offset)
-{
-    uintptr_t base;
-
-    /* Start (aligned) at the bottom and work our way up */
-    base = ROUND_UP(mmap_min_addr, align);
-
-    while (true) {
-        uintptr_t align_start, end;
-        align_start = ROUND_UP(base, align);
-        end = align_start + guest_size + offset;
-
-        /* if brk is anywhere in the range give ourselves some room to grow. */
-        if (align_start <= brk && brk < end) {
-            base = brk + (16 * MiB);
-            continue;
-        } else if (align_start + guest_size < align_start) {
-            /* we have run out of space */
-            return -1;
-        } else {
-            int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE |
-                MAP_FIXED_NOREPLACE;
-            void * mmap_start = mmap((void *) align_start, guest_size,
-                                     PROT_NONE, flags, -1, 0);
-            if (mmap_start != MAP_FAILED) {
-                munmap(mmap_start, guest_size);
-                if (mmap_start == (void *) align_start) {
-                    qemu_log_mask(CPU_LOG_PAGE,
-                                  "%s: base @ %p for %" PRIdPTR" bytes\n",
-                                  __func__, mmap_start + offset, guest_size);
-                    return (uintptr_t) mmap_start + offset;
-                }
-            }
-            base += qemu_host_page_size;
-        }
-    }
-}
-
-/* Return value for guest_base, or -1 if no hole found. */
-static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
-                               long align, uintptr_t offset)
-{
-    GSList *maps, *iter;
-    uintptr_t this_start, this_end, next_start, brk;
-    intptr_t ret = -1;
-
-    assert(QEMU_IS_ALIGNED(guest_loaddr, align));
-
-    maps = read_self_maps();
-
-    /* Read brk after we've read the maps, which will malloc. */
-    brk = (uintptr_t)sbrk(0);
-
-    if (!maps) {
-        return pgd_find_hole_fallback(guest_size, brk, align, offset);
-    }
-
-    /* The first hole is before the first map entry. */
-    this_start = mmap_min_addr;
-
-    for (iter = maps; iter;
-         this_start = next_start, iter = g_slist_next(iter)) {
-        uintptr_t align_start, hole_size;
-
-        this_end = ((MapInfo *)iter->data)->start;
-        next_start = ((MapInfo *)iter->data)->end;
-        align_start = ROUND_UP(this_start + offset, align);
-
-        /* Skip holes that are too small. */
-        if (align_start >= this_end) {
-            continue;
-        }
-        hole_size = this_end - align_start;
-        if (hole_size < guest_size) {
-            continue;
-        }
-
-        /* If this hole contains brk, give ourselves some room to grow. */
-        if (this_start <= brk && brk < this_end) {
-            hole_size -= guest_size;
-            if (sizeof(uintptr_t) == 8 && hole_size >= 1 * GiB) {
-                align_start += 1 * GiB;
-            } else if (hole_size >= 16 * MiB) {
-                align_start += 16 * MiB;
-            } else {
-                align_start = (this_end - guest_size) & -align;
-                if (align_start < this_start) {
-                    continue;
-                }
-            }
-        }
-
-        /* Record the lowest successful match. */
-        if (ret < 0) {
-            ret = align_start;
-        }
-        /* If this hole contains the identity map, select it. */
-        if (align_start <= guest_loaddr &&
-            guest_loaddr + guest_size <= this_end) {
-            ret = 0;
-        }
-        /* If this hole ends above the identity map, stop looking. */
-        if (this_end >= guest_loaddr) {
-            break;
-        }
-    }
-    free_self_maps(maps);
-
-    if (ret != -1) {
-        qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %" PRIxPTR
-                      " for %" PRIuPTR " bytes\n",
-                      __func__, ret, guest_size);
-    }
-
-    return ret;
-}
-
-static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
-                       abi_ulong orig_hiaddr, long align)
-{
-    uintptr_t loaddr = orig_loaddr;
-    uintptr_t hiaddr = orig_hiaddr;
-    uintptr_t offset = 0;
-    uintptr_t addr;
-
-    if (hiaddr != orig_hiaddr) {
-        error_report("%s: requires virtual address space that the "
-                     "host cannot provide (0x%" PRIx64 ")",
-                     image_name, (uint64_t)orig_hiaddr + 1);
-        exit(EXIT_FAILURE);
-    }
-
-    loaddr &= -align;
-    if (HI_COMMPAGE) {
-        /*
-         * Extend the allocation to include the commpage.
-         * For a 64-bit host, this is just 4GiB; for a 32-bit host we
-         * need to ensure there is space bellow the guest_base so we
-         * can map the commpage in the place needed when the address
-         * arithmetic wraps around.
-         */
-        if (sizeof(uintptr_t) == 8 || loaddr >= 0x80000000u) {
-            hiaddr = UINT32_MAX;
-        } else {
-            offset = -(HI_COMMPAGE & -align);
-        }
-    } else if (LO_COMMPAGE != -1) {
-        loaddr = MIN(loaddr, LO_COMMPAGE & -align);
-    }
-
-    addr = pgb_find_hole(loaddr, hiaddr - loaddr + 1, align, offset);
-    if (addr == -1) {
-        /*
-         * If HI_COMMPAGE, there *might* be a non-consecutive allocation
-         * that can satisfy both.  But as the normal arm32 link base address
-         * is ~32k, and we extend down to include the commpage, making the
-         * overhead only ~96k, this is unlikely.
-         */
-        error_report("%s: Unable to allocate %#zx bytes of "
-                     "virtual address space", image_name,
-                     (size_t)(hiaddr - loaddr));
-        exit(EXIT_FAILURE);
-    }
-
-    guest_base = addr;
-
-    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %"PRIxPTR" for %" PRIuPTR" bytes\n",
-                  __func__, addr, hiaddr - loaddr);
-}
-
-static void pgb_dynamic(const char *image_name, long align)
-{
-    /*
-     * The executable is dynamic and does not require a fixed address.
-     * All we need is a commpage that satisfies align.
-     * If we do not need a commpage, leave guest_base == 0.
-     */
-    if (HI_COMMPAGE) {
-        uintptr_t addr, commpage;
-
-        /* 64-bit hosts should have used reserved_va. */
-        assert(sizeof(uintptr_t) == 4);
-
-        /*
-         * By putting the commpage at the first hole, that puts guest_base
-         * just above that, and maximises the positive guest addresses.
-         */
-        commpage = HI_COMMPAGE & -align;
-        addr = pgb_find_hole(commpage, -commpage, align, 0);
-        assert(addr != -1);
-        guest_base = addr;
-    }
-}
-
-static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
-                            abi_ulong guest_hiaddr, long align)
-{
-    int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-    void *addr, *test;
-
-    if (guest_hiaddr > reserved_va) {
-        error_report("%s: requires more than reserved virtual "
-                     "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
-        exit(EXIT_FAILURE);
-    }
-
-    /* Widen the "image" to the entire reserved address space. */
-    pgb_static(image_name, 0, reserved_va, align);
-
-    /* osdep.h defines this as 0 if it's missing */
-    flags |= MAP_FIXED_NOREPLACE;
-
-    /* Reserve the memory on the host. */
-    assert(guest_base != 0);
-    test = g2h_untagged(0);
-    addr = mmap(test, reserved_va + 1, PROT_NONE, flags, -1, 0);
-    if (addr == MAP_FAILED || addr != test) {
-        error_report("Unable to reserve 0x%lx bytes of virtual address "
-                     "space at %p (%s) for use as guest address space (check your "
-                     "virtual memory ulimit setting, mmap_min_addr or reserve less "
-                     "using qemu-user's -R option)",
-                     reserved_va + 1, test, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %p for %lu bytes\n",
-                  __func__, addr, reserved_va + 1);
-}
-
-void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
-                      abi_ulong guest_hiaddr)
-{
-    /* In order to use host shmat, we must be able to honor SHMLBA.  */
-    uintptr_t align = MAX(SHMLBA, qemu_host_page_size);
 
     if (have_guest_base) {
-        pgb_have_guest_base(image_name, guest_loaddr, guest_hiaddr, align);
-    } else if (reserved_va) {
-        pgb_reserved_va(image_name, guest_loaddr, guest_hiaddr, align);
-    } else if (guest_loaddr) {
-        pgb_static(image_name, guest_loaddr, guest_hiaddr, align);
+        pgb_fixed(image_name, guest_loaddr, guest_hiaddr, align);
     } else {
-        pgb_dynamic(image_name, align);
+        pgb_dynamic(image_name, guest_loaddr, guest_hiaddr, align);
     }
 
     /* Reserve and initialize the commpage. */
     if (!init_guest_commpage()) {
-        /*
-         * With have_guest_base, the user has selected the address and
-         * we are trying to work with that.  Otherwise, we have selected
-         * free space and init_guest_commpage must succeeded.
-         */
-        assert(have_guest_base);
-        pgb_fail_in_use(image_name);
+        /* We have already probed for the commpage being free. */
+        g_assert_not_reached();
     }
 
     assert(QEMU_IS_ALIGNED(guest_base, align));
@@ -3107,28 +3197,9 @@ static void load_elf_image(const char *image_name, int image_fd,
         }
     }
 
-    if (pinterp_name != NULL) {
-        /*
-         * This is the main executable.
-         *
-         * Reserve extra space for brk.
-         * We hold on to this space while placing the interpreter
-         * and the stack, lest they be placed immediately after
-         * the data segment and block allocation from the brk.
-         *
-         * 16MB is chosen as "large enough" without being so large as
-         * to allow the result to not fit with a 32-bit guest on a
-         * 32-bit host. However some 64 bit guests (e.g. s390x)
-         * attempt to place their heap further ahead and currently
-         * nothing stops them smashing into QEMUs address space.
-         */
-#if TARGET_LONG_BITS == 64
-        info->reserve_brk = 32 * MiB;
-#else
-        info->reserve_brk = 16 * MiB;
-#endif
-        hiaddr += info->reserve_brk;
+    load_addr = loaddr;
 
+    if (pinterp_name != NULL) {
         if (ehdr->e_type == ET_EXEC) {
             /*
              * Make sure that the low address does not conflict with
@@ -3136,31 +3207,55 @@ static void load_elf_image(const char *image_name, int image_fd,
              */
             probe_guest_base(image_name, loaddr, hiaddr);
         } else {
+            abi_ulong align;
+
             /*
              * The binary is dynamic, but we still need to
              * select guest_base.  In this case we pass a size.
              */
             probe_guest_base(image_name, 0, hiaddr - loaddr);
+
+            /*
+             * Avoid collision with the loader by providing a different
+             * default load address.
+             */
+            load_addr += elf_et_dyn_base;
+
+            /*
+             * TODO: Better support for mmap alignment is desirable.
+             * Since we do not have complete control over the guest
+             * address space, we prefer the kernel to choose some address
+             * rather than force the use of LOAD_ADDR via MAP_FIXED.
+             * But without MAP_FIXED we cannot guarantee alignment,
+             * only suggest it.
+             */
+            align = pow2ceil(info->alignment);
+            if (align) {
+                load_addr &= -align;
+            }
         }
     }
 
     /*
      * Reserve address space for all of this.
      *
-     * In the case of ET_EXEC, we supply MAP_FIXED so that we get
-     * exactly the address range that is required.
+     * In the case of ET_EXEC, we supply MAP_FIXED_NOREPLACE so that we get
+     * exactly the address range that is required.  Without reserved_va,
+     * the guest address space is not isolated.  We have attempted to avoid
+     * conflict with the host program itself via probe_guest_base, but using
+     * MAP_FIXED_NOREPLACE instead of MAP_FIXED provides an extra check.
      *
      * Otherwise this is ET_DYN, and we are searching for a location
      * that can hold the memory space required.  If the image is
-     * pre-linked, LOADDR will be non-zero, and the kernel should
+     * pre-linked, LOAD_ADDR will be non-zero, and the kernel should
      * honor that address if it happens to be free.
      *
      * In both cases, we will overwrite pages in this range with mappings
      * from the executable.
      */
-    load_addr = target_mmap(loaddr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
+    load_addr = target_mmap(load_addr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
                             MAP_PRIVATE | MAP_ANON | MAP_NORESERVE |
-                            (ehdr->e_type == ET_EXEC ? MAP_FIXED : 0),
+                            (ehdr->e_type == ET_EXEC ? MAP_FIXED_NOREPLACE : 0),
                             -1, 0);
     if (load_addr == -1) {
         goto exit_mmap;
@@ -3195,7 +3290,8 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->end_code = 0;
     info->start_data = -1;
     info->end_data = 0;
-    info->brk = 0;
+    /* Usual start for brk is after all sections of the main executable. */
+    info->brk = TARGET_PAGE_ALIGN(hiaddr + load_bias);
     info->elf_flags = ehdr->e_flags;
 
     prot_exec = PROT_EXEC;
@@ -3221,7 +3317,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     for (i = 0; i < ehdr->e_phnum; i++) {
         struct elf_phdr *eppnt = phdr + i;
         if (eppnt->p_type == PT_LOAD) {
-            abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em, vaddr_len;
+            abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em;
             int elf_prot = 0;
 
             if (eppnt->p_flags & PF_R) {
@@ -3235,8 +3331,8 @@ static void load_elf_image(const char *image_name, int image_fd,
             }
 
             vaddr = load_bias + eppnt->p_vaddr;
-            vaddr_po = TARGET_ELF_PAGEOFFSET(vaddr);
-            vaddr_ps = TARGET_ELF_PAGESTART(vaddr);
+            vaddr_po = vaddr & ~TARGET_PAGE_MASK;
+            vaddr_ps = vaddr & TARGET_PAGE_MASK;
 
             vaddr_ef = vaddr + eppnt->p_filesz;
             vaddr_em = vaddr + eppnt->p_memsz;
@@ -3246,30 +3342,18 @@ static void load_elf_image(const char *image_name, int image_fd,
              * but no backing file segment.
              */
             if (eppnt->p_filesz != 0) {
-                vaddr_len = TARGET_ELF_PAGELENGTH(eppnt->p_filesz + vaddr_po);
-                error = target_mmap(vaddr_ps, vaddr_len, elf_prot,
-                                    MAP_PRIVATE | MAP_FIXED,
+                error = target_mmap(vaddr_ps, eppnt->p_filesz + vaddr_po,
+                                    elf_prot, MAP_PRIVATE | MAP_FIXED,
                                     image_fd, eppnt->p_offset - vaddr_po);
-
                 if (error == -1) {
                     goto exit_mmap;
                 }
+            }
 
-                /*
-                 * If the load segment requests extra zeros (e.g. bss), map it.
-                 */
-                if (eppnt->p_filesz < eppnt->p_memsz) {
-                    zero_bss(vaddr_ef, vaddr_em, elf_prot);
-                }
-            } else if (eppnt->p_memsz != 0) {
-                vaddr_len = TARGET_ELF_PAGELENGTH(eppnt->p_memsz + vaddr_po);
-                error = target_mmap(vaddr_ps, vaddr_len, elf_prot,
-                                    MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS,
-                                    -1, 0);
-
-                if (error == -1) {
-                    goto exit_mmap;
-                }
+            /* If the load segment requests extra zeros (e.g. bss), map it. */
+            if (vaddr_ef < vaddr_em &&
+                !zero_bss(vaddr_ef, vaddr_em, elf_prot)) {
+                goto exit_mmap;
             }
 
             /* Find the full program boundaries.  */
@@ -3288,9 +3372,6 @@ static void load_elf_image(const char *image_name, int image_fd,
                 if (vaddr_ef > info->end_data) {
                     info->end_data = vaddr_ef;
                 }
-            }
-            if (vaddr_em > info->brk) {
-                info->brk = vaddr_em;
             }
 #ifdef TARGET_MIPS
         } else if (eppnt->p_type == PT_MIPS_ABIFLAGS) {
@@ -3573,8 +3654,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     interp_info.fp_abi = MIPS_ABI_FP_UNKNOWN;
 #endif
 
-    info->start_mmap = (abi_ulong)ELF_START_MMAP;
-
     load_elf_image(bprm->filename, bprm->fd, info,
                    &elf_interpreter, bprm->buf);
 
@@ -3619,6 +3698,19 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 
     if (elf_interpreter) {
         load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
+
+        /*
+         * While unusual because of ELF_ET_DYN_BASE, if we are unlucky
+         * with the mappings the interpreter can be loaded above but
+         * near the main executable, which can leave very little room
+         * for the heap.
+         * If the current brk has less than 16MB, use the end of the
+         * interpreter.
+         */
+        if (interp_info.brk > info->brk &&
+            interp_info.load_bias - info->brk < 16 * MiB)  {
+            info->brk = interp_info.brk;
+        }
 
         /* If the program interpreter is one of these two, then assume
            an iBCS2 image.  Otherwise assume a native linux image.  */
@@ -3672,17 +3764,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 #ifdef USE_ELF_CORE_DUMP
     bprm->core_dump = &elf_core_dump;
 #endif
-
-    /*
-     * If we reserved extra space for brk, release it now.
-     * The implementation of do_brk in syscalls.c expects to be able
-     * to mmap pages in this space.
-     */
-    if (info->reserve_brk) {
-        abi_ulong start_brk = TARGET_PAGE_ALIGN(info->brk);
-        abi_ulong end_brk = TARGET_PAGE_ALIGN(info->brk + info->reserve_brk);
-        target_munmap(start_brk, end_brk - start_brk);
-    }
 
     return 0;
 }

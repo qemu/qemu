@@ -404,7 +404,10 @@ static uint16_t load_atom_2(CPUArchState *env, uintptr_t ra,
         return load_atomic2(pv);
     }
     if (HAVE_ATOMIC128_RO) {
-        return load_atom_extract_al16_or_al8(pv, 2);
+        intptr_t left_in_page = -(pi | TARGET_PAGE_MASK);
+        if (likely(left_in_page > 8)) {
+            return load_atom_extract_al16_or_al8(pv, 2);
+        }
     }
 
     atmax = required_atomicity(env, pi, memop);
@@ -443,7 +446,10 @@ static uint32_t load_atom_4(CPUArchState *env, uintptr_t ra,
         return load_atomic4(pv);
     }
     if (HAVE_ATOMIC128_RO) {
-        return load_atom_extract_al16_or_al8(pv, 4);
+        intptr_t left_in_page = -(pi | TARGET_PAGE_MASK);
+        if (likely(left_in_page > 8)) {
+            return load_atom_extract_al16_or_al8(pv, 4);
+        }
     }
 
     atmax = required_atomicity(env, pi, memop);

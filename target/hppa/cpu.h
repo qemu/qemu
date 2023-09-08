@@ -30,10 +30,21 @@
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
-#define MMU_KERNEL_IDX   0
-#define MMU_USER_IDX     3
-#define MMU_PHYS_IDX     4
+#define MMU_KERNEL_IDX   11
+#define MMU_PL1_IDX      12
+#define MMU_PL2_IDX      13
+#define MMU_USER_IDX     14
+#define MMU_PHYS_IDX     15
+
+#define PRIV_TO_MMU_IDX(priv)    (MMU_KERNEL_IDX + (priv))
+#define MMU_IDX_TO_PRIV(mmu_idx) ((mmu_idx) - MMU_KERNEL_IDX)
+
 #define TARGET_INSN_START_EXTRA_WORDS 1
+
+/* No need to flush MMU_PHYS_IDX  */
+#define HPPA_MMU_FLUSH_MASK                             \
+        (1 << MMU_KERNEL_IDX | 1 << MMU_PL1_IDX |       \
+         1 << MMU_PL2_IDX    | 1 << MMU_USER_IDX)
 
 /* Hardware exceptions, interrupts, faults, and traps.  */
 #define EXCP_HPMC                1  /* high priority machine check */
@@ -233,7 +244,7 @@ static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
     return MMU_USER_IDX;
 #else
     if (env->psw & (ifetch ? PSW_C : PSW_D)) {
-        return env->iaoq_f & 3;
+        return PRIV_TO_MMU_IDX(env->iaoq_f & 3);
     }
     return MMU_PHYS_IDX;  /* mmu disabled */
 #endif

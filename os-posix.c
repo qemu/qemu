@@ -29,33 +29,15 @@
 #include <grp.h>
 #include <libgen.h>
 
-/* Needed early for CONFIG_BSD etc. */
-#include "net/slirp.h"
-#include "qemu/qemu-options.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "sysemu/runstate.h"
 #include "qemu/cutils.h"
-#include "qemu/config-file.h"
-#include "qemu/option.h"
-#include "qemu/module.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
-#include "qemu/async-teardown.h"
 #endif
 
-/*
- * Must set all three of these at once.
- * Legal combinations are              unset   by name   by uid
- */
-static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
-static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
-static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
-
-static const char *chroot_dir;
-static int daemonize;
-static int daemon_pipe;
 
 void os_setup_early_signal_handling(void)
 {
@@ -103,13 +85,35 @@ void os_set_proc_name(const char *s)
 }
 
 
-static bool os_parse_runas_uid_gid(const char *optarg)
+/*
+ * Must set all three of these at once.
+ * Legal combinations are              unset   by name   by uid
+ */
+static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
+static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
+static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
+
+/*
+ * Prepare to change user ID. optarg can be one of 3 forms:
+ *   - a username, in which case user ID will be changed to its uid,
+ *     with primary and supplementary groups set up too;
+ *   - a numeric uid, in which case only the uid will be set;
+ *   - a pair of numeric uid:gid.
+ */
+bool os_set_runas(const char *optarg)
 {
     unsigned long lv;
     const char *ep;
     uid_t got_uid;
     gid_t got_gid;
     int rc;
+
+    user_pwd = getpwnam(optarg);
+    if (user_pwd) {
+        user_uid = -1;
+        user_gid = -1;
+        return true;
+    }
 
     rc = qemu_strtoul(optarg, &ep, 0, &lv);
     got_uid = lv; /* overflow here is ID in C99 */
@@ -127,63 +131,6 @@ static bool os_parse_runas_uid_gid(const char *optarg)
     user_uid = got_uid;
     user_gid = got_gid;
     return true;
-}
-
-/*
- * Parse OS specific command line options.
- * return 0 if option handled, -1 otherwise
- */
-int os_parse_cmd_args(int index, const char *optarg)
-{
-    switch (index) {
-    case QEMU_OPTION_runas:
-        user_pwd = getpwnam(optarg);
-        if (user_pwd) {
-            user_uid = -1;
-            user_gid = -1;
-        } else if (!os_parse_runas_uid_gid(optarg)) {
-            error_report("User \"%s\" doesn't exist"
-                         " (and is not <uid>:<gid>)",
-                         optarg);
-            exit(1);
-        }
-        break;
-    case QEMU_OPTION_chroot:
-        warn_report("option is deprecated, use '-run-with chroot=...' instead");
-        chroot_dir = optarg;
-        break;
-    case QEMU_OPTION_daemonize:
-        daemonize = 1;
-        break;
-#if defined(CONFIG_LINUX)
-    /* deprecated */
-    case QEMU_OPTION_asyncteardown:
-        init_async_teardown();
-        break;
-#endif
-    case QEMU_OPTION_run_with: {
-        const char *str;
-        QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("run-with"),
-                                                 optarg, false);
-        if (!opts) {
-            exit(1);
-        }
-#if defined(CONFIG_LINUX)
-        if (qemu_opt_get_bool(opts, "async-teardown", false)) {
-            init_async_teardown();
-        }
-#endif
-        str = qemu_opt_get(opts, "chroot");
-        if (str) {
-            chroot_dir = str;
-        }
-        break;
-    }
-    default:
-        return -1;
-    }
-
-    return 0;
 }
 
 static void change_process_uid(void)
@@ -223,6 +170,14 @@ static void change_process_uid(void)
     }
 }
 
+
+static const char *chroot_dir;
+
+void os_set_chroot(const char *optarg)
+{
+    chroot_dir = optarg;
+}
+
 static void change_root(void)
 {
     if (chroot_dir) {
@@ -236,6 +191,21 @@ static void change_root(void)
         }
     }
 
+}
+
+
+static int daemonize;
+static int daemon_pipe;
+
+bool is_daemonized(void)
+{
+    return daemonize;
+}
+
+int os_set_daemonize(bool d)
+{
+    daemonize = d;
+    return 0;
 }
 
 void os_daemonize(void)
@@ -331,17 +301,6 @@ void os_set_line_buffering(void)
     setvbuf(stdout, NULL, _IOLBF, 0);
 }
 
-bool is_daemonized(void)
-{
-    return daemonize;
-}
-
-int os_set_daemonize(bool d)
-{
-    daemonize = d;
-    return 0;
-}
-
 int os_mlock(void)
 {
 #ifdef HAVE_MLOCKALL
@@ -357,27 +316,3 @@ int os_mlock(void)
     return -ENOSYS;
 #endif
 }
-
-static QemuOptsList qemu_run_with_opts = {
-    .name = "run-with",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_run_with_opts.head),
-    .desc = {
-#if defined(CONFIG_LINUX)
-        {
-            .name = "async-teardown",
-            .type = QEMU_OPT_BOOL,
-        },
-#endif
-        {
-            .name = "chroot",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-
-static void register_runwith(void)
-{
-    qemu_add_opts(&qemu_run_with_opts);
-}
-opts_init(register_runwith);

@@ -219,27 +219,25 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     return false;
 }
 
-static void ppc_radix64_set_rc(PowerPCCPU *cpu, MMUAccessType access_type,
-                               uint64_t pte, hwaddr pte_addr, int *prot)
+static int ppc_radix64_check_rc(MMUAccessType access_type, uint64_t pte)
 {
-    CPUState *cs = CPU(cpu);
-    uint64_t npte;
+    switch (access_type) {
+    case MMU_DATA_STORE:
+        if (!(pte & R_PTE_C)) {
+            break;
+        }
+        /* fall through */
+    case MMU_INST_FETCH:
+    case MMU_DATA_LOAD:
+        if (!(pte & R_PTE_R)) {
+            break;
+        }
 
-    npte = pte | R_PTE_R; /* Always set reference bit */
-
-    if (access_type == MMU_DATA_STORE) { /* Store/Write */
-        npte |= R_PTE_C; /* Set change bit */
-    } else {
-        /*
-         * Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit.
-         */
-        *prot &= ~PAGE_WRITE;
+        /* R/C bits are already set appropriately for this access */
+        return 0;
     }
 
-    if (pte ^ npte) { /* If pte has changed then write it back */
-        stq_phys(cs->as, pte_addr, npte);
-    }
+    return 1;
 }
 
 static bool ppc_radix64_is_valid_level(int level, int psize, uint64_t nls)
@@ -380,7 +378,8 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
                                               ppc_v3_pate_t pate,
                                               hwaddr *h_raddr, int *h_prot,
                                               int *h_page_size, bool pde_addr,
-                                              int mmu_idx, bool guest_visible)
+                                              int mmu_idx, uint64_t lpid,
+                                              bool guest_visible)
 {
     MMUAccessType access_type = orig_access_type;
     int fault_cause = 0;
@@ -418,7 +417,24 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
     }
 
     if (guest_visible) {
-        ppc_radix64_set_rc(cpu, access_type, pte, pte_addr, h_prot);
+        if (ppc_radix64_check_rc(access_type, pte)) {
+            /*
+             * Per ISA 3.1 Book III, 7.5.3 and 7.5.5, failure to set R/C during
+             * partition-scoped translation when effLPID = 0 results in normal
+             * (non-Hypervisor) Data and Instruction Storage Interrupts
+             * respectively.
+             *
+             * ISA 3.0 is ambiguous about this, but tests on POWER9 hardware
+             * seem to exhibit the same behavior.
+             */
+            if (lpid > 0) {
+                ppc_radix64_raise_hsi(cpu, access_type, eaddr, g_raddr,
+                                      DSISR_ATOMIC_RC);
+            } else {
+                ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_ATOMIC_RC);
+            }
+            return 1;
+        }
     }
 
     return 0;
@@ -447,7 +463,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
                                             vaddr eaddr, uint64_t pid,
                                             ppc_v3_pate_t pate, hwaddr *g_raddr,
                                             int *g_prot, int *g_page_size,
-                                            int mmu_idx, bool guest_visible)
+                                            int mmu_idx, uint64_t lpid,
+                                            bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -497,7 +514,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
         ret = ppc_radix64_partition_scoped_xlate(cpu, access_type, eaddr,
                                                  prtbe_addr, pate, &h_raddr,
                                                  &h_prot, &h_page_size, true,
-                                                 5, guest_visible);
+                                                 5, lpid, guest_visible);
         if (ret) {
             return ret;
         }
@@ -539,7 +556,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
             ret = ppc_radix64_partition_scoped_xlate(cpu, access_type, eaddr,
                                                      pte_addr, pate, &h_raddr,
                                                      &h_prot, &h_page_size,
-                                                     true, 5, guest_visible);
+                                                     true, 5, lpid,
+                                                     guest_visible);
             if (ret) {
                 return ret;
             }
@@ -580,7 +598,11 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
     }
 
     if (guest_visible) {
-        ppc_radix64_set_rc(cpu, access_type, pte, pte_addr, g_prot);
+        /* R/C bits not appropriately set for access */
+        if (ppc_radix64_check_rc(access_type, pte)) {
+            ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_ATOMIC_RC);
+            return 1;
+        }
     }
 
     return 0;
@@ -695,7 +717,8 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
     if (relocation) {
         int ret = ppc_radix64_process_scoped_xlate(cpu, access_type, eaddr, pid,
                                                    pate, &g_raddr, &prot,
-                                                   &psize, mmu_idx, guest_visible);
+                                                   &psize, mmu_idx, lpid,
+                                                   guest_visible);
         if (ret) {
             return false;
         }
@@ -719,7 +742,8 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
             ret = ppc_radix64_partition_scoped_xlate(cpu, access_type, eaddr,
                                                      g_raddr, pate, raddr,
                                                      &prot, &psize, false,
-                                                     mmu_idx, guest_visible);
+                                                     mmu_idx, lpid,
+                                                     guest_visible);
             if (ret) {
                 return false;
             }

@@ -99,6 +99,7 @@ static void pegasos2_cpu_reset(void *opaque)
         cpu->env.gpr[1] = 2 * VOF_STACK_SIZE - 0x20;
         cpu->env.nip = 0x100;
     }
+    cpu_ppc_tb_reset(&cpu->env);
 }
 
 static void pegasos2_pci_irq(void *opaque, int n, int level)

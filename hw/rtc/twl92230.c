@@ -65,8 +65,8 @@ struct MenelausState {
         struct tm tm;
         struct tm new;
         struct tm alm;
-        int sec_offset;
-        int alm_sec;
+        int64_t sec_offset;
+        int64_t alm_sec;
         int next_comp;
     } rtc;
     uint16_t rtc_next_vmstate;

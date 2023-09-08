@@ -14,6 +14,8 @@ Commands:
     post_init
               post-venv initialization
     ensure    Ensure that the specified package is installed.
+    ensuregroup
+              Ensure that the specified package group is installed.
 
 --------------------------------------------------
 
@@ -44,6 +46,19 @@ options:
   --online    Install packages from PyPI, if necessary.
   --dir DIR   Path to vendored packages where we may install from.
 
+--------------------------------------------------
+
+usage: mkvenv ensuregroup [-h] [--online] [--dir DIR] file group...
+
+positional arguments:
+  file        pointer to a TOML file
+  group       section name in the TOML file
+
+options:
+  -h, --help  show this help message and exit
+  --online    Install packages from PyPI, if necessary.
+  --dir DIR   Path to vendored packages where we may install from.
+
 """
 
 # Copyright (C) 2022-2023 Red Hat, Inc.
@@ -56,6 +71,13 @@ options:
 # later. See the COPYING file in the top-level directory.
 
 import argparse
+from importlib.metadata import (
+    Distribution,
+    EntryPoint,
+    PackageNotFoundError,
+    distribution,
+    version,
+)
 from importlib.util import find_spec
 import logging
 import os
@@ -69,6 +91,7 @@ import sysconfig
 from types import SimpleNamespace
 from typing import (
     Any,
+    Dict,
     Iterator,
     Optional,
     Sequence,
@@ -94,6 +117,18 @@ except ImportError:
         import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
     except ImportError:
         HAVE_DISTLIB = False
+
+# Try to load tomllib, with a fallback to tomli.
+# HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
+# outside the venv or before a potential call to ensurepip in checkpip().
+HAVE_TOMLLIB = True
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        HAVE_TOMLLIB = False
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
@@ -158,7 +193,7 @@ class QemuEnvBuilder(venv.EnvBuilder):
             ):
                 kwargs["with_pip"] = False
             else:
-                check_ensurepip(suggest_remedy=True)
+                check_ensurepip()
 
         super().__init__(*args, **kwargs)
 
@@ -263,7 +298,7 @@ def need_ensurepip() -> bool:
     return True
 
 
-def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
+def check_ensurepip() -> None:
     """
     Check that we have ensurepip.
 
@@ -274,15 +309,12 @@ def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
             "Python's ensurepip module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "(Debian puts ensurepip in its python3-venv package.)\n"
+            "Either install ensurepip, or alleviate the need for it in the "
+            "first place by installing pip and setuptools for "
+            f"'{sys.executable}'.\n"
+            "(Hint: Debian puts ensurepip in its python3-venv package.)"
         )
-        if suggest_remedy:
-            msg += (
-                "Either install ensurepip, or alleviate the need for it in the"
-                " first place by installing pip and setuptools for "
-                f"'{sys.executable}'.\n"
-            )
-        raise Ouch(prefix + msg)
+        raise Ouch(msg)
 
     # ensurepip uses pyexpat, which can also go missing on us:
     if not find_spec("pyexpat"):
@@ -290,15 +322,12 @@ def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
             "Python's pyexpat module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "(NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)\n"
+            "Either install pyexpat, or alleviate the need for it in the "
+            "first place by installing pip and setuptools for "
+            f"'{sys.executable}'.\n\n"
+            "(Hint: NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)"
         )
-        if suggest_remedy:
-            msg += (
-                "Either install pyexpat, or alleviate the need for it in the "
-                "first place by installing pip and setuptools for "
-                f"'{sys.executable}'.\n"
-            )
-        raise Ouch(prefix + msg)
+        raise Ouch(msg)
 
 
 def make_venv(  # pylint: disable=too-many-arguments
@@ -397,28 +426,13 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
-def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
+def _get_entry_points(packages: Sequence[str]) -> Iterator[str]:
 
     def _generator() -> Iterator[str]:
         for package in packages:
             try:
-                entry_points = distribution(package).entry_points
+                entry_points: Iterator[EntryPoint] = \
+                    iter(distribution(package).entry_points)
             except PackageNotFoundError:
                 continue
 
@@ -430,24 +444,6 @@ def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
 
             for entry_point in entry_points:
                 yield f"{entry_point.name} = {entry_point.value}"
-
-    return _generator()
-
-
-def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    def _generator() -> Iterator[str]:
-        for package in packages:
-            try:
-                eps = pkg_resources.get_entry_map(package, "console_scripts")
-            except pkg_resources.DistributionNotFound:
-                continue
-
-            for entry_point in eps.values():
-                yield str(entry_point)
 
     return _generator()
 
@@ -476,64 +472,13 @@ def generate_console_scripts(
     if not packages:
         return
 
-    def _get_entry_points() -> Iterator[str]:
-        """Python 3.7 compatibility shim for iterating entry points."""
-        # Python 3.8+, or Python 3.7 with importlib_metadata installed.
-        try:
-            return _gen_importlib(packages)
-        except ImportError as exc:
-            logger.debug("%s", str(exc))
-
-        # Python 3.7 with setuptools installed.
-        try:
-            return _gen_pkg_resources(packages)
-        except ImportError as exc:
-            logger.debug("%s", str(exc))
-            raise Ouch(
-                "Neither importlib.metadata nor pkg_resources found, "
-                "can't generate console script shims.\n"
-                "Use Python 3.8+, or install importlib-metadata or setuptools."
-            ) from exc
-
     maker = distlib.scripts.ScriptMaker(None, bin_path)
     maker.variants = {""}
     maker.clobber = False
 
-    for entry_point in _get_entry_points():
+    for entry_point in _get_entry_points(packages):
         for filename in maker.make(entry_point):
             logger.debug("wrote console_script '%s'", filename)
-
-
-def checkpip() -> bool:
-    """
-    Debian10 has a pip that's broken when used inside of a virtual environment.
-
-    We try to detect and correct that case here.
-    """
-    try:
-        # pylint: disable=import-outside-toplevel,unused-import,import-error
-        # pylint: disable=redefined-outer-name
-        import pip._internal  # type: ignore  # noqa: F401
-
-        logger.debug("pip appears to be working correctly.")
-        return False
-    except ModuleNotFoundError as exc:
-        if exc.name == "pip._internal":
-            # Uh, fair enough. They did say "internal".
-            # Let's just assume it's fine.
-            return False
-        logger.warning("pip appears to be malfunctioning: %s", str(exc))
-
-    check_ensurepip("pip appears to be non-functional, and ")
-
-    logger.debug("Attempting to repair pip ...")
-    subprocess.run(
-        (sys.executable, "-m", "ensurepip"),
-        stdout=subprocess.DEVNULL,
-        check=True,
-    )
-    logger.debug("Pip is now (hopefully) repaired!")
-    return True
 
 
 def pkgname_from_depspec(dep_spec: str) -> str:
@@ -553,57 +498,6 @@ def pkgname_from_depspec(dep_spec: str) -> str:
     return match.group(0)
 
 
-def _get_path_importlib(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-
-    try:
-        return str(distribution(package).locate_file("."))
-    except PackageNotFoundError:
-        return None
-
-
-def _get_path_pkg_resources(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    try:
-        return str(pkg_resources.get_distribution(package).location)
-    except pkg_resources.DistributionNotFound:
-        return None
-
-
-def _get_path(package: str) -> Optional[str]:
-    try:
-        return _get_path_importlib(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-
-    try:
-        return _get_path_pkg_resources(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        raise Ouch(
-            "Neither importlib.metadata nor pkg_resources found. "
-            "Use Python 3.8+, or install importlib-metadata or setuptools."
-        ) from exc
-
-
 def _path_is_prefix(prefix: Optional[str], path: str) -> bool:
     try:
         return (
@@ -613,63 +507,12 @@ def _path_is_prefix(prefix: Optional[str], path: str) -> bool:
         return False
 
 
-def _is_system_package(package: str) -> bool:
-    path = _get_path(package)
-    return path is not None and not (
+def _is_system_package(dist: Distribution) -> bool:
+    path = str(dist.locate_file("."))
+    return not (
         _path_is_prefix(sysconfig.get_path("purelib"), path)
         or _path_is_prefix(sysconfig.get_path("platlib"), path)
     )
-
-
-def _get_version_importlib(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-
-    try:
-        return str(distribution(package).version)
-    except PackageNotFoundError:
-        return None
-
-
-def _get_version_pkg_resources(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    try:
-        return str(pkg_resources.get_distribution(package).version)
-    except pkg_resources.DistributionNotFound:
-        return None
-
-
-def _get_version(package: str) -> Optional[str]:
-    try:
-        return _get_version_importlib(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-
-    try:
-        return _get_version_pkg_resources(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        raise Ouch(
-            "Neither importlib.metadata nor pkg_resources found. "
-            "Use Python 3.8+, or install importlib-metadata or setuptools."
-        ) from exc
 
 
 def diagnose(
@@ -697,7 +540,11 @@ def diagnose(
     bad = False
 
     pkg_name = pkgname_from_depspec(dep_spec)
-    pkg_version = _get_version(pkg_name)
+    pkg_version: Optional[str] = None
+    try:
+        pkg_version = version(pkg_name)
+    except PackageNotFoundError:
+        pass
 
     lines = []
 
@@ -786,40 +633,74 @@ def pip_install(
     )
 
 
+def _make_version_constraint(info: Dict[str, str], install: bool) -> str:
+    """
+    Construct the version constraint part of a PEP 508 dependency
+    specification (for example '>=0.61.5') from the accepted and
+    installed keys of the provided dictionary.
+
+    :param info: A dictionary corresponding to a TOML key-value list.
+    :param install: True generates install constraints, False generates
+        presence constraints
+    """
+    if install and "installed" in info:
+        return "==" + info["installed"]
+
+    dep_spec = info.get("accepted", "")
+    dep_spec = dep_spec.strip()
+    # Double check that they didn't just use a version number
+    if dep_spec and dep_spec[0] not in "!~><=(":
+        raise Ouch(
+            "invalid dependency specifier " + dep_spec + " in dependency file"
+        )
+
+    return dep_spec
+
+
 def _do_ensure(
-    dep_specs: Sequence[str],
+    group: Dict[str, Dict[str, str]],
     online: bool = False,
     wheels_dir: Optional[Union[str, Path]] = None,
-    prog: Optional[str] = None,
 ) -> Optional[Tuple[str, bool]]:
     """
-    Use pip to ensure we have the package specified by @dep_specs.
+    Use pip to ensure we have the packages specified in @group.
 
-    If the package is already installed, do nothing. If online and
+    If the packages are already installed, do nothing. If online and
     wheels_dir are both provided, prefer packages found in wheels_dir
     first before connecting to PyPI.
 
-    :param dep_specs:
-        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
+    :param group: A dictionary of dictionaries, corresponding to a
+        section in a pythondeps.toml file.
     :param online: If True, fall back to PyPI.
     :param wheels_dir: If specified, search this path for packages.
     """
     absent = []
     present = []
-    for spec in dep_specs:
-        matcher = distlib.version.LegacyMatcher(spec)
-        ver = _get_version(matcher.name)
+    canary = None
+    for name, info in group.items():
+        constraint = _make_version_constraint(info, False)
+        matcher = distlib.version.LegacyMatcher(name + constraint)
+        print(f"mkvenv: checking for {matcher}", file=sys.stderr)
+
+        dist: Optional[Distribution] = None
+        try:
+            dist = distribution(matcher.name)
+        except PackageNotFoundError:
+            pass
+
         if (
-            ver is None
+            dist is None
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
-            or not _is_system_package(matcher.name)
-            or not matcher.match(distlib.version.LegacyVersion(ver))
+            or not _is_system_package(dist)
+            or not matcher.match(distlib.version.LegacyVersion(dist.version))
         ):
-            absent.append(spec)
+            absent.append(name + _make_version_constraint(info, True))
+            if len(absent) == 1:
+                canary = info.get("canary", None)
         else:
-            logger.info("found %s %s", matcher.name, ver)
-            present.append(matcher.name)
+            logger.info("found %s %s", name, dist.version)
+            present.append(name)
 
     if present:
         generate_console_scripts(present)
@@ -839,7 +720,7 @@ def _do_ensure(
             absent[0],
             online,
             wheels_dir,
-            prog if absent[0] == dep_specs[0] else None,
+            canary,
         )
 
     return None
@@ -867,12 +748,83 @@ def ensure(
         be presented to the user. e.g., 'sphinx-build' can be used as a
         bellwether for the presence of 'sphinx'.
     """
-    print(f"mkvenv: checking for {', '.join(dep_specs)}", file=sys.stderr)
 
     if not HAVE_DISTLIB:
         raise Ouch("a usable distlib could not be found, please install it")
 
-    result = _do_ensure(dep_specs, online, wheels_dir, prog)
+    # Convert the depspecs to a dictionary, as if they came
+    # from a section in a pythondeps.toml file
+    group: Dict[str, Dict[str, str]] = {}
+    for spec in dep_specs:
+        name = distlib.version.LegacyMatcher(spec).name
+        group[name] = {}
+
+        spec = spec.strip()
+        pos = len(name)
+        ver = spec[pos:].strip()
+        if ver:
+            group[name]["accepted"] = ver
+
+        if prog:
+            group[name]["canary"] = prog
+            prog = None
+
+    result = _do_ensure(group, online, wheels_dir)
+    if result:
+        # Well, that's not good.
+        if result[1]:
+            raise Ouch(result[0])
+        raise SystemExit(f"\n{result[0]}\n\n")
+
+
+def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
+    if not HAVE_TOMLLIB:
+        if sys.version_info < (3, 11):
+            raise Ouch("found no usable tomli, please install it")
+
+        raise Ouch(
+            "Python >=3.11 does not have tomllib... what have you done!?"
+        )
+
+    # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
+    # Debian bullseye-backports) and v2.0.x
+    with open(file, "r", encoding="ascii") as depfile:
+        contents = depfile.read()
+        return tomllib.loads(contents)  # type: ignore
+
+
+def ensure_group(
+    file: str,
+    groups: Sequence[str],
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to ensure we have the package specified by @dep_specs.
+
+    If the package is already installed, do nothing. If online and
+    wheels_dir are both provided, prefer packages found in wheels_dir
+    first before connecting to PyPI.
+
+    :param dep_specs:
+        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
+    :param online: If True, fall back to PyPI.
+    :param wheels_dir: If specified, search this path for packages.
+    """
+
+    if not HAVE_DISTLIB:
+        raise Ouch("found no usable distlib, please install it")
+
+    parsed_deps = _parse_groups(file)
+
+    to_install: Dict[str, Dict[str, str]] = {}
+    for group in groups:
+        try:
+            to_install.update(parsed_deps[group])
+        except KeyError as exc:
+            raise Ouch(f"group {group} not defined") from exc
+
+    result = _do_ensure(to_install, online, wheels_dir)
     if result:
         # Well, that's not good.
         if result[1]:
@@ -885,12 +837,10 @@ def post_venv_setup() -> None:
     This is intended to be run *inside the venv* after it is created.
     """
     logger.debug("post_venv_setup()")
-    # Test for a broken pip (Debian 10 or derivative?) and fix it if needed
-    if not checkpip():
-        # Finally, generate a 'pip' script so the venv is usable in a normal
-        # way from the CLI. This only happens when we inherited pip from a
-        # parent/system-site and haven't run ensurepip in some way.
-        generate_console_scripts(["pip"])
+    # Generate a 'pip' script so the venv is usable in a normal
+    # way from the CLI. This only happens when we inherited pip from a
+    # parent/system-site and haven't run ensurepip in some way.
+    generate_console_scripts(["pip"])
 
 
 def _add_create_subcommand(subparsers: Any) -> None:
@@ -905,6 +855,37 @@ def _add_create_subcommand(subparsers: Any) -> None:
 
 def _add_post_init_subcommand(subparsers: Any) -> None:
     subparsers.add_parser("post_init", help="post-venv initialization")
+
+
+def _add_ensuregroup_subcommand(subparsers: Any) -> None:
+    subparser = subparsers.add_parser(
+        "ensuregroup",
+        help="Ensure that the specified package group is installed.",
+    )
+    subparser.add_argument(
+        "--online",
+        action="store_true",
+        help="Install packages from PyPI, if necessary.",
+    )
+    subparser.add_argument(
+        "--dir",
+        type=str,
+        action="store",
+        help="Path to vendored packages where we may install from.",
+    )
+    subparser.add_argument(
+        "file",
+        type=str,
+        action="store",
+        help=("Path to a TOML file describing package groups"),
+    )
+    subparser.add_argument(
+        "group",
+        type=str,
+        action="store",
+        help="One or more package group names",
+        nargs="+",
+    )
 
 
 def _add_ensure_subcommand(subparsers: Any) -> None:
@@ -964,6 +945,7 @@ def main() -> int:
     _add_create_subcommand(subparsers)
     _add_post_init_subcommand(subparsers)
     _add_ensure_subcommand(subparsers)
+    _add_ensuregroup_subcommand(subparsers)
 
     args = parser.parse_args()
     try:
@@ -981,6 +963,13 @@ def main() -> int:
                 online=args.online,
                 wheels_dir=args.dir,
                 prog=args.diagnose,
+            )
+        if args.command == "ensuregroup":
+            ensure_group(
+                file=args.file,
+                groups=args.group,
+                online=args.online,
+                wheels_dir=args.dir,
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:

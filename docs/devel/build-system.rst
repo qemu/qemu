@@ -460,16 +460,12 @@ Built by configure:
 
 ``config-host.mak``
   When configure has determined the characteristics of the build host it
-  will write them to this file for use in ``Makefile`` and to a smaller
-  extent ``meson.build``. These include the paths to various tools and a
-  variety of ``CONFIG_*`` variables related to optionally enabled features.
+  will write the paths to various tools to this file, for use in ``Makefile``
+  and to a smaller extent ``meson.build``.
 
   ``config-host.mak`` is also used as a dependency checking mechanism. If make
   sees that the modification timestamp on configure is newer than that on
   ``config-host.mak``, then configure will be re-run.
-
-  The variables defined here apply to all QEMU
-  build outputs.
 
 ``config-meson.cross``
 

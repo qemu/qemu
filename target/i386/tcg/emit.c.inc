@@ -1914,12 +1914,22 @@ static void gen_VCOMI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     set_cc_op(s, CC_OP_EFLAGS);
 }
 
-static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+static void gen_VCVTPD2PS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_unary_fp_sse(s, env, decode,
-                     gen_helper_cvtpd2ps_xmm, gen_helper_cvtps2pd_xmm,
-                     gen_helper_cvtpd2ps_ymm, gen_helper_cvtps2pd_ymm,
-                     gen_helper_cvtsd2ss, gen_helper_cvtss2sd);
+    if (s->vex_l) {
+        gen_helper_cvtpd2ps_ymm(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        gen_helper_cvtpd2ps_xmm(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+
+static void gen_VCVTPS2PD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    if (s->vex_l) {
+        gen_helper_cvtps2pd_ymm(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        gen_helper_cvtps2pd_xmm(cpu_env, OP_PTR0, OP_PTR2);
+    }
 }
 
 static void gen_VCVTPS2PH(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1934,6 +1944,16 @@ static void gen_VCVTPS2PH(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
     if (decode->op[0].has_ea) {
         gen_store_sse(s, decode, decode->op[0].offset);
     }
+}
+
+static void gen_VCVTSD2SS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_cvtsd2ss(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_VCVTSS2SD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_cvtss2sd(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
 }
 
 static void gen_VCVTSI2Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

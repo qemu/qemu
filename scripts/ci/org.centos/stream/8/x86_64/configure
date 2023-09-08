@@ -68,7 +68,6 @@
 --disable-gtk \
 --disable-guest-agent \
 --disable-guest-agent-msi \
---disable-hax \
 --disable-hvf \
 --disable-iconv \
 --disable-kvm \

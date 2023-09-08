@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://gitlab.com/libblkio/libblkio
+revision = f84cc963a444e4cb34813b2dcfc5bf8526947dc0
+
+[provide]
+blkio = libblkio_dep

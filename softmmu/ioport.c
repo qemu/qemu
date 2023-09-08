@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 /*
- * splitted out ioport related stuffs from vl.c.
+ * split out ioport related stuffs from vl.c.
  */
 
 #include "qemu/osdep.h"

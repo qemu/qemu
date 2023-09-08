@@ -19,3 +19,20 @@ virtio_ccw_set_ind(uint64_t ind_loc, uint8_t ind_old, uint8_t ind_new) "VIRTIO-C
 s390_pci_clp_cap(const char *id, uint32_t cap) "PCI: %s: missing expected CLP capability %u"
 s390_pci_clp_cap_size(const char *id, uint32_t size, uint32_t cap) "PCI: %s: bad size (%u) for CLP capability %u"
 s390_pci_clp_dev_info(const char *id) "PCI: %s: cannot read vfio device info"
+
+# s390-pci-bus.c
+s390_pci_sclp_nodev(const char *str, uint32_t aid) "%s no dev found aid 0x%x"
+s390_pci_iommu_xlate(uint64_t addr) "iommu trans addr 0x%" PRIx64
+s390_pci_msi_ctrl_write(uint64_t data, uint32_t idx, uint32_t vec) "write_msix data 0x%" PRIx64 " idx %d vec 0x%x"
+s390_pcihost(const char *msg) "%s"
+
+# s390-pci-inst.c
+s390_pci_irqs(const char *str, uint32_t id) "%s irqs for adapter id %d"
+s390_pci_kvm_aif(const char *str) "Failed to %s interrupt forwarding"
+
+s390_pci_list_entry(uint32_t g_l2, uint32_t vid, uint32_t did, uint32_t fid, uint32_t fh) "g_l2 %d vendor id 0x%x device id 0x%x fid 0x%x fh 0x%x"
+s390_pci_list(uint32_t rc) "failed rc 0x%x"
+s390_pci_unknown(const char *msg, uint32_t cmd) "%s unknown command 0x%x"
+s390_pci_bar(uint32_t bar, uint32_t addr, uint64_t size, uint32_t barsize) "bar %d addr 0x%x size 0x%" PRIx64 "barsize 0x%x"
+s390_pci_nodev(const char *cmd, uint32_t fh) "%s no pci dev fh 0x%x"
+s390_pci_invalid(const char *cmd, uint32_t fh) "%s invalid space fh 0x%x"

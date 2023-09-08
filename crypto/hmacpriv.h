@@ -28,19 +28,18 @@ struct QCryptoHmacDriver {
     void (*hmac_free)(QCryptoHmac *hmac);
 };
 
-extern void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
-                                  const uint8_t *key, size_t nkey,
-                                  Error **errp);
+void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                           const uint8_t *key, size_t nkey,
+                           Error **errp);
 extern QCryptoHmacDriver qcrypto_hmac_lib_driver;
 
 #ifdef CONFIG_AF_ALG
 
 #include "afalgpriv.h"
 
-extern QCryptoAFAlg *
-qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
-                           const uint8_t *key, size_t nkey,
-                           Error **errp);
+QCryptoAFAlg *qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                                         const uint8_t *key, size_t nkey,
+                                         Error **errp);
 extern QCryptoHmacDriver qcrypto_hmac_afalg_driver;
 
 #endif

@@ -28,7 +28,7 @@ TESTS += test_context_save_areas.c.tst
 QEMU_OPTS += -M tricore_testboard -cpu tc27x -nographic -kernel
 
 %.pS: $(ASM_TESTS_PATH)/%.S
-	$(HOST_CC) -E -o $@ $<
+	$(CC) -E -o $@ $<
 
 %.o: %.pS
 	$(AS) $(ASFLAGS) -o $@ $<

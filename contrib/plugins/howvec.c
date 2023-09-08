@@ -181,7 +181,8 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
         switch (class->what) {
         case COUNT_CLASS:
             if (class->count || verbose) {
-                g_string_append_printf(report, "Class: %-24s\t(%ld hits)\n",
+                g_string_append_printf(report,
+                                       "Class: %-24s\t(%" PRId64 " hits)\n",
                                        class->class,
                                        class->count);
             }
@@ -208,7 +209,8 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
              i++, counts = g_list_next(counts)) {
             InsnExecCount *rec = (InsnExecCount *) counts->data;
             g_string_append_printf(report,
-                                   "Instr: %-24s\t(%ld hits)\t(op=0x%08x/%s)\n",
+                                   "Instr: %-24s\t(%" PRId64 " hits)"
+                                   "\t(op=0x%08x/%s)\n",
                                    rec->insn,
                                    rec->count,
                                    rec->opcode,

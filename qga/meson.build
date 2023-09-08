@@ -85,7 +85,7 @@ qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
   'vss-win32.c'
 ))
 
-qga_ss = qga_ss.apply(config_host, strict: false)
+qga_ss = qga_ss.apply(config_targetos, strict: false)
 
 gen_tlb = []
 qga_libs = []
@@ -180,7 +180,7 @@ test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 # the leak detector in build-oss-fuzz Gitlab CI test. we should re-enable
 # this when an alternative is implemented or when the underlying glib
 # issue is identified/fix
-#if 'CONFIG_POSIX' in config_host
+#if targetos != 'windows'
 if false
   srcs = [files('commands-posix-ssh.c')]
   i = 0

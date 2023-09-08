@@ -12,6 +12,27 @@
 # include "ui/shader.h"
 #endif
 
+#define TYPE_QEMU_CONSOLE "qemu-console"
+OBJECT_DECLARE_TYPE(QemuConsole, QemuConsoleClass, QEMU_CONSOLE)
+
+#define TYPE_QEMU_GRAPHIC_CONSOLE "qemu-graphic-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuGraphicConsole, QEMU_GRAPHIC_CONSOLE)
+
+#define TYPE_QEMU_TEXT_CONSOLE "qemu-text-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuTextConsole, QEMU_TEXT_CONSOLE)
+
+#define TYPE_QEMU_FIXED_TEXT_CONSOLE "qemu-fixed-text-console"
+OBJECT_DECLARE_SIMPLE_TYPE(QemuFixedTextConsole, QEMU_FIXED_TEXT_CONSOLE)
+
+#define QEMU_IS_GRAPHIC_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_GRAPHIC_CONSOLE)
+
+#define QEMU_IS_TEXT_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_TEXT_CONSOLE)
+
+#define QEMU_IS_FIXED_TEXT_CONSOLE(c) \
+    object_dynamic_cast(OBJECT(c), TYPE_QEMU_FIXED_TEXT_CONSOLE)
+
 /* keyboard/mouse support */
 
 #define MOUSE_EVENT_LBUTTON 0x01
@@ -91,9 +112,9 @@ bool qemu_mouse_set(int index, Error **errp);
 #define QEMU_KEY_CTRL_PAGEUP     0xe406
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
-void kbd_put_keysym_console(QemuConsole *s, int keysym);
-bool kbd_put_qcode_console(QemuConsole *s, int qcode, bool ctrl);
-void kbd_put_string_console(QemuConsole *s, const char *str, int len);
+void kbd_put_keysym_console(QemuTextConsole *s, int keysym);
+bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl);
+void kbd_put_string_console(QemuTextConsole *s, const char *str, int len);
 void kbd_put_keysym(int keysym);
 
 /* Touch devices */
@@ -111,10 +132,6 @@ void console_handle_touch_event(QemuConsole *con,
                                 InputMultiTouchType type,
                                 Error **errp);
 /* consoles */
-
-#define TYPE_QEMU_CONSOLE "qemu-console"
-OBJECT_DECLARE_TYPE(QemuConsole, QemuConsoleClass, QEMU_CONSOLE)
-
 
 struct QemuConsoleClass {
     ObjectClass parent_class;
@@ -484,7 +501,6 @@ QemuConsole *qemu_console_lookup_by_index(unsigned int index);
 QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head);
 QemuConsole *qemu_console_lookup_by_device_name(const char *device_id,
                                                 uint32_t head, Error **errp);
-QemuConsole *qemu_console_lookup_unused(void);
 QEMUCursor *qemu_console_get_cursor(QemuConsole *con);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
@@ -504,6 +520,8 @@ void qemu_console_set_window_id(QemuConsole *con, int window_id);
 void console_select(unsigned int index);
 void qemu_console_resize(QemuConsole *con, int width, int height);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
+void coroutine_fn qemu_console_co_wait_update(QemuConsole *con);
+int qemu_invalidate_text_consoles(void);
 
 /* console-gl.c */
 #ifdef CONFIG_OPENGL

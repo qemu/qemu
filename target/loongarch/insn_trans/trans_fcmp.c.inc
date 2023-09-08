@@ -29,6 +29,10 @@ static bool trans_fcmp_cond_s(DisasContext *ctx, arg_fcmp_cond_s *a)
     uint32_t flags;
     void (*fn)(TCGv, TCGv_env, TCGv, TCGv, TCGv_i32);
 
+    if (!avail_FP_SP(ctx)) {
+        return false;
+    }
+
     CHECK_FPE;
 
     var = tcg_temp_new();
@@ -48,6 +52,10 @@ static bool trans_fcmp_cond_d(DisasContext *ctx, arg_fcmp_cond_d *a)
     TCGv var, src1, src2;
     uint32_t flags;
     void (*fn)(TCGv, TCGv_env, TCGv, TCGv, TCGv_i32);
+
+    if (!avail_FP_DP(ctx)) {
+        return false;
+    }
 
     CHECK_FPE;
 

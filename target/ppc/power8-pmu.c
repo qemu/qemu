@@ -16,7 +16,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
+#include "qemu/timer.h"
 #include "hw/ppc/ppc.h"
 #include "power8-pmu.h"
 

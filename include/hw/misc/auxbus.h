@@ -106,7 +106,7 @@ void aux_bus_realize(AUXBus *bus);
  *
  * Returns the reply of the request.
  *
- * @bus Ths bus where the request happen.
+ * @bus The bus where the request happen.
  * @cmd The command requested.
  * @address The 20bits address of the slave.
  * @len The length of the read or write.

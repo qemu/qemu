@@ -64,12 +64,7 @@ static void fsl_imx6ul_init(Object *obj)
     object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
 
     /*
-     * GPR
-     */
-    object_initialize_child(obj, "gpr", &s->gpr, TYPE_IMX7_GPR);
-
-    /*
-     * GPIOs 1 to 5
+     * GPIOs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPIOS; i++) {
         snprintf(name, NAME_SIZE, "gpio%d", i);
@@ -77,7 +72,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * GPT 1, 2
+     * GPTs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPTS; i++) {
         snprintf(name, NAME_SIZE, "gpt%d", i);
@@ -85,7 +80,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * EPIT 1, 2
+     * EPITs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_EPITS; i++) {
         snprintf(name, NAME_SIZE, "epit%d", i + 1);
@@ -93,7 +88,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * eCSPI
+     * eCSPIs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_ECSPIS; i++) {
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
@@ -101,7 +96,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * I2C
+     * I2Cs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_I2CS; i++) {
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
@@ -109,7 +104,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * UART
+     * UARTs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_UARTS; i++) {
         snprintf(name, NAME_SIZE, "uart%d", i);
@@ -117,25 +112,31 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * Ethernet
+     * Ethernets
      */
     for (i = 0; i < FSL_IMX6UL_NUM_ETHS; i++) {
         snprintf(name, NAME_SIZE, "eth%d", i);
         object_initialize_child(obj, name, &s->eth[i], TYPE_IMX_ENET);
     }
 
-    /* USB */
+    /*
+     * USB PHYs
+     */
     for (i = 0; i < FSL_IMX6UL_NUM_USB_PHYS; i++) {
         snprintf(name, NAME_SIZE, "usbphy%d", i);
         object_initialize_child(obj, name, &s->usbphy[i], TYPE_IMX_USBPHY);
     }
+
+    /*
+     * USBs
+     */
     for (i = 0; i < FSL_IMX6UL_NUM_USBS; i++) {
         snprintf(name, NAME_SIZE, "usb%d", i);
         object_initialize_child(obj, name, &s->usb[i], TYPE_CHIPIDEA);
     }
 
     /*
-     * SDHCI
+     * SDHCIs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_USDHCS; i++) {
         snprintf(name, NAME_SIZE, "usdhc%d", i);
@@ -143,7 +144,7 @@ static void fsl_imx6ul_init(Object *obj)
     }
 
     /*
-     * Watchdog
+     * Watchdogs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_WDTS; i++) {
         snprintf(name, NAME_SIZE, "wdt%d", i);
@@ -189,10 +190,10 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
      * A7MPCORE DAP
      */
     create_unimplemented_device("a7mpcore-dap", FSL_IMX6UL_A7MPCORE_DAP_ADDR,
-                                0x100000);
+                                FSL_IMX6UL_A7MPCORE_DAP_SIZE);
 
     /*
-     * GPT 1, 2
+     * GPTs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPTS; i++) {
         static const hwaddr FSL_IMX6UL_GPTn_ADDR[FSL_IMX6UL_NUM_GPTS] = {
@@ -217,7 +218,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * EPIT 1, 2
+     * EPITs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_EPITS; i++) {
         static const hwaddr FSL_IMX6UL_EPITn_ADDR[FSL_IMX6UL_NUM_EPITS] = {
@@ -242,7 +243,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * GPIO
+     * GPIOs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPIOS; i++) {
         static const hwaddr FSL_IMX6UL_GPIOn_ADDR[FSL_IMX6UL_NUM_GPIOS] = {
@@ -284,17 +285,12 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * IOMUXC and IOMUXC_GPR
+     * IOMUXC
      */
-    for (i = 0; i < 1; i++) {
-        static const hwaddr FSL_IMX6UL_IOMUXCn_ADDR[FSL_IMX6UL_NUM_IOMUXCS] = {
-            FSL_IMX6UL_IOMUXC_ADDR,
-            FSL_IMX6UL_IOMUXC_GPR_ADDR,
-        };
-
-        snprintf(name, NAME_SIZE, "iomuxc%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_IOMUXCn_ADDR[i], 0x4000);
-    }
+    create_unimplemented_device("iomuxc", FSL_IMX6UL_IOMUXC_ADDR,
+                                FSL_IMX6UL_IOMUXC_SIZE);
+    create_unimplemented_device("iomuxc_gpr", FSL_IMX6UL_IOMUXC_GPR_ADDR,
+                                FSL_IMX6UL_IOMUXC_GPR_SIZE);
 
     /*
      * CCM
@@ -314,7 +310,9 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->gpcv2), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpcv2), 0, FSL_IMX6UL_GPC_ADDR);
 
-    /* Initialize all ECSPI */
+    /*
+     * ECSPIs
+     */
     for (i = 0; i < FSL_IMX6UL_NUM_ECSPIS; i++) {
         static const hwaddr FSL_IMX6UL_SPIn_ADDR[FSL_IMX6UL_NUM_ECSPIS] = {
             FSL_IMX6UL_ECSPI1_ADDR,
@@ -342,7 +340,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * I2C
+     * I2Cs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_I2CS; i++) {
         static const hwaddr FSL_IMX6UL_I2Cn_ADDR[FSL_IMX6UL_NUM_I2CS] = {
@@ -368,7 +366,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * UART
+     * UARTs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_UARTS; i++) {
         static const hwaddr FSL_IMX6UL_UARTn_ADDR[FSL_IMX6UL_NUM_UARTS] = {
@@ -406,7 +404,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * Ethernet
+     * Ethernets
      *
      * We must use two loops since phy_connected affects the other interface
      * and we have to set all properties before calling sysbus_realize().
@@ -459,28 +457,45 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                                             FSL_IMX6UL_ENETn_TIMER_IRQ[i]));
     }
 
-    /* USB */
+    /*
+     * USB PHYs
+     */
     for (i = 0; i < FSL_IMX6UL_NUM_USB_PHYS; i++) {
+        static const hwaddr
+                     FSL_IMX6UL_USB_PHYn_ADDR[FSL_IMX6UL_NUM_USB_PHYS] = {
+            FSL_IMX6UL_USBPHY1_ADDR,
+            FSL_IMX6UL_USBPHY2_ADDR,
+        };
+
         sysbus_realize(SYS_BUS_DEVICE(&s->usbphy[i]), &error_abort);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->usbphy[i]), 0,
-                        FSL_IMX6UL_USBPHY1_ADDR + i * 0x1000);
+                        FSL_IMX6UL_USB_PHYn_ADDR[i]);
     }
 
+    /*
+     * USBs
+     */
     for (i = 0; i < FSL_IMX6UL_NUM_USBS; i++) {
+        static const hwaddr FSL_IMX6UL_USB02_USBn_ADDR[FSL_IMX6UL_NUM_USBS] = {
+            FSL_IMX6UL_USBO2_USB1_ADDR,
+            FSL_IMX6UL_USBO2_USB2_ADDR,
+        };
+
         static const int FSL_IMX6UL_USBn_IRQ[] = {
             FSL_IMX6UL_USB1_IRQ,
             FSL_IMX6UL_USB2_IRQ,
         };
+
         sysbus_realize(SYS_BUS_DEVICE(&s->usb[i]), &error_abort);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->usb[i]), 0,
-                        FSL_IMX6UL_USBO2_USB_ADDR + i * 0x200);
+                        FSL_IMX6UL_USB02_USBn_ADDR[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->usb[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->a7mpcore),
                                             FSL_IMX6UL_USBn_IRQ[i]));
     }
 
     /*
-     * USDHC
+     * USDHCs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_USDHCS; i++) {
         static const hwaddr FSL_IMX6UL_USDHCn_ADDR[FSL_IMX6UL_NUM_USDHCS] = {
@@ -512,7 +527,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->snvs), 0, FSL_IMX6UL_SNVS_HP_ADDR);
 
     /*
-     * Watchdog
+     * Watchdogs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_WDTS; i++) {
         static const hwaddr FSL_IMX6UL_WDOGn_ADDR[FSL_IMX6UL_NUM_WDTS] = {
@@ -520,6 +535,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
             FSL_IMX6UL_WDOG2_ADDR,
             FSL_IMX6UL_WDOG3_ADDR,
         };
+
         static const int FSL_IMX6UL_WDOGn_IRQ[FSL_IMX6UL_NUM_WDTS] = {
             FSL_IMX6UL_WDOG1_IRQ,
             FSL_IMX6UL_WDOG2_IRQ,
@@ -538,41 +554,65 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     }
 
     /*
-     * GPR
-     */
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpr), &error_abort);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0, FSL_IMX6UL_IOMUXC_GPR_ADDR);
-
-    /*
      * SDMA
      */
-    create_unimplemented_device("sdma", FSL_IMX6UL_SDMA_ADDR, 0x4000);
+    create_unimplemented_device("sdma", FSL_IMX6UL_SDMA_ADDR,
+                                FSL_IMX6UL_SDMA_SIZE);
 
     /*
-     * SAI (Audio SSI (Synchronous Serial Interface))
+     * SAIs (Audio SSI (Synchronous Serial Interface))
      */
-    create_unimplemented_device("sai1", FSL_IMX6UL_SAI1_ADDR, 0x4000);
-    create_unimplemented_device("sai2", FSL_IMX6UL_SAI2_ADDR, 0x4000);
-    create_unimplemented_device("sai3", FSL_IMX6UL_SAI3_ADDR, 0x4000);
+    for (i = 0; i < FSL_IMX6UL_NUM_SAIS; i++) {
+        static const hwaddr FSL_IMX6UL_SAIn_ADDR[FSL_IMX6UL_NUM_SAIS] = {
+            FSL_IMX6UL_SAI1_ADDR,
+            FSL_IMX6UL_SAI2_ADDR,
+            FSL_IMX6UL_SAI3_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "sai%d", i);
+        create_unimplemented_device(name, FSL_IMX6UL_SAIn_ADDR[i],
+                                    FSL_IMX6UL_SAIn_SIZE);
+    }
 
     /*
-     * PWM
+     * PWMs
      */
-    create_unimplemented_device("pwm1", FSL_IMX6UL_PWM1_ADDR, 0x4000);
-    create_unimplemented_device("pwm2", FSL_IMX6UL_PWM2_ADDR, 0x4000);
-    create_unimplemented_device("pwm3", FSL_IMX6UL_PWM3_ADDR, 0x4000);
-    create_unimplemented_device("pwm4", FSL_IMX6UL_PWM4_ADDR, 0x4000);
+    for (i = 0; i < FSL_IMX6UL_NUM_PWMS; i++) {
+        static const hwaddr FSL_IMX6UL_PWMn_ADDR[FSL_IMX6UL_NUM_PWMS] = {
+            FSL_IMX6UL_PWM1_ADDR,
+            FSL_IMX6UL_PWM2_ADDR,
+            FSL_IMX6UL_PWM3_ADDR,
+            FSL_IMX6UL_PWM4_ADDR,
+            FSL_IMX6UL_PWM5_ADDR,
+            FSL_IMX6UL_PWM6_ADDR,
+            FSL_IMX6UL_PWM7_ADDR,
+            FSL_IMX6UL_PWM8_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "pwm%d", i);
+        create_unimplemented_device(name, FSL_IMX6UL_PWMn_ADDR[i],
+                                    FSL_IMX6UL_PWMn_SIZE);
+    }
 
     /*
      * Audio ASRC (asynchronous sample rate converter)
      */
-    create_unimplemented_device("asrc", FSL_IMX6UL_ASRC_ADDR, 0x4000);
+    create_unimplemented_device("asrc", FSL_IMX6UL_ASRC_ADDR,
+                                FSL_IMX6UL_ASRC_SIZE);
 
     /*
-     * CAN
+     * CANs
      */
-    create_unimplemented_device("can1", FSL_IMX6UL_CAN1_ADDR, 0x4000);
-    create_unimplemented_device("can2", FSL_IMX6UL_CAN2_ADDR, 0x4000);
+    for (i = 0; i < FSL_IMX6UL_NUM_CANS; i++) {
+        static const hwaddr FSL_IMX6UL_CANn_ADDR[FSL_IMX6UL_NUM_CANS] = {
+            FSL_IMX6UL_CAN1_ADDR,
+            FSL_IMX6UL_CAN2_ADDR,
+        };
+
+        snprintf(name, NAME_SIZE, "can%d", i);
+        create_unimplemented_device(name, FSL_IMX6UL_CANn_ADDR[i],
+                                    FSL_IMX6UL_CANn_SIZE);
+    }
 
     /*
      * APHB_DMA
@@ -590,13 +630,27 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "adc%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_ADCn_ADDR[i], 0x4000);
+        create_unimplemented_device(name, FSL_IMX6UL_ADCn_ADDR[i],
+                                    FSL_IMX6UL_ADCn_SIZE);
     }
 
     /*
      * LCD
      */
-    create_unimplemented_device("lcdif", FSL_IMX6UL_LCDIF_ADDR, 0x4000);
+    create_unimplemented_device("lcdif", FSL_IMX6UL_LCDIF_ADDR,
+                                FSL_IMX6UL_LCDIF_SIZE);
+
+    /*
+     * CSU
+     */
+    create_unimplemented_device("csu", FSL_IMX6UL_CSU_ADDR,
+                                FSL_IMX6UL_CSU_SIZE);
+
+    /*
+     * TZASC
+     */
+    create_unimplemented_device("tzasc", FSL_IMX6UL_TZASC_ADDR,
+                                FSL_IMX6UL_TZASC_SIZE);
 
     /*
      * ROM memory

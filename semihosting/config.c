@@ -8,7 +8,7 @@
  * targets that support it. Architecture specific handling is handled
  * in target/HW/HW-semi.c
  *
- * Semihosting is sightly strange in that it is also supported by some
+ * Semihosting is slightly strange in that it is also supported by some
  * linux-user targets. However in that use case no configuration of
  * the outputs and command lines is supported.
  *

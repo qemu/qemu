@@ -271,9 +271,15 @@ The virtual namespace device supports DIF- and DIX-based protection information
 
 ``pil=UINT8`` (default: ``0``)
   Controls the location of the protection information within the metadata. Set
-  to ``1`` to transfer protection information as the first eight bytes of
-  metadata. Otherwise, the protection information is transferred as the last
-  eight bytes.
+  to ``1`` to transfer protection information as the first bytes of metadata.
+  Otherwise, the protection information is transferred as the last bytes of
+  metadata.
+
+``pif=UINT8`` (default: ``0``)
+  By default, the namespace device uses 16 bit guard protection information
+  format (``pif=0``). Set to ``2`` to enable 64 bit guard protection
+  information format. This requires at least 16 bytes of metadata. Note that
+  ``pif=1`` (32 bit guards) is currently not supported.
 
 Virtualization Enhancements and SR-IOV (Experimental Support)
 -------------------------------------------------------------

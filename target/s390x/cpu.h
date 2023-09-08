@@ -36,6 +36,8 @@
 /* The z/Architecture has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
 
+#define TARGET_HAS_PRECISE_SMC
+
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
 #define MMU_USER_IDX 0
