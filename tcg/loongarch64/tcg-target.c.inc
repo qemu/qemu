@@ -1734,6 +1734,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static const LoongArchInsn sarv_vec_insn[4] = {
         OPC_VSRA_B, OPC_VSRA_H, OPC_VSRA_W, OPC_VSRA_D
     };
+    static const LoongArchInsn shli_vec_insn[4] = {
+        OPC_VSLLI_B, OPC_VSLLI_H, OPC_VSLLI_W, OPC_VSLLI_D
+    };
+    static const LoongArchInsn shri_vec_insn[4] = {
+        OPC_VSRLI_B, OPC_VSRLI_H, OPC_VSRLI_W, OPC_VSRLI_D
+    };
+    static const LoongArchInsn sari_vec_insn[4] = {
+        OPC_VSRAI_B, OPC_VSRAI_H, OPC_VSRAI_W, OPC_VSRAI_D
+    };
 
     a0 = args[0];
     a1 = args[1];
@@ -1871,6 +1880,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sarv_vec:
         tcg_out32(s, encode_vdvjvk_insn(sarv_vec_insn[vece], a0, a1, a2));
+        break;
+    case INDEX_op_shli_vec:
+        tcg_out32(s, encode_vdvjuk3_insn(shli_vec_insn[vece], a0, a1, a2));
+        break;
+    case INDEX_op_shri_vec:
+        tcg_out32(s, encode_vdvjuk3_insn(shri_vec_insn[vece], a0, a1, a2));
+        break;
+    case INDEX_op_sari_vec:
+        tcg_out32(s, encode_vdvjuk3_insn(sari_vec_insn[vece], a0, a1, a2));
         break;
     case INDEX_op_bitsel_vec:
         /* vbitsel vd, vj, vk, va = bitsel_vec vd, va, vk, vj */
@@ -2105,6 +2123,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_not_vec:
     case INDEX_op_neg_vec:
+    case INDEX_op_shli_vec:
+    case INDEX_op_shri_vec:
+    case INDEX_op_sari_vec:
         return C_O1_I1(w, w);
 
     case INDEX_op_bitsel_vec:
