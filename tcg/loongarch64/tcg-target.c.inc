@@ -32,6 +32,8 @@
 #include "../tcg-ldst.c.inc"
 #include <asm/hwcap.h>
 
+bool use_lsx_instructions;
+
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "zero",
@@ -65,7 +67,39 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "s5",
     "s6",
     "s7",
-    "s8"
+    "s8",
+    "vr0",
+    "vr1",
+    "vr2",
+    "vr3",
+    "vr4",
+    "vr5",
+    "vr6",
+    "vr7",
+    "vr8",
+    "vr9",
+    "vr10",
+    "vr11",
+    "vr12",
+    "vr13",
+    "vr14",
+    "vr15",
+    "vr16",
+    "vr17",
+    "vr18",
+    "vr19",
+    "vr20",
+    "vr21",
+    "vr22",
+    "vr23",
+    "vr24",
+    "vr25",
+    "vr26",
+    "vr27",
+    "vr28",
+    "vr29",
+    "vr30",
+    "vr31",
 };
 #endif
 
@@ -102,6 +136,15 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_A2,
     TCG_REG_A1,
     TCG_REG_A0,
+
+    /* Vector registers */
+    TCG_REG_V0, TCG_REG_V1, TCG_REG_V2, TCG_REG_V3,
+    TCG_REG_V4, TCG_REG_V5, TCG_REG_V6, TCG_REG_V7,
+    TCG_REG_V8, TCG_REG_V9, TCG_REG_V10, TCG_REG_V11,
+    TCG_REG_V12, TCG_REG_V13, TCG_REG_V14, TCG_REG_V15,
+    TCG_REG_V16, TCG_REG_V17, TCG_REG_V18, TCG_REG_V19,
+    TCG_REG_V20, TCG_REG_V21, TCG_REG_V22, TCG_REG_V23,
+    /* V24 - V31 are caller-saved, and skipped.  */
 };
 
 static const int tcg_target_call_iarg_regs[] = {
@@ -135,6 +178,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_WSZ   0x2000
 
 #define ALL_GENERAL_REGS   MAKE_64BIT_MASK(0, 32)
+#define ALL_VECTOR_REGS    MAKE_64BIT_MASK(32, 32)
 
 static inline tcg_target_long sextreg(tcg_target_long val, int pos, int len)
 {
@@ -1486,6 +1530,154 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
+static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
+                            TCGReg rd, TCGReg rs)
+{
+    switch (vece) {
+    case MO_8:
+        tcg_out_opc_vreplgr2vr_b(s, rd, rs);
+        break;
+    case MO_16:
+        tcg_out_opc_vreplgr2vr_h(s, rd, rs);
+        break;
+    case MO_32:
+        tcg_out_opc_vreplgr2vr_w(s, rd, rs);
+        break;
+    case MO_64:
+        tcg_out_opc_vreplgr2vr_d(s, rd, rs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg r, TCGReg base, intptr_t offset)
+{
+    /* Handle imm overflow and division (vldrepl.d imm is divided by 8) */
+    if (offset < -0x800 || offset > 0x7ff || \
+        (offset & ((1 << vece) - 1)) != 0) {
+        tcg_out_addi(s, TCG_TYPE_I64, TCG_REG_TMP0, base, offset);
+        base = TCG_REG_TMP0;
+        offset = 0;
+    }
+    offset >>= vece;
+
+    switch (vece) {
+    case MO_8:
+        tcg_out_opc_vldrepl_b(s, r, base, offset);
+        break;
+    case MO_16:
+        tcg_out_opc_vldrepl_h(s, r, base, offset);
+        break;
+    case MO_32:
+        tcg_out_opc_vldrepl_w(s, r, base, offset);
+        break;
+    case MO_64:
+        tcg_out_opc_vldrepl_d(s, r, base, offset);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg rd, int64_t v64)
+{
+    /* Try vldi if imm can fit */
+    int64_t value = sextract64(v64, 0, 8 << vece);
+    if (-0x200 <= value && value <= 0x1FF) {
+        uint32_t imm = (vece << 10) | ((uint32_t)v64 & 0x3FF);
+        tcg_out_opc_vldi(s, rd, imm);
+        return;
+    }
+
+    /* TODO: vldi patterns when imm 12 is set */
+
+    /* Fallback to vreplgr2vr */
+    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP0, value);
+    switch (vece) {
+    case MO_8:
+        tcg_out_opc_vreplgr2vr_b(s, rd, TCG_REG_TMP0);
+        break;
+    case MO_16:
+        tcg_out_opc_vreplgr2vr_h(s, rd, TCG_REG_TMP0);
+        break;
+    case MO_32:
+        tcg_out_opc_vreplgr2vr_w(s, rd, TCG_REG_TMP0);
+        break;
+    case MO_64:
+        tcg_out_opc_vreplgr2vr_d(s, rd, TCG_REG_TMP0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
+                           unsigned vecl, unsigned vece,
+                           const TCGArg args[TCG_MAX_OP_ARGS],
+                           const int const_args[TCG_MAX_OP_ARGS])
+{
+    TCGType type = vecl + TCG_TYPE_V64;
+    TCGArg a0, a1, a2;
+    TCGReg temp = TCG_REG_TMP0;
+
+    a0 = args[0];
+    a1 = args[1];
+    a2 = args[2];
+
+    /* Currently only supports V128 */
+    tcg_debug_assert(type == TCG_TYPE_V128);
+
+    switch (opc) {
+    case INDEX_op_st_vec:
+        /* Try to fit vst imm */
+        if (-0x800 <= a2 && a2 <= 0x7ff) {
+            tcg_out_opc_vst(s, a0, a1, a2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I64, temp, a2);
+            tcg_out_opc_vstx(s, a0, a1, temp);
+        }
+        break;
+    case INDEX_op_ld_vec:
+        /* Try to fit vld imm */
+        if (-0x800 <= a2 && a2 <= 0x7ff) {
+            tcg_out_opc_vld(s, a0, a1, a2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I64, temp, a2);
+            tcg_out_opc_vldx(s, a0, a1, temp);
+        }
+        break;
+    case INDEX_op_dupm_vec:
+        tcg_out_dupm_vec(s, type, vece, a0, a1, a2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
+{
+    switch (opc) {
+    case INDEX_op_ld_vec:
+    case INDEX_op_st_vec:
+    case INDEX_op_dup_vec:
+    case INDEX_op_dupm_vec:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
+                       TCGArg a0, ...)
+{
+    g_assert_not_reached();
+}
+
 static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 {
     switch (op) {
@@ -1627,6 +1819,14 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_movcond_i64:
         return C_O1_I4(r, rZ, rJ, rZ, rZ);
 
+    case INDEX_op_ld_vec:
+    case INDEX_op_dupm_vec:
+    case INDEX_op_dup_vec:
+        return C_O1_I1(w, r);
+
+    case INDEX_op_st_vec:
+        return C_O0_I2(w, r);
+
     default:
         g_assert_not_reached();
     }
@@ -1708,6 +1908,10 @@ static void tcg_target_init(TCGContext *s)
         exit(EXIT_FAILURE);
     }
 
+    if (hwcap & HWCAP_LOONGARCH_LSX) {
+        use_lsx_instructions = 1;
+    }
+
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
     tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS;
 
@@ -1723,6 +1927,18 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S8);
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S9);
 
+    if (use_lsx_instructions) {
+        tcg_target_available_regs[TCG_TYPE_V128] = ALL_VECTOR_REGS;
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V24);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V25);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V26);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V27);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V28);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V29);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V30);
+        tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V31);
+    }
+
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_ZERO);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP0);
@@ -1731,6 +1947,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RESERVED);
+    tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP0);
 }
 
 typedef struct {
