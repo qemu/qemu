@@ -20,12 +20,12 @@ reponame = os.path.basename(cwd)
 repourl = "https://gitlab.com/%s/%s.git" % (namespace, reponame)
 
 subprocess.check_call(["git", "remote", "add", "check-dco", repourl])
-subprocess.check_call(["git", "fetch", "check-dco", "master"],
+subprocess.check_call(["git", "fetch", "check-dco", "stable-7.2"],
                       stdout=subprocess.DEVNULL,
                       stderr=subprocess.DEVNULL)
 
 ancestor = subprocess.check_output(["git", "merge-base",
-                                    "check-dco/master", "HEAD"],
+                                    "check-dco/stable-7.2", "HEAD"],
                                    universal_newlines=True)
 
 ancestor = ancestor.strip()
@@ -85,7 +85,7 @@ This can be achieved by passing the "-s" flag to the "git commit" command.
 
 To bulk update all commits on current branch "git rebase" can be used:
 
-  git rebase -i master -x 'git commit --amend --no-edit -s'
+  git rebase -i stable-7.2 -x 'git commit --amend --no-edit -s'
 
 """)
 
