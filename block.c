@@ -3004,13 +3004,14 @@ static TransactionActionDrv bdrv_attach_child_common_drv = {
  * @child_bs can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
  */
-static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
-                                           const char *child_name,
-                                           const BdrvChildClass *child_class,
-                                           BdrvChildRole child_role,
-                                           uint64_t perm, uint64_t shared_perm,
-                                           void *opaque,
-                                           Transaction *tran, Error **errp)
+static BdrvChild * GRAPH_WRLOCK
+bdrv_attach_child_common(BlockDriverState *child_bs,
+                         const char *child_name,
+                         const BdrvChildClass *child_class,
+                         BdrvChildRole child_role,
+                         uint64_t perm, uint64_t shared_perm,
+                         void *opaque,
+                         Transaction *tran, Error **errp)
 {
     BdrvChild *new_child;
     AioContext *parent_ctx, *new_child_ctx;
@@ -3088,10 +3089,8 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
      * a problem, we already did this), but it will still poll until the parent
      * is fully quiesced, so it will not be negatively affected either.
      */
-    bdrv_graph_wrlock(child_bs);
     bdrv_parent_drained_begin_single(new_child);
     bdrv_replace_child_noperm(new_child, child_bs);
-    bdrv_graph_wrunlock();
 
     BdrvAttachChildCommonState *s = g_new(BdrvAttachChildCommonState, 1);
     *s = (BdrvAttachChildCommonState) {
@@ -3116,13 +3115,14 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
  * @child_bs can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
  */
-static BdrvChild *bdrv_attach_child_noperm(BlockDriverState *parent_bs,
-                                           BlockDriverState *child_bs,
-                                           const char *child_name,
-                                           const BdrvChildClass *child_class,
-                                           BdrvChildRole child_role,
-                                           Transaction *tran,
-                                           Error **errp)
+static BdrvChild * GRAPH_WRLOCK
+bdrv_attach_child_noperm(BlockDriverState *parent_bs,
+                         BlockDriverState *child_bs,
+                         const char *child_name,
+                         const BdrvChildClass *child_class,
+                         BdrvChildRole child_role,
+                         Transaction *tran,
+                         Error **errp)
 {
     uint64_t perm, shared_perm;
 
@@ -3167,6 +3167,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
 
     GLOBAL_STATE_CODE();
 
+    bdrv_graph_wrlock(child_bs);
+
     child = bdrv_attach_child_common(child_bs, child_name, child_class,
                                    child_role, perm, shared_perm, opaque,
                                    tran, errp);
@@ -3178,6 +3180,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     ret = bdrv_refresh_perms(child_bs, tran, errp);
 
 out:
+    bdrv_graph_wrunlock();
     tran_finalize(tran, ret);
 
     bdrv_unref(child_bs);
@@ -3209,6 +3212,8 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
     GLOBAL_STATE_CODE();
 
+    bdrv_graph_wrlock(child_bs);
+
     child = bdrv_attach_child_noperm(parent_bs, child_bs, child_name,
                                      child_class, child_role, tran, errp);
     if (!child) {
@@ -3222,6 +3227,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     }
 
 out:
+    bdrv_graph_wrunlock();
     tran_finalize(tran, ret);
 
     bdrv_unref(child_bs);
@@ -3379,16 +3385,20 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
  * Sets the bs->backing or bs->file link of a BDS. A new reference is created;
  * callers which don't need their own reference any more must call bdrv_unref().
  *
+ * If the respective child is already present (i.e. we're detaching a node),
+ * that child node must be drained.
+ *
  * Function doesn't update permissions, caller is responsible for this.
  *
  * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
  * @child_bs can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
  */
-static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
-                                           BlockDriverState *child_bs,
-                                           bool is_backing,
-                                           Transaction *tran, Error **errp)
+static int GRAPH_WRLOCK
+bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
+                                BlockDriverState *child_bs,
+                                bool is_backing,
+                                Transaction *tran, Error **errp)
 {
     bool update_inherits_from =
         bdrv_inherits_from_recursive(child_bs, parent_bs);
@@ -3439,14 +3449,9 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
     }
 
     if (child) {
-        bdrv_drained_begin(child->bs);
-        bdrv_graph_wrlock(NULL);
-
+        assert(child->bs->quiesce_counter);
         bdrv_unset_inherits_from(parent_bs, child, tran);
         bdrv_remove_child(child, tran);
-
-        bdrv_graph_wrunlock();
-        bdrv_drained_end(child->bs);
     }
 
     if (!child_bs) {
@@ -3471,9 +3476,7 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
     }
 
 out:
-    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(parent_bs, tran, NULL);
-    bdrv_graph_rdunlock_main_loop();
 
     return 0;
 }
@@ -3482,10 +3485,14 @@ out:
  * The caller must hold the AioContext lock for @backing_hd. Both @bs and
  * @backing_hd can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
+ *
+ * If a backing child is already present (i.e. we're detaching a node), that
+ * child node must be drained.
  */
-static int bdrv_set_backing_noperm(BlockDriverState *bs,
-                                   BlockDriverState *backing_hd,
-                                   Transaction *tran, Error **errp)
+static int GRAPH_WRLOCK
+bdrv_set_backing_noperm(BlockDriverState *bs,
+                        BlockDriverState *backing_hd,
+                        Transaction *tran, Error **errp)
 {
     GLOBAL_STATE_CODE();
     return bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
@@ -3500,6 +3507,10 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
 
     GLOBAL_STATE_CODE();
     assert(bs->quiesce_counter > 0);
+    if (bs->backing) {
+        assert(bs->backing->bs->quiesce_counter > 0);
+    }
+    bdrv_graph_wrlock(backing_hd);
 
     ret = bdrv_set_backing_noperm(bs, backing_hd, tran, errp);
     if (ret < 0) {
@@ -3508,6 +3519,7 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
 
     ret = bdrv_refresh_perms(bs, tran, errp);
 out:
+    bdrv_graph_wrunlock();
     tran_finalize(tran, ret);
     return ret;
 }
@@ -3515,12 +3527,15 @@ out:
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp)
 {
+    BlockDriverState *drain_bs = bs->backing ? bs->backing->bs : bs;
     int ret;
     GLOBAL_STATE_CODE();
 
-    bdrv_drained_begin(bs);
+    bdrv_ref(drain_bs);
+    bdrv_drained_begin(drain_bs);
     ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
-    bdrv_drained_end(bs);
+    bdrv_drained_end(drain_bs);
+    bdrv_unref(drain_bs);
 
     return ret;
 }
@@ -4597,6 +4612,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 
 abort:
     tran_abort(tran);
+
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (bs_entry->prepared) {
             ctx = bdrv_get_aio_context(bs_entry->state.bs);
@@ -4746,6 +4762,11 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         reopen_state->old_file_bs = old_child_bs;
     }
 
+    if (old_child_bs) {
+        bdrv_ref(old_child_bs);
+        bdrv_drained_begin(old_child_bs);
+    }
+
     old_ctx = bdrv_get_aio_context(bs);
     ctx = bdrv_get_aio_context(new_child_bs);
     if (old_ctx != ctx) {
@@ -4753,12 +4774,21 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         aio_context_acquire(ctx);
     }
 
+    bdrv_graph_wrlock(new_child_bs);
+
     ret = bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
                                           tran, errp);
+
+    bdrv_graph_wrunlock();
 
     if (old_ctx != ctx) {
         aio_context_release(ctx);
         aio_context_acquire(old_ctx);
+    }
+
+    if (old_child_bs) {
+        bdrv_drained_end(old_child_bs);
+        bdrv_unref(old_child_bs);
     }
 
     return ret;
@@ -5403,13 +5433,28 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     BdrvChild *child;
     Transaction *tran = tran_new();
     AioContext *old_context, *new_context = NULL;
-    bool drained = false;
 
     GLOBAL_STATE_CODE();
 
     assert(!bs_new->backing);
 
     old_context = bdrv_get_aio_context(bs_top);
+    bdrv_drained_begin(bs_top);
+
+    /*
+     * bdrv_drained_begin() requires that only the AioContext of the drained
+     * node is locked, and at this point it can still differ from the AioContext
+     * of bs_top.
+     */
+    new_context = bdrv_get_aio_context(bs_new);
+    aio_context_release(old_context);
+    aio_context_acquire(new_context);
+    bdrv_drained_begin(bs_new);
+    aio_context_release(new_context);
+    aio_context_acquire(old_context);
+    new_context = NULL;
+
+    bdrv_graph_wrlock(bs_top);
 
     child = bdrv_attach_child_noperm(bs_new, bs_top, "backing",
                                      &child_of_bds, bdrv_backing_role(bs_new),
@@ -5420,10 +5465,9 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     }
 
     /*
-     * bdrv_attach_child_noperm could change the AioContext of bs_top.
-     * bdrv_replace_node_noperm calls bdrv_drained_begin, so let's temporarily
-     * hold the new AioContext, since bdrv_drained_begin calls BDRV_POLL_WHILE
-     * that assumes the new lock is taken.
+     * bdrv_attach_child_noperm could change the AioContext of bs_top and
+     * bs_new, but at least they are in the same AioContext now. This is the
+     * AioContext that we need to lock for the rest of the function.
      */
     new_context = bdrv_get_aio_context(bs_top);
 
@@ -5432,29 +5476,22 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
         aio_context_acquire(new_context);
     }
 
-    bdrv_drained_begin(bs_new);
-    bdrv_drained_begin(bs_top);
-    drained = true;
-
-    bdrv_graph_wrlock(bs_new);
     ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
-    bdrv_graph_wrunlock();
     if (ret < 0) {
         goto out;
     }
 
     ret = bdrv_refresh_perms(bs_new, tran, errp);
 out:
+    bdrv_graph_wrunlock();
     tran_finalize(tran, ret);
 
     bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs_top, NULL, NULL);
     bdrv_graph_rdunlock_main_loop();
 
-    if (drained) {
-        bdrv_drained_end(bs_top);
-        bdrv_drained_end(bs_new);
-    }
+    bdrv_drained_end(bs_top);
+    bdrv_drained_end(bs_new);
 
     if (new_context && old_context != new_context) {
         aio_context_release(new_context);
