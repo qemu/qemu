@@ -5938,9 +5938,11 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         backing_file_str = base->filename;
     }
 
+    bdrv_graph_rdlock_main_loop();
     QLIST_FOREACH(c, &top->parents, next_parent) {
         updated_children = g_slist_prepend(updated_children, c);
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /*
      * It seems correct to pass detach_subchain=true here, but it triggers
