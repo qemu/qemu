@@ -56,7 +56,19 @@ VMChangeStateEntry *qdev_add_vm_change_state_handler(DeviceState *dev,
                                                      VMChangeStateHandler *cb,
                                                      void *opaque)
 {
+    return qdev_add_vm_change_state_handler_full(dev, cb, NULL, opaque);
+}
+
+/*
+ * Exactly like qdev_add_vm_change_state_handler() but passes a prepare_cb
+ * argument too.
+ */
+VMChangeStateEntry *qdev_add_vm_change_state_handler_full(
+    DeviceState *dev, VMChangeStateHandler *cb,
+    VMChangeStateHandler *prepare_cb, void *opaque)
+{
     int depth = qdev_get_dev_tree_depth(dev);
 
-    return qemu_add_vm_change_state_handler_prio(cb, opaque, depth);
+    return qemu_add_vm_change_state_handler_prio_full(cb, prepare_cb, opaque,
+                                                      depth);
 }

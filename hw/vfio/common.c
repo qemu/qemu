@@ -27,6 +27,7 @@
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/vfio/vfio.h"
+#include "hw/vfio/pci.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
@@ -363,41 +364,54 @@ bool vfio_mig_active(void)
 
 static Error *multiple_devices_migration_blocker;
 
-static unsigned int vfio_migratable_device_num(void)
+/*
+ * Multiple devices migration is allowed only if all devices support P2P
+ * migration. Single device migration is allowed regardless of P2P migration
+ * support.
+ */
+static bool vfio_multiple_devices_migration_is_supported(void)
 {
     VFIOGroup *group;
     VFIODevice *vbasedev;
     unsigned int device_num = 0;
+    bool all_support_p2p = true;
 
     QLIST_FOREACH(group, &vfio_group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->migration) {
                 device_num++;
+
+                if (!(vbasedev->migration->mig_flags & VFIO_MIGRATION_P2P)) {
+                    all_support_p2p = false;
+                }
             }
         }
     }
 
-    return device_num;
+    return all_support_p2p || device_num <= 1;
 }
 
 int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
 {
     int ret;
 
-    if (multiple_devices_migration_blocker ||
-        vfio_migratable_device_num() <= 1) {
+    if (vfio_multiple_devices_migration_is_supported()) {
         return 0;
     }
 
     if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
-        error_setg(errp, "Migration is currently not supported with multiple "
-                         "VFIO devices");
+        error_setg(errp, "Multiple VFIO devices migration is supported only if "
+                         "all of them support P2P migration");
         return -EINVAL;
     }
 
+    if (multiple_devices_migration_blocker) {
+        return 0;
+    }
+
     error_setg(&multiple_devices_migration_blocker,
-               "Migration is currently not supported with multiple "
-               "VFIO devices");
+               "Multiple VFIO devices migration is supported only if all of "
+               "them support P2P migration");
     ret = migrate_add_blocker(multiple_devices_migration_blocker, errp);
     if (ret < 0) {
         error_free(multiple_devices_migration_blocker);
@@ -410,7 +424,7 @@ int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
 void vfio_unblock_multiple_devices_migration(void)
 {
     if (!multiple_devices_migration_blocker ||
-        vfio_migratable_device_num() > 1) {
+        !vfio_multiple_devices_migration_is_supported()) {
         return;
     }
 
@@ -437,6 +451,22 @@ static void vfio_set_migration_error(int err)
     }
 }
 
+bool vfio_device_state_is_running(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    return migration->device_state == VFIO_DEVICE_STATE_RUNNING ||
+           migration->device_state == VFIO_DEVICE_STATE_RUNNING_P2P;
+}
+
+bool vfio_device_state_is_precopy(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    return migration->device_state == VFIO_DEVICE_STATE_PRE_COPY ||
+           migration->device_state == VFIO_DEVICE_STATE_PRE_COPY_P2P;
+}
+
 static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
 {
     VFIOGroup *group;
@@ -457,8 +487,8 @@ static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
             }
 
             if (vbasedev->pre_copy_dirty_page_tracking == ON_OFF_AUTO_OFF &&
-                (migration->device_state == VFIO_DEVICE_STATE_RUNNING ||
-                 migration->device_state == VFIO_DEVICE_STATE_PRE_COPY)) {
+                (vfio_device_state_is_running(vbasedev) ||
+                 vfio_device_state_is_precopy(vbasedev))) {
                 return false;
             }
         }
@@ -503,8 +533,8 @@ static bool vfio_devices_all_running_and_mig_active(VFIOContainer *container)
                 return false;
             }
 
-            if (migration->device_state == VFIO_DEVICE_STATE_RUNNING ||
-                migration->device_state == VFIO_DEVICE_STATE_PRE_COPY) {
+            if (vfio_device_state_is_running(vbasedev) ||
+                vfio_device_state_is_precopy(vbasedev)) {
                 continue;
             } else {
                 return false;
@@ -1371,6 +1401,8 @@ typedef struct VFIODirtyRanges {
     hwaddr max32;
     hwaddr min64;
     hwaddr max64;
+    hwaddr minpci64;
+    hwaddr maxpci64;
 } VFIODirtyRanges;
 
 typedef struct VFIODirtyRangesListener {
@@ -1378,6 +1410,31 @@ typedef struct VFIODirtyRangesListener {
     VFIODirtyRanges ranges;
     MemoryListener listener;
 } VFIODirtyRangesListener;
+
+static bool vfio_section_is_vfio_pci(MemoryRegionSection *section,
+                                     VFIOContainer *container)
+{
+    VFIOPCIDevice *pcidev;
+    VFIODevice *vbasedev;
+    VFIOGroup *group;
+    Object *owner;
+
+    owner = memory_region_owner(section->mr);
+
+    QLIST_FOREACH(group, &container->group_list, container_next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
+                continue;
+            }
+            pcidev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+            if (OBJECT(pcidev) == owner) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 static void vfio_dirty_tracking_update(MemoryListener *listener,
                                        MemoryRegionSection *section)
@@ -1395,19 +1452,32 @@ static void vfio_dirty_tracking_update(MemoryListener *listener,
     }
 
     /*
-     * The address space passed to the dirty tracker is reduced to two ranges:
-     * one for 32-bit DMA ranges, and another one for 64-bit DMA ranges.
+     * The address space passed to the dirty tracker is reduced to three ranges:
+     * one for 32-bit DMA ranges, one for 64-bit DMA ranges and one for the
+     * PCI 64-bit hole.
+     *
      * The underlying reports of dirty will query a sub-interval of each of
      * these ranges.
      *
-     * The purpose of the dual range handling is to handle known cases of big
-     * holes in the address space, like the x86 AMD 1T hole. The alternative
-     * would be an IOVATree but that has a much bigger runtime overhead and
-     * unnecessary complexity.
+     * The purpose of the three range handling is to handle known cases of big
+     * holes in the address space, like the x86 AMD 1T hole, and firmware (like
+     * OVMF) which may relocate the pci-hole64 to the end of the address space.
+     * The latter would otherwise generate large ranges for tracking, stressing
+     * the limits of supported hardware. The pci-hole32 will always be below 4G
+     * (overlapping or not) so it doesn't need special handling and is part of
+     * the 32-bit range.
+     *
+     * The alternative would be an IOVATree but that has a much bigger runtime
+     * overhead and unnecessary complexity.
      */
-    min = (end <= UINT32_MAX) ? &range->min32 : &range->min64;
-    max = (end <= UINT32_MAX) ? &range->max32 : &range->max64;
-
+    if (vfio_section_is_vfio_pci(section, dirty->container) &&
+        iova >= UINT32_MAX) {
+        min = &range->minpci64;
+        max = &range->maxpci64;
+    } else {
+        min = (end <= UINT32_MAX) ? &range->min32 : &range->min64;
+        max = (end <= UINT32_MAX) ? &range->max32 : &range->max64;
+    }
     if (*min > iova) {
         *min = iova;
     }
@@ -1432,6 +1502,7 @@ static void vfio_dirty_tracking_init(VFIOContainer *container,
     memset(&dirty, 0, sizeof(dirty));
     dirty.ranges.min32 = UINT32_MAX;
     dirty.ranges.min64 = UINT64_MAX;
+    dirty.ranges.minpci64 = UINT64_MAX;
     dirty.listener = vfio_dirty_tracking_listener;
     dirty.container = container;
 
@@ -1502,7 +1573,8 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
      * DMA logging uAPI guarantees to support at least a number of ranges that
      * fits into a single host kernel base page.
      */
-    control->num_ranges = !!tracking->max32 + !!tracking->max64;
+    control->num_ranges = !!tracking->max32 + !!tracking->max64 +
+        !!tracking->maxpci64;
     ranges = g_try_new0(struct vfio_device_feature_dma_logging_range,
                         control->num_ranges);
     if (!ranges) {
@@ -1521,11 +1593,17 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
     if (tracking->max64) {
         ranges->iova = tracking->min64;
         ranges->length = (tracking->max64 - tracking->min64) + 1;
+        ranges++;
+    }
+    if (tracking->maxpci64) {
+        ranges->iova = tracking->minpci64;
+        ranges->length = (tracking->maxpci64 - tracking->minpci64) + 1;
     }
 
     trace_vfio_device_dirty_tracking_start(control->num_ranges,
                                            tracking->min32, tracking->max32,
-                                           tracking->min64, tracking->max64);
+                                           tracking->min64, tracking->max64,
+                                           tracking->minpci64, tracking->maxpci64);
 
     return feature;
 }

@@ -472,7 +472,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in);
 bool migration_is_setup_or_active(int state);
 bool migration_is_running(int state);
 
-void migrate_init(MigrationState *s);
+int migrate_init(MigrationState *s, Error **errp);
 bool migration_is_blocked(Error **errp);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(void);
@@ -512,8 +512,8 @@ void migration_consume_urgent_request(void);
 bool migration_rate_limit(void);
 void migration_cancel(const Error *error);
 
-void populate_vfio_info(MigrationInfo *info);
-void reset_vfio_bytes_transferred(void);
+void migration_populate_vfio_info(MigrationInfo *info);
+void migration_reset_vfio_bytes_transferred(void);
 void postcopy_temp_page_reset(PostcopyTmpPage *tmp_page);
 
 #endif

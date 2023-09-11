@@ -1039,7 +1039,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         populate_time_info(info, s);
         populate_ram_info(info, s);
         populate_disk_info(info);
-        populate_vfio_info(info);
+        migration_populate_vfio_info(info);
         break;
     case MIGRATION_STATUS_COLO:
         info->has_status = true;
@@ -1048,7 +1048,7 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_COMPLETED:
         populate_time_info(info, s);
         populate_ram_info(info, s);
-        populate_vfio_info(info);
+        migration_populate_vfio_info(info);
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;
@@ -1392,8 +1392,15 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
-void migrate_init(MigrationState *s)
+int migrate_init(MigrationState *s, Error **errp)
 {
+    int ret;
+
+    ret = qemu_savevm_state_prepare(errp);
+    if (ret) {
+        return ret;
+    }
+
     /*
      * Reinitialise all migration state, except
      * parameters/capabilities that the user set, and
@@ -1425,6 +1432,15 @@ void migrate_init(MigrationState *s)
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
     s->switchover_acked = false;
+    /*
+     * set mig_stats compression_counters memory to zero for a
+     * new migration
+     */
+    memset(&mig_stats, 0, sizeof(mig_stats));
+    memset(&compression_counters, 0, sizeof(compression_counters));
+    migration_reset_vfio_bytes_transferred();
+
+    return 0;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -1634,14 +1650,9 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         migrate_set_block_incremental(true);
     }
 
-    migrate_init(s);
-    /*
-     * set mig_stats compression_counters memory to zero for a
-     * new migration
-     */
-    memset(&mig_stats, 0, sizeof(mig_stats));
-    memset(&compression_counters, 0, sizeof(compression_counters));
-    reset_vfio_bytes_transferred();
+    if (migrate_init(s, errp)) {
+        return false;
+    }
 
     return true;
 }

@@ -1233,6 +1233,30 @@ bool qemu_savevm_state_guest_unplug_pending(void)
     return false;
 }
 
+int qemu_savevm_state_prepare(Error **errp)
+{
+    SaveStateEntry *se;
+    int ret;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->save_prepare) {
+            continue;
+        }
+        if (se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+
+        ret = se->ops->save_prepare(se->opaque, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 void qemu_savevm_state_setup(QEMUFile *f)
 {
     MigrationState *ms = migrate_get_current();
@@ -1619,10 +1643,10 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         return -EINVAL;
     }
 
-    migrate_init(ms);
-    memset(&mig_stats, 0, sizeof(mig_stats));
-    memset(&compression_counters, 0, sizeof(compression_counters));
-    reset_vfio_bytes_transferred();
+    ret = migrate_init(ms, errp);
+    if (ret) {
+        return ret;
+    }
     ms->to_dst_file = f;
 
     qemu_mutex_unlock_iothread();
