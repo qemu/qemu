@@ -2115,7 +2115,6 @@ static int bdrv_fill_options(QDict **options, const char *filename,
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
-     bool perms_checked;
      BDRVReopenState state;
      QTAILQ_ENTRY(BlockReopenQueueEntry) entry;
 } BlockReopenQueueEntry;
