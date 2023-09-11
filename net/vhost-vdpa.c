@@ -1425,7 +1425,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     VhostVDPAState *s;
     int ret = 0;
     assert(name);
-    int cvq_isolated;
+    int cvq_isolated = 0;
 
     if (is_datapath) {
         nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device,
