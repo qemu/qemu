@@ -140,8 +140,10 @@ static void test_update_perm_tree(void)
     bdrv_attach_child(filter, bs, "child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
 
+    aio_context_acquire(qemu_get_aio_context());
     ret = bdrv_append(filter, bs, NULL);
     g_assert_cmpint(ret, <, 0);
+    aio_context_release(qemu_get_aio_context());
 
     bdrv_unref(filter);
     blk_unref(root);
@@ -205,7 +207,9 @@ static void test_should_update_child(void)
     g_assert(target->backing->bs == bs);
     bdrv_attach_child(filter, target, "target", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
+    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(filter, bs, &error_abort);
+    aio_context_release(qemu_get_aio_context());
     g_assert(target->backing->bs == bs);
 
     bdrv_unref(filter);
@@ -410,7 +414,9 @@ static void test_append_greedy_filter(void)
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                       &error_abort);
 
+    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(fl, base, &error_abort);
+    aio_context_release(qemu_get_aio_context());
     bdrv_unref(fl);
     bdrv_unref(top);
 }

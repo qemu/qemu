@@ -756,11 +756,14 @@ static void test_propagate_mirror(void)
                                   &error_abort);
 
     /* Start a mirror job */
+    aio_context_acquire(main_ctx);
     mirror_start("job0", src, target, NULL, JOB_DEFAULT, 0, 0, 0,
                  MIRROR_SYNC_MODE_NONE, MIRROR_OPEN_BACKING_CHAIN, false,
                  BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
                  false, "filter_node", MIRROR_COPY_MODE_BACKGROUND,
                  &error_abort);
+    aio_context_release(main_ctx);
+
     WITH_JOB_LOCK_GUARD() {
         job = job_get_locked("job0");
     }
