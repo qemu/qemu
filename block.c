@@ -2228,11 +2228,12 @@ bdrv_parent_perms_conflict(BlockDriverState *bs, Error **errp)
     return false;
 }
 
-static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
-                            BdrvChild *c, BdrvChildRole role,
-                            BlockReopenQueue *reopen_queue,
-                            uint64_t parent_perm, uint64_t parent_shared,
-                            uint64_t *nperm, uint64_t *nshared)
+static void GRAPH_RDLOCK
+bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
+                BdrvChild *c, BdrvChildRole role,
+                BlockReopenQueue *reopen_queue,
+                uint64_t parent_perm, uint64_t parent_shared,
+                uint64_t *nperm, uint64_t *nshared)
 {
     assert(bs->drv && bs->drv->bdrv_child_perm);
     GLOBAL_STATE_CODE();
