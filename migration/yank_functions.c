@@ -8,12 +8,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "io/channel.h"
 #include "yank_functions.h"
 #include "qemu/yank.h"
-#include "io/channel-socket.h"
-#include "io/channel-tls.h"
 #include "qemu-file.h"
 
 void migration_yank_iochannel(void *opaque)
@@ -26,8 +23,7 @@ void migration_yank_iochannel(void *opaque)
 /* Return whether yank is supported on this ioc */
 static bool migration_ioc_yank_supported(QIOChannel *ioc)
 {
-    return object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET) ||
-        object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_TLS);
+    return qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
 }
 
 void migration_ioc_register_yank(QIOChannel *ioc)
