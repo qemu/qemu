@@ -1352,6 +1352,30 @@ void spr_read_dexcr_ureg(DisasContext *ctx, int gprn, int sprn)
     gen_load_spr(t0, sprn + 16);
     tcg_gen_ext32u_tl(cpu_gpr[gprn], t0);
 }
+
+/* The PPR32 SPR accesses the upper 32-bits of PPR */
+void spr_read_ppr32(DisasContext *ctx, int gprn, int sprn)
+{
+    gen_load_spr(cpu_gpr[gprn], SPR_PPR);
+    tcg_gen_shri_tl(cpu_gpr[gprn], cpu_gpr[gprn], 32);
+    spr_load_dump_spr(SPR_PPR);
+}
+
+void spr_write_ppr32(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+
+    /*
+     * Don't clobber the low 32-bits of the PPR. These are all reserved bits
+     * but TCG does implement them, so it would be surprising to zero them
+     * here. "Priority nops" are similarly careful not to clobber reserved
+     * bits.
+     */
+    gen_load_spr(t0, SPR_PPR);
+    tcg_gen_deposit_tl(t0, t0, cpu_gpr[gprn], 32, 32);
+    gen_store_spr(SPR_PPR, t0);
+    spr_store_dump_spr(SPR_PPR);
+}
 #endif
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
