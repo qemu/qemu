@@ -94,7 +94,8 @@ static bool bdrv_recurse_has_child(BlockDriverState *bs,
 static void GRAPH_WRLOCK
 bdrv_replace_child_noperm(BdrvChild *child, BlockDriverState *new_bs);
 
-static void bdrv_remove_child(BdrvChild *child, Transaction *tran);
+static void GRAPH_WRLOCK
+bdrv_remove_child(BdrvChild *child, Transaction *tran);
 
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
@@ -2427,8 +2428,9 @@ static TransactionActionDrv bdrv_replace_child_drv = {
  *
  * The function doesn't update permissions, caller is responsible for this.
  */
-static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
-                                    Transaction *tran)
+static void GRAPH_WRLOCK
+bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
+                        Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
 
@@ -2445,9 +2447,7 @@ static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
         bdrv_ref(new_bs);
     }
 
-    bdrv_graph_wrlock(new_bs);
     bdrv_replace_child_noperm(child, new_bs);
-    bdrv_graph_wrunlock();
     /* old_bs reference is transparently moved from @child to @s */
 }
 
@@ -3439,8 +3439,14 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
     }
 
     if (child) {
+        bdrv_drained_begin(child->bs);
+        bdrv_graph_wrlock(NULL);
+
         bdrv_unset_inherits_from(parent_bs, child, tran);
         bdrv_remove_child(child, tran);
+
+        bdrv_graph_wrunlock();
+        bdrv_drained_end(child->bs);
     }
 
     if (!child_bs) {
@@ -5133,7 +5139,7 @@ void bdrv_close_all(void)
     assert(QTAILQ_EMPTY(&all_bdrv_states));
 }
 
-static bool should_update_child(BdrvChild *c, BlockDriverState *to)
+static bool GRAPH_RDLOCK should_update_child(BdrvChild *c, BlockDriverState *to)
 {
     GQueue *queue;
     GHashTable *found;
@@ -5222,45 +5228,41 @@ static TransactionActionDrv bdrv_remove_child_drv = {
     .commit = bdrv_remove_child_commit,
 };
 
-/* Function doesn't update permissions, caller is responsible for this. */
-static void bdrv_remove_child(BdrvChild *child, Transaction *tran)
+/*
+ * Function doesn't update permissions, caller is responsible for this.
+ *
+ * @child->bs (if non-NULL) must be drained.
+ */
+static void GRAPH_WRLOCK bdrv_remove_child(BdrvChild *child, Transaction *tran)
 {
     if (!child) {
         return;
     }
 
     if (child->bs) {
-        BlockDriverState *bs = child->bs;
-        bdrv_drained_begin(bs);
+        assert(child->quiesced_parent);
         bdrv_replace_child_tran(child, NULL, tran);
-        bdrv_drained_end(bs);
     }
 
     tran_add(tran, &bdrv_remove_child_drv, child);
 }
 
-static void undrain_on_clean_cb(void *opaque)
-{
-    bdrv_drained_end(opaque);
-}
-
-static TransactionActionDrv undrain_on_clean = {
-    .clean = undrain_on_clean_cb,
-};
-
-static int bdrv_replace_node_noperm(BlockDriverState *from,
-                                    BlockDriverState *to,
-                                    bool auto_skip, Transaction *tran,
-                                    Error **errp)
+/*
+ * Both @from and @to (if non-NULL) must be drained. @to must be kept drained
+ * until the transaction is completed.
+ */
+static int GRAPH_WRLOCK
+bdrv_replace_node_noperm(BlockDriverState *from,
+                         BlockDriverState *to,
+                         bool auto_skip, Transaction *tran,
+                         Error **errp)
 {
     BdrvChild *c, *next;
 
     GLOBAL_STATE_CODE();
 
-    bdrv_drained_begin(from);
-    bdrv_drained_begin(to);
-    tran_add(tran, &undrain_on_clean, from);
-    tran_add(tran, &undrain_on_clean, to);
+    assert(from->quiesce_counter);
+    assert(to->quiesce_counter);
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->bs == from);
@@ -5323,6 +5325,9 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
     assert(bdrv_get_aio_context(from) == bdrv_get_aio_context(to));
     bdrv_drained_begin(from);
+    bdrv_drained_begin(to);
+
+    bdrv_graph_wrlock(to);
 
     /*
      * Do the replacement without permission update.
@@ -5336,6 +5341,7 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     }
 
     if (detach_subchain) {
+        /* to_cow_parent is already drained because from is drained */
         bdrv_remove_child(bdrv_filter_or_cow_child(to_cow_parent), tran);
     }
 
@@ -5350,8 +5356,10 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     ret = 0;
 
 out:
+    bdrv_graph_wrunlock();
     tran_finalize(tran, ret);
 
+    bdrv_drained_end(to);
     bdrv_drained_end(from);
     bdrv_unref(from);
 
@@ -5395,6 +5403,7 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     BdrvChild *child;
     Transaction *tran = tran_new();
     AioContext *old_context, *new_context = NULL;
+    bool drained = false;
 
     GLOBAL_STATE_CODE();
 
@@ -5423,7 +5432,13 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
         aio_context_acquire(new_context);
     }
 
+    bdrv_drained_begin(bs_new);
+    bdrv_drained_begin(bs_top);
+    drained = true;
+
+    bdrv_graph_wrlock(bs_new);
     ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
+    bdrv_graph_wrunlock();
     if (ret < 0) {
         goto out;
     }
@@ -5435,6 +5450,11 @@ out:
     bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs_top, NULL, NULL);
     bdrv_graph_rdunlock_main_loop();
+
+    if (drained) {
+        bdrv_drained_end(bs_top);
+        bdrv_drained_end(bs_new);
+    }
 
     if (new_context && old_context != new_context) {
         aio_context_release(new_context);
@@ -5458,6 +5478,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     bdrv_ref(old_bs);
     bdrv_drained_begin(old_bs);
     bdrv_drained_begin(new_bs);
+    bdrv_graph_wrlock(new_bs);
 
     bdrv_replace_child_tran(child, new_bs, tran);
 
@@ -5465,6 +5486,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     refresh_list = g_slist_prepend(refresh_list, new_bs);
 
     ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+    bdrv_graph_wrunlock();
 
     tran_finalize(tran, ret);
 
