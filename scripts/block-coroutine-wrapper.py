@@ -71,10 +71,13 @@ class FuncDecl:
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
         self.create_only_co = 'mixed' not in variant
         self.graph_rdlock = 'bdrv_rdlock' in variant
+        self.graph_wrlock = 'bdrv_wrlock' in variant
 
         self.wrapper_type = wrapper_type
 
         if wrapper_type == 'co':
+            if self.graph_wrlock:
+                raise ValueError(f"co function can't be wrlock: {self.name}")
             subsystem, subname = self.name.split('_', 1)
             self.target_name = f'{subsystem}_co_{subname}'
         else:
@@ -250,6 +253,12 @@ def gen_no_co_wrapper(func: FuncDecl) -> str:
     name = func.target_name
     struct_name = func.struct_name
 
+    graph_lock=''
+    graph_unlock=''
+    if func.graph_wrlock:
+        graph_lock='    bdrv_graph_wrlock(NULL);'
+        graph_unlock='    bdrv_graph_wrunlock();'
+
     return f"""\
 /*
  * Wrappers for {name}
@@ -266,9 +275,11 @@ static void {name}_bh(void *opaque)
     {struct_name} *s = opaque;
     AioContext *ctx = {func.gen_ctx('s->')};
 
+{graph_lock}
     aio_context_acquire(ctx);
     {func.get_result}{name}({ func.gen_list('s->{name}') });
     aio_context_release(ctx);
+{graph_unlock}
 
     aio_co_wake(s->co);
 }}
