@@ -105,12 +105,13 @@ class FuncDecl:
 
     def gen_ctx(self, prefix: str = '') -> str:
         t = self.args[0].type
+        name = self.args[0].name
         if t == 'BlockDriverState *':
-            return f'bdrv_get_aio_context({prefix}bs)'
+            return f'bdrv_get_aio_context({prefix}{name})'
         elif t == 'BdrvChild *':
-            return f'bdrv_get_aio_context({prefix}child->bs)'
+            return f'bdrv_get_aio_context({prefix}{name}->bs)'
         elif t == 'BlockBackend *':
-            return f'blk_get_aio_context({prefix}blk)'
+            return f'blk_get_aio_context({prefix}{name})'
         else:
             return 'qemu_get_aio_context()'
 
