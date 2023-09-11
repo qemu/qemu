@@ -672,10 +672,13 @@ static void replication_done(void *opaque, int ret)
     if (ret == 0) {
         s->stage = BLOCK_REPLICATION_DONE;
 
+        bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, s->secondary_disk);
         s->secondary_disk = NULL;
         bdrv_unref_child(bs, s->hidden_disk);
         s->hidden_disk = NULL;
+        bdrv_graph_wrunlock();
+
         s->error = 0;
     } else {
         s->stage = BLOCK_REPLICATION_FAILOVER_FAILED;

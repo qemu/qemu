@@ -967,9 +967,12 @@ typedef struct BDRVTestTopState {
 static void bdrv_test_top_close(BlockDriverState *bs)
 {
     BdrvChild *c, *next_c;
+
+    bdrv_graph_wrlock(NULL);
     QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
         bdrv_unref_child(bs, c);
     }
+    bdrv_graph_wrunlock();
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1024,7 +1027,7 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     } else {
         BdrvChild *c, *next_c;
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
-            bdrv_unref_child(bs, c);
+            bdrv_co_unref_child(bs, c);
         }
     }
 
@@ -1162,10 +1165,11 @@ static void detach_indirect_bh(void *opaque)
     struct detach_by_parent_data *data = opaque;
 
     bdrv_dec_in_flight(data->child_b->bs);
+
+    bdrv_graph_wrlock(NULL);
     bdrv_unref_child(data->parent_b, data->child_b);
 
     bdrv_ref(data->c);
-    bdrv_graph_wrlock(NULL);
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
                                       &child_of_bds, BDRV_CHILD_DATA,
                                       &error_abort);

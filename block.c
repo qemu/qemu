@@ -1701,7 +1701,9 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
 open_failed:
     bs->drv = NULL;
     if (bs->file != NULL) {
+        bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, bs->file);
+        bdrv_graph_wrunlock();
         assert(!bs->file);
     }
     g_free(bs->opaque);
@@ -3331,8 +3333,9 @@ static void bdrv_set_inherits_from(BlockDriverState *bs,
  * @root that point to @root, where necessary.
  * @tran is allowed to be NULL. In this case no rollback is possible
  */
-static void bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child,
-                                     Transaction *tran)
+static void GRAPH_WRLOCK
+bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child,
+                         Transaction *tran)
 {
     BdrvChild *c;
 
@@ -3364,10 +3367,8 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
         return;
     }
 
-    bdrv_graph_wrlock(NULL);
     bdrv_unset_inherits_from(parent, child, NULL);
     bdrv_root_unref_child(child);
-    bdrv_graph_wrunlock();
 }
 
 
@@ -5164,9 +5165,11 @@ static void bdrv_close(BlockDriverState *bs)
         bs->drv = NULL;
     }
 
+    bdrv_graph_wrlock(NULL);
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_unref_child(bs, child);
     }
+    bdrv_graph_wrunlock();
 
     assert(!bs->backing);
     assert(!bs->file);

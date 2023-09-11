@@ -1880,7 +1880,7 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     g_free(s->image_data_file);
     if (open_data_file && has_data_file(bs)) {
         bdrv_graph_co_rdunlock();
-        bdrv_unref_child(bs, s->data_file);
+        bdrv_co_unref_child(bs, s->data_file);
         bdrv_graph_co_rdlock();
         s->data_file = NULL;
     }
@@ -2790,7 +2790,9 @@ static void qcow2_do_close(BlockDriverState *bs, bool close_data_file)
     g_free(s->image_backing_format);
 
     if (close_data_file && has_data_file(bs)) {
+        bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, s->data_file);
+        bdrv_graph_wrunlock();
         s->data_file = NULL;
     }
 
