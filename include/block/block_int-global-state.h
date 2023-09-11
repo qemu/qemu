@@ -202,7 +202,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   BdrvChildRole child_role,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp);
-void bdrv_root_unref_child(BdrvChild *child);
+void GRAPH_WRLOCK bdrv_root_unref_child(BdrvChild *child);
 
 void GRAPH_RDLOCK bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
                                            uint64_t *shared_perm);

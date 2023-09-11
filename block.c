@@ -3268,7 +3268,6 @@ void bdrv_root_unref_child(BdrvChild *child)
     BlockDriverState *child_bs = child->bs;
 
     GLOBAL_STATE_CODE();
-    bdrv_graph_wrlock(NULL);
     bdrv_replace_child_noperm(child, NULL);
     bdrv_child_free(child);
 
@@ -3288,8 +3287,7 @@ void bdrv_root_unref_child(BdrvChild *child)
                                     NULL);
     }
 
-    bdrv_graph_wrunlock();
-    bdrv_unref(child_bs);
+    bdrv_schedule_unref(child_bs);
 }
 
 typedef struct BdrvSetInheritsFrom {
@@ -3366,8 +3364,10 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
         return;
     }
 
+    bdrv_graph_wrlock(NULL);
     bdrv_unset_inherits_from(parent, child, NULL);
     bdrv_root_unref_child(child);
+    bdrv_graph_wrunlock();
 }
 
 

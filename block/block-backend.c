@@ -915,7 +915,10 @@ void blk_remove_bs(BlockBackend *blk)
     blk_drain(blk);
     root = blk->root;
     blk->root = NULL;
+
+    bdrv_graph_wrlock(NULL);
     bdrv_root_unref_child(root);
+    bdrv_graph_wrunlock();
 }
 
 /*
