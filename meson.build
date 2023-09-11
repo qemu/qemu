@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.63.0',
+project('qemu', ['c', 'cpp'], meson_version: '>=0.63.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -19,7 +19,8 @@ sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 
 cc = meson.get_compiler('c')
-all_languages = ['c']
+cxx = meson.get_compiler('cpp')
+all_languages = ['c', 'cpp']
 if targetos == 'windows' and add_languages('cpp', required: false, native: false)
   all_languages += ['cpp']
   cxx = meson.get_compiler('cpp')

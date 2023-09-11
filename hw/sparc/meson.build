@@ -1,6 +1,8 @@
 sparc_ss = ss.source_set()
 sparc_ss.add(when: 'CONFIG_LEON3', if_true: files('leon3.c'))
 sparc_ss.add(when: 'CONFIG_LEON3', if_true: files('ssr_fpga.h'))
+sparc_ss.add(when: 'CONFIG_LEON3', if_true: files('ssr_fpga.c'))
+sparc_ss.add(when: 'CONFIG_LEON3', if_true: files('qemu_ssr_fpga_cpu_interface.cpp'))
 sparc_ss.add(when: 'CONFIG_SUN4M', if_true: files('sun4m.c'))
 sparc_ss.add(when: 'CONFIG_SUN4M', if_true: files('sun4m_iommu.c'))
 
