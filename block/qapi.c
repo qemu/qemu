@@ -48,7 +48,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
 {
     ImageInfo **p_image_info;
     ImageInfo *backing_info;
-    BlockDriverState *bs0, *backing;
+    BlockDriverState *backing;
     BlockDeviceInfo *info;
     ERRP_GUARD();
 
@@ -145,7 +145,6 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
 
     info->write_threshold = bdrv_write_threshold_get(bs);
 
-    bs0 = bs;
     p_image_info = &info->image;
     info->backing_file_depth = 0;
 
@@ -153,7 +152,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
      * Skip automatically inserted nodes that the user isn't aware of for
      * query-block (blk != NULL), but not for query-named-block-nodes
      */
-    bdrv_query_image_info(bs0, p_image_info, flat, blk != NULL, errp);
+    bdrv_query_image_info(bs, p_image_info, flat, blk != NULL, errp);
     if (*errp) {
         qapi_free_BlockDeviceInfo(info);
         return NULL;
@@ -307,33 +306,6 @@ static void bdrv_do_query_node_info(BlockDriverState *bs,
 
 out:
     aio_context_release(bdrv_get_aio_context(bs));
-}
-
-/**
- * bdrv_query_block_node_info:
- * @bs: block node to examine
- * @p_info: location to store node information
- * @errp: location to store error information
- *
- * Store image information about @bs in @p_info.
- *
- * @p_info will be set only on success. On error, store error in @errp.
- */
-void bdrv_query_block_node_info(BlockDriverState *bs,
-                                BlockNodeInfo **p_info,
-                                Error **errp)
-{
-    BlockNodeInfo *info;
-    ERRP_GUARD();
-
-    info = g_new0(BlockNodeInfo, 1);
-    bdrv_do_query_node_info(bs, info, errp);
-    if (*errp) {
-        qapi_free_BlockNodeInfo(info);
-        return;
-    }
-
-    *p_info = info;
 }
 
 /**

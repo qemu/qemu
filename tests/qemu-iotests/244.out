@@ -41,7 +41,7 @@ write failed: Operation not supported
 No errors were found on the image.
 
 Take an internal snapshot:
-qemu-img: Could not create snapshot 'test': -95 (Operation not supported)
+qemu-img: Could not create snapshot 'test': Operation not supported
 No errors were found on the image.
 
 === Standalone image with external data file (efficient) ===

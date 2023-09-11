@@ -503,7 +503,7 @@ static void cbw_close(BlockDriverState *bs)
     s->bcs = NULL;
 }
 
-BlockDriver bdrv_cbw_filter = {
+static BlockDriver bdrv_cbw_filter = {
     .format_name = "copy-before-write",
     .instance_size = sizeof(BDRVCopyBeforeWriteState),
 

@@ -354,6 +354,8 @@ wait_for_job_and_quit() {
     QEMU_EVENTS= # Ignore all JOB_STATUS_CHANGE events that came before SHUTDOWN
     _wait_event $h 'JOB_STATUS_CHANGE' # standby
     _wait_event $h 'JOB_STATUS_CHANGE' # ready
+    _wait_event $h 'JOB_STATUS_CHANGE' # standby
+    _wait_event $h 'JOB_STATUS_CHANGE' # ready
     _wait_event $h 'JOB_STATUS_CHANGE' # aborting
     # Filter the offset (depends on when exactly `quit` was issued)
     _wait_event $h 'BLOCK_JOB_CANCELLED' \
