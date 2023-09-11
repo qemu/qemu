@@ -2320,7 +2320,7 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm,
     tran_add(tran, &bdrv_child_set_pem_drv, s);
 }
 
-static void bdrv_drv_set_perm_commit(void *opaque)
+static void GRAPH_RDLOCK bdrv_drv_set_perm_commit(void *opaque)
 {
     BlockDriverState *bs = opaque;
     uint64_t cumulative_perms, cumulative_shared_perms;
@@ -2333,7 +2333,7 @@ static void bdrv_drv_set_perm_commit(void *opaque)
     }
 }
 
-static void bdrv_drv_set_perm_abort(void *opaque)
+static void GRAPH_RDLOCK bdrv_drv_set_perm_abort(void *opaque)
 {
     BlockDriverState *bs = opaque;
     GLOBAL_STATE_CODE();
@@ -2348,9 +2348,13 @@ TransactionActionDrv bdrv_drv_set_perm_drv = {
     .commit = bdrv_drv_set_perm_commit,
 };
 
-static int bdrv_drv_set_perm(BlockDriverState *bs, uint64_t perm,
-                             uint64_t shared_perm, Transaction *tran,
-                             Error **errp)
+/*
+ * After calling this function, the transaction @tran may only be completed
+ * while holding a reader lock for the graph.
+ */
+static int GRAPH_RDLOCK
+bdrv_drv_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared_perm,
+                  Transaction *tran, Error **errp)
 {
     GLOBAL_STATE_CODE();
     if (!bs->drv) {
@@ -2457,9 +2461,13 @@ bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
 /*
  * Refresh permissions in @bs subtree. The function is intended to be called
  * after some graph modification that was done without permission update.
+ *
+ * After calling this function, the transaction @tran may only be completed
+ * while holding a reader lock for the graph.
  */
-static int bdrv_node_refresh_perm(BlockDriverState *bs, BlockReopenQueue *q,
-                                  Transaction *tran, Error **errp)
+static int GRAPH_RDLOCK
+bdrv_node_refresh_perm(BlockDriverState *bs, BlockReopenQueue *q,
+                       Transaction *tran, Error **errp)
 {
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
@@ -2532,6 +2540,9 @@ static int bdrv_node_refresh_perm(BlockDriverState *bs, BlockReopenQueue *q,
 /*
  * @list is a product of bdrv_topological_dfs() (may be called several times) -
  * a topologically sorted subgraph.
+ *
+ * After calling this function, the transaction @tran may only be completed
+ * while holding a reader lock for the graph.
  */
 static int GRAPH_RDLOCK
 bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
@@ -2561,6 +2572,9 @@ bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
  * @list is any list of nodes. List is completed by all subtrees and
  * topologically sorted. It's not a problem if some node occurs in the @list
  * several times.
+ *
+ * After calling this function, the transaction @tran may only be completed
+ * while holding a reader lock for the graph.
  */
 static int GRAPH_RDLOCK
 bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
@@ -2623,7 +2637,12 @@ char *bdrv_perm_names(uint64_t perm)
 }
 
 
-/* @tran is allowed to be NULL. In this case no rollback is possible */
+/*
+ * @tran is allowed to be NULL. In this case no rollback is possible.
+ *
+ * After calling this function, the transaction @tran may only be completed
+ * while holding a reader lock for the graph.
+ */
 static int GRAPH_RDLOCK
 bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran, Error **errp)
 {

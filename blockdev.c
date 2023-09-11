@@ -1378,6 +1378,9 @@ static void external_snapshot_action(TransactionAction *action,
     AioContext *aio_context;
     uint64_t perm, shared;
 
+    /* TODO We'll eventually have to take a writer lock in this function */
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     tran_add(tran, &external_snapshot_drv, state);
 
     /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
@@ -2520,6 +2523,9 @@ void qmp_block_commit(const char *job_id, const char *device,
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
     uint64_t top_perm, top_shared;
+
+    /* TODO We'll eventually have to take a writer lock in this function */
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!has_speed) {
         speed = 0;
