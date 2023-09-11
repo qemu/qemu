@@ -75,7 +75,13 @@ typedef struct BDRVPreallocateState {
      * be invalid (< 0) when we don't have both exclusive BLK_PERM_RESIZE and
      * BLK_PERM_WRITE permissions on file child.
      */
+
+    /* Gives up the resize permission on children when parents don't need it */
+    QEMUBH *drop_resize_bh;
 } BDRVPreallocateState;
+
+static int preallocate_drop_resize(BlockDriverState *bs, Error **errp);
+static void preallocate_drop_resize_bh(void *opaque);
 
 #define PREALLOCATE_OPT_PREALLOC_ALIGN "prealloc-align"
 #define PREALLOCATE_OPT_PREALLOC_SIZE "prealloc-size"
@@ -142,6 +148,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      * For this to work, mark them invalid.
      */
     s->file_end = s->zero_start = s->data_end = -EINVAL;
+    s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -193,6 +200,9 @@ static void preallocate_close(BlockDriverState *bs)
 {
     BDRVPreallocateState *s = bs->opaque;
 
+    qemu_bh_cancel(s->drop_resize_bh);
+    qemu_bh_delete(s->drop_resize_bh);
+
     if (s->data_end >= 0) {
         preallocate_truncate_to_real_size(bs, NULL);
     }
@@ -211,11 +221,25 @@ static int preallocate_reopen_prepare(BDRVReopenState *reopen_state,
                                       BlockReopenQueue *queue, Error **errp)
 {
     PreallocateOpts *opts = g_new0(PreallocateOpts, 1);
+    int ret;
 
     if (!preallocate_absorb_opts(opts, reopen_state->options,
                                  reopen_state->bs->file->bs, errp)) {
         g_free(opts);
         return -EINVAL;
+    }
+
+    /*
+     * Drop the preallocation already here if reopening read-only. The child
+     * might also be reopened read-only and then scheduling a BH during the
+     * permission update is too late.
+     */
+    if ((reopen_state->flags & BDRV_O_RDWR) == 0) {
+        ret = preallocate_drop_resize(reopen_state->bs, errp);
+        if (ret < 0) {
+            g_free(opts);
+            return ret;
+        }
     }
 
     reopen_state->opaque = opts;
@@ -475,21 +499,46 @@ preallocate_co_getlength(BlockDriverState *bs)
     return ret;
 }
 
-static int preallocate_check_perm(BlockDriverState *bs,
-                                  uint64_t perm, uint64_t shared, Error **errp)
+static int preallocate_drop_resize(BlockDriverState *bs, Error **errp)
 {
     BDRVPreallocateState *s = bs->opaque;
+    int ret;
 
-    if (s->data_end >= 0 && !can_write_resize(perm)) {
-        /*
-         * Lose permissions.
-         * We should truncate in check_perm, as in set_perm bs->file->perm will
-         * be already changed, and we should not violate it.
-         */
-        return preallocate_truncate_to_real_size(bs, errp);
+    if (s->data_end < 0) {
+        return 0;
     }
 
+    /*
+     * Before switching children to be read-only, truncate them to remove
+     * the preallocation and let them have the real size.
+     */
+    ret = preallocate_truncate_to_real_size(bs, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * We'll drop our permissions and will allow other users to take write and
+     * resize permissions (see preallocate_child_perm). Anyone will be able to
+     * change the child, so mark all states invalid. We'll regain control if a
+     * parent requests write access again.
+     */
+    s->data_end = s->file_end = s->zero_start = -EINVAL;
+
+    bdrv_graph_rdlock_main_loop();
+    bdrv_child_refresh_perms(bs, bs->file, NULL);
+    bdrv_graph_rdunlock_main_loop();
+
     return 0;
+}
+
+static void preallocate_drop_resize_bh(void *opaque)
+{
+    /*
+     * In case of errors, we'll simply keep the exclusive lock on the image
+     * indefinitely.
+     */
+    preallocate_drop_resize(opaque, NULL);
 }
 
 static void preallocate_set_perm(BlockDriverState *bs,
@@ -498,18 +547,13 @@ static void preallocate_set_perm(BlockDriverState *bs,
     BDRVPreallocateState *s = bs->opaque;
 
     if (can_write_resize(perm)) {
+        qemu_bh_cancel(s->drop_resize_bh);
         if (s->data_end < 0) {
             s->data_end = s->file_end = s->zero_start =
-                bdrv_getlength(bs->file->bs);
+                bs->file->bs->total_sectors * BDRV_SECTOR_SIZE;
         }
     } else {
-        /*
-         * We drop our permissions, as well as allow shared
-         * permissions (see preallocate_child_perm), anyone will be able to
-         * change the child, so mark all states invalid. We'll regain control if
-         * get good permissions back.
-         */
-        s->data_end = s->file_end = s->zero_start = -EINVAL;
+        qemu_bh_schedule(s->drop_resize_bh);
     }
 }
 
@@ -517,10 +561,16 @@ static void preallocate_child_perm(BlockDriverState *bs, BdrvChild *c,
     BdrvChildRole role, BlockReopenQueue *reopen_queue,
     uint64_t perm, uint64_t shared, uint64_t *nperm, uint64_t *nshared)
 {
+    BDRVPreallocateState *s = bs->opaque;
+
     bdrv_default_perms(bs, c, role, reopen_queue, perm, shared, nperm, nshared);
 
-    if (can_write_resize(perm)) {
-        /* This should come by default, but let's enforce: */
+    /*
+     * We need exclusive write and resize permissions on the child not only when
+     * the parent can write to it, but also after the parent gave up write
+     * permissions until preallocate_drop_resize() has completed.
+     */
+    if (can_write_resize(perm) || s->data_end != -EINVAL) {
         *nperm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
 
         /*
@@ -550,7 +600,6 @@ static BlockDriver bdrv_preallocate_filter = {
     .bdrv_co_flush = preallocate_co_flush,
     .bdrv_co_truncate = preallocate_co_truncate,
 
-    .bdrv_check_perm = preallocate_check_perm,
     .bdrv_set_perm = preallocate_set_perm,
     .bdrv_child_perm = preallocate_child_perm,
 
