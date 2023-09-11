@@ -1094,8 +1094,10 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     /* We can safely add the child now */
     bdrv_ref(child_bs);
 
+    bdrv_graph_wrlock(child_bs);
     child = bdrv_attach_child(bs, child_bs, indexstr, &child_of_bds,
                               BDRV_CHILD_DATA, errp);
+    bdrv_graph_wrunlock();
     if (child == NULL) {
         s->next_child_index--;
         goto out;

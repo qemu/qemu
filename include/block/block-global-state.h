@@ -226,12 +226,14 @@ void no_coroutine_fn bdrv_unref(BlockDriverState *bs);
 void coroutine_fn no_co_wrapper bdrv_co_unref(BlockDriverState *bs);
 void GRAPH_WRLOCK bdrv_schedule_unref(BlockDriverState *bs);
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
-BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                             BlockDriverState *child_bs,
-                             const char *child_name,
-                             const BdrvChildClass *child_class,
-                             BdrvChildRole child_role,
-                             Error **errp);
+
+BdrvChild * GRAPH_WRLOCK
+bdrv_attach_child(BlockDriverState *parent_bs,
+                  BlockDriverState *child_bs,
+                  const char *child_name,
+                  const BdrvChildClass *child_class,
+                  BdrvChildRole child_role,
+                  Error **errp);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);

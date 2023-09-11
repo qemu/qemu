@@ -3219,8 +3219,6 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
     GLOBAL_STATE_CODE();
 
-    bdrv_graph_wrlock(child_bs);
-
     child = bdrv_attach_child_noperm(parent_bs, child_bs, child_name,
                                      child_class, child_role, tran, errp);
     if (!child) {
@@ -3235,9 +3233,8 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
 out:
     tran_finalize(tran, ret);
-    bdrv_graph_wrunlock();
 
-    bdrv_unref(child_bs);
+    bdrv_schedule_unref(child_bs);
 
     return ret < 0 ? NULL : child;
 }
@@ -3758,11 +3755,13 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
+    bdrv_graph_wrlock(NULL);
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
     child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
                               errp);
     aio_context_release(ctx);
+    bdrv_graph_wrunlock();
 
     return child;
 }
