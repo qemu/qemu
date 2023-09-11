@@ -3371,7 +3371,8 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 }
 
 
-static void bdrv_parent_cb_change_media(BlockDriverState *bs, bool load)
+static void GRAPH_RDLOCK
+bdrv_parent_cb_change_media(BlockDriverState *bs, bool load)
 {
     BdrvChild *c;
     GLOBAL_STATE_CODE();
@@ -3968,6 +3969,9 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     assert(!child_class == !parent);
     GLOBAL_STATE_CODE();
     assert(!qemu_in_coroutine());
+
+    /* TODO We'll eventually have to take a writer lock in this function */
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (reference) {
         bool options_non_empty = options ? qdict_size(options) : false;
