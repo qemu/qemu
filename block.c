@@ -2202,7 +2202,8 @@ static bool bdrv_a_allow_b(BdrvChild *a, BdrvChild *b, Error **errp)
     return false;
 }
 
-static bool bdrv_parent_perms_conflict(BlockDriverState *bs, Error **errp)
+static bool GRAPH_RDLOCK
+bdrv_parent_perms_conflict(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *a, *b;
     GLOBAL_STATE_CODE();
@@ -2255,8 +2256,8 @@ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
  * simplest way to satisfy this criteria: use only result of
  * bdrv_topological_dfs() or NULL as @list parameter.
  */
-static GSList *bdrv_topological_dfs(GSList *list, GHashTable *found,
-                                    BlockDriverState *bs)
+static GSList * GRAPH_RDLOCK
+bdrv_topological_dfs(GSList *list, GHashTable *found, BlockDriverState *bs)
 {
     BdrvChild *child;
     g_autoptr(GHashTable) local_found = NULL;
@@ -2532,8 +2533,9 @@ static int bdrv_node_refresh_perm(BlockDriverState *bs, BlockReopenQueue *q,
  * @list is a product of bdrv_topological_dfs() (may be called several times) -
  * a topologically sorted subgraph.
  */
-static int bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q,
-                                 Transaction *tran, Error **errp)
+static int GRAPH_RDLOCK
+bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
+                      Error **errp)
 {
     int ret;
     BlockDriverState *bs;
@@ -2560,8 +2562,9 @@ static int bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q,
  * topologically sorted. It's not a problem if some node occurs in the @list
  * several times.
  */
-static int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
-                                   Transaction *tran, Error **errp)
+static int GRAPH_RDLOCK
+bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
+                        Error **errp)
 {
     g_autoptr(GHashTable) found = g_hash_table_new(NULL, NULL);
     g_autoptr(GSList) refresh_list = NULL;
@@ -2621,8 +2624,8 @@ char *bdrv_perm_names(uint64_t perm)
 
 
 /* @tran is allowed to be NULL. In this case no rollback is possible */
-static int bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran,
-                              Error **errp)
+static int GRAPH_RDLOCK
+bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran, Error **errp)
 {
     int ret;
     Transaction *local_tran = NULL;
@@ -3247,7 +3250,6 @@ void bdrv_root_unref_child(BdrvChild *child)
     GLOBAL_STATE_CODE();
     bdrv_graph_wrlock(NULL);
     bdrv_replace_child_noperm(child, NULL);
-    bdrv_graph_wrunlock();
     bdrv_child_free(child);
 
     if (child_bs) {
@@ -3266,6 +3268,7 @@ void bdrv_root_unref_child(BdrvChild *child)
                                     NULL);
     }
 
+    bdrv_graph_wrunlock();
     bdrv_unref(child_bs);
 }
 
@@ -4585,7 +4588,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
      * reconfiguring the fd and that's why it does it in raw_check_perm(), not
      * in raw_reopen_prepare() which is called with "old" permissions.
      */
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_list_refresh_perms(refresh_list, bs_queue, tran, errp);
+    bdrv_graph_rdunlock_main_loop();
+
     if (ret < 0) {
         goto abort;
     }
@@ -6833,6 +6839,7 @@ int bdrv_activate(BlockDriverState *bs, Error **errp)
     BdrvDirtyBitmap *bm;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!bs->drv)  {
         return -ENOMEDIUM;
@@ -6963,6 +6970,7 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
     uint64_t cumulative_perms, cumulative_shared_perms;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!bs->drv) {
         return -ENOMEDIUM;

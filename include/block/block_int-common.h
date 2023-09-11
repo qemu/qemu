@@ -311,7 +311,7 @@ struct BlockDriver {
      */
     void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 
-    int (*bdrv_inactivate)(BlockDriverState *bs);
+    int GRAPH_RDLOCK_PTR (*bdrv_inactivate)(BlockDriverState *bs);
 
     int (*bdrv_snapshot_create)(BlockDriverState *bs,
                                 QEMUSnapshotInfo *sn_info);
@@ -944,8 +944,8 @@ struct BdrvChildClass {
      * when migration is completing) and it can start/stop requesting
      * permissions and doing I/O on it.
      */
-    void (*activate)(BdrvChild *child, Error **errp);
-    int (*inactivate)(BdrvChild *child);
+    void GRAPH_RDLOCK_PTR (*activate)(BdrvChild *child, Error **errp);
+    int GRAPH_RDLOCK_PTR (*inactivate)(BdrvChild *child);
 
     void GRAPH_WRLOCK_PTR (*attach)(BdrvChild *child);
     void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);

@@ -372,6 +372,9 @@ static void test_parallel_perm_update(void)
 
     /* Select fl1 as first child to be active */
     s->selected = c_fl1;
+
+    bdrv_graph_rdlock_main_loop();
+
     bdrv_child_refresh_perms(top, top->children.lh_first, &error_abort);
 
     assert(c_fl1->perm & BLK_PERM_WRITE);
@@ -391,6 +394,7 @@ static void test_parallel_perm_update(void)
     assert(c_fl1->perm & BLK_PERM_WRITE);
     assert(!(c_fl2->perm & BLK_PERM_WRITE));
 
+    bdrv_graph_rdunlock_main_loop();
     bdrv_unref(top);
 }
 

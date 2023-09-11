@@ -121,6 +121,10 @@ static QTAILQ_HEAD(, BlockBackend) block_backends =
 static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
+static int coroutine_mixed_fn GRAPH_RDLOCK
+blk_set_perm_locked(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                    Error **errp);
+
 static void blk_root_inherit_options(BdrvChildRole role, bool parent_is_format,
                                      int *child_flags, QDict *child_options,
                                      int parent_flags, QDict *parent_options)
@@ -186,7 +190,7 @@ static void blk_vm_state_changed(void *opaque, bool running, RunState state)
  *
  * If an error is returned, the VM cannot be allowed to be resumed.
  */
-static void blk_root_activate(BdrvChild *child, Error **errp)
+static void GRAPH_RDLOCK blk_root_activate(BdrvChild *child, Error **errp)
 {
     BlockBackend *blk = child->opaque;
     Error *local_err = NULL;
@@ -207,7 +211,7 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
      */
     saved_shared_perm = blk->shared_perm;
 
-    blk_set_perm(blk, blk->perm, BLK_PERM_ALL, &local_err);
+    blk_set_perm_locked(blk, blk->perm, BLK_PERM_ALL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         blk->disable_perm = true;
@@ -226,7 +230,7 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
         return;
     }
 
-    blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
+    blk_set_perm_locked(blk, blk->perm, blk->shared_perm, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         blk->disable_perm = true;
@@ -259,7 +263,7 @@ static bool blk_can_inactivate(BlockBackend *blk)
     return blk->force_allow_inactivate;
 }
 
-static int blk_root_inactivate(BdrvChild *child)
+static int GRAPH_RDLOCK blk_root_inactivate(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
@@ -953,8 +957,9 @@ int blk_replace_bs(BlockBackend *blk, BlockDriverState *new_bs, Error **errp)
 /*
  * Sets the permission bitmasks that the user of the BlockBackend needs.
  */
-int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
-                 Error **errp)
+static int coroutine_mixed_fn GRAPH_RDLOCK
+blk_set_perm_locked(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                    Error **errp)
 {
     int ret;
     GLOBAL_STATE_CODE();
@@ -970,6 +975,15 @@ int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
     blk->shared_perm = shared_perm;
 
     return 0;
+}
+
+int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
+                 Error **errp)
+{
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    return blk_set_perm_locked(blk, perm, shared_perm, errp);
 }
 
 void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)

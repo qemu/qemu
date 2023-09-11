@@ -212,8 +212,9 @@ void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
  * bdrv_child_refresh_perms() instead and make the parent's
  * .bdrv_child_perm() implementation return the correct values.
  */
-int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
-                            Error **errp);
+int GRAPH_RDLOCK
+bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
+                        Error **errp);
 
 /**
  * Calls bs->drv->bdrv_child_perm() and updates the child's permission
@@ -223,7 +224,8 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
  * values than before, but which will not result in the block layer
  * automatically refreshing the permissions.
  */
-int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
+int GRAPH_RDLOCK
+bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
 
 bool GRAPH_RDLOCK bdrv_recurse_can_replace(BlockDriverState *bs,
                                            BlockDriverState *to_replace);

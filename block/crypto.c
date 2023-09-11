@@ -777,7 +777,7 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
     return spec_info;
 }
 
-static int
+static int GRAPH_RDLOCK
 block_crypto_amend_prepare(BlockDriverState *bs, Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
@@ -793,7 +793,7 @@ block_crypto_amend_prepare(BlockDriverState *bs, Error **errp)
     return ret;
 }
 
-static void
+static void GRAPH_RDLOCK
 block_crypto_amend_cleanup(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
@@ -840,6 +840,8 @@ block_crypto_amend_options_luks(BlockDriverState *bs,
     QDict *cryptoopts = NULL;
     QCryptoBlockAmendOptions *amend_options = NULL;
     int ret = -EINVAL;
+
+    assume_graph_lock(); /* FIXME */
 
     assert(crypto);
     assert(crypto->block);
