@@ -276,9 +276,11 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
 int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
-void bdrv_add_child(BlockDriverState *parent, BlockDriverState *child,
-                    Error **errp);
-void bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
+void GRAPH_WRLOCK
+bdrv_add_child(BlockDriverState *parent, BlockDriverState *child, Error **errp);
+
+void GRAPH_WRLOCK
+bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
 
 /**
  *

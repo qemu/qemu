@@ -1066,8 +1066,8 @@ static void quorum_close(BlockDriverState *bs)
     g_free(s->children);
 }
 
-static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
-                             Error **errp)
+static void GRAPH_WRLOCK
+quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs, Error **errp)
 {
     BDRVQuorumState *s = bs->opaque;
     BdrvChild *child;
@@ -1093,29 +1093,22 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     }
     s->next_child_index++;
 
-    bdrv_drained_begin(bs);
-
     /* We can safely add the child now */
     bdrv_ref(child_bs);
 
-    bdrv_graph_wrlock(child_bs);
     child = bdrv_attach_child(bs, child_bs, indexstr, &child_of_bds,
                               BDRV_CHILD_DATA, errp);
-    bdrv_graph_wrunlock();
     if (child == NULL) {
         s->next_child_index--;
-        goto out;
+        return;
     }
     s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);
     s->children[s->num_children++] = child;
     quorum_refresh_flags(bs);
-
-out:
-    bdrv_drained_end(bs);
 }
 
-static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
-                             Error **errp)
+static void GRAPH_WRLOCK
+quorum_del_child(BlockDriverState *bs, BdrvChild *child, Error **errp)
 {
     BDRVQuorumState *s = bs->opaque;
     char indexstr[INDEXSTR_LEN];
@@ -1145,18 +1138,14 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
         s->next_child_index--;
     }
 
-    bdrv_drained_begin(bs);
-
     /* We can safely remove this child now */
     memmove(&s->children[i], &s->children[i + 1],
             (s->num_children - i - 1) * sizeof(BdrvChild *));
     s->children = g_renew(BdrvChild *, s->children, --s->num_children);
-    bdrv_graph_wrlock(NULL);
+
     bdrv_unref_child(bs, child);
-    bdrv_graph_wrunlock();
 
     quorum_refresh_flags(bs);
-    bdrv_drained_end(bs);
 }
 
 static void quorum_gather_child_options(BlockDriverState *bs, QDict *target,

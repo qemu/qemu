@@ -3545,8 +3545,8 @@ out:
     aio_context_release(aio_context);
 }
 
-static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,
-                                  const char *child_name)
+static BdrvChild * GRAPH_RDLOCK
+bdrv_find_child(BlockDriverState *parent_bs, const char *child_name)
 {
     BdrvChild *child;
 
@@ -3565,9 +3565,11 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
     BlockDriverState *parent_bs, *new_bs = NULL;
     BdrvChild *p_child;
 
+    bdrv_graph_wrlock(NULL);
+
     parent_bs = bdrv_lookup_bs(parent, parent, errp);
     if (!parent_bs) {
-        return;
+        goto out;
     }
 
     if (!child == !node) {
@@ -3576,7 +3578,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
         } else {
             error_setg(errp, "Either child or node must be specified");
         }
-        return;
+        goto out;
     }
 
     if (child) {
@@ -3584,7 +3586,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
         if (!p_child) {
             error_setg(errp, "Node '%s' does not have child '%s'",
                        parent, child);
-            return;
+            goto out;
         }
         bdrv_del_child(parent_bs, p_child, errp);
     }
@@ -3593,10 +3595,13 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
         new_bs = bdrv_find_node(node);
         if (!new_bs) {
             error_setg(errp, "Node '%s' not found", node);
-            return;
+            goto out;
         }
         bdrv_add_child(parent_bs, new_bs, errp);
     }
+
+out:
+    bdrv_graph_wrunlock();
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
