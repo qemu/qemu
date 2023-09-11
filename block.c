@@ -7044,6 +7044,23 @@ void bdrv_unref(BlockDriverState *bs)
     }
 }
 
+/*
+ * Release a BlockDriverState reference while holding the graph write lock.
+ *
+ * Calling bdrv_unref() directly is forbidden while holding the graph lock
+ * because bdrv_close() both involves polling and taking the graph lock
+ * internally. bdrv_schedule_unref() instead delays decreasing the refcount and
+ * possibly closing @bs until the graph lock is released.
+ */
+void bdrv_schedule_unref(BlockDriverState *bs)
+{
+    if (!bs) {
+        return;
+    }
+    aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                            (QEMUBHFunc *) bdrv_unref, bs);
+}
+
 struct BdrvOpBlocker {
     Error *reason;
     QLIST_ENTRY(BdrvOpBlocker) list;
