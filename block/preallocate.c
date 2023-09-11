@@ -162,26 +162,39 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 }
 
-static void preallocate_close(BlockDriverState *bs)
+static int preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
 {
-    int ret;
     BDRVPreallocateState *s = bs->opaque;
-
-    if (s->data_end < 0) {
-        return;
-    }
+    int ret;
 
     if (s->file_end < 0) {
         s->file_end = bdrv_getlength(bs->file->bs);
         if (s->file_end < 0) {
-            return;
+            error_setg_errno(errp, -s->file_end, "Failed to get file length");
+            return s->file_end;
         }
     }
 
     if (s->data_end < s->file_end) {
         ret = bdrv_truncate(bs->file, s->data_end, true, PREALLOC_MODE_OFF, 0,
                             NULL);
-        s->file_end = ret < 0 ? ret : s->data_end;
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to drop preallocation");
+            s->file_end = ret;
+            return ret;
+        }
+        s->file_end = s->data_end;
+    }
+
+    return 0;
+}
+
+static void preallocate_close(BlockDriverState *bs)
+{
+    BDRVPreallocateState *s = bs->opaque;
+
+    if (s->data_end >= 0) {
+        preallocate_truncate_to_real_size(bs, NULL);
     }
 }
 
@@ -473,24 +486,7 @@ static int preallocate_check_perm(BlockDriverState *bs,
          * We should truncate in check_perm, as in set_perm bs->file->perm will
          * be already changed, and we should not violate it.
          */
-        if (s->file_end < 0) {
-            s->file_end = bdrv_getlength(bs->file->bs);
-            if (s->file_end < 0) {
-                error_setg(errp, "Failed to get file length");
-                return s->file_end;
-            }
-        }
-
-        if (s->data_end < s->file_end) {
-            int ret = bdrv_truncate(bs->file, s->data_end, true,
-                                    PREALLOC_MODE_OFF, 0, NULL);
-            if (ret < 0) {
-                error_setg(errp, "Failed to drop preallocation");
-                s->file_end = ret;
-                return ret;
-            }
-            s->file_end = s->data_end;
-        }
+        return preallocate_truncate_to_real_size(bs, errp);
     }
 
     return 0;
