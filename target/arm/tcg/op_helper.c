@@ -764,6 +764,39 @@ const void *HELPER(lookup_cp_reg)(CPUARMState *env, uint32_t key)
     return ri;
 }
 
+/*
+ * Test for HCR_EL2.TIDCP at EL1.
+ * Since implementation defined registers are rare, and within QEMU
+ * most of them are no-op, do not waste HFLAGS space for this and
+ * always use a helper.
+ */
+void HELPER(tidcp_el1)(CPUARMState *env, uint32_t syndrome)
+{
+    if (arm_hcr_el2_eff(env) & HCR_TIDCP) {
+        raise_exception_ra(env, EXCP_UDEF, syndrome, 2, GETPC());
+    }
+}
+
+/*
+ * Similarly, for FEAT_TIDCP1 at EL0.
+ * We have already checked for the presence of the feature.
+ */
+void HELPER(tidcp_el0)(CPUARMState *env, uint32_t syndrome)
+{
+    /* See arm_sctlr(), but we also need the sctlr el. */
+    ARMMMUIdx mmu_idx = arm_mmu_idx_el(env, 0);
+    int target_el = mmu_idx == ARMMMUIdx_E20_0 ? 2 : 1;
+
+    /*
+     * The bit is not valid unless the target el is aa64, but since the
+     * bit test is simpler perform that first and check validity after.
+     */
+    if ((env->cp15.sctlr_el[target_el] & SCTLR_TIDCP)
+        && arm_el_is_aa64(env, target_el)) {
+        raise_exception_ra(env, EXCP_UDEF, syndrome, target_el, GETPC());
+    }
+}
+
 void HELPER(set_cp_reg)(CPUARMState *env, const void *rip, uint32_t value)
 {
     const ARMCPRegInfo *ri = rip;

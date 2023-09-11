@@ -1,4 +1,5 @@
 #include <assert.h>
+#include "pauth.h"
 
 static int x;
 
@@ -6,6 +7,15 @@ int main()
 {
     int *p0 = &x, *p1, *p2, *p3;
     unsigned long salt = 0;
+    int pac_feature = get_pac_feature();
+
+    /*
+     * Exit if no PAuth or FEAT_FPAC, which will SIGILL on AUTDA failure
+     * rather than return an error for us to check below.
+     */
+    if (pac_feature == 0 || pac_feature >= 4) {
+        return 0;
+    }
 
     /*
      * With TBI enabled and a 48-bit VA, there are 7 bits of auth, and so

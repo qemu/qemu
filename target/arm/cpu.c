@@ -243,6 +243,10 @@ static void arm_cpu_reset_hold(Object *obj)
                                   SCTLR_EnDA | SCTLR_EnDB);
         /* Trap on btype=3 for PACIxSP. */
         env->cp15.sctlr_el[1] |= SCTLR_BT0;
+        /* Trap on implementation defined registers. */
+        if (cpu_isar_feature(aa64_tidcp1, cpu)) {
+            env->cp15.sctlr_el[1] |= SCTLR_TIDCP;
+        }
         /* and to the FP/Neon instructions */
         env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
                                          CPACR_EL1, FPEN, 3);
