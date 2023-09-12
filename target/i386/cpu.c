@@ -7377,7 +7377,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             return;
         }
 
-        if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
+        if (env->features[FEAT_1_EDX] & (CPUID_PSE36 | CPUID_PAE)) {
             cpu->phys_bits = 36;
         } else {
             cpu->phys_bits = 32;
