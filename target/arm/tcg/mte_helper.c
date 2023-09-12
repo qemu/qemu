@@ -1041,3 +1041,43 @@ uint64_t mte_mops_probe(CPUARMState *env, uint64_t ptr, uint64_t size,
         return n * TAG_GRANULE - (ptr - tag_first);
     }
 }
+
+void mte_mops_set_tags(CPUARMState *env, uint64_t ptr, uint64_t size,
+                       uint32_t desc)
+{
+    int mmu_idx, tag_count;
+    uint64_t ptr_tag;
+    void *mem;
+
+    if (!desc) {
+        /* Tags not actually enabled */
+        return;
+    }
+
+    mmu_idx = FIELD_EX32(desc, MTEDESC, MIDX);
+    /* True probe: this will never fault */
+    mem = allocation_tag_mem_probe(env, mmu_idx, ptr, MMU_DATA_STORE, size,
+                                   MMU_DATA_STORE, true, 0);
+    if (!mem) {
+        return;
+    }
+
+    /*
+     * We know that ptr and size are both TAG_GRANULE aligned; store
+     * the tag from the pointer value into the tag memory.
+     */
+    ptr_tag = allocation_tag_from_addr(ptr);
+    tag_count = size / TAG_GRANULE;
+    if (ptr & TAG_GRANULE) {
+        /* Not 2*TAG_GRANULE-aligned: store tag to first nibble */
+        store_tag1_parallel(TAG_GRANULE, mem, ptr_tag);
+        mem++;
+        tag_count--;
+    }
+    memset(mem, ptr_tag | (ptr_tag << 4), tag_count / 2);
+    if (tag_count & 1) {
+        /* Final trailing unaligned nibble */
+        mem += tag_count / 2;
+        store_tag1_parallel(0, mem, ptr_tag);
+    }
+}

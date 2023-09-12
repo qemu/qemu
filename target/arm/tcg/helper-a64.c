@@ -1103,6 +1103,50 @@ static uint64_t set_step(CPUARMState *env, uint64_t toaddr,
     return setsize;
 }
 
+/*
+ * Similar, but setting tags. The architecture requires us to do this
+ * in 16-byte chunks. SETP accesses are not tag checked; they set
+ * the tags.
+ */
+static uint64_t set_step_tags(CPUARMState *env, uint64_t toaddr,
+                              uint64_t setsize, uint32_t data, int memidx,
+                              uint32_t *mtedesc, uintptr_t ra)
+{
+    void *mem;
+    uint64_t cleanaddr;
+
+    setsize = MIN(setsize, page_limit(toaddr));
+
+    cleanaddr = useronly_clean_ptr(toaddr);
+    /*
+     * Trapless lookup: returns NULL for invalid page, I/O,
+     * watchpoints, clean pages, etc.
+     */
+    mem = tlb_vaddr_to_host(env, cleanaddr, MMU_DATA_STORE, memidx);
+
+#ifndef CONFIG_USER_ONLY
+    if (unlikely(!mem)) {
+        /*
+         * Slow-path: just do one write. This will handle the
+         * watchpoint, invalid page, etc handling correctly.
+         * The architecture requires that we do 16 bytes at a time,
+         * and we know both ptr and size are 16 byte aligned.
+         * For clean code pages, the next iteration will see
+         * the page dirty and will use the fast path.
+         */
+        uint64_t repldata = data * 0x0101010101010101ULL;
+        MemOpIdx oi16 = make_memop_idx(MO_TE | MO_128, memidx);
+        cpu_st16_mmu(env, toaddr, int128_make128(repldata, repldata), oi16, ra);
+        mte_mops_set_tags(env, toaddr, 16, *mtedesc);
+        return 16;
+    }
+#endif
+    /* Easy case: just memset the host memory */
+    memset(mem, data, setsize);
+    mte_mops_set_tags(env, toaddr, setsize, *mtedesc);
+    return setsize;
+}
+
 typedef uint64_t StepFn(CPUARMState *env, uint64_t toaddr,
                         uint64_t setsize, uint32_t data,
                         int memidx, uint32_t *mtedesc, uintptr_t ra);
@@ -1141,6 +1185,18 @@ static bool mte_checks_needed(uint64_t ptr, uint32_t desc)
     return !tcma_check(desc, bit55, allocation_tag_from_addr(ptr));
 }
 
+/* Take an exception if the SETG addr/size are not granule aligned */
+static void check_setg_alignment(CPUARMState *env, uint64_t ptr, uint64_t size,
+                                 uint32_t memidx, uintptr_t ra)
+{
+    if ((size != 0 && !QEMU_IS_ALIGNED(ptr, TAG_GRANULE)) ||
+        !QEMU_IS_ALIGNED(size, TAG_GRANULE)) {
+        arm_cpu_do_unaligned_access(env_cpu(env), ptr, MMU_DATA_STORE,
+                                    memidx, ra);
+
+    }
+}
+
 /*
  * For the Memory Set operation, our implementation chooses
  * always to use "option A", where we update Xd to the final
@@ -1171,9 +1227,14 @@ static void do_setp(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
 
     if (setsize > INT64_MAX) {
         setsize = INT64_MAX;
+        if (is_setg) {
+            setsize &= ~0xf;
+        }
     }
 
-    if (!mte_checks_needed(toaddr, mtedesc)) {
+    if (unlikely(is_setg)) {
+        check_setg_alignment(env, toaddr, setsize, memidx, ra);
+    } else if (!mte_checks_needed(toaddr, mtedesc)) {
         mtedesc = 0;
     }
 
@@ -1201,6 +1262,11 @@ static void do_setp(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
 void HELPER(setp)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 {
     do_setp(env, syndrome, mtedesc, set_step, false, GETPC());
+}
+
+void HELPER(setgp)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_setp(env, syndrome, mtedesc, set_step_tags, true, GETPC());
 }
 
 static void do_setm(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
@@ -1237,7 +1303,9 @@ static void do_setm(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
      * have an IMPDEF check for alignment here.
      */
 
-    if (!mte_checks_needed(toaddr, mtedesc)) {
+    if (unlikely(is_setg)) {
+        check_setg_alignment(env, toaddr, setsize, memidx, ra);
+    } else if (!mte_checks_needed(toaddr, mtedesc)) {
         mtedesc = 0;
     }
 
@@ -1258,6 +1326,11 @@ static void do_setm(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
 void HELPER(setm)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 {
     do_setm(env, syndrome, mtedesc, set_step, false, GETPC());
+}
+
+void HELPER(setgm)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_setm(env, syndrome, mtedesc, set_step_tags, true, GETPC());
 }
 
 static void do_sete(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
@@ -1295,7 +1368,9 @@ static void do_sete(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
                            mops_mismatch_exception_target_el(env), ra);
     }
 
-    if (!mte_checks_needed(toaddr, mtedesc)) {
+    if (unlikely(is_setg)) {
+        check_setg_alignment(env, toaddr, setsize, memidx, ra);
+    } else if (!mte_checks_needed(toaddr, mtedesc)) {
         mtedesc = 0;
     }
 
@@ -1311,4 +1386,9 @@ static void do_sete(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
 void HELPER(sete)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 {
     do_sete(env, syndrome, mtedesc, set_step, false, GETPC());
+}
+
+void HELPER(setge)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_sete(env, syndrome, mtedesc, set_step_tags, true, GETPC());
 }
