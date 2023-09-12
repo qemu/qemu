@@ -2272,7 +2272,7 @@ static void handle_sys(DisasContext *s, bool isread,
             clean_addr = clean_data_tbi(s, tcg_rt);
             gen_probe_access(s, clean_addr, MMU_DATA_STORE, MO_8);
 
-            if (s->ata) {
+            if (s->ata[0]) {
                 /* Extract the tag from the register to match STZGM.  */
                 tag = tcg_temp_new_i64();
                 tcg_gen_shri_i64(tag, tcg_rt, 56);
@@ -2289,7 +2289,7 @@ static void handle_sys(DisasContext *s, bool isread,
             clean_addr = clean_data_tbi(s, tcg_rt);
             gen_helper_dc_zva(cpu_env, clean_addr);
 
-            if (s->ata) {
+            if (s->ata[0]) {
                 /* Extract the tag from the register to match STZGM.  */
                 tag = tcg_temp_new_i64();
                 tcg_gen_shri_i64(tag, tcg_rt, 56);
@@ -3070,7 +3070,7 @@ static bool trans_STGP(DisasContext *s, arg_ldstpair *a)
     tcg_gen_qemu_st_i128(tmp, clean_addr, get_mem_index(s), mop);
 
     /* Perform the tag store, if tag access enabled. */
-    if (s->ata) {
+    if (s->ata[0]) {
         if (tb_cflags(s->base.tb) & CF_PARALLEL) {
             gen_helper_stg_parallel(cpu_env, dirty_addr, dirty_addr);
         } else {
@@ -3768,7 +3768,7 @@ static bool trans_STZGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_stzgm_tags(cpu_env, addr, tcg_rt);
     }
     /*
@@ -3800,7 +3800,7 @@ static bool trans_STGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_stgm(cpu_env, addr, tcg_rt);
     } else {
         MMUAccessType acc = MMU_DATA_STORE;
@@ -3832,7 +3832,7 @@ static bool trans_LDGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_ldgm(tcg_rt, cpu_env, addr);
     } else {
         MMUAccessType acc = MMU_DATA_LOAD;
@@ -3867,7 +3867,7 @@ static bool trans_LDG(DisasContext *s, arg_ldst_tag *a)
 
     tcg_gen_andi_i64(addr, addr, -TAG_GRANULE);
     tcg_rt = cpu_reg(s, a->rt);
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_ldg(tcg_rt, cpu_env, addr, tcg_rt);
     } else {
         /*
@@ -3904,7 +3904,7 @@ static bool do_STG(DisasContext *s, arg_ldst_tag *a, bool is_zero, bool is_pair)
         tcg_gen_addi_i64(addr, addr, a->imm);
     }
     tcg_rt = cpu_reg_sp(s, a->rt);
-    if (!s->ata) {
+    if (!s->ata[0]) {
         /*
          * For STG and ST2G, we need to check alignment and probe memory.
          * TODO: For STZG and STZ2G, we could rely on the stores below,
@@ -4073,7 +4073,7 @@ static bool gen_add_sub_imm_with_tags(DisasContext *s, arg_rri_tag *a,
     tcg_rn = cpu_reg_sp(s, a->rn);
     tcg_rd = cpu_reg_sp(s, a->rd);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_addsubg(tcg_rd, cpu_env, tcg_rn,
                            tcg_constant_i32(imm),
                            tcg_constant_i32(a->uimm4));
@@ -5460,7 +5460,7 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
         if (sf == 0 || !dc_isar_feature(aa64_mte_insn_reg, s)) {
             goto do_unallocated;
         }
-        if (s->ata) {
+        if (s->ata[0]) {
             gen_helper_irg(cpu_reg_sp(s, rd), cpu_env,
                            cpu_reg_sp(s, rn), cpu_reg(s, rm));
         } else {
@@ -13951,7 +13951,8 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->bt = EX_TBFLAG_A64(tb_flags, BT);
     dc->btype = EX_TBFLAG_A64(tb_flags, BTYPE);
     dc->unpriv = EX_TBFLAG_A64(tb_flags, UNPRIV);
-    dc->ata = EX_TBFLAG_A64(tb_flags, ATA);
+    dc->ata[0] = EX_TBFLAG_A64(tb_flags, ATA);
+    dc->ata[1] = EX_TBFLAG_A64(tb_flags, ATA0);
     dc->mte_active[0] = EX_TBFLAG_A64(tb_flags, MTE_ACTIVE);
     dc->mte_active[1] = EX_TBFLAG_A64(tb_flags, MTE0_ACTIVE);
     dc->pstate_sm = EX_TBFLAG_A64(tb_flags, PSTATE_SM);
