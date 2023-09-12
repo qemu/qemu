@@ -2922,18 +2922,24 @@ static void do_st_8(CPUState *cpu, MMULookupPageData *p, uint64_t val,
     }
 }
 
-void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra)
+static void do_st1_mmu(CPUState *cpu, vaddr addr, uint8_t val,
+                       MemOpIdx oi, uintptr_t ra)
 {
     MMULookupLocals l;
     bool crosspage;
 
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
     cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
-    crosspage = mmu_lookup(env_cpu(env), addr, oi, ra, MMU_DATA_STORE, &l);
+    crosspage = mmu_lookup(cpu, addr, oi, ra, MMU_DATA_STORE, &l);
     tcg_debug_assert(!crosspage);
 
-    do_st_1(env_cpu(env), &l.page[0], val, l.mmu_idx, ra);
+    do_st_1(cpu, &l.page[0], val, l.mmu_idx, ra);
+}
+
+void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
+                    MemOpIdx oi, uintptr_t ra)
+{
+    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
+    do_st1_mmu(env_cpu(env), addr, val, oi, ra);
 }
 
 static void do_st2_mmu(CPUState *cpu, vaddr addr, uint16_t val,
