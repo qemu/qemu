@@ -512,6 +512,7 @@ static void test_iothread_main_thread_bh(void *opaque)
      * executed during drain, otherwise this would deadlock. */
     aio_context_acquire(bdrv_get_aio_context(data->bs));
     bdrv_flush(data->bs);
+    bdrv_dec_in_flight(data->bs); /* incremented by test_iothread_common() */
     aio_context_release(bdrv_get_aio_context(data->bs));
 }
 
@@ -583,6 +584,13 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
             aio_context_acquire(ctx_a);
         }
 
+        /*
+         * Increment in_flight so that do_drain_begin() waits for
+         * test_iothread_main_thread_bh(). This prevents the race between
+         * test_iothread_main_thread_bh() in IOThread a and do_drain_begin() in
+         * this thread. test_iothread_main_thread_bh() decrements in_flight.
+         */
+        bdrv_inc_in_flight(bs);
         aio_bh_schedule_oneshot(ctx_a, test_iothread_main_thread_bh, &data);
 
         /* The request is running on the IOThread a. Draining its block device
