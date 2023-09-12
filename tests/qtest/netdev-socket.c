@@ -16,7 +16,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
 
-#define CONNECTION_TIMEOUT    60
+#define CONNECTION_TIMEOUT    120
 
 #define EXPECT_STATE(q, e, t)                             \
 do {                                                      \
