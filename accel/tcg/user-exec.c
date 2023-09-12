@@ -972,31 +972,6 @@ static uint8_t do_ld1_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     return ret;
 }
 
-tcg_target_ulong helper_ldub_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
-    return do_ld1_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-tcg_target_ulong helper_ldsb_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
-    return (int8_t)do_ld1_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr addr,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    uint8_t ret;
-
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
-    ret = do_ld1_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
-}
-
 static uint16_t do_ld2_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
                            uintptr_t ra, MMUAccessType access_type)
 {
@@ -1012,31 +987,6 @@ static uint16_t do_ld2_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     if (mop & MO_BSWAP) {
         ret = bswap16(ret);
     }
-    return ret;
-}
-
-tcg_target_ulong helper_lduw_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
-    return do_ld2_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-tcg_target_ulong helper_ldsw_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
-    return (int16_t)do_ld2_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-uint16_t cpu_ldw_mmu(CPUArchState *env, abi_ptr addr,
-                     MemOpIdx oi, uintptr_t ra)
-{
-    uint16_t ret;
-
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
-    ret = do_ld2_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
 }
 
@@ -1058,31 +1008,6 @@ static uint32_t do_ld4_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     return ret;
 }
 
-tcg_target_ulong helper_ldul_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
-    return do_ld4_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
-    return (int32_t)do_ld4_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-uint32_t cpu_ldl_mmu(CPUArchState *env, abi_ptr addr,
-                     MemOpIdx oi, uintptr_t ra)
-{
-    uint32_t ret;
-
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
-    ret = do_ld4_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
-}
-
 static uint64_t do_ld8_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
                            uintptr_t ra, MMUAccessType access_type)
 {
@@ -1098,24 +1023,6 @@ static uint64_t do_ld8_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     if (mop & MO_BSWAP) {
         ret = bswap64(ret);
     }
-    return ret;
-}
-
-uint64_t helper_ldq_mmu(CPUArchState *env, uint64_t addr,
-                        MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
-    return do_ld8_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-}
-
-uint64_t cpu_ldq_mmu(CPUArchState *env, abi_ptr addr,
-                     MemOpIdx oi, uintptr_t ra)
-{
-    uint64_t ret;
-
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
-    ret = do_ld8_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
 }
 
@@ -1138,25 +1045,6 @@ static Int128 do_ld16_mmu(CPUState *cpu, abi_ptr addr,
     return ret;
 }
 
-Int128 helper_ld16_mmu(CPUArchState *env, uint64_t addr,
-                       MemOpIdx oi, uintptr_t ra)
-{
-    return do_ld16_mmu(env_cpu(env), addr, get_memop(oi), ra);
-}
-
-Int128 helper_ld_i128(CPUArchState *env, uint64_t addr, MemOpIdx oi)
-{
-    return helper_ld16_mmu(env, addr, oi, GETPC());
-}
-
-Int128 cpu_ld16_mmu(CPUArchState *env, abi_ptr addr,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    Int128 ret = do_ld16_mmu(env_cpu(env), addr, get_memop(oi), ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
-}
-
 static void do_st1_mmu(CPUState *cpu, vaddr addr, uint8_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
@@ -1166,21 +1054,6 @@ static void do_st1_mmu(CPUState *cpu, vaddr addr, uint8_t val,
     haddr = cpu_mmu_lookup(cpu, addr, get_memop(oi), ra, MMU_DATA_STORE);
     stb_p(haddr, val);
     clear_helper_retaddr();
-}
-
-void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
-    do_st1_mmu(env_cpu(env), addr, val, oi, ra);
-}
-
-void cpu_stb_mmu(CPUArchState *env, abi_ptr addr, uint8_t val,
-                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
-    do_st1_mmu(env_cpu(env), addr, val, oi, ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 
 static void do_st2_mmu(CPUState *cpu, vaddr addr, uint16_t val,
@@ -1199,21 +1072,6 @@ static void do_st2_mmu(CPUState *cpu, vaddr addr, uint16_t val,
     clear_helper_retaddr();
 }
 
-void helper_stw_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
-    do_st2_mmu(env_cpu(env), addr, val, oi, ra);
-}
-
-void cpu_stw_mmu(CPUArchState *env, abi_ptr addr, uint16_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
-    do_st2_mmu(env_cpu(env), addr, val, oi, ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
-}
-
 static void do_st4_mmu(CPUState *cpu, vaddr addr, uint32_t val,
                        MemOpIdx oi, uintptr_t ra)
 {
@@ -1228,21 +1086,6 @@ static void do_st4_mmu(CPUState *cpu, vaddr addr, uint32_t val,
     }
     store_atom_4(cpu, ra, haddr, mop, val);
     clear_helper_retaddr();
-}
-
-void helper_stl_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
-    do_st4_mmu(env_cpu(env), addr, val, oi, ra);
-}
-
-void cpu_stl_mmu(CPUArchState *env, abi_ptr addr, uint32_t val,
-                 MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
-    do_st4_mmu(env_cpu(env), addr, val, oi, ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 
 static void do_st8_mmu(CPUState *cpu, vaddr addr, uint64_t val,
@@ -1261,21 +1104,6 @@ static void do_st8_mmu(CPUState *cpu, vaddr addr, uint64_t val,
     clear_helper_retaddr();
 }
 
-void helper_stq_mmu(CPUArchState *env, uint64_t addr, uint64_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
-    do_st8_mmu(env_cpu(env), addr, val, oi, ra);
-}
-
-void cpu_stq_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
-                    MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
-    do_st8_mmu(env_cpu(env), addr, val, oi, ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
-}
-
 static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
                         MemOpIdx oi, uintptr_t ra)
 {
@@ -1290,27 +1118,6 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
     }
     store_atom_16(cpu, ra, haddr, mop, val);
     clear_helper_retaddr();
-}
-
-void helper_st16_mmu(CPUArchState *env, uint64_t addr, Int128 val,
-                     MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
-    do_st16_mmu(env_cpu(env), addr, val, oi, ra);
-}
-
-void helper_st_i128(CPUArchState *env, uint64_t addr, Int128 val, MemOpIdx oi)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
-    helper_st16_mmu(env, addr, val, oi, GETPC());
-}
-
-void cpu_st16_mmu(CPUArchState *env, abi_ptr addr,
-                  Int128 val, MemOpIdx oi, uintptr_t ra)
-{
-    tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
-    do_st16_mmu(env_cpu(env), addr, val, oi, ra);
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 
 uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr ptr)
