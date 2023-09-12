@@ -4019,6 +4019,66 @@ TRANS_FEAT(SETGP, aa64_mops, do_SET, a, false, true, gen_helper_setgp)
 TRANS_FEAT(SETGM, aa64_mops, do_SET, a, false, true, gen_helper_setgm)
 TRANS_FEAT(SETGE, aa64_mops, do_SET, a, true, true, gen_helper_setge)
 
+typedef void CpyFn(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32);
+
+static bool do_CPY(DisasContext *s, arg_cpy *a, bool is_epilogue, CpyFn fn)
+{
+    int rmemidx, wmemidx;
+    uint32_t syndrome, rdesc = 0, wdesc = 0;
+    bool wunpriv = extract32(a->options, 0, 1);
+    bool runpriv = extract32(a->options, 1, 1);
+
+    /*
+     * UNPREDICTABLE cases: we choose to UNDEF, which allows
+     * us to pull this check before the CheckMOPSEnabled() test
+     * (which we do in the helper function)
+     */
+    if (a->rs == a->rn || a->rs == a->rd || a->rn == a->rd ||
+        a->rd == 31 || a->rs == 31 || a->rn == 31) {
+        return false;
+    }
+
+    rmemidx = get_a64_user_mem_index(s, runpriv);
+    wmemidx = get_a64_user_mem_index(s, wunpriv);
+
+    /*
+     * We pass option_a == true, matching our implementation;
+     * we pass wrong_option == false: helper function may set that bit.
+     */
+    syndrome = syn_mop(false, false, a->options, is_epilogue,
+                       false, true, a->rd, a->rs, a->rn);
+
+    /* If we need to do MTE tag checking, assemble the descriptors */
+    if (s->mte_active[runpriv]) {
+        rdesc = FIELD_DP32(rdesc, MTEDESC, TBI, s->tbid);
+        rdesc = FIELD_DP32(rdesc, MTEDESC, TCMA, s->tcma);
+    }
+    if (s->mte_active[wunpriv]) {
+        wdesc = FIELD_DP32(wdesc, MTEDESC, TBI, s->tbid);
+        wdesc = FIELD_DP32(wdesc, MTEDESC, TCMA, s->tcma);
+        wdesc = FIELD_DP32(wdesc, MTEDESC, WRITE, true);
+    }
+    /* The helper function needs these parts of the descriptor regardless */
+    rdesc = FIELD_DP32(rdesc, MTEDESC, MIDX, rmemidx);
+    wdesc = FIELD_DP32(wdesc, MTEDESC, MIDX, wmemidx);
+
+    /*
+     * The helper needs the register numbers, but since they're in
+     * the syndrome anyway, we let it extract them from there rather
+     * than passing in an extra three integer arguments.
+     */
+    fn(cpu_env, tcg_constant_i32(syndrome), tcg_constant_i32(wdesc),
+       tcg_constant_i32(rdesc));
+    return true;
+}
+
+TRANS_FEAT(CPYP, aa64_mops, do_CPY, a, false, gen_helper_cpyp)
+TRANS_FEAT(CPYM, aa64_mops, do_CPY, a, false, gen_helper_cpym)
+TRANS_FEAT(CPYE, aa64_mops, do_CPY, a, true, gen_helper_cpye)
+TRANS_FEAT(CPYFP, aa64_mops, do_CPY, a, false, gen_helper_cpyfp)
+TRANS_FEAT(CPYFM, aa64_mops, do_CPY, a, false, gen_helper_cpyfm)
+TRANS_FEAT(CPYFE, aa64_mops, do_CPY, a, true, gen_helper_cpyfe)
+
 typedef void ArithTwoOp(TCGv_i64, TCGv_i64, TCGv_i64);
 
 static bool gen_rri(DisasContext *s, arg_rri_sf *a,

@@ -1049,6 +1049,15 @@ static uint64_t page_limit(uint64_t addr)
 }
 
 /*
+ * Return the number of bytes we can copy starting from addr and working
+ * backwards without crossing a page boundary.
+ */
+static uint64_t page_limit_rev(uint64_t addr)
+{
+    return (addr & ~TARGET_PAGE_MASK) + 1;
+}
+
+/*
  * Perform part of a memory set on an area of guest memory starting at
  * toaddr (a dirty address) and extending for setsize bytes.
  *
@@ -1391,4 +1400,449 @@ void HELPER(sete)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 void HELPER(setge)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 {
     do_sete(env, syndrome, mtedesc, set_step_tags, true, GETPC());
+}
+
+/*
+ * Perform part of a memory copy from the guest memory at fromaddr
+ * and extending for copysize bytes, to the guest memory at
+ * toaddr. Both addreses are dirty.
+ *
+ * Returns the number of bytes actually set, which might be less than
+ * copysize; the caller should loop until the whole copy has been done.
+ * The caller should ensure that the guest registers are correct
+ * for the possibility that the first byte of the copy encounters
+ * an exception or watchpoint. We guarantee not to take any faults
+ * for bytes other than the first.
+ */
+static uint64_t copy_step(CPUARMState *env, uint64_t toaddr, uint64_t fromaddr,
+                          uint64_t copysize, int wmemidx, int rmemidx,
+                          uint32_t *wdesc, uint32_t *rdesc, uintptr_t ra)
+{
+    void *rmem;
+    void *wmem;
+
+    /* Don't cross a page boundary on either source or destination */
+    copysize = MIN(copysize, page_limit(toaddr));
+    copysize = MIN(copysize, page_limit(fromaddr));
+    /*
+     * Handle MTE tag checks: either handle the tag mismatch for byte 0,
+     * or else copy up to but not including the byte with the mismatch.
+     */
+    if (*rdesc) {
+        uint64_t mtesize = mte_mops_probe(env, fromaddr, copysize, *rdesc);
+        if (mtesize == 0) {
+            mte_check_fail(env, *rdesc, fromaddr, ra);
+            *rdesc = 0;
+        } else {
+            copysize = MIN(copysize, mtesize);
+        }
+    }
+    if (*wdesc) {
+        uint64_t mtesize = mte_mops_probe(env, toaddr, copysize, *wdesc);
+        if (mtesize == 0) {
+            mte_check_fail(env, *wdesc, toaddr, ra);
+            *wdesc = 0;
+        } else {
+            copysize = MIN(copysize, mtesize);
+        }
+    }
+
+    toaddr = useronly_clean_ptr(toaddr);
+    fromaddr = useronly_clean_ptr(fromaddr);
+    /* Trapless lookup of whether we can get a host memory pointer */
+    wmem = tlb_vaddr_to_host(env, toaddr, MMU_DATA_STORE, wmemidx);
+    rmem = tlb_vaddr_to_host(env, fromaddr, MMU_DATA_LOAD, rmemidx);
+
+#ifndef CONFIG_USER_ONLY
+    /*
+     * If we don't have host memory for both source and dest then just
+     * do a single byte copy. This will handle watchpoints, invalid pages,
+     * etc correctly. For clean code pages, the next iteration will see
+     * the page dirty and will use the fast path.
+     */
+    if (unlikely(!rmem || !wmem)) {
+        uint8_t byte;
+        if (rmem) {
+            byte = *(uint8_t *)rmem;
+        } else {
+            byte = cpu_ldub_mmuidx_ra(env, fromaddr, rmemidx, ra);
+        }
+        if (wmem) {
+            *(uint8_t *)wmem = byte;
+        } else {
+            cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
+        }
+        return 1;
+    }
+#endif
+    /* Easy case: just memmove the host memory */
+    memmove(wmem, rmem, copysize);
+    return copysize;
+}
+
+/*
+ * Do part of a backwards memory copy. Here toaddr and fromaddr point
+ * to the *last* byte to be copied.
+ */
+static uint64_t copy_step_rev(CPUARMState *env, uint64_t toaddr,
+                              uint64_t fromaddr,
+                              uint64_t copysize, int wmemidx, int rmemidx,
+                              uint32_t *wdesc, uint32_t *rdesc, uintptr_t ra)
+{
+    void *rmem;
+    void *wmem;
+
+    /* Don't cross a page boundary on either source or destination */
+    copysize = MIN(copysize, page_limit_rev(toaddr));
+    copysize = MIN(copysize, page_limit_rev(fromaddr));
+
+    /*
+     * Handle MTE tag checks: either handle the tag mismatch for byte 0,
+     * or else copy up to but not including the byte with the mismatch.
+     */
+    if (*rdesc) {
+        uint64_t mtesize = mte_mops_probe_rev(env, fromaddr, copysize, *rdesc);
+        if (mtesize == 0) {
+            mte_check_fail(env, *rdesc, fromaddr, ra);
+            *rdesc = 0;
+        } else {
+            copysize = MIN(copysize, mtesize);
+        }
+    }
+    if (*wdesc) {
+        uint64_t mtesize = mte_mops_probe_rev(env, toaddr, copysize, *wdesc);
+        if (mtesize == 0) {
+            mte_check_fail(env, *wdesc, toaddr, ra);
+            *wdesc = 0;
+        } else {
+            copysize = MIN(copysize, mtesize);
+        }
+    }
+
+    toaddr = useronly_clean_ptr(toaddr);
+    fromaddr = useronly_clean_ptr(fromaddr);
+    /* Trapless lookup of whether we can get a host memory pointer */
+    wmem = tlb_vaddr_to_host(env, toaddr, MMU_DATA_STORE, wmemidx);
+    rmem = tlb_vaddr_to_host(env, fromaddr, MMU_DATA_LOAD, rmemidx);
+
+#ifndef CONFIG_USER_ONLY
+    /*
+     * If we don't have host memory for both source and dest then just
+     * do a single byte copy. This will handle watchpoints, invalid pages,
+     * etc correctly. For clean code pages, the next iteration will see
+     * the page dirty and will use the fast path.
+     */
+    if (unlikely(!rmem || !wmem)) {
+        uint8_t byte;
+        if (rmem) {
+            byte = *(uint8_t *)rmem;
+        } else {
+            byte = cpu_ldub_mmuidx_ra(env, fromaddr, rmemidx, ra);
+        }
+        if (wmem) {
+            *(uint8_t *)wmem = byte;
+        } else {
+            cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
+        }
+        return 1;
+    }
+#endif
+    /*
+     * Easy case: just memmove the host memory. Note that wmem and
+     * rmem here point to the *last* byte to copy.
+     */
+    memmove(wmem - (copysize - 1), rmem - (copysize - 1), copysize);
+    return copysize;
+}
+
+/*
+ * for the Memory Copy operation, our implementation chooses always
+ * to use "option A", where we update Xd and Xs to the final addresses
+ * in the CPYP insn, and then in CPYM and CPYE only need to update Xn.
+ *
+ * @env: CPU
+ * @syndrome: syndrome value for mismatch exceptions
+ * (also contains the register numbers we need to use)
+ * @wdesc: MTE descriptor for the writes (destination)
+ * @rdesc: MTE descriptor for the reads (source)
+ * @move: true if this is CPY (memmove), false for CPYF (memcpy forwards)
+ */
+static void do_cpyp(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                    uint32_t rdesc, uint32_t move, uintptr_t ra)
+{
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint32_t rmemidx = FIELD_EX32(rdesc, MTEDESC, MIDX);
+    uint32_t wmemidx = FIELD_EX32(wdesc, MTEDESC, MIDX);
+    bool forwards = true;
+    uint64_t toaddr = env->xregs[rd];
+    uint64_t fromaddr = env->xregs[rs];
+    uint64_t copysize = env->xregs[rn];
+    uint64_t stagecopysize, step;
+
+    check_mops_enabled(env, ra);
+
+
+    if (move) {
+        /*
+         * Copy backwards if necessary. The direction for a non-overlapping
+         * copy is IMPDEF; we choose forwards.
+         */
+        if (copysize > 0x007FFFFFFFFFFFFFULL) {
+            copysize = 0x007FFFFFFFFFFFFFULL;
+        }
+        uint64_t fs = extract64(fromaddr, 0, 56);
+        uint64_t ts = extract64(toaddr, 0, 56);
+        uint64_t fe = extract64(fromaddr + copysize, 0, 56);
+
+        if (fs < ts && fe > ts) {
+            forwards = false;
+        }
+    } else {
+        if (copysize > INT64_MAX) {
+            copysize = INT64_MAX;
+        }
+    }
+
+    if (!mte_checks_needed(fromaddr, rdesc)) {
+        rdesc = 0;
+    }
+    if (!mte_checks_needed(toaddr, wdesc)) {
+        wdesc = 0;
+    }
+
+    if (forwards) {
+        stagecopysize = MIN(copysize, page_limit(toaddr));
+        stagecopysize = MIN(stagecopysize, page_limit(fromaddr));
+        while (stagecopysize) {
+            env->xregs[rd] = toaddr;
+            env->xregs[rs] = fromaddr;
+            env->xregs[rn] = copysize;
+            step = copy_step(env, toaddr, fromaddr, stagecopysize,
+                             wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            toaddr += step;
+            fromaddr += step;
+            copysize -= step;
+            stagecopysize -= step;
+        }
+        /* Insn completed, so update registers to the Option A format */
+        env->xregs[rd] = toaddr + copysize;
+        env->xregs[rs] = fromaddr + copysize;
+        env->xregs[rn] = -copysize;
+    } else {
+        /*
+         * In a reverse copy the to and from addrs in Xs and Xd are the start
+         * of the range, but it's more convenient for us to work with pointers
+         * to the last byte being copied.
+         */
+        toaddr += copysize - 1;
+        fromaddr += copysize - 1;
+        stagecopysize = MIN(copysize, page_limit_rev(toaddr));
+        stagecopysize = MIN(stagecopysize, page_limit_rev(fromaddr));
+        while (stagecopysize) {
+            env->xregs[rn] = copysize;
+            step = copy_step_rev(env, toaddr, fromaddr, stagecopysize,
+                                 wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            copysize -= step;
+            stagecopysize -= step;
+            toaddr -= step;
+            fromaddr -= step;
+        }
+        /*
+         * Insn completed, so update registers to the Option A format.
+         * For a reverse copy this is no different to the CPYP input format.
+         */
+        env->xregs[rn] = copysize;
+    }
+
+    /* Set NZCV = 0000 to indicate we are an Option A implementation */
+    env->NF = 0;
+    env->ZF = 1; /* our env->ZF encoding is inverted */
+    env->CF = 0;
+    env->VF = 0;
+    return;
+}
+
+void HELPER(cpyp)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                  uint32_t rdesc)
+{
+    do_cpyp(env, syndrome, wdesc, rdesc, true, GETPC());
+}
+
+void HELPER(cpyfp)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                   uint32_t rdesc)
+{
+    do_cpyp(env, syndrome, wdesc, rdesc, false, GETPC());
+}
+
+static void do_cpym(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                    uint32_t rdesc, uint32_t move, uintptr_t ra)
+{
+    /* Main: we choose to copy until less than a page remaining */
+    CPUState *cs = env_cpu(env);
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint32_t rmemidx = FIELD_EX32(rdesc, MTEDESC, MIDX);
+    uint32_t wmemidx = FIELD_EX32(wdesc, MTEDESC, MIDX);
+    bool forwards = true;
+    uint64_t toaddr, fromaddr, copysize, step;
+
+    check_mops_enabled(env, ra);
+
+    /* We choose to NOP out "no data to copy" before consistency checks */
+    if (env->xregs[rn] == 0) {
+        return;
+    }
+
+    check_mops_wrong_option(env, syndrome, ra);
+
+    if (move) {
+        forwards = (int64_t)env->xregs[rn] < 0;
+    }
+
+    if (forwards) {
+        toaddr = env->xregs[rd] + env->xregs[rn];
+        fromaddr = env->xregs[rs] + env->xregs[rn];
+        copysize = -env->xregs[rn];
+    } else {
+        copysize = env->xregs[rn];
+        /* This toaddr and fromaddr point to the *last* byte to copy */
+        toaddr = env->xregs[rd] + copysize - 1;
+        fromaddr = env->xregs[rs] + copysize - 1;
+    }
+
+    if (!mte_checks_needed(fromaddr, rdesc)) {
+        rdesc = 0;
+    }
+    if (!mte_checks_needed(toaddr, wdesc)) {
+        wdesc = 0;
+    }
+
+    /* Our implementation has no particular parameter requirements for CPYM */
+
+    /* Do the actual memmove */
+    if (forwards) {
+        while (copysize >= TARGET_PAGE_SIZE) {
+            step = copy_step(env, toaddr, fromaddr, copysize,
+                             wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            toaddr += step;
+            fromaddr += step;
+            copysize -= step;
+            env->xregs[rn] = -copysize;
+            if (copysize >= TARGET_PAGE_SIZE &&
+                unlikely(cpu_loop_exit_requested(cs))) {
+                cpu_loop_exit_restore(cs, ra);
+            }
+        }
+    } else {
+        while (copysize >= TARGET_PAGE_SIZE) {
+            step = copy_step_rev(env, toaddr, fromaddr, copysize,
+                                 wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            toaddr -= step;
+            fromaddr -= step;
+            copysize -= step;
+            env->xregs[rn] = copysize;
+            if (copysize >= TARGET_PAGE_SIZE &&
+                unlikely(cpu_loop_exit_requested(cs))) {
+                cpu_loop_exit_restore(cs, ra);
+            }
+        }
+    }
+}
+
+void HELPER(cpym)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                  uint32_t rdesc)
+{
+    do_cpym(env, syndrome, wdesc, rdesc, true, GETPC());
+}
+
+void HELPER(cpyfm)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                   uint32_t rdesc)
+{
+    do_cpym(env, syndrome, wdesc, rdesc, false, GETPC());
+}
+
+static void do_cpye(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                    uint32_t rdesc, uint32_t move, uintptr_t ra)
+{
+    /* Epilogue: do the last partial page */
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint32_t rmemidx = FIELD_EX32(rdesc, MTEDESC, MIDX);
+    uint32_t wmemidx = FIELD_EX32(wdesc, MTEDESC, MIDX);
+    bool forwards = true;
+    uint64_t toaddr, fromaddr, copysize, step;
+
+    check_mops_enabled(env, ra);
+
+    /* We choose to NOP out "no data to copy" before consistency checks */
+    if (env->xregs[rn] == 0) {
+        return;
+    }
+
+    check_mops_wrong_option(env, syndrome, ra);
+
+    if (move) {
+        forwards = (int64_t)env->xregs[rn] < 0;
+    }
+
+    if (forwards) {
+        toaddr = env->xregs[rd] + env->xregs[rn];
+        fromaddr = env->xregs[rs] + env->xregs[rn];
+        copysize = -env->xregs[rn];
+    } else {
+        copysize = env->xregs[rn];
+        /* This toaddr and fromaddr point to the *last* byte to copy */
+        toaddr = env->xregs[rd] + copysize - 1;
+        fromaddr = env->xregs[rs] + copysize - 1;
+    }
+
+    if (!mte_checks_needed(fromaddr, rdesc)) {
+        rdesc = 0;
+    }
+    if (!mte_checks_needed(toaddr, wdesc)) {
+        wdesc = 0;
+    }
+
+    /* Check the size; we don't want to have do a check-for-interrupts */
+    if (copysize >= TARGET_PAGE_SIZE) {
+        raise_exception_ra(env, EXCP_UDEF, syndrome,
+                           mops_mismatch_exception_target_el(env), ra);
+    }
+
+    /* Do the actual memmove */
+    if (forwards) {
+        while (copysize > 0) {
+            step = copy_step(env, toaddr, fromaddr, copysize,
+                             wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            toaddr += step;
+            fromaddr += step;
+            copysize -= step;
+            env->xregs[rn] = -copysize;
+        }
+    } else {
+        while (copysize > 0) {
+            step = copy_step_rev(env, toaddr, fromaddr, copysize,
+                                 wmemidx, rmemidx, &wdesc, &rdesc, ra);
+            toaddr -= step;
+            fromaddr -= step;
+            copysize -= step;
+            env->xregs[rn] = copysize;
+        }
+    }
+}
+
+void HELPER(cpye)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                  uint32_t rdesc)
+{
+    do_cpye(env, syndrome, wdesc, rdesc, true, GETPC());
+}
+
+void HELPER(cpyfe)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
+                   uint32_t rdesc)
+{
+    do_cpye(env, syndrome, wdesc, rdesc, false, GETPC());
 }
