@@ -554,3 +554,19 @@ LDGM            11011001 11 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
 STZ2G           11011001 11 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
 STZ2G           11011001 11 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
 STZ2G           11011001 11 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+# Memory operations (memset, memcpy, memmove)
+# Each of these comes in a set of three, eg SETP (prologue), SETM (main),
+# SETE (epilogue), and each of those has different flavours to
+# indicate whether memory accesses should be unpriv or non-temporal.
+# We don't distinguish temporal and non-temporal accesses, but we
+# do need to report it in syndrome register values.
+
+# Memset
+&set rs rn rd unpriv nontemp
+# op2 bit 1 is nontemporal bit
+@set         .. ......... rs:5 .. nontemp:1 unpriv:1 .. rn:5 rd:5 &set
+
+SETP            00 011001110 ..... 00 . . 01 ..... ..... @set
+SETM            00 011001110 ..... 01 . . 01 ..... ..... @set
+SETE            00 011001110 ..... 10 . . 01 ..... ..... @set

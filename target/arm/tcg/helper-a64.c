@@ -968,3 +968,347 @@ void HELPER(unaligned_access)(CPUARMState *env, uint64_t addr,
     arm_cpu_do_unaligned_access(env_cpu(env), addr, access_type,
                                 mmu_idx, GETPC());
 }
+
+/* Memory operations (memset, memmove, memcpy) */
+
+/*
+ * Return true if the CPY* and SET* insns can execute; compare
+ * pseudocode CheckMOPSEnabled(), though we refactor it a little.
+ */
+static bool mops_enabled(CPUARMState *env)
+{
+    int el = arm_current_el(env);
+
+    if (el < 2 &&
+        (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE) &&
+        !(arm_hcrx_el2_eff(env) & HCRX_MSCEN)) {
+        return false;
+    }
+
+    if (el == 0) {
+        if (!el_is_in_host(env, 0)) {
+            return env->cp15.sctlr_el[1] & SCTLR_MSCEN;
+        } else {
+            return env->cp15.sctlr_el[2] & SCTLR_MSCEN;
+        }
+    }
+    return true;
+}
+
+static void check_mops_enabled(CPUARMState *env, uintptr_t ra)
+{
+    if (!mops_enabled(env)) {
+        raise_exception_ra(env, EXCP_UDEF, syn_uncategorized(),
+                           exception_target_el(env), ra);
+    }
+}
+
+/*
+ * Return the target exception level for an exception due
+ * to mismatched arguments in a FEAT_MOPS copy or set.
+ * Compare pseudocode MismatchedCpySetTargetEL()
+ */
+static int mops_mismatch_exception_target_el(CPUARMState *env)
+{
+    int el = arm_current_el(env);
+
+    if (el > 1) {
+        return el;
+    }
+    if (el == 0 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
+        return 2;
+    }
+    if (el == 1 && (arm_hcrx_el2_eff(env) & HCRX_MCE2)) {
+        return 2;
+    }
+    return 1;
+}
+
+/*
+ * Check whether an M or E instruction was executed with a CF value
+ * indicating the wrong option for this implementation.
+ * Assumes we are always Option A.
+ */
+static void check_mops_wrong_option(CPUARMState *env, uint32_t syndrome,
+                                    uintptr_t ra)
+{
+    if (env->CF != 0) {
+        syndrome |= 1 << 17; /* Set the wrong-option bit */
+        raise_exception_ra(env, EXCP_UDEF, syndrome,
+                           mops_mismatch_exception_target_el(env), ra);
+    }
+}
+
+/*
+ * Return the maximum number of bytes we can transfer starting at addr
+ * without crossing a page boundary.
+ */
+static uint64_t page_limit(uint64_t addr)
+{
+    return TARGET_PAGE_ALIGN(addr + 1) - addr;
+}
+
+/*
+ * Perform part of a memory set on an area of guest memory starting at
+ * toaddr (a dirty address) and extending for setsize bytes.
+ *
+ * Returns the number of bytes actually set, which might be less than
+ * setsize; the caller should loop until the whole set has been done.
+ * The caller should ensure that the guest registers are correct
+ * for the possibility that the first byte of the set encounters
+ * an exception or watchpoint. We guarantee not to take any faults
+ * for bytes other than the first.
+ */
+static uint64_t set_step(CPUARMState *env, uint64_t toaddr,
+                         uint64_t setsize, uint32_t data, int memidx,
+                         uint32_t *mtedesc, uintptr_t ra)
+{
+    void *mem;
+
+    setsize = MIN(setsize, page_limit(toaddr));
+    if (*mtedesc) {
+        uint64_t mtesize = mte_mops_probe(env, toaddr, setsize, *mtedesc);
+        if (mtesize == 0) {
+            /* Trap, or not. All CPU state is up to date */
+            mte_check_fail(env, *mtedesc, toaddr, ra);
+            /* Continue, with no further MTE checks required */
+            *mtedesc = 0;
+        } else {
+            /* Advance to the end, or to the tag mismatch */
+            setsize = MIN(setsize, mtesize);
+        }
+    }
+
+    toaddr = useronly_clean_ptr(toaddr);
+    /*
+     * Trapless lookup: returns NULL for invalid page, I/O,
+     * watchpoints, clean pages, etc.
+     */
+    mem = tlb_vaddr_to_host(env, toaddr, MMU_DATA_STORE, memidx);
+
+#ifndef CONFIG_USER_ONLY
+    if (unlikely(!mem)) {
+        /*
+         * Slow-path: just do one byte write. This will handle the
+         * watchpoint, invalid page, etc handling correctly.
+         * For clean code pages, the next iteration will see
+         * the page dirty and will use the fast path.
+         */
+        cpu_stb_mmuidx_ra(env, toaddr, data, memidx, ra);
+        return 1;
+    }
+#endif
+    /* Easy case: just memset the host memory */
+    memset(mem, data, setsize);
+    return setsize;
+}
+
+typedef uint64_t StepFn(CPUARMState *env, uint64_t toaddr,
+                        uint64_t setsize, uint32_t data,
+                        int memidx, uint32_t *mtedesc, uintptr_t ra);
+
+/* Extract register numbers from a MOPS exception syndrome value */
+static int mops_destreg(uint32_t syndrome)
+{
+    return extract32(syndrome, 10, 5);
+}
+
+static int mops_srcreg(uint32_t syndrome)
+{
+    return extract32(syndrome, 5, 5);
+}
+
+static int mops_sizereg(uint32_t syndrome)
+{
+    return extract32(syndrome, 0, 5);
+}
+
+/*
+ * Return true if TCMA and TBI bits mean we need to do MTE checks.
+ * We only need to do this once per MOPS insn, not for every page.
+ */
+static bool mte_checks_needed(uint64_t ptr, uint32_t desc)
+{
+    int bit55 = extract64(ptr, 55, 1);
+
+    /*
+     * Note that tbi_check() returns true for "access checked" but
+     * tcma_check() returns true for "access unchecked".
+     */
+    if (!tbi_check(desc, bit55)) {
+        return false;
+    }
+    return !tcma_check(desc, bit55, allocation_tag_from_addr(ptr));
+}
+
+/*
+ * For the Memory Set operation, our implementation chooses
+ * always to use "option A", where we update Xd to the final
+ * address in the SETP insn, and set Xn to be -(bytes remaining).
+ * On SETM and SETE insns we only need update Xn.
+ *
+ * @env: CPU
+ * @syndrome: syndrome value for mismatch exceptions
+ * (also contains the register numbers we need to use)
+ * @mtedesc: MTE descriptor word
+ * @stepfn: function which does a single part of the set operation
+ * @is_setg: true if this is the tag-setting SETG variant
+ */
+static void do_setp(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
+                    StepFn *stepfn, bool is_setg, uintptr_t ra)
+{
+    /* Prologue: we choose to do up to the next page boundary */
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint8_t data = env->xregs[rs];
+    uint32_t memidx = FIELD_EX32(mtedesc, MTEDESC, MIDX);
+    uint64_t toaddr = env->xregs[rd];
+    uint64_t setsize = env->xregs[rn];
+    uint64_t stagesetsize, step;
+
+    check_mops_enabled(env, ra);
+
+    if (setsize > INT64_MAX) {
+        setsize = INT64_MAX;
+    }
+
+    if (!mte_checks_needed(toaddr, mtedesc)) {
+        mtedesc = 0;
+    }
+
+    stagesetsize = MIN(setsize, page_limit(toaddr));
+    while (stagesetsize) {
+        env->xregs[rd] = toaddr;
+        env->xregs[rn] = setsize;
+        step = stepfn(env, toaddr, stagesetsize, data, memidx, &mtedesc, ra);
+        toaddr += step;
+        setsize -= step;
+        stagesetsize -= step;
+    }
+    /* Insn completed, so update registers to the Option A format */
+    env->xregs[rd] = toaddr + setsize;
+    env->xregs[rn] = -setsize;
+
+    /* Set NZCV = 0000 to indicate we are an Option A implementation */
+    env->NF = 0;
+    env->ZF = 1; /* our env->ZF encoding is inverted */
+    env->CF = 0;
+    env->VF = 0;
+    return;
+}
+
+void HELPER(setp)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_setp(env, syndrome, mtedesc, set_step, false, GETPC());
+}
+
+static void do_setm(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
+                    StepFn *stepfn, bool is_setg, uintptr_t ra)
+{
+    /* Main: we choose to do all the full-page chunks */
+    CPUState *cs = env_cpu(env);
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint8_t data = env->xregs[rs];
+    uint64_t toaddr = env->xregs[rd] + env->xregs[rn];
+    uint64_t setsize = -env->xregs[rn];
+    uint32_t memidx = FIELD_EX32(mtedesc, MTEDESC, MIDX);
+    uint64_t step, stagesetsize;
+
+    check_mops_enabled(env, ra);
+
+    /*
+     * We're allowed to NOP out "no data to copy" before the consistency
+     * checks; we choose to do so.
+     */
+    if (env->xregs[rn] == 0) {
+        return;
+    }
+
+    check_mops_wrong_option(env, syndrome, ra);
+
+    /*
+     * Our implementation will work fine even if we have an unaligned
+     * destination address, and because we update Xn every time around
+     * the loop below and the return value from stepfn() may be less
+     * than requested, we might find toaddr is unaligned. So we don't
+     * have an IMPDEF check for alignment here.
+     */
+
+    if (!mte_checks_needed(toaddr, mtedesc)) {
+        mtedesc = 0;
+    }
+
+    /* Do the actual memset: we leave the last partial page to SETE */
+    stagesetsize = setsize & TARGET_PAGE_MASK;
+    while (stagesetsize > 0) {
+        step = stepfn(env, toaddr, setsize, data, memidx, &mtedesc, ra);
+        toaddr += step;
+        setsize -= step;
+        stagesetsize -= step;
+        env->xregs[rn] = -setsize;
+        if (stagesetsize > 0 && unlikely(cpu_loop_exit_requested(cs))) {
+            cpu_loop_exit_restore(cs, ra);
+        }
+    }
+}
+
+void HELPER(setm)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_setm(env, syndrome, mtedesc, set_step, false, GETPC());
+}
+
+static void do_sete(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc,
+                    StepFn *stepfn, bool is_setg, uintptr_t ra)
+{
+    /* Epilogue: do the last partial page */
+    int rd = mops_destreg(syndrome);
+    int rs = mops_srcreg(syndrome);
+    int rn = mops_sizereg(syndrome);
+    uint8_t data = env->xregs[rs];
+    uint64_t toaddr = env->xregs[rd] + env->xregs[rn];
+    uint64_t setsize = -env->xregs[rn];
+    uint32_t memidx = FIELD_EX32(mtedesc, MTEDESC, MIDX);
+    uint64_t step;
+
+    check_mops_enabled(env, ra);
+
+    /*
+     * We're allowed to NOP out "no data to copy" before the consistency
+     * checks; we choose to do so.
+     */
+    if (setsize == 0) {
+        return;
+    }
+
+    check_mops_wrong_option(env, syndrome, ra);
+
+    /*
+     * Our implementation has no address alignment requirements, but
+     * we do want to enforce the "less than a page" size requirement,
+     * so we don't need to have the "check for interrupts" here.
+     */
+    if (setsize >= TARGET_PAGE_SIZE) {
+        raise_exception_ra(env, EXCP_UDEF, syndrome,
+                           mops_mismatch_exception_target_el(env), ra);
+    }
+
+    if (!mte_checks_needed(toaddr, mtedesc)) {
+        mtedesc = 0;
+    }
+
+    /* Do the actual memset */
+    while (setsize > 0) {
+        step = stepfn(env, toaddr, setsize, data, memidx, &mtedesc, ra);
+        toaddr += step;
+        setsize -= step;
+        env->xregs[rn] = -setsize;
+    }
+}
+
+void HELPER(sete)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
+{
+    do_sete(env, syndrome, mtedesc, set_step, false, GETPC());
+}
