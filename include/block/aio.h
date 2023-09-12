@@ -31,7 +31,6 @@ typedef void BlockCompletionFunc(void *opaque, int ret);
 
 typedef struct AIOCBInfo {
     void (*cancel_async)(BlockAIOCB *acb);
-    AioContext *(*get_aio_context)(BlockAIOCB *acb);
     size_t aiocb_size;
 } AIOCBInfo;
 

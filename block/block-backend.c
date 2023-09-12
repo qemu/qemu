@@ -33,8 +33,6 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
-
 typedef struct BlockBackendAioNotifier {
     void (*attached_aio_context)(AioContext *new_context, void *opaque);
     void (*detach_aio_context)(void *opaque);
@@ -103,7 +101,6 @@ typedef struct BlockBackendAIOCB {
 } BlockBackendAIOCB;
 
 static const AIOCBInfo block_backend_aiocb_info = {
-    .get_aio_context = blk_aiocb_get_aio_context,
     .aiocb_size = sizeof(BlockBackendAIOCB),
 };
 
@@ -1562,16 +1559,8 @@ typedef struct BlkAioEmAIOCB {
     bool has_returned;
 } BlkAioEmAIOCB;
 
-static AioContext *blk_aio_em_aiocb_get_aio_context(BlockAIOCB *acb_)
-{
-    BlkAioEmAIOCB *acb = container_of(acb_, BlkAioEmAIOCB, common);
-
-    return blk_get_aio_context(acb->rwco.blk);
-}
-
 static const AIOCBInfo blk_aio_em_aiocb_info = {
     .aiocb_size         = sizeof(BlkAioEmAIOCB),
-    .get_aio_context    = blk_aio_em_aiocb_get_aio_context,
 };
 
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
@@ -2449,12 +2438,6 @@ AioContext *blk_get_aio_context(BlockBackend *blk)
     }
 
     return blk->ctx;
-}
-
-static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
-{
-    BlockBackendAIOCB *blk_acb = DO_UPCAST(BlockBackendAIOCB, common, acb);
-    return blk_get_aio_context(blk_acb->blk);
 }
 
 int blk_set_aio_context(BlockBackend *blk, AioContext *new_context,

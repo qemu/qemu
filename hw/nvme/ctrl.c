@@ -2130,11 +2130,6 @@ static inline bool nvme_is_write(NvmeRequest *req)
            rw->opcode == NVME_CMD_WRITE_ZEROES;
 }
 
-static AioContext *nvme_get_aio_context(BlockAIOCB *acb)
-{
-    return qemu_get_aio_context();
-}
-
 static void nvme_misc_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
@@ -3302,7 +3297,6 @@ static void nvme_flush_cancel(BlockAIOCB *acb)
 static const AIOCBInfo nvme_flush_aiocb_info = {
     .aiocb_size = sizeof(NvmeFlushAIOCB),
     .cancel_async = nvme_flush_cancel,
-    .get_aio_context = nvme_get_aio_context,
 };
 
 static void nvme_do_flush(NvmeFlushAIOCB *iocb);
@@ -6478,7 +6472,6 @@ static void nvme_format_cancel(BlockAIOCB *aiocb)
 static const AIOCBInfo nvme_format_aiocb_info = {
     .aiocb_size = sizeof(NvmeFormatAIOCB),
     .cancel_async = nvme_format_cancel,
-    .get_aio_context = nvme_get_aio_context,
 };
 
 static void nvme_format_set(NvmeNamespace *ns, uint8_t lbaf, uint8_t mset,
