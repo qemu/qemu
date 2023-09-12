@@ -801,7 +801,7 @@ static void dpy_set_ui_info_timer(void *opaque)
     con->hw_ops->ui_info(con->hw, head, &con->ui_info);
 }
 
-bool dpy_ui_info_supported(QemuConsole *con)
+bool dpy_ui_info_supported(const QemuConsole *con)
 {
     if (con == NULL) {
         con = active_console;
@@ -815,6 +815,8 @@ bool dpy_ui_info_supported(QemuConsole *con)
 
 const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
 {
+    assert(dpy_ui_info_supported(con));
+
     if (con == NULL) {
         con = active_console;
     }
