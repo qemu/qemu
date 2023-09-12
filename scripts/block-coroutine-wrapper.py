@@ -92,8 +92,6 @@ class FuncDecl:
                                  f"{self.name}")
             self.target_name = f'{subsystem}_{subname}'
 
-        self.ctx = self.gen_ctx()
-
         self.get_result = 's->ret = '
         self.ret = 'return s.ret;'
         self.co_ret = 'return '
@@ -167,7 +165,7 @@ def create_mixed_wrapper(func: FuncDecl) -> str:
         {func.co_ret}{name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
-            .poll_state.ctx = {func.ctx},
+            .poll_state.ctx = qemu_get_current_aio_context(),
             .poll_state.in_progress = true,
 
 { func.gen_block('            .{name} = {name},') }
@@ -191,7 +189,7 @@ def create_co_wrapper(func: FuncDecl) -> str:
 {func.return_type} {func.name}({ func.gen_list('{decl}') })
 {{
     {struct_name} s = {{
-        .poll_state.ctx = {func.ctx},
+        .poll_state.ctx = qemu_get_current_aio_context(),
         .poll_state.in_progress = true,
 
 { func.gen_block('        .{name} = {name},') }
