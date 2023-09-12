@@ -1746,12 +1746,12 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
     }
 
     /*
-    * We don't have a theoretically justifiable exact lower bound on the base
-    * address of any flash mapping. In practice, the IO-APIC MMIO range is
-    * [0xFEE00000..0xFEE01000] -- see IO_APIC_DEFAULT_ADDRESS --, leaving free
-    * only 18MB-4KB below 4G. For now, restrict the cumulative mapping to 8MB in
-    * size.
-    */
+     * We don't have a theoretically justifiable exact lower bound on the base
+     * address of any flash mapping. In practice, the IO-APIC MMIO range is
+     * [0xFEE00000..0xFEE01000] -- see IO_APIC_DEFAULT_ADDRESS --, leaving free
+     * only 18MiB-4KiB below 4GiB. For now, restrict the cumulative mapping to
+     * 16MiB in size.
+     */
     if (value > 16 * MiB) {
         error_setg(errp,
                    "User specified max allowed firmware size %" PRIu64 " is "
