@@ -345,15 +345,15 @@ typedef struct {
 struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
-
     /*< public >*/
+
+    CPUMBState env;
+
     bool ns_axi_dp;
     bool ns_axi_ip;
     bool ns_axi_dc;
     bool ns_axi_ic;
 
-    CPUNegativeOffsetState neg;
-    CPUMBState env;
     MicroBlazeCPUConfig cfg;
 };
 

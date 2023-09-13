@@ -141,7 +141,7 @@ struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
-    CPUNegativeOffsetState neg;
+
     CPUHexagonState env;
 
     bool lldb_compat;

@@ -1213,10 +1213,10 @@ struct ArchCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUMIPSState env;
+
     Clock *clock;
     Clock *count_div; /* Divider for CP0_Count clock */
-    CPUNegativeOffsetState neg;
-    CPUMIPSState env;
 };
 
 

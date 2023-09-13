@@ -432,8 +432,12 @@ int cpu_exec(CPUState *cpu);
 static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
 {
     cpu->parent_obj.env_ptr = &cpu->env;
-    cpu->parent_obj.icount_decr_ptr = &cpu->neg.icount_decr;
+    cpu->parent_obj.icount_decr_ptr = &cpu->parent_obj.neg.icount_decr;
 }
+
+/* Validate correct placement of CPUArchState. */
+QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
+QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 
 /**
  * env_archcpu(env)
@@ -443,7 +447,7 @@ static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
  */
 static inline ArchCPU *env_archcpu(CPUArchState *env)
 {
-    return container_of(env, ArchCPU, env);
+    return (void *)env - sizeof(CPUState);
 }
 
 /**
@@ -454,14 +458,8 @@ static inline ArchCPU *env_archcpu(CPUArchState *env)
  */
 static inline CPUState *env_cpu(CPUArchState *env)
 {
-    return &env_archcpu(env)->parent_obj;
+    return (void *)env - sizeof(CPUState);
 }
-
-/*
- * Validate placement of CPUNegativeOffsetState.
- */
-QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) - offsetof(ArchCPU, neg) >=
-                  sizeof(CPUNegativeOffsetState) + __alignof(CPUArchState));
 
 /**
  * env_neg(env)
@@ -471,8 +469,7 @@ QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) - offsetof(ArchCPU, neg) >=
  */
 static inline CPUNegativeOffsetState *env_neg(CPUArchState *env)
 {
-    ArchCPU *arch_cpu = container_of(env, ArchCPU, env);
-    return &arch_cpu->neg;
+    return &env_cpu(env)->neg;
 }
 
 /**
@@ -483,8 +480,7 @@ static inline CPUNegativeOffsetState *env_neg(CPUArchState *env)
  */
 static inline CPUNegativeOffsetState *cpu_neg(CPUState *cpu)
 {
-    ArchCPU *arch_cpu = container_of(cpu, ArchCPU, parent_obj);
-    return &arch_cpu->neg;
+    return &cpu->neg;
 }
 
 /**
