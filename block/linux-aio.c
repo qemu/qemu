@@ -353,7 +353,7 @@ static uint64_t laio_max_batch(LinuxAioState *s, uint64_t dev_max_batch)
     return max_batch;
 }
 
-static void laio_unplug_fn(void *opaque)
+static void laio_deferred_fn(void *opaque)
 {
     LinuxAioState *s = opaque;
 
@@ -393,7 +393,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
         if (s->io_q.in_queue >= laio_max_batch(s, dev_max_batch)) {
             ioq_submit(s);
         } else {
-            blk_io_plug_call(laio_unplug_fn, s);
+            defer_call(laio_deferred_fn, s);
         }
     }
 

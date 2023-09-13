@@ -306,7 +306,7 @@ static void ioq_init(LuringQueue *io_q)
     io_q->blocked = false;
 }
 
-static void luring_unplug_fn(void *opaque)
+static void luring_deferred_fn(void *opaque)
 {
     LuringState *s = opaque;
     trace_luring_unplug_fn(s, s->io_q.blocked, s->io_q.in_queue,
@@ -367,7 +367,7 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
             return ret;
         }
 
-        blk_io_plug_call(luring_unplug_fn, s);
+        defer_call(luring_deferred_fn, s);
     }
     return 0;
 }

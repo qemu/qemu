@@ -1,24 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Block I/O plugging
+ * Deferred calls
  *
  * Copyright Red Hat.
  *
- * This API defers a function call within a blk_io_plug()/blk_io_unplug()
+ * This API defers a function call within a defer_call_begin()/defer_call_end()
  * section, allowing multiple calls to batch up. This is a performance
  * optimization that is used in the block layer to submit several I/O requests
  * at once instead of individually:
  *
- *   blk_io_plug(); <-- start of plugged region
+ *   defer_call_begin(); <-- start of section
  *   ...
- *   blk_io_plug_call(my_func, my_obj); <-- deferred my_func(my_obj) call
- *   blk_io_plug_call(my_func, my_obj); <-- another
- *   blk_io_plug_call(my_func, my_obj); <-- another
+ *   defer_call(my_func, my_obj); <-- deferred my_func(my_obj) call
+ *   defer_call(my_func, my_obj); <-- another
+ *   defer_call(my_func, my_obj); <-- another
  *   ...
- *   blk_io_unplug(); <-- end of plugged region, my_func(my_obj) is called once
- *
- * This code is actually generic and not tied to the block layer. If another
- * subsystem needs this functionality, it could be renamed.
+ *   defer_call_end(); <-- end of section, my_func(my_obj) is called once
  */
 
 #include "qemu/osdep.h"
@@ -27,66 +24,66 @@
 #include "qemu/thread.h"
 #include "sysemu/block-backend.h"
 
-/* A function call that has been deferred until unplug() */
+/* A function call that has been deferred until defer_call_end() */
 typedef struct {
     void (*fn)(void *);
     void *opaque;
-} UnplugFn;
+} DeferredCall;
 
 /* Per-thread state */
 typedef struct {
-    unsigned count;       /* how many times has plug() been called? */
-    GArray *unplug_fns;   /* functions to call at unplug time */
-} Plug;
+    unsigned nesting_level;
+    GArray *deferred_call_array;
+} DeferCallThreadState;
 
-/* Use get_ptr_plug() to fetch this thread-local value */
-QEMU_DEFINE_STATIC_CO_TLS(Plug, plug);
+/* Use get_ptr_defer_call_thread_state() to fetch this thread-local value */
+QEMU_DEFINE_STATIC_CO_TLS(DeferCallThreadState, defer_call_thread_state);
 
 /* Called at thread cleanup time */
-static void blk_io_plug_atexit(Notifier *n, void *value)
+static void defer_call_atexit(Notifier *n, void *value)
 {
-    Plug *plug = get_ptr_plug();
-    g_array_free(plug->unplug_fns, TRUE);
+    DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
+    g_array_free(thread_state->deferred_call_array, TRUE);
 }
 
 /* This won't involve coroutines, so use __thread */
-static __thread Notifier blk_io_plug_atexit_notifier;
+static __thread Notifier defer_call_atexit_notifier;
 
 /**
- * blk_io_plug_call:
+ * defer_call:
  * @fn: a function pointer to be invoked
  * @opaque: a user-defined argument to @fn()
  *
- * Call @fn(@opaque) immediately if not within a blk_io_plug()/blk_io_unplug()
- * section.
+ * Call @fn(@opaque) immediately if not within a
+ * defer_call_begin()/defer_call_end() section.
  *
  * Otherwise defer the call until the end of the outermost
- * blk_io_plug()/blk_io_unplug() section in this thread. If the same
+ * defer_call_begin()/defer_call_end() section in this thread. If the same
  * @fn/@opaque pair has already been deferred, it will only be called once upon
- * blk_io_unplug() so that accumulated calls are batched into a single call.
+ * defer_call_end() so that accumulated calls are batched into a single call.
  *
  * The caller must ensure that @opaque is not freed before @fn() is invoked.
  */
-void blk_io_plug_call(void (*fn)(void *), void *opaque)
+void defer_call(void (*fn)(void *), void *opaque)
 {
-    Plug *plug = get_ptr_plug();
+    DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
 
-    /* Call immediately if we're not plugged */
-    if (plug->count == 0) {
+    /* Call immediately if we're not deferring calls */
+    if (thread_state->nesting_level == 0) {
         fn(opaque);
         return;
     }
 
-    GArray *array = plug->unplug_fns;
+    GArray *array = thread_state->deferred_call_array;
     if (!array) {
-        array = g_array_new(FALSE, FALSE, sizeof(UnplugFn));
-        plug->unplug_fns = array;
-        blk_io_plug_atexit_notifier.notify = blk_io_plug_atexit;
-        qemu_thread_atexit_add(&blk_io_plug_atexit_notifier);
+        array = g_array_new(FALSE, FALSE, sizeof(DeferredCall));
+        thread_state->deferred_call_array = array;
+        defer_call_atexit_notifier.notify = defer_call_atexit;
+        qemu_thread_atexit_add(&defer_call_atexit_notifier);
     }
 
-    UnplugFn *fns = (UnplugFn *)array->data;
-    UnplugFn new_fn = {
+    DeferredCall *fns = (DeferredCall *)array->data;
+    DeferredCall new_fn = {
         .fn = fn,
         .opaque = opaque,
     };
@@ -106,46 +103,46 @@ void blk_io_plug_call(void (*fn)(void *), void *opaque)
 }
 
 /**
- * blk_io_plug: Defer blk_io_plug_call() functions until blk_io_unplug()
+ * defer_call_begin: Defer defer_call() functions until defer_call_end()
  *
- * blk_io_plug/unplug are thread-local operations. This means that multiple
- * threads can simultaneously call plug/unplug, but the caller must ensure that
- * each unplug() is called in the same thread of the matching plug().
+ * defer_call_begin() and defer_call_end() are thread-local operations. The
+ * caller must ensure that each defer_call_begin() has a matching
+ * defer_call_end() in the same thread.
  *
- * Nesting is supported. blk_io_plug_call() functions are only called at the
- * outermost blk_io_unplug().
+ * Nesting is supported. defer_call() functions are only called at the
+ * outermost defer_call_end().
  */
-void blk_io_plug(void)
+void defer_call_begin(void)
 {
-    Plug *plug = get_ptr_plug();
+    DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
 
-    assert(plug->count < UINT32_MAX);
+    assert(thread_state->nesting_level < UINT32_MAX);
 
-    plug->count++;
+    thread_state->nesting_level++;
 }
 
 /**
- * blk_io_unplug: Run any pending blk_io_plug_call() functions
+ * defer_call_end: Run any pending defer_call() functions
  *
- * There must have been a matching blk_io_plug() call in the same thread prior
- * to this blk_io_unplug() call.
+ * There must have been a matching defer_call_begin() call in the same thread
+ * prior to this defer_call_end() call.
  */
-void blk_io_unplug(void)
+void defer_call_end(void)
 {
-    Plug *plug = get_ptr_plug();
+    DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
 
-    assert(plug->count > 0);
+    assert(thread_state->nesting_level > 0);
 
-    if (--plug->count > 0) {
+    if (--thread_state->nesting_level > 0) {
         return;
     }
 
-    GArray *array = plug->unplug_fns;
+    GArray *array = thread_state->deferred_call_array;
     if (!array) {
         return;
     }
 
-    UnplugFn *fns = (UnplugFn *)array->data;
+    DeferredCall *fns = (DeferredCall *)array->data;
 
     for (guint i = 0; i < array->len; i++) {
         fns[i].fn(fns[i].opaque);
