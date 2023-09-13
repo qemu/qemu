@@ -22,7 +22,7 @@
 #include "qemu/coroutine-tls.h"
 #include "qemu/notify.h"
 #include "qemu/thread.h"
-#include "sysemu/block-backend.h"
+#include "qemu/defer-call.h"
 
 /* A function call that has been deferred until defer_call_end() */
 typedef struct {
