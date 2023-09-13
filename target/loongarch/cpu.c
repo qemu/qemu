@@ -808,6 +808,7 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .name = TYPE_LOONGARCH_CPU,
         .parent = TYPE_CPU,
         .instance_size = sizeof(LoongArchCPU),
+        .instance_align = __alignof(LoongArchCPU),
         .instance_init = loongarch_cpu_init,
 
         .abstract = true,

@@ -314,6 +314,7 @@ static const TypeInfo openrisc_cpus_type_infos[] = {
         .name = TYPE_OPENRISC_CPU,
         .parent = TYPE_CPU,
         .instance_size = sizeof(OpenRISCCPU),
+        .instance_align = __alignof(OpenRISCCPU),
         .instance_init = openrisc_cpu_initfn,
         .abstract = true,
         .class_size = sizeof(OpenRISCCPUClass),

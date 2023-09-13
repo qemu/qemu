@@ -286,6 +286,7 @@ static const TypeInfo alpha_cpu_type_infos[] = {
         .name = TYPE_ALPHA_CPU,
         .parent = TYPE_CPU,
         .instance_size = sizeof(AlphaCPU),
+        .instance_align = __alignof(AlphaCPU),
         .instance_init = alpha_cpu_initfn,
         .abstract = true,
         .class_size = sizeof(AlphaCPUClass),
