@@ -134,6 +134,19 @@ VhostUserGpuEdidRequest
 :scanout-id: ``u32``, the scanout to get edid from
 
 
+VhostUserGpuDMABUFScanout2
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
++----------------+----------+
+| dmabuf_scanout | modifier |
++----------------+----------+
+
+:dmabuf_scanout: ``VhostUserGpuDMABUFScanout``, filled as described in the
+                 VhostUserGpuDMABUFScanout structure.
+
+:modifier: ``u64``, the DMABUF modifiers
+
+
 C structure
 -----------
 
@@ -163,7 +176,8 @@ Protocol features
 
 .. code:: c
 
-  #define VHOST_USER_GPU_PROTOCOL_F_EDID 0
+  #define VHOST_USER_GPU_PROTOCOL_F_EDID    0
+  #define VHOST_USER_GPU_PROTOCOL_F_DMABUF2 1
 
 New messages and communication changes are negotiated thanks to the
 ``VHOST_USER_GPU_GET_PROTOCOL_FEATURES`` and
@@ -262,4 +276,14 @@ Message types
 
   Retrieve the EDID data for a given scanout.
   This message requires the ``VHOST_USER_GPU_PROTOCOL_F_EDID`` protocol
+  feature to be supported.
+
+``VHOST_USER_GPU_DMABUF_SCANOUT2``
+  :id: 12
+  :request payload: ``VhostUserGpuDMABUFScanout2``
+  :reply payload: N/A
+
+  Same as VHOST_USER_GPU_DMABUF_SCANOUT, but also sends the dmabuf modifiers
+  appended to the message, which were not provided in the other message.
+  This message requires the ``VHOST_USER_GPU_PROTOCOL_F_DMABUF2`` protocol
   feature to be supported.

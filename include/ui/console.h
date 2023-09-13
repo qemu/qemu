@@ -6,11 +6,7 @@
 #include "qemu/notify.h"
 #include "qapi/qapi-types-ui.h"
 #include "ui/input.h"
-
-#ifdef CONFIG_OPENGL
-# include <epoxy/gl.h>
-# include "ui/shader.h"
-#endif
+#include "ui/surface.h"
 
 #define TYPE_QEMU_CONSOLE "qemu-console"
 OBJECT_DECLARE_TYPE(QemuConsole, QemuConsoleClass, QEMU_CONSOLE)
@@ -112,10 +108,9 @@ bool qemu_mouse_set(int index, Error **errp);
 #define QEMU_KEY_CTRL_PAGEUP     0xe406
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
-void kbd_put_keysym_console(QemuTextConsole *s, int keysym);
-bool kbd_put_qcode_console(QemuTextConsole *s, int qcode, bool ctrl);
-void kbd_put_string_console(QemuTextConsole *s, const char *str, int len);
-void kbd_put_keysym(int keysym);
+void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym);
+bool qemu_text_console_put_qcode(QemuTextConsole *s, int qcode, bool ctrl);
+void qemu_text_console_put_string(QemuTextConsole *s, const char *str, int len);
 
 /* Touch devices */
 typedef struct touch_slot {
@@ -137,9 +132,6 @@ struct QemuConsoleClass {
     ObjectClass parent_class;
 };
 
-#define QEMU_ALLOCATED_FLAG     0x01
-#define QEMU_PLACEHOLDER_FLAG   0x02
-
 typedef struct ScanoutTexture {
     uint32_t backing_id;
     bool backing_y_0_top;
@@ -151,21 +143,6 @@ typedef struct ScanoutTexture {
     uint32_t height;
     void *d3d_tex2d;
 } ScanoutTexture;
-
-typedef struct DisplaySurface {
-    pixman_format_code_t format;
-    pixman_image_t *image;
-    uint8_t flags;
-#ifdef CONFIG_OPENGL
-    GLenum glformat;
-    GLenum gltype;
-    GLuint texture;
-#endif
-#ifdef WIN32
-    HANDLE handle;
-    uint32_t handle_offset;
-#endif
-} DisplaySurface;
 
 typedef struct QemuUIInfo {
     /* physical dimension */
@@ -346,37 +323,13 @@ struct DisplayGLCtx {
 };
 
 DisplayState *init_displaystate(void);
-DisplaySurface *qemu_create_displaysurface_from(int width, int height,
-                                                pixman_format_code_t format,
-                                                int linesize, uint8_t *data);
-DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image);
-DisplaySurface *qemu_create_placeholder_surface(int w, int h,
-                                                const char *msg);
-#ifdef WIN32
-void qemu_displaysurface_win32_set_handle(DisplaySurface *surface,
-                                          HANDLE h, uint32_t offset);
-#endif
-PixelFormat qemu_default_pixelformat(int bpp);
-
-DisplaySurface *qemu_create_displaysurface(int width, int height);
-void qemu_free_displaysurface(DisplaySurface *surface);
-
-static inline int is_buffer_shared(DisplaySurface *surface)
-{
-    return !(surface->flags & QEMU_ALLOCATED_FLAG);
-}
-
-static inline int is_placeholder(DisplaySurface *surface)
-{
-    return surface->flags & QEMU_PLACEHOLDER_FLAG;
-}
 
 void register_displaychangelistener(DisplayChangeListener *dcl);
 void update_displaychangelistener(DisplayChangeListener *dcl,
                                   uint64_t interval);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
-bool dpy_ui_info_supported(QemuConsole *con);
+bool dpy_ui_info_supported(const QemuConsole *con);
 const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con);
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info, bool delay);
 
@@ -416,43 +369,6 @@ void dpy_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx);
 int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 
 bool console_has_gl(QemuConsole *con);
-
-static inline int surface_stride(DisplaySurface *s)
-{
-    return pixman_image_get_stride(s->image);
-}
-
-static inline void *surface_data(DisplaySurface *s)
-{
-    return pixman_image_get_data(s->image);
-}
-
-static inline int surface_width(DisplaySurface *s)
-{
-    return pixman_image_get_width(s->image);
-}
-
-static inline int surface_height(DisplaySurface *s)
-{
-    return pixman_image_get_height(s->image);
-}
-
-static inline int surface_bits_per_pixel(DisplaySurface *s)
-{
-    int bits = PIXMAN_FORMAT_BPP(s->format);
-    return bits;
-}
-
-static inline int surface_bytes_per_pixel(DisplaySurface *s)
-{
-    int bits = PIXMAN_FORMAT_BPP(s->format);
-    return DIV_ROUND_UP(bits, 8);
-}
-
-static inline pixman_format_code_t surface_format(DisplaySurface *s)
-{
-    return s->format;
-}
 
 typedef uint32_t console_ch_t;
 

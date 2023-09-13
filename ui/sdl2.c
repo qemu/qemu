@@ -484,7 +484,7 @@ static void handle_textinput(SDL_Event *ev)
     }
 
     if (QEMU_IS_TEXT_CONSOLE(con)) {
-        kbd_put_string_console(QEMU_TEXT_CONSOLE(con), ev->text.text, strlen(ev->text.text));
+        qemu_text_console_put_string(QEMU_TEXT_CONSOLE(con), ev->text.text, strlen(ev->text.text));
     }
 }
 

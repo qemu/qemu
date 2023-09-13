@@ -437,7 +437,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     }
     if (ssd->ds) {
         ssd->surface = pixman_image_ref(ssd->ds->image);
-        ssd->mirror  = qemu_pixman_mirror_create(ssd->ds->format,
+        ssd->mirror  = qemu_pixman_mirror_create(surface_format(ssd->ds),
                                                  ssd->ds->image);
         qemu_spice_create_host_primary(ssd);
     }

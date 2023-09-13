@@ -400,7 +400,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
             if (keysym == -1)
                 keysym = chr;
 
-            kbd_put_keysym(keysym);
+            qemu_text_console_put_keysym(NULL, keysym);
         }
     }
 }
