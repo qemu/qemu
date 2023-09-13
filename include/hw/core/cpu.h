@@ -429,7 +429,6 @@ struct qemu_work_item;
  * @as: Pointer to the first AddressSpace, for the convenience of targets which
  *      only have a single AddressSpace
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
- * @icount_decr_ptr: Pointer to IcountDecr field within subclass.
  * @gdb_regs: Additional GDB registers.
  * @gdb_num_regs: Number of total registers accessible to GDB.
  * @gdb_num_g_regs: Number of registers in GDB 'g' packets.
@@ -504,7 +503,6 @@ struct CPUState {
     MemoryRegion *memory;
 
     CPUArchState *env_ptr;
-    IcountDecr *icount_decr_ptr;
 
     CPUJumpCache *tb_jmp_cache;
 
