@@ -1091,6 +1091,9 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #ifdef CONFIG_NETMAP
         [NET_CLIENT_DRIVER_NETMAP]    = net_init_netmap,
 #endif
+#ifdef CONFIG_AF_XDP
+        [NET_CLIENT_DRIVER_AF_XDP]    = net_init_af_xdp,
+#endif
 #ifdef CONFIG_NET_BRIDGE
         [NET_CLIENT_DRIVER_BRIDGE]    = net_init_bridge,
 #endif
@@ -1194,6 +1197,9 @@ void show_netdevs(void)
 #endif
 #ifdef CONFIG_NETMAP
         "netmap",
+#endif
+#ifdef CONFIG_AF_XDP
+        "af-xdp",
 #endif
 #ifdef CONFIG_POSIX
         "vhost-user",

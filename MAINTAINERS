@@ -2957,6 +2957,10 @@ W: http://info.iet.unipi.it/~luigi/netmap/
 S: Maintained
 F: net/netmap.c
 
+AF_XDP network backend
+R: Ilya Maximets <i.maximets@ovn.org>
+F: net/af-xdp.c
+
 Host Memory Backends
 M: David Hildenbrand <david@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>

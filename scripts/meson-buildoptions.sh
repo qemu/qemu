@@ -76,6 +76,7 @@ meson_options_help() {
   printf "%s\n" 'disabled with --disable-FEATURE, default is enabled if available'
   printf "%s\n" '(unless built with --without-default-features):'
   printf "%s\n" ''
+  printf "%s\n" '  af-xdp          AF_XDP network backend support'
   printf "%s\n" '  alsa            ALSA sound support'
   printf "%s\n" '  attr            attr/xattr support'
   printf "%s\n" '  auth-pam        PAM access control'
@@ -208,6 +209,8 @@ meson_options_help() {
 }
 _meson_option_parse() {
   case $1 in
+    --enable-af-xdp) printf "%s" -Daf_xdp=enabled ;;
+    --disable-af-xdp) printf "%s" -Daf_xdp=disabled ;;
     --enable-alsa) printf "%s" -Dalsa=enabled ;;
     --disable-alsa) printf "%s" -Dalsa=disabled ;;
     --enable-attr) printf "%s" -Dattr=enabled ;;

@@ -122,6 +122,8 @@ option('avx512bw', type: 'feature', value: 'auto',
 option('keyring', type: 'feature', value: 'auto',
        description: 'Linux keyring support')
 
+option('af_xdp', type : 'feature', value : 'auto',
+       description: 'AF_XDP network backend support')
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
 option('auth_pam', type : 'feature', value : 'auto',
