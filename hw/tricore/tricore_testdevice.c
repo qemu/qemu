@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "hw/tricore/tricore_testdevice.h"
@@ -23,6 +24,9 @@
 static void tricore_testdevice_write(void *opaque, hwaddr offset,
                                       uint64_t value, unsigned size)
 {
+    if (value != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Test %" PRIu64 " failed!\n", value);
+    }
     exit(value);
 }
 
