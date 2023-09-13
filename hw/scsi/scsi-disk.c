@@ -1959,6 +1959,10 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
         scsi_disk_emulate_write_same(r, r->iov.iov_base);
         break;
 
+    case FORMAT_UNIT:
+        scsi_req_complete(&r->req, GOOD);
+        break;
+
     default:
         abort();
     }
