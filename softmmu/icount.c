@@ -75,7 +75,7 @@ static void icount_enable_adaptive(void)
 static int64_t icount_get_executed(CPUState *cpu)
 {
     return (cpu->icount_budget -
-            (cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra));
+            (cpu->neg.icount_decr.u16.low + cpu->icount_extra));
 }
 
 /*
