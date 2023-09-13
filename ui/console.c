@@ -1437,8 +1437,6 @@ bool qemu_console_is_gl_blocked(QemuConsole *con)
 static bool qemu_graphic_console_is_multihead(QemuGraphicConsole *c)
 {
     QemuConsole *con;
-    uint32_t f = 0xffffffff;
-    uint32_t h;
 
     QTAILQ_FOREACH(con, &consoles, next) {
         QemuGraphicConsole *candidate;
@@ -1452,10 +1450,7 @@ static bool qemu_graphic_console_is_multihead(QemuGraphicConsole *c)
             continue;
         }
 
-        h = candidate->head;
-        if (f == 0xffffffff) {
-            f = h;
-        } else if (h != f) {
+        if (candidate->head != c->head) {
             return true;
         }
     }
