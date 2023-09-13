@@ -1434,7 +1434,7 @@ bool qemu_console_is_gl_blocked(QemuConsole *con)
     return con->gl_block;
 }
 
-bool qemu_console_is_multihead(DeviceState *dev)
+static bool qemu_console_is_multihead(DeviceState *dev)
 {
     QemuConsole *con;
     Object *obj;
