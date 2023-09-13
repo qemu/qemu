@@ -412,3 +412,95 @@ int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
     hppa_tlb_entry *ent = hppa_find_tlb(env, vaddr);
     return ent ? ent->ar_type : -1;
 }
+
+/*
+ * diag_btlb() emulates the PDC PDC_BLOCK_TLB firmware call to
+ * allow operating systems to modify the Block TLB (BTLB) entries.
+ * For implementation details see page 1-13 in
+ * https://parisc.wiki.kernel.org/images-parisc/e/ef/Pdc11-v0.96-Ch1-procs.pdf
+ */
+void HELPER(diag_btlb)(CPUHPPAState *env)
+{
+    unsigned int phys_page, len, slot;
+    int mmu_idx = cpu_mmu_index(env, 0);
+    uintptr_t ra = GETPC();
+    hppa_tlb_entry *btlb;
+    uint64_t virt_page;
+    uint32_t *vaddr;
+
+#ifdef TARGET_HPPA64
+    /* BTLBs are not supported on 64-bit CPUs */
+    env->gr[28] = -1; /* nonexistent procedure */
+    return;
+#endif
+    env->gr[28] = 0; /* PDC_OK */
+
+    switch (env->gr[25]) {
+    case 0:
+        /* return BTLB parameters */
+        qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_INFO\n");
+        vaddr = probe_access(env, env->gr[24], 4 * sizeof(target_ulong),
+                             MMU_DATA_STORE, mmu_idx, ra);
+        if (vaddr == NULL) {
+            env->gr[28] = -10; /* invalid argument */
+        } else {
+            vaddr[0] = cpu_to_be32(1);
+            vaddr[1] = cpu_to_be32(16 * 1024);
+            vaddr[2] = cpu_to_be32(HPPA_BTLB_FIXED);
+            vaddr[3] = cpu_to_be32(HPPA_BTLB_VARIABLE);
+        }
+        break;
+    case 1:
+        /* insert BTLB entry */
+        virt_page = env->gr[24];        /* upper 32 bits */
+        virt_page <<= 32;
+        virt_page |= env->gr[23];       /* lower 32 bits */
+        phys_page = env->gr[22];
+        len = env->gr[21];
+        slot = env->gr[19];
+        qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_INSERT "
+                    "0x%08llx-0x%08llx: vpage 0x%llx for phys page 0x%04x len %d "
+                    "into slot %d\n",
+                    (long long) virt_page << TARGET_PAGE_BITS,
+                    (long long) (virt_page + len) << TARGET_PAGE_BITS,
+                    (long long) virt_page, phys_page, len, slot);
+        if (slot < HPPA_BTLB_ENTRIES) {
+            btlb = &env->tlb[slot];
+            /* force flush of possibly existing BTLB entry */
+            hppa_flush_tlb_ent(env, btlb, true);
+            /* create new BTLB entry */
+            btlb->va_b = virt_page << TARGET_PAGE_BITS;
+            btlb->va_e = btlb->va_b + len * TARGET_PAGE_SIZE - 1;
+            btlb->pa = phys_page << TARGET_PAGE_BITS;
+            set_access_bits(env, btlb, env->gr[20]);
+            btlb->t = 0;
+            btlb->d = 1;
+        } else {
+            env->gr[28] = -10; /* invalid argument */
+        }
+        break;
+    case 2:
+        /* Purge BTLB entry */
+        slot = env->gr[22];
+        qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE slot %d\n",
+                                    slot);
+        if (slot < HPPA_BTLB_ENTRIES) {
+            btlb = &env->tlb[slot];
+            hppa_flush_tlb_ent(env, btlb, true);
+        } else {
+            env->gr[28] = -10; /* invalid argument */
+        }
+        break;
+    case 3:
+        /* Purge all BTLB entries */
+        qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE_ALL\n");
+        for (slot = 0; slot < HPPA_BTLB_ENTRIES; slot++) {
+            btlb = &env->tlb[slot];
+            hppa_flush_tlb_ent(env, btlb, true);
+        }
+        break;
+    default:
+        env->gr[28] = -2; /* nonexistent option */
+        break;
+    }
+}

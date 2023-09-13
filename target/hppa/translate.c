@@ -4042,9 +4042,18 @@ static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
 
 static bool trans_diag(DisasContext *ctx, arg_diag *a)
 {
-    qemu_log_mask(LOG_UNIMP, "DIAG opcode ignored\n");
-    cond_free(&ctx->null_cond);
-    return true;
+    nullify_over(ctx);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    if (a->i == 0x100) {
+        /* emulate PDC BTLB, called by SeaBIOS-hppa */
+        gen_helper_diag_btlb(cpu_env);
+    } else
+#endif
+    {
+        qemu_log_mask(LOG_UNIMP, "DIAG opcode 0x%04x ignored\n", a->i);
+    }
+    return nullify_end(ctx);
 }
 
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
