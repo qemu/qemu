@@ -46,7 +46,8 @@ test_ ## num:                                     \
     code;                                         \
     LI(DREG_CORRECT_RESULT, correct)              \
     mov DREG_TEST_NUM, num;                       \
-    jne testreg, DREG_CORRECT_RESULT, fail        \
+    jne testreg, DREG_CORRECT_RESULT, fail;       \
+    mov testreg, 0
 
 #define TEST_CASE_E(num, correct_lo, correct_hi, code...)  \
 test_ ## num:                                              \
