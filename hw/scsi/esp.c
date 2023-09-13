@@ -1395,7 +1395,7 @@ static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
         parent_esp_reset(s, irq, level);
         break;
     case 1:
-        esp_dma_enable(opaque, irq, level);
+        esp_dma_enable(s, irq, level);
         break;
     }
 }
