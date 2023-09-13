@@ -30,150 +30,25 @@ typedef struct CPUArchState {
     /* GPR Register */
     uint32_t gpr_a[16];
     uint32_t gpr_d[16];
-    /* CSFR Register */
-    uint32_t PCXI;
 /* Frequently accessed PSW_USB bits are stored separately for efficiency.
        This contains all the other bits.  Use psw_{read,write} to access
        the whole PSW.  */
     uint32_t PSW;
-
-    /* PSW flag cache for faster execution
-    */
+    /* PSW flag cache for faster execution */
     uint32_t PSW_USB_C;
     uint32_t PSW_USB_V;   /* Only if bit 31 set, then flag is set  */
     uint32_t PSW_USB_SV;  /* Only if bit 31 set, then flag is set  */
     uint32_t PSW_USB_AV;  /* Only if bit 31 set, then flag is set. */
     uint32_t PSW_USB_SAV; /* Only if bit 31 set, then flag is set. */
 
-    uint32_t PC;
-    uint32_t SYSCON;
-    uint32_t CPU_ID;
-    uint32_t CORE_ID;
-    uint32_t BIV;
-    uint32_t BTV;
-    uint32_t ISP;
-    uint32_t ICR;
-    uint32_t FCX;
-    uint32_t LCX;
-    uint32_t COMPAT;
+#define R(ADDR, NAME, FEATURE) uint32_t NAME;
+#define A(ADDR, NAME, FEATURE) uint32_t NAME;
+#define E(ADDR, NAME, FEATURE) uint32_t NAME;
+#include "csfr.h.inc"
+#undef R
+#undef A
+#undef E
 
-    /* Mem Protection Register */
-    uint32_t DPR0_0L;
-    uint32_t DPR0_0U;
-    uint32_t DPR0_1L;
-    uint32_t DPR0_1U;
-    uint32_t DPR0_2L;
-    uint32_t DPR0_2U;
-    uint32_t DPR0_3L;
-    uint32_t DPR0_3U;
-
-    uint32_t DPR1_0L;
-    uint32_t DPR1_0U;
-    uint32_t DPR1_1L;
-    uint32_t DPR1_1U;
-    uint32_t DPR1_2L;
-    uint32_t DPR1_2U;
-    uint32_t DPR1_3L;
-    uint32_t DPR1_3U;
-
-    uint32_t DPR2_0L;
-    uint32_t DPR2_0U;
-    uint32_t DPR2_1L;
-    uint32_t DPR2_1U;
-    uint32_t DPR2_2L;
-    uint32_t DPR2_2U;
-    uint32_t DPR2_3L;
-    uint32_t DPR2_3U;
-
-    uint32_t DPR3_0L;
-    uint32_t DPR3_0U;
-    uint32_t DPR3_1L;
-    uint32_t DPR3_1U;
-    uint32_t DPR3_2L;
-    uint32_t DPR3_2U;
-    uint32_t DPR3_3L;
-    uint32_t DPR3_3U;
-
-    uint32_t CPR0_0L;
-    uint32_t CPR0_0U;
-    uint32_t CPR0_1L;
-    uint32_t CPR0_1U;
-    uint32_t CPR0_2L;
-    uint32_t CPR0_2U;
-    uint32_t CPR0_3L;
-    uint32_t CPR0_3U;
-
-    uint32_t CPR1_0L;
-    uint32_t CPR1_0U;
-    uint32_t CPR1_1L;
-    uint32_t CPR1_1U;
-    uint32_t CPR1_2L;
-    uint32_t CPR1_2U;
-    uint32_t CPR1_3L;
-    uint32_t CPR1_3U;
-
-    uint32_t CPR2_0L;
-    uint32_t CPR2_0U;
-    uint32_t CPR2_1L;
-    uint32_t CPR2_1U;
-    uint32_t CPR2_2L;
-    uint32_t CPR2_2U;
-    uint32_t CPR2_3L;
-    uint32_t CPR2_3U;
-
-    uint32_t CPR3_0L;
-    uint32_t CPR3_0U;
-    uint32_t CPR3_1L;
-    uint32_t CPR3_1U;
-    uint32_t CPR3_2L;
-    uint32_t CPR3_2U;
-    uint32_t CPR3_3L;
-    uint32_t CPR3_3U;
-
-    uint32_t DPM0;
-    uint32_t DPM1;
-    uint32_t DPM2;
-    uint32_t DPM3;
-
-    uint32_t CPM0;
-    uint32_t CPM1;
-    uint32_t CPM2;
-    uint32_t CPM3;
-
-    /* Memory Management Registers */
-    uint32_t MMU_CON;
-    uint32_t MMU_ASI;
-    uint32_t MMU_TVA;
-    uint32_t MMU_TPA;
-    uint32_t MMU_TPX;
-    uint32_t MMU_TFA;
-    /* {1.3.1 only */
-    uint32_t BMACON;
-    uint32_t SMACON;
-    uint32_t DIEAR;
-    uint32_t DIETR;
-    uint32_t CCDIER;
-    uint32_t MIECON;
-    uint32_t PIEAR;
-    uint32_t PIETR;
-    uint32_t CCPIER;
-    /*} */
-    /* Debug Registers */
-    uint32_t DBGSR;
-    uint32_t EXEVT;
-    uint32_t CREVT;
-    uint32_t SWEVT;
-    uint32_t TR0EVT;
-    uint32_t TR1EVT;
-    uint32_t DMS;
-    uint32_t DCX;
-    uint32_t DBGTCR;
-    uint32_t CCTRL;
-    uint32_t CCNT;
-    uint32_t ICNT;
-    uint32_t M1CNT;
-    uint32_t M2CNT;
-    uint32_t M3CNT;
     /* Floating Point Registers */
     float_status fp_status;
 
