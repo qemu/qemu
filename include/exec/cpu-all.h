@@ -457,6 +457,12 @@ static inline CPUState *env_cpu(CPUArchState *env)
     return &env_archcpu(env)->parent_obj;
 }
 
+/*
+ * Validate placement of CPUNegativeOffsetState.
+ */
+QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) - offsetof(ArchCPU, neg) >=
+                  sizeof(CPUNegativeOffsetState) + __alignof(CPUArchState));
+
 /**
  * env_neg(env)
  * @env: The architecture environment
