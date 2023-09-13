@@ -211,8 +211,14 @@ typedef struct CPUArchState {
     target_ureg shadow[7];   /* shadow registers */
 
     /* ??? The number of entries isn't specified by the architecture.  */
+#ifdef TARGET_HPPA64
+#define HPPA_BTLB_FIXED         0       /* BTLBs are not supported in 64-bit machines */
+#else
+#define HPPA_BTLB_FIXED         16
+#endif
+#define HPPA_BTLB_VARIABLE      0
 #define HPPA_TLB_ENTRIES        256
-#define HPPA_BTLB_ENTRIES       0
+#define HPPA_BTLB_ENTRIES       (HPPA_BTLB_FIXED + HPPA_BTLB_VARIABLE)
 
     /* ??? Implement a unified itlb/dtlb for the moment.  */
     /* ??? We should use a more intelligent data structure.  */
