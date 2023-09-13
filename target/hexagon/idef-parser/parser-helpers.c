@@ -1773,7 +1773,7 @@ void gen_store(Context *c, YYLTYPE *locp, HexValue *width, HexValue *ea,
     /* Lookup the effective address EA */
     find_variable(c, locp, ea, ea);
     src_m = rvalue_materialize(c, locp, &src_m);
-    OUT(c, locp, "gen_store", &mem_width, "(cpu_env, ", ea, ", ", &src_m);
+    OUT(c, locp, "gen_store", &mem_width, "(tcg_env, ", ea, ", ", &src_m);
     OUT(c, locp, ", insn->slot);\n");
 }
 

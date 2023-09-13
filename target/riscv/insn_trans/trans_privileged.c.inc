@@ -78,7 +78,7 @@ static bool trans_sret(DisasContext *ctx, arg_sret *a)
     if (has_ext(ctx, RVS)) {
         decode_save_opc(ctx);
         translator_io_start(&ctx->base);
-        gen_helper_sret(cpu_pc, cpu_env);
+        gen_helper_sret(cpu_pc, tcg_env);
         exit_tb(ctx); /* no chaining */
         ctx->base.is_jmp = DISAS_NORETURN;
     } else {
@@ -95,7 +95,7 @@ static bool trans_mret(DisasContext *ctx, arg_mret *a)
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx);
     translator_io_start(&ctx->base);
-    gen_helper_mret(cpu_pc, cpu_env);
+    gen_helper_mret(cpu_pc, tcg_env);
     exit_tb(ctx); /* no chaining */
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -109,7 +109,7 @@ static bool trans_wfi(DisasContext *ctx, arg_wfi *a)
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx);
     gen_update_pc(ctx, ctx->cur_insn_len);
-    gen_helper_wfi(cpu_env);
+    gen_helper_wfi(tcg_env);
     return true;
 #else
     return false;
@@ -120,7 +120,7 @@ static bool trans_sfence_vma(DisasContext *ctx, arg_sfence_vma *a)
 {
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx);
-    gen_helper_tlb_flush(cpu_env);
+    gen_helper_tlb_flush(tcg_env);
     return true;
 #endif
     return false;

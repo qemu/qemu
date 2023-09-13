@@ -170,7 +170,7 @@ GEN_OPIVX_GVEC_TRANS_CHECK(vandn_vx, andcs, zvbb_vx_check)
             data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s); \
             data = FIELD_DP32(data, VDATA, VMA, s->vma);                   \
             tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),         \
-                               vreg_ofs(s, a->rs2), cpu_env,               \
+                               vreg_ofs(s, a->rs2), tcg_env,               \
                                s->cfg_ptr->vlen / 8, s->cfg_ptr->vlen / 8, \
                                data, fns[s->sew]);                         \
             mark_vs_dirty(s);                                              \
@@ -244,7 +244,7 @@ GEN_OPIVI_WIDEN_TRANS(vwsll_vi, IMM_ZX, vwsll_vx, vwsll_vx_check)
                 /* save opcode for unwinding in case we throw an exception */ \
                 decode_save_opc(s);                                           \
                 egs = tcg_constant_i32(EGS);                                  \
-                gen_helper_egs_check(egs, cpu_env);                           \
+                gen_helper_egs_check(egs, tcg_env);                           \
                 tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);    \
             }                                                                 \
                                                                               \
@@ -257,9 +257,9 @@ GEN_OPIVI_WIDEN_TRANS(vwsll_vi, IMM_ZX, vwsll_vx, vwsll_vx_check)
             rs2_v = tcg_temp_new_ptr();                                       \
             desc = tcg_constant_i32(                                          \
                 simd_desc(s->cfg_ptr->vlen / 8, s->cfg_ptr->vlen / 8, data)); \
-            tcg_gen_addi_ptr(rd_v, cpu_env, vreg_ofs(s, a->rd));              \
-            tcg_gen_addi_ptr(rs2_v, cpu_env, vreg_ofs(s, a->rs2));            \
-            gen_helper_##NAME(rd_v, rs2_v, cpu_env, desc);                    \
+            tcg_gen_addi_ptr(rd_v, tcg_env, vreg_ofs(s, a->rd));              \
+            tcg_gen_addi_ptr(rs2_v, tcg_env, vreg_ofs(s, a->rs2));            \
+            gen_helper_##NAME(rd_v, rs2_v, tcg_env, desc);                    \
             mark_vs_dirty(s);                                                 \
             gen_set_label(over);                                              \
             return true;                                                      \
@@ -320,7 +320,7 @@ GEN_V_UNMASKED_TRANS(vaesem_vs, vaes_check_vs, ZVKNED_EGS)
                 /* save opcode for unwinding in case we throw an exception */ \
                 decode_save_opc(s);                                           \
                 egs = tcg_constant_i32(EGS);                                  \
-                gen_helper_egs_check(egs, cpu_env);                           \
+                gen_helper_egs_check(egs, tcg_env);                           \
                 tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);    \
             }                                                                 \
                                                                               \
@@ -335,9 +335,9 @@ GEN_V_UNMASKED_TRANS(vaesem_vs, vaes_check_vs, ZVKNED_EGS)
             uimm_v = tcg_constant_i32(a->rs1);                                \
             desc = tcg_constant_i32(                                          \
                 simd_desc(s->cfg_ptr->vlen / 8, s->cfg_ptr->vlen / 8, data)); \
-            tcg_gen_addi_ptr(rd_v, cpu_env, vreg_ofs(s, a->rd));              \
-            tcg_gen_addi_ptr(rs2_v, cpu_env, vreg_ofs(s, a->rs2));            \
-            gen_helper_##NAME(rd_v, rs2_v, uimm_v, cpu_env, desc);            \
+            tcg_gen_addi_ptr(rd_v, tcg_env, vreg_ofs(s, a->rd));              \
+            tcg_gen_addi_ptr(rs2_v, tcg_env, vreg_ofs(s, a->rs2));            \
+            gen_helper_##NAME(rd_v, rs2_v, uimm_v, tcg_env, desc);            \
             mark_vs_dirty(s);                                                 \
             gen_set_label(over);                                              \
             return true;                                                      \
@@ -390,7 +390,7 @@ GEN_VI_UNMASKED_TRANS(vaeskf2_vi, vaeskf2_check, ZVKNED_EGS)
                 /* save opcode for unwinding in case we throw an exception */ \
                 decode_save_opc(s);                                           \
                 egs = tcg_constant_i32(EGS);                                  \
-                gen_helper_egs_check(egs, cpu_env);                           \
+                gen_helper_egs_check(egs, tcg_env);                           \
                 tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);    \
             }                                                                 \
                                                                               \
@@ -401,7 +401,7 @@ GEN_VI_UNMASKED_TRANS(vaeskf2_vi, vaeskf2_check, ZVKNED_EGS)
             data = FIELD_DP32(data, VDATA, VMA, s->vma);                      \
                                                                               \
             tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),       \
-                               vreg_ofs(s, a->rs2), cpu_env,                  \
+                               vreg_ofs(s, a->rs2), tcg_env,                  \
                                s->cfg_ptr->vlen / 8, s->cfg_ptr->vlen / 8,    \
                                data, gen_helper_##NAME);                      \
                                                                               \
@@ -444,7 +444,7 @@ static bool trans_vsha2cl_vv(DisasContext *s, arg_rmrr *a)
             /* save opcode for unwinding in case we throw an exception */
             decode_save_opc(s);
             egs = tcg_constant_i32(ZVKNH_EGS);
-            gen_helper_egs_check(egs, cpu_env);
+            gen_helper_egs_check(egs, tcg_env);
             tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
         }
 
@@ -455,7 +455,7 @@ static bool trans_vsha2cl_vv(DisasContext *s, arg_rmrr *a)
         data = FIELD_DP32(data, VDATA, VMA, s->vma);
 
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),
-            vreg_ofs(s, a->rs2), cpu_env, s->cfg_ptr->vlen / 8,
+            vreg_ofs(s, a->rs2), tcg_env, s->cfg_ptr->vlen / 8,
             s->cfg_ptr->vlen / 8, data,
             s->sew == MO_32 ?
                 gen_helper_vsha2cl32_vv : gen_helper_vsha2cl64_vv);
@@ -478,7 +478,7 @@ static bool trans_vsha2ch_vv(DisasContext *s, arg_rmrr *a)
             /* save opcode for unwinding in case we throw an exception */
             decode_save_opc(s);
             egs = tcg_constant_i32(ZVKNH_EGS);
-            gen_helper_egs_check(egs, cpu_env);
+            gen_helper_egs_check(egs, tcg_env);
             tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
         }
 
@@ -489,7 +489,7 @@ static bool trans_vsha2ch_vv(DisasContext *s, arg_rmrr *a)
         data = FIELD_DP32(data, VDATA, VMA, s->vma);
 
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),
-            vreg_ofs(s, a->rs2), cpu_env, s->cfg_ptr->vlen / 8,
+            vreg_ofs(s, a->rs2), tcg_env, s->cfg_ptr->vlen / 8,
             s->cfg_ptr->vlen / 8, data,
             s->sew == MO_32 ?
                 gen_helper_vsha2ch32_vv : gen_helper_vsha2ch64_vv);

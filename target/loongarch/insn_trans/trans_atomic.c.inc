@@ -10,8 +10,8 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     TCGv t0 = make_address_i(ctx, src1, a->imm);
 
     tcg_gen_qemu_ld_i64(dest, t0, ctx->mem_idx, mop);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPULoongArchState, lladdr));
-    tcg_gen_st_tl(dest, cpu_env, offsetof(CPULoongArchState, llval));
+    tcg_gen_st_tl(t0, tcg_env, offsetof(CPULoongArchState, lladdr));
+    tcg_gen_st_tl(dest, tcg_env, offsetof(CPULoongArchState, llval));
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
     return true;

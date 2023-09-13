@@ -23,7 +23,7 @@ static bool gen_fff(DisasContext *ctx, arg_fff *a,
 
     CHECK_FPE;
 
-    func(dest, cpu_env, src1, src2);
+    func(dest, tcg_env, src1, src2);
     set_fpr(a->fd, dest);
 
     return true;
@@ -37,7 +37,7 @@ static bool gen_ff(DisasContext *ctx, arg_ff *a,
 
     CHECK_FPE;
 
-    func(dest, cpu_env, src);
+    func(dest, tcg_env, src);
     set_fpr(a->fd, dest);
 
     return true;
@@ -55,7 +55,7 @@ static bool gen_muladd(DisasContext *ctx, arg_ffff *a,
 
     CHECK_FPE;
 
-    func(dest, cpu_env, src1, src2, src3, tflag);
+    func(dest, tcg_env, src1, src2, src3, tflag);
     set_fpr(a->fd, dest);
 
     return true;

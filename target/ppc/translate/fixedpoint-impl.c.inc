@@ -517,7 +517,7 @@ static bool do_hash(DisasContext *ctx, arg_X *a, bool priv,
     }
 
     ea = do_ea_calc(ctx, a->ra, tcg_constant_tl(a->rt));
-    helper(cpu_env, ea, cpu_gpr[a->ra], cpu_gpr[a->rb]);
+    helper(tcg_env, ea, cpu_gpr[a->ra], cpu_gpr[a->rb]);
     return true;
 }
 

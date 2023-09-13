@@ -115,7 +115,7 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
 
 static void gen_exception_raw(int excp)
 {
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
+    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
 }
 
 static void gen_exec_counters(DisasContext *ctx)
@@ -528,7 +528,7 @@ static void gen_start_packet(DisasContext *ctx)
 
     if (HEX_DEBUG) {
         /* Handy place to set a breakpoint before the packet executes */
-        gen_helper_debug_start_packet(cpu_env);
+        gen_helper_debug_start_packet(tcg_env);
     }
 
     /* Initialize the runtime state for packet semantics */
@@ -701,7 +701,7 @@ static void gen_check_store_width(DisasContext *ctx, int slot_num)
     if (HEX_DEBUG) {
         TCGv slot = tcg_constant_tl(slot_num);
         TCGv check = tcg_constant_tl(ctx->store_width[slot_num]);
-        gen_helper_debug_check_store_width(cpu_env, slot, check);
+        gen_helper_debug_check_store_width(tcg_env, slot, check);
     }
 }
 
@@ -783,7 +783,7 @@ void process_store(DisasContext *ctx, int slot_num)
                  * avoid branching based on the width at runtime.
                  */
                 TCGv slot = tcg_constant_tl(slot_num);
-                gen_helper_commit_store(cpu_env, slot);
+                gen_helper_commit_store(tcg_env, slot);
             }
         }
     }
@@ -882,7 +882,7 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 
     if (pkt_has_hvx_store(ctx->pkt)) {
-        gen_helper_commit_hvx_stores(cpu_env);
+        gen_helper_commit_hvx_stores(tcg_env);
     }
 }
 
@@ -942,7 +942,7 @@ static void gen_commit_packet(DisasContext *ctx)
     } else if (has_hvx_store) {
         if (!has_store_s0 && !has_store_s1) {
             TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
-            gen_helper_probe_hvx_stores(cpu_env, mem_idx);
+            gen_helper_probe_hvx_stores(tcg_env, mem_idx);
         } else {
             int mask = 0;
 
@@ -971,7 +971,7 @@ static void gen_commit_packet(DisasContext *ctx)
             }
             mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,
                               ctx->mem_idx);
-            gen_helper_probe_pkt_scalar_hvx_stores(cpu_env,
+            gen_helper_probe_pkt_scalar_hvx_stores(tcg_env,
                                                    tcg_constant_tl(mask));
         }
     } else if (has_store_s0 && has_store_s1) {
@@ -987,7 +987,7 @@ static void gen_commit_packet(DisasContext *ctx)
                 FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED, 1);
         }
         TCGv args_tcgv = tcg_constant_tl(args);
-        gen_helper_probe_pkt_scalar_store_s0(cpu_env, args_tcgv);
+        gen_helper_probe_pkt_scalar_store_s0(tcg_env, args_tcgv);
     }
 
     process_store_log(ctx);
@@ -1005,7 +1005,7 @@ static void gen_commit_packet(DisasContext *ctx)
             tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
 
         /* Handy place to set a breakpoint at the end of execution */
-        gen_helper_debug_commit_end(cpu_env, tcg_constant_tl(ctx->pkt->pc),
+        gen_helper_debug_commit_end(tcg_env, tcg_constant_tl(ctx->pkt->pc),
                                     ctx->pred_written, has_st0, has_st1);
     }
 
@@ -1179,68 +1179,68 @@ void hexagon_translate_init(void)
     opcode_init();
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-        hex_gpr[i] = tcg_global_mem_new(cpu_env,
+        hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),
             hexagon_regnames[i]);
 
         if (HEX_DEBUG) {
             snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
                      hexagon_regnames[i]);
-            hex_reg_written[i] = tcg_global_mem_new(cpu_env,
+            hex_reg_written[i] = tcg_global_mem_new(tcg_env,
                 offsetof(CPUHexagonState, reg_written[i]),
                 reg_written_names[i]);
         }
     }
-    hex_new_value_usr = tcg_global_mem_new(cpu_env,
+    hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
 
     for (i = 0; i < NUM_PREGS; i++) {
-        hex_pred[i] = tcg_global_mem_new(cpu_env,
+        hex_pred[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, pred[i]),
             hexagon_prednames[i]);
     }
-    hex_slot_cancelled = tcg_global_mem_new(cpu_env,
+    hex_slot_cancelled = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, slot_cancelled), "slot_cancelled");
-    hex_llsc_addr = tcg_global_mem_new(cpu_env,
+    hex_llsc_addr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, llsc_addr), "llsc_addr");
-    hex_llsc_val = tcg_global_mem_new(cpu_env,
+    hex_llsc_val = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
-    hex_llsc_val_i64 = tcg_global_mem_new_i64(cpu_env,
+    hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
-        hex_store_addr[i] = tcg_global_mem_new(cpu_env,
+        hex_store_addr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].va),
             store_addr_names[i]);
 
         snprintf(store_width_names[i], NAME_LEN, "store_width_%d", i);
-        hex_store_width[i] = tcg_global_mem_new(cpu_env,
+        hex_store_width[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].width),
             store_width_names[i]);
 
         snprintf(store_val32_names[i], NAME_LEN, "store_val32_%d", i);
-        hex_store_val32[i] = tcg_global_mem_new(cpu_env,
+        hex_store_val32[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].data32),
             store_val32_names[i]);
 
         snprintf(store_val64_names[i], NAME_LEN, "store_val64_%d", i);
-        hex_store_val64[i] = tcg_global_mem_new_i64(cpu_env,
+        hex_store_val64[i] = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].data64),
             store_val64_names[i]);
     }
     for (int i = 0; i < VSTORES_MAX; i++) {
         snprintf(vstore_addr_names[i], NAME_LEN, "vstore_addr_%d", i);
-        hex_vstore_addr[i] = tcg_global_mem_new(cpu_env,
+        hex_vstore_addr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, vstore[i].va),
             vstore_addr_names[i]);
 
         snprintf(vstore_size_names[i], NAME_LEN, "vstore_size_%d", i);
-        hex_vstore_size[i] = tcg_global_mem_new(cpu_env,
+        hex_vstore_size[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, vstore[i].size),
             vstore_size_names[i]);
 
         snprintf(vstore_pending_names[i], NAME_LEN, "vstore_pending_%d", i);
-        hex_vstore_pending[i] = tcg_global_mem_new(cpu_env,
+        hex_vstore_pending[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, vstore_pending[i]),
             vstore_pending_names[i]);
     }

@@ -985,7 +985,7 @@ static bool trans_th_sfence_vmas(DisasContext *ctx, arg_th_sfence_vmas *a)
 
 #ifndef CONFIG_USER_ONLY
     REQUIRE_PRIV_MS(ctx);
-    gen_helper_tlb_flush_all(cpu_env);
+    gen_helper_tlb_flush_all(tcg_env);
     return true;
 #else
     return false;

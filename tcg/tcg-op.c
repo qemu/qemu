@@ -2939,7 +2939,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
 
     plugin_gen_disable_mem_helpers();
     ptr = tcg_temp_ebb_new_ptr();
-    gen_helper_lookup_tb_ptr(ptr, cpu_env);
+    gen_helper_lookup_tb_ptr(ptr, tcg_env);
     tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
     tcg_temp_free_ptr(ptr);
 }

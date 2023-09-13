@@ -231,7 +231,7 @@ __thread TCGContext *tcg_ctx;
 TCGContext **tcg_ctxs;
 unsigned int tcg_cur_ctxs;
 unsigned int tcg_max_ctxs;
-TCGv_env cpu_env = 0;
+TCGv_env tcg_env;
 const void *tcg_code_gen_epilogue;
 uintptr_t tcg_splitwx_diff;
 
@@ -1353,7 +1353,7 @@ static void tcg_context_init(unsigned max_cpus)
 
     tcg_debug_assert(!tcg_regset_test_reg(s->reserved_regs, TCG_AREG0));
     ts = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, TCG_AREG0, "env");
-    cpu_env = temp_tcgv_ptr(ts);
+    tcg_env = temp_tcgv_ptr(ts);
 }
 
 void tcg_init(size_t tb_size, int splitwx, unsigned max_cpus)

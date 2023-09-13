@@ -140,7 +140,7 @@ void msa_translate_init(void)
 
         off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[1]);
         msa_wr_d[i * 2 + 1] =
-                tcg_global_mem_new_i64(cpu_env, off, msaregnames[i * 2 + 1]);
+                tcg_global_mem_new_i64(tcg_env, off, msaregnames[i * 2 + 1]);
     }
 }
 
@@ -288,7 +288,7 @@ static bool trans_msa_i8(DisasContext *ctx, arg_msa_i *a,
         return true;
     }
 
-    gen_msa_i8(cpu_env,
+    gen_msa_i8(tcg_env,
                tcg_constant_i32(a->wd),
                tcg_constant_i32(a->ws),
                tcg_constant_i32(a->sa));
@@ -314,7 +314,7 @@ static bool trans_SHF(DisasContext *ctx, arg_msa_i *a)
         return true;
     }
 
-    gen_helper_msa_shf_df(cpu_env,
+    gen_helper_msa_shf_df(tcg_env,
                           tcg_constant_i32(a->df),
                           tcg_constant_i32(a->wd),
                           tcg_constant_i32(a->ws),
@@ -330,7 +330,7 @@ static bool trans_msa_i5(DisasContext *ctx, arg_msa_i *a,
         return true;
     }
 
-    gen_msa_i5(cpu_env,
+    gen_msa_i5(tcg_env,
                tcg_constant_i32(a->df),
                tcg_constant_i32(a->wd),
                tcg_constant_i32(a->ws),
@@ -357,7 +357,7 @@ static bool trans_LDI(DisasContext *ctx, arg_msa_ldi *a)
         return true;
     }
 
-    gen_helper_msa_ldi_df(cpu_env,
+    gen_helper_msa_ldi_df(tcg_env,
                           tcg_constant_i32(a->df),
                           tcg_constant_i32(a->wd),
                           tcg_constant_i32(a->sa));
@@ -376,7 +376,7 @@ static bool trans_msa_bit(DisasContext *ctx, arg_msa_bit *a,
         return true;
     }
 
-    gen_msa_bit(cpu_env,
+    gen_msa_bit(tcg_env,
                 tcg_constant_i32(a->df),
                 tcg_constant_i32(a->wd),
                 tcg_constant_i32(a->ws),
@@ -405,7 +405,7 @@ static bool trans_msa_3rf(DisasContext *ctx, arg_msa_r *a,
         return true;
     }
 
-    gen_msa_3rf(cpu_env,
+    gen_msa_3rf(tcg_env,
                 tcg_constant_i32(a->df),
                 tcg_constant_i32(a->wd),
                 tcg_constant_i32(a->ws),
@@ -425,7 +425,7 @@ static bool trans_msa_3r(DisasContext *ctx, arg_msa_r *a,
         return true;
     }
 
-    gen_msa_3r(cpu_env,
+    gen_msa_3r(tcg_env,
                tcg_constant_i32(a->wd),
                tcg_constant_i32(a->ws),
                tcg_constant_i32(a->wt));
@@ -519,7 +519,7 @@ static bool trans_MOVE_V(DisasContext *ctx, arg_msa_elm *a)
         return true;
     }
 
-    gen_helper_msa_move_v(cpu_env,
+    gen_helper_msa_move_v(tcg_env,
                           tcg_constant_i32(a->wd),
                           tcg_constant_i32(a->ws));
 
@@ -537,7 +537,7 @@ static bool trans_CTCMSA(DisasContext *ctx, arg_msa_elm *a)
     telm = tcg_temp_new();
 
     gen_load_gpr(telm, a->ws);
-    gen_helper_msa_ctcmsa(cpu_env, telm, tcg_constant_i32(a->wd));
+    gen_helper_msa_ctcmsa(tcg_env, telm, tcg_constant_i32(a->wd));
 
     return true;
 }
@@ -552,7 +552,7 @@ static bool trans_CFCMSA(DisasContext *ctx, arg_msa_elm *a)
 
     telm = tcg_temp_new();
 
-    gen_helper_msa_cfcmsa(telm, cpu_env, tcg_constant_i32(a->ws));
+    gen_helper_msa_cfcmsa(telm, tcg_env, tcg_constant_i32(a->ws));
     gen_store_gpr(telm, a->wd);
 
     return true;
@@ -569,7 +569,7 @@ static bool trans_msa_elm(DisasContext *ctx, arg_msa_elm_df *a,
         return true;
     }
 
-    gen_msa_elm_df(cpu_env,
+    gen_msa_elm_df(tcg_env,
                    tcg_constant_i32(a->df),
                    tcg_constant_i32(a->wd),
                    tcg_constant_i32(a->ws),
@@ -593,7 +593,7 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
         return true;
     }
 
-    gen_msa_elm[a->df](cpu_env,
+    gen_msa_elm[a->df](tcg_env,
                        tcg_constant_i32(a->wd),
                        tcg_constant_i32(a->ws),
                        tcg_constant_i32(a->n));
@@ -698,7 +698,7 @@ static bool trans_msa_2r(DisasContext *ctx, arg_msa_r *a,
         return true;
     }
 
-    gen_msa_2r(cpu_env, tcg_constant_i32(a->wd), tcg_constant_i32(a->ws));
+    gen_msa_2r(tcg_env, tcg_constant_i32(a->wd), tcg_constant_i32(a->ws));
 
     return true;
 }
@@ -718,7 +718,7 @@ static bool trans_FILL(DisasContext *ctx, arg_msa_r *a)
         return true;
     }
 
-    gen_helper_msa_fill_df(cpu_env,
+    gen_helper_msa_fill_df(tcg_env,
                            tcg_constant_i32(a->df),
                            tcg_constant_i32(a->wd),
                            tcg_constant_i32(a->ws));
@@ -733,7 +733,7 @@ static bool trans_msa_2rf(DisasContext *ctx, arg_msa_r *a,
         return true;
     }
 
-    gen_msa_2rf(cpu_env,
+    gen_msa_2rf(tcg_env,
                 tcg_constant_i32(a->df),
                 tcg_constant_i32(a->wd),
                 tcg_constant_i32(a->ws));
@@ -770,7 +770,7 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
     taddr = tcg_temp_new();
 
     gen_base_offset_addr(ctx, taddr, a->ws, a->sa << a->df);
-    gen_msa_ldst(cpu_env, tcg_constant_i32(a->wd), taddr);
+    gen_msa_ldst(tcg_env, tcg_constant_i32(a->wd), taddr);
 
     return true;
 }

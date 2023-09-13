@@ -120,8 +120,8 @@ void tcg_gen_gvec_2_ool(uint32_t dofs, uint32_t aofs,
     a0 = tcg_temp_ebb_new_ptr();
     a1 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
 
     fn(a0, a1, desc);
 
@@ -141,8 +141,8 @@ void tcg_gen_gvec_2i_ool(uint32_t dofs, uint32_t aofs, TCGv_i64 c,
     a0 = tcg_temp_ebb_new_ptr();
     a1 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
 
     fn(a0, a1, c, desc);
 
@@ -162,9 +162,9 @@ void tcg_gen_gvec_3_ool(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a1 = tcg_temp_ebb_new_ptr();
     a2 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
 
     fn(a0, a1, a2, desc);
 
@@ -186,10 +186,10 @@ void tcg_gen_gvec_4_ool(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a2 = tcg_temp_ebb_new_ptr();
     a3 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
-    tcg_gen_addi_ptr(a3, cpu_env, cofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
+    tcg_gen_addi_ptr(a3, tcg_env, cofs);
 
     fn(a0, a1, a2, a3, desc);
 
@@ -213,11 +213,11 @@ void tcg_gen_gvec_5_ool(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a3 = tcg_temp_ebb_new_ptr();
     a4 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
-    tcg_gen_addi_ptr(a3, cpu_env, cofs);
-    tcg_gen_addi_ptr(a4, cpu_env, xofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
+    tcg_gen_addi_ptr(a3, tcg_env, cofs);
+    tcg_gen_addi_ptr(a4, tcg_env, xofs);
 
     fn(a0, a1, a2, a3, a4, desc);
 
@@ -240,8 +240,8 @@ void tcg_gen_gvec_2_ptr(uint32_t dofs, uint32_t aofs,
     a0 = tcg_temp_ebb_new_ptr();
     a1 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
 
     fn(a0, a1, ptr, desc);
 
@@ -262,9 +262,9 @@ void tcg_gen_gvec_3_ptr(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a1 = tcg_temp_ebb_new_ptr();
     a2 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
 
     fn(a0, a1, a2, ptr, desc);
 
@@ -288,10 +288,10 @@ void tcg_gen_gvec_4_ptr(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a2 = tcg_temp_ebb_new_ptr();
     a3 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
-    tcg_gen_addi_ptr(a3, cpu_env, cofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
+    tcg_gen_addi_ptr(a3, tcg_env, cofs);
 
     fn(a0, a1, a2, a3, ptr, desc);
 
@@ -317,11 +317,11 @@ void tcg_gen_gvec_5_ptr(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     a3 = tcg_temp_ebb_new_ptr();
     a4 = tcg_temp_ebb_new_ptr();
 
-    tcg_gen_addi_ptr(a0, cpu_env, dofs);
-    tcg_gen_addi_ptr(a1, cpu_env, aofs);
-    tcg_gen_addi_ptr(a2, cpu_env, bofs);
-    tcg_gen_addi_ptr(a3, cpu_env, cofs);
-    tcg_gen_addi_ptr(a4, cpu_env, eofs);
+    tcg_gen_addi_ptr(a0, tcg_env, dofs);
+    tcg_gen_addi_ptr(a1, tcg_env, aofs);
+    tcg_gen_addi_ptr(a2, tcg_env, bofs);
+    tcg_gen_addi_ptr(a3, tcg_env, cofs);
+    tcg_gen_addi_ptr(a4, tcg_env, eofs);
 
     fn(a0, a1, a2, a3, a4, ptr, desc);
 
@@ -482,7 +482,7 @@ static void do_dup_store(TCGType type, uint32_t dofs, uint32_t oprsz,
      * are misaligned wrt the maximum vector size, so do that first.
      */
     if (dofs & 8) {
-        tcg_gen_stl_vec(t_vec, cpu_env, dofs + i, TCG_TYPE_V64);
+        tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V64);
         i += 8;
     }
 
@@ -494,17 +494,17 @@ static void do_dup_store(TCGType type, uint32_t dofs, uint32_t oprsz,
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
         for (; i + 32 <= oprsz; i += 32) {
-            tcg_gen_stl_vec(t_vec, cpu_env, dofs + i, TCG_TYPE_V256);
+            tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V256);
         }
         /* fallthru */
     case TCG_TYPE_V128:
         for (; i + 16 <= oprsz; i += 16) {
-            tcg_gen_stl_vec(t_vec, cpu_env, dofs + i, TCG_TYPE_V128);
+            tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V128);
         }
         break;
     case TCG_TYPE_V64:
         for (; i < oprsz; i += 8) {
-            tcg_gen_stl_vec(t_vec, cpu_env, dofs + i, TCG_TYPE_V64);
+            tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V64);
         }
         break;
     default:
@@ -605,14 +605,14 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
         /* Implement inline if we picked an implementation size above.  */
         if (t_32) {
             for (i = 0; i < oprsz; i += 4) {
-                tcg_gen_st_i32(t_32, cpu_env, dofs + i);
+                tcg_gen_st_i32(t_32, tcg_env, dofs + i);
             }
             tcg_temp_free_i32(t_32);
             goto done;
         }
         if (t_64) {
             for (i = 0; i < oprsz; i += 8) {
-                tcg_gen_st_i64(t_64, cpu_env, dofs + i);
+                tcg_gen_st_i64(t_64, tcg_env, dofs + i);
             }
             tcg_temp_free_i64(t_64);
             goto done;
@@ -621,7 +621,7 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
 
     /* Otherwise implement out of line.  */
     t_ptr = tcg_temp_ebb_new_ptr();
-    tcg_gen_addi_ptr(t_ptr, cpu_env, dofs);
+    tcg_gen_addi_ptr(t_ptr, tcg_env, dofs);
 
     /*
      * This may be expand_clr for the tail of an operation, e.g.
@@ -709,12 +709,12 @@ static void expand_2_i32(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_i32(t1, cpu_env, dofs + i);
+            tcg_gen_ld_i32(t1, tcg_env, dofs + i);
         }
         fni(t1, t0);
-        tcg_gen_st_i32(t1, cpu_env, dofs + i);
+        tcg_gen_st_i32(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
@@ -729,12 +729,12 @@ static void expand_2i_i32(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_i32(t1, cpu_env, dofs + i);
+            tcg_gen_ld_i32(t1, tcg_env, dofs + i);
         }
         fni(t1, t0, c);
-        tcg_gen_st_i32(t1, cpu_env, dofs + i);
+        tcg_gen_st_i32(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
@@ -749,13 +749,13 @@ static void expand_2s_i32(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
         if (scalar_first) {
             fni(t1, c, t0);
         } else {
             fni(t1, t0, c);
         }
-        tcg_gen_st_i32(t1, cpu_env, dofs + i);
+        tcg_gen_st_i32(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
@@ -772,13 +772,13 @@ static void expand_3_i32(uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i32(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i32(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_i32(t2, cpu_env, dofs + i);
+            tcg_gen_ld_i32(t2, tcg_env, dofs + i);
         }
         fni(t2, t0, t1);
-        tcg_gen_st_i32(t2, cpu_env, dofs + i);
+        tcg_gen_st_i32(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t2);
     tcg_temp_free_i32(t1);
@@ -795,13 +795,13 @@ static void expand_3i_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i32(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i32(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_i32(t2, cpu_env, dofs + i);
+            tcg_gen_ld_i32(t2, tcg_env, dofs + i);
         }
         fni(t2, t0, t1, c);
-        tcg_gen_st_i32(t2, cpu_env, dofs + i);
+        tcg_gen_st_i32(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
@@ -820,13 +820,13 @@ static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t1, cpu_env, aofs + i);
-        tcg_gen_ld_i32(t2, cpu_env, bofs + i);
-        tcg_gen_ld_i32(t3, cpu_env, cofs + i);
+        tcg_gen_ld_i32(t1, tcg_env, aofs + i);
+        tcg_gen_ld_i32(t2, tcg_env, bofs + i);
+        tcg_gen_ld_i32(t3, tcg_env, cofs + i);
         fni(t0, t1, t2, t3);
-        tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        tcg_gen_st_i32(t0, tcg_env, dofs + i);
         if (write_aofs) {
-            tcg_gen_st_i32(t1, cpu_env, aofs + i);
+            tcg_gen_st_i32(t1, tcg_env, aofs + i);
         }
     }
     tcg_temp_free_i32(t3);
@@ -847,11 +847,11 @@ static void expand_4i_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t1, cpu_env, aofs + i);
-        tcg_gen_ld_i32(t2, cpu_env, bofs + i);
-        tcg_gen_ld_i32(t3, cpu_env, cofs + i);
+        tcg_gen_ld_i32(t1, tcg_env, aofs + i);
+        tcg_gen_ld_i32(t2, tcg_env, bofs + i);
+        tcg_gen_ld_i32(t3, tcg_env, cofs + i);
         fni(t0, t1, t2, t3, c);
-        tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        tcg_gen_st_i32(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t3);
     tcg_temp_free_i32(t2);
@@ -868,12 +868,12 @@ static void expand_2_i64(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_i64(t1, cpu_env, dofs + i);
+            tcg_gen_ld_i64(t1, tcg_env, dofs + i);
         }
         fni(t1, t0);
-        tcg_gen_st_i64(t1, cpu_env, dofs + i);
+        tcg_gen_st_i64(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -888,12 +888,12 @@ static void expand_2i_i64(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_i64(t1, cpu_env, dofs + i);
+            tcg_gen_ld_i64(t1, tcg_env, dofs + i);
         }
         fni(t1, t0, c);
-        tcg_gen_st_i64(t1, cpu_env, dofs + i);
+        tcg_gen_st_i64(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -908,13 +908,13 @@ static void expand_2s_i64(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
         if (scalar_first) {
             fni(t1, c, t0);
         } else {
             fni(t1, t0, c);
         }
-        tcg_gen_st_i64(t1, cpu_env, dofs + i);
+        tcg_gen_st_i64(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -931,13 +931,13 @@ static void expand_3_i64(uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i64(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i64(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_i64(t2, cpu_env, dofs + i);
+            tcg_gen_ld_i64(t2, tcg_env, dofs + i);
         }
         fni(t2, t0, t1);
-        tcg_gen_st_i64(t2, cpu_env, dofs + i);
+        tcg_gen_st_i64(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t2);
     tcg_temp_free_i64(t1);
@@ -954,13 +954,13 @@ static void expand_3i_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i64(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i64(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_i64(t2, cpu_env, dofs + i);
+            tcg_gen_ld_i64(t2, tcg_env, dofs + i);
         }
         fni(t2, t0, t1, c);
-        tcg_gen_st_i64(t2, cpu_env, dofs + i);
+        tcg_gen_st_i64(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -979,13 +979,13 @@ static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t1, cpu_env, aofs + i);
-        tcg_gen_ld_i64(t2, cpu_env, bofs + i);
-        tcg_gen_ld_i64(t3, cpu_env, cofs + i);
+        tcg_gen_ld_i64(t1, tcg_env, aofs + i);
+        tcg_gen_ld_i64(t2, tcg_env, bofs + i);
+        tcg_gen_ld_i64(t3, tcg_env, cofs + i);
         fni(t0, t1, t2, t3);
-        tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        tcg_gen_st_i64(t0, tcg_env, dofs + i);
         if (write_aofs) {
-            tcg_gen_st_i64(t1, cpu_env, aofs + i);
+            tcg_gen_st_i64(t1, tcg_env, aofs + i);
         }
     }
     tcg_temp_free_i64(t3);
@@ -1006,11 +1006,11 @@ static void expand_4i_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t1, cpu_env, aofs + i);
-        tcg_gen_ld_i64(t2, cpu_env, bofs + i);
-        tcg_gen_ld_i64(t3, cpu_env, cofs + i);
+        tcg_gen_ld_i64(t1, tcg_env, aofs + i);
+        tcg_gen_ld_i64(t2, tcg_env, bofs + i);
+        tcg_gen_ld_i64(t3, tcg_env, cofs + i);
         fni(t0, t1, t2, t3, c);
-        tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        tcg_gen_st_i64(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t3);
     tcg_temp_free_i64(t2);
@@ -1029,12 +1029,12 @@ static void expand_2_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_vec(t1, cpu_env, dofs + i);
+            tcg_gen_ld_vec(t1, tcg_env, dofs + i);
         }
         fni(vece, t1, t0);
-        tcg_gen_st_vec(t1, cpu_env, dofs + i);
+        tcg_gen_st_vec(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
     tcg_temp_free_vec(t1);
@@ -1052,12 +1052,12 @@ static void expand_2i_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
         if (load_dest) {
-            tcg_gen_ld_vec(t1, cpu_env, dofs + i);
+            tcg_gen_ld_vec(t1, tcg_env, dofs + i);
         }
         fni(vece, t1, t0, c);
-        tcg_gen_st_vec(t1, cpu_env, dofs + i);
+        tcg_gen_st_vec(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
     tcg_temp_free_vec(t1);
@@ -1073,13 +1073,13 @@ static void expand_2s_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
         if (scalar_first) {
             fni(vece, t1, c, t0);
         } else {
             fni(vece, t1, t0, c);
         }
-        tcg_gen_st_vec(t1, cpu_env, dofs + i);
+        tcg_gen_st_vec(t1, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
     tcg_temp_free_vec(t1);
@@ -1097,13 +1097,13 @@ static void expand_3_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
-        tcg_gen_ld_vec(t1, cpu_env, bofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_vec(t2, cpu_env, dofs + i);
+            tcg_gen_ld_vec(t2, tcg_env, dofs + i);
         }
         fni(vece, t2, t0, t1);
-        tcg_gen_st_vec(t2, cpu_env, dofs + i);
+        tcg_gen_st_vec(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t2);
     tcg_temp_free_vec(t1);
@@ -1126,13 +1126,13 @@ static void expand_3i_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
-        tcg_gen_ld_vec(t1, cpu_env, bofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, bofs + i);
         if (load_dest) {
-            tcg_gen_ld_vec(t2, cpu_env, dofs + i);
+            tcg_gen_ld_vec(t2, tcg_env, dofs + i);
         }
         fni(vece, t2, t0, t1, c);
-        tcg_gen_st_vec(t2, cpu_env, dofs + i);
+        tcg_gen_st_vec(t2, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
     tcg_temp_free_vec(t1);
@@ -1153,13 +1153,13 @@ static void expand_4_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t1, cpu_env, aofs + i);
-        tcg_gen_ld_vec(t2, cpu_env, bofs + i);
-        tcg_gen_ld_vec(t3, cpu_env, cofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, aofs + i);
+        tcg_gen_ld_vec(t2, tcg_env, bofs + i);
+        tcg_gen_ld_vec(t3, tcg_env, cofs + i);
         fni(vece, t0, t1, t2, t3);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        tcg_gen_st_vec(t0, tcg_env, dofs + i);
         if (write_aofs) {
-            tcg_gen_st_vec(t1, cpu_env, aofs + i);
+            tcg_gen_st_vec(t1, tcg_env, aofs + i);
         }
     }
     tcg_temp_free_vec(t3);
@@ -1185,11 +1185,11 @@ static void expand_4i_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t1, cpu_env, aofs + i);
-        tcg_gen_ld_vec(t2, cpu_env, bofs + i);
-        tcg_gen_ld_vec(t3, cpu_env, cofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, aofs + i);
+        tcg_gen_ld_vec(t2, tcg_env, bofs + i);
+        tcg_gen_ld_vec(t3, tcg_env, cofs + i);
         fni(vece, t0, t1, t2, t3, c);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        tcg_gen_st_vec(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t3);
     tcg_temp_free_vec(t2);
@@ -1730,27 +1730,27 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
         TCGType type = choose_vector_type(NULL, vece, oprsz, 0);
         if (type != 0) {
             TCGv_vec t_vec = tcg_temp_new_vec(type);
-            tcg_gen_dup_mem_vec(vece, t_vec, cpu_env, aofs);
+            tcg_gen_dup_mem_vec(vece, t_vec, tcg_env, aofs);
             do_dup_store(type, dofs, oprsz, maxsz, t_vec);
             tcg_temp_free_vec(t_vec);
         } else if (vece <= MO_32) {
             TCGv_i32 in = tcg_temp_ebb_new_i32();
             switch (vece) {
             case MO_8:
-                tcg_gen_ld8u_i32(in, cpu_env, aofs);
+                tcg_gen_ld8u_i32(in, tcg_env, aofs);
                 break;
             case MO_16:
-                tcg_gen_ld16u_i32(in, cpu_env, aofs);
+                tcg_gen_ld16u_i32(in, tcg_env, aofs);
                 break;
             default:
-                tcg_gen_ld_i32(in, cpu_env, aofs);
+                tcg_gen_ld_i32(in, tcg_env, aofs);
                 break;
             }
             do_dup(vece, dofs, oprsz, maxsz, in, NULL, 0);
             tcg_temp_free_i32(in);
         } else {
             TCGv_i64 in = tcg_temp_ebb_new_i64();
-            tcg_gen_ld_i64(in, cpu_env, aofs);
+            tcg_gen_ld_i64(in, tcg_env, aofs);
             do_dup(vece, dofs, oprsz, maxsz, NULL, in, 0);
             tcg_temp_free_i64(in);
         }
@@ -1762,20 +1762,20 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
         if (TCG_TARGET_HAS_v128) {
             TCGv_vec in = tcg_temp_new_vec(TCG_TYPE_V128);
 
-            tcg_gen_ld_vec(in, cpu_env, aofs);
+            tcg_gen_ld_vec(in, tcg_env, aofs);
             for (i = (aofs == dofs) * 16; i < oprsz; i += 16) {
-                tcg_gen_st_vec(in, cpu_env, dofs + i);
+                tcg_gen_st_vec(in, tcg_env, dofs + i);
             }
             tcg_temp_free_vec(in);
         } else {
             TCGv_i64 in0 = tcg_temp_ebb_new_i64();
             TCGv_i64 in1 = tcg_temp_ebb_new_i64();
 
-            tcg_gen_ld_i64(in0, cpu_env, aofs);
-            tcg_gen_ld_i64(in1, cpu_env, aofs + 8);
+            tcg_gen_ld_i64(in0, tcg_env, aofs);
+            tcg_gen_ld_i64(in1, tcg_env, aofs + 8);
             for (i = (aofs == dofs) * 16; i < oprsz; i += 16) {
-                tcg_gen_st_i64(in0, cpu_env, dofs + i);
-                tcg_gen_st_i64(in1, cpu_env, dofs + i + 8);
+                tcg_gen_st_i64(in0, tcg_env, dofs + i);
+                tcg_gen_st_i64(in1, tcg_env, dofs + i + 8);
             }
             tcg_temp_free_i64(in0);
             tcg_temp_free_i64(in1);
@@ -1792,20 +1792,20 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
         if (TCG_TARGET_HAS_v256) {
             TCGv_vec in = tcg_temp_new_vec(TCG_TYPE_V256);
 
-            tcg_gen_ld_vec(in, cpu_env, aofs);
+            tcg_gen_ld_vec(in, tcg_env, aofs);
             for (i = (aofs == dofs) * 32; i < oprsz; i += 32) {
-                tcg_gen_st_vec(in, cpu_env, dofs + i);
+                tcg_gen_st_vec(in, tcg_env, dofs + i);
             }
             tcg_temp_free_vec(in);
         } else if (TCG_TARGET_HAS_v128) {
             TCGv_vec in0 = tcg_temp_new_vec(TCG_TYPE_V128);
             TCGv_vec in1 = tcg_temp_new_vec(TCG_TYPE_V128);
 
-            tcg_gen_ld_vec(in0, cpu_env, aofs);
-            tcg_gen_ld_vec(in1, cpu_env, aofs + 16);
+            tcg_gen_ld_vec(in0, tcg_env, aofs);
+            tcg_gen_ld_vec(in1, tcg_env, aofs + 16);
             for (i = (aofs == dofs) * 32; i < oprsz; i += 32) {
-                tcg_gen_st_vec(in0, cpu_env, dofs + i);
-                tcg_gen_st_vec(in1, cpu_env, dofs + i + 16);
+                tcg_gen_st_vec(in0, tcg_env, dofs + i);
+                tcg_gen_st_vec(in1, tcg_env, dofs + i + 16);
             }
             tcg_temp_free_vec(in0);
             tcg_temp_free_vec(in1);
@@ -1815,11 +1815,11 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
 
             for (j = 0; j < 4; ++j) {
                 in[j] = tcg_temp_ebb_new_i64();
-                tcg_gen_ld_i64(in[j], cpu_env, aofs + j * 8);
+                tcg_gen_ld_i64(in[j], tcg_env, aofs + j * 8);
             }
             for (i = (aofs == dofs) * 32; i < oprsz; i += 32) {
                 for (j = 0; j < 4; ++j) {
-                    tcg_gen_st_i64(in[j], cpu_env, dofs + i + j * 8);
+                    tcg_gen_st_i64(in[j], tcg_env, dofs + i + j * 8);
                 }
             }
             for (j = 0; j < 4; ++j) {
@@ -3140,9 +3140,9 @@ static void expand_2sh_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
         fni(vece, t0, t0, shift);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        tcg_gen_st_vec(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
 }
@@ -3248,8 +3248,8 @@ do_gvec_shifts(unsigned vece, uint32_t dofs, uint32_t aofs, TCGv_i32 shift,
 
         tcg_gen_shli_i32(desc, shift, SIMD_DATA_SHIFT);
         tcg_gen_ori_i32(desc, desc, simd_desc(oprsz, maxsz, 0));
-        tcg_gen_addi_ptr(a0, cpu_env, dofs);
-        tcg_gen_addi_ptr(a1, cpu_env, aofs);
+        tcg_gen_addi_ptr(a0, tcg_env, dofs);
+        tcg_gen_addi_ptr(a1, tcg_env, aofs);
 
         g->fno[vece](a0, a1, desc);
 
@@ -3690,10 +3690,10 @@ static void expand_cmp_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
-        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i32(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i32(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i32(t1, tcg_env, bofs + i);
         tcg_gen_negsetcond_i32(cond, t0, t0, t1);
-        tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        tcg_gen_st_i32(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t0);
@@ -3707,10 +3707,10 @@ static void expand_cmp_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
-        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
-        tcg_gen_ld_i64(t1, cpu_env, bofs + i);
+        tcg_gen_ld_i64(t0, tcg_env, aofs + i);
+        tcg_gen_ld_i64(t1, tcg_env, bofs + i);
         tcg_gen_negsetcond_i64(cond, t0, t0, t1);
-        tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        tcg_gen_st_i64(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_i64(t1);
     tcg_temp_free_i64(t0);
@@ -3725,10 +3725,10 @@ static void expand_cmp_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
-        tcg_gen_ld_vec(t1, cpu_env, bofs + i);
+        tcg_gen_ld_vec(t0, tcg_env, aofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, bofs + i);
         tcg_gen_cmp_vec(cond, vece, t0, t0, t1);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        tcg_gen_st_vec(t0, tcg_env, dofs + i);
     }
     tcg_temp_free_vec(t1);
     tcg_temp_free_vec(t0);
@@ -3855,9 +3855,9 @@ static void expand_cmps_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
-        tcg_gen_ld_vec(t1, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t1, tcg_env, aofs + i);
         tcg_gen_cmp_vec(cond, vece, t0, t1, c);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        tcg_gen_st_vec(t0, tcg_env, dofs + i);
     }
 }
 
@@ -3950,9 +3950,9 @@ void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
         uint32_t i;
 
         for (i = 0; i < oprsz; i += 8) {
-            tcg_gen_ld_i64(t0, cpu_env, aofs + i);
+            tcg_gen_ld_i64(t0, tcg_env, aofs + i);
             tcg_gen_negsetcond_i64(cond, t0, t0, c);
-            tcg_gen_st_i64(t0, cpu_env, dofs + i);
+            tcg_gen_st_i64(t0, tcg_env, dofs + i);
         }
         tcg_temp_free_i64(t0);
     } else if (vece == MO_32 && check_size_impl(oprsz, 4)) {
@@ -3962,9 +3962,9 @@ void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
 
         tcg_gen_extrl_i64_i32(t1, c);
         for (i = 0; i < oprsz; i += 8) {
-            tcg_gen_ld_i32(t0, cpu_env, aofs + i);
+            tcg_gen_ld_i32(t0, tcg_env, aofs + i);
             tcg_gen_negsetcond_i32(cond, t0, t0, t1);
-            tcg_gen_st_i32(t0, cpu_env, dofs + i);
+            tcg_gen_st_i32(t0, tcg_env, dofs + i);
         }
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);

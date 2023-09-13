@@ -51,13 +51,13 @@ static inline int vec_reg_offset(int regno, int index, MemOp mop)
 
 static inline void get_vreg64(TCGv_i64 dest, int regno, int index)
 {
-    tcg_gen_ld_i64(dest, cpu_env,
+    tcg_gen_ld_i64(dest, tcg_env,
                    offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
 }
 
 static inline void set_vreg64(TCGv_i64 src, int regno, int index)
 {
-    tcg_gen_st_i64(src, cpu_env,
+    tcg_gen_st_i64(src, tcg_env,
                    offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
 }
 
@@ -93,7 +93,7 @@ static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
 void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
+    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -221,14 +221,14 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
 static TCGv get_fpr(DisasContext *ctx, int reg_num)
 {
     TCGv t = tcg_temp_new();
-    tcg_gen_ld_i64(t, cpu_env,
+    tcg_gen_ld_i64(t, tcg_env,
                    offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
     return  t;
 }
 
 static void set_fpr(int reg_num, TCGv val)
 {
-    tcg_gen_st_i64(val, cpu_env,
+    tcg_gen_st_i64(val, tcg_env,
                    offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
 }
 
@@ -357,14 +357,14 @@ void loongarch_translate_init(void)
 
     cpu_gpr[0] = NULL;
     for (i = 1; i < 32; i++) {
-        cpu_gpr[i] = tcg_global_mem_new(cpu_env,
+        cpu_gpr[i] = tcg_global_mem_new(tcg_env,
                                         offsetof(CPULoongArchState, gpr[i]),
                                         regnames[i]);
     }
 
-    cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPULoongArchState, pc), "pc");
-    cpu_lladdr = tcg_global_mem_new(cpu_env,
+    cpu_pc = tcg_global_mem_new(tcg_env, offsetof(CPULoongArchState, pc), "pc");
+    cpu_lladdr = tcg_global_mem_new(tcg_env,
                     offsetof(CPULoongArchState, lladdr), "lladdr");
-    cpu_llval = tcg_global_mem_new(cpu_env,
+    cpu_llval = tcg_global_mem_new(tcg_env,
                     offsetof(CPULoongArchState, llval), "llval");
 }

@@ -10,7 +10,7 @@
 static inline TCGv_ptr gen_avr_ptr(int reg)
 {
     TCGv_ptr r = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(r, cpu_env, avr_full_offset(reg));
+    tcg_gen_addi_ptr(r, tcg_env, avr_full_offset(reg));
     return r;
 }
 
@@ -96,7 +96,7 @@ static void gen_lve##name(DisasContext *ctx)                            \
             tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
         }                                                               \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_lve##name(cpu_env, rs, EA);                          \
+        gen_helper_lve##name(tcg_env, rs, EA);                          \
     }
 
 #define GEN_VR_STVE(name, opc2, opc3, size)                             \
@@ -115,7 +115,7 @@ static void gen_stve##name(DisasContext *ctx)                           \
             tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
         }                                                               \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_stve##name(cpu_env, rs, EA);                         \
+        gen_helper_stve##name(tcg_env, rs, EA);                         \
     }
 
 GEN_VR_LDX(lvx, 0x07, 0x03);
@@ -146,7 +146,7 @@ static void gen_mfvscr(DisasContext *ctx)
     tcg_gen_movi_i64(avr, 0);
     set_avr64(rD(ctx->opcode), avr, true);
     t = tcg_temp_new_i32();
-    gen_helper_mfvscr(t, cpu_env);
+    gen_helper_mfvscr(t, tcg_env);
     tcg_gen_extu_i32_i64(avr, t);
     set_avr64(rD(ctx->opcode), avr, false);
 }
@@ -167,8 +167,8 @@ static void gen_mtvscr(DisasContext *ctx)
     bofs += 3 * 4;
 #endif
 
-    tcg_gen_ld_i32(val, cpu_env, bofs);
-    gen_helper_mtvscr(cpu_env, val);
+    tcg_gen_ld_i32(val, tcg_env, bofs);
+    gen_helper_mtvscr(tcg_env, val);
 }
 
 static void gen_vx_vmul10(DisasContext *ctx, bool add_cin, bool ret_carry)
@@ -287,7 +287,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     ra = gen_avr_ptr(rA(ctx->opcode));                                  \
     rb = gen_avr_ptr(rB(ctx->opcode));                                  \
     rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name(cpu_env, rd, ra, rb);                             \
+    gen_helper_##name(tcg_env, rd, ra, rb);                             \
 }
 
 #define GEN_VXFORM3(name, opc2, opc3)                                   \
@@ -689,10 +689,10 @@ static void trans_vclzw(DisasContext *ctx)
 
     /* Perform count for every word element using tcg_gen_clzi_i32. */
     for (i = 0; i < 4; i++) {
-        tcg_gen_ld_i32(tmp, cpu_env,
+        tcg_gen_ld_i32(tmp, tcg_env,
             offsetof(CPUPPCState, vsr[32 + VB].u64[0]) + i * 4);
         tcg_gen_clzi_i32(tmp, tmp, 32);
-        tcg_gen_st_i32(tmp, cpu_env,
+        tcg_gen_st_i32(tmp, tcg_env,
             offsetof(CPUPPCState, vsr[32 + VT].u64[0]) + i * 4);
     }
 }
@@ -1174,7 +1174,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         ra = gen_avr_ptr(rA(ctx->opcode));                              \
         rb = gen_avr_ptr(rB(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##opname(cpu_env, rd, ra, rb);                       \
+        gen_helper_##opname(tcg_env, rd, ra, rb);                       \
     }
 
 #define GEN_VXRFORM(name, opc2, opc3)                                \
@@ -1478,7 +1478,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         }                                                               \
         rb = gen_avr_ptr(rB(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name(cpu_env, rd, rb);                             \
+        gen_helper_##name(tcg_env, rd, rb);                             \
     }
 
 #define GEN_VXFORM_NOA_2(name, opc2, opc3, opc4)                        \
@@ -1625,7 +1625,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         uimm = tcg_constant_i32(UIMM5(ctx->opcode));                    \
         rb = gen_avr_ptr(rB(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name(cpu_env, rd, rb, uimm);                       \
+        gen_helper_##name(tcg_env, rd, rb, uimm);                       \
     }
 
 #define GEN_VXFORM_UIMM_SPLAT(name, opc2, opc3, splat_max)              \
@@ -1813,7 +1813,7 @@ static bool do_vextdx(DisasContext *ctx, arg_VA *a, int size, bool right,
     if (right) {
         tcg_gen_subfi_tl(rc, 32 - size, rc);
     }
-    gen_helper(cpu_env, vrt, vra, vrb, rc);
+    gen_helper(tcg_env, vrt, vra, vrb, rc);
     return true;
 }
 
@@ -1841,7 +1841,7 @@ static bool do_vinsx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
         tcg_gen_subfi_tl(idx, 16 - size, idx);
     }
 
-    gen_helper(cpu_env, t, rb, idx);
+    gen_helper(tcg_env, t, rb, idx);
     return true;
 }
 
@@ -2349,9 +2349,9 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
         rc = gen_avr_ptr(rC(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
         if (Rc(ctx->opcode)) {                                          \
-            gen_helper_##name1(cpu_env, rd, ra, rb, rc);                \
+            gen_helper_##name1(tcg_env, rd, ra, rb, rc);                \
         } else {                                                        \
-            gen_helper_##name0(cpu_env, rd, ra, rb, rc);                \
+            gen_helper_##name0(tcg_env, rd, ra, rb, rc);                \
         }                                                               \
     }
 
@@ -2437,7 +2437,7 @@ static bool do_va_env_helper(DisasContext *ctx, arg_VA *a,
     vra = gen_avr_ptr(a->vra);
     vrb = gen_avr_ptr(a->vrb);
     vrc = gen_avr_ptr(a->rc);
-    gen_helper(cpu_env, vrt, vra, vrb, vrc);
+    gen_helper(tcg_env, vrt, vra, vrb, vrc);
     return true;
 }
 

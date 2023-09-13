@@ -41,7 +41,7 @@ static bool gen_vvvv_ptr_vl(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz,
                        vec_full_offset(a->vj),
                        vec_full_offset(a->vk),
                        vec_full_offset(a->va),
-                       cpu_env,
+                       tcg_env,
                        oprsz, ctx->vl / 8, 0, fn);
     return true;
 }
@@ -94,7 +94,7 @@ static bool gen_vvv_ptr_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
     tcg_gen_gvec_3_ptr(vec_full_offset(a->vd),
                        vec_full_offset(a->vj),
                        vec_full_offset(a->vk),
-                       cpu_env,
+                       tcg_env,
                        oprsz, ctx->vl / 8, 0, fn);
     return true;
 }
@@ -144,7 +144,7 @@ static bool gen_vv_ptr_vl(DisasContext *ctx, arg_vv *a, uint32_t oprsz,
 
     tcg_gen_gvec_2_ptr(vec_full_offset(a->vd),
                        vec_full_offset(a->vj),
-                       cpu_env,
+                       tcg_env,
                        oprsz, ctx->vl / 8, 0, fn);
     return true;
 }
@@ -219,7 +219,7 @@ static bool gen_cv_vl(DisasContext *ctx, arg_cv *a, uint32_t sz,
     TCGv_i32 cd = tcg_constant_i32(a->cd);
     TCGv_i32 oprsz = tcg_constant_i32(sz);
 
-    func(cpu_env, oprsz, cd, vj);
+    func(tcg_env, oprsz, cd, vj);
     return true;
 }
 
@@ -4679,7 +4679,7 @@ static bool do_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_s : gen_helper_vfcmp_c_s);
     flags = get_fcmp_flags(a->fcond >> 1);
-    fn(cpu_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
+    fn(tcg_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
 
     return true;
 }
@@ -4699,7 +4699,7 @@ static bool do_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_d : gen_helper_vfcmp_c_d);
     flags = get_fcmp_flags(a->fcond >> 1);
-    fn(cpu_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
+    fn(tcg_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
 
     return true;
 }
@@ -4772,7 +4772,7 @@ static bool trans_## NAME (DisasContext *ctx, arg_cv *a)                       \
                                                                                \
     tcg_gen_or_i64(t1, al, ah);                                                \
     tcg_gen_setcondi_i64(COND, t1, t1, 0);                                     \
-    tcg_gen_st8_tl(t1, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
+    tcg_gen_st8_tl(t1, tcg_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
                                                                                \
     return true;                                                               \
 }
@@ -4818,7 +4818,7 @@ static bool trans_## NAME(DisasContext *ctx, arg_cv * a)                       \
     tcg_gen_or_i64(t2, d[2], d[3]);                                            \
     tcg_gen_or_i64(t1, t2, t1);                                                \
     tcg_gen_setcondi_i64(COND, t1, t1, 0);                                     \
-    tcg_gen_st8_tl(t1, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
+    tcg_gen_st8_tl(t1, tcg_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
                                                                                \
     return true;                                                               \
 }
@@ -4844,7 +4844,7 @@ static bool gen_g2v_vl(DisasContext *ctx, arg_vr_i *a, uint32_t oprsz, MemOp mop
         return true;
     }
 
-    func(src, cpu_env, vec_reg_offset(a->vd, a->imm, mop));
+    func(src, tcg_env, vec_reg_offset(a->vd, a->imm, mop));
 
     return true;
 }
@@ -4877,7 +4877,7 @@ static bool gen_v2g_vl(DisasContext *ctx, arg_rv_i *a, uint32_t oprsz, MemOp mop
         return true;
     }
 
-    func(dst, cpu_env, vec_reg_offset(a->vj, a->imm, mop));
+    func(dst, tcg_env, vec_reg_offset(a->vj, a->imm, mop));
 
     return true;
 }
@@ -5026,7 +5026,7 @@ static bool gen_vreplve_vl(DisasContext *ctx, arg_vvr *a,
     }
 
     tcg_gen_trunc_i64_ptr(t1, t0);
-    tcg_gen_add_ptr(t1, t1, cpu_env);
+    tcg_gen_add_ptr(t1, t1, tcg_env);
 
     for (i = 0; i < oprsz; i += 16) {
         func(t2, t1, vec_full_offset(a->vj) + i);
@@ -5422,7 +5422,7 @@ static bool do_vstelm_vl(DisasContext *ctx,
     val = tcg_temp_new_i64();
 
     addr = make_address_i(ctx, addr, a->imm);
-    tcg_gen_ld_i64(val, cpu_env, vec_reg_offset(a->vd, a->imm2, mop));
+    tcg_gen_ld_i64(val, tcg_env, vec_reg_offset(a->vd, a->imm2, mop));
     tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, mop);
     return true;
 }

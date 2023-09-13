@@ -131,13 +131,13 @@ void alpha_translate_init(void)
     int i;
 
     for (i = 0; i < 31; i++) {
-        cpu_std_ir[i] = tcg_global_mem_new_i64(cpu_env,
+        cpu_std_ir[i] = tcg_global_mem_new_i64(tcg_env,
                                                offsetof(CPUAlphaState, ir[i]),
                                                greg_names[i]);
     }
 
     for (i = 0; i < 31; i++) {
-        cpu_fir[i] = tcg_global_mem_new_i64(cpu_env,
+        cpu_fir[i] = tcg_global_mem_new_i64(tcg_env,
                                             offsetof(CPUAlphaState, fir[i]),
                                             freg_names[i]);
     }
@@ -146,7 +146,7 @@ void alpha_translate_init(void)
     memcpy(cpu_pal_ir, cpu_std_ir, sizeof(cpu_pal_ir));
     for (i = 0; i < 8; i++) {
         int r = (i == 7 ? 25 : i + 8);
-        cpu_pal_ir[r] = tcg_global_mem_new_i64(cpu_env,
+        cpu_pal_ir[r] = tcg_global_mem_new_i64(tcg_env,
                                                offsetof(CPUAlphaState,
                                                         shadow[i]),
                                                shadow_names[i]);
@@ -155,7 +155,7 @@ void alpha_translate_init(void)
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
         const GlobalVar *v = &vars[i];
-        *v->var = tcg_global_mem_new_i64(cpu_env, v->ofs, v->name);
+        *v->var = tcg_global_mem_new_i64(tcg_env, v->ofs, v->name);
     }
 }
 
@@ -244,12 +244,12 @@ static int get_flag_ofs(unsigned shift)
 
 static void ld_flag_byte(TCGv val, unsigned shift)
 {
-    tcg_gen_ld8u_i64(val, cpu_env, get_flag_ofs(shift));
+    tcg_gen_ld8u_i64(val, tcg_env, get_flag_ofs(shift));
 }
 
 static void st_flag_byte(TCGv val, unsigned shift)
 {
-    tcg_gen_st8_i64(val, cpu_env, get_flag_ofs(shift));
+    tcg_gen_st8_i64(val, tcg_env, get_flag_ofs(shift));
 }
 
 static void gen_excp_1(int exception, int error_code)
@@ -258,7 +258,7 @@ static void gen_excp_1(int exception, int error_code)
 
     tmp1 = tcg_constant_i32(exception);
     tmp2 = tcg_constant_i32(error_code);
-    gen_helper_excp(cpu_env, tmp1, tmp2);
+    gen_helper_excp(tcg_env, tmp1, tmp2);
 }
 
 static DisasJumpType gen_excp(DisasContext *ctx, int exception, int error_code)
@@ -582,7 +582,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
         tcg_gen_movi_i32(tmp, float_round_down);
         break;
     case QUAL_RM_D:
-        tcg_gen_ld8u_i32(tmp, cpu_env,
+        tcg_gen_ld8u_i32(tmp, tcg_env,
                          offsetof(CPUAlphaState, fpcr_dyn_round));
         break;
     }
@@ -591,7 +591,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
     /* ??? The "fpu/softfloat.h" interface is to call set_float_rounding_mode.
        With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
        sets the one field.  */
-    tcg_gen_st8_i32(tmp, cpu_env,
+    tcg_gen_st8_i32(tmp, tcg_env,
                     offsetof(CPUAlphaState, fp_status.float_rounding_mode));
 #else
     gen_helper_setroundmode(tmp);
@@ -611,7 +611,7 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
     tmp = tcg_temp_new_i32();
     if (fn11) {
         /* Underflow is enabled, use the FPCR setting.  */
-        tcg_gen_ld8u_i32(tmp, cpu_env,
+        tcg_gen_ld8u_i32(tmp, tcg_env,
                          offsetof(CPUAlphaState, fpcr_flush_to_zero));
     } else {
         /* Underflow is disabled, force flush-to-zero.  */
@@ -619,7 +619,7 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
     }
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
-    tcg_gen_st8_i32(tmp, cpu_env,
+    tcg_gen_st8_i32(tmp, tcg_env,
                     offsetof(CPUAlphaState, fp_status.flush_to_zero));
 #else
     gen_helper_setflushzero(tmp);
@@ -636,16 +636,16 @@ static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
         val = cpu_fir[reg];
         if ((fn11 & QUAL_S) == 0) {
             if (is_cmp) {
-                gen_helper_ieee_input_cmp(cpu_env, val);
+                gen_helper_ieee_input_cmp(tcg_env, val);
             } else {
-                gen_helper_ieee_input(cpu_env, val);
+                gen_helper_ieee_input(tcg_env, val);
             }
         } else {
 #ifndef CONFIG_USER_ONLY
             /* In system mode, raise exceptions for denormals like real
                hardware.  In user mode, proceed as if the OS completion
                handler is handling the denormal as per spec.  */
-            gen_helper_ieee_input_s(cpu_env, val);
+            gen_helper_ieee_input_s(tcg_env, val);
 #endif
         }
     }
@@ -678,9 +678,9 @@ static void gen_fp_exc_raise(int rc, int fn11)
        or if we were to do something clever with imprecise exceptions.  */
     reg = tcg_constant_i32(rc + 32);
     if (fn11 & QUAL_S) {
-        gen_helper_fp_exc_raise_s(cpu_env, ign, reg);
+        gen_helper_fp_exc_raise_s(tcg_env, ign, reg);
     } else {
-        gen_helper_fp_exc_raise(cpu_env, ign, reg);
+        gen_helper_fp_exc_raise(tcg_env, ign, reg);
     }
 }
 
@@ -705,7 +705,7 @@ static void gen_ieee_arith2(DisasContext *ctx,
     gen_qual_flushzero(ctx, fn11);
 
     vb = gen_ieee_input(ctx, rb, fn11, 0);
-    helper(dest_fpr(ctx, rc), cpu_env, vb);
+    helper(dest_fpr(ctx, rc), tcg_env, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -732,10 +732,10 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
     /* Almost all integer conversions use cropped rounding;
        special case that.  */
     if ((fn11 & QUAL_RM_MASK) == QUAL_RM_C) {
-        gen_helper_cvttq_c(vc, cpu_env, vb);
+        gen_helper_cvttq_c(vc, tcg_env, vb);
     } else {
         gen_qual_roundmode(ctx, fn11);
-        gen_helper_cvttq(vc, cpu_env, vb);
+        gen_helper_cvttq(vc, tcg_env, vb);
     }
     gen_fp_exc_raise(rc, fn11);
 }
@@ -754,10 +754,10 @@ static void gen_ieee_intcvt(DisasContext *ctx,
        is inexact.  Thus we only need to worry about exceptions when
        inexact handling is requested.  */
     if (fn11 & QUAL_I) {
-        helper(vc, cpu_env, vb);
+        helper(vc, tcg_env, vb);
         gen_fp_exc_raise(rc, fn11);
     } else {
-        helper(vc, cpu_env, vb);
+        helper(vc, tcg_env, vb);
     }
 }
 
@@ -797,7 +797,7 @@ static void gen_ieee_arith3(DisasContext *ctx,
     va = gen_ieee_input(ctx, ra, fn11, 0);
     vb = gen_ieee_input(ctx, rb, fn11, 0);
     vc = dest_fpr(ctx, rc);
-    helper(vc, cpu_env, va, vb);
+    helper(vc, tcg_env, va, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -826,7 +826,7 @@ static void gen_ieee_compare(DisasContext *ctx,
     va = gen_ieee_input(ctx, ra, fn11, 1);
     vb = gen_ieee_input(ctx, rb, fn11, 1);
     vc = dest_fpr(ctx, rc);
-    helper(vc, cpu_env, va, vb);
+    helper(vc, tcg_env, va, vb);
 
     gen_fp_exc_raise(rc, fn11);
 }
@@ -1059,12 +1059,12 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x9E:
             /* RDUNIQUE */
-            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], tcg_env,
                            offsetof(CPUAlphaState, unique));
             break;
         case 0x9F:
             /* WRUNIQUE */
-            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], tcg_env,
                            offsetof(CPUAlphaState, unique));
             break;
         default:
@@ -1088,17 +1088,17 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x2D:
             /* WRVPTPTR */
-            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], tcg_env,
                            offsetof(CPUAlphaState, vptptr));
             break;
         case 0x31:
             /* WRVAL */
-            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], tcg_env,
                            offsetof(CPUAlphaState, sysval));
             break;
         case 0x32:
             /* RDVAL */
-            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], tcg_env,
                            offsetof(CPUAlphaState, sysval));
             break;
 
@@ -1126,23 +1126,23 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x38:
             /* WRUSP */
-            tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
+            tcg_gen_st_i64(ctx->ir[IR_A0], tcg_env,
                            offsetof(CPUAlphaState, usp));
             break;
         case 0x3A:
             /* RDUSP */
-            tcg_gen_ld_i64(ctx->ir[IR_V0], cpu_env,
+            tcg_gen_ld_i64(ctx->ir[IR_V0], tcg_env,
                            offsetof(CPUAlphaState, usp));
             break;
         case 0x3C:
             /* WHAMI */
-            tcg_gen_ld32s_i64(ctx->ir[IR_V0], cpu_env,
+            tcg_gen_ld32s_i64(ctx->ir[IR_V0], tcg_env,
                 -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
             break;
 
         case 0x3E:
             /* WTINT */
-            tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
+            tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
                            -offsetof(AlphaCPU, env) +
                            offsetof(CPUState, halted));
             tcg_gen_movi_i64(ctx->ir[IR_V0], 0);
@@ -1174,7 +1174,7 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
         }
 
         tcg_gen_movi_i64(tmp, exc_addr);
-        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUAlphaState, exc_addr));
 
         entry += (palcode & 0x80
                   ? 0x2000 + (palcode - 0x80) * 64
@@ -1254,9 +1254,9 @@ static DisasJumpType gen_mfpr(DisasContext *ctx, TCGv va, int regno)
         if (data == 0) {
             tcg_gen_movi_i64(va, 0);
         } else if (data & PR_LONG) {
-            tcg_gen_ld32s_i64(va, cpu_env, data & ~PR_LONG);
+            tcg_gen_ld32s_i64(va, tcg_env, data & ~PR_LONG);
         } else {
-            tcg_gen_ld_i64(va, cpu_env, data);
+            tcg_gen_ld_i64(va, tcg_env, data);
         }
         break;
     }
@@ -1272,17 +1272,17 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
     switch (regno) {
     case 255:
         /* TBIA */
-        gen_helper_tbia(cpu_env);
+        gen_helper_tbia(tcg_env);
         break;
 
     case 254:
         /* TBIS */
-        gen_helper_tbis(cpu_env, vb);
+        gen_helper_tbis(tcg_env, vb);
         break;
 
     case 253:
         /* WAIT */
-        tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
+        tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
                        -offsetof(AlphaCPU, env) + offsetof(CPUState, halted));
         return gen_excp(ctx, EXCP_HALTED, 0);
 
@@ -1296,16 +1296,16 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         if (translator_io_start(&ctx->base)) {
             ret = DISAS_PC_STALE;
         }
-        gen_helper_set_alarm(cpu_env, vb);
+        gen_helper_set_alarm(tcg_env, vb);
         break;
 
     case 7:
         /* PALBR */
-        tcg_gen_st_i64(vb, cpu_env, offsetof(CPUAlphaState, palbr));
+        tcg_gen_st_i64(vb, tcg_env, offsetof(CPUAlphaState, palbr));
         /* Changing the PAL base register implies un-chaining all of the TBs
            that ended with a CALL_PAL.  Since the base register usually only
            changes during boot, flushing everything works well.  */
-        gen_helper_tb_flush(cpu_env);
+        gen_helper_tb_flush(tcg_env);
         return DISAS_PC_STALE;
 
     case 32 ... 39:
@@ -1327,9 +1327,9 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         data = cpu_pr_data(regno);
         if (data != 0) {
             if (data & PR_LONG) {
-                tcg_gen_st32_i64(vb, cpu_env, data & ~PR_LONG);
+                tcg_gen_st32_i64(vb, tcg_env, data & ~PR_LONG);
             } else {
-                tcg_gen_st_i64(vb, cpu_env, data);
+                tcg_gen_st_i64(vb, tcg_env, data);
             }
         }
         break;
@@ -1594,7 +1594,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tcg_gen_ext32s_i64(vc, vb);
             tcg_gen_add_i64(tmp, tmp, vc);
             tcg_gen_ext32s_i64(vc, tmp);
-            gen_helper_check_overflow(cpu_env, vc, tmp);
+            gen_helper_check_overflow(tcg_env, vc, tmp);
             break;
         case 0x49:
             /* SUBL/V */
@@ -1603,7 +1603,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tcg_gen_ext32s_i64(vc, vb);
             tcg_gen_sub_i64(tmp, tmp, vc);
             tcg_gen_ext32s_i64(vc, tmp);
-            gen_helper_check_overflow(cpu_env, vc, tmp);
+            gen_helper_check_overflow(tcg_env, vc, tmp);
             break;
         case 0x4D:
             /* CMPLT */
@@ -1620,7 +1620,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tcg_gen_and_i64(tmp, tmp, tmp2);
             tcg_gen_shri_i64(tmp, tmp, 63);
             tcg_gen_movi_i64(tmp2, 0);
-            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            gen_helper_check_overflow(tcg_env, tmp, tmp2);
             break;
         case 0x69:
             /* SUBQ/V */
@@ -1633,7 +1633,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tcg_gen_and_i64(tmp, tmp, tmp2);
             tcg_gen_shri_i64(tmp, tmp, 63);
             tcg_gen_movi_i64(tmp2, 0);
-            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            gen_helper_check_overflow(tcg_env, tmp, tmp2);
             break;
         case 0x6D:
             /* CMPLE */
@@ -1924,7 +1924,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tcg_gen_ext32s_i64(vc, vb);
             tcg_gen_mul_i64(tmp, tmp, vc);
             tcg_gen_ext32s_i64(vc, tmp);
-            gen_helper_check_overflow(cpu_env, vc, tmp);
+            gen_helper_check_overflow(tcg_env, vc, tmp);
             break;
         case 0x60:
             /* MULQ/V */
@@ -1932,7 +1932,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             tmp2 = tcg_temp_new();
             tcg_gen_muls2_i64(vc, tmp, va, vb);
             tcg_gen_sari_i64(tmp2, vc, 63);
-            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            gen_helper_check_overflow(tcg_env, tmp, tmp2);
             break;
         default:
             goto invalid_opc;
@@ -1957,7 +1957,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
             vb = load_fpr(ctx, rb);
-            gen_helper_sqrtf(vc, cpu_env, vb);
+            gen_helper_sqrtf(vc, tcg_env, vb);
             break;
         case 0x0B:
             /* SQRTS */
@@ -1986,7 +1986,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
             vb = load_fpr(ctx, rb);
-            gen_helper_sqrtg(vc, cpu_env, vb);
+            gen_helper_sqrtg(vc, tcg_env, vb);
             break;
         case 0x02B:
             /* SQRTT */
@@ -2009,22 +2009,22 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         case 0x00:
             /* ADDF */
             REQUIRE_FEN;
-            gen_helper_addf(vc, cpu_env, va, vb);
+            gen_helper_addf(vc, tcg_env, va, vb);
             break;
         case 0x01:
             /* SUBF */
             REQUIRE_FEN;
-            gen_helper_subf(vc, cpu_env, va, vb);
+            gen_helper_subf(vc, tcg_env, va, vb);
             break;
         case 0x02:
             /* MULF */
             REQUIRE_FEN;
-            gen_helper_mulf(vc, cpu_env, va, vb);
+            gen_helper_mulf(vc, tcg_env, va, vb);
             break;
         case 0x03:
             /* DIVF */
             REQUIRE_FEN;
-            gen_helper_divf(vc, cpu_env, va, vb);
+            gen_helper_divf(vc, tcg_env, va, vb);
             break;
         case 0x1E:
             /* CVTDG -- TODO */
@@ -2033,43 +2033,43 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         case 0x20:
             /* ADDG */
             REQUIRE_FEN;
-            gen_helper_addg(vc, cpu_env, va, vb);
+            gen_helper_addg(vc, tcg_env, va, vb);
             break;
         case 0x21:
             /* SUBG */
             REQUIRE_FEN;
-            gen_helper_subg(vc, cpu_env, va, vb);
+            gen_helper_subg(vc, tcg_env, va, vb);
             break;
         case 0x22:
             /* MULG */
             REQUIRE_FEN;
-            gen_helper_mulg(vc, cpu_env, va, vb);
+            gen_helper_mulg(vc, tcg_env, va, vb);
             break;
         case 0x23:
             /* DIVG */
             REQUIRE_FEN;
-            gen_helper_divg(vc, cpu_env, va, vb);
+            gen_helper_divg(vc, tcg_env, va, vb);
             break;
         case 0x25:
             /* CMPGEQ */
             REQUIRE_FEN;
-            gen_helper_cmpgeq(vc, cpu_env, va, vb);
+            gen_helper_cmpgeq(vc, tcg_env, va, vb);
             break;
         case 0x26:
             /* CMPGLT */
             REQUIRE_FEN;
-            gen_helper_cmpglt(vc, cpu_env, va, vb);
+            gen_helper_cmpglt(vc, tcg_env, va, vb);
             break;
         case 0x27:
             /* CMPGLE */
             REQUIRE_FEN;
-            gen_helper_cmpgle(vc, cpu_env, va, vb);
+            gen_helper_cmpgle(vc, tcg_env, va, vb);
             break;
         case 0x2C:
             /* CVTGF */
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
-            gen_helper_cvtgf(vc, cpu_env, vb);
+            gen_helper_cvtgf(vc, tcg_env, vb);
             break;
         case 0x2D:
             /* CVTGD -- TODO */
@@ -2079,19 +2079,19 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             /* CVTGQ */
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
-            gen_helper_cvtgq(vc, cpu_env, vb);
+            gen_helper_cvtgq(vc, tcg_env, vb);
             break;
         case 0x3C:
             /* CVTQF */
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
-            gen_helper_cvtqf(vc, cpu_env, vb);
+            gen_helper_cvtqf(vc, tcg_env, vb);
             break;
         case 0x3E:
             /* CVTQG */
             REQUIRE_REG_31(ra);
             REQUIRE_FEN;
-            gen_helper_cvtqg(vc, cpu_env, vb);
+            gen_helper_cvtqg(vc, tcg_env, vb);
             break;
         default:
             goto invalid_opc;
@@ -2242,7 +2242,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             /* MT_FPCR */
             REQUIRE_FEN;
             va = load_fpr(ctx, ra);
-            gen_helper_store_fpcr(cpu_env, va);
+            gen_helper_store_fpcr(tcg_env, va);
             if (ctx->tb_rm == QUAL_RM_D) {
                 /* Re-do the copy of the rounding mode to fp_status
                    the next time we use dynamic rounding.  */
@@ -2253,7 +2253,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             /* MF_FPCR */
             REQUIRE_FEN;
             va = dest_fpr(ctx, ra);
-            gen_helper_load_fpcr(va, cpu_env);
+            gen_helper_load_fpcr(va, tcg_env);
             break;
         case 0x02A:
             /* FCMOVEQ */
@@ -2292,7 +2292,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_FEN;
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_helper_cvtql(vc, cpu_env, vb);
+            gen_helper_cvtql(vc, tcg_env, vb);
             gen_fp_exc_raise(rc, fn11);
             break;
         default:
@@ -2332,7 +2332,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             if (translator_io_start(&ctx->base)) {
                 ret = DISAS_PC_STALE;
             }
-            gen_helper_load_pcc(va, cpu_env);
+            gen_helper_load_pcc(va, tcg_env);
             break;
         case 0xE000:
             /* RC */
@@ -2628,7 +2628,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
                address from EXC_ADDR.  This turns out to be useful for our
                emulation PALcode, so continue to accept it.  */
             vb = dest_sink(ctx);
-            tcg_gen_ld_i64(vb, cpu_env, offsetof(CPUAlphaState, exc_addr));
+            tcg_gen_ld_i64(vb, tcg_env, offsetof(CPUAlphaState, exc_addr));
         } else {
             vb = load_gpr(ctx, rb);
         }
