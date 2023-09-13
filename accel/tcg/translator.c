@@ -28,12 +28,6 @@ static void set_can_do_io(DisasContextBase *db, bool val)
 
 bool translator_io_start(DisasContextBase *db)
 {
-    uint32_t cflags = tb_cflags(db->tb);
-
-    if (!(cflags & CF_USE_ICOUNT)) {
-        return false;
-    }
-
     set_can_do_io(db, true);
 
     /*
@@ -86,14 +80,14 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
         tcg_gen_st16_i32(count, cpu_env,
                          offsetof(ArchCPU, neg.icount_decr.u16.low) -
                          offsetof(ArchCPU, env));
-        /*
-         * cpu->can_do_io is set automatically here at the beginning of
-         * each translation block.  The cost is minimal and only paid for
-         * -icount, plus it would be very easy to forget doing it in the
-         * translator.
-         */
-        set_can_do_io(db, db->max_insns == 1 && (cflags & CF_LAST_IO));
     }
+
+    /*
+     * cpu->can_do_io is set automatically here at the beginning of
+     * each translation block.  The cost is minimal, plus it would be
+     * very easy to forget doing it in the translator.
+     */
+    set_can_do_io(db, db->max_insns == 1 && (cflags & CF_LAST_IO));
 
     return icount_start_insn;
 }
