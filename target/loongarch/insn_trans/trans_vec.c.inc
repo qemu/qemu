@@ -61,6 +61,10 @@ static bool gen_xxxx_ptr(DisasContext *ctx, arg_vvvv *a,
 static bool gen_vvvv_vl(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz,
                         gen_helper_gvec_4 *fn)
 {
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     tcg_gen_gvec_4_ool(vec_full_offset(a->vd),
                        vec_full_offset(a->vj),
                        vec_full_offset(a->vk),
@@ -72,11 +76,13 @@ static bool gen_vvvv_vl(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz,
 static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
                      gen_helper_gvec_4 *fn)
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gen_vvvv_vl(ctx, a, 16, fn);
+}
+
+static bool gen_xxxx(DisasContext *ctx, arg_vvvv *a,
+                     gen_helper_gvec_4 *fn)
+{
+    return gen_vvvv_vl(ctx, a, 32, fn);
 }
 
 static bool gen_vvv_ptr_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
@@ -5218,17 +5224,33 @@ TRANS(vshuf_b, LSX, gen_vvvv, gen_helper_vshuf_b)
 TRANS(vshuf_h, LSX, gen_vvv, gen_helper_vshuf_h)
 TRANS(vshuf_w, LSX, gen_vvv, gen_helper_vshuf_w)
 TRANS(vshuf_d, LSX, gen_vvv, gen_helper_vshuf_d)
+TRANS(xvshuf_b, LASX, gen_xxxx, gen_helper_vshuf_b)
+TRANS(xvshuf_h, LASX, gen_xxx, gen_helper_vshuf_h)
+TRANS(xvshuf_w, LASX, gen_xxx, gen_helper_vshuf_w)
+TRANS(xvshuf_d, LASX, gen_xxx, gen_helper_vshuf_d)
 TRANS(vshuf4i_b, LSX, gen_vv_i, gen_helper_vshuf4i_b)
 TRANS(vshuf4i_h, LSX, gen_vv_i, gen_helper_vshuf4i_h)
 TRANS(vshuf4i_w, LSX, gen_vv_i, gen_helper_vshuf4i_w)
 TRANS(vshuf4i_d, LSX, gen_vv_i, gen_helper_vshuf4i_d)
+TRANS(xvshuf4i_b, LASX, gen_xx_i, gen_helper_vshuf4i_b)
+TRANS(xvshuf4i_h, LASX, gen_xx_i, gen_helper_vshuf4i_h)
+TRANS(xvshuf4i_w, LASX, gen_xx_i, gen_helper_vshuf4i_w)
+TRANS(xvshuf4i_d, LASX, gen_xx_i, gen_helper_vshuf4i_d)
 
+TRANS(xvperm_w, LASX, gen_xxx, gen_helper_vperm_w)
 TRANS(vpermi_w, LSX, gen_vv_i, gen_helper_vpermi_w)
+TRANS(xvpermi_w, LASX, gen_xx_i, gen_helper_vpermi_w)
+TRANS(xvpermi_d, LASX, gen_xx_i, gen_helper_vpermi_d)
+TRANS(xvpermi_q, LASX, gen_xx_i, gen_helper_vpermi_q)
 
 TRANS(vextrins_b, LSX, gen_vv_i, gen_helper_vextrins_b)
 TRANS(vextrins_h, LSX, gen_vv_i, gen_helper_vextrins_h)
 TRANS(vextrins_w, LSX, gen_vv_i, gen_helper_vextrins_w)
 TRANS(vextrins_d, LSX, gen_vv_i, gen_helper_vextrins_d)
+TRANS(xvextrins_b, LASX, gen_xx_i, gen_helper_vextrins_b)
+TRANS(xvextrins_h, LASX, gen_xx_i, gen_helper_vextrins_h)
+TRANS(xvextrins_w, LASX, gen_xx_i, gen_helper_vextrins_w)
+TRANS(xvextrins_d, LASX, gen_xx_i, gen_helper_vextrins_d)
 
 static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
 {

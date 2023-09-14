@@ -3381,57 +3381,65 @@ VILVH(vilvh_h, 32, H)
 VILVH(vilvh_w, 64, W)
 VILVH(vilvh_d, 128, D)
 
+#define SHF_POS(i, imm) (((i) & 0xfc) + (((imm) >> (2 * ((i) & 0x03))) & 0x03))
+
 void HELPER(vshuf_b)(void *vd, void *vj, void *vk, void *va, uint32_t desc)
 {
-    int i, m;
-    VReg temp;
+    int i, j, m;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
     VReg *Va = (VReg *)va;
+    int oprsz = simd_oprsz(desc);
 
-    m = LSX_LEN/8;
-    for (i = 0; i < m ; i++) {
+    m = LSX_LEN / 8;
+    for (i = 0; i < (oprsz / 16) * m; i++) {
+        j = i < m ? 0 : 1;
         uint64_t k = (uint8_t)Va->B(i) % (2 * m);
-        temp.B(i) = k < m ? Vk->B(k) : Vj->B(k - m);
+        temp.B(i) = k < m ? Vk->B(k + j * m): Vj->B(k + (j - 1) * m);
     }
     *Vd = temp;
 }
 
-#define VSHUF(NAME, BIT, E)                                    \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
-{                                                              \
-    int i, m;                                                  \
-    VReg temp;                                                 \
-    VReg *Vd = (VReg *)vd;                                     \
-    VReg *Vj = (VReg *)vj;                                     \
-    VReg *Vk = (VReg *)vk;                                     \
-                                                               \
-    m = LSX_LEN/BIT;                                           \
-    for (i = 0; i < m; i++) {                                  \
-        uint64_t k  = ((uint8_t) Vd->E(i)) % (2 * m);          \
-        temp.E(i) = k < m ? Vk->E(k) : Vj->E(k - m);           \
-    }                                                          \
-    *Vd = temp;                                                \
+#define VSHUF(NAME, BIT, E)                                            \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)         \
+{                                                                      \
+    int i, j, m;                                                       \
+    VReg temp = {};                                                    \
+    VReg *Vd = (VReg *)vd;                                             \
+    VReg *Vj = (VReg *)vj;                                             \
+    VReg *Vk = (VReg *)vk;                                             \
+    int oprsz = simd_oprsz(desc);                                      \
+                                                                       \
+    m = LSX_LEN / BIT;                                                 \
+    for (i = 0; i < (oprsz / 16) * m; i++) {                           \
+        j = i < m ? 0 : 1;                                             \
+        uint64_t k  = ((uint8_t)Vd->E(i)) % (2 * m);                   \
+        temp.E(i) = k < m ? Vk->E(k + j * m) : Vj->E(k + (j - 1) * m); \
+    }                                                                  \
+    *Vd = temp;                                                        \
 }
 
 VSHUF(vshuf_h, 16, H)
 VSHUF(vshuf_w, 32, W)
 VSHUF(vshuf_d, 64, D)
 
-#define VSHUF4I(NAME, BIT, E)                                      \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
-{                                                                  \
-    int i;                                                         \
-    VReg temp;                                                     \
-    VReg *Vd = (VReg *)vd;                                         \
-    VReg *Vj = (VReg *)vj;                                         \
-                                                                   \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                            \
-         temp.E(i) = Vj->E(((i) & 0xfc) + (((imm) >>               \
-                           (2 * ((i) & 0x03))) & 0x03));           \
-    }                                                              \
-    *Vd = temp;                                                    \
+#define VSHUF4I(NAME, BIT, E)                                               \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)          \
+{                                                                           \
+    int i, j, max;                                                          \
+    VReg temp = {};                                                         \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    max = LSX_LEN / BIT;                                                    \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                               \
+        j = i < max ? 1 : 2;                                                \
+        temp.E(i) = Vj->E(SHF_POS(i - ((j -1)* max), imm) + (j - 1) * max); \
+    }                                                                       \
+    *Vd = temp;                                                             \
 }
 
 VSHUF4I(vshuf4i_b, 8, B)
@@ -3440,38 +3448,92 @@ VSHUF4I(vshuf4i_w, 32, W)
 
 void HELPER(vshuf4i_d)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
+    int i;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    VReg temp;
-    temp.D(0) = (imm & 2 ? Vj : Vd)->D(imm & 1);
-    temp.D(1) = (imm & 8 ? Vj : Vd)->D((imm >> 2) & 1);
+    for (i = 0; i < oprsz / 16; i++) {
+        temp.D(2 * i) = (imm & 2 ? Vj : Vd)->D((imm & 1) + 2 * i);
+        temp.D(2 * i + 1) = (imm & 8 ? Vj : Vd)->D(((imm >> 2) & 1) + 2 * i);
+    }
+    *Vd = temp;
+}
+
+void HELPER(vperm_w)(void *vd, void *vj, void *vk, uint32_t desc)
+{
+    int i, m;
+    VReg temp = {};
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    m = LASX_LEN / 32;
+    for (i = 0; i < m ; i++) {
+        uint64_t k = (uint8_t)Vk->W(i) % 8;
+        temp.W(i) = Vj->W(k);
+    }
     *Vd = temp;
 }
 
 void HELPER(vpermi_w)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
+    int i;
+    VReg temp = {};
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz / 16; i++) {
+        temp.W(4 * i) = Vj->W((imm & 0x3) + 4 * i);
+        temp.W(4 * i + 1) = Vj->W(((imm >> 2) & 0x3) + 4 * i);
+        temp.W(4 * i + 2) = Vd->W(((imm >> 4) & 0x3) + 4 * i);
+        temp.W(4 * i + 3) = Vd->W(((imm >> 6) & 0x3) + 4 * i);
+    }
+    *Vd = temp;
+}
+
+void HELPER(vpermi_d)(void *vd, void *vj, uint64_t imm, uint32_t desc)
+{
+    VReg temp = {};
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+
+    temp.D(0) = Vj->D(imm & 0x3);
+    temp.D(1) = Vj->D((imm >> 2) & 0x3);
+    temp.D(2) = Vj->D((imm >> 4) & 0x3);
+    temp.D(3) = Vj->D((imm >> 6) & 0x3);
+    *Vd = temp;
+}
+
+void HELPER(vpermi_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
+{
+    int i;
     VReg temp;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
 
-    temp.W(0) = Vj->W(imm & 0x3);
-    temp.W(1) = Vj->W((imm >> 2) & 0x3);
-    temp.W(2) = Vd->W((imm >> 4) & 0x3);
-    temp.W(3) = Vd->W((imm >> 6) & 0x3);
+    for (i = 0; i < 2; i++, imm >>= 4) {
+        temp.Q(i) = (imm & 2 ? Vd: Vj)->Q(imm & 1);
+    }
     *Vd = temp;
 }
 
 #define VEXTRINS(NAME, BIT, E, MASK)                               \
 void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
 {                                                                  \
-    int ins, extr;                                                 \
+    int i, ins, extr, max;                                         \
     VReg *Vd = (VReg *)vd;                                         \
     VReg *Vj = (VReg *)vj;                                         \
+    int oprsz = simd_oprsz(desc);                                  \
                                                                    \
+    max = LSX_LEN / BIT;                                           \
     ins = (imm >> 4) & MASK;                                       \
     extr = imm & MASK;                                             \
-    Vd->E(ins) = Vj->E(extr);                                      \
+    for (i = 0; i < oprsz / 16; i++) {                             \
+        Vd->E(ins + i * max) = Vj->E(extr + i * max);              \
+    }                                                              \
 }
 
 VEXTRINS(vextrins_b, 8, B, 0xf)
