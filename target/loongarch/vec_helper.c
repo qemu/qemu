@@ -3241,12 +3241,13 @@ XVPICKVE(xvpickve_d, D, 64, 0x3)
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 {                                                              \
     int i;                                                     \
-    VReg temp;                                                 \
+    VReg temp = {};                                            \
     VReg *Vd = (VReg *)vd;                                     \
     VReg *Vj = (VReg *)vj;                                     \
     VReg *Vk = (VReg *)vk;                                     \
+    int oprsz = simd_oprsz(desc);                              \
                                                                \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                  \
         temp.E(2 * i + 1) = Vj->E(2 * i);                      \
         temp.E(2 *i) = Vk->E(2 * i);                           \
     }                                                          \
@@ -3262,12 +3263,13 @@ VPACKEV(vpackev_d, 128, D)
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 {                                                              \
     int i;                                                     \
-    VReg temp;                                                 \
+    VReg temp = {};                                            \
     VReg *Vd = (VReg *)vd;                                     \
     VReg *Vj = (VReg *)vj;                                     \
     VReg *Vk = (VReg *)vk;                                     \
+    int oprsz = simd_oprsz(desc);                              \
                                                                \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                 \
         temp.E(2 * i + 1) = Vj->E(2 * i + 1);                  \
         temp.E(2 * i) = Vk->E(2 * i + 1);                      \
     }                                                          \
@@ -3279,20 +3281,24 @@ VPACKOD(vpackod_h, 32, H)
 VPACKOD(vpackod_w, 64, W)
 VPACKOD(vpackod_d, 128, D)
 
-#define VPICKEV(NAME, BIT, E)                                  \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
-{                                                              \
-    int i;                                                     \
-    VReg temp;                                                 \
-    VReg *Vd = (VReg *)vd;                                     \
-    VReg *Vj = (VReg *)vj;                                     \
-    VReg *Vk = (VReg *)vk;                                     \
-                                                               \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i);                \
-        temp.E(i) = Vk->E(2 * i);                              \
-    }                                                          \
-    *Vd = temp;                                                \
+#define VPICKEV(NAME, BIT, E)                                         \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)        \
+{                                                                     \
+    int i, j, ofs;                                                    \
+    VReg temp = {};                                                   \
+    VReg *Vd = (VReg *)vd;                                            \
+    VReg *Vj = (VReg *)vj;                                            \
+    VReg *Vk = (VReg *)vk;                                            \
+    int oprsz = simd_oprsz(desc);                                     \
+                                                                      \
+    ofs = LSX_LEN / BIT;                                              \
+    for (i = 0; i < oprsz / 16; i++) {                                \
+        for (j = 0; j < ofs; j++) {                                   \
+            temp.E(j + ofs * (2 * i + 1)) = Vj->E(2 * (j + ofs * i)); \
+            temp.E(j + ofs * 2 * i) = Vk->E(2 * (j + ofs * i));       \
+        }                                                             \
+    }                                                                 \
+    *Vd = temp;                                                       \
 }
 
 VPICKEV(vpickev_b, 16, B)
@@ -3300,20 +3306,24 @@ VPICKEV(vpickev_h, 32, H)
 VPICKEV(vpickev_w, 64, W)
 VPICKEV(vpickev_d, 128, D)
 
-#define VPICKOD(NAME, BIT, E)                                  \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
-{                                                              \
-    int i;                                                     \
-    VReg temp;                                                 \
-    VReg *Vd = (VReg *)vd;                                     \
-    VReg *Vj = (VReg *)vj;                                     \
-    VReg *Vk = (VReg *)vk;                                     \
-                                                               \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i + 1);            \
-        temp.E(i) = Vk->E(2 * i + 1);                          \
-    }                                                          \
-    *Vd = temp;                                                \
+#define VPICKOD(NAME, BIT, E)                                             \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
+{                                                                         \
+    int i, j, ofs;                                                        \
+    VReg temp = {};                                                       \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
+    int oprsz = simd_oprsz(desc);                                         \
+                                                                          \
+    ofs = LSX_LEN / BIT;                                                  \
+    for (i = 0; i < oprsz / 16; i++) {                                    \
+        for (j = 0; j < ofs; j++) {                                       \
+            temp.E(j + ofs * (2 * i + 1)) = Vj->E(2 * (j + ofs * i) + 1); \
+            temp.E(j + ofs * 2 * i) = Vk->E(2 * (j + ofs * i) + 1);       \
+        }                                                                 \
+    }                                                                     \
+    *Vd = temp;                                                           \
 }
 
 VPICKOD(vpickod_b, 16, B)
@@ -3321,20 +3331,24 @@ VPICKOD(vpickod_h, 32, H)
 VPICKOD(vpickod_w, 64, W)
 VPICKOD(vpickod_d, 128, D)
 
-#define VILVL(NAME, BIT, E)                                    \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
-{                                                              \
-    int i;                                                     \
-    VReg temp;                                                 \
-    VReg *Vd = (VReg *)vd;                                     \
-    VReg *Vj = (VReg *)vj;                                     \
-    VReg *Vk = (VReg *)vk;                                     \
-                                                               \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
-        temp.E(2 * i + 1) = Vj->E(i);                          \
-        temp.E(2 * i) = Vk->E(i);                              \
-    }                                                          \
-    *Vd = temp;                                                \
+#define VILVL(NAME, BIT, E)                                         \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)      \
+{                                                                   \
+    int i, j, ofs;                                                  \
+    VReg temp = {};                                                 \
+    VReg *Vd = (VReg *)vd;                                          \
+    VReg *Vj = (VReg *)vj;                                          \
+    VReg *Vk = (VReg *)vk;                                          \
+    int oprsz = simd_oprsz(desc);                                   \
+                                                                    \
+    ofs = LSX_LEN / BIT;                                            \
+    for (i = 0; i < oprsz / 16; i++) {                              \
+        for (j = 0; j < ofs; j++) {                                 \
+            temp.E(2 * (j + ofs * i) + 1) = Vj->E(j + ofs * 2 * i); \
+            temp.E(2 * (j + ofs * i)) = Vk->E(j + ofs * 2 * i);     \
+        }                                                           \
+    }                                                               \
+    *Vd = temp;                                                     \
 }
 
 VILVL(vilvl_b, 16, B)
@@ -3342,20 +3356,24 @@ VILVL(vilvl_h, 32, H)
 VILVL(vilvl_w, 64, W)
 VILVL(vilvl_d, 128, D)
 
-#define VILVH(NAME, BIT, E)                                    \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
-{                                                              \
-    int i;                                                     \
-    VReg temp;                                                 \
-    VReg *Vd = (VReg *)vd;                                     \
-    VReg *Vj = (VReg *)vj;                                     \
-    VReg *Vk = (VReg *)vk;                                     \
-                                                               \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
-        temp.E(2 * i + 1) = Vj->E(i + LSX_LEN/BIT);            \
-        temp.E(2 * i) = Vk->E(i + LSX_LEN/BIT);                \
-    }                                                          \
-    *Vd = temp;                                                \
+#define VILVH(NAME, BIT, E)                                               \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
+{                                                                         \
+    int i, j, ofs;                                                        \
+    VReg temp = {};                                                       \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
+    int oprsz = simd_oprsz(desc);                                         \
+                                                                          \
+    ofs = LSX_LEN / BIT;                                                  \
+    for (i = 0; i < oprsz / 16; i++) {                                    \
+        for (j = 0; j < ofs; j++) {                                       \
+            temp.E(2 * (j + ofs * i) + 1) = Vj->E(j + ofs * (2 * i + 1)); \
+            temp.E(2 * (j + ofs * i)) = Vk->E(j + ofs * (2 * i + 1));     \
+        }                                                                 \
+    }                                                                     \
+    *Vd = temp;                                                           \
 }
 
 VILVH(vilvh_b, 16, B)
