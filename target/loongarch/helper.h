@@ -668,6 +668,11 @@ DEF_HELPER_4(vsetallnez_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vsetallnez_w, void, env, i32, i32, i32)
 DEF_HELPER_4(vsetallnez_d, void, env, i32, i32, i32)
 
+DEF_HELPER_FLAGS_4(xvinsve0_w, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+DEF_HELPER_FLAGS_4(xvinsve0_d, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+DEF_HELPER_FLAGS_4(xvpickve_w, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+DEF_HELPER_FLAGS_4(xvpickve_d, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+
 DEF_HELPER_FLAGS_4(vpackev_b, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(vpackev_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(vpackev_w, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)

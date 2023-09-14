@@ -3209,6 +3209,34 @@ SETALLNEZ(vsetallnez_h, MO_16)
 SETALLNEZ(vsetallnez_w, MO_32)
 SETALLNEZ(vsetallnez_d, MO_64)
 
+#define XVINSVE0(NAME, E, MASK)                                    \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
+{                                                                  \
+    VReg *Vd = (VReg *)vd;                                         \
+    VReg *Vj = (VReg *)vj;                                         \
+    Vd->E(imm & MASK) = Vj->E(0);                                  \
+}
+
+XVINSVE0(xvinsve0_w, W, 0x7)
+XVINSVE0(xvinsve0_d, D, 0x3)
+
+#define XVPICKVE(NAME, E, BIT, MASK)                               \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
+{                                                                  \
+    int i;                                                         \
+    VReg *Vd = (VReg *)vd;                                         \
+    VReg *Vj = (VReg *)vj;                                         \
+    int oprsz = simd_oprsz(desc);                                  \
+                                                                   \
+    Vd->E(0) = Vj->E(imm & MASK);                                  \
+    for (i = 1; i < oprsz / (BIT / 8); i++) {                      \
+        Vd->E(i) = 0;                                              \
+    }                                                              \
+}
+
+XVPICKVE(xvpickve_w, W, 32, 0x7)
+XVPICKVE(xvpickve_d, D, 64, 0x3)
+
 #define VPACKEV(NAME, BIT, E)                                  \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 {                                                              \
