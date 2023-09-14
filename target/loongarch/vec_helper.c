@@ -2135,17 +2135,18 @@ DO_4OP_F(vfnmsub_s, 32, UW, float32_muladd,
 DO_4OP_F(vfnmsub_d, 64, UD, float64_muladd,
          float_muladd_negate_c | float_muladd_negate_result)
 
-#define DO_2OP_F(NAME, BIT, E, FN)                                  \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E(i) = FN(env, Vj->E(i));                               \
-    }                                                               \
+#define DO_2OP_F(NAME, BIT, E, FN)                       \
+void HELPER(NAME)(void *vd, void *vj,                    \
+                  CPULoongArchState *env, uint32_t desc) \
+{                                                        \
+    int i;                                               \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+                                                         \
+    vec_clear_cause(env);                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        Vd->E(i) = FN(env, Vj->E(i));                    \
+    }                                                    \
 }
 
 #define FLOGB(BIT, T)                                            \
@@ -2166,16 +2167,17 @@ static T do_flogb_## BIT(CPULoongArchState *env, T fj)           \
 FLOGB(32, uint32_t)
 FLOGB(64, uint64_t)
 
-#define FCLASS(NAME, BIT, E, FN)                                    \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E(i) = FN(env, Vj->E(i));                               \
-    }                                                               \
+#define FCLASS(NAME, BIT, E, FN)                         \
+void HELPER(NAME)(void *vd, void *vj,                    \
+                  CPULoongArchState *env, uint32_t desc) \
+{                                                        \
+    int i;                                               \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        Vd->E(i) = FN(env, Vj->E(i));                    \
+    }                                                    \
 }
 
 FCLASS(vfclass_s, 32, UW, helper_fclass_s)
@@ -2245,12 +2247,13 @@ static uint32_t float64_cvt_float32(uint64_t d, float_status *status)
     return float64_to_float32(d, status);
 }
 
-void HELPER(vfcvtl_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvtl_s_h)(void *vd, void *vj,
+                        CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < LSX_LEN/32; i++) {
@@ -2260,12 +2263,13 @@ void HELPER(vfcvtl_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vfcvtl_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvtl_d_s)(void *vd, void *vj,
+                        CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < LSX_LEN/64; i++) {
@@ -2275,12 +2279,13 @@ void HELPER(vfcvtl_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vfcvth_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvth_s_h)(void *vd, void *vj,
+                        CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < LSX_LEN/32; i++) {
@@ -2290,12 +2295,13 @@ void HELPER(vfcvth_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vfcvth_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvth_d_s)(void *vd, void *vj,
+                        CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < LSX_LEN/64; i++) {
@@ -2341,11 +2347,12 @@ void HELPER(vfcvt_s_d)(void *vd, void *vj, void *vk,
     *Vd = temp;
 }
 
-void HELPER(vfrint_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfrint_s)(void *vd, void *vj,
+                      CPULoongArchState *env, uint32_t desc)
 {
     int i;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < 4; i++) {
@@ -2354,11 +2361,12 @@ void HELPER(vfrint_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     }
 }
 
-void HELPER(vfrint_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfrint_d)(void *vd, void *vj,
+                      CPULoongArchState *env, uint32_t desc)
 {
     int i;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < 2; i++) {
@@ -2368,11 +2376,12 @@ void HELPER(vfrint_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
 }
 
 #define FCVT_2OP(NAME, BIT, E, MODE)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj)         \
+void HELPER(NAME)(void *vd, void *vj,                                       \
+                  CPULoongArchState *env, uint32_t desc)                    \
 {                                                                           \
     int i;                                                                  \
-    VReg *Vd = &(env->fpr[vd].vreg);                                        \
-    VReg *Vj = &(env->fpr[vj].vreg);                                        \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
                                                                             \
     vec_clear_cause(env);                                                   \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                     \
@@ -2493,19 +2502,20 @@ FTINT(rph_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
 FTINT(rzh_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
 FTINT(rneh_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
 
-#define FTINTL_L_S(NAME, FN)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg temp;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < 2; i++) {                                       \
-        temp.D(i) = FN(env, Vj->UW(i));                             \
-    }                                                               \
-    *Vd = temp;                                                     \
+#define FTINTL_L_S(NAME, FN)                             \
+void HELPER(NAME)(void *vd, void *vj,                    \
+                  CPULoongArchState *env, uint32_t desc) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+                                                         \
+    vec_clear_cause(env);                                \
+    for (i = 0; i < 2; i++) {                            \
+        temp.D(i) = FN(env, Vj->UW(i));                  \
+    }                                                    \
+    *Vd = temp;                                          \
 }
 
 FTINTL_L_S(vftintl_l_s, do_float32_to_int64)
@@ -2514,19 +2524,20 @@ FTINTL_L_S(vftintrpl_l_s, do_ftintrpl_l_s)
 FTINTL_L_S(vftintrzl_l_s, do_ftintrzl_l_s)
 FTINTL_L_S(vftintrnel_l_s, do_ftintrnel_l_s)
 
-#define FTINTH_L_S(NAME, FN)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg temp;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < 2; i++) {                                       \
-        temp.D(i) = FN(env, Vj->UW(i + 2));                         \
-    }                                                               \
-    *Vd = temp;                                                     \
+#define FTINTH_L_S(NAME, FN)                             \
+void HELPER(NAME)(void *vd, void *vj,                    \
+                  CPULoongArchState *env, uint32_t desc) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+                                                         \
+    vec_clear_cause(env);                                \
+    for (i = 0; i < 2; i++) {                            \
+        temp.D(i) = FN(env, Vj->UW(i + 2));              \
+    }                                                    \
+    *Vd = temp;                                          \
 }
 
 FTINTH_L_S(vftinth_l_s, do_float32_to_int64)
@@ -2555,12 +2566,13 @@ DO_2OP_F(vffint_d_l, 64, D, do_ffint_d_l)
 DO_2OP_F(vffint_s_wu, 32, UW, do_ffint_s_wu)
 DO_2OP_F(vffint_d_lu, 64, UD, do_ffint_d_lu)
 
-void HELPER(vffintl_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vffintl_d_w)(void *vd, void *vj,
+                         CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < 2; i++) {
@@ -2570,12 +2582,13 @@ void HELPER(vffintl_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vffinth_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vffinth_d_w)(void *vd, void *vj,
+                         CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
 
     vec_clear_cause(env);
     for (i = 0; i < 2; i++) {
