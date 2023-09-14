@@ -158,7 +158,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     ops->tb_start(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
-    plugin_enabled = plugin_gen_tb_start(cpu, db, cflags & CF_MEMI_ONLY);
+    if (cflags & CF_MEMI_ONLY) {
+        /* We should only see CF_MEMI_ONLY for io_recompile. */
+        assert(cflags & CF_LAST_IO);
+        plugin_enabled = plugin_gen_tb_start(cpu, db, true);
+    } else {
+        plugin_enabled = plugin_gen_tb_start(cpu, db, false);
+    }
 
     while (true) {
         *max_insns = ++db->num_insns;
@@ -176,12 +182,8 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
         if (db->num_insns == db->max_insns && (cflags & CF_LAST_IO)) {
             /* Accept I/O on the last instruction.  */
             gen_io_start();
-            ops->translate_insn(db, cpu);
-        } else {
-            /* we should only see CF_MEMI_ONLY for io_recompile */
-            tcg_debug_assert(!(cflags & CF_MEMI_ONLY));
-            ops->translate_insn(db, cpu);
         }
+        ops->translate_insn(db, cpu);
 
         /*
          * We can't instrument after instructions that change control
