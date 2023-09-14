@@ -185,7 +185,6 @@ static void rx_cpu_init(Object *obj)
 {
     RXCPU *cpu = RX_CPU(obj);
 
-    cpu_set_cpustate_pointers(cpu);
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 

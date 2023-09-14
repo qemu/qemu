@@ -149,12 +149,8 @@ static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void openrisc_cpu_initfn(Object *obj)
 {
-    OpenRISCCPU *cpu = OPENRISC_CPU(obj);
-
-    cpu_set_cpustate_pointers(cpu);
-
 #ifndef CONFIG_USER_ONLY
-    qdev_init_gpio_in_named(DEVICE(cpu), openrisc_cpu_set_irq, "IRQ", NR_IRQS);
+    qdev_init_gpio_in_named(DEVICE(obj), openrisc_cpu_set_irq, "IRQ", NR_IRQS);
 #endif
 }
 

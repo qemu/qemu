@@ -239,8 +239,6 @@ static void superh_cpu_initfn(Object *obj)
     SuperHCPU *cpu = SUPERH_CPU(obj);
     CPUSH4State *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     env->movcal_backup_tail = &(env->movcal_backup);
 }
 

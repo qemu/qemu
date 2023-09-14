@@ -113,11 +113,9 @@ static void iic_set_irq(void *opaque, int irq, int level)
 
 static void nios2_cpu_initfn(Object *obj)
 {
+#if !defined(CONFIG_USER_ONLY)
     Nios2CPU *cpu = NIOS2_CPU(obj);
 
-    cpu_set_cpustate_pointers(cpu);
-
-#if !defined(CONFIG_USER_ONLY)
     mmu_init(&cpu->env);
 #endif
 }

@@ -201,8 +201,6 @@ static void cris_cpu_initfn(Object *obj)
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     env->pregs[PR_VR] = ccc->vr;
 
 #ifndef CONFIG_USER_ONLY

@@ -353,9 +353,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
 static void hexagon_cpu_init(Object *obj)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(obj);
-
-    cpu_set_cpustate_pointers(cpu);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_compat_property);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_stack_adjust_property);
     qdev_property_add_static(DEVICE(obj), &hexagon_short_circuit_property);

@@ -296,7 +296,6 @@ static void mb_cpu_initfn(Object *obj)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
     CPUMBState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
     gdb_register_coprocessor(CPU(cpu), mb_cpu_gdb_read_stack_protect,
                              mb_cpu_gdb_write_stack_protect, 2,
                              "microblaze-stack-protect.xml", 0);

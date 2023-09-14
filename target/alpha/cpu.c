@@ -209,8 +209,6 @@ static void alpha_cpu_initfn(Object *obj)
     AlphaCPU *cpu = ALPHA_CPU(obj);
     CPUAlphaState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
     env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;

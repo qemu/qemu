@@ -147,8 +147,6 @@ static void avr_cpu_initfn(Object *obj)
 {
     AVRCPU *cpu = AVR_CPU(obj);
 
-    cpu_set_cpustate_pointers(cpu);
-
     /* Set the number of interrupts supported by the CPU. */
     qdev_init_gpio_in(DEVICE(cpu), avr_cpu_set_int,
                       sizeof(cpu->env.intsrc) * 8);
