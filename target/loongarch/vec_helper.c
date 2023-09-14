@@ -1401,23 +1401,29 @@ SSRLNS(B, uint16_t, int16_t, uint8_t)
 SSRLNS(H, uint32_t, int32_t, uint16_t)
 SSRLNS(W, uint64_t, int64_t, uint32_t)
 
-#define VSSRLN(NAME, BIT, T, E1, E2)                                          \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)                \
-{                                                                             \
-    int i;                                                                    \
-    VReg *Vd = (VReg *)vd;                                                    \
-    VReg *Vj = (VReg *)vj;                                                    \
-    VReg *Vk = (VReg *)vk;                                                    \
-                                                                              \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                       \
-        Vd->E1(i) = do_ssrlns_ ## E1(Vj->E2(i), (T)Vk->E2(i)% BIT, BIT/2 -1); \
-    }                                                                         \
-    Vd->D(1) = 0;                                                             \
+#define VSSRLN(NAME, BIT, E1, E2, E3)                                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)              \
+{                                                                           \
+    int i, j, ofs;                                                          \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    VReg *Vk = (VReg *)vk;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    ofs = LSX_LEN / BIT;                                                    \
+    for (i = 0; i < oprsz / 16; i++) {                                      \
+        for (j = 0; j < ofs; j++) {                                         \
+            Vd->E1(j + ofs * 2 * i) = do_ssrlns_ ## E1(Vj->E2(j + ofs * i), \
+                                                Vk->E3(j + ofs * i) % BIT,  \
+                                                BIT / 2 - 1);               \
+        }                                                                   \
+        Vd->D(2 * i + 1) = 0;                                               \
+    }                                                                       \
 }
 
-VSSRLN(vssrln_b_h, 16, uint16_t, B, H)
-VSSRLN(vssrln_h_w, 32, uint32_t, H, W)
-VSSRLN(vssrln_w_d, 64, uint64_t, W, D)
+VSSRLN(vssrln_b_h, 16, B, H, UH)
+VSSRLN(vssrln_h_w, 32, H, W, UW)
+VSSRLN(vssrln_w_d, 64, W, D, UD)
 
 #define SSRANS(E, T1, T2)                        \
 static T1 do_ssrans_ ## E(T1 e2, int sa, int sh) \
@@ -1429,10 +1435,10 @@ static T1 do_ssrans_ ## E(T1 e2, int sa, int sh) \
             shft_res = e2 >> sa;                 \
         }                                        \
         T2 mask;                                 \
-        mask = (1ll << sh) -1;                   \
+        mask = (1ll << sh) - 1;                  \
         if (shft_res > mask) {                   \
             return  mask;                        \
-        } else if (shft_res < -(mask +1)) {      \
+        } else if (shft_res < -(mask + 1)) {     \
             return  ~mask;                       \
         } else {                                 \
             return shft_res;                     \
@@ -1443,23 +1449,29 @@ SSRANS(B, int16_t, int8_t)
 SSRANS(H, int32_t, int16_t)
 SSRANS(W, int64_t, int32_t)
 
-#define VSSRAN(NAME, BIT, T, E1, E2)                                         \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)               \
-{                                                                            \
-    int i;                                                                   \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-    VReg *Vk = (VReg *)vk;                                                   \
-                                                                             \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
-        Vd->E1(i) = do_ssrans_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2 -1); \
-    }                                                                        \
-    Vd->D(1) = 0;                                                            \
+#define VSSRAN(NAME, BIT, E1, E2, E3)                                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)              \
+{                                                                           \
+    int i, j, ofs;                                                          \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    VReg *Vk = (VReg *)vk;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    ofs = LSX_LEN / BIT;                                                    \
+    for (i = 0; i < oprsz / 16; i++) {                                      \
+        for (j = 0; j < ofs; j++) {                                         \
+            Vd->E1(j + ofs * 2 * i) = do_ssrans_ ## E1(Vj->E2(j + ofs * i), \
+                                                Vk->E3(j + ofs * i) % BIT,  \
+                                                BIT / 2 - 1);               \
+        }                                                                   \
+        Vd->D(2 * i + 1) = 0;                                               \
+    }                                                                       \
 }
 
-VSSRAN(vssran_b_h, 16, uint16_t, B, H)
-VSSRAN(vssran_h_w, 32, uint32_t, H, W)
-VSSRAN(vssran_w_d, 64, uint64_t, W, D)
+VSSRAN(vssran_b_h, 16, B, H, UH)
+VSSRAN(vssran_h_w, 32, H, W, UW)
+VSSRAN(vssran_w_d, 64, W, D, UD)
 
 #define SSRLNU(E, T1, T2, T3)                    \
 static T1 do_ssrlnu_ ## E(T3 e2, int sa, int sh) \
@@ -1471,7 +1483,7 @@ static T1 do_ssrlnu_ ## E(T3 e2, int sa, int sh) \
             shft_res = (((T1)e2) >> sa);         \
         }                                        \
         T2 mask;                                 \
-        mask = (1ull << sh) -1;                  \
+        mask = (1ull << sh) - 1;                 \
         if (shft_res > mask) {                   \
             return mask;                         \
         } else {                                 \
@@ -1483,23 +1495,29 @@ SSRLNU(B, uint16_t, uint8_t,  int16_t)
 SSRLNU(H, uint32_t, uint16_t, int32_t)
 SSRLNU(W, uint64_t, uint32_t, int64_t)
 
-#define VSSRLNU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
-{                                                                         \
-    int i;                                                                \
-    VReg *Vd = (VReg *)vd;                                                \
-    VReg *Vj = (VReg *)vj;                                                \
-    VReg *Vk = (VReg *)vk;                                                \
-                                                                          \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                   \
-        Vd->E1(i) = do_ssrlnu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
-    }                                                                     \
-    Vd->D(1) = 0;                                                         \
+#define VSSRLNU(NAME, BIT, E1, E2, E3)                                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)              \
+{                                                                           \
+    int i, j, ofs;                                                          \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    VReg *Vk = (VReg *)vk;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    ofs = LSX_LEN / BIT;                                                    \
+    for (i = 0; i < oprsz / 16; i++) {                                      \
+        for (j = 0; j < ofs; j++) {                                         \
+            Vd->E1(j + ofs * 2 * i) = do_ssrlnu_ ## E1(Vj->E2(j + ofs * i), \
+                                                Vk->E3(j + ofs * i) % BIT,  \
+                                                BIT / 2);                   \
+        }                                                                   \
+        Vd->D(2 * i + 1) = 0;                                               \
+    }                                                                       \
 }
 
-VSSRLNU(vssrln_bu_h, 16, uint16_t, B, H)
-VSSRLNU(vssrln_hu_w, 32, uint32_t, H, W)
-VSSRLNU(vssrln_wu_d, 64, uint64_t, W, D)
+VSSRLNU(vssrln_bu_h, 16, B, H, UH)
+VSSRLNU(vssrln_hu_w, 32, H, W, UW)
+VSSRLNU(vssrln_wu_d, 64, W, D, UD)
 
 #define SSRANU(E, T1, T2, T3)                    \
 static T1 do_ssranu_ ## E(T3 e2, int sa, int sh) \
@@ -1514,7 +1532,7 @@ static T1 do_ssranu_ ## E(T3 e2, int sa, int sh) \
             shft_res = 0;                        \
         }                                        \
         T2 mask;                                 \
-        mask = (1ull << sh) -1;                  \
+        mask = (1ull << sh) - 1;                 \
         if (shft_res > mask) {                   \
             return mask;                         \
         } else {                                 \
@@ -1526,64 +1544,89 @@ SSRANU(B, uint16_t, uint8_t,  int16_t)
 SSRANU(H, uint32_t, uint16_t, int32_t)
 SSRANU(W, uint64_t, uint32_t, int64_t)
 
-#define VSSRANU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
-{                                                                         \
-    int i;                                                                \
-    VReg *Vd = (VReg *)vd;                                                \
-    VReg *Vj = (VReg *)vj;                                                \
-    VReg *Vk = (VReg *)vk;                                                \
-                                                                          \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                   \
-        Vd->E1(i) = do_ssranu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
-    }                                                                     \
-    Vd->D(1) = 0;                                                         \
+#define VSSRANU(NAME, BIT, E1, E2, E3)                                         \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)                 \
+{                                                                              \
+    int i, j, ofs;                                                             \
+    VReg *Vd = (VReg *)vd;                                                     \
+    VReg *Vj = (VReg *)vj;                                                     \
+    VReg *Vk = (VReg *)vk;                                                     \
+    int oprsz = simd_oprsz(desc);                                              \
+                                                                               \
+    ofs = LSX_LEN / BIT;                                                       \
+    for (i = 0; i < oprsz / 16; i++) {                                         \
+        for (j = 0; j < ofs; j++) {                                            \
+            Vd->E1(j + ofs * 2 * i) = do_ssranu_ ## E1(Vj->E2(j + ofs * i),    \
+                                                    Vk->E3(j + ofs * i) % BIT, \
+                                                    BIT / 2);                  \
+        }                                                                      \
+        Vd->D(2 * i + 1) = 0;                                                  \
+    }                                                                          \
 }
 
-VSSRANU(vssran_bu_h, 16, uint16_t, B, H)
-VSSRANU(vssran_hu_w, 32, uint32_t, H, W)
-VSSRANU(vssran_wu_d, 64, uint64_t, W, D)
+VSSRANU(vssran_bu_h, 16, B, H, UH)
+VSSRANU(vssran_hu_w, 32, H, W, UW)
+VSSRANU(vssran_wu_d, 64, W, D, UD)
 
-#define VSSRLNI(NAME, BIT, E1, E2)                                            \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)            \
-{                                                                             \
-    int i;                                                                    \
-    VReg temp;                                                                \
-    VReg *Vd = (VReg *)vd;                                                    \
-    VReg *Vj = (VReg *)vj;                                                    \
-                                                                              \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                       \
-        temp.E1(i) = do_ssrlns_ ## E1(Vj->E2(i), imm, BIT/2 -1);              \
-        temp.E1(i + LSX_LEN/BIT) = do_ssrlns_ ## E1(Vd->E2(i), imm, BIT/2 -1);\
-    }                                                                         \
-    *Vd = temp;                                                               \
+#define VSSRLNI(NAME, BIT, E1, E2)                                                 \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                 \
+{                                                                                  \
+    int i, j, ofs;                                                                 \
+    VReg temp = {};                                                                \
+    VReg *Vd = (VReg *)vd;                                                         \
+    VReg *Vj = (VReg *)vj;                                                         \
+    int oprsz = simd_oprsz(desc);                                                  \
+                                                                                   \
+    ofs = LSX_LEN / BIT;                                                           \
+    for (i = 0; i < oprsz / 16; i++) {                                             \
+        for (j = 0; j < ofs; j++) {                                                \
+            temp.E1(j + ofs * 2 * i) = do_ssrlns_ ## E1(Vj->E2(j + ofs * i),       \
+                                                     imm, BIT / 2 - 1);            \
+            temp.E1(j + ofs * (2 * i + 1)) = do_ssrlns_ ## E1(Vd->E2(j + ofs * i), \
+                                                           imm, BIT / 2 - 1);      \
+        }                                                                          \
+    }                                                                              \
+    *Vd = temp;                                                                    \
+}
+
+static void do_vssrlni_q(VReg *Vd, VReg *Vj,
+                         uint64_t imm, int idx, Int128 mask)
+{
+    Int128 shft_res1, shft_res2;
+
+    if (imm == 0) {
+        shft_res1 = Vj->Q(idx);
+        shft_res2 = Vd->Q(idx);
+    } else {
+        shft_res1 = int128_urshift(Vj->Q(idx), imm);
+        shft_res2 = int128_urshift(Vd->Q(idx), imm);
+    }
+
+    if (int128_ult(mask, shft_res1)) {
+        Vd->D(idx * 2) = int128_getlo(mask);
+    }else {
+        Vd->D(idx * 2) = int128_getlo(shft_res1);
+    }
+
+    if (int128_ult(mask, shft_res2)) {
+        Vd->D(idx * 2 + 1) = int128_getlo(mask);
+    }else {
+        Vd->D(idx * 2 + 1) = int128_getlo(shft_res2);
+    }
 }
 
 void HELPER(vssrlni_d_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    Int128 shft_res1, shft_res2, mask;
+    int i;
+    Int128 mask;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    if (imm == 0) {
-        shft_res1 = Vj->Q(0);
-        shft_res2 = Vd->Q(0);
-    } else {
-        shft_res1 = int128_urshift(Vj->Q(0), imm);
-        shft_res2 = int128_urshift(Vd->Q(0), imm);
-    }
     mask = int128_sub(int128_lshift(int128_one(), 63), int128_one());
 
-    if (int128_ult(mask, shft_res1)) {
-        Vd->D(0) = int128_getlo(mask);
-    }else {
-        Vd->D(0) = int128_getlo(shft_res1);
-    }
-
-    if (int128_ult(mask, shft_res2)) {
-        Vd->D(1) = int128_getlo(mask);
-    }else {
-        Vd->D(1) = int128_getlo(shft_res2);
+    for (i = 0; i < oprsz / 16; i++) {
+        do_vssrlni_q(Vd, Vj, imm, i, mask);
     }
 }
 
@@ -1591,98 +1634,111 @@ VSSRLNI(vssrlni_b_h, 16, B, H)
 VSSRLNI(vssrlni_h_w, 32, H, W)
 VSSRLNI(vssrlni_w_d, 64, W, D)
 
-#define VSSRANI(NAME, BIT, E1, E2)                                             \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)             \
-{                                                                              \
-    int i;                                                                     \
-    VReg temp;                                                                 \
-    VReg *Vd = (VReg *)vd;                                                     \
-    VReg *Vj = (VReg *)vj;                                                     \
-                                                                               \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                        \
-        temp.E1(i) = do_ssrans_ ## E1(Vj->E2(i), imm, BIT/2 -1);               \
-        temp.E1(i + LSX_LEN/BIT) = do_ssrans_ ## E1(Vd->E2(i), imm, BIT/2 -1); \
-    }                                                                          \
-    *Vd = temp;                                                                \
+#define VSSRANI(NAME, BIT, E1, E2)                                                 \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                 \
+{                                                                                  \
+    int i, j, ofs;                                                                 \
+    VReg temp = {};                                                                \
+    VReg *Vd = (VReg *)vd;                                                         \
+    VReg *Vj = (VReg *)vj;                                                         \
+    int oprsz = simd_oprsz(desc);                                                  \
+                                                                                   \
+    ofs = LSX_LEN / BIT;                                                           \
+    for (i = 0; i < oprsz / 16; i++) {                                             \
+        for (j = 0; j < ofs; j++) {                                                \
+            temp.E1(j + ofs * 2 * i) = do_ssrans_ ## E1(Vj->E2(j + ofs * i),       \
+                                                        imm, BIT / 2 - 1);         \
+            temp.E1(j + ofs * (2 * i + 1)) = do_ssrans_ ## E1(Vd->E2(j + ofs * i), \
+                                                              imm, BIT / 2 - 1);   \
+        }                                                                          \
+    }                                                                              \
+    *Vd = temp;                                                                    \
+}
+
+static void do_vssrani_d_q(VReg *Vd, VReg *Vj,
+                           uint64_t imm, int idx, Int128 mask, Int128 min)
+{
+    Int128 shft_res1, shft_res2;
+
+    if (imm == 0) {
+        shft_res1 = Vj->Q(idx);
+        shft_res2 = Vd->Q(idx);
+    } else {
+        shft_res1 = int128_rshift(Vj->Q(idx), imm);
+        shft_res2 = int128_rshift(Vd->Q(idx), imm);
+    }
+
+    if (int128_gt(shft_res1, mask)) {
+        Vd->D(idx * 2) = int128_getlo(mask);
+    } else if (int128_lt(shft_res1, int128_neg(min))) {
+        Vd->D(idx * 2) = int128_getlo(min);
+    } else {
+        Vd->D(idx * 2) = int128_getlo(shft_res1);
+    }
+
+    if (int128_gt(shft_res2, mask)) {
+        Vd->D(idx * 2 + 1) = int128_getlo(mask);
+    } else if (int128_lt(shft_res2, int128_neg(min))) {
+        Vd->D(idx * 2 + 1) = int128_getlo(min);
+    } else {
+        Vd->D(idx * 2 + 1) = int128_getlo(shft_res2);
+    }
 }
 
 void HELPER(vssrani_d_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    Int128 shft_res1, shft_res2, mask, min;
+    int i;
+    Int128 mask, min;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    if (imm == 0) {
-        shft_res1 = Vj->Q(0);
-        shft_res2 = Vd->Q(0);
-    } else {
-        shft_res1 = int128_rshift(Vj->Q(0), imm);
-        shft_res2 = int128_rshift(Vd->Q(0), imm);
-    }
     mask = int128_sub(int128_lshift(int128_one(), 63), int128_one());
     min  = int128_lshift(int128_one(), 63);
 
-    if (int128_gt(shft_res1,  mask)) {
-        Vd->D(0) = int128_getlo(mask);
-    } else if (int128_lt(shft_res1, int128_neg(min))) {
-        Vd->D(0) = int128_getlo(min);
-    } else {
-        Vd->D(0) = int128_getlo(shft_res1);
-    }
-
-    if (int128_gt(shft_res2, mask)) {
-        Vd->D(1) = int128_getlo(mask);
-    } else if (int128_lt(shft_res2, int128_neg(min))) {
-        Vd->D(1) = int128_getlo(min);
-    } else {
-        Vd->D(1) = int128_getlo(shft_res2);
+    for (i = 0; i < oprsz / 16; i++) {
+        do_vssrani_d_q(Vd, Vj, imm, i, mask, min);
     }
 }
+
 
 VSSRANI(vssrani_b_h, 16, B, H)
 VSSRANI(vssrani_h_w, 32, H, W)
 VSSRANI(vssrani_w_d, 64, W, D)
 
-#define VSSRLNUI(NAME, BIT, E1, E2)                                         \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)          \
-{                                                                           \
-    int i;                                                                  \
-    VReg temp;                                                              \
-    VReg *Vd = (VReg *)vd;                                                  \
-    VReg *Vj = (VReg *)vj;                                                  \
-                                                                            \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                     \
-        temp.E1(i) = do_ssrlnu_ ## E1(Vj->E2(i), imm, BIT/2);               \
-        temp.E1(i + LSX_LEN/BIT) = do_ssrlnu_ ## E1(Vd->E2(i), imm, BIT/2); \
-    }                                                                       \
-    *Vd = temp;                                                             \
+#define VSSRLNUI(NAME, BIT, E1, E2)                                                \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                 \
+{                                                                                  \
+    int i, j, ofs;                                                                 \
+    VReg temp = {};                                                                \
+    VReg *Vd = (VReg *)vd;                                                         \
+    VReg *Vj = (VReg *)vj;                                                         \
+    int oprsz = simd_oprsz(desc);                                                  \
+                                                                                   \
+    ofs = LSX_LEN / BIT;                                                           \
+    for (i = 0; i < oprsz / 16; i++) {                                             \
+        for (j = 0; j < ofs; j++) {                                                \
+            temp.E1(j + ofs * 2 * i) = do_ssrlnu_ ## E1(Vj->E2(j + ofs * i),       \
+                                                        imm, BIT / 2);             \
+            temp.E1(j + ofs * (2 * i + 1)) = do_ssrlnu_ ## E1(Vd->E2(j + ofs * i), \
+                                                              imm, BIT / 2);       \
+        }                                                                          \
+    }                                                                              \
+    *Vd = temp;                                                                    \
 }
 
 void HELPER(vssrlni_du_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    Int128 shft_res1, shft_res2, mask;
+    int i;
+    Int128 mask;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    if (imm == 0) {
-        shft_res1 = Vj->Q(0);
-        shft_res2 = Vd->Q(0);
-    } else {
-        shft_res1 = int128_urshift(Vj->Q(0), imm);
-        shft_res2 = int128_urshift(Vd->Q(0), imm);
-    }
     mask = int128_sub(int128_lshift(int128_one(), 64), int128_one());
 
-    if (int128_ult(mask, shft_res1)) {
-        Vd->D(0) = int128_getlo(mask);
-    }else {
-        Vd->D(0) = int128_getlo(shft_res1);
-    }
-
-    if (int128_ult(mask, shft_res2)) {
-        Vd->D(1) = int128_getlo(mask);
-    }else {
-        Vd->D(1) = int128_getlo(shft_res2);
+    for (i = 0; i < oprsz / 16; i++) {
+        do_vssrlni_q(Vd, Vj, imm, i, mask);
     }
 }
 
@@ -1690,55 +1746,73 @@ VSSRLNUI(vssrlni_bu_h, 16, B, H)
 VSSRLNUI(vssrlni_hu_w, 32, H, W)
 VSSRLNUI(vssrlni_wu_d, 64, W, D)
 
-#define VSSRANUI(NAME, BIT, E1, E2)                                         \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)          \
-{                                                                           \
-    int i;                                                                  \
-    VReg temp;                                                              \
-    VReg *Vd = (VReg *)vd;                                                  \
-    VReg *Vj = (VReg *)vj;                                                  \
-                                                                            \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                     \
-        temp.E1(i) = do_ssranu_ ## E1(Vj->E2(i), imm, BIT/2);               \
-        temp.E1(i + LSX_LEN/BIT) = do_ssranu_ ## E1(Vd->E2(i), imm, BIT/2); \
-    }                                                                       \
-    *Vd = temp;                                                             \
+#define VSSRANUI(NAME, BIT, E1, E2)                                                \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                 \
+{                                                                                  \
+    int i, j, ofs;                                                                 \
+    VReg temp = {};                                                                \
+    VReg *Vd = (VReg *)vd;                                                         \
+    VReg *Vj = (VReg *)vj;                                                         \
+    int oprsz = simd_oprsz(desc);                                                  \
+                                                                                   \
+    ofs = LSX_LEN / BIT;                                                           \
+    for (i = 0; i < oprsz / 16; i++) {                                             \
+        for (j = 0; j < ofs; j++) {                                                \
+            temp.E1(j + ofs * 2 * i) = do_ssranu_ ## E1(Vj->E2(j + ofs * i),       \
+                                                        imm, BIT / 2);             \
+            temp.E1(j + ofs * (2 * i + 1)) = do_ssranu_ ## E1(Vd->E2(j + ofs * i), \
+                                                              imm, BIT / 2);       \
+        }                                                                          \
+    }                                                                              \
+    *Vd = temp;                                                                    \
+}
+
+static void do_vssrani_du_q(VReg *Vd, VReg *Vj,
+                            uint64_t imm, int idx, Int128 mask)
+{
+    Int128 shft_res1, shft_res2;
+
+    if (imm == 0) {
+        shft_res1 = Vj->Q(idx);
+        shft_res2 = Vd->Q(idx);
+    } else {
+        shft_res1 = int128_rshift(Vj->Q(idx), imm);
+        shft_res2 = int128_rshift(Vd->Q(idx), imm);
+    }
+
+    if (int128_lt(Vj->Q(idx), int128_zero())) {
+        shft_res1 = int128_zero();
+    }
+
+    if (int128_lt(Vd->Q(idx), int128_zero())) {
+        shft_res2 = int128_zero();
+    }
+    if (int128_ult(mask, shft_res1)) {
+        Vd->D(idx * 2) = int128_getlo(mask);
+    }else {
+        Vd->D(idx * 2) = int128_getlo(shft_res1);
+    }
+
+    if (int128_ult(mask, shft_res2)) {
+        Vd->D(idx * 2 + 1) = int128_getlo(mask);
+    }else {
+        Vd->D(idx * 2 + 1) = int128_getlo(shft_res2);
+    }
+
 }
 
 void HELPER(vssrani_du_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    Int128 shft_res1, shft_res2, mask;
+    int i;
+    Int128 mask;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
-
-    if (imm == 0) {
-        shft_res1 = Vj->Q(0);
-        shft_res2 = Vd->Q(0);
-    } else {
-        shft_res1 = int128_rshift(Vj->Q(0), imm);
-        shft_res2 = int128_rshift(Vd->Q(0), imm);
-    }
-
-    if (int128_lt(Vj->Q(0), int128_zero())) {
-        shft_res1 = int128_zero();
-    }
-
-    if (int128_lt(Vd->Q(0), int128_zero())) {
-        shft_res2 = int128_zero();
-    }
+    int oprsz = simd_oprsz(desc);
 
     mask = int128_sub(int128_lshift(int128_one(), 64), int128_one());
 
-    if (int128_ult(mask, shft_res1)) {
-        Vd->D(0) = int128_getlo(mask);
-    }else {
-        Vd->D(0) = int128_getlo(shft_res1);
-    }
-
-    if (int128_ult(mask, shft_res2)) {
-        Vd->D(1) = int128_getlo(mask);
-    }else {
-        Vd->D(1) = int128_getlo(shft_res2);
+    for (i = 0; i < oprsz / 16; i++) {
+        do_vssrani_du_q(Vd, Vj, imm, i, mask);
     }
 }
 
