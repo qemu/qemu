@@ -2096,13 +2096,13 @@ static inline void vec_clear_cause(CPULoongArchState *env)
 }
 
 #define DO_3OP_F(NAME, BIT, E, FN)                          \
-void HELPER(NAME)(CPULoongArchState *env,                   \
-                  uint32_t vd, uint32_t vj, uint32_t vk)    \
+void HELPER(NAME)(void *vd, void *vj, void *vk,             \
+                  CPULoongArchState *env, uint32_t desc)    \
 {                                                           \
     int i;                                                  \
-    VReg *Vd = &(env->fpr[vd].vreg);                        \
-    VReg *Vj = &(env->fpr[vj].vreg);                        \
-    VReg *Vk = &(env->fpr[vk].vreg);                        \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
                                                             \
     vec_clear_cause(env);                                   \
     for (i = 0; i < LSX_LEN/BIT; i++) {                     \
@@ -2326,14 +2326,14 @@ void HELPER(vfcvth_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vfcvt_h_s)(CPULoongArchState *env,
-                       uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vfcvt_h_s)(void *vd, void *vj, void *vk,
+                       CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     vec_clear_cause(env);
     for(i = 0; i < LSX_LEN/32; i++) {
@@ -2344,14 +2344,14 @@ void HELPER(vfcvt_h_s)(CPULoongArchState *env,
     *Vd = temp;
 }
 
-void HELPER(vfcvt_s_d)(CPULoongArchState *env,
-                       uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vfcvt_s_d)(void *vd, void *vj, void *vk,
+                       CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     vec_clear_cause(env);
     for(i = 0; i < LSX_LEN/64; i++) {
@@ -2482,14 +2482,14 @@ FTINT(rz_w_d, float64, int32, uint64_t, uint32_t, float_round_to_zero)
 FTINT(rne_w_d, float64, int32, uint64_t, uint32_t, float_round_nearest_even)
 
 #define FTINT_W_D(NAME, FN)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
+void HELPER(NAME)(void *vd, void *vj, void *vk,          \
+                  CPULoongArchState *env, uint32_t desc) \
 {                                                        \
     int i;                                               \
     VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+    VReg *Vk = (VReg *)vk;                               \
                                                          \
     vec_clear_cause(env);                                \
     for (i = 0; i < 2; i++) {                            \
@@ -2606,14 +2606,14 @@ void HELPER(vffinth_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     *Vd = temp;
 }
 
-void HELPER(vffint_s_l)(CPULoongArchState *env,
-                        uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vffint_s_l)(void *vd, void *vj, void *vk,
+                        CPULoongArchState *env, uint32_t desc)
 {
     int i;
     VReg temp;
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     vec_clear_cause(env);
     for (i = 0; i < 2; i++) {

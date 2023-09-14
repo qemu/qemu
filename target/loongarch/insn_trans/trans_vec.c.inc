@@ -52,6 +52,24 @@ static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
     return gen_vvvv_vl(ctx, a, 16, fn);
 }
 
+static bool gen_vvv_ptr_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
+                           gen_helper_gvec_3_ptr *fn)
+{
+    tcg_gen_gvec_3_ptr(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       cpu_env,
+                       oprsz, ctx->vl / 8, 0, fn);
+    return true;
+}
+
+static bool gen_vvv_ptr(DisasContext *ctx, arg_vvv *a,
+                        gen_helper_gvec_3_ptr *fn)
+{
+    CHECK_SXE;
+    return gen_vvv_ptr_vl(ctx, a, 16, fn);
+}
+
 static bool gen_vvv(DisasContext *ctx, arg_vvv *a,
                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
 {
@@ -3648,14 +3666,14 @@ TRANS(vfrstp_h, LSX, gen_vvv, gen_helper_vfrstp_h)
 TRANS(vfrstpi_b, LSX, gen_vv_i, gen_helper_vfrstpi_b)
 TRANS(vfrstpi_h, LSX, gen_vv_i, gen_helper_vfrstpi_h)
 
-TRANS(vfadd_s, LSX, gen_vvv, gen_helper_vfadd_s)
-TRANS(vfadd_d, LSX, gen_vvv, gen_helper_vfadd_d)
-TRANS(vfsub_s, LSX, gen_vvv, gen_helper_vfsub_s)
-TRANS(vfsub_d, LSX, gen_vvv, gen_helper_vfsub_d)
-TRANS(vfmul_s, LSX, gen_vvv, gen_helper_vfmul_s)
-TRANS(vfmul_d, LSX, gen_vvv, gen_helper_vfmul_d)
-TRANS(vfdiv_s, LSX, gen_vvv, gen_helper_vfdiv_s)
-TRANS(vfdiv_d, LSX, gen_vvv, gen_helper_vfdiv_d)
+TRANS(vfadd_s, LSX, gen_vvv_ptr, gen_helper_vfadd_s)
+TRANS(vfadd_d, LSX, gen_vvv_ptr, gen_helper_vfadd_d)
+TRANS(vfsub_s, LSX, gen_vvv_ptr, gen_helper_vfsub_s)
+TRANS(vfsub_d, LSX, gen_vvv_ptr, gen_helper_vfsub_d)
+TRANS(vfmul_s, LSX, gen_vvv_ptr, gen_helper_vfmul_s)
+TRANS(vfmul_d, LSX, gen_vvv_ptr, gen_helper_vfmul_d)
+TRANS(vfdiv_s, LSX, gen_vvv_ptr, gen_helper_vfdiv_s)
+TRANS(vfdiv_d, LSX, gen_vvv_ptr, gen_helper_vfdiv_d)
 
 TRANS(vfmadd_s, LSX, gen_vvvv_ptr, gen_helper_vfmadd_s)
 TRANS(vfmadd_d, LSX, gen_vvvv_ptr, gen_helper_vfmadd_d)
@@ -3666,15 +3684,15 @@ TRANS(vfnmadd_d, LSX, gen_vvvv_ptr, gen_helper_vfnmadd_d)
 TRANS(vfnmsub_s, LSX, gen_vvvv_ptr, gen_helper_vfnmsub_s)
 TRANS(vfnmsub_d, LSX, gen_vvvv_ptr, gen_helper_vfnmsub_d)
 
-TRANS(vfmax_s, LSX, gen_vvv, gen_helper_vfmax_s)
-TRANS(vfmax_d, LSX, gen_vvv, gen_helper_vfmax_d)
-TRANS(vfmin_s, LSX, gen_vvv, gen_helper_vfmin_s)
-TRANS(vfmin_d, LSX, gen_vvv, gen_helper_vfmin_d)
+TRANS(vfmax_s, LSX, gen_vvv_ptr, gen_helper_vfmax_s)
+TRANS(vfmax_d, LSX, gen_vvv_ptr, gen_helper_vfmax_d)
+TRANS(vfmin_s, LSX, gen_vvv_ptr, gen_helper_vfmin_s)
+TRANS(vfmin_d, LSX, gen_vvv_ptr, gen_helper_vfmin_d)
 
-TRANS(vfmaxa_s, LSX, gen_vvv, gen_helper_vfmaxa_s)
-TRANS(vfmaxa_d, LSX, gen_vvv, gen_helper_vfmaxa_d)
-TRANS(vfmina_s, LSX, gen_vvv, gen_helper_vfmina_s)
-TRANS(vfmina_d, LSX, gen_vvv, gen_helper_vfmina_d)
+TRANS(vfmaxa_s, LSX, gen_vvv_ptr, gen_helper_vfmaxa_s)
+TRANS(vfmaxa_d, LSX, gen_vvv_ptr, gen_helper_vfmaxa_d)
+TRANS(vfmina_s, LSX, gen_vvv_ptr, gen_helper_vfmina_s)
+TRANS(vfmina_d, LSX, gen_vvv_ptr, gen_helper_vfmina_d)
 
 TRANS(vflogb_s, LSX, gen_vv, gen_helper_vflogb_s)
 TRANS(vflogb_d, LSX, gen_vv, gen_helper_vflogb_d)
@@ -3693,8 +3711,8 @@ TRANS(vfcvtl_s_h, LSX, gen_vv, gen_helper_vfcvtl_s_h)
 TRANS(vfcvth_s_h, LSX, gen_vv, gen_helper_vfcvth_s_h)
 TRANS(vfcvtl_d_s, LSX, gen_vv, gen_helper_vfcvtl_d_s)
 TRANS(vfcvth_d_s, LSX, gen_vv, gen_helper_vfcvth_d_s)
-TRANS(vfcvt_h_s, LSX, gen_vvv, gen_helper_vfcvt_h_s)
-TRANS(vfcvt_s_d, LSX, gen_vvv, gen_helper_vfcvt_s_d)
+TRANS(vfcvt_h_s, LSX, gen_vvv_ptr, gen_helper_vfcvt_h_s)
+TRANS(vfcvt_s_d, LSX, gen_vvv_ptr, gen_helper_vfcvt_s_d)
 
 TRANS(vfrintrne_s, LSX, gen_vv, gen_helper_vfrintrne_s)
 TRANS(vfrintrne_d, LSX, gen_vv, gen_helper_vfrintrne_d)
@@ -3721,11 +3739,11 @@ TRANS(vftintrz_wu_s, LSX, gen_vv, gen_helper_vftintrz_wu_s)
 TRANS(vftintrz_lu_d, LSX, gen_vv, gen_helper_vftintrz_lu_d)
 TRANS(vftint_wu_s, LSX, gen_vv, gen_helper_vftint_wu_s)
 TRANS(vftint_lu_d, LSX, gen_vv, gen_helper_vftint_lu_d)
-TRANS(vftintrne_w_d, LSX, gen_vvv, gen_helper_vftintrne_w_d)
-TRANS(vftintrz_w_d, LSX, gen_vvv, gen_helper_vftintrz_w_d)
-TRANS(vftintrp_w_d, LSX, gen_vvv, gen_helper_vftintrp_w_d)
-TRANS(vftintrm_w_d, LSX, gen_vvv, gen_helper_vftintrm_w_d)
-TRANS(vftint_w_d, LSX, gen_vvv, gen_helper_vftint_w_d)
+TRANS(vftintrne_w_d, LSX, gen_vvv_ptr, gen_helper_vftintrne_w_d)
+TRANS(vftintrz_w_d, LSX, gen_vvv_ptr, gen_helper_vftintrz_w_d)
+TRANS(vftintrp_w_d, LSX, gen_vvv_ptr, gen_helper_vftintrp_w_d)
+TRANS(vftintrm_w_d, LSX, gen_vvv_ptr, gen_helper_vftintrm_w_d)
+TRANS(vftint_w_d, LSX, gen_vvv_ptr, gen_helper_vftint_w_d)
 TRANS(vftintrnel_l_s, LSX, gen_vv, gen_helper_vftintrnel_l_s)
 TRANS(vftintrneh_l_s, LSX, gen_vv, gen_helper_vftintrneh_l_s)
 TRANS(vftintrzl_l_s, LSX, gen_vv, gen_helper_vftintrzl_l_s)
@@ -3743,7 +3761,7 @@ TRANS(vffint_s_wu, LSX, gen_vv, gen_helper_vffint_s_wu)
 TRANS(vffint_d_lu, LSX, gen_vv, gen_helper_vffint_d_lu)
 TRANS(vffintl_d_w, LSX, gen_vv, gen_helper_vffintl_d_w)
 TRANS(vffinth_d_w, LSX, gen_vv, gen_helper_vffinth_d_w)
-TRANS(vffint_s_l, LSX, gen_vvv, gen_helper_vffint_s_l)
+TRANS(vffint_s_l, LSX, gen_vvv_ptr, gen_helper_vffint_s_l)
 
 static bool do_cmp(DisasContext *ctx, arg_vvv *a, MemOp mop, TCGCond cond)
 {
