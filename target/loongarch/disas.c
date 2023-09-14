@@ -2385,6 +2385,99 @@ INSN_LASX(xvslti_hu,         vv_i)
 INSN_LASX(xvslti_wu,         vv_i)
 INSN_LASX(xvslti_du,         vv_i)
 
+#define output_xvfcmp(C, PREFIX, SUFFIX)                                    \
+{                                                                           \
+    (C)->info->fprintf_func((C)->info->stream, "%08x  %s%s\tx%d, x%d, x%d", \
+                            (C)->insn, PREFIX, SUFFIX, a->vd,               \
+                            a->vj, a->vk);                                  \
+}
+static bool output_xxx_fcond(DisasContext *ctx, arg_vvv_fcond * a,
+                             const char *suffix)
+{
+    bool ret = true;
+    switch (a->fcond) {
+    case 0x0:
+        output_xvfcmp(ctx, "xvfcmp_caf_", suffix);
+        break;
+    case 0x1:
+        output_xvfcmp(ctx, "xvfcmp_saf_", suffix);
+        break;
+    case 0x2:
+        output_xvfcmp(ctx, "xvfcmp_clt_", suffix);
+        break;
+    case 0x3:
+        output_xvfcmp(ctx, "xvfcmp_slt_", suffix);
+        break;
+    case 0x4:
+        output_xvfcmp(ctx, "xvfcmp_ceq_", suffix);
+        break;
+    case 0x5:
+        output_xvfcmp(ctx, "xvfcmp_seq_", suffix);
+        break;
+    case 0x6:
+        output_xvfcmp(ctx, "xvfcmp_cle_", suffix);
+        break;
+    case 0x7:
+        output_xvfcmp(ctx, "xvfcmp_sle_", suffix);
+        break;
+    case 0x8:
+        output_xvfcmp(ctx, "xvfcmp_cun_", suffix);
+        break;
+    case 0x9:
+        output_xvfcmp(ctx, "xvfcmp_sun_", suffix);
+        break;
+    case 0xA:
+        output_xvfcmp(ctx, "xvfcmp_cult_", suffix);
+        break;
+    case 0xB:
+        output_xvfcmp(ctx, "xvfcmp_sult_", suffix);
+        break;
+    case 0xC:
+        output_xvfcmp(ctx, "xvfcmp_cueq_", suffix);
+        break;
+    case 0xD:
+        output_xvfcmp(ctx, "xvfcmp_sueq_", suffix);
+        break;
+    case 0xE:
+        output_xvfcmp(ctx, "xvfcmp_cule_", suffix);
+        break;
+    case 0xF:
+        output_xvfcmp(ctx, "xvfcmp_sule_", suffix);
+        break;
+    case 0x10:
+        output_xvfcmp(ctx, "xvfcmp_cne_", suffix);
+        break;
+    case 0x11:
+        output_xvfcmp(ctx, "xvfcmp_sne_", suffix);
+        break;
+    case 0x14:
+        output_xvfcmp(ctx, "xvfcmp_cor_", suffix);
+        break;
+    case 0x15:
+        output_xvfcmp(ctx, "xvfcmp_sor_", suffix);
+        break;
+    case 0x18:
+        output_xvfcmp(ctx, "xvfcmp_cune_", suffix);
+        break;
+    case 0x19:
+        output_xvfcmp(ctx, "xvfcmp_sune_", suffix);
+        break;
+    default:
+        ret = false;
+    }
+    return ret;
+}
+
+#define LASX_FCMP_INSN(suffix)                            \
+static bool trans_xvfcmp_cond_##suffix(DisasContext *ctx, \
+                                       arg_vvv_fcond * a) \
+{                                                         \
+    return output_xxx_fcond(ctx, a, #suffix);             \
+}
+
+LASX_FCMP_INSN(s)
+LASX_FCMP_INSN(d)
+
 INSN_LASX(xvreplgr2vr_b,     vr)
 INSN_LASX(xvreplgr2vr_h,     vr)
 INSN_LASX(xvreplgr2vr_w,     vr)

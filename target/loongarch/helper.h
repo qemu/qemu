@@ -652,10 +652,10 @@ DEF_HELPER_FLAGS_4(vslti_hu, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(vslti_wu, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(vslti_du, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 
-DEF_HELPER_5(vfcmp_c_s, void, env, i32, i32, i32, i32)
-DEF_HELPER_5(vfcmp_s_s, void, env, i32, i32, i32, i32)
-DEF_HELPER_5(vfcmp_c_d, void, env, i32, i32, i32, i32)
-DEF_HELPER_5(vfcmp_s_d, void, env, i32, i32, i32, i32)
+DEF_HELPER_6(vfcmp_c_s, void, env, i32, i32, i32, i32, i32)
+DEF_HELPER_6(vfcmp_s_s, void, env, i32, i32, i32, i32, i32)
+DEF_HELPER_6(vfcmp_c_d, void, env, i32, i32, i32, i32, i32)
+DEF_HELPER_6(vfcmp_s_d, void, env, i32, i32, i32, i32, i32)
 
 DEF_HELPER_FLAGS_4(vbitseli_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 
