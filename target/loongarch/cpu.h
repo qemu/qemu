@@ -251,18 +251,20 @@ FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
 
-#define LSX_LEN   (128)
+#define LSX_LEN    (128)
+#define LASX_LEN   (256)
+
 typedef union VReg {
-    int8_t   B[LSX_LEN / 8];
-    int16_t  H[LSX_LEN / 16];
-    int32_t  W[LSX_LEN / 32];
-    int64_t  D[LSX_LEN / 64];
-    uint8_t  UB[LSX_LEN / 8];
-    uint16_t UH[LSX_LEN / 16];
-    uint32_t UW[LSX_LEN / 32];
-    uint64_t UD[LSX_LEN / 64];
-    Int128   Q[LSX_LEN / 128];
-}VReg;
+    int8_t   B[LASX_LEN / 8];
+    int16_t  H[LASX_LEN / 16];
+    int32_t  W[LASX_LEN / 32];
+    int64_t  D[LASX_LEN / 64];
+    uint8_t  UB[LASX_LEN / 8];
+    uint16_t UH[LASX_LEN / 16];
+    uint32_t UW[LASX_LEN / 32];
+    uint64_t UD[LASX_LEN / 64];
+    Int128   Q[LASX_LEN / 128];
+} VReg;
 
 typedef union fpr_t fpr_t;
 union fpr_t {

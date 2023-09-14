@@ -12,6 +12,7 @@
 #include "fpu/softfloat.h"
 #include "internals.h"
 #include "tcg/tcg.h"
+#include "vec.h"
 
 #define DO_ADD(a, b)  (a + b)
 #define DO_SUB(a, b)  (a - b)

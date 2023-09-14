@@ -11,6 +11,7 @@
 #include "internals.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
+#include "vec.h"
 
 uint64_t read_fcc(CPULoongArchState *env)
 {
