@@ -2452,9 +2452,10 @@ void HELPER(NAME)(void *vd, void *vj, void *vk,             \
     VReg *Vd = (VReg *)vd;                                  \
     VReg *Vj = (VReg *)vj;                                  \
     VReg *Vk = (VReg *)vk;                                  \
+    int oprsz = simd_oprsz(desc);                           \
                                                             \
     vec_clear_cause(env);                                   \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {               \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                     \
     }                                                       \
@@ -2486,9 +2487,10 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, void *va,                    \
     VReg *Vj = (VReg *)vj;                                                   \
     VReg *Vk = (VReg *)vk;                                                   \
     VReg *Va = (VReg *)va;                                                   \
+    int oprsz = simd_oprsz(desc);                                            \
                                                                              \
     vec_clear_cause(env);                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                                \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), Va->E(i), flags, &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                                      \
     }                                                                        \
@@ -2512,9 +2514,10 @@ void HELPER(NAME)(void *vd, void *vj,                    \
     int i;                                               \
     VReg *Vd = (VReg *)vd;                               \
     VReg *Vj = (VReg *)vj;                               \
+    int oprsz = simd_oprsz(desc);                        \
                                                          \
     vec_clear_cause(env);                                \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {            \
         Vd->E(i) = FN(env, Vj->E(i));                    \
     }                                                    \
 }
@@ -2544,8 +2547,9 @@ void HELPER(NAME)(void *vd, void *vj,                    \
     int i;                                               \
     VReg *Vd = (VReg *)vd;                               \
     VReg *Vj = (VReg *)vj;                               \
+    int oprsz = simd_oprsz(desc);                        \
                                                          \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {            \
         Vd->E(i) = FN(env, Vj->E(i));                    \
     }                                                    \
 }
