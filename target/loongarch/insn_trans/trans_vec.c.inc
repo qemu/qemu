@@ -4400,27 +4400,38 @@ static bool trans_vpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
     return true;
 }
 
-static bool gvec_dup(DisasContext *ctx, arg_vr *a, MemOp mop)
+static bool gvec_dup_vl(DisasContext *ctx, arg_vr *a,
+                        uint32_t oprsz, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
     tcg_gen_gvec_dup_i64(mop, vec_full_offset(a->vd),
-                         16, ctx->vl/8, src);
+                         oprsz, ctx->vl/8, src);
     return true;
+}
+
+static bool gvec_dup(DisasContext *ctx, arg_vr *a, MemOp mop)
+{
+    return gvec_dup_vl(ctx, a, 16, mop);
+}
+
+static bool gvec_dupx(DisasContext *ctx, arg_vr *a, MemOp mop)
+{
+    return gvec_dup_vl(ctx, a, 32, mop);
 }
 
 TRANS(vreplgr2vr_b, LSX, gvec_dup, MO_8)
 TRANS(vreplgr2vr_h, LSX, gvec_dup, MO_16)
 TRANS(vreplgr2vr_w, LSX, gvec_dup, MO_32)
 TRANS(vreplgr2vr_d, LSX, gvec_dup, MO_64)
+TRANS(xvreplgr2vr_b, LASX, gvec_dupx, MO_8)
+TRANS(xvreplgr2vr_h, LASX, gvec_dupx, MO_16)
+TRANS(xvreplgr2vr_w, LASX, gvec_dupx, MO_32)
+TRANS(xvreplgr2vr_d, LASX, gvec_dupx, MO_64)
 
 static bool trans_vreplvei_b(DisasContext *ctx, arg_vv_i *a)
 {
