@@ -20,9 +20,8 @@
 #include "qemu/osdep.h"
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
-#include "exec/exec-all.h"
 #include "qemu/plugin.h"
-#include "internal-target.h"
+#include "internal-common.h"
 
 bool tcg_allowed;
 
