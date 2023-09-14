@@ -49,12 +49,15 @@ bool translator_io_start(DisasContextBase *db)
 
 static TCGOp *gen_tb_start(uint32_t cflags)
 {
-    TCGv_i32 count = tcg_temp_new_i32();
+    TCGv_i32 count = NULL;
     TCGOp *icount_start_insn = NULL;
 
-    tcg_gen_ld_i32(count, cpu_env,
-                   offsetof(ArchCPU, neg.icount_decr.u32) -
-                   offsetof(ArchCPU, env));
+    if ((cflags & CF_USE_ICOUNT) || !(cflags & CF_NOIRQ)) {
+        count = tcg_temp_new_i32();
+        tcg_gen_ld_i32(count, cpu_env,
+                       offsetof(ArchCPU, neg.icount_decr.u32) -
+                       offsetof(ArchCPU, env));
+    }
 
     if (cflags & CF_USE_ICOUNT) {
         /*
