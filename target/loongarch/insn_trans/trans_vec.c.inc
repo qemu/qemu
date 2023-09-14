@@ -247,6 +247,10 @@ static bool gvec_vv_i_vl(DisasContext *ctx, arg_vv_i *a,
     uint32_t vd_ofs = vec_full_offset(a->vd);
     uint32_t vj_ofs = vec_full_offset(a->vj);
 
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     func(mop, vd_ofs, vj_ofs, a->imm, oprsz, ctx->vl / 8);
     return true;
 }
@@ -255,11 +259,14 @@ static bool gvec_vv_i(DisasContext *ctx, arg_vv_i *a, MemOp mop,
                       void (*func)(unsigned, uint32_t, uint32_t,
                                    int64_t, uint32_t, uint32_t))
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gvec_vv_i_vl(ctx, a, 16, mop, func);
+}
+
+static bool gvec_xx_i(DisasContext *ctx, arg_vv_i *a, MemOp mop,
+                      void (*func)(unsigned, uint32_t, uint32_t,
+                                   int64_t, uint32_t, uint32_t))
+{
+    return gvec_vv_i_vl(ctx,a, 32, mop, func);
 }
 
 static bool gvec_subi_vl(DisasContext *ctx, arg_vv_i *a,
@@ -268,17 +275,22 @@ static bool gvec_subi_vl(DisasContext *ctx, arg_vv_i *a,
     uint32_t vd_ofs = vec_full_offset(a->vd);
     uint32_t vj_ofs = vec_full_offset(a->vj);
 
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     tcg_gen_gvec_addi(mop, vd_ofs, vj_ofs, -a->imm, oprsz, ctx->vl / 8);
     return true;
 }
 
 static bool gvec_subi(DisasContext *ctx, arg_vv_i *a, MemOp mop)
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gvec_subi_vl(ctx, a, 16, mop);
+}
+
+static bool gvec_xsubi(DisasContext *ctx, arg_vv_i *a, MemOp mop)
+{
+    return gvec_subi_vl(ctx, a, 32, mop);
 }
 
 TRANS(vadd_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_add)
@@ -358,6 +370,14 @@ TRANS(vsubi_bu, LSX, gvec_subi, MO_8)
 TRANS(vsubi_hu, LSX, gvec_subi, MO_16)
 TRANS(vsubi_wu, LSX, gvec_subi, MO_32)
 TRANS(vsubi_du, LSX, gvec_subi, MO_64)
+TRANS(xvaddi_bu, LASX, gvec_xx_i, MO_8, tcg_gen_gvec_addi)
+TRANS(xvaddi_hu, LASX, gvec_xx_i, MO_16, tcg_gen_gvec_addi)
+TRANS(xvaddi_wu, LASX, gvec_xx_i, MO_32, tcg_gen_gvec_addi)
+TRANS(xvaddi_du, LASX, gvec_xx_i, MO_64, tcg_gen_gvec_addi)
+TRANS(xvsubi_bu, LASX, gvec_xsubi, MO_8)
+TRANS(xvsubi_hu, LASX, gvec_xsubi, MO_16)
+TRANS(xvsubi_wu, LASX, gvec_xsubi, MO_32)
+TRANS(xvsubi_du, LASX, gvec_xsubi, MO_64)
 
 TRANS(vneg_b, LSX, gvec_vv, MO_8, tcg_gen_gvec_neg)
 TRANS(vneg_h, LSX, gvec_vv, MO_16, tcg_gen_gvec_neg)
