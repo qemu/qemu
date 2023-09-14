@@ -6463,7 +6463,7 @@ static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
 
 static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
-    CPUS390XState *env = cs->env_ptr;
+    CPUS390XState *env = cpu_env(cs);
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     dc->base.is_jmp = translate_one(env, dc);

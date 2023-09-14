@@ -2179,7 +2179,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
 static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUSH4State *env = cs->env_ptr;
+    CPUSH4State *env = cpu_env(cs);
     uint32_t tbflags;
     int bound;
 
@@ -2236,7 +2236,7 @@ static void sh4_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 
 static void sh4_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
-    CPUSH4State *env = cs->env_ptr;
+    CPUSH4State *env = cpu_env(cs);
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
 #ifdef CONFIG_USER_ONLY

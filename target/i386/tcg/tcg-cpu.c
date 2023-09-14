@@ -51,7 +51,7 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
 {
     /* The instruction pointer is always up to date with CF_PCREL. */
     if (!(tb_cflags(tb) & CF_PCREL)) {
-        CPUX86State *env = cs->env_ptr;
+        CPUX86State *env = cpu_env(cs);
         env->eip = tb->pc - tb->cs_base;
     }
 }

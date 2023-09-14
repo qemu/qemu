@@ -1140,7 +1140,7 @@ static void xtensa_tr_init_disas_context(DisasContextBase *dcbase,
                                          CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUXtensaState *env = cpu->env_ptr;
+    CPUXtensaState *env = cpu_env(cpu);
     uint32_t tb_flags = dc->base.tb->flags;
 
     dc->config = env->config;
@@ -1180,7 +1180,7 @@ static void xtensa_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUXtensaState *env = cpu->env_ptr;
+    CPUXtensaState *env = cpu_env(cpu);
     target_ulong page_start;
 
     /* These two conditions only apply to the first insn in the TB,

@@ -462,7 +462,7 @@ int main(int argc, char **argv)
         ac->init_machine(NULL);
     }
     cpu = cpu_create(cpu_type);
-    env = cpu->env_ptr;
+    env = cpu_env(cpu);
     cpu_reset(cpu);
     thread_cpu = cpu;
 

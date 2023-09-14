@@ -5568,7 +5568,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 static void sparc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUSPARCState *env = cs->env_ptr;
+    CPUSPARCState *env = cpu_env(cs);
     int bound;
 
     dc->pc = dc->base.pc_first;
@@ -5625,7 +5625,7 @@ static void sparc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUSPARCState *env = cs->env_ptr;
+    CPUSPARCState *env = cpu_env(cs);
     unsigned int insn;
 
     insn = translator_ldl(env, &dc->base, dc->pc);

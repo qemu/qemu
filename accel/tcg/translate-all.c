@@ -288,7 +288,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                               vaddr pc, uint64_t cs_base,
                               uint32_t flags, int cflags)
 {
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     TranslationBlock *tb, *existing_tb;
     tb_page_addr_t phys_pc, phys_p2;
     tcg_insn_unit *gen_code_buf;
@@ -580,7 +580,7 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
     } else {
         /* The exception probably happened in a helper.  The CPU state should
            have been saved before calling it. Fetch the PC from there.  */
-        CPUArchState *env = cpu->env_ptr;
+        CPUArchState *env = cpu_env(cpu);
         vaddr pc;
         uint64_t cs_base;
         tb_page_addr_t addr;

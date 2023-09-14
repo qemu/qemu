@@ -1595,7 +1595,7 @@ illegal:
  */
 static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
 {
-    CPUX86State *env = cpu->env_ptr;
+    CPUX86State *env = cpu_env(cpu);
     bool first = true;
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;

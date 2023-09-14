@@ -593,7 +593,7 @@ const char *elf_hwcap2_str(uint32_t bit)
 
 static const char *get_elf_platform(void)
 {
-    CPUARMState *env = thread_cpu->env_ptr;
+    CPUARMState *env = cpu_env(thread_cpu);
 
 #if TARGET_BIG_ENDIAN
 # define END  "b"
@@ -4430,7 +4430,7 @@ static int fill_note_info(struct elf_note_info *info,
             if (cpu == thread_cpu) {
                 continue;
             }
-            fill_thread_info(info, cpu->env_ptr);
+            fill_thread_info(info, cpu_env(cpu));
         }
     }
 

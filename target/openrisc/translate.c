@@ -1525,7 +1525,7 @@ static bool trans_lf_sfun_d(DisasContext *dc, arg_ab_pair *a)
 static void openrisc_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
-    CPUOpenRISCState *env = cs->env_ptr;
+    CPUOpenRISCState *env = cpu_env(cs);
     int bound;
 
     dc->mem_idx = cpu_mmu_index(env, false);

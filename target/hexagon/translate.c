@@ -1053,7 +1053,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    HexagonCPU *hex_cpu = env_archcpu(cs->env_ptr);
+    HexagonCPU *hex_cpu = env_archcpu(cpu_env(cs));
     uint32_t hex_flags = dcbase->tb->flags;
 
     ctx->mem_idx = MMU_USER_IDX;
@@ -1094,7 +1094,7 @@ static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
 static void hexagon_tr_translate_packet(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUHexagonState *env = cpu->env_ptr;
+    CPUHexagonState *env = cpu_env(cpu);
 
     decode_and_translate_packet(env, ctx);
 

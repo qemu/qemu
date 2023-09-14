@@ -15376,7 +15376,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUMIPSState *env = cs->env_ptr;
+    CPUMIPSState *env = cpu_env(cs);
 
     ctx->page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
     ctx->saved_pc = -1;
@@ -15447,7 +15447,7 @@ static void mips_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 
 static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
-    CPUMIPSState *env = cs->env_ptr;
+    CPUMIPSState *env = cpu_env(cs);
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     int insn_bytes;
     int is_slot;

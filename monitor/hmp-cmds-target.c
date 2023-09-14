@@ -81,7 +81,7 @@ CPUArchState *mon_get_cpu_env(Monitor *mon)
 {
     CPUState *cs = mon_get_cpu(mon);
 
-    return cs ? cs->env_ptr : NULL;
+    return cs ? cpu_env(cs) : NULL;
 }
 
 int monitor_get_cpu_index(Monitor *mon)

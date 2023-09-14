@@ -8366,7 +8366,7 @@ static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUTriCoreState *env = cs->env_ptr;
+    CPUTriCoreState *env = cpu_env(cs);
     ctx->mem_idx = cpu_mmu_index(env, false);
 
     uint32_t tb_flags = (uint32_t)ctx->base.tb->flags;
@@ -8411,7 +8411,7 @@ static bool insn_crosses_page(CPUTriCoreState *env, DisasContext *ctx)
 static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUTriCoreState *env = cpu->env_ptr;
+    CPUTriCoreState *env = cpu_env(cpu);
     uint16_t insn_lo;
     bool is_16bit;
 

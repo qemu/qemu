@@ -2657,7 +2657,7 @@ static bool canonicalize_skip(DisasContext *ctx)
 static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAVRState *env = cs->env_ptr;
+    CPUAVRState *env = cpu_env(cs);
     uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;

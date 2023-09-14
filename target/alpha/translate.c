@@ -2871,7 +2871,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
 static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAlphaState *env = cpu->env_ptr;
+    CPUAlphaState *env = cpu_env(cpu);
     int64_t bound;
 
     ctx->tbflags = ctx->base.tb->flags;
@@ -2917,7 +2917,7 @@ static void alpha_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAlphaState *env = cpu->env_ptr;
+    CPUAlphaState *env = cpu_env(cpu);
     uint32_t insn = translator_ldl(env, &ctx->base, ctx->base.pc_next);
 
     ctx->base.pc_next += 4;

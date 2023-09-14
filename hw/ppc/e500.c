@@ -373,7 +373,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
     MachineState *machine = MACHINE(pms);
     unsigned int smp_cpus = machine->smp.cpus;
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
-    CPUPPCState *env = first_cpu->env_ptr;
+    CPUPPCState *env = cpu_env(first_cpu);
     int ret = -1;
     uint64_t mem_reg_property[] = { 0, cpu_to_be64(machine->ram_size) };
     int fdt_size;
@@ -499,7 +499,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
         if (cpu == NULL) {
             continue;
         }
-        env = cpu->env_ptr;
+        env = cpu_env(cpu);
 
         cpu_name = g_strdup_printf("/cpus/PowerPC,8544@%x", i);
         qemu_fdt_add_subnode(fdt, cpu_name);

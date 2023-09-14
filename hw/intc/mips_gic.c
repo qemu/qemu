@@ -423,7 +423,7 @@ static void mips_gic_realize(DeviceState *dev, Error **errp)
     /* Register the env for all VPs with the GIC */
     for (i = 0; i < s->num_vps; i++) {
         if (cs != NULL) {
-            s->vps[i].env = cs->env_ptr;
+            s->vps[i].env = cpu_env(cs);
             cs = CPU_NEXT(cs);
         } else {
             error_setg(errp,

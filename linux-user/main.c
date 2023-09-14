@@ -229,7 +229,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = env_cpu(env);
     CPUState *new_cpu = cpu_create(cpu_type);
-    CPUArchState *new_env = new_cpu->env_ptr;
+    CPUArchState *new_env = cpu_env(new_cpu);
     CPUBreakpoint *bp;
 
     /* Reset non arch specific state */
@@ -794,7 +794,7 @@ int main(int argc, char **argv, char **envp)
         ac->init_machine(NULL);
     }
     cpu = cpu_create(cpu_type);
-    env = cpu->env_ptr;
+    env = cpu_env(cpu);
     cpu_reset(cpu);
     thread_cpu = cpu;
 

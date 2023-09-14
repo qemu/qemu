@@ -222,7 +222,7 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu, vaddr pc,
     struct tb_desc desc;
     uint32_t h;
 
-    desc.env = cpu->env_ptr;
+    desc.env = cpu_env(cpu);
     desc.cs_base = cs_base;
     desc.flags = flags;
     desc.cflags = cflags;
@@ -444,7 +444,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
 static inline TranslationBlock * QEMU_DISABLE_CFI
 cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
 {
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     uintptr_t ret;
     TranslationBlock *last_tb;
     const void *tb_ptr = itb->tc.ptr;
@@ -565,7 +565,7 @@ static void cpu_exec_longjmp_cleanup(CPUState *cpu)
 
 void cpu_exec_step_atomic(CPUState *cpu)
 {
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     TranslationBlock *tb;
     vaddr pc;
     uint64_t cs_base;
@@ -976,7 +976,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
             uint64_t cs_base;
             uint32_t flags, cflags;
 
-            cpu_get_tb_cpu_state(cpu->env_ptr, &pc, &cs_base, &flags);
+            cpu_get_tb_cpu_state(cpu_env(cpu), &pc, &cs_base, &flags);
 
             /*
              * When requested, use an exact setting for cflags for the next

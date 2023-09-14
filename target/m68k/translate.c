@@ -5990,7 +5990,7 @@ void register_m68k_insns (CPUM68KState *env)
 static void m68k_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUM68KState *env = cpu->env_ptr;
+    CPUM68KState *env = cpu_env(cpu);
 
     dc->env = env;
     dc->pc = dc->base.pc_first;
@@ -6021,7 +6021,7 @@ static void m68k_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void m68k_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUM68KState *env = cpu->env_ptr;
+    CPUM68KState *env = cpu_env(cpu);
     uint16_t insn = read_im16(env, dc);
 
     opcode_table[insn](env, dc, insn);

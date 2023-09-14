@@ -24,7 +24,7 @@
  */
 static int validate_strlen(CPUState *cs, target_ulong str, target_ulong tlen)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char c;
 
     if (tlen == 0) {
@@ -54,7 +54,7 @@ static int validate_lock_user_string(char **pstr, CPUState *cs,
                                      target_ulong tstr, target_ulong tlen)
 {
     int ret = validate_strlen(cs, tstr, tlen);
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *str = NULL;
 
     if (ret > 0) {
@@ -74,7 +74,7 @@ static int validate_lock_user_string(char **pstr, CPUState *cs,
 static int copy_stat_to_user(CPUState *cs, target_ulong addr,
                              const struct stat *s)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     struct gdb_stat *p;
 
     if (s->st_dev != (uint32_t)s->st_dev ||
@@ -258,7 +258,7 @@ static void host_open(CPUState *cs, gdb_syscall_complete_cb complete,
                       target_ulong fname, target_ulong fname_len,
                       int gdb_flags, int mode)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *p;
     int ret, host_flags = O_BINARY;
 
@@ -316,7 +316,7 @@ static void host_close(CPUState *cs, gdb_syscall_complete_cb complete,
 static void host_read(CPUState *cs, gdb_syscall_complete_cb complete,
                       GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     void *ptr = lock_user(VERIFY_WRITE, buf, len, 0);
     ssize_t ret;
 
@@ -337,7 +337,7 @@ static void host_read(CPUState *cs, gdb_syscall_complete_cb complete,
 static void host_write(CPUState *cs, gdb_syscall_complete_cb complete,
                        GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     void *ptr = lock_user(VERIFY_READ, buf, len, 1);
     ssize_t ret;
 
@@ -411,7 +411,7 @@ static void host_stat(CPUState *cs, gdb_syscall_complete_cb complete,
                       target_ulong fname, target_ulong fname_len,
                       target_ulong addr)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     struct stat buf;
     char *name;
     int ret, err;
@@ -440,7 +440,7 @@ static void host_stat(CPUState *cs, gdb_syscall_complete_cb complete,
 static void host_remove(CPUState *cs, gdb_syscall_complete_cb complete,
                         target_ulong fname, target_ulong fname_len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *p;
     int ret;
 
@@ -459,7 +459,7 @@ static void host_rename(CPUState *cs, gdb_syscall_complete_cb complete,
                         target_ulong oname, target_ulong oname_len,
                         target_ulong nname, target_ulong nname_len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *ostr, *nstr;
     int ret;
 
@@ -484,7 +484,7 @@ static void host_rename(CPUState *cs, gdb_syscall_complete_cb complete,
 static void host_system(CPUState *cs, gdb_syscall_complete_cb complete,
                         target_ulong cmd, target_ulong cmd_len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *p;
     int ret;
 
@@ -502,7 +502,7 @@ static void host_system(CPUState *cs, gdb_syscall_complete_cb complete,
 static void host_gettimeofday(CPUState *cs, gdb_syscall_complete_cb complete,
                               target_ulong tv_addr, target_ulong tz_addr)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     struct gdb_timeval *p;
     int64_t rt;
 
@@ -547,7 +547,7 @@ static void host_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
 static void staticfile_read(CPUState *cs, gdb_syscall_complete_cb complete,
                             GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     target_ulong rest = gf->staticfile.len - gf->staticfile.off;
     void *ptr;
 
@@ -605,7 +605,7 @@ static void staticfile_flen(CPUState *cs, gdb_syscall_complete_cb complete,
 static void console_read(CPUState *cs, gdb_syscall_complete_cb complete,
                          GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *ptr;
     int ret;
 
@@ -622,7 +622,7 @@ static void console_read(CPUState *cs, gdb_syscall_complete_cb complete,
 static void console_write(CPUState *cs, gdb_syscall_complete_cb complete,
                           GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *ptr = lock_user(VERIFY_READ, buf, len, 1);
     int ret;
 

@@ -618,7 +618,7 @@ void signal_init(void)
 void force_sig(int sig)
 {
     CPUState *cpu = thread_cpu;
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     target_siginfo_t info = {};
 
     info.si_signo = sig;
@@ -636,7 +636,7 @@ void force_sig(int sig)
 void force_sig_fault(int sig, int code, abi_ulong addr)
 {
     CPUState *cpu = thread_cpu;
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     target_siginfo_t info = {};
 
     info.si_signo = sig;
@@ -695,10 +695,9 @@ void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
 
 /* abort execution with signal */
 static G_NORETURN
-void dump_core_and_abort(CPUArchState *cpu_env, int target_sig)
+void dump_core_and_abort(CPUArchState *env, int target_sig)
 {
-    CPUState *cpu = thread_cpu;
-    CPUArchState *env = cpu->env_ptr;
+    CPUState *cpu = env_cpu(env);
     TaskState *ts = (TaskState *)cpu->opaque;
     int host_sig, core_dumped = 0;
     struct sigaction act;
@@ -724,7 +723,7 @@ void dump_core_and_abort(CPUArchState *cpu_env, int target_sig)
             target_sig, strsignal(host_sig), "core dumped" );
     }
 
-    preexit_cleanup(cpu_env, 128 + target_sig);
+    preexit_cleanup(env, 128 + target_sig);
 
     /* The proper exit code for dying from an uncaught signal is
      * -<signal>.  The kernel doesn't allow exit() or _exit() to pass
@@ -783,8 +782,8 @@ static inline void rewind_if_in_safe_syscall(void *puc)
 
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    CPUState *cpu = env_cpu(env);
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu_env(cpu);
     TaskState *ts = cpu->opaque;
     target_siginfo_t tinfo;
     host_sigcontext *uc = puc;

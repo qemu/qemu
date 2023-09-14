@@ -9089,7 +9089,7 @@ static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
 static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUARMState *env = cs->env_ptr;
+    CPUARMState *env = cpu_env(cs);
     ARMCPU *cpu = env_archcpu(env);
     CPUARMTBFlags tb_flags = arm_tbflags_from_tb(dc->base.tb);
     uint32_t condexec, core_mmu_idx;
@@ -9317,7 +9317,7 @@ static void arm_post_translate_insn(DisasContext *dc)
 static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUARMState *env = cpu->env_ptr;
+    CPUARMState *env = cpu_env(cpu);
     uint32_t pc = dc->base.pc_next;
     unsigned int insn;
 
@@ -9407,7 +9407,7 @@ static bool thumb_insn_is_unconditional(DisasContext *s, uint32_t insn)
 static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUARMState *env = cpu->env_ptr;
+    CPUARMState *env = cpu_env(cpu);
     uint32_t pc = dc->base.pc_next;
     uint32_t insn;
     bool is_16bit;

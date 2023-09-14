@@ -7320,7 +7320,7 @@ static bool decode_legacy(PowerPCCPU *cpu, DisasContext *ctx, uint32_t insn)
 static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
     uint32_t hflags = ctx->base.tb->flags;
 
     ctx->spr_cb = env->spr_cb;
@@ -7384,7 +7384,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
     target_ulong pc;
     uint32_t insn;
     bool ok;

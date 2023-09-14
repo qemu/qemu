@@ -944,7 +944,7 @@ static const char * const cr_regnames[NUM_CR_REGS] = {
 static void nios2_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUNios2State *env = cs->env_ptr;
+    CPUNios2State *env = cpu_env(cs);
     Nios2CPU *cpu = env_archcpu(env);
     int page_insns;
 
@@ -970,7 +970,7 @@ static void nios2_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static void nios2_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUNios2State *env = cs->env_ptr;
+    CPUNios2State *env = cpu_env(cs);
     const Nios2Instruction *instr;
     uint32_t code, pc;
     uint8_t op;

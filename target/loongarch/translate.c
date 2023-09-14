@@ -117,7 +117,7 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
                                             CPUState *cs)
 {
     int64_t bound;
-    CPULoongArchState *env = cs->env_ptr;
+    CPULoongArchState *env = cpu_env(cs);
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
@@ -282,7 +282,7 @@ static uint64_t make_address_pc(DisasContext *ctx, uint64_t addr)
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
-    CPULoongArchState *env = cs->env_ptr;
+    CPULoongArchState *env = cpu_env(cs);
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->opcode = translator_ldl(env, &ctx->base, ctx->base.pc_next);

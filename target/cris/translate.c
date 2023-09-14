@@ -2948,7 +2948,7 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
 static void cris_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUCRISState *env = cs->env_ptr;
+    CPUCRISState *env = cpu_env(cs);
     uint32_t tb_flags = dc->base.tb->flags;
     uint32_t pc_start;
 
@@ -3006,7 +3006,7 @@ static void cris_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUCRISState *env = cs->env_ptr;
+    CPUCRISState *env = cpu_env(cs);
     unsigned int insn_len;
 
     /* Pretty disas.  */
