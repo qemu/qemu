@@ -55,6 +55,7 @@ static const char * const excp_names[] = {
     [EXCCODE_DBP] = "Debug breakpoint",
     [EXCCODE_BCE] = "Bound Check Exception",
     [EXCCODE_SXD] = "128 bit vector instructions Disable exception",
+    [EXCCODE_ASXD] = "256 bit vector instructions Disable exception",
 };
 
 const char *loongarch_exception_name(int32_t exception)
@@ -190,6 +191,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     case EXCCODE_FPD:
     case EXCCODE_FPE:
     case EXCCODE_SXD:
+    case EXCCODE_ASXD:
         env->CSR_BADV = env->pc;
         QEMU_FALLTHROUGH;
     case EXCCODE_BCE:

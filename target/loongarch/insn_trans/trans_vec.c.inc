@@ -12,6 +12,12 @@ static bool check_vec(DisasContext *ctx, uint32_t oprsz)
         generate_exception(ctx, EXCCODE_SXD);
         return false;
     }
+
+    if ((oprsz == 32) && ((ctx->base.tb->flags & HW_FLAGS_EUEN_ASXE) == 0)) {
+        generate_exception(ctx, EXCCODE_ASXD);
+        return false;
+    }
+
     return true;
 }
 
