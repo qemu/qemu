@@ -653,7 +653,9 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
     VReg *Vd = (VReg *)vd;                                     \
     VReg *Vj = (VReg *)vj;                                     \
     VReg *Vk = (VReg *)vk;                                     \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+    int oprsz = simd_oprsz(desc);                              \
+                                                               \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                  \
         Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));                  \
     }                                                          \
 }
