@@ -16,7 +16,7 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
-#include "internal-target.h"
+#include "internal-common.h"
 
 
 static void dump_drift_info(GString *buf)

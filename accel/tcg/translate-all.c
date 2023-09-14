@@ -61,6 +61,7 @@
 #include "tb-jmp-cache.h"
 #include "tb-hash.h"
 #include "tb-context.h"
+#include "internal-common.h"
 #include "internal-target.h"
 #include "perf.h"
 #include "tcg/insn-start-words.h"
