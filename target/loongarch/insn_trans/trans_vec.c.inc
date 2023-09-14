@@ -550,6 +550,10 @@ TRANS(vaddwev_h_b, LSX, gvec_vvv, MO_8, do_vaddwev_s)
 TRANS(vaddwev_w_h, LSX, gvec_vvv, MO_16, do_vaddwev_s)
 TRANS(vaddwev_d_w, LSX, gvec_vvv, MO_32, do_vaddwev_s)
 TRANS(vaddwev_q_d, LSX, gvec_vvv, MO_64, do_vaddwev_s)
+TRANS(xvaddwev_h_b, LASX, gvec_xxx, MO_8, do_vaddwev_s)
+TRANS(xvaddwev_w_h, LASX, gvec_xxx, MO_16, do_vaddwev_s)
+TRANS(xvaddwev_d_w, LASX, gvec_xxx, MO_32, do_vaddwev_s)
+TRANS(xvaddwev_q_d, LASX, gvec_xxx, MO_64, do_vaddwev_s)
 
 static void gen_vaddwod_w_h(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
 {
@@ -629,6 +633,11 @@ TRANS(vaddwod_h_b, LSX, gvec_vvv, MO_8, do_vaddwod_s)
 TRANS(vaddwod_w_h, LSX, gvec_vvv, MO_16, do_vaddwod_s)
 TRANS(vaddwod_d_w, LSX, gvec_vvv, MO_32, do_vaddwod_s)
 TRANS(vaddwod_q_d, LSX, gvec_vvv, MO_64, do_vaddwod_s)
+TRANS(xvaddwod_h_b, LASX, gvec_xxx, MO_8, do_vaddwod_s)
+TRANS(xvaddwod_w_h, LASX, gvec_xxx, MO_16, do_vaddwod_s)
+TRANS(xvaddwod_d_w, LASX, gvec_xxx, MO_32, do_vaddwod_s)
+TRANS(xvaddwod_q_d, LASX, gvec_xxx, MO_64, do_vaddwod_s)
+
 
 static void gen_vsubwev_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -712,6 +721,10 @@ TRANS(vsubwev_h_b, LSX, gvec_vvv, MO_8, do_vsubwev_s)
 TRANS(vsubwev_w_h, LSX, gvec_vvv, MO_16, do_vsubwev_s)
 TRANS(vsubwev_d_w, LSX, gvec_vvv, MO_32, do_vsubwev_s)
 TRANS(vsubwev_q_d, LSX, gvec_vvv, MO_64, do_vsubwev_s)
+TRANS(xvsubwev_h_b, LASX, gvec_xxx, MO_8, do_vsubwev_s)
+TRANS(xvsubwev_w_h, LASX, gvec_xxx, MO_16, do_vsubwev_s)
+TRANS(xvsubwev_d_w, LASX, gvec_xxx, MO_32, do_vsubwev_s)
+TRANS(xvsubwev_q_d, LASX, gvec_xxx, MO_64, do_vsubwev_s)
 
 static void gen_vsubwod_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -791,6 +804,10 @@ TRANS(vsubwod_h_b, LSX, gvec_vvv, MO_8, do_vsubwod_s)
 TRANS(vsubwod_w_h, LSX, gvec_vvv, MO_16, do_vsubwod_s)
 TRANS(vsubwod_d_w, LSX, gvec_vvv, MO_32, do_vsubwod_s)
 TRANS(vsubwod_q_d, LSX, gvec_vvv, MO_64, do_vsubwod_s)
+TRANS(xvsubwod_h_b, LASX, gvec_xxx, MO_8, do_vsubwod_s)
+TRANS(xvsubwod_w_h, LASX, gvec_xxx, MO_16, do_vsubwod_s)
+TRANS(xvsubwod_d_w, LASX, gvec_xxx, MO_32, do_vsubwod_s)
+TRANS(xvsubwod_q_d, LASX, gvec_xxx, MO_64, do_vsubwod_s)
 
 static void gen_vaddwev_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -866,6 +883,10 @@ TRANS(vaddwev_h_bu, LSX, gvec_vvv, MO_8, do_vaddwev_u)
 TRANS(vaddwev_w_hu, LSX, gvec_vvv, MO_16, do_vaddwev_u)
 TRANS(vaddwev_d_wu, LSX, gvec_vvv, MO_32, do_vaddwev_u)
 TRANS(vaddwev_q_du, LSX, gvec_vvv, MO_64, do_vaddwev_u)
+TRANS(xvaddwev_h_bu, LASX, gvec_xxx, MO_8, do_vaddwev_u)
+TRANS(xvaddwev_w_hu, LASX, gvec_xxx, MO_16, do_vaddwev_u)
+TRANS(xvaddwev_d_wu, LASX, gvec_xxx, MO_32, do_vaddwev_u)
+TRANS(xvaddwev_q_du, LASX, gvec_xxx, MO_64, do_vaddwev_u)
 
 static void gen_vaddwod_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -945,6 +966,10 @@ TRANS(vaddwod_h_bu, LSX, gvec_vvv, MO_8, do_vaddwod_u)
 TRANS(vaddwod_w_hu, LSX, gvec_vvv, MO_16, do_vaddwod_u)
 TRANS(vaddwod_d_wu, LSX, gvec_vvv, MO_32, do_vaddwod_u)
 TRANS(vaddwod_q_du, LSX, gvec_vvv, MO_64, do_vaddwod_u)
+TRANS(xvaddwod_h_bu, LASX, gvec_xxx, MO_8, do_vaddwod_u)
+TRANS(xvaddwod_w_hu, LASX, gvec_xxx, MO_16, do_vaddwod_u)
+TRANS(xvaddwod_d_wu, LASX, gvec_xxx, MO_32, do_vaddwod_u)
+TRANS(xvaddwod_q_du, LASX, gvec_xxx, MO_64, do_vaddwod_u)
 
 static void gen_vsubwev_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -1020,6 +1045,10 @@ TRANS(vsubwev_h_bu, LSX, gvec_vvv, MO_8, do_vsubwev_u)
 TRANS(vsubwev_w_hu, LSX, gvec_vvv, MO_16, do_vsubwev_u)
 TRANS(vsubwev_d_wu, LSX, gvec_vvv, MO_32, do_vsubwev_u)
 TRANS(vsubwev_q_du, LSX, gvec_vvv, MO_64, do_vsubwev_u)
+TRANS(xvsubwev_h_bu, LASX, gvec_xxx, MO_8, do_vsubwev_u)
+TRANS(xvsubwev_w_hu, LASX, gvec_xxx, MO_16, do_vsubwev_u)
+TRANS(xvsubwev_d_wu, LASX, gvec_xxx, MO_32, do_vsubwev_u)
+TRANS(xvsubwev_q_du, LASX, gvec_xxx, MO_64, do_vsubwev_u)
 
 static void gen_vsubwod_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -1099,6 +1128,10 @@ TRANS(vsubwod_h_bu, LSX, gvec_vvv, MO_8, do_vsubwod_u)
 TRANS(vsubwod_w_hu, LSX, gvec_vvv, MO_16, do_vsubwod_u)
 TRANS(vsubwod_d_wu, LSX, gvec_vvv, MO_32, do_vsubwod_u)
 TRANS(vsubwod_q_du, LSX, gvec_vvv, MO_64, do_vsubwod_u)
+TRANS(xvsubwod_h_bu, LASX, gvec_xxx, MO_8, do_vsubwod_u)
+TRANS(xvsubwod_w_hu, LASX, gvec_xxx, MO_16, do_vsubwod_u)
+TRANS(xvsubwod_d_wu, LASX, gvec_xxx, MO_32, do_vsubwod_u)
+TRANS(xvsubwod_q_du, LASX, gvec_xxx, MO_64, do_vsubwod_u)
 
 static void gen_vaddwev_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -1182,6 +1215,10 @@ TRANS(vaddwev_h_bu_b, LSX, gvec_vvv, MO_8, do_vaddwev_u_s)
 TRANS(vaddwev_w_hu_h, LSX, gvec_vvv, MO_16, do_vaddwev_u_s)
 TRANS(vaddwev_d_wu_w, LSX, gvec_vvv, MO_32, do_vaddwev_u_s)
 TRANS(vaddwev_q_du_d, LSX, gvec_vvv, MO_64, do_vaddwev_u_s)
+TRANS(xvaddwev_h_bu_b, LASX, gvec_xxx, MO_8, do_vaddwev_u_s)
+TRANS(xvaddwev_w_hu_h, LASX, gvec_xxx, MO_16, do_vaddwev_u_s)
+TRANS(xvaddwev_d_wu_w, LASX, gvec_xxx, MO_32, do_vaddwev_u_s)
+TRANS(xvaddwev_q_du_d, LASX, gvec_xxx, MO_64, do_vaddwev_u_s)
 
 static void gen_vaddwod_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -1262,6 +1299,10 @@ TRANS(vaddwod_h_bu_b, LSX, gvec_vvv, MO_8, do_vaddwod_u_s)
 TRANS(vaddwod_w_hu_h, LSX, gvec_vvv, MO_16, do_vaddwod_u_s)
 TRANS(vaddwod_d_wu_w, LSX, gvec_vvv, MO_32, do_vaddwod_u_s)
 TRANS(vaddwod_q_du_d, LSX, gvec_vvv, MO_64, do_vaddwod_u_s)
+TRANS(xvaddwod_h_bu_b, LSX, gvec_xxx, MO_8, do_vaddwod_u_s)
+TRANS(xvaddwod_w_hu_h, LSX, gvec_xxx, MO_16, do_vaddwod_u_s)
+TRANS(xvaddwod_d_wu_w, LSX, gvec_xxx, MO_32, do_vaddwod_u_s)
+TRANS(xvaddwod_q_du_d, LSX, gvec_xxx, MO_64, do_vaddwod_u_s)
 
 static void do_vavg(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
                     void (*gen_shr_vec)(unsigned, TCGv_vec,
