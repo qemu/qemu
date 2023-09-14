@@ -4829,209 +4829,77 @@ TRANS(xvsetallnez_h, LASX, gen_cx, gen_helper_vsetallnez_h)
 TRANS(xvsetallnez_w, LASX, gen_cx, gen_helper_vsetallnez_w)
 TRANS(xvsetallnez_d, LASX, gen_cx, gen_helper_vsetallnez_d)
 
-static bool trans_vinsgr2vr_b(DisasContext *ctx, arg_vr_i *a)
+static bool gen_g2v_vl(DisasContext *ctx, arg_vr_i *a, uint32_t oprsz, MemOp mop,
+                       void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
-    tcg_gen_st8_i64(src, cpu_env,
-                    offsetof(CPULoongArchState, fpr[a->vd].vreg.B(a->imm)));
+    func(src, cpu_env, vec_reg_offset(a->vd, a->imm, mop));
+
     return true;
 }
 
-static bool trans_vinsgr2vr_h(DisasContext *ctx, arg_vr_i *a)
+static bool gen_g2v(DisasContext *ctx, arg_vr_i *a, MemOp mop,
+                    void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_st16_i64(src, cpu_env,
-                    offsetof(CPULoongArchState, fpr[a->vd].vreg.H(a->imm)));
-    return true;
+    return gen_g2v_vl(ctx, a, 16, mop, func);
 }
 
-static bool trans_vinsgr2vr_w(DisasContext *ctx, arg_vr_i *a)
+static bool gen_g2x(DisasContext *ctx, arg_vr_i *a, MemOp mop,
+                    void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_st32_i64(src, cpu_env,
-                     offsetof(CPULoongArchState, fpr[a->vd].vreg.W(a->imm)));
-    return true;
+    return gen_g2v_vl(ctx, a, 32, mop, func);
 }
 
-static bool trans_vinsgr2vr_d(DisasContext *ctx, arg_vr_i *a)
-{
-    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
+TRANS(vinsgr2vr_b, LSX, gen_g2v, MO_8, tcg_gen_st8_i64)
+TRANS(vinsgr2vr_h, LSX, gen_g2v, MO_16, tcg_gen_st16_i64)
+TRANS(vinsgr2vr_w, LSX, gen_g2v, MO_32, tcg_gen_st32_i64)
+TRANS(vinsgr2vr_d, LSX, gen_g2v, MO_64, tcg_gen_st_i64)
+TRANS(xvinsgr2vr_w, LASX, gen_g2x, MO_32, tcg_gen_st32_i64)
+TRANS(xvinsgr2vr_d, LASX, gen_g2x, MO_64, tcg_gen_st_i64)
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_st_i64(src, cpu_env,
-                   offsetof(CPULoongArchState, fpr[a->vd].vreg.D(a->imm)));
-    return true;
-}
-
-static bool trans_vpickve2gr_b(DisasContext *ctx, arg_rv_i *a)
+static bool gen_v2g_vl(DisasContext *ctx, arg_rv_i *a, uint32_t oprsz, MemOp mop,
+                       void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
     TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
-    tcg_gen_ld8s_i64(dst, cpu_env,
-                     offsetof(CPULoongArchState, fpr[a->vj].vreg.B(a->imm)));
+    func(dst, cpu_env, vec_reg_offset(a->vj, a->imm, mop));
+
     return true;
 }
 
-static bool trans_vpickve2gr_h(DisasContext *ctx, arg_rv_i *a)
+static bool gen_v2g(DisasContext *ctx, arg_rv_i *a, MemOp mop,
+                    void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld16s_i64(dst, cpu_env,
-                      offsetof(CPULoongArchState, fpr[a->vj].vreg.H(a->imm)));
-    return true;
+    return gen_v2g_vl(ctx, a, 16, mop, func);
 }
 
-static bool trans_vpickve2gr_w(DisasContext *ctx, arg_rv_i *a)
+static bool gen_x2g(DisasContext *ctx, arg_rv_i *a, MemOp mop,
+                    void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld32s_i64(dst, cpu_env,
-                      offsetof(CPULoongArchState, fpr[a->vj].vreg.W(a->imm)));
-    return true;
+    return gen_v2g_vl(ctx, a, 32, mop, func);
 }
 
-static bool trans_vpickve2gr_d(DisasContext *ctx, arg_rv_i *a)
-{
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld_i64(dst, cpu_env,
-                   offsetof(CPULoongArchState, fpr[a->vj].vreg.D(a->imm)));
-    return true;
-}
-
-static bool trans_vpickve2gr_bu(DisasContext *ctx, arg_rv_i *a)
-{
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld8u_i64(dst, cpu_env,
-                     offsetof(CPULoongArchState, fpr[a->vj].vreg.B(a->imm)));
-    return true;
-}
-
-static bool trans_vpickve2gr_hu(DisasContext *ctx, arg_rv_i *a)
-{
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld16u_i64(dst, cpu_env,
-                      offsetof(CPULoongArchState, fpr[a->vj].vreg.H(a->imm)));
-    return true;
-}
-
-static bool trans_vpickve2gr_wu(DisasContext *ctx, arg_rv_i *a)
-{
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld32u_i64(dst, cpu_env,
-                      offsetof(CPULoongArchState, fpr[a->vj].vreg.W(a->imm)));
-    return true;
-}
-
-static bool trans_vpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
-{
-    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
-    tcg_gen_ld_i64(dst, cpu_env,
-                   offsetof(CPULoongArchState, fpr[a->vj].vreg.D(a->imm)));
-    return true;
-}
+TRANS(vpickve2gr_b, LSX, gen_v2g, MO_8, tcg_gen_ld8s_i64)
+TRANS(vpickve2gr_h, LSX, gen_v2g, MO_16, tcg_gen_ld16s_i64)
+TRANS(vpickve2gr_w, LSX, gen_v2g, MO_32, tcg_gen_ld32s_i64)
+TRANS(vpickve2gr_d, LSX, gen_v2g, MO_64, tcg_gen_ld_i64)
+TRANS(vpickve2gr_bu, LSX, gen_v2g, MO_8, tcg_gen_ld8u_i64)
+TRANS(vpickve2gr_hu, LSX, gen_v2g, MO_16, tcg_gen_ld16u_i64)
+TRANS(vpickve2gr_wu, LSX, gen_v2g, MO_32, tcg_gen_ld32u_i64)
+TRANS(vpickve2gr_du, LSX, gen_v2g, MO_64, tcg_gen_ld_i64)
+TRANS(xvpickve2gr_w, LASX, gen_x2g, MO_32, tcg_gen_ld32s_i64)
+TRANS(xvpickve2gr_d, LASX, gen_x2g, MO_64, tcg_gen_ld_i64)
+TRANS(xvpickve2gr_wu, LASX, gen_x2g, MO_32, tcg_gen_ld32u_i64)
+TRANS(xvpickve2gr_du, LASX, gen_x2g, MO_64, tcg_gen_ld_i64)
 
 static bool gvec_dup_vl(DisasContext *ctx, arg_vr *a,
                         uint32_t oprsz, MemOp mop)
