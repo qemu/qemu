@@ -1,5 +1,5 @@
-specific_ss.add(files('accel-common.c', 'accel-blocker.c'))
-system_ss.add(files('accel-softmmu.c'))
+specific_ss.add(files('accel-common.c'))
+system_ss.add(files('accel-softmmu.c', 'accel-blocker.c'))
 user_ss.add(files('accel-user.c'))
 
 subdir('tcg')
