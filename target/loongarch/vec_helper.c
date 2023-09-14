@@ -13,6 +13,7 @@
 #include "internals.h"
 #include "tcg/tcg.h"
 #include "vec.h"
+#include "tcg/tcg-gvec-desc.h"
 
 #define DO_ADD(a, b)  (a + b)
 #define DO_SUB(a, b)  (a - b)
@@ -25,8 +26,9 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)       \
     VReg *Vj = (VReg *)vj;                                           \
     VReg *Vk = (VReg *)vk;                                           \
     typedef __typeof(Vd->E1(0)) TD;                                  \
+    int oprsz = simd_oprsz(desc);                                    \
                                                                      \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                              \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                        \
         Vd->E1(i) = DO_OP((TD)Vj->E2(2 * i + 1), (TD)Vk->E2(2 * i)); \
     }                                                                \
 }
@@ -37,11 +39,16 @@ DO_ODD_EVEN(vhaddw_d_w, 64, D, W, DO_ADD)
 
 void HELPER(vhaddw_q_d)(void *vd, void *vj, void *vk, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_add(int128_makes64(Vj->D(1)), int128_makes64(Vk->D(0)));
+    for (i = 0; i < oprsz / 16 ; i++) {
+        Vd->Q(i) = int128_add(int128_makes64(Vj->D(2 * i + 1)),
+                              int128_makes64(Vk->D(2 * i)));
+    }
 }
 
 DO_ODD_EVEN(vhsubw_h_b, 16, H, B, DO_SUB)
@@ -50,11 +57,16 @@ DO_ODD_EVEN(vhsubw_d_w, 64, D, W, DO_SUB)
 
 void HELPER(vhsubw_q_d)(void *vd, void *vj, void *vk, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_sub(int128_makes64(Vj->D(1)), int128_makes64(Vk->D(0)));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_sub(int128_makes64(Vj->D(2 * i + 1)),
+                              int128_makes64(Vk->D(2 * i)));
+    }
 }
 
 DO_ODD_EVEN(vhaddw_hu_bu, 16, UH, UB, DO_ADD)
@@ -63,12 +75,16 @@ DO_ODD_EVEN(vhaddw_du_wu, 64, UD, UW, DO_ADD)
 
 void HELPER(vhaddw_qu_du)(void *vd, void *vj, void *vk, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_add(int128_make64((uint64_t)Vj->D(1)),
-                          int128_make64((uint64_t)Vk->D(0)));
+    for (i = 0; i < oprsz / 16; i ++) {
+        Vd->Q(i) = int128_add(int128_make64(Vj->UD(2 * i + 1)),
+                              int128_make64(Vk->UD(2 * i)));
+    }
 }
 
 DO_ODD_EVEN(vhsubw_hu_bu, 16, UH, UB, DO_SUB)
@@ -77,12 +93,16 @@ DO_ODD_EVEN(vhsubw_du_wu, 64, UD, UW, DO_SUB)
 
 void HELPER(vhsubw_qu_du)(void *vd, void *vj, void *vk, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_sub(int128_make64((uint64_t)Vj->D(1)),
-                          int128_make64((uint64_t)Vk->D(0)));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_sub(int128_make64(Vj->UD(2 * i + 1)),
+                              int128_make64(Vk->UD(2 * i)));
+    }
 }
 
 #define DO_EVEN(NAME, BIT, E1, E2, DO_OP)                        \

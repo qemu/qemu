@@ -97,6 +97,10 @@ static bool gen_vvv_ptr(DisasContext *ctx, arg_vvv *a,
 static bool gen_vvv_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
                        gen_helper_gvec_3 *fn)
 {
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     tcg_gen_gvec_3_ool(vec_full_offset(a->vd),
                        vec_full_offset(a->vj),
                        vec_full_offset(a->vk),
@@ -106,11 +110,12 @@ static bool gen_vvv_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
 
 static bool gen_vvv(DisasContext *ctx, arg_vvv *a, gen_helper_gvec_3 *fn)
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gen_vvv_vl(ctx, a, 16, fn);
+}
+
+static bool gen_xxx(DisasContext *ctx, arg_vvv *a, gen_helper_gvec_3 *fn)
+{
+    return gen_vvv_vl(ctx, a, 32, fn);
 }
 
 static bool gen_vv_ptr_vl(DisasContext *ctx, arg_vv *a, uint32_t oprsz,
@@ -445,6 +450,23 @@ TRANS(vhsubw_hu_bu, LSX, gen_vvv, gen_helper_vhsubw_hu_bu)
 TRANS(vhsubw_wu_hu, LSX, gen_vvv, gen_helper_vhsubw_wu_hu)
 TRANS(vhsubw_du_wu, LSX, gen_vvv, gen_helper_vhsubw_du_wu)
 TRANS(vhsubw_qu_du, LSX, gen_vvv, gen_helper_vhsubw_qu_du)
+
+TRANS(xvhaddw_h_b, LASX, gen_xxx, gen_helper_vhaddw_h_b)
+TRANS(xvhaddw_w_h, LASX, gen_xxx, gen_helper_vhaddw_w_h)
+TRANS(xvhaddw_d_w, LASX, gen_xxx, gen_helper_vhaddw_d_w)
+TRANS(xvhaddw_q_d, LASX, gen_xxx, gen_helper_vhaddw_q_d)
+TRANS(xvhaddw_hu_bu, LASX, gen_xxx, gen_helper_vhaddw_hu_bu)
+TRANS(xvhaddw_wu_hu, LASX, gen_xxx, gen_helper_vhaddw_wu_hu)
+TRANS(xvhaddw_du_wu, LASX, gen_xxx, gen_helper_vhaddw_du_wu)
+TRANS(xvhaddw_qu_du, LASX, gen_xxx, gen_helper_vhaddw_qu_du)
+TRANS(xvhsubw_h_b, LASX, gen_xxx, gen_helper_vhsubw_h_b)
+TRANS(xvhsubw_w_h, LASX, gen_xxx, gen_helper_vhsubw_w_h)
+TRANS(xvhsubw_d_w, LASX, gen_xxx, gen_helper_vhsubw_d_w)
+TRANS(xvhsubw_q_d, LASX, gen_xxx, gen_helper_vhsubw_q_d)
+TRANS(xvhsubw_hu_bu, LASX, gen_xxx, gen_helper_vhsubw_hu_bu)
+TRANS(xvhsubw_wu_hu, LASX, gen_xxx, gen_helper_vhsubw_wu_hu)
+TRANS(xvhsubw_du_wu, LASX, gen_xxx, gen_helper_vhsubw_du_wu)
+TRANS(xvhsubw_qu_du, LASX, gen_xxx, gen_helper_vhsubw_qu_du)
 
 static void gen_vaddwev_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
