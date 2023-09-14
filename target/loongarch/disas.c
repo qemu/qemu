@@ -1718,6 +1718,11 @@ static void output_vv_i_x(DisasContext *ctx, arg_vv_i *a, const char *mnemonic)
     output(ctx, mnemonic, "x%d, x%d, 0x%x", a->vd, a->vj, a->imm);
 }
 
+static void output_vv_x(DisasContext *ctx, arg_vv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d", a->vd, a->vj);
+}
+
 INSN_LASX(xvadd_b,           vvv)
 INSN_LASX(xvadd_h,           vvv)
 INSN_LASX(xvadd_w,           vvv)
@@ -1737,6 +1742,11 @@ INSN_LASX(xvsubi_bu,         vv_i)
 INSN_LASX(xvsubi_hu,         vv_i)
 INSN_LASX(xvsubi_wu,         vv_i)
 INSN_LASX(xvsubi_du,         vv_i)
+
+INSN_LASX(xvneg_b,           vv)
+INSN_LASX(xvneg_h,           vv)
+INSN_LASX(xvneg_w,           vv)
+INSN_LASX(xvneg_d,           vv)
 
 INSN_LASX(xvreplgr2vr_b,     vr)
 INSN_LASX(xvreplgr2vr_h,     vr)

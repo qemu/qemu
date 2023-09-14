@@ -223,6 +223,10 @@ static bool gvec_vv_vl(DisasContext *ctx, arg_vv *a,
     uint32_t vd_ofs = vec_full_offset(a->vd);
     uint32_t vj_ofs = vec_full_offset(a->vj);
 
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     func(mop, vd_ofs, vj_ofs, oprsz, ctx->vl / 8);
     return true;
 }
@@ -232,11 +236,14 @@ static bool gvec_vv(DisasContext *ctx, arg_vv *a, MemOp mop,
                     void (*func)(unsigned, uint32_t, uint32_t,
                                  uint32_t, uint32_t))
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gvec_vv_vl(ctx, a, 16, mop, func);
+}
+
+static bool gvec_xx(DisasContext *ctx, arg_vv *a, MemOp mop,
+                    void (*func)(unsigned, uint32_t, uint32_t,
+                                 uint32_t, uint32_t))
+{
+    return gvec_vv_vl(ctx, a, 32, mop, func);
 }
 
 static bool gvec_vv_i_vl(DisasContext *ctx, arg_vv_i *a,
@@ -383,6 +390,10 @@ TRANS(vneg_b, LSX, gvec_vv, MO_8, tcg_gen_gvec_neg)
 TRANS(vneg_h, LSX, gvec_vv, MO_16, tcg_gen_gvec_neg)
 TRANS(vneg_w, LSX, gvec_vv, MO_32, tcg_gen_gvec_neg)
 TRANS(vneg_d, LSX, gvec_vv, MO_64, tcg_gen_gvec_neg)
+TRANS(xvneg_b, LASX, gvec_xx, MO_8, tcg_gen_gvec_neg)
+TRANS(xvneg_h, LASX, gvec_xx, MO_16, tcg_gen_gvec_neg)
+TRANS(xvneg_w, LASX, gvec_xx, MO_32, tcg_gen_gvec_neg)
+TRANS(xvneg_d, LASX, gvec_xx, MO_64, tcg_gen_gvec_neg)
 
 TRANS(vsadd_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_ssadd)
 TRANS(vsadd_h, LSX, gvec_vvv, MO_16, tcg_gen_gvec_ssadd)
