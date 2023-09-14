@@ -406,7 +406,8 @@ static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
 #if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
 static int tlb_mask_table_ofs(TCGContext *s, int which)
 {
-    return s->tlb_fast_offset + which * sizeof(CPUTLBDescFast);
+    return (offsetof(CPUNegativeOffsetState, tlb.f[which]) -
+            sizeof(CPUNegativeOffsetState));
 }
 #endif
 
@@ -733,6 +734,13 @@ static const TCGTargetOpDef constraint_sets[] = {
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4)
 
 #include "tcg-target.c.inc"
+
+#ifndef CONFIG_TCG_INTERPRETER
+/* Validate CPUTLBDescFast placement. */
+QEMU_BUILD_BUG_ON((int)(offsetof(CPUNegativeOffsetState, tlb.f[0]) -
+                        sizeof(CPUNegativeOffsetState))
+                  < MIN_TLB_MASK_TABLE_OFS);
+#endif
 
 static void alloc_tcg_plugin_context(TCGContext *s)
 {
@@ -1496,11 +1504,6 @@ void tcg_func_start(TCGContext *s)
 
     tcg_debug_assert(s->addr_type == TCG_TYPE_I32 ||
                      s->addr_type == TCG_TYPE_I64);
-
-#if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
-    tcg_debug_assert(s->tlb_fast_offset < 0);
-    tcg_debug_assert(s->tlb_fast_offset >= MIN_TLB_MASK_TABLE_OFS);
-#endif
 
     tcg_debug_assert(s->insn_start_words > 0);
 }
