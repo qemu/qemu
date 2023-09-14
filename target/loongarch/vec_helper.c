@@ -2129,14 +2129,14 @@ DO_3OP_F(vfmina_s, 32, UW, float32_minnummag)
 DO_3OP_F(vfmina_d, 64, UD, float64_minnummag)
 
 #define DO_4OP_F(NAME, BIT, E, FN, flags)                                    \
-void HELPER(NAME)(CPULoongArchState *env,                                    \
-                  uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va)        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, void *va,                    \
+                  CPULoongArchState *env, uint32_t desc)                     \
 {                                                                            \
     int i;                                                                   \
-    VReg *Vd = &(env->fpr[vd].vreg);                                         \
-    VReg *Vj = &(env->fpr[vj].vreg);                                         \
-    VReg *Vk = &(env->fpr[vk].vreg);                                         \
-    VReg *Va = &(env->fpr[va].vreg);                                         \
+    VReg *Vd = (VReg *)vd;                                                   \
+    VReg *Vj = (VReg *)vj;                                                   \
+    VReg *Vk = (VReg *)vk;                                                   \
+    VReg *Va = (VReg *)va;                                                   \
                                                                              \
     vec_clear_cause(env);                                                    \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
