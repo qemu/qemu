@@ -3454,7 +3454,7 @@ if get_option('b_lto')
   pagevary = declare_dependency(link_with: pagevary)
 endif
 common_ss.add(pagevary)
-specific_ss.add(files('page-vary.c'))
+specific_ss.add(files('page-vary-target.c'))
 
 subdir('backends')
 subdir('disas')

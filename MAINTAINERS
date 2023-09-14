@@ -141,7 +141,7 @@ F: softmmu/cpus.c
 F: softmmu/watchpoint.c
 F: cpu-common.c
 F: cpu-target.c
-F: page-vary.c
+F: page-vary-target.c
 F: page-vary-common.c
 F: accel/tcg/
 F: accel/stubs/tcg-stub.c
