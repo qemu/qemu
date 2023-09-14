@@ -810,14 +810,19 @@ static uint64_t do_vmskltz_b(int64_t val)
 
 void HELPER(vmskltz_b)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp = do_vmskltz_b(Vj->D(0));
-    temp |= (do_vmskltz_b(Vj->D(1)) << 8);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp = do_vmskltz_b(Vj->D(2 * i));
+        temp |= (do_vmskltz_b(Vj->D(2 * i  + 1)) << 8);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_h(int64_t val)
@@ -831,14 +836,19 @@ static uint64_t do_vmskltz_h(int64_t val)
 
 void HELPER(vmskltz_h)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp = do_vmskltz_h(Vj->D(0));
-    temp |= (do_vmskltz_h(Vj->D(1)) << 4);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp = do_vmskltz_h(Vj->D(2 * i));
+        temp |= (do_vmskltz_h(Vj->D(2 * i + 1)) << 4);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_w(int64_t val)
@@ -851,14 +861,19 @@ static uint64_t do_vmskltz_w(int64_t val)
 
 void HELPER(vmskltz_w)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp = do_vmskltz_w(Vj->D(0));
-    temp |= (do_vmskltz_w(Vj->D(1)) << 2);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp = do_vmskltz_w(Vj->D(2 * i));
+        temp |= (do_vmskltz_w(Vj->D(2 * i + 1)) << 2);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_d(int64_t val)
@@ -867,26 +882,36 @@ static uint64_t do_vmskltz_d(int64_t val)
 }
 void HELPER(vmskltz_d)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp = do_vmskltz_d(Vj->D(0));
-    temp |= (do_vmskltz_d(Vj->D(1)) << 1);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp = do_vmskltz_d(Vj->D(2 * i));
+        temp |= (do_vmskltz_d(Vj->D(2 * i + 1)) << 1);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 void HELPER(vmskgez_b)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp =  do_vmskltz_b(Vj->D(0));
-    temp |= (do_vmskltz_b(Vj->D(1)) << 8);
-    Vd->D(0) = (uint16_t)(~temp);
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp =  do_vmskltz_b(Vj->D(2 * i));
+        temp |= (do_vmskltz_b(Vj->D(2 * i + 1)) << 8);
+        Vd->D(2 * i) = (uint16_t)(~temp);
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskez_b(uint64_t a)
@@ -901,14 +926,19 @@ static uint64_t do_vmskez_b(uint64_t a)
 
 void HELPER(vmsknz_b)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     uint16_t temp = 0;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    temp = do_vmskez_b(Vj->D(0));
-    temp |= (do_vmskez_b(Vj->D(1)) << 8);
-    Vd->D(0) = (uint16_t)(~temp);
-    Vd->D(1) = 0;
+    for (i = 0; i < oprsz / 16; i++) {
+        temp = 0;
+        temp = do_vmskez_b(Vj->D(2 * i));
+        temp |= (do_vmskez_b(Vj->D(2 * i + 1)) << 8);
+        Vd->D(2 * i) = (uint16_t)(~temp);
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)

@@ -3423,6 +3423,12 @@ TRANS(vmskltz_w, LSX, gen_vv, gen_helper_vmskltz_w)
 TRANS(vmskltz_d, LSX, gen_vv, gen_helper_vmskltz_d)
 TRANS(vmskgez_b, LSX, gen_vv, gen_helper_vmskgez_b)
 TRANS(vmsknz_b, LSX, gen_vv, gen_helper_vmsknz_b)
+TRANS(xvmskltz_b, LASX, gen_xx, gen_helper_vmskltz_b)
+TRANS(xvmskltz_h, LASX, gen_xx, gen_helper_vmskltz_h)
+TRANS(xvmskltz_w, LASX, gen_xx, gen_helper_vmskltz_w)
+TRANS(xvmskltz_d, LASX, gen_xx, gen_helper_vmskltz_d)
+TRANS(xvmskgez_b, LASX, gen_xx, gen_helper_vmskgez_b)
+TRANS(xvmsknz_b, LASX, gen_xx, gen_helper_vmsknz_b)
 
 #define EXPAND_BYTE(bit)  ((uint64_t)(bit ? 0xff : 0))
 
