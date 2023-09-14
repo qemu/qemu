@@ -716,32 +716,44 @@ VSAT_U(vsat_hu, 16, UH)
 VSAT_U(vsat_wu, 32, UW)
 VSAT_U(vsat_du, 64, UD)
 
-#define VEXTH(NAME, BIT, E1, E2)                     \
-void HELPER(NAME)(void *vd, void *vj, uint32_t desc) \
-{                                                    \
-    int i;                                           \
-    VReg *Vd = (VReg *)vd;                           \
-    VReg *Vj = (VReg *)vj;                           \
-                                                     \
-    for (i = 0; i < LSX_LEN/BIT; i++) {              \
-        Vd->E1(i) = Vj->E2(i + LSX_LEN/BIT);         \
-    }                                                \
+#define VEXTH(NAME, BIT, E1, E2)                                 \
+void HELPER(NAME)(void *vd, void *vj, uint32_t desc)             \
+{                                                                \
+    int i, j, ofs;                                               \
+    VReg *Vd = (VReg *)vd;                                       \
+    VReg *Vj = (VReg *)vj;                                       \
+    int oprsz = simd_oprsz(desc);                                \
+                                                                 \
+    ofs = LSX_LEN / BIT;                                         \
+    for (i = 0; i < oprsz / 16; i++) {                           \
+        for (j = 0; j < ofs; j++) {                              \
+            Vd->E1(j + i * ofs) = Vj->E2(j + ofs + ofs * 2 * i); \
+        }                                                        \
+    }                                                            \
 }
 
 void HELPER(vexth_q_d)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_makes64(Vj->D(1));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_makes64(Vj->D(2 * i + 1));
+    }
 }
 
 void HELPER(vexth_qu_du)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_make64((uint64_t)Vj->D(1));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_make64(Vj->UD(2 * i + 1));
+    }
 }
 
 VEXTH(vexth_h_b, 16, H, B)
