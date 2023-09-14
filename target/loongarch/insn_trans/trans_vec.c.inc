@@ -193,6 +193,10 @@ static bool gvec_vvv_vl(DisasContext *ctx, arg_vvv *a,
     uint32_t vj_ofs = vec_full_offset(a->vj);
     uint32_t vk_ofs = vec_full_offset(a->vk);
 
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
     func(mop, vd_ofs, vj_ofs, vk_ofs, oprsz, ctx->vl / 8);
     return true;
 }
@@ -201,13 +205,15 @@ static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
 {
-    if (!check_vec(ctx, 16)) {
-        return true;
-    }
-
     return gvec_vvv_vl(ctx, a, 16, mop, func);
 }
 
+static bool gvec_xxx(DisasContext *ctx, arg_vvv *a, MemOp mop,
+                     void (*func)(unsigned, uint32_t, uint32_t,
+                                  uint32_t, uint32_t, uint32_t))
+{
+    return gvec_vvv_vl(ctx, a, 32, mop, func);
+}
 
 static bool gvec_vv_vl(DisasContext *ctx, arg_vv *a,
                        uint32_t oprsz, MemOp mop,
@@ -279,47 +285,70 @@ TRANS(vadd_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_add)
 TRANS(vadd_h, LSX, gvec_vvv, MO_16, tcg_gen_gvec_add)
 TRANS(vadd_w, LSX, gvec_vvv, MO_32, tcg_gen_gvec_add)
 TRANS(vadd_d, LSX, gvec_vvv, MO_64, tcg_gen_gvec_add)
+TRANS(xvadd_b, LASX, gvec_xxx, MO_8, tcg_gen_gvec_add)
+TRANS(xvadd_h, LASX, gvec_xxx, MO_16, tcg_gen_gvec_add)
+TRANS(xvadd_w, LASX, gvec_xxx, MO_32, tcg_gen_gvec_add)
+TRANS(xvadd_d, LASX, gvec_xxx, MO_64, tcg_gen_gvec_add)
 
-#define VADDSUB_Q(NAME)                                        \
-static bool trans_v## NAME ##_q(DisasContext *ctx, arg_vvv *a) \
-{                                                              \
-    TCGv_i64 rh, rl, ah, al, bh, bl;                           \
-                                                               \
-    if (!avail_LSX(ctx)) {                                     \
-        return false;                                          \
-    }                                                          \
-                                                               \
-    if (!check_vec(ctx, 16)) {                                 \
-        return true;                                           \
-    }                                                          \
-                                                               \
-    rh = tcg_temp_new_i64();                                   \
-    rl = tcg_temp_new_i64();                                   \
-    ah = tcg_temp_new_i64();                                   \
-    al = tcg_temp_new_i64();                                   \
-    bh = tcg_temp_new_i64();                                   \
-    bl = tcg_temp_new_i64();                                   \
-                                                               \
-    get_vreg64(ah, a->vj, 1);                                  \
-    get_vreg64(al, a->vj, 0);                                  \
-    get_vreg64(bh, a->vk, 1);                                  \
-    get_vreg64(bl, a->vk, 0);                                  \
-                                                               \
-    tcg_gen_## NAME ##2_i64(rl, rh, al, ah, bl, bh);           \
-                                                               \
-    set_vreg64(rh, a->vd, 1);                                  \
-    set_vreg64(rl, a->vd, 0);                                  \
-                                                               \
-    return true;                                               \
+static bool gen_vaddsub_q_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
+                             void (*func)(TCGv_i64, TCGv_i64, TCGv_i64,
+                                          TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    int i;
+    TCGv_i64 rh, rl, ah, al, bh, bl;
+
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
+    rh = tcg_temp_new_i64();
+    rl = tcg_temp_new_i64();
+    ah = tcg_temp_new_i64();
+    al = tcg_temp_new_i64();
+    bh = tcg_temp_new_i64();
+    bl = tcg_temp_new_i64();
+
+    for (i = 0; i < oprsz / 16; i++) {
+        get_vreg64(ah, a->vj, 1 + i * 2);
+        get_vreg64(al, a->vj, i * 2);
+        get_vreg64(bh, a->vk, 1 + i * 2);
+        get_vreg64(bl, a->vk, i * 2);
+
+        func(rl, rh, al, ah, bl, bh);
+
+        set_vreg64(rh, a->vd, 1 + i * 2);
+        set_vreg64(rl, a->vd, i * 2);
+    }
+    return true;
 }
 
-VADDSUB_Q(add)
-VADDSUB_Q(sub)
+static bool gen_vaddsub_q(DisasContext *ctx, arg_vvv *a,
+                          void (*func)(TCGv_i64, TCGv_i64, TCGv_i64,
+                                       TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    return gen_vaddsub_q_vl(ctx, a, 16, func);
+}
+
+static bool gen_xvaddsub_q(DisasContext *ctx, arg_vvv *a,
+                           void (*func)(TCGv_i64, TCGv_i64, TCGv_i64,
+                                        TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    return gen_vaddsub_q_vl(ctx, a, 32, func);
+}
 
 TRANS(vsub_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_sub)
 TRANS(vsub_h, LSX, gvec_vvv, MO_16, tcg_gen_gvec_sub)
 TRANS(vsub_w, LSX, gvec_vvv, MO_32, tcg_gen_gvec_sub)
 TRANS(vsub_d, LSX, gvec_vvv, MO_64, tcg_gen_gvec_sub)
+TRANS(xvsub_b, LASX, gvec_xxx, MO_8, tcg_gen_gvec_sub)
+TRANS(xvsub_h, LASX, gvec_xxx, MO_16, tcg_gen_gvec_sub)
+TRANS(xvsub_w, LASX, gvec_xxx, MO_32, tcg_gen_gvec_sub)
+TRANS(xvsub_d, LASX, gvec_xxx, MO_64, tcg_gen_gvec_sub)
+
+TRANS(vadd_q, LSX, gen_vaddsub_q, tcg_gen_add2_i64)
+TRANS(vsub_q, LSX, gen_vaddsub_q, tcg_gen_sub2_i64)
+TRANS(xvadd_q, LASX, gen_xvaddsub_q, tcg_gen_add2_i64)
+TRANS(xvsub_q, LASX, gen_xvaddsub_q, tcg_gen_sub2_i64)
 
 TRANS(vaddi_bu, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_addi)
 TRANS(vaddi_hu, LSX, gvec_vv_i, MO_16, tcg_gen_gvec_addi)

@@ -124,6 +124,10 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
         ctx->vl = LSX_LEN;
     }
 
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LASX)) {
+        ctx->vl = LASX_LEN;
+    }
+
     ctx->la64 = is_la64(env);
     ctx->va32 = (ctx->base.tb->flags & HW_FLAGS_VA32) != 0;
 
