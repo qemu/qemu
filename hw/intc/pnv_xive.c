@@ -210,7 +210,7 @@ static uint64_t pnv_xive_vst_addr_remote(PnvXive *xive, uint32_t type,
         return 0;
     }
 
-    remote_addr |= idx << xive->pc_shift;
+    remote_addr |= ((uint64_t)idx) << xive->pc_shift;
 
     vst_addr = address_space_ldq_be(&address_space_memory, remote_addr,
                                     MEMTXATTRS_UNSPECIFIED, &result);
