@@ -952,37 +952,48 @@ void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t desc)
     }
 }
 
-#define VSLLWIL(NAME, BIT, E1, E2)                                 \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
-{                                                                  \
-    int i;                                                         \
-    VReg temp;                                                     \
-    VReg *Vd = (VReg *)vd;                                         \
-    VReg *Vj = (VReg *)vj;                                         \
-    typedef __typeof(temp.E1(0)) TD;                               \
-                                                                   \
-    temp.D(0) = 0;                                                 \
-    temp.D(1) = 0;                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                            \
-        temp.E1(i) = (TD)Vj->E2(i) << (imm % BIT);                 \
-    }                                                              \
-    *Vd = temp;                                                    \
+#define VSLLWIL(NAME, BIT, E1, E2)                                             \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)             \
+{                                                                              \
+    int i, j, ofs;                                                             \
+    VReg temp = {};                                                            \
+    VReg *Vd = (VReg *)vd;                                                     \
+    VReg *Vj = (VReg *)vj;                                                     \
+    int oprsz = simd_oprsz(desc);                                              \
+    typedef __typeof(temp.E1(0)) TD;                                           \
+                                                                               \
+    ofs = LSX_LEN / BIT;                                                       \
+    for (i = 0; i < oprsz / 16; i++) {                                         \
+        for (j = 0; j < ofs; j++) {                                            \
+            temp.E1(j + ofs * i) = (TD)Vj->E2(j + ofs * 2 * i) << (imm % BIT); \
+        }                                                                      \
+    }                                                                          \
+    *Vd = temp;                                                                \
 }
+
 
 void HELPER(vextl_q_d)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_makes64(Vj->D(0));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_makes64(Vj->D(2 * i));
+    }
 }
 
 void HELPER(vextl_qu_du)(void *vd, void *vj, uint32_t desc)
 {
+    int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
-    Vd->Q(0) = int128_make64(Vj->D(0));
+    for (i = 0; i < oprsz / 16; i++) {
+        Vd->Q(i) = int128_make64(Vj->UD(2 * i));
+    }
 }
 
 VSLLWIL(vsllwil_h_b, 16, H, B)
