@@ -406,11 +406,6 @@ static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr)
     return tlb_hit_page(tlb_addr, addr & TARGET_PAGE_MASK);
 }
 
-#ifdef CONFIG_TCG
-/* accel/tcg/translate-all.c */
-void dump_exec_info(GString *buf);
-#endif /* CONFIG_TCG */
-
 #endif /* !CONFIG_USER_ONLY */
 
 /* accel/tcg/cpu-exec.c */
