@@ -137,7 +137,7 @@ def _console_interaction(test, success_message, failure_message,
     assert not keep_sending or send_string
     if vm is None:
         vm = test.vm
-    console = vm.console_socket.makefile(mode='rb', encoding='utf-8')
+    console = vm.console_file
     console_logger = logging.getLogger('console')
     while True:
         if send_string:
