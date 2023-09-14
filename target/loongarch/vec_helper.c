@@ -1231,76 +1231,95 @@ VSRANI(vsrani_b_h, 16, B, H)
 VSRANI(vsrani_h_w, 32, H, W)
 VSRANI(vsrani_w_d, 64, W, D)
 
-#define VSRLRN(NAME, BIT, T, E1, E2)                                \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)      \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = (VReg *)vd;                                          \
-    VReg *Vj = (VReg *)vj;                                          \
-    VReg *Vk = (VReg *)vk;                                          \
-                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E1(i) = do_vsrlr_ ## E2(Vj->E2(i), ((T)Vk->E2(i))%BIT); \
-    }                                                               \
-    Vd->D(1) = 0;                                                   \
+#define VSRLRN(NAME, BIT, E1, E2, E3)                                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)             \
+{                                                                          \
+    int i, j, ofs;                                                         \
+    VReg *Vd = (VReg *)vd;                                                 \
+    VReg *Vj = (VReg *)vj;                                                 \
+    VReg *Vk = (VReg *)vk;                                                 \
+    int oprsz = simd_oprsz(desc);                                          \
+                                                                           \
+    ofs = LSX_LEN / BIT;                                                   \
+    for (i = 0; i < oprsz / 16; i++) {                                     \
+        for (j = 0; j < ofs; j++) {                                        \
+            Vd->E1(j + ofs * 2 * i) = do_vsrlr_ ##E2(Vj->E2(j + ofs * i),  \
+                                               Vk->E3(j + ofs * i) % BIT); \
+        }                                                                  \
+        Vd->D(2 * i + 1) = 0;                                              \
+    }                                                                      \
 }
 
-VSRLRN(vsrlrn_b_h, 16, uint16_t, B, H)
-VSRLRN(vsrlrn_h_w, 32, uint32_t, H, W)
-VSRLRN(vsrlrn_w_d, 64, uint64_t, W, D)
+VSRLRN(vsrlrn_b_h, 16, B, H, UH)
+VSRLRN(vsrlrn_h_w, 32, H, W, UW)
+VSRLRN(vsrlrn_w_d, 64, W, D, UD)
 
-#define VSRARN(NAME, BIT, T, E1, E2)                                \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)      \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = (VReg *)vd;                                          \
-    VReg *Vj = (VReg *)vj;                                          \
-    VReg *Vk = (VReg *)vk;                                          \
-                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E1(i) = do_vsrar_ ## E2(Vj->E2(i), ((T)Vk->E2(i))%BIT); \
-    }                                                               \
-    Vd->D(1) = 0;                                                   \
+#define VSRARN(NAME, BIT, E1, E2, E3)                                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)              \
+{                                                                           \
+    int i, j, ofs;                                                          \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    VReg *Vk = (VReg *)vk;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    ofs = LSX_LEN / BIT;                                                    \
+    for (i = 0; i < oprsz / 16; i++) {                                      \
+        for (j = 0; j < ofs; j++) {                                         \
+            Vd->E1(j + ofs * 2 * i) = do_vsrar_ ## E2(Vj->E2(j + ofs * i),  \
+                                                Vk->E3(j + ofs * i) % BIT); \
+        }                                                                   \
+        Vd->D(2 * i + 1) = 0;                                               \
+    }                                                                       \
 }
 
-VSRARN(vsrarn_b_h, 16, uint8_t,  B, H)
-VSRARN(vsrarn_h_w, 32, uint16_t, H, W)
-VSRARN(vsrarn_w_d, 64, uint32_t, W, D)
+VSRARN(vsrarn_b_h, 16, B, H, UH)
+VSRARN(vsrarn_h_w, 32, H, W, UW)
+VSRARN(vsrarn_w_d, 64, W, D, UD)
 
-#define VSRLRNI(NAME, BIT, E1, E2)                                 \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
-{                                                                  \
-    int i, max;                                                    \
-    VReg temp;                                                     \
-    VReg *Vd = (VReg *)vd;                                         \
-    VReg *Vj = (VReg *)vj;                                         \
-                                                                   \
-    temp.D(0) = 0;                                                 \
-    temp.D(1) = 0;                                                 \
-    max = LSX_LEN/BIT;                                             \
-    for (i = 0; i < max; i++) {                                    \
-        temp.E1(i) = do_vsrlr_ ## E2(Vj->E2(i), imm);              \
-        temp.E1(i + max) = do_vsrlr_ ## E2(Vd->E2(i), imm);        \
-    }                                                              \
-    *Vd = temp;                                                    \
+#define VSRLRNI(NAME, BIT, E1, E2)                                                \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                \
+{                                                                                 \
+    int i, j, ofs;                                                                \
+    VReg temp = {};                                                               \
+    VReg *Vd = (VReg *)vd;                                                        \
+    VReg *Vj = (VReg *)vj;                                                        \
+    int oprsz = simd_oprsz(desc);                                                 \
+                                                                                  \
+    ofs = LSX_LEN / BIT;                                                          \
+    for (i = 0; i < oprsz / 16; i++) {                                            \
+        for (j = 0; j < ofs; j++) {                                               \
+            temp.E1(j + ofs * 2 * i) = do_vsrlr_ ## E2(Vj->E2(j + ofs * i), imm); \
+            temp.E1(j + ofs * (2 * i + 1)) = do_vsrlr_ ## E2(Vd->E2(j + ofs * i), \
+                                                                 imm);            \
+        }                                                                         \
+    }                                                                             \
+    *Vd = temp;                                                                   \
 }
 
 void HELPER(vsrlrni_d_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    VReg temp;
+    int i;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
-    Int128 r1, r2;
+    Int128 r[4];
+    int oprsz = simd_oprsz(desc);
 
-    if (imm == 0) {
-        temp.D(0) = int128_getlo(Vj->Q(0));
-        temp.D(1) = int128_getlo(Vd->Q(0));
-    } else {
-        r1 = int128_and(int128_urshift(Vj->Q(0), (imm -1)), int128_one());
-        r2 = int128_and(int128_urshift(Vd->Q(0), (imm -1)), int128_one());
-
-       temp.D(0) = int128_getlo(int128_add(int128_urshift(Vj->Q(0), imm), r1));
-       temp.D(1) = int128_getlo(int128_add(int128_urshift(Vd->Q(0), imm), r2));
+    for (i = 0; i < oprsz / 16; i++) {
+        if (imm == 0) {
+            temp.D(2 * i) = int128_getlo(Vj->Q(i));
+            temp.D(2 * i + 1) = int128_getlo(Vd->Q(i));
+        } else {
+            r[2 * i] = int128_and(int128_urshift(Vj->Q(i), (imm - 1)),
+                                  int128_one());
+            r[2 * i + 1] = int128_and(int128_urshift(Vd->Q(i), (imm - 1)),
+                                      int128_one());
+            temp.D(2 * i) = int128_getlo(int128_add(int128_urshift(Vj->Q(i),
+                                                    imm), r[2 * i]));
+            temp.D(2 * i + 1) = int128_getlo(int128_add(int128_urshift(Vd->Q(i),
+                                                        imm), r[ 2 * i + 1]));
+        }
     }
     *Vd = temp;
 }
@@ -1309,40 +1328,49 @@ VSRLRNI(vsrlrni_b_h, 16, B, H)
 VSRLRNI(vsrlrni_h_w, 32, H, W)
 VSRLRNI(vsrlrni_w_d, 64, W, D)
 
-#define VSRARNI(NAME, BIT, E1, E2)                                 \
-void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
-{                                                                  \
-    int i, max;                                                    \
-    VReg temp;                                                     \
-    VReg *Vd = (VReg *)vd;                                         \
-    VReg *Vj = (VReg *)vj;                                         \
-                                                                   \
-    temp.D(0) = 0;                                                 \
-    temp.D(1) = 0;                                                 \
-    max = LSX_LEN/BIT;                                             \
-    for (i = 0; i < max; i++) {                                    \
-        temp.E1(i) = do_vsrar_ ## E2(Vj->E2(i), imm);              \
-        temp.E1(i + max) = do_vsrar_ ## E2(Vd->E2(i), imm);        \
-    }                                                              \
-    *Vd = temp;                                                    \
+#define VSRARNI(NAME, BIT, E1, E2)                                                \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)                \
+{                                                                                 \
+    int i, j, ofs;                                                                \
+    VReg temp = {};                                                               \
+    VReg *Vd = (VReg *)vd;                                                        \
+    VReg *Vj = (VReg *)vj;                                                        \
+    int oprsz = simd_oprsz(desc);                                                 \
+                                                                                  \
+    ofs = LSX_LEN / BIT;                                                          \
+    for (i = 0; i < oprsz / 16; i++) {                                            \
+        for (j = 0; j < ofs; j++) {                                               \
+            temp.E1(j + ofs * 2 * i) = do_vsrar_ ## E2(Vj->E2(j + ofs * i), imm); \
+            temp.E1(j + ofs * (2 * i + 1)) = do_vsrar_ ## E2(Vd->E2(j + ofs * i), \
+                                                             imm);                \
+        }                                                                         \
+    }                                                                             \
+    *Vd = temp;                                                                   \
 }
 
 void HELPER(vsrarni_d_q)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
-    VReg temp;
+    int i;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
-    Int128 r1, r2;
+    Int128 r[4];
+    int oprsz = simd_oprsz(desc);
 
-    if (imm == 0) {
-        temp.D(0) = int128_getlo(Vj->Q(0));
-        temp.D(1) = int128_getlo(Vd->Q(0));
-    } else {
-        r1 = int128_and(int128_rshift(Vj->Q(0), (imm -1)), int128_one());
-        r2 = int128_and(int128_rshift(Vd->Q(0), (imm -1)), int128_one());
-
-       temp.D(0) = int128_getlo(int128_add(int128_rshift(Vj->Q(0), imm), r1));
-       temp.D(1) = int128_getlo(int128_add(int128_rshift(Vd->Q(0), imm), r2));
+    for (i = 0; i < oprsz / 16; i++) {
+        if (imm == 0) {
+            temp.D(2 * i) = int128_getlo(Vj->Q(i));
+            temp.D(2 * i + 1) = int128_getlo(Vd->Q(i));
+        } else {
+            r[2 * i] = int128_and(int128_rshift(Vj->Q(i), (imm - 1)),
+                                  int128_one());
+            r[2 * i + 1] = int128_and(int128_rshift(Vd->Q(i), (imm - 1)),
+                                      int128_one());
+            temp.D(2 * i) = int128_getlo(int128_add(int128_rshift(Vj->Q(i),
+                                                    imm), r[2 * i]));
+            temp.D(2 * i + 1) = int128_getlo(int128_add(int128_rshift(Vd->Q(i),
+                                                        imm), r[2 * i + 1]));
+        }
     }
     *Vd = temp;
 }
