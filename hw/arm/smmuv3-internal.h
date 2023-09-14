@@ -38,33 +38,71 @@ REG32(IDR0,                0x0)
     FIELD(IDR0, S1P,         1 , 1)
     FIELD(IDR0, TTF,         2 , 2)
     FIELD(IDR0, COHACC,      4 , 1)
+    FIELD(IDR0, BTM,         5 , 1)
+    FIELD(IDR0, HTTU,        6 , 2)
+    FIELD(IDR0, DORMHINT,    8 , 1)
+    FIELD(IDR0, HYP,         9 , 1)
+    FIELD(IDR0, ATS,         10, 1)
+    FIELD(IDR0, NS1ATS,      11, 1)
     FIELD(IDR0, ASID16,      12, 1)
+    FIELD(IDR0, MSI,         13, 1)
+    FIELD(IDR0, SEV,         14, 1)
+    FIELD(IDR0, ATOS,        15, 1)
+    FIELD(IDR0, PRI,         16, 1)
+    FIELD(IDR0, VMW,         17, 1)
     FIELD(IDR0, VMID16,      18, 1)
+    FIELD(IDR0, CD2L,        19, 1)
+    FIELD(IDR0, VATOS,       20, 1)
     FIELD(IDR0, TTENDIAN,    21, 2)
+    FIELD(IDR0, ATSRECERR,   23, 1)
     FIELD(IDR0, STALL_MODEL, 24, 2)
     FIELD(IDR0, TERM_MODEL,  26, 1)
     FIELD(IDR0, STLEVEL,     27, 2)
+    FIELD(IDR0, RME_IMPL,    30, 1)
 
 REG32(IDR1,                0x4)
     FIELD(IDR1, SIDSIZE,      0 , 6)
+    FIELD(IDR1, SSIDSIZE,     6 , 5)
+    FIELD(IDR1, PRIQS,        11, 5)
     FIELD(IDR1, EVENTQS,      16, 5)
     FIELD(IDR1, CMDQS,        21, 5)
+    FIELD(IDR1, ATTR_PERMS_OVR, 26, 1)
+    FIELD(IDR1, ATTR_TYPES_OVR, 27, 1)
+    FIELD(IDR1, REL,          28, 1)
+    FIELD(IDR1, QUEUES_PRESET, 29, 1)
+    FIELD(IDR1, TABLES_PRESET, 30, 1)
+    FIELD(IDR1, ECMDQ,        31, 1)
 
 #define SMMU_IDR1_SIDSIZE 16
 #define SMMU_CMDQS   19
 #define SMMU_EVENTQS 19
 
 REG32(IDR2,                0x8)
+     FIELD(IDR2, BA_VATOS, 0, 10)
+
 REG32(IDR3,                0xc)
      FIELD(IDR3, HAD,         2, 1);
+     FIELD(IDR3, PBHA,        3, 1);
+     FIELD(IDR3, XNX,         4, 1);
+     FIELD(IDR3, PPS,         5, 1);
+     FIELD(IDR3, MPAM,        7, 1);
+     FIELD(IDR3, FWB,         8, 1);
+     FIELD(IDR3, STT,         9, 1);
      FIELD(IDR3, RIL,        10, 1);
      FIELD(IDR3, BBML,       11, 2);
+     FIELD(IDR3, E0PD,       13, 1);
+     FIELD(IDR3, PTWNNC,     14, 1);
+     FIELD(IDR3, DPT,        15, 1);
+
 REG32(IDR4,                0x10)
+
 REG32(IDR5,                0x14)
      FIELD(IDR5, OAS,         0, 3);
      FIELD(IDR5, GRAN4K,      4, 1);
      FIELD(IDR5, GRAN16K,     5, 1);
      FIELD(IDR5, GRAN64K,     6, 1);
+     FIELD(IDR5, VAX,        10, 2);
+     FIELD(IDR5, STALL_MAX,  16, 16);
 
 #define SMMU_IDR5_OAS 4
 
