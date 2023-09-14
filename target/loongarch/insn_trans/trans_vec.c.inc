@@ -2591,6 +2591,10 @@ TRANS(vmadd_b, LSX, gvec_vvv, MO_8, do_vmadd)
 TRANS(vmadd_h, LSX, gvec_vvv, MO_16, do_vmadd)
 TRANS(vmadd_w, LSX, gvec_vvv, MO_32, do_vmadd)
 TRANS(vmadd_d, LSX, gvec_vvv, MO_64, do_vmadd)
+TRANS(xvmadd_b, LASX, gvec_xxx, MO_8, do_vmadd)
+TRANS(xvmadd_h, LASX, gvec_xxx, MO_16, do_vmadd)
+TRANS(xvmadd_w, LASX, gvec_xxx, MO_32, do_vmadd)
+TRANS(xvmadd_d, LASX, gvec_xxx, MO_64, do_vmadd)
 
 static void gen_vmsub(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2665,6 +2669,10 @@ TRANS(vmsub_b, LSX, gvec_vvv, MO_8, do_vmsub)
 TRANS(vmsub_h, LSX, gvec_vvv, MO_16, do_vmsub)
 TRANS(vmsub_w, LSX, gvec_vvv, MO_32, do_vmsub)
 TRANS(vmsub_d, LSX, gvec_vvv, MO_64, do_vmsub)
+TRANS(xvmsub_b, LASX, gvec_xxx, MO_8, do_vmsub)
+TRANS(xvmsub_h, LASX, gvec_xxx, MO_16, do_vmsub)
+TRANS(xvmsub_w, LASX, gvec_xxx, MO_32, do_vmsub)
+TRANS(xvmsub_d, LASX, gvec_xxx, MO_64, do_vmsub)
 
 static void gen_vmaddwev_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2739,43 +2747,69 @@ static void do_vmaddwev_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwev_h_b, LSX, gvec_vvv, MO_8, do_vmaddwev_s)
 TRANS(vmaddwev_w_h, LSX, gvec_vvv, MO_16, do_vmaddwev_s)
 TRANS(vmaddwev_d_w, LSX, gvec_vvv, MO_32, do_vmaddwev_s)
+TRANS(xvmaddwev_h_b, LASX, gvec_xxx, MO_8, do_vmaddwev_s)
+TRANS(xvmaddwev_w_h, LASX, gvec_xxx, MO_16, do_vmaddwev_s)
+TRANS(xvmaddwev_d_w, LASX, gvec_xxx, MO_32, do_vmaddwev_s)
 
-#define VMADD_Q(NAME, FN, idx1, idx2)                     \
-static bool trans_## NAME (DisasContext *ctx, arg_vvv *a) \
-{                                                         \
-    TCGv_i64 rh, rl, arg1, arg2, th, tl;                  \
-                                                          \
-    if (!avail_LSX(ctx)) {                                \
-        return false;                                     \
-    }                                                     \
-                                                          \
-    rh = tcg_temp_new_i64();                              \
-    rl = tcg_temp_new_i64();                              \
-    arg1 = tcg_temp_new_i64();                            \
-    arg2 = tcg_temp_new_i64();                            \
-    th = tcg_temp_new_i64();                              \
-    tl = tcg_temp_new_i64();                              \
-                                                          \
-    get_vreg64(arg1, a->vj, idx1);                        \
-    get_vreg64(arg2, a->vk, idx2);                        \
-    get_vreg64(rh, a->vd, 1);                             \
-    get_vreg64(rl, a->vd, 0);                             \
-                                                          \
-    tcg_gen_## FN ##_i64(tl, th, arg1, arg2);             \
-    tcg_gen_add2_i64(rl, rh, rl, rh, tl, th);             \
-                                                          \
-    set_vreg64(rh, a->vd, 1);                             \
-    set_vreg64(rl, a->vd, 0);                             \
-                                                          \
-    return true;                                          \
+static bool gen_vmadd_q_vl(DisasContext * ctx,
+                           arg_vvv *a, uint32_t oprsz, int idx1, int idx2,
+                           void (*func)(TCGv_i64, TCGv_i64,
+                                        TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 rh, rl, arg1, arg2, th, tl;
+    int i;
+
+    if (!check_vec(ctx, oprsz)) {
+        return true;
+    }
+
+    rh = tcg_temp_new_i64();
+    rl = tcg_temp_new_i64();
+    arg1 = tcg_temp_new_i64();
+    arg2 = tcg_temp_new_i64();
+    th = tcg_temp_new_i64();
+    tl = tcg_temp_new_i64();
+
+    for (i = 0; i < oprsz / 16; i++) {
+        get_vreg64(arg1, a->vj, 2 * i + idx1);
+        get_vreg64(arg2, a->vk, 2 * i + idx2);
+        get_vreg64(rh, a->vd, 2 * i + 1);
+        get_vreg64(rl, a->vd, 2 * i);
+
+        func(tl, th, arg1, arg2);
+        tcg_gen_add2_i64(rl, rh, rl, rh, tl, th);
+
+        set_vreg64(rh, a->vd, 2 * i + 1);
+        set_vreg64(rl, a->vd, 2 * i);
+    }
+
+    return true;
 }
 
-VMADD_Q(vmaddwev_q_d, muls2, 0, 0)
-VMADD_Q(vmaddwod_q_d, muls2, 1, 1)
-VMADD_Q(vmaddwev_q_du, mulu2, 0, 0)
-VMADD_Q(vmaddwod_q_du, mulu2, 1, 1)
-VMADD_Q(vmaddwev_q_du_d, mulus2, 0, 0)
-VMADD_Q(vmaddwod_q_du_d, mulus2, 1, 1)
+static bool gen_vmadd_q(DisasContext *ctx, arg_vvv *a, int idx1, int idx2,
+                        void (*func)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    return gen_vmadd_q_vl(ctx, a, 16, idx1, idx2, func);
+}
+
+static bool gen_xvmadd_q(DisasContext *ctx, arg_vvv *a, int idx1, int idx2,
+                         void (*func)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    return gen_vmadd_q_vl(ctx, a, 32, idx1, idx2, func);
+}
+
+TRANS(vmaddwev_q_d, LSX, gen_vmadd_q, 0, 0, tcg_gen_muls2_i64)
+TRANS(vmaddwod_q_d, LSX, gen_vmadd_q, 1, 1, tcg_gen_muls2_i64)
+TRANS(vmaddwev_q_du, LSX, gen_vmadd_q, 0, 0, tcg_gen_mulu2_i64)
+TRANS(vmaddwod_q_du, LSX, gen_vmadd_q, 1, 1, tcg_gen_mulu2_i64)
+TRANS(vmaddwev_q_du_d, LSX, gen_vmadd_q, 0, 0, tcg_gen_mulus2_i64)
+TRANS(vmaddwod_q_du_d, LSX, gen_vmadd_q, 1, 1, tcg_gen_mulus2_i64)
+TRANS(xvmaddwev_q_d, LASX, gen_xvmadd_q, 0, 0, tcg_gen_muls2_i64)
+TRANS(xvmaddwod_q_d, LASX, gen_xvmadd_q, 1, 1, tcg_gen_muls2_i64)
+TRANS(xvmaddwev_q_du, LASX, gen_xvmadd_q, 0, 0, tcg_gen_mulu2_i64)
+TRANS(xvmaddwod_q_du, LASX, gen_xvmadd_q, 1, 1, tcg_gen_mulu2_i64)
+TRANS(xvmaddwev_q_du_d, LASX, gen_xvmadd_q, 0, 0, tcg_gen_mulus2_i64)
+TRANS(xvmaddwod_q_du_d, LASX, gen_xvmadd_q, 1, 1, tcg_gen_mulus2_i64)
 
 static void gen_vmaddwod_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2847,6 +2881,9 @@ static void do_vmaddwod_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwod_h_b, LSX, gvec_vvv, MO_8, do_vmaddwod_s)
 TRANS(vmaddwod_w_h, LSX, gvec_vvv, MO_16, do_vmaddwod_s)
 TRANS(vmaddwod_d_w, LSX, gvec_vvv, MO_32, do_vmaddwod_s)
+TRANS(xvmaddwod_h_b, LASX, gvec_xxx, MO_8, do_vmaddwod_s)
+TRANS(xvmaddwod_w_h, LASX, gvec_xxx, MO_16, do_vmaddwod_s)
+TRANS(xvmaddwod_d_w, LASX, gvec_xxx, MO_32, do_vmaddwod_s)
 
 static void gen_vmaddwev_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2917,6 +2954,9 @@ static void do_vmaddwev_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwev_h_bu, LSX, gvec_vvv, MO_8, do_vmaddwev_u)
 TRANS(vmaddwev_w_hu, LSX, gvec_vvv, MO_16, do_vmaddwev_u)
 TRANS(vmaddwev_d_wu, LSX, gvec_vvv, MO_32, do_vmaddwev_u)
+TRANS(xvmaddwev_h_bu, LASX, gvec_xxx, MO_8, do_vmaddwev_u)
+TRANS(xvmaddwev_w_hu, LASX, gvec_xxx, MO_16, do_vmaddwev_u)
+TRANS(xvmaddwev_d_wu, LASX, gvec_xxx, MO_32, do_vmaddwev_u)
 
 static void gen_vmaddwod_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2988,6 +3028,9 @@ static void do_vmaddwod_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwod_h_bu, LSX, gvec_vvv, MO_8, do_vmaddwod_u)
 TRANS(vmaddwod_w_hu, LSX, gvec_vvv, MO_16, do_vmaddwod_u)
 TRANS(vmaddwod_d_wu, LSX, gvec_vvv, MO_32, do_vmaddwod_u)
+TRANS(xvmaddwod_h_bu, LASX, gvec_xxx, MO_8, do_vmaddwod_u)
+TRANS(xvmaddwod_w_hu, LASX, gvec_xxx, MO_16, do_vmaddwod_u)
+TRANS(xvmaddwod_d_wu, LASX, gvec_xxx, MO_32, do_vmaddwod_u)
 
 static void gen_vmaddwev_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -3061,6 +3104,9 @@ static void do_vmaddwev_u_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwev_h_bu_b, LSX, gvec_vvv, MO_8, do_vmaddwev_u_s)
 TRANS(vmaddwev_w_hu_h, LSX, gvec_vvv, MO_16, do_vmaddwev_u_s)
 TRANS(vmaddwev_d_wu_w, LSX, gvec_vvv, MO_32, do_vmaddwev_u_s)
+TRANS(xvmaddwev_h_bu_b, LASX, gvec_xxx, MO_8, do_vmaddwev_u_s)
+TRANS(xvmaddwev_w_hu_h, LASX, gvec_xxx, MO_16, do_vmaddwev_u_s)
+TRANS(xvmaddwev_d_wu_w, LASX, gvec_xxx, MO_32, do_vmaddwev_u_s)
 
 static void gen_vmaddwod_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -3133,6 +3179,9 @@ static void do_vmaddwod_u_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
 TRANS(vmaddwod_h_bu_b, LSX, gvec_vvv, MO_8, do_vmaddwod_u_s)
 TRANS(vmaddwod_w_hu_h, LSX, gvec_vvv, MO_16, do_vmaddwod_u_s)
 TRANS(vmaddwod_d_wu_w, LSX, gvec_vvv, MO_32, do_vmaddwod_u_s)
+TRANS(xvmaddwod_h_bu_b, LASX, gvec_xxx, MO_8, do_vmaddwod_u_s)
+TRANS(xvmaddwod_w_hu_h, LASX, gvec_xxx, MO_16, do_vmaddwod_u_s)
+TRANS(xvmaddwod_d_wu_w, LASX, gvec_xxx, MO_32, do_vmaddwod_u_s)
 
 TRANS(vdiv_b, LSX, gen_vvv, gen_helper_vdiv_b)
 TRANS(vdiv_h, LSX, gen_vvv, gen_helper_vdiv_h)
