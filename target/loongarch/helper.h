@@ -682,7 +682,7 @@ DEF_HELPER_4(vilvh_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vilvh_w, void, env, i32, i32, i32)
 DEF_HELPER_4(vilvh_d, void, env, i32, i32, i32)
 
-DEF_HELPER_5(vshuf_b, void, env, i32, i32, i32, i32)
+DEF_HELPER_FLAGS_5(vshuf_b, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, ptr, i32)
 DEF_HELPER_4(vshuf_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vshuf_w, void, env, i32, i32, i32)
 DEF_HELPER_4(vshuf_d, void, env, i32, i32, i32)
