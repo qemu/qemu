@@ -15,9 +15,6 @@
 #include "vec.h"
 #include "tcg/tcg-gvec-desc.h"
 
-#define DO_ADD(a, b)  (a + b)
-#define DO_SUB(a, b)  (a - b)
-
 #define DO_ODD_EVEN(NAME, BIT, E1, E2, DO_OP)                        \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)       \
 {                                                                    \
@@ -347,9 +344,6 @@ DO_ODD_U_S(vaddwod_h_bu_b, 16, H, UH, B, UB, DO_ADD)
 DO_ODD_U_S(vaddwod_w_hu_h, 32, W, UW, H, UH, DO_ADD)
 DO_ODD_U_S(vaddwod_d_wu_w, 64, D, UD, W, UW, DO_ADD)
 
-#define DO_VAVG(a, b)  ((a >> 1) + (b >> 1) + (a & b & 1))
-#define DO_VAVGR(a, b) ((a >> 1) + (b >> 1) + ((a | b) & 1))
-
 #define DO_3OP(NAME, BIT, E, DO_OP)                            \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 {                                                              \
@@ -381,8 +375,6 @@ DO_3OP(vavgr_hu, 16, UH, DO_VAVGR)
 DO_3OP(vavgr_wu, 32, UW, DO_VAVGR)
 DO_3OP(vavgr_du, 64, UD, DO_VAVGR)
 
-#define DO_VABSD(a, b)  ((a > b) ? (a -b) : (b-a))
-
 DO_3OP(vabsd_b, 8, B, DO_VABSD)
 DO_3OP(vabsd_h, 16, H, DO_VABSD)
 DO_3OP(vabsd_w, 32, W, DO_VABSD)
@@ -391,8 +383,6 @@ DO_3OP(vabsd_bu, 8, UB, DO_VABSD)
 DO_3OP(vabsd_hu, 16, UH, DO_VABSD)
 DO_3OP(vabsd_wu, 32, UW, DO_VABSD)
 DO_3OP(vabsd_du, 64, UD, DO_VABSD)
-
-#define DO_VABS(a)  ((a < 0) ? (-a) : (a))
 
 #define DO_VADDA(NAME, BIT, E)                                 \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
@@ -412,9 +402,6 @@ DO_VADDA(vadda_b, 8, B)
 DO_VADDA(vadda_h, 16, H)
 DO_VADDA(vadda_w, 32, W)
 DO_VADDA(vadda_d, 64, D)
-
-#define DO_MIN(a, b) (a < b ? a : b)
-#define DO_MAX(a, b) (a > b ? a : b)
 
 #define VMINMAXI(NAME, BIT, E, DO_OP)                              \
 void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
@@ -500,8 +487,6 @@ DO_VMUH(vmuh_bu, 8, UH, UB, DO_MUH)
 DO_VMUH(vmuh_hu, 16, UW, UH, DO_MUH)
 DO_VMUH(vmuh_wu, 32, UD, UW, DO_MUH)
 
-#define DO_MUL(a, b) (a * b)
-
 DO_EVEN(vmulwev_h_b, 16, H, B, DO_MUL)
 DO_EVEN(vmulwev_w_h, 32, W, H, DO_MUL)
 DO_EVEN(vmulwev_d_w, 64, D, W, DO_MUL)
@@ -525,9 +510,6 @@ DO_EVEN_U_S(vmulwev_d_wu_w, 64, D, UD, W, UW, DO_MUL)
 DO_ODD_U_S(vmulwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
 DO_ODD_U_S(vmulwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
 DO_ODD_U_S(vmulwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
-
-#define DO_MADD(a, b, c)  (a + b * c)
-#define DO_MSUB(a, b, c)  (a - b * c)
 
 #define VMADDSUB(NAME, BIT, E, DO_OP)                          \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
@@ -638,13 +620,6 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 VMADDWOD_U_S(vmaddwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
 VMADDWOD_U_S(vmaddwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
 VMADDWOD_U_S(vmaddwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
-
-#define DO_DIVU(N, M) (unlikely(M == 0) ? 0 : N / M)
-#define DO_REMU(N, M) (unlikely(M == 0) ? 0 : N % M)
-#define DO_DIV(N, M)  (unlikely(M == 0) ? 0 :\
-        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? N : N / M)
-#define DO_REM(N, M)  (unlikely(M == 0) ? 0 :\
-        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? 0 : N % M)
 
 #define VDIV(NAME, BIT, E, DO_OP)                              \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
@@ -790,8 +765,6 @@ VEXT2XV(vext2xv_du_bu, 64, UD, UB)
 VEXT2XV(vext2xv_wu_hu, 32, UW, UH)
 VEXT2XV(vext2xv_du_hu, 64, UD, UH)
 VEXT2XV(vext2xv_du_wu, 64, UD, UW)
-
-#define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
 
 DO_3OP(vsigncov_b, 8, B, DO_SIGNCOV)
 DO_3OP(vsigncov_h, 16, H, DO_SIGNCOV)
@@ -1106,8 +1079,6 @@ VSRARI(vsrari_b, 8, B)
 VSRARI(vsrari_h, 16, H)
 VSRARI(vsrari_w, 32, W)
 VSRARI(vsrari_d, 64, D)
-
-#define R_SHIFT(a, b) (a >> b)
 
 #define VSRLN(NAME, BIT, E1, E2)                                          \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
@@ -2272,15 +2243,6 @@ void HELPER(NAME)(void *vd, void *vj, uint32_t desc) \
     }                                                \
 }
 
-#define DO_CLO_B(N)  (clz32(~N & 0xff) - 24)
-#define DO_CLO_H(N)  (clz32(~N & 0xffff) - 16)
-#define DO_CLO_W(N)  (clz32(~N))
-#define DO_CLO_D(N)  (clz64(~N))
-#define DO_CLZ_B(N)  (clz32(N) - 24)
-#define DO_CLZ_H(N)  (clz32(N) - 16)
-#define DO_CLZ_W(N)  (clz32(N))
-#define DO_CLZ_D(N)  (clz64(N))
-
 DO_2OP(vclo_b, 8, UB, DO_CLO_B)
 DO_2OP(vclo_h, 16, UH, DO_CLO_H)
 DO_2OP(vclo_w, 32, UW, DO_CLO_W)
@@ -2308,10 +2270,6 @@ VPCNT(vpcnt_b, 8, UB, ctpop8)
 VPCNT(vpcnt_h, 16, UH, ctpop16)
 VPCNT(vpcnt_w, 32, UW, ctpop32)
 VPCNT(vpcnt_d, 64, UD, ctpop64)
-
-#define DO_BITCLR(a, bit) (a & ~(1ull << bit))
-#define DO_BITSET(a, bit) (a | 1ull << bit)
-#define DO_BITREV(a, bit) (a ^ (1ull << bit))
 
 #define DO_BIT(NAME, BIT, E, DO_OP)                            \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
@@ -3053,10 +3011,6 @@ void HELPER(vffint_s_l)(void *vd, void *vj, void *vk,
     *Vd = temp;
 }
 
-#define VSEQ(a, b) (a == b ? -1 : 0)
-#define VSLE(a, b) (a <= b ? -1 : 0)
-#define VSLT(a, b) (a < b ? -1 : 0)
-
 #define VCMPI(NAME, BIT, E, DO_OP)                                 \
 void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
 {                                                                  \
@@ -3380,8 +3334,6 @@ VILVH(vilvh_b, 16, B)
 VILVH(vilvh_h, 32, H)
 VILVH(vilvh_w, 64, W)
 VILVH(vilvh_d, 128, D)
-
-#define SHF_POS(i, imm) (((i) & 0xfc) + (((imm) >> (2 * ((i) & 0x03))) & 0x03))
 
 void HELPER(vshuf_b)(void *vd, void *vj, void *vk, void *va, uint32_t desc)
 {
