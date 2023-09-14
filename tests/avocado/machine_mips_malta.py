@@ -11,6 +11,7 @@ import os
 import gzip
 import logging
 
+from avocado import skip
 from avocado import skipIf
 from avocado import skipUnless
 from avocado.utils import archive
@@ -93,6 +94,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
             cv2.imwrite(debug_png, screendump_bgr)
         self.assertGreaterEqual(tuxlogo_count, cpu_cores_count)
 
+    @skip('https://gitlab.com/qemu-project/qemu/-/issues/1884')
     def test_mips_malta_i6400_framebuffer_logo_1core(self):
         """
         :avocado: tags=arch:mips64el
@@ -101,6 +103,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         """
         self.do_test_i6400_framebuffer_logo(1)
 
+    @skip('https://gitlab.com/qemu-project/qemu/-/issues/1884')
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_mips_malta_i6400_framebuffer_logo_7cores(self):
         """
@@ -111,6 +114,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         """
         self.do_test_i6400_framebuffer_logo(7)
 
+    @skip('https://gitlab.com/qemu-project/qemu/-/issues/1884')
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_mips_malta_i6400_framebuffer_logo_8cores(self):
         """
@@ -142,6 +146,7 @@ class MaltaMachine(QemuSystemTest):
         wait_for_console_pattern(self, prompt)
         self.vm.shutdown()
 
+    @skip('https://gitlab.com/qemu-project/qemu/-/issues/1884')
     def test_mipsel_malta_yamon(self):
         """
         :avocado: tags=arch:mipsel
@@ -150,6 +155,7 @@ class MaltaMachine(QemuSystemTest):
         """
         self.do_test_yamon()
 
+    @skip('https://gitlab.com/qemu-project/qemu/-/issues/1884')
     def test_mips64el_malta_yamon(self):
         """
         :avocado: tags=arch:mips64el
