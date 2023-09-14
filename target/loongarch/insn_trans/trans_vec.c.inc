@@ -3347,6 +3347,19 @@ TRANS(xvexth_wu_hu, LASX, gen_xx, gen_helper_vexth_wu_hu)
 TRANS(xvexth_du_wu, LASX, gen_xx, gen_helper_vexth_du_wu)
 TRANS(xvexth_qu_du, LASX, gen_xx, gen_helper_vexth_qu_du)
 
+TRANS(vext2xv_h_b, LASX, gen_xx, gen_helper_vext2xv_h_b)
+TRANS(vext2xv_w_b, LASX, gen_xx, gen_helper_vext2xv_w_b)
+TRANS(vext2xv_d_b, LASX, gen_xx, gen_helper_vext2xv_d_b)
+TRANS(vext2xv_w_h, LASX, gen_xx, gen_helper_vext2xv_w_h)
+TRANS(vext2xv_d_h, LASX, gen_xx, gen_helper_vext2xv_d_h)
+TRANS(vext2xv_d_w, LASX, gen_xx, gen_helper_vext2xv_d_w)
+TRANS(vext2xv_hu_bu, LASX, gen_xx, gen_helper_vext2xv_hu_bu)
+TRANS(vext2xv_wu_bu, LASX, gen_xx, gen_helper_vext2xv_wu_bu)
+TRANS(vext2xv_du_bu, LASX, gen_xx, gen_helper_vext2xv_du_bu)
+TRANS(vext2xv_wu_hu, LASX, gen_xx, gen_helper_vext2xv_wu_hu)
+TRANS(vext2xv_du_hu, LASX, gen_xx, gen_helper_vext2xv_du_hu)
+TRANS(vext2xv_du_wu, LASX, gen_xx, gen_helper_vext2xv_du_wu)
+
 static void gen_vsigncov(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
     TCGv_vec t1, zero;
