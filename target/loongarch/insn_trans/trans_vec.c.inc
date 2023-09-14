@@ -202,18 +202,31 @@ static bool gen_xx_i(DisasContext *ctx, arg_vv_i *a, gen_helper_gvec_2i *fn)
     return gen_vv_i_vl(ctx, a, 32, fn);
 }
 
-static bool gen_cv(DisasContext *ctx, arg_cv *a,
-                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+static bool gen_cv_vl(DisasContext *ctx, arg_cv *a, uint32_t sz,
+                      void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
 {
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-    TCGv_i32 cd = tcg_constant_i32(a->cd);
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, sz)) {
         return true;
     }
 
-    func(cpu_env, cd, vj);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 cd = tcg_constant_i32(a->cd);
+    TCGv_i32 oprsz = tcg_constant_i32(sz);
+
+    func(cpu_env, oprsz, cd, vj);
     return true;
+}
+
+static bool gen_cv(DisasContext *ctx, arg_cv *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    return gen_cv_vl(ctx, a, 16, func);
+}
+
+static bool gen_cx(DisasContext *ctx, arg_cv *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    return gen_cv_vl(ctx, a, 32, func);
 }
 
 static bool gvec_vvv_vl(DisasContext *ctx, arg_vvv *a,
@@ -4690,28 +4703,27 @@ TRANS(vfcmp_cond_d, LSX, do_vfcmp_cond_d, 16)
 TRANS(xvfcmp_cond_s, LASX, do_vfcmp_cond_s, 32)
 TRANS(xvfcmp_cond_d, LASX, do_vfcmp_cond_d, 32)
 
-static bool trans_vbitsel_v(DisasContext *ctx, arg_vvvv *a)
+static bool do_vbitsel_v(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz)
 {
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
     tcg_gen_gvec_bitsel(MO_64, vec_full_offset(a->vd), vec_full_offset(a->va),
                         vec_full_offset(a->vk), vec_full_offset(a->vj),
-                        16, ctx->vl/8);
+                        oprsz, ctx->vl / 8);
     return true;
 }
+
+TRANS(vbitsel_v, LSX, do_vbitsel_v, 16)
+TRANS(xvbitsel_v, LASX, do_vbitsel_v, 32)
 
 static void gen_vbitseli(unsigned vece, TCGv_vec a, TCGv_vec b, int64_t imm)
 {
     tcg_gen_bitsel_vec(vece, a, a, tcg_constant_vec_matching(a, vece, imm), b);
 }
 
-static bool trans_vbitseli_b(DisasContext *ctx, arg_vv_i *a)
+static bool do_vbitseli_b(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz)
 {
     static const GVecGen2i op = {
        .fniv = gen_vbitseli,
@@ -4720,18 +4732,17 @@ static bool trans_vbitseli_b(DisasContext *ctx, arg_vv_i *a)
        .load_dest = true
     };
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
     tcg_gen_gvec_2i(vec_full_offset(a->vd), vec_full_offset(a->vj),
-                    16, ctx->vl/8, a->imm, &op);
+                    oprsz, ctx->vl / 8, a->imm , &op);
     return true;
 }
+
+TRANS(vbitseli_b, LSX, do_vbitseli_b, 16)
+TRANS(xvbitseli_b, LASX, do_vbitseli_b, 32)
 
 #define VSET(NAME, COND)                                                       \
 static bool trans_## NAME (DisasContext *ctx, arg_cv *a)                       \
@@ -4771,6 +4782,52 @@ TRANS(vsetallnez_b, LSX, gen_cv, gen_helper_vsetallnez_b)
 TRANS(vsetallnez_h, LSX, gen_cv, gen_helper_vsetallnez_h)
 TRANS(vsetallnez_w, LSX, gen_cv, gen_helper_vsetallnez_w)
 TRANS(vsetallnez_d, LSX, gen_cv, gen_helper_vsetallnez_d)
+
+#define XVSET(NAME, COND)                                                      \
+static bool trans_## NAME(DisasContext *ctx, arg_cv * a)                       \
+{                                                                              \
+    TCGv_i64 t1, t2, d[4];                                                     \
+                                                                               \
+    d[0] = tcg_temp_new_i64();                                                 \
+    d[1] = tcg_temp_new_i64();                                                 \
+    d[2] = tcg_temp_new_i64();                                                 \
+    d[3] = tcg_temp_new_i64();                                                 \
+    t1 = tcg_temp_new_i64();                                                   \
+    t2 = tcg_temp_new_i64();                                                   \
+                                                                               \
+    get_vreg64(d[0], a->vj, 0);                                                \
+    get_vreg64(d[1], a->vj, 1);                                                \
+    get_vreg64(d[2], a->vj, 2);                                                \
+    get_vreg64(d[3], a->vj, 3);                                                \
+                                                                               \
+    if (!avail_LASX(ctx)) {                                                    \
+        return false;                                                          \
+    }                                                                          \
+                                                                               \
+    if (!check_vec(ctx, 32)) {                                                 \
+        return true;                                                           \
+    }                                                                          \
+                                                                               \
+    tcg_gen_or_i64(t1, d[0], d[1]);                                            \
+    tcg_gen_or_i64(t2, d[2], d[3]);                                            \
+    tcg_gen_or_i64(t1, t2, t1);                                                \
+    tcg_gen_setcondi_i64(COND, t1, t1, 0);                                     \
+    tcg_gen_st8_tl(t1, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
+                                                                               \
+    return true;                                                               \
+}
+
+XVSET(xvseteqz_v, TCG_COND_EQ)
+XVSET(xvsetnez_v, TCG_COND_NE)
+
+TRANS(xvsetanyeqz_b, LASX, gen_cx, gen_helper_vsetanyeqz_b)
+TRANS(xvsetanyeqz_h, LASX, gen_cx, gen_helper_vsetanyeqz_h)
+TRANS(xvsetanyeqz_w, LASX, gen_cx, gen_helper_vsetanyeqz_w)
+TRANS(xvsetanyeqz_d, LASX, gen_cx, gen_helper_vsetanyeqz_d)
+TRANS(xvsetallnez_b, LASX, gen_cx, gen_helper_vsetallnez_b)
+TRANS(xvsetallnez_h, LASX, gen_cx, gen_helper_vsetallnez_h)
+TRANS(xvsetallnez_w, LASX, gen_cx, gen_helper_vsetallnez_w)
+TRANS(xvsetallnez_d, LASX, gen_cx, gen_helper_vsetallnez_d)
 
 static bool trans_vinsgr2vr_b(DisasContext *ctx, arg_vr_i *a)
 {

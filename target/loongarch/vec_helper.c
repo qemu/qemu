@@ -3146,13 +3146,13 @@ VFCMP(vfcmp_s_s, 32, UW, float32_compare)
 VFCMP(vfcmp_c_d, 64, UD, float64_compare_quiet)
 VFCMP(vfcmp_s_d, 64, UD, float64_compare)
 
-void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t v)
+void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t desc)
 {
     int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < simd_oprsz(desc); i++) {
         Vd->B(i) = (~Vd->B(i) & Vj->B(i)) | (Vd->B(i) & imm);
     }
 }
@@ -3160,7 +3160,7 @@ void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t v)
 /* Copy from target/arm/tcg/sve_helper.c */
 static inline bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz)
 {
-    uint64_t bits = 8 << esz;
+    int bits = 8 << esz;
     uint64_t ones = dup_const(esz, 1);
     uint64_t signs = ones << (bits - 1);
     uint64_t cmp0, cmp1;
@@ -3173,25 +3173,37 @@ static inline bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz)
     return (cmp0 | cmp1) & signs;
 }
 
-#define SETANYEQZ(NAME, MO)                                         \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
-{                                                                   \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    env->cf[cd & 0x7] = do_match2(0, Vj->D(0), Vj->D(1), MO);       \
+#define SETANYEQZ(NAME, MO)                                       \
+void HELPER(NAME)(CPULoongArchState *env,                         \
+                  uint32_t oprsz, uint32_t cd, uint32_t vj)       \
+{                                                                 \
+    VReg *Vj = &(env->fpr[vj].vreg);                              \
+                                                                  \
+    env->cf[cd & 0x7] = do_match2(0, Vj->D(0), Vj->D(1), MO);     \
+    if (oprsz == 32) {                                            \
+        env->cf[cd & 0x7] = env->cf[cd & 0x7] ||                  \
+                            do_match2(0, Vj->D(2), Vj->D(3), MO); \
+    }                                                             \
 }
+
 SETANYEQZ(vsetanyeqz_b, MO_8)
 SETANYEQZ(vsetanyeqz_h, MO_16)
 SETANYEQZ(vsetanyeqz_w, MO_32)
 SETANYEQZ(vsetanyeqz_d, MO_64)
 
-#define SETALLNEZ(NAME, MO)                                         \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
-{                                                                   \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    env->cf[cd & 0x7]= !do_match2(0, Vj->D(0), Vj->D(1), MO);       \
+#define SETALLNEZ(NAME, MO)                                        \
+void HELPER(NAME)(CPULoongArchState *env,                          \
+                  uint32_t oprsz, uint32_t cd, uint32_t vj)        \
+{                                                                  \
+    VReg *Vj = &(env->fpr[vj].vreg);                               \
+                                                                   \
+    env->cf[cd & 0x7]= !do_match2(0, Vj->D(0), Vj->D(1), MO);      \
+    if (oprsz == 32) {                                             \
+        env->cf[cd & 0x7] = env->cf[cd & 0x7] &&                   \
+                            !do_match2(0, Vj->D(2), Vj->D(3), MO); \
+    }                                                              \
 }
+
 SETALLNEZ(vsetallnez_b, MO_8)
 SETALLNEZ(vsetallnez_h, MO_16)
 SETALLNEZ(vsetallnez_w, MO_32)
