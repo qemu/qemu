@@ -261,7 +261,7 @@ static uint64_t make_address_pc(DisasContext *ctx, uint64_t addr)
 #include "insn_trans/trans_fmemory.c.inc"
 #include "insn_trans/trans_branch.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
-#include "insn_trans/trans_lsx.c.inc"
+#include "insn_trans/trans_vec.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
