@@ -17,13 +17,12 @@
 #define DO_SUB(a, b)  (a - b)
 
 #define DO_ODD_EVEN(NAME, BIT, E1, E2, DO_OP)                        \
-void HELPER(NAME)(CPULoongArchState *env,                            \
-                  uint32_t vd, uint32_t vj, uint32_t vk)             \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)       \
 {                                                                    \
     int i;                                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                                 \
-    VReg *Vj = &(env->fpr[vj].vreg);                                 \
-    VReg *Vk = &(env->fpr[vk].vreg);                                 \
+    VReg *Vd = (VReg *)vd;                                           \
+    VReg *Vj = (VReg *)vj;                                           \
+    VReg *Vk = (VReg *)vk;                                           \
     typedef __typeof(Vd->E1(0)) TD;                                  \
                                                                      \
     for (i = 0; i < LSX_LEN/BIT; i++) {                              \
@@ -35,12 +34,11 @@ DO_ODD_EVEN(vhaddw_h_b, 16, H, B, DO_ADD)
 DO_ODD_EVEN(vhaddw_w_h, 32, W, H, DO_ADD)
 DO_ODD_EVEN(vhaddw_d_w, 64, D, W, DO_ADD)
 
-void HELPER(vhaddw_q_d)(CPULoongArchState *env,
-                        uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vhaddw_q_d)(void *vd, void *vj, void *vk, uint32_t desc)
 {
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     Vd->Q(0) = int128_add(int128_makes64(Vj->D(1)), int128_makes64(Vk->D(0)));
 }
@@ -49,12 +47,11 @@ DO_ODD_EVEN(vhsubw_h_b, 16, H, B, DO_SUB)
 DO_ODD_EVEN(vhsubw_w_h, 32, W, H, DO_SUB)
 DO_ODD_EVEN(vhsubw_d_w, 64, D, W, DO_SUB)
 
-void HELPER(vhsubw_q_d)(CPULoongArchState *env,
-                        uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vhsubw_q_d)(void *vd, void *vj, void *vk, uint32_t desc)
 {
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     Vd->Q(0) = int128_sub(int128_makes64(Vj->D(1)), int128_makes64(Vk->D(0)));
 }
@@ -63,12 +60,11 @@ DO_ODD_EVEN(vhaddw_hu_bu, 16, UH, UB, DO_ADD)
 DO_ODD_EVEN(vhaddw_wu_hu, 32, UW, UH, DO_ADD)
 DO_ODD_EVEN(vhaddw_du_wu, 64, UD, UW, DO_ADD)
 
-void HELPER(vhaddw_qu_du)(CPULoongArchState *env,
-                          uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vhaddw_qu_du)(void *vd, void *vj, void *vk, uint32_t desc)
 {
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     Vd->Q(0) = int128_add(int128_make64((uint64_t)Vj->D(1)),
                           int128_make64((uint64_t)Vk->D(0)));
@@ -78,12 +74,11 @@ DO_ODD_EVEN(vhsubw_hu_bu, 16, UH, UB, DO_SUB)
 DO_ODD_EVEN(vhsubw_wu_hu, 32, UW, UH, DO_SUB)
 DO_ODD_EVEN(vhsubw_du_wu, 64, UD, UW, DO_SUB)
 
-void HELPER(vhsubw_qu_du)(CPULoongArchState *env,
-                          uint32_t vd, uint32_t vj, uint32_t vk)
+void HELPER(vhsubw_qu_du)(void *vd, void *vj, void *vk, uint32_t desc)
 {
-    VReg *Vd = &(env->fpr[vd].vreg);
-    VReg *Vj = &(env->fpr[vj].vreg);
-    VReg *Vk = &(env->fpr[vk].vreg);
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
 
     Vd->Q(0) = int128_sub(int128_make64((uint64_t)Vj->D(1)),
                           int128_make64((uint64_t)Vk->D(0)));
@@ -564,17 +559,16 @@ VMADDWOD_U_S(vmaddwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
 #define DO_REM(N, M)  (unlikely(M == 0) ? 0 :\
         unlikely((N == -N) && (M == (__typeof(N))(-1))) ? 0 : N % M)
 
-#define VDIV(NAME, BIT, E, DO_OP)                           \
-void HELPER(NAME)(CPULoongArchState *env,                   \
-                  uint32_t vd, uint32_t vj, uint32_t vk)    \
-{                                                           \
-    int i;                                                  \
-    VReg *Vd = &(env->fpr[vd].vreg);                        \
-    VReg *Vj = &(env->fpr[vj].vreg);                        \
-    VReg *Vk = &(env->fpr[vk].vreg);                        \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
-        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
-    }                                                       \
+#define VDIV(NAME, BIT, E, DO_OP)                              \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));                  \
+    }                                                          \
 }
 
 VDIV(vdiv_b, 8, B, DO_DIV)
@@ -854,13 +848,12 @@ do_vsrlr(W, uint32_t)
 do_vsrlr(D, uint64_t)
 
 #define VSRLR(NAME, BIT, T, E)                                  \
-void HELPER(NAME)(CPULoongArchState *env,                       \
-                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)  \
 {                                                               \
     int i;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                            \
-    VReg *Vj = &(env->fpr[vj].vreg);                            \
-    VReg *Vk = &(env->fpr[vk].vreg);                            \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    VReg *Vk = (VReg *)vk;                                      \
                                                                 \
     for (i = 0; i < LSX_LEN/BIT; i++) {                         \
         Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
@@ -906,13 +899,12 @@ do_vsrar(W, int32_t)
 do_vsrar(D, int64_t)
 
 #define VSRAR(NAME, BIT, T, E)                                  \
-void HELPER(NAME)(CPULoongArchState *env,                       \
-                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)  \
 {                                                               \
     int i;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                            \
-    VReg *Vj = &(env->fpr[vj].vreg);                            \
-    VReg *Vk = &(env->fpr[vk].vreg);                            \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    VReg *Vk = (VReg *)vk;                                      \
                                                                 \
     for (i = 0; i < LSX_LEN/BIT; i++) {                         \
         Vd->E(i) = do_vsrar_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
@@ -945,13 +937,12 @@ VSRARI(vsrari_d, 64, D)
 #define R_SHIFT(a, b) (a >> b)
 
 #define VSRLN(NAME, BIT, T, E1, E2)                             \
-void HELPER(NAME)(CPULoongArchState *env,                       \
-                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)  \
 {                                                               \
     int i;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                            \
-    VReg *Vj = &(env->fpr[vj].vreg);                            \
-    VReg *Vk = &(env->fpr[vk].vreg);                            \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    VReg *Vk = (VReg *)vk;                                      \
                                                                 \
     for (i = 0; i < LSX_LEN/BIT; i++) {                         \
         Vd->E1(i) = R_SHIFT((T)Vj->E2(i),((T)Vk->E2(i)) % BIT); \
@@ -963,19 +954,18 @@ VSRLN(vsrln_b_h, 16, uint16_t, B, H)
 VSRLN(vsrln_h_w, 32, uint32_t, H, W)
 VSRLN(vsrln_w_d, 64, uint64_t, W, D)
 
-#define VSRAN(NAME, BIT, T, E1, E2)                           \
-void HELPER(NAME)(CPULoongArchState *env,                     \
-                  uint32_t vd, uint32_t vj, uint32_t vk)      \
-{                                                             \
-    int i;                                                    \
-    VReg *Vd = &(env->fpr[vd].vreg);                          \
-    VReg *Vj = &(env->fpr[vj].vreg);                          \
-    VReg *Vk = &(env->fpr[vk].vreg);                          \
-                                                              \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                       \
-        Vd->E1(i) = R_SHIFT(Vj->E2(i), ((T)Vk->E2(i)) % BIT); \
-    }                                                         \
-    Vd->D(1) = 0;                                             \
+#define VSRAN(NAME, BIT, T, E1, E2)                            \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        Vd->E1(i) = R_SHIFT(Vj->E2(i), ((T)Vk->E2(i)) % BIT);  \
+    }                                                          \
+    Vd->D(1) = 0;                                              \
 }
 
 VSRAN(vsran_b_h, 16, uint16_t, B, H)
@@ -1057,13 +1047,12 @@ VSRANI(vsrani_h_w, 32, H, W)
 VSRANI(vsrani_w_d, 64, W, D)
 
 #define VSRLRN(NAME, BIT, T, E1, E2)                                \
-void HELPER(NAME)(CPULoongArchState *env,                           \
-                  uint32_t vd, uint32_t vj, uint32_t vk)            \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)      \
 {                                                                   \
     int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-    VReg *Vk = &(env->fpr[vk].vreg);                                \
+    VReg *Vd = (VReg *)vd;                                          \
+    VReg *Vj = (VReg *)vj;                                          \
+    VReg *Vk = (VReg *)vk;                                          \
                                                                     \
     for (i = 0; i < LSX_LEN/BIT; i++) {                             \
         Vd->E1(i) = do_vsrlr_ ## E2(Vj->E2(i), ((T)Vk->E2(i))%BIT); \
@@ -1076,13 +1065,12 @@ VSRLRN(vsrlrn_h_w, 32, uint32_t, H, W)
 VSRLRN(vsrlrn_w_d, 64, uint64_t, W, D)
 
 #define VSRARN(NAME, BIT, T, E1, E2)                                \
-void HELPER(NAME)(CPULoongArchState *env,                           \
-                  uint32_t vd, uint32_t vj, uint32_t vk)            \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)      \
 {                                                                   \
     int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-    VReg *Vk = &(env->fpr[vk].vreg);                                \
+    VReg *Vd = (VReg *)vd;                                          \
+    VReg *Vj = (VReg *)vj;                                          \
+    VReg *Vk = (VReg *)vk;                                          \
                                                                     \
     for (i = 0; i < LSX_LEN/BIT; i++) {                             \
         Vd->E1(i) = do_vsrar_ ## E2(Vj->E2(i), ((T)Vk->E2(i))%BIT); \
@@ -1205,13 +1193,12 @@ SSRLNS(H, uint32_t, int32_t, uint16_t)
 SSRLNS(W, uint64_t, int64_t, uint32_t)
 
 #define VSSRLN(NAME, BIT, T, E1, E2)                                          \
-void HELPER(NAME)(CPULoongArchState *env,                                     \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)                \
 {                                                                             \
     int i;                                                                    \
-    VReg *Vd = &(env->fpr[vd].vreg);                                          \
-    VReg *Vj = &(env->fpr[vj].vreg);                                          \
-    VReg *Vk = &(env->fpr[vk].vreg);                                          \
+    VReg *Vd = (VReg *)vd;                                                    \
+    VReg *Vj = (VReg *)vj;                                                    \
+    VReg *Vk = (VReg *)vk;                                                    \
                                                                               \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                       \
         Vd->E1(i) = do_ssrlns_ ## E1(Vj->E2(i), (T)Vk->E2(i)% BIT, BIT/2 -1); \
@@ -1248,13 +1235,12 @@ SSRANS(H, int32_t, int16_t)
 SSRANS(W, int64_t, int32_t)
 
 #define VSSRAN(NAME, BIT, T, E1, E2)                                         \
-void HELPER(NAME)(CPULoongArchState *env,                                    \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                     \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)               \
 {                                                                            \
     int i;                                                                   \
-    VReg *Vd = &(env->fpr[vd].vreg);                                         \
-    VReg *Vj = &(env->fpr[vj].vreg);                                         \
-    VReg *Vk = &(env->fpr[vk].vreg);                                         \
+    VReg *Vd = (VReg *)vd;                                                   \
+    VReg *Vj = (VReg *)vj;                                                   \
+    VReg *Vk = (VReg *)vk;                                                   \
                                                                              \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
         Vd->E1(i) = do_ssrans_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2 -1); \
@@ -1289,13 +1275,12 @@ SSRLNU(H, uint32_t, uint16_t, int32_t)
 SSRLNU(W, uint64_t, uint32_t, int64_t)
 
 #define VSSRLNU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(CPULoongArchState *env,                                 \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
 {                                                                         \
     int i;                                                                \
-    VReg *Vd = &(env->fpr[vd].vreg);                                      \
-    VReg *Vj = &(env->fpr[vj].vreg);                                      \
-    VReg *Vk = &(env->fpr[vk].vreg);                                      \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
                                                                           \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                   \
         Vd->E1(i) = do_ssrlnu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
@@ -1333,13 +1318,12 @@ SSRANU(H, uint32_t, uint16_t, int32_t)
 SSRANU(W, uint64_t, uint32_t, int64_t)
 
 #define VSSRANU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(CPULoongArchState *env,                                 \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)            \
 {                                                                         \
     int i;                                                                \
-    VReg *Vd = &(env->fpr[vd].vreg);                                      \
-    VReg *Vj = &(env->fpr[vj].vreg);                                      \
-    VReg *Vk = &(env->fpr[vk].vreg);                                      \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
                                                                           \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                   \
         Vd->E1(i) = do_ssranu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
@@ -1581,13 +1565,12 @@ SSRLRNS(H, W, uint32_t, int32_t, uint16_t)
 SSRLRNS(W, D, uint64_t, int64_t, uint32_t)
 
 #define VSSRLRN(NAME, BIT, T, E1, E2)                                         \
-void HELPER(NAME)(CPULoongArchState *env,                                     \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)                \
 {                                                                             \
     int i;                                                                    \
-    VReg *Vd = &(env->fpr[vd].vreg);                                          \
-    VReg *Vj = &(env->fpr[vj].vreg);                                          \
-    VReg *Vk = &(env->fpr[vk].vreg);                                          \
+    VReg *Vd = (VReg *)vd;                                                    \
+    VReg *Vj = (VReg *)vj;                                                    \
+    VReg *Vk = (VReg *)vk;                                                    \
                                                                               \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                       \
         Vd->E1(i) = do_ssrlrns_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2 -1); \
@@ -1621,13 +1604,12 @@ SSRARNS(H, W, int32_t, int16_t)
 SSRARNS(W, D, int64_t, int32_t)
 
 #define VSSRARN(NAME, BIT, T, E1, E2)                                         \
-void HELPER(NAME)(CPULoongArchState *env,                                     \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)                \
 {                                                                             \
     int i;                                                                    \
-    VReg *Vd = &(env->fpr[vd].vreg);                                          \
-    VReg *Vj = &(env->fpr[vj].vreg);                                          \
-    VReg *Vk = &(env->fpr[vk].vreg);                                          \
+    VReg *Vd = (VReg *)vd;                                                    \
+    VReg *Vj = (VReg *)vj;                                                    \
+    VReg *Vk = (VReg *)vk;                                                    \
                                                                               \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                       \
         Vd->E1(i) = do_ssrarns_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2 -1); \
@@ -1660,13 +1642,12 @@ SSRLRNU(H, W, uint32_t, uint16_t, int32_t)
 SSRLRNU(W, D, uint64_t, uint32_t, int64_t)
 
 #define VSSRLRNU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(CPULoongArchState *env,                                  \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)             \
 {                                                                          \
     int i;                                                                 \
-    VReg *Vd = &(env->fpr[vd].vreg);                                       \
-    VReg *Vj = &(env->fpr[vj].vreg);                                       \
-    VReg *Vk = &(env->fpr[vk].vreg);                                       \
+    VReg *Vd = (VReg *)vd;                                                 \
+    VReg *Vj = (VReg *)vj;                                                 \
+    VReg *Vk = (VReg *)vk;                                                 \
                                                                            \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                    \
         Vd->E1(i) = do_ssrlrnu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
@@ -1702,13 +1683,12 @@ SSRARNU(H, W, uint32_t, uint16_t, int32_t)
 SSRARNU(W, D, uint64_t, uint32_t, int64_t)
 
 #define VSSRARNU(NAME, BIT, T, E1, E2)                                     \
-void HELPER(NAME)(CPULoongArchState *env,                                  \
-                  uint32_t vd, uint32_t vj, uint32_t vk)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)             \
 {                                                                          \
     int i;                                                                 \
-    VReg *Vd = &(env->fpr[vd].vreg);                                       \
-    VReg *Vj = &(env->fpr[vj].vreg);                                       \
-    VReg *Vk = &(env->fpr[vk].vreg);                                       \
+    VReg *Vd = (VReg *)vd;                                                 \
+    VReg *Vj = (VReg *)vj;                                                 \
+    VReg *Vk = (VReg *)vk;                                                 \
                                                                            \
     for (i = 0; i < LSX_LEN/BIT; i++) {                                    \
         Vd->E1(i) = do_ssrarnu_ ## E1(Vj->E2(i), (T)Vk->E2(i)%BIT, BIT/2); \
@@ -2023,22 +2003,21 @@ DO_BITI(vbitrevi_h, 16, UH, DO_BITREV)
 DO_BITI(vbitrevi_w, 32, UW, DO_BITREV)
 DO_BITI(vbitrevi_d, 64, UD, DO_BITREV)
 
-#define VFRSTP(NAME, BIT, MASK, E)                       \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i, m;                                            \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        if (Vj->E(i) < 0) {                              \
-            break;                                       \
-        }                                                \
-    }                                                    \
-    m = Vk->E(0) & MASK;                                 \
-    Vd->E(m) = i;                                        \
+#define VFRSTP(NAME, BIT, MASK, E)                             \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i, m;                                                  \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        if (Vj->E(i) < 0) {                                    \
+            break;                                             \
+        }                                                      \
+    }                                                          \
+    m = Vk->E(0) & MASK;                                       \
+    Vd->E(m) = i;                                              \
 }
 
 VFRSTP(vfrstp_b, 8, 0xf, B)
@@ -2767,21 +2746,20 @@ SETALLNEZ(vsetallnez_h, MO_16)
 SETALLNEZ(vsetallnez_w, MO_32)
 SETALLNEZ(vsetallnez_d, MO_64)
 
-#define VPACKEV(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(2 * i);                \
-        temp.E(2 *i) = Vk->E(2 * i);                     \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPACKEV(NAME, BIT, E)                                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(2 * i + 1) = Vj->E(2 * i);                      \
+        temp.E(2 *i) = Vk->E(2 * i);                           \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VPACKEV(vpackev_b, 16, B)
@@ -2789,21 +2767,20 @@ VPACKEV(vpackev_h, 32, H)
 VPACKEV(vpackev_w, 64, W)
 VPACKEV(vpackev_d, 128, D)
 
-#define VPACKOD(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(2 * i + 1);            \
-        temp.E(2 * i) = Vk->E(2 * i + 1);                \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPACKOD(NAME, BIT, E)                                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(2 * i + 1) = Vj->E(2 * i + 1);                  \
+        temp.E(2 * i) = Vk->E(2 * i + 1);                      \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VPACKOD(vpackod_b, 16, B)
@@ -2811,21 +2788,20 @@ VPACKOD(vpackod_h, 32, H)
 VPACKOD(vpackod_w, 64, W)
 VPACKOD(vpackod_d, 128, D)
 
-#define VPICKEV(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i);          \
-        temp.E(i) = Vk->E(2 * i);                        \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPICKEV(NAME, BIT, E)                                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i);                \
+        temp.E(i) = Vk->E(2 * i);                              \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VPICKEV(vpickev_b, 16, B)
@@ -2833,21 +2809,20 @@ VPICKEV(vpickev_h, 32, H)
 VPICKEV(vpickev_w, 64, W)
 VPICKEV(vpickev_d, 128, D)
 
-#define VPICKOD(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i + 1);      \
-        temp.E(i) = Vk->E(2 * i + 1);                    \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPICKOD(NAME, BIT, E)                                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i + 1);            \
+        temp.E(i) = Vk->E(2 * i + 1);                          \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VPICKOD(vpickod_b, 16, B)
@@ -2855,21 +2830,20 @@ VPICKOD(vpickod_h, 32, H)
 VPICKOD(vpickod_w, 64, W)
 VPICKOD(vpickod_d, 128, D)
 
-#define VILVL(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(i);                    \
-        temp.E(2 * i) = Vk->E(i);                        \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VILVL(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(2 * i + 1) = Vj->E(i);                          \
+        temp.E(2 * i) = Vk->E(i);                              \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VILVL(vilvl_b, 16, B)
@@ -2877,21 +2851,20 @@ VILVL(vilvl_h, 32, H)
 VILVL(vilvl_w, 64, W)
 VILVL(vilvl_d, 128, D)
 
-#define VILVH(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(i + LSX_LEN/BIT);      \
-        temp.E(2 * i) = Vk->E(i + LSX_LEN/BIT);          \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VILVH(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
+        temp.E(2 * i + 1) = Vj->E(i + LSX_LEN/BIT);            \
+        temp.E(2 * i) = Vk->E(i + LSX_LEN/BIT);                \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VILVH(vilvh_b, 16, B)
@@ -2916,22 +2889,21 @@ void HELPER(vshuf_b)(void *vd, void *vj, void *vk, void *va, uint32_t desc)
     *Vd = temp;
 }
 
-#define VSHUF(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i, m;                                            \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    m = LSX_LEN/BIT;                                     \
-    for (i = 0; i < m; i++) {                            \
-        uint64_t k  = ((uint8_t) Vd->E(i)) % (2 * m);    \
-        temp.E(i) = k < m ? Vk->E(k) : Vj->E(k - m);     \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VSHUF(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i, m;                                                  \
+    VReg temp;                                                 \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+                                                               \
+    m = LSX_LEN/BIT;                                           \
+    for (i = 0; i < m; i++) {                                  \
+        uint64_t k  = ((uint8_t) Vd->E(i)) % (2 * m);          \
+        temp.E(i) = k < m ? Vk->E(k) : Vj->E(k - m);           \
+    }                                                          \
+    *Vd = temp;                                                \
 }
 
 VSHUF(vshuf_h, 16, H)

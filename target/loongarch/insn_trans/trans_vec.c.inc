@@ -70,17 +70,20 @@ static bool gen_vvv_ptr(DisasContext *ctx, arg_vvv *a,
     return gen_vvv_ptr_vl(ctx, a, 16, fn);
 }
 
-static bool gen_vvv(DisasContext *ctx, arg_vvv *a,
-                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+static bool gen_vvv_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
+                       gen_helper_gvec_3 *fn)
 {
-    TCGv_i32 vd = tcg_constant_i32(a->vd);
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-    TCGv_i32 vk = tcg_constant_i32(a->vk);
-
-    CHECK_SXE;
-
-    func(cpu_env, vd, vj, vk);
+    tcg_gen_gvec_3_ool(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       oprsz, ctx->vl / 8, 0, fn);
     return true;
+}
+
+static bool gen_vvv(DisasContext *ctx, arg_vvv *a, gen_helper_gvec_3 *fn)
+{
+    CHECK_SXE;
+    return gen_vvv_vl(ctx, a, 16, fn);
 }
 
 static bool gen_vv(DisasContext *ctx, arg_vv *a,
