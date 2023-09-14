@@ -1,13 +1,13 @@
 /*
- * Internal execution defines for qemu
+ * Internal execution defines for qemu (target specific)
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-#ifndef ACCEL_TCG_INTERNAL_H
-#define ACCEL_TCG_INTERNAL_H
+#ifndef ACCEL_TCG_INTERNAL_TARGET_H
+#define ACCEL_TCG_INTERNAL_TARGET_H
 
 #include "exec/exec-all.h"
 #include "exec/translate-all.h"

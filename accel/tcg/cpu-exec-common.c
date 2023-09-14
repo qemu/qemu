@@ -22,7 +22,7 @@
 #include "sysemu/tcg.h"
 #include "exec/exec-all.h"
 #include "qemu/plugin.h"
-#include "internal.h"
+#include "internal-target.h"
 
 bool tcg_allowed;
 

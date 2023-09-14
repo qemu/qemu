@@ -29,7 +29,7 @@
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
 #include "tcg/tcg-ldst.h"
-#include "internal.h"
+#include "internal-target.h"
 
 __thread uintptr_t helper_retaddr;
 
