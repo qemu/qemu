@@ -394,22 +394,24 @@ DO_3OP(vabsd_du, 64, UD, DO_VABSD)
 
 #define DO_VABS(a)  ((a < 0) ? (-a) : (a))
 
-#define DO_VADDA(NAME, BIT, E, DO_OP)                       \
-void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
-{                                                           \
-    int i;                                                  \
-    VReg *Vd = (VReg *)vd;                                  \
-    VReg *Vj = (VReg *)vj;                                  \
-    VReg *Vk = (VReg *)vk;                                  \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
-        Vd->E(i) = DO_OP(Vj->E(i)) + DO_OP(Vk->E(i));       \
-    }                                                       \
+#define DO_VADDA(NAME, BIT, E)                                 \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
+{                                                              \
+    int i;                                                     \
+    VReg *Vd = (VReg *)vd;                                     \
+    VReg *Vj = (VReg *)vj;                                     \
+    VReg *Vk = (VReg *)vk;                                     \
+    int oprsz = simd_oprsz(desc);                              \
+                                                               \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                  \
+        Vd->E(i) = DO_VABS(Vj->E(i)) + DO_VABS(Vk->E(i));      \
+    }                                                          \
 }
 
-DO_VADDA(vadda_b, 8, B, DO_VABS)
-DO_VADDA(vadda_h, 16, H, DO_VABS)
-DO_VADDA(vadda_w, 32, W, DO_VABS)
-DO_VADDA(vadda_d, 64, D, DO_VABS)
+DO_VADDA(vadda_b, 8, B)
+DO_VADDA(vadda_h, 16, H)
+DO_VADDA(vadda_w, 32, W)
+DO_VADDA(vadda_d, 64, D)
 
 #define DO_MIN(a, b) (a < b ? a : b)
 #define DO_MAX(a, b) (a > b ? a : b)
