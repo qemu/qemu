@@ -76,34 +76,58 @@ static bool gen_cv(DisasContext *ctx, arg_cv *a,
     return true;
 }
 
+static bool gvec_vvv_vl(DisasContext *ctx, arg_vvv *a,
+                        uint32_t oprsz, MemOp mop,
+                        void (*func)(unsigned, uint32_t, uint32_t,
+                                     uint32_t, uint32_t, uint32_t))
+{
+    uint32_t vd_ofs = vec_full_offset(a->vd);
+    uint32_t vj_ofs = vec_full_offset(a->vj);
+    uint32_t vk_ofs = vec_full_offset(a->vk);
+
+    func(mop, vd_ofs, vj_ofs, vk_ofs, oprsz, ctx->vl / 8);
+    return true;
+}
+
 static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
 {
-    uint32_t vd_ofs, vj_ofs, vk_ofs;
-
     CHECK_SXE;
+    return gvec_vvv_vl(ctx, a, 16, mop, func);
+}
 
-    vd_ofs = vec_full_offset(a->vd);
-    vj_ofs = vec_full_offset(a->vj);
-    vk_ofs = vec_full_offset(a->vk);
 
-    func(mop, vd_ofs, vj_ofs, vk_ofs, 16, ctx->vl/8);
+static bool gvec_vv_vl(DisasContext *ctx, arg_vv *a,
+                       uint32_t oprsz, MemOp mop,
+                       void (*func)(unsigned, uint32_t, uint32_t,
+                                    uint32_t, uint32_t))
+{
+    uint32_t vd_ofs = vec_full_offset(a->vd);
+    uint32_t vj_ofs = vec_full_offset(a->vj);
+
+    func(mop, vd_ofs, vj_ofs, oprsz, ctx->vl / 8);
     return true;
 }
+
 
 static bool gvec_vv(DisasContext *ctx, arg_vv *a, MemOp mop,
                     void (*func)(unsigned, uint32_t, uint32_t,
                                  uint32_t, uint32_t))
 {
-    uint32_t vd_ofs, vj_ofs;
-
     CHECK_SXE;
+    return gvec_vv_vl(ctx, a, 16, mop, func);
+}
 
-    vd_ofs = vec_full_offset(a->vd);
-    vj_ofs = vec_full_offset(a->vj);
+static bool gvec_vv_i_vl(DisasContext *ctx, arg_vv_i *a,
+                         uint32_t oprsz, MemOp mop,
+                         void (*func)(unsigned, uint32_t, uint32_t,
+                                      int64_t, uint32_t, uint32_t))
+{
+    uint32_t vd_ofs = vec_full_offset(a->vd);
+    uint32_t vj_ofs = vec_full_offset(a->vj);
 
-    func(mop, vd_ofs, vj_ofs, 16, ctx->vl/8);
+    func(mop, vd_ofs, vj_ofs, a->imm, oprsz, ctx->vl / 8);
     return true;
 }
 
@@ -111,28 +135,24 @@ static bool gvec_vv_i(DisasContext *ctx, arg_vv_i *a, MemOp mop,
                       void (*func)(unsigned, uint32_t, uint32_t,
                                    int64_t, uint32_t, uint32_t))
 {
-    uint32_t vd_ofs, vj_ofs;
-
     CHECK_SXE;
+    return gvec_vv_i_vl(ctx, a, 16, mop, func);
+}
 
-    vd_ofs = vec_full_offset(a->vd);
-    vj_ofs = vec_full_offset(a->vj);
+static bool gvec_subi_vl(DisasContext *ctx, arg_vv_i *a,
+                         uint32_t oprsz, MemOp mop)
+{
+    uint32_t vd_ofs = vec_full_offset(a->vd);
+    uint32_t vj_ofs = vec_full_offset(a->vj);
 
-    func(mop, vd_ofs, vj_ofs, a->imm , 16, ctx->vl/8);
+    tcg_gen_gvec_addi(mop, vd_ofs, vj_ofs, -a->imm, oprsz, ctx->vl / 8);
     return true;
 }
 
 static bool gvec_subi(DisasContext *ctx, arg_vv_i *a, MemOp mop)
 {
-    uint32_t vd_ofs, vj_ofs;
-
     CHECK_SXE;
-
-    vd_ofs = vec_full_offset(a->vd);
-    vj_ofs = vec_full_offset(a->vj);
-
-    tcg_gen_gvec_addi(mop, vd_ofs, vj_ofs, -a->imm, 16, ctx->vl/8);
-    return true;
+    return gvec_subi_vl(ctx, a, 16, mop);
 }
 
 TRANS(vadd_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_add)
