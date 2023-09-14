@@ -1025,8 +1025,9 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)  \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
     VReg *Vk = (VReg *)vk;                                      \
+    int oprsz = simd_oprsz(desc);                               \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                   \
         Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
     }                                                           \
 }
@@ -1042,8 +1043,9 @@ void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
     int i;                                                         \
     VReg *Vd = (VReg *)vd;                                         \
     VReg *Vj = (VReg *)vj;                                         \
+    int oprsz = simd_oprsz(desc);                                  \
                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                            \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                      \
         Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), imm);                  \
     }                                                              \
 }
@@ -1075,8 +1077,9 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc)  \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
     VReg *Vk = (VReg *)vk;                                      \
+    int oprsz = simd_oprsz(desc);                               \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                   \
         Vd->E(i) = do_vsrar_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
     }                                                           \
 }
@@ -1092,8 +1095,9 @@ void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc) \
     int i;                                                         \
     VReg *Vd = (VReg *)vd;                                         \
     VReg *Vj = (VReg *)vj;                                         \
+    int oprsz = simd_oprsz(desc);                                  \
                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                            \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                      \
         Vd->E(i) = do_vsrar_ ## E(Vj->E(i), imm);                  \
     }                                                              \
 }
