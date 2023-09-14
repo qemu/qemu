@@ -2906,7 +2906,6 @@ F: softmmu/main.c
 F: softmmu/cpus.c
 F: softmmu/cpu-throttle.c
 F: softmmu/cpu-timers.c
-F: softmmu/icount.c
 F: softmmu/runstate*
 F: qapi/run-state.json
 
