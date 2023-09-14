@@ -3962,6 +3962,10 @@ TRANS(vpcnt_b, LSX, gen_vv, gen_helper_vpcnt_b)
 TRANS(vpcnt_h, LSX, gen_vv, gen_helper_vpcnt_h)
 TRANS(vpcnt_w, LSX, gen_vv, gen_helper_vpcnt_w)
 TRANS(vpcnt_d, LSX, gen_vv, gen_helper_vpcnt_d)
+TRANS(xvpcnt_b, LASX, gen_xx, gen_helper_vpcnt_b)
+TRANS(xvpcnt_h, LASX, gen_xx, gen_helper_vpcnt_h)
+TRANS(xvpcnt_w, LASX, gen_xx, gen_helper_vpcnt_w)
+TRANS(xvpcnt_d, LASX, gen_xx, gen_helper_vpcnt_d)
 
 static void do_vbit(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
                     void (*func)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
