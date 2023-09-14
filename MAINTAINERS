@@ -139,7 +139,8 @@ R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: softmmu/cpus.c
 F: softmmu/watchpoint.c
-F: cpus-common.c
+F: cpu-common.c
+F: cpu-target.c
 F: page-vary.c
 F: page-vary-common.c
 F: accel/tcg/
@@ -1766,7 +1767,6 @@ M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Yanan Wang <wangyanan55@huawei.com>
 S: Supported
-F: cpu.c
 F: hw/core/cpu.c
 F: hw/core/machine-qmp-cmds.c
 F: hw/core/machine.c
