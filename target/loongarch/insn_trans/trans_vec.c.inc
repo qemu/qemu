@@ -3573,20 +3573,11 @@ static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
 TRANS(vldi, LSX, gen_vldi, 16)
 TRANS(xvldi, LASX, gen_vldi, 32)
 
-TRANS(vand_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_and)
-TRANS(vor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_or)
-TRANS(vxor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_xor)
-TRANS(vnor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_nor)
-
-static bool trans_vandn_v(DisasContext *ctx, arg_vvv *a)
+static bool gen_vandn_v(DisasContext *ctx, arg_vvv *a, uint32_t oprsz)
 {
     uint32_t vd_ofs, vj_ofs, vk_ofs;
 
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    if (!check_vec(ctx, 16)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
@@ -3594,13 +3585,9 @@ static bool trans_vandn_v(DisasContext *ctx, arg_vvv *a)
     vj_ofs = vec_full_offset(a->vj);
     vk_ofs = vec_full_offset(a->vk);
 
-    tcg_gen_gvec_andc(MO_64, vd_ofs, vk_ofs, vj_ofs, 16, ctx->vl/8);
+    tcg_gen_gvec_andc(MO_64, vd_ofs, vk_ofs, vj_ofs, oprsz, ctx->vl / 8);
     return true;
 }
-TRANS(vorn_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_orc)
-TRANS(vandi_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_andi)
-TRANS(vori_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_ori)
-TRANS(vxori_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_xori)
 
 static void gen_vnori(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
 {
@@ -3633,7 +3620,26 @@ static void do_vnori_b(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
     tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op);
 }
 
+TRANS(vand_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_and)
+TRANS(vor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_or)
+TRANS(vxor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_xor)
+TRANS(vnor_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_nor)
+TRANS(vandn_v, LSX, gen_vandn_v, 16)
+TRANS(vorn_v, LSX, gvec_vvv, MO_64, tcg_gen_gvec_orc)
+TRANS(vandi_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_andi)
+TRANS(vori_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_ori)
+TRANS(vxori_b, LSX, gvec_vv_i, MO_8, tcg_gen_gvec_xori)
 TRANS(vnori_b, LSX, gvec_vv_i, MO_8, do_vnori_b)
+TRANS(xvand_v, LASX, gvec_xxx, MO_64, tcg_gen_gvec_and)
+TRANS(xvor_v, LASX, gvec_xxx, MO_64, tcg_gen_gvec_or)
+TRANS(xvxor_v, LASX, gvec_xxx, MO_64, tcg_gen_gvec_xor)
+TRANS(xvnor_v, LASX, gvec_xxx, MO_64, tcg_gen_gvec_nor)
+TRANS(xvandn_v, LASX, gen_vandn_v, 32)
+TRANS(xvorn_v, LASX, gvec_xxx, MO_64, tcg_gen_gvec_orc)
+TRANS(xvandi_b, LASX, gvec_xx_i, MO_8, tcg_gen_gvec_andi)
+TRANS(xvori_b, LASX, gvec_xx_i, MO_8, tcg_gen_gvec_ori)
+TRANS(xvxori_b, LASX, gvec_xx_i, MO_8, tcg_gen_gvec_xori)
+TRANS(xvnori_b, LASX, gvec_xx_i, MO_8, do_vnori_b)
 
 TRANS(vsll_b, LSX, gvec_vvv, MO_8, tcg_gen_gvec_shlv)
 TRANS(vsll_h, LSX, gvec_vvv, MO_16, tcg_gen_gvec_shlv)

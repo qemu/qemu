@@ -941,13 +941,13 @@ void HELPER(vmsknz_b)(void *vd, void *vj, uint32_t desc)
     }
 }
 
-void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)
+void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t desc)
 {
     int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
 
-    for (i = 0; i < LSX_LEN/8; i++) {
+    for (i = 0; i < simd_oprsz(desc); i++) {
         Vd->B(i) = ~(Vj->B(i) | (uint8_t)imm);
     }
 }

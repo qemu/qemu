@@ -2029,6 +2029,18 @@ INSN_LASX(xvmsknz_b,         vv)
 
 INSN_LASX(xvldi,             v_i)
 
+INSN_LASX(xvand_v,           vvv)
+INSN_LASX(xvor_v,            vvv)
+INSN_LASX(xvxor_v,           vvv)
+INSN_LASX(xvnor_v,           vvv)
+INSN_LASX(xvandn_v,          vvv)
+INSN_LASX(xvorn_v,           vvv)
+
+INSN_LASX(xvandi_b,          vv_i)
+INSN_LASX(xvori_b,           vv_i)
+INSN_LASX(xvxori_b,          vv_i)
+INSN_LASX(xvnori_b,          vv_i)
+
 INSN_LASX(xvreplgr2vr_b,     vr)
 INSN_LASX(xvreplgr2vr_h,     vr)
 INSN_LASX(xvreplgr2vr_w,     vr)
