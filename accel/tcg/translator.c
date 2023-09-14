@@ -87,12 +87,12 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
                          offsetof(ArchCPU, neg.icount_decr.u16.low) -
                          offsetof(ArchCPU, env));
         /*
-         * cpu->can_do_io is cleared automatically here at the beginning of
+         * cpu->can_do_io is set automatically here at the beginning of
          * each translation block.  The cost is minimal and only paid for
          * -icount, plus it would be very easy to forget doing it in the
          * translator.
          */
-        set_can_do_io(db, false);
+        set_can_do_io(db, db->max_insns == 1 && (cflags & CF_LAST_IO));
     }
 
     return icount_start_insn;
