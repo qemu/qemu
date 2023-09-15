@@ -153,7 +153,7 @@ void icount_handle_interrupt(CPUState *cpu, int mask)
 
     tcg_handle_interrupt(cpu, mask);
     if (qemu_cpu_is_self(cpu) &&
-        !cpu->can_do_io
+        !cpu->neg.can_do_io
         && (mask & ~old_mask) != 0) {
         cpu_abort(cpu, "Raised interrupt while not in I/O function");
     }

@@ -177,7 +177,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                  * Force recompile to succeed, because icount may
                  * be read only at the end of the block.
                  */
-                if (!cpu->can_do_io) {
+                if (!cpu->neg.can_do_io) {
                     /* Force execution of one insn next time.  */
                     cpu->cflags_next_tb = 1 | CF_LAST_IO | CF_NOIRQ
                                           | curr_cflags(cpu);

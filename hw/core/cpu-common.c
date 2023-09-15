@@ -131,7 +131,7 @@ static void cpu_common_reset_hold(Object *obj)
     cpu->mem_io_pc = 0;
     cpu->icount_extra = 0;
     qatomic_set(&cpu->neg.icount_decr.u32, 0);
-    cpu->can_do_io = 1;
+    cpu->neg.can_do_io = true;
     cpu->exception_index = -1;
     cpu->crash_occurred = false;
     cpu->cflags_next_tb = -1;

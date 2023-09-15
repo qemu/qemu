@@ -351,6 +351,7 @@ typedef union IcountDecr {
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
     IcountDecr icount_decr;
+    bool can_do_io;
 } CPUNegativeOffsetState;
 
 typedef struct CPUBreakpoint {
@@ -420,9 +421,7 @@ struct qemu_work_item;
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
- * @can_do_io: Nonzero if memory-mapped IO is safe. Deterministic execution
- * requires that IO only be performed on the last instruction of a TB
- * so that interrupts take effect immediately.
+ * @neg.can_do_io: True if memory-mapped IO is allowed.
  * @cpu_ases: Pointer to array of CPUAddressSpaces (which define the
  *            AddressSpaces this CPU has)
  * @num_ases: number of CPUAddressSpaces in @cpu_ases
@@ -547,7 +546,6 @@ struct CPUState {
     int cluster_index;
     uint32_t tcg_cflags;
     uint32_t halted;
-    uint32_t can_do_io;
     int32_t exception_index;
 
     AccelCPUState *accel;

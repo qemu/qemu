@@ -20,9 +20,11 @@ static void set_can_do_io(DisasContextBase *db, bool val)
 {
     if (db->saved_can_do_io != val) {
         db->saved_can_do_io = val;
-        tcg_gen_st_i32(tcg_constant_i32(val), cpu_env,
-                       offsetof(ArchCPU, parent_obj.can_do_io) -
-                       offsetof(ArchCPU, env));
+
+        QEMU_BUILD_BUG_ON(sizeof_field(CPUState, neg.can_do_io) != 1);
+        tcg_gen_st8_i32(tcg_constant_i32(val), cpu_env,
+                        offsetof(ArchCPU, parent_obj.neg.can_do_io) -
+                        offsetof(ArchCPU, env));
     }
 }
 
@@ -83,7 +85,7 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
     }
 
     /*
-     * cpu->can_do_io is set automatically here at the beginning of
+     * cpu->neg.can_do_io is set automatically here at the beginning of
      * each translation block.  The cost is minimal, plus it would be
      * very easy to forget doing it in the translator.
      */
