@@ -726,6 +726,10 @@ static void gd_set_ui_refresh_rate(VirtualConsole *vc, int refresh_rate)
 {
     QemuUIInfo info;
 
+    if (!dpy_ui_info_supported(vc->gfx.dcl.con)) {
+        return;
+    }
+
     info = *dpy_get_ui_info(vc->gfx.dcl.con);
     info.refresh_rate = refresh_rate;
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
@@ -734,6 +738,10 @@ static void gd_set_ui_refresh_rate(VirtualConsole *vc, int refresh_rate)
 static void gd_set_ui_size(VirtualConsole *vc, gint width, gint height)
 {
     QemuUIInfo info;
+
+    if (!dpy_ui_info_supported(vc->gfx.dcl.con)) {
+        return;
+    }
 
     info = *dpy_get_ui_info(vc->gfx.dcl.con);
     info.width = width;
