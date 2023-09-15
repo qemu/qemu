@@ -20,6 +20,7 @@
 #define PE_NAME     "ntoskrnl.exe"
 
 #define INITIAL_MXCSR   0x1f80
+#define MAX_NUMBER_OF_RUNS  42
 
 typedef struct idt_desc {
     uint16_t offset1;   /* offset bits 0..15 */
@@ -234,6 +235,42 @@ static int fix_dtb(struct va_space *vs, QEMU_Elf *qe)
     return 1;
 }
 
+static void try_merge_runs(struct pa_space *ps,
+        WinDumpPhyMemDesc64 *PhysicalMemoryBlock)
+{
+    unsigned int merge_cnt = 0, run_idx = 0;
+
+    PhysicalMemoryBlock->NumberOfRuns = 0;
+
+    for (size_t idx = 0; idx < ps->block_nr; idx++) {
+        struct pa_block *blk = ps->block + idx;
+        struct pa_block *next = blk + 1;
+
+        PhysicalMemoryBlock->NumberOfPages += blk->size / ELF2DMP_PAGE_SIZE;
+
+        if (idx + 1 != ps->block_nr && blk->paddr + blk->size == next->paddr) {
+            printf("Block #%zu 0x%"PRIx64"+:0x%"PRIx64" and %u previous will be"
+                    " merged\n", idx, blk->paddr, blk->size, merge_cnt);
+            merge_cnt++;
+        } else {
+            struct pa_block *first_merged = blk - merge_cnt;
+
+            printf("Block #%zu 0x%"PRIx64"+:0x%"PRIx64" and %u previous will be"
+                    " merged to 0x%"PRIx64"+:0x%"PRIx64" (run #%u)\n",
+                    idx, blk->paddr, blk->size, merge_cnt, first_merged->paddr,
+                    blk->paddr + blk->size - first_merged->paddr, run_idx);
+            PhysicalMemoryBlock->Run[run_idx] = (WinDumpPhyMemRun64) {
+                .BasePage = first_merged->paddr / ELF2DMP_PAGE_SIZE,
+                .PageCount = (blk->paddr + blk->size - first_merged->paddr) /
+                        ELF2DMP_PAGE_SIZE,
+            };
+            PhysicalMemoryBlock->NumberOfRuns++;
+            run_idx++;
+            merge_cnt = 0;
+        }
+    }
+}
+
 static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
         struct va_space *vs, uint64_t KdDebuggerDataBlock,
         KDDEBUGGER_DATA64 *kdbg, uint64_t KdVersionBlock, int nr_cpus)
@@ -244,7 +281,6 @@ static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
             KUSD_OFFSET_PRODUCT_TYPE);
     DBGKD_GET_VERSION64 kvb;
     WinDumpHeader64 h;
-    size_t i;
 
     QEMU_BUILD_BUG_ON(KUSD_OFFSET_SUITE_MASK >= ELF2DMP_PAGE_SIZE);
     QEMU_BUILD_BUG_ON(KUSD_OFFSET_PRODUCT_TYPE >= ELF2DMP_PAGE_SIZE);
@@ -282,13 +318,17 @@ static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
         .RequiredDumpSpace = sizeof(h),
     };
 
-    for (i = 0; i < ps->block_nr; i++) {
-        h.PhysicalMemoryBlock.NumberOfPages +=
-                ps->block[i].size / ELF2DMP_PAGE_SIZE;
-        h.PhysicalMemoryBlock.Run[i] = (WinDumpPhyMemRun64) {
-            .BasePage = ps->block[i].paddr / ELF2DMP_PAGE_SIZE,
-            .PageCount = ps->block[i].size / ELF2DMP_PAGE_SIZE,
-        };
+    if (h.PhysicalMemoryBlock.NumberOfRuns <= MAX_NUMBER_OF_RUNS) {
+        for (size_t idx = 0; idx < ps->block_nr; idx++) {
+            h.PhysicalMemoryBlock.NumberOfPages +=
+                    ps->block[idx].size / ELF2DMP_PAGE_SIZE;
+            h.PhysicalMemoryBlock.Run[idx] = (WinDumpPhyMemRun64) {
+                .BasePage = ps->block[idx].paddr / ELF2DMP_PAGE_SIZE,
+                .PageCount = ps->block[idx].size / ELF2DMP_PAGE_SIZE,
+            };
+        }
+    } else {
+        try_merge_runs(ps, &h.PhysicalMemoryBlock);
     }
 
     h.RequiredDumpSpace +=
