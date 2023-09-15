@@ -27,7 +27,6 @@
 #include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "exec/cpu-common.h"
-#include "exec/tb-flush.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
 #include "sysemu/tcg.h"
@@ -138,10 +137,6 @@ static void cpu_common_reset_hold(Object *obj)
     cpu->cflags_next_tb = -1;
 
     cpu_exec_reset_hold(cpu);
-    if (tcg_enabled()) {
-        tcg_flush_jmp_cache(cpu);
-        tcg_flush_softmmu_tlb(cpu);
-    }
 }
 
 static bool cpu_common_has_work(CPUState *cs)
