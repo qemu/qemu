@@ -1453,6 +1453,10 @@ static bool trans_TBZ(DisasContext *s, arg_tbz *a)
 
 static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
 {
+    /* BC.cond is only present with FEAT_HBC */
+    if (a->c && !dc_isar_feature(aa64_hbc, s)) {
+        return false;
+    }
     reset_btype(s);
     if (a->cond < 0x0e) {
         /* genuinely conditional branches */
