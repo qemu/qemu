@@ -761,6 +761,10 @@ static void do_cpu_reset(void *opaque)
                     if (cpu_isar_feature(aa64_hcx, cpu)) {
                         env->cp15.scr_el3 |= SCR_HXEN;
                     }
+                    if (cpu_isar_feature(aa64_fgt, cpu)) {
+                        env->cp15.scr_el3 |= SCR_FGTEN;
+                    }
+
                     /* AArch64 kernels never boot in secure mode */
                     assert(!info->secure_boot);
                     /* This hook is only supported for AArch32 currently:
