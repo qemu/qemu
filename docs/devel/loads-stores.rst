@@ -63,12 +63,12 @@ which stores ``val`` to ``ptr`` as an ``{endian}`` order value
 of size ``sz`` bytes.
 
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<ld[us]\?[bwlq]\(_[hbl]e\)\?_p\>``
  - ``\<st[bwlq]\(_[hbl]e\)\?_p\>``
  - ``\<st24\(_[hbl]e\)\?_p\>``
- - ``\<ldn_\([hbl]e\)?_p\>``
- - ``\<stn_\([hbl]e\)?_p\>``
+ - ``\<ldn_\([hbl]e\)\?_p\>``
+ - ``\<stn_\([hbl]e\)\?_p\>``
 
 ``cpu_{ld,st}*_mmu``
 ~~~~~~~~~~~~~~~~~~~~
@@ -121,8 +121,8 @@ store: ``cpu_st{size}{end}_mmu(env, ptr, val, oi, retaddr)``
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[bwlq](_[bl]e)\?_mmu\>``
- - ``\<cpu_st[bwlq](_[bl]e)\?_mmu\>``
+ - ``\<cpu_ld[bwlq]\(_[bl]e\)\?_mmu\>``
+ - ``\<cpu_st[bwlq]\(_[bl]e\)\?_mmu\>``
 
 
 ``cpu_{ld,st}*_mmuidx_ra``
@@ -155,8 +155,8 @@ store: ``cpu_st{size}{end}_mmuidx_ra(env, ptr, val, mmuidx, retaddr)``
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq](_[bl]e)\?_mmuidx_ra\>``
- - ``\<cpu_st[bwlq](_[bl]e)\?_mmuidx_ra\>``
+ - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_mmuidx_ra\>``
+ - ``\<cpu_st[bwlq]\(_[bl]e\)\?_mmuidx_ra\>``
 
 ``cpu_{ld,st}*_data_ra``
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,8 +193,8 @@ store: ``cpu_st{size}{end}_data_ra(env, ptr, val, ra)``
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq](_[bl]e)\?_data_ra\>``
- - ``\<cpu_st[bwlq](_[bl]e)\?_data_ra\>``
+ - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_data_ra\>``
+ - ``\<cpu_st[bwlq]\(_[bl]e\)\?_data_ra\>``
 
 ``cpu_{ld,st}*_data``
 ~~~~~~~~~~~~~~~~~~~~~
@@ -231,9 +231,9 @@ store: ``cpu_st{size}{end}_data(env, ptr, val)``
  - ``_be`` : big endian
  - ``_le`` : little endian
 
-Regexes for git grep
- - ``\<cpu_ld[us]\?[bwlq](_[bl]e)\?_data\>``
- - ``\<cpu_st[bwlq](_[bl]e)\?_data\+\>``
+Regexes for git grep:
+ - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_data\>``
+ - ``\<cpu_st[bwlq]\(_[bl]e\)\?_data\+\>``
 
 ``cpu_ld*_code``
 ~~~~~~~~~~~~~~~~
@@ -296,7 +296,7 @@ swap: ``translator_ld{sign}{size}_swap(env, ptr, swap)``
  - ``l`` : 32 bits
  - ``q`` : 64 bits
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<translator_ld[us]\?[bwlq]\(_swap\)\?\>``
 
 ``helper_{ld,st}*_mmu``
@@ -325,7 +325,7 @@ store: ``helper_{size}_mmu(env, addr, val, opindex, retaddr)``
  - ``l`` : 32 bits
  - ``q`` : 64 bits
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<helper_ld[us]\?[bwlq]_mmu\>``
  - ``\<helper_st[bwlq]_mmu\>``
 
@@ -382,7 +382,7 @@ succeeded using a MemTxResult return code.
 
 The ``_{endian}`` suffix is omitted for byte accesses.
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<address_space_\(read\|write\|rw\)\>``
  - ``\<address_space_ldu\?[bwql]\(_[lb]e\)\?\>``
  - ``\<address_space_st[bwql]\(_[lb]e\)\?\>``
@@ -400,7 +400,7 @@ Note that portions of the write which attempt to write data to a
 device will be silently ignored -- only real RAM and ROM will
 be written to.
 
-Regexes for git grep
+Regexes for git grep:
  - ``address_space_write_rom``
 
 ``{ld,st}*_phys``
@@ -438,7 +438,7 @@ device doing the access has no way to report such an error.
 
 The ``_{endian}_`` infix is omitted for byte accesses.
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<ldu\?[bwlq]\(_[bl]e\)\?_phys\>``
  - ``\<st[bwlq]\(_[bl]e\)\?_phys\>``
 
@@ -462,7 +462,7 @@ For new code they are better avoided:
 
 ``cpu_physical_memory_rw``
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<cpu_physical_memory_\(read\|write\|rw\)\>``
 
 ``cpu_memory_rw_debug``
@@ -497,7 +497,7 @@ make sure our existing code is doing things correctly.
 
 ``dma_memory_rw``
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<dma_memory_\(read\|write\|rw\)\>``
  - ``\<ldu\?[bwlq]\(_[bl]e\)\?_dma\>``
  - ``\<st[bwlq]\(_[bl]e\)\?_dma\>``
@@ -538,7 +538,7 @@ correct address space for that device.
 
 The ``_{endian}_`` infix is omitted for byte accesses.
 
-Regexes for git grep
+Regexes for git grep:
  - ``\<pci_dma_\(read\|write\|rw\)\>``
  - ``\<ldu\?[bwlq]\(_[bl]e\)\?_pci_dma\>``
  - ``\<st[bwlq]\(_[bl]e\)\?_pci_dma\>``
