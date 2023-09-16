@@ -1103,10 +1103,6 @@ static void store_atom_16(CPUState *cpu, uintptr_t ra,
         }
         break;
     case MO_128:
-        if (HAVE_ATOMIC128_RW) {
-            atomic16_set(pv, val);
-            return;
-        }
         break;
     default:
         g_assert_not_reached();
