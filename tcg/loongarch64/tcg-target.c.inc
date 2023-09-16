@@ -1103,13 +1103,18 @@ static void tcg_out_qemu_ldst_i128(TCGContext *s, TCGReg data_lo, TCGReg data_hi
         }
     } else {
         /* Otherwise use a pair of LD/ST. */
-        tcg_out_opc_add_d(s, TCG_REG_TMP0, h.base, h.index);
+        TCGReg base = h.base;
+        if (h.index != TCG_REG_ZERO) {
+            base = TCG_REG_TMP0;
+            tcg_out_opc_add_d(s, base, h.base, h.index);
+        }
         if (is_ld) {
-            tcg_out_opc_ld_d(s, data_lo, TCG_REG_TMP0, 0);
-            tcg_out_opc_ld_d(s, data_hi, TCG_REG_TMP0, 8);
+            tcg_debug_assert(base != data_lo);
+            tcg_out_opc_ld_d(s, data_lo, base, 0);
+            tcg_out_opc_ld_d(s, data_hi, base, 8);
         } else {
-            tcg_out_opc_st_d(s, data_lo, TCG_REG_TMP0, 0);
-            tcg_out_opc_st_d(s, data_hi, TCG_REG_TMP0, 8);
+            tcg_out_opc_st_d(s, data_lo, base, 0);
+            tcg_out_opc_st_d(s, data_hi, base, 8);
         }
     }
 
@@ -2049,7 +2054,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_qemu_ld_a32_i128:
     case INDEX_op_qemu_ld_a64_i128:
-        return C_O2_I1(r, r, r);
+        return C_N2_I1(r, r, r);
 
     case INDEX_op_qemu_st_a32_i128:
     case INDEX_op_qemu_st_a64_i128:
