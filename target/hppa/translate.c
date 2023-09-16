@@ -3105,8 +3105,11 @@ static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
         tcg_gen_shr_reg(dest, dest, cpu_sar);
     } else if (a->r1 == a->r2) {
         TCGv_i32 t32 = tcg_temp_new_i32();
+        TCGv_i32 s32 = tcg_temp_new_i32();
+
         tcg_gen_trunc_reg_i32(t32, load_gpr(ctx, a->r2));
-        tcg_gen_rotr_i32(t32, t32, cpu_sar);
+        tcg_gen_trunc_reg_i32(s32, cpu_sar);
+        tcg_gen_rotr_i32(t32, t32, s32);
         tcg_gen_extu_i32_reg(dest, t32);
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
