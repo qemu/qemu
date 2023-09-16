@@ -32,8 +32,6 @@
 #include "../tcg-ldst.c.inc"
 #include <asm/hwcap.h>
 
-bool use_lsx_instructions;
-
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "zero",
@@ -2314,10 +2312,6 @@ static void tcg_target_init(TCGContext *s)
         exit(EXIT_FAILURE);
     }
 
-    if (hwcap & HWCAP_LOONGARCH_LSX) {
-        use_lsx_instructions = 1;
-    }
-
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
     tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS;
 
@@ -2333,7 +2327,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S8);
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S9);
 
-    if (use_lsx_instructions) {
+    if (cpuinfo & CPUINFO_LSX) {
         tcg_target_available_regs[TCG_TYPE_V128] = ALL_VECTOR_REGS;
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V24);
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V25);

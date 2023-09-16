@@ -29,6 +29,8 @@
 #ifndef LOONGARCH_TCG_TARGET_H
 #define LOONGARCH_TCG_TARGET_H
 
+#include "host/cpuinfo.h"
+
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 64
 
@@ -84,8 +86,6 @@ typedef enum {
     TCG_REG_TMP2 = TCG_REG_T6,
     TCG_VEC_TMP0 = TCG_REG_V23,
 } TCGReg;
-
-extern bool use_lsx_instructions;
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK              TCG_REG_SP
@@ -171,10 +171,10 @@ extern bool use_lsx_instructions;
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
 
-#define TCG_TARGET_HAS_qemu_ldst_i128   use_lsx_instructions
+#define TCG_TARGET_HAS_qemu_ldst_i128   (cpuinfo & CPUINFO_LSX)
 
 #define TCG_TARGET_HAS_v64              0
-#define TCG_TARGET_HAS_v128             use_lsx_instructions
+#define TCG_TARGET_HAS_v128             (cpuinfo & CPUINFO_LSX)
 #define TCG_TARGET_HAS_v256             0
 
 #define TCG_TARGET_HAS_not_vec          1
