@@ -825,7 +825,7 @@ static uint64_t store_whole_le16(void *pv, int size, Int128 val_le)
     int sh = o * 8;
     Int128 m, v;
 
-    qemu_build_assert(HAVE_ATOMIC128_RW);
+    qemu_build_assert(HAVE_CMPXCHG128);
 
     /* Like MAKE_64BIT_MASK(0, sz), but larger. */
     if (sz <= 64) {
@@ -887,7 +887,7 @@ static void store_atom_2(CPUState *cpu, uintptr_t ra,
             return;
         }
     } else if ((pi & 15) == 7) {
-        if (HAVE_ATOMIC128_RW) {
+        if (HAVE_CMPXCHG128) {
             Int128 v = int128_lshift(int128_make64(val), 56);
             Int128 m = int128_lshift(int128_make64(0xffff), 56);
             store_atom_insert_al16(pv - 7, v, m);
@@ -956,7 +956,7 @@ static void store_atom_4(CPUState *cpu, uintptr_t ra,
                 return;
             }
         } else {
-            if (HAVE_ATOMIC128_RW) {
+            if (HAVE_CMPXCHG128) {
                 store_whole_le16(pv, 4, int128_make64(cpu_to_le32(val)));
                 return;
             }
@@ -1021,7 +1021,7 @@ static void store_atom_8(CPUState *cpu, uintptr_t ra,
         }
         break;
     case MO_64:
-        if (HAVE_ATOMIC128_RW) {
+        if (HAVE_CMPXCHG128) {
             store_whole_le16(pv, 8, int128_make64(cpu_to_le64(val)));
             return;
         }
@@ -1076,7 +1076,7 @@ static void store_atom_16(CPUState *cpu, uintptr_t ra,
         }
         break;
     case -MO_64:
-        if (HAVE_ATOMIC128_RW) {
+        if (HAVE_CMPXCHG128) {
             uint64_t val_le;
             int s2 = pi & 15;
             int s1 = 16 - s2;

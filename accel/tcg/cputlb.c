@@ -2691,7 +2691,7 @@ static uint64_t do_st16_leN(CPUState *cpu, MMULookupPageData *p,
 
     case MO_ATOM_WITHIN16_PAIR:
         /* Since size > 8, this is the half that must be atomic. */
-        if (!HAVE_ATOMIC128_RW) {
+        if (!HAVE_CMPXCHG128) {
             cpu_loop_exit_atomic(cpu, ra);
         }
         return store_whole_le16(p->haddr, p->size, val_le);
