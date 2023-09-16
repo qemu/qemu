@@ -159,6 +159,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
     env->iaoq_f = haddr;
     env->iaoq_b = haddr + 4;
+    env->psw_n = 0;
     return;
 
  give_sigsegv:
