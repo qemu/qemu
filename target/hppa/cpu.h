@@ -302,7 +302,7 @@ static inline target_ulong hppa_form_gva_psw(target_ureg psw, uint64_t spc,
 #ifdef CONFIG_USER_ONLY
     return off;
 #else
-    off &= (psw & PSW_W ? 0x3fffffffffffffffull : 0xffffffffull);
+    off &= psw & PSW_W ? MAKE_64BIT_MASK(0, 62) : MAKE_64BIT_MASK(0, 32);
     return spc | off;
 #endif
 }
@@ -343,9 +343,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
     flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
     flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
 
-    *pc = (env->psw & PSW_C
-           ? hppa_form_gva_psw(env->psw, env->iasq_f, env->iaoq_f & -4)
-           : env->iaoq_f & -4);
+    *pc = hppa_form_gva_psw(env->psw, (env->psw & PSW_C ? env->iasq_f : 0),
+                            env->iaoq_f & -4);
     *cs_base = env->iasq_f;
 
     /* Insert a difference between IAOQ_B and IAOQ_F within the otherwise zero

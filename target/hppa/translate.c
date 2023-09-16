@@ -710,6 +710,13 @@ static bool nullify_end(DisasContext *ctx)
     return true;
 }
 
+static target_ureg gva_offset_mask(DisasContext *ctx)
+{
+    return (ctx->tb_flags & PSW_W
+            ? MAKE_64BIT_MASK(0, 62)
+            : MAKE_64BIT_MASK(0, 32));
+}
+
 static void copy_iaoq_entry(TCGv_reg dest, target_ureg ival, TCGv_reg vval)
 {
     if (unlikely(ival == -1)) {
@@ -1398,7 +1405,8 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
     tmp = tcg_temp_new();
     spc = tcg_temp_new_tl();
 
-    tcg_gen_shri_reg(tmp, base, TARGET_REGISTER_BITS - 5);
+    /* Extract top 2 bits of the address, shift left 3 for uint64_t index. */
+    tcg_gen_shri_reg(tmp, base, (ctx->tb_flags & PSW_W ? 64 : 32) - 5);
     tcg_gen_andi_reg(tmp, tmp, 030);
     tcg_gen_trunc_reg_ptr(ptr, tmp);
 
@@ -1415,6 +1423,7 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
 {
     TCGv_reg base = load_gpr(ctx, rb);
     TCGv_reg ofs;
+    TCGv_tl addr;
 
     /* Note that RX is mutually exclusive with DISP.  */
     if (rx) {
@@ -1429,18 +1438,13 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
     }
 
     *pofs = ofs;
-#ifdef CONFIG_USER_ONLY
-    *pgva = (modify <= 0 ? ofs : base);
-#else
-    TCGv_tl addr = tcg_temp_new_tl();
+    *pgva = addr = tcg_temp_new_tl();
     tcg_gen_extu_reg_tl(addr, modify <= 0 ? ofs : base);
-    if (ctx->tb_flags & PSW_W) {
-        tcg_gen_andi_tl(addr, addr, 0x3fffffffffffffffull);
-    }
+    tcg_gen_andi_tl(addr, addr, gva_offset_mask(ctx));
+#ifndef CONFIG_USER_ONLY
     if (!is_phys) {
         tcg_gen_or_tl(addr, addr, space_select(ctx, sp, base));
     }
-    *pgva = addr;
 #endif
 }
 
