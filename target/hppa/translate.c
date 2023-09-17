@@ -983,9 +983,11 @@ static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, bool d,
  * how cases c={2,3} are treated.
  */
 
-static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, TCGv_reg res)
+static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
+                             TCGv_reg res)
 {
-    bool d = false;
+    TCGCond tc;
+    bool ext_uns;
 
     switch (cf) {
     case 0:  /* never */
@@ -1001,17 +1003,29 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, TCGv_reg res)
         return cond_make_t();
 
     case 2:  /* == */
-        return cond_make_0(TCG_COND_EQ, res);
+        tc = TCG_COND_EQ;
+        ext_uns = true;
+        break;
     case 3:  /* <> */
-        return cond_make_0(TCG_COND_NE, res);
+        tc = TCG_COND_NE;
+        ext_uns = true;
+        break;
     case 4:  /* < */
-        return cond_make_0(TCG_COND_LT, res);
+        tc = TCG_COND_LT;
+        ext_uns = false;
+        break;
     case 5:  /* >= */
-        return cond_make_0(TCG_COND_GE, res);
+        tc = TCG_COND_GE;
+        ext_uns = false;
+        break;
     case 6:  /* <= */
-        return cond_make_0(TCG_COND_LE, res);
+        tc = TCG_COND_LE;
+        ext_uns = false;
+        break;
     case 7:  /* > */
-        return cond_make_0(TCG_COND_GT, res);
+        tc = TCG_COND_GT;
+        ext_uns = false;
+        break;
 
     case 14: /* OD */
     case 15: /* EV */
@@ -1020,6 +1034,18 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, TCGv_reg res)
     default:
         g_assert_not_reached();
     }
+
+    if (cond_need_ext(ctx, d)) {
+        TCGv_reg tmp = tcg_temp_new();
+
+        if (ext_uns) {
+            tcg_gen_ext32u_reg(tmp, res);
+        } else {
+            tcg_gen_ext32s_reg(tmp, res);
+        }
+        return cond_make_0_tmp(tc, tmp);
+    }
+    return cond_make_0(tc, res);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
@@ -1027,6 +1053,7 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, TCGv_reg res)
 static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, TCGv_reg res)
 {
     unsigned c, f;
+    bool d = false;
 
     /* Convert the compressed condition codes to standard.
        0-2 are the same as logicals (nv,<,<=), while 3 is OD.
@@ -1037,7 +1064,7 @@ static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, TCGv_reg res)
     }
     f = (orig & 4) / 4;
 
-    return do_log_cond(ctx, c * 2 + f, res);
+    return do_log_cond(ctx, c * 2 + f, d, res);
 }
 
 /* Similar, but for unit conditions.  */
@@ -1381,6 +1408,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
                    void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg dest = dest_gpr(ctx, rt);
+    bool d = false;
 
     /* Perform the operation, and writeback.  */
     fn(dest, in1, in2);
@@ -1389,7 +1417,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (cf) {
-        ctx->null_cond = do_log_cond(ctx, cf, dest);
+        ctx->null_cond = do_log_cond(ctx, cf, d, dest);
     }
 }
 
