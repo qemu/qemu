@@ -1405,11 +1405,10 @@ static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 }
 
 static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                   TCGv_reg in2, unsigned cf,
+                   TCGv_reg in2, unsigned cf, bool d,
                    void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg dest = dest_gpr(ctx, rt);
-    bool d = false;
 
     /* Perform the operation, and writeback.  */
     fn(dest, in1, in2);
@@ -1422,7 +1421,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     }
 }
 
-static bool do_log_reg(DisasContext *ctx, arg_rrr_cf *a,
+static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
                        void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg tcg_r1, tcg_r2;
@@ -1432,7 +1431,7 @@ static bool do_log_reg(DisasContext *ctx, arg_rrr_cf *a,
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, fn);
+    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d, fn);
     return nullify_end(ctx);
 }
 
@@ -2693,17 +2692,17 @@ static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf *a)
     return do_sub_reg(ctx, a, true, true, false);
 }
 
-static bool trans_andcm(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_andcm(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_log_reg(ctx, a, tcg_gen_andc_reg);
 }
 
-static bool trans_and(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_and(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_log_reg(ctx, a, tcg_gen_and_reg);
 }
 
-static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     if (a->cf == 0) {
         unsigned r2 = a->r2;
@@ -2755,7 +2754,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
     return do_log_reg(ctx, a, tcg_gen_or_reg);
 }
 
-static bool trans_xor(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_xor(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_log_reg(ctx, a, tcg_gen_xor_reg);
 }
