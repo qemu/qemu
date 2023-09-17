@@ -23,7 +23,7 @@
  */
 
 #define DEBUG_ES1370 0
-/* #define VERBOSE_ES1370 */
+#define VERBOSE_ES1370 0
 
 #include "qemu/osdep.h"
 #include "hw/audio/soundhw.h"
@@ -238,11 +238,12 @@ static void print_sctl(uint32_t val)
     }
 }
 
-#ifdef VERBOSE_ES1370
-#define lwarn(...) AUD_log ("es1370: warning", __VA_ARGS__)
-#else
-#define lwarn(...)
-#endif
+#define lwarn(...) \
+do { \
+    if (VERBOSE_ES1370) { \
+        AUD_log("es1370: warning", __VA_ARGS__); \
+    } \
+} while (0)
 
 #define TYPE_ES1370 "ES1370"
 OBJECT_DECLARE_SIMPLE_TYPE(ES1370State, ES1370)
@@ -504,10 +505,10 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
-        lwarn ("writing to phantom frame count %#x\n", val);
+        lwarn("writing to phantom frame count 0x%" PRIx64 "\n", val);
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
-        lwarn ("writing to phantom frame address %#x\n", val);
+        lwarn("writing to phantom frame address 0x%" PRIx64 "\n", val);
         break;
 
     case ES1370_REG_ADC_FRAMECNT:
@@ -524,7 +525,7 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
 
     default:
-        lwarn ("writel %#x <- %#x\n", addr, val);
+        lwarn("writel 0x%" PRIx64 " <- 0x%" PRIx64 "\n", addr, val);
         break;
     }
 }
@@ -588,16 +589,16 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 
     case ES1370_REG_PHANTOM_FRAMECNT:
         val = ~0U;
-        lwarn ("reading from phantom frame count\n");
+        lwarn("reading from phantom frame count\n");
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
         val = ~0U;
-        lwarn ("reading from phantom frame address\n");
+        lwarn("reading from phantom frame address\n");
         break;
 
     default:
         val = ~0U;
-        lwarn ("readl %#x -> %#x\n", addr, val);
+        lwarn("readl 0x%" PRIx64 " -> 0x%x\n", addr, val);
         break;
     }
     return val;
