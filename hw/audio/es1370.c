@@ -309,8 +309,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
 
     if (level) {
         s->status = new_status | STAT_INTR;
-    }
-    else {
+    } else {
         s->status = new_status & ~STAT_INTR;
     }
     pci_set_irq(&s->dev, !!level);
@@ -333,8 +332,7 @@ static void es1370_reset (ES1370State *s)
         if (i == ADC_CHANNEL) {
             AUD_close_in (&s->card, s->adc_voice);
             s->adc_voice = NULL;
-        }
-        else {
+        } else {
             AUD_close_out (&s->card, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
@@ -421,8 +419,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             es1370_adc_callback,
                             &as
                             );
-                }
-                else {
+                } else {
                     s->dac_voice[i] =
                         AUD_open_out (
                             &s->card,
@@ -442,8 +439,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
             if (i == ADC_CHANNEL) {
                 AUD_set_active_in (s->adc_voice, on);
-            }
-            else {
+            } else {
                 AUD_set_active_out (s->dac_voice[i], on);
             }
         }
@@ -456,8 +452,9 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
 {
     addr &= 0xff;
-    if (addr >= 0x30 && addr <= 0x3f)
+    if (addr >= 0x30 && addr <= 0x3f) {
         addr |= s->mempage << 8;
+    }
     return addr;
 }
 
@@ -630,8 +627,9 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
 
             to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
             acquired = AUD_read (s->adc_voice, tmpbuf, to_copy);
-            if (!acquired)
+            if (!acquired) {
                 break;
+            }
 
             pci_dma_write (&s->dev, addr, tmpbuf, acquired);
 
@@ -639,8 +637,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             addr += acquired;
             transferred += acquired;
         }
-    }
-    else {
+    } else {
         SWVoiceOut *voice = s->dac_voice[index];
 
         while (temp > 0) {
@@ -649,8 +646,9 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
             pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
-            if (!copied)
+            if (!copied) {
                 break;
+            }
             temp -= copied;
             addr += copied;
             transferred += copied;
@@ -660,8 +658,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     if (csc_bytes == transferred) {
         *irq = 1;
         d->scount = sc | (sc << 16);
-    }
-    else {
+    } else {
         *irq = 0;
         d->scount = sc | (((csc_bytes - transferred - 1) >> d->shift) << 16);
     }
@@ -672,12 +669,12 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
         /* Bah, how stupid is that having a 0 represent true value?
            i just spent few hours on this shit */
         AUD_log ("es1370: warning", "non looping mode\n");
-    }
-    else {
+    } else {
         d->frame_cnt = size;
 
-        if ((uint32_t) cnt <= d->frame_cnt)
+        if ((uint32_t) cnt <= d->frame_cnt) {
             d->frame_cnt |= cnt << 16;
+        }
     }
 
     d->leftover = (transferred + d->leftover) & 3;
@@ -778,8 +775,7 @@ static int es1370_post_load (void *opaque, int version_id)
                 AUD_close_in (&s->card, s->adc_voice);
                 s->adc_voice = NULL;
             }
-        }
-        else {
+        } else {
             if (s->dac_voice[i]) {
                 AUD_close_out (&s->card, s->dac_voice[i]);
                 s->dac_voice[i] = NULL;
