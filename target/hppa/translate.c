@@ -3172,13 +3172,12 @@ static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
 {
     TCGv_reg tmp, tcg_r;
     DisasCond cond;
-    bool d = false;
 
     nullify_over(ctx);
 
     tmp = tcg_temp_new();
     tcg_r = load_gpr(ctx, a->r);
-    if (cond_need_ext(ctx, d)) {
+    if (cond_need_ext(ctx, a->d)) {
         /* Force shift into [32,63] */
         tcg_gen_ori_reg(tmp, cpu_sar, 32);
         tcg_gen_shl_reg(tmp, tcg_r, tmp);
@@ -3194,14 +3193,13 @@ static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 {
     TCGv_reg tmp, tcg_r;
     DisasCond cond;
-    bool d = false;
     int p;
 
     nullify_over(ctx);
 
     tmp = tcg_temp_new();
     tcg_r = load_gpr(ctx, a->r);
-    p = a->p | (cond_need_ext(ctx, d) ? 32 : 0);
+    p = a->p | (cond_need_ext(ctx, a->d) ? 32 : 0);
     tcg_gen_shli_reg(tmp, tcg_r, p);
 
     cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
