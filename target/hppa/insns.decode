@@ -67,6 +67,7 @@
 &rri_cf_d       t r i cf d
 
 &rrb_c_f        disp n c f r1 r2
+&rrb_c_d_f      disp n c d f r1 r2
 &rib_c_f        disp n c f r i
 
 ####
@@ -83,6 +84,8 @@
 
 @rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
                 &rrb_c_f disp=%assemble_12
+@rrb_cdf        ...... r2:5 r1:5 c:3 ........... n:1 .  \
+                &rrb_c_d_f disp=%assemble_12
 @rib_cf         ...... r:5 ..... c:3 ........... n:1 .  \
                 &rib_c_f disp=%assemble_12 i=%im5_16
 
@@ -296,8 +299,10 @@ bb_imm          110001 p:5   r:5 c:1 1 d:1 ........... n:1 . disp=%assemble_12
 movb            110010 ..... ..... ... ........... . .  @rrb_cf f=0
 movbi           110011 ..... ..... ... ........... . .  @rib_cf f=0
 
-cmpb            100000 ..... ..... ... ........... . .  @rrb_cf f=0
-cmpb            100010 ..... ..... ... ........... . .  @rrb_cf f=1
+cmpb            100000 ..... ..... ... ........... . .  @rrb_cdf d=0 f=0
+cmpb            100010 ..... ..... ... ........... . .  @rrb_cdf d=0 f=1
+cmpb            100111 ..... ..... ... ........... . .  @rrb_cdf d=1 f=0
+cmpb            101111 ..... ..... ... ........... . .  @rrb_cdf d=1 f=1
 cmpbi           100001 ..... ..... ... ........... . .  @rib_cf f=0
 cmpbi           100011 ..... ..... ... ........... . .  @rib_cf f=1
 

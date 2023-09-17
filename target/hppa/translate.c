@@ -3091,11 +3091,10 @@ static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
 }
 
 static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
-                    unsigned c, unsigned f, unsigned n, int disp)
+                    unsigned c, unsigned f, bool d, unsigned n, int disp)
 {
     TCGv_reg dest, in2, sv;
     DisasCond cond;
-    bool d = false;
 
     in2 = load_gpr(ctx, r);
     dest = tcg_temp_new();
@@ -3113,14 +3112,19 @@ static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
 
 static bool trans_cmpb(DisasContext *ctx, arg_cmpb *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     nullify_over(ctx);
-    return do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+    return do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1),
+                   a->c, a->f, a->d, a->n, a->disp);
 }
 
 static bool trans_cmpbi(DisasContext *ctx, arg_cmpbi *a)
 {
     nullify_over(ctx);
-    return do_cmpb(ctx, a->r, tcg_constant_reg(a->i), a->c, a->f, a->n, a->disp);
+    return do_cmpb(ctx, a->r, tcg_constant_reg(a->i),
+                   a->c, a->f, false, a->n, a->disp);
 }
 
 static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
