@@ -1287,12 +1287,11 @@ static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
 
 static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
                    TCGv_reg in2, bool is_tsv, bool is_b,
-                   bool is_tc, unsigned cf)
+                   bool is_tc, unsigned cf, bool d)
 {
     TCGv_reg dest, sv, cb, cb_msb, zero, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
-    bool d = false;
 
     dest = tcg_temp_new();
     cb = tcg_temp_new();
@@ -1350,7 +1349,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     ctx->null_cond = cond;
 }
 
-static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf *a,
+static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf_d *a,
                        bool is_tsv, bool is_b, bool is_tc)
 {
     TCGv_reg tcg_r1, tcg_r2;
@@ -1360,7 +1359,7 @@ static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf *a,
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf);
+    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf, a->d);
     return nullify_end(ctx);
 }
 
@@ -1373,7 +1372,8 @@ static bool do_sub_imm(DisasContext *ctx, arg_rri_cf *a, bool is_tsv)
     }
     tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf);
+    /* All SUBI conditions are 32-bit. */
+    do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf, false);
     return nullify_end(ctx);
 }
 
@@ -2661,32 +2661,32 @@ static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_d_sh *a)
     return do_add_reg(ctx, a, false, true, false, true);
 }
 
-static bool trans_sub(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, false, false);
 }
 
-static bool trans_sub_tsv(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tsv(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, false, false);
 }
 
-static bool trans_sub_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, false, true);
 }
 
-static bool trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, false, true);
 }
 
-static bool trans_sub_b(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_b(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, true, false);
 }
 
-static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, true, false);
 }
