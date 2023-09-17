@@ -254,9 +254,6 @@ typedef struct DisasContext {
     target_ureg iaoq_n;
     TCGv_reg iaoq_n_var;
 
-    int ntempl;
-    TCGv_tl  templ[4];
-
     DisasCond null_cond;
     TCGLabel *null_lab;
 
@@ -490,15 +487,6 @@ static void cond_free(DisasCond *cond)
         break;
     }
 }
-
-#ifndef CONFIG_USER_ONLY
-static TCGv_tl get_temp_tl(DisasContext *ctx)
-{
-    unsigned i = ctx->ntempl++;
-    g_assert(i < ARRAY_SIZE(ctx->templ));
-    return ctx->templ[i] = tcg_temp_new_tl();
-}
-#endif
 
 static TCGv_reg load_const(DisasContext *ctx, target_sreg v)
 {
@@ -1374,7 +1362,7 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
         if (sp < 0) {
             sp = ~sp;
         }
-        spc = get_temp_tl(ctx);
+        spc = tcg_temp_new_tl();
         load_spr(ctx, spc, sp);
         return spc;
     }
@@ -1384,7 +1372,7 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
 
     ptr = tcg_temp_new_ptr();
     tmp = tcg_temp_new();
-    spc = get_temp_tl(ctx);
+    spc = tcg_temp_new_tl();
 
     tcg_gen_shri_reg(tmp, base, TARGET_REGISTER_BITS - 5);
     tcg_gen_andi_reg(tmp, tmp, 030);
@@ -1420,7 +1408,7 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
 #ifdef CONFIG_USER_ONLY
     *pgva = (modify <= 0 ? ofs : base);
 #else
-    TCGv_tl addr = get_temp_tl(ctx);
+    TCGv_tl addr = tcg_temp_new_tl();
     tcg_gen_extu_reg_tl(addr, modify <= 0 ? ofs : base);
     if (ctx->tb_flags & PSW_W) {
         tcg_gen_andi_tl(addr, addr, 0x3fffffffffffffffull);
@@ -4081,9 +4069,6 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     /* Bound the number of instructions by those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
-
-    ctx->ntempl = 0;
-    memset(ctx->templ, 0, sizeof(ctx->templ));
 }
 
 static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
@@ -4112,7 +4097,6 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUHPPAState *env = cpu_env(cs);
     DisasJumpType ret;
-    int i, n;
 
     /* Execute one insn.  */
 #ifdef CONFIG_USER_ONLY
@@ -4150,12 +4134,6 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             assert(ctx->null_lab == NULL);
         }
     }
-
-    /* Forget any temporaries allocated.  */
-    for (i = 0, n = ctx->ntempl; i < n; ++i) {
-        ctx->templ[i] = NULL;
-    }
-    ctx->ntempl = 0;
 
     /* Advance the insn queue.  Note that this check also detects
        a priority change within the instruction queue.  */
