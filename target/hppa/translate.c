@@ -1436,12 +1436,11 @@ static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
 }
 
 static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                    TCGv_reg in2, unsigned cf, bool is_tc,
+                    TCGv_reg in2, unsigned cf, bool d, bool is_tc,
                     void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg dest;
     DisasCond cond;
-    bool d = false;
 
     if (cf == 0) {
         dest = dest_gpr(ctx, rt);
@@ -2772,7 +2771,7 @@ static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a)
     return nullify_end(ctx);
 }
 
-static bool trans_uxor(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uxor(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     TCGv_reg tcg_r1, tcg_r2;
 
@@ -2781,11 +2780,11 @@ static bool trans_uxor(DisasContext *ctx, arg_rrr_cf *a)
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, false, tcg_gen_xor_reg);
+    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d, false, tcg_gen_xor_reg);
     return nullify_end(ctx);
 }
 
-static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
+static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
 {
     TCGv_reg tcg_r1, tcg_r2, tmp;
 
@@ -2796,21 +2795,21 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
     tcg_r2 = load_gpr(ctx, a->r2);
     tmp = tcg_temp_new();
     tcg_gen_not_reg(tmp, tcg_r2);
-    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, is_tc, tcg_gen_add_reg);
+    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, a->d, is_tc, tcg_gen_add_reg);
     return nullify_end(ctx);
 }
 
-static bool trans_uaddcm(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_uaddcm(ctx, a, false);
 }
 
-static bool trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_uaddcm(ctx, a, true);
 }
 
-static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
+static bool do_dcor(DisasContext *ctx, arg_rr_cf_d *a, bool is_i)
 {
     TCGv_reg tmp;
 
@@ -2821,19 +2820,19 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
     if (!is_i) {
         tcg_gen_not_reg(tmp, tmp);
     }
-    tcg_gen_andi_reg(tmp, tmp, 0x11111111);
+    tcg_gen_andi_reg(tmp, tmp, (target_ureg)0x1111111111111111ull);
     tcg_gen_muli_reg(tmp, tmp, 6);
-    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, false,
+    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, a->d, false,
             is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
     return nullify_end(ctx);
 }
 
-static bool trans_dcor(DisasContext *ctx, arg_rr_cf *a)
+static bool trans_dcor(DisasContext *ctx, arg_rr_cf_d *a)
 {
     return do_dcor(ctx, a, false);
 }
 
-static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf *a)
+static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf_d *a)
 {
     return do_dcor(ctx, a, true);
 }
