@@ -24,7 +24,6 @@
 
 /* #define DEBUG_ES1370 */
 /* #define VERBOSE_ES1370 */
-#define SILENT_ES1370
 
 #include "qemu/osdep.h"
 #include "hw/audio/soundhw.h"
@@ -243,12 +242,6 @@ static void print_sctl (uint32_t val)
 #endif
 
 #ifdef VERBOSE_ES1370
-#define dolog(...) AUD_log ("es1370", __VA_ARGS__)
-#else
-#define dolog(...)
-#endif
-
-#ifndef SILENT_ES1370
 #define lwarn(...) AUD_log ("es1370: warning", __VA_ARGS__)
 #else
 #define lwarn(...)
