@@ -1186,12 +1186,11 @@ static TCGv_reg do_sub_sv(DisasContext *ctx, TCGv_reg res,
 
 static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
                    TCGv_reg in2, unsigned shift, bool is_l,
-                   bool is_tsv, bool is_tc, bool is_c, unsigned cf)
+                   bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
 {
     TCGv_reg dest, cb, cb_msb, cb_cond, sv, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
-    bool d = false;
 
     dest = tcg_temp_new();
     cb = NULL;
@@ -1256,7 +1255,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     ctx->null_cond = cond;
 }
 
-static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_sh *a,
+static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_d_sh *a,
                        bool is_l, bool is_tsv, bool is_tc, bool is_c)
 {
     TCGv_reg tcg_r1, tcg_r2;
@@ -1266,7 +1265,8 @@ static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_sh *a,
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l, is_tsv, is_tc, is_c, a->cf);
+    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l,
+           is_tsv, is_tc, is_c, a->cf, a->d);
     return nullify_end(ctx);
 }
 
@@ -1280,7 +1280,8 @@ static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
     }
     tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf);
+    /* All ADDI conditions are 32-bit. */
+    do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf, false);
     return nullify_end(ctx);
 }
 
@@ -2635,27 +2636,27 @@ static bool trans_lci(DisasContext *ctx, arg_lci *a)
     return true;
 }
 
-static bool trans_add(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, false, false, false);
 }
 
-static bool trans_add_l(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_l(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, true, false, false, false);
 }
 
-static bool trans_add_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_tsv(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, true, false, false);
 }
 
-static bool trans_add_c(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_c(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, false, false, true);
 }
 
-static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, true, false, true);
 }

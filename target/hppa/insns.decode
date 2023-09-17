@@ -62,7 +62,7 @@
 &rr_cf_d        t r cf d
 &rrr_cf         t r1 r2 cf
 &rrr_cf_d       t r1 r2 cf d
-&rrr_cf_sh      t r1 r2 cf sh
+&rrr_cf_d_sh    t r1 r2 cf d sh
 &rri_cf         t r i cf
 &rri_cf_d       t r i cf d
 
@@ -76,8 +76,8 @@
 @rr_cf_d        ...... r:5 ..... cf:4 ...... d:1 t:5    &rr_cf_d
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
 @rrr_cf_d       ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d
-@rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
-@rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
+@rrr_cf_d_sh    ...... r2:5 r1:5 cf:4 .... sh:2 d:1 t:5 &rrr_cf_d_sh
+@rrr_cf_d_sh0   ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d_sh sh=0
 @rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
 @rri_cf_d       ...... r:5  t:5  cf:4 d:1 ...........   &rri_cf_d i=%lowsign_11
 
@@ -166,11 +166,11 @@ uaddcm_tc       000010 ..... ..... .... 100111 . .....  @rrr_cf_d
 dcor            000010 ..... 00000 .... 101110 . .....  @rr_cf_d
 dcor_i          000010 ..... 00000 .... 101111 . .....  @rr_cf_d
 
-add             000010 ..... ..... .... 0110.. - .....  @rrr_cf_sh
-add_l           000010 ..... ..... .... 1010.. 0 .....  @rrr_cf_sh
-add_tsv         000010 ..... ..... .... 1110.. 0 .....  @rrr_cf_sh
-add_c           000010 ..... ..... .... 011100 0 .....  @rrr_cf_sh0
-add_c_tsv       000010 ..... ..... .... 111100 0 .....  @rrr_cf_sh0
+add             000010 ..... ..... .... 0110.. . .....  @rrr_cf_d_sh
+add_l           000010 ..... ..... .... 1010.. . .....  @rrr_cf_d_sh
+add_tsv         000010 ..... ..... .... 1110.. . .....  @rrr_cf_d_sh
+add_c           000010 ..... ..... .... 011100 . .....  @rrr_cf_d_sh0
+add_c_tsv       000010 ..... ..... .... 111100 . .....  @rrr_cf_d_sh0
 
 sub             000010 ..... ..... .... 010000 - .....  @rrr_cf
 sub_tsv         000010 ..... ..... .... 110000 0 .....  @rrr_cf
