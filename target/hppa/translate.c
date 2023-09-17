@@ -329,6 +329,12 @@ static int expand_shl11(DisasContext *ctx, int val)
     return val << 11;
 }
 
+/* Translate CMPI doubleword conditions to standard. */
+static int cmpbid_c(DisasContext *ctx, int val)
+{
+    return val ? val : 4; /* 0 == "*<<" */
+}
+
 
 /* Include the auto-generated decoder.  */
 #include "decode-insns.c.inc"
@@ -3122,9 +3128,12 @@ static bool trans_cmpb(DisasContext *ctx, arg_cmpb *a)
 
 static bool trans_cmpbi(DisasContext *ctx, arg_cmpbi *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     nullify_over(ctx);
     return do_cmpb(ctx, a->r, tcg_constant_reg(a->i),
-                   a->c, a->f, false, a->n, a->disp);
+                   a->c, a->f, a->d, a->n, a->disp);
 }
 
 static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,

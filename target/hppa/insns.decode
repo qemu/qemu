@@ -51,6 +51,7 @@
 %pos_to_m       0:1      !function=pos_to_m
 %neg_to_m       0:1      !function=neg_to_m
 %a_to_m         2:1      !function=neg_to_m
+%cmpbid_c       13:2     !function=cmpbid_c
 
 ####
 # Argument set definitions
@@ -69,6 +70,7 @@
 &rrb_c_f        disp n c f r1 r2
 &rrb_c_d_f      disp n c d f r1 r2
 &rib_c_f        disp n c f r i
+&rib_c_d_f      disp n c d f r i
 
 ####
 # Format definitions
@@ -88,6 +90,8 @@
                 &rrb_c_d_f disp=%assemble_12
 @rib_cf         ...... r:5 ..... c:3 ........... n:1 .  \
                 &rib_c_f disp=%assemble_12 i=%im5_16
+@rib_cdf        ...... r:5 ..... c:3 ........... n:1 .  \
+                &rib_c_d_f disp=%assemble_12 i=%im5_16
 
 ####
 # System
@@ -303,8 +307,10 @@ cmpb            100000 ..... ..... ... ........... . .  @rrb_cdf d=0 f=0
 cmpb            100010 ..... ..... ... ........... . .  @rrb_cdf d=0 f=1
 cmpb            100111 ..... ..... ... ........... . .  @rrb_cdf d=1 f=0
 cmpb            101111 ..... ..... ... ........... . .  @rrb_cdf d=1 f=1
-cmpbi           100001 ..... ..... ... ........... . .  @rib_cf f=0
-cmpbi           100011 ..... ..... ... ........... . .  @rib_cf f=1
+cmpbi           100001 ..... ..... ... ........... . .  @rib_cdf d=0 f=0
+cmpbi           100011 ..... ..... ... ........... . .  @rib_cdf d=0 f=1
+cmpbi           111011 r:5 ..... f:1 .. ........... n:1 . \
+                &rib_c_d_f d=1 disp=%assemble_12 c=%cmpbid_c i=%im5_16
 
 addb            101000 ..... ..... ... ........... . .  @rrb_cf f=0
 addb            101010 ..... ..... ... ........... . .  @rrb_cf f=1
