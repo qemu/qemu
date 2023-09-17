@@ -254,8 +254,7 @@ typedef struct DisasContext {
     target_ureg iaoq_n;
     TCGv_reg iaoq_n_var;
 
-    int ntempr, ntempl;
-    TCGv_reg tempr[8];
+    int ntempl;
     TCGv_tl  templ[4];
 
     DisasCond null_cond;
@@ -492,13 +491,6 @@ static void cond_free(DisasCond *cond)
     }
 }
 
-static TCGv_reg get_temp(DisasContext *ctx)
-{
-    unsigned i = ctx->ntempr++;
-    g_assert(i < ARRAY_SIZE(ctx->tempr));
-    return ctx->tempr[i] = tcg_temp_new();
-}
-
 #ifndef CONFIG_USER_ONLY
 static TCGv_tl get_temp_tl(DisasContext *ctx)
 {
@@ -510,7 +502,7 @@ static TCGv_tl get_temp_tl(DisasContext *ctx)
 
 static TCGv_reg load_const(DisasContext *ctx, target_sreg v)
 {
-    TCGv_reg t = get_temp(ctx);
+    TCGv_reg t = tcg_temp_new();
     tcg_gen_movi_reg(t, v);
     return t;
 }
@@ -518,7 +510,7 @@ static TCGv_reg load_const(DisasContext *ctx, target_sreg v)
 static TCGv_reg load_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0) {
-        TCGv_reg t = get_temp(ctx);
+        TCGv_reg t = tcg_temp_new();
         tcg_gen_movi_reg(t, 0);
         return t;
     } else {
@@ -529,7 +521,7 @@ static TCGv_reg load_gpr(DisasContext *ctx, unsigned reg)
 static TCGv_reg dest_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0 || ctx->null_cond.c != TCG_COND_NEVER) {
-        return get_temp(ctx);
+        return tcg_temp_new();
     } else {
         return cpu_gr[reg];
     }
@@ -1071,7 +1063,7 @@ static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
 static TCGv_reg do_add_sv(DisasContext *ctx, TCGv_reg res,
                           TCGv_reg in1, TCGv_reg in2)
 {
-    TCGv_reg sv = get_temp(ctx);
+    TCGv_reg sv = tcg_temp_new();
     TCGv_reg tmp = tcg_temp_new();
 
     tcg_gen_xor_reg(sv, res, in1);
@@ -1085,7 +1077,7 @@ static TCGv_reg do_add_sv(DisasContext *ctx, TCGv_reg res,
 static TCGv_reg do_sub_sv(DisasContext *ctx, TCGv_reg res,
                           TCGv_reg in1, TCGv_reg in2)
 {
-    TCGv_reg sv = get_temp(ctx);
+    TCGv_reg sv = tcg_temp_new();
     TCGv_reg tmp = tcg_temp_new();
 
     tcg_gen_xor_reg(sv, res, in1);
@@ -1108,20 +1100,20 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     cb_msb = NULL;
 
     if (shift) {
-        tmp = get_temp(ctx);
+        tmp = tcg_temp_new();
         tcg_gen_shli_reg(tmp, in1, shift);
         in1 = tmp;
     }
 
     if (!is_l || cond_need_cb(c)) {
         TCGv_reg zero = tcg_constant_reg(0);
-        cb_msb = get_temp(ctx);
+        cb_msb = tcg_temp_new();
         tcg_gen_add2_reg(dest, cb_msb, in1, zero, in2, zero);
         if (is_c) {
             tcg_gen_add2_reg(dest, cb_msb, dest, cb_msb, cpu_psw_cb_msb, zero);
         }
         if (!is_l) {
-            cb = get_temp(ctx);
+            cb = tcg_temp_new();
             tcg_gen_xor_reg(cb, in1, in2);
             tcg_gen_xor_reg(cb, cb, dest);
         }
@@ -1414,11 +1406,11 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
 
     /* Note that RX is mutually exclusive with DISP.  */
     if (rx) {
-        ofs = get_temp(ctx);
+        ofs = tcg_temp_new();
         tcg_gen_shli_reg(ofs, cpu_gr[rx], scale);
         tcg_gen_add_reg(ofs, ofs, base);
     } else if (disp || modify) {
-        ofs = get_temp(ctx);
+        ofs = tcg_temp_new();
         tcg_gen_addi_reg(ofs, base, disp);
     } else {
         ofs = base;
@@ -1538,7 +1530,7 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
         dest = dest_gpr(ctx, rt);
     } else {
         /* Make sure if RT == RB, we see the result of the load.  */
-        dest = get_temp(ctx);
+        dest = tcg_temp_new();
     }
     do_load_reg(ctx, dest, rb, rx, scale, disp, sp, modify, mop);
     save_gpr(ctx, rt, dest);
@@ -1854,7 +1846,7 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         if (link != 0) {
             copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
-        next = get_temp(ctx);
+        next = tcg_temp_new();
         tcg_gen_mov_reg(next, dest);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
@@ -1896,7 +1888,7 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         a1 = ctx->null_cond.a1;
 
         tmp = tcg_temp_new();
-        next = get_temp(ctx);
+        next = tcg_temp_new();
 
         copy_iaoq_entry(tmp, ctx->iaoq_n, ctx->iaoq_n_var);
         tcg_gen_movcond_reg(c, next, a0, a1, tmp, dest);
@@ -1938,11 +1930,11 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
         return offset;
     case 3:
         /* Privilege 3 is minimum and is never allowed to increase.  */
-        dest = get_temp(ctx);
+        dest = tcg_temp_new();
         tcg_gen_ori_reg(dest, offset, 3);
         break;
     default:
-        dest = get_temp(ctx);
+        dest = tcg_temp_new();
         tcg_gen_andi_reg(dest, offset, -4);
         tcg_gen_ori_reg(dest, dest, ctx->privilege);
         tcg_gen_movcond_reg(TCG_COND_GTU, dest, dest, offset, dest, offset);
@@ -2104,7 +2096,7 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
         break;
     }
 
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_ld_reg(tmp, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
     save_gpr(ctx, rt, tmp);
 
@@ -2177,7 +2169,7 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
     case CR_IIAOQ:
         /* FIXME: Respect PSW_Q bit */
         /* The write advances the queue and stores to the back element.  */
-        tmp = get_temp(ctx);
+        tmp = tcg_temp_new();
         tcg_gen_ld_reg(tmp, tcg_env,
                        offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
         tcg_gen_st_reg(tmp, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
@@ -2243,7 +2235,7 @@ static bool trans_rsm(DisasContext *ctx, arg_rsm *a)
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_ld_reg(tmp, tcg_env, offsetof(CPUHPPAState, psw));
     tcg_gen_andi_reg(tmp, tmp, ~a->i);
     gen_helper_swap_system_mask(tmp, tcg_env, tmp);
@@ -2263,7 +2255,7 @@ static bool trans_ssm(DisasContext *ctx, arg_ssm *a)
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_ld_reg(tmp, tcg_env, offsetof(CPUHPPAState, psw));
     tcg_gen_ori_reg(tmp, tmp, a->i);
     gen_helper_swap_system_mask(tmp, tcg_env, tmp);
@@ -2283,7 +2275,7 @@ static bool trans_mtsm(DisasContext *ctx, arg_mtsm *a)
     nullify_over(ctx);
 
     reg = load_gpr(ctx, a->r);
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     gen_helper_swap_system_mask(tmp, tcg_env, reg);
 
     /* Exit the TB to recognize new interrupts.  */
@@ -2692,7 +2684,7 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_not_reg(tmp, tcg_r2);
     do_unit(ctx, a->t, tcg_r1, tmp, a->cf, is_tc, tcg_gen_add_reg);
     return nullify_end(ctx);
@@ -2714,7 +2706,7 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_shri_reg(tmp, cpu_psw_cb, 3);
     if (!is_i) {
         tcg_gen_not_reg(tmp, tmp);
@@ -2866,7 +2858,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
     if (a->m) {
         /* Base register modification.  Make sure if RT == RB,
            we see the result of the load.  */
-        dest = get_temp(ctx);
+        dest = tcg_temp_new();
     } else {
         dest = dest_gpr(ctx, a->t);
     }
@@ -2992,7 +2984,7 @@ static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
     DisasCond cond;
 
     in2 = load_gpr(ctx, r);
-    dest = get_temp(ctx);
+    dest = tcg_temp_new();
 
     tcg_gen_sub_reg(dest, in1, in2);
 
@@ -3029,7 +3021,7 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
     cb_msb = NULL;
 
     if (cond_need_cb(c)) {
-        cb_msb = get_temp(ctx);
+        cb_msb = tcg_temp_new();
         tcg_gen_movi_reg(cb_msb, 0);
         tcg_gen_add2_reg(dest, cb_msb, in1, cb_msb, in2, cb_msb);
     } else {
@@ -3388,7 +3380,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     nullify_over(ctx);
 #endif
 
-    tmp = get_temp(ctx);
+    tmp = tcg_temp_new();
     tcg_gen_addi_reg(tmp, load_gpr(ctx, a->b), a->disp);
     tmp = do_ibranch_priv(ctx, tmp);
 
@@ -3485,7 +3477,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
     if (a->x) {
-        TCGv_reg tmp = get_temp(ctx);
+        TCGv_reg tmp = tcg_temp_new();
         tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
         tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
         /* The computation here never changes privilege level.  */
@@ -3503,7 +3495,7 @@ static bool trans_bv(DisasContext *ctx, arg_bv *a)
     if (a->x == 0) {
         dest = load_gpr(ctx, a->b);
     } else {
-        dest = get_temp(ctx);
+        dest = tcg_temp_new();
         tcg_gen_shli_reg(dest, load_gpr(ctx, a->x), 3);
         tcg_gen_add_reg(dest, dest, load_gpr(ctx, a->b));
     }
@@ -3834,7 +3826,7 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 
     nullify_over(ctx);
 
-    t = get_temp(ctx);
+    t = tcg_temp_new();
     tcg_gen_ld32u_reg(t, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
 
     if (a->y == 1) {
@@ -4090,9 +4082,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
 
-    ctx->ntempr = 0;
     ctx->ntempl = 0;
-    memset(ctx->tempr, 0, sizeof(ctx->tempr));
     memset(ctx->templ, 0, sizeof(ctx->templ));
 }
 
@@ -4141,7 +4131,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
            This will be overwritten by a branch.  */
         if (ctx->iaoq_b == -1) {
             ctx->iaoq_n = -1;
-            ctx->iaoq_n_var = get_temp(ctx);
+            ctx->iaoq_n_var = tcg_temp_new();
             tcg_gen_addi_reg(ctx->iaoq_n_var, cpu_iaoq_b, 4);
         } else {
             ctx->iaoq_n = ctx->iaoq_b + 4;
@@ -4162,13 +4152,9 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Forget any temporaries allocated.  */
-    for (i = 0, n = ctx->ntempr; i < n; ++i) {
-        ctx->tempr[i] = NULL;
-    }
     for (i = 0, n = ctx->ntempl; i < n; ++i) {
         ctx->templ[i] = NULL;
     }
-    ctx->ntempr = 0;
     ctx->ntempl = 0;
 
     /* Advance the insn queue.  Note that this check also detects
