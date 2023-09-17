@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "qom/object.h"
+#include "trace.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -166,8 +167,6 @@ static void es1370_adc_callback (void *opaque, int avail);
 
 #ifdef DEBUG_ES1370
 
-#define ldebug(...) AUD_log ("es1370", __VA_ARGS__)
-
 static void print_ctl (uint32_t val)
 {
     char buf[1024];
@@ -239,7 +238,6 @@ static void print_sctl (uint32_t val)
         );
 }
 #else
-#define ldebug(...)
 #define print_ctl(...)
 #define print_sctl(...)
 #endif
@@ -411,12 +409,9 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
         if ((old_fmt != new_fmt) || (old_freq != new_freq)) {
             d->shift = (new_fmt & 1) + (new_fmt >> 1);
-            ldebug ("channel %zu, freq = %d, nchannels %d, fmt %d, shift %d\n",
-                    i,
-                    new_freq,
-                    1 << (new_fmt & 1),
-                    (new_fmt & 2) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_U8,
-                    d->shift);
+            trace_es1370_stream_format(i, new_freq,
+                new_fmt & 2 ? "s16" : "u8", new_fmt & 1 ? "stereo" : "mono",
+                d->shift);
             if (new_freq) {
                 struct audsettings as;
 
@@ -503,8 +498,8 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case ES1370_REG_ADC_SCOUNT:
         d += (addr - ES1370_REG_DAC1_SCOUNT) >> 2;
         d->scount = (val & 0xffff) << 16 | (val & 0xffff);
-        ldebug ("chan %td CURR_SAMP_CT %d, SAMP_CT %d\n",
-                d - &s->chan[0], val >> 16, (val & 0xffff));
+        trace_es1370_sample_count_wr(d - &s->chan[0],
+            d->scount >> 16, d->scount & 0xffff);
         break;
 
     case ES1370_REG_ADC_FRAMEADR:
@@ -515,7 +510,7 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         d += (addr - ES1370_REG_DAC1_FRAMEADR) >> 3;
     frameadr:
         d->frame_addr = val;
-        ldebug ("chan %td frame address %#x\n", d - &s->chan[0], val);
+        trace_es1370_frame_address_wr(d - &s->chan[0], d->frame_addr);
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
@@ -534,8 +529,8 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     framecnt:
         d->frame_cnt = val;
         d->leftover = 0;
-        ldebug ("chan %td frame count %d, buffer size %d\n",
-                d - &s->chan[0], val >> 16, val & 0xffff);
+        trace_es1370_frame_count_wr(d - &s->chan[0],
+            d->frame_cnt >> 16, d->frame_cnt & 0xffff);
         break;
 
     default:
@@ -573,17 +568,9 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_SCOUNT:
     case ES1370_REG_ADC_SCOUNT:
         d += (addr - ES1370_REG_DAC1_SCOUNT) >> 2;
+        trace_es1370_sample_count_rd(d - &s->chan[0],
+            d->scount >> 16, d->scount & 0xffff);
         val = d->scount;
-#ifdef DEBUG_ES1370
-        {
-            uint32_t curr_count = d->scount >> 16;
-            uint32_t count = d->scount & 0xffff;
-
-            curr_count <<= d->shift;
-            count <<= d->shift;
-            dolog ("read scount curr %d, total %d\n", curr_count, count);
-        }
-#endif
         break;
 
     case ES1370_REG_ADC_FRAMECNT:
@@ -593,17 +580,9 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_FRAMECNT:
         d += (addr - ES1370_REG_DAC1_FRAMECNT) >> 3;
     framecnt:
+        trace_es1370_frame_count_rd(d - &s->chan[0],
+            d->frame_cnt >> 16, d->frame_cnt & 0xffff);
         val = d->frame_cnt;
-#ifdef DEBUG_ES1370
-        {
-            uint32_t size = ((d->frame_cnt & 0xffff) + 1) << 2;
-            uint32_t curr = ((d->frame_cnt >> 16) + 1) << 2;
-            if (curr > size) {
-                dolog ("read framecnt curr %d, size %d %d\n", curr, size,
-                       curr > size);
-            }
-        }
-#endif
         break;
 
     case ES1370_REG_ADC_FRAMEADR:
@@ -613,6 +592,7 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_FRAMEADR:
         d += (addr - ES1370_REG_DAC1_FRAMEADR) >> 3;
     frameadr:
+        trace_es1370_frame_address_rd(d - &s->chan[0], d->frame_addr);
         val = d->frame_addr;
         break;
 
@@ -689,9 +669,6 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     if (csc_bytes == transferred) {
         *irq = 1;
         d->scount = sc | (sc << 16);
-        ldebug ("sc = %d, rate = %f\n",
-                (sc + 1) << d->shift,
-                (sc + 1) / (double) 44100);
     }
     else {
         *irq = 0;
@@ -713,6 +690,10 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     }
 
     d->leftover = (transferred + d->leftover) & 3;
+    trace_es1370_transfer_audio(index,
+        d->frame_cnt >> 16, d->frame_cnt & 0xffff,
+        d->scount >> 16, d->scount & 0xffff,
+        d->leftover, *irq);
 }
 
 static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
