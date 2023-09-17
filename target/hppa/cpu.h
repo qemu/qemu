@@ -272,6 +272,11 @@ struct ArchCPU {
 
 #include "exec/cpu-all.h"
 
+static inline bool hppa_is_pa20(CPUHPPAState *env)
+{
+    return object_dynamic_cast(OBJECT(env_cpu(env)), TYPE_HPPA64_CPU) != NULL;
+}
+
 static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
 {
 #ifdef CONFIG_USER_ONLY
