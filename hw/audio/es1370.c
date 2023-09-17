@@ -602,7 +602,7 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
-                                   int max, int *irq)
+                                   int max, bool *irq)
 {
     uint8_t tmpbuf[4096];
     size_t to_transfer;
@@ -657,10 +657,13 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     }
 
     if (csc_bytes == transferred) {
-        *irq = 1;
+        if (*irq) {
+            trace_es1370_lost_interrupt(index);
+        }
+        *irq = true;
         d->scount = sc | (sc << 16);
     } else {
-        *irq = 0;
+        *irq = false;
         d->scount = sc | (((csc_bytes - transferred - 1) >> d->shift) << 16);
     }
 
@@ -688,7 +691,8 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
 static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
 {
     uint32_t new_status = s->status;
-    int max_bytes, irq;
+    int max_bytes;
+    bool irq;
     struct chan *d = &s->chan[chan];
     const struct chan_bits *b = &es1370_chan_bits[chan];
 
@@ -701,6 +705,8 @@ static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
     if (!max_bytes) {
         return;
     }
+
+    irq = s->sctl & b->sctl_inten && s->status & b->stat_int;
 
     es1370_transfer_audio (s, d, b->sctl_loopsel, max_bytes, &irq);
 
