@@ -215,9 +215,14 @@ ld              000011 ..... ..... .. . 0 -- 00 size:2 ......   @ldstx
 st              000011 ..... ..... .. . 1 -- 10 size:2 ......   @stim5
 ldc             000011 ..... ..... .. . 1 -- 0111      ......   @ldim5 size=2
 ldc             000011 ..... ..... .. . 0 -- 0111      ......   @ldstx size=2
+ldc             000011 ..... ..... .. . 1 -- 0101      ......   @ldim5 size=3
+ldc             000011 ..... ..... .. . 0 -- 0101      ......   @ldstx size=3
 lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
 lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
+lda             000011 ..... ..... .. . 1 -- 0100      ......   @ldim5 size=3
+lda             000011 ..... ..... .. . 0 -- 0100      ......   @ldstx size=3
 sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
+sta             000011 ..... ..... .. . 1 -- 1111      ......   @stim5 size=3
 stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
 
 @fldstwx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 ..... \
@@ -244,6 +249,8 @@ fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
 # Offset Mem
 ####
 
+@ldstim11       ...... b:5 t:5 sp:2 ..............      \
+                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
 @ldstim14       ...... b:5 t:5 sp:2 ..............      \
                 &ldst disp=%lowsign_14 x=0 scale=0 m=0
 @ldstim14m      ...... b:5 t:5 sp:2 ..............      \
@@ -275,11 +282,11 @@ fstw            011110 b:5 ..... sp:2 ..............    \
 fstw            011111 b:5 ..... sp:2 ...........0..    \
                 &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
 
-fldd            010100 b:5 t:5   sp:2 .......... .. 1 . \
-                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
+ld              010100 ..... ..... .. ............0.    @ldstim11
+fldd            010100 ..... ..... .. ............1.    @ldstim11
 
-fstd            011100 b:5 t:5   sp:2 .......... .. 1 . \
-                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
+st              011100 ..... ..... .. ............0.    @ldstim11
+fstd            011100 ..... ..... .. ............1.    @ldstim11
 
 ####
 # Floating-point Multiply Add
