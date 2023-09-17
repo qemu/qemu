@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-/* #define DEBUG_ES1370 */
+#define DEBUG_ES1370 0
 /* #define VERBOSE_ES1370 */
 
 #include "qemu/osdep.h"
@@ -30,6 +30,7 @@
 #include "audio/audio.h"
 #include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
+#include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "qom/object.h"
@@ -164,82 +165,78 @@ static void es1370_dac1_callback (void *opaque, int free);
 static void es1370_dac2_callback (void *opaque, int free);
 static void es1370_adc_callback (void *opaque, int avail);
 
-#ifdef DEBUG_ES1370
-
-static void print_ctl (uint32_t val)
+static void print_ctl(uint32_t val)
 {
-    char buf[1024];
+    if (DEBUG_ES1370) {
+        char buf[1024];
 
-    buf[0] = '\0';
-#define a(n) if (val & CTRL_##n) strcat (buf, " "#n)
-    a (ADC_STOP);
-    a (XCTL1);
-    a (OPEN);
-    a (MSFMTSEL);
-    a (M_SBB);
-    a (DAC_SYNC);
-    a (CCB_INTRM);
-    a (M_CB);
-    a (XCTL0);
-    a (BREQ);
-    a (DAC1_EN);
-    a (DAC2_EN);
-    a (ADC_EN);
-    a (UART_EN);
-    a (JYSTK_EN);
-    a (CDC_EN);
-    a (SERR_DIS);
+        buf[0] = '\0';
+#define a(n) if (val & CTRL_##n) pstrcat(buf, sizeof(buf), " "#n)
+        a(ADC_STOP);
+        a(XCTL1);
+        a(OPEN);
+        a(MSFMTSEL);
+        a(M_SBB);
+        a(DAC_SYNC);
+        a(CCB_INTRM);
+        a(M_CB);
+        a(XCTL0);
+        a(BREQ);
+        a(DAC1_EN);
+        a(DAC2_EN);
+        a(ADC_EN);
+        a(UART_EN);
+        a(JYSTK_EN);
+        a(CDC_EN);
+        a(SERR_DIS);
 #undef a
-    AUD_log ("es1370", "ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s\n",
-             (val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV,
-             DAC2_DIVTOSR ((val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV),
-             dac1_samplerate[(val & CTRL_WTSRSEL) >> CTRL_SH_WTSRSEL],
-             buf);
+        AUD_log("es1370", "ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s\n",
+                (val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV,
+                DAC2_DIVTOSR((val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV),
+                dac1_samplerate[(val & CTRL_WTSRSEL) >> CTRL_SH_WTSRSEL],
+                buf);
+    }
 }
 
-static void print_sctl (uint32_t val)
+static void print_sctl(uint32_t val)
 {
-    static const char *fmt_names[] = {"8M", "8S", "16M", "16S"};
-    char buf[1024];
+    if (DEBUG_ES1370) {
+        static const char *fmt_names[] = {"8M", "8S", "16M", "16S"};
+        char buf[1024];
 
-    buf[0] = '\0';
+        buf[0] = '\0';
 
-#define a(n) if (val & SCTRL_##n) strcat (buf, " "#n)
-#define b(n) if (!(val & SCTRL_##n)) strcat (buf, " "#n)
-    b (R1LOOPSEL);
-    b (P2LOOPSEL);
-    b (P1LOOPSEL);
-    a (P2PAUSE);
-    a (P1PAUSE);
-    a (R1INTEN);
-    a (P2INTEN);
-    a (P1INTEN);
-    a (P1SCTRLD);
-    a (P2DACSEN);
-    if (buf[0]) {
-        strcat (buf, "\n        ");
-    }
-    else {
-        buf[0] = ' ';
-        buf[1] = '\0';
-    }
+#define a(n) if (val & SCTRL_##n) pstrcat(buf, sizeof(buf), " "#n)
+#define b(n) if (!(val & SCTRL_##n)) pstrcat(buf, sizeof(buf), " "#n)
+        b(R1LOOPSEL);
+        b(P2LOOPSEL);
+        b(P1LOOPSEL);
+        a(P2PAUSE);
+        a(P1PAUSE);
+        a(R1INTEN);
+        a(P2INTEN);
+        a(P1INTEN);
+        a(P1SCTRLD);
+        a(P2DACSEN);
+        if (buf[0]) {
+            pstrcat(buf, sizeof(buf), "\n        ");
+        } else {
+            buf[0] = ' ';
+            buf[1] = '\0';
+        }
 #undef b
 #undef a
-    AUD_log ("es1370",
-             "%s"
-             "p2_end_inc %d, p2_st_inc %d, r1_fmt %s, p2_fmt %s, p1_fmt %s\n",
-             buf,
-             (val & SCTRL_P2ENDINC) >> SCTRL_SH_P2ENDINC,
-             (val & SCTRL_P2STINC) >> SCTRL_SH_P2STINC,
-             fmt_names [(val >> SCTRL_SH_R1FMT) & 3],
-             fmt_names [(val >> SCTRL_SH_P2FMT) & 3],
-             fmt_names [(val >> SCTRL_SH_P1FMT) & 3]
-        );
+        AUD_log("es1370",
+                "%s p2_end_inc %d, p2_st_inc %d,"
+                " r1_fmt %s, p2_fmt %s, p1_fmt %s\n",
+                buf,
+                (val & SCTRL_P2ENDINC) >> SCTRL_SH_P2ENDINC,
+                (val & SCTRL_P2STINC) >> SCTRL_SH_P2STINC,
+                fmt_names[(val >> SCTRL_SH_R1FMT) & 3],
+                fmt_names[(val >> SCTRL_SH_P2FMT) & 3],
+                fmt_names[(val >> SCTRL_SH_P1FMT) & 3]);
+    }
 }
-#else
-#define print_ctl(...)
-#define print_sctl(...)
-#endif
 
 #ifdef VERBOSE_ES1370
 #define lwarn(...) AUD_log ("es1370: warning", __VA_ARGS__)
