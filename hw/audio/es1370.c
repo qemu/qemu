@@ -605,6 +605,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
                                    int max, int *irq)
 {
     uint8_t tmpbuf[4096];
+    size_t to_transfer;
     uint32_t addr = d->frame_addr;
     int sc = d->scount & 0xffff;
     int csc = d->scount >> 16;
@@ -616,16 +617,16 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     }
     int left = ((size - cnt + 1) << 2) + d->leftover;
     int transferred = 0;
-    int temp = MIN (max, MIN (left, csc_bytes));
     int index = d - &s->chan[0];
 
+    to_transfer = MIN(max, MIN(left, csc_bytes));
     addr += (cnt << 2) + d->leftover;
 
     if (index == ADC_CHANNEL) {
-        while (temp > 0) {
+        while (to_transfer > 0) {
             int acquired, to_copy;
 
-            to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
+            to_copy = MIN(to_transfer, sizeof(tmpbuf));
             acquired = AUD_read (s->adc_voice, tmpbuf, to_copy);
             if (!acquired) {
                 break;
@@ -633,23 +634,23 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
 
             pci_dma_write (&s->dev, addr, tmpbuf, acquired);
 
-            temp -= acquired;
+            to_transfer -= acquired;
             addr += acquired;
             transferred += acquired;
         }
     } else {
         SWVoiceOut *voice = s->dac_voice[index];
 
-        while (temp > 0) {
+        while (to_transfer > 0) {
             int copied, to_copy;
 
-            to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
+            to_copy = MIN(to_transfer, sizeof(tmpbuf));
             pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
             if (!copied) {
                 break;
             }
-            temp -= copied;
+            to_transfer -= copied;
             addr += copied;
             transferred += copied;
         }
