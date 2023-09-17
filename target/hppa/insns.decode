@@ -64,6 +64,7 @@
 &rrr_cf_d       t r1 r2 cf d
 &rrr_cf_sh      t r1 r2 cf sh
 &rri_cf         t r i cf
+&rri_cf_d       t r i cf d
 
 &rrb_c_f        disp n c f r1 r2
 &rib_c_f        disp n c f r i
@@ -78,6 +79,7 @@
 @rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
 @rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
 @rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
+@rri_cf_d       ...... r:5  t:5  cf:4 d:1 ...........   &rri_cf_d i=%lowsign_11
 
 @rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
                 &rrb_c_f disp=%assemble_12
@@ -158,7 +160,7 @@ or              000010 ..... ..... .... 001001 . .....  @rrr_cf_d
 xor             000010 ..... ..... .... 001010 . .....  @rrr_cf_d
 uxor            000010 ..... ..... .... 001110 . .....  @rrr_cf_d
 ds              000010 ..... ..... .... 010001 0 .....  @rrr_cf
-cmpclr          000010 ..... ..... .... 100010 0 .....  @rrr_cf
+cmpclr          000010 ..... ..... .... 100010 . .....  @rrr_cf_d
 uaddcm          000010 ..... ..... .... 100110 . .....  @rrr_cf_d
 uaddcm_tc       000010 ..... ..... .... 100111 . .....  @rrr_cf_d
 dcor            000010 ..... 00000 .... 101110 . .....  @rr_cf_d
@@ -189,7 +191,7 @@ addi_tc_tsv     101100 ..... ..... .... 1 ...........   @rri_cf
 subi            100101 ..... ..... .... 0 ...........   @rri_cf
 subi_tsv        100101 ..... ..... .... 1 ...........   @rri_cf
 
-cmpiclr         100100 ..... ..... .... 0 ...........   @rri_cf
+cmpiclr         100100 ..... ..... .... . ...........   @rri_cf_d
 
 ####
 # Index Mem

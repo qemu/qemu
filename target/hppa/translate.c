@@ -1377,11 +1377,10 @@ static bool do_sub_imm(DisasContext *ctx, arg_rri_cf *a, bool is_tsv)
 }
 
 static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                      TCGv_reg in2, unsigned cf)
+                      TCGv_reg in2, unsigned cf, bool d)
 {
     TCGv_reg dest, sv;
     DisasCond cond;
-    bool d = false;
 
     dest = tcg_temp_new();
     tcg_gen_sub_reg(dest, in1, in2);
@@ -2758,7 +2757,7 @@ static bool trans_xor(DisasContext *ctx, arg_rrr_cf_d *a)
     return do_log_reg(ctx, a, tcg_gen_xor_reg);
 }
 
-static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     TCGv_reg tcg_r1, tcg_r2;
 
@@ -2767,7 +2766,7 @@ static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a)
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf);
+    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d);
     return nullify_end(ctx);
 }
 
@@ -2925,7 +2924,7 @@ static bool trans_subi_tsv(DisasContext *ctx, arg_rri_cf *a)
     return do_sub_imm(ctx, a, true);
 }
 
-static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
+static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf_d *a)
 {
     TCGv_reg tcg_im, tcg_r2;
 
@@ -2935,7 +2934,7 @@ static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
 
     tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf);
+    do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf, a->d);
 
     return nullify_end(ctx);
 }
