@@ -1069,11 +1069,12 @@ static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, bool d,
 
 /* Similar, but for unit conditions.  */
 
-static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
+static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_reg res,
                               TCGv_reg in1, TCGv_reg in2)
 {
     DisasCond cond;
     TCGv_reg tmp, cb = NULL;
+    target_ureg d_repl = d ? 0x0000000100000001ull : 1;
 
     if (cf & 8) {
         /* Since we want to test lots of carry-out bits all at once, do not
@@ -1100,32 +1101,32 @@ static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
          * https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
          */
         tmp = tcg_temp_new();
-        tcg_gen_subi_reg(tmp, res, 0x01010101u);
+        tcg_gen_subi_reg(tmp, res, d_repl * 0x01010101u);
         tcg_gen_andc_reg(tmp, tmp, res);
-        tcg_gen_andi_reg(tmp, tmp, 0x80808080u);
+        tcg_gen_andi_reg(tmp, tmp, d_repl * 0x80808080u);
         cond = cond_make_0(TCG_COND_NE, tmp);
         break;
 
     case 3: /* SHZ / NHZ */
         tmp = tcg_temp_new();
-        tcg_gen_subi_reg(tmp, res, 0x00010001u);
+        tcg_gen_subi_reg(tmp, res, d_repl * 0x00010001u);
         tcg_gen_andc_reg(tmp, tmp, res);
-        tcg_gen_andi_reg(tmp, tmp, 0x80008000u);
+        tcg_gen_andi_reg(tmp, tmp, d_repl * 0x80008000u);
         cond = cond_make_0(TCG_COND_NE, tmp);
         break;
 
     case 4: /* SDC / NDC */
-        tcg_gen_andi_reg(cb, cb, 0x88888888u);
+        tcg_gen_andi_reg(cb, cb, d_repl * 0x88888888u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
     case 6: /* SBC / NBC */
-        tcg_gen_andi_reg(cb, cb, 0x80808080u);
+        tcg_gen_andi_reg(cb, cb, d_repl * 0x80808080u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
     case 7: /* SHC / NHC */
-        tcg_gen_andi_reg(cb, cb, 0x80008000u);
+        tcg_gen_andi_reg(cb, cb, d_repl * 0x80008000u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
@@ -1441,6 +1442,7 @@ static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 {
     TCGv_reg dest;
     DisasCond cond;
+    bool d = false;
 
     if (cf == 0) {
         dest = dest_gpr(ctx, rt);
@@ -1451,7 +1453,7 @@ static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         dest = tcg_temp_new();
         fn(dest, in1, in2);
 
-        cond = do_unit_cond(cf, dest, in1, in2);
+        cond = do_unit_cond(cf, d, dest, in1, in2);
 
         if (is_tc) {
             TCGv_reg tmp = tcg_temp_new();
