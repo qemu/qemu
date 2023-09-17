@@ -25,6 +25,45 @@
 #include "hw/core/cpu.h"
 #include "trace.h"
 
+hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
+{
+    if (likely(extract64(addr, 58, 4) != 0xf)) {
+        /* Memory address space */
+        return addr & MAKE_64BIT_MASK(0, 62);
+    }
+    if (extract64(addr, 54, 4) != 0) {
+        /* I/O address space */
+        return addr | MAKE_64BIT_MASK(62, 2);
+    }
+    /* PDC address space */
+    return (addr & MAKE_64BIT_MASK(0, 54)) | MAKE_64BIT_MASK(60, 4);
+}
+
+hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
+{
+    if (likely(extract32(addr, 28, 4) != 0xf)) {
+        /* Memory address space */
+        return addr & MAKE_64BIT_MASK(0, 32);
+    }
+    if (extract32(addr, 24, 4) != 0) {
+        /* I/O address space */
+        return addr | MAKE_64BIT_MASK(32, 32);
+    }
+    /* PDC address space */
+    return (addr & MAKE_64BIT_MASK(0, 24)) | MAKE_64BIT_MASK(60, 4);
+}
+
+static hwaddr hppa_abs_to_phys(CPUHPPAState *env, vaddr addr)
+{
+    if (!hppa_is_pa20(env)) {
+        return addr;
+    } else if (env->psw & PSW_W) {
+        return hppa_abs_to_phys_pa2_w1(addr);
+    } else {
+        return hppa_abs_to_phys_pa2_w0(addr);
+    }
+}
+
 static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
 {
     IntervalTreeNode *i = interval_tree_iter_first(&env->tlb_root, addr, addr);
@@ -222,7 +261,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
  egress:
-    *pphys = phys;
+    *pphys = phys = hppa_abs_to_phys(env, phys);
     *pprot = prot;
     trace_hppa_tlb_get_physical_address(env, ret, prot, addr, phys);
     return ret;
@@ -238,7 +277,7 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     /* ??? We really ought to know if the code mmu is disabled too,
        in order to get the correct debugging dumps.  */
     if (!(cpu->env.psw & PSW_D)) {
-        return addr;
+        return hppa_abs_to_phys(&cpu->env, addr);
     }
 
     excp = hppa_get_physical_address(&cpu->env, addr, MMU_KERNEL_IDX, 0,

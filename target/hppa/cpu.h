@@ -313,6 +313,9 @@ static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
     return hppa_form_gva_psw(env->psw, spc, off);
 }
 
+hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr);
+hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr);
+
 /*
  * Since PSW_{I,CB} will never need to be in tb->flags, reuse them.
  * TB_FLAG_SR_SAME indicates that SR4 through SR7 all contain the
