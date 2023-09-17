@@ -120,11 +120,7 @@
 #define PSW_T            0x01000000
 #define PSW_S            0x02000000
 #define PSW_E            0x04000000
-#ifdef TARGET_HPPA64
 #define PSW_W            0x08000000 /* PA2.0 only */
-#else
-#define PSW_W            0
-#endif
 #define PSW_Z            0x40000000 /* PA1.x only */
 #define PSW_Y            0x80000000 /* PA1.x only */
 
@@ -137,13 +133,8 @@
 #define PSW_SM_P         PSW_P
 #define PSW_SM_Q         PSW_Q      /* Enable Interrupt State Collection */
 #define PSW_SM_R         PSW_R      /* Enable Recover Counter Trap */
-#ifdef TARGET_HPPA64
 #define PSW_SM_E         0x100
 #define PSW_SM_W         0x200      /* PA2.0 only : Enable Wide Mode */
-#else
-#define PSW_SM_E         0
-#define PSW_SM_W         0
-#endif
 
 #define CR_RC            0
 #define CR_PID1          8

@@ -252,12 +252,10 @@ static const TypeInfo hppa_cpu_type_infos[] = {
         .class_size = sizeof(HPPACPUClass),
         .class_init = hppa_cpu_class_init,
     },
-#ifdef TARGET_HPPA64
     {
         .name = TYPE_HPPA64_CPU,
         .parent = TYPE_HPPA_CPU,
     },
-#endif
 };
 
 DEFINE_TYPES(hppa_cpu_type_infos)
