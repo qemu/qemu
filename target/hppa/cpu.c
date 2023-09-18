@@ -158,7 +158,15 @@ static void hppa_cpu_initfn(Object *obj)
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 {
-    return object_class_by_name(TYPE_HPPA_CPU);
+    g_autofree char *typename = g_strconcat(cpu_model, "-cpu", NULL);
+    ObjectClass *oc = object_class_by_name(typename);
+
+    if (oc &&
+        !object_class_is_abstract(oc) &&
+        object_class_dynamic_cast(oc, TYPE_HPPA_CPU)) {
+        return oc;
+    }
+    return NULL;
 }
 
 static void hppa_cpu_list_entry(gpointer data, gpointer user_data)
