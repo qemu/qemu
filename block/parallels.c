@@ -1248,6 +1248,11 @@ static void parallels_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
+static bool parallels_is_support_dirty_bitmaps(BlockDriverState *bs)
+{
+    return 1;
+}
+
 static BlockDriver bdrv_parallels = {
     .format_name                = "parallels",
     .instance_size              = sizeof(BDRVParallelsState),
@@ -1256,6 +1261,7 @@ static BlockDriver bdrv_parallels = {
     .supports_backing           = true,
 
     .bdrv_has_zero_init         = bdrv_has_zero_init_1,
+    .bdrv_supports_persistent_dirty_bitmap = parallels_is_support_dirty_bitmaps,
 
     .bdrv_probe                 = parallels_probe,
     .bdrv_open                  = parallels_open,
