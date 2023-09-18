@@ -193,6 +193,58 @@ static int mark_used(BlockDriverState *bs,
     return 0;
 }
 
+/*
+ * Collect used bitmap. The image can contain errors, we should fill the
+ * bitmap anyway, as much as we can. This information will be used for
+ * error resolution.
+ */
+static int parallels_fill_used_bitmap(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t payload_bytes;
+    uint32_t i;
+    int err = 0;
+
+    payload_bytes = bdrv_getlength(bs->file->bs);
+    if (payload_bytes < 0) {
+        return payload_bytes;
+    }
+    payload_bytes -= s->data_start * BDRV_SECTOR_SIZE;
+    if (payload_bytes < 0) {
+        return -EINVAL;
+    }
+
+    s->used_bmap_size = DIV_ROUND_UP(payload_bytes, s->cluster_size);
+    if (s->used_bmap_size == 0) {
+        return 0;
+    }
+    s->used_bmap = bitmap_try_new(s->used_bmap_size);
+    if (s->used_bmap == NULL) {
+        return -ENOMEM;
+    }
+
+    for (i = 0; i < s->bat_size; i++) {
+        int err2;
+        int64_t host_off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        if (host_off == 0) {
+            continue;
+        }
+
+        err2 = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off);
+        if (err2 < 0 && err == 0) {
+            err = err2;
+        }
+    }
+    return err;
+}
+
+static void parallels_free_used_bitmap(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    s->used_bmap_size = 0;
+    g_free(s->used_bmap);
+}
+
 static int64_t coroutine_fn GRAPH_RDLOCK
 allocate_clusters(BlockDriverState *bs, int64_t sector_num,
                   int nb_sectors, int *pnum)
@@ -530,8 +582,17 @@ parallels_check_data_off(BlockDriverState *bs, BdrvCheckResult *res,
 
     res->corruptions++;
     if (fix & BDRV_FIX_ERRORS) {
+        int err;
         s->header->data_off = cpu_to_le32(data_off);
         s->data_start = data_off;
+
+        parallels_free_used_bitmap(bs);
+        err = parallels_fill_used_bitmap(bs);
+        if (err == -ENOMEM) {
+            res->check_errors++;
+            return err;
+        }
+
         res->corruptions_fixed++;
     }
 
@@ -1222,6 +1283,14 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
     need_check = need_check || s->data_end > file_nb_sectors;
 
+    if (!need_check) {
+        ret = parallels_fill_used_bitmap(bs);
+        if (ret == -ENOMEM) {
+            goto fail;
+        }
+        need_check = need_check || ret < 0; /* These are correctable errors */
+    }
+
     /*
      * We don't repair the image here if it's opened for checks. Also we don't
      * want to change inactive images and can't change readonly images.
@@ -1251,6 +1320,8 @@ fail:
      * "s" object was allocated by g_malloc0 so we can safely
      * try to free its fields even they were not allocated.
      */
+    parallels_free_used_bitmap(bs);
+
     error_free(s->migration_blocker);
     g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
@@ -1270,6 +1341,8 @@ static void parallels_close(BlockDriverState *bs)
         bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
                       PREALLOC_MODE_OFF, 0, NULL);
     }
+
+    parallels_free_used_bitmap(bs);
 
     g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
