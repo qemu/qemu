@@ -582,6 +582,19 @@ done:
     return ret;
 }
 
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                           BdrvRequestFlags flags)
+{
+    /*
+     * The zero flag is missed in the Parallels format specification. We can
+     * resort to discard if we have no backing file (this condition is checked
+     * inside parallels_co_pdiscard().
+     */
+    return parallels_co_pdiscard(bs, offset, bytes);
+}
+
+
 static void parallels_check_unclean(BlockDriverState *bs,
                                     BdrvCheckResult *res,
                                     BdrvCheckMode fix)
@@ -1463,6 +1476,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_create_opts        = parallels_co_create_opts,
     .bdrv_co_check              = parallels_co_check,
     .bdrv_co_pdiscard           = parallels_co_pdiscard,
+    .bdrv_co_pwrite_zeroes      = parallels_co_pwrite_zeroes,
 };
 
 static void bdrv_parallels_init(void)
