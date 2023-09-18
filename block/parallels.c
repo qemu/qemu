@@ -1232,7 +1232,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
 fail_format:
     error_setg(errp, "Image not in Parallels format");
-    ret = -EINVAL;
+    return -EINVAL;
+
 fail:
     /*
      * "s" object was allocated by g_malloc0 so we can safely
