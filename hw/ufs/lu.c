@@ -1345,13 +1345,12 @@ static void ufs_lu_realize(SCSIDevice *dev, Error **errp)
         return;
     }
 
-    if (lu->qdev.conf.blk) {
-        ctx = blk_get_aio_context(lu->qdev.conf.blk);
-        aio_context_acquire(ctx);
-        if (!blkconf_blocksizes(&lu->qdev.conf, errp)) {
-            goto out;
-        }
+    ctx = blk_get_aio_context(lu->qdev.conf.blk);
+    aio_context_acquire(ctx);
+    if (!blkconf_blocksizes(&lu->qdev.conf, errp)) {
+        goto out;
     }
+
     lu->qdev.blocksize = UFS_BLOCK_SIZE;
     blk_get_geometry(lu->qdev.conf.blk, &nb_sectors);
     nb_blocks = nb_sectors / (lu->qdev.blocksize / BDRV_SECTOR_SIZE);
@@ -1367,10 +1366,9 @@ static void ufs_lu_realize(SCSIDevice *dev, Error **errp)
     }
 
     ufs_lu_brdv_init(lu, errp);
+
 out:
-    if (ctx) {
-        aio_context_release(ctx);
-    }
+    aio_context_release(ctx);
 }
 
 static void ufs_lu_unrealize(SCSIDevice *dev)
