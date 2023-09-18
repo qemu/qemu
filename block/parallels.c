@@ -1249,23 +1249,25 @@ static void parallels_close(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_parallels = {
-    .format_name	= "parallels",
-    .instance_size	= sizeof(BDRVParallelsState),
-    .bdrv_probe		= parallels_probe,
-    .bdrv_open		= parallels_open,
-    .bdrv_close		= parallels_close,
-    .bdrv_child_perm          = bdrv_default_perms,
-    .bdrv_co_block_status     = parallels_co_block_status,
-    .bdrv_has_zero_init       = bdrv_has_zero_init_1,
-    .bdrv_co_flush_to_os      = parallels_co_flush_to_os,
-    .bdrv_co_readv  = parallels_co_readv,
-    .bdrv_co_writev = parallels_co_writev,
-    .is_format      = true,
-    .supports_backing = true,
-    .bdrv_co_create      = parallels_co_create,
-    .bdrv_co_create_opts = parallels_co_create_opts,
-    .bdrv_co_check  = parallels_co_check,
-    .create_opts    = &parallels_create_opts,
+    .format_name                = "parallels",
+    .instance_size              = sizeof(BDRVParallelsState),
+    .create_opts                = &parallels_create_opts,
+    .is_format                  = true,
+    .supports_backing           = true,
+
+    .bdrv_has_zero_init         = bdrv_has_zero_init_1,
+
+    .bdrv_probe                 = parallels_probe,
+    .bdrv_open                  = parallels_open,
+    .bdrv_close                 = parallels_close,
+    .bdrv_child_perm            = bdrv_default_perms,
+    .bdrv_co_block_status       = parallels_co_block_status,
+    .bdrv_co_flush_to_os        = parallels_co_flush_to_os,
+    .bdrv_co_readv              = parallels_co_readv,
+    .bdrv_co_writev             = parallels_co_writev,
+    .bdrv_co_create             = parallels_co_create,
+    .bdrv_co_create_opts        = parallels_co_create_opts,
+    .bdrv_co_check              = parallels_co_check,
 };
 
 static void bdrv_parallels_init(void)
