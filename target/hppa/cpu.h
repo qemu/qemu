@@ -396,4 +396,9 @@ int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr);
 #endif
 G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
 
+#define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
+
+#define cpu_list hppa_cpu_list
+void hppa_cpu_list(void);
+
 #endif /* HPPA_CPU_H */
