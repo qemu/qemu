@@ -279,7 +279,8 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     first_free = find_first_zero_bit(s->used_bmap, s->used_bmap_size);
     if (first_free == s->used_bmap_size) {
         uint32_t new_usedsize;
-        int64_t space = to_allocate * s->tracks + s->prealloc_size;
+        int64_t bytes = to_allocate * s->cluster_size;
+        bytes += s->prealloc_size * BDRV_SECTOR_SIZE;
 
         host_off = s->data_end * BDRV_SECTOR_SIZE;
 
@@ -289,8 +290,7 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
          * force the safer-but-slower fallocate.
          */
         if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
-            ret = bdrv_co_truncate(bs->file,
-                                   (s->data_end + space) << BDRV_SECTOR_BITS,
+            ret = bdrv_co_truncate(bs->file, host_off + bytes,
                                    false, PREALLOC_MODE_OFF,
                                    BDRV_REQ_ZERO_WRITE, NULL);
             if (ret == -ENOTSUP) {
@@ -298,16 +298,13 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
             }
         }
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
-            ret = bdrv_co_pwrite_zeroes(bs->file,
-                                        s->data_end << BDRV_SECTOR_BITS,
-                                        space << BDRV_SECTOR_BITS, 0);
+            ret = bdrv_co_pwrite_zeroes(bs->file, host_off, bytes, 0);
         }
         if (ret < 0) {
             return ret;
         }
 
-        new_usedsize = s->used_bmap_size +
-                       (space << BDRV_SECTOR_BITS) / s->cluster_size;
+        new_usedsize = s->used_bmap_size + bytes / s->cluster_size;
         s->used_bmap = bitmap_zero_extend(s->used_bmap, s->used_bmap_size,
                                           new_usedsize);
         s->used_bmap_size = new_usedsize;
