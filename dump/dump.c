@@ -814,6 +814,10 @@ static int write_start_flat_header(DumpState *s)
     MakedumpfileHeader *mh;
     int ret = 0;
 
+    if (s->kdump_raw) {
+        return 0;
+    }
+
     QEMU_BUILD_BUG_ON(sizeof *mh > MAX_SIZE_MDF_HEADER);
     mh = g_malloc0(MAX_SIZE_MDF_HEADER);
 
@@ -837,6 +841,10 @@ static int write_end_flat_header(DumpState *s)
 {
     MakedumpfileDataHeader mdh;
 
+    if (s->kdump_raw) {
+        return 0;
+    }
+
     mdh.offset = END_FLAG_FLAT_HEADER;
     mdh.buf_size = END_FLAG_FLAT_HEADER;
 
@@ -853,13 +861,21 @@ static int write_buffer(DumpState *s, off_t offset, const void *buf, size_t size
 {
     size_t written_size;
     MakedumpfileDataHeader mdh;
+    off_t seek_loc;
 
-    mdh.offset = cpu_to_be64(offset);
-    mdh.buf_size = cpu_to_be64(size);
+    if (s->kdump_raw) {
+        seek_loc = lseek(s->fd, offset, SEEK_SET);
+        if (seek_loc == (off_t) -1) {
+            return -1;
+        }
+    } else {
+        mdh.offset = cpu_to_be64(offset);
+        mdh.buf_size = cpu_to_be64(size);
 
-    written_size = qemu_write_full(s->fd, &mdh, sizeof(mdh));
-    if (written_size != sizeof(mdh)) {
-        return -1;
+        written_size = qemu_write_full(s->fd, &mdh, sizeof(mdh));
+        if (written_size != sizeof(mdh)) {
+            return -1;
+        }
     }
 
     written_size = qemu_write_full(s->fd, buf, size);
@@ -1775,7 +1791,8 @@ static void vmcoreinfo_update_phys_base(DumpState *s)
 
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
-                      int64_t begin, int64_t length, Error **errp)
+                      int64_t begin, int64_t length, bool kdump_raw,
+                      Error **errp)
 {
     ERRP_GUARD();
     VMCoreInfoState *vmci = vmcoreinfo_find();
@@ -1786,6 +1803,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     s->has_format = has_format;
     s->format = format;
     s->written_size = 0;
+    s->kdump_raw = kdump_raw;
 
     /* kdump-compressed is conflict with paging and filter */
     if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
@@ -2168,7 +2186,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     dump_state_prepare(s);
 
     dump_init(s, fd, has_format, format, paging, has_begin,
-              begin, length, errp);
+              begin, length, false, errp);
     if (*errp) {
         qatomic_set(&s->status, DUMP_STATUS_FAILED);
         return;
