@@ -178,18 +178,20 @@ static void parallels_set_bat_entry(BDRVParallelsState *s,
     bitmap_set(s->bat_dirty_bmap, bat_entry_off(index) / s->bat_dirty_block, 1);
 }
 
-static int mark_used(BlockDriverState *bs,
-                     unsigned long *bitmap, uint32_t bitmap_size, int64_t off)
+static int mark_used(BlockDriverState *bs, unsigned long *bitmap,
+                     uint32_t bitmap_size, int64_t off, uint32_t count)
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t cluster_index = host_cluster_index(s, off);
-    if (cluster_index >= bitmap_size) {
+    unsigned long next_used;
+    if (cluster_index + count > bitmap_size) {
         return -E2BIG;
     }
-    if (test_bit(cluster_index, bitmap)) {
+    next_used = find_next_bit(bitmap, bitmap_size, cluster_index);
+    if (next_used < cluster_index + count) {
         return -EBUSY;
     }
-    bitmap_set(bitmap, cluster_index, 1);
+    bitmap_set(bitmap, cluster_index, count);
     return 0;
 }
 
@@ -230,7 +232,7 @@ static int parallels_fill_used_bitmap(BlockDriverState *bs)
             continue;
         }
 
-        err2 = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off);
+        err2 = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off, 1);
         if (err2 < 0 && err == 0) {
             err = err2;
         }
@@ -732,7 +734,7 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
             continue;
         }
 
-        ret = mark_used(bs, bitmap, bitmap_size, host_off);
+        ret = mark_used(bs, bitmap, bitmap_size, host_off, 1);
         assert(ret != -E2BIG);
         if (ret == 0) {
             continue;
@@ -792,7 +794,7 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
          * considered, and the bitmap size doesn't change. This specifically
          * means that -E2BIG is OK.
          */
-        ret = mark_used(bs, bitmap, bitmap_size, host_off);
+        ret = mark_used(bs, bitmap, bitmap_size, host_off, 1);
         if (ret == -EBUSY) {
             res->check_errors++;
             goto out_repair_bat;
