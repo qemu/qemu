@@ -178,6 +178,21 @@ static void parallels_set_bat_entry(BDRVParallelsState *s,
     bitmap_set(s->bat_dirty_bmap, bat_entry_off(index) / s->bat_dirty_block, 1);
 }
 
+static int mark_used(BlockDriverState *bs,
+                     unsigned long *bitmap, uint32_t bitmap_size, int64_t off)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint32_t cluster_index = host_cluster_index(s, off);
+    if (cluster_index >= bitmap_size) {
+        return -E2BIG;
+    }
+    if (test_bit(cluster_index, bitmap)) {
+        return -EBUSY;
+    }
+    bitmap_set(bitmap, cluster_index, 1);
+    return 0;
+}
+
 static int64_t coroutine_fn GRAPH_RDLOCK
 allocate_clusters(BlockDriverState *bs, int64_t sector_num,
                   int nb_sectors, int *pnum)
@@ -621,7 +636,7 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
     BDRVParallelsState *s = bs->opaque;
     int64_t host_off, host_sector, guest_sector;
     unsigned long *bitmap;
-    uint32_t i, bitmap_size, cluster_index, bat_entry;
+    uint32_t i, bitmap_size, bat_entry;
     int n, ret = 0;
     uint64_t *buf = NULL;
     bool fixed = false;
@@ -655,10 +670,9 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
             continue;
         }
 
-        cluster_index = host_cluster_index(s, host_off);
-        assert(cluster_index < bitmap_size);
-        if (!test_bit(cluster_index, bitmap)) {
-            bitmap_set(bitmap, cluster_index, 1);
+        ret = mark_used(bs, bitmap, bitmap_size, host_off);
+        assert(ret != -E2BIG);
+        if (ret == 0) {
             continue;
         }
 
@@ -713,11 +727,13 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
          * consistent for the new allocated clusters too.
          *
          * Note, clusters allocated outside the current image are not
-         * considered, and the bitmap size doesn't change.
+         * considered, and the bitmap size doesn't change. This specifically
+         * means that -E2BIG is OK.
          */
-        cluster_index = host_cluster_index(s, host_off);
-        if (cluster_index < bitmap_size) {
-            bitmap_set(bitmap, cluster_index, 1);
+        ret = mark_used(bs, bitmap, bitmap_size, host_off);
+        if (ret == -EBUSY) {
+            res->check_errors++;
+            goto out_repair_bat;
         }
 
         fixed = true;
