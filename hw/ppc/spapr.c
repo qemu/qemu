@@ -2875,8 +2875,6 @@ static void spapr_machine_init(MachineState *machine)
     /* init CPUs */
     spapr_init_cpus(spapr);
 
-    spapr->gpu_numa_id = spapr_numa_initial_nvgpu_numa_id(machine);
-
     /* Init numa_assoc_array */
     spapr_numa_associativity_init(spapr, machine);
 
@@ -4134,7 +4132,6 @@ static bool spapr_phb_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                            &sphb->buid, &sphb->io_win_addr,
                            &sphb->mem_win_addr, &sphb->mem64_win_addr,
                            windows_supported, sphb->dma_liobn,
-                           &sphb->nv2_gpa_win_addr, &sphb->nv2_atsd_win_addr,
                            errp);
 }
 
@@ -4397,8 +4394,7 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 static bool spapr_phb_placement(SpaprMachineState *spapr, uint32_t index,
                                 uint64_t *buid, hwaddr *pio,
                                 hwaddr *mmio32, hwaddr *mmio64,
-                                unsigned n_dma, uint32_t *liobns,
-                                hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
+                                unsigned n_dma, uint32_t *liobns, Error **errp)
 {
     /*
      * New-style PHB window placement.
@@ -4443,9 +4439,6 @@ static bool spapr_phb_placement(SpaprMachineState *spapr, uint32_t index,
     *pio = SPAPR_PCI_BASE + index * SPAPR_PCI_IO_WIN_SIZE;
     *mmio32 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM32_WIN_SIZE;
     *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
-
-    *nv2gpa = SPAPR_PCI_NV2RAM64_WIN_BASE + index * SPAPR_PCI_NV2RAM64_WIN_SIZE;
-    *nv2atsd = SPAPR_PCI_NV2ATSD_WIN_BASE + index * SPAPR_PCI_NV2ATSD_WIN_SIZE;
     return true;
 }
 
@@ -4963,16 +4956,12 @@ DEFINE_SPAPR_MACHINE(4_1, "4.1", false);
 static bool phb_placement_4_0(SpaprMachineState *spapr, uint32_t index,
                               uint64_t *buid, hwaddr *pio,
                               hwaddr *mmio32, hwaddr *mmio64,
-                              unsigned n_dma, uint32_t *liobns,
-                              hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
+                              unsigned n_dma, uint32_t *liobns, Error **errp)
 {
     if (!spapr_phb_placement(spapr, index, buid, pio, mmio32, mmio64, n_dma,
-                             liobns, nv2gpa, nv2atsd, errp)) {
+                             liobns, errp)) {
         return false;
     }
-
-    *nv2gpa = 0;
-    *nv2atsd = 0;
     return true;
 }
 static void spapr_machine_4_0_class_options(MachineClass *mc)
@@ -5137,8 +5126,7 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", false);
 static bool phb_placement_2_7(SpaprMachineState *spapr, uint32_t index,
                               uint64_t *buid, hwaddr *pio,
                               hwaddr *mmio32, hwaddr *mmio64,
-                              unsigned n_dma, uint32_t *liobns,
-                              hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
+                              unsigned n_dma, uint32_t *liobns, Error **errp)
 {
     /* Legacy PHB placement for pseries-2.7 and earlier machine types */
     const uint64_t base_buid = 0x800000020000000ULL;
@@ -5183,8 +5171,6 @@ static bool phb_placement_2_7(SpaprMachineState *spapr, uint32_t index,
      * window into contiguous 32-bit and 64-bit windows
      */
 
-    *nv2gpa = 0;
-    *nv2atsd = 0;
     return true;
 }
 

@@ -1443,8 +1443,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
     }
 
-    spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
-
     if (!IS_PCI_BRIDGE(dev)) {
         /* Properties only for non-bridges */
         uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
@@ -1757,8 +1755,6 @@ static void spapr_phb_unrealize(DeviceState *dev)
     int i;
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
 
-    spapr_phb_nvgpu_free(sphb);
-
     if (sphb->msi) {
         g_hash_table_unref(sphb->msi);
         sphb->msi = NULL;
@@ -2069,14 +2065,8 @@ void spapr_phb_dma_reset(SpaprPhbState *sphb)
 static void spapr_phb_reset(DeviceState *qdev)
 {
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
-    Error *err = NULL;
 
     spapr_phb_dma_reset(sphb);
-    spapr_phb_nvgpu_free(sphb);
-    spapr_phb_nvgpu_setup(sphb, &err);
-    if (err) {
-        error_report_err(err);
-    }
 
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
@@ -2112,8 +2102,6 @@ static Property spapr_phb_properties[] = {
                      pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pcie-extended-configuration-space", SpaprPhbState,
                      pcie_ecs, true),
-    DEFINE_PROP_UINT64("gpa", SpaprPhbState, nv2_gpa_win_addr, 0),
-    DEFINE_PROP_UINT64("atsd", SpaprPhbState, nv2_atsd_win_addr, 0),
     DEFINE_PROP_BOOL("pre-5.1-associativity", SpaprPhbState,
                      pre_5_1_assoc, false),
     DEFINE_PROP_END_OF_LIST(),
@@ -2362,7 +2350,6 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
     };
     SpaprTceTable *tcet;
     SpaprDrc *drc;
-    Error *err = NULL;
 
     /* Start populating the FDT */
     _FDT(bus_off = fdt_add_subnode(fdt, 0, phb->dtbusname));
@@ -2442,12 +2429,6 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
     if (ret < 0) {
         return ret;
     }
-
-    spapr_phb_nvgpu_populate_dt(phb, fdt, bus_off, &err);
-    if (err) {
-        error_report_err(err);
-    }
-    spapr_phb_nvgpu_ram_populate_dt(phb, fdt);
 
     return 0;
 }
