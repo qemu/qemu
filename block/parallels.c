@@ -537,6 +537,51 @@ parallels_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     return ret;
 }
 
+
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    int ret = 0;
+    uint32_t cluster, count;
+    BDRVParallelsState *s = bs->opaque;
+
+    /*
+     * The image does not support ZERO mark inside the BAT, which means that
+     * stale data could be exposed from the backing file.
+     */
+    if (bs->backing) {
+        return -ENOTSUP;
+    }
+
+    if (!QEMU_IS_ALIGNED(offset, s->cluster_size)) {
+        return -ENOTSUP;
+    } else if (!QEMU_IS_ALIGNED(bytes, s->cluster_size)) {
+        return -ENOTSUP;
+    }
+
+    cluster = offset / s->cluster_size;
+    count = bytes / s->cluster_size;
+
+    qemu_co_mutex_lock(&s->lock);
+    for (; count > 0; cluster++, count--) {
+        int64_t host_off = bat2sect(s, cluster) << BDRV_SECTOR_BITS;
+        if (host_off == 0) {
+            continue;
+        }
+
+        ret = bdrv_co_pdiscard(bs->file, host_off, s->cluster_size);
+        if (ret < 0) {
+            goto done;
+        }
+
+        parallels_set_bat_entry(s, cluster, 0);
+        bitmap_clear(s->used_bmap, host_cluster_index(s, host_off), 1);
+    }
+done:
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void parallels_check_unclean(BlockDriverState *bs,
                                     BdrvCheckResult *res,
                                     BdrvCheckMode fix)
@@ -1417,6 +1462,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_create             = parallels_co_create,
     .bdrv_co_create_opts        = parallels_co_create_opts,
     .bdrv_co_check              = parallels_co_check,
+    .bdrv_co_pdiscard           = parallels_co_pdiscard,
 };
 
 static void bdrv_parallels_init(void)
