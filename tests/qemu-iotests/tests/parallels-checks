@@ -117,14 +117,20 @@ echo "== check second cluster =="
 echo "== repair image =="
 _check_test_img -r all
 
+echo "== check the first cluster =="
+{ $QEMU_IO -r -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
 echo "== check second cluster =="
 { $QEMU_IO -r -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
-echo "== check first cluster on host =="
-printf "content: 0x%02x\n" `peek_file_le $TEST_IMG $(($CLUSTER_SIZE)) 1`
+echo "== write another pattern to the first clusters =="
+{ $QEMU_IO -c "write -P 0x66 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
-echo "== check second cluster on host =="
-printf "content: 0x%02x\n" `peek_file_le $TEST_IMG $(($CLUSTER_SIZE)) 1`
+echo "== check the first cluster =="
+{ $QEMU_IO -r -c "read -P 0x66 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check the second cluster (deduplicated) =="
+{ $QEMU_IO -r -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # Clear image
 _make_test_img $SIZE
