@@ -219,17 +219,6 @@ int16_t do_sqrdmlah_h(int16_t, int16_t, int16_t, bool, bool, uint32_t *);
 int32_t do_sqrdmlah_s(int32_t, int32_t, int32_t, bool, bool, uint32_t *);
 int64_t do_sqrdmlah_d(int64_t, int64_t, int64_t, bool, bool);
 
-/*
- * 8 x 8 -> 16 vector polynomial multiply where the inputs are
- * in the low 8 bits of each 16-bit element
-*/
-uint64_t pmull_h(uint64_t op1, uint64_t op2);
-/*
- * 16 x 16 -> 32 vector polynomial multiply where the inputs are
- * in the low 16 bits of each 32-bit element
- */
-uint64_t pmull_w(uint64_t op1, uint64_t op2);
-
 /**
  * bfdotadd:
  * @sum: addend

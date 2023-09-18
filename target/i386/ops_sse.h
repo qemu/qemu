@@ -20,6 +20,7 @@
 
 #include "crypto/aes.h"
 #include "crypto/aes-round.h"
+#include "crypto/clmul.h"
 
 #if SHIFT == 0
 #define Reg MMXReg
@@ -2122,41 +2123,18 @@ target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len)
 
 #endif
 
-#if SHIFT == 1
-static void clmulq(uint64_t *dest_l, uint64_t *dest_h,
-                          uint64_t a, uint64_t b)
-{
-    uint64_t al, ah, resh, resl;
-
-    ah = 0;
-    al = a;
-    resh = resl = 0;
-
-    while (b) {
-        if (b & 1) {
-            resl ^= al;
-            resh ^= ah;
-        }
-        ah = (ah << 1) | (al >> 63);
-        al <<= 1;
-        b >>= 1;
-    }
-
-    *dest_l = resl;
-    *dest_h = resh;
-}
-#endif
-
 void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
                                     uint32_t ctrl)
 {
-    uint64_t a, b;
-    int i;
+    int a_idx = (ctrl & 1) != 0;
+    int b_idx = (ctrl & 16) != 0;
 
-    for (i = 0; i < 1 << SHIFT; i += 2) {
-        a = v->Q(((ctrl & 1) != 0) + i);
-        b = s->Q(((ctrl & 16) != 0) + i);
-        clmulq(&d->Q(i), &d->Q(i + 1), a, b);
+    for (int i = 0; i < SHIFT; i++) {
+        uint64_t a = v->Q(2 * i + a_idx);
+        uint64_t b = s->Q(2 * i + b_idx);
+        Int128 *r = (Int128 *)&d->ZMM_X(i);
+
+        *r = clmul_64(a, b);
     }
 }
 

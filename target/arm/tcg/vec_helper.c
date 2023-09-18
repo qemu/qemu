@@ -23,6 +23,7 @@
 #include "tcg/tcg-gvec-desc.h"
 #include "fpu/softfloat.h"
 #include "qemu/int128.h"
+#include "crypto/clmul.h"
 #include "vec_internal.h"
 
 /*
@@ -1986,21 +1987,11 @@ void HELPER(gvec_ushl_h)(void *vd, void *vn, void *vm, uint32_t desc)
  */
 void HELPER(gvec_pmul_b)(void *vd, void *vn, void *vm, uint32_t desc)
 {
-    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    intptr_t i, opr_sz = simd_oprsz(desc);
     uint64_t *d = vd, *n = vn, *m = vm;
 
     for (i = 0; i < opr_sz / 8; ++i) {
-        uint64_t nn = n[i];
-        uint64_t mm = m[i];
-        uint64_t rr = 0;
-
-        for (j = 0; j < 8; ++j) {
-            uint64_t mask = (nn & 0x0101010101010101ull) * 0xff;
-            rr ^= mm & mask;
-            mm = (mm << 1) & 0xfefefefefefefefeull;
-            nn >>= 1;
-        }
-        d[i] = rr;
+        d[i] = clmul_8x8_low(n[i], m[i]);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -2012,72 +2003,16 @@ void HELPER(gvec_pmul_b)(void *vd, void *vn, void *vm, uint32_t desc)
  */
 void HELPER(gvec_pmull_q)(void *vd, void *vn, void *vm, uint32_t desc)
 {
-    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    intptr_t i, opr_sz = simd_oprsz(desc);
     intptr_t hi = simd_data(desc);
     uint64_t *d = vd, *n = vn, *m = vm;
 
     for (i = 0; i < opr_sz / 8; i += 2) {
-        uint64_t nn = n[i + hi];
-        uint64_t mm = m[i + hi];
-        uint64_t rhi = 0;
-        uint64_t rlo = 0;
-
-        /* Bit 0 can only influence the low 64-bit result.  */
-        if (nn & 1) {
-            rlo = mm;
-        }
-
-        for (j = 1; j < 64; ++j) {
-            uint64_t mask = -((nn >> j) & 1);
-            rlo ^= (mm << j) & mask;
-            rhi ^= (mm >> (64 - j)) & mask;
-        }
-        d[i] = rlo;
-        d[i + 1] = rhi;
+        Int128 r = clmul_64(n[i + hi], m[i + hi]);
+        d[i] = int128_getlo(r);
+        d[i + 1] = int128_gethi(r);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
-}
-
-/*
- * 8x8->16 polynomial multiply.
- *
- * The byte inputs are expanded to (or extracted from) half-words.
- * Note that neon and sve2 get the inputs from different positions.
- * This allows 4 bytes to be processed in parallel with uint64_t.
- */
-
-static uint64_t expand_byte_to_half(uint64_t x)
-{
-    return  (x & 0x000000ff)
-         | ((x & 0x0000ff00) << 8)
-         | ((x & 0x00ff0000) << 16)
-         | ((x & 0xff000000) << 24);
-}
-
-uint64_t pmull_w(uint64_t op1, uint64_t op2)
-{
-    uint64_t result = 0;
-    int i;
-    for (i = 0; i < 16; ++i) {
-        uint64_t mask = (op1 & 0x0000000100000001ull) * 0xffffffff;
-        result ^= op2 & mask;
-        op1 >>= 1;
-        op2 <<= 1;
-    }
-    return result;
-}
-
-uint64_t pmull_h(uint64_t op1, uint64_t op2)
-{
-    uint64_t result = 0;
-    int i;
-    for (i = 0; i < 8; ++i) {
-        uint64_t mask = (op1 & 0x0001000100010001ull) * 0xffff;
-        result ^= op2 & mask;
-        op1 >>= 1;
-        op2 <<= 1;
-    }
-    return result;
 }
 
 void HELPER(neon_pmull_h)(void *vd, void *vn, void *vm, uint32_t desc)
@@ -2086,10 +2021,10 @@ void HELPER(neon_pmull_h)(void *vd, void *vn, void *vm, uint32_t desc)
     uint64_t *d = vd, *n = vn, *m = vm;
     uint64_t nn = n[hi], mm = m[hi];
 
-    d[0] = pmull_h(expand_byte_to_half(nn), expand_byte_to_half(mm));
+    d[0] = clmul_8x4_packed(nn, mm);
     nn >>= 32;
     mm >>= 32;
-    d[1] = pmull_h(expand_byte_to_half(nn), expand_byte_to_half(mm));
+    d[1] = clmul_8x4_packed(nn, mm);
 
     clear_tail(d, 16, simd_maxsz(desc));
 }
@@ -2102,23 +2037,8 @@ void HELPER(sve2_pmull_h)(void *vd, void *vn, void *vm, uint32_t desc)
     uint64_t *d = vd, *n = vn, *m = vm;
 
     for (i = 0; i < opr_sz / 8; ++i) {
-        uint64_t nn = (n[i] >> shift) & 0x00ff00ff00ff00ffull;
-        uint64_t mm = (m[i] >> shift) & 0x00ff00ff00ff00ffull;
-
-        d[i] = pmull_h(nn, mm);
+        d[i] = clmul_8x4_even(n[i] >> shift, m[i] >> shift);
     }
-}
-
-static uint64_t pmull_d(uint64_t op1, uint64_t op2)
-{
-    uint64_t result = 0;
-    int i;
-
-    for (i = 0; i < 32; ++i) {
-        uint64_t mask = -((op1 >> i) & 1);
-        result ^= (op2 << i) & mask;
-    }
-    return result;
 }
 
 void HELPER(sve2_pmull_d)(void *vd, void *vn, void *vm, uint32_t desc)
@@ -2129,7 +2049,7 @@ void HELPER(sve2_pmull_d)(void *vd, void *vn, void *vm, uint32_t desc)
     uint64_t *d = vd;
 
     for (i = 0; i < opr_sz / 8; ++i) {
-        d[i] = pmull_d(n[2 * i + sel], m[2 * i + sel]);
+        d[i] = clmul_32(n[2 * i + sel], m[2 * i + sel]);
     }
 }
 #endif
