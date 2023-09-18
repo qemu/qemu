@@ -531,6 +531,7 @@ parallels_check_data_off(BlockDriverState *bs, BdrvCheckResult *res,
     res->corruptions++;
     if (fix & BDRV_FIX_ERRORS) {
         s->header->data_off = cpu_to_le32(data_off);
+        s->data_start = data_off;
         res->corruptions_fixed++;
     }
 
