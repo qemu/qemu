@@ -73,7 +73,7 @@ struct MIPSITUState {
 
     /* SAAR */
     uint64_t *saar;
-    MIPSCPU *cpu0;
+    ArchCPU *cpu0;
 };
 
 /* Get ITC Configuration Tag memory region. */
