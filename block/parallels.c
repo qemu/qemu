@@ -1217,6 +1217,7 @@ fail_format:
 fail_options:
     ret = -EINVAL;
 fail:
+    qemu_opts_del(opts);
     /*
      * "s" object was allocated by g_malloc0 so we can safely
      * try to free its fields even they were not allocated.
