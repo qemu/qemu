@@ -253,7 +253,7 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
 {
     int ret = 0;
     BDRVParallelsState *s = bs->opaque;
-    int64_t pos, space, idx, to_allocate, i, len;
+    int64_t i, pos, idx, to_allocate, first_free, host_off;
 
     pos = block_status(s, sector_num, nb_sectors, pnum);
     if (pos > 0) {
@@ -276,15 +276,13 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
      */
     assert(idx < s->bat_size && idx + to_allocate <= s->bat_size);
 
-    space = to_allocate * s->tracks;
-    len = bdrv_co_getlength(bs->file->bs);
-    if (len < 0) {
-        return len;
-    }
-    if (s->data_end + space > (len >> BDRV_SECTOR_BITS)) {
+    first_free = find_first_zero_bit(s->used_bmap, s->used_bmap_size);
+    if (first_free == s->used_bmap_size) {
         uint32_t new_usedsize;
+        int64_t space = to_allocate * s->tracks + s->prealloc_size;
 
-        space += s->prealloc_size;
+        host_off = s->data_end * BDRV_SECTOR_SIZE;
+
         /*
          * We require the expanded size to read back as zero. If the
          * user permitted truncation, we try that; but if it fails, we
@@ -313,6 +311,32 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         s->used_bmap = bitmap_zero_extend(s->used_bmap, s->used_bmap_size,
                                           new_usedsize);
         s->used_bmap_size = new_usedsize;
+    } else {
+        int64_t next_used;
+        next_used = find_next_bit(s->used_bmap, s->used_bmap_size, first_free);
+
+        /* Not enough continuous clusters in the middle, adjust the size */
+        if (next_used - first_free < to_allocate) {
+            to_allocate = next_used - first_free;
+            *pnum = (idx + to_allocate) * s->tracks - sector_num;
+        }
+
+        host_off = s->data_start * BDRV_SECTOR_SIZE;
+        host_off += first_free * s->cluster_size;
+
+        /*
+         * No need to preallocate if we are using tail area from the above
+         * branch. In the other case we are likely re-using hole. Preallocate
+         * the space if required by the prealloc_mode.
+         */
+        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE &&
+                host_off < s->data_end * BDRV_SECTOR_SIZE) {
+            ret = bdrv_co_pwrite_zeroes(bs->file, host_off,
+                                        s->cluster_size * to_allocate, 0);
+            if (ret < 0) {
+                return ret;
+            }
+        }
     }
 
     /*
@@ -344,15 +368,18 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         }
     }
 
-    ret = mark_used(bs, s->used_bmap, s->used_bmap_size,
-                    s->data_end << BDRV_SECTOR_BITS, to_allocate);
+    ret = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off, to_allocate);
     if (ret < 0) {
         /* Image consistency is broken. Alarm! */
         return ret;
     }
     for (i = 0; i < to_allocate; i++) {
-        parallels_set_bat_entry(s, idx + i, s->data_end / s->off_multiplier);
-        s->data_end += s->tracks;
+        parallels_set_bat_entry(s, idx + i,
+                host_off / BDRV_SECTOR_SIZE / s->off_multiplier);
+        host_off += s->cluster_size;
+    }
+    if (host_off > s->data_end * BDRV_SECTOR_SIZE) {
+        s->data_end = host_off / BDRV_SECTOR_SIZE;
     }
 
     return bat2sect(s, idx) + sector_num % s->tracks;
