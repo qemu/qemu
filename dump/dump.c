@@ -809,7 +809,7 @@ static void create_vmcore(DumpState *s, Error **errp)
     dump_end(s, errp);
 }
 
-static int write_start_flat_header(int fd)
+static int write_start_flat_header(DumpState *s)
 {
     MakedumpfileHeader *mh;
     int ret = 0;
@@ -824,7 +824,7 @@ static int write_start_flat_header(int fd)
     mh->version = cpu_to_be64(VERSION_FLAT_HEADER);
 
     size_t written_size;
-    written_size = qemu_write_full(fd, mh, MAX_SIZE_MDF_HEADER);
+    written_size = qemu_write_full(s->fd, mh, MAX_SIZE_MDF_HEADER);
     if (written_size != MAX_SIZE_MDF_HEADER) {
         ret = -1;
     }
@@ -833,7 +833,7 @@ static int write_start_flat_header(int fd)
     return ret;
 }
 
-static int write_end_flat_header(int fd)
+static int write_end_flat_header(DumpState *s)
 {
     MakedumpfileDataHeader mdh;
 
@@ -841,7 +841,7 @@ static int write_end_flat_header(int fd)
     mdh.buf_size = END_FLAG_FLAT_HEADER;
 
     size_t written_size;
-    written_size = qemu_write_full(fd, &mdh, sizeof(mdh));
+    written_size = qemu_write_full(s->fd, &mdh, sizeof(mdh));
     if (written_size != sizeof(mdh)) {
         return -1;
     }
@@ -849,7 +849,7 @@ static int write_end_flat_header(int fd)
     return 0;
 }
 
-static int write_buffer(int fd, off_t offset, const void *buf, size_t size)
+static int write_buffer(DumpState *s, off_t offset, const void *buf, size_t size)
 {
     size_t written_size;
     MakedumpfileDataHeader mdh;
@@ -857,12 +857,12 @@ static int write_buffer(int fd, off_t offset, const void *buf, size_t size)
     mdh.offset = cpu_to_be64(offset);
     mdh.buf_size = cpu_to_be64(size);
 
-    written_size = qemu_write_full(fd, &mdh, sizeof(mdh));
+    written_size = qemu_write_full(s->fd, &mdh, sizeof(mdh));
     if (written_size != sizeof(mdh)) {
         return -1;
     }
 
-    written_size = qemu_write_full(fd, buf, size);
+    written_size = qemu_write_full(s->fd, buf, size);
     if (written_size != size) {
         return -1;
     }
@@ -982,7 +982,7 @@ static void create_header32(DumpState *s, Error **errp)
 #endif
     dh->status = cpu_to_dump32(s, status);
 
-    if (write_buffer(s->fd, 0, dh, size) < 0) {
+    if (write_buffer(s, 0, dh, size) < 0) {
         error_setg(errp, "dump: failed to write disk dump header");
         goto out;
     }
@@ -1012,7 +1012,7 @@ static void create_header32(DumpState *s, Error **errp)
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump32(s, s->note_size);
 
-    if (write_buffer(s->fd, DISKDUMP_HEADER_BLOCKS *
+    if (write_buffer(s, DISKDUMP_HEADER_BLOCKS *
                      block_size, kh, size) < 0) {
         error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
@@ -1027,7 +1027,7 @@ static void create_header32(DumpState *s, Error **errp)
     if (*errp) {
         goto out;
     }
-    if (write_buffer(s->fd, offset_note, s->note_buf,
+    if (write_buffer(s, offset_note, s->note_buf,
                      s->note_size) < 0) {
         error_setg(errp, "dump: failed to write notes");
         goto out;
@@ -1093,7 +1093,7 @@ static void create_header64(DumpState *s, Error **errp)
 #endif
     dh->status = cpu_to_dump32(s, status);
 
-    if (write_buffer(s->fd, 0, dh, size) < 0) {
+    if (write_buffer(s, 0, dh, size) < 0) {
         error_setg(errp, "dump: failed to write disk dump header");
         goto out;
     }
@@ -1123,7 +1123,7 @@ static void create_header64(DumpState *s, Error **errp)
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump64(s, s->note_size);
 
-    if (write_buffer(s->fd, DISKDUMP_HEADER_BLOCKS *
+    if (write_buffer(s, DISKDUMP_HEADER_BLOCKS *
                      block_size, kh, size) < 0) {
         error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
@@ -1139,7 +1139,7 @@ static void create_header64(DumpState *s, Error **errp)
         goto out;
     }
 
-    if (write_buffer(s->fd, offset_note, s->note_buf,
+    if (write_buffer(s, offset_note, s->note_buf,
                      s->note_size) < 0) {
         error_setg(errp, "dump: failed to write notes");
         goto out;
@@ -1204,7 +1204,7 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
     while (old_offset < new_offset) {
         /* calculate the offset and write dump_bitmap */
         offset_bitmap1 = s->offset_dump_bitmap + old_offset;
-        if (write_buffer(s->fd, offset_bitmap1, buf,
+        if (write_buffer(s, offset_bitmap1, buf,
                          bitmap_bufsize) < 0) {
             return -1;
         }
@@ -1212,7 +1212,7 @@ static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
         /* dump level 1 is chosen, so 1st and 2nd bitmap are same */
         offset_bitmap2 = s->offset_dump_bitmap + s->len_dump_bitmap +
                          old_offset;
-        if (write_buffer(s->fd, offset_bitmap2, buf,
+        if (write_buffer(s, offset_bitmap2, buf,
                          bitmap_bufsize) < 0) {
             return -1;
         }
@@ -1380,7 +1380,7 @@ out:
 static void prepare_data_cache(DataCache *data_cache, DumpState *s,
                                off_t offset)
 {
-    data_cache->fd = s->fd;
+    data_cache->state = s;
     data_cache->data_size = 0;
     data_cache->buf_size = 4 * dump_bitmap_get_bufsize(s);
     data_cache->buf = g_malloc0(data_cache->buf_size);
@@ -1399,11 +1399,11 @@ static int write_cache(DataCache *dc, const void *buf, size_t size,
     /*
      * if flag_sync is set, synchronize data in dc->buf into vmcore.
      * otherwise check if the space is enough for caching data in buf, if not,
-     * write the data in dc->buf to dc->fd and reset dc->buf
+     * write the data in dc->buf to dc->state->fd and reset dc->buf
      */
     if ((!flag_sync && dc->data_size + size > dc->buf_size) ||
         (flag_sync && dc->data_size > 0)) {
-        if (write_buffer(dc->fd, dc->offset, dc->buf, dc->data_size) < 0) {
+        if (write_buffer(dc->state, dc->offset, dc->buf, dc->data_size) < 0) {
             return -1;
         }
 
@@ -1644,7 +1644,7 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
      *  +------------------------------------------+
      */
 
-    ret = write_start_flat_header(s->fd);
+    ret = write_start_flat_header(s);
     if (ret < 0) {
         error_setg(errp, "dump: failed to write start flat header");
         return;
@@ -1665,7 +1665,7 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
         return;
     }
 
-    ret = write_end_flat_header(s->fd);
+    ret = write_end_flat_header(s);
     if (ret < 0) {
         error_setg(errp, "dump: failed to write end flat header");
         return;
