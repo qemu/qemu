@@ -2090,6 +2090,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     int fd = -1;
     DumpState *s;
     bool detach_p = false;
+    bool kdump_raw = false;
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "Dump not allowed during incoming migration.");
@@ -2101,6 +2102,29 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     if (qemu_system_dump_in_progress()) {
         error_setg(errp, "There is a dump in process, please wait.");
         return;
+    }
+
+    /*
+     * externally, we represent kdump-raw-* as separate formats, but internally
+     * they are handled the same, except for the "raw" flag
+     */
+    if (has_format) {
+        switch (format) {
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_ZLIB:
+            format = DUMP_GUEST_MEMORY_FORMAT_KDUMP_ZLIB;
+            kdump_raw = true;
+            break;
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_LZO:
+            format = DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO;
+            kdump_raw = true;
+            break;
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_SNAPPY:
+            format = DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY;
+            kdump_raw = true;
+            break;
+        default:
+            break;
+        }
     }
 
     /*
@@ -2166,6 +2190,10 @@ void qmp_dump_guest_memory(bool paging, const char *file,
         error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
         return;
     }
+    if (kdump_raw && lseek(fd, 0, SEEK_CUR) == (off_t) -1) {
+        error_setg(errp, "kdump-raw formats require a seekable file");
+        return;
+    }
 
     if (!dump_migration_blocker) {
         error_setg(&dump_migration_blocker,
@@ -2186,7 +2214,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     dump_state_prepare(s);
 
     dump_init(s, fd, has_format, format, paging, has_begin,
-              begin, length, false, errp);
+              begin, length, kdump_raw, errp);
     if (*errp) {
         qatomic_set(&s->status, DUMP_STATUS_FAILED);
         return;
@@ -2214,15 +2242,18 @@ DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
 
     /* kdump-zlib is always available */
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_ZLIB);
+    QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_ZLIB);
 
     /* add new item if kdump-lzo is available */
 #ifdef CONFIG_LZO
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO);
+    QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_LZO);
 #endif
 
     /* add new item if kdump-snappy is available */
 #ifdef CONFIG_SNAPPY
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY);
+    QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_SNAPPY);
 #endif
 
     if (win_dump_available(NULL)) {
