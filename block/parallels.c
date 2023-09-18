@@ -282,6 +282,8 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         return len;
     }
     if (s->data_end + space > (len >> BDRV_SECTOR_BITS)) {
+        uint32_t new_usedsize;
+
         space += s->prealloc_size;
         /*
          * We require the expanded size to read back as zero. If the
@@ -305,6 +307,12 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         if (ret < 0) {
             return ret;
         }
+
+        new_usedsize = s->used_bmap_size +
+                       (space << BDRV_SECTOR_BITS) / s->cluster_size;
+        s->used_bmap = bitmap_zero_extend(s->used_bmap, s->used_bmap_size,
+                                          new_usedsize);
+        s->used_bmap_size = new_usedsize;
     }
 
     /*
@@ -336,6 +344,12 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         }
     }
 
+    ret = mark_used(bs, s->used_bmap, s->used_bmap_size,
+                    s->data_end << BDRV_SECTOR_BITS, to_allocate);
+    if (ret < 0) {
+        /* Image consistency is broken. Alarm! */
+        return ret;
+    }
     for (i = 0; i < to_allocate; i++) {
         parallels_set_bat_entry(s, idx + i, s->data_end / s->off_multiplier);
         s->data_end += s->tracks;
