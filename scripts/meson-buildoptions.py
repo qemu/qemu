@@ -44,6 +44,11 @@ OPTION_NAMES = {
     "trace_file": "with-trace-file",
 }
 
+# Options that configure autodetects, even though meson defines them as boolean
+AUTO_OPTIONS = {
+    "plugins",
+}
+
 BUILTIN_OPTIONS = {
     "b_coverage",
     "b_lto",
@@ -168,6 +173,7 @@ def cli_metavar(opt):
 
 def print_help(options):
     print("meson_options_help() {")
+    feature_opts = []
     for opt in sorted(options, key=cli_help_key):
         key = cli_help_key(opt)
         # The first section includes options that have an arguments,
@@ -176,7 +182,7 @@ def print_help(options):
             metavar = cli_metavar(opt)
             left = f"--{key}={metavar}"
             help_line(left, opt, 27, True)
-        elif opt["type"] == "boolean":
+        elif opt["type"] == "boolean" and opt["name"] not in AUTO_OPTIONS:
             left = f"--{key}"
             help_line(left, opt, 27, False)
         elif allow_arg(opt):
@@ -185,16 +191,17 @@ def print_help(options):
             else:
                 left = f"--{key}=CHOICE"
             help_line(left, opt, 27, True)
+        else:
+            feature_opts.append(opt)
 
     sh_print()
     sh_print("Optional features, enabled with --enable-FEATURE and")
     sh_print("disabled with --disable-FEATURE, default is enabled if available")
     sh_print("(unless built with --without-default-features):")
     sh_print()
-    for opt in options:
-        key = opt["name"].replace("_", "-")
-        if opt["type"] != "boolean" and not allow_arg(opt):
-            help_line(key, opt, 18, False)
+    for opt in sorted(feature_opts, key=cli_option):
+        key = cli_option(opt)
+        help_line(key, opt, 18, False)
     print("}")
 
 
