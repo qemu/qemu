@@ -599,6 +599,30 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     if (mis->preempt_thread_status == PREEMPT_THREAD_CREATED) {
         /* Notify the fast load thread to quit */
         mis->preempt_thread_status = PREEMPT_THREAD_QUIT;
+        /*
+         * Update preempt_thread_status before reading count.  Note: mutex
+         * lock only provide ACQUIRE semantic, and it doesn't stops this
+         * write to be reordered after reading the count.
+         */
+        smp_mb();
+        /*
+         * It's possible that the preempt thread is still handling the last
+         * pages to arrive which were requested by guest page faults.
+         * Making sure nothing is left behind by waiting on the condvar if
+         * that unlikely case happened.
+         */
+        WITH_QEMU_LOCK_GUARD(&mis->page_request_mutex) {
+            if (qatomic_read(&mis->page_requested_count)) {
+                /*
+                 * It is guaranteed to receive a signal later, because the
+                 * count>0 now, so it's destined to be decreased to zero
+                 * very soon by the preempt thread.
+                 */
+                qemu_cond_wait(&mis->page_request_cond,
+                               &mis->page_request_mutex);
+            }
+        }
+        /* Notify the fast load thread to quit */
         if (mis->postcopy_qemufile_dst) {
             qemu_file_shutdown(mis->postcopy_qemufile_dst);
         }
@@ -1277,8 +1301,20 @@ static int qemu_ufd_copy_ioctl(MigrationIncomingState *mis, void *host_addr,
          */
         if (g_tree_lookup(mis->page_requested, host_addr)) {
             g_tree_remove(mis->page_requested, host_addr);
-            mis->page_requested_count--;
+            int left_pages = qatomic_dec_fetch(&mis->page_requested_count);
+
             trace_postcopy_page_req_del(host_addr, mis->page_requested_count);
+            /* Order the update of count and read of preempt status */
+            smp_mb();
+            if (mis->preempt_thread_status == PREEMPT_THREAD_QUIT &&
+                left_pages == 0) {
+                /*
+                 * This probably means the main thread is waiting for us.
+                 * Notify that we've finished receiving the last requested
+                 * page.
+                 */
+                qemu_cond_signal(&mis->page_request_cond);
+            }
         }
         qemu_mutex_unlock(&mis->page_request_mutex);
         mark_postcopy_blocktime_end((uintptr_t)host_addr);

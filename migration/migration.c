@@ -153,6 +153,7 @@ void migration_object_init(void)
     qemu_sem_init(&current_incoming->postcopy_qemufile_dst_done, 0);
 
     qemu_mutex_init(&current_incoming->page_request_mutex);
+    qemu_cond_init(&current_incoming->page_request_cond);
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
     migration_object_check(current_migration, &error_fatal);
@@ -367,7 +368,7 @@ int migrate_send_rp_req_pages(MigrationIncomingState *mis,
              * things like g_tree_lookup() will return TRUE (1) when found.
              */
             g_tree_insert(mis->page_requested, aligned, (gpointer)1);
-            mis->page_requested_count++;
+            qatomic_inc(&mis->page_requested_count);
             trace_postcopy_page_req_add(aligned, mis->page_requested_count);
         }
     }
