@@ -667,7 +667,7 @@ Command description:
 
   List, apply, create or delete snapshots in image *FILENAME*.
 
-.. option:: rebase [--object OBJECTDEF] [--image-opts] [-U] [-q] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-p] [-u] -b BACKING_FILE [-F BACKING_FMT] FILENAME
+.. option:: rebase [--object OBJECTDEF] [--image-opts] [-U] [-q] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-p] [-u] [-c] -b BACKING_FILE [-F BACKING_FMT] FILENAME
 
   Changes the backing file of an image. Only the formats ``qcow2`` and
   ``qed`` support changing the backing file.
@@ -694,7 +694,9 @@ Command description:
 
     In order to achieve this, any clusters that differ between
     *BACKING_FILE* and the old backing file of *FILENAME* are merged
-    into *FILENAME* before actually changing the backing file.
+    into *FILENAME* before actually changing the backing file. With the
+    ``-c`` option specified, the clusters which are being merged (but not
+    the entire *FILENAME* image) are compressed when written.
 
     Note that the safe mode is an expensive operation, comparable to
     converting an image. It only works if the old backing file still

@@ -3534,11 +3534,13 @@ static int img_rebase(int argc, char **argv)
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
+    BdrvRequestFlags write_flags = 0;
     bool writethrough, src_writethrough;
     int unsafe = 0;
     bool force_share = false;
     int progress = 0;
     bool quiet = false;
+    bool compress = false;
     Error *local_err = NULL;
     bool image_opts = false;
     int64_t write_align;
@@ -3555,9 +3557,10 @@ static int img_rebase(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"compress", no_argument, 0, 'c'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qU",
+        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3604,6 +3607,9 @@ static int img_rebase(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'c':
+            compress = true;
             break;
         }
     }
@@ -3657,6 +3663,14 @@ static int img_rebase(int argc, char **argv)
 
     unfiltered_bs = bdrv_skip_filters(bs);
 
+    if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
+        error_report("Compression not supported for this file format");
+        ret = -1;
+        goto out;
+    } else if (compress) {
+        write_flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
+
     if (out_basefmt != NULL) {
         if (bdrv_find_format(out_basefmt) == NULL) {
             error_report("Invalid format name: '%s'", out_basefmt);
@@ -3666,18 +3680,18 @@ static int img_rebase(int argc, char **argv)
     }
 
     /*
-     * We need overlay subcluster size to make sure write requests are
-     * aligned.
+     * We need overlay subcluster size (or cluster size in case writes are
+     * compressed) to make sure write requests are aligned.
      */
     ret = bdrv_get_info(unfiltered_bs, &bdi);
     if (ret < 0) {
         error_report("could not get block driver info");
         goto out;
     } else if (bdi.subcluster_size == 0) {
-        bdi.subcluster_size = 1;
+        bdi.cluster_size = bdi.subcluster_size = 1;
     }
 
-    write_align = bdi.subcluster_size;
+    write_align = compress ? bdi.cluster_size : bdi.subcluster_size;
 
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
@@ -3930,7 +3944,7 @@ static int img_rebase(int argc, char **argv)
                     } else {
                         assert(written + pnum <= IO_BUF_SIZE);
                         ret = blk_pwrite(blk, offset + written, pnum,
-                                         buf_old + written, 0);
+                                         buf_old + written, write_flags);
                     }
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
