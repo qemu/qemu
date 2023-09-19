@@ -100,12 +100,12 @@
 typedef struct CPUTLBEntryFull {
     /*
      * @xlat_section contains:
-     *  - in the lower TARGET_PAGE_BITS, a physical section number
-     *  - with the lower TARGET_PAGE_BITS masked off, an offset which
-     *    must be added to the virtual address to obtain:
-     *     + the ram_addr_t of the target RAM (if the physical section
-     *       number is PHYS_SECTION_NOTDIRTY or PHYS_SECTION_ROM)
-     *     + the offset within the target MemoryRegion (otherwise)
+     *  - For ram, an offset which must be added to the virtual address
+     *    to obtain the ram_addr_t of the target RAM
+     *  - For other memory regions,
+     *     + in the lower TARGET_PAGE_BITS, the physical section number
+     *     + with the TARGET_PAGE_BITS masked off, the offset within
+     *       the target MemoryRegion
      */
     hwaddr xlat_section;
 

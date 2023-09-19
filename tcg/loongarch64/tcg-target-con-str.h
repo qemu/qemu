@@ -14,6 +14,7 @@
  * REGS(letter, register_mask)
  */
 REGS('r', ALL_GENERAL_REGS)
+REGS('w', ALL_VECTOR_REGS)
 
 /*
  * Define constraint letters for constants:
@@ -25,3 +26,5 @@ CONST('U', TCG_CT_CONST_U12)
 CONST('Z', TCG_CT_CONST_ZERO)
 CONST('C', TCG_CT_CONST_C12)
 CONST('W', TCG_CT_CONST_WSZ)
+CONST('M', TCG_CT_CONST_VCMP)
+CONST('A', TCG_CT_CONST_VADD)

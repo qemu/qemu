@@ -121,10 +121,7 @@ static void *new_stack_for_clone(void)
 
     /* Allocate a new stack and get a pointer to its top. */
     stack_ptr = qemu_alloc_stack(&stack_size);
-#if !defined(HOST_HPPA)
-    /* The top is at the end of the area, except on HPPA. */
     stack_ptr += stack_size;
-#endif
 
     return stack_ptr;
 }

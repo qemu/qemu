@@ -1193,6 +1193,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     write_flags = read_flags;
     if (is_ram) {
         iotlb = memory_region_get_ram_addr(section->mr) + xlat;
+        assert(!(iotlb & ~TARGET_PAGE_MASK));
         /*
          * Computing is_clean is expensive; avoid all that unless
          * the page is actually writable.
@@ -1255,16 +1256,18 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     /* refill the tlb */
     /*
-     * At this point iotlb contains a physical section number in the lower
-     * TARGET_PAGE_BITS, and either
-     *  + the ram_addr_t of the page base of the target RAM (RAM)
-     *  + the offset within section->mr of the page base (I/O, ROMD)
+     * When memory region is ram, iotlb contains a TARGET_PAGE_BITS
+     * aligned ram_addr_t of the page base of the target RAM.
+     * Otherwise, iotlb contains
+     *  - a physical section number in the lower TARGET_PAGE_BITS
+     *  - the offset within section->mr of the page base (I/O, ROMD) with the
+     *    TARGET_PAGE_BITS masked off.
      * We subtract addr_page (which is page aligned and thus won't
      * disturb the low bits) to give an offset which can be added to the
      * (non-page-aligned) vaddr of the eventual memory access to get
      * the MemoryRegion offset for the access. Note that the vaddr we
      * subtract here is that of the page base, and not the same as the
-     * vaddr we add back in io_readx()/io_writex()/get_page_addr_code().
+     * vaddr we add back in io_prepare()/get_page_addr_code().
      */
     desc->fulltlb[index] = *full;
     full = &desc->fulltlb[index];
@@ -1347,116 +1350,41 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                           mmu_idx, retaddr);
 }
 
-static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
-                                          vaddr addr, unsigned size,
-                                          MMUAccessType access_type,
-                                          int mmu_idx, MemTxAttrs attrs,
-                                          MemTxResult response,
-                                          uintptr_t retaddr)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (!cpu->ignore_memory_transaction_failures &&
-        cc->tcg_ops->do_transaction_failed) {
-        cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
-                                           access_type, mmu_idx, attrs,
-                                           response, retaddr);
-    }
-}
-
-/*
- * Save a potentially trashed CPUTLBEntryFull for later lookup by plugin.
- * This is read by tlb_plugin_lookup if the fulltlb entry doesn't match
- * because of the side effect of io_writex changing memory layout.
- */
-static void save_iotlb_data(CPUState *cs, MemoryRegionSection *section,
-                            hwaddr mr_offset)
-{
-#ifdef CONFIG_PLUGIN
-    SavedIOTLB *saved = &cs->saved_iotlb;
-    saved->section = section;
-    saved->mr_offset = mr_offset;
-#endif
-}
-
-static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
-                         int mmu_idx, vaddr addr, uintptr_t retaddr,
-                         MMUAccessType access_type, MemOp op)
+static MemoryRegionSection *
+io_prepare(hwaddr *out_offset, CPUArchState *env, hwaddr xlat,
+           MemTxAttrs attrs, vaddr addr, uintptr_t retaddr)
 {
     CPUState *cpu = env_cpu(env);
-    hwaddr mr_offset;
     MemoryRegionSection *section;
-    MemoryRegion *mr;
-    uint64_t val;
-    MemTxResult r;
+    hwaddr mr_offset;
 
-    section = iotlb_to_section(cpu, full->xlat_section, full->attrs);
-    mr = section->mr;
-    mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
+    section = iotlb_to_section(cpu, xlat, attrs);
+    mr_offset = (xlat & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
     if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
 
-    /*
-     * The memory_region_dispatch may trigger a flush/resize
-     * so for plugins we save the iotlb_data just in case.
-     */
-    save_iotlb_data(cpu, section, mr_offset);
-
-    {
-        QEMU_IOTHREAD_LOCK_GUARD();
-        r = memory_region_dispatch_read(mr, mr_offset, &val, op, full->attrs);
-    }
-
-    if (r != MEMTX_OK) {
-        hwaddr physaddr = mr_offset +
-            section->offset_within_address_space -
-            section->offset_within_region;
-
-        cpu_transaction_failed(cpu, physaddr, addr, memop_size(op), access_type,
-                               mmu_idx, full->attrs, r, retaddr);
-    }
-    return val;
+    *out_offset = mr_offset;
+    return section;
 }
 
-static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
-                      int mmu_idx, uint64_t val, vaddr addr,
-                      uintptr_t retaddr, MemOp op)
+static void io_failed(CPUArchState *env, CPUTLBEntryFull *full, vaddr addr,
+                      unsigned size, MMUAccessType access_type, int mmu_idx,
+                      MemTxResult response, uintptr_t retaddr)
 {
     CPUState *cpu = env_cpu(env);
-    hwaddr mr_offset;
-    MemoryRegionSection *section;
-    MemoryRegion *mr;
-    MemTxResult r;
 
-    section = iotlb_to_section(cpu, full->xlat_section, full->attrs);
-    mr = section->mr;
-    mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
-    if (!cpu->can_do_io) {
-        cpu_io_recompile(cpu, retaddr);
-    }
-    cpu->mem_io_pc = retaddr;
+    if (!cpu->ignore_memory_transaction_failures) {
+        CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    /*
-     * The memory_region_dispatch may trigger a flush/resize
-     * so for plugins we save the iotlb_data just in case.
-     */
-    save_iotlb_data(cpu, section, mr_offset);
+        if (cc->tcg_ops->do_transaction_failed) {
+            hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
 
-    {
-        QEMU_IOTHREAD_LOCK_GUARD();
-        r = memory_region_dispatch_write(mr, mr_offset, val, op, full->attrs);
-    }
-
-    if (r != MEMTX_OK) {
-        hwaddr physaddr = mr_offset +
-            section->offset_within_address_space -
-            section->offset_within_region;
-
-        cpu_transaction_failed(cpu, physaddr, addr, memop_size(op),
-                               MMU_DATA_STORE, mmu_idx, full->attrs, r,
-                               retaddr);
+            cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
+                                               access_type, mmu_idx,
+                                               full->attrs, response, retaddr);
+        }
     }
 }
 
@@ -1726,45 +1654,41 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
  * in the softmmu lookup code (or helper). We don't handle re-fills or
  * checking the victim table. This is purely informational.
  *
- * This almost never fails as the memory access being instrumented
- * should have just filled the TLB. The one corner case is io_writex
- * which can cause TLB flushes and potential resizing of the TLBs
- * losing the information we need. In those cases we need to recover
- * data from a copy of the CPUTLBEntryFull. As long as this always occurs
- * from the same thread (which a mem callback will be) this is safe.
+ * The one corner case is i/o write, which can cause changes to the
+ * address space.  Those changes, and the corresponding tlb flush,
+ * should be delayed until the next TB, so even then this ought not fail.
+ * But check, Just in Case.
  */
-
 bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
                        bool is_store, struct qemu_plugin_hwaddr *data)
 {
     CPUArchState *env = cpu->env_ptr;
     CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
-    uint64_t tlb_addr = is_store ? tlb_addr_write(tlbe) : tlbe->addr_read;
+    MMUAccessType access_type = is_store ? MMU_DATA_STORE : MMU_DATA_LOAD;
+    uint64_t tlb_addr = tlb_read_idx(tlbe, access_type);
+    CPUTLBEntryFull *full;
 
-    if (likely(tlb_hit(tlb_addr, addr))) {
-        /* We must have an iotlb entry for MMIO */
-        if (tlb_addr & TLB_MMIO) {
-            CPUTLBEntryFull *full;
-            full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
-            data->is_io = true;
-            data->v.io.section =
-                iotlb_to_section(cpu, full->xlat_section, full->attrs);
-            data->v.io.offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
-        } else {
-            data->is_io = false;
-            data->v.ram.hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
-        }
-        return true;
-    } else {
-        SavedIOTLB *saved = &cpu->saved_iotlb;
-        data->is_io = true;
-        data->v.io.section = saved->section;
-        data->v.io.offset = saved->mr_offset;
-        return true;
+    if (unlikely(!tlb_hit(tlb_addr, addr))) {
+        return false;
     }
-}
 
+    full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
+    data->phys_addr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
+
+    /* We must have an iotlb entry for MMIO */
+    if (tlb_addr & TLB_MMIO) {
+        MemoryRegionSection *section =
+            iotlb_to_section(cpu, full->xlat_section & ~TARGET_PAGE_MASK,
+                             full->attrs);
+        data->is_io = true;
+        data->mr = section->mr;
+    } else {
+        data->is_io = false;
+        data->mr = NULL;
+    }
+    return true;
+}
 #endif
 
 /*
@@ -2084,45 +2008,88 @@ static void *atomic_mmu_lookup(CPUArchState *env, vaddr addr, MemOpIdx oi,
  * Load @size bytes from @addr, which is memory-mapped i/o.
  * The bytes are concatenated in big-endian order with @ret_be.
  */
+static uint64_t int_ld_mmio_beN(CPUArchState *env, CPUTLBEntryFull *full,
+                                uint64_t ret_be, vaddr addr, int size,
+                                int mmu_idx, MMUAccessType type, uintptr_t ra,
+                                MemoryRegion *mr, hwaddr mr_offset)
+{
+    do {
+        MemOp this_mop;
+        unsigned this_size;
+        uint64_t val;
+        MemTxResult r;
+
+        /* Read aligned pieces up to 8 bytes. */
+        this_mop = ctz32(size | (int)addr | 8);
+        this_size = 1 << this_mop;
+        this_mop |= MO_BE;
+
+        r = memory_region_dispatch_read(mr, mr_offset, &val,
+                                        this_mop, full->attrs);
+        if (unlikely(r != MEMTX_OK)) {
+            io_failed(env, full, addr, this_size, type, mmu_idx, r, ra);
+        }
+        if (this_size == 8) {
+            return val;
+        }
+
+        ret_be = (ret_be << (this_size * 8)) | val;
+        addr += this_size;
+        mr_offset += this_size;
+        size -= this_size;
+    } while (size);
+
+    return ret_be;
+}
+
 static uint64_t do_ld_mmio_beN(CPUArchState *env, CPUTLBEntryFull *full,
                                uint64_t ret_be, vaddr addr, int size,
                                int mmu_idx, MMUAccessType type, uintptr_t ra)
 {
-    uint64_t t;
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
+    hwaddr mr_offset;
+    MemTxAttrs attrs;
+    uint64_t ret;
 
     tcg_debug_assert(size > 0 && size <= 8);
-    do {
-        /* Read aligned pieces up to 8 bytes. */
-        switch ((size | (int)addr) & 7) {
-        case 1:
-        case 3:
-        case 5:
-        case 7:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_UB);
-            ret_be = (ret_be << 8) | t;
-            size -= 1;
-            addr += 1;
-            break;
-        case 2:
-        case 6:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUW);
-            ret_be = (ret_be << 16) | t;
-            size -= 2;
-            addr += 2;
-            break;
-        case 4:
-            t = io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUL);
-            ret_be = (ret_be << 32) | t;
-            size -= 4;
-            addr += 4;
-            break;
-        case 0:
-            return io_readx(env, full, mmu_idx, addr, ra, type, MO_BEUQ);
-        default:
-            qemu_build_not_reached();
-        }
-    } while (size);
-    return ret_be;
+
+    attrs = full->attrs;
+    section = io_prepare(&mr_offset, env, full->xlat_section, attrs, addr, ra);
+    mr = section->mr;
+
+    qemu_mutex_lock_iothread();
+    ret = int_ld_mmio_beN(env, full, ret_be, addr, size, mmu_idx,
+                          type, ra, mr, mr_offset);
+    qemu_mutex_unlock_iothread();
+
+    return ret;
+}
+
+static Int128 do_ld16_mmio_beN(CPUArchState *env, CPUTLBEntryFull *full,
+                               uint64_t ret_be, vaddr addr, int size,
+                               int mmu_idx, uintptr_t ra)
+{
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
+    hwaddr mr_offset;
+    MemTxAttrs attrs;
+    uint64_t a, b;
+
+    tcg_debug_assert(size > 8 && size <= 16);
+
+    attrs = full->attrs;
+    section = io_prepare(&mr_offset, env, full->xlat_section, attrs, addr, ra);
+    mr = section->mr;
+
+    qemu_mutex_lock_iothread();
+    a = int_ld_mmio_beN(env, full, ret_be, addr, size - 8, mmu_idx,
+                        MMU_DATA_LOAD, ra, mr, mr_offset);
+    b = int_ld_mmio_beN(env, full, ret_be, addr + size - 8, 8, mmu_idx,
+                        MMU_DATA_LOAD, ra, mr, mr_offset + size - 8);
+    qemu_mutex_unlock_iothread();
+
+    return int128_make128(b, a);
 }
 
 /**
@@ -2267,7 +2234,6 @@ static uint64_t do_ld_beN(CPUArchState *env, MMULookupPageData *p,
     unsigned tmp, half_size;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
         return do_ld_mmio_beN(env, p->full, ret_be, p->addr, p->size,
                               mmu_idx, type, ra);
     }
@@ -2318,12 +2284,7 @@ static Int128 do_ld16_beN(CPUArchState *env, MMULookupPageData *p,
     MemOp atom;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
-        a = do_ld_mmio_beN(env, p->full, a, p->addr, size - 8,
-                           mmu_idx, MMU_DATA_LOAD, ra);
-        b = do_ld_mmio_beN(env, p->full, 0, p->addr + 8, 8,
-                           mmu_idx, MMU_DATA_LOAD, ra);
-        return int128_make128(b, a);
+        return do_ld16_mmio_beN(env, p->full, a, p->addr, size, mmu_idx, ra);
     }
 
     /*
@@ -2368,7 +2329,7 @@ static uint8_t do_ld_1(CPUArchState *env, MMULookupPageData *p, int mmu_idx,
                        MMUAccessType type, uintptr_t ra)
 {
     if (unlikely(p->flags & TLB_MMIO)) {
-        return io_readx(env, p->full, mmu_idx, p->addr, ra, type, MO_UB);
+        return do_ld_mmio_beN(env, p->full, 0, p->addr, 1, mmu_idx, type, ra);
     } else {
         return *(uint8_t *)p->haddr;
     }
@@ -2380,7 +2341,6 @@ static uint16_t do_ld_2(CPUArchState *env, MMULookupPageData *p, int mmu_idx,
     uint16_t ret;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
         ret = do_ld_mmio_beN(env, p->full, 0, p->addr, 2, mmu_idx, type, ra);
         if ((memop & MO_BSWAP) == MO_LE) {
             ret = bswap16(ret);
@@ -2401,7 +2361,6 @@ static uint32_t do_ld_4(CPUArchState *env, MMULookupPageData *p, int mmu_idx,
     uint32_t ret;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
         ret = do_ld_mmio_beN(env, p->full, 0, p->addr, 4, mmu_idx, type, ra);
         if ((memop & MO_BSWAP) == MO_LE) {
             ret = bswap32(ret);
@@ -2422,7 +2381,6 @@ static uint64_t do_ld_8(CPUArchState *env, MMULookupPageData *p, int mmu_idx,
     uint64_t ret;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
         ret = do_ld_mmio_beN(env, p->full, 0, p->addr, 8, mmu_idx, type, ra);
         if ((memop & MO_BSWAP) == MO_LE) {
             ret = bswap64(ret);
@@ -2581,12 +2539,8 @@ static Int128 do_ld16_mmu(CPUArchState *env, vaddr addr,
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD, &l);
     if (likely(!crosspage)) {
         if (unlikely(l.page[0].flags & TLB_MMIO)) {
-            QEMU_IOTHREAD_LOCK_GUARD();
-            a = do_ld_mmio_beN(env, l.page[0].full, 0, addr, 8,
-                               l.mmu_idx, MMU_DATA_LOAD, ra);
-            b = do_ld_mmio_beN(env, l.page[0].full, 0, addr + 8, 8,
-                               l.mmu_idx, MMU_DATA_LOAD, ra);
-            ret = int128_make128(b, a);
+            ret = do_ld16_mmio_beN(env, l.page[0].full, 0, addr, 16,
+                                   l.mmu_idx, ra);
             if ((l.memop & MO_BSWAP) == MO_LE) {
                 ret = bswap128(ret);
             }
@@ -2727,46 +2681,88 @@ Int128 cpu_ld16_mmu(CPUArchState *env, abi_ptr addr,
  * The bytes to store are extracted in little-endian order from @val_le;
  * return the bytes of @val_le beyond @p->size that have not been stored.
  */
+static uint64_t int_st_mmio_leN(CPUArchState *env, CPUTLBEntryFull *full,
+                                uint64_t val_le, vaddr addr, int size,
+                                int mmu_idx, uintptr_t ra,
+                                MemoryRegion *mr, hwaddr mr_offset)
+{
+    do {
+        MemOp this_mop;
+        unsigned this_size;
+        MemTxResult r;
+
+        /* Store aligned pieces up to 8 bytes. */
+        this_mop = ctz32(size | (int)addr | 8);
+        this_size = 1 << this_mop;
+        this_mop |= MO_LE;
+
+        r = memory_region_dispatch_write(mr, mr_offset, val_le,
+                                         this_mop, full->attrs);
+        if (unlikely(r != MEMTX_OK)) {
+            io_failed(env, full, addr, this_size, MMU_DATA_STORE,
+                      mmu_idx, r, ra);
+        }
+        if (this_size == 8) {
+            return 0;
+        }
+
+        val_le >>= this_size * 8;
+        addr += this_size;
+        mr_offset += this_size;
+        size -= this_size;
+    } while (size);
+
+    return val_le;
+}
+
 static uint64_t do_st_mmio_leN(CPUArchState *env, CPUTLBEntryFull *full,
                                uint64_t val_le, vaddr addr, int size,
                                int mmu_idx, uintptr_t ra)
 {
+    MemoryRegionSection *section;
+    hwaddr mr_offset;
+    MemoryRegion *mr;
+    MemTxAttrs attrs;
+    uint64_t ret;
+
     tcg_debug_assert(size > 0 && size <= 8);
 
-    do {
-        /* Store aligned pieces up to 8 bytes. */
-        switch ((size | (int)addr) & 7) {
-        case 1:
-        case 3:
-        case 5:
-        case 7:
-            io_writex(env, full, mmu_idx, val_le, addr, ra, MO_UB);
-            val_le >>= 8;
-            size -= 1;
-            addr += 1;
-            break;
-        case 2:
-        case 6:
-            io_writex(env, full, mmu_idx, val_le, addr, ra, MO_LEUW);
-            val_le >>= 16;
-            size -= 2;
-            addr += 2;
-            break;
-        case 4:
-            io_writex(env, full, mmu_idx, val_le, addr, ra, MO_LEUL);
-            val_le >>= 32;
-            size -= 4;
-            addr += 4;
-            break;
-        case 0:
-            io_writex(env, full, mmu_idx, val_le, addr, ra, MO_LEUQ);
-            return 0;
-        default:
-            qemu_build_not_reached();
-        }
-    } while (size);
+    attrs = full->attrs;
+    section = io_prepare(&mr_offset, env, full->xlat_section, attrs, addr, ra);
+    mr = section->mr;
 
-    return val_le;
+    qemu_mutex_lock_iothread();
+    ret = int_st_mmio_leN(env, full, val_le, addr, size, mmu_idx,
+                          ra, mr, mr_offset);
+    qemu_mutex_unlock_iothread();
+
+    return ret;
+}
+
+static uint64_t do_st16_mmio_leN(CPUArchState *env, CPUTLBEntryFull *full,
+                                 Int128 val_le, vaddr addr, int size,
+                                 int mmu_idx, uintptr_t ra)
+{
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
+    hwaddr mr_offset;
+    MemTxAttrs attrs;
+    uint64_t ret;
+
+    tcg_debug_assert(size > 8 && size <= 16);
+
+    attrs = full->attrs;
+    section = io_prepare(&mr_offset, env, full->xlat_section, attrs, addr, ra);
+    mr = section->mr;
+
+    qemu_mutex_lock_iothread();
+    int_st_mmio_leN(env, full, int128_getlo(val_le), addr, 8,
+                    mmu_idx, ra, mr, mr_offset);
+    ret = int_st_mmio_leN(env, full, int128_gethi(val_le), addr + 8,
+                          size - 8, mmu_idx, ra, mr, mr_offset + 8);
+    qemu_mutex_unlock_iothread();
+
+    return ret;
 }
 
 /*
@@ -2780,7 +2776,6 @@ static uint64_t do_st_leN(CPUArchState *env, MMULookupPageData *p,
     unsigned tmp, half_size;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
         return do_st_mmio_leN(env, p->full, val_le, p->addr,
                               p->size, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
@@ -2835,11 +2830,8 @@ static uint64_t do_st16_leN(CPUArchState *env, MMULookupPageData *p,
     MemOp atom;
 
     if (unlikely(p->flags & TLB_MMIO)) {
-        QEMU_IOTHREAD_LOCK_GUARD();
-        do_st_mmio_leN(env, p->full, int128_getlo(val_le),
-                       p->addr, 8, mmu_idx, ra);
-        return do_st_mmio_leN(env, p->full, int128_gethi(val_le),
-                              p->addr + 8, size - 8, mmu_idx, ra);
+        return do_st16_mmio_leN(env, p->full, val_le, p->addr,
+                                size, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
         return int128_gethi(val_le) >> ((size - 8) * 8);
     }
@@ -2883,7 +2875,7 @@ static void do_st_1(CPUArchState *env, MMULookupPageData *p, uint8_t val,
                     int mmu_idx, uintptr_t ra)
 {
     if (unlikely(p->flags & TLB_MMIO)) {
-        io_writex(env, p->full, mmu_idx, val, p->addr, ra, MO_UB);
+        do_st_mmio_leN(env, p->full, val, p->addr, 1, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
         /* nothing */
     } else {
@@ -2898,7 +2890,6 @@ static void do_st_2(CPUArchState *env, MMULookupPageData *p, uint16_t val,
         if ((memop & MO_BSWAP) != MO_LE) {
             val = bswap16(val);
         }
-        QEMU_IOTHREAD_LOCK_GUARD();
         do_st_mmio_leN(env, p->full, val, p->addr, 2, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
         /* nothing */
@@ -2918,7 +2909,6 @@ static void do_st_4(CPUArchState *env, MMULookupPageData *p, uint32_t val,
         if ((memop & MO_BSWAP) != MO_LE) {
             val = bswap32(val);
         }
-        QEMU_IOTHREAD_LOCK_GUARD();
         do_st_mmio_leN(env, p->full, val, p->addr, 4, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
         /* nothing */
@@ -2938,7 +2928,6 @@ static void do_st_8(CPUArchState *env, MMULookupPageData *p, uint64_t val,
         if ((memop & MO_BSWAP) != MO_LE) {
             val = bswap64(val);
         }
-        QEMU_IOTHREAD_LOCK_GUARD();
         do_st_mmio_leN(env, p->full, val, p->addr, 8, mmu_idx, ra);
     } else if (unlikely(p->flags & TLB_DISCARD_WRITE)) {
         /* nothing */
@@ -3066,11 +3055,7 @@ static void do_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
             if ((l.memop & MO_BSWAP) != MO_LE) {
                 val = bswap128(val);
             }
-            a = int128_getlo(val);
-            b = int128_gethi(val);
-            QEMU_IOTHREAD_LOCK_GUARD();
-            do_st_mmio_leN(env, l.page[0].full, a, addr, 8, l.mmu_idx, ra);
-            do_st_mmio_leN(env, l.page[0].full, b, addr + 8, 8, l.mmu_idx, ra);
+            do_st16_mmio_leN(env, l.page[0].full, val, addr, 16, l.mmu_idx, ra);
         } else if (unlikely(l.page[0].flags & TLB_DISCARD_WRITE)) {
             /* nothing */
         } else {

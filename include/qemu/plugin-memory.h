@@ -15,15 +15,8 @@
 struct qemu_plugin_hwaddr {
     bool is_io;
     bool is_store;
-    union {
-        struct {
-            MemoryRegionSection *section;
-            hwaddr    offset;
-        } io;
-        struct {
-            void *hostaddr;
-        } ram;
-    } v;
+    hwaddr phys_addr;
+    MemoryRegion *mr;
 };
 
 /**
