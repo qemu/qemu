@@ -723,4 +723,46 @@ wrote 2048/2048 bytes at offset OFFSET
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2048/2048 bytes at offset OFFSET
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+### Rebase of qcow2 images with subclusters ###
+
+### Preservation of unallocated holes after rebase ###
+
+# create backing chain
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.top', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=IMGFMT
+
+# fill old backing with data (separate subclusters within cluster)
+
+wrote 32768/32768 bytes at offset 32768
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 32768/32768 bytes at offset 983040
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+# rebase topmost image onto the new backing
+
+# verify that data is read the same before and after rebase
+
+read 32768/32768 bytes at offset 0
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 32768/32768 bytes at offset 32768
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 917504/917504 bytes at offset 65536
+896 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 32768/32768 bytes at offset 983040
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 32768/32768 bytes at offset 1015808
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+# verify that only selected subclusters remain allocated
+
+Offset          Length          Mapped to       File
+0x8000          0x8000          0x508000        TEST_DIR/t.qcow2.top
+0xf0000         0x8000          0x5f0000        TEST_DIR/t.qcow2.top
+
+# verify image bitmap
+
+L2 entry #0: 0x8000000000500000 0000000040000002
 *** done
