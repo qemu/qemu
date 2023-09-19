@@ -44,6 +44,15 @@ start:             # at 0x7c00 ?
 
         # bl keeps a counter so we limit the output speed
         mov $0, %bl
+
+pre_zero:
+        mov $TEST_MEM_START,%eax
+do_zero:
+        movb $0, (%eax)
+        add $4096,%eax
+        cmp $TEST_MEM_END,%eax
+        jl do_zero
+
 mainloop:
         mov $TEST_MEM_START,%eax
 innerloop:
