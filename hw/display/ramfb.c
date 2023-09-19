@@ -97,6 +97,7 @@ static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
 
     s->width = width;
     s->height = height;
+    qemu_free_displaysurface(s->ds);
     s->ds = surface;
 }
 
