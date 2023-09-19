@@ -3230,7 +3230,9 @@ static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
     tmp = tcg_temp_new();
 
     /* Recall that SAR is using big-endian bit numbering.  */
-    tcg_gen_xori_reg(tmp, cpu_sar, TARGET_REGISTER_BITS - 1);
+    tcg_gen_andi_reg(tmp, cpu_sar, 31);
+    tcg_gen_xori_reg(tmp, tmp, 31);
+
     if (a->se) {
         tcg_gen_sar_reg(dest, src, tmp);
         tcg_gen_sextract_reg(dest, dest, 0, len);
@@ -3355,7 +3357,8 @@ static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
     tmp = tcg_temp_new();
 
     /* Convert big-endian bit numbering in SAR to left-shift.  */
-    tcg_gen_xori_reg(shift, cpu_sar, TARGET_REGISTER_BITS - 1);
+    tcg_gen_andi_reg(shift, cpu_sar, 31);
+    tcg_gen_xori_reg(shift, shift, 31);
 
     mask = tcg_temp_new();
     tcg_gen_movi_reg(mask, msb + (msb - 1));
