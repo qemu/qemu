@@ -313,7 +313,7 @@ A very simple setup with just one directly attached CXL Type 3 Persistent Memory
 
 A very simple setup with just one directly attached CXL Type 3 Volatile Memory device::
 
-  qemu-system-aarch64 -M virt,gic-version=3,cxl=on -m 4g,maxmem=8G,slots=8 -cpu max \
+  qemu-system-x86_64 -M q35,cxl=on -m 4G,maxmem=8G,slots=8 -smp 4 \
   ...
   -object memory-backend-ram,id=vmem0,share=on,size=256M \
   -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
@@ -323,7 +323,7 @@ A very simple setup with just one directly attached CXL Type 3 Volatile Memory d
 
 The same volatile setup may optionally include an LSA region::
 
-  qemu-system-aarch64 -M virt,gic-version=3,cxl=on -m 4g,maxmem=8G,slots=8 -cpu max \
+  qemu-system-x86_64 -M q35,cxl=on -m 4G,maxmem=8G,slots=8 -smp 4 \
   ...
   -object memory-backend-ram,id=vmem0,share=on,size=256M \
   -object memory-backend-file,id=cxl-lsa0,share=on,mem-path=/tmp/lsa.raw,size=256M \
