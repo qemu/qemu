@@ -82,6 +82,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                libubsan \
                liburing-devel \
                libusbx-devel \
+               libxdp-devel \
                libzstd-devel \
                llvm \
                lttng-ust-devel \

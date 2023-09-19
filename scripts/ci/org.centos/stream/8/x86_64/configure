@@ -35,6 +35,7 @@
 --block-drv-ro-whitelist="vmdk,vhdx,vpc,https,ssh" \
 --with-coroutine=ucontext \
 --tls-priority=@QEMU,SYSTEM \
+--disable-af-xdp \
 --disable-attr \
 --disable-auth-pam \
 --disable-avx2 \

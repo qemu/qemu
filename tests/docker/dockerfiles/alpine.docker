@@ -59,6 +59,7 @@ RUN apk update && \
         libtasn1-dev \
         liburing-dev \
         libusb-dev \
+        libxdp-dev \
         linux-pam-dev \
         llvm \
         lttng-ust-dev \

@@ -68,7 +68,7 @@ static ssize_t dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt,
     int64_t ts;
     int caplen;
     size_t size = iov_size(iov, cnt) - offset;
-    struct iovec dumpiov[cnt + 1];
+    g_autofree struct iovec *dumpiov = g_new(struct iovec, cnt + 1);
 
     /* Early return in case of previous error. */
     if (s->fd < 0) {

@@ -50,5 +50,7 @@
 #define TUN_F_TSO6    0x04    /* I can handle TSO for IPv6 packets */
 #define TUN_F_TSO_ECN 0x08    /* I can handle TSO with ECN bits. */
 #define TUN_F_UFO     0x10    /* I can handle UFO packets */
+#define TUN_F_USO4    0x20    /* I can handle USO for IPv4 packets */
+#define TUN_F_USO6    0x40    /* I can handle USO for IPv6 packets */
 
 #endif /* QEMU_TAP_LINUX_H */

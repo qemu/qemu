@@ -69,6 +69,7 @@ packages:
  - liburing
  - libusbx
  - libvdeplug
+ - libxdp
  - libzstd
  - llvm
  - lttng-ust
