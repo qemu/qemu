@@ -103,11 +103,8 @@ typedef enum {
 
 #define FDT_MAX_SIZE                    0x200000
 
-/* Max number of GPUs per system */
-#define NVGPU_MAX_NUM              6
-
 /* Max number of NUMA nodes */
-#define NUMA_NODES_MAX_NUM         (MAX_NODES + NVGPU_MAX_NUM)
+#define NUMA_NODES_MAX_NUM         (MAX_NODES)
 
 /*
  * NUMA FORM1 macros. FORM1_DIST_REF_POINTS was taken from
@@ -160,8 +157,7 @@ struct SpaprMachineClass {
     bool (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio,
                           hwaddr *mmio32, hwaddr *mmio64,
-                          unsigned n_dma, uint32_t *liobns, hwaddr *nv2gpa,
-                          hwaddr *nv2atsd, Error **errp);
+                          unsigned n_dma, uint32_t *liobns, Error **errp);
     SpaprResizeHpt resize_hpt_default;
     SpaprCapabilities default_caps;
     SpaprIrq *irq;
@@ -276,7 +272,6 @@ struct SpaprMachineState {
     bool cmd_line_caps[SPAPR_CAP_NUM];
     SpaprCapabilities def, eff, mig;
 
-    unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
     uint32_t FORM1_assoc_array[NUMA_NODES_MAX_NUM][FORM1_NUMA_ASSOC_SIZE];
