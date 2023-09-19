@@ -1288,8 +1288,7 @@ static int64_t get_file_align(int fd)
 static int file_ram_open(const char *path,
                          const char *region_name,
                          bool readonly,
-                         bool *created,
-                         Error **errp)
+                         bool *created)
 {
     char *filename;
     char *sanitized_name;
@@ -1300,10 +1299,33 @@ static int file_ram_open(const char *path,
     for (;;) {
         fd = open(path, readonly ? O_RDONLY : O_RDWR);
         if (fd >= 0) {
+            /*
+             * open(O_RDONLY) won't fail with EISDIR. Check manually if we
+             * opened a directory and fail similarly to how we fail ENOENT
+             * in readonly mode. Note that mkstemp() would imply O_RDWR.
+             */
+            if (readonly) {
+                struct stat file_stat;
+
+                if (fstat(fd, &file_stat)) {
+                    close(fd);
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    return -errno;
+                } else if (S_ISDIR(file_stat.st_mode)) {
+                    close(fd);
+                    return -EISDIR;
+                }
+            }
             /* @path names an existing file, use it */
             break;
         }
         if (errno == ENOENT) {
+            if (readonly) {
+                /* Refuse to create new, readonly files. */
+                return -ENOENT;
+            }
             /* @path names a file that doesn't exist, create it */
             fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
             if (fd >= 0) {
@@ -1333,10 +1355,7 @@ static int file_ram_open(const char *path,
             g_free(filename);
         }
         if (errno != EEXIST && errno != EINTR) {
-            error_setg_errno(errp, errno,
-                             "can't open backing store %s for guest RAM",
-                             path);
-            return -1;
+            return -errno;
         }
         /*
          * Try again on EINTR and EEXIST.  The latter happens when
@@ -1350,7 +1369,6 @@ static int file_ram_open(const char *path,
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             int fd,
-                            bool readonly,
                             bool truncate,
                             off_t offset,
                             Error **errp)
@@ -1408,7 +1426,7 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    qemu_map_flags = readonly ? QEMU_MAP_READONLY : 0;
+    qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
     qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
     qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
     qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
@@ -1876,7 +1894,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 #ifdef CONFIG_POSIX
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
-                                 bool readonly, Error **errp)
+                                 Error **errp)
 {
     RAMBlock *new_block;
     Error *local_err = NULL;
@@ -1884,7 +1902,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
     /* Just support these ram flags by now. */
     assert((ram_flags & ~(RAM_SHARED | RAM_PMEM | RAM_NORESERVE |
-                          RAM_PROTECTED | RAM_NAMED_FILE)) == 0);
+                          RAM_PROTECTED | RAM_NAMED_FILE | RAM_READONLY |
+                          RAM_READONLY_FD)) == 0);
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
@@ -1919,8 +1938,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = ram_flags;
-    new_block->host = file_ram_alloc(new_block, size, fd, readonly,
-                                     !file_size, offset, errp);
+    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, offset,
+                                     errp);
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
@@ -1939,20 +1958,40 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    uint32_t ram_flags, const char *mem_path,
-                                   off_t offset, bool readonly, Error **errp)
+                                   off_t offset, Error **errp)
 {
     int fd;
     bool created;
     RAMBlock *block;
 
-    fd = file_ram_open(mem_path, memory_region_name(mr), readonly, &created,
-                       errp);
+    fd = file_ram_open(mem_path, memory_region_name(mr),
+                       !!(ram_flags & RAM_READONLY_FD), &created);
     if (fd < 0) {
+        error_setg_errno(errp, -fd, "can't open backing store %s for guest RAM",
+                         mem_path);
+        if (!(ram_flags & RAM_READONLY_FD) && !(ram_flags & RAM_SHARED) &&
+            fd == -EACCES) {
+            /*
+             * If we can open the file R/O (note: will never create a new file)
+             * and we are dealing with a private mapping, there are still ways
+             * to consume such files and get RAM instead of ROM.
+             */
+            fd = file_ram_open(mem_path, memory_region_name(mr), true,
+                               &created);
+            if (fd < 0) {
+                return NULL;
+            }
+            assert(!created);
+            close(fd);
+            error_append_hint(errp, "Consider opening the backing store"
+                " read-only but still creating writable RAM using"
+                " '-object memory-backend-file,readonly=on,rom=off...'"
+                " (see \"VM templating\" documentation)\n");
+        }
         return NULL;
     }
 
-    block = qemu_ram_alloc_from_fd(size, mr, ram_flags, fd, offset, readonly,
-                                   errp);
+    block = qemu_ram_alloc_from_fd(size, mr, ram_flags, fd, offset, errp);
     if (!block) {
         if (created) {
             unlink(mem_path);
@@ -2070,6 +2109,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     ram_addr_t offset;
     int flags;
     void *area, *vaddr;
+    int prot;
 
     RAMBLOCK_FOREACH(block) {
         offset = addr - block->offset;
@@ -2084,13 +2124,14 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                 flags |= block->flags & RAM_SHARED ?
                          MAP_SHARED : MAP_PRIVATE;
                 flags |= block->flags & RAM_NORESERVE ? MAP_NORESERVE : 0;
+                prot = PROT_READ;
+                prot |= block->flags & RAM_READONLY ? 0 : PROT_WRITE;
                 if (block->fd >= 0) {
-                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                flags, block->fd, offset + block->fd_offset);
+                    area = mmap(vaddr, length, prot, flags, block->fd,
+                                offset + block->fd_offset);
                 } else {
                     flags |= MAP_ANONYMOUS;
-                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                flags, -1, 0);
+                    area = mmap(vaddr, length, prot, flags, -1, 0);
                 }
                 if (area != vaddr) {
                     error_report("Could not remap addr: "
@@ -3480,6 +3521,16 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
              * so a userfault will trigger.
              */
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+            /*
+             * fallocate() will fail with readonly files. Let's print a
+             * proper error message.
+             */
+            if (rb->flags & RAM_READONLY_FD) {
+                error_report("ram_block_discard_range: Discarding RAM"
+                             " with readonly files is not supported");
+                goto err;
+
+            }
             /*
              * We'll discard data from the actual file, even though we only
              * have a MAP_PRIVATE mapping, possibly messing with other

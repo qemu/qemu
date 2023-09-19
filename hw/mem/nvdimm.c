@@ -154,6 +154,9 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
                    object_get_canonical_path_component(OBJECT(hostmem)));
         return;
     }
+    if (memory_region_is_rom(mr)) {
+        nvdimm->readonly = true;
+    }
 
     nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
@@ -207,15 +210,16 @@ static void nvdimm_unrealize(PCDIMMDevice *dimm)
  * label read/write functions.
  */
 static void nvdimm_validate_rw_label_data(NVDIMMDevice *nvdimm, uint64_t size,
-                                        uint64_t offset)
+                                        uint64_t offset, bool is_write)
 {
     assert((nvdimm->label_size >= size + offset) && (offset + size > offset));
+    assert(!is_write || !nvdimm->readonly);
 }
 
 static void nvdimm_read_label_data(NVDIMMDevice *nvdimm, void *buf,
                                    uint64_t size, uint64_t offset)
 {
-    nvdimm_validate_rw_label_data(nvdimm, size, offset);
+    nvdimm_validate_rw_label_data(nvdimm, size, offset, false);
 
     memcpy(buf, nvdimm->label_data + offset, size);
 }
@@ -229,7 +233,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
                                             "pmem", NULL);
     uint64_t backend_offset;
 
-    nvdimm_validate_rw_label_data(nvdimm, size, offset);
+    nvdimm_validate_rw_label_data(nvdimm, size, offset, true);
 
     if (!is_pmem) {
         memcpy(nvdimm->label_data + offset, buf, size);

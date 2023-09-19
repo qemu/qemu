@@ -18,6 +18,8 @@
 #include "sysemu/hostmem.h"
 #include "qom/object_interfaces.h"
 #include "qom/object.h"
+#include "qapi/visitor.h"
+#include "qapi/qapi-visit-common.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendFile, MEMORY_BACKEND_FILE)
 
@@ -31,6 +33,7 @@ struct HostMemoryBackendFile {
     bool discard_data;
     bool is_pmem;
     bool readonly;
+    OnOffAuto rom;
 };
 
 static void
@@ -53,15 +56,39 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         return;
     }
 
+    switch (fb->rom) {
+    case ON_OFF_AUTO_AUTO:
+        /* Traditionally, opening the file readonly always resulted in ROM. */
+        fb->rom = fb->readonly ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+        break;
+    case ON_OFF_AUTO_ON:
+        if (!fb->readonly) {
+            error_setg(errp, "property 'rom' = 'on' is not supported with"
+                       " 'readonly' = 'off'");
+            return;
+        }
+        break;
+    case ON_OFF_AUTO_OFF:
+        if (fb->readonly && backend->share) {
+            error_setg(errp, "property 'rom' = 'off' is incompatible with"
+                       " 'readonly' = 'on' and 'share' = 'on'");
+            return;
+        }
+        break;
+    default:
+        assert(false);
+    }
+
     name = host_memory_backend_get_name(backend);
     ram_flags = backend->share ? RAM_SHARED : 0;
+    ram_flags |= fb->readonly ? RAM_READONLY_FD : 0;
+    ram_flags |= fb->rom == ON_OFF_AUTO_ON ? RAM_READONLY : 0;
     ram_flags |= backend->reserve ? 0 : RAM_NORESERVE;
     ram_flags |= fb->is_pmem ? RAM_PMEM : 0;
     ram_flags |= RAM_NAMED_FILE;
     memory_region_init_ram_from_file(&backend->mr, OBJECT(backend), name,
                                      backend->size, fb->align, ram_flags,
-                                     fb->mem_path, fb->offset, fb->readonly,
-                                     errp);
+                                     fb->mem_path, fb->offset, errp);
     g_free(name);
 #endif
 }
@@ -201,6 +228,32 @@ static void file_memory_backend_set_readonly(Object *obj, bool value,
     fb->readonly = value;
 }
 
+static void file_memory_backend_get_rom(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+    OnOffAuto rom = fb->rom;
+
+    visit_type_OnOffAuto(v, name, &rom, errp);
+}
+
+static void file_memory_backend_set_rom(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(errp, "cannot change property '%s' of %s.", name,
+                   object_get_typename(obj));
+        return;
+    }
+
+    visit_type_OnOffAuto(v, name, &fb->rom, errp);
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -243,6 +296,10 @@ file_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "readonly",
         file_memory_backend_get_readonly,
         file_memory_backend_set_readonly);
+    object_class_property_add(oc, "rom", "OnOffAuto",
+        file_memory_backend_get_rom, file_memory_backend_set_rom, NULL, NULL);
+    object_class_property_set_description(oc, "rom",
+        "Whether to create Read Only Memory (ROM)");
 }
 
 static void file_backend_instance_finalize(Object *o)

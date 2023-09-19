@@ -320,7 +320,8 @@ static target_ulong h_scm_write_metadata(PowerPCCPU *cpu,
 
     nvdimm = NVDIMM(drc->dev);
     if ((offset + len < offset) ||
-        (nvdimm->label_size < len + offset)) {
+        (nvdimm->label_size < len + offset) ||
+        nvdimm->readonly) {
         return H_P2;
     }
 

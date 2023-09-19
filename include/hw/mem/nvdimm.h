@@ -78,6 +78,12 @@ struct NVDIMMDevice {
     bool unarmed;
 
     /*
+     * Whether our DIMM is backed by ROM, and even label data cannot be
+     * written. If set, implies that "unarmed" is also set.
+     */
+    bool readonly;
+
+    /*
      * The PPC64 - spapr requires each nvdimm device have a uuid.
      */
     QemuUUID uuid;
