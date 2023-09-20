@@ -65,6 +65,7 @@
 &ldst           t b x disp sp m scale size
 
 &rr_cf_d        t r cf d
+&rrr            t r1 r2
 &rrr_cf         t r1 r2 cf
 &rrr_cf_d       t r1 r2 cf d
 &rrr_cf_d_sh    t r1 r2 cf d sh
@@ -81,6 +82,7 @@
 ####
 
 @rr_cf_d        ...... r:5 ..... cf:4 ...... d:1 t:5    &rr_cf_d
+@rrr            ...... r2:5 r1:5 .... ....... t:5       &rrr
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
 @rrr_cf_d       ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d
 @rrr_cf_d_sh    ...... r2:5 r1:5 cf:4 .... sh:2 d:1 t:5 &rrr_cf_d_sh
@@ -207,6 +209,10 @@ subi            100101 ..... ..... .... 0 ...........   @rri_cf
 subi_tsv        100101 ..... ..... .... 1 ...........   @rri_cf
 
 cmpiclr         100100 ..... ..... .... . ...........   @rri_cf_d
+
+hadd            000010 ..... ..... 00000011 11 0 .....  @rrr
+hadd_ss         000010 ..... ..... 00000011 01 0 .....  @rrr
+hadd_us         000010 ..... ..... 00000011 00 0 .....  @rrr
 
 ####
 # Index Mem
@@ -429,7 +435,7 @@ fmpyfadd_d      101110 rm1:5 rm2:5 ... 0 1 ..0 0 0 neg:1 t:5    ra3=%rc32
 
 @f0e_f_3        ...... ..... ..... ... .0 110 ..0 .....    \
                 &fclass3 r1=%ra64 r2=%rb64 t=%rt64
-@f0e_d_3        ...... r1:5  r2:5  ... 01 110 000 t:5
+@f0e_d_3        ...... r1:5  r2:5  ... 01 110 000 t:5      &fclass3
 
 # Floating point class 0
 
