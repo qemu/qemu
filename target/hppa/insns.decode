@@ -46,6 +46,10 @@
 
 %im5_0          0:s1 1:4
 %im5_16         16:s1 17:4
+%len5           0:5      !function=assemble_6
+%len6_8         8:1 0:5  !function=assemble_6
+%len6_12        12:1 0:5 !function=assemble_6
+%cpos6_11       11:1 5:5
 %ma_to_m        5:1 13:1 !function=ma_to_m
 %ma2_to_m       2:2      !function=ma_to_m
 %pos_to_m       0:1      !function=pos_to_m
@@ -334,10 +338,17 @@ shrpw_imm       110100 r2:5 r1:5 c:3 01 0    cpos:5 t:5
 extrw_sar       110100 r:5  t:5  c:3 10 se:1 00000  clen:5
 extrw_imm       110100 r:5  t:5  c:3 11 se:1 pos:5  clen:5
 
-depw_sar        110101 t:5 r:5   c:3 00 nz:1 00000  clen:5
-depw_imm        110101 t:5 r:5   c:3 01 nz:1 cpos:5 clen:5
-depwi_sar       110101 t:5 ..... c:3 10 nz:1 00000  clen:5      i=%im5_16
-depwi_imm       110101 t:5 ..... c:3 11 nz:1 cpos:5 clen:5      i=%im5_16
+dep_sar         110101 t:5 r:5   c:3 00 nz:1 00 000 .....     d=0 len=%len5
+dep_sar         110101 t:5 r:5   c:3 00 nz:1 1. 000 .....     d=1 len=%len6_8
+dep_imm         110101 t:5 r:5   c:3 01 nz:1 cpos:5 .....     d=0 len=%len5
+dep_imm         111100 t:5 r:5   c:3 .. nz:1 ..... .....      \
+                d=1 len=%len6_12 cpos=%cpos6_11
+depi_sar        110101 t:5 ..... c:3 10 nz:1 d:1 . 000 .....  \
+                i=%im5_16 len=%len6_8
+depi_imm        110101 t:5 ..... c:3 11 nz:1 cpos:5 .....     \
+                d=0 i=%im5_16 len=%len5
+depi_imm        111101 t:5 ..... c:3 .. nz:1 ..... .....      \
+                d=1 i=%im5_16 len=%len6_12 cpos=%cpos6_11
 
 ####
 # Branch External

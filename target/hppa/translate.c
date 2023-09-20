@@ -329,6 +329,17 @@ static int expand_shl11(DisasContext *ctx, int val)
     return val << 11;
 }
 
+static int assemble_6(DisasContext *ctx, int val)
+{
+    /*
+     * Officially, 32 * x + 32 - y.
+     * Here, x is already in bit 5, and y is [4:0].
+     * Since -y = ~y + 1, in 5 bits 32 - y => y ^ 31 + 1,
+     * with the overflow from bit 4 summing with x.
+     */
+    return (val ^ 31) + 1;
+}
+
 /* Translate CMPI doubleword conditions to standard. */
 static int cmpbid_c(DisasContext *ctx, int val)
 {
@@ -3404,17 +3415,23 @@ static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
     return nullify_end(ctx);
 }
 
-static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
+static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
 {
-    unsigned len = 32 - a->clen;
+    unsigned len, width;
     target_sreg mask0, mask1;
     TCGv_reg dest;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    if (a->cpos + len > 32) {
-        len = 32 - a->cpos;
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    if (a->cpos + len > width) {
+        len = width - a->cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
@@ -3423,11 +3440,8 @@ static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
 
     if (a->nz) {
         TCGv_reg src = load_gpr(ctx, a->t);
-        if (mask1 != -1) {
-            tcg_gen_andi_reg(dest, src, mask1);
-            src = dest;
-        }
-        tcg_gen_ori_reg(dest, src, mask0);
+        tcg_gen_andi_reg(dest, src, mask1);
+        tcg_gen_ori_reg(dest, dest, mask0);
     } else {
         tcg_gen_movi_reg(dest, mask0);
     }
@@ -3436,22 +3450,28 @@ static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_depw_imm(DisasContext *ctx, arg_depw_imm *a)
+static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
 {
     unsigned rs = a->nz ? a->t : 0;
-    unsigned len = 32 - a->clen;
+    unsigned len, width;
     TCGv_reg dest, val;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    if (a->cpos + len > 32) {
-        len = 32 - a->cpos;
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    if (a->cpos + len > width) {
+        len = width - a->cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
@@ -3466,26 +3486,26 @@ static bool trans_depw_imm(DisasContext *ctx, arg_depw_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
-                        unsigned nz, unsigned clen, TCGv_reg val)
+static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
+                       bool d, bool nz, unsigned len, TCGv_reg val)
 {
     unsigned rs = nz ? rt : 0;
-    unsigned len = 32 - clen;
+    unsigned widthm1 = d ? 63 : 31;
     TCGv_reg mask, tmp, shift, dest;
-    unsigned msb = 1U << (len - 1);
+    target_ureg msb = 1ULL << (len - 1);
 
     dest = dest_gpr(ctx, rt);
     shift = tcg_temp_new();
     tmp = tcg_temp_new();
 
     /* Convert big-endian bit numbering in SAR to left-shift.  */
-    tcg_gen_andi_reg(shift, cpu_sar, 31);
-    tcg_gen_xori_reg(shift, shift, 31);
+    tcg_gen_andi_reg(shift, cpu_sar, widthm1);
+    tcg_gen_xori_reg(shift, shift, widthm1);
 
     mask = tcg_temp_new();
     tcg_gen_movi_reg(mask, msb + (msb - 1));
@@ -3503,25 +3523,33 @@ static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (c) {
-        ctx->null_cond = do_sed_cond(ctx, c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, c, d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_depw_sar(DisasContext *ctx, arg_depw_sar *a)
+static bool trans_dep_sar(DisasContext *ctx, arg_dep_sar *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_gpr(ctx, a->r));
+    return do_dep_sar(ctx, a->t, a->c, a->d, a->nz, a->len,
+                      load_gpr(ctx, a->r));
 }
 
-static bool trans_depwi_sar(DisasContext *ctx, arg_depwi_sar *a)
+static bool trans_depi_sar(DisasContext *ctx, arg_depi_sar *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, tcg_constant_reg(a->i));
+    return do_dep_sar(ctx, a->t, a->c, a->d, a->nz, a->len,
+                      tcg_constant_reg(a->i));
 }
 
 static bool trans_be(DisasContext *ctx, arg_be *a)
