@@ -3279,34 +3279,64 @@ static bool trans_movbi(DisasContext *ctx, arg_movbi *a)
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
-static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
+static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
 {
-    TCGv_reg dest;
+    TCGv_reg dest, src2;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
 
     dest = dest_gpr(ctx, a->t);
+    src2 = load_gpr(ctx, a->r2);
     if (a->r1 == 0) {
-        tcg_gen_ext32u_reg(dest, load_gpr(ctx, a->r2));
-        tcg_gen_shr_reg(dest, dest, cpu_sar);
+        if (a->d) {
+            tcg_gen_shr_reg(dest, src2, cpu_sar);
+        } else {
+            TCGv_reg tmp = tcg_temp_new();
+
+            tcg_gen_ext32u_reg(dest, src2);
+            tcg_gen_andi_reg(tmp, cpu_sar, 31);
+            tcg_gen_shr_reg(dest, dest, tmp);
+        }
     } else if (a->r1 == a->r2) {
-        TCGv_i32 t32 = tcg_temp_new_i32();
-        TCGv_i32 s32 = tcg_temp_new_i32();
+        if (a->d) {
+            tcg_gen_rotr_reg(dest, src2, cpu_sar);
+        } else {
+            TCGv_i32 t32 = tcg_temp_new_i32();
+            TCGv_i32 s32 = tcg_temp_new_i32();
 
-        tcg_gen_trunc_reg_i32(t32, load_gpr(ctx, a->r2));
-        tcg_gen_trunc_reg_i32(s32, cpu_sar);
-        tcg_gen_rotr_i32(t32, t32, s32);
-        tcg_gen_extu_i32_reg(dest, t32);
+            tcg_gen_trunc_reg_i32(t32, src2);
+            tcg_gen_trunc_reg_i32(s32, cpu_sar);
+            tcg_gen_andi_i32(s32, s32, 31);
+            tcg_gen_rotr_i32(t32, t32, s32);
+            tcg_gen_extu_i32_reg(dest, t32);
+        }
     } else {
-        TCGv_i64 t = tcg_temp_new_i64();
-        TCGv_i64 s = tcg_temp_new_i64();
+        TCGv_reg src1 = load_gpr(ctx, a->r1);
 
-        tcg_gen_concat_reg_i64(t, load_gpr(ctx, a->r2), load_gpr(ctx, a->r1));
-        tcg_gen_extu_reg_i64(s, cpu_sar);
-        tcg_gen_shr_i64(t, t, s);
-        tcg_gen_trunc_i64_reg(dest, t);
+        if (a->d) {
+            TCGv_reg t = tcg_temp_new();
+            TCGv_reg n = tcg_temp_new();
+
+            tcg_gen_xori_reg(n, cpu_sar, 63);
+            tcg_gen_shl_reg(t, src2, n);
+            tcg_gen_shli_reg(t, t, 1);
+            tcg_gen_shr_reg(dest, src1, cpu_sar);
+            tcg_gen_or_reg(dest, dest, t);
+        } else {
+            TCGv_i64 t = tcg_temp_new_i64();
+            TCGv_i64 s = tcg_temp_new_i64();
+
+            tcg_gen_concat_reg_i64(t, src2, src1);
+            tcg_gen_extu_reg_i64(s, cpu_sar);
+            tcg_gen_andi_i64(s, s, 31);
+            tcg_gen_shr_i64(t, t, s);
+            tcg_gen_trunc_i64_reg(dest, t);
+        }
     }
     save_gpr(ctx, a->t, dest);
 
@@ -3318,31 +3348,40 @@ static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
     return nullify_end(ctx);
 }
 
-static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
+static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
 {
-    unsigned sa = 31 - a->cpos;
+    unsigned width, sa;
     TCGv_reg dest, t2;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
 
+    width = a->d ? 64 : 32;
+    sa = width - 1 - a->cpos;
+
     dest = dest_gpr(ctx, a->t);
     t2 = load_gpr(ctx, a->r2);
     if (a->r1 == 0) {
-        tcg_gen_extract_reg(dest, t2, sa, 32 - sa);
-    } else if (TARGET_REGISTER_BITS == 32) {
+        tcg_gen_extract_reg(dest, t2, sa, width - sa);
+    } else if (width == TARGET_REGISTER_BITS) {
         tcg_gen_extract2_reg(dest, t2, cpu_gr[a->r1], sa);
-    } else if (a->r1 == a->r2) {
-        TCGv_i32 t32 = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(t32, t2);
-        tcg_gen_rotri_i32(t32, t32, sa);
-        tcg_gen_extu_i32_reg(dest, t32);
     } else {
-        TCGv_i64 t64 = tcg_temp_new_i64();
-        tcg_gen_concat_reg_i64(t64, t2, cpu_gr[a->r1]);
-        tcg_gen_shri_i64(t64, t64, sa);
-        tcg_gen_trunc_i64_reg(dest, t64);
+        assert(!a->d);
+        if (a->r1 == a->r2) {
+            TCGv_i32 t32 = tcg_temp_new_i32();
+            tcg_gen_trunc_reg_i32(t32, t2);
+            tcg_gen_rotri_i32(t32, t32, sa);
+            tcg_gen_extu_i32_reg(dest, t32);
+        } else {
+            TCGv_i64 t64 = tcg_temp_new_i64();
+            tcg_gen_concat_reg_i64(t64, t2, cpu_gr[a->r1]);
+            tcg_gen_shri_i64(t64, t64, sa);
+            tcg_gen_trunc_i64_reg(dest, t64);
+        }
     }
     save_gpr(ctx, a->t, dest);
 

@@ -332,8 +332,10 @@ addbi           101011 ..... ..... ... ........... . .  @rib_cf f=1
 # Shift, Extract, Deposit
 ####
 
-shrpw_sar       110100 r2:5 r1:5 c:3 00 0    00000  t:5
-shrpw_imm       110100 r2:5 r1:5 c:3 01 0    cpos:5 t:5
+shrp_sar        110100 r2:5 r1:5 c:3 00 0 d:1 0000  t:5
+shrp_imm        110100 r2:5 r1:5 c:3 01 0 cpos:5    t:5       d=0
+shrp_imm        110100 r2:5 r1:5 c:3 0. 1 .....  t:5          \
+                d=1 cpos=%cpos6_11
 
 extr_sar        110100 r:5  t:5  c:3 10 se:1 00 000 .....     d=0 len=%len5
 extr_sar        110100 r:5  t:5  c:3 10 se:1 1. 000 .....     d=1 len=%len6_8
