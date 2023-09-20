@@ -3354,11 +3354,14 @@ static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
     return nullify_end(ctx);
 }
 
-static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
+static bool trans_extr_sar(DisasContext *ctx, arg_extr_sar *a)
 {
-    unsigned len = 32 - a->clen;
+    unsigned widthm1 = a->d ? 63 : 31;
     TCGv_reg dest, src, tmp;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
@@ -3368,34 +3371,51 @@ static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
     tmp = tcg_temp_new();
 
     /* Recall that SAR is using big-endian bit numbering.  */
-    tcg_gen_andi_reg(tmp, cpu_sar, 31);
-    tcg_gen_xori_reg(tmp, tmp, 31);
+    tcg_gen_andi_reg(tmp, cpu_sar, widthm1);
+    tcg_gen_xori_reg(tmp, tmp, widthm1);
 
     if (a->se) {
+        if (!a->d) {
+            tcg_gen_ext32s_reg(dest, src);
+            src = dest;
+        }
         tcg_gen_sar_reg(dest, src, tmp);
-        tcg_gen_sextract_reg(dest, dest, 0, len);
+        tcg_gen_sextract_reg(dest, dest, 0, a->len);
     } else {
+        if (!a->d) {
+            tcg_gen_ext32u_reg(dest, src);
+            src = dest;
+        }
         tcg_gen_shr_reg(dest, src, tmp);
-        tcg_gen_extract_reg(dest, dest, 0, len);
+        tcg_gen_extract_reg(dest, dest, 0, a->len);
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
+static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
 {
-    unsigned len = 32 - a->clen;
-    unsigned cpos = 31 - a->pos;
+    unsigned len, cpos, width;
     TCGv_reg dest, src;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
+    }
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    cpos = width - 1 - a->pos;
+    if (cpos + len > width) {
+        len = width - cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
@@ -3410,7 +3430,7 @@ static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }

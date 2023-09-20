@@ -335,8 +335,11 @@ addbi           101011 ..... ..... ... ........... . .  @rib_cf f=1
 shrpw_sar       110100 r2:5 r1:5 c:3 00 0    00000  t:5
 shrpw_imm       110100 r2:5 r1:5 c:3 01 0    cpos:5 t:5
 
-extrw_sar       110100 r:5  t:5  c:3 10 se:1 00000  clen:5
-extrw_imm       110100 r:5  t:5  c:3 11 se:1 pos:5  clen:5
+extr_sar        110100 r:5  t:5  c:3 10 se:1 00 000 .....     d=0 len=%len5
+extr_sar        110100 r:5  t:5  c:3 10 se:1 1. 000 .....     d=1 len=%len6_8
+extr_imm        110100 r:5  t:5  c:3 11 se:1 pos:5  .....     d=0 len=%len5
+extr_imm        110110 r:5  t:5  c:3 .. se:1 ..... .....      \
+                d=1 len=%len6_12 pos=%cpos6_11
 
 dep_sar         110101 t:5 r:5   c:3 00 nz:1 00 000 .....     d=0 len=%len5
 dep_sar         110101 t:5 r:5   c:3 00 nz:1 1. 000 .....     d=1 len=%len6_8
