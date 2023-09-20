@@ -1695,3 +1695,927 @@ INSN_LSX(vstelm_d,         vr_ii)
 INSN_LSX(vstelm_w,         vr_ii)
 INSN_LSX(vstelm_h,         vr_ii)
 INSN_LSX(vstelm_b,         vr_ii)
+
+#define INSN_LASX(insn, type)                               \
+static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
+{                                                           \
+    output_##type ## _x(ctx, a, #insn);                     \
+    return true;                                            \
+}
+
+static void output_cv_x(DisasContext *ctx, arg_cv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "fcc%d, x%d", a->cd, a->vj);
+}
+
+static void output_v_i_x(DisasContext *ctx, arg_v_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, 0x%x", a->vd, a->imm);
+}
+
+static void output_vvvv_x(DisasContext *ctx, arg_vvvv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, x%d, x%d", a->vd, a->vj, a->vk, a->va);
+}
+
+static void output_vvv_x(DisasContext *ctx, arg_vvv * a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, x%d", a->vd, a->vj, a->vk);
+}
+
+static void output_vr_x(DisasContext *ctx, arg_vr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, r%d", a->vd, a->rj);
+}
+
+static void output_vv_i_x(DisasContext *ctx, arg_vv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, 0x%x", a->vd, a->vj, a->imm);
+}
+
+static void output_vv_x(DisasContext *ctx, arg_vv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d", a->vd, a->vj);
+}
+
+static void output_vr_i_x(DisasContext *ctx, arg_vr_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, r%d, 0x%x", a->vd, a->rj, a->imm);
+}
+
+static void output_rv_i_x(DisasContext *ctx, arg_rv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, x%d, 0x%x", a->rd, a->vj, a->imm);
+}
+
+static void output_vvr_x(DisasContext *ctx, arg_vvr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, r%d", a->vd, a->vj, a->rk);
+}
+
+static void output_vrr_x(DisasContext *ctx, arg_vrr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, r%d, r%d", a->vd, a->rj, a->rk);
+}
+
+static void output_vr_ii_x(DisasContext *ctx, arg_vr_ii *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, r%d, 0x%x, 0x%x", a->vd, a->rj, a->imm, a->imm2);
+}
+
+INSN_LASX(xvadd_b,           vvv)
+INSN_LASX(xvadd_h,           vvv)
+INSN_LASX(xvadd_w,           vvv)
+INSN_LASX(xvadd_d,           vvv)
+INSN_LASX(xvadd_q,           vvv)
+INSN_LASX(xvsub_b,           vvv)
+INSN_LASX(xvsub_h,           vvv)
+INSN_LASX(xvsub_w,           vvv)
+INSN_LASX(xvsub_d,           vvv)
+INSN_LASX(xvsub_q,           vvv)
+
+INSN_LASX(xvaddi_bu,         vv_i)
+INSN_LASX(xvaddi_hu,         vv_i)
+INSN_LASX(xvaddi_wu,         vv_i)
+INSN_LASX(xvaddi_du,         vv_i)
+INSN_LASX(xvsubi_bu,         vv_i)
+INSN_LASX(xvsubi_hu,         vv_i)
+INSN_LASX(xvsubi_wu,         vv_i)
+INSN_LASX(xvsubi_du,         vv_i)
+
+INSN_LASX(xvneg_b,           vv)
+INSN_LASX(xvneg_h,           vv)
+INSN_LASX(xvneg_w,           vv)
+INSN_LASX(xvneg_d,           vv)
+
+INSN_LASX(xvsadd_b,          vvv)
+INSN_LASX(xvsadd_h,          vvv)
+INSN_LASX(xvsadd_w,          vvv)
+INSN_LASX(xvsadd_d,          vvv)
+INSN_LASX(xvsadd_bu,         vvv)
+INSN_LASX(xvsadd_hu,         vvv)
+INSN_LASX(xvsadd_wu,         vvv)
+INSN_LASX(xvsadd_du,         vvv)
+INSN_LASX(xvssub_b,          vvv)
+INSN_LASX(xvssub_h,          vvv)
+INSN_LASX(xvssub_w,          vvv)
+INSN_LASX(xvssub_d,          vvv)
+INSN_LASX(xvssub_bu,         vvv)
+INSN_LASX(xvssub_hu,         vvv)
+INSN_LASX(xvssub_wu,         vvv)
+INSN_LASX(xvssub_du,         vvv)
+
+INSN_LASX(xvhaddw_h_b,       vvv)
+INSN_LASX(xvhaddw_w_h,       vvv)
+INSN_LASX(xvhaddw_d_w,       vvv)
+INSN_LASX(xvhaddw_q_d,       vvv)
+INSN_LASX(xvhaddw_hu_bu,     vvv)
+INSN_LASX(xvhaddw_wu_hu,     vvv)
+INSN_LASX(xvhaddw_du_wu,     vvv)
+INSN_LASX(xvhaddw_qu_du,     vvv)
+INSN_LASX(xvhsubw_h_b,       vvv)
+INSN_LASX(xvhsubw_w_h,       vvv)
+INSN_LASX(xvhsubw_d_w,       vvv)
+INSN_LASX(xvhsubw_q_d,       vvv)
+INSN_LASX(xvhsubw_hu_bu,     vvv)
+INSN_LASX(xvhsubw_wu_hu,     vvv)
+INSN_LASX(xvhsubw_du_wu,     vvv)
+INSN_LASX(xvhsubw_qu_du,     vvv)
+
+INSN_LASX(xvaddwev_h_b,      vvv)
+INSN_LASX(xvaddwev_w_h,      vvv)
+INSN_LASX(xvaddwev_d_w,      vvv)
+INSN_LASX(xvaddwev_q_d,      vvv)
+INSN_LASX(xvaddwod_h_b,      vvv)
+INSN_LASX(xvaddwod_w_h,      vvv)
+INSN_LASX(xvaddwod_d_w,      vvv)
+INSN_LASX(xvaddwod_q_d,      vvv)
+INSN_LASX(xvsubwev_h_b,      vvv)
+INSN_LASX(xvsubwev_w_h,      vvv)
+INSN_LASX(xvsubwev_d_w,      vvv)
+INSN_LASX(xvsubwev_q_d,      vvv)
+INSN_LASX(xvsubwod_h_b,      vvv)
+INSN_LASX(xvsubwod_w_h,      vvv)
+INSN_LASX(xvsubwod_d_w,      vvv)
+INSN_LASX(xvsubwod_q_d,      vvv)
+
+INSN_LASX(xvaddwev_h_bu,     vvv)
+INSN_LASX(xvaddwev_w_hu,     vvv)
+INSN_LASX(xvaddwev_d_wu,     vvv)
+INSN_LASX(xvaddwev_q_du,     vvv)
+INSN_LASX(xvaddwod_h_bu,     vvv)
+INSN_LASX(xvaddwod_w_hu,     vvv)
+INSN_LASX(xvaddwod_d_wu,     vvv)
+INSN_LASX(xvaddwod_q_du,     vvv)
+INSN_LASX(xvsubwev_h_bu,     vvv)
+INSN_LASX(xvsubwev_w_hu,     vvv)
+INSN_LASX(xvsubwev_d_wu,     vvv)
+INSN_LASX(xvsubwev_q_du,     vvv)
+INSN_LASX(xvsubwod_h_bu,     vvv)
+INSN_LASX(xvsubwod_w_hu,     vvv)
+INSN_LASX(xvsubwod_d_wu,     vvv)
+INSN_LASX(xvsubwod_q_du,     vvv)
+
+INSN_LASX(xvaddwev_h_bu_b,   vvv)
+INSN_LASX(xvaddwev_w_hu_h,   vvv)
+INSN_LASX(xvaddwev_d_wu_w,   vvv)
+INSN_LASX(xvaddwev_q_du_d,   vvv)
+INSN_LASX(xvaddwod_h_bu_b,   vvv)
+INSN_LASX(xvaddwod_w_hu_h,   vvv)
+INSN_LASX(xvaddwod_d_wu_w,   vvv)
+INSN_LASX(xvaddwod_q_du_d,   vvv)
+
+INSN_LASX(xvavg_b,           vvv)
+INSN_LASX(xvavg_h,           vvv)
+INSN_LASX(xvavg_w,           vvv)
+INSN_LASX(xvavg_d,           vvv)
+INSN_LASX(xvavg_bu,          vvv)
+INSN_LASX(xvavg_hu,          vvv)
+INSN_LASX(xvavg_wu,          vvv)
+INSN_LASX(xvavg_du,          vvv)
+INSN_LASX(xvavgr_b,          vvv)
+INSN_LASX(xvavgr_h,          vvv)
+INSN_LASX(xvavgr_w,          vvv)
+INSN_LASX(xvavgr_d,          vvv)
+INSN_LASX(xvavgr_bu,         vvv)
+INSN_LASX(xvavgr_hu,         vvv)
+INSN_LASX(xvavgr_wu,         vvv)
+INSN_LASX(xvavgr_du,         vvv)
+
+INSN_LASX(xvabsd_b,          vvv)
+INSN_LASX(xvabsd_h,          vvv)
+INSN_LASX(xvabsd_w,          vvv)
+INSN_LASX(xvabsd_d,          vvv)
+INSN_LASX(xvabsd_bu,         vvv)
+INSN_LASX(xvabsd_hu,         vvv)
+INSN_LASX(xvabsd_wu,         vvv)
+INSN_LASX(xvabsd_du,         vvv)
+
+INSN_LASX(xvadda_b,          vvv)
+INSN_LASX(xvadda_h,          vvv)
+INSN_LASX(xvadda_w,          vvv)
+INSN_LASX(xvadda_d,          vvv)
+
+INSN_LASX(xvmax_b,           vvv)
+INSN_LASX(xvmax_h,           vvv)
+INSN_LASX(xvmax_w,           vvv)
+INSN_LASX(xvmax_d,           vvv)
+INSN_LASX(xvmin_b,           vvv)
+INSN_LASX(xvmin_h,           vvv)
+INSN_LASX(xvmin_w,           vvv)
+INSN_LASX(xvmin_d,           vvv)
+INSN_LASX(xvmax_bu,          vvv)
+INSN_LASX(xvmax_hu,          vvv)
+INSN_LASX(xvmax_wu,          vvv)
+INSN_LASX(xvmax_du,          vvv)
+INSN_LASX(xvmin_bu,          vvv)
+INSN_LASX(xvmin_hu,          vvv)
+INSN_LASX(xvmin_wu,          vvv)
+INSN_LASX(xvmin_du,          vvv)
+
+INSN_LASX(xvmaxi_b,          vv_i)
+INSN_LASX(xvmaxi_h,          vv_i)
+INSN_LASX(xvmaxi_w,          vv_i)
+INSN_LASX(xvmaxi_d,          vv_i)
+INSN_LASX(xvmini_b,          vv_i)
+INSN_LASX(xvmini_h,          vv_i)
+INSN_LASX(xvmini_w,          vv_i)
+INSN_LASX(xvmini_d,          vv_i)
+INSN_LASX(xvmaxi_bu,         vv_i)
+INSN_LASX(xvmaxi_hu,         vv_i)
+INSN_LASX(xvmaxi_wu,         vv_i)
+INSN_LASX(xvmaxi_du,         vv_i)
+INSN_LASX(xvmini_bu,         vv_i)
+INSN_LASX(xvmini_hu,         vv_i)
+INSN_LASX(xvmini_wu,         vv_i)
+INSN_LASX(xvmini_du,         vv_i)
+
+INSN_LASX(xvmul_b,           vvv)
+INSN_LASX(xvmul_h,           vvv)
+INSN_LASX(xvmul_w,           vvv)
+INSN_LASX(xvmul_d,           vvv)
+INSN_LASX(xvmuh_b,           vvv)
+INSN_LASX(xvmuh_h,           vvv)
+INSN_LASX(xvmuh_w,           vvv)
+INSN_LASX(xvmuh_d,           vvv)
+INSN_LASX(xvmuh_bu,          vvv)
+INSN_LASX(xvmuh_hu,          vvv)
+INSN_LASX(xvmuh_wu,          vvv)
+INSN_LASX(xvmuh_du,          vvv)
+
+INSN_LASX(xvmulwev_h_b,      vvv)
+INSN_LASX(xvmulwev_w_h,      vvv)
+INSN_LASX(xvmulwev_d_w,      vvv)
+INSN_LASX(xvmulwev_q_d,      vvv)
+INSN_LASX(xvmulwod_h_b,      vvv)
+INSN_LASX(xvmulwod_w_h,      vvv)
+INSN_LASX(xvmulwod_d_w,      vvv)
+INSN_LASX(xvmulwod_q_d,      vvv)
+INSN_LASX(xvmulwev_h_bu,     vvv)
+INSN_LASX(xvmulwev_w_hu,     vvv)
+INSN_LASX(xvmulwev_d_wu,     vvv)
+INSN_LASX(xvmulwev_q_du,     vvv)
+INSN_LASX(xvmulwod_h_bu,     vvv)
+INSN_LASX(xvmulwod_w_hu,     vvv)
+INSN_LASX(xvmulwod_d_wu,     vvv)
+INSN_LASX(xvmulwod_q_du,     vvv)
+INSN_LASX(xvmulwev_h_bu_b,   vvv)
+INSN_LASX(xvmulwev_w_hu_h,   vvv)
+INSN_LASX(xvmulwev_d_wu_w,   vvv)
+INSN_LASX(xvmulwev_q_du_d,   vvv)
+INSN_LASX(xvmulwod_h_bu_b,   vvv)
+INSN_LASX(xvmulwod_w_hu_h,   vvv)
+INSN_LASX(xvmulwod_d_wu_w,   vvv)
+INSN_LASX(xvmulwod_q_du_d,   vvv)
+
+INSN_LASX(xvmadd_b,          vvv)
+INSN_LASX(xvmadd_h,          vvv)
+INSN_LASX(xvmadd_w,          vvv)
+INSN_LASX(xvmadd_d,          vvv)
+INSN_LASX(xvmsub_b,          vvv)
+INSN_LASX(xvmsub_h,          vvv)
+INSN_LASX(xvmsub_w,          vvv)
+INSN_LASX(xvmsub_d,          vvv)
+
+INSN_LASX(xvmaddwev_h_b,     vvv)
+INSN_LASX(xvmaddwev_w_h,     vvv)
+INSN_LASX(xvmaddwev_d_w,     vvv)
+INSN_LASX(xvmaddwev_q_d,     vvv)
+INSN_LASX(xvmaddwod_h_b,     vvv)
+INSN_LASX(xvmaddwod_w_h,     vvv)
+INSN_LASX(xvmaddwod_d_w,     vvv)
+INSN_LASX(xvmaddwod_q_d,     vvv)
+INSN_LASX(xvmaddwev_h_bu,    vvv)
+INSN_LASX(xvmaddwev_w_hu,    vvv)
+INSN_LASX(xvmaddwev_d_wu,    vvv)
+INSN_LASX(xvmaddwev_q_du,    vvv)
+INSN_LASX(xvmaddwod_h_bu,    vvv)
+INSN_LASX(xvmaddwod_w_hu,    vvv)
+INSN_LASX(xvmaddwod_d_wu,    vvv)
+INSN_LASX(xvmaddwod_q_du,    vvv)
+INSN_LASX(xvmaddwev_h_bu_b,  vvv)
+INSN_LASX(xvmaddwev_w_hu_h,  vvv)
+INSN_LASX(xvmaddwev_d_wu_w,  vvv)
+INSN_LASX(xvmaddwev_q_du_d,  vvv)
+INSN_LASX(xvmaddwod_h_bu_b,  vvv)
+INSN_LASX(xvmaddwod_w_hu_h,  vvv)
+INSN_LASX(xvmaddwod_d_wu_w,  vvv)
+INSN_LASX(xvmaddwod_q_du_d,  vvv)
+
+INSN_LASX(xvdiv_b,           vvv)
+INSN_LASX(xvdiv_h,           vvv)
+INSN_LASX(xvdiv_w,           vvv)
+INSN_LASX(xvdiv_d,           vvv)
+INSN_LASX(xvdiv_bu,          vvv)
+INSN_LASX(xvdiv_hu,          vvv)
+INSN_LASX(xvdiv_wu,          vvv)
+INSN_LASX(xvdiv_du,          vvv)
+INSN_LASX(xvmod_b,           vvv)
+INSN_LASX(xvmod_h,           vvv)
+INSN_LASX(xvmod_w,           vvv)
+INSN_LASX(xvmod_d,           vvv)
+INSN_LASX(xvmod_bu,          vvv)
+INSN_LASX(xvmod_hu,          vvv)
+INSN_LASX(xvmod_wu,          vvv)
+INSN_LASX(xvmod_du,          vvv)
+
+INSN_LASX(xvsat_b,           vv_i)
+INSN_LASX(xvsat_h,           vv_i)
+INSN_LASX(xvsat_w,           vv_i)
+INSN_LASX(xvsat_d,           vv_i)
+INSN_LASX(xvsat_bu,          vv_i)
+INSN_LASX(xvsat_hu,          vv_i)
+INSN_LASX(xvsat_wu,          vv_i)
+INSN_LASX(xvsat_du,          vv_i)
+
+INSN_LASX(xvexth_h_b,        vv)
+INSN_LASX(xvexth_w_h,        vv)
+INSN_LASX(xvexth_d_w,        vv)
+INSN_LASX(xvexth_q_d,        vv)
+INSN_LASX(xvexth_hu_bu,      vv)
+INSN_LASX(xvexth_wu_hu,      vv)
+INSN_LASX(xvexth_du_wu,      vv)
+INSN_LASX(xvexth_qu_du,      vv)
+
+INSN_LASX(vext2xv_h_b,       vv)
+INSN_LASX(vext2xv_w_b,       vv)
+INSN_LASX(vext2xv_d_b,       vv)
+INSN_LASX(vext2xv_w_h,       vv)
+INSN_LASX(vext2xv_d_h,       vv)
+INSN_LASX(vext2xv_d_w,       vv)
+INSN_LASX(vext2xv_hu_bu,     vv)
+INSN_LASX(vext2xv_wu_bu,     vv)
+INSN_LASX(vext2xv_du_bu,     vv)
+INSN_LASX(vext2xv_wu_hu,     vv)
+INSN_LASX(vext2xv_du_hu,     vv)
+INSN_LASX(vext2xv_du_wu,     vv)
+
+INSN_LASX(xvsigncov_b,       vvv)
+INSN_LASX(xvsigncov_h,       vvv)
+INSN_LASX(xvsigncov_w,       vvv)
+INSN_LASX(xvsigncov_d,       vvv)
+
+INSN_LASX(xvmskltz_b,        vv)
+INSN_LASX(xvmskltz_h,        vv)
+INSN_LASX(xvmskltz_w,        vv)
+INSN_LASX(xvmskltz_d,        vv)
+INSN_LASX(xvmskgez_b,        vv)
+INSN_LASX(xvmsknz_b,         vv)
+
+INSN_LASX(xvldi,             v_i)
+
+INSN_LASX(xvand_v,           vvv)
+INSN_LASX(xvor_v,            vvv)
+INSN_LASX(xvxor_v,           vvv)
+INSN_LASX(xvnor_v,           vvv)
+INSN_LASX(xvandn_v,          vvv)
+INSN_LASX(xvorn_v,           vvv)
+
+INSN_LASX(xvandi_b,          vv_i)
+INSN_LASX(xvori_b,           vv_i)
+INSN_LASX(xvxori_b,          vv_i)
+INSN_LASX(xvnori_b,          vv_i)
+
+INSN_LASX(xvsll_b,           vvv)
+INSN_LASX(xvsll_h,           vvv)
+INSN_LASX(xvsll_w,           vvv)
+INSN_LASX(xvsll_d,           vvv)
+INSN_LASX(xvslli_b,          vv_i)
+INSN_LASX(xvslli_h,          vv_i)
+INSN_LASX(xvslli_w,          vv_i)
+INSN_LASX(xvslli_d,          vv_i)
+
+INSN_LASX(xvsrl_b,           vvv)
+INSN_LASX(xvsrl_h,           vvv)
+INSN_LASX(xvsrl_w,           vvv)
+INSN_LASX(xvsrl_d,           vvv)
+INSN_LASX(xvsrli_b,          vv_i)
+INSN_LASX(xvsrli_h,          vv_i)
+INSN_LASX(xvsrli_w,          vv_i)
+INSN_LASX(xvsrli_d,          vv_i)
+
+INSN_LASX(xvsra_b,           vvv)
+INSN_LASX(xvsra_h,           vvv)
+INSN_LASX(xvsra_w,           vvv)
+INSN_LASX(xvsra_d,           vvv)
+INSN_LASX(xvsrai_b,          vv_i)
+INSN_LASX(xvsrai_h,          vv_i)
+INSN_LASX(xvsrai_w,          vv_i)
+INSN_LASX(xvsrai_d,          vv_i)
+
+INSN_LASX(xvrotr_b,          vvv)
+INSN_LASX(xvrotr_h,          vvv)
+INSN_LASX(xvrotr_w,          vvv)
+INSN_LASX(xvrotr_d,          vvv)
+INSN_LASX(xvrotri_b,         vv_i)
+INSN_LASX(xvrotri_h,         vv_i)
+INSN_LASX(xvrotri_w,         vv_i)
+INSN_LASX(xvrotri_d,         vv_i)
+
+INSN_LASX(xvsllwil_h_b,      vv_i)
+INSN_LASX(xvsllwil_w_h,      vv_i)
+INSN_LASX(xvsllwil_d_w,      vv_i)
+INSN_LASX(xvextl_q_d,        vv)
+INSN_LASX(xvsllwil_hu_bu,    vv_i)
+INSN_LASX(xvsllwil_wu_hu,    vv_i)
+INSN_LASX(xvsllwil_du_wu,    vv_i)
+INSN_LASX(xvextl_qu_du,      vv)
+
+INSN_LASX(xvsrlr_b,          vvv)
+INSN_LASX(xvsrlr_h,          vvv)
+INSN_LASX(xvsrlr_w,          vvv)
+INSN_LASX(xvsrlr_d,          vvv)
+INSN_LASX(xvsrlri_b,         vv_i)
+INSN_LASX(xvsrlri_h,         vv_i)
+INSN_LASX(xvsrlri_w,         vv_i)
+INSN_LASX(xvsrlri_d,         vv_i)
+
+INSN_LASX(xvsrar_b,          vvv)
+INSN_LASX(xvsrar_h,          vvv)
+INSN_LASX(xvsrar_w,          vvv)
+INSN_LASX(xvsrar_d,          vvv)
+INSN_LASX(xvsrari_b,         vv_i)
+INSN_LASX(xvsrari_h,         vv_i)
+INSN_LASX(xvsrari_w,         vv_i)
+INSN_LASX(xvsrari_d,         vv_i)
+
+INSN_LASX(xvsrln_b_h,        vvv)
+INSN_LASX(xvsrln_h_w,        vvv)
+INSN_LASX(xvsrln_w_d,        vvv)
+INSN_LASX(xvsran_b_h,        vvv)
+INSN_LASX(xvsran_h_w,        vvv)
+INSN_LASX(xvsran_w_d,        vvv)
+
+INSN_LASX(xvsrlni_b_h,       vv_i)
+INSN_LASX(xvsrlni_h_w,       vv_i)
+INSN_LASX(xvsrlni_w_d,       vv_i)
+INSN_LASX(xvsrlni_d_q,       vv_i)
+INSN_LASX(xvsrani_b_h,       vv_i)
+INSN_LASX(xvsrani_h_w,       vv_i)
+INSN_LASX(xvsrani_w_d,       vv_i)
+INSN_LASX(xvsrani_d_q,       vv_i)
+
+INSN_LASX(xvsrlrn_b_h,       vvv)
+INSN_LASX(xvsrlrn_h_w,       vvv)
+INSN_LASX(xvsrlrn_w_d,       vvv)
+INSN_LASX(xvsrarn_b_h,       vvv)
+INSN_LASX(xvsrarn_h_w,       vvv)
+INSN_LASX(xvsrarn_w_d,       vvv)
+
+INSN_LASX(xvsrlrni_b_h,      vv_i)
+INSN_LASX(xvsrlrni_h_w,      vv_i)
+INSN_LASX(xvsrlrni_w_d,      vv_i)
+INSN_LASX(xvsrlrni_d_q,      vv_i)
+INSN_LASX(xvsrarni_b_h,      vv_i)
+INSN_LASX(xvsrarni_h_w,      vv_i)
+INSN_LASX(xvsrarni_w_d,      vv_i)
+INSN_LASX(xvsrarni_d_q,      vv_i)
+
+INSN_LASX(xvssrln_b_h,       vvv)
+INSN_LASX(xvssrln_h_w,       vvv)
+INSN_LASX(xvssrln_w_d,       vvv)
+INSN_LASX(xvssran_b_h,       vvv)
+INSN_LASX(xvssran_h_w,       vvv)
+INSN_LASX(xvssran_w_d,       vvv)
+INSN_LASX(xvssrln_bu_h,      vvv)
+INSN_LASX(xvssrln_hu_w,      vvv)
+INSN_LASX(xvssrln_wu_d,      vvv)
+INSN_LASX(xvssran_bu_h,      vvv)
+INSN_LASX(xvssran_hu_w,      vvv)
+INSN_LASX(xvssran_wu_d,      vvv)
+
+INSN_LASX(xvssrlni_b_h,      vv_i)
+INSN_LASX(xvssrlni_h_w,      vv_i)
+INSN_LASX(xvssrlni_w_d,      vv_i)
+INSN_LASX(xvssrlni_d_q,      vv_i)
+INSN_LASX(xvssrani_b_h,      vv_i)
+INSN_LASX(xvssrani_h_w,      vv_i)
+INSN_LASX(xvssrani_w_d,      vv_i)
+INSN_LASX(xvssrani_d_q,      vv_i)
+INSN_LASX(xvssrlni_bu_h,     vv_i)
+INSN_LASX(xvssrlni_hu_w,     vv_i)
+INSN_LASX(xvssrlni_wu_d,     vv_i)
+INSN_LASX(xvssrlni_du_q,     vv_i)
+INSN_LASX(xvssrani_bu_h,     vv_i)
+INSN_LASX(xvssrani_hu_w,     vv_i)
+INSN_LASX(xvssrani_wu_d,     vv_i)
+INSN_LASX(xvssrani_du_q,     vv_i)
+
+INSN_LASX(xvssrlrn_b_h,      vvv)
+INSN_LASX(xvssrlrn_h_w,      vvv)
+INSN_LASX(xvssrlrn_w_d,      vvv)
+INSN_LASX(xvssrarn_b_h,      vvv)
+INSN_LASX(xvssrarn_h_w,      vvv)
+INSN_LASX(xvssrarn_w_d,      vvv)
+INSN_LASX(xvssrlrn_bu_h,     vvv)
+INSN_LASX(xvssrlrn_hu_w,     vvv)
+INSN_LASX(xvssrlrn_wu_d,     vvv)
+INSN_LASX(xvssrarn_bu_h,     vvv)
+INSN_LASX(xvssrarn_hu_w,     vvv)
+INSN_LASX(xvssrarn_wu_d,     vvv)
+
+INSN_LASX(xvssrlrni_b_h,     vv_i)
+INSN_LASX(xvssrlrni_h_w,     vv_i)
+INSN_LASX(xvssrlrni_w_d,     vv_i)
+INSN_LASX(xvssrlrni_d_q,     vv_i)
+INSN_LASX(xvssrlrni_bu_h,    vv_i)
+INSN_LASX(xvssrlrni_hu_w,    vv_i)
+INSN_LASX(xvssrlrni_wu_d,    vv_i)
+INSN_LASX(xvssrlrni_du_q,    vv_i)
+INSN_LASX(xvssrarni_b_h,     vv_i)
+INSN_LASX(xvssrarni_h_w,     vv_i)
+INSN_LASX(xvssrarni_w_d,     vv_i)
+INSN_LASX(xvssrarni_d_q,     vv_i)
+INSN_LASX(xvssrarni_bu_h,    vv_i)
+INSN_LASX(xvssrarni_hu_w,    vv_i)
+INSN_LASX(xvssrarni_wu_d,    vv_i)
+INSN_LASX(xvssrarni_du_q,    vv_i)
+
+INSN_LASX(xvclo_b,           vv)
+INSN_LASX(xvclo_h,           vv)
+INSN_LASX(xvclo_w,           vv)
+INSN_LASX(xvclo_d,           vv)
+INSN_LASX(xvclz_b,           vv)
+INSN_LASX(xvclz_h,           vv)
+INSN_LASX(xvclz_w,           vv)
+INSN_LASX(xvclz_d,           vv)
+
+INSN_LASX(xvpcnt_b,          vv)
+INSN_LASX(xvpcnt_h,          vv)
+INSN_LASX(xvpcnt_w,          vv)
+INSN_LASX(xvpcnt_d,          vv)
+
+INSN_LASX(xvbitclr_b,        vvv)
+INSN_LASX(xvbitclr_h,        vvv)
+INSN_LASX(xvbitclr_w,        vvv)
+INSN_LASX(xvbitclr_d,        vvv)
+INSN_LASX(xvbitclri_b,       vv_i)
+INSN_LASX(xvbitclri_h,       vv_i)
+INSN_LASX(xvbitclri_w,       vv_i)
+INSN_LASX(xvbitclri_d,       vv_i)
+INSN_LASX(xvbitset_b,        vvv)
+INSN_LASX(xvbitset_h,        vvv)
+INSN_LASX(xvbitset_w,        vvv)
+INSN_LASX(xvbitset_d,        vvv)
+INSN_LASX(xvbitseti_b,       vv_i)
+INSN_LASX(xvbitseti_h,       vv_i)
+INSN_LASX(xvbitseti_w,       vv_i)
+INSN_LASX(xvbitseti_d,       vv_i)
+INSN_LASX(xvbitrev_b,        vvv)
+INSN_LASX(xvbitrev_h,        vvv)
+INSN_LASX(xvbitrev_w,        vvv)
+INSN_LASX(xvbitrev_d,        vvv)
+INSN_LASX(xvbitrevi_b,       vv_i)
+INSN_LASX(xvbitrevi_h,       vv_i)
+INSN_LASX(xvbitrevi_w,       vv_i)
+INSN_LASX(xvbitrevi_d,       vv_i)
+
+INSN_LASX(xvfrstp_b,         vvv)
+INSN_LASX(xvfrstp_h,         vvv)
+INSN_LASX(xvfrstpi_b,        vv_i)
+INSN_LASX(xvfrstpi_h,        vv_i)
+
+INSN_LASX(xvfadd_s,          vvv)
+INSN_LASX(xvfadd_d,          vvv)
+INSN_LASX(xvfsub_s,          vvv)
+INSN_LASX(xvfsub_d,          vvv)
+INSN_LASX(xvfmul_s,          vvv)
+INSN_LASX(xvfmul_d,          vvv)
+INSN_LASX(xvfdiv_s,          vvv)
+INSN_LASX(xvfdiv_d,          vvv)
+
+INSN_LASX(xvfmadd_s,         vvvv)
+INSN_LASX(xvfmadd_d,         vvvv)
+INSN_LASX(xvfmsub_s,         vvvv)
+INSN_LASX(xvfmsub_d,         vvvv)
+INSN_LASX(xvfnmadd_s,        vvvv)
+INSN_LASX(xvfnmadd_d,        vvvv)
+INSN_LASX(xvfnmsub_s,        vvvv)
+INSN_LASX(xvfnmsub_d,        vvvv)
+
+INSN_LASX(xvfmax_s,          vvv)
+INSN_LASX(xvfmax_d,          vvv)
+INSN_LASX(xvfmin_s,          vvv)
+INSN_LASX(xvfmin_d,          vvv)
+
+INSN_LASX(xvfmaxa_s,         vvv)
+INSN_LASX(xvfmaxa_d,         vvv)
+INSN_LASX(xvfmina_s,         vvv)
+INSN_LASX(xvfmina_d,         vvv)
+
+INSN_LASX(xvflogb_s,         vv)
+INSN_LASX(xvflogb_d,         vv)
+
+INSN_LASX(xvfclass_s,        vv)
+INSN_LASX(xvfclass_d,        vv)
+
+INSN_LASX(xvfsqrt_s,         vv)
+INSN_LASX(xvfsqrt_d,         vv)
+INSN_LASX(xvfrecip_s,        vv)
+INSN_LASX(xvfrecip_d,        vv)
+INSN_LASX(xvfrsqrt_s,        vv)
+INSN_LASX(xvfrsqrt_d,        vv)
+
+INSN_LASX(xvfcvtl_s_h,       vv)
+INSN_LASX(xvfcvth_s_h,       vv)
+INSN_LASX(xvfcvtl_d_s,       vv)
+INSN_LASX(xvfcvth_d_s,       vv)
+INSN_LASX(xvfcvt_h_s,        vvv)
+INSN_LASX(xvfcvt_s_d,        vvv)
+
+INSN_LASX(xvfrint_s,         vv)
+INSN_LASX(xvfrint_d,         vv)
+INSN_LASX(xvfrintrm_s,       vv)
+INSN_LASX(xvfrintrm_d,       vv)
+INSN_LASX(xvfrintrp_s,       vv)
+INSN_LASX(xvfrintrp_d,       vv)
+INSN_LASX(xvfrintrz_s,       vv)
+INSN_LASX(xvfrintrz_d,       vv)
+INSN_LASX(xvfrintrne_s,      vv)
+INSN_LASX(xvfrintrne_d,      vv)
+
+INSN_LASX(xvftint_w_s,       vv)
+INSN_LASX(xvftint_l_d,       vv)
+INSN_LASX(xvftintrm_w_s,     vv)
+INSN_LASX(xvftintrm_l_d,     vv)
+INSN_LASX(xvftintrp_w_s,     vv)
+INSN_LASX(xvftintrp_l_d,     vv)
+INSN_LASX(xvftintrz_w_s,     vv)
+INSN_LASX(xvftintrz_l_d,     vv)
+INSN_LASX(xvftintrne_w_s,    vv)
+INSN_LASX(xvftintrne_l_d,    vv)
+INSN_LASX(xvftint_wu_s,      vv)
+INSN_LASX(xvftint_lu_d,      vv)
+INSN_LASX(xvftintrz_wu_s,    vv)
+INSN_LASX(xvftintrz_lu_d,    vv)
+INSN_LASX(xvftint_w_d,       vvv)
+INSN_LASX(xvftintrm_w_d,     vvv)
+INSN_LASX(xvftintrp_w_d,     vvv)
+INSN_LASX(xvftintrz_w_d,     vvv)
+INSN_LASX(xvftintrne_w_d,    vvv)
+INSN_LASX(xvftintl_l_s,      vv)
+INSN_LASX(xvftinth_l_s,      vv)
+INSN_LASX(xvftintrml_l_s,    vv)
+INSN_LASX(xvftintrmh_l_s,    vv)
+INSN_LASX(xvftintrpl_l_s,    vv)
+INSN_LASX(xvftintrph_l_s,    vv)
+INSN_LASX(xvftintrzl_l_s,    vv)
+INSN_LASX(xvftintrzh_l_s,    vv)
+INSN_LASX(xvftintrnel_l_s,   vv)
+INSN_LASX(xvftintrneh_l_s,   vv)
+
+INSN_LASX(xvffint_s_w,       vv)
+INSN_LASX(xvffint_s_wu,      vv)
+INSN_LASX(xvffint_d_l,       vv)
+INSN_LASX(xvffint_d_lu,      vv)
+INSN_LASX(xvffintl_d_w,      vv)
+INSN_LASX(xvffinth_d_w,      vv)
+INSN_LASX(xvffint_s_l,       vvv)
+
+INSN_LASX(xvseq_b,           vvv)
+INSN_LASX(xvseq_h,           vvv)
+INSN_LASX(xvseq_w,           vvv)
+INSN_LASX(xvseq_d,           vvv)
+INSN_LASX(xvseqi_b,          vv_i)
+INSN_LASX(xvseqi_h,          vv_i)
+INSN_LASX(xvseqi_w,          vv_i)
+INSN_LASX(xvseqi_d,          vv_i)
+
+INSN_LASX(xvsle_b,           vvv)
+INSN_LASX(xvsle_h,           vvv)
+INSN_LASX(xvsle_w,           vvv)
+INSN_LASX(xvsle_d,           vvv)
+INSN_LASX(xvslei_b,          vv_i)
+INSN_LASX(xvslei_h,          vv_i)
+INSN_LASX(xvslei_w,          vv_i)
+INSN_LASX(xvslei_d,          vv_i)
+INSN_LASX(xvsle_bu,          vvv)
+INSN_LASX(xvsle_hu,          vvv)
+INSN_LASX(xvsle_wu,          vvv)
+INSN_LASX(xvsle_du,          vvv)
+INSN_LASX(xvslei_bu,         vv_i)
+INSN_LASX(xvslei_hu,         vv_i)
+INSN_LASX(xvslei_wu,         vv_i)
+INSN_LASX(xvslei_du,         vv_i)
+
+INSN_LASX(xvslt_b,           vvv)
+INSN_LASX(xvslt_h,           vvv)
+INSN_LASX(xvslt_w,           vvv)
+INSN_LASX(xvslt_d,           vvv)
+INSN_LASX(xvslti_b,          vv_i)
+INSN_LASX(xvslti_h,          vv_i)
+INSN_LASX(xvslti_w,          vv_i)
+INSN_LASX(xvslti_d,          vv_i)
+INSN_LASX(xvslt_bu,          vvv)
+INSN_LASX(xvslt_hu,          vvv)
+INSN_LASX(xvslt_wu,          vvv)
+INSN_LASX(xvslt_du,          vvv)
+INSN_LASX(xvslti_bu,         vv_i)
+INSN_LASX(xvslti_hu,         vv_i)
+INSN_LASX(xvslti_wu,         vv_i)
+INSN_LASX(xvslti_du,         vv_i)
+
+#define output_xvfcmp(C, PREFIX, SUFFIX)                                    \
+{                                                                           \
+    (C)->info->fprintf_func((C)->info->stream, "%08x  %s%s\tx%d, x%d, x%d", \
+                            (C)->insn, PREFIX, SUFFIX, a->vd,               \
+                            a->vj, a->vk);                                  \
+}
+static bool output_xxx_fcond(DisasContext *ctx, arg_vvv_fcond * a,
+                             const char *suffix)
+{
+    bool ret = true;
+    switch (a->fcond) {
+    case 0x0:
+        output_xvfcmp(ctx, "xvfcmp_caf_", suffix);
+        break;
+    case 0x1:
+        output_xvfcmp(ctx, "xvfcmp_saf_", suffix);
+        break;
+    case 0x2:
+        output_xvfcmp(ctx, "xvfcmp_clt_", suffix);
+        break;
+    case 0x3:
+        output_xvfcmp(ctx, "xvfcmp_slt_", suffix);
+        break;
+    case 0x4:
+        output_xvfcmp(ctx, "xvfcmp_ceq_", suffix);
+        break;
+    case 0x5:
+        output_xvfcmp(ctx, "xvfcmp_seq_", suffix);
+        break;
+    case 0x6:
+        output_xvfcmp(ctx, "xvfcmp_cle_", suffix);
+        break;
+    case 0x7:
+        output_xvfcmp(ctx, "xvfcmp_sle_", suffix);
+        break;
+    case 0x8:
+        output_xvfcmp(ctx, "xvfcmp_cun_", suffix);
+        break;
+    case 0x9:
+        output_xvfcmp(ctx, "xvfcmp_sun_", suffix);
+        break;
+    case 0xA:
+        output_xvfcmp(ctx, "xvfcmp_cult_", suffix);
+        break;
+    case 0xB:
+        output_xvfcmp(ctx, "xvfcmp_sult_", suffix);
+        break;
+    case 0xC:
+        output_xvfcmp(ctx, "xvfcmp_cueq_", suffix);
+        break;
+    case 0xD:
+        output_xvfcmp(ctx, "xvfcmp_sueq_", suffix);
+        break;
+    case 0xE:
+        output_xvfcmp(ctx, "xvfcmp_cule_", suffix);
+        break;
+    case 0xF:
+        output_xvfcmp(ctx, "xvfcmp_sule_", suffix);
+        break;
+    case 0x10:
+        output_xvfcmp(ctx, "xvfcmp_cne_", suffix);
+        break;
+    case 0x11:
+        output_xvfcmp(ctx, "xvfcmp_sne_", suffix);
+        break;
+    case 0x14:
+        output_xvfcmp(ctx, "xvfcmp_cor_", suffix);
+        break;
+    case 0x15:
+        output_xvfcmp(ctx, "xvfcmp_sor_", suffix);
+        break;
+    case 0x18:
+        output_xvfcmp(ctx, "xvfcmp_cune_", suffix);
+        break;
+    case 0x19:
+        output_xvfcmp(ctx, "xvfcmp_sune_", suffix);
+        break;
+    default:
+        ret = false;
+    }
+    return ret;
+}
+
+#define LASX_FCMP_INSN(suffix)                            \
+static bool trans_xvfcmp_cond_##suffix(DisasContext *ctx, \
+                                       arg_vvv_fcond * a) \
+{                                                         \
+    return output_xxx_fcond(ctx, a, #suffix);             \
+}
+
+LASX_FCMP_INSN(s)
+LASX_FCMP_INSN(d)
+
+INSN_LASX(xvbitsel_v,        vvvv)
+INSN_LASX(xvbitseli_b,       vv_i)
+
+INSN_LASX(xvseteqz_v,        cv)
+INSN_LASX(xvsetnez_v,        cv)
+INSN_LASX(xvsetanyeqz_b,     cv)
+INSN_LASX(xvsetanyeqz_h,     cv)
+INSN_LASX(xvsetanyeqz_w,     cv)
+INSN_LASX(xvsetanyeqz_d,     cv)
+INSN_LASX(xvsetallnez_b,     cv)
+INSN_LASX(xvsetallnez_h,     cv)
+INSN_LASX(xvsetallnez_w,     cv)
+INSN_LASX(xvsetallnez_d,     cv)
+
+INSN_LASX(xvinsgr2vr_w,      vr_i)
+INSN_LASX(xvinsgr2vr_d,      vr_i)
+INSN_LASX(xvpickve2gr_w,     rv_i)
+INSN_LASX(xvpickve2gr_d,     rv_i)
+INSN_LASX(xvpickve2gr_wu,    rv_i)
+INSN_LASX(xvpickve2gr_du,    rv_i)
+
+INSN_LASX(xvreplgr2vr_b,     vr)
+INSN_LASX(xvreplgr2vr_h,     vr)
+INSN_LASX(xvreplgr2vr_w,     vr)
+INSN_LASX(xvreplgr2vr_d,     vr)
+
+INSN_LASX(xvreplve_b,        vvr)
+INSN_LASX(xvreplve_h,        vvr)
+INSN_LASX(xvreplve_w,        vvr)
+INSN_LASX(xvreplve_d,        vvr)
+INSN_LASX(xvrepl128vei_b,    vv_i)
+INSN_LASX(xvrepl128vei_h,    vv_i)
+INSN_LASX(xvrepl128vei_w,    vv_i)
+INSN_LASX(xvrepl128vei_d,    vv_i)
+
+INSN_LASX(xvreplve0_b,       vv)
+INSN_LASX(xvreplve0_h,       vv)
+INSN_LASX(xvreplve0_w,       vv)
+INSN_LASX(xvreplve0_d,       vv)
+INSN_LASX(xvreplve0_q,       vv)
+
+INSN_LASX(xvinsve0_w,        vv_i)
+INSN_LASX(xvinsve0_d,        vv_i)
+
+INSN_LASX(xvpickve_w,        vv_i)
+INSN_LASX(xvpickve_d,        vv_i)
+
+INSN_LASX(xvbsll_v,          vv_i)
+INSN_LASX(xvbsrl_v,          vv_i)
+
+INSN_LASX(xvpackev_b,        vvv)
+INSN_LASX(xvpackev_h,        vvv)
+INSN_LASX(xvpackev_w,        vvv)
+INSN_LASX(xvpackev_d,        vvv)
+INSN_LASX(xvpackod_b,        vvv)
+INSN_LASX(xvpackod_h,        vvv)
+INSN_LASX(xvpackod_w,        vvv)
+INSN_LASX(xvpackod_d,        vvv)
+
+INSN_LASX(xvpickev_b,        vvv)
+INSN_LASX(xvpickev_h,        vvv)
+INSN_LASX(xvpickev_w,        vvv)
+INSN_LASX(xvpickev_d,        vvv)
+INSN_LASX(xvpickod_b,        vvv)
+INSN_LASX(xvpickod_h,        vvv)
+INSN_LASX(xvpickod_w,        vvv)
+INSN_LASX(xvpickod_d,        vvv)
+
+INSN_LASX(xvilvl_b,          vvv)
+INSN_LASX(xvilvl_h,          vvv)
+INSN_LASX(xvilvl_w,          vvv)
+INSN_LASX(xvilvl_d,          vvv)
+INSN_LASX(xvilvh_b,          vvv)
+INSN_LASX(xvilvh_h,          vvv)
+INSN_LASX(xvilvh_w,          vvv)
+INSN_LASX(xvilvh_d,          vvv)
+
+INSN_LASX(xvshuf_b,          vvvv)
+INSN_LASX(xvshuf_h,          vvv)
+INSN_LASX(xvshuf_w,          vvv)
+INSN_LASX(xvshuf_d,          vvv)
+
+INSN_LASX(xvperm_w,          vvv)
+
+INSN_LASX(xvshuf4i_b,        vv_i)
+INSN_LASX(xvshuf4i_h,        vv_i)
+INSN_LASX(xvshuf4i_w,        vv_i)
+INSN_LASX(xvshuf4i_d,        vv_i)
+
+INSN_LASX(xvpermi_w,         vv_i)
+INSN_LASX(xvpermi_d,         vv_i)
+INSN_LASX(xvpermi_q,         vv_i)
+
+INSN_LASX(xvextrins_d,       vv_i)
+INSN_LASX(xvextrins_w,       vv_i)
+INSN_LASX(xvextrins_h,       vv_i)
+INSN_LASX(xvextrins_b,       vv_i)
+
+INSN_LASX(xvld,              vr_i)
+INSN_LASX(xvst,              vr_i)
+INSN_LASX(xvldx,             vrr)
+INSN_LASX(xvstx,             vrr)
+
+INSN_LASX(xvldrepl_d,        vr_i)
+INSN_LASX(xvldrepl_w,        vr_i)
+INSN_LASX(xvldrepl_h,        vr_i)
+INSN_LASX(xvldrepl_b,        vr_i)
+INSN_LASX(xvstelm_d,         vr_ii)
+INSN_LASX(xvstelm_w,         vr_ii)
+INSN_LASX(xvstelm_h,         vr_ii)
+INSN_LASX(xvstelm_b,         vr_ii)

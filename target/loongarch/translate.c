@@ -18,6 +18,7 @@
 #include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
+#include "vec.h"
 
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
@@ -34,6 +35,18 @@ static TCGv cpu_lladdr, cpu_llval;
 static inline int vec_full_offset(int regno)
 {
     return  offsetof(CPULoongArchState, fpr[regno]);
+}
+
+static inline int vec_reg_offset(int regno, int index, MemOp mop)
+{
+    const uint8_t size = 1 << mop;
+    int offs = index * size;
+
+    if (HOST_BIG_ENDIAN && size < 8 ) {
+        offs ^= (8 - size);
+    }
+
+    return offs + vec_full_offset(regno);
 }
 
 static inline void get_vreg64(TCGv_i64 dest, int regno, int index)
@@ -121,6 +134,10 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
 
     if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LSX)) {
         ctx->vl = LSX_LEN;
+    }
+
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LASX)) {
+        ctx->vl = LASX_LEN;
     }
 
     ctx->la64 = is_la64(env);
@@ -261,7 +278,7 @@ static uint64_t make_address_pc(DisasContext *ctx, uint64_t addr)
 #include "insn_trans/trans_fmemory.c.inc"
 #include "insn_trans/trans_branch.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
-#include "insn_trans/trans_lsx.c.inc"
+#include "insn_trans/trans_vec.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
