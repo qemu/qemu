@@ -3782,6 +3782,12 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
 #endif
 }
 
+static bool trans_nopbts(DisasContext *ctx, arg_nopbts *a)
+{
+    /* All branch target stack instructions implement as nop. */
+    return ctx->is_pa20;
+}
+
 /*
  * Float class 0
  */
