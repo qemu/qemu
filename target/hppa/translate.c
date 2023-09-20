@@ -3052,6 +3052,40 @@ static bool trans_stby(DisasContext *ctx, arg_stby *a)
     return nullify_end(ctx);
 }
 
+static bool trans_stdby(DisasContext *ctx, arg_stby *a)
+{
+    TCGv_reg ofs, val;
+    TCGv_tl addr;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+    nullify_over(ctx);
+
+    form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
+             ctx->mmu_idx == MMU_PHYS_IDX);
+    val = load_gpr(ctx, a->r);
+    if (a->a) {
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stdby_e_parallel(tcg_env, addr, val);
+        } else {
+            gen_helper_stdby_e(tcg_env, addr, val);
+        }
+    } else {
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stdby_b_parallel(tcg_env, addr, val);
+        } else {
+            gen_helper_stdby_b(tcg_env, addr, val);
+        }
+    }
+    if (a->m) {
+        tcg_gen_andi_reg(ofs, ofs, ~7);
+        save_gpr(ctx, a->b, ofs);
+    }
+
+    return nullify_end(ctx);
+}
+
 static bool trans_lda(DisasContext *ctx, arg_ldst *a)
 {
     int hold_mmu_idx = ctx->mmu_idx;
