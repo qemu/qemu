@@ -488,13 +488,6 @@ static void cond_free(DisasCond *cond)
     }
 }
 
-static TCGv_reg load_const(DisasContext *ctx, target_sreg v)
-{
-    TCGv_reg t = tcg_temp_new();
-    tcg_gen_movi_reg(t, v);
-    return t;
-}
-
 static TCGv_reg load_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0) {
@@ -1164,7 +1157,7 @@ static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
     if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
     do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf);
     return nullify_end(ctx);
@@ -1253,7 +1246,7 @@ static bool do_sub_imm(DisasContext *ctx, arg_rri_cf *a, bool is_tsv)
     if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
     do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf);
     return nullify_end(ctx);
@@ -2808,7 +2801,7 @@ static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
         nullify_over(ctx);
     }
 
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_reg(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
     do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf);
 
@@ -2994,7 +2987,7 @@ static bool trans_cmpb(DisasContext *ctx, arg_cmpb *a)
 static bool trans_cmpbi(DisasContext *ctx, arg_cmpbi *a)
 {
     nullify_over(ctx);
-    return do_cmpb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+    return do_cmpb(ctx, a->r, tcg_constant_reg(a->i), a->c, a->f, a->n, a->disp);
 }
 
 static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
@@ -3033,7 +3026,7 @@ static bool trans_addb(DisasContext *ctx, arg_addb *a)
 static bool trans_addbi(DisasContext *ctx, arg_addbi *a)
 {
     nullify_over(ctx);
-    return do_addb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+    return do_addb(ctx, a->r, tcg_constant_reg(a->i), a->c, a->f, a->n, a->disp);
 }
 
 static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
@@ -3345,7 +3338,7 @@ static bool trans_depwi_sar(DisasContext *ctx, arg_depwi_sar *a)
     if (a->c) {
         nullify_over(ctx);
     }
-    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_const(ctx, a->i));
+    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, tcg_constant_reg(a->i));
 }
 
 static bool trans_be(DisasContext *ctx, arg_be *a)
@@ -3852,7 +3845,7 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
             return true;
         }
         if (inv) {
-            TCGv_reg c = load_const(ctx, mask);
+            TCGv_reg c = tcg_constant_reg(mask);
             tcg_gen_or_reg(t, t, c);
             ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
         } else {
