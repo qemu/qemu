@@ -111,6 +111,8 @@ class RamSection(object):
     RAM_SAVE_FLAG_CONTINUE = 0x20
     RAM_SAVE_FLAG_XBZRLE   = 0x40
     RAM_SAVE_FLAG_HOOK     = 0x80
+    RAM_SAVE_FLAG_COMPRESS_PAGE = 0x100
+    RAM_SAVE_FLAG_MULTIFD_FLUSH = 0x200
 
     def __init__(self, file, version_id, ramargs, section_key):
         if version_id != 4:
@@ -205,6 +207,8 @@ class RamSection(object):
                 raise Exception("XBZRLE RAM compression is not supported yet")
             elif flags & self.RAM_SAVE_FLAG_HOOK:
                 raise Exception("RAM hooks don't make sense with files")
+            if flags & self.RAM_SAVE_FLAG_MULTIFD_FLUSH:
+                continue
 
             # End of RAM section
             if flags & self.RAM_SAVE_FLAG_EOS:
