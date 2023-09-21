@@ -68,7 +68,7 @@ variables:
 
     #############################################################
     # Stage 2: fine tune execution of jobs in specific scenarios
-    # where the catch all logic is inapprorpaite
+    # where the catch all logic is inappropriate
     #############################################################
 
     # Optional jobs should not be run unless manually triggered
