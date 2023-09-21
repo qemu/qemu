@@ -2789,6 +2789,26 @@ static bool do_multimedia(DisasContext *ctx, arg_rrr *a,
     return nullify_end(ctx);
 }
 
+static bool do_multimedia_sh(DisasContext *ctx, arg_rri *a,
+                             void (*fn)(TCGv_i64, TCGv_i64, int64_t))
+{
+    TCGv_i64 r, dest;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r = load_gpr(ctx, a->r);
+    dest = dest_gpr(ctx, a->t);
+
+    fn(dest, r, a->i);
+    save_gpr(ctx, a->t, dest);
+
+    return nullify_end(ctx);
+}
+
 static bool trans_hadd(DisasContext *ctx, arg_rrr *a)
 {
     return do_multimedia(ctx, a, tcg_gen_vec_add16_i64);
@@ -2807,6 +2827,21 @@ static bool trans_hadd_us(DisasContext *ctx, arg_rrr *a)
 static bool trans_havg(DisasContext *ctx, arg_rrr *a)
 {
     return do_multimedia(ctx, a, gen_helper_havg);
+}
+
+static bool trans_hshl(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_shl16i_i64);
+}
+
+static bool trans_hshr_s(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_sar16i_i64);
+}
+
+static bool trans_hshr_u(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_shr16i_i64);
 }
 
 static bool trans_hsub(DisasContext *ctx, arg_rrr *a)

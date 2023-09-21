@@ -69,6 +69,7 @@
 &rrr_cf         t r1 r2 cf
 &rrr_cf_d       t r1 r2 cf d
 &rrr_cf_d_sh    t r1 r2 cf d sh
+&rri            t r i
 &rri_cf         t r i cf
 &rri_cf_d       t r i cf d
 
@@ -215,6 +216,10 @@ hadd_ss         000010 ..... ..... 00000011 01 0 .....  @rrr
 hadd_us         000010 ..... ..... 00000011 00 0 .....  @rrr
 
 havg            000010 ..... ..... 00000010 11 0 .....  @rrr
+
+hshl            111110 00000 r:5   100010 i:4  0 t:5    &rri
+hshr_s          111110 r:5   00000 110011 i:4  0 t:5    &rri
+hshr_u          111110 r:5   00000 110010 i:4  0 t:5    &rri
 
 hsub            000010 ..... ..... 00000001 11 0 .....  @rrr
 hsub_ss         000010 ..... ..... 00000001 01 0 .....  @rrr
