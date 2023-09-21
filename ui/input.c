@@ -56,7 +56,7 @@ QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
     s->id = id++;
     QTAILQ_INSERT_TAIL(&handlers, s, node);
 
-    qemu_input_check_mode_change();
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
     return s;
 }
 
@@ -64,21 +64,21 @@ void qemu_input_handler_activate(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     QTAILQ_INSERT_HEAD(&handlers, s, node);
-    qemu_input_check_mode_change();
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
 }
 
 void qemu_input_handler_deactivate(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     QTAILQ_INSERT_TAIL(&handlers, s, node);
-    qemu_input_check_mode_change();
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
 }
 
 void qemu_input_handler_unregister(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     g_free(s);
-    qemu_input_check_mode_change();
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
 }
 
 void qemu_input_handler_bind(QemuInputHandlerState *s,
@@ -494,12 +494,12 @@ void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
     }
 }
 
-bool qemu_input_is_absolute(void)
+bool qemu_input_is_absolute(QemuConsole *con)
 {
     QemuInputHandlerState *s;
 
     s = qemu_input_find_handler(INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS,
-                                NULL);
+                                con);
     return (s != NULL) && (s->handler->mask & INPUT_EVENT_MASK_ABS);
 }
 
@@ -583,21 +583,6 @@ void qemu_input_queue_mtt_abs(QemuConsole *src, InputAxis axis, int value,
     qemu_input_event_send(src, &evt);
 }
 
-void qemu_input_check_mode_change(void)
-{
-    static int current_is_absolute;
-    int is_absolute;
-
-    is_absolute = qemu_input_is_absolute();
-
-    if (is_absolute != current_is_absolute) {
-        trace_input_mouse_mode(is_absolute);
-        notifier_list_notify(&mouse_mode_notifiers, NULL);
-    }
-
-    current_is_absolute = is_absolute;
-}
-
 void qemu_add_mouse_mode_change_notifier(Notifier *notify)
 {
     notifier_list_add(&mouse_mode_notifiers, notify);
@@ -657,6 +642,6 @@ bool qemu_mouse_set(int index, Error **errp)
     }
 
     qemu_input_handler_activate(s);
-    qemu_input_check_mode_change();
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
     return true;
 }

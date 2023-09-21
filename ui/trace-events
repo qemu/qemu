@@ -92,7 +92,6 @@ input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value
 input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value 0x%x"
 input_event_mtt(int conidx, const char *axis, int value) "con %d, axis %s, value 0x%x"
 input_event_sync(void) ""
-input_mouse_mode(int absolute) "absolute %d"
 
 # sdl2-input.c
 sdl2_process_key(int sdl_scancode, int qcode, const char *action) "translated SDL scancode %d to QKeyCode %d (%s)"

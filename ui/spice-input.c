@@ -224,7 +224,7 @@ static const SpiceTabletInterface tablet_interface = {
 static void mouse_mode_notifier(Notifier *notifier, void *data)
 {
     QemuSpicePointer *pointer = container_of(notifier, QemuSpicePointer, mouse_mode);
-    bool is_absolute  = qemu_input_is_absolute();
+    bool is_absolute  = qemu_input_is_absolute(NULL);
 
     if (pointer->absolute == is_absolute) {
         return;
