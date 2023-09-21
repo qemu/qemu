@@ -2935,7 +2935,7 @@ void qemu_init(int argc, char **argv)
                 break;
             case QEMU_OPTION_audio: {
                 bool help;
-                char *model;
+                char *model = NULL;
                 Audiodev *dev = NULL;
                 Visitor *v;
                 QDict *dict = keyval_parse(optarg, "driver", &help, &error_fatal);
@@ -2948,22 +2948,25 @@ void qemu_init(int argc, char **argv)
                 if (!qdict_haskey(dict, "id")) {
                     qdict_put_str(dict, "id", "audiodev0");
                 }
-                if (!qdict_haskey(dict, "model")) {
-                    error_setg(&error_fatal, "Parameter 'model' is missing");
-                }
-                model = g_strdup(qdict_get_str(dict, "model"));
-                qdict_del(dict, "model");
-                if (is_help_option(model)) {
-                    show_valid_soundhw();
-                    exit(0);
+                if (qdict_haskey(dict, "model")) {
+                    model = g_strdup(qdict_get_str(dict, "model"));
+                    qdict_del(dict, "model");
+                    if (is_help_option(model)) {
+                        show_valid_soundhw();
+                        exit(0);
+                    }
                 }
                 v = qobject_input_visitor_new_keyval(QOBJECT(dict));
                 qobject_unref(dict);
                 visit_type_Audiodev(v, NULL, &dev, &error_fatal);
                 visit_free(v);
-                audio_define(dev);
-                select_soundhw(model, dev->id);
-                g_free(model);
+                if (model) {
+                    audio_define(dev);
+                    select_soundhw(model, dev->id);
+                    g_free(model);
+                } else {
+                    audio_define_default(dev, &error_fatal);
+                }
                 break;
             }
             case QEMU_OPTION_h:
