@@ -2946,6 +2946,35 @@ static bool trans_mixw_r(DisasContext *ctx, arg_rrr *a)
     return do_multimedia(ctx, a, gen_mixw_r);
 }
 
+static bool trans_permh(DisasContext *ctx, arg_permh *a)
+{
+    TCGv_i64 r, t0, t1, t2, t3;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r = load_gpr(ctx, a->r1);
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    t3 = tcg_temp_new_i64();
+
+    tcg_gen_extract_i64(t0, r, (3 - a->c0) * 16, 16);
+    tcg_gen_extract_i64(t1, r, (3 - a->c1) * 16, 16);
+    tcg_gen_extract_i64(t2, r, (3 - a->c2) * 16, 16);
+    tcg_gen_extract_i64(t3, r, (3 - a->c3) * 16, 16);
+
+    tcg_gen_deposit_i64(t0, t1, t0, 16, 48);
+    tcg_gen_deposit_i64(t2, t3, t2, 16, 48);
+    tcg_gen_deposit_i64(t0, t2, t0, 32, 32);
+
+    save_gpr(ctx, a->t, t0);
+    return nullify_end(ctx);
+}
+
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
     if (!ctx->is_pa20 && a->size > MO_32) {
