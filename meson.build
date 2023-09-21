@@ -571,36 +571,38 @@ qemu_common_flags += cc.get_supported_arguments(hardening_flags)
 add_global_arguments(qemu_common_flags, native: false, language: all_languages)
 add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
 
-# Collect warnings that we want to enable
-
+# Collect warning flags we want to set, sorted alphabetically
 warn_flags = [
-  '-Wundef',
-  '-Wwrite-strings',
-  '-Wmissing-prototypes',
-  '-Wstrict-prototypes',
-  '-Wredundant-decls',
-  '-Wold-style-declaration',
-  '-Wold-style-definition',
-  '-Wtype-limits',
-  '-Wformat-security',
-  '-Wformat-y2k',
-  '-Winit-self',
-  '-Wignored-qualifiers',
+  # First enable interesting warnings
   '-Wempty-body',
-  '-Wnested-externs',
   '-Wendif-labels',
   '-Wexpansion-to-defined',
+  '-Wformat-security',
+  '-Wformat-y2k',
+  '-Wignored-qualifiers',
   '-Wimplicit-fallthrough=2',
+  '-Winit-self',
   '-Wmissing-format-attribute',
+  '-Wmissing-prototypes',
+  '-Wnested-externs',
+  '-Wold-style-declaration',
+  '-Wold-style-definition',
+  '-Wredundant-decls',
+  '-Wshadow=local',
+  '-Wstrict-prototypes',
+  '-Wtype-limits',
+  '-Wundef',
+  '-Wwrite-strings',
+
+  # Then disable some undesirable warnings
+  '-Wno-gnu-variable-sized-type-not-at-end',
   '-Wno-initializer-overrides',
   '-Wno-missing-include-dirs',
+  '-Wno-psabi',
   '-Wno-shift-negative-value',
   '-Wno-string-plus-int',
-  '-Wno-typedef-redefinition',
   '-Wno-tautological-type-limit-compare',
-  '-Wno-psabi',
-  '-Wno-gnu-variable-sized-type-not-at-end',
-  '-Wshadow=local',
+  '-Wno-typedef-redefinition',
 ]
 
 if host_os != 'darwin'
