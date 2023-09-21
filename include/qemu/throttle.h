@@ -99,13 +99,18 @@ typedef struct ThrottleState {
     int64_t previous_leak;    /* timestamp of the last leak done */
 } ThrottleState;
 
+typedef enum {
+    THROTTLE_READ = 0,
+    THROTTLE_WRITE,
+    THROTTLE_MAX
+} ThrottleDirection;
+
 typedef struct ThrottleTimers {
-    QEMUTimer *timers[2];     /* timers used to do the throttling */
+    QEMUTimer *timers[THROTTLE_MAX];    /* timers used to do the throttling */
     QEMUClockType clock_type; /* the clock used */
 
     /* Callbacks */
-    QEMUTimerCB *read_timer_cb;
-    QEMUTimerCB *write_timer_cb;
+    QEMUTimerCB *timer_cb[THROTTLE_MAX];
     void *timer_opaque;
 } ThrottleTimers;
 
@@ -149,9 +154,10 @@ void throttle_config_init(ThrottleConfig *cfg);
 /* usage */
 bool throttle_schedule_timer(ThrottleState *ts,
                              ThrottleTimers *tt,
-                             bool is_write);
+                             ThrottleDirection direction);
 
-void throttle_account(ThrottleState *ts, bool is_write, uint64_t size);
+void throttle_account(ThrottleState *ts, ThrottleDirection direction,
+                      uint64_t size);
 void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
                                Error **errp);
 void throttle_config_to_limits(ThrottleConfig *cfg, ThrottleLimits *var);

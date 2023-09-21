@@ -94,20 +94,22 @@ void fsdev_throttle_init(FsThrottle *fst)
     }
 }
 
-void coroutine_fn fsdev_co_throttle_request(FsThrottle *fst, bool is_write,
+void coroutine_fn fsdev_co_throttle_request(FsThrottle *fst,
+                                            ThrottleDirection direction,
                                             struct iovec *iov, int iovcnt)
 {
+    assert(direction < THROTTLE_MAX);
     if (throttle_enabled(&fst->cfg)) {
-        if (throttle_schedule_timer(&fst->ts, &fst->tt, is_write) ||
-            !qemu_co_queue_empty(&fst->throttled_reqs[is_write])) {
-            qemu_co_queue_wait(&fst->throttled_reqs[is_write], NULL);
+        if (throttle_schedule_timer(&fst->ts, &fst->tt, direction) ||
+            !qemu_co_queue_empty(&fst->throttled_reqs[direction])) {
+            qemu_co_queue_wait(&fst->throttled_reqs[direction], NULL);
         }
 
-        throttle_account(&fst->ts, is_write, iov_size(iov, iovcnt));
+        throttle_account(&fst->ts, direction, iov_size(iov, iovcnt));
 
-        if (!qemu_co_queue_empty(&fst->throttled_reqs[is_write]) &&
-            !throttle_schedule_timer(&fst->ts, &fst->tt, is_write)) {
-            qemu_co_queue_next(&fst->throttled_reqs[is_write]);
+        if (!qemu_co_queue_empty(&fst->throttled_reqs[direction]) &&
+            !throttle_schedule_timer(&fst->ts, &fst->tt, direction)) {
+            qemu_co_queue_next(&fst->throttled_reqs[direction]);
         }
     }
 }
