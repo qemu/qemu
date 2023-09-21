@@ -1330,7 +1330,7 @@ static void virtio_net_detach_epbf_rss(VirtIONet *n)
 static bool virtio_net_load_ebpf(VirtIONet *n)
 {
     if (!virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
-        /* backend does't support steering ebpf */
+        /* backend doesn't support steering ebpf */
         return false;
     }
 
@@ -2069,7 +2069,7 @@ static void virtio_net_rsc_extract_unit6(VirtioNetRscChain *chain,
                                         + sizeof(struct ip6_header));
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
 
-    /* There is a difference between payload lenght in ipv4 and v6,
+    /* There is a difference between payload length in ipv4 and v6,
        ip header is excluded in ipv6 */
     unit->payload = htons(*unit->ip_plen) - unit->tcp_hdrlen;
 }
@@ -3818,7 +3818,7 @@ static void virtio_net_instance_init(Object *obj)
 
     /*
      * The default config_size is sizeof(struct virtio_net_config).
-     * Can be overriden with virtio_net_set_config_size.
+     * Can be overridden with virtio_net_set_config_size.
      */
     n->config_size = sizeof(struct virtio_net_config);
     device_add_bootindex_property(obj, &n->nic_conf.bootindex,

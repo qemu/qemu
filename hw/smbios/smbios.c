@@ -1110,7 +1110,7 @@ void smbios_get_tables(MachineState *ms,
         dimm_cnt = QEMU_ALIGN_UP(current_machine->ram_size, MAX_DIMM_SZ) / MAX_DIMM_SZ;
 
         /*
-         * The offset determines if we need to keep additional space betweeen
+         * The offset determines if we need to keep additional space between
          * table 17 and table 19 header handle numbers so that they do
          * not overlap. For example, for a VM with larger than 8 TB guest
          * memory and DIMM like chunks of 16 GiB, the default space between

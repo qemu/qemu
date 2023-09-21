@@ -575,7 +575,7 @@ static int cadence_uart_pre_load(void *opaque)
 {
     CadenceUARTState *s = opaque;
 
-    /* the frequency will be overriden if the refclk field is present */
+    /* the frequency will be overridden if the refclk field is present */
     clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK);
     return 0;
 }

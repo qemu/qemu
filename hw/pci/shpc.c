@@ -615,7 +615,7 @@ int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar,
     }
     if (nslots > SHPC_MAX_SLOTS ||
         SHPC_IDX_TO_PCI(nslots) > PCI_SLOT_MAX) {
-        /* TODO: report an error mesage that makes sense. */
+        /* TODO: report an error message that makes sense. */
         return -EINVAL;
     }
     shpc->nslots = nslots;

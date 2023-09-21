@@ -733,7 +733,7 @@ struct Vmxnet3_TxQueueDesc {
 struct Vmxnet3_RxQueueDesc {
     struct Vmxnet3_RxQueueCtrl        ctrl;
     struct Vmxnet3_RxQueueConf        conf;
-    /* Driver read after a GET commad */
+    /* Driver read after a GET command */
     struct Vmxnet3_QueueStatus        status;
     struct UPT1_RxStats            stats;
     u8                      __pad[88]; /* 128 aligned */

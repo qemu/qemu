@@ -1436,7 +1436,7 @@ static void save_node(gpointer key, gpointer value, gpointer opaque)
     /*
      * If we already wrote this node, refer to the previous copy.
      * There's no rename/move in XenStore, so all we need to find
-     * it is the tx_id of the transation in which it exists. Which
+     * it is the tx_id of the transaction in which it exists. Which
      * may be the root tx.
      */
     if (n->serialized_tx != XBT_NULL) {

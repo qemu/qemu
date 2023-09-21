@@ -68,7 +68,7 @@ static void omap_inth_sir_update(OMAPIntcState *s, int is_fiq)
     p_intr = 255;
 
     /* Find the interrupt line with the highest dynamic priority.
-     * Note: 0 denotes the hightest priority.
+     * Note: 0 denotes the highest priority.
      * If all interrupts have the same priority, the default order is IRQ_N,
      * IRQ_N-1,...,IRQ_0. */
     for (j = 0; j < s->nbanks; ++j) {

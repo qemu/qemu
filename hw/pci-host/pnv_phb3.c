@@ -757,7 +757,7 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
          * We only support non-translate in top window.
          *
          * TODO: Venice/Murano support it on bottom window above 4G and
-         * Naples suports it on everything
+         * Naples supports it on everything
          */
         if (!(tve & PPC_BIT(51))) {
             phb3_error(phb, "xlate for invalid non-translate TVE");

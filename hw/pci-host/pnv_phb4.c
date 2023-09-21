@@ -207,7 +207,7 @@ static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
         start = base | (phb->regs[PHB_M64_UPPER_BITS >> 3]);
     }
 
-    /* TODO: Figure out how to implemet/decode AOMASK */
+    /* TODO: Figure out how to implement/decode AOMASK */
 
     /* Check if it matches an enabled MMIO region in the PEC stack */
     if (memory_region_is_mapped(&phb->mmbar0) &&
@@ -391,7 +391,7 @@ static void pnv_phb4_ioda_write(PnvPHB4 *phb, uint64_t val)
     case IODA3_TBL_MBT:
         *tptr = val;
 
-        /* Copy accross the valid bit to the other half */
+        /* Copy across the valid bit to the other half */
         phb->ioda_MBT[idx ^ 1] &= 0x7fffffffffffffffull;
         phb->ioda_MBT[idx ^ 1] |= 0x8000000000000000ull & val;
 
@@ -1408,7 +1408,7 @@ static void pnv_phb4_msi_write(void *opaque, hwaddr addr,
         return;
     }
 
-    /* TODO: check PE/MSI assignement */
+    /* TODO: check PE/MSI assignment */
 
     qemu_irq_pulse(phb->qirqs[src]);
 }

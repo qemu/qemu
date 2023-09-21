@@ -107,7 +107,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
     }
 
     if (*ptr) {
-        /* BlockBackend alread exists. So, we want to change attached node */
+        /* BlockBackend already exists. So, we want to change attached node */
         blk = *ptr;
         ctx = blk_get_aio_context(blk);
         bs = bdrv_lookup_bs(NULL, str, errp);

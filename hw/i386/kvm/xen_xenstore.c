@@ -1156,7 +1156,7 @@ static unsigned int copy_to_ring(XenXenstoreState *s, uint8_t *ptr,
 
     /*
      * This matches the barrier in copy_to_ring() (or the guest's
-     * equivalent) betweem writing the data to the ring and updating
+     * equivalent) between writing the data to the ring and updating
      * rsp_prod. It protects against the pathological case (which
      * again I think never happened except on Alpha) where our
      * subsequent writes to the ring could *cross* the read of

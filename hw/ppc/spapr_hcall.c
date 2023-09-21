@@ -1615,7 +1615,7 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_GET_CPU_CHARACTERISTICS,
                              h_get_cpu_characteristics);
 
-    /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
+    /* "debugger" hcalls (also used by SLOF). Note: We do -not- differentiate
      * here between the "CI" and the "CACHE" variants, they will use whatever
      * mapping attributes qemu is using. When using KVM, the kernel will
      * enforce the attributes more strongly

@@ -27,7 +27,7 @@
 #include "trace.h"
 
 /*
- * XIVE Virtualization Controller BAR and Thread Managment BAR that we
+ * XIVE Virtualization Controller BAR and Thread Management BAR that we
  * use for the ESB pages and the TIMA pages
  */
 #define SPAPR_XIVE_VC_BASE   0x0006010000000000ull

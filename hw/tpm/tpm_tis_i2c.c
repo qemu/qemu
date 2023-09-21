@@ -13,7 +13,7 @@
  * Family 2.0, Level 00, Revision 1.00
  *
  * TPM TIS for TPM 2 implementation following TCG PC Client Platform
- * TPM Profile (PTP) Specification, Familiy 2.0, Revision 00.43
+ * TPM Profile (PTP) Specification, Family 2.0, Revision 00.43
  *
  */
 
@@ -507,7 +507,7 @@ static void tpm_tis_i2c_realizefn(DeviceState *dev, Error **errp)
     }
 
     /*
-     * Get the backend pointer. It is not initialized propery during
+     * Get the backend pointer. It is not initialized properly during
      * device_class_set_props
      */
     s->be_driver = qemu_find_tpm_be("tpm0");

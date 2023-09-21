@@ -1119,7 +1119,7 @@ static int virtio_mem_mig_sanity_checks_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
     /*
-     * Note: Preparation for resizeable memory regions. The maximum size
+     * Note: Preparation for resizable memory regions. The maximum size
      * of the memory region must not change during migration.
      */
     if (tmp->region_size != new_region_size) {

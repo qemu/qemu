@@ -455,7 +455,7 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing ME unless
-     * explicitly overriden.
+     * explicitly overridden.
      */
     new_msr = env->msr & (((target_ulong)1 << MSR_ME));
 
@@ -578,7 +578,7 @@ static void powerpc_excp_6xx(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing ME unless
-     * explicitly overriden
+     * explicitly overridden
      */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
 
@@ -739,7 +739,7 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing ME unless
-     * explicitly overriden
+     * explicitly overridden
      */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
 
@@ -911,7 +911,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing ME unless
-     * explicitly overriden
+     * explicitly overridden
      */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
 
@@ -1075,7 +1075,7 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing ME unless
-     * explicitly overriden
+     * explicitly overridden
      */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
 
@@ -1288,7 +1288,7 @@ static bool books_vhyp_handles_hcall(PowerPCCPU *cpu)
 /*
  * When running a nested KVM HV guest under vhyp, HV exceptions are not
  * delivered to the guest (because there is no concept of HV support), but
- * rather they are sent tothe vhyp to exit from the L2 back to the L1 and
+ * rather they are sent to the vhyp to exit from the L2 back to the L1 and
  * return from the H_ENTER_NESTED hypercall.
  */
 static bool books_vhyp_handles_hv_excp(PowerPCCPU *cpu)
@@ -1377,7 +1377,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 
     /*
      * new interrupt handler msr preserves existing HV and ME unless
-     * explicitly overriden
+     * explicitly overridden
      */
     new_msr = env->msr & (((target_ulong)1 << MSR_ME) | MSR_HVB);
 

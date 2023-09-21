@@ -78,7 +78,7 @@ int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
          * call. Now we just need to check the validity of the PCI
          * pass-through devices (vfio-pci) under this sphb bus.
          * We have already validated that all the devices under this sphb
-         * are from same iommu group (within same PE) before comming here.
+         * are from same iommu group (within same PE) before coming here.
          *
          * Prior to linux commit 98ba956f6a389 ("powerpc/pseries/eeh:
          * Rework device EEH PE determination") kernel would call

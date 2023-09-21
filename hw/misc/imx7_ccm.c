@@ -227,7 +227,7 @@ static uint32_t imx7_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
      * have fixed frequencies and we can provide requested frequency
      * easily. However for CCM provided clocks (like IPG) each GPT
      * timer can have its own clock root.
-     * This means we need additionnal information when calling this
+     * This means we need additional information when calling this
      * function to know the requester's identity.
      */
     uint32_t freq = 0;

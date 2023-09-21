@@ -1889,7 +1889,7 @@ vmxnet3_io_bar1_read(void *opaque, hwaddr addr, unsigned size)
             break;
 
         default:
-            VMW_CBPRN("Unknow read BAR1[%" PRIx64 "], %d bytes", addr, size);
+            VMW_CBPRN("Unknown read BAR1[%" PRIx64 "], %d bytes", addr, size);
             break;
         }
 

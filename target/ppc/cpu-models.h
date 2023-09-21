@@ -44,7 +44,7 @@ enum {
     /* PowerPC 405 cores */
     CPU_POWERPC_405D2              = 0x20010000,
     CPU_POWERPC_405D4              = 0x41810000,
-    /* PowerPC 405 microcontrolers */
+    /* PowerPC 405 microcontrollers */
     /* XXX: missing 0x200108a0 */
     CPU_POWERPC_405CRa             = 0x40110041,
     CPU_POWERPC_405CRb             = 0x401100C5,
@@ -74,7 +74,7 @@ enum {
 #define CPU_POWERPC_440              CPU_POWERPC_440GXf
     /* PowerPC 440 cores */
     CPU_POWERPC_440_XILINX         = 0x7ff21910,
-    /* PowerPC 440 microcontrolers */
+    /* PowerPC 440 microcontrollers */
     CPU_POWERPC_440EPa             = 0x42221850,
     CPU_POWERPC_440EPb             = 0x422218D3,
     CPU_POWERPC_440GPb             = 0x40120440,

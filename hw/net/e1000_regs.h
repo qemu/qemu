@@ -130,7 +130,7 @@
 
 #define E1000_GCR2      0x05B64 /* 3GIO Control Register 2 */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
-#define E1000_HICR      0x08F00 /* Host Inteface Control */
+#define E1000_HICR      0x08F00 /* Host Interface Control */
 
 #define E1000_RXMTRL     0x0B634 /* Time sync Rx EtherType and Msg Type - RW */
 #define E1000_RXUDP      0x0B638 /* Time Sync Rx UDP Port - RW */

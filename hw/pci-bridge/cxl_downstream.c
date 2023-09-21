@@ -42,7 +42,7 @@ static void latch_registers(CXLDownstreamPort *dsp)
                                        CXL2_DOWNSTREAM_PORT);
 }
 
-/* TODO: Look at sharing this code acorss all CXL port types */
+/* TODO: Look at sharing this code across all CXL port types */
 static void cxl_dsp_dvsec_write_config(PCIDevice *dev, uint32_t addr,
                                       uint32_t val, int len)
 {

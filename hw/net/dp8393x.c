@@ -551,7 +551,7 @@ static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
             val = s->cam[s->regs[SONIC_CEP] & 0xf][SONIC_CAP0 - reg];
         }
         break;
-    /* All other registers have no special contraints */
+    /* All other registers have no special constraints */
     default:
         val = s->regs[reg];
     }

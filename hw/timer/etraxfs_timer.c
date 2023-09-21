@@ -236,7 +236,7 @@ static void watchdog_hit(void *opaque)
 {
     ETRAXTimerState *t = opaque;
     if (t->wd_hits == 0) {
-        /* real hw gives a single tick before reseting but we are
+        /* real hw gives a single tick before resetting but we are
            a bit friendlier to compensate for our slower execution.  */
         ptimer_set_count(t->ptimer_wd, 10);
         ptimer_run(t->ptimer_wd, 1);

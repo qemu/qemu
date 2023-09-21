@@ -1,5 +1,5 @@
 /*
- * QEMU Loongson Local I/O interrupt controler.
+ * QEMU Loongson Local I/O interrupt controller.
  *
  * Copyright (c) 2020 Huacai Chen <chenhc@lemote.com>
  * Copyright (c) 2020 Jiaxun Yang <jiaxun.yang@flygoat.com>

@@ -149,7 +149,7 @@
 #define TARGET_ELAST            90              /* Must be equal largest errno */
 
 /* Internal errors: */
-#define TARGET_EJUSTRETURN      254             /* Just return without modifing regs */
+#define TARGET_EJUSTRETURN      254             /* Just return without modifying regs */
 #define TARGET_ERESTART         255             /* Restart syscall */
 
 #include "special-errno.h"

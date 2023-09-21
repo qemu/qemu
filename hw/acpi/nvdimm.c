@@ -1102,7 +1102,7 @@ static void nvdimm_build_common_dsm(Aml *dev,
      * be treated as an integer. Moreover, the integer size depends on
      * DSDT tables revision number. If revision number is < 2, integer
      * size is 32 bits, otherwise it is 64 bits.
-     * Because of this CreateField() canot be used if RLEN < Integer Size.
+     * Because of this CreateField() cannot be used if RLEN < Integer Size.
      *
      * Also please note that APCI ASL operator SizeOf() doesn't support
      * Integer and there isn't any other way to figure out the Integer

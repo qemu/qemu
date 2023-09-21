@@ -331,9 +331,9 @@ static void gt64120_update_pci_cfgdata_mapping(GT64120State *s)
     /*
      * The setting of the MByteSwap bit and MWordSwap bit in the PCI Internal
      * Command Register determines how data transactions from the CPU to/from
-     * PCI are handled along with the setting of the Endianess bit in the CPU
+     * PCI are handled along with the setting of the Endianness bit in the CPU
      * Configuration Register. See:
-     * - Table 16: 32-bit PCI Transaction Endianess
+     * - Table 16: 32-bit PCI Transaction Endianness
      * - Table 158: PCI_0 Command, Offset: 0xc00
      */
 

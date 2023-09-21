@@ -115,7 +115,7 @@ static int elapsed_time(RTMRState *tmr, int ch, int64_t delta)
         et = tmr->div_round[ch] / divrate;
         tmr->div_round[ch] %= divrate;
     } else {
-        /* disble clock. so no update */
+        /* disable clock. so no update */
         et = 0;
     }
     return et;

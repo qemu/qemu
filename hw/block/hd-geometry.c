@@ -50,7 +50,7 @@ struct partition {
         uint32_t nr_sects;          /* nr of sectors in partition */
 } QEMU_PACKED;
 
-/* try to guess the disk logical geometry from the MSDOS partition table.
+/* try to guess the disk logical geometry from the MS-DOS partition table.
    Return 0 if OK, -1 if could not guess */
 static int guess_disk_lchs(BlockBackend *blk,
                            int *pcylinders, int *pheads, int *psectors)
@@ -66,7 +66,7 @@ static int guess_disk_lchs(BlockBackend *blk,
     if (blk_pread(blk, 0, BDRV_SECTOR_SIZE, buf, 0) < 0) {
         return -1;
     }
-    /* test msdos magic */
+    /* test MS-DOS magic */
     if (buf[510] != 0x55 || buf[511] != 0xaa) {
         return -1;
     }

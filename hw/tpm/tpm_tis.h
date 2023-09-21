@@ -19,7 +19,7 @@
  * specification.
  *
  * TPM TIS for TPM 2 implementation following TCG PC Client Platform
- * TPM Profile (PTP) Specification, Familiy 2.0, Revision 00.43
+ * TPM Profile (PTP) Specification, Family 2.0, Revision 00.43
  */
 #ifndef TPM_TPM_TIS_H
 #define TPM_TPM_TIS_H

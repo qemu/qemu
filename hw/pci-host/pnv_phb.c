@@ -25,7 +25,7 @@
  * state associated with the child has an id, use it as QOM id.
  * Otherwise use object_typename[index] as QOM id.
  *
- * This helper does both operations at the same time because seting
+ * This helper does both operations at the same time because setting
  * a new QOM child will erase the bus parent of the device. This happens
  * because object_unparent() will call object_property_del_child(),
  * which in turn calls the property release callback prop->release if

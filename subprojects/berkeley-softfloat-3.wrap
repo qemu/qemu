@@ -1,5 +1,5 @@
 [wrap-git]
-url = https://gitlab.com/qemu-project/berkeley-softfloat-3
+url = https://gitlab.com/qemu-project/berkeley-softfloat-3.git
 revision = b64af41c3276f97f0e181920400ee056b9c88037
 patch_directory = berkeley-softfloat-3
 depth = 1

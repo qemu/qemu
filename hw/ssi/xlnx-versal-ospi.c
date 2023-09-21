@@ -837,7 +837,7 @@ static void ospi_do_ind_read(XlnxVersalOspi *s)
     /* Continue to read flash until we run out of space in sram */
     while (!ospi_ind_op_completed(op) &&
            !fifo8_is_full(&s->rx_sram)) {
-        /* Read reqested number of bytes, max bytes limited to size of sram */
+        /* Read requested number of bytes, max bytes limited to size of sram */
         next_b = ind_op_next_byte(op);
         end_b = next_b + fifo8_num_free(&s->rx_sram);
         end_b = MIN(end_b, ind_op_end_byte(op));

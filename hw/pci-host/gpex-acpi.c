@@ -177,7 +177,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
             acpi_dsdt_add_pci_route_table(dev, cfg->irq);
 
             /*
-             * Resources defined for PXBs are composed by the folling parts:
+             * Resources defined for PXBs are composed of the following parts:
              * 1. The resources the pci-brige/pcie-root-port need.
              * 2. The resources the devices behind pxb need.
              */

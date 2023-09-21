@@ -301,7 +301,7 @@ static void handle_msg(IPMIBmcExtern *ibe)
         ipmi_debug("msg checksum failure\n");
         return;
     } else {
-        ibe->inpos--; /* Remove checkum */
+        ibe->inpos--; /* Remove checksum */
     }
 
     timer_del(ibe->extern_timer);

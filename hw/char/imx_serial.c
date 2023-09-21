@@ -112,7 +112,7 @@ static void imx_serial_reset_at_boot(DeviceState *dev)
     imx_serial_reset(s);
 
     /*
-     * enable the uart on boot, so messages from the linux decompresser
+     * enable the uart on boot, so messages from the linux decompressor
      * are visible.  On real hardware this is done by the boot rom
      * before anything else is loaded.
      */

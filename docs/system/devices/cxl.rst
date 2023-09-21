@@ -157,7 +157,7 @@ responsible for allocating appropriate ranges from within the CFMWs
 and exposing those via normal memory configurations as would be done
 for system RAM.
 
-Example system Topology. x marks the match in each decoder level::
+Example system topology. x marks the match in each decoder level::
 
   |<------------------SYSTEM PHYSICAL ADDRESS MAP (1)----------------->|
   |    __________   __________________________________   __________    |
@@ -187,8 +187,8 @@ Example system Topology. x marks the match in each decoder level::
        ___________|___   __________|__   __|_________   ___|_________
    (3)|  Root Port 0  | | Root Port 1 | | Root Port 2| | Root Port 3 |
       |  Appears in   | | Appears in  | | Appears in | | Appear in   |
-      |  PCI topology | | PCI Topology| | PCI Topo   | | PCI Topo    |
-      |  As 0c:00.0   | | as 0c:01.0  | | as de:00.0 | | as de:01.0  |
+      |  PCI topology | | PCI topology| | PCI topo   | | PCI topo    |
+      |  as 0c:00.0   | | as 0c:01.0  | | as de:00.0 | | as de:01.0  |
       |_______________| |_____________| |____________| |_____________|
             |                  |               |              |
             |                  |               |              |
@@ -272,7 +272,7 @@ Example topology involving a switch::
       |  Root Port 0  |
       |  Appears in   |
       |  PCI topology |
-      |  As 0c:00.0   |
+      |  as 0c:00.0   |
       |___________x___|
                   |
                   |
@@ -313,7 +313,7 @@ A very simple setup with just one directly attached CXL Type 3 Persistent Memory
 
 A very simple setup with just one directly attached CXL Type 3 Volatile Memory device::
 
-  qemu-system-aarch64 -M virt,gic-version=3,cxl=on -m 4g,maxmem=8G,slots=8 -cpu max \
+  qemu-system-x86_64 -M q35,cxl=on -m 4G,maxmem=8G,slots=8 -smp 4 \
   ...
   -object memory-backend-ram,id=vmem0,share=on,size=256M \
   -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
@@ -323,7 +323,7 @@ A very simple setup with just one directly attached CXL Type 3 Volatile Memory d
 
 The same volatile setup may optionally include an LSA region::
 
-  qemu-system-aarch64 -M virt,gic-version=3,cxl=on -m 4g,maxmem=8G,slots=8 -cpu max \
+  qemu-system-x86_64 -M q35,cxl=on -m 4G,maxmem=8G,slots=8 -smp 4 \
   ...
   -object memory-backend-ram,id=vmem0,share=on,size=256M \
   -object memory-backend-file,id=cxl-lsa0,share=on,mem-path=/tmp/lsa.raw,size=256M \
