@@ -743,11 +743,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         if (vhostfdname) {
             vhostfd = monitor_fd_param(monitor_cur(), vhostfdname, &err);
             if (vhostfd == -1) {
-                if (tap->has_vhostforce && tap->vhostforce) {
-                    error_propagate(errp, err);
-                } else {
-                    warn_report_err(err);
-                }
+                error_propagate(errp, err);
                 goto failed;
             }
             if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
@@ -758,13 +754,8 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         } else {
             vhostfd = open("/dev/vhost-net", O_RDWR);
             if (vhostfd < 0) {
-                if (tap->has_vhostforce && tap->vhostforce) {
-                    error_setg_errno(errp, errno,
-                                     "tap: open vhost char device failed");
-                } else {
-                    warn_report("tap: open vhost char device failed: %s",
-                                strerror(errno));
-                }
+                error_setg_errno(errp, errno,
+                                 "tap: open vhost char device failed");
                 goto failed;
             }
             if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
@@ -777,11 +768,8 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
-            if (tap->has_vhostforce && tap->vhostforce) {
-                error_setg(errp, VHOST_NET_INIT_FAILED);
-            } else {
-                warn_report(VHOST_NET_INIT_FAILED);
-            }
+            error_setg(errp,
+                       "vhost-net requested but could not be initialized");
             goto failed;
         }
     } else if (vhostfdname) {
