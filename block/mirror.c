@@ -702,8 +702,12 @@ static int mirror_exit_common(Job *job)
      * mirror_top_bs from now on, so keep it drained. */
     bdrv_drained_begin(mirror_top_bs);
     bs_opaque->stop = true;
+
+    bdrv_graph_rdlock_main_loop();
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
+    bdrv_graph_rdunlock_main_loop();
+
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
         BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
@@ -1670,6 +1674,8 @@ static BlockJob *mirror_start_job(
     uint64_t target_perms, target_shared_perms;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
     }
@@ -1906,8 +1912,10 @@ fail:
     }
 
     bs_opaque->stop = true;
+    bdrv_graph_rdlock_main_loop();
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
+    bdrv_graph_rdunlock_main_loop();
     bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
 
     bdrv_unref(mirror_top_bs);

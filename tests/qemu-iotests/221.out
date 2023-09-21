@@ -5,14 +5,14 @@ QA output created by 221
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65537
 discard 65537/65537 bytes at offset 0
 64.001 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 66048, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
-[{ "start": 0, "length": 66048, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
+[{ "start": 0, "length": 66048, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 66048, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
 wrote 1/1 bytes at offset 65536
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 65536, "length": 1, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 65537, "length": 511, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
-[{ "start": 0, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 65536, "length": 1, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 65537, "length": 511, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
+[{ "start": 0, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET},
+{ "start": 65536, "length": 1, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 65537, "length": 511, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET},
+{ "start": 65536, "length": 1, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 65537, "length": 511, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
 *** done

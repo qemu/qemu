@@ -228,17 +228,9 @@ static void thread_pool_cancel(BlockAIOCB *acb)
 
 }
 
-static AioContext *thread_pool_get_aio_context(BlockAIOCB *acb)
-{
-    ThreadPoolElement *elem = (ThreadPoolElement *)acb;
-    ThreadPool *pool = elem->pool;
-    return pool->ctx;
-}
-
 static const AIOCBInfo thread_pool_aiocb_info = {
     .aiocb_size         = sizeof(ThreadPoolElement),
     .cancel_async       = thread_pool_cancel,
-    .get_aio_context    = thread_pool_get_aio_context,
 };
 
 BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,

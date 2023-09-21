@@ -185,6 +185,8 @@ void bdrv_drain_all_begin_nopoll(void);
 void bdrv_drain_all_end(void);
 void bdrv_drain_all(void);
 
+void bdrv_aio_cancel(BlockAIOCB *acb);
+
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 BlockDriverState *bdrv_find_node(const char *node_name);
@@ -224,13 +226,21 @@ void bdrv_img_create(const char *filename, const char *fmt,
 void bdrv_ref(BlockDriverState *bs);
 void no_coroutine_fn bdrv_unref(BlockDriverState *bs);
 void coroutine_fn no_co_wrapper bdrv_co_unref(BlockDriverState *bs);
-void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
-BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                             BlockDriverState *child_bs,
-                             const char *child_name,
-                             const BdrvChildClass *child_class,
-                             BdrvChildRole child_role,
-                             Error **errp);
+void GRAPH_WRLOCK bdrv_schedule_unref(BlockDriverState *bs);
+
+void GRAPH_WRLOCK
+bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
+
+void coroutine_fn no_co_wrapper_bdrv_wrlock
+bdrv_co_unref_child(BlockDriverState *parent, BdrvChild *child);
+
+BdrvChild * GRAPH_WRLOCK
+bdrv_attach_child(BlockDriverState *parent_bs,
+                  BlockDriverState *child_bs,
+                  const char *child_name,
+                  const BdrvChildClass *child_class,
+                  BdrvChildRole child_role,
+                  Error **errp);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);
@@ -268,9 +278,11 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
 int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
-void bdrv_add_child(BlockDriverState *parent, BlockDriverState *child,
-                    Error **errp);
-void bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
+void GRAPH_WRLOCK
+bdrv_add_child(BlockDriverState *parent, BlockDriverState *child, Error **errp);
+
+void GRAPH_WRLOCK
+bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
 
 /**
  *

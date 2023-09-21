@@ -311,7 +311,7 @@ struct BlockDriver {
      */
     void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 
-    int (*bdrv_inactivate)(BlockDriverState *bs);
+    int GRAPH_RDLOCK_PTR (*bdrv_inactivate)(BlockDriverState *bs);
 
     int (*bdrv_snapshot_create)(BlockDriverState *bs,
                                 QEMUSnapshotInfo *sn_info);
@@ -393,10 +393,11 @@ struct BlockDriver {
      */
     int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
 
-    void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
-                           Error **errp);
-    void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
-                           Error **errp);
+    void GRAPH_WRLOCK_PTR (*bdrv_add_child)(
+        BlockDriverState *parent, BlockDriverState *child, Error **errp);
+
+    void GRAPH_WRLOCK_PTR (*bdrv_del_child)(
+        BlockDriverState *parent, BdrvChild *child, Error **errp);
 
     /**
      * Informs the block driver that a permission change is intended. The
@@ -413,8 +414,8 @@ struct BlockDriver {
      * If both conditions are met, 0 is returned. Otherwise, -errno is returned
      * and errp is set to an error describing the conflict.
      */
-    int (*bdrv_check_perm)(BlockDriverState *bs, uint64_t perm,
-                           uint64_t shared, Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_check_perm)(BlockDriverState *bs, uint64_t perm,
+                                            uint64_t shared, Error **errp);
 
     /**
      * Called to inform the driver that the set of cumulative set of used
@@ -426,7 +427,8 @@ struct BlockDriver {
      * This function is only invoked after bdrv_check_perm(), so block drivers
      * may rely on preparations made in their .bdrv_check_perm implementation.
      */
-    void (*bdrv_set_perm)(BlockDriverState *bs, uint64_t perm, uint64_t shared);
+    void GRAPH_RDLOCK_PTR (*bdrv_set_perm)(
+        BlockDriverState *bs, uint64_t perm, uint64_t shared);
 
     /*
      * Called to inform the driver that after a previous bdrv_check_perm()
@@ -436,7 +438,7 @@ struct BlockDriver {
      * This function can be called even for nodes that never saw a
      * bdrv_check_perm() call. It is a no-op then.
      */
-    void (*bdrv_abort_perm_update)(BlockDriverState *bs);
+    void GRAPH_RDLOCK_PTR (*bdrv_abort_perm_update)(BlockDriverState *bs);
 
     /**
      * Returns in @nperm and @nshared the permissions that the driver for @bs
@@ -450,11 +452,11 @@ struct BlockDriver {
      * permissions, but those that will be needed after applying the
      * @reopen_queue.
      */
-     void (*bdrv_child_perm)(BlockDriverState *bs, BdrvChild *c,
-                             BdrvChildRole role,
-                             BlockReopenQueue *reopen_queue,
-                             uint64_t parent_perm, uint64_t parent_shared,
-                             uint64_t *nperm, uint64_t *nshared);
+     void GRAPH_RDLOCK_PTR (*bdrv_child_perm)(
+        BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
+        BlockReopenQueue *reopen_queue,
+        uint64_t parent_perm, uint64_t parent_shared,
+        uint64_t *nperm, uint64_t *nshared);
 
     /**
      * Register/unregister a buffer for I/O. For example, when the driver is
@@ -944,8 +946,8 @@ struct BdrvChildClass {
      * when migration is completing) and it can start/stop requesting
      * permissions and doing I/O on it.
      */
-    void (*activate)(BdrvChild *child, Error **errp);
-    int (*inactivate)(BdrvChild *child);
+    void GRAPH_RDLOCK_PTR (*activate)(BdrvChild *child, Error **errp);
+    int GRAPH_RDLOCK_PTR (*inactivate)(BdrvChild *child);
 
     void GRAPH_WRLOCK_PTR (*attach)(BdrvChild *child);
     void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);

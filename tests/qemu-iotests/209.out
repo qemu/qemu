@@ -1,4 +1,4 @@
-[{ "start": 0, "length": 524288, "depth": 0, "present": true, "zero": false, "data": true, "offset": 0},
-{ "start": 524288, "length": 524288, "depth": 0, "present": true, "zero": true, "data": false, "offset": 524288}]
+[{ "start": 0, "length": 524288, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 0},
+{ "start": 524288, "length": 524288, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": 524288}]
 
 done.

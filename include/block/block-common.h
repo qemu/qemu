@@ -66,10 +66,14 @@
  * function. The coroutine yields after scheduling the BH and is reentered when
  * the wrapped function returns.
  *
+ * A no_co_wrapper_bdrv_wrlock function is a no_co_wrapper function that
+ * automatically takes the graph wrlock when calling the wrapped function.
+ *
  * If the first parameter of the function is a BlockDriverState, BdrvChild or
  * BlockBackend pointer, the AioContext lock for it is taken in the wrapper.
  */
 #define no_co_wrapper
+#define no_co_wrapper_bdrv_wrlock
 
 #include "block/blockjob.h"
 
@@ -287,6 +291,8 @@ typedef enum {
  *                       layer rather than any backing, set by block layer
  * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this
  *                 layer, set by block layer
+ * BDRV_BLOCK_COMPRESSED: the underlying data is compressed; only valid for
+ *                        the formats supporting compression: qcow, qcow2
  *
  * Internal flags:
  * BDRV_BLOCK_RAW: for use by passthrough drivers, such as raw, to request
@@ -322,6 +328,7 @@ typedef enum {
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_EOF          0x20
 #define BDRV_BLOCK_RECURSE      0x40
+#define BDRV_BLOCK_COMPRESSED   0x80
 
 typedef QTAILQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 

@@ -54,6 +54,7 @@ static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    BlockDriverState *unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
     BlockDriverState *base;
     BlockDriverState *unfiltered_base;
     Error *local_err = NULL;
@@ -64,13 +65,18 @@ static int stream_prepare(Job *job)
     s->cor_filter_bs = NULL;
 
     /*
-     * bdrv_set_backing_hd() requires that unfiltered_bs is drained. Drain
-     * already here and use bdrv_set_backing_hd_drained() instead because
-     * the polling during drained_begin() might change the graph, and if we do
-     * this only later, we may end up working with the wrong base node (or it
-     * might even have gone away by the time we want to use it).
+     * bdrv_set_backing_hd() requires that the unfiltered_bs and the COW child
+     * of unfiltered_bs is drained. Drain already here and use
+     * bdrv_set_backing_hd_drained() instead because the polling during
+     * drained_begin() might change the graph, and if we do this only later, we
+     * may end up working with the wrong base node (or it might even have gone
+     * away by the time we want to use it).
      */
     bdrv_drained_begin(unfiltered_bs);
+    if (unfiltered_bs_cow) {
+        bdrv_ref(unfiltered_bs_cow);
+        bdrv_drained_begin(unfiltered_bs_cow);
+    }
 
     base = bdrv_filter_or_cow_bs(s->above_base);
     unfiltered_base = bdrv_skip_filters(base);
@@ -100,6 +106,10 @@ static int stream_prepare(Job *job)
     }
 
 out:
+    if (unfiltered_bs_cow) {
+        bdrv_drained_end(unfiltered_bs_cow);
+        bdrv_unref(unfiltered_bs_cow);
+    }
     bdrv_drained_end(unfiltered_bs);
     return ret;
 }

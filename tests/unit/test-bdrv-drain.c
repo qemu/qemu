@@ -512,6 +512,7 @@ static void test_iothread_main_thread_bh(void *opaque)
      * executed during drain, otherwise this would deadlock. */
     aio_context_acquire(bdrv_get_aio_context(data->bs));
     bdrv_flush(data->bs);
+    bdrv_dec_in_flight(data->bs); /* incremented by test_iothread_common() */
     aio_context_release(bdrv_get_aio_context(data->bs));
 }
 
@@ -583,6 +584,13 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
             aio_context_acquire(ctx_a);
         }
 
+        /*
+         * Increment in_flight so that do_drain_begin() waits for
+         * test_iothread_main_thread_bh(). This prevents the race between
+         * test_iothread_main_thread_bh() in IOThread a and do_drain_begin() in
+         * this thread. test_iothread_main_thread_bh() decrements in_flight.
+         */
+        bdrv_inc_in_flight(bs);
         aio_bh_schedule_oneshot(ctx_a, test_iothread_main_thread_bh, &data);
 
         /* The request is running on the IOThread a. Draining its block device
@@ -967,9 +975,12 @@ typedef struct BDRVTestTopState {
 static void bdrv_test_top_close(BlockDriverState *bs)
 {
     BdrvChild *c, *next_c;
+
+    bdrv_graph_wrlock(NULL);
     QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
         bdrv_unref_child(bs, c);
     }
+    bdrv_graph_wrunlock();
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1024,7 +1035,7 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     } else {
         BdrvChild *c, *next_c;
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
-            bdrv_unref_child(bs, c);
+            bdrv_co_unref_child(bs, c);
         }
     }
 
@@ -1055,8 +1066,10 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
+    bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
+    bdrv_graph_wrunlock();
 
     /* This child will be the one to pass to requests through to, and
      * it will stall until a drain occurs */
@@ -1064,17 +1077,21 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
                                     &error_abort);
     child_bs->total_sectors = 65536 >> BDRV_SECTOR_BITS;
     /* Takes our reference to child_bs */
+    bdrv_graph_wrlock(NULL);
     tts->wait_child = bdrv_attach_child(bs, child_bs, "wait-child",
                                         &child_of_bds,
                                         BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                                         &error_abort);
+    bdrv_graph_wrunlock();
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
+    bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds, BDRV_CHILD_DATA,
                       &error_abort);
+    bdrv_graph_wrunlock();
 
     blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
@@ -1156,12 +1173,15 @@ static void detach_indirect_bh(void *opaque)
     struct detach_by_parent_data *data = opaque;
 
     bdrv_dec_in_flight(data->child_b->bs);
+
+    bdrv_graph_wrlock(NULL);
     bdrv_unref_child(data->parent_b, data->child_b);
 
     bdrv_ref(data->c);
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
                                       &child_of_bds, BDRV_CHILD_DATA,
                                       &error_abort);
+    bdrv_graph_wrunlock();
 }
 
 static void detach_by_parent_aio_cb(void *opaque, int ret)
@@ -1258,6 +1278,7 @@ static void test_detach_indirect(bool by_parent_cb)
     /* Set child relationships */
     bdrv_ref(b);
     bdrv_ref(a);
+    bdrv_graph_wrlock(NULL);
     child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_of_bds,
                                 BDRV_CHILD_DATA, &error_abort);
     child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_of_bds,
@@ -1267,6 +1288,7 @@ static void test_detach_indirect(bool by_parent_cb)
     bdrv_attach_child(parent_a, a, "PA-A",
                       by_parent_cb ? &child_of_bds : &detach_by_driver_cb_class,
                       BDRV_CHILD_DATA, &error_abort);
+    bdrv_graph_wrunlock();
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
     g_assert_cmpint(parent_b->refcnt, ==, 1);
@@ -1359,7 +1381,10 @@ static void test_append_to_drained(void)
     g_assert_cmpint(base_s->drain_count, ==, 1);
     g_assert_cmpint(base->in_flight, ==, 0);
 
+    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(overlay, base, &error_abort);
+    aio_context_release(qemu_get_aio_context());
+
     g_assert_cmpint(base->in_flight, ==, 0);
     g_assert_cmpint(overlay->in_flight, ==, 0);
 
@@ -1682,6 +1707,7 @@ static void test_drop_intermediate_poll(void)
      * Establish the chain last, so the chain links are the first
      * elements in the BDS.parents lists
      */
+    bdrv_graph_wrlock(NULL);
     for (i = 0; i < 3; i++) {
         if (i) {
             /* Takes the reference to chain[i - 1] */
@@ -1689,6 +1715,7 @@ static void test_drop_intermediate_poll(void)
                               &chain_child_class, BDRV_CHILD_COW, &error_abort);
         }
     }
+    bdrv_graph_wrunlock();
 
     job = block_job_create("job", &test_simple_job_driver, NULL, job_node,
                            0, BLK_PERM_ALL, 0, 0, NULL, NULL, &error_abort);
@@ -1933,8 +1960,10 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     new_child_bs->total_sectors = 1;
 
     bdrv_ref(old_child_bs);
+    bdrv_graph_wrlock(NULL);
     bdrv_attach_child(parent_bs, old_child_bs, "child", &child_of_bds,
                       BDRV_CHILD_COW, &error_abort);
+    bdrv_graph_wrunlock();
     parent_s->setup_completed = true;
 
     for (i = 0; i < old_drain_count; i++) {

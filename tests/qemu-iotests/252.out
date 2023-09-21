@@ -23,8 +23,8 @@ read 131072/131072 bytes at offset 131072
 read 131072/131072 bytes at offset 262144
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-[{ "start": 0, "length": 262144, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 262144, "length": 131072, "depth": 0, "present": false, "zero": true, "data": false}]
+[{ "start": 0, "length": 262144, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 262144, "length": 131072, "depth": 0, "present": false, "zero": true, "data": false, "compressed": false}]
 
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -33,7 +33,7 @@ read 131072/131072 bytes at offset 131072
 read 131072/131072 bytes at offset 262144
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-[{ "start": 0, "length": 262144, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 262144, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false},
-{ "start": 327680, "length": 65536, "depth": 1, "present": false, "zero": true, "data": false}]
+[{ "start": 0, "length": 262144, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 262144, "length": 65536, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false},
+{ "start": 327680, "length": 65536, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false}]
 *** done

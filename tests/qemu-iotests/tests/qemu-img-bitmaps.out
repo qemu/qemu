@@ -103,18 +103,18 @@ Format specific information:
 
 === Check bitmap contents ===
 
-[{ "start": 0, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 3145728, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 4194304, "length": 6291456, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 0, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1048576, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 2097152, "length": 8388608, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 3145728, "length": 7340032, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 3145728, "length": 7340032, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 3145728, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 4194304, "length": 6291456, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 1048576, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 2097152, "length": 8388608, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 3145728, "length": 7340032, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 3145728, "length": 7340032, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
 
 === Check handling of inconsistent bitmap ===
 

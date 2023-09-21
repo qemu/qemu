@@ -206,17 +206,9 @@ static void dma_aio_cancel(BlockAIOCB *acb)
     }
 }
 
-static AioContext *dma_get_aio_context(BlockAIOCB *acb)
-{
-    DMAAIOCB *dbs = container_of(acb, DMAAIOCB, common);
-
-    return dbs->ctx;
-}
-
 static const AIOCBInfo dma_aiocb_info = {
     .aiocb_size         = sizeof(DMAAIOCB),
     .cancel_async       = dma_aio_cancel,
-    .get_aio_context    = dma_get_aio_context,
 };
 
 BlockAIOCB *dma_blk_io(AioContext *ctx,

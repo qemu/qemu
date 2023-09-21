@@ -101,7 +101,6 @@ bdrv_co_delete_file_noerr(BlockDriverState *bs);
 
 
 /* async block I/O */
-void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 /* sg packet commands */

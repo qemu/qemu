@@ -272,6 +272,7 @@ static void vmdk_free_extents(BlockDriverState *bs)
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *e;
 
+    bdrv_graph_wrlock(NULL);
     for (i = 0; i < s->num_extents; i++) {
         e = &s->extents[i];
         g_free(e->l1_table);
@@ -282,6 +283,8 @@ static void vmdk_free_extents(BlockDriverState *bs)
             bdrv_unref_child(bs, e->file);
         }
     }
+    bdrv_graph_wrunlock();
+
     g_free(s->extents);
 }
 
@@ -1220,7 +1223,9 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             ret = vmdk_add_extent(bs, extent_file, true, sectors,
                             0, 0, 0, 0, 0, &extent, errp);
             if (ret < 0) {
+                bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
+                bdrv_graph_wrunlock();
                 goto out;
             }
             extent->flat_start_offset = flat_offset << 9;
@@ -1235,20 +1240,26 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             }
             g_free(buf);
             if (ret) {
+                bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
+                bdrv_graph_wrunlock();
                 goto out;
             }
             extent = &s->extents[s->num_extents - 1];
         } else if (!strcmp(type, "SESPARSE")) {
             ret = vmdk_open_se_sparse(bs, extent_file, bs->open_flags, errp);
             if (ret) {
+                bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
+                bdrv_graph_wrunlock();
                 goto out;
             }
             extent = &s->extents[s->num_extents - 1];
         } else {
             error_setg(errp, "Unsupported extent type '%s'", type);
+            bdrv_graph_wrlock(NULL);
             bdrv_unref_child(bs, extent_file);
+            bdrv_graph_wrunlock();
             ret = -ENOTSUP;
             goto out;
         }
@@ -1308,6 +1319,8 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -1770,6 +1783,8 @@ vmdk_co_block_status(BlockDriverState *bs, bool want_zero,
             if (extent->flat) {
                 ret |= BDRV_BLOCK_RECURSE;
             }
+        } else {
+            ret |= BDRV_BLOCK_COMPRESSED;
         }
         *file = extent->file->bs;
         break;

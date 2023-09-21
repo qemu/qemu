@@ -1037,12 +1037,14 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
 
 close_exit:
     /* cleanup on error */
+    bdrv_graph_wrlock(NULL);
     for (i = 0; i < s->num_children; i++) {
         if (!opened[i]) {
             continue;
         }
         bdrv_unref_child(bs, s->children[i]);
     }
+    bdrv_graph_wrunlock();
     g_free(s->children);
     g_free(opened);
 exit:
@@ -1055,15 +1057,17 @@ static void quorum_close(BlockDriverState *bs)
     BDRVQuorumState *s = bs->opaque;
     int i;
 
+    bdrv_graph_wrlock(NULL);
     for (i = 0; i < s->num_children; i++) {
         bdrv_unref_child(bs, s->children[i]);
     }
+    bdrv_graph_wrunlock();
 
     g_free(s->children);
 }
 
-static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
-                             Error **errp)
+static void GRAPH_WRLOCK
+quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs, Error **errp)
 {
     BDRVQuorumState *s = bs->opaque;
     BdrvChild *child;
@@ -1089,8 +1093,6 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     }
     s->next_child_index++;
 
-    bdrv_drained_begin(bs);
-
     /* We can safely add the child now */
     bdrv_ref(child_bs);
 
@@ -1098,18 +1100,15 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
                               BDRV_CHILD_DATA, errp);
     if (child == NULL) {
         s->next_child_index--;
-        goto out;
+        return;
     }
     s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);
     s->children[s->num_children++] = child;
     quorum_refresh_flags(bs);
-
-out:
-    bdrv_drained_end(bs);
 }
 
-static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
-                             Error **errp)
+static void GRAPH_WRLOCK
+quorum_del_child(BlockDriverState *bs, BdrvChild *child, Error **errp)
 {
     BDRVQuorumState *s = bs->opaque;
     char indexstr[INDEXSTR_LEN];
@@ -1139,16 +1138,14 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
         s->next_child_index--;
     }
 
-    bdrv_drained_begin(bs);
-
     /* We can safely remove this child now */
     memmove(&s->children[i], &s->children[i + 1],
             (s->num_children - i - 1) * sizeof(BdrvChild *));
     s->children = g_renew(BdrvChild *, s->children, --s->num_children);
+
     bdrv_unref_child(bs, child);
 
     quorum_refresh_flags(bs);
-    bdrv_drained_end(bs);
 }
 
 static void quorum_gather_child_options(BlockDriverState *bs, QDict *target,

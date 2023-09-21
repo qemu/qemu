@@ -2950,25 +2950,18 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 /**************************************************************/
 /* async I/Os */
 
+/**
+ * Synchronously cancels an acb. Must be called with the BQL held and the acb
+ * must be processed with the BQL held too (IOThreads are not allowed).
+ *
+ * Use bdrv_aio_cancel_async() instead when possible.
+ */
 void bdrv_aio_cancel(BlockAIOCB *acb)
 {
-    IO_CODE();
+    GLOBAL_STATE_CODE();
     qemu_aio_ref(acb);
     bdrv_aio_cancel_async(acb);
-    while (acb->refcnt > 1) {
-        if (acb->aiocb_info->get_aio_context) {
-            aio_poll(acb->aiocb_info->get_aio_context(acb), true);
-        } else if (acb->bs) {
-            /* qemu_aio_ref and qemu_aio_unref are not thread-safe, so
-             * assert that we're not using an I/O thread.  Thread-safe
-             * code should use bdrv_aio_cancel_async exclusively.
-             */
-            assert(bdrv_get_aio_context(acb->bs) == qemu_get_aio_context());
-            aio_poll(bdrv_get_aio_context(acb->bs), true);
-        } else {
-            abort();
-        }
-    }
+    AIO_WAIT_WHILE_UNLOCKED(NULL, acb->refcnt > 1);
     qemu_aio_unref(acb);
 }
 
