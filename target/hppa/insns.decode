@@ -68,6 +68,7 @@
 &rrr            t r1 r2
 &rrr_cf         t r1 r2 cf
 &rrr_cf_d       t r1 r2 cf d
+&rrr_sh         t r1 r2 sh
 &rrr_cf_d_sh    t r1 r2 cf d sh
 &rri            t r i
 &rri_cf         t r i cf
@@ -86,6 +87,7 @@
 @rrr            ...... r2:5 r1:5 .... ....... t:5       &rrr
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
 @rrr_cf_d       ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d
+@rrr_sh         ...... r2:5 r1:5 ........ sh:2 . t:5    &rrr_sh
 @rrr_cf_d_sh    ...... r2:5 r1:5 cf:4 .... sh:2 d:1 t:5 &rrr_cf_d_sh
 @rrr_cf_d_sh0   ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d_sh sh=0
 @rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
@@ -187,14 +189,20 @@ dcor_i          000010 ..... 00000 .... 101111 . .....  @rr_cf_d
 add             000010 ..... ..... .... 0110.. . .....  @rrr_cf_d_sh
 add_l           000010 ..... ..... .... 1010.. . .....  @rrr_cf_d_sh
 add_tsv         000010 ..... ..... .... 1110.. . .....  @rrr_cf_d_sh
-add_c           000010 ..... ..... .... 011100 . .....  @rrr_cf_d_sh0
+{
+  add_c         000010 ..... ..... .... 011100 . .....  @rrr_cf_d_sh0
+  hshladd       000010 ..... ..... 0000 0111.. 0 .....  @rrr_sh
+}
 add_c_tsv       000010 ..... ..... .... 111100 . .....  @rrr_cf_d_sh0
 
 sub             000010 ..... ..... .... 010000 . .....  @rrr_cf_d
 sub_tsv         000010 ..... ..... .... 110000 . .....  @rrr_cf_d
 sub_tc          000010 ..... ..... .... 010011 . .....  @rrr_cf_d
 sub_tsv_tc      000010 ..... ..... .... 110011 . .....  @rrr_cf_d
-sub_b           000010 ..... ..... .... 010100 . .....  @rrr_cf_d
+{
+  sub_b         000010 ..... ..... .... 010100 . .....  @rrr_cf_d
+  hshradd       000010 ..... ..... 0000 0101.. 0 .....  @rrr_sh
+}
 sub_b_tsv       000010 ..... ..... .... 110100 . .....  @rrr_cf_d
 
 ldil            001000 t:5 .....................        i=%assemble_21
