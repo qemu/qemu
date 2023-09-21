@@ -28,19 +28,35 @@
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
 {
     target_ureg psw;
+    target_ureg mask1 = (target_ureg)-1 / 0xf;
+    target_ureg maskf = (target_ureg)-1 / 0xffff * 0xf;
 
     /* Fold carry bits down to 8 consecutive bits.  */
-    /* ??? Needs tweaking for hppa64.  */
-    /* .......b...c...d...e...f...g...h */
-    psw = (env->psw_cb >> 4) & 0x01111111;
-    /* .......b..bc..cd..de..ef..fg..gh */
+    /* ^^^b^^^c^^^d^^^e^^^f^^^g^^^h^^^i^^^j^^^k^^^l^^^m^^^n^^^o^^^p^^^^ */
+    /*                                 ^^^b^^^c^^^d^^^e^^^f^^^g^^^h^^^^ */
+    psw = (env->psw_cb >> 4) & mask1;
+    /* .......b...c...d...e...f...g...h...i...j...k...l...m...n...o...p */
+    /*                                 .......b...c...d...e...f...g...h */
     psw |= psw >> 3;
-    /* .............bcd............efgh */
-    psw |= (psw >> 6) & 0x000f000f;
-    /* .........................bcdefgh */
-    psw |= (psw >> 12) & 0xf;
-    psw |= env->psw_cb_msb << 7;
-    psw = (psw & 0xff) << 8;
+    /* .......b..bc..cd..de..ef..fg..gh..hi..ij..jk..kl..lm..mn..no..op */
+    /*                                 .......b..bc..cd..de..ef..fg..gh */
+    psw |= psw >> 6;
+    psw &= maskf;
+    /* .............bcd............efgh............ijkl............mnop */
+    /*                                 .............bcd............efgh */
+    psw |= psw >> 12;
+    /* .............bcd.........bcdefgh........efghijkl........ijklmnop */
+    /*                                 .............bcd.........bcdefgh */
+    psw |= env->psw_cb_msb << (TARGET_REGISTER_BITS == 64 ? 39 : 7);
+    /* .............bcd........abcdefgh........efghijkl........ijklmnop */
+    /*                                 .............bcd........abcdefgh */
+
+    /* For hppa64, the two 8-bit fields are discontiguous. */
+    if (hppa_is_pa20(env)) {
+        psw = (psw & 0xff00000000ull) | ((psw & 0xff) << 8);
+    } else {
+        psw = (psw & 0xff) << 8;
+    }
 
     psw |= env->psw_n * PSW_N;
     psw |= (env->psw_v < 0) * PSW_V;
@@ -51,13 +67,38 @@ target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
 
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
 {
+    uint64_t reserved;
     target_ureg cb = 0;
+
+    /* Do not allow reserved bits to be set. */
+    if (hppa_is_pa20(env)) {
+        reserved = MAKE_64BIT_MASK(40, 24) | MAKE_64BIT_MASK(28, 4);
+        reserved |= PSW_G;                  /* PA1.x only */
+        reserved |= PSW_E;                  /* not implemented */
+    } else {
+        reserved = MAKE_64BIT_MASK(32, 32) | MAKE_64BIT_MASK(28, 2);
+        reserved |= PSW_O | PSW_W;          /* PA2.0 only */
+        reserved |= PSW_E | PSW_Y | PSW_Z;  /* not implemented */
+    }
+    psw &= ~reserved;
 
     env->psw = psw & ~(PSW_N | PSW_V | PSW_CB);
     env->psw_n = (psw / PSW_N) & 1;
     env->psw_v = -((psw / PSW_V) & 1);
-    env->psw_cb_msb = (psw >> 15) & 1;
 
+#if TARGET_REGISTER_BITS == 32
+    env->psw_cb_msb = (psw >> 15) & 1;
+#else
+    env->psw_cb_msb = (psw >> 39) & 1;
+    cb |= ((psw >> 38) & 1) << 60;
+    cb |= ((psw >> 37) & 1) << 56;
+    cb |= ((psw >> 36) & 1) << 52;
+    cb |= ((psw >> 35) & 1) << 48;
+    cb |= ((psw >> 34) & 1) << 44;
+    cb |= ((psw >> 33) & 1) << 40;
+    cb |= ((psw >> 32) & 1) << 36;
+    cb |= ((psw >> 15) & 1) << 32;
+#endif
     cb |= ((psw >> 14) & 1) << 28;
     cb |= ((psw >> 13) & 1) << 24;
     cb |= ((psw >> 12) & 1) << 20;
