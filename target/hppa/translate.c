@@ -2891,6 +2891,61 @@ static bool trans_hsub_us(DisasContext *ctx, arg_rrr *a)
     return do_multimedia(ctx, a, gen_helper_hsub_us);
 }
 
+static void gen_mixh_l(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    uint64_t mask = 0xffff0000ffff0000ull;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(tmp, r2, mask);
+    tcg_gen_andi_i64(dst, r1, mask);
+    tcg_gen_shri_i64(tmp, tmp, 16);
+    tcg_gen_or_i64(dst, dst, tmp);
+}
+
+static bool trans_mixh_l(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixh_l);
+}
+
+static void gen_mixh_r(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    uint64_t mask = 0x0000ffff0000ffffull;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(tmp, r1, mask);
+    tcg_gen_andi_i64(dst, r2, mask);
+    tcg_gen_shli_i64(tmp, tmp, 16);
+    tcg_gen_or_i64(dst, dst, tmp);
+}
+
+static bool trans_mixh_r(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixh_r);
+}
+
+static void gen_mixw_l(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(tmp, r2, 32);
+    tcg_gen_deposit_i64(dst, r1, tmp, 0, 32);
+}
+
+static bool trans_mixw_l(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixw_l);
+}
+
+static void gen_mixw_r(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    tcg_gen_deposit_i64(dst, r2, r1, 32, 32);
+}
+
+static bool trans_mixw_r(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixw_r);
+}
+
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
     if (!ctx->is_pa20 && a->size > MO_32) {
