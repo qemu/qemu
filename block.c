@@ -3072,18 +3072,19 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
                                               &local_err);
 
         if (ret < 0 && child_class->change_aio_ctx) {
-            Transaction *tran = tran_new();
+            Transaction *aio_ctx_tran = tran_new();
             GHashTable *visited = g_hash_table_new(NULL, NULL);
             bool ret_child;
 
             g_hash_table_add(visited, new_child);
             ret_child = child_class->change_aio_ctx(new_child, child_ctx,
-                                                    visited, tran, NULL);
+                                                    visited, aio_ctx_tran,
+                                                    NULL);
             if (ret_child == true) {
                 error_free(local_err);
                 ret = 0;
             }
-            tran_finalize(tran, ret_child == true ? 0 : -1);
+            tran_finalize(aio_ctx_tran, ret_child == true ? 0 : -1);
             g_hash_table_destroy(visited);
         }
 
@@ -6208,12 +6209,12 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
     QLIST_FOREACH(drv, &bdrv_drivers, list) {
         if (drv->format_name) {
             bool found = false;
-            int i = count;
 
             if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, read_only)) {
                 continue;
             }
 
+            i = count;
             while (formats && i && !found) {
                 found = !strcmp(formats[--i], drv->format_name);
             }
