@@ -671,6 +671,8 @@ static void integratorcp_init(MachineState *machine)
     }
 
     dev = qdev_new("pl110");
+    object_property_set_link(OBJECT(dev), "framebuffer-memory",
+                             OBJECT(address_space_mem), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xc0000000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[22]);
