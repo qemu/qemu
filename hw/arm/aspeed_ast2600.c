@@ -388,7 +388,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->timerctrl), 0,
                     sc->memmap[ASPEED_DEV_TIMER1]);
     for (i = 0; i < ASPEED_TIMER_NR_TIMERS; i++) {
-        qemu_irq irq = aspeed_soc_get_irq(s, ASPEED_DEV_TIMER1 + i);
+        irq = aspeed_soc_get_irq(s, ASPEED_DEV_TIMER1 + i);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->timerctrl), i, irq);
     }
 
@@ -413,8 +413,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i2c), 0, sc->memmap[ASPEED_DEV_I2C]);
     for (i = 0; i < ASPEED_I2C_GET_CLASS(&s->i2c)->num_busses; i++) {
-        qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
-                                        sc->irqmap[ASPEED_DEV_I2C] + i);
+        irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                               sc->irqmap[ASPEED_DEV_I2C] + i);
         /* The AST2600 I2C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
     }
@@ -611,8 +611,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i3c), 0, sc->memmap[ASPEED_DEV_I3C]);
     for (i = 0; i < ASPEED_I3C_NR_DEVICES; i++) {
-        qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
-                                        sc->irqmap[ASPEED_DEV_I3C] + i);
+        irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                               sc->irqmap[ASPEED_DEV_I3C] + i);
         /* The AST2600 I3C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i3c.devices[i]), 0, irq);
     }
