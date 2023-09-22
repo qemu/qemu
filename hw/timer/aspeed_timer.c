@@ -167,7 +167,7 @@ static uint64_t calculate_next(struct AspeedTimer *t)
         qemu_set_irq(t->irq, t->level);
     }
 
-    next = MAX(MAX(calculate_match(t, 0), calculate_match(t, 1)), 0);
+    next = MAX(calculate_match(t, 0), calculate_match(t, 1));
     t->start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     return calculate_time(t, next);
