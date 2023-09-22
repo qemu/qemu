@@ -619,7 +619,7 @@ static void dsound_audio_fini (void *opaque)
     g_free(s);
 }
 
-static void *dsound_audio_init(Audiodev *dev)
+static void *dsound_audio_init(Audiodev *dev, Error **errp)
 {
     int err;
     HRESULT hr;

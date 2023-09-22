@@ -518,7 +518,7 @@ static void sndio_fini_in(HWVoiceIn *hw)
     sndio_fini(self);
 }
 
-static void *sndio_audio_init(Audiodev *dev)
+static void *sndio_audio_init(Audiodev *dev, Error **errp)
 {
     assert(dev->driver == AUDIODEV_DRIVER_SNDIO);
     return dev;

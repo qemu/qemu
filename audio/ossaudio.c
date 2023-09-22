@@ -28,6 +28,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/host-utils.h"
+#include "qapi/error.h"
 #include "audio.h"
 #include "trace.h"
 
@@ -736,7 +737,7 @@ static void oss_init_per_direction(AudiodevOssPerDirectionOptions *opdo)
     }
 }
 
-static void *oss_audio_init(Audiodev *dev)
+static void *oss_audio_init(Audiodev *dev, Error **errp)
 {
     AudiodevOssOptions *oopts;
     assert(dev->driver == AUDIODEV_DRIVER_OSS);
@@ -745,8 +746,12 @@ static void *oss_audio_init(Audiodev *dev)
     oss_init_per_direction(oopts->in);
     oss_init_per_direction(oopts->out);
 
-    if (access(oopts->in->dev ?: "/dev/dsp", R_OK | W_OK) < 0 ||
-        access(oopts->out->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
+    if (access(oopts->in->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
+        error_setg_errno(errp, errno, "%s not accessible", oopts->in->dev ?: "/dev/dsp");
+        return NULL;
+    }
+    if (access(oopts->out->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
+        error_setg_errno(errp, errno, "%s not accessible", oopts->out->dev ?: "/dev/dsp");
         return NULL;
     }
     return dev;

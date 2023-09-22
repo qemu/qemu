@@ -33,6 +33,7 @@
 #include "qapi/qapi-visit-audio.h"
 #include "qapi/qapi-commands-audio.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/help_option.h"
@@ -1555,7 +1556,9 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 static int audio_driver_init(AudioState *s, struct audio_driver *drv,
                              bool msg, Audiodev *dev)
 {
-    s->drv_opaque = drv->init(dev);
+    Error *local_err = NULL;
+
+    s->drv_opaque = drv->init(dev, &local_err);
 
     if (s->drv_opaque) {
         if (!drv->pcm_ops->get_buffer_in) {
@@ -1572,8 +1575,12 @@ static int audio_driver_init(AudioState *s, struct audio_driver *drv,
         s->drv = drv;
         return 0;
     } else {
-        if (msg) {
-            dolog("Could not init `%s' audio driver\n", drv->name);
+        if (!msg) {
+            error_free(local_err);
+        } else if (local_err) {
+            error_report_err(local_err);
+        } else {
+            error_report("Could not init `%s' audio driver", drv->name);
         }
         return -1;
     }

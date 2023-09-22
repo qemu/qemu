@@ -644,7 +644,7 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
     update_device_playback_state(core);
 }
 
-static void *coreaudio_audio_init(Audiodev *dev)
+static void *coreaudio_audio_init(Audiodev *dev, Error **errp)
 {
     return dev;
 }

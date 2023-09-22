@@ -395,7 +395,7 @@ dbus_enable_in(HWVoiceIn *hw, bool enable)
 }
 
 static void *
-dbus_audio_init(Audiodev *dev)
+dbus_audio_init(Audiodev *dev, Error **errp)
 {
     DBusAudio *da = g_new0(DBusAudio, 1);
 

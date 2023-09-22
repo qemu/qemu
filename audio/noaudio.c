@@ -104,7 +104,7 @@ static void no_enable_in(HWVoiceIn *hw, bool enable)
     }
 }
 
-static void *no_audio_init(Audiodev *dev)
+static void *no_audio_init(Audiodev *dev, Error **errp)
 {
     return &no_audio_init;
 }
