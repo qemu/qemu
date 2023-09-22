@@ -138,6 +138,9 @@ static int64_t npcm7xx_timer_count_to_ns(NPCM7xxTimer *t, uint32_t count)
 /* Convert a time interval in nanoseconds to a timer cycle count. */
 static uint32_t npcm7xx_timer_ns_to_count(NPCM7xxTimer *t, int64_t ns)
 {
+    if (ns < 0) {
+        return 0;
+    }
     return clock_ns_to_ticks(t->ctrl->clock, ns) /
         npcm7xx_tcsr_prescaler(t->tcsr);
 }
