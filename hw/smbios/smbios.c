@@ -1423,13 +1423,14 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             if (!qemu_opts_validate(opts, qemu_smbios_type8_opts, errp)) {
                 return;
             }
-            struct type8_instance *t;
-            t = g_new0(struct type8_instance, 1);
-            save_opt(&t->internal_reference, opts, "internal_reference");
-            save_opt(&t->external_reference, opts, "external_reference");
-            t->connector_type = qemu_opt_get_number(opts, "connector_type", 0);
-            t->port_type = qemu_opt_get_number(opts, "port_type", 0);
-            QTAILQ_INSERT_TAIL(&type8, t, next);
+            struct type8_instance *t8_i;
+            t8_i = g_new0(struct type8_instance, 1);
+            save_opt(&t8_i->internal_reference, opts, "internal_reference");
+            save_opt(&t8_i->external_reference, opts, "external_reference");
+            t8_i->connector_type = qemu_opt_get_number(opts,
+                                                       "connector_type", 0);
+            t8_i->port_type = qemu_opt_get_number(opts, "port_type", 0);
+            QTAILQ_INSERT_TAIL(&type8, t8_i, next);
             return;
         case 11:
             if (!qemu_opts_validate(opts, qemu_smbios_type11_opts, errp)) {
@@ -1452,27 +1453,27 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             type17.speed = qemu_opt_get_number(opts, "speed", 0);
             return;
         case 41: {
-            struct type41_instance *t;
+            struct type41_instance *t41_i;
             Error *local_err = NULL;
 
             if (!qemu_opts_validate(opts, qemu_smbios_type41_opts, errp)) {
                 return;
             }
-            t = g_new0(struct type41_instance, 1);
-            save_opt(&t->designation, opts, "designation");
-            t->kind = qapi_enum_parse(&type41_kind_lookup,
-                                      qemu_opt_get(opts, "kind"),
-                                      0, &local_err) + 1;
-            t->kind |= 0x80;     /* enabled */
+            t41_i = g_new0(struct type41_instance, 1);
+            save_opt(&t41_i->designation, opts, "designation");
+            t41_i->kind = qapi_enum_parse(&type41_kind_lookup,
+                                          qemu_opt_get(opts, "kind"),
+                                          0, &local_err) + 1;
+            t41_i->kind |= 0x80;     /* enabled */
             if (local_err != NULL) {
                 error_propagate(errp, local_err);
-                g_free(t);
+                g_free(t41_i);
                 return;
             }
-            t->instance = qemu_opt_get_number(opts, "instance", 1);
-            save_opt(&t->pcidev, opts, "pcidev");
+            t41_i->instance = qemu_opt_get_number(opts, "instance", 1);
+            save_opt(&t41_i->pcidev, opts, "pcidev");
 
-            QTAILQ_INSERT_TAIL(&type41, t, next);
+            QTAILQ_INSERT_TAIL(&type41, t41_i, next);
             return;
         }
         default:
