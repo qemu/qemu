@@ -26,6 +26,7 @@
 #include "audio/audio.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
@@ -65,10 +66,11 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     int nchannels = qdict_get_try_int(qdict, "nchannels", 2);
     const char *audiodev = qdict_get_str(qdict, "audiodev");
     CaptureState *s;
-    AudioState *as = audio_state_by_name(audiodev);
+    Error *local_err = NULL;
+    AudioState *as = audio_state_by_name(audiodev, &local_err);
 
     if (!as) {
-        monitor_printf(mon, "Audiodev '%s' not found\n", audiodev);
+        error_report_err(local_err);
         return;
     }
 
