@@ -7,6 +7,7 @@
  * See the COPYING.LIB file in the top-level directory.
  *
  */
+#include <stdbool.h>
 
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H

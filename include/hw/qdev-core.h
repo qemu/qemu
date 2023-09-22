@@ -9,6 +9,7 @@
 #include "qom/object.h"
 #include "hw/hotplug.h"
 #include "hw/resettable.h"
+#include <stdbool.h>
 
 /**
  * DOC: The QEMU Device API

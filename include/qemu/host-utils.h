@@ -32,6 +32,8 @@
 
 #include "qemu/bswap.h"
 #include "qemu/int128.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh,

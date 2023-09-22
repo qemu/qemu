@@ -15,6 +15,9 @@
 
 #include "host-utils.h"
 #include "atomic.h"
+#include "qemu/osdep.h"
+#include <limits.h>
+#include <stddef.h>
 
 #define BITS_PER_BYTE           CHAR_BIT
 #define BITS_PER_LONG           (sizeof (unsigned long) * BITS_PER_BYTE)

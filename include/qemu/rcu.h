@@ -30,7 +30,7 @@
 #include "qemu/notify.h"
 #include "qemu/sys_membarrier.h"
 #include "qemu/coroutine-tls.h"
-
+#include <stdbool.h>
 /*
  * Important !
  *

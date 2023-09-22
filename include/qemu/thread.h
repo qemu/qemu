@@ -4,6 +4,7 @@
 #include "qemu/processor.h"
 #include "qemu/atomic.h"
 #include "qemu/clang-tsa.h"
+#include <stdbool.h>
 
 typedef struct QemuCond QemuCond;
 typedef struct QemuSemaphore QemuSemaphore;

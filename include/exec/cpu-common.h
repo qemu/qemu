@@ -1,3 +1,6 @@
+#include <stdbool.h>
+#include <stdint.h>
+
 #ifndef CPU_COMMON_H
 #define CPU_COMMON_H
 

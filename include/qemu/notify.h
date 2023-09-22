@@ -15,6 +15,7 @@
 #define QEMU_NOTIFY_H
 
 #include "qemu/queue.h"
+#include <stdbool.h>
 
 typedef struct Notifier Notifier;
 

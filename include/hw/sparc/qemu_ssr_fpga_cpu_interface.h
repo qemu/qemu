@@ -62,6 +62,20 @@ struct qemu_ssr_reg_config {
 		unsigned int write_trigger;
 };
 
+/*******************************************************************************
+* Function: qemu_cpu_ssr_init
+*
+* Description:
+* Initialize QEMU SSR Interface
+*
+* Return:
+*  0 if read successful
+* -1 if read not successful
+*
+*******************************************************************************/
+
+int qemu_cpu_ssr_init(void);
+
 #ifdef __cplusplus
 }
 #endif

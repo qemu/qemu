@@ -1,3 +1,6 @@
+#include <stdint.h>
+#include <glib.h>
+
 #ifndef BSWAP_H
 #define BSWAP_H
 

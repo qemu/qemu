@@ -14,6 +14,7 @@
 #define HW_RESETTABLE_H
 
 #include "qom/object.h"
+#include <stdbool.h>
 
 #define TYPE_RESETTABLE_INTERFACE "resettable"
 

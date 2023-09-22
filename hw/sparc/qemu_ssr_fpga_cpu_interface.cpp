@@ -265,7 +265,7 @@ int qemu_cpu_ssr_init(void) {
 
     for (int index = 0; index < QEMU_SSR_NUM_REGS; index++) {
         qemu_ssr_fpga_regs[index] = qemu_ssr_fpga_regs_data[index];
-        for (int index_reg = 0; index_reg < qemu_ssr_fpga_regs[index].num_words*4; index_reg++) {
+        for (unsigned int index_reg = 0; index_reg < qemu_ssr_fpga_regs[index].num_words*4; index_reg++) {
             qemu_ssr_fpga_memory_op[qemu_ssr_fpga_regs[index].reg_offset+index_reg] = index;
         }
     }

@@ -14,6 +14,8 @@
 
 
 #include "qemu/bitops.h"
+#include <stdbool.h>
+#include <glib.h>
 
 /*
  * The available bitmap operations and their rough meaning in the

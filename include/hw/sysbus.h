@@ -14,6 +14,7 @@
 DECLARE_INSTANCE_CHECKER(BusState, SYSTEM_BUS,
                          TYPE_SYSTEM_BUS)
 
+typedef struct SysBusDevice SysBusDevice;
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"
 OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,

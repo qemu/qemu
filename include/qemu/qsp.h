@@ -8,6 +8,8 @@
  *
  * Note: this header file can *only* be included from thread.h.
  */
+#include <stdbool.h>
+
 #ifndef QEMU_QSP_H
 #define QEMU_QSP_H
 

@@ -62,8 +62,8 @@ static void ssr_fpga_init(Object *obj)
 
     qemu_cpu_ssr_init();
 
-    memory_region_init_io(&pnp->ssr_iomem, OBJECT(pnp), &srr_fpga_ops, pnp,
-                          "ssrpnp", QEMU_SSR_MEMORY_SIZE);
+    /* memory_region_init_io(&pnp->ssr_iomem, OBJECT(pnp), &srr_fpga_ops, pnp,
+                          "ssrpnp", QEMU_SSR_MEMORY_SIZE); */
     sysbus_init_mmio(sbd, &pnp->ssr_iomem);
 }
 

@@ -2,6 +2,9 @@
 #define INT128_H
 
 #include "qemu/bswap.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <assert.h>
 
 /*
  * With TCI, we need to use libffi for interfacing with TCG helpers.
