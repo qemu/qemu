@@ -283,9 +283,9 @@ static uint32_t qemu_seccomp_update_action(uint32_t action)
     if (action == SCMP_ACT_TRAP) {
         static int kill_process = -1;
         if (kill_process == -1) {
-            uint32_t action = SECCOMP_RET_KILL_PROCESS;
+            uint32_t testaction = SECCOMP_RET_KILL_PROCESS;
 
-            if (qemu_seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &action) == 0) {
+            if (qemu_seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &testaction) == 0) {
                 kill_process = 1;
             } else {
                 kill_process = 0;
