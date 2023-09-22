@@ -127,13 +127,9 @@ struct E1000State_st {
     QEMUTimer *flush_queue_timer;
 
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
-#define E1000_FLAG_AUTONEG_BIT 0
-#define E1000_FLAG_MIT_BIT 1
 #define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_TSO_BIT 3
 #define E1000_FLAG_VET_BIT 4
-#define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
-#define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
 #define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
 #define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
 #define E1000_FLAG_VET (1 << E1000_FLAG_VET_BIT)
@@ -180,7 +176,7 @@ e1000_autoneg_done(E1000State *s)
 static bool
 have_autoneg(E1000State *s)
 {
-    return chkflag(AUTONEG) && (s->phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
+    return (s->phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
 }
 
 static void
@@ -308,35 +304,34 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         if (s->mit_timer_on) {
             return;
         }
-        if (chkflag(MIT)) {
-            /* Compute the next mitigation delay according to pending
-             * interrupts and the current values of RADV (provided
-             * RDTR!=0), TADV and ITR.
-             * Then rearm the timer.
-             */
-            mit_delay = 0;
-            if (s->mit_ide &&
-                    (pending_ints & (E1000_ICR_TXQE | E1000_ICR_TXDW))) {
-                mit_update_delay(&mit_delay, s->mac_reg[TADV] * 4);
-            }
-            if (s->mac_reg[RDTR] && (pending_ints & E1000_ICS_RXT0)) {
-                mit_update_delay(&mit_delay, s->mac_reg[RADV] * 4);
-            }
-            mit_update_delay(&mit_delay, s->mac_reg[ITR]);
 
-            /*
-             * According to e1000 SPEC, the Ethernet controller guarantees
-             * a maximum observable interrupt rate of 7813 interrupts/sec.
-             * Thus if mit_delay < 500 then the delay should be set to the
-             * minimum delay possible which is 500.
-             */
-            mit_delay = (mit_delay < 500) ? 500 : mit_delay;
-
-            s->mit_timer_on = 1;
-            timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      mit_delay * 256);
-            s->mit_ide = 0;
+        /* Compute the next mitigation delay according to pending
+         * interrupts and the current values of RADV (provided
+         * RDTR!=0), TADV and ITR.
+         * Then rearm the timer.
+         */
+        mit_delay = 0;
+        if (s->mit_ide &&
+                (pending_ints & (E1000_ICR_TXQE | E1000_ICR_TXDW))) {
+            mit_update_delay(&mit_delay, s->mac_reg[TADV] * 4);
         }
+        if (s->mac_reg[RDTR] && (pending_ints & E1000_ICS_RXT0)) {
+            mit_update_delay(&mit_delay, s->mac_reg[RADV] * 4);
+        }
+        mit_update_delay(&mit_delay, s->mac_reg[ITR]);
+
+        /*
+         * According to e1000 SPEC, the Ethernet controller guarantees
+         * a maximum observable interrupt rate of 7813 interrupts/sec.
+         * Thus if mit_delay < 500 then the delay should be set to the
+         * minimum delay possible which is 500.
+         */
+        mit_delay = (mit_delay < 500) ? 500 : mit_delay;
+
+        s->mit_timer_on = 1;
+        timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  mit_delay * 256);
+        s->mit_ide = 0;
     }
 
     s->mit_irq_level = (pending_ints != 0);
@@ -1223,9 +1218,6 @@ enum { MAC_ACCESS_PARTIAL = 1, MAC_ACCESS_FLAG_NEEDED = 2 };
  * n - flag needed
  * p - partially implenented */
 static const uint8_t mac_reg_access[0x8000] = {
-    [RDTR]    = markflag(MIT),    [TADV]    = markflag(MIT),
-    [RADV]    = markflag(MIT),    [ITR]     = markflag(MIT),
-
     [IPAV]    = markflag(MAC),    [WUC]     = markflag(MAC),
     [IP6AT]   = markflag(MAC),    [IP4AT]   = markflag(MAC),
     [FFVT]    = markflag(MAC),    [WUPM]    = markflag(MAC),
@@ -1394,11 +1386,6 @@ static int e1000_post_load(void *opaque, int version_id)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (!chkflag(MIT)) {
-        s->mac_reg[ITR] = s->mac_reg[RDTR] = s->mac_reg[RADV] =
-            s->mac_reg[TADV] = 0;
-        s->mit_irq_level = false;
-    }
     s->mit_ide = 0;
     s->mit_timer_on = true;
     timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1);
@@ -1432,13 +1419,6 @@ static int e1000_tx_tso_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static bool e1000_mit_state_needed(void *opaque)
-{
-    E1000State *s = opaque;
-
-    return chkflag(MIT);
-}
-
 static bool e1000_full_mac_needed(void *opaque)
 {
     E1000State *s = opaque;
@@ -1457,7 +1437,6 @@ static const VMStateDescription vmstate_e1000_mit_state = {
     .name = "e1000/mit_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = e1000_mit_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(mac_reg[RDTR], E1000State),
         VMSTATE_UINT32(mac_reg[RADV], E1000State),
@@ -1699,10 +1678,6 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
 
 static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
-    DEFINE_PROP_BIT("autonegotiation", E1000State,
-                    compat_flags, E1000_FLAG_AUTONEG_BIT, true),
-    DEFINE_PROP_BIT("mitigation", E1000State,
-                    compat_flags, E1000_FLAG_MIT_BIT, true),
     DEFINE_PROP_BIT("extra_mac_registers", E1000State,
                     compat_flags, E1000_FLAG_MAC_BIT, true),
     DEFINE_PROP_BIT("migrate_tso_props", E1000State,
