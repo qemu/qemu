@@ -27,6 +27,7 @@
 #include "hw/sysbus.h"
 #include "hw/sparc/qemu_ssr_fpga_cpu_interface.h"
 #include "ssr_fpga.h"
+#include <stdint.h>
 
 
 /*******************************************************************************
@@ -55,6 +56,56 @@ typedef struct SSR_FPGA {
 * Return:
 *
 *******************************************************************************/
+static uint64_t srr_fpga_read(void *opaque, hwaddr addr,
+                                   unsigned size)
+{
+    uint64_t read_data = 0;
+    uint32_t reg = 0;
+
+    // qemu_cpu_ssr_read(addr,&reg);
+    printf("read addr is %lu\n", addr);
+    printf("read reg is %u\n", reg)
+    read_data = (uint64_t) reg;
+    return read_data;
+}
+
+/*******************************************************************************
+* Function:
+*
+* Description:
+*
+* Return:
+*
+*******************************************************************************/
+static void srr_fpga_write(void *opaque, hwaddr addr,
+                           uint64_t value, unsigned size)
+{
+
+ uint32_t reg = (uint32_t) value;
+ // qemu_cpu_ssr_write(addr,reg);
+ printf("write addr is %lu\n", addr);
+ printf("write reg is %u\n", reg);
+}
+
+/*******************************************************************************
+* Description:
+*
+*
+*******************************************************************************/
+static const MemoryRegionOps srr_fpga_ops = {
+    .read       = srr_fpga_read,
+    .write      = srr_fpga_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+/*******************************************************************************
+* Function:
+*
+* Description:
+*
+* Return:
+*
+*******************************************************************************/
 static void ssr_fpga_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -62,8 +113,8 @@ static void ssr_fpga_init(Object *obj)
 
     qemu_cpu_ssr_init();
 
-    /* memory_region_init_io(&pnp->ssr_iomem, OBJECT(pnp), &srr_fpga_ops, pnp,
-                          "ssrpnp", QEMU_SSR_MEMORY_SIZE); */
+    memory_region_init_io(&pnp->ssr_iomem, OBJECT(pnp), &srr_fpga_ops, pnp,
+                          "ssrpnp", QEMU_SSR_MEMORY_SIZE);
     sysbus_init_mmio(sbd, &pnp->ssr_iomem);
 }
 
