@@ -37,6 +37,7 @@
 #include "hw/block/flash.h"
 #include "hw/arm/soc_dma.h"
 #include "hw/sysbus.h"
+#include "hw/boards.h"
 #include "audio/audio.h"
 
 /* Enhanced Audio Controller (CODEC only) */
@@ -609,6 +610,10 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
     s->codec.txdrq = *drq;
     omap_eac_reset(s);
 
+    if (current_machine->audiodev) {
+        s->codec.card.name = g_strdup(current_machine->audiodev);
+        s->codec.card.state = audio_state_by_name(s->codec.card.name, &error_fatal);
+    }
     AUD_register_card("OMAP EAC", &s->codec.card);
 
     memory_region_init_io(&s->iomem, NULL, &omap_eac_ops, s, "omap.eac",
