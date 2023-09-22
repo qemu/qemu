@@ -939,7 +939,6 @@ int main(int argc, char **argv)
         g_autoptr(GError) err = NULL;
         int stderr_fd[2];
         pid_t pid;
-        int ret;
 
         if (!g_unix_open_pipe(stderr_fd, FD_CLOEXEC, &err)) {
             error_report("Error setting up communication pipe: %s",
@@ -1172,7 +1171,6 @@ int main(int argc, char **argv)
 
     if (opts.device) {
 #if HAVE_NBD_DEVICE
-        int ret;
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, &opts);
         if (ret != 0) {
             error_report("Failed to create client thread: %s", strerror(ret));
@@ -1219,9 +1217,10 @@ int main(int argc, char **argv)
     qemu_opts_del(sn_opts);
 
     if (opts.device) {
-        void *ret;
-        pthread_join(client_thread, &ret);
-        exit(ret != NULL);
+        void *result;
+        pthread_join(client_thread, &result);
+        ret = (intptr_t)result;
+        exit(ret);
     } else {
         exit(EXIT_SUCCESS);
     }
