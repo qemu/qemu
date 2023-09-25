@@ -910,16 +910,16 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             }
         }
     } else {
-        int prot = 0;
+        int page_flags = 0;
         if (reserved_va && old_size < new_size) {
             abi_ulong addr;
             for (addr = old_addr + old_size;
                  addr < old_addr + new_size;
                  addr++) {
-                prot |= page_get_flags(addr);
+                page_flags |= page_get_flags(addr);
             }
         }
-        if (prot == 0) {
+        if (page_flags == 0) {
             host_addr = mremap(g2h_untagged(old_addr),
                                old_size, new_size, flags);
 
