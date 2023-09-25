@@ -67,10 +67,6 @@ safe_syscall4(pid_t, wait4, pid_t, wpid, int *, status, int, options,
 safe_syscall6(pid_t, wait6, idtype_t, idtype, id_t, id, int *, status, int,
     options, struct __wrusage *, wrusage, siginfo_t *, infop);
 
-void target_set_brk(abi_ulong new_brk)
-{
-}
-
 /*
  * errno conversion.
  */
