@@ -2505,6 +2505,7 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         break;
 
     case NBD_CMD_BLOCK_STATUS:
+        request->contexts = &client->contexts;
         valid_flags |= NBD_CMD_FLAG_REQ_ONE;
         break;
 
@@ -2748,17 +2749,18 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                       "discard failed", errp);
 
     case NBD_CMD_BLOCK_STATUS:
+        assert(request->contexts);
         if (!request->len) {
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "need non-zero length", errp);
         }
         assert(client->mode >= NBD_MODE_EXTENDED ||
                request->len <= UINT32_MAX);
-        if (client->contexts.count) {
+        if (request->contexts->count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
-            int contexts_remaining = client->contexts.count;
+            int contexts_remaining = request->contexts->count;
 
-            if (client->contexts.base_allocation) {
+            if (request->contexts->base_allocation) {
                 ret = nbd_co_send_block_status(client, request,
                                                exp->common.blk,
                                                request->from,
@@ -2771,7 +2773,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
-            if (client->contexts.allocation_depth) {
+            if (request->contexts->allocation_depth) {
                 ret = nbd_co_send_block_status(client, request,
                                                exp->common.blk,
                                                request->from, request->len,
@@ -2784,8 +2786,9 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
+            assert(request->contexts->exp == client->exp);
             for (i = 0; i < client->exp->nr_export_bitmaps; i++) {
-                if (!client->contexts.bitmaps[i]) {
+                if (!request->contexts->bitmaps[i]) {
                     continue;
                 }
                 ret = nbd_co_send_bitmap(client, request,
@@ -2801,6 +2804,10 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             assert(!contexts_remaining);
 
             return 0;
+        } else if (client->contexts.count) {
+            return nbd_send_generic_reply(client, request, -EINVAL,
+                                          "CMD_BLOCK_STATUS payload not valid",
+                                          errp);
         } else {
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "CMD_BLOCK_STATUS not negotiated",
@@ -2878,6 +2885,11 @@ static coroutine_fn void nbd_trip(void *opaque)
         error_free(export_err);
     } else {
         ret = nbd_handle_request(client, &request, req->data, &local_err);
+    }
+    if (request.contexts && request.contexts != &client->contexts) {
+        assert(request.type == NBD_CMD_BLOCK_STATUS);
+        g_free(request.contexts->bitmaps);
+        g_free(request.contexts);
     }
     if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
