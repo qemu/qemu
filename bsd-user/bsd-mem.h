@@ -344,4 +344,91 @@ static inline abi_long do_bsd_shmctl(abi_long shmid, abi_long cmd,
     return ret;
 }
 
+/* shmat(2) */
+static inline abi_long do_bsd_shmat(int shmid, abi_ulong shmaddr, int shmflg)
+{
+    abi_ulong raddr;
+    abi_long ret;
+    struct shmid_ds shm_info;
+
+    /* Find out the length of the shared memory segment. */
+    ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
+    if (is_error(ret)) {
+        /* Can't get the length */
+        return ret;
+    }
+
+    if (!guest_range_valid_untagged(shmaddr, shm_info.shm_segsz)) {
+        return -TARGET_EINVAL;
+    }
+
+    WITH_MMAP_LOCK_GUARD() {
+        void *host_raddr;
+
+        if (shmaddr) {
+            host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
+        } else {
+            abi_ulong mmap_start;
+
+            mmap_start = mmap_find_vma(0, shm_info.shm_segsz);
+
+            if (mmap_start == -1) {
+                return -TARGET_ENOMEM;
+            }
+            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
+                               shmflg | SHM_REMAP);
+        }
+
+        if (host_raddr == (void *)-1) {
+            return get_errno(-1);
+        }
+        raddr = h2g(host_raddr);
+
+        page_set_flags(raddr, raddr + shm_info.shm_segsz - 1,
+                       PAGE_VALID | PAGE_RESET | PAGE_READ |
+                       (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
+
+        for (int i = 0; i < N_BSD_SHM_REGIONS; i++) {
+            if (bsd_shm_regions[i].start == 0) {
+                bsd_shm_regions[i].start = raddr;
+                bsd_shm_regions[i].size = shm_info.shm_segsz;
+                break;
+            }
+        }
+    }
+
+    return raddr;
+}
+
+/* shmdt(2) */
+static inline abi_long do_bsd_shmdt(abi_ulong shmaddr)
+{
+    abi_long ret;
+
+    WITH_MMAP_LOCK_GUARD() {
+        int i;
+
+        for (i = 0; i < N_BSD_SHM_REGIONS; ++i) {
+            if (bsd_shm_regions[i].start == shmaddr) {
+                break;
+            }
+        }
+
+        if (i == N_BSD_SHM_REGIONS) {
+            return -TARGET_EINVAL;
+        }
+
+        ret = get_errno(shmdt(g2h_untagged(shmaddr)));
+        if (ret == 0) {
+            abi_ulong size = bsd_shm_regions[i].size;
+
+            bsd_shm_regions[i].start = 0;
+            page_set_flags(shmaddr, shmaddr + size - 1, 0);
+            mmap_reserve(shmaddr, size);
+        }
+    }
+
+    return ret;
+}
+
 #endif /* BSD_USER_BSD_MEM_H */

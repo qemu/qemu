@@ -636,7 +636,7 @@ fail:
     return -1;
 }
 
-static void mmap_reserve(abi_ulong start, abi_ulong size)
+void mmap_reserve(abi_ulong start, abi_ulong size)
 {
     abi_ulong real_start;
     abi_ulong real_end;
