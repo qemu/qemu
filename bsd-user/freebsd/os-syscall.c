@@ -856,6 +856,13 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 
         /*
+         * Misc
+         */
+    case TARGET_FREEBSD_NR_break:
+        ret = do_obreak(arg1);
+        break;
+
+        /*
          * sys{ctl, arch, call}
          */
     case TARGET_FREEBSD_NR___sysctl: /* sysctl(3) */
