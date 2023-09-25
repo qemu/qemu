@@ -226,6 +226,21 @@ static void tss_load_seg(CPUX86State *env, X86Seg seg_reg, int selector,
     }
 }
 
+static void tss_set_busy(CPUX86State *env, int tss_selector, bool value,
+                         uintptr_t retaddr)
+{
+    target_ulong ptr = env->gdt.base + (env->tr.selector & ~7);
+    uint32_t e2 = cpu_ldl_kernel_ra(env, ptr + 4, retaddr);
+
+    if (value) {
+        e2 |= DESC_TSS_BUSY_MASK;
+    } else {
+        e2 &= ~DESC_TSS_BUSY_MASK;
+    }
+
+    cpu_stl_kernel_ra(env, ptr + 4, e2, retaddr);
+}
+
 #define SWITCH_TSS_JMP  0
 #define SWITCH_TSS_IRET 1
 #define SWITCH_TSS_CALL 2
@@ -341,13 +356,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
 
     /* clear busy bit (it is restartable) */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
-        target_ulong ptr;
-        uint32_t e2;
-
-        ptr = env->gdt.base + (env->tr.selector & ~7);
-        e2 = cpu_ldl_kernel_ra(env, ptr + 4, retaddr);
-        e2 &= ~DESC_TSS_BUSY_MASK;
-        cpu_stl_kernel_ra(env, ptr + 4, e2, retaddr);
+        tss_set_busy(env, env->tr.selector, 0, retaddr);
     }
     old_eflags = cpu_compute_eflags(env);
     if (source == SWITCH_TSS_IRET) {
@@ -399,13 +408,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
 
     /* set busy bit */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_CALL) {
-        target_ulong ptr;
-        uint32_t e2;
-
-        ptr = env->gdt.base + (tss_selector & ~7);
-        e2 = cpu_ldl_kernel_ra(env, ptr + 4, retaddr);
-        e2 |= DESC_TSS_BUSY_MASK;
-        cpu_stl_kernel_ra(env, ptr + 4, e2, retaddr);
+        tss_set_busy(env, tss_selector, 1, retaddr);
     }
 
     /* set the new CPU state */
