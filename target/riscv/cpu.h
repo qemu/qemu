@@ -445,7 +445,6 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         bool probe, uintptr_t retaddr);
 char *riscv_isa_string(RISCVCPU *cpu);
 void riscv_cpu_list(void);
-void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp);
 
 #define cpu_list riscv_cpu_list
 #define cpu_mmu_index riscv_cpu_mmu_index
@@ -710,6 +709,13 @@ enum riscv_pmu_event_idx {
 /* Export tcg_ops until we move everything to tcg/tcg-cpu.c */
 #include "hw/core/tcg-cpu-ops.h"
 extern const struct TCGCPUOps riscv_tcg_ops;
+
+/* used by tcg/tcg-cpu.c*/
+void isa_ext_update_enabled(RISCVCPU *cpu, uint32_t ext_offset, bool en);
+bool cpu_cfg_ext_is_user_set(uint32_t ext_offset);
+bool isa_ext_is_enabled(RISCVCPU *cpu, uint32_t ext_offset);
+int cpu_cfg_ext_get_min_version(uint32_t ext_offset);
+void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu);
 
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
