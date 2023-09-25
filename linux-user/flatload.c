@@ -755,15 +755,15 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Update data segment pointers for all libraries */
     for (i=0; i<MAX_SHARED_LIBS; i++) {
         if (libinfo[i].loaded) {
-            abi_ulong p;
-            p = libinfo[i].start_data;
+            abi_ulong seg;
+            seg = libinfo[i].start_data;
             for (j=0; j<MAX_SHARED_LIBS; j++) {
-                p -= 4;
+                seg -= 4;
                 /* FIXME - handle put_user() failures */
                 if (put_user_ual(libinfo[j].loaded
                                  ? libinfo[j].start_data
                                  : UNLOADED_LIB,
-                                 p))
+                                 seg))
                     return -EFAULT;
             }
         }
