@@ -33,18 +33,14 @@
 #include "signal-common.h"
 #include "user/syscall-trace.h"
 
+/* BSD independent syscall shims */
 #include "bsd-file.h"
 #include "bsd-proc.h"
 
 /* BSD dependent syscall shims */
 #include "os-stat.h"
 #include "os-proc.h"
-
-/* used in os-proc */
-safe_syscall4(pid_t, wait4, pid_t, wpid, int *, status, int, options,
-    struct rusage *, rusage);
-safe_syscall6(pid_t, wait6, idtype_t, idtype, id_t, id, int *, status, int,
-    options, struct __wrusage *, wrusage, siginfo_t *, infop);
+#include "os-misc.h"
 
 /* I/O */
 safe_syscall3(int, open, const char *, path, int, flags, mode_t, mode);
@@ -64,6 +60,12 @@ safe_syscall4(ssize_t, pwrite, int, fd, void *, buf, size_t, nbytes, off_t,
 safe_syscall3(ssize_t, writev, int, fd, const struct iovec *, iov, int, iovcnt);
 safe_syscall4(ssize_t, pwritev, int, fd, const struct iovec *, iov, int, iovcnt,
     off_t, offset);
+
+/* used in os-proc */
+safe_syscall4(pid_t, wait4, pid_t, wpid, int *, status, int, options,
+    struct rusage *, rusage);
+safe_syscall6(pid_t, wait6, idtype_t, idtype, id_t, id, int *, status, int,
+    options, struct __wrusage *, wrusage, siginfo_t *, infop);
 
 void target_set_brk(abi_ulong new_brk)
 {
@@ -796,6 +798,14 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_freebsd_fcntl(arg1, arg2, arg3);
         break;
 
+        /*
+         * Memory management system calls.
+         */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 1300048
+    case TARGET_FREEBSD_NR_shm_open2: /* shm_open2(2) */
+        ret = do_freebsd_shm_open2(arg1, arg2, arg3, arg4, arg5);
+        break;
+#endif
 
         /*
          * sys{ctl, arch, call}
