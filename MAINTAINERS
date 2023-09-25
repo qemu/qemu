@@ -3222,6 +3222,15 @@ F: docs/devel/migration.rst
 F: qapi/migration.json
 F: tests/migration/
 F: util/userfaultfd.c
+X: migration/rdma*
+
+RDMA Migration
+M: Juan Quintela <quintela@redhat.com>
+R: Li Zhijian <lizhijian@fujitsu.com>
+R: Peter Xu <peterx@redhat.com>
+R: Leonardo Bras <leobras@redhat.com>
+S: Odd Fixes
+F: migration/rdma*
 
 Migration dirty limit and dirty page rate
 M: Hyman Huang <yong.huang@smartx.com>
