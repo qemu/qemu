@@ -1,7 +1,7 @@
 /*
- *  process related system call shims and definitions
+ *  BSD process related system call helpers
  *
- *  Copyright (c) 2013-2014 Stacey D. Son
+ *  Copyright (c) 2013-14 Stacey D. Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,27 +16,25 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "qemu/osdep.h"
 
-#ifndef BSD_PROC_H_
-#define BSD_PROC_H_
-
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/cpuset.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
+#include "qemu.h"
 #include "qemu-bsd.h"
-#include "gdbstub/syscalls.h"
-#include "qemu/plugin.h"
+#include "signal-common.h"
 
-/* exit(2) */
-static inline abi_long do_bsd_exit(void *cpu_env, abi_long arg1)
+#include "bsd-proc.h"
+
+/*
+ * resource/rusage conversion
+ */
+int target_to_host_resource(int code)
 {
-#ifdef TARGET_GPROF
-    _mcleanup();
-#endif
-    gdb_exit(arg1);
-    qemu_plugin_user_exit();
-    _exit(arg1);
-
-    return 0;
+    return code;
 }
 
-#endif /* !BSD_PROC_H_ */
