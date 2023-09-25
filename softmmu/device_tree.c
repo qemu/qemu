@@ -418,9 +418,9 @@ int qemu_fdt_setprop_string_array(void *fdt, const char *node_path,
     }
     p = str = g_malloc0(total_len);
     for (i = 0; i < len; i++) {
-        int len = strlen(array[i]) + 1;
-        pstrcpy(p, len, array[i]);
-        p += len;
+        int offset = strlen(array[i]) + 1;
+        pstrcpy(p, offset, array[i]);
+        p += offset;
     }
 
     ret = qemu_fdt_setprop(fdt, node_path, prop, str, total_len);
