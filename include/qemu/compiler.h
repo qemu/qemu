@@ -206,4 +206,10 @@
 #define QEMU_ANNOTATE(x)
 #endif
 
+#if __has_attribute(used)
+# define QEMU_USED __attribute__((used))
+#else
+# define QEMU_USED
+#endif
+
 #endif /* COMPILER_H */
