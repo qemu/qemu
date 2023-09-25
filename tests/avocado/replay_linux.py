@@ -93,7 +93,7 @@ class ReplayLinux(LinuxTest):
                 % os.path.getsize(replay_path))
         else:
             vm.event_wait('SHUTDOWN', self.timeout)
-            vm.shutdown(True)
+            vm.wait()
             logger.info('successfully fihished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
