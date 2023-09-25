@@ -83,7 +83,7 @@ exports available: 0
 exports available: 3
  export: 'n'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
@@ -94,7 +94,7 @@ exports available: 3
  export: 'n2'
   description: some text
   size:  4194304
-  flags: 0xded ( flush fua trim zeroes df multi cache fast-zero )
+  flags: 0x1ded ( flush fua trim zeroes df multi cache fast-zero block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
@@ -104,7 +104,7 @@ exports available: 3
    qemu:dirty-bitmap:b2
  export: 'n3'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
@@ -205,7 +205,7 @@ exports available: 0
 exports available: 3
  export: 'n'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
@@ -216,7 +216,7 @@ exports available: 3
  export: 'n2'
   description: some text
   size:  4194304
-  flags: 0xded ( flush fua trim zeroes df multi cache fast-zero )
+  flags: 0x1ded ( flush fua trim zeroes df multi cache fast-zero block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
@@ -226,7 +226,7 @@ exports available: 3
    qemu:dirty-bitmap:b2
  export: 'n3'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432

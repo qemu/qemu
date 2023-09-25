@@ -512,6 +512,9 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
+    if (client->mode >= NBD_MODE_EXTENDED && client->contexts.count) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
+    }
     trace_nbd_negotiate_new_style_size_flags(client->exp->size, myflags);
     stq_be_p(buf, client->exp->size);
     stw_be_p(buf + 8, myflags);
@@ -698,6 +701,10 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     myflags = exp->nbdflags;
     if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
+    }
+    if (client->mode >= NBD_MODE_EXTENDED &&
+        (client->contexts.count || client->opt == NBD_OPT_INFO)) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
     }
     trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
     stq_be_p(buf, exp->size);
@@ -2420,6 +2427,90 @@ static int coroutine_fn nbd_co_send_bitmap(NBDClient *client,
     return nbd_co_send_extents(client, request, ea, last, context_id, errp);
 }
 
+/*
+ * nbd_co_block_status_payload_read
+ * Called when a client wants a subset of negotiated contexts via a
+ * BLOCK_STATUS payload.  Check the payload for valid length and
+ * contents.  On success, return 0 with request updated to effective
+ * length.  If request was invalid but all payload consumed, return 0
+ * with request->len and request->contexts->count set to 0 (which will
+ * trigger an appropriate NBD_EINVAL response later on).  Return
+ * negative errno if the payload was not fully consumed.
+ */
+static int
+nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
+                                 Error **errp)
+{
+    uint64_t payload_len = request->len;
+    g_autofree char *buf = NULL;
+    size_t count, i, nr_bitmaps;
+    uint32_t id;
+
+    if (payload_len > NBD_MAX_BUFFER_SIZE) {
+        error_setg(errp, "len (%" PRIu64 ") is larger than max len (%u)",
+                   request->len, NBD_MAX_BUFFER_SIZE);
+        return -EINVAL;
+    }
+
+    assert(client->contexts.exp == client->exp);
+    nr_bitmaps = client->exp->nr_export_bitmaps;
+    request->contexts = g_new0(NBDMetaContexts, 1);
+    request->contexts->exp = client->exp;
+
+    if (payload_len % sizeof(uint32_t) ||
+        payload_len < sizeof(NBDBlockStatusPayload) ||
+        payload_len > (sizeof(NBDBlockStatusPayload) +
+                       sizeof(id) * client->contexts.count)) {
+        goto skip;
+    }
+
+    buf = g_malloc(payload_len);
+    if (nbd_read(client->ioc, buf, payload_len,
+                 "CMD_BLOCK_STATUS data", errp) < 0) {
+        return -EIO;
+    }
+    trace_nbd_co_receive_request_payload_received(request->cookie,
+                                                  payload_len);
+    request->contexts->bitmaps = g_new0(bool, nr_bitmaps);
+    count = (payload_len - sizeof(NBDBlockStatusPayload)) / sizeof(id);
+    payload_len = 0;
+
+    for (i = 0; i < count; i++) {
+        id = ldl_be_p(buf + sizeof(NBDBlockStatusPayload) + sizeof(id) * i);
+        if (id == NBD_META_ID_BASE_ALLOCATION) {
+            if (!client->contexts.base_allocation ||
+                request->contexts->base_allocation) {
+                goto skip;
+            }
+            request->contexts->base_allocation = true;
+        } else if (id == NBD_META_ID_ALLOCATION_DEPTH) {
+            if (!client->contexts.allocation_depth ||
+                request->contexts->allocation_depth) {
+                goto skip;
+            }
+            request->contexts->allocation_depth = true;
+        } else {
+            unsigned idx = id - NBD_META_ID_DIRTY_BITMAP;
+
+            if (idx >= nr_bitmaps || !client->contexts.bitmaps[idx] ||
+                request->contexts->bitmaps[idx]) {
+                goto skip;
+            }
+            request->contexts->bitmaps[idx] = true;
+        }
+    }
+
+    request->len = ldq_be_p(buf);
+    request->contexts->count = count;
+    return 0;
+
+ skip:
+    trace_nbd_co_receive_block_status_payload_compliance(request->from,
+                                                         request->len);
+    request->len = request->contexts->count = 0;
+    return nbd_drop(client->ioc, payload_len, errp);
+}
+
 /* nbd_co_receive_request
  * Collect a client request. Return 0 if request looks valid, -EIO to drop
  * connection right away, -EAGAIN to indicate we were interrupted and the
@@ -2505,7 +2596,18 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         break;
 
     case NBD_CMD_BLOCK_STATUS:
-        request->contexts = &client->contexts;
+        if (extended_with_payload) {
+            ret = nbd_co_block_status_payload_read(client, request, errp);
+            if (ret < 0) {
+                return ret;
+            }
+            /* payload now consumed */
+            check_length = false;
+            payload_len = 0;
+            valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+        } else {
+            request->contexts = &client->contexts;
+        }
         valid_flags |= NBD_CMD_FLAG_REQ_ONE;
         break;
 
@@ -2750,16 +2852,16 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 
     case NBD_CMD_BLOCK_STATUS:
         assert(request->contexts);
-        if (!request->len) {
-            return nbd_send_generic_reply(client, request, -EINVAL,
-                                          "need non-zero length", errp);
-        }
         assert(client->mode >= NBD_MODE_EXTENDED ||
                request->len <= UINT32_MAX);
         if (request->contexts->count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
             int contexts_remaining = request->contexts->count;
 
+            if (!request->len) {
+                return nbd_send_generic_reply(client, request, -EINVAL,
+                                              "need non-zero length", errp);
+            }
             if (request->contexts->base_allocation) {
                 ret = nbd_co_send_block_status(client, request,
                                                exp->common.blk,
@@ -2896,8 +2998,9 @@ static coroutine_fn void nbd_trip(void *opaque)
         goto disconnect;
     }
 
-    /* We must disconnect after NBD_CMD_WRITE if we did not
-     * read the payload.
+    /*
+     * We must disconnect after NBD_CMD_WRITE or BLOCK_STATUS with
+     * payload if we did not read the payload.
      */
     if (!req->complete) {
         error_setg(&local_err, "Request handling failed in intermediate state");
