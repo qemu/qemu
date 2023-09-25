@@ -2125,6 +2125,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static bool is_qemuopts_group(const char *group)
 {
     if (g_str_equal(group, "object") ||
+        g_str_equal(group, "audiodev") ||
         g_str_equal(group, "machine") ||
         g_str_equal(group, "smp-opts") ||
         g_str_equal(group, "boot-opts")) {
@@ -2140,6 +2141,15 @@ static void qemu_record_config_group(const char *group, QDict *dict,
         Visitor *v = qobject_input_visitor_new_keyval(QOBJECT(dict));
         object_option_add_visitor(v);
         visit_free(v);
+
+    } else if (g_str_equal(group, "audiodev")) {
+        Audiodev *dev = NULL;
+        Visitor *v = qobject_input_visitor_new_keyval(QOBJECT(dict));
+        if (visit_type_Audiodev(v, NULL, &dev, errp)) {
+            audio_define(dev);
+        }
+        visit_free(v);
+
     } else if (g_str_equal(group, "machine")) {
         /*
          * Cannot merge string-valued and type-safe dictionaries, so JSON

@@ -564,7 +564,7 @@ static void pl041_realize(DeviceState *dev, Error **errp)
     }
 
     /* Init the codec */
-    lm4549_init(&s->codec, &pl041_request_data, (void *)s);
+    lm4549_init(&s->codec, &pl041_request_data, (void *)s, errp);
 }
 
 static const VMStateDescription vmstate_pl041_regfile = {
