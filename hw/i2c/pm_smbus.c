@@ -279,7 +279,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
             if (!read && s->smb_index == s->smb_data0) {
                 uint8_t prot = (s->smb_ctl >> 2) & 0x07;
                 uint8_t cmd = s->smb_cmd;
-                uint8_t addr = s->smb_addr >> 1;
+                uint8_t smb_addr = s->smb_addr >> 1;
                 int ret;
 
                 if (prot == PROT_I2C_BLOCK_READ) {
@@ -287,7 +287,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                     goto out;
                 }
 
-                ret = smbus_write_block(s->smbus, addr, cmd, s->smb_data,
+                ret = smbus_write_block(s->smbus, smb_addr, cmd, s->smb_data,
                                         s->smb_data0, !s->i2c_enable);
                 if (ret < 0) {
                     s->smb_stat |= STS_DEV_ERR;
