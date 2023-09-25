@@ -458,7 +458,7 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie,
 
         /* We are under mutex and cookie is 0. We have to do the dirty work. */
         assert(s->reply.cookie == 0);
-        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, errp);
+        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, s->info.mode, errp);
         if (ret == 0) {
             ret = -EIO;
             error_setg(errp, "server dropped connection");

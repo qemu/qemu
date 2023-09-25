@@ -33,7 +33,8 @@ nbd_client_clear_queue(void) "Clearing NBD queue"
 nbd_client_clear_socket(void) "Clearing NBD socket"
 nbd_send_request(uint64_t from, uint64_t len, uint64_t cookie, uint16_t flags, uint16_t type, const char *name) "Sending request to server: { .from = %" PRIu64", .len = %" PRIu64 ", .cookie = %" PRIu64 ", .flags = 0x%" PRIx16 ", .type = %" PRIu16 " (%s) }"
 nbd_receive_simple_reply(int32_t error, const char *errname, uint64_t cookie) "Got simple reply: { .error = %" PRId32 " (%s), cookie = %" PRIu64" }"
-nbd_receive_structured_reply_chunk(uint16_t flags, uint16_t type, const char *name, uint64_t cookie, uint32_t length) "Got structured reply chunk: { flags = 0x%" PRIx16 ", type = %d (%s), cookie = %" PRIu64 ", length = %" PRIu32 " }"
+nbd_receive_reply_chunk_header(uint16_t flags, uint16_t type, const char *name, uint64_t cookie, uint32_t length) "Got reply chunk header: { flags = 0x%" PRIx16 ", type = %" PRIu16 " (%s), cookie = %" PRIu64 ", length = %" PRIu32 " }"
+nbd_receive_wrong_header(uint32_t magic, const char *mode) "Server sent unexpected magic 0x%" PRIx32 " for negotiated mode %s"
 
 # common.c
 nbd_unknown_error(int err) "Squashing unexpected error %d to EINVAL"
