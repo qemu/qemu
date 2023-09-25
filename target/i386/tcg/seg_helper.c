@@ -245,10 +245,10 @@ static void tss_set_busy(CPUX86State *env, int tss_selector, bool value,
 #define SWITCH_TSS_IRET 1
 #define SWITCH_TSS_CALL 2
 
-/* XXX: restore CPU state in registers (PowerPC case) */
-static void switch_tss_ra(CPUX86State *env, int tss_selector,
-                          uint32_t e1, uint32_t e2, int source,
-                          uint32_t next_eip, uintptr_t retaddr)
+/* return 0 if switching to a 16-bit selector */
+static int switch_tss_ra(CPUX86State *env, int tss_selector,
+                         uint32_t e1, uint32_t e2, int source,
+                         uint32_t next_eip, uintptr_t retaddr)
 {
     int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, v1, v2, i;
     target_ulong tss_base;
@@ -502,13 +502,14 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
         cpu_x86_update_dr7(env, env->dr[7] & ~DR7_LOCAL_BP_MASK);
     }
 #endif
+    return type >> 3;
 }
 
-static void switch_tss(CPUX86State *env, int tss_selector,
-                       uint32_t e1, uint32_t e2, int source,
-                        uint32_t next_eip)
+static int switch_tss(CPUX86State *env, int tss_selector,
+                      uint32_t e1, uint32_t e2, int source,
+                      uint32_t next_eip)
 {
-    switch_tss_ra(env, tss_selector, e1, e2, source, next_eip, 0);
+    return switch_tss_ra(env, tss_selector, e1, e2, source, next_eip, 0);
 }
 
 static inline unsigned int get_sp_mask(unsigned int e2)
@@ -650,14 +651,11 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         if (!(e2 & DESC_P_MASK)) {
             raise_exception_err(env, EXCP0B_NOSEG, intno * 8 + 2);
         }
-        switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
+        shift = switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
-            int type;
             uint32_t mask;
 
             /* push the error code */
-            type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
-            shift = type >> 3;
             if (env->segs[R_SS].flags & DESC_B_MASK) {
                 mask = 0xffffffff;
             } else {
