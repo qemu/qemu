@@ -126,7 +126,8 @@ CBZ             sf:1 011010 nz:1 ................... rt:5 &cbz imm=%imm19
 
 TBZ             . 011011 nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=%imm31_19
 
-B_cond          0101010 0 ................... 0 cond:4 imm=%imm19
+# B.cond and BC.cond
+B_cond          0101010 0 ................... c:1 cond:4 imm=%imm19
 
 BR              1101011 0000 11111 000000 rn:5 00000 &r
 BLR             1101011 0001 11111 000000 rn:5 00000 &r
@@ -553,3 +554,38 @@ LDGM            11011001 11 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
 STZ2G           11011001 11 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
 STZ2G           11011001 11 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
 STZ2G           11011001 11 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+# Memory operations (memset, memcpy, memmove)
+# Each of these comes in a set of three, eg SETP (prologue), SETM (main),
+# SETE (epilogue), and each of those has different flavours to
+# indicate whether memory accesses should be unpriv or non-temporal.
+# We don't distinguish temporal and non-temporal accesses, but we
+# do need to report it in syndrome register values.
+
+# Memset
+&set rs rn rd unpriv nontemp
+# op2 bit 1 is nontemporal bit
+@set         .. ......... rs:5 .. nontemp:1 unpriv:1 .. rn:5 rd:5 &set
+
+SETP            00 011001110 ..... 00 . . 01 ..... ..... @set
+SETM            00 011001110 ..... 01 . . 01 ..... ..... @set
+SETE            00 011001110 ..... 10 . . 01 ..... ..... @set
+
+# Like SET, but also setting MTE tags
+SETGP           00 011101110 ..... 00 . . 01 ..... ..... @set
+SETGM           00 011101110 ..... 01 . . 01 ..... ..... @set
+SETGE           00 011101110 ..... 10 . . 01 ..... ..... @set
+
+# Memmove/Memcopy: the CPY insns allow overlapping src/dest and
+# copy in the correct direction; the CPYF insns always copy forwards.
+#
+# options has the nontemporal and unpriv bits for src and dest
+&cpy rs rn rd options
+@cpy            .. ... . ..... rs:5 options:4 .. rn:5 rd:5 &cpy
+
+CPYFP           00 011 0 01000 ..... .... 01 ..... ..... @cpy
+CPYFM           00 011 0 01010 ..... .... 01 ..... ..... @cpy
+CPYFE           00 011 0 01100 ..... .... 01 ..... ..... @cpy
+CPYP            00 011 1 01000 ..... .... 01 ..... ..... @cpy
+CPYM            00 011 1 01010 ..... .... 01 ..... ..... @cpy
+CPYE            00 011 1 01100 ..... .... 01 ..... ..... @cpy

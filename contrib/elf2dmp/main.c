@@ -20,6 +20,7 @@
 #define PE_NAME     "ntoskrnl.exe"
 
 #define INITIAL_MXCSR   0x1f80
+#define MAX_NUMBER_OF_RUNS  42
 
 typedef struct idt_desc {
     uint16_t offset1;   /* offset bits 0..15 */
@@ -234,6 +235,42 @@ static int fix_dtb(struct va_space *vs, QEMU_Elf *qe)
     return 1;
 }
 
+static void try_merge_runs(struct pa_space *ps,
+        WinDumpPhyMemDesc64 *PhysicalMemoryBlock)
+{
+    unsigned int merge_cnt = 0, run_idx = 0;
+
+    PhysicalMemoryBlock->NumberOfRuns = 0;
+
+    for (size_t idx = 0; idx < ps->block_nr; idx++) {
+        struct pa_block *blk = ps->block + idx;
+        struct pa_block *next = blk + 1;
+
+        PhysicalMemoryBlock->NumberOfPages += blk->size / ELF2DMP_PAGE_SIZE;
+
+        if (idx + 1 != ps->block_nr && blk->paddr + blk->size == next->paddr) {
+            printf("Block #%zu 0x%"PRIx64"+:0x%"PRIx64" and %u previous will be"
+                    " merged\n", idx, blk->paddr, blk->size, merge_cnt);
+            merge_cnt++;
+        } else {
+            struct pa_block *first_merged = blk - merge_cnt;
+
+            printf("Block #%zu 0x%"PRIx64"+:0x%"PRIx64" and %u previous will be"
+                    " merged to 0x%"PRIx64"+:0x%"PRIx64" (run #%u)\n",
+                    idx, blk->paddr, blk->size, merge_cnt, first_merged->paddr,
+                    blk->paddr + blk->size - first_merged->paddr, run_idx);
+            PhysicalMemoryBlock->Run[run_idx] = (WinDumpPhyMemRun64) {
+                .BasePage = first_merged->paddr / ELF2DMP_PAGE_SIZE,
+                .PageCount = (blk->paddr + blk->size - first_merged->paddr) /
+                        ELF2DMP_PAGE_SIZE,
+            };
+            PhysicalMemoryBlock->NumberOfRuns++;
+            run_idx++;
+            merge_cnt = 0;
+        }
+    }
+}
+
 static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
         struct va_space *vs, uint64_t KdDebuggerDataBlock,
         KDDEBUGGER_DATA64 *kdbg, uint64_t KdVersionBlock, int nr_cpus)
@@ -244,7 +281,6 @@ static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
             KUSD_OFFSET_PRODUCT_TYPE);
     DBGKD_GET_VERSION64 kvb;
     WinDumpHeader64 h;
-    size_t i;
 
     QEMU_BUILD_BUG_ON(KUSD_OFFSET_SUITE_MASK >= ELF2DMP_PAGE_SIZE);
     QEMU_BUILD_BUG_ON(KUSD_OFFSET_PRODUCT_TYPE >= ELF2DMP_PAGE_SIZE);
@@ -282,13 +318,17 @@ static int fill_header(WinDumpHeader64 *hdr, struct pa_space *ps,
         .RequiredDumpSpace = sizeof(h),
     };
 
-    for (i = 0; i < ps->block_nr; i++) {
-        h.PhysicalMemoryBlock.NumberOfPages +=
-                ps->block[i].size / ELF2DMP_PAGE_SIZE;
-        h.PhysicalMemoryBlock.Run[i] = (WinDumpPhyMemRun64) {
-            .BasePage = ps->block[i].paddr / ELF2DMP_PAGE_SIZE,
-            .PageCount = ps->block[i].size / ELF2DMP_PAGE_SIZE,
-        };
+    if (h.PhysicalMemoryBlock.NumberOfRuns <= MAX_NUMBER_OF_RUNS) {
+        for (size_t idx = 0; idx < ps->block_nr; idx++) {
+            h.PhysicalMemoryBlock.NumberOfPages +=
+                    ps->block[idx].size / ELF2DMP_PAGE_SIZE;
+            h.PhysicalMemoryBlock.Run[idx] = (WinDumpPhyMemRun64) {
+                .BasePage = ps->block[idx].paddr / ELF2DMP_PAGE_SIZE,
+                .PageCount = ps->block[idx].size / ELF2DMP_PAGE_SIZE,
+            };
+        }
+    } else {
+        try_merge_runs(ps, &h.PhysicalMemoryBlock);
     }
 
     h.RequiredDumpSpace +=
@@ -400,9 +440,10 @@ static int write_dump(struct pa_space *ps,
     for (i = 0; i < ps->block_nr; i++) {
         struct pa_block *b = &ps->block[i];
 
-        printf("Writing block #%zu/%zu to file...\n", i, ps->block_nr);
+        printf("Writing block #%zu/%zu of %"PRIu64" bytes to file...\n", i,
+                ps->block_nr, b->size);
         if (fwrite(b->addr, b->size, 1, dmp_file) != 1) {
-            eprintf("Failed to write dump header\n");
+            eprintf("Failed to write block\n");
             fclose(dmp_file);
             return 1;
         }
@@ -411,89 +452,64 @@ static int write_dump(struct pa_space *ps,
     return fclose(dmp_file);
 }
 
-static bool pe_check_export_name(uint64_t base, void *start_addr,
-        struct va_space *vs)
-{
-    IMAGE_EXPORT_DIRECTORY export_dir;
-    const char *pe_name;
-
-    if (pe_get_data_dir_entry(base, start_addr, IMAGE_FILE_EXPORT_DIRECTORY,
-                &export_dir, sizeof(export_dir), vs)) {
-        return false;
-    }
-
-    pe_name = va_space_resolve(vs, base + export_dir.Name);
-    if (!pe_name) {
-        return false;
-    }
-
-    return !strcmp(pe_name, PE_NAME);
-}
-
-static int pe_get_pdb_symstore_hash(uint64_t base, void *start_addr,
-        char *hash, struct va_space *vs)
+static bool pe_check_pdb_name(uint64_t base, void *start_addr,
+        struct va_space *vs, OMFSignatureRSDS *rsds)
 {
     const char sign_rsds[4] = "RSDS";
     IMAGE_DEBUG_DIRECTORY debug_dir;
-    OMFSignatureRSDS rsds;
-    char *pdb_name;
-    size_t pdb_name_sz;
-    size_t i;
+    char pdb_name[sizeof(PDB_NAME)];
 
     if (pe_get_data_dir_entry(base, start_addr, IMAGE_FILE_DEBUG_DIRECTORY,
                 &debug_dir, sizeof(debug_dir), vs)) {
         eprintf("Failed to get Debug Directory\n");
-        return 1;
+        return false;
     }
 
     if (debug_dir.Type != IMAGE_DEBUG_TYPE_CODEVIEW) {
-        return 1;
+        eprintf("Debug Directory type is not CodeView\n");
+        return false;
     }
 
     if (va_space_rw(vs,
                 base + debug_dir.AddressOfRawData,
-                &rsds, sizeof(rsds), 0)) {
-        return 1;
+                rsds, sizeof(*rsds), 0)) {
+        eprintf("Failed to resolve OMFSignatureRSDS\n");
+        return false;
     }
 
-    printf("CodeView signature is \'%.4s\'\n", rsds.Signature);
-
-    if (memcmp(&rsds.Signature, sign_rsds, sizeof(sign_rsds))) {
-        return 1;
+    if (memcmp(&rsds->Signature, sign_rsds, sizeof(sign_rsds))) {
+        eprintf("CodeView signature is \'%.4s\', \'%s\' expected\n",
+                rsds->Signature, sign_rsds);
+        return false;
     }
 
-    pdb_name_sz = debug_dir.SizeOfData - sizeof(rsds);
-    pdb_name = malloc(pdb_name_sz);
-    if (!pdb_name) {
-        return 1;
+    if (debug_dir.SizeOfData - sizeof(*rsds) != sizeof(PDB_NAME)) {
+        eprintf("PDB name size doesn't match\n");
+        return false;
     }
 
     if (va_space_rw(vs, base + debug_dir.AddressOfRawData +
-                offsetof(OMFSignatureRSDS, name), pdb_name, pdb_name_sz, 0)) {
-        free(pdb_name);
-        return 1;
+                offsetof(OMFSignatureRSDS, name), pdb_name, sizeof(PDB_NAME),
+                0)) {
+        eprintf("Failed to resolve PDB name\n");
+        return false;
     }
 
     printf("PDB name is \'%s\', \'%s\' expected\n", pdb_name, PDB_NAME);
 
-    if (strcmp(pdb_name, PDB_NAME)) {
-        eprintf("Unexpected PDB name, it seems the kernel isn't found\n");
-        free(pdb_name);
-        return 1;
-    }
+    return !strcmp(pdb_name, PDB_NAME);
+}
 
-    free(pdb_name);
-
-    sprintf(hash, "%.08x%.04x%.04x%.02x%.02x", rsds.guid.a, rsds.guid.b,
-            rsds.guid.c, rsds.guid.d[0], rsds.guid.d[1]);
+static void pe_get_pdb_symstore_hash(OMFSignatureRSDS *rsds, char *hash)
+{
+    sprintf(hash, "%.08x%.04x%.04x%.02x%.02x", rsds->guid.a, rsds->guid.b,
+            rsds->guid.c, rsds->guid.d[0], rsds->guid.d[1]);
     hash += 20;
-    for (i = 0; i < 6; i++, hash += 2) {
-        sprintf(hash, "%.02x", rsds.guid.e[i]);
+    for (unsigned int i = 0; i < 6; i++, hash += 2) {
+        sprintf(hash, "%.02x", rsds->guid.e[i]);
     }
 
-    sprintf(hash, "%.01x", rsds.age);
-
-    return 0;
+    sprintf(hash, "%.01x", rsds->age);
 }
 
 int main(int argc, char *argv[])
@@ -515,6 +531,7 @@ int main(int argc, char *argv[])
     KDDEBUGGER_DATA64 *kdbg;
     uint64_t KdVersionBlock;
     bool kernel_found = false;
+    OMFSignatureRSDS rsds;
 
     if (argc != 3) {
         eprintf("usage:\n\t%s elf_file dmp_file\n", argv[0]);
@@ -562,7 +579,8 @@ int main(int argc, char *argv[])
         }
 
         if (*(uint16_t *)nt_start_addr == 0x5a4d) { /* MZ */
-            if (pe_check_export_name(KernBase, nt_start_addr, &vs)) {
+            printf("Checking candidate KernBase = 0x%016"PRIx64"\n", KernBase);
+            if (pe_check_pdb_name(KernBase, nt_start_addr, &vs, &rsds)) {
                 kernel_found = true;
                 break;
             }
@@ -578,11 +596,7 @@ int main(int argc, char *argv[])
     printf("KernBase = 0x%016"PRIx64", signature is \'%.2s\'\n", KernBase,
             (char *)nt_start_addr);
 
-    if (pe_get_pdb_symstore_hash(KernBase, nt_start_addr, pdb_hash, &vs)) {
-        eprintf("Failed to get PDB symbol store hash\n");
-        err = 1;
-        goto out_ps;
-    }
+    pe_get_pdb_symstore_hash(&rsds, pdb_hash);
 
     sprintf(pdb_url, "%s%s/%s/%s", SYM_URL_BASE, PDB_NAME, pdb_hash, PDB_NAME);
     printf("PDB URL is %s\n", pdb_url);

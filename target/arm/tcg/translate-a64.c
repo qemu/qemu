@@ -105,9 +105,17 @@ void a64_translate_init(void)
 }
 
 /*
- * Return the core mmu_idx to use for A64 "unprivileged load/store" insns
+ * Return the core mmu_idx to use for A64 load/store insns which
+ * have a "unprivileged load/store" variant. Those insns access
+ * EL0 if executed from an EL which has control over EL0 (usually
+ * EL1) but behave like normal loads and stores if executed from
+ * elsewhere (eg EL3).
+ *
+ * @unpriv : true for the unprivileged encoding; false for the
+ *           normal encoding (in which case we will return the same
+ *           thing as get_mem_index().
  */
-static int get_a64_user_mem_index(DisasContext *s)
+static int get_a64_user_mem_index(DisasContext *s, bool unpriv)
 {
     /*
      * If AccType_UNPRIV is not used, the insn uses AccType_NORMAL,
@@ -115,7 +123,7 @@ static int get_a64_user_mem_index(DisasContext *s)
      */
     ARMMMUIdx useridx = s->mmu_idx;
 
-    if (s->unpriv) {
+    if (unpriv && s->unpriv) {
         /*
          * We have pre-computed the condition for AccType_UNPRIV.
          * Therefore we should never get here with a mmu_idx for
@@ -1453,6 +1461,10 @@ static bool trans_TBZ(DisasContext *s, arg_tbz *a)
 
 static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
 {
+    /* BC.cond is only present with FEAT_HBC */
+    if (a->c && !dc_isar_feature(aa64_hbc, s)) {
+        return false;
+    }
     reset_btype(s);
     if (a->cond < 0x0e) {
         /* genuinely conditional branches */
@@ -2260,7 +2272,7 @@ static void handle_sys(DisasContext *s, bool isread,
             clean_addr = clean_data_tbi(s, tcg_rt);
             gen_probe_access(s, clean_addr, MMU_DATA_STORE, MO_8);
 
-            if (s->ata) {
+            if (s->ata[0]) {
                 /* Extract the tag from the register to match STZGM.  */
                 tag = tcg_temp_new_i64();
                 tcg_gen_shri_i64(tag, tcg_rt, 56);
@@ -2277,7 +2289,7 @@ static void handle_sys(DisasContext *s, bool isread,
             clean_addr = clean_data_tbi(s, tcg_rt);
             gen_helper_dc_zva(cpu_env, clean_addr);
 
-            if (s->ata) {
+            if (s->ata[0]) {
                 /* Extract the tag from the register to match STZGM.  */
                 tag = tcg_temp_new_i64();
                 tcg_gen_shri_i64(tag, tcg_rt, 56);
@@ -3058,7 +3070,7 @@ static bool trans_STGP(DisasContext *s, arg_ldstpair *a)
     tcg_gen_qemu_st_i128(tmp, clean_addr, get_mem_index(s), mop);
 
     /* Perform the tag store, if tag access enabled. */
-    if (s->ata) {
+    if (s->ata[0]) {
         if (tb_cflags(s->base.tb) & CF_PARALLEL) {
             gen_helper_stg_parallel(cpu_env, dirty_addr, dirty_addr);
         } else {
@@ -3084,7 +3096,7 @@ static void op_addr_ldst_imm_pre(DisasContext *s, arg_ldst_imm *a,
     if (!a->p) {
         tcg_gen_addi_i64(*dirty_addr, *dirty_addr, offset);
     }
-    memidx = a->unpriv ? get_a64_user_mem_index(s) : get_mem_index(s);
+    memidx = get_a64_user_mem_index(s, a->unpriv);
     *clean_addr = gen_mte_check1_mmuidx(s, *dirty_addr, is_store,
                                         a->w || a->rn != 31,
                                         mop, a->unpriv, memidx);
@@ -3105,7 +3117,7 @@ static bool trans_STR_i(DisasContext *s, arg_ldst_imm *a)
 {
     bool iss_sf, iss_valid = !a->w;
     TCGv_i64 clean_addr, dirty_addr, tcg_rt;
-    int memidx = a->unpriv ? get_a64_user_mem_index(s) : get_mem_index(s);
+    int memidx = get_a64_user_mem_index(s, a->unpriv);
     MemOp mop = finalize_memop(s, a->sz + a->sign * MO_SIGN);
 
     op_addr_ldst_imm_pre(s, a, &clean_addr, &dirty_addr, a->imm, true, mop);
@@ -3123,7 +3135,7 @@ static bool trans_LDR_i(DisasContext *s, arg_ldst_imm *a)
 {
     bool iss_sf, iss_valid = !a->w;
     TCGv_i64 clean_addr, dirty_addr, tcg_rt;
-    int memidx = a->unpriv ? get_a64_user_mem_index(s) : get_mem_index(s);
+    int memidx = get_a64_user_mem_index(s, a->unpriv);
     MemOp mop = finalize_memop(s, a->sz + a->sign * MO_SIGN);
 
     op_addr_ldst_imm_pre(s, a, &clean_addr, &dirty_addr, a->imm, false, mop);
@@ -3756,7 +3768,7 @@ static bool trans_STZGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_stzgm_tags(cpu_env, addr, tcg_rt);
     }
     /*
@@ -3788,7 +3800,7 @@ static bool trans_STGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_stgm(cpu_env, addr, tcg_rt);
     } else {
         MMUAccessType acc = MMU_DATA_STORE;
@@ -3820,7 +3832,7 @@ static bool trans_LDGM(DisasContext *s, arg_ldst_tag *a)
     tcg_gen_addi_i64(addr, addr, a->imm);
     tcg_rt = cpu_reg(s, a->rt);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_ldgm(tcg_rt, cpu_env, addr);
     } else {
         MMUAccessType acc = MMU_DATA_LOAD;
@@ -3855,7 +3867,7 @@ static bool trans_LDG(DisasContext *s, arg_ldst_tag *a)
 
     tcg_gen_andi_i64(addr, addr, -TAG_GRANULE);
     tcg_rt = cpu_reg(s, a->rt);
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_ldg(tcg_rt, cpu_env, addr, tcg_rt);
     } else {
         /*
@@ -3892,7 +3904,7 @@ static bool do_STG(DisasContext *s, arg_ldst_tag *a, bool is_zero, bool is_pair)
         tcg_gen_addi_i64(addr, addr, a->imm);
     }
     tcg_rt = cpu_reg_sp(s, a->rt);
-    if (!s->ata) {
+    if (!s->ata[0]) {
         /*
          * For STG and ST2G, we need to check alignment and probe memory.
          * TODO: For STZG and STZ2G, we could rely on the stores below,
@@ -3949,6 +3961,123 @@ TRANS_FEAT(STG, aa64_mte_insn_reg, do_STG, a, false, false)
 TRANS_FEAT(STZG, aa64_mte_insn_reg, do_STG, a, true, false)
 TRANS_FEAT(ST2G, aa64_mte_insn_reg, do_STG, a, false, true)
 TRANS_FEAT(STZ2G, aa64_mte_insn_reg, do_STG, a, true, true)
+
+typedef void SetFn(TCGv_env, TCGv_i32, TCGv_i32);
+
+static bool do_SET(DisasContext *s, arg_set *a, bool is_epilogue,
+                   bool is_setg, SetFn fn)
+{
+    int memidx;
+    uint32_t syndrome, desc = 0;
+
+    if (is_setg && !dc_isar_feature(aa64_mte, s)) {
+        return false;
+    }
+
+    /*
+     * UNPREDICTABLE cases: we choose to UNDEF, which allows
+     * us to pull this check before the CheckMOPSEnabled() test
+     * (which we do in the helper function)
+     */
+    if (a->rs == a->rn || a->rs == a->rd || a->rn == a->rd ||
+        a->rd == 31 || a->rn == 31) {
+        return false;
+    }
+
+    memidx = get_a64_user_mem_index(s, a->unpriv);
+
+    /*
+     * We pass option_a == true, matching our implementation;
+     * we pass wrong_option == false: helper function may set that bit.
+     */
+    syndrome = syn_mop(true, is_setg, (a->nontemp << 1) | a->unpriv,
+                       is_epilogue, false, true, a->rd, a->rs, a->rn);
+
+    if (is_setg ? s->ata[a->unpriv] : s->mte_active[a->unpriv]) {
+        /* We may need to do MTE tag checking, so assemble the descriptor */
+        desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
+        desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
+        desc = FIELD_DP32(desc, MTEDESC, WRITE, true);
+        /* SIZEM1 and ALIGN we leave 0 (byte write) */
+    }
+    /* The helper function always needs the memidx even with MTE disabled */
+    desc = FIELD_DP32(desc, MTEDESC, MIDX, memidx);
+
+    /*
+     * The helper needs the register numbers, but since they're in
+     * the syndrome anyway, we let it extract them from there rather
+     * than passing in an extra three integer arguments.
+     */
+    fn(cpu_env, tcg_constant_i32(syndrome), tcg_constant_i32(desc));
+    return true;
+}
+
+TRANS_FEAT(SETP, aa64_mops, do_SET, a, false, false, gen_helper_setp)
+TRANS_FEAT(SETM, aa64_mops, do_SET, a, false, false, gen_helper_setm)
+TRANS_FEAT(SETE, aa64_mops, do_SET, a, true, false, gen_helper_sete)
+TRANS_FEAT(SETGP, aa64_mops, do_SET, a, false, true, gen_helper_setgp)
+TRANS_FEAT(SETGM, aa64_mops, do_SET, a, false, true, gen_helper_setgm)
+TRANS_FEAT(SETGE, aa64_mops, do_SET, a, true, true, gen_helper_setge)
+
+typedef void CpyFn(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32);
+
+static bool do_CPY(DisasContext *s, arg_cpy *a, bool is_epilogue, CpyFn fn)
+{
+    int rmemidx, wmemidx;
+    uint32_t syndrome, rdesc = 0, wdesc = 0;
+    bool wunpriv = extract32(a->options, 0, 1);
+    bool runpriv = extract32(a->options, 1, 1);
+
+    /*
+     * UNPREDICTABLE cases: we choose to UNDEF, which allows
+     * us to pull this check before the CheckMOPSEnabled() test
+     * (which we do in the helper function)
+     */
+    if (a->rs == a->rn || a->rs == a->rd || a->rn == a->rd ||
+        a->rd == 31 || a->rs == 31 || a->rn == 31) {
+        return false;
+    }
+
+    rmemidx = get_a64_user_mem_index(s, runpriv);
+    wmemidx = get_a64_user_mem_index(s, wunpriv);
+
+    /*
+     * We pass option_a == true, matching our implementation;
+     * we pass wrong_option == false: helper function may set that bit.
+     */
+    syndrome = syn_mop(false, false, a->options, is_epilogue,
+                       false, true, a->rd, a->rs, a->rn);
+
+    /* If we need to do MTE tag checking, assemble the descriptors */
+    if (s->mte_active[runpriv]) {
+        rdesc = FIELD_DP32(rdesc, MTEDESC, TBI, s->tbid);
+        rdesc = FIELD_DP32(rdesc, MTEDESC, TCMA, s->tcma);
+    }
+    if (s->mte_active[wunpriv]) {
+        wdesc = FIELD_DP32(wdesc, MTEDESC, TBI, s->tbid);
+        wdesc = FIELD_DP32(wdesc, MTEDESC, TCMA, s->tcma);
+        wdesc = FIELD_DP32(wdesc, MTEDESC, WRITE, true);
+    }
+    /* The helper function needs these parts of the descriptor regardless */
+    rdesc = FIELD_DP32(rdesc, MTEDESC, MIDX, rmemidx);
+    wdesc = FIELD_DP32(wdesc, MTEDESC, MIDX, wmemidx);
+
+    /*
+     * The helper needs the register numbers, but since they're in
+     * the syndrome anyway, we let it extract them from there rather
+     * than passing in an extra three integer arguments.
+     */
+    fn(cpu_env, tcg_constant_i32(syndrome), tcg_constant_i32(wdesc),
+       tcg_constant_i32(rdesc));
+    return true;
+}
+
+TRANS_FEAT(CPYP, aa64_mops, do_CPY, a, false, gen_helper_cpyp)
+TRANS_FEAT(CPYM, aa64_mops, do_CPY, a, false, gen_helper_cpym)
+TRANS_FEAT(CPYE, aa64_mops, do_CPY, a, true, gen_helper_cpye)
+TRANS_FEAT(CPYFP, aa64_mops, do_CPY, a, false, gen_helper_cpyfp)
+TRANS_FEAT(CPYFM, aa64_mops, do_CPY, a, false, gen_helper_cpyfm)
+TRANS_FEAT(CPYFE, aa64_mops, do_CPY, a, true, gen_helper_cpyfe)
 
 typedef void ArithTwoOp(TCGv_i64, TCGv_i64, TCGv_i64);
 
@@ -4012,7 +4141,7 @@ static bool gen_add_sub_imm_with_tags(DisasContext *s, arg_rri_tag *a,
     tcg_rn = cpu_reg_sp(s, a->rn);
     tcg_rd = cpu_reg_sp(s, a->rd);
 
-    if (s->ata) {
+    if (s->ata[0]) {
         gen_helper_addsubg(tcg_rd, cpu_env, tcg_rn,
                            tcg_constant_i32(imm),
                            tcg_constant_i32(a->uimm4));
@@ -5399,7 +5528,7 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
         if (sf == 0 || !dc_isar_feature(aa64_mte_insn_reg, s)) {
             goto do_unallocated;
         }
-        if (s->ata) {
+        if (s->ata[0]) {
             gen_helper_irg(cpu_reg_sp(s, rd), cpu_env,
                            cpu_reg_sp(s, rn), cpu_reg(s, rm));
         } else {
@@ -13890,7 +14019,8 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->bt = EX_TBFLAG_A64(tb_flags, BT);
     dc->btype = EX_TBFLAG_A64(tb_flags, BTYPE);
     dc->unpriv = EX_TBFLAG_A64(tb_flags, UNPRIV);
-    dc->ata = EX_TBFLAG_A64(tb_flags, ATA);
+    dc->ata[0] = EX_TBFLAG_A64(tb_flags, ATA);
+    dc->ata[1] = EX_TBFLAG_A64(tb_flags, ATA0);
     dc->mte_active[0] = EX_TBFLAG_A64(tb_flags, MTE_ACTIVE);
     dc->mte_active[1] = EX_TBFLAG_A64(tb_flags, MTE0_ACTIVE);
     dc->pstate_sm = EX_TBFLAG_A64(tb_flags, PSTATE_SM);

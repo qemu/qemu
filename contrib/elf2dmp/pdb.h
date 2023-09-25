@@ -227,7 +227,7 @@ struct pdb_reader {
     } ds;
     uint32_t file_used[1024];
     PDB_SYMBOLS *symbols;
-    PDB_STREAM_INDEXES sidx;
+    uint16_t segments;
     uint8_t *modimage;
     char *segs;
     size_t segs_size;

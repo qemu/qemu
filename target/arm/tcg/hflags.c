@@ -306,6 +306,15 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
                 && !(env->pstate & PSTATE_TCO)
                 && (sctlr & (el == 0 ? SCTLR_TCF0 : SCTLR_TCF))) {
                 DP_TBFLAG_A64(flags, MTE_ACTIVE, 1);
+                if (!EX_TBFLAG_A64(flags, UNPRIV)) {
+                    /*
+                     * In non-unpriv contexts (eg EL0), unpriv load/stores
+                     * act like normal ones; duplicate the MTE info to
+                     * avoid translate-a64.c having to check UNPRIV to see
+                     * whether it is OK to index into MTE_ACTIVE[].
+                     */
+                    DP_TBFLAG_A64(flags, MTE0_ACTIVE, 1);
+                }
             }
         }
         /* And again for unprivileged accesses, if required.  */
@@ -315,6 +324,18 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
             && (sctlr & SCTLR_TCF0)
             && allocation_tag_access_enabled(env, 0, sctlr)) {
             DP_TBFLAG_A64(flags, MTE0_ACTIVE, 1);
+        }
+        /*
+         * For unpriv tag-setting accesses we alse need ATA0. Again, in
+         * contexts where unpriv and normal insns are the same we
+         * duplicate the ATA bit to save effort for translate-a64.c.
+         */
+        if (EX_TBFLAG_A64(flags, UNPRIV)) {
+            if (allocation_tag_access_enabled(env, 0, sctlr)) {
+                DP_TBFLAG_A64(flags, ATA0, 1);
+            }
+        } else {
+            DP_TBFLAG_A64(flags, ATA0, EX_TBFLAG_A64(flags, ATA));
         }
         /* Cache TCMA as well as TBI. */
         DP_TBFLAG_A64(flags, TCMA, aa64_va_parameter_tcma(tcr, mmu_idx));

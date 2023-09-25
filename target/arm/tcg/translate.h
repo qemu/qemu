@@ -114,8 +114,8 @@ typedef struct DisasContext {
     bool unpriv;
     /* True if v8.3-PAuth is active.  */
     bool pauth_active;
-    /* True if v8.5-MTE access to tags is enabled.  */
-    bool ata;
+    /* True if v8.5-MTE access to tags is enabled; index with is_unpriv.  */
+    bool ata[2];
     /* True if v8.5-MTE tag checks affect the PE; index with is_unpriv.  */
     bool mte_active[2];
     /* True with v8.5-BTI and SCTLR_ELx.BT* set.  */
