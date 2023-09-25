@@ -416,7 +416,8 @@ static void coroutine_fn GRAPH_RDLOCK nbd_reconnect_attempt(BDRVNBDState *s)
     reconnect_delay_timer_del(s);
 }
 
-static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
+static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie,
+                                            Error **errp)
 {
     int ret;
     uint64_t ind = COOKIE_TO_INDEX(cookie), ind2;
@@ -457,20 +458,25 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
 
         /* We are under mutex and cookie is 0. We have to do the dirty work. */
         assert(s->reply.cookie == 0);
-        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, NULL);
-        if (ret <= 0) {
-            ret = ret ? ret : -EIO;
+        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, errp);
+        if (ret == 0) {
+            ret = -EIO;
+            error_setg(errp, "server dropped connection");
+        }
+        if (ret < 0) {
             nbd_channel_error(s, ret);
             return ret;
         }
         if (nbd_reply_is_structured(&s->reply) &&
             s->info.mode < NBD_MODE_STRUCTURED) {
             nbd_channel_error(s, -EINVAL);
+            error_setg(errp, "unexpected structured reply");
             return -EINVAL;
         }
         ind2 = COOKIE_TO_INDEX(s->reply.cookie);
         if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].coroutine) {
             nbd_channel_error(s, -EINVAL);
+            error_setg(errp, "unexpected cookie value");
             return -EINVAL;
         }
         if (s->reply.cookie == cookie) {
@@ -842,9 +848,9 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
     *request_ret = 0;
 
-    ret = nbd_receive_replies(s, cookie);
+    ret = nbd_receive_replies(s, cookie, errp);
     if (ret < 0) {
-        error_setg(errp, "Connection closed");
+        error_prepend(errp, "Connection closed: ");
         return -EIO;
     }
     assert(s->ioc);
