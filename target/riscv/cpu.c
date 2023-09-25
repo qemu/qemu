@@ -704,7 +704,7 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
             CSR_MPMMASK,
         };
 
-        for (int i = 0; i < ARRAY_SIZE(dump_csrs); ++i) {
+        for (i = 0; i < ARRAY_SIZE(dump_csrs); ++i) {
             int csrno = dump_csrs[i];
             target_ulong val = 0;
             RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
@@ -747,7 +747,7 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                     CSR_VTYPE,
                     CSR_VLENB,
                 };
-        for (int i = 0; i < ARRAY_SIZE(dump_rvv_csrs); ++i) {
+        for (i = 0; i < ARRAY_SIZE(dump_rvv_csrs); ++i) {
             int csrno = dump_rvv_csrs[i];
             target_ulong val = 0;
             RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
