@@ -192,19 +192,22 @@ static void bcd_check_time(void)
     }
 
     if (!(tm_cmp(&start, datep) <= 0 && tm_cmp(datep, &end) <= 0)) {
-        long t, s;
+        long date_s, start_s;
+        unsigned long diff;
 
         start.tm_isdst = datep->tm_isdst;
 
-        t = (long)mktime(datep);
-        s = (long)mktime(&start);
-        if (t < s) {
-            g_test_message("RTC is %ld second(s) behind wall-clock", (s - t));
+        date_s = (long)mktime(datep);
+        start_s = (long)mktime(&start);
+        if (date_s < start_s) {
+            diff = start_s - date_s;
+            g_test_message("RTC is %ld second(s) behind wall-clock", diff);
         } else {
-            g_test_message("RTC is %ld second(s) ahead of wall-clock", (t - s));
+            diff = date_s - start_s;
+            g_test_message("RTC is %ld second(s) ahead of wall-clock", diff);
         }
 
-        g_assert_cmpint(ABS(t - s), <=, wiggle);
+        g_assert_cmpint(diff, <=, wiggle);
     }
 
     qtest_quit(qts);
