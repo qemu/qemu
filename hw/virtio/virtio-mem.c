@@ -984,9 +984,8 @@ static int virtio_mem_restore_unplugged(VirtIOMEM *vmem)
                                                virtio_mem_discard_range_cb);
 }
 
-static int virtio_mem_post_load(void *opaque, int version_id)
+static int virtio_mem_post_load_bitmap(VirtIOMEM *vmem)
 {
-    VirtIOMEM *vmem = VIRTIO_MEM(opaque);
     RamDiscardListener *rdl;
     int ret;
 
@@ -997,6 +996,20 @@ static int virtio_mem_post_load(void *opaque, int version_id)
     QLIST_FOREACH(rdl, &vmem->rdl_list, next) {
         ret = virtio_mem_for_each_plugged_section(vmem, rdl->section, rdl,
                                                  virtio_mem_notify_populate_cb);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
+}
+
+static int virtio_mem_post_load(void *opaque, int version_id)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(opaque);
+    int ret;
+
+    if (!vmem->early_migration) {
+        ret = virtio_mem_post_load_bitmap(vmem);
         if (ret) {
             return ret;
         }
@@ -1043,7 +1056,7 @@ static int virtio_mem_post_load_early(void *opaque, int version_id)
     int ret;
 
     if (!vmem->prealloc) {
-        return 0;
+        goto post_load_bitmap;
     }
 
     /*
@@ -1051,7 +1064,7 @@ static int virtio_mem_post_load_early(void *opaque, int version_id)
      * don't mess with preallocation and postcopy.
      */
     if (migrate_ram_is_ignored(rb)) {
-        return 0;
+        goto post_load_bitmap;
     }
 
     /*
@@ -1084,7 +1097,10 @@ static int virtio_mem_post_load_early(void *opaque, int version_id)
             return -EBUSY;
         }
     }
-    return 0;
+
+post_load_bitmap:
+    /* Finally, update any other state to be consistent with the new bitmap. */
+    return virtio_mem_post_load_bitmap(vmem);
 }
 
 typedef struct VirtIOMEMMigSanityChecks {
