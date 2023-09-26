@@ -3070,6 +3070,9 @@ if fdt_required.length() > 0 or fdt_opt == 'enabled'
   endif
 
   if fdt_opt in ['enabled', 'auto', 'system']
+    if get_option('wrap_mode') == 'nodownload'
+      fdt_opt = 'system'
+    endif
     fdt = cc.find_library('fdt', required: fdt_opt == 'system')
     if fdt.found() and cc.links('''
        #include <libfdt.h>
