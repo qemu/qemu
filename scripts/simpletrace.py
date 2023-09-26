@@ -169,6 +169,35 @@ class Analyzer:
         """Called if no specific method for processing a trace event has been found."""
         pass
 
+    def _build_fn(self, event):
+        fn = getattr(self, event.name, None)
+        if fn is None:
+            # Return early to avoid costly call to inspect.getfullargspec
+            return self.catchall
+
+        event_argcount = len(event.args)
+        fn_argcount = len(inspect.getfullargspec(fn)[0]) - 1
+        if fn_argcount == event_argcount + 1:
+            # Include timestamp as first argument
+            return lambda _, rec: fn(*(rec[1:2] + rec[3:3 + event_argcount]))
+        elif fn_argcount == event_argcount + 2:
+            # Include timestamp and pid
+            return lambda _, rec: fn(*rec[1:3 + event_argcount])
+        else:
+            # Just arguments, no timestamp or pid
+            return lambda _, rec: fn(*rec[3:3 + event_argcount])
+
+    def _process_event(self, rec_args, *, event, event_id, timestamp_ns, pid, **kwargs):
+        if not hasattr(self, '_fn_cache'):
+            # NOTE: Cannot depend on downstream subclasses to have
+            # super().__init__() because of legacy.
+            self._fn_cache = {}
+
+        rec = (event_id, timestamp_ns, pid, *rec_args)
+        if event_id not in self._fn_cache:
+            self._fn_cache[event_id] = self._build_fn(event)
+        self._fn_cache[event_id](event, rec)
+
     def end(self):
         """Called at the end of the trace."""
         pass
@@ -222,32 +251,15 @@ def _process(events, log_fobj, analyzer, read_header=True):
     if read_header:
         read_trace_header(log_fobj)
 
-    def build_fn(analyzer, event):
-        if isinstance(event, str):
-            return analyzer.catchall
-
-        fn = getattr(analyzer, event.name, None)
-        if fn is None:
-            return analyzer.catchall
-
-        event_argcount = len(event.args)
-        fn_argcount = len(inspect.getfullargspec(fn)[0]) - 1
-        if fn_argcount == event_argcount + 1:
-            # Include timestamp as first argument
-            return lambda _, rec: fn(*(rec[1:2] + rec[3:3 + event_argcount]))
-        elif fn_argcount == event_argcount + 2:
-            # Include timestamp and pid
-            return lambda _, rec: fn(*rec[1:3 + event_argcount])
-        else:
-            # Just arguments, no timestamp or pid
-            return lambda _, rec: fn(*rec[3:3 + event_argcount])
-
     with analyzer:
-        fn_cache = {}
         for event, event_id, timestamp_ns, record_pid, *rec_args in read_trace_records(events, log_fobj, read_header):
-            if event_id not in fn_cache:
-                fn_cache[event_id] = build_fn(analyzer, event)
-            fn_cache[event_id](event, (event_id, timestamp_ns, record_pid, *rec_args))
+            analyzer._process_event(
+                rec_args,
+                event=event,
+                event_id=event_id,
+                timestamp_ns=timestamp_ns,
+                pid=record_pid,
+            )
 
 def run(analyzer):
     """Execute an analyzer on a trace file given on the command-line.
