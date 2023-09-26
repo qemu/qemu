@@ -369,6 +369,33 @@ static void vfio_msi_interrupt(void *opaque)
     notify(&vdev->pdev, nr);
 }
 
+/*
+ * Get MSI-X enabled, but no vector enabled, by setting vector 0 with an invalid
+ * fd to kernel.
+ */
+static int vfio_enable_msix_no_vec(VFIOPCIDevice *vdev)
+{
+    g_autofree struct vfio_irq_set *irq_set = NULL;
+    int ret = 0, argsz;
+    int32_t *fd;
+
+    argsz = sizeof(*irq_set) + sizeof(*fd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                     VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = VFIO_PCI_MSIX_IRQ_INDEX;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    fd = (int32_t *)&irq_set->data;
+    *fd = -1;
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+    return ret;
+}
+
 static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 {
     struct vfio_irq_set *irq_set;
@@ -618,6 +645,8 @@ static void vfio_commit_kvm_msi_virq_batch(VFIOPCIDevice *vdev)
 
 static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
+    int ret;
+
     vfio_disable_interrupts(vdev);
 
     vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
@@ -640,8 +669,6 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
     vfio_commit_kvm_msi_virq_batch(vdev);
 
     if (vdev->nr_vectors) {
-        int ret;
-
         ret = vfio_enable_vectors(vdev, true);
         if (ret) {
             error_report("vfio: failed to enable vectors, %d", ret);
@@ -655,13 +682,14 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
          * MSI-X capability, but leaves the vector table masked.  We therefore
          * can't rely on a vector_use callback (from request_irq() in the guest)
          * to switch the physical device into MSI-X mode because that may come a
-         * long time after pci_enable_msix().  This code enables vector 0 with
-         * triggering to userspace, then immediately release the vector, leaving
-         * the physical device with no vectors enabled, but MSI-X enabled, just
-         * like the guest view.
+         * long time after pci_enable_msix().  This code sets vector 0 with an
+         * invalid fd to make the physical device MSI-X enabled, but with no
+         * vectors enabled, just like the guest view.
          */
-        vfio_msix_vector_do_use(&vdev->pdev, 0, NULL, NULL);
-        vfio_msix_vector_release(&vdev->pdev, 0);
+        ret = vfio_enable_msix_no_vec(vdev);
+        if (ret) {
+            error_report("vfio: failed to enable MSI-X, %d", ret);
+        }
     }
 
     trace_vfio_msix_enable(vdev->vbasedev.name);
