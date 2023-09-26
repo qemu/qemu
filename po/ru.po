@@ -1,1 +1,69 @@
+"Project-Id-Version: QEMU 1.4.50\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2023-09-26 19:55+0200\n"
+"PO-Revision-Date: 2023-09-26 19:55+0200\n"
+"Last-Translator: Usland123\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Gtranslator 2.91.6\n"
 
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - Нажмите Ctrl+Alt+G, чтобы отпустить захват"
+
+msgid " [Paused]"
+msgstr " [Приостановлено]"
+
+msgid "_Pause"
+msgstr "_Приостановить"
+
+msgid "_Reset"
+msgstr "_Скинуть"
+
+msgid "Power _Down"
+msgstr "_Выключить"
+
+msgid "_Quit"
+msgstr "_Выйти"
+
+msgid "_Fullscreen"
+msgstr "Полный _экран"
+
+msgid "_Copy"
+msgstr "_Копировать"
+
+msgid "Zoom _In"
+msgstr "_Приблизить"
+
+msgid "Zoom _Out"
+msgstr "_Уменьшить"
+
+msgid "Best _Fit"
+msgstr "Лучший _размер"
+
+msgid "Zoom To _Fit"
+msgstr "Масштабировать по _размеру"
+
+msgid "Grab On _Hover"
+msgstr "Захватить при _наведении"
+
+msgid "_Grab Input"
+msgstr "Захватить _ввод"
+
+msgid "Show _Tabs"
+msgstr "Показувать _вкладки"
+
+msgid "Detach Tab"
+msgstr "Отсоединить вкладку"
+
+msgid "Show Menubar"
+msgstr "Показать строку меню"
+
+msgid "_Machine"
+msgstr "_Машина"
+
+msgid "_View"
+msgstr "_Вид"
