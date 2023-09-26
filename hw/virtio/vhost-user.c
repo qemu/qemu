@@ -2622,10 +2622,9 @@ vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
     return 0;
 }
 
-static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
-                                          MemoryRegionSection *section)
+static bool vhost_user_no_private_memslots(struct vhost_dev *dev)
 {
-    return memory_region_get_fd(section->mr) >= 0;
+    return true;
 }
 
 static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
@@ -2868,6 +2867,7 @@ const VhostOps user_ops = {
         .vhost_backend_init = vhost_user_backend_init,
         .vhost_backend_cleanup = vhost_user_backend_cleanup,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
+        .vhost_backend_no_private_memslots = vhost_user_no_private_memslots,
         .vhost_set_log_base = vhost_user_set_log_base,
         .vhost_set_mem_table = vhost_user_set_mem_table,
         .vhost_set_vring_addr = vhost_user_set_vring_addr,
@@ -2894,7 +2894,6 @@ const VhostOps user_ops = {
         .vhost_set_config = vhost_user_set_config,
         .vhost_crypto_create_session = vhost_user_crypto_create_session,
         .vhost_crypto_close_session = vhost_user_crypto_close_session,
-        .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
         .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
         .vhost_dev_start = vhost_user_dev_start,
