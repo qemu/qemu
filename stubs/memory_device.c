@@ -15,3 +15,8 @@ unsigned int memory_devices_get_reserved_memslots(void)
 {
     return 0;
 }
+
+bool memory_devices_memslot_auto_decision_active(void)
+{
+    return false;
+}

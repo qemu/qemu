@@ -1462,6 +1462,19 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
+    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+    if (limit < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS &&
+        memory_devices_memslot_auto_decision_active()) {
+        error_setg(errp, "some memory device (like virtio-mem)"
+            " decided how many memory slots to use based on the overall"
+            " number of memory slots; this vhost backend would further"
+            " restricts the overall number of memory slots");
+        error_append_hint(errp, "Try plugging this vhost backend before"
+            " plugging such memory devices.\n");
+        r = -EINVAL;
+        goto fail;
+    }
+
     for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
@@ -1548,7 +1561,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
      * but we'll need additional information about the reservations.
      */
     reserved = memory_devices_get_reserved_memslots();
-    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
     if (used + reserved > limit) {
         error_setg(errp, "vhost backend memory slots limit (%d) is less"
                    " than current number of used (%d) and reserved (%d)"

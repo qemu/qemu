@@ -85,13 +85,93 @@ unsigned int memory_devices_get_reserved_memslots(void)
     return get_reserved_memslots(current_machine);
 }
 
+bool memory_devices_memslot_auto_decision_active(void)
+{
+    if (!current_machine->device_memory) {
+        return false;
+    }
+
+    return current_machine->device_memory->memslot_auto_decision_active;
+}
+
+static unsigned int memory_device_memslot_decision_limit(MachineState *ms,
+                                                         MemoryRegion *mr)
+{
+    const unsigned int reserved = get_reserved_memslots(ms);
+    const uint64_t size = memory_region_size(mr);
+    unsigned int max = vhost_get_max_memslots();
+    unsigned int free = vhost_get_free_memslots();
+    uint64_t available_space;
+    unsigned int memslots;
+
+    if (kvm_enabled()) {
+        max = MIN(max, kvm_get_max_memslots());
+        free = MIN(free, kvm_get_free_memslots());
+    }
+
+    /*
+     * If we only have less overall memslots than what we consider reasonable,
+     * just keep it to a minimum.
+     */
+    if (max < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS) {
+        return 1;
+    }
+
+    /*
+     * Consider our soft-limit across all memory devices. We don't really
+     * expect to exceed this limit in reasonable configurations.
+     */
+    if (MEMORY_DEVICES_SOFT_MEMSLOT_LIMIT <=
+        ms->device_memory->required_memslots) {
+        return 1;
+    }
+    memslots = MEMORY_DEVICES_SOFT_MEMSLOT_LIMIT -
+               ms->device_memory->required_memslots;
+
+    /*
+     * Consider the actually still free memslots. This is only relevant if
+     * other memslot consumers would consume *significantly* more memslots than
+     * what we prepared for (> 253). Unlikely, but let's just handle it
+     * cleanly.
+     */
+    memslots = MIN(memslots, free - reserved);
+    if (memslots < 1 || unlikely(free < reserved)) {
+        return 1;
+    }
+
+    /* We cannot have any other memory devices? So give all to this device. */
+    if (size == ms->maxram_size - ms->ram_size) {
+        return memslots;
+    }
+
+    /*
+     * Simple heuristic: equally distribute the memslots over the space
+     * still available for memory devices.
+     */
+    available_space = ms->maxram_size - ms->ram_size -
+                      ms->device_memory->used_region_size;
+    memslots = (double)memslots * size / available_space;
+    return memslots < 1 ? 1 : memslots;
+}
+
 static void memory_device_check_addable(MachineState *ms, MemoryDeviceState *md,
                                         MemoryRegion *mr, Error **errp)
 {
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
     const uint64_t used_region_size = ms->device_memory->used_region_size;
     const uint64_t size = memory_region_size(mr);
-    const unsigned int required_memslots = memory_device_get_memslots(md);
     const unsigned int reserved_memslots = get_reserved_memslots(ms);
+    unsigned int required_memslots, memslot_limit;
+
+    /*
+     * Instruct the device to decide how many memslots to use, if applicable,
+     * before we query the number of required memslots the first time.
+     */
+    if (mdc->decide_memslots) {
+        memslot_limit = memory_device_memslot_decision_limit(ms, mr);
+        mdc->decide_memslots(md, memslot_limit);
+    }
+    required_memslots = memory_device_get_memslots(md);
 
     /* we will need memory slots for kvm and vhost */
     if (kvm_enabled() &&
@@ -300,6 +380,7 @@ out:
 void memory_device_plug(MemoryDeviceState *md, MachineState *ms)
 {
     const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    const unsigned int memslots = memory_device_get_memslots(md);
     const uint64_t addr = mdc->get_addr(md);
     MemoryRegion *mr;
 
@@ -311,7 +392,11 @@ void memory_device_plug(MemoryDeviceState *md, MachineState *ms)
     g_assert(ms->device_memory);
 
     ms->device_memory->used_region_size += memory_region_size(mr);
-    ms->device_memory->required_memslots += memory_device_get_memslots(md);
+    ms->device_memory->required_memslots += memslots;
+    if (mdc->decide_memslots && memslots > 1) {
+        ms->device_memory->memslot_auto_decision_active++;
+    }
+
     memory_region_add_subregion(&ms->device_memory->mr,
                                 addr - ms->device_memory->base, mr);
     trace_memory_device_plug(DEVICE(md)->id ? DEVICE(md)->id : "", addr);
@@ -320,6 +405,7 @@ void memory_device_plug(MemoryDeviceState *md, MachineState *ms)
 void memory_device_unplug(MemoryDeviceState *md, MachineState *ms)
 {
     const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    const unsigned int memslots = memory_device_get_memslots(md);
     MemoryRegion *mr;
 
     /*
@@ -330,8 +416,12 @@ void memory_device_unplug(MemoryDeviceState *md, MachineState *ms)
     g_assert(ms->device_memory);
 
     memory_region_del_subregion(&ms->device_memory->mr, mr);
+
+    if (mdc->decide_memslots && memslots > 1) {
+        ms->device_memory->memslot_auto_decision_active--;
+    }
     ms->device_memory->used_region_size -= memory_region_size(mr);
-    ms->device_memory->required_memslots -= memory_device_get_memslots(md);
+    ms->device_memory->required_memslots -= memslots;
     trace_memory_device_unplug(DEVICE(md)->id ? DEVICE(md)->id : "",
                                mdc->get_addr(md));
 }

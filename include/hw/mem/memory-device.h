@@ -14,6 +14,7 @@
 #define MEMORY_DEVICE_H
 
 #include "hw/qdev-core.h"
+#include "qemu/typedefs.h"
 #include "qapi/qapi-types-machine.h"
 #include "qom/object.h"
 
@@ -100,6 +101,15 @@ struct MemoryDeviceClass {
     MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
 
     /*
+     * Optional: Instruct the memory device to decide how many memory slots
+     * it requires, not exceeding the given limit.
+     *
+     * Called exactly once when pre-plugging the memory device, before
+     * querying the number of memslots using @get_memslots the first time.
+     */
+    void (*decide_memslots)(MemoryDeviceState *md, unsigned int limit);
+
+    /*
      * Optional for memory devices that require only a single memslot,
      * required for all other memory devices: Return the number of memslots
      * (distinct RAM memory regions in the device memory region) that are
@@ -129,9 +139,31 @@ struct MemoryDeviceClass {
                              MemoryDeviceInfo *info);
 };
 
+/*
+ * Traditionally, KVM/vhost in many setups supported 509 memslots, whereby
+ * 253 memslots were "reserved" for boot memory and other devices (such
+ * as PCI BARs, which can get mapped dynamically) and 256 memslots were
+ * dedicated for DIMMs. These magic numbers worked reliably in the past.
+ *
+ * Further, using many memslots can negatively affect performance, so setting
+ * the soft-limit of memslots used by memory devices to the traditional
+ * DIMM limit of 256 sounds reasonable.
+ *
+ * If we have less than 509 memslots, we will instruct memory devices that
+ * support automatically deciding how many memslots to use to only use a single
+ * one.
+ *
+ * Hotplugging vhost devices with at least 509 memslots is not expected to
+ * cause problems, not even when devices automatically decided how many memslots
+ * to use.
+ */
+#define MEMORY_DEVICES_SOFT_MEMSLOT_LIMIT 256
+#define MEMORY_DEVICES_SAFE_MAX_MEMSLOTS 509
+
 MemoryDeviceInfoList *qmp_memory_device_list(void);
 uint64_t get_plugged_memory_size(void);
 unsigned int memory_devices_get_reserved_memslots(void);
+bool memory_devices_memslot_auto_decision_active(void);
 void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
                             const uint64_t *legacy_align, Error **errp);
 void memory_device_plug(MemoryDeviceState *md, MachineState *ms);
