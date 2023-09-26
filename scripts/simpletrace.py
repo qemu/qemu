@@ -16,6 +16,11 @@ from tracetool.backend.simple import is_string
 
 __all__ = ['Analyzer', 'process', 'run']
 
+# This is the binary format that the QEMU "simple" trace backend
+# emits. There is no specification documentation because the format is
+# not guaranteed to be stable. Trace files must be parsed with the
+# same trace-events-all file and the same simpletrace.py file that
+# QEMU was built with.
 header_event_id = 0xffffffffffffffff
 header_magic    = 0xf2b177cb0aa429b4
 dropped_event_id = 0xfffffffffffffffe
