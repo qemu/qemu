@@ -339,7 +339,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
          * We have connected, but must fail for other reasons.
          * Send NBD_CMD_DISC as a courtesy to the server.
          */
-        NBDRequest request = { .type = NBD_CMD_DISC };
+        NBDRequest request = { .type = NBD_CMD_DISC, .mode = s->info.mode };
 
         nbd_send_request(s->ioc, &request);
 
@@ -463,7 +463,8 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
             nbd_channel_error(s, ret);
             return ret;
         }
-        if (nbd_reply_is_structured(&s->reply) && !s->info.structured_reply) {
+        if (nbd_reply_is_structured(&s->reply) &&
+            s->info.mode < NBD_MODE_STRUCTURED) {
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
@@ -519,6 +520,7 @@ nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
 
     qemu_co_mutex_lock(&s->send_mutex);
     request->cookie = INDEX_TO_COOKIE(i);
+    request->mode = s->info.mode;
 
     assert(s->ioc);
 
@@ -608,7 +610,7 @@ static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
 static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
                                          uint8_t *payload, uint64_t orig_length,
-                                         NBDExtent *extent, Error **errp)
+                                         NBDExtent32 *extent, Error **errp)
 {
     uint32_t context_id;
 
@@ -866,7 +868,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
 
     /* handle structured reply chunk */
-    assert(s->info.structured_reply);
+    assert(s->info.mode >= NBD_MODE_STRUCTURED);
     chunk = &s->reply.structured;
 
     if (chunk->type == NBD_REPLY_TYPE_NONE) {
@@ -1070,7 +1072,8 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
     void *payload = NULL;
     Error *local_err = NULL;
 
-    NBD_FOREACH_REPLY_CHUNK(s, iter, cookie, s->info.structured_reply,
+    NBD_FOREACH_REPLY_CHUNK(s, iter, cookie,
+                            s->info.mode >= NBD_MODE_STRUCTURED,
                             qiov, &reply, &payload)
     {
         int ret;
@@ -1115,7 +1118,7 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
 
 static int coroutine_fn
 nbd_co_receive_blockstatus_reply(BDRVNBDState *s, uint64_t cookie,
-                                 uint64_t length, NBDExtent *extent,
+                                 uint64_t length, NBDExtent32 *extent,
                                  int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
@@ -1302,10 +1305,11 @@ nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     NBDRequest request = {
         .type = NBD_CMD_WRITE_ZEROES,
         .from = offset,
-        .len = bytes,  /* .len is uint32_t actually */
+        .len = bytes,
     };
 
-    assert(bytes <= UINT32_MAX); /* rely on max_pwrite_zeroes */
+    /* rely on max_pwrite_zeroes */
+    assert(bytes <= UINT32_MAX || s->info.mode >= NBD_MODE_EXTENDED);
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
     if (!(s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES)) {
@@ -1352,10 +1356,11 @@ nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
     NBDRequest request = {
         .type = NBD_CMD_TRIM,
         .from = offset,
-        .len = bytes, /* len is uint32_t */
+        .len = bytes,
     };
 
-    assert(bytes <= UINT32_MAX); /* rely on max_pdiscard */
+    /* rely on max_pdiscard */
+    assert(bytes <= UINT32_MAX || s->info.mode >= NBD_MODE_EXTENDED);
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
     if (!(s->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {
@@ -1370,15 +1375,14 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     int ret, request_ret;
-    NBDExtent extent = { 0 };
+    NBDExtent32 extent = { 0 };
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     Error *local_err = NULL;
 
     NBDRequest request = {
         .type = NBD_CMD_BLOCK_STATUS,
         .from = offset,
-        .len = MIN(QEMU_ALIGN_DOWN(INT_MAX, bs->bl.request_alignment),
-                   MIN(bytes, s->info.size - offset)),
+        .len = MIN(bytes, s->info.size - offset),
         .flags = NBD_CMD_FLAG_REQ_ONE,
     };
 
@@ -1387,6 +1391,10 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         *map = offset;
         *file = bs;
         return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    }
+    if (s->info.mode < NBD_MODE_EXTENDED) {
+        request.len = MIN(QEMU_ALIGN_DOWN(INT_MAX, bs->bl.request_alignment),
+                          request.len);
     }
 
     /*
@@ -1463,7 +1471,7 @@ static void nbd_yank(void *opaque)
 static void nbd_client_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    NBDRequest request = { .type = NBD_CMD_DISC };
+    NBDRequest request = { .type = NBD_CMD_DISC, .mode = s->info.mode };
 
     if (s->ioc) {
         nbd_send_request(s->ioc, &request);
@@ -1951,6 +1959,14 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.max_pdiscard = QEMU_ALIGN_DOWN(INT_MAX, min);
     bs->bl.max_pwrite_zeroes = max;
     bs->bl.max_transfer = max;
+
+    /*
+     * Assume that if the server supports extended headers, it also
+     * supports unlimited size zero and trim commands.
+     */
+    if (s->info.mode >= NBD_MODE_EXTENDED) {
+        bs->bl.max_pdiscard = bs->bl.max_pwrite_zeroes = 0;
+    }
 
     if (s->info.opt_block &&
         s->info.opt_block > bs->bl.opt_transfer) {

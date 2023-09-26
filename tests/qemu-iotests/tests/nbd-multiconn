@@ -142,4 +142,4 @@ if __name__ == '__main__':
 
         iotests.main(supported_fmts=['qcow2'])
     except ImportError:
-        iotests.notrun('libnbd not installed')
+        iotests.notrun('Python bindings to libnbd are not installed')

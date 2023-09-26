@@ -143,7 +143,7 @@ struct NBDClient {
 
     uint32_t check_align; /* If non-zero, check for aligned client requests */
 
-    bool structured_reply;
+    NBDMode mode;
     NBDExportMetaContexts export_meta;
 
     uint32_t opt; /* Current option being negotiated */
@@ -502,7 +502,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     }
 
     myflags = client->exp->nbdflags;
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
     trace_nbd_negotiate_new_style_size_flags(client->exp->size, myflags);
@@ -687,7 +687,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
 
     /* Send NBD_INFO_EXPORT always */
     myflags = exp->nbdflags;
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
     trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
@@ -985,7 +985,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     size_t i;
     size_t count = 0;
 
-    if (client->opt == NBD_OPT_SET_META_CONTEXT && !client->structured_reply) {
+    if (client->opt == NBD_OPT_SET_META_CONTEXT &&
+        client->mode < NBD_MODE_STRUCTURED) {
         return nbd_opt_invalid(client, errp,
                                "request option '%s' when structured reply "
                                "is not negotiated",
@@ -1122,10 +1123,12 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
     if (nbd_read32(client->ioc, &flags, "flags", errp) < 0) {
         return -EIO;
     }
+    client->mode = NBD_MODE_EXPORT_NAME;
     trace_nbd_negotiate_options_flags(flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
         fixedNewstyle = true;
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
+        client->mode = NBD_MODE_SIMPLE;
     }
     if (flags & NBD_FLAG_C_NO_ZEROES) {
         no_zeroes = true;
@@ -1162,7 +1165,7 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
         client->optlen = length;
 
         if (length > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
+            error_setg(errp, "len (%" PRIu32 ") is larger than max len (%u)",
                        length, NBD_MAX_BUFFER_SIZE);
             return -EINVAL;
         }
@@ -1261,13 +1264,13 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
             case NBD_OPT_STRUCTURED_REPLY:
                 if (length) {
                     ret = nbd_reject_length(client, false, errp);
-                } else if (client->structured_reply) {
+                } else if (client->mode >= NBD_MODE_STRUCTURED) {
                     ret = nbd_negotiate_send_rep_err(
                         client, NBD_REP_ERR_INVALID, errp,
                         "structured reply already negotiated");
                 } else {
                     ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
-                    client->structured_reply = true;
+                    client->mode = NBD_MODE_STRUCTURED;
                 }
                 break;
 
@@ -1434,7 +1437,7 @@ static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *reque
     request->type   = lduw_be_p(buf + 6);
     request->cookie = ldq_be_p(buf + 8);
     request->from   = ldq_be_p(buf + 16);
-    request->len    = ldl_be_p(buf + 24);
+    request->len    = (uint32_t)ldl_be_p(buf + 24); /* widen 32 to 64 bits */
 
     trace_nbd_receive_request(magic, request->flags, request->type,
                               request->from, request->len);
@@ -1884,7 +1887,7 @@ static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
                                                  NBDRequest *request,
                                                  uint32_t error,
                                                  void *data,
-                                                 size_t len,
+                                                 uint64_t len,
                                                  Error **errp)
 {
     NBDSimpleReply reply;
@@ -1895,7 +1898,10 @@ static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
     };
 
     assert(!len || !nbd_err);
-    assert(!client->structured_reply || request->type != NBD_CMD_READ);
+    assert(len <= NBD_MAX_BUFFER_SIZE);
+    assert(client->mode < NBD_MODE_STRUCTURED ||
+           (client->mode == NBD_MODE_STRUCTURED &&
+            request->type != NBD_CMD_READ));
     trace_nbd_co_send_simple_reply(request->cookie, nbd_err,
                                    nbd_err_lookup(nbd_err), len);
     set_be_simple_reply(&reply, nbd_err, request->cookie);
@@ -1951,7 +1957,7 @@ static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
                                                NBDRequest *request,
                                                uint64_t offset,
                                                void *data,
-                                               size_t size,
+                                               uint64_t size,
                                                bool final,
                                                Error **errp)
 {
@@ -1963,7 +1969,7 @@ static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
         {.iov_base = data, .iov_len = size}
     };
 
-    assert(size);
+    assert(size && size <= NBD_MAX_BUFFER_SIZE);
     trace_nbd_co_send_chunk_read(request->cookie, offset, data, size);
     set_be_chunk(client, iov, 3, final ? NBD_REPLY_FLAG_DONE : 0,
                  NBD_REPLY_TYPE_OFFSET_DATA, request);
@@ -1971,7 +1977,7 @@ static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
 
     return nbd_co_send_iov(client, iov, 3, errp);
 }
-/*ebb*/
+
 static int coroutine_fn nbd_co_send_chunk_error(NBDClient *client,
                                                 NBDRequest *request,
                                                 uint32_t error,
@@ -2006,13 +2012,14 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                                                 NBDRequest *request,
                                                 uint64_t offset,
                                                 uint8_t *data,
-                                                size_t size,
+                                                uint64_t size,
                                                 Error **errp)
 {
     int ret = 0;
     NBDExport *exp = client->exp;
     size_t progress = 0;
 
+    assert(size <= NBD_MAX_BUFFER_SIZE);
     while (progress < size) {
         int64_t pnum;
         int status = blk_co_block_status_above(exp->common.blk, NULL,
@@ -2067,7 +2074,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 }
 
 typedef struct NBDExtentArray {
-    NBDExtent *extents;
+    NBDExtent32 *extents;
     unsigned int nb_alloc;
     unsigned int count;
     uint64_t total_length;
@@ -2080,7 +2087,7 @@ static NBDExtentArray *nbd_extent_array_new(unsigned int nb_alloc)
     NBDExtentArray *ea = g_new0(NBDExtentArray, 1);
 
     ea->nb_alloc = nb_alloc;
-    ea->extents = g_new(NBDExtent, nb_alloc);
+    ea->extents = g_new(NBDExtent32, nb_alloc);
     ea->can_add = true;
 
     return ea;
@@ -2143,7 +2150,7 @@ static int nbd_extent_array_add(NBDExtentArray *ea,
     }
 
     ea->total_length += length;
-    ea->extents[ea->count] = (NBDExtent) {.length = length, .flags = flags};
+    ea->extents[ea->count] = (NBDExtent32) {.length = length, .flags = flags};
     ea->count++;
 
     return 0;
@@ -2310,11 +2317,16 @@ static int coroutine_fn nbd_co_send_bitmap(NBDClient *client,
  * to the client (although the caller may still need to disconnect after
  * reporting the error).
  */
-static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
+static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
+                                               NBDRequest *request,
                                                Error **errp)
 {
     NBDClient *client = req->client;
-    int valid_flags;
+    bool check_length = false;
+    bool check_rofs = false;
+    bool allocate_buffer = false;
+    unsigned payload_len = 0;
+    int valid_flags = NBD_CMD_FLAG_FUA;
     int ret;
 
     g_assert(qemu_in_coroutine());
@@ -2326,60 +2338,94 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
 
     trace_nbd_co_receive_request_decode_type(request->cookie, request->type,
                                              nbd_cmd_lookup(request->type));
-
-    if (request->type != NBD_CMD_WRITE) {
-        /* No payload, we are ready to read the next request.  */
-        req->complete = true;
-    }
-
-    if (request->type == NBD_CMD_DISC) {
+    switch (request->type) {
+    case NBD_CMD_DISC:
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
+        req->complete = true;
         return -EIO;
+
+    case NBD_CMD_READ:
+        if (client->mode >= NBD_MODE_STRUCTURED) {
+            valid_flags |= NBD_CMD_FLAG_DF;
+        }
+        check_length = true;
+        allocate_buffer = true;
+        break;
+
+    case NBD_CMD_WRITE:
+        payload_len = request->len;
+        check_length = true;
+        allocate_buffer = true;
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_FLUSH:
+        break;
+
+    case NBD_CMD_TRIM:
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_CACHE:
+        check_length = true;
+        break;
+
+    case NBD_CMD_WRITE_ZEROES:
+        valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
+        check_rofs = true;
+        break;
+
+    case NBD_CMD_BLOCK_STATUS:
+        valid_flags |= NBD_CMD_FLAG_REQ_ONE;
+        break;
+
+    default:
+        /* Unrecognized, will fail later */
+        ;
     }
 
-    if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE ||
-        request->type == NBD_CMD_CACHE)
-    {
-        if (request->len > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
-                       request->len, NBD_MAX_BUFFER_SIZE);
-            return -EINVAL;
-        }
-
-        if (request->type != NBD_CMD_CACHE) {
-            req->data = blk_try_blockalign(client->exp->common.blk,
-                                           request->len);
-            if (req->data == NULL) {
-                error_setg(errp, "No memory");
-                return -ENOMEM;
-            }
+    /* Payload and buffer handling. */
+    if (!payload_len) {
+        req->complete = true;
+    }
+    if (check_length && request->len > NBD_MAX_BUFFER_SIZE) {
+        /* READ, WRITE, CACHE */
+        error_setg(errp, "len (%" PRIu64 ") is larger than max len (%u)",
+                   request->len, NBD_MAX_BUFFER_SIZE);
+        return -EINVAL;
+    }
+    if (allocate_buffer) {
+        /* READ, WRITE */
+        req->data = blk_try_blockalign(client->exp->common.blk,
+                                       request->len);
+        if (req->data == NULL) {
+            error_setg(errp, "No memory");
+            return -ENOMEM;
         }
     }
-
-    if (request->type == NBD_CMD_WRITE) {
-        if (nbd_read(client->ioc, req->data, request->len, "CMD_WRITE data",
-                     errp) < 0)
-        {
+    if (payload_len) {
+        /* WRITE */
+        assert(req->data);
+        ret = nbd_read(client->ioc, req->data, payload_len,
+                       "CMD_WRITE data", errp);
+        if (ret < 0) {
             return -EIO;
         }
         req->complete = true;
-
         trace_nbd_co_receive_request_payload_received(request->cookie,
-                                                      request->len);
+                                                      payload_len);
     }
 
     /* Sanity checks. */
-    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY &&
-        (request->type == NBD_CMD_WRITE ||
-         request->type == NBD_CMD_WRITE_ZEROES ||
-         request->type == NBD_CMD_TRIM)) {
+    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY && check_rofs) {
+        /* WRITE, TRIM, WRITE_ZEROES */
         error_setg(errp, "Export is read-only");
         return -EROFS;
     }
     if (request->from > client->exp->size ||
         request->len > client->exp->size - request->from) {
-        error_setg(errp, "operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
+        error_setg(errp, "operation past EOF; From: %" PRIu64 ", Len: %" PRIu64
                    ", Size: %" PRIu64, request->from, request->len,
                    client->exp->size);
         return (request->type == NBD_CMD_WRITE ||
@@ -2395,14 +2441,6 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *
                                               request->from,
                                               request->len,
                                               client->check_align);
-    }
-    valid_flags = NBD_CMD_FLAG_FUA;
-    if (request->type == NBD_CMD_READ && client->structured_reply) {
-        valid_flags |= NBD_CMD_FLAG_DF;
-    } else if (request->type == NBD_CMD_WRITE_ZEROES) {
-        valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
-    } else if (request->type == NBD_CMD_BLOCK_STATUS) {
-        valid_flags |= NBD_CMD_FLAG_REQ_ONE;
     }
     if (request->flags & ~valid_flags) {
         error_setg(errp, "unsupported flags for command %s (got 0x%x)",
@@ -2423,7 +2461,7 @@ static coroutine_fn int nbd_send_generic_reply(NBDClient *client,
                                                const char *error_msg,
                                                Error **errp)
 {
-    if (client->structured_reply && ret < 0) {
+    if (client->mode >= NBD_MODE_STRUCTURED && ret < 0) {
         return nbd_co_send_chunk_error(client, request, -ret, error_msg, errp);
     } else {
         return nbd_co_send_simple_reply(client, request, ret < 0 ? -ret : 0,
@@ -2441,6 +2479,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
     NBDExport *exp = client->exp;
 
     assert(request->type == NBD_CMD_READ);
+    assert(request->len <= NBD_MAX_BUFFER_SIZE);
 
     /* XXX: NBD Protocol only documents use of FUA with WRITE */
     if (request->flags & NBD_CMD_FLAG_FUA) {
@@ -2451,8 +2490,8 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
         }
     }
 
-    if (client->structured_reply && !(request->flags & NBD_CMD_FLAG_DF) &&
-        request->len)
+    if (client->mode >= NBD_MODE_STRUCTURED &&
+        !(request->flags & NBD_CMD_FLAG_DF) && request->len)
     {
         return nbd_co_send_sparse_read(client, request, request->from,
                                        data, request->len, errp);
@@ -2464,7 +2503,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                       "reading from file failed", errp);
     }
 
-    if (client->structured_reply) {
+    if (client->mode >= NBD_MODE_STRUCTURED) {
         if (request->len) {
             return nbd_co_send_chunk_read(client, request, request->from, data,
                                           request->len, true, errp);
@@ -2491,6 +2530,7 @@ static coroutine_fn int nbd_do_cmd_cache(NBDClient *client, NBDRequest *request,
     NBDExport *exp = client->exp;
 
     assert(request->type == NBD_CMD_CACHE);
+    assert(request->len <= NBD_MAX_BUFFER_SIZE);
 
     ret = blk_co_preadv(exp->common.blk, request->from, request->len,
                         NULL, BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH);
@@ -2524,6 +2564,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
         }
+        assert(request->len <= NBD_MAX_BUFFER_SIZE);
         ret = blk_co_pwrite(exp->common.blk, request->from, request->len, data,
                             flags);
         return nbd_send_generic_reply(client, request, ret,
@@ -2567,6 +2608,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "need non-zero length", errp);
         }
+        assert(request->len <= UINT32_MAX);
         if (client->export_meta.count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
             int contexts_remaining = client->export_meta.count;
