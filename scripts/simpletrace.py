@@ -9,6 +9,7 @@
 #
 # For help see docs/devel/tracing.rst
 
+import sys
 import struct
 import inspect
 from tracetool import read_events, Event
@@ -51,7 +52,6 @@ def get_record(edict, idtoname, rechdr, fobj):
         try:
             event = edict[name]
         except KeyError as e:
-            import sys
             sys.stderr.write('%s event is logged but is not declared ' \
                              'in the trace events file, try using ' \
                              'trace-events-all instead.\n' % str(e))
@@ -172,11 +172,28 @@ class Analyzer(object):
         pass
 
 def process(events, log, analyzer, read_header=True):
-    """Invoke an analyzer on each event in a log."""
+    """Invoke an analyzer on each event in a log.
+    Args:
+        events (file-object or list or str): events list or file-like object or file path as str to read event data from
+        log (file-object or str): file-like object or file path as str to read log data from
+        analyzer (Analyzer): Instance of Analyzer to interpret the event data
+        read_header (bool, optional): Whether to read header data from the log data. Defaults to True.
+    """
+
     if isinstance(events, str):
-        events = read_events(open(events, 'r'), events)
+        with open(events, 'r') as f:
+            events_list = read_events(f, events)
+    elif isinstance(events, list):
+        # Treat as a list of events already produced by tracetool.read_events
+        events_list = events
+    else:
+        # Treat as an already opened file-object
+        events_list = read_events(events, events.name)
+
+    close_log = False
     if isinstance(log, str):
         log = open(log, 'rb')
+        close_log = True
 
     if read_header:
         read_trace_header(log)
@@ -187,12 +204,12 @@ def process(events, log, analyzer, read_header=True):
     edict = {"dropped": dropped_event}
     idtoname = {dropped_event_id: "dropped"}
 
-    for event in events:
+    for event in events_list:
         edict[event.name] = event
 
     # If there is no header assume event ID mapping matches events list
     if not read_header:
-        for event_id, event in enumerate(events):
+        for event_id, event in enumerate(events_list):
             idtoname[event_id] = event.name
 
     def build_fn(analyzer, event):
@@ -225,24 +242,25 @@ def process(events, log, analyzer, read_header=True):
         fn_cache[event_num](event, rec)
     analyzer.end()
 
+    if close_log:
+        log.close()
+
 def run(analyzer):
     """Execute an analyzer on a trace file given on the command-line.
 
     This function is useful as a driver for simple analysis scripts.  More
     advanced scripts will want to call process() instead."""
-    import sys
 
-    read_header = True
-    if len(sys.argv) == 4 and sys.argv[1] == '--no-header':
-        read_header = False
-        del sys.argv[1]
-    elif len(sys.argv) != 3:
-        sys.stderr.write('usage: %s [--no-header] <trace-events> ' \
-                         '<trace-file>\n' % sys.argv[0])
+    try:
+        # NOTE: See built-in `argparse` module for a more robust cli interface
+        *no_header, trace_event_path, trace_file_path = sys.argv[1:]
+        assert no_header == [] or no_header == ['--no-header'], 'Invalid no-header argument'
+    except (AssertionError, ValueError):
+        sys.stderr.write(f'usage: {sys.argv[0]} [--no-header] <trace-events> <trace-file>\n')
         sys.exit(1)
 
-    events = read_events(open(sys.argv[1], 'r'), sys.argv[1])
-    process(events, sys.argv[2], analyzer, read_header=read_header)
+    with open(trace_event_path, 'r') as events_fobj, open(trace_file_path, 'rb') as log_fobj:
+        process(events_fobj, log_fobj, analyzer, read_header=not no_header)
 
 if __name__ == '__main__':
     class Formatter(Analyzer):
