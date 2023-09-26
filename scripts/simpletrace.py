@@ -201,13 +201,26 @@ def process(events, log, analyzer, read_header=True):
         # Treat as an already opened file-object
         events_list = read_events(events, events.name)
 
-    close_log = False
     if isinstance(log, str):
-        log = open(log, 'rb')
-        close_log = True
+        with open(log, 'rb') as log_fobj:
+            _process(events_list, log_fobj, analyzer, read_header)
+    else:
+        # Treat `log` as an already opened file-object. We will not close it,
+        # as we do not own it.
+        _process(events_list, log, analyzer, read_header)
+
+def _process(events, log_fobj, analyzer, read_header=True):
+    """Internal function for processing
+
+    Args:
+        events (list): list of events already produced by tracetool.read_events
+        log_fobj (file): file-object to read log data from
+        analyzer (Analyzer): the Analyzer to interpret the event data
+        read_header (bool, optional): Whether to read header data from the log data. Defaults to True.
+    """
 
     if read_header:
-        read_trace_header(log)
+        read_trace_header(log_fobj)
 
     def build_fn(analyzer, event):
         if isinstance(event, str):
@@ -231,13 +244,10 @@ def process(events, log, analyzer, read_header=True):
 
     with analyzer:
         fn_cache = {}
-        for event, event_id, timestamp_ns, record_pid, *rec_args in read_trace_records(events, log, read_header):
+        for event, event_id, timestamp_ns, record_pid, *rec_args in read_trace_records(events, log_fobj, read_header):
             if event_id not in fn_cache:
                 fn_cache[event_id] = build_fn(analyzer, event)
             fn_cache[event_id](event, (event_id, timestamp_ns, record_pid, *rec_args))
-
-    if close_log:
-        log.close()
 
 def run(analyzer):
     """Execute an analyzer on a trace file given on the command-line.
