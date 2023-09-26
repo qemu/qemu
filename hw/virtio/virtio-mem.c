@@ -177,10 +177,10 @@ static bool virtio_mem_is_busy(void)
     return migration_in_incoming_postcopy() || !migration_is_idle();
 }
 
-typedef int (*virtio_mem_range_cb)(const VirtIOMEM *vmem, void *arg,
+typedef int (*virtio_mem_range_cb)(VirtIOMEM *vmem, void *arg,
                                    uint64_t offset, uint64_t size);
 
-static int virtio_mem_for_each_unplugged_range(const VirtIOMEM *vmem, void *arg,
+static int virtio_mem_for_each_unplugged_range(VirtIOMEM *vmem, void *arg,
                                                virtio_mem_range_cb cb)
 {
     unsigned long first_zero_bit, last_zero_bit;
@@ -204,7 +204,7 @@ static int virtio_mem_for_each_unplugged_range(const VirtIOMEM *vmem, void *arg,
     return ret;
 }
 
-static int virtio_mem_for_each_plugged_range(const VirtIOMEM *vmem, void *arg,
+static int virtio_mem_for_each_plugged_range(VirtIOMEM *vmem, void *arg,
                                              virtio_mem_range_cb cb)
 {
     unsigned long first_bit, last_bit;
@@ -969,7 +969,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     ram_block_coordinated_discard_require(false);
 }
 
-static int virtio_mem_discard_range_cb(const VirtIOMEM *vmem, void *arg,
+static int virtio_mem_discard_range_cb(VirtIOMEM *vmem, void *arg,
                                        uint64_t offset, uint64_t size)
 {
     RAMBlock *rb = vmem->memdev->mr.ram_block;
@@ -1021,7 +1021,7 @@ static int virtio_mem_post_load(void *opaque, int version_id)
     return virtio_mem_restore_unplugged(vmem);
 }
 
-static int virtio_mem_prealloc_range_cb(const VirtIOMEM *vmem, void *arg,
+static int virtio_mem_prealloc_range_cb(VirtIOMEM *vmem, void *arg,
                                         uint64_t offset, uint64_t size)
 {
     void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
