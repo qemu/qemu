@@ -1706,7 +1706,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     size_t i;
     int done = 0;
     const char *drvname = NULL;
-    VMChangeStateEntry *e;
+    VMChangeStateEntry *vmse;
     AudioState *s;
     struct audio_driver *driver;
     /* silence gcc warning about uninitialized variable */
@@ -1824,8 +1824,8 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         s->period_ticks = dev->timer_period * (int64_t)SCALE_US;
     }
 
-    e = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
-    if (!e) {
+    vmse = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
+    if (!vmse) {
         dolog ("warning: Could not register change state handler\n"
                "(Audio can continue looping even after stopping the VM)\n");
     }
@@ -1900,10 +1900,8 @@ CaptureVoiceOut *AUD_add_capture(
     cap = audio_pcm_capture_find_specific(s, as);
     if (cap) {
         QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
-        return cap;
     } else {
         HWVoiceOut *hw;
-        CaptureVoiceOut *cap;
 
         cap = g_malloc0(sizeof(*cap));
 
@@ -1937,8 +1935,9 @@ CaptureVoiceOut *AUD_add_capture(
         QLIST_FOREACH(hw, &s->hw_head_out, entries) {
             audio_attach_capture (hw);
         }
-        return cap;
     }
+
+    return cap;
 }
 
 void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
