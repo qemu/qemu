@@ -62,19 +62,44 @@ static unsigned int memory_device_get_memslots(MemoryDeviceState *md)
     return 1;
 }
 
+/*
+ * Memslots that are reserved by memory devices (required but still reported
+ * as free from KVM / vhost).
+ */
+static unsigned int get_reserved_memslots(MachineState *ms)
+{
+    if (ms->device_memory->used_memslots >
+        ms->device_memory->required_memslots) {
+        /* This is unexpected, and we warned already in the memory notifier. */
+        return 0;
+    }
+    return ms->device_memory->required_memslots -
+           ms->device_memory->used_memslots;
+}
+
+unsigned int memory_devices_get_reserved_memslots(void)
+{
+    if (!current_machine->device_memory) {
+        return 0;
+    }
+    return get_reserved_memslots(current_machine);
+}
+
 static void memory_device_check_addable(MachineState *ms, MemoryDeviceState *md,
                                         MemoryRegion *mr, Error **errp)
 {
     const uint64_t used_region_size = ms->device_memory->used_region_size;
     const uint64_t size = memory_region_size(mr);
     const unsigned int required_memslots = memory_device_get_memslots(md);
+    const unsigned int reserved_memslots = get_reserved_memslots(ms);
 
     /* we will need memory slots for kvm and vhost */
-    if (kvm_enabled() && kvm_get_free_memslots() < required_memslots) {
+    if (kvm_enabled() &&
+        kvm_get_free_memslots() < required_memslots + reserved_memslots) {
         error_setg(errp, "hypervisor has not enough free memory slots left");
         return;
     }
-    if (vhost_get_free_memslots() < required_memslots) {
+    if (vhost_get_free_memslots() < required_memslots + reserved_memslots) {
         error_setg(errp, "a used vhost backend has not enough free memory slots left");
         return;
     }

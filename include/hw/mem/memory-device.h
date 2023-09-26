@@ -46,6 +46,12 @@ typedef struct MemoryDeviceState MemoryDeviceState;
  * single RAM memory region or a memory region container with subregions
  * that are RAM memory regions or aliases to RAM memory regions. Other
  * memory regions or subregions are not supported.
+ *
+ * If the device memory region returned via @get_memory_region is a
+ * memory region container, it's supported to dynamically (un)map subregions
+ * as long as the number of memslots returned by @get_memslots() won't
+ * be exceeded and as long as all memory regions are of the same kind (e.g.,
+ * all RAM or all ROM).
  */
 struct MemoryDeviceClass {
     /* private */
@@ -125,6 +131,7 @@ struct MemoryDeviceClass {
 
 MemoryDeviceInfoList *qmp_memory_device_list(void);
 uint64_t get_plugged_memory_size(void);
+unsigned int memory_devices_get_reserved_memslots(void);
 void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
                             const uint64_t *legacy_align, Error **errp);
 void memory_device_plug(MemoryDeviceState *md, MachineState *ms);
