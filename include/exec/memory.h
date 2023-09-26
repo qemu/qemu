@@ -95,6 +95,7 @@ struct ReservedRegion {
  *     relative to the region's address space
  * @readonly: writes to this section are ignored
  * @nonvolatile: this section is non-volatile
+ * @unmergeable: this section should not get merged with adjacent sections
  */
 struct MemoryRegionSection {
     Int128 size;
@@ -104,6 +105,7 @@ struct MemoryRegionSection {
     hwaddr offset_within_address_space;
     bool readonly;
     bool nonvolatile;
+    bool unmergeable;
 };
 
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;
@@ -773,6 +775,7 @@ struct MemoryRegion {
     bool nonvolatile;
     bool rom_device;
     bool flush_coalesced_mmio;
+    bool unmergeable;
     uint8_t dirty_log_mask;
     bool is_iommu;
     RAMBlock *ram_block;
@@ -2350,6 +2353,25 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size);
  */
 void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
+
+/*
+ * memory_region_set_unmergeable: Set a memory region unmergeable
+ *
+ * Mark a memory region unmergeable, resulting in the memory region (or
+ * everything contained in a memory region container) not getting merged when
+ * simplifying the address space and notifying memory listeners. Consequently,
+ * memory listeners will never get notified about ranges that are larger than
+ * the original memory regions.
+ *
+ * This is primarily useful when multiple aliases to a RAM memory region are
+ * mapped into a memory region container, and updates (e.g., enable/disable or
+ * map/unmap) of individual memory region aliases are not supposed to affect
+ * other memory regions in the same container.
+ *
+ * @mr: the #MemoryRegion to be updated
+ * @unmergeable: whether to mark the #MemoryRegion unmergeable
+ */
+void memory_region_set_unmergeable(MemoryRegion *mr, bool unmergeable);
 
 /**
  * memory_region_present: checks if an address relative to a @container
