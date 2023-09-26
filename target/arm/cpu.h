@@ -1149,6 +1149,28 @@ int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, DumpState *s);
 
+/**
+ * arm_emulate_firmware_reset: Emulate firmware CPU reset handling
+ * @cpu: CPU (which must have been freshly reset)
+ * @target_el: exception level to put the CPU into
+ * @secure: whether to put the CPU in secure state
+ *
+ * When QEMU is directly running a guest kernel at a lower level than
+ * EL3 it implicitly emulates some aspects of the guest firmware.
+ * This includes that on reset we need to configure the parts of the
+ * CPU corresponding to EL3 so that the real guest code can run at its
+ * lower exception level. This function does that post-reset CPU setup,
+ * for when we do direct boot of a guest kernel, and for when we
+ * emulate PSCI and similar firmware interfaces starting a CPU at a
+ * lower exception level.
+ *
+ * @target_el must be an EL implemented by the CPU between 1 and 3.
+ * We do not support dropping into a Secure EL other than 3.
+ *
+ * It is the responsibility of the caller to call arm_rebuild_hflags().
+ */
+void arm_emulate_firmware_reset(CPUState *cpustate, int target_el);
+
 #ifdef TARGET_AARCH64
 int aarch64_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);

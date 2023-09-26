@@ -553,6 +553,101 @@ static void arm_cpu_reset_hold(Object *obj)
     }
 }
 
+void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
+{
+    ARMCPU *cpu = ARM_CPU(cpustate);
+    CPUARMState *env = &cpu->env;
+    bool have_el3 = arm_feature(env, ARM_FEATURE_EL3);
+    bool have_el2 = arm_feature(env, ARM_FEATURE_EL2);
+
+    /*
+     * Check we have the EL we're aiming for. If that is the
+     * highest implemented EL, then cpu_reset has already done
+     * all the work.
+     */
+    switch (target_el) {
+    case 3:
+        assert(have_el3);
+        return;
+    case 2:
+        assert(have_el2);
+        if (!have_el3) {
+            return;
+        }
+        break;
+    case 1:
+        if (!have_el3 && !have_el2) {
+            return;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (have_el3) {
+        /*
+         * Set the EL3 state so code can run at EL2. This should match
+         * the requirements set by Linux in its booting spec.
+         */
+        if (env->aarch64) {
+            env->cp15.scr_el3 |= SCR_RW;
+            if (cpu_isar_feature(aa64_pauth, cpu)) {
+                env->cp15.scr_el3 |= SCR_API | SCR_APK;
+            }
+            if (cpu_isar_feature(aa64_mte, cpu)) {
+                env->cp15.scr_el3 |= SCR_ATA;
+            }
+            if (cpu_isar_feature(aa64_sve, cpu)) {
+                env->cp15.cptr_el[3] |= R_CPTR_EL3_EZ_MASK;
+                env->vfp.zcr_el[3] = 0xf;
+            }
+            if (cpu_isar_feature(aa64_sme, cpu)) {
+                env->cp15.cptr_el[3] |= R_CPTR_EL3_ESM_MASK;
+                env->cp15.scr_el3 |= SCR_ENTP2;
+                env->vfp.smcr_el[3] = 0xf;
+            }
+            if (cpu_isar_feature(aa64_hcx, cpu)) {
+                env->cp15.scr_el3 |= SCR_HXEN;
+            }
+            if (cpu_isar_feature(aa64_fgt, cpu)) {
+                env->cp15.scr_el3 |= SCR_FGTEN;
+            }
+        }
+
+        if (target_el == 2) {
+            /* If the guest is at EL2 then Linux expects the HVC insn to work */
+            env->cp15.scr_el3 |= SCR_HCE;
+        }
+
+        /* Put CPU into non-secure state */
+        env->cp15.scr_el3 |= SCR_NS;
+        /* Set NSACR.{CP11,CP10} so NS can access the FPU */
+        env->cp15.nsacr |= 3 << 10;
+    }
+
+    if (have_el2 && target_el < 2) {
+        /* Set EL2 state so code can run at EL1. */
+        if (env->aarch64) {
+            env->cp15.hcr_el2 |= HCR_RW;
+        }
+    }
+
+    /* Set the CPU to the desired state */
+    if (env->aarch64) {
+        env->pstate = aarch64_pstate_mode(target_el, true);
+    } else {
+        static const uint32_t mode_for_el[] = {
+            0,
+            ARM_CPU_MODE_SVC,
+            ARM_CPU_MODE_HYP,
+            ARM_CPU_MODE_SVC,
+        };
+
+        cpsr_write(env, mode_for_el[target_el], CPSR_M, CPSRWriteRaw);
+    }
+}
+
+
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
