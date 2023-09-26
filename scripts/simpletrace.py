@@ -14,6 +14,8 @@ import inspect
 from tracetool import read_events, Event
 from tracetool.backend.simple import is_string
 
+__all__ = ['Analyzer', 'process', 'run']
+
 header_event_id = 0xffffffffffffffff
 header_magic    = 0xf2b177cb0aa429b4
 dropped_event_id = 0xfffffffffffffffe
