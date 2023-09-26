@@ -625,7 +625,10 @@ meson_option_build_array() {
 
 meson_options=
 meson_option_add() {
-  meson_options="$meson_options $(quote_sh "$1")"
+  local arg
+  for arg; do
+    meson_options="$meson_options $(quote_sh "$arg")"
+  done
 }
 meson_option_parse() {
   meson_options="$meson_options $(_meson_option_parse "$@")"
@@ -767,11 +770,9 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
-  --enable-cfi)
-      cfi="true";
-      meson_option_add -Db_lto=true
+  --enable-cfi) cfi=true
   ;;
-  --disable-cfi) cfi="false"
+  --disable-cfi) cfi=false
   ;;
   --disable-download) download="disabled"; git_submodules_action=validate;
   ;;
@@ -1845,7 +1846,7 @@ if test "$skip_meson" = no; then
   test "$werror" = yes && meson_option_add -Dwerror=true
 
   # QEMU options
-  test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
+  test "$cfi" != false && meson_option_add "-Dcfi=$cfi" "-Db_lto=$cfi"
   test "$docs" != auto && meson_option_add "-Ddocs=$docs"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
