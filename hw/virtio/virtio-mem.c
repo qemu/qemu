@@ -67,6 +67,13 @@ static uint32_t virtio_mem_default_thp_size(void)
 }
 
 /*
+ * The minimum memslot size depends on this setting ("sane default"), the
+ * device block size, and the memory backend page size. The last (or single)
+ * memslot might be smaller than this constant.
+ */
+#define VIRTIO_MEM_MIN_MEMSLOT_SIZE (1 * GiB)
+
+/*
  * We want to have a reasonable default block size such that
  * 1. We avoid splitting THPs when unplugging memory, which degrades
  *    performance.
@@ -483,6 +490,96 @@ static bool virtio_mem_valid_range(const VirtIOMEM *vmem, uint64_t gpa,
     return true;
 }
 
+static void virtio_mem_activate_memslot(VirtIOMEM *vmem, unsigned int idx)
+{
+    const uint64_t memslot_offset = idx * vmem->memslot_size;
+
+    assert(vmem->memslots);
+
+    /*
+     * Instead of enabling/disabling memslots, we add/remove them. This should
+     * make address space updates faster, because we don't have to loop over
+     * many disabled subregions.
+     */
+    if (memory_region_is_mapped(&vmem->memslots[idx])) {
+        return;
+    }
+    memory_region_add_subregion(vmem->mr, memslot_offset, &vmem->memslots[idx]);
+}
+
+static void virtio_mem_deactivate_memslot(VirtIOMEM *vmem, unsigned int idx)
+{
+    assert(vmem->memslots);
+
+    if (!memory_region_is_mapped(&vmem->memslots[idx])) {
+        return;
+    }
+    memory_region_del_subregion(vmem->mr, &vmem->memslots[idx]);
+}
+
+static void virtio_mem_activate_memslots_to_plug(VirtIOMEM *vmem,
+                                                 uint64_t offset, uint64_t size)
+{
+    const unsigned int start_idx = offset / vmem->memslot_size;
+    const unsigned int end_idx = (offset + size + vmem->memslot_size - 1) /
+                                 vmem->memslot_size;
+    unsigned int idx;
+
+    if (!vmem->dynamic_memslots) {
+        return;
+    }
+
+    /* Activate all involved memslots in a single transaction. */
+    memory_region_transaction_begin();
+    for (idx = start_idx; idx < end_idx; idx++) {
+        virtio_mem_activate_memslot(vmem, idx);
+    }
+    memory_region_transaction_commit();
+}
+
+static void virtio_mem_deactivate_unplugged_memslots(VirtIOMEM *vmem,
+                                                     uint64_t offset,
+                                                     uint64_t size)
+{
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
+    const unsigned int start_idx = offset / vmem->memslot_size;
+    const unsigned int end_idx = (offset + size + vmem->memslot_size - 1) /
+                                 vmem->memslot_size;
+    unsigned int idx;
+
+    if (!vmem->dynamic_memslots) {
+        return;
+    }
+
+    /* Deactivate all memslots with unplugged blocks in a single transaction. */
+    memory_region_transaction_begin();
+    for (idx = start_idx; idx < end_idx; idx++) {
+        const uint64_t memslot_offset = idx * vmem->memslot_size;
+        uint64_t memslot_size = vmem->memslot_size;
+
+        /* The size of the last memslot might be smaller. */
+        if (idx == vmem->nb_memslots - 1) {
+            memslot_size = region_size - memslot_offset;
+        }
+
+        /*
+         * Partially covered memslots might still have some blocks plugged and
+         * have to remain active if that's the case.
+         */
+        if (offset > memslot_offset ||
+            offset + size < memslot_offset + memslot_size) {
+            const uint64_t gpa = vmem->addr + memslot_offset;
+
+            if (!virtio_mem_is_range_unplugged(vmem, gpa, memslot_size)) {
+                continue;
+            }
+        }
+
+        virtio_mem_deactivate_memslot(vmem, idx);
+    }
+    memory_region_transaction_commit();
+}
+
 static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
                                       uint64_t size, bool plug)
 {
@@ -500,6 +597,8 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
         }
         virtio_mem_notify_unplug(vmem, offset, size);
         virtio_mem_set_range_unplugged(vmem, start_gpa, size);
+        /* Deactivate completely unplugged memslots after updating the state. */
+        virtio_mem_deactivate_unplugged_memslots(vmem, offset, size);
         return 0;
     }
 
@@ -527,7 +626,20 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
     }
 
     if (!ret) {
+        /*
+         * Activate before notifying and rollback in case of any errors.
+         *
+         * When activating a yet inactive memslot, memory notifiers will get
+         * notified about the added memory region and can register with the
+         * RamDiscardManager; this will traverse all plugged blocks and skip the
+         * blocks we are plugging here. The following notification will inform
+         * registered listeners about the blocks we're plugging.
+         */
+        virtio_mem_activate_memslots_to_plug(vmem, offset, size);
         ret = virtio_mem_notify_plug(vmem, offset, size);
+        if (ret) {
+            virtio_mem_deactivate_unplugged_memslots(vmem, offset, size);
+        }
     }
     if (ret) {
         /* Could be preallocation or a notifier populated memory. */
@@ -620,6 +732,7 @@ static void virtio_mem_resize_usable_region(VirtIOMEM *vmem,
 
 static int virtio_mem_unplug_all(VirtIOMEM *vmem)
 {
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
     RAMBlock *rb = vmem->memdev->mr.ram_block;
 
     if (vmem->size) {
@@ -634,6 +747,9 @@ static int virtio_mem_unplug_all(VirtIOMEM *vmem)
         bitmap_clear(vmem->bitmap, 0, vmem->bitmap_size);
         vmem->size = 0;
         notifier_list_notify(&vmem->size_change_notifiers, &vmem->size);
+
+        /* Deactivate all memslots after updating the state. */
+        virtio_mem_deactivate_unplugged_memslots(vmem, 0, region_size);
     }
 
     trace_virtio_mem_unplugged_all();
@@ -790,6 +906,43 @@ static void virtio_mem_system_reset(void *opaque)
     virtio_mem_unplug_all(vmem);
 }
 
+static void virtio_mem_prepare_mr(VirtIOMEM *vmem)
+{
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
+
+    assert(!vmem->mr && vmem->dynamic_memslots);
+    vmem->mr = g_new0(MemoryRegion, 1);
+    memory_region_init(vmem->mr, OBJECT(vmem), "virtio-mem",
+                       region_size);
+    vmem->mr->align = memory_region_get_alignment(&vmem->memdev->mr);
+}
+
+static void virtio_mem_prepare_memslots(VirtIOMEM *vmem)
+{
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
+    unsigned int idx;
+
+    g_assert(!vmem->memslots && vmem->nb_memslots && vmem->dynamic_memslots);
+    vmem->memslots = g_new0(MemoryRegion, vmem->nb_memslots);
+
+    /* Initialize our memslots, but don't map them yet. */
+    for (idx = 0; idx < vmem->nb_memslots; idx++) {
+        const uint64_t memslot_offset = idx * vmem->memslot_size;
+        uint64_t memslot_size = vmem->memslot_size;
+        char name[20];
+
+        /* The size of the last memslot might be smaller. */
+        if (idx == vmem->nb_memslots - 1) {
+            memslot_size = region_size - memslot_offset;
+        }
+
+        snprintf(name, sizeof(name), "memslot-%u", idx);
+        memory_region_init_alias(&vmem->memslots[idx], OBJECT(vmem), name,
+                                 &vmem->memdev->mr, memslot_offset,
+                                 memslot_size);
+    }
+}
+
 static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -861,6 +1014,14 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     vmem->unplugged_inaccessible = ON_OFF_AUTO_ON;
 #endif /* VIRTIO_MEM_HAS_LEGACY_GUESTS */
 
+    if (vmem->dynamic_memslots &&
+        vmem->unplugged_inaccessible != ON_OFF_AUTO_ON) {
+        error_setg(errp, "'%s' property set to 'on' requires '%s' to be 'on'",
+                   VIRTIO_MEM_DYNAMIC_MEMSLOTS_PROP,
+                   VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP);
+        return;
+    }
+
     /*
      * If the block size wasn't configured by the user, use a sane default. This
      * allows using hugetlbfs backends of any page size without manual
@@ -930,6 +1091,25 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, VIRTIO_ID_MEM, sizeof(struct virtio_mem_config));
     vmem->vq = virtio_add_queue(vdev, 128, virtio_mem_handle_request);
 
+    /*
+     * With "dynamic-memslots=off" (old behavior) we always map the whole
+     * RAM memory region directly.
+     */
+    if (vmem->dynamic_memslots) {
+        if (!vmem->mr) {
+            virtio_mem_prepare_mr(vmem);
+        }
+        if (vmem->nb_memslots <= 1) {
+            vmem->nb_memslots = 1;
+            vmem->memslot_size = memory_region_size(&vmem->memdev->mr);
+        }
+        if (!vmem->memslots) {
+            virtio_mem_prepare_memslots(vmem);
+        }
+    } else {
+        assert(!vmem->mr && !vmem->nb_memslots && !vmem->memslots);
+    }
+
     host_memory_backend_set_mapped(vmem->memdev, true);
     vmstate_register_ram(&vmem->memdev->mr, DEVICE(vmem));
     if (vmem->early_migration) {
@@ -984,10 +1164,30 @@ static int virtio_mem_restore_unplugged(VirtIOMEM *vmem)
                                                virtio_mem_discard_range_cb);
 }
 
+static int virtio_mem_activate_memslot_range_cb(VirtIOMEM *vmem, void *arg,
+                                                uint64_t offset, uint64_t size)
+{
+    virtio_mem_activate_memslots_to_plug(vmem, offset, size);
+    return 0;
+}
+
 static int virtio_mem_post_load_bitmap(VirtIOMEM *vmem)
 {
     RamDiscardListener *rdl;
     int ret;
+
+    /*
+     * We restored the bitmap and updated the requested size; activate all
+     * memslots (so listeners register) before notifying about plugged blocks.
+     */
+    if (vmem->dynamic_memslots) {
+        /*
+         * We don't expect any active memslots at this point to deactivate: no
+         * memory was plugged on the migration destination.
+         */
+        virtio_mem_for_each_plugged_range(vmem, NULL,
+                                          virtio_mem_activate_memslot_range_cb);
+    }
 
     /*
      * We started out with all memory discarded and our memory region is mapped
@@ -1251,9 +1451,77 @@ static MemoryRegion *virtio_mem_get_memory_region(VirtIOMEM *vmem, Error **errp)
     if (!vmem->memdev) {
         error_setg(errp, "'%s' property must be set", VIRTIO_MEM_MEMDEV_PROP);
         return NULL;
+    } else if (vmem->dynamic_memslots) {
+        if (!vmem->mr) {
+            virtio_mem_prepare_mr(vmem);
+        }
+        return vmem->mr;
     }
 
     return &vmem->memdev->mr;
+}
+
+static void virtio_mem_decide_memslots(VirtIOMEM *vmem, unsigned int limit)
+{
+    uint64_t region_size, memslot_size, min_memslot_size;
+    unsigned int memslots;
+    RAMBlock *rb;
+
+    if (!vmem->dynamic_memslots) {
+        return;
+    }
+
+    /* We're called exactly once, before realizing the device. */
+    assert(!vmem->nb_memslots);
+
+    /* If realizing the device will fail, just assume a single memslot. */
+    if (limit <= 1 || !vmem->memdev || !vmem->memdev->mr.ram_block) {
+        vmem->nb_memslots = 1;
+        return;
+    }
+
+    rb = vmem->memdev->mr.ram_block;
+    region_size = memory_region_size(&vmem->memdev->mr);
+
+    /*
+     * Determine the default block size now, to determine the minimum memslot
+     * size. We want the minimum slot size to be at least the device block size.
+     */
+    if (!vmem->block_size) {
+        vmem->block_size = virtio_mem_default_block_size(rb);
+    }
+    /* If realizing the device will fail, just assume a single memslot. */
+    if (vmem->block_size < qemu_ram_pagesize(rb) ||
+        !QEMU_IS_ALIGNED(region_size, vmem->block_size)) {
+        vmem->nb_memslots = 1;
+        return;
+    }
+
+    /*
+     * All memslots except the last one have a reasonable minimum size, and
+     * and all memslot sizes are aligned to the device block size.
+     */
+    memslot_size = QEMU_ALIGN_UP(region_size / limit, vmem->block_size);
+    min_memslot_size = MAX(vmem->block_size, VIRTIO_MEM_MIN_MEMSLOT_SIZE);
+    memslot_size = MAX(memslot_size, min_memslot_size);
+
+    memslots = QEMU_ALIGN_UP(region_size, memslot_size) / memslot_size;
+    if (memslots != 1) {
+        vmem->memslot_size = memslot_size;
+    }
+    vmem->nb_memslots = memslots;
+}
+
+static unsigned int virtio_mem_get_memslots(VirtIOMEM *vmem)
+{
+    if (!vmem->dynamic_memslots) {
+        /* Exactly one static RAM memory region. */
+        return 1;
+    }
+
+    /* We're called after instructed to make a decision. */
+    g_assert(vmem->nb_memslots);
+    return vmem->nb_memslots;
 }
 
 static void virtio_mem_add_size_change_notifier(VirtIOMEM *vmem,
@@ -1393,6 +1661,21 @@ static void virtio_mem_instance_init(Object *obj)
                         NULL, NULL);
 }
 
+static void virtio_mem_instance_finalize(Object *obj)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(obj);
+
+    /*
+     * Note: the core already dropped the references on all memory regions
+     * (it's passed as the owner to memory_region_init_*()) and finalized
+     * these objects. We can simply free the memory.
+     */
+    g_free(vmem->memslots);
+    vmem->memslots = NULL;
+    g_free(vmem->mr);
+    vmem->mr = NULL;
+}
+
 static Property virtio_mem_properties[] = {
     DEFINE_PROP_UINT64(VIRTIO_MEM_ADDR_PROP, VirtIOMEM, addr, 0),
     DEFINE_PROP_UINT32(VIRTIO_MEM_NODE_PROP, VirtIOMEM, node, 0),
@@ -1405,6 +1688,8 @@ static Property virtio_mem_properties[] = {
 #endif
     DEFINE_PROP_BOOL(VIRTIO_MEM_EARLY_MIGRATION_PROP, VirtIOMEM,
                      early_migration, true),
+    DEFINE_PROP_BOOL(VIRTIO_MEM_DYNAMIC_MEMSLOTS_PROP, VirtIOMEM,
+                     dynamic_memslots, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1572,6 +1857,8 @@ static void virtio_mem_class_init(ObjectClass *klass, void *data)
 
     vmc->fill_device_info = virtio_mem_fill_device_info;
     vmc->get_memory_region = virtio_mem_get_memory_region;
+    vmc->decide_memslots = virtio_mem_decide_memslots;
+    vmc->get_memslots = virtio_mem_get_memslots;
     vmc->add_size_change_notifier = virtio_mem_add_size_change_notifier;
     vmc->remove_size_change_notifier = virtio_mem_remove_size_change_notifier;
     vmc->unplug_request_check = virtio_mem_unplug_request_check;
@@ -1589,6 +1876,7 @@ static const TypeInfo virtio_mem_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOMEM),
     .instance_init = virtio_mem_instance_init,
+    .instance_finalize = virtio_mem_instance_finalize,
     .class_init = virtio_mem_class_init,
     .class_size = sizeof(VirtIOMEMClass),
     .interfaces = (InterfaceInfo[]) {
