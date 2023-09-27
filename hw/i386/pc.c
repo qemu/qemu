@@ -359,60 +359,6 @@ GlobalProperty pc_compat_2_0[] = {
 };
 const size_t pc_compat_2_0_len = G_N_ELEMENTS(pc_compat_2_0);
 
-GlobalProperty pc_compat_1_7[] = {
-    PC_CPU_MODEL_IDS("1.7.0")
-    { TYPE_USB_DEVICE, "msos-desc", "no" },
-    { "PIIX4_PM", ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, "off" },
-    { "hpet", HPET_INTCAP, "4" },
-};
-const size_t pc_compat_1_7_len = G_N_ELEMENTS(pc_compat_1_7);
-
-GlobalProperty pc_compat_1_6[] = {
-    PC_CPU_MODEL_IDS("1.6.0")
-    { "e1000", "mitigation", "off" },
-    { "qemu64-" TYPE_X86_CPU, "model", "2" },
-    { "qemu32-" TYPE_X86_CPU, "model", "3" },
-    { "i440FX-pcihost", "short_root_bus", "1" },
-    { "q35-pcihost", "short_root_bus", "1" },
-};
-const size_t pc_compat_1_6_len = G_N_ELEMENTS(pc_compat_1_6);
-
-GlobalProperty pc_compat_1_5[] = {
-    PC_CPU_MODEL_IDS("1.5.0")
-    { "Conroe-" TYPE_X86_CPU, "model", "2" },
-    { "Conroe-" TYPE_X86_CPU, "min-level", "2" },
-    { "Penryn-" TYPE_X86_CPU, "model", "2" },
-    { "Penryn-" TYPE_X86_CPU, "min-level", "2" },
-    { "Nehalem-" TYPE_X86_CPU, "model", "2" },
-    { "Nehalem-" TYPE_X86_CPU, "min-level", "2" },
-    { "virtio-net-pci", "any_layout", "off" },
-    { TYPE_X86_CPU, "pmu", "on" },
-    { "i440FX-pcihost", "short_root_bus", "0" },
-    { "q35-pcihost", "short_root_bus", "0" },
-};
-const size_t pc_compat_1_5_len = G_N_ELEMENTS(pc_compat_1_5);
-
-GlobalProperty pc_compat_1_4[] = {
-    PC_CPU_MODEL_IDS("1.4.0")
-    { "scsi-hd", "discard_granularity", "0" },
-    { "scsi-cd", "discard_granularity", "0" },
-    { "ide-hd", "discard_granularity", "0" },
-    { "ide-cd", "discard_granularity", "0" },
-    { "virtio-blk-pci", "discard_granularity", "0" },
-    /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string: */
-    { "virtio-serial-pci", "vectors", "0xFFFFFFFF" },
-    { "virtio-net-pci", "ctrl_guest_offloads", "off" },
-    { "e1000", "romfile", "pxe-e1000.rom" },
-    { "ne2k_pci", "romfile", "pxe-ne2k_pci.rom" },
-    { "pcnet", "romfile", "pxe-pcnet.rom" },
-    { "rtl8139", "romfile", "pxe-rtl8139.rom" },
-    { "virtio-net-pci", "romfile", "pxe-virtio.rom" },
-    { "486-" TYPE_X86_CPU, "model", "0" },
-    { "n270" "-" TYPE_X86_CPU, "movbe", "off" },
-    { "Westmere" "-" TYPE_X86_CPU, "pclmulqdq", "off" },
-};
-const size_t pc_compat_1_4_len = G_N_ELEMENTS(pc_compat_1_4);
-
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
 {
     GSIState *s;
@@ -1293,9 +1239,9 @@ void pc_basic_device_init(struct PCMachineState *pcms,
             exit(1);
         }
         /*
-         * For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7 and
-         * earlier, use IRQ2 for compat. Otherwise, use IRQ16~23, IRQ8 and
-         * IRQ2.
+         * For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-*,
+         * use IRQ16~23, IRQ8 and IRQ2.  If the user has already set
+         * the property, use whatever mask they specified.
          */
         uint8_t compat = object_property_get_uint(OBJECT(hpet),
                 HPET_INTCAP, NULL);

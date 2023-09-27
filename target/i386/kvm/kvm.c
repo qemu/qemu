@@ -2699,8 +2699,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
     if (enable_cpu_pm) {
         int disable_exits = kvm_check_extension(s, KVM_CAP_X86_DISABLE_EXITS);
-        int ret;
-
 /* Work around for kernel header with a typo. TODO: fix header and drop. */
 #if defined(KVM_X86_DISABLE_EXITS_HTL) && !defined(KVM_X86_DISABLE_EXITS_HLT)
 #define KVM_X86_DISABLE_EXITS_HLT KVM_X86_DISABLE_EXITS_HTL
@@ -3610,7 +3608,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (kvm_enabled() && cpu->enable_pmu &&
             (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
             uint64_t depth;
-            int i, ret;
+            int ret;
 
             /*
              * Only migrate Arch LBR states when the host Arch LBR depth
@@ -3643,8 +3641,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
 
     if (env->mcg_cap) {
-        int i;
-
         kvm_msr_entry_add(cpu, MSR_MCG_STATUS, env->mcg_status);
         kvm_msr_entry_add(cpu, MSR_MCG_CTL, env->mcg_ctl);
         if (has_msr_mcg_ext_ctl) {
@@ -4041,7 +4037,6 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (kvm_enabled() && cpu->enable_pmu &&
         (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
         uint64_t depth;
-        int i, ret;
 
         ret = kvm_get_one_msr(cpu, MSR_ARCH_LBR_DEPTH, &depth);
         if (ret == 1 && depth == ARCH_LBR_NR_ENTRIES) {

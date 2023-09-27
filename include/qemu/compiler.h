@@ -197,4 +197,10 @@
 #define BUILTIN_SUBCLL_BROKEN
 #endif
 
+#if __has_attribute(annotate)
+#define QEMU_ANNOTATE(x) __attribute__((annotate(x)))
+#else
+#define QEMU_ANNOTATE(x)
+#endif
+
 #endif /* COMPILER_H */

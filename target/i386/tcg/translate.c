@@ -3242,7 +3242,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x30 ... 0x35:
     case 0x38 ... 0x3d:
         {
-            int op, f, val;
+            int f;
             op = (b >> 3) & 7;
             f = (b >> 1) & 3;
 
@@ -3302,8 +3302,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x81:
     case 0x83:
         {
-            int val;
-
             ot = mo_b_d(b, dflag);
 
             modrm = x86_ldub_code(env, s);

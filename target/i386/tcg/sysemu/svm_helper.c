@@ -387,8 +387,6 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     env->hflags2 |= HF2_GIF_MASK;
 
     if (ctl_has_irq(env)) {
-        CPUState *cs = env_cpu(env);
-
         cs->interrupt_request |= CPU_INTERRUPT_VIRQ;
     }
 

@@ -192,7 +192,7 @@ static dma_addr_t mptsas_ld_sg_base(MPTSASState *s, uint32_t flags_and_length,
     return addr;
 }
 
-static int mptsas_build_sgl(MPTSASState *s, MPTSASRequest *req, hwaddr addr)
+static int mptsas_build_sgl(MPTSASState *s, MPTSASRequest *req, hwaddr req_addr)
 {
     PCIDevice *pci = (PCIDevice *) s;
     hwaddr next_chain_addr;
@@ -201,8 +201,8 @@ static int mptsas_build_sgl(MPTSASState *s, MPTSASRequest *req, hwaddr addr)
     uint32_t chain_offset;
 
     chain_offset = req->scsi_io.ChainOffset;
-    next_chain_addr = addr + chain_offset * sizeof(uint32_t);
-    sgaddr = addr + sizeof(MPIMsgSCSIIORequest);
+    next_chain_addr = req_addr + chain_offset * sizeof(uint32_t);
+    sgaddr = req_addr + sizeof(MPIMsgSCSIIORequest);
     pci_dma_sglist_init(&req->qsg, pci, 4);
     left = req->scsi_io.DataLength;
 

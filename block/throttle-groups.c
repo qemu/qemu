@@ -317,8 +317,8 @@ static bool coroutine_fn throttle_group_co_restart_queue(ThrottleGroupMember *tg
  * @tgm:       the current ThrottleGroupMember
  * @direction: the ThrottleDirection
  */
-static void schedule_next_request(ThrottleGroupMember *tgm,
-                                  ThrottleDirection direction)
+static void coroutine_mixed_fn schedule_next_request(ThrottleGroupMember *tgm,
+                                                     ThrottleDirection direction)
 {
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);

@@ -570,8 +570,8 @@ static void coroutine_fn bdrv_qed_open_entry(void *opaque)
     qemu_co_mutex_unlock(&s->table_lock);
 }
 
-static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
-                         Error **errp)
+static int coroutine_mixed_fn bdrv_qed_open(BlockDriverState *bs, QDict *options,
+                                            int flags, Error **errp)
 {
     QEDOpenCo qoc = {
         .bs = bs,
