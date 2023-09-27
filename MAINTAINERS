@@ -2437,7 +2437,7 @@ S: Orphan
 R: Ani Sinha <ani@anisinha.ca>
 F: hw/acpi/vmgenid.c
 F: include/hw/acpi/vmgenid.h
-F: docs/specs/vmgenid.txt
+F: docs/specs/vmgenid.rst
 F: tests/qtest/vmgenid-test.c
 
 LED

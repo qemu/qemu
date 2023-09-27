@@ -31,3 +31,4 @@ guest hardware that is specific to QEMU.
    standard-vga
    virt-ctlr
    vmcoreinfo
+   vmgenid
