@@ -1882,6 +1882,7 @@ EDU
 M: Jiri Slaby <jslaby@suse.cz>
 S: Maintained
 F: hw/misc/edu.c
+F: docs/specs/edu.rst
 
 IDE
 M: John Snow <jsnow@redhat.com>

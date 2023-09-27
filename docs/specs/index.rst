@@ -25,3 +25,4 @@ guest hardware that is specific to QEMU.
    sev-guest-firmware
    fw_cfg
    vmw_pvscsi-spec
+   edu
