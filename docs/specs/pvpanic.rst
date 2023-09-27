@@ -21,18 +21,21 @@ recognize. On write, the bits not recognized by the device are ignored.
 Software should set only bits both itself and the device recognize.
 
 Bit Definition
---------------
-bit 0: a guest panic has happened and should be processed by the host
-bit 1: a guest panic has happened and will be handled by the guest;
-       the host should record it or report it, but should not affect
-       the execution of the guest.
+~~~~~~~~~~~~~~
+
+bit 0
+  a guest panic has happened and should be processed by the host
+bit 1
+  a guest panic has happened and will be handled by the guest;
+  the host should record it or report it, but should not affect
+  the execution of the guest.
 
 PCI Interface
 -------------
 
 The PCI interface is similar to the ISA interface except that it uses an MMIO
 address space provided by its BAR0, 1 byte long. Any machine with a PCI bus
-can enable a pvpanic device by adding '-device pvpanic-pci' to the command
+can enable a pvpanic device by adding ``-device pvpanic-pci`` to the command
 line.
 
 ACPI Interface
@@ -40,15 +43,25 @@ ACPI Interface
 
 pvpanic device is defined with ACPI ID "QEMU0001". Custom methods:
 
-RDPT:       To determine whether guest panic notification is supported.
-Arguments:  None
-Return:     Returns a byte, with the same semantics as the I/O port
-            interface.
+RDPT
+~~~~
 
-WRPT:       To send a guest panic event
-Arguments:  Arg0 is a byte to be written, with the same semantics as
-            the I/O interface.
-Return:     None
+To determine whether guest panic notification is supported.
+
+Arguments
+  None
+Return
+  Returns a byte, with the same semantics as the I/O port interface.
+
+WRPT
+~~~~
+
+To send a guest panic event.
+
+Arguments
+  Arg0 is a byte to be written, with the same semantics as the I/O interface.
+Return
+  None
 
 The ACPI device will automatically refer to the right port in case it
 is modified.
