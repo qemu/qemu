@@ -1049,9 +1049,10 @@ enum {
     VIRTQUEUE_READ_DESC_MORE = 1,   /* more buffers in chain */
 };
 
+/* Reads the 'desc->next' descriptor into '*desc'. */
 static int virtqueue_split_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
                                           MemoryRegionCache *desc_cache,
-                                          unsigned int max, unsigned int *next)
+                                          unsigned int max)
 {
     /* If this descriptor says it doesn't chain, we're done. */
     if (!(desc->flags & VRING_DESC_F_NEXT)) {
@@ -1059,14 +1060,12 @@ static int virtqueue_split_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
     }
 
     /* Check they're not leading us off end of descriptors. */
-    *next = desc->next;
-
-    if (*next >= max) {
-        virtio_error(vdev, "Desc next is %u", *next);
+    if (desc->next >= max) {
+        virtio_error(vdev, "Desc next is %u", desc->next);
         return VIRTQUEUE_READ_DESC_ERROR;
     }
 
-    vring_split_desc_read(vdev, desc, desc_cache, *next);
+    vring_split_desc_read(vdev, desc, desc_cache, desc->next);
     return VIRTQUEUE_READ_DESC_MORE;
 }
 
@@ -1146,7 +1145,7 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
                 goto done;
             }
 
-            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max, &i);
+            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
         if (rc == VIRTQUEUE_READ_DESC_ERROR) {
@@ -1601,7 +1600,7 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
             goto err_undo_map;
         }
 
-        rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max, &i);
+        rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
     } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
     if (rc == VIRTQUEUE_READ_DESC_ERROR) {
@@ -4055,8 +4054,7 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
             list = node;
 
             ndescs++;
-            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache,
-                                                max, &i);
+            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
         element->descs = list;
 done:
