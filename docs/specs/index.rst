@@ -30,3 +30,4 @@ guest hardware that is specific to QEMU.
    pvpanic
    standard-vga
    virt-ctlr
+   vmcoreinfo

@@ -2884,6 +2884,7 @@ F: include/sysemu/dump.h
 F: qapi/dump.json
 F: scripts/dump-guest-memory.py
 F: stubs/dump.c
+F: docs/specs/vmcoreinfo.rst
 
 Error reporting
 M: Markus Armbruster <armbru@redhat.com>
