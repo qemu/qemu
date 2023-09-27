@@ -327,6 +327,14 @@ QEMU's ``vhost`` feature, which would eliminate the high latency costs under
 which the 9p ``proxy`` backend currently suffers. However as of to date nobody
 has indicated plans for such kind of reimplementation unfortunately.
 
+``-device pvrdma`` and the rdma subsystem (since 8.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The pvrdma device and the whole rdma subsystem are in a bad shape and
+without active maintenance. The QEMU project intends to remove this
+device and subsystem from the code base in a future release without
+replacement unless somebody steps up and improves the situation.
+
 
 Block device options
 ''''''''''''''''''''

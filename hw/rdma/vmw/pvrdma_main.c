@@ -615,6 +615,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     bool ram_shared = false;
     PCIDevice *func0;
 
+    warn_report_once("pvrdma is deprecated and will be removed in a future release");
+
     rdma_info_report("Initializing device %s %x.%x", pdev->name,
                      PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
