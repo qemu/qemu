@@ -29,3 +29,4 @@ guest hardware that is specific to QEMU.
    ivshmem-spec
    pvpanic
    standard-vga
+   virt-ctlr

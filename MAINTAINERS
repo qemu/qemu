@@ -1283,6 +1283,7 @@ F: include/hw/char/goldfish_tty.h
 F: include/hw/intc/goldfish_pic.h
 F: include/hw/intc/m68k_irqc.h
 F: include/hw/misc/virt_ctrl.h
+F: docs/specs/virt-ctlr.rst
 
 MicroBlaze Machines
 -------------------
