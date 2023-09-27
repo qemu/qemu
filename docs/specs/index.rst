@@ -26,3 +26,4 @@ guest hardware that is specific to QEMU.
    fw_cfg
    vmw_pvscsi-spec
    edu
+   ivshmem-spec

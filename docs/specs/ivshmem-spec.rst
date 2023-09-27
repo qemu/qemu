@@ -1,4 +1,6 @@
-= Device Specification for Inter-VM shared memory device =
+======================================================
+Device Specification for Inter-VM shared memory device
+======================================================
 
 The Inter-VM shared memory device (ivshmem) is designed to share a
 memory region between multiple QEMU processes running different guests
@@ -12,42 +14,17 @@ can obtain one from an ivshmem server.
 In the latter case, the device can additionally interrupt its peers, and
 get interrupted by its peers.
 
+For information on configuring the ivshmem device on the QEMU
+command line, see :doc:`../system/devices/ivshmem`.
 
-== Configuring the ivshmem PCI device ==
-
-There are two basic configurations:
-
-- Just shared memory:
-
-      -device ivshmem-plain,memdev=HMB,...
-
-  This uses host memory backend HMB.  It should have option "share"
-  set.
-
-- Shared memory plus interrupts:
-
-      -device ivshmem-doorbell,chardev=CHR,vectors=N,...
-
-  An ivshmem server must already be running on the host.  The device
-  connects to the server's UNIX domain socket via character device
-  CHR.
-
-  Each peer gets assigned a unique ID by the server.  IDs must be
-  between 0 and 65535.
-
-  Interrupts are message-signaled (MSI-X).  vectors=N configures the
-  number of vectors to use.
-
-For more details on ivshmem device properties, see the QEMU Emulator
-user documentation.
-
-
-== The ivshmem PCI device's guest interface ==
+The ivshmem PCI device's guest interface
+========================================
 
 The device has vendor ID 1af4, device ID 1110, revision 1.  Before
 QEMU 2.6.0, it had revision 0.
 
-=== PCI BARs ===
+PCI BARs
+--------
 
 The ivshmem PCI device has two or three BARs:
 
@@ -59,8 +36,7 @@ There are two ways to use this device:
 
 - If you only need the shared memory part, BAR2 suffices.  This way,
   you have access to the shared memory in the guest and can use it as
-  you see fit.  Memnic, for example, uses ivshmem this way from guest
-  user space (see http://dpdk.org/browse/memnic).
+  you see fit.
 
 - If you additionally need the capability for peers to interrupt each
   other, you need BAR0 and BAR1.  You will most likely want to write a
@@ -77,9 +53,12 @@ accessing BAR2.
 Revision 0 of the device is not capable to tell guest software whether
 it is configured for interrupts.
 
-=== PCI device registers ===
+PCI device registers
+--------------------
 
 BAR 0 contains the following registers:
+
+::
 
     Offset  Size  Access      On reset  Function
         0     4   read/write        0   Interrupt Mask
@@ -145,18 +124,20 @@ With multiple MSI-X vectors, different vectors can be used to indicate
 different events have occurred.  The semantics of interrupt vectors
 are left to the application.
 
-
-== Interrupt infrastructure ==
+Interrupt infrastructure
+========================
 
 When configured for interrupts, the peers share eventfd objects in
 addition to shared memory.  The shared resources are managed by an
 ivshmem server.
 
-=== The ivshmem server ===
+The ivshmem server
+------------------
 
 The server listens on a UNIX domain socket.
 
 For each new client that connects to the server, the server
+
 - picks an ID,
 - creates eventfd file descriptors for the interrupt vectors,
 - sends the ID and the file descriptor for the shared memory to the
@@ -189,7 +170,8 @@ vectors.
 A standalone client is in contrib/ivshmem-client/.  It can be useful
 for debugging.
 
-=== The ivshmem Client-Server Protocol ===
+The ivshmem Client-Server Protocol
+----------------------------------
 
 An ivshmem device configured for interrupts connects to an ivshmem
 server.  This section details the protocol between the two.
@@ -245,7 +227,8 @@ Known bugs:
 
 * The protocol is poorly designed.
 
-=== The ivshmem Client-Client Protocol ===
+The ivshmem Client-Client Protocol
+----------------------------------
 
 An ivshmem device configured for interrupts receives eventfd file
 descriptors for interrupting peers and getting interrupted by peers
