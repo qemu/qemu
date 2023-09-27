@@ -1060,8 +1060,6 @@ static int virtqueue_split_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
 
     /* Check they're not leading us off end of descriptors. */
     *next = desc->next;
-    /* Make sure compiler knows to grab that: we don't want it changing! */
-    smp_wmb();
 
     if (*next >= max) {
         virtio_error(vdev, "Desc next is %u", *next);
