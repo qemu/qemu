@@ -2468,6 +2468,7 @@ F: hw/display/vga*
 F: hw/display/bochs-display.c
 F: include/hw/display/vga.h
 F: include/hw/display/bochs-vbe.h
+F: docs/specs/standard-vga.rst
 
 ramfb
 M: Gerd Hoffmann <kraxel@redhat.com>
