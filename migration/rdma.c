@@ -2375,9 +2375,9 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
                                        .type = RDMA_CONTROL_ERROR,
                                        .repeat = 1,
                                      };
-            error_report("Early error. Sending error.");
+            warn_report("Early error. Sending error.");
             if (qemu_rdma_post_send_control(rdma, NULL, &head, &err) < 0) {
-                error_report_err(err);
+                warn_report_err(err);
             }
         }
 
