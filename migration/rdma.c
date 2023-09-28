@@ -1476,7 +1476,7 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
     }
 
     if (ret < 0) {
-        error_report("ibv_poll_cq return %d", ret);
+        error_report("ibv_poll_cq failed");
         return ret;
     }
 
@@ -2226,7 +2226,7 @@ retry:
         ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
             error_report("rdma migration: failed to make "
-                         "room in full send queue! %d", ret);
+                         "room in full send queue!");
             return ret;
         }
 
@@ -2819,7 +2819,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     ret = qemu_rdma_write_flush(rdma);
     if (ret < 0) {
         rdma->error_state = ret;
-        error_setg(errp, "qemu_rdma_write_flush returned %d", ret);
+        error_setg(errp, "qemu_rdma_write_flush failed");
         return -1;
     }
 
@@ -2839,7 +2839,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
 
             if (ret < 0) {
                 rdma->error_state = ret;
-                error_setg(errp, "qemu_rdma_exchange_send returned %d", ret);
+                error_setg(errp, "qemu_rdma_exchange_send failed");
                 return -1;
             }
 
@@ -2929,7 +2929,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
 
         if (ret < 0) {
             rdma->error_state = ret;
-            error_setg(errp, "qemu_rdma_exchange_recv returned %d", ret);
+            error_setg(errp, "qemu_rdma_exchange_recv failed");
             return -1;
         }
 
@@ -3271,7 +3271,7 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
      */
     ret = qemu_rdma_write(rdma, block_offset, offset, size);
     if (ret < 0) {
-        error_report("rdma migration: write error! %d", ret);
+        error_report("rdma migration: write error");
         goto err;
     }
 
@@ -3287,7 +3287,7 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
         ret = qemu_rdma_poll(rdma, rdma->recv_cq, &wr_id_in, NULL);
 
         if (ret < 0) {
-            error_report("rdma migration: polling error! %d", ret);
+            error_report("rdma migration: polling error");
             goto err;
         }
 
@@ -3303,7 +3303,7 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
         ret = qemu_rdma_poll(rdma, rdma->send_cq, &wr_id_in, NULL);
 
         if (ret < 0) {
-            error_report("rdma migration: polling error! %d", ret);
+            error_report("rdma migration: polling error");
             goto err;
         }
 
@@ -3478,13 +3478,13 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     ret = rdma_accept(rdma->cm_id, &conn_param);
     if (ret) {
-        error_report("rdma_accept returns %d", ret);
+        error_report("rdma_accept failed");
         goto err_rdma_dest_wait;
     }
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
     if (ret) {
-        error_report("rdma_accept get_cm_event failed %d", ret);
+        error_report("rdma_accept get_cm_event failed");
         goto err_rdma_dest_wait;
     }
 
