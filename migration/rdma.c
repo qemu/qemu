@@ -1483,17 +1483,12 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
     }
 
     if (ret < 0) {
-        error_report("ibv_poll_cq failed");
         return -1;
     }
 
     wr_id = wc.wr_id & RDMA_WRID_TYPE_MASK;
 
     if (wc.status != IBV_WC_SUCCESS) {
-        fprintf(stderr, "ibv_poll_cq wc.status=%d %s!\n",
-                        wc.status, ibv_wc_status_str(wc.status));
-        fprintf(stderr, "ibv_poll_cq wrid=%" PRIu64 "!\n", wr_id);
-
         return -1;
     }
 
@@ -1577,16 +1572,12 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                 if (pfds[1].revents) {
                     ret = rdma_get_cm_event(rdma->channel, &cm_event);
                     if (ret < 0) {
-                        error_report("failed to get cm event while wait "
-                                     "completion channel");
                         return -1;
                     }
 
                     if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
                         cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
                         rdma_ack_cm_event(cm_event);
-                        error_report("receive cm event while wait comp channel,"
-                                     "cm event is %d", cm_event->event);
                         return -1;
                     }
                     rdma_ack_cm_event(cm_event);
@@ -1599,7 +1590,6 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
             default: /* Error of some type -
                       * I don't trust errno from qemu_poll_ns
                      */
-                error_report("%s: poll failed", __func__);
                 return -1;
             }
 
@@ -1683,12 +1673,6 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma,
 
         ret = ibv_get_cq_event(ch, &cq, &cq_ctx);
         if (ret < 0) {
-            /*
-             * FIXME perror() is problematic, because ibv_reg_mr() is
-             * not documented to set errno.  Will go away later in
-             * this series.
-             */
-            perror("ibv_get_cq_event");
             goto err_block_for_wrid;
         }
 
