@@ -1009,7 +1009,6 @@ route:
         error_setg(errp,
                    "RDMA ERROR: result not equal to event_addr_resolved %s",
                    rdma_event_str(cm_event->event));
-        error_report("rdma_resolve_addr");
         rdma_ack_cm_event(cm_event);
         goto err_resolve_get_addr;
     }
