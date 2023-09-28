@@ -861,6 +861,8 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
                 if (errno == EPERM) {
                     continue;
                 } else {
+                    error_setg_errno(errp, errno,
+                                     "could not open RDMA device context");
                     return -EINVAL;
                 }
             }
