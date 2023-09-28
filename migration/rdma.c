@@ -2608,8 +2608,8 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
 
     ret = rdma_connect(rdma->cm_id, &conn_param);
     if (ret < 0) {
-        perror("rdma_connect");
-        error_setg(errp, "RDMA ERROR: connecting to destination!");
+        error_setg_errno(errp, errno,
+                         "RDMA ERROR: connecting to destination!");
         goto err_rdma_source_connect;
     }
 
@@ -2618,21 +2618,15 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
     } else {
         ret = rdma_get_cm_event(rdma->channel, &cm_event);
         if (ret < 0) {
-            error_setg(errp, "RDMA ERROR: failed to get cm event");
+            error_setg_errno(errp, errno,
+                             "RDMA ERROR: failed to get cm event");
         }
     }
     if (ret < 0) {
-        /*
-         * FIXME perror() is wrong, because
-         * qemu_get_cm_event_timeout() can fail without setting errno.
-         * Will go away later in this series.
-         */
-        perror("rdma_get_cm_event after rdma_connect");
         goto err_rdma_source_connect;
     }
 
     if (cm_event->event != RDMA_CM_EVENT_ESTABLISHED) {
-        error_report("rdma_get_cm_event != EVENT_ESTABLISHED after rdma_connect");
         error_setg(errp, "RDMA ERROR: connecting to destination!");
         rdma_ack_cm_event(cm_event);
         goto err_rdma_source_connect;
