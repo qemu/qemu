@@ -953,7 +953,7 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
 
     /* create CM id */
     ret = rdma_create_id(rdma->channel, &rdma->cm_id, NULL, RDMA_PS_TCP);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "could not create channel id");
         goto err_resolve_create_id;
     }
@@ -974,10 +974,10 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
 
         ret = rdma_resolve_addr(rdma->cm_id, NULL, e->ai_dst_addr,
                 RDMA_RESOLVE_TIMEOUT_MS);
-        if (!ret) {
+        if (ret >= 0) {
             if (e->ai_family == AF_INET6) {
                 ret = qemu_rdma_broken_ipv6_kernel(rdma->cm_id->verbs, errp);
-                if (ret) {
+                if (ret < 0) {
                     continue;
                 }
             }
@@ -994,7 +994,7 @@ route:
     qemu_rdma_dump_gid("source_resolve_addr", rdma->cm_id);
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "could not perform event_addr_resolved");
         goto err_resolve_get_addr;
     }
@@ -1010,13 +1010,13 @@ route:
 
     /* resolve route */
     ret = rdma_resolve_route(rdma->cm_id, RDMA_RESOLVE_TIMEOUT_MS);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "could not resolve rdma route");
         goto err_resolve_get_addr;
     }
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "could not perform event_route_resolved");
         goto err_resolve_get_addr;
     }
@@ -1124,7 +1124,7 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     attr.qp_type = IBV_QPT_RC;
 
     ret = rdma_create_qp(rdma->cm_id, rdma->pd, &attr);
-    if (ret) {
+    if (ret < 0) {
         return -1;
     }
 
@@ -1567,7 +1567,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
 
                 if (pfds[1].revents) {
                     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-                    if (ret) {
+                    if (ret < 0) {
                         error_report("failed to get cm event while wait "
                                      "completion channel");
                         return -1;
@@ -1668,12 +1668,12 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma,
 
     while (1) {
         ret = qemu_rdma_wait_comp_channel(rdma, ch);
-        if (ret) {
+        if (ret < 0) {
             goto err_block_for_wrid;
         }
 
         ret = ibv_get_cq_event(ch, &cq, &cq_ctx);
-        if (ret) {
+        if (ret < 0) {
             /*
              * FIXME perror() is problematic, because ibv_reg_mr() is
              * not documented to set errno.  Will go away later in
@@ -1911,7 +1911,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
      */
     if (resp) {
         ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_DATA);
-        if (ret) {
+        if (ret < 0) {
             error_report("rdma migration: error posting"
                     " extra control recv for anticipated result!");
             return -1;
@@ -1922,7 +1922,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
      * Post a WR to replace the one we just consumed for the READY message.
      */
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma migration: error posting first control recv!");
         return -1;
     }
@@ -2009,7 +2009,7 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
      * Post a new RECV work request to replace the one we just consumed.
      */
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma migration: error posting second control recv!");
         return -1;
     }
@@ -2357,7 +2357,7 @@ static int qemu_rdma_write(RDMAContext *rdma,
     /* If we cannot merge it, we flush the current buffer first. */
     if (!qemu_rdma_buffer_mergeable(rdma, current_addr, len)) {
         ret = qemu_rdma_write_flush(rdma);
-        if (ret) {
+        if (ret < 0) {
             return -1;
         }
         rdma->current_length = 0;
@@ -2487,12 +2487,12 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
     rdma->pin_all = pin_all;
 
     ret = qemu_rdma_resolve_host(rdma, errp);
-    if (ret) {
+    if (ret < 0) {
         goto err_rdma_source_init;
     }
 
     ret = qemu_rdma_alloc_pd_cq(rdma);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "rdma migration: error allocating pd and cq! Your mlock()"
                     " limits may be too low. Please check $ ulimit -a # and "
                     "search for 'ulimit -l' in the output");
@@ -2500,7 +2500,7 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
     }
 
     ret = qemu_rdma_alloc_qp(rdma);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "rdma migration: error allocating qp!");
         goto err_rdma_source_init;
     }
@@ -2517,7 +2517,7 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         ret = qemu_rdma_reg_control(rdma, idx);
-        if (ret) {
+        if (ret < 0) {
             ERROR(errp, "rdma migration: error registering %d control!",
                                                             idx);
             goto err_rdma_source_init;
@@ -2591,13 +2591,13 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
     caps_to_network(&cap);
 
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "posting second control recv");
         goto err_rdma_source_connect;
     }
 
     ret = rdma_connect(rdma->cm_id, &conn_param);
-    if (ret) {
+    if (ret < 0) {
         perror("rdma_connect");
         ERROR(errp, "connecting to destination!");
         goto err_rdma_source_connect;
@@ -2611,7 +2611,7 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
             ERROR(errp, "failed to get cm event");
         }
     }
-    if (ret) {
+    if (ret < 0) {
         /*
          * FIXME perror() is wrong, because
          * qemu_get_cm_event_timeout() can fail without setting errno.
@@ -2684,7 +2684,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 
     /* create CM id */
     ret = rdma_create_id(rdma->channel, &listen_id, NULL, RDMA_PS_TCP);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "could not create cm_id!");
         goto err_dest_init_create_listen_id;
     }
@@ -2700,7 +2700,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 
     ret = rdma_set_option(listen_id, RDMA_OPTION_ID, RDMA_OPTION_ID_REUSEADDR,
                           &reuse, sizeof reuse);
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "Error: could not set REUSEADDR option");
         goto err_dest_init_bind_addr;
     }
@@ -2709,12 +2709,12 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
             &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
         trace_qemu_rdma_dest_init_trying(rdma->host, ip);
         ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
-        if (ret) {
+        if (ret < 0) {
             continue;
         }
         if (e->ai_family == AF_INET6) {
             ret = qemu_rdma_broken_ipv6_kernel(listen_id->verbs, errp);
-            if (ret) {
+            if (ret < 0) {
                 continue;
             }
         }
@@ -3342,7 +3342,7 @@ static void rdma_cm_poll_handler(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret) {
+    if (ret < 0) {
         error_report("get_cm_event failed %d", errno);
         return;
     }
@@ -3382,7 +3382,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     int idx;
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret) {
+    if (ret < 0) {
         goto err_rdma_dest_wait;
     }
 
@@ -3452,13 +3452,13 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     qemu_rdma_dump_id("dest_init", verbs);
 
     ret = qemu_rdma_alloc_pd_cq(rdma);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma migration: error allocating pd and cq!");
         goto err_rdma_dest_wait;
     }
 
     ret = qemu_rdma_alloc_qp(rdma);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma migration: error allocating qp!");
         goto err_rdma_dest_wait;
     }
@@ -3467,7 +3467,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         ret = qemu_rdma_reg_control(rdma, idx);
-        if (ret) {
+        if (ret < 0) {
             error_report("rdma: error registering %d control", idx);
             goto err_rdma_dest_wait;
         }
@@ -3485,13 +3485,13 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     }
 
     ret = rdma_accept(rdma->cm_id, &conn_param);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma_accept failed");
         goto err_rdma_dest_wait;
     }
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma_accept get_cm_event failed");
         goto err_rdma_dest_wait;
     }
@@ -3506,7 +3506,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     rdma->connected = true;
 
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
-    if (ret) {
+    if (ret < 0) {
         error_report("rdma migration: error posting second control recv");
         goto err_rdma_dest_wait;
     }
@@ -3635,7 +3635,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
             if (rdma->pin_all) {
                 ret = qemu_rdma_reg_whole_ram_blocks(rdma);
-                if (ret) {
+                if (ret < 0) {
                     error_report("rdma migration: error dest "
                                     "registering ram blocks");
                     goto err;
@@ -4096,7 +4096,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     trace_qemu_rdma_accept_incoming_migration();
     ret = qemu_rdma_accept(rdma);
 
-    if (ret) {
+    if (ret < 0) {
         fprintf(stderr, "RDMA ERROR: Migration initialization failed\n");
         return;
     }
@@ -4140,7 +4140,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
     }
 
     ret = qemu_rdma_dest_init(rdma, errp);
-    if (ret) {
+    if (ret < 0) {
         goto err;
     }
 
@@ -4148,7 +4148,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
 
     ret = rdma_listen(rdma->listen_id, 5);
 
-    if (ret) {
+    if (ret < 0) {
         ERROR(errp, "listening on socket!");
         goto cleanup_rdma;
     }
@@ -4190,14 +4190,14 @@ void rdma_start_outgoing_migration(void *opaque,
 
     ret = qemu_rdma_source_init(rdma, migrate_rdma_pin_all(), errp);
 
-    if (ret) {
+    if (ret < 0) {
         goto err;
     }
 
     trace_rdma_start_outgoing_migration_after_rdma_source_init();
     ret = qemu_rdma_connect(rdma, false, errp);
 
-    if (ret) {
+    if (ret < 0) {
         goto err;
     }
 
@@ -4212,13 +4212,13 @@ void rdma_start_outgoing_migration(void *opaque,
         ret = qemu_rdma_source_init(rdma_return_path,
                                     migrate_rdma_pin_all(), errp);
 
-        if (ret) {
+        if (ret < 0) {
             goto return_path_err;
         }
 
         ret = qemu_rdma_connect(rdma_return_path, true, errp);
 
-        if (ret) {
+        if (ret < 0) {
             goto return_path_err;
         }
 
