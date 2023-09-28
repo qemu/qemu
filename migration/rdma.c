@@ -91,7 +91,7 @@ static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
             if (!rdma->error_reported) { \
                 error_report("RDMA is in an error state waiting migration" \
                                 " to abort!"); \
-                rdma->error_reported = 1; \
+                rdma->error_reported = true; \
             } \
             return rdma->error_state; \
         } \
@@ -365,8 +365,8 @@ typedef struct RDMAContext {
      * and remember the error state.
      */
     int error_state;
-    int error_reported;
-    int received_error;
+    bool error_reported;
+    bool received_error;
 
     /*
      * Description of ram blocks used throughout the code.
