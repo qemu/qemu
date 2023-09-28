@@ -2264,7 +2264,7 @@ static int qemu_rdma_write_flush(RDMAContext *rdma)
     return 0;
 }
 
-static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
+static inline bool qemu_rdma_buffer_mergeable(RDMAContext *rdma,
                     uint64_t offset, uint64_t len)
 {
     RDMALocalBlock *block;
@@ -2272,11 +2272,11 @@ static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
     uint8_t *chunk_end;
 
     if (rdma->current_index < 0) {
-        return 0;
+        return false;
     }
 
     if (rdma->current_chunk < 0) {
-        return 0;
+        return false;
     }
 
     block = &(rdma->local_ram_blocks.block[rdma->current_index]);
@@ -2284,29 +2284,29 @@ static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
     chunk_end = ram_chunk_end(block, rdma->current_chunk);
 
     if (rdma->current_length == 0) {
-        return 0;
+        return false;
     }
 
     /*
      * Only merge into chunk sequentially.
      */
     if (offset != (rdma->current_addr + rdma->current_length)) {
-        return 0;
+        return false;
     }
 
     if (offset < block->offset) {
-        return 0;
+        return false;
     }
 
     if ((offset + len) > (block->offset + block->length)) {
-        return 0;
+        return false;
     }
 
     if ((host_addr + len) > chunk_end) {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 /*
@@ -2329,7 +2329,7 @@ static int qemu_rdma_write(RDMAContext *rdma,
     int ret;
 
     /* If we cannot merge it, we flush the current buffer first. */
-    if (!qemu_rdma_buffer_mergable(rdma, current_addr, len)) {
+    if (!qemu_rdma_buffer_mergeable(rdma, current_addr, len)) {
         ret = qemu_rdma_write_flush(rdma);
         if (ret) {
             return ret;
