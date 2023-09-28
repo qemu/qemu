@@ -2041,9 +2041,8 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
  */
 static int qemu_rdma_write_one(RDMAContext *rdma,
                                int current_index, uint64_t current_addr,
-                               uint64_t length)
+                               uint64_t length, Error **errp)
 {
-    Error *err = NULL;
     struct ibv_sge sge;
     struct ibv_send_wr send_wr = { 0 };
     struct ibv_send_wr *bad_wr;
@@ -2097,7 +2096,7 @@ retry:
         ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
 
         if (ret < 0) {
-            error_report("Failed to Wait for previous write to complete "
+            error_setg(errp, "Failed to Wait for previous write to complete "
                     "block %d chunk %" PRIu64
                     " current %" PRIu64 " len %" PRIu64 " %d",
                     current_index, chunk, sge.addr, length, rdma->nb_sent);
@@ -2129,10 +2128,9 @@ retry:
 
                 compress_to_network(rdma, &comp);
                 ret = qemu_rdma_exchange_send(rdma, &head,
-                                (uint8_t *) &comp, NULL, NULL, NULL, &err);
+                                (uint8_t *) &comp, NULL, NULL, NULL, errp);
 
                 if (ret < 0) {
-                    error_report_err(err);
                     return -1;
                 }
 
@@ -2167,9 +2165,8 @@ retry:
 
             register_to_network(rdma, &reg);
             ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                    &resp, &reg_result_idx, NULL, &err);
+                                    &resp, &reg_result_idx, NULL, errp);
             if (ret < 0) {
-                error_report_err(err);
                 return -1;
             }
 
@@ -2177,7 +2174,7 @@ retry:
             if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
-                error_report("cannot get lkey");
+                error_setg(errp, "cannot get lkey");
                 return -1;
             }
 
@@ -2196,7 +2193,7 @@ retry:
             if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
-                error_report("cannot get lkey!");
+                error_setg(errp, "cannot get lkey!");
                 return -1;
             }
         }
@@ -2208,7 +2205,7 @@ retry:
         if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                      &sge.lkey, NULL, chunk,
                                                      chunk_start, chunk_end)) {
-            error_report("cannot get lkey!");
+            error_setg(errp, "cannot get lkey!");
             return -1;
         }
     }
@@ -2242,7 +2239,7 @@ retry:
         trace_qemu_rdma_write_one_queue_full();
         ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
-            error_report("rdma migration: failed to make "
+            error_setg(errp, "rdma migration: failed to make "
                          "room in full send queue!");
             return -1;
         }
@@ -2250,12 +2247,8 @@ retry:
         goto retry;
 
     } else if (ret > 0) {
-        /*
-         * FIXME perror() is problematic, because whether
-         * ibv_post_send() sets errno is unclear.  Will go away later
-         * in this series.
-         */
-        perror("rdma migration: post rdma write failed");
+        error_setg_errno(errp, ret,
+                         "rdma migration: post rdma write failed");
         return -1;
     }
 
@@ -2291,11 +2284,10 @@ static int qemu_rdma_write_flush(RDMAContext *rdma, Error **errp)
         return 0;
     }
 
-    ret = qemu_rdma_write_one(rdma,
-            rdma->current_index, rdma->current_addr, rdma->current_length);
+    ret = qemu_rdma_write_one(rdma, rdma->current_index, rdma->current_addr,
+                              rdma->current_length, errp);
 
     if (ret < 0) {
-        error_setg(errp, "FIXME temporary error message");
         return -1;
     }
 
