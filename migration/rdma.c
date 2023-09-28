@@ -1231,15 +1231,13 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
  *
  * Once the block is found, also identify which 'chunk' within that
  * block that the page belongs to.
- *
- * This search cannot fail or the migration will fail.
  */
-static int qemu_rdma_search_ram_block(RDMAContext *rdma,
-                                      uintptr_t block_offset,
-                                      uint64_t offset,
-                                      uint64_t length,
-                                      uint64_t *block_index,
-                                      uint64_t *chunk_index)
+static void qemu_rdma_search_ram_block(RDMAContext *rdma,
+                                       uintptr_t block_offset,
+                                       uint64_t offset,
+                                       uint64_t length,
+                                       uint64_t *block_index,
+                                       uint64_t *chunk_index)
 {
     uint64_t current_addr = block_offset + offset;
     RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
@@ -1251,8 +1249,6 @@ static int qemu_rdma_search_ram_block(RDMAContext *rdma,
     *block_index = block->index;
     *chunk_index = ram_chunk_index(block->local_host_addr,
                 block->local_host_addr + (current_addr - block->offset));
-
-    return 0;
 }
 
 /*
@@ -2341,12 +2337,8 @@ static int qemu_rdma_write(RDMAContext *rdma,
         rdma->current_length = 0;
         rdma->current_addr = current_addr;
 
-        ret = qemu_rdma_search_ram_block(rdma, block_offset,
-                                         offset, len, &index, &chunk);
-        if (ret) {
-            error_report("ram block search failed");
-            return ret;
-        }
+        qemu_rdma_search_ram_block(rdma, block_offset,
+                                   offset, len, &index, &chunk);
         rdma->current_index = index;
         rdma->current_chunk = chunk;
     }
