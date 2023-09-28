@@ -932,6 +932,7 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
  */
 static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
 {
+    Error *err = NULL;
     int ret;
     struct rdma_addrinfo *res;
     char port_str[16];
@@ -976,7 +977,10 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
         goto err_resolve_get_addr;
     }
 
+    /* Try all addresses, saving the first error in @err */
     for (e = res; e != NULL; e = e->ai_next) {
+        Error **local_errp = err ? NULL : &err;
+
         inet_ntop(e->ai_family,
             &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
         trace_qemu_rdma_resolve_host_trying(rdma->host, ip);
@@ -985,17 +989,21 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
                 RDMA_RESOLVE_TIMEOUT_MS);
         if (ret >= 0) {
             if (e->ai_family == AF_INET6) {
-                ret = qemu_rdma_broken_ipv6_kernel(rdma->cm_id->verbs, errp);
+                ret = qemu_rdma_broken_ipv6_kernel(rdma->cm_id->verbs,
+                                                   local_errp);
                 if (ret < 0) {
                     continue;
                 }
             }
+            error_free(err);
             goto route;
         }
     }
 
     rdma_freeaddrinfo(res);
-    if (errp && !*errp) {
+    if (err) {
+        error_propagate(errp, err);
+    } else {
         error_setg(errp, "RDMA ERROR: could not resolve address %s",
                    rdma->host);
     }
@@ -2707,6 +2715,7 @@ err_rdma_source_connect:
 
 static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 {
+    Error *err = NULL;
     int ret, idx;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
@@ -2765,7 +2774,11 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
         }
         goto err_dest_init_bind_addr;
     }
+
+    /* Try all addresses, saving the first error in @err */
     for (e = res; e != NULL; e = e->ai_next) {
+        Error **local_errp = err ? NULL : &err;
+
         inet_ntop(e->ai_family,
             &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
         trace_qemu_rdma_dest_init_trying(rdma->host, ip);
@@ -2774,17 +2787,21 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
             continue;
         }
         if (e->ai_family == AF_INET6) {
-            ret = qemu_rdma_broken_ipv6_kernel(listen_id->verbs, errp);
+            ret = qemu_rdma_broken_ipv6_kernel(listen_id->verbs,
+                                               local_errp);
             if (ret < 0) {
                 continue;
             }
         }
+        error_free(err);
         break;
     }
 
     rdma_freeaddrinfo(res);
     if (!e) {
-        if (errp && !*errp) {
+        if (err) {
+            error_propagate(errp, err);
+        } else {
             error_setg(errp, "RDMA ERROR: Error: could not rdma_bind_addr!");
         }
         goto err_dest_init_bind_addr;
