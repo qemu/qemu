@@ -823,7 +823,7 @@ class VM(qtest.QEMUQtestMachine):
         super().__init__(qemu_prog, qemu_opts, wrapper=wrapper,
                          name=name,
                          base_temp_dir=test_dir,
-                         sock_dir=sock_dir, qmp_timer=timer)
+                         qmp_timer=timer)
         self._num_drives = 0
 
     def _post_shutdown(self) -> None:

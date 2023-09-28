@@ -247,7 +247,10 @@ class AST2x00Machine(QemuSystemTest):
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
 
-        socket = os.path.join(self.vm.sock_dir, 'swtpm-socket')
+        # force creation of VM object, which also defines self._sd
+        vm = self.vm
+
+        socket = os.path.join(self._sd.name, 'swtpm-socket')
 
         subprocess.run(['swtpm', 'socket', '-d', '--tpm2',
                         '--tpmstate', f'dir={self.vm.temp_dir}',
