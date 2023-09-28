@@ -734,38 +734,31 @@ static void rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
 }
 
 /*
- * Put in the log file which RDMA device was opened and the details
- * associated with that device.
+ * Trace RDMA device open, with device details.
  */
 static void qemu_rdma_dump_id(const char *who, struct ibv_context *verbs)
 {
     struct ibv_port_attr port;
 
     if (ibv_query_port(verbs, 1, &port)) {
-        error_report("Failed to query port information");
+        trace_qemu_rdma_dump_id_failed(who);
         return;
     }
 
-    printf("%s RDMA Device opened: kernel name %s "
-           "uverbs device name %s, "
-           "infiniband_verbs class device path %s, "
-           "infiniband class device path %s, "
-           "transport: (%d) %s\n",
-                who,
+    trace_qemu_rdma_dump_id(who,
                 verbs->device->name,
                 verbs->device->dev_name,
                 verbs->device->dev_path,
                 verbs->device->ibdev_path,
                 port.link_layer,
-                (port.link_layer == IBV_LINK_LAYER_INFINIBAND) ? "Infiniband" :
-                 ((port.link_layer == IBV_LINK_LAYER_ETHERNET)
-                    ? "Ethernet" : "Unknown"));
+                port.link_layer == IBV_LINK_LAYER_INFINIBAND ? "Infiniband"
+                : port.link_layer == IBV_LINK_LAYER_ETHERNET ? "Ethernet"
+                : "Unknown");
 }
 
 /*
- * Put in the log file the RDMA gid addressing information,
- * useful for folks who have trouble understanding the
- * RDMA device hierarchy in the kernel.
+ * Trace RDMA gid addressing information.
+ * Useful for understanding the RDMA device hierarchy in the kernel.
  */
 static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
 {
