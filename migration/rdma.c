@@ -133,13 +133,6 @@ enum {
     RDMA_WRID_RECV_CONTROL = 4000,
 };
 
-static const char *wrid_desc[] = {
-    [RDMA_WRID_NONE] = "NONE",
-    [RDMA_WRID_RDMA_WRITE] = "WRITE RDMA",
-    [RDMA_WRID_SEND_CONTROL] = "CONTROL SEND",
-    [RDMA_WRID_RECV_CONTROL] = "CONTROL RECV",
-};
-
 /*
  * Work request IDs for IB SEND messages only (not RDMA writes).
  * This is used by the migration protocol to transmit
@@ -535,7 +528,6 @@ static void network_to_result(RDMARegisterResult *result)
     result->host_addr = ntohll(result->host_addr);
 };
 
-const char *print_wrid(int wrid);
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
@@ -1362,14 +1354,6 @@ static int qemu_rdma_reg_control(RDMAContext *rdma, int idx)
     return -1;
 }
 
-const char *print_wrid(int wrid)
-{
-    if (wrid >= RDMA_WRID_RECV_CONTROL) {
-        return wrid_desc[RDMA_WRID_RECV_CONTROL];
-    }
-    return wrid_desc[wrid];
-}
-
 /*
  * Perform a non-optimized memory unregistration after every transfer
  * for demonstration purposes, only if pin-all is not requested.
@@ -1491,15 +1475,15 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
     if (wc.status != IBV_WC_SUCCESS) {
         fprintf(stderr, "ibv_poll_cq wc.status=%d %s!\n",
                         wc.status, ibv_wc_status_str(wc.status));
-        fprintf(stderr, "ibv_poll_cq wrid=%s!\n", wrid_desc[wr_id]);
+        fprintf(stderr, "ibv_poll_cq wrid=%" PRIu64 "!\n", wr_id);
 
         return -1;
     }
 
     if (rdma->control_ready_expected &&
         (wr_id >= RDMA_WRID_RECV_CONTROL)) {
-        trace_qemu_rdma_poll_recv(wrid_desc[RDMA_WRID_RECV_CONTROL],
-                  wr_id - RDMA_WRID_RECV_CONTROL, wr_id, rdma->nb_sent);
+        trace_qemu_rdma_poll_recv(wr_id - RDMA_WRID_RECV_CONTROL, wr_id,
+                                  rdma->nb_sent);
         rdma->control_ready_expected = 0;
     }
 
@@ -1510,7 +1494,7 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
             (wc.wr_id & RDMA_WRID_BLOCK_MASK) >> RDMA_WRID_BLOCK_SHIFT;
         RDMALocalBlock *block = &(rdma->local_ram_blocks.block[index]);
 
-        trace_qemu_rdma_poll_write(print_wrid(wr_id), wr_id, rdma->nb_sent,
+        trace_qemu_rdma_poll_write(wr_id, rdma->nb_sent,
                                    index, chunk, block->local_host_addr,
                                    (void *)(uintptr_t)block->remote_host_addr);
 
@@ -1520,7 +1504,7 @@ static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
             rdma->nb_sent--;
         }
     } else {
-        trace_qemu_rdma_poll_other(print_wrid(wr_id), wr_id, rdma->nb_sent);
+        trace_qemu_rdma_poll_other(wr_id, rdma->nb_sent);
     }
 
     *wr_id_out = wc.wr_id;
@@ -1665,8 +1649,7 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
             break;
         }
         if (wr_id != wrid_requested) {
-            trace_qemu_rdma_block_for_wrid_miss(print_wrid(wrid_requested),
-                       wrid_requested, print_wrid(wr_id), wr_id);
+            trace_qemu_rdma_block_for_wrid_miss(wrid_requested, wr_id);
         }
     }
 
@@ -1705,8 +1688,7 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
                 break;
             }
             if (wr_id != wrid_requested) {
-                trace_qemu_rdma_block_for_wrid_miss(print_wrid(wrid_requested),
-                                   wrid_requested, print_wrid(wr_id), wr_id);
+                trace_qemu_rdma_block_for_wrid_miss(wrid_requested, wr_id);
             }
         }
 
