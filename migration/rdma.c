@@ -1799,7 +1799,8 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
  * Post a RECV work request in anticipation of some future receipt
  * of data on the control channel.
  */
-static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
+static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx,
+                                       Error **errp)
 {
     struct ibv_recv_wr *bad_wr;
     struct ibv_sge sge = {
@@ -1816,6 +1817,7 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
 
 
     if (ibv_post_recv(rdma->qp, &recv_wr, &bad_wr)) {
+        error_setg(errp, "error posting control recv");
         return -1;
     }
 
@@ -1926,10 +1928,8 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
      * If the user is expecting a response, post a WR in anticipation of it.
      */
     if (resp) {
-        ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_DATA);
+        ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_DATA, errp);
         if (ret < 0) {
-            error_setg(errp, "rdma migration: error posting"
-                    " extra control recv for anticipated result!");
             return -1;
         }
     }
@@ -1937,9 +1937,8 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     /*
      * Post a WR to replace the one we just consumed for the READY message.
      */
-    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, errp);
     if (ret < 0) {
-        error_setg(errp, "rdma migration: error posting first control recv!");
         return -1;
     }
 
@@ -2023,9 +2022,8 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
     /*
      * Post a new RECV work request to replace the one we just consumed.
      */
-    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, errp);
     if (ret < 0) {
-        error_setg(errp, "rdma migration: error posting second control recv!");
         return -1;
     }
 
@@ -2608,9 +2606,8 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
 
     caps_to_network(&cap);
 
-    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, errp);
     if (ret < 0) {
-        error_setg(errp, "RDMA ERROR: posting second control recv");
         goto err_rdma_source_connect;
     }
 
@@ -3402,6 +3399,7 @@ static void rdma_cm_poll_handler(void *opaque)
 
 static int qemu_rdma_accept(RDMAContext *rdma)
 {
+    Error *err = NULL;
     RDMACapabilities cap;
     struct rdma_conn_param conn_param = {
                                             .responder_resources = 2,
@@ -3538,9 +3536,9 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     rdma_ack_cm_event(cm_event);
     rdma->connected = true;
 
-    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, &err);
     if (ret < 0) {
-        error_report("rdma migration: error posting second control recv");
+        error_report_err(err);
         goto err_rdma_dest_wait;
     }
 
