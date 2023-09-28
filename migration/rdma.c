@@ -1599,13 +1599,13 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
     return rdma->error_state;
 }
 
-static struct ibv_comp_channel *to_channel(RDMAContext *rdma, int wrid)
+static struct ibv_comp_channel *to_channel(RDMAContext *rdma, uint64_t wrid)
 {
     return wrid < RDMA_WRID_RECV_CONTROL ? rdma->send_comp_channel :
            rdma->recv_comp_channel;
 }
 
-static struct ibv_cq *to_cq(RDMAContext *rdma, int wrid)
+static struct ibv_cq *to_cq(RDMAContext *rdma, uint64_t wrid)
 {
     return wrid < RDMA_WRID_RECV_CONTROL ? rdma->send_cq : rdma->recv_cq;
 }
@@ -1623,7 +1623,8 @@ static struct ibv_cq *to_cq(RDMAContext *rdma, int wrid)
  * completions only need to be recorded, but do not actually
  * need further processing.
  */
-static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
+static int qemu_rdma_block_for_wrid(RDMAContext *rdma,
+                                    uint64_t wrid_requested,
                                     uint32_t *byte_len)
 {
     int num_cq_events = 0, ret = 0;
