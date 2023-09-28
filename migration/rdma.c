@@ -3075,7 +3075,7 @@ qio_channel_rdma_source_finalize(GSource *source)
     object_unref(OBJECT(ssource->rioc));
 }
 
-GSourceFuncs qio_channel_rdma_source_funcs = {
+static GSourceFuncs qio_channel_rdma_source_funcs = {
     qio_channel_rdma_source_prepare,
     qio_channel_rdma_source_check,
     qio_channel_rdma_source_dispatch,
