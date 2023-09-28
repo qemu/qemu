@@ -2637,8 +2637,8 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
      * and disable them otherwise.
      */
     if (rdma->pin_all && !(cap.flags & RDMA_CAPABILITY_PIN_ALL)) {
-        ERROR(errp, "Server cannot support pinning all memory. "
-                        "Will register memory dynamically.");
+        warn_report("RDMA: Server cannot support pinning all memory. "
+                    "Will register memory dynamically.");
         rdma->pin_all = false;
     }
 
