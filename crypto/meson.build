@@ -46,7 +46,8 @@ endif
 if have_afalg
   crypto_ss.add(if_true: files('afalg.c', 'cipher-afalg.c', 'hash-afalg.c'))
 endif
-crypto_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
+
+system_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
 util_ss.add(files(
   'aes.c',
