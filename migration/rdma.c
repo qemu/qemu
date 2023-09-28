@@ -1824,14 +1824,15 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
  * Block and wait for a RECV control channel message to arrive.
  */
 static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
-                RDMAControlHeader *head, uint32_t expecting, int idx)
+                RDMAControlHeader *head, uint32_t expecting, int idx,
+                Error **errp)
 {
     uint32_t byte_len;
     int ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RECV_CONTROL + idx,
                                        &byte_len);
 
     if (ret < 0) {
-        error_report("rdma migration: recv polling control error!");
+        error_setg(errp, "rdma migration: recv polling control error!");
         return -1;
     }
 
@@ -1844,7 +1845,7 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
         trace_qemu_rdma_exchange_get_response_none(control_desc(head->type),
                                              head->type);
     } else if (head->type != expecting || head->type == RDMA_CONTROL_ERROR) {
-        error_report("Was expecting a %s (%d) control message"
+        error_setg(errp, "Was expecting a %s (%d) control message"
                 ", but got: %s (%d), length: %d",
                 control_desc(expecting), expecting,
                 control_desc(head->type), head->type, head->len);
@@ -1854,11 +1855,12 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
         return -1;
     }
     if (head->len > RDMA_CONTROL_MAX_BUFFER - sizeof(*head)) {
-        error_report("too long length: %d", head->len);
+        error_setg(errp, "too long length: %d", head->len);
         return -1;
     }
     if (sizeof(*head) + head->len != byte_len) {
-        error_report("Malformed length: %d byte_len %d", head->len, byte_len);
+        error_setg(errp, "Malformed length: %d byte_len %d",
+                   head->len, byte_len);
         return -1;
     }
 
@@ -1911,9 +1913,8 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
 
         ret = qemu_rdma_exchange_get_response(rdma, &resp_ignored,
                                               RDMA_CONTROL_READY,
-                                              RDMA_WRID_READY);
+                                              RDMA_WRID_READY, errp);
         if (ret < 0) {
-            error_setg(errp, "FIXME temporary error message");
             return -1;
         }
     }
@@ -1964,10 +1965,10 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
 
         trace_qemu_rdma_exchange_send_waiting(control_desc(resp->type));
         ret = qemu_rdma_exchange_get_response(rdma, resp,
-                                              resp->type, RDMA_WRID_DATA);
+                                              resp->type, RDMA_WRID_DATA,
+                                              errp);
 
         if (ret < 0) {
-            error_setg(errp, "FIXME temporary error message");
             return -1;
         }
 
@@ -2011,10 +2012,9 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
      * Block and wait for the message.
      */
     ret = qemu_rdma_exchange_get_response(rdma, head,
-                                          expecting, RDMA_WRID_READY);
+                                          expecting, RDMA_WRID_READY, errp);
 
     if (ret < 0) {
-        error_setg(errp, "FIXME temporary error message");
         return -1;
     }
 
