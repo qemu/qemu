@@ -2475,22 +2475,7 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
         if (!extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
             return CP_ACCESS_TRAP;
         }
-
-        /* If HCR_EL2.<E2H,TGE> == '10': check CNTHCTL_EL2.EL1PCTEN. */
-        if (hcr & HCR_E2H) {
-            if (timeridx == GTIMER_PHYS &&
-                !extract32(env->cp15.cnthctl_el2, 10, 1)) {
-                return CP_ACCESS_TRAP_EL2;
-            }
-        } else {
-            /* If HCR_EL2.<E2H> == 0: check CNTHCTL_EL2.EL1PCEN. */
-            if (has_el2 && timeridx == GTIMER_PHYS &&
-                !extract32(env->cp15.cnthctl_el2, 1, 1)) {
-                return CP_ACCESS_TRAP_EL2;
-            }
-        }
-        break;
-
+        /* fall through */
     case 1:
         /* Check CNTHCTL_EL2.EL1PCTEN, which changes location based on E2H. */
         if (has_el2 && timeridx == GTIMER_PHYS &&
