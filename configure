@@ -94,7 +94,7 @@ quote_sh() {
     printf "%s" "$1" | sed "s,','\\\\'',g; s,.*,'&',"
 }
 
-print_error() {
+error_exit() {
     (echo
     echo "ERROR: $1"
     while test -n "$2"; do
@@ -102,10 +102,6 @@ print_error() {
         shift
     done
     echo) >&2
-}
-
-error_exit() {
-    print_error "$@"
     exit 1
 }
 
@@ -248,7 +244,6 @@ done
 
 default_cflags='-O2 -g'
 git_submodules_action="update"
-git="git"
 docs="auto"
 EXESUF=""
 prefix="/usr/local"
