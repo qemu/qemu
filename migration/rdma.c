@@ -1741,7 +1741,8 @@ err_block_for_wrid:
  * containing some data and block until the post completes.
  */
 static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
-                                       RDMAControlHeader *head)
+                                       RDMAControlHeader *head,
+                                       Error **errp)
 {
     int ret;
     RDMAWorkRequestData *wr = &rdma->wr_data[RDMA_WRID_CONTROL];
@@ -1781,13 +1782,13 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
     ret = ibv_post_send(rdma->qp, &send_wr, &bad_wr);
 
     if (ret > 0) {
-        error_report("Failed to use post IB SEND for control");
+        error_setg(errp, "Failed to use post IB SEND for control");
         return -1;
     }
 
     ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_SEND_CONTROL, NULL);
     if (ret < 0) {
-        error_report("rdma migration: send polling control error");
+        error_setg(errp, "rdma migration: send polling control error");
         return -1;
     }
 
@@ -1945,10 +1946,9 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     /*
      * Deliver the control message that was requested.
      */
-    ret = qemu_rdma_post_send_control(rdma, data, head);
+    ret = qemu_rdma_post_send_control(rdma, data, head, errp);
 
     if (ret < 0) {
-        error_setg(errp, "Failed to send control buffer!");
         return -1;
     }
 
@@ -2002,10 +2002,9 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
     /*
      * Inform the source that we're ready to receive a message.
      */
-    ret = qemu_rdma_post_send_control(rdma, NULL, &ready);
+    ret = qemu_rdma_post_send_control(rdma, NULL, &ready, errp);
 
     if (ret < 0) {
-        error_setg(errp, "Failed to send control buffer!");
         return -1;
     }
 
@@ -2394,6 +2393,7 @@ static int qemu_rdma_write(RDMAContext *rdma,
 
 static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
+    Error *err = NULL;
     int idx;
 
     if (rdma->cm_id && rdma->connected) {
@@ -2405,7 +2405,9 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
                                        .repeat = 1,
                                      };
             error_report("Early error. Sending error.");
-            qemu_rdma_post_send_control(rdma, NULL, &head);
+            if (qemu_rdma_post_send_control(rdma, NULL, &head, &err) < 0) {
+                error_report_err(err);
+            }
         }
 
         rdma_disconnect(rdma->cm_id);
@@ -3705,10 +3707,11 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
 
             ret = qemu_rdma_post_send_control(rdma,
-                                        (uint8_t *) rdma->dest_blocks, &blocks);
+                                    (uint8_t *) rdma->dest_blocks, &blocks,
+                                    &err);
 
             if (ret < 0) {
-                error_report("rdma migration: error sending remote info");
+                error_report_err(err);
                 goto err;
             }
 
@@ -3783,10 +3786,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
             }
 
             ret = qemu_rdma_post_send_control(rdma,
-                            (uint8_t *) results, &reg_resp);
+                            (uint8_t *) results, &reg_resp, &err);
 
             if (ret < 0) {
-                error_report("Failed to send control buffer");
+                error_report_err(err);
                 goto err;
             }
             break;
@@ -3818,10 +3821,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                                                        reg->key.chunk);
             }
 
-            ret = qemu_rdma_post_send_control(rdma, NULL, &unreg_resp);
+            ret = qemu_rdma_post_send_control(rdma, NULL, &unreg_resp, &err);
 
             if (ret < 0) {
-                error_report("Failed to send control buffer");
+                error_report_err(err);
                 goto err;
             }
             break;
