@@ -518,7 +518,8 @@ static void network_to_result(RDMARegisterResult *result)
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma));
+                                   int (*callback)(RDMAContext *rdma),
+                                   Error **errp);
 
 static inline uint64_t ram_chunk_index(const uint8_t *start,
                                        const uint8_t *host)
@@ -1376,6 +1377,8 @@ static int qemu_rdma_reg_control(RDMAContext *rdma, int idx)
  */
 static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
 {
+    Error *err = NULL;
+
     while (rdma->unregistrations[rdma->unregister_current]) {
         int ret;
         uint64_t wr_id = rdma->unregistrations[rdma->unregister_current];
@@ -1438,8 +1441,9 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
         reg.key.chunk = chunk;
         register_to_network(rdma, &reg);
         ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                &resp, NULL, NULL);
+                                      &resp, NULL, NULL, &err);
         if (ret < 0) {
+            error_report_err(err);
             return -1;
         }
 
@@ -1893,7 +1897,8 @@ static void qemu_rdma_move_header(RDMAContext *rdma, int idx,
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma))
+                                   int (*callback)(RDMAContext *rdma),
+                                   Error **errp)
 {
     int ret;
 
@@ -1908,6 +1913,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                               RDMA_CONTROL_READY,
                                               RDMA_WRID_READY);
         if (ret < 0) {
+            error_setg(errp, "FIXME temporary error message");
             return -1;
         }
     }
@@ -1918,7 +1924,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     if (resp) {
         ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_DATA);
         if (ret < 0) {
-            error_report("rdma migration: error posting"
+            error_setg(errp, "rdma migration: error posting"
                     " extra control recv for anticipated result!");
             return -1;
         }
@@ -1929,7 +1935,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
      */
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
     if (ret < 0) {
-        error_report("rdma migration: error posting first control recv!");
+        error_setg(errp, "rdma migration: error posting first control recv!");
         return -1;
     }
 
@@ -1939,7 +1945,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     ret = qemu_rdma_post_send_control(rdma, data, head);
 
     if (ret < 0) {
-        error_report("Failed to send control buffer!");
+        error_setg(errp, "Failed to send control buffer!");
         return -1;
     }
 
@@ -1951,6 +1957,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
             trace_qemu_rdma_exchange_send_issue_callback();
             ret = callback(rdma);
             if (ret < 0) {
+                error_setg(errp, "FIXME temporary error message");
                 return -1;
             }
         }
@@ -1960,6 +1967,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                               resp->type, RDMA_WRID_DATA);
 
         if (ret < 0) {
+            error_setg(errp, "FIXME temporary error message");
             return -1;
         }
 
@@ -2034,6 +2042,7 @@ static int qemu_rdma_write_one(RDMAContext *rdma,
                                int current_index, uint64_t current_addr,
                                uint64_t length)
 {
+    Error *err = NULL;
     struct ibv_sge sge;
     struct ibv_send_wr send_wr = { 0 };
     struct ibv_send_wr *bad_wr;
@@ -2119,9 +2128,10 @@ retry:
 
                 compress_to_network(rdma, &comp);
                 ret = qemu_rdma_exchange_send(rdma, &head,
-                                (uint8_t *) &comp, NULL, NULL, NULL);
+                                (uint8_t *) &comp, NULL, NULL, NULL, &err);
 
                 if (ret < 0) {
+                    error_report_err(err);
                     return -1;
                 }
 
@@ -2156,8 +2166,9 @@ retry:
 
             register_to_network(rdma, &reg);
             ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                    &resp, &reg_result_idx, NULL);
+                                    &resp, &reg_result_idx, NULL, &err);
             if (ret < 0) {
+                error_report_err(err);
                 return -1;
             }
 
@@ -2864,11 +2875,11 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
             head.len = len;
             head.type = RDMA_CONTROL_QEMU_FILE;
 
-            ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
+            ret = qemu_rdma_exchange_send(rdma, &head,
+                                          data, NULL, NULL, NULL, errp);
 
             if (ret < 0) {
                 rdma->errored = true;
-                error_setg(errp, "qemu_rdma_exchange_send failed");
                 return -1;
             }
 
@@ -3925,6 +3936,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                                        uint64_t flags, void *data)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
+    Error *err = NULL;
     RDMAContext *rdma;
     RDMAControlHeader head = { .len = 0, .repeat = 1 };
     int ret;
@@ -3968,9 +3980,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
          */
         ret = qemu_rdma_exchange_send(rdma, &head, NULL, &resp,
                     &reg_result_idx, rdma->pin_all ?
-                    qemu_rdma_reg_whole_ram_blocks : NULL);
+                    qemu_rdma_reg_whole_ram_blocks : NULL,
+                    &err);
         if (ret < 0) {
-            fprintf(stderr, "receiving remote info!");
+            error_report_err(err);
             return -1;
         }
 
@@ -4021,9 +4034,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     trace_qemu_rdma_registration_stop(flags);
 
     head.type = RDMA_CONTROL_REGISTER_FINISHED;
-    ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL);
+    ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL, &err);
 
     if (ret < 0) {
+        error_report_err(err);
         goto err;
     }
 
