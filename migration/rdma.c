@@ -518,7 +518,8 @@ static void network_to_result(RDMARegisterResult *result)
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma),
+                                   int (*callback)(RDMAContext *rdma,
+                                                   Error **errp),
                                    Error **errp);
 
 static inline uint64_t ram_chunk_index(const uint8_t *start,
@@ -1177,7 +1178,7 @@ static void qemu_rdma_advise_prefetch_mr(struct ibv_pd *pd, uint64_t addr,
 #endif
 }
 
-static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
+static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma, Error **errp)
 {
     int i;
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
@@ -1217,16 +1218,16 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
         }
 
         if (!local->block[i].mr) {
-            perror("Failed to register local dest ram block!");
-            break;
+            error_setg_errno(errp, errno,
+                             "Failed to register local dest ram block!");
+            goto err;
         }
         rdma->total_registrations++;
     }
 
-    if (i >= local->nb_blocks) {
-        return 0;
-    }
+    return 0;
 
+err:
     for (i--; i >= 0; i--) {
         ibv_dereg_mr(local->block[i].mr);
         local->block[i].mr = NULL;
@@ -1899,7 +1900,8 @@ static void qemu_rdma_move_header(RDMAContext *rdma, int idx,
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma),
+                                   int (*callback)(RDMAContext *rdma,
+                                                   Error **errp),
                                    Error **errp)
 {
     int ret;
@@ -1956,9 +1958,8 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     if (resp) {
         if (callback) {
             trace_qemu_rdma_exchange_send_issue_callback();
-            ret = callback(rdma);
+            ret = callback(rdma, errp);
             if (ret < 0) {
-                error_setg(errp, "FIXME temporary error message");
                 return -1;
             }
         }
@@ -3671,10 +3672,9 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
             }
 
             if (rdma->pin_all) {
-                ret = qemu_rdma_reg_whole_ram_blocks(rdma);
+                ret = qemu_rdma_reg_whole_ram_blocks(rdma, &err);
                 if (ret < 0) {
-                    error_report("rdma migration: error dest "
-                                    "registering ram blocks");
+                    error_report_err(err);
                     goto err;
                 }
             }
