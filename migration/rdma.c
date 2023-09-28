@@ -352,7 +352,7 @@ typedef struct RDMAContext {
      * memory registration, then do not attempt any future work
      * and remember the error state.
      */
-    int error_state;
+    bool errored;
     bool error_reported;
     bool received_error;
 
@@ -439,14 +439,14 @@ typedef struct QEMU_PACKED {
     uint64_t chunks;            /* how many sequential chunks to register */
 } RDMARegister;
 
-static int check_error_state(RDMAContext *rdma)
+static bool rdma_errored(RDMAContext *rdma)
 {
-    if (rdma->error_state && !rdma->error_reported) {
+    if (rdma->errored && !rdma->error_reported) {
         error_report("RDMA is in an error state waiting migration"
                      " to abort!");
         rdma->error_reported = true;
     }
-    return rdma->error_state;
+    return rdma->errored;
 }
 
 static void register_to_network(RDMAContext *rdma, RDMARegister *reg)
@@ -1547,7 +1547,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
          * But we need to be able to handle 'cancel' or an error
          * without hanging forever.
          */
-        while (!rdma->error_state  && !rdma->received_error) {
+        while (!rdma->errored && !rdma->received_error) {
             GPollFD pfds[2];
             pfds[0].fd = comp_channel->fd;
             pfds[0].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
@@ -1604,7 +1604,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
     if (rdma->received_error) {
         return -1;
     }
-    return -!!rdma->error_state;
+    return -rdma->errored;
 }
 
 static struct ibv_comp_channel *to_channel(RDMAContext *rdma, uint64_t wrid)
@@ -1722,7 +1722,7 @@ err_block_for_wrid:
         ibv_ack_cq_events(cq, num_cq_events);
     }
 
-    rdma->error_state = ret;
+    rdma->errored = true;
     return -1;
 }
 
@@ -2386,7 +2386,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     int idx;
 
     if (rdma->cm_id && rdma->connected) {
-        if ((rdma->error_state ||
+        if ((rdma->errored ||
              migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) &&
             !rdma->received_error) {
             RDMAControlHeader head = { .len = 0,
@@ -2672,14 +2672,14 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 
     if (!rdma->host || !rdma->host[0]) {
         ERROR(errp, "RDMA host is not set!");
-        rdma->error_state = -EINVAL;
+        rdma->errored = true;
         return -1;
     }
     /* create CM channel */
     rdma->channel = rdma_create_event_channel();
     if (!rdma->channel) {
         ERROR(errp, "could not create rdma event channel");
-        rdma->error_state = -EINVAL;
+        rdma->errored = true;
         return -1;
     }
 
@@ -2737,7 +2737,7 @@ err_dest_init_bind_addr:
 err_dest_init_create_listen_id:
     rdma_destroy_event_channel(rdma->channel);
     rdma->channel = NULL;
-    rdma->error_state = ret;
+    rdma->errored = true;
     return -1;
 
 }
@@ -2812,7 +2812,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         return -1;
     }
 
-    if (rdma->error_state) {
+    if (rdma->errored) {
         error_setg(errp,
                    "RDMA is in an error state waiting migration to abort!");
         return -1;
@@ -2824,7 +2824,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
      */
     ret = qemu_rdma_write_flush(rdma);
     if (ret < 0) {
-        rdma->error_state = ret;
+        rdma->errored = true;
         error_setg(errp, "qemu_rdma_write_flush failed");
         return -1;
     }
@@ -2844,7 +2844,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
             ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
 
             if (ret < 0) {
-                rdma->error_state = ret;
+                rdma->errored = true;
                 error_setg(errp, "qemu_rdma_exchange_send failed");
                 return -1;
             }
@@ -2902,7 +2902,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         return -1;
     }
 
-    if (rdma->error_state) {
+    if (rdma->errored) {
         error_setg(errp,
                    "RDMA is in an error state waiting migration to abort!");
         return -1;
@@ -2938,7 +2938,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_QEMU_FILE);
 
         if (ret < 0) {
-            rdma->error_state = ret;
+            rdma->errored = true;
             error_setg(errp, "qemu_rdma_exchange_recv failed");
             return -1;
         }
@@ -3212,21 +3212,21 @@ qio_channel_rdma_shutdown(QIOChannel *ioc,
     switch (how) {
     case QIO_CHANNEL_SHUTDOWN_READ:
         if (rdmain) {
-            rdmain->error_state = -1;
+            rdmain->errored = true;
         }
         break;
     case QIO_CHANNEL_SHUTDOWN_WRITE:
         if (rdmaout) {
-            rdmaout->error_state = -1;
+            rdmaout->errored = true;
         }
         break;
     case QIO_CHANNEL_SHUTDOWN_BOTH:
     default:
         if (rdmain) {
-            rdmain->error_state = -1;
+            rdmain->errored = true;
         }
         if (rdmaout) {
-            rdmaout->error_state = -1;
+            rdmaout->errored = true;
         }
         break;
     }
@@ -3270,7 +3270,7 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
         return -1;
     }
 
-    if (check_error_state(rdma)) {
+    if (rdma_errored(rdma)) {
         return -1;
     }
 
@@ -3329,7 +3329,7 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
     return RAM_SAVE_CONTROL_DELAYED;
 
 err:
-    rdma->error_state = ret;
+    rdma->errored = true;
     return -1;
 }
 
@@ -3350,13 +3350,13 @@ static void rdma_cm_poll_handler(void *opaque)
 
     if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
         cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
-        if (!rdma->error_state &&
+        if (!rdma->errored &&
             migration_incoming_get_current()->state !=
               MIGRATION_STATUS_COMPLETED) {
             error_report("receive cm event, cm event is %d", cm_event->event);
-            rdma->error_state = -EPIPE;
+            rdma->errored = true;
             if (rdma->return_path) {
-                rdma->return_path->error_state = -EPIPE;
+                rdma->return_path->errored = true;
             }
         }
         rdma_ack_cm_event(cm_event);
@@ -3522,7 +3522,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     return 0;
 
 err_rdma_dest_wait:
-    rdma->error_state = ret;
+    rdma->errored = true;
     qemu_rdma_cleanup(rdma);
     g_free(rdma_return_path);
     return -1;
@@ -3579,7 +3579,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
         return -1;
     }
 
-    if (check_error_state(rdma)) {
+    if (rdma_errored(rdma)) {
         return -1;
     }
 
@@ -3818,7 +3818,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
     } while (1);
 
 err:
-    rdma->error_state = ret;
+    rdma->errored = true;
     return -1;
 }
 
@@ -3895,7 +3895,7 @@ static int qemu_rdma_registration_start(QEMUFile *f,
         return -1;
     }
 
-    if (check_error_state(rdma)) {
+    if (rdma_errored(rdma)) {
         return -1;
     }
 
@@ -3928,7 +3928,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
         return -1;
     }
 
-    if (check_error_state(rdma)) {
+    if (rdma_errored(rdma)) {
         return -1;
     }
 
@@ -3982,7 +3982,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                     "Your QEMU command line parameters are probably "
                     "not identical on both the source and destination.",
                     local->nb_blocks, nb_dest_blocks);
-            rdma->error_state = -EINVAL;
+            rdma->errored = true;
             return -1;
         }
 
@@ -3998,7 +3998,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                         "vs %" PRIu64, local->block[i].block_name, i,
                         local->block[i].length,
                         rdma->dest_blocks[i].length);
-                rdma->error_state = -EINVAL;
+                rdma->errored = true;
                 return -1;
             }
             local->block[i].remote_host_addr =
@@ -4018,7 +4018,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
 
     return 0;
 err:
-    rdma->error_state = ret;
+    rdma->errored = true;
     return -1;
 }
 
