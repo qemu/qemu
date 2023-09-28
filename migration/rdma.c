@@ -1469,8 +1469,8 @@ static uint64_t qemu_rdma_make_wrid(uint64_t wr_id, uint64_t index,
  * (of any kind) has completed.
  * Return the work request ID that completed.
  */
-static uint64_t qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
-                               uint64_t *wr_id_out, uint32_t *byte_len)
+static int qemu_rdma_poll(RDMAContext *rdma, struct ibv_cq *cq,
+                          uint64_t *wr_id_out, uint32_t *byte_len)
 {
     int ret;
     struct ibv_wc wc;
