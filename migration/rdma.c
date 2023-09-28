@@ -559,9 +559,9 @@ static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
     return result;
 }
 
-static int rdma_add_block(RDMAContext *rdma, const char *block_name,
-                         void *host_addr,
-                         ram_addr_t block_offset, uint64_t length)
+static void rdma_add_block(RDMAContext *rdma, const char *block_name,
+                           void *host_addr,
+                           ram_addr_t block_offset, uint64_t length)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     RDMALocalBlock *block;
@@ -615,8 +615,6 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
                          block->nb_chunks);
 
     local->nb_blocks++;
-
-    return 0;
 }
 
 /*
@@ -630,7 +628,8 @@ static int qemu_rdma_init_one_block(RAMBlock *rb, void *opaque)
     void *host_addr = qemu_ram_get_host_addr(rb);
     ram_addr_t block_offset = qemu_ram_get_offset(rb);
     ram_addr_t length = qemu_ram_get_used_length(rb);
-    return rdma_add_block(opaque, block_name, host_addr, block_offset, length);
+    rdma_add_block(opaque, block_name, host_addr, block_offset, length);
+    return 0;
 }
 
 /*
@@ -638,7 +637,7 @@ static int qemu_rdma_init_one_block(RAMBlock *rb, void *opaque)
  * identify chunk boundaries inside each RAMBlock and also be referenced
  * during dynamic page registration.
  */
-static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
+static void qemu_rdma_init_ram_blocks(RDMAContext *rdma)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     int ret;
@@ -646,14 +645,11 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     assert(rdma->blockmap == NULL);
     memset(local, 0, sizeof *local);
     ret = foreach_not_ignored_block(qemu_rdma_init_one_block, rdma);
-    if (ret) {
-        return ret;
-    }
+    assert(!ret);
     trace_qemu_rdma_init_ram_blocks(local->nb_blocks);
     rdma->dest_blocks = g_new0(RDMADestBlock,
                                rdma->local_ram_blocks.nb_blocks);
     local->init = true;
-    return 0;
 }
 
 /*
@@ -2491,11 +2487,7 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
         goto err_rdma_source_init;
     }
 
-    ret = qemu_rdma_init_ram_blocks(rdma);
-    if (ret) {
-        ERROR(errp, "rdma migration: error initializing ram blocks!");
-        goto err_rdma_source_init;
-    }
+    qemu_rdma_init_ram_blocks(rdma);
 
     /* Build the hash that maps from offset to RAMBlock */
     rdma->blockmap = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -3438,11 +3430,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         goto err_rdma_dest_wait;
     }
 
-    ret = qemu_rdma_init_ram_blocks(rdma);
-    if (ret) {
-        error_report("rdma migration: error initializing ram blocks!");
-        goto err_rdma_dest_wait;
-    }
+    qemu_rdma_init_ram_blocks(rdma);
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         ret = qemu_rdma_reg_control(rdma, idx);
