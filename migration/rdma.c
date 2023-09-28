@@ -853,6 +853,12 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
 
         for (x = 0; x < num_devices; x++) {
             verbs = ibv_open_device(dev_list[x]);
+            /*
+             * ibv_open_device() is not documented to set errno.  If
+             * it does, it's somebody else's doc bug.  If it doesn't,
+             * the use of errno below is wrong.
+             * TODO Find out whether ibv_open_device() sets errno.
+             */
             if (!verbs) {
                 if (errno == EPERM) {
                     continue;
@@ -1162,11 +1168,7 @@ static void qemu_rdma_advise_prefetch_mr(struct ibv_pd *pd, uint64_t addr,
     ret = ibv_advise_mr(pd, advice,
                         IBV_ADVISE_MR_FLAG_FLUSH, &sg_list, 1);
     /* ignore the error */
-    if (ret) {
-        trace_qemu_rdma_advise_mr(name, len, addr, strerror(errno));
-    } else {
-        trace_qemu_rdma_advise_mr(name, len, addr, "successed");
-    }
+    trace_qemu_rdma_advise_mr(name, len, addr, strerror(ret));
 #endif
 }
 
@@ -1183,7 +1185,12 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
                     local->block[i].local_host_addr,
                     local->block[i].length, access
                     );
-
+        /*
+         * ibv_reg_mr() is not documented to set errno.  If it does,
+         * it's somebody else's doc bug.  If it doesn't, the use of
+         * errno below is wrong.
+         * TODO Find out whether ibv_reg_mr() sets errno.
+         */
         if (!local->block[i].mr &&
             errno == ENOTSUP && rdma_support_odp(rdma->verbs)) {
                 access |= IBV_ACCESS_ON_DEMAND;
@@ -1291,6 +1298,12 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
         trace_qemu_rdma_register_and_get_keys(len, chunk_start);
 
         block->pmr[chunk] = ibv_reg_mr(rdma->pd, chunk_start, len, access);
+        /*
+         * ibv_reg_mr() is not documented to set errno.  If it does,
+         * it's somebody else's doc bug.  If it doesn't, the use of
+         * errno below is wrong.
+         * TODO Find out whether ibv_reg_mr() sets errno.
+         */
         if (!block->pmr[chunk] &&
             errno == ENOTSUP && rdma_support_odp(rdma->verbs)) {
             access |= IBV_ACCESS_ON_DEMAND;
@@ -1408,6 +1421,11 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
         block->remote_keys[chunk] = 0;
 
         if (ret != 0) {
+            /*
+             * FIXME perror() is problematic, bcause ibv_dereg_mr() is
+             * not documented to set errno.  Will go away later in
+             * this series.
+             */
             perror("unregistration chunk failed");
             return -ret;
         }
@@ -1658,6 +1676,11 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma,
 
         ret = ibv_get_cq_event(ch, &cq, &cq_ctx);
         if (ret) {
+            /*
+             * FIXME perror() is problematic, because ibv_reg_mr() is
+             * not documented to set errno.  Will go away later in
+             * this series.
+             */
             perror("ibv_get_cq_event");
             goto err_block_for_wrid;
         }
@@ -2210,6 +2233,11 @@ retry:
         goto retry;
 
     } else if (ret > 0) {
+        /*
+         * FIXME perror() is problematic, because whether
+         * ibv_post_send() sets errno is unclear.  Will go away later
+         * in this series.
+         */
         perror("rdma migration: post rdma write failed");
         return -ret;
     }
@@ -2579,6 +2607,11 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
         ret = rdma_get_cm_event(rdma->channel, &cm_event);
     }
     if (ret) {
+        /*
+         * FIXME perror() is wrong, because
+         * qemu_get_cm_event_timeout() can fail without setting errno.
+         * Will go away later in this series.
+         */
         perror("rdma_get_cm_event after rdma_connect");
         ERROR(errp, "connecting to destination!");
         goto err_rdma_source_connect;
