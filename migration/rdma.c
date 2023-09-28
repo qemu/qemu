@@ -2767,25 +2767,22 @@ static RDMAContext *qemu_rdma_data_init(const char *host_port, Error **errp)
     RDMAContext *rdma = NULL;
     InetSocketAddress *addr;
 
-    if (host_port) {
-        rdma = g_new0(RDMAContext, 1);
-        rdma->current_index = -1;
-        rdma->current_chunk = -1;
+    rdma = g_new0(RDMAContext, 1);
+    rdma->current_index = -1;
+    rdma->current_chunk = -1;
 
-        addr = g_new(InetSocketAddress, 1);
-        if (!inet_parse(addr, host_port, NULL)) {
-            rdma->port = atoi(addr->port);
-            rdma->host = g_strdup(addr->host);
-            rdma->host_port = g_strdup(host_port);
-        } else {
-            ERROR(errp, "bad RDMA migration address '%s'", host_port);
-            g_free(rdma);
-            rdma = NULL;
-        }
-
-        qapi_free_InetSocketAddress(addr);
+    addr = g_new(InetSocketAddress, 1);
+    if (!inet_parse(addr, host_port, NULL)) {
+        rdma->port = atoi(addr->port);
+        rdma->host = g_strdup(addr->host);
+        rdma->host_port = g_strdup(host_port);
+    } else {
+        ERROR(errp, "bad RDMA migration address '%s'", host_port);
+        g_free(rdma);
+        rdma = NULL;
     }
 
+    qapi_free_InetSocketAddress(addr);
     return rdma;
 }
 
