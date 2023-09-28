@@ -1325,15 +1325,6 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
         }
     }
     if (!block->pmr[chunk]) {
-        perror("Failed to register chunk!");
-        fprintf(stderr, "Chunk details: block: %d chunk index %d"
-                        " start %" PRIuPTR " end %" PRIuPTR
-                        " host %" PRIuPTR
-                        " local %" PRIuPTR " registrations: %d\n",
-                        block->index, chunk, (uintptr_t)chunk_start,
-                        (uintptr_t)chunk_end, host_addr,
-                        (uintptr_t)block->local_host_addr,
-                        rdma->total_registrations);
         return -1;
     }
     rdma->total_registrations++;
