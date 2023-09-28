@@ -25,11 +25,15 @@ import textwrap
 import shlex
 import sys
 
+# Options with nonstandard names (e.g. --with/--without) or OS-dependent
+# defaults.  Try not to add any.
 SKIP_OPTIONS = {
     "default_devices",
     "fuzzing_engine",
 }
 
+# Options whose name doesn't match the option for backwards compatibility
+# reasons, because Meson gives them a funny name, or both
 OPTION_NAMES = {
     "b_coverage": "gcov",
     "b_lto": "lto",
@@ -49,6 +53,10 @@ AUTO_OPTIONS = {
     "werror",
 }
 
+# Builtin options that should be definable via configure.  Some of the others
+# we really do not want (e.g. c_args is defined via the native file, not
+# via -D, because it's a mix of CFLAGS and --extra-cflags); for specific
+# cases "../configure -D" can be used as an escape hatch.
 BUILTIN_OPTIONS = {
     "b_coverage",
     "b_lto",
