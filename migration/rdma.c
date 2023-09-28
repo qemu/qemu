@@ -1582,11 +1582,11 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                         return -1;
                     }
 
-                    error_report("receive cm event while wait comp channel,"
-                                 "cm event is %d", cm_event->event);
                     if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
                         cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
                         rdma_ack_cm_event(cm_event);
+                        error_report("receive cm event while wait comp channel,"
+                                     "cm event is %d", cm_event->event);
                         return -1;
                     }
                     rdma_ack_cm_event(cm_event);
