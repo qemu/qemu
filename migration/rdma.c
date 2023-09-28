@@ -668,7 +668,7 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
  * Note: If used outside of cleanup, the caller must ensure that the destination
  * block structures are also updated
  */
-static int rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
+static void rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     RDMALocalBlock *old = local->block;
@@ -754,8 +754,6 @@ static int rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
                                 &local->block[x]);
         }
     }
-
-    return 0;
 }
 
 /*
