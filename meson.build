@@ -4021,6 +4021,11 @@ summary(summary_info, bool_yn: true, section: 'Directories')
 summary_info = {}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
 summary_info += {'sphinx-build':      sphinx_build}
+
+# FIXME: the [binaries] section of machine files, which can be probed
+# with find_program(), would be great for passing gdb and genisoimage
+# paths from configure to Meson.  However, there seems to be no way to
+# hide a program (for example if gdb is too old).
 if config_host.has_key('GDB')
   summary_info += {'gdb':             config_host['GDB']}
 endif
