@@ -373,17 +373,6 @@ else
   targetos=bogus
 fi
 
-# OS specific
-
-case $targetos in
-windows)
-  pie="no"
-;;
-haiku)
-  pie="no"
-;;
-esac
-
 if test ! -z "$cpu" ; then
   # command line argument
   :
@@ -1088,19 +1077,23 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-if test "$static" = "yes"; then
-  if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
+if test "$targetos" = windows || test "$targetos" = haiku; then
+  if test "$pie" = "yes"; then
+    error_exit "PIE not available due to missing OS support"
+  fi
+  pie=no
+fi
+
+if test "$pie" != "no"; then
+  if test "$static" = "yes"; then
+    pie_ldflags=-static-pie
+  else
+    pie_ldflags=-pie
+  fi
+  if compile_prog "-Werror -fPIE -DPIE" "$pie_ldflags"; then
     pie="yes"
   elif test "$pie" = "yes"; then
     error_exit "-static-pie not available due to missing toolchain support"
-  else
-    pie="no"
-  fi
-elif test "$pie" != "no"; then
-  if compile_prog "-Werror -fPIE -DPIE" "-pie"; then
-    pie="yes"
-  elif test "$pie" = "yes"; then
-    error_exit "PIE not available due to missing toolchain support"
   else
     echo "Disabling PIE due to missing toolchain support"
     pie="no"
