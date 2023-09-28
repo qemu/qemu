@@ -40,12 +40,8 @@
 #include "options.h"
 #include <poll.h>
 
-/*
- * Print and error on both the Monitor and the Log file.
- */
 #define ERROR(errp, fmt, ...) \
     do { \
-        fprintf(stderr, "RDMA ERROR: " fmt "\n", ## __VA_ARGS__); \
         if (errp && (*(errp) == NULL)) { \
             error_setg(errp, "RDMA ERROR: " fmt, ## __VA_ARGS__); \
         } \
