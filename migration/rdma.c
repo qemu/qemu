@@ -2810,7 +2810,11 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         return -1;
     }
 
-    CHECK_ERROR_STATE();
+    if (rdma->error_state) {
+        error_setg(errp,
+                   "RDMA is in an error state waiting migration to abort!");
+        return -1;
+    }
 
     /*
      * Push out any writes that
@@ -2896,7 +2900,11 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         return -1;
     }
 
-    CHECK_ERROR_STATE();
+    if (rdma->error_state) {
+        error_setg(errp,
+                   "RDMA is in an error state waiting migration to abort!");
+        return -1;
+    }
 
     for (i = 0; i < niov; i++) {
         size_t want = iov[i].iov_len;
