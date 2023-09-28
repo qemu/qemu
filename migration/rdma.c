@@ -85,18 +85,6 @@
  */
 static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
 
-#define CHECK_ERROR_STATE() \
-    do { \
-        if (rdma->error_state) { \
-            if (!rdma->error_reported) { \
-                error_report("RDMA is in an error state waiting migration" \
-                                " to abort!"); \
-                rdma->error_reported = true; \
-            } \
-            return rdma->error_state; \
-        } \
-    } while (0)
-
 /*
  * A work request ID is 64-bits and we split up these bits
  * into 3 parts:
@@ -450,6 +438,16 @@ typedef struct QEMU_PACKED {
     uint32_t padding;
     uint64_t chunks;            /* how many sequential chunks to register */
 } RDMARegister;
+
+static int check_error_state(RDMAContext *rdma)
+{
+    if (rdma->error_state && !rdma->error_reported) {
+        error_report("RDMA is in an error state waiting migration"
+                     " to abort!");
+        rdma->error_reported = true;
+    }
+    return rdma->error_state;
+}
 
 static void register_to_network(RDMAContext *rdma, RDMARegister *reg)
 {
@@ -3268,7 +3266,10 @@ static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
         return -EIO;
     }
 
-    CHECK_ERROR_STATE();
+    ret = check_error_state(rdma);
+    if (ret) {
+        return ret;
+    }
 
     qemu_fflush(f);
 
@@ -3574,7 +3575,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
         return -EIO;
     }
 
-    CHECK_ERROR_STATE();
+    ret = check_error_state(rdma);
+    if (ret) {
+        return ret;
+    }
 
     local = &rdma->local_ram_blocks;
     do {
@@ -3878,6 +3882,7 @@ static int qemu_rdma_registration_start(QEMUFile *f,
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
+    int ret;
 
     if (migration_in_postcopy()) {
         return 0;
@@ -3889,7 +3894,10 @@ static int qemu_rdma_registration_start(QEMUFile *f,
         return -EIO;
     }
 
-    CHECK_ERROR_STATE();
+    ret = check_error_state(rdma);
+    if (ret) {
+        return ret;
+    }
 
     trace_qemu_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
@@ -3920,7 +3928,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
         return -EIO;
     }
 
-    CHECK_ERROR_STATE();
+    ret = check_error_state(rdma);
+    if (ret) {
+        return ret;
+    }
 
     qemu_fflush(f);
     ret = qemu_rdma_drain_cq(rdma);
