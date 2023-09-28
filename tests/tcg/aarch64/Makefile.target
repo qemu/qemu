@@ -73,11 +73,6 @@ endif
 # System Registers Tests
 AARCH64_TESTS += sysregs
 
-ifneq ($(CROSS_CC_HAS_SVE),)
-# SVE ioctl test
-AARCH64_TESTS += sve-ioctls
-sve-ioctls: CFLAGS+=-march=armv8.1-a+sve
-
 AARCH64_TESTS += test-aes
 test-aes: CFLAGS += -O -march=armv8-a+aes
 test-aes: test-aes-main.c.inc
@@ -100,12 +95,15 @@ sha512-vector: sha512.c
 TESTS += sha512-vector
 
 ifneq ($(CROSS_CC_HAS_SVE),)
+# SVE ioctl test
+AARCH64_TESTS += sve-ioctls
+sve-ioctls: CFLAGS+=-march=armv8.1-a+sve
+
 sha512-sve: CFLAGS=-O3 -march=armv8.1-a+sve
 sha512-sve: sha512.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
 TESTS += sha512-sve
-endif
 
 ifeq ($(HOST_GDB_SUPPORTS_ARCH),y)
 GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
