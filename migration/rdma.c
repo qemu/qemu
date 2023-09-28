@@ -863,14 +863,14 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
                 } else {
                     error_setg_errno(errp, errno,
                                      "could not open RDMA device context");
-                    return -EINVAL;
+                    return -1;
                 }
             }
 
             if (ibv_query_port(verbs, 1, &port_attr)) {
                 ibv_close_device(verbs);
                 ERROR(errp, "Could not query initial IB port");
-                return -EINVAL;
+                return -1;
             }
 
             if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND) {
@@ -895,7 +895,7 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
                 ERROR(errp, "You only have RoCE / iWARP devices in your systems"
                             " and your management software has specified '[::]'"
                             ", but IPv6 over RoCE / iWARP is not supported in Linux.");
-                return -ENONET;
+                return -1;
             }
         }
 
@@ -911,13 +911,13 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
     /* IB ports start with 1, not 0 */
     if (ibv_query_port(verbs, 1, &port_attr)) {
         ERROR(errp, "Could not query initial IB port");
-        return -EINVAL;
+        return -1;
     }
 
     if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET) {
         ERROR(errp, "Linux kernel's RoCE / iWARP does not support IPv6 "
                     "(but patches on linux-rdma in progress)");
-        return -ENONET;
+        return -1;
     }
 
 #endif
@@ -1425,7 +1425,7 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
              * this series.
              */
             perror("unregistration chunk failed");
-            return -ret;
+            return -1;
         }
         rdma->total_registrations--;
 
@@ -1570,7 +1570,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                     if (ret) {
                         error_report("failed to get cm event while wait "
                                      "completion channel");
-                        return -EPIPE;
+                        return -1;
                     }
 
                     error_report("receive cm event while wait comp channel,"
@@ -1578,7 +1578,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                     if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
                         cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
                         rdma_ack_cm_event(cm_event);
-                        return -EPIPE;
+                        return -1;
                     }
                     rdma_ack_cm_event(cm_event);
                 }
@@ -1591,18 +1591,18 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                       * I don't trust errno from qemu_poll_ns
                      */
                 error_report("%s: poll failed", __func__);
-                return -EPIPE;
+                return -1;
             }
 
             if (migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) {
                 /* Bail out and let the cancellation happen */
-                return -EPIPE;
+                return -1;
             }
         }
     }
 
     if (rdma->received_error) {
-        return -EPIPE;
+        return -1;
     }
     return rdma->error_state;
 }
@@ -1772,7 +1772,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
 
     if (ret > 0) {
         error_report("Failed to use post IB SEND for control");
-        return -ret;
+        return -1;
     }
 
     ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_SEND_CONTROL, NULL);
@@ -1841,15 +1841,15 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
         if (head->type == RDMA_CONTROL_ERROR) {
             rdma->received_error = true;
         }
-        return -EIO;
+        return -1;
     }
     if (head->len > RDMA_CONTROL_MAX_BUFFER - sizeof(*head)) {
         error_report("too long length: %d", head->len);
-        return -EINVAL;
+        return -1;
     }
     if (sizeof(*head) + head->len != byte_len) {
         error_report("Malformed length: %d byte_len %d", head->len, byte_len);
-        return -EINVAL;
+        return -1;
     }
 
     return 0;
@@ -2115,7 +2115,7 @@ retry:
                                 (uint8_t *) &comp, NULL, NULL, NULL);
 
                 if (ret < 0) {
-                    return -EIO;
+                    return -1;
                 }
 
                 /*
@@ -2159,7 +2159,7 @@ retry:
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
                 error_report("cannot get lkey");
-                return -EINVAL;
+                return -1;
             }
 
             reg_result = (RDMARegisterResult *)
@@ -2178,7 +2178,7 @@ retry:
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
                 error_report("cannot get lkey!");
-                return -EINVAL;
+                return -1;
             }
         }
 
@@ -2190,7 +2190,7 @@ retry:
                                                      &sge.lkey, NULL, chunk,
                                                      chunk_start, chunk_end)) {
             error_report("cannot get lkey!");
-            return -EINVAL;
+            return -1;
         }
     }
 
@@ -2237,7 +2237,7 @@ retry:
          * in this series.
          */
         perror("rdma migration: post rdma write failed");
-        return -ret;
+        return -1;
     }
 
     set_bit(chunk, block->transit_bitmap);
@@ -2969,14 +2969,14 @@ static int qemu_rdma_drain_cq(RDMAContext *rdma)
     int ret;
 
     if (qemu_rdma_write_flush(rdma) < 0) {
-        return -EIO;
+        return -1;
     }
 
     while (rdma->nb_sent) {
         ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
             error_report("rdma migration: complete polling error!");
-            return -EIO;
+            return -1;
         }
     }
 
