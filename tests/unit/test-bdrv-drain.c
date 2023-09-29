@@ -1168,7 +1168,7 @@ struct detach_by_parent_data {
 };
 static struct detach_by_parent_data detach_by_parent_data;
 
-static void detach_indirect_bh(void *opaque)
+static void no_coroutine_fn detach_indirect_bh(void *opaque)
 {
     struct detach_by_parent_data *data = opaque;
 
@@ -1184,14 +1184,15 @@ static void detach_indirect_bh(void *opaque)
     bdrv_graph_wrunlock();
 }
 
-static void detach_by_parent_aio_cb(void *opaque, int ret)
+static void coroutine_mixed_fn detach_by_parent_aio_cb(void *opaque, int ret)
 {
     struct detach_by_parent_data *data = &detach_by_parent_data;
 
     g_assert_cmpint(ret, ==, 0);
     if (data->by_parent_cb) {
         bdrv_inc_in_flight(data->child_b->bs);
-        detach_indirect_bh(data);
+        aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
+                                detach_indirect_bh, &detach_by_parent_data);
     }
 }
 
