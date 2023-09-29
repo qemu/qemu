@@ -279,6 +279,8 @@ static void blockdev_insert_medium(const char *device, const char *id,
     BlockBackend *blk;
     BlockDriverState *bs;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     blk = qmp_get_blk(device, id, errp);
     if (!blk) {
         return;

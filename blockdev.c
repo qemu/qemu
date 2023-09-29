@@ -1041,6 +1041,8 @@ static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
     BlockDriverState *bs;
     AioContext *aio_context;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     bs = bdrv_lookup_bs(name, name, errp);
     if (bs == NULL) {
         return NULL;
@@ -3509,6 +3511,7 @@ void qmp_blockdev_del(const char *node_name, Error **errp)
     BlockDriverState *bs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     bs = bdrv_find_node(node_name);
     if (!bs) {
@@ -3635,6 +3638,8 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     AioContext *old_context;
     AioContext *new_context;
     BlockDriverState *bs;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     bs = bdrv_find_node(node_name);
     if (!bs) {

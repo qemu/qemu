@@ -462,9 +462,9 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
 }
 
 
-static int bdrv_all_get_snapshot_devices(bool has_devices, strList *devices,
-                                         GList **all_bdrvs,
-                                         Error **errp)
+static int GRAPH_RDLOCK
+bdrv_all_get_snapshot_devices(bool has_devices, strList *devices,
+                              GList **all_bdrvs, Error **errp)
 {
     g_autoptr(GList) bdrvs = NULL;
 
@@ -496,7 +496,7 @@ static int bdrv_all_get_snapshot_devices(bool has_devices, strList *devices,
 }
 
 
-static bool bdrv_all_snapshots_includes_bs(BlockDriverState *bs)
+static bool GRAPH_RDLOCK bdrv_all_snapshots_includes_bs(BlockDriverState *bs)
 {
     if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
         return false;
@@ -518,6 +518,7 @@ bool bdrv_all_can_snapshot(bool has_devices, strList *devices,
     GList *iterbdrvs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return false;
@@ -554,6 +555,7 @@ int bdrv_all_delete_snapshot(const char *name,
     GList *iterbdrvs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return -1;
@@ -595,6 +597,7 @@ int bdrv_all_goto_snapshot(const char *name,
     GList *iterbdrvs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return -1;
@@ -631,6 +634,7 @@ int bdrv_all_has_snapshot(const char *name,
     GList *iterbdrvs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return -1;
@@ -673,7 +677,9 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
 {
     g_autoptr(GList) bdrvs = NULL;
     GList *iterbdrvs;
+
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return -1;
@@ -715,6 +721,7 @@ BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
     GList *iterbdrvs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bdrv_all_get_snapshot_devices(has_devices, devices, &bdrvs, errp) < 0) {
         return NULL;

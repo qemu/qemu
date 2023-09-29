@@ -458,6 +458,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     Error *local_err = NULL;
     BackupPerf perf = { .use_copy_range = true, .max_workers = 1 };
 
+    GLOBAL_STATE_CODE();
+
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
     s = bs->opaque;
@@ -504,12 +506,15 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
+        bdrv_graph_rdlock_main_loop();
         secondary_disk = hidden_disk->bs->backing;
         if (!secondary_disk->bs || !bdrv_has_blk(secondary_disk->bs)) {
             error_setg(errp, "The secondary disk doesn't have block backend");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
+        bdrv_graph_rdunlock_main_loop();
 
         /* verify the length */
         active_length = bdrv_getlength(active_disk->bs);
@@ -566,8 +571,6 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
-        bdrv_graph_wrunlock();
-
         /* start backup job now */
         error_setg(&s->blocker,
                    "Block device is in use by internal backup job");
@@ -576,12 +579,15 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         if (!top_bs || !bdrv_is_root_node(top_bs) ||
             !check_top_bs(top_bs, bs)) {
             error_setg(errp, "No top_bs or it is invalid");
+            bdrv_graph_wrunlock();
             reopen_backing_file(bs, false, NULL);
             aio_context_release(aio_context);
             return;
         }
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
+
+        bdrv_graph_wrunlock();
 
         s->backup_job = backup_job_create(
                                 NULL, s->secondary_disk->bs, s->hidden_disk->bs,

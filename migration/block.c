@@ -388,6 +388,8 @@ static int init_blk_migration(QEMUFile *f)
     Error *local_err = NULL;
     int ret;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     block_mig_state.submitted = 0;
     block_mig_state.read_done = 0;
     block_mig_state.transferred = 0;

@@ -2330,6 +2330,7 @@ int bdrv_flush_all(void)
     int result = 0;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /*
      * bdrv queue is managed by record/replay,

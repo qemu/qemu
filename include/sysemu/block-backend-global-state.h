@@ -59,8 +59,8 @@ BlockBackend *blk_by_public(BlockBackendPublic *public);
 void blk_remove_bs(BlockBackend *blk);
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp);
 int blk_replace_bs(BlockBackend *blk, BlockDriverState *new_bs, Error **errp);
-bool bdrv_has_blk(BlockDriverState *bs);
-bool bdrv_is_root_node(BlockDriverState *bs);
+bool GRAPH_RDLOCK bdrv_has_blk(BlockDriverState *bs);
+bool GRAPH_RDLOCK bdrv_is_root_node(BlockDriverState *bs);
 int GRAPH_UNLOCKED blk_set_perm(BlockBackend *blk, uint64_t perm,
                                 uint64_t shared_perm, Error **errp);
 void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm);

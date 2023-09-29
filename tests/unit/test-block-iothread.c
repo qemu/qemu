@@ -383,6 +383,9 @@ static void test_sync_op_check(BdrvChild *c)
 
 static void test_sync_op_activate(BdrvChild *c)
 {
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /* Early success: Image is not inactive */
     bdrv_activate(c->bs, NULL);
 }

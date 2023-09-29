@@ -794,6 +794,8 @@ static void vm_completion(ReadLineState *rs, const char *str)
     BlockDriverState *bs;
     BdrvNextIterator it;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     len = strlen(str);
     readline_set_completion_index(rs, len);
 

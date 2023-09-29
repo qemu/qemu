@@ -170,9 +170,10 @@ BlockDriverState * GRAPH_RDLOCK
 check_to_replace_node(BlockDriverState *parent_bs, const char *node_name,
                       Error **errp);
 
-int no_coroutine_fn bdrv_activate(BlockDriverState *bs, Error **errp);
+int no_coroutine_fn GRAPH_RDLOCK
+bdrv_activate(BlockDriverState *bs, Error **errp);
 
-int coroutine_fn no_co_wrapper
+int coroutine_fn no_co_wrapper_bdrv_rdlock
 bdrv_co_activate(BlockDriverState *bs, Error **errp);
 
 void bdrv_activate_all(Error **errp);
@@ -208,8 +209,8 @@ typedef struct BdrvNextIterator {
     BlockDriverState *bs;
 } BdrvNextIterator;
 
-BlockDriverState *bdrv_first(BdrvNextIterator *it);
-BlockDriverState *bdrv_next(BdrvNextIterator *it);
+BlockDriverState * GRAPH_RDLOCK bdrv_first(BdrvNextIterator *it);
+BlockDriverState * GRAPH_RDLOCK bdrv_next(BdrvNextIterator *it);
 void bdrv_next_cleanup(BdrvNextIterator *it);
 
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);

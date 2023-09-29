@@ -780,11 +780,12 @@ BlockDriverState *blk_bs(BlockBackend *blk)
     return blk->root ? blk->root->bs : NULL;
 }
 
-static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
+static BlockBackend * GRAPH_RDLOCK bdrv_first_blk(BlockDriverState *bs)
 {
     BdrvChild *child;
 
     GLOBAL_STATE_CODE();
+    assert_bdrv_graph_readable();
 
     QLIST_FOREACH(child, &bs->parents, next_parent) {
         if (child->klass == &child_root) {
@@ -812,6 +813,8 @@ bool bdrv_is_root_node(BlockDriverState *bs)
     BdrvChild *c;
 
     GLOBAL_STATE_CODE();
+    assert_bdrv_graph_readable();
+
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c->klass != &child_root) {
             return false;
@@ -2259,6 +2262,7 @@ void blk_activate(BlockBackend *blk, Error **errp)
     if (qemu_in_coroutine()) {
         bdrv_co_activate(bs, errp);
     } else {
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
         bdrv_activate(bs, errp);
     }
 }
