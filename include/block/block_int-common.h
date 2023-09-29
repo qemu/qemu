@@ -235,11 +235,14 @@ struct BlockDriver {
                                 Error **errp);
 
     /* For handling image reopen for split or non-split files. */
-    int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
-                               BlockReopenQueue *queue, Error **errp);
-    void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
-    void (*bdrv_reopen_commit_post)(BDRVReopenState *reopen_state);
-    void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
+    int GRAPH_UNLOCKED_PTR (*bdrv_reopen_prepare)(
+        BDRVReopenState *reopen_state, BlockReopenQueue *queue, Error **errp);
+    void GRAPH_UNLOCKED_PTR (*bdrv_reopen_commit)(
+        BDRVReopenState *reopen_state);
+    void GRAPH_UNLOCKED_PTR (*bdrv_reopen_commit_post)(
+        BDRVReopenState *reopen_state);
+    void GRAPH_UNLOCKED_PTR (*bdrv_reopen_abort)(
+        BDRVReopenState *reopen_state);
     void (*bdrv_join_options)(QDict *options, QDict *old_options);
 
     int GRAPH_UNLOCKED_PTR (*bdrv_open)(

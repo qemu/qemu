@@ -4314,8 +4314,8 @@ static int bdrv_reset_options_allowed(BlockDriverState *bs,
 /*
  * Returns true if @child can be reached recursively from @bs
  */
-static bool bdrv_recurse_has_child(BlockDriverState *bs,
-                                   BlockDriverState *child)
+static bool GRAPH_RDLOCK
+bdrv_recurse_has_child(BlockDriverState *bs, BlockDriverState *child)
 {
     BdrvChild *c;
 
@@ -4356,15 +4356,12 @@ static bool bdrv_recurse_has_child(BlockDriverState *bs,
  *
  * To be called with bs->aio_context locked.
  */
-static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
-                                                 BlockDriverState *bs,
-                                                 QDict *options,
-                                                 const BdrvChildClass *klass,
-                                                 BdrvChildRole role,
-                                                 bool parent_is_format,
-                                                 QDict *parent_options,
-                                                 int parent_flags,
-                                                 bool keep_old_opts)
+static BlockReopenQueue * GRAPH_RDLOCK
+bdrv_reopen_queue_child(BlockReopenQueue *bs_queue, BlockDriverState *bs,
+                        QDict *options, const BdrvChildClass *klass,
+                        BdrvChildRole role, bool parent_is_format,
+                        QDict *parent_options, int parent_flags,
+                        bool keep_old_opts)
 {
     assert(bs != NULL);
 
@@ -4376,6 +4373,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     GLOBAL_STATE_CODE();
 
+    /*
+     * Strictly speaking, draining is illegal under GRAPH_RDLOCK. We know that
+     * we've been called with bdrv_graph_rdlock_main_loop(), though, so it's ok
+     * in practice.
+     */
     bdrv_drained_begin(bs);
 
     if (bs_queue == NULL) {
@@ -4517,6 +4519,7 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     QDict *options, bool keep_old_opts)
 {
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, 0, false,
                                    NULL, 0, keep_old_opts);
@@ -4736,9 +4739,10 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
  * Callers must make sure that their AioContext locking is still correct after
  * this.
  */
-static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
-                                             bool is_backing, Transaction *tran,
-                                             Error **errp)
+static int GRAPH_UNLOCKED
+bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
+                                  bool is_backing, Transaction *tran,
+                                  Error **errp)
 {
     BlockDriverState *bs = reopen_state->bs;
     BlockDriverState *new_child_bs;
@@ -4748,6 +4752,7 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
     QObject *value;
     const char *str;
     AioContext *ctx, *old_ctx;
+    bool has_child;
     int ret;
 
     GLOBAL_STATE_CODE();
@@ -4767,7 +4772,13 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         new_child_bs = bdrv_lookup_bs(NULL, str, errp);
         if (new_child_bs == NULL) {
             return -EINVAL;
-        } else if (bdrv_recurse_has_child(new_child_bs, bs)) {
+        }
+
+        bdrv_graph_rdlock_main_loop();
+        has_child = bdrv_recurse_has_child(new_child_bs, bs);
+        bdrv_graph_rdunlock_main_loop();
+
+        if (has_child) {
             error_setg(errp, "Making '%s' a %s child of '%s' would create a "
                        "cycle", str, child_name, bs->node_name);
             return -EINVAL;
@@ -4866,9 +4877,9 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
  * After calling this function, the transaction @change_child_tran may only be
  * completed while holding a writer lock for the graph.
  */
-static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
-                               BlockReopenQueue *queue,
-                               Transaction *change_child_tran, Error **errp)
+static int GRAPH_UNLOCKED
+bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
+                    Transaction *change_child_tran, Error **errp)
 {
     int ret = -1;
     int old_flags;
@@ -5010,6 +5021,8 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
     if (qdict_size(reopen_state->options)) {
         const QDictEntry *entry = qdict_first(reopen_state->options);
 
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
+
         do {
             QObject *new = entry->value;
             QObject *old = qdict_get(reopen_state->bs->options, entry->key);
@@ -5083,7 +5096,7 @@ error:
  * makes them final by swapping the staging BlockDriverState contents into
  * the active BlockDriverState contents.
  */
-static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
+static void GRAPH_UNLOCKED bdrv_reopen_commit(BDRVReopenState *reopen_state)
 {
     BlockDriver *drv;
     BlockDriverState *bs;
@@ -5099,6 +5112,8 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     if (drv->bdrv_reopen_commit) {
         drv->bdrv_reopen_commit(reopen_state);
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* set BDS specific flags now */
     qobject_unref(bs->explicit_options);
@@ -5121,9 +5136,7 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     qdict_del(bs->explicit_options, "backing");
     qdict_del(bs->options, "backing");
 
-    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, NULL);
-    bdrv_graph_rdunlock_main_loop();
     bdrv_refresh_total_sectors(bs, bs->total_sectors);
 }
 
@@ -5131,7 +5144,7 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
  * Abort the reopen, and delete and free the staged changes in
  * reopen_state
  */
-static void bdrv_reopen_abort(BDRVReopenState *reopen_state)
+static void GRAPH_UNLOCKED bdrv_reopen_abort(BDRVReopenState *reopen_state)
 {
     BlockDriver *drv;
 
