@@ -246,7 +246,9 @@ bdrv_attach_child(BlockDriverState *parent_bs,
                   BdrvChildRole child_role,
                   Error **errp);
 
-bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
+bool GRAPH_RDLOCK
+bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
+
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);
 void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason);
 void bdrv_op_block_all(BlockDriverState *bs, Error *reason);

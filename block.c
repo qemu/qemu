@@ -7251,8 +7251,6 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
     BdrvOpBlocker *blocker;
     GLOBAL_STATE_CODE();
 
-    assume_graph_lock(); /* FIXME */
-
     assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
     if (!QLIST_EMPTY(&bs->op_blockers[op])) {
         blocker = QLIST_FIRST(&bs->op_blockers[op]);

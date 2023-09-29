@@ -1696,9 +1696,12 @@ static void drive_backup_action(DriveBackup *backup,
     }
 
     /* Early check to avoid creating target */
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
+        bdrv_graph_rdunlock_main_loop();
         goto out;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     flags = bs->open_flags | BDRV_O_RDWR;
 
@@ -2360,10 +2363,13 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
         return;
     }
 
+    bdrv_graph_co_rdlock();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
         error_setg(errp, QERR_DEVICE_IN_USE, device);
+        bdrv_graph_co_rdunlock();
         return;
     }
+    bdrv_graph_co_rdunlock();
 
     blk = blk_co_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
     if (!blk) {
@@ -2487,13 +2493,16 @@ void qmp_block_stream(const char *job_id, const char *device,
      * Check for op blockers in the whole chain between bs and base (or bottom)
      */
     iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
+    bdrv_graph_rdlock_main_loop();
     for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
+            bdrv_graph_rdunlock_main_loop();
             goto out;
         }
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /* if we are streaming the entire chain, the result will have no backing
      * file, and specifying one is therefore an error */
@@ -3021,9 +3030,12 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     /* Early check to avoid creating target */
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -3409,9 +3421,12 @@ void qmp_change_backing_file(const char *device,
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
+        bdrv_graph_rdunlock_main_loop();
         goto out;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /* final sanity check */
     if (!bdrv_chain_contains(bs, image_bs)) {
