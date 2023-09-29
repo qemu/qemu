@@ -410,8 +410,9 @@ uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
 
 bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 
-int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
-                   Error **errp);
+int GRAPH_RDLOCK
+vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
+               Error **errp);
 
 int coroutine_fn GRAPH_RDLOCK
 vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,

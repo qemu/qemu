@@ -132,7 +132,7 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
                               Error **errp);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
                                           const char *backing_file);
-void bdrv_refresh_filename(BlockDriverState *bs);
+void GRAPH_RDLOCK bdrv_refresh_filename(BlockDriverState *bs);
 
 void GRAPH_RDLOCK
 bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
@@ -216,8 +216,11 @@ void bdrv_next_cleanup(BdrvNextIterator *it);
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque, bool read_only);
-char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp);
-char *bdrv_dirname(BlockDriverState *bs, Error **errp);
+
+char * GRAPH_RDLOCK
+bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp);
+
+char * GRAPH_RDLOCK bdrv_dirname(BlockDriverState *bs, Error **errp);
 
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,

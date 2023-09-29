@@ -505,7 +505,9 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                                    BDRV_REQ_ZERO_WRITE;
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(bs->file->bs);
+        bdrv_graph_rdunlock_main_loop();
         fprintf(stderr,
                 "WARNING: Image format was not specified for '%s' and probing "
                 "guessed raw.\n"

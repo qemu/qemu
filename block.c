@@ -371,8 +371,9 @@ char *bdrv_get_full_backing_filename_from_filename(const char *backed,
  * setting @errp.  In all other cases, NULL will only be returned with
  * @errp set.
  */
-static char *bdrv_make_absolute_filename(BlockDriverState *relative_to,
-                                         const char *filename, Error **errp)
+static char * GRAPH_RDLOCK
+bdrv_make_absolute_filename(BlockDriverState *relative_to,
+                            const char *filename, Error **errp)
 {
     char *dir, *full_name;
 
@@ -1250,7 +1251,7 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     *child_flags &= ~BDRV_O_NATIVE_AIO;
 }
 
-static void bdrv_backing_attach(BdrvChild *c)
+static void GRAPH_WRLOCK bdrv_backing_attach(BdrvChild *c)
 {
     BlockDriverState *parent = c->opaque;
     BlockDriverState *backing_hd = c->bs;
@@ -1874,7 +1875,10 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     }
 
     if (file != NULL) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(blk_bs(file));
+        bdrv_graph_rdunlock_main_loop();
+
         filename = blk_bs(file)->filename;
     } else {
         /*
@@ -3644,7 +3648,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
             implicit_backing = !strcmp(bs->auto_backing_file, bs->backing_file);
         }
 
+        bdrv_graph_rdlock_main_loop();
         backing_filename = bdrv_get_full_backing_filename(bs, &local_err);
+        bdrv_graph_rdunlock_main_loop();
+
         if (local_err) {
             ret = -EINVAL;
             error_propagate(errp, local_err);
@@ -3675,7 +3682,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     }
 
     if (implicit_backing) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(backing_hd);
+        bdrv_graph_rdunlock_main_loop();
         pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
                 backing_hd->filename);
     }
@@ -4964,7 +4973,9 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             if (local_err != NULL) {
                 error_propagate(errp, local_err);
             } else {
+                bdrv_graph_rdlock_main_loop();
                 bdrv_refresh_filename(reopen_state->bs);
+                bdrv_graph_rdunlock_main_loop();
                 error_setg(errp, "failed while preparing to reopen image '%s'",
                            reopen_state->bs->filename);
             }
@@ -5931,6 +5942,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     bdrv_ref(top);
     bdrv_drained_begin(base);
+    bdrv_graph_rdlock_main_loop();
 
     if (!top->drv || !base->drv) {
         goto exit;
@@ -5955,11 +5967,9 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         backing_file_str = base->filename;
     }
 
-    bdrv_graph_rdlock_main_loop();
     QLIST_FOREACH(c, &top->parents, next_parent) {
         updated_children = g_slist_prepend(updated_children, c);
     }
-    bdrv_graph_rdunlock_main_loop();
 
     /*
      * It seems correct to pass detach_subchain=true here, but it triggers
@@ -6005,6 +6015,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     ret = 0;
 exit:
+    bdrv_graph_rdunlock_main_loop();
     bdrv_drained_end(base);
     bdrv_unref(top);
     return ret;
@@ -6295,6 +6306,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
     BlockDriverState *bs;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     list = NULL;
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
@@ -6763,6 +6775,7 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     BlockDriverState *bs_below;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!bs || !bs->drv || !backing_file) {
         return NULL;

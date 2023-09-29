@@ -1665,6 +1665,8 @@ static void drive_backup_action(DriveBackup *backup,
     bool set_backing_hd = false;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     tran_add(tran, &drive_backup_drv, state);
 
     if (!backup->has_mode) {
@@ -1735,7 +1737,10 @@ static void drive_backup_action(DriveBackup *backup,
             BlockDriverState *explicit_backing =
                 bdrv_skip_implicit_filters(source);
 
+            bdrv_graph_rdlock_main_loop();
             bdrv_refresh_filename(explicit_backing);
+            bdrv_graph_rdunlock_main_loop();
+
             bdrv_img_create(backup->target, format,
                             explicit_backing->filename,
                             explicit_backing->drv->format_name, NULL,
@@ -2398,6 +2403,8 @@ void qmp_block_stream(const char *job_id, const char *device,
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
 
+    GLOBAL_STATE_CODE();
+
     if (base && base_node) {
         error_setg(errp, "'base' and 'base-node' cannot be specified "
                    "at the same time");
@@ -2448,7 +2455,10 @@ void qmp_block_stream(const char *job_id, const char *device,
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
+
+        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(base_bs);
+        bdrv_graph_rdunlock_main_loop();
     }
 
     if (bottom) {
@@ -3076,7 +3086,10 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
             /* create new image with backing file */
+            bdrv_graph_rdlock_main_loop();
             bdrv_refresh_filename(explicit_backing);
+            bdrv_graph_rdunlock_main_loop();
+
             bdrv_img_create(arg->target, format,
                             explicit_backing->filename,
                             explicit_backing->drv->format_name,

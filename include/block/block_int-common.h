@@ -272,7 +272,7 @@ struct BlockDriver {
      * Refreshes the bs->exact_filename field. If that is impossible,
      * bs->exact_filename has to be left empty.
      */
-    void (*bdrv_refresh_filename)(BlockDriverState *bs);
+    void GRAPH_RDLOCK_PTR (*bdrv_refresh_filename)(BlockDriverState *bs);
 
     /*
      * Gathers the open options for all children into @target.
@@ -295,15 +295,15 @@ struct BlockDriver {
      * block driver which implements it is probably doing something
      * shady regarding its runtime option structure.
      */
-    void (*bdrv_gather_child_options)(BlockDriverState *bs, QDict *target,
-                                      bool backing_overridden);
+    void GRAPH_RDLOCK_PTR (*bdrv_gather_child_options)(
+        BlockDriverState *bs, QDict *target, bool backing_overridden);
 
     /*
      * Returns an allocated string which is the directory name of this BDS: It
      * will be used to make relative filenames absolute by prepending this
      * function's return value to them.
      */
-    char *(*bdrv_dirname)(BlockDriverState *bs, Error **errp);
+    char * GRAPH_RDLOCK_PTR (*bdrv_dirname)(BlockDriverState *bs, Error **errp);
 
     /*
      * This informs the driver that we are no longer interested in the result

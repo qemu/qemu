@@ -3165,7 +3165,9 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
 
     if (file && has_offset) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(file);
+        bdrv_graph_rdunlock_main_loop();
         filename = file->filename;
     }
 
@@ -3688,7 +3690,9 @@ static int img_rebase(int argc, char **argv)
                 qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
             }
 
+            bdrv_graph_rdlock_main_loop();
             bdrv_refresh_filename(bs);
+            bdrv_graph_rdunlock_main_loop();
             overlay_filename = bs->exact_filename[0] ? bs->exact_filename
                                                      : bs->filename;
             out_real_path =
