@@ -562,6 +562,7 @@ M: Cornelia Huck <cohuck@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: linux-headers/
+F: include/standard-headers/
 F: scripts/update-linux-headers.sh
 
 POSIX
