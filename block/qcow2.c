@@ -2737,6 +2737,8 @@ static int qcow2_inactivate(BlockDriverState *bs)
     int ret, result = 0;
     Error *local_err = NULL;
 
+    assume_graph_lock(); /* FIXME */
+
     qcow2_store_persistent_dirty_bitmaps(bs, true, &local_err);
     if (local_err != NULL) {
         result = -EINVAL;
@@ -5944,6 +5946,8 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     const char *node_name;
     char *message;
     va_list ap;
+
+    assume_graph_lock(); /* FIXME */
 
     fatal = fatal && bdrv_is_writable(bs);
 

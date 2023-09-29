@@ -432,6 +432,7 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!drv) {
         error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
@@ -641,8 +642,10 @@ int bdrv_all_goto_snapshot(const char *name,
         }
         aio_context_release(ctx);
         if (ret < 0) {
+            bdrv_graph_rdlock_main_loop();
             error_prepend(errp, "Could not load snapshot '%s' on '%s': ",
                           name, bdrv_get_device_or_node_name(bs));
+            bdrv_graph_rdunlock_main_loop();
             return -1;
         }
 

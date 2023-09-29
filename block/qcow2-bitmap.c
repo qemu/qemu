@@ -166,6 +166,8 @@ static int check_constraints_on_bitmap(BlockDriverState *bs,
     int64_t len = bdrv_getlength(bs);
     int64_t bitmap_bytes;
 
+    assume_graph_lock(); /* FIXME */
+
     assert(granularity > 0);
     assert((granularity & (granularity - 1)) == 0);
 

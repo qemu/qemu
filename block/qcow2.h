@@ -1003,10 +1003,9 @@ int coroutine_fn qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp
 bool qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs,
                                           bool release_stored, Error **errp);
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp);
-bool coroutine_fn qcow2_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
-                                                      const char *name,
-                                                      uint32_t granularity,
-                                                      Error **errp);
+bool coroutine_fn GRAPH_RDLOCK
+qcow2_co_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
+                                    uint32_t granularity, Error **errp);
 int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                                          const char *name,
                                                          Error **errp);

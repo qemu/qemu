@@ -99,7 +99,7 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
  */
 void bdrv_wakeup(BlockDriverState *bs);
 
-const char *bdrv_get_parent_name(const BlockDriverState *bs);
+const char * GRAPH_RDLOCK bdrv_get_parent_name(const BlockDriverState *bs);
 bool blk_dev_has_tray(BlockBackend *blk);
 bool blk_dev_is_tray_open(BlockBackend *blk);
 

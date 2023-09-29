@@ -206,7 +206,7 @@ static void quorum_report_bad(QuorumOpType type, uint64_t offset,
                                       end_sector - start_sector);
 }
 
-static void quorum_report_failure(QuorumAIOCB *acb)
+static void GRAPH_RDLOCK quorum_report_failure(QuorumAIOCB *acb)
 {
     const char *reference = bdrv_get_device_or_node_name(acb->bs);
     int64_t start_sector = acb->offset / BDRV_SECTOR_SIZE;
@@ -219,7 +219,7 @@ static void quorum_report_failure(QuorumAIOCB *acb)
 
 static int quorum_vote_error(QuorumAIOCB *acb);
 
-static bool quorum_has_too_much_io_failed(QuorumAIOCB *acb)
+static bool GRAPH_RDLOCK quorum_has_too_much_io_failed(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->bs->opaque;
 

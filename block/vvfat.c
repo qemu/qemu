@@ -1144,6 +1144,8 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     int ret;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
 #ifdef DEBUG
     vvv = s;
 #endif

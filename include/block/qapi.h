@@ -33,9 +33,10 @@ BlockDeviceInfo * GRAPH_RDLOCK
 bdrv_block_device_info(BlockBackend *blk, BlockDriverState *bs,
                        bool flat, Error **errp);
 
-int bdrv_query_snapshot_info_list(BlockDriverState *bs,
-                                  SnapshotInfoList **p_list,
-                                  Error **errp);
+int GRAPH_RDLOCK
+bdrv_query_snapshot_info_list(BlockDriverState *bs,
+                              SnapshotInfoList **p_list,
+                              Error **errp);
 void GRAPH_RDLOCK
 bdrv_query_image_info(BlockDriverState *bs, ImageInfo **p_info, bool flat,
                       bool skip_implicit_filters, Error **errp);

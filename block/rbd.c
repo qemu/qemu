@@ -1208,6 +1208,8 @@ static int qemu_rbd_reopen_prepare(BDRVReopenState *state,
     BDRVRBDState *s = state->bs->opaque;
     int ret = 0;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (s->snap && state->flags & BDRV_O_RDWR) {
         error_setg(errp,
                    "Cannot change node '%s' to r/w when using RBD snapshot",

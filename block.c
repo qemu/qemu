@@ -279,8 +279,9 @@ bool bdrv_is_read_only(BlockDriverState *bs)
     return !(bs->open_flags & BDRV_O_RDWR);
 }
 
-static int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
-                                  bool ignore_allow_rdw, Error **errp)
+static int GRAPH_RDLOCK
+bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                       bool ignore_allow_rdw, Error **errp)
 {
     IO_CODE();
 
@@ -318,6 +319,8 @@ int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
 {
     int ret = 0;
     IO_CODE();
+
+    assume_graph_lock(); /* FIXME */
 
     if (!(bs->open_flags & BDRV_O_RDWR)) {
         return 0;
@@ -4950,7 +4953,10 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
      * to r/w. Attempting to set to r/w may fail if either BDRV_O_ALLOW_RDWR is
      * not set, or if the BDS still has copy_on_read enabled */
     read_only = !(reopen_state->flags & BDRV_O_RDWR);
+
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_can_set_read_only(reopen_state->bs, read_only, true, &local_err);
+    bdrv_graph_rdunlock_main_loop();
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
@@ -4984,9 +4990,11 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     } else {
         /* It is currently mandatory to have a bdrv_reopen_prepare()
          * handler for each supported drv. */
+        bdrv_graph_rdlock_main_loop();
         error_setg(errp, "Block format '%s' used by node '%s' "
                    "does not support reopening files", drv->format_name,
                    bdrv_get_device_or_node_name(reopen_state->bs));
+        bdrv_graph_rdunlock_main_loop();
         ret = -1;
         goto error;
     }
@@ -7242,6 +7250,8 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
 {
     BdrvOpBlocker *blocker;
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     assert((int) op >= 0 && op < BLOCK_OP_TYPE_MAX);
     if (!QLIST_EMPTY(&bs->op_blockers[op])) {
         blocker = QLIST_FIRST(&bs->op_blockers[op]);
