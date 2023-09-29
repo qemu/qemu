@@ -2990,15 +2990,13 @@ vmdk_co_check(BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix)
     return ret;
 }
 
-static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
-                                                 Error **errp)
+static ImageInfoSpecific * GRAPH_RDLOCK
+vmdk_get_specific_info(BlockDriverState *bs, Error **errp)
 {
     int i;
     BDRVVmdkState *s = bs->opaque;
     ImageInfoSpecific *spec_info = g_new0(ImageInfoSpecific, 1);
     VmdkExtentInfoList **tail;
-
-    assume_graph_lock(); /* FIXME */
 
     *spec_info = (ImageInfoSpecific){
         .type = IMAGE_INFO_SPECIFIC_KIND_VMDK,

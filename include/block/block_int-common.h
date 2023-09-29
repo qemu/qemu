@@ -728,8 +728,8 @@ struct BlockDriver {
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_get_info)(
         BlockDriverState *bs, BlockDriverInfo *bdi);
 
-    ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs,
-                                                 Error **errp);
+    ImageInfoSpecific * GRAPH_RDLOCK_PTR (*bdrv_get_specific_info)(
+        BlockDriverState *bs, Error **errp);
     BlockStatsSpecific *(*bdrv_get_specific_stats)(BlockDriverState *bs);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_save_vmstate)(

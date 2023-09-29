@@ -2037,6 +2037,9 @@ static int info_f(BlockBackend *blk, int argc, char **argv)
     char s1[64], s2[64];
     int ret;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (bs->drv && bs->drv->format_name) {
         printf("format name: %s\n", bs->drv->format_name);
     }

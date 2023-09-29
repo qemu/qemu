@@ -198,8 +198,9 @@ bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 int co_wrapper_mixed_bdrv_rdlock
 bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 
-ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs,
-                                          Error **errp);
+ImageInfoSpecific * GRAPH_RDLOCK
+bdrv_get_specific_info(BlockDriverState *bs, Error **errp);
+
 BlockStatsSpecific *bdrv_get_specific_stats(BlockDriverState *bs);
 void bdrv_round_to_subclusters(BlockDriverState *bs,
                                int64_t offset, int64_t bytes,
