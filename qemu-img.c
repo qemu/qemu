@@ -4129,6 +4129,8 @@ static int print_amend_option_help(const char *format)
 {
     BlockDriver *drv;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /* Find driver and parse its options */
     drv = bdrv_find_format(format);
     if (!drv) {
@@ -4267,9 +4269,11 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
+    bdrv_graph_rdlock_main_loop();
     if (!bs->drv->bdrv_amend_options) {
         error_report("Format driver '%s' does not support option amendment",
                      fmt);
+        bdrv_graph_rdunlock_main_loop();
         ret = -1;
         goto out;
     }
@@ -4289,6 +4293,7 @@ static int img_amend(int argc, char **argv)
                               "This option is only supported for image creation\n");
         }
 
+        bdrv_graph_rdunlock_main_loop();
         error_report_err(err);
         ret = -1;
         goto out;
@@ -4298,6 +4303,8 @@ static int img_amend(int argc, char **argv)
     qemu_progress_print(0.f, 0);
     ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL, force, &err);
     qemu_progress_print(100.f, 0);
+    bdrv_graph_rdunlock_main_loop();
+
     if (ret < 0) {
         error_report_err(err);
         goto out;

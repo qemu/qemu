@@ -259,12 +259,10 @@ struct BlockDriver {
     int coroutine_fn GRAPH_UNLOCKED_PTR (*bdrv_co_create_opts)(
         BlockDriver *drv, const char *filename, QemuOpts *opts, Error **errp);
 
-    int (*bdrv_amend_options)(BlockDriverState *bs,
-                              QemuOpts *opts,
-                              BlockDriverAmendStatusCB *status_cb,
-                              void *cb_opaque,
-                              bool force,
-                              Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_amend_options)(
+        BlockDriverState *bs, QemuOpts *opts,
+        BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+        bool force, Error **errp);
 
     int (*bdrv_make_empty)(BlockDriverState *bs);
 
