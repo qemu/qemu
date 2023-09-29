@@ -2737,13 +2737,11 @@ fail_nometa:
     return ret;
 }
 
-static int qcow2_inactivate(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow2_inactivate(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret, result = 0;
     Error *local_err = NULL;
-
-    assume_graph_lock(); /* FIXME */
 
     qcow2_store_persistent_dirty_bitmaps(bs, true, &local_err);
     if (local_err != NULL) {
@@ -2774,7 +2772,8 @@ static int qcow2_inactivate(BlockDriverState *bs)
     return result;
 }
 
-static void qcow2_do_close(BlockDriverState *bs, bool close_data_file)
+static void coroutine_mixed_fn GRAPH_RDLOCK
+qcow2_do_close(BlockDriverState *bs, bool close_data_file)
 {
     BDRVQcow2State *s = bs->opaque;
     qemu_vfree(s->l1_table);
@@ -2801,18 +2800,24 @@ static void qcow2_do_close(BlockDriverState *bs, bool close_data_file)
     g_free(s->image_backing_format);
 
     if (close_data_file && has_data_file(bs)) {
+        GLOBAL_STATE_CODE();
+        bdrv_graph_rdunlock_main_loop();
         bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, s->data_file);
         bdrv_graph_wrunlock();
         s->data_file = NULL;
+        bdrv_graph_rdlock_main_loop();
     }
 
     qcow2_refcount_close(bs);
     qcow2_free_snapshots(bs);
 }
 
-static void qcow2_close(BlockDriverState *bs)
+static void GRAPH_UNLOCKED qcow2_close(BlockDriverState *bs)
 {
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     qcow2_do_close(bs, true);
 }
 
