@@ -320,8 +320,6 @@ int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
     int ret = 0;
     IO_CODE();
 
-    assume_graph_lock(); /* FIXME */
-
     if (!(bs->open_flags & BDRV_O_RDWR)) {
         return 0;
     }
@@ -1908,7 +1906,9 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, ro)) {
         if (!ro && bdrv_is_whitelisted(drv, true)) {
+            bdrv_graph_rdlock_main_loop();
             ret = bdrv_apply_auto_read_only(bs, NULL, NULL);
+            bdrv_graph_rdunlock_main_loop();
         } else {
             ret = -ENOTSUP;
         }

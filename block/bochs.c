@@ -106,7 +106,9 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     /* No write support yet */
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
+    bdrv_graph_rdunlock_main_loop();
     if (ret < 0) {
         return ret;
     }

@@ -863,11 +863,13 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     if (ret == -EACCES || ret == -EROFS) {
         /* Try to degrade to read-only, but if it doesn't work, still use the
          * normal error message. */
+        bdrv_graph_rdlock_main_loop();
         if (bdrv_apply_auto_read_only(bs, NULL, NULL) == 0) {
             open_flags = (open_flags & ~O_RDWR) | O_RDONLY;
             s->fd = glfs_open(s->glfs, gconf->path, open_flags);
             ret = s->fd ? 0 : -errno;
         }
+        bdrv_graph_rdunlock_main_loop();
     }
 
     s->supports_seek_data = qemu_gluster_test_seek(s->fd);

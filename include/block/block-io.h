@@ -163,8 +163,10 @@ bdrv_is_allocated_above(BlockDriverState *bs, BlockDriverState *base,
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset, int64_t bytes);
 
-int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
-                              Error **errp);
+int GRAPH_RDLOCK
+bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
+                          Error **errp);
+
 bool bdrv_is_read_only(BlockDriverState *bs);
 bool bdrv_is_writable(BlockDriverState *bs);
 bool bdrv_is_sg(BlockDriverState *bs);

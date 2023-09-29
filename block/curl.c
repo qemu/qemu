@@ -696,8 +696,10 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     const char *protocol_delimiter;
     int ret;
 
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, "curl driver does not support writes",
                                     errp);
+    bdrv_graph_rdunlock_main_loop();
     if (ret < 0) {
         return ret;
     }

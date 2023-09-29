@@ -1168,7 +1168,9 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     /* If we are using an rbd snapshot, we must be r/o, otherwise
      * leave as-is */
     if (s->snap != NULL) {
+        bdrv_graph_rdlock_main_loop();
         r = bdrv_apply_auto_read_only(bs, "rbd snapshots are read-only", errp);
+        bdrv_graph_rdunlock_main_loop();
         if (r < 0) {
             goto failed_post_open;
         }
