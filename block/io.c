@@ -42,7 +42,9 @@
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
-static void bdrv_parent_cb_resize(BlockDriverState *bs);
+static void coroutine_fn GRAPH_RDLOCK
+bdrv_parent_cb_resize(BlockDriverState *bs);
+
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags);
 
@@ -2027,7 +2029,7 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
     }
 }
 
-static inline void coroutine_fn
+static inline void coroutine_fn GRAPH_RDLOCK
 bdrv_co_write_req_finish(BdrvChild *child, int64_t offset, int64_t bytes,
                          BdrvTrackedRequest *req, int ret)
 {
@@ -3530,9 +3532,13 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                    bytes, read_flags, write_flags);
 }
 
-static void bdrv_parent_cb_resize(BlockDriverState *bs)
+static void coroutine_fn GRAPH_RDLOCK
+bdrv_parent_cb_resize(BlockDriverState *bs)
 {
     BdrvChild *c;
+
+    assert_bdrv_graph_readable();
+
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c->klass->resize) {
             c->klass->resize(c);
