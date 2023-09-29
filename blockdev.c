@@ -1138,6 +1138,9 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     SnapshotInfo *info = NULL;
     int ret;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
         return NULL;
@@ -1222,6 +1225,9 @@ static void internal_snapshot_action(BlockdevSnapshotInternal *internal,
     InternalSnapshotState *state = g_new0(InternalSnapshotState, 1);
     AioContext *aio_context;
     int ret1;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     tran_add(tran, &internal_snapshot_drv, state);
 
@@ -1310,6 +1316,9 @@ static void internal_snapshot_abort(void *opaque)
     QEMUSnapshotInfo *sn = &state->sn;
     AioContext *aio_context;
     Error *local_error = NULL;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!state->created) {
         return;

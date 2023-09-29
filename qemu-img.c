@@ -3470,7 +3470,10 @@ static int img_snapshot(int argc, char **argv)
         sn.date_sec = rt / G_USEC_PER_SEC;
         sn.date_nsec = (rt % G_USEC_PER_SEC) * 1000;
 
+        bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_create(bs, &sn);
+        bdrv_graph_rdunlock_main_loop();
+
         if (ret) {
             error_report("Could not create snapshot '%s': %s",
                 snapshot_name, strerror(-ret));
@@ -3486,6 +3489,7 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
+        bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_find(bs, &sn, snapshot_name);
         if (ret < 0) {
             error_report("Could not delete snapshot '%s': snapshot not "
@@ -3499,6 +3503,7 @@ static int img_snapshot(int argc, char **argv)
                 ret = 1;
             }
         }
+        bdrv_graph_rdunlock_main_loop();
         break;
     }
 

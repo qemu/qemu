@@ -313,14 +313,16 @@ struct BlockDriver {
 
     int GRAPH_RDLOCK_PTR (*bdrv_inactivate)(BlockDriverState *bs);
 
-    int (*bdrv_snapshot_create)(BlockDriverState *bs,
-                                QEMUSnapshotInfo *sn_info);
-    int (*bdrv_snapshot_goto)(BlockDriverState *bs,
-                              const char *snapshot_id);
-    int (*bdrv_snapshot_delete)(BlockDriverState *bs,
-                                const char *snapshot_id,
-                                const char *name,
-                                Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_create)(
+        BlockDriverState *bs, QEMUSnapshotInfo *sn_info);
+
+    int GRAPH_UNLOCKED_PTR (*bdrv_snapshot_goto)(
+        BlockDriverState *bs, const char *snapshot_id);
+
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_delete)(
+        BlockDriverState *bs, const char *snapshot_id, const char *name,
+        Error **errp);
+
     int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
