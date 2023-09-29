@@ -1043,7 +1043,7 @@ struct BdrvChild {
     bool quiesced_parent;
 
     QLIST_ENTRY(BdrvChild) next;
-    QLIST_ENTRY(BdrvChild) next_parent;
+    QLIST_ENTRY(BdrvChild GRAPH_RDLOCK_PTR) next_parent;
 };
 
 /*
@@ -1180,7 +1180,7 @@ struct BlockDriverState {
     BdrvChild *backing;
     BdrvChild *file;
 
-    QLIST_HEAD(, BdrvChild) parents;
+    QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) parents;
 
     QDict *options;
     QDict *explicit_options;
