@@ -1042,7 +1042,7 @@ struct BdrvChild {
      */
     bool quiesced_parent;
 
-    QLIST_ENTRY(BdrvChild) next;
+    QLIST_ENTRY(BdrvChild GRAPH_RDLOCK_PTR) next;
     QLIST_ENTRY(BdrvChild GRAPH_RDLOCK_PTR) next_parent;
 };
 
@@ -1176,7 +1176,7 @@ struct BlockDriverState {
      * See also comment in include/block/block.h, to learn how backing and file
      * are connected with BdrvChildRole.
      */
-    QLIST_HEAD(, BdrvChild) children;
+    QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) children;
     BdrvChild *backing;
     BdrvChild *file;
 

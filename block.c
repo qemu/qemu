@@ -2973,6 +2973,8 @@ static void bdrv_child_free(BdrvChild *child)
 {
     assert(!child->bs);
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     assert(!child->next.le_prev); /* not in children list */
 
     g_free(child->name);

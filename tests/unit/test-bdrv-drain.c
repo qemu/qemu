@@ -1034,9 +1034,13 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
         blk_co_unref(blk);
     } else {
         BdrvChild *c, *next_c;
+        bdrv_graph_co_rdlock();
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
+            bdrv_graph_co_rdunlock();
             bdrv_co_unref_child(bs, c);
+            bdrv_graph_co_rdlock();
         }
+        bdrv_graph_co_rdunlock();
     }
 
     dbdd->done = true;

@@ -430,7 +430,8 @@ static void backup_job_completed(void *opaque, int ret)
     backup_job_cleanup(bs);
 }
 
-static bool check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
+static bool GRAPH_RDLOCK
+check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
 {
     BdrvChild *child;
 
