@@ -131,6 +131,17 @@ K: ^Subject:.*(?i)mips
 F: docs/system/target-mips.rst
 F: configs/targets/mips*
 
+X86 general architecture support
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: configs/devices/i386-softmmu/default.mak
+F: configs/targets/i386-softmmu.mak
+F: configs/targets/x86_64-softmmu.mak
+F: docs/system/target-i386*
+F: target/i386/*.[ch]
+F: target/i386/Kconfig
+F: target/i386/meson.build
+
 Guest CPU cores (TCG)
 ---------------------
 Overall TCG CPUs
