@@ -370,7 +370,7 @@ bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
  *
  * Begin a quiesced section for the parent of @c.
  */
-void bdrv_parent_drained_begin_single(BdrvChild *c);
+void GRAPH_RDLOCK bdrv_parent_drained_begin_single(BdrvChild *c);
 
 /**
  * bdrv_parent_drained_poll_single:
@@ -378,14 +378,14 @@ void bdrv_parent_drained_begin_single(BdrvChild *c);
  * Returns true if there is any pending activity to cease before @c can be
  * called quiesced, false otherwise.
  */
-bool bdrv_parent_drained_poll_single(BdrvChild *c);
+bool GRAPH_RDLOCK bdrv_parent_drained_poll_single(BdrvChild *c);
 
 /**
  * bdrv_parent_drained_end_single:
  *
  * End a quiesced section for the parent of @c.
  */
-void bdrv_parent_drained_end_single(BdrvChild *c);
+void GRAPH_RDLOCK bdrv_parent_drained_end_single(BdrvChild *c);
 
 /**
  * bdrv_drain_poll:
@@ -398,14 +398,21 @@ void bdrv_parent_drained_end_single(BdrvChild *c);
  *
  * This is part of bdrv_drained_begin.
  */
-bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
-                     bool ignore_bds_parents);
+bool GRAPH_RDLOCK
+bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
+                bool ignore_bds_parents);
 
 /**
  * bdrv_drained_begin:
  *
  * Begin a quiesced section for exclusive access to the BDS, by disabling
  * external request sources including NBD server, block jobs, and device model.
+ *
+ * This function can only be invoked by the main loop or a coroutine
+ * (regardless of the AioContext where it is running).
+ * If the coroutine is running in an Iothread AioContext, this function will
+ * just schedule a BH to run in the main loop.
+ * However, it cannot be directly called by an Iothread.
  *
  * This function can be recursive.
  */
@@ -423,6 +430,12 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent);
  * bdrv_drained_end:
  *
  * End a quiescent section started by bdrv_drained_begin().
+ *
+ * This function can only be invoked by the main loop or a coroutine
+ * (regardless of the AioContext where it is running).
+ * If the coroutine is running in an Iothread AioContext, this function will
+ * just schedule a BH to run in the main loop.
+ * However, it cannot be directly called by an Iothread.
  */
 void bdrv_drained_end(BlockDriverState *bs);
 

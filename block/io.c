@@ -46,9 +46,12 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags);
 
-static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
+static void GRAPH_RDLOCK
+bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
 {
     BdrvChild *c, *next;
+    IO_OR_GS_CODE();
+    assert_bdrv_graph_readable();
 
     QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
         if (c == ignore) {
@@ -70,9 +73,12 @@ void bdrv_parent_drained_end_single(BdrvChild *c)
     }
 }
 
-static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
+static void GRAPH_RDLOCK
+bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
 {
     BdrvChild *c;
+    IO_OR_GS_CODE();
+    assert_bdrv_graph_readable();
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c == ignore) {
@@ -84,17 +90,22 @@ static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
 
 bool bdrv_parent_drained_poll_single(BdrvChild *c)
 {
+    IO_OR_GS_CODE();
+
     if (c->klass->drained_poll) {
         return c->klass->drained_poll(c);
     }
     return false;
 }
 
-static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
-                                     bool ignore_bds_parents)
+static bool GRAPH_RDLOCK
+bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
+                         bool ignore_bds_parents)
 {
     BdrvChild *c, *next;
     bool busy = false;
+    IO_OR_GS_CODE();
+    assert_bdrv_graph_readable();
 
     QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
         if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
@@ -114,6 +125,7 @@ void bdrv_parent_drained_begin_single(BdrvChild *c)
     c->quiesced_parent = true;
 
     if (c->klass->drained_begin) {
+        /* called with rdlock taken, but it doesn't really need it. */
         c->klass->drained_begin(c);
     }
 }
@@ -263,6 +275,9 @@ bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
 static bool bdrv_drain_poll_top_level(BlockDriverState *bs,
                                       BdrvChild *ignore_parent)
 {
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     return bdrv_drain_poll(bs, ignore_parent, false);
 }
 
@@ -362,6 +377,7 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
 
     /* Stop things in parent-to-child order */
     if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
         bdrv_parent_drained_begin(bs, parent);
         if (bs->drv && bs->drv->bdrv_drain_begin) {
             bs->drv->bdrv_drain_begin(bs);
@@ -408,12 +424,16 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
         bdrv_co_yield_to_drain(bs, false, parent, false);
         return;
     }
+
+    /* At this point, we should be always running in the main loop. */
+    GLOBAL_STATE_CODE();
     assert(bs->quiesce_counter > 0);
     GLOBAL_STATE_CODE();
 
     /* Re-enable things in child-to-parent order */
     old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
     if (old_quiesce_counter == 1) {
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
         if (bs->drv && bs->drv->bdrv_drain_end) {
             bs->drv->bdrv_drain_end(bs);
         }
@@ -437,6 +457,8 @@ void bdrv_drain(BlockDriverState *bs)
 static void bdrv_drain_assert_idle(BlockDriverState *bs)
 {
     BdrvChild *child, *next;
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     assert(qatomic_read(&bs->in_flight) == 0);
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
@@ -450,7 +472,9 @@ static bool bdrv_drain_all_poll(void)
 {
     BlockDriverState *bs = NULL;
     bool result = false;
+
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* bdrv_drain_poll() can't make changes to the graph and we are holding the
      * main AioContext lock, so iterating bdrv_next_all_states() is safe. */

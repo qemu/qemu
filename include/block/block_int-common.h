@@ -963,15 +963,15 @@ struct BdrvChildClass {
      * Note that this can be nested. If drained_begin() was called twice, new
      * I/O is allowed only after drained_end() was called twice, too.
      */
-    void (*drained_begin)(BdrvChild *child);
-    void (*drained_end)(BdrvChild *child);
+    void GRAPH_RDLOCK_PTR (*drained_begin)(BdrvChild *child);
+    void GRAPH_RDLOCK_PTR (*drained_end)(BdrvChild *child);
 
     /*
      * Returns whether the parent has pending requests for the child. This
      * callback is polled after .drained_begin() has been called until all
      * activity on the child has stopped.
      */
-    bool (*drained_poll)(BdrvChild *child);
+    bool GRAPH_RDLOCK_PTR (*drained_poll)(BdrvChild *child);
 
     /*
      * Notifies the parent that the filename of its child has changed (e.g.

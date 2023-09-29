@@ -1192,19 +1192,19 @@ static char *bdrv_child_get_parent_desc(BdrvChild *c)
     return g_strdup_printf("node '%s'", bdrv_get_node_name(parent));
 }
 
-static void bdrv_child_cb_drained_begin(BdrvChild *child)
+static void GRAPH_RDLOCK bdrv_child_cb_drained_begin(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
     bdrv_do_drained_begin_quiesce(bs, NULL);
 }
 
-static bool bdrv_child_cb_drained_poll(BdrvChild *child)
+static bool GRAPH_RDLOCK bdrv_child_cb_drained_poll(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
     return bdrv_drain_poll(bs, NULL, false);
 }
 
-static void bdrv_child_cb_drained_end(BdrvChild *child)
+static void GRAPH_RDLOCK bdrv_child_cb_drained_end(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
     bdrv_drained_end(bs);

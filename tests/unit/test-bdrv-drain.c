@@ -1196,7 +1196,7 @@ static void coroutine_mixed_fn detach_by_parent_aio_cb(void *opaque, int ret)
     }
 }
 
-static void detach_by_driver_cb_drained_begin(BdrvChild *child)
+static void GRAPH_RDLOCK detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
     struct detach_by_parent_data *data = &detach_by_parent_data;
 
@@ -1233,7 +1233,7 @@ static BdrvChildClass detach_by_driver_cb_class;
  *     state is messed up, but if it is only polled in the single
  *     BDRV_POLL_WHILE() at the end of the drain, this should work fine.
  */
-static void test_detach_indirect(bool by_parent_cb)
+static void TSA_NO_TSA test_detach_indirect(bool by_parent_cb)
 {
     BlockBackend *blk;
     BlockDriverState *parent_a, *parent_b, *a, *b, *c;
