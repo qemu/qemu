@@ -6976,7 +6976,8 @@ void bdrv_activate_all(Error **errp)
     }
 }
 
-static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
+static bool GRAPH_RDLOCK
+bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
 {
     BdrvChild *parent;
     GLOBAL_STATE_CODE();
@@ -6993,14 +6994,13 @@ static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
     return false;
 }
 
-static int bdrv_inactivate_recurse(BlockDriverState *bs)
+static int GRAPH_RDLOCK bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
     int ret;
     uint64_t cumulative_perms, cumulative_shared_perms;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -7066,6 +7066,7 @@ int bdrv_inactivate_all(void)
     GSList *aio_ctxs = NULL, *ctx;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
