@@ -1988,6 +1988,7 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Odd Fixes
 F: hw/char/
+F: include/hw/char/
 
 Network devices
 M: Jason Wang <jasowang@redhat.com>
