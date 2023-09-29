@@ -138,7 +138,7 @@ void GRAPH_RDLOCK
 bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
 
 int bdrv_commit(BlockDriverState *bs);
-int bdrv_make_empty(BdrvChild *c, Error **errp);
+int GRAPH_RDLOCK bdrv_make_empty(BdrvChild *c, Error **errp);
 int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
                              const char *backing_fmt, bool warn);
 void bdrv_register(BlockDriver *bdrv);

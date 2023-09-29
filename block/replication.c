@@ -307,12 +307,15 @@ out:
     return ret;
 }
 
-static void secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
+static void GRAPH_UNLOCKED
+secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
     BdrvChild *active_disk = bs->file;
     Error *local_err = NULL;
     int ret;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!s->backup_job) {
         error_setg(errp, "Backup job was cancelled unexpectedly");
@@ -531,13 +534,16 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         /* Must be true, or the bdrv_getlength() calls would have failed */
         assert(active_disk->bs->drv && hidden_disk->bs->drv);
 
+        bdrv_graph_rdlock_main_loop();
         if (!active_disk->bs->drv->bdrv_make_empty ||
             !hidden_disk->bs->drv->bdrv_make_empty) {
             error_setg(errp,
                        "Active disk or hidden disk doesn't support make_empty");
             aio_context_release(aio_context);
+            bdrv_graph_rdunlock_main_loop();
             return;
         }
+        bdrv_graph_rdunlock_main_loop();
 
         /* reopen the backing file in r/w mode */
         reopen_backing_file(bs, true, &local_err);

@@ -536,7 +536,7 @@ int qcow2_mark_dirty(BlockDriverState *bs)
  * function when there are no pending requests, it does not guard against
  * concurrent requests dirtying the image.
  */
-static int qcow2_mark_clean(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow2_mark_clean(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -570,7 +570,8 @@ int qcow2_mark_corrupt(BlockDriverState *bs)
  * Marks the image as consistent, i.e., unsets the corrupt bit, and flushes
  * before if necessary.
  */
-static int coroutine_fn qcow2_mark_consistent(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_mark_consistent(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -980,10 +981,9 @@ typedef struct Qcow2ReopenState {
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
 
-static int qcow2_update_options_prepare(BlockDriverState *bs,
-                                        Qcow2ReopenState *r,
-                                        QDict *options, int flags,
-                                        Error **errp)
+static int GRAPH_RDLOCK
+qcow2_update_options_prepare(BlockDriverState *bs, Qcow2ReopenState *r,
+                             QDict *options, int flags, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     QemuOpts *opts = NULL;
@@ -1260,7 +1260,7 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
     qapi_free_QCryptoBlockOpenOptions(r->crypto_opts);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_update_options(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -1969,12 +1969,16 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.pdiscard_alignment = s->cluster_size;
 }
 
-static int qcow2_reopen_prepare(BDRVReopenState *state,
-                                BlockReopenQueue *queue, Error **errp)
+static int GRAPH_UNLOCKED
+qcow2_reopen_prepare(BDRVReopenState *state,BlockReopenQueue *queue,
+                     Error **errp)
 {
     BDRVQcow2State *s = state->bs->opaque;
     Qcow2ReopenState *r;
     int ret;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     r = g_new0(Qcow2ReopenState, 1);
     state->opaque = r;
@@ -2038,6 +2042,8 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
 
 static void qcow2_reopen_commit_post(BDRVReopenState *state)
 {
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (state->flags & BDRV_O_RDWR) {
         Error *local_err = NULL;
 
@@ -4079,8 +4085,8 @@ qcow2_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
-                                          int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -4825,7 +4831,7 @@ fail:
     return ret;
 }
 
-static int make_completely_empty(BlockDriverState *bs)
+static int GRAPH_RDLOCK make_completely_empty(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     Error *local_err = NULL;
@@ -4976,7 +4982,7 @@ fail:
     return ret;
 }
 
-static int qcow2_make_empty(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow2_make_empty(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t offset, end_offset;
@@ -5020,7 +5026,7 @@ static int qcow2_make_empty(BlockDriverState *bs)
     return ret;
 }
 
-static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
+static coroutine_fn GRAPH_RDLOCK int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -5369,7 +5375,7 @@ qcow2_co_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     return bs->drv->bdrv_co_preadv_part(bs, offset, qiov->size, qiov, 0, 0);
 }
 
-static int qcow2_has_compressed_clusters(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow2_has_compressed_clusters(BlockDriverState *bs)
 {
     int64_t offset = 0;
     int64_t bytes = bdrv_getlength(bs);
@@ -5405,9 +5411,10 @@ static int qcow2_has_compressed_clusters(BlockDriverState *bs)
  * Downgrades an image's version. To achieve this, any incompatible features
  * have to be removed.
  */
-static int qcow2_downgrade(BlockDriverState *bs, int target_version,
-                           BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
-                           Error **errp)
+static int GRAPH_RDLOCK
+qcow2_downgrade(BlockDriverState *bs, int target_version,
+                BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int current_version = s->qcow_version;
@@ -5515,9 +5522,10 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
  * features of older versions, some things may have to be presented
  * differently.
  */
-static int qcow2_upgrade(BlockDriverState *bs, int target_version,
-                         BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
-                         Error **errp)
+static int GRAPH_RDLOCK
+qcow2_upgrade(BlockDriverState *bs, int target_version,
+              BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+              Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     bool need_snapshot_update;
@@ -5643,11 +5651,10 @@ static void qcow2_amend_helper_cb(BlockDriverState *bs,
                              info->original_cb_opaque);
 }
 
-static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
-                               BlockDriverAmendStatusCB *status_cb,
-                               void *cb_opaque,
-                               bool force,
-                               Error **errp)
+static int GRAPH_RDLOCK
+qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
+                    BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                    bool force, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int old_version = s->qcow_version, new_version = old_version;
@@ -5946,8 +5953,6 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     const char *node_name;
     char *message;
     va_list ap;
-
-    assume_graph_lock(); /* FIXME */
 
     fatal = fatal && bdrv_is_writable(bs);
 

@@ -264,7 +264,7 @@ struct BlockDriver {
         BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
         bool force, Error **errp);
 
-    int (*bdrv_make_empty)(BlockDriverState *bs);
+    int GRAPH_RDLOCK_PTR (*bdrv_make_empty)(BlockDriverState *bs);
 
     /*
      * Refreshes the bs->exact_filename field. If that is impossible,

@@ -2905,6 +2905,8 @@ const BdrvChild *blk_root(BlockBackend *blk)
 int blk_make_empty(BlockBackend *blk, Error **errp)
 {
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!blk_is_available(blk)) {
         error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
