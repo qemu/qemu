@@ -156,17 +156,14 @@ static int64_t get_bitmap_bytes_needed(int64_t len, uint32_t granularity)
     return DIV_ROUND_UP(num_bits, 8);
 }
 
-static int check_constraints_on_bitmap(BlockDriverState *bs,
-                                       const char *name,
-                                       uint32_t granularity,
-                                       Error **errp)
+static int GRAPH_RDLOCK
+check_constraints_on_bitmap(BlockDriverState *bs, const char *name,
+                            uint32_t granularity, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int granularity_bits = ctz32(granularity);
     int64_t len = bdrv_getlength(bs);
     int64_t bitmap_bytes;
-
-    assume_graph_lock(); /* FIXME */
 
     assert(granularity > 0);
     assert((granularity & (granularity - 1)) == 0);
