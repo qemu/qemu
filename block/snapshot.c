@@ -311,7 +311,10 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
          * respective option (with the qdict_put_str() call above).
          * Assert that .bdrv_open() has attached the right BDS as primary child.
          */
+        bdrv_graph_rdlock_main_loop();
         assert(bdrv_primary_bs(bs) == fallback_bs);
+        bdrv_graph_rdunlock_main_loop();
+
         bdrv_unref(fallback_bs);
         return ret;
     }
