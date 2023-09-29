@@ -1286,8 +1286,10 @@ M: Hervé Poussineau <hpoussin@reactos.org>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Maintained
 F: hw/mips/jazz.c
+F: hw/display/g364fb.c
 F: hw/display/jazz_led.c
 F: hw/dma/rc4030.c
+F: hw/nvram/ds1225y.c
 
 Malta
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
