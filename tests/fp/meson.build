@@ -1,4 +1,4 @@
-if 'CONFIG_TCG' not in config_all
+if 'CONFIG_TCG' not in config_all_accel
   subdir_done()
 endif
 # There are namespace pollution issues on Windows, due to osdep.h

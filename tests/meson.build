@@ -76,7 +76,7 @@ endif
 
 subdir('decode')
 
-if 'CONFIG_TCG' in config_all
+if 'CONFIG_TCG' in config_all_accel
   subdir('fp')
 endif
 

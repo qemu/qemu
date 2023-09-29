@@ -2886,7 +2886,7 @@ endif
 
 minikconf = find_program('scripts/minikconf.py')
 
-config_all = {}
+config_all_accel = {}
 config_all_devices = {}
 config_devices_mak_list = []
 config_devices_h = {}
@@ -2974,7 +2974,7 @@ foreach target : target_dirs
   foreach sym: accelerators
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
-      config_all += { sym: 'y' }
+      config_all_accel += { sym: 'y' }
       if target in modular_tcg
         config_target += { 'CONFIG_TCG_MODULAR': 'y' }
       else
@@ -4204,18 +4204,18 @@ endif
 # Targets and accelerators
 summary_info = {}
 if have_system
-  summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
-  summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
-  summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
-  summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
+  summary_info += {'KVM support':       config_all_accel.has_key('CONFIG_KVM')}
+  summary_info += {'HVF support':       config_all_accel.has_key('CONFIG_HVF')}
+  summary_info += {'WHPX support':      config_all_accel.has_key('CONFIG_WHPX')}
+  summary_info += {'NVMM support':      config_all_accel.has_key('CONFIG_NVMM')}
   summary_info += {'Xen support':       xen.found()}
   if xen.found()
     summary_info += {'xen ctrl version':  xen.version()}
   endif
   summary_info += {'Xen emulation':     config_all_devices.has_key('CONFIG_XEN_EMU')}
 endif
-summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
-if config_all.has_key('CONFIG_TCG')
+summary_info += {'TCG support':       config_all_accel.has_key('CONFIG_TCG')}
+if config_all_accel.has_key('CONFIG_TCG')
   if get_option('tcg_interpreter')
     summary_info += {'TCG backend':   'TCI (TCG with bytecode interpreter, slow)'}
   else
