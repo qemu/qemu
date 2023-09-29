@@ -116,7 +116,8 @@ void unregister_aiocontext(AioContext *ctx);
  * This function polls. Callers must not hold the lock of any AioContext other
  * than the current one and the one of @bs.
  */
-void bdrv_graph_wrlock(BlockDriverState *bs) TSA_ACQUIRE(graph_lock) TSA_NO_TSA;
+void no_coroutine_fn TSA_ACQUIRE(graph_lock) TSA_NO_TSA
+bdrv_graph_wrlock(BlockDriverState *bs);
 
 /*
  * bdrv_graph_wrunlock:
