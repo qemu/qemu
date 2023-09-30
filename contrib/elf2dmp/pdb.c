@@ -25,6 +25,10 @@
 
 static uint32_t pdb_get_file_size(const struct pdb_reader *r, unsigned idx)
 {
+    if (idx >= r->ds.toc->num_files) {
+        return 0;
+    }
+
     return r->ds.toc->file_size[idx];
 }
 
@@ -159,16 +163,17 @@ static void *pdb_ds_read_file(struct pdb_reader* r, uint32_t file_number)
 
 static int pdb_init_segments(struct pdb_reader *r)
 {
-    char *segs;
     unsigned stream_idx = r->segments;
 
-    segs = pdb_ds_read_file(r, stream_idx);
-    if (!segs) {
+    r->segs = pdb_ds_read_file(r, stream_idx);
+    if (!r->segs) {
         return 1;
     }
 
-    r->segs = segs;
     r->segs_size = pdb_get_file_size(r, stream_idx);
+    if (!r->segs_size) {
+        return 1;
+    }
 
     return 0;
 }
