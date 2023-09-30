@@ -478,7 +478,7 @@ static bool pe_check_pdb_name(uint64_t base, void *start_addr,
     }
 
     if (memcmp(&rsds->Signature, sign_rsds, sizeof(sign_rsds))) {
-        eprintf("CodeView signature is \'%.4s\', \'%s\' expected\n",
+        eprintf("CodeView signature is \'%.4s\', \'%.4s\' expected\n",
                 rsds->Signature, sign_rsds);
         return false;
     }
