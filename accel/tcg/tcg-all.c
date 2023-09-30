@@ -121,7 +121,7 @@ static int tcg_init_machine(MachineState *ms)
      * There's no guest base to take into account, so go ahead and
      * initialize the prologue now.
      */
-    tcg_prologue_init(tcg_ctx);
+    tcg_prologue_init();
 #endif
 
     return 0;

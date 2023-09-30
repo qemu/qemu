@@ -1395,8 +1395,9 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     return tb;
 }
 
-void tcg_prologue_init(TCGContext *s)
+void tcg_prologue_init(void)
 {
+    TCGContext *s = tcg_ctx;
     size_t prologue_size;
 
     s->code_ptr = s->code_gen_ptr;
