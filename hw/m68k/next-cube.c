@@ -90,10 +90,13 @@ struct NeXTPC {
 
     uint32_t scr1;
     uint32_t scr2;
-    uint8_t scsi_csr_1;
-    uint8_t scsi_csr_2;
     uint32_t int_mask;
     uint32_t int_status;
+    uint8_t scsi_csr_1;
+    uint8_t scsi_csr_2;
+
+    qemu_irq scsi_reset;
+    qemu_irq scsi_dma;
 
     NextRtc rtc;
 };
@@ -466,7 +469,7 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
             DPRINTF("SCSICSR FIFO Flush\n");
             /* will have to add another irq to the esp if this is needed */
             /* esp_puflush_fifo(esp_g); */
-            /* qemu_irq_pulse(s->scsi_dma); */
+            qemu_irq_pulse(s->scsi_dma);
         }
 
         if (value & SCSICSR_ENABLE) {
@@ -486,9 +489,9 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
         if (value & SCSICSR_RESET) {
             DPRINTF("SCSICSR Reset\n");
             /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
-            /* qemu_irq_raise(s->scsi_reset); */
-            /* s->scsi_csr_1 &= ~(SCSICSR_INTMASK |0x80|0x1); */
-
+            qemu_irq_raise(s->scsi_reset);
+            s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
+            qemu_irq_lower(s->scsi_reset);
         }
         if (value & SCSICSR_DMADIR) {
             DPRINTF("SCSICSR DMAdir\n");
@@ -496,10 +499,11 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
         if (value & SCSICSR_CPUDMA) {
             DPRINTF("SCSICSR CPUDMA\n");
             /* qemu_irq_raise(s->scsi_dma); */
-
             s->int_status |= 0x4000000;
         } else {
+            /* fprintf(stderr,"SCSICSR CPUDMA disabled\n"); */
             s->int_status &= ~(0x4000000);
+            /* qemu_irq_lower(s->scsi_dma); */
         }
         if (value & SCSICSR_INTMASK) {
             DPRINTF("SCSICSR INTMASK\n");
@@ -828,6 +832,103 @@ static void next_irq(void *opaque, int number, int level)
     }
 }
 
+static void nextdma_write(void *opaque, uint8_t *buf, int size, int type)
+{
+    uint32_t base_addr;
+    int irq = 0;
+    uint8_t align = 16;
+    NeXTState *next_state = NEXT_MACHINE(qdev_get_machine());
+
+    if (type == NEXTDMA_ENRX || type == NEXTDMA_ENTX) {
+        align = 32;
+    }
+    /* Most DMA is supposedly 16 byte aligned */
+    if ((size % align) != 0) {
+        size -= size % align;
+        size += align;
+    }
+
+    /*
+     * prom sets the dma start using initbuf while the bootloader uses next
+     * so we check to see if initbuf is 0
+     */
+    if (next_state->dma[type].next_initbuf == 0) {
+        base_addr = next_state->dma[type].next;
+    } else {
+        base_addr = next_state->dma[type].next_initbuf;
+    }
+
+    cpu_physical_memory_write(base_addr, buf, size);
+
+    next_state->dma[type].next_initbuf = 0;
+
+    /* saved limit is checked to calculate packet size by both, rom and netbsd */
+    next_state->dma[type].saved_limit = (next_state->dma[type].next + size);
+    next_state->dma[type].saved_next  = (next_state->dma[type].next);
+
+    /*
+     * 32 bytes under savedbase seems to be some kind of register
+     * of which the purpose is unknown as of yet
+     */
+    /* stl_phys(s->rx_dma.base-32,0xFFFFFFFF); */
+
+    if (!(next_state->dma[type].csr & DMA_SUPDATE)) {
+        next_state->dma[type].next  = next_state->dma[type].start;
+        next_state->dma[type].limit = next_state->dma[type].stop;
+    }
+
+    /* Set dma registers and raise an irq */
+    next_state->dma[type].csr |= DMA_COMPLETE; /* DON'T CHANGE THIS! */
+
+    switch (type) {
+    case NEXTDMA_SCSI:
+        irq = NEXT_SCSI_DMA_I;
+        break;
+    }
+
+    next_irq(opaque, irq, 1);
+    next_irq(opaque, irq, 0);
+}
+
+static void nextscsi_read(void *opaque, uint8_t *buf, int len)
+{
+    DPRINTF("SCSI READ: %x\n", len);
+    abort();
+}
+
+static void nextscsi_write(void *opaque, uint8_t *buf, int size)
+{
+    DPRINTF("SCSI WRITE: %i\n", size);
+    nextdma_write(opaque, buf, size, NEXTDMA_SCSI);
+}
+
+static void next_scsi_init(DeviceState *pcdev, M68kCPU *cpu)
+{
+    struct NeXTPC *next_pc = NEXT_PC(pcdev);
+    DeviceState *dev;
+    SysBusDevice *sysbusdev;
+    SysBusESPState *sysbus_esp;
+    ESPState *esp;
+
+    dev = qdev_new(TYPE_SYSBUS_ESP);
+    sysbus_esp = SYSBUS_ESP(dev);
+    esp = &sysbus_esp->esp;
+    esp->dma_memory_read = nextscsi_read;
+    esp->dma_memory_write = nextscsi_write;
+    esp->dma_opaque = pcdev;
+    sysbus_esp->it_shift = 0;
+    esp->dma_enabled = 1;
+    sysbusdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbusdev, &error_fatal);
+    sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(pcdev, NEXT_SCSI_I));
+    sysbus_mmio_map(sysbusdev, 0, 0x2114000);
+
+    next_pc->scsi_reset = qdev_get_gpio_in(dev, 0);
+    next_pc->scsi_dma = qdev_get_gpio_in(dev, 1);
+
+    scsi_bus_legacy_handle_cmdline(&esp->bus);
+}
+
 static void next_escc_init(DeviceState *pcdev)
 {
     DeviceState *dev;
@@ -1021,6 +1122,7 @@ static void next_cube_init(MachineState *machine)
     /* TODO: */
     /* Network */
     /* SCSI */
+    next_scsi_init(pcdev, cpu);
 
     /* DMA */
     memory_region_init_io(dmamem, NULL, &dma_ops, machine, "next.dma", 0x5000);
@@ -1033,6 +1135,7 @@ static void next_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "NeXT Cube";
     mc->init = next_cube_init;
+    mc->block_default_type = IF_SCSI;
     mc->default_ram_size = RAM_SIZE;
     mc->default_ram_id = "next.ram";
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
