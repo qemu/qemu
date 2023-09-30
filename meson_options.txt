@@ -348,9 +348,6 @@ option('debug_stack_usage', type: 'boolean', value: false,
        description: 'measure coroutine stack usage')
 option('qom_cast_debug', type: 'boolean', value: true,
        description: 'cast debugging support')
-option('gprof', type: 'boolean', value: false,
-       description: 'QEMU profiling with gprof',
-       deprecated: true)
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
 

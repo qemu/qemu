@@ -25,9 +25,6 @@
 /* exit(2) */
 static inline abi_long do_bsd_exit(void *cpu_env, abi_long arg1)
 {
-#ifdef TARGET_GPROF
-    _mcleanup();
-#endif
     gdb_exit(arg1);
     qemu_plugin_user_exit();
     _exit(arg1);
