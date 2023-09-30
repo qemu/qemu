@@ -25,7 +25,7 @@
 struct target_sigcontext {
     abi_ulong sc_flags;
     abi_ulong sc_gr[32];
-    uint64_t sc_fr[32];
+    abi_ullong sc_fr[32];
     abi_ulong sc_iasq[2];
     abi_ulong sc_iaoq[2];
     abi_ulong sc_sar;
