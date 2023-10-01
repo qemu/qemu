@@ -34,13 +34,13 @@
 
 static void check_max_alignment(unsigned a_bits)
 {
-#if defined(CONFIG_SOFTMMU)
     /*
      * The requested alignment cannot overlap the TLB flags.
      * FIXME: Must keep the count up-to-date with "exec/cpu-all.h".
      */
-    tcg_debug_assert(a_bits + 5 <= tcg_ctx->page_bits);
-#endif
+    if (tcg_use_softmmu) {
+        tcg_debug_assert(a_bits + 5 <= tcg_ctx->page_bits);
+    }
 }
 
 static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
@@ -411,10 +411,11 @@ void tcg_gen_qemu_st_i64_chk(TCGv_i64 val, TCGTemp *addr, TCGArg idx,
  */
 static bool use_two_i64_for_i128(MemOp mop)
 {
-#ifdef CONFIG_SOFTMMU
     /* Two softmmu tlb lookups is larger than one function call. */
-    return false;
-#else
+    if (tcg_use_softmmu) {
+        return false;
+    }
+
     /*
      * For user-only, two 64-bit operations may well be smaller than a call.
      * Determine if that would be legal for the requested atomicity.
@@ -432,7 +433,6 @@ static bool use_two_i64_for_i128(MemOp mop)
     default:
         g_assert_not_reached();
     }
-#endif
 }
 
 static void canonicalize_memop_i128_as_i64(MemOp ret[2], MemOp orig)

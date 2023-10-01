@@ -226,6 +226,10 @@ static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc,
                                            MemOp host_atom, bool allow_two_ops)
     __attribute__((unused));
 
+#ifdef CONFIG_USER_ONLY
+bool tcg_use_softmmu;
+#endif
+
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
 
@@ -404,13 +408,12 @@ static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
     return (uintptr_t)tcg_splitwx_to_rx(&s->gen_tb->jmp_target_addr[which]);
 }
 
-#if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
-static int tlb_mask_table_ofs(TCGContext *s, int which)
+static int __attribute__((unused))
+tlb_mask_table_ofs(TCGContext *s, int which)
 {
     return (offsetof(CPUNegativeOffsetState, tlb.f[which]) -
             sizeof(CPUNegativeOffsetState));
 }
-#endif
 
 /* Signal overflow, starting over with fewer guest insns. */
 static G_NORETURN
