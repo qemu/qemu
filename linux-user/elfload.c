@@ -1237,6 +1237,14 @@ static uint32_t get_elf_hwcap(void)
         hwcaps |= HWCAP_LOONGARCH_LAM;
     }
 
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
+        hwcaps |= HWCAP_LOONGARCH_LSX;
+    }
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
+        hwcaps |= HWCAP_LOONGARCH_LASX;
+    }
+
     return hwcaps;
 }
 
