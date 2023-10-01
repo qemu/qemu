@@ -207,16 +207,16 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **errp)
         if (gei->out.length > 0) {
             ges->has_out_data = true;
             ges->out_data = g_base64_encode(gei->out.data, gei->out.length);
-            g_free(gei->out.data);
             ges->has_out_truncated = gei->out.truncated;
         }
+        g_free(gei->out.data);
 
         if (gei->err.length > 0) {
             ges->has_err_data = true;
             ges->err_data = g_base64_encode(gei->err.data, gei->err.length);
-            g_free(gei->err.data);
             ges->has_err_truncated = gei->err.truncated;
         }
+        g_free(gei->err.data);
 
         QTAILQ_REMOVE(&guest_exec_state.processes, gei, next);
         g_free(gei);
