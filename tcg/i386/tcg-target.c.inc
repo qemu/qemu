@@ -153,11 +153,8 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 # define ALL_VECTOR_REGS       0x00ff0000u
 # define ALL_BYTEL_REGS        0x0000000fu
 #endif
-#ifdef CONFIG_SOFTMMU
-# define SOFTMMU_RESERVE_REGS  ((1 << TCG_REG_L0) | (1 << TCG_REG_L1))
-#else
-# define SOFTMMU_RESERVE_REGS  0
-#endif
+#define SOFTMMU_RESERVE_REGS \
+    (tcg_use_softmmu ? (1 << TCG_REG_L0) | (1 << TCG_REG_L1) : 0)
 
 /* For 64-bit, we always know that CMOV is available.  */
 #if TCG_TARGET_REG_BITS == 64
@@ -1933,7 +1930,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     return true;
 }
 
-#ifndef CONFIG_SOFTMMU
+#ifdef CONFIG_USER_ONLY
 static HostAddress x86_guest_base = {
     .index = -1
 };
@@ -1949,6 +1946,7 @@ static inline int setup_guest_base_seg(void)
     }
     return 0;
 }
+#define setup_guest_base_seg  setup_guest_base_seg
 #elif defined(__x86_64__) && \
       (defined (__FreeBSD__) || defined (__FreeBSD_kernel__))
 # include <machine/sysarch.h>
@@ -1959,13 +1957,14 @@ static inline int setup_guest_base_seg(void)
     }
     return 0;
 }
+#define setup_guest_base_seg  setup_guest_base_seg
+#endif
 #else
-static inline int setup_guest_base_seg(void)
-{
-    return 0;
-}
-#endif /* setup_guest_base_seg */
-#endif /* !SOFTMMU */
+# define x86_guest_base (*(HostAddress *)({ qemu_build_not_reached(); NULL; }))
+#endif /* CONFIG_USER_ONLY */
+#ifndef setup_guest_base_seg
+# define setup_guest_base_seg()  0
+#endif
 
 #define MIN_TLB_MASK_TABLE_OFS  INT_MIN
 
@@ -1984,94 +1983,94 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     MemOp s_bits = opc & MO_SIZE;
     unsigned a_mask;
 
-#ifdef CONFIG_SOFTMMU
-    h->index = TCG_REG_L0;
-    h->ofs = 0;
-    h->seg = 0;
-#else
-    *h = x86_guest_base;
-#endif
+    if (tcg_use_softmmu) {
+        h->index = TCG_REG_L0;
+        h->ofs = 0;
+        h->seg = 0;
+    } else {
+        *h = x86_guest_base;
+    }
     h->base = addrlo;
     h->aa = atom_and_align_for_opc(s, opc, MO_ATOM_IFALIGN, s_bits == MO_128);
     a_mask = (1 << h->aa.align) - 1;
 
-#ifdef CONFIG_SOFTMMU
-    int cmp_ofs = is_ld ? offsetof(CPUTLBEntry, addr_read)
-                        : offsetof(CPUTLBEntry, addr_write);
-    TCGType ttype = TCG_TYPE_I32;
-    TCGType tlbtype = TCG_TYPE_I32;
-    int trexw = 0, hrexw = 0, tlbrexw = 0;
-    unsigned mem_index = get_mmuidx(oi);
-    unsigned s_mask = (1 << s_bits) - 1;
-    int fast_ofs = tlb_mask_table_ofs(s, mem_index);
-    int tlb_mask;
+    if (tcg_use_softmmu) {
+        int cmp_ofs = is_ld ? offsetof(CPUTLBEntry, addr_read)
+                            : offsetof(CPUTLBEntry, addr_write);
+        TCGType ttype = TCG_TYPE_I32;
+        TCGType tlbtype = TCG_TYPE_I32;
+        int trexw = 0, hrexw = 0, tlbrexw = 0;
+        unsigned mem_index = get_mmuidx(oi);
+        unsigned s_mask = (1 << s_bits) - 1;
+        int fast_ofs = tlb_mask_table_ofs(s, mem_index);
+        int tlb_mask;
 
-    ldst = new_ldst_label(s);
-    ldst->is_ld = is_ld;
-    ldst->oi = oi;
-    ldst->addrlo_reg = addrlo;
-    ldst->addrhi_reg = addrhi;
+        ldst = new_ldst_label(s);
+        ldst->is_ld = is_ld;
+        ldst->oi = oi;
+        ldst->addrlo_reg = addrlo;
+        ldst->addrhi_reg = addrhi;
 
-    if (TCG_TARGET_REG_BITS == 64) {
-        ttype = s->addr_type;
-        trexw = (ttype == TCG_TYPE_I32 ? 0 : P_REXW);
-        if (TCG_TYPE_PTR == TCG_TYPE_I64) {
-            hrexw = P_REXW;
-            if (s->page_bits + s->tlb_dyn_max_bits > 32) {
-                tlbtype = TCG_TYPE_I64;
-                tlbrexw = P_REXW;
+        if (TCG_TARGET_REG_BITS == 64) {
+            ttype = s->addr_type;
+            trexw = (ttype == TCG_TYPE_I32 ? 0 : P_REXW);
+            if (TCG_TYPE_PTR == TCG_TYPE_I64) {
+                hrexw = P_REXW;
+                if (s->page_bits + s->tlb_dyn_max_bits > 32) {
+                    tlbtype = TCG_TYPE_I64;
+                    tlbrexw = P_REXW;
+                }
             }
         }
-    }
 
-    tcg_out_mov(s, tlbtype, TCG_REG_L0, addrlo);
-    tcg_out_shifti(s, SHIFT_SHR + tlbrexw, TCG_REG_L0,
-                   s->page_bits - CPU_TLB_ENTRY_BITS);
+        tcg_out_mov(s, tlbtype, TCG_REG_L0, addrlo);
+        tcg_out_shifti(s, SHIFT_SHR + tlbrexw, TCG_REG_L0,
+                       s->page_bits - CPU_TLB_ENTRY_BITS);
 
-    tcg_out_modrm_offset(s, OPC_AND_GvEv + trexw, TCG_REG_L0, TCG_AREG0,
-                         fast_ofs + offsetof(CPUTLBDescFast, mask));
+        tcg_out_modrm_offset(s, OPC_AND_GvEv + trexw, TCG_REG_L0, TCG_AREG0,
+                             fast_ofs + offsetof(CPUTLBDescFast, mask));
 
-    tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, TCG_REG_L0, TCG_AREG0,
-                         fast_ofs + offsetof(CPUTLBDescFast, table));
+        tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, TCG_REG_L0, TCG_AREG0,
+                             fast_ofs + offsetof(CPUTLBDescFast, table));
 
-    /*
-     * If the required alignment is at least as large as the access, simply
-     * copy the address and mask.  For lesser alignments, check that we don't
-     * cross pages for the complete access.
-     */
-    if (a_mask >= s_mask) {
-        tcg_out_mov(s, ttype, TCG_REG_L1, addrlo);
-    } else {
-        tcg_out_modrm_offset(s, OPC_LEA + trexw, TCG_REG_L1,
-                             addrlo, s_mask - a_mask);
-    }
-    tlb_mask = s->page_mask | a_mask;
-    tgen_arithi(s, ARITH_AND + trexw, TCG_REG_L1, tlb_mask, 0);
+        /*
+         * If the required alignment is at least as large as the access,
+         * simply copy the address and mask.  For lesser alignments,
+         * check that we don't cross pages for the complete access.
+         */
+        if (a_mask >= s_mask) {
+            tcg_out_mov(s, ttype, TCG_REG_L1, addrlo);
+        } else {
+            tcg_out_modrm_offset(s, OPC_LEA + trexw, TCG_REG_L1,
+                                 addrlo, s_mask - a_mask);
+        }
+        tlb_mask = s->page_mask | a_mask;
+        tgen_arithi(s, ARITH_AND + trexw, TCG_REG_L1, tlb_mask, 0);
 
-    /* cmp 0(TCG_REG_L0), TCG_REG_L1 */
-    tcg_out_modrm_offset(s, OPC_CMP_GvEv + trexw,
-                         TCG_REG_L1, TCG_REG_L0, cmp_ofs);
-
-    /* jne slow_path */
-    tcg_out_opc(s, OPC_JCC_long + JCC_JNE, 0, 0, 0);
-    ldst->label_ptr[0] = s->code_ptr;
-    s->code_ptr += 4;
-
-    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I64) {
-        /* cmp 4(TCG_REG_L0), addrhi */
-        tcg_out_modrm_offset(s, OPC_CMP_GvEv, addrhi, TCG_REG_L0, cmp_ofs + 4);
+        /* cmp 0(TCG_REG_L0), TCG_REG_L1 */
+        tcg_out_modrm_offset(s, OPC_CMP_GvEv + trexw,
+                             TCG_REG_L1, TCG_REG_L0, cmp_ofs);
 
         /* jne slow_path */
         tcg_out_opc(s, OPC_JCC_long + JCC_JNE, 0, 0, 0);
-        ldst->label_ptr[1] = s->code_ptr;
+        ldst->label_ptr[0] = s->code_ptr;
         s->code_ptr += 4;
-    }
 
-    /* TLB Hit.  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_L0, TCG_REG_L0,
-               offsetof(CPUTLBEntry, addend));
-#else
-    if (a_mask) {
+        if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I64) {
+            /* cmp 4(TCG_REG_L0), addrhi */
+            tcg_out_modrm_offset(s, OPC_CMP_GvEv, addrhi,
+                                 TCG_REG_L0, cmp_ofs + 4);
+
+            /* jne slow_path */
+            tcg_out_opc(s, OPC_JCC_long + JCC_JNE, 0, 0, 0);
+            ldst->label_ptr[1] = s->code_ptr;
+            s->code_ptr += 4;
+        }
+
+        /* TLB Hit.  */
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_L0, TCG_REG_L0,
+                   offsetof(CPUTLBEntry, addend));
+    } else if (a_mask) {
         ldst = new_ldst_label(s);
 
         ldst->is_ld = is_ld;
@@ -2085,7 +2084,6 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         ldst->label_ptr[0] = s->code_ptr;
         s->code_ptr += 4;
     }
-#endif
 
     return ldst;
 }
@@ -4140,35 +4138,35 @@ static void tcg_target_qemu_prologue(TCGContext *s)
         tcg_out_push(s, tcg_target_callee_save_regs[i]);
     }
 
-#if TCG_TARGET_REG_BITS == 32
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_ESP,
-               (ARRAY_SIZE(tcg_target_callee_save_regs) + 1) * 4);
-    tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
-    /* jmp *tb.  */
-    tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, TCG_REG_ESP,
-                         (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
-                         + stack_addend);
-#else
-# if !defined(CONFIG_SOFTMMU)
-    if (guest_base) {
+    if (!tcg_use_softmmu && guest_base) {
         int seg = setup_guest_base_seg();
         if (seg != 0) {
             x86_guest_base.seg = seg;
         } else if (guest_base == (int32_t)guest_base) {
             x86_guest_base.ofs = guest_base;
         } else {
+            assert(TCG_TARGET_REG_BITS == 64);
             /* Choose R12 because, as a base, it requires a SIB byte. */
             x86_guest_base.index = TCG_REG_R12;
             tcg_out_movi(s, TCG_TYPE_PTR, x86_guest_base.index, guest_base);
             tcg_regset_set_reg(s->reserved_regs, x86_guest_base.index);
         }
     }
-# endif
-    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
-    tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
-    /* jmp *tb.  */
-    tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, tcg_target_call_iarg_regs[1]);
-#endif
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_ESP,
+                   (ARRAY_SIZE(tcg_target_callee_save_regs) + 1) * 4);
+        tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
+        /* jmp *tb.  */
+        tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, TCG_REG_ESP,
+                             (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
+                             + stack_addend);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+        tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
+        /* jmp *tb.  */
+        tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, tcg_target_call_iarg_regs[1]);
+    }
 
     /*
      * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
