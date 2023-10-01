@@ -1220,11 +1220,13 @@
 # @signal: signal number (linux) or unhandled exception code (windows)
 #     if the process was abnormally terminated.
 #
-# @out-data: base64-encoded stdout of the process
+# @out-data: base64-encoded stdout of the process. This field will only
+#     be populated after the process exits.
 #
-# @err-data: base64-encoded stderr of the process Note: @out-data and
+# @err-data: base64-encoded stderr of the process. Note: @out-data and
 #     @err-data are present only if 'capture-output' was specified for
-#     'guest-exec'
+#     'guest-exec'. This field will only be populated after the process
+#     exits.
 #
 # @out-truncated: true if stdout was not fully captured due to size
 #     limitation.
