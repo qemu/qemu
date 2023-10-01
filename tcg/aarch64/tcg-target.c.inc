@@ -77,9 +77,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_REG_TMP2 TCG_REG_X30
 #define TCG_VEC_TMP0 TCG_REG_V31
 
-#ifndef CONFIG_SOFTMMU
 #define TCG_REG_GUEST_BASE TCG_REG_X28
-#endif
 
 static bool reloc_pc26(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
@@ -1664,97 +1662,98 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
                                    s_bits == MO_128);
     a_mask = (1 << h->aa.align) - 1;
 
-#ifdef CONFIG_SOFTMMU
-    unsigned s_mask = (1u << s_bits) - 1;
-    unsigned mem_index = get_mmuidx(oi);
-    TCGReg addr_adj;
-    TCGType mask_type;
-    uint64_t compare_mask;
+    if (tcg_use_softmmu) {
+        unsigned s_mask = (1u << s_bits) - 1;
+        unsigned mem_index = get_mmuidx(oi);
+        TCGReg addr_adj;
+        TCGType mask_type;
+        uint64_t compare_mask;
 
-    ldst = new_ldst_label(s);
-    ldst->is_ld = is_ld;
-    ldst->oi = oi;
-    ldst->addrlo_reg = addr_reg;
-
-    mask_type = (s->page_bits + s->tlb_dyn_max_bits > 32
-                 ? TCG_TYPE_I64 : TCG_TYPE_I32);
-
-    /* Load cpu->neg.tlb.f[mmu_idx].{mask,table} into {tmp0,tmp1}. */
-    QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
-    QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);
-    tcg_out_insn(s, 3314, LDP, TCG_REG_TMP0, TCG_REG_TMP1, TCG_AREG0,
-                 tlb_mask_table_ofs(s, mem_index), 1, 0);
-
-    /* Extract the TLB index from the address into X0.  */
-    tcg_out_insn(s, 3502S, AND_LSR, mask_type == TCG_TYPE_I64,
-                 TCG_REG_TMP0, TCG_REG_TMP0, addr_reg,
-                 s->page_bits - CPU_TLB_ENTRY_BITS);
-
-    /* Add the tlb_table pointer, forming the CPUTLBEntry address in TMP1. */
-    tcg_out_insn(s, 3502, ADD, 1, TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP0);
-
-    /* Load the tlb comparator into TMP0, and the fast path addend into TMP1. */
-    QEMU_BUILD_BUG_ON(HOST_BIG_ENDIAN);
-    tcg_out_ld(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP1,
-               is_ld ? offsetof(CPUTLBEntry, addr_read)
-                     : offsetof(CPUTLBEntry, addr_write));
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
-               offsetof(CPUTLBEntry, addend));
-
-    /*
-     * For aligned accesses, we check the first byte and include the alignment
-     * bits within the address.  For unaligned access, we check that we don't
-     * cross pages using the address of the last byte of the access.
-     */
-    if (a_mask >= s_mask) {
-        addr_adj = addr_reg;
-    } else {
-        addr_adj = TCG_REG_TMP2;
-        tcg_out_insn(s, 3401, ADDI, addr_type,
-                     addr_adj, addr_reg, s_mask - a_mask);
-    }
-    compare_mask = (uint64_t)s->page_mask | a_mask;
-
-    /* Store the page mask part of the address into TMP2.  */
-    tcg_out_logicali(s, I3404_ANDI, addr_type, TCG_REG_TMP2,
-                     addr_adj, compare_mask);
-
-    /* Perform the address comparison. */
-    tcg_out_cmp(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP2, 0);
-
-    /* If not equal, we jump to the slow path. */
-    ldst->label_ptr[0] = s->code_ptr;
-    tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
-
-    h->base = TCG_REG_TMP1;
-    h->index = addr_reg;
-    h->index_ext = addr_type;
-#else
-    if (a_mask) {
         ldst = new_ldst_label(s);
-
         ldst->is_ld = is_ld;
         ldst->oi = oi;
         ldst->addrlo_reg = addr_reg;
 
-        /* tst addr, #mask */
-        tcg_out_logicali(s, I3404_ANDSI, 0, TCG_REG_XZR, addr_reg, a_mask);
+        mask_type = (s->page_bits + s->tlb_dyn_max_bits > 32
+                     ? TCG_TYPE_I64 : TCG_TYPE_I32);
 
-        /* b.ne slow_path */
+        /* Load cpu->neg.tlb.f[mmu_idx].{mask,table} into {tmp0,tmp1}. */
+        QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
+        QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);
+        tcg_out_insn(s, 3314, LDP, TCG_REG_TMP0, TCG_REG_TMP1, TCG_AREG0,
+                     tlb_mask_table_ofs(s, mem_index), 1, 0);
+
+        /* Extract the TLB index from the address into X0.  */
+        tcg_out_insn(s, 3502S, AND_LSR, mask_type == TCG_TYPE_I64,
+                     TCG_REG_TMP0, TCG_REG_TMP0, addr_reg,
+                     s->page_bits - CPU_TLB_ENTRY_BITS);
+
+        /* Add the tlb_table pointer, forming the CPUTLBEntry address. */
+        tcg_out_insn(s, 3502, ADD, 1, TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP0);
+
+        /* Load the tlb comparator into TMP0, and the fast path addend. */
+        QEMU_BUILD_BUG_ON(HOST_BIG_ENDIAN);
+        tcg_out_ld(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP1,
+                   is_ld ? offsetof(CPUTLBEntry, addr_read)
+                         : offsetof(CPUTLBEntry, addr_write));
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
+                   offsetof(CPUTLBEntry, addend));
+
+        /*
+         * For aligned accesses, we check the first byte and include
+         * the alignment bits within the address.  For unaligned access,
+         * we check that we don't cross pages using the address of the
+         * last byte of the access.
+         */
+        if (a_mask >= s_mask) {
+            addr_adj = addr_reg;
+        } else {
+            addr_adj = TCG_REG_TMP2;
+            tcg_out_insn(s, 3401, ADDI, addr_type,
+                         addr_adj, addr_reg, s_mask - a_mask);
+        }
+        compare_mask = (uint64_t)s->page_mask | a_mask;
+
+        /* Store the page mask part of the address into TMP2.  */
+        tcg_out_logicali(s, I3404_ANDI, addr_type, TCG_REG_TMP2,
+                         addr_adj, compare_mask);
+
+        /* Perform the address comparison. */
+        tcg_out_cmp(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP2, 0);
+
+        /* If not equal, we jump to the slow path. */
         ldst->label_ptr[0] = s->code_ptr;
         tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
-    }
 
-    if (guest_base || addr_type == TCG_TYPE_I32) {
-        h->base = TCG_REG_GUEST_BASE;
+        h->base = TCG_REG_TMP1;
         h->index = addr_reg;
         h->index_ext = addr_type;
     } else {
-        h->base = addr_reg;
-        h->index = TCG_REG_XZR;
-        h->index_ext = TCG_TYPE_I64;
+        if (a_mask) {
+            ldst = new_ldst_label(s);
+
+            ldst->is_ld = is_ld;
+            ldst->oi = oi;
+            ldst->addrlo_reg = addr_reg;
+
+            /* tst addr, #mask */
+            tcg_out_logicali(s, I3404_ANDSI, 0, TCG_REG_XZR, addr_reg, a_mask);
+
+            /* b.ne slow_path */
+            ldst->label_ptr[0] = s->code_ptr;
+            tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
+        }
+
+        if (guest_base || addr_type == TCG_TYPE_I32) {
+            h->base = TCG_REG_GUEST_BASE;
+            h->index = addr_reg;
+            h->index_ext = addr_type;
+        } else {
+            h->base = addr_reg;
+            h->index = TCG_REG_XZR;
+            h->index_ext = TCG_TYPE_I64;
+        }
     }
-#endif
 
     return ldst;
 }
@@ -3117,16 +3116,16 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
-#if !defined(CONFIG_SOFTMMU)
-    /*
-     * Note that XZR cannot be encoded in the address base register slot,
-     * as that actually encodes SP.  Depending on the guest, we may need
-     * to zero-extend the guest address via the address index register slot,
-     * therefore we need to load even a zero guest base into a register.
-     */
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
-#endif
+    if (!tcg_use_softmmu) {
+        /*
+         * Note that XZR cannot be encoded in the address base register slot,
+         * as that actually encodes SP.  Depending on the guest, we may need
+         * to zero-extend the guest address via the address index register slot,
+         * therefore we need to load even a zero guest base into a register.
+         */
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
+    }
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tcg_out_insn(s, 3207, BR, tcg_target_call_iarg_regs[1]);
