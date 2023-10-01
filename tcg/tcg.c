@@ -178,6 +178,10 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece);
 static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
+#ifndef CONFIG_USER_ONLY
+#define guest_base  ({ qemu_build_not_reached(); (uintptr_t)0; })
+#endif
+
 typedef struct TCGLdstHelperParam {
     TCGReg (*ra_gen)(TCGContext *s, const TCGLabelQemuLdst *l, int arg_reg);
     unsigned ntmp;
