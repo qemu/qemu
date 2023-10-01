@@ -107,9 +107,7 @@
 
 #define have_isel  (cpuinfo & CPUINFO_ISEL)
 
-#ifndef CONFIG_SOFTMMU
-#define TCG_GUEST_BASE_REG 30
-#endif
+#define TCG_GUEST_BASE_REG  TCG_REG_R30
 
 #ifdef CONFIG_DEBUG_TCG
 static const char tcg_target_reg_names[TCG_TARGET_NB_REGS][4] = {
@@ -2317,151 +2315,157 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
                                    s_bits == MO_128);
     a_bits = h->aa.align;
 
-#ifdef CONFIG_SOFTMMU
-    int mem_index = get_mmuidx(oi);
-    int cmp_off = is_ld ? offsetof(CPUTLBEntry, addr_read)
-                        : offsetof(CPUTLBEntry, addr_write);
-    int fast_off = tlb_mask_table_ofs(s, mem_index);
-    int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
-    int table_off = fast_off + offsetof(CPUTLBDescFast, table);
+    if (tcg_use_softmmu) {
+        int mem_index = get_mmuidx(oi);
+        int cmp_off = is_ld ? offsetof(CPUTLBEntry, addr_read)
+                            : offsetof(CPUTLBEntry, addr_write);
+        int fast_off = tlb_mask_table_ofs(s, mem_index);
+        int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
+        int table_off = fast_off + offsetof(CPUTLBDescFast, table);
 
-    ldst = new_ldst_label(s);
-    ldst->is_ld = is_ld;
-    ldst->oi = oi;
-    ldst->addrlo_reg = addrlo;
-    ldst->addrhi_reg = addrhi;
-
-    /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_AREG0, mask_off);
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP2, TCG_AREG0, table_off);
-
-    /* Extract the page index, shifted into place for tlb index.  */
-    if (TCG_TARGET_REG_BITS == 32) {
-        tcg_out_shri32(s, TCG_REG_R0, addrlo,
-                       s->page_bits - CPU_TLB_ENTRY_BITS);
-    } else {
-        tcg_out_shri64(s, TCG_REG_R0, addrlo,
-                       s->page_bits - CPU_TLB_ENTRY_BITS);
-    }
-    tcg_out32(s, AND | SAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_R0));
-
-    /*
-     * Load the (low part) TLB comparator into TMP2.
-     * For 64-bit host, always load the entire 64-bit slot for simplicity.
-     * We will ignore the high bits with tcg_out_cmp(..., addr_type).
-     */
-    if (TCG_TARGET_REG_BITS == 64) {
-        if (cmp_off == 0) {
-            tcg_out32(s, LDUX | TAB(TCG_REG_TMP2, TCG_REG_TMP1, TCG_REG_TMP2));
-        } else {
-            tcg_out32(s, ADD | TAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP2));
-            tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_TMP2, TCG_REG_TMP1, cmp_off);
-        }
-    } else if (cmp_off == 0 && !HOST_BIG_ENDIAN) {
-        tcg_out32(s, LWZUX | TAB(TCG_REG_TMP2, TCG_REG_TMP1, TCG_REG_TMP2));
-    } else {
-        tcg_out32(s, ADD | TAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP2));
-        tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP2, TCG_REG_TMP1,
-                   cmp_off + 4 * HOST_BIG_ENDIAN);
-    }
-
-    /*
-     * Load the TLB addend for use on the fast path.
-     * Do this asap to minimize any load use delay.
-     */
-    if (TCG_TARGET_REG_BITS == 64 || addr_type == TCG_TYPE_I32) {
-        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
-                   offsetof(CPUTLBEntry, addend));
-    }
-
-    /* Clear the non-page, non-alignment bits from the address in R0. */
-    if (TCG_TARGET_REG_BITS == 32) {
-        /*
-         * We don't support unaligned accesses on 32-bits.
-         * Preserve the bottom bits and thus trigger a comparison
-         * failure on unaligned accesses.
-         */
-        if (a_bits < s_bits) {
-            a_bits = s_bits;
-        }
-        tcg_out_rlw(s, RLWINM, TCG_REG_R0, addrlo, 0,
-                    (32 - a_bits) & 31, 31 - s->page_bits);
-    } else {
-        TCGReg t = addrlo;
-
-        /*
-         * If the access is unaligned, we need to make sure we fail if we
-         * cross a page boundary.  The trick is to add the access size-1
-         * to the address before masking the low bits.  That will make the
-         * address overflow to the next page if we cross a page boundary,
-         * which will then force a mismatch of the TLB compare.
-         */
-        if (a_bits < s_bits) {
-            unsigned a_mask = (1 << a_bits) - 1;
-            unsigned s_mask = (1 << s_bits) - 1;
-            tcg_out32(s, ADDI | TAI(TCG_REG_R0, t, s_mask - a_mask));
-            t = TCG_REG_R0;
-        }
-
-        /* Mask the address for the requested alignment.  */
-        if (addr_type == TCG_TYPE_I32) {
-            tcg_out_rlw(s, RLWINM, TCG_REG_R0, t, 0,
-                        (32 - a_bits) & 31, 31 - s->page_bits);
-        } else if (a_bits == 0) {
-            tcg_out_rld(s, RLDICR, TCG_REG_R0, t, 0, 63 - s->page_bits);
-        } else {
-            tcg_out_rld(s, RLDICL, TCG_REG_R0, t,
-                        64 - s->page_bits, s->page_bits - a_bits);
-            tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, s->page_bits, 0);
-        }
-    }
-
-    if (TCG_TARGET_REG_BITS == 32 && addr_type != TCG_TYPE_I32) {
-        /* Low part comparison into cr7. */
-        tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_TMP2,
-                    0, 7, TCG_TYPE_I32);
-
-        /* Load the high part TLB comparator into TMP2.  */
-        tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP2, TCG_REG_TMP1,
-                   cmp_off + 4 * !HOST_BIG_ENDIAN);
-
-        /* Load addend, deferred for this case. */
-        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
-                   offsetof(CPUTLBEntry, addend));
-
-        /* High part comparison into cr6. */
-        tcg_out_cmp(s, TCG_COND_EQ, addrhi, TCG_REG_TMP2, 0, 6, TCG_TYPE_I32);
-
-        /* Combine comparisons into cr7. */
-        tcg_out32(s, CRAND | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
-    } else {
-        /* Full comparison into cr7. */
-        tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_TMP2, 0, 7, addr_type);
-    }
-
-    /* Load a pointer into the current opcode w/conditional branch-link. */
-    ldst->label_ptr[0] = s->code_ptr;
-    tcg_out32(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
-
-    h->base = TCG_REG_TMP1;
-#else
-    if (a_bits) {
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
         ldst->addrlo_reg = addrlo;
         ldst->addrhi_reg = addrhi;
 
-        /* We are expecting a_bits to max out at 7, much lower than ANDI. */
-        tcg_debug_assert(a_bits < 16);
-        tcg_out32(s, ANDI | SAI(addrlo, TCG_REG_R0, (1 << a_bits) - 1));
+        /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_AREG0, mask_off);
+        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP2, TCG_AREG0, table_off);
 
+        /* Extract the page index, shifted into place for tlb index.  */
+        if (TCG_TARGET_REG_BITS == 32) {
+            tcg_out_shri32(s, TCG_REG_R0, addrlo,
+                           s->page_bits - CPU_TLB_ENTRY_BITS);
+        } else {
+            tcg_out_shri64(s, TCG_REG_R0, addrlo,
+                           s->page_bits - CPU_TLB_ENTRY_BITS);
+        }
+        tcg_out32(s, AND | SAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_R0));
+
+        /*
+         * Load the (low part) TLB comparator into TMP2.
+         * For 64-bit host, always load the entire 64-bit slot for simplicity.
+         * We will ignore the high bits with tcg_out_cmp(..., addr_type).
+         */
+        if (TCG_TARGET_REG_BITS == 64) {
+            if (cmp_off == 0) {
+                tcg_out32(s, LDUX | TAB(TCG_REG_TMP2,
+                                        TCG_REG_TMP1, TCG_REG_TMP2));
+            } else {
+                tcg_out32(s, ADD | TAB(TCG_REG_TMP1,
+                                       TCG_REG_TMP1, TCG_REG_TMP2));
+                tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_TMP2,
+                           TCG_REG_TMP1, cmp_off);
+            }
+        } else if (cmp_off == 0 && !HOST_BIG_ENDIAN) {
+            tcg_out32(s, LWZUX | TAB(TCG_REG_TMP2,
+                                     TCG_REG_TMP1, TCG_REG_TMP2));
+        } else {
+            tcg_out32(s, ADD | TAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP2));
+            tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP2, TCG_REG_TMP1,
+                       cmp_off + 4 * HOST_BIG_ENDIAN);
+        }
+
+        /*
+         * Load the TLB addend for use on the fast path.
+         * Do this asap to minimize any load use delay.
+         */
+        if (TCG_TARGET_REG_BITS == 64 || addr_type == TCG_TYPE_I32) {
+            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
+                       offsetof(CPUTLBEntry, addend));
+        }
+
+        /* Clear the non-page, non-alignment bits from the address in R0. */
+        if (TCG_TARGET_REG_BITS == 32) {
+            /*
+             * We don't support unaligned accesses on 32-bits.
+             * Preserve the bottom bits and thus trigger a comparison
+             * failure on unaligned accesses.
+             */
+            if (a_bits < s_bits) {
+                a_bits = s_bits;
+            }
+            tcg_out_rlw(s, RLWINM, TCG_REG_R0, addrlo, 0,
+                        (32 - a_bits) & 31, 31 - s->page_bits);
+        } else {
+            TCGReg t = addrlo;
+
+            /*
+             * If the access is unaligned, we need to make sure we fail if we
+             * cross a page boundary.  The trick is to add the access size-1
+             * to the address before masking the low bits.  That will make the
+             * address overflow to the next page if we cross a page boundary,
+             * which will then force a mismatch of the TLB compare.
+             */
+            if (a_bits < s_bits) {
+                unsigned a_mask = (1 << a_bits) - 1;
+                unsigned s_mask = (1 << s_bits) - 1;
+                tcg_out32(s, ADDI | TAI(TCG_REG_R0, t, s_mask - a_mask));
+                t = TCG_REG_R0;
+            }
+
+            /* Mask the address for the requested alignment.  */
+            if (addr_type == TCG_TYPE_I32) {
+                tcg_out_rlw(s, RLWINM, TCG_REG_R0, t, 0,
+                            (32 - a_bits) & 31, 31 - s->page_bits);
+            } else if (a_bits == 0) {
+                tcg_out_rld(s, RLDICR, TCG_REG_R0, t, 0, 63 - s->page_bits);
+            } else {
+                tcg_out_rld(s, RLDICL, TCG_REG_R0, t,
+                            64 - s->page_bits, s->page_bits - a_bits);
+                tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, s->page_bits, 0);
+            }
+        }
+
+        if (TCG_TARGET_REG_BITS == 32 && addr_type != TCG_TYPE_I32) {
+            /* Low part comparison into cr7. */
+            tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_TMP2,
+                        0, 7, TCG_TYPE_I32);
+
+            /* Load the high part TLB comparator into TMP2.  */
+            tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP2, TCG_REG_TMP1,
+                       cmp_off + 4 * !HOST_BIG_ENDIAN);
+
+            /* Load addend, deferred for this case. */
+            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
+                       offsetof(CPUTLBEntry, addend));
+
+            /* High part comparison into cr6. */
+            tcg_out_cmp(s, TCG_COND_EQ, addrhi, TCG_REG_TMP2,
+                        0, 6, TCG_TYPE_I32);
+
+            /* Combine comparisons into cr7. */
+            tcg_out32(s, CRAND | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+        } else {
+            /* Full comparison into cr7. */
+            tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_TMP2,
+                        0, 7, addr_type);
+        }
+
+        /* Load a pointer into the current opcode w/conditional branch-link. */
         ldst->label_ptr[0] = s->code_ptr;
-        tcg_out32(s, BC | BI(0, CR_EQ) | BO_COND_FALSE | LK);
-    }
+        tcg_out32(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
 
-    h->base = guest_base ? TCG_GUEST_BASE_REG : 0;
-#endif
+        h->base = TCG_REG_TMP1;
+    } else {
+        if (a_bits) {
+            ldst = new_ldst_label(s);
+            ldst->is_ld = is_ld;
+            ldst->oi = oi;
+            ldst->addrlo_reg = addrlo;
+            ldst->addrhi_reg = addrhi;
+
+            /* We are expecting a_bits to max out at 7, much lower than ANDI. */
+            tcg_debug_assert(a_bits < 16);
+            tcg_out32(s, ANDI | SAI(addrlo, TCG_REG_R0, (1 << a_bits) - 1));
+
+            ldst->label_ptr[0] = s->code_ptr;
+            tcg_out32(s, BC | BI(0, CR_EQ) | BO_COND_FALSE | LK);
+        }
+
+        h->base = guest_base ? TCG_GUEST_BASE_REG : 0;
+    }
 
     if (TCG_TARGET_REG_BITS == 64 && addr_type == TCG_TYPE_I32) {
         /* Zero-extend the guest address for use in the host address. */
@@ -2695,12 +2699,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
     tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
 
-#ifndef CONFIG_SOFTMMU
-    if (guest_base) {
+    if (!tcg_use_softmmu && guest_base) {
         tcg_out_movi_int(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base, true);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
-#endif
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tcg_out32(s, MTSPR | RS(tcg_target_call_iarg_regs[1]) | CTR);
