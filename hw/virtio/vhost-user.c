@@ -1292,24 +1292,6 @@ static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
     return 0;
 }
 
-static int enforce_reply(struct vhost_dev *dev,
-                         const VhostUserMsg *msg)
-{
-    uint64_t dummy;
-
-    if (msg->hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
-        return process_message_reply(dev, msg);
-    }
-
-   /*
-    * We need to wait for a reply but the backend does not
-    * support replies for the command we just sent.
-    * Send VHOST_USER_GET_FEATURES which makes all backends
-    * send a reply.
-    */
-    return vhost_user_get_features(dev, &dummy);
-}
-
 /* Note: "msg->hdr.flags" may be modified. */
 static int vhost_user_write_sync(struct vhost_dev *dev, VhostUserMsg *msg,
                                  bool wait_for_reply)
@@ -1330,7 +1312,19 @@ static int vhost_user_write_sync(struct vhost_dev *dev, VhostUserMsg *msg,
     }
 
     if (wait_for_reply) {
-        return enforce_reply(dev, msg);
+        uint64_t dummy;
+
+        if (msg->hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
+            return process_message_reply(dev, msg);
+        }
+
+       /*
+        * We need to wait for a reply but the backend does not
+        * support replies for the command we just sent.
+        * Send VHOST_USER_GET_FEATURES which makes all backends
+        * send a reply.
+        */
+        return vhost_user_get_features(dev, &dummy);
     }
 
     return 0;
