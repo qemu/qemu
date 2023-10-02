@@ -1998,7 +1998,9 @@ F: docs/specs/acpi_hest_ghes.rst
 ppc4xx
 L: qemu-ppc@nongnu.org
 S: Orphan
-F: hw/ppc/ppc4*.c
+F: hw/ppc/ppc4xx*.c
+F: hw/ppc/ppc440_uc.c
+F: hw/ppc/ppc440.h
 F: hw/i2c/ppc4xx_i2c.c
 F: include/hw/ppc/ppc4xx.h
 F: include/hw/i2c/ppc4xx_i2c.h
