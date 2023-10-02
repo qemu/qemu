@@ -1152,6 +1152,8 @@ enum {
     OPC2_32_RR_ITOF                              = 0x14,
     OPC2_32_RR_CMP_F                             = 0x00,
     OPC2_32_RR_FTOIZ                             = 0x13,
+    OPC2_32_RR_FTOHP                             = 0x25, /* 1.6.2 only */
+    OPC2_32_RR_HPTOF                             = 0x24, /* 1.6.2 only */
     OPC2_32_RR_FTOQ31                            = 0x11,
     OPC2_32_RR_FTOQ31Z                           = 0x18,
     OPC2_32_RR_FTOU                              = 0x12,
@@ -1247,6 +1249,7 @@ enum {
     OPC2_32_RRR_SUB_F                            = 0x03,
     OPC2_32_RRR_MADD_F                           = 0x06,
     OPC2_32_RRR_MSUB_F                           = 0x07,
+    OPC2_32_RRR_CRCN                             = 0x01, /* 1.6.2 up */
 };
 /*
  * RRR1 Format

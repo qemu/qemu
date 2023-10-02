@@ -120,16 +120,31 @@ void tricore_cpu_list(void)
 
 void fpu_set_state(CPUTriCoreState *env)
 {
-    set_float_rounding_mode(env->PSW & MASK_PSW_FPU_RM, &env->fp_status);
+    switch (extract32(env->PSW, 24, 2)) {
+    case 0:
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        break;
+    case 1:
+        set_float_rounding_mode(float_round_up, &env->fp_status);
+        break;
+    case 2:
+        set_float_rounding_mode(float_round_down, &env->fp_status);
+        break;
+    case 3:
+        set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+        break;
+    }
+
     set_flush_inputs_to_zero(1, &env->fp_status);
     set_flush_to_zero(1, &env->fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     set_default_nan_mode(1, &env->fp_status);
 }
 
 uint32_t psw_read(CPUTriCoreState *env)
 {
     /* clear all USB bits */
-    env->PSW &= 0x6ffffff;
+    env->PSW &= 0x7ffffff;
     /* now set them from the cache */
     env->PSW |= ((env->PSW_USB_C != 0) << 31);
     env->PSW |= ((env->PSW_USB_V   & (1 << 31))  >> 1);

@@ -12,31 +12,31 @@
 #define TESTDEV_ADDR 0xf0000000
 /* Register definitions */
 #define DREG_RS1 %d0
-#define DREG_RS2 %d1
-#define DREG_RS3 %d2
-#define DREG_CALC_RESULT %d3
-#define DREG_CALC_PSW %d4
-#define DREG_CORRECT_PSW %d5
-#define DREG_TEMP_LI %d10
-#define DREG_TEMP %d11
-#define DREG_TEST_NUM %d14
-#define DREG_CORRECT_RESULT %d15
-#define DREG_CORRECT_RESULT_2 %d13
+#define DREG_RS2 %d2
+#define DREG_RS3 %d4
+#define DREG_CALC_RESULT %d5
+#define DREG_CALC_PSW %d6
+#define DREG_CORRECT_PSW %d7
+#define DREG_TEMP_LI %d13
+#define DREG_TEMP %d14
+#define DREG_TEST_NUM %d8
+#define DREG_CORRECT_RESULT %d9
+#define DREG_CORRECT_RESULT_2 %d10
 
 #define AREG_ADDR %a0
 #define AREG_CORRECT_RESULT %a3
 
 #define DREG_DEV_ADDR %a15
 
-#define EREG_RS1 %e6
-#define EREG_RS1_LO %d6
-#define EREG_RS1_HI %d7
-#define EREG_RS2 %e8
-#define EREG_RS2_LO %d8
-#define EREG_RS2_HI %d9
-#define EREG_CALC_RESULT %e8
-#define EREG_CALC_RESULT_HI %d9
-#define EREG_CALC_RESULT_LO %d8
+#define EREG_RS1 %e0
+#define EREG_RS1_LO %d0
+#define EREG_RS1_HI %d1
+#define EREG_RS2 %e2
+#define EREG_RS2_LO %d2
+#define EREG_RS2_HI %d3
+#define EREG_CALC_RESULT %e6
+#define EREG_CALC_RESULT_LO %d6
+#define EREG_CALC_RESULT_HI %d7
 #define EREG_CORRECT_RESULT_LO %d0
 #define EREG_CORRECT_RESULT_HI %d1
 
@@ -46,7 +46,8 @@ test_ ## num:                                     \
     code;                                         \
     LI(DREG_CORRECT_RESULT, correct)              \
     mov DREG_TEST_NUM, num;                       \
-    jne testreg, DREG_CORRECT_RESULT, fail        \
+    jne testreg, DREG_CORRECT_RESULT, fail;       \
+    mov testreg, 0
 
 #define TEST_CASE_E(num, correct_lo, correct_hi, code...)  \
 test_ ## num:                                              \
@@ -159,6 +160,30 @@ test_ ## num:                                                    \
     LI(DREG_RS2, rs1);                                       \
     rstv;                                                    \
     insn DREG_CALC_RESULT, DREG_RS1, imm1, DREG_RS2, imm2;   \
+    )
+
+#define TEST_D_DDII(insn, num, result, rs1, rs2, imm1, imm2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                 \
+    LI(DREG_RS1, rs1);                                       \
+    LI(DREG_RS2, rs2);                                       \
+    rstv;                                                    \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm1, imm2;   \
+    )
+
+#define TEST_D_DIE(insn, num, result, rs1, imm1, rs2_lo, rs2_hi)\
+    TEST_CASE(num, DREG_CALC_RESULT, result,                    \
+    LI(DREG_RS1, rs1);                                          \
+    LI(EREG_RS2_LO, rs2_lo);                                    \
+    LI(EREG_RS2_HI, rs2_hi);                                    \
+    rstv;                                                       \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1, EREG_RS2;            \
+    )
+
+#define TEST_D_DIII(insn, num, result, rs1, imm1, imm2, imm3)\
+    TEST_CASE(num, DREG_CALC_RESULT, result,                 \
+    LI(DREG_RS1, rs1);                                       \
+    rstv;                                                    \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1, imm2, imm3;       \
     )
 
 #define TEST_E_ED(insn, num, res_hi, res_lo, rs1_hi, rs1_lo, rs2) \

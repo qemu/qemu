@@ -5310,8 +5310,11 @@ static void decode_rcpw_insert(DisasContext *ctx)
         }
         break;
     case OPC2_32_RCPW_INSERT:
+        /* tcg_gen_deposit_tl() does not handle the case of width = 0 */
+        if (width == 0) {
+            tcg_gen_mov_tl(cpu_gpr_d[r2], cpu_gpr_d[r1]);
         /* if pos + width > 32 undefined result */
-        if (pos + width <= 32) {
+        } else if (pos + width <= 32) {
             temp = tcg_constant_i32(const4);
             tcg_gen_deposit_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, pos, width);
         }
@@ -6260,6 +6263,20 @@ static void decode_rr_divide(DisasContext *ctx)
     case OPC2_32_RR_DIV_F:
         gen_helper_fdiv(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
+    case OPC2_32_RR_FTOHP:
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            gen_helper_ftohp(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
+   case OPC2_32_RR_HPTOF:
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            gen_helper_hptof(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
     case OPC2_32_RR_CMP_F:
         gen_helper_fcmp(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
@@ -6269,8 +6286,15 @@ static void decode_rr_divide(DisasContext *ctx)
     case OPC2_32_RR_ITOF:
         gen_helper_itof(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
         break;
+    case OPC2_32_RR_FTOU:
+        gen_helper_ftou(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        break;
     case OPC2_32_RR_FTOUZ:
-        gen_helper_ftouz(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        if (has_feature(ctx, TRICORE_FEATURE_131)) {
+            gen_helper_ftouz(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
         break;
     case OPC2_32_RR_UPDFL:
         gen_helper_updfl(cpu_env, cpu_gpr_d[r1]);
@@ -6554,7 +6578,10 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
 
         break;
     case OPC2_32_RRPW_INSERT:
-        if (pos + width <= 32) {
+        /* tcg_gen_deposit_tl() does not handle the case of width = 0 */
+        if (width == 0) {
+            tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        } else if (pos + width <= 32) {
             tcg_gen_deposit_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
                                pos, width);
         }
@@ -6668,6 +6695,14 @@ static void decode_rrr_divide(DisasContext *ctx)
         CHECK_REG_PAIR(r3);
         gen_helper_pack(cpu_gpr_d[r4], cpu_PSW_C, cpu_gpr_d[r3],
                         cpu_gpr_d[r3+1], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RRR_CRCN:
+        if (has_feature(ctx, TRICORE_FEATURE_162)) {
+            gen_helper_crcn(cpu_gpr_d[r4], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            cpu_gpr_d[r3]);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
         break;
     case OPC2_32_RRR_ADD_F:
         gen_helper_fadd(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r3]);
@@ -8192,12 +8227,12 @@ static void decode_32Bit_opc(DisasContext *ctx)
         temp2 = tcg_temp_new(); /* width*/
         temp3 = tcg_temp_new(); /* pos */
 
-        CHECK_REG_PAIR(r3);
+        CHECK_REG_PAIR(r2);
 
-        tcg_gen_andi_tl(temp2, cpu_gpr_d[r3+1], 0x1f);
-        tcg_gen_andi_tl(temp3, cpu_gpr_d[r3], 0x1f);
+        tcg_gen_andi_tl(temp2, cpu_gpr_d[r2 + 1], 0x1f);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r2], 0x1f);
 
-        gen_insert(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, temp2, temp3);
+        gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], temp, temp2, temp3);
         break;
 /* RCRW Format */
     case OPCM_32_RCRW_MASK_INSERT:
@@ -8367,7 +8402,7 @@ static bool insn_crosses_page(CPUTriCoreState *env, DisasContext *ctx)
      * 4 bytes from the page boundary, so we cross the page if the first
      * 16 bits indicate that this is a 32 bit insn.
      */
-    uint16_t insn = cpu_lduw_code(env, ctx->base.pc_next);
+    uint16_t insn = translator_lduw(env, &ctx->base, ctx->base.pc_next);
 
     return !tricore_insn_is_16bit(insn);
 }
@@ -8380,14 +8415,15 @@ static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     uint16_t insn_lo;
     bool is_16bit;
 
-    insn_lo = cpu_lduw_code(env, ctx->base.pc_next);
+    insn_lo = translator_lduw(env, &ctx->base, ctx->base.pc_next);
     is_16bit = tricore_insn_is_16bit(insn_lo);
     if (is_16bit) {
         ctx->opcode = insn_lo;
         ctx->pc_succ_insn = ctx->base.pc_next + 2;
         decode_16Bit_opc(ctx);
     } else {
-        uint32_t insn_hi = cpu_lduw_code(env, ctx->base.pc_next + 2);
+        uint32_t insn_hi = translator_lduw(env, &ctx->base,
+                                           ctx->base.pc_next + 2);
         ctx->opcode = insn_hi << 16 | insn_lo;
         ctx->pc_succ_insn = ctx->base.pc_next + 4;
         decode_32Bit_opc(ctx);

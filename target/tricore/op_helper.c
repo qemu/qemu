@@ -2308,6 +2308,69 @@ uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
     return crc32(arg1, buf, 4);
 }
 
+static uint32_t crc_div(uint32_t crc_in, uint32_t data, uint32_t gen,
+                        uint32_t n, uint32_t m)
+{
+    uint32_t i;
+
+    data = data << n;
+    for (i = 0; i < m; i++) {
+        if (crc_in & (1u << (n - 1))) {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+            crc_in ^= gen;
+        } else {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+        }
+        data <<= 1;
+    }
+
+    return crc_in;
+}
+
+uint32_t helper_crcn(uint32_t arg0, uint32_t arg1, uint32_t arg2)
+{
+    uint32_t crc_out, crc_in;
+    uint32_t n = extract32(arg0, 12, 4) + 1;
+    uint32_t gen = extract32(arg0, 16, n);
+    uint32_t inv = extract32(arg0, 9, 1);
+    uint32_t le = extract32(arg0, 8, 1);
+    uint32_t m = extract32(arg0, 0, 3) + 1;
+    uint32_t data = extract32(arg1, 0, m);
+    uint32_t seed = extract32(arg2, 0, n);
+
+    if (le == 1) {
+        if (m == 0) {
+            data = 0;
+        } else {
+            data = revbit32(data) >> (32 - m);
+        }
+    }
+
+    if (inv == 1) {
+        seed = ~seed;
+    }
+
+    if (m > n) {
+        crc_in = (data >> (m - n)) ^ seed;
+    } else {
+        crc_in = (data << (n - m)) ^ seed;
+    }
+
+    crc_out = crc_div(crc_in, data, gen, n, m);
+
+    if (inv) {
+        crc_out = ~crc_out;
+    }
+
+    return extract32(crc_out, 0, n);
+}
+
 uint32_t helper_shuffle(uint32_t arg0, uint32_t arg1)
 {
     uint32_t resb;
@@ -2395,7 +2458,7 @@ static bool cdc_zero(target_ulong *psw)
     return count == 0;
 }
 
-static void save_context_upper(CPUTriCoreState *env, int ea)
+static void save_context_upper(CPUTriCoreState *env, target_ulong ea)
 {
     cpu_stl_data(env, ea, env->PCXI);
     cpu_stl_data(env, ea+4, psw_read(env));
@@ -2415,7 +2478,7 @@ static void save_context_upper(CPUTriCoreState *env, int ea)
     cpu_stl_data(env, ea+60, env->gpr_d[15]);
 }
 
-static void save_context_lower(CPUTriCoreState *env, int ea)
+static void save_context_lower(CPUTriCoreState *env, target_ulong ea)
 {
     cpu_stl_data(env, ea, env->PCXI);
     cpu_stl_data(env, ea+4, env->gpr_a[11]);
@@ -2435,7 +2498,7 @@ static void save_context_lower(CPUTriCoreState *env, int ea)
     cpu_stl_data(env, ea+60, env->gpr_d[7]);
 }
 
-static void restore_context_upper(CPUTriCoreState *env, int ea,
+static void restore_context_upper(CPUTriCoreState *env, target_ulong ea,
                                   target_ulong *new_PCXI, target_ulong *new_PSW)
 {
     *new_PCXI = cpu_ldl_data(env, ea);
@@ -2456,7 +2519,7 @@ static void restore_context_upper(CPUTriCoreState *env, int ea,
     env->gpr_d[15] = cpu_ldl_data(env, ea+60);
 }
 
-static void restore_context_lower(CPUTriCoreState *env, int ea,
+static void restore_context_lower(CPUTriCoreState *env, target_ulong ea,
                                   target_ulong *ra, target_ulong *pcxi)
 {
     *pcxi = cpu_ldl_data(env, ea);
@@ -2700,26 +2763,26 @@ void helper_rfm(CPUTriCoreState *env)
     }
 }
 
-void helper_ldlcx(CPUTriCoreState *env, uint32_t ea)
+void helper_ldlcx(CPUTriCoreState *env, target_ulong ea)
 {
     uint32_t dummy;
     /* insn doesn't load PCXI and RA */
     restore_context_lower(env, ea, &dummy, &dummy);
 }
 
-void helper_lducx(CPUTriCoreState *env, uint32_t ea)
+void helper_lducx(CPUTriCoreState *env, target_ulong ea)
 {
     uint32_t dummy;
     /* insn doesn't load PCXI and PSW */
     restore_context_upper(env, ea, &dummy, &dummy);
 }
 
-void helper_stlcx(CPUTriCoreState *env, uint32_t ea)
+void helper_stlcx(CPUTriCoreState *env, target_ulong ea)
 {
     save_context_lower(env, ea);
 }
 
-void helper_stucx(CPUTriCoreState *env, uint32_t ea)
+void helper_stucx(CPUTriCoreState *env, target_ulong ea)
 {
     save_context_upper(env, ea);
 }

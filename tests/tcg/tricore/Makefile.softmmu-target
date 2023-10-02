@@ -9,11 +9,15 @@ CFLAGS = -mtc162 -c -I$(TESTS_PATH)
 TESTS += test_abs.asm.tst
 TESTS += test_bmerge.asm.tst
 TESTS += test_clz.asm.tst
+TESTS += test_crcn.asm.tst
 TESTS += test_dextr.asm.tst
 TESTS += test_dvstep.asm.tst
 TESTS += test_fadd.asm.tst
 TESTS += test_fmul.asm.tst
+TESTS += test_ftohp.asm.tst
 TESTS += test_ftoi.asm.tst
+TESTS += test_ftou.asm.tst
+TESTS += test_hptof.asm.tst
 TESTS += test_imask.asm.tst
 TESTS += test_insert.asm.tst
 TESTS += test_ld_bu.asm.tst
@@ -25,7 +29,7 @@ TESTS += test_muls.asm.tst
 TESTS += test_boot_to_main.c.tst
 TESTS += test_context_save_areas.c.tst
 
-QEMU_OPTS += -M tricore_testboard -cpu tc27x -nographic -kernel
+QEMU_OPTS += -M tricore_testboard -cpu tc37x -nographic -kernel
 
 %.pS: $(ASM_TESTS_PATH)/%.S
 	$(CC) -E -o $@ $<
