@@ -1556,7 +1556,7 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 }
 
 static int audio_driver_init(AudioState *s, struct audio_driver *drv,
-                             bool msg, Audiodev *dev)
+                             Audiodev *dev, Error **errp)
 {
     Error *local_err = NULL;
 
@@ -1577,12 +1577,10 @@ static int audio_driver_init(AudioState *s, struct audio_driver *drv,
         s->drv = drv;
         return 0;
     } else {
-        if (!msg) {
-            error_free(local_err);
-        } else if (local_err) {
-            error_report_err(local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
         } else {
-            error_report("Could not init `%s' audio driver", drv->name);
+            error_setg(errp, "Could not init `%s' audio driver", drv->name);
         }
         return -1;
     }
@@ -1733,7 +1731,7 @@ static void audio_create_default_audiodevs(void)
  * if dev == NULL => legacy implicit initialization, return the already created
  *   state or create a new one
  */
-static AudioState *audio_init(Audiodev *dev)
+static AudioState *audio_init(Audiodev *dev, Error **errp)
 {
     static bool atexit_registered;
     int done = 0;
@@ -1760,9 +1758,9 @@ static AudioState *audio_init(Audiodev *dev)
         drvname = AudiodevDriver_str(dev->driver);
         driver = audio_driver_lookup(drvname);
         if (driver) {
-            done = !audio_driver_init(s, driver, true, dev);
+            done = !audio_driver_init(s, driver, dev, errp);
         } else {
-            dolog ("Unknown audio driver `%s'\n", drvname);
+            error_setg(errp, "Unknown audio driver `%s'\n", drvname);
         }
         if (!done) {
             goto out;
@@ -1771,13 +1769,13 @@ static AudioState *audio_init(Audiodev *dev)
         for (;;) {
             AudiodevListEntry *e = QSIMPLEQ_FIRST(&default_audiodevs);
             if (!e) {
-                dolog("no default audio driver available\n");
+                error_setg(errp, "no default audio driver available");
                 goto out;
             }
             s->dev = dev = e->dev;
             drvname = AudiodevDriver_str(dev->driver);
             driver = audio_driver_lookup(drvname);
-            if (!audio_driver_init(s, driver, false, dev)) {
+            if (!audio_driver_init(s, driver, dev, NULL)) {
                 break;
             }
             QSIMPLEQ_REMOVE_HEAD(&default_audiodevs, next);
@@ -1806,7 +1804,7 @@ out:
     return NULL;
 }
 
-void AUD_register_card (const char *name, QEMUSoundCard *card)
+bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
         if (!QTAILQ_EMPTY(&audio_states)) {
@@ -1820,13 +1818,18 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
             if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
                 audio_create_default_audiodevs();
             }
-            card->state = audio_init(NULL);
+            card->state = audio_init(NULL, errp);
+            if (!card->state) {
+                return false;
+            }
         }
     }
 
     card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
     QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
+
+    return true;
 }
 
 void AUD_remove_card (QEMUSoundCard *card)
@@ -2153,17 +2156,13 @@ void audio_define(Audiodev *dev)
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
 }
 
-bool audio_init_audiodevs(void)
+void audio_init_audiodevs(void)
 {
     AudiodevListEntry *e;
 
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
-        if (!audio_init(e->dev)) {
-            return false;
-        }
+        audio_init(e->dev, &error_fatal);
     }
-
-    return true;
 }
 
 audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)

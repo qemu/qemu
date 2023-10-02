@@ -255,6 +255,10 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
+    if (!AUD_register_card ("adlib", &s->card, errp)) {
+        return;
+    }
+
     s->opl = OPLCreate (3579545, s->freq);
     if (!s->opl) {
         error_setg (errp, "OPLCreate %d failed", s->freq);
@@ -269,8 +273,6 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     as.nchannels = SHIFT;
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = AUDIO_HOST_ENDIANNESS;
-
-    AUD_register_card ("adlib", &s->card);
 
     s->voice = AUD_open_out (
         &s->card,

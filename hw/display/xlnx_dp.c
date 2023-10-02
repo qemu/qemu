@@ -1302,6 +1302,10 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     DisplaySurface *surface;
     struct audsettings as;
 
+    if (!AUD_register_card("xlnx_dp.audio", &s->aud_card, errp)) {
+        return;
+    }
+
     aux_bus_realize(s->aux_bus);
 
     qdev_realize(DEVICE(s->dpcd), BUS(s->aux_bus), &error_fatal);
@@ -1319,8 +1323,6 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
-
-    AUD_register_card("xlnx_dp.audio", &s->aud_card);
 
     s->amixer_output_stream = AUD_open_out(&s->aud_card,
                                            s->amixer_output_stream,
