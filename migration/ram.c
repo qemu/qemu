@@ -1186,31 +1186,19 @@ static int save_zero_page(PageSearchStatus *pss, QEMUFile *f, RAMBlock *block,
 static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
                               ram_addr_t offset, int *pages)
 {
-    uint64_t bytes_xmit = 0;
     int ret;
 
-    *pages = -1;
     ret = ram_control_save_page(pss->pss_channel, block->offset, offset,
-                                TARGET_PAGE_SIZE, &bytes_xmit);
+                                TARGET_PAGE_SIZE);
     if (ret == RAM_SAVE_CONTROL_NOT_SUPP) {
         return false;
     }
 
-    if (bytes_xmit) {
-        ram_transferred_add(bytes_xmit);
-        *pages = 1;
-    }
-
     if (ret == RAM_SAVE_CONTROL_DELAYED) {
+        *pages = 1;
         return true;
     }
-
-    if (bytes_xmit > 0) {
-        stat64_add(&mig_stats.normal_pages, 1);
-    } else if (bytes_xmit == 0) {
-        stat64_add(&mig_stats.zero_pages, 1);
-    }
-
+    *pages = ret;
     return true;
 }
 

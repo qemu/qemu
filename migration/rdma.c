@@ -2029,7 +2029,7 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
  * If we're using dynamic registration on the dest-side, we have to
  * send a registration command first.
  */
-static int qemu_rdma_write_one(QEMUFile *f, RDMAContext *rdma,
+static int qemu_rdma_write_one(RDMAContext *rdma,
                                int current_index, uint64_t current_addr,
                                uint64_t length)
 {
@@ -2124,9 +2124,18 @@ retry:
                     return -EIO;
                 }
 
+                /*
+                 * TODO: Here we are sending something, but we are not
+                 * accounting for anything transferred.  The following is wrong:
+                 *
+                 * stat64_add(&mig_stats.rdma_bytes, sge.length);
+                 *
+                 * because we are using some kind of compression.  I
+                 * would think that head.len would be the more similar
+                 * thing to a correct value.
+                 */
                 stat64_add(&mig_stats.zero_pages,
                            sge.length / qemu_target_page_size());
-
                 return 1;
             }
 
@@ -2234,8 +2243,17 @@ retry:
 
     set_bit(chunk, block->transit_bitmap);
     stat64_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
+    /*
+     * We are adding to transferred the amount of data written, but no
+     * overhead at all.  I will asume that RDMA is magicaly and don't
+     * need to transfer (at least) the addresses where it wants to
+     * write the pages.  Here it looks like it should be something
+     * like:
+     *     sizeof(send_wr) + sge.length
+     * but this being RDMA, who knows.
+     */
+    stat64_add(&mig_stats.rdma_bytes, sge.length);
     ram_transferred_add(sge.length);
-    qemu_file_credit_transfer(f, sge.length);
     rdma->total_writes++;
 
     return 0;
@@ -2247,7 +2265,7 @@ retry:
  * We support sending out multiple chunks at the same time.
  * Not all of them need to get signaled in the completion queue.
  */
-static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
+static int qemu_rdma_write_flush(RDMAContext *rdma)
 {
     int ret;
 
@@ -2255,7 +2273,7 @@ static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
         return 0;
     }
 
-    ret = qemu_rdma_write_one(f, rdma,
+    ret = qemu_rdma_write_one(rdma,
             rdma->current_index, rdma->current_addr, rdma->current_length);
 
     if (ret < 0) {
@@ -2328,7 +2346,7 @@ static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
  *    and only require that a batch gets acknowledged in the completion
  *    queue instead of each individual chunk.
  */
-static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
+static int qemu_rdma_write(RDMAContext *rdma,
                            uint64_t block_offset, uint64_t offset,
                            uint64_t len)
 {
@@ -2339,7 +2357,7 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* If we cannot merge it, we flush the current buffer first. */
     if (!qemu_rdma_buffer_mergable(rdma, current_addr, len)) {
-        ret = qemu_rdma_write_flush(f, rdma);
+        ret = qemu_rdma_write_flush(rdma);
         if (ret) {
             return ret;
         }
@@ -2361,7 +2379,7 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* flush it if buffer is too large */
     if (rdma->current_length >= RDMA_MERGE_MAX) {
-        return qemu_rdma_write_flush(f, rdma);
+        return qemu_rdma_write_flush(rdma);
     }
 
     return 0;
@@ -2782,7 +2800,6 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
                                        Error **errp)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
-    QEMUFile *f = rioc->file;
     RDMAContext *rdma;
     int ret;
     ssize_t done = 0;
@@ -2803,7 +2820,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
      * Push out any writes that
      * we're queued up for VM's ram.
      */
-    ret = qemu_rdma_write_flush(f, rdma);
+    ret = qemu_rdma_write_flush(rdma);
     if (ret < 0) {
         rdma->error_state = ret;
         error_setg(errp, "qemu_rdma_write_flush returned %d", ret);
@@ -2942,11 +2959,11 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
 /*
  * Block until all the outstanding chunks have been delivered by the hardware.
  */
-static int qemu_rdma_drain_cq(QEMUFile *f, RDMAContext *rdma)
+static int qemu_rdma_drain_cq(RDMAContext *rdma)
 {
     int ret;
 
-    if (qemu_rdma_write_flush(f, rdma) < 0) {
+    if (qemu_rdma_write_flush(rdma) < 0) {
         return -EIO;
     }
 
@@ -3225,13 +3242,12 @@ qio_channel_rdma_shutdown(QIOChannel *ioc,
  *
  *    @size : Number of bytes to transfer
  *
- *    @bytes_sent : User-specificed pointer to indicate how many bytes were
+ *    @pages_sent : User-specificed pointer to indicate how many pages were
  *                  sent. Usually, this will not be more than a few bytes of
  *                  the protocol because most transfers are sent asynchronously.
  */
-static size_t qemu_rdma_save_page(QEMUFile *f,
-                                  ram_addr_t block_offset, ram_addr_t offset,
-                                  size_t size, uint64_t *bytes_sent)
+static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
+                               ram_addr_t offset, size_t size)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
@@ -3257,22 +3273,10 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
      * is full, or the page doesn't belong to the current chunk,
      * an actual RDMA write will occur and a new chunk will be formed.
      */
-    ret = qemu_rdma_write(f, rdma, block_offset, offset, size);
+    ret = qemu_rdma_write(rdma, block_offset, offset, size);
     if (ret < 0) {
         error_report("rdma migration: write error! %d", ret);
         goto err;
-    }
-
-    /*
-     * We always return 1 bytes because the RDMA
-     * protocol is completely asynchronous. We do not yet know
-     * whether an  identified chunk is zero or not because we're
-     * waiting for other pages to potentially be merged with
-     * the current chunk. So, we have to call qemu_update_position()
-     * later on when the actual write occurs.
-     */
-    if (bytes_sent) {
-        *bytes_sent = 1;
     }
 
     /*
@@ -3914,7 +3918,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     CHECK_ERROR_STATE();
 
     qemu_fflush(f);
-    ret = qemu_rdma_drain_cq(f, rdma);
+    ret = qemu_rdma_drain_cq(rdma);
 
     if (ret < 0) {
         goto err;

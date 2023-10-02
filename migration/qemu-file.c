@@ -322,23 +322,20 @@ void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
     }
 }
 
-size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
-                             ram_addr_t offset, size_t size,
-                             uint64_t *bytes_sent)
+int ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                          ram_addr_t offset, size_t size)
 {
     if (f->hooks && f->hooks->save_page) {
-        int ret = f->hooks->save_page(f, block_offset,
-                                      offset, size, bytes_sent);
-
+        int ret = f->hooks->save_page(f, block_offset, offset, size);
+        /*
+         * RAM_SAVE_CONTROL_* are negative values
+         */
         if (ret != RAM_SAVE_CONTROL_DELAYED &&
             ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            if (bytes_sent && *bytes_sent > 0) {
-                qemu_file_credit_transfer(f, *bytes_sent);
-            } else if (ret < 0) {
+            if (ret < 0) {
                 qemu_file_set_error(f, ret);
             }
         }
-
         return ret;
     }
 
@@ -398,11 +395,6 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     }
 
     return len;
-}
-
-void qemu_file_credit_transfer(QEMUFile *f, size_t size)
-{
-    f->total_transferred += size;
 }
 
 /** Closes the file

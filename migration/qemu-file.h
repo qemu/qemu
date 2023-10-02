@@ -49,11 +49,10 @@ typedef int (QEMURamHookFunc)(QEMUFile *f, uint64_t flags, void *data);
  * This function allows override of where the RAM page
  * is saved (such as RDMA, for example.)
  */
-typedef size_t (QEMURamSaveFunc)(QEMUFile *f,
-                                 ram_addr_t block_offset,
-                                 ram_addr_t offset,
-                                 size_t size,
-                                 uint64_t *bytes_sent);
+typedef int (QEMURamSaveFunc)(QEMUFile *f,
+                              ram_addr_t block_offset,
+                              ram_addr_t offset,
+                              size_t size);
 
 typedef struct QEMUFileHooks {
     QEMURamHookFunc *before_ram_iterate;
@@ -119,14 +118,6 @@ bool qemu_file_buffer_empty(QEMUFile *file);
  */
 int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset);
 void qemu_file_skip(QEMUFile *f, int size);
-/*
- * qemu_file_credit_transfer:
- *
- * Report on a number of bytes that have been transferred
- * out of band from the main file object I/O methods. This
- * accounting information tracks the total migration traffic.
- */
-void qemu_file_credit_transfer(QEMUFile *f, size_t size);
 int qemu_file_get_error_obj_any(QEMUFile *f1, QEMUFile *f2, Error **errp);
 void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err);
 void qemu_file_set_error(QEMUFile *f, int ret);
@@ -150,9 +141,8 @@ void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data);
 #define RAM_SAVE_CONTROL_NOT_SUPP -1000
 #define RAM_SAVE_CONTROL_DELAYED  -2000
 
-size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
-                             ram_addr_t offset, size_t size,
-                             uint64_t *bytes_sent);
+int ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                          ram_addr_t offset, size_t size);
 QIOChannel *qemu_file_get_ioc(QEMUFile *file);
 
 #endif
