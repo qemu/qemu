@@ -913,16 +913,16 @@ DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty
 
         while (page < end) {
             unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
-            unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+            unsigned long ofs = page % DIRTY_MEMORY_BLOCK_SIZE;
             unsigned long num = MIN(end - page,
-                                    DIRTY_MEMORY_BLOCK_SIZE - offset);
+                                    DIRTY_MEMORY_BLOCK_SIZE - ofs);
 
-            assert(QEMU_IS_ALIGNED(offset, (1 << BITS_PER_LEVEL)));
+            assert(QEMU_IS_ALIGNED(ofs, (1 << BITS_PER_LEVEL)));
             assert(QEMU_IS_ALIGNED(num,    (1 << BITS_PER_LEVEL)));
-            offset >>= BITS_PER_LEVEL;
+            ofs >>= BITS_PER_LEVEL;
 
             bitmap_copy_and_clear_atomic(snap->dirty + dest,
-                                         blocks->blocks[idx] + offset,
+                                         blocks->blocks[idx] + ofs,
                                          num);
             page += num;
             dest += num >> BITS_PER_LEVEL;

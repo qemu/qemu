@@ -328,12 +328,9 @@ enum { /* Command completion notification */
 #define CMD_TTL(x)          extract32((x)->word[2], 8 , 2)
 #define CMD_TG(x)           extract32((x)->word[2], 10, 2)
 #define CMD_STE_RANGE(x)    extract32((x)->word[2], 0 , 5)
-#define CMD_ADDR(x) ({                                        \
-            uint64_t high = (uint64_t)(x)->word[3];           \
-            uint64_t low = extract32((x)->word[2], 12, 20);    \
-            uint64_t addr = high << 32 | (low << 12);         \
-            addr;                                             \
-        })
+#define CMD_ADDR(x)                             \
+    (((uint64_t)((x)->word[3]) << 32) |         \
+     ((extract64((x)->word[2], 12, 20)) << 12))
 
 #define SMMU_FEATURE_2LVL_STE (1 << 0)
 
@@ -533,21 +530,13 @@ typedef struct CD {
 #define STE_S2S(x)         extract32((x)->word[5], 25, 1)
 #define STE_S2R(x)         extract32((x)->word[5], 26, 1)
 
-#define STE_CTXPTR(x)                                           \
-    ({                                                          \
-        unsigned long addr;                                     \
-        addr = (uint64_t)extract32((x)->word[1], 0, 16) << 32;  \
-        addr |= (uint64_t)((x)->word[0] & 0xffffffc0);          \
-        addr;                                                   \
-    })
+#define STE_CTXPTR(x)                                   \
+    ((extract64((x)->word[1], 0, 16) << 32) |           \
+     ((x)->word[0] & 0xffffffc0))
 
-#define STE_S2TTB(x)                                            \
-    ({                                                          \
-        unsigned long addr;                                     \
-        addr = (uint64_t)extract32((x)->word[7], 0, 16) << 32;  \
-        addr |= (uint64_t)((x)->word[6] & 0xfffffff0);          \
-        addr;                                                   \
-    })
+#define STE_S2TTB(x)                                    \
+    ((extract64((x)->word[7], 0, 16) << 32) |           \
+     ((x)->word[6] & 0xfffffff0))
 
 static inline int oas2bits(int oas_field)
 {
@@ -585,14 +574,10 @@ static inline int pa_range(STE *ste)
 
 #define CD_VALID(x)   extract32((x)->word[0], 31, 1)
 #define CD_ASID(x)    extract32((x)->word[1], 16, 16)
-#define CD_TTB(x, sel)                                      \
-    ({                                                      \
-        uint64_t hi, lo;                                    \
-        hi = extract32((x)->word[(sel) * 2 + 3], 0, 19);    \
-        hi <<= 32;                                          \
-        lo = (x)->word[(sel) * 2 + 2] & ~0xfULL;            \
-        hi | lo;                                            \
-    })
+#define CD_TTB(x, sel)                                          \
+    ((extract64((x)->word[(sel) * 2 + 3], 0, 19) << 32) |       \
+     ((x)->word[(sel) * 2 + 2] & ~0xfULL))
+
 #define CD_HAD(x, sel)   extract32((x)->word[(sel) * 2 + 2], 1, 1)
 
 #define CD_TSZ(x, sel)   extract32((x)->word[0], (16 * (sel)) + 0, 6)

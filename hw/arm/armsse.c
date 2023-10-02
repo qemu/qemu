@@ -1468,7 +1468,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     if (info->has_cachectrl) {
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("cachectrl%d", i);
-            MemoryRegion *mr;
 
             qdev_prop_set_string(DEVICE(&s->cachectrl[i]), "name", name);
             g_free(name);
@@ -1484,7 +1483,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     if (info->has_cpusecctrl) {
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("CPUSECCTRL%d", i);
-            MemoryRegion *mr;
 
             qdev_prop_set_string(DEVICE(&s->cpusecctrl[i]), "name", name);
             g_free(name);
@@ -1499,7 +1497,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     if (info->has_cpuid) {
         for (i = 0; i < info->num_cpus; i++) {
-            MemoryRegion *mr;
 
             qdev_prop_set_uint32(DEVICE(&s->cpuid[i]), "CPUID", i);
             if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpuid[i]), errp)) {
@@ -1512,7 +1509,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     if (info->has_cpu_pwrctrl) {
         for (i = 0; i < info->num_cpus; i++) {
-            MemoryRegion *mr;
 
             if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu_pwrctrl[i]), errp)) {
                 return;
@@ -1605,7 +1601,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* Wire up the splitters for the MPC IRQs */
     for (i = 0; i < IOTS_NUM_EXP_MPC + info->sram_banks; i++) {
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
-        DeviceState *dev_splitter = DEVICE(splitter);
+        DeviceState *devs = DEVICE(splitter);
 
         if (!object_property_set_int(OBJECT(splitter), "num-lines", 2,
                                      errp)) {
@@ -1617,22 +1613,22 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
         if (i < IOTS_NUM_EXP_MPC) {
             /* Splitter input is from GPIO input line */
-            s->mpcexp_status_in[i] = qdev_get_gpio_in(dev_splitter, 0);
-            qdev_connect_gpio_out(dev_splitter, 0,
+            s->mpcexp_status_in[i] = qdev_get_gpio_in(devs, 0);
+            qdev_connect_gpio_out(devs, 0,
                                   qdev_get_gpio_in_named(dev_secctl,
                                                          "mpcexp_status", i));
         } else {
             /* Splitter input is from our own MPC */
             qdev_connect_gpio_out_named(DEVICE(&s->mpc[i - IOTS_NUM_EXP_MPC]),
                                         "irq", 0,
-                                        qdev_get_gpio_in(dev_splitter, 0));
-            qdev_connect_gpio_out(dev_splitter, 0,
+                                        qdev_get_gpio_in(devs, 0));
+            qdev_connect_gpio_out(devs, 0,
                                   qdev_get_gpio_in_named(dev_secctl,
                                                          "mpc_status",
                                                          i - IOTS_NUM_EXP_MPC));
         }
 
-        qdev_connect_gpio_out(dev_splitter, 1,
+        qdev_connect_gpio_out(devs, 1,
                               qdev_get_gpio_in(DEVICE(&s->mpc_irq_orgate), i));
     }
     /* Create GPIO inputs which will pass the line state for our

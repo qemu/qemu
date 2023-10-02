@@ -517,7 +517,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         if (s->enable_bitband) {
             Object *obj = OBJECT(&s->bitband[i]);
-            SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
+            sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
             if (!object_property_set_int(obj, "base",
                                          bitband_input_addr[i], errp)) {

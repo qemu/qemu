@@ -545,10 +545,10 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
     }
 
     if (cmdres == CMD_CONTINUE_OK && cmd == DISCARD) {
-        ITEntry ite = {};
+        ITEntry i = {};
         /* remove mapping from interrupt translation table */
-        ite.valid = false;
-        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
+        i.valid = false;
+        return update_ite(s, eventid, &dte, &i) ? CMD_CONTINUE_OK : CMD_STALL;
     }
     return CMD_CONTINUE_OK;
 }

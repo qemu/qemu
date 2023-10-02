@@ -3245,7 +3245,6 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     }
 
     if (mr->alias) {
-        MemoryRegionList *ml;
         bool found = false;
 
         /* check if the alias is already in the queue */

@@ -1632,10 +1632,10 @@ print_insn_arg (const char *d,
     case '2':
     case '3':
       {
-	int val = fetch_arg (buffer, place, 5, info);
+	int reg = fetch_arg (buffer, place, 5, info);
         const char *name = 0;
 
-	switch (val)
+	switch (reg)
 	  {
 	  case 2: name = "%tt0"; break;
 	  case 3: name = "%tt1"; break;
@@ -1655,12 +1655,12 @@ print_insn_arg (const char *d,
 	      int break_reg = ((buffer[3] >> 2) & 7);
 
 	      (*info->fprintf_func)
-		(info->stream, val == 0x1c ? "%%bad%d" : "%%bac%d",
+		(info->stream, reg == 0x1c ? "%%bad%d" : "%%bac%d",
 		 break_reg);
 	    }
 	    break;
 	  default:
-	    (*info->fprintf_func) (info->stream, "<mmu register %d>", val);
+	    (*info->fprintf_func) (info->stream, "<mmu register %d>", reg);
 	  }
 	if (name)
 	  (*info->fprintf_func) (info->stream, "%s", name);

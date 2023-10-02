@@ -113,7 +113,7 @@ qcrypto_gnutls_cipher_encrypt(QCryptoCipher *cipher,
         while (len) {
             gnutls_cipher_hd_t handle;
             gnutls_datum_t gkey = { (unsigned char *)ctx->key, ctx->nkey };
-            int err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
+            err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
             if (err != 0) {
                 error_setg(errp, "Cannot initialize cipher: %s",
                            gnutls_strerror(err));
@@ -174,7 +174,7 @@ qcrypto_gnutls_cipher_decrypt(QCryptoCipher *cipher,
         while (len) {
             gnutls_cipher_hd_t handle;
             gnutls_datum_t gkey = { (unsigned char *)ctx->key, ctx->nkey };
-            int err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
+            err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
             if (err != 0) {
                 error_setg(errp, "Cannot initialize cipher: %s",
                            gnutls_strerror(err));
