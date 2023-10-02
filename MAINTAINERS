@@ -310,6 +310,11 @@ F: target/ppc/
 F: hw/ppc/ppc.c
 F: hw/ppc/ppc_booke.c
 F: include/hw/ppc/ppc.h
+F: hw/ppc/meson.build
+F: hw/ppc/trace*
+F: configs/devices/ppc*
+F: docs/system/ppc/embedded.rst
+F: docs/system/target-ppc.rst
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
