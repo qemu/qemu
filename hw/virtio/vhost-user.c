@@ -1225,7 +1225,21 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
             .num   = enable,
         };
 
-        ret = vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state, false);
+        /*
+         * SET_VRING_ENABLE travels from guest to QEMU to vhost-user backend /
+         * control plane thread via unix domain socket. Virtio requests travel
+         * from guest to vhost-user backend / data plane thread via eventfd.
+         * Even if the guest enables the ring first, and pushes its first virtio
+         * request second (conforming to the virtio spec), the data plane thread
+         * in the backend may see the virtio request before the control plane
+         * thread sees the queue enablement. This causes (in fact, requires) the
+         * data plane thread to discard the virtio request (it arrived on a
+         * seemingly disabled queue). To prevent this out-of-order delivery,
+         * don't let the guest proceed to pushing the virtio request until the
+         * backend control plane acknowledges enabling the queue -- IOW, pass
+         * wait_for_reply=true below.
+         */
+        ret = vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state, true);
         if (ret < 0) {
             /*
              * Restoring the previous state is likely infeasible, as well as
