@@ -1367,7 +1367,8 @@ PowerPC Machines
 405 (ref405ep)
 L: qemu-ppc@nongnu.org
 S: Orphan
-F: hw/ppc/ppc405_boards.c
+F: hw/ppc/ppc405*
+F: tests/avocado/ppc_405.py
 
 Bamboo
 L: qemu-ppc@nongnu.org
