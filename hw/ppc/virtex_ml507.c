@@ -43,7 +43,6 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/qdev-properties.h"
-#include "ppc405.h"
 
 #include <libfdt.h>
 
