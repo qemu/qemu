@@ -1440,6 +1440,18 @@ Front-end message types
   query the back-end for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_GET_SHARED_OBJECT``
+  :id: 41
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserShared``
+  :reply payload: dmabuf fd
+
+  When the ``VHOST_USER_PROTOCOL_F_SHARED_OBJECT`` protocol
+  feature has been successfully negotiated, and the UUID is found
+  in the exporters cache, this message is submitted by the front-end
+  to retrieve a given dma-buf fd from a given back-end, determined by
+  the requested UUID. Back-end will reply passing the fd when the operation
+  is successful, or no fd otherwise.
 
 Back-end message types
 ----------------------
@@ -1527,6 +1539,51 @@ is sent by the front-end.
   set by the front-end via ``VHOST_USER_SET_VRING_ERR``.
 
   The state.num field is currently reserved and must be set to 0.
+
+``VHOST_USER_BACKEND_SHARED_OBJECT_ADD``
+  :id: 6
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserShared``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHARED_OBJECT`` protocol
+  feature has been successfully negotiated, this message can be submitted
+  by the backends to add themselves as exporters to the virtio shared lookup
+  table. The back-end device gets associated with a UUID in the shared table.
+  The back-end is responsible of keeping its own table with exported dma-buf fds.
+  When another back-end tries to import the resource associated with the UUID,
+  it will send a message to the front-end, which will act as a proxy to the
+  exporter back-end. If ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, and
+  the back-end sets the ``VHOST_USER_NEED_REPLY`` flag, the front-end must
+  respond with zero when operation is successfully completed, or non-zero
+  otherwise.
+
+``VHOST_USER_BACKEND_SHARED_OBJECT_REMOVE``
+  :id: 7
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserShared``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHARED_OBJECT`` protocol
+  feature has been successfully negotiated, this message can be submitted
+  by the backend to remove themselves from to the virtio-dmabuf shared
+  table API. The shared table will remove the back-end device associated with
+  the UUID. If ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, and the
+  back-end sets the ``VHOST_USER_NEED_REPLY`` flag, the front-end must respond
+  with zero when operation is successfully completed, or non-zero otherwise.
+
+``VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP``
+  :id: 8
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserShared``
+  :reply payload: dmabuf fd and ``u64``
+
+  When the ``VHOST_USER_PROTOCOL_F_SHARED_OBJECT`` protocol
+  feature has been successfully negotiated, this message can be submitted
+  by the backends to retrieve a given dma-buf fd from the virtio-dmabuf
+  shared table given a UUID. Frontend will reply passing the fd and a zero
+  when the operation is successful, or non-zero otherwise. Note that if the
+  operation fails, no fd is sent to the backend.
 
 .. _reply_ack:
 
