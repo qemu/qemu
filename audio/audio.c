@@ -1692,6 +1692,10 @@ static void audio_create_default_audiodevs(void)
 {
     const char *drvname = getenv("QEMU_AUDIO_DRV");
 
+    if (!defaults_enabled()) {
+        return;
+    }
+
     /* QEMU_AUDIO_DRV=none is used by libqtest.  */
     if (drvname && !g_str_equal(drvname, "none")) {
         error_report("Please use -audiodev instead of QEMU_AUDIO_*");
@@ -1808,6 +1812,14 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
         if (!QTAILQ_EMPTY(&audio_states)) {
+            /*
+             * FIXME: once it is possible to create an arbitrary
+             * default device via -audio DRIVER,OPT=VALUE (no "model"),
+             * replace this special case with the default AudioState*,
+             * storing it in a separate global.  For now, keep the
+             * warning to encourage moving off magic use of the first
+             * -audiodev.
+             */
             if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
                 dolog("Device %s: audiodev default parameter is deprecated, please "
                       "specify audiodev=%s\n", name,
@@ -1820,6 +1832,10 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
             }
             card->state = audio_init(NULL, errp);
             if (!card->state) {
+                if (!QSIMPLEQ_EMPTY(&audiodevs)) {
+                    error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?",
+                                      QSIMPLEQ_FIRST(&audiodevs)->dev->id);
+                }
                 return false;
             }
         }
