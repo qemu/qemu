@@ -22,6 +22,13 @@ SETHI   00 rd:5         100 i:22
 
 CALL    01 i:s30
 
+##
+## Major Opcode 10 -- integer, floating-point, vis, and system insns.
+##
+
+&r_r_ri     rd rs1 rs2_or_imm imm:bool
+@n_r_ri     .. ..... ...... rs1:5 imm:1 rs2_or_imm:s13     &r_r_ri rd=0
+
 {
   [
     STBAR           10 00000 101000 01111 0 0000000000000
@@ -42,6 +49,30 @@ CALL    01 i:s30
   ]
   # Before v8, all rs1 accepted; otherwise rs1==0.
   RDY               10 rd:5  101000 rs1:5 0 0000000000000
+}
+
+{
+  [
+    WRY             10 00000 110000 ..... . .............  @n_r_ri
+    WRCCR           10 00010 110000 ..... . .............  @n_r_ri
+    WRASI           10 00011 110000 ..... . .............  @n_r_ri
+    WRFPRS          10 00110 110000 ..... . .............  @n_r_ri
+    {
+      WRGSR         10 10011 110000 ..... . .............  @n_r_ri
+      WRPOWERDOWN   10 10011 110000 ..... . .............  @n_r_ri
+    }
+    WRSOFTINT_SET   10 10100 110000 ..... . .............  @n_r_ri
+    WRSOFTINT_CLR   10 10101 110000 ..... . .............  @n_r_ri
+    WRSOFTINT       10 10110 110000 ..... . .............  @n_r_ri
+    WRTICK_CMPR     10 10111 110000 ..... . .............  @n_r_ri
+    WRSTICK         10 11000 110000 ..... . .............  @n_r_ri
+    WRSTICK_CMPR    10 11001 110000 ..... . .............  @n_r_ri
+  ]
+  # Before v8, rs1==0 was WRY, and the rest executed as nop.
+  [
+    NOP_v7          10 ----- 110000 ----- 0 00000000 -----
+    NOP_v7          10 ----- 110000 ----- 1 -------- -----
+  ]
 }
 
 {

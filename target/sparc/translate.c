@@ -38,11 +38,16 @@
 
 #ifdef TARGET_SPARC64
 # define gen_helper_rdpsr(D, E)                 qemu_build_not_reached()
+# define gen_helper_power_down(E)               qemu_build_not_reached()
 #else
+# define gen_helper_clear_softint(E, S)         qemu_build_not_reached()
 # define gen_helper_flushw(E)                   qemu_build_not_reached()
 # define gen_helper_rdccr(D, E)                 qemu_build_not_reached()
 # define gen_helper_rdcwp(D, E)                 qemu_build_not_reached()
+# define gen_helper_set_softint(E, S)           qemu_build_not_reached()
 # define gen_helper_tick_get_count(D, E, T, C)  qemu_build_not_reached()
+# define gen_helper_wrccr(E, S)                 qemu_build_not_reached()
+# define gen_helper_write_softint(E, S)         qemu_build_not_reached()
 # define MAXTL_MASK                             0
 #endif
 
@@ -2866,12 +2871,14 @@ static void gen_faligndata(TCGv dst, TCGv gsr, TCGv s1, TCGv s2)
 #ifdef TARGET_SPARC64
 # define avail_32(C)      false
 # define avail_ASR17(C)   false
+# define avail_POWERDOWN(C) false
 # define avail_64(C)      true
 # define avail_GL(C)      ((C)->def->features & CPU_FEATURE_GL)
 # define avail_HYPV(C)    ((C)->def->features & CPU_FEATURE_HYPV)
 #else
 # define avail_32(C)      true
 # define avail_ASR17(C)   ((C)->def->features & CPU_FEATURE_ASR17)
+# define avail_POWERDOWN(C) ((C)->def->features & CPU_FEATURE_POWERDOWN)
 # define avail_64(C)      false
 # define avail_GL(C)      false
 # define avail_HYPV(C)    false
@@ -3076,6 +3083,10 @@ static bool trans_SETHI(DisasContext *dc, arg_SETHI *a)
     }
     return advance_pc(dc);
 }
+
+/*
+ * Major Opcode 10 -- integer, floating-point, vis, and system insns.
+ */
 
 static bool do_tcc(DisasContext *dc, int cond, int cc,
                    int rs1, bool imm, int rs2_or_imm)
@@ -3568,6 +3579,179 @@ static bool trans_FLUSHW(DisasContext *dc, arg_FLUSHW *a)
 {
     if (avail_64(dc)) {
         gen_helper_flushw(tcg_env);
+        return advance_pc(dc);
+    }
+    return false;
+}
+
+static bool do_wr_special(DisasContext *dc, arg_r_r_ri *a, bool priv,
+                          void (*func)(DisasContext *, TCGv))
+{
+    TCGv src;
+
+    /* For simplicity, we under-decoded the rs2 form. */
+    if (!a->imm && (a->rs2_or_imm & ~0x1f)) {
+        return false;
+    }
+    if (!priv) {
+        return raise_priv(dc);
+    }
+
+    if (a->rs1 == 0 && (a->imm || a->rs2_or_imm == 0)) {
+        src = tcg_constant_tl(a->rs2_or_imm);
+    } else {
+        TCGv src1 = gen_load_gpr(dc, a->rs1);
+        if (a->rs2_or_imm == 0) {
+            src = src1;
+        } else {
+            src = tcg_temp_new();
+            if (a->imm) {
+                tcg_gen_xori_tl(src, src1, a->rs2_or_imm);
+            } else {
+                tcg_gen_xor_tl(src, src1, gen_load_gpr(dc, a->rs2_or_imm));
+            }
+        }
+    }
+    func(dc, src);
+    return advance_pc(dc);
+}
+
+static void do_wry(DisasContext *dc, TCGv src)
+{
+    tcg_gen_ext32u_tl(cpu_y, src);
+}
+
+TRANS(WRY, ALL, do_wr_special, a, true, do_wry)
+
+static void do_wrccr(DisasContext *dc, TCGv src)
+{
+    gen_helper_wrccr(tcg_env, src);
+}
+
+TRANS(WRCCR, 64, do_wr_special, a, true, do_wrccr)
+
+static void do_wrasi(DisasContext *dc, TCGv src)
+{
+    TCGv tmp = tcg_temp_new();
+
+    tcg_gen_ext8u_tl(tmp, src);
+    tcg_gen_st32_tl(tmp, tcg_env, env64_field_offsetof(asi));
+    /* End TB to notice changed ASI. */
+    dc->base.is_jmp = DISAS_EXIT;
+}
+
+TRANS(WRASI, 64, do_wr_special, a, true, do_wrasi)
+
+static void do_wrfprs(DisasContext *dc, TCGv src)
+{
+#ifdef TARGET_SPARC64
+    tcg_gen_trunc_tl_i32(cpu_fprs, src);
+    dc->fprs_dirty = 0;
+    dc->base.is_jmp = DISAS_EXIT;
+#else
+    qemu_build_not_reached();
+#endif
+}
+
+TRANS(WRFPRS, 64, do_wr_special, a, true, do_wrfprs)
+
+static void do_wrgsr(DisasContext *dc, TCGv src)
+{
+    gen_trap_ifnofpu(dc);
+    tcg_gen_mov_tl(cpu_gsr, src);
+}
+
+TRANS(WRGSR, 64, do_wr_special, a, true, do_wrgsr)
+
+static void do_wrsoftint_set(DisasContext *dc, TCGv src)
+{
+    gen_helper_set_softint(tcg_env, src);
+}
+
+TRANS(WRSOFTINT_SET, 64, do_wr_special, a, supervisor(dc), do_wrsoftint_set)
+
+static void do_wrsoftint_clr(DisasContext *dc, TCGv src)
+{
+    gen_helper_clear_softint(tcg_env, src);
+}
+
+TRANS(WRSOFTINT_CLR, 64, do_wr_special, a, supervisor(dc), do_wrsoftint_clr)
+
+static void do_wrsoftint(DisasContext *dc, TCGv src)
+{
+    gen_helper_write_softint(tcg_env, src);
+}
+
+TRANS(WRSOFTINT, 64, do_wr_special, a, supervisor(dc), do_wrsoftint)
+
+static void do_wrtick_cmpr(DisasContext *dc, TCGv src)
+{
+#ifdef TARGET_SPARC64
+    TCGv_ptr r_tickptr = tcg_temp_new_ptr();
+
+    tcg_gen_mov_tl(cpu_tick_cmpr, src);
+    tcg_gen_ld_ptr(r_tickptr, tcg_env, offsetof(CPUSPARCState, tick));
+    translator_io_start(&dc->base);
+    gen_helper_tick_set_limit(r_tickptr, cpu_tick_cmpr);
+    /* End TB to handle timer interrupt */
+    dc->base.is_jmp = DISAS_EXIT;
+#else
+    qemu_build_not_reached();
+#endif
+}
+
+TRANS(WRTICK_CMPR, 64, do_wr_special, a, supervisor(dc), do_wrtick_cmpr)
+
+static void do_wrstick(DisasContext *dc, TCGv src)
+{
+#ifdef TARGET_SPARC64
+    TCGv_ptr r_tickptr = tcg_temp_new_ptr();
+
+    tcg_gen_ld_ptr(r_tickptr, tcg_env, offsetof(CPUSPARCState, stick));
+    translator_io_start(&dc->base);
+    gen_helper_tick_set_count(r_tickptr, src);
+    /* End TB to handle timer interrupt */
+    dc->base.is_jmp = DISAS_EXIT;
+#else
+    qemu_build_not_reached();
+#endif
+}
+
+TRANS(WRSTICK, 64, do_wr_special, a, supervisor(dc), do_wrstick)
+
+static void do_wrstick_cmpr(DisasContext *dc, TCGv src)
+{
+#ifdef TARGET_SPARC64
+    TCGv_ptr r_tickptr = tcg_temp_new_ptr();
+
+    tcg_gen_mov_tl(cpu_stick_cmpr, src);
+    tcg_gen_ld_ptr(r_tickptr, tcg_env, offsetof(CPUSPARCState, stick));
+    translator_io_start(&dc->base);
+    gen_helper_tick_set_limit(r_tickptr, cpu_stick_cmpr);
+    /* End TB to handle timer interrupt */
+    dc->base.is_jmp = DISAS_EXIT;
+#else
+    qemu_build_not_reached();
+#endif
+}
+
+TRANS(WRSTICK_CMPR, 64, do_wr_special, a, supervisor(dc), do_wrstick_cmpr)
+
+static void do_wrpowerdown(DisasContext *dc, TCGv src)
+{
+    save_state(dc);
+    gen_helper_power_down(tcg_env);
+}
+
+TRANS(WRPOWERDOWN, POWERDOWN, do_wr_special, a, supervisor(dc), do_wrpowerdown)
+
+static bool trans_NOP_v7(DisasContext *dc, arg_NOP_v7 *a)
+{
+    /*
+     * TODO: Need a feature bit for sparcv8.
+     * In the meantime, treat all 32-bit cpus like sparcv7.
+     */
+    if (avail_32(dc)) {
         return advance_pc(dc);
     }
     return false;
@@ -4233,162 +4417,7 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                         break;
 #endif
                     case 0x30:
-                        {
-                            cpu_tmp0 = tcg_temp_new();
-                            switch(rd) {
-                            case 0: /* wry */
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                tcg_gen_andi_tl(cpu_y, cpu_tmp0, 0xffffffff);
-                                break;
-#ifndef TARGET_SPARC64
-                            case 0x01 ... 0x0f: /* undefined in the
-                                                   SPARCv8 manual, nop
-                                                   on the microSPARC
-                                                   II */
-                            case 0x10 ... 0x1f: /* implementation-dependent
-                                                   in the SPARCv8
-                                                   manual, nop on the
-                                                   microSPARC II */
-                                if ((rd == 0x13) && (dc->def->features &
-                                                     CPU_FEATURE_POWERDOWN)) {
-                                    /* LEON3 power-down */
-                                    save_state(dc);
-                                    gen_helper_power_down(tcg_env);
-                                }
-                                break;
-#else
-                            case 0x2: /* V9 wrccr */
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                gen_helper_wrccr(tcg_env, cpu_tmp0);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
-                                break;
-                            case 0x3: /* V9 wrasi */
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0xff);
-                                tcg_gen_st32_tl(cpu_tmp0, tcg_env,
-                                                offsetof(CPUSPARCState, asi));
-                                /*
-                                 * End TB to notice changed ASI.
-                                 * TODO: Could notice src1 = %g0 and IS_IMM,
-                                 * update DisasContext and not exit the TB.
-                                 */
-                                save_state(dc);
-                                gen_op_next_insn();
-                                tcg_gen_lookup_and_goto_ptr();
-                                dc->base.is_jmp = DISAS_NORETURN;
-                                break;
-                            case 0x6: /* V9 wrfprs */
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                tcg_gen_trunc_tl_i32(cpu_fprs, cpu_tmp0);
-                                dc->fprs_dirty = 0;
-                                save_state(dc);
-                                gen_op_next_insn();
-                                tcg_gen_exit_tb(NULL, 0);
-                                dc->base.is_jmp = DISAS_NORETURN;
-                                break;
-                            case 0xf: /* V9 sir, nop if user */
-#if !defined(CONFIG_USER_ONLY)
-                                if (supervisor(dc)) {
-                                    ; // XXX
-                                }
-#endif
-                                break;
-                            case 0x13: /* Graphics Status */
-                                if (gen_trap_ifnofpu(dc)) {
-                                    goto jmp_insn;
-                                }
-                                tcg_gen_xor_tl(cpu_gsr, cpu_src1, cpu_src2);
-                                break;
-                            case 0x14: /* Softint set */
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                gen_helper_set_softint(tcg_env, cpu_tmp0);
-                                break;
-                            case 0x15: /* Softint clear */
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                gen_helper_clear_softint(tcg_env, cpu_tmp0);
-                                break;
-                            case 0x16: /* Softint write */
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
-                                gen_helper_write_softint(tcg_env, cpu_tmp0);
-                                break;
-                            case 0x17: /* Tick compare */
-#if !defined(CONFIG_USER_ONLY)
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-#endif
-                                {
-                                    TCGv_ptr r_tickptr;
-
-                                    tcg_gen_xor_tl(cpu_tick_cmpr, cpu_src1,
-                                                   cpu_src2);
-                                    r_tickptr = tcg_temp_new_ptr();
-                                    tcg_gen_ld_ptr(r_tickptr, tcg_env,
-                                                   offsetof(CPUSPARCState, tick));
-                                    translator_io_start(&dc->base);
-                                    gen_helper_tick_set_limit(r_tickptr,
-                                                              cpu_tick_cmpr);
-                                    /* End TB to handle timer interrupt */
-                                    dc->base.is_jmp = DISAS_EXIT;
-                                }
-                                break;
-                            case 0x18: /* System tick */
-#if !defined(CONFIG_USER_ONLY)
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-#endif
-                                {
-                                    TCGv_ptr r_tickptr;
-
-                                    tcg_gen_xor_tl(cpu_tmp0, cpu_src1,
-                                                   cpu_src2);
-                                    r_tickptr = tcg_temp_new_ptr();
-                                    tcg_gen_ld_ptr(r_tickptr, tcg_env,
-                                                   offsetof(CPUSPARCState, stick));
-                                    translator_io_start(&dc->base);
-                                    gen_helper_tick_set_count(r_tickptr,
-                                                              cpu_tmp0);
-                                    /* End TB to handle timer interrupt */
-                                    dc->base.is_jmp = DISAS_EXIT;
-                                }
-                                break;
-                            case 0x19: /* System tick compare */
-#if !defined(CONFIG_USER_ONLY)
-                                if (!supervisor(dc))
-                                    goto illegal_insn;
-#endif
-                                {
-                                    TCGv_ptr r_tickptr;
-
-                                    tcg_gen_xor_tl(cpu_stick_cmpr, cpu_src1,
-                                                   cpu_src2);
-                                    r_tickptr = tcg_temp_new_ptr();
-                                    tcg_gen_ld_ptr(r_tickptr, tcg_env,
-                                                   offsetof(CPUSPARCState, stick));
-                                    translator_io_start(&dc->base);
-                                    gen_helper_tick_set_limit(r_tickptr,
-                                                              cpu_stick_cmpr);
-                                    /* End TB to handle timer interrupt */
-                                    dc->base.is_jmp = DISAS_EXIT;
-                                }
-                                break;
-
-                            case 0x10: /* Performance Control */
-                            case 0x11: /* Performance Instrumentation
-                                          Counter */
-                            case 0x12: /* Dispatch Control */
-#endif
-                            default:
-                                goto illegal_insn;
-                            }
-                        }
-                        break;
+                        goto illegal_insn;  /* WRASR in decodetree */
 #if !defined(CONFIG_USER_ONLY)
                     case 0x31: /* wrpsr, V9 saved, restored */
                         {
