@@ -19,9 +19,9 @@
  */
 
 /* XXX Is there a nicer way to disable glibc's stack check for longjmp? */
-#ifdef _FORTIFY_SOURCE
 #undef _FORTIFY_SOURCE
-#endif
+#define _FORTIFY_SOURCE 0
+
 #include "qemu/osdep.h"
 #include <ucontext.h>
 #include "qemu/coroutine_int.h"

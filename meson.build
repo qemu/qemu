@@ -479,16 +479,6 @@ if 'cpp' in all_languages
   qemu_cxxflags = ['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'] + qemu_cflags
 endif
 
-# clang does not support glibc + FORTIFY_SOURCE (is it still true?)
-if get_option('optimization') != '0' and targetos == 'linux'
-  if cc.get_id() == 'gcc'
-    qemu_cflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
-  endif
-  if 'cpp' in all_languages and cxx.get_id() == 'gcc'
-    qemu_cxxflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
-  endif
-endif
-
 add_project_arguments(qemu_cflags, native: false, language: 'c')
 add_project_arguments(cc.get_supported_arguments(warn_flags), native: false, language: 'c')
 if 'cpp' in all_languages
