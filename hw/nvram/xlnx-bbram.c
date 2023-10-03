@@ -2,6 +2,7 @@
  * QEMU model of the Xilinx BBRAM Battery Backed RAM
  *
  * Copyright (c) 2014-2021 Xilinx Inc.
+ * Copyright (c) 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -416,9 +417,9 @@ static RegisterAccessInfo bbram_ctrl_regs_info[] = {
     }
 };
 
-static void bbram_ctrl_reset(DeviceState *dev)
+static void bbram_ctrl_reset_hold(Object *obj)
 {
-    XlnxBBRam *s = XLNX_BBRAM(dev);
+    XlnxBBRam *s = XLNX_BBRAM(obj);
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
@@ -522,8 +523,9 @@ static Property bbram_ctrl_props[] = {
 static void bbram_ctrl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->reset = bbram_ctrl_reset;
+    rc->phases.hold = bbram_ctrl_reset_hold;
     dc->realize = bbram_ctrl_realize;
     dc->vmsd = &vmstate_bbram_ctrl;
     device_class_set_props(dc, bbram_ctrl_props);
