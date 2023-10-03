@@ -3,7 +3,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "audio.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/error.h"
 
 #include <pulse/pulseaudio.h>
 
@@ -818,7 +818,7 @@ fail:
     return NULL;
 }
 
-static void *qpa_audio_init(Audiodev *dev)
+static void *qpa_audio_init(Audiodev *dev, Error **errp)
 {
     paaudio *g;
     AudiodevPaOptions *popts = &dev->u.pa;
@@ -834,10 +834,12 @@ static void *qpa_audio_init(Audiodev *dev)
 
         runtime = getenv("XDG_RUNTIME_DIR");
         if (!runtime) {
+            error_setg(errp, "XDG_RUNTIME_DIR not set");
             return NULL;
         }
         snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
+            error_setg_errno(errp, errno, "could not stat pidfile %s", pidfile);
             return NULL;
         }
     }
@@ -867,6 +869,7 @@ static void *qpa_audio_init(Audiodev *dev)
     }
     if (!g->conn) {
         g_free(g);
+        error_setg(errp, "could not connect to PulseAudio server");
         return NULL;
     }
 
@@ -928,7 +931,6 @@ static struct audio_driver pa_audio_driver = {
     .init           = qpa_audio_init,
     .fini           = qpa_audio_fini,
     .pcm_ops        = &qpa_pcm_ops,
-    .can_be_default = 1,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof (PAVoiceOut),

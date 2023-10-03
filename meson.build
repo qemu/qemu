@@ -3070,6 +3070,9 @@ if fdt_required.length() > 0 or fdt_opt == 'enabled'
   endif
 
   if fdt_opt in ['enabled', 'auto', 'system']
+    if get_option('wrap_mode') == 'nodownload'
+      fdt_opt = 'system'
+    endif
     fdt = cc.find_library('fdt', required: fdt_opt == 'system')
     if fdt.found() and cc.links('''
        #include <libfdt.h>
@@ -3177,7 +3180,6 @@ foreach d : hx_headers
                 input: files(d[0]),
                 output: d[1],
                 capture: true,
-                build_by_default: true, # to be removed when added to a target
                 command: [hxtool, '-h', '@INPUT0@'])
 endforeach
 genh += hxdep
@@ -3363,12 +3365,15 @@ endif
 qom_ss = qom_ss.apply(config_targetos, strict: false)
 libqom = static_library('qom', qom_ss.sources() + genh,
                         dependencies: [qom_ss.dependencies()],
-                        name_suffix: 'fa')
+                        name_suffix: 'fa',
+                        build_by_default: false)
 qom = declare_dependency(link_whole: libqom)
 
 event_loop_base = files('event-loop-base.c')
-event_loop_base = static_library('event-loop-base', sources: event_loop_base + genh,
-                                 build_by_default: true)
+event_loop_base = static_library('event-loop-base',
+                                 sources: event_loop_base + genh,
+                                 name_suffix: 'fa',
+                                 build_by_default: false)
 event_loop_base = declare_dependency(link_whole: event_loop_base,
                                      dependencies: [qom])
 
@@ -3377,6 +3382,7 @@ stub_ss = stub_ss.apply(config_all, strict: false)
 util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
+                             build_by_default: false,
                              sources: util_ss.sources() + stub_ss.sources() + genh,
                              dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc, pixman])
 qemuutil = declare_dependency(link_with: libqemuutil,

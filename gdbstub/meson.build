@@ -21,12 +21,12 @@ libgdb_user = static_library('gdb_user',
                              gdb_user_ss.sources() + genh,
                              name_suffix: 'fa',
                              c_args: '-DCONFIG_USER_ONLY',
-                             build_by_default: have_user)
+                             build_by_default: false)
 
 libgdb_softmmu = static_library('gdb_softmmu',
                                 gdb_system_ss.sources() + genh,
                                 name_suffix: 'fa',
-                                build_by_default: have_system)
+                                build_by_default: false)
 
 gdb_user = declare_dependency(link_whole: libgdb_user)
 user_ss.add(gdb_user)

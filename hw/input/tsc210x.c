@@ -27,6 +27,7 @@
 #include "sysemu/reset.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"            /* For I2SCodec */
+#include "hw/boards.h"              /* for current_machine */
 #include "hw/input/tsc2xxx.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
@@ -1097,7 +1098,11 @@ static void tsc210x_init(TSC210xState *s,
 
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1, name);
 
-    AUD_register_card(s->name, &s->card);
+    if (current_machine->audiodev) {
+        s->card.name = g_strdup(current_machine->audiodev);
+        s->card.state = audio_state_by_name(s->card.name, &error_fatal);
+    }
+    AUD_register_card(s->name, &s->card, &error_fatal);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     vmstate_register(NULL, 0, vmsd, s);

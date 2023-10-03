@@ -27,6 +27,7 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \
@@ -307,6 +308,7 @@ static void z2_init(MachineState *machine)
     void *z2_lcd;
     I2CBus *bus;
     DeviceState *wm;
+    I2CSlave *i2c_dev;
 
     /* Setup CPU & memory */
     mpu = pxa270_init(z2_binfo.ram_size, machine->cpu_type);
@@ -328,8 +330,17 @@ static void z2_init(MachineState *machine)
     type_register_static(&aer915_info);
     z2_lcd = ssi_create_peripheral(mpu->ssp[1], TYPE_ZIPIT_LCD);
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
+
     i2c_slave_create_simple(bus, TYPE_AER915, 0x55);
-    wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0x1b));
+
+    i2c_dev = i2c_slave_new(TYPE_WM8750, 0x1b);
+    wm = DEVICE(i2c_dev);
+
+    if (machine->audiodev) {
+        qdev_prop_set_string(wm, "audiodev", machine->audiodev);
+    }
+    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;
     mpu->i2s->codec_in = wm8750_adc_dat;
@@ -348,6 +359,8 @@ static void z2_machine_init(MachineClass *mc)
     mc->init = z2_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
+
+    machine_add_audiodev_property(mc);
 }
 
 DEFINE_MACHINE("z2", z2_machine_init)

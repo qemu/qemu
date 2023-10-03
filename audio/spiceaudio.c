@@ -22,6 +22,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qapi/error.h"
 #include "ui/qemu-spice.h"
 
 #define AUDIO_CAP "spice"
@@ -71,11 +72,13 @@ static const SpiceRecordInterface record_sif = {
     .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
 };
 
-static void *spice_audio_init(Audiodev *dev)
+static void *spice_audio_init(Audiodev *dev, Error **errp)
 {
     if (!using_spice) {
+        error_setg(errp, "Cannot use spice audio without -spice");
         return NULL;
     }
+
     return &spice_audio_init;
 }
 
