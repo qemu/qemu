@@ -163,7 +163,7 @@ static void tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 
 #ifndef CONFIG_USER_ONLY
-    acc->cpu_realizefn = tcg_cpu_realizefn;
+    acc->cpu_target_realize = tcg_cpu_realizefn;
 #endif /* CONFIG_USER_ONLY */
 
     acc->cpu_class_init = tcg_cpu_class_init;

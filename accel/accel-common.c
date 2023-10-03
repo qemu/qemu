@@ -123,8 +123,8 @@ bool accel_cpu_realize(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->accel_cpu && cc->accel_cpu->cpu_realizefn) {
-        return cc->accel_cpu->cpu_realizefn(cpu, errp);
+    if (cc->accel_cpu && cc->accel_cpu->cpu_target_realize) {
+        return cc->accel_cpu->cpu_target_realize(cpu, errp);
     }
     return true;
 }
