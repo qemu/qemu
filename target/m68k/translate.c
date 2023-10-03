@@ -26,12 +26,11 @@
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
 #include "exec/translator.h"
-
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-
 #include "exec/log.h"
 #include "fpu/softfloat.h"
+#include "semihosting/semihost.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -1400,6 +1399,40 @@ static void gen_jmp_tb(DisasContext *s, int n, target_ulong dest,
     }
     s->base.is_jmp = DISAS_NORETURN;
 }
+
+#ifndef CONFIG_USER_ONLY
+static bool semihosting_test(DisasContext *s)
+{
+    uint32_t test;
+
+    if (!semihosting_enabled(IS_USER(s))) {
+        return false;
+    }
+
+    /*
+     * "The semihosting instruction is immediately preceded by a
+     * nop aligned to a 4-byte boundary..."
+     * The preceding 2-byte (aligned) nop plus the 2-byte halt/bkpt
+     * means that we have advanced 4 bytes from the required nop.
+     */
+    if (s->pc % 4 != 0) {
+        return false;
+    }
+    test = translator_lduw(s->env, &s->base, s->pc - 4);
+    if (test != 0x4e71) {
+        return false;
+    }
+    /* "... and followed by an invalid sentinel instruction movec %sp,0." */
+    test = translator_ldl(s->env, &s->base, s->pc);
+    if (test != 0x4e7bf000) {
+        return false;
+    }
+
+    /* Consume the sentinel. */
+    s->pc += 4;
+    return true;
+}
+#endif /* !CONFIG_USER_ONLY */
 
 DISAS_INSN(scc)
 {
@@ -4465,8 +4498,12 @@ DISAS_INSN(halt)
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
-
-    gen_exception(s, s->pc, EXCP_HALT_INSN);
+    if (semihosting_test(s)) {
+        gen_exception(s, s->pc, EXCP_SEMIHOSTING);
+        return;
+    }
+    tcg_gen_movi_i32(cpu_halted, 1);
+    gen_exception(s, s->pc, EXCP_HLT);
 }
 
 DISAS_INSN(stop)
