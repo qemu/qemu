@@ -2646,6 +2646,11 @@ DISAS_INSN(bkpt)
 #if defined(CONFIG_USER_ONLY)
     gen_exception(s, s->base.pc_next, EXCP_DEBUG);
 #else
+    /* BKPT #0 is the alternate semihosting instruction. */
+    if ((insn & 7) == 0 && semihosting_test(s)) {
+        gen_exception(s, s->pc, EXCP_SEMIHOSTING);
+        return;
+    }
     gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
 #endif
 }
