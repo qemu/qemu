@@ -55,8 +55,8 @@ static void acpi_dsdt_add_virtio(Aml *scope,
 
     bus = sysbus_get_default();
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        DeviceState *dev = kid->child;
-        Object *obj = object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MMIO);
+        Object *obj = object_dynamic_cast(OBJECT(kid->child),
+                                          TYPE_VIRTIO_MMIO);
 
         if (obj) {
             VirtIOMMIOProxy *mmio = VIRTIO_MMIO(obj);
