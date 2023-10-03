@@ -34,7 +34,7 @@
 
 #define RMAX_XLNX_BBRAM ((0x4c / 4) + 1)
 
-#define TYPE_XLNX_BBRAM "xlnx,bbram-ctrl"
+#define TYPE_XLNX_BBRAM "xlnx.bbram-ctrl"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxBBRam, XLNX_BBRAM);
 
 struct XlnxBBRam {
