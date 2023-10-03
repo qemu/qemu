@@ -97,6 +97,12 @@ void accel_cpu_instance_init(CPUState *cpu);
 bool accel_cpu_common_realize(CPUState *cpu, Error **errp);
 
 /**
+ * accel_cpu_common_unrealize:
+ * @cpu: The CPU that needs to call accel-specific cpu unrealization.
+ */
+void accel_cpu_common_unrealize(CPUState *cpu);
+
+/**
  * accel_supported_gdbstub_sstep_flags:
  *
  * Returns the supported single step modes for the configured
