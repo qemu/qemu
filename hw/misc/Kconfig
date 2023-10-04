@@ -189,4 +189,7 @@ config AXP2XX_PMU
 config DJMEMC
     bool
 
+config IOSB
+    bool
+
 source macio/Kconfig

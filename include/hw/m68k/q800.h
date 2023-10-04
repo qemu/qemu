@@ -37,6 +37,7 @@
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
 #include "hw/misc/djmemc.h"
+#include "hw/misc/iosb.h"
 
 /*
  * The main Q800 machine
@@ -58,6 +59,7 @@ struct Q800MachineState {
     MacNubusBridge mac_nubus_bridge;
     MacfbNubusState macfb;
     DJMEMCState djmemc;
+    IOSBState iosb;
     MemoryRegion macio;
     MemoryRegion macio_alias;
     MemoryRegion machine_id;
