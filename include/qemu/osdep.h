@@ -27,6 +27,10 @@
 #ifndef QEMU_OSDEP_H
 #define QEMU_OSDEP_H
 
+#if !defined _FORTIFY_SOURCE && defined __OPTIMIZE__ && __OPTIMIZE__ && defined __linux__
+# define _FORTIFY_SOURCE 2
+#endif
+
 #include "config-host.h"
 #ifdef NEED_CPU_H
 #include CONFIG_TARGET
