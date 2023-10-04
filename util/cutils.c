@@ -1144,7 +1144,6 @@ char *get_relocated_path(const char *dir)
 {
     size_t prefix_len = strlen(CONFIG_PREFIX);
     const char *bindir = CONFIG_BINDIR;
-    const char *exec_dir = qemu_get_exec_dir();
     GString *result;
     int len_dir, len_bindir;
 
