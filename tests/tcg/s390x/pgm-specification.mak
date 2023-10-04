@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # List of specification exception tests.
-# Shared between the softmmu and the user makefiles.
+# Shared between the system and the user makefiles.
 PGM_SPECIFICATION_TESTS = \
 	br-odd \
 	cgrl-unaligned \

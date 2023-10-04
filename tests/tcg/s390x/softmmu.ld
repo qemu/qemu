@@ -1,5 +1,5 @@
 /*
- * Linker script for the softmmu test kernels.
+ * Linker script for the system test kernels.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

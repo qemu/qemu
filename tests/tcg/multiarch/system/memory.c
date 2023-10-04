@@ -1,14 +1,14 @@
 /*
  * Memory Test
  *
- * This is intended to test the softmmu code and ensure we properly
+ * This is intended to test the system-mode code and ensure we properly
  * behave across normal and unaligned accesses across several pages.
  * We are not replicating memory tests for stuck bits and other
  * hardware level failures but looking for issues with different size
  * accesses when access is:
  *
  *   - unaligned at various sizes (if -DCHECK_UNALIGNED set)
- *   - spanning a (softmmu) page
+ *   - spanning a (system) page
  *   - sign extension when loading
  */
 

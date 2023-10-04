@@ -100,7 +100,7 @@ static inline target_ulong adjust_addr(CPURISCVState *env, target_ulong addr)
 /*
  * This function checks watchpoint before real load operation.
  *
- * In softmmu mode, the TLB API probe_access is enough for watchpoint check.
+ * In system mode, the TLB API probe_access is enough for watchpoint check.
  * In user mode, there is no watchpoint support now.
  *
  * It will trigger an exception if there is no mapping in TLB
