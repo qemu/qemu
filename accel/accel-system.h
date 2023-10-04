@@ -7,9 +7,9 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef ACCEL_SOFTMMU_H
-#define ACCEL_SOFTMMU_H
+#ifndef ACCEL_SYSTEM_H
+#define ACCEL_SYSTEM_H
 
 void accel_init_ops_interfaces(AccelClass *ac);
 
-#endif /* ACCEL_SOFTMMU_H */
+#endif /* ACCEL_SYSTEM_H */

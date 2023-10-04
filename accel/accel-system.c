@@ -28,7 +28,7 @@
 #include "hw/boards.h"
 #include "sysemu/cpus.h"
 #include "qemu/error-report.h"
-#include "accel-softmmu.h"
+#include "accel-system.h"
 
 int accel_init_machine(AccelState *accel, MachineState *ms)
 {
@@ -99,8 +99,8 @@ static const TypeInfo accel_ops_type_info = {
     .class_size = sizeof(AccelOpsClass),
 };
 
-static void accel_softmmu_register_types(void)
+static void accel_system_register_types(void)
 {
     type_register_static(&accel_ops_type_info);
 }
-type_init(accel_softmmu_register_types);
+type_init(accel_system_register_types);
