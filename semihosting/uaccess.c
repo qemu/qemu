@@ -9,9 +9,9 @@
 
 #include "qemu/osdep.h"
 #include "exec/exec-all.h"
-#include "semihosting/softmmu-uaccess.h"
+#include "semihosting/uaccess.h"
 
-void *softmmu_lock_user(CPUArchState *env, target_ulong addr,
+void *uaccess_lock_user(CPUArchState *env, target_ulong addr,
                         target_ulong len, bool copy)
 {
     void *p = malloc(len);
@@ -24,7 +24,7 @@ void *softmmu_lock_user(CPUArchState *env, target_ulong addr,
     return p;
 }
 
-ssize_t softmmu_strlen_user(CPUArchState *env, target_ulong addr)
+ssize_t uaccess_strlen_user(CPUArchState *env, target_ulong addr)
 {
     int mmu_idx = cpu_mmu_index(env, false);
     size_t len = 0;
@@ -72,16 +72,16 @@ ssize_t softmmu_strlen_user(CPUArchState *env, target_ulong addr)
     }
 }
 
-char *softmmu_lock_user_string(CPUArchState *env, target_ulong addr)
+char *uaccess_lock_user_string(CPUArchState *env, target_ulong addr)
 {
-    ssize_t len = softmmu_strlen_user(env, addr);
+    ssize_t len = uaccess_strlen_user(env, addr);
     if (len < 0) {
         return NULL;
     }
-    return softmmu_lock_user(env, addr, len + 1, true);
+    return uaccess_lock_user(env, addr, len + 1, true);
 }
 
-void softmmu_unlock_user(CPUArchState *env, void *p,
+void uaccess_unlock_user(CPUArchState *env, void *p,
                          target_ulong addr, target_ulong len)
 {
     if (len) {

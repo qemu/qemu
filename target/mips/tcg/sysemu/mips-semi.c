@@ -22,7 +22,7 @@
 #include "qemu/log.h"
 #include "gdbstub/syscalls.h"
 #include "gdbstub/helpers.h"
-#include "semihosting/softmmu-uaccess.h"
+#include "semihosting/uaccess.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
 #include "semihosting/syscalls.h"

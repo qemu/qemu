@@ -202,13 +202,13 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
  * The semihosting API has no concept of its errno being thread-safe,
  * as the API design predates SMP CPUs and was intended as a simple
  * real-hardware set of debug functionality. For QEMU, we make the
- * errno be per-thread in linux-user mode; in softmmu it is a simple
+ * errno be per-thread in linux-user mode; in system-mode it is a simple
  * global, and we assume that the guest takes care of avoiding any races.
  */
 #ifndef CONFIG_USER_ONLY
 static target_ulong syscall_err;
 
-#include "semihosting/softmmu-uaccess.h"
+#include "semihosting/uaccess.h"
 #endif
 
 static inline uint32_t get_swi_errno(CPUState *cs)
