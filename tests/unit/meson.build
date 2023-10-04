@@ -59,7 +59,7 @@ if have_system or have_tools
   }
 
   if seccomp.found()
-    tests += {'test-seccomp': ['../../softmmu/qemu-seccomp.c', seccomp]}
+    tests += {'test-seccomp': ['../../system/qemu-seccomp.c', seccomp]}
   endif
 endif
 

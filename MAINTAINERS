@@ -137,8 +137,8 @@ Overall TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: softmmu/cpus.c
-F: softmmu/watchpoint.c
+F: system/cpus.c
+F: system/watchpoint.c
 F: cpu-common.c
 F: cpu-target.c
 F: page-vary-target.c
@@ -2108,7 +2108,7 @@ S: Maintained
 F: docs/interop/virtio-balloon-stats.rst
 F: hw/virtio/virtio-balloon*.c
 F: include/hw/virtio/virtio-balloon.h
-F: softmmu/balloon.c
+F: system/balloon.c
 F: include/sysemu/balloon.h
 
 virtio-9p
@@ -2795,7 +2795,7 @@ Device Tree
 M: Alistair Francis <alistair.francis@wdc.com>
 R: David Gibson <david@gibson.dropbear.id.au>
 S: Maintained
-F: softmmu/device_tree.c
+F: system/device_tree.c
 F: include/sysemu/device_tree.h
 
 Dump
@@ -2851,11 +2851,11 @@ F: include/exec/memory.h
 F: include/exec/ram_addr.h
 F: include/exec/ramblock.h
 F: include/sysemu/memory_mapping.h
-F: softmmu/dma-helpers.c
-F: softmmu/ioport.c
-F: softmmu/memory.c
-F: softmmu/memory_mapping.c
-F: softmmu/physmem.c
+F: system/dma-helpers.c
+F: system/ioport.c
+F: system/memory.c
+F: system/memory_mapping.c
+F: system/physmem.c
 F: include/exec/memory-internal.h
 F: scripts/coccinelle/memory-region-housekeeping.cocci
 
@@ -2908,12 +2908,12 @@ F: include/sysemu/runstate.h
 F: include/sysemu/runstate-action.h
 F: util/main-loop.c
 F: util/qemu-timer.c
-F: softmmu/vl.c
-F: softmmu/main.c
-F: softmmu/cpus.c
-F: softmmu/cpu-throttle.c
-F: softmmu/cpu-timers.c
-F: softmmu/runstate*
+F: system/vl.c
+F: system/main.c
+F: system/cpus.c
+F: system/cpu-throttle.c
+F: system/cpu-timers.c
+F: system/runstate*
 F: qapi/run-state.json
 
 Read, Copy, Update (RCU)
@@ -3087,7 +3087,7 @@ F: qapi/qom.json
 F: qapi/qdev.json
 F: scripts/coccinelle/qom-parent-type.cocci
 F: scripts/qom-cast-macro-clean-cocci-gen.py
-F: softmmu/qdev-monitor.c
+F: system/qdev-monitor.c
 F: stubs/qdev.c
 F: qom/
 F: tests/unit/check-qom-interface.c
@@ -3121,7 +3121,7 @@ M: Thomas Huth <thuth@redhat.com>
 M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: softmmu/qtest.c
+F: system/qtest.c
 F: accel/qtest/
 F: tests/qtest/
 F: docs/devel/qgraph.rst
@@ -3197,7 +3197,7 @@ F: scripts/simpletrace.py
 TPM
 M: Stefan Berger <stefanb@linux.ibm.com>
 S: Maintained
-F: softmmu/tpm*
+F: system/tpm*
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
@@ -3242,7 +3242,7 @@ F: migration/rdma*
 Migration dirty limit and dirty page rate
 M: Hyman Huang <yong.huang@smartx.com>
 S: Maintained
-F: softmmu/dirtylimit.c
+F: system/dirtylimit.c
 F: include/sysemu/dirtylimit.h
 F: migration/dirtyrate.c
 F: migration/dirtyrate.h
@@ -3266,7 +3266,7 @@ F: scripts/xml-preprocess*
 Seccomp
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
-F: softmmu/qemu-seccomp.c
+F: system/qemu-seccomp.c
 F: include/sysemu/seccomp.h
 F: tests/unit/test-seccomp.c
 
@@ -3685,7 +3685,7 @@ T: git https://github.com/stefanha/qemu.git block
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
 S: Maintained
-F: softmmu/bootdevice.c
+F: system/bootdevice.c
 
 Quorum
 M: Alberto Garcia <berto@igalia.com>
