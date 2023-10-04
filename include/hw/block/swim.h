@@ -50,13 +50,15 @@ struct SWIMCtrl {
     int mode;
     /* IWM mode */
     int iwm_switch;
-    uint8_t iwmregs[16];
-    uint8_t iwm_data;
-    uint8_t iwm_mode;
+    uint8_t iwm_latches;
+    uint8_t iwmregs[8];
     /* SWIM mode */
     uint8_t ismregs[16];
     uint8_t swim_phase;
     uint8_t swim_mode;
+    uint8_t swim_status;
+    uint8_t pram[16];
+    uint8_t pram_idx;
     SWIMBus bus;
 };
 
