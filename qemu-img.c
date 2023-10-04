@@ -235,25 +235,25 @@ void help(void)
 }
 
 /*
- * Is @optarg safe for accumulate_options()?
+ * Is @list safe for accumulate_options()?
  * It is when multiple of them can be joined together separated by ','.
- * To make that work, @optarg must not start with ',' (or else a
+ * To make that work, @list must not start with ',' (or else a
  * separating ',' preceding it gets escaped), and it must not end with
  * an odd number of ',' (or else a separating ',' following it gets
  * escaped), or be empty (or else a separating ',' preceding it can
  * escape a separating ',' following it).
  * 
  */
-static bool is_valid_option_list(const char *optarg)
+static bool is_valid_option_list(const char *list)
 {
-    size_t len = strlen(optarg);
+    size_t len = strlen(list);
     size_t i;
 
-    if (!optarg[0] || optarg[0] == ',') {
+    if (!list[0] || list[0] == ',') {
         return false;
     }
 
-    for (i = len; i > 0 && optarg[i - 1] == ','; i--) {
+    for (i = len; i > 0 && list[i - 1] == ','; i--) {
     }
     if ((len - i) % 2) {
         return false;
@@ -262,19 +262,19 @@ static bool is_valid_option_list(const char *optarg)
     return true;
 }
 
-static int accumulate_options(char **options, char *optarg)
+static int accumulate_options(char **options, char *list)
 {
     char *new_options;
 
-    if (!is_valid_option_list(optarg)) {
-        error_report("Invalid option list: %s", optarg);
+    if (!is_valid_option_list(list)) {
+        error_report("Invalid option list: %s", list);
         return -1;
     }
 
     if (!*options) {
-        *options = g_strdup(optarg);
+        *options = g_strdup(list);
     } else {
-        new_options = g_strdup_printf("%s,%s", *options, optarg);
+        new_options = g_strdup_printf("%s,%s", *options, list);
         g_free(*options);
         *options = new_options;
     }
