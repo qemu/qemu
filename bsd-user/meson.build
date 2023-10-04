@@ -7,6 +7,8 @@ bsd_user_ss = ss.source_set()
 common_user_inc += include_directories('include')
 
 bsd_user_ss.add(files(
+  'bsd-mem.c',
+  'bsd-proc.c',
   'bsdload.c',
   'elfload.c',
   'main.c',
@@ -15,6 +17,11 @@ bsd_user_ss.add(files(
   'strace.c',
   'uaccess.c',
 ))
+
+elf = cc.find_library('elf', required: true)
+procstat = cc.find_library('procstat', required: true)
+kvm = cc.find_library('kvm', required: true)
+bsd_user_ss.add(elf, procstat, kvm)
 
 # Pull in the OS-specific build glue, if any
 subdir(targetos)
