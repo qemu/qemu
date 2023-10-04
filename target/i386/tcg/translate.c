@@ -178,10 +178,10 @@ typedef struct DisasContext {
 #else
 #define CODE64(S) (((S)->flags & HF_CS64_MASK) != 0)
 #endif
-#if defined(CONFIG_SOFTMMU) && !defined(TARGET_X86_64)
-#define LMA(S)    false
-#else
+#if defined(CONFIG_USER_ONLY) || defined(TARGET_X86_64)
 #define LMA(S)    (((S)->flags & HF_LMA_MASK) != 0)
+#else
+#define LMA(S)    false
 #endif
 
 #ifdef TARGET_X86_64

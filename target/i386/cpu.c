@@ -719,7 +719,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
           CPUID_7_0_EBX_HLE
           CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM */
 
-#if defined CONFIG_SOFTMMU || defined CONFIG_LINUX
+#if !defined CONFIG_USER_ONLY || defined CONFIG_LINUX
 #define TCG_7_0_ECX_RDPID CPUID_7_0_ECX_RDPID
 #else
 #define TCG_7_0_ECX_RDPID 0
