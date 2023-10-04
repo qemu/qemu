@@ -131,10 +131,10 @@ void qemu_semihosting_enable(void)
     semihosting.target = SEMIHOSTING_TARGET_AUTO;
 }
 
-int qemu_semihosting_config_options(const char *optarg)
+int qemu_semihosting_config_options(const char *optstr)
 {
     QemuOptsList *opt_list = qemu_find_opts("semihosting-config");
-    QemuOpts *opts = qemu_opts_parse_noisily(opt_list, optarg, false);
+    QemuOpts *opts = qemu_opts_parse_noisily(opt_list, optstr, false);
 
     semihosting.enabled = true;
 
@@ -155,7 +155,7 @@ int qemu_semihosting_config_options(const char *optarg)
                 semihosting.target = SEMIHOSTING_TARGET_AUTO;
             } else {
                 error_report("unsupported semihosting-config %s",
-                             optarg);
+                             optstr);
                 return 1;
             }
         } else {
@@ -165,7 +165,7 @@ int qemu_semihosting_config_options(const char *optarg)
         qemu_opt_foreach(opts, add_semihosting_arg,
                          &semihosting, NULL);
     } else {
-        error_report("unsupported semihosting-config %s", optarg);
+        error_report("unsupported semihosting-config %s", optstr);
         return 1;
     }
 

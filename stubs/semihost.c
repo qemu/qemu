@@ -36,7 +36,7 @@ void qemu_semihosting_enable(void)
 {
 }
 
-int qemu_semihosting_config_options(const char *optarg)
+int qemu_semihosting_config_options(const char *optstr)
 {
     return 1;
 }
