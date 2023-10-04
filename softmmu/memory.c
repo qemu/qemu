@@ -3638,7 +3638,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 }
 
 /*
- * Support softmmu builds with CONFIG_FUZZ using a weak symbol and a stub for
+ * Support system builds with CONFIG_FUZZ using a weak symbol and a stub for
  * the fuzz_dma_read_cb callback
  */
 #ifdef CONFIG_FUZZ
