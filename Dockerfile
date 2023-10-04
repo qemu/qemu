@@ -21,7 +21,7 @@ SHELL ["/bin/bash", "-c"]
 RUN mkdir -p build
 WORKDIR /src/build
 RUN ../configure --target-list=sparc-softmmu --enable-debug
-# RUN make
+RUN make -j > build.log
 
 # copy over whatever.exe to this container and then execute
 #   qemu-system-sparc -no-reboot -nographic -M leon3_generic -m 64M -kernel whatever.exe

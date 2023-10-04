@@ -28,6 +28,7 @@
 #include "hw/sparc/qemu_ssr_fpga_cpu_interface.h"
 #include "ssr_fpga.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 
 /*******************************************************************************
@@ -62,11 +63,15 @@ static uint64_t srr_fpga_read(void *opaque, hwaddr addr,
     uint64_t read_data = 0;
     uint32_t reg = 0;
 
+    bool flag = false;
+
     // qemu_cpu_ssr_read(addr,&reg);
-    printf("read addr is %lu\n", addr);
-    printf("read reg is %u\n", reg)
-    read_data = (uint64_t) reg;
-    return read_data;
+    if (flag == true) {
+        printf("read addr is %lu\n", addr);
+        printf("read reg is %u\n", reg)
+        read_data = (uint64_t) reg;
+        return read_data;
+    }
 }
 
 /*******************************************************************************
@@ -80,11 +85,14 @@ static uint64_t srr_fpga_read(void *opaque, hwaddr addr,
 static void srr_fpga_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
+    bool flag = false;
 
- uint32_t reg = (uint32_t) value;
- // qemu_cpu_ssr_write(addr,reg);
- printf("write addr is %lu\n", addr);
- printf("write reg is %u\n", reg);
+    uint32_t reg = (uint32_t) value;
+    // qemu_cpu_ssr_write(addr,reg);
+    if (flag == true) {
+        printf("write addr is %lu\n", addr);
+        printf("write reg is %u\n", reg);
+    }
 }
 
 /*******************************************************************************
