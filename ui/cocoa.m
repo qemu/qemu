@@ -343,9 +343,9 @@ QemuCocoaView *cocoaView;
 
 static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEventRef cgEvent, void *userInfo)
 {
-    QemuCocoaView *cocoaView = userInfo;
+    QemuCocoaView *view = userInfo;
     NSEvent *event = [NSEvent eventWithCGEvent:cgEvent];
-    if ([cocoaView isMouseGrabbed] && [cocoaView handleEvent:event]) {
+    if ([view isMouseGrabbed] && [view handleEvent:event]) {
         COCOA_DEBUG("Global events tap: qemu handled the event, capturing!\n");
         return NULL;
     }
