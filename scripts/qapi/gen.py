@@ -13,8 +13,8 @@
 
 from contextlib import contextmanager
 import os
-import sys
 import re
+import sys
 from typing import (
     Dict,
     Iterator,
