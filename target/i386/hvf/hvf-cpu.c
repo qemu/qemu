@@ -15,6 +15,7 @@
 #include "hw/boards.h"
 #include "sysemu/hvf.h"
 #include "hw/core/accel-cpu.h"
+#include "hvf-i386.h"
 
 static void hvf_cpu_max_instance_init(X86CPU *cpu)
 {
