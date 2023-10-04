@@ -66,6 +66,7 @@ vmstate_save_state_loop(const char *name, const char *field, int n_elems) "%s/%s
 vmstate_save_state_top(const char *idstr) "%s"
 vmstate_subsection_save_loop(const char *name, const char *sub) "%s/%s"
 vmstate_subsection_save_top(const char *idstr) "%s"
+vmstate_field_exists(const char *vmsd, const char *name, int field_version, int version, int result) "%s:%s field_version %d version %d result %d"
 
 # vmstate-types.c
 get_qtailq(const char *name, int version_id) "%s v%d"
@@ -310,6 +311,10 @@ migration_exec_incoming(const char *cmd) "cmd=%s"
 # fd.c
 migration_fd_outgoing(int fd) "fd=%d"
 migration_fd_incoming(int fd) "fd=%d"
+
+# file.c
+migration_file_outgoing(const char *filename) "filename=%s"
+migration_file_incoming(const char *filename) "filename=%s"
 
 # socket.c
 migration_socket_incoming_accepted(void) ""

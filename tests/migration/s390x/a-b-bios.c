@@ -27,6 +27,14 @@ void main(void)
     sclp_setup();
     sclp_print("A");
 
+    /*
+     * Make sure all of the pages have consistent contents before incrementing
+     * the first byte below.
+     */
+    for (addr = START_ADDRESS; addr < END_ADDRESS; addr += 4096) {
+        *(volatile char *)addr = 0;
+    }
+
     while (1) {
         for (addr = START_ADDRESS; addr < END_ADDRESS; addr += 4096) {
             *(volatile char *)addr += 1;  /* Change pages */
