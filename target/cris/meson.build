@@ -14,4 +14,4 @@ cris_system_ss.add(files(
 ))
 
 target_arch += {'cris': cris_ss}
-target_softmmu_arch += {'cris': cris_system_ss}
+target_system_arch += {'cris': cris_system_ss}

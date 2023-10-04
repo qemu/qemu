@@ -19,5 +19,5 @@ endif
 mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 target_arch += {'mips': mips_ss}
-target_softmmu_arch += {'mips': mips_system_ss}
+target_system_arch += {'mips': mips_system_ss}
 target_user_arch += {'mips': mips_user_ss}

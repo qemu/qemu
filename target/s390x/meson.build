@@ -40,5 +40,5 @@ subdir('tcg')
 subdir('kvm')
 
 target_arch += {'s390x': s390x_ss}
-target_softmmu_arch += {'s390x': s390x_system_ss}
+target_system_arch += {'s390x': s390x_system_ss}
 target_user_arch += {'s390x': s390x_user_ss}

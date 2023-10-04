@@ -12,4 +12,4 @@ tricore_ss.add(zlib)
 tricore_system_ss = ss.source_set()
 
 target_arch += {'tricore': tricore_ss}
-target_softmmu_arch += {'tricore': tricore_system_ss}
+target_system_arch += {'tricore': tricore_system_ss}

@@ -24,4 +24,4 @@ xtensa_system_ss.add(files(
 ))
 
 target_arch += {'xtensa': xtensa_ss}
-target_softmmu_arch += {'xtensa': xtensa_system_ss}
+target_system_arch += {'xtensa': xtensa_system_ss}

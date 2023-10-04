@@ -3198,7 +3198,7 @@ modules = {}
 target_modules = {}
 hw_arch = {}
 target_arch = {}
-target_softmmu_arch = {}
+target_system_arch = {}
 target_user_arch = {}
 
 ###############
@@ -3718,7 +3718,7 @@ foreach target : target_dirs
   endif
   if target.endswith('-softmmu')
     target_type='system'
-    t = target_softmmu_arch[target_base_arch].apply(config_target, strict: false)
+    t = target_system_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
     arch_deps += t.dependencies()
 

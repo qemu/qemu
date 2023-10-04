@@ -17,4 +17,4 @@ avr_ss.add(files(
 avr_system_ss.add(files('machine.c'))
 
 target_arch += {'avr': avr_ss}
-target_softmmu_arch += {'avr': avr_system_ss}
+target_system_arch += {'avr': avr_system_ss}

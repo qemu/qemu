@@ -22,4 +22,4 @@ openrisc_system_ss.add(files(
 ))
 
 target_arch += {'openrisc': openrisc_ss}
-target_softmmu_arch += {'openrisc': openrisc_system_ss}
+target_system_arch += {'openrisc': openrisc_system_ss}
