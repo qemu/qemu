@@ -40,6 +40,7 @@
 #include "hw/m68k/q800.h"
 #include "hw/m68k/q800-glue.h"
 #include "hw/misc/mac_via.h"
+#include "hw/misc/djmemc.h"
 #include "hw/input/adb.h"
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
@@ -66,6 +67,7 @@
 #define SONIC_PROM_BASE       (IO_BASE + 0x08000)
 #define SONIC_BASE            (IO_BASE + 0x0a000)
 #define SCC_BASE              (IO_BASE + 0x0c020)
+#define DJMEMC_BASE           (IO_BASE + 0x0e000)
 #define ESP_BASE              (IO_BASE + 0x10000)
 #define ESP_PDMA              (IO_BASE + 0x10100)
 #define ASC_BASE              (IO_BASE + 0x14000)
@@ -256,6 +258,14 @@ static void q800_machine_init(MachineState *machine)
     object_property_set_link(OBJECT(&m->glue), "cpu", OBJECT(&m->cpu),
                              &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&m->glue), &error_fatal);
+
+    /* djMEMC memory controller */
+    object_initialize_child(OBJECT(machine), "djmemc", &m->djmemc,
+                            TYPE_DJMEMC);
+    sysbus = SYS_BUS_DEVICE(&m->djmemc);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, DJMEMC_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
 
     /* VIA 1 */
     object_initialize_child(OBJECT(machine), "via1", &m->via1,

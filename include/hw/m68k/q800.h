@@ -36,6 +36,7 @@
 #include "hw/block/swim.h"
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
+#include "hw/misc/djmemc.h"
 
 /*
  * The main Q800 machine
@@ -56,6 +57,7 @@ struct Q800MachineState {
     Swim swim;
     MacNubusBridge mac_nubus_bridge;
     MacfbNubusState macfb;
+    DJMEMCState djmemc;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };

@@ -186,4 +186,7 @@ config AXP2XX_PMU
     bool
     depends on I2C
 
+config DJMEMC
+    bool
+
 source macio/Kconfig
