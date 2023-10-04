@@ -202,7 +202,7 @@ static Property cpu_common_props[] = {
                      prctl_unalign_sigbus, false),
 #else
     /*
-     * Create a memory property for softmmu CPU object, so users can
+     * Create a memory property for system CPU object, so users can
      * wire up its memory.  The default if no link is set up is to use
      * the system address space.
      */
