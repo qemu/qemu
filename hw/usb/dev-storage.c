@@ -403,7 +403,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     struct usb_msd_cbw cbw;
     uint8_t devep = p->ep->nr;
     SCSIDevice *scsi_dev;
-    uint32_t len;
+    int len;
 
     if (s->needs_reset) {
         p->status = USB_RET_STALL;
@@ -465,7 +465,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 usb_msd_copy_data(s, p);
             }
             if (le32_to_cpu(s->csw.residue)) {
-                int len = p->iov.size - p->actual_length;
+                len = p->iov.size - p->actual_length;
                 if (len) {
                     usb_packet_skip(p, len);
                     if (len > s->data_len) {
@@ -526,7 +526,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 usb_msd_copy_data(s, p);
             }
             if (le32_to_cpu(s->csw.residue)) {
-                int len = p->iov.size - p->actual_length;
+                len = p->iov.size - p->actual_length;
                 if (len) {
                     usb_packet_skip(p, len);
                     if (len > s->data_len) {

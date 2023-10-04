@@ -217,10 +217,10 @@ enum {
     (((data) >> field##_SHIFT) & field##_MASK)
 
 #define set_field(data, newval, field) do {                     \
-        uint32_t val = *data;                                   \
-        val &= ~(field##_MASK << field##_SHIFT);                \
-        val |= ((newval) & field##_MASK) << field##_SHIFT;      \
-        *data = val;                                            \
+        uint32_t val_ = *data;                                  \
+        val_ &= ~(field##_MASK << field##_SHIFT);               \
+        val_ |= ((newval) & field##_MASK) << field##_SHIFT;     \
+        *data = val_;                                           \
     } while (0)
 
 typedef enum EPType {
@@ -1894,7 +1894,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     }
 
     if (epctx->retry) {
-        XHCITransfer *xfer = epctx->retry;
+        xfer = epctx->retry;
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
