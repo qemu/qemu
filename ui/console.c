@@ -1434,25 +1434,23 @@ bool qemu_console_is_gl_blocked(QemuConsole *con)
     return con->gl_block;
 }
 
-bool qemu_console_is_multihead(DeviceState *dev)
+static bool qemu_graphic_console_is_multihead(QemuGraphicConsole *c)
 {
     QemuConsole *con;
-    Object *obj;
-    uint32_t f = 0xffffffff;
-    uint32_t h;
 
     QTAILQ_FOREACH(con, &consoles, next) {
-        obj = object_property_get_link(OBJECT(con),
-                                       "device", &error_abort);
-        if (DEVICE(obj) != dev) {
+        QemuGraphicConsole *candidate;
+
+        if (!QEMU_IS_GRAPHIC_CONSOLE(con)) {
             continue;
         }
 
-        h = object_property_get_uint(OBJECT(con),
-                                     "head", &error_abort);
-        if (f == 0xffffffff) {
-            f = h;
-        } else if (h != f) {
+        candidate = QEMU_GRAPHIC_CONSOLE(con);
+        if (candidate->device != c->device) {
+            continue;
+        }
+
+        if (candidate->head != c->head) {
             return true;
         }
     }
@@ -1468,7 +1466,7 @@ char *qemu_console_get_label(QemuConsole *con)
             bool multihead;
 
             dev = DEVICE(c->device);
-            multihead = qemu_console_is_multihead(dev);
+            multihead = qemu_graphic_console_is_multihead(c);
             if (multihead) {
                 return g_strdup_printf("%s.%d", dev->id ?
                                        dev->id :
