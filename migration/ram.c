@@ -4141,17 +4141,12 @@ static int ram_dirty_bitmap_sync_all(MigrationState *s, RAMState *rs)
 
     /* Wait until all the ramblocks' dirty bitmap synced */
     while (qatomic_read(&rs->postcopy_bmap_sync_requested)) {
-        qemu_sem_wait(&s->rp_state.rp_sem);
+        migration_rp_wait(s);
     }
 
     trace_ram_dirty_bitmap_sync_complete();
 
     return 0;
-}
-
-static void ram_dirty_bitmap_reload_notify(MigrationState *s)
-{
-    qemu_sem_post(&s->rp_state.rp_sem);
 }
 
 /*
@@ -4237,10 +4232,13 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
     qatomic_dec(&rs->postcopy_bmap_sync_requested);
 
     /*
-     * We succeeded to sync bitmap for current ramblock. If this is
-     * the last one to sync, we need to notify the main send thread.
+     * We succeeded to sync bitmap for current ramblock. Always kick the
+     * migration thread to check whether all requested bitmaps are
+     * reloaded.  NOTE: it's racy to only kick when requested==0, because
+     * we don't know whether the migration thread may still be increasing
+     * it.
      */
-    ram_dirty_bitmap_reload_notify(s);
+    migration_rp_kick(s);
 
     ret = 0;
 out:
