@@ -313,8 +313,8 @@ fail:
                 /* Queue might not be ready for start */
                 continue;
             }
-            int r = vhost_net_set_backend(&net->dev, &file);
-            assert(r >= 0);
+            int ret = vhost_net_set_backend(&net->dev, &file);
+            assert(ret >= 0);
         }
     }
     if (net->nc->info->poll) {
@@ -629,8 +629,8 @@ err_start:
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         file.fd = VHOST_FILE_UNBIND;
         file.index = idx;
-        int r = vhost_net_set_backend(&net->dev, &file);
-        assert(r >= 0);
+        int ret = vhost_net_set_backend(&net->dev, &file);
+        assert(ret >= 0);
     }
 
     vhost_dev_stop(&net->dev, vdev, false);
