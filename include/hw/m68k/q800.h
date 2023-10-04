@@ -60,6 +60,7 @@ struct Q800MachineState {
     MacfbNubusState macfb;
     DJMEMCState djmemc;
     IOSBState iosb;
+    MemoryRegion ramio;
     MemoryRegion macio;
     MemoryRegion macio_alias;
     MemoryRegion machine_id;
