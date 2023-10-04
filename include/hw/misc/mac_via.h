@@ -74,6 +74,9 @@ struct MOS6522Q800VIA1State {
     int64_t next_second;
     QEMUTimer *sixty_hz_timer;
     int64_t next_sixty_hz;
+
+    /* SETUPTIMEK hack */
+    int timer_hack_state;
 };
 
 
