@@ -1677,7 +1677,7 @@ void net_init_clients(void)
  * Modern syntax is to be parsed with netdev_parse_modern().
  * Traditional syntax is to be parsed with net_client_parse().
  */
-bool netdev_is_modern(const char *optarg)
+bool netdev_is_modern(const char *optstr)
 {
     QemuOpts *opts;
     bool is_modern;
@@ -1689,13 +1689,13 @@ bool netdev_is_modern(const char *optarg)
         .desc = { { } },
     };
 
-    if (optarg[0] == '{') {
+    if (optstr[0] == '{') {
         /* This is JSON, which means it's modern syntax */
         return true;
     }
 
     opts = qemu_opts_create(&dummy_opts, NULL, false, &error_abort);
-    qemu_opts_do_parse(opts, optarg, dummy_opts.implied_opt_name,
+    qemu_opts_do_parse(opts, optstr, dummy_opts.implied_opt_name,
                        &error_abort);
     type = qemu_opt_get(opts, "type");
     is_modern = !g_strcmp0(type, "stream") || !g_strcmp0(type, "dgram");
@@ -1711,12 +1711,12 @@ bool netdev_is_modern(const char *optarg)
  * netdev_parse_modern() appends to @nd_queue, whereas net_client_parse()
  * appends to @qemu_netdev_opts.
  */
-void netdev_parse_modern(const char *optarg)
+void netdev_parse_modern(const char *optstr)
 {
     Visitor *v;
     NetdevQueueEntry *nd;
 
-    v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
+    v = qobject_input_visitor_new_str(optstr, "type", &error_fatal);
     nd = g_new(NetdevQueueEntry, 1);
     visit_type_Netdev(v, NULL, &nd->nd, &error_fatal);
     visit_free(v);
@@ -1725,9 +1725,9 @@ void netdev_parse_modern(const char *optarg)
     QSIMPLEQ_INSERT_TAIL(&nd_queue, nd, entry);
 }
 
-void net_client_parse(QemuOptsList *opts_list, const char *optarg)
+void net_client_parse(QemuOptsList *opts_list, const char *optstr)
 {
-    if (!qemu_opts_parse_noisily(opts_list, optarg, true)) {
+    if (!qemu_opts_parse_noisily(opts_list, optstr, true)) {
         exit(1);
     }
 }
