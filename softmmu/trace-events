@@ -21,7 +21,7 @@ flatview_destroy(void *view, void *root) "%p (root %p)"
 flatview_destroy_rcu(void *view, void *root) "%p (root %p)"
 global_dirty_changed(unsigned int bitmask) "bitmask 0x%"PRIx32
 
-# softmmu.c
+# cpus.c
 vm_stop_flush_all(int ret) "ret %d"
 
 # vl.c
