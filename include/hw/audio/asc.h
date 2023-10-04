@@ -68,6 +68,8 @@ struct ASCState {
     int samples;
     int shift;
 
+    uint8_t *silentbuf;
+
     /* Time when we were last able to generate samples */
     int64_t fifo_empty_ns;
 

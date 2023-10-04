@@ -341,6 +341,21 @@ static void asc_out_cb(void *opaque, int free_b)
     }
 
     if (!generated) {
+        /* Workaround for audio underflow bug on Windows dsound backend */
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int silent_samples = muldiv64(now - s->fifo_empty_ns,
+                                      NANOSECONDS_PER_SECOND, ASC_FREQ);
+
+        if (silent_samples > ASC_FIFO_CYCLE_TIME / 2) {
+            /*
+             * No new FIFO data within half a cycle time (~23ms) so fill the
+             * entire available buffer with silence. This prevents an issue
+             * with the Windows dsound backend whereby the sound appears to
+             * loop because the FIFO has run out of data, and the driver
+             * reuses the stale content in its circular audio buffer.
+             */
+            AUD_write(s->voice, s->silentbuf, samples << s->shift);
+        }
         return;
     }
 
@@ -618,6 +633,7 @@ static void asc_unrealize(DeviceState *dev)
     ASCState *s = ASC(dev);
 
     g_free(s->mixbuf);
+    g_free(s->silentbuf);
 
     AUD_remove_card(&s->card);
 }
@@ -641,6 +657,9 @@ static void asc_realize(DeviceState *dev, Error **errp)
     s->shift = 1;
     s->samples = AUD_get_buffer_size_out(s->voice) >> s->shift;
     s->mixbuf = g_malloc0(s->samples << s->shift);
+
+    s->silentbuf = g_malloc0(s->samples << s->shift);
+    memset(s->silentbuf, 0x80, s->samples << s->shift);
 
     /* Add easc registers if required */
     if (s->type == ASC_TYPE_EASC) {
