@@ -1234,6 +1234,13 @@ void migrate_set_error(MigrationState *s, const Error *error)
     }
 }
 
+bool migrate_has_error(MigrationState *s)
+{
+    /* The lock is not helpful here, but still follow the rule */
+    QEMU_LOCK_GUARD(&s->error_mutex);
+    return qatomic_read(&s->error);
+}
+
 static void migrate_error_free(MigrationState *s)
 {
     QEMU_LOCK_GUARD(&s->error_mutex);
