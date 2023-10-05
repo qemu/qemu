@@ -1833,7 +1833,7 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
             card->state = audio_init(NULL, errp);
             if (!card->state) {
                 if (!QSIMPLEQ_EMPTY(&audiodevs)) {
-                    error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?",
+                    error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?\n",
                                       QSIMPLEQ_FIRST(&audiodevs)->dev->id);
                 }
                 return false;
