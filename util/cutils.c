@@ -1178,9 +1178,11 @@ char *get_relocated_path(const char *dir)
 #else
         g_string_append(result, dir);
 #endif
-    } else if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
-        g_string_assign(result, dir);
-    } else {
+        goto out;
+    }
+
+    if (IS_ENABLED(CONFIG_RELOCATABLE) &&
+        starts_with_prefix(dir) && starts_with_prefix(bindir)) {
         g_string_assign(result, exec_dir);
 
         /* Advance over common components.  */
@@ -1203,7 +1205,10 @@ char *get_relocated_path(const char *dir)
             assert(G_IS_DIR_SEPARATOR(dir[-1]));
             g_string_append(result, dir - 1);
         }
+        goto out;
     }
 
+    g_string_assign(result, dir);
+out:
     return g_string_free(result, false);
 }
