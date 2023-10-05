@@ -104,6 +104,7 @@ static audio_driver *audio_driver_lookup(const char *name)
 
 static QTAILQ_HEAD(AudioStateHead, AudioState) audio_states =
     QTAILQ_HEAD_INITIALIZER(audio_states);
+static AudioState *default_audio_state;
 
 const struct mixeng_volume nominal_volume = {
     .mute = 0,
@@ -1660,6 +1661,7 @@ static void free_audio_state(AudioState *s)
 
 void audio_cleanup(void)
 {
+    default_audio_state = NULL;
     while (!QTAILQ_EMPTY(&audio_states)) {
         AudioState *s = QTAILQ_FIRST(&audio_states);
         QTAILQ_REMOVE(&audio_states, s, list);
@@ -1760,6 +1762,7 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
             goto out;
         }
     } else {
+        assert(!default_audio_state);
         for (;;) {
             AudiodevListEntry *e = QSIMPLEQ_FIRST(&default_audiodevs);
             if (!e) {
@@ -1801,24 +1804,9 @@ out:
 bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
-        if (!QTAILQ_EMPTY(&audio_states)) {
-            /*
-             * FIXME: once it is possible to create an arbitrary
-             * default device via -audio DRIVER,OPT=VALUE (no "model"),
-             * replace this special case with the default AudioState*,
-             * storing it in a separate global.  For now, keep the
-             * warning to encourage moving off magic use of the first
-             * -audiodev.
-             */
-            if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
-                dolog("Device %s: audiodev default parameter is deprecated, please "
-                      "specify audiodev=%s\n", name,
-                      QTAILQ_FIRST(&audio_states)->dev->id);
-            }
-            card->state = QTAILQ_FIRST(&audio_states);
-        } else {
-            card->state = audio_init(NULL, errp);
-            if (!card->state) {
+        if (!default_audio_state) {
+            default_audio_state = audio_init(NULL, errp);
+            if (!default_audio_state) {
                 if (!QSIMPLEQ_EMPTY(&audiodevs)) {
                     error_append_hint(errp, "Perhaps you wanted to use -audio or set audiodev=%s?\n",
                                       QSIMPLEQ_FIRST(&audiodevs)->dev->id);
@@ -1826,6 +1814,7 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
                 return false;
             }
         }
+        card->state = default_audio_state;
     }
 
     card->name = g_strdup (name);
