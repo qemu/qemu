@@ -4031,17 +4031,12 @@ static bool trans_NOP(DisasContext *dc, arg_NOP *a)
     return advance_pc(dc);
 }
 
-static bool trans_NOP_v7(DisasContext *dc, arg_NOP_v7 *a)
-{
-    /*
-     * TODO: Need a feature bit for sparcv8.
-     * In the meantime, treat all 32-bit cpus like sparcv7.
-     */
-    if (avail_32(dc)) {
-        return advance_pc(dc);
-    }
-    return false;
-}
+/*
+ * TODO: Need a feature bit for sparcv8.
+ * In the meantime, treat all 32-bit cpus like sparcv7.
+ */
+TRANS(NOP_v7, 32, trans_NOP, a)
+TRANS(NOP_v9, 64, trans_NOP, a)
 
 static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
                          void (*func)(TCGv, TCGv, TCGv),
@@ -5457,10 +5452,10 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                 case 0x0b:      /* V9 ldx */
                 case 0x18:      /* V9 ldswa */
                 case 0x1b:      /* V9 ldxa */
+                case 0x2d:      /* V9 prefetch */
+                case 0x3d:      /* V9 prefetcha */
                     goto illegal_insn;  /* in decodetree */
 #ifdef TARGET_SPARC64
-                case 0x2d: /* V9 prefetch, no effect */
-                    goto skip_move;
                 case 0x30: /* V9 ldfa */
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
@@ -5474,8 +5469,6 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     }
                     gen_ldf_asi(dc, cpu_addr, insn, 8, DFPREG(rd));
                     gen_update_fprs_dirty(dc, DFPREG(rd));
-                    goto skip_move;
-                case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
