@@ -1686,8 +1686,6 @@ static const VMStateDescription vmstate_audio = {
     }
 };
 
-static void audio_validate_opts(Audiodev *dev, Error **errp);
-
 void audio_create_default_audiodevs(void)
 {
     const char *drvname = getenv("QEMU_AUDIO_DRV");
@@ -1706,7 +1704,6 @@ void audio_create_default_audiodevs(void)
         if (audio_driver_lookup(audio_prio_list[i])) {
             QDict *dict = qdict_new();
             Audiodev *dev = NULL;
-            AudiodevListEntry *e;
             Visitor *v;
 
             qdict_put_str(dict, "driver", audio_prio_list[i]);
@@ -1717,10 +1714,7 @@ void audio_create_default_audiodevs(void)
             visit_type_Audiodev(v, NULL, &dev, &error_fatal);
             visit_free(v);
 
-            audio_validate_opts(dev, &error_abort);
-            e = g_new0(AudiodevListEntry, 1);
-            e->dev = dev;
-            QSIMPLEQ_INSERT_TAIL(&default_audiodevs, e, next);
+            audio_define_default(dev, &error_abort);
         }
     }
 }
@@ -2163,6 +2157,17 @@ void audio_define(Audiodev *dev)
     e = g_new0(AudiodevListEntry, 1);
     e->dev = dev;
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
+}
+
+void audio_define_default(Audiodev *dev, Error **errp)
+{
+    AudiodevListEntry *e;
+
+    audio_validate_opts(dev, errp);
+
+    e = g_new0(AudiodevListEntry, 1);
+    e->dev = dev;
+    QSIMPLEQ_INSERT_TAIL(&default_audiodevs, e, next);
 }
 
 void audio_init_audiodevs(void)
