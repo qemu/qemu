@@ -57,7 +57,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 {
     Coroutine *co = NULL;
 
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         CoroutineQSList *alloc_pool = get_ptr_alloc_pool();
 
         co = QSLIST_FIRST(alloc_pool);
@@ -99,7 +99,7 @@ static void coroutine_delete(Coroutine *co)
 {
     co->caller = NULL;
 
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         if (release_pool_size < qatomic_read(&pool_max_size) * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
             qatomic_inc(&release_pool_size);
