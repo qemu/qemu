@@ -893,7 +893,7 @@ static void pci_init_w1cmask(PCIDevice *dev)
 static void pci_init_mask_bridge(PCIDevice *d)
 {
     /* PCI_PRIMARY_BUS, PCI_SECONDARY_BUS, PCI_SUBORDINATE_BUS and
-       PCI_SEC_LETENCY_TIMER */
+       PCI_SEC_LATENCY_TIMER */
     memset(d->wmask + PCI_PRIMARY_BUS, 0xff, 4);
 
     /* base and limit */

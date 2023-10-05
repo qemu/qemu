@@ -114,6 +114,7 @@ static const uint64_t vdpa_svq_device_features =
     BIT_ULL(VIRTIO_NET_F_STATUS) |
     BIT_ULL(VIRTIO_NET_F_CTRL_VQ) |
     BIT_ULL(VIRTIO_NET_F_CTRL_RX) |
+    BIT_ULL(VIRTIO_NET_F_CTRL_VLAN) |
     BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA) |
     BIT_ULL(VIRTIO_NET_F_MQ) |
     BIT_ULL(VIRTIO_F_ANY_LAYOUT) |
@@ -374,6 +375,22 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
     return 0;
 }
 
+static int vhost_vdpa_net_data_load(NetClientState *nc)
+{
+    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+    bool has_cvq = v->dev->vq_index_end % 2;
+
+    if (has_cvq) {
+        return 0;
+    }
+
+    for (int i = 0; i < v->dev->nvqs; ++i) {
+        vhost_vdpa_set_vring_ready(v, i + v->dev->vq_index);
+    }
+    return 0;
+}
+
 static void vhost_vdpa_net_client_stop(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -388,6 +405,8 @@ static void vhost_vdpa_net_client_stop(NetClientState *nc)
     dev = s->vhost_vdpa.dev;
     if (dev->vq_index + dev->nvqs == dev->vq_index_end) {
         g_clear_pointer(&s->vhost_vdpa.iova_tree, vhost_iova_tree_delete);
+    } else {
+        s->vhost_vdpa.iova_tree = NULL;
     }
 }
 
@@ -396,6 +415,7 @@ static NetClientInfo net_vhost_vdpa_info = {
         .size = sizeof(VhostVDPAState),
         .receive = vhost_vdpa_receive,
         .start = vhost_vdpa_net_data_start,
+        .load = vhost_vdpa_net_data_load,
         .stop = vhost_vdpa_net_client_stop,
         .cleanup = vhost_vdpa_cleanup,
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
@@ -508,7 +528,7 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
 
     s0 = vhost_vdpa_net_first_nc_vdpa(s);
     v->shadow_data = s0->vhost_vdpa.shadow_vqs_enabled;
-    v->shadow_vqs_enabled = s->always_svq;
+    v->shadow_vqs_enabled = s0->vhost_vdpa.shadow_vqs_enabled;
     s->vhost_vdpa.address_space_id = VHOST_VDPA_GUEST_PA_ASID;
 
     if (s->vhost_vdpa.shadow_data) {
@@ -627,7 +647,7 @@ static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
      * descriptor. Also, we need to take the answer before SVQ pulls by itself,
      * when BQL is released
      */
-    return vhost_svq_poll(svq);
+    return vhost_svq_poll(svq, 1);
 }
 
 static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
@@ -968,7 +988,51 @@ static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
     return 0;
 }
 
-static int vhost_vdpa_net_load(NetClientState *nc)
+static int vhost_vdpa_net_load_single_vlan(VhostVDPAState *s,
+                                           const VirtIONet *n,
+                                           uint16_t vid)
+{
+    const struct iovec data = {
+        .iov_base = &vid,
+        .iov_len = sizeof(vid),
+    };
+    ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_VLAN,
+                                                  VIRTIO_NET_CTRL_VLAN_ADD,
+                                                  &data, 1);
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+    if (unlikely(*s->status != VIRTIO_NET_OK)) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int vhost_vdpa_net_load_vlan(VhostVDPAState *s,
+                                    const VirtIONet *n)
+{
+    int r;
+
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_VLAN)) {
+        return 0;
+    }
+
+    for (int i = 0; i < MAX_VLAN >> 5; i++) {
+        for (int j = 0; n->vlans[i] && j <= 0x1f; j++) {
+            if (n->vlans[i] & (1U << j)) {
+                r = vhost_vdpa_net_load_single_vlan(s, n, (i << 5) + j);
+                if (unlikely(r != 0)) {
+                    return r;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int vhost_vdpa_net_cvq_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
     struct vhost_vdpa *v = &s->vhost_vdpa;
@@ -977,26 +1041,34 @@ static int vhost_vdpa_net_load(NetClientState *nc)
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
-    if (!v->shadow_vqs_enabled) {
-        return 0;
+    vhost_vdpa_set_vring_ready(v, v->dev->vq_index);
+
+    if (v->shadow_vqs_enabled) {
+        n = VIRTIO_NET(v->dev->vdev);
+        r = vhost_vdpa_net_load_mac(s, n);
+        if (unlikely(r < 0)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_mq(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_offloads(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_rx(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
+        r = vhost_vdpa_net_load_vlan(s, n);
+        if (unlikely(r)) {
+            return r;
+        }
     }
 
-    n = VIRTIO_NET(v->dev->vdev);
-    r = vhost_vdpa_net_load_mac(s, n);
-    if (unlikely(r < 0)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_mq(s, n);
-    if (unlikely(r)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_offloads(s, n);
-    if (unlikely(r)) {
-        return r;
-    }
-    r = vhost_vdpa_net_load_rx(s, n);
-    if (unlikely(r)) {
-        return r;
+    for (int i = 0; i < v->dev->vq_index; ++i) {
+        vhost_vdpa_set_vring_ready(v, i);
     }
 
     return 0;
@@ -1007,7 +1079,7 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
     .size = sizeof(VhostVDPAState),
     .receive = vhost_vdpa_receive,
     .start = vhost_vdpa_net_cvq_start,
-    .load = vhost_vdpa_net_load,
+    .load = vhost_vdpa_net_cvq_load,
     .stop = vhost_vdpa_net_cvq_stop,
     .cleanup = vhost_vdpa_cleanup,
     .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
@@ -1273,8 +1345,7 @@ static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
     uint64_t backend_features;
     int64_t cvq_group;
     uint8_t status = VIRTIO_CONFIG_S_ACKNOWLEDGE |
-                     VIRTIO_CONFIG_S_DRIVER |
-                     VIRTIO_CONFIG_S_FEATURES_OK;
+                     VIRTIO_CONFIG_S_DRIVER;
     int r;
 
     ERRP_GUARD();
@@ -1289,14 +1360,22 @@ static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
         return 0;
     }
 
-    r = ioctl(device_fd, VHOST_SET_FEATURES, &features);
-    if (unlikely(r)) {
-        error_setg_errno(errp, errno, "Cannot set features");
-    }
-
     r = ioctl(device_fd, VHOST_VDPA_SET_STATUS, &status);
     if (unlikely(r)) {
-        error_setg_errno(errp, -r, "Cannot set device features");
+        error_setg_errno(errp, -r, "Cannot set device status");
+        goto out;
+    }
+
+    r = ioctl(device_fd, VHOST_SET_FEATURES, &features);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "Cannot set features");
+        goto out;
+    }
+
+    status |= VIRTIO_CONFIG_S_FEATURES_OK;
+    r = ioctl(device_fd, VHOST_VDPA_SET_STATUS, &status);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "Cannot set device status");
         goto out;
     }
 
@@ -1355,7 +1434,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     VhostVDPAState *s;
     int ret = 0;
     assert(name);
-    int cvq_isolated;
+    int cvq_isolated = 0;
 
     if (is_datapath) {
         nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device,
@@ -1395,18 +1474,6 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
         s->vhost_vdpa.shadow_vq_ops_opaque = s;
         s->cvq_isolated = cvq_isolated;
-
-        /*
-         * TODO: We cannot migrate devices with CVQ and no x-svq enabled as
-         * there is no way to set the device state (MAC, MQ, etc) before
-         * starting the datapath.
-         *
-         * Migration blocker ownership now belongs to s->vhost_vdpa.
-         */
-        if (!svq) {
-            error_setg(&s->vhost_vdpa.migration_blocker,
-                       "net vdpa cannot migrate with CVQ feature");
-        }
     }
     ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa, queue_pair_index, nvqs);
     if (ret) {

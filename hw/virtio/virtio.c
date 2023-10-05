@@ -45,8 +45,6 @@
 #include "standard-headers/linux/virtio_mem.h"
 #include "standard-headers/linux/virtio_vsock.h"
 
-QmpVirtIODeviceList virtio_list;
-
 /*
  * Maximum size of virtio device config space
  */
@@ -999,7 +997,12 @@ void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
 /* Called within rcu_read_lock().  */
 static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
 {
-    uint16_t num_heads = vring_avail_idx(vq) - idx;
+    uint16_t avail_idx, num_heads;
+
+    /* Use shadow index whenever possible. */
+    avail_idx = (vq->shadow_avail_idx != idx) ? vq->shadow_avail_idx
+                                              : vring_avail_idx(vq);
+    num_heads = avail_idx - idx;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
@@ -1007,8 +1010,15 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
                      idx, vq->shadow_avail_idx);
         return -EINVAL;
     }
-    /* On success, callers read a descriptor at vq->last_avail_idx.
-     * Make sure descriptor read does not bypass avail index read. */
+    /*
+     * On success, callers read a descriptor at vq->last_avail_idx.
+     * Make sure descriptor read does not bypass avail index read.
+     *
+     * This is necessary even if we are using a shadow index, since
+     * the shadow index could have been initialized by calling
+     * vring_avail_idx() outside of this function, i.e., by a guest
+     * memory read not accompanied by a barrier.
+     */
     if (num_heads) {
         smp_rmb();
     }
@@ -1039,9 +1049,10 @@ enum {
     VIRTQUEUE_READ_DESC_MORE = 1,   /* more buffers in chain */
 };
 
+/* Reads the 'desc->next' descriptor into '*desc'. */
 static int virtqueue_split_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
                                           MemoryRegionCache *desc_cache,
-                                          unsigned int max, unsigned int *next)
+                                          unsigned int max)
 {
     /* If this descriptor says it doesn't chain, we're done. */
     if (!(desc->flags & VRING_DESC_F_NEXT)) {
@@ -1049,16 +1060,12 @@ static int virtqueue_split_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
     }
 
     /* Check they're not leading us off end of descriptors. */
-    *next = desc->next;
-    /* Make sure compiler knows to grab that: we don't want it changing! */
-    smp_wmb();
-
-    if (*next >= max) {
-        virtio_error(vdev, "Desc next is %u", *next);
+    if (desc->next >= max) {
+        virtio_error(vdev, "Desc next is %u", desc->next);
         return VIRTQUEUE_READ_DESC_ERROR;
     }
 
-    vring_split_desc_read(vdev, desc, desc_cache, *next);
+    vring_split_desc_read(vdev, desc, desc_cache, desc->next);
     return VIRTQUEUE_READ_DESC_MORE;
 }
 
@@ -1071,9 +1078,11 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
     VirtIODevice *vdev = vq->vdev;
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    MemoryRegionCache indirect_desc_cache;
     int64_t len = 0;
     int rc;
+
+    address_space_cache_init_empty(&indirect_desc_cache);
 
     idx = vq->last_avail_idx;
     total_bufs = in_total = out_total = 0;
@@ -1136,7 +1145,7 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
                 goto done;
             }
 
-            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max, &i);
+            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
         if (rc == VIRTQUEUE_READ_DESC_ERROR) {
@@ -1207,11 +1216,13 @@ static void virtqueue_packed_get_avail_bytes(VirtQueue *vq,
     VirtIODevice *vdev = vq->vdev;
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
+    MemoryRegionCache indirect_desc_cache;
     MemoryRegionCache *desc_cache;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
     int64_t len = 0;
     VRingPackedDesc desc;
     bool wrap_counter;
+
+    address_space_cache_init_empty(&indirect_desc_cache);
 
     idx = vq->last_avail_idx;
     wrap_counter = vq->last_avail_wrap_counter;
@@ -1487,7 +1498,7 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, head, max;
     VRingMemoryRegionCaches *caches;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    MemoryRegionCache indirect_desc_cache;
     MemoryRegionCache *desc_cache;
     int64_t len;
     VirtIODevice *vdev = vq->vdev;
@@ -1497,6 +1508,8 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
     VRingDesc desc;
     int rc;
+
+    address_space_cache_init_empty(&indirect_desc_cache);
 
     RCU_READ_LOCK_GUARD();
     if (virtio_queue_empty_rcu(vq)) {
@@ -1587,7 +1600,7 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
             goto err_undo_map;
         }
 
-        rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max, &i);
+        rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
     } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
     if (rc == VIRTQUEUE_READ_DESC_ERROR) {
@@ -1624,7 +1637,7 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, max;
     VRingMemoryRegionCaches *caches;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    MemoryRegionCache indirect_desc_cache;
     MemoryRegionCache *desc_cache;
     int64_t len;
     VirtIODevice *vdev = vq->vdev;
@@ -1635,6 +1648,8 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
     VRingPackedDesc desc;
     uint16_t id;
     int rc;
+
+    address_space_cache_init_empty(&indirect_desc_cache);
 
     RCU_READ_LOCK_GUARD();
     if (virtio_queue_packed_empty_rcu(vq)) {
@@ -3651,7 +3666,6 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     vdev->listener.commit = virtio_memory_listener_commit;
     vdev->listener.name = "virtio";
     memory_listener_register(&vdev->listener, vdev->dma_as);
-    QTAILQ_INSERT_TAIL(&virtio_list, vdev, next);
 }
 
 static void virtio_device_unrealize(DeviceState *dev)
@@ -3666,7 +3680,6 @@ static void virtio_device_unrealize(DeviceState *dev)
         vdc->unrealize(dev);
     }
 
-    QTAILQ_REMOVE(&virtio_list, vdev, next);
     g_free(vdev->bus_name);
     vdev->bus_name = NULL;
 }
@@ -3840,8 +3853,6 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 
     vdc->legacy_features |= VIRTIO_LEGACY_FEATURES;
-
-    QTAILQ_INIT(&virtio_list);
 }
 
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
@@ -3970,12 +3981,14 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
     } else {
         unsigned int head, i, max;
         VRingMemoryRegionCaches *caches;
-        MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+        MemoryRegionCache indirect_desc_cache;
         MemoryRegionCache *desc_cache;
         VRingDesc desc;
         VirtioRingDescList *list = NULL;
         VirtioRingDescList *node;
         int rc; int ndescs;
+
+        address_space_cache_init_empty(&indirect_desc_cache);
 
         RCU_READ_LOCK_GUARD();
 
@@ -4041,8 +4054,7 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
             list = node;
 
             ndescs++;
-            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache,
-                                                max, &i);
+            rc = virtqueue_split_read_next_desc(vdev, &desc, desc_cache, max);
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
         element->descs = list;
 done:

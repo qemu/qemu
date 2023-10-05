@@ -2671,9 +2671,6 @@ struct MemoryRegionCache {
     bool is_write;
 };
 
-#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .mrs.mr = NULL })
-
-
 /* address_space_ld*_cached: load from a cached #MemoryRegion
  * address_space_st*_cached: store into a cached #MemoryRegion
  *
@@ -2761,6 +2758,19 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
                                  hwaddr addr,
                                  hwaddr len,
                                  bool is_write);
+
+/**
+ * address_space_cache_init_empty: Initialize empty #MemoryRegionCache
+ *
+ * @cache: The #MemoryRegionCache to operate on.
+ *
+ * Initializes #MemoryRegionCache structure without memory region attached.
+ * Cache initialized this way can only be safely destroyed, but not used.
+ */
+static inline void address_space_cache_init_empty(MemoryRegionCache *cache)
+{
+    cache->mrs.mr = NULL;
+}
 
 /**
  * address_space_cache_invalidate: complete a write to a #MemoryRegionCache

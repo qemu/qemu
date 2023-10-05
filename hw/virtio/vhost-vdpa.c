@@ -14,6 +14,7 @@
 #include <linux/vfio.h>
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
+#include "exec/target_page.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio-net.h"
@@ -23,7 +24,6 @@
 #include "migration/blocker.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
-#include "cpu.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -31,18 +31,20 @@
  * Return one past the end of the end of section. Be careful with uint64_t
  * conversions!
  */
-static Int128 vhost_vdpa_section_end(const MemoryRegionSection *section)
+static Int128 vhost_vdpa_section_end(const MemoryRegionSection *section,
+                                     int page_mask)
 {
     Int128 llend = int128_make64(section->offset_within_address_space);
     llend = int128_add(llend, section->size);
-    llend = int128_and(llend, int128_exts64(TARGET_PAGE_MASK));
+    llend = int128_and(llend, int128_exts64(page_mask));
 
     return llend;
 }
 
 static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
                                                 uint64_t iova_min,
-                                                uint64_t iova_max)
+                                                uint64_t iova_max,
+                                                int page_mask)
 {
     Int128 llend;
 
@@ -68,7 +70,7 @@ static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
      */
 
     if (!memory_region_is_iommu(section->mr)) {
-        llend = vhost_vdpa_section_end(section);
+        llend = vhost_vdpa_section_end(section, page_mask);
         if (int128_gt(llend, int128_make64(iova_max))) {
             error_report("RAM section out of device range (max=0x%" PRIx64
                          ", end addr=0x%" PRIx64 ")",
@@ -311,9 +313,11 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
     Int128 llend, llsize;
     void *vaddr;
     int ret;
+    int page_size = qemu_target_page_size();
+    int page_mask = -page_size;
 
     if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
-                                            v->iova_range.last)) {
+                                            v->iova_range.last, page_mask)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
@@ -321,16 +325,16 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         return;
     }
 
-    if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
-                 (section->offset_within_region & ~TARGET_PAGE_MASK))) {
+    if (unlikely((section->offset_within_address_space & ~page_mask) !=
+                 (section->offset_within_region & ~page_mask))) {
         trace_vhost_vdpa_listener_region_add_unaligned(v, section->mr->name,
-                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
-                       section->offset_within_region & ~TARGET_PAGE_MASK);
+                       section->offset_within_address_space & ~page_mask,
+                       section->offset_within_region & ~page_mask);
         return;
     }
 
-    iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    llend = vhost_vdpa_section_end(section);
+    iova = ROUND_UP(section->offset_within_address_space, page_size);
+    llend = vhost_vdpa_section_end(section, page_mask);
     if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
@@ -396,25 +400,27 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     hwaddr iova;
     Int128 llend, llsize;
     int ret;
+    int page_size = qemu_target_page_size();
+    int page_mask = -page_size;
 
     if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
-                                            v->iova_range.last)) {
+                                            v->iova_range.last, page_mask)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
         vhost_vdpa_iommu_region_del(listener, section);
     }
 
-    if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
-                 (section->offset_within_region & ~TARGET_PAGE_MASK))) {
+    if (unlikely((section->offset_within_address_space & ~page_mask) !=
+                 (section->offset_within_region & ~page_mask))) {
         trace_vhost_vdpa_listener_region_del_unaligned(v, section->mr->name,
-                       section->offset_within_address_space & ~TARGET_PAGE_MASK,
-                       section->offset_within_region & ~TARGET_PAGE_MASK);
+                       section->offset_within_address_space & ~page_mask,
+                       section->offset_within_region & ~page_mask);
         return;
     }
 
-    iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    llend = vhost_vdpa_section_end(section);
+    iova = ROUND_UP(section->offset_within_address_space, page_size);
+    llend = vhost_vdpa_section_end(section, page_mask);
 
     trace_vhost_vdpa_listener_region_del(v, iova,
         int128_get64(int128_sub(llend, int128_one())));
@@ -876,18 +882,17 @@ static int vhost_vdpa_get_vq_index(struct vhost_dev *dev, int idx)
     return idx;
 }
 
-static int vhost_vdpa_set_vring_ready(struct vhost_dev *dev)
+int vhost_vdpa_set_vring_ready(struct vhost_vdpa *v, unsigned idx)
 {
-    int i;
-    trace_vhost_vdpa_set_vring_ready(dev);
-    for (i = 0; i < dev->nvqs; ++i) {
-        struct vhost_vring_state state = {
-            .index = dev->vq_index + i,
-            .num = 1,
-        };
-        vhost_vdpa_call(dev, VHOST_VDPA_SET_VRING_ENABLE, &state);
-    }
-    return 0;
+    struct vhost_dev *dev = v->dev;
+    struct vhost_vring_state state = {
+        .index = idx,
+        .num = 1,
+    };
+    int r = vhost_vdpa_call(dev, VHOST_VDPA_SET_VRING_ENABLE, &state);
+
+    trace_vhost_vdpa_set_vring_ready(dev, idx, r);
+    return r;
 }
 
 static int vhost_vdpa_set_config_call(struct vhost_dev *dev,
@@ -1298,7 +1303,6 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         if (unlikely(!ok)) {
             return -1;
         }
-        vhost_vdpa_set_vring_ready(dev);
     } else {
         vhost_vdpa_suspend(dev);
         vhost_vdpa_svqs_stop(dev);
