@@ -149,7 +149,6 @@ static void hppa_cpu_initfn(Object *obj)
     HPPACPU *cpu = HPPA_CPU(obj);
     CPUHPPAState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
     cs->exception_index = -1;
     cpu_hppa_loaded_fr0(env);
     cpu_hppa_put_psw(env, PSW_W);
@@ -212,6 +211,7 @@ static const TypeInfo hppa_cpu_type_info = {
     .name = TYPE_HPPA_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(HPPACPU),
+    .instance_align = __alignof(HPPACPU),
     .instance_init = hppa_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(HPPACPUClass),

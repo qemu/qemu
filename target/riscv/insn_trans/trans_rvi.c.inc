@@ -830,7 +830,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrr(dest, cpu_env, csr);
+    gen_helper_csrr(dest, tcg_env, csr);
     gen_set_gpr(ctx, rd, dest);
     return do_csr_post(ctx);
 }
@@ -840,7 +840,7 @@ static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrw(cpu_env, csr, src);
+    gen_helper_csrw(tcg_env, csr, src);
     return do_csr_post(ctx);
 }
 
@@ -850,7 +850,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrrw(dest, cpu_env, csr, src, mask);
+    gen_helper_csrrw(dest, tcg_env, csr, src, mask);
     gen_set_gpr(ctx, rd, dest);
     return do_csr_post(ctx);
 }
@@ -862,8 +862,8 @@ static bool do_csrr_i128(DisasContext *ctx, int rd, int rc)
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrr_i128(destl, cpu_env, csr);
-    tcg_gen_ld_tl(desth, cpu_env, offsetof(CPURISCVState, retxh));
+    gen_helper_csrr_i128(destl, tcg_env, csr);
+    tcg_gen_ld_tl(desth, tcg_env, offsetof(CPURISCVState, retxh));
     gen_set_gpr128(ctx, rd, destl, desth);
     return do_csr_post(ctx);
 }
@@ -873,7 +873,7 @@ static bool do_csrw_i128(DisasContext *ctx, int rc, TCGv srcl, TCGv srch)
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrw_i128(cpu_env, csr, srcl, srch);
+    gen_helper_csrw_i128(tcg_env, csr, srcl, srch);
     return do_csr_post(ctx);
 }
 
@@ -885,8 +885,8 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
     TCGv_i32 csr = tcg_constant_i32(rc);
 
     translator_io_start(&ctx->base);
-    gen_helper_csrrw_i128(destl, cpu_env, csr, srcl, srch, maskl, maskh);
-    tcg_gen_ld_tl(desth, cpu_env, offsetof(CPURISCVState, retxh));
+    gen_helper_csrrw_i128(destl, tcg_env, csr, srcl, srch, maskl, maskh);
+    tcg_gen_ld_tl(desth, tcg_env, offsetof(CPURISCVState, retxh));
     gen_set_gpr128(ctx, rd, destl, desth);
     return do_csr_post(ctx);
 }

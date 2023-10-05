@@ -14,15 +14,17 @@
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 #include "tcg/tcg-op-common.h"
-#include "internal.h"
+#include "internal-target.h"
 
 static void set_can_do_io(DisasContextBase *db, bool val)
 {
     if (db->saved_can_do_io != val) {
         db->saved_can_do_io = val;
-        tcg_gen_st_i32(tcg_constant_i32(val), cpu_env,
-                       offsetof(ArchCPU, parent_obj.can_do_io) -
-                       offsetof(ArchCPU, env));
+
+        QEMU_BUILD_BUG_ON(sizeof_field(CPUState, neg.can_do_io) != 1);
+        tcg_gen_st8_i32(tcg_constant_i32(val), tcg_env,
+                        offsetof(ArchCPU, parent_obj.neg.can_do_io) -
+                        offsetof(ArchCPU, env));
     }
 }
 
@@ -47,9 +49,9 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
 
     if ((cflags & CF_USE_ICOUNT) || !(cflags & CF_NOIRQ)) {
         count = tcg_temp_new_i32();
-        tcg_gen_ld_i32(count, cpu_env,
-                       offsetof(ArchCPU, neg.icount_decr.u32) -
-                       offsetof(ArchCPU, env));
+        tcg_gen_ld_i32(count, tcg_env,
+                       offsetof(ArchCPU, parent_obj.neg.icount_decr.u32)
+                       - offsetof(ArchCPU, env));
     }
 
     if (cflags & CF_USE_ICOUNT) {
@@ -77,13 +79,13 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
     }
 
     if (cflags & CF_USE_ICOUNT) {
-        tcg_gen_st16_i32(count, cpu_env,
-                         offsetof(ArchCPU, neg.icount_decr.u16.low) -
-                         offsetof(ArchCPU, env));
+        tcg_gen_st16_i32(count, tcg_env,
+                         offsetof(ArchCPU, parent_obj.neg.icount_decr.u16.low)
+                         - offsetof(ArchCPU, env));
     }
 
     /*
-     * cpu->can_do_io is set automatically here at the beginning of
+     * cpu->neg.can_do_io is set automatically here at the beginning of
      * each translation block.  The cost is minimal, plus it would be
      * very easy to forget doing it in the translator.
      */

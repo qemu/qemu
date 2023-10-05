@@ -793,8 +793,6 @@ static void sparc_cpu_initfn(Object *obj)
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(obj);
     CPUSPARCState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     if (scc->cpu_def) {
         env->def = *scc->cpu_def;
     }
@@ -930,6 +928,7 @@ static const TypeInfo sparc_cpu_type_info = {
     .name = TYPE_SPARC_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(SPARCCPU),
+    .instance_align = __alignof(SPARCCPU),
     .instance_init = sparc_cpu_initfn,
     .abstract = true,
     .class_size = sizeof(SPARCCPUClass),

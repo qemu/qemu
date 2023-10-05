@@ -333,7 +333,7 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
     RISCVIMSICState *imsic = RISCV_IMSIC(dev);
     RISCVCPU *rcpu = RISCV_CPU(cpu_by_arch_id(imsic->hartid));
     CPUState *cpu = cpu_by_arch_id(imsic->hartid);
-    CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
+    CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
 
     if (!kvm_irqchip_in_kernel()) {
         imsic->num_eistate = imsic->num_pages * imsic->num_irqs;

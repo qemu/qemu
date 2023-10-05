@@ -35,9 +35,9 @@ static bool trans_MSGCLR(DisasContext *ctx, arg_X_rb *a)
 
 #if !defined(CONFIG_USER_ONLY)
     if (is_book3s_arch2x(ctx)) {
-        gen_helper_book3s_msgclr(cpu_env, cpu_gpr[a->rb]);
+        gen_helper_book3s_msgclr(tcg_env, cpu_gpr[a->rb]);
     } else {
-        gen_helper_msgclr(cpu_env, cpu_gpr[a->rb]);
+        gen_helper_msgclr(tcg_env, cpu_gpr[a->rb]);
     }
 #else
     qemu_build_not_reached();
@@ -75,7 +75,7 @@ static bool trans_MSGCLRP(DisasContext *ctx, arg_X_rb *a)
     REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_book3s_msgclrp(cpu_env, cpu_gpr[a->rb]);
+    gen_helper_book3s_msgclrp(tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif
@@ -88,7 +88,7 @@ static bool trans_MSGSNDP(DisasContext *ctx, arg_X_rb *a)
     REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_book3s_msgsndp(cpu_env, cpu_gpr[a->rb]);
+    gen_helper_book3s_msgsndp(tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif

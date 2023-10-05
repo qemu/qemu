@@ -3189,7 +3189,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                  MMUAccessType access_type,
                                  int mmu_idx, uintptr_t retaddr)
 {
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
     uint32_t insn;
 
     /* Restore state and reload the insn we executed, for filling in DSISR.  */
@@ -3220,7 +3220,7 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                    int mmu_idx, MemTxAttrs attrs,
                                    MemTxResult response, uintptr_t retaddr)
 {
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
 
     switch (env->excp_model) {
 #if defined(TARGET_PPC64)
@@ -3264,7 +3264,7 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 void ppc_cpu_debug_excp_handler(CPUState *cs)
 {
 #if defined(TARGET_PPC64)
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
 
     if (env->insns_flags2 & PPC2_ISA207S) {
         if (cs->watchpoint_hit) {
@@ -3286,7 +3286,7 @@ void ppc_cpu_debug_excp_handler(CPUState *cs)
 bool ppc_cpu_debug_check_breakpoint(CPUState *cs)
 {
 #if defined(TARGET_PPC64)
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
 
     if (env->insns_flags2 & PPC2_ISA207S) {
         target_ulong priv;
@@ -3313,7 +3313,7 @@ bool ppc_cpu_debug_check_breakpoint(CPUState *cs)
 bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 {
 #if defined(TARGET_PPC64)
-    CPUPPCState *env = cs->env_ptr;
+    CPUPPCState *env = cpu_env(cs);
 
     if (env->insns_flags2 & PPC2_ISA207S) {
         if (wp == env->dawr0_watchpoint) {

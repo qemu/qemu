@@ -32,7 +32,7 @@
 static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 {
     TCGv_ptr ret = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(ret, cpu_env, vfp_reg_offset(dp, reg));
+    tcg_gen_addi_ptr(ret, tcg_env, vfp_reg_offset(dp, reg));
     return ret;
 }
 
@@ -42,13 +42,13 @@ static void neon_load_element(TCGv_i32 var, int reg, int ele, MemOp mop)
 
     switch (mop) {
     case MO_UB:
-        tcg_gen_ld8u_i32(var, cpu_env, offset);
+        tcg_gen_ld8u_i32(var, tcg_env, offset);
         break;
     case MO_UW:
-        tcg_gen_ld16u_i32(var, cpu_env, offset);
+        tcg_gen_ld16u_i32(var, tcg_env, offset);
         break;
     case MO_UL:
-        tcg_gen_ld_i32(var, cpu_env, offset);
+        tcg_gen_ld_i32(var, tcg_env, offset);
         break;
     default:
         g_assert_not_reached();
@@ -61,16 +61,16 @@ static void neon_load_element64(TCGv_i64 var, int reg, int ele, MemOp mop)
 
     switch (mop) {
     case MO_UB:
-        tcg_gen_ld8u_i64(var, cpu_env, offset);
+        tcg_gen_ld8u_i64(var, tcg_env, offset);
         break;
     case MO_UW:
-        tcg_gen_ld16u_i64(var, cpu_env, offset);
+        tcg_gen_ld16u_i64(var, tcg_env, offset);
         break;
     case MO_UL:
-        tcg_gen_ld32u_i64(var, cpu_env, offset);
+        tcg_gen_ld32u_i64(var, tcg_env, offset);
         break;
     case MO_UQ:
-        tcg_gen_ld_i64(var, cpu_env, offset);
+        tcg_gen_ld_i64(var, tcg_env, offset);
         break;
     default:
         g_assert_not_reached();
@@ -83,13 +83,13 @@ static void neon_store_element(int reg, int ele, MemOp size, TCGv_i32 var)
 
     switch (size) {
     case MO_8:
-        tcg_gen_st8_i32(var, cpu_env, offset);
+        tcg_gen_st8_i32(var, tcg_env, offset);
         break;
     case MO_16:
-        tcg_gen_st16_i32(var, cpu_env, offset);
+        tcg_gen_st16_i32(var, tcg_env, offset);
         break;
     case MO_32:
-        tcg_gen_st_i32(var, cpu_env, offset);
+        tcg_gen_st_i32(var, tcg_env, offset);
         break;
     default:
         g_assert_not_reached();
@@ -102,16 +102,16 @@ static void neon_store_element64(int reg, int ele, MemOp size, TCGv_i64 var)
 
     switch (size) {
     case MO_8:
-        tcg_gen_st8_i64(var, cpu_env, offset);
+        tcg_gen_st8_i64(var, tcg_env, offset);
         break;
     case MO_16:
-        tcg_gen_st16_i64(var, cpu_env, offset);
+        tcg_gen_st16_i64(var, tcg_env, offset);
         break;
     case MO_32:
-        tcg_gen_st32_i64(var, cpu_env, offset);
+        tcg_gen_st32_i64(var, tcg_env, offset);
         break;
     case MO_64:
-        tcg_gen_st_i64(var, cpu_env, offset);
+        tcg_gen_st_i64(var, tcg_env, offset);
         break;
     default:
         g_assert_not_reached();
@@ -296,7 +296,7 @@ static bool trans_VFML(DisasContext *s, arg_VFML *a)
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(a->q, a->vn),
                        vfp_reg_offset(a->q, a->vm),
-                       cpu_env, opr_sz, opr_sz, a->s, /* is_2 == 0 */
+                       tcg_env, opr_sz, opr_sz, a->s, /* is_2 == 0 */
                        gen_helper_gvec_fmlal_a32);
     return true;
 }
@@ -390,7 +390,7 @@ static bool trans_VFML_scalar(DisasContext *s, arg_VFML_scalar *a)
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(a->q, a->vn),
                        vfp_reg_offset(a->q, a->rm),
-                       cpu_env, opr_sz, opr_sz,
+                       tcg_env, opr_sz, opr_sz,
                        (a->index << 2) | a->s, /* is_2 == 0 */
                        gen_helper_gvec_fmlal_idx_a32);
     return true;
@@ -920,7 +920,7 @@ DO_SHA2(SHA256SU1, gen_helper_crypto_sha256su1)
 #define DO_3SAME_64_ENV(INSN, FUNC)                                     \
     static void gen_##INSN##_elt(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)    \
     {                                                                   \
-        FUNC(d, cpu_env, n, m);                                         \
+        FUNC(d, tcg_env, n, m);                                         \
     }                                                                   \
     DO_3SAME_64(INSN, gen_##INSN##_elt)
 
@@ -953,7 +953,7 @@ DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
     }
 
 /*
- * Some helper functions need to be passed the cpu_env. In order
+ * Some helper functions need to be passed the tcg_env. In order
  * to use those with the gvec APIs like tcg_gen_gvec_3() we need
  * to create wrapper functions whose prototype is a NeonGenTwoOpFn()
  * and which call a NeonGenTwoOpEnvFn().
@@ -961,7 +961,7 @@ DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
 #define WRAP_ENV_FN(WRAPNAME, FUNC)                                     \
     static void WRAPNAME(TCGv_i32 d, TCGv_i32 n, TCGv_i32 m)            \
     {                                                                   \
-        FUNC(d, cpu_env, n, m);                                         \
+        FUNC(d, tcg_env, n, m);                                         \
     }
 
 #define DO_3SAME_32_ENV(INSN, FUNC)                                     \
@@ -1305,7 +1305,7 @@ static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
 {
     /*
      * 2-reg-and-shift operations, size == 3 case, where the
-     * function needs to be passed cpu_env.
+     * function needs to be passed tcg_env.
      */
     TCGv_i64 constimm;
     int pass;
@@ -1338,7 +1338,7 @@ static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
         TCGv_i64 tmp = tcg_temp_new_i64();
 
         read_neon_element64(tmp, a->vm, pass, MO_64);
-        fn(tmp, cpu_env, tmp, constimm);
+        fn(tmp, tcg_env, tmp, constimm);
         write_neon_element64(tmp, a->vd, pass, MO_64);
     }
     return true;
@@ -1349,7 +1349,7 @@ static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
 {
     /*
      * 2-reg-and-shift operations, size < 3 case, where the
-     * helper needs to be passed cpu_env.
+     * helper needs to be passed tcg_env.
      */
     TCGv_i32 constimm, tmp;
     int pass;
@@ -1381,7 +1381,7 @@ static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
 
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         read_neon_element32(tmp, a->vm, pass, MO_32);
-        fn(tmp, cpu_env, tmp, constimm);
+        fn(tmp, tcg_env, tmp, constimm);
         write_neon_element32(tmp, a->vd, pass, MO_32);
     }
     return true;
@@ -1447,11 +1447,11 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
     read_neon_element64(rm2, a->vm, 1, MO_64);
 
     shiftfn(rm1, rm1, constimm);
-    narrowfn(rd, cpu_env, rm1);
+    narrowfn(rd, tcg_env, rm1);
     write_neon_element32(rd, a->vd, 0, MO_32);
 
     shiftfn(rm2, rm2, constimm);
-    narrowfn(rd, cpu_env, rm2);
+    narrowfn(rd, tcg_env, rm2);
     write_neon_element32(rd, a->vd, 1, MO_32);
 
     return true;
@@ -1514,7 +1514,7 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
 
     tcg_gen_concat_i32_i64(rtmp, rm1, rm2);
 
-    narrowfn(rm1, cpu_env, rtmp);
+    narrowfn(rm1, tcg_env, rtmp);
     write_neon_element32(rm1, a->vd, 0, MO_32);
 
     shiftfn(rm3, rm3, constimm);
@@ -1522,7 +1522,7 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
 
     tcg_gen_concat_i32_i64(rtmp, rm3, rm4);
 
-    narrowfn(rm3, cpu_env, rtmp);
+    narrowfn(rm3, tcg_env, rtmp);
     write_neon_element32(rm3, a->vd, 1, MO_32);
     return true;
 }
@@ -2159,13 +2159,13 @@ DO_VMLAL(VMLSL_U,mull_u,sub)
 static void gen_VQDMULL_16(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
 {
     gen_helper_neon_mull_s16(rd, rn, rm);
-    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rd, rd);
+    gen_helper_neon_addl_saturate_s32(rd, tcg_env, rd, rd);
 }
 
 static void gen_VQDMULL_32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
 {
     gen_mull_s32(rd, rn, rm);
-    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rd, rd);
+    gen_helper_neon_addl_saturate_s64(rd, tcg_env, rd, rd);
 }
 
 static bool trans_VQDMULL_3d(DisasContext *s, arg_3diff *a)
@@ -2182,12 +2182,12 @@ static bool trans_VQDMULL_3d(DisasContext *s, arg_3diff *a)
 
 static void gen_VQDMLAL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
 {
-    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+    gen_helper_neon_addl_saturate_s32(rd, tcg_env, rn, rm);
 }
 
 static void gen_VQDMLAL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
 {
-    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+    gen_helper_neon_addl_saturate_s64(rd, tcg_env, rn, rm);
 }
 
 static bool trans_VQDMLAL_3d(DisasContext *s, arg_3diff *a)
@@ -2211,13 +2211,13 @@ static bool trans_VQDMLAL_3d(DisasContext *s, arg_3diff *a)
 static void gen_VQDMLSL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
 {
     gen_helper_neon_negl_u32(rm, rm);
-    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+    gen_helper_neon_addl_saturate_s32(rd, tcg_env, rn, rm);
 }
 
 static void gen_VQDMLSL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
 {
     tcg_gen_neg_i64(rm, rm);
-    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+    gen_helper_neon_addl_saturate_s64(rd, tcg_env, rn, rm);
 }
 
 static bool trans_VQDMLSL_3d(DisasContext *s, arg_3diff *a)
@@ -2550,7 +2550,7 @@ static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         read_neon_element32(rn, a->vn, pass, MO_32);
         read_neon_element32(rd, a->vd, pass, MO_32);
-        opfn(rd, cpu_env, rn, scalar, rd);
+        opfn(rd, tcg_env, rn, scalar, rd);
         write_neon_element32(rd, a->vd, pass, MO_32);
     }
     return true;
@@ -2837,7 +2837,7 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
     val = tcg_temp_new_i64();
     read_neon_element64(val, a->vm, 0, MO_64);
 
-    gen_helper_neon_tbl(val, cpu_env, desc, val, def);
+    gen_helper_neon_tbl(val, tcg_env, desc, val, def);
     write_neon_element64(val, a->vd, 0, MO_64);
     return true;
 }
@@ -3171,9 +3171,9 @@ static bool do_vmovn(DisasContext *s, arg_2misc *a,
     rd1 = tcg_temp_new_i32();
 
     read_neon_element64(rm, a->vm, 0, MO_64);
-    narrowfn(rd0, cpu_env, rm);
+    narrowfn(rd0, tcg_env, rm);
     read_neon_element64(rm, a->vm, 1, MO_64);
-    narrowfn(rd1, cpu_env, rm);
+    narrowfn(rd1, tcg_env, rm);
     write_neon_element32(rd0, a->vd, 0, MO_32);
     write_neon_element32(rd1, a->vd, 1, MO_32);
     return true;
@@ -3625,7 +3625,7 @@ static bool trans_VRSQRTE(DisasContext *s, arg_2misc *a)
 #define WRAP_1OP_ENV_FN(WRAPNAME, FUNC) \
     static void WRAPNAME(TCGv_i32 d, TCGv_i32 m)        \
     {                                                   \
-        FUNC(d, cpu_env, m);                            \
+        FUNC(d, tcg_env, m);                            \
     }
 
 WRAP_1OP_ENV_FN(gen_VQABS_s8, gen_helper_neon_qabs_s8)

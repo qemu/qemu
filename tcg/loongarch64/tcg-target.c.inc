@@ -1852,43 +1852,45 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_vnor_v(s, a0, a1, a1);
         break;
     case INDEX_op_cmp_vec:
-        TCGCond cond = args[3];
-        if (const_args[2]) {
-            /*
-             * cmp_vec dest, src, value
-             * Try vseqi/vslei/vslti
-             */
-            int64_t value = sextract64(a2, 0, 8 << vece);
-            if ((cond == TCG_COND_EQ || cond == TCG_COND_LE || \
-                 cond == TCG_COND_LT) && (-0x10 <= value && value <= 0x0f)) {
-                tcg_out32(s, encode_vdvjsk5_insn(cmp_vec_imm_insn[cond][vece], \
-                                                 a0, a1, value));
-                break;
-            } else if ((cond == TCG_COND_LEU || cond == TCG_COND_LTU) &&
-                (0x00 <= value && value <= 0x1f)) {
-                tcg_out32(s, encode_vdvjuk5_insn(cmp_vec_imm_insn[cond][vece], \
-                                                 a0, a1, value));
-                break;
+        {
+            TCGCond cond = args[3];
+            if (const_args[2]) {
+                /*
+                 * cmp_vec dest, src, value
+                 * Try vseqi/vslei/vslti
+                 */
+                int64_t value = sextract64(a2, 0, 8 << vece);
+                if ((cond == TCG_COND_EQ || cond == TCG_COND_LE || \
+                     cond == TCG_COND_LT) && (-0x10 <= value && value <= 0x0f)) {
+                    tcg_out32(s, encode_vdvjsk5_insn(cmp_vec_imm_insn[cond][vece], \
+                                                     a0, a1, value));
+                    break;
+                } else if ((cond == TCG_COND_LEU || cond == TCG_COND_LTU) &&
+                    (0x00 <= value && value <= 0x1f)) {
+                    tcg_out32(s, encode_vdvjuk5_insn(cmp_vec_imm_insn[cond][vece], \
+                                                     a0, a1, value));
+                    break;
+                }
+
+                /*
+                 * Fallback to:
+                 * dupi_vec temp, a2
+                 * cmp_vec a0, a1, temp, cond
+                 */
+                tcg_out_dupi_vec(s, type, vece, temp_vec, a2);
+                a2 = temp_vec;
             }
 
-            /*
-             * Fallback to:
-             * dupi_vec temp, a2
-             * cmp_vec a0, a1, temp, cond
-             */
-            tcg_out_dupi_vec(s, type, vece, temp_vec, a2);
-            a2 = temp_vec;
-        }
-
-        insn = cmp_vec_insn[cond][vece];
-        if (insn == 0) {
-            TCGArg t;
-            t = a1, a1 = a2, a2 = t;
-            cond = tcg_swap_cond(cond);
             insn = cmp_vec_insn[cond][vece];
-            tcg_debug_assert(insn != 0);
+            if (insn == 0) {
+                TCGArg t;
+                t = a1, a1 = a2, a2 = t;
+                cond = tcg_swap_cond(cond);
+                insn = cmp_vec_insn[cond][vece];
+                tcg_debug_assert(insn != 0);
+            }
+            tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
         }
-        tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
         break;
     case INDEX_op_add_vec:
         tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], true);

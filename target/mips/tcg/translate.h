@@ -123,15 +123,15 @@ enum {
 };
 
 #define gen_helper_0e1i(name, arg1, arg2) do { \
-    gen_helper_##name(cpu_env, arg1, tcg_constant_i32(arg2)); \
+    gen_helper_##name(tcg_env, arg1, tcg_constant_i32(arg2)); \
     } while (0)
 
 #define gen_helper_1e0i(name, ret, arg1) do { \
-    gen_helper_##name(ret, cpu_env, tcg_constant_i32(arg1)); \
+    gen_helper_##name(ret, tcg_env, tcg_constant_i32(arg1)); \
     } while (0)
 
 #define gen_helper_0e2i(name, arg1, arg2, arg3) do { \
-    gen_helper_##name(cpu_env, arg1, arg2, tcg_constant_i32(arg3));\
+    gen_helper_##name(tcg_env, arg1, arg2, tcg_constant_i32(arg3));\
     } while (0)
 
 void generate_exception(DisasContext *ctx, int excp);

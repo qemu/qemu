@@ -298,7 +298,7 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
      * that might come from cpu_ld*_code() in the helper.
      */
     gen_update_pc(ctx, 0);
-    gen_helper_cm_jalt(cpu_pc, cpu_env, tcg_constant_i32(a->index));
+    gen_helper_cm_jalt(cpu_pc, tcg_env, tcg_constant_i32(a->index));
 
     /* c.jt vs c.jalt depends on the index. */
     if (a->index >= 32) {

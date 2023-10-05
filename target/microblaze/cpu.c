@@ -296,7 +296,6 @@ static void mb_cpu_initfn(Object *obj)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
     CPUMBState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
     gdb_register_coprocessor(CPU(cpu), mb_cpu_gdb_read_stack_protect,
                              mb_cpu_gdb_write_stack_protect, 2,
                              "microblaze-stack-protect.xml", 0);
@@ -439,6 +438,7 @@ static const TypeInfo mb_cpu_type_info = {
     .name = TYPE_MICROBLAZE_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(MicroBlazeCPU),
+    .instance_align = __alignof(MicroBlazeCPU),
     .instance_init = mb_cpu_initfn,
     .class_size = sizeof(MicroBlazeCPUClass),
     .class_init = mb_cpu_class_init,

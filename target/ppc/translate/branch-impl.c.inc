@@ -18,7 +18,7 @@ static bool trans_RFEBB(DisasContext *ctx, arg_XL_s *arg)
 
     translator_io_start(&ctx->base);
     gen_update_cfar(ctx, ctx->cia);
-    gen_helper_rfebb(cpu_env, cpu_gpr[arg->s]);
+    gen_helper_rfebb(tcg_env, cpu_gpr[arg->s]);
 
     ctx->base.is_jmp = DISAS_CHAIN;
 

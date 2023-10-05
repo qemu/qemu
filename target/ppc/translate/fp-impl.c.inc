@@ -6,13 +6,13 @@
 
 static inline void gen_reset_fpstatus(void)
 {
-    gen_helper_reset_fpstatus(cpu_env);
+    gen_helper_reset_fpstatus(tcg_env);
 }
 
 static inline void gen_compute_fprf_float64(TCGv_i64 arg)
 {
-    gen_helper_compute_fprf_float64(cpu_env, arg);
-    gen_helper_float_check_status(cpu_env);
+    gen_helper_compute_fprf_float64(tcg_env, arg);
+    gen_helper_float_check_status(tcg_env);
 }
 
 #if defined(TARGET_PPC64)
@@ -49,7 +49,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     get_fpr(t0, rA(ctx->opcode));                                             \
     get_fpr(t1, rC(ctx->opcode));                                             \
     get_fpr(t2, rB(ctx->opcode));                                             \
-    gen_helper_f##name(t3, cpu_env, t0, t1, t2);                              \
+    gen_helper_f##name(t3, tcg_env, t0, t1, t2);                              \
     set_fpr(rD(ctx->opcode), t3);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t3);                                         \
@@ -79,7 +79,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_reset_fpstatus();                                                     \
     get_fpr(t0, rA(ctx->opcode));                                             \
     get_fpr(t1, rB(ctx->opcode));                                             \
-    gen_helper_f##name(t2, cpu_env, t0, t1);                                  \
+    gen_helper_f##name(t2, tcg_env, t0, t1);                                  \
     set_fpr(rD(ctx->opcode), t2);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t2);                                         \
@@ -108,7 +108,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_reset_fpstatus();                                                     \
     get_fpr(t0, rA(ctx->opcode));                                             \
     get_fpr(t1, rC(ctx->opcode));                                             \
-    gen_helper_f##name(t2, cpu_env, t0, t1);                                  \
+    gen_helper_f##name(t2, tcg_env, t0, t1);                                  \
     set_fpr(rD(ctx->opcode), t2);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t2);                                         \
@@ -134,12 +134,12 @@ static void gen_f##name(DisasContext *ctx)                                    \
     t1 = tcg_temp_new_i64();                                                  \
     gen_reset_fpstatus();                                                     \
     get_fpr(t0, rB(ctx->opcode));                                             \
-    gen_helper_f##name(t1, cpu_env, t0);                                      \
+    gen_helper_f##name(t1, tcg_env, t0);                                      \
     set_fpr(rD(ctx->opcode), t1);                                             \
     if (set_fprf) {                                                           \
-        gen_helper_compute_fprf_float64(cpu_env, t1);                         \
+        gen_helper_compute_fprf_float64(tcg_env, t1);                         \
     }                                                                         \
-    gen_helper_float_check_status(cpu_env);                                   \
+    gen_helper_float_check_status(tcg_env);                                   \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
     }                                                                         \
@@ -158,7 +158,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     t1 = tcg_temp_new_i64();                                                  \
     gen_reset_fpstatus();                                                     \
     get_fpr(t0, rB(ctx->opcode));                                             \
-    gen_helper_f##name(t1, cpu_env, t0);                                      \
+    gen_helper_f##name(t1, tcg_env, t0);                                      \
     set_fpr(rD(ctx->opcode), t1);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t1);                                         \
@@ -197,7 +197,7 @@ static void gen_frsqrtes(DisasContext *ctx)
     t1 = tcg_temp_new_i64();
     gen_reset_fpstatus();
     get_fpr(t0, rB(ctx->opcode));
-    gen_helper_frsqrtes(t1, cpu_env, t0);
+    gen_helper_frsqrtes(t1, tcg_env, t0);
     set_fpr(rD(ctx->opcode), t1);
     gen_compute_fprf_float64(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
@@ -245,7 +245,7 @@ static bool do_helper_fsqrt(DisasContext *ctx, arg_A_tb *a,
 
     gen_reset_fpstatus();
     get_fpr(t0, a->frb);
-    helper(t1, cpu_env, t0);
+    helper(t1, tcg_env, t0);
     set_fpr(a->frt, t1);
     gen_compute_fprf_float64(t1);
     if (unlikely(a->rc != 0)) {
@@ -351,8 +351,8 @@ static void gen_fcmpo(DisasContext *ctx)
     crf = tcg_constant_i32(crfD(ctx->opcode));
     get_fpr(t0, rA(ctx->opcode));
     get_fpr(t1, rB(ctx->opcode));
-    gen_helper_fcmpo(cpu_env, t0, t1, crf);
-    gen_helper_float_check_status(cpu_env);
+    gen_helper_fcmpo(tcg_env, t0, t1, crf);
+    gen_helper_float_check_status(tcg_env);
 }
 
 /* fcmpu */
@@ -371,8 +371,8 @@ static void gen_fcmpu(DisasContext *ctx)
     crf = tcg_constant_i32(crfD(ctx->opcode));
     get_fpr(t0, rA(ctx->opcode));
     get_fpr(t1, rB(ctx->opcode));
-    gen_helper_fcmpu(cpu_env, t0, t1, crf);
-    gen_helper_float_check_status(cpu_env);
+    gen_helper_fcmpu(tcg_env, t0, t1, crf);
+    gen_helper_float_check_status(tcg_env);
 }
 
 /***                         Floating-point move                           ***/
@@ -542,7 +542,7 @@ static void gen_mcrfs(DisasContext *ctx)
                      ~((0xF << shift) & FP_EX_CLEAR_BITS));
     /* FEX and VX need to be updated, so don't set fpscr directly */
     tmask = tcg_constant_i32(1 << nibble);
-    gen_helper_store_fpscr(cpu_env, tnew_fpscr, tmask);
+    gen_helper_store_fpscr(tcg_env, tnew_fpscr, tmask);
 }
 
 static TCGv_i64 place_from_fpscr(int rt, uint64_t mask)
@@ -565,7 +565,7 @@ static void store_fpscr_masked(TCGv_i64 fpscr, uint64_t clear_mask,
 
     tcg_gen_andi_i64(fpscr_masked, fpscr, ~clear_mask);
     tcg_gen_or_i64(fpscr_masked, fpscr_masked, set_mask);
-    gen_helper_store_fpscr(cpu_env, fpscr_masked, st_mask);
+    gen_helper_store_fpscr(tcg_env, fpscr_masked, st_mask);
 }
 
 static bool trans_MFFS_ISA207(DisasContext *ctx, arg_X_t_rc *a)
@@ -691,7 +691,7 @@ static void gen_mtfsb0(DisasContext *ctx)
     crb = 31 - crbD(ctx->opcode);
     gen_reset_fpstatus();
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX)) {
-        gen_helper_fpscr_clrbit(cpu_env, tcg_constant_i32(crb));
+        gen_helper_fpscr_clrbit(tcg_env, tcg_constant_i32(crb));
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
@@ -711,14 +711,14 @@ static void gen_mtfsb1(DisasContext *ctx)
     crb = 31 - crbD(ctx->opcode);
     /* XXX: we pretend we can only do IEEE floating-point computations */
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
-        gen_helper_fpscr_setbit(cpu_env, tcg_constant_i32(crb));
+        gen_helper_fpscr_setbit(tcg_env, tcg_constant_i32(crb));
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
         tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
-    gen_helper_fpscr_check_status(cpu_env);
+    gen_helper_fpscr_check_status(tcg_env);
 }
 
 /* mtfsf */
@@ -748,13 +748,13 @@ static void gen_mtfsf(DisasContext *ctx)
     }
     t1 = tcg_temp_new_i64();
     get_fpr(t1, rB(ctx->opcode));
-    gen_helper_store_fpscr(cpu_env, t1, t0);
+    gen_helper_store_fpscr(tcg_env, t1, t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
         tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
-    gen_helper_fpscr_check_status(cpu_env);
+    gen_helper_fpscr_check_status(tcg_env);
 }
 
 /* mtfsfi */
@@ -777,13 +777,13 @@ static void gen_mtfsfi(DisasContext *ctx)
     sh = (8 * w) + 7 - bf;
     t0 = tcg_constant_i64(((uint64_t)FPIMM(ctx->opcode)) << (4 * sh));
     t1 = tcg_constant_i32(1 << sh);
-    gen_helper_store_fpscr(cpu_env, t0, t1);
+    gen_helper_store_fpscr(tcg_env, t0, t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
         tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
-    gen_helper_fpscr_check_status(cpu_env);
+    gen_helper_fpscr_check_status(tcg_env);
 }
 
 static void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 dest, TCGv addr)

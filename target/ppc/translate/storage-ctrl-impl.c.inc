@@ -30,7 +30,7 @@ static bool trans_SLBIE(DisasContext *ctx, arg_SLBIE *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBIE(cpu_env, cpu_gpr[a->rb]);
+    gen_helper_SLBIE(tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif
@@ -44,7 +44,7 @@ static bool trans_SLBIEG(DisasContext *ctx, arg_SLBIEG *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBIEG(cpu_env, cpu_gpr[a->rb]);
+    gen_helper_SLBIEG(tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif
@@ -58,7 +58,7 @@ static bool trans_SLBIA(DisasContext *ctx, arg_SLBIA *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBIA(cpu_env, tcg_constant_i32(a->ih));
+    gen_helper_SLBIA(tcg_env, tcg_constant_i32(a->ih));
 #else
     qemu_build_not_reached();
 #endif
@@ -72,7 +72,7 @@ static bool trans_SLBIAG(DisasContext *ctx, arg_SLBIAG *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBIAG(cpu_env, cpu_gpr[a->rs], tcg_constant_i32(a->l));
+    gen_helper_SLBIAG(tcg_env, cpu_gpr[a->rs], tcg_constant_i32(a->l));
 #else
     qemu_build_not_reached();
 #endif
@@ -86,7 +86,7 @@ static bool trans_SLBMTE(DisasContext *ctx, arg_SLBMTE *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBMTE(cpu_env, cpu_gpr[a->rb], cpu_gpr[a->rt]);
+    gen_helper_SLBMTE(tcg_env, cpu_gpr[a->rb], cpu_gpr[a->rt]);
 #else
     qemu_build_not_reached();
 #endif
@@ -100,7 +100,7 @@ static bool trans_SLBMFEV(DisasContext *ctx, arg_SLBMFEV *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBMFEV(cpu_gpr[a->rt], cpu_env, cpu_gpr[a->rb]);
+    gen_helper_SLBMFEV(cpu_gpr[a->rt], tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif
@@ -114,7 +114,7 @@ static bool trans_SLBMFEE(DisasContext *ctx, arg_SLBMFEE *a)
     REQUIRE_SV(ctx);
 
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
-    gen_helper_SLBMFEE(cpu_gpr[a->rt], cpu_env, cpu_gpr[a->rb]);
+    gen_helper_SLBMFEE(cpu_gpr[a->rt], tcg_env, cpu_gpr[a->rb]);
 #else
     qemu_build_not_reached();
 #endif
@@ -137,7 +137,7 @@ static bool trans_SLBFEE(DisasContext *ctx, arg_SLBFEE *a)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return true;
     }
-    gen_helper_SLBFEE(cpu_gpr[a->rt], cpu_env,
+    gen_helper_SLBFEE(cpu_gpr[a->rt], tcg_env,
                              cpu_gpr[a->rb]);
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -211,7 +211,7 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
     if (!local && NARROW_MODE(ctx)) {
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext32u_tl(t0, cpu_gpr[rb]);
-        gen_helper_tlbie(cpu_env, t0);
+        gen_helper_tlbie(tcg_env, t0);
 
 #if defined(TARGET_PPC64)
     /*
@@ -219,7 +219,7 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
      * otherwise the results are undefined.
      */
     } else if (a->r) {
-        gen_helper_tlbie_isa300(cpu_env, cpu_gpr[rb], cpu_gpr[a->rs],
+        gen_helper_tlbie_isa300(tcg_env, cpu_gpr[rb], cpu_gpr[a->rs],
                 tcg_constant_i32(a->ric << TLBIE_F_RIC_SHIFT |
                                  a->prs << TLBIE_F_PRS_SHIFT |
                                  a->r << TLBIE_F_R_SHIFT |
@@ -228,7 +228,7 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
 #endif
 
     } else {
-        gen_helper_tlbie(cpu_env, cpu_gpr[rb]);
+        gen_helper_tlbie(tcg_env, cpu_gpr[rb]);
     }
 
     if (local) {
@@ -236,9 +236,9 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
     }
 
     t1 = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_ld_i32(t1, tcg_env, offsetof(CPUPPCState, tlb_need_flush));
     tcg_gen_ori_i32(t1, t1, TLB_NEED_GLOBAL_FLUSH);
-    tcg_gen_st_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_st_i32(t1, tcg_env, offsetof(CPUPPCState, tlb_need_flush));
 
     return true;
 #endif

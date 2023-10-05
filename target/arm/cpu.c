@@ -80,7 +80,7 @@ void arm_cpu_synchronize_from_tb(CPUState *cs,
 {
     /* The program counter is always up to date with CF_PCREL. */
     if (!(tb_cflags(tb) & CF_PCREL)) {
-        CPUARMState *env = cs->env_ptr;
+        CPUARMState *env = cpu_env(cs);
         /*
          * It's OK to look at env for the current mode here, because it's
          * never possible for an AArch64 TB to chain to an AArch32 TB.
@@ -97,7 +97,7 @@ void arm_restore_state_to_opc(CPUState *cs,
                               const TranslationBlock *tb,
                               const uint64_t *data)
 {
-    CPUARMState *env = cs->env_ptr;
+    CPUARMState *env = cpu_env(cs);
 
     if (is_a64(env)) {
         if (tb_cflags(tb) & CF_PCREL) {
@@ -560,7 +560,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                                      unsigned int cur_el, bool secure,
                                      uint64_t hcr_el2)
 {
-    CPUARMState *env = cs->env_ptr;
+    CPUARMState *env = cpu_env(cs);
     bool pstate_unmasked;
     bool unmasked = false;
 
@@ -690,7 +690,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
 static bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
-    CPUARMState *env = cs->env_ptr;
+    CPUARMState *env = cpu_env(cs);
     uint32_t cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
     uint64_t hcr_el2 = arm_hcr_el2_eff(env);
@@ -1215,7 +1215,6 @@ static void arm_cpu_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
-    cpu_set_cpustate_pointers(cpu);
     cpu->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
                                          NULL, g_free);
 
@@ -2423,10 +2422,7 @@ void arm_cpu_register(const ARMCPUInfo *info)
 {
     TypeInfo type_info = {
         .parent = TYPE_ARM_CPU,
-        .instance_size = sizeof(ARMCPU),
-        .instance_align = __alignof__(ARMCPU),
         .instance_init = arm_cpu_instance_init,
-        .class_size = sizeof(ARMCPUClass),
         .class_init = info->class_init ?: cpu_register_class_init,
         .class_data = (void *)info,
     };

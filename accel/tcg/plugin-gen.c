@@ -104,7 +104,7 @@ static void gen_empty_udata_cb(void)
     TCGv_ptr udata = tcg_temp_ebb_new_ptr();
 
     tcg_gen_movi_ptr(udata, 0);
-    tcg_gen_ld_i32(cpu_index, cpu_env,
+    tcg_gen_ld_i32(cpu_index, tcg_env,
                    -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
     gen_helper_plugin_vcpu_udata_cb(cpu_index, udata);
 
@@ -138,7 +138,7 @@ static void gen_empty_mem_cb(TCGv_i64 addr, uint32_t info)
 
     tcg_gen_movi_i32(meminfo, info);
     tcg_gen_movi_ptr(udata, 0);
-    tcg_gen_ld_i32(cpu_index, cpu_env,
+    tcg_gen_ld_i32(cpu_index, tcg_env,
                    -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
 
     gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr, udata);
@@ -157,7 +157,7 @@ static void gen_empty_mem_helper(void)
     TCGv_ptr ptr = tcg_temp_ebb_new_ptr();
 
     tcg_gen_movi_ptr(ptr, 0);
-    tcg_gen_st_ptr(ptr, cpu_env, offsetof(CPUState, plugin_mem_cbs) -
+    tcg_gen_st_ptr(ptr, tcg_env, offsetof(CPUState, plugin_mem_cbs) -
                                  offsetof(ArchCPU, env));
     tcg_temp_free_ptr(ptr);
 }
@@ -581,7 +581,7 @@ void plugin_gen_disable_mem_helpers(void)
     if (!tcg_ctx->plugin_tb->mem_helper) {
         return;
     }
-    tcg_gen_st_ptr(tcg_constant_ptr(NULL), cpu_env,
+    tcg_gen_st_ptr(tcg_constant_ptr(NULL), tcg_env,
                    offsetof(CPUState, plugin_mem_cbs) - offsetof(ArchCPU, env));
 }
 
@@ -849,7 +849,7 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
     } else {
         if (ptb->vaddr2 == -1) {
             ptb->vaddr2 = TARGET_PAGE_ALIGN(db->pc_first);
-            get_page_addr_code_hostp(cpu->env_ptr, ptb->vaddr2, &ptb->haddr2);
+            get_page_addr_code_hostp(cpu_env(cpu), ptb->vaddr2, &ptb->haddr2);
         }
         pinsn->haddr = ptb->haddr2 + pinsn->vaddr - ptb->vaddr2;
     }

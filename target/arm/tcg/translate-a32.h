@@ -55,7 +55,7 @@ bool mve_skip_vmov(DisasContext *s, int vn, int index, int size);
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_ld_i32(tmp, cpu_env, offset);
+    tcg_gen_ld_i32(tmp, tcg_env, offset);
     return tmp;
 }
 

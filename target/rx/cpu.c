@@ -183,12 +183,8 @@ static bool rx_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 
 static void rx_cpu_init(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     RXCPU *cpu = RX_CPU(obj);
-    CPURXState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-    cs->env_ptr = env;
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 
@@ -248,6 +244,7 @@ static const TypeInfo rx_cpu_info = {
     .name = TYPE_RX_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(RXCPU),
+    .instance_align = __alignof(RXCPU),
     .instance_init = rx_cpu_init,
     .abstract = true,
     .class_size = sizeof(RXCPUClass),

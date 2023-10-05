@@ -617,12 +617,12 @@ static const char mxuregnames[NUMBER_OF_MXU_REGISTERS][4] = {
 void mxu_translate_init(void)
 {
     for (unsigned i = 0; i < NUMBER_OF_MXU_REGISTERS - 1; i++) {
-        mxu_gpr[i] = tcg_global_mem_new(cpu_env,
+        mxu_gpr[i] = tcg_global_mem_new(tcg_env,
                                         offsetof(CPUMIPSState, active_tc.mxu_gpr[i]),
                                         mxuregnames[i]);
     }
 
-    mxu_CR = tcg_global_mem_new(cpu_env,
+    mxu_CR = tcg_global_mem_new(tcg_env,
                                 offsetof(CPUMIPSState, active_tc.mxu_cr),
                                 mxuregnames[NUMBER_OF_MXU_REGISTERS - 1]);
 }

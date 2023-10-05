@@ -201,8 +201,6 @@ static void cris_cpu_initfn(Object *obj)
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     env->pregs[PR_VR] = ccc->vr;
 
 #ifndef CONFIG_USER_ONLY
@@ -345,6 +343,7 @@ static const TypeInfo cris_cpu_model_type_infos[] = {
         .name = TYPE_CRIS_CPU,
         .parent = TYPE_CPU,
         .instance_size = sizeof(CRISCPU),
+        .instance_align = __alignof(CRISCPU),
         .instance_init = cris_cpu_initfn,
         .abstract = true,
         .class_size = sizeof(CRISCPUClass),

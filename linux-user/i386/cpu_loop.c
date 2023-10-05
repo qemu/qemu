@@ -323,7 +323,7 @@ void cpu_loop(CPUX86State *env)
 
 static void target_cpu_free(void *obj)
 {
-    CPUArchState *env = ((CPUState *)obj)->env_ptr;
+    CPUArchState *env = cpu_env(obj);
     target_munmap(env->gdt.base, sizeof(uint64_t) * TARGET_GDT_ENTRIES);
     g_free(obj);
 }

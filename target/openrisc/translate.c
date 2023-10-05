@@ -95,37 +95,37 @@ void openrisc_translate_init(void)
     };
     int i;
 
-    cpu_sr = tcg_global_mem_new(cpu_env,
+    cpu_sr = tcg_global_mem_new(tcg_env,
                                 offsetof(CPUOpenRISCState, sr), "sr");
-    cpu_dflag = tcg_global_mem_new_i32(cpu_env,
+    cpu_dflag = tcg_global_mem_new_i32(tcg_env,
                                        offsetof(CPUOpenRISCState, dflag),
                                        "dflag");
-    cpu_pc = tcg_global_mem_new(cpu_env,
+    cpu_pc = tcg_global_mem_new(tcg_env,
                                 offsetof(CPUOpenRISCState, pc), "pc");
-    cpu_ppc = tcg_global_mem_new(cpu_env,
+    cpu_ppc = tcg_global_mem_new(tcg_env,
                                  offsetof(CPUOpenRISCState, ppc), "ppc");
-    jmp_pc = tcg_global_mem_new(cpu_env,
+    jmp_pc = tcg_global_mem_new(tcg_env,
                                 offsetof(CPUOpenRISCState, jmp_pc), "jmp_pc");
-    cpu_sr_f = tcg_global_mem_new(cpu_env,
+    cpu_sr_f = tcg_global_mem_new(tcg_env,
                                   offsetof(CPUOpenRISCState, sr_f), "sr_f");
-    cpu_sr_cy = tcg_global_mem_new(cpu_env,
+    cpu_sr_cy = tcg_global_mem_new(tcg_env,
                                    offsetof(CPUOpenRISCState, sr_cy), "sr_cy");
-    cpu_sr_ov = tcg_global_mem_new(cpu_env,
+    cpu_sr_ov = tcg_global_mem_new(tcg_env,
                                    offsetof(CPUOpenRISCState, sr_ov), "sr_ov");
-    cpu_lock_addr = tcg_global_mem_new(cpu_env,
+    cpu_lock_addr = tcg_global_mem_new(tcg_env,
                                        offsetof(CPUOpenRISCState, lock_addr),
                                        "lock_addr");
-    cpu_lock_value = tcg_global_mem_new(cpu_env,
+    cpu_lock_value = tcg_global_mem_new(tcg_env,
                                         offsetof(CPUOpenRISCState, lock_value),
                                         "lock_value");
-    fpcsr = tcg_global_mem_new_i32(cpu_env,
+    fpcsr = tcg_global_mem_new_i32(tcg_env,
                                    offsetof(CPUOpenRISCState, fpcsr),
                                    "fpcsr");
-    cpu_mac = tcg_global_mem_new_i64(cpu_env,
+    cpu_mac = tcg_global_mem_new_i64(tcg_env,
                                      offsetof(CPUOpenRISCState, mac),
                                      "mac");
     for (i = 0; i < 32; i++) {
-        cpu_regs[i] = tcg_global_mem_new(cpu_env,
+        cpu_regs[i] = tcg_global_mem_new(tcg_env,
                                          offsetof(CPUOpenRISCState,
                                                   shadow_gpr[0][i]),
                                          regnames[i]);
@@ -134,7 +134,7 @@ void openrisc_translate_init(void)
 
 static void gen_exception(DisasContext *dc, unsigned int excp)
 {
-    gen_helper_exception(cpu_env, tcg_constant_i32(excp));
+    gen_helper_exception(tcg_env, tcg_constant_i32(excp));
 }
 
 static void gen_illegal_exception(DisasContext *dc)
@@ -182,21 +182,21 @@ static void check_r0_write(DisasContext *dc, int reg)
 static void gen_ove_cy(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        gen_helper_ove_cy(cpu_env);
+        gen_helper_ove_cy(tcg_env);
     }
 }
 
 static void gen_ove_ov(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        gen_helper_ove_ov(cpu_env);
+        gen_helper_ove_ov(tcg_env);
     }
 }
 
 static void gen_ove_cyov(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        gen_helper_ove_cyov(cpu_env);
+        gen_helper_ove_cyov(tcg_env);
     }
 }
 
@@ -835,7 +835,7 @@ static bool trans_l_mfspr(DisasContext *dc, arg_l_mfspr *a)
     }
 
     tcg_gen_ori_tl(spr, cpu_R(dc, a->a), a->k);
-    gen_helper_mfspr(cpu_R(dc, a->d), cpu_env, cpu_R(dc, a->d), spr);
+    gen_helper_mfspr(cpu_R(dc, a->d), tcg_env, cpu_R(dc, a->d), spr);
     return true;
 }
 
@@ -860,7 +860,7 @@ static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a)
     dc->base.is_jmp = DISAS_EXIT;
 
     tcg_gen_ori_tl(spr, cpu_R(dc, a->a), a->k);
-    gen_helper_mtspr(cpu_env, spr, cpu_R(dc, a->b));
+    gen_helper_mtspr(tcg_env, spr, cpu_R(dc, a->b));
     return true;
 }
 
@@ -1102,7 +1102,7 @@ static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a)
     if (is_user(dc)) {
         gen_illegal_exception(dc);
     } else {
-        gen_helper_rfe(cpu_env);
+        gen_helper_rfe(tcg_env);
         dc->base.is_jmp = DISAS_EXIT;
     }
     return true;
@@ -1115,8 +1115,8 @@ static bool do_fp2(DisasContext *dc, arg_da *a,
         return false;
     }
     check_r0_write(dc, a->d);
-    fn(cpu_R(dc, a->d), cpu_env, cpu_R(dc, a->a));
-    gen_helper_update_fpcsr(cpu_env);
+    fn(cpu_R(dc, a->d), tcg_env, cpu_R(dc, a->a));
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1127,8 +1127,8 @@ static bool do_fp3(DisasContext *dc, arg_dab *a,
         return false;
     }
     check_r0_write(dc, a->d);
-    fn(cpu_R(dc, a->d), cpu_env, cpu_R(dc, a->a), cpu_R(dc, a->b));
-    gen_helper_update_fpcsr(cpu_env);
+    fn(cpu_R(dc, a->d), tcg_env, cpu_R(dc, a->a), cpu_R(dc, a->b));
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1140,14 +1140,14 @@ static bool do_fpcmp(DisasContext *dc, arg_ab *a,
         return false;
     }
     if (swap) {
-        fn(cpu_sr_f, cpu_env, cpu_R(dc, a->b), cpu_R(dc, a->a));
+        fn(cpu_sr_f, tcg_env, cpu_R(dc, a->b), cpu_R(dc, a->a));
     } else {
-        fn(cpu_sr_f, cpu_env, cpu_R(dc, a->a), cpu_R(dc, a->b));
+        fn(cpu_sr_f, tcg_env, cpu_R(dc, a->a), cpu_R(dc, a->b));
     }
     if (inv) {
         tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
     }
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1193,9 +1193,9 @@ static bool trans_lf_madd_s(DisasContext *dc, arg_dab *a)
         return false;
     }
     check_r0_write(dc, a->d);
-    gen_helper_float_madd_s(cpu_R(dc, a->d), cpu_env, cpu_R(dc, a->d),
+    gen_helper_float_madd_s(cpu_R(dc, a->d), tcg_env, cpu_R(dc, a->d),
                             cpu_R(dc, a->a), cpu_R(dc, a->b));
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1309,10 +1309,10 @@ static bool do_dp3(DisasContext *dc, arg_dab_pair *a,
     t1 = tcg_temp_new_i64();
     load_pair(dc, t0, a->a, a->ap);
     load_pair(dc, t1, a->b, a->bp);
-    fn(t0, cpu_env, t0, t1);
+    fn(t0, tcg_env, t0, t1);
     save_pair(dc, t0, a->d, a->dp);
 
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1330,10 +1330,10 @@ static bool do_dp2(DisasContext *dc, arg_da_pair *a,
 
     t0 = tcg_temp_new_i64();
     load_pair(dc, t0, a->a, a->ap);
-    fn(t0, cpu_env, t0);
+    fn(t0, tcg_env, t0);
     save_pair(dc, t0, a->d, a->dp);
 
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1354,15 +1354,15 @@ static bool do_dpcmp(DisasContext *dc, arg_ab_pair *a,
     load_pair(dc, t0, a->a, a->ap);
     load_pair(dc, t1, a->b, a->bp);
     if (swap) {
-        fn(cpu_sr_f, cpu_env, t1, t0);
+        fn(cpu_sr_f, tcg_env, t1, t0);
     } else {
-        fn(cpu_sr_f, cpu_env, t0, t1);
+        fn(cpu_sr_f, tcg_env, t0, t1);
     }
 
     if (inv) {
         tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
     }
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1412,10 +1412,10 @@ static bool trans_lf_stod_d(DisasContext *dc, arg_lf_stod_d *a)
     check_r0_write(dc, a->d);
 
     t0 = tcg_temp_new_i64();
-    gen_helper_stod(t0, cpu_env, cpu_R(dc, a->a));
+    gen_helper_stod(t0, tcg_env, cpu_R(dc, a->a));
     save_pair(dc, t0, a->d, a->dp);
 
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1431,9 +1431,9 @@ static bool trans_lf_dtos_d(DisasContext *dc, arg_lf_dtos_d *a)
 
     t0 = tcg_temp_new_i64();
     load_pair(dc, t0, a->a, a->ap);
-    gen_helper_dtos(cpu_R(dc, a->d), cpu_env, t0);
+    gen_helper_dtos(cpu_R(dc, a->d), tcg_env, t0);
 
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1455,10 +1455,10 @@ static bool trans_lf_madd_d(DisasContext *dc, arg_dab_pair *a)
     load_pair(dc, t0, a->d, a->dp);
     load_pair(dc, t1, a->a, a->ap);
     load_pair(dc, t2, a->b, a->bp);
-    gen_helper_float_madd_d(t0, cpu_env, t0, t1, t2);
+    gen_helper_float_madd_d(t0, tcg_env, t0, t1, t2);
     save_pair(dc, t0, a->d, a->dp);
 
-    gen_helper_update_fpcsr(cpu_env);
+    gen_helper_update_fpcsr(tcg_env);
     return true;
 }
 
@@ -1525,7 +1525,7 @@ static bool trans_lf_sfun_d(DisasContext *dc, arg_ab_pair *a)
 static void openrisc_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
-    CPUOpenRISCState *env = cs->env_ptr;
+    CPUOpenRISCState *env = cpu_env(cs);
     int bound;
 
     dc->mem_idx = cpu_mmu_index(env, false);

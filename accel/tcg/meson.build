@@ -1,7 +1,9 @@
 tcg_ss = ss.source_set()
+common_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'cpu-exec-common.c',
+))
 tcg_ss.add(files(
   'tcg-all.c',
-  'cpu-exec-common.c',
   'cpu-exec.c',
   'tb-maint.c',
   'tcg-runtime-gvec.c',
@@ -20,6 +22,10 @@ specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_ss)
 
 specific_ss.add(when: ['CONFIG_SYSTEM_ONLY', 'CONFIG_TCG'], if_true: files(
   'cputlb.c',
+))
+
+system_ss.add(when: ['CONFIG_TCG'], if_true: files(
+  'icount-common.c',
   'monitor.c',
 ))
 

@@ -388,7 +388,7 @@ struct ArchCPU {
     /* < private > */
     CPUState parent_obj;
     /* < public > */
-    CPUNegativeOffsetState neg;
+
     CPURISCVState env;
 
     char *dyn_csr_xml;

@@ -209,8 +209,6 @@ static void alpha_cpu_initfn(Object *obj)
     AlphaCPU *cpu = ALPHA_CPU(obj);
     CPUAlphaState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
     env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;
@@ -286,6 +284,7 @@ static const TypeInfo alpha_cpu_type_infos[] = {
         .name = TYPE_ALPHA_CPU,
         .parent = TYPE_CPU,
         .instance_size = sizeof(AlphaCPU),
+        .instance_align = __alignof(AlphaCPU),
         .instance_init = alpha_cpu_initfn,
         .abstract = true,
         .class_size = sizeof(AlphaCPUClass),

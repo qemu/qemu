@@ -251,7 +251,7 @@ static void common_semi_dead_cb(CPUState *cs, uint64_t ret, int err)
 static void common_semi_rw_cb(CPUState *cs, uint64_t ret, int err)
 {
     /* Recover the original length from the third argument. */
-    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     target_ulong args = common_semi_arg(cs, 1);
     target_ulong arg2;
     GET_ARG(2);
@@ -322,7 +322,7 @@ static void
 common_semi_readc_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (!err) {
-        CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+        CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
         uint8_t ch;
 
         if (get_user_u8(ch, common_semi_stack_bottom(cs) - 1)) {
@@ -361,7 +361,7 @@ static const uint8_t featurefile_data[] = {
  */
 void do_common_semihosting(CPUState *cs)
 {
-    CPUArchState *env = cs->env_ptr;
+    CPUArchState *env = cpu_env(cs);
     target_ulong args;
     target_ulong arg0, arg1, arg2, arg3;
     target_ulong ul_ret;

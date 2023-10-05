@@ -102,7 +102,7 @@ static void t_sync_flags(DisasContext *dc)
 
 static void gen_raise_exception(DisasContext *dc, uint32_t index)
 {
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(index));
+    gen_helper_raise_exception(tcg_env, tcg_constant_i32(index));
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -116,7 +116,7 @@ static void gen_raise_exception_sync(DisasContext *dc, uint32_t index)
 static void gen_raise_hw_excp(DisasContext *dc, uint32_t esr_ec)
 {
     TCGv_i32 tmp = tcg_constant_i32(esr_ec);
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUMBState, esr));
+    tcg_gen_st_i32(tmp, tcg_env, offsetof(CPUMBState, esr));
 
     gen_raise_exception_sync(dc, EXCP_HW_EXCP);
 }
@@ -295,11 +295,11 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 
 #define ENV_WRAPPER2(NAME, HELPER) \
     static void NAME(TCGv_i32 out, TCGv_i32 ina) \
-    { HELPER(out, cpu_env, ina); }
+    { HELPER(out, tcg_env, ina); }
 
 #define ENV_WRAPPER3(NAME, HELPER) \
     static void NAME(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb) \
-    { HELPER(out, cpu_env, ina, inb); }
+    { HELPER(out, tcg_env, ina, inb); }
 
 /* No input carry, but output carry. */
 static void gen_add(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
@@ -472,12 +472,12 @@ DO_TYPEA0_CFG(fsqrt, use_fpu >= 2, true, gen_fsqrt)
 /* Does not use ENV_WRAPPER3, because arguments are swapped as well. */
 static void gen_idiv(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
-    gen_helper_divs(out, cpu_env, inb, ina);
+    gen_helper_divs(out, tcg_env, inb, ina);
 }
 
 static void gen_idivu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
-    gen_helper_divu(out, cpu_env, inb, ina);
+    gen_helper_divu(out, tcg_env, inb, ina);
 }
 
 DO_TYPEA_CFG(idiv, use_div, true, gen_idiv)
@@ -643,7 +643,7 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
     }
 
     if ((ra == 1 || rb == 1) && dc->cfg->stackprot) {
-        gen_helper_stackprot(cpu_env, ret);
+        gen_helper_stackprot(tcg_env, ret);
     }
     return ret;
 }
@@ -662,7 +662,7 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
     }
 
     if (ra == 1 && dc->cfg->stackprot) {
-        gen_helper_stackprot(cpu_env, ret);
+        gen_helper_stackprot(tcg_env, ret);
     }
     return ret;
 }
@@ -1232,7 +1232,7 @@ static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
 
         t_sync_flags(dc);
 
-        tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
+        tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
                        -offsetof(MicroBlazeCPU, env)
                        +offsetof(CPUState, halted));
 
@@ -1381,13 +1381,13 @@ static bool trans_mts(DisasContext *dc, arg_mts *arg)
         tcg_gen_andi_i32(cpu_msr, src, ~(MSR_C | MSR_CC | MSR_PVR));
         break;
     case SR_FSR:
-        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, fsr));
+        tcg_gen_st_i32(src, tcg_env, offsetof(CPUMBState, fsr));
         break;
     case 0x800:
-        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, slr));
+        tcg_gen_st_i32(src, tcg_env, offsetof(CPUMBState, slr));
         break;
     case 0x802:
-        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, shr));
+        tcg_gen_st_i32(src, tcg_env, offsetof(CPUMBState, shr));
         break;
 
     case 0x1000: /* PID */
@@ -1400,7 +1400,7 @@ static bool trans_mts(DisasContext *dc, arg_mts *arg)
             TCGv_i32 tmp_ext = tcg_constant_i32(arg->e);
             TCGv_i32 tmp_reg = tcg_constant_i32(arg->rs & 7);
 
-            gen_helper_mmu_write(cpu_env, tmp_ext, tmp_reg, src);
+            gen_helper_mmu_write(tcg_env, tmp_ext, tmp_reg, src);
         }
         break;
 
@@ -1422,7 +1422,7 @@ static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
         case SR_EAR:
             {
                 TCGv_i64 t64 = tcg_temp_new_i64();
-                tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+                tcg_gen_ld_i64(t64, tcg_env, offsetof(CPUMBState, ear));
                 tcg_gen_extrh_i64_i32(dest, t64);
             }
             return true;
@@ -1452,27 +1452,27 @@ static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
     case SR_EAR:
         {
             TCGv_i64 t64 = tcg_temp_new_i64();
-            tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+            tcg_gen_ld_i64(t64, tcg_env, offsetof(CPUMBState, ear));
             tcg_gen_extrl_i64_i32(dest, t64);
         }
         break;
     case SR_ESR:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, esr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, esr));
         break;
     case SR_FSR:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, fsr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, fsr));
         break;
     case SR_BTR:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, btr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, btr));
         break;
     case SR_EDR:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, edr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, edr));
         break;
     case 0x800:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, slr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, slr));
         break;
     case 0x802:
-        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, shr));
+        tcg_gen_ld_i32(dest, tcg_env, offsetof(CPUMBState, shr));
         break;
 
 #ifndef CONFIG_USER_ONLY
@@ -1486,13 +1486,13 @@ static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
             TCGv_i32 tmp_ext = tcg_constant_i32(arg->e);
             TCGv_i32 tmp_reg = tcg_constant_i32(arg->rs & 7);
 
-            gen_helper_mmu_read(dest, cpu_env, tmp_ext, tmp_reg);
+            gen_helper_mmu_read(dest, tcg_env, tmp_ext, tmp_reg);
         }
         break;
 #endif
 
     case 0x2000 ... 0x200c:
-        tcg_gen_ld_i32(dest, cpu_env,
+        tcg_gen_ld_i32(dest, tcg_env,
                        offsetof(MicroBlazeCPU, cfg.pvr_regs[arg->rs - 0x2000])
                        - offsetof(MicroBlazeCPU, env));
         break;
@@ -1630,7 +1630,7 @@ static void mb_tr_insn_start(DisasContextBase *dcb, CPUState *cs)
 static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
-    CPUMBState *env = cs->env_ptr;
+    CPUMBState *env = cpu_env(cs);
     uint32_t ir;
 
     /* TODO: This should raise an exception, not terminate qemu. */
@@ -1882,9 +1882,9 @@ void mb_tcg_init(void)
 
     for (int i = 0; i < ARRAY_SIZE(i32s); ++i) {
         *i32s[i].var =
-          tcg_global_mem_new_i32(cpu_env, i32s[i].ofs, i32s[i].name);
+          tcg_global_mem_new_i32(tcg_env, i32s[i].ofs, i32s[i].name);
     }
 
     cpu_res_addr =
-        tcg_global_mem_new(cpu_env, offsetof(CPUMBState, res_addr), "res_addr");
+        tcg_global_mem_new(tcg_env, offsetof(CPUMBState, res_addr), "res_addr");
 }

@@ -591,8 +591,8 @@
  */
 #define fGEN_TCG_A5_ACS(SHORTCODE) \
     do { \
-        gen_helper_vacsh_pred(PeV, cpu_env, RxxV, RssV, RttV); \
-        gen_helper_vacsh_val(RxxV, cpu_env, RxxV, RssV, RttV, \
+        gen_helper_vacsh_pred(PeV, tcg_env, RxxV, RssV, RttV); \
+        gen_helper_vacsh_val(RxxV, tcg_env, RxxV, RssV, RttV, \
                              tcg_constant_tl(ctx->need_commit)); \
     } while (0)
 
@@ -614,7 +614,7 @@
 #define fGEN_TCG_F2_sfrecipa(SHORTCODE) \
     do { \
         TCGv_i64 tmp = tcg_temp_new_i64(); \
-        gen_helper_sfrecipa(tmp, cpu_env, RsV, RtV);  \
+        gen_helper_sfrecipa(tmp, tcg_env, RsV, RtV);  \
         tcg_gen_extrh_i64_i32(RdV, tmp); \
         tcg_gen_extrl_i64_i32(PeV, tmp); \
     } while (0)
@@ -629,7 +629,7 @@
 #define fGEN_TCG_F2_sfinvsqrta(SHORTCODE) \
     do { \
         TCGv_i64 tmp = tcg_temp_new_i64(); \
-        gen_helper_sfinvsqrta(tmp, cpu_env, RsV); \
+        gen_helper_sfinvsqrta(tmp, tcg_env, RsV); \
         tcg_gen_extrh_i64_i32(RdV, tmp); \
         tcg_gen_extrl_i64_i32(PeV, tmp); \
     } while (0)
@@ -1205,122 +1205,122 @@
 
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
-    gen_helper_conv_sf2df(RddV, cpu_env, RsV)
+    gen_helper_conv_sf2df(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_df2sf(SHORTCODE) \
-    gen_helper_conv_df2sf(RdV, cpu_env, RssV)
+    gen_helper_conv_df2sf(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_uw2sf(SHORTCODE) \
-    gen_helper_conv_uw2sf(RdV, cpu_env, RsV)
+    gen_helper_conv_uw2sf(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_uw2df(SHORTCODE) \
-    gen_helper_conv_uw2df(RddV, cpu_env, RsV)
+    gen_helper_conv_uw2df(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_w2sf(SHORTCODE) \
-    gen_helper_conv_w2sf(RdV, cpu_env, RsV)
+    gen_helper_conv_w2sf(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_w2df(SHORTCODE) \
-    gen_helper_conv_w2df(RddV, cpu_env, RsV)
+    gen_helper_conv_w2df(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_ud2sf(SHORTCODE) \
-    gen_helper_conv_ud2sf(RdV, cpu_env, RssV)
+    gen_helper_conv_ud2sf(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_ud2df(SHORTCODE) \
-    gen_helper_conv_ud2df(RddV, cpu_env, RssV)
+    gen_helper_conv_ud2df(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_d2sf(SHORTCODE) \
-    gen_helper_conv_d2sf(RdV, cpu_env, RssV)
+    gen_helper_conv_d2sf(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_d2df(SHORTCODE) \
-    gen_helper_conv_d2df(RddV, cpu_env, RssV)
+    gen_helper_conv_d2df(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_sf2uw(SHORTCODE) \
-    gen_helper_conv_sf2uw(RdV, cpu_env, RsV)
+    gen_helper_conv_sf2uw(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2w(SHORTCODE) \
-    gen_helper_conv_sf2w(RdV, cpu_env, RsV)
+    gen_helper_conv_sf2w(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2ud(SHORTCODE) \
-    gen_helper_conv_sf2ud(RddV, cpu_env, RsV)
+    gen_helper_conv_sf2ud(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2d(SHORTCODE) \
-    gen_helper_conv_sf2d(RddV, cpu_env, RsV)
+    gen_helper_conv_sf2d(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_df2uw(SHORTCODE) \
-    gen_helper_conv_df2uw(RdV, cpu_env, RssV)
+    gen_helper_conv_df2uw(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2w(SHORTCODE) \
-    gen_helper_conv_df2w(RdV, cpu_env, RssV)
+    gen_helper_conv_df2w(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2ud(SHORTCODE) \
-    gen_helper_conv_df2ud(RddV, cpu_env, RssV)
+    gen_helper_conv_df2ud(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2d(SHORTCODE) \
-    gen_helper_conv_df2d(RddV, cpu_env, RssV)
+    gen_helper_conv_df2d(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_sf2uw_chop(SHORTCODE) \
-    gen_helper_conv_sf2uw_chop(RdV, cpu_env, RsV)
+    gen_helper_conv_sf2uw_chop(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2w_chop(SHORTCODE) \
-    gen_helper_conv_sf2w_chop(RdV, cpu_env, RsV)
+    gen_helper_conv_sf2w_chop(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2ud_chop(SHORTCODE) \
-    gen_helper_conv_sf2ud_chop(RddV, cpu_env, RsV)
+    gen_helper_conv_sf2ud_chop(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_sf2d_chop(SHORTCODE) \
-    gen_helper_conv_sf2d_chop(RddV, cpu_env, RsV)
+    gen_helper_conv_sf2d_chop(RddV, tcg_env, RsV)
 #define fGEN_TCG_F2_conv_df2uw_chop(SHORTCODE) \
-    gen_helper_conv_df2uw_chop(RdV, cpu_env, RssV)
+    gen_helper_conv_df2uw_chop(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2w_chop(SHORTCODE) \
-    gen_helper_conv_df2w_chop(RdV, cpu_env, RssV)
+    gen_helper_conv_df2w_chop(RdV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2ud_chop(SHORTCODE) \
-    gen_helper_conv_df2ud_chop(RddV, cpu_env, RssV)
+    gen_helper_conv_df2ud_chop(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_conv_df2d_chop(SHORTCODE) \
-    gen_helper_conv_df2d_chop(RddV, cpu_env, RssV)
+    gen_helper_conv_df2d_chop(RddV, tcg_env, RssV)
 #define fGEN_TCG_F2_sfadd(SHORTCODE) \
-    gen_helper_sfadd(RdV, cpu_env, RsV, RtV)
+    gen_helper_sfadd(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfsub(SHORTCODE) \
-    gen_helper_sfsub(RdV, cpu_env, RsV, RtV)
+    gen_helper_sfsub(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfcmpeq(SHORTCODE) \
-    gen_helper_sfcmpeq(PdV, cpu_env, RsV, RtV)
+    gen_helper_sfcmpeq(PdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfcmpgt(SHORTCODE) \
-    gen_helper_sfcmpgt(PdV, cpu_env, RsV, RtV)
+    gen_helper_sfcmpgt(PdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfcmpge(SHORTCODE) \
-    gen_helper_sfcmpge(PdV, cpu_env, RsV, RtV)
+    gen_helper_sfcmpge(PdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfcmpuo(SHORTCODE) \
-    gen_helper_sfcmpuo(PdV, cpu_env, RsV, RtV)
+    gen_helper_sfcmpuo(PdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfmax(SHORTCODE) \
-    gen_helper_sfmax(RdV, cpu_env, RsV, RtV)
+    gen_helper_sfmax(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfmin(SHORTCODE) \
-    gen_helper_sfmin(RdV, cpu_env, RsV, RtV)
+    gen_helper_sfmin(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sfclass(SHORTCODE) \
     do { \
         TCGv imm = tcg_constant_tl(uiV); \
-        gen_helper_sfclass(PdV, cpu_env, RsV, imm); \
+        gen_helper_sfclass(PdV, tcg_env, RsV, imm); \
     } while (0)
 #define fGEN_TCG_F2_sffixupn(SHORTCODE) \
-    gen_helper_sffixupn(RdV, cpu_env, RsV, RtV)
+    gen_helper_sffixupn(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sffixupd(SHORTCODE) \
-    gen_helper_sffixupd(RdV, cpu_env, RsV, RtV)
+    gen_helper_sffixupd(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sffixupr(SHORTCODE) \
-    gen_helper_sffixupr(RdV, cpu_env, RsV)
+    gen_helper_sffixupr(RdV, tcg_env, RsV)
 #define fGEN_TCG_F2_dfadd(SHORTCODE) \
-    gen_helper_dfadd(RddV, cpu_env, RssV, RttV)
+    gen_helper_dfadd(RddV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfsub(SHORTCODE) \
-    gen_helper_dfsub(RddV, cpu_env, RssV, RttV)
+    gen_helper_dfsub(RddV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfmax(SHORTCODE) \
-    gen_helper_dfmax(RddV, cpu_env, RssV, RttV)
+    gen_helper_dfmax(RddV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfmin(SHORTCODE) \
-    gen_helper_dfmin(RddV, cpu_env, RssV, RttV)
+    gen_helper_dfmin(RddV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfcmpeq(SHORTCODE) \
-    gen_helper_dfcmpeq(PdV, cpu_env, RssV, RttV)
+    gen_helper_dfcmpeq(PdV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfcmpgt(SHORTCODE) \
-    gen_helper_dfcmpgt(PdV, cpu_env, RssV, RttV)
+    gen_helper_dfcmpgt(PdV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfcmpge(SHORTCODE) \
-    gen_helper_dfcmpge(PdV, cpu_env, RssV, RttV)
+    gen_helper_dfcmpge(PdV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfcmpuo(SHORTCODE) \
-    gen_helper_dfcmpuo(PdV, cpu_env, RssV, RttV)
+    gen_helper_dfcmpuo(PdV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfclass(SHORTCODE) \
     do { \
         TCGv imm = tcg_constant_tl(uiV); \
-        gen_helper_dfclass(PdV, cpu_env, RssV, imm); \
+        gen_helper_dfclass(PdV, tcg_env, RssV, imm); \
     } while (0)
 #define fGEN_TCG_F2_sfmpy(SHORTCODE) \
-    gen_helper_sfmpy(RdV, cpu_env, RsV, RtV)
+    gen_helper_sfmpy(RdV, tcg_env, RsV, RtV)
 #define fGEN_TCG_F2_sffma(SHORTCODE) \
-    gen_helper_sffma(RxV, cpu_env, RxV, RsV, RtV)
+    gen_helper_sffma(RxV, tcg_env, RxV, RsV, RtV)
 #define fGEN_TCG_F2_sffma_sc(SHORTCODE) \
-    gen_helper_sffma_sc(RxV, cpu_env, RxV, RsV, RtV, PuV)
+    gen_helper_sffma_sc(RxV, tcg_env, RxV, RsV, RtV, PuV)
 #define fGEN_TCG_F2_sffms(SHORTCODE) \
-    gen_helper_sffms(RxV, cpu_env, RxV, RsV, RtV)
+    gen_helper_sffms(RxV, tcg_env, RxV, RsV, RtV)
 #define fGEN_TCG_F2_sffma_lib(SHORTCODE) \
-    gen_helper_sffma_lib(RxV, cpu_env, RxV, RsV, RtV)
+    gen_helper_sffma_lib(RxV, tcg_env, RxV, RsV, RtV)
 #define fGEN_TCG_F2_sffms_lib(SHORTCODE) \
-    gen_helper_sffms_lib(RxV, cpu_env, RxV, RsV, RtV)
+    gen_helper_sffms_lib(RxV, tcg_env, RxV, RsV, RtV)
 
 #define fGEN_TCG_F2_dfmpyfix(SHORTCODE) \
-    gen_helper_dfmpyfix(RddV, cpu_env, RssV, RttV)
+    gen_helper_dfmpyfix(RddV, tcg_env, RssV, RttV)
 #define fGEN_TCG_F2_dfmpyhh(SHORTCODE) \
-    gen_helper_dfmpyhh(RxxV, cpu_env, RxxV, RssV, RttV)
+    gen_helper_dfmpyhh(RxxV, tcg_env, RxxV, RssV, RttV)
 
 /* Nothing to do for these in qemu, need to suppress compiler warnings */
 #define fGEN_TCG_Y4_l2fetch(SHORTCODE) \
@@ -1367,6 +1367,6 @@
         uiV = uiV; \
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt->pc); \
         TCGv excp = tcg_constant_tl(HEX_EXCP_TRAP0); \
-        gen_helper_raise_exception(cpu_env, excp); \
+        gen_helper_raise_exception(tcg_env, excp); \
     } while (0)
 #endif

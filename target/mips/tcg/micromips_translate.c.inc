@@ -710,17 +710,17 @@ static void gen_ldst_multiple(DisasContext *ctx, uint32_t opc, int reglist,
     save_cpu_state(ctx, 1);
     switch (opc) {
     case LWM32:
-        gen_helper_lwm(cpu_env, t0, t1, t2);
+        gen_helper_lwm(tcg_env, t0, t1, t2);
         break;
     case SWM32:
-        gen_helper_swm(cpu_env, t0, t1, t2);
+        gen_helper_swm(tcg_env, t0, t1, t2);
         break;
 #ifdef TARGET_MIPS64
     case LDM:
-        gen_helper_ldm(cpu_env, t0, t1, t2);
+        gen_helper_ldm(tcg_env, t0, t1, t2);
         break;
     case SDM:
-        gen_helper_sdm(cpu_env, t0, t1, t2);
+        gen_helper_sdm(tcg_env, t0, t1, t2);
         break;
 #endif
     }
@@ -1271,7 +1271,7 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
-                gen_helper_di(t0, cpu_env);
+                gen_helper_di(t0, tcg_env);
                 gen_store_gpr(t0, rs);
                 /*
                  * Stop translation as we may have switched the execution
@@ -1286,7 +1286,7 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
-                gen_helper_ei(t0, cpu_env);
+                gen_helper_ei(t0, tcg_env);
                 gen_store_gpr(t0, rs);
                 /*
                  * DISAS_STOP isn't sufficient, we need to ensure we break out

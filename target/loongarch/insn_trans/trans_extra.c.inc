@@ -24,7 +24,7 @@ static bool trans_asrtle_d(DisasContext *ctx, arg_asrtle_d * a)
         return false;
     }
 
-    gen_helper_asrtle_d(cpu_env, src1, src2);
+    gen_helper_asrtle_d(tcg_env, src1, src2);
     return true;
 }
 
@@ -37,7 +37,7 @@ static bool trans_asrtgt_d(DisasContext *ctx, arg_asrtgt_d * a)
         return false;
     }
 
-    gen_helper_asrtgt_d(cpu_env, src1, src2);
+    gen_helper_asrtgt_d(tcg_env, src1, src2);
     return true;
 }
 
@@ -48,11 +48,11 @@ static bool gen_rdtime(DisasContext *ctx, arg_rr *a,
     TCGv dst2 = gpr_dst(ctx, a->rj, EXT_NONE);
 
     translator_io_start(&ctx->base);
-    gen_helper_rdtime_d(dst1, cpu_env);
+    gen_helper_rdtime_d(dst1, tcg_env);
     if (word) {
         tcg_gen_sextract_tl(dst1, dst1, high ? 32 : 0, 32);
     }
-    tcg_gen_ld_i64(dst2, cpu_env, offsetof(CPULoongArchState, CSR_TID));
+    tcg_gen_ld_i64(dst2, tcg_env, offsetof(CPULoongArchState, CSR_TID));
 
     return true;
 }
@@ -77,7 +77,7 @@ static bool trans_cpucfg(DisasContext *ctx, arg_cpucfg *a)
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
 
-    gen_helper_cpucfg(dest, cpu_env, src1);
+    gen_helper_cpucfg(dest, tcg_env, src1);
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
     return true;

@@ -120,7 +120,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
             if not hex_common.skip_qemu_helper(tag):
                 f.write(f"    TCGv_ptr {regtype}{regid}V = " "tcg_temp_new_ptr();\n")
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         elif regid in {"uu", "vv", "xx"}:
@@ -130,7 +130,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
             if not hex_common.skip_qemu_helper(tag):
                 f.write(f"    TCGv_ptr {regtype}{regid}V = " "tcg_temp_new_ptr();\n")
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         elif regid in {"s", "u", "v", "w"}:
@@ -155,7 +155,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
             if not hex_common.skip_qemu_helper(tag):
                 f.write(f"    TCGv_ptr {regtype}{regid}V = " "tcg_temp_new_ptr();\n")
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         else:
@@ -168,7 +168,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
             if not hex_common.skip_qemu_helper(tag):
                 f.write(f"    TCGv_ptr {regtype}{regid}V = " "tcg_temp_new_ptr();\n")
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         elif regid in {"s", "t", "u", "v"}:
@@ -303,7 +303,7 @@ def genptr_src_read(f, tag, regtype, regid):
         elif regid in {"s", "u", "v", "w"}:
             if not hex_common.skip_qemu_helper(tag):
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         elif regid in {"x", "y"}:
@@ -316,7 +316,7 @@ def genptr_src_read(f, tag, regtype, regid):
         if regid in {"s", "t", "u", "v"}:
             if not hex_common.skip_qemu_helper(tag):
                 f.write(
-                    f"    tcg_gen_addi_ptr({regtype}{regid}V, cpu_env, "
+                    f"    tcg_gen_addi_ptr({regtype}{regid}V, tcg_env, "
                     f"{regtype}{regid}V_off);\n"
                 )
         elif regid in {"x"}:
@@ -490,7 +490,7 @@ def genptr_dst_write_opn(f, regtype, regid, tag):
 ##       if hex_common.skip_qemu_helper(tag) is True
 ##       <GEN>  is fGEN_TCG_A2_add({ RdV=RsV+RtV;});
 ##       if hex_common.skip_qemu_helper(tag) is False
-##       <GEN>  is gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
+##       <GEN>  is gen_helper_A2_add(RdV, tcg_env, RsV, RtV);
 ##
 def gen_tcg_func(f, tag, regs, imms):
     f.write(f"static void generate_{tag}(DisasContext *ctx)\n")
@@ -572,7 +572,7 @@ def gen_tcg_func(f, tag, regs, imms):
                 i += 1
         if i > 0:
             f.write(", ")
-        f.write("cpu_env")
+        f.write("tcg_env")
         i = 1
         ## For conditional instructions, we pass in the destination register
         if "A_CONDEXEC" in hex_common.attribdict[tag]:

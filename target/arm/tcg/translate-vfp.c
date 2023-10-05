@@ -30,22 +30,22 @@
 
 static inline void vfp_load_reg64(TCGv_i64 var, int reg)
 {
-    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(true, reg));
+    tcg_gen_ld_i64(var, tcg_env, vfp_reg_offset(true, reg));
 }
 
 static inline void vfp_store_reg64(TCGv_i64 var, int reg)
 {
-    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(true, reg));
+    tcg_gen_st_i64(var, tcg_env, vfp_reg_offset(true, reg));
 }
 
 static inline void vfp_load_reg32(TCGv_i32 var, int reg)
 {
-    tcg_gen_ld_i32(var, cpu_env, vfp_reg_offset(false, reg));
+    tcg_gen_ld_i32(var, tcg_env, vfp_reg_offset(false, reg));
 }
 
 static inline void vfp_store_reg32(TCGv_i32 var, int reg)
 {
-    tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
+    tcg_gen_st_i32(var, tcg_env, vfp_reg_offset(false, reg));
 }
 
 /*
@@ -116,7 +116,7 @@ static void gen_preserve_fp_state(DisasContext *s, bool skip_context_update)
         if (translator_io_start(&s->base)) {
             s->base.is_jmp = DISAS_UPDATE_EXIT;
         }
-        gen_helper_v7m_preserve_fp_state(cpu_env);
+        gen_helper_v7m_preserve_fp_state(tcg_env);
         /*
          * If the preserve_fp_state helper doesn't throw an exception
          * then it will clear LSPACT; we don't need to repeat this for
@@ -172,7 +172,7 @@ static void gen_update_fp_context(DisasContext *s)
         uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
 
         fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
-        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        gen_helper_vfp_set_fpscr(tcg_env, fpscr);
         if (dc_isar_feature(aa32_mve, s)) {
             store_cpu_field(tcg_constant_i32(0), v7m.vpr);
         }
@@ -815,7 +815,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
             if (s->current_el == 1) {
                 gen_set_condexec(s);
                 gen_update_pc(s, 0);
-                gen_helper_check_hcr_el2_trap(cpu_env,
+                gen_helper_check_hcr_el2_trap(tcg_env,
                                               tcg_constant_i32(a->rt),
                                               tcg_constant_i32(a->reg));
             }
@@ -831,7 +831,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
                 tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
             } else {
                 tmp = tcg_temp_new_i32();
-                gen_helper_vfp_get_fpscr(tmp, cpu_env);
+                gen_helper_vfp_get_fpscr(tmp, tcg_env);
             }
             break;
         default:
@@ -855,7 +855,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
             break;
         case ARM_VFP_FPSCR:
             tmp = load_reg(s, a->rt);
-            gen_helper_vfp_set_fpscr(cpu_env, tmp);
+            gen_helper_vfp_set_fpscr(tcg_env, tmp);
             gen_lookup_tb(s);
             break;
         case ARM_VFP_FPEXC:
@@ -1169,7 +1169,7 @@ static bool trans_VLDM_VSTM_sp(DisasContext *s, arg_VLDM_VSTM_sp *a)
          * value is above, it is UNKNOWN whether the limit check
          * triggers; we choose to trigger.
          */
-        gen_helper_v8m_stackcheck(cpu_env, addr);
+        gen_helper_v8m_stackcheck(tcg_env, addr);
     }
 
     offset = 4;
@@ -1252,7 +1252,7 @@ static bool trans_VLDM_VSTM_dp(DisasContext *s, arg_VLDM_VSTM_dp *a)
          * value is above, it is UNKNOWN whether the limit check
          * triggers; we choose to trigger.
          */
-        gen_helper_v8m_stackcheck(cpu_env, addr);
+        gen_helper_v8m_stackcheck(tcg_env, addr);
     }
 
     offset = 8;
@@ -2419,17 +2419,17 @@ DO_VFP_2OP(VNEG, dp, gen_helper_vfp_negd, aa32_fpdp_v2)
 
 static void gen_VSQRT_hp(TCGv_i32 vd, TCGv_i32 vm)
 {
-    gen_helper_vfp_sqrth(vd, vm, cpu_env);
+    gen_helper_vfp_sqrth(vd, vm, tcg_env);
 }
 
 static void gen_VSQRT_sp(TCGv_i32 vd, TCGv_i32 vm)
 {
-    gen_helper_vfp_sqrts(vd, vm, cpu_env);
+    gen_helper_vfp_sqrts(vd, vm, tcg_env);
 }
 
 static void gen_VSQRT_dp(TCGv_i64 vd, TCGv_i64 vm)
 {
-    gen_helper_vfp_sqrtd(vd, vm, cpu_env);
+    gen_helper_vfp_sqrtd(vd, vm, tcg_env);
 }
 
 DO_VFP_2OP(VSQRT, hp, gen_VSQRT_hp, aa32_fp16_arith)
@@ -2464,9 +2464,9 @@ static bool trans_VCMP_hp(DisasContext *s, arg_VCMP_sp *a)
     }
 
     if (a->e) {
-        gen_helper_vfp_cmpeh(vd, vm, cpu_env);
+        gen_helper_vfp_cmpeh(vd, vm, tcg_env);
     } else {
-        gen_helper_vfp_cmph(vd, vm, cpu_env);
+        gen_helper_vfp_cmph(vd, vm, tcg_env);
     }
     return true;
 }
@@ -2499,9 +2499,9 @@ static bool trans_VCMP_sp(DisasContext *s, arg_VCMP_sp *a)
     }
 
     if (a->e) {
-        gen_helper_vfp_cmpes(vd, vm, cpu_env);
+        gen_helper_vfp_cmpes(vd, vm, tcg_env);
     } else {
-        gen_helper_vfp_cmps(vd, vm, cpu_env);
+        gen_helper_vfp_cmps(vd, vm, tcg_env);
     }
     return true;
 }
@@ -2539,9 +2539,9 @@ static bool trans_VCMP_dp(DisasContext *s, arg_VCMP_dp *a)
     }
 
     if (a->e) {
-        gen_helper_vfp_cmped(vd, vm, cpu_env);
+        gen_helper_vfp_cmped(vd, vm, tcg_env);
     } else {
-        gen_helper_vfp_cmpd(vd, vm, cpu_env);
+        gen_helper_vfp_cmpd(vd, vm, tcg_env);
     }
     return true;
 }
@@ -2564,7 +2564,7 @@ static bool trans_VCVT_f32_f16(DisasContext *s, arg_VCVT_f32_f16 *a)
     ahp_mode = get_ahp_flag();
     tmp = tcg_temp_new_i32();
     /* The T bit tells us if we want the low or high 16 bits of Vm */
-    tcg_gen_ld16u_i32(tmp, cpu_env, vfp_f16_offset(a->vm, a->t));
+    tcg_gen_ld16u_i32(tmp, tcg_env, vfp_f16_offset(a->vm, a->t));
     gen_helper_vfp_fcvt_f16_to_f32(tmp, tmp, fpst, ahp_mode);
     vfp_store_reg32(tmp, a->vd);
     return true;
@@ -2598,7 +2598,7 @@ static bool trans_VCVT_f64_f16(DisasContext *s, arg_VCVT_f64_f16 *a)
     ahp_mode = get_ahp_flag();
     tmp = tcg_temp_new_i32();
     /* The T bit tells us if we want the low or high 16 bits of Vm */
-    tcg_gen_ld16u_i32(tmp, cpu_env, vfp_f16_offset(a->vm, a->t));
+    tcg_gen_ld16u_i32(tmp, tcg_env, vfp_f16_offset(a->vm, a->t));
     vd = tcg_temp_new_i64();
     gen_helper_vfp_fcvt_f16_to_f64(vd, tmp, fpst, ahp_mode);
     vfp_store_reg64(vd, a->vd);
@@ -2623,7 +2623,7 @@ static bool trans_VCVT_b16_f32(DisasContext *s, arg_VCVT_b16_f32 *a)
 
     vfp_load_reg32(tmp, a->vm);
     gen_helper_bfcvt(tmp, tmp, fpst);
-    tcg_gen_st16_i32(tmp, cpu_env, vfp_f16_offset(a->vd, a->t));
+    tcg_gen_st16_i32(tmp, tcg_env, vfp_f16_offset(a->vd, a->t));
     return true;
 }
 
@@ -2647,7 +2647,7 @@ static bool trans_VCVT_f16_f32(DisasContext *s, arg_VCVT_f16_f32 *a)
 
     vfp_load_reg32(tmp, a->vm);
     gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp_mode);
-    tcg_gen_st16_i32(tmp, cpu_env, vfp_f16_offset(a->vd, a->t));
+    tcg_gen_st16_i32(tmp, tcg_env, vfp_f16_offset(a->vd, a->t));
     return true;
 }
 
@@ -2682,7 +2682,7 @@ static bool trans_VCVT_f16_f64(DisasContext *s, arg_VCVT_f16_f64 *a)
 
     vfp_load_reg64(vm, a->vm);
     gen_helper_vfp_fcvt_f64_to_f16(tmp, vm, fpst, ahp_mode);
-    tcg_gen_st16_i32(tmp, cpu_env, vfp_f16_offset(a->vd, a->t));
+    tcg_gen_st16_i32(tmp, tcg_env, vfp_f16_offset(a->vd, a->t));
     return true;
 }
 
@@ -2932,7 +2932,7 @@ static bool trans_VCVT_sp(DisasContext *s, arg_VCVT_sp *a)
     vm = tcg_temp_new_i32();
     vd = tcg_temp_new_i64();
     vfp_load_reg32(vm, a->vm);
-    gen_helper_vfp_fcvtds(vd, vm, cpu_env);
+    gen_helper_vfp_fcvtds(vd, vm, tcg_env);
     vfp_store_reg64(vd, a->vd);
     return true;
 }
@@ -2958,7 +2958,7 @@ static bool trans_VCVT_dp(DisasContext *s, arg_VCVT_dp *a)
     vd = tcg_temp_new_i32();
     vm = tcg_temp_new_i64();
     vfp_load_reg64(vm, a->vm);
-    gen_helper_vfp_fcvtsd(vd, vm, cpu_env);
+    gen_helper_vfp_fcvtsd(vd, vm, tcg_env);
     vfp_store_reg32(vd, a->vd);
     return true;
 }
@@ -3076,7 +3076,7 @@ static bool trans_VJCVT(DisasContext *s, arg_VJCVT *a)
     vm = tcg_temp_new_i64();
     vd = tcg_temp_new_i32();
     vfp_load_reg64(vm, a->vm);
-    gen_helper_vjcvt(vd, vm, cpu_env);
+    gen_helper_vjcvt(vd, vm, tcg_env);
     vfp_store_reg32(vd, a->vd);
     return true;
 }

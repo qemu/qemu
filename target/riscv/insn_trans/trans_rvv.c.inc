@@ -165,7 +165,7 @@ static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
         s1 = get_gpr(s, rs1, EXT_ZERO);
     }
 
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_helper_vsetvl(dst, tcg_env, s1, s2);
     gen_set_gpr(s, rd, dst);
     mark_vs_dirty(s);
 
@@ -185,7 +185,7 @@ static bool do_vsetivli(DisasContext *s, int rd, TCGv s1, TCGv s2)
 
     dst = dest_gpr(s, rd);
 
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_helper_vsetvl(dst, tcg_env, s1, s2);
     gen_set_gpr(s, rd, dst);
     mark_vs_dirty(s);
     gen_update_pc(s, s->cur_insn_len);
@@ -633,10 +633,10 @@ static bool ldst_us_trans(uint32_t vd, uint32_t rs1, uint32_t data,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, cpu_env, desc);
+    fn(dest, mask, base, tcg_env, desc);
 
     if (!is_store) {
         mark_vs_dirty(s);
@@ -794,10 +794,10 @@ static bool ldst_stride_trans(uint32_t vd, uint32_t rs1, uint32_t rs2,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, stride, cpu_env, desc);
+    fn(dest, mask, base, stride, tcg_env, desc);
 
     if (!is_store) {
         mark_vs_dirty(s);
@@ -900,11 +900,11 @@ static bool ldst_index_trans(uint32_t vd, uint32_t rs1, uint32_t vs2,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(index, cpu_env, vreg_ofs(s, vs2));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(index, tcg_env, vreg_ofs(s, vs2));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, index, cpu_env, desc);
+    fn(dest, mask, base, index, tcg_env, desc);
 
     if (!is_store) {
         mark_vs_dirty(s);
@@ -1039,10 +1039,10 @@ static bool ldff_trans(uint32_t vd, uint32_t rs1, uint32_t data,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, cpu_env, desc);
+    fn(dest, mask, base, tcg_env, desc);
 
     mark_vs_dirty(s);
     gen_set_label(over);
@@ -1100,9 +1100,9 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
                                       s->cfg_ptr->vlen / 8, data));
 
     base = get_gpr(s, rs1, EXT_NONE);
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
 
-    fn(dest, base, cpu_env, desc);
+    fn(dest, base, tcg_env, desc);
 
     if (!is_store) {
         mark_vs_dirty(s);
@@ -1199,7 +1199,7 @@ do_opivv_gvec(DisasContext *s, arg_rmrr *a, GVecGen3Fn *gvec_fn,
         data = FIELD_DP32(data, VDATA, VMA, s->vma);
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                            vreg_ofs(s, a->rs1), vreg_ofs(s, a->rs2),
-                           cpu_env, s->cfg_ptr->vlen / 8,
+                           tcg_env, s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8, data, fn);
     }
     mark_vs_dirty(s);
@@ -1251,11 +1251,11 @@ static bool opivx_trans(uint32_t vd, uint32_t rs1, uint32_t vs2, uint32_t vm,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, vs2));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, vs2));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, src1, src2, cpu_env, desc);
+    fn(dest, mask, src1, src2, tcg_env, desc);
 
     mark_vs_dirty(s);
     gen_set_label(over);
@@ -1413,11 +1413,11 @@ static bool opivi_trans(uint32_t vd, uint32_t imm, uint32_t vs2, uint32_t vm,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, vs2));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, vs2));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, src1, src2, cpu_env, desc);
+    fn(dest, mask, src1, src2, tcg_env, desc);
 
     mark_vs_dirty(s);
     gen_set_label(over);
@@ -1492,7 +1492,7 @@ static bool do_opivv_widen(DisasContext *s, arg_rmrr *a,
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                            vreg_ofs(s, a->rs1),
                            vreg_ofs(s, a->rs2),
-                           cpu_env, s->cfg_ptr->vlen / 8,
+                           tcg_env, s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8,
                            data, fn);
         mark_vs_dirty(s);
@@ -1568,7 +1568,7 @@ static bool do_opiwv_widen(DisasContext *s, arg_rmrr *a,
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                            vreg_ofs(s, a->rs1),
                            vreg_ofs(s, a->rs2),
-                           cpu_env, s->cfg_ptr->vlen / 8,
+                           tcg_env, s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8, data, fn);
         mark_vs_dirty(s);
         gen_set_label(over);
@@ -1639,7 +1639,7 @@ static bool opivv_trans(uint32_t vd, uint32_t vs1, uint32_t vs2, uint32_t vm,
     data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);
     data = FIELD_DP32(data, VDATA, VMA, s->vma);
     tcg_gen_gvec_4_ptr(vreg_ofs(s, vd), vreg_ofs(s, 0), vreg_ofs(s, vs1),
-                       vreg_ofs(s, vs2), cpu_env, s->cfg_ptr->vlen / 8,
+                       vreg_ofs(s, vs2), tcg_env, s->cfg_ptr->vlen / 8,
                        s->cfg_ptr->vlen / 8, data, fn);
     mark_vs_dirty(s);
     gen_set_label(over);
@@ -1830,7 +1830,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)             \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
                            vreg_ofs(s, a->rs1),                    \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew]);                           \
@@ -2036,7 +2036,7 @@ static bool trans_vmv_v_v(DisasContext *s, arg_vmv_v_v *a)
             tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
 
             tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs1),
-                               cpu_env, s->cfg_ptr->vlen / 8,
+                               tcg_env, s->cfg_ptr->vlen / 8,
                                s->cfg_ptr->vlen / 8, data,
                                fns[s->sew]);
             gen_set_label(over);
@@ -2084,8 +2084,8 @@ static bool trans_vmv_v_x(DisasContext *s, arg_vmv_v_x *a)
             tcg_gen_ext_tl_i64(s1_i64, s1);
             desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                               s->cfg_ptr->vlen / 8, data));
-            tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
-            fns[s->sew](dest, s1_i64, cpu_env, desc);
+            tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));
+            fns[s->sew](dest, s1_i64, tcg_env, desc);
         }
 
         mark_vs_dirty(s);
@@ -2123,8 +2123,8 @@ static bool trans_vmv_v_i(DisasContext *s, arg_vmv_v_i *a)
             dest = tcg_temp_new_ptr();
             desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                               s->cfg_ptr->vlen / 8, data));
-            tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
-            fns[s->sew](dest, s1, cpu_env, desc);
+            tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));
+            fns[s->sew](dest, s1, tcg_env, desc);
 
             mark_vs_dirty(s);
             gen_set_label(over);
@@ -2274,7 +2274,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)             \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
                            vreg_ofs(s, a->rs1),                    \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew - 1]);                       \
@@ -2306,15 +2306,15 @@ static bool opfvf_trans(uint32_t vd, uint32_t rs1, uint32_t vs2,
     desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                       s->cfg_ptr->vlen / 8, data));
 
-    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
-    tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, vs2));
-    tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
+    tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, vs2));
+    tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
     /* NaN-box f[rs1] */
     t1 = tcg_temp_new_i64();
     do_nanbox(s, t1, cpu_fpr[rs1]);
 
-    fn(dest, mask, t1, src2, cpu_env, desc);
+    fn(dest, mask, t1, src2, tcg_env, desc);
 
     mark_vs_dirty(s);
     gen_set_label(over);
@@ -2390,7 +2390,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)           \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);             \
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),   \
                            vreg_ofs(s, a->rs1),                  \
-                           vreg_ofs(s, a->rs2), cpu_env,         \
+                           vreg_ofs(s, a->rs2), tcg_env,         \
                            s->cfg_ptr->vlen / 8,                 \
                            s->cfg_ptr->vlen / 8, data,           \
                            fns[s->sew - 1]);                     \
@@ -2464,7 +2464,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)             \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
                            vreg_ofs(s, a->rs1),                    \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew - 1]);                       \
@@ -2580,7 +2580,7 @@ static bool do_opfv(DisasContext *s, arg_rmr *a,
         data = FIELD_DP32(data, VDATA, VTA, s->vta);
         data = FIELD_DP32(data, VDATA, VMA, s->vma);
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
-                           vreg_ofs(s, a->rs2), cpu_env,
+                           vreg_ofs(s, a->rs2), tcg_env,
                            s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8, data, fn);
         mark_vs_dirty(s);
@@ -2693,9 +2693,9 @@ static bool trans_vfmv_v_f(DisasContext *s, arg_vfmv_v_f *a)
             dest = tcg_temp_new_ptr();
             desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                               s->cfg_ptr->vlen / 8, data));
-            tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
+            tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));
 
-            fns[s->sew - 1](dest, t1, cpu_env, desc);
+            fns[s->sew - 1](dest, t1, tcg_env, desc);
 
             mark_vs_dirty(s);
             gen_set_label(over);
@@ -2769,7 +2769,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
         data = FIELD_DP32(data, VDATA, VTA, s->vta);               \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew - 1]);                       \
@@ -2820,7 +2820,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
         data = FIELD_DP32(data, VDATA, VTA, s->vta);               \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew]);                           \
@@ -2887,7 +2887,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
         data = FIELD_DP32(data, VDATA, VTA, s->vta);               \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew - 1]);                       \
@@ -2936,7 +2936,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
         data = FIELD_DP32(data, VDATA, VTA, s->vta);               \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data,             \
                            fns[s->sew]);                           \
@@ -3026,7 +3026,7 @@ static bool trans_##NAME(DisasContext *s, arg_r *a)                \
             FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);\
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
                            vreg_ofs(s, a->rs1),                    \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
+                           vreg_ofs(s, a->rs2), tcg_env,           \
                            s->cfg_ptr->vlen / 8,                   \
                            s->cfg_ptr->vlen / 8, data, fn);        \
         mark_vs_dirty(s);                                          \
@@ -3064,10 +3064,10 @@ static bool trans_vcpop_m(DisasContext *s, arg_rmr *a)
         desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                           s->cfg_ptr->vlen / 8, data));
 
-        tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, a->rs2));
-        tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2));
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-        gen_helper_vcpop_m(dst, mask, src2, cpu_env, desc);
+        gen_helper_vcpop_m(dst, mask, src2, tcg_env, desc);
         gen_set_gpr(s, a->rd, dst);
         return true;
     }
@@ -3093,10 +3093,10 @@ static bool trans_vfirst_m(DisasContext *s, arg_rmr *a)
         desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlen / 8,
                                           s->cfg_ptr->vlen / 8, data));
 
-        tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, a->rs2));
-        tcg_gen_addi_ptr(mask, cpu_env, vreg_ofs(s, 0));
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2));
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-        gen_helper_vfirst_m(dst, mask, src2, cpu_env, desc);
+        gen_helper_vfirst_m(dst, mask, src2, tcg_env, desc);
         gen_set_gpr(s, a->rd, dst);
         return true;
     }
@@ -3128,7 +3128,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
         data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd),                     \
                            vreg_ofs(s, 0), vreg_ofs(s, a->rs2),    \
-                           cpu_env, s->cfg_ptr->vlen / 8,          \
+                           tcg_env, s->cfg_ptr->vlen / 8,          \
                            s->cfg_ptr->vlen / 8,                   \
                            data, fn);                              \
         mark_vs_dirty(s);                                          \
@@ -3170,7 +3170,7 @@ static bool trans_viota_m(DisasContext *s, arg_viota_m *a)
             gen_helper_viota_m_w, gen_helper_viota_m_d,
         };
         tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
-                           vreg_ofs(s, a->rs2), cpu_env,
+                           vreg_ofs(s, a->rs2), tcg_env,
                            s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8, data, fns[s->sew]);
         mark_vs_dirty(s);
@@ -3200,7 +3200,7 @@ static bool trans_vid_v(DisasContext *s, arg_vid_v *a)
             gen_helper_vid_v_w, gen_helper_vid_v_d,
         };
         tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
-                           cpu_env, s->cfg_ptr->vlen / 8,
+                           tcg_env, s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8,
                            data, fns[s->sew]);
         mark_vs_dirty(s);
@@ -3288,7 +3288,7 @@ static void vec_element_loadx(DisasContext *s, TCGv_i64 dest,
 
     /* Convert the index to a pointer. */
     tcg_gen_ext_i32_ptr(base, ofs);
-    tcg_gen_add_ptr(base, base, cpu_env);
+    tcg_gen_add_ptr(base, base, tcg_env);
 
     /* Perform the load. */
     load_element(dest, base,
@@ -3306,7 +3306,7 @@ static void vec_element_loadx(DisasContext *s, TCGv_i64 dest,
 static void vec_element_loadi(DisasContext *s, TCGv_i64 dest,
                               int vreg, int idx, bool sign)
 {
-    load_element(dest, cpu_env, endian_ofs(s, vreg, idx), s->sew, sign);
+    load_element(dest, tcg_env, endian_ofs(s, vreg, idx), s->sew, sign);
 }
 
 /* Integer Scalar Move Instruction */
@@ -3340,7 +3340,7 @@ static void store_element(TCGv_i64 val, TCGv_ptr base,
 static void vec_element_storei(DisasContext *s, int vreg,
                                int idx, TCGv_i64 val)
 {
-    store_element(val, cpu_env, endian_ofs(s, vreg, idx), s->sew);
+    store_element(val, tcg_env, endian_ofs(s, vreg, idx), s->sew);
 }
 
 /* vmv.x.s rd, vs2 # x[rd] = vs2[0] */
@@ -3620,7 +3620,7 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
         data = FIELD_DP32(data, VDATA, VTA, s->vta);
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                            vreg_ofs(s, a->rs1), vreg_ofs(s, a->rs2),
-                           cpu_env, s->cfg_ptr->vlen / 8,
+                           tcg_env, s->cfg_ptr->vlen / 8,
                            s->cfg_ptr->vlen / 8, data,
                            fns[s->sew]);
         mark_vs_dirty(s);
@@ -3650,7 +3650,7 @@ static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
             TCGLabel *over = gen_new_label();                           \
             tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, maxsz, over);  \
             tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs2), \
-                               cpu_env, maxsz, maxsz, 0, gen_helper_vmvr_v); \
+                               tcg_env, maxsz, maxsz, 0, gen_helper_vmvr_v); \
             mark_vs_dirty(s);                                           \
             gen_set_label(over);                                        \
         }                                                               \
@@ -3722,7 +3722,7 @@ static bool int_ext_op(DisasContext *s, arg_rmr *a, uint8_t seq)
     data = FIELD_DP32(data, VDATA, VMA, s->vma);
 
     tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
-                       vreg_ofs(s, a->rs2), cpu_env,
+                       vreg_ofs(s, a->rs2), tcg_env,
                        s->cfg_ptr->vlen / 8,
                        s->cfg_ptr->vlen / 8, data, fn);
 

@@ -1,13 +1,13 @@
 /*
- * Internal execution defines for qemu
+ * Internal execution defines for qemu (target specific)
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-#ifndef ACCEL_TCG_INTERNAL_H
-#define ACCEL_TCG_INTERNAL_H
+#ifndef ACCEL_TCG_INTERNAL_TARGET_H
+#define ACCEL_TCG_INTERNAL_TARGET_H
 
 #include "exec/exec-all.h"
 #include "exec/translate-all.h"
@@ -80,6 +80,9 @@ bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
 void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc);
 
+bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
+void tcg_exec_unrealizefn(CPUState *cpu);
+
 /* Return the current PC from CPU, which may be cached in TB. */
 static inline vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
 {
@@ -89,18 +92,6 @@ static inline vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
         return tb->pc;
     }
 }
-
-/*
- * Return true if CS is not running in parallel with other cpus, either
- * because there are no other cpus or we are within an exclusive context.
- */
-static inline bool cpu_in_serial_context(CPUState *cs)
-{
-    return !(cs->tcg_cflags & CF_PARALLEL) || cpu_in_exclusive_context(cs);
-}
-
-extern int64_t max_delay;
-extern int64_t max_advance;
 
 extern bool one_insn_per_tb;
 

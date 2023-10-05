@@ -357,8 +357,8 @@ static int core_dump_signal(int sig)
 static G_NORETURN
 void dump_core_and_abort(int target_sig)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    CPUState *cpu = env_cpu(env);
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu_env(cpu);
     TaskState *ts = cpu->opaque;
     int core_dumped = 0;
     int host_sig;
@@ -463,7 +463,7 @@ static int fatal_signal(int sig)
 void force_sig_fault(int sig, int code, abi_ulong addr)
 {
     CPUState *cpu = thread_cpu;
-    CPUArchState *env = cpu->env_ptr;
+    CPUArchState *env = cpu_env(cpu);
     target_siginfo_t info = {};
 
     info.si_signo = sig;
@@ -475,8 +475,7 @@ void force_sig_fault(int sig, int code, abi_ulong addr)
 
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    CPUState *cpu = env_cpu(env);
+    CPUState *cpu = thread_cpu;
     TaskState *ts = cpu->opaque;
     target_siginfo_t tinfo;
     ucontext_t *uc = puc;
@@ -854,11 +853,6 @@ void signal_init(void)
     act.sa_flags = SA_SIGINFO;
 
     for (i = 1; i <= TARGET_NSIG; i++) {
-#ifdef CONFIG_GPROF
-        if (i == TARGET_SIGPROF) {
-            continue;
-        }
-#endif
         host_sig = target_to_host_signal(i);
         sigaction(host_sig, NULL, &oact);
         if (oact.sa_sigaction == (void *)SIG_IGN) {

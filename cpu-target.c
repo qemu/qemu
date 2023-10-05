@@ -136,13 +136,8 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
     /* cache the cpu class for the hotpath */
     cpu->cc = CPU_GET_CLASS(cpu);
 
-    if (!accel_cpu_realizefn(cpu, errp)) {
+    if (!accel_cpu_common_realize(cpu, errp)) {
         return;
-    }
-
-    /* NB: errp parameter is unused currently */
-    if (tcg_enabled()) {
-        tcg_exec_realizefn(cpu, errp);
     }
 
     /* Wait until cpu initialization complete before exposing cpu. */
@@ -187,11 +182,9 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     cpu_list_remove(cpu);
     /*
      * Now that the vCPU has been removed from the RCU list, we can call
-     * tcg_exec_unrealizefn, which may free fields using call_rcu.
+     * accel_cpu_common_unrealize, which may free fields using call_rcu.
      */
-    if (tcg_enabled()) {
-        tcg_exec_unrealizefn(cpu);
-    }
+    accel_cpu_common_unrealize(cpu);
 }
 
 /*

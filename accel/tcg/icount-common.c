@@ -27,7 +27,6 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "exec/exec-all.h"
 #include "sysemu/cpus.h"
 #include "sysemu/qtest.h"
 #include "qemu/main-loop.h"
@@ -38,7 +37,7 @@
 #include "hw/core/cpu.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/cpu-throttle.h"
-#include "timers-state.h"
+#include "softmmu/timers-state.h"
 
 /*
  * ICOUNT: Instruction Counter
@@ -75,7 +74,7 @@ static void icount_enable_adaptive(void)
 static int64_t icount_get_executed(CPUState *cpu)
 {
     return (cpu->icount_budget -
-            (cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra));
+            (cpu->neg.icount_decr.u16.low + cpu->icount_extra));
 }
 
 /*
@@ -111,7 +110,7 @@ static int64_t icount_get_raw_locked(void)
     CPUState *cpu = current_cpu;
 
     if (cpu && cpu->running) {
-        if (!cpu->can_do_io) {
+        if (!cpu->neg.can_do_io) {
             error_report("Bad icount read");
             exit(1);
         }

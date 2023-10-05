@@ -41,9 +41,9 @@ static bool trans_fcmp_cond_s(DisasContext *ctx, arg_fcmp_cond_s *a)
     fn = (a->fcond & 1 ? gen_helper_fcmp_s_s : gen_helper_fcmp_c_s);
     flags = get_fcmp_flags(a->fcond >> 1);
 
-    fn(var, cpu_env, src1, src2, tcg_constant_i32(flags));
+    fn(var, tcg_env, src1, src2, tcg_constant_i32(flags));
 
-    tcg_gen_st8_tl(var, cpu_env, offsetof(CPULoongArchState, cf[a->cd]));
+    tcg_gen_st8_tl(var, tcg_env, offsetof(CPULoongArchState, cf[a->cd]));
     return true;
 }
 
@@ -65,8 +65,8 @@ static bool trans_fcmp_cond_d(DisasContext *ctx, arg_fcmp_cond_d *a)
     fn = (a->fcond & 1 ? gen_helper_fcmp_s_d : gen_helper_fcmp_c_d);
     flags = get_fcmp_flags(a->fcond >> 1);
 
-    fn(var, cpu_env, src1, src2, tcg_constant_i32(flags));
+    fn(var, tcg_env, src1, src2, tcg_constant_i32(flags));
 
-    tcg_gen_st8_tl(var, cpu_env, offsetof(CPULoongArchState, cf[a->cd]));
+    tcg_gen_st8_tl(var, tcg_env, offsetof(CPULoongArchState, cf[a->cd]));
     return true;
 }

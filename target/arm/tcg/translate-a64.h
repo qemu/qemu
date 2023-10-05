@@ -115,7 +115,7 @@ static inline int vec_full_reg_offset(DisasContext *s, int regno)
 static inline TCGv_ptr vec_full_reg_ptr(DisasContext *s, int regno)
 {
     TCGv_ptr ret = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(ret, cpu_env, vec_full_reg_offset(s, regno));
+    tcg_gen_addi_ptr(ret, tcg_env, vec_full_reg_offset(s, regno));
     return ret;
 }
 
@@ -179,7 +179,7 @@ static inline int pred_gvec_reg_size(DisasContext *s)
 static inline TCGv_ptr pred_full_reg_ptr(DisasContext *s, int regno)
 {
     TCGv_ptr ret = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(ret, cpu_env, pred_full_reg_offset(s, regno));
+    tcg_gen_addi_ptr(ret, tcg_env, pred_full_reg_offset(s, regno));
     return ret;
 }
 
