@@ -1163,17 +1163,21 @@ char *get_relocated_path(const char *dir)
     g_string_append(result, "/qemu-bundle");
     if (access(result->str, R_OK) == 0) {
 #ifdef G_OS_WIN32
-        size_t size = mbsrtowcs(NULL, &dir, 0, &(mbstate_t){0}) + 1;
+        const char *src = dir;
+        size_t size = mbsrtowcs(NULL, &src, 0, &(mbstate_t){0}) + 1;
         PWSTR wdir = g_new(WCHAR, size);
-        mbsrtowcs(wdir, &dir, size, &(mbstate_t){0});
+        mbsrtowcs(wdir, &src, size, &(mbstate_t){0});
 
         PCWSTR wdir_skipped_root;
-        PathCchSkipRoot(wdir, &wdir_skipped_root);
+        if (PathCchSkipRoot(wdir, &wdir_skipped_root) == S_OK) {
+            size = wcsrtombs(NULL, &wdir_skipped_root, 0, &(mbstate_t){0});
+            char *cursor = result->str + result->len;
+            g_string_set_size(result, result->len + size);
+            wcsrtombs(cursor, &wdir_skipped_root, size + 1, &(mbstate_t){0});
+        } else {
+            g_string_append(result, dir);
+        }
 
-        size = wcsrtombs(NULL, &wdir_skipped_root, 0, &(mbstate_t){0});
-        char *cursor = result->str + result->len;
-        g_string_set_size(result, result->len + size);
-        wcsrtombs(cursor, &wdir_skipped_root, size + 1, &(mbstate_t){0});
         g_free(wdir);
 #else
         g_string_append(result, dir);
