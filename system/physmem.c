@@ -2699,6 +2699,17 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
+
+            /*
+             * Assure Coverity (and ourselves) that we are not going to OVERRUN
+             * the buffer by following ldn_he_p().
+             */
+#ifdef QEMU_STATIC_ANALYSIS
+            assert((l == 1 && len >= 1) ||
+                   (l == 2 && len >= 2) ||
+                   (l == 4 && len >= 4) ||
+                   (l == 8 && len >= 8));
+#endif
             val = ldn_he_p(buf, l);
             result |= memory_region_dispatch_write(mr, addr1, val,
                                                    size_memop(l), attrs);
@@ -2769,6 +2780,17 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
             result |= memory_region_dispatch_read(mr, addr1, &val,
                                                   size_memop(l), attrs);
+
+            /*
+             * Assure Coverity (and ourselves) that we are not going to OVERRUN
+             * the buffer by following stn_he_p().
+             */
+#ifdef QEMU_STATIC_ANALYSIS
+            assert((l == 1 && len >= 1) ||
+                   (l == 2 && len >= 2) ||
+                   (l == 4 && len >= 4) ||
+                   (l == 8 && len >= 8));
+#endif
             stn_he_p(buf, l, val);
         } else {
             /* RAM case */
