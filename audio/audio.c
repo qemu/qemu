@@ -1688,13 +1688,9 @@ static const VMStateDescription vmstate_audio = {
 
 static void audio_validate_opts(Audiodev *dev, Error **errp);
 
-static void audio_create_default_audiodevs(void)
+void audio_create_default_audiodevs(void)
 {
     const char *drvname = getenv("QEMU_AUDIO_DRV");
-
-    if (!defaults_enabled()) {
-        return;
-    }
 
     /* QEMU_AUDIO_DRV=none is used by libqtest.  */
     if (drvname && !g_str_equal(drvname, "none")) {
@@ -1827,9 +1823,6 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
             }
             card->state = QTAILQ_FIRST(&audio_states);
         } else {
-            if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
-                audio_create_default_audiodevs();
-            }
             card->state = audio_init(NULL, errp);
             if (!card->state) {
                 if (!QSIMPLEQ_EMPTY(&audiodevs)) {

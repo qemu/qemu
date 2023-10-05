@@ -170,6 +170,7 @@ void audio_sample_from_uint64(void *samples, int pos,
 
 void audio_define(Audiodev *audio);
 void audio_parse_option(const char *opt);
+void audio_create_default_audiodevs(void);
 void audio_init_audiodevs(void);
 void audio_help(void);
 

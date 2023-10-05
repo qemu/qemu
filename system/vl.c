@@ -184,6 +184,7 @@ static const char *qtest_log;
 static bool opt_one_insn_per_tb;
 
 static int has_defaults = 1;
+static int default_audio = 1;
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_monitor = 1;
@@ -1327,6 +1328,7 @@ static void qemu_disable_default_devices(void)
         default_sdcard = 0;
     }
     if (!has_defaults) {
+        default_audio = 0;
         default_monitor = 0;
         default_net = 0;
         default_vga = 0;
@@ -1963,6 +1965,9 @@ static void qemu_create_early_backends(void)
      */
     configure_blockdev(&bdo_queue, machine_class, snapshot);
     audio_init_audiodevs();
+    if (default_audio) {
+        audio_create_default_audiodevs();
+    }
 }
 
 
@@ -2925,6 +2930,7 @@ void qemu_init(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_audiodev:
+                default_audio = 0;
                 audio_parse_option(optarg);
                 break;
             case QEMU_OPTION_audio: {
@@ -2933,6 +2939,7 @@ void qemu_init(int argc, char **argv)
                 Audiodev *dev = NULL;
                 Visitor *v;
                 QDict *dict = keyval_parse(optarg, "driver", &help, &error_fatal);
+                default_audio = 0;
                 if (help || (qdict_haskey(dict, "driver") &&
                              is_help_option(qdict_get_str(dict, "driver")))) {
                     audio_help();
