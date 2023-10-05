@@ -1801,20 +1801,28 @@ out:
     return NULL;
 }
 
+AudioState *audio_get_default_audio_state(Error **errp)
+{
+    if (!default_audio_state) {
+        default_audio_state = audio_init(NULL, errp);
+        if (!default_audio_state) {
+            if (!QSIMPLEQ_EMPTY(&audiodevs)) {
+                error_append_hint(errp, "Perhaps you wanted to use -audio or set audiodev=%s?\n",
+                                  QSIMPLEQ_FIRST(&audiodevs)->dev->id);
+            }
+        }
+    }
+
+    return default_audio_state;
+}
+
 bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
-        if (!default_audio_state) {
-            default_audio_state = audio_init(NULL, errp);
-            if (!default_audio_state) {
-                if (!QSIMPLEQ_EMPTY(&audiodevs)) {
-                    error_append_hint(errp, "Perhaps you wanted to use -audio or set audiodev=%s?\n",
-                                      QSIMPLEQ_FIRST(&audiodevs)->dev->id);
-                }
-                return false;
-            }
+        card->state = audio_get_default_audio_state(errp);
+        if (!card->state) {
+            return false;
         }
-        card->state = default_audio_state;
     }
 
     card->name = g_strdup (name);

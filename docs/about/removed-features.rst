@@ -460,12 +460,6 @@ in this case.
 Note that the default audio backend must be configured on the command
 line if the ``-nodefaults`` options is used.
 
-Creating vnc without ``audiodev=`` property (removed in 8.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-When using vnc, you should specify an ``audiodev=`` property if
-you plan to transmit audio through the VNC protocol.
-
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

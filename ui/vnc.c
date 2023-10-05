@@ -4185,6 +4185,8 @@ void vnc_display_open(const char *id, Error **errp)
         if (!vd->audio_state) {
             goto fail;
         }
+    } else {
+        vd->audio_state = audio_get_default_audio_state(NULL);
     }
 
     device_id = qemu_opt_get(opts, "display");
