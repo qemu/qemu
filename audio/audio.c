@@ -1690,19 +1690,7 @@ static const VMStateDescription vmstate_audio = {
 
 void audio_create_default_audiodevs(void)
 {
-    const char *drvname = getenv("QEMU_AUDIO_DRV");
-
-    /* QEMU_AUDIO_DRV=none is used by libqtest.  */
-    if (drvname && !g_str_equal(drvname, "none")) {
-        error_report("Please use -audiodev instead of QEMU_AUDIO_*");
-        exit(1);
-    }
-
     for (int i = 0; audio_prio_list[i]; i++) {
-        if (drvname && !g_str_equal(drvname, audio_prio_list[i])) {
-            continue;
-        }
-
         if (audio_driver_lookup(audio_prio_list[i])) {
             QDict *dict = qdict_new();
             Audiodev *dev = NULL;

@@ -421,9 +421,6 @@ static QTestState *G_GNUC_PRINTF(1, 2) qtest_spawn_qemu(const char *fmt, ...)
         int sig = SIGKILL;
         procctl(P_PID, getpid(), PROC_PDEATHSIG_CTL, &sig);
 #endif /* __FreeBSD__ */
-        if (!g_setenv("QEMU_AUDIO_DRV", "none", true)) {
-            exit(1);
-        }
         execlp("/bin/sh", "sh", "-c", command->str, NULL);
         exit(1);
     }
@@ -464,6 +461,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
                          "-chardev socket,path=%s,id=char0 "
                          "-mon chardev=char0,mode=control "
                          "-display none "
+                         "-audio none "
                          "%s"
                          " -accel qtest",
                          socket_path,
