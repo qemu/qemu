@@ -870,10 +870,10 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     for (i = 0; i < dev->nregions; i++) {
         if (reg_equal(&dev->regions[i], msg_region)) {
             VuDevRegion *r = &dev->regions[i];
-            void *m = (void *) (uintptr_t) r->mmap_addr;
+            void *ma = (void *) (uintptr_t) r->mmap_addr;
 
-            if (m) {
-                munmap(m, r->size + r->mmap_offset);
+            if (ma) {
+                munmap(ma, r->size + r->mmap_offset);
             }
 
             /*
@@ -1005,10 +1005,10 @@ vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     for (i = 0; i < dev->nregions; i++) {
         VuDevRegion *r = &dev->regions[i];
-        void *m = (void *) (uintptr_t) r->mmap_addr;
+        void *ma = (void *) (uintptr_t) r->mmap_addr;
 
-        if (m) {
-            munmap(m, r->size + r->mmap_offset);
+        if (ma) {
+            munmap(ma, r->size + r->mmap_offset);
         }
     }
     dev->nregions = memory->nregions;
