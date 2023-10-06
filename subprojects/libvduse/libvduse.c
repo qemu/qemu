@@ -1031,7 +1031,7 @@ int vduse_dev_handler(VduseDev *dev)
         /* The iova will be updated by iova_to_va() later, so just remove it */
         vduse_iova_remove_region(dev, req.iova.start, req.iova.last);
         for (i = 0; i < dev->num_queues; i++) {
-            VduseVirtq *vq = &dev->vqs[i];
+            vq = &dev->vqs[i];
             if (vq->ready) {
                 if (vduse_queue_update_vring(vq, vq->vring.desc_addr,
                                              vq->vring.avail_addr,
