@@ -1,5 +1,5 @@
 /*
- * QEMU Alpha CPU
+ * QEMU Alpha CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -26,6 +26,9 @@
 #define TYPE_ALPHA_CPU "alpha-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(AlphaCPU, AlphaCPUClass, ALPHA_CPU)
+
+#define ALPHA_CPU_TYPE_SUFFIX "-" TYPE_ALPHA_CPU
+#define ALPHA_CPU_TYPE_NAME(model) model ALPHA_CPU_TYPE_SUFFIX
 
 /**
  * AlphaCPUClass:

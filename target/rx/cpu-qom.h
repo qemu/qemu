@@ -1,5 +1,5 @@
 /*
- * RX CPU
+ * QEMU RX CPU QOM header (target agnostic)
  *
  * Copyright (c) 2019 Yoshinori Sato
  *
@@ -27,6 +27,9 @@
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
 OBJECT_DECLARE_CPU_TYPE(RXCPU, RXCPUClass, RX_CPU)
+
+#define RX_CPU_TYPE_SUFFIX "-" TYPE_RX_CPU
+#define RX_CPU_TYPE_NAME(model) model RX_CPU_TYPE_SUFFIX
 
 /*
  * RXCPUClass:

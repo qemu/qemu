@@ -1,5 +1,5 @@
 /*
- * QEMU SPARC CPU
+ * QEMU SPARC CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -30,6 +30,9 @@
 #endif
 
 OBJECT_DECLARE_CPU_TYPE(SPARCCPU, SPARCCPUClass, SPARC_CPU)
+
+#define SPARC_CPU_TYPE_SUFFIX "-" TYPE_SPARC_CPU
+#define SPARC_CPU_TYPE_NAME(model) model SPARC_CPU_TYPE_SUFFIX
 
 typedef struct sparc_def_t sparc_def_t;
 /**

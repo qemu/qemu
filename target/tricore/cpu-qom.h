@@ -1,4 +1,6 @@
 /*
+ * QEMU TriCore CPU QOM header (target agnostic)
+ *
  *  Copyright (c) 2012-2014 Bastian Koppelmann C-Lab/University Paderborn
  *
  * This library is free software; you can redistribute it and/or
@@ -25,6 +27,9 @@
 #define TYPE_TRICORE_CPU "tricore-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(TriCoreCPU, TriCoreCPUClass, TRICORE_CPU)
+
+#define TRICORE_CPU_TYPE_SUFFIX "-" TYPE_TRICORE_CPU
+#define TRICORE_CPU_TYPE_NAME(model) model TRICORE_CPU_TYPE_SUFFIX
 
 struct TriCoreCPUClass {
     CPUClass parent_class;

@@ -1,5 +1,5 @@
 /*
- * QEMU Motorola 68k CPU
+ * QEMU Motorola 68k CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -26,6 +26,9 @@
 #define TYPE_M68K_CPU "m68k-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(M68kCPU, M68kCPUClass, M68K_CPU)
+
+#define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
+#define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX
 
 /*
  * M68kCPUClass:

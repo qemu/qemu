@@ -1,5 +1,5 @@
 /*
- * QEMU Xtensa CPU
+ * QEMU Xtensa CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  * All rights reserved.
@@ -35,6 +35,9 @@
 #define TYPE_XTENSA_CPU "xtensa-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(XtensaCPU, XtensaCPUClass, XTENSA_CPU)
+
+#define XTENSA_CPU_TYPE_SUFFIX "-" TYPE_XTENSA_CPU
+#define XTENSA_CPU_TYPE_NAME(model) model XTENSA_CPU_TYPE_SUFFIX
 
 typedef struct XtensaConfig XtensaConfig;
 

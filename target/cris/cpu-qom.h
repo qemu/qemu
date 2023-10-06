@@ -1,5 +1,5 @@
 /*
- * QEMU CRIS CPU
+ * QEMU CRIS CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -26,6 +26,9 @@
 #define TYPE_CRIS_CPU "cris-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(CRISCPU, CRISCPUClass, CRIS_CPU)
+
+#define CRIS_CPU_TYPE_SUFFIX "-" TYPE_CRIS_CPU
+#define CRIS_CPU_TYPE_NAME(name) (name CRIS_CPU_TYPE_SUFFIX)
 
 /**
  * CRISCPUClass:

@@ -1,5 +1,5 @@
 /*
- * QEMU AVR CPU
+ * QEMU AVR CPU QOM header (target agnostic)
  *
  * Copyright (c) 2016-2020 Michael Rolnik
  *
@@ -27,6 +27,9 @@
 #define TYPE_AVR_CPU "avr-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(AVRCPU, AVRCPUClass, AVR_CPU)
+
+#define AVR_CPU_TYPE_SUFFIX "-" TYPE_AVR_CPU
+#define AVR_CPU_TYPE_NAME(name) (name AVR_CPU_TYPE_SUFFIX)
 
 /**
  *  AVRCPUClass:
