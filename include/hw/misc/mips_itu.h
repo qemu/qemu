@@ -79,4 +79,6 @@ struct MIPSITUState {
 /* Get ITC Configuration Tag memory region. */
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu);
 
+void itc_reconfigure(struct MIPSITUState *tag);
+
 #endif /* MIPS_ITU_H */
