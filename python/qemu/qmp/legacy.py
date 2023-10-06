@@ -194,8 +194,8 @@ class QEMUMonitorProtocol:
             )
         )
 
-    def cmd(self, name: str,
-            args: Optional[Dict[str, object]] = None) -> QMPMessage:
+    def cmd_raw(self, name: str,
+                args: Optional[Dict[str, object]] = None) -> QMPMessage:
         """
         Build a QMP command and send it to the QMP Monitor.
 
