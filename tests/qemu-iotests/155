@@ -110,7 +110,7 @@ class BaseClass(iotests.QMPTestCase):
                 elif self.target_blockdev_backing:
                         options['backing'] = self.target_blockdev_backing
 
-                result = self.vm.qmp('blockdev-add', **options)
+                result = self.vm.qmp('blockdev-add', options)
                 self.assert_qmp(result, 'return', {})
 
     def tearDown(self):

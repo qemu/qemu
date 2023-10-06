@@ -774,7 +774,7 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', **{
+        result = self.vm.qmp('blockdev-add', {
                 'node-name': 'top-filter',
                 'driver': 'throttle',
                 'throttle-group': 'tg',
@@ -935,7 +935,7 @@ class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
         self.vm.launch()
 
         # Use base_b instead of base_a as the backing of top
-        result = self.vm.qmp('blockdev-add', **{
+        result = self.vm.qmp('blockdev-add', {
                                 'node-name': 'top',
                                 'driver': iotests.imgfmt,
                                 'file': {

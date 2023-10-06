@@ -49,12 +49,12 @@ class TestNbdReconnect(iotests.QMPTestCase):
         assert job in ('blockdev-backup', 'blockdev-mirror')
         with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
             result = self.vm.qmp('blockdev-add',
-                                 **{'node_name': 'backup0',
-                                    'driver': 'raw',
-                                    'file': {'driver': 'nbd',
-                                             'server': {'type': 'unix',
-                                                        'path': nbd_sock},
-                                             'reconnect-delay': 10}})
+                                 {'node-name': 'backup0',
+                                  'driver': 'raw',
+                                  'file': {'driver': 'nbd',
+                                           'server': {'type': 'unix',
+                                                      'path': nbd_sock},
+                                           'reconnect-delay': 10}})
             self.assert_qmp(result, 'return', {})
             result = self.vm.qmp(job, device='drive0',
                                  sync='full', target='backup0',

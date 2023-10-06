@@ -42,7 +42,7 @@ class Secret:
         return  [ "secret,id=" + self._id + ",data=" + self._secret]
 
     def to_qmp_object(self):
-        return { "qom_type" : "secret", "id": self.id(),
+        return { "qom-type" : "secret", "id": self.id(),
                  "data": self.secret() }
 
 ################################################################################
@@ -61,9 +61,9 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         # create the secrets and load 'em into the VMs
         self.secrets = [ Secret(i) for i in range(0, 4) ]
         for secret in self.secrets:
-            result = self.vm1.qmp("object-add", **secret.to_qmp_object())
+            result = self.vm1.qmp("object-add", secret.to_qmp_object())
             self.assert_qmp(result, 'return', {})
-            result = self.vm2.qmp("object-add", **secret.to_qmp_object())
+            result = self.vm2.qmp("object-add", secret.to_qmp_object())
             self.assert_qmp(result, 'return', {})
 
     # test case shutdown
@@ -135,15 +135,14 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             result = vm.qmp(command, options=[opts])
             self.assert_qmp(result, 'return', {})
         else:
-            result = vm.qmp(command, **opts)
+            result = vm.qmp(command, opts)
             self.assert_qmp(result, 'return', {})
 
 
     ###########################################################################
     # add virtio-blk consumer for a block device
     def addImageUser(self, vm, id, disk_id, share_rw=False):
-        result = vm.qmp('device_add', **
-            {
+        result = vm.qmp('device_add', {
                 'driver': 'virtio-blk',
                 'id': id,
                 'drive': disk_id,
@@ -155,7 +154,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
     # close the encrypted block device
     def closeImageQmp(self, vm, id):
-        result = vm.qmp('blockdev-del', **{ 'node-name': id })
+        result = vm.qmp('blockdev-del', {'node-name': id})
         self.assert_qmp(result, 'return', {})
 
     ###########################################################################
@@ -174,7 +173,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             },
         }
 
-        result = vm.qmp('x-blockdev-amend', **args)
+        result = vm.qmp('x-blockdev-amend', args)
         iotests.log(result)
         # Run the job only if it was created
         event = ('JOB_STATUS_CHANGE',

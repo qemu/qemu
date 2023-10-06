@@ -236,7 +236,7 @@ class TestSingleBlockdev(TestSingleDrive):
         args = {'driver': iotests.imgfmt,
                 'node-name': self.qmp_target,
                 'file': { 'filename': target_img, 'driver': 'file' } }
-        result = self.vm.qmp("blockdev-add", **args)
+        result = self.vm.qmp("blockdev-add", args)
         self.assert_qmp(result, 'return', {})
 
     def test_mirror_to_self(self):
@@ -963,7 +963,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         #assemble the quorum block device from the individual files
         args = { "driver": "quorum", "node-name": "quorum0",
                  "vote-threshold": 2, "children": [ "img0", "img1", "img2" ] }
-        result = self.vm.qmp("blockdev-add", **args)
+        result = self.vm.qmp("blockdev-add", args)
         self.assert_qmp(result, 'return', {})
 
 
@@ -1278,7 +1278,7 @@ class TestReplaces(iotests.QMPTestCase):
         """
         Check that we can replace filter nodes.
         """
-        result = self.vm.qmp('blockdev-add', **{
+        result = self.vm.qmp('blockdev-add', {
                                  'driver': 'copy-on-read',
                                  'node-name': 'filter0',
                                  'file': {
@@ -1319,7 +1319,7 @@ class TestFilters(iotests.QMPTestCase):
         self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
         self.vm.launch()
 
-        result = self.vm.qmp('blockdev-add', **{
+        result = self.vm.qmp('blockdev-add', {
                                 'node-name': 'target',
                                 'driver': iotests.imgfmt,
                                 'file': {
@@ -1355,7 +1355,7 @@ class TestFilters(iotests.QMPTestCase):
         os.remove(backing_img)
 
     def test_cor(self):
-        result = self.vm.qmp('blockdev-add', **{
+        result = self.vm.qmp('blockdev-add', {
                                 'node-name': 'filter',
                                 'driver': 'copy-on-read',
                                 'file': self.filterless_chain
@@ -1384,7 +1384,7 @@ class TestFilters(iotests.QMPTestCase):
         assert target_map[1]['depth'] == 0
 
     def test_implicit_mirror_filter(self):
-        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
+        result = self.vm.qmp('blockdev-add', self.filterless_chain)
         self.assert_qmp(result, 'return', {})
 
         # We need this so we can query from above the mirror node
@@ -1418,7 +1418,7 @@ class TestFilters(iotests.QMPTestCase):
     def test_explicit_mirror_filter(self):
         # Same test as above, but this time we give the mirror filter
         # a node-name so it will not be invisible
-        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
+        result = self.vm.qmp('blockdev-add', self.filterless_chain)
         self.assert_qmp(result, 'return', {})
 
         # We need this so we can query from above the mirror node

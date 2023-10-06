@@ -67,7 +67,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         if persistent:
             params['persistent'] = True
 
-        result = vm.qmp('block-dirty-bitmap-add', **params)
+        result = vm.qmp('block-dirty-bitmap-add', params)
         self.assert_qmp(result, 'return', {})
 
     def check_bitmap(self, vm, sha256):
@@ -256,7 +256,7 @@ class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
         self.vm = iotests.VM()
         self.vm.launch()
 
-        result = self.vm.qmp('blockdev-add', **blockdev)
+        result = self.vm.qmp('blockdev-add', blockdev)
         self.assert_qmp(result, 'return', {})
 
         # Check that the bitmaps are there
