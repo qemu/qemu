@@ -26,7 +26,7 @@ to load a Linux kernel and optional disk image. For example:
 
 .. code-block:: bash
 
-  $ qemu-system-or1k -cpu or1220 -M or1k-sim -nographic \
+  $ qemu-system-or1k -cpu or1220 -M virt -nographic \
         -device virtio-net-device,netdev=user -netdev user,id=user,net=10.9.0.1/24,host=10.9.0.100 \
         -device virtio-blk-device,drive=d0 -drive file=virt.qcow2,id=d0,if=none,format=qcow2 \
         -kernel vmlinux \
