@@ -408,8 +408,8 @@ class LinuxSSHMixIn:
 
     def ssh_connect(self, username, credential, credential_is_key=True):
         self.ssh_logger = logging.getLogger('ssh')
-        res = self.vm.command('human-monitor-command',
-                              command_line='info usernet')
+        res = self.vm.cmd('human-monitor-command',
+                          command_line='info usernet')
         port = get_info_usernet_hostfwd_port(res)
         self.assertIsNotNone(port)
         self.assertGreater(port, 0)

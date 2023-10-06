@@ -207,7 +207,7 @@ class QEMUMonitorProtocol:
             qmp_cmd['arguments'] = args
         return self.cmd_obj(qmp_cmd)
 
-    def command(self, cmd: str, **kwds: object) -> QMPReturnValue:
+    def cmd(self, cmd: str, **kwds: object) -> QMPReturnValue:
         """
         Build and send a QMP command to the monitor, report errors if any
         """

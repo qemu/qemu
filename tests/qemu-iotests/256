@@ -40,25 +40,25 @@ with iotests.FilePath('img0') as img0_path, \
     def create_target(filepath, name, size):
         basename = os.path.basename(filepath)
         nodename = "file_{}".format(basename)
-        log(vm.command('blockdev-create', job_id='job1',
-                       options={
-                           'driver': 'file',
-                           'filename': filepath,
-                           'size': 0,
-                       }))
+        log(vm.cmd('blockdev-create', job_id='job1',
+                   options={
+                       'driver': 'file',
+                       'filename': filepath,
+                       'size': 0,
+                   }))
         vm.run_job('job1')
-        log(vm.command('blockdev-add', driver='file',
-                       node_name=nodename, filename=filepath))
-        log(vm.command('blockdev-create', job_id='job2',
-                       options={
-                           'driver': iotests.imgfmt,
-                           'file': nodename,
-                           'size': size,
-                       }))
+        log(vm.cmd('blockdev-add', driver='file',
+                   node_name=nodename, filename=filepath))
+        log(vm.cmd('blockdev-create', job_id='job2',
+                   options={
+                       'driver': iotests.imgfmt,
+                       'file': nodename,
+                       'size': size,
+                   }))
         vm.run_job('job2')
-        log(vm.command('blockdev-add', driver=iotests.imgfmt,
-                       node_name=name,
-                       file=nodename))
+        log(vm.cmd('blockdev-add', driver=iotests.imgfmt,
+                   node_name=name,
+                   file=nodename))
 
     log('--- Preparing images & VM ---\n')
     vm.add_object('iothread,id=iothread0')

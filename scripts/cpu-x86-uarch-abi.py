@@ -69,7 +69,7 @@ sock = sys.argv[1]
 shell = QEMUMonitorProtocol(sock)
 shell.connect()
 
-models = shell.command("query-cpu-definitions")
+models = shell.cmd("query-cpu-definitions")
 
 # These QMP props don't correspond to CPUID fatures
 # so ignore them
@@ -93,9 +93,9 @@ for model in models:
 models = {}
 
 for name in sorted(names):
-    cpu = shell.command("query-cpu-model-expansion",
-                        { "type": "static",
-                          "model": { "name": name }})
+    cpu = shell.cmd("query-cpu-model-expansion",
+                    { "type": "static",
+                      "model": { "name": name }})
 
     got = {}
     for (feature, present) in cpu["model"]["props"].items():

@@ -140,7 +140,7 @@ class QOMCommand:
         """
         :return: a strongly typed list from the 'qom-list' command.
         """
-        rsp = self.qmp.command('qom-list', path=path)
+        rsp = self.qmp.cmd('qom-list', path=path)
         # qom-list returns List[ObjectPropertyInfo]
         assert isinstance(rsp, list)
         return [ObjectPropertyInfo.make(x) for x in rsp]

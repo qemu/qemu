@@ -71,9 +71,9 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         framebuffer_ready = 'Console: switching to colour frame buffer device'
         wait_for_console_pattern(self, framebuffer_ready,
                                  failure_message='Kernel panic - not syncing')
-        self.vm.command('human-monitor-command', command_line='stop')
-        self.vm.command('human-monitor-command',
-                        command_line='screendump %s' % screendump_path)
+        self.vm.cmd('human-monitor-command', command_line='stop')
+        self.vm.cmd('human-monitor-command',
+                    command_line='screendump %s' % screendump_path)
         logger = logging.getLogger('framebuffer')
 
         match_threshold = 0.95

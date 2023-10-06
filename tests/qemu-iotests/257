@@ -160,26 +160,26 @@ class Drive:
         file_node_name = "file_{}".format(basename)
         vm = self.vm
 
-        log(vm.command('blockdev-create', job_id='bdc-file-job',
-                       options={
-                           'driver': 'file',
-                           'filename': self.path,
-                           'size': 0,
-                       }))
+        log(vm.cmd('blockdev-create', job_id='bdc-file-job',
+                   options={
+                       'driver': 'file',
+                       'filename': self.path,
+                       'size': 0,
+                   }))
         vm.run_job('bdc-file-job')
-        log(vm.command('blockdev-add', driver='file',
-                       node_name=file_node_name, filename=self.path))
+        log(vm.cmd('blockdev-add', driver='file',
+                   node_name=file_node_name, filename=self.path))
 
-        log(vm.command('blockdev-create', job_id='bdc-fmt-job',
-                       options={
-                           'driver': fmt,
-                           'file': file_node_name,
-                           'size': size,
-                       }))
+        log(vm.cmd('blockdev-create', job_id='bdc-fmt-job',
+                   options={
+                       'driver': fmt,
+                       'file': file_node_name,
+                       'size': size,
+                   }))
         vm.run_job('bdc-fmt-job')
-        log(vm.command('blockdev-add', driver=fmt,
-                       node_name=name,
-                       file=file_node_name))
+        log(vm.cmd('blockdev-add', driver=fmt,
+                   node_name=name,
+                   file=file_node_name))
         self.fmt = fmt
         self.size = size
         self.node = name

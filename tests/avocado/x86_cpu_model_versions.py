@@ -84,7 +84,8 @@ class X86CPUModelAliases(avocado_qemu.QemuSystemTest):
         # with older QEMU versions that didn't have the versioned CPU model
         self.vm.add_args('-S')
         self.vm.launch()
-        cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
+        cpus = dict((m['name'], m) for m in
+                    self.vm.cmd('query-cpu-definitions'))
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')
@@ -115,7 +116,8 @@ class X86CPUModelAliases(avocado_qemu.QemuSystemTest):
         self.vm.add_args('-S')
         self.vm.launch()
 
-        cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
+        cpus = dict((m['name'], m) for m in
+                    self.vm.cmd('query-cpu-definitions'))
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')
@@ -220,7 +222,8 @@ class X86CPUModelAliases(avocado_qemu.QemuSystemTest):
         self.vm.add_args('-S')
         self.vm.launch()
 
-        cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
+        cpus = dict((m['name'], m) for m in
+                    self.vm.cmd('query-cpu-definitions'))
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')
@@ -246,8 +249,8 @@ class CascadelakeArchCapabilities(avocado_qemu.QemuSystemTest):
     :avocado: tags=arch:x86_64
     """
     def get_cpu_prop(self, prop):
-        cpu_path = self.vm.command('query-cpus-fast')[0].get('qom-path')
-        return self.vm.command('qom-get', path=cpu_path, property=prop)
+        cpu_path = self.vm.cmd('query-cpus-fast')[0].get('qom-path')
+        return self.vm.cmd('qom-get', path=cpu_path, property=prop)
 
     def test_4_1(self):
         """

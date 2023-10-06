@@ -269,14 +269,14 @@ def formatTestCase(t):
 
 def qomListTypeNames(vm, **kwargs):
     """Run qom-list-types QMP command, return type names"""
-    types = vm.command('qom-list-types', **kwargs)
+    types = vm.cmd('qom-list-types', **kwargs)
     return [t['name'] for t in types]
 
 
 def infoQDM(vm):
     """Parse 'info qdm' output"""
     args = {'command-line': 'info qdm'}
-    devhelp = vm.command('human-monitor-command', **args)
+    devhelp = vm.cmd('human-monitor-command', **args)
     for l in devhelp.split('\n'):
         l = l.strip()
         if l == '' or l.endswith(':'):
@@ -304,9 +304,9 @@ class QemuBinaryInfo(object):
             # there's no way to query DeviceClass::user_creatable using QMP,
             # so use 'info qdm':
             self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
-            self.machines = list(m['name'] for m in vm.command('query-machines'))
+            self.machines = list(m['name'] for m in vm.cmd('query-machines'))
             self.user_devs = self.alldevs.difference(self.no_user_devs)
-            self.kvm_available = vm.command('query-kvm')['enabled']
+            self.kvm_available = vm.cmd('query-kvm')['enabled']
         finally:
             vm.shutdown()
 

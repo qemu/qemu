@@ -64,7 +64,7 @@ from qemu.qmp.legacy import QEMUMonitorProtocol
 class QemuGuestAgent(QEMUMonitorProtocol):
     def __getattr__(self, name: str) -> Callable[..., Any]:
         def wrapper(**kwds: object) -> object:
-            return self.command('guest-' + name.replace('_', '-'), **kwds)
+            return self.cmd('guest-' + name.replace('_', '-'), **kwds)
         return wrapper
 
 

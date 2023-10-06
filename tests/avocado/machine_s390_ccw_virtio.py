@@ -107,10 +107,10 @@ class S390CCWVirtioMachine(QemuSystemTest):
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
                         '10+0 records out')
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='rn1')
+        self.vm.cmd('device_del', id='rn1')
         self.wait_for_crw_reports()
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='rn2')
+        self.vm.cmd('device_del', id='rn2')
         self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self,
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
@@ -132,8 +132,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
                         '0x0000000c')
         # add another device
         self.clear_guest_dmesg()
-        self.vm.command('device_add', driver='virtio-net-ccw',
-                        devno='fe.0.4711', id='net_4711')
+        self.vm.cmd('device_add', driver='virtio-net-ccw',
+                    devno='fe.0.4711', id='net_4711')
         self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self, 'for i in 1 2 3 4 5 6 7 ; do '
                     'if [ -e /sys/bus/ccw/devices/*4711 ]; then break; fi ;'
@@ -141,7 +141,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                     '0.0.4711')
         # and detach it again
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='net_4711')
+        self.vm.cmd('device_del', id='net_4711')
         self.vm.event_wait(name='DEVICE_DELETED',
                            match={'data': {'device': 'net_4711'}})
         self.wait_for_crw_reports()
@@ -151,10 +151,10 @@ class S390CCWVirtioMachine(QemuSystemTest):
         # test the virtio-balloon device
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
-        self.vm.command('human-monitor-command', command_line='balloon 96')
+        self.vm.cmd('human-monitor-command', command_line='balloon 96')
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:          82872 kB')
-        self.vm.command('human-monitor-command', command_line='balloon 128')
+        self.vm.cmd('human-monitor-command', command_line='balloon 128')
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
 
@@ -245,7 +245,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                 '12+0 records out')
             with tempfile.NamedTemporaryFile(suffix='.ppm',
                                              prefix='qemu-scrdump-') as ppmfile:
-                self.vm.command('screendump', filename=ppmfile.name)
+                self.vm.cmd('screendump', filename=ppmfile.name)
                 ppmfile.seek(0)
                 line = ppmfile.readline()
                 self.assertEqual(line, b"P6\n")
@@ -261,16 +261,16 @@ class S390CCWVirtioMachine(QemuSystemTest):
         # Hot-plug a virtio-crypto device and see whether it gets accepted
         self.log.info("Test hot-plug virtio-crypto device")
         self.clear_guest_dmesg()
-        self.vm.command('object-add', qom_type='cryptodev-backend-builtin',
-                        id='cbe0')
-        self.vm.command('device_add', driver='virtio-crypto-ccw', id='crypdev0',
-                        cryptodev='cbe0', devno='fe.0.2342')
+        self.vm.cmd('object-add', qom_type='cryptodev-backend-builtin',
+                    id='cbe0')
+        self.vm.cmd('device_add', driver='virtio-crypto-ccw', id='crypdev0',
+                    cryptodev='cbe0', devno='fe.0.2342')
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Accelerator.device) ; do'
                         ' sleep 1 ; done', 'Accelerator device is ready')
         exec_command_and_wait_for_pattern(self, 'lscss', '0.0.2342')
-        self.vm.command('device_del', id='crypdev0')
-        self.vm.command('object-del', id='cbe0')
+        self.vm.cmd('device_del', id='crypdev0')
+        self.vm.cmd('object-del', id='cbe0')
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
                         ' sleep 1 ; done', 'Start virtcrypto_remove.')

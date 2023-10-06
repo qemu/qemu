@@ -707,16 +707,16 @@ class QEMUMachine:
             self._quit_issued = True
         return ret
 
-    def command(self, cmd: str,
-                conv_keys: bool = True,
-                **args: Any) -> QMPReturnValue:
+    def cmd(self, cmd: str,
+            conv_keys: bool = True,
+            **args: Any) -> QMPReturnValue:
         """
         Invoke a QMP command.
         On success return the response dict.
         On failure raise an exception.
         """
         qmp_args = self._qmp_args(conv_keys, args)
-        ret = self._qmp.command(cmd, **qmp_args)
+        ret = self._qmp.cmd(cmd, **qmp_args)
         if cmd == 'quit':
             self._quit_issued = True
         return ret

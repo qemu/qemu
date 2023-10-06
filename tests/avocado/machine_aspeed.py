@@ -181,8 +181,8 @@ class AST2x00Machine(QemuSystemTest):
              'i2c i2c-3: new_device: Instantiated device lm75 at 0x4d');
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon1/temp1_input', '0')
-        self.vm.command('qom-set', path='/machine/peripheral/tmp-test',
-                        property='temperature', value=18000);
+        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
+                    property='temperature', value=18000);
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon1/temp1_input', '18000')
 
@@ -213,8 +213,8 @@ class AST2x00Machine(QemuSystemTest):
              'i2c i2c-3: new_device: Instantiated device lm75 at 0x4d');
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon0/temp1_input', '0')
-        self.vm.command('qom-set', path='/machine/peripheral/tmp-test',
-                        property='temperature', value=18000);
+        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
+                    property='temperature', value=18000);
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon0/temp1_input', '18000')
 
@@ -360,8 +360,8 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
              'i2c i2c-5: new_device: Instantiated device lm75 at 0x4d');
         self.ssh_command_output_contains(
                              'cat /sys/class/hwmon/hwmon19/temp1_input', '0')
-        self.vm.command('qom-set', path='/machine/peripheral/tmp-test',
-                        property='temperature', value=18000);
+        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
+                    property='temperature', value=18000);
         self.ssh_command_output_contains(
                              'cat /sys/class/hwmon/hwmon19/temp1_input', '18000')
 
