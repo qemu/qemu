@@ -1338,8 +1338,7 @@ class QMPTestCase(unittest.TestCase):
         result = self.vm.qmp('block-job-pause', device=job_id)
         self.assert_qmp(result, 'return', {})
         if wait:
-            return self.pause_wait(job_id)
-        return result
+            self.pause_wait(job_id)
 
     def case_skip(self, reason):
         '''Skip this test case'''
