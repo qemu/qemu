@@ -495,7 +495,6 @@ class AsyncProtocol(Generic[T]):
         try:
             self.logger.debug("Stopping server.")
             self._server.close()
-            await self._server.wait_closed()
             self.logger.debug("Server stopped.")
         finally:
             self._server = None
