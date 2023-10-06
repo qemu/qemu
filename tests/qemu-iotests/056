@@ -75,9 +75,8 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
 
     def test_complete_top(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-backup', device='drive0', sync='top',
-                             format=iotests.imgfmt, target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-backup', device='drive0', sync='top',
+                    format=iotests.imgfmt, target=target_img)
 
         self.wait_until_completed(check_offset=False)
 
@@ -89,9 +88,8 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
     def test_cancel_sync_none(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-backup', device='drive0',
-                             sync='none', target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-backup', device='drive0',
+                    sync='none', target=target_img)
         time.sleep(1)
         self.vm.hmp_qemu_io('drive0', 'write -P0x5e 0 512')
         self.vm.hmp_qemu_io('drive0', 'aio_flush')
@@ -115,18 +113,15 @@ class TestBeforeWriteNotifier(iotests.QMPTestCase):
 
     def test_before_write_notifier(self):
         self.vm.pause_drive("drive0")
-        result = self.vm.qmp('drive-backup', device='drive0',
-                             sync='full', target=target_img,
-                             format="file", speed=1)
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('block-job-pause', device="drive0")
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-backup', device='drive0',
+                    sync='full', target=target_img,
+                    format="file", speed=1)
+        self.vm.cmd('block-job-pause', device="drive0")
         # Speed is low enough that this must be an uncopied range, which will
         # trigger the before write notifier
         self.vm.hmp_qemu_io('drive0', 'aio_write -P 1 512512 512')
         self.vm.resume_drive("drive0")
-        result = self.vm.qmp('block-job-resume', device="drive0")
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-resume', device="drive0")
         event = self.cancel_and_wait()
         self.assert_qmp(event, 'data/type', 'backup')
 
@@ -191,8 +186,7 @@ class BackupTest(iotests.QMPTestCase):
         self.qmp_backup_and_wait(device='drive0', format=iotests.imgfmt,
                                  sync='full', target=self.ref_img,
                                  auto_dismiss=False)
-        res = self.vm.qmp('block-job-dismiss', id='drive0')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-dismiss', id='drive0')
 
         # Now to the test backup: We simulate the following guest
         # writes:
@@ -211,11 +205,9 @@ class BackupTest(iotests.QMPTestCase):
                                       ('66', '1M', '1M')])
 
         # Let the job complete
-        res = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-set-speed', device='drive0', speed=0)
         self.qmp_backup_wait('drive0')
-        res = self.vm.qmp('block-job-dismiss', id='drive0')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-dismiss', id='drive0')
 
         self.assertTrue(iotests.compare_images(self.ref_img, self.dest_img),
                         'target image does not match reference image')
@@ -237,8 +229,7 @@ class BackupTest(iotests.QMPTestCase):
                                  auto_dismiss=False)
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return[0]/status', 'concluded')
-        res = self.vm.qmp('block-job-dismiss', id='drive0')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-dismiss', id='drive0')
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return', [])
 
@@ -263,8 +254,7 @@ class BackupTest(iotests.QMPTestCase):
                                        auto_dismiss=False)
         self.assertEqual(res, False)
         # OK, dismiss the zombie.
-        res = self.vm.qmp('block-job-dismiss', id='drive0')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-dismiss', id='drive0')
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return', [])
         # Ensure it's really gone.
@@ -281,23 +271,22 @@ class BackupTest(iotests.QMPTestCase):
                            ('0x55', '8M', '352k'),
                            ('0x78', '15872k', '1M')))
         # Add destination node via blkdebug
-        res = self.vm.qmp('blockdev-add',
-                          node_name='target0',
-                          driver=iotests.imgfmt,
-                          file={
-                              'driver': 'blkdebug',
-                              'image': {
-                                  'driver': 'file',
-                                  'filename': self.dest_img
-                              },
-                              'inject-error': [{
-                                  'event': 'write_aio',
-                                  'errno': 5,
-                                  'immediately': False,
-                                  'once': True
-                              }],
-                          })
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    node_name='target0',
+                    driver=iotests.imgfmt,
+                    file={
+                        'driver': 'blkdebug',
+                        'image': {
+                            'driver': 'file',
+                            'filename': self.dest_img
+                        },
+                        'inject-error': [{
+                            'event': 'write_aio',
+                            'errno': 5,
+                            'immediately': False,
+                            'once': True
+                        }],
+                    })
 
         res = self.qmp_backup(cmd='blockdev-backup',
                               device='drive0', target='target0',
@@ -323,8 +312,7 @@ class BackupTest(iotests.QMPTestCase):
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return[0]/status', 'paused')
         # OK, unstick job and move forward.
-        res = self.vm.qmp('block-job-resume', device='drive0')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-resume', device='drive0')
         # And now we need to wait for it to conclude;
         res = self.qmp_backup_wait(device='drive0')
         self.assertTrue(res)
@@ -332,8 +320,7 @@ class BackupTest(iotests.QMPTestCase):
             # Job should now be languishing:
             res = self.vm.qmp('query-block-jobs')
             self.assert_qmp(res, 'return[0]/status', 'concluded')
-            res = self.vm.qmp('block-job-dismiss', id='drive0')
-            self.assert_qmp(res, 'return', {})
+            self.vm.cmd('block-job-dismiss', id='drive0')
             res = self.vm.qmp('query-block-jobs')
             self.assert_qmp(res, 'return', [])
 

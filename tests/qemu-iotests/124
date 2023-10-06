@@ -24,6 +24,7 @@
 import os
 import iotests
 from iotests import try_remove
+from qemu.qmp.qmp_client import ExecuteError
 
 
 def io_write_patterns(img, patterns):
@@ -141,8 +142,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
 
     def do_qmp_backup(self, error='Input/output error', **kwargs):
-        res = self.vm.qmp('drive-backup', **kwargs)
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('drive-backup', **kwargs)
         return self.wait_qmp_backup(kwargs['device'], error)
 
 
@@ -201,9 +201,8 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
     def add_bitmap(self, name, drive, **kwargs):
         bitmap = Bitmap(name, drive)
         self.bitmaps.append(bitmap)
-        result = self.vm.qmp('block-dirty-bitmap-add', node=drive['id'],
-                             name=bitmap.name, **kwargs)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-dirty-bitmap-add', node=drive['id'],
+                    name=bitmap.name, **kwargs)
         return bitmap
 
 
@@ -388,13 +387,12 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                                           ('0x64', '32736k', '64k')))
         bitmap1 = self.add_bitmap('bitmap1', drive0)
 
-        result = self.vm.qmp('transaction', actions=[
+        self.vm.cmd('transaction', actions=[
             transaction_bitmap_clear(bitmap0.drive['id'], bitmap0.name),
             transaction_bitmap_clear(bitmap1.drive['id'], bitmap1.name),
             transaction_drive_backup(drive0['id'], drive0['backup'],
                                      sync='full', format=drive0['fmt'])
         ])
-        self.assert_qmp(result, 'return', {})
         self.wait_until_completed(drive0['id'])
         self.files.append(drive0['backup'])
 
@@ -417,7 +415,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                                            ('0xcd', '32M', '124k')))
 
         # Create a blkdebug interface to this img as 'drive1'
-        result = self.vm.qmp('blockdev-add',
+        self.vm.cmd('blockdev-add',
             node_name=drive1['id'],
             driver=drive1['fmt'],
             file={
@@ -440,7 +438,6 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                 }],
             }
         )
-        self.assert_qmp(result, 'return', {})
 
         # Create bitmaps and full backups for both drives
         drive0 = self.drives[0]
@@ -475,9 +472,8 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                                      format=drive1['fmt'], mode='existing',
                                      bitmap=dr1bm0.name)
         ]
-        result = self.vm.qmp('transaction', actions=transaction,
-                             properties={'completion-mode': 'grouped'} )
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('transaction', actions=transaction,
+                    properties={'completion-mode': 'grouped'} )
 
         # Observe that drive0's backup is cancelled and drive1 completes with
         # an error.
@@ -504,9 +500,8 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         target1 = self.prepare_backup(dr1bm0)
 
         # Re-run the exact same transaction.
-        result = self.vm.qmp('transaction', actions=transaction,
-                             properties={'completion-mode':'grouped'})
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('transaction', actions=transaction,
+                    properties={'completion-mode':'grouped'})
 
         # Both should complete successfully this time.
         self.assertTrue(self.wait_qmp_backup(drive0['id']))
@@ -567,7 +562,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         The granularity must always be a power of 2.
         '''
         self.assert_no_active_block_jobs()
-        self.assertRaises(AssertionError, self.add_bitmap,
+        self.assertRaises(ExecuteError, self.add_bitmap,
                           'bitmap0', self.drives[0],
                           granularity=64000)
 
@@ -585,9 +580,8 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
 
         self.add_bitmap('bitmap0', self.drives[0])
 
-        res = self.vm.qmp('block_resize', device=self.drives[0]['id'],
-                          size=(65 * 1048576))
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block_resize', device=self.drives[0]['id'],
+                    size=(65 * 1048576))
 
         # Dirty the image past the old end
         self.vm.hmp_qemu_io(self.drives[0]['id'], 'write 64M 64k')
@@ -617,7 +611,7 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         '''
 
         drive0 = self.drives[0]
-        result = self.vm.qmp('blockdev-add',
+        self.vm.cmd('blockdev-add',
             node_name=drive0['id'],
             driver=drive0['fmt'],
             file={
@@ -640,7 +634,6 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
                 }],
             }
         )
-        self.assert_qmp(result, 'return', {})
 
         self.create_anchor_backup(drive0)
         self.add_bitmap('bitmap0', drive0)
@@ -668,29 +661,28 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         drive0 = self.drives[0]
         # NB: The blkdebug script here looks for a "flush, read" pattern.
         # The flush occurs in hmp_io_writes, and the read during the block job.
-        result = self.vm.qmp('blockdev-add',
-                             node_name=drive0['id'],
-                             driver=drive0['fmt'],
-                             file={
-                                 'driver': 'blkdebug',
-                                 'image': {
-                                     'driver': 'file',
-                                     'filename': drive0['file']
-                                 },
-                                 'set-state': [{
-                                     'event': 'flush_to_disk',
-                                     'state': 1,
-                                     'new_state': 2
-                                 }],
-                                 'inject-error': [{
-                                     'event': 'read_aio',
-                                     'errno': 5,
-                                     'state': 2,
-                                     'immediately': False,
-                                     'once': True
-                                 }],
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    node_name=drive0['id'],
+                    driver=drive0['fmt'],
+                    file={
+                        'driver': 'blkdebug',
+                        'image': {
+                            'driver': 'file',
+                            'filename': drive0['file']
+                        },
+                        'set-state': [{
+                            'event': 'flush_to_disk',
+                            'state': 1,
+                            'new_state': 2
+                        }],
+                        'inject-error': [{
+                            'event': 'read_aio',
+                            'errno': 5,
+                            'state': 2,
+                            'immediately': False,
+                            'once': True
+                        }],
+                    })
         self.create_anchor_backup(drive0)
         bitmap = self.add_bitmap('bitmap0', drive0)
 
@@ -711,16 +703,15 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         # Start backup
         parent, _ = bitmap.last_target()
         target = self.prepare_backup(bitmap, parent)
-        res = self.vm.qmp('drive-backup',
-                          job_id=bitmap.drive['id'],
-                          device=bitmap.drive['id'],
-                          sync='incremental',
-                          bitmap=bitmap.name,
-                          format=bitmap.drive['fmt'],
-                          target=target,
-                          mode='existing',
-                          on_source_error='stop')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('drive-backup',
+                    job_id=bitmap.drive['id'],
+                    device=bitmap.drive['id'],
+                    sync='incremental',
+                    bitmap=bitmap.name,
+                    format=bitmap.drive['fmt'],
+                    target=target,
+                    mode='existing',
+                    on_source_error='stop')
 
         # Wait for the error
         event = self.vm.event_wait(name="BLOCK_JOB_ERROR",
@@ -739,8 +730,7 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
             }))
 
         # Resume and check incremental backup for consistency
-        res = self.vm.qmp('block-job-resume', device=bitmap.drive['id'])
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-resume', device=bitmap.drive['id'])
         self.wait_qmp_backup(bitmap.drive['id'])
 
         # Bitmap Status Check

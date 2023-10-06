@@ -115,8 +115,7 @@ class TestStreamErrorOnReset(QMPTestCase):
         # Launch a stream job, which will take at least a second to
         # complete, because the base image is throttled (so we can
         # get in between it having started and it having completed)
-        res = self.vm.qmp('block-stream', job_id='stream', device='top')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-stream', job_id='stream', device='top')
 
         while True:
             ev = self.vm.event_wait('JOB_STATUS_CHANGE')
@@ -125,8 +124,7 @@ class TestStreamErrorOnReset(QMPTestCase):
                 # forces the virtio-scsi device to be reset, thus draining
                 # the stream job, and making it complete.  Completing
                 # inside of that drain should not result in a segfault.
-                res = self.vm.qmp('system_reset')
-                self.assert_qmp(res, 'return', {})
+                self.vm.cmd('system_reset')
             elif ev['data']['status'] == 'null':
                 # The test is done once the job is gone
                 break

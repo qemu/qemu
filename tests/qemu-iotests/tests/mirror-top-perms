@@ -78,12 +78,11 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         difficult to let some other qemu process open the image.)
         """
 
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             device='drive0',
-                             target='null',
-                             sync='full')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='drive0',
+                    target='null',
+                    sync='full')
 
         self.vm.event_wait('BLOCK_JOB_READY')
 
@@ -105,9 +104,8 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         except machine.VMLaunchFailure as exc:
             assert 'Is another process using the image' in exc.output
 
-        result = self.vm.qmp('block-job-cancel',
-                             device='mirror')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-cancel',
+                    device='mirror')
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 

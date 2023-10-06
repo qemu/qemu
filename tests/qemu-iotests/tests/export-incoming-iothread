@@ -55,7 +55,7 @@ class TestExportIncomingIothread(iotests.QMPTestCase):
         os.remove(test_img)
 
     def test_export_add(self):
-        result = self.vm.qmp('nbd-server-start', {
+        self.vm.cmd('nbd-server-start', {
             'addr': {
                 'type': 'unix',
                 'data': {
@@ -63,16 +63,14 @@ class TestExportIncomingIothread(iotests.QMPTestCase):
                 }
             }
         })
-        self.assert_qmp(result, 'return', {})
 
         # Regression test for issue 945: This should not fail an assertion
-        result = self.vm.qmp('block-export-add', {
+        self.vm.cmd('block-export-add', {
             'type': 'nbd',
             'id': 'exp0',
             'node-name': node_name,
             'iothread': iothread_id
         })
-        self.assert_qmp(result, 'return', {})
 
 
 if __name__ == '__main__':

@@ -118,11 +118,10 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
     def start_postcopy(self):
         """ Run migration until RESUME event on target. Return this event. """
         for i in range(nb_bitmaps):
-            result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
-                                   name='bitmap{}'.format(i),
-                                   granularity=granularity,
-                                   persistent=True)
-            self.assert_qmp(result, 'return', {})
+            self.vm_a.cmd('block-dirty-bitmap-add', node='drive0',
+                          name='bitmap{}'.format(i),
+                          granularity=granularity,
+                          persistent=True)
 
         result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
                                node='drive0', name='bitmap0')
@@ -140,9 +139,8 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         # We want to calculate resulting sha256. Do it in bitmap0, so, disable
         # other bitmaps
         for i in range(1, nb_bitmaps):
-            result = self.vm_a.qmp('block-dirty-bitmap-disable', node='drive0',
-                                   name='bitmap{}'.format(i))
-            self.assert_qmp(result, 'return', {})
+            self.vm_a.cmd('block-dirty-bitmap-disable', node='drive0',
+                          name='bitmap{}'.format(i))
 
         apply_discards(self.vm_a, discards2)
 
@@ -152,24 +150,19 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         # Now, enable some bitmaps, to be updated during migration
         for i in range(2, nb_bitmaps, 2):
-            result = self.vm_a.qmp('block-dirty-bitmap-enable', node='drive0',
-                                   name='bitmap{}'.format(i))
-            self.assert_qmp(result, 'return', {})
+            self.vm_a.cmd('block-dirty-bitmap-enable', node='drive0',
+                          name='bitmap{}'.format(i))
 
         caps = [{'capability': 'dirty-bitmaps', 'state': True},
                 {'capability': 'events', 'state': True}]
 
-        result = self.vm_a.qmp('migrate-set-capabilities', capabilities=caps)
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('migrate-set-capabilities', capabilities=caps)
 
-        result = self.vm_b.qmp('migrate-set-capabilities', capabilities=caps)
-        self.assert_qmp(result, 'return', {})
+        self.vm_b.cmd('migrate-set-capabilities', capabilities=caps)
 
-        result = self.vm_a.qmp('migrate', uri='exec:cat>' + fifo)
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('migrate', uri='exec:cat>' + fifo)
 
-        result = self.vm_a.qmp('migrate-start-postcopy')
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('migrate-start-postcopy')
 
         event_resume = self.vm_b.event_wait('RESUME')
         self.vm_b_events.append(event_resume)

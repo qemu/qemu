@@ -1252,8 +1252,7 @@ class QMPTestCase(unittest.TestCase):
     def cancel_and_wait(self, drive='drive0', force=False,
                         resume=False, wait=60.0):
         '''Cancel a block job and wait for it to finish, returning the event'''
-        result = self.vm.qmp('block-job-cancel', device=drive, force=force)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-cancel', device=drive, force=force)
 
         if resume:
             self.vm.resume_drive(drive)
@@ -1315,8 +1314,7 @@ class QMPTestCase(unittest.TestCase):
         if wait_ready:
             self.wait_ready(drive=drive)
 
-        result = self.vm.qmp('block-job-complete', device=drive)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-complete', device=drive)
 
         event = self.wait_until_completed(drive=drive, error=completion_error)
         self.assertTrue(event['data']['type'] in ['mirror', 'commit'])
@@ -1335,8 +1333,7 @@ class QMPTestCase(unittest.TestCase):
                 assert found
 
     def pause_job(self, job_id='job0', wait=True):
-        result = self.vm.qmp('block-job-pause', device=job_id)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-pause', device=job_id)
         if wait:
             self.pause_wait(job_id)
 

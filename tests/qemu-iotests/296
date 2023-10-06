@@ -61,10 +61,8 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         # create the secrets and load 'em into the VMs
         self.secrets = [ Secret(i) for i in range(0, 4) ]
         for secret in self.secrets:
-            result = self.vm1.qmp("object-add", secret.to_qmp_object())
-            self.assert_qmp(result, 'return', {})
-            result = self.vm2.qmp("object-add", secret.to_qmp_object())
-            self.assert_qmp(result, 'return', {})
+            self.vm1.cmd("object-add", secret.to_qmp_object())
+            self.vm2.cmd("object-add", secret.to_qmp_object())
 
     # test case shutdown
     def tearDown(self):
@@ -132,11 +130,9 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             }
 
         if reOpen:
-            result = vm.qmp(command, options=[opts])
-            self.assert_qmp(result, 'return', {})
+            vm.cmd(command, options=[opts])
         else:
-            result = vm.qmp(command, opts)
-            self.assert_qmp(result, 'return', {})
+            vm.cmd(command, opts)
 
 
     ###########################################################################
@@ -154,8 +150,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
     # close the encrypted block device
     def closeImageQmp(self, vm, id):
-        result = vm.qmp('blockdev-del', {'node-name': id})
-        self.assert_qmp(result, 'return', {})
+        vm.cmd('blockdev-del', {'node-name': id})
 
     ###########################################################################
 
