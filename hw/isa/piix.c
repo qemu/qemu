@@ -374,6 +374,7 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
     }
 
     pci_bus_irqs(pci_bus, piix_set_pci_irq, d, PIIX_NUM_PIRQS);
+    pci_bus_set_route_irq_fn(pci_bus, piix_route_intx_pin_to_irq);
 }
 
 static void build_pci_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -454,15 +455,7 @@ static const TypeInfo piix_pci_type_info = {
 
 static void piix3_realize(PCIDevice *dev, Error **errp)
 {
-    ERRP_GUARD();
-    PCIBus *pci_bus = pci_get_bus(dev);
-
     pci_piix_realize(dev, TYPE_PIIX3_USB_UHCI, errp);
-    if (*errp) {
-        return;
-    }
-
-    pci_bus_set_route_irq_fn(pci_bus, piix_route_intx_pin_to_irq);
 }
 
 static void piix3_init(Object *obj)
