@@ -38,47 +38,47 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
-static void piix3_set_irq_pic(PIIXState *piix3, int pic_irq)
+static void piix_set_irq_pic(PIIXState *s, int pic_irq)
 {
-    qemu_set_irq(piix3->isa_irqs_in[pic_irq],
-                 !!(piix3->pic_levels &
+    qemu_set_irq(s->isa_irqs_in[pic_irq],
+                 !!(s->pic_levels &
                     (((1ULL << PIIX_NUM_PIRQS) - 1) <<
                      (pic_irq * PIIX_NUM_PIRQS))));
 }
 
-static void piix3_set_irq_level_internal(PIIXState *piix3, int pirq, int level)
+static void piix_set_pci_irq_level_internal(PIIXState *s, int pirq, int level)
 {
     int pic_irq;
     uint64_t mask;
 
-    pic_irq = piix3->dev.config[PIIX_PIRQCA + pirq];
+    pic_irq = s->dev.config[PIIX_PIRQCA + pirq];
     if (pic_irq >= ISA_NUM_IRQS) {
         return;
     }
 
     mask = 1ULL << ((pic_irq * PIIX_NUM_PIRQS) + pirq);
-    piix3->pic_levels &= ~mask;
-    piix3->pic_levels |= mask * !!level;
+    s->pic_levels &= ~mask;
+    s->pic_levels |= mask * !!level;
 }
 
-static void piix3_set_irq_level(PIIXState *piix3, int pirq, int level)
+static void piix_set_pci_irq_level(PIIXState *s, int pirq, int level)
 {
     int pic_irq;
 
-    pic_irq = piix3->dev.config[PIIX_PIRQCA + pirq];
+    pic_irq = s->dev.config[PIIX_PIRQCA + pirq];
     if (pic_irq >= ISA_NUM_IRQS) {
         return;
     }
 
-    piix3_set_irq_level_internal(piix3, pirq, level);
+    piix_set_pci_irq_level_internal(s, pirq, level);
 
-    piix3_set_irq_pic(piix3, pic_irq);
+    piix_set_irq_pic(s, pic_irq);
 }
 
-static void piix3_set_irq(void *opaque, int pirq, int level)
+static void piix_set_pci_irq(void *opaque, int pirq, int level)
 {
-    PIIXState *piix3 = opaque;
-    piix3_set_irq_level(piix3, pirq, level);
+    PIIXState *s = opaque;
+    piix_set_pci_irq_level(s, pirq, level);
 }
 
 static void piix4_set_irq(void *opaque, int irq_num, int level)
@@ -108,10 +108,10 @@ static void piix_request_i8259_irq(void *opaque, int irq, int level)
     qemu_set_irq(s->cpu_intr, level);
 }
 
-static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pin)
+static PCIINTxRoute piix_route_intx_pin_to_irq(void *opaque, int pin)
 {
-    PIIXState *piix3 = opaque;
-    int irq = piix3->dev.config[PIIX_PIRQCA + pin];
+    PCIDevice *pci_dev = opaque;
+    int irq = pci_dev->config[PIIX_PIRQCA + pin];
     PCIINTxRoute route;
 
     if (irq < ISA_NUM_IRQS) {
@@ -125,29 +125,29 @@ static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pin)
 }
 
 /* irq routing is changed. so rebuild bitmap */
-static void piix3_update_irq_levels(PIIXState *piix3)
+static void piix_update_pci_irq_levels(PIIXState *s)
 {
-    PCIBus *bus = pci_get_bus(&piix3->dev);
+    PCIBus *bus = pci_get_bus(&s->dev);
     int pirq;
 
-    piix3->pic_levels = 0;
+    s->pic_levels = 0;
     for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
-        piix3_set_irq_level(piix3, pirq, pci_bus_get_irq_level(bus, pirq));
+        piix_set_pci_irq_level(s, pirq, pci_bus_get_irq_level(bus, pirq));
     }
 }
 
-static void piix3_write_config(PCIDevice *dev,
-                               uint32_t address, uint32_t val, int len)
+static void piix_write_config(PCIDevice *dev, uint32_t address, uint32_t val,
+                              int len)
 {
     pci_default_write_config(dev, address, val, len);
     if (ranges_overlap(address, len, PIIX_PIRQCA, 4)) {
-        PIIXState *piix3 = PIIX_PCI_DEVICE(dev);
+        PIIXState *s = PIIX_PCI_DEVICE(dev);
         int pic_irq;
 
-        pci_bus_fire_intx_routing_notifier(pci_get_bus(&piix3->dev));
-        piix3_update_irq_levels(piix3);
+        pci_bus_fire_intx_routing_notifier(pci_get_bus(&s->dev));
+        piix_update_pci_irq_levels(s);
         for (pic_irq = 0; pic_irq < ISA_NUM_IRQS; pic_irq++) {
-            piix3_set_irq_pic(piix3, pic_irq);
+            piix_set_irq_pic(s, pic_irq);
         }
     }
 }
@@ -193,9 +193,9 @@ static void piix_reset(DeviceState *dev)
     d->rcr = 0;
 }
 
-static int piix3_post_load(void *opaque, int version_id)
+static int piix_post_load(void *opaque, int version_id)
 {
-    PIIXState *piix3 = opaque;
+    PIIXState *s = opaque;
     int pirq;
 
     /*
@@ -207,10 +207,10 @@ static int piix3_post_load(void *opaque, int version_id)
      * Here, we update irq levels without raising the interrupt.
      * Interrupt state will be deserialized separately through the i8259.
      */
-    piix3->pic_levels = 0;
+    s->pic_levels = 0;
     for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
-        piix3_set_irq_level_internal(piix3, pirq,
-            pci_bus_get_irq_level(pci_get_bus(&piix3->dev), pirq));
+        piix_set_pci_irq_level_internal(s, pirq,
+            pci_bus_get_irq_level(pci_get_bus(&s->dev), pirq));
     }
     return 0;
 }
@@ -261,7 +261,7 @@ static const VMStateDescription vmstate_piix3 = {
     .name = "PIIX3",
     .version_id = 3,
     .minimum_version_id = 2,
-    .post_load = piix3_post_load,
+    .post_load = piix_post_load,
     .pre_save = piix3_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIXState),
@@ -481,8 +481,8 @@ static void piix3_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
-    pci_bus_irqs(pci_bus, piix3_set_irq, piix3, PIIX_NUM_PIRQS);
-    pci_bus_set_route_irq_fn(pci_bus, piix3_route_intx_pin_to_irq);
+    pci_bus_irqs(pci_bus, piix_set_pci_irq, piix3, PIIX_NUM_PIRQS);
+    pci_bus_set_route_irq_fn(pci_bus, piix_route_intx_pin_to_irq);
 }
 
 static void piix3_init(Object *obj)
@@ -497,7 +497,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->config_write = piix3_write_config;
+    k->config_write = piix_write_config;
     k->realize = piix3_realize;
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_0;
