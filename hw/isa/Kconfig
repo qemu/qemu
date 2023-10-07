@@ -34,6 +34,7 @@ config PC87312
 config PIIX3
     bool
     select I8257
+    select IDE_PIIX
     select ISA_BUS
     select MC146818RTC
 
