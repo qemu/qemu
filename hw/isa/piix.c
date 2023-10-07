@@ -106,7 +106,7 @@ static void piix4_set_irq(void *opaque, int irq_num, int level)
     }
 }
 
-static void piix4_request_i8259_irq(void *opaque, int irq, int level)
+static void piix_request_i8259_irq(void *opaque, int irq, int level)
 {
     PIIX4State *s = opaque;
     qemu_set_irq(s->cpu_intr, level);
@@ -343,6 +343,22 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
     memory_region_add_subregion_overlap(pci_address_space_io(dev),
                                         PIIX_RCR_IOPORT, &d->rcr_mem, 1);
 
+    /* PIC */
+    if (d->has_pic) {
+        qemu_irq *i8259_out_irq = qemu_allocate_irqs(piix_request_i8259_irq, d,
+                                                     1);
+        qemu_irq *i8259 = i8259_init(isa_bus, *i8259_out_irq);
+        size_t i;
+
+        for (i = 0; i < ISA_NUM_IRQS; i++) {
+            d->isa_irqs_in[i] = i8259[i];
+        }
+
+        g_free(i8259);
+
+        qdev_init_gpio_out_named(DEVICE(dev), &d->cpu_intr, "intr", 1);
+    }
+
     isa_bus_register_input_irqs(isa_bus, d->isa_irqs_in);
 
     i8257_dma_init(isa_bus, 0);
@@ -419,6 +435,7 @@ static void pci_piix3_init(Object *obj)
 static Property pci_piix3_props[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIXState, smb_io_base, 0),
     DEFINE_PROP_BOOL("has-acpi", PIIXState, has_acpi, true),
+    DEFINE_PROP_BOOL("has-pic", PIIXState, has_pic, true),
     DEFINE_PROP_BOOL("has-usb", PIIXState, has_usb, true),
     DEFINE_PROP_BOOL("smm-enabled", PIIXState, smm_enabled, false),
     DEFINE_PROP_END_OF_LIST(),
@@ -514,7 +531,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
                                         PIIX_RCR_IOPORT, &s->rcr_mem, 1);
 
     /* initialize i8259 pic */
-    i8259_out_irq = qemu_allocate_irqs(piix4_request_i8259_irq, s, 1);
+    i8259_out_irq = qemu_allocate_irqs(piix_request_i8259_irq, s, 1);
     i8259 = i8259_init(isa_bus, *i8259_out_irq);
 
     for (i = 0; i < ISA_NUM_IRQS; i++) {
