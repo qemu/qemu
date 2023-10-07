@@ -262,7 +262,7 @@ static void pc_init1(MachineState *machine,
         DeviceState *dev;
         size_t i;
 
-        pci_dev = pci_new_multifunction(-1, TYPE_PIIX3_DEVICE);
+        pci_dev = pci_new_multifunction(-1, pcms->south_bridge);
         object_property_set_bool(OBJECT(pci_dev), "has-usb",
                                  machine_usb(machine), &error_abort);
         object_property_set_bool(OBJECT(pci_dev), "has-acpi",
@@ -394,6 +394,56 @@ static void pc_init1(MachineState *machine,
     }
 }
 
+typedef enum PCSouthBridgeOption {
+    PC_SOUTH_BRIDGE_OPTION_PIIX3,
+    PC_SOUTH_BRIDGE_OPTION_PIIX4,
+    PC_SOUTH_BRIDGE_OPTION_MAX,
+} PCSouthBridgeOption;
+
+static const QEnumLookup PCSouthBridgeOption_lookup = {
+    .array = (const char *const[]) {
+        [PC_SOUTH_BRIDGE_OPTION_PIIX3] = TYPE_PIIX3_DEVICE,
+        [PC_SOUTH_BRIDGE_OPTION_PIIX4] = TYPE_PIIX4_PCI_DEVICE,
+    },
+    .size = PC_SOUTH_BRIDGE_OPTION_MAX
+};
+
+#define NotifyVmexitOption_str(val) \
+    qapi_enum_lookup(&NotifyVmexitOption_lookup, (val))
+
+static int pc_get_south_bridge(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    int i;
+
+    for (i = 0; i < PCSouthBridgeOption_lookup.size; i++) {
+        if (g_strcmp0(PCSouthBridgeOption_lookup.array[i],
+                      pcms->south_bridge) == 0) {
+            return i;
+        }
+    }
+
+    error_setg(errp, "Invalid south bridge value set");
+    return 0;
+}
+
+static void pc_set_south_bridge(Object *obj, int value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    if (value < 0) {
+        error_setg(errp, "Value can't be negative");
+        return;
+    }
+
+    if (value >= PCSouthBridgeOption_lookup.size) {
+        error_setg(errp, "Value too big");
+        return;
+    }
+
+    pcms->south_bridge = PCSouthBridgeOption_lookup.array[value];
+}
+
 /* Looking for a pc_compat_2_4() function? It doesn't exist.
  * pc_compat_*() functions that run on machine-init time and
  * change global QEMU state are deprecated. Please don't create
@@ -473,6 +523,8 @@ static void pc_xen_hvm_init(MachineState *machine)
 static void pc_i440fx_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    ObjectClass *oc = OBJECT_CLASS(m);
+    pcmc->default_south_bridge = TYPE_PIIX3_DEVICE;
     pcmc->pci_root_uid = 0;
     pcmc->default_cpu_version = 1;
 
@@ -484,6 +536,13 @@ static void pc_i440fx_machine_options(MachineClass *m)
     m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
+
+    object_class_property_add_enum(oc, "x-south-bridge", "PCSouthBridgeOption",
+                                   &PCSouthBridgeOption_lookup,
+                                   pc_get_south_bridge,
+                                   pc_set_south_bridge);
+    object_class_property_set_description(oc, "x-south-bridge",
+                                     "Use a different south bridge than PIIX3");
 }
 
 static void pc_i440fx_8_2_machine_options(MachineClass *m)
