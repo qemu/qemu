@@ -553,7 +553,7 @@ static void gen_start_packet(DisasContext *ctx)
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
     if (ctx->need_commit &&
         !bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
-        int i = find_first_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+        i = find_first_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
         while (i < TOTAL_PER_THREAD_REGS) {
             tcg_gen_mov_tl(get_result_gpr(ctx, i), hex_gpr[i]);
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
@@ -566,7 +566,7 @@ static void gen_start_packet(DisasContext *ctx)
      * Only endloop instructions conditionally write to pred registers
      */
     if (ctx->need_commit && pkt->pkt_has_endloop) {
-        for (int i = 0; i < ctx->preg_log_idx; i++) {
+        for (i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
             ctx->new_pred_value[pred_num] = tcg_temp_new();
             tcg_gen_mov_tl(ctx->new_pred_value[pred_num], hex_pred[pred_num]);
@@ -575,7 +575,7 @@ static void gen_start_packet(DisasContext *ctx)
 
     /* Preload the predicated HVX registers into future_VRegs and tmp_VRegs */
     if (!bitmap_empty(ctx->predicated_future_vregs, NUM_VREGS)) {
-        int i = find_first_bit(ctx->predicated_future_vregs, NUM_VREGS);
+        i = find_first_bit(ctx->predicated_future_vregs, NUM_VREGS);
         while (i < NUM_VREGS) {
             const intptr_t VdV_off =
                 ctx_future_vreg_off(ctx, i, 1, true);
@@ -588,7 +588,7 @@ static void gen_start_packet(DisasContext *ctx)
         }
     }
     if (!bitmap_empty(ctx->predicated_tmp_vregs, NUM_VREGS)) {
-        int i = find_first_bit(ctx->predicated_tmp_vregs, NUM_VREGS);
+        i = find_first_bit(ctx->predicated_tmp_vregs, NUM_VREGS);
         while (i < NUM_VREGS) {
             const intptr_t VdV_off =
                 ctx_tmp_vreg_off(ctx, i, 1, true);
@@ -1228,7 +1228,7 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, mem_log_stores[i].data64),
             store_val64_names[i]);
     }
-    for (int i = 0; i < VSTORES_MAX; i++) {
+    for (i = 0; i < VSTORES_MAX; i++) {
         snprintf(vstore_addr_names[i], NAME_LEN, "vstore_addr_%d", i);
         hex_vstore_addr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, vstore[i].va),

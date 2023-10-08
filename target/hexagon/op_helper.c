@@ -132,10 +132,9 @@ void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     uintptr_t ra = GETPC();
-    int i;
 
     /* Normal (possibly masked) vector store */
-    for (i = 0; i < VSTORES_MAX; i++) {
+    for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
             env->vstore_pending[i] = 0;
             target_ulong va = env->vstore[i].va;
@@ -162,7 +161,7 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
                 g_assert_not_reached();
             }
         } else {
-            for (i = 0; i < sizeof(MMVector); i++) {
+            for (int i = 0; i < sizeof(MMVector); i++) {
                 if (test_bit(i, env->vtcm_log.mask)) {
                     cpu_stb_data_ra(env, env->vtcm_log.va[i],
                                     env->vtcm_log.data.ub[i], ra);
@@ -505,10 +504,8 @@ void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
 static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
                                     uintptr_t retaddr)
 {
-    int i;
-
     /* Normal (possibly masked) vector store */
-    for (i = 0; i < VSTORES_MAX; i++) {
+    for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
