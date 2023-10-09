@@ -1166,34 +1166,6 @@ EOF
   fi
 fi
 
-########################################
-# check if ccache is interfering with
-# semantic analysis of macros
-
-unset CCACHE_CPP2
-ccache_cpp2=no
-cat > $TMPC << EOF
-static const int Z = 1;
-#define fn() ({ Z; })
-#define TAUT(X) ((X) == Z)
-#define PAREN(X, Y) (X == Y)
-#define ID(X) (X)
-int main(void)
-{
-    int x = 0, y = 0;
-    x = ID(x);
-    x = fn();
-    fn();
-    if (PAREN(x, y)) return 0;
-    if (TAUT(Z)) return 0;
-    return 0;
-}
-EOF
-
-if ! compile_object "-Werror"; then
-    ccache_cpp2=yes
-fi
-
 ##########################################
 # functions to probe cross compilers
 
@@ -1724,10 +1696,6 @@ done
 
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
-fi
-
-if test "$ccache_cpp2" = "yes"; then
-  echo "export CCACHE_CPP2=y" >> $config_host_mak
 fi
 
 # contrib/plugins configuration
