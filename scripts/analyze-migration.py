@@ -264,6 +264,24 @@ class ConfigurationSection(object):
     def __init__(self, file, desc):
         self.file = file
         self.desc = desc
+        self.caps = []
+
+    def parse_capabilities(self, vmsd_caps):
+        if not vmsd_caps:
+            return
+
+        ncaps = vmsd_caps.data['caps_count'].data
+        self.caps = vmsd_caps.data['capabilities']
+
+        if type(self.caps) != list:
+            self.caps = [self.caps]
+
+        if len(self.caps) != ncaps:
+            raise Exception("Number of capabilities doesn't match "
+                            "caps_count field")
+
+    def has_capability(self, cap):
+        return any([str(c) == cap for c in self.caps])
 
     def read(self):
         if self.desc:
@@ -271,6 +289,8 @@ class ConfigurationSection(object):
             section = VMSDSection(self.file, version_id, self.desc,
                                   'configuration')
             section.read()
+            self.parse_capabilities(
+                section.data.get("configuration/capabilities"))
         else:
             # backward compatibility for older streams that don't have
             # the configuration section in the json
@@ -296,6 +316,23 @@ class VMSDFieldGeneric(object):
         size = int(self.desc['size'])
         self.data = self.file.readvar(size)
         return self.data
+
+class VMSDFieldCap(object):
+    def __init__(self, desc, file):
+        self.file = file
+        self.desc = desc
+        self.data = ""
+
+    def __repr__(self):
+        return self.data
+
+    def __str__(self):
+        return self.data
+
+    def read(self):
+        len = self.file.read8()
+        self.data = self.file.readstr(len)
+
 
 class VMSDFieldInt(VMSDFieldGeneric):
     def __init__(self, desc, file):
@@ -471,6 +508,7 @@ vmsd_field_readers = {
     "unused_buffer" : VMSDFieldGeneric,
     "bitmap" : VMSDFieldGeneric,
     "struct" : VMSDFieldStruct,
+    "capability": VMSDFieldCap,
     "unknown" : VMSDFieldGeneric,
 }
 
