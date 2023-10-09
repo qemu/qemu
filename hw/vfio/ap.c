@@ -156,8 +156,7 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
 {
     int ret;
     Error *err = NULL;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
     VFIODevice *vbasedev = &vapdev->vdev;
 
     vbasedev->name = g_path_get_basename(vbasedev->sysfsdev);
@@ -197,8 +196,7 @@ error:
 
 static void vfio_ap_unrealize(DeviceState *dev)
 {
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
     vfio_ap_unregister_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX);
     vfio_detach_device(&vapdev->vdev);
@@ -213,8 +211,7 @@ static Property vfio_ap_properties[] = {
 static void vfio_ap_reset(DeviceState *dev)
 {
     int ret;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
     ret = ioctl(vapdev->vdev.fd, VFIO_DEVICE_RESET);
     if (ret) {
