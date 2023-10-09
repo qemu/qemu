@@ -147,6 +147,12 @@ typedef enum X86InsnCheck {
 
     /* Fault if VEX.L=1 */
     X86_CHECK_VEX128 = 64,
+
+    /* Fault if VEX.W=1 */
+    X86_CHECK_W0 = 128,
+
+    /* Fault if VEX.W=0 */
+    X86_CHECK_W1 = 256,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {
