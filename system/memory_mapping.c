@@ -291,7 +291,7 @@ void guest_phys_blocks_append(GuestPhysBlockList *list)
     memory_listener_unregister(&g.listener);
 }
 
-static CPUState *find_paging_enabled_cpu(CPUState *start_cpu)
+static CPUState *find_paging_enabled_cpu(void)
 {
     CPUState *cpu;
 
@@ -312,7 +312,7 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
     GuestPhysBlock *block;
     ram_addr_t offset, length;
 
-    first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
+    first_paging_enabled_cpu = find_paging_enabled_cpu();
     if (first_paging_enabled_cpu) {
         for (cpu = first_paging_enabled_cpu; cpu != NULL;
              cpu = CPU_NEXT(cpu)) {
