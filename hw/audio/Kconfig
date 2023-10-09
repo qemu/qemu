@@ -47,3 +47,6 @@ config PL041
 
 config CS4231
     bool
+
+config ASC
+    bool

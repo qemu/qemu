@@ -19,25 +19,30 @@
 #include "hw/block/block.h"
 #include "hw/block/swim.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
+
+
+/* IWM latch bits */
+
+#define IWMLB_PHASE0            0
+#define IWMLB_PHASE1            1
+#define IWMLB_PHASE2            2
+#define IWMLB_PHASE3            3
+#define IWMLB_MOTORON           4
+#define IWMLB_DRIVESEL          5
+#define IWMLB_L6                6
+#define IWMLB_L7                7
 
 /* IWM registers */
 
-#define IWM_PH0L                0
-#define IWM_PH0H                1
-#define IWM_PH1L                2
-#define IWM_PH1H                3
-#define IWM_PH2L                4
-#define IWM_PH2H                5
-#define IWM_PH3L                6
-#define IWM_PH3H                7
-#define IWM_MTROFF              8
-#define IWM_MTRON               9
-#define IWM_INTDRIVE            10
-#define IWM_EXTDRIVE            11
-#define IWM_Q6L                 12
-#define IWM_Q6H                 13
-#define IWM_Q7L                 14
-#define IWM_Q7H                 15
+#define IWM_READALLONES         0
+#define IWM_READDATA            1
+#define IWM_READSTATUS0         2
+#define IWM_READSTATUS1         3
+#define IWM_READWHANDSHAKE0     4
+#define IWM_READWHANDSHAKE1     5
+#define IWM_WRITESETMODE        6
+#define IWM_WRITEDATA           7
 
 /* SWIM registers */
 
@@ -61,8 +66,9 @@
 
 #define REG_SHIFT               9
 
-#define SWIM_MODE_IWM  0
-#define SWIM_MODE_SWIM 1
+#define SWIM_MODE_STATUS_BIT    6
+#define SWIM_MODE_IWM           0
+#define SWIM_MODE_ISM           1
 
 /* bits in phase register */
 
@@ -124,6 +130,18 @@
 #define SWIM_WRITE_MODE      0x10
 #define SWIM_HEDSEL          0x20
 #define SWIM_MOTON           0x80
+
+static const char *iwm_reg_names[] = {
+    "READALLONES", "READDATA", "READSTATUS0", "READSTATUS1",
+    "READWHANDSHAKE0", "READWHANDSHAKE1", "WRITESETMODE", "WRITEDATA"
+};
+
+static const char *ism_reg_names[] = {
+    "WRITE_DATA", "WRITE_MARK", "WRITE_CRC", "WRITE_PARAMETER",
+    "WRITE_PHASE", "WRITE_SETUP", "WRITE_MODE0", "WRITE_MODE1",
+    "READ_DATA", "READ_MARK", "READ_ERROR", "READ_PARAMETER",
+    "READ_PHASE", "READ_SETUP", "READ_STATUS", "READ_HANDSHAKE"
+};
 
 static void fd_recalibrate(FDrive *drive)
 {
@@ -259,73 +277,116 @@ static const TypeInfo swim_bus_info = {
     .instance_size = sizeof(SWIMBus),
 };
 
-static void iwmctrl_write(void *opaque, hwaddr reg, uint64_t value,
+static void iwmctrl_write(void *opaque, hwaddr addr, uint64_t value,
+                          unsigned size)
+{
+    SWIMCtrl *swimctrl = opaque;
+    uint8_t latch, reg, ism_bit;
+
+    addr >>= REG_SHIFT;
+
+    /* A3-A1 select a latch, A0 specifies the value */
+    latch = (addr >> 1) & 7;
+    if (addr & 1) {
+        swimctrl->iwm_latches |= (1 << latch);
+    } else {
+        swimctrl->iwm_latches &= ~(1 << latch);
+    }
+
+    reg = (swimctrl->iwm_latches & 0xc0) >> 5 |
+          (swimctrl->iwm_latches & 0x10) >> 4;
+
+    swimctrl->iwmregs[reg] = value;
+    trace_swim_iwmctrl_write(reg, iwm_reg_names[reg], size, value);
+
+    switch (reg) {
+    case IWM_WRITESETMODE:
+        /* detect sequence to switch from IWM mode to SWIM mode */
+        ism_bit = (value & (1 << SWIM_MODE_STATUS_BIT));
+
+        switch (swimctrl->iwm_switch) {
+        case 0:
+            if (ism_bit) {    /* 1 */
+                swimctrl->iwm_switch++;
+            }
+            break;
+        case 1:
+            if (!ism_bit) {   /* 0 */
+                swimctrl->iwm_switch++;
+            }
+            break;
+        case 2:
+            if (ism_bit) {    /* 1 */
+                swimctrl->iwm_switch++;
+            }
+            break;
+        case 3:
+            if (ism_bit) {    /* 1 */
+                swimctrl->iwm_switch++;
+
+                swimctrl->mode = SWIM_MODE_ISM;
+                swimctrl->swim_mode |= (1 << SWIM_MODE_STATUS_BIT);
+                swimctrl->iwm_switch = 0;
+                trace_swim_switch_to_ism();
+
+                /* Switch to ISM registers */
+                memory_region_del_subregion(&swimctrl->swim, &swimctrl->iwm);
+                memory_region_add_subregion(&swimctrl->swim, 0x0,
+                                            &swimctrl->ism);
+            }
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static uint64_t iwmctrl_read(void *opaque, hwaddr addr, unsigned size)
+{
+    SWIMCtrl *swimctrl = opaque;
+    uint8_t latch, reg, value;
+
+    addr >>= REG_SHIFT;
+
+    /* A3-A1 select a latch, A0 specifies the value */
+    latch = (addr >> 1) & 7;
+    if (addr & 1) {
+        swimctrl->iwm_latches |= (1 << latch);
+    } else {
+        swimctrl->iwm_latches &= ~(1 << latch);
+    }
+
+    reg = (swimctrl->iwm_latches & 0xc0) >> 5 |
+          (swimctrl->iwm_latches & 0x10) >> 4;
+
+    switch (reg) {
+    case IWM_READALLONES:
+        value = 0xff;
+        break;
+    default:
+        value = 0;
+        break;
+    }
+
+    trace_swim_iwmctrl_read(reg, iwm_reg_names[reg], size, value);
+    return value;
+}
+
+static const MemoryRegionOps swimctrl_iwm_ops = {
+    .write = iwmctrl_write,
+    .read = iwmctrl_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void ismctrl_write(void *opaque, hwaddr reg, uint64_t value,
                           unsigned size)
 {
     SWIMCtrl *swimctrl = opaque;
 
     reg >>= REG_SHIFT;
 
-    swimctrl->regs[reg >> 1] = reg & 1;
-
-    if (swimctrl->regs[IWM_Q6] &&
-        swimctrl->regs[IWM_Q7]) {
-        if (swimctrl->regs[IWM_MTR]) {
-            /* data register */
-            swimctrl->iwm_data = value;
-        } else {
-            /* mode register */
-            swimctrl->iwm_mode = value;
-            /* detect sequence to switch from IWM mode to SWIM mode */
-            switch (swimctrl->iwm_switch) {
-            case 0:
-                if (value == 0x57) {
-                    swimctrl->iwm_switch++;
-                }
-                break;
-            case 1:
-                if (value == 0x17) {
-                    swimctrl->iwm_switch++;
-                }
-                break;
-            case 2:
-                if (value == 0x57) {
-                    swimctrl->iwm_switch++;
-                }
-                break;
-            case 3:
-                if (value == 0x57) {
-                    swimctrl->mode = SWIM_MODE_SWIM;
-                    swimctrl->iwm_switch = 0;
-                }
-                break;
-            }
-        }
-    }
-}
-
-static uint64_t iwmctrl_read(void *opaque, hwaddr reg, unsigned size)
-{
-    SWIMCtrl *swimctrl = opaque;
-
-    reg >>= REG_SHIFT;
-
-    swimctrl->regs[reg >> 1] = reg & 1;
-
-    return 0;
-}
-
-static void swimctrl_write(void *opaque, hwaddr reg, uint64_t value,
-                           unsigned size)
-{
-    SWIMCtrl *swimctrl = opaque;
-
-    if (swimctrl->mode == SWIM_MODE_IWM) {
-        iwmctrl_write(opaque, reg, value, size);
-        return;
-    }
-
-    reg >>= REG_SHIFT;
+    trace_swim_ismctrl_write(reg, ism_reg_names[reg], size, value);
 
     switch (reg) {
     case SWIM_WRITE_PHASE:
@@ -333,27 +394,40 @@ static void swimctrl_write(void *opaque, hwaddr reg, uint64_t value,
         break;
     case SWIM_WRITE_MODE0:
         swimctrl->swim_mode &= ~value;
+        /* Any access to MODE0 register resets PRAM index */
+        swimctrl->pram_idx = 0;
+
+        if (!(swimctrl->swim_mode & (1 << SWIM_MODE_STATUS_BIT))) {
+            /* Clearing the mode bit switches to IWM mode */
+            swimctrl->mode = SWIM_MODE_IWM;
+            swimctrl->iwm_latches = 0;
+            trace_swim_switch_to_iwm();
+
+            /* Switch to IWM registers */
+            memory_region_del_subregion(&swimctrl->swim, &swimctrl->ism);
+            memory_region_add_subregion(&swimctrl->swim, 0x0,
+                                        &swimctrl->iwm);
+        }
         break;
     case SWIM_WRITE_MODE1:
         swimctrl->swim_mode |= value;
         break;
+    case SWIM_WRITE_PARAMETER:
+        swimctrl->pram[swimctrl->pram_idx++] = value;
+        swimctrl->pram_idx &= 0xf;
+        break;
     case SWIM_WRITE_DATA:
     case SWIM_WRITE_MARK:
     case SWIM_WRITE_CRC:
-    case SWIM_WRITE_PARAMETER:
     case SWIM_WRITE_SETUP:
         break;
     }
 }
 
-static uint64_t swimctrl_read(void *opaque, hwaddr reg, unsigned size)
+static uint64_t ismctrl_read(void *opaque, hwaddr reg, unsigned size)
 {
     SWIMCtrl *swimctrl = opaque;
     uint32_t value = 0;
-
-    if (swimctrl->mode == SWIM_MODE_IWM) {
-        return iwmctrl_read(opaque, reg, size);
-    }
 
     reg >>= REG_SHIFT;
 
@@ -367,22 +441,31 @@ static uint64_t swimctrl_read(void *opaque, hwaddr reg, unsigned size)
             value = SWIM_SENSE;
         }
         break;
+    case SWIM_READ_PARAMETER:
+        value = swimctrl->pram[swimctrl->pram_idx++];
+        swimctrl->pram_idx &= 0xf;
+        break;
+    case SWIM_READ_STATUS:
+        value = swimctrl->swim_status & ~(1 << SWIM_MODE_STATUS_BIT);
+        if (swimctrl->swim_mode == SWIM_MODE_ISM) {
+            value |= (1 << SWIM_MODE_STATUS_BIT);
+        }
+        break;
     case SWIM_READ_DATA:
     case SWIM_READ_MARK:
     case SWIM_READ_ERROR:
-    case SWIM_READ_PARAMETER:
     case SWIM_READ_SETUP:
-    case SWIM_READ_STATUS:
         break;
     }
 
+    trace_swim_ismctrl_read(reg, ism_reg_names[reg], size, value);
     return value;
 }
 
-static const MemoryRegionOps swimctrl_mem_ops = {
-    .write = swimctrl_write,
-    .read = swimctrl_read,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static const MemoryRegionOps swimctrl_ism_ops = {
+    .write = ismctrl_write,
+    .read = ismctrl_read,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void sysbus_swim_reset(DeviceState *d)
@@ -393,13 +476,11 @@ static void sysbus_swim_reset(DeviceState *d)
 
     ctrl->mode = 0;
     ctrl->iwm_switch = 0;
-    for (i = 0; i < 8; i++) {
-        ctrl->regs[i] = 0;
-    }
-    ctrl->iwm_data = 0;
-    ctrl->iwm_mode = 0;
+    memset(ctrl->iwmregs, 0, sizeof(ctrl->iwmregs));
+
     ctrl->swim_phase = 0;
     ctrl->swim_mode = 0;
+    memset(ctrl->ismregs, 0, sizeof(ctrl->ismregs));
     for (i = 0; i < SWIM_MAX_FD; i++) {
         fd_recalibrate(&ctrl->drives[i]);
     }
@@ -411,9 +492,12 @@ static void sysbus_swim_init(Object *obj)
     Swim *sbs = SWIM(obj);
     SWIMCtrl *swimctrl = &sbs->ctrl;
 
-    memory_region_init_io(&swimctrl->iomem, obj, &swimctrl_mem_ops, swimctrl,
-                          "swim", 0x2000);
-    sysbus_init_mmio(sbd, &swimctrl->iomem);
+    memory_region_init(&swimctrl->swim, obj, "swim", 0x2000);
+    memory_region_init_io(&swimctrl->iwm, obj, &swimctrl_iwm_ops, swimctrl,
+                          "iwm", 0x2000);
+    memory_region_init_io(&swimctrl->ism, obj, &swimctrl_ism_ops, swimctrl,
+                          "ism", 0x2000);
+    sysbus_init_mmio(sbd, &swimctrl->swim);
 }
 
 static void sysbus_swim_realize(DeviceState *dev, Error **errp)
@@ -423,6 +507,9 @@ static void sysbus_swim_realize(DeviceState *dev, Error **errp)
 
     qbus_init(&swimctrl->bus, sizeof(SWIMBus), TYPE_SWIM_BUS, dev, NULL);
     swimctrl->bus.ctrl = swimctrl;
+
+    /* Default register set is IWM */
+    memory_region_add_subregion(&swimctrl->swim, 0x0, &swimctrl->iwm);
 }
 
 static const VMStateDescription vmstate_fdrive = {
@@ -442,10 +529,10 @@ static const VMStateDescription vmstate_swim = {
         VMSTATE_INT32(mode, SWIMCtrl),
         /* IWM mode */
         VMSTATE_INT32(iwm_switch, SWIMCtrl),
-        VMSTATE_UINT16_ARRAY(regs, SWIMCtrl, 8),
-        VMSTATE_UINT8(iwm_data, SWIMCtrl),
-        VMSTATE_UINT8(iwm_mode, SWIMCtrl),
+        VMSTATE_UINT8(iwm_latches, SWIMCtrl),
+        VMSTATE_UINT8_ARRAY(iwmregs, SWIMCtrl, 8),
         /* SWIM mode */
+        VMSTATE_UINT8_ARRAY(ismregs, SWIMCtrl, 16),
         VMSTATE_UINT8(swim_phase, SWIMCtrl),
         VMSTATE_UINT8(swim_mode, SWIMCtrl),
         /* Drives */
