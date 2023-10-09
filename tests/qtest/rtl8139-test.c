@@ -22,7 +22,7 @@ static void nop(void)
 #define CLK 33333333
 
 static QPCIBus *pcibus;
-static QPCIDevice *dev;
+static QPCIDevice *pcidev;
 static QPCIBar dev_bar;
 
 static void save_fn(QPCIDevice *dev, int devfn, void *data)
@@ -46,7 +46,7 @@ static QPCIDevice *get_device(void)
 #define PORT(name, len, val) \
 static unsigned __attribute__((unused)) in_##name(void) \
 { \
-    unsigned res = qpci_io_read##len(dev, dev_bar, (val));     \
+    unsigned res = qpci_io_read##len(pcidev, dev_bar, (val));     \
     if (verbosity_level >= 2) { \
         g_test_message("*%s -> %x", #name, res); \
     } \
@@ -57,7 +57,7 @@ static void out_##name(unsigned v) \
     if (verbosity_level >= 2) { \
         g_test_message("%x -> *%s", v, #name); \
     } \
-    qpci_io_write##len(dev, dev_bar, (val), v);        \
+    qpci_io_write##len(pcidev, dev_bar, (val), v);        \
 }
 
 PORT(Timer, l, 0x48)
@@ -189,11 +189,11 @@ static void test_init(void)
 {
     uint64_t barsize;
 
-    dev = get_device();
+    pcidev = get_device();
 
-    dev_bar = qpci_iomap(dev, 0, &barsize);
+    dev_bar = qpci_iomap(pcidev, 0, &barsize);
 
-    qpci_device_enable(dev);
+    qpci_device_enable(pcidev);
 
     test_timer();
 }
