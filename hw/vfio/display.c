@@ -544,3 +544,24 @@ void vfio_display_finalize(VFIOPCIDevice *vdev)
     vfio_display_edid_exit(vdev->dpy);
     g_free(vdev->dpy);
 }
+
+static bool migrate_needed(void *opaque)
+{
+    VFIODisplay *dpy = opaque;
+    bool ramfb_exists = dpy->ramfb != NULL;
+
+    /* see vfio_display_migration_needed() */
+    assert(ramfb_exists);
+    return ramfb_exists;
+}
+
+const VMStateDescription vfio_display_vmstate = {
+    .name = "VFIODisplay",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = migrate_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER(ramfb, VFIODisplay, ramfb_vmstate, RAMFBState),
+        VMSTATE_END_OF_LIST(),
+    }
+};

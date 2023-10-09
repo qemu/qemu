@@ -174,6 +174,7 @@ struct VFIOPCIDevice {
     bool no_kvm_ioeventfd;
     bool no_vfio_ioeventfd;
     bool enable_ramfb;
+    OnOffAuto ramfb_migrate;
     bool defer_kvm_irq_routing;
     bool clear_parent_atomics_on_exit;
     VFIODisplay *dpy;
@@ -226,5 +227,7 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
 void vfio_display_reset(VFIOPCIDevice *vdev);
 int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
 void vfio_display_finalize(VFIOPCIDevice *vdev);
+
+extern const VMStateDescription vfio_display_vmstate;
 
 #endif /* HW_VFIO_VFIO_PCI_H */
