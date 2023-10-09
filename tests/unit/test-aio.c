@@ -127,10 +127,10 @@ static void *test_acquire_thread(void *opaque)
     return NULL;
 }
 
-static void set_event_notifier(AioContext *ctx, EventNotifier *notifier,
+static void set_event_notifier(AioContext *nctx, EventNotifier *notifier,
                                EventNotifierHandler *handler)
 {
-    aio_set_event_notifier(ctx, notifier, handler, NULL, NULL);
+    aio_set_event_notifier(nctx, notifier, handler, NULL, NULL);
 }
 
 static void dummy_notifier_read(EventNotifier *n)
