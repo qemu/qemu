@@ -1066,12 +1066,12 @@ static void select_vgahw(const MachineClass *machine_class, const char *p)
     }
 }
 
-static void parse_display_qapi(const char *optarg)
+static void parse_display_qapi(const char *str)
 {
     DisplayOptions *opts;
     Visitor *v;
 
-    v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
+    v = qobject_input_visitor_new_str(str, "type", &error_fatal);
 
     visit_type_DisplayOptions(v, NULL, &opts, &error_fatal);
     QAPI_CLONE_MEMBERS(DisplayOptions, &dpy, opts);
@@ -1221,21 +1221,21 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return monitor_init_opts(opts, errp);
 }
 
-static void monitor_parse(const char *optarg, const char *mode, bool pretty)
+static void monitor_parse(const char *str, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
     QemuOpts *opts;
     const char *p;
     char label[32];
 
-    if (strstart(optarg, "chardev:", &p)) {
+    if (strstart(str, "chardev:", &p)) {
         snprintf(label, sizeof(label), "%s", p);
     } else {
         snprintf(label, sizeof(label), "compat_monitor%d",
                  monitor_device_index);
-        opts = qemu_chr_parse_compat(label, optarg, true);
+        opts = qemu_chr_parse_compat(label, str, true);
         if (!opts) {
-            error_report("parse error: %s", optarg);
+            error_report("parse error: %s", str);
             exit(1);
         }
     }
@@ -1631,13 +1631,13 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
 
 static MachineClass *select_machine(QDict *qdict, Error **errp)
 {
-    const char *optarg = qdict_get_try_str(qdict, "type");
+    const char *machine_type = qdict_get_try_str(qdict, "type");
     GSList *machines = object_class_get_list(TYPE_MACHINE, false);
     MachineClass *machine_class;
     Error *local_err = NULL;
 
-    if (optarg) {
-        machine_class = find_machine(optarg, machines);
+    if (machine_type) {
+        machine_class = find_machine(machine_type, machines);
         qdict_del(qdict, "type");
         if (!machine_class) {
             error_setg(&local_err, "unsupported machine type");
@@ -1781,20 +1781,20 @@ static void object_option_add_visitor(Visitor *v)
     QTAILQ_INSERT_TAIL(&object_opts, opt, next);
 }
 
-static void object_option_parse(const char *optarg)
+static void object_option_parse(const char *str)
 {
     QemuOpts *opts;
     const char *type;
     Visitor *v;
 
-    if (optarg[0] == '{') {
-        QObject *obj = qobject_from_json(optarg, &error_fatal);
+    if (str[0] == '{') {
+        QObject *obj = qobject_from_json(str, &error_fatal);
 
         v = qobject_input_visitor_new(obj);
         qobject_unref(obj);
     } else {
         opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
-                                       optarg, true);
+                                       str, true);
         if (!opts) {
             exit(1);
         }

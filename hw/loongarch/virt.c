@@ -662,7 +662,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
                             sysbus_mmio_get_region(d, 2));
 
     /* Connect pch_pic irqs to extioi */
-    for (int i = 0; i < num; i++) {
+    for (i = 0; i < num; i++) {
         qdev_connect_gpio_out(DEVICE(d), i, qdev_get_gpio_in(extioi, i));
     }
 

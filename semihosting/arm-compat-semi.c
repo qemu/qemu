@@ -367,7 +367,6 @@ void do_common_semihosting(CPUState *cs)
     target_ulong ul_ret;
     char * s;
     int nr;
-    uint32_t ret;
     int64_t elapsed;
 
     nr = common_semi_arg(cs, 0) & 0xffffffffU;
@@ -725,6 +724,9 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_EXIT:
     case TARGET_SYS_EXIT_EXTENDED:
+    {
+        uint32_t ret;
+
         if (common_semi_sys_exit_extended(cs, nr)) {
             /*
              * The A64 version of SYS_EXIT takes a parameter block,
@@ -752,6 +754,7 @@ void do_common_semihosting(CPUState *cs)
         }
         gdb_exit(ret);
         exit(ret);
+    }
 
     case TARGET_SYS_ELAPSED:
         elapsed = get_clock() - clock_start;

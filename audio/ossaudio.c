@@ -549,7 +549,6 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
                        hw->size_emul);
             hw->buf_emul = NULL;
         } else {
-            int err;
             int trig = 0;
             if (ioctl (fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
                 oss_logerr (errno, "SNDCTL_DSP_SETTRIGGER 0 failed\n");

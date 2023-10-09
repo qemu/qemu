@@ -94,13 +94,13 @@ static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
 static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
 
 /*
- * Prepare to change user ID. optarg can be one of 3 forms:
+ * Prepare to change user ID. user_id can be one of 3 forms:
  *   - a username, in which case user ID will be changed to its uid,
  *     with primary and supplementary groups set up too;
  *   - a numeric uid, in which case only the uid will be set;
  *   - a pair of numeric uid:gid.
  */
-bool os_set_runas(const char *optarg)
+bool os_set_runas(const char *user_id)
 {
     unsigned long lv;
     const char *ep;
@@ -108,14 +108,14 @@ bool os_set_runas(const char *optarg)
     gid_t got_gid;
     int rc;
 
-    user_pwd = getpwnam(optarg);
+    user_pwd = getpwnam(user_id);
     if (user_pwd) {
         user_uid = -1;
         user_gid = -1;
         return true;
     }
 
-    rc = qemu_strtoul(optarg, &ep, 0, &lv);
+    rc = qemu_strtoul(user_id, &ep, 0, &lv);
     got_uid = lv; /* overflow here is ID in C99 */
     if (rc || *ep != ':' || got_uid != lv || got_uid == (uid_t)-1) {
         return false;
@@ -173,9 +173,9 @@ static void change_process_uid(void)
 
 static const char *chroot_dir;
 
-void os_set_chroot(const char *optarg)
+void os_set_chroot(const char *path)
 {
-    chroot_dir = optarg;
+    chroot_dir = path;
 }
 
 static void change_root(void)

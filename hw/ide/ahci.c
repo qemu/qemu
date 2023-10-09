@@ -1622,9 +1622,7 @@ void ahci_uninit(AHCIState *s)
         AHCIDevice *ad = &s->dev[i];
 
         for (j = 0; j < 2; j++) {
-            IDEState *s = &ad->port.ifs[j];
-
-            ide_exit(s);
+            ide_exit(&ad->port.ifs[j]);
         }
         object_unparent(OBJECT(&ad->port));
     }

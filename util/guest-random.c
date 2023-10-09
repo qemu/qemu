@@ -87,11 +87,11 @@ void qemu_guest_random_seed_thread_part2(uint64_t seed)
     }
 }
 
-int qemu_guest_random_seed_main(const char *optarg, Error **errp)
+int qemu_guest_random_seed_main(const char *seedstr, Error **errp)
 {
     uint64_t seed;
-    if (parse_uint_full(optarg, 0, &seed)) {
-        error_setg(errp, "Invalid seed number: %s", optarg);
+    if (parse_uint_full(seedstr, 0, &seed)) {
+        error_setg(errp, "Invalid seed number: %s", seedstr);
         return -1;
     } else {
         deterministic = true;

@@ -197,11 +197,11 @@ extern QemuOptsList qemu_trace_opts;
 
 /**
  * trace_opt_parse:
- * @optarg: A string argument of --trace command line argument
+ * @optstr: A string argument of --trace command line argument
  *
  * Initialize tracing subsystem.
  */
-void trace_opt_parse(const char *optarg);
+void trace_opt_parse(const char *optstr);
 
 /**
  * trace_get_vcpu_event_count:

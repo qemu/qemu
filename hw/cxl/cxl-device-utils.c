@@ -283,13 +283,13 @@ static void memdev_reg_init_common(CXLDeviceState *cxl_dstate) { }
 
 void cxl_device_register_init_common(CXLDeviceState *cxl_dstate)
 {
-    uint64_t *cap_hdrs = cxl_dstate->caps_reg_state64;
+    uint64_t *cap_h = cxl_dstate->caps_reg_state64;
     const int cap_count = 3;
 
     /* CXL Device Capabilities Array Register */
-    ARRAY_FIELD_DP64(cap_hdrs, CXL_DEV_CAP_ARRAY, CAP_ID, 0);
-    ARRAY_FIELD_DP64(cap_hdrs, CXL_DEV_CAP_ARRAY, CAP_VERSION, 1);
-    ARRAY_FIELD_DP64(cap_hdrs, CXL_DEV_CAP_ARRAY, CAP_COUNT, cap_count);
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_ID, 0);
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_VERSION, 1);
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_COUNT, cap_count);
 
     cxl_device_cap_init(cxl_dstate, DEVICE_STATUS, 1, 2);
     device_reg_init_common(cxl_dstate);
