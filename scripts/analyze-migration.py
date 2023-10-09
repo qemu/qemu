@@ -123,6 +123,7 @@ class RamSection(object):
         self.TARGET_PAGE_SIZE = ramargs['page_size']
         self.dump_memory = ramargs['dump_memory']
         self.write_memory = ramargs['write_memory']
+        self.ignore_shared = ramargs['ignore_shared']
         self.sizeinfo = collections.OrderedDict()
         self.data = collections.OrderedDict()
         self.data['section sizes'] = self.sizeinfo
@@ -169,6 +170,8 @@ class RamSection(object):
                         f.truncate(0)
                         f.truncate(len)
                         self.files[self.name] = f
+                    if self.ignore_shared:
+                        mr_addr = self.file.read64()
                 flags &= ~self.RAM_SAVE_FLAG_MEM_SIZE
 
             if flags & self.RAM_SAVE_FLAG_COMPRESS:
@@ -572,6 +575,7 @@ class MigrationDump(object):
         ramargs['page_size'] = self.vmsd_desc['page_size']
         ramargs['dump_memory'] = dump_memory
         ramargs['write_memory'] = write_memory
+        ramargs['ignore_shared'] = False
         self.section_classes[('ram',0)][1] = ramargs
 
         while True:
@@ -582,6 +586,7 @@ class MigrationDump(object):
                 config_desc = self.vmsd_desc.get('configuration')
                 section = ConfigurationSection(file, config_desc)
                 section.read()
+                ramargs['ignore_shared'] = section.has_capability('x-ignore-shared')
             elif section_type == self.QEMU_VM_SECTION_START or section_type == self.QEMU_VM_SECTION_FULL:
                 section_id = file.read32()
                 name = file.readstr()
