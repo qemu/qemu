@@ -195,7 +195,7 @@ static void test_no_dangling_access(void)
 }
 
 static bool locked;
-static int done;
+static int done_count;
 
 static void coroutine_fn mutex_fn(void *opaque)
 {
@@ -206,7 +206,7 @@ static void coroutine_fn mutex_fn(void *opaque)
     qemu_coroutine_yield();
     locked = false;
     qemu_co_mutex_unlock(m);
-    done++;
+    done_count++;
 }
 
 static void coroutine_fn lockable_fn(void *opaque)
@@ -218,7 +218,7 @@ static void coroutine_fn lockable_fn(void *opaque)
     qemu_coroutine_yield();
     locked = false;
     qemu_lockable_unlock(x);
-    done++;
+    done_count++;
 }
 
 static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
@@ -226,7 +226,7 @@ static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
     Coroutine *c1 = qemu_coroutine_create(entry, opaque);
     Coroutine *c2 = qemu_coroutine_create(entry, opaque);
 
-    done = 0;
+    done_count = 0;
     qemu_coroutine_enter(c1);
     g_assert(locked);
     qemu_coroutine_enter(c2);
@@ -235,11 +235,11 @@ static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
      * terminates.
      */
     qemu_coroutine_enter(c1);
-    g_assert_cmpint(done, ==, 1);
+    g_assert_cmpint(done_count, ==, 1);
     g_assert(locked);
 
     qemu_coroutine_enter(c2);
-    g_assert_cmpint(done, ==, 2);
+    g_assert_cmpint(done_count, ==, 2);
     g_assert(!locked);
 }
 
