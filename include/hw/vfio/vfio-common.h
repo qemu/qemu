@@ -98,6 +98,7 @@ typedef struct VFIOContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainer) next;
+    QLIST_HEAD(, VFIODevice) device_list;
 } VFIOContainer;
 
 typedef struct VFIOGuestIOMMU {
@@ -129,6 +130,7 @@ typedef struct VFIODeviceOps VFIODeviceOps;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
+    QLIST_ENTRY(VFIODevice) container_next;
     struct VFIOGroup *group;
     char *sysfsdev;
     char *name;
