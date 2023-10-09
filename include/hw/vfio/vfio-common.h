@@ -206,6 +206,30 @@ typedef struct {
     hwaddr pages;
 } VFIOBitmap;
 
+void vfio_host_win_add(VFIOContainer *container,
+                       hwaddr min_iova, hwaddr max_iova,
+                       uint64_t iova_pgsizes);
+int vfio_host_win_del(VFIOContainer *container, hwaddr min_iova,
+                      hwaddr max_iova);
+VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
+void vfio_put_address_space(VFIOAddressSpace *space);
+bool vfio_devices_all_running_and_saving(VFIOContainer *container);
+
+/* container->fd */
+int vfio_dma_unmap(VFIOContainer *container, hwaddr iova,
+                   ram_addr_t size, IOMMUTLBEntry *iotlb);
+int vfio_dma_map(VFIOContainer *container, hwaddr iova,
+                 ram_addr_t size, void *vaddr, bool readonly);
+int vfio_set_dirty_page_tracking(VFIOContainer *container, bool start);
+int vfio_query_dirty_bitmap(VFIOContainer *container, VFIOBitmap *vbmap,
+                            hwaddr iova, hwaddr size);
+
+int vfio_container_add_section_window(VFIOContainer *container,
+                                      MemoryRegionSection *section,
+                                      Error **errp);
+void vfio_container_del_section_window(VFIOContainer *container,
+                                       MemoryRegionSection *section);
+
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);
 void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index);
 void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index);
@@ -235,6 +259,10 @@ extern const MemoryRegionOps vfio_region_ops;
 typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
 typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIOGroupList vfio_group_list;
+extern VFIODeviceList vfio_device_list;
+
+extern const MemoryListener vfio_memory_listener;
+extern int vfio_kvm_device_fd;
 
 bool vfio_mig_active(void);
 int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp);
@@ -272,4 +300,11 @@ bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp);
 void vfio_migration_exit(VFIODevice *vbasedev);
 
 int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size);
+bool vfio_devices_all_running_and_mig_active(VFIOContainer *container);
+bool vfio_devices_all_device_dirty_tracking(VFIOContainer *container);
+int vfio_devices_query_dirty_bitmap(VFIOContainer *container,
+                                    VFIOBitmap *vbmap, hwaddr iova,
+                                    hwaddr size);
+int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
+                                 uint64_t size, ram_addr_t ram_addr);
 #endif /* HW_VFIO_VFIO_COMMON_H */
