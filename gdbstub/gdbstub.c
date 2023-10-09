@@ -408,11 +408,11 @@ static const char *get_feature_xml(const char *p, const char **newp,
         }
     }
     /* Is it one of the encoded gdb-xml/ files? */
-    for (int i = 0; xml_builtin[i][0]; i++) {
-        const char *name = xml_builtin[i][0];
+    for (int i = 0; gdb_static_features[i].xmlname; i++) {
+        const char *name = gdb_static_features[i].xmlname;
         if ((strncmp(name, p, len) == 0) &&
             strlen(name) == len) {
-            return xml_builtin[i][1];
+            return gdb_static_features[i].xml;
         }
     }
 
