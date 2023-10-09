@@ -1592,12 +1592,6 @@ echo >> $config_host_mak
 
 echo all: >> $config_host_mak
 
-if test "$targetos" = "windows"; then
-  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
-  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO-Linux}" >> $config_host_mak
-  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION-$(cat "$source_path"/VERSION)}" >> $config_host_mak
-fi
-
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 echo "GDB=$gdb_bin" >> $config_host_mak
@@ -1724,6 +1718,15 @@ if test "$skip_meson" = no; then
   if test "$SMBD" != ''; then
     echo "smbd = $(meson_quote "$SMBD")" >> $cross
   fi
+  if test "${QEMU_GA_MANUFACTURER}" != ''; then
+    echo "qemu_ga_manufacturer = $(meson_quote "${QEMU_GA_MANUFACTURER}")" >> $cross
+  fi
+  if test "${QEMU_GA_DISTRO}" != ''; then
+    echo "qemu_ga_distro = $(meson_quote "${QEMU_GA_DISTRO}")" >> $cross
+  fi
+  if test "${QEMU_GA_VERSION}" != ''; then
+    echo "qemu_ga_version = $(meson_quote "${QEMU_GA_VERSION}")" >> $cross
+  fi
 
   echo >> $cross
   echo "[binaries]" >> $cross
@@ -1775,7 +1778,6 @@ if test "$skip_meson" = no; then
 
   rm -rf meson-private meson-info meson-logs
 
-  # Built-in options
   test "$download" = "disabled" && meson_option_add "--wrap-mode=nodownload"
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
   test "$static" = yes && meson_option_add -Dprefer_static=true

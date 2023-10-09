@@ -145,6 +145,9 @@ if targetos == 'windows'
     else
       libpcre = 'libpcre2'
     endif
+    qga_msi_version = get_option('qemu_ga_version') == '' \
+      ? project.version() \
+      : get_option('qemu_ga_version')
     qga_msi = custom_target('QGA MSI',
                             input: files('installer/qemu-ga.wxs'),
                             output: 'qemu-ga-@0@.msi'.format(host_arch),
@@ -155,9 +158,9 @@ if targetos == 'windows'
                               qemu_ga_msi_vss,
                               '-D', 'BUILD_DIR=' + meson.project_build_root(),
                               '-D', 'BIN_DIR=' + glib_pc.get_variable('bindir'),
-                              '-D', 'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
-                              '-D', 'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
-                              '-D', 'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
+                              '-D', 'QEMU_GA_VERSION=' + qga_msi_version,
+                              '-D', 'QEMU_GA_MANUFACTURER=' + get_option('qemu_ga_manufacturer'),
+                              '-D', 'QEMU_GA_DISTRO=' + get_option('qemu_ga_distro'),
                               '-D', 'LIBPCRE=' + libpcre,
                             ])
     all_qga += [qga_msi]

@@ -353,5 +353,12 @@ option('qom_cast_debug', type: 'boolean', value: true,
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
 
+option('qemu_ga_manufacturer', type: 'string', value: 'QEMU',
+       description: '"manufacturer" name for qemu-ga registry entries')
+option('qemu_ga_distro', type: 'string', value: 'Linux',
+       description: 'second path element in qemu-ga registry entries')
+option('qemu_ga_version', type: 'string', value: '',
+       description: 'version number for qemu-ga installer')
+
 option('hexagon_idef_parser', type : 'boolean', value : true,
        description: 'use idef-parser to automatically generate TCG code for the Hexagon frontend')
