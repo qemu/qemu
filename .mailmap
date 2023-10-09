@@ -40,12 +40,26 @@ Nick Hudson <hnick@vmware.com> hnick@vmware.com <hnick@vmware.com>
 # for the cvs2svn initialization commit e63c3dc74bf.
 
 # Next, translate a few commits where mailman rewrote the From: line due
-# to strict SPF, although we prefer to avoid adding more entries like that.
+# to strict SPF and DMARC.  Usually, our build process should be flagging
+# commits like these before maintainer merges; if you find the need to add
+# a line here, please also report a bug against the part of the build
+# process that let the mis-attribution slip through in the first place.
+#
+# If the mailing list munges your emails, use:
+#   git config sendemail.from '"Your Name" <your.email@example.com>'
+# the use of "" in that line will differ from the typically unquoted
+# 'git config user.name', which in turn is sufficient for 'git send-email'
+# to add an extra From: line in the body of your email that takes
+# precedence over any munged From: in the mail's headers.
+# See https://lists.openembedded.org/g/openembedded-core/message/166515
+# and https://lists.gnu.org/archive/html/qemu-devel/2023-09/msg06784.html
 Ed Swierk <eswierk@skyportsystems.com> Ed Swierk via Qemu-devel <qemu-devel@nongnu.org>
 Ian McKellar <ianloic@google.com> Ian McKellar via Qemu-devel <qemu-devel@nongnu.org>
 Julia Suvorova <jusual@mail.ru> Julia Suvorova via Qemu-devel <qemu-devel@nongnu.org>
 Justin Terry (VM) <juterry@microsoft.com> Justin Terry (VM) via Qemu-devel <qemu-devel@nongnu.org>
 Stefan Weil <sw@weilnetz.de> Stefan Weil via <qemu-devel@nongnu.org>
+Andrey Drobyshev <andrey.drobyshev@virtuozzo.com> Andrey Drobyshev via <qemu-block@nongnu.org>
+BALATON Zoltan <balaton@eik.bme.hu> BALATON Zoltan via <qemu-ppc@nongnu.org>
 
 # Next, replace old addresses by a more recent one.
 Aleksandar Markovic <aleksandar.qemu.devel@gmail.com> <aleksandar.markovic@mips.com>

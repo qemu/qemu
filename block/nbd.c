@@ -416,7 +416,8 @@ static void coroutine_fn GRAPH_RDLOCK nbd_reconnect_attempt(BDRVNBDState *s)
     reconnect_delay_timer_del(s);
 }
 
-static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
+static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie,
+                                            Error **errp)
 {
     int ret;
     uint64_t ind = COOKIE_TO_INDEX(cookie), ind2;
@@ -457,20 +458,25 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
 
         /* We are under mutex and cookie is 0. We have to do the dirty work. */
         assert(s->reply.cookie == 0);
-        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, NULL);
-        if (ret <= 0) {
-            ret = ret ? ret : -EIO;
+        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, s->info.mode, errp);
+        if (ret == 0) {
+            ret = -EIO;
+            error_setg(errp, "server dropped connection");
+        }
+        if (ret < 0) {
             nbd_channel_error(s, ret);
             return ret;
         }
         if (nbd_reply_is_structured(&s->reply) &&
             s->info.mode < NBD_MODE_STRUCTURED) {
             nbd_channel_error(s, -EINVAL);
+            error_setg(errp, "unexpected structured reply");
             return -EINVAL;
         }
         ind2 = COOKIE_TO_INDEX(s->reply.cookie);
         if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].coroutine) {
             nbd_channel_error(s, -EINVAL);
+            error_setg(errp, "unexpected cookie value");
             return -EINVAL;
         }
         if (s->reply.cookie == cookie) {
@@ -609,13 +615,17 @@ static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
  */
 static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
-                                         uint8_t *payload, uint64_t orig_length,
-                                         NBDExtent32 *extent, Error **errp)
+                                         uint8_t *payload, bool wide,
+                                         uint64_t orig_length,
+                                         NBDExtent64 *extent, Error **errp)
 {
     uint32_t context_id;
+    uint32_t count;
+    size_t ext_len = wide ? sizeof(*extent) : sizeof(NBDExtent32);
+    size_t pay_len = sizeof(context_id) + wide * sizeof(count) + ext_len;
 
     /* The server succeeded, so it must have sent [at least] one extent */
-    if (chunk->length < sizeof(context_id) + sizeof(*extent)) {
+    if (chunk->length < pay_len) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS");
         return -EINVAL;
@@ -630,8 +640,15 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
         return -EINVAL;
     }
 
-    extent->length = payload_advance32(&payload);
-    extent->flags = payload_advance32(&payload);
+    if (wide) {
+        count = payload_advance32(&payload);
+        extent->length = payload_advance64(&payload);
+        extent->flags = payload_advance64(&payload);
+    } else {
+        count = 0;
+        extent->length = payload_advance32(&payload);
+        extent->flags = payload_advance32(&payload);
+    }
 
     if (extent->length == 0) {
         error_setg(errp, "Protocol error: server sent status chunk with "
@@ -652,7 +669,7 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
      * (always a safe status, even if it loses information).
      */
     if (s->info.min_block && !QEMU_IS_ALIGNED(extent->length,
-                                                   s->info.min_block)) {
+                                              s->info.min_block)) {
         trace_nbd_parse_blockstatus_compliance("extent length is unaligned");
         if (extent->length > s->info.min_block) {
             extent->length = QEMU_ALIGN_DOWN(extent->length,
@@ -666,13 +683,15 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
     /*
      * We used NBD_CMD_FLAG_REQ_ONE, so the server should not have
      * sent us any more than one extent, nor should it have included
-     * status beyond our request in that extent. However, it's easy
-     * enough to ignore the server's noncompliance without killing the
+     * status beyond our request in that extent. Furthermore, a wide
+     * server should have replied with an accurate count (we left
+     * count at 0 for a narrow server).  However, it's easy enough to
+     * ignore the server's noncompliance without killing the
      * connection; just ignore trailing extents, and clamp things to
      * the length of our request.
      */
-    if (chunk->length > sizeof(context_id) + sizeof(*extent)) {
-        trace_nbd_parse_blockstatus_compliance("more than one extent");
+    if (count != wide || chunk->length > pay_len) {
+        trace_nbd_parse_blockstatus_compliance("unexpected extent count");
     }
     if (extent->length > orig_length) {
         extent->length = orig_length;
@@ -842,9 +861,9 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
     *request_ret = 0;
 
-    ret = nbd_receive_replies(s, cookie);
+    ret = nbd_receive_replies(s, cookie, errp);
     if (ret < 0) {
-        error_setg(errp, "Connection closed");
+        error_prepend(errp, "Connection closed: ");
         return -EIO;
     }
     assert(s->ioc);
@@ -1118,7 +1137,7 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
 
 static int coroutine_fn
 nbd_co_receive_blockstatus_reply(BDRVNBDState *s, uint64_t cookie,
-                                 uint64_t length, NBDExtent32 *extent,
+                                 uint64_t length, NBDExtent64 *extent,
                                  int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
@@ -1131,11 +1150,17 @@ nbd_co_receive_blockstatus_reply(BDRVNBDState *s, uint64_t cookie,
     NBD_FOREACH_REPLY_CHUNK(s, iter, cookie, false, NULL, &reply, &payload) {
         int ret;
         NBDStructuredReplyChunk *chunk = &reply.structured;
+        bool wide;
 
         assert(nbd_reply_is_structured(&reply));
 
         switch (chunk->type) {
+        case NBD_REPLY_TYPE_BLOCK_STATUS_EXT:
         case NBD_REPLY_TYPE_BLOCK_STATUS:
+            wide = chunk->type == NBD_REPLY_TYPE_BLOCK_STATUS_EXT;
+            if ((s->info.mode >= NBD_MODE_EXTENDED) != wide) {
+                trace_nbd_extended_headers_compliance("block_status");
+            }
             if (received) {
                 nbd_channel_error(s, -EINVAL);
                 error_setg(&local_err, "Several BLOCK_STATUS chunks in reply");
@@ -1143,9 +1168,9 @@ nbd_co_receive_blockstatus_reply(BDRVNBDState *s, uint64_t cookie,
             }
             received = true;
 
-            ret = nbd_parse_blockstatus_payload(s, &reply.structured,
-                                                payload, length, extent,
-                                                &local_err);
+            ret = nbd_parse_blockstatus_payload(
+                s, &reply.structured, payload, wide,
+                length, extent, &local_err);
             if (ret < 0) {
                 nbd_channel_error(s, ret);
                 nbd_iter_channel_error(&iter, ret, &local_err);
@@ -1375,7 +1400,7 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     int ret, request_ret;
-    NBDExtent32 extent = { 0 };
+    NBDExtent64 extent = { 0 };
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     Error *local_err = NULL;
 

@@ -105,11 +105,13 @@ struct NBDExport {
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
-/* NBDExportMetaContexts represents a list of contexts to be exported,
+/*
+ * NBDMetaContexts represents a list of meta contexts in use,
  * as selected by NBD_OPT_SET_META_CONTEXT. Also used for
- * NBD_OPT_LIST_META_CONTEXT. */
-typedef struct NBDExportMetaContexts {
-    NBDExport *exp;
+ * NBD_OPT_LIST_META_CONTEXT.
+ */
+struct NBDMetaContexts {
+    const NBDExport *exp; /* associated export */
     size_t count; /* number of negotiated contexts */
     bool base_allocation; /* export base:allocation context (block status) */
     bool allocation_depth; /* export qemu:allocation-depth */
@@ -117,7 +119,7 @@ typedef struct NBDExportMetaContexts {
                     * export qemu:dirty-bitmap:<export bitmap name>,
                     * sized by exp->nr_export_bitmaps
                     */
-} NBDExportMetaContexts;
+};
 
 struct NBDClient {
     int refcount;
@@ -144,7 +146,7 @@ struct NBDClient {
     uint32_t check_align; /* If non-zero, check for aligned client requests */
 
     NBDMode mode;
-    NBDExportMetaContexts export_meta;
+    NBDMetaContexts contexts; /* Negotiated meta contexts */
 
     uint32_t opt; /* Current option being negotiated */
     uint32_t optlen; /* remaining length of data in ioc for the option being
@@ -455,10 +457,10 @@ static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
     return nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
 }
 
-static void nbd_check_meta_export(NBDClient *client)
+static void nbd_check_meta_export(NBDClient *client, NBDExport *exp)
 {
-    if (client->exp != client->export_meta.exp) {
-        client->export_meta.count = 0;
+    if (exp != client->contexts.exp) {
+        client->contexts.count = 0;
     }
 }
 
@@ -482,6 +484,10 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         [10 .. 133]   reserved     (0) [unless no_zeroes]
      */
     trace_nbd_negotiate_handle_export_name();
+    if (client->mode >= NBD_MODE_EXTENDED) {
+        error_setg(errp, "Extended headers already negotiated");
+        return -EINVAL;
+    }
     if (client->optlen > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "Bad length received");
         return -EINVAL;
@@ -500,10 +506,14 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         error_setg(errp, "export not found");
         return -EINVAL;
     }
+    nbd_check_meta_export(client, client->exp);
 
     myflags = client->exp->nbdflags;
     if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
+    }
+    if (client->mode >= NBD_MODE_EXTENDED && client->contexts.count) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
     }
     trace_nbd_negotiate_new_style_size_flags(client->exp->size, myflags);
     stq_be_p(buf, client->exp->size);
@@ -517,7 +527,6 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     blk_exp_ref(&client->exp->common);
-    nbd_check_meta_export(client);
 
     return 0;
 }
@@ -637,6 +646,9 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
                                           errp, "export '%s' not present",
                                           sane_name);
     }
+    if (client->opt == NBD_OPT_GO) {
+        nbd_check_meta_export(client, exp);
+    }
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
     if (sendname) {
@@ -690,6 +702,10 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     if (client->mode >= NBD_MODE_STRUCTURED) {
         myflags |= NBD_FLAG_SEND_DF;
     }
+    if (client->mode >= NBD_MODE_EXTENDED &&
+        (client->contexts.count || client->opt == NBD_OPT_INFO)) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
+    }
     trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
     stq_be_p(buf, exp->size);
     stw_be_p(buf + 8, myflags);
@@ -725,7 +741,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         blk_exp_ref(&client->exp->common);
-        nbd_check_meta_export(client);
         rc = 1;
     }
     return rc;
@@ -848,7 +863,7 @@ static bool nbd_strshift(const char **str, const char *prefix)
  * Handle queries to 'base' namespace. For now, only the base:allocation
  * context is available.  Return true if @query has been handled.
  */
-static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
+static bool nbd_meta_base_query(NBDClient *client, NBDMetaContexts *meta,
                                 const char *query)
 {
     if (!nbd_strshift(&query, "base:")) {
@@ -868,7 +883,7 @@ static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
  * and qemu:allocation-depth contexts are available.  Return true if @query
  * has been handled.
  */
-static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
+static bool nbd_meta_qemu_query(NBDClient *client, NBDMetaContexts *meta,
                                 const char *query)
 {
     size_t i;
@@ -934,7 +949,7 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success. */
 static int nbd_negotiate_meta_query(NBDClient *client,
-                                    NBDExportMetaContexts *meta, Error **errp)
+                                    NBDMetaContexts *meta, Error **errp)
 {
     int ret;
     g_autofree char *query = NULL;
@@ -973,14 +988,14 @@ static int nbd_negotiate_meta_query(NBDClient *client,
  * Handle NBD_OPT_LIST_META_CONTEXT and NBD_OPT_SET_META_CONTEXT
  *
  * Return -errno on I/O error, or 0 if option was completely handled. */
-static int nbd_negotiate_meta_queries(NBDClient *client,
-                                      NBDExportMetaContexts *meta, Error **errp)
+static int nbd_negotiate_meta_queries(NBDClient *client, Error **errp)
 {
     int ret;
     g_autofree char *export_name = NULL;
     /* Mark unused to work around https://bugs.llvm.org/show_bug.cgi?id=3888 */
     g_autofree G_GNUC_UNUSED bool *bitmaps = NULL;
-    NBDExportMetaContexts local_meta = {0};
+    NBDMetaContexts local_meta = {0};
+    NBDMetaContexts *meta;
     uint32_t nb_queries;
     size_t i;
     size_t count = 0;
@@ -996,6 +1011,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
         /* Only change the caller's meta on SET. */
         meta = &local_meta;
+    } else {
+        meta = &client->contexts;
     }
 
     g_free(meta->bitmaps);
@@ -1264,6 +1281,10 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
             case NBD_OPT_STRUCTURED_REPLY:
                 if (length) {
                     ret = nbd_reject_length(client, false, errp);
+                } else if (client->mode >= NBD_MODE_EXTENDED) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client, NBD_REP_ERR_EXT_HEADER_REQD, errp,
+                        "extended headers already negotiated");
                 } else if (client->mode >= NBD_MODE_STRUCTURED) {
                     ret = nbd_negotiate_send_rep_err(
                         client, NBD_REP_ERR_INVALID, errp,
@@ -1276,8 +1297,20 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
 
             case NBD_OPT_LIST_META_CONTEXT:
             case NBD_OPT_SET_META_CONTEXT:
-                ret = nbd_negotiate_meta_queries(client, &client->export_meta,
-                                                 errp);
+                ret = nbd_negotiate_meta_queries(client, errp);
+                break;
+
+            case NBD_OPT_EXTENDED_HEADERS:
+                if (length) {
+                    ret = nbd_reject_length(client, false, errp);
+                } else if (client->mode >= NBD_MODE_EXTENDED) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client, NBD_REP_ERR_INVALID, errp,
+                        "extended headers already negotiated");
+                } else {
+                    ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
+                    client->mode = NBD_MODE_EXTENDED;
+                }
                 break;
 
             default:
@@ -1411,11 +1444,13 @@ nbd_read_eof(NBDClient *client, void *buffer, size_t size, Error **errp)
 static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *request,
                                             Error **errp)
 {
-    uint8_t buf[NBD_REQUEST_SIZE];
-    uint32_t magic;
+    uint8_t buf[NBD_EXTENDED_REQUEST_SIZE];
+    uint32_t magic, expect;
     int ret;
+    size_t size = client->mode >= NBD_MODE_EXTENDED ?
+        NBD_EXTENDED_REQUEST_SIZE : NBD_REQUEST_SIZE;
 
-    ret = nbd_read_eof(client, buf, sizeof(buf), errp);
+    ret = nbd_read_eof(client, buf, size, errp);
     if (ret < 0) {
         return ret;
     }
@@ -1423,13 +1458,21 @@ static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *reque
         return -EIO;
     }
 
-    /* Request
-       [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
-       [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
-       [ 6 ..  7]   type    (NBD_CMD_READ, ...)
-       [ 8 .. 15]   cookie
-       [16 .. 23]   from
-       [24 .. 27]   len
+    /*
+     * Compact request
+     *  [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
+     *  [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
+     *  [ 6 ..  7]   type    (NBD_CMD_READ, ...)
+     *  [ 8 .. 15]   cookie
+     *  [16 .. 23]   from
+     *  [24 .. 27]   len
+     * Extended request
+     *  [ 0 ..  3]   magic   (NBD_EXTENDED_REQUEST_MAGIC)
+     *  [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, NBD_CMD_FLAG_PAYLOAD_LEN, ...)
+     *  [ 6 ..  7]   type    (NBD_CMD_READ, ...)
+     *  [ 8 .. 15]   cookie
+     *  [16 .. 23]   from
+     *  [24 .. 31]   len
      */
 
     magic = ldl_be_p(buf);
@@ -1437,13 +1480,20 @@ static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *reque
     request->type   = lduw_be_p(buf + 6);
     request->cookie = ldq_be_p(buf + 8);
     request->from   = ldq_be_p(buf + 16);
-    request->len    = (uint32_t)ldl_be_p(buf + 24); /* widen 32 to 64 bits */
+    if (client->mode >= NBD_MODE_EXTENDED) {
+        request->len = ldq_be_p(buf + 24);
+        expect = NBD_EXTENDED_REQUEST_MAGIC;
+    } else {
+        request->len = (uint32_t)ldl_be_p(buf + 24); /* widen 32 to 64 bits */
+        expect = NBD_REQUEST_MAGIC;
+    }
 
     trace_nbd_receive_request(magic, request->flags, request->type,
                               request->from, request->len);
 
-    if (magic != NBD_REQUEST_MAGIC) {
-        error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
+    if (magic != expect) {
+        error_setg(errp, "invalid magic (got 0x%" PRIx32 ", expected 0x%"
+                   PRIx32 ")", magic, expect);
         return -EINVAL;
     }
     return 0;
@@ -1474,7 +1524,7 @@ void nbd_client_put(NBDClient *client)
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             blk_exp_unref(&client->exp->common);
         }
-        g_free(client->export_meta.bitmaps);
+        g_free(client->contexts.bitmaps);
         g_free(client);
     }
 }
@@ -1921,8 +1971,6 @@ static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
                                 size_t niov, uint16_t flags, uint16_t type,
                                 NBDRequest *request)
 {
-    /* TODO - handle structured vs. extended replies */
-    NBDStructuredReplyChunk *chunk = iov->iov_base;
     size_t i, length = 0;
 
     for (i = 1; i < niov; i++) {
@@ -1930,12 +1978,26 @@ static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
     }
     assert(length <= NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData));
 
-    iov[0].iov_len = sizeof(*chunk);
-    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
-    stw_be_p(&chunk->flags, flags);
-    stw_be_p(&chunk->type, type);
-    stq_be_p(&chunk->cookie, request->cookie);
-    stl_be_p(&chunk->length, length);
+    if (client->mode >= NBD_MODE_EXTENDED) {
+        NBDExtendedReplyChunk *chunk = iov->iov_base;
+
+        iov[0].iov_len = sizeof(*chunk);
+        stl_be_p(&chunk->magic, NBD_EXTENDED_REPLY_MAGIC);
+        stw_be_p(&chunk->flags, flags);
+        stw_be_p(&chunk->type, type);
+        stq_be_p(&chunk->cookie, request->cookie);
+        stq_be_p(&chunk->offset, request->from);
+        stq_be_p(&chunk->length, length);
+    } else {
+        NBDStructuredReplyChunk *chunk = iov->iov_base;
+
+        iov[0].iov_len = sizeof(*chunk);
+        stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+        stw_be_p(&chunk->flags, flags);
+        stw_be_p(&chunk->type, type);
+        stq_be_p(&chunk->cookie, request->cookie);
+        stl_be_p(&chunk->length, length);
+    }
 }
 
 static int coroutine_fn nbd_co_send_chunk_done(NBDClient *client,
@@ -2074,20 +2136,24 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 }
 
 typedef struct NBDExtentArray {
-    NBDExtent32 *extents;
+    NBDExtent64 *extents;
     unsigned int nb_alloc;
     unsigned int count;
     uint64_t total_length;
+    bool extended;
     bool can_add;
     bool converted_to_be;
 } NBDExtentArray;
 
-static NBDExtentArray *nbd_extent_array_new(unsigned int nb_alloc)
+static NBDExtentArray *nbd_extent_array_new(unsigned int nb_alloc,
+                                            NBDMode mode)
 {
     NBDExtentArray *ea = g_new0(NBDExtentArray, 1);
 
+    assert(mode >= NBD_MODE_STRUCTURED);
     ea->nb_alloc = nb_alloc;
-    ea->extents = g_new(NBDExtent32, nb_alloc);
+    ea->extents = g_new(NBDExtent64, nb_alloc);
+    ea->extended = mode >= NBD_MODE_EXTENDED;
     ea->can_add = true;
 
     return ea;
@@ -2106,13 +2172,34 @@ static void nbd_extent_array_convert_to_be(NBDExtentArray *ea)
     int i;
 
     assert(!ea->converted_to_be);
+    assert(ea->extended);
     ea->can_add = false;
     ea->converted_to_be = true;
 
     for (i = 0; i < ea->count; i++) {
-        ea->extents[i].flags = cpu_to_be32(ea->extents[i].flags);
-        ea->extents[i].length = cpu_to_be32(ea->extents[i].length);
+        ea->extents[i].length = cpu_to_be64(ea->extents[i].length);
+        ea->extents[i].flags = cpu_to_be64(ea->extents[i].flags);
     }
+}
+
+/* Further modifications of the array after conversion are abandoned */
+static NBDExtent32 *nbd_extent_array_convert_to_narrow(NBDExtentArray *ea)
+{
+    int i;
+    NBDExtent32 *extents = g_new(NBDExtent32, ea->count);
+
+    assert(!ea->converted_to_be);
+    assert(!ea->extended);
+    ea->can_add = false;
+    ea->converted_to_be = true;
+
+    for (i = 0; i < ea->count; i++) {
+        assert((ea->extents[i].length | ea->extents[i].flags) <= UINT32_MAX);
+        extents[i].length = cpu_to_be32(ea->extents[i].length);
+        extents[i].flags = cpu_to_be32(ea->extents[i].flags);
+    }
+
+    return extents;
 }
 
 /*
@@ -2125,19 +2212,27 @@ static void nbd_extent_array_convert_to_be(NBDExtentArray *ea)
  * would result in an incorrect range reported to the client)
  */
 static int nbd_extent_array_add(NBDExtentArray *ea,
-                                uint32_t length, uint32_t flags)
+                                uint64_t length, uint32_t flags)
 {
     assert(ea->can_add);
 
     if (!length) {
         return 0;
     }
+    if (!ea->extended) {
+        assert(length <= UINT32_MAX);
+    }
 
     /* Extend previous extent if flags are the same */
     if (ea->count > 0 && flags == ea->extents[ea->count - 1].flags) {
-        uint64_t sum = (uint64_t)length + ea->extents[ea->count - 1].length;
+        uint64_t sum = length + ea->extents[ea->count - 1].length;
 
-        if (sum <= UINT32_MAX) {
+        /*
+         * sum cannot overflow: the block layer bounds image size at
+         * 2^63, and ea->extents[].length comes from the block layer.
+         */
+        assert(sum >= length);
+        if (sum <= UINT32_MAX || ea->extended) {
             ea->extents[ea->count - 1].length = sum;
             ea->total_length += length;
             return 0;
@@ -2150,7 +2245,7 @@ static int nbd_extent_array_add(NBDExtentArray *ea,
     }
 
     ea->total_length += length;
-    ea->extents[ea->count] = (NBDExtent32) {.length = length, .flags = flags};
+    ea->extents[ea->count] = (NBDExtent64) {.length = length, .flags = flags};
     ea->count++;
 
     return 0;
@@ -2219,20 +2314,39 @@ nbd_co_send_extents(NBDClient *client, NBDRequest *request, NBDExtentArray *ea,
                     bool last, uint32_t context_id, Error **errp)
 {
     NBDReply hdr;
-    NBDStructuredMeta chunk;
-    struct iovec iov[] = {
-        {.iov_base = &hdr},
-        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
-        {.iov_base = ea->extents, .iov_len = ea->count * sizeof(ea->extents[0])}
-    };
+    NBDStructuredMeta meta;
+    NBDExtendedMeta meta_ext;
+    g_autofree NBDExtent32 *extents = NULL;
+    uint16_t type;
+    struct iovec iov[] = { {.iov_base = &hdr}, {0}, {0} };
 
-    nbd_extent_array_convert_to_be(ea);
+    if (client->mode >= NBD_MODE_EXTENDED) {
+        type = NBD_REPLY_TYPE_BLOCK_STATUS_EXT;
+
+        iov[1].iov_base = &meta_ext;
+        iov[1].iov_len = sizeof(meta_ext);
+        stl_be_p(&meta_ext.context_id, context_id);
+        stl_be_p(&meta_ext.count, ea->count);
+
+        nbd_extent_array_convert_to_be(ea);
+        iov[2].iov_base = ea->extents;
+        iov[2].iov_len = ea->count * sizeof(ea->extents[0]);
+    } else {
+        type = NBD_REPLY_TYPE_BLOCK_STATUS;
+
+        iov[1].iov_base = &meta;
+        iov[1].iov_len = sizeof(meta);
+        stl_be_p(&meta.context_id, context_id);
+
+        extents = nbd_extent_array_convert_to_narrow(ea);
+        iov[2].iov_base = extents;
+        iov[2].iov_len = ea->count * sizeof(extents[0]);
+    }
 
     trace_nbd_co_send_extents(request->cookie, ea->count, context_id,
                               ea->total_length, last);
-    set_be_chunk(client, iov, 3, last ? NBD_REPLY_FLAG_DONE : 0,
-                 NBD_REPLY_TYPE_BLOCK_STATUS, request);
-    stl_be_p(&chunk.context_id, context_id);
+    set_be_chunk(client, iov, 3, last ? NBD_REPLY_FLAG_DONE : 0, type,
+                 request);
 
     return nbd_co_send_iov(client, iov, 3, errp);
 }
@@ -2241,13 +2355,14 @@ nbd_co_send_extents(NBDClient *client, NBDRequest *request, NBDExtentArray *ea,
 static int
 coroutine_fn nbd_co_send_block_status(NBDClient *client, NBDRequest *request,
                                       BlockBackend *blk, uint64_t offset,
-                                      uint32_t length, bool dont_fragment,
+                                      uint64_t length, bool dont_fragment,
                                       bool last, uint32_t context_id,
                                       Error **errp)
 {
     int ret;
     unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
-    g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
+    g_autoptr(NBDExtentArray) ea =
+        nbd_extent_array_new(nb_extents, client->mode);
 
     if (context_id == NBD_META_ID_BASE_ALLOCATION) {
         ret = blockstatus_to_extents(blk, offset, length, ea);
@@ -2270,11 +2385,12 @@ static void bitmap_to_extents(BdrvDirtyBitmap *bitmap,
     int64_t start, dirty_start, dirty_count;
     int64_t end = offset + length;
     bool full = false;
+    int64_t bound = es->extended ? INT64_MAX : INT32_MAX;
 
     bdrv_dirty_bitmap_lock(bitmap);
 
     for (start = offset;
-         bdrv_dirty_bitmap_next_dirty_area(bitmap, start, end, INT32_MAX,
+         bdrv_dirty_bitmap_next_dirty_area(bitmap, start, end, bound,
                                            &dirty_start, &dirty_count);
          start = dirty_start + dirty_count)
     {
@@ -2298,16 +2414,101 @@ static int coroutine_fn nbd_co_send_bitmap(NBDClient *client,
                                            NBDRequest *request,
                                            BdrvDirtyBitmap *bitmap,
                                            uint64_t offset,
-                                           uint32_t length, bool dont_fragment,
+                                           uint64_t length, bool dont_fragment,
                                            bool last, uint32_t context_id,
                                            Error **errp)
 {
     unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
-    g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
+    g_autoptr(NBDExtentArray) ea =
+        nbd_extent_array_new(nb_extents, client->mode);
 
     bitmap_to_extents(bitmap, offset, length, ea);
 
     return nbd_co_send_extents(client, request, ea, last, context_id, errp);
+}
+
+/*
+ * nbd_co_block_status_payload_read
+ * Called when a client wants a subset of negotiated contexts via a
+ * BLOCK_STATUS payload.  Check the payload for valid length and
+ * contents.  On success, return 0 with request updated to effective
+ * length.  If request was invalid but all payload consumed, return 0
+ * with request->len and request->contexts->count set to 0 (which will
+ * trigger an appropriate NBD_EINVAL response later on).  Return
+ * negative errno if the payload was not fully consumed.
+ */
+static int
+nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
+                                 Error **errp)
+{
+    uint64_t payload_len = request->len;
+    g_autofree char *buf = NULL;
+    size_t count, i, nr_bitmaps;
+    uint32_t id;
+
+    if (payload_len > NBD_MAX_BUFFER_SIZE) {
+        error_setg(errp, "len (%" PRIu64 ") is larger than max len (%u)",
+                   request->len, NBD_MAX_BUFFER_SIZE);
+        return -EINVAL;
+    }
+
+    assert(client->contexts.exp == client->exp);
+    nr_bitmaps = client->exp->nr_export_bitmaps;
+    request->contexts = g_new0(NBDMetaContexts, 1);
+    request->contexts->exp = client->exp;
+
+    if (payload_len % sizeof(uint32_t) ||
+        payload_len < sizeof(NBDBlockStatusPayload) ||
+        payload_len > (sizeof(NBDBlockStatusPayload) +
+                       sizeof(id) * client->contexts.count)) {
+        goto skip;
+    }
+
+    buf = g_malloc(payload_len);
+    if (nbd_read(client->ioc, buf, payload_len,
+                 "CMD_BLOCK_STATUS data", errp) < 0) {
+        return -EIO;
+    }
+    trace_nbd_co_receive_request_payload_received(request->cookie,
+                                                  payload_len);
+    request->contexts->bitmaps = g_new0(bool, nr_bitmaps);
+    count = (payload_len - sizeof(NBDBlockStatusPayload)) / sizeof(id);
+    payload_len = 0;
+
+    for (i = 0; i < count; i++) {
+        id = ldl_be_p(buf + sizeof(NBDBlockStatusPayload) + sizeof(id) * i);
+        if (id == NBD_META_ID_BASE_ALLOCATION) {
+            if (!client->contexts.base_allocation ||
+                request->contexts->base_allocation) {
+                goto skip;
+            }
+            request->contexts->base_allocation = true;
+        } else if (id == NBD_META_ID_ALLOCATION_DEPTH) {
+            if (!client->contexts.allocation_depth ||
+                request->contexts->allocation_depth) {
+                goto skip;
+            }
+            request->contexts->allocation_depth = true;
+        } else {
+            unsigned idx = id - NBD_META_ID_DIRTY_BITMAP;
+
+            if (idx >= nr_bitmaps || !client->contexts.bitmaps[idx] ||
+                request->contexts->bitmaps[idx]) {
+                goto skip;
+            }
+            request->contexts->bitmaps[idx] = true;
+        }
+    }
+
+    request->len = ldq_be_p(buf);
+    request->contexts->count = count;
+    return 0;
+
+ skip:
+    trace_nbd_co_receive_block_status_payload_compliance(request->from,
+                                                         request->len);
+    request->len = request->contexts->count = 0;
+    return nbd_drop(client->ioc, payload_len, errp);
 }
 
 /* nbd_co_receive_request
@@ -2322,10 +2523,12 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
                                                Error **errp)
 {
     NBDClient *client = req->client;
+    bool extended_with_payload;
     bool check_length = false;
     bool check_rofs = false;
     bool allocate_buffer = false;
-    unsigned payload_len = 0;
+    bool payload_okay = false;
+    uint64_t payload_len = 0;
     int valid_flags = NBD_CMD_FLAG_FUA;
     int ret;
 
@@ -2338,6 +2541,13 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
 
     trace_nbd_co_receive_request_decode_type(request->cookie, request->type,
                                              nbd_cmd_lookup(request->type));
+    extended_with_payload = client->mode >= NBD_MODE_EXTENDED &&
+        request->flags & NBD_CMD_FLAG_PAYLOAD_LEN;
+    if (extended_with_payload) {
+        payload_len = request->len;
+        check_length = true;
+    }
+
     switch (request->type) {
     case NBD_CMD_DISC:
         /* Special case: we're going to disconnect without a reply,
@@ -2354,6 +2564,15 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         break;
 
     case NBD_CMD_WRITE:
+        if (client->mode >= NBD_MODE_EXTENDED) {
+            if (!extended_with_payload) {
+                /* The client is noncompliant. Trace it, but proceed. */
+                trace_nbd_co_receive_ext_payload_compliance(request->from,
+                                                            request->len);
+            }
+            valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+        }
+        payload_okay = true;
         payload_len = request->len;
         check_length = true;
         allocate_buffer = true;
@@ -2377,6 +2596,18 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         break;
 
     case NBD_CMD_BLOCK_STATUS:
+        if (extended_with_payload) {
+            ret = nbd_co_block_status_payload_read(client, request, errp);
+            if (ret < 0) {
+                return ret;
+            }
+            /* payload now consumed */
+            check_length = false;
+            payload_len = 0;
+            valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+        } else {
+            request->contexts = &client->contexts;
+        }
         valid_flags |= NBD_CMD_FLAG_REQ_ONE;
         break;
 
@@ -2395,6 +2626,16 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
                    request->len, NBD_MAX_BUFFER_SIZE);
         return -EINVAL;
     }
+    if (payload_len && !payload_okay) {
+        /*
+         * For now, we don't support payloads on other commands; but
+         * we can keep the connection alive by ignoring the payload.
+         * We will fail the command later with NBD_EINVAL for the use
+         * of an unsupported flag (and not for access beyond bounds).
+         */
+        assert(request->type != NBD_CMD_WRITE);
+        request->len = 0;
+    }
     if (allocate_buffer) {
         /* READ, WRITE */
         req->data = blk_try_blockalign(client->exp->common.blk,
@@ -2405,10 +2646,14 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         }
     }
     if (payload_len) {
-        /* WRITE */
-        assert(req->data);
-        ret = nbd_read(client->ioc, req->data, payload_len,
-                       "CMD_WRITE data", errp);
+        if (payload_okay) {
+            /* WRITE */
+            assert(req->data);
+            ret = nbd_read(client->ioc, req->data, payload_len,
+                           "CMD_WRITE data", errp);
+        } else {
+            ret = nbd_drop(client->ioc, payload_len, errp);
+        }
         if (ret < 0) {
             return -EIO;
         }
@@ -2463,6 +2708,8 @@ static coroutine_fn int nbd_send_generic_reply(NBDClient *client,
 {
     if (client->mode >= NBD_MODE_STRUCTURED && ret < 0) {
         return nbd_co_send_chunk_error(client, request, -ret, error_msg, errp);
+    } else if (client->mode >= NBD_MODE_EXTENDED) {
+        return nbd_co_send_chunk_done(client, request, errp);
     } else {
         return nbd_co_send_simple_reply(client, request, ret < 0 ? -ret : 0,
                                         NULL, 0, errp);
@@ -2604,16 +2851,18 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                       "discard failed", errp);
 
     case NBD_CMD_BLOCK_STATUS:
-        if (!request->len) {
-            return nbd_send_generic_reply(client, request, -EINVAL,
-                                          "need non-zero length", errp);
-        }
-        assert(request->len <= UINT32_MAX);
-        if (client->export_meta.count) {
+        assert(request->contexts);
+        assert(client->mode >= NBD_MODE_EXTENDED ||
+               request->len <= UINT32_MAX);
+        if (request->contexts->count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
-            int contexts_remaining = client->export_meta.count;
+            int contexts_remaining = request->contexts->count;
 
-            if (client->export_meta.base_allocation) {
+            if (!request->len) {
+                return nbd_send_generic_reply(client, request, -EINVAL,
+                                              "need non-zero length", errp);
+            }
+            if (request->contexts->base_allocation) {
                 ret = nbd_co_send_block_status(client, request,
                                                exp->common.blk,
                                                request->from,
@@ -2626,7 +2875,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
-            if (client->export_meta.allocation_depth) {
+            if (request->contexts->allocation_depth) {
                 ret = nbd_co_send_block_status(client, request,
                                                exp->common.blk,
                                                request->from, request->len,
@@ -2639,8 +2888,9 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
+            assert(request->contexts->exp == client->exp);
             for (i = 0; i < client->exp->nr_export_bitmaps; i++) {
-                if (!client->export_meta.bitmaps[i]) {
+                if (!request->contexts->bitmaps[i]) {
                     continue;
                 }
                 ret = nbd_co_send_bitmap(client, request,
@@ -2656,6 +2906,10 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             assert(!contexts_remaining);
 
             return 0;
+        } else if (client->contexts.count) {
+            return nbd_send_generic_reply(client, request, -EINVAL,
+                                          "CMD_BLOCK_STATUS payload not valid",
+                                          errp);
         } else {
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "CMD_BLOCK_STATUS not negotiated",
@@ -2734,13 +2988,19 @@ static coroutine_fn void nbd_trip(void *opaque)
     } else {
         ret = nbd_handle_request(client, &request, req->data, &local_err);
     }
+    if (request.contexts && request.contexts != &client->contexts) {
+        assert(request.type == NBD_CMD_BLOCK_STATUS);
+        g_free(request.contexts->bitmaps);
+        g_free(request.contexts);
+    }
     if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
 
-    /* We must disconnect after NBD_CMD_WRITE if we did not
-     * read the payload.
+    /*
+     * We must disconnect after NBD_CMD_WRITE or BLOCK_STATUS with
+     * payload if we did not read the payload.
      */
     if (!req->complete) {
         error_setg(&local_err, "Request handling failed in intermediate state");
