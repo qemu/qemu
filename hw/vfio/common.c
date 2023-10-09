@@ -878,11 +878,11 @@ static void vfio_listener_region_add(MemoryListener *listener,
                 QLIST_FOREACH(group, &container->group_list, container_next) {
                     param.groupfd = group->fd;
                     if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
-                        error_report("vfio: failed to setup fd %d "
-                                     "for a group with fd %d: %s",
-                                     param.tablefd, param.groupfd,
-                                     strerror(errno));
-                        return;
+                        error_setg_errno(&err, errno,
+                                         "vfio: failed GROUP_SET_SPAPR_TCE for "
+                                         "KVM VFIO device %d and group fd %d",
+                                         param.tablefd, param.groupfd);
+                        goto fail;
                     }
                     trace_vfio_spapr_group_attach(param.groupfd, param.tablefd);
                 }
