@@ -50,11 +50,4 @@ void cpu_synchronize_all_post_reset(void);
 void cpu_synchronize_all_post_init(void);
 void cpu_synchronize_all_pre_loadvm(void);
 
-#ifndef CONFIG_USER_ONLY
-/* vl.c */
-/* *-user doesn't have configurable SMP topology */
-extern int smp_cores;
-extern int smp_threads;
-#endif
-
 #endif
