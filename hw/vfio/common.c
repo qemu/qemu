@@ -2335,7 +2335,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 {
     VFIOGroup *group;
     char path[32];
@@ -2402,7 +2402,7 @@ free_group_exit:
     return NULL;
 }
 
-void vfio_put_group(VFIOGroup *group)
+static void vfio_put_group(VFIOGroup *group)
 {
     if (!group || !QLIST_EMPTY(&group->device_list)) {
         return;
@@ -2447,8 +2447,8 @@ retry:
     return info;
 }
 
-int vfio_get_device(VFIOGroup *group, const char *name,
-                    VFIODevice *vbasedev, Error **errp)
+static int vfio_get_device(VFIOGroup *group, const char *name,
+                           VFIODevice *vbasedev, Error **errp)
 {
     g_autofree struct vfio_device_info *info = NULL;
     int fd;
@@ -2506,7 +2506,7 @@ int vfio_get_device(VFIOGroup *group, const char *name,
     return 0;
 }
 
-void vfio_put_base_device(VFIODevice *vbasedev)
+static void vfio_put_base_device(VFIODevice *vbasedev)
 {
     if (!vbasedev->group) {
         return;
