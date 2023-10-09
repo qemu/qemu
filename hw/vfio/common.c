@@ -763,7 +763,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
 fail:
     if (memory_region_is_ram_device(section->mr)) {
-        error_report("failed to vfio_dma_map. pci p2p may not work");
+        error_reportf_err(err, "PCI p2p may not work: ");
         return;
     }
     /*
