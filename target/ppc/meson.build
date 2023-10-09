@@ -55,4 +55,4 @@ ppc_system_ss.add(when: 'TARGET_PPC64', if_true: files(
 ))
 
 target_arch += {'ppc': ppc_ss}
-target_softmmu_arch += {'ppc': ppc_system_ss}
+target_system_arch += {'ppc': ppc_system_ss}

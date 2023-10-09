@@ -43,8 +43,8 @@
  * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80878
  *
  * This interpretation is not especially helpful for QEMU.
- * For softmmu, all RAM is always read/write from the hypervisor.
- * For user-only, if the guest doesn't implement such an __atomic_read
+ * For system-mode, all RAM is always read/write from the hypervisor.
+ * For user-mode, if the guest doesn't implement such an __atomic_read
  * then the host need not worry about it either.
  *
  * Moreover, using libatomic is not an option, because its interface is

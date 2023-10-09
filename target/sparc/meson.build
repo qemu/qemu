@@ -20,4 +20,4 @@ sparc_system_ss.add(files(
 ))
 
 target_arch += {'sparc': sparc_ss}
-target_softmmu_arch += {'sparc': sparc_system_ss}
+target_system_arch += {'sparc': sparc_system_ss}

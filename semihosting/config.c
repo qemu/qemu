@@ -12,7 +12,7 @@
  * linux-user targets. However in that use case no configuration of
  * the outputs and command lines is supported.
  *
- * The config module is common to all softmmu targets however as vl.c
+ * The config module is common to all system targets however as vl.c
  * needs to link against the helpers.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later

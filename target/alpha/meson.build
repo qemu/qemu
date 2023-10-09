@@ -15,4 +15,4 @@ alpha_system_ss = ss.source_set()
 alpha_system_ss.add(files('machine.c'))
 
 target_arch += {'alpha': alpha_ss}
-target_softmmu_arch += {'alpha': alpha_system_ss}
+target_system_arch += {'alpha': alpha_system_ss}

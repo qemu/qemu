@@ -31,5 +31,5 @@ subdir('hvf')
 subdir('tcg')
 
 target_arch += {'i386': i386_ss}
-target_softmmu_arch += {'i386': i386_system_ss}
+target_system_arch += {'i386': i386_system_ss}
 target_user_arch += {'i386': i386_user_ss}

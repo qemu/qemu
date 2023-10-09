@@ -39,4 +39,4 @@ riscv_system_ss.add(files(
 ))
 
 target_arch += {'riscv': riscv_ss}
-target_softmmu_arch += {'riscv': riscv_system_ss}
+target_system_arch += {'riscv': riscv_system_ss}

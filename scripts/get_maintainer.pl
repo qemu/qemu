@@ -796,7 +796,7 @@ sub top_of_tree {
         && (-d "${lk_path}docs")
         && (-f "${lk_path}VERSION")
         && (-d "${lk_path}linux-user/")
-        && (-d "${lk_path}softmmu/")) {
+        && (-d "${lk_path}system/")) {
 	return 1;
     }
     return 0;

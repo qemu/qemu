@@ -2301,8 +2301,10 @@ RAMBlock *qemu_ram_block_by_name(const char *name)
     return NULL;
 }
 
-/* Some of the softmmu routines need to translate from a host pointer
-   (typically a TLB entry) back to a ram offset.  */
+/*
+ * Some of the system routines need to translate from a host pointer
+ * (typically a TLB entry) back to a ram offset.
+ */
 ram_addr_t qemu_ram_addr_from_host(void *ptr)
 {
     RAMBlock *block;

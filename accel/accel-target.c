@@ -30,7 +30,7 @@
 #include "hw/core/accel-cpu.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "accel-softmmu.h"
+#include "accel-system.h"
 #endif /* !CONFIG_USER_ONLY */
 
 static const TypeInfo accel_type = {

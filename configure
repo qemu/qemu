@@ -252,7 +252,7 @@ docs="auto"
 EXESUF=""
 prefix="/usr/local"
 qemu_suffix="qemu"
-softmmu="yes"
+system="yes"
 linux_user=""
 bsd_user=""
 plugins="$default_feature"
@@ -740,9 +740,9 @@ for opt do
   ;;
   --enable-tcg) tcg="enabled"
   ;;
-  --disable-system) softmmu="no"
+  --disable-system) system="no"
   ;;
-  --enable-system) softmmu="yes"
+  --enable-system) system="yes"
   ;;
   --disable-user)
       linux_user="no" ;
@@ -864,7 +864,7 @@ else
         error_exit "user mode emulation not supported on this architecture"
     fi
 fi
-if [ "$softmmu" = "yes" ]; then
+if [ "$system" = "yes" ]; then
     mak_wilds="${mak_wilds} $source_path/configs/targets/*-softmmu.mak"
 fi
 
@@ -1756,7 +1756,7 @@ for target in $target_list; do
 
   case $target in
     xtensa*-linux-user)
-      # the toolchain is not complete with headers, only build softmmu tests
+      # the toolchain is not complete with headers, only build system tests
       continue
       ;;
     *-softmmu)

@@ -26,7 +26,7 @@
 #include "gdbstub/syscalls.h"
 #include "gdbstub/helpers.h"
 #include "semihosting/syscalls.h"
-#include "semihosting/softmmu-uaccess.h"
+#include "semihosting/uaccess.h"
 #include "qemu/log.h"
 
 #define HOSTED_EXIT  0

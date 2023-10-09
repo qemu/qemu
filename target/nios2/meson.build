@@ -14,4 +14,4 @@ nios2_system_ss.add(files(
 ))
 
 target_arch += {'nios2': nios2_ss}
-target_softmmu_arch += {'nios2': nios2_system_ss}
+target_system_arch += {'nios2': nios2_system_ss}

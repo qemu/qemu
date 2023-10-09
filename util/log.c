@@ -298,6 +298,8 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
             r->fd = logfile;
             qatomic_rcu_set(&global_file, NULL);
             call_rcu(r, rcu_close_file, rcu);
+        }
+        if (changed_name) {
             logfile = NULL;
         }
     }

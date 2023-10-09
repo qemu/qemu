@@ -20,4 +20,4 @@ hppa_system_ss.add(files(
 ))
 
 target_arch += {'hppa': hppa_ss}
-target_softmmu_arch += {'hppa': hppa_system_ss}
+target_system_arch += {'hppa': hppa_system_ss}

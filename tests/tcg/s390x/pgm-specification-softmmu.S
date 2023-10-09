@@ -1,5 +1,5 @@
 /*
- * Common softmmu code for specification exception testing.
+ * Common system code for specification exception testing.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

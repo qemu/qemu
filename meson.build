@@ -3198,7 +3198,7 @@ modules = {}
 target_modules = {}
 hw_arch = {}
 target_arch = {}
-target_softmmu_arch = {}
+target_system_arch = {}
 target_user_arch = {}
 
 ###############
@@ -3291,7 +3291,7 @@ if have_system
     'hw/gpio',
     'migration',
     'net',
-    'softmmu',
+    'system',
     'ui',
     'hw/remote',
   ]
@@ -3418,7 +3418,7 @@ endif
 common_ss.add(files('cpu-common.c'))
 specific_ss.add(files('cpu-target.c'))
 
-subdir('softmmu')
+subdir('system')
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
@@ -3480,7 +3480,7 @@ modinfo_generate = find_program('scripts/modinfo-generate.py')
 modinfo_files = []
 
 block_mods = []
-softmmu_mods = []
+system_mods = []
 foreach d, list : modules
   if not (d == 'block' ? have_block : have_system)
     continue
@@ -3494,7 +3494,7 @@ foreach d, list : modules
       if d == 'block'
         block_mods += sl
       else
-        softmmu_mods += sl
+        system_mods += sl
       endif
       if module_ss.sources() != []
         # FIXME: Should use sl.extract_all_objects(recursive: true) as
@@ -3538,7 +3538,7 @@ foreach d, list : target_modules
                                 include_directories: target_inc,
                                 c_args: c_args,
                                 pic: true)
-            softmmu_mods += sl
+            system_mods += sl
             # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
@@ -3581,7 +3581,7 @@ block_syms = custom_target('block.syms', output: 'block.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
-                             input: [libqemuutil, softmmu_mods],
+                             input: [libqemuutil, system_mods],
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
@@ -3666,7 +3666,7 @@ common_ss.add(hwcore)
 ###########
 
 emulator_modules = []
-foreach m : block_mods + softmmu_mods
+foreach m : block_mods + system_mods
   emulator_modules += shared_module(m.name(),
                 build_by_default: true,
                 name_prefix: '',
@@ -3718,7 +3718,7 @@ foreach target : target_dirs
   endif
   if target.endswith('-softmmu')
     target_type='system'
-    t = target_softmmu_arch[target_base_arch].apply(config_target, strict: false)
+    t = target_system_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
     arch_deps += t.dependencies()
 
@@ -3797,14 +3797,14 @@ foreach target : target_dirs
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
-      'sources': files('softmmu/main.c'),
+      'sources': files('system/main.c'),
       'dependencies': []
     }]
     if targetos == 'windows' and (sdl.found() or gtk.found())
       execs += [{
         'name': 'qemu-system-' + target_name + 'w',
         'win_subsystem': 'windows',
-        'sources': files('softmmu/main.c'),
+        'sources': files('system/main.c'),
         'dependencies': []
       }]
     endif

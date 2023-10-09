@@ -169,11 +169,14 @@ void audio_sample_from_uint64(void *samples, int pos,
                             uint64_t left, uint64_t right);
 
 void audio_define(Audiodev *audio);
+void audio_define_default(Audiodev *dev, Error **errp);
 void audio_parse_option(const char *opt);
+void audio_create_default_audiodevs(void);
 void audio_init_audiodevs(void);
 void audio_help(void);
 
 AudioState *audio_state_by_name(const char *name, Error **errp);
+AudioState *audio_get_default_audio_state(Error **errp);
 const char *audio_get_id(QEMUSoundCard *card);
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \

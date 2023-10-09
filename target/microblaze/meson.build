@@ -17,4 +17,4 @@ microblaze_system_ss.add(files(
 ))
 
 target_arch += {'microblaze': microblaze_ss}
-target_softmmu_arch += {'microblaze': microblaze_system_ss}
+target_system_arch += {'microblaze': microblaze_system_ss}
