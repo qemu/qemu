@@ -2793,6 +2793,8 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
 static inline void address_space_cache_init_empty(MemoryRegionCache *cache)
 {
     cache->mrs.mr = NULL;
+    /* There is no real need to initialize fv, but it makes Coverity happy. */
+    cache->fv = NULL;
 }
 
 /**
