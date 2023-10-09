@@ -618,7 +618,6 @@ static bool do_test_accounting(bool is_ops, /* are we testing bps or ops */
                                  { THROTTLE_OPS_TOTAL,
                                    THROTTLE_OPS_READ,
                                    THROTTLE_OPS_WRITE, } };
-    ThrottleConfig cfg;
     BucketType index;
     int i;
 
