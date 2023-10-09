@@ -1281,10 +1281,6 @@ probe_target_compiler() {
         container_cross_prefix=aarch64-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc
         ;;
-      alpha)
-        container_image=debian-alpha-cross
-        container_cross_prefix=alpha-linux-gnu-
-        ;;
       arm)
         # We don't have any bigendian build tools so we only use this for ARM
         container_image=debian-armhf-cross
@@ -1299,10 +1295,6 @@ probe_target_compiler() {
         container_cross_prefix=hexagon-unknown-linux-musl-
         container_cross_cc=${container_cross_prefix}clang
         ;;
-      hppa)
-        container_image=debian-hppa-cross
-        container_cross_prefix=hppa-linux-gnu-
-        ;;
       i386)
         container_image=fedora-i386-cross
         container_cross_prefix=
@@ -1310,10 +1302,6 @@ probe_target_compiler() {
       loongarch64)
         container_image=debian-loongarch-cross
         container_cross_prefix=loongarch64-unknown-linux-gnu-
-        ;;
-      m68k)
-        container_image=debian-m68k-cross
-        container_cross_prefix=m68k-linux-gnu-
         ;;
       microblaze)
         container_image=debian-microblaze-cross
@@ -1326,14 +1314,6 @@ probe_target_compiler() {
       mips64)
         container_image=debian-mips64-cross
         container_cross_prefix=mips64-linux-gnuabi64-
-        ;;
-      mipsel)
-        container_image=debian-mipsel-cross
-        container_cross_prefix=mipsel-linux-gnu-
-        ;;
-      mips)
-        container_image=debian-mips-cross
-        container_cross_prefix=mips-linux-gnu-
         ;;
       nios2)
         container_image=debian-nios2-cross
@@ -1349,22 +1329,6 @@ probe_target_compiler() {
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc-10
         ;;
-      riscv64)
-        container_image=debian-riscv64-test-cross
-        container_cross_prefix=riscv64-linux-gnu-
-        ;;
-      s390x)
-        container_image=debian-s390x-cross
-        container_cross_prefix=s390x-linux-gnu-
-        ;;
-      sh4)
-        container_image=debian-sh4-cross
-        container_cross_prefix=sh4-linux-gnu-
-        ;;
-      sparc64)
-        container_image=debian-sparc64-cross
-        container_cross_prefix=sparc64-linux-gnu-
-        ;;
       tricore)
         container_image=debian-tricore-cross
         container_cross_prefix=tricore-
@@ -1378,6 +1342,11 @@ probe_target_compiler() {
 
         # default to the dc232b cpu
         container_cross_prefix=/opt/2020.07/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-
+        ;;
+      *)
+        # Debian and GNU architecture names usually match
+        container_image=debian-$target_arch-cross
+        container_cross_prefix=$target_arch-linux-gnu-
         ;;
     esac
     : ${container_cross_cc:=${container_cross_prefix}gcc}
