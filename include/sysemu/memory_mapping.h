@@ -71,7 +71,7 @@ void guest_phys_blocks_free(GuestPhysBlockList *list);
 void guest_phys_blocks_init(GuestPhysBlockList *list);
 void guest_phys_blocks_append(GuestPhysBlockList *list);
 
-void qemu_get_guest_memory_mapping(MemoryMappingList *list,
+bool qemu_get_guest_memory_mapping(MemoryMappingList *list,
                                    const GuestPhysBlockList *guest_phys_blocks,
                                    Error **errp);
 

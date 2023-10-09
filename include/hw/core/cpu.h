@@ -618,8 +618,10 @@ bool cpu_paging_enabled(const CPUState *cpu);
  * @cpu: The CPU whose memory mappings are to be obtained.
  * @list: Where to write the memory mappings to.
  * @errp: Pointer for reporting an #Error.
+ *
+ * Returns: %true on success, %false otherwise.
  */
-void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
+bool cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                             Error **errp);
 
 #if !defined(CONFIG_USER_ONLY)
