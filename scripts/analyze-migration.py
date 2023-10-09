@@ -261,12 +261,21 @@ class HTABSection(object):
 
 
 class ConfigurationSection(object):
-    def __init__(self, file):
+    def __init__(self, file, desc):
         self.file = file
+        self.desc = desc
 
     def read(self):
-        name_len = self.file.read32()
-        name = self.file.readstr(len = name_len)
+        if self.desc:
+            version_id = self.desc['version']
+            section = VMSDSection(self.file, version_id, self.desc,
+                                  'configuration')
+            section.read()
+        else:
+            # backward compatibility for older streams that don't have
+            # the configuration section in the json
+            name_len = self.file.read32()
+            name = self.file.readstr(len = name_len)
 
 class VMSDFieldGeneric(object):
     def __init__(self, desc, file):
@@ -532,7 +541,8 @@ class MigrationDump(object):
             if section_type == self.QEMU_VM_EOF:
                 break
             elif section_type == self.QEMU_VM_CONFIGURATION:
-                section = ConfigurationSection(file)
+                config_desc = self.vmsd_desc.get('configuration')
+                section = ConfigurationSection(file, config_desc)
                 section.read()
             elif section_type == self.QEMU_VM_SECTION_START or section_type == self.QEMU_VM_SECTION_FULL:
                 section_id = file.read32()
