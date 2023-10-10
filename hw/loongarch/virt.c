@@ -878,11 +878,6 @@ static void loongarch_init(MachineState *machine)
         machine_memory_devices_init(machine, device_mem_base, device_mem_size);
     }
 
-    /* Add isa io region */
-    memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
-                             get_system_io(), 0, VIRT_ISA_IO_SIZE);
-    memory_region_add_subregion(address_space_mem, VIRT_ISA_IO_BASE,
-                                &lams->isa_io);
     /* load the BIOS image. */
     loongarch_firmware_init(lams);
 

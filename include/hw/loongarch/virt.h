@@ -16,8 +16,6 @@
 
 #define LOONGARCH_MAX_CPUS      256
 
-#define VIRT_ISA_IO_BASE        0x18000000UL
-#define VIRT_ISA_IO_SIZE        0x0004000
 #define VIRT_FWCFG_BASE         0x1e020000UL
 #define VIRT_BIOS_BASE          0x1c000000UL
 #define VIRT_BIOS_SIZE          (4 * MiB)
@@ -38,7 +36,6 @@ struct LoongArchMachineState {
 
     MemoryRegion lowmem;
     MemoryRegion highmem;
-    MemoryRegion isa_io;
     MemoryRegion bios;
     bool         bios_loaded;
     /* State for other subsystems/APIs: */
