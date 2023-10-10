@@ -1082,11 +1082,13 @@ static void test_acpi_q35_tcg_mmio64(void)
     test_data data = {
         .machine = MACHINE_Q35,
         .variant = ".mmio64",
+        .tcg_only = true,
         .required_struct_types = base_required_struct_types,
         .required_struct_types_len = ARRAY_SIZE(base_required_struct_types)
     };
 
     test_acpi_one("-m 128M,slots=1,maxmem=2G "
+                  "-cpu Opteron_G1 "
                   "-object memory-backend-ram,id=ram0,size=128M "
                   "-numa node,memdev=ram0 "
                   "-device pci-testdev,membar=2G",
