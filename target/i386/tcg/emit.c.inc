@@ -1800,6 +1800,60 @@ static void gen_SARX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     tcg_gen_sar_tl(s->T0, s->T0, s->T1);
 }
 
+static void gen_SHA1NEXTE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_sha1nexte(OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_SHA1MSG1(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_sha1msg1(OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_SHA1MSG2(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_sha1msg2(OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_SHA1RNDS4(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    switch(decode->immediate & 3) {
+    case 0:
+        gen_helper_sha1rnds4_f0(OP_PTR0, OP_PTR0, OP_PTR1);
+        break;
+    case 1:
+        gen_helper_sha1rnds4_f1(OP_PTR0, OP_PTR0, OP_PTR1);
+        break;
+    case 2:
+        gen_helper_sha1rnds4_f2(OP_PTR0, OP_PTR0, OP_PTR1);
+        break;
+    case 3:
+        gen_helper_sha1rnds4_f3(OP_PTR0, OP_PTR0, OP_PTR1);
+        break;
+    }
+}
+
+static void gen_SHA256MSG1(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_sha256msg1(OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_SHA256MSG2(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_sha256msg2(OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
+static void gen_SHA256RNDS2(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    TCGv_i32 wk0 = tcg_temp_new_i32();
+    TCGv_i32 wk1 = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(wk0, tcg_env, ZMM_OFFSET(0) + offsetof(ZMMReg, ZMM_L(0)));
+    tcg_gen_ld_i32(wk1, tcg_env, ZMM_OFFSET(0) + offsetof(ZMMReg, ZMM_L(1)));
+
+    gen_helper_sha256rnds2(OP_PTR0, OP_PTR1, OP_PTR2, wk0, wk1);
+}
+
 static void gen_SHLX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;

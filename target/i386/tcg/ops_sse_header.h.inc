@@ -399,6 +399,20 @@ DEF_HELPER_3(vpermq_ymm, void, Reg, Reg, i32)
 #endif
 #endif
 
+/* SHA helpers */
+#if SHIFT == 1
+DEF_HELPER_3(sha1rnds4_f0, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1rnds4_f1, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1rnds4_f2, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1rnds4_f3, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1nexte, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1msg1, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha1msg2, void, Reg, Reg, Reg)
+DEF_HELPER_5(sha256rnds2, void, Reg, Reg, Reg, i32, i32)
+DEF_HELPER_3(sha256msg1, void, Reg, Reg, Reg)
+DEF_HELPER_3(sha256msg2, void, Reg, Reg, Reg)
+#endif
+
 #undef SHIFT
 #undef Reg
 #undef SUFFIX

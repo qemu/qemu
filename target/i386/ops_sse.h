@@ -2527,6 +2527,134 @@ SSE_HELPER_FMAP(helper_fma4ps,  ZMM_S, 2 << SHIFT, float32_muladd)
 SSE_HELPER_FMAP(helper_fma4pd,  ZMM_D, 1 << SHIFT, float64_muladd)
 #endif
 
+#if SHIFT == 1
+#define SSE_HELPER_SHA1RNDS4(name, F, K) \
+    void name(Reg *d, Reg *a, Reg *b)                                       \
+    {                                                                       \
+        uint32_t A, B, C, D, E, t, i;                                       \
+                                                                            \
+        A = a->L(3);                                                        \
+        B = a->L(2);                                                        \
+        C = a->L(1);                                                        \
+        D = a->L(0);                                                        \
+        E = 0;                                                              \
+                                                                            \
+        for (i = 0; i <= 3; i++) {                                          \
+            t = F(B, C, D) + rol32(A, 5) + b->L(3 - i) + E + K;             \
+            E = D;                                                          \
+            D = C;                                                          \
+            C = rol32(B, 30);                                               \
+            B = A;                                                          \
+            A = t;                                                          \
+        }                                                                   \
+                                                                            \
+        d->L(3) = A;                                                        \
+        d->L(2) = B;                                                        \
+        d->L(1) = C;                                                        \
+        d->L(0) = D;                                                        \
+    }
+
+#define SHA1_F0(b, c, d) (((b) & (c)) ^ (~(b) & (d)))
+#define SHA1_F1(b, c, d) ((b) ^ (c) ^ (d))
+#define SHA1_F2(b, c, d) (((b) & (c)) ^ ((b) & (d)) ^ ((c) & (d)))
+
+SSE_HELPER_SHA1RNDS4(helper_sha1rnds4_f0, SHA1_F0, 0x5A827999)
+SSE_HELPER_SHA1RNDS4(helper_sha1rnds4_f1, SHA1_F1, 0x6ED9EBA1)
+SSE_HELPER_SHA1RNDS4(helper_sha1rnds4_f2, SHA1_F2, 0x8F1BBCDC)
+SSE_HELPER_SHA1RNDS4(helper_sha1rnds4_f3, SHA1_F1, 0xCA62C1D6)
+
+void helper_sha1nexte(Reg *d, Reg *a, Reg *b)
+{
+    d->L(3) = b->L(3) + rol32(a->L(3), 30);
+    d->L(2) = b->L(2);
+    d->L(1) = b->L(1);
+    d->L(0) = b->L(0);
+}
+
+void helper_sha1msg1(Reg *d, Reg *a, Reg *b)
+{
+    /* These could be overwritten by the first two assignments, save them.  */
+    uint32_t b3 = b->L(3);
+    uint32_t b2 = b->L(2);
+
+    d->L(3) = a->L(3) ^ a->L(1);
+    d->L(2) = a->L(2) ^ a->L(0);
+    d->L(1) = a->L(1) ^ b3;
+    d->L(0) = a->L(0) ^ b2;
+}
+
+void helper_sha1msg2(Reg *d, Reg *a, Reg *b)
+{
+    d->L(3) = rol32(a->L(3) ^ b->L(2), 1);
+    d->L(2) = rol32(a->L(2) ^ b->L(1), 1);
+    d->L(1) = rol32(a->L(1) ^ b->L(0), 1);
+    d->L(0) = rol32(a->L(0) ^ d->L(3), 1);
+}
+
+#define SHA256_CH(e, f, g)  (((e) & (f)) ^ (~(e) & (g)))
+#define SHA256_MAJ(a, b, c) (((a) & (b)) ^ ((a) & (c)) ^ ((b) & (c)))
+
+#define SHA256_RNDS0(w) (ror32((w), 2) ^ ror32((w), 13) ^ ror32((w), 22))
+#define SHA256_RNDS1(w) (ror32((w), 6) ^ ror32((w), 11) ^ ror32((w), 25))
+#define SHA256_MSGS0(w) (ror32((w), 7) ^ ror32((w), 18) ^ ((w) >> 3))
+#define SHA256_MSGS1(w) (ror32((w), 17) ^ ror32((w), 19) ^ ((w) >> 10))
+
+void helper_sha256rnds2(Reg *d, Reg *a, Reg *b, uint32_t wk0, uint32_t wk1)
+{
+    uint32_t t, AA, EE;
+
+    uint32_t A = b->L(3);
+    uint32_t B = b->L(2);
+    uint32_t C = a->L(3);
+    uint32_t D = a->L(2);
+    uint32_t E = b->L(1);
+    uint32_t F = b->L(0);
+    uint32_t G = a->L(1);
+    uint32_t H = a->L(0);
+
+    /* Even round */
+    t = SHA256_CH(E, F, G) + SHA256_RNDS1(E) + wk0 + H;
+    AA = t + SHA256_MAJ(A, B, C) + SHA256_RNDS0(A);
+    EE = t + D;
+
+    /* These will be B and F at the end of the odd round */
+    d->L(2) = AA;
+    d->L(0) = EE;
+
+    D = C, C = B, B = A, A = AA;
+    H = G, G = F, F = E, E = EE;
+
+    /* Odd round */
+    t = SHA256_CH(E, F, G) + SHA256_RNDS1(E) + wk1 + H;
+    AA = t + SHA256_MAJ(A, B, C) + SHA256_RNDS0(A);
+    EE = t + D;
+
+    d->L(3) = AA;
+    d->L(1) = EE;
+}
+
+void helper_sha256msg1(Reg *d, Reg *a, Reg *b)
+{
+    /* b->L(0) could be overwritten by the first assignment, save it.  */
+    uint32_t b0 = b->L(0);
+
+    d->L(0) = a->L(0) + SHA256_MSGS0(a->L(1));
+    d->L(1) = a->L(1) + SHA256_MSGS0(a->L(2));
+    d->L(2) = a->L(2) + SHA256_MSGS0(a->L(3));
+    d->L(3) = a->L(3) + SHA256_MSGS0(b0);
+}
+
+void helper_sha256msg2(Reg *d, Reg *a, Reg *b)
+{
+    /* Earlier assignments cannot overwrite any of the two operands.  */
+    d->L(0) = a->L(0) + SHA256_MSGS1(b->L(2));
+    d->L(1) = a->L(1) + SHA256_MSGS1(b->L(3));
+    /* Yes, this reuses the previously computed values.  */
+    d->L(2) = a->L(2) + SHA256_MSGS1(d->L(0));
+    d->L(3) = a->L(3) + SHA256_MSGS1(d->L(1));
+}
+#endif
+
 #undef SSE_HELPER_S
 
 #undef LANE_WIDTH
