@@ -778,6 +778,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {.eax = 1, .reg = R_EDX, },
         .tcg_features = TCG_FEATURES,
+        .no_autoenable_flags = CPUID_HT,
     },
     [FEAT_1_ECX] = {
         .type = CPUID_FEATURE_WORD,
