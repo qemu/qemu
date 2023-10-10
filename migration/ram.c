@@ -4285,6 +4285,11 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
     RAMBlock *rb = qemu_ram_block_from_host(host, false, &offset);
     Error *err = NULL;
 
+    if (!rb) {
+        error_report("RAM block not found");
+        return;
+    }
+
     if (migrate_ram_is_ignored(rb)) {
         return;
     }
