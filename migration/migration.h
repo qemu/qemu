@@ -294,7 +294,7 @@ struct MigrationState {
     /*
      * The final stage happens when the remaining data is smaller than
      * this threshold; it's calculated from the requested downtime and
-     * measured bandwidth
+     * measured bandwidth, or avail-switchover-bandwidth if specified.
      */
     int64_t threshold_size;
 

@@ -2710,17 +2710,33 @@ static void migration_update_counters(MigrationState *s,
 {
     uint64_t transferred, transferred_pages, time_spent;
     uint64_t current_bytes; /* bytes transferred since the beginning */
+    uint64_t switchover_bw;
+    /* Expected bandwidth when switching over to destination QEMU */
+    double expected_bw_per_ms;
     double bandwidth;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
         return;
     }
 
+    switchover_bw = migrate_avail_switchover_bandwidth();
     current_bytes = migration_transferred_bytes(s->to_dst_file);
     transferred = current_bytes - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
-    s->threshold_size = bandwidth * migrate_downtime_limit();
+
+    if (switchover_bw) {
+        /*
+         * If the user specified a switchover bandwidth, let's trust the
+         * user so that can be more accurate than what we estimated.
+         */
+        expected_bw_per_ms = switchover_bw / 1000;
+    } else {
+        /* If the user doesn't specify bandwidth, we use the estimated */
+        expected_bw_per_ms = bandwidth;
+    }
+
+    s->threshold_size = expected_bw_per_ms * migrate_downtime_limit();
 
     s->mbps = (((double) transferred * 8.0) /
                ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
@@ -2737,7 +2753,7 @@ static void migration_update_counters(MigrationState *s,
     if (stat64_get(&mig_stats.dirty_pages_rate) &&
         transferred > 10000) {
         s->expected_downtime =
-            stat64_get(&mig_stats.dirty_bytes_last_sync) / bandwidth;
+            stat64_get(&mig_stats.dirty_bytes_last_sync) / expected_bw_per_ms;
     }
 
     migration_rate_reset(s->to_dst_file);
@@ -2745,7 +2761,9 @@ static void migration_update_counters(MigrationState *s,
     update_iteration_initial_status(s);
 
     trace_migrate_transferred(transferred, time_spent,
-                              bandwidth, s->threshold_size);
+                              /* Both in unit bytes/ms */
+                              bandwidth, switchover_bw / 1000,
+                              s->threshold_size);
 }
 
 static bool migration_can_switchover(MigrationState *s)
