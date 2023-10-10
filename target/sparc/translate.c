@@ -63,6 +63,15 @@
 # define gen_helper_write_softint(E, S)         qemu_build_not_reached()
 # define gen_helper_wrpil(E, S)                 qemu_build_not_reached()
 # define gen_helper_wrpstate(E, S)              qemu_build_not_reached()
+# define gen_helper_fexpand              ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmul8sux16           ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmul8ulx16           ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmul8x16al           ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmul8x16au           ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmul8x16             ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmuld8sux16          ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fmuld8ulx16          ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_fpmerge              ({ qemu_build_not_reached(); NULL; })
 # define FSR_LDXFSR_MASK                        0
 # define FSR_LDXFSR_OLDMASK                     0
 # define MAXTL_MASK                             0
@@ -1658,20 +1667,6 @@ static void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 }
 
 #ifdef TARGET_SPARC64
-static void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
-                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64))
-{
-    TCGv_i64 dst, src1, src2;
-
-    src1 = gen_load_fpr_D(dc, rs1);
-    src2 = gen_load_fpr_D(dc, rs2);
-    dst = gen_dest_fpr_D(dc, rd);
-
-    gen(dst, src1, src2);
-
-    gen_store_fpr_D(dc, rd, dst);
-}
-
 static void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
                             void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
@@ -4868,6 +4863,46 @@ TRANS(FXNORs, VIS1, do_fff, a, tcg_gen_eqv_i32)
 TRANS(FORNOTs, VIS1, do_fff, a, tcg_gen_orc_i32)
 TRANS(FORs, VIS1, do_fff, a, tcg_gen_or_i32)
 
+static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
+                   void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src1, src2;
+
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    dst = gen_dest_fpr_D(dc, a->rd);
+    src1 = gen_load_fpr_D(dc, a->rs1);
+    src2 = gen_load_fpr_D(dc, a->rs2);
+    func(dst, src1, src2);
+    gen_store_fpr_D(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+TRANS(FMUL8x16, VIS1, do_ddd, a, gen_helper_fmul8x16)
+TRANS(FMUL8x16AU, VIS1, do_ddd, a, gen_helper_fmul8x16au)
+TRANS(FMUL8x16AL, VIS1, do_ddd, a, gen_helper_fmul8x16al)
+TRANS(FMUL8SUx16, VIS1, do_ddd, a, gen_helper_fmul8sux16)
+TRANS(FMUL8ULx16, VIS1, do_ddd, a, gen_helper_fmul8ulx16)
+TRANS(FMULD8SUx16, VIS1, do_ddd, a, gen_helper_fmuld8sux16)
+TRANS(FMULD8ULx16, VIS1, do_ddd, a, gen_helper_fmuld8ulx16)
+TRANS(FPMERGE, VIS1, do_ddd, a, gen_helper_fpmerge)
+TRANS(FEXPAND, VIS1, do_ddd, a, gen_helper_fexpand)
+
+TRANS(FPADD16, VIS1, do_ddd, a, tcg_gen_vec_add16_i64)
+TRANS(FPADD32, VIS1, do_ddd, a, tcg_gen_vec_add32_i64)
+TRANS(FPSUB16, VIS1, do_ddd, a, tcg_gen_vec_sub16_i64)
+TRANS(FPSUB32, VIS1, do_ddd, a, tcg_gen_vec_sub32_i64)
+TRANS(FNORd, VIS1, do_ddd, a, tcg_gen_nor_i64)
+TRANS(FANDNOTd, VIS1, do_ddd, a, tcg_gen_andc_i64)
+TRANS(FXORd, VIS1, do_ddd, a, tcg_gen_xor_i64)
+TRANS(FNANDd, VIS1, do_ddd, a, tcg_gen_nand_i64)
+TRANS(FANDd, VIS1, do_ddd, a, tcg_gen_and_i64)
+TRANS(FXNORd, VIS1, do_ddd, a, tcg_gen_eqv_i64)
+TRANS(FORNOTd, VIS1, do_ddd, a, tcg_gen_orc_i64)
+TRANS(FORd, VIS1, do_ddd, a, tcg_gen_or_i64)
+
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
     if (!((dc)->def->features & CPU_FEATURE_ ## FEATURE))  \
         goto illegal_insn;
@@ -5254,6 +5289,29 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                 case 0x077: /* VIS I fornot2s */
                 case 0x07b: /* VIS I fornot1s */
                 case 0x07d: /* VIS I fors */
+                case 0x050: /* VIS I fpadd16 */
+                case 0x052: /* VIS I fpadd32 */
+                case 0x054: /* VIS I fpsub16 */
+                case 0x056: /* VIS I fpsub32 */
+                case 0x062: /* VIS I fnor */
+                case 0x064: /* VIS I fandnot2 */
+                case 0x068: /* VIS I fandnot1 */
+                case 0x06c: /* VIS I fxor */
+                case 0x06e: /* VIS I fnand */
+                case 0x070: /* VIS I fand */
+                case 0x072: /* VIS I fxnor */
+                case 0x076: /* VIS I fornot2 */
+                case 0x07a: /* VIS I fornot1 */
+                case 0x07c: /* VIS I for */
+                case 0x031: /* VIS I fmul8x16 */
+                case 0x033: /* VIS I fmul8x16au */
+                case 0x035: /* VIS I fmul8x16al */
+                case 0x036: /* VIS I fmul8sux16 */
+                case 0x037: /* VIS I fmul8ulx16 */
+                case 0x038: /* VIS I fmuld8sux16 */
+                case 0x039: /* VIS I fmuld8ulx16 */
+                case 0x04b: /* VIS I fpmerge */
+                case 0x04d: /* VIS I fexpand */
                     g_assert_not_reached();  /* in decodetree */
                 case 0x020: /* VIS I fcmple16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -5311,34 +5369,6 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     gen_helper_fcmpeq32(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_store_gpr(dc, rd, cpu_dst);
                     break;
-                case 0x031: /* VIS I fmul8x16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16);
-                    break;
-                case 0x033: /* VIS I fmul8x16au */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16au);
-                    break;
-                case 0x035: /* VIS I fmul8x16al */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16al);
-                    break;
-                case 0x036: /* VIS I fmul8sux16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8sux16);
-                    break;
-                case 0x037: /* VIS I fmul8ulx16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8ulx16);
-                    break;
-                case 0x038: /* VIS I fmuld8sux16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld8sux16);
-                    break;
-                case 0x039: /* VIS I fmuld8ulx16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld8ulx16);
-                    break;
                 case 0x03a: /* VIS I fpack32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpack32);
@@ -5365,33 +5395,9 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_faligndata);
                     break;
-                case 0x04b: /* VIS I fpmerge */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpmerge);
-                    break;
                 case 0x04c: /* VIS II bshuffle */
                     CHECK_FPU_FEATURE(dc, VIS2);
                     gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_helper_bshuffle);
-                    break;
-                case 0x04d: /* VIS I fexpand */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fexpand);
-                    break;
-                case 0x050: /* VIS I fpadd16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_vec_add16_i64);
-                    break;
-                case 0x052: /* VIS I fpadd32 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_vec_add32_i64);
-                    break;
-                case 0x054: /* VIS I fpsub16 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_vec_sub16_i64);
-                    break;
-                case 0x056: /* VIS I fpsub32 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_vec_add32_i64);
                     break;
                 case 0x060: /* VIS I fzero */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -5404,46 +5410,6 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     cpu_dst_32 = gen_dest_fpr_F(dc);
                     tcg_gen_movi_i32(cpu_dst_32, 0);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    break;
-                case 0x062: /* VIS I fnor */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_nor_i64);
-                    break;
-                case 0x064: /* VIS I fandnot2 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_andc_i64);
-                    break;
-                case 0x068: /* VIS I fandnot1 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs2, rs1, tcg_gen_andc_i64);
-                    break;
-                case 0x06c: /* VIS I fxor */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_xor_i64);
-                    break;
-                case 0x06e: /* VIS I fnand */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_nand_i64);
-                    break;
-                case 0x070: /* VIS I fand */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_and_i64);
-                    break;
-                case 0x072: /* VIS I fxnor */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_eqv_i64);
-                    break;
-                case 0x076: /* VIS I fornot2 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_orc_i64);
-                    break;
-                case 0x07a: /* VIS I fornot1 */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs2, rs1, tcg_gen_orc_i64);
-                    break;
-                case 0x07c: /* VIS I for */
-                    CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_or_i64);
                     break;
                 case 0x07e: /* VIS I fone */
                     CHECK_FPU_FEATURE(dc, VIS1);
