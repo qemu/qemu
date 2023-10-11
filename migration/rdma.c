@@ -1107,7 +1107,6 @@ err_alloc_pd_cq:
 static int qemu_rdma_alloc_qp(RDMAContext *rdma)
 {
     struct ibv_qp_init_attr attr = { 0 };
-    int ret;
 
     attr.cap.max_send_wr = RDMA_SIGNALED_SEND_MAX;
     attr.cap.max_recv_wr = 3;
@@ -1117,8 +1116,7 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     attr.recv_cq = rdma->recv_cq;
     attr.qp_type = IBV_QPT_RC;
 
-    ret = rdma_create_qp(rdma->cm_id, rdma->pd, &attr);
-    if (ret < 0) {
+    if (rdma_create_qp(rdma->cm_id, rdma->pd, &attr) < 0) {
         return -1;
     }
 
@@ -1130,8 +1128,8 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
 static bool rdma_support_odp(struct ibv_context *dev)
 {
     struct ibv_device_attr_ex attr = {0};
-    int ret = ibv_query_device_ex(dev, NULL, &attr);
-    if (ret) {
+
+    if (ibv_query_device_ex(dev, NULL, &attr)) {
         return false;
     }
 
@@ -1508,7 +1506,6 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                                        struct ibv_comp_channel *comp_channel)
 {
     struct rdma_cm_event *cm_event;
-    int ret;
 
     /*
      * Coroutine doesn't start until migration_fd_process_incoming()
@@ -1544,8 +1541,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
                 }
 
                 if (pfds[1].revents) {
-                    ret = rdma_get_cm_event(rdma->channel, &cm_event);
-                    if (ret < 0) {
+                    if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
                         return -1;
                     }
 
@@ -2317,12 +2313,10 @@ static int qemu_rdma_write(RDMAContext *rdma,
     uint64_t current_addr = block_offset + offset;
     uint64_t index = rdma->current_index;
     uint64_t chunk = rdma->current_chunk;
-    int ret;
 
     /* If we cannot merge it, we flush the current buffer first. */
     if (!qemu_rdma_buffer_mergeable(rdma, current_addr, len)) {
-        ret = qemu_rdma_write_flush(rdma, errp);
-        if (ret < 0) {
+        if (qemu_rdma_write_flush(rdma, errp) < 0) {
             return -1;
         }
         rdma->current_length = 0;
@@ -2936,7 +2930,6 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
 static int qemu_rdma_drain_cq(RDMAContext *rdma)
 {
     Error *err = NULL;
-    int ret;
 
     if (qemu_rdma_write_flush(rdma, &err) < 0) {
         error_report_err(err);
@@ -2944,8 +2937,7 @@ static int qemu_rdma_drain_cq(RDMAContext *rdma)
     }
 
     while (rdma->nb_sent) {
-        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
-        if (ret < 0) {
+        if (qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL) < 0) {
             error_report("rdma migration: complete polling error!");
             return -1;
         }
@@ -3323,12 +3315,10 @@ static void rdma_accept_incoming_migration(void *opaque);
 static void rdma_cm_poll_handler(void *opaque)
 {
     RDMAContext *rdma = opaque;
-    int ret;
     struct rdma_cm_event *cm_event;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
-    ret = rdma_get_cm_event(rdma->channel, &cm_event);
-    if (ret < 0) {
+    if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
         error_report("get_cm_event failed %d", errno);
         return;
     }
@@ -4053,14 +4043,11 @@ static QEMUFile *rdma_new_output(RDMAContext *rdma)
 static void rdma_accept_incoming_migration(void *opaque)
 {
     RDMAContext *rdma = opaque;
-    int ret;
     QEMUFile *f;
     Error *local_err = NULL;
 
     trace_qemu_rdma_accept_incoming_migration();
-    ret = qemu_rdma_accept(rdma);
-
-    if (ret < 0) {
+    if (qemu_rdma_accept(rdma) < 0) {
         error_report("RDMA ERROR: Migration initialization failed");
         return;
     }
