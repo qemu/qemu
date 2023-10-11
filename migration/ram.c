@@ -4159,7 +4159,8 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
     int ret = -EINVAL;
     /* from_dst_file is always valid because we're within rp_thread */
     QEMUFile *file = s->rp_state.from_dst_file;
-    unsigned long *le_bitmap, nbits = block->used_length >> TARGET_PAGE_BITS;
+    g_autofree unsigned long *le_bitmap = NULL;
+    unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
     uint64_t local_size = DIV_ROUND_UP(nbits, 8);
     uint64_t size, end_mark;
     RAMState *rs = ram_state;
@@ -4188,8 +4189,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
         error_report("%s: ramblock '%s' bitmap size mismatch "
                      "(0x%"PRIx64" != 0x%"PRIx64")", __func__,
                      block->idstr, size, local_size);
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     size = qemu_get_buffer(file, (uint8_t *)le_bitmap, local_size);
@@ -4200,15 +4200,13 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
         error_report("%s: read bitmap failed for ramblock '%s': %d"
                      " (size 0x%"PRIx64", got: 0x%"PRIx64")",
                      __func__, block->idstr, ret, local_size, size);
-        ret = -EIO;
-        goto out;
+        return -EIO;
     }
 
     if (end_mark != RAMBLOCK_RECV_BITMAP_ENDING) {
         error_report("%s: ramblock '%s' end mark incorrect: 0x%"PRIx64,
                      __func__, block->idstr, end_mark);
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     /*
@@ -4240,10 +4238,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
      */
     migration_rp_kick(s);
 
-    ret = 0;
-out:
-    g_free(le_bitmap);
-    return ret;
+    return 0;
 }
 
 static int ram_resume_prepare(MigrationState *s, void *opaque)
