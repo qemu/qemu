@@ -338,21 +338,29 @@ int kvm_arch_get_default_type(MachineState *ms)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    int required_caps[] = {
+        KVM_CAP_DEVICE_CTRL,
+        KVM_CAP_SYNC_REGS,
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(required_caps); i++) {
+        if (!kvm_check_extension(s, required_caps[i])) {
+            error_report("KVM is missing capability #%d - "
+                         "please use kernel 3.15 or newer", required_caps[i]);
+            return -1;
+        }
+    }
+
     object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
                          false, NULL);
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
-        error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "
-                     "please use kernel 3.15 or newer");
-        return -1;
-    }
     if (!kvm_check_extension(s, KVM_CAP_S390_COW)) {
         error_report("KVM is missing capability KVM_CAP_S390_COW - "
                      "unsupported environment");
         return -1;
     }
 
-    cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
+    cap_sync_regs = true;
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
     cap_mem_op_extension = kvm_check_extension(s, KVM_CAP_S390_MEM_OP_EXTENSION);
