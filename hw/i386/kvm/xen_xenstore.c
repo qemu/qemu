@@ -331,7 +331,7 @@ static void xs_error(XenXenstoreState *s, unsigned int id,
     const char *errstr = NULL;
 
     for (unsigned int i = 0; i < ARRAY_SIZE(xsd_errors); i++) {
-        struct xsd_errors *xsd_error = &xsd_errors[i];
+        const struct xsd_errors *xsd_error = &xsd_errors[i];
 
         if (xsd_error->errnum == errnum) {
             errstr = xsd_error->errstring;

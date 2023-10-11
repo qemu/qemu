@@ -1,24 +1,7 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Details of the "wire" protocol between Xen Store Daemon and client
  * library or guest kernel.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  *
  * Copyright (C) 2005 Rusty Russell IBM Corporation
  */
@@ -71,11 +54,12 @@ struct xsd_errors
 #ifdef EINVAL
 #define XSD_ERROR(x) { x, #x }
 /* LINTED: static unused */
-static struct xsd_errors xsd_errors[]
+static const struct xsd_errors xsd_errors[]
 #if defined(__GNUC__)
 __attribute__((unused))
 #endif
     = {
+    /* /!\ New errors should be added at the end of the array. */
     XSD_ERROR(EINVAL),
     XSD_ERROR(EACCES),
     XSD_ERROR(EEXIST),
@@ -90,7 +74,8 @@ __attribute__((unused))
     XSD_ERROR(EBUSY),
     XSD_ERROR(EAGAIN),
     XSD_ERROR(EISCONN),
-    XSD_ERROR(E2BIG)
+    XSD_ERROR(E2BIG),
+    XSD_ERROR(EPERM),
 };
 #endif
 
@@ -124,6 +109,7 @@ struct xenstore_domain_interface {
     XENSTORE_RING_IDX rsp_cons, rsp_prod;
     uint32_t server_features; /* Bitmap of features supported by the server */
     uint32_t connection;
+    uint32_t error;
 };
 
 /* Violating this is very bad.  See docs/misc/xenstore.txt. */
@@ -135,10 +121,18 @@ struct xenstore_domain_interface {
 
 /* The ability to reconnect a ring */
 #define XENSTORE_SERVER_FEATURE_RECONNECTION 1
+/* The presence of the "error" field in the ring page */
+#define XENSTORE_SERVER_FEATURE_ERROR        2
 
 /* Valid values for the connection field */
 #define XENSTORE_CONNECTED 0 /* the steady-state */
-#define XENSTORE_RECONNECT 1 /* guest has initiated a reconnect */
+#define XENSTORE_RECONNECT 1 /* reconnect in progress */
+
+/* Valid values for the error field */
+#define XENSTORE_ERROR_NONE    0 /* No error */
+#define XENSTORE_ERROR_COMM    1 /* Communication problem */
+#define XENSTORE_ERROR_RINGIDX 2 /* Invalid ring index */
+#define XENSTORE_ERROR_PROTO   3 /* Protocol violation (payload too long) */
 
 #endif /* _XS_WIRE_H */
 
