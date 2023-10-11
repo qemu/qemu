@@ -862,22 +862,22 @@ static void gen_op_update_neg_cc(DisasContext *s)
     tcg_gen_movi_tl(s->cc_srcT, 0);
 }
 
-/* compute all eflags to cc_src */
-static void gen_compute_eflags(DisasContext *s)
+/* compute all eflags to reg */
+static void gen_mov_eflags(DisasContext *s, TCGv reg)
 {
-    TCGv zero, dst, src1, src2;
+    TCGv dst, src1, src2;
+    TCGv_i32 cc_op;
     int live, dead;
 
     if (s->cc_op == CC_OP_EFLAGS) {
+        tcg_gen_mov_tl(reg, cpu_cc_src);
         return;
     }
     if (s->cc_op == CC_OP_CLR) {
-        tcg_gen_movi_tl(cpu_cc_src, CC_Z | CC_P);
-        set_cc_op(s, CC_OP_EFLAGS);
+        tcg_gen_movi_tl(reg, CC_Z | CC_P);
         return;
     }
 
-    zero = NULL;
     dst = cpu_cc_dst;
     src1 = cpu_cc_src;
     src2 = cpu_cc_src2;
@@ -886,7 +886,7 @@ static void gen_compute_eflags(DisasContext *s)
     live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
     dead = live ^ (USES_CC_DST | USES_CC_SRC | USES_CC_SRC2);
     if (dead) {
-        zero = tcg_constant_tl(0);
+        TCGv zero = tcg_constant_tl(0);
         if (dead & USES_CC_DST) {
             dst = zero;
         }
@@ -898,8 +898,18 @@ static void gen_compute_eflags(DisasContext *s)
         }
     }
 
-    gen_update_cc_op(s);
-    gen_helper_cc_compute_all(cpu_cc_src, dst, src1, src2, cpu_cc_op);
+    if (s->cc_op != CC_OP_DYNAMIC) {
+        cc_op = tcg_constant_i32(s->cc_op);
+    } else {
+        cc_op = cpu_cc_op;
+    }
+    gen_helper_cc_compute_all(reg, dst, src1, src2, cc_op);
+}
+
+/* compute all eflags to cc_src */
+static void gen_compute_eflags(DisasContext *s)
+{
+    gen_mov_eflags(s, cpu_cc_src);
     set_cc_op(s, CC_OP_EFLAGS);
 }
 
