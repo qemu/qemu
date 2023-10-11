@@ -3522,7 +3522,7 @@ static int dest_ram_sort_func(const void *a, const void *b)
  *
  * Keep doing this until the source tells us to stop.
  */
-static int qemu_rdma_registration_handle(QEMUFile *f)
+int qemu_rdma_registration_handle(QEMUFile *f)
 {
     RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
                                .type = RDMA_CONTROL_REGISTER_RESULT,
@@ -3534,7 +3534,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                              };
     RDMAControlHeader blocks = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT,
                                  .repeat = 1 };
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
+    QIOChannelRDMA *rioc;
     Error *err = NULL;
     RDMAContext *rdma;
     RDMALocalBlocks *local;
@@ -3550,7 +3550,12 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
     int count = 0;
     int i = 0;
 
+    if (!migrate_rdma()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
+    rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     rdma = qatomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
@@ -3840,9 +3845,6 @@ static int rdma_load_hook(QEMUFile *f, uint64_t flags, void *data)
     switch (flags) {
     case RAM_CONTROL_BLOCK_REG:
         return rdma_block_notification_handle(f, data);
-
-    case RAM_CONTROL_HOOK:
-        return qemu_rdma_registration_handle(f);
 
     default:
         /* Shouldn't be called with any other values */
