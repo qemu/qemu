@@ -1138,32 +1138,6 @@ void ram_release_page(const char *rbname, uint64_t offset)
 }
 
 /**
- * save_zero_page_to_file: send the zero page to the file
- *
- * Returns the size of data written to the file, 0 means the page is not
- * a zero page
- *
- * @pss: current PSS channel
- * @block: block that contains the page we want to send
- * @offset: offset inside the block for the page
- */
-static int save_zero_page_to_file(PageSearchStatus *pss, RAMBlock *block,
-                                  ram_addr_t offset)
-{
-    uint8_t *p = block->host + offset;
-    QEMUFile *file = pss->pss_channel;
-    int len = 0;
-
-    if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
-        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
-        qemu_put_byte(file, 0);
-        len += 1;
-        ram_release_page(block->idstr, offset);
-    }
-    return len;
-}
-
-/**
  * save_zero_page: send the zero page to the stream
  *
  * Returns the number of pages written.
@@ -1176,11 +1150,18 @@ static int save_zero_page_to_file(PageSearchStatus *pss, RAMBlock *block,
 static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
                           ram_addr_t offset)
 {
-    int len = save_zero_page_to_file(pss, block, offset);
+    uint8_t *p = block->host + offset;
+    QEMUFile *file = pss->pss_channel;
+    int len = 0;
 
-    if (!len) {
-        return -1;
+    if (!buffer_is_zero(p, TARGET_PAGE_SIZE)) {
+        return 0;
     }
+
+    len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+    qemu_put_byte(file, 0);
+    len += 1;
+    ram_release_page(block->idstr, offset);
 
     stat64_add(&mig_stats.zero_pages, 1);
     ram_transferred_add(len);
@@ -1195,7 +1176,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
         XBZRLE_cache_unlock();
     }
 
-    return 1;
+    return len;
 }
 
 /*
@@ -2152,9 +2133,8 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         return 1;
     }
 
-    res = save_zero_page(rs, pss, block, offset);
-    if (res > 0) {
-        return res;
+    if (save_zero_page(rs, pss, block, offset)) {
+        return 1;
     }
 
     /*
