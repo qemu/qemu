@@ -714,8 +714,6 @@ static void *multifd_send_thread(void *opaque)
                 if (ret != 0) {
                     break;
                 }
-                stat64_add(&mig_stats.multifd_bytes, p->packet_len);
-                stat64_add(&mig_stats.transferred, p->packet_len);
             } else {
                 /* Send header using the same writev call */
                 p->iov[0].iov_len = p->packet_len;
@@ -728,8 +726,10 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
-            stat64_add(&mig_stats.multifd_bytes, p->next_packet_size);
-            stat64_add(&mig_stats.transferred, p->next_packet_size);
+            stat64_add(&mig_stats.multifd_bytes,
+                       p->next_packet_size + p->packet_len);
+            stat64_add(&mig_stats.transferred,
+                       p->next_packet_size + p->packet_len);
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
