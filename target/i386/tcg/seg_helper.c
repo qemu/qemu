@@ -229,7 +229,7 @@ static void tss_load_seg(CPUX86State *env, X86Seg seg_reg, int selector,
 static void tss_set_busy(CPUX86State *env, int tss_selector, bool value,
                          uintptr_t retaddr)
 {
-    target_ulong ptr = env->gdt.base + (env->tr.selector & ~7);
+    target_ulong ptr = env->gdt.base + (tss_selector & ~7);
     uint32_t e2 = cpu_ldl_kernel_ra(env, ptr + 4, retaddr);
 
     if (value) {
