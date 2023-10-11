@@ -10,6 +10,10 @@ config PPC4XX_PCI
     bool
     select PCI
 
+config PPC440_PCIX
+    bool
+    select PCI
+
 config RAVEN_PCI
     bool
     select PCI
