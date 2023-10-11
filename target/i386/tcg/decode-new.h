@@ -283,6 +283,10 @@ struct X86DecodedInsn {
     target_ulong immediate;
     AddressParts mem;
 
+    TCGv cc_dst, cc_src, cc_src2;
+    TCGv_i32 cc_op_dynamic;
+    int8_t cc_op;
+
     uint8_t b;
 };
 

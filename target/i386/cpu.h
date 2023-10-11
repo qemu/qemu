@@ -1285,6 +1285,7 @@ typedef enum {
 
     CC_OP_NB,
 } CCOp;
+QEMU_BUILD_BUG_ON(CC_OP_NB >= 128);
 
 typedef struct SegmentCache {
     uint32_t selector;
