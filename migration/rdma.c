@@ -2354,7 +2354,6 @@ static int qemu_rdma_write(RDMAContext *rdma,
 static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
     Error *err = NULL;
-    int idx;
 
     if (rdma->cm_id && rdma->connected) {
         if ((rdma->errored ||
@@ -2381,12 +2380,12 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     g_free(rdma->dest_blocks);
     rdma->dest_blocks = NULL;
 
-    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
-        if (rdma->wr_data[idx].control_mr) {
+    for (int i = 0; i < RDMA_WRID_MAX; i++) {
+        if (rdma->wr_data[i].control_mr) {
             rdma->total_registrations--;
-            ibv_dereg_mr(rdma->wr_data[idx].control_mr);
+            ibv_dereg_mr(rdma->wr_data[i].control_mr);
         }
-        rdma->wr_data[idx].control_mr = NULL;
+        rdma->wr_data[i].control_mr = NULL;
     }
 
     if (rdma->local_ram_blocks.block) {
@@ -2452,7 +2451,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 
 static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 {
-    int ret, idx;
+    int ret;
 
     /*
      * Will be validated against destination's actual capabilities
@@ -2480,18 +2479,17 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 
     /* Build the hash that maps from offset to RAMBlock */
     rdma->blockmap = g_hash_table_new(g_direct_hash, g_direct_equal);
-    for (idx = 0; idx < rdma->local_ram_blocks.nb_blocks; idx++) {
+    for (int i = 0; i < rdma->local_ram_blocks.nb_blocks; i++) {
         g_hash_table_insert(rdma->blockmap,
-                (void *)(uintptr_t)rdma->local_ram_blocks.block[idx].offset,
-                &rdma->local_ram_blocks.block[idx]);
+                (void *)(uintptr_t)rdma->local_ram_blocks.block[i].offset,
+                &rdma->local_ram_blocks.block[i]);
     }
 
-    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
-        ret = qemu_rdma_reg_control(rdma, idx);
+    for (int i = 0; i < RDMA_WRID_MAX; i++) {
+        ret = qemu_rdma_reg_control(rdma, i);
         if (ret < 0) {
-            error_setg(errp,
-                       "RDMA ERROR: rdma migration: error registering %d control!",
-                       idx);
+            error_setg(errp, "RDMA ERROR: rdma migration: error "
+                       "registering %d control!", i);
             goto err_rdma_source_init;
         }
     }
@@ -2625,16 +2623,16 @@ err_rdma_source_connect:
 static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 {
     Error *err = NULL;
-    int ret, idx;
+    int ret;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
     struct rdma_addrinfo *res, *e;
     char port_str[16];
     int reuse = 1;
 
-    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
-        rdma->wr_data[idx].control_len = 0;
-        rdma->wr_data[idx].control_curr = NULL;
+    for (int i = 0; i < RDMA_WRID_MAX; i++) {
+        rdma->wr_data[i].control_len = 0;
+        rdma->wr_data[i].control_curr = NULL;
     }
 
     if (!rdma->host || !rdma->host[0]) {
@@ -2723,11 +2721,9 @@ err_dest_init_create_listen_id:
 static void qemu_rdma_return_path_dest_init(RDMAContext *rdma_return_path,
                                             RDMAContext *rdma)
 {
-    int idx;
-
-    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
-        rdma_return_path->wr_data[idx].control_len = 0;
-        rdma_return_path->wr_data[idx].control_curr = NULL;
+    for (int i = 0; i < RDMA_WRID_MAX; i++) {
+        rdma_return_path->wr_data[i].control_len = 0;
+        rdma_return_path->wr_data[i].control_curr = NULL;
     }
 
     /*the CM channel and CM id is shared*/
@@ -3376,7 +3372,6 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     struct rdma_cm_event *cm_event;
     struct ibv_context *verbs;
     int ret;
-    int idx;
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
     if (ret < 0) {
@@ -3462,10 +3457,10 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     qemu_rdma_init_ram_blocks(rdma);
 
-    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
-        ret = qemu_rdma_reg_control(rdma, idx);
+    for (int i = 0; i < RDMA_WRID_MAX; i++) {
+        ret = qemu_rdma_reg_control(rdma, i);
         if (ret < 0) {
-            error_report("rdma: error registering %d control", idx);
+            error_report("rdma: error registering %d control", i);
             goto err_rdma_dest_wait;
         }
     }
