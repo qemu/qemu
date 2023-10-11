@@ -142,15 +142,24 @@ void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks)
  *
  * Return negative error value if there has been an error on previous
  * operations, return 0 if no error happened.
- * Optional, it returns Error* in errp, but it may be NULL even if return value
- * is not 0.
  *
+ * If errp is specified, a verbose error message will be copied over.
  */
 static int qemu_file_get_error_obj(QEMUFile *f, Error **errp)
 {
-    if (errp) {
-        *errp = f->last_error_obj ? error_copy(f->last_error_obj) : NULL;
+    if (!f->last_error) {
+        return 0;
     }
+
+    /* There is an error */
+    if (errp) {
+        if (f->last_error_obj) {
+            *errp = error_copy(f->last_error_obj);
+        } else {
+            error_setg_errno(errp, -f->last_error, "Channel error");
+        }
+    }
+
     return f->last_error;
 }
 
