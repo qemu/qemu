@@ -40,7 +40,7 @@ struct SHPCIState {
     PCIHostState parent_obj;
 
     PCIDevice *dev;
-    qemu_irq irq[4];
+    qemu_irq irq[PCI_NUM_PINS];
     MemoryRegion memconfig_p4;
     MemoryRegion memconfig_a7;
     MemoryRegion isa;
@@ -131,7 +131,8 @@ static void sh_pcic_host_realize(DeviceState *dev, Error **errp)
                                      s->irq,
                                      get_system_memory(),
                                      get_system_io(),
-                                     PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
+                                     PCI_DEVFN(0, 0), PCI_NUM_PINS,
+                                     TYPE_PCI_BUS);
     memory_region_init_io(&s->memconfig_p4, OBJECT(s), &sh_pci_reg_ops, s,
                           "sh_pci", 0x224);
     memory_region_init_alias(&s->memconfig_a7, OBJECT(s), "sh_pci.2",
