@@ -3128,6 +3128,7 @@ M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: system/qtest.c
+F: include/sysemu/qtest.h
 F: accel/qtest/
 F: tests/qtest/
 F: docs/devel/qgraph.rst
