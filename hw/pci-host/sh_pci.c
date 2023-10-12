@@ -167,17 +167,6 @@ static void sh_pci_host_class_init(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo sh_pci_host_info = {
-    .name          = "sh_pci_host",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = sh_pci_host_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
 static void sh_pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -185,17 +174,22 @@ static void sh_pci_device_class_init(ObjectClass *klass, void *data)
     dc->realize = sh_pci_device_realize;
 }
 
-static const TypeInfo sh_pci_device_info = {
-    .name          = TYPE_SH_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(SHPCIState),
-    .class_init    = sh_pci_device_class_init,
+static const TypeInfo sh_pcic_types[] = {
+    {
+        .name           = TYPE_SH_PCI_HOST_BRIDGE,
+        .parent         = TYPE_PCI_HOST_BRIDGE,
+        .instance_size  = sizeof(SHPCIState),
+        .class_init     = sh_pci_device_class_init,
+    }, {
+        .name           = "sh_pci_host",
+        .parent         = TYPE_PCI_DEVICE,
+        .instance_size  = sizeof(PCIDevice),
+        .class_init     = sh_pci_host_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
+    },
 };
 
-static void sh_pci_register_types(void)
-{
-    type_register_static(&sh_pci_device_info);
-    type_register_static(&sh_pci_host_info);
-}
-
-type_init(sh_pci_register_types)
+DEFINE_TYPES(sh_pcic_types)
