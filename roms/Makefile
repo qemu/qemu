@@ -147,7 +147,7 @@ skiboot:
 	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
 
 efi:
-	python3 edk2-build.py --config edk2-build.config \
+	$(PYTHON) edk2-build.py --config edk2-build.config \
 		--version-override "edk2-stable202302-for-qemu" \
 		--release-date "03/01/2023"
 	rm -f ../pc-bios/edk2-*.fd.bz2

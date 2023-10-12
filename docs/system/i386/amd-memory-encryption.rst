@@ -183,13 +183,13 @@ References
 ----------
 
 `AMD Memory Encryption whitepaper
-<https://developer.amd.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf>`_
+<https://www.amd.com/content/dam/amd/en/documents/epyc-business-docs/white-papers/memory-encryption-white-paper.pdf>`_
 
 .. [SEVAPI] `Secure Encrypted Virtualization API
    <https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf>`_
 
 .. [APMVOL2] `AMD64 Architecture Programmer's Manual Volume 2: System Programming
-   <https://www.amd.com/system/files/TechDocs/24593.pdf>`_
+   <https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf>`_
 
 KVM Forum slides:
 
@@ -199,7 +199,7 @@ KVM Forum slides:
   <https://www.linux-kvm.org/images/9/94/Extending-Secure-Encrypted-Virtualization-with-SEV-ES-Thomas-Lendacky-AMD.pdf>`_
 
 `AMD64 Architecture Programmer's Manual:
-<http://support.amd.com/TechDocs/24593.pdf>`_
+<https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf>`_
 
 * SME is section 7.10
 * SEV is section 15.34
