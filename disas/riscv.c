@@ -2116,8 +2116,8 @@ static const char *csr_name(int csrno)
     case 0x03ba: return "pmpaddr10";
     case 0x03bb: return "pmpaddr11";
     case 0x03bc: return "pmpaddr12";
-    case 0x03bd: return "pmpaddr14";
-    case 0x03be: return "pmpaddr13";
+    case 0x03bd: return "pmpaddr13";
+    case 0x03be: return "pmpaddr14";
     case 0x03bf: return "pmpaddr15";
     case 0x0780: return "mtohost";
     case 0x0781: return "mfromhost";
