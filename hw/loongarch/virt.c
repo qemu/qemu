@@ -308,10 +308,6 @@ static void fdt_add_memory_node(MachineState *ms,
     g_free(nodename);
 }
 
-#define PM_BASE 0x10080000
-#define PM_SIZE 0x100
-#define PM_CTRL 0x10
-
 static void virt_build_smbios(LoongArchMachineState *lams)
 {
     MachineState *ms = MACHINE(lams);
@@ -379,44 +375,6 @@ static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
     memmap_table[memmap_entries].reserved = 0;
     memmap_entries++;
 }
-
-/*
- * This is a placeholder for missing ACPI,
- * and will eventually be replaced.
- */
-static uint64_t loongarch_virt_pm_read(void *opaque, hwaddr addr, unsigned size)
-{
-    return 0;
-}
-
-static void loongarch_virt_pm_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
-{
-    if (addr != PM_CTRL) {
-        return;
-    }
-
-    switch (val) {
-    case 0x00:
-        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-        return;
-    case 0xff:
-        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-        return;
-    default:
-        return;
-    }
-}
-
-static const MemoryRegionOps loongarch_virt_pm_ops = {
-    .read  = loongarch_virt_pm_read,
-    .write = loongarch_virt_pm_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 1
-    }
-};
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 {
@@ -500,7 +458,7 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
     SysBusDevice *d;
     PCIBus *pci_bus;
     MemoryRegion *ecam_alias, *ecam_reg, *pio_alias, *pio_reg;
-    MemoryRegion *mmio_alias, *mmio_reg, *pm_mem;
+    MemoryRegion *mmio_alias, *mmio_reg;
     int i;
 
     gpex_dev = qdev_new(TYPE_GPEX_HOST);
@@ -560,10 +518,6 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
     fdt_add_rtc_node(lams);
 
-    pm_mem = g_new(MemoryRegion, 1);
-    memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
-                          NULL, "loongarch_virt_pm", PM_SIZE);
-    memory_region_add_subregion(get_system_memory(), PM_BASE, pm_mem);
     /* acpi ged */
     lams->acpi_ged = create_acpi_ged(pch_pic, lams);
     /* platform bus */
