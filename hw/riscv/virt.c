@@ -268,7 +268,7 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
                                   cpu_ptr->cfg.cbom_blocksize);
         }
 
-        if (cpu_ptr->cfg.ext_icboz) {
+        if (cpu_ptr->cfg.ext_zicboz) {
             qemu_fdt_setprop_cell(ms->fdt, cpu_name, "riscv,cboz-block-size",
                                   cpu_ptr->cfg.cboz_blocksize);
         }
