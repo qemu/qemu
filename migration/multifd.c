@@ -775,7 +775,7 @@ out:
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
-                                    Error *error);
+                                    Error **errp);
 
 static void multifd_tls_outgoing_handshake(QIOTask *task,
                                            gpointer opaque)
@@ -784,21 +784,22 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
-    if (qio_task_propagate_error(task, &err)) {
-        trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
-    } else {
+    if (!qio_task_propagate_error(task, &err)) {
         trace_multifd_tls_outgoing_handshake_complete(ioc);
+        if (multifd_channel_connect(p, ioc, &err)) {
+            return;
+        }
     }
 
-    if (!multifd_channel_connect(p, ioc, err)) {
-        /*
-         * Error happen, mark multifd_send_thread status as 'quit' although it
-         * is not created, and then tell who pay attention to me.
-         */
-        p->quit = true;
-        qemu_sem_post(&multifd_send_state->channels_ready);
-        qemu_sem_post(&p->sem_sync);
-    }
+    trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
+
+    /*
+     * Error happen, mark multifd_send_thread status as 'quit' although it
+     * is not created, and then tell who pay attention to me.
+     */
+    p->quit = true;
+    qemu_sem_post(&multifd_send_state->channels_ready);
+    qemu_sem_post(&p->sem_sync);
 }
 
 static void *multifd_tls_handshake_thread(void *opaque)
@@ -814,7 +815,7 @@ static void *multifd_tls_handshake_thread(void *opaque)
     return NULL;
 }
 
-static void multifd_tls_channel_connect(MultiFDSendParams *p,
+static bool multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
 {
@@ -824,7 +825,7 @@ static void multifd_tls_channel_connect(MultiFDSendParams *p,
 
     tioc = migration_tls_client_create(ioc, hostname, errp);
     if (!tioc) {
-        return;
+        return false;
     }
 
     object_unref(OBJECT(ioc));
@@ -834,31 +835,25 @@ static void multifd_tls_channel_connect(MultiFDSendParams *p,
     qemu_thread_create(&p->thread, "multifd-tls-handshake-worker",
                        multifd_tls_handshake_thread, p,
                        QEMU_THREAD_JOINABLE);
+    return true;
 }
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
-                                    Error *error)
+                                    Error **errp)
 {
     trace_multifd_set_outgoing_channel(
         ioc, object_get_typename(OBJECT(ioc)),
-        migrate_get_current()->hostname, error);
+        migrate_get_current()->hostname);
 
-    if (error) {
-        return false;
-    }
     if (migrate_channel_requires_tls_upgrade(ioc)) {
-        multifd_tls_channel_connect(p, ioc, &error);
-        if (!error) {
-            /*
-             * tls_channel_connect will call back to this
-             * function after the TLS handshake,
-             * so we mustn't call multifd_send_thread until then
-             */
-            return true;
-        } else {
-            return false;
-        }
+        /*
+         * tls_channel_connect will call back to this
+         * function after the TLS handshake,
+         * so we mustn't call multifd_send_thread until then
+         */
+        return multifd_tls_channel_connect(p, ioc, errp);
+
     } else {
         migration_ioc_register_yank(ioc);
         p->registered_yank = true;
@@ -897,11 +892,12 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         p->c = ioc;
         qio_channel_set_delay(p->c, false);
         p->running = true;
-        if (multifd_channel_connect(p, ioc, local_err)) {
+        if (multifd_channel_connect(p, ioc, &local_err)) {
             return;
         }
     }
 
+    trace_multifd_new_send_channel_async_error(p->id, local_err);
     multifd_new_send_channel_cleanup(p, ioc, local_err);
 }
 
