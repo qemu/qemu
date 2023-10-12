@@ -752,28 +752,23 @@ static void designware_pcie_host_init(Object *obj)
     qdev_prop_set_bit(DEVICE(root), "multifunction", false);
 }
 
-static const TypeInfo designware_pcie_root_info = {
-    .name = TYPE_DESIGNWARE_PCIE_ROOT,
-    .parent = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(DesignwarePCIERoot),
-    .class_init = designware_pcie_root_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
+static const TypeInfo designware_pcie_types[] = {
+    {
+        .name           = TYPE_DESIGNWARE_PCIE_HOST,
+        .parent         = TYPE_PCI_HOST_BRIDGE,
+        .instance_size  = sizeof(DesignwarePCIEHost),
+        .instance_init  = designware_pcie_host_init,
+        .class_init     = designware_pcie_host_class_init,
+    }, {
+        .name           = TYPE_DESIGNWARE_PCIE_ROOT,
+        .parent         = TYPE_PCI_BRIDGE,
+        .instance_size  = sizeof(DesignwarePCIERoot),
+        .class_init     = designware_pcie_root_class_init,
+        .interfaces     = (InterfaceInfo[]) {
+            { INTERFACE_PCIE_DEVICE },
+            { }
+        },
     },
 };
 
-static const TypeInfo designware_pcie_host_info = {
-    .name       = TYPE_DESIGNWARE_PCIE_HOST,
-    .parent     = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(DesignwarePCIEHost),
-    .instance_init = designware_pcie_host_init,
-    .class_init = designware_pcie_host_class_init,
-};
-
-static void designware_pcie_register(void)
-{
-    type_register_static(&designware_pcie_root_info);
-    type_register_static(&designware_pcie_host_info);
-}
-type_init(designware_pcie_register)
+DEFINE_TYPES(designware_pcie_types)
