@@ -278,10 +278,10 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         !(riscv_has_ext(env, RVI) && riscv_has_ext(env, RVM) &&
           riscv_has_ext(env, RVA) && riscv_has_ext(env, RVF) &&
           riscv_has_ext(env, RVD) &&
-          cpu->cfg.ext_icsr && cpu->cfg.ext_zifencei)) {
+          cpu->cfg.ext_zicsr && cpu->cfg.ext_zifencei)) {
 
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_icsr)) &&
-            !cpu->cfg.ext_icsr) {
+        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_zicsr)) &&
+            !cpu->cfg.ext_zicsr) {
             error_setg(errp, "RVG requires Zicsr but user set Zicsr to false");
             return;
         }
@@ -293,7 +293,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
             return;
         }
 
-        cpu_cfg_ext_auto_update(cpu, CPU_CFG_OFFSET(ext_icsr), true);
+        cpu_cfg_ext_auto_update(cpu, CPU_CFG_OFFSET(ext_zicsr), true);
         cpu_cfg_ext_auto_update(cpu, CPU_CFG_OFFSET(ext_zifencei), true);
 
         env->misa_ext |= RVI | RVM | RVA | RVF | RVD;
@@ -329,7 +329,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (riscv_has_ext(env, RVF) && !cpu->cfg.ext_icsr) {
+    if (riscv_has_ext(env, RVF) && !cpu->cfg.ext_zicsr) {
         error_setg(errp, "F extension requires Zicsr");
         return;
     }
@@ -434,7 +434,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
     }
 
     if (cpu->cfg.ext_zfinx) {
-        if (!cpu->cfg.ext_icsr) {
+        if (!cpu->cfg.ext_zicsr) {
             error_setg(errp, "Zfinx extension requires Zicsr");
             return;
         }
@@ -494,7 +494,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (cpu->cfg.ext_zcmt && !cpu->cfg.ext_icsr) {
+    if (cpu->cfg.ext_zcmt && !cpu->cfg.ext_zicsr) {
         error_setg(errp, "Zcmt extension requires Zicsr extension");
         return;
     }
