@@ -80,7 +80,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zicboz, PRIV_VERSION_1_12_0, ext_icboz),
     ISA_EXT_DATA_ENTRY(zicond, PRIV_VERSION_1_12_0, ext_zicond),
     ISA_EXT_DATA_ENTRY(zicsr, PRIV_VERSION_1_10_0, ext_icsr),
-    ISA_EXT_DATA_ENTRY(zifencei, PRIV_VERSION_1_10_0, ext_ifencei),
+    ISA_EXT_DATA_ENTRY(zifencei, PRIV_VERSION_1_10_0, ext_zifencei),
     ISA_EXT_DATA_ENTRY(zihintntl, PRIV_VERSION_1_10_0, ext_zihintntl),
     ISA_EXT_DATA_ENTRY(zihintpause, PRIV_VERSION_1_10_0, ext_zihintpause),
     ISA_EXT_DATA_ENTRY(zmmul, PRIV_VERSION_1_12_0, ext_zmmul),
@@ -382,7 +382,7 @@ static void riscv_any_cpu_init(Object *obj)
     env->priv_ver = PRIV_VERSION_LATEST;
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
@@ -430,7 +430,7 @@ static void rv64_sifive_u_cpu_init(Object *obj)
 #endif
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
@@ -448,7 +448,7 @@ static void rv64_sifive_e_cpu_init(Object *obj)
 #endif
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.pmp = true;
 }
@@ -494,7 +494,7 @@ static void rv64_veyron_v1_cpu_init(Object *obj)
 
     /* Enable ISA extensions */
     cpu->cfg.mmu = true;
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.pmp = true;
     cpu->cfg.ext_icbom = true;
@@ -566,7 +566,7 @@ static void rv32_sifive_u_cpu_init(Object *obj)
 #endif
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
@@ -584,7 +584,7 @@ static void rv32_sifive_e_cpu_init(Object *obj)
 #endif
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.pmp = true;
 }
@@ -602,7 +602,7 @@ static void rv32_ibex_cpu_init(Object *obj)
     cpu->cfg.epmp = true;
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.pmp = true;
 }
@@ -619,7 +619,7 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
 #endif
 
     /* inherited from parent obj via riscv_cpu_init() */
-    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_icsr = true;
     cpu->cfg.pmp = true;
 }
@@ -1242,7 +1242,7 @@ const char *riscv_get_misa_ext_description(uint32_t bit)
 const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
     /* Defaults for standard extensions */
     MULTI_EXT_CFG_BOOL("sscofpmf", ext_sscofpmf, false),
-    MULTI_EXT_CFG_BOOL("zifencei", ext_ifencei, true),
+    MULTI_EXT_CFG_BOOL("zifencei", ext_zifencei, true),
     MULTI_EXT_CFG_BOOL("zicsr", ext_icsr, true),
     MULTI_EXT_CFG_BOOL("zihintntl", ext_zihintntl, true),
     MULTI_EXT_CFG_BOOL("zihintpause", ext_zihintpause, true),
@@ -1347,7 +1347,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_experimental_exts[] = {
 
 /* Deprecated entries marked for future removal */
 const RISCVCPUMultiExtConfig riscv_cpu_deprecated_exts[] = {
-    MULTI_EXT_CFG_BOOL("Zifencei", ext_ifencei, true),
+    MULTI_EXT_CFG_BOOL("Zifencei", ext_zifencei, true),
     MULTI_EXT_CFG_BOOL("Zicsr", ext_icsr, true),
     MULTI_EXT_CFG_BOOL("Zihintntl", ext_zihintntl, true),
     MULTI_EXT_CFG_BOOL("Zihintpause", ext_zihintpause, true),

@@ -799,7 +799,7 @@ static bool trans_fence(DisasContext *ctx, arg_fence *a)
 
 static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
 {
-    if (!ctx->cfg_ptr->ext_ifencei) {
+    if (!ctx->cfg_ptr->ext_zifencei) {
         return false;
     }
 
