@@ -2514,6 +2514,9 @@ static bool trans_probe(DisasContext *ctx, arg_probe *a)
 
 static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
 {
+    if (ctx->is_pa20) {
+        return false;
+    }
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
     TCGv_tl addr;
@@ -2524,9 +2527,9 @@ static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
     reg = load_gpr(ctx, a->r);
     if (a->addr) {
-        gen_helper_itlba(tcg_env, addr, reg);
+        gen_helper_itlba_pa11(tcg_env, addr, reg);
     } else {
-        gen_helper_itlbp(tcg_env, addr, reg);
+        gen_helper_itlbp_pa11(tcg_env, addr, reg);
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
@@ -2572,6 +2575,9 @@ static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
  */
 static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
 {
+    if (ctx->is_pa20) {
+        return false;
+    }
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
     TCGv_tl addr, atl, stl;
@@ -2583,8 +2589,6 @@ static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
      * FIXME:
      *  if (not (pcxl or pcxl2))
      *    return gen_illegal(ctx);
-     *
-     * Note for future: these are 32-bit systems; no hppa64.
      */
 
     atl = tcg_temp_new_tl();
@@ -2602,11 +2606,37 @@ static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
 
     reg = load_gpr(ctx, a->r);
     if (a->addr) {
-        gen_helper_itlba(tcg_env, addr, reg);
+        gen_helper_itlba_pa11(tcg_env, addr, reg);
     } else {
-        gen_helper_itlbp(tcg_env, addr, reg);
+        gen_helper_itlbp_pa11(tcg_env, addr, reg);
     }
 
+    /* Exit TB for TLB change if mmu is enabled.  */
+    if (ctx->tb_flags & PSW_C) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    }
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_ixtlbt(DisasContext *ctx, arg_ixtlbt *a)
+{
+    if (!ctx->is_pa20) {
+        return false;
+    }
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    {
+        TCGv_i64 src1 = load_gpr(ctx, a->r1);
+        TCGv_i64 src2 = load_gpr(ctx, a->r2);
+
+        if (a->data) {
+            gen_helper_idtlbt_pa20(tcg_env, src1, src2);
+        } else {
+            gen_helper_iitlbt_pa20(tcg_env, src1, src2);
+        }
+    }
     /* Exit TB for TLB change if mmu is enabled.  */
     if (ctx->tb_flags & PSW_C) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
