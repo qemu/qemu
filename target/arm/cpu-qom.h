@@ -23,8 +23,6 @@
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 
-struct arm_boot_info;
-
 #define TYPE_ARM_CPU "arm-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
