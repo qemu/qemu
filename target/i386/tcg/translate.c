@@ -3207,7 +3207,9 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #ifndef CONFIG_USER_ONLY
         use_new &= b <= limit;
 #endif
-        if (use_new && (b >= 0x138 && b <= 0x19f)) {
+        if (use_new &&
+            ((b >= 0x138 && b <= 0x19f) ||
+             (b >= 0x1c8 && b <= 0x1cf))) {
             disas_insn_new(s, cpu, b);
             return true;
         }

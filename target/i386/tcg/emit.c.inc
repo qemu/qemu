@@ -1310,6 +1310,17 @@ static void gen_BOUND(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     }
 }
 
+static void gen_BSWAP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+#ifdef TARGET_X86_64
+    if (s->dflag == MO_64) {
+        tcg_gen_bswap64_i64(s->T0, s->T0);
+        return;
+    }
+#endif
+    tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
+}
+
 static void gen_BZHI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
