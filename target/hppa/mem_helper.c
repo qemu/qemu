@@ -57,7 +57,7 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
                               HPPA_MMU_FLUSH_MASK, TARGET_LONG_BITS);
 
     /* Never clear BTLBs, unless forced to do so. */
-    is_btlb = ent < &env->tlb[HPPA_BTLB_ENTRIES];
+    is_btlb = ent < &env->tlb[HPPA_BTLB_ENTRIES(env)];
     if (is_btlb && !force_flush_btlb) {
         return;
     }
@@ -93,10 +93,11 @@ static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
     HPPATLBEntry *ent = env->tlb_unused;
 
     if (ent == NULL) {
+        uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
         uint32_t i = env->tlb_last;
 
-        if (i < HPPA_BTLB_ENTRIES || i >= ARRAY_SIZE(env->tlb)) {
-            i = HPPA_BTLB_ENTRIES;
+        if (i < btlb_entries || i >= ARRAY_SIZE(env->tlb)) {
+            i = btlb_entries;
         }
         env->tlb_last = i + 1;
 
@@ -385,23 +386,24 @@ void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 
 void hppa_ptlbe(CPUHPPAState *env)
 {
+    uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
     uint32_t i;
 
     /* Zap the (non-btlb) tlb entries themselves. */
-    memset(&env->tlb[HPPA_BTLB_ENTRIES], 0,
-           sizeof(env->tlb) - HPPA_BTLB_ENTRIES * sizeof(env->tlb[0]));
-    env->tlb_last = HPPA_BTLB_ENTRIES;
+    memset(&env->tlb[btlb_entries], 0,
+           sizeof(env->tlb) - btlb_entries * sizeof(env->tlb[0]));
+    env->tlb_last = btlb_entries;
     env->tlb_partial = NULL;
 
     /* Put them all onto the unused list. */
-    env->tlb_unused = &env->tlb[HPPA_BTLB_ENTRIES];
-    for (i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb) - 1; ++i) {
+    env->tlb_unused = &env->tlb[btlb_entries];
+    for (i = btlb_entries; i < ARRAY_SIZE(env->tlb) - 1; ++i) {
         env->tlb[i].unused_next = &env->tlb[i + 1];
     }
 
     /* Re-initialize the interval tree with only the btlb entries. */
     memset(&env->tlb_root, 0, sizeof(env->tlb_root));
-    for (i = 0; i < HPPA_BTLB_ENTRIES; ++i) {
+    for (i = 0; i < btlb_entries; ++i) {
         if (env->tlb[i].entry_valid) {
             interval_tree_insert(&env->tlb[i].itree, &env->tlb_root);
         }
@@ -473,12 +475,14 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     HPPATLBEntry *btlb;
     uint64_t virt_page;
     uint32_t *vaddr;
+    uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
 
-#ifdef TARGET_HPPA64
     /* BTLBs are not supported on 64-bit CPUs */
-    env->gr[28] = -1; /* nonexistent procedure */
-    return;
-#endif
+    if (btlb_entries == 0) {
+        env->gr[28] = -1; /* nonexistent procedure */
+        return;
+    }
+
     env->gr[28] = 0; /* PDC_OK */
 
     switch (env->gr[25]) {
@@ -492,8 +496,8 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         } else {
             vaddr[0] = cpu_to_be32(1);
             vaddr[1] = cpu_to_be32(16 * 1024);
-            vaddr[2] = cpu_to_be32(HPPA_BTLB_FIXED);
-            vaddr[3] = cpu_to_be32(HPPA_BTLB_VARIABLE);
+            vaddr[2] = cpu_to_be32(PA10_BTLB_FIXED);
+            vaddr[3] = cpu_to_be32(PA10_BTLB_VARIABLE);
         }
         break;
     case 1:
@@ -510,7 +514,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
                     (long long) virt_page << TARGET_PAGE_BITS,
                     (long long) (virt_page + len) << TARGET_PAGE_BITS,
                     (long long) virt_page, phys_page, len, slot);
-        if (slot < HPPA_BTLB_ENTRIES) {
+        if (slot < btlb_entries) {
             btlb = &env->tlb[slot];
 
             /* Force flush of possibly existing BTLB entry. */
@@ -532,7 +536,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         slot = env->gr[22];
         qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE slot %d\n",
                                     slot);
-        if (slot < HPPA_BTLB_ENTRIES) {
+        if (slot < btlb_entries) {
             btlb = &env->tlb[slot];
             hppa_flush_tlb_ent(env, btlb, true);
         } else {
@@ -542,7 +546,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     case 3:
         /* Purge all BTLB entries */
         qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE_ALL\n");
-        for (slot = 0; slot < HPPA_BTLB_ENTRIES; slot++) {
+        for (slot = 0; slot < btlb_entries; slot++) {
             btlb = &env->tlb[slot];
             hppa_flush_tlb_ent(env, btlb, true);
         }

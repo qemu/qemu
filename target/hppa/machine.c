@@ -139,6 +139,7 @@ static int tlb_pre_load(void *opaque)
 static int tlb_post_load(void *opaque, int version_id)
 {
     CPUHPPAState *env = opaque;
+    uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
     HPPATLBEntry **unused = &env->tlb_unused;
     HPPATLBEntry *partial = NULL;
 
@@ -152,7 +153,7 @@ static int tlb_post_load(void *opaque, int version_id)
 
         if (e->entry_valid) {
             interval_tree_insert(&e->itree, &env->tlb_root);
-        } else if (i < HPPA_BTLB_ENTRIES) {
+        } else if (i < btlb_entries) {
             /* btlb not in unused list */
         } else if (partial == NULL && e->itree.start < e->itree.last) {
             partial = e;

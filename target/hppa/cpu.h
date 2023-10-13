@@ -227,15 +227,13 @@ typedef struct CPUArchState {
     target_ureg cr_back[2];  /* back of cr17/cr18 */
     target_ureg shadow[7];   /* shadow registers */
 
-    /* ??? The number of entries isn't specified by the architecture.  */
-#ifdef TARGET_HPPA64
-#define HPPA_BTLB_FIXED         0       /* BTLBs are not supported in 64-bit machines */
-#else
-#define HPPA_BTLB_FIXED         16
-#endif
-#define HPPA_BTLB_VARIABLE      0
+    /*
+     * ??? The number of entries isn't specified by the architecture.
+     * BTLBs are not supported in 64-bit machines.
+     */
+#define PA10_BTLB_FIXED         16
+#define PA10_BTLB_VARIABLE      0
 #define HPPA_TLB_ENTRIES        256
-#define HPPA_BTLB_ENTRIES       (HPPA_BTLB_FIXED + HPPA_BTLB_VARIABLE)
 
     /* Index for round-robin tlb eviction. */
     uint32_t tlb_last;
@@ -275,6 +273,11 @@ struct ArchCPU {
 static inline bool hppa_is_pa20(CPUHPPAState *env)
 {
     return object_dynamic_cast(OBJECT(env_cpu(env)), TYPE_HPPA64_CPU) != NULL;
+}
+
+static inline int HPPA_BTLB_ENTRIES(CPUHPPAState *env)
+{
+    return hppa_is_pa20(env) ? 0 : PA10_BTLB_FIXED + PA10_BTLB_VARIABLE;
 }
 
 static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
