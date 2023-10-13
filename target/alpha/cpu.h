@@ -267,6 +267,19 @@ struct ArchCPU {
     QEMUTimer *alarm_timer;
 };
 
+/**
+ * AlphaCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_reset: The parent class' reset handler.
+ *
+ * An Alpha CPU model.
+ */
+struct AlphaCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    DeviceReset parent_reset;
+};
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_alpha_cpu;

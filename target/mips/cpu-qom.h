@@ -21,7 +21,6 @@
 #define QEMU_MIPS_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #ifdef TARGET_MIPS64
 #define TYPE_MIPS_CPU "mips64-cpu"
@@ -33,24 +32,5 @@ OBJECT_DECLARE_CPU_TYPE(MIPSCPU, MIPSCPUClass, MIPS_CPU)
 
 #define MIPS_CPU_TYPE_SUFFIX "-" TYPE_MIPS_CPU
 #define MIPS_CPU_TYPE_NAME(model) model MIPS_CPU_TYPE_SUFFIX
-
-/**
- * MIPSCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- *
- * A MIPS CPU model.
- */
-struct MIPSCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-    const struct mips_def_t *cpu_def;
-
-    /* Used for the jazz board to modify mips_cpu_do_transaction_failed. */
-    bool no_data_aborts;
-};
-
 
 #endif

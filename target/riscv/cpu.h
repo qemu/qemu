@@ -32,6 +32,8 @@
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
 
+typedef struct CPUArchState CPURISCVState;
+
 #define CPU_RESOLVING_TYPE TYPE_RISCV_CPU
 
 #if defined(TARGET_RISCV32)
@@ -434,6 +436,20 @@ struct ArchCPU {
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
     GHashTable *pmu_event_ctr_map;
+};
+
+/**
+ * RISCVCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A RISCV CPU model.
+ */
+struct RISCVCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
 };
 
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)

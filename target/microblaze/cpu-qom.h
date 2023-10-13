@@ -21,25 +21,9 @@
 #define QEMU_MICROBLAZE_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_MICROBLAZE_CPU "microblaze-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(MicroBlazeCPU, MicroBlazeCPUClass, MICROBLAZE_CPU)
-
-/**
- * MicroBlazeCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- *
- * A MicroBlaze CPU model.
- */
-struct MicroBlazeCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 
 #endif

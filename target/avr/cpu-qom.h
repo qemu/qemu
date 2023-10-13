@@ -22,7 +22,6 @@
 #define TARGET_AVR_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_AVR_CPU "avr-cpu"
 
@@ -30,20 +29,5 @@ OBJECT_DECLARE_CPU_TYPE(AVRCPU, AVRCPUClass, AVR_CPU)
 
 #define AVR_CPU_TYPE_SUFFIX "-" TYPE_AVR_CPU
 #define AVR_CPU_TYPE_NAME(name) (name AVR_CPU_TYPE_SUFFIX)
-
-/**
- *  AVRCPUClass:
- *  @parent_realize: The parent class' realize handler.
- *  @parent_phases: The parent class' reset phase handlers.
- *
- *  A AVR CPU model.
- */
-struct AVRCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 
 #endif /* TARGET_AVR_CPU_QOM_H */

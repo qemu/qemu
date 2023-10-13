@@ -1116,6 +1116,31 @@ struct ArchCPU {
     uint64_t gt_cntfrq_hz;
 };
 
+typedef struct ARMCPUInfo {
+    const char *name;
+    void (*initfn)(Object *obj);
+    void (*class_init)(ObjectClass *oc, void *data);
+} ARMCPUInfo;
+
+/**
+ * ARMCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * An ARM CPU model.
+ */
+struct ARMCPUClass {
+    CPUClass parent_class;
+
+    const ARMCPUInfo *info;
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
+
+struct AArch64CPUClass {
+    ARMCPUClass parent_class;
+};
+
 /* Callback functions for the generic timer's timers. */
 void arm_gt_ptimer_cb(void *opaque);
 void arm_gt_vtimer_cb(void *opaque);

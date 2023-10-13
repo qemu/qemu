@@ -21,26 +21,10 @@
 #define QEMU_HPPA_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_HPPA_CPU "hppa-cpu"
 #define TYPE_HPPA64_CPU "hppa64-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(HPPACPU, HPPACPUClass, HPPA_CPU)
-
-/**
- * HPPACPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_reset: The parent class' reset handler.
- *
- * An HPPA CPU model.
- */
-struct HPPACPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    DeviceReset parent_reset;
-};
-
 
 #endif

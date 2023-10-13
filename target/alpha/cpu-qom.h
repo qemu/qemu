@@ -21,7 +21,6 @@
 #define QEMU_ALPHA_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
 
@@ -29,20 +28,5 @@ OBJECT_DECLARE_CPU_TYPE(AlphaCPU, AlphaCPUClass, ALPHA_CPU)
 
 #define ALPHA_CPU_TYPE_SUFFIX "-" TYPE_ALPHA_CPU
 #define ALPHA_CPU_TYPE_NAME(model) model ALPHA_CPU_TYPE_SUFFIX
-
-/**
- * AlphaCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_reset: The parent class' reset handler.
- *
- * An Alpha CPU model.
- */
-struct AlphaCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    DeviceReset parent_reset;
-};
-
 
 #endif

@@ -10,7 +10,6 @@
 #define QEMU_HEXAGON_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 

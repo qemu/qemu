@@ -21,8 +21,6 @@
 #define QEMU_TRICORE_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
-
 
 #define TYPE_TRICORE_CPU "tricore-cpu"
 
@@ -30,13 +28,5 @@ OBJECT_DECLARE_CPU_TYPE(TriCoreCPU, TriCoreCPUClass, TRICORE_CPU)
 
 #define TRICORE_CPU_TYPE_SUFFIX "-" TYPE_TRICORE_CPU
 #define TRICORE_CPU_TYPE_NAME(model) model TRICORE_CPU_TYPE_SUFFIX
-
-struct TriCoreCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 
 #endif /* QEMU_TRICORE_CPU_QOM_H */

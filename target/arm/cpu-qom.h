@@ -21,7 +21,6 @@
 #define QEMU_ARM_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_ARM_CPU "arm-cpu"
 
@@ -29,35 +28,9 @@ OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
 
 #define TYPE_ARM_MAX_CPU "max-" TYPE_ARM_CPU
 
-typedef struct ARMCPUInfo {
-    const char *name;
-    void (*initfn)(Object *obj);
-    void (*class_init)(ObjectClass *oc, void *data);
-} ARMCPUInfo;
-
-/**
- * ARMCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- *
- * An ARM CPU model.
- */
-struct ARMCPUClass {
-    CPUClass parent_class;
-
-    const ARMCPUInfo *info;
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
-
 #define TYPE_AARCH64_CPU "aarch64-cpu"
 typedef struct AArch64CPUClass AArch64CPUClass;
 DECLARE_CLASS_CHECKERS(AArch64CPUClass, AARCH64_CPU,
                        TYPE_AARCH64_CPU)
-
-struct AArch64CPUClass {
-    ARMCPUClass parent_class;
-};
 
 #endif

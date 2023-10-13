@@ -9,7 +9,6 @@
 #define LOONGARCH_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_LOONGARCH_CPU "loongarch-cpu"
 #define TYPE_LOONGARCH32_CPU "loongarch32-cpu"

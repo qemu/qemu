@@ -1217,6 +1217,23 @@ struct ArchCPU {
     Clock *count_div; /* Divider for CP0_Count clock */
 };
 
+/**
+ * MIPSCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A MIPS CPU model.
+ */
+struct MIPSCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+    const struct mips_def_t *cpu_def;
+
+    /* Used for the jazz board to modify mips_cpu_do_transaction_failed. */
+    bool no_data_aborts;
+};
 
 void mips_cpu_list(void);
 

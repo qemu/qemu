@@ -21,7 +21,6 @@
 #define QEMU_CRIS_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_CRIS_CPU "cris-cpu"
 
@@ -29,23 +28,5 @@ OBJECT_DECLARE_CPU_TYPE(CRISCPU, CRISCPUClass, CRIS_CPU)
 
 #define CRIS_CPU_TYPE_SUFFIX "-" TYPE_CRIS_CPU
 #define CRIS_CPU_TYPE_NAME(name) (name CRIS_CPU_TYPE_SUFFIX)
-
-/**
- * CRISCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- * @vr: Version Register value.
- *
- * A CRIS CPU model.
- */
-struct CRISCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-
-    uint32_t vr;
-};
-
 
 #endif

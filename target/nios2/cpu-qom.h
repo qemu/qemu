@@ -10,7 +10,6 @@
 #define QEMU_NIOS2_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_NIOS2_CPU "nios2-cpu"
 

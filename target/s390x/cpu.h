@@ -180,6 +180,36 @@ struct ArchCPU {
     uint32_t irqstate_saved_size;
 };
 
+typedef enum cpu_reset_type {
+    S390_CPU_RESET_NORMAL,
+    S390_CPU_RESET_INITIAL,
+    S390_CPU_RESET_CLEAR,
+} cpu_reset_type;
+
+/**
+ * S390CPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_reset: The parent class' reset handler.
+ * @load_normal: Performs a load normal.
+ * @cpu_reset: Performs a CPU reset.
+ * @initial_cpu_reset: Performs an initial CPU reset.
+ *
+ * An S/390 CPU model.
+ */
+struct S390CPUClass {
+    CPUClass parent_class;
+
+    const S390CPUDef *cpu_def;
+    bool kvm_required;
+    bool is_static;
+    bool is_migration_safe;
+    const char *desc;
+
+    DeviceRealize parent_realize;
+    DeviceReset parent_reset;
+    void (*load_normal)(CPUState *cpu);
+    void (*reset)(CPUState *cpu, cpu_reset_type type);
+};
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_s390_cpu;

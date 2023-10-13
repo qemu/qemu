@@ -249,7 +249,7 @@ typedef struct trap_state {
 #endif
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
-struct sparc_def_t {
+typedef struct sparc_def_t {
     const char *name;
     target_ulong iu_version;
     uint32_t fpu_version;
@@ -263,7 +263,7 @@ struct sparc_def_t {
     uint32_t features;
     uint32_t nwindows;
     uint32_t maxtl;
-};
+} sparc_def_t;
 
 #define FEATURE(X)  CPU_FEATURE_BIT_##X,
 enum {
@@ -567,6 +567,20 @@ struct ArchCPU {
     CPUSPARCState env;
 };
 
+/**
+ * SPARCCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A SPARC CPU model.
+ */
+struct SPARCCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+    sparc_def_t *cpu_def;
+};
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_sparc_cpu;

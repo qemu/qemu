@@ -426,7 +426,7 @@ extern const XtensaOpcodeTranslators xtensa_core_opcodes;
 extern const XtensaOpcodeTranslators xtensa_fpu2000_opcodes;
 extern const XtensaOpcodeTranslators xtensa_fpu_opcodes;
 
-struct XtensaConfig {
+typedef struct XtensaConfig {
     const char *name;
     uint64_t options;
     XtensaGdbRegmap gdb_regmap;
@@ -489,7 +489,7 @@ struct XtensaConfig {
     const xtensa_mpu_entry *mpu_bg;
 
     bool use_first_nan;
-};
+} XtensaConfig;
 
 typedef struct XtensaConfigList {
     const XtensaConfig *config;
@@ -562,6 +562,22 @@ struct ArchCPU {
     Clock *clock;
 };
 
+/**
+ * XtensaCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ * @config: The CPU core configuration.
+ *
+ * An Xtensa CPU model.
+ */
+struct XtensaCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+
+    const XtensaConfig *config;
+};
 
 #ifndef CONFIG_USER_ONLY
 bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,

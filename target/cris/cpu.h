@@ -179,6 +179,22 @@ struct ArchCPU {
     CPUCRISState env;
 };
 
+/**
+ * CRISCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ * @vr: Version Register value.
+ *
+ * A CRIS CPU model.
+ */
+struct CRISCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+
+    uint32_t vr;
+};
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_cris_cpu;

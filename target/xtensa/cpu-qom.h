@@ -30,7 +30,6 @@
 #define QEMU_XTENSA_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_XTENSA_CPU "xtensa-cpu"
 
@@ -38,25 +37,5 @@ OBJECT_DECLARE_CPU_TYPE(XtensaCPU, XtensaCPUClass, XTENSA_CPU)
 
 #define XTENSA_CPU_TYPE_SUFFIX "-" TYPE_XTENSA_CPU
 #define XTENSA_CPU_TYPE_NAME(model) model XTENSA_CPU_TYPE_SUFFIX
-
-typedef struct XtensaConfig XtensaConfig;
-
-/**
- * XtensaCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- * @config: The CPU core configuration.
- *
- * An Xtensa CPU model.
- */
-struct XtensaCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-
-    const XtensaConfig *config;
-};
-
 
 #endif

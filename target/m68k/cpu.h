@@ -169,6 +169,19 @@ struct ArchCPU {
     CPUM68KState env;
 };
 
+/*
+ * M68kCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A Motorola 68k CPU model.
+ */
+struct M68kCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
 
 #ifndef CONFIG_USER_ONLY
 void m68k_cpu_do_interrupt(CPUState *cpu);

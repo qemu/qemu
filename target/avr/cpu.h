@@ -147,6 +147,20 @@ struct ArchCPU {
     CPUAVRState env;
 };
 
+/**
+ *  AVRCPUClass:
+ *  @parent_realize: The parent class' realize handler.
+ *  @parent_phases: The parent class' reset phase handlers.
+ *
+ *  A AVR CPU model.
+ */
+struct AVRCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
+
 extern const struct VMStateDescription vms_avr_cpu;
 
 void avr_cpu_do_interrupt(CPUState *cpu);

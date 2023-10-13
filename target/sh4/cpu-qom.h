@@ -21,7 +21,6 @@
 #define QEMU_SUPERH_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 
@@ -33,27 +32,5 @@ OBJECT_DECLARE_CPU_TYPE(SuperHCPU, SuperHCPUClass, SUPERH_CPU)
 
 #define SUPERH_CPU_TYPE_SUFFIX "-" TYPE_SUPERH_CPU
 #define SUPERH_CPU_TYPE_NAME(model) model SUPERH_CPU_TYPE_SUFFIX
-
-/**
- * SuperHCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- * @pvr: Processor Version Register
- * @prr: Processor Revision Register
- * @cvr: Cache Version Register
- *
- * A SuperH CPU model.
- */
-struct SuperHCPUClass {
-    CPUClass parent_class;
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-
-    uint32_t pvr;
-    uint32_t prr;
-    uint32_t cvr;
-};
-
 
 #endif
