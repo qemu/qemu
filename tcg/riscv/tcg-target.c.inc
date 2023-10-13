@@ -2076,8 +2076,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
 
 #if !defined(CONFIG_SOFTMMU)
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
-    tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+    if (guest_base) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
+        tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+    }
 #endif
 
     /* Call generated code */
