@@ -81,13 +81,13 @@ Options
 
 .. option:: -b, --block-rpcs=LIST
 
-  Comma-separated list of RPCs to disable (no spaces, use ``help`` to
-  list available RPCs).
+  Comma-separated list of RPCs to disable (no spaces, use ``--block-rpcs=help``
+  to list available RPCs).
 
 .. option:: -a, --allow-rpcs=LIST
 
-  Comma-separated list of RPCs to enable (no spaces, use ``help`` to
-  list available RPCs).
+  Comma-separated list of RPCs to enable (no spaces, use ``--allow-rpcs=help``
+  to list available RPCs).
 
 .. option:: -D, --dump-conf
 
