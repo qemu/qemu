@@ -277,7 +277,8 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
                                    'file.driver=file',
                                    'file.filename=%s' % old_img ])
         if self.interface == 'scsi':
-            self.vm.add_device('virtio-scsi-pci')
+            self.vm.add_object('iothread,id=iothread0')
+            self.vm.add_device('virtio-scsi-pci,iothread=iothread0')
         self.vm.add_device('%s,drive=drive0,id=%s' %
                            (interface_to_device_name(self.interface),
                             self.device_name))
@@ -312,7 +313,8 @@ class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
         if self.use_drive:
             self.vm.add_drive(None, 'media=%s' % self.media, 'none')
         if self.interface == 'scsi':
-            self.vm.add_device('virtio-scsi-pci')
+            self.vm.add_object('iothread,id=iothread0')
+            self.vm.add_device('virtio-scsi-pci,iothread=iothread0')
         self.vm.add_device('%s,%sid=%s' %
                            (interface_to_device_name(self.interface),
                             'drive=drive0,' if self.use_drive else '',
