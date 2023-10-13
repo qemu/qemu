@@ -35,9 +35,7 @@ OBJECT_DECLARE_CPU_TYPE(AlphaCPU, AlphaCPUClass, ALPHA_CPU)
  * An Alpha CPU model.
  */
 struct AlphaCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;

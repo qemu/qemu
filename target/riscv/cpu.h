@@ -411,9 +411,7 @@ struct CPUArchState {
  * A RISCV CPU.
  */
 struct ArchCPU {
-    /* < private > */
     CPUState parent_obj;
-    /* < public > */
 
     CPURISCVState env;
 

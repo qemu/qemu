@@ -1897,9 +1897,7 @@ struct kvm_msrs;
  * An x86 CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUX86State env;
     VMChangeStateEntry *vmsentry;

@@ -40,9 +40,7 @@ typedef struct sparc_def_t sparc_def_t;
  * A SPARC CPU model.
  */
 struct SPARCCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;

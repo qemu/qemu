@@ -36,9 +36,7 @@ OBJECT_DECLARE_CPU_TYPE(HPPACPU, HPPACPUClass, HPPA_CPU)
  * An HPPA CPU model.
  */
 struct HPPACPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;

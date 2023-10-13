@@ -371,9 +371,7 @@ typedef struct CPUArchState {
  * A LoongArch CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPULoongArchState env;
     QEMUTimer timer;
@@ -398,9 +396,7 @@ OBJECT_DECLARE_CPU_TYPE(LoongArchCPU, LoongArchCPUClass,
  * A LoongArch CPU model.
  */
 struct LoongArchCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;

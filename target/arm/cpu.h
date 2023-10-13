@@ -852,9 +852,7 @@ typedef struct {
  * An ARM CPU core.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUARMState env;
 

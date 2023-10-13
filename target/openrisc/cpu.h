@@ -39,9 +39,7 @@ OBJECT_DECLARE_CPU_TYPE(OpenRISCCPU, OpenRISCCPUClass, OPENRISC_CPU)
  * A OpenRISC CPU model.
  */
 struct OpenRISCCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
@@ -301,9 +299,7 @@ typedef struct CPUArchState {
  * A OpenRISC CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUOpenRISCState env;
 };

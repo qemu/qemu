@@ -47,9 +47,7 @@ typedef struct XtensaConfig XtensaConfig;
  * An Xtensa CPU model.
  */
 struct XtensaCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;

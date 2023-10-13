@@ -204,9 +204,7 @@ typedef struct CPUArchState {
  * A SuperH CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUSH4State env;
 };

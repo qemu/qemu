@@ -259,9 +259,7 @@ typedef struct CPUArchState {
  * An Alpha CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUAlphaState env;
 

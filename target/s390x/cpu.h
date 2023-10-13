@@ -172,9 +172,7 @@ static inline uint64_t *get_freg(CPUS390XState *cs, int nr)
  * An S/390 CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUS390XState env;
     S390CPUModel *model;

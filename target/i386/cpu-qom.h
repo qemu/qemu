@@ -47,9 +47,7 @@ typedef struct X86CPUModel X86CPUModel;
  * An x86 CPU model or family.
  */
 struct X86CPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     /* CPU definition, automatically loaded by instance_init if not NULL.
      * Should be eventually replaced by subclass-specific property defaults.

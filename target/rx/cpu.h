@@ -107,9 +107,7 @@ typedef struct CPUArchState {
  * A RX CPU
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPURXState env;
 };

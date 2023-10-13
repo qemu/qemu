@@ -49,9 +49,8 @@ typedef enum cpu_reset_type {
  * An S/390 CPU model.
  */
 struct S390CPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
+
     const S390CPUDef *cpu_def;
     bool kvm_required;
     bool is_static;

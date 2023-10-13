@@ -46,9 +46,7 @@ void aarch64_cpu_register(const ARMCPUInfo *info);
  * An ARM CPU model.
  */
 struct ARMCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     const ARMCPUInfo *info;
     DeviceRealize parent_realize;
@@ -62,9 +60,7 @@ DECLARE_CLASS_CHECKERS(AArch64CPUClass, AARCH64_CPU,
                        TYPE_AARCH64_CPU)
 
 struct AArch64CPUClass {
-    /*< private >*/
     ARMCPUClass parent_class;
-    /*< public >*/
 };
 
 void register_cp_regs_for_features(ARMCPU *cpu);

@@ -63,9 +63,7 @@ typedef struct CPUArchState {
  * A TriCore CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUTriCoreState env;
 };

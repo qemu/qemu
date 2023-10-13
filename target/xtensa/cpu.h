@@ -556,9 +556,7 @@ struct CPUArchState {
  * An Xtensa CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUXtensaState env;
     Clock *clock;

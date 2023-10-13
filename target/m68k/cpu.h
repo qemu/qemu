@@ -164,9 +164,7 @@ typedef struct CPUArchState {
  * A Motorola 68k CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUM68KState env;
 };

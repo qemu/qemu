@@ -1209,9 +1209,7 @@ typedef struct CPUArchState {
  * A MIPS CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUMIPSState env;
 
