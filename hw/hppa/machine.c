@@ -103,6 +103,63 @@ static ISABus *hppa_isa_bus(void)
     return isa_bus;
 }
 
+/*
+ * Helper functions to emulate RTC clock and DebugOutputPort
+ */
+static time_t rtc_ref;
+
+static uint64_t io_cpu_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val = 0;
+
+    switch (addr) {
+    case 0:             /* RTC clock */
+        val = time(NULL);
+        val += rtc_ref;
+        break;
+    case 8:             /* DebugOutputPort */
+        return 0xe9;    /* readback */
+    }
+    return val;
+}
+
+static void io_cpu_write(void *opaque, hwaddr addr,
+                         uint64_t val, unsigned size)
+{
+    unsigned char ch;
+    Chardev *debugout;
+
+    switch (addr) {
+    case 0:             /* RTC clock */
+        rtc_ref = val - time(NULL);
+        break;
+    case 8:             /* DebugOutputPort */
+        ch = val;
+        debugout = serial_hd(0);
+        if (debugout) {
+            qemu_chr_fe_write_all(debugout->be, &ch, 1);
+        } else {
+            fprintf(stderr, "%c", ch);
+        }
+        break;
+    }
+}
+
+static const MemoryRegionOps hppa_io_helper_ops = {
+    .read = io_cpu_read,
+    .write = io_cpu_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+
 static uint64_t cpu_hppa_to_phys(void *opaque, uint64_t addr)
 {
     addr &= (0x10000000 - 1);
@@ -149,6 +206,10 @@ static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus)
 
     val = cpu_to_le64(HPA_POWER_BUTTON);
     fw_cfg_add_file(fw_cfg, "/etc/hppa/power-button-addr",
+                    g_memdup(&val, sizeof(val)), sizeof(val));
+
+    val = cpu_to_le64(CPU_HPA + 16);
+    fw_cfg_add_file(fw_cfg, "/etc/hppa/rtc-addr",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
     val = cpu_to_le64(CPU_HPA + 24);
@@ -221,6 +282,12 @@ static void machine_hppa_init(MachineState *machine)
                                     cpu_region);
         g_free(name);
     }
+
+    /* RTC and DebugOutputPort on CPU #0 */
+    cpu_region = g_new(MemoryRegion, 1);
+    memory_region_init_io(cpu_region, OBJECT(cpu[0]), &hppa_io_helper_ops,
+                          cpu[0], "cpu0-io-rtc", 2 * sizeof(uint64_t));
+    memory_region_add_subregion(addr_space, CPU_HPA + 16, cpu_region);
 
     /* Main memory region. */
     if (machine->ram_size > 3 * GiB) {
