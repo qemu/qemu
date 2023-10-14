@@ -67,9 +67,14 @@ target_ulong cpu_get_psr(CPUSPARCState *env)
 #endif
 }
 
-void cpu_put_psr_raw(CPUSPARCState *env, target_ulong val)
+void cpu_put_psr_icc(CPUSPARCState *env, target_ulong val)
 {
     env->psr = val & PSR_ICC;
+}
+
+void cpu_put_psr_raw(CPUSPARCState *env, target_ulong val)
+{
+    cpu_put_psr_icc(env, val);
 #if !defined(TARGET_SPARC64)
     env->psref = (val & PSR_EF) ? 1 : 0;
     env->psrpil = (val & PSR_PIL) >> 8;
