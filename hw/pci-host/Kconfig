@@ -82,6 +82,10 @@ config DINO
     bool
     select PCI
 
+config ASTRO
+    bool
+    select PCI
+
 config GT64120
     bool
     select PCI
