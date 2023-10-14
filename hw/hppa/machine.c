@@ -23,6 +23,7 @@
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci-host/dino.h"
 #include "hw/misc/lasi.h"
 #include "hppa_hardware.h"
@@ -37,6 +38,7 @@
 
 #define enable_lasi_lan()       0
 
+static DeviceState *lasi_dev;
 
 static void hppa_powerdown_req(Notifier *n, void *opaque)
 {
@@ -250,29 +252,20 @@ static DinoState *dino_init(MemoryRegion *addr_space)
     return DINO_PCI_HOST_BRIDGE(dev);
 }
 
-static void machine_hppa_init(MachineState *machine)
+/*
+ * Step 1: Create CPUs and Memory
+ */
+static void machine_HP_common_init_cpus(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
-    DeviceState *dev, *dino_dev, *lasi_dev;
-    PCIBus *pci_bus;
-    ISABus *isa_bus;
-    char *firmware_filename;
-    uint64_t firmware_low, firmware_high;
-    long size;
-    uint64_t kernel_entry = 0, kernel_low, kernel_high;
     MemoryRegion *addr_space = get_system_memory();
-    MemoryRegion *rom_region;
     MemoryRegion *cpu_region;
     long i;
     unsigned int smp_cpus = machine->smp.cpus;
-    SysBusDevice *s;
+    char *name;
 
     /* Create CPUs.  */
     for (i = 0; i < smp_cpus; i++) {
-        char *name = g_strdup_printf("cpu%ld-io-eir", i);
+        name = g_strdup_printf("cpu%ld-io-eir", i);
         cpu[i] = HPPA_CPU(cpu_create(machine->cpu_type));
 
         cpu_region = g_new(MemoryRegion, 1);
@@ -295,45 +288,27 @@ static void machine_hppa_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
     memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
+}
 
-
-    /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_init());
-    memory_region_add_subregion(addr_space, LASI_HPA,
-                                sysbus_mmio_get_region(
-                                    SYS_BUS_DEVICE(lasi_dev), 0));
-
-    /* Init Dino (PCI host bus chip).  */
-    dino_dev = DEVICE(dino_init(addr_space));
-    memory_region_add_subregion(addr_space, DINO_HPA,
-                                sysbus_mmio_get_region(
-                                    SYS_BUS_DEVICE(dino_dev), 0));
-    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
-    assert(pci_bus);
-
-    /* Create ISA bus. */
-    isa_bus = hppa_isa_bus();
-    assert(isa_bus);
-
-    /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, NULL);
-
-    /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
-    serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
-        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
-        serial_hd(0), DEVICE_BIG_ENDIAN);
-
-    serial_mm_init(addr_space, DINO_UART_HPA + 0x800, 0,
-        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
-        serial_hd(1), DEVICE_BIG_ENDIAN);
-
-    /* Parallel port */
-    parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
-                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
-                     parallel_hds[0]);
-
-    /* fw_cfg configuration interface */
-    create_fw_cfg(machine, pci_bus);
+/*
+ * Last creation step: Add SCSI discs, NICs, graphics & load firmware
+ */
+static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus)
+{
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    DeviceState *dev;
+    char *firmware_filename;
+    uint64_t firmware_low, firmware_high;
+    long size;
+    uint64_t kernel_entry = 0, kernel_low, kernel_high;
+    MemoryRegion *addr_space = get_system_memory();
+    MemoryRegion *rom_region;
+    long i;
+    unsigned int smp_cpus = machine->smp.cpus;
+    SysBusDevice *s;
 
     /* SCSI disk setup. */
     dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
@@ -361,20 +336,11 @@ static void machine_hppa_init(MachineState *machine)
         }
     }
 
-    /* PS/2 Keyboard/Mouse */
-    dev = qdev_new(TYPE_LASIPS2);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
-                       qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
-    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
-                                                       0));
-    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA + 0x100,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
-                                                       1));
-
     /* register power switch emulation */
     qemu_register_powerdown_notifier(&hppa_system_powerdown_notifier);
+
+    /* fw_cfg configuration interface */
+    create_fw_cfg(machine, pci_bus);
 
     /* Load firmware.  Given that this is not "real" firmware,
        but one explicitly written for the emulation, we might as
@@ -493,6 +459,67 @@ static void machine_hppa_init(MachineState *machine)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
+/*
+ * Create HP B160L workstation
+ */
+static void machine_HP_B160L_init(MachineState *machine)
+{
+    DeviceState *dev, *dino_dev;
+    MemoryRegion *addr_space = get_system_memory();
+    ISABus *isa_bus;
+    PCIBus *pci_bus;
+
+    /* Create CPUs and RAM.  */
+    machine_HP_common_init_cpus(machine);
+
+    /* Init Lasi chip */
+    lasi_dev = DEVICE(lasi_init());
+    memory_region_add_subregion(addr_space, LASI_HPA,
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(lasi_dev), 0));
+
+    /* Init Dino (PCI host bus chip).  */
+    dino_dev = DEVICE(dino_init(addr_space));
+    memory_region_add_subregion(addr_space, DINO_HPA,
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(dino_dev), 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
+    assert(pci_bus);
+
+    /* Create ISA bus, needed for PS/2 kbd/mouse port emulation */
+    isa_bus = hppa_isa_bus();
+    assert(isa_bus);
+
+    /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
+    serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
+        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
+        serial_hd(0), DEVICE_BIG_ENDIAN);
+
+    serial_mm_init(addr_space, DINO_UART_HPA + 0x800, 0,
+        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
+        serial_hd(1), DEVICE_BIG_ENDIAN);
+
+    /* Parallel port */
+    parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+                     parallel_hds[0]);
+
+    /* PS/2 Keyboard/Mouse */
+    dev = qdev_new(TYPE_LASIPS2);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
+    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       0));
+    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA + 0x100,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       1));
+
+    /* Add SCSI discs, NICs, graphics & load firmware */
+    machine_HP_common_init_tail(machine, pci_bus);
+}
+
 static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
 {
     unsigned int smp_cpus = ms->smp.cpus;
@@ -541,14 +568,14 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
+static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->desc = "HPPA B160L machine";
+    mc->desc = "HP B160L workstation";
     mc->default_cpu_type = TYPE_HPPA_CPU;
-    mc->init = machine_hppa_init;
+    mc->init = machine_HP_B160L_init;
     mc->reset = hppa_machine_reset;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = HPPA_MAX_CPUS;
@@ -562,10 +589,10 @@ static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo hppa_machine_init_typeinfo = {
-    .name = MACHINE_TYPE_NAME("hppa"),
+static const TypeInfo HP_B160L_machine_init_typeinfo = {
+    .name = MACHINE_TYPE_NAME("B160L"),
     .parent = TYPE_MACHINE,
-    .class_init = hppa_machine_init_class_init,
+    .class_init = HP_B160L_machine_init_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
         { }
@@ -574,7 +601,7 @@ static const TypeInfo hppa_machine_init_typeinfo = {
 
 static void hppa_machine_init_register_types(void)
 {
-    type_register_static(&hppa_machine_init_typeinfo);
+    type_register_static(&HP_B160L_machine_init_typeinfo);
 }
 
 type_init(hppa_machine_init_register_types)
