@@ -1174,7 +1174,7 @@ F: hw/*/etraxfs_*.c
 
 HP-PARISC Machines
 ------------------
-HP B160L
+HP B160L, HP C3700
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Helge Deller <deller@gmx.de>
 S: Odd Fixes
@@ -1182,11 +1182,14 @@ F: configs/devices/hppa-softmmu/default.mak
 F: hw/hppa/
 F: hw/net/*i82596*
 F: hw/misc/lasi.c
+F: hw/pci-host/astro.c
 F: hw/pci-host/dino.c
 F: include/hw/misc/lasi.h
 F: include/hw/net/lasi_82596.h
+F: include/hw/pci-host/astro.h
 F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
+F: roms/seabios-hppa/
 
 LoongArch Machines
 ------------------
