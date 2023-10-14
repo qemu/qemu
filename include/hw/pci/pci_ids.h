@@ -179,6 +179,8 @@
 #define PCI_DEVICE_ID_AMD_LANCE          0x2000
 #define PCI_DEVICE_ID_AMD_SCSI           0x2020
 
+#define PCI_VENDOR_ID_HP                 0x103c
+
 #define PCI_VENDOR_ID_TI                 0x104c
 
 #define PCI_VENDOR_ID_MOTOROLA           0x1057
