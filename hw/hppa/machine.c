@@ -22,8 +22,10 @@
 #include "hw/input/lasips2.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
+#include "hw/usb.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
+#include "hw/pci-host/astro.h"
 #include "hw/pci-host/dino.h"
 #include "hw/misc/lasi.h"
 #include "hppa_hardware.h"
@@ -300,6 +302,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus)
     const char *initrd_filename = machine->initrd_filename;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *dev;
+    PCIDevice *pci_dev;
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
     long size;
@@ -334,6 +337,36 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus)
         if (!enable_lasi_lan()) {
             pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
         }
+    }
+
+    /* BMC board: HP Powerbar SP2 Diva (with console only) */
+    pci_dev = pci_new(-1, "pci-serial");
+    if (!lasi_dev) {
+        /* bind default keyboard/serial to Diva card */
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev", serial_hd(0));
+    }
+    qdev_prop_set_uint8(DEVICE(pci_dev), "prog_if", 0);
+    pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+    pci_config_set_vendor_id(pci_dev->config, PCI_VENDOR_ID_HP);
+    pci_config_set_device_id(pci_dev->config, 0x1048);
+    pci_set_word(&pci_dev->config[PCI_SUBSYSTEM_VENDOR_ID], PCI_VENDOR_ID_HP);
+    pci_set_word(&pci_dev->config[PCI_SUBSYSTEM_ID], 0x1227); /* Powerbar */
+
+    /* create a second serial PCI card when running Astro */
+    if (!lasi_dev) {
+        pci_dev = pci_new(-1, "pci-serial-4x");
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(1));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev2", serial_hd(2));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev3", serial_hd(3));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev4", serial_hd(4));
+        pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+    }
+
+    /* create USB OHCI controller for USB keyboard & mouse on Astro machines */
+    if (!lasi_dev && machine->enable_graphics) {
+        pci_create_simple(pci_bus, -1, "pci-ohci");
+        usb_create_simple(usb_bus_find(-1), "usb-kbd");
+        usb_create_simple(usb_bus_find(-1), "usb-mouse");
     }
 
     /* register power switch emulation */
@@ -520,6 +553,42 @@ static void machine_HP_B160L_init(MachineState *machine)
     machine_HP_common_init_tail(machine, pci_bus);
 }
 
+static AstroState *astro_init(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_ASTRO_CHIP);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return ASTRO_CHIP(dev);
+}
+
+/*
+ * Create HP C3700 workstation
+ */
+static void machine_HP_C3700_init(MachineState *machine)
+{
+    PCIBus *pci_bus;
+    AstroState *astro;
+    DeviceState *astro_dev;
+    MemoryRegion *addr_space = get_system_memory();
+
+    /* Create CPUs and RAM.  */
+    machine_HP_common_init_cpus(machine);
+
+    /* Init Astro and the Elroys (PCI host bus chips).  */
+    astro = astro_init();
+    astro_dev = DEVICE(astro);
+    memory_region_add_subregion(addr_space, ASTRO_HPA,
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(astro_dev), 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(DEVICE(astro->elroy[0]), "pci"));
+    assert(pci_bus);
+
+    /* Add SCSI discs, NICs, graphics & load firmware */
+    machine_HP_common_init_tail(machine, pci_bus);
+}
+
 static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
 {
     unsigned int smp_cpus = ms->smp.cpus;
@@ -599,9 +668,41 @@ static const TypeInfo HP_B160L_machine_init_typeinfo = {
     },
 };
 
+static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->desc = "HP C3700 workstation";
+    mc->default_cpu_type = TYPE_HPPA_CPU;
+    mc->init = machine_HP_C3700_init;
+    mc->reset = hppa_machine_reset;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = HPPA_MAX_CPUS;
+    mc->default_cpus = 1;
+    mc->is_default = false;
+    mc->default_ram_size = 1024 * MiB;
+    mc->default_boot_order = "cd";
+    mc->default_ram_id = "ram";
+    mc->default_nic = "tulip";
+
+    nc->nmi_monitor_handler = hppa_nmi;
+}
+
+static const TypeInfo HP_C3700_machine_init_typeinfo = {
+    .name = MACHINE_TYPE_NAME("C3700"),
+    .parent = TYPE_MACHINE,
+    .class_init = HP_C3700_machine_init_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
+};
+
 static void hppa_machine_init_register_types(void)
 {
     type_register_static(&HP_B160L_machine_init_typeinfo);
+    type_register_static(&HP_C3700_machine_init_typeinfo);
 }
 
 type_init(hppa_machine_init_register_types)
