@@ -378,16 +378,6 @@ static uint32_t compute_all_tsubtv(CPUSPARCState *env)
     return ret;
 }
 
-static uint32_t compute_all_logic(CPUSPARCState *env)
-{
-    return get_NZ_icc(CC_DST);
-}
-
-static uint32_t compute_C_logic(CPUSPARCState *env)
-{
-    return 0;
-}
-
 #ifdef TARGET_SPARC64
 static uint32_t compute_all_logic_xcc(CPUSPARCState *env)
 {
@@ -411,13 +401,12 @@ static const CCTable icc_table[CC_OP_NB] = {
     [CC_OP_SUBX] = { compute_all_subx, compute_C_subx },
     [CC_OP_TSUB] = { compute_all_tsub, compute_C_sub },
     [CC_OP_TSUBTV] = { compute_all_tsubtv, compute_C_sub },
-    [CC_OP_LOGIC] = { compute_all_logic, compute_C_logic },
 };
 
 #ifdef TARGET_SPARC64
 static const CCTable xcc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
-    [CC_OP_DIV] = { compute_all_logic_xcc, compute_C_logic },
+    [CC_OP_DIV] = { compute_all_logic_xcc, compute_C_div },
     [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
     [CC_OP_ADDX] = { compute_all_addx_xcc, compute_C_addx_xcc },
     [CC_OP_TADD] = { compute_all_add_xcc, compute_C_add_xcc },
@@ -426,7 +415,6 @@ static const CCTable xcc_table[CC_OP_NB] = {
     [CC_OP_SUBX] = { compute_all_subx_xcc, compute_C_subx_xcc },
     [CC_OP_TSUB] = { compute_all_sub_xcc, compute_C_sub_xcc },
     [CC_OP_TSUBTV] = { compute_all_sub_xcc, compute_C_sub_xcc },
-    [CC_OP_LOGIC] = { compute_all_logic_xcc, compute_C_logic },
 };
 #endif
 

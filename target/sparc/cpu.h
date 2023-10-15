@@ -159,7 +159,6 @@ enum {
     CC_OP_SUBX,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_TSUB,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_TSUBTV,  /* modify all flags except V, CC_DST = res, CC_SRC = src1 */
-    CC_OP_LOGIC,   /* modify N and Z, C = V = 0, CC_DST = res */
     CC_OP_NB,
 };
 
