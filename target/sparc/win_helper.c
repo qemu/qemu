@@ -53,23 +53,44 @@ void cpu_set_cwp(CPUSPARCState *env, int new_cwp)
 
 target_ulong cpu_get_psr(CPUSPARCState *env)
 {
+    target_ulong icc = 0;
+
     helper_compute_psr(env);
 
+    icc |= ((int32_t)env->cc_N < 0) << PSR_NEG_SHIFT;
+    icc |= ((int32_t)env->cc_V < 0) << PSR_OVF_SHIFT;
+    icc |= ((int32_t)env->icc_Z == 0) << PSR_ZERO_SHIFT;
+    if (TARGET_LONG_BITS == 64) {
+        icc |= extract64(env->icc_C, 32, 1) << PSR_CARRY_SHIFT;
+    } else {
+        icc |= env->icc_C << PSR_CARRY_SHIFT;
+    }
+
 #if !defined(TARGET_SPARC64)
-    return env->version | (env->psr & PSR_ICC) |
+    return env->version | icc |
         (env->psref ? PSR_EF : 0) |
         (env->psrpil << 8) |
         (env->psrs ? PSR_S : 0) |
         (env->psrps ? PSR_PS : 0) |
         (env->psret ? PSR_ET : 0) | env->cwp;
 #else
-    return env->psr & PSR_ICC;
+    return icc;
 #endif
 }
 
 void cpu_put_psr_icc(CPUSPARCState *env, target_ulong val)
 {
-    env->psr = val & PSR_ICC;
+    if (TARGET_LONG_BITS == 64) {
+        /* Do not clobber xcc.[NV] */
+        env->cc_N = deposit64(env->cc_N, 0, 32, -(val & PSR_NEG));
+        env->cc_V = deposit64(env->cc_V, 0, 32, -(val & PSR_OVF));
+        env->icc_C = -(val & PSR_CARRY);
+    } else {
+        env->cc_N = -(val & PSR_NEG);
+        env->cc_V = -(val & PSR_OVF);
+        env->icc_C = (val >> PSR_CARRY_SHIFT) & 1;
+    }
+    env->icc_Z = ~val & PSR_ZERO;
 }
 
 void cpu_put_psr_raw(CPUSPARCState *env, target_ulong val)
@@ -249,17 +270,32 @@ void helper_restored(CPUSPARCState *env)
 
 target_ulong cpu_get_ccr(CPUSPARCState *env)
 {
-    target_ulong psr;
+    target_ulong ccr = 0;
 
-    psr = cpu_get_psr(env);
+    helper_compute_psr(env);
 
-    return ((env->xcc >> 20) << 4) | ((psr & PSR_ICC) >> 20);
+    ccr |= (env->icc_C >> 32) & 1;
+    ccr |= ((int32_t)env->cc_V < 0) << 1;
+    ccr |= ((int32_t)env->icc_Z == 0) << 2;
+    ccr |= ((int32_t)env->cc_N < 0) << 3;
+
+    ccr |= env->xcc_C << 4;
+    ccr |= (env->cc_V < 0) << 5;
+    ccr |= (env->xcc_Z == 0) << 6;
+    ccr |= (env->cc_N < 0) << 7;
+
+    return ccr;
 }
 
 void cpu_put_ccr(CPUSPARCState *env, target_ulong val)
 {
-    env->xcc = (val >> 4) << 20;
-    env->psr = (val & 0xf) << 20;
+    env->cc_N = deposit64(-(val & 0x08), 32, 32, -(val & 0x80));
+    env->cc_V = deposit64(-(val & 0x02), 32, 32, -(val & 0x20));
+    env->icc_C = (uint64_t)val << 32;
+    env->xcc_C = (val >> 4) & 1;
+    env->icc_Z = ~val & 0x04;
+    env->xcc_Z = ~val & 0x40;
+
     CC_OP = CC_OP_FLAGS;
 }
 

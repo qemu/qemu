@@ -21,16 +21,6 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
-static uint32_t compute_all_flags(CPUSPARCState *env)
-{
-    return env->psr & PSR_ICC;
-}
-
-static uint32_t compute_C_flags(CPUSPARCState *env)
-{
-    return env->psr & PSR_CARRY;
-}
-
 static inline uint32_t get_NZ_icc(int32_t dst)
 {
     uint32_t ret = 0;
@@ -44,16 +34,6 @@ static inline uint32_t get_NZ_icc(int32_t dst)
 }
 
 #ifdef TARGET_SPARC64
-static uint32_t compute_all_flags_xcc(CPUSPARCState *env)
-{
-    return env->xcc & PSR_ICC;
-}
-
-static uint32_t compute_C_flags_xcc(CPUSPARCState *env)
-{
-    return env->xcc & PSR_CARRY;
-}
-
 static inline uint32_t get_NZ_xcc(target_long dst)
 {
     uint32_t ret = 0;
@@ -422,7 +402,6 @@ typedef struct CCTable {
 
 static const CCTable icc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
-    [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
     [CC_OP_DIV] = { compute_all_div, compute_C_div },
     [CC_OP_ADD] = { compute_all_add, compute_C_add },
     [CC_OP_ADDX] = { compute_all_addx, compute_C_addx },
@@ -438,7 +417,6 @@ static const CCTable icc_table[CC_OP_NB] = {
 #ifdef TARGET_SPARC64
 static const CCTable xcc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
-    [CC_OP_FLAGS] = { compute_all_flags_xcc, compute_C_flags_xcc },
     [CC_OP_DIV] = { compute_all_logic_xcc, compute_C_logic },
     [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
     [CC_OP_ADDX] = { compute_all_addx_xcc, compute_C_addx_xcc },
@@ -454,18 +432,37 @@ static const CCTable xcc_table[CC_OP_NB] = {
 
 void helper_compute_psr(CPUSPARCState *env)
 {
-    uint32_t new_psr;
+    if (CC_OP == CC_OP_FLAGS) {
+        return;
+    }
 
-    new_psr = icc_table[CC_OP].compute_all(env);
-    env->psr = new_psr;
+    uint32_t icc = icc_table[CC_OP].compute_all(env);
 #ifdef TARGET_SPARC64
-    new_psr = xcc_table[CC_OP].compute_all(env);
-    env->xcc = new_psr;
+    uint32_t xcc = xcc_table[CC_OP].compute_all(env);
+
+    env->cc_N = deposit64(-(icc & PSR_NEG), 32, 32, -(xcc & PSR_NEG));
+    env->cc_V = deposit64(-(icc & PSR_OVF), 32, 32, -(xcc & PSR_OVF));
+    env->icc_C = (uint64_t)icc << (32 - PSR_CARRY_SHIFT);
+    env->xcc_C = (xcc >> PSR_CARRY_SHIFT) & 1;
+    env->xcc_Z = ~xcc & PSR_ZERO;
+#else
+    env->cc_N = -(icc & PSR_NEG);
+    env->cc_V = -(icc & PSR_OVF);
+    env->icc_C = (icc >> PSR_CARRY_SHIFT) & 1;
 #endif
+    env->icc_Z = ~icc & PSR_ZERO;
+
     CC_OP = CC_OP_FLAGS;
 }
 
 uint32_t helper_compute_C_icc(CPUSPARCState *env)
 {
+    if (CC_OP == CC_OP_FLAGS) {
+#ifdef TARGET_SPARC64
+        return extract64(env->icc_C, 32, 1);
+#else
+        return env->icc_C;
+#endif
+    }
     return icc_table[CC_OP].compute_c(env) >> PSR_CARRY_SHIFT;
 }

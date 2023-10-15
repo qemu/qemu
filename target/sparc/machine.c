@@ -83,6 +83,42 @@ static const VMStateInfo vmstate_psr = {
     .put = put_psr,
 };
 
+#ifdef TARGET_SPARC64
+static int get_xcc(QEMUFile *f, void *opaque, size_t size,
+                   const VMStateField *field)
+{
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+    uint32_t val = qemu_get_be32(f);
+
+    /* Do not clobber icc.[NV] */
+    env->cc_N = deposit64(env->cc_N, 32, 32, -(val & PSR_NEG));
+    env->cc_V = deposit64(env->cc_V, 32, 32, -(val & PSR_OVF));
+    env->xcc_Z = ~val & PSR_ZERO;
+    env->xcc_C = (val >> PSR_CARRY_SHIFT) & 1;
+
+    return 0;
+}
+
+static int put_xcc(QEMUFile *f, void *opaque, size_t size,
+                   const VMStateField *field, JSONWriter *vmdesc)
+{
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+    uint32_t val = cpu_get_ccr(env);
+
+    /* Extract just xcc out of ccr and shift into legacy position. */
+    qemu_put_be32(f, (val & 0xf0) << (20 - 4));
+    return 0;
+}
+
+static const VMStateInfo vmstate_xcc = {
+    .name = "xcc",
+    .get = get_xcc,
+    .put = put_xcc,
+};
+#endif
+
 static int cpu_pre_save(void *opaque)
 {
     SPARCCPU *cpu = opaque;
@@ -155,7 +191,14 @@ const VMStateDescription vmstate_sparc_cpu = {
         VMSTATE_UINT32(env.mmu_version, SPARCCPU),
         VMSTATE_STRUCT_ARRAY(env.ts, SPARCCPU, MAXTL_MAX, 0,
                              vmstate_trap_state, trap_state),
-        VMSTATE_UINT32(env.xcc, SPARCCPU),
+        {
+            .name = "xcc",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_xcc,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
         VMSTATE_UINT32(env.asi, SPARCCPU),
         VMSTATE_UINT32(env.pstate, SPARCCPU),
         VMSTATE_UINT32(env.tl, SPARCCPU),
