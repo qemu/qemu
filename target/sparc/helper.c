@@ -156,7 +156,7 @@ uint64_t helper_udivx(CPUSPARCState *env, uint64_t a, uint64_t b)
 target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
-    target_ulong dst;
+    target_ulong dst, v;
 
     /* Tag overflow occurs if either input has bits 0 or 1 set.  */
     if ((src1 | src2) & 3) {
@@ -166,13 +166,23 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
     dst = src1 + src2;
 
     /* Tag overflow occurs if the addition overflows.  */
-    if (~(src1 ^ src2) & (src1 ^ dst) & (1u << 31)) {
+    v = ~(src1 ^ src2) & (src1 ^ dst);
+    if (v & (1u << 31)) {
         goto tag_overflow;
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_src = src1;
-    env->cc_src2 = src2;
+    env->cc_V = v;
+    env->cc_N = dst;
+    env->icc_Z = dst;
+#ifdef TARGET_SPARC64
+    env->xcc_Z = dst;
+    env->icc_C = dst ^ src1 ^ src2;
+    env->xcc_C = dst < src1;
+#else
+    env->icc_C = dst < src1;
+#endif
+
     return dst;
 
  tag_overflow:
@@ -182,7 +192,7 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
 target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
-    target_ulong dst;
+    target_ulong dst, v;
 
     /* Tag overflow occurs if either input has bits 0 or 1 set.  */
     if ((src1 | src2) & 3) {
@@ -192,13 +202,23 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
     dst = src1 - src2;
 
     /* Tag overflow occurs if the subtraction overflows.  */
-    if ((src1 ^ src2) & (src1 ^ dst) & (1u << 31)) {
+    v = (src1 ^ src2) & (src1 ^ dst);
+    if (v & (1u << 31)) {
         goto tag_overflow;
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_src = src1;
-    env->cc_src2 = src2;
+    env->cc_V = v;
+    env->cc_N = dst;
+    env->icc_Z = dst;
+#ifdef TARGET_SPARC64
+    env->xcc_Z = dst;
+    env->icc_C = dst ^ src1 ^ src2;
+    env->xcc_C = src1 < src2;
+#else
+    env->icc_C = src1 < src2;
+#endif
+
     return dst;
 
  tag_overflow:
