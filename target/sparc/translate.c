@@ -105,8 +105,6 @@
 
 /* global register indexes */
 static TCGv_ptr cpu_regwptr;
-static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
-static TCGv_i32 cpu_cc_op;
 static TCGv cpu_fsr, cpu_pc, cpu_npc;
 static TCGv cpu_regs[32];
 static TCGv cpu_y;
@@ -172,7 +170,6 @@ typedef struct DisasContext {
 #endif
 #endif
 
-    uint32_t cc_op;  /* current CC operation */
     sparc_def_t *def;
 #ifdef TARGET_SPARC64
     int fprs_dirty;
@@ -962,14 +959,6 @@ static void save_npc(DisasContext *dc)
     }
 }
 
-static void update_psr(DisasContext *dc)
-{
-    if (dc->cc_op != CC_OP_FLAGS) {
-        dc->cc_op = CC_OP_FLAGS;
-        gen_helper_compute_psr(tcg_env);
-    }
-}
-
 static void save_state(DisasContext *dc)
 {
     tcg_gen_movi_tl(cpu_pc, dc->pc);
@@ -1048,20 +1037,9 @@ static void gen_op_next_insn(void)
 static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                         DisasContext *dc)
 {
-    TCGv t1, t2;
+    TCGv t1;
 
     cmp->is_bool = false;
-
-    switch (dc->cc_op) {
-    default:
-        gen_helper_compute_psr(tcg_env);
-        dc->cc_op = CC_OP_FLAGS;
-        break;
-
-    case CC_OP_FLAGS:
-        break;
-    }
-
     cmp->c1 = t1 = tcg_temp_new();
     cmp->c2 = tcg_constant_tl(0);
 
@@ -2739,7 +2717,6 @@ TRANS(RDASR17, ASR17, do_rd_special, true, a->rd, do_rd_leon3_config)
 
 static TCGv do_rdccr(DisasContext *dc, TCGv dst)
 {
-    update_psr(dc);
     gen_helper_rdccr(dst, tcg_env);
     return dst;
 }
@@ -2852,7 +2829,6 @@ TRANS(RDSTRAND_STATUS, HYPV, do_rd_special, true, a->rd, do_rdstrand_status)
 
 static TCGv do_rdpsr(DisasContext *dc, TCGv dst)
 {
-    update_psr(dc);
     gen_helper_rdpsr(dst, tcg_env);
     return dst;
 }
@@ -3257,8 +3233,6 @@ TRANS(WRPOWERDOWN, POWERDOWN, do_wr_special, a, supervisor(dc), do_wrpowerdown)
 static void do_wrpsr(DisasContext *dc, TCGv src)
 {
     gen_helper_wrpsr(tcg_env, src);
-    tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-    dc->cc_op = CC_OP_FLAGS;
     dc->base.is_jmp = DISAS_EXIT;
 }
 
@@ -3522,7 +3496,7 @@ static bool trans_NOP(DisasContext *dc, arg_NOP *a)
 TRANS(NOP_v7, 32, trans_NOP, a)
 TRANS(NOP_v9, 64, trans_NOP, a)
 
-static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
+static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a,
                          void (*func)(TCGv, TCGv, TCGv),
                          void (*funci)(TCGv, TCGv, target_long),
                          bool logic_cc)
@@ -3536,8 +3510,6 @@ static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
 
     if (logic_cc) {
         dst = cpu_cc_N;
-    } else if (a->cc && cc_op > CC_OP_FLAGS) {
-        dst = cpu_cc_dst;
     } else {
         dst = gen_dest_gpr(dc, a->rd);
     }
@@ -3564,42 +3536,36 @@ static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
     }
 
     gen_store_gpr(dc, a->rd, dst);
-
-    if (a->cc) {
-        tcg_gen_movi_i32(cpu_cc_op, cc_op);
-        dc->cc_op = cc_op;
-    }
     return advance_pc(dc);
 }
 
-static bool do_arith(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
+static bool do_arith(DisasContext *dc, arg_r_r_ri_cc *a,
                      void (*func)(TCGv, TCGv, TCGv),
                      void (*funci)(TCGv, TCGv, target_long),
                      void (*func_cc)(TCGv, TCGv, TCGv))
 {
     if (a->cc) {
-        assert(cc_op >= 0);
-        return do_arith_int(dc, a, cc_op, func_cc, NULL, false);
+        return do_arith_int(dc, a, func_cc, NULL, false);
     }
-    return do_arith_int(dc, a, cc_op, func, funci, false);
+    return do_arith_int(dc, a, func, funci, false);
 }
 
 static bool do_logic(DisasContext *dc, arg_r_r_ri_cc *a,
                      void (*func)(TCGv, TCGv, TCGv),
                      void (*funci)(TCGv, TCGv, target_long))
 {
-    return do_arith_int(dc, a, CC_OP_FLAGS, func, funci, a->cc);
+    return do_arith_int(dc, a, func, funci, a->cc);
 }
 
-TRANS(ADD, ALL, do_arith, a, CC_OP_FLAGS,
-      tcg_gen_add_tl, tcg_gen_addi_tl, gen_op_addcc)
-TRANS(SUB, ALL, do_arith, a, CC_OP_FLAGS,
-      tcg_gen_sub_tl, tcg_gen_subi_tl, gen_op_subcc)
+TRANS(ADD, ALL, do_arith, a, tcg_gen_add_tl, tcg_gen_addi_tl, gen_op_addcc)
+TRANS(SUB, ALL, do_arith, a, tcg_gen_sub_tl, tcg_gen_subi_tl, gen_op_subcc)
+TRANS(ADDC, ALL, do_arith, a, gen_op_addc, NULL, gen_op_addccc)
+TRANS(SUBC, ALL, do_arith, a, gen_op_subc, NULL, gen_op_subccc)
 
-TRANS(TADDcc, ALL, do_arith, a, CC_OP_FLAGS, NULL, NULL, gen_op_taddcc)
-TRANS(TSUBcc, ALL, do_arith, a, CC_OP_FLAGS, NULL, NULL, gen_op_tsubcc)
-TRANS(TADDccTV, ALL, do_arith, a, CC_OP_FLAGS, NULL, NULL, gen_op_taddcctv)
-TRANS(TSUBccTV, ALL, do_arith, a, CC_OP_FLAGS, NULL, NULL, gen_op_tsubcctv)
+TRANS(TADDcc, ALL, do_arith, a, NULL, NULL, gen_op_taddcc)
+TRANS(TSUBcc, ALL, do_arith, a, NULL, NULL, gen_op_tsubcc)
+TRANS(TADDccTV, ALL, do_arith, a, NULL, NULL, gen_op_taddcctv)
+TRANS(TSUBccTV, ALL, do_arith, a, NULL, NULL, gen_op_tsubcctv)
 
 TRANS(AND, ALL, do_logic, a, tcg_gen_and_tl, tcg_gen_andi_tl)
 TRANS(XOR, ALL, do_logic, a, tcg_gen_xor_tl, tcg_gen_xori_tl)
@@ -3607,17 +3573,18 @@ TRANS(ANDN, ALL, do_logic, a, tcg_gen_andc_tl, NULL)
 TRANS(ORN, ALL, do_logic, a, tcg_gen_orc_tl, NULL)
 TRANS(XORN, ALL, do_logic, a, tcg_gen_eqv_tl, NULL)
 
-TRANS(MULX, 64, do_arith, a, -1, tcg_gen_mul_tl, tcg_gen_muli_tl, NULL)
+TRANS(MULX, 64, do_arith, a, tcg_gen_mul_tl, tcg_gen_muli_tl, NULL)
 TRANS(UMUL, MUL, do_logic, a, gen_op_umul, NULL)
 TRANS(SMUL, MUL, do_logic, a, gen_op_smul, NULL)
+TRANS(MULScc, ALL, do_arith, a, NULL, NULL, gen_op_mulscc)
 
-TRANS(UDIVX, 64, do_arith, a, -1, gen_op_udivx, NULL, NULL)
-TRANS(SDIVX, 64, do_arith, a, -1, gen_op_sdivx, NULL, NULL)
-TRANS(UDIV, DIV, do_arith, a, CC_OP_FLAGS, gen_op_udiv, NULL, gen_op_udivcc)
-TRANS(SDIV, DIV, do_arith, a, CC_OP_FLAGS, gen_op_sdiv, NULL, gen_op_sdivcc)
+TRANS(UDIVX, 64, do_arith, a, gen_op_udivx, NULL, NULL)
+TRANS(SDIVX, 64, do_arith, a, gen_op_sdivx, NULL, NULL)
+TRANS(UDIV, DIV, do_arith, a, gen_op_udiv, NULL, gen_op_udivcc)
+TRANS(SDIV, DIV, do_arith, a, gen_op_sdiv, NULL, gen_op_sdivcc)
 
 /* TODO: Should have feature bit -- comes in with UltraSparc T2. */
-TRANS(POPC, 64, do_arith, a, -1, gen_op_popc, NULL, NULL)
+TRANS(POPC, 64, do_arith, a, gen_op_popc, NULL, NULL)
 
 static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
 {
@@ -3636,24 +3603,6 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
     return do_logic(dc, a, tcg_gen_or_tl, tcg_gen_ori_tl);
 }
 
-static bool trans_ADDC(DisasContext *dc, arg_r_r_ri_cc *a)
-{
-    update_psr(dc);
-    return do_arith(dc, a, CC_OP_FLAGS, gen_op_addc, NULL, gen_op_addccc);
-}
-
-static bool trans_SUBC(DisasContext *dc, arg_r_r_ri_cc *a)
-{
-    update_psr(dc);
-    return do_arith(dc, a, CC_OP_FLAGS, gen_op_subc, NULL, gen_op_subccc);
-}
-
-static bool trans_MULScc(DisasContext *dc, arg_r_r_ri_cc *a)
-{
-    update_psr(dc);
-    return do_arith(dc, a, CC_OP_FLAGS, NULL, NULL, gen_op_mulscc);
-}
-
 static bool gen_edge(DisasContext *dc, arg_r_r_r *a,
                      int width, bool cc, bool left)
 {
@@ -3667,8 +3616,6 @@ static bool gen_edge(DisasContext *dc, arg_r_r_r *a,
 
     if (cc) {
         gen_op_subcc(cpu_cc_N, s1, s2);
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-        dc->cc_op = CC_OP_FLAGS;
     }
 
     /*
@@ -5080,7 +5027,6 @@ static void sparc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     dc->pc = dc->base.pc_first;
     dc->npc = (target_ulong)dc->base.tb->cs_base;
-    dc->cc_op = CC_OP_DYNAMIC;
     dc->mem_idx = dc->base.tb->flags & TB_FLAG_MMU_MASK;
     dc->def = &env->def;
     dc->fpu_enabled = tb_fpu_enabled(dc->base.tb->flags);
@@ -5269,13 +5215,6 @@ void sparc_tcg_init(void)
         "f48", "f50", "f52", "f54", "f56", "f58", "f60", "f62",
     };
 
-    static const struct { TCGv_i32 *ptr; int off; const char *name; } r32[] = {
-#ifdef TARGET_SPARC64
-        { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
-#endif
-        { &cpu_cc_op, offsetof(CPUSPARCState, cc_op), "cc_op" },
-    };
-
     static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
 #ifdef TARGET_SPARC64
         { &cpu_gsr, offsetof(CPUSPARCState, gsr), "gsr" },
@@ -5287,9 +5226,6 @@ void sparc_tcg_init(void)
         { &cpu_icc_Z, offsetof(CPUSPARCState, icc_Z), "icc_Z" },
         { &cpu_icc_C, offsetof(CPUSPARCState, icc_C), "icc_C" },
         { &cpu_cond, offsetof(CPUSPARCState, cond), "cond" },
-        { &cpu_cc_src, offsetof(CPUSPARCState, cc_src), "cc_src" },
-        { &cpu_cc_src2, offsetof(CPUSPARCState, cc_src2), "cc_src2" },
-        { &cpu_cc_dst, offsetof(CPUSPARCState, cc_dst), "cc_dst" },
         { &cpu_fsr, offsetof(CPUSPARCState, fsr), "fsr" },
         { &cpu_pc, offsetof(CPUSPARCState, pc), "pc" },
         { &cpu_npc, offsetof(CPUSPARCState, npc), "npc" },
@@ -5302,10 +5238,6 @@ void sparc_tcg_init(void)
     cpu_regwptr = tcg_global_mem_new_ptr(tcg_env,
                                          offsetof(CPUSPARCState, regwptr),
                                          "regwptr");
-
-    for (i = 0; i < ARRAY_SIZE(r32); ++i) {
-        *r32[i].ptr = tcg_global_mem_new_i32(tcg_env, r32[i].off, r32[i].name);
-    }
 
     for (i = 0; i < ARRAY_SIZE(rtl); ++i) {
         *rtl[i].ptr = tcg_global_mem_new(tcg_env, rtl[i].off, rtl[i].name);
@@ -5329,6 +5261,11 @@ void sparc_tcg_init(void)
                                             offsetof(CPUSPARCState, fpr[i]),
                                             fregnames[i]);
     }
+
+#ifdef TARGET_SPARC64
+    cpu_fprs = tcg_global_mem_new_i32(tcg_env,
+                                      offsetof(CPUSPARCState, fprs), "fprs");
+#endif
 }
 
 void sparc_restore_state_to_opc(CPUState *cs,

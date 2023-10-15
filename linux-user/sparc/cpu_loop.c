@@ -222,11 +222,6 @@ void cpu_loop (CPUSPARCState *env)
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
-        /* Compute PSR before exposing state.  */
-        if (env->cc_op != CC_OP_FLAGS) {
-            cpu_get_psr(env);
-        }
-
         switch (trapnr) {
         case TARGET_TT_SYSCALL:
             ret = do_syscall (env, env->gregs[1],
