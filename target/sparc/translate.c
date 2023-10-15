@@ -693,22 +693,76 @@ static void gen_op_sdivx(TCGv dst, TCGv src1, TCGv src2)
 
 static void gen_op_udiv(TCGv dst, TCGv src1, TCGv src2)
 {
+#ifdef TARGET_SPARC64
     gen_helper_udiv(dst, tcg_env, src1, src2);
+    tcg_gen_ext32u_tl(dst, dst);
+#else
+    TCGv_i64 t64 = tcg_temp_new_i64();
+    gen_helper_udiv(t64, tcg_env, src1, src2);
+    tcg_gen_trunc_i64_tl(dst, t64);
+#endif
 }
 
 static void gen_op_sdiv(TCGv dst, TCGv src1, TCGv src2)
 {
+#ifdef TARGET_SPARC64
     gen_helper_sdiv(dst, tcg_env, src1, src2);
+    tcg_gen_ext32s_tl(dst, dst);
+#else
+    TCGv_i64 t64 = tcg_temp_new_i64();
+    gen_helper_sdiv(t64, tcg_env, src1, src2);
+    tcg_gen_trunc_i64_tl(dst, t64);
+#endif
 }
 
 static void gen_op_udivcc(TCGv dst, TCGv src1, TCGv src2)
 {
-    gen_helper_udiv_cc(dst, tcg_env, src1, src2);
+    TCGv_i64 t64;
+
+#ifdef TARGET_SPARC64
+    t64 = cpu_cc_V;
+#else
+    t64 = tcg_temp_new_i64();
+#endif
+
+    gen_helper_udiv(t64, tcg_env, src1, src2);
+
+#ifdef TARGET_SPARC64
+    tcg_gen_ext32u_tl(cpu_cc_N, t64);
+    tcg_gen_shri_tl(cpu_cc_V, t64, 32);
+    tcg_gen_mov_tl(cpu_icc_Z, cpu_cc_N);
+    tcg_gen_movi_tl(cpu_icc_C, 0);
+#else
+    tcg_gen_extr_i64_tl(cpu_cc_N, cpu_cc_V, t64);
+#endif
+    tcg_gen_mov_tl(cpu_cc_Z, cpu_cc_N);
+    tcg_gen_movi_tl(cpu_cc_C, 0);
+    tcg_gen_mov_tl(dst, cpu_cc_N);
 }
 
 static void gen_op_sdivcc(TCGv dst, TCGv src1, TCGv src2)
 {
-    gen_helper_sdiv_cc(dst, tcg_env, src1, src2);
+    TCGv_i64 t64;
+
+#ifdef TARGET_SPARC64
+    t64 = cpu_cc_V;
+#else
+    t64 = tcg_temp_new_i64();
+#endif
+
+    gen_helper_sdiv(t64, tcg_env, src1, src2);
+
+#ifdef TARGET_SPARC64
+    tcg_gen_ext32s_tl(cpu_cc_N, t64);
+    tcg_gen_shri_tl(cpu_cc_V, t64, 32);
+    tcg_gen_mov_tl(cpu_icc_Z, cpu_cc_N);
+    tcg_gen_movi_tl(cpu_icc_C, 0);
+#else
+    tcg_gen_extr_i64_tl(cpu_cc_N, cpu_cc_V, t64);
+#endif
+    tcg_gen_mov_tl(cpu_cc_Z, cpu_cc_N);
+    tcg_gen_movi_tl(cpu_cc_C, 0);
+    tcg_gen_mov_tl(dst, cpu_cc_N);
 }
 
 static void gen_op_taddcctv(TCGv dst, TCGv src1, TCGv src2)
@@ -3717,8 +3771,8 @@ TRANS(SMUL, MUL, do_logic, a, gen_op_smul, NULL)
 
 TRANS(UDIVX, 64, do_arith, a, -1, gen_op_udivx, NULL, NULL)
 TRANS(SDIVX, 64, do_arith, a, -1, gen_op_sdivx, NULL, NULL)
-TRANS(UDIV, DIV, do_arith, a, CC_OP_DIV, gen_op_udiv, NULL, gen_op_udivcc)
-TRANS(SDIV, DIV, do_arith, a, CC_OP_DIV, gen_op_sdiv, NULL, gen_op_sdivcc)
+TRANS(UDIV, DIV, do_arith, a, CC_OP_FLAGS, gen_op_udiv, NULL, gen_op_udivcc)
+TRANS(SDIV, DIV, do_arith, a, CC_OP_FLAGS, gen_op_sdiv, NULL, gen_op_sdivcc)
 
 /* TODO: Should have feature bit -- comes in with UltraSparc T2. */
 TRANS(POPC, 64, do_arith, a, -1, gen_op_popc, NULL, NULL)
@@ -3743,10 +3797,6 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
 static bool trans_ADDC(DisasContext *dc, arg_r_r_ri_cc *a)
 {
     switch (dc->cc_op) {
-    case CC_OP_DIV:
-        /* Carry is known to be zero.  Fall back to plain ADD.  */
-        return do_arith(dc, a, CC_OP_ADD,
-                        tcg_gen_add_tl, tcg_gen_addi_tl, gen_op_add_cc);
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:
@@ -3766,10 +3816,6 @@ static bool trans_ADDC(DisasContext *dc, arg_r_r_ri_cc *a)
 static bool trans_SUBC(DisasContext *dc, arg_r_r_ri_cc *a)
 {
     switch (dc->cc_op) {
-    case CC_OP_DIV:
-        /* Carry is known to be zero.  Fall back to plain SUB.  */
-        return do_arith(dc, a, CC_OP_SUB,
-                        tcg_gen_sub_tl, tcg_gen_subi_tl, gen_op_sub_cc);
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:

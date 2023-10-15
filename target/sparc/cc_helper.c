@@ -47,30 +47,6 @@ static inline uint32_t get_NZ_xcc(target_long dst)
 }
 #endif
 
-static inline uint32_t get_V_div_icc(target_ulong src2)
-{
-    uint32_t ret = 0;
-
-    if (src2 != 0) {
-        ret = PSR_OVF;
-    }
-    return ret;
-}
-
-static uint32_t compute_all_div(CPUSPARCState *env)
-{
-    uint32_t ret;
-
-    ret = get_NZ_icc(CC_DST);
-    ret |= get_V_div_icc(CC_SRC2);
-    return ret;
-}
-
-static uint32_t compute_C_div(CPUSPARCState *env)
-{
-    return 0;
-}
-
 static inline uint32_t get_C_add_icc(uint32_t dst, uint32_t src1)
 {
     uint32_t ret = 0;
@@ -378,13 +354,6 @@ static uint32_t compute_all_tsubtv(CPUSPARCState *env)
     return ret;
 }
 
-#ifdef TARGET_SPARC64
-static uint32_t compute_all_logic_xcc(CPUSPARCState *env)
-{
-    return get_NZ_xcc(CC_DST);
-}
-#endif
-
 typedef struct CCTable {
     uint32_t (*compute_all)(CPUSPARCState *env); /* return all the flags */
     uint32_t (*compute_c)(CPUSPARCState *env);  /* return the C flag */
@@ -392,7 +361,6 @@ typedef struct CCTable {
 
 static const CCTable icc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
-    [CC_OP_DIV] = { compute_all_div, compute_C_div },
     [CC_OP_ADD] = { compute_all_add, compute_C_add },
     [CC_OP_ADDX] = { compute_all_addx, compute_C_addx },
     [CC_OP_TADD] = { compute_all_tadd, compute_C_add },
@@ -406,7 +374,6 @@ static const CCTable icc_table[CC_OP_NB] = {
 #ifdef TARGET_SPARC64
 static const CCTable xcc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
-    [CC_OP_DIV] = { compute_all_logic_xcc, compute_C_div },
     [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
     [CC_OP_ADDX] = { compute_all_addx_xcc, compute_C_addx_xcc },
     [CC_OP_TADD] = { compute_all_add_xcc, compute_C_add_xcc },
