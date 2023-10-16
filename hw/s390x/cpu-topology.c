@@ -90,6 +90,60 @@ static void s390_topology_init(MachineState *ms)
                                             smp->books * smp->drawers);
 }
 
+/*
+ * s390_handle_ptf:
+ *
+ * @register 1: contains the function code
+ *
+ * Function codes 0 (horizontal) and 1 (vertical) define the CPU
+ * polarization requested by the guest.
+ *
+ * Function code 2 is handling topology changes and is interpreted
+ * by the SIE.
+ */
+void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
+{
+    CpuS390Polarization polarization;
+    CPUS390XState *env = &cpu->env;
+    uint64_t reg = env->regs[r1];
+    int fc = reg & S390_TOPO_FC_MASK;
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        s390_program_interrupt(env, PGM_OPERATION, ra);
+        return;
+    }
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
+        return;
+    }
+
+    if (reg & ~S390_TOPO_FC_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+
+    polarization = S390_CPU_POLARIZATION_VERTICAL;
+    switch (fc) {
+    case 0:
+        polarization = S390_CPU_POLARIZATION_HORIZONTAL;
+        /* fallthrough */
+    case 1:
+        if (s390_topology.polarization == polarization) {
+            env->regs[r1] |= S390_PTF_REASON_DONE;
+            setcc(cpu, 2);
+        } else {
+            s390_topology.polarization = polarization;
+            s390_cpu_topology_set_changed(true);
+            setcc(cpu, 0);
+        }
+        break;
+    default:
+        /* Note that fc == 2 is interpreted by the SIE */
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+    }
+}
+
 /**
  * s390_topology_reset:
  *
@@ -99,6 +153,7 @@ static void s390_topology_init(MachineState *ms)
 void s390_topology_reset(void)
 {
     s390_cpu_topology_set_changed(false);
+    s390_topology.polarization = S390_CPU_POLARIZATION_HORIZONTAL;
 }
 
 /**
