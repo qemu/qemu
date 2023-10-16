@@ -28,10 +28,12 @@
  * s390_topology is used to keep the topology information.
  * .cores_per_socket: tracks information on the count of cores
  *                    per socket.
+ * .polarization: tracks machine polarization.
  */
 S390Topology s390_topology = {
     /* will be initialized after the CPU model is realized */
     .cores_per_socket = NULL,
+    .polarization = S390_CPU_POLARIZATION_HORIZONTAL,
 };
 
 /**
