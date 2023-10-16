@@ -49,7 +49,7 @@ def serror(file, lnum, errtext):
 
 def parse_directive(line):
     """Return first word of line, if any"""
-    return re.split('\W', line)[0]
+    return re.split(r'\W', line)[0]
 
 def parse_defheading(file, lnum, line):
     """Handle a DEFHEADING directive"""
