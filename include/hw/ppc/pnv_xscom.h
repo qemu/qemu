@@ -90,6 +90,9 @@ struct PnvXScomInterfaceClass {
     ((uint64_t)(((core) & 0x1C) + 0x40) << 22)
 #define PNV9_XSCOM_EQ_SIZE        0x100000
 
+#define PNV9_XSCOM_I2CM_BASE      0xa0000
+#define PNV9_XSCOM_I2CM_SIZE      0x1000
+
 #define PNV9_XSCOM_OCC_BASE       PNV_XSCOM_OCC_BASE
 #define PNV9_XSCOM_OCC_SIZE       0x8000
 

@@ -43,6 +43,7 @@ ppc_ss.add(when: 'CONFIG_POWERNV', if_true: files(
   'pnv.c',
   'pnv_xscom.c',
   'pnv_core.c',
+  'pnv_i2c.c',
   'pnv_lpc.c',
   'pnv_psi.c',
   'pnv_occ.c',
