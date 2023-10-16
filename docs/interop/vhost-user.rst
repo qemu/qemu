@@ -442,6 +442,19 @@ back-end must enable all rings immediately.
 While processing the rings (whether they are enabled or not), the back-end
 must support changing some configuration aspects on the fly.
 
+.. _suspended_device_state:
+
+Suspended device state
+^^^^^^^^^^^^^^^^^^^^^^
+
+While all vrings are stopped, the device is *suspended*.  In addition to
+not processing any vring (because they are stopped), the device must:
+
+* not write to any guest memory regions,
+* not send any notifications to the guest,
+* not send any messages to the front-end,
+* still process and reply to messages from the front-end.
+
 Multiple queue support
 ----------------------
 
@@ -529,7 +542,8 @@ ancillary data, it may be used to inform the front-end that the log has
 been modified.
 
 Once the source has finished migration, rings will be stopped by the
-source. No further update must be done before rings are restarted.
+source (:ref:`Suspended device state <suspended_device_state>`). No
+further update must be done before rings are restarted.
 
 In postcopy migration the back-end is started before all the memory has
 been received from the source host, and care must be taken to avoid
@@ -1122,6 +1136,10 @@ Front-end message types
   Consequently, the payload type is specific to the type of virt queue
   (*a vring descriptor index for split virtqueues* vs. *vring descriptor
   indices for packed virtqueues*).
+
+  When and as long as all of a device’s vrings are stopped, it is
+  *suspended*, see :ref:`Suspended device state
+  <suspended_device_state>`.
 
   The request payload’s *num* field is currently reserved and must be
   set to 0.
