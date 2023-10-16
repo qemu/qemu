@@ -497,7 +497,7 @@ static void ufstest_read_write(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmpuint(block_size, ==, 4096);
 
     /* Write data */
-    memset(write_buf, rand() % 255 + 1, block_size);
+    memset(write_buf, 0xab, block_size);
     ufs_send_scsi_command(ufs, 0, 1, write_cdb, write_buf, block_size, NULL, 0,
                           &utrd, &rsp_upiu);
     g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);

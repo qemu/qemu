@@ -258,7 +258,7 @@ static void ufs_irq_check(UfsHc *u)
 
 static void ufs_process_db(UfsHc *u, uint32_t val)
 {
-    unsigned long doorbell;
+    DECLARE_BITMAP(doorbell, UFS_MAX_NUTRS);
     uint32_t slot;
     uint32_t nutrs = u->params.nutrs;
     UfsRequest *req;
@@ -268,8 +268,8 @@ static void ufs_process_db(UfsHc *u, uint32_t val)
         return;
     }
 
-    doorbell = val;
-    slot = find_first_bit(&doorbell, nutrs);
+    doorbell[0] = val;
+    slot = find_first_bit(doorbell, nutrs);
 
     while (slot < nutrs) {
         req = &u->req_list[slot];
@@ -285,7 +285,7 @@ static void ufs_process_db(UfsHc *u, uint32_t val)
 
         trace_ufs_process_db(slot);
         req->state = UFS_REQUEST_READY;
-        slot = find_next_bit(&doorbell, nutrs, slot + 1);
+        slot = find_next_bit(doorbell, nutrs, slot + 1);
     }
 
     qemu_bh_schedule(u->doorbell_bh);
@@ -838,7 +838,7 @@ static QueryRespCode ufs_read_unit_desc(UfsRequest *req)
     uint8_t lun = req->req_upiu.qr.index;
 
     if (lun != UFS_UPIU_RPMB_WLUN &&
-        (lun > UFS_MAX_LUS || u->lus[lun] == NULL)) {
+        (lun >= UFS_MAX_LUS || u->lus[lun] == NULL)) {
         trace_ufs_err_query_invalid_index(req->req_upiu.qr.opcode, lun);
         return UFS_QUERY_RESULT_INVALID_INDEX;
     }
