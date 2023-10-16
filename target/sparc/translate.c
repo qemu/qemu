@@ -577,18 +577,6 @@ static void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     gen_op_multiply(dst, src1, src2, 1);
 }
 
-static void gen_op_udiv(TCGv dst, TCGv src1, TCGv src2)
-{
-#ifdef TARGET_SPARC64
-    gen_helper_udiv(dst, tcg_env, src1, src2);
-    tcg_gen_ext32u_tl(dst, dst);
-#else
-    TCGv_i64 t64 = tcg_temp_new_i64();
-    gen_helper_udiv(t64, tcg_env, src1, src2);
-    tcg_gen_trunc_i64_tl(dst, t64);
-#endif
-}
-
 static void gen_op_sdiv(TCGv dst, TCGv src1, TCGv src2)
 {
 #ifdef TARGET_SPARC64
@@ -3568,7 +3556,7 @@ TRANS(UMUL, MUL, do_logic, a, gen_op_umul, NULL)
 TRANS(SMUL, MUL, do_logic, a, gen_op_smul, NULL)
 TRANS(MULScc, ALL, do_arith, a, NULL, NULL, gen_op_mulscc)
 
-TRANS(UDIV, DIV, do_arith, a, gen_op_udiv, NULL, gen_op_udivcc)
+TRANS(UDIVcc, DIV, do_arith, a, NULL, NULL, gen_op_udivcc)
 TRANS(SDIV, DIV, do_arith, a, gen_op_sdiv, NULL, gen_op_sdivcc)
 
 /* TODO: Should have feature bit -- comes in with UltraSparc T2. */
@@ -3589,6 +3577,59 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
         return advance_pc(dc);
     }
     return do_logic(dc, a, tcg_gen_or_tl, tcg_gen_ori_tl);
+}
+
+static bool trans_UDIV(DisasContext *dc, arg_r_r_ri *a)
+{
+    TCGv_i64 t1, t2;
+    TCGv dst;
+
+    if (!avail_DIV(dc)) {
+        return false;
+    }
+    /* For simplicity, we under-decoded the rs2 form. */
+    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+        return false;
+    }
+
+    if (unlikely(a->rs2_or_imm == 0)) {
+        gen_exception(dc, TT_DIV_ZERO);
+        return true;
+    }
+
+    if (a->imm) {
+        t2 = tcg_constant_i64((uint32_t)a->rs2_or_imm);
+    } else {
+        TCGLabel *lab;
+        TCGv_i32 n2;
+
+        finishing_insn(dc);
+        flush_cond(dc);
+
+        n2 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(n2, cpu_regs[a->rs2_or_imm]);
+
+        lab = delay_exception(dc, TT_DIV_ZERO);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, n2, 0, lab);
+
+        t2 = tcg_temp_new_i64();
+#ifdef TARGET_SPARC64
+        tcg_gen_ext32u_i64(t2, cpu_regs[a->rs2_or_imm]);
+#else
+        tcg_gen_extu_i32_i64(t2, cpu_regs[a->rs2_or_imm]);
+#endif
+    }
+
+    t1 = tcg_temp_new_i64();
+    tcg_gen_concat_tl_i64(t1, gen_load_gpr(dc, a->rs1), cpu_y);
+
+    tcg_gen_divu_i64(t1, t1, t2);
+    tcg_gen_umin_i64(t1, t1, tcg_constant_i64(UINT32_MAX));
+
+    dst = gen_dest_gpr(dc, a->rd);
+    tcg_gen_trunc_i64_tl(dst, t1);
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
 }
 
 static bool trans_UDIVX(DisasContext *dc, arg_r_r_ri *a)
