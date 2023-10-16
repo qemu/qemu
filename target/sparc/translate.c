@@ -1015,12 +1015,6 @@ static void gen_mov_pc_npc(DisasContext *dc)
     }
 }
 
-static void gen_op_next_insn(void)
-{
-    tcg_gen_mov_tl(cpu_pc, cpu_npc);
-    tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
-}
-
 static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                         DisasContext *dc)
 {
@@ -2346,7 +2340,8 @@ static bool advance_pc(DisasContext *dc)
         case DYNAMIC_PC:
         case DYNAMIC_PC_LOOKUP:
             dc->pc = dc->npc;
-            gen_op_next_insn();
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
+            tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
             break;
 
         case JUMP_PC:
