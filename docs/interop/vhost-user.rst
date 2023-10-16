@@ -411,31 +411,33 @@ negotiation.
 Ring states
 -----------
 
-Rings can be in one of three states:
+Rings have two independent states: started/stopped, and enabled/disabled.
 
-* stopped: the back-end must not process the ring at all.
+* While a ring is stopped, the back-end must not process the ring at
+  all, regardless of whether it is enabled or disabled.  The
+  enabled/disabled state should still be tracked, though, so it can come
+  into effect once the ring is started.
 
-* started but disabled: the back-end must process the ring without
+* started and disabled: The back-end must process the ring without
   causing any side effects.  For example, for a networking device,
   in the disabled state the back-end must not supply any new RX packets,
   but must process and discard any TX packets.
 
-* started and enabled.
+* started and enabled: The back-end must process the ring normally, i.e.
+  process all requests and execute them.
 
-Each ring is initialized in a stopped state.  The back-end must start
-ring upon receiving a kick (that is, detecting that file descriptor is
-readable) on the descriptor specified by ``VHOST_USER_SET_VRING_KICK``
-or receiving the in-band message ``VHOST_USER_VRING_KICK`` if negotiated,
-and stop ring upon receiving ``VHOST_USER_GET_VRING_BASE``.
+Each ring is initialized in a stopped and disabled state.  The back-end
+must start a ring upon receiving a kick (that is, detecting that file
+descriptor is readable) on the descriptor specified by
+``VHOST_USER_SET_VRING_KICK`` or receiving the in-band message
+``VHOST_USER_VRING_KICK`` if negotiated, and stop a ring upon receiving
+``VHOST_USER_GET_VRING_BASE``.
 
 Rings can be enabled or disabled by ``VHOST_USER_SET_VRING_ENABLE``.
 
-If ``VHOST_USER_F_PROTOCOL_FEATURES`` has not been negotiated, the
-ring starts directly in the enabled state.
-
-If ``VHOST_USER_F_PROTOCOL_FEATURES`` has been negotiated, the ring is
-initialized in a disabled state and is enabled by
-``VHOST_USER_SET_VRING_ENABLE`` with parameter 1.
+In addition, upon receiving a ``VHOST_USER_SET_FEATURES`` message from
+the front-end without ``VHOST_USER_F_PROTOCOL_FEATURES`` set, the
+back-end must enable all rings immediately.
 
 While processing the rings (whether they are enabled or not), the back-end
 must support changing some configuration aspects on the fly.
