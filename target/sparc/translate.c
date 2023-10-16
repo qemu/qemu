@@ -908,19 +908,6 @@ static void gen_op_eval_fbo(TCGv dst, TCGv src, unsigned int fcc_offset)
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
-static void gen_branch2(DisasContext *dc, target_ulong pc1,
-                        target_ulong pc2, TCGv r_cond)
-{
-    TCGLabel *l1 = gen_new_label();
-
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
-
-    gen_goto_tb(dc, 0, pc1, pc1 + 4);
-
-    gen_set_label(l1);
-    gen_goto_tb(dc, 1, pc2, pc2 + 4);
-}
-
 static void gen_generic_branch(DisasContext *dc)
 {
     TCGv npc0 = tcg_constant_tl(dc->jump_pc[0]);
@@ -2352,6 +2339,8 @@ static int extract_qfpreg(DisasContext *dc, int x)
 /* Default case for non jump instructions. */
 static bool advance_pc(DisasContext *dc)
 {
+    TCGLabel *l1;
+
     if (dc->npc & 3) {
         switch (dc->npc) {
         case DYNAMIC_PC:
@@ -2359,11 +2348,22 @@ static bool advance_pc(DisasContext *dc)
             dc->pc = dc->npc;
             gen_op_next_insn();
             break;
+
         case JUMP_PC:
             /* we can do a static jump */
-            gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+            l1 = gen_new_label();
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_cond, 0, l1);
+
+            /* jump not taken */
+            gen_goto_tb(dc, 1, dc->jump_pc[1], dc->jump_pc[1] + 4);
+
+            /* jump taken */
+            gen_set_label(l1);
+            gen_goto_tb(dc, 0, dc->jump_pc[0], dc->jump_pc[0] + 4);
+
             dc->base.is_jmp = DISAS_NORETURN;
             break;
+
         default:
             g_assert_not_reached();
         }
