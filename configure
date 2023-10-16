@@ -258,7 +258,6 @@ skip_meson=no
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
-werror=""
 
 # Don't accept a target_list environment variable.
 unset target_list
@@ -314,7 +313,6 @@ objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
 ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
-smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
 widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
@@ -651,8 +649,6 @@ for opt do
   ;;
   --ninja=*) ninja="$optarg"
   ;;
-  --smbd=*) smbd="$optarg"
-  ;;
   --extra-cflags=*)
   ;;
   --extra-cxxflags=*)
@@ -743,10 +739,6 @@ for opt do
   --enable-pie) pie="yes"
   ;;
   --disable-pie) pie="no"
-  ;;
-  --enable-werror) werror="yes"
-  ;;
-  --disable-werror) werror="no"
   ;;
   --enable-cfi) cfi=true
   ;;
@@ -879,7 +871,6 @@ Advanced options (experts only):
   --cross-prefix-ARCH=PREFIX cross compiler prefix when building ARCH guest test cases
   --python=PYTHON          use specified python [$python]
   --ninja=NINJA            use specified ninja [$ninja]
-  --smbd=SMBD              use specified smbd [$smbd]
   --static                 enable static build [$static]
   --without-default-features default all --enable-* options to "disabled"
   --without-default-devices  do not include any device that is not needed to
@@ -887,7 +878,6 @@ Advanced options (experts only):
                            desired devices in configs/devices/)
   --with-devices-ARCH=NAME override default configs/devices
   --enable-debug           enable common debug build options
-  --disable-werror         disable compilation abort on warning
   --cpu=CPU                Build for host CPU [$cpu]
   --disable-containers     don't use containers for cross-building
   --container-engine=TYPE  which container engine to use [$container_engine]
@@ -1008,17 +998,6 @@ if test -z "$ninja"; then
     done
     if test -z "$ninja"; then
       error_exit "Cannot find Ninja"
-    fi
-fi
-
-# Consult white-list to determine whether to enable werror
-# by default.  Only enable by default for git builds
-if test -z "$werror" ; then
-    if test -e "$source_path/.git" && \
-        { test "$targetos" = linux || test "$targetos" = "windows"; }; then
-        werror="yes"
-    else
-        werror="no"
     fi
 fi
 
@@ -1764,6 +1743,20 @@ if test "$skip_meson" = no; then
   test -n "$objcc" && echo "objc_args = [$(meson_quote $OBJCFLAGS $EXTRA_OBJCFLAGS)]" >> $cross
   echo "c_link_args = [$(meson_quote $CFLAGS $LDFLAGS $EXTRA_CFLAGS $EXTRA_LDFLAGS)]" >> $cross
   echo "cpp_link_args = [$(meson_quote $CXXFLAGS $LDFLAGS $EXTRA_CXXFLAGS $EXTRA_LDFLAGS)]" >> $cross
+
+  # Only enable by default for git builds and on select OSes
+  echo "# environment defaults, can still be overridden on " >> $cross
+  echo "# the command line" >> $cross
+  if test -e "$source_path/.git" && \
+      { test "$targetos" = linux || test "$targetos" = "windows"; }; then
+      echo 'werror = true' >> $cross
+  fi
+  echo "[project options]" >> $cross
+  if test "$SMBD" != ''; then
+    echo "smbd = $(meson_quote "$SMBD")" >> $cross
+  fi
+
+  echo >> $cross
   echo "[binaries]" >> $cross
   echo "c = [$(meson_quote $cc $CPU_CFLAGS)]" >> $cross
   test -n "$cxx" && echo "cpp = [$(meson_quote $cxx $CPU_CFLAGS)]" >> $cross
@@ -1818,14 +1811,12 @@ if test "$skip_meson" = no; then
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
   test "$static" = yes && meson_option_add -Dprefer_static=true
   test "$pie" = no && meson_option_add -Db_pie=false
-  test "$werror" = yes && meson_option_add -Dwerror=true
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi" "-Db_lto=$cfi"
   test "$docs" != auto && meson_option_add "-Ddocs=$docs"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
-  test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"

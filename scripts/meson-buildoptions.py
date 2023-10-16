@@ -28,7 +28,6 @@ import sys
 SKIP_OPTIONS = {
     "default_devices",
     "fuzzing_engine",
-    "smbd",
 }
 
 OPTION_NAMES = {
@@ -47,6 +46,7 @@ OPTION_NAMES = {
 # Options that configure autodetects, even though meson defines them as boolean
 AUTO_OPTIONS = {
     "plugins",
+    "werror",
 }
 
 BUILTIN_OPTIONS = {
@@ -64,6 +64,7 @@ BUILTIN_OPTIONS = {
     "prefix",
     "strip",
     "sysconfdir",
+    "werror",
 }
 
 LINE_WIDTH = 76
