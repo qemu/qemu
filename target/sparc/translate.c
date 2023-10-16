@@ -180,7 +180,8 @@ typedef struct DisasContext {
 
 typedef struct {
     TCGCond cond;
-    TCGv c1, c2;
+    TCGv c1;
+    int c2;
 } DisasCompare;
 
 // This function uses non-native bit order
@@ -1039,12 +1040,12 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     TCGv t1;
 
     cmp->c1 = t1 = tcg_temp_new();
-    cmp->c2 = tcg_constant_tl(0);
+    cmp->c2 = 0;
 
     switch (cond & 7) {
     case 0x0: /* never */
         cmp->cond = TCG_COND_NEVER;
-        cmp->c1 = cmp->c2;
+        cmp->c1 = tcg_constant_tl(0);
         break;
 
     case 0x1: /* eq: Z */
@@ -1140,7 +1141,7 @@ static void gen_fcompare(DisasCompare *cmp, unsigned int cc, unsigned int cond)
     /* For now we still generate a straight boolean result.  */
     cmp->cond = TCG_COND_NE;
     cmp->c1 = r_dst = tcg_temp_new();
-    cmp->c2 = tcg_constant_tl(0);
+    cmp->c2 = 0;
 
     switch (cc) {
     default:
@@ -1226,7 +1227,7 @@ static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 {
     cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
     cmp->c1 = r_src;
-    cmp->c2 = tcg_constant_tl(0);
+    cmp->c2 = 0;
 }
 
 static void gen_op_clear_ieee_excp_and_FTT(void)
@@ -2232,7 +2233,7 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
        or fold the comparison down to 32 bits and use movcond_i32.  Choose
        the later.  */
     c32 = tcg_temp_new_i32();
-    tcg_gen_setcond_i64(cmp->cond, c64, cmp->c1, cmp->c2);
+    tcg_gen_setcondi_i64(cmp->cond, c64, cmp->c1, cmp->c2);
     tcg_gen_extrl_i64_i32(c32, c64);
 
     s1 = gen_load_fpr_F(dc, rs);
@@ -2252,7 +2253,7 @@ static void gen_fmovd(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
 #ifdef TARGET_SPARC64
     TCGv_i64 dst = gen_dest_fpr_D(dc, rd);
-    tcg_gen_movcond_i64(cmp->cond, dst, cmp->c1, cmp->c2,
+    tcg_gen_movcond_i64(cmp->cond, dst, cmp->c1, tcg_constant_tl(cmp->c2),
                         gen_load_fpr_D(dc, rs),
                         gen_load_fpr_D(dc, rd));
     gen_store_fpr_D(dc, rd, dst);
@@ -2266,10 +2267,11 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 #ifdef TARGET_SPARC64
     int qd = QFPREG(rd);
     int qs = QFPREG(rs);
+    TCGv c2 = tcg_constant_tl(cmp->c2);
 
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2], cmp->c1, cmp->c2,
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2], cmp->c1, c2,
                         cpu_fpr[qs / 2], cpu_fpr[qd / 2]);
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2 + 1], cmp->c1, cmp->c2,
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2 + 1], cmp->c1, c2,
                         cpu_fpr[qs / 2 + 1], cpu_fpr[qd / 2 + 1]);
 
     gen_update_fprs_dirty(dc, qd);
@@ -2409,7 +2411,7 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
     if (annul) {
         TCGLabel *l1 = gen_new_label();
 
-        tcg_gen_brcond_tl(tcg_invert_cond(cmp->cond), cmp->c1, cmp->c2, l1);
+        tcg_gen_brcondi_tl(tcg_invert_cond(cmp->cond), cmp->c1, cmp->c2, l1);
         gen_goto_tb(dc, 0, npc, dest);
         gen_set_label(l1);
         gen_goto_tb(dc, 1, npc + 4, npc + 8);
@@ -2423,7 +2425,7 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
                 tcg_gen_mov_tl(cpu_pc, cpu_npc);
                 tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
                 tcg_gen_movcond_tl(cmp->cond, cpu_npc,
-                                   cmp->c1, cmp->c2,
+                                   cmp->c1, tcg_constant_tl(cmp->c2),
                                    tcg_constant_tl(dest), cpu_npc);
                 dc->pc = npc;
                 break;
@@ -2438,9 +2440,9 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
 
             /* The condition for cpu_cond is always NE -- normalize. */
             if (cmp->cond == TCG_COND_NE) {
-                tcg_gen_xor_tl(cpu_cond, cmp->c1, cmp->c2);
+                tcg_gen_xori_tl(cpu_cond, cmp->c1, cmp->c2);
             } else {
-                tcg_gen_setcond_tl(cmp->cond, cpu_cond, cmp->c1, cmp->c2);
+                tcg_gen_setcondi_tl(cmp->cond, cpu_cond, cmp->c1, cmp->c2);
             }
         }
     }
@@ -2612,7 +2614,7 @@ static bool do_tcc(DisasContext *dc, int cond, int cc,
     flush_cond(dc);
     lab = delay_exceptionv(dc, trap);
     gen_compare(&cmp, cc, cond, dc);
-    tcg_gen_brcond_tl(cmp.cond, cmp.c1, cmp.c2, lab);
+    tcg_gen_brcondi_tl(cmp.cond, cmp.c1, cmp.c2, lab);
 
     return advance_pc(dc);
 }
@@ -3849,8 +3851,9 @@ static TCGv gen_rs2_or_imm(DisasContext *dc, bool imm, int rs2_or_imm)
 static bool do_mov_cond(DisasContext *dc, DisasCompare *cmp, int rd, TCGv src2)
 {
     TCGv dst = gen_load_gpr(dc, rd);
+    TCGv c2 = tcg_constant_tl(cmp->c2);
 
-    tcg_gen_movcond_tl(cmp->cond, dst, cmp->c1, cmp->c2, src2, dst);
+    tcg_gen_movcond_tl(cmp->cond, dst, cmp->c1, c2, src2, dst);
     gen_store_gpr(dc, rd, dst);
     return advance_pc(dc);
 }
