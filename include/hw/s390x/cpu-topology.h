@@ -45,6 +45,7 @@ typedef QTAILQ_HEAD(, S390TopologyEntry) S390TopologyList;
 #ifdef CONFIG_KVM
 bool s390_has_topology(void);
 void s390_topology_setup_cpu(MachineState *ms, S390CPU *cpu, Error **errp);
+void s390_topology_reset(void);
 #else
 static inline bool s390_has_topology(void)
 {
@@ -53,6 +54,11 @@ static inline bool s390_has_topology(void)
 static inline void s390_topology_setup_cpu(MachineState *ms,
                                            S390CPU *cpu,
                                            Error **errp) {}
+static inline void s390_topology_reset(void)
+{
+    /* Unreachable, CPU topology not implemented for TCG */
+    assert(false);
+}
 #endif
 
 extern S390Topology s390_topology;

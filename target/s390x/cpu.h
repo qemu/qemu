@@ -654,6 +654,7 @@ typedef struct SysIBCPUListEntry {
 QEMU_BUILD_BUG_ON(sizeof(SysIBCPUListEntry) != 16);
 
 void insert_stsi_15_1_x(S390CPU *cpu, int sel2, uint64_t addr, uint8_t ar, uintptr_t ra);
+void s390_cpu_topology_set_changed(bool changed);
 
 /* MMU defines */
 #define ASCE_ORIGIN           (~0xfffULL) /* segment table origin             */
