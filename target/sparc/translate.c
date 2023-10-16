@@ -1226,8 +1226,9 @@ static const TCGCond gen_tcg_cond_reg[8] = {
 static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 {
     cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
-    cmp->c1 = r_src;
+    cmp->c1 = tcg_temp_new();
     cmp->c2 = 0;
+    tcg_gen_mov_tl(cmp->c1, r_src);
 }
 
 static void gen_op_clear_ieee_excp_and_FTT(void)
