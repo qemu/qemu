@@ -38,8 +38,9 @@ class FreeBSDVM(basevm.BaseVM):
         cd $(mktemp -d /home/qemu/qemu-test.XXXXXX);
         mkdir src build; cd src;
         tar -xf /dev/vtbd1;
-        cd ../build
-        ../src/configure --python=python3.9 {configure_opts};
+        cd ../build;
+        ../src/configure --python=python3.9  --extra-ldflags=-L/usr/local/lib \
+                         --extra-cflags=-I/usr/local/include {configure_opts};
         gmake --output-sync -j{jobs} {target} {verbose};
     """
 
