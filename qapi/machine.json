@@ -909,6 +909,8 @@
 # Which members are optional and which mandatory depends on the
 # architecture and board.
 #
+# For s390x see :ref:`cpu-topology-s390x`.
+#
 # The ids other than the node-id specify the position of the CPU
 # within the CPU topology (as defined by the machine property "smp",
 # thus see also type @SMPConfiguration)
