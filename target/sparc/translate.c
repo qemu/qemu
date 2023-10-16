@@ -146,6 +146,12 @@ static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 # define env64_field_offsetof(X)  ({ qemu_build_not_reached(); 0; })
 #endif
 
+typedef struct DisasCompare {
+    TCGCond cond;
+    TCGv c1;
+    int c2;
+} DisasCompare;
+
 typedef struct DisasDelayException {
     struct DisasDelayException *next;
     TCGLabel *lab;
@@ -159,7 +165,11 @@ typedef struct DisasContext {
     DisasContextBase base;
     target_ulong pc;    /* current Program Counter: integer or DYNAMIC_PC */
     target_ulong npc;   /* next PC: integer or DYNAMIC_PC or JUMP_PC */
-    target_ulong jump_pc[2]; /* used when JUMP_PC pc value is used */
+
+    /* Used when JUMP_PC value is used. */
+    DisasCompare jump;
+    target_ulong jump_pc[2];
+
     int mem_idx;
     bool fpu_enabled;
     bool address_mask_32bit;
@@ -177,12 +187,6 @@ typedef struct DisasContext {
 #endif
     DisasDelayException *delay_excp_list;
 } DisasContext;
-
-typedef struct {
-    TCGCond cond;
-    TCGv c1;
-    int c2;
-} DisasCompare;
 
 // This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO)                                  \
@@ -912,9 +916,9 @@ static void gen_generic_branch(DisasContext *dc)
 {
     TCGv npc0 = tcg_constant_tl(dc->jump_pc[0]);
     TCGv npc1 = tcg_constant_tl(dc->jump_pc[1]);
-    TCGv zero = tcg_constant_tl(0);
+    TCGv c2 = tcg_constant_tl(dc->jump.c2);
 
-    tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, zero, npc0, npc1);
+    tcg_gen_movcond_tl(dc->jump.cond, cpu_npc, dc->jump.c1, c2, npc0, npc1);
 }
 
 /* call this function before using the condition register as it may
@@ -2347,7 +2351,7 @@ static bool advance_pc(DisasContext *dc)
         case JUMP_PC:
             /* we can do a static jump */
             l1 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_cond, 0, l1);
+            tcg_gen_brcondi_tl(dc->jump.cond, dc->jump.c1, dc->jump.c2, l1);
 
             /* jump not taken */
             gen_goto_tb(dc, 1, dc->jump_pc[1], dc->jump_pc[1] + 4);
@@ -2434,9 +2438,10 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
             }
         } else {
             dc->pc = npc;
+            dc->npc = JUMP_PC;
+            dc->jump = *cmp;
             dc->jump_pc[0] = dest;
             dc->jump_pc[1] = npc + 4;
-            dc->npc = JUMP_PC;
 
             /* The condition for cpu_cond is always NE -- normalize. */
             if (cmp->cond == TCG_COND_NE) {
