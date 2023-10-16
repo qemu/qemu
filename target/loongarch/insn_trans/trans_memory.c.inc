@@ -110,6 +110,11 @@ static bool trans_preld(DisasContext *ctx, arg_preld *a)
     return true;
 }
 
+static bool trans_preldx(DisasContext *ctx, arg_preldx * a)
+{
+    return true;
+}
+
 static bool trans_dbar(DisasContext *ctx, arg_dbar * a)
 {
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);

@@ -248,7 +248,6 @@ F: disas/hppa.c
 
 LoongArch TCG CPUs
 M: Song Gao <gaosong@loongson.cn>
-M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
 S: Maintained
 F: target/loongarch/
 F: tests/tcg/loongarch64/
@@ -1191,7 +1190,6 @@ F: pc-bios/hppa-firmware.img
 LoongArch Machines
 ------------------
 Virt
-M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
 M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: docs/system/loongarch/virt.rst

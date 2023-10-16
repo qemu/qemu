@@ -24,6 +24,7 @@
 &rrr          rd rj rk
 &rr_i         rd rj imm
 &hint_r_i     hint rj imm
+&hint_rr      hint rj rk
 &rrr_sa       rd rj rk sa
 &rr_ms_ls     rd rj ms ls
 &ff           fd fj
@@ -69,6 +70,7 @@
 @rr_i16                     .... .. imm:s16 rj:5 rd:5    &rr_i
 @rr_i16s2         .... ..  ................ rj:5 rd:5    &rr_i imm=%offs16
 @hint_r_i12           .... ...... imm:s12 rj:5 hint:5    &hint_r_i
+@hint_rr         .... ........ ..... rk:5 rj:5 hint:5    &hint_rr
 @rrr_sa2p1        .... ........ ... .. rk:5 rj:5 rd:5    &rrr_sa  sa=%sa2p1
 @rrr_sa2        .... ........ ... sa:2 rk:5 rj:5 rd:5    &rrr_sa
 @rrr_sa3         .... ........ .. sa:3 rk:5 rj:5 rd:5    &rrr_sa
@@ -228,6 +230,7 @@ ldx_bu          0011 10000010 00000 ..... ..... .....    @rrr
 ldx_hu          0011 10000010 01000 ..... ..... .....    @rrr
 ldx_wu          0011 10000010 10000 ..... ..... .....    @rrr
 preld           0010 101011 ............ ..... .....     @hint_r_i12
+preldx          0011 10000010 11000 ..... ..... .....    @hint_rr
 dbar            0011 10000111 00100 ...............      @i15
 ibar            0011 10000111 00101 ...............      @i15
 ldptr_w         0010 0100 .............. ..... .....     @rr_i14s2

@@ -5,9 +5,7 @@ config LOONGARCH_VIRT
     imply VIRTIO_VGA
     imply PCI_DEVICES
     imply NVDIMM
-    select ISA_BUS
     select SERIAL
-    select SERIAL_ISA
     select VIRTIO_PCI
     select PLATFORM_BUS
     select LOONGARCH_IPI
