@@ -83,7 +83,7 @@ def c_fmt_to_stap(fmt):
     # and "%ll" is not valid at all. Similarly the size_t
     # based "%z" size qualifier is not valid. We just
     # strip all size qualifiers for sanity.
-    fmt = re.sub("%(\d*)(l+|z)(x|u|d)", "%\\1\\3", "".join(bits))
+    fmt = re.sub(r"%(\d*)(l+|z)(x|u|d)", r"%\1\3", "".join(bits))
     return fmt
 
 def generate(events, backend, group):
