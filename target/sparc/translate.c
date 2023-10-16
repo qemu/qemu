@@ -68,6 +68,15 @@ static TCGv cpu_wim;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
+typedef struct DisasDelayException {
+    struct DisasDelayException *next;
+    TCGLabel *lab;
+    TCGv_i32 excp;
+    /* Saved state at parent insn. */
+    target_ulong pc;
+    target_ulong npc;
+} DisasDelayException;
+
 typedef struct DisasContext {
     DisasContextBase base;
     target_ulong pc;    /* current Program Counter: integer or DYNAMIC_PC */
@@ -89,6 +98,7 @@ typedef struct DisasContext {
     int fprs_dirty;
     int asi;
 #endif
+    DisasDelayException *delay_excp_list;
 } DisasContext;
 
 typedef struct {
@@ -984,9 +994,38 @@ static void gen_exception(DisasContext *dc, int which)
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_check_align(TCGv addr, int mask)
+static TCGLabel *delay_exceptionv(DisasContext *dc, TCGv_i32 excp)
 {
-    gen_helper_check_align(tcg_env, addr, tcg_constant_i32(mask));
+    DisasDelayException *e = g_new0(DisasDelayException, 1);
+
+    e->next = dc->delay_excp_list;
+    dc->delay_excp_list = e;
+
+    e->lab = gen_new_label();
+    e->excp = excp;
+    e->pc = dc->pc;
+    /* Caller must have used flush_cond before branch. */
+    assert(e->npc != JUMP_PC);
+    e->npc = dc->npc;
+
+    return e->lab;
+}
+
+static TCGLabel *delay_exception(DisasContext *dc, int excp)
+{
+    return delay_exceptionv(dc, tcg_constant_i32(excp));
+}
+
+static void gen_check_align(DisasContext *dc, TCGv addr, int mask)
+{
+    TCGv t = tcg_temp_new();
+    TCGLabel *lab;
+
+    tcg_gen_andi_tl(t, addr, mask);
+
+    flush_cond(dc);
+    lab = delay_exception(dc, TT_UNALIGNED);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t, 0, lab);
 }
 
 static void gen_mov_pc_npc(DisasContext *dc)
@@ -5019,9 +5058,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         tcg_gen_mov_tl(cpu_tmp0, cpu_src1);
                     }
                 }
+                gen_check_align(dc, cpu_tmp0, 3);
                 gen_helper_restore(tcg_env);
                 gen_mov_pc_npc(dc);
-                gen_check_align(cpu_tmp0, 3);
                 tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
                 dc->npc = DYNAMIC_PC_LOOKUP;
                 goto jmp_insn;
@@ -5044,12 +5083,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 switch (xop) {
                 case 0x38:      /* jmpl */
                     {
-                        TCGv t = gen_dest_gpr(dc, rd);
-                        tcg_gen_movi_tl(t, dc->pc);
-                        gen_store_gpr(dc, rd, t);
-
+                        gen_check_align(dc, cpu_tmp0, 3);
+                        gen_store_gpr(dc, rd, tcg_constant_tl(dc->pc));
                         gen_mov_pc_npc(dc);
-                        gen_check_align(cpu_tmp0, 3);
                         gen_address_mask(dc, cpu_tmp0);
                         tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
                         dc->npc = DYNAMIC_PC_LOOKUP;
@@ -5060,8 +5096,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     {
                         if (!supervisor(dc))
                             goto priv_insn;
+                        gen_check_align(dc, cpu_tmp0, 3);
                         gen_mov_pc_npc(dc);
-                        gen_check_align(cpu_tmp0, 3);
                         tcg_gen_mov_tl(cpu_npc, cpu_tmp0);
                         dc->npc = DYNAMIC_PC;
                         gen_helper_rett(tcg_env);
@@ -5643,6 +5679,7 @@ static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    DisasDelayException *e, *e_next;
     bool may_lookup;
 
     switch (dc->base.is_jmp) {
@@ -5703,6 +5740,19 @@ static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 
     default:
         g_assert_not_reached();
+    }
+
+    for (e = dc->delay_excp_list; e ; e = e_next) {
+        gen_set_label(e->lab);
+
+        tcg_gen_movi_tl(cpu_pc, e->pc);
+        if (e->npc % 4 == 0) {
+            tcg_gen_movi_tl(cpu_npc, e->npc);
+        }
+        gen_helper_raise_exception(tcg_env, e->excp);
+
+        e_next = e->next;
+        g_free(e);
     }
 }
 
