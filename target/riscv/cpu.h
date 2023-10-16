@@ -202,6 +202,12 @@ struct CPUArchState {
     uint64_t mie;
     uint64_t mideleg;
 
+    /*
+     * When mideleg[i]=0 and mvien[i]=1, sie[i] is no more
+     * alias of mie[i] and needs to be maintained separatly.
+     */
+    uint64_t sie;
+
     target_ulong satp;   /* since: priv-1.10.0 */
     target_ulong stval;
     target_ulong medeleg;
@@ -222,6 +228,8 @@ struct CPUArchState {
     /* AIA CSRs */
     target_ulong miselect;
     target_ulong siselect;
+    uint64_t mvien;
+    uint64_t mvip;
 
     /* Hypervisor CSRs */
     target_ulong hstatus;
