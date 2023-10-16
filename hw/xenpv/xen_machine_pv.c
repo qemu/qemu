@@ -32,7 +32,6 @@
 
 static void xen_init_pv(MachineState *machine)
 {
-    DriveInfo *dinfo;
     int i;
 
     setup_xen_backend_ops();
@@ -62,14 +61,6 @@ static void xen_init_pv(MachineState *machine)
         xen_config_dev_vfb(0, "vnc");
         xen_config_dev_vkbd(0);
         vga_interface_created = true;
-    }
-
-    /* configure disks */
-    for (i = 0; i < 16; i++) {
-        dinfo = drive_get(IF_XEN, 0, i);
-        if (!dinfo)
-            continue;
-        xen_config_dev_blk(dinfo);
     }
 
     /* configure nics */
