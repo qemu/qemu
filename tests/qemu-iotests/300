@@ -50,10 +50,9 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.vm_b.add_incoming(f'unix:{mig_sock}')
         self.vm_b.launch()
 
-        result = self.vm_a.qmp('block-dirty-bitmap-add',
-                               node=self.src_node_name,
-                               name=self.src_bmap_name)
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('block-dirty-bitmap-add',
+                      node=self.src_node_name,
+                      name=self.src_bmap_name)
 
         # Dirty some random megabytes
         for _ in range(9):
@@ -69,8 +68,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
                 for name in ('dirty-bitmaps', 'events')]
 
         for vm in (self.vm_a, self.vm_b):
-            result = vm.qmp('migrate-set-capabilities', capabilities=caps)
-            self.assert_qmp(result, 'return', {})
+            vm.cmd('migrate-set-capabilities', capabilities=caps)
 
     def tearDown(self) -> None:
         self.vm_a.shutdown()
@@ -93,8 +91,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
     def migrate(self, bitmap_name_valid: bool = True,
                 migration_success: bool = True) -> None:
-        result = self.vm_a.qmp('migrate', uri=f'unix:{mig_sock}')
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('migrate', uri=f'unix:{mig_sock}')
 
         with iotests.Timeout(5, 'Timeout waiting for migration to complete'):
             self.assertEqual(self.vm_a.wait_migration('postmigrate'),
@@ -442,10 +439,9 @@ class TestBlockBitmapMappingErrors(TestDirtyBitmapMigration):
     def test_bitmap_name_too_long(self) -> None:
         name = 'a' * 256
 
-        result = self.vm_a.qmp('block-dirty-bitmap-add',
-                               node=self.src_node_name,
-                               name=name)
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('block-dirty-bitmap-add',
+                      node=self.src_node_name,
+                      name=name)
 
         self.migrate(False, False)
 
@@ -517,22 +513,19 @@ class TestCrossAliasMigration(TestDirtyBitmapMigration):
         TestDirtyBitmapMigration.setUp(self)
 
         # Now create another block device and let both have two bitmaps each
-        result = self.vm_a.qmp('blockdev-add',
-                               node_name='node-b', driver='null-co')
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('blockdev-add',
+                      node_name='node-b', driver='null-co')
 
-        result = self.vm_b.qmp('blockdev-add',
-                               node_name='node-a', driver='null-co')
-        self.assert_qmp(result, 'return', {})
+        self.vm_b.cmd('blockdev-add',
+                      node_name='node-a', driver='null-co')
 
         bmaps_to_add = (('node-a', 'bmap-b'),
                         ('node-b', 'bmap-a'),
                         ('node-b', 'bmap-b'))
 
         for (node, bmap) in bmaps_to_add:
-            result = self.vm_a.qmp('block-dirty-bitmap-add',
-                                   node=node, name=bmap)
-            self.assert_qmp(result, 'return', {})
+            self.vm_a.cmd('block-dirty-bitmap-add',
+                          node=node, name=bmap)
 
     @staticmethod
     def cross_mapping() -> BlockBitmapMapping:
@@ -611,24 +604,21 @@ class TestAliasTransformMigration(TestDirtyBitmapMigration):
         TestDirtyBitmapMigration.setUp(self)
 
         # Now create another block device and let both have two bitmaps each
-        result = self.vm_a.qmp('blockdev-add',
-                               node_name='node-b', driver='null-co',
-                               read_zeroes=False)
-        self.assert_qmp(result, 'return', {})
+        self.vm_a.cmd('blockdev-add',
+                      node_name='node-b', driver='null-co',
+                      read_zeroes=False)
 
-        result = self.vm_b.qmp('blockdev-add',
-                               node_name='node-a', driver='null-co',
-                               read_zeroes=False)
-        self.assert_qmp(result, 'return', {})
+        self.vm_b.cmd('blockdev-add',
+                      node_name='node-a', driver='null-co',
+                      read_zeroes=False)
 
         bmaps_to_add = (('node-a', 'bmap-b'),
                         ('node-b', 'bmap-a'),
                         ('node-b', 'bmap-b'))
 
         for (node, bmap) in bmaps_to_add:
-            result = self.vm_a.qmp('block-dirty-bitmap-add',
-                                   node=node, name=bmap)
-            self.assert_qmp(result, 'return', {})
+            self.vm_a.cmd('block-dirty-bitmap-add',
+                          node=node, name=bmap)
 
     @staticmethod
     def transform_mapping() -> BlockBitmapMapping:

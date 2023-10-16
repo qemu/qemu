@@ -58,8 +58,7 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
     def client_test(self, filename, address, export=None,
                     node_name='nbd-blockdev', delete=True):
         bao = self.blockdev_add_options(address, export, node_name)
-        result = self.vm.qmp('blockdev-add', **bao)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', bao)
 
         found = False
         result = self.vm.qmp('query-named-block-nodes')
@@ -75,8 +74,7 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
         self.assertTrue(found)
 
         if delete:
-            result = self.vm.qmp('blockdev-del', node_name=node_name)
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-del', node_name=node_name)
 
 
 class QemuNBD(NBDBlockdevAddBase):
@@ -158,16 +156,14 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.assert_qmp(result, 'return', {})
 
         if export_name is None:
-            result = self.server.qmp('nbd-server-add', device='nbd-export')
+            self.server.cmd('nbd-server-add', device='nbd-export')
         else:
-            result = self.server.qmp('nbd-server-add', device='nbd-export',
-                                     name=export_name)
-        self.assert_qmp(result, 'return', {})
+            self.server.cmd('nbd-server-add', device='nbd-export',
+                            name=export_name)
 
         if export_name2 is not None:
-            result = self.server.qmp('nbd-server-add', device='nbd-export',
-                                     name=export_name2)
-            self.assert_qmp(result, 'return', {})
+            self.server.cmd('nbd-server-add', device='nbd-export',
+                            name=export_name2)
 
         return True
 
@@ -175,8 +171,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.assertTrue(self._try_server_up(address, export_name, export_name2))
 
     def _server_down(self):
-        result = self.server.qmp('nbd-server-stop')
-        self.assert_qmp(result, 'return', {})
+        self.server.cmd('nbd-server-stop')
 
     def do_test_inet(self, export_name=None):
         while True:
@@ -218,10 +213,8 @@ class BuiltinNBD(NBDBlockdevAddBase):
                          flatten_sock_addr(address), 'exp1', 'node1', False)
         self.client_test('nbd://localhost:%i/%s' % (nbd_port, 'exp2'),
                          flatten_sock_addr(address), 'exp2', 'node2', False)
-        result = self.vm.qmp('blockdev-del', node_name='node1')
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('blockdev-del', node_name='node2')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='node1')
+        self.vm.cmd('blockdev-del', node_name='node2')
         self._server_down()
 
     def test_inet6(self):
@@ -272,8 +265,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
         result = self.vm.send_fd_scm(fd=sockfd.fileno())
         self.assertEqual(result, 0, 'Failed to send socket FD')
 
-        result = self.vm.qmp('getfd', fdname='nbd-fifo')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('getfd', fdname='nbd-fifo')
 
         address = { 'type': 'fd',
                     'data': { 'str': 'nbd-fifo' } }

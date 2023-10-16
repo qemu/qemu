@@ -56,14 +56,12 @@ class TestDirtyBitmapIOThread(iotests.QMPTestCase):
             os.remove(self.images[name])
 
     def test_add_dirty_bitmap(self):
-        result = self.vm.qmp(
+        self.vm.cmd(
             'block-dirty-bitmap-add',
             node='drive0',
             name='bitmap1',
             persistent=True,
         )
-
-        self.assert_qmp(result, 'return', {})
 
 
 # Test for RHBZ#1746217 & RHBZ#1773517
@@ -105,23 +103,21 @@ class TestNBDMirrorIOThread(iotests.QMPTestCase):
             os.remove(self.images[name])
 
     def test_nbd_mirror(self):
-        result = self.vm_tgt.qmp(
+        self.vm_tgt.cmd(
             'nbd-server-start',
             addr={
                 'type': 'unix',
                 'data': { 'path': self.nbd_sock }
             }
         )
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm_tgt.qmp(
+        self.vm_tgt.cmd(
             'nbd-server-add',
             device='drive0',
             writable=True
         )
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm_src.qmp(
+        self.vm_src.cmd(
             'drive-mirror',
             device='drive0',
             target='nbd+unix:///drive0?socket=' + self.nbd_sock,
@@ -130,7 +126,6 @@ class TestNBDMirrorIOThread(iotests.QMPTestCase):
             speed=64*1024*1024,
             job_id='j1'
         )
-        self.assert_qmp(result, 'return', {})
 
         self.vm_src.event_wait(name="BLOCK_JOB_READY")
 
@@ -290,8 +285,7 @@ class TestYieldingAndTimers(iotests.QMPTestCase):
         # they will remain active, fire later, and then access freed data.
         # (Or, with "block/nbd: Assert there are no timers when closed"
         # applied, the assertions added in that patch will fail.)
-        result = self.vm.qmp('blockdev-del', node_name='nbd')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='nbd')
 
         # Give the timers some time to fire (both have a timeout of 1 s).
         # (Sleeping in an iotest may ring some alarm bells, but note that if
@@ -303,9 +297,8 @@ class TestYieldingAndTimers(iotests.QMPTestCase):
     def test_yield_in_iothread(self):
         # Move the NBD node to the I/O thread; the NBD block driver should
         # attach the connection's QIOChannel to that thread's AioContext, too
-        result = self.vm.qmp('x-blockdev-set-iothread',
-                             node_name='nbd', iothread='iothr')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('x-blockdev-set-iothread',
+                    node_name='nbd', iothread='iothr')
 
         # Do some I/O that will be throttled by the QSD, so that the network
         # connection hopefully will yield here.  When it is resumed, it must

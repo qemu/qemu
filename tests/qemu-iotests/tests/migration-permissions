@@ -47,11 +47,10 @@ class TestMigrationPermissions(iotests.QMPTestCase):
 
             vms[i].launch()
 
-            result = vms[i].qmp('migrate-set-capabilities',
-                                capabilities=[
-                                    {'capability': 'events', 'state': True}
-                                ])
-            self.assert_qmp(result, 'return', {})
+            vms[i].cmd('migrate-set-capabilities',
+                       capabilities=[
+                           {'capability': 'events', 'state': True}
+                       ])
 
         self.vm_s = vms[0]
         self.vm_d = vms[1]

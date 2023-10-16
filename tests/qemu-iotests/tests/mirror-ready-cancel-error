@@ -48,51 +48,48 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
         os.remove(target)
 
     def add_blockdevs(self, once: bool) -> None:
-        res = self.vm.qmp('blockdev-add',
-                          **{'node-name': 'source',
-                             'driver': iotests.imgfmt,
-                             'file': {
-                                 'driver': 'file',
-                                 'filename': source
-                             }})
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    {'node-name': 'source',
+                     'driver': iotests.imgfmt,
+                     'file': {
+                         'driver': 'file',
+                         'filename': source
+                     }})
 
         # blkdebug notes:
         # Enter state 2 on the first flush, which happens before the
         # job enters the READY state.  The second flush will happen
         # when the job is about to complete, and we want that one to
         # fail.
-        res = self.vm.qmp('blockdev-add',
-                          **{'node-name': 'target',
-                             'driver': iotests.imgfmt,
-                             'file': {
-                                 'driver': 'blkdebug',
-                                 'image': {
-                                     'driver': 'file',
-                                     'filename': target
-                                 },
-                                 'set-state': [{
-                                     'event': 'flush_to_disk',
-                                     'state': 1,
-                                     'new_state': 2
-                                 }],
-                                 'inject-error': [{
-                                     'event': 'flush_to_disk',
-                                     'once': once,
-                                     'immediately': True,
-                                     'state': 2
-                                 }]}})
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    {'node-name': 'target',
+                     'driver': iotests.imgfmt,
+                     'file': {
+                         'driver': 'blkdebug',
+                         'image': {
+                             'driver': 'file',
+                             'filename': target
+                         },
+                         'set-state': [{
+                             'event': 'flush_to_disk',
+                             'state': 1,
+                             'new_state': 2
+                         }],
+                         'inject-error': [{
+                             'event': 'flush_to_disk',
+                             'once': once,
+                             'immediately': True,
+                             'state': 2
+                         }]}})
 
     def start_mirror(self) -> None:
-        res = self.vm.qmp('blockdev-mirror',
-                          job_id='mirror',
-                          device='source',
-                          target='target',
-                          filter_node_name='mirror-top',
-                          sync='full',
-                          on_target_error='stop')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    filter_node_name='mirror-top',
+                    sync='full',
+                    on_target_error='stop')
 
     def cancel_mirror_with_error(self) -> None:
         self.vm.event_wait('BLOCK_JOB_READY')
@@ -107,8 +104,7 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
         while self.vm.event_wait('JOB_STATUS_CHANGE', timeout=0.0) is not None:
             pass
 
-        res = self.vm.qmp('block-job-cancel', device='mirror')
-        self.assert_qmp(res, 'return', {})
+        self.vm.cmd('block-job-cancel', device='mirror')
 
         self.vm.event_wait('BLOCK_JOB_ERROR')
 

@@ -48,7 +48,8 @@ def pci_modern_device_id(virtio_devid):
     return virtio_devid + 0x1040
 
 def devtype_implements(vm, devtype, implements):
-    return devtype in [d['name'] for d in vm.command('qom-list-types', implements=implements)]
+    return devtype in [d['name'] for d in
+                       vm.cmd('qom-list-types', implements=implements)]
 
 def get_pci_interfaces(vm, devtype):
     interfaces = ('pci-express-device', 'conventional-pci-device')
@@ -78,7 +79,7 @@ class VirtioVersionCheck(QemuSystemTest):
             vm.add_args('-S')
             vm.launch()
 
-            pcibuses = vm.command('query-pci')
+            pcibuses = vm.cmd('query-pci')
             alldevs = [dev for bus in pcibuses for dev in bus['devices']]
             devfortest = [dev for dev in alldevs
                           if dev['qdev_id'] == 'devfortest']

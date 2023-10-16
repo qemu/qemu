@@ -51,8 +51,8 @@ class VirtioMaxSegSettingsCheck(QemuSystemTest):
         error = None
         props = None
 
-        output = vm.command('human-monitor-command',
-                            command_line = 'info qtree')
+        output = vm.cmd('human-monitor-command',
+                        command_line = 'info qtree')
         props_list = DEV_TYPES[dev_type_name].values();
         pattern = self.make_pattern(props_list)
         res = re.findall(pattern, output)
@@ -121,7 +121,7 @@ class VirtioMaxSegSettingsCheck(QemuSystemTest):
         # collect all machine types except 'none', 'isapc', 'microvm'
         with QEMUMachine(self.qemu_bin) as vm:
             vm.launch()
-            machines = [m['name'] for m in vm.command('query-machines')]
+            machines = [m['name'] for m in vm.cmd('query-machines')]
             vm.shutdown()
         machines.remove('none')
         machines.remove('isapc')

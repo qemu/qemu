@@ -44,12 +44,11 @@ class TestCbwError(iotests.QMPTestCase):
 
         opts = ['-nodefaults', '-display', 'none', '-machine', 'none']
         self.vm = QEMUMachine(iotests.qemu_prog, opts,
-                              base_temp_dir=iotests.test_dir,
-                              sock_dir=iotests.sock_dir)
+                              base_temp_dir=iotests.test_dir)
         self.vm.launch()
 
     def do_cbw_error(self, on_cbw_error):
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'node-name': 'cbw',
             'driver': 'copy-before-write',
             'on-cbw-error': on_cbw_error,
@@ -79,14 +78,12 @@ class TestCbwError(iotests.QMPTestCase):
                 }
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'node-name': 'access',
             'driver': 'snapshot-access',
             'file': 'cbw'
         })
-        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 0 1M"')
@@ -130,14 +127,13 @@ read 1048576/1048576 bytes at offset 0
 """)
 
     def do_cbw_timeout(self, on_cbw_error):
-        result = self.vm.qmp('object-add', {
+        self.vm.cmd('object-add', {
             'qom-type': 'throttle-group',
             'id': 'group0',
             'limits': {'bps-write': 300 * 1024}
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'node-name': 'cbw',
             'driver': 'copy-before-write',
             'on-cbw-error': on_cbw_error,
@@ -161,14 +157,12 @@ read 1048576/1048576 bytes at offset 0
                 }
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'node-name': 'access',
             'driver': 'snapshot-access',
             'file': 'cbw'
         })
-        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 0 512K"')

@@ -102,10 +102,9 @@ class TestStreamWithThrottle(iotests.QMPTestCase):
         Do a simple stream beneath the two throttle nodes.  Should complete
         with no problems.
         '''
-        result = self.vm.qmp('block-stream',
-                             job_id='stream',
-                             device='unthrottled-node')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-stream',
+                    job_id='stream',
+                    device='unthrottled-node')
 
         # Should succeed and not time out
         try:

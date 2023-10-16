@@ -110,8 +110,7 @@ class BaseClass(iotests.QMPTestCase):
                 elif self.target_blockdev_backing:
                         options['backing'] = self.target_blockdev_backing
 
-                result = self.vm.qmp('blockdev-add', **options)
-                self.assert_qmp(result, 'return', {})
+                self.vm.cmd('blockdev-add', options)
 
     def tearDown(self):
         self.vm.shutdown()
@@ -178,20 +177,18 @@ class MirrorBaseClass(BaseClass):
 
     def runMirror(self, sync):
         if self.cmd == 'blockdev-mirror':
-            result = self.vm.qmp(self.cmd, job_id='mirror-job', device='source',
-                                 sync=sync, target='target',
-                                 auto_finalize=False)
+            self.vm.cmd(self.cmd, job_id='mirror-job', device='source',
+                        sync=sync, target='target',
+                        auto_finalize=False)
         else:
             if self.existing:
                 mode = 'existing'
             else:
                 mode = 'absolute-paths'
-            result = self.vm.qmp(self.cmd, job_id='mirror-job', device='source',
-                                 sync=sync, target=target_img,
-                                 format=iotests.imgfmt, mode=mode,
-                                 node_name='target', auto_finalize=False)
-
-        self.assert_qmp(result, 'return', {})
+            self.vm.cmd(self.cmd, job_id='mirror-job', device='source',
+                        sync=sync, target=target_img,
+                        format=iotests.imgfmt, mode=mode,
+                        node_name='target', auto_finalize=False)
 
         self.vm.run_job('mirror-job', auto_finalize=False,
                         pre_finalize=self.openBacking, auto_dismiss=True)
@@ -258,16 +255,14 @@ class TestBlockdevMirrorReopen(MirrorBaseClass):
 
     def openBacking(self):
         if not self.target_open_with_backing:
-            result = self.vm.qmp('blockdev-add', node_name="backing",
-                                 driver="null-co")
-            self.assert_qmp(result, 'return', {})
-            result = self.vm.qmp('blockdev-reopen', options=[{
-                                     'node-name': "target",
-                                     'driver': iotests.imgfmt,
-                                     'file': "target-file",
-                                     'backing': "backing"
-                                 }])
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-add', node_name="backing",
+                        driver="null-co")
+            self.vm.cmd('blockdev-reopen', options=[{
+                            'node-name': "target",
+                            'driver': iotests.imgfmt,
+                            'file': "target-file",
+                            'backing': "backing"
+                        }])
 
 class TestBlockdevMirrorReopenIothread(TestBlockdevMirrorReopen):
     use_iothread = True
@@ -281,12 +276,10 @@ class TestBlockdevMirrorSnapshot(MirrorBaseClass):
 
     def openBacking(self):
         if not self.target_open_with_backing:
-            result = self.vm.qmp('blockdev-add', node_name="backing",
-                                 driver="null-co")
-            self.assert_qmp(result, 'return', {})
-            result = self.vm.qmp('blockdev-snapshot', node="backing",
-                                 overlay="target")
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-add', node_name="backing",
+                        driver="null-co")
+            self.vm.cmd('blockdev-snapshot', node="backing",
+                        overlay="target")
 
 class TestBlockdevMirrorSnapshotIothread(TestBlockdevMirrorSnapshot):
     use_iothread = True
@@ -295,14 +288,12 @@ class TestCommit(BaseClass):
     existing = False
 
     def testCommit(self):
-        result = self.vm.qmp('block-commit', job_id='commit-job',
-                             device='source', base=back1_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', job_id='commit-job',
+                    device='source', base=back1_img)
 
         self.vm.event_wait('BLOCK_JOB_READY')
 
-        result = self.vm.qmp('block-job-complete', device='commit-job')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-complete', device='commit-job')
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 

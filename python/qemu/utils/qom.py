@@ -84,7 +84,7 @@ class QOMSet(QOMCommand):
         self.value = args.value
 
     def run(self) -> int:
-        rsp = self.qmp.command(
+        rsp = self.qmp.cmd(
             'qom-set',
             path=self.path,
             property=self.prop,
@@ -129,7 +129,7 @@ class QOMGet(QOMCommand):
         self.prop = tmp[1]
 
     def run(self) -> int:
-        rsp = self.qmp.command(
+        rsp = self.qmp.cmd(
             'qom-get',
             path=self.path,
             property=self.prop
@@ -231,8 +231,8 @@ class QOMTree(QOMCommand):
             if item.child:
                 continue
             try:
-                rsp = self.qmp.command('qom-get', path=path,
-                                       property=item.name)
+                rsp = self.qmp.cmd('qom-get', path=path,
+                                   property=item.name)
                 print(f"  {item.name}: {rsp} ({item.type})")
             except ExecuteError as err:
                 print(f"  {item.name}: <EXCEPTION: {err!s}> ({item.type})")

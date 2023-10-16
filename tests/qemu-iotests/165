@@ -116,9 +116,8 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
         sha256_2 = self.getSha256()
         assert sha256_1 != sha256_2 # Otherwise, it's not very interesting.
 
-        result = self.vm.qmp('block-dirty-bitmap-clear', node='drive0',
-                             name='bitmap0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-dirty-bitmap-clear', node='drive0',
+                    name='bitmap0')
 
         # Start with regions1
 
@@ -137,7 +136,7 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
         assert sha256_1 == self.getSha256()
 
         # Reopen to RW
-        result = self.vm.qmp('blockdev-reopen', options=[{
+        self.vm.cmd('blockdev-reopen', options=[{
             'node-name': 'node0',
             'driver': iotests.imgfmt,
             'file': {
@@ -146,7 +145,6 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
             },
             'read-only': False
         }])
-        self.assert_qmp(result, 'return', {})
 
         # Check that bitmap is reopened to RW and we can write to it.
         self.writeRegions(regions2)

@@ -42,7 +42,7 @@ class Secret:
         return  [ "secret,id=" + self._id + ",data=" + self._secret]
 
     def to_qmp_object(self):
-        return { "qom_type" : "secret", "id": self.id(),
+        return { "qom-type" : "secret", "id": self.id(),
                  "data": self.secret() }
 
 ################################################################################
@@ -61,10 +61,8 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         # create the secrets and load 'em into the VMs
         self.secrets = [ Secret(i) for i in range(0, 4) ]
         for secret in self.secrets:
-            result = self.vm1.qmp("object-add", **secret.to_qmp_object())
-            self.assert_qmp(result, 'return', {})
-            result = self.vm2.qmp("object-add", **secret.to_qmp_object())
-            self.assert_qmp(result, 'return', {})
+            self.vm1.cmd("object-add", secret.to_qmp_object())
+            self.vm2.cmd("object-add", secret.to_qmp_object())
 
     # test case shutdown
     def tearDown(self):
@@ -132,17 +130,15 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             }
 
         if reOpen:
-            result = vm.qmp(command, options=[opts])
+            vm.cmd(command, options=[opts])
         else:
-            result = vm.qmp(command, **opts)
-        self.assert_qmp(result, 'return', {})
+            vm.cmd(command, opts)
 
 
     ###########################################################################
     # add virtio-blk consumer for a block device
     def addImageUser(self, vm, id, disk_id, share_rw=False):
-        result = vm.qmp('device_add', **
-            {
+        result = vm.qmp('device_add', {
                 'driver': 'virtio-blk',
                 'id': id,
                 'drive': disk_id,
@@ -154,8 +150,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
     # close the encrypted block device
     def closeImageQmp(self, vm, id):
-        result = vm.qmp('blockdev-del', **{ 'node-name': id })
-        self.assert_qmp(result, 'return', {})
+        vm.cmd('blockdev-del', {'node-name': id})
 
     ###########################################################################
 
@@ -173,7 +168,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             },
         }
 
-        result = vm.qmp('x-blockdev-amend', **args)
+        result = vm.qmp('x-blockdev-amend', args)
         iotests.log(result)
         # Run the job only if it was created
         event = ('JOB_STATUS_CHANGE',

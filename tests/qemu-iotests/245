@@ -136,8 +136,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def test_incorrect_parameters_single_file(self):
         # Open 'hd0' only (no backing files)
         opts = hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
         original_graph = self.vm.qmp('query-named-block-nodes')
 
         # We can reopen the image passing the same options
@@ -171,8 +170,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.check_node_graph(original_graph)
 
         # Remove the node
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
     # This test opens an image with a backing file and tries to reopen
     # it with illegal / incorrect parameters.
@@ -180,8 +178,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # Open hd1 omitting the backing options (hd0 will be opened
         # with the default options)
         opts = hd_opts(1)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
         original_graph = self.vm.qmp('query-named-block-nodes')
 
         # We can't reopen the image passing the same options, 'backing' is mandatory
@@ -213,8 +210,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.check_node_graph(original_graph)
 
         # Remove the node
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd1')
 
     # Reopen an image several times changing some of its options
     def test_reopen(self):
@@ -230,8 +226,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # Open the hd1 image passing all backing options
         opts = hd_opts(1)
         opts['backing'] = hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
         original_graph = self.vm.qmp('query-named-block-nodes')
 
         # We can reopen the image passing the same options
@@ -306,8 +301,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp_absent(self.get_node('hd1'), 'image/backing-image')
 
         # Open the 'hd0' image
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **hd_opts(0))
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **hd_opts(0))
 
         # Reopen the hd1 image setting 'hd0' as its backing image
         self.reopen(opts, {'backing': 'hd0'})
@@ -326,10 +320,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/desc', "Node 'hd0' is busy: node is used as backing hd of 'hd1'")
 
         # But we can remove both nodes if done in the proper order
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd1')
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd1')
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
     # Reopen a raw image and see the effect of changing the 'offset' option
     def test_reopen_raw(self):
@@ -345,8 +337,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         qemu_io('-f', 'raw', '-c', 'write -P 0xa1 1M 1M', hd_path[0])
 
         # Open the raw file with QEMU
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Read 1MB from offset 0
         self.run_qemu_io("hd0", "read -P 0xa0  0 1M")
@@ -362,8 +353,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.run_qemu_io("hd0", "read -P 0xa0  0 1M")
 
         # Remove the block device
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
     # Omitting an option should reset it to the default value, but if
     # an option cannot be changed it shouldn't be possible to reset it
@@ -377,8 +367,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                           'node-name': 'hd0-file' } }
 
         # Open the file with QEMU
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # file.x-check-cache-dropped can be changed...
         self.reopen(opts, { 'file.x-check-cache-dropped': False })
@@ -394,8 +383,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, { 'file.locking': 'off' })
 
         # Remove the block device
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
     # This test modifies the node graph a few times by changing the
     # 'backing' option on reopen and verifies that the guest data that
@@ -407,8 +395,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         for i in range(3):
             opts.append(hd_opts(i))
             opts[i]['backing'] = None
-            result = self.vm.qmp('blockdev-add', conv_keys = False, **opts[i])
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-add', conv_keys = False, **opts[i])
 
         # hd0
         self.run_qemu_io("hd0", "read -P 0xa0  0 1M")
@@ -499,8 +486,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         for i in range(3):
             opts.append(hd_opts(i))
             opts[i]['backing'] = None
-            result = self.vm.qmp('blockdev-add', conv_keys = False, **opts[i])
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-add', conv_keys = False, **opts[i])
 
         # hd1 <- hd0, hd1 <- hd2
         self.reopen(opts[0], {'backing': 'hd1'})
@@ -532,8 +518,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                   'node-name': 'bv',
                   'test': 'hd0',
                   'raw': 'hd1'}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **bvopts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **bvopts)
 
         # blkverify doesn't currently allow reopening. TODO: implement this
         self.reopen(bvopts, {}, "Block format 'blkverify' used by node 'bv'" +
@@ -544,8 +529,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                     "Making 'bv' a backing child of 'hd0' would create a cycle")
 
         # Delete the blkverify node
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'bv')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'bv')
 
     # Replace the protocol layer ('file' parameter) of a disk image
     def test_replace_file(self):
@@ -556,16 +540,13 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         hd0_opts = {'driver': 'file', 'node-name': 'hd0-file', 'filename':  hd_path[0] }
         hd1_opts = {'driver': 'file', 'node-name': 'hd1-file', 'filename':  hd_path[1] }
 
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **hd0_opts)
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **hd1_opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **hd0_opts)
+        self.vm.cmd('blockdev-add', conv_keys = False, **hd1_opts)
 
         # Add a raw format layer that uses hd0-file as its protocol layer
         opts = {'driver': 'raw', 'node-name': 'hd', 'file': 'hd0-file'}
 
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Fill the image with data
         self.run_qemu_io("hd", "read  -P 0 0 10k")
@@ -588,21 +569,18 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def test_insert_throttle_filter(self):
         # Add an image to the VM
         hd0_opts = hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **hd0_opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **hd0_opts)
 
         # Create a throttle-group object
         opts = { 'qom-type': 'throttle-group', 'id': 'group0',
                  'limits': { 'iops-total': 1000 } }
-        result = self.vm.qmp('object-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', conv_keys = False, **opts)
 
         # Add a throttle filter with the group that we just created.
         # The filter is not used by anyone yet
         opts = { 'driver': 'throttle', 'node-name': 'throttle0',
                  'throttle-group': 'group0', 'file': 'hd0-file' }
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Insert the throttle filter between hd0 and hd0-file
         self.reopen(hd0_opts, {'file': 'throttle0'})
@@ -615,15 +593,13 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def test_insert_compress_filter(self):
         # Add an image to the VM: hd (raw) -> hd0 (qcow2) -> hd0-file (file)
         opts = {'driver': 'raw', 'node-name': 'hd', 'file': hd_opts(0)}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Add a 'compress' filter
         filter_opts = {'driver': 'compress',
                        'node-name': 'compress0',
                        'file': 'hd0'}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **filter_opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **filter_opts)
 
         # Unmap the beginning of the image (we cannot write compressed
         # data to an allocated cluster)
@@ -659,12 +635,10 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def test_swap_files(self):
         # Add hd0 and hd2 (none of them with backing files)
         opts0 = hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts0)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts0)
 
         opts2 = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts2)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts2)
 
         # Write different data to both block devices
         self.run_qemu_io("hd0", "write -P 0xa0 0 1k")
@@ -712,15 +686,13 @@ class TestBlockdevReopen(iotests.QMPTestCase):
             opts = hd_opts(i)
             # Open all three images without backing file
             opts['backing'] = None
-            result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         opts = {'driver': 'quorum',
                 'node-name': 'quorum0',
                 'children': ['hd0', 'hd1', 'hd2'],
                 'vote-threshold': 2}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Quorum doesn't currently allow reopening. TODO: implement this
         self.reopen(opts, {}, "Block format 'quorum' used by node 'quorum0'" +
@@ -732,14 +704,12 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                     "Making 'quorum0' a backing child of 'hd0' would create a cycle")
 
         # Delete quorum0
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'quorum0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'quorum0')
 
         # Delete hd0, hd1 and hd2
         for i in range(3):
-            result = self.vm.qmp('blockdev-del', conv_keys = True,
-                                 node_name = 'hd%d' % i)
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('blockdev-del', conv_keys = True,
+                        node_name = 'hd%d' % i)
 
         ######################
         ###### blkdebug ######
@@ -748,8 +718,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                 'node-name': 'bd',
                 'config': '/dev/null',
                 'image': hd_opts(0)}
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # blkdebug allows reopening if we keep the same options
         self.reopen(opts)
@@ -762,16 +731,14 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {}, "Option 'config' cannot be reset to its default value")
 
         # Delete the blkdebug node
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'bd')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'bd')
 
         ##################
         ###### null ######
         ##################
         opts = {'driver': 'null-co', 'node-name': 'root', 'size': 1024}
 
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # 1 << 30 is the default value, but we cannot change it explicitly
         self.reopen(opts, {'size': (1 << 30)}, "Cannot change the option 'size'")
@@ -780,16 +747,14 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         del opts['size']
         self.reopen(opts, {}, "Option 'size' cannot be reset to its default value")
 
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'root')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'root')
 
         ##################
         ###### file ######
         ##################
         opts = hd_opts(0)
         opts['file']['locking'] = 'on'
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # 'locking' cannot be changed
         del opts['file']['locking']
@@ -803,27 +768,23 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'locking': 'off'}, "Cannot change the option 'locking'")
         self.reopen(opts, {}, "Option 'locking' cannot be reset to its default value")
 
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
         ######################
         ###### throttle ######
         ######################
         opts = { 'qom-type': 'throttle-group', 'id': 'group0',
                  'limits': { 'iops-total': 1000 } }
-        result = self.vm.qmp('object-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', conv_keys = False, **opts)
 
         opts = { 'qom-type': 'throttle-group', 'id': 'group1',
                  'limits': { 'iops-total': 2000 } }
-        result = self.vm.qmp('object-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', conv_keys = False, **opts)
 
         # Add a throttle filter with group = group0
         opts = { 'driver': 'throttle', 'node-name': 'throttle0',
                  'throttle-group': 'group0', 'file': hd_opts(0) }
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # We can reopen it if we keep the same options
         self.reopen(opts)
@@ -851,16 +812,13 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/desc', "object 'group0' is in use, can not be deleted")
 
         # But group1 is free this time, and it can be deleted
-        result = self.vm.qmp('object-del', id = 'group1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-del', id = 'group1')
 
         # Let's delete the filter node
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'throttle0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'throttle0')
 
         # And we can finally get rid of group0
-        result = self.vm.qmp('object-del', id = 'group0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-del', id = 'group0')
 
     # If an image has a backing file then the 'backing' option must be
     # passed on reopen. We don't allow leaving the option out in this
@@ -868,13 +826,11 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def test_missing_backing_options_1(self):
         # hd2
         opts = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # hd0
         opts = hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # hd0 has no backing file: we can omit the 'backing' option
         self.reopen(opts)
@@ -897,11 +853,9 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts)
 
         # Remove both hd0 and hd2
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd2')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd2')
 
     # If an image has default backing file (as part of its metadata)
     # then the 'backing' option must be passed on reopen. We don't
@@ -911,8 +865,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # hd0 <- hd1
         # (hd0 is hd1's default backing file)
         opts = hd_opts(1)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # hd1 has a backing file: we can't omit the 'backing' option
         self.reopen(opts, {}, "backing is missing for 'hd1'")
@@ -923,8 +876,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # No backing file attached to hd1 now, but we still can't omit the 'backing' option
         self.reopen(opts, {}, "backing is missing for 'hd1'")
 
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd1')
 
     # Test that making 'backing' a reference to an existing child
     # keeps its current options
@@ -937,8 +889,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts['detect-zeroes'] = 'on'
         opts['backing']['detect-zeroes'] = 'on'
         opts['backing']['backing']['detect-zeroes'] = 'on'
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Reopen the chain passing the minimum amount of required options.
         # By making 'backing' a reference to hd1 (instead of a sub-dict)
@@ -961,12 +912,10 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = None
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Stream hd1 into hd0 and wait until it's done
-        result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0', device = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-stream', conv_keys = True, job_id = 'stream0', device = 'hd0')
         self.wait_until_completed(drive = 'stream0')
 
         # Now we have only hd0
@@ -982,8 +931,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # We can also reopen hd0 if we set 'backing' to null
         self.reopen(opts, {'backing': None})
 
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
 
     # Another block_stream test
     def test_block_stream_2(self):
@@ -991,13 +939,11 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Stream hd1 into hd0 and wait until it's done
-        result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0',
-                             device = 'hd0', base_node = 'hd2')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-stream', conv_keys = True, job_id = 'stream0',
+                    device = 'hd0', base_node = 'hd2')
         self.wait_until_completed(drive = 'stream0')
 
         # The chain is hd2 <- hd0 now. hd1 is missing
@@ -1019,8 +965,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {}, "backing is missing for 'hd0'")
 
         # Now we can delete hd0 (and hd2)
-        result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', conv_keys = True, node_name = 'hd0')
         self.assertEqual(self.get_node('hd2'), None)
 
     # Reopen the chain during a block-stream job (from hd1 to hd0)
@@ -1029,14 +974,12 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # hd2 <- hd0
-        result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0',
-                             device = 'hd0', base_node = 'hd2',
-                             auto_finalize = False)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-stream', conv_keys = True, job_id = 'stream0',
+                    device = 'hd0', base_node = 'hd2',
+                    auto_finalize = False)
 
         # We can remove hd2 while the stream job is ongoing
         opts['backing']['backing'] = None
@@ -1054,14 +997,12 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # hd1 <- hd0
-        result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0',
-                             device = 'hd1', filter_node_name='cor',
-                             auto_finalize = False)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-stream', conv_keys = True, job_id = 'stream0',
+                    device = 'hd1', filter_node_name='cor',
+                    auto_finalize = False)
 
         # We can't reopen with the original options because there is a filter
         # inserted by stream job above hd1.
@@ -1090,12 +1031,10 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
-        result = self.vm.qmp('block-commit', conv_keys = True, job_id = 'commit0',
-                             device = 'hd0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', conv_keys = True, job_id = 'commit0',
+                    device = 'hd0')
 
         # We can't remove hd2 while the commit job is ongoing
         opts['backing']['backing'] = None
@@ -1110,8 +1049,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'commit')
         self.assert_qmp_absent(event, 'data/error')
 
-        result = self.vm.qmp('block-job-complete', device='commit0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-complete', device='commit0')
 
         self.wait_until_completed(drive = 'commit0')
 
@@ -1121,13 +1059,11 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
         opts['backing']['backing'] = hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
-        result = self.vm.qmp('block-commit', conv_keys = True, job_id = 'commit0',
-                             device = 'hd0', top_node = 'hd1',
-                             auto_finalize = False)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', conv_keys = True, job_id = 'commit0',
+                    device = 'hd0', top_node = 'hd1',
+                    auto_finalize = False)
 
         # We can't remove hd2 while the commit job is ongoing
         opts['backing']['backing'] = None
@@ -1147,36 +1083,28 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     def run_test_iothreads(self, iothread_a, iothread_b, errmsg = None,
                            opts_a = None, opts_b = None):
         opts = opts_a or hd_opts(0)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         opts2 = opts_b or hd_opts(2)
-        result = self.vm.qmp('blockdev-add', conv_keys = False, **opts2)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', conv_keys = False, **opts2)
 
-        result = self.vm.qmp('object-add', qom_type='iothread', id='iothread0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', qom_type='iothread', id='iothread0')
 
-        result = self.vm.qmp('object-add', qom_type='iothread', id='iothread1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', qom_type='iothread', id='iothread1')
 
-        result = self.vm.qmp('device_add', driver='virtio-scsi', id='scsi0',
-                             iothread=iothread_a)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('device_add', driver='virtio-scsi', id='scsi0',
+                    iothread=iothread_a)
 
-        result = self.vm.qmp('device_add', driver='virtio-scsi', id='scsi1',
-                             iothread=iothread_b)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('device_add', driver='virtio-scsi', id='scsi1',
+                    iothread=iothread_b)
 
         if iothread_a:
-            result = self.vm.qmp('device_add', driver='scsi-hd', drive='hd0',
-                                 share_rw=True, bus="scsi0.0")
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('device_add', driver='scsi-hd', drive='hd0',
+                        share_rw=True, bus="scsi0.0")
 
         if iothread_b:
-            result = self.vm.qmp('device_add', driver='scsi-hd', drive='hd2',
-                                 share_rw=True, bus="scsi1.0")
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd('device_add', driver='scsi-hd', drive='hd2',
+                        share_rw=True, bus="scsi1.0")
 
         # Attaching the backing file may or may not work
         self.reopen(opts, {'backing': 'hd2'}, errmsg)
@@ -1205,8 +1133,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # Create a throttle-group object
         opts = { 'qom-type': 'throttle-group', 'id': 'group0',
                  'limits': { 'iops-total': 1000 } }
-        result = self.vm.qmp('object-add', conv_keys = False, **opts)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', conv_keys = False, **opts)
 
         # Options with a throttle filter between format and protocol
         opts = [

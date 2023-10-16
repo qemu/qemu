@@ -29,9 +29,9 @@ class HotPlugCPU(LinuxTest):
         with self.assertRaises(AssertionError):
             self.ssh_command('test -e /sys/devices/system/cpu/cpu1')
 
-        self.vm.command('device_add',
-                        driver='Haswell-x86_64-cpu',
-                        socket_id=0,
-                        core_id=1,
-                        thread_id=0)
+        self.vm.cmd('device_add',
+                    driver='Haswell-x86_64-cpu',
+                    socket_id=0,
+                    core_id=1,
+                    thread_id=0)
         self.ssh_command('test -e /sys/devices/system/cpu/cpu1')

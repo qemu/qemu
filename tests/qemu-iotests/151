@@ -79,14 +79,13 @@ class TestActiveMirror(iotests.QMPTestCase):
             self.vm.hmp_qemu_io('source', 'aio_write -z %i 1M' % offset)
 
         # Start the block job
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             filter_node_name='mirror-node',
-                             device='source-node',
-                             target='target-node',
-                             sync='full',
-                             copy_mode='write-blocking')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    filter_node_name='mirror-node',
+                    device='source-node',
+                    target='target-node',
+                    sync='full',
+                    copy_mode='write-blocking')
 
         # Start some more requests
         for offset in range(3 * self.image_len // 8, 5 * self.image_len // 8, 1024 * 1024):
@@ -125,23 +124,21 @@ class TestActiveMirror(iotests.QMPTestCase):
         result = self.vm.hmp_qemu_io('source', 'write -P 1 0 2M')
 
         # Start the block job (very slowly)
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             filter_node_name='mirror-node',
-                             device='source-node',
-                             target='target-node',
-                             sync='full',
-                             copy_mode='write-blocking',
-                             buf_size=(1048576 // 4),
-                             speed=1)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    filter_node_name='mirror-node',
+                    device='source-node',
+                    target='target-node',
+                    sync='full',
+                    copy_mode='write-blocking',
+                    buf_size=(1048576 // 4),
+                    speed=1)
 
         # Start an unaligned request to a dirty area
         result = self.vm.hmp_qemu_io('source', 'write -P 2 %i 1' % (1048576 + 42))
 
         # Let the job finish
-        result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-set-speed', device='mirror', speed=0)
         self.complete_and_wait(drive='mirror')
 
         self.potential_writes_in_flight = False
@@ -151,14 +148,14 @@ class TestActiveMirror(iotests.QMPTestCase):
         result = self.vm.hmp_qemu_io('source', 'write -P 1 0 2M')
 
         # Start the block job (very slowly)
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             filter_node_name='mirror-node',
-                             device='source-node',
-                             target='target-node',
-                             sync='full',
-                             copy_mode='write-blocking',
-                             speed=1)
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    filter_node_name='mirror-node',
+                    device='source-node',
+                    target='target-node',
+                    sync='full',
+                    copy_mode='write-blocking',
+                    speed=1)
 
         self.vm.hmp_qemu_io('source', 'break write_aio A')
         self.vm.hmp_qemu_io('source', 'aio_write 0 1M')  # 1
@@ -189,8 +186,7 @@ class TestActiveMirror(iotests.QMPTestCase):
         # After resuming 4, one of 2 and 3 goes first and set in_flight_bitmap,
         # so the other will wait for it.
 
-        result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-set-speed', device='mirror', speed=0)
         self.complete_and_wait(drive='mirror')
 
         self.potential_writes_in_flight = False
@@ -211,7 +207,7 @@ class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
         self.vm = iotests.VM()
         self.vm.launch()
 
-        result = self.vm.qmp('object-add', **{
+        self.vm.cmd('object-add', **{
             'qom-type': 'throttle-group',
             'id': 'thrgr',
             'limits': {
@@ -219,9 +215,8 @@ class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
                 'iops-total-max': self.iops
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', **{
+        self.vm.cmd('blockdev-add', **{
             'node-name': 'source-node',
             'driver': 'throttle',
             'throttle-group': 'thrgr',
@@ -233,9 +228,8 @@ class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
                 }
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-add', **{
+        self.vm.cmd('blockdev-add', **{
             'node-name': 'target-node',
             'driver': iotests.imgfmt,
             'file': {
@@ -243,23 +237,20 @@ class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
                 'filename': target_img
             }
         })
-        self.assert_qmp(result, 'return', {})
 
         self.nbd_sock = iotests.file_path('nbd.sock',
                                           base_dir=iotests.sock_dir)
         self.nbd_url = f'nbd+unix:///source-node?socket={self.nbd_sock}'
 
-        result = self.vm.qmp('nbd-server-start', addr={
+        self.vm.cmd('nbd-server-start', addr={
             'type': 'unix',
             'data': {
                 'path': self.nbd_sock
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-export-add', id='exp0', type='nbd',
-                             node_name='source-node', writable=True)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-export-add', id='exp0', type='nbd',
+                    node_name='source-node', writable=True)
 
     def tearDown(self):
         # Wait for background requests to settle
@@ -312,15 +303,14 @@ class TestLowThrottledWithNbdExport(TestThrottledWithNbdExportBase):
 
         # Launch the mirror job
         mirror_buf_size = 65536
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             filter_node_name='mirror-node',
-                             device='source-node',
-                             target='target-node',
-                             sync='full',
-                             copy_mode='write-blocking',
-                             buf_size=mirror_buf_size)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    filter_node_name='mirror-node',
+                    device='source-node',
+                    target='target-node',
+                    sync='full',
+                    copy_mode='write-blocking',
+                    buf_size=mirror_buf_size)
 
         # We create the external requests via qemu-io processes on the NBD
         # server.  Have their offset start in the middle of the image so they
@@ -408,13 +398,12 @@ class TestHighThrottledWithNbdExport(TestThrottledWithNbdExportBase):
         # start blockdev-mirror
         self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
 
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             device='source-node',
-                             target='target-node',
-                             sync='full',
-                             copy_mode='write-blocking')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source-node',
+                    target='target-node',
+                    sync='full',
+                    copy_mode='write-blocking')
 
 
 if __name__ == '__main__':

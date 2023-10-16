@@ -41,16 +41,16 @@ class TestUnaligned(iotests.QMPTestCase):
             pass
 
     def test_unaligned(self):
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             granularity=65536, target=target_img)
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    granularity=65536, target=target_img)
         self.complete_and_wait()
         self.vm.shutdown()
         self.assertEqual(iotests.image_size(test_img), iotests.image_size(target_img),
                          "Target size doesn't match source when granularity when unaligend")
 
     def test_unaligned_with_update(self):
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             granularity=65536, target=target_img)
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    granularity=65536, target=target_img)
         self.wait_ready()
         self.vm.hmp_qemu_io('drive0', 'write 0 512')
         self.complete_and_wait(wait_ready=False)

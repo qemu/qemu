@@ -64,12 +64,11 @@ class TestReopenFile(QMPTestCase):
             self.fail('qemu-io pattern verification failed')
 
     def test_reopen_file(self) -> None:
-        result = self.vm.qmp('blockdev-reopen', options=[{
+        self.vm.cmd('blockdev-reopen', options=[{
             'driver': imgfmt,
             'node-name': 'format',
             'file': 'raw'
         }])
-        self.assert_qmp(result, 'return', {})
 
         # Do some I/O to the image to see whether it still works
         # (Pattern verification will be checked by tearDown())
