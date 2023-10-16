@@ -922,6 +922,11 @@ void xen_device_notify_event_channel(XenDevice *xendev,
     }
 }
 
+unsigned int xen_event_channel_get_local_port(XenEventChannel *channel)
+{
+    return channel->local_port;
+}
+
 void xen_device_unbind_event_channel(XenDevice *xendev,
                                      XenEventChannel *channel,
                                      Error **errp)

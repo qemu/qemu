@@ -131,5 +131,6 @@ void xen_device_notify_event_channel(XenDevice *xendev,
 void xen_device_unbind_event_channel(XenDevice *xendev,
                                      XenEventChannel *channel,
                                      Error **errp);
+unsigned int xen_event_channel_get_local_port(XenEventChannel *channel);
 
 #endif /* HW_XEN_BUS_H */

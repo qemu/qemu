@@ -28,6 +28,7 @@
 #include "hw/i386/kvm/xen_overlay.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/kvm/xen_gnttab.h"
+#include "hw/i386/kvm/xen_primary_console.h"
 #include "hw/i386/kvm/xen_xenstore.h"
 
 #include "hw/xen/interface/version.h"
@@ -182,7 +183,8 @@ int kvm_xen_init(KVMState *s, uint32_t hypercall_msr)
         return ret;
     }
 
-    /* The page couldn't be overlaid until KVM was initialized */
+    /* The pages couldn't be overlaid until KVM was initialized */
+    xen_primary_console_reset();
     xen_xenstore_reset();
 
     return 0;
@@ -812,11 +814,23 @@ static bool handle_get_param(struct kvm_xen_exit *exit, X86CPU *cpu,
     case HVM_PARAM_STORE_EVTCHN:
         hp.value = xen_xenstore_get_port();
         break;
+    case HVM_PARAM_CONSOLE_PFN:
+        hp.value = xen_primary_console_get_pfn();
+        if (!hp.value) {
+            err = -EINVAL;
+        }
+        break;
+    case HVM_PARAM_CONSOLE_EVTCHN:
+        hp.value = xen_primary_console_get_port();
+        if (!hp.value) {
+            err = -EINVAL;
+        }
+        break;
     default:
         return false;
     }
 
-    if (kvm_copy_to_gva(cs, arg, &hp, sizeof(hp))) {
+    if (!err && kvm_copy_to_gva(cs, arg, &hp, sizeof(hp))) {
         err = -EFAULT;
     }
 out:
@@ -1423,6 +1437,11 @@ int kvm_xen_soft_reset(void)
     }
 
     err = xen_gnttab_reset();
+    if (err) {
+        return err;
+    }
+
+    err = xen_primary_console_reset();
     if (err) {
         return err;
     }

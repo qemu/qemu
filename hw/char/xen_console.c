@@ -33,6 +33,8 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/xen/interface/io/console.h"
 #include "hw/xen/interface/io/xs_wire.h"
+#include "hw/xen/interface/grant_table.h"
+#include "hw/i386/kvm/xen_primary_console.h"
 #include "trace.h"
 
 struct buffer {
@@ -230,24 +232,47 @@ static bool xen_console_connect(XenDevice *xendev, Error **errp)
         return false;
     }
 
-    if (!con->dev) {
-        xen_pfn_t mfn = (xen_pfn_t)con->ring_ref;
-        con->sring = qemu_xen_foreignmem_map(xendev->frontend_id, NULL,
-                                             PROT_READ | PROT_WRITE,
-                                             1, &mfn, NULL);
-        if (!con->sring) {
-            error_setg(errp, "failed to map console page");
-            return false;
+    switch (con->dev) {
+    case 0:
+        /*
+         * The primary console is special. For real Xen the ring-ref is
+         * actually a GFN which needs to be mapped as foreignmem.
+         */
+        if (xen_mode != XEN_EMULATE) {
+            xen_pfn_t mfn = (xen_pfn_t)con->ring_ref;
+            con->sring = qemu_xen_foreignmem_map(xendev->frontend_id, NULL,
+                                                 PROT_READ | PROT_WRITE,
+                                                 1, &mfn, NULL);
+            if (!con->sring) {
+                error_setg(errp, "failed to map console page");
+                return false;
+            }
+            break;
         }
-    } else {
+
+        /*
+         * For Xen emulation, we still follow the convention of ring-ref
+         * holding the GFN, but we map the fixed GNTTAB_RESERVED_CONSOLE
+         * grant ref because there is no implementation of foreignmem
+         * operations for emulated mode. The emulation code which handles
+         * the guest-side page and event channel also needs to be informed
+         * of the backend event channel port, in order to reconnect to it
+         * after a soft reset.
+         */
+        xen_primary_console_set_be_port(
+            xen_event_channel_get_local_port(con->event_channel));
+        con->ring_ref = GNTTAB_RESERVED_CONSOLE;
+        /* fallthrough */
+    default:
         con->sring = xen_device_map_grant_refs(xendev,
                                                &con->ring_ref, 1,
                                                PROT_READ | PROT_WRITE,
                                                errp);
         if (!con->sring) {
-            error_prepend(errp, "failed to map grant ref: ");
+            error_prepend(errp, "failed to map console grant ref: ");
             return false;
         }
+        break;
     }
 
     trace_xen_console_connect(con->dev, con->ring_ref, port,
@@ -272,10 +297,14 @@ static void xen_console_disconnect(XenDevice *xendev, Error **errp)
         xen_device_unbind_event_channel(xendev, con->event_channel,
                                         errp);
         con->event_channel = NULL;
+
+        if (xen_mode == XEN_EMULATE && !con->dev) {
+            xen_primary_console_set_be_port(0);
+        }
     }
 
     if (con->sring) {
-        if (!con->dev) {
+        if (!con->dev && xen_mode != XEN_EMULATE) {
             qemu_xen_foreignmem_unmap(con->sring, 1);
         } else {
             xen_device_unmap_grant_refs(xendev, con->sring,
@@ -338,14 +367,19 @@ static char *xen_console_get_name(XenDevice *xendev, Error **errp)
     if (con->dev == -1) {
         XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
         char fe_path[XENSTORE_ABS_PATH_MAX + 1];
+        int idx = (xen_mode == XEN_EMULATE) ? 0 : 1;
         char *value;
-        int idx = 1;
 
         /* Theoretically we could go up to INT_MAX here but that's overkill */
         while (idx < 100) {
-            snprintf(fe_path, sizeof(fe_path),
-                     "/local/domain/%u/device/console/%u",
-                     xendev->frontend_id, idx);
+            if (!idx) {
+                snprintf(fe_path, sizeof(fe_path),
+                         "/local/domain/%u/console", xendev->frontend_id);
+            } else {
+                snprintf(fe_path, sizeof(fe_path),
+                         "/local/domain/%u/device/console/%u",
+                         xendev->frontend_id, idx);
+            }
             value = qemu_xen_xs_read(xenbus->xsh, XBT_NULL, fe_path, NULL);
             if (!value) {
                 if (errno == ENOENT) {
@@ -400,11 +434,15 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
      * be mapped directly as foreignmem (not a grant ref), and the guest port
      * was allocated *for* the guest by the toolstack. The guest gets these
      * through HVMOP_get_param and can use the console long before it's got
-     * XenStore up and running. We cannot create those for a Xen guest.
+     * XenStore up and running. We cannot create those for a true Xen guest,
+     * but we can for Xen emulation.
      */
     if (!con->dev) {
-        if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u) != 1 ||
-            xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {
+        if (xen_mode == XEN_EMULATE) {
+            xen_primary_console_create();
+        } else if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u)
+                   != 1 ||
+                   xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {
             error_setg(errp, "cannot create primary Xen console");
             return;
         }
@@ -417,8 +455,8 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
         xen_device_frontend_printf(xendev, "tty", "%s", cs->filename + 4);
     }
 
-    /* No normal PV driver initialization for the primary console */
-    if (!con->dev) {
+    /* No normal PV driver initialization for the primary console under Xen */
+    if (!con->dev && xen_mode != XEN_EMULATE) {
         xen_console_connect(xendev, errp);
     }
 }

@@ -25,6 +25,7 @@
 #include "hw/xen/xen_backend_ops.h"
 #include "xen_overlay.h"
 #include "xen_evtchn.h"
+#include "xen_primary_console.h"
 #include "xen_xenstore.h"
 
 #include "sysemu/kvm.h"
@@ -1434,6 +1435,7 @@ static void alloc_guest_port(XenXenstoreState *s)
 int xen_xenstore_reset(void)
 {
     XenXenstoreState *s = xen_xenstore_singleton;
+    int console_port;
     GList *perms;
     int err;
 
@@ -1469,6 +1471,14 @@ int xen_xenstore_reset(void)
     relpath_printf(s, perms, "store/port", "%u", s->guest_port);
     relpath_printf(s, perms, "store/ring-ref", "%lu",
                    XEN_SPECIAL_PFN(XENSTORE));
+
+    console_port = xen_primary_console_get_port();
+    if (console_port) {
+        relpath_printf(s, perms, "console/ring-ref", "%lu",
+                       XEN_SPECIAL_PFN(CONSOLE));
+        relpath_printf(s, perms, "console/port", "%u", console_port);
+        relpath_printf(s, perms, "console/state", "%u", XenbusStateInitialised);
+    }
 
     g_list_free_full(perms, g_free);
 
