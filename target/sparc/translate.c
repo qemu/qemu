@@ -51,12 +51,10 @@
 # define gen_helper_restored(E)                 qemu_build_not_reached()
 # define gen_helper_retry(E)                    qemu_build_not_reached()
 # define gen_helper_saved(E)                    qemu_build_not_reached()
-# define gen_helper_sdivx(D, E, A, B)           qemu_build_not_reached()
 # define gen_helper_set_softint(E, S)           qemu_build_not_reached()
 # define gen_helper_tick_get_count(D, E, T, C)  qemu_build_not_reached()
 # define gen_helper_tick_set_count(P, S)        qemu_build_not_reached()
 # define gen_helper_tick_set_limit(P, S)        qemu_build_not_reached()
-# define gen_helper_udivx(D, E, A, B)           qemu_build_not_reached()
 # define gen_helper_wrccr(E, S)                 qemu_build_not_reached()
 # define gen_helper_wrcwp(E, S)                 qemu_build_not_reached()
 # define gen_helper_wrgl(E, S)                  qemu_build_not_reached()
@@ -577,16 +575,6 @@ static void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
 {
     /* sign-extend truncated operands before multiplication */
     gen_op_multiply(dst, src1, src2, 1);
-}
-
-static void gen_op_udivx(TCGv dst, TCGv src1, TCGv src2)
-{
-    gen_helper_udivx(dst, tcg_env, src1, src2);
-}
-
-static void gen_op_sdivx(TCGv dst, TCGv src1, TCGv src2)
-{
-    gen_helper_sdivx(dst, tcg_env, src1, src2);
 }
 
 static void gen_op_udiv(TCGv dst, TCGv src1, TCGv src2)
@@ -3580,8 +3568,6 @@ TRANS(UMUL, MUL, do_logic, a, gen_op_umul, NULL)
 TRANS(SMUL, MUL, do_logic, a, gen_op_smul, NULL)
 TRANS(MULScc, ALL, do_arith, a, NULL, NULL, gen_op_mulscc)
 
-TRANS(UDIVX, 64, do_arith, a, gen_op_udivx, NULL, NULL)
-TRANS(SDIVX, 64, do_arith, a, gen_op_sdivx, NULL, NULL)
 TRANS(UDIV, DIV, do_arith, a, gen_op_udiv, NULL, gen_op_udivcc)
 TRANS(SDIV, DIV, do_arith, a, gen_op_sdiv, NULL, gen_op_sdivcc)
 
@@ -3603,6 +3589,101 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
         return advance_pc(dc);
     }
     return do_logic(dc, a, tcg_gen_or_tl, tcg_gen_ori_tl);
+}
+
+static bool trans_UDIVX(DisasContext *dc, arg_r_r_ri *a)
+{
+    TCGv dst, src1, src2;
+
+    if (!avail_64(dc)) {
+        return false;
+    }
+    /* For simplicity, we under-decoded the rs2 form. */
+    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+        return false;
+    }
+
+    if (unlikely(a->rs2_or_imm == 0)) {
+        gen_exception(dc, TT_DIV_ZERO);
+        return true;
+    }
+
+    if (a->imm) {
+        src2 = tcg_constant_tl(a->rs2_or_imm);
+    } else {
+        TCGLabel *lab;
+
+        finishing_insn(dc);
+        flush_cond(dc);
+
+        lab = delay_exception(dc, TT_DIV_ZERO);
+        src2 = cpu_regs[a->rs2_or_imm];
+        tcg_gen_brcondi_tl(TCG_COND_EQ, src2, 0, lab);
+    }
+
+    dst = gen_dest_gpr(dc, a->rd);
+    src1 = gen_load_gpr(dc, a->rs1);
+
+    tcg_gen_divu_tl(dst, src1, src2);
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+static bool trans_SDIVX(DisasContext *dc, arg_r_r_ri *a)
+{
+    TCGv dst, src1, src2;
+
+    if (!avail_64(dc)) {
+        return false;
+    }
+    /* For simplicity, we under-decoded the rs2 form. */
+    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+        return false;
+    }
+
+    if (unlikely(a->rs2_or_imm == 0)) {
+        gen_exception(dc, TT_DIV_ZERO);
+        return true;
+    }
+
+    dst = gen_dest_gpr(dc, a->rd);
+    src1 = gen_load_gpr(dc, a->rs1);
+
+    if (a->imm) {
+        if (unlikely(a->rs2_or_imm == -1)) {
+            tcg_gen_neg_tl(dst, src1);
+            gen_store_gpr(dc, a->rd, dst);
+            return advance_pc(dc);
+        }
+        src2 = tcg_constant_tl(a->rs2_or_imm);
+    } else {
+        TCGLabel *lab;
+        TCGv t1, t2;
+
+        finishing_insn(dc);
+        flush_cond(dc);
+
+        lab = delay_exception(dc, TT_DIV_ZERO);
+        src2 = cpu_regs[a->rs2_or_imm];
+        tcg_gen_brcondi_tl(TCG_COND_EQ, src2, 0, lab);
+
+        /*
+         * Need to avoid INT64_MIN / -1, which will trap on x86 host.
+         * Set SRC2 to 1 as a new divisor, to produce the correct result.
+         */
+        t1 = tcg_temp_new();
+        t2 = tcg_temp_new();
+        tcg_gen_setcondi_tl(TCG_COND_EQ, t1, src1, (target_long)INT64_MIN);
+        tcg_gen_setcondi_tl(TCG_COND_EQ, t2, src2, -1);
+        tcg_gen_and_tl(t1, t1, t2);
+        tcg_gen_movcond_tl(TCG_COND_NE, t1, t1, tcg_constant_tl(0),
+                           tcg_constant_tl(1), src2);
+        src2 = t1;
+    }
+
+    tcg_gen_div_tl(dst, src1, src2);
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
 }
 
 static bool gen_edge(DisasContext *dc, arg_r_r_r *a,

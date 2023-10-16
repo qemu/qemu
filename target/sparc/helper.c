@@ -129,30 +129,6 @@ uint64_t helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
     return (uint32_t)r;
 }
 
-#ifdef TARGET_SPARC64
-int64_t helper_sdivx(CPUSPARCState *env, int64_t a, int64_t b)
-{
-    if (b == 0) {
-        /* Raise divide by zero trap.  */
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
-    } else if (b == -1) {
-        /* Avoid overflow trap with i386 divide insn.  */
-        return -a;
-    } else {
-        return a / b;
-    }
-}
-
-uint64_t helper_udivx(CPUSPARCState *env, uint64_t a, uint64_t b)
-{
-    if (b == 0) {
-        /* Raise divide by zero trap.  */
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
-    }
-    return a / b;
-}
-#endif
-
 target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
