@@ -164,12 +164,12 @@ struct virtio_gpu_ctrl_command {
 };
 
 #define VUGPU_FILL_CMD(out) do {                                \
-        size_t s;                                               \
-        s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,  \
+        size_t vugpufillcmd_s_ =                                \
+            iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,  \
                        &out, sizeof(out));                      \
-        if (s != sizeof(out)) {                                 \
+        if (vugpufillcmd_s_ != sizeof(out)) {                   \
             g_critical("%s: command size incorrect %zu vs %zu", \
-                       __func__, s, sizeof(out));               \
+                       __func__, vugpufillcmd_s_, sizeof(out)); \
             return;                                             \
         }                                                       \
     } while (0)

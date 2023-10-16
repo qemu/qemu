@@ -225,13 +225,13 @@ struct VhostUserGPU {
 };
 
 #define VIRTIO_GPU_FILL_CMD(out) do {                                   \
-        size_t s;                                                       \
-        s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,          \
+        size_t virtiogpufillcmd_s_ =                                    \
+            iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,          \
                        &out, sizeof(out));                              \
-        if (s != sizeof(out)) {                                         \
+        if (virtiogpufillcmd_s_ != sizeof(out)) {                       \
             qemu_log_mask(LOG_GUEST_ERROR,                              \
                           "%s: command size incorrect %zu vs %zu\n",    \
-                          __func__, s, sizeof(out));                    \
+                          __func__, virtiogpufillcmd_s_, sizeof(out));  \
             return;                                                     \
         }                                                               \
     } while (0)

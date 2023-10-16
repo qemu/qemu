@@ -834,7 +834,7 @@ vg_resource_flush(VuGpu *g,
                 .width = width,
                 .height = height,
             };
-            pixman_image_t *i =
+            pixman_image_t *img =
                 pixman_image_create_bits(pixman_image_get_format(res->image),
                                          msg->payload.update.width,
                                          msg->payload.update.height,
@@ -842,11 +842,11 @@ vg_resource_flush(VuGpu *g,
                                                       payload.update.data),
                                          width * bpp);
             pixman_image_composite(PIXMAN_OP_SRC,
-                                   res->image, NULL, i,
+                                   res->image, NULL, img,
                                    extents->x1, extents->y1,
                                    0, 0, 0, 0,
                                    width, height);
-            pixman_image_unref(i);
+            pixman_image_unref(img);
             vg_send_msg(g, msg, -1);
             g_free(msg);
         }
