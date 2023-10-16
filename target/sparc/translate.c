@@ -2378,36 +2378,36 @@ static bool advance_pc(DisasContext *dc)
  * Major opcodes 00 and 01 -- branches, call, and sethi
  */
 
-static bool advance_jump_uncond_never(DisasContext *dc, bool annul)
-{
-    if (annul) {
-        dc->pc = dc->npc + 4;
-        dc->npc = dc->pc + 4;
-    } else {
-        dc->pc = dc->npc;
-        dc->npc = dc->pc + 4;
-    }
-    return true;
-}
-
-static bool advance_jump_uncond_always(DisasContext *dc, bool annul,
-                                       target_ulong dest)
-{
-    if (annul) {
-        dc->pc = dest;
-        dc->npc = dest + 4;
-    } else {
-        dc->pc = dc->npc;
-        dc->npc = dest;
-        tcg_gen_mov_tl(cpu_pc, cpu_npc);
-    }
-    return true;
-}
-
 static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
                               bool annul, target_ulong dest)
 {
     target_ulong npc;
+
+    if (cmp->cond == TCG_COND_ALWAYS) {
+        if (annul) {
+            dc->pc = dest;
+            dc->npc = dest + 4;
+        } else {
+            gen_mov_pc_npc(dc);
+            dc->npc = dest;
+        }
+        return true;
+    }
+
+    if (cmp->cond == TCG_COND_NEVER) {
+        npc = dc->npc;
+        if (npc & 3) {
+            gen_mov_pc_npc(dc);
+            if (annul) {
+                tcg_gen_addi_tl(cpu_pc, cpu_pc, 4);
+            }
+            tcg_gen_addi_tl(cpu_npc, cpu_pc, 4);
+        } else {
+            dc->pc = npc + (annul ? 4 : 0);
+            dc->npc = dc->pc + 4;
+        }
+        return true;
+    }
 
     flush_cond(dc);
     npc = dc->npc;
@@ -2478,15 +2478,8 @@ static bool do_bpcc(DisasContext *dc, arg_bcc *a)
     target_long target = address_mask_i(dc, dc->pc + a->i * 4);
     DisasCompare cmp;
 
-    switch (a->cond) {
-    case 0x0:
-        return advance_jump_uncond_never(dc, a->a);
-    case 0x8:
-        return advance_jump_uncond_always(dc, a->a, target);
-    default:
-        gen_compare(&cmp, a->cc, a->cond, dc);
-        return advance_jump_cond(dc, &cmp, a->a, target);
-    }
+    gen_compare(&cmp, a->cc, a->cond, dc);
+    return advance_jump_cond(dc, &cmp, a->a, target);
 }
 
 TRANS(Bicc, ALL, do_bpcc, a)
@@ -2500,15 +2493,8 @@ static bool do_fbpfcc(DisasContext *dc, arg_bcc *a)
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-    switch (a->cond) {
-    case 0x0:
-        return advance_jump_uncond_never(dc, a->a);
-    case 0x8:
-        return advance_jump_uncond_always(dc, a->a, target);
-    default:
-        gen_fcompare(&cmp, a->cc, a->cond);
-        return advance_jump_cond(dc, &cmp, a->a, target);
-    }
+    gen_fcompare(&cmp, a->cc, a->cond);
+    return advance_jump_cond(dc, &cmp, a->a, target);
 }
 
 TRANS(FBPfcc,  64, do_fbpfcc, a)
