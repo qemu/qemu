@@ -9,6 +9,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'machine-common.json' }
 
 ##
 # @SysEmuTarget:
@@ -907,7 +908,13 @@
 #
 # @node-id: NUMA node ID the CPU belongs to
 #
-# @socket-id: socket number within CPU topology the CPU belongs to
+# @drawer-id: drawer number within CPU topology the CPU belongs to
+#     (since 8.2)
+#
+# @book-id: book number within parent container the CPU belongs to
+#     (since 8.2)
+#
+# @socket-id: socket number within parent container the CPU belongs to
 #
 # @die-id: die number within the parent container the CPU belongs to
 #    (since 4.1)
@@ -928,6 +935,8 @@
 { 'struct': 'CpuInstanceProperties',
   # Keep these in sync with the properties device_add accepts
   'data': { '*node-id': 'int',
+            '*drawer-id': 'int',
+            '*book-id': 'int',
             '*socket-id': 'int',
             '*die-id': 'int',
             '*cluster-id': 'int',
@@ -1488,7 +1497,7 @@
 # containers.
 #
 # The ordering from highest/coarsest to lowest/finest is:
-# @sockets, @dies, @clusters, @cores, @threads.
+# @drawers, @books, @sockets, @dies, @clusters, @cores, @threads.
 #
 # Different architectures support different subsets of topology
 # containers.
@@ -1501,7 +1510,11 @@
 # @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual
 #     machine
 #
-# @sockets: number of sockets in the CPU topology
+# @drawers: number of drawers in the CPU topology (since 8.2)
+#
+# @books: number of books in the CPU topology (since 8.2)
+#
+# @sockets: number of sockets per parent container
 #
 # @dies: number of dies per parent container
 #
@@ -1515,6 +1528,8 @@
 ##
 { 'struct': 'SMPConfiguration', 'data': {
      '*cpus': 'int',
+     '*drawers': 'int',
+     '*books': 'int',
      '*sockets': 'int',
      '*dies': 'int',
      '*clusters': 'int',
