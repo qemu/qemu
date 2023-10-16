@@ -28,7 +28,6 @@ import sys
 SKIP_OPTIONS = {
     "default_devices",
     "fuzzing_engine",
-    "qemu_suffix",
     "smbd",
 }
 
@@ -40,6 +39,7 @@ OPTION_NAMES = {
     "malloc": "enable-malloc",
     "pkgversion": "with-pkgversion",
     "qemu_firmwarepath": "firmwarepath",
+    "qemu_suffix": "with-suffix",
     "trace_backends": "enable-trace-backends",
     "trace_file": "with-trace-file",
 }
@@ -52,6 +52,7 @@ AUTO_OPTIONS = {
 BUILTIN_OPTIONS = {
     "b_coverage",
     "b_lto",
+    "bindir",
     "datadir",
     "debug",
     "includedir",
@@ -60,6 +61,7 @@ BUILTIN_OPTIONS = {
     "localedir",
     "localstatedir",
     "mandir",
+    "prefix",
     "strip",
     "sysconfdir",
 }
