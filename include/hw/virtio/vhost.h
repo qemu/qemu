@@ -429,4 +429,39 @@ int vhost_set_device_state_fd(struct vhost_dev *dev,
  */
 int vhost_check_device_state(struct vhost_dev *dev, Error **errp);
 
+/**
+ * vhost_save_backend_state(): High-level function to receive a vhost
+ * back-end's state, and save it in @f.  Uses
+ * `vhost_set_device_state_fd()` to get the data from the back-end, and
+ * stores it in consecutive chunks that are each prefixed by their
+ * respective length (be32).  The end is marked by a 0-length chunk.
+ *
+ * Must only be called while the device and all its vrings are stopped
+ * (`VHOST_TRANSFER_STATE_PHASE_STOPPED`).
+ *
+ * @dev: The vhost device from which to save the state
+ * @f: Migration stream in which to save the state
+ * @errp: Potential error message
+ *
+ * Returns 0 on success, and -errno otherwise.
+ */
+int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
+
+/**
+ * vhost_load_backend_state(): High-level function to load a vhost
+ * back-end's state from @f, and send it over to the back-end.  Reads
+ * the data from @f in the format used by `vhost_save_state()`, and uses
+ * `vhost_set_device_state_fd()` to transfer it to the back-end.
+ *
+ * Must only be called while the device and all its vrings are stopped
+ * (`VHOST_TRANSFER_STATE_PHASE_STOPPED`).
+ *
+ * @dev: The vhost device to which to send the sate
+ * @f: Migration stream from which to load the state
+ * @errp: Potential error message
+ *
+ * Returns 0 on success, and -errno otherwise.
+ */
+int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
+
 #endif
