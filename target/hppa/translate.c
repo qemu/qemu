@@ -2176,7 +2176,7 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
     if (ctl == CR_SAR) {
         reg = load_gpr(ctx, a->r);
         tmp = tcg_temp_new();
-        tcg_gen_andi_reg(tmp, reg, TARGET_REGISTER_BITS - 1);
+        tcg_gen_andi_reg(tmp, reg, ctx->is_pa20 ? 63 : 31);
         save_or_nullify(ctx, cpu_sar, tmp);
 
         cond_free(&ctx->null_cond);
@@ -2237,7 +2237,7 @@ static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
     TCGv_reg tmp = tcg_temp_new();
 
     tcg_gen_not_reg(tmp, load_gpr(ctx, a->r));
-    tcg_gen_andi_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
+    tcg_gen_andi_reg(tmp, tmp, ctx->is_pa20 ? 63 : 31);
     save_or_nullify(ctx, cpu_sar, tmp);
 
     cond_free(&ctx->null_cond);
