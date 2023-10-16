@@ -9,6 +9,7 @@
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_sbe.h"
 #include "hw/ppc/pnv_xive.h"
+#include "hw/ppc/pnv_i2c.h"
 #include "hw/sysbus.h"
 
 OBJECT_DECLARE_TYPE(PnvChip, PnvChipClass,
@@ -86,6 +87,10 @@ struct Pnv9Chip {
 
 #define PNV9_CHIP_MAX_PEC 3
     PnvPhb4PecState pecs[PNV9_CHIP_MAX_PEC];
+
+#define PNV9_CHIP_MAX_I2C 3
+#define PNV9_CHIP_MAX_I2C_PORTS 1
+    PnvI2C      i2c[PNV9_CHIP_MAX_I2C];
 };
 
 /*
@@ -129,6 +134,9 @@ struct PnvChipClass {
     uint64_t     cores_mask;
     uint32_t     num_pecs;
     uint32_t     num_phbs;
+
+    uint32_t     i2c_num_engines;
+    uint32_t     i2c_num_ports;
 
     DeviceRealize parent_realize;
 
