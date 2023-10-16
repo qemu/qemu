@@ -48,6 +48,25 @@ static MemoryRegion *virtio_mem_pci_get_memory_region(MemoryDeviceState *md,
     return vmc->get_memory_region(vmem, errp);
 }
 
+static void virtio_mem_pci_decide_memslots(MemoryDeviceState *md,
+                                           unsigned int limit)
+{
+    VirtIOMEMPCI *pci_mem = VIRTIO_MEM_PCI(md);
+    VirtIOMEM *vmem = VIRTIO_MEM(&pci_mem->vdev);
+    VirtIOMEMClass *vmc = VIRTIO_MEM_GET_CLASS(vmem);
+
+    vmc->decide_memslots(vmem, limit);
+}
+
+static unsigned int virtio_mem_pci_get_memslots(MemoryDeviceState *md)
+{
+    VirtIOMEMPCI *pci_mem = VIRTIO_MEM_PCI(md);
+    VirtIOMEM *vmem = VIRTIO_MEM(&pci_mem->vdev);
+    VirtIOMEMClass *vmc = VIRTIO_MEM_GET_CLASS(vmem);
+
+    return vmc->get_memslots(vmem);
+}
+
 static uint64_t virtio_mem_pci_get_plugged_size(const MemoryDeviceState *md,
                                                 Error **errp)
 {
@@ -150,6 +169,8 @@ static void virtio_mem_pci_class_init(ObjectClass *klass, void *data)
     mdc->set_addr = virtio_mem_pci_set_addr;
     mdc->get_plugged_size = virtio_mem_pci_get_plugged_size;
     mdc->get_memory_region = virtio_mem_pci_get_memory_region;
+    mdc->decide_memslots = virtio_mem_pci_decide_memslots;
+    mdc->get_memslots = virtio_mem_pci_get_memslots;
     mdc->fill_device_info = virtio_mem_pci_fill_device_info;
     mdc->get_min_alignment = virtio_mem_pci_get_min_alignment;
 

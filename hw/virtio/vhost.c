@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-bus.h"
+#include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
@@ -45,20 +46,44 @@
 static struct vhost_log *vhost_log;
 static struct vhost_log *vhost_log_shm;
 
+/* Memslots used by backends that support private memslots (without an fd). */
 static unsigned int used_memslots;
+
+/* Memslots used by backends that only support shared memslots (with an fd). */
+static unsigned int used_shared_memslots;
+
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
-bool vhost_has_free_slot(void)
+unsigned int vhost_get_max_memslots(void)
 {
-    unsigned int slots_limit = ~0U;
+    unsigned int max = UINT_MAX;
+    struct vhost_dev *hdev;
+
+    QLIST_FOREACH(hdev, &vhost_devices, entry) {
+        max = MIN(max, hdev->vhost_ops->vhost_backend_memslots_limit(hdev));
+    }
+    return max;
+}
+
+unsigned int vhost_get_free_memslots(void)
+{
+    unsigned int free = UINT_MAX;
     struct vhost_dev *hdev;
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        slots_limit = MIN(slots_limit, r);
+        unsigned int cur_free;
+
+        if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
+            hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
+            cur_free = r - used_shared_memslots;
+        } else {
+            cur_free = r - used_memslots;
+        }
+        free = MIN(free, cur_free);
     }
-    return slots_limit > used_memslots;
+    return free;
 }
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
@@ -474,8 +499,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
  * vhost_section: identify sections needed for vhost access
  *
  * We only care about RAM sections here (where virtqueue and guest
- * internals accessed by virtio might live). If we find one we still
- * allow the backend to potentially filter it out of our list.
+ * internals accessed by virtio might live).
  */
 static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
 {
@@ -502,8 +526,16 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
             return false;
         }
 
-        if (dev->vhost_ops->vhost_backend_mem_section_filter &&
-            !dev->vhost_ops->vhost_backend_mem_section_filter(dev, section)) {
+        /*
+         * Some backends (like vhost-user) can only handle memory regions
+         * that have an fd (can be mapped into a different process). Filter
+         * the ones without an fd out, if requested.
+         *
+         * TODO: we might have to limit to MAP_SHARED as well.
+         */
+        if (memory_region_get_fd(section->mr) < 0 &&
+            dev->vhost_ops->vhost_backend_no_private_memslots &&
+            dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
             trace_vhost_reject_section(mr->name, 2);
             return false;
         }
@@ -568,7 +600,14 @@ static void vhost_commit(MemoryListener *listener)
                        dev->n_mem_sections * sizeof dev->mem->regions[0];
     dev->mem = g_realloc(dev->mem, regions_size);
     dev->mem->nregions = dev->n_mem_sections;
-    used_memslots = dev->mem->nregions;
+
+    if (dev->vhost_ops->vhost_backend_no_private_memslots &&
+        dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
+        used_shared_memslots = dev->mem->nregions;
+    } else {
+        used_memslots = dev->mem->nregions;
+    }
+
     for (i = 0; i < dev->n_mem_sections; i++) {
         struct vhost_memory_region *cur_vmr = dev->mem->regions + i;
         struct MemoryRegionSection *mrs = dev->mem_sections + i;
@@ -668,7 +707,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
                                                mrs_size, mrs_host);
     }
 
-    if (dev->n_tmp_sections) {
+    if (dev->n_tmp_sections && !section->unmergeable) {
         /* Since we already have at least one section, lets see if
          * this extends it; since we're scanning in order, we only
          * have to look at the last one, and the FlatView that calls
@@ -701,11 +740,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
             size_t offset = mrs_gpa - prev_gpa_start;
 
             if (prev_host_start + offset == mrs_host &&
-                section->mr == prev_sec->mr &&
-                (!dev->vhost_ops->vhost_backend_can_merge ||
-                 dev->vhost_ops->vhost_backend_can_merge(dev,
-                    mrs_host, mrs_size,
-                    prev_host_start, prev_size))) {
+                section->mr == prev_sec->mr && !prev_sec->unmergeable) {
                 uint64_t max_end = MAX(prev_host_end, mrs_host + mrs_size);
                 need_add = false;
                 prev_sec->offset_within_address_space =
@@ -1400,6 +1435,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
+    unsigned int used, reserved, limit;
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
@@ -1423,6 +1459,19 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = hdev->vhost_ops->vhost_get_features(hdev, &features);
     if (r < 0) {
         error_setg_errno(errp, -r, "vhost_get_features failed");
+        goto fail;
+    }
+
+    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+    if (limit < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS &&
+        memory_devices_memslot_auto_decision_active()) {
+        error_setg(errp, "some memory device (like virtio-mem)"
+            " decided how many memory slots to use based on the overall"
+            " number of memory slots; this vhost backend would further"
+            " restricts the overall number of memory slots");
+        error_append_hint(errp, "Try plugging this vhost backend before"
+            " plugging such memory devices.\n");
+        r = -EINVAL;
         goto fail;
     }
 
@@ -1495,9 +1544,27 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
-    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        error_setg(errp, "vhost backend memory slots limit is less"
-                   " than current number of present memory slots");
+    /*
+     * The listener we registered properly updated the corresponding counter.
+     * So we can trust that these values are accurate.
+     */
+    if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
+        hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
+        used = used_shared_memslots;
+    } else {
+        used = used_memslots;
+    }
+    /*
+     * We assume that all reserved memslots actually require a real memslot
+     * in our vhost backend. This might not be true, for example, if the
+     * memslot would be ROM. If ever relevant, we can optimize for that --
+     * but we'll need additional information about the reservations.
+     */
+    reserved = memory_devices_get_reserved_memslots();
+    if (used + reserved > limit) {
+        error_setg(errp, "vhost backend memory slots limit (%d) is less"
+                   " than current number of used (%d) and reserved (%d)"
+                   " memory slots for memory devices.", limit, used, reserved);
         r = -EINVAL;
         goto fail_busyloop;
     }

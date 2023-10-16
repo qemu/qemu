@@ -2,9 +2,14 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 
-bool vhost_has_free_slot(void)
+unsigned int vhost_get_max_memslots(void)
 {
-    return true;
+    return UINT_MAX;
+}
+
+unsigned int vhost_get_free_memslots(void)
+{
+    return UINT_MAX;
 }
 
 bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
