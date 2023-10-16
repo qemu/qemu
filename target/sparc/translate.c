@@ -171,6 +171,7 @@ typedef struct DisasContext {
     target_ulong jump_pc[2];
 
     int mem_idx;
+    bool cpu_cond_live;
     bool fpu_enabled;
     bool address_mask_32bit;
 #ifndef CONFIG_USER_ONLY
@@ -912,6 +913,19 @@ static void gen_op_eval_fbo(TCGv dst, TCGv src, unsigned int fcc_offset)
     tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
+static void finishing_insn(DisasContext *dc)
+{
+    /*
+     * From here, there is no future path through an unwinding exception.
+     * If the current insn cannot raise an exception, the computation of
+     * cpu_cond may be able to be elided.
+     */
+    if (dc->cpu_cond_live) {
+        tcg_gen_discard_tl(cpu_cond);
+        dc->cpu_cond_live = false;
+    }
+}
+
 static void gen_generic_branch(DisasContext *dc)
 {
     TCGv npc0 = tcg_constant_tl(dc->jump_pc[0]);
@@ -958,6 +972,7 @@ static void save_state(DisasContext *dc)
 
 static void gen_exception(DisasContext *dc, int which)
 {
+    finishing_insn(dc);
     save_state(dc);
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(which));
     dc->base.is_jmp = DISAS_NORETURN;
@@ -999,6 +1014,8 @@ static void gen_check_align(DisasContext *dc, TCGv addr, int mask)
 
 static void gen_mov_pc_npc(DisasContext *dc)
 {
+    finishing_insn(dc);
+
     if (dc->npc & 3) {
         switch (dc->npc) {
         case JUMP_PC:
@@ -2339,6 +2356,8 @@ static bool advance_pc(DisasContext *dc)
 {
     TCGLabel *l1;
 
+    finishing_insn(dc);
+
     if (dc->npc & 3) {
         switch (dc->npc) {
         case DYNAMIC_PC:
@@ -2382,6 +2401,8 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
 {
     target_ulong dest = address_mask_i(dc, dc->pc + disp * 4);
     target_ulong npc;
+
+    finishing_insn(dc);
 
     if (cmp->cond == TCG_COND_ALWAYS) {
         if (annul) {
@@ -2449,6 +2470,7 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
             } else {
                 tcg_gen_setcondi_tl(cmp->cond, cpu_cond, cmp->c1, cmp->c2);
             }
+            dc->cpu_cond_live = true;
         }
     }
     return true;
@@ -2584,6 +2606,8 @@ static bool do_tcc(DisasContext *dc, int cond, int cc,
         tcg_gen_andi_i32(trap, trap, mask);
         tcg_gen_addi_i32(trap, trap, TT_TRAP);
     }
+
+    finishing_insn(dc);
 
     /* Trap always.  */
     if (cond == 8) {
@@ -3201,6 +3225,7 @@ TRANS(WRSTICK_CMPR, 64, do_wr_special, a, supervisor(dc), do_wrstick_cmpr)
 
 static void do_wrpowerdown(DisasContext *dc, TCGv src)
 {
+    finishing_insn(dc);
     save_state(dc);
     gen_helper_power_down(tcg_env);
 }
@@ -5079,6 +5104,8 @@ static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     DisasDelayException *e, *e_next;
     bool may_lookup;
+
+    finishing_insn(dc);
 
     switch (dc->base.is_jmp) {
     case DISAS_NEXT:
