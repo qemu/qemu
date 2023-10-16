@@ -305,3 +305,36 @@ class S390CPUTopology(QemuSystemTest):
         self.guest_set_dispatching('0');
         self.check_polarization("horizontal")
         self.check_topology(0, 0, 0, 0, 'high', False)
+
+
+    def test_dedicated(self):
+        """
+        This test verifies that QEMU adjusts the entitlement correctly when a
+        CPU is made dedicated.
+        QEMU retains the entitlement value when horizontal polarization is in effect.
+        For the guest, the field shows the effective value of the entitlement.
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_until_booted()
+
+        self.system_init()
+
+        self.check_polarization("horizontal")
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'dedicated': True})
+        self.assertEqual(res['return'], {})
+        self.check_topology(0, 0, 0, 0, 'high', True)
+        self.check_polarization("horizontal")
+
+        self.guest_set_dispatching('1');
+        self.check_topology(0, 0, 0, 0, 'high', True)
+        self.check_polarization("vertical:high")
+
+        self.guest_set_dispatching('0');
+        self.check_topology(0, 0, 0, 0, 'high', True)
+        self.check_polarization("horizontal")
