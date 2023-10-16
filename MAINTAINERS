@@ -3144,6 +3144,7 @@ M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: system/qtest.c
+F: include/sysemu/qtest.h
 F: accel/qtest/
 F: tests/qtest/
 F: docs/devel/qgraph.rst
@@ -3865,7 +3866,7 @@ F: docs/block-replication.txt
 PVRDMA
 M: Yuval Shaia <yuval.shaia.ml@gmail.com>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
-S: Maintained
+S: Odd Fixes
 F: hw/rdma/*
 F: hw/rdma/vmw/*
 F: docs/pvrdma.txt

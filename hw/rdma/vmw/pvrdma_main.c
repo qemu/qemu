@@ -91,10 +91,22 @@ static int init_dev_ring(PvrdmaRing *ring, PvrdmaRingState **ring_state,
                          dma_addr_t dir_addr, uint32_t num_pages)
 {
     uint64_t *dir, *tbl;
-    int rc = 0;
+    int max_pages, rc = 0;
 
     if (!num_pages) {
         rdma_error_report("Ring pages count must be strictly positive");
+        return -EINVAL;
+    }
+
+    /*
+     * Make sure we can satisfy the requested number of pages in a single
+     * TARGET_PAGE_SIZE sized page table (taking into account that first entry
+     * is reserved for ring-state)
+     */
+    max_pages = TARGET_PAGE_SIZE / sizeof(dma_addr_t) - 1;
+    if (num_pages > max_pages) {
+        rdma_error_report("Maximum pages on a single directory must not exceed %d\n",
+                          max_pages);
         return -EINVAL;
     }
 
@@ -104,6 +116,8 @@ static int init_dev_ring(PvrdmaRing *ring, PvrdmaRingState **ring_state,
         rc = -ENOMEM;
         goto out;
     }
+
+    /* We support only one page table for a ring */
     tbl = rdma_pci_dma_map(pci_dev, dir[0], TARGET_PAGE_SIZE);
     if (!tbl) {
         rdma_error_report("Failed to map to page table (ring %s)", name);
@@ -600,6 +614,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     Object *memdev_root;
     bool ram_shared = false;
     PCIDevice *func0;
+
+    warn_report_once("pvrdma is deprecated and will be removed in a future release");
 
     rdma_info_report("Initializing device %s %x.%x", pdev->name,
                      PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));

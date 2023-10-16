@@ -95,6 +95,7 @@ riscv64-debian-cross-container:
   allow_failure: true
   variables:
     NAME: debian-riscv64-cross
+    QEMU_JOB_OPTIONAL: 1
 
 # we can however build TCG tests using a non-sid base
 riscv64-debian-test-cross-container:

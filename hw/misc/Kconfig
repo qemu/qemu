@@ -34,6 +34,11 @@ config PCA9552
     bool
     depends on I2C
 
+config I2C_ECHO
+    bool
+    default y if TEST_DEVICES
+    depends on I2C
+
 config PL310
     bool
 
