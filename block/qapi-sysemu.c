@@ -169,13 +169,15 @@ void qmp_blockdev_close_tray(const char *device,
     }
 }
 
-static void blockdev_remove_medium(const char *device, const char *id,
-                                   Error **errp)
+static void GRAPH_UNLOCKED
+blockdev_remove_medium(const char *device, const char *id, Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *aio_context;
     bool has_attached_device;
+
+    GLOBAL_STATE_CODE();
 
     blk = qmp_get_blk(device, id, errp);
     if (!blk) {
@@ -205,9 +207,12 @@ static void blockdev_remove_medium(const char *device, const char *id,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
+        bdrv_graph_rdunlock_main_loop();
         goto out;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     blk_remove_bs(blk);
 
@@ -278,6 +283,8 @@ static void blockdev_insert_medium(const char *device, const char *id,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     blk = qmp_get_blk(device, id, errp);
     if (!blk) {

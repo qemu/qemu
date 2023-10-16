@@ -106,12 +106,13 @@ static uint32_t reader_count(void)
     return rd;
 }
 
-void bdrv_graph_wrlock(BlockDriverState *bs)
+void no_coroutine_fn bdrv_graph_wrlock(BlockDriverState *bs)
 {
     AioContext *ctx = NULL;
 
     GLOBAL_STATE_CODE();
     assert(!qatomic_read(&has_writer));
+    assert(!qemu_in_coroutine());
 
     /*
      * Release only non-mainloop AioContext. The mainloop often relies on the

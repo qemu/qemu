@@ -828,7 +828,7 @@ block_crypto_amend_options_generic_luks(BlockDriverState *bs,
                                        errp);
 }
 
-static int
+static int GRAPH_RDLOCK
 block_crypto_amend_options_luks(BlockDriverState *bs,
                                 QemuOpts *opts,
                                 BlockDriverAmendStatusCB *status_cb,
@@ -840,8 +840,6 @@ block_crypto_amend_options_luks(BlockDriverState *bs,
     QDict *cryptoopts = NULL;
     QCryptoBlockAmendOptions *amend_options = NULL;
     int ret = -EINVAL;
-
-    assume_graph_lock(); /* FIXME */
 
     assert(crypto);
     assert(crypto->block);

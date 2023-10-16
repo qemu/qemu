@@ -559,9 +559,9 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
         assert(!(offset % s->granularity));
         WITH_GRAPH_RDLOCK_GUARD() {
-            ret = bdrv_block_status_above(source, NULL, offset,
-                                        nb_chunks * s->granularity,
-                                        &io_bytes, NULL, NULL);
+            ret = bdrv_co_block_status_above(source, NULL, offset,
+                                             nb_chunks * s->granularity,
+                                             &io_bytes, NULL, NULL);
         }
         if (ret < 0) {
             io_bytes = MIN(nb_chunks * s->granularity, max_io_bytes);
@@ -879,8 +879,8 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         }
 
         WITH_GRAPH_RDLOCK_GUARD() {
-            ret = bdrv_is_allocated_above(bs, s->base_overlay, true, offset,
-                                          bytes, &count);
+            ret = bdrv_co_is_allocated_above(bs, s->base_overlay, true, offset,
+                                             bytes, &count);
         }
         if (ret < 0) {
             return ret;

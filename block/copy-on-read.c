@@ -146,11 +146,11 @@ cor_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
         local_flags = flags;
 
         /* In case of failure, try to copy-on-read anyway */
-        ret = bdrv_is_allocated(bs->file->bs, offset, bytes, &n);
+        ret = bdrv_co_is_allocated(bs->file->bs, offset, bytes, &n);
         if (ret <= 0) {
-            ret = bdrv_is_allocated_above(bdrv_backing_chain_next(bs->file->bs),
-                                          state->bottom_bs, true, offset,
-                                          n, &n);
+            ret = bdrv_co_is_allocated_above(bdrv_backing_chain_next(bs->file->bs),
+                                             state->bottom_bs, true, offset,
+                                             n, &n);
             if (ret > 0 || ret < 0) {
                 local_flags |= BDRV_REQ_COPY_ON_READ;
             }

@@ -275,7 +275,8 @@ static bool nbd_client_will_reconnect(BDRVNBDState *s)
  * Return failure if the server's advertised options are incompatible with the
  * client's needs.
  */
-static int nbd_handle_updated_info(BlockDriverState *bs, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_handle_updated_info(BlockDriverState *bs, Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     int ret;

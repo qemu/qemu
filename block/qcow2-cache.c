@@ -163,7 +163,8 @@ int qcow2_cache_destroy(Qcow2Cache *c)
     return 0;
 }
 
-static int qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
+static int GRAPH_RDLOCK
+qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
 {
     int ret;
 
@@ -178,7 +179,8 @@ static int qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
     return 0;
 }
 
-static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
+static int GRAPH_RDLOCK
+qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret = 0;
@@ -318,8 +320,9 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
     return 0;
 }
 
-static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
-    uint64_t offset, void **table, bool read_from_disk)
+static int GRAPH_RDLOCK
+qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
+                   void **table, bool read_from_disk)
 {
     BDRVQcow2State *s = bs->opaque;
     int i;

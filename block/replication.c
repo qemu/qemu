@@ -276,10 +276,10 @@ replication_co_writev(BlockDriverState *bs, int64_t sector_num,
     while (remaining_sectors > 0) {
         int64_t count;
 
-        ret = bdrv_is_allocated_above(top->bs, base->bs, false,
-                                      sector_num * BDRV_SECTOR_SIZE,
-                                      remaining_sectors * BDRV_SECTOR_SIZE,
-                                      &count);
+        ret = bdrv_co_is_allocated_above(top->bs, base->bs, false,
+                                         sector_num * BDRV_SECTOR_SIZE,
+                                         remaining_sectors * BDRV_SECTOR_SIZE,
+                                         &count);
         if (ret < 0) {
             goto out1;
         }
@@ -307,12 +307,15 @@ out:
     return ret;
 }
 
-static void secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
+static void GRAPH_UNLOCKED
+secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
     BdrvChild *active_disk = bs->file;
     Error *local_err = NULL;
     int ret;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!s->backup_job) {
         error_setg(errp, "Backup job was cancelled unexpectedly");
@@ -427,7 +430,8 @@ static void backup_job_completed(void *opaque, int ret)
     backup_job_cleanup(bs);
 }
 
-static bool check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
+static bool GRAPH_RDLOCK
+check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
 {
     BdrvChild *child;
 
@@ -457,6 +461,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     AioContext *aio_context;
     Error *local_err = NULL;
     BackupPerf perf = { .use_copy_range = true, .max_workers = 1 };
+
+    GLOBAL_STATE_CODE();
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -504,12 +510,15 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
+        bdrv_graph_rdlock_main_loop();
         secondary_disk = hidden_disk->bs->backing;
         if (!secondary_disk->bs || !bdrv_has_blk(secondary_disk->bs)) {
             error_setg(errp, "The secondary disk doesn't have block backend");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
+        bdrv_graph_rdunlock_main_loop();
 
         /* verify the length */
         active_length = bdrv_getlength(active_disk->bs);
@@ -526,13 +535,16 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         /* Must be true, or the bdrv_getlength() calls would have failed */
         assert(active_disk->bs->drv && hidden_disk->bs->drv);
 
+        bdrv_graph_rdlock_main_loop();
         if (!active_disk->bs->drv->bdrv_make_empty ||
             !hidden_disk->bs->drv->bdrv_make_empty) {
             error_setg(errp,
                        "Active disk or hidden disk doesn't support make_empty");
             aio_context_release(aio_context);
+            bdrv_graph_rdunlock_main_loop();
             return;
         }
+        bdrv_graph_rdunlock_main_loop();
 
         /* reopen the backing file in r/w mode */
         reopen_backing_file(bs, true, &local_err);
@@ -566,8 +578,6 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
-        bdrv_graph_wrunlock();
-
         /* start backup job now */
         error_setg(&s->blocker,
                    "Block device is in use by internal backup job");
@@ -576,12 +586,15 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         if (!top_bs || !bdrv_is_root_node(top_bs) ||
             !check_top_bs(top_bs, bs)) {
             error_setg(errp, "No top_bs or it is invalid");
+            bdrv_graph_wrunlock();
             reopen_backing_file(bs, false, NULL);
             aio_context_release(aio_context);
             return;
         }
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
+
+        bdrv_graph_wrunlock();
 
         s->backup_job = backup_job_create(
                                 NULL, s->secondary_disk->bs, s->hidden_disk->bs,

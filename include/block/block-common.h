@@ -66,13 +66,16 @@
  * function. The coroutine yields after scheduling the BH and is reentered when
  * the wrapped function returns.
  *
- * A no_co_wrapper_bdrv_wrlock function is a no_co_wrapper function that
- * automatically takes the graph wrlock when calling the wrapped function.
+ * A no_co_wrapper_bdrv_rdlock function is a no_co_wrapper function that
+ * automatically takes the graph rdlock when calling the wrapped function. In
+ * the same way, no_co_wrapper_bdrv_wrlock functions automatically take the
+ * graph wrlock.
  *
  * If the first parameter of the function is a BlockDriverState, BdrvChild or
  * BlockBackend pointer, the AioContext lock for it is taken in the wrapper.
  */
 #define no_co_wrapper
+#define no_co_wrapper_bdrv_rdlock
 #define no_co_wrapper_bdrv_wrlock
 
 #include "block/blockjob.h"

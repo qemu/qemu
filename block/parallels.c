@@ -1363,9 +1363,12 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         bitmap_new(DIV_ROUND_UP(s->header_size, s->bat_dirty_block));
 
     /* Disable migration until bdrv_activate method is added */
+    bdrv_graph_rdlock_main_loop();
     error_setg(&s->migration_blocker, "The Parallels format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
+    bdrv_graph_rdunlock_main_loop();
+
     ret = migrate_add_blocker(s->migration_blocker, errp);
     if (ret < 0) {
         error_setg(errp, "Migration blocker error");

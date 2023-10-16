@@ -843,7 +843,7 @@ static void nfs_refresh_filename(BlockDriverState *bs)
     }
 }
 
-static char *nfs_dirname(BlockDriverState *bs, Error **errp)
+static char * GRAPH_RDLOCK nfs_dirname(BlockDriverState *bs, Error **errp)
 {
     NFSClient *client = bs->opaque;
 

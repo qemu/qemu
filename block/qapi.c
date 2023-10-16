@@ -225,9 +225,8 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
  * Helper function for other query info functions.  Store information about @bs
  * in @info, setting @errp on error.
  */
-static void bdrv_do_query_node_info(BlockDriverState *bs,
-                                    BlockNodeInfo *info,
-                                    Error **errp)
+static void GRAPH_RDLOCK
+bdrv_do_query_node_info(BlockDriverState *bs, BlockNodeInfo *info, Error **errp)
 {
     int64_t size;
     const char *backing_filename;
@@ -423,8 +422,8 @@ fail:
 }
 
 /* @p_info will be set only on success. */
-static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
-                            Error **errp)
+static void GRAPH_RDLOCK
+bdrv_query_info(BlockBackend *blk, BlockInfo **p_info, Error **errp)
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
     BlockDriverState *bs = blk_bs(blk);
@@ -671,6 +670,8 @@ BlockInfoList *qmp_query_block(Error **errp)
     BlockInfoList *head = NULL, **p_next = &head;
     BlockBackend *blk;
     Error *local_err = NULL;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
         BlockInfoList *info;

@@ -132,13 +132,13 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
                               Error **errp);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
                                           const char *backing_file);
-void bdrv_refresh_filename(BlockDriverState *bs);
+void GRAPH_RDLOCK bdrv_refresh_filename(BlockDriverState *bs);
 
 void GRAPH_RDLOCK
 bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
 
 int bdrv_commit(BlockDriverState *bs);
-int bdrv_make_empty(BdrvChild *c, Error **errp);
+int GRAPH_RDLOCK bdrv_make_empty(BdrvChild *c, Error **errp);
 int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
                              const char *backing_fmt, bool warn);
 void bdrv_register(BlockDriver *bdrv);
@@ -160,19 +160,20 @@ void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
  */
 typedef void BlockDriverAmendStatusCB(BlockDriverState *bs, int64_t offset,
                                       int64_t total_work_size, void *opaque);
-int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
-                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
-                       bool force,
-                       Error **errp);
+int GRAPH_RDLOCK
+bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
+                   BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                   bool force, Error **errp);
 
 /* check if a named node can be replaced when doing drive-mirror */
 BlockDriverState * GRAPH_RDLOCK
 check_to_replace_node(BlockDriverState *parent_bs, const char *node_name,
                       Error **errp);
 
-int no_coroutine_fn bdrv_activate(BlockDriverState *bs, Error **errp);
+int no_coroutine_fn GRAPH_RDLOCK
+bdrv_activate(BlockDriverState *bs, Error **errp);
 
-int coroutine_fn no_co_wrapper
+int coroutine_fn no_co_wrapper_bdrv_rdlock
 bdrv_co_activate(BlockDriverState *bs, Error **errp);
 
 void bdrv_activate_all(Error **errp);
@@ -191,7 +192,7 @@ int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 BlockDriverState *bdrv_find_node(const char *node_name);
 BlockDeviceInfoList *bdrv_named_nodes_list(bool flat, Error **errp);
-XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp);
+XDbgBlockGraph * GRAPH_RDLOCK bdrv_get_xdbg_block_graph(Error **errp);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp);
@@ -208,15 +209,18 @@ typedef struct BdrvNextIterator {
     BlockDriverState *bs;
 } BdrvNextIterator;
 
-BlockDriverState *bdrv_first(BdrvNextIterator *it);
-BlockDriverState *bdrv_next(BdrvNextIterator *it);
+BlockDriverState * GRAPH_RDLOCK bdrv_first(BdrvNextIterator *it);
+BlockDriverState * GRAPH_RDLOCK bdrv_next(BdrvNextIterator *it);
 void bdrv_next_cleanup(BdrvNextIterator *it);
 
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque, bool read_only);
-char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp);
-char *bdrv_dirname(BlockDriverState *bs, Error **errp);
+
+char * GRAPH_RDLOCK
+bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp);
+
+char * GRAPH_RDLOCK bdrv_dirname(BlockDriverState *bs, Error **errp);
 
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
@@ -242,7 +246,9 @@ bdrv_attach_child(BlockDriverState *parent_bs,
                   BdrvChildRole child_role,
                   Error **errp);
 
-bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
+bool GRAPH_RDLOCK
+bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
+
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);
 void bdrv_op_unblock(BlockDriverState *bs, BlockOpType op, Error *reason);
 void bdrv_op_block_all(BlockDriverState *bs, Error *reason);

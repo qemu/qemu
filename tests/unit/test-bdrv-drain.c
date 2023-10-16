@@ -1034,9 +1034,13 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
         blk_co_unref(blk);
     } else {
         BdrvChild *c, *next_c;
+        bdrv_graph_co_rdlock();
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
+            bdrv_graph_co_rdunlock();
             bdrv_co_unref_child(bs, c);
+            bdrv_graph_co_rdlock();
         }
+        bdrv_graph_co_rdunlock();
     }
 
     dbdd->done = true;
@@ -1168,7 +1172,7 @@ struct detach_by_parent_data {
 };
 static struct detach_by_parent_data detach_by_parent_data;
 
-static void detach_indirect_bh(void *opaque)
+static void no_coroutine_fn detach_indirect_bh(void *opaque)
 {
     struct detach_by_parent_data *data = opaque;
 
@@ -1184,18 +1188,19 @@ static void detach_indirect_bh(void *opaque)
     bdrv_graph_wrunlock();
 }
 
-static void detach_by_parent_aio_cb(void *opaque, int ret)
+static void coroutine_mixed_fn detach_by_parent_aio_cb(void *opaque, int ret)
 {
     struct detach_by_parent_data *data = &detach_by_parent_data;
 
     g_assert_cmpint(ret, ==, 0);
     if (data->by_parent_cb) {
         bdrv_inc_in_flight(data->child_b->bs);
-        detach_indirect_bh(data);
+        aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
+                                detach_indirect_bh, &detach_by_parent_data);
     }
 }
 
-static void detach_by_driver_cb_drained_begin(BdrvChild *child)
+static void GRAPH_RDLOCK detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
     struct detach_by_parent_data *data = &detach_by_parent_data;
 
@@ -1232,7 +1237,7 @@ static BdrvChildClass detach_by_driver_cb_class;
  *     state is messed up, but if it is only polled in the single
  *     BDRV_POLL_WHILE() at the end of the drain, this should work fine.
  */
-static void test_detach_indirect(bool by_parent_cb)
+static void TSA_NO_TSA test_detach_indirect(bool by_parent_cb)
 {
     BlockBackend *blk;
     BlockDriverState *parent_a, *parent_b, *a, *b, *c;
