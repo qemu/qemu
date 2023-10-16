@@ -34,7 +34,7 @@ static uint64_t pnv_pec_nest_xscom_read(void *opaque, hwaddr addr,
     PnvPhb4PecState *pec = PNV_PHB4_PEC(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are readable */
     return pec->nest_regs[reg];
 }
 
@@ -45,18 +45,36 @@ static void pnv_pec_nest_xscom_write(void *opaque, hwaddr addr,
     uint32_t reg = addr >> 3;
 
     switch (reg) {
-    case PEC_NEST_PBCQ_HW_CONFIG:
     case PEC_NEST_DROP_PRIO_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 25);
+        break;
     case PEC_NEST_PBCQ_ERR_INJECT:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 11);
+        break;
     case PEC_NEST_PCI_NEST_CLK_TRACE_CTL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 16);
+        break;
     case PEC_NEST_PBCQ_PMON_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 37);
+        break;
     case PEC_NEST_PBCQ_PBUS_ADDR_EXT:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 6);
+        break;
     case PEC_NEST_PBCQ_PRED_VEC_TIMEOUT:
-    case PEC_NEST_CAPP_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 15);
+        break;
     case PEC_NEST_PBCQ_READ_STK_OVR:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 48);
+        break;
     case PEC_NEST_PBCQ_WRITE_STK_OVR:
     case PEC_NEST_PBCQ_STORE_STK_OVR:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 24);
+        break;
     case PEC_NEST_PBCQ_RETRY_BKOFF_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 41);
+        break;
+    case PEC_NEST_PBCQ_HW_CONFIG:
+    case PEC_NEST_CAPP_CTRL:
         pec->nest_regs[reg] = val;
         break;
     default:
@@ -81,7 +99,7 @@ static uint64_t pnv_pec_pci_xscom_read(void *opaque, hwaddr addr,
     PnvPhb4PecState *pec = PNV_PHB4_PEC(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are readable */
     return pec->pci_regs[reg];
 }
 
@@ -93,8 +111,13 @@ static void pnv_pec_pci_xscom_write(void *opaque, hwaddr addr,
 
     switch (reg) {
     case PEC_PCI_PBAIB_HW_CONFIG:
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 42);
+        break;
+    case PEC_PCI_PBAIB_HW_OVR:
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 15);
+        break;
     case PEC_PCI_PBAIB_READ_STK_OVR:
-        pec->pci_regs[reg] = val;
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 48);
         break;
     default:
         phb_pec_error(pec, "%s @0x%"HWADDR_PRIx"=%"PRIx64"\n", __func__,

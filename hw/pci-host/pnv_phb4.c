@@ -855,7 +855,7 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are read-able */
     return phb->nest_regs[reg];
 }
 
@@ -1000,7 +1000,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
 
     switch (reg) {
     case PEC_NEST_STK_PCI_NEST_FIR:
-        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_CLR:
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] &= val;
@@ -1009,7 +1009,8 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] |= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSK:
-        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val &
+                                                        PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSKC:
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] &= val;
@@ -1019,7 +1020,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_ACT0:
     case PEC_NEST_STK_PCI_NEST_FIR_ACT1:
-        phb->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_WOF:
         phb->nest_regs[reg] = 0;
@@ -1030,7 +1031,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         /* Flag error ? */
         break;
     case PEC_NEST_STK_PBCQ_MODE:
-        phb->nest_regs[reg] = val & 0xff00000000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 7);
         break;
     case PEC_NEST_STK_MMIO_BAR0:
     case PEC_NEST_STK_MMIO_BAR0_MASK:
@@ -1041,28 +1042,33 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
              PEC_NEST_STK_BAR_EN_MMIO1)) {
             phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xffffffffff000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 39);
         break;
     case PEC_NEST_STK_PHB_REGS_BAR:
         if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_PHB) {
             phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xffffffffffc00000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 41);
         break;
     case PEC_NEST_STK_INT_BAR:
         if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_INT) {
             phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xfffffff000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_BAR_EN:
-        phb->nest_regs[reg] = val & 0xf000000000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 3);
         pnv_pec_phb_update_map(phb);
         break;
     case PEC_NEST_STK_DATA_FRZ_TYPE:
-    case PEC_NEST_STK_PBCQ_TUN_BAR:
         /* Not used for now */
-        phb->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
+        break;
+    case PEC_NEST_STK_PBCQ_SPARSE_PAGE:
+        phb->nest_regs[reg] = val & PPC_BITMASK(3, 5);
+        break;
+    case PEC_NEST_STK_PBCQ_CACHE_INJ:
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 7);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec: nest_xscom_write 0x%"HWADDR_PRIx
@@ -1086,7 +1092,7 @@ static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are read-able */
     return phb->pci_regs[reg];
 }
 
@@ -1095,10 +1101,9 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
 {
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
-
     switch (reg) {
     case PEC_PCI_STK_PCI_FIR:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_CLR:
         phb->pci_regs[PEC_PCI_STK_PCI_FIR] &= val;
@@ -1107,7 +1112,7 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
         phb->pci_regs[PEC_PCI_STK_PCI_FIR] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSK:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_MSKC:
         phb->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
@@ -1117,20 +1122,25 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
         break;
     case PEC_PCI_STK_PCI_FIR_ACT0:
     case PEC_PCI_STK_PCI_FIR_ACT1:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_WOF:
         phb->pci_regs[reg] = 0;
         break;
     case PEC_PCI_STK_ETU_RESET:
-        phb->pci_regs[reg] = val & 0x8000000000000000ull;
+        phb->pci_regs[reg] = val & PPC_BIT(0);
         /* TODO: Implement reset */
         break;
     case PEC_PCI_STK_PBAIB_ERR_REPORT:
         break;
     case PEC_PCI_STK_PBAIB_TX_CMD_CRED:
+        phb->pci_regs[reg] = val &
+                                 ((PPC_BITMASK(0, 2) | PPC_BITMASK(10, 18)
+                                   | PPC_BITMASK(26, 34) | PPC_BITMASK(41, 50)
+                                   | PPC_BITMASK(58, 63)));
+        break;
     case PEC_PCI_STK_PBAIB_TX_DAT_CRED:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & (PPC_BITMASK(33, 34) | PPC_BITMASK(44, 47));
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec_stk: pci_xscom_write 0x%"HWADDR_PRIx
