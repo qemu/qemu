@@ -364,3 +364,51 @@ class S390CPUTopology(QemuSystemTest):
         res = self.vm.qmp('set-cpu-topology',
                           {'core-id': 2, 'socket-id': 0, 'book-id': 1})
         self.assertEqual(res['return'], {})
+
+    def test_dedicated_error(self):
+        """
+        This test verifies that QEMU refuses to lower the entitlement
+        of a dedicated CPU
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_until_booted()
+
+        self.system_init()
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'dedicated': True})
+        self.assertEqual(res['return'], {})
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        self.guest_set_dispatching('1');
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low', 'dedicated': True})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low'})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium', 'dedicated': True})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium'})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low', 'dedicated': False})
+        self.assertEqual(res['return'], {})
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium', 'dedicated': False})
+        self.assertEqual(res['return'], {})
