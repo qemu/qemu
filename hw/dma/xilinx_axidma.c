@@ -577,10 +577,6 @@ static void xilinx_axidma_init(Object *obj)
     object_initialize_child(OBJECT(s), "axistream-control-connected-target",
                             &s->rx_control_dev,
                             TYPE_XILINX_AXI_DMA_CONTROL_STREAM);
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
 
     sysbus_init_irq(sbd, &s->streams[0].irq);
     sysbus_init_irq(sbd, &s->streams[1].irq);
@@ -596,6 +592,8 @@ static Property axidma_properties[] = {
                      tx_data_dev, TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("axistream-control-connected", XilinxAXIDMA,
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
+    DEFINE_PROP_LINK("dma", XilinxAXIDMA, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
