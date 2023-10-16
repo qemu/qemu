@@ -180,7 +180,6 @@ typedef struct DisasContext {
 
 typedef struct {
     TCGCond cond;
-    bool is_bool;
     TCGv c1, c2;
 } DisasCompare;
 
@@ -1039,7 +1038,6 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 {
     TCGv t1;
 
-    cmp->is_bool = false;
     cmp->c1 = t1 = tcg_temp_new();
     cmp->c2 = tcg_constant_tl(0);
 
@@ -1104,7 +1102,6 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 
     case 0x5: /* ltu: C */
         cmp->cond = TCG_COND_NE;
-        cmp->is_bool = true;
         if (TARGET_LONG_BITS == 32 || xcc) {
             tcg_gen_mov_tl(t1, cpu_cc_C);
         } else {
@@ -1132,7 +1129,6 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     }
     if (cond & 8) {
         cmp->cond = tcg_invert_cond(cmp->cond);
-        cmp->is_bool = false;
     }
 }
 
@@ -1143,7 +1139,6 @@ static void gen_fcompare(DisasCompare *cmp, unsigned int cc, unsigned int cond)
 
     /* For now we still generate a straight boolean result.  */
     cmp->cond = TCG_COND_NE;
-    cmp->is_bool = true;
     cmp->c1 = r_dst = tcg_temp_new();
     cmp->c2 = tcg_constant_tl(0);
 
@@ -1230,7 +1225,6 @@ static const TCGCond gen_tcg_cond_reg[8] = {
 static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 {
     cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
-    cmp->is_bool = false;
     cmp->c1 = r_src;
     cmp->c2 = tcg_constant_tl(0);
 }
@@ -2232,18 +2226,14 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
 #ifdef TARGET_SPARC64
     TCGv_i32 c32, zero, dst, s1, s2;
+    TCGv_i64 c64 = tcg_temp_new_i64();
 
     /* We have two choices here: extend the 32 bit data and use movcond_i64,
        or fold the comparison down to 32 bits and use movcond_i32.  Choose
        the later.  */
     c32 = tcg_temp_new_i32();
-    if (cmp->is_bool) {
-        tcg_gen_extrl_i64_i32(c32, cmp->c1);
-    } else {
-        TCGv_i64 c64 = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cmp->cond, c64, cmp->c1, cmp->c2);
-        tcg_gen_extrl_i64_i32(c32, c64);
-    }
+    tcg_gen_setcond_i64(cmp->cond, c64, cmp->c1, cmp->c2);
+    tcg_gen_extrl_i64_i32(c32, c64);
 
     s1 = gen_load_fpr_F(dc, rs);
     s2 = gen_load_fpr_F(dc, rd);
@@ -2445,8 +2435,10 @@ static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
             dc->jump_pc[0] = dest;
             dc->jump_pc[1] = npc + 4;
             dc->npc = JUMP_PC;
-            if (cmp->is_bool) {
-                tcg_gen_mov_tl(cpu_cond, cmp->c1);
+
+            /* The condition for cpu_cond is always NE -- normalize. */
+            if (cmp->cond == TCG_COND_NE) {
+                tcg_gen_xor_tl(cpu_cond, cmp->c1, cmp->c2);
             } else {
                 tcg_gen_setcond_tl(cmp->cond, cpu_cond, cmp->c1, cmp->c2);
             }
