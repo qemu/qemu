@@ -1521,6 +1521,38 @@ static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
     s->phy_regs[reg_num] = val;
 }
 
+static void gem_handle_phy_access(CadenceGEMState *s)
+{
+    uint32_t val = s->regs[R_PHYMNTNC];
+    uint32_t phy_addr, reg_num;
+
+    phy_addr = FIELD_EX32(val, PHYMNTNC, PHY_ADDR);
+
+    if (phy_addr != s->phy_addr) {
+        /* no phy at this address */
+        if (FIELD_EX32(val, PHYMNTNC, OP) == MDIO_OP_READ) {
+            s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA, 0xffff);
+        }
+        return;
+    }
+
+    reg_num = FIELD_EX32(val, PHYMNTNC, REG_ADDR);
+
+    switch (FIELD_EX32(val, PHYMNTNC, OP)) {
+    case MDIO_OP_READ:
+        s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA,
+                                         gem_phy_read(s, reg_num));
+        break;
+
+    case MDIO_OP_WRITE:
+        gem_phy_write(s, reg_num, val);
+        break;
+
+    default:
+        break; /* only clause 22 operations are supported */
+    }
+}
+
 /*
  * gem_read32:
  * Read a GEM register.
@@ -1540,20 +1572,6 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     case R_ISR:
         DB_PRINT("lowering irqs on ISR read\n");
         /* The interrupts get updated at the end of the function. */
-        break;
-    case R_PHYMNTNC:
-        if (FIELD_EX32(retval, PHYMNTNC, OP) == MDIO_OP_READ) {
-            uint32_t phy_addr, reg_num;
-
-            phy_addr = FIELD_EX32(retval, PHYMNTNC, PHY_ADDR);
-            if (phy_addr == s->phy_addr) {
-                reg_num = FIELD_EX32(retval, PHYMNTNC, REG_ADDR);
-                retval &= 0xFFFF0000;
-                retval |= gem_phy_read(s, reg_num);
-            } else {
-                retval |= 0xFFFF; /* No device at this address */
-            }
-        }
         break;
     }
 
@@ -1665,15 +1683,7 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->sar_active[(offset - R_SPADDR1HI) / 2] = true;
         break;
     case R_PHYMNTNC:
-        if (FIELD_EX32(val, PHYMNTNC, OP) == MDIO_OP_WRITE) {
-            uint32_t phy_addr, reg_num;
-
-            phy_addr = FIELD_EX32(val, PHYMNTNC, PHY_ADDR);
-            if (phy_addr == s->phy_addr) {
-                reg_num = FIELD_EX32(val, PHYMNTNC, REG_ADDR);
-                gem_phy_write(s, reg_num, val);
-            }
-        }
+        gem_handle_phy_access(s);
         break;
     }
 
