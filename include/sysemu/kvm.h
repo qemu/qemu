@@ -37,7 +37,6 @@ extern bool kvm_split_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_eventfds_allowed;
-extern bool kvm_irqfds_allowed;
 extern bool kvm_resamplefds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
@@ -102,8 +101,10 @@ extern bool kvm_msi_use_devid;
  * Returns: true if we can use irqfds to inject interrupts into
  * a KVM CPU (ie the kernel supports irqfds and we are running
  * with a configuration where it is meaningful to use them).
+ *
+ * Always available if running with in-kernel irqchip.
  */
-#define kvm_irqfds_enabled() (kvm_irqfds_allowed)
+#define kvm_irqfds_enabled() kvm_irqchip_in_kernel()
 
 /**
  * kvm_resamplefds_enabled:
@@ -167,7 +168,6 @@ extern bool kvm_msi_use_devid;
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
 #define kvm_eventfds_enabled() (false)
-#define kvm_irqfds_enabled() (false)
 #define kvm_resamplefds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)

@@ -123,7 +123,7 @@ static void kvm_arm_its_realize(DeviceState *dev, Error **errp)
 
     kvm_msi_use_devid = true;
     kvm_gsi_direct_mapping = false;
-    kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
+    kvm_msi_via_irqfd_allowed = true;
 }
 
 /**
