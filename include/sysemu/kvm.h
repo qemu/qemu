@@ -192,7 +192,6 @@ unsigned int kvm_get_max_memslots(void);
 unsigned int kvm_get_free_memslots(void);
 bool kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
-int kvm_has_robust_singlestep(void);
 int kvm_max_nested_state_length(void);
 int kvm_has_gsi_routing(void);
 
