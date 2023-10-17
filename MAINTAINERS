@@ -295,6 +295,7 @@ S: Odd Fixes
 F: docs/system/openrisc/cpu-features.rst
 F: target/openrisc/
 F: hw/openrisc/
+F: include/hw/openrisc/
 F: tests/tcg/openrisc/
 
 PowerPC TCG CPUs
