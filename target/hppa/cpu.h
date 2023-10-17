@@ -137,6 +137,8 @@
 #define PSW_SM_W         0x200      /* PA2.0 only : Enable Wide Mode */
 
 #define CR_RC            0
+#define CR_PSW_DEFAULT   6          /* see SeaBIOS PDC_PSW firmware call */
+#define  PDC_PSW_WIDE_BIT 2
 #define CR_PID1          8
 #define CR_PID2          9
 #define CR_PID3          12
