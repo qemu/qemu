@@ -1518,6 +1518,10 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                             &phb->phb_regs_mr);
 }
 
+static PCIIOMMUOps pnv_phb4_iommu_ops = {
+    .get_address_space = pnv_phb4_dma_iommu,
+};
+
 static void pnv_phb4_instance_init(Object *obj)
 {
     PnvPHB4 *phb = PNV_PHB4(obj);
@@ -1557,7 +1561,7 @@ void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
     object_property_set_int(OBJECT(pci->bus), "chip-id", phb->chip_id,
                             &error_abort);
 
-    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
+    pci_setup_iommu(pci->bus, &pnv_phb4_iommu_ops, phb);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
 }
 

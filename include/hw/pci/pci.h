@@ -363,10 +363,42 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
-typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+
+/**
+ * struct PCIIOMMUOps: callbacks structure for specific IOMMU handlers
+ * of a PCIBus
+ *
+ * Allows to modify the behavior of some IOMMU operations of the PCI
+ * framework for a set of devices on a PCI bus.
+ */
+typedef struct PCIIOMMUOps {
+    /**
+     * @get_address_space: get the address space for a set of devices
+     * on a PCI bus.
+     *
+     * Mandatory callback which returns a pointer to an #AddressSpace
+     *
+     * @bus: the #PCIBus being accessed.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number
+     */
+   AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
+} PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
-void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+
+/**
+ * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus
+ *
+ * Let PCI host bridges define specific operations.
+ *
+ * @bus: the #PCIBus being updated.
+ * @ops: the #PCIIOMMUOps
+ * @opaque: passed to callbacks of the @ops structure.
+ */
+void pci_setup_iommu(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque);
 
 pcibus_t pci_bar_address(PCIDevice *d,
                          int reg, uint8_t type, pcibus_t size);
