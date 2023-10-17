@@ -1214,12 +1214,8 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 
     /*
      * Check if an HPET shall be created.
-     *
-     * Without KVM_CAP_PIT_STATE2, we cannot switch off the in-kernel PIT
-     * when the HPET wants to take over. Thus we have to disable the latter.
      */
-    if (pcms->hpet_enabled && (!kvm_irqchip_in_kernel() ||
-                               kvm_has_pit_state2())) {
+    if (pcms->hpet_enabled) {
         qemu_irq rtc_irq;
 
         hpet = qdev_try_new(TYPE_HPET);

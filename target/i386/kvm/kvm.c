@@ -145,7 +145,6 @@ static uint32_t num_architectural_pmu_fixed_counters;
 
 static int has_xsave2;
 static int has_xcrs;
-static int has_pit_state2;
 static int has_sregs2;
 static int has_exception_payload;
 static int has_triple_fault_event;
@@ -161,11 +160,6 @@ static KVMMSRHandlers msr_handlers[KVM_MSR_FILTER_MAX_RANGES];
 #define BUS_LOCK_SLICE_TIME 1000000000ULL /* ns */
 static RateLimit bus_lock_ratelimit_ctrl;
 static int kvm_get_one_msr(X86CPU *cpu, int index, uint64_t *value);
-
-bool kvm_has_pit_state2(void)
-{
-    return !!has_pit_state2;
-}
 
 bool kvm_has_smm(void)
 {
@@ -2543,7 +2537,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
-    has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
     has_sregs2 = kvm_check_extension(s, KVM_CAP_SREGS2) > 0;
 
     hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
