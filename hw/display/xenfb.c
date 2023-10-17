@@ -321,20 +321,20 @@ static void xenfb_mouse_sync(DeviceState *dev)
     xenfb->wheel = 0;
 }
 
-static QemuInputHandler xenfb_keyboard = {
+static const QemuInputHandler xenfb_keyboard = {
     .name  = "Xen PV Keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = xenfb_key_event,
 };
 
-static QemuInputHandler xenfb_abs_mouse = {
+static const QemuInputHandler xenfb_abs_mouse = {
     .name  = "Xen PV Mouse",
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS,
     .event = xenfb_mouse_event,
     .sync  = xenfb_mouse_sync,
 };
 
-static QemuInputHandler xenfb_rel_mouse = {
+static const QemuInputHandler xenfb_rel_mouse = {
     .name  = "Xen PV Mouse",
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
     .event = xenfb_mouse_event,

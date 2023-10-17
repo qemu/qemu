@@ -265,7 +265,7 @@ static const TypeInfo virtio_input_hid_info = {
 
 /* ----------------------------------------------------------------- */
 
-static QemuInputHandler virtio_keyboard_handler = {
+static const QemuInputHandler virtio_keyboard_handler = {
     .name  = VIRTIO_ID_NAME_KEYBOARD,
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = virtio_input_handle_event,
@@ -322,7 +322,7 @@ static const TypeInfo virtio_keyboard_info = {
 
 /* ----------------------------------------------------------------- */
 
-static QemuInputHandler virtio_mouse_handler = {
+static const QemuInputHandler virtio_mouse_handler = {
     .name  = VIRTIO_ID_NAME_MOUSE,
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
     .event = virtio_input_handle_event,
@@ -416,7 +416,7 @@ static const TypeInfo virtio_mouse_info = {
 
 /* ----------------------------------------------------------------- */
 
-static QemuInputHandler virtio_tablet_handler = {
+static const QemuInputHandler virtio_tablet_handler = {
     .name  = VIRTIO_ID_NAME_TABLET,
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS,
     .event = virtio_input_handle_event,
@@ -541,7 +541,7 @@ static const TypeInfo virtio_tablet_info = {
 
 /* ----------------------------------------------------------------- */
 
-static QemuInputHandler virtio_multitouch_handler = {
+static const QemuInputHandler virtio_multitouch_handler = {
     .name  = VIRTIO_ID_NAME_MULTITOUCH,
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_MTT,
     .event = virtio_input_handle_event,

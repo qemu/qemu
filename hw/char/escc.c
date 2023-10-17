@@ -845,7 +845,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
     put_queue(s, keycode);
 }
 
-static QemuInputHandler sunkbd_handler = {
+static const QemuInputHandler sunkbd_handler = {
     .name  = "sun keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = sunkbd_handle_event,
