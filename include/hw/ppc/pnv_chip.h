@@ -120,6 +120,10 @@ struct Pnv10Chip {
 
 #define PNV10_CHIP_MAX_PEC 2
     PnvPhb4PecState pecs[PNV10_CHIP_MAX_PEC];
+
+#define PNV10_CHIP_MAX_I2C 4
+#define PNV10_CHIP_MAX_I2C_PORTS 2
+    PnvI2C       i2c[PNV10_CHIP_MAX_I2C];
 };
 
 #define PNV10_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
