@@ -1105,13 +1105,6 @@ static void kvm_coalesce_pio_del(MemoryListener *listener,
      }
 }
 
-static MemoryListener kvm_coalesced_pio_listener = {
-    .name = "kvm-coalesced-pio",
-    .coalesced_io_add = kvm_coalesce_pio_add,
-    .coalesced_io_del = kvm_coalesce_pio_del,
-    .priority = MEMORY_LISTENER_PRIORITY_MIN,
-};
-
 int kvm_check_extension(KVMState *s, unsigned int extension)
 {
     int ret;
@@ -1768,6 +1761,8 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
 
 static MemoryListener kvm_io_listener = {
     .name = "kvm-io",
+    .coalesced_io_add = kvm_coalesce_pio_add,
+    .coalesced_io_del = kvm_coalesce_pio_del,
     .eventfd_add = kvm_io_ioeventfd_add,
     .eventfd_del = kvm_io_ioeventfd_del,
     .priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND,
@@ -2597,8 +2592,6 @@ static int kvm_init(MachineState *ms)
     kvm_memory_listener_register(s, &s->memory_listener,
                                  &address_space_memory, 0, "kvm-memory");
     memory_listener_register(&kvm_io_listener,
-                             &address_space_io);
-    memory_listener_register(&kvm_coalesced_pio_listener,
                              &address_space_io);
 
     s->sync_mmu = !!kvm_vm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
