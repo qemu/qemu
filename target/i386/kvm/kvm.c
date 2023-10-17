@@ -92,6 +92,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(EXT_CPUID),
     KVM_CAP_INFO(MP_STATE),
     KVM_CAP_INFO(SIGNAL_MSI),
+    KVM_CAP_INFO(IRQ_ROUTING),
     KVM_CAP_LAST_INFO
 };
 
@@ -2588,11 +2589,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
-    }
-
-    if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        error_report("kvm: KVM_CAP_IRQ_ROUTING not supported by KVM");
-        return -ENOTSUP;
     }
 
     has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
