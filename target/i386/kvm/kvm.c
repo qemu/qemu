@@ -98,6 +98,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(VCPU_EVENTS),
     KVM_CAP_INFO(X86_ROBUST_SINGLESTEP),
     KVM_CAP_INFO(MCE),
+    KVM_CAP_INFO(ADJUST_CLOCK),
     KVM_CAP_LAST_INFO
 };
 
@@ -175,11 +176,6 @@ bool kvm_has_adjust_clock_stable(void)
     int ret = kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
 
     return (ret & KVM_CLOCK_TSC_STABLE);
-}
-
-bool kvm_has_adjust_clock(void)
-{
-    return kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
 }
 
 bool kvm_has_exception_payload(void)
