@@ -79,6 +79,35 @@ REG32(NWCTRL, 0x0) /* Network Control reg */
     FIELD(NWCTRL, IFG_EATS_QAV_CREDIT, 30, 1)
 
 REG32(NWCFG, 0x4) /* Network Config reg */
+    FIELD(NWCFG, SPEED, 0, 1)
+    FIELD(NWCFG, FULL_DUPLEX, 1, 1)
+    FIELD(NWCFG, DISCARD_NON_VLAN_FRAMES, 2, 1)
+    FIELD(NWCFG, JUMBO_FRAMES, 3, 1)
+    FIELD(NWCFG, PROMISC, 4, 1)
+    FIELD(NWCFG, NO_BROADCAST, 5, 1)
+    FIELD(NWCFG, MULTICAST_HASH_EN, 6, 1)
+    FIELD(NWCFG, UNICAST_HASH_EN, 7, 1)
+    FIELD(NWCFG, RECV_1536_BYTE_FRAMES, 8, 1)
+    FIELD(NWCFG, EXTERNAL_ADDR_MATCH_EN, 9, 1)
+    FIELD(NWCFG, GIGABIT_MODE_ENABLE, 10, 1)
+    FIELD(NWCFG, PCS_SELECT, 11, 1)
+    FIELD(NWCFG, RETRY_TEST, 12, 1)
+    FIELD(NWCFG, PAUSE_ENABLE, 13, 1)
+    FIELD(NWCFG, RECV_BUF_OFFSET, 14, 2)
+    FIELD(NWCFG, LEN_ERR_DISCARD, 16, 1)
+    FIELD(NWCFG, FCS_REMOVE, 17, 1)
+    FIELD(NWCFG, MDC_CLOCK_DIV, 18, 3)
+    FIELD(NWCFG, DATA_BUS_WIDTH, 21, 2)
+    FIELD(NWCFG, DISABLE_COPY_PAUSE_FRAMES, 23, 1)
+    FIELD(NWCFG, RECV_CSUM_OFFLOAD_EN, 24, 1)
+    FIELD(NWCFG, EN_HALF_DUPLEX_RX, 25, 1)
+    FIELD(NWCFG, IGNORE_RX_FCS, 26, 1)
+    FIELD(NWCFG, SGMII_MODE_ENABLE, 27, 1)
+    FIELD(NWCFG, IPG_STRETCH_ENABLE, 28, 1)
+    FIELD(NWCFG, NSP_ACCEPT, 29, 1)
+    FIELD(NWCFG, IGNORE_IPG_RX_ER, 30, 1)
+    FIELD(NWCFG, UNI_DIRECTION_ENABLE, 31, 1)
+
 REG32(NWSTATUS, 0x8) /* Network Status reg */
 REG32(USERIO, 0xc) /* User IO reg */
 REG32(DMACFG, 0x10) /* DMA Control reg */
@@ -236,17 +265,6 @@ REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
     FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_VLAN_ID, 10, 1)
 
 /*****************************************/
-#define GEM_NWCFG_STRIP_FCS    0x00020000 /* Strip FCS field */
-#define GEM_NWCFG_LERR_DISC    0x00010000 /* Discard RX frames with len err */
-#define GEM_NWCFG_BUFF_OFST_M  0x0000C000 /* Receive buffer offset mask */
-#define GEM_NWCFG_BUFF_OFST_S  14         /* Receive buffer offset shift */
-#define GEM_NWCFG_RCV_1538     0x00000100 /* Receive 1538 bytes frame */
-#define GEM_NWCFG_UCAST_HASH   0x00000080 /* accept unicast if hash match */
-#define GEM_NWCFG_MCAST_HASH   0x00000040 /* accept multicast if hash match */
-#define GEM_NWCFG_BCAST_REJ    0x00000020 /* Reject broadcast packets */
-#define GEM_NWCFG_PROMISC      0x00000010 /* Accept all packets */
-#define GEM_NWCFG_JUMBO_FRAME  0x00000008 /* Jumbo Frames enable */
-
 #define GEM_DMACFG_ADDR_64B    (1U << 30)
 #define GEM_DMACFG_TX_BD_EXT   (1U << 29)
 #define GEM_DMACFG_RX_BD_EXT   (1U << 28)
@@ -482,7 +500,7 @@ static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
 {
     uint32_t size;
-    if (s->regs[R_NWCFG] & GEM_NWCFG_JUMBO_FRAME) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, JUMBO_FRAMES)) {
         size = s->regs[R_JUMBO_MAX_LEN];
         if (size > s->jumbo_max_len) {
             size = s->jumbo_max_len;
@@ -492,7 +510,8 @@ static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
     } else if (tx) {
         size = 1518;
     } else {
-        size = s->regs[R_NWCFG] & GEM_NWCFG_RCV_1538 ? 1538 : 1518;
+        size = FIELD_EX32(s->regs[R_NWCFG],
+                          NWCFG, RECV_1536_BYTE_FRAMES) ? 1538 : 1518;
     }
     return size;
 }
@@ -732,13 +751,13 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
     int i, is_mc;
 
     /* Promiscuous mode? */
-    if (s->regs[R_NWCFG] & GEM_NWCFG_PROMISC) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, PROMISC)) {
         return GEM_RX_PROMISCUOUS_ACCEPT;
     }
 
     if (!memcmp(packet, broadcast_addr, 6)) {
         /* Reject broadcast packets? */
-        if (s->regs[R_NWCFG] & GEM_NWCFG_BCAST_REJ) {
+        if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, NO_BROADCAST)) {
             return GEM_RX_REJECT;
         }
         return GEM_RX_BROADCAST_ACCEPT;
@@ -746,8 +765,8 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
 
     /* Accept packets -w- hash match? */
     is_mc = is_multicast_ether_addr(packet);
-    if ((is_mc && (s->regs[R_NWCFG] & GEM_NWCFG_MCAST_HASH)) ||
-        (!is_mc && (s->regs[R_NWCFG] & GEM_NWCFG_UCAST_HASH))) {
+    if ((is_mc && (FIELD_EX32(s->regs[R_NWCFG], NWCFG, MULTICAST_HASH_EN))) ||
+        (!is_mc && FIELD_EX32(s->regs[R_NWCFG], NWCFG, UNICAST_HASH_EN))) {
         uint64_t buckets;
         unsigned hash_index;
 
@@ -983,7 +1002,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* Discard packets with receive length error enabled ? */
-    if (s->regs[R_NWCFG] & GEM_NWCFG_LERR_DISC) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, LEN_ERR_DISCARD)) {
         unsigned type_len;
 
         /* Fish the ethertype / length field out of the RX packet */
@@ -1000,8 +1019,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /*
      * Determine configured receive buffer offset (probably 0)
      */
-    rxbuf_offset = (s->regs[R_NWCFG] & GEM_NWCFG_BUFF_OFST_M) >>
-                   GEM_NWCFG_BUFF_OFST_S;
+    rxbuf_offset = FIELD_EX32(s->regs[R_NWCFG], NWCFG, RECV_BUF_OFFSET);
 
     /* The configure size of each receive buffer.  Determines how many
      * buffers needed to hold this packet.
@@ -1026,7 +1044,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* Strip of FCS field ? (usually yes) */
-    if (s->regs[R_NWCFG] & GEM_NWCFG_STRIP_FCS) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, FCS_REMOVE)) {
         rxbuf_ptr = (void *)buf;
     } else {
         unsigned crc_val;
