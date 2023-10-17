@@ -1105,7 +1105,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, FCS_REMOVE)) {
         rxbuf_ptr = (void *)buf;
     } else {
-        unsigned crc_val;
+        uint32_t crc_val;
 
         if (size > MAX_FRAME_SIZE - sizeof(crc_val)) {
             size = MAX_FRAME_SIZE - sizeof(crc_val);
