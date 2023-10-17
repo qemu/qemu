@@ -170,35 +170,38 @@ REG32(INT_Q1_DISABLE, 0x620)
 REG32(INT_Q7_DISABLE, 0x638)
 
 REG32(SCREENING_TYPE1_REG0, 0x500)
-
-#define GEM_ST1R_UDP_PORT_MATCH_ENABLE  (1 << 29)
-#define GEM_ST1R_DSTC_ENABLE            (1 << 28)
-#define GEM_ST1R_UDP_PORT_MATCH_SHIFT   (12)
-#define GEM_ST1R_UDP_PORT_MATCH_WIDTH   (27 - GEM_ST1R_UDP_PORT_MATCH_SHIFT + 1)
-#define GEM_ST1R_DSTC_MATCH_SHIFT       (4)
-#define GEM_ST1R_DSTC_MATCH_WIDTH       (11 - GEM_ST1R_DSTC_MATCH_SHIFT + 1)
-#define GEM_ST1R_QUEUE_SHIFT            (0)
-#define GEM_ST1R_QUEUE_WIDTH            (3 - GEM_ST1R_QUEUE_SHIFT + 1)
+    FIELD(SCREENING_TYPE1_REG0, QUEUE_NUM, 0, 4)
+    FIELD(SCREENING_TYPE1_REG0, DSTC_MATCH, 4, 8)
+    FIELD(SCREENING_TYPE1_REG0, UDP_PORT_MATCH, 12, 16)
+    FIELD(SCREENING_TYPE1_REG0, DSTC_ENABLE, 28, 1)
+    FIELD(SCREENING_TYPE1_REG0, UDP_PORT_MATCH_EN, 29, 1)
+    FIELD(SCREENING_TYPE1_REG0, DROP_ON_MATCH, 30, 1)
 
 REG32(SCREENING_TYPE2_REG0, 0x540)
-
-#define GEM_ST2R_COMPARE_A_ENABLE       (1 << 18)
-#define GEM_ST2R_COMPARE_A_SHIFT        (13)
-#define GEM_ST2R_COMPARE_WIDTH          (17 - GEM_ST2R_COMPARE_A_SHIFT + 1)
-#define GEM_ST2R_ETHERTYPE_ENABLE       (1 << 12)
-#define GEM_ST2R_ETHERTYPE_INDEX_SHIFT  (9)
-#define GEM_ST2R_ETHERTYPE_INDEX_WIDTH  (11 - GEM_ST2R_ETHERTYPE_INDEX_SHIFT \
-                                            + 1)
-#define GEM_ST2R_QUEUE_SHIFT            (0)
-#define GEM_ST2R_QUEUE_WIDTH            (3 - GEM_ST2R_QUEUE_SHIFT + 1)
+    FIELD(SCREENING_TYPE2_REG0, QUEUE_NUM, 0, 4)
+    FIELD(SCREENING_TYPE2_REG0, VLAN_PRIORITY, 4, 3)
+    FIELD(SCREENING_TYPE2_REG0, VLAN_ENABLE, 8, 1)
+    FIELD(SCREENING_TYPE2_REG0, ETHERTYPE_REG_INDEX, 9, 3)
+    FIELD(SCREENING_TYPE2_REG0, ETHERTYPE_ENABLE, 12, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_A, 13, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_A_ENABLE, 18, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_B, 19, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_B_ENABLE, 24, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_C, 25, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_C_ENABLE, 30, 1)
+    FIELD(SCREENING_TYPE2_REG0, DROP_ON_MATCH, 31, 1)
 
 REG32(SCREENING_TYPE2_ETHERTYPE_REG0, 0x6e0)
-REG32(TYPE2_COMPARE_0_WORD_0, 0x700)
 
-#define GEM_T2CW1_COMPARE_OFFSET_SHIFT  (7)
-#define GEM_T2CW1_COMPARE_OFFSET_WIDTH  (8 - GEM_T2CW1_COMPARE_OFFSET_SHIFT + 1)
-#define GEM_T2CW1_OFFSET_VALUE_SHIFT    (0)
-#define GEM_T2CW1_OFFSET_VALUE_WIDTH    (6 - GEM_T2CW1_OFFSET_VALUE_SHIFT + 1)
+REG32(TYPE2_COMPARE_0_WORD_0, 0x700)
+    FIELD(TYPE2_COMPARE_0_WORD_0, MASK_VALUE, 0, 16)
+    FIELD(TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE, 16, 16)
+
+REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
+    FIELD(TYPE2_COMPARE_0_WORD_1, OFFSET_VALUE, 0, 7)
+    FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_OFFSET, 7, 2)
+    FIELD(TYPE2_COMPARE_0_WORD_1, DISABLE_MASK, 9, 1)
+    FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_VLAN_ID, 10, 1)
 
 /*****************************************/
 #define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
@@ -755,10 +758,9 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         mismatched = false;
 
         /* Screening is based on UDP Port */
-        if (reg & GEM_ST1R_UDP_PORT_MATCH_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE1_REG0, UDP_PORT_MATCH_EN)) {
             uint16_t udp_port = rxbuf_ptr[14 + 22] << 8 | rxbuf_ptr[14 + 23];
-            if (udp_port == extract32(reg, GEM_ST1R_UDP_PORT_MATCH_SHIFT,
-                                           GEM_ST1R_UDP_PORT_MATCH_WIDTH)) {
+            if (udp_port == FIELD_EX32(reg, SCREENING_TYPE1_REG0, UDP_PORT_MATCH)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -766,10 +768,9 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         /* Screening is based on DS/TC */
-        if (reg & GEM_ST1R_DSTC_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE1_REG0, DSTC_ENABLE)) {
             uint8_t dscp = rxbuf_ptr[14 + 1];
-            if (dscp == extract32(reg, GEM_ST1R_DSTC_MATCH_SHIFT,
-                                       GEM_ST1R_DSTC_MATCH_WIDTH)) {
+            if (dscp == FIELD_EX32(reg, SCREENING_TYPE1_REG0, DSTC_MATCH)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -777,7 +778,7 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         if (matched && !mismatched) {
-            return extract32(reg, GEM_ST1R_QUEUE_SHIFT, GEM_ST1R_QUEUE_WIDTH);
+            return FIELD_EX32(reg, SCREENING_TYPE1_REG0, QUEUE_NUM);
         }
     }
 
@@ -786,10 +787,10 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         matched = false;
         mismatched = false;
 
-        if (reg & GEM_ST2R_ETHERTYPE_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE2_REG0, ETHERTYPE_ENABLE)) {
             uint16_t type = rxbuf_ptr[12] << 8 | rxbuf_ptr[13];
-            int et_idx = extract32(reg, GEM_ST2R_ETHERTYPE_INDEX_SHIFT,
-                                        GEM_ST2R_ETHERTYPE_INDEX_WIDTH);
+            int et_idx = FIELD_EX32(reg, SCREENING_TYPE2_REG0,
+                                    ETHERTYPE_REG_INDEX);
 
             if (et_idx > s->num_type2_screeners) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Out of range ethertype "
@@ -805,27 +806,27 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
 
         /* Compare A, B, C */
         for (j = 0; j < 3; j++) {
-            uint32_t cr0, cr1, mask;
+            uint32_t cr0, cr1, mask, compare;
             uint16_t rx_cmp;
             int offset;
-            int cr_idx = extract32(reg, GEM_ST2R_COMPARE_A_SHIFT + j * 6,
-                                        GEM_ST2R_COMPARE_WIDTH);
+            int cr_idx = extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_SHIFT + j * 6,
+                                   R_SCREENING_TYPE2_REG0_COMPARE_A_LENGTH);
 
-            if (!(reg & (GEM_ST2R_COMPARE_A_ENABLE << (j * 6)))) {
+            if (!extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_ENABLE_SHIFT + j * 6,
+                           R_SCREENING_TYPE2_REG0_COMPARE_A_ENABLE_LENGTH)) {
                 continue;
             }
+
             if (cr_idx > s->num_type2_screeners) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Out of range compare "
                               "register index: %d\n", cr_idx);
             }
 
             cr0 = s->regs[R_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2];
-            cr1 = s->regs[R_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2 + 1];
-            offset = extract32(cr1, GEM_T2CW1_OFFSET_VALUE_SHIFT,
-                                    GEM_T2CW1_OFFSET_VALUE_WIDTH);
+            cr1 = s->regs[R_TYPE2_COMPARE_0_WORD_1 + cr_idx * 2];
+            offset = FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, OFFSET_VALUE);
 
-            switch (extract32(cr1, GEM_T2CW1_COMPARE_OFFSET_SHIFT,
-                                   GEM_T2CW1_COMPARE_OFFSET_WIDTH)) {
+            switch (FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, COMPARE_OFFSET)) {
             case 3: /* Skip UDP header */
                 qemu_log_mask(LOG_UNIMP, "TCP compare offsets"
                               "unimplemented - assuming UDP\n");
@@ -843,9 +844,10 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
             }
 
             rx_cmp = rxbuf_ptr[offset] << 8 | rxbuf_ptr[offset];
-            mask = extract32(cr0, 0, 16);
+            mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
+            compare = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
 
-            if ((rx_cmp & mask) == (extract32(cr0, 16, 16) & mask)) {
+            if ((rx_cmp & mask) == (compare & mask)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -853,7 +855,7 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         if (matched && !mismatched) {
-            return extract32(reg, GEM_ST2R_QUEUE_SHIFT, GEM_ST2R_QUEUE_WIDTH);
+            return FIELD_EX32(reg, SCREENING_TYPE2_REG0, QUEUE_NUM);
         }
     }
 
