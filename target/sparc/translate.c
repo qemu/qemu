@@ -2407,7 +2407,10 @@ static bool advance_jump_uncond_always(DisasContext *dc, bool annul,
 static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
                               bool annul, target_ulong dest)
 {
-    target_ulong npc = dc->npc;
+    target_ulong npc;
+
+    flush_cond(dc);
+    npc = dc->npc;
 
     if (annul) {
         TCGLabel *l1 = gen_new_label();
@@ -2481,8 +2484,6 @@ static bool do_bpcc(DisasContext *dc, arg_bcc *a)
     case 0x8:
         return advance_jump_uncond_always(dc, a->a, target);
     default:
-        flush_cond(dc);
-
         gen_compare(&cmp, a->cc, a->cond, dc);
         return advance_jump_cond(dc, &cmp, a->a, target);
     }
@@ -2505,8 +2506,6 @@ static bool do_fbpfcc(DisasContext *dc, arg_bcc *a)
     case 0x8:
         return advance_jump_uncond_always(dc, a->a, target);
     default:
-        flush_cond(dc);
-
         gen_fcompare(&cmp, a->cc, a->cond);
         return advance_jump_cond(dc, &cmp, a->a, target);
     }
@@ -2527,7 +2526,6 @@ static bool trans_BPr(DisasContext *dc, arg_BPr *a)
         return false;
     }
 
-    flush_cond(dc);
     gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1));
     return advance_jump_cond(dc, &cmp, a->a, target);
 }
