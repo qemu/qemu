@@ -1179,9 +1179,11 @@ R: Helge Deller <deller@gmx.de>
 S: Odd Fixes
 F: configs/devices/hppa-softmmu/default.mak
 F: hw/hppa/
+F: hw/input/lasips2.c
 F: hw/net/*i82596*
 F: hw/misc/lasi.c
 F: hw/pci-host/dino.c
+F: include/hw/input/lasips2.h
 F: include/hw/misc/lasi.h
 F: include/hw/net/lasi_82596.h
 F: include/hw/pci-host/dino.h
