@@ -32,8 +32,6 @@
 
 static void xen_init_pv(MachineState *machine)
 {
-    int i;
-
     setup_xen_backend_ops();
 
     /* Initialize backend core & drivers */
@@ -60,13 +58,6 @@ static void xen_init_pv(MachineState *machine)
         xen_config_dev_vfb(0, "vnc");
         xen_config_dev_vkbd(0);
         vga_interface_created = true;
-    }
-
-    /* configure nics */
-    for (i = 0; i < nb_nics; i++) {
-        if (!nd_table[i].model || 0 != strcmp(nd_table[i].model, "xen"))
-            continue;
-        xen_config_dev_nic(nd_table + i);
     }
 
     xen_bus_init();
