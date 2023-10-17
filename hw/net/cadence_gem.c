@@ -132,9 +132,30 @@ REG32(DMACFG, 0x10) /* DMA Control reg */
 #define GEM_DMACFG_RBUFSZ_MUL  64         /* DMA RX Buffer Size multiplier */
 
 REG32(TXSTATUS, 0x14) /* TX Status reg */
+    FIELD(TXSTATUS, TX_USED_BIT_READ_MIDFRAME, 12, 1)
+    FIELD(TXSTATUS, TX_FRAME_TOO_LARGE, 11, 1)
+    FIELD(TXSTATUS, TX_DMA_LOCKUP, 10, 1)
+    FIELD(TXSTATUS, TX_MAC_LOCKUP, 9, 1)
+    FIELD(TXSTATUS, RESP_NOT_OK, 8, 1)
+    FIELD(TXSTATUS, LATE_COLLISION, 7, 1)
+    FIELD(TXSTATUS, TRANSMIT_UNDER_RUN, 6, 1)
+    FIELD(TXSTATUS, TRANSMIT_COMPLETE, 5, 1)
+    FIELD(TXSTATUS, AMBA_ERROR, 4, 1)
+    FIELD(TXSTATUS, TRANSMIT_GO, 3, 1)
+    FIELD(TXSTATUS, RETRY_LIMIT, 2, 1)
+    FIELD(TXSTATUS, COLLISION, 1, 1)
+    FIELD(TXSTATUS, USED_BIT_READ, 0, 1)
+
 REG32(RXQBASE, 0x18) /* RX Q Base address reg */
 REG32(TXQBASE, 0x1c) /* TX Q Base address reg */
 REG32(RXSTATUS, 0x20) /* RX Status reg */
+    FIELD(RXSTATUS, RX_DMA_LOCKUP, 5, 1)
+    FIELD(RXSTATUS, RX_MAC_LOCKUP, 4, 1)
+    FIELD(RXSTATUS, RESP_NOT_OK, 3, 1)
+    FIELD(RXSTATUS, RECEIVE_OVERRUN, 2, 1)
+    FIELD(RXSTATUS, FRAME_RECEIVED, 1, 1)
+    FIELD(RXSTATUS, BUF_NOT_AVAILABLE, 0, 1)
+
 REG32(ISR, 0x24) /* Interrupt Status reg */
 REG32(IER, 0x28) /* Interrupt Enable reg */
 REG32(IDR, 0x2c) /* Interrupt Disable reg */
@@ -286,11 +307,6 @@ REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
 
 /*****************************************/
 
-#define GEM_TXSTATUS_TXCMPL    0x00000020 /* Transmit Complete */
-#define GEM_TXSTATUS_USED      0x00000001 /* sw owned descriptor encountered */
-
-#define GEM_RXSTATUS_FRMRCVD   0x00000002 /* Frame received */
-#define GEM_RXSTATUS_NOBUF     0x00000001 /* Buffer unavailable */
 
 /* GEM_ISR GEM_IER GEM_IDR GEM_IMR */
 #define GEM_INT_TXCMPL        0x00000080 /* Transmit Complete */
@@ -987,7 +1003,7 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
     /* Descriptor owned by software ? */
     if (rx_desc_get_ownership(s->rx_desc[q]) == 1) {
         DB_PRINT("descriptor 0x%" HWADDR_PRIx " owned by sw.\n", desc_addr);
-        s->regs[R_RXSTATUS] |= GEM_RXSTATUS_NOBUF;
+        s->regs[R_RXSTATUS] |= R_RXSTATUS_BUF_NOT_AVAILABLE_MASK;
         gem_set_isr(s, q, GEM_INT_RXUSED);
         /* Handle interrupt consequences */
         gem_update_int_status(s);
@@ -1164,7 +1180,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Count it */
     gem_receive_updatestats(s, buf, size);
 
-    s->regs[R_RXSTATUS] |= GEM_RXSTATUS_FRMRCVD;
+    s->regs[R_RXSTATUS] |= R_RXSTATUS_FRAME_RECEIVED_MASK;
     gem_set_isr(s, q, GEM_INT_RXCMPL);
 
     /* Handle interrupt consequences */
@@ -1315,7 +1331,7 @@ static void gem_transmit(CadenceGEMState *s)
                 }
                 DB_PRINT("TX descriptor next: 0x%08x\n", s->tx_desc_addr[q]);
 
-                s->regs[R_TXSTATUS] |= GEM_TXSTATUS_TXCMPL;
+                s->regs[R_TXSTATUS] |= R_TXSTATUS_TRANSMIT_COMPLETE_MASK;
                 gem_set_isr(s, q, GEM_INT_TXCMPL);
 
                 /* Handle interrupt consequences */
@@ -1363,7 +1379,7 @@ static void gem_transmit(CadenceGEMState *s)
         }
 
         if (tx_desc_get_used(desc)) {
-            s->regs[R_TXSTATUS] |= GEM_TXSTATUS_USED;
+            s->regs[R_TXSTATUS] |= R_TXSTATUS_USED_BIT_READ_MASK;
             /* IRQ TXUSED is defined only for queue 0 */
             if (q == 0) {
                 gem_set_isr(s, 0, GEM_INT_TXUSED);
