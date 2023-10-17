@@ -157,9 +157,42 @@ REG32(RXSTATUS, 0x20) /* RX Status reg */
     FIELD(RXSTATUS, BUF_NOT_AVAILABLE, 0, 1)
 
 REG32(ISR, 0x24) /* Interrupt Status reg */
+    FIELD(ISR, TX_LOCKUP, 31, 1)
+    FIELD(ISR, RX_LOCKUP, 30, 1)
+    FIELD(ISR, TSU_TIMER, 29, 1)
+    FIELD(ISR, WOL, 28, 1)
+    FIELD(ISR, RECV_LPI, 27, 1)
+    FIELD(ISR, TSU_SEC_INCR, 26, 1)
+    FIELD(ISR, PTP_PDELAY_RESP_XMIT, 25, 1)
+    FIELD(ISR, PTP_PDELAY_REQ_XMIT, 24, 1)
+    FIELD(ISR, PTP_PDELAY_RESP_RECV, 23, 1)
+    FIELD(ISR, PTP_PDELAY_REQ_RECV, 22, 1)
+    FIELD(ISR, PTP_SYNC_XMIT, 21, 1)
+    FIELD(ISR, PTP_DELAY_REQ_XMIT, 20, 1)
+    FIELD(ISR, PTP_SYNC_RECV, 19, 1)
+    FIELD(ISR, PTP_DELAY_REQ_RECV, 18, 1)
+    FIELD(ISR, PCS_LP_PAGE_RECV, 17, 1)
+    FIELD(ISR, PCS_AN_COMPLETE, 16, 1)
+    FIELD(ISR, EXT_IRQ, 15, 1)
+    FIELD(ISR, PAUSE_FRAME_XMIT, 14, 1)
+    FIELD(ISR, PAUSE_TIME_ELAPSED, 13, 1)
+    FIELD(ISR, PAUSE_FRAME_RECV, 12, 1)
+    FIELD(ISR, RESP_NOT_OK, 11, 1)
+    FIELD(ISR, RECV_OVERRUN, 10, 1)
+    FIELD(ISR, LINK_CHANGE, 9, 1)
+    FIELD(ISR, USXGMII_INT, 8, 1)
+    FIELD(ISR, XMIT_COMPLETE, 7, 1)
+    FIELD(ISR, AMBA_ERROR, 6, 1)
+    FIELD(ISR, RETRY_EXCEEDED, 5, 1)
+    FIELD(ISR, XMIT_UNDER_RUN, 4, 1)
+    FIELD(ISR, TX_USED, 3, 1)
+    FIELD(ISR, RX_USED, 2, 1)
+    FIELD(ISR, RECV_COMPLETE, 1, 1)
+    FIELD(ISR, MGNT_FRAME_SENT, 0, 1)
 REG32(IER, 0x28) /* Interrupt Enable reg */
 REG32(IDR, 0x2c) /* Interrupt Disable reg */
 REG32(IMR, 0x30) /* Interrupt Mask reg */
+
 REG32(PHYMNTNC, 0x34) /* Phy Maintenance reg */
 REG32(RXPAUSE, 0x38) /* RX Pause Time reg */
 REG32(TXPAUSE, 0x3c) /* TX Pause Time reg */
@@ -308,12 +341,6 @@ REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
 /*****************************************/
 
 
-/* GEM_ISR GEM_IER GEM_IDR GEM_IMR */
-#define GEM_INT_TXCMPL        0x00000080 /* Transmit Complete */
-#define GEM_INT_AMBA_ERR      0x00000040
-#define GEM_INT_TXUSED         0x00000008
-#define GEM_INT_RXUSED         0x00000004
-#define GEM_INT_RXCMPL        0x00000002
 
 #define GEM_PHYMNTNC_OP_R      0x20000000 /* read operation */
 #define GEM_PHYMNTNC_OP_W      0x10000000 /* write operation */
@@ -1004,7 +1031,7 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
     if (rx_desc_get_ownership(s->rx_desc[q]) == 1) {
         DB_PRINT("descriptor 0x%" HWADDR_PRIx " owned by sw.\n", desc_addr);
         s->regs[R_RXSTATUS] |= R_RXSTATUS_BUF_NOT_AVAILABLE_MASK;
-        gem_set_isr(s, q, GEM_INT_RXUSED);
+        gem_set_isr(s, q, R_ISR_RX_USED_MASK);
         /* Handle interrupt consequences */
         gem_update_int_status(s);
     }
@@ -1104,7 +1131,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     if (size > gem_get_max_buf_len(s, false)) {
         qemu_log_mask(LOG_GUEST_ERROR, "rx frame too long\n");
-        gem_set_isr(s, q, GEM_INT_AMBA_ERR);
+        gem_set_isr(s, q, R_ISR_AMBA_ERROR_MASK);
         return -1;
     }
 
@@ -1181,7 +1208,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     gem_receive_updatestats(s, buf, size);
 
     s->regs[R_RXSTATUS] |= R_RXSTATUS_FRAME_RECEIVED_MASK;
-    gem_set_isr(s, q, GEM_INT_RXCMPL);
+    gem_set_isr(s, q, R_ISR_RECV_COMPLETE_MASK);
 
     /* Handle interrupt consequences */
     gem_update_int_status(s);
@@ -1294,7 +1321,7 @@ static void gem_transmit(CadenceGEMState *s)
                          HWADDR_PRIx " too large: size 0x%x space 0x%zx\n",
                          packet_desc_addr, tx_desc_get_length(desc),
                          gem_get_max_buf_len(s, true) - (p - s->tx_packet));
-                gem_set_isr(s, q, GEM_INT_AMBA_ERR);
+                gem_set_isr(s, q, R_ISR_AMBA_ERROR_MASK);
                 break;
             }
 
@@ -1332,7 +1359,7 @@ static void gem_transmit(CadenceGEMState *s)
                 DB_PRINT("TX descriptor next: 0x%08x\n", s->tx_desc_addr[q]);
 
                 s->regs[R_TXSTATUS] |= R_TXSTATUS_TRANSMIT_COMPLETE_MASK;
-                gem_set_isr(s, q, GEM_INT_TXCMPL);
+                gem_set_isr(s, q, R_ISR_XMIT_COMPLETE_MASK);
 
                 /* Handle interrupt consequences */
                 gem_update_int_status(s);
@@ -1382,7 +1409,7 @@ static void gem_transmit(CadenceGEMState *s)
             s->regs[R_TXSTATUS] |= R_TXSTATUS_USED_BIT_READ_MASK;
             /* IRQ TXUSED is defined only for queue 0 */
             if (q == 0) {
-                gem_set_isr(s, 0, GEM_INT_TXUSED);
+                gem_set_isr(s, 0, R_ISR_TX_USED_MASK);
             }
             gem_update_int_status(s);
         }
