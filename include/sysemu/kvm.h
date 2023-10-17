@@ -43,7 +43,6 @@ extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
 extern bool kvm_gsi_direct_mapping;
 extern bool kvm_readonly_mem_allowed;
-extern bool kvm_direct_msi_allowed;
 extern bool kvm_ioeventfd_any_length_allowed;
 extern bool kvm_msi_use_devid;
 
@@ -148,13 +147,6 @@ extern bool kvm_msi_use_devid;
 #define kvm_readonly_mem_enabled() (kvm_readonly_mem_allowed)
 
 /**
- * kvm_direct_msi_enabled:
- *
- * Returns: true if KVM allows direct MSI injection.
- */
-#define kvm_direct_msi_enabled() (kvm_direct_msi_allowed)
-
-/**
  * kvm_ioeventfd_any_length_enabled:
  * Returns: true if KVM allows any length io eventfd.
  */
@@ -181,7 +173,6 @@ extern bool kvm_msi_use_devid;
 #define kvm_gsi_routing_allowed() (false)
 #define kvm_gsi_direct_mapping() (false)
 #define kvm_readonly_mem_enabled() (false)
-#define kvm_direct_msi_enabled() (false)
 #define kvm_ioeventfd_any_length_enabled() (false)
 #define kvm_msi_devid_required() (false)
 

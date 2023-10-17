@@ -163,8 +163,7 @@ type_init(gicv3_its_common_register_types)
 const char *its_class_name(void)
 {
     if (kvm_irqchip_in_kernel()) {
-        /* KVM implementation requires this capability */
-        return kvm_direct_msi_enabled() ? "arm-its-kvm" : NULL;
+        return "arm-its-kvm";
     } else {
         /* Software emulation based model */
         return "arm-gicv3-its";
