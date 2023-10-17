@@ -1971,29 +1971,29 @@ migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
     ram_save_queue_pages(rbname, start, len, errp);
 }
 
-static int migrate_handle_rp_recv_bitmap(MigrationState *s, char *block_name,
-                                         Error **errp)
+static bool migrate_handle_rp_recv_bitmap(MigrationState *s, char *block_name,
+                                          Error **errp)
 {
     RAMBlock *block = qemu_ram_block_by_name(block_name);
 
     if (!block) {
         error_setg(errp, "MIG_RP_MSG_RECV_BITMAP has invalid block name '%s'",
                    block_name);
-        return -EINVAL;
+        return false;
     }
 
     /* Fetch the received bitmap and refresh the dirty bitmap */
     return ram_dirty_bitmap_reload(s, block, errp);
 }
 
-static int migrate_handle_rp_resume_ack(MigrationState *s,
-                                        uint32_t value, Error **errp)
+static bool migrate_handle_rp_resume_ack(MigrationState *s,
+                                         uint32_t value, Error **errp)
 {
     trace_source_return_path_thread_resume_ack(value);
 
     if (value != MIGRATION_RESUME_ACK_VALUE) {
         error_setg(errp, "illegal resume_ack value %"PRIu32, value);
-        return -1;
+        return false;
     }
 
     /* Now both sides are active. */
@@ -2003,7 +2003,7 @@ static int migrate_handle_rp_resume_ack(MigrationState *s,
     /* Notify send thread that time to continue send pages */
     migration_rp_kick(s);
 
-    return 0;
+    return true;
 }
 
 /*
@@ -2154,14 +2154,14 @@ static void *source_return_path_thread(void *opaque)
             }
             /* Format: len (1B) + idstr (<255B). This ends the idstr. */
             buf[buf[0] + 1] = '\0';
-            if (migrate_handle_rp_recv_bitmap(ms, (char *)(buf + 1), &err)) {
+            if (!migrate_handle_rp_recv_bitmap(ms, (char *)(buf + 1), &err)) {
                 goto out;
             }
             break;
 
         case MIG_RP_MSG_RESUME_ACK:
             tmp32 = ldl_be_p(buf);
-            if (migrate_handle_rp_resume_ack(ms, tmp32, &err)) {
+            if (!migrate_handle_rp_resume_ack(ms, tmp32, &err)) {
                 goto out;
             }
             break;

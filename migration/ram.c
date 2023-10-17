@@ -4113,10 +4113,11 @@ static int ram_dirty_bitmap_sync_all(MigrationState *s, RAMState *rs)
  * Read the received bitmap, revert it as the initial dirty bitmap.
  * This is only used when the postcopy migration is paused but wants
  * to resume from a middle point.
+ *
+ * Returns true if succeeded, false for errors.
  */
-int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block, Error **errp)
+bool ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block, Error **errp)
 {
-    int ret = -EINVAL;
     /* from_dst_file is always valid because we're within rp_thread */
     QEMUFile *file = s->rp_state.from_dst_file;
     g_autofree unsigned long *le_bitmap = NULL;
@@ -4130,7 +4131,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block, Error **errp)
     if (s->state != MIGRATION_STATUS_POSTCOPY_RECOVER) {
         error_setg(errp, "Reload bitmap in incorrect state %s",
                    MigrationStatus_str(s->state));
-        return -EINVAL;
+        return false;
     }
 
     /*
@@ -4148,24 +4149,23 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block, Error **errp)
     if (size != local_size) {
         error_setg(errp, "ramblock '%s' bitmap size mismatch (0x%"PRIx64
                    " != 0x%"PRIx64")", block->idstr, size, local_size);
-        return -EINVAL;
+        return false;
     }
 
     size = qemu_get_buffer(file, (uint8_t *)le_bitmap, local_size);
     end_mark = qemu_get_be64(file);
 
-    ret = qemu_file_get_error(file);
-    if (ret || size != local_size) {
-        error_setg(errp, "read bitmap failed for ramblock '%s': %d"
-                   " (size 0x%"PRIx64", got: 0x%"PRIx64")",
-                   block->idstr, ret, local_size, size);
-        return -EIO;
+    if (qemu_file_get_error(file) || size != local_size) {
+        error_setg(errp, "read bitmap failed for ramblock '%s': "
+                   "(size 0x%"PRIx64", got: 0x%"PRIx64")",
+                   block->idstr, local_size, size);
+        return false;
     }
 
     if (end_mark != RAMBLOCK_RECV_BITMAP_ENDING) {
         error_setg(errp, "ramblock '%s' end mark incorrect: 0x%"PRIx64,
                    block->idstr, end_mark);
-        return -EINVAL;
+        return false;
     }
 
     /*
@@ -4197,7 +4197,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block, Error **errp)
      */
     migration_rp_kick(s);
 
-    return 0;
+    return true;
 }
 
 static int ram_resume_prepare(MigrationState *s, void *opaque)
