@@ -46,6 +46,38 @@
 } while (0)
 
 REG32(NWCTRL, 0x0) /* Network Control reg */
+    FIELD(NWCTRL, LOOPBACK , 0, 1)
+    FIELD(NWCTRL, LOOPBACK_LOCAL , 1, 1)
+    FIELD(NWCTRL, ENABLE_RECEIVE, 2, 1)
+    FIELD(NWCTRL, ENABLE_TRANSMIT, 3, 1)
+    FIELD(NWCTRL, MAN_PORT_EN , 4, 1)
+    FIELD(NWCTRL, CLEAR_ALL_STATS_REGS , 5, 1)
+    FIELD(NWCTRL, INC_ALL_STATS_REGS, 6, 1)
+    FIELD(NWCTRL, STATS_WRITE_EN, 7, 1)
+    FIELD(NWCTRL, BACK_PRESSURE, 8, 1)
+    FIELD(NWCTRL, TRANSMIT_START , 9, 1)
+    FIELD(NWCTRL, TRANSMIT_HALT, 10, 1)
+    FIELD(NWCTRL, TX_PAUSE_FRAME_RE, 11, 1)
+    FIELD(NWCTRL, TX_PAUSE_FRAME_ZE, 12, 1)
+    FIELD(NWCTRL, STATS_TAKE_SNAP, 13, 1)
+    FIELD(NWCTRL, STATS_READ_SNAP, 14, 1)
+    FIELD(NWCTRL, STORE_RX_TS, 15, 1)
+    FIELD(NWCTRL, PFC_ENABLE, 16, 1)
+    FIELD(NWCTRL, PFC_PRIO_BASED, 17, 1)
+    FIELD(NWCTRL, FLUSH_RX_PKT_PCLK , 18, 1)
+    FIELD(NWCTRL, TX_LPI_EN, 19, 1)
+    FIELD(NWCTRL, PTP_UNICAST_ENA, 20, 1)
+    FIELD(NWCTRL, ALT_SGMII_MODE, 21, 1)
+    FIELD(NWCTRL, STORE_UDP_OFFSET, 22, 1)
+    FIELD(NWCTRL, EXT_TSU_PORT_EN, 23, 1)
+    FIELD(NWCTRL, ONE_STEP_SYNC_MO, 24, 1)
+    FIELD(NWCTRL, PFC_CTRL , 25, 1)
+    FIELD(NWCTRL, EXT_RXQ_SEL_EN , 26, 1)
+    FIELD(NWCTRL, OSS_CORRECTION_FIELD, 27, 1)
+    FIELD(NWCTRL, SEL_MII_ON_RGMII, 28, 1)
+    FIELD(NWCTRL, TWO_PT_FIVE_GIG, 29, 1)
+    FIELD(NWCTRL, IFG_EATS_QAV_CREDIT, 30, 1)
+
 REG32(NWCFG, 0x4) /* Network Config reg */
 REG32(NWSTATUS, 0x8) /* Network Status reg */
 REG32(USERIO, 0xc) /* User IO reg */
@@ -204,11 +236,6 @@ REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
     FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_VLAN_ID, 10, 1)
 
 /*****************************************/
-#define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
-#define GEM_NWCTRL_TXENA       0x00000008 /* Transmit Enable */
-#define GEM_NWCTRL_RXENA       0x00000004 /* Receive Enable */
-#define GEM_NWCTRL_LOCALLOOP   0x00000002 /* Local Loopback */
-
 #define GEM_NWCFG_STRIP_FCS    0x00020000 /* Strip FCS field */
 #define GEM_NWCFG_LERR_DISC    0x00010000 /* Discard RX frames with len err */
 #define GEM_NWCFG_BUFF_OFST_M  0x0000C000 /* Receive buffer offset mask */
@@ -560,7 +587,7 @@ static bool gem_can_receive(NetClientState *nc)
     s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
-    if (!(s->regs[R_NWCTRL] & GEM_NWCTRL_RXENA)) {
+    if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_RECEIVE)) {
         if (s->can_rx_state != 1) {
             s->can_rx_state = 1;
             DB_PRINT("can't receive - no enable\n");
@@ -1173,7 +1200,7 @@ static void gem_transmit(CadenceGEMState *s)
     int q = 0;
 
     /* Do nothing if transmit is not enabled. */
-    if (!(s->regs[R_NWCTRL] & GEM_NWCTRL_TXENA)) {
+    if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_TRANSMIT)) {
         return;
     }
 
@@ -1198,7 +1225,7 @@ static void gem_transmit(CadenceGEMState *s)
         while (tx_desc_get_used(desc) == 0) {
 
             /* Do nothing if transmit is not enabled. */
-            if (!(s->regs[R_NWCTRL] & GEM_NWCTRL_TXENA)) {
+            if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_TRANSMIT)) {
                 return;
             }
             print_gem_tx_desc(desc, q);
@@ -1271,8 +1298,8 @@ static void gem_transmit(CadenceGEMState *s)
                 gem_transmit_updatestats(s, s->tx_packet, total_bytes);
 
                 /* Send the packet somewhere */
-                if (s->phy_loop || (s->regs[R_NWCTRL] &
-                                    GEM_NWCTRL_LOCALLOOP)) {
+                if (s->phy_loop || FIELD_EX32(s->regs[R_NWCTRL], NWCTRL,
+                                              LOOPBACK_LOCAL)) {
                     qemu_receive_packet(qemu_get_queue(s->nic), s->tx_packet,
                                         total_bytes);
                 } else {
@@ -1493,15 +1520,15 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
     /* Handle register write side effects */
     switch (offset) {
     case R_NWCTRL:
-        if (val & GEM_NWCTRL_RXENA) {
+        if (FIELD_EX32(val, NWCTRL, ENABLE_RECEIVE)) {
             for (i = 0; i < s->num_priority_queues; ++i) {
                 gem_get_rx_desc(s, i);
             }
         }
-        if (val & GEM_NWCTRL_TXSTART) {
+        if (FIELD_EX32(val, NWCTRL, TRANSMIT_START)) {
             gem_transmit(s);
         }
-        if (!(val & GEM_NWCTRL_TXENA)) {
+        if (!(FIELD_EX32(val, NWCTRL, ENABLE_TRANSMIT))) {
             /* Reset to start of Q when transmit disabled. */
             for (i = 0; i < s->num_priority_queues; i++) {
                 s->tx_desc_addr[i] = gem_get_tx_queue_base_addr(s, i);
