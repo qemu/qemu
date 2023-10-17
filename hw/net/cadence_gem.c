@@ -283,7 +283,7 @@ REG32(DESCONF3, 0x288)
 REG32(DESCONF4, 0x28c)
 REG32(DESCONF5, 0x290)
 REG32(DESCONF6, 0x294)
-#define GEM_DESCONF6_64B_MASK (1U << 23)
+    FIELD(DESCONF6, DMA_ADDR_64B, 23, 1)
 REG32(DESCONF7, 0x298)
 
 REG32(INT_Q1_STATUS, 0x400)
@@ -1463,7 +1463,7 @@ static void gem_reset(DeviceState *d)
     s->regs[R_DESCONF] = 0x02D00111;
     s->regs[R_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
     s->regs[R_DESCONF5] = 0x002f2045;
-    s->regs[R_DESCONF6] = GEM_DESCONF6_64B_MASK;
+    s->regs[R_DESCONF6] = R_DESCONF6_DMA_ADDR_64B_MASK;
     s->regs[R_INT_Q1_MASK] = 0x00000CE6;
     s->regs[R_JUMBO_MAX_LEN] = s->jumbo_max_len;
 
