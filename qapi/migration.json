@@ -73,7 +73,7 @@
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int',
-           'skipped': { 'type': 'int', 'features': ['deprecated'] },
+           'skipped': { 'type': 'int', 'features': [ 'deprecated' ] },
            'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate': 'int',
            'mbps': 'number', 'dirty-sync-count': 'int',
@@ -440,10 +440,9 @@
 #     compress and xbzrle are both on, compress only takes effect in
 #     the ram bulk stage, after that, it will be disabled and only
 #     xbzrle takes effect, this can help to minimize migration
-#     traffic.  The feature is disabled by default.  (since 2.4 )
+#     traffic.  The feature is disabled by default.  (since 2.4)
 #
-# @events: generate events for each migration state change (since 2.4
-#     )
+# @events: generate events for each migration state change (since 2.4)
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down
 #     the guest to speed up convergence of RAM migration.  (since 1.6)
@@ -758,6 +757,16 @@
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
 #
+# @avail-switchover-bandwidth: to set the available bandwidth that
+#     migration can use during switchover phase.  NOTE!  This does not
+#     limit the bandwidth during switchover, but only for calculations when
+#     making decisions to switchover.  By default, this value is zero,
+#     which means QEMU will estimate the bandwidth automatically.  This can
+#     be set when the estimated value is not accurate, while the user is
+#     able to guarantee such bandwidth is available when switching over.
+#     When specified correctly, this can make the switchover decision much
+#     more accurate.  (Since 8.2)
+#
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
 #
@@ -839,7 +848,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'downtime-limit',
+           'avail-switchover-bandwidth', 'downtime-limit',
            { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
            'block-incremental',
            'multifd-channels',
@@ -923,6 +932,16 @@
 #
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
+#
+# @avail-switchover-bandwidth: to set the available bandwidth that
+#     migration can use during switchover phase.  NOTE!  This does not
+#     limit the bandwidth during switchover, but only for calculations when
+#     making decisions to switchover.  By default, this value is zero,
+#     which means QEMU will estimate the bandwidth automatically.  This can
+#     be set when the estimated value is not accurate, while the user is
+#     able to guarantee such bandwidth is available when switching over.
+#     When specified correctly, this can make the switchover decision much
+#     more accurate.  (Since 8.2)
 #
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
@@ -1017,6 +1036,7 @@
             '*tls-hostname': 'StrOrNull',
             '*tls-authz': 'StrOrNull',
             '*max-bandwidth': 'size',
+            '*avail-switchover-bandwidth': 'size',
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': { 'type': 'uint32',
                                      'features': [ 'unstable' ] },
@@ -1127,6 +1147,16 @@
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
 #
+# @avail-switchover-bandwidth: to set the available bandwidth that
+#     migration can use during switchover phase.  NOTE!  This does not
+#     limit the bandwidth during switchover, but only for calculations when
+#     making decisions to switchover.  By default, this value is zero,
+#     which means QEMU will estimate the bandwidth automatically.  This can
+#     be set when the estimated value is not accurate, while the user is
+#     able to guarantee such bandwidth is available when switching over.
+#     When specified correctly, this can make the switchover decision much
+#     more accurate.  (Since 8.2)
+#
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
 #
@@ -1217,6 +1247,7 @@
             '*tls-hostname': 'str',
             '*tls-authz': 'str',
             '*max-bandwidth': 'size',
+            '*avail-switchover-bandwidth': 'size',
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': { 'type': 'uint32',
                                      'features': [ 'unstable' ] },

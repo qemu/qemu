@@ -24,14 +24,15 @@ bool migration_rate_exceeded(QEMUFile *f)
         return true;
     }
 
-    uint64_t rate_limit_start = stat64_get(&mig_stats.rate_limit_start);
-    uint64_t rate_limit_current = migration_transferred_bytes(f);
-    uint64_t rate_limit_used = rate_limit_current - rate_limit_start;
-    uint64_t rate_limit_max = stat64_get(&mig_stats.rate_limit_max);
-
+    uint64_t rate_limit_max = migration_rate_get();
     if (rate_limit_max == RATE_LIMIT_DISABLED) {
         return false;
     }
+
+    uint64_t rate_limit_start = stat64_get(&mig_stats.rate_limit_start);
+    uint64_t rate_limit_current = migration_transferred_bytes(f);
+    uint64_t rate_limit_used = rate_limit_current - rate_limit_start;
+
     if (rate_limit_max > 0 && rate_limit_used > rate_limit_max) {
         return true;
     }

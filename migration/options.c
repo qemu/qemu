@@ -125,6 +125,8 @@ Property migration_properties[] = {
                       parameters.cpu_throttle_tailslow, false),
     DEFINE_PROP_SIZE("x-max-bandwidth", MigrationState,
                       parameters.max_bandwidth, MAX_THROTTLE),
+    DEFINE_PROP_SIZE("avail-switchover-bandwidth", MigrationState,
+                      parameters.avail_switchover_bandwidth, 0),
     DEFINE_PROP_UINT64("x-downtime-limit", MigrationState,
                       parameters.downtime_limit,
                       DEFAULT_MIGRATE_SET_DOWNTIME),
@@ -374,6 +376,13 @@ bool migrate_multifd_flush_after_each_section(void)
 bool migrate_postcopy(void)
 {
     return migrate_postcopy_ram() || migrate_dirty_bitmaps();
+}
+
+bool migrate_rdma(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->rdma_migration;
 }
 
 bool migrate_tls(void)
@@ -780,6 +789,13 @@ uint64_t migrate_max_bandwidth(void)
     return s->parameters.max_bandwidth;
 }
 
+uint64_t migrate_avail_switchover_bandwidth(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.avail_switchover_bandwidth;
+}
+
 uint64_t migrate_max_postcopy_bandwidth(void)
 {
     MigrationState *s = migrate_get_current();
@@ -917,6 +933,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
                                  s->parameters.tls_authz : "");
     params->has_max_bandwidth = true;
     params->max_bandwidth = s->parameters.max_bandwidth;
+    params->has_avail_switchover_bandwidth = true;
+    params->avail_switchover_bandwidth = s->parameters.avail_switchover_bandwidth;
     params->has_downtime_limit = true;
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
@@ -1051,6 +1069,15 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_max_bandwidth && (params->max_bandwidth > SIZE_MAX)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "max_bandwidth",
+                   "an integer in the range of 0 to "stringify(SIZE_MAX)
+                   " bytes/second");
+        return false;
+    }
+
+    if (params->has_avail_switchover_bandwidth &&
+        (params->avail_switchover_bandwidth > SIZE_MAX)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "avail_switchover_bandwidth",
                    "an integer in the range of 0 to "stringify(SIZE_MAX)
                    " bytes/second");
         return false;
@@ -1225,6 +1252,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->max_bandwidth = params->max_bandwidth;
     }
 
+    if (params->has_avail_switchover_bandwidth) {
+        dest->avail_switchover_bandwidth = params->avail_switchover_bandwidth;
+    }
+
     if (params->has_downtime_limit) {
         dest->downtime_limit = params->downtime_limit;
     }
@@ -1339,6 +1370,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         if (s->to_dst_file && !migration_in_postcopy()) {
             migration_rate_set(s->parameters.max_bandwidth);
         }
+    }
+
+    if (params->has_avail_switchover_bandwidth) {
+        s->parameters.avail_switchover_bandwidth = params->avail_switchover_bandwidth;
     }
 
     if (params->has_downtime_limit) {
