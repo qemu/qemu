@@ -30,6 +30,7 @@
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
+#include "options.h"
 #include "migration.h"
 
 static void migration_global_dump(Monitor *mon)
@@ -696,7 +697,6 @@ void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict)
 typedef struct HMPMigrationStatus {
     QEMUTimer *timer;
     Monitor *mon;
-    bool is_block_migration;
 } HMPMigrationStatus;
 
 static void hmp_migrate_status_cb(void *opaque)
@@ -722,7 +722,7 @@ static void hmp_migrate_status_cb(void *opaque)
 
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     } else {
-        if (status->is_block_migration) {
+        if (migrate_block()) {
             monitor_printf(status->mon, "\n");
         }
         if (info->error_desc) {
@@ -762,7 +762,6 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
         status = g_malloc0(sizeof(*status));
         status->mon = mon;
-        status->is_block_migration = blk || inc;
         status->timer = timer_new_ms(QEMU_CLOCK_REALTIME, hmp_migrate_status_cb,
                                           status);
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
