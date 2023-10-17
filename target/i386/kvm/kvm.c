@@ -99,6 +99,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(X86_ROBUST_SINGLESTEP),
     KVM_CAP_INFO(MCE),
     KVM_CAP_INFO(ADJUST_CLOCK),
+    KVM_CAP_INFO(SET_IDENTITY_MAP_ADDR),
     KVM_CAP_LAST_INFO
 };
 
@@ -2600,20 +2601,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * In order to use vm86 mode, an EPT identity map and a TSS  are needed.
      * Since these must be part of guest physical memory, we need to allocate
      * them, both by setting their start addresses in the kernel and by
-     * creating a corresponding e820 entry. We need 4 pages before the BIOS.
-     *
-     * Older KVM versions may not support setting the identity map base. In
-     * that case we need to stick with the default, i.e. a 256K maximum BIOS
-     * size.
+     * creating a corresponding e820 entry. We need 4 pages before the BIOS,
+     * so this value allows up to 16M BIOSes.
      */
-    if (kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
-        /* Allows up to 16M BIOSes. */
-        identity_base = 0xfeffc000;
-
-        ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
-        if (ret < 0) {
-            return ret;
-        }
+    identity_base = 0xfeffc000;
+    ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
+    if (ret < 0) {
+        return ret;
     }
 
     /* Set TSS base one page after EPT identity map. */
