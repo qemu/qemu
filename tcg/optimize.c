@@ -688,12 +688,14 @@ static void finish_folding(OptContext *ctx, TCGOp *op)
     int i, nb_oargs;
 
     /*
-     * For an opcode that ends a BB, reset all temp data.
-     * We do no cross-BB optimization.
+     * We only optimize extended basic blocks.  If the opcode ends a BB
+     * and is not a conditional branch, reset all temp data.
      */
     if (def->flags & TCG_OPF_BB_END) {
-        memset(&ctx->temps_used, 0, sizeof(ctx->temps_used));
         ctx->prev_mb = NULL;
+        if (!(def->flags & TCG_OPF_COND_BRANCH)) {
+            memset(&ctx->temps_used, 0, sizeof(ctx->temps_used));
+        }
         return;
     }
 
