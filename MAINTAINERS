@@ -3940,6 +3940,7 @@ M: Jason Wang <jasowang@redhat.com>
 R: Andrew Melnychenko <andrew@daynix.com>
 R: Yuri Benditovich <yuri.benditovich@daynix.com>
 S: Maintained
+F: docs/devel/ebpf_rss.rst
 F: ebpf/*
 F: tools/ebpf/*
 
