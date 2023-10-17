@@ -194,6 +194,14 @@ REG32(IDR, 0x2c) /* Interrupt Disable reg */
 REG32(IMR, 0x30) /* Interrupt Mask reg */
 
 REG32(PHYMNTNC, 0x34) /* Phy Maintenance reg */
+    FIELD(PHYMNTNC, DATA, 0, 16)
+    FIELD(PHYMNTNC, REG_ADDR, 18, 5)
+    FIELD(PHYMNTNC, PHY_ADDR, 23, 5)
+    FIELD(PHYMNTNC, OP, 28, 2)
+    FIELD(PHYMNTNC, ST, 30, 2)
+#define MDIO_OP_READ    0x3
+#define MDIO_OP_WRITE   0x2
+
 REG32(RXPAUSE, 0x38) /* RX Pause Time reg */
 REG32(TXPAUSE, 0x3c) /* TX Pause Time reg */
 REG32(TXPARTIALSF, 0x40) /* TX Partial Store and Forward */
@@ -341,13 +349,6 @@ REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
 /*****************************************/
 
 
-
-#define GEM_PHYMNTNC_OP_R      0x20000000 /* read operation */
-#define GEM_PHYMNTNC_OP_W      0x10000000 /* write operation */
-#define GEM_PHYMNTNC_ADDR      0x0F800000 /* Address bits */
-#define GEM_PHYMNTNC_ADDR_SHFT 23
-#define GEM_PHYMNTNC_REG       0x007C0000 /* register bits */
-#define GEM_PHYMNTNC_REG_SHIFT 18
 
 /* Marvell PHY definitions */
 #define BOARD_PHY_ADDRESS    0 /* PHY address we will emulate a device at */
@@ -1541,12 +1542,12 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
         /* The interrupts get updated at the end of the function. */
         break;
     case R_PHYMNTNC:
-        if (retval & GEM_PHYMNTNC_OP_R) {
+        if (FIELD_EX32(retval, PHYMNTNC, OP) == MDIO_OP_READ) {
             uint32_t phy_addr, reg_num;
 
-            phy_addr = (retval & GEM_PHYMNTNC_ADDR) >> GEM_PHYMNTNC_ADDR_SHFT;
+            phy_addr = FIELD_EX32(retval, PHYMNTNC, PHY_ADDR);
             if (phy_addr == s->phy_addr) {
-                reg_num = (retval & GEM_PHYMNTNC_REG) >> GEM_PHYMNTNC_REG_SHIFT;
+                reg_num = FIELD_EX32(retval, PHYMNTNC, REG_ADDR);
                 retval &= 0xFFFF0000;
                 retval |= gem_phy_read(s, reg_num);
             } else {
@@ -1664,12 +1665,12 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->sar_active[(offset - R_SPADDR1HI) / 2] = true;
         break;
     case R_PHYMNTNC:
-        if (val & GEM_PHYMNTNC_OP_W) {
+        if (FIELD_EX32(val, PHYMNTNC, OP) == MDIO_OP_WRITE) {
             uint32_t phy_addr, reg_num;
 
-            phy_addr = (val & GEM_PHYMNTNC_ADDR) >> GEM_PHYMNTNC_ADDR_SHFT;
+            phy_addr = FIELD_EX32(val, PHYMNTNC, PHY_ADDR);
             if (phy_addr == s->phy_addr) {
-                reg_num = (val & GEM_PHYMNTNC_REG) >> GEM_PHYMNTNC_REG_SHIFT;
+                reg_num = FIELD_EX32(val, PHYMNTNC, REG_ADDR);
                 gem_phy_write(s, reg_num, val);
             }
         }
