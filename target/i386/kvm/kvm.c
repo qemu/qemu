@@ -93,6 +93,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(MP_STATE),
     KVM_CAP_INFO(SIGNAL_MSI),
     KVM_CAP_INFO(IRQ_ROUTING),
+    KVM_CAP_INFO(DEBUGREGS),
     KVM_CAP_LAST_INFO
 };
 
@@ -4601,10 +4602,6 @@ static int kvm_put_debugregs(X86CPU *cpu)
     struct kvm_debugregs dbgregs;
     int i;
 
-    if (!kvm_has_debugregs()) {
-        return 0;
-    }
-
     memset(&dbgregs, 0, sizeof(dbgregs));
     for (i = 0; i < 4; i++) {
         dbgregs.db[i] = env->dr[i];
@@ -4621,10 +4618,6 @@ static int kvm_get_debugregs(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_debugregs dbgregs;
     int i, ret;
-
-    if (!kvm_has_debugregs()) {
-        return 0;
-    }
 
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_DEBUGREGS, &dbgregs);
     if (ret < 0) {

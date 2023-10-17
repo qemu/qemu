@@ -2528,10 +2528,6 @@ static int kvm_init(MachineState *ms)
     s->robust_singlestep =
         kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
 
-#ifdef KVM_CAP_DEBUGREGS
-    s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
-#endif
-
     s->max_nested_state_len = kvm_check_extension(s, KVM_CAP_NESTED_STATE);
 
     s->irq_set_ioctl = KVM_IRQ_LINE;
@@ -3150,11 +3146,6 @@ int kvm_has_vcpu_events(void)
 int kvm_has_robust_singlestep(void)
 {
     return kvm_state->robust_singlestep;
-}
-
-int kvm_has_debugregs(void)
-{
-    return kvm_state->debugregs;
 }
 
 int kvm_max_nested_state_length(void)
