@@ -40,11 +40,6 @@ bool kvm_has_sync_mmu(void)
     return false;
 }
 
-int kvm_has_many_ioeventfds(void)
-{
-    return 0;
-}
-
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return 1;
