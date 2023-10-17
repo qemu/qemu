@@ -94,6 +94,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SIGNAL_MSI),
     KVM_CAP_INFO(IRQ_ROUTING),
     KVM_CAP_INFO(DEBUGREGS),
+    KVM_CAP_INFO(XSAVE),
     KVM_CAP_LAST_INFO
 };
 
@@ -137,7 +138,6 @@ static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
 static uint32_t num_architectural_pmu_fixed_counters;
 
-static int has_xsave;
 static int has_xsave2;
 static int has_xcrs;
 static int has_pit_state2;
@@ -1714,10 +1714,8 @@ static void kvm_init_xsave(CPUX86State *env)
 {
     if (has_xsave2) {
         env->xsave_buf_len = QEMU_ALIGN_UP(has_xsave2, 4096);
-    } else if (has_xsave) {
-        env->xsave_buf_len = sizeof(struct kvm_xsave);
     } else {
-        return;
+        env->xsave_buf_len = sizeof(struct kvm_xsave);
     }
 
     env->xsave_buf = qemu_memalign(4096, env->xsave_buf_len);
@@ -2592,7 +2590,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         return ret;
     }
 
-    has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
     has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
     has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
     has_sregs2 = kvm_check_extension(s, KVM_CAP_SREGS2) > 0;
@@ -2877,40 +2874,11 @@ static int kvm_getput_regs(X86CPU *cpu, int set)
     return ret;
 }
 
-static int kvm_put_fpu(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    struct kvm_fpu fpu;
-    int i;
-
-    memset(&fpu, 0, sizeof fpu);
-    fpu.fsw = env->fpus & ~(7 << 11);
-    fpu.fsw |= (env->fpstt & 7) << 11;
-    fpu.fcw = env->fpuc;
-    fpu.last_opcode = env->fpop;
-    fpu.last_ip = env->fpip;
-    fpu.last_dp = env->fpdp;
-    for (i = 0; i < 8; ++i) {
-        fpu.ftwx |= (!env->fptags[i]) << i;
-    }
-    memcpy(fpu.fpr, env->fpregs, sizeof env->fpregs);
-    for (i = 0; i < CPU_NB_REGS; i++) {
-        stq_p(&fpu.xmm[i][0], env->xmm_regs[i].ZMM_Q(0));
-        stq_p(&fpu.xmm[i][8], env->xmm_regs[i].ZMM_Q(1));
-    }
-    fpu.mxcsr = env->mxcsr;
-
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_FPU, &fpu);
-}
-
 static int kvm_put_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     void *xsave = env->xsave_buf;
 
-    if (!has_xsave) {
-        return kvm_put_fpu(cpu);
-    }
     x86_cpu_xsave_all_areas(cpu, xsave, env->xsave_buf_len);
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
@@ -3655,45 +3623,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
 }
 
 
-static int kvm_get_fpu(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    struct kvm_fpu fpu;
-    int i, ret;
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_FPU, &fpu);
-    if (ret < 0) {
-        return ret;
-    }
-
-    env->fpstt = (fpu.fsw >> 11) & 7;
-    env->fpus = fpu.fsw;
-    env->fpuc = fpu.fcw;
-    env->fpop = fpu.last_opcode;
-    env->fpip = fpu.last_ip;
-    env->fpdp = fpu.last_dp;
-    for (i = 0; i < 8; ++i) {
-        env->fptags[i] = !((fpu.ftwx >> i) & 1);
-    }
-    memcpy(env->fpregs, fpu.fpr, sizeof env->fpregs);
-    for (i = 0; i < CPU_NB_REGS; i++) {
-        env->xmm_regs[i].ZMM_Q(0) = ldq_p(&fpu.xmm[i][0]);
-        env->xmm_regs[i].ZMM_Q(1) = ldq_p(&fpu.xmm[i][8]);
-    }
-    env->mxcsr = fpu.mxcsr;
-
-    return 0;
-}
-
 static int kvm_get_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     void *xsave = env->xsave_buf;
     int type, ret;
-
-    if (!has_xsave) {
-        return kvm_get_fpu(cpu);
-    }
 
     type = has_xsave2 ? KVM_GET_XSAVE2 : KVM_GET_XSAVE;
     ret = kvm_vcpu_ioctl(CPU(cpu), type, xsave);
