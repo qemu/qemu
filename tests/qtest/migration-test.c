@@ -728,6 +728,7 @@ typedef struct {
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
+    bool postcopy_recovery_test_fail;
 } MigrateCommon;
 
 static int test_migrate_start(QTestState **from, QTestState **to,
@@ -1404,6 +1405,80 @@ static void test_postcopy_preempt_tls_psk(void)
 }
 #endif
 
+static void wait_for_postcopy_status(QTestState *one, const char *status)
+{
+    wait_for_migration_status(one, status,
+                              (const char * []) { "failed", "active",
+                                                  "completed", NULL });
+}
+
+#ifndef _WIN32
+static void postcopy_recover_fail(QTestState *from, QTestState *to)
+{
+    int ret, pair1[2], pair2[2];
+    char c;
+
+    /* Create two unrelated socketpairs */
+    ret = qemu_socketpair(PF_LOCAL, SOCK_STREAM, 0, pair1);
+    g_assert_cmpint(ret, ==, 0);
+
+    ret = qemu_socketpair(PF_LOCAL, SOCK_STREAM, 0, pair2);
+    g_assert_cmpint(ret, ==, 0);
+
+    /*
+     * Give the guests unpaired ends of the sockets, so they'll all blocked
+     * at reading.  This mimics a wrong channel established.
+     */
+    qtest_qmp_fds_assert_success(from, &pair1[0], 1,
+                                 "{ 'execute': 'getfd',"
+                                 "  'arguments': { 'fdname': 'fd-mig' }}");
+    qtest_qmp_fds_assert_success(to, &pair2[0], 1,
+                                 "{ 'execute': 'getfd',"
+                                 "  'arguments': { 'fdname': 'fd-mig' }}");
+
+    /*
+     * Write the 1st byte as QEMU_VM_COMMAND (0x8) for the dest socket, to
+     * emulate the 1st byte of a real recovery, but stops from there to
+     * keep dest QEMU in RECOVER.  This is needed so that we can kick off
+     * the recover process on dest QEMU (by triggering the G_IO_IN event).
+     *
+     * NOTE: this trick is not needed on src QEMUs, because src doesn't
+     * rely on an pre-existing G_IO_IN event, so it will always trigger the
+     * upcoming recovery anyway even if it can read nothing.
+     */
+#define QEMU_VM_COMMAND              0x08
+    c = QEMU_VM_COMMAND;
+    ret = send(pair2[1], &c, 1, 0);
+    g_assert_cmpint(ret, ==, 1);
+
+    migrate_recover(to, "fd:fd-mig");
+    migrate_qmp(from, "fd:fd-mig", "{'resume': true}");
+
+    /*
+     * Make sure both QEMU instances will go into RECOVER stage, then test
+     * kicking them out using migrate-pause.
+     */
+    wait_for_postcopy_status(from, "postcopy-recover");
+    wait_for_postcopy_status(to, "postcopy-recover");
+
+    /*
+     * This would be issued by the admin upon noticing the hang, we should
+     * make sure we're able to kick this out.
+     */
+    migrate_pause(from);
+    wait_for_postcopy_status(from, "postcopy-paused");
+
+    /* Do the same test on dest */
+    migrate_pause(to);
+    wait_for_postcopy_status(to, "postcopy-paused");
+
+    close(pair1[0]);
+    close(pair1[1]);
+    close(pair2[0]);
+    close(pair2[1]);
+}
+#endif /* _WIN32 */
+
 static void test_postcopy_recovery_common(MigrateCommon *args)
 {
     QTestState *from, *to;
@@ -1439,9 +1514,19 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
      * migrate-recover command can only succeed if destination machine
      * is in the paused state
      */
-    wait_for_migration_status(to, "postcopy-paused",
-                              (const char * []) { "failed", "active",
-                                                  "completed", NULL });
+    wait_for_postcopy_status(to, "postcopy-paused");
+    wait_for_postcopy_status(from, "postcopy-paused");
+
+#ifndef _WIN32
+    if (args->postcopy_recovery_test_fail) {
+        /*
+         * Test when a wrong socket specified for recover, and then the
+         * ability to kick it out, and continue with a correct socket.
+         */
+        postcopy_recover_fail(from, to);
+        /* continue with a good recovery */
+    }
+#endif /* _WIN32 */
 
     /*
      * Create a new socket to emulate a new channel that is different
@@ -1455,9 +1540,6 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
      * Try to rebuild the migration channel using the resume flag and
      * the newly created channel
      */
-    wait_for_migration_status(from, "postcopy-paused",
-                              (const char * []) { "failed", "active",
-                                                  "completed", NULL });
     migrate_qmp(from, uri, "{'resume': true}");
 
     /* Restore the postcopy bandwidth to unlimited */
@@ -1481,6 +1563,17 @@ static void test_postcopy_recovery_compress(void)
 
     test_postcopy_recovery_common(&args);
 }
+
+#ifndef _WIN32
+static void test_postcopy_recovery_double_fail(void)
+{
+    MigrateCommon args = {
+        .postcopy_recovery_test_fail = true,
+    };
+
+    test_postcopy_recovery_common(&args);
+}
+#endif /* _WIN32 */
 
 #ifdef CONFIG_GNUTLS
 static void test_postcopy_recovery_tls_psk(void)
@@ -3093,6 +3186,11 @@ int main(int argc, char **argv)
             qtest_add_func("/migration/postcopy/recovery/compress/plain",
                            test_postcopy_recovery_compress);
         }
+#ifndef _WIN32
+        qtest_add_func("/migration/postcopy/recovery/double-failures",
+                       test_postcopy_recovery_double_fail);
+#endif /* _WIN32 */
+
     }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
