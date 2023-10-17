@@ -97,6 +97,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(XSAVE),
     KVM_CAP_INFO(VCPU_EVENTS),
     KVM_CAP_INFO(X86_ROBUST_SINGLESTEP),
+    KVM_CAP_INFO(MCE),
     KVM_CAP_LAST_INFO
 };
 
@@ -582,14 +583,8 @@ uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
 static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
                                      int *max_banks)
 {
-    int r;
-
-    r = kvm_check_extension(s, KVM_CAP_MCE);
-    if (r > 0) {
-        *max_banks = r;
-        return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
-    }
-    return -ENOSYS;
+    *max_banks = kvm_check_extension(s, KVM_CAP_MCE);
+    return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
 }
 
 static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
@@ -2116,8 +2111,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
-           (CPUID_MCE | CPUID_MCA)
-        && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
+           (CPUID_MCE | CPUID_MCA)) {
         uint64_t mcg_cap, unsupported_caps;
         int banks;
         int ret;
