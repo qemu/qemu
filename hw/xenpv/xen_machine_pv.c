@@ -54,7 +54,6 @@ static void xen_init_pv(MachineState *machine)
     }
 
     xen_be_register("vfb", &xen_framebuffer_ops);
-    xen_be_register("qnic", &xen_netdev_ops);
 
     /* configure framebuffer */
     if (vga_interface_type == VGA_XENFB) {
