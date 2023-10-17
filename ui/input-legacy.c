@@ -127,7 +127,7 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
     }
 }
 
-static QemuInputHandler legacy_kbd_handler = {
+static const QemuInputHandler legacy_kbd_handler = {
     .name  = "legacy-kbd",
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = legacy_kbd_event,
