@@ -264,11 +264,6 @@ struct scrub_regions {
     int fd_idx;
 };
 
-static bool ioeventfd_enabled(void)
-{
-    return !kvm_enabled() || kvm_eventfds_enabled();
-}
-
 static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
@@ -1318,7 +1313,7 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
         .hdr.size = sizeof(msg.payload.u64),
     };
 
-    if (ioeventfd_enabled() && file->fd > 0) {
+    if (file->fd > 0) {
         fds[fd_num++] = file->fd;
     } else {
         msg.payload.u64 |= VHOST_USER_VRING_NOFD_MASK;
