@@ -28,6 +28,8 @@ the guest to be stopped.  Typically the time that the guest is
 unresponsive during live migration is the low hundred of milliseconds
 (notice that this depends on a lot of things).
 
+.. contents::
+
 Transports
 ==========
 
