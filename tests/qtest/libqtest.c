@@ -388,7 +388,8 @@ static pid_t qtest_create_process(char *cmd)
 }
 #endif /* _WIN32 */
 
-static QTestState *G_GNUC_PRINTF(1, 2) qtest_spawn_qemu(const char *fmt, ...)
+static QTestState *G_GNUC_PRINTF(2, 3) qtest_spawn_qemu(const char *qemu_bin,
+                                                        const char *fmt, ...)
 {
     va_list ap;
     QTestState *s = g_new0(QTestState, 1);
@@ -398,8 +399,7 @@ static QTestState *G_GNUC_PRINTF(1, 2) qtest_spawn_qemu(const char *fmt, ...)
     g_autoptr(GString) command = g_string_new("");
 
     va_start(ap, fmt);
-    g_string_append_printf(command, CMD_EXEC "%s %s",
-                           qtest_qemu_binary(NULL), tracearg);
+    g_string_append_printf(command, CMD_EXEC "%s %s", qemu_bin, tracearg);
     g_string_append_vprintf(command, fmt, ap);
     va_end(ap);
 
@@ -438,7 +438,8 @@ static QTestState *G_GNUC_PRINTF(1, 2) qtest_spawn_qemu(const char *fmt, ...)
     return s;
 }
 
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+static QTestState *qtest_init_internal(const char *qemu_bin,
+                                       const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
@@ -463,7 +464,8 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    s = qtest_spawn_qemu("-qtest unix:%s "
+    s = qtest_spawn_qemu(qemu_bin,
+                         "-qtest unix:%s "
                          "-qtest-log %s "
                          "-chardev socket,path=%s,id=char0 "
                          "-mon chardev=char0,mode=control "
@@ -516,9 +518,14 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return s;
 }
 
-QTestState *qtest_init(const char *extra_args)
+QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 {
-    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
+    return qtest_init_internal(qtest_qemu_binary(NULL), extra_args);
+}
+
+QTestState *qtest_init_with_env(const char *var, const char *extra_args)
+{
+    QTestState *s = qtest_init_internal(qtest_qemu_binary(var), extra_args);
     QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
@@ -527,6 +534,11 @@ QTestState *qtest_init(const char *extra_args)
     qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
 
     return s;
+}
+
+QTestState *qtest_init(const char *extra_args)
+{
+    return qtest_init_with_env(NULL, extra_args);
 }
 
 QTestState *qtest_vinitf(const char *fmt, va_list ap)

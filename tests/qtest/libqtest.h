@@ -56,6 +56,19 @@ QTestState *qtest_vinitf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 QTestState *qtest_init(const char *extra_args);
 
 /**
+ * qtest_init_with_env:
+ * @var: Environment variable from where to take the QEMU binary
+ * @extra_args: Other arguments to pass to QEMU.  CAUTION: these
+ * arguments are subject to word splitting and shell evaluation.
+ *
+ * Like qtest_init(), but use a different environment variable for the
+ * QEMU binary.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_with_env(const char *var, const char *extra_args);
+
+/**
  * qtest_init_without_qmp_handshake:
  * @extra_args: other arguments to pass to QEMU.  CAUTION: these
  * arguments are subject to word splitting and shell evaluation.
