@@ -1625,6 +1625,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                     " use blockdev-mirror with NBD instead");
     }
 
+    if (blk) {
+        warn_report("parameter 'blk' is deprecated;"
+                    " use blockdev-mirror with NBD instead");
+    }
+
     if (resume) {
         if (s->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
             error_setg(errp, "Cannot resume if there is no "
