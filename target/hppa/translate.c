@@ -53,6 +53,8 @@ typedef struct DisasContext {
     DisasCond null_cond;
     TCGLabel *null_lab;
 
+    TCGv_i64 zero;
+
     uint32_t insn;
     uint32_t tb_flags;
     int mmu_idx;
@@ -1017,14 +1019,13 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     }
 
     if (!is_l || cond_need_cb(c)) {
-        TCGv_i64 zero = tcg_constant_i64(0);
         cb_msb = tcg_temp_new_i64();
         cb = tcg_temp_new_i64();
 
-        tcg_gen_add2_i64(dest, cb_msb, in1, zero, in2, zero);
+        tcg_gen_add2_i64(dest, cb_msb, in1, ctx->zero, in2, ctx->zero);
         if (is_c) {
             tcg_gen_add2_i64(dest, cb_msb, dest, cb_msb,
-                             get_psw_carry(ctx, d), zero);
+                             get_psw_carry(ctx, d), ctx->zero);
         }
         tcg_gen_xor_i64(cb, in1, in2);
         tcg_gen_xor_i64(cb, cb, dest);
@@ -1102,7 +1103,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
                    TCGv_i64 in2, bool is_tsv, bool is_b,
                    bool is_tc, unsigned cf, bool d)
 {
-    TCGv_i64 dest, sv, cb, cb_msb, zero, tmp;
+    TCGv_i64 dest, sv, cb, cb_msb, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
 
@@ -1110,12 +1111,12 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     cb = tcg_temp_new_i64();
     cb_msb = tcg_temp_new_i64();
 
-    zero = tcg_constant_i64(0);
     if (is_b) {
         /* DEST,C = IN1 + ~IN2 + C.  */
         tcg_gen_not_i64(cb, in2);
-        tcg_gen_add2_i64(dest, cb_msb, in1, zero, get_psw_carry(ctx, d), zero);
-        tcg_gen_add2_i64(dest, cb_msb, dest, cb_msb, cb, zero);
+        tcg_gen_add2_i64(dest, cb_msb, in1, ctx->zero,
+                         get_psw_carry(ctx, d), ctx->zero);
+        tcg_gen_add2_i64(dest, cb_msb, dest, cb_msb, cb, ctx->zero);
         tcg_gen_xor_i64(cb, cb, in1);
         tcg_gen_xor_i64(cb, cb, dest);
     } else {
@@ -1124,7 +1125,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
          * operations by seeding the high word with 1 and subtracting.
          */
         TCGv_i64 one = tcg_constant_i64(1);
-        tcg_gen_sub2_i64(dest, cb_msb, in1, one, in2, zero);
+        tcg_gen_sub2_i64(dest, cb_msb, in1, one, in2, ctx->zero);
         tcg_gen_eqv_i64(cb, in1, in2);
         tcg_gen_xor_i64(cb, cb, dest);
     }
@@ -2458,7 +2459,7 @@ static bool trans_lci(DisasContext *ctx, arg_lci *a)
        physical address.  Two addresses with the same CI have a coherent
        view of the cache.  Our implementation is to return 0 for all,
        since the entire address space is coherent.  */
-    save_gpr(ctx, a->t, tcg_constant_i64(0));
+    save_gpr(ctx, a->t, ctx->zero);
 
     cond_free(&ctx->null_cond);
     return true;
@@ -2667,7 +2668,7 @@ static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf_d *a)
 
 static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
 {
-    TCGv_i64 dest, add1, add2, addc, zero, in1, in2;
+    TCGv_i64 dest, add1, add2, addc, in1, in2;
     TCGv_i64 cout;
 
     nullify_over(ctx);
@@ -2679,7 +2680,6 @@ static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
     add2 = tcg_temp_new_i64();
     addc = tcg_temp_new_i64();
     dest = tcg_temp_new_i64();
-    zero = tcg_constant_i64(0);
 
     /* Form R1 << 1 | PSW[CB]{8}.  */
     tcg_gen_add_i64(add1, in1, in1);
@@ -2695,8 +2695,9 @@ static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
     tcg_gen_xor_i64(add2, in2, addc);
     tcg_gen_andi_i64(addc, addc, 1);
 
-    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, add1, zero, add2, zero);
-    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, dest, cpu_psw_cb_msb, addc, zero);
+    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, add1, ctx->zero, add2, ctx->zero);
+    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, dest, cpu_psw_cb_msb,
+                     addc, ctx->zero);
 
     /* Write back the result register.  */
     save_gpr(ctx, a->t, dest);
@@ -2996,7 +2997,7 @@ static bool trans_st(DisasContext *ctx, arg_ldst *a)
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 {
     MemOp mop = MO_TE | MO_ALIGN | a->size;
-    TCGv_i64 zero, dest, ofs;
+    TCGv_i64 dest, ofs;
     TCGv_i64 addr;
 
     if (!ctx->is_pa20 && a->size > MO_32) {
@@ -3026,8 +3027,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
      */
     gen_helper_ldc_check(addr);
 
-    zero = tcg_constant_i64(0);
-    tcg_gen_atomic_xchg_i64(dest, addr, zero, ctx->mmu_idx, mop);
+    tcg_gen_atomic_xchg_i64(dest, addr, ctx->zero, ctx->mmu_idx, mop);
 
     if (a->m) {
         save_gpr(ctx, a->b, ofs);
@@ -4382,6 +4382,8 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #endif
     ctx->iaoq_n = -1;
     ctx->iaoq_n_var = NULL;
+
+    ctx->zero = tcg_constant_i64(0);
 
     /* Bound the number of instructions by those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
