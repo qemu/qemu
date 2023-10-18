@@ -90,7 +90,7 @@ echo
 reply="$(_send_qemu_cmd $src \
     "{ 'execute': 'migrate',
        'arguments': { 'uri': 'unix:${MIG_SOCKET}', 'blk': true } }" \
-    'return\|error')"
+    'return\|error' | _filter_migration_block_deprecated)"
 echo "$reply"
 if echo "$reply" | grep "compiled without old-style" > /dev/null; then
     _notrun "migrate -b support not compiled in"
