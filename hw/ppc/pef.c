@@ -63,7 +63,7 @@ static int kvmppc_svm_init(ConfidentialGuestSupport *cgs, Error **errp)
     /* add migration blocker */
     error_setg(&pef_mig_blocker, "PEF: Migration is not implemented");
     /* NB: This can fail if --only-migratable is used */
-    migrate_add_blocker(pef_mig_blocker, &error_fatal);
+    migrate_add_blocker(&pef_mig_blocker, &error_fatal);
 
     cgs->ready = true;
 

@@ -129,11 +129,7 @@ int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
     error_setg(&multiple_devices_migration_blocker,
                "Multiple VFIO devices migration is supported only if all of "
                "them support P2P migration");
-    ret = migrate_add_blocker(multiple_devices_migration_blocker, errp);
-    if (ret < 0) {
-        error_free(multiple_devices_migration_blocker);
-        multiple_devices_migration_blocker = NULL;
-    }
+    ret = migrate_add_blocker(&multiple_devices_migration_blocker, errp);
 
     return ret;
 }
@@ -145,9 +141,7 @@ void vfio_unblock_multiple_devices_migration(void)
         return;
     }
 
-    migrate_del_blocker(multiple_devices_migration_blocker);
-    error_free(multiple_devices_migration_blocker);
-    multiple_devices_migration_blocker = NULL;
+    migrate_del_blocker(&multiple_devices_migration_blocker);
 }
 
 bool vfio_viommu_preset(VFIODevice *vbasedev)
