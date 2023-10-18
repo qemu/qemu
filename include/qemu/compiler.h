@@ -212,4 +212,19 @@
 # define QEMU_USED
 #endif
 
+/*
+ * Ugly CPP trick that is like "defined FOO", but also works in C
+ * code.  Useful to replace #ifdef with "if" statements; assumes
+ * the symbol was defined with Meson's "config.set()", so it is empty
+ * if defined.
+ */
+#define IS_ENABLED(x)                  IS_EMPTY(x)
+
+#define IS_EMPTY_JUNK_                 junk,
+#define IS_EMPTY(value)                IS_EMPTY_(IS_EMPTY_JUNK_##value)
+
+/* Expands to either SECOND_ARG(junk, 1, 0) or SECOND_ARG(IS_EMPTY_JUNK_CONFIG_FOO 1, 0)  */
+#define SECOND_ARG(first, second, ...) second
+#define IS_EMPTY_(junk_maybecomma)     SECOND_ARG(junk_maybecomma 1, 0)
+
 #endif /* COMPILER_H */

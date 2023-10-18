@@ -5916,6 +5916,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                                  | PREFIX_REPZ | PREFIX_REPNZ))) {
                 goto illegal_op;
             }
+            gen_svm_check_intercept(s, SVM_EXIT_XSETBV);
             if (!check_cpl0(s)) {
                 break;
             }

@@ -907,6 +907,7 @@ sub get_subsystem_name {
     if (length($subsystem) > 20) {
 	$subsystem = substr($subsystem, 0, 17);
 	$subsystem =~ s/\s*$//;
+	$subsystem =~ s/[()]//g;
 	$subsystem = $subsystem . "...";
     }
     return $subsystem;

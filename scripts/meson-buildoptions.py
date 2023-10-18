@@ -25,13 +25,15 @@ import textwrap
 import shlex
 import sys
 
+# Options with nonstandard names (e.g. --with/--without) or OS-dependent
+# defaults.  Try not to add any.
 SKIP_OPTIONS = {
     "default_devices",
     "fuzzing_engine",
-    "qemu_suffix",
-    "smbd",
 }
 
+# Options whose name doesn't match the option for backwards compatibility
+# reasons, because Meson gives them a funny name, or both
 OPTION_NAMES = {
     "b_coverage": "gcov",
     "b_lto": "lto",
@@ -40,13 +42,25 @@ OPTION_NAMES = {
     "malloc": "enable-malloc",
     "pkgversion": "with-pkgversion",
     "qemu_firmwarepath": "firmwarepath",
+    "qemu_suffix": "with-suffix",
     "trace_backends": "enable-trace-backends",
     "trace_file": "with-trace-file",
 }
 
+# Options that configure autodetects, even though meson defines them as boolean
+AUTO_OPTIONS = {
+    "plugins",
+    "werror",
+}
+
+# Builtin options that should be definable via configure.  Some of the others
+# we really do not want (e.g. c_args is defined via the native file, not
+# via -D, because it's a mix of CFLAGS and --extra-cflags); for specific
+# cases "../configure -D" can be used as an escape hatch.
 BUILTIN_OPTIONS = {
     "b_coverage",
     "b_lto",
+    "bindir",
     "datadir",
     "debug",
     "includedir",
@@ -55,8 +69,10 @@ BUILTIN_OPTIONS = {
     "localedir",
     "localstatedir",
     "mandir",
+    "prefix",
     "strip",
     "sysconfdir",
+    "werror",
 }
 
 LINE_WIDTH = 76
@@ -168,6 +184,7 @@ def cli_metavar(opt):
 
 def print_help(options):
     print("meson_options_help() {")
+    feature_opts = []
     for opt in sorted(options, key=cli_help_key):
         key = cli_help_key(opt)
         # The first section includes options that have an arguments,
@@ -176,7 +193,7 @@ def print_help(options):
             metavar = cli_metavar(opt)
             left = f"--{key}={metavar}"
             help_line(left, opt, 27, True)
-        elif opt["type"] == "boolean":
+        elif opt["type"] == "boolean" and opt["name"] not in AUTO_OPTIONS:
             left = f"--{key}"
             help_line(left, opt, 27, False)
         elif allow_arg(opt):
@@ -185,16 +202,17 @@ def print_help(options):
             else:
                 left = f"--{key}=CHOICE"
             help_line(left, opt, 27, True)
+        else:
+            feature_opts.append(opt)
 
     sh_print()
     sh_print("Optional features, enabled with --enable-FEATURE and")
     sh_print("disabled with --disable-FEATURE, default is enabled if available")
     sh_print("(unless built with --without-default-features):")
     sh_print()
-    for opt in options:
-        key = opt["name"].replace("_", "-")
-        if opt["type"] != "boolean" and not allow_arg(opt):
-            help_line(key, opt, 18, False)
+    for opt in sorted(feature_opts, key=cli_option):
+        key = cli_option(opt)
+        help_line(key, opt, 18, False)
     print("}")
 
 

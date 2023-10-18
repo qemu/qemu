@@ -45,7 +45,7 @@ regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZA])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+
 immre = re.compile(r"[#]([rRsSuUm])(\d+)(?:[:](\d+))?")
 reg_or_immre = re.compile(
     r"(((?<!DUP)[MNRCOPQXSGVZA])([stuvwxyzdefg]+)"
-    + "([.]?[LlHh]?)(\d+S?))|([#]([rRsSuUm])(\d+)[:]?(\d+)?)"
+    r"([.]?[LlHh]?)(\d+S?))|([#]([rRsSuUm])(\d+)[:]?(\d+)?)"
 )
 relimmre = re.compile(r"[#]([rR])(\d+)(?:[:](\d+))?")
 absimmre = re.compile(r"[#]([sSuUm])(\d+)(?:[:](\d+))?")
@@ -337,7 +337,7 @@ def read_attribs_file(name):
 
 
 def read_overrides_file(name):
-    overridere = re.compile("#define fGEN_TCG_([A-Za-z0-9_]+)\(.*")
+    overridere = re.compile(r"#define fGEN_TCG_([A-Za-z0-9_]+)\(.*")
     for line in open(name, "rt").readlines():
         if not overridere.match(line):
             continue

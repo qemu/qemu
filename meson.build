@@ -2117,6 +2117,7 @@ config_host_data.set('CONFIG_OPENGL', opengl.found())
 config_host_data.set('CONFIG_PLUGIN', get_option('plugins'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
+config_host_data.set('CONFIG_RELOCATABLE', get_option('relocatable'))
 config_host_data.set('CONFIG_SAFESTACK', get_option('safe_stack'))
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
@@ -2200,7 +2201,7 @@ if get_option('debug_stack_usage') and have_coroutine_pool
   message('Disabling coroutine pool to measure stack usage')
   have_coroutine_pool = false
 endif
-config_host_data.set10('CONFIG_COROUTINE_POOL', have_coroutine_pool)
+config_host_data.set('CONFIG_COROUTINE_POOL', have_coroutine_pool)
 config_host_data.set('CONFIG_DEBUG_GRAPH_LOCK', get_option('debug_graph_lock'))
 config_host_data.set('CONFIG_DEBUG_MUTEX', get_option('debug_mutex'))
 config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage'))
@@ -4026,8 +4027,13 @@ summary(summary_info, bool_yn: true, section: 'Directories')
 summary_info = {}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
 summary_info += {'sphinx-build':      sphinx_build}
-if config_host.has_key('HAVE_GDB_BIN')
-  summary_info += {'gdb':             config_host['HAVE_GDB_BIN']}
+
+# FIXME: the [binaries] section of machine files, which can be probed
+# with find_program(), would be great for passing gdb and genisoimage
+# paths from configure to Meson.  However, there seems to be no way to
+# hide a program (for example if gdb is too old).
+if config_host.has_key('GDB')
+  summary_info += {'gdb':             config_host['GDB']}
 endif
 summary_info += {'iasl':              iasl}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
@@ -4060,6 +4066,7 @@ if 'simple' in get_option('trace_backends')
 endif
 summary_info += {'D-Bus display':     dbus_display}
 summary_info += {'QOM debugging':     get_option('qom_cast_debug')}
+summary_info += {'Relocatable install': get_option('relocatable')}
 summary_info += {'vhost-kernel support': have_vhost_kernel}
 summary_info += {'vhost-net support': have_vhost_net}
 summary_info += {'vhost-user support': have_vhost_user}
@@ -4362,4 +4369,22 @@ if host_arch == 'unknown' or not supported_oses.contains(targetos)
   message()
   message('If you want to help supporting QEMU on this platform, please')
   message('contact the developers at qemu-devel@nongnu.org.')
+endif
+
+actually_reloc = get_option('relocatable')
+# check if get_relocated_path() is actually able to relocate paths
+if get_option('relocatable') and \
+  not (get_option('prefix') / get_option('bindir')).startswith(get_option('prefix') / '')
+  message()
+  warning('bindir not included within prefix, the installation will not be relocatable.')
+  actually_reloc = false
+endif
+if not actually_reloc and (targetos == 'windows' or get_option('relocatable'))
+  if targetos == 'windows'
+    message()
+    warning('Windows installs should usually be relocatable.')
+  endif
+  message()
+  message('QEMU will have to be installed under ' + get_option('prefix') + '.')
+  message('Use --disable-relocatable to remove this warning.')
 endif

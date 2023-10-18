@@ -40,6 +40,9 @@ class NetBSDVM(basevm.BaseVM):
         "gsed",
         "gettext-tools",
 
+        # libs: basic
+        "dtc",
+
         # libs: crypto
         "gnutls",
 
@@ -67,7 +70,8 @@ class NetBSDVM(basevm.BaseVM):
         mkdir src build; cd src;
         tar -xf /dev/rld1a;
         cd ../build
-        ../src/configure --disable-opengl {configure_opts};
+        ../src/configure --disable-opengl --extra-ldflags=-L/usr/pkg/lib \
+                          --extra-cflags=-I/usr/pkg/include {configure_opts};
         gmake --output-sync -j{jobs} {target} {verbose};
     """
     poweroff = "/sbin/poweroff"

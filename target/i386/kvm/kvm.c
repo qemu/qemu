@@ -373,6 +373,8 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     if (function == 1 && reg == R_EDX) {
         /* KVM before 2.6.30 misreports the following features */
         ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
+        /* KVM never reports CPUID_HT but QEMU can support when vcpus > 1 */
+        ret |= CPUID_HT;
     } else if (function == 1 && reg == R_ECX) {
         /* We can set the hypervisor flag, even if KVM does not return it on
          * GET_SUPPORTED_CPUID

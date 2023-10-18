@@ -645,7 +645,7 @@ int main(int argc, char **argv)
      * with a sentinel value.  If there is no freelist this would legitimately
      * crash, so skip it.
      */
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         g_test_add_func("/basic/no-dangling-access", test_no_dangling_access);
     }
 

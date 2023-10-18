@@ -216,7 +216,7 @@ class TestEnv(ContextManager['TestEnv']):
         self.source_iotests = source_dir
         self.build_iotests = build_dir
 
-        self.build_root = os.path.join(self.build_iotests, '..', '..')
+        self.build_root = Path(self.build_iotests).parent.parent
 
         self.init_directories()
 
