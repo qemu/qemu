@@ -2,6 +2,8 @@
 #include "qapi/error.h"
 #include "hw/display/ramfb.h"
 
+const VMStateDescription ramfb_vmstate = {};
+
 void ramfb_display_update(QemuConsole *con, RAMFBState *s)
 {
 }
