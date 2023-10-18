@@ -21,11 +21,16 @@
 #include "cpu.h"
 #include "gdbstub/helpers.h"
 
+/*
+ * GDB 15 only supports PA1.0 via the remote protocol, and ignores
+ * any provided xml.  Which means that any attempt to provide more
+ * data results in "Remote 'g' packet reply is too long".
+ */
+
 int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    HPPACPU *cpu = HPPA_CPU(cs);
-    CPUHPPAState *env = &cpu->env;
-    target_ureg val;
+    CPUHPPAState *env = cpu_env(cs);
+    uint32_t val;
 
     switch (n) {
     case 0:
@@ -139,24 +144,13 @@ int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         break;
     }
 
-    if (TARGET_REGISTER_BITS == 64) {
-        return gdb_get_reg64(mem_buf, val);
-    } else {
-        return gdb_get_reg32(mem_buf, val);
-    }
+    return gdb_get_reg32(mem_buf, val);
 }
 
 int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
-    HPPACPU *cpu = HPPA_CPU(cs);
-    CPUHPPAState *env = &cpu->env;
-    target_ureg val;
-
-    if (TARGET_REGISTER_BITS == 64) {
-        val = ldq_p(mem_buf);
-    } else {
-        val = ldl_p(mem_buf);
-    }
+    CPUHPPAState *env = cpu_env(cs);
+    uint32_t val = ldl_p(mem_buf);
 
     switch (n) {
     case 0:
@@ -166,7 +160,7 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->gr[n] = val;
         break;
     case 32:
-        env->cr[CR_SAR] = val;
+        env->cr[CR_SAR] = val & (hppa_is_pa20(env) ? 63 : 31);
         break;
     case 33:
         env->iaoq_f = val;
@@ -278,5 +272,5 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         }
         break;
     }
-    return sizeof(target_ureg);
+    return 4;
 }
