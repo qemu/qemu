@@ -931,6 +931,15 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
 bool qtest_has_machine(const char *machine);
 
 /**
+ * qtest_has_machine_with_env:
+ * @var: Environment variable from where to take the QEMU binary
+ * @machine: The machine to look for
+ *
+ * Returns: true if the machine is available in the specified binary.
+ */
+bool qtest_has_machine_with_env(const char *var, const char *machine);
+
+/**
  * qtest_has_device:
  * @device: The device to look for
  *
