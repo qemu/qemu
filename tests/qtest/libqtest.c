@@ -91,6 +91,7 @@ struct QTestState
 
 static GHookList abrt_hooks;
 static void (*sighandler_old)(int);
+static bool silence_spawn_log;
 
 static int qtest_query_target_endianness(QTestState *s);
 
@@ -405,7 +406,9 @@ static QTestState *G_GNUC_PRINTF(2, 3) qtest_spawn_qemu(const char *qemu_bin,
 
     qtest_add_abrt_handler(kill_qemu_hook_func, s);
 
-    g_test_message("starting QEMU: %s", command->str);
+    if (!silence_spawn_log) {
+        g_test_message("starting QEMU: %s", command->str);
+    }
 
 #ifndef _WIN32
     s->qemu_pid = fork();
@@ -1508,6 +1511,8 @@ static struct MachInfo *qtest_get_machines(const char *var)
         return machines;
     }
 
+    silence_spawn_log = !g_test_verbose();
+
     qts = qtest_init_with_env(qemu_var, "-machine none");
     response = qtest_qmp(qts, "{ 'execute': 'query-machines' }");
     g_assert(response);
@@ -1538,6 +1543,8 @@ static struct MachInfo *qtest_get_machines(const char *var)
 
     qtest_quit(qts);
     qobject_unref(response);
+
+    silence_spawn_log = false;
 
     memset(&machines[idx], 0, sizeof(struct MachInfo)); /* Terminating entry */
     return machines;
