@@ -94,8 +94,8 @@ models = {}
 
 for name in sorted(names):
     cpu = shell.cmd("query-cpu-model-expansion",
-                    { "type": "static",
-                      "model": { "name": name }})
+                    type="static",
+                    model={ "name": name })
 
     got = {}
     for (feature, present) in cpu["model"]["props"].items():
