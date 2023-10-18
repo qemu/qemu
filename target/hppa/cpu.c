@@ -77,7 +77,7 @@ static void hppa_restore_state_to_opc(CPUState *cs,
     HPPACPU *cpu = HPPA_CPU(cs);
 
     cpu->env.iaoq_f = data[0];
-    if (data[1] != (target_ureg)-1) {
+    if (data[1] != (target_ulong)-1) {
         cpu->env.iaoq_b = data[1];
     }
     /*

@@ -344,7 +344,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 }
 
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
-void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
     HPPATLBEntry *ent;
 
@@ -366,7 +366,7 @@ void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 }
 
 static void set_access_bits_pa11(CPUHPPAState *env, HPPATLBEntry *ent,
-                                 target_ureg reg)
+                                 target_ulong reg)
 {
     ent->access_id = extract32(reg, 1, 18);
     ent->u = extract32(reg, 19, 1);
@@ -384,7 +384,7 @@ static void set_access_bits_pa11(CPUHPPAState *env, HPPATLBEntry *ent,
 }
 
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
-void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
     HPPATLBEntry *ent = env->tlb_partial;
 
@@ -398,8 +398,8 @@ void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
 }
 
-static void itlbt_pa20(CPUHPPAState *env, target_ureg r1,
-                       target_ureg r2, vaddr va_b)
+static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
+                       target_ulong r2, vaddr va_b)
 {
     HPPATLBEntry *ent;
     vaddr va_e;
@@ -436,13 +436,13 @@ static void itlbt_pa20(CPUHPPAState *env, target_ureg r1,
                          ent->b, ent->d, ent->t);
 }
 
-void HELPER(idtlbt_pa20)(CPUHPPAState *env, target_ureg r1, target_ureg r2)
+void HELPER(idtlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
 {
     vaddr va_b = deposit64(env->cr[CR_IOR], 32, 32, env->cr[CR_ISR]);
     itlbt_pa20(env, r1, r2, va_b);
 }
 
-void HELPER(iitlbt_pa20)(CPUHPPAState *env, target_ureg r1, target_ureg r2)
+void HELPER(iitlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
 {
     vaddr va_b = deposit64(env->cr[CR_IIAOQ], 32, 32, env->cr[CR_IIASQ]);
     itlbt_pa20(env, r1, r2, va_b);
@@ -521,7 +521,7 @@ void HELPER(change_prot_id)(CPUHPPAState *env)
     cpu_hppa_change_prot_id(env);
 }
 
-target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
+target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
 {
     hwaddr phys;
     int prot, excp;

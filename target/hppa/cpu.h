@@ -154,25 +154,13 @@
 #define CR_IPSW          22
 #define CR_EIRR          23
 
-#if TARGET_REGISTER_BITS == 32
-typedef uint32_t target_ureg;
-typedef int32_t  target_sreg;
-#define TREG_FMT_lx   "%08"PRIx32
-#define TREG_FMT_ld   "%"PRId32
-#else
-typedef uint64_t target_ureg;
-typedef int64_t  target_sreg;
-#define TREG_FMT_lx   "%016"PRIx64
-#define TREG_FMT_ld   "%"PRId64
-#endif
-
 typedef struct HPPATLBEntry {
     union {
         IntervalTreeNode itree;
         struct HPPATLBEntry *unused_next;
     };
 
-    target_ureg pa;
+    target_ulong pa;
 
     unsigned entry_valid : 1;
 
@@ -187,16 +175,16 @@ typedef struct HPPATLBEntry {
 } HPPATLBEntry;
 
 typedef struct CPUArchState {
-    target_ureg iaoq_f;      /* front */
-    target_ureg iaoq_b;      /* back, aka next instruction */
+    target_ulong iaoq_f;     /* front */
+    target_ulong iaoq_b;     /* back, aka next instruction */
 
-    target_ureg gr[32];
+    target_ulong gr[32];
     uint64_t fr[32];
     uint64_t sr[8];          /* stored shifted into place for gva */
 
-    target_ureg psw;         /* All psw bits except the following:  */
-    target_ureg psw_n;       /* boolean */
-    target_sreg psw_v;       /* in most significant bit */
+    target_ulong psw;        /* All psw bits except the following:  */
+    target_ulong psw_n;      /* boolean */
+    target_long psw_v;       /* in most significant bit */
 
     /* Splitting the carry-borrow field into the MSB and "the rest", allows
      * for "the rest" to be deleted when it is unused, but the MSB is in use.
@@ -205,8 +193,8 @@ typedef struct CPUArchState {
      * host has the appropriate add-with-carry insn to compute the msb).
      * Therefore the carry bits are stored as: cb_msb : cb & 0x11111110.
      */
-    target_ureg psw_cb;      /* in least significant bit of next nibble */
-    target_ureg psw_cb_msb;  /* boolean */
+    target_ulong psw_cb;     /* in least significant bit of next nibble */
+    target_ulong psw_cb_msb; /* boolean */
 
     uint64_t iasq_f;
     uint64_t iasq_b;
@@ -214,9 +202,9 @@ typedef struct CPUArchState {
     uint32_t fr0_shadow;     /* flags, c, ca/cq, rm, d, enables */
     float_status fp_status;
 
-    target_ureg cr[32];      /* control registers */
-    target_ureg cr_back[2];  /* back of cr17/cr18 */
-    target_ureg shadow[7];   /* shadow registers */
+    target_ulong cr[32];     /* control registers */
+    target_ulong cr_back[2]; /* back of cr17/cr18 */
+    target_ulong shadow[7];  /* shadow registers */
 
     /*
      * ??? The number of entries isn't specified by the architecture.
@@ -287,8 +275,8 @@ void hppa_translate_init(void);
 
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 
-static inline target_ulong hppa_form_gva_psw(target_ureg psw, uint64_t spc,
-                                             target_ureg off)
+static inline target_ulong hppa_form_gva_psw(target_ulong psw, uint64_t spc,
+                                             target_ulong off)
 {
 #ifdef CONFIG_USER_ONLY
     return off;
@@ -299,7 +287,7 @@ static inline target_ulong hppa_form_gva_psw(target_ureg psw, uint64_t spc,
 }
 
 static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
-                                         target_ureg off)
+                                         target_ulong off)
 {
     return hppa_form_gva_psw(env->psw, spc, off);
 }
@@ -343,8 +331,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
        which is the primary case we care about -- using goto_tb within a page.
        Failure is indicated by a zero difference.  */
     if (env->iasq_f == env->iasq_b) {
-        target_sreg diff = env->iaoq_b - env->iaoq_f;
-        if (TARGET_REGISTER_BITS == 32 || diff == (int32_t)diff) {
+        target_long diff = env->iaoq_b - env->iaoq_f;
+        if (diff == (int32_t)diff) {
             *cs_base |= (uint32_t)diff;
         }
     }
@@ -358,8 +346,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
     *pflags = flags;
 }
 
-target_ureg cpu_hppa_get_psw(CPUHPPAState *env);
-void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg);
+target_ulong cpu_hppa_get_psw(CPUHPPAState *env);
+void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong);
 void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 
 #ifdef CONFIG_USER_ONLY

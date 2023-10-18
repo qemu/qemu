@@ -25,31 +25,25 @@
 #include "exec/helper-proto.h"
 #include "qemu/qemu-print.h"
 
-target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
+target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
 {
-    target_ureg psw;
-    target_ureg mask1 = (target_ureg)-1 / 0xf;
-    target_ureg maskf = (target_ureg)-1 / 0xffff * 0xf;
+    target_ulong psw;
+    target_ulong mask1 = (target_ulong)-1 / 0xf;
+    target_ulong maskf = (target_ulong)-1 / 0xffff * 0xf;
 
     /* Fold carry bits down to 8 consecutive bits.  */
     /* ^^^b^^^c^^^d^^^e^^^f^^^g^^^h^^^i^^^j^^^k^^^l^^^m^^^n^^^o^^^p^^^^ */
-    /*                                 ^^^b^^^c^^^d^^^e^^^f^^^g^^^h^^^^ */
     psw = (env->psw_cb >> 4) & mask1;
     /* .......b...c...d...e...f...g...h...i...j...k...l...m...n...o...p */
-    /*                                 .......b...c...d...e...f...g...h */
     psw |= psw >> 3;
     /* .......b..bc..cd..de..ef..fg..gh..hi..ij..jk..kl..lm..mn..no..op */
-    /*                                 .......b..bc..cd..de..ef..fg..gh */
     psw |= psw >> 6;
     psw &= maskf;
     /* .............bcd............efgh............ijkl............mnop */
-    /*                                 .............bcd............efgh */
     psw |= psw >> 12;
     /* .............bcd.........bcdefgh........efghijkl........ijklmnop */
-    /*                                 .............bcd.........bcdefgh */
-    psw |= env->psw_cb_msb << (TARGET_REGISTER_BITS == 64 ? 39 : 7);
+    psw |= env->psw_cb_msb << 39;
     /* .............bcd........abcdefgh........efghijkl........ijklmnop */
-    /*                                 .............bcd........abcdefgh */
 
     /* For hppa64, the two 8-bit fields are discontiguous. */
     if (hppa_is_pa20(env)) {
@@ -65,10 +59,10 @@ target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
     return psw;
 }
 
-void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
+void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
 {
     uint64_t reserved;
-    target_ureg cb = 0;
+    target_ulong cb = 0;
 
     /* Do not allow reserved bits to be set. */
     if (hppa_is_pa20(env)) {
@@ -86,9 +80,6 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     env->psw_n = (psw / PSW_N) & 1;
     env->psw_v = -((psw / PSW_V) & 1);
 
-#if TARGET_REGISTER_BITS == 32
-    env->psw_cb_msb = (psw >> 15) & 1;
-#else
     env->psw_cb_msb = (psw >> 39) & 1;
     cb |= ((psw >> 38) & 1) << 60;
     cb |= ((psw >> 37) & 1) << 56;
@@ -98,7 +89,6 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     cb |= ((psw >> 33) & 1) << 40;
     cb |= ((psw >> 32) & 1) << 36;
     cb |= ((psw >> 15) & 1) << 32;
-#endif
     cb |= ((psw >> 14) & 1) << 28;
     cb |= ((psw >> 13) & 1) << 24;
     cb |= ((psw >> 12) & 1) << 20;
@@ -112,8 +102,8 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     CPUHPPAState *env = cpu_env(cs);
-    target_ureg psw = cpu_hppa_get_psw(env);
-    target_ureg psw_cb;
+    target_ulong psw = cpu_hppa_get_psw(env);
+    target_ulong psw_cb;
     char psw_c[20];
     int i, w;
     uint64_t m;
@@ -151,8 +141,8 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     psw_c[16] = (psw & PSW_D ? 'D' : '-');
     psw_c[17] = (psw & PSW_I ? 'I' : '-');
     psw_c[18] = '\0';
-    psw_cb = ((env->psw_cb >> 4) & ((target_ureg)-1 / 0xf))
-           | (env->psw_cb_msb << (TARGET_REGISTER_BITS - 4));
+    psw_cb = ((env->psw_cb >> 4) & 0x1111111111111111ull)
+           | (env->psw_cb_msb << 60);
 
     qemu_fprintf(f, "PSW  %0*" PRIx64 " CB   %0*" PRIx64 " %s\n",
                  w, m & psw, w, m & psw_cb, psw_c);

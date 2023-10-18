@@ -24,7 +24,7 @@
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 
-void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
+void HELPER(write_interval_timer)(CPUHPPAState *env, target_ulong val)
 {
     HPPACPU *cpu = env_archcpu(env);
     uint64_t current = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -58,7 +58,7 @@ void HELPER(reset)(CPUHPPAState *env)
     helper_excp(env, EXCP_HLT);
 }
 
-target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
+target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
 {
     target_ulong psw = env->psw;
     /*

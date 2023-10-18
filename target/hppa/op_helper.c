@@ -42,14 +42,14 @@ G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void HELPER(tsv)(CPUHPPAState *env, target_ureg cond)
+void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
 {
-    if (unlikely((target_sreg)cond < 0)) {
+    if (unlikely((target_long)cond < 0)) {
         hppa_dynamic_excp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
-void HELPER(tcond)(CPUHPPAState *env, target_ureg cond)
+void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
 {
     if (unlikely(cond)) {
         hppa_dynamic_excp(env, EXCP_COND, GETPC());
@@ -110,7 +110,7 @@ static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
 #endif
 }
 
-static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
+static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
                       bool parallel, uintptr_t ra)
 {
     switch (addr & 3) {
@@ -191,29 +191,29 @@ static void do_stdby_b(CPUHPPAState *env, target_ulong addr, uint64_t val,
     }
 }
 
-void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stby_b(env, addr, val, false, GETPC());
 }
 
 void HELPER(stby_b_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ureg val)
+                             target_ulong val)
 {
     do_stby_b(env, addr, val, true, GETPC());
 }
 
-void HELPER(stdby_b)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+void HELPER(stdby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stdby_b(env, addr, val, false, GETPC());
 }
 
 void HELPER(stdby_b_parallel)(CPUHPPAState *env, target_ulong addr,
-                              target_ureg val)
+                              target_ulong val)
 {
     do_stdby_b(env, addr, val, true, GETPC());
 }
 
-static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ureg val,
+static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
                       bool parallel, uintptr_t ra)
 {
     switch (addr & 3) {
@@ -301,24 +301,24 @@ static void do_stdby_e(CPUHPPAState *env, target_ulong addr, uint64_t val,
     }
 }
 
-void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stby_e(env, addr, val, false, GETPC());
 }
 
 void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ureg val)
+                             target_ulong val)
 {
     do_stby_e(env, addr, val, true, GETPC());
 }
 
-void HELPER(stdby_e)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+void HELPER(stdby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stdby_e(env, addr, val, false, GETPC());
 }
 
 void HELPER(stdby_e_parallel)(CPUHPPAState *env, target_ulong addr,
-                              target_ureg val)
+                              target_ulong val)
 {
     do_stdby_e(env, addr, val, true, GETPC());
 }
@@ -332,7 +332,7 @@ void HELPER(ldc_check)(target_ulong addr)
     }
 }
 
-target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
+target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
                           uint32_t level, uint32_t want)
 {
 #ifdef CONFIG_USER_ONLY
@@ -364,7 +364,7 @@ target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
 #endif
 }
 
-target_ureg HELPER(read_interval_timer)(void)
+target_ulong HELPER(read_interval_timer)(void)
 {
 #ifdef CONFIG_USER_ONLY
     /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.

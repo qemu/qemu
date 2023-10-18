@@ -21,33 +21,12 @@
 #include "cpu.h"
 #include "migration/cpu.h"
 
-#if TARGET_REGISTER_BITS == 64
-#define qemu_put_betr   qemu_put_be64
-#define qemu_get_betr   qemu_get_be64
-#define VMSTATE_UINTTR_V(_f, _s, _v) \
-    VMSTATE_UINT64_V(_f, _s, _v)
-#define VMSTATE_UINTTR_ARRAY_V(_f, _s, _n, _v) \
-    VMSTATE_UINT64_ARRAY_V(_f, _s, _n, _v)
-#else
-#define qemu_put_betr   qemu_put_be32
-#define qemu_get_betr   qemu_get_be32
-#define VMSTATE_UINTTR_V(_f, _s, _v) \
-    VMSTATE_UINT32_V(_f, _s, _v)
-#define VMSTATE_UINTTR_ARRAY_V(_f, _s, _n, _v) \
-    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)
-#endif
-
-#define VMSTATE_UINTTR(_f, _s) \
-    VMSTATE_UINTTR_V(_f, _s, 0)
-#define VMSTATE_UINTTR_ARRAY(_f, _s, _n) \
-    VMSTATE_UINTTR_ARRAY_V(_f, _s, _n, 0)
-
 
 static int get_psw(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
 {
     CPUHPPAState *env = opaque;
-    cpu_hppa_put_psw(env, qemu_get_betr(f));
+    cpu_hppa_put_psw(env, qemu_get_be64(f));
     return 0;
 }
 
@@ -55,7 +34,7 @@ static int put_psw(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field, JSONWriter *vmdesc)
 {
     CPUHPPAState *env = opaque;
-    qemu_put_betr(f, cpu_hppa_get_psw(env));
+    qemu_put_be64(f, cpu_hppa_get_psw(env));
     return 0;
 }
 
@@ -73,7 +52,7 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
     uint32_t val;
 
     ent->itree.start = qemu_get_be64(f);
-    ent->pa = qemu_get_betr(f);
+    ent->pa = qemu_get_be64(f);
     val = qemu_get_be32(f);
 
     ent->entry_valid = extract32(val, 0, 1);
@@ -109,7 +88,7 @@ static int put_tlb(QEMUFile *f, void *opaque, size_t size,
     }
 
     qemu_put_be64(f, ent->itree.start);
-    qemu_put_betr(f, ent->pa);
+    qemu_put_be64(f, ent->pa);
     qemu_put_be32(f, val);
     return 0;
 }
@@ -169,12 +148,12 @@ static int tlb_post_load(void *opaque, int version_id)
 }
 
 static VMStateField vmstate_env_fields[] = {
-    VMSTATE_UINTTR_ARRAY(gr, CPUHPPAState, 32),
+    VMSTATE_UINT64_ARRAY(gr, CPUHPPAState, 32),
     VMSTATE_UINT64_ARRAY(fr, CPUHPPAState, 32),
     VMSTATE_UINT64_ARRAY(sr, CPUHPPAState, 8),
-    VMSTATE_UINTTR_ARRAY(cr, CPUHPPAState, 32),
-    VMSTATE_UINTTR_ARRAY(cr_back, CPUHPPAState, 2),
-    VMSTATE_UINTTR_ARRAY(shadow, CPUHPPAState, 7),
+    VMSTATE_UINT64_ARRAY(cr, CPUHPPAState, 32),
+    VMSTATE_UINT64_ARRAY(cr_back, CPUHPPAState, 2),
+    VMSTATE_UINT64_ARRAY(shadow, CPUHPPAState, 7),
 
     /* Save the architecture value of the psw, not the internally
        expanded version.  Since this architecture value does not
@@ -191,8 +170,8 @@ static VMStateField vmstate_env_fields[] = {
         .offset = 0
     },
 
-    VMSTATE_UINTTR(iaoq_f, CPUHPPAState),
-    VMSTATE_UINTTR(iaoq_b, CPUHPPAState),
+    VMSTATE_UINT64(iaoq_f, CPUHPPAState),
+    VMSTATE_UINT64(iaoq_b, CPUHPPAState),
     VMSTATE_UINT64(iasq_f, CPUHPPAState),
     VMSTATE_UINT64(iasq_b, CPUHPPAState),
 
@@ -207,8 +186,8 @@ static VMStateField vmstate_env_fields[] = {
 
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = vmstate_env_fields,
     .pre_load = tlb_pre_load,
     .post_load = tlb_post_load,

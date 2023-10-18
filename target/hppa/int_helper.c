@@ -52,9 +52,9 @@ static void io_eir_write(void *opaque, hwaddr addr,
                          uint64_t data, unsigned size)
 {
     HPPACPU *cpu = opaque;
-    int le_bit = ~data & (TARGET_REGISTER_BITS - 1);
+    int le_bit = ~data & 31;
 
-    cpu->env.cr[CR_EIRR] |= (target_ureg)1 << le_bit;
+    cpu->env.cr[CR_EIRR] |= (target_ulong)1 << le_bit;
     eval_interrupt(cpu);
 }
 
@@ -73,7 +73,7 @@ void hppa_cpu_alarm_timer(void *opaque)
     io_eir_write(opaque, 0, 0, 4);
 }
 
-void HELPER(write_eirr)(CPUHPPAState *env, target_ureg val)
+void HELPER(write_eirr)(CPUHPPAState *env, target_ulong val)
 {
     env->cr[CR_EIRR] &= ~val;
     qemu_mutex_lock_iothread();
@@ -81,7 +81,7 @@ void HELPER(write_eirr)(CPUHPPAState *env, target_ureg val)
     qemu_mutex_unlock_iothread();
 }
 
-void HELPER(write_eiem)(CPUHPPAState *env, target_ureg val)
+void HELPER(write_eiem)(CPUHPPAState *env, target_ulong val)
 {
     env->cr[CR_EIEM] = val;
     qemu_mutex_lock_iothread();
@@ -94,12 +94,11 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
     int i = cs->exception_index;
-    target_ureg iaoq_f = env->iaoq_f;
-    target_ureg iaoq_b = env->iaoq_b;
+    target_ulong iaoq_f = env->iaoq_f;
+    target_ulong iaoq_b = env->iaoq_b;
     uint64_t iasq_f = env->iasq_f;
     uint64_t iasq_b = env->iasq_b;
-
-    target_ureg old_psw;
+    target_ulong old_psw;
 
     /* As documented in pa2.0 -- interruption handling.  */
     /* step 1 */
@@ -240,7 +239,7 @@ void hppa_cpu_do_interrupt(CPUState *cs)
             name = unknown;
         }
         qemu_log("INT %6d: %s @ " TARGET_FMT_lx "," TARGET_FMT_lx
-                 " -> " TREG_FMT_lx " " TARGET_FMT_lx "\n",
+                 " -> " TARGET_FMT_lx " " TARGET_FMT_lx "\n",
                  ++count, name,
                  hppa_form_gva(env, iasq_f, iaoq_f),
                  hppa_form_gva(env, iasq_b, iaoq_b),

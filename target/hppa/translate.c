@@ -40,21 +40,10 @@
 #undef tcg_temp_new
 #undef tcg_global_mem_new
 
-#if TARGET_LONG_BITS == 64
 #define TCGv_tl              TCGv_i64
 #define tcg_temp_new_tl      tcg_temp_new_i64
-#if TARGET_REGISTER_BITS == 64
 #define tcg_gen_extu_reg_tl  tcg_gen_mov_i64
-#else
-#define tcg_gen_extu_reg_tl  tcg_gen_extu_i32_i64
-#endif
-#else
-#define TCGv_tl              TCGv_i32
-#define tcg_temp_new_tl      tcg_temp_new_i32
-#define tcg_gen_extu_reg_tl  tcg_gen_mov_i32
-#endif
 
-#if TARGET_REGISTER_BITS == 64
 #define TCGv_reg             TCGv_i64
 
 #define tcg_temp_new         tcg_temp_new_i64
@@ -147,98 +136,6 @@
 #define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i64
 #define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i64
 #define tcg_gen_trunc_reg_ptr   tcg_gen_trunc_i64_ptr
-#else
-#define TCGv_reg             TCGv_i32
-#define tcg_temp_new         tcg_temp_new_i32
-#define tcg_global_mem_new   tcg_global_mem_new_i32
-
-#define tcg_gen_movi_reg     tcg_gen_movi_i32
-#define tcg_gen_mov_reg      tcg_gen_mov_i32
-#define tcg_gen_ld8u_reg     tcg_gen_ld8u_i32
-#define tcg_gen_ld8s_reg     tcg_gen_ld8s_i32
-#define tcg_gen_ld16u_reg    tcg_gen_ld16u_i32
-#define tcg_gen_ld16s_reg    tcg_gen_ld16s_i32
-#define tcg_gen_ld32u_reg    tcg_gen_ld_i32
-#define tcg_gen_ld32s_reg    tcg_gen_ld_i32
-#define tcg_gen_ld_reg       tcg_gen_ld_i32
-#define tcg_gen_st8_reg      tcg_gen_st8_i32
-#define tcg_gen_st16_reg     tcg_gen_st16_i32
-#define tcg_gen_st32_reg     tcg_gen_st32_i32
-#define tcg_gen_st_reg       tcg_gen_st_i32
-#define tcg_gen_add_reg      tcg_gen_add_i32
-#define tcg_gen_addi_reg     tcg_gen_addi_i32
-#define tcg_gen_sub_reg      tcg_gen_sub_i32
-#define tcg_gen_neg_reg      tcg_gen_neg_i32
-#define tcg_gen_subfi_reg    tcg_gen_subfi_i32
-#define tcg_gen_subi_reg     tcg_gen_subi_i32
-#define tcg_gen_and_reg      tcg_gen_and_i32
-#define tcg_gen_andi_reg     tcg_gen_andi_i32
-#define tcg_gen_or_reg       tcg_gen_or_i32
-#define tcg_gen_ori_reg      tcg_gen_ori_i32
-#define tcg_gen_xor_reg      tcg_gen_xor_i32
-#define tcg_gen_xori_reg     tcg_gen_xori_i32
-#define tcg_gen_not_reg      tcg_gen_not_i32
-#define tcg_gen_shl_reg      tcg_gen_shl_i32
-#define tcg_gen_shli_reg     tcg_gen_shli_i32
-#define tcg_gen_shr_reg      tcg_gen_shr_i32
-#define tcg_gen_shri_reg     tcg_gen_shri_i32
-#define tcg_gen_sar_reg      tcg_gen_sar_i32
-#define tcg_gen_sari_reg     tcg_gen_sari_i32
-#define tcg_gen_brcond_reg   tcg_gen_brcond_i32
-#define tcg_gen_brcondi_reg  tcg_gen_brcondi_i32
-#define tcg_gen_setcond_reg  tcg_gen_setcond_i32
-#define tcg_gen_setcondi_reg tcg_gen_setcondi_i32
-#define tcg_gen_mul_reg      tcg_gen_mul_i32
-#define tcg_gen_muli_reg     tcg_gen_muli_i32
-#define tcg_gen_div_reg      tcg_gen_div_i32
-#define tcg_gen_rem_reg      tcg_gen_rem_i32
-#define tcg_gen_divu_reg     tcg_gen_divu_i32
-#define tcg_gen_remu_reg     tcg_gen_remu_i32
-#define tcg_gen_discard_reg  tcg_gen_discard_i32
-#define tcg_gen_trunc_reg_i32 tcg_gen_mov_i32
-#define tcg_gen_trunc_i64_reg tcg_gen_extrl_i64_i32
-#define tcg_gen_extu_i32_reg tcg_gen_mov_i32
-#define tcg_gen_ext_i32_reg  tcg_gen_mov_i32
-#define tcg_gen_extu_reg_i64 tcg_gen_extu_i32_i64
-#define tcg_gen_ext_reg_i64  tcg_gen_ext_i32_i64
-#define tcg_gen_ext8u_reg    tcg_gen_ext8u_i32
-#define tcg_gen_ext8s_reg    tcg_gen_ext8s_i32
-#define tcg_gen_ext16u_reg   tcg_gen_ext16u_i32
-#define tcg_gen_ext16s_reg   tcg_gen_ext16s_i32
-#define tcg_gen_ext32u_reg   tcg_gen_mov_i32
-#define tcg_gen_ext32s_reg   tcg_gen_mov_i32
-#define tcg_gen_bswap16_reg  tcg_gen_bswap16_i32
-#define tcg_gen_bswap32_reg  tcg_gen_bswap32_i32
-#define tcg_gen_concat_reg_i64 tcg_gen_concat_i32_i64
-#define tcg_gen_andc_reg     tcg_gen_andc_i32
-#define tcg_gen_eqv_reg      tcg_gen_eqv_i32
-#define tcg_gen_nand_reg     tcg_gen_nand_i32
-#define tcg_gen_nor_reg      tcg_gen_nor_i32
-#define tcg_gen_orc_reg      tcg_gen_orc_i32
-#define tcg_gen_clz_reg      tcg_gen_clz_i32
-#define tcg_gen_ctz_reg      tcg_gen_ctz_i32
-#define tcg_gen_clzi_reg     tcg_gen_clzi_i32
-#define tcg_gen_ctzi_reg     tcg_gen_ctzi_i32
-#define tcg_gen_clrsb_reg    tcg_gen_clrsb_i32
-#define tcg_gen_ctpop_reg    tcg_gen_ctpop_i32
-#define tcg_gen_rotl_reg     tcg_gen_rotl_i32
-#define tcg_gen_rotli_reg    tcg_gen_rotli_i32
-#define tcg_gen_rotr_reg     tcg_gen_rotr_i32
-#define tcg_gen_rotri_reg    tcg_gen_rotri_i32
-#define tcg_gen_deposit_reg  tcg_gen_deposit_i32
-#define tcg_gen_deposit_z_reg tcg_gen_deposit_z_i32
-#define tcg_gen_extract_reg  tcg_gen_extract_i32
-#define tcg_gen_sextract_reg tcg_gen_sextract_i32
-#define tcg_gen_extract2_reg tcg_gen_extract2_i32
-#define tcg_constant_reg     tcg_constant_i32
-#define tcg_gen_movcond_reg  tcg_gen_movcond_i32
-#define tcg_gen_add2_reg     tcg_gen_add2_i32
-#define tcg_gen_sub2_reg     tcg_gen_sub2_i32
-#define tcg_gen_qemu_ld_reg  tcg_gen_qemu_ld_i32
-#define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i32
-#define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i32
-#define tcg_gen_trunc_reg_ptr   tcg_gen_ext_i32_ptr
-#endif /* TARGET_REGISTER_BITS */
 
 typedef struct DisasCond {
     TCGCond c;
@@ -249,9 +146,9 @@ typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
 
-    target_ureg iaoq_f;
-    target_ureg iaoq_b;
-    target_ureg iaoq_n;
+    uint64_t iaoq_f;
+    uint64_t iaoq_b;
+    uint64_t iaoq_n;
     TCGv_reg iaoq_n_var;
 
     DisasCond null_cond;
@@ -727,7 +624,7 @@ static bool nullify_end(DisasContext *ctx)
     return true;
 }
 
-static target_ureg gva_offset_mask(DisasContext *ctx)
+static uint64_t gva_offset_mask(DisasContext *ctx)
 {
     return (ctx->tb_flags & PSW_W
             ? MAKE_64BIT_MASK(0, 62)
@@ -735,9 +632,9 @@ static target_ureg gva_offset_mask(DisasContext *ctx)
 }
 
 static void copy_iaoq_entry(DisasContext *ctx, TCGv_reg dest,
-                            target_ureg ival, TCGv_reg vval)
+                            uint64_t ival, TCGv_reg vval)
 {
-    target_ureg mask = gva_offset_mask(ctx);
+    uint64_t mask = gva_offset_mask(ctx);
 
     if (ival != -1) {
         tcg_gen_movi_reg(dest, ival & mask);
@@ -756,7 +653,7 @@ static void copy_iaoq_entry(DisasContext *ctx, TCGv_reg dest,
     }
 }
 
-static inline target_ureg iaoq_dest(DisasContext *ctx, target_sreg disp)
+static inline uint64_t iaoq_dest(DisasContext *ctx, int64_t disp)
 {
     return ctx->iaoq_f + disp + 8;
 }
@@ -801,7 +698,7 @@ static bool gen_illegal(DisasContext *ctx)
     } while (0)
 #endif
 
-static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
+static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
     return translator_use_goto_tb(&ctx->base, dest);
 }
@@ -817,7 +714,7 @@ static bool use_nullify_skip(DisasContext *ctx)
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
-                        target_ureg f, target_ureg b)
+                        uint64_t f, uint64_t b)
 {
     if (f != -1 && b != -1 && use_goto_tb(ctx, f)) {
         tcg_gen_goto_tb(which);
@@ -844,7 +741,7 @@ static bool cond_need_cb(int c)
 /* Need extensions from TCGv_i32 to TCGv_reg. */
 static bool cond_need_ext(DisasContext *ctx, bool d)
 {
-    return TARGET_REGISTER_BITS == 64 && !(ctx->is_pa20 && d);
+    return !(ctx->is_pa20 && d);
 }
 
 /*
@@ -895,7 +792,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_and_reg(tmp, tmp, res);
             tcg_gen_ext32u_reg(tmp, tmp);
         } else {
-            tcg_gen_sari_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
+            tcg_gen_sari_reg(tmp, tmp, 63);
             tcg_gen_and_reg(tmp, tmp, res);
         }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
@@ -1091,7 +988,7 @@ static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_reg res,
 {
     DisasCond cond;
     TCGv_reg tmp, cb = NULL;
-    target_ureg d_repl = d ? 0x0000000100000001ull : 1;
+    uint64_t d_repl = d ? 0x0000000100000001ull : 1;
 
     if (cf & 8) {
         /* Since we want to test lots of carry-out bits all at once, do not
@@ -1522,7 +1419,7 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
 #endif
 
 static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
-                     unsigned rb, unsigned rx, int scale, target_sreg disp,
+                     unsigned rb, unsigned rx, int scale, int64_t disp,
                      unsigned sp, int modify, bool is_phys)
 {
     TCGv_reg base = load_gpr(ctx, rb);
@@ -1558,7 +1455,7 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
  * = 0 for no base register update.
  */
 static void do_load_32(DisasContext *ctx, TCGv_i32 dest, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify, MemOp mop)
 {
     TCGv_reg ofs;
@@ -1576,7 +1473,7 @@ static void do_load_32(DisasContext *ctx, TCGv_i32 dest, unsigned rb,
 }
 
 static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify, MemOp mop)
 {
     TCGv_reg ofs;
@@ -1594,7 +1491,7 @@ static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
 }
 
 static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
-                        unsigned rx, int scale, target_sreg disp,
+                        unsigned rx, int scale, int64_t disp,
                         unsigned sp, int modify, MemOp mop)
 {
     TCGv_reg ofs;
@@ -1612,7 +1509,7 @@ static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
 }
 
 static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
-                        unsigned rx, int scale, target_sreg disp,
+                        unsigned rx, int scale, int64_t disp,
                         unsigned sp, int modify, MemOp mop)
 {
     TCGv_reg ofs;
@@ -1629,16 +1526,11 @@ static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
     }
 }
 
-#if TARGET_REGISTER_BITS == 64
 #define do_load_reg   do_load_64
 #define do_store_reg  do_store_64
-#else
-#define do_load_reg   do_load_32
-#define do_store_reg  do_store_32
-#endif
 
 static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
-                    unsigned rx, int scale, target_sreg disp,
+                    unsigned rx, int scale, int64_t disp,
                     unsigned sp, int modify, MemOp mop)
 {
     TCGv_reg dest;
@@ -1659,7 +1551,7 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
 }
 
 static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
-                      unsigned rx, int scale, target_sreg disp,
+                      unsigned rx, int scale, int64_t disp,
                       unsigned sp, int modify)
 {
     TCGv_i32 tmp;
@@ -1684,7 +1576,7 @@ static bool trans_fldw(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
-                      unsigned rx, int scale, target_sreg disp,
+                      unsigned rx, int scale, int64_t disp,
                       unsigned sp, int modify)
 {
     TCGv_i64 tmp;
@@ -1709,7 +1601,7 @@ static bool trans_fldd(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
-                     target_sreg disp, unsigned sp,
+                     int64_t disp, unsigned sp,
                      int modify, MemOp mop)
 {
     nullify_over(ctx);
@@ -1718,7 +1610,7 @@ static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
 }
 
 static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify)
 {
     TCGv_i32 tmp;
@@ -1738,7 +1630,7 @@ static bool trans_fstw(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify)
 {
     TCGv_i64 tmp;
@@ -1851,7 +1743,7 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
 
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
-static bool do_dbranch(DisasContext *ctx, target_ureg dest,
+static bool do_dbranch(DisasContext *ctx, uint64_t dest,
                        unsigned link, bool is_n)
 {
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
@@ -1888,10 +1780,10 @@ static bool do_dbranch(DisasContext *ctx, target_ureg dest,
 
 /* Emit a conditional branch to a direct target.  If the branch itself
    is nullified, we should have already used nullify_over.  */
-static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
+static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
                        DisasCond *cond)
 {
-    target_ureg dest = iaoq_dest(ctx, disp);
+    uint64_t dest = iaoq_dest(ctx, disp);
     TCGLabel *taken = NULL;
     TCGCond c = cond->c;
     bool n;
@@ -2867,7 +2759,7 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf_d *a, bool is_i)
     if (!is_i) {
         tcg_gen_not_reg(tmp, tmp);
     }
-    tcg_gen_andi_reg(tmp, tmp, (target_ureg)0x1111111111111111ull);
+    tcg_gen_andi_reg(tmp, tmp, (uint64_t)0x1111111111111111ull);
     tcg_gen_muli_reg(tmp, tmp, 6);
     do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, a->d, false,
             is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
@@ -2989,22 +2881,20 @@ static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf_d *a)
 
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
-    if (unlikely(TARGET_REGISTER_BITS == 32 && a->size > MO_32)) {
+    if (!ctx->is_pa20 && a->size > MO_32) {
         return gen_illegal(ctx);
-    } else {
-        return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
-                   a->disp, a->sp, a->m, a->size | MO_TE);
     }
+    return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
+                   a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
 static bool trans_st(DisasContext *ctx, arg_ldst *a)
 {
     assert(a->x == 0 && a->scale == 0);
-    if (unlikely(TARGET_REGISTER_BITS == 32 && a->size > MO_32)) {
+    if (!ctx->is_pa20 && a->size > MO_32) {
         return gen_illegal(ctx);
-    } else {
-        return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
     }
+    return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
@@ -3013,7 +2903,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
     TCGv_reg zero, dest, ofs;
     TCGv_tl addr;
 
-    if (unlikely(TARGET_REGISTER_BITS == 32 && a->size > MO_32)) {
+    if (!ctx->is_pa20 && a->size > MO_32) {
         return gen_illegal(ctx);
     }
 
@@ -3431,7 +3321,7 @@ static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
     t2 = load_gpr(ctx, a->r2);
     if (a->r1 == 0) {
         tcg_gen_extract_reg(dest, t2, sa, width - sa);
-    } else if (width == TARGET_REGISTER_BITS) {
+    } else if (width == TARGET_LONG_BITS) {
         tcg_gen_extract2_reg(dest, t2, cpu_gr[a->r1], sa);
     } else {
         assert(!a->d);
@@ -3541,7 +3431,7 @@ static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
 static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
 {
     unsigned len, width;
-    target_sreg mask0, mask1;
+    uint64_t mask0, mask1;
     TCGv_reg dest;
 
     if (!ctx->is_pa20 && a->d) {
@@ -3620,7 +3510,7 @@ static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
     unsigned rs = nz ? rt : 0;
     unsigned widthm1 = d ? 63 : 31;
     TCGv_reg mask, tmp, shift, dest;
-    target_ureg msb = 1ULL << (len - 1);
+    uint64_t msb = 1ULL << (len - 1);
 
     dest = dest_gpr(ctx, rt);
     shift = tcg_temp_new();
@@ -3737,7 +3627,7 @@ static bool trans_bl(DisasContext *ctx, arg_bl *a)
 
 static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
-    target_ureg dest = iaoq_dest(ctx, a->disp);
+    uint64_t dest = iaoq_dest(ctx, a->disp);
 
     nullify_over(ctx);
 
@@ -3865,7 +3755,7 @@ static bool trans_fid_f(DisasContext *ctx, arg_fid_f *a)
 {
     uint64_t ret;
 
-    if (TARGET_REGISTER_BITS == 64) {
+    if (ctx->is_pa20) {
         ret = 0x13080000000000ULL; /* PA8700 (PCX-W2) */
     } else {
         ret = 0x0f080000000000ULL; /* PA7300LC (PCX-L2) */
