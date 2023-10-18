@@ -33,15 +33,6 @@
 #undef  HELPER_H
 
 
-/* Since we have a distinction between register size and address size,
-   we need to redefine all of these.  */
-
-#define tcg_gen_extu_reg_tl  tcg_gen_mov_i64
-#define tcg_gen_trunc_i64_reg tcg_gen_mov_i64
-#define tcg_gen_extu_reg_i64 tcg_gen_mov_i64
-#define tcg_gen_ext_reg_i64  tcg_gen_mov_i64
-
-
 typedef struct DisasCond {
     TCGCond c;
     TCGv_i64 a0, a1;
@@ -1345,8 +1336,7 @@ static void form_gva(DisasContext *ctx, TCGv_i64 *pgva, TCGv_i64 *pofs,
 
     *pofs = ofs;
     *pgva = addr = tcg_temp_new_i64();
-    tcg_gen_extu_reg_tl(addr, modify <= 0 ? ofs : base);
-    tcg_gen_andi_tl(addr, addr, gva_offset_mask(ctx));
+    tcg_gen_andi_tl(addr, modify <= 0 ? ofs : base, gva_offset_mask(ctx));
 #ifndef CONFIG_USER_ONLY
     if (!is_phys) {
         tcg_gen_or_tl(addr, addr, space_select(ctx, sp, base));
@@ -1966,13 +1956,11 @@ static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
     unsigned rt = a->t;
     unsigned rs = a->sp;
     TCGv_i64 t0 = tcg_temp_new_i64();
-    TCGv_i64 t1 = tcg_temp_new();
 
     load_spr(ctx, t0, rs);
     tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_reg(t1, t0);
 
-    save_gpr(ctx, rt, t1);
+    save_gpr(ctx, rt, t0);
 
     cond_free(&ctx->null_cond);
     return true;
@@ -2029,22 +2017,21 @@ static bool trans_mtsp(DisasContext *ctx, arg_mtsp *a)
 {
     unsigned rr = a->r;
     unsigned rs = a->sp;
-    TCGv_i64 t64;
+    TCGv_i64 tmp;
 
     if (rs >= 5) {
         CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
     }
     nullify_over(ctx);
 
-    t64 = tcg_temp_new_i64();
-    tcg_gen_extu_reg_i64(t64, load_gpr(ctx, rr));
-    tcg_gen_shli_i64(t64, t64, 32);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_shli_i64(tmp, load_gpr(ctx, rr), 32);
 
     if (rs >= 4) {
-        tcg_gen_st_i64(t64, tcg_env, offsetof(CPUHPPAState, sr[rs]));
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUHPPAState, sr[rs]));
         ctx->tb_flags &= ~TB_FLAG_SR_SAME;
     } else {
-        tcg_gen_mov_i64(cpu_sr[rs], t64);
+        tcg_gen_mov_i64(cpu_sr[rs], tmp);
     }
 
     return nullify_end(ctx);
@@ -2135,11 +2122,8 @@ static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
     /* We don't implement space registers in user mode. */
     tcg_gen_movi_i64(dest, 0);
 #else
-    TCGv_i64 t0 = tcg_temp_new_i64();
-
-    tcg_gen_mov_i64(t0, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_reg(dest, t0);
+    tcg_gen_mov_i64(dest, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
+    tcg_gen_shri_i64(dest, dest, 32);
 #endif
     save_gpr(ctx, a->t, dest);
 
@@ -3188,10 +3172,8 @@ static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
             TCGv_i64 s = tcg_temp_new_i64();
 
             tcg_gen_concat32_i64(t, src2, src1);
-            tcg_gen_extu_reg_i64(s, cpu_sar);
-            tcg_gen_andi_i64(s, s, 31);
-            tcg_gen_shr_i64(t, t, s);
-            tcg_gen_trunc_i64_reg(dest, t);
+            tcg_gen_andi_i64(s, cpu_sar, 31);
+            tcg_gen_shr_i64(dest, t, s);
         }
     }
     save_gpr(ctx, a->t, dest);
@@ -3233,10 +3215,8 @@ static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
             tcg_gen_rotri_i32(t32, t32, sa);
             tcg_gen_extu_i32_i64(dest, t32);
         } else {
-            TCGv_i64 t64 = tcg_temp_new_i64();
-            tcg_gen_concat32_i64(t64, t2, cpu_gr[a->r1]);
-            tcg_gen_shri_i64(t64, t64, sa);
-            tcg_gen_trunc_i64_reg(dest, t64);
+            tcg_gen_concat32_i64(dest, t2, cpu_gr[a->r1]);
+            tcg_gen_extract_i64(dest, dest, sa, 32);
         }
     }
     save_gpr(ctx, a->t, dest);
