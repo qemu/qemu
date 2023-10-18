@@ -85,7 +85,6 @@ struct KVMState
 #endif
     int max_nested_state_len;
     int many_ioeventfds;
-    int intx_set_mask;
     int kvm_shadow_mem;
     bool kernel_irqchip_allowed;
     bool kernel_irqchip_required;

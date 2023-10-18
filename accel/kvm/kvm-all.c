@@ -2576,8 +2576,6 @@ static int kvm_init(MachineState *ms)
 
     s->max_nested_state_len = kvm_check_extension(s, KVM_CAP_NESTED_STATE);
 
-    s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
-
     s->irq_set_ioctl = KVM_IRQ_LINE;
     if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
         s->irq_set_ioctl = KVM_IRQ_LINE_STATUS;
@@ -3235,11 +3233,6 @@ int kvm_has_gsi_routing(void)
 #else
     return false;
 #endif
-}
-
-int kvm_has_intx_set_mask(void)
-{
-    return kvm_state->intx_set_mask;
 }
 
 bool kvm_arm_supports_user_irq(void)
