@@ -1324,41 +1324,8 @@ static void ext_and_shift_reg(TCGv_i64 tcg_out, TCGv_i64 tcg_in,
     int extsize = extract32(option, 0, 2);
     bool is_signed = extract32(option, 2, 1);
 
-    if (is_signed) {
-        switch (extsize) {
-        case 0:
-            tcg_gen_ext8s_i64(tcg_out, tcg_in);
-            break;
-        case 1:
-            tcg_gen_ext16s_i64(tcg_out, tcg_in);
-            break;
-        case 2:
-            tcg_gen_ext32s_i64(tcg_out, tcg_in);
-            break;
-        case 3:
-            tcg_gen_mov_i64(tcg_out, tcg_in);
-            break;
-        }
-    } else {
-        switch (extsize) {
-        case 0:
-            tcg_gen_ext8u_i64(tcg_out, tcg_in);
-            break;
-        case 1:
-            tcg_gen_ext16u_i64(tcg_out, tcg_in);
-            break;
-        case 2:
-            tcg_gen_ext32u_i64(tcg_out, tcg_in);
-            break;
-        case 3:
-            tcg_gen_mov_i64(tcg_out, tcg_in);
-            break;
-        }
-    }
-
-    if (shift) {
-        tcg_gen_shli_i64(tcg_out, tcg_out, shift);
-    }
+    tcg_gen_ext_i64(tcg_out, tcg_in, extsize | (is_signed ? MO_SIGN : 0));
+    tcg_gen_shli_i64(tcg_out, tcg_out, shift);
 }
 
 static inline void gen_check_sp_alignment(DisasContext *s)
