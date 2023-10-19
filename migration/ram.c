@@ -2067,8 +2067,7 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
         return false;
     }
 
-    if (compress_page_with_multi_thread(pss->block, offset,
-                                        send_queued_data) > 0) {
+    if (compress_page_with_multi_thread(pss->block, offset, send_queued_data)) {
         return true;
     }
 
