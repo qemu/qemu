@@ -291,6 +291,12 @@ void tcg_gen_negsetcond_i32(TCGCond cond, TCGv_i32 ret,
     }
 }
 
+void tcg_gen_negsetcondi_i32(TCGCond cond, TCGv_i32 ret,
+                             TCGv_i32 arg1, int32_t arg2)
+{
+    tcg_gen_negsetcond_i32(cond, ret, arg1, tcg_constant_i32(arg2));
+}
+
 void tcg_gen_muli_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
     if (arg2 == 0) {
@@ -1600,6 +1606,12 @@ void tcg_gen_setcondi_i64(TCGCond cond, TCGv_i64 ret,
                          tcg_constant_i32(arg2 >> 32), cond);
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
     }
+}
+
+void tcg_gen_negsetcondi_i64(TCGCond cond, TCGv_i64 ret,
+                             TCGv_i64 arg1, int64_t arg2)
+{
+    tcg_gen_negsetcond_i64(cond, ret, arg1, tcg_constant_i64(arg2));
 }
 
 void tcg_gen_negsetcond_i64(TCGCond cond, TCGv_i64 ret,

@@ -199,6 +199,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_setcond_tl tcg_gen_setcond_i64
 #define tcg_gen_setcondi_tl tcg_gen_setcondi_i64
 #define tcg_gen_negsetcond_tl tcg_gen_negsetcond_i64
+#define tcg_gen_negsetcondi_tl tcg_gen_negsetcondi_i64
 #define tcg_gen_mul_tl tcg_gen_mul_i64
 #define tcg_gen_muli_tl tcg_gen_muli_i64
 #define tcg_gen_div_tl tcg_gen_div_i64
@@ -317,6 +318,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_setcond_tl tcg_gen_setcond_i32
 #define tcg_gen_setcondi_tl tcg_gen_setcondi_i32
 #define tcg_gen_negsetcond_tl tcg_gen_negsetcond_i32
+#define tcg_gen_negsetcondi_tl tcg_gen_negsetcondi_i32
 #define tcg_gen_mul_tl tcg_gen_mul_i32
 #define tcg_gen_muli_tl tcg_gen_muli_i32
 #define tcg_gen_div_tl tcg_gen_div_i32
