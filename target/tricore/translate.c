@@ -6542,28 +6542,16 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
     switch (op2) {
     case OPC2_32_RRPW_EXTR:
         if (width == 0) {
-                tcg_gen_movi_tl(cpu_gpr_d[r3], 0);
-                break;
-        }
-
-        if (pos + width <= 32) {
-            /* optimize special cases */
-            if ((pos == 0) && (width == 8)) {
-                tcg_gen_ext8s_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
-            } else if ((pos == 0) && (width == 16)) {
-                tcg_gen_ext16s_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
-            } else {
-                tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 32 - pos - width);
-                tcg_gen_sari_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], 32 - width);
-            }
+            tcg_gen_movi_tl(cpu_gpr_d[r3], 0);
+        } else if (pos + width <= 32) {
+            tcg_gen_sextract_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], pos, width);
         }
         break;
     case OPC2_32_RRPW_EXTR_U:
         if (width == 0) {
             tcg_gen_movi_tl(cpu_gpr_d[r3], 0);
         } else {
-            tcg_gen_shri_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], pos);
-            tcg_gen_andi_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], ~0u >> (32-width));
+            tcg_gen_extract_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], pos, width);
         }
         break;
     case OPC2_32_RRPW_IMASK:
