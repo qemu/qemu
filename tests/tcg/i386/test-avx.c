@@ -236,12 +236,15 @@ v4di val_i64[] = {
 
 v4di deadbeef = {0xa5a5a5a5deadbeefull, 0xa5a5a5a5deadbeefull,
                  0xa5a5a5a5deadbeefull, 0xa5a5a5a5deadbeefull};
-v4di indexq = {0x000000000000001full, 0x000000000000008full,
-               0xffffffffffffffffull, 0xffffffffffffff5full};
-v4di indexd = {0x00000002000000efull, 0xfffffff500000010ull,
-               0x0000000afffffff0ull, 0x000000000000000eull};
+/* &gather_mem[0x10] is 512 bytes from the base; indices must be >=-64, <64
+ * to account for scaling by 8 */
+v4di indexq = {0x000000000000001full, 0x000000000000003dull,
+               0xffffffffffffffffull, 0xffffffffffffffdfull};
+v4di indexd = {0x00000002ffffffcdull, 0xfffffff500000010ull,
+               0x0000003afffffff0ull, 0x000000000000000eull};
 
 v4di gather_mem[0x20];
+_Static_assert(sizeof(gather_mem) == 1024);
 
 void init_f16reg(v4di *r)
 {
