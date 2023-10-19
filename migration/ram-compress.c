@@ -291,6 +291,7 @@ bool compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
         }
         if (!wait) {
             qemu_mutex_unlock(&comp_done_lock);
+            compression_counters.busy++;
             return false;
         }
         /*
