@@ -558,3 +558,12 @@ void compress_update_rates(uint64_t page_count)
             compression_counters.compressed_size;
     }
 }
+
+void compress_flush_data(void)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+
+    flush_compressed_data(compress_send_queued_data);
+}
