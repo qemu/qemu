@@ -41,7 +41,20 @@
 #include "ram.h"
 #include "migration-stats.h"
 
-CompressionStats compression_counters;
+static struct {
+    int64_t pages;
+    int64_t busy;
+    double busy_rate;
+    int64_t compressed_size;
+    double compression_rate;
+    /* compression statistics since the beginning of the period */
+    /* amount of count that no free thread to compress data */
+    uint64_t compress_thread_busy_prev;
+    /* amount bytes after compression */
+    uint64_t compressed_size_prev;
+    /* amount of compressed pages */
+    uint64_t compress_pages_prev;
+} compression_counters;
 
 static CompressParam *comp_param;
 static QemuThread *compress_threads;
@@ -518,3 +531,30 @@ void update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
     compression_counters.pages++;
 }
 
+void compress_update_rates(uint64_t page_count)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+    compression_counters.busy_rate = (double)(compression_counters.busy -
+            compression_counters.compress_thread_busy_prev) / page_count;
+    compression_counters.compress_thread_busy_prev =
+            compression_counters.busy;
+
+    double compressed_size = compression_counters.compressed_size -
+        compression_counters.compressed_size_prev;
+    if (compressed_size) {
+        double uncompressed_size = (compression_counters.pages -
+                                    compression_counters.compress_pages_prev) *
+            qemu_target_page_size();
+
+        /* Compression-Ratio = Uncompressed-size / Compressed-size */
+        compression_counters.compression_rate =
+            uncompressed_size / compressed_size;
+
+        compression_counters.compress_pages_prev =
+            compression_counters.pages;
+        compression_counters.compressed_size_prev =
+            compression_counters.compressed_size;
+    }
+}
