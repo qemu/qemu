@@ -2968,6 +2968,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 
     if (replaces) {
         BlockDriverState *to_replace_bs;
+        AioContext *aio_context;
         AioContext *replace_aio_context;
         int64_t bs_size, replace_size;
 
@@ -2982,10 +2983,19 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
             return;
         }
 
+        aio_context = bdrv_get_aio_context(bs);
         replace_aio_context = bdrv_get_aio_context(to_replace_bs);
-        aio_context_acquire(replace_aio_context);
+        /*
+         * bdrv_getlength() is a co-wrapper and uses AIO_WAIT_WHILE. Be sure not
+         * to acquire the same AioContext twice.
+         */
+        if (replace_aio_context != aio_context) {
+            aio_context_acquire(replace_aio_context);
+        }
         replace_size = bdrv_getlength(to_replace_bs);
-        aio_context_release(replace_aio_context);
+        if (replace_aio_context != aio_context) {
+            aio_context_release(replace_aio_context);
+        }
 
         if (replace_size < 0) {
             error_setg_errno(errp, -replace_size,
