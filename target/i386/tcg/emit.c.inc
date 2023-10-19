@@ -55,11 +55,6 @@ static void gen_NM_exception(DisasContext *s)
     gen_exception(s, EXCP07_PREX);
 }
 
-static void gen_illegal(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
-{
-    gen_illegal_opcode(s);
-}
-
 static void gen_load_ea(DisasContext *s, AddressParts *mem, bool is_vsib)
 {
     TCGv ea = gen_lea_modrm_1(s, *mem, is_vsib);

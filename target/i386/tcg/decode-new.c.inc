@@ -151,6 +151,7 @@
 
 #define cpuid(feat) .cpuid = X86_FEAT_##feat,
 #define xchg .special = X86_SPECIAL_Locked,
+#define lock .special = X86_SPECIAL_HasLock,
 #define mmx .special = X86_SPECIAL_MMX,
 #define zext0 .special = X86_SPECIAL_ZExtOp0,
 #define zext2 .special = X86_SPECIAL_ZExtOp2,
@@ -1103,10 +1104,6 @@ static int decode_modrm(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 {
     int modrm = get_modrm(s, env);
     if ((modrm >> 6) == 3) {
-        if (s->prefix & PREFIX_LOCK) {
-            decode->e.gen = gen_illegal;
-            return 0xff;
-        }
         op->n = (modrm & 7);
         if (type != X86_TYPE_Q && type != X86_TYPE_N) {
             op->n |= REX_B(s);
@@ -1881,6 +1878,9 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         if (decode.op[0].has_ea) {
             s->prefix |= PREFIX_LOCK;
         }
+        decode.e.special = X86_SPECIAL_HasLock;
+        /* fallthrough */
+    case X86_SPECIAL_HasLock:
         break;
 
     case X86_SPECIAL_ZExtOp0:
@@ -1907,6 +1907,12 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
 
     default:
         break;
+    }
+
+    if (s->prefix & PREFIX_LOCK) {
+        if (decode.e.special != X86_SPECIAL_HasLock || !decode.op[0].has_ea) {
+            goto illegal_op;
+        }
     }
 
     if (!validate_vex(s, &decode)) {
@@ -1952,9 +1958,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         gen_load_ea(s, &decode.mem, decode.e.vex_class == 12);
     }
     if (s->prefix & PREFIX_LOCK) {
-        if (decode.op[0].unit != X86_OP_INT || !decode.op[0].has_ea) {
-            goto illegal_op;
-        }
         gen_load(s, &decode, 2, s->T1);
         decode.e.gen(s, env, &decode);
     } else {

@@ -158,6 +158,9 @@ typedef enum X86InsnCheck {
 typedef enum X86InsnSpecial {
     X86_SPECIAL_None,
 
+    /* Accepts LOCK prefix; LOCKed operations do not load or writeback operand 0 */
+    X86_SPECIAL_HasLock,
+
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
 
