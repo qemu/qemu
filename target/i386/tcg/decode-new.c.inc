@@ -1212,6 +1212,8 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     case X86_TYPE_None:  /* Implicit or absent */
     case X86_TYPE_A:  /* Implicit */
     case X86_TYPE_F:  /* EFLAGS/RFLAGS */
+    case X86_TYPE_X:  /* string source */
+    case X86_TYPE_Y:  /* string destination */
         break;
 
     case X86_TYPE_B:  /* VEX.vvvv selects a GPR */
@@ -1344,24 +1346,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
         op->n = insn_get(env, s, op->ot) >> 4;
-        break;
-
-    case X86_TYPE_X:  /* string source */
-        op->n = -1;
-        decode->mem = (AddressParts) {
-            .def_seg = R_DS,
-            .base = R_ESI,
-            .index = -1,
-        };
-        break;
-
-    case X86_TYPE_Y:  /* string destination */
-        op->n = -1;
-        decode->mem = (AddressParts) {
-            .def_seg = R_ES,
-            .base = R_EDI,
-            .index = -1,
-        };
         break;
 
     case X86_TYPE_2op:
