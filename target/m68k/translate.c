@@ -520,21 +520,9 @@ static inline void gen_ext(TCGv res, TCGv val, int opsize, int sign)
 {
     switch (opsize) {
     case OS_BYTE:
-        if (sign) {
-            tcg_gen_ext8s_i32(res, val);
-        } else {
-            tcg_gen_ext8u_i32(res, val);
-        }
-        break;
     case OS_WORD:
-        if (sign) {
-            tcg_gen_ext16s_i32(res, val);
-        } else {
-            tcg_gen_ext16u_i32(res, val);
-        }
-        break;
     case OS_LONG:
-        tcg_gen_mov_i32(res, val);
+        tcg_gen_ext_i32(res, val, opsize | (sign ? MO_SIGN : 0));
         break;
     default:
         g_assert_not_reached();
@@ -1072,15 +1060,10 @@ static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
             tmp = tcg_temp_new();
             switch (opsize) {
             case OS_BYTE:
-                tcg_gen_ext8s_i32(tmp, reg);
-                gen_helper_exts32(tcg_env, fp, tmp);
-                break;
             case OS_WORD:
-                tcg_gen_ext16s_i32(tmp, reg);
-                gen_helper_exts32(tcg_env, fp, tmp);
-                break;
             case OS_LONG:
-                gen_helper_exts32(tcg_env, fp, reg);
+                tcg_gen_ext_i32(tmp, reg, opsize | MO_SIGN);
+                gen_helper_exts32(tcg_env, fp, tmp);
                 break;
             case OS_SINGLE:
                 gen_helper_extf32(tcg_env, fp, reg);
