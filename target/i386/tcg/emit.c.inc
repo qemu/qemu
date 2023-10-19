@@ -1348,7 +1348,8 @@ static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
     /* low part of result in VEX.vvvv, high in MODRM */
     switch (ot) {
-    default:
+    case MO_32:
+#ifdef TARGET_X86_64
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
         tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
         tcg_gen_mulu2_i32(s->tmp2_i32, s->tmp3_i32,
@@ -1356,13 +1357,15 @@ static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         tcg_gen_extu_i32_tl(cpu_regs[s->vex_v], s->tmp2_i32);
         tcg_gen_extu_i32_tl(s->T0, s->tmp3_i32);
         break;
-#ifdef TARGET_X86_64
-    case MO_64:
-        tcg_gen_mulu2_i64(cpu_regs[s->vex_v], s->T0, s->T0, s->T1);
-        break;
-#endif
-    }
 
+    case MO_64:
+#endif
+        tcg_gen_mulu2_tl(cpu_regs[s->vex_v], s->T0, s->T0, s->T1);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void gen_PALIGNR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1765,14 +1768,24 @@ static void gen_PSLLDQ_i(DisasContext *s, CPUX86State *env, X86DecodedInsn *deco
 static void gen_RORX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
-    int b = decode->immediate;
+    int mask = ot == MO_64 ? 63 : 31;
+    int b = decode->immediate & mask;
 
-    if (ot == MO_64) {
-        tcg_gen_rotri_tl(s->T0, s->T0, b & 63);
-    } else {
+    switch (ot) {
+    case MO_32:
+#ifdef TARGET_X86_64
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-        tcg_gen_rotri_i32(s->tmp2_i32, s->tmp2_i32, b & 31);
+        tcg_gen_rotri_i32(s->tmp2_i32, s->tmp2_i32, b);
         tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
+        break;
+
+    case MO_64:
+#endif
+        tcg_gen_rotri_tl(s->T0, s->T0, b);
+        break;
+
+    default:
+        g_assert_not_reached();
     }
 }
 
