@@ -241,9 +241,13 @@ static inline void compress_reset_result(CompressParam *param)
     param->offset = 0;
 }
 
-void flush_compressed_data(int (send_queued_data(CompressParam *)))
+void compress_flush_data(void)
 {
     int thread_count = migrate_compress_threads();
+
+    if (!migrate_compress()) {
+        return;
+    }
 
     qemu_mutex_lock(&comp_done_lock);
     for (int i = 0; i < thread_count; i++) {
@@ -257,7 +261,7 @@ void flush_compressed_data(int (send_queued_data(CompressParam *)))
         qemu_mutex_lock(&comp_param[i].mutex);
         if (!comp_param[i].quit) {
             CompressParam *param = &comp_param[i];
-            send_queued_data(param);
+            compress_send_queued_data(param);
             assert(qemu_file_buffer_empty(param->file));
             compress_reset_result(param);
         }
@@ -557,13 +561,4 @@ void compress_update_rates(uint64_t page_count)
         compression_counters.compressed_size_prev =
             compression_counters.compressed_size;
     }
-}
-
-void compress_flush_data(void)
-{
-    if (!migrate_compress()) {
-        return;
-    }
-
-    flush_compressed_data(compress_send_queued_data);
 }
