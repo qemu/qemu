@@ -207,7 +207,47 @@ int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
+/**
+ * qemu_find_nic_info: Obtain NIC configuration information
+ * @typename: Name of device object type
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match (for user convenience and
+ *         backward compatibility).
+ *
+ * Search for a NIC configuration matching the NIC model constraints.
+ */
+NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+                            const char *alias);
+/**
+ * qemu_configure_nic_device: Apply NIC configuration to a given device
+ * @dev: Network device to be configured
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match
+ *
+ * Search for a NIC configuration for the provided device, using the
+ * additionally specified matching constraints. If found, apply the
+ * configuration using qdev_set_nic_properties() and return %true.
+ *
+ * This is used by platform code which creates the device anyway,
+ * regardless of whether there is a configuration for it. This tends
+ * to be platforms which ignore `--nodefaults` and create net devices
+ * anyway, for example because the Ethernet device on that board is
+ * always physically present.
+ */
+bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
+                               const char *alias);
 
+/**
+ * qemu_create_nic_device: Create a NIC device if a configuration exists for it
+ * @typename: Object typename of network device
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match
+ *
+ * Search for a NIC configuration for the provided device type. If found,
+ * create an object of the corresponding type and return it.
+ */
+DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+                                    const char *alias);
 void print_net_client(Monitor *mon, NetClientState *nc);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
