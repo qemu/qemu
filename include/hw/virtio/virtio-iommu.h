@@ -55,8 +55,8 @@ struct VirtIOIOMMU {
     GHashTable *as_by_busptr;
     IOMMUPciBus *iommu_pcibus_by_bus_num[PCI_BUS_MAX];
     PCIBus *primary_bus;
-    ReservedRegion *reserved_regions;
-    uint32_t nb_reserved_regions;
+    ReservedRegion *prop_resv_regions;
+    uint32_t nr_prop_resv_regions;
     GTree *domains;
     QemuRecMutex mutex;
     GTree *endpoints;

@@ -631,22 +631,23 @@ static ssize_t virtio_iommu_fill_resv_mem_prop(VirtIOIOMMU *s, uint32_t ep,
     size_t size = sizeof(prop), length = size - sizeof(prop.head), total;
     int i;
 
-    total = size * s->nb_reserved_regions;
+    total = size * s->nr_prop_resv_regions;
 
     if (total > free) {
         return -ENOSPC;
     }
 
-    for (i = 0; i < s->nb_reserved_regions; i++) {
-        unsigned subtype = s->reserved_regions[i].type;
+    for (i = 0; i < s->nr_prop_resv_regions; i++) {
+        unsigned subtype = s->prop_resv_regions[i].type;
+        Range *range = &s->prop_resv_regions[i].range;
 
         assert(subtype == VIRTIO_IOMMU_RESV_MEM_T_RESERVED ||
                subtype == VIRTIO_IOMMU_RESV_MEM_T_MSI);
         prop.head.type = cpu_to_le16(VIRTIO_IOMMU_PROBE_T_RESV_MEM);
         prop.head.length = cpu_to_le16(length);
         prop.subtype = subtype;
-        prop.start = cpu_to_le64(range_lob(&s->reserved_regions[i].range));
-        prop.end = cpu_to_le64(range_upb(&s->reserved_regions[i].range));
+        prop.start = cpu_to_le64(range_lob(range));
+        prop.end = cpu_to_le64(range_upb(range));
 
         memcpy(buf, &prop, size);
 
@@ -894,8 +895,8 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         goto unlock;
     }
 
-    for (i = 0; i < s->nb_reserved_regions; i++) {
-        ReservedRegion *reg = &s->reserved_regions[i];
+    for (i = 0; i < s->nr_prop_resv_regions; i++) {
+        ReservedRegion *reg = &s->prop_resv_regions[i];
 
         if (range_contains(&reg->range, addr)) {
             switch (reg->type) {
