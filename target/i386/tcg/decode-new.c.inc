@@ -153,8 +153,8 @@
 #define xchg .special = X86_SPECIAL_Locked,
 #define lock .special = X86_SPECIAL_HasLock,
 #define mmx .special = X86_SPECIAL_MMX,
-#define zext0 .special = X86_SPECIAL_ZExtOp0,
-#define zext2 .special = X86_SPECIAL_ZExtOp2,
+#define op0_Rd .special = X86_SPECIAL_Op0_Rd,
+#define op2_Ry .special = X86_SPECIAL_Op2_Ry,
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
 
 #define vex1 .vex_class = 1,
@@ -632,13 +632,13 @@ static const X86OpEntry opcodes_0F3A[256] = {
     [0x05] = X86_OP_ENTRY3(VPERMILPD_i, V,x,  W,x,  I,b,  vex6 chk(W0) cpuid(AVX) p_66),
     [0x06] = X86_OP_ENTRY4(VPERM2x128,  V,qq, H,qq, W,qq, vex6 chk(W0) cpuid(AVX) p_66),
 
-    [0x14] = X86_OP_ENTRY3(PEXTRB,     E,b,  V,dq, I,b,  vex5 cpuid(SSE41) zext0 p_66),
-    [0x15] = X86_OP_ENTRY3(PEXTRW,     E,w,  V,dq, I,b,  vex5 cpuid(SSE41) zext0 p_66),
+    [0x14] = X86_OP_ENTRY3(PEXTRB,     E,b,  V,dq, I,b,  vex5 cpuid(SSE41) op0_Rd p_66),
+    [0x15] = X86_OP_ENTRY3(PEXTRW,     E,w,  V,dq, I,b,  vex5 cpuid(SSE41) op0_Rd p_66),
     [0x16] = X86_OP_ENTRY3(PEXTR,      E,y,  V,dq, I,b,  vex5 cpuid(SSE41) p_66),
     [0x17] = X86_OP_ENTRY3(VEXTRACTPS, E,d,  V,dq, I,b,  vex5 cpuid(SSE41) p_66),
     [0x1d] = X86_OP_ENTRY3(VCVTPS2PH,  W,xh, V,x,  I,b,  vex11 chk(W0) cpuid(F16C) p_66),
 
-    [0x20] = X86_OP_ENTRY4(PINSRB,     V,dq, H,dq, E,b,  vex5 cpuid(SSE41) zext2 p_66),
+    [0x20] = X86_OP_ENTRY4(PINSRB,     V,dq, H,dq, E,b,  vex5 cpuid(SSE41) op2_Ry p_66),
     [0x21] = X86_OP_GROUP0(VINSERTPS),
     [0x22] = X86_OP_ENTRY4(PINSR,      V,dq, H,dq, E,y,  vex5 cpuid(SSE41) p_66),
 
@@ -1883,17 +1883,17 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     case X86_SPECIAL_HasLock:
         break;
 
-    case X86_SPECIAL_ZExtOp0:
+    case X86_SPECIAL_Op0_Rd:
         assert(decode.op[0].unit == X86_OP_INT);
         if (!decode.op[0].has_ea) {
             decode.op[0].ot = MO_32;
         }
         break;
 
-    case X86_SPECIAL_ZExtOp2:
+    case X86_SPECIAL_Op2_Ry:
         assert(decode.op[2].unit == X86_OP_INT);
         if (!decode.op[2].has_ea) {
-            decode.op[2].ot = MO_32;
+            decode.op[2].ot = s->dflag == MO_16 ? MO_32 : s->dflag;
         }
         break;
 
