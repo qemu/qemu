@@ -271,35 +271,35 @@ bool compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
 
     thread_count = migrate_compress_threads();
     qemu_mutex_lock(&comp_done_lock);
-retry:
-    for (int i = 0; i < thread_count; i++) {
-        if (comp_param[i].done) {
-            CompressParam *param = &comp_param[i];
-            qemu_mutex_lock(&param->mutex);
-            param->done = false;
-            send_queued_data(param);
-            assert(qemu_file_buffer_empty(param->file));
-            compress_reset_result(param);
-            set_compress_params(param, block, offset);
 
-            qemu_cond_signal(&param->cond);
-            qemu_mutex_unlock(&param->mutex);
-            qemu_mutex_unlock(&comp_done_lock);
-            return true;
+    while (true) {
+        for (int i = 0; i < thread_count; i++) {
+            if (comp_param[i].done) {
+                CompressParam *param = &comp_param[i];
+                qemu_mutex_lock(&param->mutex);
+                param->done = false;
+                send_queued_data(param);
+                assert(qemu_file_buffer_empty(param->file));
+                compress_reset_result(param);
+                set_compress_params(param, block, offset);
+
+                qemu_cond_signal(&param->cond);
+                qemu_mutex_unlock(&param->mutex);
+                qemu_mutex_unlock(&comp_done_lock);
+                return true;
+            }
         }
-    }
-
-    /*
-     * wait for the free thread if the user specifies 'compress-wait-thread',
-     * otherwise we will post the page out in the main thread as normal page.
-     */
-    if (wait) {
+        if (!wait) {
+            qemu_mutex_unlock(&comp_done_lock);
+            return false;
+        }
+        /*
+         * wait for a free thread if the user specifies
+         * 'compress-wait-thread', otherwise we will post the page out
+         * in the main thread as normal page.
+         */
         qemu_cond_wait(&comp_done_cond, &comp_done_lock);
-        goto retry;
     }
-    qemu_mutex_unlock(&comp_done_lock);
-
-    return false;
 }
 
 /* return the size after decompression, or negative value on error */
