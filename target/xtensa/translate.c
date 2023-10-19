@@ -2262,17 +2262,7 @@ static void translate_salt(DisasContext *dc, const OpcodeArg arg[],
 static void translate_sext(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
-    int shift = 31 - arg[2].imm;
-
-    if (shift == 24) {
-        tcg_gen_ext8s_i32(arg[0].out, arg[1].in);
-    } else if (shift == 16) {
-        tcg_gen_ext16s_i32(arg[0].out, arg[1].in);
-    } else {
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_shli_i32(tmp, arg[1].in, shift);
-        tcg_gen_sari_i32(arg[0].out, tmp, shift);
-    }
+    tcg_gen_sextract_i32(arg[0].out, arg[1].in, 0, arg[2].imm + 1);
 }
 
 static uint32_t test_exceptions_simcall(DisasContext *dc,
