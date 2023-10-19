@@ -382,13 +382,39 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
     /* If the capability cannot be found, assume no DMA limiting */
     hdr = vfio_get_iommu_type1_info_cap(info,
                                         VFIO_IOMMU_TYPE1_INFO_DMA_AVAIL);
-    if (hdr == NULL) {
+    if (!hdr) {
         return false;
     }
 
     if (avail != NULL) {
         cap = (void *) hdr;
         *avail = cap->avail;
+    }
+
+    return true;
+}
+
+static bool vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
+                                     VFIOContainer *container)
+{
+    struct vfio_info_cap_header *hdr;
+    struct vfio_iommu_type1_info_cap_iova_range *cap;
+
+    hdr = vfio_get_iommu_type1_info_cap(info,
+                                        VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE);
+    if (!hdr) {
+        return false;
+    }
+
+    cap = (void *)hdr;
+
+    for (int i = 0; i < cap->nr_iovas; i++) {
+        Range *range = g_new(Range, 1);
+
+        range_set_bounds(range, cap->iova_ranges[i].start,
+                         cap->iova_ranges[i].end);
+        container->iova_ranges =
+            range_list_insert(container->iova_ranges, range);
     }
 
     return true;
@@ -535,6 +561,12 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
     }
 }
 
+static void vfio_free_container(VFIOContainer *container)
+{
+    g_list_free_full(container->iova_ranges, g_free);
+    g_free(container);
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
@@ -616,6 +648,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->error = NULL;
     container->dirty_pages_supported = false;
     container->dma_max_mappings = 0;
+    container->iova_ranges = NULL;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
     QLIST_INIT(&container->vrdl_list);
@@ -652,6 +685,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         if (!vfio_get_info_dma_avail(info, &container->dma_max_mappings)) {
             container->dma_max_mappings = 65535;
         }
+
+        vfio_get_info_iova_range(info, container);
+
         vfio_get_iommu_info_migration(container, info);
         g_free(info);
 
@@ -765,7 +801,7 @@ enable_discards_exit:
     vfio_ram_block_discard_disable(container, false);
 
 free_container_exit:
-    g_free(container);
+    vfio_free_container(container);
 
 close_fd_exit:
     close(fd);
@@ -819,7 +855,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
-        g_free(container);
+        vfio_free_container(container);
 
         vfio_put_address_space(space);
     }
