@@ -32,11 +32,14 @@
 #include "ram-compress.h"
 
 #include "qemu/error-report.h"
+#include "qemu/stats64.h"
 #include "migration.h"
 #include "options.h"
 #include "io/channel-null.h"
 #include "exec/target_page.h"
 #include "exec/ramblock.h"
+#include "ram.h"
+#include "migration-stats.h"
 
 CompressionStats compression_counters;
 
@@ -227,27 +230,25 @@ static inline void compress_reset_result(CompressParam *param)
 
 void flush_compressed_data(int (send_queued_data(CompressParam *)))
 {
-    int idx, thread_count;
-
-    thread_count = migrate_compress_threads();
+    int thread_count = migrate_compress_threads();
 
     qemu_mutex_lock(&comp_done_lock);
-    for (idx = 0; idx < thread_count; idx++) {
-        while (!comp_param[idx].done) {
+    for (int i = 0; i < thread_count; i++) {
+        while (!comp_param[i].done) {
             qemu_cond_wait(&comp_done_cond, &comp_done_lock);
         }
     }
     qemu_mutex_unlock(&comp_done_lock);
 
-    for (idx = 0; idx < thread_count; idx++) {
-        qemu_mutex_lock(&comp_param[idx].mutex);
-        if (!comp_param[idx].quit) {
-            CompressParam *param = &comp_param[idx];
+    for (int i = 0; i < thread_count; i++) {
+        qemu_mutex_lock(&comp_param[i].mutex);
+        if (!comp_param[i].quit) {
+            CompressParam *param = &comp_param[i];
             send_queued_data(param);
             assert(qemu_file_buffer_empty(param->file));
             compress_reset_result(param);
         }
-        qemu_mutex_unlock(&comp_param[idx].mutex);
+        qemu_mutex_unlock(&comp_param[i].mutex);
     }
 }
 
@@ -262,15 +263,15 @@ static inline void set_compress_params(CompressParam *param, RAMBlock *block,
 int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
                                 int (send_queued_data(CompressParam *)))
 {
-    int idx, thread_count, pages = -1;
+    int  thread_count, pages = -1;
     bool wait = migrate_compress_wait_thread();
 
     thread_count = migrate_compress_threads();
     qemu_mutex_lock(&comp_done_lock);
 retry:
-    for (idx = 0; idx < thread_count; idx++) {
-        if (comp_param[idx].done) {
-            CompressParam *param = &comp_param[idx];
+    for (int i = 0; i < thread_count; i++) {
+        if (comp_param[i].done) {
+            CompressParam *param = &comp_param[i];
             qemu_mutex_lock(&param->mutex);
             param->done = false;
             send_queued_data(param);
@@ -364,16 +365,14 @@ static void *do_data_decompress(void *opaque)
 
 int wait_for_decompress_done(void)
 {
-    int idx, thread_count;
-
     if (!migrate_compress()) {
         return 0;
     }
 
-    thread_count = migrate_decompress_threads();
+    int thread_count = migrate_decompress_threads();
     qemu_mutex_lock(&decomp_done_lock);
-    for (idx = 0; idx < thread_count; idx++) {
-        while (!decomp_param[idx].done) {
+    for (int i = 0; i < thread_count; i++) {
+        while (!decomp_param[i].done) {
             qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
         }
     }
@@ -430,6 +429,11 @@ int compress_threads_load_setup(QEMUFile *f)
         return 0;
     }
 
+    /*
+     * set compression_counters memory to zero for a new migration
+     */
+    memset(&compression_counters, 0, sizeof(compression_counters));
+
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
@@ -459,27 +463,54 @@ exit:
 
 void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
 {
-    int idx, thread_count;
-
-    thread_count = migrate_decompress_threads();
+    int thread_count = migrate_decompress_threads();
     QEMU_LOCK_GUARD(&decomp_done_lock);
     while (true) {
-        for (idx = 0; idx < thread_count; idx++) {
-            if (decomp_param[idx].done) {
-                decomp_param[idx].done = false;
-                qemu_mutex_lock(&decomp_param[idx].mutex);
-                qemu_get_buffer(f, decomp_param[idx].compbuf, len);
-                decomp_param[idx].des = host;
-                decomp_param[idx].len = len;
-                qemu_cond_signal(&decomp_param[idx].cond);
-                qemu_mutex_unlock(&decomp_param[idx].mutex);
-                break;
+        for (int i = 0; i < thread_count; i++) {
+            if (decomp_param[i].done) {
+                decomp_param[i].done = false;
+                qemu_mutex_lock(&decomp_param[i].mutex);
+                qemu_get_buffer(f, decomp_param[i].compbuf, len);
+                decomp_param[i].des = host;
+                decomp_param[i].len = len;
+                qemu_cond_signal(&decomp_param[i].cond);
+                qemu_mutex_unlock(&decomp_param[i].mutex);
+                return;
             }
         }
-        if (idx < thread_count) {
-            break;
-        } else {
-            qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
-        }
+        qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
     }
 }
+
+void populate_compress(MigrationInfo *info)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+    info->compression = g_malloc0(sizeof(*info->compression));
+    info->compression->pages = compression_counters.pages;
+    info->compression->busy = compression_counters.busy;
+    info->compression->busy_rate = compression_counters.busy_rate;
+    info->compression->compressed_size = compression_counters.compressed_size;
+    info->compression->compression_rate = compression_counters.compression_rate;
+}
+
+uint64_t ram_compressed_pages(void)
+{
+    return compression_counters.pages;
+}
+
+void update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
+{
+    ram_transferred_add(bytes_xmit);
+
+    if (param->result == RES_ZEROPAGE) {
+        stat64_add(&mig_stats.zero_pages, 1);
+        return;
+    }
+
+    /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+    compression_counters.compressed_size += bytes_xmit - 8;
+    compression_counters.pages++;
+}
+

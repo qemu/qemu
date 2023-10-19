@@ -939,7 +939,7 @@ uint64_t ram_get_total_transferred_pages(void)
 {
     return stat64_get(&mig_stats.normal_pages) +
         stat64_get(&mig_stats.zero_pages) +
-        compression_counters.pages + xbzrle_counters.pages;
+        ram_compressed_pages() + xbzrle_counters.pages;
 }
 
 static void migration_update_rates(RAMState *rs, int64_t end_time)
@@ -1144,13 +1144,12 @@ void ram_release_page(const char *rbname, uint64_t offset)
  *
  * @rs: current RAM state
  * @pss: current PSS channel
- * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  */
-static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
+static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
                           ram_addr_t offset)
 {
-    uint8_t *p = block->host + offset;
+    uint8_t *p = pss->block->host + offset;
     QEMUFile *file = pss->pss_channel;
     int len = 0;
 
@@ -1158,10 +1157,10 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
         return 0;
     }
 
-    len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+    len += save_page_header(pss, file, pss->block, offset | RAM_SAVE_FLAG_ZERO);
     qemu_put_byte(file, 0);
     len += 1;
-    ram_release_page(block->idstr, offset);
+    ram_release_page(pss->block->idstr, offset);
 
     stat64_add(&mig_stats.zero_pages, 1);
     ram_transferred_add(len);
@@ -1172,7 +1171,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
      */
     if (rs->xbzrle_started) {
         XBZRLE_cache_lock();
-        xbzrle_cache_zero_page(block->offset + offset);
+        xbzrle_cache_zero_page(pss->block->offset + offset);
         XBZRLE_cache_unlock();
     }
 
@@ -1186,12 +1185,12 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
  *
  * Return true if the pages has been saved, otherwise false is returned.
  */
-static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
+static bool control_save_page(PageSearchStatus *pss,
                               ram_addr_t offset, int *pages)
 {
     int ret;
 
-    ret = rdma_control_save_page(pss->pss_channel, block->offset, offset,
+    ret = rdma_control_save_page(pss->pss_channel, pss->block->offset, offset,
                                  TARGET_PAGE_SIZE);
     if (ret == RAM_SAVE_CONTROL_NOT_SUPP) {
         return false;
@@ -1290,21 +1289,6 @@ static int ram_save_multifd_page(QEMUFile *file, RAMBlock *block,
     stat64_add(&mig_stats.normal_pages, 1);
 
     return 1;
-}
-
-static void
-update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
-{
-    ram_transferred_add(bytes_xmit);
-
-    if (param->result == RES_ZEROPAGE) {
-        stat64_add(&mig_stats.zero_pages, 1);
-        return;
-    }
-
-    /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
-    compression_counters.compressed_size += bytes_xmit - 8;
-    compression_counters.pages++;
 }
 
 static bool save_page_use_compression(RAMState *rs);
@@ -2082,7 +2066,7 @@ static bool save_page_use_compression(RAMState *rs)
  * paths to handle it
  */
 static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
-                               RAMBlock *block, ram_addr_t offset)
+                               ram_addr_t offset)
 {
     if (!save_page_use_compression(rs)) {
         return false;
@@ -2098,12 +2082,13 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
      * We post the fist page as normal page as compression will take
      * much CPU resource.
      */
-    if (block != pss->last_sent_block) {
+    if (pss->block != pss->last_sent_block) {
         ram_flush_compressed_data(rs);
         return false;
     }
 
-    if (compress_page_with_multi_thread(block, offset, send_queued_data) > 0) {
+    if (compress_page_with_multi_thread(pss->block, offset,
+                                        send_queued_data) > 0) {
         return true;
     }
 
@@ -2125,15 +2110,15 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     int res;
 
-    if (control_save_page(pss, block, offset, &res)) {
+    if (control_save_page(pss, offset, &res)) {
         return res;
     }
 
-    if (save_compress_page(rs, pss, block, offset)) {
+    if (save_compress_page(rs, pss, offset)) {
         return 1;
     }
 
-    if (save_zero_page(rs, pss, block, offset)) {
+    if (save_zero_page(rs, pss, offset)) {
         return 1;
     }
 

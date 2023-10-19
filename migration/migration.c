@@ -447,6 +447,18 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
         socket_start_incoming_migration(p ? p : uri, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        if (migrate_compress()) {
+            error_setg(errp, "RDMA and compression can't be used together");
+            return;
+        }
+        if (migrate_xbzrle()) {
+            error_setg(errp, "RDMA and XBZRLE can't be used together");
+            return;
+        }
+        if (migrate_multifd()) {
+            error_setg(errp, "RDMA and multifd can't be used together");
+            return;
+        }
         rdma_start_incoming_migration(p, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
@@ -962,16 +974,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
         info->xbzrle_cache->overflow = xbzrle_counters.overflow;
     }
 
-    if (migrate_compress()) {
-        info->compression = g_malloc0(sizeof(*info->compression));
-        info->compression->pages = compression_counters.pages;
-        info->compression->busy = compression_counters.busy;
-        info->compression->busy_rate = compression_counters.busy_rate;
-        info->compression->compressed_size =
-                                    compression_counters.compressed_size;
-        info->compression->compression_rate =
-                                    compression_counters.compression_rate;
-    }
+    populate_compress(info);
 
     if (cpu_throttle_active()) {
         info->has_cpu_throttle_percentage = true;
@@ -1454,11 +1457,9 @@ int migrate_init(MigrationState *s, Error **errp)
     s->switchover_acked = false;
     s->rdma_migration = false;
     /*
-     * set mig_stats compression_counters memory to zero for a
-     * new migration
+     * set mig_stats memory to zero for a new migration
      */
     memset(&mig_stats, 0, sizeof(mig_stats));
-    memset(&compression_counters, 0, sizeof(compression_counters));
     migration_reset_vfio_bytes_transferred();
 
     return 0;
