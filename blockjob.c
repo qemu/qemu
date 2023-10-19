@@ -198,7 +198,9 @@ void block_job_remove_all_bdrv(BlockJob *job)
      * one to make sure that such a concurrent access does not attempt
      * to process an already freed BdrvChild.
      */
+    aio_context_release(job->job.aio_context);
     bdrv_graph_wrlock(NULL);
+    aio_context_acquire(job->job.aio_context);
     while (job->nodes) {
         GSList *l = job->nodes;
         BdrvChild *c = l->data;
