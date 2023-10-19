@@ -16,7 +16,8 @@
 #include "block/ufs.h"
 
 #define UFS_MAX_LUS 32
-#define UFS_BLOCK_SIZE 4096
+#define UFS_BLOCK_SIZE_SHIFT 12
+#define UFS_BLOCK_SIZE (1 << UFS_BLOCK_SIZE_SHIFT)
 
 typedef struct UfsBusClass {
     BusClass parent_class;
@@ -24,7 +25,7 @@ typedef struct UfsBusClass {
 } UfsBusClass;
 
 typedef struct UfsBus {
-    SCSIBus parent_bus;
+    BusState parent_bus;
 } UfsBus;
 
 #define TYPE_UFS_BUS "ufs-bus"
@@ -55,18 +56,21 @@ typedef struct UfsRequest {
 
     /* for scsi command */
     QEMUSGList *sg;
+    uint32_t data_len;
 } UfsRequest;
 
+struct UfsLu;
+typedef UfsReqResult (*UfsScsiOp)(struct UfsLu *, UfsRequest *);
+
 typedef struct UfsLu {
-    SCSIDevice qdev;
+    DeviceState qdev;
     uint8_t lun;
     UnitDescriptor unit_desc;
+    SCSIBus bus;
+    SCSIDevice *scsi_dev;
+    BlockConf conf;
+    UfsScsiOp scsi_op;
 } UfsLu;
-
-typedef struct UfsWLu {
-    SCSIDevice qdev;
-    uint8_t lun;
-} UfsWLu;
 
 typedef struct UfsParams {
     char *serial;
@@ -84,10 +88,10 @@ typedef struct UfsHc {
     UfsRequest *req_list;
 
     UfsLu *lus[UFS_MAX_LUS];
-    UfsWLu *report_wlu;
-    UfsWLu *dev_wlu;
-    UfsWLu *boot_wlu;
-    UfsWLu *rpmb_wlu;
+    UfsLu report_wlu;
+    UfsLu dev_wlu;
+    UfsLu boot_wlu;
+    UfsLu rpmb_wlu;
     DeviceDescriptor device_desc;
     GeometryDescriptor geometry_desc;
     Attributes attributes;
@@ -103,9 +107,6 @@ typedef struct UfsHc {
 
 #define TYPE_UFS_LU "ufs-lu"
 #define UFSLU(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_LU)
-
-#define TYPE_UFS_WLU "ufs-wlu"
-#define UFSWLU(obj) OBJECT_CHECK(UfsWLu, (obj), TYPE_UFS_WLU)
 
 typedef enum UfsQueryFlagPerm {
     UFS_QUERY_FLAG_NONE = 0x0,
@@ -128,4 +129,9 @@ static inline bool is_wlun(uint8_t lun)
             lun == UFS_UPIU_RPMB_WLUN);
 }
 
+void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
+                           uint8_t response, uint8_t scsi_status,
+                           uint16_t data_segment_length);
+void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
+void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
 #endif /* HW_UFS_UFS_H */

@@ -425,6 +425,9 @@ static void ufstest_init(void *obj, void *data, QGuestAllocator *alloc)
     const uint8_t test_unit_ready_cdb[UFS_CDB_SIZE] = {
         TEST_UNIT_READY,
     };
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+    };
     UtpTransferReqDesc utrd;
     UtpUpiuRsp rsp_upiu;
 
@@ -439,6 +442,12 @@ static void ufstest_init(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmpuint(buf[3], ==, 8);
     /* There is one logical unit whose lun is 0 */
     g_assert_cmpuint(buf[9], ==, 0);
+
+    /* Clear Unit Attention */
+    ufs_send_scsi_command(ufs, 0, 0, request_sense_cdb, NULL, 0, buf,
+                          sizeof(buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
 
     /* Check TEST_UNIT_READY */
     ufs_send_scsi_command(ufs, 0, 0, test_unit_ready_cdb, NULL, 0, NULL, 0,
@@ -473,6 +482,9 @@ static void ufstest_read_write(void *obj, void *data, QGuestAllocator *alloc)
         0x00,
         0x00
     };
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+    };
     const uint8_t read_cdb[UFS_CDB_SIZE] = {
         /* READ(10) to LBA 0, transfer length 1 */
         READ_10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00
@@ -484,32 +496,39 @@ static void ufstest_read_write(void *obj, void *data, QGuestAllocator *alloc)
     uint32_t block_size;
     UtpTransferReqDesc utrd;
     UtpUpiuRsp rsp_upiu;
+    const int test_lun = 1;
 
     ufs_init(ufs, alloc);
 
+    /* Clear Unit Attention */
+    ufs_send_scsi_command(ufs, 0, test_lun, request_sense_cdb, NULL, 0,
+                          read_buf, sizeof(read_buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
+
     /* Read capacity */
-    ufs_send_scsi_command(ufs, 0, 1, read_capacity_cdb, NULL, 0, read_buf,
-                          sizeof(read_buf), &utrd, &rsp_upiu);
+    ufs_send_scsi_command(ufs, 0, test_lun, read_capacity_cdb, NULL, 0,
+                          read_buf, sizeof(read_buf), &utrd, &rsp_upiu);
     g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
-                     UFS_COMMAND_RESULT_SUCESS);
+                     UFS_COMMAND_RESULT_SUCCESS);
     block_size = ldl_be_p(&read_buf[8]);
     g_assert_cmpuint(block_size, ==, 4096);
 
     /* Write data */
     memset(write_buf, 0xab, block_size);
-    ufs_send_scsi_command(ufs, 0, 1, write_cdb, write_buf, block_size, NULL, 0,
-                          &utrd, &rsp_upiu);
+    ufs_send_scsi_command(ufs, 0, test_lun, write_cdb, write_buf, block_size,
+                          NULL, 0, &utrd, &rsp_upiu);
     g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
-                     UFS_COMMAND_RESULT_SUCESS);
+                     UFS_COMMAND_RESULT_SUCCESS);
 
     /* Read data and verify */
-    ufs_send_scsi_command(ufs, 0, 1, read_cdb, NULL, 0, read_buf, block_size,
-                          &utrd, &rsp_upiu);
+    ufs_send_scsi_command(ufs, 0, test_lun, read_cdb, NULL, 0, read_buf,
+                          block_size, &utrd, &rsp_upiu);
     g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
-                     UFS_COMMAND_RESULT_SUCESS);
+                     UFS_COMMAND_RESULT_SUCCESS);
     g_assert_cmpint(memcmp(read_buf, write_buf, block_size), ==, 0);
 
     ufs_exit(ufs, alloc);

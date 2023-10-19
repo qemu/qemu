@@ -379,7 +379,7 @@ typedef struct Attributes {
 
 /* Command response result code */
 typedef enum CommandRespCode {
-    UFS_COMMAND_RESULT_SUCESS = 0x00,
+    UFS_COMMAND_RESULT_SUCCESS = 0x00,
     UFS_COMMAND_RESULT_FAIL = 0x01,
 } CommandRespCode;
 
