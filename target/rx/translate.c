@@ -492,13 +492,11 @@ static bool trans_MOV_ra(DisasContext *ctx, arg_MOV_ra *a)
 /* mov.<bwl> rs,rd */
 static bool trans_MOV_mm(DisasContext *ctx, arg_MOV_mm *a)
 {
-    static void (* const mov[])(TCGv ret, TCGv arg) = {
-        tcg_gen_ext8s_i32, tcg_gen_ext16s_i32, tcg_gen_mov_i32,
-    };
     TCGv tmp, mem, addr;
+
     if (a->lds == 3 && a->ldd == 3) {
         /* mov.<bwl> rs,rd */
-        mov[a->sz](cpu_regs[a->rd], cpu_regs[a->rs]);
+        tcg_gen_ext_i32(cpu_regs[a->rd], cpu_regs[a->rs], a->sz | MO_SIGN);
         return true;
     }
 
@@ -570,10 +568,7 @@ static bool trans_MOVU_mr(DisasContext *ctx, arg_MOVU_mr *a)
 /* movu.<bw> rs,rd */
 static bool trans_MOVU_rr(DisasContext *ctx, arg_MOVU_rr *a)
 {
-    static void (* const ext[])(TCGv ret, TCGv arg) = {
-        tcg_gen_ext8u_i32, tcg_gen_ext16u_i32,
-    };
-    ext[a->sz](cpu_regs[a->rd], cpu_regs[a->rs]);
+    tcg_gen_ext_i32(cpu_regs[a->rd], cpu_regs[a->rs], a->sz);
     return true;
 }
 
