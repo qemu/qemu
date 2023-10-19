@@ -522,9 +522,9 @@ void gen_op_add_reg_im(DisasContext *s, MemOp size, int reg, int32_t val)
     gen_op_mov_reg_v(s, size, reg, s->tmp0);
 }
 
-static inline void gen_op_add_reg_T0(DisasContext *s, MemOp size, int reg)
+static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
 {
-    tcg_gen_add_tl(s->tmp0, cpu_regs[reg], s->T0);
+    tcg_gen_add_tl(s->tmp0, cpu_regs[reg], val);
     gen_op_mov_reg_v(s, size, reg, s->tmp0);
 }
 
@@ -707,10 +707,12 @@ static inline void gen_string_movl_A0_EDI(DisasContext *s)
     gen_lea_v_seg(s, s->aflag, cpu_regs[R_EDI], R_ES, -1);
 }
 
-static inline void gen_op_movl_T0_Dshift(DisasContext *s, MemOp ot)
+static inline TCGv gen_compute_Dshift(DisasContext *s, MemOp ot)
 {
-    tcg_gen_ld32s_tl(s->T0, tcg_env, offsetof(CPUX86State, df));
-    tcg_gen_shli_tl(s->T0, s->T0, ot);
+    TCGv dshift = tcg_temp_new();
+    tcg_gen_ld32s_tl(dshift, tcg_env, offsetof(CPUX86State, df));
+    tcg_gen_shli_tl(dshift, dshift, ot);
+    return dshift;
 };
 
 static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
@@ -818,13 +820,16 @@ static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
 
 static void gen_movs(DisasContext *s, MemOp ot)
 {
+    TCGv dshift;
+
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_ESI);
-    gen_op_add_reg_T0(s, s->aflag, R_EDI);
+
+    dshift = gen_compute_Dshift(s, ot);
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
 static void gen_op_update1_cc(DisasContext *s)
@@ -1249,8 +1254,7 @@ static void gen_stos(DisasContext *s, MemOp ot)
     gen_op_mov_v_reg(s, MO_32, s->T0, R_EAX);
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_EDI);
+    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
 }
 
 static void gen_lods(DisasContext *s, MemOp ot)
@@ -1258,8 +1262,7 @@ static void gen_lods(DisasContext *s, MemOp ot)
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_op_mov_reg_v(s, ot, R_EAX, s->T0);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_ESI);
+    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
 }
 
 static void gen_scas(DisasContext *s, MemOp ot)
@@ -1267,19 +1270,21 @@ static void gen_scas(DisasContext *s, MemOp ot)
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_op(s, OP_CMPL, ot, R_EAX);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_EDI);
+    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
 }
 
 static void gen_cmps(DisasContext *s, MemOp ot)
 {
+    TCGv dshift;
+
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_string_movl_A0_ESI(s);
     gen_op(s, OP_CMPL, ot, OR_TMP0);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_ESI);
-    gen_op_add_reg_T0(s, s->aflag, R_EDI);
+
+    dshift = gen_compute_Dshift(s, ot);
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
 static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
@@ -1307,8 +1312,7 @@ static void gen_ins(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     gen_helper_in_func(ot, s->T0, s->tmp2_i32);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_EDI);
+    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
@@ -1321,8 +1325,7 @@ static void gen_outs(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T0);
     gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
-    gen_op_movl_T0_Dshift(s, ot);
-    gen_op_add_reg_T0(s, s->aflag, R_ESI);
+    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
