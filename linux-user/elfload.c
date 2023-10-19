@@ -1237,6 +1237,14 @@ static uint32_t get_elf_hwcap(void)
         hwcaps |= HWCAP_LOONGARCH_LAM;
     }
 
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
+        hwcaps |= HWCAP_LOONGARCH_LSX;
+    }
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
+        hwcaps |= HWCAP_LOONGARCH_LASX;
+    }
+
     return hwcaps;
 }
 
@@ -2362,9 +2370,16 @@ static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
  * Map and zero the bss.  We need to explicitly zero any fractional pages
  * after the data section (i.e. bss).  Return false on mapping failure.
  */
-static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss, int prot)
+static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss,
+                     int prot, Error **errp)
 {
     abi_ulong align_bss;
+
+    /* We only expect writable bss; the code segment shouldn't need this. */
+    if (!(prot & PROT_WRITE)) {
+        error_setg(errp, "PT_LOAD with non-writable bss");
+        return false;
+    }
 
     align_bss = TARGET_PAGE_ALIGN(start_bss);
     end_bss = TARGET_PAGE_ALIGN(end_bss);
@@ -2372,21 +2387,41 @@ static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss, int prot)
     if (start_bss < align_bss) {
         int flags = page_get_flags(start_bss);
 
-        if (!(flags & PAGE_VALID)) {
-            /* Map the start of the bss. */
+        if (!(flags & PAGE_BITS)) {
+            /*
+             * The whole address space of the executable was reserved
+             * at the start, therefore all pages will be VALID.
+             * But assuming there are no PROT_NONE PT_LOAD segments,
+             * a PROT_NONE page means no data all bss, and we can
+             * simply extend the new anon mapping back to the start
+             * of the page of bss.
+             */
             align_bss -= TARGET_PAGE_SIZE;
-        } else if (flags & PAGE_WRITE) {
-            /* The page is already mapped writable. */
-            memset(g2h_untagged(start_bss), 0, align_bss - start_bss);
         } else {
-            /* Read-only zeros? */
-            g_assert_not_reached();
+            /*
+             * The start of the bss shares a page with something.
+             * The only thing that we expect is the data section,
+             * which would already be marked writable.
+             * Overlapping the RX code segment seems malformed.
+             */
+            if (!(flags & PAGE_WRITE)) {
+                error_setg(errp, "PT_LOAD with bss overlapping "
+                           "non-writable page");
+                return false;
+            }
+
+            /* The page is already mapped and writable. */
+            memset(g2h_untagged(start_bss), 0, align_bss - start_bss);
         }
     }
 
-    return align_bss >= end_bss ||
-           target_mmap(align_bss, end_bss - align_bss, prot,
-                       MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0) != -1;
+    if (align_bss < end_bss &&
+        target_mmap(align_bss, end_bss - align_bss, prot,
+                    MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0) == -1) {
+        error_setg_errno(errp, errno, "Error mapping bss");
+        return false;
+    }
+    return true;
 }
 
 #if defined(TARGET_ARM)
@@ -3410,8 +3445,8 @@ static void load_elf_image(const char *image_name, int image_fd,
 
             /* If the load segment requests extra zeros (e.g. bss), map it. */
             if (vaddr_ef < vaddr_em &&
-                !zero_bss(vaddr_ef, vaddr_em, elf_prot)) {
-                goto exit_mmap;
+                !zero_bss(vaddr_ef, vaddr_em, elf_prot, &err)) {
+                goto exit_errmsg;
             }
 
             /* Find the full program boundaries.  */

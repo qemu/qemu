@@ -32,6 +32,7 @@
 #include "signal-common.h"
 #include "host-signal.h"
 #include "user/safe-syscall.h"
+#include "tcg/tcg.h"
 
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
@@ -43,9 +44,8 @@ abi_ulong default_sigreturn;
 abi_ulong default_rt_sigreturn;
 
 /*
- * System includes define _NSIG as SIGRTMAX + 1,
- * but qemu (like the kernel) defines TARGET_NSIG as TARGET_SIGRTMAX
- * and the first signal is SIGHUP defined as 1
+ * System includes define _NSIG as SIGRTMAX + 1, but qemu (like the kernel)
+ * defines TARGET_NSIG as TARGET_SIGRTMAX and the first signal is 1.
  * Signal number 0 is reserved for use as kill(pid, 0), to test whether
  * a process exists without sending it a signal.
  */
@@ -56,7 +56,6 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
 #define MAKE_SIG_ENTRY(sig)     [sig] = TARGET_##sig,
         MAKE_SIGNAL_LIST
 #undef MAKE_SIG_ENTRY
-    /* next signals stay the same */
 };
 
 static uint8_t target_to_host_signal_table[TARGET_NSIG + 1];
@@ -64,8 +63,11 @@ static uint8_t target_to_host_signal_table[TARGET_NSIG + 1];
 /* valid sig is between 1 and _NSIG - 1 */
 int host_to_target_signal(int sig)
 {
-    if (sig < 1 || sig >= _NSIG) {
+    if (sig < 1) {
         return sig;
+    }
+    if (sig >= _NSIG) {
+        return TARGET_NSIG + 1;
     }
     return host_to_target_signal_table[sig];
 }
@@ -73,8 +75,11 @@ int host_to_target_signal(int sig)
 /* valid sig is between 1 and TARGET_NSIG */
 int target_to_host_signal(int sig)
 {
-    if (sig < 1 || sig > TARGET_NSIG) {
+    if (sig < 1) {
         return sig;
+    }
+    if (sig > TARGET_NSIG) {
+        return _NSIG;
     }
     return target_to_host_signal_table[sig];
 }
@@ -487,26 +492,6 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
     info->si_value.sival_ptr = (void *)(long)sival_ptr;
 }
 
-static int fatal_signal (int sig)
-{
-    switch (sig) {
-    case TARGET_SIGCHLD:
-    case TARGET_SIGURG:
-    case TARGET_SIGWINCH:
-        /* Ignored by default.  */
-        return 0;
-    case TARGET_SIGCONT:
-    case TARGET_SIGSTOP:
-    case TARGET_SIGTSTP:
-    case TARGET_SIGTTIN:
-    case TARGET_SIGTTOU:
-        /* Job control signals.  */
-        return 0;
-    default:
-        return 1;
-    }
-}
-
 /* returns 1 if given signal should dump core if not handled */
 static int core_dump_signal(int sig)
 {
@@ -526,57 +511,69 @@ static int core_dump_signal(int sig)
 
 static void signal_table_init(void)
 {
-    int host_sig, target_sig, count;
+    int hsig, tsig, count;
 
     /*
      * Signals are supported starting from TARGET_SIGRTMIN and going up
-     * until we run out of host realtime signals.
-     * glibc at least uses only the lower 2 rt signals and probably
-     * nobody's using the upper ones.
-     * it's why SIGRTMIN (34) is generally greater than __SIGRTMIN (32)
-     * To fix this properly we need to do manual signal delivery multiplexed
-     * over a single host signal.
+     * until we run out of host realtime signals.  Glibc uses the lower 2
+     * RT signals and (hopefully) nobody uses the upper ones.
+     * This is why SIGRTMIN (34) is generally greater than __SIGRTMIN (32).
+     * To fix this properly we would need to do manual signal delivery
+     * multiplexed over a single host signal.
      * Attempts for configure "missing" signals via sigaction will be
      * silently ignored.
+     *
+     * Remap the target SIGABRT, so that we can distinguish host abort
+     * from guest abort.  When the guest registers a signal handler or
+     * calls raise(SIGABRT), the host will raise SIG_RTn.  If the guest
+     * arrives at dump_core_and_abort(), we will map back to host SIGABRT
+     * so that the parent (native or emulated) sees the correct signal.
+     * Finally, also map host to guest SIGABRT so that the emulated
+     * parent sees the correct mapping from wait status.
      */
-    for (host_sig = SIGRTMIN; host_sig <= SIGRTMAX; host_sig++) {
-        target_sig = host_sig - SIGRTMIN + TARGET_SIGRTMIN;
-        if (target_sig <= TARGET_NSIG) {
-            host_to_target_signal_table[host_sig] = target_sig;
+
+    hsig = SIGRTMIN;
+    host_to_target_signal_table[SIGABRT] = 0;
+    host_to_target_signal_table[hsig++] = TARGET_SIGABRT;
+
+    for (; hsig <= SIGRTMAX; hsig++) {
+        tsig = hsig - SIGRTMIN + TARGET_SIGRTMIN;
+        if (tsig <= TARGET_NSIG) {
+            host_to_target_signal_table[hsig] = tsig;
         }
     }
 
-    /* generate signal conversion tables */
-    for (target_sig = 1; target_sig <= TARGET_NSIG; target_sig++) {
-        target_to_host_signal_table[target_sig] = _NSIG; /* poison */
-    }
-    for (host_sig = 1; host_sig < _NSIG; host_sig++) {
-        if (host_to_target_signal_table[host_sig] == 0) {
-            host_to_target_signal_table[host_sig] = host_sig;
-        }
-        target_sig = host_to_target_signal_table[host_sig];
-        if (target_sig <= TARGET_NSIG) {
-            target_to_host_signal_table[target_sig] = host_sig;
+    /* Invert the mapping that has already been assigned. */
+    for (hsig = 1; hsig < _NSIG; hsig++) {
+        tsig = host_to_target_signal_table[hsig];
+        if (tsig) {
+            assert(target_to_host_signal_table[tsig] == 0);
+            target_to_host_signal_table[tsig] = hsig;
         }
     }
 
-    if (trace_event_get_state_backends(TRACE_SIGNAL_TABLE_INIT)) {
-        for (target_sig = 1, count = 0; target_sig <= TARGET_NSIG; target_sig++) {
-            if (target_to_host_signal_table[target_sig] == _NSIG) {
-                count++;
-            }
+    host_to_target_signal_table[SIGABRT] = TARGET_SIGABRT;
+
+    /* Map everything else out-of-bounds. */
+    for (hsig = 1; hsig < _NSIG; hsig++) {
+        if (host_to_target_signal_table[hsig] == 0) {
+            host_to_target_signal_table[hsig] = TARGET_NSIG + 1;
         }
-        trace_signal_table_init(count);
     }
+    for (count = 0, tsig = 1; tsig <= TARGET_NSIG; tsig++) {
+        if (target_to_host_signal_table[tsig] == 0) {
+            target_to_host_signal_table[tsig] = _NSIG;
+            count++;
+        }
+    }
+
+    trace_signal_table_init(count);
 }
 
 void signal_init(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
-    struct sigaction act;
-    struct sigaction oact;
-    int i;
-    int host_sig;
+    struct sigaction act, oact;
 
     /* initialize signal conversion tables */
     signal_table_init();
@@ -587,22 +584,36 @@ void signal_init(void)
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
-    for(i = 1; i <= TARGET_NSIG; i++) {
-        host_sig = target_to_host_signal(i);
-        sigaction(host_sig, NULL, &oact);
-        if (oact.sa_sigaction == (void *)SIG_IGN) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_IGN;
-        } else if (oact.sa_sigaction == (void *)SIG_DFL) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_DFL;
+
+    /*
+     * A parent process may configure ignored signals, but all other
+     * signals are default.  For any target signals that have no host
+     * mapping, set to ignore.  For all core_dump_signal, install our
+     * host signal handler so that we may invoke dump_core_and_abort.
+     * This includes SIGSEGV and SIGBUS, which are also need our signal
+     * handler for paging and exceptions.
+     */
+    for (int tsig = 1; tsig <= TARGET_NSIG; tsig++) {
+        int hsig = target_to_host_signal(tsig);
+        abi_ptr thand = TARGET_SIG_IGN;
+
+        if (hsig >= _NSIG) {
+            continue;
         }
-        /* If there's already a handler installed then something has
-           gone horribly wrong, so don't even try to handle that case.  */
-        /* Install some handlers for our own use.  We need at least
-           SIGSEGV and SIGBUS, to detect exceptions.  We can not just
-           trap all signals because it affects syscall interrupt
-           behavior.  But do trap all default-fatal signals.  */
-        if (fatal_signal (i))
-            sigaction(host_sig, &act, NULL);
+
+        /* As we force remap SIGABRT, cannot probe and install in one step. */
+        if (tsig == TARGET_SIGABRT) {
+            sigaction(SIGABRT, NULL, &oact);
+            sigaction(hsig, &act, NULL);
+        } else {
+            struct sigaction *iact = core_dump_signal(tsig) ? &act : NULL;
+            sigaction(hsig, iact, &oact);
+        }
+
+        if (oact.sa_sigaction != (void *)SIG_IGN) {
+            thand = TARGET_SIG_DFL;
+        }
+        sigact_table[tsig - 1]._sa_handler = thand;
     }
 }
 
@@ -690,14 +701,45 @@ void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
 
 /* abort execution with signal */
 static G_NORETURN
+void die_with_signal(int host_sig)
+{
+    struct sigaction act = {
+        .sa_handler = SIG_DFL,
+    };
+
+    /*
+     * The proper exit code for dying from an uncaught signal is -<signal>.
+     * The kernel doesn't allow exit() or _exit() to pass a negative value.
+     * To get the proper exit code we need to actually die from an uncaught
+     * signal.  Here the default signal handler is installed, we send
+     * the signal and we wait for it to arrive.
+     */
+    sigfillset(&act.sa_mask);
+    sigaction(host_sig, &act, NULL);
+
+    kill(getpid(), host_sig);
+
+    /* Make sure the signal isn't masked (reusing the mask inside of act). */
+    sigdelset(&act.sa_mask, host_sig);
+    sigsuspend(&act.sa_mask);
+
+    /* unreachable */
+    _exit(EXIT_FAILURE);
+}
+
+static G_NORETURN
 void dump_core_and_abort(CPUArchState *env, int target_sig)
 {
     CPUState *cpu = env_cpu(env);
     TaskState *ts = (TaskState *)cpu->opaque;
     int host_sig, core_dumped = 0;
-    struct sigaction act;
 
-    host_sig = target_to_host_signal(target_sig);
+    /* On exit, undo the remapping of SIGABRT. */
+    if (target_sig == TARGET_SIGABRT) {
+        host_sig = SIGABRT;
+    } else {
+        host_sig = target_to_host_signal(target_sig);
+    }
     trace_user_dump_core_and_abort(env, target_sig, host_sig);
     gdb_signalled(env, target_sig);
 
@@ -719,29 +761,7 @@ void dump_core_and_abort(CPUArchState *env, int target_sig)
     }
 
     preexit_cleanup(env, 128 + target_sig);
-
-    /* The proper exit code for dying from an uncaught signal is
-     * -<signal>.  The kernel doesn't allow exit() or _exit() to pass
-     * a negative value.  To get the proper exit code we need to
-     * actually die from an uncaught signal.  Here the default signal
-     * handler is installed, we send ourself a signal and we wait for
-     * it to arrive. */
-    sigfillset(&act.sa_mask);
-    act.sa_handler = SIG_DFL;
-    act.sa_flags = 0;
-    sigaction(host_sig, &act, NULL);
-
-    /* For some reason raise(host_sig) doesn't send the signal when
-     * statically linked on x86-64. */
-    kill(getpid(), host_sig);
-
-    /* Make sure the signal isn't masked (just reuse the mask inside
-    of act) */
-    sigdelset(&act.sa_mask, host_sig);
-    sigsuspend(&act.sa_mask);
-
-    /* unreachable */
-    abort();
+    die_with_signal(host_sig);
 }
 
 /* queue a signal so that it will be send to the virtual CPU as soon
@@ -775,6 +795,161 @@ static inline void rewind_if_in_safe_syscall(void *puc)
     }
 }
 
+static G_NORETURN
+void die_from_signal(siginfo_t *info)
+{
+    char sigbuf[4], codebuf[12];
+    const char *sig, *code = NULL;
+
+    switch (info->si_signo) {
+    case SIGSEGV:
+        sig = "SEGV";
+        switch (info->si_code) {
+        case SEGV_MAPERR:
+            code = "MAPERR";
+            break;
+        case SEGV_ACCERR:
+            code = "ACCERR";
+            break;
+        }
+        break;
+    case SIGBUS:
+        sig = "BUS";
+        switch (info->si_code) {
+        case BUS_ADRALN:
+            code = "ADRALN";
+            break;
+        case BUS_ADRERR:
+            code = "ADRERR";
+            break;
+        }
+        break;
+    case SIGILL:
+        sig = "ILL";
+        switch (info->si_code) {
+        case ILL_ILLOPC:
+            code = "ILLOPC";
+            break;
+        case ILL_ILLOPN:
+            code = "ILLOPN";
+            break;
+        case ILL_ILLADR:
+            code = "ILLADR";
+            break;
+        case ILL_PRVOPC:
+            code = "PRVOPC";
+            break;
+        case ILL_PRVREG:
+            code = "PRVREG";
+            break;
+        case ILL_COPROC:
+            code = "COPROC";
+            break;
+        }
+        break;
+    case SIGFPE:
+        sig = "FPE";
+        switch (info->si_code) {
+        case FPE_INTDIV:
+            code = "INTDIV";
+            break;
+        case FPE_INTOVF:
+            code = "INTOVF";
+            break;
+        }
+        break;
+    case SIGTRAP:
+        sig = "TRAP";
+        break;
+    default:
+        snprintf(sigbuf, sizeof(sigbuf), "%d", info->si_signo);
+        sig = sigbuf;
+        break;
+    }
+    if (code == NULL) {
+        snprintf(codebuf, sizeof(sigbuf), "%d", info->si_code);
+        code = codebuf;
+    }
+
+    error_report("QEMU internal SIG%s {code=%s, addr=%p}",
+                 sig, code, info->si_addr);
+    die_with_signal(info->si_signo);
+}
+
+static void host_sigsegv_handler(CPUState *cpu, siginfo_t *info,
+                                 host_sigcontext *uc)
+{
+    uintptr_t host_addr = (uintptr_t)info->si_addr;
+    /*
+     * Convert forcefully to guest address space: addresses outside
+     * reserved_va are still valid to report via SEGV_MAPERR.
+     */
+    bool is_valid = h2g_valid(host_addr);
+    abi_ptr guest_addr = h2g_nocheck(host_addr);
+    uintptr_t pc = host_signal_pc(uc);
+    bool is_write = host_signal_write(info, uc);
+    MMUAccessType access_type = adjust_signal_pc(&pc, is_write);
+    bool maperr;
+
+    /* If this was a write to a TB protected page, restart. */
+    if (is_write
+        && is_valid
+        && info->si_code == SEGV_ACCERR
+        && handle_sigsegv_accerr_write(cpu, host_signal_mask(uc),
+                                       pc, guest_addr)) {
+        return;
+    }
+
+    /*
+     * If the access was not on behalf of the guest, within the executable
+     * mapping of the generated code buffer, then it is a host bug.
+     */
+    if (access_type != MMU_INST_FETCH
+        && !in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+        die_from_signal(info);
+    }
+
+    maperr = true;
+    if (is_valid && info->si_code == SEGV_ACCERR) {
+        /*
+         * With reserved_va, the whole address space is PROT_NONE,
+         * which means that we may get ACCERR when we want MAPERR.
+         */
+        if (page_get_flags(guest_addr) & PAGE_VALID) {
+            maperr = false;
+        } else {
+            info->si_code = SEGV_MAPERR;
+        }
+    }
+
+    sigprocmask(SIG_SETMASK, host_signal_mask(uc), NULL);
+    cpu_loop_exit_sigsegv(cpu, guest_addr, access_type, maperr, pc);
+}
+
+static void host_sigbus_handler(CPUState *cpu, siginfo_t *info,
+                                host_sigcontext *uc)
+{
+    uintptr_t pc = host_signal_pc(uc);
+    bool is_write = host_signal_write(info, uc);
+    MMUAccessType access_type = adjust_signal_pc(&pc, is_write);
+
+    /*
+     * If the access was not on behalf of the guest, within the executable
+     * mapping of the generated code buffer, then it is a host bug.
+     */
+    if (!in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+        die_from_signal(info);
+    }
+
+    if (info->si_code == BUS_ADRALN) {
+        uintptr_t host_addr = (uintptr_t)info->si_addr;
+        abi_ptr guest_addr = h2g_nocheck(host_addr);
+
+        sigprocmask(SIG_SETMASK, host_signal_mask(uc), NULL);
+        cpu_loop_exit_sigbus(cpu, guest_addr, access_type, pc);
+    }
+}
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUState *cpu = thread_cpu;
@@ -786,61 +961,28 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
     int guest_sig;
     uintptr_t pc = 0;
     bool sync_sig = false;
-    void *sigmask = host_signal_mask(uc);
+    void *sigmask;
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
-     * handling wrt signal blocking and unwinding.
+     * handling wrt signal blocking and unwinding.  Non-spoofed SIGILL,
+     * SIGFPE, SIGTRAP are always host bugs.
      */
-    if ((host_sig == SIGSEGV || host_sig == SIGBUS) && info->si_code > 0) {
-        MMUAccessType access_type;
-        uintptr_t host_addr;
-        abi_ptr guest_addr;
-        bool is_write;
-
-        host_addr = (uintptr_t)info->si_addr;
-
-        /*
-         * Convert forcefully to guest address space: addresses outside
-         * reserved_va are still valid to report via SEGV_MAPERR.
-         */
-        guest_addr = h2g_nocheck(host_addr);
-
-        pc = host_signal_pc(uc);
-        is_write = host_signal_write(info, uc);
-        access_type = adjust_signal_pc(&pc, is_write);
-
-        if (host_sig == SIGSEGV) {
-            bool maperr = true;
-
-            if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
-                /* If this was a write to a TB protected page, restart. */
-                if (is_write &&
-                    handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
-                    return;
-                }
-
-                /*
-                 * With reserved_va, the whole address space is PROT_NONE,
-                 * which means that we may get ACCERR when we want MAPERR.
-                 */
-                if (page_get_flags(guest_addr) & PAGE_VALID) {
-                    maperr = false;
-                } else {
-                    info->si_code = SEGV_MAPERR;
-                }
-            }
-
-            sigprocmask(SIG_SETMASK, sigmask, NULL);
-            cpu_loop_exit_sigsegv(cpu, guest_addr, access_type, maperr, pc);
-        } else {
-            sigprocmask(SIG_SETMASK, sigmask, NULL);
-            if (info->si_code == BUS_ADRALN) {
-                cpu_loop_exit_sigbus(cpu, guest_addr, access_type, pc);
-            }
+    if (info->si_code > 0) {
+        switch (host_sig) {
+        case SIGSEGV:
+            /* Only returns on handle_sigsegv_accerr_write success. */
+            host_sigsegv_handler(cpu, info, uc);
+            return;
+        case SIGBUS:
+            host_sigbus_handler(cpu, info, uc);
+            sync_sig = true;
+            break;
+        case SIGILL:
+        case SIGFPE:
+        case SIGTRAP:
+            die_from_signal(info);
         }
-
-        sync_sig = true;
     }
 
     /* get target signal number */
@@ -881,6 +1023,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
      * would write 0xff bytes off the end of the structure and trash
      * data on the struct.
      */
+    sigmask = host_signal_mask(uc);
     memset(sigmask, 0xff, SIGSET_T_SIZE);
     sigdelset(sigmask, SIGSEGV);
     sigdelset(sigmask, SIGBUS);
@@ -936,7 +1079,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact, abi_ulong ka_restorer)
 {
     struct target_sigaction *k;
-    struct sigaction act1;
     int host_sig;
     int ret = 0;
 
@@ -996,22 +1138,27 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             return 0;
         }
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
+            struct sigaction act1;
+
             sigfillset(&act1.sa_mask);
             act1.sa_flags = SA_SIGINFO;
-            if (k->sa_flags & TARGET_SA_RESTART)
-                act1.sa_flags |= SA_RESTART;
-            /* NOTE: it is important to update the host kernel signal
-               ignore state to avoid getting unexpected interrupted
-               syscalls */
             if (k->_sa_handler == TARGET_SIG_IGN) {
+                /*
+                 * It is important to update the host kernel signal ignore
+                 * state to avoid getting unexpected interrupted syscalls.
+                 */
                 act1.sa_sigaction = (void *)SIG_IGN;
             } else if (k->_sa_handler == TARGET_SIG_DFL) {
-                if (fatal_signal (sig))
+                if (core_dump_signal(sig)) {
                     act1.sa_sigaction = host_signal_handler;
-                else
+                } else {
                     act1.sa_sigaction = (void *)SIG_DFL;
+                }
             } else {
                 act1.sa_sigaction = host_signal_handler;
+                if (k->sa_flags & TARGET_SA_RESTART) {
+                    act1.sa_flags |= SA_RESTART;
+                }
             }
             ret = sigaction(host_sig, &act1, NULL);
         }

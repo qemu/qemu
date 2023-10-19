@@ -778,7 +778,7 @@ fail:
     return -1;
 }
 
-static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
+static int mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
 {
     abi_ulong real_start;
     abi_ulong real_last;
@@ -807,7 +807,7 @@ static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
             prot |= page_get_flags(a + 1);
         }
         if (prot != 0) {
-            return;
+            return 0;
         }
     } else {
         for (prot = 0, a = real_start; a < start; a += TARGET_PAGE_SIZE) {
@@ -825,7 +825,7 @@ static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
         }
 
         if (real_last < real_start) {
-            return;
+            return 0;
         }
     }
 
@@ -836,32 +836,36 @@ static void mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
         void *ptr = mmap(host_start, real_len, PROT_NONE,
                          MAP_FIXED | MAP_ANONYMOUS
                          | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-        assert(ptr == host_start);
-    } else {
-        int ret = munmap(host_start, real_len);
-        assert(ret == 0);
+        return ptr == host_start ? 0 : -1;
     }
+    return munmap(host_start, real_len);
 }
 
 int target_munmap(abi_ulong start, abi_ulong len)
 {
+    int ret;
+
     trace_target_munmap(start, len);
 
     if (start & ~TARGET_PAGE_MASK) {
-        return -TARGET_EINVAL;
+        errno = EINVAL;
+        return -1;
     }
     len = TARGET_PAGE_ALIGN(len);
     if (len == 0 || !guest_range_valid_untagged(start, len)) {
-        return -TARGET_EINVAL;
+        errno = EINVAL;
+        return -1;
     }
 
     mmap_lock();
-    mmap_reserve_or_unmap(start, len);
-    page_set_flags(start, start + len - 1, 0);
-    shm_region_rm_complete(start, start + len - 1);
+    ret = mmap_reserve_or_unmap(start, len);
+    if (likely(ret == 0)) {
+        page_set_flags(start, start + len - 1, 0);
+        shm_region_rm_complete(start, start + len - 1);
+    }
     mmap_unlock();
 
-    return 0;
+    return ret;
 }
 
 abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
