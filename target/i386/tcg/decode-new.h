@@ -191,6 +191,10 @@ typedef enum X86InsnSpecial {
      * become P/P/Q/N, and size "x" becomes "q".
      */
     X86_SPECIAL_MMX,
+
+    /* When loaded into s->T0, register operand 1 is zero/sign extended.  */
+    X86_SPECIAL_SExtT0,
+    X86_SPECIAL_ZExtT0,
 } X86InsnSpecial;
 
 /*

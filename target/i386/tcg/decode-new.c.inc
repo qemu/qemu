@@ -156,6 +156,8 @@
 #define op0_Rd .special = X86_SPECIAL_Op0_Rd,
 #define op2_Ry .special = X86_SPECIAL_Op2_Ry,
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
+#define sextT0 .special = X86_SPECIAL_SExtT0,
+#define zextT0 .special = X86_SPECIAL_ZExtT0,
 
 #define vex1 .vex_class = 1,
 #define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
@@ -571,8 +573,8 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
     [5] = {
         X86_OP_ENTRY3(BZHI, G,y, E,y, B,y, vex13 cpuid(BMI1)),
         {},
-        X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 cpuid(BMI2)),
-        X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 cpuid(BMI2)),
+        X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
+        X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
         {},
     },
     [6] = {
@@ -583,10 +585,10 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
         {},
     },
     [7] = {
-        X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
         X86_OP_ENTRY3(SHLX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
-        X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
-        X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 sextT0 cpuid(BMI1)),
+        X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
         {},
     },
 };
@@ -1903,6 +1905,12 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         } else if (s->vex_l) {
             decode.op[2].ot++;
         }
+        break;
+
+    case X86_SPECIAL_SExtT0:
+    case X86_SPECIAL_ZExtT0:
+        /* Handled in gen_load.  */
+        assert(decode.op[1].unit == X86_OP_INT);
         break;
 
     default:
