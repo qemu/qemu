@@ -1264,7 +1264,7 @@ static int ram_save_multifd_page(QEMUFile *file, RAMBlock *block,
     return 1;
 }
 
-static int send_queued_data(CompressParam *param)
+int compress_send_queued_data(CompressParam *param)
 {
     PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_PRECOPY];
     MigrationState *ms = migrate_get_current();
@@ -1306,7 +1306,7 @@ static void ram_flush_compressed_data(void)
         return;
     }
 
-    flush_compressed_data(send_queued_data);
+    flush_compressed_data(compress_send_queued_data);
 }
 
 #define PAGE_ALL_CLEAN 0
@@ -2041,7 +2041,7 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
     }
 
     return compress_page_with_multi_thread(pss->block, offset,
-                                           send_queued_data);
+                                           compress_send_queued_data);
 }
 
 /**
