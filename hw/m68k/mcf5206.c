@@ -168,7 +168,7 @@ typedef struct {
     MemoryRegion iomem;
     qemu_irq *pic;
     m5206_timer_state *timer[2];
-    void *uart[2];
+    DeviceState *uart[2];
     uint8_t scr;
     uint8_t icr[14];
     uint16_t imr; /* 1 == interrupt is masked.  */
@@ -600,8 +600,8 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
     s->pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
     s->timer[0] = m5206_timer_init(s->pic[9]);
     s->timer[1] = m5206_timer_init(s->pic[10]);
-    s->uart[0] = mcf_uart_init(s->pic[12], serial_hd(0));
-    s->uart[1] = mcf_uart_init(s->pic[13], serial_hd(1));
+    s->uart[0] = mcf_uart_create(s->pic[12], serial_hd(0));
+    s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
 }
 
 static Property mcf5206_mbar_properties[] = {
