@@ -1264,7 +1264,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
 
     vga_common_init(&s->vga, OBJECT(dev), &error_fatal);
     vga_init(&s->vga, OBJECT(dev), address_space, io, true);
-    vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
+    vmstate_register_any(NULL, &vmstate_vga_common, &s->vga);
     s->new_depth = 32;
 }
 
