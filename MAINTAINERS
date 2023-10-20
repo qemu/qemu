@@ -928,6 +928,7 @@ F: hw/*/pxa2xx*
 F: hw/display/tc6393xb.c
 F: hw/gpio/max7310.c
 F: hw/gpio/zaurus.c
+F: hw/input/ads7846.c
 F: hw/misc/mst_fpga.c
 F: hw/adc/max111x.c
 F: include/hw/adc/max111x.h
