@@ -22,6 +22,7 @@ from typing import (
     Dict,
     List,
     Mapping,
+    Match,
     Optional,
     Set,
     Union,
@@ -563,11 +564,11 @@ class QAPIDoc:
         self._switch_section(QAPIDoc.NullSection(self._parser))
 
     @staticmethod
-    def _match_at_name_colon(string: str):
+    def _match_at_name_colon(string: str) -> Optional[Match[str]]:
         return re.match(r'@([^:]*): *', string)
 
     @staticmethod
-    def _match_section_tag(string: str):
+    def _match_section_tag(string: str) -> Optional[Match[str]]:
         return re.match(r'(Returns|Since|Notes?|Examples?|TODO): *', string)
 
     def _append_body_line(self, line: str) -> None:

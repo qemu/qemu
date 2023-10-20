@@ -43,8 +43,8 @@
 # This is intended for testing users of the management interfaces.
 #
 # Limitation: covers only syntactic aspects of QMP, i.e. stuff tagged
-# with feature 'deprecated'.  We may want to extend it to cover
-# semantic aspects and CLI.
+# with feature 'deprecated' or 'unstable'.  We may want to extend it
+# to cover semantic aspects and CLI.
 #
 # Limitation: deprecated-output policy @hide is not implemented for
 # enumeration values.  They behave the same as with policy @accept.
