@@ -1781,7 +1781,7 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
 
     QTAILQ_INSERT_TAIL(&audio_states, s, list);
     QLIST_INIT (&s->card_head);
-    vmstate_register (NULL, 0, &vmstate_audio, s);
+    vmstate_register_any(NULL, &vmstate_audio, s);
     return s;
 
 out:
