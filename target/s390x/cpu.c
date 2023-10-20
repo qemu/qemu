@@ -31,12 +31,14 @@
 #include "qapi/qapi-types-machine.h"
 #include "sysemu/hw_accel.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "sysemu/tcg.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/reset.h"
 #endif
+#include "hw/s390x/cpu-topology.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
@@ -145,6 +147,14 @@ static void s390_query_cpu_fast(CPUState *cpu, CpuInfoFast *value)
     S390CPU *s390_cpu = S390_CPU(cpu);
 
     value->u.s390x.cpu_state = s390_cpu->env.cpu_state;
+#if !defined(CONFIG_USER_ONLY)
+    if (s390_has_topology()) {
+        value->u.s390x.has_dedicated = true;
+        value->u.s390x.dedicated = s390_cpu->env.dedicated;
+        value->u.s390x.has_entitlement = true;
+        value->u.s390x.entitlement = s390_cpu->env.entitlement;
+    }
+#endif
 }
 
 /* S390CPUClass::reset() */
@@ -290,6 +300,12 @@ static const gchar *s390_gdb_arch_name(CPUState *cs)
 static Property s390x_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("core-id", S390CPU, env.core_id, 0),
+    DEFINE_PROP_INT32("socket-id", S390CPU, env.socket_id, -1),
+    DEFINE_PROP_INT32("book-id", S390CPU, env.book_id, -1),
+    DEFINE_PROP_INT32("drawer-id", S390CPU, env.drawer_id, -1),
+    DEFINE_PROP_BOOL("dedicated", S390CPU, env.dedicated, false),
+    DEFINE_PROP_CPUS390ENTITLEMENT("entitlement", S390CPU, env.entitlement,
+                                   S390_CPU_ENTITLEMENT_AUTO),
 #endif
     DEFINE_PROP_END_OF_LIST()
 };

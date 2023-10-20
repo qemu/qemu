@@ -86,6 +86,7 @@
 
 #define PRIV_B9_EQBS                    0x9c
 #define PRIV_B9_CLP                     0xa0
+#define PRIV_B9_PTF                     0xa2
 #define PRIV_B9_PCISTG                  0xd0
 #define PRIV_B9_PCILG                   0xd2
 #define PRIV_B9_RPCIT                   0xd3
@@ -138,7 +139,6 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
-static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
 static int cap_mem_op_extension;
@@ -337,21 +337,28 @@ int kvm_arch_get_default_type(MachineState *ms)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    int required_caps[] = {
+        KVM_CAP_DEVICE_CTRL,
+        KVM_CAP_SYNC_REGS,
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(required_caps); i++) {
+        if (!kvm_check_extension(s, required_caps[i])) {
+            error_report("KVM is missing capability #%d - "
+                         "please use kernel 3.15 or newer", required_caps[i]);
+            return -1;
+        }
+    }
+
     object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
                          false, NULL);
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
-        error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "
-                     "please use kernel 3.15 or newer");
-        return -1;
-    }
     if (!kvm_check_extension(s, KVM_CAP_S390_COW)) {
         error_report("KVM is missing capability KVM_CAP_S390_COW - "
                      "unsupported environment");
         return -1;
     }
 
-    cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
     cap_mem_op_extension = kvm_check_extension(s, KVM_CAP_S390_MEM_OP_EXTENSION);
@@ -365,6 +372,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_CPU_TOPOLOGY, 0);
     if (ri_allowed()) {
         if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
             cap_ri = 1;
@@ -458,37 +466,28 @@ void kvm_s390_reset_vcpu_normal(S390CPU *cpu)
 
 static int can_sync_regs(CPUState *cs, int regs)
 {
-    return cap_sync_regs && (cs->kvm_run->kvm_valid_regs & regs) == regs;
+    return (cs->kvm_run->kvm_valid_regs & regs) == regs;
 }
+
+#define KVM_SYNC_REQUIRED_REGS (KVM_SYNC_GPRS | KVM_SYNC_ACRS | \
+                                KVM_SYNC_CRS | KVM_SYNC_PREFIX)
 
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_sregs sregs;
-    struct kvm_regs regs;
     struct kvm_fpu fpu = {};
     int r;
     int i;
+
+    g_assert(can_sync_regs(cs, KVM_SYNC_REQUIRED_REGS));
 
     /* always save the PSW  and the GPRS*/
     cs->kvm_run->psw_addr = env->psw.addr;
     cs->kvm_run->psw_mask = env->psw.mask;
 
-    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
-        for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.gprs[i] = env->regs[i];
-            cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
-        }
-    } else {
-        for (i = 0; i < 16; i++) {
-            regs.gprs[i] = env->regs[i];
-        }
-        r = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
-        if (r < 0) {
-            return r;
-        }
-    }
+    memcpy(cs->kvm_run->s.regs.gprs, env->regs, sizeof(cs->kvm_run->s.regs.gprs));
+    cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
 
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
@@ -520,6 +519,15 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     if (level == KVM_PUT_RUNTIME_STATE) {
         return 0;
     }
+
+    /*
+     * Access registers, control registers and the prefix - these are
+     * always available via kvm_sync_regs in the kernels that we support
+     */
+    memcpy(cs->kvm_run->s.regs.acrs, env->aregs, sizeof(cs->kvm_run->s.regs.acrs));
+    memcpy(cs->kvm_run->s.regs.crs, env->cregs, sizeof(cs->kvm_run->s.regs.crs));
+    cs->kvm_run->s.regs.prefix = env->psa;
+    cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ACRS | KVM_SYNC_CRS | KVM_SYNC_PREFIX;
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
         cs->kvm_run->s.regs.cputm = env->cputm;
@@ -567,25 +575,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    /* access registers and control registers*/
-    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
-        for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.acrs[i] = env->aregs[i];
-            cs->kvm_run->s.regs.crs[i] = env->cregs[i];
-        }
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ACRS;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_CRS;
-    } else {
-        for (i = 0; i < 16; i++) {
-            sregs.acrs[i] = env->aregs[i];
-            sregs.crs[i] = env->cregs[i];
-        }
-        r = kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
-        if (r < 0) {
-            return r;
-        }
-    }
-
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
         memcpy(cs->kvm_run->s.regs.gscb, env->gscb, 32);
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GSCB;
@@ -607,13 +596,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
     }
 
-    /* Finally the prefix */
-    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        cs->kvm_run->s.regs.prefix = env->psa;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
-    } else {
-        /* prefix is only supported via sync regs */
-    }
     return 0;
 }
 
@@ -621,8 +603,6 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_sregs sregs;
-    struct kvm_regs regs;
     struct kvm_fpu fpu;
     int i, r;
 
@@ -630,37 +610,14 @@ int kvm_arch_get_registers(CPUState *cs)
     env->psw.addr = cs->kvm_run->psw_addr;
     env->psw.mask = cs->kvm_run->psw_mask;
 
-    /* the GPRS */
-    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
-        for (i = 0; i < 16; i++) {
-            env->regs[i] = cs->kvm_run->s.regs.gprs[i];
-        }
-    } else {
-        r = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
-        if (r < 0) {
-            return r;
-        }
-         for (i = 0; i < 16; i++) {
-            env->regs[i] = regs.gprs[i];
-        }
-    }
+    /* the GPRS, ACRS and CRS */
+    g_assert(can_sync_regs(cs, KVM_SYNC_REQUIRED_REGS));
+    memcpy(env->regs, cs->kvm_run->s.regs.gprs, sizeof(env->regs));
+    memcpy(env->aregs, cs->kvm_run->s.regs.acrs, sizeof(env->aregs));
+    memcpy(env->cregs, cs->kvm_run->s.regs.crs, sizeof(env->cregs));
 
-    /* The ACRS and CRS */
-    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
-        for (i = 0; i < 16; i++) {
-            env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
-            env->cregs[i] = cs->kvm_run->s.regs.crs[i];
-        }
-    } else {
-        r = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
-        if (r < 0) {
-            return r;
-        }
-         for (i = 0; i < 16; i++) {
-            env->aregs[i] = sregs.acrs[i];
-            env->cregs[i] = sregs.crs[i];
-        }
-    }
+    /* The prefix */
+    env->psa = cs->kvm_run->s.regs.prefix;
 
     /* Floating point and vector registers */
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
@@ -683,11 +640,6 @@ int kvm_arch_get_registers(CPUState *cs)
             *get_freg(env, i) = fpu.fprs[i];
         }
         env->fpc = fpu.fpc;
-    }
-
-    /* The prefix */
-    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        env->psa = cs->kvm_run->s.regs.prefix;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
@@ -1457,6 +1409,13 @@ static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     }
 }
 
+static void kvm_handle_ptf(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb >> 20) & 0x0f;
+
+    s390_handle_ptf(cpu, r1, RA_IGNORED);
+}
+
 static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     int r = 0;
@@ -1473,6 +1432,9 @@ static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     case PRIV_B9_RPCIT:
         r = kvm_rpcit_service_call(cpu, run);
+        break;
+    case PRIV_B9_PTF:
+        kvm_handle_ptf(cpu, run);
         break;
     case PRIV_B9_EQBS:
         /* just inject exception */
@@ -1911,8 +1873,11 @@ static int handle_stsi(S390CPU *cpu)
         if (run->s390_stsi.sel1 != 2 || run->s390_stsi.sel2 != 2) {
             return 0;
         }
-        /* Only sysib 3.2.2 needs post-handling for now. */
         insert_stsi_3_2_2(cpu, run->s390_stsi.addr, run->s390_stsi.ar);
+        return 0;
+    case 15:
+        insert_stsi_15_1_x(cpu, run->s390_stsi.sel2, run->s390_stsi.addr,
+                           run->s390_stsi.ar, RA_IGNORED);
         return 0;
     default:
         return 0;
@@ -2495,6 +2460,14 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         set_bit(S390_FEAT_UNPACK, model->features);
     }
 
+    /*
+     * If we have kernel support for CPU Topology indicate the
+     * configuration-topology facility.
+     */
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_CPU_TOPOLOGY)) {
+        set_bit(S390_FEAT_CONFIGURATION_TOPOLOGY, model->features);
+    }
+
     /* We emulate a zPCI bus and AEN, therefore we don't need HW support */
     set_bit(S390_FEAT_ZPCI, model->features);
     set_bit(S390_FEAT_ADAPTER_EVENT_NOTIFICATION, model->features);
@@ -2659,6 +2632,23 @@ bool kvm_arch_cpu_check_are_resettable(void)
 int kvm_s390_get_zpci_op(void)
 {
     return cap_zpci_op;
+}
+
+int kvm_s390_topology_set_mtcr(uint64_t attr)
+{
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CPU_TOPOLOGY,
+        .attr  = attr,
+    };
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        return 0;
+    }
+    if (!kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY, attr)) {
+        return -ENOTSUP;
+    }
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
 }
 
 void kvm_arch_accel_class_init(ObjectClass *oc)

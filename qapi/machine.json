@@ -9,6 +9,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'machine-common.json' }
 
 ##
 # @SysEmuTarget:
@@ -56,9 +57,16 @@
 #
 # @cpu-state: the virtual CPU's state
 #
+# @dedicated: the virtual CPU's dedication (since 8.2)
+#
+# @entitlement: the virtual CPU's entitlement (since 8.2)
+#
 # Since: 2.12
 ##
-{ 'struct': 'CpuInfoS390', 'data': { 'cpu-state': 'CpuS390State' } }
+{ 'struct': 'CpuInfoS390',
+  'data': { 'cpu-state': 'CpuS390State',
+            '*dedicated': 'bool',
+            '*entitlement': 'CpuS390Entitlement' } }
 
 ##
 # @CpuInfoFast:
@@ -71,8 +79,7 @@
 #
 # @thread-id: ID of the underlying host thread
 #
-# @props: properties describing to which node/socket/core/thread
-#     virtual CPU belongs to, provided if supported by board
+# @props: properties associated with a virtual CPU, e.g. the socket id
 #
 # @target: the QEMU system emulation target, which determines which
 #     additional fields will be listed (since 3.0)
@@ -899,29 +906,46 @@
 # should be passed by management with device_add command when a CPU is
 # being hotplugged.
 #
+# Which members are optional and which mandatory depends on the
+# architecture and board.
+#
+# For s390x see :ref:`cpu-topology-s390x`.
+#
+# The ids other than the node-id specify the position of the CPU
+# within the CPU topology (as defined by the machine property "smp",
+# thus see also type @SMPConfiguration)
+#
 # @node-id: NUMA node ID the CPU belongs to
 #
-# @socket-id: socket number within node/board the CPU belongs to
+# @drawer-id: drawer number within CPU topology the CPU belongs to
+#     (since 8.2)
 #
-# @die-id: die number within socket the CPU belongs to (since 4.1)
+# @book-id: book number within parent container the CPU belongs to
+#     (since 8.2)
 #
-# @cluster-id: cluster number within die the CPU belongs to (since
-#     7.1)
+# @socket-id: socket number within parent container the CPU belongs to
 #
-# @core-id: core number within cluster the CPU belongs to
+# @die-id: die number within the parent container the CPU belongs to
+#    (since 4.1)
 #
-# @thread-id: thread number within core the CPU belongs to
+# @cluster-id: cluster number within the parent container the CPU
+#     belongs to (since 7.1)
 #
-# Note: currently there are 6 properties that could be present but
-#     management should be prepared to pass through other properties
-#     with device_add command to allow for future interface extension.
-#     This also requires the filed names to be kept in sync with the
-#     properties passed to -device/device_add.
+# @core-id: core number within the parent container the CPU
+#     belongs to
+#
+# @thread-id: thread number within the core the CPU  belongs to
+#
+# Note: management should be prepared to pass through additional
+#     properties with device_add.
 #
 # Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
+  # Keep these in sync with the properties device_add accepts
   'data': { '*node-id': 'int',
+            '*drawer-id': 'int',
+            '*book-id': 'int',
             '*socket-id': 'int',
             '*die-id': 'int',
             '*cluster-id': 'int',
@@ -1478,26 +1502,43 @@
 # Schema for CPU topology configuration.  A missing value lets QEMU
 # figure out a suitable value based on the ones that are provided.
 #
+# The members other than @cpus and @maxcpus define a topology of
+# containers.
+#
+# The ordering from highest/coarsest to lowest/finest is:
+# @drawers, @books, @sockets, @dies, @clusters, @cores, @threads.
+#
+# Different architectures support different subsets of topology
+# containers.
+#
+# For example, s390x does not have clusters and dies, and the socket
+# is the parent container of cores.
+#
 # @cpus: number of virtual CPUs in the virtual machine
-#
-# @sockets: number of sockets in the CPU topology
-#
-# @dies: number of dies per socket in the CPU topology
-#
-# @clusters: number of clusters per die in the CPU topology (since
-#     7.0)
-#
-# @cores: number of cores per cluster in the CPU topology
-#
-# @threads: number of threads per core in the CPU topology
 #
 # @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual
 #     machine
+#
+# @drawers: number of drawers in the CPU topology (since 8.2)
+#
+# @books: number of books in the CPU topology (since 8.2)
+#
+# @sockets: number of sockets per parent container
+#
+# @dies: number of dies per parent container
+#
+# @clusters: number of clusters per parent container (since 7.0)
+#
+# @cores: number of cores per parent container
+#
+# @threads: number of threads per core
 #
 # Since: 6.1
 ##
 { 'struct': 'SMPConfiguration', 'data': {
      '*cpus': 'int',
+     '*drawers': 'int',
+     '*books': 'int',
      '*sockets': 'int',
      '*dies': 'int',
      '*clusters': 'int',
