@@ -2580,7 +2580,7 @@ static void gen_push_v(DisasContext *s, TCGv val)
 
     if (!CODE64(s)) {
         if (ADDSEG(s)) {
-            new_esp = s->tmp4;
+            new_esp = tcg_temp_new();
             tcg_gen_mov_tl(new_esp, s->A0);
         }
         gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
