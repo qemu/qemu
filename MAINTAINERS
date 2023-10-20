@@ -1371,6 +1371,7 @@ or1k-sim
 M: Jia Liu <proljc@gmail.com>
 S: Maintained
 F: docs/system/openrisc/or1k-sim.rst
+F: hw/intc/ompic.c
 F: hw/openrisc/openrisc_sim.c
 
 PowerPC Machines
