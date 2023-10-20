@@ -7882,7 +7882,7 @@ static void op_addr_block_post(DisasContext *s, arg_ldst_block *a,
     }
 }
 
-static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
+static bool op_stm(DisasContext *s, arg_ldst_block *a)
 {
     int i, j, n, list, mem_idx;
     bool user = a->u;
@@ -7899,7 +7899,14 @@ static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
 
     list = a->list;
     n = ctpop16(list);
-    if (n < min_n || a->rn == 15) {
+    /*
+     * This is UNPREDICTABLE for n < 1 in all encodings, and we choose
+     * to UNDEF. In the T32 STM encoding n == 1 is also UNPREDICTABLE,
+     * but hardware treats it like the A32 version and implements the
+     * single-register-store, and some in-the-wild (buggy) software
+     * assumes that, so we don't UNDEF on that case.
+     */
+    if (n < 1 || a->rn == 15) {
         unallocated_encoding(s);
         return true;
     }
@@ -7935,8 +7942,7 @@ static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
 
 static bool trans_STM(DisasContext *s, arg_ldst_block *a)
 {
-    /* BitCount(list) < 1 is UNPREDICTABLE */
-    return op_stm(s, a, 1);
+    return op_stm(s, a);
 }
 
 static bool trans_STM_t32(DisasContext *s, arg_ldst_block *a)
@@ -7946,11 +7952,10 @@ static bool trans_STM_t32(DisasContext *s, arg_ldst_block *a)
         unallocated_encoding(s);
         return true;
     }
-    /* BitCount(list) < 2 is UNPREDICTABLE */
-    return op_stm(s, a, 2);
+    return op_stm(s, a);
 }
 
-static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
+static bool do_ldm(DisasContext *s, arg_ldst_block *a)
 {
     int i, j, n, list, mem_idx;
     bool loaded_base;
@@ -7979,7 +7984,14 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
 
     list = a->list;
     n = ctpop16(list);
-    if (n < min_n || a->rn == 15) {
+    /*
+     * This is UNPREDICTABLE for n < 1 in all encodings, and we choose
+     * to UNDEF. In the T32 LDM encoding n == 1 is also UNPREDICTABLE,
+     * but hardware treats it like the A32 version and implements the
+     * single-register-load, and some in-the-wild (buggy) software
+     * assumes that, so we don't UNDEF on that case.
+     */
+    if (n < 1 || a->rn == 15) {
         unallocated_encoding(s);
         return true;
     }
@@ -8045,8 +8057,7 @@ static bool trans_LDM_a32(DisasContext *s, arg_ldst_block *a)
         unallocated_encoding(s);
         return true;
     }
-    /* BitCount(list) < 1 is UNPREDICTABLE */
-    return do_ldm(s, a, 1);
+    return do_ldm(s, a);
 }
 
 static bool trans_LDM_t32(DisasContext *s, arg_ldst_block *a)
@@ -8056,16 +8067,14 @@ static bool trans_LDM_t32(DisasContext *s, arg_ldst_block *a)
         unallocated_encoding(s);
         return true;
     }
-    /* BitCount(list) < 2 is UNPREDICTABLE */
-    return do_ldm(s, a, 2);
+    return do_ldm(s, a);
 }
 
 static bool trans_LDM_t16(DisasContext *s, arg_ldst_block *a)
 {
     /* Writeback is conditional on the base register not being loaded.  */
     a->w = !(a->list & (1 << a->rn));
-    /* BitCount(list) < 1 is UNPREDICTABLE */
-    return do_ldm(s, a, 1);
+    return do_ldm(s, a);
 }
 
 static bool trans_CLRM(DisasContext *s, arg_CLRM *a)

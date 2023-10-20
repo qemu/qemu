@@ -601,21 +601,21 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      * The interrupt values are the same with the device tree when adding 16
      */
     /* Secure EL1 timer GSIV */
-    build_append_int_noprefix(table_data, ARCH_TIMER_S_EL1_IRQ + 16, 4);
+    build_append_int_noprefix(table_data, ARCH_TIMER_S_EL1_IRQ, 4);
     /* Secure EL1 timer Flags */
     build_append_int_noprefix(table_data, irqflags, 4);
     /* Non-Secure EL1 timer GSIV */
-    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL1_IRQ + 16, 4);
+    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL1_IRQ, 4);
     /* Non-Secure EL1 timer Flags */
     build_append_int_noprefix(table_data, irqflags |
                               1UL << 2, /* Always-on Capability */
                               4);
     /* Virtual timer GSIV */
-    build_append_int_noprefix(table_data, ARCH_TIMER_VIRT_IRQ + 16, 4);
+    build_append_int_noprefix(table_data, ARCH_TIMER_VIRT_IRQ, 4);
     /* Virtual Timer Flags */
     build_append_int_noprefix(table_data, irqflags, 4);
     /* Non-Secure EL2 timer GSIV */
-    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL2_IRQ + 16, 4);
+    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL2_IRQ, 4);
     /* Non-Secure EL2 timer Flags */
     build_append_int_noprefix(table_data, irqflags, 4);
     /* CntReadBase Physical address */
@@ -729,9 +729,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     for (i = 0; i < MACHINE(vms)->smp.cpus; i++) {
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(i));
         uint64_t physical_base_address = 0, gich = 0, gicv = 0;
-        uint32_t vgic_interrupt = vms->virt ? PPI(ARCH_GIC_MAINT_IRQ) : 0;
+        uint32_t vgic_interrupt = vms->virt ? ARCH_GIC_MAINT_IRQ : 0;
         uint32_t pmu_interrupt = arm_feature(&armcpu->env, ARM_FEATURE_PMU) ?
-                                             PPI(VIRTUAL_PMU_IRQ) : 0;
+                                             VIRTUAL_PMU_IRQ : 0;
 
         if (vms->gic_version == VIRT_GIC_VERSION_2) {
             physical_base_address = memmap[VIRT_GIC_CPU].base;

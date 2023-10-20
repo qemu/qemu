@@ -30,7 +30,7 @@
 #include "hw/intc/exynos4210_gic.h"
 #include "hw/intc/exynos4210_combiner.h"
 #include "hw/core/split-irq.h"
-#include "target/arm/cpu-qom.h"
+#include "hw/arm/boot.h"
 #include "qom/object.h"
 
 #define EXYNOS4210_NCPUS                    2

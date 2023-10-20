@@ -94,10 +94,7 @@ static int init_states(QEMU_Elf *qe)
 
     printf("%zu CPU states has been found\n", cpu_nr);
 
-    qe->state = malloc(sizeof(*qe->state) * cpu_nr);
-    if (!qe->state) {
-        return 1;
-    }
+    qe->state = g_new(QEMUCPUState*, cpu_nr);
 
     cpu_nr = 0;
 
@@ -115,7 +112,7 @@ static int init_states(QEMU_Elf *qe)
 
 static void exit_states(QEMU_Elf *qe)
 {
-    free(qe->state);
+    g_free(qe->state);
 }
 
 static bool check_ehdr(QEMU_Elf *qe)

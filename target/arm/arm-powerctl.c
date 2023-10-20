@@ -65,59 +65,8 @@ static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
 
     /* Initialize the cpu we are turning on */
     cpu_reset(target_cpu_state);
+    arm_emulate_firmware_reset(target_cpu_state, info->target_el);
     target_cpu_state->halted = 0;
-
-    if (info->target_aa64) {
-        if ((info->target_el < 3) && arm_feature(&target_cpu->env,
-                                                 ARM_FEATURE_EL3)) {
-            /*
-             * As target mode is AArch64, we need to set lower
-             * exception level (the requested level 2) to AArch64
-             */
-            target_cpu->env.cp15.scr_el3 |= SCR_RW;
-        }
-
-        if ((info->target_el < 2) && arm_feature(&target_cpu->env,
-                                                 ARM_FEATURE_EL2)) {
-            /*
-             * As target mode is AArch64, we need to set lower
-             * exception level (the requested level 1) to AArch64
-             */
-            target_cpu->env.cp15.hcr_el2 |= HCR_RW;
-        }
-
-        target_cpu->env.pstate = aarch64_pstate_mode(info->target_el, true);
-    } else {
-        /* We are requested to boot in AArch32 mode */
-        static const uint32_t mode_for_el[] = { 0,
-                                                ARM_CPU_MODE_SVC,
-                                                ARM_CPU_MODE_HYP,
-                                                ARM_CPU_MODE_SVC };
-
-        cpsr_write(&target_cpu->env, mode_for_el[info->target_el], CPSR_M,
-                   CPSRWriteRaw);
-    }
-
-    if (info->target_el == 3) {
-        /* Processor is in secure mode */
-        target_cpu->env.cp15.scr_el3 &= ~SCR_NS;
-    } else {
-        /* Processor is not in secure mode */
-        target_cpu->env.cp15.scr_el3 |= SCR_NS;
-
-        /* Set NSACR.{CP11,CP10} so NS can access the FPU */
-        target_cpu->env.cp15.nsacr |= 3 << 10;
-
-        /*
-         * If QEMU is providing the equivalent of EL3 firmware, then we need
-         * to make sure a CPU targeting EL2 comes out of reset with a
-         * functional HVC insn.
-         */
-        if (arm_feature(&target_cpu->env, ARM_FEATURE_EL3)
-            && info->target_el == 2) {
-            target_cpu->env.cp15.scr_el3 |= SCR_HCE;
-        }
-    }
 
     /* We check if the started CPU is now at the correct level */
     assert(info->target_el == arm_current_el(&target_cpu->env));

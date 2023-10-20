@@ -2,6 +2,7 @@
  * QEMU model of the ZynqMP eFuse
  *
  * Copyright (c) 2015 Xilinx Inc.
+ * Copyright (c) 2023 Advanced Micro Devices, Inc.
  *
  * Written by Edgar E. Iglesias <edgari@xilinx.com>
  *
@@ -769,9 +770,9 @@ static void zynqmp_efuse_register_reset(RegisterInfo *reg)
     register_reset(reg);
 }
 
-static void zynqmp_efuse_reset(DeviceState *dev)
+static void zynqmp_efuse_reset_hold(Object *obj)
 {
-    XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(dev);
+    XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
@@ -837,8 +838,9 @@ static Property zynqmp_efuse_props[] = {
 static void zynqmp_efuse_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->reset = zynqmp_efuse_reset;
+    rc->phases.hold = zynqmp_efuse_reset_hold;
     dc->realize = zynqmp_efuse_realize;
     dc->vmsd = &vmstate_efuse;
     device_class_set_props(dc, zynqmp_efuse_props);
