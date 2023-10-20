@@ -13,6 +13,7 @@
 #include "qemu/units.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
+#include "hw/qdev-properties.h"
 #include "hw/s390x/storage-attributes.h"
 #include "qemu/error-report.h"
 #include "exec/ram_addr.h"
@@ -340,6 +341,11 @@ static void s390_stattrib_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static Property s390_stattrib_props[] = {
+    DEFINE_PROP_BOOL("migration-enabled", S390StAttribState, migration_enabled, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void s390_stattrib_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -347,22 +353,7 @@ static void s390_stattrib_class_init(ObjectClass *oc, void *data)
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = s390_stattrib_realize;
-}
-
-static inline bool s390_stattrib_get_migration_enabled(Object *obj,
-                                                       Error **errp)
-{
-    S390StAttribState *s = S390_STATTRIB(obj);
-
-    return s->migration_enabled;
-}
-
-static inline void s390_stattrib_set_migration_enabled(Object *obj, bool value,
-                                            Error **errp)
-{
-    S390StAttribState *s = S390_STATTRIB(obj);
-
-    s->migration_enabled = value;
+    device_class_set_props(dc, s390_stattrib_props);
 }
 
 static SaveVMHandlers savevm_s390_stattrib_handlers = {
@@ -383,10 +374,6 @@ static void s390_stattrib_instance_init(Object *obj)
     register_savevm_live(TYPE_S390_STATTRIB, 0, 0,
                          &savevm_s390_stattrib_handlers, sas);
 
-    object_property_add_bool(obj, "migration-enabled",
-                             s390_stattrib_get_migration_enabled,
-                             s390_stattrib_set_migration_enabled);
-    object_property_set_bool(obj, "migration-enabled", true, NULL);
     sas->migration_cur_gfn = 0;
 }
 
