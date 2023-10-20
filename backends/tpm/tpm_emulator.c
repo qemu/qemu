@@ -975,8 +975,7 @@ static void tpm_emulator_inst_init(Object *obj)
         qemu_add_vm_change_state_handler(tpm_emulator_vm_state_change,
                                          tpm_emu);
 
-    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_tpm_emulator, obj);
+    vmstate_register_any(NULL, &vmstate_tpm_emulator, obj);
 }
 
 /*

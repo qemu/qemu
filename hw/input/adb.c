@@ -247,7 +247,7 @@ static void adb_bus_realize(BusState *qbus, Error **errp)
     adb_bus->autopoll_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, adb_autopoll,
                                            adb_bus);
 
-    vmstate_register(NULL, -1, &vmstate_adb_bus, adb_bus);
+    vmstate_register_any(NULL, &vmstate_adb_bus, adb_bus);
 }
 
 static void adb_bus_unrealize(BusState *qbus)

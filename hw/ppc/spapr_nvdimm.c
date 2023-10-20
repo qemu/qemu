@@ -876,8 +876,7 @@ static void spapr_nvdimm_realize(NVDIMMDevice *dimm, Error **errp)
         s_nvdimm->hcall_flush_required = true;
     }
 
-    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_spapr_nvdimm_states, dimm);
+    vmstate_register_any(NULL, &vmstate_spapr_nvdimm_states, dimm);
 }
 
 static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)
