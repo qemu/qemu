@@ -3873,6 +3873,7 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
         ret = qemu_ram_resize(block, length, &local_err);
         if (local_err) {
             error_report_err(local_err);
+            return ret;
         }
     }
     /* For postcopy we need to check hugepage sizes match */
@@ -3883,7 +3884,7 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
             error_report("Mismatched RAM page size %s "
                          "(local) %zd != %" PRId64, block->idstr,
                          block->page_size, remote_page_size);
-            ret = -EINVAL;
+            return -EINVAL;
         }
     }
     if (migrate_ignore_shared()) {
@@ -3893,7 +3894,7 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
             error_report("Mismatched GPAs for block %s "
                          "%" PRId64 "!= %" PRId64, block->idstr,
                          (uint64_t)addr, (uint64_t)block->mr->addr);
-            ret = -EINVAL;
+            return -EINVAL;
         }
     }
     ret = rdma_block_notification_handle(f, block->idstr);

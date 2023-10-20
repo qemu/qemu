@@ -339,7 +339,8 @@ static void vhost_vdpa_net_data_start_first(VhostVDPAState *s)
 {
     struct vhost_vdpa *v = &s->vhost_vdpa;
 
-    add_migration_state_change_notifier(&s->migration_state);
+    migration_add_notifier(&s->migration_state,
+                           vdpa_net_migration_state_notifier);
     if (v->shadow_vqs_enabled) {
         v->iova_tree = vhost_iova_tree_new(v->iova_range.first,
                                            v->iova_range.last);
@@ -399,7 +400,7 @@ static void vhost_vdpa_net_client_stop(NetClientState *nc)
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
     if (s->vhost_vdpa.index == 0) {
-        remove_migration_state_change_notifier(&s->migration_state);
+        migration_remove_notifier(&s->migration_state);
     }
 
     dev = s->vhost_vdpa.dev;
@@ -1456,7 +1457,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
     s->always_svq = svq;
-    s->migration_state.notify = vdpa_net_migration_state_notifier;
+    s->migration_state.notify = NULL;
     s->vhost_vdpa.shadow_vqs_enabled = svq;
     s->vhost_vdpa.iova_range = iova_range;
     s->vhost_vdpa.shadow_data = svq;

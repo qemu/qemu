@@ -43,4 +43,8 @@ void wait_for_migration_complete(QTestState *who);
 
 void wait_for_migration_fail(QTestState *from, bool allow_active);
 
+char *find_common_machine_version(const char *mtype, const char *var1,
+                                  const char *var2);
+char *resolve_machine_version(const char *alias, const char *var1,
+                              const char *var2);
 #endif /* MIGRATION_HELPERS_H */

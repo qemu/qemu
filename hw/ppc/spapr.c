@@ -1761,7 +1761,7 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
     /* Signal all vCPUs waiting on this condition */
     qemu_cond_broadcast(&spapr->fwnmi_machine_check_interlock_cond);
 
-    migrate_del_blocker(spapr->fwnmi_migration_blocker);
+    migrate_del_blocker(&spapr->fwnmi_migration_blocker);
 }
 
 static void spapr_create_nvram(SpaprMachineState *spapr)
@@ -2935,13 +2935,6 @@ static void spapr_machine_init(MachineState *machine)
 
     if (smc->dr_lmb_enabled) {
         spapr_create_lmb_dr_connectors(spapr);
-    }
-
-    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_ON) {
-        /* Create the error string for live migration blocker */
-        error_setg(&spapr->fwnmi_migration_blocker,
-            "A machine check is being handled during migration. The handler"
-            "may run and log hardware error on the destination");
     }
 
     if (mc->nvdimm_supported) {
