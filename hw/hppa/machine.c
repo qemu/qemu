@@ -391,9 +391,9 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus)
                     true, EM_PARISC, 0, 0);
 
     /* Unfortunately, load_elf sign-extends reading elf32.  */
-    firmware_entry = (target_ureg)firmware_entry;
-    firmware_low = (target_ureg)firmware_low;
-    firmware_high = (target_ureg)firmware_high;
+    firmware_entry = (uint32_t)firmware_entry;
+    firmware_low = (uint32_t)firmware_low;
+    firmware_high = (uint32_t)firmware_high;
 
     if (size < 0) {
         error_report("could not load firmware '%s'", firmware_filename);
@@ -420,9 +420,9 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus)
                         true, EM_PARISC, 0, 0);
 
         /* Unfortunately, load_elf sign-extends reading elf32.  */
-        kernel_entry = (target_ureg) cpu_hppa_to_phys(NULL, kernel_entry);
-        kernel_low = (target_ureg)kernel_low;
-        kernel_high = (target_ureg)kernel_high;
+        kernel_entry = (uint32_t) cpu_hppa_to_phys(NULL, kernel_entry);
+        kernel_low = (uint32_t)kernel_low;
+        kernel_high = (uint32_t)kernel_high;
 
         if (size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
