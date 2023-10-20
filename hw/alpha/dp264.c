@@ -124,9 +124,7 @@ static void clipper_init(MachineState *machine)
     pci_vga_init(pci_bus);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
-    for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
-    }
+    pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* Super I/O */
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
