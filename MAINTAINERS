@@ -981,7 +981,9 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/stellaris*
+F: hw/display/ssd03*
 F: include/hw/input/gamepad.h
+F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
 
 STM32VLDISCOVERY
