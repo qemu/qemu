@@ -474,6 +474,12 @@ static void loongarch_la132_initfn(Object *obj)
     env->cpucfg[1] = data;
 }
 
+static void loongarch_max_initfn(Object *obj)
+{
+    /* '-cpu max' for TCG: we use cpu la464. */
+    loongarch_la464_initfn(obj);
+}
+
 static void loongarch_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
@@ -829,6 +835,7 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
     },
     DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(32, "la132", loongarch_la132_initfn),
+    DEFINE_LOONGARCH_CPU_TYPE(64, "max", loongarch_max_initfn),
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
