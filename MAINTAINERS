@@ -996,6 +996,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/vexpress.c
+F: hw/display/sii9022.c
 F: docs/system/arm/vexpress.rst
 
 Versatile PB
