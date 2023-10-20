@@ -673,9 +673,7 @@ static void create_pcie(SBSAMachineState *sms)
 
     pci = PCI_HOST_BRIDGE(dev);
     if (pci->bus) {
-        for (i = 0; i < nb_nics; i++) {
-            pci_nic_init_nofail(&nd_table[i], pci->bus, mc->default_nic, NULL);
-        }
+        pci_init_nic_devices(pci->bus, mc->default_nic);
     }
 
     pci_create_simple(pci->bus, -1, "bochs-display");
