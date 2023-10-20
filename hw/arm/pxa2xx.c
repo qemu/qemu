@@ -1513,14 +1513,15 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     qdev_prop_set_uint32(dev, "size", region_size + 1);
     qdev_prop_set_uint32(dev, "offset", base & region_size);
 
+    /* FIXME: Should the slave device really be on a separate bus?  */
+    i2cbus = i2c_init_bus(dev, "dummy");
+
     i2c_dev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(i2c_dev, &error_fatal);
     sysbus_mmio_map(i2c_dev, 0, base & ~region_size);
     sysbus_connect_irq(i2c_dev, 0, irq);
 
     s = PXA2XX_I2C(i2c_dev);
-    /* FIXME: Should the slave device really be on a separate bus?  */
-    i2cbus = i2c_init_bus(dev, "dummy");
     s->slave = PXA2XX_I2C_SLAVE(i2c_slave_create_simple(i2cbus,
                                                         TYPE_PXA2XX_I2C_SLAVE,
                                                         0));
