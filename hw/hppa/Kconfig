@@ -3,6 +3,7 @@ config HPPA_B160L
     imply PCI_DEVICES
     imply E1000_PCI
     imply VIRTIO_VGA
+    select ASTRO
     select DINO
     select LASI
     select SERIAL
