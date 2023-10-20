@@ -1231,6 +1231,17 @@ static inline int vmstate_register(VMStateIf *obj, int instance_id,
 }
 
 /**
+ * vmstate_replace_hack_for_ppc() - ppc used to abuse vmstate_register
+ *
+ * Don't even think about using this function in new code.
+ *
+ * Returns: 0 on success, -1 on failure
+ */
+int vmstate_replace_hack_for_ppc(VMStateIf *obj, int instance_id,
+                                 const VMStateDescription *vmsd,
+                                 void *opaque);
+
+/**
  * vmstate_register_any() - legacy function to register state
  * serialisation description and let the function choose the id
  *
