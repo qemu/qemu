@@ -167,13 +167,17 @@ An example (from hw/input/pckbd.c)
       }
   };
 
-We are declaring the state with name "pckbd".
-The ``version_id`` is 3, and the fields are 4 uint8_t in a KBDState structure.
-We registered this with:
+We are declaring the state with name "pckbd".  The ``version_id`` is
+3, and there are 4 uint8_t fields in the KBDState structure.  We
+registered this ``VMSTATEDescription`` with one of the following
+functions.  The first one will generate a device ``instance_id``
+different for each registration.  Use the second one if you already
+have an id that is different for each instance of the device:
 
 .. code:: c
 
-    vmstate_register(NULL, 0, &vmstate_kbd, s);
+    vmstate_register_any(NULL, &vmstate_kbd, s);
+    vmstate_register(NULL, instance_id, &vmstate_kbd, s);
 
 For devices that are ``qdev`` based, we can register the device in the class
 init function:
