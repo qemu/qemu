@@ -321,7 +321,7 @@ eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
     /* Output DO is tristate, read results in 1. */
     eeprom->eedo = 1;
     logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
-    vmstate_register(VMSTATE_IF(dev), 0, &vmstate_eeprom, eeprom);
+    vmstate_register_any(VMSTATE_IF(dev), &vmstate_eeprom, eeprom);
     return eeprom;
 }
 
