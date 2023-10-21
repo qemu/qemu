@@ -3209,6 +3209,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #endif
         if (use_new &&
             ((b >= 0x138 && b <= 0x19f) ||
+             (b & ~9) == 0x1a0 ||
+             b == 0x1af || b == 0x1b2 ||
+             (b >= 0x1b4 && b <= 0x1b7) ||
+             b == 0x1be || b == 0x1bf || b == 0x1c3 ||
              (b >= 0x1c8 && b <= 0x1cf))) {
             disas_insn_new(s, cpu, b);
             return true;
