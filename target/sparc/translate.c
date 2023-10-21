@@ -447,69 +447,87 @@ static TCGv_i32 gen_sub32_carry32(void)
     return carry_32;
 }
 
-static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
-                            TCGv src2, int update_cc)
+static void gen_op_addc_int(TCGv dst, TCGv src1, TCGv src2,
+                            TCGv_i32 carry_32, bool update_cc)
 {
-    TCGv_i32 carry_32;
-    TCGv carry;
+    tcg_gen_add_tl(dst, src1, src2);
 
-    switch (dc->cc_op) {
-    case CC_OP_DIV:
-    case CC_OP_LOGIC:
-        /* Carry is known to be zero.  Fall back to plain ADD.  */
-        if (update_cc) {
-            gen_op_add_cc(dst, src1, src2);
-        } else {
-            tcg_gen_add_tl(dst, src1, src2);
-        }
-        return;
-
-    case CC_OP_ADD:
-    case CC_OP_TADD:
-    case CC_OP_TADDTV:
-        if (TARGET_LONG_BITS == 32) {
-            /* We can re-use the host's hardware carry generation by using
-               an ADD2 opcode.  We discard the low part of the output.
-               Ideally we'd combine this operation with the add that
-               generated the carry in the first place.  */
-            carry = tcg_temp_new();
-            tcg_gen_add2_tl(carry, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
-            goto add_done;
-        }
-        carry_32 = gen_add32_carry32();
-        break;
-
-    case CC_OP_SUB:
-    case CC_OP_TSUB:
-    case CC_OP_TSUBTV:
-        carry_32 = gen_sub32_carry32();
-        break;
-
-    default:
-        /* We need external help to produce the carry.  */
-        carry_32 = tcg_temp_new_i32();
-        gen_helper_compute_C_icc(carry_32, tcg_env);
-        break;
-    }
-
-#if TARGET_LONG_BITS == 64
-    carry = tcg_temp_new();
-    tcg_gen_extu_i32_i64(carry, carry_32);
+#ifdef TARGET_SPARC64
+    TCGv carry = tcg_temp_new();
+    tcg_gen_extu_i32_tl(carry, carry_32);
+    tcg_gen_add_tl(dst, dst, carry);
 #else
-    carry = carry_32;
+    tcg_gen_add_i32(dst, dst, carry_32);
 #endif
 
-    tcg_gen_add_tl(dst, src1, src2);
-    tcg_gen_add_tl(dst, dst, carry);
-
- add_done:
     if (update_cc) {
+        tcg_debug_assert(dst == cpu_cc_dst);
         tcg_gen_mov_tl(cpu_cc_src, src1);
         tcg_gen_mov_tl(cpu_cc_src2, src2);
-        tcg_gen_mov_tl(cpu_cc_dst, dst);
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADDX);
-        dc->cc_op = CC_OP_ADDX;
     }
+}
+
+static void gen_op_addc_int_add(TCGv dst, TCGv src1, TCGv src2, bool update_cc)
+{
+    TCGv discard;
+
+    if (TARGET_LONG_BITS == 64) {
+        gen_op_addc_int(dst, src1, src2, gen_add32_carry32(), update_cc);
+        return;
+    }
+
+    /*
+     * We can re-use the host's hardware carry generation by using
+     * an ADD2 opcode.  We discard the low part of the output.
+     * Ideally we'd combine this operation with the add that
+     * generated the carry in the first place.
+     */
+    discard = tcg_temp_new();
+    tcg_gen_add2_tl(discard, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
+
+    if (update_cc) {
+        tcg_debug_assert(dst == cpu_cc_dst);
+        tcg_gen_mov_tl(cpu_cc_src, src1);
+        tcg_gen_mov_tl(cpu_cc_src2, src2);
+    }
+}
+
+static void gen_op_addc_add(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int_add(dst, src1, src2, false);
+}
+
+static void gen_op_addccc_add(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int_add(dst, src1, src2, true);
+}
+
+static void gen_op_addc_sub(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int(dst, src1, src2, gen_sub32_carry32(), false);
+}
+
+static void gen_op_addccc_sub(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int(dst, src1, src2, gen_sub32_carry32(), true);
+}
+
+static void gen_op_addc_int_generic(TCGv dst, TCGv src1, TCGv src2,
+                                    bool update_cc)
+{
+    TCGv_i32 carry_32 = tcg_temp_new_i32();
+    gen_helper_compute_C_icc(carry_32, tcg_env);
+    gen_op_addc_int(dst, src1, src2, carry_32, update_cc);
+}
+
+static void gen_op_addc_generic(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int_generic(dst, src1, src2, false);
+}
+
+static void gen_op_addccc_generic(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addc_int_generic(dst, src1, src2, true);
 }
 
 static void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -4095,6 +4113,30 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
     return do_logic(dc, a, tcg_gen_or_tl, tcg_gen_ori_tl);
 }
 
+static bool trans_ADDC(DisasContext *dc, arg_r_r_ri_cc *a)
+{
+    switch (dc->cc_op) {
+    case CC_OP_DIV:
+    case CC_OP_LOGIC:
+        /* Carry is known to be zero.  Fall back to plain ADD.  */
+        return do_arith(dc, a, CC_OP_ADD,
+                        tcg_gen_add_tl, tcg_gen_addi_tl, gen_op_add_cc);
+    case CC_OP_ADD:
+    case CC_OP_TADD:
+    case CC_OP_TADDTV:
+        return do_arith(dc, a, CC_OP_ADDX,
+                        gen_op_addc_add, NULL, gen_op_addccc_add);
+    case CC_OP_SUB:
+    case CC_OP_TSUB:
+    case CC_OP_TSUBTV:
+        return do_arith(dc, a, CC_OP_ADDX,
+                        gen_op_addc_sub, NULL, gen_op_addccc_sub);
+    default:
+        return do_arith(dc, a, CC_OP_ADDX,
+                        gen_op_addc_generic, NULL, gen_op_addccc_generic);
+    }
+}
+
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
     if (!((dc)->def->features & CPU_FEATURE_ ## FEATURE))  \
         goto illegal_insn;
@@ -4519,10 +4561,6 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     cpu_src1 = get_src1(dc, insn);
                     cpu_src2 = get_src2(dc, insn);
                     switch (xop & ~0x10) {
-                    case 0x8: /* addx, V9 addc */
-                        gen_op_addx_int(dc, cpu_dst, cpu_src1, cpu_src2,
-                                        (xop & 0x10));
-                        break;
 #ifdef TARGET_SPARC64
                     case 0x9: /* V9 mulx */
                         tcg_gen_mul_i64(cpu_dst, cpu_src1, cpu_src2);
