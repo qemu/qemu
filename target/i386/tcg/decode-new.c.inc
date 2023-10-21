@@ -43,6 +43,12 @@
  * Operand types
  * -------------
  *
+ * For memory-only operands, if the emitter functions wants to rely on
+ * generic load and writeback, the decoder needs to know the type of the
+ * operand.  Therefore, M is often replaced by the more specific EM and WM
+ * (respectively selecting an ALU operand, like the operand type E, or a
+ * vector operand like the operand type W).
+ *
  * Immediates are almost always signed or masked away in helpers.  Two
  * common exceptions are IN/OUT and absolute jumps.  For these, there is
  * an additional custom operand type "I_unsigned".  Alternatively, the
@@ -135,6 +141,8 @@
     ## __VA_ARGS__                                                \
 }
 
+#define X86_OP_GROUP1(op, op0, s0, ...)                           \
+    X86_OP_GROUP3(op, op0, s0, 2op, s0, None, None, ## __VA_ARGS__)
 #define X86_OP_GROUP2(op, op0, s0, op1, s1, ...)                  \
     X86_OP_GROUP3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
 #define X86_OP_GROUPw(op, op0, s0, ...)                           \
@@ -1174,6 +1182,83 @@ static void decode_group1A(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
     }
 }
 
+static void decode_group2(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group2_gen[8] = {
+        gen_ROL, gen_ROR, gen_RCL, gen_RCR,
+        gen_SHL, gen_SHR, gen_SHL /* SAL, undocumented */, gen_SAR,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group2_gen[op];
+    if (op == 7) {
+        entry->special = X86_SPECIAL_SExtT0;
+    } else {
+        entry->special = X86_SPECIAL_ZExtT0;
+    }
+}
+
+static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry opcodes_grp3[16] = {
+        /* 0xf6 */
+        [0x00] = X86_OP_ENTRYrr(AND, E,b, I,b),
+        [0x02] = X86_OP_ENTRY1(NOT,  E,b,      lock),
+        [0x03] = X86_OP_ENTRY1(NEG,  E,b,      lock),
+        [0x04] = X86_OP_ENTRYrr(MUL, E,b, 0,b, zextT0),
+        [0x05] = X86_OP_ENTRYrr(IMUL,E,b, 0,b, sextT0),
+        [0x06] = X86_OP_ENTRYr(DIV,  E,b),
+        [0x07] = X86_OP_ENTRYr(IDIV, E,b),
+
+        /* 0xf7 */
+        [0x08] = X86_OP_ENTRYrr(AND, E,v, I,z),
+        [0x0a] = X86_OP_ENTRY1(NOT,  E,v,      lock),
+        [0x0b] = X86_OP_ENTRY1(NEG,  E,v,      lock),
+        [0x0c] = X86_OP_ENTRYrr(MUL, E,v, 0,v, zextT0),
+        [0x0d] = X86_OP_ENTRYrr(IMUL,E,v, 0,v, sextT0),
+        [0x0e] = X86_OP_ENTRYr(DIV,  E,v),
+        [0x0f] = X86_OP_ENTRYr(IDIV, E,v),
+    };
+
+    int w = (*b & 1);
+    int reg = (get_modrm(s, env) >> 3) & 7;
+
+    *entry = opcodes_grp3[(w << 3) | reg];
+}
+
+static void decode_group4_5(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry opcodes_grp4_5[16] = {
+        /* 0xfe */
+        [0x00] = X86_OP_ENTRY1(INC,     E,b,                           lock),
+        [0x01] = X86_OP_ENTRY1(DEC,     E,b,                           lock),
+
+        /* 0xff */
+        [0x08] = X86_OP_ENTRY1(INC,     E,v,                           lock),
+        [0x09] = X86_OP_ENTRY1(DEC,     E,v,                           lock),
+        [0x0a] = X86_OP_ENTRY3(CALL_m,  None, None, E,f64, None, None, zextT0),
+        [0x0b] = X86_OP_ENTRYr(CALLF_m, M,p),
+        [0x0c] = X86_OP_ENTRY3(JMP_m,   None, None, E,f64, None, None, zextT0),
+        [0x0d] = X86_OP_ENTRYr(JMPF_m,  M,p),
+        [0x0e] = X86_OP_ENTRYr(PUSH,    E,f64),
+    };
+
+    int w = (*b & 1);
+    int reg = (get_modrm(s, env) >> 3) & 7;
+
+    *entry = opcodes_grp4_5[(w << 3) | reg];
+}
+
+
+static void decode_group11(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    int op = (get_modrm(s, env) >> 3) & 7;
+    if (op != 0) {
+        *entry = UNKNOWN_OPCODE;
+    } else {
+        entry->gen = gen_MOV;
+    }
+}
+
 static const X86OpEntry opcodes_root[256] = {
     [0x00] = X86_OP_ENTRY2(ADD, E,b, G,b, lock),
     [0x01] = X86_OP_ENTRY2(ADD, E,v, G,v, lock),
@@ -1283,6 +1368,38 @@ static const X86OpEntry opcodes_root[256] = {
     [0xB6] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
     [0xB7] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
 
+    [0xC0] = X86_OP_GROUP2(group2, E,b, I,b),
+    [0xC1] = X86_OP_GROUP2(group2, E,v, I,b),
+    [0xC2] = X86_OP_ENTRYr(RET, I,w),
+    [0xC3] = X86_OP_ENTRY0(RET),
+    [0xC4] = X86_OP_ENTRY3(LES, G,z, EM,p, None, None, chk(i64)),
+    [0xC5] = X86_OP_ENTRY3(LDS, G,z, EM,p, None, None, chk(i64)),
+    [0xC6] = X86_OP_GROUP3(group11, E,b, I,b, None, None), /* reg=000b */
+    [0xC7] = X86_OP_GROUP3(group11, E,v, I,z, None, None), /* reg=000b */
+
+    [0xD0] = X86_OP_GROUP1(group2, E,b),
+    [0xD1] = X86_OP_GROUP1(group2, E,v),
+    [0xD2] = X86_OP_GROUP2(group2, E,b, 1,b), /* CL */
+    [0xD3] = X86_OP_GROUP2(group2, E,v, 1,b), /* CL */
+    [0xD4] = X86_OP_ENTRYr(AAM, I,b),
+    [0xD5] = X86_OP_ENTRYr(AAD, I,b),
+    [0xD6] = X86_OP_ENTRYw(SALC, 0,b),
+    [0xD7] = X86_OP_ENTRY1(XLAT, 0,b, zextT0), /* AL read/written */
+
+    [0xE0] = X86_OP_ENTRYr(LOOPNE, J,b), /* implicit: CX with aflag size */
+    [0xE1] = X86_OP_ENTRYr(LOOPE,  J,b), /* implicit: CX with aflag size */
+    [0xE2] = X86_OP_ENTRYr(LOOP,   J,b), /* implicit: CX with aflag size */
+    [0xE3] = X86_OP_ENTRYr(JCXZ,   J,b), /* implicit: CX with aflag size */
+    [0xE4] = X86_OP_ENTRYwr(IN,    0,b, I_unsigned,b), /* AL */
+    [0xE5] = X86_OP_ENTRYwr(IN,    0,v, I_unsigned,b), /* AX/EAX */
+    [0xE6] = X86_OP_ENTRYrr(OUT,   0,b, I_unsigned,b), /* AL */
+    [0xE7] = X86_OP_ENTRYrr(OUT,   0,v, I_unsigned,b), /* AX/EAX */
+
+    [0xF1] = X86_OP_ENTRY0(INT1,   svm(ICEBP)),
+    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0)),
+    [0xF5] = X86_OP_ENTRY0(CMC),
+    [0xF6] = X86_OP_GROUP1(group3, E,b),
+    [0xF7] = X86_OP_GROUP1(group3, E,v),
 
     [0x08] = X86_OP_ENTRY2(OR, E,b, G,b, lock),
     [0x09] = X86_OP_ENTRY2(OR, E,v, G,v, lock),
@@ -1392,6 +1509,33 @@ static const X86OpEntry opcodes_root[256] = {
     [0xBD] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
     [0xBE] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
     [0xBF] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+
+    [0xC8] = X86_OP_ENTRYrr(ENTER, I,w, I,b),
+    [0xC9] = X86_OP_ENTRY1(LEAVE, A,d64),
+    [0xCA] = X86_OP_ENTRYr(RETF,  I,w),
+    [0xCB] = X86_OP_ENTRY0(RETF),
+    [0xCC] = X86_OP_ENTRY0(INT3),
+    [0xCD] = X86_OP_ENTRYr(INT, I,b,  chk(vm86_iopl)),
+    [0xCE] = X86_OP_ENTRY0(INTO),
+    [0xCF] = X86_OP_ENTRY0(IRET,      chk(vm86_iopl) svm(IRET)),
+
+    [0xE8] = X86_OP_ENTRYr(CALL,   J,z_f64),
+    [0xE9] = X86_OP_ENTRYr(JMP,    J,z_f64),
+    [0xEA] = X86_OP_ENTRYrr(JMPF,  I_unsigned,p, I_unsigned,w, chk(i64)),
+    [0xEB] = X86_OP_ENTRYr(JMP,    J,b),
+    [0xEC] = X86_OP_ENTRYwr(IN,    0,b, 2,w), /* AL, DX */
+    [0xED] = X86_OP_ENTRYwr(IN,    0,v, 2,w), /* AX/EAX, DX */
+    [0xEE] = X86_OP_ENTRYrr(OUT,   0,b, 2,w), /* DX, AL */
+    [0xEF] = X86_OP_ENTRYrr(OUT,   0,v, 2,w), /* DX, AX/EAX */
+
+    [0xF8] = X86_OP_ENTRY0(CLC),
+    [0xF9] = X86_OP_ENTRY0(STC),
+    [0xFA] = X86_OP_ENTRY0(CLI,    chk(iopl)),
+    [0xFB] = X86_OP_ENTRY0(STI,    chk(iopl)),
+    [0xFC] = X86_OP_ENTRY0(CLD),
+    [0xFD] = X86_OP_ENTRY0(STD),
+    [0xFE] = X86_OP_GROUP1(group4_5, E,b),
+    [0xFF] = X86_OP_GROUP1(group4_5, E,v),
 };
 
 #undef mmx
@@ -1469,6 +1613,10 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
 
     case X86_SIZE_z:  /* 16-bit for 16-bit operand size, else 32-bit */
         *ot = s->dflag == MO_16 ? MO_16 : MO_32;
+        return true;
+
+    case X86_SIZE_z_f64:  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
+        *ot = !CODE64(s) && s->dflag == MO_16 ? MO_16 : MO_32;
         return true;
 
     case X86_SIZE_dq: /* SSE/AVX 128-bit */
@@ -1610,8 +1758,13 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_WM:  /* modrm byte selects an XMM/YMM memory operand */
         op->unit = X86_OP_SSE;
+        goto get_modrm_mem;
+
+    case X86_TYPE_EM:  /* modrm byte selects an ALU memory operand */
+        op->unit = X86_OP_INT;
         /* fall through */
     case X86_TYPE_M:  /* modrm byte selects a memory operand */
+    get_modrm_mem:
         modrm = get_modrm(s, env);
         if ((modrm >> 6) == 3) {
             return false;

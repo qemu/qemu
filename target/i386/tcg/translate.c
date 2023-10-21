@@ -38,6 +38,9 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+/* Fixes for Windows namespace pollution.  */
+#undef IN
+#undef OUT
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -2489,14 +2492,24 @@ static inline int insn_const_size(MemOp ot)
     }
 }
 
+static void gen_conditional_jump_labels(DisasContext *s, target_long diff,
+                                        TCGLabel *not_taken, TCGLabel *taken)
+{
+    if (not_taken) {
+        gen_set_label(not_taken);
+    }
+    gen_jmp_rel_csize(s, 0, 1);
+
+    gen_set_label(taken);
+    gen_jmp_rel(s, s->dflag, diff, 0);
+}
+
 static void gen_jcc(DisasContext *s, int b, int diff)
 {
     TCGLabel *l1 = gen_new_label();
 
     gen_jcc1(s, b, l1);
-    gen_jmp_rel_csize(s, 0, 1);
-    gen_set_label(l1);
-    gen_jmp_rel(s, s->dflag, diff, 0);
+    gen_conditional_jump_labels(s, diff, NULL, l1);
 }
 
 static void gen_cmovcc1(DisasContext *s, int b, TCGv dest, TCGv src)
@@ -2753,7 +2766,7 @@ static void gen_unknown_opcode(CPUX86State *env, DisasContext *s)
 
 /* an interrupt is different from an exception because of the
    privilege checks */
-static void gen_interrupt(DisasContext *s, int intno)
+static void gen_interrupt(DisasContext *s, uint8_t intno)
 {
     gen_update_cc_op(s);
     gen_update_eip_cur(s);
@@ -3184,7 +3197,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #ifndef CONFIG_USER_ONLY
         use_new &= b <= limit;
 #endif
-        if (use_new && b <= 0xbf) {
+        if (use_new && (b < 0xd8 || b >= 0xe0)) {
             disas_insn_new(s, cpu, b);
             return true;
         }
