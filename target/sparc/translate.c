@@ -2379,8 +2379,9 @@ static bool advance_pc(DisasContext *dc)
  */
 
 static bool advance_jump_cond(DisasContext *dc, DisasCompare *cmp,
-                              bool annul, target_ulong dest)
+                              bool annul, int disp)
 {
+    target_ulong dest = address_mask_i(dc, dc->pc + disp * 4);
     target_ulong npc;
 
     if (cmp->cond == TCG_COND_ALWAYS) {
@@ -2475,11 +2476,10 @@ static bool gen_trap_float128(DisasContext *dc)
 
 static bool do_bpcc(DisasContext *dc, arg_bcc *a)
 {
-    target_long target = address_mask_i(dc, dc->pc + a->i * 4);
     DisasCompare cmp;
 
     gen_compare(&cmp, a->cc, a->cond, dc);
-    return advance_jump_cond(dc, &cmp, a->a, target);
+    return advance_jump_cond(dc, &cmp, a->a, a->i);
 }
 
 TRANS(Bicc, ALL, do_bpcc, a)
@@ -2487,14 +2487,13 @@ TRANS(BPcc,  64, do_bpcc, a)
 
 static bool do_fbpfcc(DisasContext *dc, arg_bcc *a)
 {
-    target_long target = address_mask_i(dc, dc->pc + a->i * 4);
     DisasCompare cmp;
 
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
     gen_fcompare(&cmp, a->cc, a->cond);
-    return advance_jump_cond(dc, &cmp, a->a, target);
+    return advance_jump_cond(dc, &cmp, a->a, a->i);
 }
 
 TRANS(FBPfcc,  64, do_fbpfcc, a)
@@ -2502,7 +2501,6 @@ TRANS(FBfcc,  ALL, do_fbpfcc, a)
 
 static bool trans_BPr(DisasContext *dc, arg_BPr *a)
 {
-    target_long target = address_mask_i(dc, dc->pc + a->i * 4);
     DisasCompare cmp;
 
     if (!avail_64(dc)) {
@@ -2513,7 +2511,7 @@ static bool trans_BPr(DisasContext *dc, arg_BPr *a)
     }
 
     gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1));
-    return advance_jump_cond(dc, &cmp, a->a, target);
+    return advance_jump_cond(dc, &cmp, a->a, a->i);
 }
 
 static bool trans_CALL(DisasContext *dc, arg_CALL *a)
