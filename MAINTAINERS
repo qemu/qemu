@@ -2656,6 +2656,14 @@ F: hw/usb/canokey.c
 F: hw/usb/canokey.h
 F: docs/system/devices/canokey.rst
 
+Hyper-V Dynamic Memory Protocol
+M: Maciej S. Szmigiero <maciej.szmigiero@oracle.com>
+S: Supported
+F: hw/hyperv/hv-balloon*.c
+F: hw/hyperv/hv-balloon*.h
+F: include/hw/hyperv/dynmem-proto.h
+F: include/hw/hyperv/hv-balloon.h
+
 Subsystems
 ----------
 Overall Audio backends
