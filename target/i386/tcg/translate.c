@@ -940,28 +940,24 @@ static CCPrepare gen_prepare_sign_nz(TCGv src, MemOp size)
 /* compute eflags.C to reg */
 static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 {
-    TCGv t0, t1;
     MemOp size;
 
     switch (s->cc_op) {
     case CC_OP_SUBB ... CC_OP_SUBQ:
         /* (DATA_TYPE)CC_SRCT < (DATA_TYPE)CC_SRC */
         size = s->cc_op - CC_OP_SUBB;
-        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
-        /* If no temporary was used, be careful not to alias t1 and t0.  */
-        t0 = t1 == cpu_cc_src ? s->tmp0 : reg;
-        tcg_gen_mov_tl(t0, s->cc_srcT);
-        gen_extu(size, t0);
-        goto add_sub;
+        gen_ext_tl(s->cc_srcT, s->cc_srcT, size, false);
+        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+        return (CCPrepare) { .cond = TCG_COND_LTU, .reg = s->cc_srcT,
+                             .reg2 = cpu_cc_src, .use_reg2 = true };
 
     case CC_OP_ADDB ... CC_OP_ADDQ:
         /* (DATA_TYPE)CC_DST < (DATA_TYPE)CC_SRC */
         size = s->cc_op - CC_OP_ADDB;
-        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
-        t0 = gen_ext_tl(reg, cpu_cc_dst, size, false);
-    add_sub:
-        return (CCPrepare) { .cond = TCG_COND_LTU, .reg = t0,
-                             .reg2 = t1, .use_reg2 = true };
+        gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size, false);
+        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+        return (CCPrepare) { .cond = TCG_COND_LTU, .reg = cpu_cc_dst,
+                             .reg2 = cpu_cc_src, .use_reg2 = true };
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_CLR:
@@ -984,8 +980,8 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 
     case CC_OP_BMILGB ... CC_OP_BMILGQ:
         size = s->cc_op - CC_OP_BMILGB;
-        t0 = gen_ext_tl(reg, cpu_cc_src, size, false);
-        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0 };
+        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_src };
 
     case CC_OP_ADCX:
     case CC_OP_ADCOX:
@@ -1098,7 +1094,6 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     int inv, jcc_op, cond;
     MemOp size;
     CCPrepare cc;
-    TCGv t0;
 
     inv = b & 1;
     jcc_op = (b >> 1) & 7;
@@ -1109,24 +1104,21 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         size = s->cc_op - CC_OP_SUBB;
         switch (jcc_op) {
         case JCC_BE:
-            tcg_gen_mov_tl(s->tmp4, s->cc_srcT);
-            gen_extu(size, s->tmp4);
-            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
-            cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = s->tmp4,
-                               .reg2 = t0, .use_reg2 = true };
+            gen_ext_tl(s->cc_srcT, s->cc_srcT, size, false);
+            gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+            cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = s->cc_srcT,
+                               .reg2 = cpu_cc_src, .use_reg2 = true };
             break;
-
         case JCC_L:
             cond = TCG_COND_LT;
             goto fast_jcc_l;
         case JCC_LE:
             cond = TCG_COND_LE;
         fast_jcc_l:
-            tcg_gen_mov_tl(s->tmp4, s->cc_srcT);
-            gen_exts(size, s->tmp4);
-            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size, true);
-            cc = (CCPrepare) { .cond = cond, .reg = s->tmp4,
-                               .reg2 = t0, .use_reg2 = true };
+            gen_ext_tl(s->cc_srcT, s->cc_srcT, size, true);
+            gen_ext_tl(cpu_cc_src, cpu_cc_src, size, true);
+            cc = (CCPrepare) { .cond = cond, .reg = s->cc_srcT,
+                               .reg2 = cpu_cc_src, .use_reg2 = true };
             break;
 
         default:
