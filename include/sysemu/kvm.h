@@ -167,6 +167,7 @@ extern bool kvm_msi_use_devid;
 #define kvm_irqchip_is_split() (false)
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
+#define kvm_irqfds_enabled() (false)
 #define kvm_eventfds_enabled() (false)
 #define kvm_resamplefds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
