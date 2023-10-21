@@ -1189,24 +1189,29 @@ static void gen_fcompare(DisasCompare *cmp, unsigned int cc, unsigned int cond)
     }
 }
 
-// Inverted logic
-static const TCGCond gen_tcg_cond_reg[8] = {
-    TCG_COND_NEVER,  /* reserved */
-    TCG_COND_NE,
-    TCG_COND_GT,
-    TCG_COND_GE,
-    TCG_COND_NEVER,  /* reserved */
-    TCG_COND_EQ,
-    TCG_COND_LE,
-    TCG_COND_LT,
-};
-
-static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
+static bool gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 {
-    cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
+    static const TCGCond cond_reg[4] = {
+        TCG_COND_NEVER,  /* reserved */
+        TCG_COND_EQ,
+        TCG_COND_LE,
+        TCG_COND_LT,
+    };
+    TCGCond tcond;
+
+    if ((cond & 3) == 0) {
+        return false;
+    }
+    tcond = cond_reg[cond & 3];
+    if (cond & 4) {
+        tcond = tcg_invert_cond(tcond);
+    }
+
+    cmp->cond = tcond;
     cmp->c1 = tcg_temp_new();
     cmp->c2 = 0;
     tcg_gen_mov_tl(cmp->c1, r_src);
+    return true;
 }
 
 static void gen_op_clear_ieee_excp_and_FTT(void)
@@ -2504,11 +2509,9 @@ static bool trans_BPr(DisasContext *dc, arg_BPr *a)
     if (!avail_64(dc)) {
         return false;
     }
-    if (gen_tcg_cond_reg[a->cond] == TCG_COND_NEVER) {
+    if (!gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1))) {
         return false;
     }
-
-    gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1));
     return advance_jump_cond(dc, &cmp, a->a, a->i);
 }
 
@@ -4020,7 +4023,9 @@ static bool trans_MOVR(DisasContext *dc, arg_MOVR *a)
     if (src2 == NULL) {
         return false;
     }
-    gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1));
+    if (!gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1))) {
+        return false;
+    }
     return do_mov_cond(dc, &cmp, a->rd, src2);
 }
 
@@ -5007,6 +5012,9 @@ static bool do_fmovr(DisasContext *dc, arg_FMOVRs *a, bool is_128,
 {
     DisasCompare cmp;
 
+    if (!gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1))) {
+        return false;
+    }
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
@@ -5015,7 +5023,6 @@ static bool do_fmovr(DisasContext *dc, arg_FMOVRs *a, bool is_128,
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    gen_compare_reg(&cmp, a->cond, gen_load_gpr(dc, a->rs1));
     func(dc, &cmp, a->rd, a->rs2);
     return advance_pc(dc);
 }
