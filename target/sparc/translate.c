@@ -82,18 +82,14 @@ static TCGv cpu_cond;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_fprs;
 static TCGv cpu_gsr;
-static TCGv cpu_tick_cmpr, cpu_stick_cmpr, cpu_hstick_cmpr;
 static TCGv cpu_hintp, cpu_htba, cpu_hver, cpu_ssr, cpu_ver;
 #else
 # define cpu_fprs               ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_gsr                ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_hintp              ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_hstick_cmpr        ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_htba               ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_hver               ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_ssr                ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_stick_cmpr         ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_tick_cmpr          ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_ver                ({ qemu_build_not_reached(); (TCGv)NULL; })
 #endif
 /* Floating point registers */
@@ -3307,7 +3303,8 @@ TRANS(RDSOFTINT, 64, do_rd_special, supervisor(dc), a->rd, do_rdsoftint)
 
 static TCGv do_rdtick_cmpr(DisasContext *dc, TCGv dst)
 {
-    return cpu_tick_cmpr;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(tick_cmpr));
+    return dst;
 }
 
 /* TODO: non-priv access only allowed when enabled. */
@@ -3331,7 +3328,8 @@ TRANS(RDSTICK, 64, do_rd_special, true, a->rd, do_rdstick)
 
 static TCGv do_rdstick_cmpr(DisasContext *dc, TCGv dst)
 {
-    return cpu_stick_cmpr;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(stick_cmpr));
+    return dst;
 }
 
 /* TODO: supervisor access only allowed when enabled by hypervisor. */
@@ -3406,7 +3404,8 @@ TRANS(RDHPR_hver, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdhver)
 
 static TCGv do_rdhstick_cmpr(DisasContext *dc, TCGv dst)
 {
-    return cpu_hstick_cmpr;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(hstick_cmpr));
+    return dst;
 }
 
 TRANS(RDHPR_hstick_cmpr, HYPV, do_rd_special, hypervisor(dc), a->rd,
@@ -3696,18 +3695,14 @@ TRANS(WRSOFTINT, 64, do_wr_special, a, supervisor(dc), do_wrsoftint)
 
 static void do_wrtick_cmpr(DisasContext *dc, TCGv src)
 {
-#ifdef TARGET_SPARC64
     TCGv_ptr r_tickptr = tcg_temp_new_ptr();
 
-    tcg_gen_mov_tl(cpu_tick_cmpr, src);
-    tcg_gen_ld_ptr(r_tickptr, tcg_env, offsetof(CPUSPARCState, tick));
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(tick_cmpr));
+    tcg_gen_ld_ptr(r_tickptr, tcg_env, env64_field_offsetof(tick));
     translator_io_start(&dc->base);
-    gen_helper_tick_set_limit(r_tickptr, cpu_tick_cmpr);
+    gen_helper_tick_set_limit(r_tickptr, src);
     /* End TB to handle timer interrupt */
     dc->base.is_jmp = DISAS_EXIT;
-#else
-    qemu_build_not_reached();
-#endif
 }
 
 TRANS(WRTICK_CMPR, 64, do_wr_special, a, supervisor(dc), do_wrtick_cmpr)
@@ -3731,18 +3726,14 @@ TRANS(WRSTICK, 64, do_wr_special, a, supervisor(dc), do_wrstick)
 
 static void do_wrstick_cmpr(DisasContext *dc, TCGv src)
 {
-#ifdef TARGET_SPARC64
     TCGv_ptr r_tickptr = tcg_temp_new_ptr();
 
-    tcg_gen_mov_tl(cpu_stick_cmpr, src);
-    tcg_gen_ld_ptr(r_tickptr, tcg_env, offsetof(CPUSPARCState, stick));
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(stick_cmpr));
+    tcg_gen_ld_ptr(r_tickptr, tcg_env, env64_field_offsetof(stick));
     translator_io_start(&dc->base);
-    gen_helper_tick_set_limit(r_tickptr, cpu_stick_cmpr);
+    gen_helper_tick_set_limit(r_tickptr, src);
     /* End TB to handle timer interrupt */
     dc->base.is_jmp = DISAS_EXIT;
-#else
-    qemu_build_not_reached();
-#endif
 }
 
 TRANS(WRSTICK_CMPR, 64, do_wr_special, a, supervisor(dc), do_wrstick_cmpr)
@@ -3984,10 +3975,10 @@ static void do_wrhstick_cmpr(DisasContext *dc, TCGv src)
 {
     TCGv_ptr r_tickptr = tcg_temp_new_ptr();
 
-    tcg_gen_mov_tl(cpu_hstick_cmpr, src);
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(hstick_cmpr));
     tcg_gen_ld_ptr(r_tickptr, tcg_env, env64_field_offsetof(hstick));
     translator_io_start(&dc->base);
-    gen_helper_tick_set_limit(r_tickptr, cpu_hstick_cmpr);
+    gen_helper_tick_set_limit(r_tickptr, src);
     /* End TB to handle timer interrupt */
     dc->base.is_jmp = DISAS_EXIT;
 }
@@ -5951,10 +5942,6 @@ void sparc_tcg_init(void)
     static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
 #ifdef TARGET_SPARC64
         { &cpu_gsr, offsetof(CPUSPARCState, gsr), "gsr" },
-        { &cpu_tick_cmpr, offsetof(CPUSPARCState, tick_cmpr), "tick_cmpr" },
-        { &cpu_stick_cmpr, offsetof(CPUSPARCState, stick_cmpr), "stick_cmpr" },
-        { &cpu_hstick_cmpr, offsetof(CPUSPARCState, hstick_cmpr),
-          "hstick_cmpr" },
         { &cpu_hintp, offsetof(CPUSPARCState, hintp), "hintp" },
         { &cpu_htba, offsetof(CPUSPARCState, htba), "htba" },
         { &cpu_hver, offsetof(CPUSPARCState, hver), "hver" },
