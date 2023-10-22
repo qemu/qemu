@@ -546,14 +546,17 @@ static const sparc_def_t sparc_defs[] = {
 /* This must match sparc_cpu_properties[]. */
 static const char * const feature_name[] = {
     [CPU_FEATURE_BIT_FLOAT128] = "float128",
-    [CPU_FEATURE_BIT_MUL] = "mul",
-    [CPU_FEATURE_BIT_DIV] = "div",
-    [CPU_FEATURE_BIT_VIS1] = "vis1",
-    [CPU_FEATURE_BIT_VIS2] = "vis2",
-    [CPU_FEATURE_BIT_FSMULD] = "fsmuld",
-    [CPU_FEATURE_BIT_HYPV] = "hypv",
+#ifdef TARGET_SPARC64
     [CPU_FEATURE_BIT_CMT] = "cmt",
     [CPU_FEATURE_BIT_GL] = "gl",
+    [CPU_FEATURE_BIT_HYPV] = "hypv",
+    [CPU_FEATURE_BIT_VIS1] = "vis1",
+    [CPU_FEATURE_BIT_VIS2] = "vis2",
+#else
+    [CPU_FEATURE_BIT_MUL] = "mul",
+    [CPU_FEATURE_BIT_DIV] = "div",
+    [CPU_FEATURE_BIT_FSMULD] = "fsmuld",
+#endif
 };
 
 static void print_features(uint32_t features, const char *prefix)
@@ -832,22 +835,25 @@ static PropertyInfo qdev_prop_nwindows = {
 static Property sparc_cpu_properties[] = {
     DEFINE_PROP_BIT("float128", SPARCCPU, env.def.features,
                     CPU_FEATURE_BIT_FLOAT128, false),
-    DEFINE_PROP_BIT("mul",      SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_MUL, false),
-    DEFINE_PROP_BIT("div",      SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_DIV, false),
-    DEFINE_PROP_BIT("vis1",     SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_VIS1, false),
-    DEFINE_PROP_BIT("vis2",     SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_VIS2, false),
-    DEFINE_PROP_BIT("fsmuld",   SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_FSMULD, false),
-    DEFINE_PROP_BIT("hypv",     SPARCCPU, env.def.features,
-                    CPU_FEATURE_BIT_HYPV, false),
+#ifdef TARGET_SPARC64
     DEFINE_PROP_BIT("cmt",      SPARCCPU, env.def.features,
                     CPU_FEATURE_BIT_CMT, false),
     DEFINE_PROP_BIT("gl",       SPARCCPU, env.def.features,
                     CPU_FEATURE_BIT_GL, false),
+    DEFINE_PROP_BIT("hypv",     SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_HYPV, false),
+    DEFINE_PROP_BIT("vis1",     SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_VIS1, false),
+    DEFINE_PROP_BIT("vis2",     SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_VIS2, false),
+#else
+    DEFINE_PROP_BIT("mul",      SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_MUL, false),
+    DEFINE_PROP_BIT("div",      SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_DIV, false),
+    DEFINE_PROP_BIT("fsmuld",   SPARCCPU, env.def.features,
+                    CPU_FEATURE_BIT_FSMULD, false),
+#endif
     DEFINE_PROP_UNSIGNED("iu-version", SPARCCPU, env.def.iu_version, 0,
                          qdev_prop_uint64, target_ulong),
     DEFINE_PROP_UINT32("fpu-version", SPARCCPU, env.def.fpu_version, 0),
