@@ -248,6 +248,28 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
  */
 DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
                                     const char *alias);
+
+/*
+ * qemu_create_nic_bus_devices: Create configured NIC devices for a given bus
+ * @bus: Bus on which to create devices
+ * @parent_type: Object type for devices to be created (e.g. TYPE_PCI_DEVICE)
+ * @default_model: Object type name for default NIC model (or %NULL)
+ * @alias: Additional model string to replace, for user convenience
+ * @alias_target: Actual object type name to be used in place of @alias
+ *
+ * Instantiate dynamic NICs on a given bus, typically a PCI bus. This scans
+ * for available NIC configurations which either specify a model which is
+ * a child type of @parent_type, or which do not specify a model when
+ * @default_model is non-NULL. Each device is instantiated on the given @bus.
+ *
+ * A single substitution is supported, e.g. "xen" → "xen-net-device" for the
+ * Xen bus, or "virtio" → "virtio-net-pci" for PCI. This allows the user to
+ * specify a more understandable "model=" parameter on the command line, not
+ * only the real object typename.
+ */
+void qemu_create_nic_bus_devices(BusState *bus, const char *parent_type,
+                                 const char *default_model,
+                                 const char *alias, const char *alias_target);
 void print_net_client(Monitor *mon, NetClientState *nc);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
