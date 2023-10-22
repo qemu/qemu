@@ -82,15 +82,9 @@ static TCGv cpu_cond;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_fprs;
 static TCGv cpu_gsr;
-static TCGv cpu_hintp, cpu_htba, cpu_hver, cpu_ssr, cpu_ver;
 #else
 # define cpu_fprs               ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_gsr                ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_hintp              ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_htba               ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_hver               ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_ssr                ({ qemu_build_not_reached(); (TCGv)NULL; })
-# define cpu_ver                ({ qemu_build_not_reached(); (TCGv)NULL; })
 #endif
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
@@ -3383,21 +3377,24 @@ TRANS(RDHPR_htstate, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdhtstate)
 
 static TCGv do_rdhintp(DisasContext *dc, TCGv dst)
 {
-    return cpu_hintp;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(hintp));
+    return dst;
 }
 
 TRANS(RDHPR_hintp, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdhintp)
 
 static TCGv do_rdhtba(DisasContext *dc, TCGv dst)
 {
-    return cpu_htba;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(htba));
+    return dst;
 }
 
 TRANS(RDHPR_htba, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdhtba)
 
 static TCGv do_rdhver(DisasContext *dc, TCGv dst)
 {
-    return cpu_hver;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(hver));
+    return dst;
 }
 
 TRANS(RDHPR_hver, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdhver)
@@ -3572,14 +3569,16 @@ TRANS(RDPR_gl, GL, do_rd_special, supervisor(dc), a->rd, do_rdgl)
 /* UA2005 strand status */
 static TCGv do_rdssr(DisasContext *dc, TCGv dst)
 {
-    return cpu_ssr;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(ssr));
+    return dst;
 }
 
 TRANS(RDPR_strand_status, HYPV, do_rd_special, hypervisor(dc), a->rd, do_rdssr)
 
 static TCGv do_rdver(DisasContext *dc, TCGv dst)
 {
-    return cpu_ver;
+    tcg_gen_ld_tl(dst, tcg_env, env64_field_offsetof(version));
+    return dst;
 }
 
 TRANS(RDPR_ver, 64, do_rd_special, supervisor(dc), a->rd, do_rdver)
@@ -3926,7 +3925,7 @@ TRANS(WRPR_gl, GL, do_wr_special, a, supervisor(dc), do_wrgl)
 /* UA2005 strand status */
 static void do_wrssr(DisasContext *dc, TCGv src)
 {
-    tcg_gen_mov_tl(cpu_ssr, src);
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(ssr));
 }
 
 TRANS(WRPR_strand_status, HYPV, do_wr_special, a, hypervisor(dc), do_wrssr)
@@ -3959,14 +3958,14 @@ TRANS(WRHPR_htstate, HYPV, do_wr_special, a, hypervisor(dc), do_wrhtstate)
 
 static void do_wrhintp(DisasContext *dc, TCGv src)
 {
-    tcg_gen_mov_tl(cpu_hintp, src);
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(hintp));
 }
 
 TRANS(WRHPR_hintp, HYPV, do_wr_special, a, hypervisor(dc), do_wrhintp)
 
 static void do_wrhtba(DisasContext *dc, TCGv src)
 {
-    tcg_gen_mov_tl(cpu_htba, src);
+    tcg_gen_st_tl(src, tcg_env, env64_field_offsetof(htba));
 }
 
 TRANS(WRHPR_htba, HYPV, do_wr_special, a, hypervisor(dc), do_wrhtba)
@@ -5942,11 +5941,6 @@ void sparc_tcg_init(void)
     static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
 #ifdef TARGET_SPARC64
         { &cpu_gsr, offsetof(CPUSPARCState, gsr), "gsr" },
-        { &cpu_hintp, offsetof(CPUSPARCState, hintp), "hintp" },
-        { &cpu_htba, offsetof(CPUSPARCState, htba), "htba" },
-        { &cpu_hver, offsetof(CPUSPARCState, hver), "hver" },
-        { &cpu_ssr, offsetof(CPUSPARCState, ssr), "ssr" },
-        { &cpu_ver, offsetof(CPUSPARCState, version), "ver" },
 #endif
         { &cpu_cond, offsetof(CPUSPARCState, cond), "cond" },
         { &cpu_cc_src, offsetof(CPUSPARCState, cc_src), "cc_src" },
