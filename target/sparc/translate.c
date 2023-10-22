@@ -84,9 +84,7 @@ static TCGv_i32 cpu_xcc, cpu_fprs;
 static TCGv cpu_gsr;
 static TCGv cpu_tick_cmpr, cpu_stick_cmpr, cpu_hstick_cmpr;
 static TCGv cpu_hintp, cpu_htba, cpu_hver, cpu_ssr, cpu_ver;
-# define cpu_wim                ({ qemu_build_not_reached(); (TCGv)NULL; })
 #else
-static TCGv cpu_wim;
 # define cpu_fprs               ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_gsr                ({ qemu_build_not_reached(); (TCGv)NULL; })
 # define cpu_hintp              ({ qemu_build_not_reached(); (TCGv)NULL; })
@@ -103,8 +101,10 @@ static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
 #define env_field_offsetof(X)     offsetof(CPUSPARCState, X)
 #ifdef TARGET_SPARC64
+# define env32_field_offsetof(X)  ({ qemu_build_not_reached(); 0; })
 # define env64_field_offsetof(X)  env_field_offsetof(X)
 #else
+# define env32_field_offsetof(X)  env_field_offsetof(X)
 # define env64_field_offsetof(X)  ({ qemu_build_not_reached(); 0; })
 #endif
 
@@ -3414,7 +3414,8 @@ TRANS(RDHPR_hstick_cmpr, HYPV, do_rd_special, hypervisor(dc), a->rd,
 
 static TCGv do_rdwim(DisasContext *dc, TCGv dst)
 {
-    return cpu_wim;
+    tcg_gen_ld_tl(dst, tcg_env, env32_field_offsetof(wim));
+    return dst;
 }
 
 TRANS(RDWIM, 32, do_rd_special, supervisor(dc), a->rd, do_rdwim)
@@ -3767,7 +3768,10 @@ TRANS(WRPSR, 32, do_wr_special, a, supervisor(dc), do_wrpsr)
 static void do_wrwim(DisasContext *dc, TCGv src)
 {
     target_ulong mask = MAKE_64BIT_MASK(0, dc->def->nwindows);
-    tcg_gen_andi_tl(cpu_wim, src, mask);
+    TCGv tmp = tcg_temp_new();
+
+    tcg_gen_andi_tl(tmp, src, mask);
+    tcg_gen_st_tl(tmp, tcg_env, env32_field_offsetof(wim));
 }
 
 TRANS(WRWIM, 32, do_wr_special, a, supervisor(dc), do_wrwim)
@@ -5939,8 +5943,6 @@ void sparc_tcg_init(void)
 #ifdef TARGET_SPARC64
         { &cpu_xcc, offsetof(CPUSPARCState, xcc), "xcc" },
         { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
-#else
-        { &cpu_wim, offsetof(CPUSPARCState, wim), "wim" },
 #endif
         { &cpu_cc_op, offsetof(CPUSPARCState, cc_op), "cc_op" },
         { &cpu_psr, offsetof(CPUSPARCState, psr), "psr" },
