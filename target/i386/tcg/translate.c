@@ -2512,12 +2512,13 @@ static inline void gen_op_movl_T0_seg(DisasContext *s, X86Seg seg_reg)
                      offsetof(CPUX86State,segs[seg_reg].selector));
 }
 
-static inline void gen_op_movl_seg_T0_vm(DisasContext *s, X86Seg seg_reg)
+static void gen_op_movl_seg_real(DisasContext *s, X86Seg seg_reg, TCGv seg)
 {
-    tcg_gen_ext16u_tl(s->T0, s->T0);
-    tcg_gen_st32_tl(s->T0, tcg_env,
+    TCGv selector = tcg_temp_new();
+    tcg_gen_ext16u_tl(selector, seg);
+    tcg_gen_st32_tl(selector, tcg_env,
                     offsetof(CPUX86State,segs[seg_reg].selector));
-    tcg_gen_shli_tl(cpu_seg_base[seg_reg], s->T0, 4);
+    tcg_gen_shli_tl(cpu_seg_base[seg_reg], selector, 4);
 }
 
 /* move T0 to seg_reg and compute if the CPU state may change. Never
@@ -2537,11 +2538,43 @@ static void gen_movl_seg_T0(DisasContext *s, X86Seg seg_reg)
             s->base.is_jmp = DISAS_EOB_NEXT;
         }
     } else {
-        gen_op_movl_seg_T0_vm(s, seg_reg);
+        gen_op_movl_seg_real(s, seg_reg, s->T0);
         if (seg_reg == R_SS) {
             s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
         }
     }
+}
+
+static void gen_far_call(DisasContext *s)
+{
+    TCGv_i32 new_cs = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(new_cs, s->T1);
+    if (PE(s) && !VM86(s)) {
+        gen_helper_lcall_protected(tcg_env, new_cs, s->T0,
+                                   tcg_constant_i32(s->dflag - 1),
+                                   eip_next_tl(s));
+    } else {
+        TCGv_i32 new_eip = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(new_eip, s->T0);
+        gen_helper_lcall_real(tcg_env, new_cs, new_eip,
+                              tcg_constant_i32(s->dflag - 1),
+                              eip_next_i32(s));
+    }
+    s->base.is_jmp = DISAS_JUMP;
+}
+
+static void gen_far_jmp(DisasContext *s)
+{
+    if (PE(s) && !VM86(s)) {
+        TCGv_i32 new_cs = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(new_cs, s->T1);
+        gen_helper_ljmp_protected(tcg_env, new_cs, s->T0,
+                                  eip_next_tl(s));
+    } else {
+        gen_op_movl_seg_real(s, R_CS, s->T1);
+        gen_op_jmp_v(s, s->T0);
+    }
+    s->base.is_jmp = DISAS_JUMP;
 }
 
 static void gen_svm_check_intercept(DisasContext *s, uint32_t type)
@@ -3654,23 +3687,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             if (mod == 3) {
                 goto illegal_op;
             }
-            gen_op_ld_v(s, ot, s->T1, s->A0);
+            gen_op_ld_v(s, ot, s->T0, s->A0);
             gen_add_A0_im(s, 1 << ot);
-            gen_op_ld_v(s, MO_16, s->T0, s->A0);
-        do_lcall:
-            if (PE(s) && !VM86(s)) {
-                tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-                gen_helper_lcall_protected(tcg_env, s->tmp2_i32, s->T1,
-                                           tcg_constant_i32(dflag - 1),
-                                           eip_next_tl(s));
-            } else {
-                tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-                tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
-                gen_helper_lcall_real(tcg_env, s->tmp2_i32, s->tmp3_i32,
-                                      tcg_constant_i32(dflag - 1),
-                                      eip_next_i32(s));
-            }
-            s->base.is_jmp = DISAS_JUMP;
+            gen_op_ld_v(s, MO_16, s->T1, s->A0);
+            gen_far_call(s);
             break;
         case 4: /* jmp Ev */
             if (dflag == MO_16) {
@@ -3684,19 +3704,10 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             if (mod == 3) {
                 goto illegal_op;
             }
-            gen_op_ld_v(s, ot, s->T1, s->A0);
+            gen_op_ld_v(s, ot, s->T0, s->A0);
             gen_add_A0_im(s, 1 << ot);
-            gen_op_ld_v(s, MO_16, s->T0, s->A0);
-        do_ljmp:
-            if (PE(s) && !VM86(s)) {
-                tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-                gen_helper_ljmp_protected(tcg_env, s->tmp2_i32, s->T1,
-                                          eip_next_tl(s));
-            } else {
-                gen_op_movl_seg_T0_vm(s, R_CS);
-                gen_op_jmp_v(s, s->T1);
-            }
-            s->base.is_jmp = DISAS_JUMP;
+            gen_op_ld_v(s, MO_16, s->T1, s->A0);
+            gen_far_jmp(s);
             break;
         case 6: /* push Ev */
             gen_push_v(s, s->T0);
@@ -5136,7 +5147,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             /* pop selector */
             gen_add_A0_im(s, 1 << dflag);
             gen_op_ld_v(s, dflag, s->T0, s->A0);
-            gen_op_movl_seg_T0_vm(s, R_CS);
+            gen_op_movl_seg_real(s, R_CS, s->T0);
             /* add stack offset */
             gen_stack_update(s, val + (2 << dflag));
         }
@@ -5181,10 +5192,11 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             offset = insn_get(env, s, ot);
             selector = insn_get(env, s, MO_16);
 
-            tcg_gen_movi_tl(s->T0, selector);
-            tcg_gen_movi_tl(s->T1, offset);
+            tcg_gen_movi_tl(s->T0, offset);
+            tcg_gen_movi_tl(s->T1, selector);
         }
-        goto do_lcall;
+        gen_far_call(s);
+        break;
     case 0xe9: /* jmp im */
         {
             int diff = (dflag != MO_16
@@ -5205,10 +5217,11 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             offset = insn_get(env, s, ot);
             selector = insn_get(env, s, MO_16);
 
-            tcg_gen_movi_tl(s->T0, selector);
-            tcg_gen_movi_tl(s->T1, offset);
+            tcg_gen_movi_tl(s->T0, offset);
+            tcg_gen_movi_tl(s->T1, selector);
         }
-        goto do_ljmp;
+        gen_far_jmp(s);
+        break;
     case 0xeb: /* jmp Jb */
         {
             int diff = (int8_t)insn_get(env, s, MO_8);
