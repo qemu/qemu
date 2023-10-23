@@ -271,16 +271,23 @@ typedef struct X86DecodedOp {
     bool has_ea;
     int offset;   /* For MMX and SSE */
 
-    /*
-     * This field is used internally by macros OP0_PTR/OP1_PTR/OP2_PTR,
-     * do not access directly!
-     */
-    TCGv_ptr v_ptr;
+    union {
+	target_ulong imm;
+        /*
+         * This field is used internally by macros OP0_PTR/OP1_PTR/OP2_PTR,
+         * do not access directly!
+         */
+        TCGv_ptr v_ptr;
+    };
 } X86DecodedOp;
 
 struct X86DecodedInsn {
     X86OpEntry e;
     X86DecodedOp op[3];
+    /*
+     * Rightmost immediate, for convenience since most instructions have
+     * one (and also for 4-operand instructions).
+     */
     target_ulong immediate;
     AddressParts mem;
 

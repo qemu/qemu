@@ -259,7 +259,7 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
         }
         break;
     case X86_OP_IMM:
-        tcg_gen_movi_tl(v, decode->immediate);
+        tcg_gen_movi_tl(v, op->imm);
         break;
 
     case X86_OP_MMX:
@@ -283,6 +283,8 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
 static TCGv_ptr op_ptr(X86DecodedInsn *decode, int opn)
 {
     X86DecodedOp *op = &decode->op[opn];
+
+    assert(op->unit == X86_OP_MMX || op->unit == X86_OP_SSE);
     if (op->v_ptr) {
         return op->v_ptr;
     }

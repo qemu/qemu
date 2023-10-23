@@ -1473,7 +1473,7 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     case X86_TYPE_I:  /* Immediate */
     case X86_TYPE_J:  /* Relative offset for a jump */
         op->unit = X86_OP_IMM;
-        decode->immediate = insn_get_signed(env, s, op->ot);
+        decode->immediate = op->imm = insn_get_signed(env, s, op->ot);
         break;
 
     case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
