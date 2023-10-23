@@ -111,12 +111,13 @@ typedef enum {
     CXL_MBOX_MAX = 0x17
 } CXLRetCode;
 
+typedef struct CXLCCI CXLCCI;
 typedef struct cxl_device_state CXLDeviceState;
 struct cxl_cmd;
 typedef CXLRetCode (*opcode_handler)(const struct cxl_cmd *cmd,
                                      uint8_t *payload_in, size_t len_in,
                                      uint8_t *payload_out, size_t *len_out,
-                                     CXLDeviceState *cxl_dstate);
+                                     CXLCCI *cci);
 struct cxl_cmd {
     const char *name;
     opcode_handler handler;
@@ -139,6 +140,21 @@ typedef struct CXLEventLog {
     QemuMutex lock;
     QSIMPLEQ_HEAD(, CXLEvent) events;
 } CXLEventLog;
+
+typedef struct CXLCCI {
+    const struct cxl_cmd (*cxl_cmd_set)[256];
+    struct cel_log {
+        uint16_t opcode;
+        uint16_t effect;
+    } cel_log[1 << 16];
+    size_t cel_size;
+
+    size_t payload_max;
+    /* Pointer to device hosting the CCI */
+    DeviceState *d;
+    /* Pointer to the device hosting the protocol conversion */
+    DeviceState *intf;
+} CXLCCI;
 
 typedef struct cxl_device_state {
     MemoryRegion device_registers;
@@ -173,11 +189,6 @@ typedef struct cxl_device_state {
             uint32_t mbox_reg_state32[CXL_MAILBOX_REGISTERS_LENGTH / 4];
             uint64_t mbox_reg_state64[CXL_MAILBOX_REGISTERS_LENGTH / 8];
         };
-        struct cel_log {
-            uint16_t opcode;
-            uint16_t effect;
-        } cel_log[1 << 16];
-        size_t cel_size;
     };
 
     struct {
@@ -196,10 +207,12 @@ typedef struct cxl_device_state {
 } CXLDeviceState;
 
 /* Initialize the register block for a device */
-void cxl_device_register_block_init(Object *obj, CXLDeviceState *dev);
+void cxl_device_register_block_init(Object *obj, CXLDeviceState *dev,
+                                    CXLCCI *cci);
 
+typedef struct CXLType3Dev CXLType3Dev;
 /* Set up default values for the register block */
-void cxl_device_register_init_common(CXLDeviceState *dev);
+void cxl_device_register_init_t3(CXLType3Dev *ct3d);
 
 /*
  * CXL 2.0 - 8.2.8.1 including errata F4
@@ -245,8 +258,9 @@ CXL_DEVICE_CAPABILITY_HEADER_REGISTER(MEMORY_DEVICE,
                                       CXL_DEVICE_CAP_HDR1_OFFSET +
                                           CXL_DEVICE_CAP_REG_SIZE * 2)
 
-void cxl_initialize_mailbox(CXLDeviceState *cxl_dstate);
-void cxl_process_mailbox(CXLDeviceState *cxl_dstate);
+void cxl_initialize_mailbox_t3(CXLCCI *cci, DeviceState *d, size_t payload_max);
+void cxl_init_cci(CXLCCI *cci, size_t payload_max);
+void cxl_process_mailbox(CXLCCI *cci);
 
 #define cxl_device_cap_init(dstate, reg, cap_id, ver)                      \
     do {                                                                   \
@@ -347,6 +361,7 @@ struct CXLType3Dev {
     AddressSpace hostpmem_as;
     CXLComponentState cxl_cstate;
     CXLDeviceState cxl_dstate;
+    CXLCCI cci; /* Primary PCI mailbox CCI */
 
     /* DOE */
     DOECap doe_cdat;

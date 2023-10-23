@@ -62,7 +62,14 @@ static uint64_t dev_reg_read(void *opaque, hwaddr offset, unsigned size)
 
 static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
 {
-    CXLDeviceState *cxl_dstate = opaque;
+    CXLDeviceState *cxl_dstate;
+    CXLCCI *cci = opaque;
+
+    if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
+        cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
+    } else {
+        return 0;
+    }
 
     switch (size) {
     case 1:
@@ -123,7 +130,14 @@ static void mailbox_mem_writeq(uint64_t *reg_state, hwaddr offset,
 static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
-    CXLDeviceState *cxl_dstate = opaque;
+    CXLDeviceState *cxl_dstate;
+    CXLCCI *cci = opaque;
+
+    if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
+        cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
+    } else {
+        return;
+    }
 
     if (offset >= A_CXL_DEV_CMD_PAYLOAD) {
         memcpy(cxl_dstate->mbox_reg_state + offset, &value, size);
@@ -143,7 +157,7 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
 
     if (ARRAY_FIELD_EX32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CTRL,
                          DOORBELL)) {
-        cxl_process_mailbox(cxl_dstate);
+        cxl_process_mailbox(cci);
     }
 }
 
@@ -223,7 +237,8 @@ static const MemoryRegionOps caps_ops = {
     },
 };
 
-void cxl_device_register_block_init(Object *obj, CXLDeviceState *cxl_dstate)
+void cxl_device_register_block_init(Object *obj, CXLDeviceState *cxl_dstate,
+                                    CXLCCI *cci)
 {
     /* This will be a BAR, so needs to be rounded up to pow2 for PCI spec */
     memory_region_init(&cxl_dstate->device_registers, obj, "device-registers",
@@ -233,7 +248,7 @@ void cxl_device_register_block_init(Object *obj, CXLDeviceState *cxl_dstate)
                           "cap-array", CXL_CAPS_SIZE);
     memory_region_init_io(&cxl_dstate->device, obj, &dev_ops, cxl_dstate,
                           "device-status", CXL_DEVICE_STATUS_REGISTERS_LENGTH);
-    memory_region_init_io(&cxl_dstate->mailbox, obj, &mailbox_ops, cxl_dstate,
+    memory_region_init_io(&cxl_dstate->mailbox, obj, &mailbox_ops, cci,
                           "mailbox", CXL_MAILBOX_REGISTERS_LENGTH);
     memory_region_init_io(&cxl_dstate->memory_device, obj, &mdev_ops,
                           cxl_dstate, "memory device caps",
@@ -284,8 +299,9 @@ static void mailbox_reg_init_common(CXLDeviceState *cxl_dstate)
 
 static void memdev_reg_init_common(CXLDeviceState *cxl_dstate) { }
 
-void cxl_device_register_init_common(CXLDeviceState *cxl_dstate)
+void cxl_device_register_init_t3(CXLType3Dev *ct3d)
 {
+    CXLDeviceState *cxl_dstate = &ct3d->cxl_dstate;
     uint64_t *cap_h = cxl_dstate->caps_reg_state64;
     const int cap_count = 3;
 
@@ -303,7 +319,8 @@ void cxl_device_register_init_common(CXLDeviceState *cxl_dstate)
     cxl_device_cap_init(cxl_dstate, MEMORY_DEVICE, 0x4000, 1);
     memdev_reg_init_common(cxl_dstate);
 
-    cxl_initialize_mailbox(cxl_dstate);
+    cxl_initialize_mailbox_t3(&ct3d->cci, DEVICE(ct3d),
+                              CXL_MAILBOX_MAX_PAYLOAD_SIZE);
 }
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxl_dstate)

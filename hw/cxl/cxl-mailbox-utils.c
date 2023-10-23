@@ -73,8 +73,9 @@ enum {
 static CXLRetCode cmd_events_get_records(const struct cxl_cmd *cmd,
                                          uint8_t *payload_in, size_t len_in,
                                          uint8_t *payload_out, size_t *len_out,
-                                         CXLDeviceState *cxlds)
+                                         CXLCCI *cci)
 {
+    CXLDeviceState *cxlds = &CXL_TYPE3(cci->d)->cxl_dstate;
     CXLGetEventPayload *pl;
     uint8_t log_type;
     int max_recs;
@@ -102,8 +103,9 @@ static CXLRetCode cmd_events_clear_records(const struct cxl_cmd *cmd,
                                            size_t len_in,
                                            uint8_t *payload_out,
                                            size_t *len_out,
-                                           CXLDeviceState *cxlds)
+                                           CXLCCI *cci)
 {
+    CXLDeviceState *cxlds = &CXL_TYPE3(cci->d)->cxl_dstate;
     CXLClearEventPayload *pl;
 
     pl = (CXLClearEventPayload *)payload_in;
@@ -116,8 +118,9 @@ static CXLRetCode cmd_events_get_interrupt_policy(const struct cxl_cmd *cmd,
                                                   size_t len_in,
                                                   uint8_t *payload_out,
                                                   size_t *len_out,
-                                                  CXLDeviceState *cxlds)
+                                                  CXLCCI *cci)
 {
+    CXLDeviceState *cxlds = &CXL_TYPE3(cci->d)->cxl_dstate;
     CXLEventInterruptPolicy *policy;
     CXLEventLog *log;
 
@@ -159,8 +162,9 @@ static CXLRetCode cmd_events_set_interrupt_policy(const struct cxl_cmd *cmd,
                                                   size_t len_in,
                                                   uint8_t *payload_out,
                                                   size_t *len_out,
-                                                  CXLDeviceState *cxlds)
+                                                  CXLCCI *cci)
 {
+    CXLDeviceState *cxlds = &CXL_TYPE3(cci->d)->cxl_dstate;
     CXLEventInterruptPolicy *policy;
     CXLEventLog *log;
 
@@ -205,8 +209,9 @@ static CXLRetCode cmd_firmware_update_get_info(const struct cxl_cmd *cmd,
                                                size_t len,
                                                uint8_t *payload_out,
                                                size_t *len_out,
-                                               CXLDeviceState *cxl_dstate)
+                                               CXLCCI *cci)
 {
+    CXLDeviceState *cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
     struct {
         uint8_t slots_supported;
         uint8_t slot_info;
@@ -242,8 +247,9 @@ static CXLRetCode cmd_timestamp_get(const struct cxl_cmd *cmd,
                                     size_t len_in,
                                     uint8_t *payload_out,
                                     size_t *len_out,
-                                    CXLDeviceState *cxl_dstate)
+                                    CXLCCI *cci)
 {
+    CXLDeviceState *cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
     uint64_t final_time = cxl_device_get_timestamp(cxl_dstate);
 
     stq_le_p(payload_out, final_time);
@@ -258,8 +264,10 @@ static CXLRetCode cmd_timestamp_set(const struct cxl_cmd *cmd,
                                     size_t len_in,
                                     uint8_t *payload_out,
                                     size_t *len_out,
-                                    CXLDeviceState *cxl_dstate)
+                                    CXLCCI *cci)
 {
+    CXLDeviceState *cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
+
     cxl_dstate->timestamp.set = true;
     cxl_dstate->timestamp.last_set = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -281,7 +289,7 @@ static CXLRetCode cmd_logs_get_supported(const struct cxl_cmd *cmd,
                                          size_t len_in,
                                          uint8_t *payload_out,
                                          size_t *len_out,
-                                         CXLDeviceState *cxl_dstate)
+                                         CXLCCI *cci)
 {
     struct {
         uint16_t entries;
@@ -295,7 +303,7 @@ static CXLRetCode cmd_logs_get_supported(const struct cxl_cmd *cmd,
 
     supported_logs->entries = 1;
     supported_logs->log_entries[0].uuid = cel_uuid;
-    supported_logs->log_entries[0].size = 4 * cxl_dstate->cel_size;
+    supported_logs->log_entries[0].size = 4 * cci->cel_size;
 
     *len_out = sizeof(*supported_logs);
     return CXL_MBOX_SUCCESS;
@@ -307,7 +315,7 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
                                    size_t len_in,
                                    uint8_t *payload_out,
                                    size_t *len_out,
-                                   CXLDeviceState *cxl_dstate)
+                                   CXLCCI *cci)
 {
     struct {
         QemuUUID uuid;
@@ -330,7 +338,7 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
      * the only possible failure would be if the mailbox itself isn't big
      * enough.
      */
-    if (get_log->offset + get_log->length > cxl_dstate->payload_size) {
+    if (get_log->offset + get_log->length > cci->payload_max) {
         return CXL_MBOX_INVALID_INPUT;
     }
 
@@ -341,8 +349,7 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
     /* Store off everything to local variables so we can wipe out the payload */
     *len_out = get_log->length;
 
-    memmove(payload_out, cxl_dstate->cel_log + get_log->offset,
-            get_log->length);
+    memmove(payload_out, cci->cel_log + get_log->offset, get_log->length);
 
     return CXL_MBOX_SUCCESS;
 }
@@ -353,7 +360,7 @@ static CXLRetCode cmd_identify_memory_device(const struct cxl_cmd *cmd,
                                              size_t len_in,
                                              uint8_t *payload_out,
                                              size_t *len_out,
-                                             CXLDeviceState *cxl_dstate)
+                                             CXLCCI *cci)
 {
     struct {
         char fw_revision[0x10];
@@ -372,9 +379,9 @@ static CXLRetCode cmd_identify_memory_device(const struct cxl_cmd *cmd,
         uint8_t qos_telemetry_caps;
     } QEMU_PACKED *id;
     QEMU_BUILD_BUG_ON(sizeof(*id) != 0x43);
-
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
+    CXLDeviceState *cxl_dstate = &ct3d->cxl_dstate;
 
     if ((!QEMU_IS_ALIGNED(cxl_dstate->vmem_size, CXL_CAPACITY_MULTIPLIER)) ||
         (!QEMU_IS_ALIGNED(cxl_dstate->pmem_size, CXL_CAPACITY_MULTIPLIER))) {
@@ -407,8 +414,9 @@ static CXLRetCode cmd_ccls_get_partition_info(const struct cxl_cmd *cmd,
                                               size_t len_in,
                                               uint8_t *payload_out,
                                               size_t *len_out,
-                                              CXLDeviceState *cxl_dstate)
+                                              CXLCCI *cci)
 {
+    CXLDeviceState *cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
     struct {
         uint64_t active_vmem;
         uint64_t active_pmem;
@@ -442,13 +450,13 @@ static CXLRetCode cmd_ccls_get_lsa(const struct cxl_cmd *cmd,
                                    size_t len_in,
                                    uint8_t *payload_out,
                                    size_t *len_out,
-                                   CXLDeviceState *cxl_dstate)
+                                   CXLCCI *cci)
 {
     struct {
         uint32_t offset;
         uint32_t length;
     } QEMU_PACKED *get_lsa;
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     uint32_t offset, length;
 
@@ -470,7 +478,7 @@ static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
                                    size_t len_in,
                                    uint8_t *payload_out,
                                    size_t *len_out,
-                                   CXLDeviceState *cxl_dstate)
+                                   CXLCCI *cci)
 {
     struct set_lsa_pl {
         uint32_t offset;
@@ -478,7 +486,7 @@ static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
         uint8_t data[];
     } QEMU_PACKED;
     struct set_lsa_pl *set_lsa_payload = (void *)payload_in;
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     const size_t hdr_len = offsetof(struct set_lsa_pl, data);
 
@@ -507,7 +515,7 @@ static CXLRetCode cmd_media_get_poison_list(const struct cxl_cmd *cmd,
                                             size_t len_in,
                                             uint8_t *payload_out,
                                             size_t *len_out,
-                                            CXLDeviceState *cxl_dstate)
+                                            CXLCCI *cci)
 {
     struct get_poison_list_pl {
         uint64_t pa;
@@ -529,7 +537,7 @@ static CXLRetCode cmd_media_get_poison_list(const struct cxl_cmd *cmd,
 
     struct get_poison_list_pl *in = (void *)payload_in;
     struct get_poison_list_out_pl *out = (void *)payload_out;
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     uint16_t record_count = 0, i = 0;
     uint64_t query_start, query_length;
     CXLPoisonList *poison_list = &ct3d->poison_list;
@@ -586,9 +594,9 @@ static CXLRetCode cmd_media_inject_poison(const struct cxl_cmd *cmd,
                                           size_t len_in,
                                           uint8_t *payload_out,
                                           size_t *len_out,
-                                          CXLDeviceState *cxl_dstate)
+                                          CXLCCI *cci)
 {
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     CXLPoisonList *poison_list = &ct3d->poison_list;
     CXLPoison *ent;
     struct inject_poison_pl {
@@ -629,9 +637,10 @@ static CXLRetCode cmd_media_clear_poison(const struct cxl_cmd *cmd,
                                          size_t len_in,
                                          uint8_t *payload_out,
                                          size_t *len_out,
-                                         CXLDeviceState *cxl_dstate)
+                                         CXLCCI *cci)
 {
-    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+    CXLDeviceState *cxl_dstate = &ct3d->cxl_dstate;
     CXLPoisonList *poison_list = &ct3d->poison_list;
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     struct clear_poison_pl {
@@ -745,12 +754,13 @@ static const struct cxl_cmd cxl_cmd_set[256][256] = {
         cmd_media_clear_poison, 72, 0 },
 };
 
-void cxl_process_mailbox(CXLDeviceState *cxl_dstate)
+void cxl_process_mailbox(CXLCCI *cci)
 {
     uint16_t ret = CXL_MBOX_SUCCESS;
     const struct cxl_cmd *cxl_cmd;
     uint64_t status_reg = 0;
     opcode_handler h;
+    CXLDeviceState *cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
     uint64_t command_reg = cxl_dstate->mbox_reg_state64[R_CXL_DEV_MAILBOX_CMD];
 
     uint8_t set = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD, COMMAND_SET);
@@ -767,12 +777,12 @@ void cxl_process_mailbox(CXLDeviceState *cxl_dstate)
     pl_in_copy = g_memdup2(pl, len_in);
     /* Avoid stale data - including from earlier commands */
     memset(pl, 0, CXL_MAILBOX_MAX_PAYLOAD_SIZE);
-    cxl_cmd = &cxl_dstate->cxl_cmd_set[set][cmd];
+    cxl_cmd = &cci->cxl_cmd_set[set][cmd];
     h = cxl_cmd->handler;
     if (h) {
         if (len_in == cxl_cmd->in || cxl_cmd->in == ~0) {
-            ret = (*h)(cxl_cmd, pl_in_copy, len_in, pl, &len_out, cxl_dstate);
-            assert(len_out <= cxl_dstate->payload_size);
+            ret = (*h)(cxl_cmd, pl, len_in, pl, &len_out, cci);
+            assert(len_out <= cci->payload_max);
         } else {
             ret = CXL_MBOX_INVALID_PAYLOAD_LENGTH;
         }
@@ -798,20 +808,30 @@ void cxl_process_mailbox(CXLDeviceState *cxl_dstate)
                      DOORBELL, 0);
 }
 
-void cxl_initialize_mailbox(CXLDeviceState *cxl_dstate)
+void cxl_init_cci(CXLCCI *cci, size_t payload_max)
 {
-    cxl_dstate->cxl_cmd_set = cxl_cmd_set;
+    cci->payload_max = payload_max;
     for (int set = 0; set < 256; set++) {
         for (int cmd = 0; cmd < 256; cmd++) {
-            if (cxl_dstate->cxl_cmd_set[set][cmd].handler) {
-                const struct cxl_cmd *c = &cxl_dstate->cxl_cmd_set[set][cmd];
+            if (cci->cxl_cmd_set[set][cmd].handler) {
+                const struct cxl_cmd *c = &cci->cxl_cmd_set[set][cmd];
                 struct cel_log *log =
-                    &cxl_dstate->cel_log[cxl_dstate->cel_size];
+                    &cci->cel_log[cci->cel_size];
 
                 log->opcode = (set << 8) | cmd;
                 log->effect = c->effect;
-                cxl_dstate->cel_size++;
+                cci->cel_size++;
             }
         }
     }
+}
+
+void cxl_initialize_mailbox_t3(CXLCCI *cci, DeviceState *d, size_t payload_max)
+{
+    cci->cxl_cmd_set = cxl_cmd_set;
+    cci->d = d;
+
+    /* No separation for PCI MB as protocol handled in PCI device */
+    cci->intf = d;
+    cxl_init_cci(cci, payload_max);
 }

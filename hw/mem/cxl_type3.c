@@ -716,7 +716,8 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
         pci_dev, CXL_COMPONENT_REG_BAR_IDX,
         PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64, mr);
 
-    cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate);
+    cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
+                                   &ct3d->cci);
     pci_register_bar(pci_dev, CXL_DEVICE_REG_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
@@ -922,7 +923,7 @@ static void ct3d_reset(DeviceState *dev)
     uint32_t *write_msk = ct3d->cxl_cstate.crb.cache_mem_regs_write_mask;
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_TYPE3_DEVICE);
-    cxl_device_register_init_common(&ct3d->cxl_dstate);
+    cxl_device_register_init_t3(ct3d);
 }
 
 static Property ct3_props[] = {
