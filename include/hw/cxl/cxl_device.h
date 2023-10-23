@@ -211,8 +211,10 @@ void cxl_device_register_block_init(Object *obj, CXLDeviceState *dev,
                                     CXLCCI *cci);
 
 typedef struct CXLType3Dev CXLType3Dev;
+typedef struct CSWMBCCIDev CSWMBCCIDev;
 /* Set up default values for the register block */
 void cxl_device_register_init_t3(CXLType3Dev *ct3d);
+void cxl_device_register_init_swcci(CSWMBCCIDev *sw);
 
 /*
  * CXL 2.0 - 8.2.8.1 including errata F4
@@ -259,6 +261,8 @@ CXL_DEVICE_CAPABILITY_HEADER_REGISTER(MEMORY_DEVICE,
                                           CXL_DEVICE_CAP_REG_SIZE * 2)
 
 void cxl_initialize_mailbox_t3(CXLCCI *cci, DeviceState *d, size_t payload_max);
+void cxl_initialize_mailbox_swcci(CXLCCI *cci, DeviceState *intf,
+                                  DeviceState *d, size_t payload_max);
 void cxl_init_cci(CXLCCI *cci, size_t payload_max);
 int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
                             size_t len_in, uint8_t *pl_in,
@@ -396,6 +400,17 @@ struct CXLType3Class {
     bool (*set_cacheline)(CXLType3Dev *ct3d, uint64_t dpa_offset,
                           uint8_t *data);
 };
+
+struct CSWMBCCIDev {
+    PCIDevice parent_obj;
+    PCIDevice *target;
+    CXLComponentState cxl_cstate;
+    CXLDeviceState cxl_dstate;
+    CXLCCI *cci;
+};
+
+#define TYPE_CXL_SWITCH_MAILBOX_CCI "cxl-switch-mailbox-cci"
+OBJECT_DECLARE_TYPE(CSWMBCCIDev, CSWMBCCIClass, CXL_SWITCH_MAILBOX_CCI)
 
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs);

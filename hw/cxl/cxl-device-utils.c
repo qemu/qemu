@@ -67,6 +67,9 @@ static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
 
     if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
         cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
+    } else if (object_dynamic_cast(OBJECT(cci->intf),
+                                   TYPE_CXL_SWITCH_MAILBOX_CCI)) {
+        cxl_dstate = &CXL_SWITCH_MAILBOX_CCI(cci->intf)->cxl_dstate;
     } else {
         return 0;
     }
@@ -135,6 +138,9 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
 
     if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
         cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
+    } else if (object_dynamic_cast(OBJECT(cci->intf),
+                                   TYPE_CXL_SWITCH_MAILBOX_CCI)) {
+        cxl_dstate = &CXL_SWITCH_MAILBOX_CCI(cci->intf)->cxl_dstate;
     } else {
         return;
     }
@@ -363,6 +369,27 @@ void cxl_device_register_init_t3(CXLType3Dev *ct3d)
 
     cxl_initialize_mailbox_t3(&ct3d->cci, DEVICE(ct3d),
                               CXL_MAILBOX_MAX_PAYLOAD_SIZE);
+}
+
+void cxl_device_register_init_swcci(CSWMBCCIDev *sw)
+{
+    CXLDeviceState *cxl_dstate = &sw->cxl_dstate;
+    uint64_t *cap_h = cxl_dstate->caps_reg_state64;
+    const int cap_count = 3;
+
+    /* CXL Device Capabilities Array Register */
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_ID, 0);
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_VERSION, 1);
+    ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_COUNT, cap_count);
+
+    cxl_device_cap_init(cxl_dstate, DEVICE_STATUS, 1, 2);
+    device_reg_init_common(cxl_dstate);
+
+    cxl_device_cap_init(cxl_dstate, MAILBOX, 2, 1);
+    mailbox_reg_init_common(cxl_dstate);
+
+    cxl_device_cap_init(cxl_dstate, MEMORY_DEVICE, 0x4000, 1);
+    memdev_reg_init_common(cxl_dstate);
 }
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxl_dstate)
