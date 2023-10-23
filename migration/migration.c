@@ -534,7 +534,7 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
             fd_start_incoming_migration(saddr->u.fd.str, errp);
         }
 #ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
+    } else if (channel->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
         if (migrate_compress()) {
             error_setg(errp, "RDMA and compression can't be used together");
             return;
@@ -547,7 +547,7 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
             error_setg(errp, "RDMA and multifd can't be used together");
             return;
         }
-        rdma_start_incoming_migration(p, errp);
+        rdma_start_incoming_migration(&channel->u.rdma, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_incoming_migration(p, errp);
@@ -1935,8 +1935,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
             fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
         }
 #ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
-        rdma_start_outgoing_migration(s, p, &local_err);
+    } else if (channel->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+        rdma_start_outgoing_migration(s, &channel->u.rdma, &local_err);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
         exec_start_outgoing_migration(s, p, &local_err);
