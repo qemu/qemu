@@ -2315,6 +2315,7 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 R: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 S: Supported
 F: hw/audio/virtio-snd.c
+F: hw/audio/virtio-snd-pci.c
 F: include/hw/audio/virtio-snd.h
 
 nvme
