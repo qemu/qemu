@@ -338,6 +338,21 @@ static TCGTemp *find_mem_copy_for(OptContext *ctx, TCGType type, intptr_t s)
     return NULL;
 }
 
+static TCGArg arg_new_constant(OptContext *ctx, uint64_t val)
+{
+    TCGType type = ctx->type;
+    TCGTemp *ts;
+
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
+    }
+
+    ts = tcg_constant_internal(type, val);
+    init_ts_info(ctx, ts);
+
+    return temp_arg(ts);
+}
+
 static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
 {
     TCGTemp *dst_ts = arg_temp(dst);
@@ -399,16 +414,8 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
 static bool tcg_opt_gen_movi(OptContext *ctx, TCGOp *op,
                              TCGArg dst, uint64_t val)
 {
-    TCGTemp *tv;
-
-    if (ctx->type == TCG_TYPE_I32) {
-        val = (int32_t)val;
-    }
-
     /* Convert movi to mov with constant temp. */
-    tv = tcg_constant_internal(ctx->type, val);
-    init_ts_info(ctx, tv);
-    return tcg_opt_gen_mov(ctx, op, dst, temp_arg(tv));
+    return tcg_opt_gen_mov(ctx, op, dst, arg_new_constant(ctx, val));
 }
 
 static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
@@ -1431,7 +1438,7 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
 
         op->opc = and_opc;
         op->args[1] = op->args[2];
-        op->args[2] = temp_arg(tcg_constant_internal(ctx->type, mask));
+        op->args[2] = arg_new_constant(ctx, mask);
         ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
         return false;
     }
@@ -1442,7 +1449,7 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
         uint64_t mask = deposit64(-1, op->args[3], op->args[4], 0);
 
         op->opc = and_opc;
-        op->args[2] = temp_arg(tcg_constant_internal(ctx->type, mask));
+        op->args[2] = arg_new_constant(ctx, mask);
         ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
         return false;
     }
