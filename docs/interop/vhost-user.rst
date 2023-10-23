@@ -275,6 +275,16 @@ Inflight description
 
 :queue size: a 16-bit size of virtqueues
 
+VhostUserShared
+^^^^^^^^^^^^^^^
+
++------+
+| UUID |
++------+
+
+:UUID: 16 bytes UUID, whose first three components (a 32-bit value, then
+  two 16-bit values) are stored in big endian.
+
 C structure
 -----------
 
@@ -885,6 +895,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
   #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
+  #define VHOST_USER_PROTOCOL_F_SHARED_OBJECT        18
 
 Front-end message types
 -----------------------

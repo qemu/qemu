@@ -29,7 +29,7 @@ static int uuid_equal_func(const void *lhv, const void *rhv)
 
 static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
 {
-    bool result = false;
+    bool result = true;
 
     g_mutex_lock(&lock);
     if (resource_uuids == NULL) {
@@ -39,7 +39,9 @@ static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
                                                g_free);
     }
     if (g_hash_table_lookup(resource_uuids, uuid) == NULL) {
-        result = g_hash_table_insert(resource_uuids, uuid, value);
+        g_hash_table_insert(resource_uuids, uuid, value);
+    } else {
+        result = false;
     }
     g_mutex_unlock(&lock);
 
@@ -57,6 +59,9 @@ bool virtio_add_dmabuf(QemuUUID *uuid, int udmabuf_fd)
     vso->type = TYPE_DMABUF;
     vso->value = GINT_TO_POINTER(udmabuf_fd);
     result = virtio_add_resource(uuid, vso);
+    if (!result) {
+        g_free(vso);
+    }
 
     return result;
 }
@@ -72,6 +77,9 @@ bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
     vso->type = TYPE_VHOST_DEV;
     vso->value = dev;
     result = virtio_add_resource(uuid, vso);
+    if (!result) {
+        g_free(vso);
+    }
 
     return result;
 }

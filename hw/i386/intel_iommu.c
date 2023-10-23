@@ -469,21 +469,12 @@ static void vtd_set_frcd_and_update_ppf(IntelIOMMUState *s, uint16_t index)
 
 /* Must not update F field now, should be done later */
 static void vtd_record_frcd(IntelIOMMUState *s, uint16_t index,
-                            uint16_t source_id, hwaddr addr,
-                            VTDFaultReason fault, bool is_write,
-                            bool is_pasid, uint32_t pasid)
+                            uint64_t hi, uint64_t lo)
 {
-    uint64_t hi = 0, lo;
     hwaddr frcd_reg_addr = DMAR_FRCD_REG_OFFSET + (((uint64_t)index) << 4);
 
     assert(index < DMAR_FRCD_REG_NR);
 
-    lo = VTD_FRCD_FI(addr);
-    hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault) |
-         VTD_FRCD_PV(pasid) | VTD_FRCD_PP(is_pasid);
-    if (!is_write) {
-        hi |= VTD_FRCD_T;
-    }
     vtd_set_quad_raw(s, frcd_reg_addr, lo);
     vtd_set_quad_raw(s, frcd_reg_addr + 8, hi);
 
@@ -509,16 +500,10 @@ static bool vtd_try_collapse_fault(IntelIOMMUState *s, uint16_t source_id)
 }
 
 /* Log and report an DMAR (address translation) fault to software */
-static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
-                                  hwaddr addr, VTDFaultReason fault,
-                                  bool is_write, bool is_pasid,
-                                  uint32_t pasid)
+static void vtd_report_frcd_fault(IntelIOMMUState *s, uint64_t source_id,
+                                  uint64_t hi, uint64_t lo)
 {
     uint32_t fsts_reg = vtd_get_long_raw(s, DMAR_FSTS_REG);
-
-    assert(fault < VTD_FR_MAX);
-
-    trace_vtd_dmar_fault(source_id, fault, addr, is_write);
 
     if (fsts_reg & VTD_FSTS_PFO) {
         error_report_once("New fault is not recorded due to "
@@ -539,8 +524,7 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
         return;
     }
 
-    vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault,
-                    is_write, is_pasid, pasid);
+    vtd_record_frcd(s, s->next_frcd_reg, hi, lo);
 
     if (fsts_reg & VTD_FSTS_PPF) {
         error_report_once("There are pending faults already, "
@@ -563,6 +547,40 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
          */
          vtd_generate_fault_event(s, fsts_reg);
     }
+}
+
+/* Log and report an DMAR (address translation) fault to software */
+static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
+                                  hwaddr addr, VTDFaultReason fault,
+                                  bool is_write, bool is_pasid,
+                                  uint32_t pasid)
+{
+    uint64_t hi, lo;
+
+    assert(fault < VTD_FR_MAX);
+
+    trace_vtd_dmar_fault(source_id, fault, addr, is_write);
+
+    lo = VTD_FRCD_FI(addr);
+    hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault) |
+         VTD_FRCD_PV(pasid) | VTD_FRCD_PP(is_pasid);
+    if (!is_write) {
+        hi |= VTD_FRCD_T;
+    }
+
+    vtd_report_frcd_fault(s, source_id, hi, lo);
+}
+
+
+static void vtd_report_ir_fault(IntelIOMMUState *s, uint64_t source_id,
+                                VTDFaultReason fault, uint16_t index)
+{
+    uint64_t hi, lo;
+
+    lo = VTD_FRCD_IR_IDX(index);
+    hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault);
+
+    vtd_report_frcd_fault(s, source_id, hi, lo);
 }
 
 /* Handle Invalidation Queue Errors of queued invalidation interface error
@@ -3305,8 +3323,9 @@ static Property vtd_properties[] = {
 };
 
 /* Read IRTE entry with specific index */
-static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
-                        VTD_IR_TableEntry *entry, uint16_t sid)
+static bool vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
+                         VTD_IR_TableEntry *entry, uint16_t sid,
+                         bool do_fault)
 {
     static const uint16_t vtd_svt_mask[VTD_SQ_MAX] = \
         {0xffff, 0xfffb, 0xfff9, 0xfff8};
@@ -3317,7 +3336,10 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     if (index >= iommu->intr_size) {
         error_report_once("%s: index too large: ind=0x%x",
                           __func__, index);
-        return -VTD_FR_IR_INDEX_OVER;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_INDEX_OVER, index);
+        }
+        return false;
     }
 
     addr = iommu->intr_root + index * sizeof(*entry);
@@ -3325,7 +3347,10 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
                         entry, sizeof(*entry), MEMTXATTRS_UNSPECIFIED)) {
         error_report_once("%s: read failed: ind=0x%x addr=0x%" PRIx64,
                           __func__, index, addr);
-        return -VTD_FR_IR_ROOT_INVAL;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_ROOT_INVAL, index);
+        }
+        return false;
     }
 
     entry->data[0] = le64_to_cpu(entry->data[0]);
@@ -3333,11 +3358,24 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
 
     trace_vtd_ir_irte_get(index, entry->data[1], entry->data[0]);
 
+    /*
+     * The remaining potential fault conditions are "qualified" by the
+     * Fault Processing Disable bit in the IRTE. Even "not present".
+     * So just clear the do_fault flag if PFD is set, which will
+     * prevent faults being raised.
+     */
+    if (entry->irte.fault_disable) {
+        do_fault = false;
+    }
+
     if (!entry->irte.present) {
         error_report_once("%s: detected non-present IRTE "
                           "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
                           __func__, index, entry->data[1], entry->data[0]);
-        return -VTD_FR_IR_ENTRY_P;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_ENTRY_P, index);
+        }
+        return false;
     }
 
     if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
@@ -3345,7 +3383,10 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         error_report_once("%s: detected non-zero reserved IRTE "
                           "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
                           __func__, index, entry->data[1], entry->data[0]);
-        return -VTD_FR_IR_IRTE_RSVD;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_IRTE_RSVD, index);
+        }
+        return false;
     }
 
     if (sid != X86_IOMMU_SID_INVALID) {
@@ -3361,7 +3402,10 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
                 error_report_once("%s: invalid IRTE SID "
                                   "(index=%u, sid=%u, source_id=%u)",
                                   __func__, index, sid, source_id);
-                return -VTD_FR_IR_SID_ERR;
+                if (do_fault) {
+                    vtd_report_ir_fault(iommu, sid, VTD_FR_IR_SID_ERR, index);
+                }
+                return false;
             }
             break;
 
@@ -3373,7 +3417,10 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
                 error_report_once("%s: invalid SVT_BUS "
                                   "(index=%u, bus=%u, min=%u, max=%u)",
                                   __func__, index, bus, bus_min, bus_max);
-                return -VTD_FR_IR_SID_ERR;
+                if (do_fault) {
+                    vtd_report_ir_fault(iommu, sid, VTD_FR_IR_SID_ERR, index);
+                }
+                return false;
             }
             break;
 
@@ -3382,23 +3429,24 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
                               "(index=%u, type=%d)", __func__,
                               index, entry->irte.sid_vtype);
             /* Take this as verification failure. */
-            return -VTD_FR_IR_SID_ERR;
+            if (do_fault) {
+                vtd_report_ir_fault(iommu, sid, VTD_FR_IR_SID_ERR, index);
+            }
+            return false;
         }
     }
 
-    return 0;
+    return true;
 }
 
 /* Fetch IRQ information of specific IR index */
-static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
-                             X86IOMMUIrq *irq, uint16_t sid)
+static bool vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
+                              X86IOMMUIrq *irq, uint16_t sid, bool do_fault)
 {
     VTD_IR_TableEntry irte = {};
-    int ret = 0;
 
-    ret = vtd_irte_get(iommu, index, &irte, sid);
-    if (ret) {
-        return ret;
+    if (!vtd_irte_get(iommu, index, &irte, sid, do_fault)) {
+        return false;
     }
 
     irq->trigger_mode = irte.irte.trigger_mode;
@@ -3417,16 +3465,15 @@ static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
     trace_vtd_ir_remap(index, irq->trigger_mode, irq->vector,
                        irq->delivery_mode, irq->dest, irq->dest_mode);
 
-    return 0;
+    return true;
 }
 
 /* Interrupt remapping for MSI/MSI-X entry */
 static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
                                    MSIMessage *origin,
                                    MSIMessage *translated,
-                                   uint16_t sid)
+                                   uint16_t sid, bool do_fault)
 {
-    int ret = 0;
     VTD_IR_MSIAddress addr;
     uint16_t index;
     X86IOMMUIrq irq = {};
@@ -3443,14 +3490,20 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     if (origin->address & VTD_MSI_ADDR_HI_MASK) {
         error_report_once("%s: MSI address high 32 bits non-zero detected: "
                           "address=0x%" PRIx64, __func__, origin->address);
-        return -VTD_FR_IR_REQ_RSVD;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_REQ_RSVD, 0);
+        }
+        return -EINVAL;
     }
 
     addr.data = origin->address & VTD_MSI_ADDR_LO_MASK;
     if (addr.addr.__head != 0xfee) {
         error_report_once("%s: MSI address low 32 bit invalid: 0x%" PRIx32,
                           __func__, addr.data);
-        return -VTD_FR_IR_REQ_RSVD;
+        if (do_fault) {
+            vtd_report_ir_fault(iommu, sid, VTD_FR_IR_REQ_RSVD, 0);
+        }
+        return -EINVAL;
     }
 
     /* This is compatible mode. */
@@ -3469,9 +3522,8 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
         index += origin->data & VTD_IR_MSI_DATA_SUBHANDLE;
     }
 
-    ret = vtd_remap_irq_get(iommu, index, &irq, sid);
-    if (ret) {
-        return ret;
+    if (!vtd_remap_irq_get(iommu, index, &irq, sid, do_fault)) {
+        return -EINVAL;
     }
 
     if (addr.addr.sub_valid) {
@@ -3481,7 +3533,10 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
                               "(sid=%u, address=0x%" PRIx64
                               ", data=0x%" PRIx32 ")",
                               __func__, sid, origin->address, origin->data);
-            return -VTD_FR_IR_REQ_RSVD;
+            if (do_fault) {
+                vtd_report_ir_fault(iommu, sid, VTD_FR_IR_REQ_RSVD, 0);
+            }
+            return -EINVAL;
         }
     } else {
         uint8_t vector = origin->data & 0xff;
@@ -3521,7 +3576,7 @@ static int vtd_int_remap(X86IOMMUState *iommu, MSIMessage *src,
                          MSIMessage *dst, uint16_t sid)
 {
     return vtd_interrupt_remap_msi(INTEL_IOMMU_DEVICE(iommu),
-                                   src, dst, sid);
+                                   src, dst, sid, false);
 }
 
 static MemTxResult vtd_mem_ir_read(void *opaque, hwaddr addr,
@@ -3547,9 +3602,8 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
         sid = attrs.requester_id;
     }
 
-    ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid);
+    ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid, true);
     if (ret) {
-        /* TODO: report error */
         /* Drop this interrupt */
         return MEMTX_ERROR;
     }
