@@ -111,6 +111,18 @@ typedef enum {
     CXL_MBOX_MAX = 0x17
 } CXLRetCode;
 
+typedef struct cxl_device_state CXLDeviceState;
+struct cxl_cmd;
+typedef CXLRetCode (*opcode_handler)(const struct cxl_cmd *cmd,
+                                     uint8_t *payload,
+                                     CXLDeviceState *cxl_dstate, uint16_t *len);
+struct cxl_cmd {
+    const char *name;
+    opcode_handler handler;
+    ssize_t in;
+    uint16_t effect; /* Reported in CEL */
+};
+
 typedef struct CXLEvent {
     CXLEventRecordRaw data;
     QSIMPLEQ_ENTRY(CXLEvent) node;
@@ -178,6 +190,7 @@ typedef struct cxl_device_state {
     uint64_t pmem_size;
     uint64_t vmem_size;
 
+    const struct cxl_cmd (*cxl_cmd_set)[256];
     CXLEventLog event_logs[CXL_EVENT_TYPE_MAX];
 } CXLDeviceState;
 
