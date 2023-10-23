@@ -19,7 +19,7 @@
 
 /* Remove the offset option from @filespec and return it in @offsetp. */
 
-static int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
+int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
 {
     char *option = strstr(filespec, OFFSET_OPTION);
     int ret;

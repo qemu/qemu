@@ -11,4 +11,5 @@ void file_start_incoming_migration(const char *filename, Error **errp);
 
 void file_start_outgoing_migration(MigrationState *s, const char *filename,
                                    Error **errp);
+int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp);
 #endif
