@@ -502,6 +502,13 @@ void pmbus_send64(PMBusDevice *state, uint64_t data);
 void pmbus_send_string(PMBusDevice *state, const char *data);
 
 /**
+ * @brief Receive data sent with Block Write.
+ * @param dest - memory with enough capacity to receive the write
+ * @param len - the capacity of dest
+ */
+uint8_t pmbus_receive_block(PMBusDevice *pmdev, uint8_t *dest, size_t len);
+
+/**
  * @brief Receive data over PMBus
  * These methods help track how much data is being received over PMBus
  * Log to GUEST_ERROR if too much or too little is sent.
