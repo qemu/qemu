@@ -489,6 +489,7 @@ config NPCM7XX
     default y
     depends on TCG && ARM
     select A9MPCORE
+    select ADM1266
     select ADM1272
     select ARM_GIC
     select SMBUS
