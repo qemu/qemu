@@ -67,16 +67,24 @@ static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
     CXLComponentState *cxl_cstate = opaque;
     ComponentRegisters *cregs = &cxl_cstate->crb;
 
-    if (size == 8) {
+    switch (size) {
+    case 4:
+        if (cregs->special_ops && cregs->special_ops->read) {
+            return cregs->special_ops->read(cxl_cstate, offset, 4);
+        } else {
+            QEMU_BUILD_BUG_ON(sizeof(*cregs->cache_mem_registers) != 4);
+            return cregs->cache_mem_registers[offset / 4];
+        }
+    case 8:
         qemu_log_mask(LOG_UNIMP,
                       "CXL 8 byte cache mem registers not implemented\n");
         return 0;
-    }
-
-    if (cregs->special_ops && cregs->special_ops->read) {
-        return cregs->special_ops->read(cxl_cstate, offset, size);
-    } else {
-        return cregs->cache_mem_registers[offset / sizeof(*cregs->cache_mem_registers)];
+    default:
+        /*
+         * In line with specifiction limitaions on access sizes, this
+         * routine is not called with other sizes.
+         */
+        g_assert_not_reached();
     }
 }
 
@@ -117,25 +125,37 @@ static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
     ComponentRegisters *cregs = &cxl_cstate->crb;
     uint32_t mask;
 
-    if (size == 8) {
+    switch (size) {
+    case 4: {
+        QEMU_BUILD_BUG_ON(sizeof(*cregs->cache_mem_regs_write_mask) != 4);
+        QEMU_BUILD_BUG_ON(sizeof(*cregs->cache_mem_registers) != 4);
+        mask = cregs->cache_mem_regs_write_mask[offset / 4];
+        value &= mask;
+        /* RO bits should remain constant. Done by reading existing value */
+        value |= ~mask & cregs->cache_mem_registers[offset / 4];
+        if (cregs->special_ops && cregs->special_ops->write) {
+            cregs->special_ops->write(cxl_cstate, offset, value, size);
+            return;
+        }
+
+        if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
+            offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
+            dumb_hdm_handler(cxl_cstate, offset, value);
+        } else {
+            cregs->cache_mem_registers[offset / 4] = value;
+        }
+        return;
+    }
+    case 8:
         qemu_log_mask(LOG_UNIMP,
                       "CXL 8 byte cache mem registers not implemented\n");
         return;
-    }
-    mask = cregs->cache_mem_regs_write_mask[offset / sizeof(*cregs->cache_mem_regs_write_mask)];
-    value &= mask;
-    /* RO bits should remain constant. Done by reading existing value */
-    value |= ~mask & cregs->cache_mem_registers[offset / sizeof(*cregs->cache_mem_registers)];
-    if (cregs->special_ops && cregs->special_ops->write) {
-        cregs->special_ops->write(cxl_cstate, offset, value, size);
-        return;
-    }
-
-    if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
-        offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
-        dumb_hdm_handler(cxl_cstate, offset, value);
-    } else {
-        cregs->cache_mem_registers[offset / sizeof(*cregs->cache_mem_registers)] = value;
+    default:
+        /*
+         * In line with specifiction limitaions on access sizes, this
+         * routine is not called with other sizes.
+         */
+        g_assert_not_reached();
     }
 }
 
