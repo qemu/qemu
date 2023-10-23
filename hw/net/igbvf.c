@@ -273,6 +273,13 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
     pcie_ari_init(dev, 0x150);
 }
 
+static void igbvf_qdev_reset_hold(Object *obj)
+{
+    PCIDevice *vf = PCI_DEVICE(obj);
+
+    igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
+}
+
 static void igbvf_pci_uninit(PCIDevice *dev)
 {
     IgbVfState *s = IGBVF(dev);
@@ -287,6 +294,7 @@ static void igbvf_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     c->realize = igbvf_pci_realize;
     c->exit = igbvf_pci_uninit;
@@ -294,6 +302,8 @@ static void igbvf_class_init(ObjectClass *class, void *data)
     c->device_id = E1000_DEV_ID_82576_VF;
     c->revision = 1;
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
+
+    rc->phases.hold = igbvf_qdev_reset_hold;
 
     dc->desc = "Intel 82576 Virtual Function";
     dc->user_creatable = false;

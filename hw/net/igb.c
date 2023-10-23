@@ -122,6 +122,12 @@ igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     igb_core_write(&s->core, addr, val, size);
 }
 
+void igb_vf_reset(void *opaque, uint16_t vfn)
+{
+    IGBState *s = opaque;
+    igb_core_vf_reset(&s->core, vfn);
+}
+
 static bool
 igb_io_get_reg_index(IGBState *s, uint32_t *idx)
 {
