@@ -445,6 +445,14 @@ typedef struct PMBusCoefficients {
 } PMBusCoefficients;
 
 /**
+ * VOUT_Mode bit fields
+ */
+typedef struct PMBusVoutMode {
+    uint8_t  mode:3;
+    int8_t   exp:5;
+} PMBusVoutMode;
+
+/**
  * Convert sensor values to direct mode format
  *
  * Y = (m * x - b) * 10^R
