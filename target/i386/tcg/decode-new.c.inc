@@ -26,6 +26,13 @@
  * size (X86_SIZE_*) codes used in the manual.  There are a few differences
  * though.
  *
+ * Operand sizes
+ * -------------
+ *
+ * The manual lists d64 ("cannot encode 32-bit size in 64-bit mode") and f64
+ * ("cannot encode 16-bit or 32-bit size in 64-bit mode") as modifiers of the
+ * "v" or "z" sizes.  The decoder simply makes them separate operand sizes.
+ *
  * Vector operands
  * ---------------
  *
@@ -43,6 +50,11 @@
  * In addition, the ss/ps/sd/pd types are sometimes mushed together as "x"
  * if the difference is expressed via prefixes.  Individual instructions
  * are separated by prefix in the generator functions.
+ *
+ * There is a custom size "xh" used to address half of a SSE/AVX operand.
+ * This points to a 64-bit operand for SSE operations, 128-bit operand
+ * for 256-bit AVX operands, etc.  It is used for conversion operations
+ * such as VCVTPH2PS or VCVTSS2SD.
  *
  * There are a couple cases in which instructions (e.g. MOVD) write the
  * whole XMM or MM register but are established incorrectly in the manual
