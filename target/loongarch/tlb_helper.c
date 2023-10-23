@@ -60,6 +60,9 @@ static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
         tlb_rplv = 0;
     }
 
+    /* Remove sw bit between bit12 -- bit PS*/
+    tlb_ppn = tlb_ppn & ~(((0x1UL << (tlb_ps - 12)) -1));
+
     /* Check access rights */
     if (!tlb_v) {
         return TLBRET_INVALID;
@@ -82,10 +85,6 @@ static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
         return TLBRET_DIRTY;
     }
 
-    /*
-     * tlb_entry contains ppn[47:12] while 16KiB ppn is [47:15]
-     * need adjust.
-     */
     *physical = (tlb_ppn << R_TLBENTRY_64_PPN_SHIFT) |
                 (address & MAKE_64BIT_MASK(0, tlb_ps));
     *prot = PAGE_READ;
@@ -774,7 +773,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         /* Move Global bit */
         tmp0 = ((tmp0 & (1 << LOONGARCH_HGLOBAL_SHIFT))  >>
                 LOONGARCH_HGLOBAL_SHIFT) << R_TLBENTRY_G_SHIFT |
-                (tmp0 & (~(1 << R_TLBENTRY_G_SHIFT)));
+                (tmp0 & (~(1 << LOONGARCH_HGLOBAL_SHIFT)));
         ps = ptbase + ptwidth - 1;
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
