@@ -67,13 +67,122 @@ typedef struct virtio_snd_pcm_xfer virtio_snd_pcm_xfer;
 /* I/O request status */
 typedef struct virtio_snd_pcm_status virtio_snd_pcm_status;
 
-typedef struct VirtIOSound {
+/* device structs */
+
+typedef struct VirtIOSound VirtIOSound;
+
+typedef struct VirtIOSoundPCMStream VirtIOSoundPCMStream;
+
+typedef struct virtio_snd_ctrl_command virtio_snd_ctrl_command;
+
+typedef struct VirtIOSoundPCM VirtIOSoundPCM;
+
+struct VirtIOSoundPCM {
+    VirtIOSound *snd;
+    /*
+     * PCM parameters are a separate field instead of a VirtIOSoundPCMStream
+     * field, because the operation of PCM control requests is first
+     * VIRTIO_SND_R_PCM_SET_PARAMS and then VIRTIO_SND_R_PCM_PREPARE; this
+     * means that some times we get parameters without having an allocated
+     * stream yet.
+     */
+    virtio_snd_pcm_set_params *pcm_params;
+    VirtIOSoundPCMStream **streams;
+};
+
+struct VirtIOSoundPCMStream {
+    VirtIOSoundPCM *pcm;
+    virtio_snd_pcm_info info;
+    virtio_snd_pcm_set_params params;
+    uint32_t id;
+    /* channel position values (VIRTIO_SND_CHMAP_XXX) */
+    uint8_t positions[VIRTIO_SND_CHMAP_MAX_SIZE];
+    VirtIOSound *s;
+    bool flushing;
+    audsettings as;
+    union {
+        SWVoiceIn *in;
+        SWVoiceOut *out;
+    } voice;
+    bool active;
+};
+
+/*
+ * PCM stream state machine.
+ * -------------------------
+ *
+ * 5.14.6.6.1 PCM Command Lifecycle
+ * ================================
+ *
+ * A PCM stream has the following command lifecycle:
+ * - `SET PARAMETERS`
+ *   The driver negotiates the stream parameters (format, transport, etc) with
+ *   the device.
+ *   Possible valid transitions: `SET PARAMETERS`, `PREPARE`.
+ * - `PREPARE`
+ *   The device prepares the stream (allocates resources, etc).
+ *   Possible valid transitions: `SET PARAMETERS`, `PREPARE`, `START`,
+ *   `RELEASE`. Output only: the driver transfers data for pre-buffing.
+ * - `START`
+ *   The device starts the stream (unmute, putting into running state, etc).
+ *   Possible valid transitions: `STOP`.
+ *   The driver transfers data to/from the stream.
+ * - `STOP`
+ *   The device stops the stream (mute, putting into non-running state, etc).
+ *   Possible valid transitions: `START`, `RELEASE`.
+ * - `RELEASE`
+ *   The device releases the stream (frees resources, etc).
+ *   Possible valid transitions: `SET PARAMETERS`, `PREPARE`.
+ *
+ * +---------------+ +---------+ +---------+ +-------+ +-------+
+ * | SetParameters | | Prepare | | Release | | Start | | Stop  |
+ * +---------------+ +---------+ +---------+ +-------+ +-------+
+ *         |-             |           |          |         |
+ *         ||             |           |          |         |
+ *         |<             |           |          |         |
+ *         |------------->|           |          |         |
+ *         |<-------------|           |          |         |
+ *         |              |-          |          |         |
+ *         |              ||          |          |         |
+ *         |              |<          |          |         |
+ *         |              |--------------------->|         |
+ *         |              |---------->|          |         |
+ *         |              |           |          |-------->|
+ *         |              |           |          |<--------|
+ *         |              |           |<-------------------|
+ *         |<-------------------------|          |         |
+ *         |              |<----------|          |         |
+ *
+ * CTRL in the VirtIOSound device
+ * ==============================
+ *
+ * The control messages that affect the state of a stream arrive in the
+ * `virtio_snd_handle_ctrl()` queue callback and are of type `struct
+ * virtio_snd_ctrl_command`. They are stored in a queue field in the device
+ * type, `VirtIOSound`. This allows deferring the CTRL request completion if
+ * it's not immediately possible due to locking/state reasons.
+ *
+ * The CTRL message is finally handled in `process_cmd()`.
+ */
+struct VirtIOSound {
     VirtIODevice parent_obj;
 
     VirtQueue *queues[VIRTIO_SND_VQ_MAX];
     uint64_t features;
+    VirtIOSoundPCM *pcm;
     QEMUSoundCard card;
     VMChangeStateEntry *vmstate;
     virtio_snd_config snd_conf;
-} VirtIOSound;
+    QemuMutex cmdq_mutex;
+    QTAILQ_HEAD(, virtio_snd_ctrl_command) cmdq;
+    bool processing_cmdq;
+};
+
+struct virtio_snd_ctrl_command {
+    VirtQueueElement *elem;
+    VirtQueue *vq;
+    virtio_snd_hdr ctrl;
+    virtio_snd_hdr resp;
+    QTAILQ_ENTRY(virtio_snd_ctrl_command) next;
+};
 #endif
