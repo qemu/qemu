@@ -34,13 +34,13 @@
 
 static void check_max_alignment(unsigned a_bits)
 {
-#if defined(CONFIG_SOFTMMU)
     /*
      * The requested alignment cannot overlap the TLB flags.
      * FIXME: Must keep the count up-to-date with "exec/cpu-all.h".
      */
-    tcg_debug_assert(a_bits + 5 <= tcg_ctx->page_bits);
-#endif
+    if (tcg_use_softmmu) {
+        tcg_debug_assert(a_bits + 5 <= tcg_ctx->page_bits);
+    }
 }
 
 static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
@@ -411,10 +411,11 @@ void tcg_gen_qemu_st_i64_chk(TCGv_i64 val, TCGTemp *addr, TCGArg idx,
  */
 static bool use_two_i64_for_i128(MemOp mop)
 {
-#ifdef CONFIG_SOFTMMU
     /* Two softmmu tlb lookups is larger than one function call. */
-    return false;
-#else
+    if (tcg_use_softmmu) {
+        return false;
+    }
+
     /*
      * For user-only, two 64-bit operations may well be smaller than a call.
      * Determine if that would be legal for the requested atomicity.
@@ -432,7 +433,6 @@ static bool use_two_i64_for_i128(MemOp mop)
     default:
         g_assert_not_reached();
     }
-#endif
 }
 
 static void canonicalize_memop_i128_as_i64(MemOp ret[2], MemOp orig)
@@ -714,7 +714,7 @@ void tcg_gen_qemu_st_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
     tcg_gen_qemu_st_i128_int(val, addr, idx, memop);
 }
 
-static void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, MemOp opc)
+void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, MemOp opc)
 {
     switch (opc & MO_SSIZE) {
     case MO_SB:
@@ -729,13 +729,16 @@ static void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, MemOp opc)
     case MO_UW:
         tcg_gen_ext16u_i32(ret, val);
         break;
-    default:
+    case MO_UL:
+    case MO_SL:
         tcg_gen_mov_i32(ret, val);
         break;
+    default:
+        g_assert_not_reached();
     }
 }
 
-static void tcg_gen_ext_i64(TCGv_i64 ret, TCGv_i64 val, MemOp opc)
+void tcg_gen_ext_i64(TCGv_i64 ret, TCGv_i64 val, MemOp opc)
 {
     switch (opc & MO_SSIZE) {
     case MO_SB:
@@ -756,9 +759,12 @@ static void tcg_gen_ext_i64(TCGv_i64 ret, TCGv_i64 val, MemOp opc)
     case MO_UL:
         tcg_gen_ext32u_i64(ret, val);
         break;
-    default:
+    case MO_UQ:
+    case MO_SQ:
         tcg_gen_mov_i64(ret, val);
         break;
+    default:
+        g_assert_not_reached();
     }
 }
 

@@ -178,6 +178,10 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece);
 static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
+#ifndef CONFIG_USER_ONLY
+#define guest_base  ({ qemu_build_not_reached(); (uintptr_t)0; })
+#endif
+
 typedef struct TCGLdstHelperParam {
     TCGReg (*ra_gen)(TCGContext *s, const TCGLabelQemuLdst *l, int arg_reg);
     unsigned ntmp;
@@ -225,6 +229,10 @@ typedef struct {
 static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc,
                                            MemOp host_atom, bool allow_two_ops)
     __attribute__((unused));
+
+#ifdef CONFIG_USER_ONLY
+bool tcg_use_softmmu;
+#endif
 
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
@@ -404,13 +412,12 @@ static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
     return (uintptr_t)tcg_splitwx_to_rx(&s->gen_tb->jmp_target_addr[which]);
 }
 
-#if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
-static int tlb_mask_table_ofs(TCGContext *s, int which)
+static int __attribute__((unused))
+tlb_mask_table_ofs(TCGContext *s, int which)
 {
     return (offsetof(CPUNegativeOffsetState, tlb.f[which]) -
             sizeof(CPUNegativeOffsetState));
 }
-#endif
 
 /* Signal overflow, starting over with fewer guest insns. */
 static G_NORETURN
