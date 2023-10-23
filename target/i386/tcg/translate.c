@@ -720,6 +720,9 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
     if (size == MO_TL) {
         return src;
     }
+    if (!dst) {
+        dst = tcg_temp_new();
+    }
     tcg_gen_ext_tl(dst, src, size | (sign ? MO_SIGN : 0));
     return dst;
 }
@@ -736,9 +739,9 @@ static void gen_exts(MemOp ot, TCGv reg)
 
 static void gen_op_j_ecx(DisasContext *s, TCGCond cond, TCGLabel *label1)
 {
-    tcg_gen_mov_tl(s->tmp0, cpu_regs[R_ECX]);
-    gen_extu(s->aflag, s->tmp0);
-    tcg_gen_brcondi_tl(cond, s->tmp0, 0, label1);
+    TCGv tmp = gen_ext_tl(NULL, cpu_regs[R_ECX], s->aflag, false);
+
+    tcg_gen_brcondi_tl(cond, tmp, 0, label1);
 }
 
 static inline void gen_op_jz_ecx(DisasContext *s, TCGLabel *label1)
