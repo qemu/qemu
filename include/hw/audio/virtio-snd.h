@@ -77,6 +77,50 @@ typedef struct virtio_snd_ctrl_command virtio_snd_ctrl_command;
 
 typedef struct VirtIOSoundPCM VirtIOSoundPCM;
 
+typedef struct VirtIOSoundPCMBuffer VirtIOSoundPCMBuffer;
+
+/*
+ * The VirtIO sound spec reuses layouts and values from the High Definition
+ * Audio spec (virtio/v1.2: 5.14 Sound Device). This struct handles each I/O
+ * message's buffer (virtio/v1.2: 5.14.6.8 PCM I/O Messages).
+ *
+ * In the case of TX (i.e. playback) buffers, we defer reading the raw PCM data
+ * from the virtqueue until QEMU's sound backsystem calls the output callback.
+ * This is tracked by the `bool populated;` field, which is set to true when
+ * data has been read into our own buffer for consumption.
+ *
+ * VirtIOSoundPCMBuffer has a dynamic size since it includes the raw PCM data
+ * in its allocation. It must be initialized and destroyed as follows:
+ *
+ *   size_t size = [[derived from owned VQ element descriptor sizes]];
+ *   buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer) + size);
+ *   buffer->elem = [[owned VQ element]];
+ *
+ *   [..]
+ *
+ *   g_free(buffer->elem);
+ *   g_free(buffer);
+ */
+struct VirtIOSoundPCMBuffer {
+    QSIMPLEQ_ENTRY(VirtIOSoundPCMBuffer) entry;
+    VirtQueueElement *elem;
+    VirtQueue *vq;
+    size_t size;
+    /*
+     * In TX / Plaback, `offset` represents the first unused position inside
+     * `data`. If `offset == size` then there are no unused data left.
+     */
+    uint64_t offset;
+    /* Used for the TX queue for lazy I/O copy from `elem` */
+    bool populated;
+    /*
+     * VirtIOSoundPCMBuffer is an unsized type because it ends with an array of
+     * bytes. The size of `data` is determined from the I/O message's read-only
+     * or write-only size when allocating VirtIOSoundPCMBuffer.
+     */
+    uint8_t data[];
+};
+
 struct VirtIOSoundPCM {
     VirtIOSound *snd;
     /*
@@ -104,7 +148,10 @@ struct VirtIOSoundPCMStream {
         SWVoiceIn *in;
         SWVoiceOut *out;
     } voice;
+    QemuMutex queue_mutex;
     bool active;
+    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) queue;
+    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) invalid;
 };
 
 /*
