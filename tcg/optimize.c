@@ -1044,8 +1044,9 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
  * If z_mask allows, fold the output to constant zero.
  * The passed s_mask may be augmented by z_mask.
  */
-static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
-                            uint64_t o_mask, int64_t s_mask, uint64_t a_mask)
+static bool fold_masks_zosa_int(OptContext *ctx, TCGOp *op,
+                                uint64_t z_mask, uint64_t o_mask,
+                                int64_t s_mask, uint64_t a_mask)
 {
     const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGTemp *ts;
@@ -1095,6 +1096,13 @@ static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
     rep = MAX(rep - 1, 0);
     ti->s_mask = INT64_MIN >> rep;
 
+    return false;
+}
+
+static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
+                            uint64_t o_mask, int64_t s_mask, uint64_t a_mask)
+{
+    fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, -1);
     return true;
 }
 
@@ -1448,7 +1456,26 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
     /* Affected bits are those not known zero, masked by those known one. */
     a_mask = t1->z_mask & ~t2->o_mask;
 
-    return fold_masks_zosa(ctx, op, z_mask, o_mask, s_mask, a_mask);
+    if (!fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, a_mask)) {
+        if (ti_is_const(t2)) {
+            /*
+             * Canonicalize on extract, if valid.  This aids x86 with its
+             * 2 operand MOVZBL and 2 operand AND, selecting the TCGOpcode
+             * which does not require matching operands.  Other backends can
+             * trivially expand the extract to AND during code generation.
+             */
+            uint64_t val = ti_const_val(t2);
+            if (!(val & (val + 1))) {
+                unsigned len = ctz64(~val);
+                if (TCG_TARGET_extract_valid(ctx->type, 0, len)) {
+                    op->opc = INDEX_op_extract;
+                    op->args[2] = 0;
+                    op->args[3] = len;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 static bool fold_andc(OptContext *ctx, TCGOp *op)
