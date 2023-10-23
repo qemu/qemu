@@ -82,8 +82,132 @@ enum {
     PHYSICAL_SWITCH = 0x51,
         #define IDENTIFY_SWITCH_DEVICE      0x0
         #define GET_PHYSICAL_PORT_STATE     0x1
+    TUNNEL = 0x53,
+        #define MANAGEMENT_COMMAND     0x0
 };
 
+/* CCI Message Format CXL r3.0 Figure 7-19 */
+typedef struct CXLCCIMessage {
+    uint8_t category;
+#define CXL_CCI_CAT_REQ 0
+#define CXL_CCI_CAT_RSP 1
+    uint8_t tag;
+    uint8_t resv1;
+    uint8_t command;
+    uint8_t command_set;
+    uint8_t pl_length[3];
+    uint16_t rc;
+    uint16_t vendor_specific;
+    uint8_t payload[];
+} QEMU_PACKED CXLCCIMessage;
+
+/* This command is only defined to an MLD FM Owned LD or an MHD */
+static CXLRetCode cmd_tunnel_management_cmd(const struct cxl_cmd *cmd,
+                                            uint8_t *payload_in,
+                                            size_t len_in,
+                                            uint8_t *payload_out,
+                                            size_t *len_out,
+                                            CXLCCI *cci)
+{
+    PCIDevice *tunnel_target;
+    CXLCCI *target_cci;
+    struct {
+        uint8_t port_or_ld_id;
+        uint8_t target_type;
+        uint16_t size;
+        CXLCCIMessage ccimessage;
+    } QEMU_PACKED *in;
+    struct {
+        uint16_t resp_len;
+        uint8_t resv[2];
+        CXLCCIMessage ccimessage;
+    } QEMU_PACKED *out;
+    size_t pl_length, length_out;
+    bool bg_started;
+    int rc;
+
+    if (cmd->in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_INPUT;
+    }
+    in = (void *)payload_in;
+    out = (void *)payload_out;
+
+    /* Enough room for minimum sized message - no payload */
+    if (in->size < sizeof(in->ccimessage)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+    /* Length of input payload should be in->size + a wrapping tunnel header */
+    if (in->size != len_in - offsetof(typeof(*out), ccimessage)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+    if (in->ccimessage.category != CXL_CCI_CAT_REQ) {
+        return CXL_MBOX_INVALID_INPUT;
+    }
+
+    if (in->target_type != 0) {
+        qemu_log_mask(LOG_UNIMP,
+                      "Tunneled Command sent to non existent FM-LD");
+        return CXL_MBOX_INVALID_INPUT;
+    }
+
+    /*
+     * Target of a tunnel unfortunately depends on type of CCI readint
+     * the message.
+     * If in a switch, then it's the port number.
+     * If in an MLD it is the ld number.
+     * If in an MHD target type indicate where we are going.
+     */
+    if (object_dynamic_cast(OBJECT(cci->d), TYPE_CXL_TYPE3)) {
+        CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+        if (in->port_or_ld_id != 0) {
+            /* Only pretending to have one for now! */
+            return CXL_MBOX_INVALID_INPUT;
+        }
+        target_cci = &ct3d->ld0_cci;
+    } else if (object_dynamic_cast(OBJECT(cci->d), TYPE_CXL_USP)) {
+        CXLUpstreamPort *usp = CXL_USP(cci->d);
+
+        tunnel_target = pcie_find_port_by_pn(&PCI_BRIDGE(usp)->sec_bus,
+                                             in->port_or_ld_id);
+        if (!tunnel_target) {
+            return CXL_MBOX_INVALID_INPUT;
+        }
+        tunnel_target =
+            pci_bridge_get_sec_bus(PCI_BRIDGE(tunnel_target))->devices[0];
+        if (!tunnel_target) {
+            return CXL_MBOX_INVALID_INPUT;
+        }
+        if (object_dynamic_cast(OBJECT(tunnel_target), TYPE_CXL_TYPE3)) {
+            CXLType3Dev *ct3d = CXL_TYPE3(tunnel_target);
+            /* Tunneled VDMs always land on FM Owned LD */
+            target_cci = &ct3d->vdm_fm_owned_ld_mctp_cci;
+        } else {
+            return CXL_MBOX_INVALID_INPUT;
+        }
+    } else {
+        return CXL_MBOX_INVALID_INPUT;
+    }
+
+    pl_length = in->ccimessage.pl_length[2] << 16 |
+        in->ccimessage.pl_length[1] << 8 | in->ccimessage.pl_length[0];
+    rc = cxl_process_cci_message(target_cci,
+                                 in->ccimessage.command_set,
+                                 in->ccimessage.command,
+                                 pl_length, in->ccimessage.payload,
+                                 &length_out, out->ccimessage.payload,
+                                 &bg_started);
+    /* Payload should be in place. Rest of CCI header and needs filling */
+    out->resp_len = length_out + sizeof(CXLCCIMessage);
+    st24_le_p(out->ccimessage.pl_length, length_out);
+    out->ccimessage.rc = rc;
+    out->ccimessage.category = CXL_CCI_CAT_RSP;
+    out->ccimessage.command = in->ccimessage.command;
+    out->ccimessage.command_set = in->ccimessage.command_set;
+    out->ccimessage.tag = in->ccimessage.tag;
+    *len_out = length_out + sizeof(*out);
+
+    return CXL_MBOX_SUCCESS;
+}
 
 static CXLRetCode cmd_events_get_records(const struct cxl_cmd *cmd,
                                          uint8_t *payload_in, size_t len_in,
@@ -1171,6 +1295,8 @@ static const struct cxl_cmd cxl_cmd_set_sw[256][256] = {
         cmd_identify_switch_device, 0, 0 },
     [PHYSICAL_SWITCH][GET_PHYSICAL_PORT_STATE] = { "SWITCH_PHYSICAL_PORT_STATS",
         cmd_get_physical_port_state, ~0, 0 },
+    [TUNNEL][MANAGEMENT_COMMAND] = { "TUNNEL_MANAGEMENT_COMMAND",
+                                     cmd_tunnel_management_cmd, ~0, 0 },
 };
 
 /*
@@ -1345,5 +1471,41 @@ void cxl_initialize_mailbox_t3(CXLCCI *cci, DeviceState *d, size_t payload_max)
 
     /* No separation for PCI MB as protocol handled in PCI device */
     cci->intf = d;
+    cxl_init_cci(cci, payload_max);
+}
+
+static const struct cxl_cmd cxl_cmd_set_t3_ld[256][256] = {
+    [INFOSTAT][IS_IDENTIFY] = { "IDENTIFY", cmd_infostat_identify, 0, 0 },
+    [LOGS][GET_SUPPORTED] = { "LOGS_GET_SUPPORTED", cmd_logs_get_supported, 0,
+                              0 },
+    [LOGS][GET_LOG] = { "LOGS_GET_LOG", cmd_logs_get_log, 0x18, 0 },
+};
+
+void cxl_initialize_t3_ld_cci(CXLCCI *cci, DeviceState *d, DeviceState *intf,
+                               size_t payload_max)
+{
+    cci->cxl_cmd_set = cxl_cmd_set_t3_ld;
+    cci->d = d;
+    cci->intf = intf;
+    cxl_init_cci(cci, payload_max);
+}
+
+static const struct cxl_cmd cxl_cmd_set_t3_fm_owned_ld_mctp[256][256] = {
+    [INFOSTAT][IS_IDENTIFY] = { "IDENTIFY", cmd_infostat_identify, 0,  0},
+    [LOGS][GET_SUPPORTED] = { "LOGS_GET_SUPPORTED", cmd_logs_get_supported, 0,
+                              0 },
+    [LOGS][GET_LOG] = { "LOGS_GET_LOG", cmd_logs_get_log, 0x18, 0 },
+    [TIMESTAMP][GET] = { "TIMESTAMP_GET", cmd_timestamp_get, 0, 0 },
+    [TUNNEL][MANAGEMENT_COMMAND] = { "TUNNEL_MANAGEMENT_COMMAND",
+                                     cmd_tunnel_management_cmd, ~0, 0 },
+};
+
+void cxl_initialize_t3_fm_owned_ld_mctpcci(CXLCCI *cci, DeviceState *d,
+                                           DeviceState *intf,
+                                           size_t payload_max)
+{
+    cci->cxl_cmd_set = cxl_cmd_set_t3_fm_owned_ld_mctp;
+    cci->d = d;
+    cci->intf = intf;
     cxl_init_cci(cci, payload_max);
 }

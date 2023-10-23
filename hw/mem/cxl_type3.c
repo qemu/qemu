@@ -936,6 +936,17 @@ static void ct3d_reset(DeviceState *dev)
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_TYPE3_DEVICE);
     cxl_device_register_init_t3(ct3d);
+
+    /*
+     * Bring up an endpoint to target with MCTP over VDM.
+     * This device is emulating an MLD with single LD for now.
+     */
+    cxl_initialize_t3_fm_owned_ld_mctpcci(&ct3d->vdm_fm_owned_ld_mctp_cci,
+                                          DEVICE(ct3d), DEVICE(ct3d),
+                                          512); /* Max payload made up */
+    cxl_initialize_t3_ld_cci(&ct3d->ld0_cci, DEVICE(ct3d), DEVICE(ct3d),
+                             512); /* Max payload made up */
+
 }
 
 static Property ct3_props[] = {
