@@ -86,7 +86,7 @@ typedef struct CXLDVSECDevice {
 QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != 0x38);
 
 /* CXL 2.0 - 8.1.5 (ID 0003) */
-typedef struct CXLDVSECPortExtensions {
+typedef struct CXLDVSECPortExt {
     DVSECHeader hdr;
     uint16_t status;
     uint16_t control;
@@ -100,8 +100,8 @@ typedef struct CXLDVSECPortExtensions {
     uint32_t alt_prefetch_limit_high;
     uint32_t rcrb_base;
     uint32_t rcrb_base_high;
-} CXLDVSECPortExtensions;
-QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortExtensions) != 0x28);
+} CXLDVSECPortExt;
+QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortExt) != 0x28);
 
 #define PORT_CONTROL_OFFSET          0xc
 #define PORT_CONTROL_UNMASK_SBR      1

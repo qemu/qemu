@@ -393,26 +393,35 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
     case NON_CXL_FUNCTION_MAP_DVSEC:
         break; /* Not yet implemented */
     case EXTENSIONS_PORT_DVSEC:
-        wmask[offset + offsetof(CXLDVSECPortExtensions, control)] = 0x0F;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, control) + 1] = 0x40;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_bus_base)] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_bus_limit)] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_memory_base)] = 0xF0;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_memory_base) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_memory_limit)] = 0xF0;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_memory_limit) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base)] = 0xF0;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit)] = 0xF0;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base_high)] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base_high) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base_high) + 2] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_base_high) + 3] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit_high)] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit_high) + 1] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit_high) + 2] = 0xFF;
-        wmask[offset + offsetof(CXLDVSECPortExtensions, alt_prefetch_limit_high) + 3] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, control)] = 0x0F;
+        wmask[offset + offsetof(CXLDVSECPortExt, control) + 1] = 0x40;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_bus_base)] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_bus_limit)] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_memory_base)] = 0xF0;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_memory_base) + 1] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_memory_limit)] = 0xF0;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_memory_limit) + 1] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base)] = 0xF0;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base) + 1] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit)] = 0xF0;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit) + 1] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base_high)] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base_high) + 1] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base_high) + 2] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_base_high) + 3] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit_high)] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit_high) + 1] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit_high) + 2] =
+            0xFF;
+        wmask[offset + offsetof(CXLDVSECPortExt, alt_prefetch_limit_high) + 3] =
+            0xFF;
         break;
     case GPF_PORT_DVSEC:
         wmask[offset + offsetof(CXLDVSECPortGPF, phase1_ctrl)] = 0x0F;
