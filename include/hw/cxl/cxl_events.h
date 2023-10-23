@@ -92,7 +92,8 @@ typedef enum CXLEventIntMode {
     CXL_INT_RES      = 0x03,
 } CXLEventIntMode;
 #define CXL_EVENT_INT_MODE_MASK 0x3
-#define CXL_EVENT_INT_SETTING(vector) ((((uint8_t)vector & 0xf) << 4) | CXL_INT_MSI_MSIX)
+#define CXL_EVENT_INT_SETTING(vector) \
+    ((((uint8_t)vector & 0xf) << 4) | CXL_INT_MSI_MSIX)
 typedef struct CXLEventInterruptPolicy {
     uint8_t info_settings;
     uint8_t warn_settings;

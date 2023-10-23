@@ -208,10 +208,9 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
 
     if (nonvolatile_mr) {
+        uint64_t base = volatile_mr ? memory_region_size(volatile_mr) : 0;
         rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++,
-                                           nonvolatile_mr, true,
-                                           (volatile_mr ?
-                                            memory_region_size(volatile_mr) : 0));
+                                           nonvolatile_mr, true, base);
         if (rc < 0) {
             goto error_cleanup;
         }
@@ -514,7 +513,8 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
     case A_CXL_RAS_UNC_ERR_STATUS:
     {
         uint32_t capctrl = ldl_le_p(cache_mem + R_CXL_RAS_ERR_CAP_CTRL);
-        uint32_t fe = FIELD_EX32(capctrl, CXL_RAS_ERR_CAP_CTRL, FIRST_ERROR_POINTER);
+        uint32_t fe = FIELD_EX32(capctrl, CXL_RAS_ERR_CAP_CTRL,
+                                 FIRST_ERROR_POINTER);
         CXLError *cxl_err;
         uint32_t unc_err;
 
@@ -533,7 +533,8 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
                  * closest to behavior of hardware not capable of multiple
                  * header recording.
                  */
-                QTAILQ_FOREACH_SAFE(cxl_err, &ct3d->error_list, node, cxl_next) {
+                QTAILQ_FOREACH_SAFE(cxl_err, &ct3d->error_list, node,
+                                    cxl_next) {
                     if ((1 << cxl_err->type) & value) {
                         QTAILQ_REMOVE(&ct3d->error_list, cxl_err, node);
                         g_free(cxl_err);
@@ -1072,7 +1073,8 @@ void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,
         if (((start >= p->start) && (start < p->start + p->length)) ||
             ((start + length > p->start) &&
              (start + length <= p->start + p->length))) {
-            error_setg(errp, "Overlap with existing poisoned region not supported");
+            error_setg(errp,
+                       "Overlap with existing poisoned region not supported");
             return;
         }
     }
@@ -1085,7 +1087,8 @@ void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,
     p = g_new0(CXLPoison, 1);
     p->length = length;
     p->start = start;
-    p->type = CXL_POISON_TYPE_INTERNAL; /* Different from injected via the mbox */
+    /* Different from injected via the mbox */
+    p->type = CXL_POISON_TYPE_INTERNAL;
 
     QLIST_INSERT_HEAD(&ct3d->poison_list, p, node);
     ct3d->poison_list_cnt++;
@@ -1222,7 +1225,8 @@ void qmp_cxl_inject_correctable_error(const char *path, CxlCorErrorType type,
         return;
     }
     /* If the error is masked, nothting to do here */
-    if (!((1 << cxl_err_type) & ~ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_MASK))) {
+    if (!((1 << cxl_err_type) &
+          ~ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_MASK))) {
         return;
     }
 
@@ -1372,7 +1376,8 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log, uint8_t flags,
                                bool has_bank, uint8_t bank,
                                bool has_row, uint32_t row,
                                bool has_column, uint16_t column,
-                               bool has_correction_mask, uint64List *correction_mask,
+                               bool has_correction_mask,
+                               uint64List *correction_mask,
                                Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
@@ -1473,7 +1478,7 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
                                         int16_t temperature,
                                         uint32_t dirty_shutdown_count,
                                         uint32_t corrected_volatile_error_count,
-                                        uint32_t corrected_persistent_error_count,
+                                        uint32_t corrected_persist_error_count,
                                         Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
@@ -1513,8 +1518,10 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
     module.life_used = life_used;
     stw_le_p(&module.temperature, temperature);
     stl_le_p(&module.dirty_shutdown_count, dirty_shutdown_count);
-    stl_le_p(&module.corrected_volatile_error_count, corrected_volatile_error_count);
-    stl_le_p(&module.corrected_persistent_error_count, corrected_persistent_error_count);
+    stl_le_p(&module.corrected_volatile_error_count,
+             corrected_volatile_error_count);
+    stl_le_p(&module.corrected_persistent_error_count,
+             corrected_persist_error_count);
 
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&module)) {
         cxl_event_irq_assert(ct3d);

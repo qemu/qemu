@@ -241,7 +241,8 @@ static void hdm_init_common(uint32_t *reg_state, uint32_t *write_msk,
     ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT, 1);
     ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, INTERLEAVE_256B, 1);
     ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, INTERLEAVE_4K, 1);
-    ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, POISON_ON_ERR_CAP, 0);
+    ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY,
+                     POISON_ON_ERR_CAP, 0);
     ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_GLOBAL_CONTROL,
                      HDM_DECODER_ENABLE, 0);
     write_msk[R_CXL_HDM_DECODER_GLOBAL_CONTROL] = 0x3;
@@ -264,15 +265,16 @@ static void hdm_init_common(uint32_t *reg_state, uint32_t *write_msk,
     }
 }
 
-void cxl_component_register_init_common(uint32_t *reg_state, uint32_t *write_msk,
+void cxl_component_register_init_common(uint32_t *reg_state,
+                                        uint32_t *write_msk,
                                         enum reg_type type)
 {
     int caps = 0;
 
     /*
-     * In CXL 2.0 the capabilities required for each CXL component are such that,
-     * with the ordering chosen here, a single number can be used to define
-     * which capabilities should be provided.
+     * In CXL 2.0 the capabilities required for each CXL component are such
+     * that, with the ordering chosen here, a single number can be used to
+     * define which capabilities should be provided.
      */
     switch (type) {
     case CXL2_DOWNSTREAM_PORT:
@@ -449,7 +451,7 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
         default: /* Registers are RO for other component types */
             break;
         }
-        /* There are rw1cs bits in the status register but never set currently */
+        /* There are rw1cs bits in the status register but never set */
         break;
     }
 

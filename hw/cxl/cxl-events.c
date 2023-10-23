@@ -170,8 +170,10 @@ CXLRetCode cxl_event_get_records(CXLDeviceState *cxlds, CXLGetEventPayload *pl,
     if (log->overflow_err_count) {
         pl->flags |= CXL_GET_EVENT_FLAG_OVERFLOW;
         pl->overflow_err_count = cpu_to_le16(log->overflow_err_count);
-        pl->first_overflow_timestamp = cpu_to_le64(log->first_overflow_timestamp);
-        pl->last_overflow_timestamp = cpu_to_le64(log->last_overflow_timestamp);
+        pl->first_overflow_timestamp =
+            cpu_to_le64(log->first_overflow_timestamp);
+        pl->last_overflow_timestamp =
+            cpu_to_le64(log->last_overflow_timestamp);
     }
 
     pl->record_count = cpu_to_le16(nr);
@@ -180,7 +182,8 @@ CXLRetCode cxl_event_get_records(CXLDeviceState *cxlds, CXLGetEventPayload *pl,
     return CXL_MBOX_SUCCESS;
 }
 
-CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds, CXLClearEventPayload *pl)
+CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds,
+                                   CXLClearEventPayload *pl)
 {
     CXLEventLog *log;
     uint8_t log_type;
