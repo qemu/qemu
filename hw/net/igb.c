@@ -78,6 +78,7 @@ struct IGBState {
     uint32_t ioaddr;
 
     IGBCore core;
+    bool has_flr;
 };
 
 #define IGB_CAP_SRIOV_OFFSET    (0x160)
@@ -101,6 +102,9 @@ static void igb_write_config(PCIDevice *dev, uint32_t addr,
 
     trace_igb_write_config(addr, val, len);
     pci_default_write_config(dev, addr, val, len);
+    if (s->has_flr) {
+        pcie_cap_flr_write_config(dev, addr, val, len);
+    }
 
     if (range_covers_byte(addr, len, PCI_COMMAND) &&
         (dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
@@ -433,6 +437,10 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     /* PCIe extended capabilities (in order) */
+    if (s->has_flr) {
+        pcie_cap_flr_init(pci_dev);
+    }
+
     if (pcie_aer_init(pci_dev, 1, 0x100, 0x40, errp) < 0) {
         hw_error("Failed to initialize AER capability");
     }
@@ -588,6 +596,7 @@ static const VMStateDescription igb_vmstate = {
 
 static Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
+    DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
