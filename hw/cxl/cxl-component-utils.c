@@ -305,7 +305,6 @@ void cxl_component_register_init_common(uint32_t *reg_state,
     ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, ARRAY_SIZE, caps);
 
 #define init_cap_reg(reg, id, version)                                        \
-    QEMU_BUILD_BUG_ON(CXL_##reg##_REGISTERS_OFFSET == 0);                     \
     do {                                                                      \
         int which = R_CXL_##reg##_CAPABILITY_HEADER;                          \
         reg_state[which] = FIELD_DP32(reg_state[which],                       \
