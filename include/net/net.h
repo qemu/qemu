@@ -301,10 +301,6 @@ struct NICInfo {
     int nvectors;
 };
 
-extern int nb_nics;
-extern NICInfo nd_table[MAX_NICS];
-extern const char *host_net_devices[];
-
 /* from net.c */
 extern NetClientStateList net_clients;
 bool netdev_is_modern(const char *optstr);

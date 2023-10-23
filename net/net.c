@@ -77,6 +77,9 @@ static NetdevQueue nd_queue = QSIMPLEQ_HEAD_INITIALIZER(nd_queue);
 
 static GHashTable *nic_model_help;
 
+static int nb_nics;
+static NICInfo nd_table[MAX_NICS];
+
 /***********************************************************/
 /* network device redirectors */
 
