@@ -138,7 +138,7 @@ typedef enum {
 #define TCG_TARGET_HAS_qemu_ldst_i128   1
 #endif
 
-#define TCG_TARGET_HAS_tst              0
+#define TCG_TARGET_HAS_tst              1
 
 #define TCG_TARGET_HAS_v64              1
 #define TCG_TARGET_HAS_v128             1
