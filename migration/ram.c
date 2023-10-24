@@ -3147,6 +3147,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     rs->last_stage = !migration_in_colo_state();
 
     WITH_RCU_READ_LOCK_GUARD() {
+        int rdma_reg_ret;
+
         if (!migration_in_postcopy()) {
             migration_bitmap_sync_precopy(rs, true);
         }
@@ -3177,9 +3179,9 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
         compress_flush_data();
 
-        int ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
-        if (ret < 0) {
-            qemu_file_set_error(f, ret);
+        rdma_reg_ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
+        if (rdma_reg_ret < 0) {
+            qemu_file_set_error(f, rdma_reg_ret);
         }
     }
 
