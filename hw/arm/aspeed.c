@@ -40,7 +40,7 @@ struct AspeedMachineState {
     MachineState parent_obj;
     /* Public */
 
-    AspeedSoCState soc;
+    AspeedSoCState *soc;
     MemoryRegion boot_rom;
     bool mmio_exec;
     uint32_t uart_chosen;
@@ -288,7 +288,7 @@ static void write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
 static void aspeed_install_boot_rom(AspeedMachineState *bmc, BlockBackend *blk,
                                     uint64_t rom_size)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     memory_region_init_rom(&bmc->boot_rom, NULL, "aspeed.boot_rom", rom_size,
                            &error_abort);
@@ -337,7 +337,7 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo)
 static void connect_serial_hds_to_uarts(AspeedMachineState *bmc)
 {
     AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(bmc);
-    AspeedSoCState *s = &bmc->soc;
+    AspeedSoCState *s = bmc->soc;
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
 
@@ -358,32 +358,33 @@ static void aspeed_machine_init(MachineState *machine)
     int i;
     NICInfo *nd = &nd_table[0];
 
-    object_initialize_child(OBJECT(machine), "soc", &bmc->soc, amc->soc_name);
-
-    sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
+    bmc->soc = ASPEED_SOC(object_new(amc->soc_name));
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(bmc->soc));
+    object_unref(OBJECT(bmc->soc));
+    sc = ASPEED_SOC_GET_CLASS(bmc->soc);
 
     /*
      * This will error out if the RAM size is not supported by the
      * memory controller of the SoC.
      */
-    object_property_set_uint(OBJECT(&bmc->soc), "ram-size", machine->ram_size,
+    object_property_set_uint(OBJECT(bmc->soc), "ram-size", machine->ram_size,
                              &error_fatal);
 
     for (i = 0; i < sc->macs_num; i++) {
         if ((amc->macs_mask & (1 << i)) && nd->used) {
             qemu_check_nic_model(nd, TYPE_FTGMAC100);
-            qdev_set_nic_properties(DEVICE(&bmc->soc.ftgmac100[i]), nd);
+            qdev_set_nic_properties(DEVICE(&bmc->soc->ftgmac100[i]), nd);
             nd++;
         }
     }
 
-    object_property_set_int(OBJECT(&bmc->soc), "hw-strap1", amc->hw_strap1,
+    object_property_set_int(OBJECT(bmc->soc), "hw-strap1", amc->hw_strap1,
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), "hw-strap2", amc->hw_strap2,
+    object_property_set_int(OBJECT(bmc->soc), "hw-strap2", amc->hw_strap2,
                             &error_abort);
-    object_property_set_link(OBJECT(&bmc->soc), "memory",
+    object_property_set_link(OBJECT(bmc->soc), "memory",
                              OBJECT(get_system_memory()), &error_abort);
-    object_property_set_link(OBJECT(&bmc->soc), "dram",
+    object_property_set_link(OBJECT(bmc->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
     if (machine->kernel_filename) {
         /*
@@ -391,17 +392,17 @@ static void aspeed_machine_init(MachineState *machine)
          * that runs to unlock the SCU. In this case set the default to
          * be unlocked as the kernel expects
          */
-        object_property_set_int(OBJECT(&bmc->soc), "hw-prot-key",
+        object_property_set_int(OBJECT(bmc->soc), "hw-prot-key",
                                 ASPEED_SCU_PROT_KEY, &error_abort);
     }
     connect_serial_hds_to_uarts(bmc);
-    qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
+    qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
     if (defaults_enabled()) {
-        aspeed_board_init_flashes(&bmc->soc.fmc,
+        aspeed_board_init_flashes(&bmc->soc->fmc,
                               bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
                               amc->num_cs, 0);
-        aspeed_board_init_flashes(&bmc->soc.spi[0],
+        aspeed_board_init_flashes(&bmc->soc->spi[0],
                               bmc->spi_model ? bmc->spi_model : amc->spi_model,
                               1, amc->num_cs);
     }
@@ -426,22 +427,22 @@ static void aspeed_machine_init(MachineState *machine)
         amc->i2c_init(bmc);
     }
 
-    for (i = 0; i < bmc->soc.sdhci.num_slots; i++) {
-        sdhci_attach_drive(&bmc->soc.sdhci.slots[i],
+    for (i = 0; i < bmc->soc->sdhci.num_slots; i++) {
+        sdhci_attach_drive(&bmc->soc->sdhci.slots[i],
                            drive_get(IF_SD, 0, i));
     }
 
-    if (bmc->soc.emmc.num_slots) {
-        sdhci_attach_drive(&bmc->soc.emmc.slots[0],
-                           drive_get(IF_SD, 0, bmc->soc.sdhci.num_slots));
+    if (bmc->soc->emmc.num_slots) {
+        sdhci_attach_drive(&bmc->soc->emmc.slots[0],
+                           drive_get(IF_SD, 0, bmc->soc->sdhci.num_slots));
     }
 
     if (!bmc->mmio_exec) {
-        DeviceState *dev = ssi_get_cs(bmc->soc.fmc.spi, 0);
+        DeviceState *dev = ssi_get_cs(bmc->soc->fmc.spi, 0);
         BlockBackend *fmc0 = dev ? m25p80_get_blk(dev) : NULL;
 
         if (fmc0) {
-            uint64_t rom_size = memory_region_size(&bmc->soc.spi_boot);
+            uint64_t rom_size = memory_region_size(&bmc->soc->spi_boot);
             aspeed_install_boot_rom(bmc, fmc0, rom_size);
         }
     }
@@ -451,7 +452,7 @@ static void aspeed_machine_init(MachineState *machine)
 
 static void palmetto_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     DeviceState *dev;
     uint8_t *eeprom_buf = g_malloc0(32 * 1024);
 
@@ -473,7 +474,7 @@ static void palmetto_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void quanta_q71l_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     /*
      * The quanta-q71l platform expects tmp75s which are compatible with
@@ -505,7 +506,7 @@ static void quanta_q71l_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void ast2500_evb_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     uint8_t *eeprom_buf = g_malloc0(8 * 1024);
 
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 3), 0x50,
@@ -518,7 +519,7 @@ static void ast2500_evb_i2c_init(AspeedMachineState *bmc)
 
 static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     uint8_t *eeprom_buf = g_malloc0(8 * 1024);
 
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 7), 0x50,
@@ -531,7 +532,7 @@ static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
 
 static void yosemitev2_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 4), 0x51, 128 * KiB);
     at24c_eeprom_init_rom(aspeed_i2c_get_bus(&soc->i2c, 8), 0x51, 128 * KiB,
@@ -545,7 +546,7 @@ static void yosemitev2_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void romulus_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     /* The romulus board expects Epson RX8900 I2C RTC but a ds1338 is
      * good enough */
@@ -554,7 +555,7 @@ static void romulus_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void tiogapass_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 4), 0x54, 128 * KiB);
     at24c_eeprom_init_rom(aspeed_i2c_get_bus(&soc->i2c, 6), 0x54, 128 * KiB,
@@ -573,7 +574,7 @@ static void create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
 
 static void sonorapass_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     /* bus 2 : */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 2), "tmp105", 0x48);
@@ -627,7 +628,7 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
         {14, LED_COLOR_GREEN, "front-power-3",  GPIO_POLARITY_ACTIVE_LOW},
         {15, LED_COLOR_GREEN, "front-id-5",     GPIO_POLARITY_ACTIVE_LOW},
     };
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     uint8_t *eeprom_buf = g_malloc0(8 * 1024);
     DeviceState *dev;
     LEDState *led;
@@ -672,7 +673,7 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     DeviceState *dev;
 
     dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 3),
@@ -708,7 +709,7 @@ static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void fp5280g2_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CSlave *i2c_mux;
 
     /* The at24c256 */
@@ -735,7 +736,7 @@ static void fp5280g2_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CSlave *i2c_mux;
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 0), 0x51, 32 * KiB);
@@ -852,7 +853,7 @@ static void get_pca9548_channels(I2CBus *bus, uint8_t mux_addr,
 
 static void fuji_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CBus *i2c[144] = {};
 
     for (int i = 0; i < 16; i++) {
@@ -930,7 +931,7 @@ static void fuji_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CBus *i2c[13] = {};
     for (int i = 0; i < 13; i++) {
         if ((i == 8) || (i == 11)) {
@@ -976,7 +977,7 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
 
 static void fby35_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CBus *i2c[16];
 
     for (int i = 0; i < 16; i++) {
@@ -1008,14 +1009,14 @@ static void fby35_i2c_init(AspeedMachineState *bmc)
 
 static void qcom_dc_scm_bmc_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 15), "tmp105", 0x4d);
 }
 
 static void qcom_dc_scm_firework_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
     I2CSlave *therm_mux, *cpuvr_mux;
 
     /* Create the generic DC-SCM hardware */
@@ -1477,7 +1478,7 @@ static void aspeed_machine_bletchley_class_init(ObjectClass *oc, void *data)
 static void fby35_reset(MachineState *state, ShutdownCause reason)
 {
     AspeedMachineState *bmc = ASPEED_MACHINE(state);
-    AspeedGPIOState *gpio = &bmc->soc.gpio;
+    AspeedGPIOState *gpio = &bmc->soc->gpio;
 
     qemu_devices_reset(reason);
 
@@ -1528,24 +1529,26 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
     clock_set_hz(sysclk, SYSCLK_FRQ);
 
-    object_initialize_child(OBJECT(machine), "soc", &bmc->soc, amc->soc_name);
-    qdev_connect_clock_in(DEVICE(&bmc->soc), "sysclk", sysclk);
+    bmc->soc = ASPEED_SOC(object_new(amc->soc_name));
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(bmc->soc));
+    object_unref(OBJECT(bmc->soc));
+    qdev_connect_clock_in(DEVICE(bmc->soc), "sysclk", sysclk);
 
-    object_property_set_link(OBJECT(&bmc->soc), "memory",
+    object_property_set_link(OBJECT(bmc->soc), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     connect_serial_hds_to_uarts(bmc);
-    qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
+    qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
-    aspeed_board_init_flashes(&bmc->soc.fmc,
+    aspeed_board_init_flashes(&bmc->soc->fmc,
                               bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
                               amc->num_cs,
                               0);
 
-    aspeed_board_init_flashes(&bmc->soc.spi[0],
+    aspeed_board_init_flashes(&bmc->soc->spi[0],
                               bmc->spi_model ? bmc->spi_model : amc->spi_model,
                               amc->num_cs, amc->num_cs);
 
-    aspeed_board_init_flashes(&bmc->soc.spi[1],
+    aspeed_board_init_flashes(&bmc->soc->spi[1],
                               bmc->spi_model ? bmc->spi_model : amc->spi_model,
                               amc->num_cs, (amc->num_cs * 2));
 
@@ -1561,7 +1564,7 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
 
 static void ast1030_evb_i2c_init(AspeedMachineState *bmc)
 {
-    AspeedSoCState *soc = &bmc->soc;
+    AspeedSoCState *soc = bmc->soc;
 
     /* U10 24C08 connects to SDA/SCL Group 1 by default */
     uint8_t *eeprom_buf = g_malloc0(32 * 1024);
