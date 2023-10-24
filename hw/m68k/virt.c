@@ -155,6 +155,8 @@ static void virt_init(MachineState *machine)
     /* IRQ Controller */
 
     irqc_dev = qdev_new(TYPE_M68K_IRQC);
+    object_property_set_link(OBJECT(irqc_dev), "m68k-cpu",
+                             OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(irqc_dev), &error_fatal);
 
     /*

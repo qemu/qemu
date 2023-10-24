@@ -11,6 +11,7 @@
 #include "cpu.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
+#include "hw/qdev-properties.h"
 #include "hw/nmi.h"
 #include "hw/intc/intc.h"
 #include "hw/intc/m68k_irqc.h"
@@ -35,7 +36,7 @@ static void m68k_irqc_print_info(InterruptStatsProvider *obj, Monitor *mon)
 static void m68k_set_irq(void *opaque, int irq, int level)
 {
     M68KIRQCState *s = opaque;
-    M68kCPU *cpu = M68K_CPU(first_cpu);
+    M68kCPU *cpu = M68K_CPU(s->cpu);
     int i;
 
     if (level) {
@@ -85,12 +86,19 @@ static const VMStateDescription vmstate_m68k_irqc = {
     }
 };
 
+static Property m68k_irqc_properties[] = {
+    DEFINE_PROP_LINK("m68k-cpu", M68KIRQCState, cpu,
+                     TYPE_M68K_CPU, ArchCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void m68k_irqc_class_init(ObjectClass *oc, void *data)
  {
     DeviceClass *dc = DEVICE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
+    device_class_set_props(dc, m68k_irqc_properties);
     nc->nmi_monitor_handler = m68k_nmi;
     dc->reset = m68k_irqc_reset;
     dc->vmsd = &vmstate_m68k_irqc;
