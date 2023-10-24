@@ -13,6 +13,7 @@
 #include "exec/exec-all.h"
 #include "cpu.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "idau.h"
 #ifdef CONFIG_TCG
 # include "tcg/oversized-guest.h"

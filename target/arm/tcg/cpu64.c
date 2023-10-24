@@ -26,6 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/units.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "cpregs.h"
 
 static uint64_t make_ccsidr64(unsigned assoc, unsigned linesize,

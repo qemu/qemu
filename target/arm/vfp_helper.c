@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
+#include "cpu-features.h"
 #ifdef CONFIG_TCG
 #include "qemu/log.h"
 #include "fpu/softfloat.h"

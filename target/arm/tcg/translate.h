@@ -8,7 +8,7 @@
 #include "exec/translator.h"
 #include "exec/helper-gen.h"
 #include "internals.h"
-
+#include "cpu-features.h"
 
 /* internal defines */
 

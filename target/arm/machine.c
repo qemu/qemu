@@ -5,6 +5,7 @@
 #include "sysemu/tcg.h"
 #include "kvm_arm.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "migration/cpu.h"
 
 static bool vfp_needed(void *opaque)

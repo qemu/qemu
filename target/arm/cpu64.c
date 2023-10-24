@@ -32,6 +32,7 @@
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "cpregs.h"
 
 void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)

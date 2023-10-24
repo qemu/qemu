@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "target/arm/cpu-features.h"
 
 struct target_sigcontext {
     abi_ulong trap_no;
