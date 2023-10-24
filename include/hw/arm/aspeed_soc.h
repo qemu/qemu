@@ -49,14 +49,12 @@
 struct AspeedSoCState {
     DeviceState parent;
 
-    ARMCPU cpu[ASPEED_CPUS_NUM];
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
     MemoryRegion sram;
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
-    AspeedVICState vic;
     AspeedRtcState rtc;
     AspeedTimerCtrlState timerctrl;
     AspeedI2CState i2c;
@@ -99,6 +97,9 @@ OBJECT_DECLARE_TYPE(AspeedSoCState, AspeedSoCClass, ASPEED_SOC)
 
 struct Aspeed2400SoCState {
     AspeedSoCState parent;
+
+    ARMCPU cpu[ASPEED_CPUS_NUM];
+    AspeedVICState vic;
 };
 
 #define TYPE_ASPEED2400_SOC "aspeed2400-soc"
