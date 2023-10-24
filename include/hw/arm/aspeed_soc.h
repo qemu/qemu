@@ -101,6 +101,13 @@ struct AspeedSoCState {
 #define TYPE_ASPEED_SOC "aspeed-soc"
 OBJECT_DECLARE_TYPE(AspeedSoCState, AspeedSoCClass, ASPEED_SOC)
 
+struct Aspeed2400SoCState {
+    AspeedSoCState parent;
+};
+
+#define TYPE_ASPEED2400_SOC "aspeed2400-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2400SoCState, ASPEED2400_SOC)
+
 struct Aspeed2600SoCState {
     AspeedSoCState parent;
 };

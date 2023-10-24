@@ -497,29 +497,6 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
 }
-static Property aspeed_soc_properties[] = {
-    DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,
-                     MemoryRegion *),
-    DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
-                     MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void aspeed_soc_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    device_class_set_props(dc, aspeed_soc_properties);
-}
-
-static const TypeInfo aspeed_soc_type_info = {
-    .name           = TYPE_ASPEED_SOC,
-    .parent         = TYPE_DEVICE,
-    .instance_size  = sizeof(AspeedSoCState),
-    .class_size     = sizeof(AspeedSoCClass),
-    .class_init     = aspeed_soc_class_init,
-    .abstract       = true,
-};
 
 static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
 {
@@ -545,14 +522,6 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->get_irq      = aspeed_soc_ast2400_get_irq;
 }
 
-static const TypeInfo aspeed_soc_ast2400_type_info = {
-    .name           = "ast2400-a1",
-    .parent         = TYPE_ASPEED_SOC,
-    .instance_init  = aspeed_ast2400_soc_init,
-    .instance_size  = sizeof(AspeedSoCState),
-    .class_init     = aspeed_soc_ast2400_class_init,
-};
-
 static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
 {
     AspeedSoCClass *sc = ASPEED_SOC_CLASS(oc);
@@ -577,18 +546,22 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
     sc->get_irq      = aspeed_soc_ast2400_get_irq;
 }
 
-static const TypeInfo aspeed_soc_ast2500_type_info = {
-    .name           = "ast2500-a1",
-    .parent         = TYPE_ASPEED_SOC,
-    .instance_init  = aspeed_ast2400_soc_init,
-    .instance_size  = sizeof(AspeedSoCState),
-    .class_init     = aspeed_soc_ast2500_class_init,
-};
-static void aspeed_soc_register_types(void)
-{
-    type_register_static(&aspeed_soc_type_info);
-    type_register_static(&aspeed_soc_ast2400_type_info);
-    type_register_static(&aspeed_soc_ast2500_type_info);
+static const TypeInfo aspeed_soc_ast2400_types[] = {
+    {
+        .name           = TYPE_ASPEED2400_SOC,
+        .parent         = TYPE_ASPEED_SOC,
+        .instance_init  = aspeed_ast2400_soc_init,
+        .instance_size  = sizeof(Aspeed2400SoCState),
+        .abstract       = true,
+    }, {
+        .name           = "ast2400-a1",
+        .parent         = TYPE_ASPEED2400_SOC,
+        .class_init     = aspeed_soc_ast2400_class_init,
+    }, {
+        .name           = "ast2500-a1",
+        .parent         = TYPE_ASPEED2400_SOC,
+        .class_init     = aspeed_soc_ast2500_class_init,
+    },
 };
 
-type_init(aspeed_soc_register_types);
+DEFINE_TYPES(aspeed_soc_ast2400_types)

@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/char/serial.h"
@@ -112,3 +113,31 @@ void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
     memory_region_add_subregion_overlap(s->memory, addr,
                                         sysbus_mmio_get_region(dev, 0), -1000);
 }
+
+static Property aspeed_soc_properties[] = {
+    DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void aspeed_soc_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    device_class_set_props(dc, aspeed_soc_properties);
+}
+
+static const TypeInfo aspeed_soc_types[] = {
+    {
+        .name           = TYPE_ASPEED_SOC,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(AspeedSoCState),
+        .class_size     = sizeof(AspeedSoCClass),
+        .class_init     = aspeed_soc_class_init,
+        .abstract       = true,
+    },
+};
+
+DEFINE_TYPES(aspeed_soc_types)
