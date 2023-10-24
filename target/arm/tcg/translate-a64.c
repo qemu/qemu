@@ -1606,7 +1606,7 @@ static bool trans_ERET(DisasContext *s, arg_ERET *a)
         return false;
     }
     if (s->fgt_eret) {
-        gen_exception_insn_el(s, 0, EXCP_UDEF, 0, 2);
+        gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(0), 2);
         return true;
     }
     dst = tcg_temp_new_i64();
@@ -1633,7 +1633,7 @@ static bool trans_ERETA(DisasContext *s, arg_reta *a)
     }
     /* The FGT trap takes precedence over an auth trap. */
     if (s->fgt_eret) {
-        gen_exception_insn_el(s, 0, EXCP_UDEF, a->m ? 3 : 2, 2);
+        gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(a->m ? 3 : 2), 2);
         return true;
     }
     dst = tcg_temp_new_i64();
