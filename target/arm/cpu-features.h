@@ -857,6 +857,11 @@ static inline bool isar_feature_aa64_debugv8p2(const ARMISARegisters *id)
     return FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, DEBUGVER) >= 8;
 }
 
+static inline bool isar_feature_aa64_doublelock(const ARMISARegisters *id)
+{
+    return FIELD_SEX64(id->id_aa64dfr0, ID_AA64DFR0, DOUBLELOCK) >= 0;
+}
+
 static inline bool isar_feature_aa64_sve2(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64zfr0, ID_AA64ZFR0, SVEVER) != 0;
@@ -920,11 +925,6 @@ static inline bool isar_feature_aa64_sme_i16i64(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sme_fa64(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64smfr0, ID_AA64SMFR0, FA64);
-}
-
-static inline bool isar_feature_aa64_doublelock(const ARMISARegisters *id)
-{
-    return FIELD_SEX64(id->id_aa64dfr0, ID_AA64DFR0, DOUBLELOCK) >= 0;
 }
 
 /*
