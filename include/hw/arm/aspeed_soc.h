@@ -50,7 +50,6 @@ struct AspeedSoCState {
     DeviceState parent;
 
     ARMCPU cpu[ASPEED_CPUS_NUM];
-    A15MPPrivState     a7mpcore;
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
@@ -107,6 +106,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2400SoCState, ASPEED2400_SOC)
 
 struct Aspeed2600SoCState {
     AspeedSoCState parent;
+
+    A15MPPrivState a7mpcore;
+    ARMCPU cpu[ASPEED_CPUS_NUM]; /* XXX belong to a7mpcore */
 };
 
 #define TYPE_ASPEED2600_SOC "aspeed2600-soc"
