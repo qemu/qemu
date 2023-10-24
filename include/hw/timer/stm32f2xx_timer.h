@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
+#include "hw/ptimer.h"
 
 #define TIM_CR1      0x00
 #define TIM_CR2      0x04
@@ -72,12 +73,10 @@ struct STM32F2XXTimerState {
 
     /* <public> */
     MemoryRegion iomem;
-    QEMUTimer *timer;
+    ptimer_state *timer;
     qemu_irq irq;
-
-    int64_t tick_offset;
-    uint64_t hit_time;
     uint64_t freq_hz;
+    int count_mode;
 
     uint32_t tim_cr1;
     uint32_t tim_cr2;
@@ -97,6 +96,12 @@ struct STM32F2XXTimerState {
     uint32_t tim_dcr;
     uint32_t tim_dmar;
     uint32_t tim_or;
+};
+
+enum
+{
+    TIMER_UP_COUNT     = 0,
+    TIMER_DOWN_COUNT   = 1
 };
 
 #endif /* HW_STM32F2XX_TIMER_H */
