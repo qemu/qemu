@@ -47,13 +47,10 @@
 #define ASPEED_JTAG_NUM  2
 
 struct AspeedSoCState {
-    /*< private >*/
     DeviceState parent;
 
-    /*< public >*/
     ARMCPU cpu[ASPEED_CPUS_NUM];
     A15MPPrivState     a7mpcore;
-    ARMv7MState        armv7m;
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
@@ -117,6 +114,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2600SoCState, ASPEED2600_SOC)
 
 struct Aspeed10x0SoCState {
     AspeedSoCState parent;
+
+    ARMv7MState armv7m;
 };
 
 #define TYPE_ASPEED10X0_SOC "aspeed10x0-soc"

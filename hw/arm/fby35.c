@@ -28,7 +28,7 @@ struct Fby35State {
     Clock *bic_sysclk;
 
     AspeedSoCState bmc;
-    AspeedSoCState bic;
+    Aspeed10x0SoCState bic;
 
     bool mmio_exec;
 };
@@ -114,10 +114,13 @@ static void fby35_bmc_init(Fby35State *s)
 
 static void fby35_bic_init(Fby35State *s)
 {
+    AspeedSoCState *soc;
+
     s->bic_sysclk = clock_new(OBJECT(s), "SYSCLK");
     clock_set_hz(s->bic_sysclk, 200000000ULL);
 
     object_initialize_child(OBJECT(s), "bic", &s->bic, "ast1030-a1");
+    soc = ASPEED_SOC(&s->bic);
 
     memory_region_init(&s->bic_memory, OBJECT(&s->bic), "bic-memory",
                        UINT64_MAX);
@@ -125,12 +128,12 @@ static void fby35_bic_init(Fby35State *s)
     qdev_connect_clock_in(DEVICE(&s->bic), "sysclk", s->bic_sysclk);
     object_property_set_link(OBJECT(&s->bic), "memory", OBJECT(&s->bic_memory),
                              &error_abort);
-    aspeed_soc_uart_set_chr(&s->bic, ASPEED_DEV_UART5, serial_hd(1));
+    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART5, serial_hd(1));
     qdev_realize(DEVICE(&s->bic), NULL, &error_abort);
 
-    aspeed_board_init_flashes(&s->bic.fmc, "sst25vf032b", 2, 2);
-    aspeed_board_init_flashes(&s->bic.spi[0], "sst25vf032b", 2, 4);
-    aspeed_board_init_flashes(&s->bic.spi[1], "sst25vf032b", 2, 6);
+    aspeed_board_init_flashes(&soc->fmc, "sst25vf032b", 2, 2);
+    aspeed_board_init_flashes(&soc->spi[0], "sst25vf032b", 2, 4);
+    aspeed_board_init_flashes(&soc->spi[1], "sst25vf032b", 2, 6);
 }
 
 static void fby35_init(MachineState *machine)
