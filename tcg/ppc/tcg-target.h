@@ -143,7 +143,7 @@ typedef enum {
 #define TCG_TARGET_HAS_qemu_ldst_i128   \
     (TCG_TARGET_REG_BITS == 64 && have_isa_2_07)
 
-#define TCG_TARGET_HAS_tst              0
+#define TCG_TARGET_HAS_tst              1
 
 /*
  * While technically Altivec could support V64, it has no 64-bit store

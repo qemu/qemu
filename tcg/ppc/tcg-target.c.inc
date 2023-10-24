@@ -283,11 +283,15 @@ static bool reloc_pc34(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
+static bool mask_operand(uint32_t c, int *mb, int *me);
+static bool mask64_operand(uint64_t c, int *mb, int *me);
+
 /* test if a constant matches the constraint */
 static bool tcg_target_const_match(int64_t sval, int ct,
                                    TCGType type, TCGCond cond, int vece)
 {
     uint64_t uval = sval;
+    int mb, me;
 
     if (ct & TCG_CT_CONST) {
         return 1;
@@ -316,6 +320,17 @@ static bool tcg_target_const_match(int64_t sval, int ct,
         case TCG_COND_GTU:
             ct |= TCG_CT_CONST_U16;
             break;
+        case TCG_COND_TSTEQ:
+        case TCG_COND_TSTNE:
+            if ((uval & ~0xffff) == 0 || (uval & ~0xffff0000ull) == 0) {
+                return 1;
+            }
+            if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32
+                ? mask_operand(uval, &mb, &me)
+                : mask64_operand(uval << clz64(uval), &mb, &me)) {
+                return 1;
+            }
+            return 0;
         default:
             g_assert_not_reached();
         }
@@ -703,9 +718,11 @@ enum {
     CR_SO
 };
 
-static const uint32_t tcg_to_bc[] = {
+static const uint32_t tcg_to_bc[16] = {
     [TCG_COND_EQ]  = BC | BI(0, CR_EQ) | BO_COND_TRUE,
     [TCG_COND_NE]  = BC | BI(0, CR_EQ) | BO_COND_FALSE,
+    [TCG_COND_TSTEQ]  = BC | BI(0, CR_EQ) | BO_COND_TRUE,
+    [TCG_COND_TSTNE]  = BC | BI(0, CR_EQ) | BO_COND_FALSE,
     [TCG_COND_LT]  = BC | BI(0, CR_LT) | BO_COND_TRUE,
     [TCG_COND_GE]  = BC | BI(0, CR_LT) | BO_COND_FALSE,
     [TCG_COND_LE]  = BC | BI(0, CR_GT) | BO_COND_FALSE,
@@ -717,9 +734,11 @@ static const uint32_t tcg_to_bc[] = {
 };
 
 /* The low bit here is set if the RA and RB fields must be inverted.  */
-static const uint32_t tcg_to_isel[] = {
+static const uint32_t tcg_to_isel[16] = {
     [TCG_COND_EQ]  = ISEL | BC_(0, CR_EQ),
     [TCG_COND_NE]  = ISEL | BC_(0, CR_EQ) | 1,
+    [TCG_COND_TSTEQ] = ISEL | BC_(0, CR_EQ),
+    [TCG_COND_TSTNE] = ISEL | BC_(0, CR_EQ) | 1,
     [TCG_COND_LT]  = ISEL | BC_(0, CR_LT),
     [TCG_COND_GE]  = ISEL | BC_(0, CR_LT) | 1,
     [TCG_COND_LE]  = ISEL | BC_(0, CR_GT) | 1,
@@ -872,19 +891,31 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     return true;
 }
 
-static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
-                               int sh, int mb)
+static void tcg_out_rld_rc(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                           int sh, int mb, bool rc)
 {
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     sh = SH(sh & 0x1f) | (((sh >> 5) & 1) << 1);
     mb = MB64((mb >> 5) | ((mb << 1) & 0x3f));
-    tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb);
+    tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb | rc);
 }
 
-static inline void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
-                               int sh, int mb, int me)
+static void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                        int sh, int mb)
 {
-    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me));
+    tcg_out_rld_rc(s, op, ra, rs, sh, mb, false);
+}
+
+static void tcg_out_rlw_rc(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                           int sh, int mb, int me, bool rc)
+{
+    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me) | rc);
+}
+
+static void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                        int sh, int mb, int me)
+{
+    tcg_out_rlw_rc(s, op, ra, rs, sh, mb, me, false);
 }
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
@@ -1702,6 +1733,50 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
+/*
+ * Set dest non-zero if and only if (arg1 & arg2) is non-zero.
+ * If RC, then also set RC0.
+ */
+static void tcg_out_test(TCGContext *s, TCGReg dest, TCGReg arg1, TCGArg arg2,
+                         bool const_arg2, TCGType type, bool rc)
+{
+    int mb, me;
+
+    if (!const_arg2) {
+        tcg_out32(s, AND | SAB(arg1, dest, arg2) | rc);
+        return;
+    }
+
+    if (type == TCG_TYPE_I32) {
+        arg2 = (uint32_t)arg2;
+    } else if (arg2 == (uint32_t)arg2) {
+        type = TCG_TYPE_I32;
+    }
+
+    if ((arg2 & ~0xffff) == 0) {
+        tcg_out32(s, ANDI | SAI(arg1, dest, arg2));
+        return;
+    }
+    if ((arg2 & ~0xffff0000ull) == 0) {
+        tcg_out32(s, ANDIS | SAI(arg1, dest, arg2 >> 16));
+        return;
+    }
+    if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32) {
+        if (mask_operand(arg2, &mb, &me)) {
+            tcg_out_rlw_rc(s, RLWINM, dest, arg1, 0, mb, me, rc);
+            return;
+        }
+    } else {
+        int sh = clz64(arg2);
+        if (mask64_operand(arg2 << sh, &mb, &me)) {
+            tcg_out_rld_rc(s, RLDICR, dest, arg1, sh, me, rc);
+            return;
+        }
+    }
+    /* Constraints should satisfy this. */
+    g_assert_not_reached();
+}
+
 static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
                         int const_arg2, int cr, TCGType type)
 {
@@ -1735,6 +1810,12 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
         op = CMPL;
         imm = 0;
         break;
+
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        tcg_debug_assert(cr == 0);
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, true);
+        return;
 
     case TCG_COND_LT:
     case TCG_COND_GE:
@@ -1946,6 +2027,16 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
         tcg_out_setcond_ne0(s, type, arg0, arg1, neg);
         break;
 
+    case TCG_COND_TSTEQ:
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, false);
+        tcg_out_setcond_eq0(s, type, arg0, TCG_REG_R0, neg);
+        break;
+
+    case TCG_COND_TSTNE:
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, false);
+        tcg_out_setcond_ne0(s, type, arg0, TCG_REG_R0, neg);
+        break;
+
     case TCG_COND_LE:
     case TCG_COND_LEU:
         inv = true;
@@ -2116,6 +2207,21 @@ static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
         tcg_out_cmp(s, cond, al, bl, blconst, 6, TCG_TYPE_I32);
         tcg_out_cmp(s, cond, ah, bh, bhconst, 7, TCG_TYPE_I32);
         tcg_out32(s, op | BT(0, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+        break;
+
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        if (blconst) {
+            tcg_out_andi32(s, TCG_REG_R0, al, bl);
+        } else {
+            tcg_out32(s, AND | SAB(al, TCG_REG_R0, bl));
+        }
+        if (bhconst) {
+            tcg_out_andi32(s, TCG_REG_TMP1, ah, bh);
+        } else {
+            tcg_out32(s, AND | SAB(ah, TCG_REG_TMP1, bh));
+        }
+        tcg_out32(s, OR | SAB(TCG_REG_R0, TCG_REG_R0, TCG_REG_TMP1) | 1);
         break;
 
     case TCG_COND_LT:
