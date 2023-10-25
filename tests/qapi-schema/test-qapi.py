@@ -136,12 +136,11 @@ def test_frontend(fname):
 def open_test_result(dir_name, file_name, update):
     mode = 'r+' if update else 'r'
     try:
-        fp = open(os.path.join(dir_name, file_name), mode)
+        return open(os.path.join(dir_name, file_name), mode, encoding='utf-8')
     except FileNotFoundError:
         if not update:
             raise
-        fp = open(os.path.join(dir_name, file_name), 'w+')
-    return fp
+    return open(os.path.join(dir_name, file_name), 'w+', encoding='utf-8')
 
 
 def test_and_diff(test_name, dir_name, update):
@@ -218,9 +217,9 @@ def main(argv):
         test_name = os.path.splitext(base_name)[0]
         status |= test_and_diff(test_name, dir_name, args.update)
 
-    exit(status)
+    sys.exit(status)
 
 
 if __name__ == '__main__':
     main(sys.argv)
-    exit(0)
+    sys.exit(0)
