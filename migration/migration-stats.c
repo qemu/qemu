@@ -54,7 +54,7 @@ void migration_rate_set(uint64_t limit)
     stat64_set(&mig_stats.rate_limit_max, limit / XFER_LIMIT_RATIO);
 }
 
-void migration_rate_reset(QEMUFile *f)
+void migration_rate_reset(void)
 {
     stat64_set(&mig_stats.rate_limit_start, migration_transferred_bytes());
 }
