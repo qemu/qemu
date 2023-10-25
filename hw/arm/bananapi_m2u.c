@@ -26,6 +26,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-r40.h"
+#include "hw/arm/boot.h"
 
 static struct arm_boot_info bpim2u_binfo;
 
