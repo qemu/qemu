@@ -128,7 +128,7 @@ static void bpim2u_init(MachineState *machine)
     bpim2u_binfo.loader_start = r40->memmap[AW_R40_DEV_SDRAM];
     bpim2u_binfo.ram_size = machine->ram_size;
     bpim2u_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &bpim2u_binfo);
+    arm_load_kernel(&r40->cpus[0], machine, &bpim2u_binfo);
 }
 
 static void bpim2u_machine_init(MachineClass *mc)
