@@ -283,6 +283,7 @@ void qemu_fflush(QEMUFile *f)
         } else {
             uint64_t size = iov_size(f->iov, f->iovcnt);
             f->total_transferred += size;
+            stat64_add(&mig_stats.qemu_file_transferred, size);
         }
 
         qemu_iovec_release_ram(f);
@@ -623,7 +624,7 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
 
 uint64_t qemu_file_transferred_noflush(QEMUFile *f)
 {
-    uint64_t ret = f->total_transferred;
+    uint64_t ret = stat64_get(&mig_stats.qemu_file_transferred);
     int i;
 
     g_assert(qemu_file_is_writable(f));
@@ -639,7 +640,7 @@ uint64_t qemu_file_transferred(QEMUFile *f)
 {
     g_assert(qemu_file_is_writable(f));
     qemu_fflush(f);
-    return f->total_transferred;
+    return stat64_get(&mig_stats.qemu_file_transferred);
 }
 
 void qemu_put_be16(QEMUFile *f, unsigned int v)

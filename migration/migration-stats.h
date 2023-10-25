@@ -82,6 +82,10 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Number of bytes transferred with QEMUFile.
+     */
+    Stat64 qemu_file_transferred;
+    /*
      * Amount of transferred data at the start of current cycle.
      */
     Stat64 rate_limit_start;
