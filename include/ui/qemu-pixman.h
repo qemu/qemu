@@ -7,11 +7,7 @@
 #define QEMU_PIXMAN_H
 
 #ifdef CONFIG_PIXMAN
-/* pixman-0.16.0 headers have a redundant declaration */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wredundant-decls"
 #include <pixman.h>
-#pragma GCC diagnostic pop
 #endif
 
 /*
