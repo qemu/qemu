@@ -3475,12 +3475,7 @@ void qemu_init(int argc, char **argv)
                 break;
 #ifdef CONFIG_SPICE
             case QEMU_OPTION_spice:
-                olist = qemu_find_opts_err("spice", NULL);
-                if (!olist) {
-                    error_report("spice support is disabled");
-                    exit(1);
-                }
-                opts = qemu_opts_parse_noisily(olist, optarg, false);
+                opts = qemu_opts_parse_noisily(qemu_find_opts("spice"), optarg, false);
                 if (!opts) {
                     exit(1);
                 }
