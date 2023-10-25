@@ -680,7 +680,7 @@ QEMU_BUILD_BUG_ON(sizeof(MigMode) != sizeof(int));
 const PropertyInfo qdev_prop_mig_mode = {
     .name = "MigMode",
     .description = "mig_mode values, "
-                   "normal",
+                   "normal,cpr-reboot",
     .enum_table = &MigMode_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
