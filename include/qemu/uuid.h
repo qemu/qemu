@@ -78,9 +78,10 @@ typedef struct {
                  "%02hhx%02hhx-" \
                  "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
-#define UUID_STR_LEN (36 + 1)
-
 #define UUID_NONE "00000000-0000-0000-0000-000000000000"
+QEMU_BUILD_BUG_ON(sizeof(UUID_NONE) - 1 != 36);
+
+#define UUID_STR_LEN sizeof(UUID_NONE)
 
 void qemu_uuid_generate(QemuUUID *out);
 
