@@ -204,7 +204,7 @@ void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err)
  */
 int qemu_file_get_error(QEMUFile *f)
 {
-    return qemu_file_get_error_obj(f, NULL);
+    return f->last_error;
 }
 
 /*
