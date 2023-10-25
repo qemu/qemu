@@ -828,7 +828,7 @@ static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n,
 
 static int vhost_vdpa_net_load_rss(VhostVDPAState *s, const VirtIONet *n,
                                    struct iovec *out_cursor,
-                                   struct iovec *in_cursor)
+                                   struct iovec *in_cursor, bool do_rss)
 {
     struct virtio_net_rss_config cfg = {};
     ssize_t r;
@@ -854,21 +854,35 @@ static int vhost_vdpa_net_load_rss(VhostVDPAState *s, const VirtIONet *n,
                        sizeof(n->rss_data.indirections_table[0]));
     cfg.hash_types = cpu_to_le32(n->rss_data.hash_types);
 
-    /*
-     * According to VirtIO standard, "Field reserved MUST contain zeroes.
-     * It is defined to make the structure to match the layout of
-     * virtio_net_rss_config structure, defined in 5.1.6.5.7.".
-     *
-     * Therefore, we need to zero the fields in
-     * struct virtio_net_rss_config, which corresponds to the
-     * `reserved` field in struct virtio_net_hash_config.
-     *
-     * Note that all other fields are zeroed at their definitions,
-     * except for the `indirection_table` field, where the actual data
-     * is stored in the `table` variable to ensure compatibility
-     * with RSS case. Therefore, we need to zero the `table` variable here.
-     */
-    table[0] = 0;
+    if (do_rss) {
+        /*
+         * According to VirtIO standard, "Number of entries in indirection_table
+         * is (indirection_table_mask + 1)".
+         */
+        cfg.indirection_table_mask = cpu_to_le16(n->rss_data.indirections_len -
+                                                 1);
+        cfg.unclassified_queue = cpu_to_le16(n->rss_data.default_queue);
+        for (int i = 0; i < n->rss_data.indirections_len; ++i) {
+            table[i] = cpu_to_le16(n->rss_data.indirections_table[i]);
+        }
+        cfg.max_tx_vq = cpu_to_le16(n->curr_queue_pairs);
+    } else {
+        /*
+         * According to VirtIO standard, "Field reserved MUST contain zeroes.
+         * It is defined to make the structure to match the layout of
+         * virtio_net_rss_config structure, defined in 5.1.6.5.7.".
+         *
+         * Therefore, we need to zero the fields in
+         * struct virtio_net_rss_config, which corresponds to the
+         * `reserved` field in struct virtio_net_hash_config.
+         *
+         * Note that all other fields are zeroed at their definitions,
+         * except for the `indirection_table` field, where the actual data
+         * is stored in the `table` variable to ensure compatibility
+         * with RSS case. Therefore, we need to zero the `table` variable here.
+         */
+        table[0] = 0;
+    }
 
     /*
      * Considering that virtio_net_handle_rss() currently does not restore
@@ -899,6 +913,7 @@ static int vhost_vdpa_net_load_rss(VhostVDPAState *s, const VirtIONet *n,
 
     r = vhost_vdpa_net_load_cmd(s, out_cursor, in_cursor,
                                 VIRTIO_NET_CTRL_MQ,
+                                do_rss ? VIRTIO_NET_CTRL_MQ_RSS_CONFIG :
                                 VIRTIO_NET_CTRL_MQ_HASH_CONFIG,
                                 data, ARRAY_SIZE(data));
     if (unlikely(r < 0)) {
@@ -933,13 +948,19 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
         return r;
     }
 
-    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_HASH_REPORT)) {
-        return 0;
-    }
-
-    r = vhost_vdpa_net_load_rss(s, n, out_cursor, in_cursor);
-    if (unlikely(r < 0)) {
-        return r;
+    if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_RSS)) {
+        /* load the receive-side scaling state */
+        r = vhost_vdpa_net_load_rss(s, n, out_cursor, in_cursor, true);
+        if (unlikely(r < 0)) {
+            return r;
+        }
+    } else if (virtio_vdev_has_feature(&n->parent_obj,
+                                       VIRTIO_NET_F_HASH_REPORT)) {
+        /* load the hash calculation state */
+        r = vhost_vdpa_net_load_rss(s, n, out_cursor, in_cursor, false);
+        if (unlikely(r < 0)) {
+            return r;
+        }
     }
 
     return 0;
