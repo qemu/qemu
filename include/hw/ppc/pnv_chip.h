@@ -88,8 +88,7 @@ struct Pnv9Chip {
 #define PNV9_CHIP_MAX_PEC 3
     PnvPhb4PecState pecs[PNV9_CHIP_MAX_PEC];
 
-#define PNV9_CHIP_MAX_I2C 3
-#define PNV9_CHIP_MAX_I2C_PORTS 1
+#define PNV9_CHIP_MAX_I2C 4
     PnvI2C      i2c[PNV9_CHIP_MAX_I2C];
 };
 
@@ -122,7 +121,6 @@ struct Pnv10Chip {
     PnvPhb4PecState pecs[PNV10_CHIP_MAX_PEC];
 
 #define PNV10_CHIP_MAX_I2C 4
-#define PNV10_CHIP_MAX_I2C_PORTS 2
     PnvI2C       i2c[PNV10_CHIP_MAX_I2C];
 };
 
@@ -140,7 +138,7 @@ struct PnvChipClass {
     uint32_t     num_phbs;
 
     uint32_t     i2c_num_engines;
-    uint32_t     i2c_num_ports;
+    const int    *i2c_ports_per_engine;
 
     DeviceRealize parent_realize;
 
