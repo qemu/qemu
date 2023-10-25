@@ -528,6 +528,12 @@ static void machine_HP_B160L_init(MachineState *machine)
     /* Create CPUs and RAM.  */
     translate = machine_HP_common_init_cpus(machine);
 
+    if (hppa_is_pa20(&cpu[0]->env)) {
+        error_report("The HP B160L workstation requires a 32-bit "
+                     "CPU. Use '-machine C3700' instead.");
+        exit(1);
+    }
+
     /* Init Lasi chip */
     lasi_dev = DEVICE(lasi_init());
     memory_region_add_subregion(addr_space, translate(NULL, LASI_HPA),
@@ -602,6 +608,12 @@ static void machine_HP_C3700_init(MachineState *machine)
     /* Create CPUs and RAM.  */
     translate = machine_HP_common_init_cpus(machine);
 
+    if (!hppa_is_pa20(&cpu[0]->env)) {
+        error_report("The HP C3000 workstation requires a 64-bit CPU. "
+                     "Use '-machine B160L' instead.");
+        exit(1);
+    }
+
     /* Init Astro and the Elroys (PCI host bus chips).  */
     astro = astro_init();
     astro_dev = DEVICE(astro);
@@ -659,6 +671,11 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static const char *HP_B160L_machine_valid_cpu_types[] = {
+    TYPE_HPPA_CPU,
+    NULL
+};
+
 static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -666,6 +683,7 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "HP B160L workstation";
     mc->default_cpu_type = TYPE_HPPA_CPU;
+    mc->valid_cpu_types = HP_B160L_machine_valid_cpu_types;
     mc->init = machine_HP_B160L_init;
     mc->reset = hppa_machine_reset;
     mc->block_default_type = IF_SCSI;
@@ -690,6 +708,11 @@ static const TypeInfo HP_B160L_machine_init_typeinfo = {
     },
 };
 
+static const char *HP_C3700_machine_valid_cpu_types[] = {
+    TYPE_HPPA64_CPU,
+    NULL
+};
+
 static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -697,6 +720,7 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "HP C3700 workstation";
     mc->default_cpu_type = TYPE_HPPA64_CPU;
+    mc->valid_cpu_types = HP_C3700_machine_valid_cpu_types;
     mc->init = machine_HP_C3700_init;
     mc->reset = hppa_machine_reset;
     mc->block_default_type = IF_SCSI;
