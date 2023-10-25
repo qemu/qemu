@@ -1020,6 +1020,9 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
+    case CC_OP_MULB ... CC_OP_MULQ:
+        return (CCPrepare) { .cond = TCG_COND_NE,
+                             .reg = cpu_cc_src, .mask = -1 };
     default:
         gen_compute_eflags(s);
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
