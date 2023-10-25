@@ -8,6 +8,8 @@
 
 #ifdef CONFIG_PIXMAN
 #include <pixman.h>
+#else
+#include "pixman-minimal.h"
 #endif
 
 /*
