@@ -384,7 +384,7 @@ static void elroy_set_irq(void *opaque, int irq, int level)
         uint32_t ena = bit & ~old_ilr;
         s->ilr = old_ilr | bit;
         if (ena != 0) {
-            stl_be_phys(&address_space_memory, cpu_hpa, val & 63);
+            stl_be_phys(&address_space_memory, F_EXTEND(cpu_hpa), val & 63);
         }
     } else {
         s->ilr = old_ilr & ~bit;
