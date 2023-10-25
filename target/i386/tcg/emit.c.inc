@@ -1242,9 +1242,7 @@ static void gen_LDMXCSR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 
 static void gen_MASKMOV(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    tcg_gen_mov_tl(s->A0, cpu_regs[R_EDI]);
-    gen_extu(s->aflag, s->A0);
-    gen_add_A0_ds_seg(s);
+    gen_lea_v_seg(s, s->aflag, cpu_regs[R_EDI], R_DS, s->override);
 
     if (s->prefix & PREFIX_DATA) {
         gen_helper_maskmov_xmm(tcg_env, OP_PTR1, OP_PTR2, s->A0);

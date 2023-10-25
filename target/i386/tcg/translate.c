@@ -4183,7 +4183,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         tcg_gen_mov_tl(s->A0, cpu_regs[R_EBX]);
         tcg_gen_ext8u_tl(s->T0, cpu_regs[R_EAX]);
         tcg_gen_add_tl(s->A0, s->A0, s->T0);
-        gen_extu(s->aflag, s->A0);
         gen_add_A0_ds_seg(s);
         gen_op_ld_v(s, MO_8, s->T0, s->A0);
         gen_op_mov_reg_v(s, MO_8, R_EAX, s->T0);
@@ -5835,7 +5834,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
             tcg_gen_mov_tl(s->A0, cpu_regs[R_EAX]);
-            gen_extu(s->aflag, s->A0);
             gen_add_A0_ds_seg(s);
             gen_helper_monitor(tcg_env, s->A0);
             break;
