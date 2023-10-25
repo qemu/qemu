@@ -515,7 +515,7 @@ class QAPIDocDirective(Directive):
         except QAPIError as err:
             # Launder QAPI parse errors into Sphinx extension errors
             # so they are displayed nicely to the user
-            raise ExtensionError(str(err))
+            raise ExtensionError(str(err)) from err
 
     def do_parse(self, rstlist, node):
         """Parse rST source lines and add them to the specified node
