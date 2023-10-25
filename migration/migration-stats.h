@@ -98,10 +98,6 @@ typedef struct {
      */
     Stat64 rdma_bytes;
     /*
-     * Total number of bytes transferred.
-     */
-    Stat64 transferred;
-    /*
      * Number of pages transferred that were full of zeros.
      */
     Stat64 zero_pages;
