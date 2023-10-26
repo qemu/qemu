@@ -1044,8 +1044,10 @@ static bool fold_add_vec(OptContext *ctx, TCGOp *op)
 
 static bool fold_addsub2(OptContext *ctx, TCGOp *op, bool add)
 {
-    if (arg_is_const(op->args[2]) && arg_is_const(op->args[3]) &&
-        arg_is_const(op->args[4]) && arg_is_const(op->args[5])) {
+    bool a_const = arg_is_const(op->args[2]) && arg_is_const(op->args[3]);
+    bool b_const = arg_is_const(op->args[4]) && arg_is_const(op->args[5]);
+
+    if (a_const && b_const) {
         uint64_t al = arg_info(op->args[2])->val;
         uint64_t ah = arg_info(op->args[3])->val;
         uint64_t bl = arg_info(op->args[4])->val;
@@ -1088,6 +1090,21 @@ static bool fold_addsub2(OptContext *ctx, TCGOp *op, bool add)
         tcg_opt_gen_movi(ctx, op, rl, al);
         tcg_opt_gen_movi(ctx, op2, rh, ah);
         return true;
+    }
+
+    /* Fold sub2 r,x,i to add2 r,x,-i */
+    if (!add && b_const) {
+        uint64_t bl = arg_info(op->args[4])->val;
+        uint64_t bh = arg_info(op->args[5])->val;
+
+        /* Negate the two parts without assembling and disassembling. */
+        bl = -bl;
+        bh = ~bh + !bl;
+
+        op->opc = (ctx->type == TCG_TYPE_I32
+                   ? INDEX_op_add2_i32 : INDEX_op_add2_i64);
+        op->args[4] = arg_new_constant(ctx, bl);
+        op->args[5] = arg_new_constant(ctx, bh);
     }
     return false;
 }
