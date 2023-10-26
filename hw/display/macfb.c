@@ -585,8 +585,6 @@ static void macfb_ctrl_write(void *opaque,
         break;
     case DAFB_RESET:
         s->palette_current = 0;
-        s->regs[DAFB_INTR_STAT >> 2] &= ~DAFB_INTR_VBL;
-        macfb_update_irq(s);
         break;
     case DAFB_LUT:
         s->color_palette[s->palette_current] = val;
