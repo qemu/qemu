@@ -2166,7 +2166,19 @@ static bool fold_sub_vec(OptContext *ctx, TCGOp *op)
 
 static bool fold_sub(OptContext *ctx, TCGOp *op)
 {
-    return fold_const2(ctx, op) || fold_sub_vec(ctx, op);
+    if (fold_const2(ctx, op) || fold_sub_vec(ctx, op)) {
+        return true;
+    }
+
+    /* Fold sub r,x,i to add r,x,-i */
+    if (arg_is_const(op->args[2])) {
+        uint64_t val = arg_info(op->args[2])->val;
+
+        op->opc = (ctx->type == TCG_TYPE_I32
+                   ? INDEX_op_add_i32 : INDEX_op_add_i64);
+        op->args[2] = arg_new_constant(ctx, -val);
+    }
+    return false;
 }
 
 static bool fold_sub2(OptContext *ctx, TCGOp *op)
