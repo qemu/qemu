@@ -239,7 +239,7 @@ static void vdi_header_to_le(VdiHeader *header)
 
 static void vdi_header_print(VdiHeader *header)
 {
-    char uuidstr[37];
+    char uuidstr[UUID_STR_LEN];
     QemuUUID uuid;
     logout("text        %s", header->text);
     logout("signature   0x%08x\n", header->signature);

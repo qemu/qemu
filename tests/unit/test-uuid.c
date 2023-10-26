@@ -145,7 +145,7 @@ static void test_uuid_unparse(void)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(uuid_test_data); i++) {
-        char out[37];
+        char out[UUID_STR_LEN];
 
         if (!uuid_test_data[i].check_unparse) {
             continue;

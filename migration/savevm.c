@@ -471,8 +471,8 @@ static bool vmstate_uuid_needed(void *opaque)
 static int vmstate_uuid_post_load(void *opaque, int version_id)
 {
     SaveState *state = opaque;
-    char uuid_src[UUID_FMT_LEN + 1];
-    char uuid_dst[UUID_FMT_LEN + 1];
+    char uuid_src[UUID_STR_LEN];
+    char uuid_dst[UUID_STR_LEN];
 
     if (!qemu_uuid_set) {
         /*
