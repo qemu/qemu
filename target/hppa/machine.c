@@ -44,28 +44,30 @@ static const VMStateInfo vmstate_psw = {
     .put = put_psw,
 };
 
-/* FIXME: Use the PA2.0 format, which is a superset of the PA1.1 format.  */
 static int get_tlb(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
 {
     HPPATLBEntry *ent = opaque;
-    uint32_t val;
+    uint64_t val;
 
     ent->itree.start = qemu_get_be64(f);
+    ent->itree.last = qemu_get_be64(f);
     ent->pa = qemu_get_be64(f);
-    val = qemu_get_be32(f);
+    val = qemu_get_be64(f);
 
-    ent->entry_valid = extract32(val, 0, 1);
-    ent->access_id = extract32(val, 1, 18);
-    ent->u = extract32(val, 19, 1);
-    ent->ar_pl2 = extract32(val, 20, 2);
-    ent->ar_pl1 = extract32(val, 22, 2);
-    ent->ar_type = extract32(val, 24, 3);
-    ent->b = extract32(val, 27, 1);
-    ent->d = extract32(val, 28, 1);
-    ent->t = extract32(val, 29, 1);
-
-    ent->itree.last = ent->itree.start + TARGET_PAGE_SIZE - 1;
+    if (val) {
+        ent->t = extract64(val, 61, 1);
+        ent->d = extract64(val, 60, 1);
+        ent->b = extract64(val, 59, 1);
+        ent->ar_type = extract64(val, 56, 3);
+        ent->ar_pl1 = extract64(val, 54, 2);
+        ent->ar_pl2 = extract64(val, 52, 2);
+        ent->u = extract64(val, 51, 1);
+        /* o = bit 50 */
+        /* p = bit 49 */
+        ent->access_id = extract64(val, 1, 31);
+        ent->entry_valid = 1;
+    }
     return 0;
 }
 
@@ -73,27 +75,30 @@ static int put_tlb(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field, JSONWriter *vmdesc)
 {
     HPPATLBEntry *ent = opaque;
-    uint32_t val = 0;
+    uint64_t val = 0;
 
     if (ent->entry_valid) {
         val = 1;
-        val = deposit32(val, 1, 18, ent->access_id);
-        val = deposit32(val, 19, 1, ent->u);
-        val = deposit32(val, 20, 2, ent->ar_pl2);
-        val = deposit32(val, 22, 2, ent->ar_pl1);
-        val = deposit32(val, 24, 3, ent->ar_type);
-        val = deposit32(val, 27, 1, ent->b);
-        val = deposit32(val, 28, 1, ent->d);
-        val = deposit32(val, 29, 1, ent->t);
+        val = deposit64(val, 61, 1, ent->t);
+        val = deposit64(val, 60, 1, ent->d);
+        val = deposit64(val, 59, 1, ent->b);
+        val = deposit64(val, 56, 3, ent->ar_type);
+        val = deposit64(val, 54, 2, ent->ar_pl1);
+        val = deposit64(val, 52, 2, ent->ar_pl2);
+        val = deposit64(val, 51, 1, ent->u);
+        /* o = bit 50 */
+        /* p = bit 49 */
+        val = deposit64(val, 1, 31, ent->access_id);
     }
 
     qemu_put_be64(f, ent->itree.start);
+    qemu_put_be64(f, ent->itree.last);
     qemu_put_be64(f, ent->pa);
-    qemu_put_be32(f, val);
+    qemu_put_be64(f, val);
     return 0;
 }
 
-static const VMStateInfo vmstate_tlb = {
+static const VMStateInfo vmstate_tlb_entry = {
     .name = "tlb entry",
     .get = get_tlb,
     .put = put_tlb,
@@ -147,7 +152,24 @@ static int tlb_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static VMStateField vmstate_env_fields[] = {
+static const VMStateField vmstate_tlb_fields[] = {
+    VMSTATE_ARRAY(tlb, CPUHPPAState,
+                  ARRAY_SIZE(((CPUHPPAState *)0)->tlb),
+                  0, vmstate_tlb_entry, HPPATLBEntry),
+    VMSTATE_UINT32(tlb_last, CPUHPPAState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_tlb = {
+    .name = "env/tlb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_tlb_fields,
+    .pre_load = tlb_pre_load,
+    .post_load = tlb_post_load,
+};
+
+static const VMStateField vmstate_env_fields[] = {
     VMSTATE_UINT64_ARRAY(gr, CPUHPPAState, 32),
     VMSTATE_UINT64_ARRAY(fr, CPUHPPAState, 32),
     VMSTATE_UINT64_ARRAY(sr, CPUHPPAState, 8),
@@ -176,24 +198,23 @@ static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINT64(iasq_b, CPUHPPAState),
 
     VMSTATE_UINT32(fr0_shadow, CPUHPPAState),
-
-    VMSTATE_ARRAY(tlb, CPUHPPAState, ARRAY_SIZE(((CPUHPPAState *)0)->tlb),
-                  0, vmstate_tlb, HPPATLBEntry),
-    VMSTATE_UINT32(tlb_last, CPUHPPAState),
-
     VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription *vmstate_env_subsections[] = {
+    &vmstate_tlb,
+    NULL
 };
 
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = vmstate_env_fields,
-    .pre_load = tlb_pre_load,
-    .post_load = tlb_post_load,
+    .subsections = vmstate_env_subsections,
 };
 
-static VMStateField vmstate_cpu_fields[] = {
+static const VMStateField vmstate_cpu_fields[] = {
     VMSTATE_CPU(),
     VMSTATE_STRUCT(env, HPPACPU, 1, vmstate_env, CPUHPPAState),
     VMSTATE_END_OF_LIST()
