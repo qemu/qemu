@@ -1070,13 +1070,22 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         if (v2 != 0) {
             tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_TMP1);
         }
-    } else {
+        return;
+    }
+
+    /* This should be guaranteed via constraints */
+    tcg_debug_assert(v2 == ret);
+
+    if (use_movnz_instructions) {
         MIPSInsn m_opc = eqz ? OPC_MOVZ : OPC_MOVN;
-
         tcg_out_opc_reg(s, m_opc, ret, v1, c1);
-
-        /* This should be guaranteed via constraints */
-        tcg_debug_assert(v2 == ret);
+    } else {
+        /* Invert the condition in order to branch over the move. */
+        MIPSInsn b_opc = eqz ? OPC_BNE : OPC_BEQ;
+        tcg_out_opc_imm(s, b_opc, c1, TCG_REG_ZERO, 2);
+        tcg_out_nop(s);
+        /* Open-code tcg_out_mov, without the nop-move check. */
+        tcg_out_opc_reg(s, OPC_OR, ret, v1, TCG_REG_ZERO);
     }
 }
 
