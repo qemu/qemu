@@ -871,71 +871,83 @@ static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh, TCGReg al,
     }
 }
 
-/* Bit 0 set if inversion required; bit 1 set if swapping required.  */
-#define MIPS_CMP_INV  1
-#define MIPS_CMP_SWAP 2
+#define SETCOND_INV    TCG_TARGET_NB_REGS
+#define SETCOND_NEZ    (SETCOND_INV << 1)
+#define SETCOND_FLAGS  (SETCOND_INV | SETCOND_NEZ)
 
-static const uint8_t mips_cmp_map[16] = {
-    [TCG_COND_LT]  = 0,
-    [TCG_COND_LTU] = 0,
-    [TCG_COND_GE]  = MIPS_CMP_INV,
-    [TCG_COND_GEU] = MIPS_CMP_INV,
-    [TCG_COND_LE]  = MIPS_CMP_INV | MIPS_CMP_SWAP,
-    [TCG_COND_LEU] = MIPS_CMP_INV | MIPS_CMP_SWAP,
-    [TCG_COND_GT]  = MIPS_CMP_SWAP,
-    [TCG_COND_GTU] = MIPS_CMP_SWAP,
-};
+static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
+                               TCGReg arg1, TCGReg arg2)
+{
+    int flags = 0;
+
+    switch (cond) {
+    case TCG_COND_EQ:    /* -> NE  */
+    case TCG_COND_GE:    /* -> LT  */
+    case TCG_COND_GEU:   /* -> LTU */
+    case TCG_COND_LE:    /* -> GT  */
+    case TCG_COND_LEU:   /* -> GTU */
+        cond = tcg_invert_cond(cond);
+        flags ^= SETCOND_INV;
+        break;
+    default:
+        break;
+    }
+
+    switch (cond) {
+    case TCG_COND_NE:
+        flags |= SETCOND_NEZ;
+        if (arg2 == 0) {
+            return arg1 | flags;
+        }
+        tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
+        break;
+    case TCG_COND_LT:
+        tcg_out_opc_reg(s, OPC_SLT, ret, arg1, arg2);
+        break;
+    case TCG_COND_LTU:
+        tcg_out_opc_reg(s, OPC_SLTU, ret, arg1, arg2);
+        break;
+    case TCG_COND_GT:
+        tcg_out_opc_reg(s, OPC_SLT, ret, arg2, arg1);
+        break;
+    case TCG_COND_GTU:
+        tcg_out_opc_reg(s, OPC_SLTU, ret, arg2, arg1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret | flags;
+}
+
+static void tcg_out_setcond_end(TCGContext *s, TCGReg ret, int tmpflags)
+{
+    if (tmpflags != ret) {
+        TCGReg tmp = tmpflags & ~SETCOND_FLAGS;
+
+        switch (tmpflags & SETCOND_FLAGS) {
+        case SETCOND_INV:
+            /* Intermediate result is boolean: simply invert. */
+            tcg_out_opc_imm(s, OPC_XORI, ret, tmp, 1);
+            break;
+        case SETCOND_NEZ:
+            /* Intermediate result is zero/non-zero: test != 0. */
+            tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, tmp);
+            break;
+        case SETCOND_NEZ | SETCOND_INV:
+            /* Intermediate result is zero/non-zero: test == 0. */
+            tcg_out_opc_imm(s, OPC_SLTIU, ret, tmp, 1);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+}
 
 static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
                             TCGReg arg1, TCGReg arg2)
 {
-    MIPSInsn s_opc = OPC_SLTU;
-    int cmp_map;
-
-    switch (cond) {
-    case TCG_COND_EQ:
-        if (arg2 != 0) {
-            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
-            arg1 = ret;
-        }
-        tcg_out_opc_imm(s, OPC_SLTIU, ret, arg1, 1);
-        break;
-
-    case TCG_COND_NE:
-        if (arg2 != 0) {
-            tcg_out_opc_reg(s, OPC_XOR, ret, arg1, arg2);
-            arg1 = ret;
-        }
-        tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, arg1);
-        break;
-
-    case TCG_COND_LT:
-    case TCG_COND_GE:
-    case TCG_COND_LE:
-    case TCG_COND_GT:
-        s_opc = OPC_SLT;
-        /* FALLTHRU */
-
-    case TCG_COND_LTU:
-    case TCG_COND_GEU:
-    case TCG_COND_LEU:
-    case TCG_COND_GTU:
-        cmp_map = mips_cmp_map[cond];
-        if (cmp_map & MIPS_CMP_SWAP) {
-            TCGReg t = arg1;
-            arg1 = arg2;
-            arg2 = t;
-        }
-        tcg_out_opc_reg(s, s_opc, ret, arg1, arg2);
-        if (cmp_map & MIPS_CMP_INV) {
-            tcg_out_opc_imm(s, OPC_XORI, ret, ret, 1);
-        }
-        break;
-
-     default:
-         g_assert_not_reached();
-         break;
-     }
+    int tmpflags = tcg_out_setcond_int(s, cond, ret, arg1, arg2);
+    tcg_out_setcond_end(s, ret, tmpflags);
 }
 
 static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
@@ -948,9 +960,7 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
         [TCG_COND_GE] = OPC_BGEZ,
     };
 
-    MIPSInsn s_opc = OPC_SLTU;
-    MIPSInsn b_opc;
-    int cmp_map;
+    MIPSInsn b_opc = 0;
 
     switch (cond) {
     case TCG_COND_EQ:
@@ -959,7 +969,6 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     case TCG_COND_NE:
         b_opc = OPC_BNE;
         break;
-
     case TCG_COND_LT:
     case TCG_COND_GT:
     case TCG_COND_LE:
@@ -968,133 +977,76 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
             b_opc = b_zero[cond];
             arg2 = arg1;
             arg1 = 0;
-            break;
         }
-        s_opc = OPC_SLT;
-        /* FALLTHRU */
-
-    case TCG_COND_LTU:
-    case TCG_COND_GTU:
-    case TCG_COND_LEU:
-    case TCG_COND_GEU:
-        cmp_map = mips_cmp_map[cond];
-        if (cmp_map & MIPS_CMP_SWAP) {
-            TCGReg t = arg1;
-            arg1 = arg2;
-            arg2 = t;
-        }
-        tcg_out_opc_reg(s, s_opc, TCG_TMP0, arg1, arg2);
-        b_opc = (cmp_map & MIPS_CMP_INV ? OPC_BEQ : OPC_BNE);
-        arg1 = TCG_TMP0;
-        arg2 = TCG_REG_ZERO;
         break;
-
     default:
-        g_assert_not_reached();
         break;
     }
 
+    if (b_opc == 0) {
+        int tmpflags = tcg_out_setcond_int(s, cond, TCG_TMP0, arg1, arg2);
+
+        arg2 = TCG_REG_ZERO;
+        arg1 = tmpflags & ~SETCOND_FLAGS;
+        b_opc = tmpflags & SETCOND_INV ? OPC_BEQ : OPC_BNE;
+    }
+
+    tcg_out_reloc(s, s->code_ptr, R_MIPS_PC16, l, 0);
     tcg_out_opc_br(s, b_opc, arg1, arg2);
-    tcg_out_reloc(s, s->code_ptr - 1, R_MIPS_PC16, l, 0);
     tcg_out_nop(s);
 }
 
-static TCGReg tcg_out_reduce_eq2(TCGContext *s, TCGReg tmp0, TCGReg tmp1,
-                                 TCGReg al, TCGReg ah,
-                                 TCGReg bl, TCGReg bh)
+static int tcg_out_setcond2_int(TCGContext *s, TCGCond cond, TCGReg ret,
+                                TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
 {
-    /* Merge highpart comparison into AH.  */
-    if (bh != 0) {
-        if (ah != 0) {
-            tcg_out_opc_reg(s, OPC_XOR, tmp0, ah, bh);
-            ah = tmp0;
-        } else {
-            ah = bh;
-        }
+    int flags = 0;
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        flags |= SETCOND_INV;
+        /* fall through */
+    case TCG_COND_NE:
+        flags |= SETCOND_NEZ;
+        tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, al, bl);
+        tcg_out_opc_reg(s, OPC_XOR, TCG_TMP1, ah, bh);
+        tcg_out_opc_reg(s, OPC_OR, ret, TCG_TMP0, TCG_TMP1);
+        break;
+
+    default:
+        tcg_out_setcond(s, TCG_COND_EQ, TCG_TMP0, ah, bh);
+        tcg_out_setcond(s, tcg_unsigned_cond(cond), TCG_TMP1, al, bl);
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, TCG_TMP1, TCG_TMP0);
+        tcg_out_setcond(s, tcg_high_cond(cond), TCG_TMP0, ah, bh);
+        tcg_out_opc_reg(s, OPC_OR, ret, TCG_TMP0, TCG_TMP1);
+        break;
     }
-    /* Merge lowpart comparison into AL.  */
-    if (bl != 0) {
-        if (al != 0) {
-            tcg_out_opc_reg(s, OPC_XOR, tmp1, al, bl);
-            al = tmp1;
-        } else {
-            al = bl;
-        }
-    }
-    /* Merge high and low part comparisons into AL.  */
-    if (ah != 0) {
-        if (al != 0) {
-            tcg_out_opc_reg(s, OPC_OR, tmp0, ah, al);
-            al = tmp0;
-        } else {
-            al = ah;
-        }
-    }
-    return al;
+    return ret | flags;
 }
 
 static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
                              TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
 {
-    TCGReg tmp0 = TCG_TMP0;
-    TCGReg tmp1 = ret;
-
-    tcg_debug_assert(ret != TCG_TMP0);
-    if (ret == ah || ret == bh) {
-        tcg_debug_assert(ret != TCG_TMP1);
-        tmp1 = TCG_TMP1;
-    }
-
-    switch (cond) {
-    case TCG_COND_EQ:
-    case TCG_COND_NE:
-        tmp1 = tcg_out_reduce_eq2(s, tmp0, tmp1, al, ah, bl, bh);
-        tcg_out_setcond(s, cond, ret, tmp1, TCG_REG_ZERO);
-        break;
-
-    default:
-        tcg_out_setcond(s, TCG_COND_EQ, tmp0, ah, bh);
-        tcg_out_setcond(s, tcg_unsigned_cond(cond), tmp1, al, bl);
-        tcg_out_opc_reg(s, OPC_AND, tmp1, tmp1, tmp0);
-        tcg_out_setcond(s, tcg_high_cond(cond), tmp0, ah, bh);
-        tcg_out_opc_reg(s, OPC_OR, ret, tmp1, tmp0);
-        break;
-    }
+    int tmpflags = tcg_out_setcond2_int(s, cond, ret, al, ah, bl, bh);
+    tcg_out_setcond_end(s, ret, tmpflags);
 }
 
 static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
                             TCGReg bl, TCGReg bh, TCGLabel *l)
 {
-    TCGCond b_cond = TCG_COND_NE;
-    TCGReg tmp = TCG_TMP1;
+    int tmpflags = tcg_out_setcond2_int(s, cond, TCG_TMP0, al, ah, bl, bh);
+    TCGReg tmp = tmpflags & ~SETCOND_FLAGS;
+    MIPSInsn b_opc = tmpflags & SETCOND_INV ? OPC_BEQ : OPC_BNE;
 
-    /* With branches, we emit between 4 and 9 insns with 2 or 3 branches.
-       With setcond, we emit between 3 and 10 insns and only 1 branch,
-       which ought to get better branch prediction.  */
-     switch (cond) {
-     case TCG_COND_EQ:
-     case TCG_COND_NE:
-        b_cond = cond;
-        tmp = tcg_out_reduce_eq2(s, TCG_TMP0, TCG_TMP1, al, ah, bl, bh);
-        break;
-
-    default:
-        /* Minimize code size by preferring a compare not requiring INV.  */
-        if (mips_cmp_map[cond] & MIPS_CMP_INV) {
-            cond = tcg_invert_cond(cond);
-            b_cond = TCG_COND_EQ;
-        }
-        tcg_out_setcond2(s, cond, tmp, al, ah, bl, bh);
-        break;
-    }
-
-    tcg_out_brcond(s, b_cond, tmp, TCG_REG_ZERO, l);
+    tcg_out_reloc(s, s->code_ptr, R_MIPS_PC16, l, 0);
+    tcg_out_opc_br(s, b_opc, tmp, TCG_REG_ZERO);
+    tcg_out_nop(s);
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
                             TCGReg c1, TCGReg c2, TCGReg v1, TCGReg v2)
 {
-    bool eqz = false;
+    int tmpflags;
+    bool eqz;
 
     /* If one of the values is zero, put it last to match SEL*Z instructions */
     if (use_mips32r6_instructions && v1 == 0) {
@@ -1103,27 +1055,9 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         cond = tcg_invert_cond(cond);
     }
 
-    switch (cond) {
-    case TCG_COND_EQ:
-        eqz = true;
-        /* FALLTHRU */
-    case TCG_COND_NE:
-        if (c2 != 0) {
-            tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, c1, c2);
-            c1 = TCG_TMP0;
-        }
-        break;
-
-    default:
-        /* Minimize code size by preferring a compare not requiring INV.  */
-        if (mips_cmp_map[cond] & MIPS_CMP_INV) {
-            cond = tcg_invert_cond(cond);
-            eqz = true;
-        }
-        tcg_out_setcond(s, cond, TCG_TMP0, c1, c2);
-        c1 = TCG_TMP0;
-        break;
-    }
+    tmpflags = tcg_out_setcond_int(s, cond, TCG_TMP0, c1, c2);
+    c1 = tmpflags & ~SETCOND_FLAGS;
+    eqz = tmpflags & SETCOND_INV;
 
     if (use_mips32r6_instructions) {
         MIPSInsn m_opc_t = eqz ? OPC_SELEQZ : OPC_SELNEZ;
