@@ -363,9 +363,8 @@ void tcg_gen_sub_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 void tcg_gen_subfi_i32(TCGv_i32 ret, int32_t arg1, TCGv_i32 arg2)
 {
-    if (arg1 == 0 && TCG_TARGET_HAS_neg_i32) {
-        /* Don't recurse with tcg_gen_neg_i32.  */
-        tcg_gen_op2_i32(INDEX_op_neg_i32, ret, arg2);
+    if (arg1 == 0) {
+        tcg_gen_neg_i32(ret, arg2);
     } else {
         tcg_gen_sub_i32(ret, tcg_constant_i32(arg1), arg2);
     }
@@ -383,11 +382,7 @@ void tcg_gen_subi_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 
 void tcg_gen_neg_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
-    if (TCG_TARGET_HAS_neg_i32) {
-        tcg_gen_op2_i32(INDEX_op_neg_i32, ret, arg);
-    } else {
-        tcg_gen_subfi_i32(ret, 0, arg);
-    }
+    tcg_gen_op2_i32(INDEX_op_neg_i32, ret, arg);
 }
 
 void tcg_gen_and_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -1744,9 +1739,8 @@ void tcg_gen_addi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 
 void tcg_gen_subfi_i64(TCGv_i64 ret, int64_t arg1, TCGv_i64 arg2)
 {
-    if (arg1 == 0 && TCG_TARGET_HAS_neg_i64) {
-        /* Don't recurse with tcg_gen_neg_i64.  */
-        tcg_gen_op2_i64(INDEX_op_neg_i64, ret, arg2);
+    if (arg1 == 0) {
+        tcg_gen_neg_i64(ret, arg2);
     } else if (TCG_TARGET_REG_BITS == 64) {
         tcg_gen_sub_i64(ret, tcg_constant_i64(arg1), arg2);
     } else {
@@ -1772,10 +1766,12 @@ void tcg_gen_subi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 
 void tcg_gen_neg_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
-    if (TCG_TARGET_HAS_neg_i64) {
+    if (TCG_TARGET_REG_BITS == 64) {
         tcg_gen_op2_i64(INDEX_op_neg_i64, ret, arg);
     } else {
-        tcg_gen_subfi_i64(ret, 0, arg);
+        TCGv_i32 zero = tcg_constant_i32(0);
+        tcg_gen_sub2_i32(TCGV_LOW(ret), TCGV_HIGH(ret),
+                         zero, zero, TCGV_LOW(arg), TCGV_HIGH(arg));
     }
 }
 

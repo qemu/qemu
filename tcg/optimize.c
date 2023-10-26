@@ -2001,11 +2001,11 @@ static bool fold_sub_to_neg(OptContext *ctx, TCGOp *op)
     switch (ctx->type) {
     case TCG_TYPE_I32:
         neg_op = INDEX_op_neg_i32;
-        have_neg = TCG_TARGET_HAS_neg_i32;
+        have_neg = true;
         break;
     case TCG_TYPE_I64:
         neg_op = INDEX_op_neg_i64;
-        have_neg = TCG_TARGET_HAS_neg_i64;
+        have_neg = true;
         break;
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
