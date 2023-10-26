@@ -3081,7 +3081,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     struct stat st;
     int i, ret;
     bool is_mdev;
-    char uuid[UUID_FMT_LEN];
+    char uuid[UUID_STR_LEN];
     char *name;
 
     if (!vbasedev->sysfsdev) {
