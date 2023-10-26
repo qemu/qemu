@@ -79,6 +79,7 @@ typedef struct {
                  "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
 #define UUID_FMT_LEN 36
+#define UUID_STR_LEN (UUID_FMT_LEN + 1)
 
 #define UUID_NONE "00000000-0000-0000-0000-000000000000"
 
