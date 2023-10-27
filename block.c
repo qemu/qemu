@@ -3532,19 +3532,7 @@ out:
  *
  * If a backing child is already present (i.e. we're detaching a node), that
  * child node must be drained.
- *
- * After calling this function, the transaction @tran may only be completed
- * while holding a writer lock for the graph.
  */
-static int GRAPH_WRLOCK
-bdrv_set_backing_noperm(BlockDriverState *bs,
-                        BlockDriverState *backing_hd,
-                        Transaction *tran, Error **errp)
-{
-    GLOBAL_STATE_CODE();
-    return bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
-}
-
 int bdrv_set_backing_hd_drained(BlockDriverState *bs,
                                 BlockDriverState *backing_hd,
                                 Error **errp)
@@ -3558,7 +3546,7 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
         assert(bs->backing->bs->quiesce_counter > 0);
     }
 
-    ret = bdrv_set_backing_noperm(bs, backing_hd, tran, errp);
+    ret = bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
     if (ret < 0) {
         goto out;
     }
