@@ -399,7 +399,9 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
      * For more information see commit f8d59dfb40bb and test
      * tests/qemu-iotests/222
      */
+    bdrv_graph_rdlock_main_loop();
     is_fleecing = bdrv_chain_contains(target->bs, source->bs);
+    bdrv_graph_rdunlock_main_loop();
 
     s = g_new(BlockCopyState, 1);
     *s = (BlockCopyState) {

@@ -6524,7 +6524,6 @@ bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
 {
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while (top && top != base) {
         top = bdrv_filter_or_cow_bs(top);

@@ -2450,11 +2450,12 @@ void qmp_block_stream(const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    bdrv_graph_rdlock_main_loop();
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
             error_setg(errp, "Can't find '%s' in the backing chain", base);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
     }
@@ -2462,38 +2463,36 @@ void qmp_block_stream(const char *job_id, const char *device,
     if (base_node) {
         base_bs = bdrv_lookup_bs(NULL, base_node, errp);
         if (!base_bs) {
-            goto out;
+            goto out_rdlock;
         }
         if (bs == base_bs || !bdrv_chain_contains(bs, base_bs)) {
             error_setg(errp, "Node '%s' is not a backing image of '%s'",
                        base_node, device);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
 
-        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(base_bs);
-        bdrv_graph_rdunlock_main_loop();
     }
 
     if (bottom) {
         bottom_bs = bdrv_lookup_bs(NULL, bottom, errp);
         if (!bottom_bs) {
-            goto out;
+            goto out_rdlock;
         }
         if (!bottom_bs->drv) {
             error_setg(errp, "Node '%s' is not open", bottom);
-            goto out;
+            goto out_rdlock;
         }
         if (bottom_bs->drv->is_filter) {
             error_setg(errp, "Node '%s' is a filter, use a non-filter node "
                        "as 'bottom'", bottom);
-            goto out;
+            goto out_rdlock;
         }
         if (!bdrv_chain_contains(bs, bottom_bs)) {
             error_setg(errp, "Node '%s' is not in a chain starting from '%s'",
                        bottom, device);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(bottom_bs) == aio_context);
     }
@@ -2501,14 +2500,12 @@ void qmp_block_stream(const char *job_id, const char *device,
     /*
      * Check for op blockers in the whole chain between bs and base (or bottom)
      */
-    bdrv_graph_rdlock_main_loop();
     iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
     for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
-            bdrv_graph_rdunlock_main_loop();
-            goto out;
+            goto out_rdlock;
         }
     }
     bdrv_graph_rdunlock_main_loop();
@@ -2539,6 +2536,11 @@ void qmp_block_stream(const char *job_id, const char *device,
     trace_qmp_block_stream(bs);
 
 out:
+    aio_context_release(aio_context);
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
     aio_context_release(aio_context);
 }
 
@@ -3439,39 +3441,38 @@ void qmp_change_backing_file(const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    bdrv_graph_rdlock_main_loop();
+
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
+        goto out_rdlock;
     }
 
     if (!image_bs) {
         error_setg(errp, "image file not found");
-        goto out;
+        goto out_rdlock;
     }
 
-    bdrv_graph_rdlock_main_loop();
     if (bdrv_find_base(image_bs) == image_bs) {
         error_setg(errp, "not allowing backing file change on an image "
                          "without a backing file");
-        bdrv_graph_rdunlock_main_loop();
-        goto out;
+        goto out_rdlock;
     }
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
-        bdrv_graph_rdunlock_main_loop();
-        goto out;
+        goto out_rdlock;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     /* final sanity check */
     if (!bdrv_chain_contains(bs, image_bs)) {
         error_setg(errp, "'%s' and image file are not in the same chain",
                    device);
-        goto out;
+        goto out_rdlock;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /* if not r/w, reopen to make r/w */
     ro = bdrv_is_read_only(image_bs);
@@ -3498,6 +3499,11 @@ void qmp_change_backing_file(const char *device,
     }
 
 out:
+    aio_context_release(aio_context);
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
     aio_context_release(aio_context);
 }
 
