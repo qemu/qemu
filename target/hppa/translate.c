@@ -1898,7 +1898,7 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
 
         nullify_over(ctx);
         if (link != 0) {
-            tcg_gen_movi_reg(cpu_gr[link], ctx->iaoq_n);
+            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
         tcg_gen_lookup_and_goto_ptr();
         return nullify_end(ctx);
