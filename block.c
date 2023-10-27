@@ -3214,8 +3214,6 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
 
     GLOBAL_STATE_CODE();
 
-    bdrv_graph_wrlock(child_bs);
-
     child = bdrv_attach_child_common(child_bs, child_name, child_class,
                                    child_role, perm, shared_perm, opaque,
                                    tran, errp);
@@ -3228,9 +3226,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
 
 out:
     tran_finalize(tran, ret);
-    bdrv_graph_wrunlock();
 
-    bdrv_unref(child_bs);
+    bdrv_schedule_unref(child_bs);
 
     return ret < 0 ? NULL : child;
 }
