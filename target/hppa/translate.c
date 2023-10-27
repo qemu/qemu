@@ -720,10 +720,22 @@ static target_ureg gva_offset_mask(DisasContext *ctx)
 static void copy_iaoq_entry(DisasContext *ctx, TCGv_reg dest,
                             target_ureg ival, TCGv_reg vval)
 {
-    if (unlikely(ival == -1)) {
+    target_ureg mask = gva_offset_mask(ctx);
+
+    if (ival != -1) {
+        tcg_gen_movi_reg(dest, ival & mask);
+        return;
+    }
+    tcg_debug_assert(vval != NULL);
+
+    /*
+     * We know that the IAOQ is already properly masked.
+     * This optimization is primarily for "iaoq_f = iaoq_b".
+     */
+    if (vval == cpu_iaoq_f || vval == cpu_iaoq_b) {
         tcg_gen_mov_reg(dest, vval);
     } else {
-        tcg_gen_movi_reg(dest, ival);
+        tcg_gen_andi_reg(dest, vval, mask);
     }
 }
 
