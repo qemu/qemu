@@ -612,7 +612,7 @@ static int bdrv_qed_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static void bdrv_qed_close(BlockDriverState *bs)
+static void GRAPH_RDLOCK bdrv_qed_do_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
 
@@ -629,6 +629,14 @@ static void bdrv_qed_close(BlockDriverState *bs)
 
     qed_free_l2_cache(&s->l2_cache);
     qemu_vfree(s->l1_table);
+}
+
+static void GRAPH_UNLOCKED bdrv_qed_close(BlockDriverState *bs)
+{
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    bdrv_qed_do_close(bs);
 }
 
 static int coroutine_fn GRAPH_UNLOCKED
@@ -1574,7 +1582,7 @@ bdrv_qed_co_invalidate_cache(BlockDriverState *bs, Error **errp)
     BDRVQEDState *s = bs->opaque;
     int ret;
 
-    bdrv_qed_close(bs);
+    bdrv_qed_do_close(bs);
 
     bdrv_qed_init_state(bs);
     qemu_co_mutex_lock(&s->table_lock);

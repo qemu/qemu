@@ -95,9 +95,9 @@ end:
     return ret;
 }
 
-static int raw_apply_options(BlockDriverState *bs, BDRVRawState *s,
-                             uint64_t offset, bool has_size, uint64_t size,
-                             Error **errp)
+static int GRAPH_RDLOCK
+raw_apply_options(BlockDriverState *bs, BDRVRawState *s, uint64_t offset,
+                  bool has_size, uint64_t size, Error **errp)
 {
     int64_t real_size = 0;
 
@@ -144,6 +144,9 @@ static int raw_reopen_prepare(BDRVReopenState *reopen_state,
     bool has_size;
     uint64_t offset, size;
     int ret;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     assert(reopen_state != NULL);
     assert(reopen_state->bs != NULL);

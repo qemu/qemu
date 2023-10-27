@@ -1707,12 +1707,14 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
     return 0;
 open_failed:
     bs->drv = NULL;
+
+    bdrv_graph_wrlock(NULL);
     if (bs->file != NULL) {
-        bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, bs->file);
-        bdrv_graph_wrunlock();
         assert(!bs->file);
     }
+    bdrv_graph_wrunlock();
+
     g_free(bs->opaque);
     bs->opaque = NULL;
     return ret;
@@ -1854,9 +1856,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     Error *local_err = NULL;
     bool ro;
 
+    GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
     assert(bs->file == NULL);
     assert(options != NULL && bs->options != options);
-    GLOBAL_STATE_CODE();
+    bdrv_graph_rdunlock_main_loop();
 
     opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {

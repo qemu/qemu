@@ -185,7 +185,7 @@ enum {
 /**
  * Header functions
  */
-int qed_write_header_sync(BDRVQEDState *s);
+int GRAPH_RDLOCK qed_write_header_sync(BDRVQEDState *s);
 
 /**
  * L2 cache functions

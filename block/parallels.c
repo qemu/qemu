@@ -200,7 +200,7 @@ static int mark_used(BlockDriverState *bs, unsigned long *bitmap,
  * bitmap anyway, as much as we can. This information will be used for
  * error resolution.
  */
-static int parallels_fill_used_bitmap(BlockDriverState *bs)
+static int GRAPH_RDLOCK parallels_fill_used_bitmap(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t payload_bytes;
@@ -1185,7 +1185,7 @@ static int parallels_probe(const uint8_t *buf, int buf_size,
     return 0;
 }
 
-static int parallels_update_header(BlockDriverState *bs)
+static int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     unsigned size = MAX(bdrv_opt_mem_align(bs->file->bs),
@@ -1427,6 +1427,8 @@ fail:
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;

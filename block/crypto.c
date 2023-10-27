@@ -65,6 +65,9 @@ static int block_crypto_read_func(QCryptoBlock *block,
     BlockDriverState *bs = opaque;
     ssize_t ret;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     ret = bdrv_pread(bs->file, offset, buflen, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
@@ -82,6 +85,9 @@ static int block_crypto_write_func(QCryptoBlock *block,
 {
     BlockDriverState *bs = opaque;
     ssize_t ret;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     ret = bdrv_pwrite(bs->file, offset, buflen, buf, 0);
     if (ret < 0) {

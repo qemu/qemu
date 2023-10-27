@@ -311,7 +311,7 @@ static void GRAPH_UNLOCKED
 secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
-    BdrvChild *active_disk = bs->file;
+    BdrvChild *active_disk;
     Error *local_err = NULL;
     int ret;
 
@@ -328,6 +328,7 @@ secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
         return;
     }
 
+    active_disk = bs->file;
     if (!active_disk->bs->drv) {
         error_setg(errp, "Active disk %s is ejected",
                    active_disk->bs->node_name);
@@ -755,11 +756,13 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
             return;
         }
 
+        bdrv_graph_rdlock_main_loop();
         s->stage = BLOCK_REPLICATION_FAILOVER;
         s->commit_job = commit_active_start(
                             NULL, bs->file->bs, s->secondary_disk->bs,
                             JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
                             NULL, replication_done, bs, true, errp);
+        bdrv_graph_rdunlock_main_loop();
         break;
     default:
         aio_context_release(aio_context);

@@ -1181,7 +1181,7 @@ struct BlockDriverState {
      */
     QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) children;
     BdrvChild * GRAPH_RDLOCK_PTR backing;
-    BdrvChild *file;
+    BdrvChild * GRAPH_RDLOCK_PTR file;
 
     QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) parents;
 

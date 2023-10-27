@@ -70,7 +70,8 @@ static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
+static int GRAPH_RDLOCK
+read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
 {
     uint64_t buffer;
     int ret;
@@ -84,7 +85,8 @@ static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
     return 0;
 }
 
-static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
+static int GRAPH_RDLOCK
+read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
 {
     uint32_t buffer;
     int ret;
@@ -321,8 +323,9 @@ fail:
     return ret;
 }
 
-static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
-                                  uint64_t info_begin, uint64_t info_length)
+static int GRAPH_RDLOCK
+dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
+                       uint64_t info_begin, uint64_t info_length)
 {
     BDRVDMGState *s = bs->opaque;
     int ret;
@@ -388,8 +391,9 @@ fail:
     return ret;
 }
 
-static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
-                              uint64_t info_begin, uint64_t info_length)
+static int GRAPH_RDLOCK
+dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
+                   uint64_t info_begin, uint64_t info_length)
 {
     BDRVDMGState *s = bs->opaque;
     int ret;
