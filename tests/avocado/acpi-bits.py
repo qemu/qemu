@@ -380,6 +380,11 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         # consistent in terms of timing. smilatency tests have consistent
         # timing requirements.
         self._vm.add_args('-icount', 'auto')
+        # currently there is no support in bits for recognizing 64-bit SMBIOS
+        # entry points. QEMU defaults to 64-bit entry points since the
+        # upstream commit bf376f3020 ("hw/i386/pc: Default to use SMBIOS 3.0
+        # for newer machine models"). Therefore, enforce 32-bit entry point.
+        self._vm.add_args('-machine', 'smbios-entry-point-type=32')
 
         args = " ".join(str(arg) for arg in self._vm.base_args()) + \
             " " + " ".join(str(arg) for arg in self._vm.args)
