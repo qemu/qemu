@@ -183,7 +183,7 @@ bdrv_co_eject(BlockDriverState *bs, bool eject_flag);
 
 const char *bdrv_get_format_name(BlockDriverState *bs);
 
-bool bdrv_supports_compressed_writes(BlockDriverState *bs);
+bool GRAPH_RDLOCK bdrv_supports_compressed_writes(BlockDriverState *bs);
 const char *bdrv_get_node_name(const BlockDriverState *bs);
 
 const char * GRAPH_RDLOCK

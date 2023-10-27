@@ -820,12 +820,17 @@ int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
 {
     BlockDriver *drv = bs->drv;
-    BlockDriverState *filtered = bdrv_filter_bs(bs);
+    BlockDriverState *filtered;
+
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (drv && drv->bdrv_probe_geometry) {
         return drv->bdrv_probe_geometry(bs, geo);
-    } else if (filtered) {
+    }
+
+    filtered = bdrv_filter_bs(bs);
+    if (filtered) {
         return bdrv_probe_geometry(filtered, geo);
     }
 
