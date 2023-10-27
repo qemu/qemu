@@ -137,13 +137,15 @@ static const int aspeed_soc_ast2600_irqmap[] = {
 
 static qemu_irq aspeed_soc_ast2600_get_irq(AspeedSoCState *s, int dev)
 {
+    Aspeed2600SoCState *a = ASPEED2600_SOC(s);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
 
-    return qdev_get_gpio_in(DEVICE(&s->a7mpcore), sc->irqmap[dev]);
+    return qdev_get_gpio_in(DEVICE(&a->a7mpcore), sc->irqmap[dev]);
 }
 
 static void aspeed_soc_ast2600_init(Object *obj)
 {
+    Aspeed2600SoCState *a = ASPEED2600_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
@@ -155,7 +157,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
     }
 
     for (i = 0; i < sc->num_cpus; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpu[i], sc->cpu_type);
+        object_initialize_child(obj, "cpu[*]", &a->cpu[i], sc->cpu_type);
     }
 
     snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);
@@ -169,7 +171,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
                               "hw-prot-key");
 
-    object_initialize_child(obj, "a7mpcore", &s->a7mpcore,
+    object_initialize_child(obj, "a7mpcore", &a->a7mpcore,
                             TYPE_A15MPCORE_PRIV);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_ASPEED_RTC);
@@ -277,6 +279,7 @@ static uint64_t aspeed_calc_affinity(int cpu)
 static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 {
     int i;
+    Aspeed2600SoCState *a = ASPEED2600_SOC(dev);
     AspeedSoCState *s = ASPEED_SOC(dev);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     Error *err = NULL;
@@ -306,39 +309,39 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
         if (sc->num_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
+            object_property_set_int(OBJECT(&a->cpu[i]), "reset-cbar",
                                     ASPEED_A7MPCORE_ADDR, &error_abort);
         }
-        object_property_set_int(OBJECT(&s->cpu[i]), "mp-affinity",
+        object_property_set_int(OBJECT(&a->cpu[i]), "mp-affinity",
                                 aspeed_calc_affinity(i), &error_abort);
 
-        object_property_set_int(OBJECT(&s->cpu[i]), "cntfrq", 1125000000,
+        object_property_set_int(OBJECT(&a->cpu[i]), "cntfrq", 1125000000,
                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->cpu[i]), "neon", false,
+        object_property_set_bool(OBJECT(&a->cpu[i]), "neon", false,
                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->cpu[i]), "vfp-d32", false,
+        object_property_set_bool(OBJECT(&a->cpu[i]), "vfp-d32", false,
                                 &error_abort);
-        object_property_set_link(OBJECT(&s->cpu[i]), "memory",
+        object_property_set_link(OBJECT(&a->cpu[i]), "memory",
                                  OBJECT(s->memory), &error_abort);
 
-        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
+        if (!qdev_realize(DEVICE(&a->cpu[i]), NULL, errp)) {
             return;
         }
     }
 
     /* A7MPCORE */
-    object_property_set_int(OBJECT(&s->a7mpcore), "num-cpu", sc->num_cpus,
+    object_property_set_int(OBJECT(&a->a7mpcore), "num-cpu", sc->num_cpus,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->a7mpcore), "num-irq",
+    object_property_set_int(OBJECT(&a->a7mpcore), "num-irq",
                             ROUND_UP(AST2600_MAX_IRQ + GIC_INTERNAL, 32),
                             &error_abort);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->a7mpcore), &error_abort);
-    aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->a7mpcore), 0, ASPEED_A7MPCORE_ADDR);
+    sysbus_realize(SYS_BUS_DEVICE(&a->a7mpcore), &error_abort);
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&a->a7mpcore), 0, ASPEED_A7MPCORE_ADDR);
 
     for (i = 0; i < sc->num_cpus; i++) {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->a7mpcore);
-        DeviceState  *d   = DEVICE(&s->cpu[i]);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&a->a7mpcore);
+        DeviceState  *d   = DEVICE(&a->cpu[i]);
 
         irq = qdev_get_gpio_in(d, ARM_CPU_IRQ);
         sysbus_connect_irq(sbd, i, irq);
@@ -351,7 +354,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* SRAM */
-    sram_name = g_strdup_printf("aspeed.sram.%d", CPU(&s->cpu[0])->cpu_index);
+    sram_name = g_strdup_printf("aspeed.sram.%d", CPU(&a->cpu[0])->cpu_index);
     memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size, &err);
     if (err) {
         error_propagate(errp, err);
@@ -413,7 +416,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i2c), 0, sc->memmap[ASPEED_DEV_I2C]);
     for (i = 0; i < ASPEED_I2C_GET_CLASS(&s->i2c)->num_busses; i++) {
-        irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+        irq = qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                sc->irqmap[ASPEED_DEV_I2C] + i);
         /* The AST2600 I2C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
@@ -579,19 +582,19 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
      * offset 0.
      */
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_1,
-                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                       qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_1));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_2,
-                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                       qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_2));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_3,
-                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                       qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_3));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_4,
-                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                       qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 
     /* HACE */
@@ -611,7 +614,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i3c), 0, sc->memmap[ASPEED_DEV_I3C]);
     for (i = 0; i < ASPEED_I3C_NR_DEVICES; i++) {
-        irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+        irq = qdev_get_gpio_in(DEVICE(&a->a7mpcore),
                                sc->irqmap[ASPEED_DEV_I3C] + i);
         /* The AST2600 I3C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i3c.devices[i]), 0, irq);
@@ -646,18 +649,18 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
     sc->get_irq      = aspeed_soc_ast2600_get_irq;
 }
 
-static const TypeInfo aspeed_soc_ast2600_type_info = {
-    .name           = "ast2600-a3",
-    .parent         = TYPE_ASPEED_SOC,
-    .instance_size  = sizeof(AspeedSoCState),
-    .instance_init  = aspeed_soc_ast2600_init,
-    .class_init     = aspeed_soc_ast2600_class_init,
-    .class_size     = sizeof(AspeedSoCClass),
+static const TypeInfo aspeed_soc_ast2600_types[] = {
+    {
+        .name           = TYPE_ASPEED2600_SOC,
+        .parent         = TYPE_ASPEED_SOC,
+        .instance_size  = sizeof(Aspeed2600SoCState),
+        .abstract       = true,
+    }, {
+        .name           = "ast2600-a3",
+        .parent         = TYPE_ASPEED2600_SOC,
+        .instance_init  = aspeed_soc_ast2600_init,
+        .class_init     = aspeed_soc_ast2600_class_init,
+    },
 };
 
-static void aspeed_soc_register_types(void)
-{
-    type_register_static(&aspeed_soc_ast2600_type_info);
-};
-
-type_init(aspeed_soc_register_types)
+DEFINE_TYPES(aspeed_soc_ast2600_types)

@@ -47,20 +47,14 @@
 #define ASPEED_JTAG_NUM  2
 
 struct AspeedSoCState {
-    /*< private >*/
     DeviceState parent;
 
-    /*< public >*/
-    ARMCPU cpu[ASPEED_CPUS_NUM];
-    A15MPPrivState     a7mpcore;
-    ARMv7MState        armv7m;
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
     MemoryRegion sram;
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
-    AspeedVICState vic;
     AspeedRtcState rtc;
     AspeedTimerCtrlState timerctrl;
     AspeedI2CState i2c;
@@ -100,6 +94,35 @@ struct AspeedSoCState {
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
 OBJECT_DECLARE_TYPE(AspeedSoCState, AspeedSoCClass, ASPEED_SOC)
+
+struct Aspeed2400SoCState {
+    AspeedSoCState parent;
+
+    ARMCPU cpu[ASPEED_CPUS_NUM];
+    AspeedVICState vic;
+};
+
+#define TYPE_ASPEED2400_SOC "aspeed2400-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2400SoCState, ASPEED2400_SOC)
+
+struct Aspeed2600SoCState {
+    AspeedSoCState parent;
+
+    A15MPPrivState a7mpcore;
+    ARMCPU cpu[ASPEED_CPUS_NUM]; /* XXX belong to a7mpcore */
+};
+
+#define TYPE_ASPEED2600_SOC "aspeed2600-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2600SoCState, ASPEED2600_SOC)
+
+struct Aspeed10x0SoCState {
+    AspeedSoCState parent;
+
+    ARMv7MState armv7m;
+};
+
+#define TYPE_ASPEED10X0_SOC "aspeed10x0-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed10x0SoCState, ASPEED10X0_SOC)
 
 struct AspeedSoCClass {
     DeviceClass parent_class;

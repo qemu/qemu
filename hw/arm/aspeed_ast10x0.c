@@ -101,13 +101,15 @@ static const int aspeed_soc_ast1030_irqmap[] = {
 
 static qemu_irq aspeed_soc_ast1030_get_irq(AspeedSoCState *s, int dev)
 {
+    Aspeed10x0SoCState *a = ASPEED10X0_SOC(s);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
 
-    return qdev_get_gpio_in(DEVICE(&s->armv7m), sc->irqmap[dev]);
+    return qdev_get_gpio_in(DEVICE(&a->armv7m), sc->irqmap[dev]);
 }
 
 static void aspeed_soc_ast1030_init(Object *obj)
 {
+    Aspeed10x0SoCState *a = ASPEED10X0_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     char socname[8];
@@ -118,7 +120,7 @@ static void aspeed_soc_ast1030_init(Object *obj)
         g_assert_not_reached();
     }
 
-    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
 
@@ -185,6 +187,7 @@ static void aspeed_soc_ast1030_init(Object *obj)
 
 static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
 {
+    Aspeed10x0SoCState *a = ASPEED10X0_SOC(dev_soc);
     AspeedSoCState *s = ASPEED_SOC(dev_soc);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     DeviceState *armv7m;
@@ -206,17 +209,17 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
                                   0x40000);
 
     /* AST1030 CPU Core */
-    armv7m = DEVICE(&s->armv7m);
+    armv7m = DEVICE(&a->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 256);
     qdev_prop_set_string(armv7m, "cpu-type", sc->cpu_type);
     qdev_connect_clock_in(armv7m, "cpuclk", s->sysclk);
-    object_property_set_link(OBJECT(&s->armv7m), "memory",
+    object_property_set_link(OBJECT(&a->armv7m), "memory",
                              OBJECT(s->memory), &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&a->armv7m), &error_abort);
 
     /* Internal SRAM */
     sram_name = g_strdup_printf("aspeed.sram.%d",
-                                CPU(s->armv7m.cpu)->cpu_index);
+                                CPU(a->armv7m.cpu)->cpu_index);
     memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size, &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -249,7 +252,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i2c), 0, sc->memmap[ASPEED_DEV_I2C]);
     for (i = 0; i < ASPEED_I2C_GET_CLASS(&s->i2c)->num_busses; i++) {
-        qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->armv7m),
+        qemu_irq irq = qdev_get_gpio_in(DEVICE(&a->armv7m),
                                         sc->irqmap[ASPEED_DEV_I2C] + i);
         /* The AST1030 I2C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
@@ -261,7 +264,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->i3c), 0, sc->memmap[ASPEED_DEV_I3C]);
     for (i = 0; i < ASPEED_I3C_NR_DEVICES; i++) {
-        qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->armv7m),
+        qemu_irq irq = qdev_get_gpio_in(DEVICE(&a->armv7m),
                                         sc->irqmap[ASPEED_DEV_I3C] + i);
         /* The AST1030 I3C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i3c.devices[i]), 0, irq);
@@ -290,19 +293,19 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
      * On the AST1030 LPC subdevice IRQs are connected straight to the GIC.
      */
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_1,
-                       qdev_get_gpio_in(DEVICE(&s->armv7m),
+                       qdev_get_gpio_in(DEVICE(&a->armv7m),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_1));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_2,
-                       qdev_get_gpio_in(DEVICE(&s->armv7m),
+                       qdev_get_gpio_in(DEVICE(&a->armv7m),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_2));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_3,
-                       qdev_get_gpio_in(DEVICE(&s->armv7m),
+                       qdev_get_gpio_in(DEVICE(&a->armv7m),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_3));
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_4,
-                       qdev_get_gpio_in(DEVICE(&s->armv7m),
+                       qdev_get_gpio_in(DEVICE(&a->armv7m),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 
     /* UART */
@@ -435,18 +438,18 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, void *data)
     sc->get_irq = aspeed_soc_ast1030_get_irq;
 }
 
-static const TypeInfo aspeed_soc_ast1030_type_info = {
-    .name          = "ast1030-a1",
-    .parent        = TYPE_ASPEED_SOC,
-    .instance_size = sizeof(AspeedSoCState),
-    .instance_init = aspeed_soc_ast1030_init,
-    .class_init    = aspeed_soc_ast1030_class_init,
-    .class_size    = sizeof(AspeedSoCClass),
+static const TypeInfo aspeed_soc_ast10x0_types[] = {
+    {
+        .name           = TYPE_ASPEED10X0_SOC,
+        .parent         = TYPE_ASPEED_SOC,
+        .instance_size  = sizeof(Aspeed10x0SoCState),
+        .abstract       = true,
+    }, {
+        .name           = "ast1030-a1",
+        .parent         = TYPE_ASPEED10X0_SOC,
+        .instance_init  = aspeed_soc_ast1030_init,
+        .class_init     = aspeed_soc_ast1030_class_init,
+    },
 };
 
-static void aspeed_soc_register_types(void)
-{
-    type_register_static(&aspeed_soc_ast1030_type_info);
-}
-
-type_init(aspeed_soc_register_types)
+DEFINE_TYPES(aspeed_soc_ast10x0_types)
