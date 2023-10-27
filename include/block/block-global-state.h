@@ -281,7 +281,7 @@ bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
 int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
                                 BdrvChild *ignore_child, Error **errp);
 
-int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
+int GRAPH_RDLOCK bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
 void GRAPH_WRLOCK

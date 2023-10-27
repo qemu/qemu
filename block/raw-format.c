@@ -543,7 +543,8 @@ static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 1;
 }
 
-static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+static int GRAPH_RDLOCK
+raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
 {
     BDRVRawState *s = bs->opaque;
     int ret;

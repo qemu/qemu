@@ -2666,6 +2666,8 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 {
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }

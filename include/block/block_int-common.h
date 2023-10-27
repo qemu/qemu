@@ -386,7 +386,8 @@ struct BlockDriver {
      * On success, store them in @bsz and return zero.
      * On failure, return negative errno.
      */
-    int (*bdrv_probe_blocksizes)(BlockDriverState *bs, BlockSizes *bsz);
+    int GRAPH_RDLOCK_PTR (*bdrv_probe_blocksizes)(
+        BlockDriverState *bs, BlockSizes *bsz);
     /**
      * Try to get @bs's geometry (cyls, heads, sectors)
      * On success, store them in @geo and return 0.
