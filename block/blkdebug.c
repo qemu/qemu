@@ -508,6 +508,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
+    bdrv_graph_rdlock_main_loop();
+
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
         (BDRV_REQ_FUA & bs->file->bs->supported_write_flags);
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
@@ -520,7 +522,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->align && (s->align >= INT_MAX || !is_power_of_2(s->align))) {
         error_setg(errp, "Cannot meet constraints with align %" PRIu64,
                    s->align);
-        goto out;
+        goto out_rdlock;
     }
     align = MAX(s->align, bs->file->bs->bl.request_alignment);
 
@@ -530,7 +532,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
          !QEMU_IS_ALIGNED(s->max_transfer, align))) {
         error_setg(errp, "Cannot meet constraints with max-transfer %" PRIu64,
                    s->max_transfer);
-        goto out;
+        goto out_rdlock;
     }
 
     s->opt_write_zero = qemu_opt_get_size(opts, "opt-write-zero", 0);
@@ -539,7 +541,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
          !QEMU_IS_ALIGNED(s->opt_write_zero, align))) {
         error_setg(errp, "Cannot meet constraints with opt-write-zero %" PRIu64,
                    s->opt_write_zero);
-        goto out;
+        goto out_rdlock;
     }
 
     s->max_write_zero = qemu_opt_get_size(opts, "max-write-zero", 0);
@@ -549,7 +551,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
                           MAX(s->opt_write_zero, align)))) {
         error_setg(errp, "Cannot meet constraints with max-write-zero %" PRIu64,
                    s->max_write_zero);
-        goto out;
+        goto out_rdlock;
     }
 
     s->opt_discard = qemu_opt_get_size(opts, "opt-discard", 0);
@@ -558,7 +560,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
          !QEMU_IS_ALIGNED(s->opt_discard, align))) {
         error_setg(errp, "Cannot meet constraints with opt-discard %" PRIu64,
                    s->opt_discard);
-        goto out;
+        goto out_rdlock;
     }
 
     s->max_discard = qemu_opt_get_size(opts, "max-discard", 0);
@@ -568,12 +570,14 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
                           MAX(s->opt_discard, align)))) {
         error_setg(errp, "Cannot meet constraints with max-discard %" PRIu64,
                    s->max_discard);
-        goto out;
+        goto out_rdlock;
     }
 
     bdrv_debug_event(bs, BLKDBG_NONE);
 
     ret = 0;
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
 out:
     if (ret < 0) {
         qemu_mutex_destroy(&s->lock);

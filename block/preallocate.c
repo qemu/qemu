@@ -143,6 +143,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVPreallocateState *s = bs->opaque;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     /*
      * s->data_end and friends should be initialized on permission update.
      * For this to work, mark them invalid.
@@ -154,6 +156,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!preallocate_absorb_opts(&s->opts, options, bs->file->bs, errp)) {
         return -EINVAL;

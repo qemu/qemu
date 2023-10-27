@@ -51,6 +51,8 @@ cor_open(BlockDriverState *bs, QDict *options, int flags, Error **errp)
         return ret;
     }
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     bs->supported_read_flags = BDRV_REQ_PREFETCH;
 
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
@@ -61,8 +63,6 @@ cor_open(BlockDriverState *bs, QDict *options, int flags, Error **errp)
             bs->file->bs->supported_zero_flags);
 
     if (bottom_node) {
-        GRAPH_RDLOCK_GUARD_MAINLOOP();
-
         bottom_bs = bdrv_find_node(bottom_node);
         if (!bottom_bs) {
             error_setg(errp, "Bottom node '%s' not found", bottom_node);

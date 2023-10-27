@@ -452,6 +452,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t offset;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
     bdrv_graph_rdunlock_main_loop();
@@ -463,6 +465,9 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /*
      * NB: if uncompress submodules are absent,
      * ie block_module_load return value == 0, the function pointers

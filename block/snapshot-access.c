@@ -85,6 +85,9 @@ static int snapshot_access_open(BlockDriverState *bs, QDict *options, int flags,
     bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                     BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                     false, errp);
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!bs->file) {
         return -EINVAL;
     }

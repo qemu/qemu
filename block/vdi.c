@@ -383,6 +383,8 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     logout("\n");
 
     ret = bdrv_pread(bs->file, 0, sizeof(header), &header, 0);
@@ -492,11 +494,9 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Disable migration when vdi images are used */
-    bdrv_graph_rdlock_main_loop();
     error_setg(&s->migration_blocker, "The vdi format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    bdrv_graph_rdunlock_main_loop();
 
     ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
     if (ret < 0) {

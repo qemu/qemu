@@ -433,6 +433,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
 
