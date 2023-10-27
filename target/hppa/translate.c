@@ -2976,7 +2976,15 @@ static bool trans_permh(DisasContext *ctx, arg_permh *a)
 
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
-    if (!ctx->is_pa20 && a->size > MO_32) {
+    if (ctx->is_pa20) {
+       /*
+        * With pa20, LDB, LDH, LDW, LDD to %g0 are prefetches.
+        * Any base modification still occurs.
+        */
+        if (a->t == 0) {
+            return trans_nop_addrx(ctx, a);
+        }
+    } else if (a->size > MO_32) {
         return gen_illegal(ctx);
     }
     return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
