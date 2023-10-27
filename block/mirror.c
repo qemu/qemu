@@ -479,7 +479,7 @@ static unsigned mirror_perform(MirrorBlockJob *s, int64_t offset,
     return bytes_handled;
 }
 
-static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
+static void coroutine_fn GRAPH_RDLOCK mirror_iteration(MirrorBlockJob *s)
 {
     BlockDriverState *source = s->mirror_top_bs->backing->bs;
     MirrorOp *pseudo_op;
@@ -839,13 +839,17 @@ static void coroutine_fn mirror_throttle(MirrorBlockJob *s)
     }
 }
 
-static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
+static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
 {
     int64_t offset;
-    BlockDriverState *bs = s->mirror_top_bs->backing->bs;
+    BlockDriverState *bs;
     BlockDriverState *target_bs = blk_bs(s->target);
     int ret;
     int64_t count;
+
+    bdrv_graph_co_rdlock();
+    bs = s->mirror_top_bs->backing->bs;
+    bdrv_graph_co_rdunlock();
 
     if (s->zero_target) {
         if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
@@ -926,7 +930,7 @@ static int coroutine_fn mirror_flush(MirrorBlockJob *s)
 static int coroutine_fn mirror_run(Job *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
-    BlockDriverState *bs = s->mirror_top_bs->backing->bs;
+    BlockDriverState *bs;
     MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
@@ -937,6 +941,10 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     char backing_filename[2]; /* we only need 2 characters because we are only
                                  checking for a NULL string */
     int ret = 0;
+
+    bdrv_graph_co_rdlock();
+    bs = bdrv_filter_bs(s->mirror_top_bs);
+    bdrv_graph_co_rdunlock();
 
     if (job_is_cancelled(&s->common.job)) {
         goto immediate_exit;
@@ -1070,7 +1078,9 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                 mirror_wait_for_free_in_flight_slot(s);
                 continue;
             } else if (cnt != 0) {
+                bdrv_graph_co_rdlock();
                 mirror_iteration(s);
+                bdrv_graph_co_rdunlock();
             }
         }
 
@@ -1640,7 +1650,7 @@ bdrv_mirror_top_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
                                     offset, bytes, NULL, 0);
 }
 
-static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK bdrv_mirror_top_refresh_filename(BlockDriverState *bs)
 {
     if (bs->backing == NULL) {
         /* we can be here after failed bdrv_attach_child in

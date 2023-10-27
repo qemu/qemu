@@ -218,8 +218,14 @@ static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *
     }
 }
 
-static void test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
-                               bool recursive)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
+                   bool recursive)
 {
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *backing = bs->backing->bs;
@@ -307,8 +313,14 @@ static void test_drv_cb_co_drain(void)
     blk_unref(blk);
 }
 
-static void test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
-                                bool recursive)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
+                    bool recursive)
 {
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *backing = bs->backing->bs;
@@ -1867,6 +1879,8 @@ static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
 static void bdrv_replace_test_drain_end(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!s->setup_completed) {
         return;

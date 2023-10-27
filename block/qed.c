@@ -1138,7 +1138,7 @@ out:
 /**
  * Check if the QED_F_NEED_CHECK bit should be set during allocating write
  */
-static bool qed_should_set_need_check(BDRVQEDState *s)
+static bool GRAPH_RDLOCK qed_should_set_need_check(BDRVQEDState *s)
 {
     /* The flush before L2 update path ensures consistency */
     if (s->bs->backing) {

@@ -3560,9 +3560,13 @@ out:
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp)
 {
-    BlockDriverState *drain_bs = bs->backing ? bs->backing->bs : bs;
+    BlockDriverState *drain_bs;
     int ret;
     GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
+    drain_bs = bs->backing ? bs->backing->bs : bs;
+    bdrv_graph_rdunlock_main_loop();
 
     bdrv_ref(drain_bs);
     bdrv_drained_begin(drain_bs);
@@ -3602,6 +3606,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (bs->backing != NULL) {
         goto free_exit;
@@ -3643,10 +3648,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
             implicit_backing = !strcmp(bs->auto_backing_file, bs->backing_file);
         }
 
-        bdrv_graph_rdlock_main_loop();
         backing_filename = bdrv_get_full_backing_filename(bs, &local_err);
-        bdrv_graph_rdunlock_main_loop();
-
         if (local_err) {
             ret = -EINVAL;
             error_propagate(errp, local_err);
@@ -3677,9 +3679,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     }
 
     if (implicit_backing) {
-        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(backing_hd);
-        bdrv_graph_rdunlock_main_loop();
         pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
                 backing_hd->filename);
     }
@@ -4750,8 +4750,8 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
 {
     BlockDriverState *bs = reopen_state->bs;
     BlockDriverState *new_child_bs;
-    BlockDriverState *old_child_bs = is_backing ? child_bs(bs->backing) :
-                                                  child_bs(bs->file);
+    BlockDriverState *old_child_bs;
+
     const char *child_name = is_backing ? "backing" : "file";
     QObject *value;
     const char *str;
@@ -4797,6 +4797,7 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         g_assert_not_reached();
     }
 
+    old_child_bs = is_backing ? child_bs(bs->backing) : child_bs(bs->file);
     if (old_child_bs == new_child_bs) {
         ret = 0;
         goto out_rdlock;
@@ -5008,13 +5009,16 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
      * file or if the image file has a backing file name as part of
      * its metadata. Otherwise the 'backing' option can be omitted.
      */
+    bdrv_graph_rdlock_main_loop();
     if (drv->supports_backing && reopen_state->backing_missing &&
         (reopen_state->bs->backing || reopen_state->bs->backing_file[0])) {
         error_setg(errp, "backing is missing for '%s'",
                    reopen_state->bs->node_name);
+        bdrv_graph_rdunlock_main_loop();
         ret = -EINVAL;
         goto error;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /*
      * Allow changing the 'backing' option. The new value can be
@@ -5204,10 +5208,11 @@ static void bdrv_close(BlockDriverState *bs)
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_unref_child(bs, child);
     }
-    bdrv_graph_wrunlock();
 
     assert(!bs->backing);
     assert(!bs->file);
+    bdrv_graph_wrunlock();
+
     g_free(bs->opaque);
     bs->opaque = NULL;
     qatomic_set(&bs->copy_on_read, 0);
@@ -5531,7 +5536,9 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 
     GLOBAL_STATE_CODE();
 
+    bdrv_graph_rdlock_main_loop();
     assert(!bs_new->backing);
+    bdrv_graph_rdunlock_main_loop();
 
     old_context = bdrv_get_aio_context(bs_top);
     bdrv_drained_begin(bs_top);
@@ -8115,7 +8122,7 @@ static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
 /* Note: This function may return false positives; it may return true
  * even if opening the backing file specified by bs's image header
  * would result in exactly bs->backing. */
-static bool bdrv_backing_overridden(BlockDriverState *bs)
+static bool GRAPH_RDLOCK bdrv_backing_overridden(BlockDriverState *bs)
 {
     GLOBAL_STATE_CODE();
     if (bs->backing) {

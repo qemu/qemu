@@ -363,6 +363,9 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     BdrvChild *hidden_disk, *secondary_disk;
     BlockReopenQueue *reopen_queue = NULL;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /*
      * s->hidden_disk and s->secondary_disk may not be set yet, as they will
      * only be set after the children are writable.
@@ -496,9 +499,11 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     case REPLICATION_MODE_PRIMARY:
         break;
     case REPLICATION_MODE_SECONDARY:
+        bdrv_graph_rdlock_main_loop();
         active_disk = bs->file;
         if (!active_disk || !active_disk->bs || !active_disk->bs->backing) {
             error_setg(errp, "Active disk doesn't have backing file");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
@@ -506,11 +511,11 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         hidden_disk = active_disk->bs->backing;
         if (!hidden_disk->bs || !hidden_disk->bs->backing) {
             error_setg(errp, "Hidden disk doesn't have backing file");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
 
-        bdrv_graph_rdlock_main_loop();
         secondary_disk = hidden_disk->bs->backing;
         if (!secondary_disk->bs || !bdrv_has_blk(secondary_disk->bs)) {
             error_setg(errp, "The secondary disk doesn't have block backend");

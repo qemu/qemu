@@ -95,7 +95,10 @@ static void commit_abort(Job *job)
      * XXX Can (or should) we somehow keep 'consistent read' blocked even
      * after the failed/cancelled commit job is gone? If we already wrote
      * something to base, the intermediate images aren't valid any more. */
+    bdrv_graph_rdlock_main_loop();
     commit_top_backing_bs = s->commit_top_bs->backing->bs;
+    bdrv_graph_rdunlock_main_loop();
+
     bdrv_drained_begin(commit_top_backing_bs);
     bdrv_graph_wrlock(commit_top_backing_bs);
     bdrv_replace_node(s->commit_top_bs, commit_top_backing_bs, &error_abort);
@@ -219,7 +222,7 @@ bdrv_commit_top_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
 
-static void bdrv_commit_top_refresh_filename(BlockDriverState *bs)
+static GRAPH_RDLOCK void bdrv_commit_top_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->backing->bs->filename);

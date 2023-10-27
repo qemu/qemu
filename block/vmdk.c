@@ -380,7 +380,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn vmdk_is_cid_valid(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK vmdk_is_cid_valid(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
     uint32_t cur_pcid;
@@ -3044,8 +3044,9 @@ vmdk_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static void vmdk_gather_child_options(BlockDriverState *bs, QDict *target,
-                                      bool backing_overridden)
+static void GRAPH_RDLOCK
+vmdk_gather_child_options(BlockDriverState *bs, QDict *target,
+                          bool backing_overridden)
 {
     /* No children but file and backing can be explicitly specified (TODO) */
     qdict_put(target, "file",

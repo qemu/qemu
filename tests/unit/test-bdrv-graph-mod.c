@@ -206,15 +206,18 @@ static void test_should_update_child(void)
 
     bdrv_set_backing_hd(target, bs, &error_abort);
 
-    g_assert(target->backing->bs == bs);
     bdrv_graph_wrlock(NULL);
+    g_assert(target->backing->bs == bs);
     bdrv_attach_child(filter, target, "target", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
     bdrv_graph_wrunlock();
     aio_context_acquire(qemu_get_aio_context());
     bdrv_append(filter, bs, &error_abort);
     aio_context_release(qemu_get_aio_context());
+
+    bdrv_graph_rdlock_main_loop();
     g_assert(target->backing->bs == bs);
+    bdrv_graph_rdunlock_main_loop();
 
     bdrv_unref(filter);
     bdrv_unref(bs);
