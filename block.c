@@ -3557,7 +3557,6 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
     if (bs->backing) {
         assert(bs->backing->bs->quiesce_counter > 0);
     }
-    bdrv_graph_wrlock(backing_hd);
 
     ret = bdrv_set_backing_noperm(bs, backing_hd, tran, errp);
     if (ret < 0) {
@@ -3567,7 +3566,6 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
     ret = bdrv_refresh_perms(bs, tran, errp);
 out:
     tran_finalize(tran, ret);
-    bdrv_graph_wrunlock();
     return ret;
 }
 
@@ -3580,7 +3578,9 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 
     bdrv_ref(drain_bs);
     bdrv_drained_begin(drain_bs);
+    bdrv_graph_wrlock(backing_hd);
     ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(drain_bs);
     bdrv_unref(drain_bs);
 

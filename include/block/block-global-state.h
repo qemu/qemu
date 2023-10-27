@@ -101,9 +101,10 @@ bdrv_co_open_blockdev_ref(BlockdevRef *ref, Error **errp);
 
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp);
-int bdrv_set_backing_hd_drained(BlockDriverState *bs,
-                                BlockDriverState *backing_hd,
-                                Error **errp);
+int GRAPH_WRLOCK
+bdrv_set_backing_hd_drained(BlockDriverState *bs, BlockDriverState *backing_hd,
+                            Error **errp);
+
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
 
