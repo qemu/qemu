@@ -72,8 +72,6 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
     HPPATLBEntry *ent = opaque;
     uint32_t val;
 
-    memset(ent, 0, sizeof(*ent));
-
     ent->itree.start = qemu_get_be64(f);
     ent->pa = qemu_get_betr(f);
     val = qemu_get_be32(f);
@@ -122,6 +120,53 @@ static const VMStateInfo vmstate_tlb = {
     .put = put_tlb,
 };
 
+static int tlb_pre_load(void *opaque)
+{
+    CPUHPPAState *env = opaque;
+
+    /*
+     * Zap the entire tlb, on-the-side data structures and all.
+     * Each tlb entry will have data re-filled by put_tlb.
+     */
+    memset(env->tlb, 0, sizeof(env->tlb));
+    memset(&env->tlb_root, 0, sizeof(env->tlb_root));
+    env->tlb_unused = NULL;
+    env->tlb_partial = NULL;
+
+    return 0;
+}
+
+static int tlb_post_load(void *opaque, int version_id)
+{
+    CPUHPPAState *env = opaque;
+    HPPATLBEntry **unused = &env->tlb_unused;
+    HPPATLBEntry *partial = NULL;
+
+    /*
+     * Re-create the interval tree from the valid entries.
+     * Truely invalid entries should have start == end == 0.
+     * Otherwise it should be the in-flight tlb_partial entry.
+     */
+    for (uint32_t i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
+        HPPATLBEntry *e = &env->tlb[i];
+
+        if (e->entry_valid) {
+            interval_tree_insert(&e->itree, &env->tlb_root);
+        } else if (i < HPPA_BTLB_ENTRIES) {
+            /* btlb not in unused list */
+        } else if (partial == NULL && e->itree.start < e->itree.last) {
+            partial = e;
+        } else {
+            *unused = e;
+            unused = &e->unused_next;
+        }
+    }
+    env->tlb_partial = partial;
+    *unused = NULL;
+
+    return 0;
+}
+
 static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINTTR_ARRAY(gr, CPUHPPAState, 32),
     VMSTATE_UINT64_ARRAY(fr, CPUHPPAState, 32),
@@ -164,6 +209,8 @@ static const VMStateDescription vmstate_env = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = vmstate_env_fields,
+    .pre_load = tlb_pre_load,
+    .post_load = tlb_post_load,
 };
 
 static VMStateField vmstate_cpu_fields[] = {

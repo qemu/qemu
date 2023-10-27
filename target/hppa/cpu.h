@@ -176,7 +176,10 @@ typedef int64_t  target_sreg;
 #endif
 
 typedef struct HPPATLBEntry {
-    IntervalTreeNode itree;
+    union {
+        IntervalTreeNode itree;
+        struct HPPATLBEntry *unused_next;
+    };
 
     target_ureg pa;
 
@@ -234,10 +237,22 @@ typedef struct CPUArchState {
 #define HPPA_TLB_ENTRIES        256
 #define HPPA_BTLB_ENTRIES       (HPPA_BTLB_FIXED + HPPA_BTLB_VARIABLE)
 
-    /* ??? Implement a unified itlb/dtlb for the moment.  */
-    /* ??? We should use a more intelligent data structure.  */
-    HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
+    /* Index for round-robin tlb eviction. */
     uint32_t tlb_last;
+
+    /*
+     * For pa1.x, the partial initialized, still invalid tlb entry
+     * which has had ITLBA performed, but not yet ITLBP.
+     */
+    HPPATLBEntry *tlb_partial;
+
+    /* Linked list of all invalid (unused) tlb entries. */
+    HPPATLBEntry *tlb_unused;
+
+    /* Root of the search tree for all valid tlb entries. */
+    IntervalTreeRoot tlb_root;
+
+    HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
 } CPUHPPAState;
 
 /**
@@ -356,6 +371,7 @@ int hppa_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int hppa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, int);
 #ifndef CONFIG_USER_ONLY
+void hppa_ptlbe(CPUHPPAState *env);
 hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr);
 bool hppa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,

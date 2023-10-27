@@ -27,16 +27,13 @@
 
 static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
 {
-    int i;
+    IntervalTreeNode *i = interval_tree_iter_first(&env->tlb_root, addr, addr);
 
-    for (i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
-        HPPATLBEntry *ent = &env->tlb[i];
-        if (ent->itree.start <= addr && addr <= ent->itree.last) {
-            trace_hppa_tlb_find_entry(env, ent + i, ent->entry_valid,
-                                      ent->itree.start, ent->itree.last,
-                                      ent->pa);
-            return ent;
-        }
+    if (i) {
+        HPPATLBEntry *ent = container_of(i, HPPATLBEntry, itree);
+        trace_hppa_tlb_find_entry(env, ent, ent->entry_valid,
+                                  ent->itree.start, ent->itree.last, ent->pa);
+        return ent;
     }
     trace_hppa_tlb_find_entry_not_found(env, addr);
     return NULL;
@@ -46,6 +43,7 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
                                bool force_flush_btlb)
 {
     CPUState *cs = env_cpu(env);
+    bool is_btlb;
 
     if (!ent->entry_valid) {
         return;
@@ -58,50 +56,55 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
                               ent->itree.last - ent->itree.start + 1,
                               HPPA_MMU_FLUSH_MASK, TARGET_LONG_BITS);
 
-    /* never clear BTLBs, unless forced to do so. */
-    if (ent < &env->tlb[HPPA_BTLB_ENTRIES] && !force_flush_btlb) {
+    /* Never clear BTLBs, unless forced to do so. */
+    is_btlb = ent < &env->tlb[HPPA_BTLB_ENTRIES];
+    if (is_btlb && !force_flush_btlb) {
         return;
     }
 
+    interval_tree_remove(&ent->itree, &env->tlb_root);
     memset(ent, 0, sizeof(*ent));
-    ent->itree.start = -1;
+
+    if (!is_btlb) {
+        ent->unused_next = env->tlb_unused;
+        env->tlb_unused = ent;
+    }
 }
 
-static HPPATLBEntry *hppa_flush_tlb_range(CPUHPPAState *env,
-                                          vaddr va_b, vaddr va_e)
+static void hppa_flush_tlb_range(CPUHPPAState *env, vaddr va_b, vaddr va_e)
 {
-    HPPATLBEntry *empty = NULL;
+    IntervalTreeNode *i, *n;
 
-    /* Zap any old entries covering ADDR; notice empty entries on the way.  */
-    for (int i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb); ++i) {
-        HPPATLBEntry *ent = &env->tlb[i];
+    i = interval_tree_iter_first(&env->tlb_root, va_b, va_e);
+    for (; i ; i = n) {
+        HPPATLBEntry *ent = container_of(i, HPPATLBEntry, itree);
 
-        if (!ent->entry_valid) {
-            empty = ent;
-        } else if (va_e >= ent->itree.start && va_b <= ent->itree.last) {
-            hppa_flush_tlb_ent(env, ent, false);
-            empty = ent;
-        }
+        /*
+         * Find the next entry now: In the normal case the current entry
+         * will be removed, but in the BTLB case it will remain.
+         */
+        n = interval_tree_iter_next(i, va_b, va_e);
+        hppa_flush_tlb_ent(env, ent, false);
     }
-    return empty;
 }
 
 static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
 {
-    HPPATLBEntry *ent;
-    uint32_t i;
+    HPPATLBEntry *ent = env->tlb_unused;
 
-    if (env->tlb_last < HPPA_BTLB_ENTRIES || env->tlb_last >= ARRAY_SIZE(env->tlb)) {
-        i = HPPA_BTLB_ENTRIES;
-        env->tlb_last = HPPA_BTLB_ENTRIES + 1;
-    } else {
-        i = env->tlb_last;
-        env->tlb_last++;
+    if (ent == NULL) {
+        uint32_t i = env->tlb_last;
+
+        if (i < HPPA_BTLB_ENTRIES || i >= ARRAY_SIZE(env->tlb)) {
+            i = HPPA_BTLB_ENTRIES;
+        }
+        env->tlb_last = i + 1;
+
+        ent = &env->tlb[i];
+        hppa_flush_tlb_ent(env, ent, false);
     }
 
-    ent = &env->tlb[i];
-
-    hppa_flush_tlb_ent(env, ent, false);
+    env->tlb_unused = ent->unused_next;
     return ent;
 }
 
@@ -127,7 +130,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
 
     /* Find a valid tlb entry that matches the virtual address.  */
     ent = hppa_find_tlb(env, addr);
-    if (ent == NULL || !ent->entry_valid) {
+    if (ent == NULL) {
         phys = 0;
         prot = 0;
         ret = (type == PAGE_EXEC) ? EXCP_ITLB_MISS : EXCP_DTLB_MISS;
@@ -303,23 +306,23 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
 void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
-    HPPATLBEntry *empty;
+    HPPATLBEntry *ent;
 
-    /* Zap any old entries covering ADDR; notice empty entries on the way.  */
+    /* Zap any old entries covering ADDR. */
     addr &= TARGET_PAGE_MASK;
-    empty = hppa_flush_tlb_range(env, addr, addr + TARGET_PAGE_SIZE - 1);
+    hppa_flush_tlb_range(env, addr, addr + TARGET_PAGE_SIZE - 1);
 
-    /* If we didn't see an empty entry, evict one.  */
-    if (empty == NULL) {
-        empty = hppa_alloc_tlb_ent(env);
+    ent = env->tlb_partial;
+    if (ent == NULL) {
+        ent = hppa_alloc_tlb_ent(env);
+        env->tlb_partial = ent;
     }
 
-    /* Note that empty->entry_valid == 0 already.  */
-    empty->itree.start = addr;
-    empty->itree.last = addr + TARGET_PAGE_SIZE - 1;
-    empty->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
-    trace_hppa_tlb_itlba(env, empty, empty->itree.start,
-                         empty->itree.last, empty->pa);
+    /* Note that ent->entry_valid == 0 already.  */
+    ent->itree.start = addr;
+    ent->itree.last = addr + TARGET_PAGE_SIZE - 1;
+    ent->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
+    trace_hppa_tlb_itlba(env, ent, ent->itree.start, ent->itree.last, ent->pa);
 }
 
 static void set_access_bits(CPUHPPAState *env, HPPATLBEntry *ent, target_ureg reg)
@@ -333,6 +336,8 @@ static void set_access_bits(CPUHPPAState *env, HPPATLBEntry *ent, target_ureg re
     ent->d = extract32(reg, 28, 1);
     ent->t = extract32(reg, 29, 1);
     ent->entry_valid = 1;
+
+    interval_tree_insert(&ent->itree, &env->tlb_root);
     trace_hppa_tlb_itlbp(env, ent, ent->access_id, ent->u, ent->ar_pl2,
                          ent->ar_pl1, ent->ar_type, ent->b, ent->d, ent->t);
 }
@@ -340,14 +345,16 @@ static void set_access_bits(CPUHPPAState *env, HPPATLBEntry *ent, target_ureg re
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
 void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
-    HPPATLBEntry *ent = hppa_find_tlb(env, addr);
+    HPPATLBEntry *ent = env->tlb_partial;
 
-    if (unlikely(ent == NULL)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
-        return;
+    if (ent) {
+        env->tlb_partial = NULL;
+        if (ent->itree.start <= addr && addr <= ent->itree.last) {
+            set_access_bits(env, ent, reg);
+            return;
+        }
     }
-
-    set_access_bits(env, ent, reg);
+    qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
 }
 
 /* Purge (Insn/Data) TLB.  This is explicitly page-based, and is
@@ -356,17 +363,15 @@ static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUHPPAState *env = cpu_env(cpu);
     target_ulong addr = (target_ulong) data.target_ptr;
-    HPPATLBEntry *ent = hppa_find_tlb(env, addr);
 
-    if (ent && ent->entry_valid) {
-        hppa_flush_tlb_ent(env, ent, false);
-    }
+    hppa_flush_tlb_range(env, addr, addr);
 }
 
 void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 {
     CPUState *src = env_cpu(env);
     CPUState *cpu;
+
     trace_hppa_tlb_ptlb(env);
     run_on_cpu_data data = RUN_ON_CPU_TARGET_PTR(addr);
 
@@ -378,16 +383,40 @@ void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
     async_safe_run_on_cpu(src, ptlb_work, data);
 }
 
+void hppa_ptlbe(CPUHPPAState *env)
+{
+    uint32_t i;
+
+    /* Zap the (non-btlb) tlb entries themselves. */
+    memset(&env->tlb[HPPA_BTLB_ENTRIES], 0,
+           sizeof(env->tlb) - HPPA_BTLB_ENTRIES * sizeof(env->tlb[0]));
+    env->tlb_last = HPPA_BTLB_ENTRIES;
+    env->tlb_partial = NULL;
+
+    /* Put them all onto the unused list. */
+    env->tlb_unused = &env->tlb[HPPA_BTLB_ENTRIES];
+    for (i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb) - 1; ++i) {
+        env->tlb[i].unused_next = &env->tlb[i + 1];
+    }
+
+    /* Re-initialize the interval tree with only the btlb entries. */
+    memset(&env->tlb_root, 0, sizeof(env->tlb_root));
+    for (i = 0; i < HPPA_BTLB_ENTRIES; ++i) {
+        if (env->tlb[i].entry_valid) {
+            interval_tree_insert(&env->tlb[i].itree, &env->tlb_root);
+        }
+    }
+
+    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
+}
+
 /* Purge (Insn/Data) TLB entry.  This affects an implementation-defined
    number of pages/entries (we choose all), and is local to the cpu.  */
 void HELPER(ptlbe)(CPUHPPAState *env)
 {
     trace_hppa_tlb_ptlbe(env);
     qemu_log_mask(CPU_LOG_MMU, "FLUSH ALL TLB ENTRIES\n");
-    memset(&env->tlb[HPPA_BTLB_ENTRIES], 0,
-        sizeof(env->tlb) - HPPA_BTLB_ENTRIES * sizeof(env->tlb[0]));
-    env->tlb_last = HPPA_BTLB_ENTRIES;
-    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
+    hppa_ptlbe(env);
 }
 
 void cpu_hppa_change_prot_id(CPUHPPAState *env)
@@ -483,9 +512,11 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
                     (long long) virt_page, phys_page, len, slot);
         if (slot < HPPA_BTLB_ENTRIES) {
             btlb = &env->tlb[slot];
-            /* force flush of possibly existing BTLB entry */
+
+            /* Force flush of possibly existing BTLB entry. */
             hppa_flush_tlb_ent(env, btlb, true);
-            /* create new BTLB entry */
+
+            /* Create new BTLB entry */
             btlb->itree.start = virt_page << TARGET_PAGE_BITS;
             btlb->itree.last = btlb->itree.start + len * TARGET_PAGE_SIZE - 1;
             btlb->pa = phys_page << TARGET_PAGE_BITS;
