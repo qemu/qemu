@@ -289,6 +289,53 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return excp == EXCP_DTLB_MISS ? -1 : phys;
 }
 
+G_NORETURN static void
+raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
+                         vaddr addr, bool mmu_disabled)
+{
+    CPUState *cs = env_cpu(env);
+
+    cs->exception_index = excp;
+
+    if (env->psw & PSW_Q) {
+        /*
+         * For pa1.x, the offset and space never overlap, and so we
+         * simply extract the high and low part of the virtual address.
+         *
+         * For pa2.0, the formation of these are described in section
+         * "Interruption Parameter Registers", page 2-15.
+         */
+        env->cr[CR_IOR] = (uint32_t)addr;
+        env->cr[CR_ISR] = addr >> 32;
+
+        if (hppa_is_pa20(env)) {
+            if (mmu_disabled) {
+                /*
+                 * If data translation was disabled, the ISR contains
+                 * the upper portion of the abs address, zero-extended.
+                 */
+                env->cr[CR_ISR] &= 0x3fffffff;
+            } else {
+                /*
+                 * If data translation was enabled, the upper two bits
+                 * of the IOR (the b field) are equal to the two space
+                 * bits from the base register used to form the gva.
+                 */
+                uint64_t b;
+
+                cpu_restore_state(cs, retaddr);
+
+                b = env->gr[env->unwind_breg];
+                b >>= (env->psw & PSW_W ? 62 : 30);
+                env->cr[CR_IOR] |= b << 62;
+
+                cpu_loop_exit(cs);
+            }
+        }
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                        MMUAccessType type, int mmu_idx,
                        bool probe, uintptr_t retaddr)
@@ -318,14 +365,10 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
             return false;
         }
         trace_hppa_tlb_fill_excp(env, addr, size, type, mmu_idx);
+
         /* Failure.  Raise the indicated exception.  */
-        cs->exception_index = excp;
-        if (cpu->env.psw & PSW_Q) {
-            /* ??? Needs tweaking for hppa64.  */
-            cpu->env.cr[CR_IOR] = addr;
-            cpu->env.cr[CR_ISR] = addr >> 32;
-        }
-        cpu_loop_exit_restore(cs, retaddr);
+        raise_exception_with_ior(env, excp, retaddr,
+                                 addr, mmu_idx == MMU_PHYS_IDX);
     }
 
     trace_hppa_tlb_fill_success(env, addr & TARGET_PAGE_MASK,
@@ -553,16 +596,11 @@ target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
     excp = hppa_get_physical_address(env, addr, MMU_KERNEL_IDX, 0,
                                      &phys, &prot, NULL);
     if (excp >= 0) {
-        if (env->psw & PSW_Q) {
-            /* ??? Needs tweaking for hppa64.  */
-            env->cr[CR_IOR] = addr;
-            env->cr[CR_ISR] = addr >> 32;
-        }
         if (excp == EXCP_DTLB_MISS) {
             excp = EXCP_NA_DTLB_MISS;
         }
         trace_hppa_tlb_lpa_failed(env, addr);
-        hppa_dynamic_excp(env, excp, GETPC());
+        raise_exception_with_ior(env, excp, GETPC(), addr, false);
     }
     trace_hppa_tlb_lpa_success(env, addr, phys);
     return phys;
