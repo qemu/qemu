@@ -2483,6 +2483,7 @@ S: Odd Fixes
 F: hw/display/virtio-gpu*
 F: hw/display/virtio-vga.*
 F: include/hw/virtio/virtio-gpu.h
+F: docs/system/devices/virtio-gpu.rst
 
 vhost-user-blk
 M: Raphael Norwitz <raphael.norwitz@nutanix.com>
