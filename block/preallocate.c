@@ -541,8 +541,8 @@ static void preallocate_drop_resize_bh(void *opaque)
     preallocate_drop_resize(opaque, NULL);
 }
 
-static void preallocate_set_perm(BlockDriverState *bs,
-                                 uint64_t perm, uint64_t shared)
+static void GRAPH_RDLOCK
+preallocate_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 {
     BDRVPreallocateState *s = bs->opaque;
 

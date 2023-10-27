@@ -335,7 +335,7 @@ cbw_co_pdiscard_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return bdrv_co_pdiscard(s->target, offset, bytes);
 }
 
-static void cbw_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK cbw_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->file->bs->filename);

@@ -1024,7 +1024,7 @@ fail:
     return ret;
 }
 
-static int qcow_make_empty(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow_make_empty(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint32_t l1_length = s->l1_size * sizeof(uint64_t);

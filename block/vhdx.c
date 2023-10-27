@@ -2163,9 +2163,9 @@ fail:
  * r/w and any log has already been replayed, so there is nothing (currently)
  * for us to do here
  */
-static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
-                                      BdrvCheckResult *result,
-                                      BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_check(BlockDriverState *bs, BdrvCheckResult *result,
+              BdrvCheckMode fix)
 {
     BDRVVHDXState *s = bs->opaque;
 

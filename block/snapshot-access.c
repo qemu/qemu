@@ -73,7 +73,7 @@ snapshot_access_co_pwritev_part(BlockDriverState *bs,
 }
 
 
-static void snapshot_access_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK snapshot_access_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->file->bs->filename);

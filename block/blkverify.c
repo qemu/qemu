@@ -288,7 +288,7 @@ blkverify_recurse_can_replace(BlockDriverState *bs,
            bdrv_recurse_can_replace(s->test_file->bs, to_replace);
 }
 
-static void blkverify_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK blkverify_refresh_filename(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 

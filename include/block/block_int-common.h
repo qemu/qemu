@@ -310,7 +310,7 @@ struct BlockDriver {
      * One example usage is to avoid waiting for an nbd target node reconnect
      * timeout during job-cancel with force=true.
      */
-    void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
+    void GRAPH_RDLOCK_PTR (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 
     int GRAPH_RDLOCK_PTR (*bdrv_inactivate)(BlockDriverState *bs);
 
@@ -324,12 +324,12 @@ struct BlockDriver {
         BlockDriverState *bs, const char *snapshot_id, const char *name,
         Error **errp);
 
-    int (*bdrv_snapshot_list)(BlockDriverState *bs,
-                              QEMUSnapshotInfo **psn_info);
-    int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
-                                  const char *snapshot_id,
-                                  const char *name,
-                                  Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_list)(
+        BlockDriverState *bs, QEMUSnapshotInfo **psn_info);
+
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_load_tmp)(
+        BlockDriverState *bs, const char *snapshot_id, const char *name,
+        Error **errp);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_change_backing_file)(
         BlockDriverState *bs, const char *backing_file,
@@ -396,7 +396,8 @@ struct BlockDriver {
      * Only drivers that want to override guest geometry implement this
      * callback; see hd_geometry_guess().
      */
-    int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
+    int GRAPH_RDLOCK_PTR (*bdrv_probe_geometry)(
+        BlockDriverState *bs, HDGeometry *geo);
 
     void GRAPH_WRLOCK_PTR (*bdrv_add_child)(
         BlockDriverState *parent, BlockDriverState *child, Error **errp);

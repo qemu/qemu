@@ -3685,6 +3685,8 @@ out:
 void bdrv_cancel_in_flight(BlockDriverState *bs)
 {
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!bs || !bs->drv) {
         return;
     }

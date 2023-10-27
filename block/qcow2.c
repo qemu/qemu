@@ -5226,8 +5226,8 @@ qcow2_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
-                                                  Error **errp)
+static ImageInfoSpecific * GRAPH_RDLOCK
+qcow2_get_specific_info(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     ImageInfoSpecific *spec_info;

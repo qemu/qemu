@@ -746,13 +746,10 @@ blkdebug_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
-static int coroutine_fn blkdebug_co_block_status(BlockDriverState *bs,
-                                                 bool want_zero,
-                                                 int64_t offset,
-                                                 int64_t bytes,
-                                                 int64_t *pnum,
-                                                 int64_t *map,
-                                                 BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+blkdebug_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
+                         int64_t bytes, int64_t *pnum, int64_t *map,
+                         BlockDriverState **file)
 {
     int err;
 
@@ -973,7 +970,7 @@ blkdebug_co_getlength(BlockDriverState *bs)
     return bdrv_co_getlength(bs->file->bs);
 }
 
-static void blkdebug_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK blkdebug_refresh_filename(BlockDriverState *bs)
 {
     BDRVBlkdebugState *s = bs->opaque;
     const QDictEntry *e;
