@@ -794,7 +794,10 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
                             0, 0, NULL, NULL, &error_abort);
     tjob->bs = src;
     job = &tjob->common;
+
+    bdrv_graph_wrlock(target);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
+    bdrv_graph_wrunlock();
 
     switch (result) {
     case TEST_JOB_SUCCESS:

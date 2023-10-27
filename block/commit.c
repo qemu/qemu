@@ -342,6 +342,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      */
     iter_shared_perms = BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE;
 
+    bdrv_graph_wrlock(top);
     for (iter = top; iter != base; iter = bdrv_filter_or_cow_bs(iter)) {
         if (iter == filtered_base) {
             /*
@@ -354,16 +355,20 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  iter_shared_perms, errp);
         if (ret < 0) {
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
 
     if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
+        bdrv_graph_wrunlock();
         goto fail;
     }
     s->chain_frozen = true;
 
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
+    bdrv_graph_wrunlock();
+
     if (ret < 0) {
         goto fail;
     }

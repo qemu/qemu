@@ -111,10 +111,11 @@ struct BlockJobDriver {
  * This function is not part of the public job interface; it should be
  * called from a wrapper that is specific to the job type.
  */
-void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       JobTxn *txn, BlockDriverState *bs, uint64_t perm,
-                       uint64_t shared_perm, int64_t speed, int flags,
-                       BlockCompletionFunc *cb, void *opaque, Error **errp);
+void * GRAPH_UNLOCKED
+block_job_create(const char *job_id, const BlockJobDriver *driver,
+                 JobTxn *txn, BlockDriverState *bs, uint64_t perm,
+                 uint64_t shared_perm, int64_t speed, int flags,
+                 BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
  * block_job_free:

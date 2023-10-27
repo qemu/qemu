@@ -352,8 +352,10 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * already have our own plans. Also don't allow resize as the image size is
      * queried only at the job start and then cached.
      */
+    bdrv_graph_wrlock(bs);
     if (block_job_add_bdrv(&s->common, "active node", bs, 0,
                            basic_flags | BLK_PERM_WRITE, errp)) {
+        bdrv_graph_wrunlock();
         goto fail;
     }
 
@@ -373,9 +375,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  basic_flags, errp);
         if (ret < 0) {
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
+    bdrv_graph_wrunlock();
 
     s->base_overlay = base_overlay;
     s->above_base = above_base;
