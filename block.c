@@ -5412,6 +5412,9 @@ bdrv_replace_node_noperm(BlockDriverState *from,
 }
 
 /*
+ * Switch all parents of @from to point to @to instead. @from and @to must be in
+ * the same AioContext and both must be drained.
+ *
  * With auto_skip=true bdrv_replace_node_common skips updating from parents
  * if it creates a parent-child relation loop or if parent is block-job.
  *
@@ -5421,10 +5424,9 @@ bdrv_replace_node_noperm(BlockDriverState *from,
  * With @detach_subchain=true @to must be in a backing chain of @from. In this
  * case backing link of the cow-parent of @to is removed.
  */
-static int bdrv_replace_node_common(BlockDriverState *from,
-                                    BlockDriverState *to,
-                                    bool auto_skip, bool detach_subchain,
-                                    Error **errp)
+static int GRAPH_WRLOCK
+bdrv_replace_node_common(BlockDriverState *from, BlockDriverState *to,
+                         bool auto_skip, bool detach_subchain, Error **errp)
 {
     Transaction *tran = tran_new();
     g_autoptr(GSList) refresh_list = NULL;
@@ -5433,16 +5435,9 @@ static int bdrv_replace_node_common(BlockDriverState *from,
 
     GLOBAL_STATE_CODE();
 
-    /* Make sure that @from doesn't go away until we have successfully attached
-     * all of its parents to @to. */
-    bdrv_ref(from);
-
-    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    assert(from->quiesce_counter);
+    assert(to->quiesce_counter);
     assert(bdrv_get_aio_context(from) == bdrv_get_aio_context(to));
-    bdrv_drained_begin(from);
-    bdrv_drained_begin(to);
-
-    bdrv_graph_wrlock(to);
 
     if (detach_subchain) {
         assert(bdrv_chain_contains(from, to));
@@ -5483,8 +5478,26 @@ static int bdrv_replace_node_common(BlockDriverState *from,
 
 out:
     tran_finalize(tran, ret);
-    bdrv_graph_wrunlock();
+    return ret;
+}
 
+int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
+                      Error **errp)
+{
+    int ret;
+
+    GLOBAL_STATE_CODE();
+
+    /* Make sure that @from doesn't go away until we have successfully attached
+     * all of its parents to @to. */
+    bdrv_ref(from);
+    bdrv_drained_begin(from);
+    bdrv_drained_begin(to);
+    bdrv_graph_wrlock(to);
+
+    ret = bdrv_replace_node_common(from, to, true, false, errp);
+
+    bdrv_graph_wrunlock();
     bdrv_drained_end(to);
     bdrv_drained_end(from);
     bdrv_unref(from);
@@ -5492,24 +5505,24 @@ out:
     return ret;
 }
 
-int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
-                      Error **errp)
-{
-    GLOBAL_STATE_CODE();
-
-    return bdrv_replace_node_common(from, to, true, false, errp);
-}
-
 int bdrv_drop_filter(BlockDriverState *bs, Error **errp)
 {
     BlockDriverState *child_bs;
+    int ret;
 
     GLOBAL_STATE_CODE();
+
     bdrv_graph_rdlock_main_loop();
     child_bs = bdrv_filter_or_cow_bs(bs);
     bdrv_graph_rdunlock_main_loop();
 
-    return bdrv_replace_node_common(bs, child_bs, true, true, errp);
+    bdrv_drained_begin(child_bs);
+    bdrv_graph_wrlock(bs);
+    ret = bdrv_replace_node_common(bs, child_bs, true, true, errp);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(child_bs);
+
+    return ret;
 }
 
 /*
@@ -5957,15 +5970,15 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     bdrv_ref(top);
     bdrv_drained_begin(base);
-    bdrv_graph_rdlock_main_loop();
+    bdrv_graph_wrlock(base);
 
     if (!top->drv || !base->drv) {
-        goto exit;
+        goto exit_wrlock;
     }
 
     /* Make sure that base is in the backing chain of top */
     if (!bdrv_chain_contains(top, base)) {
-        goto exit;
+        goto exit_wrlock;
     }
 
     /* If 'base' recursively inherits from 'top' then we should set
@@ -5997,6 +6010,8 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
      * That's a FIXME.
      */
     bdrv_replace_node_common(top, base, false, false, &local_err);
+    bdrv_graph_wrunlock();
+
     if (local_err) {
         error_report_err(local_err);
         goto exit;
@@ -6029,8 +6044,11 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     }
 
     ret = 0;
+    goto exit;
+
+exit_wrlock:
+    bdrv_graph_wrunlock();
 exit:
-    bdrv_graph_rdunlock_main_loop();
     bdrv_drained_end(base);
     bdrv_unref(top);
     return ret;
