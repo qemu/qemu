@@ -5764,13 +5764,14 @@ int coroutine_fn bdrv_co_check(BlockDriverState *bs,
  *            image file header
  * -ENOTSUP - format driver doesn't support changing the backing file
  */
-int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
-                             const char *backing_fmt, bool require)
+int coroutine_fn
+bdrv_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                            const char *backing_fmt, bool require)
 {
     BlockDriver *drv = bs->drv;
     int ret;
 
-    GLOBAL_STATE_CODE();
+    IO_CODE();
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -5785,8 +5786,8 @@ int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
         return -EINVAL;
     }
 
-    if (drv->bdrv_change_backing_file != NULL) {
-        ret = drv->bdrv_change_backing_file(bs, backing_file, backing_fmt);
+    if (drv->bdrv_co_change_backing_file != NULL) {
+        ret = drv->bdrv_co_change_backing_file(bs, backing_file, backing_fmt);
     } else {
         ret = -ENOTSUP;
     }

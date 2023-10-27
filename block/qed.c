@@ -1498,9 +1498,9 @@ bdrv_qed_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static int bdrv_qed_change_backing_file(BlockDriverState *bs,
-                                        const char *backing_file,
-                                        const char *backing_fmt)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                                const char *backing_fmt)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader new_header, le_header;
@@ -1562,7 +1562,7 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     }
 
     /* Write new header */
-    ret = bdrv_pwrite_sync(bs->file, 0, buffer_len, buffer, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, 0, buffer_len, buffer, 0);
     g_free(buffer);
     if (ret == 0) {
         memcpy(&s->header, &new_header, sizeof(new_header));
@@ -1636,34 +1636,34 @@ static QemuOptsList qed_create_opts = {
 };
 
 static BlockDriver bdrv_qed = {
-    .format_name              = "qed",
-    .instance_size            = sizeof(BDRVQEDState),
-    .create_opts              = &qed_create_opts,
-    .is_format                = true,
-    .supports_backing         = true,
+    .format_name                    = "qed",
+    .instance_size                  = sizeof(BDRVQEDState),
+    .create_opts                    = &qed_create_opts,
+    .is_format                      = true,
+    .supports_backing               = true,
 
-    .bdrv_probe               = bdrv_qed_probe,
-    .bdrv_open                = bdrv_qed_open,
-    .bdrv_close               = bdrv_qed_close,
-    .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
-    .bdrv_child_perm          = bdrv_default_perms,
-    .bdrv_co_create           = bdrv_qed_co_create,
-    .bdrv_co_create_opts      = bdrv_qed_co_create_opts,
-    .bdrv_has_zero_init       = bdrv_has_zero_init_1,
-    .bdrv_co_block_status     = bdrv_qed_co_block_status,
-    .bdrv_co_readv            = bdrv_qed_co_readv,
-    .bdrv_co_writev           = bdrv_qed_co_writev,
-    .bdrv_co_pwrite_zeroes    = bdrv_qed_co_pwrite_zeroes,
-    .bdrv_co_truncate         = bdrv_qed_co_truncate,
-    .bdrv_co_getlength        = bdrv_qed_co_getlength,
-    .bdrv_co_get_info         = bdrv_qed_co_get_info,
-    .bdrv_refresh_limits      = bdrv_qed_refresh_limits,
-    .bdrv_change_backing_file = bdrv_qed_change_backing_file,
-    .bdrv_co_invalidate_cache = bdrv_qed_co_invalidate_cache,
-    .bdrv_co_check            = bdrv_qed_co_check,
-    .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
-    .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
-    .bdrv_drain_begin         = bdrv_qed_drain_begin,
+    .bdrv_probe                     = bdrv_qed_probe,
+    .bdrv_open                      = bdrv_qed_open,
+    .bdrv_close                     = bdrv_qed_close,
+    .bdrv_reopen_prepare            = bdrv_qed_reopen_prepare,
+    .bdrv_child_perm                = bdrv_default_perms,
+    .bdrv_co_create                 = bdrv_qed_co_create,
+    .bdrv_co_create_opts            = bdrv_qed_co_create_opts,
+    .bdrv_has_zero_init             = bdrv_has_zero_init_1,
+    .bdrv_co_block_status           = bdrv_qed_co_block_status,
+    .bdrv_co_readv                  = bdrv_qed_co_readv,
+    .bdrv_co_writev                 = bdrv_qed_co_writev,
+    .bdrv_co_pwrite_zeroes          = bdrv_qed_co_pwrite_zeroes,
+    .bdrv_co_truncate               = bdrv_qed_co_truncate,
+    .bdrv_co_getlength              = bdrv_qed_co_getlength,
+    .bdrv_co_get_info               = bdrv_qed_co_get_info,
+    .bdrv_refresh_limits            = bdrv_qed_refresh_limits,
+    .bdrv_co_change_backing_file    = bdrv_qed_co_change_backing_file,
+    .bdrv_co_invalidate_cache       = bdrv_qed_co_invalidate_cache,
+    .bdrv_co_check                  = bdrv_qed_co_check,
+    .bdrv_detach_aio_context        = bdrv_qed_detach_aio_context,
+    .bdrv_attach_aio_context        = bdrv_qed_attach_aio_context,
+    .bdrv_drain_begin               = bdrv_qed_drain_begin,
 };
 
 static void bdrv_qed_init(void)

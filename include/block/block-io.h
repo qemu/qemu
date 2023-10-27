@@ -210,6 +210,14 @@ void bdrv_round_to_subclusters(BlockDriverState *bs,
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                            const char *backing_fmt, bool warn);
+
+int co_wrapper_bdrv_rdlock
+bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                         const char *backing_fmt, bool warn);
+
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                       int64_t pos, int size);
 
