@@ -678,6 +678,7 @@ static int mirror_exit_common(Job *job)
     s->prepared = true;
 
     aio_context_acquire(qemu_get_aio_context());
+    bdrv_graph_rdlock_main_loop();
 
     mirror_top_bs = s->mirror_top_bs;
     bs_opaque = mirror_top_bs->opaque;
@@ -695,6 +696,8 @@ static int mirror_exit_common(Job *job)
     bdrv_ref(src);
     bdrv_ref(mirror_top_bs);
     bdrv_ref(target_bs);
+
+    bdrv_graph_rdunlock_main_loop();
 
     /*
      * Remove target parent that still uses BLK_PERM_WRITE/RESIZE before

@@ -266,6 +266,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
 
+    bdrv_graph_rdlock_main_loop();
+
     if (bottom) {
         /*
          * New simple interface. The code is written in terms of old interface
@@ -278,13 +280,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         assert(!bottom->drv->is_filter);
         base_overlay = above_base = bottom;
     } else {
-        GRAPH_RDLOCK_GUARD_MAINLOOP();
-
         base_overlay = bdrv_find_overlay(bs, base);
         if (!base_overlay) {
             error_setg(errp, "'%s' is not in the backing chain of '%s'",
                        base->node_name, bs->node_name);
-            return;
+            goto out_rdlock;
         }
 
         /*
@@ -306,7 +306,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     if (bs_read_only) {
         /* Hold the chain during reopen */
         if (bdrv_freeze_backing_chain(bs, above_base, errp) < 0) {
-            return;
+            goto out_rdlock;
         }
 
         ret = bdrv_reopen_set_read_only(bs, false, errp);
@@ -315,9 +315,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         bdrv_unfreeze_backing_chain(bs, above_base);
 
         if (ret < 0) {
-            return;
+            goto out_rdlock;
         }
     }
+
+    bdrv_graph_rdunlock_main_loop();
 
     opts = qdict_new();
 
@@ -413,4 +415,8 @@ fail:
     if (bs_read_only) {
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
 }

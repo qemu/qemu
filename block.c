@@ -5843,8 +5843,9 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
  * between @bs and @base is frozen. @errp is set if that's the case.
  * @base must be reachable from @bs, or NULL.
  */
-bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
-                                  Error **errp)
+static bool GRAPH_RDLOCK
+bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
+                             Error **errp)
 {
     BlockDriverState *i;
     BdrvChild *child;

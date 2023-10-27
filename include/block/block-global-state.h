@@ -149,11 +149,12 @@ BlockDriverState * GRAPH_RDLOCK
 bdrv_find_overlay(BlockDriverState *active, BlockDriverState *bs);
 
 BlockDriverState * GRAPH_RDLOCK bdrv_find_base(BlockDriverState *bs);
-bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
-                                  Error **errp);
-int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
-                              Error **errp);
-void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
+
+int GRAPH_RDLOCK
+bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
+                          Error **errp);
+void GRAPH_RDLOCK
+bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
 
 /*
  * The units of offset and total_work_size may be chosen arbitrarily by the
