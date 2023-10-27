@@ -90,7 +90,7 @@ static int stream_prepare(Job *job)
     unfiltered_base = bdrv_skip_filters(base);
     bdrv_graph_rdunlock_main_loop();
 
-    if (bdrv_cow_child(unfiltered_bs)) {
+    if (unfiltered_bs_cow) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (unfiltered_base) {
             base_id = s->backing_file_str ?: unfiltered_base->filename;

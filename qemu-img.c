@@ -3541,7 +3541,7 @@ static int img_rebase(int argc, char **argv)
     uint8_t *buf_old = NULL;
     uint8_t *buf_new = NULL;
     BlockDriverState *bs = NULL, *prefix_chain_bs = NULL;
-    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs, *unfiltered_bs_cow;
     BlockDriverInfo bdi = {0};
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
@@ -3675,6 +3675,7 @@ static int img_rebase(int argc, char **argv)
 
     bdrv_graph_rdlock_main_loop();
     unfiltered_bs = bdrv_skip_filters(bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
     bdrv_graph_rdunlock_main_loop();
 
     if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
@@ -3710,7 +3711,11 @@ static int img_rebase(int argc, char **argv)
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
         QDict *options = NULL;
-        BlockDriverState *base_bs = bdrv_cow_bs(unfiltered_bs);
+        BlockDriverState *base_bs;
+
+        bdrv_graph_rdlock_main_loop();
+        base_bs = bdrv_cow_bs(unfiltered_bs);
+        bdrv_graph_rdunlock_main_loop();
 
         if (base_bs) {
             blk_old_backing = blk_new(qemu_get_aio_context(),
@@ -3876,7 +3881,7 @@ static int img_rebase(int argc, char **argv)
                  * If cluster wasn't changed since prefix_chain, we don't need
                  * to take action
                  */
-                ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                ret = bdrv_is_allocated_above(unfiltered_bs_cow,
                                               prefix_chain_bs, false,
                                               offset, n, &n);
                 if (ret < 0) {
