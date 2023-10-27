@@ -353,8 +353,9 @@ exit:
  *
  *  - non-current header is updated with largest sequence number
  */
-static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
-                              bool generate_data_write_guid, MSGUID *log_guid)
+static int GRAPH_RDLOCK
+vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
+                   bool generate_data_write_guid, MSGUID *log_guid)
 {
     int ret = 0;
     int hdr_idx = 0;
@@ -416,8 +417,8 @@ int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s,
 }
 
 /* opens the specified header block from the VHDX file header section */
-static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
-                              Error **errp)
+static void GRAPH_RDLOCK
+vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s, Error **errp)
 {
     int ret;
     VHDXHeader *header1;
@@ -517,7 +518,8 @@ exit:
 }
 
 
-static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
+static int GRAPH_RDLOCK
+vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
 {
     int ret = 0;
     uint8_t *buffer;
@@ -634,7 +636,8 @@ fail:
  * Also, if the File Parameters indicate this is a differencing file,
  * we must also look for the Parent Locator metadata item.
  */
-static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
+static int GRAPH_RDLOCK
+vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
 {
     int ret = 0;
     uint8_t *buffer;
@@ -885,7 +888,8 @@ static void vhdx_calc_bat_entries(BDRVVHDXState *s)
 
 }
 
-static int vhdx_check_bat_entries(BlockDriverState *bs, int *errcnt)
+static int coroutine_mixed_fn GRAPH_RDLOCK
+vhdx_check_bat_entries(BlockDriverState *bs, int *errcnt)
 {
     BDRVVHDXState *s = bs->opaque;
     int64_t image_file_size = bdrv_getlength(bs->file->bs);
