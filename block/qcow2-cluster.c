@@ -391,11 +391,10 @@ fail:
  * If the L2 entry is invalid return -errno and set @type to
  * QCOW2_SUBCLUSTER_INVALID.
  */
-static int qcow2_get_subcluster_range_type(BlockDriverState *bs,
-                                           uint64_t l2_entry,
-                                           uint64_t l2_bitmap,
-                                           unsigned sc_from,
-                                           QCow2SubclusterType *type)
+static int GRAPH_RDLOCK
+qcow2_get_subcluster_range_type(BlockDriverState *bs, uint64_t l2_entry,
+                                uint64_t l2_bitmap, unsigned sc_from,
+                                QCow2SubclusterType *type)
 {
     BDRVQcow2State *s = bs->opaque;
     uint32_t val;
@@ -442,9 +441,10 @@ static int qcow2_get_subcluster_range_type(BlockDriverState *bs,
  * On failure return -errno and update @l2_index to point to the
  * invalid entry.
  */
-static int count_contiguous_subclusters(BlockDriverState *bs, int nb_clusters,
-                                        unsigned sc_index, uint64_t *l2_slice,
-                                        unsigned *l2_index)
+static int GRAPH_RDLOCK
+count_contiguous_subclusters(BlockDriverState *bs, int nb_clusters,
+                             unsigned sc_index, uint64_t *l2_slice,
+                             unsigned *l2_index)
 {
     BDRVQcow2State *s = bs->opaque;
     int i, count = 0;
@@ -1329,7 +1329,8 @@ calculate_l2_meta(BlockDriverState *bs, uint64_t host_cluster_offset,
  * requires a new allocation (that is, if the cluster is unallocated
  * or has refcount > 1 and therefore cannot be written in-place).
  */
-static bool cluster_needs_new_alloc(BlockDriverState *bs, uint64_t l2_entry)
+static bool GRAPH_RDLOCK
+cluster_needs_new_alloc(BlockDriverState *bs, uint64_t l2_entry)
 {
     switch (qcow2_get_cluster_type(bs, l2_entry)) {
     case QCOW2_CLUSTER_NORMAL:
@@ -1360,9 +1361,9 @@ static bool cluster_needs_new_alloc(BlockDriverState *bs, uint64_t l2_entry)
  * allocated and can be overwritten in-place (this includes clusters
  * of type QCOW2_CLUSTER_ZERO_ALLOC).
  */
-static int count_single_write_clusters(BlockDriverState *bs, int nb_clusters,
-                                       uint64_t *l2_slice, int l2_index,
-                                       bool new_alloc)
+static int GRAPH_RDLOCK
+count_single_write_clusters(BlockDriverState *bs, int nb_clusters,
+                            uint64_t *l2_slice, int l2_index, bool new_alloc)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t l2_entry = get_l2_entry(s, l2_slice, l2_index);

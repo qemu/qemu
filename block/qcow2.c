@@ -95,9 +95,10 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 }
 
 
-static int qcow2_crypto_hdr_read_func(QCryptoBlock *block, size_t offset,
-                                      uint8_t *buf, size_t buflen,
-                                      void *opaque, Error **errp)
+static int GRAPH_RDLOCK
+qcow2_crypto_hdr_read_func(QCryptoBlock *block, size_t offset,
+                           uint8_t *buf, size_t buflen,
+                           void *opaque, Error **errp)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
@@ -156,7 +157,7 @@ qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen, void *opaque,
 
 
 /* The graph lock must be held when called in coroutine context */
-static int coroutine_mixed_fn
+static int coroutine_mixed_fn GRAPH_RDLOCK
 qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
                             const uint8_t *buf, size_t buflen,
                             void *opaque, Error **errp)
@@ -2029,6 +2030,8 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
 {
     BDRVQcow2State *s = state->bs->opaque;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     qcow2_update_options_commit(state->bs, state->opaque);
     if (!s->data_file) {
         /*
@@ -2063,6 +2066,8 @@ static void qcow2_reopen_commit_post(BDRVReopenState *state)
 static void qcow2_reopen_abort(BDRVReopenState *state)
 {
     BDRVQcow2State *s = state->bs->opaque;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!s->data_file) {
         /*
