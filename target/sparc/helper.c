@@ -102,9 +102,7 @@ static target_ulong do_udiv(CPUSPARCState *env, target_ulong a,
     }
 
     if (cc) {
-        env->cc_dst = x0;
         env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
     }
     return x0;
 }
@@ -143,9 +141,7 @@ static target_ulong do_sdiv(CPUSPARCState *env, target_ulong a,
     }
 
     if (cc) {
-        env->cc_dst = x0;
         env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
     }
     return x0;
 }
@@ -202,10 +198,8 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_op = CC_OP_TADDTV;
     env->cc_src = src1;
     env->cc_src2 = src2;
-    env->cc_dst = dst;
     return dst;
 
  tag_overflow:
@@ -230,10 +224,8 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_op = CC_OP_TSUBTV;
     env->cc_src = src1;
     env->cc_src2 = src2;
-    env->cc_dst = dst;
     return dst;
 
  tag_overflow:
