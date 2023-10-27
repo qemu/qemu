@@ -44,6 +44,7 @@ typedef struct DisasCond {
 typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
+    TCGOp *insn_start;
 
     uint64_t iaoq_f;
     uint64_t iaoq_b;
@@ -232,6 +233,13 @@ void hppa_translate_init(void)
     cpu_iasq_b = tcg_global_mem_new_i64(tcg_env,
                                         offsetof(CPUHPPAState, iasq_b),
                                         "iasq_b");
+}
+
+static void set_insn_breg(DisasContext *ctx, int breg)
+{
+    assert(ctx->insn_start != NULL);
+    tcg_set_insn_start_param(ctx->insn_start, 2, breg);
+    ctx->insn_start = NULL;
 }
 
 static DisasCond cond_make_f(void)
@@ -1323,6 +1331,8 @@ static void form_gva(DisasContext *ctx, TCGv_i64 *pgva, TCGv_i64 *pofs,
     TCGv_i64 base = load_gpr(ctx, rb);
     TCGv_i64 ofs;
     TCGv_i64 addr;
+
+    set_insn_breg(ctx, rb);
 
     /* Note that RX is mutually exclusive with DISP.  */
     if (rx) {
@@ -4458,7 +4468,8 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b);
+    tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b, 0);
+    ctx->insn_start = tcg_last_op();
 }
 
 static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

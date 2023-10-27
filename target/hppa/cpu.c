@@ -80,6 +80,7 @@ static void hppa_restore_state_to_opc(CPUState *cs,
     if (data[1] != (target_ulong)-1) {
         cpu->env.iaoq_b = data[1];
     }
+    cpu->env.unwind_breg = data[2];
     /*
      * Since we were executing the instruction at IAOQ_F, and took some
      * sort of action that provoked the cpu_restore_state, we can infer
