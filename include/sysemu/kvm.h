@@ -36,15 +36,11 @@ extern bool kvm_kernel_irqchip;
 extern bool kvm_split_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_halt_in_kernel_allowed;
-extern bool kvm_eventfds_allowed;
-extern bool kvm_irqfds_allowed;
 extern bool kvm_resamplefds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
 extern bool kvm_gsi_direct_mapping;
 extern bool kvm_readonly_mem_allowed;
-extern bool kvm_direct_msi_allowed;
-extern bool kvm_ioeventfd_any_length_allowed;
 extern bool kvm_msi_use_devid;
 
 #define kvm_enabled()           (kvm_allowed)
@@ -89,22 +85,15 @@ extern bool kvm_msi_use_devid;
 #define kvm_halt_in_kernel() (kvm_halt_in_kernel_allowed)
 
 /**
- * kvm_eventfds_enabled:
- *
- * Returns: true if we can use eventfds to receive notifications
- * from a KVM CPU (ie the kernel supports eventds and we are running
- * with a configuration where it is meaningful to use them).
- */
-#define kvm_eventfds_enabled() (kvm_eventfds_allowed)
-
-/**
  * kvm_irqfds_enabled:
  *
  * Returns: true if we can use irqfds to inject interrupts into
  * a KVM CPU (ie the kernel supports irqfds and we are running
  * with a configuration where it is meaningful to use them).
+ *
+ * Always available if running with in-kernel irqchip.
  */
-#define kvm_irqfds_enabled() (kvm_irqfds_allowed)
+#define kvm_irqfds_enabled() kvm_irqchip_in_kernel()
 
 /**
  * kvm_resamplefds_enabled:
@@ -148,19 +137,6 @@ extern bool kvm_msi_use_devid;
 #define kvm_readonly_mem_enabled() (kvm_readonly_mem_allowed)
 
 /**
- * kvm_direct_msi_enabled:
- *
- * Returns: true if KVM allows direct MSI injection.
- */
-#define kvm_direct_msi_enabled() (kvm_direct_msi_allowed)
-
-/**
- * kvm_ioeventfd_any_length_enabled:
- * Returns: true if KVM allows any length io eventfd.
- */
-#define kvm_ioeventfd_any_length_enabled() (kvm_ioeventfd_any_length_allowed)
-
-/**
  * kvm_msi_devid_required:
  * Returns: true if KVM requires a device id to be provided while
  * defining an MSI routing entry.
@@ -174,15 +150,12 @@ extern bool kvm_msi_use_devid;
 #define kvm_irqchip_is_split() (false)
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
-#define kvm_eventfds_enabled() (false)
 #define kvm_irqfds_enabled() (false)
 #define kvm_resamplefds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
 #define kvm_gsi_direct_mapping() (false)
 #define kvm_readonly_mem_enabled() (false)
-#define kvm_direct_msi_enabled() (false)
-#define kvm_ioeventfd_any_length_enabled() (false)
 #define kvm_msi_devid_required() (false)
 
 #endif  /* CONFIG_KVM_IS_POSSIBLE */
@@ -219,12 +192,8 @@ unsigned int kvm_get_max_memslots(void);
 unsigned int kvm_get_free_memslots(void);
 bool kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
-int kvm_has_robust_singlestep(void);
-int kvm_has_debugregs(void);
 int kvm_max_nested_state_length(void);
-int kvm_has_many_ioeventfds(void);
 int kvm_has_gsi_routing(void);
-int kvm_has_intx_set_mask(void);
 
 /**
  * kvm_arm_supports_user_irq

@@ -1420,7 +1420,7 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
         exit(1);
     }
 
-    kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
+    kvm_msi_via_irqfd_allowed = true;
 }
 
 static void kvm_cpu_instance_init(CPUState *cs)

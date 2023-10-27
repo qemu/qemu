@@ -91,6 +91,15 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SET_TSS_ADDR),
     KVM_CAP_INFO(EXT_CPUID),
     KVM_CAP_INFO(MP_STATE),
+    KVM_CAP_INFO(SIGNAL_MSI),
+    KVM_CAP_INFO(IRQ_ROUTING),
+    KVM_CAP_INFO(DEBUGREGS),
+    KVM_CAP_INFO(XSAVE),
+    KVM_CAP_INFO(VCPU_EVENTS),
+    KVM_CAP_INFO(X86_ROBUST_SINGLESTEP),
+    KVM_CAP_INFO(MCE),
+    KVM_CAP_INFO(ADJUST_CLOCK),
+    KVM_CAP_INFO(SET_IDENTITY_MAP_ADDR),
     KVM_CAP_LAST_INFO
 };
 
@@ -134,10 +143,8 @@ static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
 static uint32_t num_architectural_pmu_fixed_counters;
 
-static int has_xsave;
 static int has_xsave2;
 static int has_xcrs;
-static int has_pit_state2;
 static int has_sregs2;
 static int has_exception_payload;
 static int has_triple_fault_event;
@@ -154,11 +161,6 @@ static KVMMSRHandlers msr_handlers[KVM_MSR_FILTER_MAX_RANGES];
 static RateLimit bus_lock_ratelimit_ctrl;
 static int kvm_get_one_msr(X86CPU *cpu, int index, uint64_t *value);
 
-bool kvm_has_pit_state2(void)
-{
-    return !!has_pit_state2;
-}
-
 bool kvm_has_smm(void)
 {
     return kvm_vm_check_extension(kvm_state, KVM_CAP_X86_SMM);
@@ -169,11 +171,6 @@ bool kvm_has_adjust_clock_stable(void)
     int ret = kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
 
     return (ret & KVM_CLOCK_TSC_STABLE);
-}
-
-bool kvm_has_adjust_clock(void)
-{
-    return kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
 }
 
 bool kvm_has_exception_payload(void)
@@ -577,14 +574,8 @@ uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
 static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
                                      int *max_banks)
 {
-    int r;
-
-    r = kvm_check_extension(s, KVM_CAP_MCE);
-    if (r > 0) {
-        *max_banks = r;
-        return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
-    }
-    return -ENOSYS;
+    *max_banks = kvm_check_extension(s, KVM_CAP_MCE);
+    return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
 }
 
 static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
@@ -687,15 +678,6 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     emit_hypervisor_memory_failure(MEMORY_FAILURE_ACTION_IGNORE, false);
 }
 
-static void kvm_reset_exception(CPUX86State *env)
-{
-    env->exception_nr = -1;
-    env->exception_pending = 0;
-    env->exception_injected = 0;
-    env->exception_has_payload = false;
-    env->exception_payload = 0;
-}
-
 static void kvm_queue_exception(CPUX86State *env,
                                 int32_t exception_nr,
                                 uint8_t exception_has_payload,
@@ -726,38 +708,6 @@ static void kvm_queue_exception(CPUX86State *env,
             assert(!exception_has_payload);
         }
     }
-}
-
-static int kvm_inject_mce_oldstyle(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-
-    if (!kvm_has_vcpu_events() && env->exception_nr == EXCP12_MCHK) {
-        unsigned int bank, bank_num = env->mcg_cap & 0xff;
-        struct kvm_x86_mce mce;
-
-        kvm_reset_exception(env);
-
-        /*
-         * There must be at least one bank in use if an MCE is pending.
-         * Find it and use its values for the event injection.
-         */
-        for (bank = 0; bank < bank_num; bank++) {
-            if (env->mce_banks[bank * 4 + 1] & MCI_STATUS_VAL) {
-                break;
-            }
-        }
-        assert(bank < bank_num);
-
-        mce.bank = bank;
-        mce.status = env->mce_banks[bank * 4 + 1];
-        mce.mcg_status = env->mcg_status;
-        mce.addr = env->mce_banks[bank * 4 + 2];
-        mce.misc = env->mce_banks[bank * 4 + 3];
-
-        return kvm_vcpu_ioctl(CPU(cpu), KVM_X86_SET_MCE, &mce);
-    }
-    return 0;
 }
 
 static void cpu_update_state(void *opaque, bool running, RunState state)
@@ -1711,10 +1661,8 @@ static void kvm_init_xsave(CPUX86State *env)
 {
     if (has_xsave2) {
         env->xsave_buf_len = QEMU_ALIGN_UP(has_xsave2, 4096);
-    } else if (has_xsave) {
-        env->xsave_buf_len = sizeof(struct kvm_xsave);
     } else {
-        return;
+        env->xsave_buf_len = sizeof(struct kvm_xsave);
     }
 
     env->xsave_buf = qemu_memalign(4096, env->xsave_buf_len);
@@ -2154,8 +2102,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
-           (CPUID_MCE | CPUID_MCA)
-        && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
+           (CPUID_MCE | CPUID_MCA)) {
         uint64_t mcg_cap, unsupported_caps;
         int banks;
         int ret;
@@ -2589,14 +2536,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         return ret;
     }
 
-    if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        error_report("kvm: KVM_CAP_IRQ_ROUTING not supported by KVM");
-        return -ENOTSUP;
-    }
-
-    has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
     has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
-    has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
     has_sregs2 = kvm_check_extension(s, KVM_CAP_SREGS2) > 0;
 
     hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
@@ -2654,20 +2594,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * In order to use vm86 mode, an EPT identity map and a TSS  are needed.
      * Since these must be part of guest physical memory, we need to allocate
      * them, both by setting their start addresses in the kernel and by
-     * creating a corresponding e820 entry. We need 4 pages before the BIOS.
-     *
-     * Older KVM versions may not support setting the identity map base. In
-     * that case we need to stick with the default, i.e. a 256K maximum BIOS
-     * size.
+     * creating a corresponding e820 entry. We need 4 pages before the BIOS,
+     * so this value allows up to 16M BIOSes.
      */
-    if (kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
-        /* Allows up to 16M BIOSes. */
-        identity_base = 0xfeffc000;
-
-        ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
-        if (ret < 0) {
-            return ret;
-        }
+    identity_base = 0xfeffc000;
+    ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
+    if (ret < 0) {
+        return ret;
     }
 
     /* Set TSS base one page after EPT identity map. */
@@ -2879,40 +2812,11 @@ static int kvm_getput_regs(X86CPU *cpu, int set)
     return ret;
 }
 
-static int kvm_put_fpu(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    struct kvm_fpu fpu;
-    int i;
-
-    memset(&fpu, 0, sizeof fpu);
-    fpu.fsw = env->fpus & ~(7 << 11);
-    fpu.fsw |= (env->fpstt & 7) << 11;
-    fpu.fcw = env->fpuc;
-    fpu.last_opcode = env->fpop;
-    fpu.last_ip = env->fpip;
-    fpu.last_dp = env->fpdp;
-    for (i = 0; i < 8; ++i) {
-        fpu.ftwx |= (!env->fptags[i]) << i;
-    }
-    memcpy(fpu.fpr, env->fpregs, sizeof env->fpregs);
-    for (i = 0; i < CPU_NB_REGS; i++) {
-        stq_p(&fpu.xmm[i][0], env->xmm_regs[i].ZMM_Q(0));
-        stq_p(&fpu.xmm[i][8], env->xmm_regs[i].ZMM_Q(1));
-    }
-    fpu.mxcsr = env->mxcsr;
-
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_FPU, &fpu);
-}
-
 static int kvm_put_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     void *xsave = env->xsave_buf;
 
-    if (!has_xsave) {
-        return kvm_put_fpu(cpu);
-    }
     x86_cpu_xsave_all_areas(cpu, xsave, env->xsave_buf_len);
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
@@ -3657,45 +3561,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
 }
 
 
-static int kvm_get_fpu(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    struct kvm_fpu fpu;
-    int i, ret;
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_FPU, &fpu);
-    if (ret < 0) {
-        return ret;
-    }
-
-    env->fpstt = (fpu.fsw >> 11) & 7;
-    env->fpus = fpu.fsw;
-    env->fpuc = fpu.fcw;
-    env->fpop = fpu.last_opcode;
-    env->fpip = fpu.last_ip;
-    env->fpdp = fpu.last_dp;
-    for (i = 0; i < 8; ++i) {
-        env->fptags[i] = !((fpu.ftwx >> i) & 1);
-    }
-    memcpy(env->fpregs, fpu.fpr, sizeof env->fpregs);
-    for (i = 0; i < CPU_NB_REGS; i++) {
-        env->xmm_regs[i].ZMM_Q(0) = ldq_p(&fpu.xmm[i][0]);
-        env->xmm_regs[i].ZMM_Q(1) = ldq_p(&fpu.xmm[i][8]);
-    }
-    env->mxcsr = fpu.mxcsr;
-
-    return 0;
-}
-
 static int kvm_get_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     void *xsave = env->xsave_buf;
     int type, ret;
-
-    if (!has_xsave) {
-        return kvm_get_fpu(cpu);
-    }
 
     type = has_xsave2 ? KVM_GET_XSAVE2 : KVM_GET_XSAVE;
     ret = kvm_vcpu_ioctl(CPU(cpu), type, xsave);
@@ -4427,10 +4297,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     CPUX86State *env = &cpu->env;
     struct kvm_vcpu_events events = {};
 
-    if (!kvm_has_vcpu_events()) {
-        return 0;
-    }
-
     events.flags = 0;
 
     if (has_exception_payload) {
@@ -4498,10 +4364,6 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
     struct kvm_vcpu_events events;
     int ret;
 
-    if (!kvm_has_vcpu_events()) {
-        return 0;
-    }
-
     memset(&events, 0, sizeof(events));
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_VCPU_EVENTS, &events);
     if (ret < 0) {
@@ -4567,46 +4429,11 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
     return 0;
 }
 
-static int kvm_guest_debug_workarounds(X86CPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    CPUX86State *env = &cpu->env;
-    int ret = 0;
-    unsigned long reinject_trap = 0;
-
-    if (!kvm_has_vcpu_events()) {
-        if (env->exception_nr == EXCP01_DB) {
-            reinject_trap = KVM_GUESTDBG_INJECT_DB;
-        } else if (env->exception_injected == EXCP03_INT3) {
-            reinject_trap = KVM_GUESTDBG_INJECT_BP;
-        }
-        kvm_reset_exception(env);
-    }
-
-    /*
-     * Kernels before KVM_CAP_X86_ROBUST_SINGLESTEP overwrote flags.TF
-     * injected via SET_GUEST_DEBUG while updating GP regs. Work around this
-     * by updating the debug state once again if single-stepping is on.
-     * Another reason to call kvm_update_guest_debug here is a pending debug
-     * trap raise by the guest. On kernels without SET_VCPU_EVENTS we have to
-     * reinject them via SET_GUEST_DEBUG.
-     */
-    if (reinject_trap ||
-        (!kvm_has_robust_singlestep() && cs->singlestep_enabled)) {
-        ret = kvm_update_guest_debug(cs, reinject_trap);
-    }
-    return ret;
-}
-
 static int kvm_put_debugregs(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     struct kvm_debugregs dbgregs;
     int i;
-
-    if (!kvm_has_debugregs()) {
-        return 0;
-    }
 
     memset(&dbgregs, 0, sizeof(dbgregs));
     for (i = 0; i < 4; i++) {
@@ -4624,10 +4451,6 @@ static int kvm_get_debugregs(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_debugregs dbgregs;
     int i, ret;
-
-    if (!kvm_has_debugregs()) {
-        return 0;
-    }
 
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_DEBUGREGS, &dbgregs);
     if (ret < 0) {
@@ -4778,11 +4601,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     if (ret < 0) {
         return ret;
     }
-    /* must be before kvm_put_msrs */
-    ret = kvm_inject_mce_oldstyle(x86_cpu);
-    if (ret < 0) {
-        return ret;
-    }
     ret = kvm_put_msrs(x86_cpu, level);
     if (ret < 0) {
         return ret;
@@ -4803,11 +4621,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
         return ret;
     }
     ret = kvm_put_debugregs(x86_cpu);
-    if (ret < 0) {
-        return ret;
-    }
-    /* must be last */
-    ret = kvm_guest_debug_workarounds(x86_cpu);
     if (ret < 0) {
         return ret;
     }

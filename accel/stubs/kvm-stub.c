@@ -17,17 +17,13 @@
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
-bool kvm_eventfds_allowed;
-bool kvm_irqfds_allowed;
 bool kvm_resamplefds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
 bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
-bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
-bool kvm_direct_msi_allowed;
 
 void kvm_flush_coalesced_mmio_buffer(void)
 {
@@ -40,11 +36,6 @@ void kvm_cpu_synchronize_state(CPUState *cpu)
 bool kvm_has_sync_mmu(void)
 {
     return false;
-}
-
-int kvm_has_many_ioeventfds(void)
-{
-    return 0;
 }
 
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
@@ -90,11 +81,6 @@ void kvm_irqchip_remove_change_notifier(Notifier *n)
 
 void kvm_irqchip_change_notify(void)
 {
-}
-
-int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
-{
-    return -ENOSYS;
 }
 
 int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
