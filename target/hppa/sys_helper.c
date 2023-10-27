@@ -80,6 +80,16 @@ void HELPER(rfi)(CPUHPPAState *env)
     env->iasq_b = (uint64_t)env->cr_back[0] << 32;
     env->iaoq_f = env->cr[CR_IIAOQ];
     env->iaoq_b = env->cr_back[1];
+
+    /*
+     * For pa2.0, IIASQ is the top bits of the virtual address.
+     * To recreate the space identifier, remove the offset bits.
+     */
+    if (hppa_is_pa20(env)) {
+        env->iasq_f &= ~env->iaoq_f;
+        env->iasq_b &= ~env->iaoq_b;
+    }
+
     cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
 }
 

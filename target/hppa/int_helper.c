@@ -102,11 +102,7 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
     int i = cs->exception_index;
-    target_ulong iaoq_f = env->iaoq_f;
-    target_ulong iaoq_b = env->iaoq_b;
-    uint64_t iasq_f = env->iasq_f;
-    uint64_t iasq_b = env->iasq_b;
-    target_ulong old_psw;
+    uint64_t old_psw;
 
     /* As documented in pa2.0 -- interruption handling.  */
     /* step 1 */
@@ -118,10 +114,25 @@ void hppa_cpu_do_interrupt(CPUState *cs)
                      (i == EXCP_HPMC ? PSW_M : 0));
 
     /* step 3 */
-    env->cr[CR_IIASQ] = iasq_f >> 32;
-    env->cr_back[0] = iasq_b >> 32;
-    env->cr[CR_IIAOQ] = iaoq_f;
-    env->cr_back[1] = iaoq_b;
+    /*
+     * For pa1.x, IIASQ is simply a copy of IASQ.
+     * For pa2.0, IIASQ is the top bits of the virtual address,
+     *            or zero if translation is disabled.
+     */
+    if (!hppa_is_pa20(env)) {
+        env->cr[CR_IIASQ] = env->iasq_f >> 32;
+        env->cr_back[0] = env->iasq_b >> 32;
+    } else if (old_psw & PSW_C) {
+        env->cr[CR_IIASQ] =
+            hppa_form_gva_psw(old_psw, env->iasq_f, env->iaoq_f) >> 32;
+        env->cr_back[0] =
+            hppa_form_gva_psw(old_psw, env->iasq_f, env->iaoq_f) >> 32;
+    } else {
+        env->cr[CR_IIASQ] = 0;
+        env->cr_back[0] = 0;
+    }
+    env->cr[CR_IIAOQ] = env->iaoq_f;
+    env->cr_back[1] = env->iaoq_b;
 
     if (old_psw & PSW_Q) {
         /* step 5 */
@@ -154,14 +165,13 @@ void hppa_cpu_do_interrupt(CPUState *cs)
                 /* ??? An alternate fool-proof method would be to store the
                    instruction data into the unwind info.  That's probably
                    a bit too much in the way of extra storage required.  */
-                vaddr vaddr;
-                hwaddr paddr;
+                vaddr vaddr = env->iaoq_f & -4;
+                hwaddr paddr = vaddr;
 
-                paddr = vaddr = iaoq_f & -4;
                 if (old_psw & PSW_C) {
                     int prot, t;
 
-                    vaddr = hppa_form_gva_psw(old_psw, iasq_f, vaddr);
+                    vaddr = hppa_form_gva_psw(old_psw, env->iasq_f, vaddr);
                     t = hppa_get_physical_address(env, vaddr, MMU_KERNEL_IDX,
                                                   0, &paddr, &prot, NULL);
                     if (t >= 0) {
@@ -191,14 +201,14 @@ void hppa_cpu_do_interrupt(CPUState *cs)
 
     /* step 7 */
     if (i == EXCP_TOC) {
-        env->iaoq_f = FIRMWARE_START;
+        env->iaoq_f = hppa_form_gva(env, 0, FIRMWARE_START);
         /* help SeaBIOS and provide iaoq_b and iasq_back in shadow regs */
         env->gr[24] = env->cr_back[0];
         env->gr[25] = env->cr_back[1];
     } else {
-        env->iaoq_f = env->cr[CR_IVA] + 32 * i;
+        env->iaoq_f = hppa_form_gva(env, 0, env->cr[CR_IVA] + 32 * i);
     }
-    env->iaoq_b = env->iaoq_f + 4;
+    env->iaoq_b = hppa_form_gva(env, 0, env->iaoq_f + 4);
     env->iasq_f = 0;
     env->iasq_b = 0;
 
@@ -251,8 +261,8 @@ void hppa_cpu_do_interrupt(CPUState *cs)
         qemu_log("INT %6d: %s @ " TARGET_FMT_lx "," TARGET_FMT_lx
                  " -> " TARGET_FMT_lx " " TARGET_FMT_lx "\n",
                  ++count, name,
-                 hppa_form_gva(env, iasq_f, iaoq_f),
-                 hppa_form_gva(env, iasq_b, iaoq_b),
+                 hppa_form_gva(env, env->iasq_f, env->iaoq_f),
+                 hppa_form_gva(env, env->iasq_b, env->iaoq_b),
                  env->iaoq_f,
                  hppa_form_gva(env, (uint64_t)env->cr[CR_ISR] << 32,
                                env->cr[CR_IOR]));
