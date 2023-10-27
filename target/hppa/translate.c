@@ -2320,7 +2320,7 @@ static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
 #endif
 }
 
-static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
+static bool do_pxtlb(DisasContext *ctx, arg_ldst *a, bool local)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
@@ -2330,14 +2330,52 @@ static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, a->x, 0, 0, a->sp, a->m, false);
-    if (a->m) {
-        save_gpr(ctx, a->b, ofs);
+
+    /*
+     * Page align now, rather than later, so that we can add in the
+     * page_size field from pa2.0 from the low 4 bits of GR[b].
+     */
+    tcg_gen_andi_i64(addr, addr, TARGET_PAGE_MASK);
+    if (ctx->is_pa20) {
+        tcg_gen_deposit_i64(addr, addr, load_gpr(ctx, a->b), 0, 4);
     }
-    if (a->local) {
-        gen_helper_ptlbe(tcg_env);
+
+    if (local) {
+        gen_helper_ptlb_l(tcg_env, addr);
     } else {
         gen_helper_ptlb(tcg_env, addr);
     }
+
+    if (a->m) {
+        save_gpr(ctx, a->b, ofs);
+    }
+
+    /* Exit TB for TLB change if mmu is enabled.  */
+    if (ctx->tb_flags & PSW_C) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    }
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_pxtlb(DisasContext *ctx, arg_ldst *a)
+{
+    return do_pxtlb(ctx, a, false);
+}
+
+static bool trans_pxtlb_l(DisasContext *ctx, arg_ldst *a)
+{
+    return ctx->is_pa20 && do_pxtlb(ctx, a, true);
+}
+
+static bool trans_pxtlbe(DisasContext *ctx, arg_ldst *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+
+    trans_nop_addrx(ctx, a);
+    gen_helper_ptlbe(tcg_env);
 
     /* Exit TB for TLB change if mmu is enabled.  */
     if (ctx->tb_flags & PSW_C) {

@@ -448,16 +448,34 @@ void HELPER(iitlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
     itlbt_pa20(env, r1, r2, va_b);
 }
 
-/* Purge (Insn/Data) TLB.  This is explicitly page-based, and is
-   synchronous across all processors.  */
+/* Purge (Insn/Data) TLB. */
 static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUHPPAState *env = cpu_env(cpu);
-    target_ulong addr = (target_ulong) data.target_ptr;
+    vaddr start = data.target_ptr;
+    vaddr end;
 
-    hppa_flush_tlb_range(env, addr, addr);
+    /*
+     * PA2.0 allows a range of pages encoded into GR[b], which we have
+     * copied into the bottom bits of the otherwise page-aligned address.
+     * PA1.x will always provide zero here, for a single page flush.
+     */
+    end = start & 0xf;
+    start &= TARGET_PAGE_MASK;
+    end = TARGET_PAGE_SIZE << (2 * end);
+    end = start + end - 1;
+
+    hppa_flush_tlb_range(env, start, end);
 }
 
+/* This is local to the current cpu. */
+void HELPER(ptlb_l)(CPUHPPAState *env, target_ulong addr)
+{
+    trace_hppa_tlb_ptlb_local(env);
+    ptlb_work(env_cpu(env), RUN_ON_CPU_TARGET_PTR(addr));
+}
+
+/* This is synchronous across all processors.  */
 void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 {
     CPUState *src = env_cpu(env);

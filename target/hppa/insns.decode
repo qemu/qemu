@@ -161,9 +161,23 @@ ixtlbxf         000001 00000 r:5 00 0 data:1 01000 addr:1 0 00000
 # pa2.0 tlb insert idtlbt and iitlbt instructions
 ixtlbt          000001 r2:5 r1:5 000 data:1 100000 0 00000    # idtlbt
 
-pxtlbx          000001 b:5 x:5 sp:2 0100100 local:1 m:1 -----   data=1
-pxtlbx          000001 b:5 x:5 ... 000100 local:1 m:1 -----     \
-                sp=%assemble_sr3x data=0
+# pdtlb, pitlb
+pxtlb           000001 b:5 x:5 sp:2 01001000 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0
+pxtlb           000001 b:5 x:5 ...   0001000 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
+
+# ... pa20 local
+pxtlb_l         000001 b:5 x:5 sp:2 01011000 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0
+pxtlb_l         000001 b:5 x:5 ...   0011000 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
+
+# pdtlbe, pitlbe
+pxtlbe          000001 b:5 x:5 sp:2 01001001 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0
+pxtlbe          000001 b:5 x:5 ...   0001001 m:1 ----- \
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
 
 lpa             000001 b:5 x:5 sp:2 01001101 m:1 t:5    \
                 &ldst disp=0 scale=0 size=0
