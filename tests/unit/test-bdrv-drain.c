@@ -2000,7 +2000,13 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     parent_s->was_undrained = false;
 
     g_assert(parent_bs->quiesce_counter == old_drain_count);
+    bdrv_drained_begin(old_child_bs);
+    bdrv_drained_begin(new_child_bs);
+    bdrv_graph_wrlock(NULL);
     bdrv_replace_node(old_child_bs, new_child_bs, &error_abort);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(new_child_bs);
+    bdrv_drained_end(old_child_bs);
     g_assert(parent_bs->quiesce_counter == new_drain_count);
 
     if (!old_drain_count && !new_drain_count) {

@@ -5484,25 +5484,7 @@ out:
 int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
                       Error **errp)
 {
-    int ret;
-
-    GLOBAL_STATE_CODE();
-
-    /* Make sure that @from doesn't go away until we have successfully attached
-     * all of its parents to @to. */
-    bdrv_ref(from);
-    bdrv_drained_begin(from);
-    bdrv_drained_begin(to);
-    bdrv_graph_wrlock(to);
-
-    ret = bdrv_replace_node_common(from, to, true, false, errp);
-
-    bdrv_graph_wrunlock();
-    bdrv_drained_end(to);
-    bdrv_drained_end(from);
-    bdrv_unref(from);
-
-    return ret;
+    return bdrv_replace_node_common(from, to, true, false, errp);
 }
 
 int bdrv_drop_filter(BlockDriverState *bs, Error **errp)
@@ -5717,9 +5699,19 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
+    /*
+     * Make sure that @bs doesn't go away until we have successfully attached
+     * all of its parents to @new_node_bs and undrained it again.
+     */
+    bdrv_ref(bs);
     bdrv_drained_begin(bs);
+    bdrv_drained_begin(new_node_bs);
+    bdrv_graph_wrlock(new_node_bs);
     ret = bdrv_replace_node(bs, new_node_bs, errp);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(new_node_bs);
     bdrv_drained_end(bs);
+    bdrv_unref(bs);
 
     if (ret < 0) {
         error_prepend(errp, "Could not replace node: ");

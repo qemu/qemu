@@ -712,6 +712,7 @@ static int mirror_exit_common(Job *job)
      * these permissions any more means that we can't allow any new requests on
      * mirror_top_bs from now on, so keep it drained. */
     bdrv_drained_begin(mirror_top_bs);
+    bdrv_drained_begin(target_bs);
     bs_opaque->stop = true;
 
     bdrv_graph_rdlock_main_loop();
@@ -757,15 +758,13 @@ static int mirror_exit_common(Job *job)
         /* The mirror job has no requests in flight any more, but we need to
          * drain potential other users of the BDS before changing the graph. */
         assert(s->in_drain);
-        bdrv_drained_begin(target_bs);
+        bdrv_drained_begin(to_replace);
         /*
          * Cannot use check_to_replace_node() here, because that would
          * check for an op blocker on @to_replace, and we have our own
          * there.
-         *
-         * TODO Pull out the writer lock from bdrv_replace_node() to here
          */
-        bdrv_graph_rdlock_main_loop();
+        bdrv_graph_wrlock(target_bs);
         if (bdrv_recurse_can_replace(src, to_replace)) {
             bdrv_replace_node(to_replace, target_bs, &local_err);
         } else {
@@ -774,8 +773,8 @@ static int mirror_exit_common(Job *job)
                        "would not lead to an abrupt change of visible data",
                        to_replace->node_name, target_bs->node_name);
         }
-        bdrv_graph_rdunlock_main_loop();
-        bdrv_drained_end(target_bs);
+        bdrv_graph_wrunlock();
+        bdrv_drained_end(to_replace);
         if (local_err) {
             error_report_err(local_err);
             ret = -EPERM;
@@ -790,7 +789,6 @@ static int mirror_exit_common(Job *job)
         aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
-    bdrv_unref(target_bs);
 
     /*
      * Remove the mirror filter driver from the graph. Before this, get rid of
@@ -798,7 +796,12 @@ static int mirror_exit_common(Job *job)
      * valid.
      */
     block_job_remove_all_bdrv(bjob);
+    bdrv_graph_wrlock(mirror_top_bs);
     bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
+    bdrv_graph_wrunlock();
+
+    bdrv_drained_end(target_bs);
+    bdrv_unref(target_bs);
 
     bs_opaque->job = NULL;
 
@@ -1987,11 +1990,14 @@ fail:
     }
 
     bs_opaque->stop = true;
-    bdrv_graph_rdlock_main_loop();
+    bdrv_drained_begin(bs);
+    bdrv_graph_wrlock(bs);
+    assert(mirror_top_bs->backing->bs == bs);
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
-    bdrv_graph_rdunlock_main_loop();
-    bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
+    bdrv_replace_node(mirror_top_bs, bs, &error_abort);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(bs);
 
     bdrv_unref(mirror_top_bs);
 

@@ -1610,7 +1610,12 @@ static void external_snapshot_abort(void *opaque)
                 aio_context_acquire(aio_context);
             }
 
+            bdrv_drained_begin(state->new_bs);
+            bdrv_graph_wrlock(state->old_bs);
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
+            bdrv_graph_wrunlock();
+            bdrv_drained_end(state->new_bs);
+
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
 
             aio_context_release(aio_context);

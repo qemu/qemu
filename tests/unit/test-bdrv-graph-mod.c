@@ -234,11 +234,16 @@ static void test_parallel_exclusive_write(void)
     BlockDriverState *fl1 = pass_through_node("fl1");
     BlockDriverState *fl2 = pass_through_node("fl2");
 
+    bdrv_drained_begin(fl1);
+    bdrv_drained_begin(fl2);
+
     /*
      * bdrv_attach_child() eats child bs reference, so we need two @base
-     * references for two filters:
+     * references for two filters. We also need an additional @fl1 reference so
+     * that it still exists when we want to undrain it.
      */
     bdrv_ref(base);
+    bdrv_ref(fl1);
 
     bdrv_graph_wrlock(NULL);
     bdrv_attach_child(top, fl1, "backing", &child_of_bds,
@@ -250,10 +255,14 @@ static void test_parallel_exclusive_write(void)
     bdrv_attach_child(fl2, base, "backing", &child_of_bds,
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                       &error_abort);
-    bdrv_graph_wrunlock();
 
     bdrv_replace_node(fl1, fl2, &error_abort);
+    bdrv_graph_wrunlock();
 
+    bdrv_drained_end(fl2);
+    bdrv_drained_end(fl1);
+
+    bdrv_unref(fl1);
     bdrv_unref(fl2);
     bdrv_unref(top);
 }
