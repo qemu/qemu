@@ -2060,7 +2060,13 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 
 #ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    reg = load_gpr(ctx, a->r);
+
+    if (ctx->is_pa20) {
+        reg = load_gpr(ctx, a->r);
+    } else {
+        reg = tcg_temp_new_i64();
+        tcg_gen_ext32u_i64(reg, load_gpr(ctx, a->r));
+    }
 
     switch (ctl) {
     case CR_IT:
