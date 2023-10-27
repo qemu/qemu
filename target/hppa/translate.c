@@ -792,8 +792,8 @@ static void gen_goto_tb(DisasContext *ctx, int which,
 {
     if (f != -1 && b != -1 && use_goto_tb(ctx, f)) {
         tcg_gen_goto_tb(which);
-        tcg_gen_movi_reg(cpu_iaoq_f, f);
-        tcg_gen_movi_reg(cpu_iaoq_b, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f, NULL);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, b, NULL);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
         copy_iaoq_entry(ctx, cpu_iaoq_f, f, cpu_iaoq_b);
@@ -1867,8 +1867,9 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         tcg_gen_mov_reg(next, dest);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
-                tcg_gen_mov_reg(cpu_iaoq_f, next);
-                tcg_gen_addi_reg(cpu_iaoq_b, next, 4);
+                copy_iaoq_entry(ctx, cpu_iaoq_f, -1, next);
+                tcg_gen_addi_reg(next, next, 4);
+                copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
                 nullify_set(ctx, 0);
                 ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
                 return true;
@@ -1890,8 +1891,10 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         /* We do have to handle the non-local temporary, DEST, before
            branching.  Since IOAQ_F is not really live at this point, we
            can simply store DEST optimistically.  Similarly with IAOQ_B.  */
-        tcg_gen_mov_reg(cpu_iaoq_f, dest);
-        tcg_gen_addi_reg(cpu_iaoq_b, dest, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, dest);
+        next = tcg_temp_new();
+        tcg_gen_addi_reg(next, dest, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
 
         nullify_over(ctx);
         if (link != 0) {
@@ -1970,6 +1973,8 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
    aforementioned BE.  */
 static void do_page_zero(DisasContext *ctx)
 {
+    TCGv_reg tmp;
+
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
        next insn within the privileged page.  */
@@ -2006,8 +2011,11 @@ static void do_page_zero(DisasContext *ctx)
 
     case 0xe0: /* SET_THREAD_POINTER */
         tcg_gen_st_reg(cpu_gr[26], tcg_env, offsetof(CPUHPPAState, cr[27]));
-        tcg_gen_ori_reg(cpu_iaoq_f, cpu_gr[31], 3);
-        tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
+        tmp = tcg_temp_new();
+        tcg_gen_ori_reg(tmp, cpu_gr[31], 3);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
+        tcg_gen_addi_reg(tmp, tmp, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
         break;
 
@@ -3438,8 +3446,9 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
         tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_f);
     }
     if (a->n && use_nullify_skip(ctx)) {
-        tcg_gen_mov_reg(cpu_iaoq_f, tmp);
-        tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
+        tcg_gen_addi_reg(tmp, tmp, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
         tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
     } else {
@@ -3447,7 +3456,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
         if (ctx->iaoq_b == -1) {
             tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
         }
-        tcg_gen_mov_reg(cpu_iaoq_b, tmp);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         tcg_gen_mov_i64(cpu_iasq_b, new_spc);
         nullify_set(ctx, a->n);
     }
@@ -4218,7 +4227,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_IAQ_N_STALE:
     case DISAS_IAQ_N_STALE_EXIT:
         if (ctx->iaoq_f == -1) {
-            tcg_gen_mov_reg(cpu_iaoq_f, cpu_iaoq_b);
+            copy_iaoq_entry(ctx, cpu_iaoq_f, -1, cpu_iaoq_b);
             copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
 #ifndef CONFIG_USER_ONLY
             tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
@@ -4228,7 +4237,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                                 ? DISAS_EXIT
                                 : DISAS_IAQ_N_UPDATED);
         } else if (ctx->iaoq_b == -1) {
-            tcg_gen_mov_reg(cpu_iaoq_b, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
         }
         break;
 
