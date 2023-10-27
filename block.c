@@ -8491,8 +8491,8 @@ BdrvChild *bdrv_primary_child(BlockDriverState *bs)
     return found;
 }
 
-static BlockDriverState *bdrv_do_skip_filters(BlockDriverState *bs,
-                                              bool stop_on_explicit_filter)
+static BlockDriverState * GRAPH_RDLOCK
+bdrv_do_skip_filters(BlockDriverState *bs, bool stop_on_explicit_filter)
 {
     BdrvChild *c;
 
