@@ -134,8 +134,8 @@ BdrvChild *bdrv_cow_child(BlockDriverState *bs);
 BdrvChild *bdrv_filter_child(BlockDriverState *bs);
 BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs);
 BdrvChild * GRAPH_RDLOCK bdrv_primary_child(BlockDriverState *bs);
-BlockDriverState *bdrv_skip_filters(BlockDriverState *bs);
-BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_skip_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_backing_chain_next(BlockDriverState *bs);
 
 static inline BlockDriverState *bdrv_cow_bs(BlockDriverState *bs)
 {

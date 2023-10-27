@@ -313,7 +313,12 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
 {
     int ret;
     BlockDriverInfo bdi;
-    bool target_does_cow = bdrv_backing_chain_next(target);
+    bool target_does_cow;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    target_does_cow = bdrv_backing_chain_next(target);
 
     /*
      * If there is no backing file on the target, we cannot rely on COW if our
@@ -354,6 +359,8 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     int64_t cluster_size;
     BdrvDirtyBitmap *copy_bitmap;
     bool is_fleecing;
+
+    GLOBAL_STATE_CODE();
 
     cluster_size = block_copy_calculate_cluster_size(target->bs, errp);
     if (cluster_size < 0) {

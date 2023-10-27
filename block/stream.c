@@ -53,14 +53,19 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
 static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
-    BlockDriverState *unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs_cow;
     BlockDriverState *base;
     BlockDriverState *unfiltered_base;
     Error *local_err = NULL;
     int ret = 0;
 
     GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
+    unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    bdrv_graph_rdunlock_main_loop();
 
     /* We should drop filter at this point, as filter hold the backing chain */
     bdrv_cor_filter_drop(s->cor_filter_bs);
@@ -142,18 +147,19 @@ static void stream_clean(Job *job)
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    BlockDriverState *unfiltered_bs;
     int64_t len;
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
 
-    if (unfiltered_bs == s->base_overlay) {
-        /* Nothing to stream */
-        return 0;
-    }
-
     WITH_GRAPH_RDLOCK_GUARD() {
+        unfiltered_bs = bdrv_skip_filters(s->target_bs);
+        if (unfiltered_bs == s->base_overlay) {
+            /* Nothing to stream */
+            return 0;
+        }
+
         len = bdrv_co_getlength(s->target_bs);
         if (len < 0) {
             return len;

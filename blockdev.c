@@ -1710,7 +1710,6 @@ static void drive_backup_action(DriveBackup *backup,
         bdrv_graph_rdunlock_main_loop();
         goto out;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     flags = bs->open_flags | BDRV_O_RDWR;
 
@@ -1735,6 +1734,7 @@ static void drive_backup_action(DriveBackup *backup,
         flags |= BDRV_O_NO_BACKING;
         set_backing_hd = true;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -3054,7 +3054,6 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_graph_rdunlock_main_loop();
         return;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -3076,6 +3075,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     if (arg->sync == MIRROR_SYNC_MODE_NONE) {
         target_backing_bs = bs;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -3450,15 +3450,16 @@ void qmp_change_backing_file(const char *device,
         goto out;
     }
 
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_find_base(image_bs) == image_bs) {
         error_setg(errp, "not allowing backing file change on an image "
                          "without a backing file");
+        bdrv_graph_rdunlock_main_loop();
         goto out;
     }
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
-    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
         bdrv_graph_rdunlock_main_loop();
         goto out;

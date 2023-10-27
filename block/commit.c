@@ -255,10 +255,13 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     GLOBAL_STATE_CODE();
 
     assert(top != bs);
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_skip_filters(top) == bdrv_skip_filters(base)) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     base_size = bdrv_getlength(base);
     if (base_size < 0) {
@@ -324,6 +327,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      * this is the responsibility of the interface (i.e. whoever calls
      * commit_start()).
      */
+    bdrv_graph_wrlock(top);
     s->base_overlay = bdrv_find_overlay(top, base);
     assert(s->base_overlay);
 
@@ -342,7 +346,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      */
     iter_shared_perms = BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE;
 
-    bdrv_graph_wrlock(top);
     for (iter = top; iter != base; iter = bdrv_filter_or_cow_bs(iter)) {
         if (iter == filtered_base) {
             /*

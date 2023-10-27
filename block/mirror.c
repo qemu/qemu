@@ -714,7 +714,6 @@ static int mirror_exit_common(Job *job)
     bdrv_graph_rdlock_main_loop();
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
-    bdrv_graph_rdunlock_main_loop();
 
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
@@ -737,6 +736,7 @@ static int mirror_exit_common(Job *job)
             local_err = NULL;
         }
     }
+    bdrv_graph_rdunlock_main_loop();
 
     if (s->to_replace) {
         replace_aio_context = bdrv_get_aio_context(s->to_replace);
@@ -992,13 +992,13 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     } else {
         s->target_cluster_size = BDRV_SECTOR_SIZE;
     }
-    bdrv_graph_co_rdunlock();
     if (backing_filename[0] && !bdrv_backing_chain_next(target_bs) &&
         s->granularity < s->target_cluster_size) {
         s->buf_size = MAX(s->buf_size, s->target_cluster_size);
         s->cow_bitmap = bitmap_new(length);
     }
     s->max_iov = MIN(bs->bl.max_iov, target_bs->bl.max_iov);
+    bdrv_graph_co_rdunlock();
 
     s->buf = qemu_try_blockalign(bs, s->buf_size);
     if (s->buf == NULL) {
@@ -1744,12 +1744,15 @@ static BlockJob *mirror_start_job(
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_skip_filters(bs) == bdrv_skip_filters(target)) {
         error_setg(errp, "Can't mirror node into itself");
+        bdrv_graph_rdunlock_main_loop();
         return NULL;
     }
 
     target_is_backing = bdrv_chain_contains(bs, target);
+    bdrv_graph_rdunlock_main_loop();
 
     /* In the case of active commit, add dummy driver to provide consistent
      * reads on the top, while disabling it in the intermediate nodes, and make
@@ -1832,14 +1835,19 @@ static BlockJob *mirror_start_job(
         }
 
         target_shared_perms |= BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
-    } else if (bdrv_chain_contains(bs, bdrv_skip_filters(target))) {
-        /*
-         * We may want to allow this in the future, but it would
-         * require taking some extra care.
-         */
-        error_setg(errp, "Cannot mirror to a filter on top of a node in the "
-                   "source's backing chain");
-        goto fail;
+    } else {
+        bdrv_graph_rdlock_main_loop();
+        if (bdrv_chain_contains(bs, bdrv_skip_filters(target))) {
+            /*
+             * We may want to allow this in the future, but it would
+             * require taking some extra care.
+             */
+            error_setg(errp, "Cannot mirror to a filter on top of a node in "
+                       "the source's backing chain");
+            bdrv_graph_rdunlock_main_loop();
+            goto fail;
+        }
+        bdrv_graph_rdunlock_main_loop();
     }
 
     s->target = blk_new(s->common.job.aio_context,
@@ -1860,6 +1868,7 @@ static BlockJob *mirror_start_job(
     blk_set_allow_aio_context_change(s->target, true);
     blk_set_disable_request_queuing(s->target, true);
 
+    bdrv_graph_rdlock_main_loop();
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
@@ -1875,6 +1884,7 @@ static BlockJob *mirror_start_job(
     if (auto_complete) {
         s->should_complete = true;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(s->mirror_top_bs, granularity,
                                                NULL, errp);
@@ -2007,8 +2017,12 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                    MirrorSyncMode_str(mode));
         return;
     }
+
+    bdrv_graph_rdlock_main_loop();
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
+    bdrv_graph_rdunlock_main_loop();
+
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, backing_mode, zero_target,
                      on_source_error, on_target_error, unmap, NULL, NULL,

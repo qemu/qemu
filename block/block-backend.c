@@ -2730,6 +2730,7 @@ int blk_commit_all(void)
 {
     BlockBackend *blk = NULL;
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while ((blk = blk_all_next(blk)) != NULL) {
         AioContext *aio_context = blk_get_aio_context(blk);

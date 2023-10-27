@@ -144,9 +144,11 @@ int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
 void bdrv_register(BlockDriver *bdrv);
 int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
                            const char *backing_file_str);
-BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
-                                    BlockDriverState *bs);
-BlockDriverState *bdrv_find_base(BlockDriverState *bs);
+
+BlockDriverState * GRAPH_RDLOCK
+bdrv_find_overlay(BlockDriverState *active, BlockDriverState *bs);
+
+BlockDriverState * GRAPH_RDLOCK bdrv_find_base(BlockDriverState *bs);
 bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
                                   Error **errp);
 int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
