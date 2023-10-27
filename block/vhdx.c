@@ -1695,7 +1695,7 @@ exit:
  *  Fixed images: default state of the BAT is fully populated, with
  *                file offsets and state PAYLOAD_BLOCK_FULLY_PRESENT.
  */
-static int coroutine_fn
+static int coroutine_fn GRAPH_UNLOCKED
 vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
                 uint64_t image_size, VHDXImageType type,
                 bool use_zero_blocks, uint64_t file_offset,
@@ -1708,6 +1708,7 @@ vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
     uint64_t unused;
     int block_state;
     VHDXSectorInfo sinfo;
+    bool has_zero_init;
 
     assert(s->bat == NULL);
 
@@ -1737,9 +1738,13 @@ vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
         goto exit;
     }
 
+    bdrv_graph_co_rdlock();
+    has_zero_init = bdrv_has_zero_init(blk_bs(blk));
+    bdrv_graph_co_rdunlock();
+
     if (type == VHDX_TYPE_FIXED ||
                 use_zero_blocks ||
-                bdrv_has_zero_init(blk_bs(blk)) == 0) {
+                has_zero_init == 0) {
         /* for a fixed file, the default BAT entry is not zero */
         s->bat = g_try_malloc0(length);
         if (length && s->bat == NULL) {
@@ -1782,7 +1787,7 @@ exit:
  * to create the BAT itself, we will also cause the BAT to be
  * created.
  */
-static int coroutine_fn
+static int coroutine_fn GRAPH_UNLOCKED
 vhdx_create_new_region_table(BlockBackend *blk, uint64_t image_size,
                              uint32_t block_size, uint32_t sector_size,
                              uint32_t log_size, bool use_zero_blocks,
@@ -2173,7 +2178,7 @@ static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
     return 0;
 }
 
-static int vhdx_has_zero_init(BlockDriverState *bs)
+static int GRAPH_RDLOCK vhdx_has_zero_init(BlockDriverState *bs)
 {
     BDRVVHDXState *s = bs->opaque;
     int state;

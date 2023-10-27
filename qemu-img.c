@@ -2099,7 +2099,9 @@ static int convert_do_copy(ImgConvertState *s)
     /* Check whether we have zero initialisation or can get it efficiently */
     if (!s->has_zero_init && s->target_is_new && s->min_sparse &&
         !s->target_has_backing) {
+        bdrv_graph_rdlock_main_loop();
         s->has_zero_init = bdrv_has_zero_init(blk_bs(s->target));
+        bdrv_graph_rdunlock_main_loop();
     }
 
     /* Allocate buffer for copied data. For compressed images, only one cluster

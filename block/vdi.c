@@ -990,7 +990,7 @@ static void vdi_close(BlockDriverState *bs)
     migrate_del_blocker(&s->migration_blocker);
 }
 
-static int vdi_has_zero_init(BlockDriverState *bs)
+static int GRAPH_RDLOCK vdi_has_zero_init(BlockDriverState *bs)
 {
     BDRVVdiState *s = bs->opaque;
 

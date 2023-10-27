@@ -6587,7 +6587,7 @@ int bdrv_has_zero_init_1(BlockDriverState *bs)
     return 1;
 }
 
-int bdrv_has_zero_init(BlockDriverState *bs)
+int coroutine_mixed_fn bdrv_has_zero_init(BlockDriverState *bs)
 {
     BlockDriverState *filtered;
     GLOBAL_STATE_CODE();
