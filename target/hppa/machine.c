@@ -74,7 +74,7 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
 
     memset(ent, 0, sizeof(*ent));
 
-    ent->va_b = qemu_get_be64(f);
+    ent->itree.start = qemu_get_be64(f);
     ent->pa = qemu_get_betr(f);
     val = qemu_get_be32(f);
 
@@ -88,7 +88,7 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
     ent->d = extract32(val, 28, 1);
     ent->t = extract32(val, 29, 1);
 
-    ent->va_e = ent->va_b + TARGET_PAGE_SIZE - 1;
+    ent->itree.last = ent->itree.start + TARGET_PAGE_SIZE - 1;
     return 0;
 }
 
@@ -110,7 +110,7 @@ static int put_tlb(QEMUFile *f, void *opaque, size_t size,
         val = deposit32(val, 29, 1, ent->t);
     }
 
-    qemu_put_be64(f, ent->va_b);
+    qemu_put_be64(f, ent->itree.start);
     qemu_put_betr(f, ent->pa);
     qemu_put_be32(f, val);
     return 0;
