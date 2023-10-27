@@ -268,9 +268,16 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 
     trace_hppa_tlb_fill_success(env, addr & TARGET_PAGE_MASK,
                                 phys & TARGET_PAGE_MASK, size, type, mmu_idx);
-    /* Success!  Store the translation into the QEMU TLB.  */
+
+    /*
+     * Success!  Store the translation into the QEMU TLB.
+     * Note that we always install a single-page entry, because that
+     * is what works best with softmmu -- anything else will trigger
+     * the large page protection mask.  We do not require this,
+     * because we record the large page here in the hppa tlb.
+     */
     tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
-                 prot, mmu_idx, TARGET_PAGE_SIZE << (ent ? 2 * ent->page_size : 0));
+                 prot, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 

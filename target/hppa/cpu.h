@@ -179,15 +179,16 @@ typedef struct HPPATLBEntry {
     IntervalTreeNode itree;
 
     target_ureg pa;
+
+    unsigned entry_valid : 1;
+
     unsigned u : 1;
     unsigned t : 1;
     unsigned d : 1;
     unsigned b : 1;
-    unsigned page_size : 4;
     unsigned ar_type : 3;
     unsigned ar_pl1 : 2;
     unsigned ar_pl2 : 2;
-    unsigned entry_valid : 1;
     unsigned access_id : 16;
 } HPPATLBEntry;
 
