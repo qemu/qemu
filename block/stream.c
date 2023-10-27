@@ -60,6 +60,8 @@ static int stream_prepare(Job *job)
     Error *local_err = NULL;
     int ret = 0;
 
+    GLOBAL_STATE_CODE();
+
     /* We should drop filter at this point, as filter hold the backing chain */
     bdrv_cor_filter_drop(s->cor_filter_bs);
     s->cor_filter_bs = NULL;
@@ -78,8 +80,10 @@ static int stream_prepare(Job *job)
         bdrv_drained_begin(unfiltered_bs_cow);
     }
 
+    bdrv_graph_rdlock_main_loop();
     base = bdrv_filter_or_cow_bs(s->above_base);
     unfiltered_base = bdrv_skip_filters(base);
+    bdrv_graph_rdunlock_main_loop();
 
     if (bdrv_cow_child(unfiltered_bs)) {
         const char *base_id = NULL, *base_fmt = NULL;

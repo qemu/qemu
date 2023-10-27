@@ -2501,8 +2501,8 @@ void qmp_block_stream(const char *job_id, const char *device,
     /*
      * Check for op blockers in the whole chain between bs and base (or bottom)
      */
-    iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
     bdrv_graph_rdlock_main_loop();
+    iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
     for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {

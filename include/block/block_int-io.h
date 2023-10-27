@@ -150,7 +150,8 @@ bdrv_filter_bs(BlockDriverState *bs)
     return child_bs(bdrv_filter_child(bs));
 }
 
-static inline BlockDriverState *bdrv_filter_or_cow_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_filter_or_cow_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_filter_or_cow_child(bs));

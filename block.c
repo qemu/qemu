@@ -5435,17 +5435,6 @@ static int bdrv_replace_node_common(BlockDriverState *from,
 
     GLOBAL_STATE_CODE();
 
-    if (detach_subchain) {
-        assert(bdrv_chain_contains(from, to));
-        assert(from != to);
-        for (to_cow_parent = from;
-             bdrv_filter_or_cow_bs(to_cow_parent) != to;
-             to_cow_parent = bdrv_filter_or_cow_bs(to_cow_parent))
-        {
-            ;
-        }
-    }
-
     /* Make sure that @from doesn't go away until we have successfully attached
      * all of its parents to @to. */
     bdrv_ref(from);
@@ -5456,6 +5445,17 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     bdrv_drained_begin(to);
 
     bdrv_graph_wrlock(to);
+
+    if (detach_subchain) {
+        assert(bdrv_chain_contains(from, to));
+        assert(from != to);
+        for (to_cow_parent = from;
+             bdrv_filter_or_cow_bs(to_cow_parent) != to;
+             to_cow_parent = bdrv_filter_or_cow_bs(to_cow_parent))
+        {
+            ;
+        }
+    }
 
     /*
      * Do the replacement without permission update.
@@ -5504,10 +5504,14 @@ int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 
 int bdrv_drop_filter(BlockDriverState *bs, Error **errp)
 {
-    GLOBAL_STATE_CODE();
+    BlockDriverState *child_bs;
 
-    return bdrv_replace_node_common(bs, bdrv_filter_or_cow_bs(bs), true, true,
-                                    errp);
+    GLOBAL_STATE_CODE();
+    bdrv_graph_rdlock_main_loop();
+    child_bs = bdrv_filter_or_cow_bs(bs);
+    bdrv_graph_rdunlock_main_loop();
+
+    return bdrv_replace_node_common(bs, child_bs, true, true, errp);
 }
 
 /*
@@ -6509,6 +6513,7 @@ bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
 {
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while (top && top != base) {
         top = bdrv_filter_or_cow_bs(top);
