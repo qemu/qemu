@@ -174,7 +174,7 @@ typedef int64_t  target_sreg;
 #define TREG_FMT_ld   "%"PRId64
 #endif
 
-typedef struct {
+typedef struct HPPATLBEntry {
     uint64_t va_b;
     uint64_t va_e;
     target_ureg pa;
@@ -188,7 +188,7 @@ typedef struct {
     unsigned ar_pl2 : 2;
     unsigned entry_valid : 1;
     unsigned access_id : 16;
-} hppa_tlb_entry;
+} HPPATLBEntry;
 
 typedef struct CPUArchState {
     target_ureg iaoq_f;      /* front */
@@ -234,7 +234,7 @@ typedef struct CPUArchState {
 
     /* ??? Implement a unified itlb/dtlb for the moment.  */
     /* ??? We should use a more intelligent data structure.  */
-    hppa_tlb_entry tlb[HPPA_TLB_ENTRIES];
+    HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
     uint32_t tlb_last;
 } CPUHPPAState;
 
@@ -362,7 +362,7 @@ void hppa_cpu_do_interrupt(CPUState *cpu);
 bool hppa_cpu_exec_interrupt(CPUState *cpu, int int_req);
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot,
-                              hppa_tlb_entry **tlb_entry);
+                              HPPATLBEntry **tlb_entry);
 extern const MemoryRegionOps hppa_io_eir_ops;
 extern const VMStateDescription vmstate_hppa_cpu;
 void hppa_cpu_alarm_timer(void *);

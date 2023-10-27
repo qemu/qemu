@@ -69,7 +69,7 @@ static const VMStateInfo vmstate_psw = {
 static int get_tlb(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
 {
-    hppa_tlb_entry *ent = opaque;
+    HPPATLBEntry *ent = opaque;
     uint32_t val;
 
     memset(ent, 0, sizeof(*ent));
@@ -95,7 +95,7 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
 static int put_tlb(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field, JSONWriter *vmdesc)
 {
-    hppa_tlb_entry *ent = opaque;
+    HPPATLBEntry *ent = opaque;
     uint32_t val = 0;
 
     if (ent->entry_valid) {
@@ -153,7 +153,7 @@ static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINT32(fr0_shadow, CPUHPPAState),
 
     VMSTATE_ARRAY(tlb, CPUHPPAState, ARRAY_SIZE(((CPUHPPAState *)0)->tlb),
-                  0, vmstate_tlb, hppa_tlb_entry),
+                  0, vmstate_tlb, HPPATLBEntry),
     VMSTATE_UINT32(tlb_last, CPUHPPAState),
 
     VMSTATE_END_OF_LIST()

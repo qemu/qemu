@@ -25,12 +25,12 @@
 #include "hw/core/cpu.h"
 #include "trace.h"
 
-static hppa_tlb_entry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
+static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
 {
     int i;
 
     for (i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
-        hppa_tlb_entry *ent = &env->tlb[i];
+        HPPATLBEntry *ent = &env->tlb[i];
         if (ent->va_b <= addr && addr <= ent->va_e) {
             trace_hppa_tlb_find_entry(env, ent + i, ent->entry_valid,
                                       ent->va_b, ent->va_e, ent->pa);
@@ -41,7 +41,7 @@ static hppa_tlb_entry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
     return NULL;
 }
 
-static void hppa_flush_tlb_ent(CPUHPPAState *env, hppa_tlb_entry *ent,
+static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
                                bool force_flush_btlb)
 {
     CPUState *cs = env_cpu(env);
@@ -65,9 +65,9 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, hppa_tlb_entry *ent,
     ent->va_b = -1;
 }
 
-static hppa_tlb_entry *hppa_alloc_tlb_ent(CPUHPPAState *env)
+static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
 {
-    hppa_tlb_entry *ent;
+    HPPATLBEntry *ent;
     uint32_t i;
 
     if (env->tlb_last < HPPA_BTLB_ENTRIES || env->tlb_last >= ARRAY_SIZE(env->tlb)) {
@@ -86,11 +86,11 @@ static hppa_tlb_entry *hppa_alloc_tlb_ent(CPUHPPAState *env)
 
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot,
-                              hppa_tlb_entry **tlb_entry)
+                              HPPATLBEntry **tlb_entry)
 {
     hwaddr phys;
     int prot, r_prot, w_prot, x_prot, priv;
-    hppa_tlb_entry *ent;
+    HPPATLBEntry *ent;
     int ret = -1;
 
     if (tlb_entry) {
@@ -231,7 +231,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    hppa_tlb_entry *ent;
+    HPPATLBEntry *ent;
     int prot, excp, a_prot;
     hwaddr phys;
 
@@ -275,12 +275,12 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
 void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
-    hppa_tlb_entry *empty = NULL;
+    HPPATLBEntry *empty = NULL;
     int i;
 
     /* Zap any old entries covering ADDR; notice empty entries on the way.  */
     for (i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb); ++i) {
-        hppa_tlb_entry *ent = &env->tlb[i];
+        HPPATLBEntry *ent = &env->tlb[i];
         if (ent->va_b <= addr && addr <= ent->va_e) {
             if (ent->entry_valid) {
                 hppa_flush_tlb_ent(env, ent, false);
@@ -303,7 +303,7 @@ void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     trace_hppa_tlb_itlba(env, empty, empty->va_b, empty->va_e, empty->pa);
 }
 
-static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg reg)
+static void set_access_bits(CPUHPPAState *env, HPPATLBEntry *ent, target_ureg reg)
 {
     ent->access_id = extract32(reg, 1, 18);
     ent->u = extract32(reg, 19, 1);
@@ -321,7 +321,7 @@ static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg 
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
 void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
-    hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
+    HPPATLBEntry *ent = hppa_find_tlb(env, addr);
 
     if (unlikely(ent == NULL)) {
         qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
@@ -337,7 +337,7 @@ static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUHPPAState *env = cpu_env(cpu);
     target_ulong addr = (target_ulong) data.target_ptr;
-    hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
+    HPPATLBEntry *ent = hppa_find_tlb(env, addr);
 
     if (ent && ent->entry_valid) {
         hppa_flush_tlb_ent(env, ent, false);
@@ -407,7 +407,7 @@ target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
 /* Return the ar_type of the TLB at VADDR, or -1.  */
 int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
 {
-    hppa_tlb_entry *ent = hppa_find_tlb(env, vaddr);
+    HPPATLBEntry *ent = hppa_find_tlb(env, vaddr);
     return ent ? ent->ar_type : -1;
 }
 
@@ -422,7 +422,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     unsigned int phys_page, len, slot;
     int mmu_idx = cpu_mmu_index(env, 0);
     uintptr_t ra = GETPC();
-    hppa_tlb_entry *btlb;
+    HPPATLBEntry *btlb;
     uint64_t virt_page;
     uint32_t *vaddr;
 
