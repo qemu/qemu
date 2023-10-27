@@ -1746,10 +1746,10 @@ static void drive_backup_action(DriveBackup *backup,
         assert(format);
         if (source) {
             /* Implicit filters should not appear in the filename */
-            BlockDriverState *explicit_backing =
-                bdrv_skip_implicit_filters(source);
+            BlockDriverState *explicit_backing;
 
             bdrv_graph_rdlock_main_loop();
+            explicit_backing = bdrv_skip_implicit_filters(source);
             bdrv_refresh_filename(explicit_backing);
             bdrv_graph_rdunlock_main_loop();
 
@@ -3108,16 +3108,18 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_img_create(arg->target, format,
                         NULL, NULL, NULL, size, flags, false, &local_err);
     } else {
-        /* Implicit filters should not appear in the filename */
-        BlockDriverState *explicit_backing =
-            bdrv_skip_implicit_filters(target_backing_bs);
+        BlockDriverState *explicit_backing;
 
         switch (arg->mode) {
         case NEW_IMAGE_MODE_EXISTING:
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
-            /* create new image with backing file */
+            /*
+             * Create new image with backing file.
+             * Implicit filters should not appear in the filename.
+             */
             bdrv_graph_rdlock_main_loop();
+            explicit_backing = bdrv_skip_implicit_filters(target_backing_bs);
             bdrv_refresh_filename(explicit_backing);
             bdrv_graph_rdunlock_main_loop();
 

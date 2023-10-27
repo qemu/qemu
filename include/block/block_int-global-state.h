@@ -277,7 +277,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
                                            Error **errp);
 
 
-BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK
+bdrv_skip_implicit_filters(BlockDriverState *bs);
 
 /**
  * bdrv_add_aio_context_notifier:

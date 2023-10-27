@@ -4778,6 +4778,8 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         return 0;
     }
 
+    bdrv_graph_rdlock_main_loop();
+
     switch (qobject_type(value)) {
     case QTYPE_QNULL:
         assert(is_backing); /* The 'file' option does not allow a null value */
@@ -4787,17 +4789,16 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         str = qstring_get_str(qobject_to(QString, value));
         new_child_bs = bdrv_lookup_bs(NULL, str, errp);
         if (new_child_bs == NULL) {
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out_rdlock;
         }
 
-        bdrv_graph_rdlock_main_loop();
         has_child = bdrv_recurse_has_child(new_child_bs, bs);
-        bdrv_graph_rdunlock_main_loop();
-
         if (has_child) {
             error_setg(errp, "Making '%s' a %s child of '%s' would create a "
                        "cycle", str, child_name, bs->node_name);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out_rdlock;
         }
         break;
     default:
@@ -4809,18 +4810,21 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
     }
 
     if (old_child_bs == new_child_bs) {
-        return 0;
+        ret = 0;
+        goto out_rdlock;
     }
 
     if (old_child_bs) {
         if (bdrv_skip_implicit_filters(old_child_bs) == new_child_bs) {
-            return 0;
+            ret = 0;
+            goto out_rdlock;
         }
 
         if (old_child_bs->implicit) {
             error_setg(errp, "Cannot replace implicit %s child of %s",
                        child_name, bs->node_name);
-            return -EPERM;
+            ret = -EPERM;
+            goto out_rdlock;
         }
     }
 
@@ -4831,7 +4835,8 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
          */
         error_setg(errp, "'%s' is a %s filter node that does not support a "
                    "%s child", bs->node_name, bs->drv->format_name, child_name);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out_rdlock;
     }
 
     if (is_backing) {
@@ -4852,6 +4857,7 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         aio_context_acquire(ctx);
     }
 
+    bdrv_graph_rdunlock_main_loop();
     bdrv_graph_wrlock(new_child_bs);
 
     ret = bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
@@ -4869,6 +4875,10 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         bdrv_unref(old_child_bs);
     }
 
+    return ret;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
     return ret;
 }
 
