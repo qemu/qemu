@@ -1126,10 +1126,9 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             if (reg == cpu_cc_src) {
                 reg = s->tmp0;
             }
-            tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
-            tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+            tcg_gen_addi_tl(reg, cpu_cc_src, CC_O - CC_S);
             cc = (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
-                               .mask = CC_S };
+                               .mask = CC_O };
             break;
         default:
         case JCC_LE:
@@ -1137,10 +1136,9 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             if (reg == cpu_cc_src) {
                 reg = s->tmp0;
             }
-            tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
-            tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+            tcg_gen_addi_tl(reg, cpu_cc_src, CC_O - CC_S);
             cc = (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
-                               .mask = CC_S | CC_Z };
+                               .mask = CC_O | CC_Z };
             break;
         }
         break;
