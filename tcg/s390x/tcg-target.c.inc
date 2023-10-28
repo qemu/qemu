@@ -30,7 +30,7 @@
 
 #define TCG_CT_CONST_S16        (1 << 8)
 #define TCG_CT_CONST_S32        (1 << 9)
-#define TCG_CT_CONST_S33        (1 << 10)
+#define TCG_CT_CONST_U32        (1 << 10)
 #define TCG_CT_CONST_ZERO       (1 << 11)
 #define TCG_CT_CONST_P32        (1 << 12)
 #define TCG_CT_CONST_INV        (1 << 13)
@@ -542,22 +542,23 @@ static bool tcg_target_const_match(int64_t val, int ct,
                                    TCGType type, TCGCond cond, int vece)
 {
     if (ct & TCG_CT_CONST) {
-        return 1;
+        return true;
     }
-
     if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
     }
 
-    /* The following are mutually exclusive.  */
-    if (ct & TCG_CT_CONST_S16) {
-        return val == (int16_t)val;
-    } else if (ct & TCG_CT_CONST_S32) {
-        return val == (int32_t)val;
-    } else if (ct & TCG_CT_CONST_S33) {
-        return val >= -0xffffffffll && val <= 0xffffffffll;
-    } else if (ct & TCG_CT_CONST_ZERO) {
-        return val == 0;
+    if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return true;
     }
 
     if (ct & TCG_CT_CONST_INV) {
@@ -573,8 +574,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
     if ((ct & TCG_CT_CONST_INVRISBG) && risbg_mask(~val)) {
         return true;
     }
-
-    return 0;
+    return false;
 }
 
 /* Emit instructions according to the given instruction format.  */
@@ -3137,7 +3137,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, ri);
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i64:
-        return C_O1_I2(r, r, rA);
+        return C_O1_I2(r, r, rJU);
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
@@ -3187,7 +3187,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, ri);
     case INDEX_op_brcond_i64:
-        return C_O0_I2(r, rA);
+        return C_O0_I2(r, rJU);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -3240,7 +3240,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_movcond_i32:
         return C_O1_I4(r, r, ri, rI, r);
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rA, rI, r);
+        return C_O1_I4(r, r, rJU, rI, r);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
@@ -3259,7 +3259,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_add2_i64:
     case INDEX_op_sub2_i64:
-        return C_N1_O1_I4(r, r, 0, 1, rA, r);
+        return C_N1_O1_I4(r, r, 0, 1, rJU, r);
 
     case INDEX_op_st_vec:
         return C_O0_I2(v, r);
