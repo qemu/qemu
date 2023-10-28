@@ -35,6 +35,7 @@
 #define TCG_CT_CONST_P32        (1 << 12)
 #define TCG_CT_CONST_INV        (1 << 13)
 #define TCG_CT_CONST_INVRISBG   (1 << 14)
+#define TCG_CT_CONST_CMP        (1 << 15)
 
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 16)
 #define ALL_VECTOR_REGS      MAKE_64BIT_MASK(32, 32)
@@ -546,6 +547,29 @@ static bool tcg_target_const_match(int64_t val, int ct,
     }
     if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
+    }
+
+    if (ct & TCG_CT_CONST_CMP) {
+        switch (cond) {
+        case TCG_COND_EQ:
+        case TCG_COND_NE:
+            ct |= TCG_CT_CONST_S32 | TCG_CT_CONST_U32;  /* CGFI or CLGFI */
+            break;
+        case TCG_COND_LT:
+        case TCG_COND_GE:
+        case TCG_COND_LE:
+        case TCG_COND_GT:
+            ct |= TCG_CT_CONST_S32;  /* CGFI */
+            break;
+        case TCG_COND_LTU:
+        case TCG_COND_GEU:
+        case TCG_COND_LEU:
+        case TCG_COND_GTU:
+            ct |= TCG_CT_CONST_U32;  /* CLGFI */
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
 
     if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
@@ -1229,22 +1253,34 @@ static int tgen_cmp2(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
             goto exit;
         }
 
-        /*
-         * Constraints are for a signed 33-bit operand, which is a
-         * convenient superset of this signed/unsigned test.
-         */
-        if (c2 == (is_unsigned ? (TCGArg)(uint32_t)c2 : (TCGArg)(int32_t)c2)) {
-            op = (is_unsigned ? RIL_CLGFI : RIL_CGFI);
-            tcg_out_insn_RIL(s, op, r1, c2);
-            goto exit;
+        /* Should match TCG_CT_CONST_CMP. */
+        switch (c) {
+        case TCG_COND_LT:
+        case TCG_COND_GE:
+        case TCG_COND_LE:
+        case TCG_COND_GT:
+            tcg_debug_assert(c2 == (int32_t)c2);
+            op = RIL_CGFI;
+            break;
+        case TCG_COND_EQ:
+        case TCG_COND_NE:
+            if (c2 == (int32_t)c2) {
+                op = RIL_CGFI;
+                break;
+            }
+            /* fall through */
+        case TCG_COND_LTU:
+        case TCG_COND_GEU:
+        case TCG_COND_LEU:
+        case TCG_COND_GTU:
+            tcg_debug_assert(c2 == (uint32_t)c2);
+            op = RIL_CLGFI;
+            break;
+        default:
+            g_assert_not_reached();
         }
-
-        /* Load everything else into a register. */
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, c2);
-        c2 = TCG_TMP0;
-    }
-
-    if (type == TCG_TYPE_I32) {
+        tcg_out_insn_RIL(s, op, r1, c2);
+    } else if (type == TCG_TYPE_I32) {
         op = (is_unsigned ? RR_CLR : RR_CR);
         tcg_out_insn_RR(s, op, r1, c2);
     } else {
@@ -3137,7 +3173,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, ri);
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i64:
-        return C_O1_I2(r, r, rJU);
+        return C_O1_I2(r, r, rC);
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
@@ -3187,7 +3223,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, ri);
     case INDEX_op_brcond_i64:
-        return C_O0_I2(r, rJU);
+        return C_O0_I2(r, rC);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -3240,7 +3276,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_movcond_i32:
         return C_O1_I4(r, r, ri, rI, r);
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rJU, rI, r);
+        return C_O1_I4(r, r, rC, rI, r);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
