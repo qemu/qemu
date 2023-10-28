@@ -1463,6 +1463,12 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
         break;
     case TCG_COND_TSTEQ:
     case TCG_COND_TSTNE:
+        /* tst xN,0xffffffff; b.ne L -> cbnz wN,L */
+        if (b_const && b == UINT32_MAX) {
+            ext = TCG_TYPE_I32;
+            need_cmp = false;
+            break;
+        }
         /* tst xN,1<<B; b.ne L -> tbnz xN,B,L */
         if (b_const && is_power_of_2(b)) {
             tbit = ctz64(b);
