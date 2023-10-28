@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 
 #include "hw/watchdog/wdt_imx2.h"
+#include "trace.h"
 
 static void imx2_wdt_interrupt(void *opaque)
 {
@@ -67,20 +68,29 @@ static void imx2_wdt_reset(DeviceState *dev)
 static uint64_t imx2_wdt_read(void *opaque, hwaddr addr, unsigned int size)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
+    uint16_t value = 0;
 
     switch (addr) {
     case IMX2_WDT_WCR:
-        return s->wcr;
+        value = s->wcr;
+        break;
     case IMX2_WDT_WSR:
-        return s->wsr;
+        value = s->wsr;
+        break;
     case IMX2_WDT_WRSR:
-        return s->wrsr;
+        value = s->wrsr;
+        break;
     case IMX2_WDT_WICR:
-        return s->wicr;
+        value = s->wicr;
+        break;
     case IMX2_WDT_WMCR:
-        return s->wmcr;
+        value = s->wmcr;
+        break;
     }
-    return 0;
+
+    trace_imx2_wdt_read(addr, value);
+
+    return value;
 }
 
 static void imx_wdt2_update_itimer(IMX2WdtState *s, bool start)
@@ -136,6 +146,8 @@ static void imx2_wdt_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned int size)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
+
+    trace_imx2_wdt_write(addr, value);
 
     switch (addr) {
     case IMX2_WDT_WCR:
