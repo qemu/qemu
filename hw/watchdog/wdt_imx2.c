@@ -23,6 +23,8 @@ static void imx2_wdt_interrupt(void *opaque)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
 
+    trace_imx2_wdt_interrupt();
+
     s->wicr |= IMX2_WDT_WICR_WTIS;
     qemu_set_irq(s->irq, 1);
 }
@@ -30,6 +32,8 @@ static void imx2_wdt_interrupt(void *opaque)
 static void imx2_wdt_expired(void *opaque)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
+
+    trace_imx2_wdt_expired();
 
     s->wrsr = IMX2_WDT_WRSR_TOUT;
 
