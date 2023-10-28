@@ -282,31 +282,36 @@ static bool reloc_pc34(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 }
 
 /* test if a constant matches the constraint */
-static bool tcg_target_const_match(int64_t val, int ct,
+static bool tcg_target_const_match(int64_t sval, int ct,
                                    TCGType type, TCGCond cond, int vece)
 {
+    uint64_t uval = sval;
+
     if (ct & TCG_CT_CONST) {
         return 1;
     }
 
-    /* The only 32-bit constraint we use aside from
-       TCG_CT_CONST is TCG_CT_CONST_S16.  */
     if (type == TCG_TYPE_I32) {
-        val = (int32_t)val;
+        uval = (uint32_t)sval;
+        sval = (int32_t)sval;
     }
 
-    if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
+    if ((ct & TCG_CT_CONST_S16) && sval == (int16_t)sval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
+    }
+    if ((ct & TCG_CT_CONST_S32) && sval == (int32_t)sval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+    }
+    if ((ct & TCG_CT_CONST_U32) && uval == (uint32_t)uval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && sval == 0) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_MONE) && val == -1) {
+    }
+    if ((ct & TCG_CT_CONST_MONE) && sval == -1) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_WSZ)
-               && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
+    }
+    if ((ct & TCG_CT_CONST_WSZ) && sval == (type == TCG_TYPE_I32 ? 32 : 64)) {
         return 1;
     }
     return 0;
