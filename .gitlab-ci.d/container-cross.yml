@@ -82,12 +82,6 @@ mipsel-debian-cross-container:
   variables:
     NAME: debian-mipsel-cross
 
-powerpc-test-cross-container:
-  extends: .container_job_template
-  stage: containers
-  variables:
-    NAME: debian-powerpc-test-cross
-
 ppc64el-debian-cross-container:
   extends: .container_job_template
   stage: containers

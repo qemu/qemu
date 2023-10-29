@@ -1325,14 +1325,13 @@ probe_target_compiler() {
         container_cross_prefix=nios2-linux-gnu-
         ;;
       ppc)
-        container_image=debian-powerpc-test-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=powerpc-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc
         ;;
       ppc64|ppc64le)
-        container_image=debian-powerpc-test-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc-10
         ;;
       sh4)
         container_image=debian-legacy-test-cross
