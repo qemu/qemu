@@ -290,7 +290,9 @@ build-user-hexagon:
     CONFIGURE_ARGS: --disable-tools --disable-docs --enable-debug-tcg
     MAKE_CHECK_ARGS: check-tcg
 
-# Only build the softmmu targets we have check-tcg tests for
+# Build the softmmu targets we have check-tcg tests and compilers in
+# our omnibus all-test-cross container. Those targets that haven't got
+# Debian cross compiler support need to use special containers.
 build-some-softmmu:
   extends: .native_build_job_template
   needs:
@@ -298,7 +300,9 @@ build-some-softmmu:
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --enable-debug
-    TARGETS: xtensa-softmmu arm-softmmu aarch64-softmmu
+    TARGETS: arm-softmmu aarch64-softmmu i386-softmmu riscv64-softmmu
+      s390x-softmmu x86_64-softmmu
+    MAKE_CHECK_ARGS: check-tcg
     MAKE_CHECK_ARGS: check-tcg
 
 # We build tricore in a very minimal tricore only container
