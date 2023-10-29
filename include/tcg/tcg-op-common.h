@@ -12,6 +12,11 @@
 #include "exec/helper-proto-common.h"
 #include "exec/helper-gen-common.h"
 
+TCGv_i32 tcg_constant_i32(int32_t val);
+TCGv_i64 tcg_constant_i64(int64_t val);
+TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val);
+TCGv_vec tcg_constant_vec_matching(TCGv_vec match, unsigned vece, int64_t val);
+
 /* Generic ops.  */
 
 void gen_set_label(TCGLabel *l);
@@ -458,6 +463,9 @@ void tcg_gen_stl_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset, TCGType t);
 # define PTR  i64
 # define NAT  TCGv_i64
 #endif
+
+TCGv_ptr tcg_constant_ptr_int(intptr_t x);
+#define tcg_constant_ptr(X)  tcg_constant_ptr_int((intptr_t)(X))
 
 static inline void tcg_gen_ld_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t o)
 {

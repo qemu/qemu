@@ -83,6 +83,13 @@ static inline TCGv_i64 TCGV128_HIGH(TCGv_i128 t)
 
 bool tcg_target_has_memory_bswap(MemOp memop);
 
+/*
+ * Locate or create a read-only temporary that is a constant.
+ * This kind of temporary need not be freed, but for convenience
+ * will be silently ignored by tcg_temp_free_*.
+ */
+TCGTemp *tcg_constant_internal(TCGType type, int64_t val);
+
 void tcg_gen_op1(TCGOpcode, TCGArg);
 void tcg_gen_op2(TCGOpcode, TCGArg, TCGArg);
 void tcg_gen_op3(TCGOpcode, TCGArg, TCGArg, TCGArg);
