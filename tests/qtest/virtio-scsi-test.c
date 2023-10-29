@@ -156,7 +156,7 @@ static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev)
     return vs;
 }
 
-static void hotplug(void *obj, void *data, QGuestAllocator *alloc)
+static void hotplug(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QTestState *qts = global_qtest;
 

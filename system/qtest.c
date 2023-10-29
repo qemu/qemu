@@ -866,7 +866,7 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
 {
     ERRP_GUARD();
     Chardev *chr;
-    Object *qtest;
+    Object *qobj;
 
     chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
     if (chr == NULL) {
@@ -875,18 +875,18 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
         return;
     }
 
-    qtest = object_new(TYPE_QTEST);
-    object_property_set_str(qtest, "chardev", chr->label, &error_abort);
+    qobj = object_new(TYPE_QTEST);
+    object_property_set_str(qobj, "chardev", chr->label, &error_abort);
     if (qtest_log) {
-        object_property_set_str(qtest, "log", qtest_log, &error_abort);
+        object_property_set_str(qobj, "log", qtest_log, &error_abort);
     }
-    object_property_add_child(qdev_get_machine(), "qtest", qtest);
-    user_creatable_complete(USER_CREATABLE(qtest), errp);
+    object_property_add_child(qdev_get_machine(), "qtest", qobj);
+    user_creatable_complete(USER_CREATABLE(qobj), errp);
     if (*errp) {
-        object_unparent(qtest);
+        object_unparent(qobj);
     }
     object_unref(OBJECT(chr));
-    object_unref(qtest);
+    object_unref(qobj);
 }
 
 static bool qtest_server_start(QTest *q, Error **errp)
