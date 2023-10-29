@@ -1347,6 +1347,10 @@ probe_target_compiler() {
         container_image=debian-all-test-cross
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
         ;;
+      riscv64)
+        container_image=debian-all-test-cross
+        container_cross_prefix=riscv64-linux-gnu-
+        ;;
       sh4)
         container_image=debian-legacy-test-cross
         container_cross_prefix=sh4-linux-gnu-
