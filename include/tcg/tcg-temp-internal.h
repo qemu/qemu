@@ -31,30 +31,11 @@
 
 void tcg_temp_free_internal(TCGTemp *);
 
-static inline void tcg_temp_free_i32(TCGv_i32 arg)
-{
-    tcg_temp_free_internal(tcgv_i32_temp(arg));
-}
-
-static inline void tcg_temp_free_i64(TCGv_i64 arg)
-{
-    tcg_temp_free_internal(tcgv_i64_temp(arg));
-}
-
-static inline void tcg_temp_free_i128(TCGv_i128 arg)
-{
-    tcg_temp_free_internal(tcgv_i128_temp(arg));
-}
-
-static inline void tcg_temp_free_ptr(TCGv_ptr arg)
-{
-    tcg_temp_free_internal(tcgv_ptr_temp(arg));
-}
-
-static inline void tcg_temp_free_vec(TCGv_vec arg)
-{
-    tcg_temp_free_internal(tcgv_vec_temp(arg));
-}
+void tcg_temp_free_i32(TCGv_i32 arg);
+void tcg_temp_free_i64(TCGv_i64 arg);
+void tcg_temp_free_i128(TCGv_i128 arg);
+void tcg_temp_free_ptr(TCGv_ptr arg);
+void tcg_temp_free_vec(TCGv_vec arg);
 
 TCGv_i32 tcg_temp_ebb_new_i32(void);
 TCGv_i64 tcg_temp_ebb_new_i64(void);
