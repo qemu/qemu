@@ -12,53 +12,6 @@
 #include "exec/helper-proto-common.h"
 #include "exec/helper-gen-common.h"
 
-/* Basic output routines.  Not for general consumption.  */
-
-void tcg_gen_op1_i32(TCGOpcode, TCGv_i32);
-void tcg_gen_op1_i64(TCGOpcode, TCGv_i64);
-void tcg_gen_op1i(TCGOpcode, TCGArg);
-void tcg_gen_op2_i32(TCGOpcode, TCGv_i32, TCGv_i32);
-void tcg_gen_op2_i64(TCGOpcode, TCGv_i64, TCGv_i64);
-void tcg_gen_op2i_i32(TCGOpcode, TCGv_i32, TCGArg);
-void tcg_gen_op2i_i64(TCGOpcode, TCGv_i64, TCGArg);
-void tcg_gen_op2ii(TCGOpcode, TCGArg, TCGArg);
-void tcg_gen_op3_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32);
-void tcg_gen_op3_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64);
-void tcg_gen_op3i_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGArg);
-void tcg_gen_op3i_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGArg);
-void tcg_gen_ldst_op_i32(TCGOpcode, TCGv_i32, TCGv_ptr, TCGArg);
-void tcg_gen_ldst_op_i64(TCGOpcode, TCGv_i64, TCGv_ptr, TCGArg);
-void tcg_gen_op4_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
-void tcg_gen_op4_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64);
-void tcg_gen_op4i_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32, TCGArg);
-void tcg_gen_op4i_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64, TCGArg);
-void tcg_gen_op4ii_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGArg, TCGArg);
-void tcg_gen_op4ii_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGArg, TCGArg);
-void tcg_gen_op5_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                     TCGv_i32, TCGv_i32);
-void tcg_gen_op5_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                     TCGv_i64, TCGv_i64);
-void tcg_gen_op5i_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                      TCGv_i32, TCGArg);
-void tcg_gen_op5i_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                      TCGv_i64, TCGArg);
-void tcg_gen_op5ii_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                       TCGArg, TCGArg);
-void tcg_gen_op5ii_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                       TCGArg, TCGArg);
-void tcg_gen_op6_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                     TCGv_i32, TCGv_i32, TCGv_i32);
-void tcg_gen_op6_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                     TCGv_i64, TCGv_i64, TCGv_i64);
-void tcg_gen_op6i_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                      TCGv_i32, TCGv_i32, TCGArg);
-void tcg_gen_op6i_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                      TCGv_i64, TCGv_i64, TCGArg);
-void tcg_gen_op6ii_i32(TCGOpcode, TCGv_i32, TCGv_i32, TCGv_i32,
-                       TCGv_i32, TCGArg, TCGArg);
-void tcg_gen_op6ii_i64(TCGOpcode, TCGv_i64, TCGv_i64, TCGv_i64,
-                       TCGv_i64, TCGArg, TCGArg);
-
 /* Generic ops.  */
 
 void gen_set_label(TCGLabel *l);
