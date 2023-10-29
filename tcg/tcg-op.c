@@ -300,6 +300,12 @@ void DNI tcg_gen_op6ii_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
 
 /* Generic ops.  */
 
+void gen_set_label(TCGLabel *l)
+{
+    l->present = 1;
+    tcg_gen_op1(INDEX_op_set_label, label_arg(l));
+}
+
 static void add_last_as_label_use(TCGLabel *l)
 {
     TCGLabelUse *u = tcg_malloc(sizeof(TCGLabelUse));
@@ -331,6 +337,16 @@ void tcg_gen_mb(TCGBar mb_type)
     if (parallel) {
         tcg_gen_op1(INDEX_op_mb, mb_type);
     }
+}
+
+void tcg_gen_plugin_cb_start(unsigned from, unsigned type, unsigned wr)
+{
+    tcg_gen_op3(INDEX_op_plugin_cb_start, from, type, wr);
+}
+
+void tcg_gen_plugin_cb_end(void)
+{
+    tcg_emit_op(INDEX_op_plugin_cb_end, 0);
 }
 
 /* 32 bit ops */
