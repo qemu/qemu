@@ -52,6 +52,12 @@ hppa-debian-cross-container:
   variables:
     NAME: debian-hppa-cross
 
+loongarch-debian-cross-container:
+  extends: .container_job_template
+  stage: containers
+  variables:
+    NAME: debian-loongarch-cross
+
 m68k-debian-cross-container:
   extends: .container_job_template
   stage: containers

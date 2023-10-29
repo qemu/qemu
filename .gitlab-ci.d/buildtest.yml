@@ -303,6 +303,15 @@ build-some-softmmu:
     TARGETS: arm-softmmu aarch64-softmmu i386-softmmu riscv64-softmmu
       s390x-softmmu x86_64-softmmu
     MAKE_CHECK_ARGS: check-tcg
+
+build-loongarch64:
+  extends: .native_build_job_template
+  needs:
+    job: loongarch-debian-cross-container
+  variables:
+    IMAGE: debian-loongarch-cross
+    CONFIGURE_ARGS: --disable-tools --enable-debug
+    TARGETS: loongarch64-linux-user loongarch64-softmmu
     MAKE_CHECK_ARGS: check-tcg
 
 # We build tricore in a very minimal tricore only container
