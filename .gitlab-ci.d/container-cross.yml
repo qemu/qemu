@@ -16,6 +16,12 @@ amd64-debian-user-cross-container:
   variables:
     NAME: debian-all-test-cross
 
+amd64-debian-legacy-cross-container:
+  extends: .container_job_template
+  stage: containers
+  variables:
+    NAME: debian-legacy-test-cross
+
 arm64-debian-cross-container:
   extends: .container_job_template
   stage: containers
