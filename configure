@@ -1300,6 +1300,11 @@ probe_target_compiler() {
         container_cross_prefix=hexagon-unknown-linux-musl-
         container_cross_cc=${container_cross_prefix}clang
         ;;
+      hppa)
+        container_image=debian-all-test-cross
+        container_cross_prefix=hppa-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc
+        ;;
       i386)
         container_image=fedora-i386-cross
         container_cross_prefix=

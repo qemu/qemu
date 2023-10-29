@@ -40,12 +40,6 @@ hexagon-cross-container:
   variables:
     NAME: debian-hexagon-cross
 
-hppa-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  variables:
-    NAME: debian-hppa-cross
-
 loongarch-debian-cross-container:
   extends: .container_job_template
   stage: containers
