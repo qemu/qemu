@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "vdso-asmoffset.h"
 
 struct target_sigcontext {
     abi_ulong sc_flags;
@@ -46,6 +47,19 @@ struct target_rt_sigframe {
     struct target_ucontext uc;
     /* hidden location of upper halves of pa2.0 64-bit gregs */
 };
+
+QEMU_BUILD_BUG_ON(sizeof(struct target_rt_sigframe) != sizeof_rt_sigframe);
+QEMU_BUILD_BUG_ON(offsetof(struct target_rt_sigframe, uc.tuc_mcontext)
+                  != offsetof_sigcontext);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_gr)
+                  != offsetof_sigcontext_gr);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_fr)
+                  != offsetof_sigcontext_fr);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_iaoq)
+                  != offsetof_sigcontext_iaoq);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_sar)
+                  != offsetof_sigcontext_sar);
+
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUArchState *env)
 {
@@ -90,16 +104,6 @@ static void restore_sigcontext(CPUArchState *env, struct target_sigcontext *sc)
     __get_user(env->iaoq_b, &sc->sc_iaoq[1]);
     __get_user(env->cr[CR_SAR], &sc->sc_sar);
 }
-
-#if TARGET_ABI_BITS == 32
-#define SIGFRAME                64
-#define FUNCTIONCALLFRAME       48
-#else
-#define SIGFRAME                128
-#define FUNCTIONCALLFRAME       96
-#endif
-#define PARISC_RT_SIGFRAME_SIZE32 \
-    ((sizeof(struct target_rt_sigframe) + FUNCTIONCALLFRAME + SIGFRAME) & -SIGFRAME)
 
 void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,

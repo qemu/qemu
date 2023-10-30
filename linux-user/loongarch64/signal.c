@@ -10,9 +10,9 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
-
 #include "target/loongarch/internals.h"
 #include "target/loongarch/vec.h"
+#include "vdso-asmoffset.h"
 
 /* FP context was used */
 #define SC_USED_FP              (1 << 0)
@@ -24,6 +24,11 @@ struct target_sigcontext {
     uint64_t sc_extcontext[0]   QEMU_ALIGNED(16);
 };
 
+QEMU_BUILD_BUG_ON(sizeof(struct target_sigcontext) != sizeof_sigcontext);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_pc)
+                  != offsetof_sigcontext_pc);
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_regs)
+                  != offsetof_sigcontext_gr);
 
 #define FPU_CTX_MAGIC           0x46505501
 #define FPU_CTX_ALIGN           8
@@ -33,12 +38,17 @@ struct target_fpu_context {
     uint32_t fcsr;
 } QEMU_ALIGNED(FPU_CTX_ALIGN);
 
+QEMU_BUILD_BUG_ON(offsetof(struct target_fpu_context, regs)
+                  != offsetof_fpucontext_fr);
+
 #define CONTEXT_INFO_ALIGN      16
 struct target_sctx_info {
     uint32_t magic;
     uint32_t size;
     uint64_t padding;
 } QEMU_ALIGNED(CONTEXT_INFO_ALIGN);
+
+QEMU_BUILD_BUG_ON(sizeof(struct target_sctx_info) != sizeof_sctx_info);
 
 struct target_ucontext {
     abi_ulong tuc_flags;
@@ -53,6 +63,11 @@ struct target_rt_sigframe {
     struct target_siginfo        rs_info;
     struct target_ucontext       rs_uc;
 };
+
+QEMU_BUILD_BUG_ON(sizeof(struct target_rt_sigframe)
+                  != sizeof_rt_sigframe);
+QEMU_BUILD_BUG_ON(offsetof(struct target_rt_sigframe, rs_uc.tuc_mcontext)
+                  != offsetof_sigcontext);
 
 /*
  * These two structures are not present in guest memory, are private

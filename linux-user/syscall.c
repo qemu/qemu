@@ -7992,6 +7992,8 @@ static void open_self_maps_4(const struct open_self_maps_data *d,
         path = "[stack]";
     } else if (start == info->brk) {
         path = "[heap]";
+    } else if (start == info->vdso) {
+        path = "[vdso]";
     }
 
     /* Except null device (MAP_ANON), adjust offset for this fragment. */

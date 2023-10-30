@@ -536,11 +536,10 @@ static void signal_table_init(void)
     host_to_target_signal_table[SIGABRT] = 0;
     host_to_target_signal_table[hsig++] = TARGET_SIGABRT;
 
-    for (; hsig <= SIGRTMAX; hsig++) {
-        tsig = hsig - SIGRTMIN + TARGET_SIGRTMIN;
-        if (tsig <= TARGET_NSIG) {
-            host_to_target_signal_table[hsig] = tsig;
-        }
+    for (tsig = TARGET_SIGRTMIN;
+         hsig <= SIGRTMAX && tsig <= TARGET_NSIG;
+         hsig++, tsig++) {
+        host_to_target_signal_table[hsig] = tsig;
     }
 
     /* Invert the mapping that has already been assigned. */

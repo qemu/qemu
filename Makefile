@@ -283,6 +283,13 @@ include $(SRC_PATH)/tests/vm/Makefile.include
 print-help-run = printf "  %-30s - %s\\n" "$1" "$2"
 print-help = @$(call print-help-run,$1,$2)
 
+.PHONY: update-linux-vdso
+update-linux-vdso:
+	@for m in $(SRC_PATH)/linux-user/*/Makefile.vdso; do \
+	  $(MAKE) $(SUBDIR_MAKEFLAGS) -C $$(dirname $$m) -f Makefile.vdso \
+		SRC_PATH=$(SRC_PATH) BUILD_DIR=$(BUILD_DIR); \
+	done
+
 .PHONY: help
 help:
 	@echo  'Generic targets:'
@@ -302,6 +309,9 @@ endif
 	$(call print-help,clean,Remove most generated files but keep the config)
 	$(call print-help,distclean,Remove all generated files)
 	$(call print-help,dist,Build a distributable tarball)
+	@echo  ''
+	@echo  'Linux-user targets:'
+	$(call print-help,update-linux-vdso,Build linux-user vdso images)
 	@echo  ''
 	@echo  'Test targets:'
 	$(call print-help,check,Run all tests (check-help for details))

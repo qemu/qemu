@@ -1,0 +1,17 @@
+include $(BUILD_DIR)/tests/tcg/arm-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/arm
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso-be.so $(SUBDIR)/vdso-le.so
+
+# Adding -use-blx disables unneeded interworking without actually using blx.
+LDFLAGS = -nostdlib -shared -Wl,-use-blx \
+	  -Wl,-h,linux-vdso.so.1 -Wl,--build-id=sha1 \
+	  -Wl,--hash-style=both -Wl,-T,$(SUBDIR)/vdso.ld
+
+$(SUBDIR)/vdso-be.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS) -mbig-endian $<
+
+$(SUBDIR)/vdso-le.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS) -mlittle-endian $<
