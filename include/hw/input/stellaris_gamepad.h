@@ -11,8 +11,27 @@
 #ifndef HW_INPUT_STELLARIS_GAMEPAD_H
 #define HW_INPUT_STELLARIS_GAMEPAD_H
 
+#include "hw/sysbus.h"
+#include "qom/object.h"
 
-/* stellaris_gamepad.c */
-void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode);
+/*
+ * QEMU interface:
+ *  + QOM array property "keycodes": uint32_t QEMU keycodes to handle
+ *  + unnamed GPIO outputs: one per keycode, in the same order as the
+ *    "keycodes" array property entries; asserted when key is down
+ */
+
+#define TYPE_STELLARIS_GAMEPAD "stellaris-gamepad"
+OBJECT_DECLARE_SIMPLE_TYPE(StellarisGamepad, STELLARIS_GAMEPAD)
+
+struct StellarisGamepad {
+    SysBusDevice parent_obj;
+
+    uint32_t num_buttons;
+    qemu_irq *irqs;
+    uint32_t *keycodes;
+    uint8_t *pressed;
+    int extension;
+};
 
 #endif
