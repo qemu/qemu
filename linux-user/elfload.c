@@ -552,10 +552,10 @@ uint32_t get_elf_hwcap(void)
     return hwcaps;
 }
 
-uint32_t get_elf_hwcap2(void)
+uint64_t get_elf_hwcap2(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
-    uint32_t hwcaps = 0;
+    uint64_t hwcaps = 0;
 
     GET_FEATURE_ID(aa32_aes, ARM_HWCAP2_ARM_AES);
     GET_FEATURE_ID(aa32_pmull, ARM_HWCAP2_ARM_PMULL);
@@ -818,10 +818,10 @@ uint32_t get_elf_hwcap(void)
     return hwcaps;
 }
 
-uint32_t get_elf_hwcap2(void)
+uint64_t get_elf_hwcap2(void)
 {
     ARMCPU *cpu = ARM_CPU(thread_cpu);
-    uint32_t hwcaps = 0;
+    uint64_t hwcaps = 0;
 
     GET_FEATURE_ID(aa64_dcpodp, ARM_HWCAP2_A64_DCPODP);
     GET_FEATURE_ID(aa64_sve2, ARM_HWCAP2_A64_SVE2);
