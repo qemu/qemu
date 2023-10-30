@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "scsi/constants.h"
 #include "trace.h"
 #include "ufs.h"
 
@@ -61,8 +62,6 @@ static MemTxResult ufs_addr_write(UfsHc *u, hwaddr addr, const void *buf,
 
     return pci_dma_write(PCI_DEVICE(u), addr, buf, size);
 }
-
-static void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 
 static inline hwaddr ufs_get_utrd_addr(UfsHc *u, uint32_t slot)
 {
@@ -163,11 +162,13 @@ static MemTxResult ufs_dma_read_prdt(UfsRequest *req)
 
     req->sg = g_malloc0(sizeof(QEMUSGList));
     pci_dma_sglist_init(req->sg, PCI_DEVICE(u), prdt_len);
+    req->data_len = 0;
 
     for (uint16_t i = 0; i < prdt_len; ++i) {
         hwaddr data_dma_addr = le64_to_cpu(prd_entries[i].addr);
         uint32_t data_byte_count = le32_to_cpu(prd_entries[i].size) + 1;
         qemu_sglist_add(req->sg, data_dma_addr, data_byte_count);
+        req->data_len += data_byte_count;
     }
     return MEMTX_OK;
 }
@@ -433,23 +434,10 @@ static const MemoryRegionOps ufs_mmio_ops = {
     },
 };
 
-static QEMUSGList *ufs_get_sg_list(SCSIRequest *scsi_req)
-{
-    UfsRequest *req = scsi_req->hba_private;
-    return req->sg;
-}
 
-static void ufs_build_upiu_sense_data(UfsRequest *req, SCSIRequest *scsi_req)
-{
-    req->rsp_upiu.sr.sense_data_len = cpu_to_be16(scsi_req->sense_len);
-    assert(scsi_req->sense_len <= SCSI_SENSE_LEN);
-    memcpy(req->rsp_upiu.sr.sense_data, scsi_req->sense, scsi_req->sense_len);
-}
-
-static void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type,
-                                  uint8_t flags, uint8_t response,
-                                  uint8_t scsi_status,
-                                  uint16_t data_segment_length)
+void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
+                           uint8_t response, uint8_t scsi_status,
+                           uint16_t data_segment_length)
 {
     memcpy(&req->rsp_upiu.header, &req->req_upiu.header, sizeof(UtpUpiuHeader));
     req->rsp_upiu.header.trans_type = trans_type;
@@ -459,96 +447,38 @@ static void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type,
     req->rsp_upiu.header.data_segment_length = cpu_to_be16(data_segment_length);
 }
 
-static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
-{
-    UfsRequest *req = scsi_req->hba_private;
-    int16_t status = scsi_req->status;
-    uint32_t expected_len = be32_to_cpu(req->req_upiu.sc.exp_data_transfer_len);
-    uint32_t transfered_len = scsi_req->cmd.xfer - resid;
-    uint8_t flags = 0, response = UFS_COMMAND_RESULT_SUCESS;
-    uint16_t data_segment_length;
-
-    if (expected_len > transfered_len) {
-        req->rsp_upiu.sr.residual_transfer_count =
-            cpu_to_be32(expected_len - transfered_len);
-        flags |= UFS_UPIU_FLAG_UNDERFLOW;
-    } else if (expected_len < transfered_len) {
-        req->rsp_upiu.sr.residual_transfer_count =
-            cpu_to_be32(transfered_len - expected_len);
-        flags |= UFS_UPIU_FLAG_OVERFLOW;
-    }
-
-    if (status != 0) {
-        ufs_build_upiu_sense_data(req, scsi_req);
-        response = UFS_COMMAND_RESULT_FAIL;
-    }
-
-    data_segment_length = cpu_to_be16(scsi_req->sense_len +
-                                      sizeof(req->rsp_upiu.sr.sense_data_len));
-    ufs_build_upiu_header(req, UFS_UPIU_TRANSACTION_RESPONSE, flags, response,
-                          status, data_segment_length);
-
-    ufs_complete_req(req, UFS_REQUEST_SUCCESS);
-
-    scsi_req->hba_private = NULL;
-    scsi_req_unref(scsi_req);
-}
-
-static const struct SCSIBusInfo ufs_scsi_info = {
-    .tcq = true,
-    .max_target = 0,
-    .max_lun = UFS_MAX_LUS,
-    .max_channel = 0,
-
-    .get_sg_list = ufs_get_sg_list,
-    .complete = ufs_scsi_command_complete,
-};
-
 static UfsReqResult ufs_exec_scsi_cmd(UfsRequest *req)
 {
     UfsHc *u = req->hc;
     uint8_t lun = req->req_upiu.header.lun;
-    uint8_t task_tag = req->req_upiu.header.task_tag;
-    SCSIDevice *dev = NULL;
+
+    UfsLu *lu = NULL;
 
     trace_ufs_exec_scsi_cmd(req->slot, lun, req->req_upiu.sc.cdb[0]);
 
-    if (!is_wlun(lun)) {
-        if (lun >= u->device_desc.number_lu) {
-            trace_ufs_err_scsi_cmd_invalid_lun(lun);
-            return UFS_REQUEST_FAIL;
-        } else if (u->lus[lun] == NULL) {
-            trace_ufs_err_scsi_cmd_invalid_lun(lun);
-            return UFS_REQUEST_FAIL;
-        }
+    if (!is_wlun(lun) && (lun >= UFS_MAX_LUS || u->lus[lun] == NULL)) {
+        trace_ufs_err_scsi_cmd_invalid_lun(lun);
+        return UFS_REQUEST_FAIL;
     }
 
     switch (lun) {
     case UFS_UPIU_REPORT_LUNS_WLUN:
-        dev = &u->report_wlu->qdev;
+        lu = &u->report_wlu;
         break;
     case UFS_UPIU_UFS_DEVICE_WLUN:
-        dev = &u->dev_wlu->qdev;
+        lu = &u->dev_wlu;
         break;
     case UFS_UPIU_BOOT_WLUN:
-        dev = &u->boot_wlu->qdev;
+        lu = &u->boot_wlu;
         break;
     case UFS_UPIU_RPMB_WLUN:
-        dev = &u->rpmb_wlu->qdev;
+        lu = &u->rpmb_wlu;
         break;
     default:
-        dev = &u->lus[lun]->qdev;
+        lu = u->lus[lun];
     }
 
-    SCSIRequest *scsi_req = scsi_req_new(
-        dev, task_tag, lun, req->req_upiu.sc.cdb, UFS_CDB_SIZE, req);
-
-    uint32_t len = scsi_req_enqueue(scsi_req);
-    if (len) {
-        scsi_req_continue(scsi_req);
-    }
-
-    return UFS_REQUEST_NO_COMPLETE;
+    return lu->scsi_op(lu, req);
 }
 
 static UfsReqResult ufs_exec_nop_cmd(UfsRequest *req)
@@ -1137,7 +1067,7 @@ static void ufs_process_req(void *opaque)
     }
 }
 
-static void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
+void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
 {
     UfsHc *u = req->hc;
     assert(req->state == UFS_REQUEST_RUNNING);
@@ -1159,6 +1089,7 @@ static void ufs_clear_req(UfsRequest *req)
         qemu_sglist_destroy(req->sg);
         g_free(req->sg);
         req->sg = NULL;
+        req->data_len = 0;
     }
 
     memset(&req->utrd, 0, sizeof(req->utrd));
@@ -1317,28 +1248,6 @@ static void ufs_init_hc(UfsHc *u)
     u->flags.permanently_disable_fw_update = 1;
 }
 
-static bool ufs_init_wlu(UfsHc *u, UfsWLu **wlu, uint8_t wlun, Error **errp)
-{
-    UfsWLu *new_wlu = UFSWLU(qdev_new(TYPE_UFS_WLU));
-
-    qdev_prop_set_uint32(DEVICE(new_wlu), "lun", wlun);
-
-    /*
-     * The well-known lu shares the same bus as the normal lu. If the well-known
-     * lu writes the same channel value as the normal lu, the report will be
-     * made not only for the normal lu but also for the well-known lu at
-     * REPORT_LUN time. To prevent this, the channel value of normal lu is fixed
-     * to 0 and the channel value of well-known lu is fixed to 1.
-     */
-    qdev_prop_set_uint32(DEVICE(new_wlu), "channel", 1);
-    if (!qdev_realize_and_unref(DEVICE(new_wlu), BUS(&u->bus), errp)) {
-        return false;
-    }
-
-    *wlu = new_wlu;
-    return true;
-}
-
 static void ufs_realize(PCIDevice *pci_dev, Error **errp)
 {
     UfsHc *u = UFS(pci_dev);
@@ -1349,52 +1258,20 @@ static void ufs_realize(PCIDevice *pci_dev, Error **errp)
 
     qbus_init(&u->bus, sizeof(UfsBus), TYPE_UFS_BUS, &pci_dev->qdev,
               u->parent_obj.qdev.id);
-    u->bus.parent_bus.info = &ufs_scsi_info;
 
     ufs_init_state(u);
     ufs_init_hc(u);
     ufs_init_pci(u, pci_dev);
 
-    if (!ufs_init_wlu(u, &u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN, errp)) {
-        return;
-    }
-
-    if (!ufs_init_wlu(u, &u->dev_wlu, UFS_UPIU_UFS_DEVICE_WLUN, errp)) {
-        return;
-    }
-
-    if (!ufs_init_wlu(u, &u->boot_wlu, UFS_UPIU_BOOT_WLUN, errp)) {
-        return;
-    }
-
-    if (!ufs_init_wlu(u, &u->rpmb_wlu, UFS_UPIU_RPMB_WLUN, errp)) {
-        return;
-    }
+    ufs_init_wlu(&u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN);
+    ufs_init_wlu(&u->dev_wlu, UFS_UPIU_UFS_DEVICE_WLUN);
+    ufs_init_wlu(&u->boot_wlu, UFS_UPIU_BOOT_WLUN);
+    ufs_init_wlu(&u->rpmb_wlu, UFS_UPIU_RPMB_WLUN);
 }
 
 static void ufs_exit(PCIDevice *pci_dev)
 {
     UfsHc *u = UFS(pci_dev);
-
-    if (u->dev_wlu) {
-        object_unref(OBJECT(u->dev_wlu));
-        u->dev_wlu = NULL;
-    }
-
-    if (u->report_wlu) {
-        object_unref(OBJECT(u->report_wlu));
-        u->report_wlu = NULL;
-    }
-
-    if (u->rpmb_wlu) {
-        object_unref(OBJECT(u->rpmb_wlu));
-        u->rpmb_wlu = NULL;
-    }
-
-    if (u->boot_wlu) {
-        object_unref(OBJECT(u->boot_wlu));
-        u->boot_wlu = NULL;
-    }
 
     qemu_bh_delete(u->doorbell_bh);
     qemu_bh_delete(u->complete_bh);
@@ -1437,43 +1314,18 @@ static void ufs_class_init(ObjectClass *oc, void *data)
 static bool ufs_bus_check_address(BusState *qbus, DeviceState *qdev,
                                   Error **errp)
 {
-    SCSIDevice *dev = SCSI_DEVICE(qdev);
-    UfsBusClass *ubc = UFS_BUS_GET_CLASS(qbus);
-    UfsHc *u = UFS(qbus->parent);
-
-    if (strcmp(object_get_typename(OBJECT(dev)), TYPE_UFS_WLU) == 0) {
-        if (dev->lun != UFS_UPIU_REPORT_LUNS_WLUN &&
-            dev->lun != UFS_UPIU_UFS_DEVICE_WLUN &&
-            dev->lun != UFS_UPIU_BOOT_WLUN && dev->lun != UFS_UPIU_RPMB_WLUN) {
-            error_setg(errp, "bad well-known lun: %d", dev->lun);
-            return false;
-        }
-
-        if ((dev->lun == UFS_UPIU_REPORT_LUNS_WLUN && u->report_wlu != NULL) ||
-            (dev->lun == UFS_UPIU_UFS_DEVICE_WLUN && u->dev_wlu != NULL) ||
-            (dev->lun == UFS_UPIU_BOOT_WLUN && u->boot_wlu != NULL) ||
-            (dev->lun == UFS_UPIU_RPMB_WLUN && u->rpmb_wlu != NULL)) {
-            error_setg(errp, "well-known lun %d already exists", dev->lun);
-            return false;
-        }
-
-        return true;
-    }
-
-    if (strcmp(object_get_typename(OBJECT(dev)), TYPE_UFS_LU) != 0) {
+    if (strcmp(object_get_typename(OBJECT(qdev)), TYPE_UFS_LU) != 0) {
         error_setg(errp, "%s cannot be connected to ufs-bus",
-                   object_get_typename(OBJECT(dev)));
+                   object_get_typename(OBJECT(qdev)));
         return false;
     }
 
-    return ubc->parent_check_address(qbus, qdev, errp);
+    return true;
 }
 
 static void ufs_bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
-    UfsBusClass *ubc = UFS_BUS_CLASS(class);
-    ubc->parent_check_address = bc->check_address;
     bc->check_address = ufs_bus_check_address;
 }
 
@@ -1487,7 +1339,7 @@ static const TypeInfo ufs_info = {
 
 static const TypeInfo ufs_bus_info = {
     .name = TYPE_UFS_BUS,
-    .parent = TYPE_SCSI_BUS,
+    .parent = TYPE_BUS,
     .class_init = ufs_bus_class_init,
     .class_size = sizeof(UfsBusClass),
     .instance_size = sizeof(UfsBus),
