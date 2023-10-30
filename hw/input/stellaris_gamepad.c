@@ -15,40 +15,37 @@
 #include "migration/vmstate.h"
 #include "ui/console.h"
 
-static void stellaris_gamepad_put_key(void * opaque, int keycode)
+static void stellaris_gamepad_event(DeviceState *dev, QemuConsole *src,
+                                    InputEvent *evt)
 {
-    StellarisGamepad *s = (StellarisGamepad *)opaque;
+    StellarisGamepad *s = STELLARIS_GAMEPAD(dev);
+    InputKeyEvent *key = evt->u.key.data;
+    int qcode = qemu_input_key_value_to_qcode(key->key);
     int i;
-    int down;
-
-    if (keycode == 0xe0 && !s->extension) {
-        s->extension = 0x80;
-        return;
-    }
-
-    down = (keycode & 0x80) == 0;
-    keycode = (keycode & 0x7f) | s->extension;
 
     for (i = 0; i < s->num_buttons; i++) {
-        if (s->keycodes[i] == keycode && s->pressed[i] != down) {
-            s->pressed[i] = down;
-            qemu_set_irq(s->irqs[i], down);
+        if (s->keycodes[i] == qcode && s->pressed[i] != key->down) {
+            s->pressed[i] = key->down;
+            qemu_set_irq(s->irqs[i], key->down);
         }
     }
-
-    s->extension = 0;
 }
 
 static const VMStateDescription vmstate_stellaris_gamepad = {
     .name = "stellaris_gamepad",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(extension, StellarisGamepad),
         VMSTATE_VARRAY_UINT32(pressed, StellarisGamepad, num_buttons,
                               0, vmstate_info_uint8, uint8_t),
         VMSTATE_END_OF_LIST()
     }
+};
+
+static const QemuInputHandler stellaris_gamepad_handler = {
+    .name = "Stellaris Gamepad",
+    .mask = INPUT_EVENT_MASK_KEY,
+    .event = stellaris_gamepad_event,
 };
 
 static void stellaris_gamepad_realize(DeviceState *dev, Error **errp)
@@ -63,7 +60,7 @@ static void stellaris_gamepad_realize(DeviceState *dev, Error **errp)
     s->irqs = g_new0(qemu_irq, s->num_buttons);
     s->pressed = g_new0(uint8_t, s->num_buttons);
     qdev_init_gpio_out(dev, s->irqs, s->num_buttons);
-    qemu_add_kbd_event_handler(stellaris_gamepad_put_key, dev);
+    qemu_input_handler_register(dev, &stellaris_gamepad_handler);
 }
 
 static void stellaris_gamepad_reset_enter(Object *obj, ResetType type)

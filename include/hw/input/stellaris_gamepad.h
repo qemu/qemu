@@ -17,6 +17,7 @@
 /*
  * QEMU interface:
  *  + QOM array property "keycodes": uint32_t QEMU keycodes to handle
+ *    (these are QCodes, ie the Q_KEY_* values)
  *  + unnamed GPIO outputs: one per keycode, in the same order as the
  *    "keycodes" array property entries; asserted when key is down
  */
@@ -31,7 +32,6 @@ struct StellarisGamepad {
     qemu_irq *irqs;
     uint32_t *keycodes;
     uint8_t *pressed;
-    int extension;
 };
 
 #endif
