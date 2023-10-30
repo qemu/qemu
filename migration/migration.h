@@ -544,4 +544,6 @@ void migration_rp_wait(MigrationState *s);
  */
 void migration_rp_kick(MigrationState *s);
 
+int migration_stop_vm(RunState state);
+
 #endif
