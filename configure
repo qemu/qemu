@@ -5684,7 +5684,9 @@ if test "$gio" = "yes" ; then
     echo "CONFIG_GIO=y" >> $config_host_mak
     echo "GIO_CFLAGS=$gio_cflags" >> $config_host_mak
     echo "GIO_LIBS=$gio_libs" >> $config_host_mak
-    echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
+    if [ -n "$gdbus_codegen" ]; then
+        echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
+    fi
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then
