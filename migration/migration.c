@@ -101,6 +101,24 @@ static int migration_maybe_pause(MigrationState *s,
 static void migrate_fd_cancel(MigrationState *s);
 static int close_return_path_on_source(MigrationState *s);
 
+static void migration_downtime_start(MigrationState *s)
+{
+    s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+}
+
+static void migration_downtime_end(MigrationState *s)
+{
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    /*
+     * If downtime already set, should mean that postcopy already set it,
+     * then that should be the real downtime already.
+     */
+    if (!s->downtime) {
+        s->downtime = now - s->downtime_start;
+    }
+}
+
 static bool migration_needs_multiple_sockets(void)
 {
     return migrate_multifd() || migrate_postcopy_preempt();
@@ -2147,7 +2165,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     qemu_mutex_lock_iothread();
     trace_postcopy_start_set_run();
 
-    ms->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    migration_downtime_start(ms);
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     global_state_store();
@@ -2251,7 +2269,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     ms->postcopy_after_devices = true;
     migration_call_notifiers(ms);
 
-    ms->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - ms->downtime_start;
+    migration_downtime_end(ms);
 
     qemu_mutex_unlock_iothread();
 
@@ -2347,7 +2365,7 @@ static int migration_completion_precopy(MigrationState *s,
     int ret;
 
     qemu_mutex_lock_iothread();
-    s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    migration_downtime_start(s);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
     s->vm_old_state = runstate_get();
@@ -2704,15 +2722,8 @@ static void migration_calculate_complete(MigrationState *s)
     int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     int64_t transfer_time;
 
+    migration_downtime_end(s);
     s->total_time = end_time - s->start_time;
-    if (!s->downtime) {
-        /*
-         * It's still not set, so we are precopy migration.  For
-         * postcopy, downtime is calculated during postcopy_start().
-         */
-        s->downtime = end_time - s->downtime_start;
-    }
-
     transfer_time = s->total_time - s->setup_time;
     if (transfer_time) {
         s->mbps = ((double) bytes * 8.0) / transfer_time / 1000;
@@ -3131,7 +3142,7 @@ static void bg_migration_vm_start_bh(void *opaque)
     s->vm_start_bh = NULL;
 
     vm_start();
-    s->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - s->downtime_start;
+    migration_downtime_end(s);
 }
 
 /**
@@ -3198,7 +3209,7 @@ static void *bg_migration_thread(void *opaque)
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
 
     trace_migration_thread_setup_complete();
-    s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    migration_downtime_start(s);
 
     qemu_mutex_lock_iothread();
 
