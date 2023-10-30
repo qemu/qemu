@@ -1142,9 +1142,9 @@ Q6INSN(A4_cround_rr,"Rd32=cround(Rs32,Rt32)",ATTRIBS(),"Convergent Round", {RdV 
             tmp128 = fSHIFTR128(tmp128, SHIFT);\
             DST =  fCAST16S_8S(tmp128);\
         } else {\
-            size16s_t rndbit_128 =  fCAST8S_16S((1LL << (SHIFT - 1))); \
-            size16s_t src_128 =  fCAST8S_16S(SRC); \
-            size16s_t tmp128 = fADD128(src_128, rndbit_128);\
+            rndbit_128 =  fCAST8S_16S((1LL << (SHIFT - 1))); \
+            src_128 =  fCAST8S_16S(SRC); \
+            tmp128 = fADD128(src_128, rndbit_128);\
             tmp128 = fSHIFTR128(tmp128, SHIFT);\
             DST =  fCAST16S_8S(tmp128);\
         }

@@ -95,9 +95,8 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
     }
 }
 
-void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
+static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     uint8_t width = env->mem_log_stores[slot_num].width;
     target_ulong va = env->mem_log_stores[slot_num].va;
 
@@ -119,6 +118,12 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     }
 }
 
+void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
+{
+    uintptr_t ra = GETPC();
+    commit_store(env, slot_num, ra);
+}
+
 void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
 {
     mem_gather_store(env, addr, slot);
@@ -127,10 +132,9 @@ void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     uintptr_t ra = GETPC();
-    int i;
 
     /* Normal (possibly masked) vector store */
-    for (i = 0; i < VSTORES_MAX; i++) {
+    for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
             env->vstore_pending[i] = 0;
             target_ulong va = env->vstore[i].va;
@@ -157,7 +161,7 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
                 g_assert_not_reached();
             }
         } else {
-            for (i = 0; i < sizeof(MMVector); i++) {
+            for (int i = 0; i < sizeof(MMVector); i++) {
                 if (test_bit(i, env->vtcm_log.mask)) {
                     cpu_stb_data_ra(env, env->vtcm_log.va[i],
                                     env->vtcm_log.data.ub[i], ra);
@@ -467,13 +471,12 @@ int32_t HELPER(cabacdecbin_pred)(int64_t RssV, int64_t RttV)
 }
 
 static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
-                        bool is_predicated)
+                        bool is_predicated, uintptr_t retaddr)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
-        uintptr_t ra = GETPC();
-        probe_write(env, va, width, mmu_idx, ra);
+        probe_write(env, va, width, mmu_idx, retaddr);
     }
 }
 
@@ -494,16 +497,15 @@ void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
     int mmu_idx = FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX);
     bool is_predicated =
         FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED);
-    probe_store(env, 0, mmu_idx, is_predicated);
+    uintptr_t ra = GETPC();
+    probe_store(env, 0, mmu_idx, is_predicated, ra);
 }
 
-void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
+static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
+                                    uintptr_t retaddr)
 {
-    uintptr_t retaddr = GETPC();
-    int i;
-
     /* Normal (possibly masked) vector store */
-    for (i = 0; i < VSTORES_MAX; i++) {
+    for (int i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
@@ -538,6 +540,12 @@ void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
     }
 }
 
+void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
+{
+    uintptr_t retaddr = GETPC();
+    probe_hvx_stores(env, mmu_idx, retaddr);
+}
+
 void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
 {
     bool has_st0 = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0);
@@ -547,18 +555,20 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
     bool s0_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED);
     bool s1_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED);
     int mmu_idx = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX);
+    uintptr_t ra = GETPC();
 
     if (has_st0) {
-        probe_store(env, 0, mmu_idx, s0_is_pred);
+        probe_store(env, 0, mmu_idx, s0_is_pred, ra);
     }
     if (has_st1) {
-        probe_store(env, 1, mmu_idx, s1_is_pred);
+        probe_store(env, 1, mmu_idx, s1_is_pred, ra);
     }
     if (has_hvx_stores) {
-        HELPER(probe_hvx_stores)(env, mmu_idx);
+        probe_hvx_stores(env, mmu_idx, ra);
     }
 }
 
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
@@ -567,46 +577,16 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
  * wasn't cancelled), we have to do the store first.
  */
 static void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
-                         uint32_t slot, target_ulong vaddr, int size)
+                         uint32_t slot, target_ulong vaddr, int size,
+                         uintptr_t ra)
 {
     if (slot == 0 && pkt_has_store_s1 &&
         ((env->slot_cancelled & (1 << 1)) == 0)) {
-        HELPER(probe_noshuf_load)(env, vaddr, size, MMU_USER_IDX);
-        HELPER(commit_store)(env, 1);
+        probe_read(env, vaddr, size, MMU_USER_IDX, ra);
+        commit_store(env, 1, ra);
     }
 }
-
-uint8_t mem_load1(CPUHexagonState *env, bool pkt_has_store_s1,
-                  uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 1);
-    return cpu_ldub_data_ra(env, vaddr, ra);
-}
-
-uint16_t mem_load2(CPUHexagonState *env, bool pkt_has_store_s1,
-                   uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 2);
-    return cpu_lduw_data_ra(env, vaddr, ra);
-}
-
-uint32_t mem_load4(CPUHexagonState *env, bool pkt_has_store_s1,
-                   uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 4);
-    return cpu_ldl_data_ra(env, vaddr, ra);
-}
-
-uint64_t mem_load8(CPUHexagonState *env, bool pkt_has_store_s1,
-                   uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 8);
-    return cpu_ldq_data_ra(env, vaddr, ra);
-}
+#endif
 
 /* Floating point */
 float64 HELPER(conv_sf2df)(CPUHexagonState *env, float32 RsV)

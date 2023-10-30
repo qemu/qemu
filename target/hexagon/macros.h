@@ -173,15 +173,6 @@
 #define MEM_STORE8(VA, DATA, SLOT) \
     MEM_STORE8_FUNC(DATA)(tcg_env, VA, DATA, SLOT)
 #else
-#define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD2s(VA) ((int16_t)mem_load2(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD2u(VA) ((uint16_t)mem_load2(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD4s(VA) ((int32_t)mem_load4(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD4u(VA) ((uint32_t)mem_load4(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD8s(VA) ((int64_t)mem_load8(env, pkt_has_store_s1, slot, VA))
-#define MEM_LOAD8u(VA) ((uint64_t)mem_load8(env, pkt_has_store_s1, slot, VA))
-
 #define MEM_STORE1(VA, DATA, SLOT) log_store32(env, VA, DATA, 1, SLOT)
 #define MEM_STORE2(VA, DATA, SLOT) log_store32(env, VA, DATA, 2, SLOT)
 #define MEM_STORE4(VA, DATA, SLOT) log_store32(env, VA, DATA, 4, SLOT)
@@ -530,8 +521,16 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef QEMU_GENERATE
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) MEM_LOAD##SIZE##SIGN(DST, EA)
 #else
+#define MEM_LOAD1 cpu_ldub_data_ra
+#define MEM_LOAD2 cpu_lduw_data_ra
+#define MEM_LOAD4 cpu_ldl_data_ra
+#define MEM_LOAD8 cpu_ldq_data_ra
+
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) \
-    DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE##SIGN(EA)
+    do { \
+        check_noshuf(env, pkt_has_store_s1, slot, EA, SIZE, GETPC()); \
+        DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(env, EA, GETPC()); \
+    } while (0)
 #endif
 
 #define fMEMOP(NUM, SIZE, SIGN, EA, FNTYPE, VALUE)

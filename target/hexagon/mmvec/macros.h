@@ -201,7 +201,7 @@
     } while (0)
 #define SCATTER_OP_WRITE_TO_MEM(TYPE) \
     do { \
-        uintptr_t ra = GETPC(); \
+        ra = GETPC(); \
         for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 TYPE dst = 0; \
