@@ -1491,6 +1491,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
 static
 int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 {
+    int64_t start_ts_each, end_ts_each;
     SaveStateEntry *se;
     int ret;
 
@@ -1507,6 +1508,8 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
                 continue;
             }
         }
+
+        start_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_savevm_section_start(se->idstr, se->section_id);
 
         save_section_header(f, se, QEMU_VM_SECTION_END);
@@ -1518,6 +1521,9 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
             qemu_file_set_error(f, ret);
             return -1;
         }
+        end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+        trace_vmstate_downtime_save("iterable", se->idstr, se->instance_id,
+                                    end_ts_each - start_ts_each);
     }
 
     return 0;
@@ -1528,6 +1534,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool inactivate_disks)
 {
     MigrationState *ms = migrate_get_current();
+    int64_t start_ts_each, end_ts_each;
     JSONWriter *vmdesc = ms->vmdesc;
     int vmdesc_len;
     SaveStateEntry *se;
@@ -1539,11 +1546,17 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
             continue;
         }
 
+        start_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+
         ret = vmstate_save(f, se, vmdesc);
         if (ret) {
             qemu_file_set_error(f, ret);
             return ret;
         }
+
+        end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+        trace_vmstate_downtime_save("non-iterable", se->idstr, se->instance_id,
+                                    end_ts_each - start_ts_each);
     }
 
     if (inactivate_disks) {
@@ -2537,9 +2550,12 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
 }
 
 static int
-qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
+qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis,
+                               uint8_t type)
 {
+    bool trace_downtime = (type == QEMU_VM_SECTION_FULL);
     uint32_t instance_id, version_id, section_id;
+    int64_t start_ts, end_ts;
     SaveStateEntry *se;
     char idstr[256];
     int ret;
@@ -2588,12 +2604,23 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
         return -EINVAL;
     }
 
+    if (trace_downtime) {
+        start_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+    }
+
     ret = vmstate_load(f, se);
     if (ret < 0) {
         error_report("error while loading state for instance 0x%"PRIx32" of"
                      " device '%s'", instance_id, idstr);
         return ret;
     }
+
+    if (trace_downtime) {
+        end_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+        trace_vmstate_downtime_load("non-iterable", se->idstr,
+                                    se->instance_id, end_ts - start_ts);
+    }
+
     if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
@@ -2602,8 +2629,11 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 }
 
 static int
-qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
+qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis,
+                             uint8_t type)
 {
+    bool trace_downtime = (type == QEMU_VM_SECTION_END);
+    int64_t start_ts, end_ts;
     uint32_t section_id;
     SaveStateEntry *se;
     int ret;
@@ -2628,12 +2658,23 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
         return -EINVAL;
     }
 
+    if (trace_downtime) {
+        start_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+    }
+
     ret = vmstate_load(f, se);
     if (ret < 0) {
         error_report("error while loading state section id %d(%s)",
                      section_id, se->idstr);
         return ret;
     }
+
+    if (trace_downtime) {
+        end_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+        trace_vmstate_downtime_load("iterable", se->idstr,
+                                    se->instance_id, end_ts - start_ts);
+    }
+
     if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
@@ -2822,14 +2863,14 @@ retry:
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
-            ret = qemu_loadvm_section_start_full(f, mis);
+            ret = qemu_loadvm_section_start_full(f, mis, section_type);
             if (ret < 0) {
                 goto out;
             }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
-            ret = qemu_loadvm_section_part_end(f, mis);
+            ret = qemu_loadvm_section_part_end(f, mis, section_type);
             if (ret < 0) {
                 goto out;
             }
