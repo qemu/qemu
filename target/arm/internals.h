@@ -28,6 +28,7 @@
 #include "hw/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "syndrome.h"
+#include "cpu-features.h"
 
 /* register banks for CPU modes */
 #define BANK_USRSYS 0

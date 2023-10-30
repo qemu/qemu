@@ -28,6 +28,7 @@
 #include "sysemu/kvm_int.h"
 #include "kvm_arm.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ghes.h"
 

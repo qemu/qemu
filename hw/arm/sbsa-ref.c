@@ -149,6 +149,7 @@ static const char * const valid_cpus[] = {
     ARM_CPU_TYPE_NAME("cortex-a72"),
     ARM_CPU_TYPE_NAME("neoverse-n1"),
     ARM_CPU_TYPE_NAME("neoverse-v1"),
+    ARM_CPU_TYPE_NAME("neoverse-n2"),
     ARM_CPU_TYPE_NAME("max"),
 };
 

@@ -19,7 +19,6 @@
 #ifndef FSL_IMX7_H
 #define FSL_IMX7_H
 
-#include "hw/arm/boot.h"
 #include "hw/cpu/a15mpcore.h"
 #include "hw/intc/imx_gpcv2.h"
 #include "hw/misc/imx7_ccm.h"

@@ -21,6 +21,7 @@
 #include "sysemu/tcg.h"
 #include "sysemu/runstate.h"
 #include "target/arm/cpu.h"
+#include "target/arm/cpu-features.h"
 #include "exec/exec-all.h"
 #include "exec/memop.h"
 #include "qemu/log.h"

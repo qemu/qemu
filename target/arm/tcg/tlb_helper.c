@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 

@@ -349,7 +349,7 @@ static void zynq_init(MachineState *machine)
     zynq_binfo.board_setup_addr = BOARD_SETUP_ADDR;
     zynq_binfo.write_board_setup = zynq_write_board_setup;
 
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &zynq_binfo);
+    arm_load_kernel(cpu, machine, &zynq_binfo);
 }
 
 static void zynq_machine_class_init(ObjectClass *oc, void *data)

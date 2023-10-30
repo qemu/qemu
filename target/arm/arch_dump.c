@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "elf.h"
 #include "sysemu/dump.h"
+#include "cpu-features.h"
 
 /* struct user_pt_regs from arch/arm64/include/uapi/asm/ptrace.h */
 struct aarch64_user_regs {

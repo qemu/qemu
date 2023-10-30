@@ -23,6 +23,7 @@
 #include "gdbstub/helpers.h"
 #include "sysemu/tcg.h"
 #include "internals.h"
+#include "cpu-features.h"
 #include "cpregs.h"
 
 typedef struct RegisterSysregXmlParam {
