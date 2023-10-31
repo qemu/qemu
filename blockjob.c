@@ -378,6 +378,7 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
     uint64_t progress_current, progress_total;
+    const BlockJobDriver *drv = block_job_driver(job);
 
     GLOBAL_STATE_CODE();
 
@@ -406,6 +407,11 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
         info->error = job->job.err ?
                         g_strdup(error_get_pretty(job->job.err)) :
                         g_strdup(strerror(-job->job.ret));
+    }
+    if (drv->query) {
+        job_unlock();
+        drv->query(job, info);
+        job_lock();
     }
     return info;
 }
