@@ -1688,26 +1688,6 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
     }
 }
 
-static int validate_start_block(DumpState *s)
-{
-    GuestPhysBlock *block;
-
-    if (!dump_has_filter(s)) {
-        return 0;
-    }
-
-    QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
-        /* This block is out of the range */
-        if (block->target_start >= s->filter_area_begin + s->filter_area_length ||
-            block->target_end <= s->filter_area_begin) {
-            continue;
-        }
-        return 0;
-   }
-
-    return -1;
-}
-
 static void get_max_mapnr(DumpState *s)
 {
     GuestPhysBlock *last_block;
@@ -1854,12 +1834,6 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     /* it does not make sense to dump non-existent memory */
     if (!s->total_size) {
         error_setg(errp, "dump: no guest memory to dump");
-        goto cleanup;
-    }
-
-    /* Is the filter filtering everything? */
-    if (validate_start_block(s) == -1) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "begin");
         goto cleanup;
     }
 
