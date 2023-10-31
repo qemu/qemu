@@ -1555,7 +1555,7 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
          */
         if (plugged_dev->hotplugged) {
             error_setg(errp, QERR_BUS_NO_HOTPLUG,
-                       object_get_typename(OBJECT(phb)));
+                       phb->parent_obj.bus->qbus.name);
             return;
         }
     }
@@ -1676,7 +1676,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 
     if (!phb->dr_enabled) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG,
-                   object_get_typename(OBJECT(phb)));
+                   phb->parent_obj.bus->qbus.name);
         return;
     }
 
