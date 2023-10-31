@@ -61,8 +61,12 @@ typedef struct MirrorBlockJob {
      */
     MirrorCopyMode copy_mode;
     BlockdevOnError on_source_error, on_target_error;
-    /* Set when the target is synced (dirty bitmap is clean, nothing
-     * in flight) and the job is running in active mode */
+    /*
+     * To be accessed with atomics.
+     *
+     * Set when the target is synced (dirty bitmap is clean, nothing in flight)
+     * and the job is running in active mode.
+     */
     bool actively_synced;
     bool should_complete;
     int64_t granularity;
@@ -126,7 +130,7 @@ typedef enum MirrorMethod {
 static BlockErrorAction mirror_error_action(MirrorBlockJob *s, bool read,
                                             int error)
 {
-    s->actively_synced = false;
+    qatomic_set(&s->actively_synced, false);
     if (read) {
         return block_job_error_action(&s->common, s->on_source_error,
                                       true, error);
@@ -966,7 +970,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     if (s->bdev_length == 0) {
         /* Transition to the READY state and wait for complete. */
         job_transition_to_ready(&s->common.job);
-        s->actively_synced = true;
+        qatomic_set(&s->actively_synced, true);
         while (!job_cancel_requested(&s->common.job) && !s->should_complete) {
             job_yield(&s->common.job);
         }
@@ -1080,7 +1084,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                 job_transition_to_ready(&s->common.job);
             }
             if (qatomic_read(&s->copy_mode) != MIRROR_COPY_MODE_BACKGROUND) {
-                s->actively_synced = true;
+                qatomic_set(&s->actively_synced, true);
             }
 
             should_complete = s->should_complete ||
@@ -1283,6 +1287,15 @@ static void mirror_change(BlockJob *job, BlockJobChangeOptions *opts,
     }
 }
 
+static void mirror_query(BlockJob *job, BlockJobInfo *info)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+
+    info->u.mirror = (BlockJobInfoMirror) {
+        .actively_synced = qatomic_read(&s->actively_synced),
+    };
+}
+
 static const BlockJobDriver mirror_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1298,6 +1311,7 @@ static const BlockJobDriver mirror_job_driver = {
     },
     .drained_poll           = mirror_drained_poll,
     .change                 = mirror_change,
+    .query                  = mirror_query,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
@@ -1416,7 +1430,7 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
         bitmap_end = QEMU_ALIGN_UP(offset + bytes, job->granularity);
         bdrv_set_dirty_bitmap(job->dirty_bitmap, bitmap_offset,
                               bitmap_end - bitmap_offset);
-        job->actively_synced = false;
+        qatomic_set(&job->actively_synced, false);
 
         action = mirror_error_action(job, false, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT) {
@@ -1475,7 +1489,8 @@ static void coroutine_fn GRAPH_RDLOCK active_write_settle(MirrorOp *op)
     uint64_t end_chunk = DIV_ROUND_UP(op->offset + op->bytes,
                                       op->s->granularity);
 
-    if (!--op->s->in_active_write_counter && op->s->actively_synced) {
+    if (!--op->s->in_active_write_counter &&
+        qatomic_read(&op->s->actively_synced)) {
         BdrvChild *source = op->s->mirror_top_bs->backing;
 
         if (QLIST_FIRST(&source->bs->parents) == source &&
@@ -1539,7 +1554,7 @@ bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
     }
 
     if (!copy_to_target && s->job && s->job->dirty_bitmap) {
-        s->job->actively_synced = false;
+        qatomic_set(&s->job->actively_synced, false);
         bdrv_set_dirty_bitmap(s->job->dirty_bitmap, offset, bytes);
     }
 
