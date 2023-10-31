@@ -3045,6 +3045,17 @@
   'allow-preconfig': true }
 
 ##
+# @BlockJobChangeOptionsMirror:
+#
+# @copy-mode: Switch to this copy mode.  Currently, only the switch
+#     from 'background' to 'write-blocking' is implemented.
+#
+# Since: 8.2
+##
+{ 'struct': 'BlockJobChangeOptionsMirror',
+  'data': { 'copy-mode' : 'MirrorCopyMode' } }
+
+##
 # @BlockJobChangeOptions:
 #
 # Block job options that can be changed after job creation.
@@ -3058,7 +3069,7 @@
 { 'union': 'BlockJobChangeOptions',
   'base': { 'id': 'str', 'type': 'JobType' },
   'discriminator': 'type',
-  'data': {} }
+  'data': { 'mirror': 'BlockJobChangeOptionsMirror' } }
 
 ##
 # @block-job-change:

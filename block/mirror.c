@@ -55,6 +55,10 @@ typedef struct MirrorBlockJob {
     BlockMirrorBackingMode backing_mode;
     /* Whether the target image requires explicit zero-initialization */
     bool zero_target;
+    /*
+     * To be accesssed with atomics. Written only under the BQL (required by the
+     * current implementation of mirror_change()).
+     */
     MirrorCopyMode copy_mode;
     BlockdevOnError on_source_error, on_target_error;
     /* Set when the target is synced (dirty bitmap is clean, nothing
@@ -1075,7 +1079,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                  */
                 job_transition_to_ready(&s->common.job);
             }
-            if (s->copy_mode != MIRROR_COPY_MODE_BACKGROUND) {
+            if (qatomic_read(&s->copy_mode) != MIRROR_COPY_MODE_BACKGROUND) {
                 s->actively_synced = true;
             }
 
@@ -1246,6 +1250,39 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
+static void mirror_change(BlockJob *job, BlockJobChangeOptions *opts,
+                          Error **errp)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    BlockJobChangeOptionsMirror *change_opts = &opts->u.mirror;
+    MirrorCopyMode current;
+
+    /*
+     * The implementation relies on the fact that copy_mode is only written
+     * under the BQL. Otherwise, further synchronization would be required.
+     */
+
+    GLOBAL_STATE_CODE();
+
+    if (qatomic_read(&s->copy_mode) == change_opts->copy_mode) {
+        return;
+    }
+
+    if (change_opts->copy_mode != MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        error_setg(errp, "Change to copy mode '%s' is not implemented",
+                   MirrorCopyMode_str(change_opts->copy_mode));
+        return;
+    }
+
+    current = qatomic_cmpxchg(&s->copy_mode, MIRROR_COPY_MODE_BACKGROUND,
+                              change_opts->copy_mode);
+    if (current != MIRROR_COPY_MODE_BACKGROUND) {
+        error_setg(errp, "Expected current copy mode '%s', got '%s'",
+                   MirrorCopyMode_str(MIRROR_COPY_MODE_BACKGROUND),
+                   MirrorCopyMode_str(current));
+    }
+}
+
 static const BlockJobDriver mirror_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1260,6 +1297,7 @@ static const BlockJobDriver mirror_job_driver = {
         .cancel                 = mirror_cancel,
     },
     .drained_poll           = mirror_drained_poll,
+    .change                 = mirror_change,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
@@ -1467,7 +1505,7 @@ static bool should_copy_to_target(MirrorBDSOpaque *s)
 {
     return s->job && s->job->ret >= 0 &&
         !job_is_cancelled(&s->job->common.job) &&
-        s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+        qatomic_read(&s->job->copy_mode) == MIRROR_COPY_MODE_WRITE_BLOCKING;
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1813,7 +1851,7 @@ static BlockJob *mirror_start_job(
     s->is_none_mode = is_none_mode;
     s->backing_mode = backing_mode;
     s->zero_target = zero_target;
-    s->copy_mode = copy_mode;
+    qatomic_set(&s->copy_mode, copy_mode);
     s->base = base;
     s->base_overlay = bdrv_find_overlay(bs, base);
     s->granularity = granularity;
