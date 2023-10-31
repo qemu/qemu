@@ -100,7 +100,7 @@ static int dump_cleanup(DumpState *s)
     memory_mapping_list_free(&s->list);
     close(s->fd);
     g_free(s->guest_note);
-    g_array_unref(s->string_table_buf);
+    g_clear_pointer(&s->string_table_buf, g_array_unref);
     s->guest_note = NULL;
     if (s->resume) {
         if (s->detached) {
