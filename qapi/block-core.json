@@ -1395,13 +1395,15 @@
 #
 # Since: 1.1
 ##
-{ 'struct': 'BlockJobInfo',
-  'data': {'type': 'JobType', 'device': 'str', 'len': 'int',
+{ 'union': 'BlockJobInfo',
+  'base': {'type': 'JobType', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
            'status': 'JobStatus',
            'auto-finalize': 'bool', 'auto-dismiss': 'bool',
-           '*error': 'str' } }
+           '*error': 'str' },
+  'discriminator': 'type',
+  'data': {} }
 
 ##
 # @query-block-jobs:
