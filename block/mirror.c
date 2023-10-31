@@ -1500,6 +1500,11 @@ bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
         abort();
     }
 
+    if (!copy_to_target && s->job && s->job->dirty_bitmap) {
+        s->job->actively_synced = false;
+        bdrv_set_dirty_bitmap(s->job->dirty_bitmap, offset, bytes);
+    }
+
     if (ret < 0) {
         goto out;
     }
@@ -1823,13 +1828,17 @@ static BlockJob *mirror_start_job(
         s->should_complete = true;
     }
 
-    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
+    s->dirty_bitmap = bdrv_create_dirty_bitmap(s->mirror_top_bs, granularity,
+                                               NULL, errp);
     if (!s->dirty_bitmap) {
         goto fail;
     }
-    if (s->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
-        bdrv_disable_dirty_bitmap(s->dirty_bitmap);
-    }
+
+    /*
+     * The dirty bitmap is set by bdrv_mirror_top_do_write() when not in active
+     * mode.
+     */
+    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
 
     ret = block_job_add_bdrv(&s->common, "source", bs, 0,
                              BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE |
