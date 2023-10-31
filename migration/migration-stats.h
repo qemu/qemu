@@ -82,6 +82,10 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Number of bytes transferred with QEMUFile.
+     */
+    Stat64 qemu_file_transferred;
+    /*
      * Amount of transferred data at the start of current cycle.
      */
     Stat64 rate_limit_start;
@@ -93,10 +97,6 @@ typedef struct {
      * Number of bytes sent through RDMA.
      */
     Stat64 rdma_bytes;
-    /*
-     * Total number of bytes transferred.
-     */
-    Stat64 transferred;
     /*
      * Number of pages transferred that were full of zeros.
      */
@@ -116,10 +116,8 @@ uint64_t migration_rate_get(void);
  * migration_rate_reset: Reset the rate limit counter.
  *
  * This is called when we know we start a new transfer cycle.
- *
- * @f: QEMUFile used for main migration channel
  */
-void migration_rate_reset(QEMUFile *f);
+void migration_rate_reset(void);
 
 /**
  * migration_rate_set: Set the maximum amount that can be transferred.
@@ -133,11 +131,9 @@ void migration_rate_set(uint64_t new_rate);
 /**
  * migration_transferred_bytes: Return number of bytes transferred
  *
- * @f: QEMUFile used for main migration channel
- *
  * Returns how many bytes have we transferred since the beginning of
  * the migration.  It accounts for bytes sent through any migration
  * channel, multifd, qemu_file, rdma, ....
  */
-uint64_t migration_transferred_bytes(QEMUFile *f);
+uint64_t migration_transferred_bytes(void);
 #endif

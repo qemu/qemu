@@ -359,5 +359,12 @@ _filter_qcow2_compression_type_bit()
         -e 's/\(incompatible_features.*\), 3\(,.*\)/\1\2/'
 }
 
+# filter warnings caused for block migration deprecation
+_filter_migration_block_deprecated()
+{
+    gsed -e '/warning: parameter .blk. is deprecated; use blockdev-mirror with NBD instead/d' \
+         -e '/warning: block migration is deprecated; use blockdev-mirror with NBD instead/d'
+}
+
 # make sure this script returns success
 true

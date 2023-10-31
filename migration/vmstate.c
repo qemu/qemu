@@ -179,6 +179,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     assert(field->flags == VMS_END);
     ret = vmstate_subsection_load(f, vmsd, opaque);
     if (ret != 0) {
+        qemu_file_set_error(f, ret);
         return ret;
     }
     if (vmsd->post_load) {
@@ -324,7 +325,7 @@ static void vmsd_desc_field_end(const VMStateDescription *vmsd,
 }
 
 
-bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque)
+bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque)
 {
     if (vmsd->needed && !vmsd->needed(opaque)) {
         /* optional section not needed */
@@ -386,7 +387,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 void *curr_elem = first_elem + size * i;
 
                 vmsd_desc_field_start(vmsd, vmdesc_loop, field, i, n_elems);
-                old_offset = qemu_file_transferred_noflush(f);
+                old_offset = qemu_file_transferred(f);
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     assert(curr_elem);
                     curr_elem = *(void **)curr_elem;
@@ -416,7 +417,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                     return ret;
                 }
 
-                written_bytes = qemu_file_transferred_noflush(f) - old_offset;
+                written_bytes = qemu_file_transferred(f) - old_offset;
                 vmsd_desc_field_end(vmsd, vmdesc_loop, field, written_bytes, i);
 
                 /* Compressed arrays only care about the first element */
@@ -522,7 +523,7 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
 
     trace_vmstate_subsection_save_top(vmsd->name);
     while (sub && *sub) {
-        if (vmstate_save_needed(*sub, opaque)) {
+        if (vmstate_section_needed(*sub, opaque)) {
             const VMStateDescription *vmsdsub = *sub;
             uint8_t len;
 
