@@ -1281,6 +1281,11 @@ probe_target_compiler() {
         container_cross_prefix=aarch64-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc
         ;;
+      alpha)
+        container_image=debian-legacy-test-cross
+        container_cross_prefix=alpha-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc
+        ;;
       arm)
         # We don't have any bigendian build tools so we only use this for ARM
         container_image=debian-armhf-cross
@@ -1295,6 +1300,11 @@ probe_target_compiler() {
         container_cross_prefix=hexagon-unknown-linux-musl-
         container_cross_cc=${container_cross_prefix}clang
         ;;
+      hppa)
+        container_image=debian-all-test-cross
+        container_cross_prefix=hppa-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc
+        ;;
       i386)
         container_image=fedora-i386-cross
         container_cross_prefix=
@@ -1302,6 +1312,11 @@ probe_target_compiler() {
       loongarch64)
         container_image=debian-loongarch-cross
         container_cross_prefix=loongarch64-unknown-linux-gnu-
+        ;;
+      m68k)
+        container_image=debian-all-test-cross
+        container_cross_prefix=m68k-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc
         ;;
       microblaze)
         container_image=debian-microblaze-cross
@@ -1312,22 +1327,37 @@ probe_target_compiler() {
         container_cross_prefix=mips64el-linux-gnuabi64-
         ;;
       mips64)
-        container_image=debian-mips64-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=mips64-linux-gnuabi64-
+        ;;
+      mips)
+        container_image=debian-all-test-cross
+        container_cross_prefix=mips-linux-gnu-
         ;;
       nios2)
         container_image=debian-nios2-cross
         container_cross_prefix=nios2-linux-gnu-
         ;;
       ppc)
-        container_image=debian-powerpc-test-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=powerpc-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc
         ;;
       ppc64|ppc64le)
-        container_image=debian-powerpc-test-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc-10
+        ;;
+      riscv64)
+        container_image=debian-all-test-cross
+        container_cross_prefix=riscv64-linux-gnu-
+        ;;
+      sh4)
+        container_image=debian-legacy-test-cross
+        container_cross_prefix=sh4-linux-gnu-
+        ;;
+      sparc64)
+        container_image=debian-all-test-cross
+        container_cross_prefix=sparc64-linux-gnu-
         ;;
       tricore)
         container_image=debian-tricore-cross
