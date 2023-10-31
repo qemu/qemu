@@ -2079,11 +2079,12 @@ DumpQueryResult *qmp_query_dump(Error **errp)
     return result;
 }
 
-void qmp_dump_guest_memory(bool paging, const char *file,
+void qmp_dump_guest_memory(bool paging, const char *protocol,
                            bool has_detach, bool detach,
-                           bool has_begin, int64_t begin, bool has_length,
-                           int64_t length, bool has_format,
-                           DumpGuestMemoryFormat format, Error **errp)
+                           bool has_begin, int64_t begin,
+                           bool has_length, int64_t length,
+                           bool has_format, DumpGuestMemoryFormat format,
+                           Error **errp)
 {
     ERRP_GUARD();
     const char *p;
@@ -2170,7 +2171,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     }
 
 #if !defined(WIN32)
-    if (strstart(file, "fd:", &p)) {
+    if (strstart(protocol, "fd:", &p)) {
         fd = monitor_get_fd(monitor_cur(), p, errp);
         if (fd == -1) {
             return;
@@ -2178,7 +2179,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     }
 #endif
 
-    if  (strstart(file, "file:", &p)) {
+    if  (strstart(protocol, "file:", &p)) {
         fd = qemu_open_old(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
         if (fd < 0) {
             error_setg_file_open(errp, errno, p);
