@@ -36,6 +36,7 @@ static const TypeInfo virtio_gpu_rutabaga_pci_info[] = {
         .instance_init = virtio_gpu_rutabaga_initfn,
         .interfaces = (InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
         }
     },
 };
