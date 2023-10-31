@@ -1353,6 +1353,20 @@
   'data': ['background', 'write-blocking'] }
 
 ##
+# @BlockJobInfoMirror:
+#
+# Information specific to mirror block jobs.
+#
+# @actively-synced: Whether the source is actively synced to the
+#     target, i.e. same data and new writes are done synchronously to
+#     both.
+#
+# Since 8.2
+##
+{ 'struct': 'BlockJobInfoMirror',
+  'data': { 'actively-synced': 'bool' } }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -1395,13 +1409,15 @@
 #
 # Since: 1.1
 ##
-{ 'struct': 'BlockJobInfo',
-  'data': {'type': 'str', 'device': 'str', 'len': 'int',
+{ 'union': 'BlockJobInfo',
+  'base': {'type': 'JobType', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
            'status': 'JobStatus',
            'auto-finalize': 'bool', 'auto-dismiss': 'bool',
-           '*error': 'str' } }
+           '*error': 'str' },
+  'discriminator': 'type',
+  'data': { 'mirror': 'BlockJobInfoMirror' } }
 
 ##
 # @query-block-jobs:
@@ -3043,6 +3059,43 @@
 ##
 { 'command': 'block-job-finalize', 'data': { 'id': 'str' },
   'allow-preconfig': true }
+
+##
+# @BlockJobChangeOptionsMirror:
+#
+# @copy-mode: Switch to this copy mode.  Currently, only the switch
+#     from 'background' to 'write-blocking' is implemented.
+#
+# Since: 8.2
+##
+{ 'struct': 'BlockJobChangeOptionsMirror',
+  'data': { 'copy-mode' : 'MirrorCopyMode' } }
+
+##
+# @BlockJobChangeOptions:
+#
+# Block job options that can be changed after job creation.
+#
+# @id: The job identifier
+#
+# @type: The job type
+#
+# Since 8.2
+##
+{ 'union': 'BlockJobChangeOptions',
+  'base': { 'id': 'str', 'type': 'JobType' },
+  'discriminator': 'type',
+  'data': { 'mirror': 'BlockJobChangeOptionsMirror' } }
+
+##
+# @block-job-change:
+#
+# Change the block job's options.
+#
+# Since: 8.2
+##
+{ 'command': 'block-job-change',
+  'data': 'BlockJobChangeOptions', 'boxed': true }
 
 ##
 # @BlockdevDiscardOptions:

@@ -15,6 +15,7 @@
 #include "block/block.h"
 #include "block/raw-aio.h"
 #include "qemu/coroutine.h"
+#include "qemu/defer-call.h"
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
@@ -124,6 +125,9 @@ static void luring_process_completions(LuringState *s)
 {
     struct io_uring_cqe *cqes;
     int total_bytes;
+
+    defer_call_begin();
+
     /*
      * Request completion callbacks can run the nested event loop.
      * Schedule ourselves so the nested event loop will "see" remaining
@@ -216,7 +220,10 @@ end:
             aio_co_wake(luringcb->co);
         }
     }
+
     qemu_bh_cancel(s->completion_bh);
+
+    defer_call_end();
 }
 
 static int ioq_submit(LuringState *s)
@@ -306,7 +313,7 @@ static void ioq_init(LuringQueue *io_q)
     io_q->blocked = false;
 }
 
-static void luring_unplug_fn(void *opaque)
+static void luring_deferred_fn(void *opaque)
 {
     LuringState *s = opaque;
     trace_luring_unplug_fn(s, s->io_q.blocked, s->io_q.in_queue,
@@ -367,7 +374,7 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
             return ret;
         }
 
-        blk_io_plug_call(luring_unplug_fn, s);
+        defer_call(luring_deferred_fn, s);
     }
     return 0;
 }

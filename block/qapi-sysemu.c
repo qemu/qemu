@@ -237,6 +237,7 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
     Error *local_err = NULL;
+    AioContext *ctx;
     bool has_device;
     int ret;
 
@@ -258,7 +259,11 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
         return;
     }
 
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
     ret = blk_insert_bs(blk, bs, errp);
+    aio_context_release(ctx);
+
     if (ret < 0) {
         return;
     }

@@ -1,0 +1,75 @@
+QA output created by 314
+
+=== Testing compressed rebase format compatibility ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=raw size=50331648
+qemu-img: Compression not supported for this file format
+
+=== Testing rebase with compression onto no backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=50331648
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=50331648 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+wrote 25165824/25165824 bytes at offset 0
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 25165824/25165824 bytes at offset 25165824
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 25165824/25165824 bytes at offset 0
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 25165824/25165824 bytes at offset 25165824
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+768/768 = 100.00% allocated, 100.00% fragmented, 100.00% compressed clusters
+Image end offset: 458752
+
+=== Testing rebase with compression with raw backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=25165824
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=50331648 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+wrote 25165824/25165824 bytes at offset 0
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 25165824/25165824 bytes at offset 25165824
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 25165824/25165824 bytes at offset 0
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 25165824/25165824 bytes at offset 25165824
+24 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+768/768 = 100.00% allocated, 100.00% fragmented, 100.00% compressed clusters
+Image end offset: 458752
+
+=== Testing compressed rebase removing single delta from the chain ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=50331648
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=50331648 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=50331648 backing_file=TEST_DIR/t.IMGFMT.itmd backing_fmt=IMGFMT
+wrote 16777216/16777216 bytes at offset 0
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 16777216/16777216 bytes at offset 16777216
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 16777216/16777216 bytes at offset 33554432
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 16777216/16777216 bytes at offset 0
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 16777216/16777216 bytes at offset 16777216
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 16777216/16777216 bytes at offset 33554432
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+512/768 = 66.67% allocated, 100.00% fragmented, 100.00% compressed clusters
+Image end offset: 458752
+
+=== Testing compressed rebase with unaligned unmerged data ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=65536
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+wrote 32767/32767 bytes at offset 0
+31.999 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 32767/32767 bytes at offset 0
+31.999 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 32769/32769 bytes at offset 32767
+32.001 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+1/1 = 100.00% allocated, 100.00% fragmented, 100.00% compressed clusters
+Image end offset: 393216
+
+*** done

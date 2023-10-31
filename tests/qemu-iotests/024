@@ -199,6 +199,123 @@ echo
 # $BASE_OLD and $BASE_NEW)
 $QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
 
+# Check that rebase within the chain is working when
+# overlay_size > old_backing_size
+#
+# base_new <-- base_old <-- overlay
+#
+# Backing (new): 11 11 11 11 11
+# Backing (old): 22 22 22 22
+# Overlay:       -- -- -- -- --
+#
+# As a result, overlay should contain data identical to base_old, with the
+# last cluster remaining unallocated.
+
+echo
+echo "=== Test rebase within one backing chain ==="
+echo
+
+echo "Creating backing chain"
+echo
+
+TEST_IMG=$BASE_NEW _make_test_img $(( CLUSTER_SIZE * 5 ))
+TEST_IMG=$BASE_OLD _make_test_img -b "$BASE_NEW" -F $IMGFMT \
+    $(( CLUSTER_SIZE * 4 ))
+TEST_IMG=$OVERLAY _make_test_img -b "$BASE_OLD" -F $IMGFMT \
+    $(( CLUSTER_SIZE * 5 ))
+
+echo
+echo "Fill backing files with data"
+echo
+
+$QEMU_IO "$BASE_NEW" -c "write -P 0x11 0 $(( CLUSTER_SIZE * 5 ))" \
+    | _filter_qemu_io
+$QEMU_IO "$BASE_OLD" -c "write -P 0x22 0 $(( CLUSTER_SIZE * 4 ))" \
+    | _filter_qemu_io
+
+echo
+echo "Check the last cluster is zeroed in overlay before the rebase"
+echo
+$QEMU_IO "$OVERLAY" -c "read -P 0x00 $(( CLUSTER_SIZE * 4 )) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+echo "Rebase onto another image in the same chain"
+echo
+
+$QEMU_IMG rebase -b "$BASE_NEW" -F $IMGFMT "$OVERLAY"
+
+echo "Verify that data is read the same before and after rebase"
+echo
+
+# Verify the first 4 clusters are still read the same as in the old base
+$QEMU_IO "$OVERLAY" -c "read -P 0x22 0 $(( CLUSTER_SIZE * 4 ))" \
+    | _filter_qemu_io
+# Verify the last cluster still reads as zeroes
+$QEMU_IO "$OVERLAY" -c "read -P 0x00 $(( CLUSTER_SIZE * 4 )) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+
+# Check that rebase within the chain is working when
+# overlay cluster size > backings cluster size
+# (here overlay cluster size == 2 * backings cluster size)
+#
+# base_new <-- base_old <-- overlay
+#
+# Backing (new): -- -- -- -- -- --
+# Backing (old): -- 11 -- -- 22 --
+# Overlay:      |-- --|-- --|-- --|
+#
+# We should end up having 1st and 3rd cluster allocated, and their halves
+# being read as zeroes.
+
+echo
+echo "=== Test rebase with different cluster sizes ==="
+echo
+
+echo "Creating backing chain"
+echo
+
+TEST_IMG=$BASE_NEW _make_test_img $(( CLUSTER_SIZE * 6 ))
+TEST_IMG=$BASE_OLD _make_test_img -b "$BASE_NEW" -F $IMGFMT \
+    $(( CLUSTER_SIZE * 6 ))
+CLUSTER_SIZE=$(( CLUSTER_SIZE * 2 )) TEST_IMG=$OVERLAY \
+    _make_test_img -b "$BASE_OLD" -F $IMGFMT $(( CLUSTER_SIZE * 6 ))
+
+TEST_IMG=$OVERLAY _img_info
+
+echo
+echo "Fill backing files with data"
+echo
+
+$QEMU_IO "$BASE_OLD" -c "write -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" \
+    -c "write -P 0x22 $(( CLUSTER_SIZE * 4 )) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+echo "Rebase onto another image in the same chain"
+echo
+
+$QEMU_IMG rebase -b "$BASE_NEW" -F $IMGFMT "$OVERLAY"
+
+echo "Verify that data is read the same before and after rebase"
+echo
+
+$QEMU_IO "$OVERLAY" -c "read -P 0x00 0 $CLUSTER_SIZE" \
+    -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" \
+    -c "read -P 0x00 $(( CLUSTER_SIZE * 2 )) $(( CLUSTER_SIZE * 2 ))" \
+    -c "read -P 0x22 $(( CLUSTER_SIZE * 4 )) $CLUSTER_SIZE" \
+    -c "read -P 0x00 $(( CLUSTER_SIZE * 5 )) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+echo "Verify that untouched cluster remains unallocated"
+echo
+
+$QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
+
+echo
 
 # success, all done
 echo "*** done"

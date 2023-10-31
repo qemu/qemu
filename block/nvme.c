@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/defer-call.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -476,7 +477,7 @@ static void nvme_trace_command(const NvmeCmd *cmd)
     }
 }
 
-static void nvme_unplug_fn(void *opaque)
+static void nvme_deferred_fn(void *opaque)
 {
     NVMeQueuePair *q = opaque;
 
@@ -503,7 +504,7 @@ static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
     q->need_kick++;
     qemu_mutex_unlock(&q->lock);
 
-    blk_io_plug_call(nvme_unplug_fn, q);
+    defer_call(nvme_deferred_fn, q);
 }
 
 static void nvme_admin_cmd_sync_cb(void *opaque, int ret)

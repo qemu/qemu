@@ -198,7 +198,9 @@ void block_job_remove_all_bdrv(BlockJob *job)
      * one to make sure that such a concurrent access does not attempt
      * to process an already freed BdrvChild.
      */
+    aio_context_release(job->job.aio_context);
     bdrv_graph_wrlock(NULL);
+    aio_context_acquire(job->job.aio_context);
     while (job->nodes) {
         GSList *l = job->nodes;
         BdrvChild *c = l->data;
@@ -328,6 +330,26 @@ static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     return block_job_set_speed_locked(job, speed, errp);
 }
 
+void block_job_change_locked(BlockJob *job, BlockJobChangeOptions *opts,
+                             Error **errp)
+{
+    const BlockJobDriver *drv = block_job_driver(job);
+
+    GLOBAL_STATE_CODE();
+
+    if (job_apply_verb_locked(&job->job, JOB_VERB_CHANGE, errp)) {
+        return;
+    }
+
+    if (drv->change) {
+        job_unlock();
+        drv->change(job, opts, errp);
+        job_lock();
+    } else {
+        error_setg(errp, "Job type does not support change");
+    }
+}
+
 void block_job_ratelimit_processed_bytes(BlockJob *job, uint64_t n)
 {
     IO_CODE();
@@ -356,6 +378,7 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
     uint64_t progress_current, progress_total;
+    const BlockJobDriver *drv = block_job_driver(job);
 
     GLOBAL_STATE_CODE();
 
@@ -368,7 +391,7 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
                           &progress_total);
 
     info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(job_type_str(&job->job));
+    info->type      = job_type(&job->job);
     info->device    = g_strdup(job->job.id);
     info->busy      = job->job.busy;
     info->paused    = job->job.pause_count > 0;
@@ -384,6 +407,11 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
         info->error = job->job.err ?
                         g_strdup(error_get_pretty(job->job.err)) :
                         g_strdup(strerror(-job->job.ret));
+    }
+    if (drv->query) {
+        job_unlock();
+        drv->query(job, info);
+        job_lock();
     }
     return info;
 }

@@ -14,6 +14,7 @@
 #include "block/raw-aio.h"
 #include "qemu/event_notifier.h"
 #include "qemu/coroutine.h"
+#include "qemu/defer-call.h"
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"
 
@@ -204,6 +205,8 @@ static void qemu_laio_process_completions(LinuxAioState *s)
 {
     struct io_event *events;
 
+    defer_call_begin();
+
     /* Reschedule so nested event loops see currently pending completions */
     qemu_bh_schedule(s->completion_bh);
 
@@ -230,6 +233,8 @@ static void qemu_laio_process_completions(LinuxAioState *s)
      * own `for` loop.  If we are the last all counters dropped to zero. */
     s->event_max = 0;
     s->event_idx = 0;
+
+    defer_call_end();
 }
 
 static void qemu_laio_process_completions_and_submit(LinuxAioState *s)
@@ -353,7 +358,7 @@ static uint64_t laio_max_batch(LinuxAioState *s, uint64_t dev_max_batch)
     return max_batch;
 }
 
-static void laio_unplug_fn(void *opaque)
+static void laio_deferred_fn(void *opaque)
 {
     LinuxAioState *s = opaque;
 
@@ -393,7 +398,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
         if (s->io_q.in_queue >= laio_max_batch(s, dev_max_batch)) {
             ioq_submit(s);
         } else {
-            blk_io_plug_call(laio_unplug_fn, s);
+            defer_call(laio_deferred_fn, s);
         }
     }
 

@@ -21,7 +21,6 @@ block_ss.add(files(
   'mirror.c',
   'nbd.c',
   'null.c',
-  'plug.c',
   'preallocate.c',
   'progress_meter.c',
   'qapi.c',

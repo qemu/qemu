@@ -1274,23 +1274,29 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
 }
 
 /*
- * Compares two buffers sector by sector. Returns 0 if the first
- * sector of each buffer matches, non-zero otherwise.
+ * Compares two buffers chunk by chunk, where @chsize is the chunk size.
+ * If @chsize is 0, default chunk size of BDRV_SECTOR_SIZE is used.
+ * Returns 0 if the first chunk of each buffer matches, non-zero otherwise.
  *
- * pnum is set to the sector-aligned size of the buffer prefix that
- * has the same matching status as the first sector.
+ * @pnum is set to the size of the buffer prefix aligned to @chsize that
+ * has the same matching status as the first chunk.
  */
 static int compare_buffers(const uint8_t *buf1, const uint8_t *buf2,
-                           int64_t bytes, int64_t *pnum)
+                           int64_t bytes, uint64_t chsize, int64_t *pnum)
 {
     bool res;
-    int64_t i = MIN(bytes, BDRV_SECTOR_SIZE);
+    int64_t i;
 
     assert(bytes > 0);
 
+    if (!chsize) {
+        chsize = BDRV_SECTOR_SIZE;
+    }
+    i = MIN(bytes, chsize);
+
     res = !!memcmp(buf1, buf2, i);
     while (i < bytes) {
-        int64_t len = MIN(bytes - i, BDRV_SECTOR_SIZE);
+        int64_t len = MIN(bytes - i, chsize);
 
         if (!!memcmp(buf1 + i, buf2 + i, len) != res) {
             break;
@@ -1559,7 +1565,7 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = compare_buffers(buf1, buf2, chunk, &pnum);
+                ret = compare_buffers(buf1, buf2, chunk, 0, &pnum);
                 if (ret || pnum != chunk) {
                     qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
                             offset + (ret ? 0 : pnum));
@@ -3524,16 +3530,20 @@ static int img_rebase(int argc, char **argv)
     uint8_t *buf_new = NULL;
     BlockDriverState *bs = NULL, *prefix_chain_bs = NULL;
     BlockDriverState *unfiltered_bs;
+    BlockDriverInfo bdi = {0};
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
+    BdrvRequestFlags write_flags = 0;
     bool writethrough, src_writethrough;
     int unsafe = 0;
     bool force_share = false;
     int progress = 0;
     bool quiet = false;
+    bool compress = false;
     Error *local_err = NULL;
     bool image_opts = false;
+    int64_t write_align;
 
     /* Parse commandline parameters */
     fmt = NULL;
@@ -3547,9 +3557,10 @@ static int img_rebase(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"compress", no_argument, 0, 'c'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qU",
+        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3596,6 +3607,9 @@ static int img_rebase(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'c':
+            compress = true;
             break;
         }
     }
@@ -3649,6 +3663,14 @@ static int img_rebase(int argc, char **argv)
 
     unfiltered_bs = bdrv_skip_filters(bs);
 
+    if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
+        error_report("Compression not supported for this file format");
+        ret = -1;
+        goto out;
+    } else if (compress) {
+        write_flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
+
     if (out_basefmt != NULL) {
         if (bdrv_find_format(out_basefmt) == NULL) {
             error_report("Invalid format name: '%s'", out_basefmt);
@@ -3656,6 +3678,20 @@ static int img_rebase(int argc, char **argv)
             goto out;
         }
     }
+
+    /*
+     * We need overlay subcluster size (or cluster size in case writes are
+     * compressed) to make sure write requests are aligned.
+     */
+    ret = bdrv_get_info(unfiltered_bs, &bdi);
+    if (ret < 0) {
+        error_report("could not get block driver info");
+        goto out;
+    } else if (bdi.subcluster_size == 0) {
+        bdi.cluster_size = bdi.subcluster_size = 1;
+    }
+
+    write_align = compress ? bdi.cluster_size : bdi.subcluster_size;
 
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
@@ -3756,11 +3792,16 @@ static int img_rebase(int argc, char **argv)
         int64_t old_backing_size = 0;
         int64_t new_backing_size = 0;
         uint64_t offset;
-        int64_t n;
+        int64_t n, n_old = 0, n_new = 0;
         float local_progress = 0;
 
-        buf_old = blk_blockalign(blk, IO_BUF_SIZE);
-        buf_new = blk_blockalign(blk, IO_BUF_SIZE);
+        if (blk_old_backing && bdrv_opt_mem_align(blk_bs(blk_old_backing)) >
+            bdrv_opt_mem_align(blk_bs(blk))) {
+            buf_old = blk_blockalign(blk_old_backing, IO_BUF_SIZE);
+        } else {
+            buf_old = blk_blockalign(blk, IO_BUF_SIZE);
+        }
+        buf_new = blk_blockalign(blk_new_backing, IO_BUF_SIZE);
 
         size = blk_getlength(blk);
         if (size < 0) {
@@ -3797,7 +3838,8 @@ static int img_rebase(int argc, char **argv)
         }
 
         for (offset = 0; offset < size; offset += n) {
-            bool buf_old_is_zero = false;
+            bool old_backing_eof = false;
+            int64_t n_alloc;
 
             /* How many bytes can we handle with the next read? */
             n = MIN(IO_BUF_SIZE, size - offset);
@@ -3814,6 +3856,8 @@ static int img_rebase(int argc, char **argv)
             }
 
             if (prefix_chain_bs) {
+                uint64_t bytes = n;
+
                 /*
                  * If cluster wasn't changed since prefix_chain, we don't need
                  * to take action
@@ -3826,38 +3870,60 @@ static int img_rebase(int argc, char **argv)
                                  strerror(-ret));
                     goto out;
                 }
-                if (!ret) {
+                if (!ret && n) {
                     continue;
                 }
+                if (!n) {
+                    /*
+                     * If we've reached EOF of the old backing, it means that
+                     * offsets beyond the old backing size were read as zeroes.
+                     * Now we will need to explicitly zero the cluster in
+                     * order to preserve that state after the rebase.
+                     */
+                    n = bytes;
+                }
             }
+
+            /*
+             * At this point we know that the region [offset; offset + n)
+             * is unallocated within the target image.  This region might be
+             * unaligned to the target image's (sub)cluster boundaries, as
+             * old backing may have smaller clusters (or have subclusters).
+             * We extend it to the aligned boundaries to avoid CoW on
+             * partial writes in blk_pwrite(),
+             */
+            n += offset - QEMU_ALIGN_DOWN(offset, write_align);
+            offset = QEMU_ALIGN_DOWN(offset, write_align);
+            n += QEMU_ALIGN_UP(offset + n, write_align) - (offset + n);
+            n = MIN(n, size - offset);
+            assert(!bdrv_is_allocated(unfiltered_bs, offset, n, &n_alloc) &&
+                   n_alloc == n);
+
+            /*
+             * Much like with the target image, we'll try to read as much
+             * of the old and new backings as we can.
+             */
+            n_old = MIN(n, MAX(0, old_backing_size - (int64_t) offset));
+            n_new = MIN(n, MAX(0, new_backing_size - (int64_t) offset));
 
             /*
              * Read old and new backing file and take into consideration that
              * backing files may be smaller than the COW image.
              */
-            if (offset >= old_backing_size) {
-                memset(buf_old, 0, n);
-                buf_old_is_zero = true;
+            memset(buf_old + n_old, 0, n - n_old);
+            if (!n_old) {
+                old_backing_eof = true;
             } else {
-                if (offset + n > old_backing_size) {
-                    n = old_backing_size - offset;
-                }
-
-                ret = blk_pread(blk_old_backing, offset, n, buf_old, 0);
+                ret = blk_pread(blk_old_backing, offset, n_old, buf_old, 0);
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
                 }
             }
 
-            if (offset >= new_backing_size || !blk_new_backing) {
-                memset(buf_new, 0, n);
-            } else {
-                if (offset + n > new_backing_size) {
-                    n = new_backing_size - offset;
-                }
-
-                ret = blk_pread(blk_new_backing, offset, n, buf_new, 0);
+            memset(buf_new + n_new, 0, n - n_new);
+            if (n_new) {
+                ret = blk_pread(blk_new_backing, offset, n_new, buf_new, 0);
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -3871,13 +3937,14 @@ static int img_rebase(int argc, char **argv)
                 int64_t pnum;
 
                 if (compare_buffers(buf_old + written, buf_new + written,
-                                    n - written, &pnum))
+                                    n - written, write_align, &pnum))
                 {
-                    if (buf_old_is_zero) {
+                    if (old_backing_eof) {
                         ret = blk_pwrite_zeroes(blk, offset + written, pnum, 0);
                     } else {
+                        assert(written + pnum <= IO_BUF_SIZE);
                         ret = blk_pwrite(blk, offset + written, pnum,
-                                         buf_old + written, 0);
+                                         buf_old + written, write_flags);
                     }
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
@@ -3887,6 +3954,9 @@ static int img_rebase(int argc, char **argv)
                 }
 
                 written += pnum;
+                if (offset + written >= old_backing_size) {
+                    old_backing_eof = true;
+                }
             }
             qemu_progress_print(local_progress, 100);
         }
