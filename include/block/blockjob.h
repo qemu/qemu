@@ -173,6 +173,17 @@ bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs);
 bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp);
 
 /**
+ * block_job_change_locked:
+ * @job: The job to change.
+ * @opts: The new options.
+ * @errp: Error object.
+ *
+ * Change the job according to opts.
+ */
+void block_job_change_locked(BlockJob *job, BlockJobChangeOptions *opts,
+                             Error **errp);
+
+/**
  * block_job_query_locked:
  * @job: The job to get information about.
  *

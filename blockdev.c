@@ -3392,6 +3392,20 @@ void qmp_block_job_dismiss(const char *id, Error **errp)
     job_dismiss_locked(&job, errp);
 }
 
+void qmp_block_job_change(BlockJobChangeOptions *opts, Error **errp)
+{
+    BlockJob *job;
+
+    JOB_LOCK_GUARD();
+    job = find_block_job_locked(opts->id, errp);
+
+    if (!job) {
+        return;
+    }
+
+    block_job_change_locked(job, opts, errp);
+}
+
 void qmp_change_backing_file(const char *device,
                              const char *image_node_name,
                              const char *backing_file,

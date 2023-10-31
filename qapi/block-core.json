@@ -3045,6 +3045,32 @@
   'allow-preconfig': true }
 
 ##
+# @BlockJobChangeOptions:
+#
+# Block job options that can be changed after job creation.
+#
+# @id: The job identifier
+#
+# @type: The job type
+#
+# Since 8.2
+##
+{ 'union': 'BlockJobChangeOptions',
+  'base': { 'id': 'str', 'type': 'JobType' },
+  'discriminator': 'type',
+  'data': {} }
+
+##
+# @block-job-change:
+#
+# Change the block job's options.
+#
+# Since: 8.2
+##
+{ 'command': 'block-job-change',
+  'data': 'BlockJobChangeOptions', 'boxed': true }
+
+##
 # @BlockdevDiscardOptions:
 #
 # Determines how to handle discard requests.
