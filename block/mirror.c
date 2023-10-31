@@ -1074,9 +1074,9 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                  * the target in a consistent state.
                  */
                 job_transition_to_ready(&s->common.job);
-                if (s->copy_mode != MIRROR_COPY_MODE_BACKGROUND) {
-                    s->actively_synced = true;
-                }
+            }
+            if (s->copy_mode != MIRROR_COPY_MODE_BACKGROUND) {
+                s->actively_synced = true;
             }
 
             should_complete = s->should_complete ||
