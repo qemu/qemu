@@ -2170,14 +2170,12 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
         return;
     }
 
-#if !defined(WIN32)
     if (strstart(protocol, "fd:", &p)) {
         fd = monitor_get_fd(monitor_cur(), p, errp);
         if (fd == -1) {
             return;
         }
     }
-#endif
 
     if  (strstart(protocol, "file:", &p)) {
         fd = qemu_open_old(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
