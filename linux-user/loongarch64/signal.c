@@ -154,7 +154,7 @@ static void setup_sigframe(CPULoongArchState *env,
      */
     info = extctx->end.haddr;
     __put_user(0, &info->magic);
-    __put_user(extctx->end.size, &info->size);
+    __put_user(0, &info->size);
 }
 
 static bool parse_extcontext(struct extctx_layout *extctx, abi_ptr frame)
