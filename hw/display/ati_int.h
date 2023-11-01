@@ -90,6 +90,7 @@ struct ATIVGAState {
     char *model;
     uint16_t dev_id;
     uint8_t mode;
+    uint8_t use_pixman;
     bool cursor_guest_mode;
     uint16_t cursor_size;
     uint32_t cursor_offset;
