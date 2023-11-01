@@ -339,6 +339,9 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case PALETTE_DATA:
         val = vga_ioport_read(&s->vga, VGA_PEL_D);
         break;
+    case PALETTE_30_DATA:
+        val = s->regs.palette[vga_ioport_read(&s->vga, VGA_PEL_IR)];
+        break;
     case CNFG_CNTL:
         val = s->regs.config_cntl;
         break;
@@ -672,6 +675,12 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         vga_ioport_write(&s->vga, VGA_PEL_D, data & 0xff);
         data >>= 8;
         vga_ioport_write(&s->vga, VGA_PEL_D, data & 0xff);
+        break;
+    case PALETTE_30_DATA:
+        s->regs.palette[vga_ioport_read(&s->vga, VGA_PEL_IW)] = data;
+        vga_ioport_write(&s->vga, VGA_PEL_D, (data >> 22) & 0xff);
+        vga_ioport_write(&s->vga, VGA_PEL_D, (data >> 12) & 0xff);
+        vga_ioport_write(&s->vga, VGA_PEL_D, (data >> 2) & 0xff);
         break;
     case CNFG_CNTL:
         s->regs.config_cntl = data;

@@ -30,6 +30,7 @@ static struct ati_regdesc ati_reg_names[] = {
     {"AMCGPIO_EN_MIR", 0x00a8},
     {"PALETTE_INDEX", 0x00b0},
     {"PALETTE_DATA", 0x00b4},
+    {"PALETTE_30_DATA", 0x00b8},
     {"CNFG_CNTL", 0x00e0},
     {"GEN_RESET_CNTL", 0x00f0},
     {"CNFG_MEMSIZE", 0x00f8},
