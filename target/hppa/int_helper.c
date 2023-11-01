@@ -258,14 +258,10 @@ void hppa_cpu_do_interrupt(CPUState *cs)
             snprintf(unknown, sizeof(unknown), "unknown %d", i);
             name = unknown;
         }
-        qemu_log("INT %6d: %s @ " TARGET_FMT_lx "," TARGET_FMT_lx
-                 " -> " TARGET_FMT_lx " " TARGET_FMT_lx "\n",
-                 ++count, name,
-                 hppa_form_gva(env, env->iasq_f, env->iaoq_f),
-                 hppa_form_gva(env, env->iasq_b, env->iaoq_b),
-                 env->iaoq_f,
-                 hppa_form_gva(env, (uint64_t)env->cr[CR_ISR] << 32,
-                               env->cr[CR_IOR]));
+        qemu_log("INT %6d: %s @ " TARGET_FMT_lx ":" TARGET_FMT_lx
+                 " for " TARGET_FMT_lx ":" TARGET_FMT_lx "\n",
+                 ++count, name, env->cr[CR_IIASQ], env->cr[CR_IIAOQ],
+                 env->cr[CR_ISR], env->cr[CR_IOR]);
     }
     cs->exception_index = -1;
 }
