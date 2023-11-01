@@ -56,6 +56,7 @@
 #define CONFIG_APER_SIZE                        0x0108
 #define CONFIG_REG_1_BASE                       0x010c
 #define CONFIG_REG_APER_SIZE                    0x0110
+#define HOST_PATH_CNTL                          0x0130
 #define MEM_CNTL                                0x0140
 #define MC_FB_LOCATION                          0x0148
 #define MC_AGP_LOCATION                         0x014C

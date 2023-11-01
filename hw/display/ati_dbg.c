@@ -38,6 +38,7 @@ static struct ati_regdesc ati_reg_names[] = {
     {"CONFIG_APER_SIZE", 0x0108},
     {"CONFIG_REG_1_BASE", 0x010c},
     {"CONFIG_REG_APER_SIZE", 0x0110},
+    {"HOST_PATH_CNTL", 0x0130},
     {"MEM_CNTL", 0x0140},
     {"MC_FB_LOCATION", 0x0148},
     {"MC_AGP_LOCATION", 0x014C},

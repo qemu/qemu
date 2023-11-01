@@ -349,14 +349,17 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
                                       PCI_BASE_ADDRESS_0, size) & 0xfffffff0;
         break;
     case CONFIG_APER_SIZE:
-        val = s->vga.vram_size;
+        val = s->vga.vram_size / 2;
         break;
     case CONFIG_REG_1_BASE:
         val = pci_default_read_config(&s->dev,
                                       PCI_BASE_ADDRESS_2, size) & 0xfffffff0;
         break;
     case CONFIG_REG_APER_SIZE:
-        val = memory_region_size(&s->mm);
+        val = memory_region_size(&s->mm) / 2;
+        break;
+    case HOST_PATH_CNTL:
+        val = BIT(23); /* Radeon HDP_APER_CNTL */
         break;
     case MC_STATUS:
         val = 5;
