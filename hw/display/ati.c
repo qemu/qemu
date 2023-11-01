@@ -319,11 +319,13 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DAC_CNTL:
         val = s->regs.dac_cntl;
         break;
-    case GPIO_VGA_DDC:
-        val = s->regs.gpio_vga_ddc;
+    case GPIO_VGA_DDC ... GPIO_VGA_DDC + 3:
+        val = ati_reg_read_offs(s->regs.gpio_vga_ddc,
+                                addr - GPIO_VGA_DDC, size);
         break;
-    case GPIO_DVI_DDC:
-        val = s->regs.gpio_dvi_ddc;
+    case GPIO_DVI_DDC ... GPIO_DVI_DDC + 3:
+        val = ati_reg_read_offs(s->regs.gpio_dvi_ddc,
+                                addr - GPIO_DVI_DDC, size);
         break;
     case GPIO_MONID ... GPIO_MONID + 3:
         val = ati_reg_read_offs(s->regs.gpio_monid,
@@ -615,29 +617,34 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dac_cntl = data & 0xffffe3ff;
         s->vga.dac_8bit = !!(data & DAC_8BIT_EN);
         break;
-    case GPIO_VGA_DDC:
+    /*
+     * GPIO regs for DDC access. Because some drivers access these via
+     * multiple byte writes we have to be careful when we send bits to
+     * avoid spurious changes in bitbang_i2c state. Only do it when either
+     * the enable bits are changed or output bits changed while enabled.
+     */
+    case GPIO_VGA_DDC ... GPIO_VGA_DDC + 3:
         if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
             /* FIXME: Maybe add a property to select VGA or DVI port? */
         }
         break;
-    case GPIO_DVI_DDC:
+    case GPIO_DVI_DDC ... GPIO_DVI_DDC + 3:
         if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.gpio_dvi_ddc = ati_i2c(&s->bbi2c, data, 0);
+            ati_reg_write_offs(&s->regs.gpio_dvi_ddc,
+                               addr - GPIO_DVI_DDC, data, size);
+            if ((addr <= GPIO_DVI_DDC + 2 && addr + size > GPIO_DVI_DDC + 2) ||
+                (addr == GPIO_DVI_DDC && (s->regs.gpio_dvi_ddc & 0x30000))) {
+                s->regs.gpio_dvi_ddc = ati_i2c(&s->bbi2c,
+                                               s->regs.gpio_dvi_ddc, 0);
+            }
         }
         break;
     case GPIO_MONID ... GPIO_MONID + 3:
         /* FIXME What does Radeon have here? */
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            /* Rage128p accesses DDC via MONID(1-2) with additional mask bit */
             ati_reg_write_offs(&s->regs.gpio_monid,
                                addr - GPIO_MONID, data, size);
-            /*
-             * Rage128p accesses DDC used to get EDID via these bits.
-             * Because some drivers access this via multiple byte writes
-             * we have to be careful when we send bits to avoid spurious
-             * changes in bitbang_i2c state. So only do it when mask is set
-             * and either the enable bits are changed or output bits changed
-             * while enabled.
-             */
             if ((s->regs.gpio_monid & BIT(25)) &&
                 ((addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) ||
                  (addr == GPIO_MONID && (s->regs.gpio_monid & 0x60000)))) {
