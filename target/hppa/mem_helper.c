@@ -480,6 +480,7 @@ void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 {
     CPUState *src = env_cpu(env);
     CPUState *cpu;
+    bool wait = false;
 
     trace_hppa_tlb_ptlb(env);
     run_on_cpu_data data = RUN_ON_CPU_TARGET_PTR(addr);
@@ -487,9 +488,14 @@ void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
     CPU_FOREACH(cpu) {
         if (cpu != src) {
             async_run_on_cpu(cpu, ptlb_work, data);
+            wait = true;
         }
     }
-    async_safe_run_on_cpu(src, ptlb_work, data);
+    if (wait) {
+        async_safe_run_on_cpu(src, ptlb_work, data);
+    } else {
+        ptlb_work(src, data);
+    }
 }
 
 void hppa_ptlbe(CPUHPPAState *env)
