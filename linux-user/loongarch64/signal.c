@@ -18,10 +18,10 @@
 #define SC_USED_FP              (1 << 0)
 
 struct target_sigcontext {
-    uint64_t sc_pc;
-    uint64_t sc_regs[32];
-    uint32_t sc_flags;
-    uint64_t sc_extcontext[0]   QEMU_ALIGNED(16);
+    abi_ulong sc_pc;
+    abi_ulong sc_regs[32];
+    abi_uint  sc_flags;
+    abi_ulong sc_extcontext[0]   QEMU_ALIGNED(16);
 };
 
 QEMU_BUILD_BUG_ON(sizeof(struct target_sigcontext) != sizeof_sigcontext);
@@ -33,9 +33,9 @@ QEMU_BUILD_BUG_ON(offsetof(struct target_sigcontext, sc_regs)
 #define FPU_CTX_MAGIC           0x46505501
 #define FPU_CTX_ALIGN           8
 struct target_fpu_context {
-    uint64_t regs[32];
-    uint64_t fcc;
-    uint32_t fcsr;
+    abi_ulong regs[32];
+    abi_ulong fcc;
+    abi_uint  fcsr;
 } QEMU_ALIGNED(FPU_CTX_ALIGN);
 
 QEMU_BUILD_BUG_ON(offsetof(struct target_fpu_context, regs)
@@ -43,9 +43,9 @@ QEMU_BUILD_BUG_ON(offsetof(struct target_fpu_context, regs)
 
 #define CONTEXT_INFO_ALIGN      16
 struct target_sctx_info {
-    uint32_t magic;
-    uint32_t size;
-    uint64_t padding;
+    abi_uint  magic;
+    abi_uint  size;
+    abi_ulong padding;
 } QEMU_ALIGNED(CONTEXT_INFO_ALIGN);
 
 QEMU_BUILD_BUG_ON(sizeof(struct target_sctx_info) != sizeof_sctx_info);
@@ -162,7 +162,7 @@ static bool parse_extcontext(struct extctx_layout *extctx, abi_ptr frame)
     memset(extctx, 0, sizeof(*extctx));
 
     while (1) {
-        uint32_t magic, size;
+        abi_uint magic, size;
 
         if (get_user_u32(magic, frame) || get_user_u32(size, frame + 4)) {
             return false;
@@ -206,7 +206,7 @@ static void restore_sigframe(CPULoongArchState *env,
     if (extctx->fpu.haddr) {
         struct target_fpu_context *fpu_ctx =
             extctx->fpu.haddr + sizeof(struct target_sctx_info);
-        uint64_t fcc;
+        abi_ulong fcc;
 
         for (i = 0; i < 32; ++i) {
             __get_user(env->fpr[i].vreg.D(0), &fpu_ctx->regs[i]);
