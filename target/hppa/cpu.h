@@ -30,21 +30,33 @@
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
-#define MMU_KERNEL_IDX   11
-#define MMU_PL1_IDX      12
-#define MMU_PL2_IDX      13
-#define MMU_USER_IDX     14
-#define MMU_PHYS_IDX     15
+#define MMU_KERNEL_IDX    7
+#define MMU_KERNEL_P_IDX  8
+#define MMU_PL1_IDX       9
+#define MMU_PL1_P_IDX     10
+#define MMU_PL2_IDX       11
+#define MMU_PL2_P_IDX     12
+#define MMU_USER_IDX      13
+#define MMU_USER_P_IDX    14
+#define MMU_PHYS_IDX      15
 
-#define PRIV_TO_MMU_IDX(priv)    (MMU_KERNEL_IDX + (priv))
-#define MMU_IDX_TO_PRIV(mmu_idx) ((mmu_idx) - MMU_KERNEL_IDX)
+#define MMU_IDX_TO_PRIV(MIDX)       (((MIDX) - MMU_KERNEL_IDX) / 2)
+#define MMU_IDX_TO_P(MIDX)          (((MIDX) - MMU_KERNEL_IDX) & 1)
+#define PRIV_P_TO_MMU_IDX(PRIV, P)  ((PRIV) * 2 + !!(P) + MMU_KERNEL_IDX)
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* No need to flush MMU_PHYS_IDX  */
 #define HPPA_MMU_FLUSH_MASK                             \
-        (1 << MMU_KERNEL_IDX | 1 << MMU_PL1_IDX |       \
-         1 << MMU_PL2_IDX    | 1 << MMU_USER_IDX)
+        (1 << MMU_KERNEL_IDX | 1 << MMU_KERNEL_P_IDX |  \
+         1 << MMU_PL1_IDX    | 1 << MMU_PL1_P_IDX    |  \
+         1 << MMU_PL2_IDX    | 1 << MMU_PL2_P_IDX    |  \
+         1 << MMU_USER_IDX   | 1 << MMU_USER_P_IDX)
+
+/* Indicies to flush for access_id changes. */
+#define HPPA_MMU_FLUSH_P_MASK \
+        (1 << MMU_KERNEL_P_IDX | 1 << MMU_PL1_P_IDX  |  \
+         1 << MMU_PL2_P_IDX    | 1 << MMU_USER_P_IDX)
 
 /* Hardware exceptions, interrupts, faults, and traps.  */
 #define EXCP_HPMC                1  /* high priority machine check */
@@ -249,7 +261,7 @@ static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
     return MMU_USER_IDX;
 #else
     if (env->psw & (ifetch ? PSW_C : PSW_D)) {
-        return PRIV_TO_MMU_IDX(env->iaoq_f & 3);
+        return PRIV_P_TO_MMU_IDX(env->iaoq_f & 3, env->psw & PSW_P);
     }
     return MMU_PHYS_IDX;  /* mmu disabled */
 #endif
@@ -299,8 +311,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
     *cs_base = env->iaoq_b & -4;
     flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
 #else
-    /* ??? E, T, H, L, B, P bits need to be here, when implemented.  */
-    flags |= env->psw & (PSW_W | PSW_C | PSW_D);
+    /* ??? E, T, H, L, B bits need to be here, when implemented.  */
+    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
     flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
 
     *pc = (env->psw & PSW_C

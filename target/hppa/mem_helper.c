@@ -144,7 +144,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
     /* access_id == 0 means public page and no check is performed */
-    if ((env->psw & PSW_P) && ent->access_id) {
+    if (ent->access_id && MMU_IDX_TO_P(mmu_idx)) {
         /* If bits [31:1] match, and bit 0 is set, suppress write.  */
         int match = ent->access_id * 2 + 1;
 
@@ -373,9 +373,7 @@ void HELPER(ptlbe)(CPUHPPAState *env)
 
 void cpu_hppa_change_prot_id(CPUHPPAState *env)
 {
-    if (env->psw & PSW_P) {
-        tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
-    }
+    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_P_MASK);
 }
 
 void HELPER(change_prot_id)(CPUHPPAState *env)
