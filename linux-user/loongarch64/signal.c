@@ -115,7 +115,7 @@ static abi_ptr setup_extcontext(struct extctx_layout *extctx, abi_ptr sp)
     /* For qemu, there is no lazy fp context switch, so fp always present. */
     extctx->flags = SC_USED_FP;
     sp = extframe_alloc(extctx, &extctx->fpu,
-                        sizeof(struct target_rt_sigframe), FPU_CTX_ALIGN, sp);
+                        sizeof(struct target_fpu_context), FPU_CTX_ALIGN, sp);
 
     return sp;
 }
