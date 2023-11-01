@@ -652,10 +652,6 @@ static struct DirtyLimitInfoList *dirtylimit_query_all(void)
 
 struct DirtyLimitInfoList *qmp_query_vcpu_dirty_limit(Error **errp)
 {
-    if (!dirtylimit_in_service()) {
-        return NULL;
-    }
-
     return dirtylimit_query_all();
 }
 
