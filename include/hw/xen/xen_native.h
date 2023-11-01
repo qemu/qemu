@@ -523,12 +523,12 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
                                                  enable);
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION <= 41500
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41500
 static inline int xendevicemodel_set_irq_level(xendevicemodel_handle *dmod,
                                                domid_t domid, uint32_t irq,
                                                unsigned int level)
 {
-    return 0;
+    return -1;
 }
 #endif
 

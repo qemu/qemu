@@ -75,7 +75,9 @@ static MemoryRegion ram_lo, ram_hi;
 
 static void xen_set_irq(void *opaque, int irq, int level)
 {
-    xendevicemodel_set_irq_level(xen_dmod, xen_domid, irq, level);
+    if (xendevicemodel_set_irq_level(xen_dmod, xen_domid, irq, level)) {
+        error_report("xendevicemodel_set_irq_level failed");
+    }
 }
 
 static void xen_create_virtio_mmio_devices(XenArmState *xam)
