@@ -4,8 +4,6 @@
  * Copyright (c) 2022-2023 Loongson Technology Corporation Limited
  */
 
-#ifndef CONFIG_USER_ONLY
-
 static bool check_vec(DisasContext *ctx, uint32_t oprsz)
 {
     if ((oprsz == 16) && ((ctx->base.tb->flags & HW_FLAGS_EUEN_SXE) == 0)) {
@@ -20,15 +18,6 @@ static bool check_vec(DisasContext *ctx, uint32_t oprsz)
 
     return true;
 }
-
-#else
-
-static bool check_vec(DisasContext *ctx, uint32_t oprsz)
-{
-    return true;
-}
-
-#endif
 
 static bool gen_vvvv_ptr_vl(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz,
                             gen_helper_gvec_4_ptr *fn)
