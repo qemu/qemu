@@ -67,6 +67,25 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
     ent->itree.start = -1;
 }
 
+static HPPATLBEntry *hppa_flush_tlb_range(CPUHPPAState *env,
+                                          vaddr va_b, vaddr va_e)
+{
+    HPPATLBEntry *empty = NULL;
+
+    /* Zap any old entries covering ADDR; notice empty entries on the way.  */
+    for (int i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb); ++i) {
+        HPPATLBEntry *ent = &env->tlb[i];
+
+        if (!ent->entry_valid) {
+            empty = ent;
+        } else if (va_e >= ent->itree.start && va_b <= ent->itree.last) {
+            hppa_flush_tlb_ent(env, ent, false);
+            empty = ent;
+        }
+    }
+    return empty;
+}
+
 static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
 {
     HPPATLBEntry *ent;
@@ -284,21 +303,11 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
 void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
-    HPPATLBEntry *empty = NULL;
-    int i;
+    HPPATLBEntry *empty;
 
     /* Zap any old entries covering ADDR; notice empty entries on the way.  */
-    for (i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb); ++i) {
-        HPPATLBEntry *ent = &env->tlb[i];
-        if (ent->itree.start <= addr && addr <= ent->itree.last) {
-            if (ent->entry_valid) {
-                hppa_flush_tlb_ent(env, ent, false);
-            }
-            if (!empty) {
-                empty = ent;
-            }
-        }
-    }
+    addr &= TARGET_PAGE_MASK;
+    empty = hppa_flush_tlb_range(env, addr, addr + TARGET_PAGE_SIZE - 1);
 
     /* If we didn't see an empty entry, evict one.  */
     if (empty == NULL) {
@@ -306,8 +315,8 @@ void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     }
 
     /* Note that empty->entry_valid == 0 already.  */
-    empty->itree.start = addr & TARGET_PAGE_MASK;
-    empty->itree.last = empty->itree.start + TARGET_PAGE_SIZE - 1;
+    empty->itree.start = addr;
+    empty->itree.last = addr + TARGET_PAGE_SIZE - 1;
     empty->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
     trace_hppa_tlb_itlba(env, empty, empty->itree.start,
                          empty->itree.last, empty->pa);
