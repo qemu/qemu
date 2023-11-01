@@ -41,6 +41,14 @@ struct target_fpu_context {
 QEMU_BUILD_BUG_ON(offsetof(struct target_fpu_context, regs)
                   != offsetof_fpucontext_fr);
 
+#define LSX_CTX_MAGIC           0x53580001
+#define LSX_CTX_ALIGN           16
+struct target_lsx_context {
+    abi_ulong regs[2 * 32];
+    abi_ulong fcc;
+    abi_uint  fcsr;
+} QEMU_ALIGNED(LSX_CTX_ALIGN);
+
 #define CONTEXT_INFO_ALIGN      16
 struct target_sctx_info {
     abi_uint  magic;
@@ -81,9 +89,10 @@ struct ctx_layout {
 };
 
 struct extctx_layout {
-    unsigned int size;
+    unsigned long size;
     unsigned int flags;
     struct ctx_layout fpu;
+    struct ctx_layout lsx;
     struct ctx_layout end;
 };
 
@@ -105,7 +114,8 @@ static abi_ptr extframe_alloc(struct extctx_layout *extctx,
     return sp;
 }
 
-static abi_ptr setup_extcontext(struct extctx_layout *extctx, abi_ptr sp)
+static abi_ptr setup_extcontext(CPULoongArchState *env,
+                                struct extctx_layout *extctx, abi_ptr sp)
 {
     memset(extctx, 0, sizeof(struct extctx_layout));
 
@@ -114,8 +124,15 @@ static abi_ptr setup_extcontext(struct extctx_layout *extctx, abi_ptr sp)
 
     /* For qemu, there is no lazy fp context switch, so fp always present. */
     extctx->flags = SC_USED_FP;
-    sp = extframe_alloc(extctx, &extctx->fpu,
+
+    if (FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE)) {
+        sp = extframe_alloc(extctx, &extctx->lsx,
+                        sizeof(struct target_lsx_context), LSX_CTX_ALIGN, sp);
+
+    } else {
+        sp = extframe_alloc(extctx, &extctx->fpu,
                         sizeof(struct target_fpu_context), FPU_CTX_ALIGN, sp);
+    }
 
     return sp;
 }
@@ -125,7 +142,6 @@ static void setup_sigframe(CPULoongArchState *env,
                            struct extctx_layout *extctx)
 {
     struct target_sctx_info *info;
-    struct target_fpu_context *fpu_ctx;
     int i;
 
     __put_user(extctx->flags, &sc->sc_flags);
@@ -136,18 +152,39 @@ static void setup_sigframe(CPULoongArchState *env,
     }
 
     /*
-     * Set fpu context
+     * Set extension context
      */
-    info = extctx->fpu.haddr;
-    __put_user(FPU_CTX_MAGIC, &info->magic);
-    __put_user(extctx->fpu.size, &info->size);
 
-    fpu_ctx = (struct target_fpu_context *)(info + 1);
-    for (i = 0; i < 32; ++i) {
-        __put_user(env->fpr[i].vreg.D(0), &fpu_ctx->regs[i]);
+    if (FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE)) {
+        struct target_lsx_context *lsx_ctx;
+        info = extctx->lsx.haddr;
+
+        __put_user(LSX_CTX_MAGIC, &info->magic);
+        __put_user(extctx->lsx.size, &info->size);
+
+        lsx_ctx = (struct target_lsx_context *)(info + 1);
+
+        for (i = 0; i < 32; ++i) {
+            __put_user(env->fpr[i].vreg.UD(0), &lsx_ctx->regs[2 * i]);
+            __put_user(env->fpr[i].vreg.UD(1), &lsx_ctx->regs[2 * i + 1]);
+        }
+        __put_user(read_fcc(env), &lsx_ctx->fcc);
+        __put_user(env->fcsr0, &lsx_ctx->fcsr);
+    } else {
+        struct target_fpu_context *fpu_ctx;
+        info = extctx->fpu.haddr;
+
+        __put_user(FPU_CTX_MAGIC, &info->magic);
+        __put_user(extctx->fpu.size, &info->size);
+
+        fpu_ctx = (struct target_fpu_context *)(info + 1);
+
+        for (i = 0; i < 32; ++i) {
+            __put_user(env->fpr[i].vreg.UD(0), &fpu_ctx->regs[i]);
+        }
+        __put_user(read_fcc(env), &fpu_ctx->fcc);
+        __put_user(env->fcsr0, &fpu_ctx->fcsr);
     }
-    __put_user(read_fcc(env), &fpu_ctx->fcc);
-    __put_user(env->fcsr0, &fpu_ctx->fcsr);
 
     /*
      * Set end context
@@ -184,6 +221,15 @@ static bool parse_extcontext(struct extctx_layout *extctx, abi_ptr frame)
             extctx->fpu.size = size;
             extctx->size += size;
             break;
+        case LSX_CTX_MAGIC:
+            if (size < (sizeof(struct target_sctx_info) +
+                        sizeof(struct target_lsx_context))) {
+                return false;
+            }
+            extctx->lsx.gaddr = frame;
+            extctx->lsx.size = size;
+            extctx->size += size;
+            break;
         default:
             return false;
         }
@@ -197,19 +243,31 @@ static void restore_sigframe(CPULoongArchState *env,
                              struct extctx_layout *extctx)
 {
     int i;
+    abi_ulong fcc;
 
     __get_user(env->pc, &sc->sc_pc);
     for (i = 1; i < 32; ++i) {
         __get_user(env->gpr[i], &sc->sc_regs[i]);
     }
 
-    if (extctx->fpu.haddr) {
-        struct target_fpu_context *fpu_ctx =
-            extctx->fpu.haddr + sizeof(struct target_sctx_info);
-        abi_ulong fcc;
+    if (extctx->lsx.haddr) {
+        struct target_lsx_context *lsx_ctx =
+            extctx->lsx.haddr + sizeof(struct target_sctx_info);
 
         for (i = 0; i < 32; ++i) {
-            __get_user(env->fpr[i].vreg.D(0), &fpu_ctx->regs[i]);
+            __get_user(env->fpr[i].vreg.UD(0), &lsx_ctx->regs[2 * i]);
+            __get_user(env->fpr[i].vreg.UD(1), &lsx_ctx->regs[2 * i + 1]);
+        }
+        __get_user(fcc, &lsx_ctx->fcc);
+        write_fcc(env, fcc);
+        __get_user(env->fcsr0, &lsx_ctx->fcsr);
+        restore_fp_status(env);
+    } else if (extctx->fpu.haddr) {
+        struct target_fpu_context *fpu_ctx =
+            extctx->fpu.haddr + sizeof(struct target_sctx_info);
+
+        for (i = 0; i < 32; ++i) {
+            __get_user(env->fpr[i].vreg.UD(0), &fpu_ctx->regs[i]);
         }
         __get_user(fcc, &fpu_ctx->fcc);
         write_fcc(env, fcc);
@@ -229,7 +287,7 @@ static abi_ptr get_sigframe(struct target_sigaction *ka,
 
     sp = target_sigsp(get_sp_from_cpustate(env), ka);
     sp = ROUND_DOWN(sp, 16);
-    sp = setup_extcontext(extctx, sp);
+    sp = setup_extcontext(env, extctx, sp);
     sp -= sizeof(struct target_rt_sigframe);
 
     assert(QEMU_IS_ALIGNED(sp, 16));
@@ -255,8 +313,14 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         force_sigsegv(sig);
         return;
     }
-    extctx.fpu.haddr = (void *)frame + (extctx.fpu.gaddr - frame_addr);
-    extctx.end.haddr = (void *)frame + (extctx.end.gaddr - frame_addr);
+
+    if (FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE)) {
+        extctx.lsx.haddr = (void *)frame + (extctx.lsx.gaddr - frame_addr);
+        extctx.end.haddr = (void *)frame + (extctx.end.gaddr - frame_addr);
+    } else {
+        extctx.fpu.haddr = (void *)frame + (extctx.fpu.gaddr - frame_addr);
+        extctx.end.haddr = (void *)frame + (extctx.end.gaddr - frame_addr);
+    }
 
     tswap_siginfo(&frame->rs_info, info);
 
@@ -299,7 +363,10 @@ long do_rt_sigreturn(CPULoongArchState *env)
     if (!frame) {
         goto badframe;
     }
-    if (extctx.fpu.gaddr) {
+
+    if (extctx.lsx.gaddr) {
+        extctx.lsx.haddr = (void *)frame + (extctx.lsx.gaddr - frame_addr);
+    } else if (extctx.fpu.gaddr) {
         extctx.fpu.haddr = (void *)frame + (extctx.fpu.gaddr - frame_addr);
     }
 
