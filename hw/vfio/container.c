@@ -264,14 +264,6 @@ int vfio_query_dirty_bitmap(VFIOContainer *container, VFIOBitmap *vbmap,
     return ret;
 }
 
-static void vfio_listener_release(VFIOContainer *container)
-{
-    memory_listener_unregister(&container->listener);
-    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
-        memory_listener_unregister(&container->prereg_listener);
-    }
-}
-
 static struct vfio_info_cap_header *
 vfio_get_iommu_type1_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
 {
@@ -612,69 +604,11 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     case VFIO_SPAPR_TCE_v2_IOMMU:
     case VFIO_SPAPR_TCE_IOMMU:
     {
-        struct vfio_iommu_spapr_tce_info info;
-        bool v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
-
-        /*
-         * The host kernel code implementing VFIO_IOMMU_DISABLE is called
-         * when container fd is closed so we do not call it explicitly
-         * in this file.
-         */
-        if (!v2) {
-            ret = ioctl(fd, VFIO_IOMMU_ENABLE);
-            if (ret) {
-                error_setg_errno(errp, errno, "failed to enable container");
-                ret = -errno;
-                goto enable_discards_exit;
-            }
-        } else {
-            container->prereg_listener = vfio_prereg_listener;
-
-            memory_listener_register(&container->prereg_listener,
-                                     &address_space_memory);
-            if (container->error) {
-                memory_listener_unregister(&container->prereg_listener);
-                ret = -1;
-                error_propagate_prepend(errp, container->error,
-                    "RAM memory listener initialization failed: ");
-                goto enable_discards_exit;
-            }
-        }
-
-        info.argsz = sizeof(info);
-        ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
+        ret = vfio_spapr_container_init(container, errp);
         if (ret) {
-            error_setg_errno(errp, errno,
-                             "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
-            ret = -errno;
-            if (v2) {
-                memory_listener_unregister(&container->prereg_listener);
-            }
             goto enable_discards_exit;
         }
-
-        if (v2) {
-            container->pgsizes = info.ddw.pgsizes;
-            /*
-             * There is a default window in just created container.
-             * To make region_add/del simpler, we better remove this
-             * window now and let those iommu_listener callbacks
-             * create/remove them when needed.
-             */
-            ret = vfio_spapr_remove_window(container, info.dma32_window_start);
-            if (ret) {
-                error_setg_errno(errp, -ret,
-                                 "failed to remove existing window");
-                goto enable_discards_exit;
-            }
-        } else {
-            /* The default table uses 4K pages */
-            container->pgsizes = 0x1000;
-            vfio_host_win_add(container, info.dma32_window_start,
-                              info.dma32_window_start +
-                              info.dma32_window_size - 1,
-                              0x1000);
-        }
+        break;
     }
     }
 
@@ -704,7 +638,11 @@ listener_release_exit:
     QLIST_REMOVE(group, container_next);
     QLIST_REMOVE(container, next);
     vfio_kvm_device_del_group(group);
-    vfio_listener_release(container);
+    memory_listener_unregister(&container->listener);
+    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
+        container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
+        vfio_spapr_container_deinit(container);
+    }
 
 enable_discards_exit:
     vfio_ram_block_discard_disable(container, false);
@@ -734,7 +672,11 @@ static void vfio_disconnect_container(VFIOGroup *group)
      * group.
      */
     if (QLIST_EMPTY(&container->group_list)) {
-        vfio_listener_release(container);
+        memory_listener_unregister(&container->listener);
+        if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
+            container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
+            vfio_spapr_container_deinit(container);
+        }
     }
 
     if (ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER, &container->fd)) {

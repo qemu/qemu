@@ -225,11 +225,14 @@ int vfio_set_dirty_page_tracking(VFIOContainer *container, bool start);
 int vfio_query_dirty_bitmap(VFIOContainer *container, VFIOBitmap *vbmap,
                             hwaddr iova, hwaddr size);
 
+/* SPAPR specific */
 int vfio_container_add_section_window(VFIOContainer *container,
                                       MemoryRegionSection *section,
                                       Error **errp);
 void vfio_container_del_section_window(VFIOContainer *container,
                                        MemoryRegionSection *section);
+int vfio_spapr_container_init(VFIOContainer *container, Error **errp);
+void vfio_spapr_container_deinit(VFIOContainer *container);
 
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);
 void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index);
@@ -289,7 +292,6 @@ vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id);
 struct vfio_info_cap_header *
 vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id);
 #endif
-extern const MemoryListener vfio_prereg_listener;
 
 int vfio_spapr_create_window(VFIOContainer *container,
                              MemoryRegionSection *section,

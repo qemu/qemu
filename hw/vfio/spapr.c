@@ -15,6 +15,7 @@
 #include <linux/kvm.h>
 #endif
 #include "sysemu/kvm.h"
+#include "exec/address-spaces.h"
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/hw.h"
@@ -139,7 +140,7 @@ static void vfio_prereg_listener_region_del(MemoryListener *listener,
     trace_vfio_prereg_unregister(reg.vaddr, reg.size, ret ? -errno : 0);
 }
 
-const MemoryListener vfio_prereg_listener = {
+static const MemoryListener vfio_prereg_listener = {
     .name = "vfio-pre-reg",
     .region_add = vfio_prereg_listener_region_add,
     .region_del = vfio_prereg_listener_region_del,
@@ -341,5 +342,83 @@ void vfio_container_del_section_window(VFIOContainer *container,
                           int128_get64(section->size) - 1) < 0) {
         hw_error("%s: Cannot delete missing window at %"HWADDR_PRIx,
                  __func__, section->offset_within_address_space);
+    }
+}
+
+int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
+{
+    struct vfio_iommu_spapr_tce_info info;
+    bool v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
+    int ret, fd = container->fd;
+
+    /*
+     * The host kernel code implementing VFIO_IOMMU_DISABLE is called
+     * when container fd is closed so we do not call it explicitly
+     * in this file.
+     */
+    if (!v2) {
+        ret = ioctl(fd, VFIO_IOMMU_ENABLE);
+        if (ret) {
+            error_setg_errno(errp, errno, "failed to enable container");
+            return -errno;
+        }
+    } else {
+        container->prereg_listener = vfio_prereg_listener;
+
+        memory_listener_register(&container->prereg_listener,
+                                 &address_space_memory);
+        if (container->error) {
+            ret = -1;
+            error_propagate_prepend(errp, container->error,
+                    "RAM memory listener initialization failed: ");
+            goto listener_unregister_exit;
+        }
+    }
+
+    info.argsz = sizeof(info);
+    ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
+    if (ret) {
+        error_setg_errno(errp, errno,
+                         "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
+        ret = -errno;
+        goto listener_unregister_exit;
+    }
+
+    if (v2) {
+        container->pgsizes = info.ddw.pgsizes;
+        /*
+         * There is a default window in just created container.
+         * To make region_add/del simpler, we better remove this
+         * window now and let those iommu_listener callbacks
+         * create/remove them when needed.
+         */
+        ret = vfio_spapr_remove_window(container, info.dma32_window_start);
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                             "failed to remove existing window");
+            goto listener_unregister_exit;
+        }
+    } else {
+        /* The default table uses 4K pages */
+        container->pgsizes = 0x1000;
+        vfio_host_win_add(container, info.dma32_window_start,
+                          info.dma32_window_start +
+                          info.dma32_window_size - 1,
+                          0x1000);
+    }
+
+    return 0;
+
+listener_unregister_exit:
+    if (v2) {
+        memory_listener_unregister(&container->prereg_listener);
+    }
+    return ret;
+}
+
+void vfio_spapr_container_deinit(VFIOContainer *container)
+{
+    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+        memory_listener_unregister(&container->prereg_listener);
     }
 }
