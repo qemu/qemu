@@ -39,6 +39,7 @@ typedef struct VFIOContainerBase {
     bool dirty_pages_supported;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_ENTRY(VFIOContainerBase) next;
+    QLIST_HEAD(, VFIODevice) device_list;
 } VFIOContainerBase;
 
 typedef struct VFIOGuestIOMMU {

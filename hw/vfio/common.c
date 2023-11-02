@@ -145,7 +145,7 @@ void vfio_unblock_multiple_devices_migration(void)
 
 bool vfio_viommu_preset(VFIODevice *vbasedev)
 {
-    return vbasedev->container->bcontainer.space->as != &address_space_memory;
+    return vbasedev->bcontainer->space->as != &address_space_memory;
 }
 
 static void vfio_set_migration_error(int err)
@@ -179,6 +179,7 @@ bool vfio_device_state_is_precopy(VFIODevice *vbasedev)
 
 static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
 {
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
     MigrationState *ms = migrate_get_current();
 
@@ -187,7 +188,7 @@ static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
         return false;
     }
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         VFIOMigration *migration = vbasedev->migration;
 
         if (!migration) {
@@ -205,9 +206,10 @@ static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
 
 bool vfio_devices_all_device_dirty_tracking(VFIOContainer *container)
 {
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         if (!vbasedev->dirty_pages_supported) {
             return false;
         }
@@ -222,13 +224,14 @@ bool vfio_devices_all_device_dirty_tracking(VFIOContainer *container)
  */
 bool vfio_devices_all_running_and_mig_active(VFIOContainer *container)
 {
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
 
     if (!migration_is_active(migrate_get_current())) {
         return false;
     }
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         VFIOMigration *migration = vbasedev->migration;
 
         if (!migration) {
@@ -833,12 +836,13 @@ static bool vfio_section_is_vfio_pci(MemoryRegionSection *section,
                                      VFIOContainer *container)
 {
     VFIOPCIDevice *pcidev;
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
     Object *owner;
 
     owner = memory_region_owner(section->mr);
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
             continue;
         }
@@ -939,13 +943,14 @@ static void vfio_devices_dma_logging_stop(VFIOContainer *container)
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
                               sizeof(uint64_t))] = {};
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
 
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_SET |
                      VFIO_DEVICE_FEATURE_DMA_LOGGING_STOP;
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         if (!vbasedev->dirty_tracking) {
             continue;
         }
@@ -1036,6 +1041,7 @@ static int vfio_devices_dma_logging_start(VFIOContainer *container)
 {
     struct vfio_device_feature *feature;
     VFIODirtyRanges ranges;
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
     int ret = 0;
 
@@ -1046,7 +1052,7 @@ static int vfio_devices_dma_logging_start(VFIOContainer *container)
         return -errno;
     }
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         if (vbasedev->dirty_tracking) {
             continue;
         }
@@ -1139,10 +1145,11 @@ int vfio_devices_query_dirty_bitmap(VFIOContainer *container,
                                     VFIOBitmap *vbmap, hwaddr iova,
                                     hwaddr size)
 {
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     VFIODevice *vbasedev;
     int ret;
 
-    QLIST_FOREACH(vbasedev, &container->device_list, container_next) {
+    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
         ret = vfio_device_dma_logging_report(vbasedev, iova, size,
                                              vbmap->bitmap);
         if (ret) {

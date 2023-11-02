@@ -888,7 +888,7 @@ int vfio_attach_device(char *name, VFIODevice *vbasedev,
     int groupid = vfio_device_groupid(vbasedev, errp);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
-    VFIOContainer *container;
+    VFIOContainerBase *bcontainer;
     int ret;
 
     if (groupid < 0) {
@@ -915,9 +915,9 @@ int vfio_attach_device(char *name, VFIODevice *vbasedev,
         return ret;
     }
 
-    container = group->container;
-    vbasedev->container = container;
-    QLIST_INSERT_HEAD(&container->device_list, vbasedev, container_next);
+    bcontainer = &group->container->bcontainer;
+    vbasedev->bcontainer = bcontainer;
+    QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 
     return ret;
@@ -927,13 +927,13 @@ void vfio_detach_device(VFIODevice *vbasedev)
 {
     VFIOGroup *group = vbasedev->group;
 
-    if (!vbasedev->container) {
+    if (!vbasedev->bcontainer) {
         return;
     }
 
     QLIST_REMOVE(vbasedev, global_next);
     QLIST_REMOVE(vbasedev, container_next);
-    vbasedev->container = NULL;
+    vbasedev->bcontainer = NULL;
     trace_vfio_detach_device(vbasedev->name, group->groupid);
     vfio_put_base_device(vbasedev);
     vfio_put_group(group);
