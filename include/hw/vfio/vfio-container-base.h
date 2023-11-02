@@ -101,5 +101,11 @@ struct VFIOIOMMUOps {
     int (*set_dirty_page_tracking)(VFIOContainerBase *bcontainer, bool start);
     int (*query_dirty_bitmap)(VFIOContainerBase *bcontainer, VFIOBitmap *vbmap,
                               hwaddr iova, hwaddr size);
+    /* SPAPR specific */
+    int (*add_window)(VFIOContainerBase *bcontainer,
+                      MemoryRegionSection *section,
+                      Error **errp);
+    void (*del_window)(VFIOContainerBase *bcontainer,
+                       MemoryRegionSection *section);
 };
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

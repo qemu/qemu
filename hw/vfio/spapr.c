@@ -24,6 +24,10 @@
 #include "qapi/error.h"
 #include "trace.h"
 
+typedef struct VFIOSpaprContainer {
+    VFIOContainer container;
+} VFIOSpaprContainer;
+
 static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
 {
     if (memory_region_is_iommu(section->mr)) {
@@ -421,6 +425,14 @@ void vfio_container_del_section_window(VFIOContainer *container,
     }
 }
 
+static VFIOIOMMUOps vfio_iommu_spapr_ops;
+
+static void setup_spapr_ops(VFIOContainerBase *bcontainer)
+{
+    vfio_iommu_spapr_ops = *bcontainer->ops;
+    bcontainer->ops = &vfio_iommu_spapr_ops;
+}
+
 int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
 {
     VFIOContainerBase *bcontainer = &container->bcontainer;
@@ -485,6 +497,8 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
                           info.dma32_window_size - 1,
                           0x1000);
     }
+
+    setup_spapr_ops(bcontainer);
 
     return 0;
 
