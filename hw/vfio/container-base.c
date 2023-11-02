@@ -31,11 +31,27 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
 }
 
+int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
+                                           bool start)
+{
+    g_assert(bcontainer->ops->set_dirty_page_tracking);
+    return bcontainer->ops->set_dirty_page_tracking(bcontainer, start);
+}
+
+int vfio_container_query_dirty_bitmap(VFIOContainerBase *bcontainer,
+                                      VFIOBitmap *vbmap,
+                                      hwaddr iova, hwaddr size)
+{
+    g_assert(bcontainer->ops->query_dirty_bitmap);
+    return bcontainer->ops->query_dirty_bitmap(bcontainer, vbmap, iova, size);
+}
+
 void vfio_container_init(VFIOContainerBase *bcontainer, VFIOAddressSpace *space,
                          const VFIOIOMMUOps *ops)
 {
     bcontainer->ops = ops;
     bcontainer->space = space;
+    bcontainer->dirty_pages_supported = false;
     QLIST_INIT(&bcontainer->giommu_list);
 }
 

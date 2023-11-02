@@ -1079,7 +1079,8 @@ static void vfio_listener_log_global_start(MemoryListener *listener)
     if (vfio_devices_all_device_dirty_tracking(container)) {
         ret = vfio_devices_dma_logging_start(container);
     } else {
-        ret = vfio_set_dirty_page_tracking(container, true);
+        ret = vfio_container_set_dirty_page_tracking(&container->bcontainer,
+                                                     true);
     }
 
     if (ret) {
@@ -1097,7 +1098,8 @@ static void vfio_listener_log_global_stop(MemoryListener *listener)
     if (vfio_devices_all_device_dirty_tracking(container)) {
         vfio_devices_dma_logging_stop(container);
     } else {
-        ret = vfio_set_dirty_page_tracking(container, false);
+        ret = vfio_container_set_dirty_page_tracking(&container->bcontainer,
+                                                     false);
     }
 
     if (ret) {
@@ -1165,7 +1167,8 @@ int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     VFIOBitmap vbmap;
     int ret;
 
-    if (!container->dirty_pages_supported && !all_device_dirty_tracking) {
+    if (!container->bcontainer.dirty_pages_supported &&
+        !all_device_dirty_tracking) {
         cpu_physical_memory_set_dirty_range(ram_addr, size,
                                             tcg_enabled() ? DIRTY_CLIENTS_ALL :
                                             DIRTY_CLIENTS_NOCODE);
@@ -1180,7 +1183,8 @@ int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     if (all_device_dirty_tracking) {
         ret = vfio_devices_query_dirty_bitmap(container, &vbmap, iova, size);
     } else {
-        ret = vfio_query_dirty_bitmap(container, &vbmap, iova, size);
+        ret = vfio_container_query_dirty_bitmap(&container->bcontainer, &vbmap,
+                                                iova, size);
     }
 
     if (ret) {
