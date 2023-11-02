@@ -606,7 +606,7 @@ static void rv32_ibex_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     riscv_cpu_set_misa(env, MXL_RV32, RVI | RVM | RVC | RVU);
-    env->priv_ver = PRIV_VERSION_1_11_0;
+    env->priv_ver = PRIV_VERSION_1_12_0;
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
