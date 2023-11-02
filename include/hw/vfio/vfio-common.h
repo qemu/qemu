@@ -169,11 +169,6 @@ VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
 void vfio_put_address_space(VFIOAddressSpace *space);
 
 /* SPAPR specific */
-int vfio_container_add_section_window(VFIOContainer *container,
-                                      MemoryRegionSection *section,
-                                      Error **errp);
-void vfio_container_del_section_window(VFIOContainer *container,
-                                       MemoryRegionSection *section);
 int vfio_spapr_container_init(VFIOContainer *container, Error **errp);
 void vfio_spapr_container_deinit(VFIOContainer *container);
 

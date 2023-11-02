@@ -319,10 +319,13 @@ static int vfio_spapr_create_window(VFIOContainer *container,
     return 0;
 }
 
-int vfio_container_add_section_window(VFIOContainer *container,
-                                      MemoryRegionSection *section,
-                                      Error **errp)
+static int
+vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
+                                        MemoryRegionSection *section,
+                                        Error **errp)
 {
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
     VFIOHostDMAWindow *hostwin;
     hwaddr pgsize = 0;
     int ret;
@@ -407,9 +410,13 @@ int vfio_container_add_section_window(VFIOContainer *container,
     return 0;
 }
 
-void vfio_container_del_section_window(VFIOContainer *container,
-                                       MemoryRegionSection *section)
+static void
+vfio_spapr_container_del_section_window(VFIOContainerBase *bcontainer,
+                                        MemoryRegionSection *section)
 {
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
+
     if (container->iommu_type != VFIO_SPAPR_TCE_v2_IOMMU) {
         return;
     }
@@ -430,6 +437,8 @@ static VFIOIOMMUOps vfio_iommu_spapr_ops;
 static void setup_spapr_ops(VFIOContainerBase *bcontainer)
 {
     vfio_iommu_spapr_ops = *bcontainer->ops;
+    vfio_iommu_spapr_ops.add_window = vfio_spapr_container_add_section_window;
+    vfio_iommu_spapr_ops.del_window = vfio_spapr_container_del_section_window;
     bcontainer->ops = &vfio_iommu_spapr_ops;
 }
 

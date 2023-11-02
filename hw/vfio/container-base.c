@@ -31,6 +31,27 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
 }
 
+int vfio_container_add_section_window(VFIOContainerBase *bcontainer,
+                                      MemoryRegionSection *section,
+                                      Error **errp)
+{
+    if (!bcontainer->ops->add_window) {
+        return 0;
+    }
+
+    return bcontainer->ops->add_window(bcontainer, section, errp);
+}
+
+void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
+                                       MemoryRegionSection *section)
+{
+    if (!bcontainer->ops->del_window) {
+        return;
+    }
+
+    return bcontainer->ops->del_window(bcontainer, section);
+}
+
 int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
                                            bool start)
 {
