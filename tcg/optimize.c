@@ -122,6 +122,11 @@ static inline bool ts_is_copy(TCGTemp *ts)
     return ts_info(ts)->next_copy != ts;
 }
 
+static TCGTemp *cmp_better_copy(TCGTemp *a, TCGTemp *b)
+{
+    return a->kind < b->kind ? b : a;
+}
+
 /* Reset TEMP's state, possibly removing the temp for the list of copies.  */
 static void reset_ts(OptContext *ctx, TCGTemp *ts)
 {
@@ -174,30 +179,20 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
     }
 }
 
-static TCGTemp *find_better_copy(TCGContext *s, TCGTemp *ts)
+static TCGTemp *find_better_copy(TCGTemp *ts)
 {
-    TCGTemp *i, *g, *l;
+    TCGTemp *i, *ret;
 
     /* If this is already readonly, we can't do better. */
     if (temp_readonly(ts)) {
         return ts;
     }
 
-    g = l = NULL;
+    ret = ts;
     for (i = ts_info(ts)->next_copy; i != ts; i = ts_info(i)->next_copy) {
-        if (temp_readonly(i)) {
-            return i;
-        } else if (i->kind > ts->kind) {
-            if (i->kind == TEMP_GLOBAL) {
-                g = i;
-            } else if (i->kind == TEMP_TB) {
-                l = i;
-            }
-        }
+        ret = cmp_better_copy(ret, i);
     }
-
-    /* If we didn't find a better representation, return the same temp. */
-    return g ? g : l ? l : ts;
+    return ret;
 }
 
 static bool ts_are_copies(TCGTemp *ts1, TCGTemp *ts2)
@@ -672,12 +667,10 @@ static void init_arguments(OptContext *ctx, TCGOp *op, int nb_args)
 static void copy_propagate(OptContext *ctx, TCGOp *op,
                            int nb_oargs, int nb_iargs)
 {
-    TCGContext *s = ctx->tcg;
-
     for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
         if (ts_is_copy(ts)) {
-            op->args[i] = temp_arg(find_better_copy(s, ts));
+            op->args[i] = temp_arg(find_better_copy(ts));
         }
     }
 }
