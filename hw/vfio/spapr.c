@@ -226,6 +226,7 @@ static int vfio_spapr_create_window(VFIOContainer *container,
                                     hwaddr *pgsize)
 {
     int ret = 0;
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
     uint64_t pagesize = memory_region_iommu_get_min_page_size(iommu_mr), pgmask;
     unsigned entries, bits_total, bits_per_level, max_levels;
@@ -239,13 +240,13 @@ static int vfio_spapr_create_window(VFIOContainer *container,
     if (pagesize > rampagesize) {
         pagesize = rampagesize;
     }
-    pgmask = container->pgsizes & (pagesize | (pagesize - 1));
+    pgmask = bcontainer->pgsizes & (pagesize | (pagesize - 1));
     pagesize = pgmask ? (1ULL << (63 - clz64(pgmask))) : 0;
     if (!pagesize) {
         error_report("Host doesn't support page size 0x%"PRIx64
                      ", the supported mask is 0x%lx",
                      memory_region_iommu_get_min_page_size(iommu_mr),
-                     container->pgsizes);
+                     bcontainer->pgsizes);
         return -EINVAL;
     }
 
@@ -421,6 +422,7 @@ void vfio_container_del_section_window(VFIOContainer *container,
 
 int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
 {
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     struct vfio_iommu_spapr_tce_info info;
     bool v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
     int ret, fd = container->fd;
@@ -461,7 +463,7 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
     }
 
     if (v2) {
-        container->pgsizes = info.ddw.pgsizes;
+        bcontainer->pgsizes = info.ddw.pgsizes;
         /*
          * There is a default window in just created container.
          * To make region_add/del simpler, we better remove this
@@ -476,7 +478,7 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
         }
     } else {
         /* The default table uses 4K pages */
-        container->pgsizes = 0x1000;
+        bcontainer->pgsizes = 0x1000;
         vfio_host_win_add(container, info.dma32_window_start,
                           info.dma32_window_start +
                           info.dma32_window_size - 1,
