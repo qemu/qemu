@@ -46,6 +46,7 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
                                             prereg_listener);
+    VFIOContainerBase *bcontainer = &container->bcontainer;
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
     int ret;
@@ -88,9 +89,9 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
          * can gracefully fail.  Runtime, there's not much we can do other
          * than throw a hardware error.
          */
-        if (!container->initialized) {
-            if (!container->error) {
-                error_setg_errno(&container->error, -ret,
+        if (!bcontainer->initialized) {
+            if (!bcontainer->error) {
+                error_setg_errno(&bcontainer->error, -ret,
                                  "Memory registering failed");
             }
         } else {
@@ -445,9 +446,9 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
 
         memory_listener_register(&container->prereg_listener,
                                  &address_space_memory);
-        if (container->error) {
+        if (bcontainer->error) {
             ret = -1;
-            error_propagate_prepend(errp, container->error,
+            error_propagate_prepend(errp, bcontainer->error,
                     "RAM memory listener initialization failed: ");
             goto listener_unregister_exit;
         }
