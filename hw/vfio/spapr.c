@@ -146,6 +146,60 @@ static const MemoryListener vfio_prereg_listener = {
     .region_del = vfio_prereg_listener_region_del,
 };
 
+static void vfio_host_win_add(VFIOContainer *container, hwaddr min_iova,
+                              hwaddr max_iova, uint64_t iova_pgsizes)
+{
+    VFIOHostDMAWindow *hostwin;
+
+    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+        if (ranges_overlap(hostwin->min_iova,
+                           hostwin->max_iova - hostwin->min_iova + 1,
+                           min_iova,
+                           max_iova - min_iova + 1)) {
+            hw_error("%s: Overlapped IOMMU are not enabled", __func__);
+        }
+    }
+
+    hostwin = g_malloc0(sizeof(*hostwin));
+
+    hostwin->min_iova = min_iova;
+    hostwin->max_iova = max_iova;
+    hostwin->iova_pgsizes = iova_pgsizes;
+    QLIST_INSERT_HEAD(&container->hostwin_list, hostwin, hostwin_next);
+}
+
+static int vfio_host_win_del(VFIOContainer *container,
+                             hwaddr min_iova, hwaddr max_iova)
+{
+    VFIOHostDMAWindow *hostwin;
+
+    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+        if (hostwin->min_iova == min_iova && hostwin->max_iova == max_iova) {
+            QLIST_REMOVE(hostwin, hostwin_next);
+            g_free(hostwin);
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+static VFIOHostDMAWindow *vfio_find_hostwin(VFIOContainer *container,
+                                            hwaddr iova, hwaddr end)
+{
+    VFIOHostDMAWindow *hostwin;
+    bool hostwin_found = false;
+
+    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+        if (hostwin->min_iova <= iova && end <= hostwin->max_iova) {
+            hostwin_found = true;
+            break;
+        }
+    }
+
+    return hostwin_found ? hostwin : NULL;
+}
+
 static int vfio_spapr_remove_window(VFIOContainer *container,
                                     hwaddr offset_within_address_space)
 {
@@ -267,6 +321,26 @@ int vfio_container_add_section_window(VFIOContainer *container,
     hwaddr pgsize = 0;
     int ret;
 
+    /*
+     * VFIO_SPAPR_TCE_IOMMU supports a single host window between
+     * [dma32_window_start, dma32_window_size), we need to ensure
+     * the section fall in this range.
+     */
+    if (container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
+        hwaddr iova, end;
+
+        iova = section->offset_within_address_space;
+        end = iova + int128_get64(section->size) - 1;
+
+        if (!vfio_find_hostwin(container, iova, end)) {
+            error_setg(errp, "Container %p can't map guest IOVA region"
+                       " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container,
+                       iova, end);
+            return -EINVAL;
+        }
+        return 0;
+    }
+
     if (container->iommu_type != VFIO_SPAPR_TCE_v2_IOMMU) {
         return 0;
     }
@@ -351,6 +425,8 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
     bool v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
     int ret, fd = container->fd;
 
+    QLIST_INIT(&container->hostwin_list);
+
     /*
      * The host kernel code implementing VFIO_IOMMU_DISABLE is called
      * when container fd is closed so we do not call it explicitly
@@ -418,7 +494,14 @@ listener_unregister_exit:
 
 void vfio_spapr_container_deinit(VFIOContainer *container)
 {
+    VFIOHostDMAWindow *hostwin, *next;
+
     if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
         memory_listener_unregister(&container->prereg_listener);
+    }
+    QLIST_FOREACH_SAFE(hostwin, &container->hostwin_list, hostwin_next,
+                       next) {
+        QLIST_REMOVE(hostwin, hostwin_next);
+        g_free(hostwin);
     }
 }

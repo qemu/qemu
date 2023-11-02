@@ -245,44 +245,6 @@ bool vfio_devices_all_running_and_mig_active(VFIOContainer *container)
     return true;
 }
 
-void vfio_host_win_add(VFIOContainer *container, hwaddr min_iova,
-                       hwaddr max_iova, uint64_t iova_pgsizes)
-{
-    VFIOHostDMAWindow *hostwin;
-
-    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
-        if (ranges_overlap(hostwin->min_iova,
-                           hostwin->max_iova - hostwin->min_iova + 1,
-                           min_iova,
-                           max_iova - min_iova + 1)) {
-            hw_error("%s: Overlapped IOMMU are not enabled", __func__);
-        }
-    }
-
-    hostwin = g_malloc0(sizeof(*hostwin));
-
-    hostwin->min_iova = min_iova;
-    hostwin->max_iova = max_iova;
-    hostwin->iova_pgsizes = iova_pgsizes;
-    QLIST_INSERT_HEAD(&container->hostwin_list, hostwin, hostwin_next);
-}
-
-int vfio_host_win_del(VFIOContainer *container,
-                      hwaddr min_iova, hwaddr max_iova)
-{
-    VFIOHostDMAWindow *hostwin;
-
-    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
-        if (hostwin->min_iova == min_iova && hostwin->max_iova == max_iova) {
-            QLIST_REMOVE(hostwin, hostwin_next);
-            g_free(hostwin);
-            return 0;
-        }
-    }
-
-    return -1;
-}
-
 static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 {
     return (!memory_region_is_ram(section->mr) &&
@@ -531,22 +493,6 @@ static void vfio_unregister_ram_discard_listener(VFIOContainer *container,
     g_free(vrdl);
 }
 
-static VFIOHostDMAWindow *vfio_find_hostwin(VFIOContainer *container,
-                                            hwaddr iova, hwaddr end)
-{
-    VFIOHostDMAWindow *hostwin;
-    bool hostwin_found = false;
-
-    QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
-        if (hostwin->min_iova <= iova && end <= hostwin->max_iova) {
-            hostwin_found = true;
-            break;
-        }
-    }
-
-    return hostwin_found ? hostwin : NULL;
-}
-
 static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
 {
     MemoryRegion *mr = section->mr;
@@ -625,7 +571,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
     Int128 llend, llsize;
     void *vaddr;
     int ret;
-    VFIOHostDMAWindow *hostwin;
     Error *err = NULL;
 
     if (!vfio_listener_valid_section(section, "region_add")) {
@@ -644,13 +589,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     if (vfio_container_add_section_window(container, section, &err)) {
-        goto fail;
-    }
-
-    hostwin = vfio_find_hostwin(container, iova, end);
-    if (!hostwin) {
-        error_setg(&err, "Container %p can't map guest IOVA region"
-                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
         goto fail;
     }
 
@@ -734,7 +672,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     llsize = int128_sub(llend, int128_make64(iova));
 
     if (memory_region_is_ram_device(section->mr)) {
-        hwaddr pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
+        hwaddr pgmask = (1ULL << ctz64(container->pgsizes)) - 1;
 
         if ((iova & pgmask) || (int128_get64(llsize) & pgmask)) {
             trace_vfio_listener_region_add_no_dma_map(
@@ -833,12 +771,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     if (memory_region_is_ram_device(section->mr)) {
         hwaddr pgmask;
-        VFIOHostDMAWindow *hostwin;
 
-        hostwin = vfio_find_hostwin(container, iova, end);
-        assert(hostwin); /* or region_add() would have failed */
-
-        pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
+        pgmask = (1ULL << ctz64(container->pgsizes)) - 1;
         try_unmap = !((iova & pgmask) || (int128_get64(llsize) & pgmask));
     } else if (memory_region_has_ram_discard_manager(section->mr)) {
         vfio_unregister_ram_discard_listener(container, section);
