@@ -39,6 +39,8 @@ typedef struct VFIOContainerBase {
     MemoryListener listener;
     Error *error;
     bool initialized;
+    uint64_t dirty_pgsizes;
+    uint64_t max_dirty_bitmap_size;
     unsigned long pgsizes;
     unsigned int dma_max_mappings;
     bool dirty_pages_supported;
