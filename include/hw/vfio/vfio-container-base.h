@@ -38,6 +38,10 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb);
 
+void vfio_container_init(VFIOContainerBase *bcontainer,
+                         const VFIOIOMMUOps *ops);
+void vfio_container_destroy(VFIOContainerBase *bcontainer);
+
 struct VFIOIOMMUOps {
     /* basic feature */
     int (*dma_map)(VFIOContainerBase *bcontainer,

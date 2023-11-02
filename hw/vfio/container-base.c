@@ -30,3 +30,12 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     g_assert(bcontainer->ops->dma_unmap);
     return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
 }
+
+void vfio_container_init(VFIOContainerBase *bcontainer, const VFIOIOMMUOps *ops)
+{
+    bcontainer->ops = ops;
+}
+
+void vfio_container_destroy(VFIOContainerBase *bcontainer)
+{
+}

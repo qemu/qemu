@@ -559,7 +559,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->vrdl_list);
     bcontainer = &container->bcontainer;
-    bcontainer->ops = &vfio_legacy_ops;
+    vfio_container_init(bcontainer, &vfio_legacy_ops);
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {
@@ -661,6 +661,7 @@ put_space_exit:
 static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
+    VFIOContainerBase *bcontainer = &container->bcontainer;
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
@@ -695,6 +696,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
             QLIST_REMOVE(giommu, giommu_next);
             g_free(giommu);
         }
+        vfio_container_destroy(bcontainer);
 
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
