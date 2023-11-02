@@ -146,7 +146,7 @@ if targetos == 'windows'
       libpcre = 'libpcre2'
     endif
     qga_msi_version = get_option('qemu_ga_version') == '' \
-      ? project.version() \
+      ? meson.project_version() \
       : get_option('qemu_ga_version')
     qga_msi = custom_target('QGA MSI',
                             input: files('installer/qemu-ga.wxs'),
