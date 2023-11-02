@@ -10,6 +10,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/m68k/mcf.h"
@@ -167,7 +168,7 @@ typedef struct {
     MemoryRegion iomem;
     qemu_irq *pic;
     m5206_timer_state *timer[2];
-    void *uart[2];
+    DeviceState *uart[2];
     uint8_t scr;
     uint8_t icr[14];
     uint16_t imr; /* 1 == interrupt is masked.  */
@@ -599,15 +600,21 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
     s->pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
     s->timer[0] = m5206_timer_init(s->pic[9]);
     s->timer[1] = m5206_timer_init(s->pic[10]);
-    s->uart[0] = mcf_uart_init(s->pic[12], serial_hd(0));
-    s->uart[1] = mcf_uart_init(s->pic[13], serial_hd(1));
-    s->cpu = M68K_CPU(qemu_get_cpu(0));
+    s->uart[0] = mcf_uart_create(s->pic[12], serial_hd(0));
+    s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
 }
+
+static Property mcf5206_mbar_properties[] = {
+    DEFINE_PROP_LINK("m68k-cpu", m5206_mbar_state, cpu,
+                     TYPE_M68K_CPU, M68kCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void mcf5206_mbar_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, mcf5206_mbar_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "MCF5206 system integration module";
     dc->realize = mcf5206_mbar_realize;

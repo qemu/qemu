@@ -14,6 +14,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/mcf.h"
+#include "hw/qdev-properties.h"
 #include "qom/object.h"
 
 #define TYPE_MCF_INTC "mcf-intc"
@@ -173,12 +174,20 @@ static void mcf_intc_instance_init(Object *obj)
     mcf_intc_state *s = MCF_INTC(obj);
 
     memory_region_init_io(&s->iomem, obj, &mcf_intc_ops, s, "mcf", 0x100);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
+
+static Property mcf_intc_properties[] = {
+    DEFINE_PROP_LINK("m68k-cpu", mcf_intc_state, cpu,
+                     TYPE_M68K_CPU, M68kCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void mcf_intc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, mcf_intc_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->reset = mcf_intc_reset;
 }
@@ -203,15 +212,13 @@ qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         M68kCPU *cpu)
 {
     DeviceState  *dev;
-    mcf_intc_state *s;
 
     dev = qdev_new(TYPE_MCF_INTC);
+    object_property_set_link(OBJECT(dev), "m68k-cpu",
+                             OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(sysmem, base,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
-    s = MCF_INTC(dev);
-    s->cpu = cpu;
-
-    memory_region_add_subregion(sysmem, base, &s->iomem);
-
-    return qemu_allocate_irqs(mcf_intc_set_irq, s, 64);
+    return qemu_allocate_irqs(mcf_intc_set_irq, dev, 64);
 }

@@ -30,8 +30,8 @@ class NextCubeMachine(QemuSystemTest):
     timeout = 15
 
     def check_bootrom_framebuffer(self, screenshot_path):
-        rom_url = ('http://www.nextcomputers.org/NeXTfiles/Software/ROM_Files/'
-                   '68040_Non-Turbo_Chipset/Rev_2.5_v66.BIN')
+        rom_url = ('https://sourceforge.net/p/previous/code/1350/tree/'
+                   'trunk/src/Rev_2.5_v66.BIN?format=raw')
         rom_hash = 'b3534796abae238a0111299fc406a9349f7fee24'
         rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
 
