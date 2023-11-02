@@ -29,7 +29,16 @@ typedef struct {
  */
 typedef struct VFIOContainerBase {
     const VFIOIOMMUOps *ops;
+    QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
 } VFIOContainerBase;
+
+typedef struct VFIOGuestIOMMU {
+    VFIOContainerBase *bcontainer;
+    IOMMUMemoryRegion *iommu_mr;
+    hwaddr iommu_offset;
+    IOMMUNotifier n;
+    QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
+} VFIOGuestIOMMU;
 
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,

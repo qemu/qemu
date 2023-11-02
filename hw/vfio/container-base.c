@@ -34,8 +34,17 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
 void vfio_container_init(VFIOContainerBase *bcontainer, const VFIOIOMMUOps *ops)
 {
     bcontainer->ops = ops;
+    QLIST_INIT(&bcontainer->giommu_list);
 }
 
 void vfio_container_destroy(VFIOContainerBase *bcontainer)
 {
+    VFIOGuestIOMMU *giommu, *tmp;
+
+    QLIST_FOREACH_SAFE(giommu, &bcontainer->giommu_list, giommu_next, tmp) {
+        memory_region_unregister_iommu_notifier(
+                MEMORY_REGION(giommu->iommu_mr), &giommu->n);
+        QLIST_REMOVE(giommu, giommu_next);
+        g_free(giommu);
+    }
 }
