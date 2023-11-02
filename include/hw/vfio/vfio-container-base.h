@@ -48,6 +48,7 @@ typedef struct VFIOContainerBase {
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainerBase) next;
     QLIST_HEAD(, VFIODevice) device_list;
+    GList *iova_ranges;
 } VFIOContainerBase;
 
 typedef struct VFIOGuestIOMMU {

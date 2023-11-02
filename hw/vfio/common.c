@@ -637,9 +637,10 @@ static void vfio_listener_region_add(MemoryListener *listener,
             goto fail;
         }
 
-        if (container->iova_ranges) {
+        if (bcontainer->iova_ranges) {
             ret = memory_region_iommu_set_iova_ranges(giommu->iommu_mr,
-                    container->iova_ranges, &err);
+                                                      bcontainer->iova_ranges,
+                                                      &err);
             if (ret) {
                 g_free(giommu);
                 goto fail;

@@ -82,7 +82,6 @@ typedef struct VFIOContainer {
     unsigned iommu_type;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
-    GList *iova_ranges;
 } VFIOContainer;
 
 typedef struct VFIOHostDMAWindow {

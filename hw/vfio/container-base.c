@@ -54,6 +54,7 @@ void vfio_container_init(VFIOContainerBase *bcontainer, VFIOAddressSpace *space,
     bcontainer->error = NULL;
     bcontainer->dirty_pages_supported = false;
     bcontainer->dma_max_mappings = 0;
+    bcontainer->iova_ranges = NULL;
     QLIST_INIT(&bcontainer->giommu_list);
     QLIST_INIT(&bcontainer->vrdl_list);
 }
@@ -70,4 +71,6 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer)
         QLIST_REMOVE(giommu, giommu_next);
         g_free(giommu);
     }
+
+    g_list_free_full(bcontainer->iova_ranges, g_free);
 }
