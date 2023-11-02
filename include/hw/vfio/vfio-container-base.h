@@ -31,6 +31,13 @@ typedef struct VFIOContainerBase {
     const VFIOIOMMUOps *ops;
 } VFIOContainerBase;
 
+int vfio_container_dma_map(VFIOContainerBase *bcontainer,
+                           hwaddr iova, ram_addr_t size,
+                           void *vaddr, bool readonly);
+int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
+                             hwaddr iova, ram_addr_t size,
+                             IOMMUTLBEntry *iotlb);
+
 struct VFIOIOMMUOps {
     /* basic feature */
     int (*dma_map)(VFIOContainerBase *bcontainer,

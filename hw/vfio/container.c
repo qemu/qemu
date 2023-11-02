@@ -115,9 +115,11 @@ unmap_exit:
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
-int vfio_dma_unmap(VFIOContainer *container, hwaddr iova,
-                   ram_addr_t size, IOMMUTLBEntry *iotlb)
+static int vfio_legacy_dma_unmap(VFIOContainerBase *bcontainer, hwaddr iova,
+                                 ram_addr_t size, IOMMUTLBEntry *iotlb)
 {
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
         .flags = 0,
@@ -151,7 +153,7 @@ int vfio_dma_unmap(VFIOContainer *container, hwaddr iova,
          */
         if (errno == EINVAL && unmap.size && !(unmap.iova + unmap.size) &&
             container->iommu_type == VFIO_TYPE1v2_IOMMU) {
-            trace_vfio_dma_unmap_overflow_workaround();
+            trace_vfio_legacy_dma_unmap_overflow_workaround();
             unmap.size -= 1ULL << ctz64(container->pgsizes);
             continue;
         }
@@ -170,9 +172,11 @@ int vfio_dma_unmap(VFIOContainer *container, hwaddr iova,
     return 0;
 }
 
-int vfio_dma_map(VFIOContainer *container, hwaddr iova,
-                 ram_addr_t size, void *vaddr, bool readonly)
+static int vfio_legacy_dma_map(VFIOContainerBase *bcontainer, hwaddr iova,
+                               ram_addr_t size, void *vaddr, bool readonly)
 {
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
         .flags = VFIO_DMA_MAP_FLAG_READ,
@@ -191,7 +195,8 @@ int vfio_dma_map(VFIOContainer *container, hwaddr iova,
      * the VGA ROM space.
      */
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
-        (errno == EBUSY && vfio_dma_unmap(container, iova, size, NULL) == 0 &&
+        (errno == EBUSY &&
+         vfio_legacy_dma_unmap(bcontainer, iova, size, NULL) == 0 &&
          ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0)) {
         return 0;
     }
@@ -937,4 +942,7 @@ void vfio_detach_device(VFIODevice *vbasedev)
     vfio_put_group(group);
 }
 
-const VFIOIOMMUOps vfio_legacy_ops;
+const VFIOIOMMUOps vfio_legacy_ops = {
+    .dma_map = vfio_legacy_dma_map,
+    .dma_unmap = vfio_legacy_dma_unmap,
+};
