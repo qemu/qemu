@@ -145,7 +145,7 @@ void vfio_unblock_multiple_devices_migration(void)
 
 bool vfio_viommu_preset(VFIODevice *vbasedev)
 {
-    return vbasedev->container->space->as != &address_space_memory;
+    return vbasedev->container->bcontainer.space->as != &address_space_memory;
 }
 
 static void vfio_set_migration_error(int err)
@@ -922,7 +922,7 @@ static void vfio_dirty_tracking_init(VFIOContainer *container,
     dirty.container = container;
 
     memory_listener_register(&dirty.listener,
-                             container->space->as);
+                             container->bcontainer.space->as);
 
     *ranges = dirty.ranges;
 

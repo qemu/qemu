@@ -31,15 +31,19 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
 }
 
-void vfio_container_init(VFIOContainerBase *bcontainer, const VFIOIOMMUOps *ops)
+void vfio_container_init(VFIOContainerBase *bcontainer, VFIOAddressSpace *space,
+                         const VFIOIOMMUOps *ops)
 {
     bcontainer->ops = ops;
+    bcontainer->space = space;
     QLIST_INIT(&bcontainer->giommu_list);
 }
 
 void vfio_container_destroy(VFIOContainerBase *bcontainer)
 {
     VFIOGuestIOMMU *giommu, *tmp;
+
+    QLIST_REMOVE(bcontainer, next);
 
     QLIST_FOREACH_SAFE(giommu, &bcontainer->giommu_list, giommu_next, tmp) {
         memory_region_unregister_iommu_notifier(

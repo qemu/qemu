@@ -24,12 +24,20 @@ typedef struct {
     hwaddr pages;
 } VFIOBitmap;
 
+typedef struct VFIOAddressSpace {
+    AddressSpace *as;
+    QLIST_HEAD(, VFIOContainerBase) containers;
+    QLIST_ENTRY(VFIOAddressSpace) list;
+} VFIOAddressSpace;
+
 /*
  * This is the base object for vfio container backends
  */
 typedef struct VFIOContainerBase {
     const VFIOIOMMUOps *ops;
+    VFIOAddressSpace *space;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
+    QLIST_ENTRY(VFIOContainerBase) next;
 } VFIOContainerBase;
 
 typedef struct VFIOGuestIOMMU {
@@ -48,6 +56,7 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
                              IOMMUTLBEntry *iotlb);
 
 void vfio_container_init(VFIOContainerBase *bcontainer,
+                         VFIOAddressSpace *space,
                          const VFIOIOMMUOps *ops);
 void vfio_container_destroy(VFIOContainerBase *bcontainer);
 
