@@ -1498,3 +1498,19 @@ retry:
 
     return info;
 }
+
+int vfio_attach_device(char *name, VFIODevice *vbasedev,
+                       AddressSpace *as, Error **errp)
+{
+    const VFIOIOMMUOps *ops = &vfio_legacy_ops;
+
+    return ops->attach_device(name, vbasedev, as, errp);
+}
+
+void vfio_detach_device(VFIODevice *vbasedev)
+{
+    if (!vbasedev->bcontainer) {
+        return;
+    }
+    vbasedev->bcontainer->ops->detach_device(vbasedev);
+}
