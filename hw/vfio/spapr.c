@@ -26,6 +26,7 @@
 
 typedef struct VFIOSpaprContainer {
     VFIOContainer container;
+    MemoryListener prereg_listener;
 } VFIOSpaprContainer;
 
 static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
@@ -48,8 +49,9 @@ static void *vfio_prereg_gpa_to_vaddr(MemoryRegionSection *section, hwaddr gpa)
 static void vfio_prereg_listener_region_add(MemoryListener *listener,
                                             MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            prereg_listener);
+    VFIOSpaprContainer *scontainer = container_of(listener, VFIOSpaprContainer,
+                                                  prereg_listener);
+    VFIOContainer *container = &scontainer->container;
     VFIOContainerBase *bcontainer = &container->bcontainer;
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
@@ -107,8 +109,9 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
 static void vfio_prereg_listener_region_del(MemoryListener *listener,
                                             MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            prereg_listener);
+    VFIOSpaprContainer *scontainer = container_of(listener, VFIOSpaprContainer,
+                                                  prereg_listener);
+    VFIOContainer *container = &scontainer->container;
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
     int ret;
@@ -445,6 +448,8 @@ static void setup_spapr_ops(VFIOContainerBase *bcontainer)
 int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
 {
     VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
+                                                  container);
     struct vfio_iommu_spapr_tce_info info;
     bool v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
     int ret, fd = container->fd;
@@ -463,9 +468,9 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
             return -errno;
         }
     } else {
-        container->prereg_listener = vfio_prereg_listener;
+        scontainer->prereg_listener = vfio_prereg_listener;
 
-        memory_listener_register(&container->prereg_listener,
+        memory_listener_register(&scontainer->prereg_listener,
                                  &address_space_memory);
         if (bcontainer->error) {
             ret = -1;
@@ -513,7 +518,7 @@ int vfio_spapr_container_init(VFIOContainer *container, Error **errp)
 
 listener_unregister_exit:
     if (v2) {
-        memory_listener_unregister(&container->prereg_listener);
+        memory_listener_unregister(&scontainer->prereg_listener);
     }
     return ret;
 }
@@ -523,7 +528,10 @@ void vfio_spapr_container_deinit(VFIOContainer *container)
     VFIOHostDMAWindow *hostwin, *next;
 
     if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
-        memory_listener_unregister(&container->prereg_listener);
+        VFIOSpaprContainer *scontainer = container_of(container,
+                                                      VFIOSpaprContainer,
+                                                      container);
+        memory_listener_unregister(&scontainer->prereg_listener);
     }
     QLIST_FOREACH_SAFE(hostwin, &container->hostwin_list, hostwin_next,
                        next) {
