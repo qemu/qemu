@@ -146,9 +146,30 @@ static const MemoryListener vfio_prereg_listener = {
     .region_del = vfio_prereg_listener_region_del,
 };
 
-int vfio_spapr_create_window(VFIOContainer *container,
-                             MemoryRegionSection *section,
-                             hwaddr *pgsize)
+static int vfio_spapr_remove_window(VFIOContainer *container,
+                                    hwaddr offset_within_address_space)
+{
+    struct vfio_iommu_spapr_tce_remove remove = {
+        .argsz = sizeof(remove),
+        .start_addr = offset_within_address_space,
+    };
+    int ret;
+
+    ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_REMOVE, &remove);
+    if (ret) {
+        error_report("Failed to remove window at %"PRIx64,
+                     (uint64_t)remove.start_addr);
+        return -errno;
+    }
+
+    trace_vfio_spapr_remove_window(offset_within_address_space);
+
+    return 0;
+}
+
+static int vfio_spapr_create_window(VFIOContainer *container,
+                                    MemoryRegionSection *section,
+                                    hwaddr *pgsize)
 {
     int ret = 0;
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
@@ -234,27 +255,6 @@ int vfio_spapr_create_window(VFIOContainer *container,
                                    create.window_size,
                                    create.start_addr);
     *pgsize = pagesize;
-
-    return 0;
-}
-
-int vfio_spapr_remove_window(VFIOContainer *container,
-                             hwaddr offset_within_address_space)
-{
-    struct vfio_iommu_spapr_tce_remove remove = {
-        .argsz = sizeof(remove),
-        .start_addr = offset_within_address_space,
-    };
-    int ret;
-
-    ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_REMOVE, &remove);
-    if (ret) {
-        error_report("Failed to remove window at %"PRIx64,
-                     (uint64_t)remove.start_addr);
-        return -errno;
-    }
-
-    trace_vfio_spapr_remove_window(offset_within_address_space);
 
     return 0;
 }
