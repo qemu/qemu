@@ -31,8 +31,10 @@
 
 #if !defined(TARGET_SPARC64)
 #define TARGET_DPREGS 16
+#define TARGET_FCCREGS 1
 #else
 #define TARGET_DPREGS 32
+#define TARGET_FCCREGS 4
 #endif
 
 /*#define EXCP_INTERRUPT 0x100*/
@@ -203,24 +205,19 @@ enum {
 #ifdef TARGET_SPARC64
 #define FSR_FTT_NMASK      0xfffffffffffe3fffULL
 #define FSR_FTT_CEXC_NMASK 0xfffffffffffe3fe0ULL
-#define FSR_LDFSR_OLDMASK  0x0000003f000fc000ULL
-#define FSR_LDXFSR_MASK    0x0000003fcfc00fffULL
-#define FSR_LDXFSR_OLDMASK 0x00000000000fc000ULL
 #else
 #define FSR_FTT_NMASK      0xfffe3fffULL
 #define FSR_FTT_CEXC_NMASK 0xfffe3fe0ULL
-#define FSR_LDFSR_OLDMASK  0x000fc000ULL
 #endif
-#define FSR_LDFSR_MASK     0xcfc00fffULL
 #define FSR_FTT_IEEE_EXCP (1ULL << 14)
 #define FSR_FTT_UNIMPFPOP (3ULL << 14)
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)
 #define FSR_FTT_INVAL_FPR (6ULL << 14)
 
-#define FSR_FCC1_SHIFT 11
-#define FSR_FCC1  (1ULL << FSR_FCC1_SHIFT)
-#define FSR_FCC0_SHIFT 10
-#define FSR_FCC0  (1ULL << FSR_FCC0_SHIFT)
+#define FSR_FCC0_SHIFT    10
+#define FSR_FCC1_SHIFT    32
+#define FSR_FCC2_SHIFT    34
+#define FSR_FCC3_SHIFT    36
 
 /* MMU */
 #define MMU_E     (1<<0)
@@ -467,8 +464,9 @@ struct CPUArchState {
                           temporary register when possible) */
 
     /* FPU State Register, in parts */
-    target_ulong fsr;       /* rm, tem, aexc, fcc* */
-    uint32_t fsr_cexc_ftt;  /* cexc, ftt */
+    uint32_t fsr;                    /* rm, tem, aexc */
+    uint32_t fsr_cexc_ftt;           /* cexc, ftt */
+    uint32_t fcc[TARGET_FCCREGS];    /* fcc* */
 
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted

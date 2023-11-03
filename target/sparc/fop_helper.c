@@ -343,112 +343,79 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
     return f128_ret(ret);
 }
 
-#define GEN_FCMP(name, size, FS, E)                                     \
-    void glue(helper_, name)(CPUSPARCState *env, Int128 src1, Int128 src2) \
-    {                                                                   \
-        float128 reg1 = f128_in(src1);                                  \
-        float128 reg2 = f128_in(src2);                                  \
-        FloatRelation ret;                                              \
-        target_ulong fsr;                                               \
-        if (E) {                                                        \
-            ret = glue(size, _compare)(reg1, reg2, &env->fp_status);    \
-        } else {                                                        \
-            ret = glue(size, _compare_quiet)(reg1, reg2,                \
-                                             &env->fp_status);          \
-        }                                                               \
-        check_ieee_exceptions(env, GETPC());                            \
-        fsr = env->fsr;                                                 \
-        switch (ret) {                                                  \
-        case float_relation_unordered:                                  \
-            fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \
-            fsr |= FSR_NVA;                                             \
-            break;                                                      \
-        case float_relation_less:                                       \
-            fsr &= ~(FSR_FCC1) << FS;                                   \
-            fsr |= FSR_FCC0 << FS;                                      \
-            break;                                                      \
-        case float_relation_greater:                                    \
-            fsr &= ~(FSR_FCC0) << FS;                                   \
-            fsr |= FSR_FCC1 << FS;                                      \
-            break;                                                      \
-        default:                                                        \
-            fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
-            break;                                                      \
-        }                                                               \
-        env->fsr = fsr;                                                 \
+static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
+{
+    check_ieee_exceptions(env, ra);
+
+    /*
+     * FCC values:
+     * 0 =
+     * 1 <
+     * 2 >
+     * 3 unordered
+     */
+    switch (r) {
+    case float_relation_equal:
+        return 0;
+    case float_relation_less:
+        return 1;
+    case float_relation_greater:
+        return 2;
+    case float_relation_unordered:
+        env->fsr |= FSR_NVA;
+        return 3;
     }
-#define GEN_FCMP_T(name, size, FS, E)                                   \
-    void glue(helper_, name)(CPUSPARCState *env, size src1, size src2)  \
-    {                                                                   \
-        FloatRelation ret;                                              \
-        target_ulong fsr;                                               \
-        if (E) {                                                        \
-            ret = glue(size, _compare)(src1, src2, &env->fp_status);    \
-        } else {                                                        \
-            ret = glue(size, _compare_quiet)(src1, src2,                \
-                                             &env->fp_status);          \
-        }                                                               \
-        check_ieee_exceptions(env, GETPC());                            \
-        fsr = env->fsr;                                                 \
-        switch (ret) {                                                  \
-        case float_relation_unordered:                                  \
-            fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \
-            break;                                                      \
-        case float_relation_less:                                       \
-            fsr &= ~(FSR_FCC1 << FS);                                   \
-            fsr |= FSR_FCC0 << FS;                                      \
-            break;                                                      \
-        case float_relation_greater:                                    \
-            fsr &= ~(FSR_FCC0 << FS);                                   \
-            fsr |= FSR_FCC1 << FS;                                      \
-            break;                                                      \
-        default:                                                        \
-            fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
-            break;                                                      \
-        }                                                               \
-        env->fsr = fsr;                                                 \
-    }
+    g_assert_not_reached();
+}
 
-GEN_FCMP_T(fcmps, float32, 0, 0);
-GEN_FCMP_T(fcmpd, float64, 0, 0);
+uint32_t helper_fcmps(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    FloatRelation r = float32_compare_quiet(src1, src2, &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
-GEN_FCMP_T(fcmpes, float32, 0, 1);
-GEN_FCMP_T(fcmped, float64, 0, 1);
+uint32_t helper_fcmpes(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    FloatRelation r = float32_compare(src1, src2, &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
-GEN_FCMP(fcmpq, float128, 0, 0);
-GEN_FCMP(fcmpeq, float128, 0, 1);
+uint32_t helper_fcmpd(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    FloatRelation r = float64_compare_quiet(src1, src2, &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
-#ifdef TARGET_SPARC64
-GEN_FCMP_T(fcmps_fcc1, float32, 22, 0);
-GEN_FCMP_T(fcmpd_fcc1, float64, 22, 0);
-GEN_FCMP(fcmpq_fcc1, float128, 22, 0);
+uint32_t helper_fcmped(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    FloatRelation r = float64_compare(src1, src2, &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
-GEN_FCMP_T(fcmps_fcc2, float32, 24, 0);
-GEN_FCMP_T(fcmpd_fcc2, float64, 24, 0);
-GEN_FCMP(fcmpq_fcc2, float128, 24, 0);
+uint32_t helper_fcmpq(CPUSPARCState *env, Int128 src1, Int128 src2)
+{
+    FloatRelation r = float128_compare_quiet(f128_in(src1), f128_in(src2),
+                                             &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
-GEN_FCMP_T(fcmps_fcc3, float32, 26, 0);
-GEN_FCMP_T(fcmpd_fcc3, float64, 26, 0);
-GEN_FCMP(fcmpq_fcc3, float128, 26, 0);
-
-GEN_FCMP_T(fcmpes_fcc1, float32, 22, 1);
-GEN_FCMP_T(fcmped_fcc1, float64, 22, 1);
-GEN_FCMP(fcmpeq_fcc1, float128, 22, 1);
-
-GEN_FCMP_T(fcmpes_fcc2, float32, 24, 1);
-GEN_FCMP_T(fcmped_fcc2, float64, 24, 1);
-GEN_FCMP(fcmpeq_fcc2, float128, 24, 1);
-
-GEN_FCMP_T(fcmpes_fcc3, float32, 26, 1);
-GEN_FCMP_T(fcmped_fcc3, float64, 26, 1);
-GEN_FCMP(fcmpeq_fcc3, float128, 26, 1);
-#endif
-#undef GEN_FCMP_T
-#undef GEN_FCMP
+uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
+{
+    FloatRelation r = float128_compare(f128_in(src1), f128_in(src2),
+                                       &env->fp_status);
+    return finish_fcmp(env, r, GETPC());
+}
 
 target_ulong cpu_get_fsr(CPUSPARCState *env)
 {
     target_ulong fsr = env->fsr | env->fsr_cexc_ftt;
+
+    fsr |= env->fcc[0] << FSR_FCC0_SHIFT;
+#ifdef TARGET_SPARC64
+    fsr |= (uint64_t)env->fcc[1] << FSR_FCC1_SHIFT;
+    fsr |= (uint64_t)env->fcc[2] << FSR_FCC2_SHIFT;
+    fsr |= (uint64_t)env->fcc[3] << FSR_FCC3_SHIFT;
+#endif
 
     /* VER is kept completely separate until re-assembly. */
     fsr |= env->def.fpu_version;
@@ -465,7 +432,7 @@ static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 {
     int rnd_mode;
 
-    env->fsr = fsr & ~(FSR_VER_MASK | FSR_CEXC_MASK | FSR_FTT_MASK);
+    env->fsr = fsr & (FSR_RD_MASK | FSR_TEM_MASK | FSR_AEXC_MASK);
 
     switch (fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
@@ -488,10 +455,18 @@ static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 void cpu_put_fsr(CPUSPARCState *env, target_ulong fsr)
 {
     env->fsr_cexc_ftt = fsr & (FSR_CEXC_MASK | FSR_FTT_MASK);
+
+    env->fcc[0] = extract32(fsr, FSR_FCC0_SHIFT, 2);
+#ifdef TARGET_SPARC64
+    env->fcc[1] = extract64(fsr, FSR_FCC1_SHIFT, 2);
+    env->fcc[2] = extract64(fsr, FSR_FCC2_SHIFT, 2);
+    env->fcc[3] = extract64(fsr, FSR_FCC3_SHIFT, 2);
+#endif
+
     set_fsr_nonsplit(env, fsr);
 }
 
-void helper_set_fsr_noftt(CPUSPARCState *env, target_ulong fsr)
+void helper_set_fsr_nofcc_noftt(CPUSPARCState *env, uint32_t fsr)
 {
     env->fsr_cexc_ftt &= FSR_FTT_MASK;
     env->fsr_cexc_ftt |= fsr & FSR_CEXC_MASK;

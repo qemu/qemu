@@ -83,8 +83,6 @@
 # define gen_helper_fxtoq                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fxtos                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_pdist                ({ qemu_build_not_reached(); NULL; })
-# define FSR_LDXFSR_MASK                        0
-# define FSR_LDXFSR_OLDMASK                     0
 # define MAXTL_MASK                             0
 #endif
 
@@ -130,6 +128,7 @@ static TCGv cpu_gsr;
 
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
+static TCGv_i32 cpu_fcc[TARGET_FCCREGS];
 
 #define env_field_offsetof(X)     offsetof(CPUSPARCState, X)
 #ifdef TARGET_SPARC64
@@ -719,159 +718,6 @@ static void gen_op_bshuffle(TCGv_i64 dst, TCGv_i64 src1, TCGv_i64 src2)
 #endif
 }
 
-// 1
-static void gen_op_eval_ba(TCGv dst)
-{
-    tcg_gen_movi_tl(dst, 1);
-}
-
-// 0
-static void gen_op_eval_bn(TCGv dst)
-{
-    tcg_gen_movi_tl(dst, 0);
-}
-
-/*
-  FPSR bit field FCC1 | FCC0:
-   0 =
-   1 <
-   2 >
-   3 unordered
-*/
-static void gen_mov_reg_FCC0(TCGv reg, TCGv src,
-                                    unsigned int fcc_offset)
-{
-    tcg_gen_shri_tl(reg, src, FSR_FCC0_SHIFT + fcc_offset);
-    tcg_gen_andi_tl(reg, reg, 0x1);
-}
-
-static void gen_mov_reg_FCC1(TCGv reg, TCGv src, unsigned int fcc_offset)
-{
-    tcg_gen_shri_tl(reg, src, FSR_FCC1_SHIFT + fcc_offset);
-    tcg_gen_andi_tl(reg, reg, 0x1);
-}
-
-// !0: FCC0 | FCC1
-static void gen_op_eval_fbne(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_or_tl(dst, dst, t0);
-}
-
-// 1 or 2: FCC0 ^ FCC1
-static void gen_op_eval_fblg(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_xor_tl(dst, dst, t0);
-}
-
-// 1 or 3: FCC0
-static void gen_op_eval_fbul(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-}
-
-// 1: FCC0 & !FCC1
-static void gen_op_eval_fbl(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_andc_tl(dst, dst, t0);
-}
-
-// 2 or 3: FCC1
-static void gen_op_eval_fbug(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    gen_mov_reg_FCC1(dst, src, fcc_offset);
-}
-
-// 2: !FCC0 & FCC1
-static void gen_op_eval_fbg(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_andc_tl(dst, t0, dst);
-}
-
-// 3: FCC0 & FCC1
-static void gen_op_eval_fbu(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_and_tl(dst, dst, t0);
-}
-
-// 0: !(FCC0 | FCC1)
-static void gen_op_eval_fbe(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_or_tl(dst, dst, t0);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// 0 or 3: !(FCC0 ^ FCC1)
-static void gen_op_eval_fbue(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_xor_tl(dst, dst, t0);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// 0 or 2: !FCC0
-static void gen_op_eval_fbge(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !1: !(FCC0 & !FCC1)
-static void gen_op_eval_fbuge(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_andc_tl(dst, dst, t0);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// 0 or 1: !FCC1
-static void gen_op_eval_fble(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    gen_mov_reg_FCC1(dst, src, fcc_offset);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !2: !(!FCC0 & FCC1)
-static void gen_op_eval_fbule(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_andc_tl(dst, t0, dst);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !3: !(FCC0 & FCC1)
-static void gen_op_eval_fbo(TCGv dst, TCGv src, unsigned int fcc_offset)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_FCC0(dst, src, fcc_offset);
-    gen_mov_reg_FCC1(t0, src, fcc_offset);
-    tcg_gen_and_tl(dst, dst, t0);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
 static void finishing_insn(DisasContext *dc)
 {
     /*
@@ -1096,82 +942,62 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 
 static void gen_fcompare(DisasCompare *cmp, unsigned int cc, unsigned int cond)
 {
-    unsigned int offset;
-    TCGv r_dst, fsr;
+    TCGv_i32 fcc = cpu_fcc[cc];
+    TCGv_i32 c1 = fcc;
+    int c2 = 0;
+    TCGCond tcond;
 
-    /* For now we still generate a straight boolean result.  */
-    cmp->cond = TCG_COND_NE;
-    cmp->c1 = r_dst = tcg_temp_new();
-    cmp->c2 = 0;
-
-    switch (cc) {
-    default:
-    case 0x0:
-        offset = 0;
+    /*
+     * FCC values:
+     * 0 =
+     * 1 <
+     * 2 >
+     * 3 unordered
+     */
+    switch (cond & 7) {
+    case 0x0: /* fbn */
+        tcond = TCG_COND_NEVER;
         break;
-    case 0x1:
-        offset = 32 - 10;
+    case 0x1: /* fbne : !0 */
+        tcond = TCG_COND_NE;
         break;
-    case 0x2:
-        offset = 34 - 10;
+    case 0x2: /* fblg : 1 or 2 */
+        /* fcc in {1,2} - 1 -> fcc in {0,1} */
+        c1 = tcg_temp_new_i32();
+        tcg_gen_addi_i32(c1, fcc, -1);
+        c2 = 1;
+        tcond = TCG_COND_LEU;
         break;
-    case 0x3:
-        offset = 36 - 10;
+    case 0x3: /* fbul : 1 or 3 */
+        c1 = tcg_temp_new_i32();
+        tcg_gen_andi_i32(c1, fcc, 1);
+        tcond = TCG_COND_NE;
+        break;
+    case 0x4: /* fbl  : 1 */
+        c2 = 1;
+        tcond = TCG_COND_EQ;
+        break;
+    case 0x5: /* fbug : 2 or 3 */
+        c2 = 2;
+        tcond = TCG_COND_GEU;
+        break;
+    case 0x6: /* fbg  : 2 */
+        c2 = 2;
+        tcond = TCG_COND_EQ;
+        break;
+    case 0x7: /* fbu  : 3 */
+        c2 = 3;
+        tcond = TCG_COND_EQ;
         break;
     }
-
-    fsr = tcg_temp_new();
-    tcg_gen_ld_tl(fsr, tcg_env, offsetof(CPUSPARCState, fsr));
-    switch (cond) {
-    case 0x0:
-        gen_op_eval_bn(r_dst);
-        break;
-    case 0x1:
-        gen_op_eval_fbne(r_dst, fsr, offset);
-        break;
-    case 0x2:
-        gen_op_eval_fblg(r_dst, fsr, offset);
-        break;
-    case 0x3:
-        gen_op_eval_fbul(r_dst, fsr, offset);
-        break;
-    case 0x4:
-        gen_op_eval_fbl(r_dst, fsr, offset);
-        break;
-    case 0x5:
-        gen_op_eval_fbug(r_dst, fsr, offset);
-        break;
-    case 0x6:
-        gen_op_eval_fbg(r_dst, fsr, offset);
-        break;
-    case 0x7:
-        gen_op_eval_fbu(r_dst, fsr, offset);
-        break;
-    case 0x8:
-        gen_op_eval_ba(r_dst);
-        break;
-    case 0x9:
-        gen_op_eval_fbe(r_dst, fsr, offset);
-        break;
-    case 0xa:
-        gen_op_eval_fbue(r_dst, fsr, offset);
-        break;
-    case 0xb:
-        gen_op_eval_fbge(r_dst, fsr, offset);
-        break;
-    case 0xc:
-        gen_op_eval_fbuge(r_dst, fsr, offset);
-        break;
-    case 0xd:
-        gen_op_eval_fble(r_dst, fsr, offset);
-        break;
-    case 0xe:
-        gen_op_eval_fbule(r_dst, fsr, offset);
-        break;
-    case 0xf:
-        gen_op_eval_fbo(r_dst, fsr, offset);
-        break;
+    if (cond & 8) {
+        tcond = tcg_invert_cond(tcond);
     }
+
+    cmp->cond = tcond;
+    cmp->c2 = c2;
+    cmp->c1 = tcg_temp_new();
+    tcg_gen_extu_i32_tl(cmp->c1, c1);
 }
 
 static bool gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
@@ -1260,148 +1086,6 @@ static void gen_op_fabsq(TCGv_i128 dst, TCGv_i128 src)
     tcg_gen_andi_i64(h, h, ~(1ull << 63));
     tcg_gen_concat_i64_i128(dst, l, h);
 }
-
-#ifdef TARGET_SPARC64
-static void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmps(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmps_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmps_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmps_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmpd(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmpd_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmpd_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmpd_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-static void gen_op_fcmpq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmpq(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmpq_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmpq_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmpq_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-static void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmpes(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmpes_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmpes_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmpes_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmped(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmped_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmped_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmped_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-static void gen_op_fcmpeq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
-{
-    switch (fccno) {
-    case 0:
-        gen_helper_fcmpeq(tcg_env, r_rs1, r_rs2);
-        break;
-    case 1:
-        gen_helper_fcmpeq_fcc1(tcg_env, r_rs1, r_rs2);
-        break;
-    case 2:
-        gen_helper_fcmpeq_fcc2(tcg_env, r_rs1, r_rs2);
-        break;
-    case 3:
-        gen_helper_fcmpeq_fcc3(tcg_env, r_rs1, r_rs2);
-        break;
-    }
-}
-
-#else
-
-static void gen_op_fcmps(int fccno, TCGv r_rs1, TCGv r_rs2)
-{
-    gen_helper_fcmps(tcg_env, r_rs1, r_rs2);
-}
-
-static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
-{
-    gen_helper_fcmpd(tcg_env, r_rs1, r_rs2);
-}
-
-static void gen_op_fcmpq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
-{
-    gen_helper_fcmpq(tcg_env, r_rs1, r_rs2);
-}
-
-static void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
-{
-    gen_helper_fcmpes(tcg_env, r_rs1, r_rs2);
-}
-
-static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
-{
-    gen_helper_fcmped(tcg_env, r_rs1, r_rs2);
-}
-
-static void gen_op_fcmpeq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
-{
-    gen_helper_fcmpeq(tcg_env, r_rs1, r_rs2);
-}
-#endif
 
 static void gen_op_fpexception_im(DisasContext *dc, int ftt)
 {
@@ -4400,11 +4084,10 @@ static bool trans_STDFQ(DisasContext *dc, arg_STDFQ *a)
     return true;
 }
 
-static bool do_ldfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop,
-                     target_ulong new_mask, target_ulong old_mask)
+static bool trans_LDFSR(DisasContext *dc, arg_r_r_ri *a)
 {
     TCGv addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
-    TCGv tnew, told;
+    TCGv_i32 tmp;
 
     if (addr == NULL) {
         return false;
@@ -4412,19 +4095,48 @@ static bool do_ldfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop,
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-    tnew = tcg_temp_new();
-    told = tcg_temp_new();
-    tcg_gen_qemu_ld_tl(tnew, addr, dc->mem_idx, mop | MO_ALIGN);
-    tcg_gen_ld_tl(told, tcg_env, offsetof(CPUSPARCState, fsr));
-    tcg_gen_andi_tl(tnew, tnew, new_mask);
-    tcg_gen_andi_tl(told, told, old_mask);
-    tcg_gen_or_tl(tnew, tnew, told);
-    gen_helper_set_fsr_noftt(tcg_env, tnew);
+
+    tmp = tcg_temp_new_i32();
+    tcg_gen_qemu_ld_i32(tmp, addr, dc->mem_idx, MO_TEUL | MO_ALIGN);
+
+    tcg_gen_extract_i32(cpu_fcc[0], tmp, FSR_FCC0_SHIFT, 2);
+    /* LDFSR does not change FCC[1-3]. */
+
+    gen_helper_set_fsr_nofcc_noftt(tcg_env, tmp);
     return advance_pc(dc);
 }
 
-TRANS(LDFSR, ALL, do_ldfsr, a, MO_TEUL, FSR_LDFSR_MASK, FSR_LDFSR_OLDMASK)
-TRANS(LDXFSR, 64, do_ldfsr, a, MO_TEUQ, FSR_LDXFSR_MASK, FSR_LDXFSR_OLDMASK)
+static bool trans_LDXFSR(DisasContext *dc, arg_r_r_ri *a)
+{
+#ifdef TARGET_SPARC64
+    TCGv addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
+    TCGv_i64 t64;
+    TCGv_i32 lo, hi;
+
+    if (addr == NULL) {
+        return false;
+    }
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    t64 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(t64, addr, dc->mem_idx, MO_TEUQ | MO_ALIGN);
+
+    lo = tcg_temp_new_i32();
+    hi = cpu_fcc[3];
+    tcg_gen_extr_i64_i32(lo, hi, t64);
+    tcg_gen_extract_i32(cpu_fcc[0], lo, FSR_FCC0_SHIFT, 2);
+    tcg_gen_extract_i32(cpu_fcc[1], hi, FSR_FCC1_SHIFT - 32, 2);
+    tcg_gen_extract_i32(cpu_fcc[2], hi, FSR_FCC2_SHIFT - 32, 2);
+    tcg_gen_extract_i32(cpu_fcc[3], hi, FSR_FCC3_SHIFT - 32, 2);
+
+    gen_helper_set_fsr_nofcc_noftt(tcg_env, lo);
+    return advance_pc(dc);
+#else
+    return false;
+#endif
+}
 
 static bool do_stfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop)
 {
@@ -5075,9 +4787,9 @@ static bool do_fcmps(DisasContext *dc, arg_FCMPs *a, bool e)
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     if (e) {
-        gen_op_fcmpes(a->cc, src1, src2);
+        gen_helper_fcmpes(cpu_fcc[a->cc], tcg_env, src1, src2);
     } else {
-        gen_op_fcmps(a->cc, src1, src2);
+        gen_helper_fcmps(cpu_fcc[a->cc], tcg_env, src1, src2);
     }
     return advance_pc(dc);
 }
@@ -5099,9 +4811,9 @@ static bool do_fcmpd(DisasContext *dc, arg_FCMPd *a, bool e)
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     if (e) {
-        gen_op_fcmped(a->cc, src1, src2);
+        gen_helper_fcmped(cpu_fcc[a->cc], tcg_env, src1, src2);
     } else {
-        gen_op_fcmpd(a->cc, src1, src2);
+        gen_helper_fcmpd(cpu_fcc[a->cc], tcg_env, src1, src2);
     }
     return advance_pc(dc);
 }
@@ -5126,9 +4838,9 @@ static bool do_fcmpq(DisasContext *dc, arg_FCMPq *a, bool e)
     src1 = gen_load_fpr_Q(dc, a->rs1);
     src2 = gen_load_fpr_Q(dc, a->rs2);
     if (e) {
-        gen_op_fcmpeq(a->cc, src1, src2);
+        gen_helper_fcmpeq(cpu_fcc[a->cc], tcg_env, src1, src2);
     } else {
-        gen_op_fcmpq(a->cc, src1, src2);
+        gen_helper_fcmpq(cpu_fcc[a->cc], tcg_env, src1, src2);
     }
     return advance_pc(dc);
 }
@@ -5334,6 +5046,18 @@ void sparc_tcg_init(void)
         "f48", "f50", "f52", "f54", "f56", "f58", "f60", "f62",
     };
 
+    static const struct { TCGv_i32 *ptr; int off; const char *name; } r32[] = {
+#ifdef TARGET_SPARC64
+        { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
+        { &cpu_fcc[0], offsetof(CPUSPARCState, fcc[0]), "fcc0" },
+        { &cpu_fcc[1], offsetof(CPUSPARCState, fcc[1]), "fcc1" },
+        { &cpu_fcc[2], offsetof(CPUSPARCState, fcc[2]), "fcc2" },
+        { &cpu_fcc[3], offsetof(CPUSPARCState, fcc[3]), "fcc3" },
+#else
+        { &cpu_fcc[0], offsetof(CPUSPARCState, fcc[0]), "fcc" },
+#endif
+    };
+
     static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
 #ifdef TARGET_SPARC64
         { &cpu_gsr, offsetof(CPUSPARCState, gsr), "gsr" },
@@ -5357,6 +5081,10 @@ void sparc_tcg_init(void)
                                          offsetof(CPUSPARCState, regwptr),
                                          "regwptr");
 
+    for (i = 0; i < ARRAY_SIZE(r32); ++i) {
+        *r32[i].ptr = tcg_global_mem_new_i32(tcg_env, r32[i].off, r32[i].name);
+    }
+
     for (i = 0; i < ARRAY_SIZE(rtl); ++i) {
         *rtl[i].ptr = tcg_global_mem_new(tcg_env, rtl[i].off, rtl[i].name);
     }
@@ -5379,11 +5107,6 @@ void sparc_tcg_init(void)
                                             offsetof(CPUSPARCState, fpr[i]),
                                             fregnames[i]);
     }
-
-#ifdef TARGET_SPARC64
-    cpu_fprs = tcg_global_mem_new_i32(tcg_env,
-                                      offsetof(CPUSPARCState, fprs), "fprs");
-#endif
 }
 
 void sparc_restore_state_to_opc(CPUState *cs,
