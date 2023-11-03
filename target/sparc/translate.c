@@ -4526,7 +4526,6 @@ static bool do_env_ff(DisasContext *dc, arg_r_r *a,
 
     tmp = gen_load_fpr_F(dc, a->rs);
     func(tmp, tcg_env, tmp);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_F(dc, a->rd, tmp);
     return advance_pc(dc);
 }
@@ -4548,7 +4547,6 @@ static bool do_env_fd(DisasContext *dc, arg_r_r *a,
     dst = tcg_temp_new_i32();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_F(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4591,7 +4589,6 @@ static bool do_env_dd(DisasContext *dc, arg_r_r *a,
     dst = gen_dest_fpr_D(dc, a->rd);
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4613,7 +4610,6 @@ static bool do_env_df(DisasContext *dc, arg_r_r *a,
     dst = gen_dest_fpr_D(dc, a->rd);
     src = gen_load_fpr_F(dc, a->rs);
     func(dst, tcg_env, src);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4659,7 +4655,6 @@ static bool do_env_qq(DisasContext *dc, arg_r_r *a,
 
     t = gen_load_fpr_Q(dc, a->rs);
     func(t, tcg_env, t);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_Q(dc, a->rd, t);
     return advance_pc(dc);
 }
@@ -4682,7 +4677,6 @@ static bool do_env_fq(DisasContext *dc, arg_r_r *a,
     src = gen_load_fpr_Q(dc, a->rs);
     dst = tcg_temp_new_i32();
     func(dst, tcg_env, src);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_F(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4706,7 +4700,6 @@ static bool do_env_dq(DisasContext *dc, arg_r_r *a,
     src = gen_load_fpr_Q(dc, a->rs);
     dst = gen_dest_fpr_D(dc, a->rd);
     func(dst, tcg_env, src);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4727,7 +4720,6 @@ static bool do_env_qf(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src = gen_load_fpr_F(dc, a->rs);
     dst = tcg_temp_new_i128();
     func(dst, tcg_env, src);
@@ -4751,7 +4743,6 @@ static bool do_env_qd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src = gen_load_fpr_D(dc, a->rs);
     dst = tcg_temp_new_i128();
     func(dst, tcg_env, src);
@@ -4803,7 +4794,6 @@ static bool do_env_fff(DisasContext *dc, arg_r_r_r *a,
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     func(src1, tcg_env, src1, src2);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_F(dc, a->rd, src1);
     return advance_pc(dc);
 }
@@ -4898,7 +4888,6 @@ static bool do_env_ddd(DisasContext *dc, arg_r_r_r *a,
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     func(dst, tcg_env, src1, src2);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4924,7 +4913,6 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     gen_helper_fsmuld(dst, tcg_env, src1, src2);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -4964,7 +4952,6 @@ static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
     src1 = gen_load_fpr_Q(dc, a->rs1);
     src2 = gen_load_fpr_Q(dc, a->rs2);
     func(src1, tcg_env, src1, src2);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_Q(dc, a->rd, src1);
     return advance_pc(dc);
 }
@@ -4990,7 +4977,6 @@ static bool trans_FdMULq(DisasContext *dc, arg_r_r_r *a)
     src2 = gen_load_fpr_D(dc, a->rs2);
     dst = tcg_temp_new_i128();
     gen_helper_fdmulq(dst, tcg_env, src1, src2);
-    gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_Q(dc, a->rd, dst);
     return advance_pc(dc);
 }
