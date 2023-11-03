@@ -338,8 +338,8 @@ static MTFrame *get_frame(IPodTouchMultitouchState *s, uint8_t event, float x, f
 }
 
 static void ipod_touch_multitouch_inform_frame_ready(IPodTouchMultitouchState *s) {
-    s->sysic->gpio_int_status[4] |= (1 << 27); // the multitouch interrupt bit is in group 4 (32 interrupts per group), and the 27th of the 4th group
-    qemu_irq_raise(s->sysic->gpio_irqs[4]);
+    s->sysic->gpio_int_status[3] |= (1 << 13); // the multitouch interrupt bit is in group 3 (32 interrupts per group), and the 13th of the 3th group
+    qemu_irq_raise(s->sysic->gpio_irqs[3]);
 }
 
 void ipod_touch_multitouch_on_touch(IPodTouchMultitouchState *s) {

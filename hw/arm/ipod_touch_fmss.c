@@ -93,7 +93,7 @@ static void read_nand_pages(IPodTouchFMSSState *s)
 
 static uint64_t ipod_touch_fmss_read(void *opaque, hwaddr addr, unsigned size)
 {
-    fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
+    //fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
 
     IPodTouchFMSSState *s = (IPodTouchFMSSState *)opaque;
     switch(addr)

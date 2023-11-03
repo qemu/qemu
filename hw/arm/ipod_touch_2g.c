@@ -194,10 +194,16 @@ static void ipod_touch_machine_init(MachineState *machine)
     IPodTouchSYSICState *sysic_state = IPOD_TOUCH_SYSIC(dev);
     nms->sysic = (IPodTouchSYSICState *) g_malloc0(sizeof(struct IPodTouchSYSICState));
     memory_region_add_subregion(sysmem, SYSIC_MEM_BASE, &sysic_state->iomem);
-    // busdev = SYS_BUS_DEVICE(dev);
-    // for(int grp = 0; grp < GPIO_NUMINTGROUPS; grp++) {
-    //     sysbus_connect_irq(busdev, grp, s5l8900_get_irq(nms, S5L8900_GPIO_IRQS[grp]));
-    // }
+    busdev = SYS_BUS_DEVICE(dev);
+    for(int grp = 0; grp < GPIO_NUMINTGROUPS; grp++) {
+        sysbus_connect_irq(busdev, grp, s5l8900_get_irq(nms, S5L8900_GPIO_IRQS[grp]));
+    }
+
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8900_GPIO_G0_IRQ));
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8900_GPIO_G1_IRQ));
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8900_GPIO_G2_IRQ));
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8900_GPIO_G3_IRQ));
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8900_GPIO_G4_IRQ));
 
     // init GPIO
     dev = qdev_new("ipodtouch.gpio");
@@ -266,6 +272,8 @@ static void ipod_touch_machine_init(MachineState *machine)
     set_spi_base(4);
     dev = sysbus_create_simple("ipodtouch.spi", SPI4_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI4_IRQ));
     IPodTouchSPIState *spi4_state = IPOD_TOUCH_SPI(dev);
+    spi4_state->mt->sysic = sysic_state;
+    spi4_state->mt->gpio_state = gpio_state;
     nms->spi4_state = spi4_state;
 
     // init the chip ID module
@@ -370,6 +378,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     dev = qdev_new("ipodtouch.lcd");
     IPodTouchLCDState *lcd_state = IPOD_TOUCH_LCD(dev);
     lcd_state->sysmem = sysmem;
+    lcd_state->mt = spi4_state->mt;
     nms->lcd_state = lcd_state;
     busdev = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(sysmem, DISPLAY_MEM_BASE, &lcd_state->iomem);

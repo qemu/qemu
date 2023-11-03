@@ -66,7 +66,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
                 frame_header->checksum = length ^ 0xffff;
                 g_queue_push_tail(s->rx_fifo, frame_header);
 
-                timer_mod(s->irq_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + NANOSECONDS_PER_SECOND / 50);
+                timer_mod(s->irq_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + NANOSECONDS_PER_SECOND / 100);
             }
         } else {
             if(func == 0x1) {
