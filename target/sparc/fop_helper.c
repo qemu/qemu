@@ -163,9 +163,9 @@ float64 helper_fxtod(CPUSPARCState *env, int64_t src)
     return int64_to_float64(src, &env->fp_status);
 }
 
-void helper_fxtoq(CPUSPARCState *env, int64_t src)
+Int128 helper_fxtoq(CPUSPARCState *env, int64_t src)
 {
-    QT0 = int64_to_float128(src, &env->fp_status);
+    return f128_ret(int64_to_float128(src, &env->fp_status));
 }
 #endif
 
@@ -195,9 +195,9 @@ float64 helper_fqtod(CPUSPARCState *env, Int128 src)
     return float128_to_float64(f128_in(src), &env->fp_status);
 }
 
-void helper_fdtoq(CPUSPARCState *env, float64 src)
+Int128 helper_fdtoq(CPUSPARCState *env, float64 src)
 {
-    QT0 = float64_to_float128(src, &env->fp_status);
+    return f128_ret(float64_to_float128(src, &env->fp_status));
 }
 
 /* Float to integer conversion.  */
