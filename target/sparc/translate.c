@@ -123,8 +123,7 @@ static TCGv cpu_gsr;
 #define cpu_xcc_C ({ qemu_build_not_reached(); NULL; })
 #endif
 
-/* Floating point registers */
-static TCGv_i64 cpu_fpr[TARGET_DPREGS];
+/* Floating point comparison registers */
 static TCGv_i32 cpu_fcc[TARGET_FCCREGS];
 
 #define env_field_offsetof(X)     offsetof(CPUSPARCState, X)
@@ -209,50 +208,72 @@ static void gen_update_fprs_dirty(DisasContext *dc, int rd)
 }
 
 /* floating point registers moves */
+
+static int gen_offset_fpr_F(unsigned int reg)
+{
+    int ret;
+
+    tcg_debug_assert(reg < 32);
+    ret= offsetof(CPUSPARCState, fpr[reg / 2]);
+    if (reg & 1) {
+        ret += offsetof(CPU_DoubleU, l.lower);
+    } else {
+        ret += offsetof(CPU_DoubleU, l.upper);
+    }
+    return ret;
+}
+
 static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
 {
     TCGv_i32 ret = tcg_temp_new_i32();
-    if (src & 1) {
-        tcg_gen_extrl_i64_i32(ret, cpu_fpr[src / 2]);
-    } else {
-        tcg_gen_extrh_i64_i32(ret, cpu_fpr[src / 2]);
-    }
+    tcg_gen_ld_i32(ret, tcg_env, gen_offset_fpr_F(src));
     return ret;
 }
 
 static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
 {
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(t, v);
-    tcg_gen_deposit_i64(cpu_fpr[dst / 2], cpu_fpr[dst / 2], t,
-                        (dst & 1 ? 0 : 32), 32);
+    tcg_gen_st_i32(v, tcg_env, gen_offset_fpr_F(dst));
     gen_update_fprs_dirty(dc, dst);
+}
+
+static int gen_offset_fpr_D(unsigned int reg)
+{
+    tcg_debug_assert(reg < 64);
+    tcg_debug_assert(reg % 2 == 0);
+    return offsetof(CPUSPARCState, fpr[reg / 2]);
 }
 
 static TCGv_i64 gen_load_fpr_D(DisasContext *dc, unsigned int src)
 {
-    return cpu_fpr[src / 2];
+    TCGv_i64 ret = tcg_temp_new_i64();
+    tcg_gen_ld_i64(ret, tcg_env, gen_offset_fpr_D(src));
+    return ret;
 }
 
 static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
 {
-    tcg_gen_mov_i64(cpu_fpr[dst / 2], v);
+    tcg_gen_st_i64(v, tcg_env, gen_offset_fpr_D(dst));
     gen_update_fprs_dirty(dc, dst);
 }
 
 static TCGv_i128 gen_load_fpr_Q(DisasContext *dc, unsigned int src)
 {
     TCGv_i128 ret = tcg_temp_new_i128();
+    TCGv_i64 h = gen_load_fpr_D(dc, src);
+    TCGv_i64 l = gen_load_fpr_D(dc, src + 2);
 
-    tcg_gen_concat_i64_i128(ret, cpu_fpr[src / 2 + 1], cpu_fpr[src / 2]);
+    tcg_gen_concat_i64_i128(ret, l, h);
     return ret;
 }
 
 static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst, TCGv_i128 v)
 {
-    tcg_gen_extr_i128_i64(cpu_fpr[dst / 2 + 1], cpu_fpr[dst / 2], v);
-    gen_update_fprs_dirty(dc, dst);
+    TCGv_i64 h = tcg_temp_new_i64();
+    TCGv_i64 l = tcg_temp_new_i64();
+
+    tcg_gen_extr_i128_i64(l, h, v);
+    gen_store_fpr_D(dc, dst, h);
+    gen_store_fpr_D(dc, dst + 2, l);
 }
 
 /* moves */
@@ -1610,7 +1631,7 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
     MemOp memop = da->memop;
     MemOp size = memop & MO_SIZE;
     TCGv_i32 d32;
-    TCGv_i64 d64;
+    TCGv_i64 d64, l64;
     TCGv addr_tmp;
 
     /* TODO: Use 128-bit load/store below. */
@@ -1632,16 +1653,20 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
             break;
 
         case MO_64:
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da->mem_idx, memop);
+            d64 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(d64, addr, da->mem_idx, memop);
+            gen_store_fpr_D(dc, rd, d64);
             break;
 
         case MO_128:
             d64 = tcg_temp_new_i64();
+            l64 = tcg_temp_new_i64();
             tcg_gen_qemu_ld_i64(d64, addr, da->mem_idx, memop);
             addr_tmp = tcg_temp_new();
             tcg_gen_addi_tl(addr_tmp, addr, 8);
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2 + 1], addr_tmp, da->mem_idx, memop);
-            tcg_gen_mov_i64(cpu_fpr[rd / 2], d64);
+            tcg_gen_qemu_ld_i64(l64, addr_tmp, da->mem_idx, memop);
+            gen_store_fpr_D(dc, rd, d64);
+            gen_store_fpr_D(dc, rd + 2, l64);
             break;
         default:
             g_assert_not_reached();
@@ -1653,9 +1678,11 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
         if (orig_size == MO_64 && (rd & 7) == 0) {
             /* The first operation checks required alignment.  */
             addr_tmp = tcg_temp_new();
+            d64 = tcg_temp_new_i64();
             for (int i = 0; ; ++i) {
-                tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2 + i], addr, da->mem_idx,
+                tcg_gen_qemu_ld_i64(d64, addr, da->mem_idx,
                                     memop | (i == 0 ? MO_ALIGN_64 : 0));
+                gen_store_fpr_D(dc, rd + 2 * i, d64);
                 if (i == 7) {
                     break;
                 }
@@ -1670,8 +1697,9 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
     case GET_ASI_SHORT:
         /* Valid for lddfa only.  */
         if (orig_size == MO_64) {
-            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da->mem_idx,
-                                memop | MO_ALIGN);
+            d64 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(d64, addr, da->mem_idx, memop | MO_ALIGN);
+            gen_store_fpr_D(dc, rd, d64);
         } else {
             gen_exception(dc, TT_ILL_INSN);
         }
@@ -1696,17 +1724,19 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
                 gen_store_fpr_F(dc, rd, d32);
                 break;
             case MO_64:
-                gen_helper_ld_asi(cpu_fpr[rd / 2], tcg_env, addr,
-                                  r_asi, r_mop);
+                d64 = tcg_temp_new_i64();
+                gen_helper_ld_asi(d64, tcg_env, addr, r_asi, r_mop);
+                gen_store_fpr_D(dc, rd, d64);
                 break;
             case MO_128:
                 d64 = tcg_temp_new_i64();
+                l64 = tcg_temp_new_i64();
                 gen_helper_ld_asi(d64, tcg_env, addr, r_asi, r_mop);
                 addr_tmp = tcg_temp_new();
                 tcg_gen_addi_tl(addr_tmp, addr, 8);
-                gen_helper_ld_asi(cpu_fpr[rd / 2 + 1], tcg_env, addr_tmp,
-                                  r_asi, r_mop);
-                tcg_gen_mov_i64(cpu_fpr[rd / 2], d64);
+                gen_helper_ld_asi(l64, tcg_env, addr_tmp, r_asi, r_mop);
+                gen_store_fpr_D(dc, rd, d64);
+                gen_store_fpr_D(dc, rd + 2, l64);
                 break;
             default:
                 g_assert_not_reached();
@@ -1722,6 +1752,7 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
     MemOp memop = da->memop;
     MemOp size = memop & MO_SIZE;
     TCGv_i32 d32;
+    TCGv_i64 d64;
     TCGv addr_tmp;
 
     /* TODO: Use 128-bit load/store below. */
@@ -1741,8 +1772,8 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
             tcg_gen_qemu_st_i32(d32, addr, da->mem_idx, memop | MO_ALIGN);
             break;
         case MO_64:
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da->mem_idx,
-                                memop | MO_ALIGN_4);
+            d64 = gen_load_fpr_D(dc, rd);
+            tcg_gen_qemu_st_i64(d64, addr, da->mem_idx, memop | MO_ALIGN_4);
             break;
         case MO_128:
             /* Only 4-byte alignment required.  However, it is legal for the
@@ -1750,11 +1781,12 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
                required to fix it up.  Requiring 16-byte alignment here avoids
                having to probe the second page before performing the first
                write.  */
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da->mem_idx,
-                                memop | MO_ALIGN_16);
+            d64 = gen_load_fpr_D(dc, rd);
+            tcg_gen_qemu_st_i64(d64, addr, da->mem_idx, memop | MO_ALIGN_16);
             addr_tmp = tcg_temp_new();
             tcg_gen_addi_tl(addr_tmp, addr, 8);
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2 + 1], addr_tmp, da->mem_idx, memop);
+            d64 = gen_load_fpr_D(dc, rd + 2);
+            tcg_gen_qemu_st_i64(d64, addr_tmp, da->mem_idx, memop);
             break;
         default:
             g_assert_not_reached();
@@ -1767,7 +1799,8 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
             /* The first operation checks required alignment.  */
             addr_tmp = tcg_temp_new();
             for (int i = 0; ; ++i) {
-                tcg_gen_qemu_st_i64(cpu_fpr[rd / 2 + i], addr, da->mem_idx,
+                d64 = gen_load_fpr_D(dc, rd + 2 * i);
+                tcg_gen_qemu_st_i64(d64, addr, da->mem_idx,
                                     memop | (i == 0 ? MO_ALIGN_64 : 0));
                 if (i == 7) {
                     break;
@@ -1783,8 +1816,8 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
     case GET_ASI_SHORT:
         /* Valid for stdfa only.  */
         if (orig_size == MO_64) {
-            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da->mem_idx,
-                                memop | MO_ALIGN);
+            d64 = gen_load_fpr_D(dc, rd);
+            tcg_gen_qemu_st_i64(d64, addr, da->mem_idx, memop | MO_ALIGN);
         } else {
             gen_exception(dc, TT_ILL_INSN);
         }
@@ -2029,13 +2062,17 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
 #ifdef TARGET_SPARC64
     TCGv c2 = tcg_constant_tl(cmp->c2);
+    TCGv_i64 h = tcg_temp_new_i64();
+    TCGv_i64 l = tcg_temp_new_i64();
 
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[rd / 2], cmp->c1, c2,
-                        cpu_fpr[rs / 2], cpu_fpr[rd / 2]);
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[rd / 2 + 1], cmp->c1, c2,
-                        cpu_fpr[rs / 2 + 1], cpu_fpr[rd / 2 + 1]);
-
-    gen_update_fprs_dirty(dc, rd);
+    tcg_gen_movcond_i64(cmp->cond, h, cmp->c1, c2,
+                        gen_load_fpr_D(dc, rs),
+                        gen_load_fpr_D(dc, rd));
+    tcg_gen_movcond_i64(cmp->cond, l, cmp->c1, c2,
+                        gen_load_fpr_D(dc, rs + 2),
+                        gen_load_fpr_D(dc, rd + 2));
+    gen_store_fpr_D(dc, rd, h);
+    gen_store_fpr_D(dc, rd + 2, l);
 #else
     qemu_build_not_reached();
 #endif
@@ -4211,39 +4248,24 @@ static bool do_stfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop)
 TRANS(STFSR, ALL, do_stfsr, a, MO_TEUL)
 TRANS(STXFSR, 64, do_stfsr, a, MO_TEUQ)
 
-static bool do_fc(DisasContext *dc, int rd, bool c)
+static bool do_fc(DisasContext *dc, int rd, int32_t c)
 {
-    uint64_t mask;
-
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-
-    if (rd & 1) {
-        mask = MAKE_64BIT_MASK(0, 32);
-    } else {
-        mask = MAKE_64BIT_MASK(32, 32);
-    }
-    if (c) {
-        tcg_gen_ori_i64(cpu_fpr[rd / 2], cpu_fpr[rd / 2], mask);
-    } else {
-        tcg_gen_andi_i64(cpu_fpr[rd / 2], cpu_fpr[rd / 2], ~mask);
-    }
-    gen_update_fprs_dirty(dc, rd);
+    gen_store_fpr_F(dc, rd, tcg_constant_i32(c));
     return advance_pc(dc);
 }
 
 TRANS(FZEROs, VIS1, do_fc, a->rd, 0)
-TRANS(FONEs, VIS1, do_fc, a->rd, 1)
+TRANS(FONEs, VIS1, do_fc, a->rd, -1)
 
 static bool do_dc(DisasContext *dc, int rd, int64_t c)
 {
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-
-    tcg_gen_movi_i64(cpu_fpr[rd / 2], c);
-    gen_update_fprs_dirty(dc, rd);
+    gen_store_fpr_D(dc, rd, tcg_constant_i64(c));
     return advance_pc(dc);
 }
 
@@ -5137,12 +5159,6 @@ void sparc_tcg_init(void)
         "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",
         "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7",
     };
-    static const char fregnames[32][4] = {
-        "f0", "f2", "f4", "f6", "f8", "f10", "f12", "f14",
-        "f16", "f18", "f20", "f22", "f24", "f26", "f28", "f30",
-        "f32", "f34", "f36", "f38", "f40", "f42", "f44", "f46",
-        "f48", "f50", "f52", "f54", "f56", "f58", "f60", "f62",
-    };
 
     static const struct { TCGv_i32 *ptr; int off; const char *name; } r32[] = {
 #ifdef TARGET_SPARC64
@@ -5198,12 +5214,6 @@ void sparc_tcg_init(void)
         cpu_regs[i] = tcg_global_mem_new(cpu_regwptr,
                                          (i - 8) * sizeof(target_ulong),
                                          gregnames[i]);
-    }
-
-    for (i = 0; i < TARGET_DPREGS; i++) {
-        cpu_fpr[i] = tcg_global_mem_new_i64(tcg_env,
-                                            offsetof(CPUSPARCState, fpr[i]),
-                                            fregnames[i]);
     }
 }
 
