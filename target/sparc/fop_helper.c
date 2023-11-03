@@ -248,9 +248,12 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
     return f128_ret(float128_sqrt(f128_in(src), &env->fp_status));
 }
 
-#define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
-    target_ulong glue(helper_, name) (CPUSPARCState *env)               \
+#define GEN_FCMP(name, size, FS, E)                                     \
+    target_ulong glue(helper_, name) (CPUSPARCState *env,               \
+                                      Int128 src1, Int128 src2)         \
     {                                                                   \
+        float128 reg1 = f128_in(src1);                                  \
+        float128 reg2 = f128_in(src2);                                  \
         FloatRelation ret;                                              \
         target_ulong fsr;                                               \
         if (E) {                                                        \
@@ -316,33 +319,33 @@ GEN_FCMP_T(fcmpd, float64, 0, 0);
 GEN_FCMP_T(fcmpes, float32, 0, 1);
 GEN_FCMP_T(fcmped, float64, 0, 1);
 
-GEN_FCMP(fcmpq, float128, QT0, QT1, 0, 0);
-GEN_FCMP(fcmpeq, float128, QT0, QT1, 0, 1);
+GEN_FCMP(fcmpq, float128, 0, 0);
+GEN_FCMP(fcmpeq, float128, 0, 1);
 
 #ifdef TARGET_SPARC64
 GEN_FCMP_T(fcmps_fcc1, float32, 22, 0);
 GEN_FCMP_T(fcmpd_fcc1, float64, 22, 0);
-GEN_FCMP(fcmpq_fcc1, float128, QT0, QT1, 22, 0);
+GEN_FCMP(fcmpq_fcc1, float128, 22, 0);
 
 GEN_FCMP_T(fcmps_fcc2, float32, 24, 0);
 GEN_FCMP_T(fcmpd_fcc2, float64, 24, 0);
-GEN_FCMP(fcmpq_fcc2, float128, QT0, QT1, 24, 0);
+GEN_FCMP(fcmpq_fcc2, float128, 24, 0);
 
 GEN_FCMP_T(fcmps_fcc3, float32, 26, 0);
 GEN_FCMP_T(fcmpd_fcc3, float64, 26, 0);
-GEN_FCMP(fcmpq_fcc3, float128, QT0, QT1, 26, 0);
+GEN_FCMP(fcmpq_fcc3, float128, 26, 0);
 
 GEN_FCMP_T(fcmpes_fcc1, float32, 22, 1);
 GEN_FCMP_T(fcmped_fcc1, float64, 22, 1);
-GEN_FCMP(fcmpeq_fcc1, float128, QT0, QT1, 22, 1);
+GEN_FCMP(fcmpeq_fcc1, float128, 22, 1);
 
 GEN_FCMP_T(fcmpes_fcc2, float32, 24, 1);
 GEN_FCMP_T(fcmped_fcc2, float64, 24, 1);
-GEN_FCMP(fcmpeq_fcc2, float128, QT0, QT1, 24, 1);
+GEN_FCMP(fcmpeq_fcc2, float128, 24, 1);
 
 GEN_FCMP_T(fcmpes_fcc3, float32, 26, 1);
 GEN_FCMP_T(fcmped_fcc3, float64, 26, 1);
-GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
+GEN_FCMP(fcmpeq_fcc3, float128, 26, 1);
 #endif
 #undef GEN_FCMP_T
 #undef GEN_FCMP

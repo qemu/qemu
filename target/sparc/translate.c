@@ -276,22 +276,6 @@ static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst, TCGv_i128 v)
     gen_update_fprs_dirty(dc, dst);
 }
 
-static void gen_op_load_fpr_QT0(unsigned int src)
-{
-    tcg_gen_st_i64(cpu_fpr[src / 2], tcg_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, ll.upper));
-    tcg_gen_st_i64(cpu_fpr[src/2 + 1], tcg_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, ll.lower));
-}
-
-static void gen_op_load_fpr_QT1(unsigned int src)
-{
-    tcg_gen_st_i64(cpu_fpr[src / 2], tcg_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, ll.upper));
-    tcg_gen_st_i64(cpu_fpr[src/2 + 1], tcg_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, ll.lower));
-}
-
 static void gen_op_store_QT0_fpr(unsigned int dst)
 {
     tcg_gen_ld_i64(cpu_fpr[dst / 2], tcg_env, offsetof(CPUSPARCState, qt0) +
@@ -1319,20 +1303,20 @@ static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     }
 }
 
-static void gen_op_fcmpq(int fccno)
+static void gen_op_fcmpq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpq(cpu_fsr, tcg_env);
+        gen_helper_fcmpq(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmpq_fcc1(cpu_fsr, tcg_env);
+        gen_helper_fcmpq_fcc1(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmpq_fcc2(cpu_fsr, tcg_env);
+        gen_helper_fcmpq_fcc2(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmpq_fcc3(cpu_fsr, tcg_env);
+        gen_helper_fcmpq_fcc3(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1373,20 +1357,20 @@ static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     }
 }
 
-static void gen_op_fcmpeq(int fccno)
+static void gen_op_fcmpeq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpeq(cpu_fsr, tcg_env);
+        gen_helper_fcmpeq(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmpeq_fcc1(cpu_fsr, tcg_env);
+        gen_helper_fcmpeq_fcc1(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmpeq_fcc2(cpu_fsr, tcg_env);
+        gen_helper_fcmpeq_fcc2(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmpeq_fcc3(cpu_fsr, tcg_env);
+        gen_helper_fcmpeq_fcc3(cpu_fsr, tcg_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1403,9 +1387,9 @@ static void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     gen_helper_fcmpd(cpu_fsr, tcg_env, r_rs1, r_rs2);
 }
 
-static void gen_op_fcmpq(int fccno)
+static void gen_op_fcmpq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
 {
-    gen_helper_fcmpq(cpu_fsr, tcg_env);
+    gen_helper_fcmpq(cpu_fsr, tcg_env, r_rs1, r_rs2);
 }
 
 static void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
@@ -1418,9 +1402,9 @@ static void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
     gen_helper_fcmped(cpu_fsr, tcg_env, r_rs1, r_rs2);
 }
 
-static void gen_op_fcmpeq(int fccno)
+static void gen_op_fcmpeq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
 {
-    gen_helper_fcmpeq(cpu_fsr, tcg_env);
+    gen_helper_fcmpeq(cpu_fsr, tcg_env, r_rs1, r_rs2);
 }
 #endif
 
@@ -5144,6 +5128,8 @@ TRANS(FCMPEd, ALL, do_fcmpd, a, true)
 
 static bool do_fcmpq(DisasContext *dc, arg_FCMPq *a, bool e)
 {
+    TCGv_i128 src1, src2;
+
     if (avail_32(dc) && a->cc != 0) {
         return false;
     }
@@ -5155,12 +5141,12 @@ static bool do_fcmpq(DisasContext *dc, arg_FCMPq *a, bool e)
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    gen_op_load_fpr_QT0(QFPREG(a->rs1));
-    gen_op_load_fpr_QT1(QFPREG(a->rs2));
+    src1 = gen_load_fpr_Q(dc, a->rs1);
+    src2 = gen_load_fpr_Q(dc, a->rs2);
     if (e) {
-        gen_op_fcmpeq(a->cc);
+        gen_op_fcmpeq(a->cc, src1, src2);
     } else {
-        gen_op_fcmpq(a->cc);
+        gen_op_fcmpq(a->cc, src1, src2);
     }
     return advance_pc(dc);
 }
