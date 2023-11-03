@@ -3030,71 +3030,71 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      * MAX_WAIT (if curious, further see commit 4508bd9ed8053ce) below, which
      * guarantees that we'll at least released it in a regular basis.
      */
-    qemu_mutex_lock(&rs->bitmap_mutex);
-    WITH_RCU_READ_LOCK_GUARD() {
-        if (ram_list.version != rs->last_version) {
-            ram_state_reset(rs);
-        }
-
-        /* Read version before ram_list.blocks */
-        smp_rmb();
-
-        ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
-        if (ret < 0) {
-            qemu_file_set_error(f, ret);
-            goto out;
-        }
-
-        t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-        i = 0;
-        while ((ret = migration_rate_exceeded(f)) == 0 ||
-               postcopy_has_request(rs)) {
-            int pages;
-
-            if (qemu_file_get_error(f)) {
-                break;
+    WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
+        WITH_RCU_READ_LOCK_GUARD() {
+            if (ram_list.version != rs->last_version) {
+                ram_state_reset(rs);
             }
 
-            pages = ram_find_and_save_block(rs);
-            /* no more pages to sent */
-            if (pages == 0) {
-                done = 1;
-                break;
+            /* Read version before ram_list.blocks */
+            smp_rmb();
+
+            ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
+            if (ret < 0) {
+                qemu_file_set_error(f, ret);
+                goto out;
             }
 
-            if (pages < 0) {
-                qemu_file_set_error(f, pages);
-                break;
-            }
+            t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+            i = 0;
+            while ((ret = migration_rate_exceeded(f)) == 0 ||
+                   postcopy_has_request(rs)) {
+                int pages;
 
-            rs->target_page_count += pages;
-
-            /*
-             * During postcopy, it is necessary to make sure one whole host
-             * page is sent in one chunk.
-             */
-            if (migrate_postcopy_ram()) {
-                compress_flush_data();
-            }
-
-            /*
-             * we want to check in the 1st loop, just in case it was the 1st
-             * time and we had to sync the dirty bitmap.
-             * qemu_clock_get_ns() is a bit expensive, so we only check each
-             * some iterations
-             */
-            if ((i & 63) == 0) {
-                uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) /
-                              1000000;
-                if (t1 > MAX_WAIT) {
-                    trace_ram_save_iterate_big_wait(t1, i);
+                if (qemu_file_get_error(f)) {
                     break;
                 }
+
+                pages = ram_find_and_save_block(rs);
+                /* no more pages to sent */
+                if (pages == 0) {
+                    done = 1;
+                    break;
+                }
+
+                if (pages < 0) {
+                    qemu_file_set_error(f, pages);
+                    break;
+                }
+
+                rs->target_page_count += pages;
+
+                /*
+                 * During postcopy, it is necessary to make sure one whole host
+                 * page is sent in one chunk.
+                 */
+                if (migrate_postcopy_ram()) {
+                    compress_flush_data();
+                }
+
+                /*
+                 * we want to check in the 1st loop, just in case it was the 1st
+                 * time and we had to sync the dirty bitmap.
+                 * qemu_clock_get_ns() is a bit expensive, so we only check each
+                 * some iterations
+                 */
+                if ((i & 63) == 0) {
+                    uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) /
+                        1000000;
+                    if (t1 > MAX_WAIT) {
+                        trace_ram_save_iterate_big_wait(t1, i);
+                        break;
+                    }
+                }
+                i++;
             }
-            i++;
         }
     }
-    qemu_mutex_unlock(&rs->bitmap_mutex);
 
     /*
      * Must occur before EOS (or any QEMUFile operation)
