@@ -246,11 +246,6 @@ static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
     gen_update_fprs_dirty(dc, dst);
 }
 
-static TCGv_i32 gen_dest_fpr_F(DisasContext *dc)
-{
-    return tcg_temp_new_i32();
-}
-
 static TCGv_i64 gen_load_fpr_D(DisasContext *dc, unsigned int src)
 {
     src = DFPREG(src);
@@ -1873,7 +1868,7 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
         memop |= MO_ALIGN_4;
         switch (size) {
         case MO_32:
-            d32 = gen_dest_fpr_F(dc);
+            d32 = tcg_temp_new_i32();
             tcg_gen_qemu_ld_i32(d32, addr, da->mem_idx, memop);
             gen_store_fpr_F(dc, rd, d32);
             break;
@@ -1938,7 +1933,7 @@ static void gen_ldf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
             case MO_32:
                 d64 = tcg_temp_new_i64();
                 gen_helper_ld_asi(d64, tcg_env, addr, r_asi, r_mop);
-                d32 = gen_dest_fpr_F(dc);
+                d32 = tcg_temp_new_i32();
                 tcg_gen_extrl_i64_i32(d32, d64);
                 gen_store_fpr_F(dc, rd, d32);
                 break;
@@ -2228,7 +2223,7 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 
     s1 = gen_load_fpr_F(dc, rs);
     s2 = gen_load_fpr_F(dc, rd);
-    dst = gen_dest_fpr_F(dc);
+    dst = tcg_temp_new_i32();
     zero = tcg_constant_i32(0);
 
     tcg_gen_movcond_i32(TCG_COND_NE, dst, c32, zero, s1, s2);
@@ -4497,7 +4492,7 @@ static bool do_fd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_F(dc);
+    dst = tcg_temp_new_i32();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, src);
     gen_store_fpr_F(dc, a->rd, dst);
@@ -4539,7 +4534,7 @@ static bool do_env_fd(DisasContext *dc, arg_r_r *a,
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    dst = gen_dest_fpr_F(dc);
+    dst = tcg_temp_new_i32();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
@@ -4697,7 +4692,7 @@ static bool do_env_fq(DisasContext *dc, arg_r_r *a,
 
     gen_op_clear_ieee_excp_and_FTT();
     gen_op_load_fpr_QT1(QFPREG(a->rs));
-    dst = gen_dest_fpr_F(dc);
+    dst = tcg_temp_new_i32();
     func(dst, tcg_env);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_F(dc, a->rd, dst);
