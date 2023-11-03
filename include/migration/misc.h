@@ -15,6 +15,7 @@
 #define MIGRATION_MISC_H
 
 #include "qemu/notify.h"
+#include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-types-net.h"
 
 /* migration/ram.c */

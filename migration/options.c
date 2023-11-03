@@ -176,6 +176,9 @@ Property migration_properties[] = {
     DEFINE_PROP_UINT64("vcpu-dirty-limit", MigrationState,
                        parameters.vcpu_dirty_limit,
                        DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT),
+    DEFINE_PROP_MIG_MODE("mode", MigrationState,
+                      parameters.mode,
+                      MIG_MODE_NORMAL),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -827,6 +830,13 @@ uint64_t migrate_max_postcopy_bandwidth(void)
     return s->parameters.max_postcopy_bandwidth;
 }
 
+MigMode migrate_mode(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.mode;
+}
+
 int migrate_multifd_channels(void)
 {
     MigrationState *s = migrate_get_current();
@@ -999,6 +1009,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_vcpu_dirty_limit_period = s->parameters.x_vcpu_dirty_limit_period;
     params->has_vcpu_dirty_limit = true;
     params->vcpu_dirty_limit = s->parameters.vcpu_dirty_limit;
+    params->has_mode = true;
+    params->mode = s->parameters.mode;
 
     return params;
 }
@@ -1034,6 +1046,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_announce_step = true;
     params->has_x_vcpu_dirty_limit_period = true;
     params->has_vcpu_dirty_limit = true;
+    params->has_mode = true;
 }
 
 /*
@@ -1331,6 +1344,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_vcpu_dirty_limit) {
         dest->vcpu_dirty_limit = params->vcpu_dirty_limit;
     }
+
+    if (params->has_mode) {
+        dest->mode = params->mode;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1470,6 +1487,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_vcpu_dirty_limit) {
         s->parameters.vcpu_dirty_limit = params->vcpu_dirty_limit;
+    }
+
+    if (params->has_mode) {
+        s->parameters.mode = params->mode;
     }
 }
 

@@ -1119,8 +1119,8 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     host_memory_backend_set_mapped(vmem->memdev, true);
     vmstate_register_ram(&vmem->memdev->mr, DEVICE(vmem));
     if (vmem->early_migration) {
-        vmstate_register(VMSTATE_IF(vmem), VMSTATE_INSTANCE_ID_ANY,
-                         &vmstate_virtio_mem_device_early, vmem);
+        vmstate_register_any(VMSTATE_IF(vmem),
+                             &vmstate_virtio_mem_device_early, vmem);
     }
     qemu_register_reset(virtio_mem_system_reset, vmem);
 

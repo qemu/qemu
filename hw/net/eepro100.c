@@ -1883,8 +1883,7 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
     s->vmstate = g_memdup(&vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = qemu_get_queue(s->nic)->model;
-    vmstate_register(VMSTATE_IF(&pci_dev->qdev), VMSTATE_INSTANCE_ID_ANY,
-                     s->vmstate, s);
+    vmstate_register_any(VMSTATE_IF(&pci_dev->qdev), s->vmstate, s);
 }
 
 static void eepro100_instance_init(Object *obj)

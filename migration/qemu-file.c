@@ -137,7 +137,7 @@ QEMUFile *qemu_file_new_input(QIOChannel *ioc)
  *
  * If errp is specified, a verbose error message will be copied over.
  */
-static int qemu_file_get_error_obj(QEMUFile *f, Error **errp)
+int qemu_file_get_error_obj(QEMUFile *f, Error **errp)
 {
     if (!f->last_error) {
         return 0;
