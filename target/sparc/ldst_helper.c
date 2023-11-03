@@ -66,9 +66,6 @@
 #endif
 #endif
 
-#define QT0 (env->qt0)
-#define QT1 (env->qt1)
-
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 /* Calculates TSB pointer value for fault page size
  * UltraSPARC IIi has fixed sizes (8k or 64k) for the page pointers

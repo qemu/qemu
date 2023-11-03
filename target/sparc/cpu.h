@@ -509,8 +509,6 @@ struct CPUArchState {
     uint64_t mmubpregs[4];
     uint64_t prom_addr;
 #endif
-    /* temporary float registers */
-    float128 qt0, qt1;
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL_MAX 8

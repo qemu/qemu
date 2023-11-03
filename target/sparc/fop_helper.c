@@ -23,9 +23,6 @@
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 
-#define QT0 (env->qt0)
-#define QT1 (env->qt1)
-
 static inline float128 f128_in(Int128 i)
 {
     union {
