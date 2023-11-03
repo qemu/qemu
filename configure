@@ -1231,6 +1231,7 @@ probe_target_compiler() {
   got_cross_cc=no
   container_image=
   container_hosts=
+  container_cross_prefix=
   container_cross_cc=
   container_cross_ar=
   container_cross_as=
@@ -1272,16 +1273,33 @@ probe_target_compiler() {
     test "$container" != no || continue
     test "$host" = "$cpu" || continue
     case $target_arch in
+      # debian-all-test-cross architectures
+
+      hppa|m68k|mips|riscv64|sparc64)
+        container_image=debian-all-test-cross
+        ;;
+      mips64)
+        container_image=debian-all-test-cross
+        container_cross_prefix=mips64-linux-gnuabi64-
+        ;;
+      ppc|ppc64|ppc64le)
+        container_image=debian-all-test-cross
+        container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
+        ;;
+
+      # debian-legacy-test-cross architectures (need Debian 11)
+      # - libc6.1-dev-alpha-cross: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1054412
+      # - sh4-linux-user: binaries don't run with bookworm compiler
+
+      alpha|sh4)
+        container_image=debian-legacy-test-cross
+        ;;
+
+      # architectures with individual containers
+
       aarch64)
         # We don't have any bigendian build tools so we only use this for AArch64
         container_image=debian-arm64-cross
-        container_cross_prefix=aarch64-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc
-        ;;
-      alpha)
-        container_image=debian-legacy-test-cross
-        container_cross_prefix=alpha-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc
         ;;
       arm)
         # We don't have any bigendian build tools so we only use this for ARM
@@ -1290,17 +1308,10 @@ probe_target_compiler() {
         ;;
       cris)
         container_image=fedora-cris-cross
-        container_cross_prefix=cris-linux-gnu-
         ;;
       hexagon)
-        container_image=debian-hexagon-cross
         container_cross_prefix=hexagon-unknown-linux-musl-
         container_cross_cc=${container_cross_prefix}clang
-        ;;
-      hppa)
-        container_image=debian-all-test-cross
-        container_cross_prefix=hppa-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc
         ;;
       i386)
         container_image=debian-i686-cross
@@ -1310,51 +1321,12 @@ probe_target_compiler() {
         container_image=debian-loongarch-cross
         container_cross_prefix=loongarch64-unknown-linux-gnu-
         ;;
-      m68k)
-        container_image=debian-all-test-cross
-        container_cross_prefix=m68k-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc
-        ;;
       microblaze)
-        container_image=debian-microblaze-cross
         container_cross_prefix=microblaze-linux-musl-
         ;;
       mips64el)
         container_image=debian-mips64el-cross
         container_cross_prefix=mips64el-linux-gnuabi64-
-        ;;
-      mips64)
-        container_image=debian-all-test-cross
-        container_cross_prefix=mips64-linux-gnuabi64-
-        ;;
-      mips)
-        container_image=debian-all-test-cross
-        container_cross_prefix=mips-linux-gnu-
-        ;;
-      nios2)
-        container_image=debian-nios2-cross
-        container_cross_prefix=nios2-linux-gnu-
-        ;;
-      ppc)
-        container_image=debian-all-test-cross
-        container_cross_prefix=powerpc-linux-gnu-
-        container_cross_cc=${container_cross_prefix}gcc
-        ;;
-      ppc64|ppc64le)
-        container_image=debian-all-test-cross
-        container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
-        ;;
-      riscv64)
-        container_image=debian-all-test-cross
-        container_cross_prefix=riscv64-linux-gnu-
-        ;;
-      sh4)
-        container_image=debian-legacy-test-cross
-        container_cross_prefix=sh4-linux-gnu-
-        ;;
-      sparc64)
-        container_image=debian-all-test-cross
-        container_cross_prefix=sparc64-linux-gnu-
         ;;
       tricore)
         container_image=debian-tricore-cross
@@ -1362,7 +1334,6 @@ probe_target_compiler() {
         ;;
       x86_64)
         container_image=debian-amd64-cross
-        container_cross_prefix=x86_64-linux-gnu-
         ;;
       xtensa*)
         container_image=debian-xtensa-cross
@@ -1370,12 +1341,10 @@ probe_target_compiler() {
         # default to the dc232b cpu
         container_cross_prefix=/opt/2020.07/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-
         ;;
-      *)
-        # Debian and GNU architecture names usually match
-        container_image=debian-$target_arch-cross
-        container_cross_prefix=$target_arch-linux-gnu-
-        ;;
     esac
+    # Debian and GNU architecture names usually match
+    : ${container_image:=debian-$target_arch-cross}
+    : ${container_cross_prefix:=$target_arch-linux-gnu-}
     : ${container_cross_cc:=${container_cross_prefix}gcc}
     : ${container_cross_ar:=${container_cross_prefix}ar}
     : ${container_cross_as:=${container_cross_prefix}as}
