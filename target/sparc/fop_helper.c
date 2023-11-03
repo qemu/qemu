@@ -347,9 +347,21 @@ GEN_FCMP(fcmpeq_fcc3, float128, 26, 1);
 #undef GEN_FCMP_T
 #undef GEN_FCMP
 
-static void set_fsr(CPUSPARCState *env, target_ulong fsr)
+target_ulong cpu_get_fsr(CPUSPARCState *env)
+{
+    return env->fsr;
+}
+
+target_ulong helper_get_fsr(CPUSPARCState *env)
+{
+    return cpu_get_fsr(env);
+}
+
+static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 {
     int rnd_mode;
+
+    env->fsr = fsr;
 
     switch (fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
@@ -369,7 +381,12 @@ static void set_fsr(CPUSPARCState *env, target_ulong fsr)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
+void cpu_put_fsr(CPUSPARCState *env, target_ulong fsr)
+{
+    set_fsr_nonsplit(env, fsr);
+}
+
 void helper_set_fsr(CPUSPARCState *env, target_ulong fsr)
 {
-    set_fsr(env, fsr);
+    set_fsr_nonsplit(env, fsr);
 }

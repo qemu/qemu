@@ -4417,13 +4417,18 @@ TRANS(LDXFSR, 64, do_ldfsr, a, MO_TEUQ, FSR_LDXFSR_MASK, FSR_LDXFSR_OLDMASK)
 static bool do_stfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop)
 {
     TCGv addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
+    TCGv fsr;
+
     if (addr == NULL) {
         return false;
     }
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-    tcg_gen_qemu_st_tl(cpu_fsr, addr, dc->mem_idx, mop | MO_ALIGN);
+
+    fsr = tcg_temp_new();
+    gen_helper_get_fsr(fsr, tcg_env);
+    tcg_gen_qemu_st_tl(fsr, addr, dc->mem_idx, mop | MO_ALIGN);
     return advance_pc(dc);
 }
 

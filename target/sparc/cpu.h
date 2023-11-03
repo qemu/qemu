@@ -617,7 +617,9 @@ void sparc_restore_state_to_opc(CPUState *cs,
                                 const TranslationBlock *tb,
                                 const uint64_t *data);
 
-/* cpu-exec.c */
+/* fop_helper.c */
+target_ulong cpu_get_fsr(CPUSPARCState *);
+void cpu_put_fsr(CPUSPARCState *, target_ulong);
 
 /* win_helper.c */
 target_ulong cpu_get_psr(CPUSPARCState *env1);

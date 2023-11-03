@@ -293,7 +293,7 @@ void cpu_loop (CPUSPARCState *env)
         case TT_FP_EXCP:
             {
                 int code = TARGET_FPE_FLTUNK;
-                target_ulong fsr = env->fsr;
+                target_ulong fsr = cpu_get_fsr(env);
 
                 if ((fsr & FSR_FTT_MASK) == FSR_FTT_IEEE_EXCP) {
                     if (fsr & FSR_NVC) {

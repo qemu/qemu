@@ -670,7 +670,7 @@ static void sparc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->cansave, env->canrestore, env->otherwin, env->wstate,
                  env->cleanwin, env->nwindows - 1 - env->cwp);
     qemu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx " fprs: %016x\n",
-                 env->fsr, env->y, env->fprs);
+                 cpu_get_fsr(env), env->y, env->fprs);
 
 #else
     qemu_fprintf(f, "psr: %08x (icc: ", cpu_get_psr(env));
@@ -679,7 +679,7 @@ static void sparc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->psrps ? 'P' : '-', env->psret ? 'E' : '-',
                  env->wim);
     qemu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
-                 env->fsr, env->y);
+                 cpu_get_fsr(env), env->y);
 #endif
     qemu_fprintf(f, "\n");
 }
@@ -798,6 +798,7 @@ static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
     env->version |= env->def.maxtl << 8;
     env->version |= env->def.nwindows - 1;
 #endif
+    cpu_put_fsr(env, 0);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
