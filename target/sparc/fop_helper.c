@@ -180,9 +180,9 @@ float64 helper_fstod(CPUSPARCState *env, float32 src)
     return float32_to_float64(src, &env->fp_status);
 }
 
-float32 helper_fqtos(CPUSPARCState *env)
+float32 helper_fqtos(CPUSPARCState *env, Int128 src)
 {
-    return float128_to_float32(QT1, &env->fp_status);
+    return float128_to_float32(f128_in(src), &env->fp_status);
 }
 
 void helper_fstoq(CPUSPARCState *env, float32 src)
@@ -211,9 +211,9 @@ int32_t helper_fdtoi(CPUSPARCState *env, float64 src)
     return float64_to_int32_round_to_zero(src, &env->fp_status);
 }
 
-int32_t helper_fqtoi(CPUSPARCState *env)
+int32_t helper_fqtoi(CPUSPARCState *env, Int128 src)
 {
-    return float128_to_int32_round_to_zero(QT1, &env->fp_status);
+    return float128_to_int32_round_to_zero(f128_in(src), &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
