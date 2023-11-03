@@ -344,8 +344,7 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
 }
 
 #define GEN_FCMP(name, size, FS, E)                                     \
-    target_ulong glue(helper_, name) (CPUSPARCState *env,               \
-                                      Int128 src1, Int128 src2)         \
+    void glue(helper_, name)(CPUSPARCState *env, Int128 src1, Int128 src2) \
     {                                                                   \
         float128 reg1 = f128_in(src1);                                  \
         float128 reg2 = f128_in(src2);                                  \
@@ -376,10 +375,10 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
             fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
             break;                                                      \
         }                                                               \
-        return fsr;                                                     \
+        env->fsr = fsr;                                                 \
     }
 #define GEN_FCMP_T(name, size, FS, E)                                   \
-    target_ulong glue(helper_, name)(CPUSPARCState *env, size src1, size src2)\
+    void glue(helper_, name)(CPUSPARCState *env, size src1, size src2)  \
     {                                                                   \
         FloatRelation ret;                                              \
         target_ulong fsr;                                               \
@@ -407,7 +406,7 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
             fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
             break;                                                      \
         }                                                               \
-        return fsr;                                                     \
+        env->fsr = fsr;                                                 \
     }
 
 GEN_FCMP_T(fcmps, float32, 0, 0);
