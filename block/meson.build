@@ -88,13 +88,13 @@ if get_option('parallels').allowed()
   block_ss.add(files('parallels.c', 'parallels-ext.c'))
 endif
 
-if targetos == 'windows'
+if host_os == 'windows'
   block_ss.add(files('file-win32.c', 'win32-aio.c'))
 else
   block_ss.add(files('file-posix.c'), coref, iokit)
 endif
 block_ss.add(when: libiscsi, if_true: files('iscsi-opts.c'))
-if targetos == 'linux'
+if host_os == 'linux'
   block_ss.add(files('nvme.c'))
 endif
 if get_option('replication').allowed()

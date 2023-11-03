@@ -3,7 +3,7 @@ util_ss.add(files('thread-context.c'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
 endif
-if targetos != 'windows'
+if host_os != 'windows'
   util_ss.add(files('aio-posix.c'))
   util_ss.add(files('fdmon-poll.c'))
   if config_host_data.get('CONFIG_EPOLL_CREATE1')
@@ -13,7 +13,7 @@ if targetos != 'windows'
   util_ss.add(files('event_notifier-posix.c'))
   util_ss.add(files('mmap-alloc.c'))
   freebsd_dep = []
-  if targetos == 'freebsd'
+  if host_os == 'freebsd'
     freebsd_dep = util
   endif
   util_ss.add(files('oslib-posix.c'), freebsd_dep)
@@ -73,7 +73,7 @@ endif
 if have_system
   util_ss.add(files('crc-ccitt.c'))
   util_ss.add(when: gio, if_true: files('dbus.c'))
-  if targetos == 'linux'
+  if host_os == 'linux'
     util_ss.add(files('userfaultfd.c'))
   endif
 endif
@@ -108,7 +108,7 @@ if have_block
   else
     util_ss.add(files('filemonitor-stub.c'))
   endif
-  if targetos == 'linux'
+  if host_os == 'linux'
     util_ss.add(files('vhost-user-server.c'), vhost_user)
     util_ss.add(files('vfio-helpers.c'))
     util_ss.add(files('chardev_open.c'))

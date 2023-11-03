@@ -12,7 +12,7 @@ chardev_ss.add(files(
   'char-udp.c',
   'char.c',
 ))
-if targetos == 'windows'
+if host_os == 'windows'
   chardev_ss.add(files(
     'char-console.c',
     'char-win-stdio.c',
@@ -23,7 +23,7 @@ else
       'char-fd.c',
       'char-pty.c',
     ), util)
-  if targetos in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
+  if host_os in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
     chardev_ss.add(files('char-parallel.c'))
   endif
 endif

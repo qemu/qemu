@@ -13,9 +13,9 @@ fs_ss.add(files(
   'coth.c',
   'coxattr.c',
 ))
-if targetos == 'darwin'
+if host_os == 'darwin'
   fs_ss.add(files('9p-util-darwin.c'))
-elif targetos == 'linux'
+elif host_os == 'linux'
   fs_ss.add(files('9p-util-linux.c'))
 endif
 fs_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-9p-backend.c'))

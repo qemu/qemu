@@ -44,7 +44,7 @@ system_ss.add(when: 'CONFIG_USB_STORAGE_UAS', if_true: files('dev-uas.c'))
 system_ss.add(when: 'CONFIG_USB_AUDIO', if_true: files('dev-audio.c'))
 system_ss.add(when: 'CONFIG_USB_SERIAL', if_true: files('dev-serial.c'))
 system_ss.add(when: 'CONFIG_USB_NETWORK', if_true: files('dev-network.c'))
-if targetos != 'windows'
+if host_os != 'windows'
   system_ss.add(when: 'CONFIG_USB_STORAGE_MTP', if_true: files('dev-mtp.c'))
 endif
 
@@ -60,7 +60,7 @@ endif
 
 # U2F
 system_ss.add(when: 'CONFIG_USB_U2F', if_true: files('u2f.c'))
-if targetos == 'linux'
+if host_os == 'linux'
   system_ss.add(when: 'CONFIG_USB_U2F', if_true: [libudev, files('u2f-passthru.c')])
 endif
 if u2f.found()

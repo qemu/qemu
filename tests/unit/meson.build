@@ -100,7 +100,7 @@ if have_block
   }
   if gnutls.found() and \
      tasn1.found() and \
-     targetos != 'windows'
+     host_os != 'windows'
     tests += {
       'test-crypto-tlscredsx509': ['crypto-tls-x509-helpers.c', 'pkix_asn1_tab.c',
                                    tasn1, crypto, gnutls],
@@ -115,7 +115,7 @@ if have_block
   if xts == 'private'
     tests += {'test-crypto-xts': [crypto, io]}
   endif
-  if targetos != 'windows'
+  if host_os != 'windows'
     tests += {
       'test-image-locking': [testblock],
       'test-nested-aio-poll': [testblock],
@@ -150,7 +150,7 @@ if have_system
   # are not runnable under TSan due to a known issue.
   # https://github.com/google/sanitizers/issues/1116
   if not get_option('tsan')
-    if targetos != 'windows'
+    if host_os != 'windows'
         tests += {
           'test-char': ['socket-helpers.c', qom, io, chardev]
         }
@@ -162,7 +162,7 @@ if have_system
   endif
 endif
 
-if have_ga and targetos == 'linux'
+if have_ga and host_os == 'linux'
   tests += {'test-qga': ['../qtest/libqmp.c']}
   test_deps += {'test-qga': qga}
 endif

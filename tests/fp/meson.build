@@ -3,7 +3,7 @@ if 'CONFIG_TCG' not in config_all_accel
 endif
 # There are namespace pollution issues on Windows, due to osdep.h
 # bringing in Windows headers that define a FLOAT128 type.
-if targetos == 'windows'
+if host_os == 'windows'
   subdir_done()
 endif
 

@@ -38,8 +38,8 @@ qtests_cxl = \
 #        for the availability of the default NICs in the tests
 qtests_filter = \
   (get_option('default_devices') and slirp.found() ? ['test-netfilter'] : []) + \
-  (get_option('default_devices') and targetos != 'windows' ? ['test-filter-mirror'] : []) + \
-  (get_option('default_devices') and targetos != 'windows' ? ['test-filter-redirector'] : [])
+  (get_option('default_devices') and host_os != 'windows' ? ['test-filter-mirror'] : []) + \
+  (get_option('default_devices') and host_os != 'windows' ? ['test-filter-redirector'] : [])
 
 qtests_i386 = \
   (slirp.found() ? ['pxe-test'] : []) + \
@@ -48,7 +48,7 @@ qtests_i386 = \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +           \
   (config_all_devices.has_key('CONFIG_SGA') ? ['boot-serial-test'] : []) +                  \
   (config_all_devices.has_key('CONFIG_ISA_IPMI_KCS') ? ['ipmi-kcs-test'] : []) +            \
-  (targetos == 'linux' and                                                                  \
+  (host_os == 'linux' and                                                                  \
    config_all_devices.has_key('CONFIG_ISA_IPMI_BT') and
    config_all_devices.has_key('CONFIG_IPMI_EXTERN') ? ['ipmi-bt-test'] : []) +              \
   (config_all_devices.has_key('CONFIG_WDT_IB700') ? ['wdt_ib700-test'] : []) +              \
@@ -74,7 +74,7 @@ qtests_i386 = \
   (config_all_devices.has_key('CONFIG_SB16') ? ['fuzz-sb16-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_SDHCI_PCI') ? ['fuzz-sdcard-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_ESP_PCI') ? ['am53c974-test'] : []) +                 \
-  (targetos != 'windows' and                                                                \
+  (host_os != 'windows' and                                                                \
    config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_PCIE_PORT') and                                       \
    config_all_devices.has_key('CONFIG_VIRTIO_NET') and                                      \
@@ -277,7 +277,7 @@ if config_all_devices.has_key('CONFIG_VIRTIO_SERIAL')
   qos_test_ss.add(files('virtio-serial-test.c'))
 endif
 
-if targetos != 'windows'
+if host_os != 'windows'
   qos_test_ss.add(files('e1000e-test.c'))
 endif
 if have_virtfs

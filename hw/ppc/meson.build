@@ -34,7 +34,7 @@ ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_TCG'], if_true: files(
   'spapr_softmmu.c',
 ))
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
-if targetos == 'linux'
+if host_os == 'linux'
   ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
     'spapr_pci_vfio.c',
   ))
