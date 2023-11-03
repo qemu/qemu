@@ -1199,7 +1199,8 @@ static bool gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 
 static void gen_op_clear_ieee_excp_and_FTT(void)
 {
-    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_CEXC_NMASK);
+    tcg_gen_st_i32(tcg_constant_i32(0), tcg_env,
+                   offsetof(CPUSPARCState, fsr_cexc_ftt));
 }
 
 static void gen_op_fmovs(TCGv_i32 dst, TCGv_i32 src)
@@ -1400,10 +1401,15 @@ static void gen_op_fcmpeq(int fccno, TCGv_i128 r_rs1, TCGv_i128 r_rs2)
 }
 #endif
 
-static void gen_op_fpexception_im(DisasContext *dc, int fsr_flags)
+static void gen_op_fpexception_im(DisasContext *dc, int ftt)
 {
-    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_NMASK);
-    tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
+    /*
+     * CEXC is only set when succesfully completing an FPop,
+     * or when raising FSR_FTT_IEEE_EXCP, i.e. check_ieee_exception.
+     * Thus we can simply store FTT into this field.
+     */
+    tcg_gen_st_i32(tcg_constant_i32(ftt), tcg_env,
+                   offsetof(CPUSPARCState, fsr_cexc_ftt));
     gen_exception(dc, TT_FP_EXCP);
 }
 
@@ -4395,19 +4401,22 @@ static bool trans_STDFQ(DisasContext *dc, arg_STDFQ *a)
 static bool do_ldfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop,
                      target_ulong new_mask, target_ulong old_mask)
 {
-    TCGv tmp, addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
+    TCGv addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
+    TCGv tnew, told;
+
     if (addr == NULL) {
         return false;
     }
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-    tmp = tcg_temp_new();
-    tcg_gen_qemu_ld_tl(tmp, addr, dc->mem_idx, mop | MO_ALIGN);
-    tcg_gen_andi_tl(tmp, tmp, new_mask);
-    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, old_mask);
-    tcg_gen_or_tl(cpu_fsr, cpu_fsr, tmp);
-    gen_helper_set_fsr(tcg_env, cpu_fsr);
+    tnew = tcg_temp_new();
+    told = tcg_temp_new();
+    tcg_gen_qemu_ld_tl(tnew, addr, dc->mem_idx, mop | MO_ALIGN);
+    tcg_gen_andi_tl(tnew, tnew, new_mask);
+    tcg_gen_andi_tl(told, cpu_fsr, old_mask);
+    tcg_gen_or_tl(tnew, tnew, told);
+    gen_helper_set_fsr_noftt(tcg_env, tnew);
     return advance_pc(dc);
 }
 

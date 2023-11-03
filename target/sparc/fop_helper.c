@@ -48,9 +48,7 @@ static inline Int128 f128_ret(float128 f)
 static void check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
 {
     target_ulong status = get_float_exception_flags(&env->fp_status);
-    target_ulong fsr = env->fsr;
-
-    fsr &= FSR_FTT_CEXC_NMASK;
+    uint32_t cexc = 0;
 
     if (unlikely(status)) {
         /* Keep exception flags clear for next time.  */
@@ -58,38 +56,33 @@ static void check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
 
         /* Copy IEEE 754 flags into FSR */
         if (status & float_flag_invalid) {
-            fsr |= FSR_NVC;
+            cexc |= FSR_NVC;
         }
         if (status & float_flag_overflow) {
-            fsr |= FSR_OFC;
+            cexc |= FSR_OFC;
         }
         if (status & float_flag_underflow) {
-            fsr |= FSR_UFC;
+            cexc |= FSR_UFC;
         }
         if (status & float_flag_divbyzero) {
-            fsr |= FSR_DZC;
+            cexc |= FSR_DZC;
         }
         if (status & float_flag_inexact) {
-            fsr |= FSR_NXC;
+            cexc |= FSR_NXC;
         }
 
-        if ((fsr & FSR_CEXC_MASK) & ((fsr & FSR_TEM_MASK) >> 23)) {
-            CPUState *cs = env_cpu(env);
-
-            /* Unmasked exception, generate a trap.  Note that while
-               the helper is marked as NO_WG, we can get away with
-               writing to cpu state along the exception path, since
-               TCG generated code will never see the write.  */
-            env->fsr = fsr | FSR_FTT_IEEE_EXCP;
-            cs->exception_index = TT_FP_EXCP;
-            cpu_loop_exit_restore(cs, ra);
-        } else {
-            /* Accumulate exceptions */
-            fsr |= (fsr & FSR_CEXC_MASK) << 5;
+        if (cexc & (env->fsr >> FSR_TEM_SHIFT)) {
+            /* Unmasked exception, generate an IEEE trap. */
+            env->fsr_cexc_ftt = cexc | FSR_FTT_IEEE_EXCP;
+            cpu_raise_exception_ra(env, TT_FP_EXCP, ra);
         }
+
+        /* Accumulate exceptions */
+        env->fsr |= cexc << FSR_AEXC_SHIFT;
     }
 
-    env->fsr = fsr;
+    /* No trap, so FTT is cleared. */
+    env->fsr_cexc_ftt = cexc;
 }
 
 float32 helper_fadds(CPUSPARCState *env, float32 src1, float32 src2)
@@ -456,7 +449,7 @@ GEN_FCMP(fcmpeq_fcc3, float128, 26, 1);
 
 target_ulong cpu_get_fsr(CPUSPARCState *env)
 {
-    target_ulong fsr = env->fsr;
+    target_ulong fsr = env->fsr | env->fsr_cexc_ftt;
 
     /* VER is kept completely separate until re-assembly. */
     fsr |= env->def.fpu_version;
@@ -473,7 +466,7 @@ static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 {
     int rnd_mode;
 
-    env->fsr = fsr & ~FSR_VER_MASK;
+    env->fsr = fsr & ~(FSR_VER_MASK | FSR_CEXC_MASK | FSR_FTT_MASK);
 
     switch (fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
@@ -495,10 +488,13 @@ static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 
 void cpu_put_fsr(CPUSPARCState *env, target_ulong fsr)
 {
+    env->fsr_cexc_ftt = fsr & (FSR_CEXC_MASK | FSR_FTT_MASK);
     set_fsr_nonsplit(env, fsr);
 }
 
-void helper_set_fsr(CPUSPARCState *env, target_ulong fsr)
+void helper_set_fsr_noftt(CPUSPARCState *env, target_ulong fsr)
 {
+    env->fsr_cexc_ftt &= FSR_FTT_MASK;
+    env->fsr_cexc_ftt |= fsr & FSR_CEXC_MASK;
     set_fsr_nonsplit(env, fsr);
 }

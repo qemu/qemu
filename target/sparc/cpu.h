@@ -176,6 +176,7 @@ enum {
 #define FSR_DZM   (1ULL << 24)
 #define FSR_NXM   (1ULL << 23)
 #define FSR_TEM_MASK (FSR_NVM | FSR_OFM | FSR_UFM | FSR_DZM | FSR_NXM)
+#define FSR_TEM_SHIFT  23
 
 #define FSR_NVA   (1ULL << 9)
 #define FSR_OFA   (1ULL << 8)
@@ -183,6 +184,7 @@ enum {
 #define FSR_DZA   (1ULL << 6)
 #define FSR_NXA   (1ULL << 5)
 #define FSR_AEXC_MASK (FSR_NVA | FSR_OFA | FSR_UFA | FSR_DZA | FSR_NXA)
+#define FSR_AEXC_SHIFT 5
 
 #define FSR_NVC   (1ULL << 4)
 #define FSR_OFC   (1ULL << 3)
@@ -464,7 +466,10 @@ struct CPUArchState {
     target_ulong cond; /* conditional branch result (XXX: save it in a
                           temporary register when possible) */
 
-    target_ulong fsr;      /* FPU state register */
+    /* FPU State Register, in parts */
+    target_ulong fsr;       /* rm, tem, aexc, fcc* */
+    uint32_t fsr_cexc_ftt;  /* cexc, ftt */
+
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */

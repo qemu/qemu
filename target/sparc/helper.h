@@ -36,7 +36,7 @@ DEF_HELPER_FLAGS_4(ld_asi, TCG_CALL_NO_WG, i64, env, tl, int, i32)
 DEF_HELPER_FLAGS_5(st_asi, TCG_CALL_NO_WG, void, env, tl, i64, int, i32)
 #endif
 DEF_HELPER_FLAGS_1(get_fsr, TCG_CALL_NO_WG_SE, tl, env)
-DEF_HELPER_FLAGS_2(set_fsr, TCG_CALL_NO_RWG, void, env, tl)
+DEF_HELPER_FLAGS_2(set_fsr_noftt, 0, void, env, tl)
 DEF_HELPER_FLAGS_2(fsqrts, 0, f32, env, f32)
 DEF_HELPER_FLAGS_2(fsqrtd, 0, f64, env, f64)
 DEF_HELPER_FLAGS_2(fsqrtq, 0, i128, env, i128)
