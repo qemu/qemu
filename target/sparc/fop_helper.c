@@ -114,23 +114,6 @@ void helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
                        &env->fp_status);
 }
 
-float32 helper_fnegs(float32 src)
-{
-    return float32_chs(src);
-}
-
-#ifdef TARGET_SPARC64
-float64 helper_fnegd(float64 src)
-{
-    return float64_chs(src);
-}
-
-F_HELPER(neg, q)
-{
-    QT0 = float128_chs(QT1);
-}
-#endif
-
 /* Integer to float conversion.  */
 float32 helper_fitos(CPUSPARCState *env, int32_t src)
 {
@@ -226,23 +209,6 @@ int64_t helper_fdtox(CPUSPARCState *env, float64 src)
 int64_t helper_fqtox(CPUSPARCState *env)
 {
     return float128_to_int64_round_to_zero(QT1, &env->fp_status);
-}
-#endif
-
-float32 helper_fabss(float32 src)
-{
-    return float32_abs(src);
-}
-
-#ifdef TARGET_SPARC64
-float64 helper_fabsd(float64 src)
-{
-    return float64_abs(src);
-}
-
-void helper_fabsq(CPUSPARCState *env)
-{
-    QT0 = float128_abs(QT1);
 }
 #endif
 

@@ -43,9 +43,7 @@
 #else
 # define gen_helper_clear_softint(E, S)         qemu_build_not_reached()
 # define gen_helper_done(E)                     qemu_build_not_reached()
-# define gen_helper_fabsd(D, S)                 qemu_build_not_reached()
 # define gen_helper_flushw(E)                   qemu_build_not_reached()
-# define gen_helper_fnegd(D, S)                 qemu_build_not_reached()
 # define gen_helper_rdccr(D, E)                 qemu_build_not_reached()
 # define gen_helper_rdcwp(D, E)                 qemu_build_not_reached()
 # define gen_helper_restored(E)                 qemu_build_not_reached()
@@ -61,7 +59,6 @@
 # define gen_helper_write_softint(E, S)         qemu_build_not_reached()
 # define gen_helper_wrpil(E, S)                 qemu_build_not_reached()
 # define gen_helper_wrpstate(E, S)              qemu_build_not_reached()
-# define gen_helper_fabsq                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpeq16             ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpeq32             ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpgt16             ({ qemu_build_not_reached(); NULL; })
@@ -79,7 +76,6 @@
 # define gen_helper_fmul8x16             ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fmuld8sux16          ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fmuld8ulx16          ({ qemu_build_not_reached(); NULL; })
-# define gen_helper_fnegq                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fpmerge              ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fqtox                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fstox                ({ qemu_build_not_reached(); NULL; })
@@ -1239,13 +1235,13 @@ static void gen_op_fmovs(TCGv_i32 dst, TCGv_i32 src)
 static void gen_op_fnegs(TCGv_i32 dst, TCGv_i32 src)
 {
     gen_op_clear_ieee_excp_and_FTT();
-    gen_helper_fnegs(dst, src);
+    tcg_gen_xori_i32(dst, src, 1u << 31);
 }
 
 static void gen_op_fabss(TCGv_i32 dst, TCGv_i32 src)
 {
     gen_op_clear_ieee_excp_and_FTT();
-    gen_helper_fabss(dst, src);
+    tcg_gen_andi_i32(dst, src, ~(1u << 31));
 }
 
 static void gen_op_fmovd(TCGv_i64 dst, TCGv_i64 src)
@@ -1257,13 +1253,33 @@ static void gen_op_fmovd(TCGv_i64 dst, TCGv_i64 src)
 static void gen_op_fnegd(TCGv_i64 dst, TCGv_i64 src)
 {
     gen_op_clear_ieee_excp_and_FTT();
-    gen_helper_fnegd(dst, src);
+    tcg_gen_xori_i64(dst, src, 1ull << 63);
 }
 
 static void gen_op_fabsd(TCGv_i64 dst, TCGv_i64 src)
 {
     gen_op_clear_ieee_excp_and_FTT();
-    gen_helper_fabsd(dst, src);
+    tcg_gen_andi_i64(dst, src, ~(1ull << 63));
+}
+
+static void gen_op_fnegq(TCGv_i128 dst, TCGv_i128 src)
+{
+    TCGv_i64 l = tcg_temp_new_i64();
+    TCGv_i64 h = tcg_temp_new_i64();
+
+    tcg_gen_extr_i128_i64(l, h, src);
+    tcg_gen_xori_i64(h, h, 1ull << 63);
+    tcg_gen_concat_i64_i128(dst, l, h);
+}
+
+static void gen_op_fabsq(TCGv_i128 dst, TCGv_i128 src)
+{
+    TCGv_i64 l = tcg_temp_new_i64();
+    TCGv_i64 h = tcg_temp_new_i64();
+
+    tcg_gen_extr_i128_i64(l, h, src);
+    tcg_gen_andi_i64(h, h, ~(1ull << 63));
+    tcg_gen_concat_i64_i128(dst, l, h);
 }
 
 #ifdef TARGET_SPARC64
@@ -4629,13 +4645,11 @@ TRANS(FiTOd, ALL, do_env_df, a, gen_helper_fitod)
 TRANS(FsTOd, ALL, do_env_df, a, gen_helper_fstod)
 TRANS(FsTOx, 64, do_env_df, a, gen_helper_fstox)
 
-static bool trans_FMOVq(DisasContext *dc, arg_FMOVq *a)
+static bool do_qq(DisasContext *dc, arg_r_r *a,
+                  void (*func)(TCGv_i128, TCGv_i128))
 {
     TCGv_i128 t;
 
-    if (!avail_64(dc)) {
-        return false;
-    }
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
@@ -4645,30 +4659,14 @@ static bool trans_FMOVq(DisasContext *dc, arg_FMOVq *a)
 
     gen_op_clear_ieee_excp_and_FTT();
     t = gen_load_fpr_Q(dc, a->rs);
+    func(t, t);
     gen_store_fpr_Q(dc, a->rd, t);
     return advance_pc(dc);
 }
 
-static bool do_qq(DisasContext *dc, arg_r_r *a,
-                  void (*func)(TCGv_env))
-{
-    if (gen_trap_ifnofpu(dc)) {
-        return true;
-    }
-    if (gen_trap_float128(dc)) {
-        return true;
-    }
-
-    gen_op_clear_ieee_excp_and_FTT();
-    gen_op_load_fpr_QT1(QFPREG(a->rs));
-    func(tcg_env);
-    gen_op_store_QT0_fpr(QFPREG(a->rd));
-    gen_update_fprs_dirty(dc, QFPREG(a->rd));
-    return advance_pc(dc);
-}
-
-TRANS(FNEGq, 64, do_qq, a, gen_helper_fnegq)
-TRANS(FABSq, 64, do_qq, a, gen_helper_fabsq)
+TRANS(FMOVq, 64, do_qq, a, tcg_gen_mov_i128)
+TRANS(FNEGq, 64, do_qq, a, gen_op_fnegq)
+TRANS(FABSq, 64, do_qq, a, gen_op_fabsq)
 
 static bool do_env_qq(DisasContext *dc, arg_r_r *a,
                        void (*func)(TCGv_env))
