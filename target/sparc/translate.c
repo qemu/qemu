@@ -1727,28 +1727,35 @@ static void gen_st_asi(DisasContext *dc, DisasASI *da, TCGv src, TCGv addr)
 
     case GET_ASI_BCOPY:
         assert(TARGET_LONG_BITS == 32);
-        /* Copy 32 bytes from the address in SRC to ADDR.  */
-        /* ??? The original qemu code suggests 4-byte alignment, dropping
-           the low bits, but the only place I can see this used is in the
-           Linux kernel with 32 byte alignment, which would make more sense
-           as a cacheline-style operation.  */
+        /*
+         * Copy 32 bytes from the address in SRC to ADDR.
+         *
+         * From Ross RT625 hyperSPARC manual, section 4.6:
+         * "Block Copy and Block Fill will work only on cache line boundaries."
+         *
+         * It does not specify if an unaliged address is truncated or trapped.
+         * Previous qemu behaviour was to truncate to 4 byte alignment, which
+         * is obviously wrong.  The only place I can see this used is in the
+         * Linux kernel which begins with page alignment, advancing by 32,
+         * so is always aligned.  Assume truncation as the simpler option.
+         *
+         * Since the loads and stores are paired, allow the copy to happen
+         * in the host endianness.  The copy need not be atomic.
+         */
         {
+            MemOp mop = MO_128 | MO_ATOM_IFALIGN_PAIR;
             TCGv saddr = tcg_temp_new();
             TCGv daddr = tcg_temp_new();
-            TCGv four = tcg_constant_tl(4);
-            TCGv_i32 tmp = tcg_temp_new_i32();
-            int i;
+            TCGv_i128 tmp = tcg_temp_new_i128();
 
-            tcg_gen_andi_tl(saddr, src, -4);
-            tcg_gen_andi_tl(daddr, addr, -4);
-            for (i = 0; i < 32; i += 4) {
-                /* Since the loads and stores are paired, allow the
-                   copy to happen in the host endianness.  */
-                tcg_gen_qemu_ld_i32(tmp, saddr, da->mem_idx, MO_UL);
-                tcg_gen_qemu_st_i32(tmp, daddr, da->mem_idx, MO_UL);
-                tcg_gen_add_tl(saddr, saddr, four);
-                tcg_gen_add_tl(daddr, daddr, four);
-            }
+            tcg_gen_andi_tl(saddr, src, -32);
+            tcg_gen_andi_tl(daddr, addr, -32);
+            tcg_gen_qemu_ld_i128(tmp, saddr, da->mem_idx, mop);
+            tcg_gen_qemu_st_i128(tmp, daddr, da->mem_idx, mop);
+            tcg_gen_addi_tl(saddr, saddr, 16);
+            tcg_gen_addi_tl(daddr, daddr, 16);
+            tcg_gen_qemu_ld_i128(tmp, saddr, da->mem_idx, mop);
+            tcg_gen_qemu_st_i128(tmp, daddr, da->mem_idx, mop);
         }
         break;
 
