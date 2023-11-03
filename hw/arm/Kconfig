@@ -484,6 +484,7 @@ config XLNX_VERSAL
     select XLNX_EFUSE_VERSAL
     select XLNX_USB_SUBSYS
     select XLNX_VERSAL_TRNG
+    select XLNX_CSU_DMA
 
 config NPCM7XX
     bool
