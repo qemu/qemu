@@ -4664,6 +4664,24 @@ static bool do_dfd(DisasContext *dc, arg_r_r_r *a,
 
 TRANS(FMUL8x16, VIS1, do_dfd, a, gen_helper_fmul8x16)
 
+static bool do_gvec_ddd(DisasContext *dc, arg_r_r_r *a, MemOp vece,
+                        void (*func)(unsigned, uint32_t, uint32_t,
+                                     uint32_t, uint32_t, uint32_t))
+{
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    func(vece, gen_offset_fpr_D(a->rd), gen_offset_fpr_D(a->rs1),
+         gen_offset_fpr_D(a->rs2), 8, 8);
+    return advance_pc(dc);
+}
+
+TRANS(FPADD16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_add)
+TRANS(FPADD32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_add)
+TRANS(FPSUB16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sub)
+TRANS(FPSUB32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sub)
+
 static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
@@ -4684,10 +4702,6 @@ static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
 TRANS(FMUL8SUx16, VIS1, do_ddd, a, gen_helper_fmul8sux16)
 TRANS(FMUL8ULx16, VIS1, do_ddd, a, gen_helper_fmul8ulx16)
 
-TRANS(FPADD16, VIS1, do_ddd, a, tcg_gen_vec_add16_i64)
-TRANS(FPADD32, VIS1, do_ddd, a, tcg_gen_vec_add32_i64)
-TRANS(FPSUB16, VIS1, do_ddd, a, tcg_gen_vec_sub16_i64)
-TRANS(FPSUB32, VIS1, do_ddd, a, tcg_gen_vec_sub32_i64)
 TRANS(FNORd, VIS1, do_ddd, a, tcg_gen_nor_i64)
 TRANS(FANDNOTd, VIS1, do_ddd, a, tcg_gen_andc_i64)
 TRANS(FXORd, VIS1, do_ddd, a, tcg_gen_xor_i64)
