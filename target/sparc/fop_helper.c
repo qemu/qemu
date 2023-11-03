@@ -98,22 +98,22 @@ target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
     return do_check_ieee_exceptions(env, GETPC());
 }
 
-#define F_HELPER(name, p) void helper_f##name##p(CPUSPARCState *env)
-
-#define F_BINOP(name)                                           \
+#define F_BINOP(name)                                                \
     float32 helper_f ## name ## s (CPUSPARCState *env, float32 src1, \
-                                   float32 src2)                \
-    {                                                           \
-        return float32_ ## name (src1, src2, &env->fp_status);  \
-    }                                                           \
+                                   float32 src2)                     \
+    {                                                                \
+        return float32_ ## name (src1, src2, &env->fp_status);       \
+    }                                                                \
     float64 helper_f ## name ## d (CPUSPARCState * env, float64 src1,\
-                                   float64 src2)                \
-    {                                                           \
-        return float64_ ## name (src1, src2, &env->fp_status);  \
-    }                                                           \
-    F_HELPER(name, q)                                           \
-    {                                                           \
-        QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
+                                   float64 src2)                     \
+    {                                                                \
+        return float64_ ## name (src1, src2, &env->fp_status);       \
+    }                                                                \
+    Int128 helper_f ## name ## q(CPUSPARCState * env, Int128 src1,   \
+                                 Int128 src2)                        \
+    {                                                                \
+        return f128_ret(float128_ ## name (f128_in(src1), f128_in(src2), \
+                                           &env->fp_status));        \
     }
 
 F_BINOP(add);
@@ -168,7 +168,6 @@ void helper_fxtoq(CPUSPARCState *env, int64_t src)
     QT0 = int64_to_float128(src, &env->fp_status);
 }
 #endif
-#undef F_HELPER
 
 /* floating point conversion */
 float32 helper_fdtos(CPUSPARCState *env, float64 src)

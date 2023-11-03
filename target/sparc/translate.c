@@ -4976,8 +4976,10 @@ static bool do_dddd(DisasContext *dc, arg_r_r_r *a,
 TRANS(PDIST, VIS1, do_dddd, a, gen_helper_pdist)
 
 static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
-                       void (*func)(TCGv_env))
+                       void (*func)(TCGv_i128, TCGv_env, TCGv_i128, TCGv_i128))
 {
+    TCGv_i128 src1, src2;
+
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
@@ -4986,12 +4988,11 @@ static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    gen_op_load_fpr_QT0(QFPREG(a->rs1));
-    gen_op_load_fpr_QT1(QFPREG(a->rs2));
-    func(tcg_env);
+    src1 = gen_load_fpr_Q(dc, a->rs1);
+    src2 = gen_load_fpr_Q(dc, a->rs2);
+    func(src1, tcg_env, src1, src2);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
-    gen_op_store_QT0_fpr(QFPREG(a->rd));
-    gen_update_fprs_dirty(dc, QFPREG(a->rd));
+    gen_store_fpr_Q(dc, a->rd, src1);
     return advance_pc(dc);
 }
 
