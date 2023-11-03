@@ -276,14 +276,6 @@ static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst, TCGv_i128 v)
     gen_update_fprs_dirty(dc, dst);
 }
 
-static void gen_op_store_QT0_fpr(unsigned int dst)
-{
-    tcg_gen_ld_i64(cpu_fpr[dst / 2], tcg_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, ll.upper));
-    tcg_gen_ld_i64(cpu_fpr[dst/2 + 1], tcg_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, ll.lower));
-}
-
 /* moves */
 #ifdef CONFIG_USER_ONLY
 #define supervisor(dc) 0
@@ -4992,6 +4984,7 @@ TRANS(FDIVq, ALL, do_env_qqq, a, gen_helper_fdivq)
 static bool trans_FdMULq(DisasContext *dc, arg_r_r_r *a)
 {
     TCGv_i64 src1, src2;
+    TCGv_i128 dst;
 
     if (gen_trap_ifnofpu(dc)) {
         return true;
@@ -5003,10 +4996,10 @@ static bool trans_FdMULq(DisasContext *dc, arg_r_r_r *a)
     gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
-    gen_helper_fdmulq(tcg_env, src1, src2);
+    dst = tcg_temp_new_i128();
+    gen_helper_fdmulq(dst, tcg_env, src1, src2);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
-    gen_op_store_QT0_fpr(QFPREG(a->rd));
-    gen_update_fprs_dirty(dc, QFPREG(a->rd));
+    gen_store_fpr_Q(dc, a->rd, dst);
     return advance_pc(dc);
 }
 

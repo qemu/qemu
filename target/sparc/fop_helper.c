@@ -129,11 +129,11 @@ float64 helper_fsmuld(CPUSPARCState *env, float32 src1, float32 src2)
                        &env->fp_status);
 }
 
-void helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
+Int128 helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
 {
-    QT0 = float128_mul(float64_to_float128(src1, &env->fp_status),
-                       float64_to_float128(src2, &env->fp_status),
-                       &env->fp_status);
+    return f128_ret(float128_mul(float64_to_float128(src1, &env->fp_status),
+                                 float64_to_float128(src2, &env->fp_status),
+                                 &env->fp_status));
 }
 
 /* Integer to float conversion.  */
