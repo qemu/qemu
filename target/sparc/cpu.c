@@ -368,7 +368,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "Fujitsu MB86904",
         .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
-        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .fpu_version = 4 << FSR_VER_SHIFT, /* FPU version 4 (Meiko) */
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x00ffffc0,
@@ -381,7 +381,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "Fujitsu MB86907",
         .iu_version = 0x05 << 24, /* Impl 0, ver 5 */
-        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .fpu_version = 4 << FSR_VER_SHIFT, /* FPU version 4 (Meiko) */
         .mmu_version = 0x05 << 24, /* Impl 0, ver 5 */
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -394,7 +394,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI MicroSparc I",
         .iu_version = 0x41000000,
-        .fpu_version = 4 << 17,
+        .fpu_version = 4 << FSR_VER_SHIFT,
         .mmu_version = 0x41000000,
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x007ffff0,
@@ -407,7 +407,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI MicroSparc II",
         .iu_version = 0x42000000,
-        .fpu_version = 4 << 17,
+        .fpu_version = 4 << FSR_VER_SHIFT,
         .mmu_version = 0x02000000,
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x00ffffc0,
@@ -420,7 +420,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI MicroSparc IIep",
         .iu_version = 0x42000000,
-        .fpu_version = 4 << 17,
+        .fpu_version = 4 << FSR_VER_SHIFT,
         .mmu_version = 0x04000000,
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x00ffffc0,
@@ -433,7 +433,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc 40", /* STP1020NPGA */
         .iu_version = 0x41000000, /* SuperSPARC 2.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x00000800, /* SuperSPARC 2.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -446,7 +446,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc 50", /* STP1020PGA */
         .iu_version = 0x40000000, /* SuperSPARC 3.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x01000800, /* SuperSPARC 3.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -459,7 +459,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc 51",
         .iu_version = 0x40000000, /* SuperSPARC 3.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x01000000, /* SuperSPARC 3.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -473,7 +473,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc 60", /* STP1020APGA */
         .iu_version = 0x40000000, /* SuperSPARC 3.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x01000800, /* SuperSPARC 3.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -486,7 +486,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc 61",
         .iu_version = 0x44000000, /* SuperSPARC 3.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x01000000, /* SuperSPARC 3.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -500,7 +500,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "TI SuperSparc II",
         .iu_version = 0x40000000, /* SuperSPARC II 1.x */
-        .fpu_version = 0 << 17,
+        .fpu_version = 0 << FSR_VER_SHIFT,
         .mmu_version = 0x08000000, /* SuperSPARC II 1.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
@@ -514,7 +514,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "LEON2",
         .iu_version = 0xf2000000,
-        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .fpu_version = 4 << FSR_VER_SHIFT, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf2000000,
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x007ffff0,
@@ -527,7 +527,7 @@ static const sparc_def_t sparc_defs[] = {
     {
         .name = "LEON3",
         .iu_version = 0xf3000000,
-        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .fpu_version = 4 << FSR_VER_SHIFT, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf3000000,
         .mmu_bm = 0x00000000,
         .mmu_ctpr_mask = 0xfffffffc,
@@ -786,7 +786,6 @@ static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     env->version = env->def.iu_version;
-    env->fsr = env->def.fpu_version;
     env->nwindows = env->def.nwindows;
 #if !defined(TARGET_SPARC64)
     env->mmuregs[0] |= env->def.mmu_version;

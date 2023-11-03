@@ -349,7 +349,12 @@ GEN_FCMP(fcmpeq_fcc3, float128, 26, 1);
 
 target_ulong cpu_get_fsr(CPUSPARCState *env)
 {
-    return env->fsr;
+    target_ulong fsr = env->fsr;
+
+    /* VER is kept completely separate until re-assembly. */
+    fsr |= env->def.fpu_version;
+
+    return fsr;
 }
 
 target_ulong helper_get_fsr(CPUSPARCState *env)
@@ -361,7 +366,7 @@ static void set_fsr_nonsplit(CPUSPARCState *env, target_ulong fsr)
 {
     int rnd_mode;
 
-    env->fsr = fsr;
+    env->fsr = fsr & ~FSR_VER_MASK;
 
     switch (fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
