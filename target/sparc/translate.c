@@ -4717,8 +4717,9 @@ TRANS(FqTOs, ALL, do_env_fq, a, gen_helper_fqtos)
 TRANS(FqTOi, ALL, do_env_fq, a, gen_helper_fqtoi)
 
 static bool do_env_dq(DisasContext *dc, arg_r_r *a,
-                      void (*func)(TCGv_i64, TCGv_env))
+                      void (*func)(TCGv_i64, TCGv_env, TCGv_i128))
 {
+    TCGv_i128 src;
     TCGv_i64 dst;
 
     if (gen_trap_ifnofpu(dc)) {
@@ -4729,9 +4730,9 @@ static bool do_env_dq(DisasContext *dc, arg_r_r *a,
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    gen_op_load_fpr_QT1(QFPREG(a->rs));
+    src = gen_load_fpr_Q(dc, a->rs);
     dst = gen_dest_fpr_D(dc, a->rd);
-    func(dst, tcg_env);
+    func(dst, tcg_env, src);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);

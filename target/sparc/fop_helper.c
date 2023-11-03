@@ -190,9 +190,9 @@ void helper_fstoq(CPUSPARCState *env, float32 src)
     QT0 = float32_to_float128(src, &env->fp_status);
 }
 
-float64 helper_fqtod(CPUSPARCState *env)
+float64 helper_fqtod(CPUSPARCState *env, Int128 src)
 {
-    return float128_to_float64(QT1, &env->fp_status);
+    return float128_to_float64(f128_in(src), &env->fp_status);
 }
 
 void helper_fdtoq(CPUSPARCState *env, float64 src)
@@ -227,9 +227,9 @@ int64_t helper_fdtox(CPUSPARCState *env, float64 src)
     return float64_to_int64_round_to_zero(src, &env->fp_status);
 }
 
-int64_t helper_fqtox(CPUSPARCState *env)
+int64_t helper_fqtox(CPUSPARCState *env, Int128 src)
 {
-    return float128_to_int64_round_to_zero(QT1, &env->fp_status);
+    return float128_to_int64_round_to_zero(f128_in(src), &env->fp_status);
 }
 #endif
 
