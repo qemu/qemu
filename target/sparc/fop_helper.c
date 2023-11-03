@@ -50,6 +50,8 @@ static target_ulong do_check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
     target_ulong status = get_float_exception_flags(&env->fp_status);
     target_ulong fsr = env->fsr;
 
+    fsr &= FSR_FTT_CEXC_NMASK;
+
     if (unlikely(status)) {
         /* Keep exception flags clear for next time.  */
         set_float_exception_flags(0, &env->fp_status);

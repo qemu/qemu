@@ -4524,7 +4524,6 @@ static bool do_env_ff(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     tmp = gen_load_fpr_F(dc, a->rs);
     func(tmp, tcg_env, tmp);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
@@ -4546,7 +4545,6 @@ static bool do_env_fd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     dst = tcg_temp_new_i32();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
@@ -4590,7 +4588,6 @@ static bool do_env_dd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     dst = gen_dest_fpr_D(dc, a->rd);
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
@@ -4613,7 +4610,6 @@ static bool do_env_df(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     dst = gen_dest_fpr_D(dc, a->rd);
     src = gen_load_fpr_F(dc, a->rs);
     func(dst, tcg_env, src);
@@ -4661,8 +4657,6 @@ static bool do_env_qq(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
-
     t = gen_load_fpr_Q(dc, a->rs);
     func(t, tcg_env, t);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
@@ -4685,7 +4679,6 @@ static bool do_env_fq(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src = gen_load_fpr_Q(dc, a->rs);
     dst = tcg_temp_new_i32();
     func(dst, tcg_env, src);
@@ -4710,7 +4703,6 @@ static bool do_env_dq(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src = gen_load_fpr_Q(dc, a->rs);
     dst = gen_dest_fpr_D(dc, a->rd);
     func(dst, tcg_env, src);
@@ -4808,7 +4800,6 @@ static bool do_env_fff(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     func(src1, tcg_env, src1, src2);
@@ -4903,7 +4894,6 @@ static bool do_env_ddd(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     dst = gen_dest_fpr_D(dc, a->rd);
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
@@ -4930,7 +4920,6 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
         return raise_unimpfpop(dc);
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     dst = gen_dest_fpr_D(dc, a->rd);
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
@@ -4972,7 +4961,6 @@ static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_Q(dc, a->rs1);
     src2 = gen_load_fpr_Q(dc, a->rs2);
     func(src1, tcg_env, src1, src2);
@@ -4998,7 +4986,6 @@ static bool trans_FdMULq(DisasContext *dc, arg_r_r_r *a)
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     dst = tcg_temp_new_i128();
@@ -5087,7 +5074,6 @@ static bool do_fcmps(DisasContext *dc, arg_FCMPs *a, bool e)
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     if (e) {
@@ -5112,7 +5098,6 @@ static bool do_fcmpd(DisasContext *dc, arg_FCMPd *a, bool e)
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     if (e) {
@@ -5140,7 +5125,6 @@ static bool do_fcmpq(DisasContext *dc, arg_FCMPq *a, bool e)
         return true;
     }
 
-    gen_op_clear_ieee_excp_and_FTT();
     src1 = gen_load_fpr_Q(dc, a->rs1);
     src2 = gen_load_fpr_Q(dc, a->rs2);
     if (e) {
