@@ -3257,39 +3257,6 @@ foreach d : hx_headers
 endforeach
 genh += hxdep
 
-###################
-# Collect sources #
-###################
-
-authz_ss = ss.source_set()
-blockdev_ss = ss.source_set()
-block_ss = ss.source_set()
-chardev_ss = ss.source_set()
-common_ss = ss.source_set()
-crypto_ss = ss.source_set()
-hwcore_ss = ss.source_set()
-io_ss = ss.source_set()
-qmp_ss = ss.source_set()
-qom_ss = ss.source_set()
-system_ss = ss.source_set()
-specific_fuzz_ss = ss.source_set()
-specific_ss = ss.source_set()
-stub_ss = ss.source_set()
-trace_ss = ss.source_set()
-user_ss = ss.source_set()
-util_ss = ss.source_set()
-
-# accel modules
-qtest_module_ss = ss.source_set()
-tcg_module_ss = ss.source_set()
-
-modules = {}
-target_modules = {}
-hw_arch = {}
-target_arch = {}
-target_system_arch = {}
-target_user_arch = {}
-
 ###############
 # Trace files #
 ###############
@@ -3403,6 +3370,39 @@ if have_system or have_user
     'target/sparc',
   ]
 endif
+
+###################
+# Collect sources #
+###################
+
+authz_ss = ss.source_set()
+blockdev_ss = ss.source_set()
+block_ss = ss.source_set()
+chardev_ss = ss.source_set()
+common_ss = ss.source_set()
+crypto_ss = ss.source_set()
+hwcore_ss = ss.source_set()
+io_ss = ss.source_set()
+qmp_ss = ss.source_set()
+qom_ss = ss.source_set()
+system_ss = ss.source_set()
+specific_fuzz_ss = ss.source_set()
+specific_ss = ss.source_set()
+stub_ss = ss.source_set()
+trace_ss = ss.source_set()
+user_ss = ss.source_set()
+util_ss = ss.source_set()
+
+# accel modules
+qtest_module_ss = ss.source_set()
+tcg_module_ss = ss.source_set()
+
+modules = {}
+target_modules = {}
+hw_arch = {}
+target_arch = {}
+target_system_arch = {}
+target_user_arch = {}
 
 # NOTE: the trace/ subdirectory needs the qapi_trace_events variable
 # that is filled in by qapi/.
