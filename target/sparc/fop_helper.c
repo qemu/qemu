@@ -26,6 +26,28 @@
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
+static inline float128 f128_in(Int128 i)
+{
+    union {
+        Int128 i;
+        float128 f;
+    } u;
+
+    u.i = i;
+    return u.f;
+}
+
+static inline Int128 f128_ret(float128 f)
+{
+    union {
+        Int128 i;
+        float128 f;
+    } u;
+
+    u.f = f;
+    return u.i;
+}
+
 static target_ulong do_check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
 {
     target_ulong status = get_float_exception_flags(&env->fp_status);
@@ -222,9 +244,9 @@ float64 helper_fsqrtd(CPUSPARCState *env, float64 src)
     return float64_sqrt(src, &env->fp_status);
 }
 
-void helper_fsqrtq(CPUSPARCState *env)
+Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
 {
-    QT0 = float128_sqrt(QT1, &env->fp_status);
+    return f128_ret(float128_sqrt(f128_in(src), &env->fp_status));
 }
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \

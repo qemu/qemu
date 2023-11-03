@@ -4669,8 +4669,10 @@ TRANS(FNEGq, 64, do_qq, a, gen_op_fnegq)
 TRANS(FABSq, 64, do_qq, a, gen_op_fabsq)
 
 static bool do_env_qq(DisasContext *dc, arg_r_r *a,
-                       void (*func)(TCGv_env))
+                      void (*func)(TCGv_i128, TCGv_env, TCGv_i128))
 {
+    TCGv_i128 t;
+
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
@@ -4679,11 +4681,11 @@ static bool do_env_qq(DisasContext *dc, arg_r_r *a,
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    gen_op_load_fpr_QT1(QFPREG(a->rs));
-    func(tcg_env);
+
+    t = gen_load_fpr_Q(dc, a->rs);
+    func(t, tcg_env, t);
     gen_helper_check_ieee_exceptions(cpu_fsr, tcg_env);
-    gen_op_store_QT0_fpr(QFPREG(a->rd));
-    gen_update_fprs_dirty(dc, QFPREG(a->rd));
+    gen_store_fpr_Q(dc, a->rd, t);
     return advance_pc(dc);
 }
 
