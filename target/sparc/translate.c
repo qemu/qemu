@@ -264,6 +264,22 @@ static TCGv_i64 gen_dest_fpr_D(DisasContext *dc, unsigned int dst)
     return cpu_fpr[DFPREG(dst) / 2];
 }
 
+static TCGv_i128 gen_load_fpr_Q(DisasContext *dc, unsigned int src)
+{
+    TCGv_i128 ret = tcg_temp_new_i128();
+
+    src = QFPREG(src);
+    tcg_gen_concat_i64_i128(ret, cpu_fpr[src / 2 + 1], cpu_fpr[src / 2]);
+    return ret;
+}
+
+static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst, TCGv_i128 v)
+{
+    dst = DFPREG(dst);
+    tcg_gen_extr_i128_i64(cpu_fpr[dst / 2 + 1], cpu_fpr[dst / 2], v);
+    gen_update_fprs_dirty(dc, dst);
+}
+
 static void gen_op_load_fpr_QT0(unsigned int src)
 {
     tcg_gen_st_i64(cpu_fpr[src / 2], tcg_env, offsetof(CPUSPARCState, qt0) +
@@ -4615,7 +4631,7 @@ TRANS(FsTOx, 64, do_env_df, a, gen_helper_fstox)
 
 static bool trans_FMOVq(DisasContext *dc, arg_FMOVq *a)
 {
-    int rd, rs;
+    TCGv_i128 t;
 
     if (!avail_64(dc)) {
         return false;
@@ -4628,11 +4644,8 @@ static bool trans_FMOVq(DisasContext *dc, arg_FMOVq *a)
     }
 
     gen_op_clear_ieee_excp_and_FTT();
-    rd = QFPREG(a->rd);
-    rs = QFPREG(a->rs);
-    tcg_gen_mov_i64(cpu_fpr[rd / 2], cpu_fpr[rs / 2]);
-    tcg_gen_mov_i64(cpu_fpr[rd / 2 + 1], cpu_fpr[rs / 2 + 1]);
-    gen_update_fprs_dirty(dc, rd);
+    t = gen_load_fpr_Q(dc, a->rs);
+    gen_store_fpr_Q(dc, a->rd, t);
     return advance_pc(dc);
 }
 
