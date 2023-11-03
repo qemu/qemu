@@ -1043,20 +1043,6 @@ static const TypeInfo musicpal_gpio_info = {
 };
 
 /* Keyboard codes & masks */
-#define KEY_RELEASED            0x80
-#define KEY_CODE                0x7f
-
-#define KEYCODE_TAB             0x0f
-#define KEYCODE_ENTER           0x1c
-#define KEYCODE_F               0x21
-#define KEYCODE_M               0x32
-
-#define KEYCODE_EXTENDED        0xe0
-#define KEYCODE_UP              0x48
-#define KEYCODE_DOWN            0x50
-#define KEYCODE_LEFT            0x4b
-#define KEYCODE_RIGHT           0x4d
-
 #define MP_KEY_WHEEL_VOL       (1 << 0)
 #define MP_KEY_WHEEL_VOL_INV   (1 << 1)
 #define MP_KEY_WHEEL_NAV       (1 << 2)
@@ -1074,67 +1060,66 @@ struct musicpal_key_state {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    uint32_t kbd_extended;
     uint32_t pressed_keys;
     qemu_irq out[8];
 };
 
-static void musicpal_key_event(void *opaque, int keycode)
+static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
+                               InputEvent *evt)
 {
-    musicpal_key_state *s = opaque;
+    musicpal_key_state *s = MUSICPAL_KEY(dev);
+    InputKeyEvent *key = evt->u.key.data;
+    int qcode = qemu_input_key_value_to_qcode(key->key);
     uint32_t event = 0;
     int i;
 
-    if (keycode == KEYCODE_EXTENDED) {
-        s->kbd_extended = 1;
-        return;
+    switch (qcode) {
+    case Q_KEY_CODE_UP:
+        event = MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_NAV_INV;
+        break;
+
+    case Q_KEY_CODE_DOWN:
+        event = MP_KEY_WHEEL_NAV;
+        break;
+
+    case Q_KEY_CODE_LEFT:
+        event = MP_KEY_WHEEL_VOL | MP_KEY_WHEEL_VOL_INV;
+        break;
+
+    case Q_KEY_CODE_RIGHT:
+        event = MP_KEY_WHEEL_VOL;
+        break;
+
+    case Q_KEY_CODE_F:
+        event = MP_KEY_BTN_FAVORITS;
+        break;
+
+    case Q_KEY_CODE_TAB:
+        event = MP_KEY_BTN_VOLUME;
+        break;
+
+    case Q_KEY_CODE_RET:
+        event = MP_KEY_BTN_NAVIGATION;
+        break;
+
+    case Q_KEY_CODE_M:
+        event = MP_KEY_BTN_MENU;
+        break;
     }
 
-    if (s->kbd_extended) {
-        switch (keycode & KEY_CODE) {
-        case KEYCODE_UP:
-            event = MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_NAV_INV;
-            break;
-
-        case KEYCODE_DOWN:
-            event = MP_KEY_WHEEL_NAV;
-            break;
-
-        case KEYCODE_LEFT:
-            event = MP_KEY_WHEEL_VOL | MP_KEY_WHEEL_VOL_INV;
-            break;
-
-        case KEYCODE_RIGHT:
-            event = MP_KEY_WHEEL_VOL;
-            break;
-        }
-    } else {
-        switch (keycode & KEY_CODE) {
-        case KEYCODE_F:
-            event = MP_KEY_BTN_FAVORITS;
-            break;
-
-        case KEYCODE_TAB:
-            event = MP_KEY_BTN_VOLUME;
-            break;
-
-        case KEYCODE_ENTER:
-            event = MP_KEY_BTN_NAVIGATION;
-            break;
-
-        case KEYCODE_M:
-            event = MP_KEY_BTN_MENU;
-            break;
-        }
-        /* Do not repeat already pressed buttons */
-        if (!(keycode & KEY_RELEASED) && (s->pressed_keys & event)) {
+    /*
+     * We allow repeated wheel-events when the arrow keys are held down,
+     * but do not repeat already-pressed buttons for the other key inputs.
+     */
+    if (!(event & (MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_VOL))) {
+        if (key->down && (s->pressed_keys & event)) {
             event = 0;
         }
     }
 
     if (event) {
         /* Raise GPIO pin first if repeating a key */
-        if (!(keycode & KEY_RELEASED) && (s->pressed_keys & event)) {
+        if (key->down && (s->pressed_keys & event)) {
             for (i = 0; i <= 7; i++) {
                 if (event & (1 << i)) {
                     qemu_set_irq(s->out[i], 1);
@@ -1143,17 +1128,15 @@ static void musicpal_key_event(void *opaque, int keycode)
         }
         for (i = 0; i <= 7; i++) {
             if (event & (1 << i)) {
-                qemu_set_irq(s->out[i], !!(keycode & KEY_RELEASED));
+                qemu_set_irq(s->out[i], !key->down);
             }
         }
-        if (keycode & KEY_RELEASED) {
-            s->pressed_keys &= ~event;
-        } else {
+        if (key->down) {
             s->pressed_keys |= event;
+        } else {
+            s->pressed_keys &= ~event;
         }
     }
-
-    s->kbd_extended = 0;
 }
 
 static void musicpal_key_init(Object *obj)
@@ -1162,20 +1145,27 @@ static void musicpal_key_init(Object *obj)
     DeviceState *dev = DEVICE(sbd);
     musicpal_key_state *s = MUSICPAL_KEY(dev);
 
-    s->kbd_extended = 0;
     s->pressed_keys = 0;
 
     qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
+}
 
-    qemu_add_kbd_event_handler(musicpal_key_event, s);
+static const QemuInputHandler musicpal_key_handler = {
+    .name = "musicpal_key",
+    .mask = INPUT_EVENT_MASK_KEY,
+    .event = musicpal_key_event,
+};
+
+static void musicpal_key_realize(DeviceState *dev, Error **errp)
+{
+    qemu_input_handler_register(dev, &musicpal_key_handler);
 }
 
 static const VMStateDescription musicpal_key_vmsd = {
     .name = "musicpal_key",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(kbd_extended, musicpal_key_state),
         VMSTATE_UINT32(pressed_keys, musicpal_key_state),
         VMSTATE_END_OF_LIST()
     }
@@ -1186,6 +1176,7 @@ static void musicpal_key_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &musicpal_key_vmsd;
+    dc->realize = musicpal_key_realize;
 }
 
 static const TypeInfo musicpal_key_info = {
