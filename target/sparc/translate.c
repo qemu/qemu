@@ -190,14 +190,6 @@ typedef struct DisasContext {
 #define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
 #define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), ((b) - (a) + 1))
 
-#ifdef TARGET_SPARC64
-#define DFPREG(r) (((r & 1) << 5) | (r & 0x1e))
-#define QFPREG(r) (((r & 1) << 5) | (r & 0x1c))
-#else
-#define DFPREG(r) (r & 0x1e)
-#define QFPREG(r) (r & 0x1c)
-#endif
-
 #define UA2005_HTRAP_MASK 0xff
 #define V8_TRAP_MASK 0x7f
 
@@ -240,34 +232,30 @@ static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
 
 static TCGv_i64 gen_load_fpr_D(DisasContext *dc, unsigned int src)
 {
-    src = DFPREG(src);
     return cpu_fpr[src / 2];
 }
 
 static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
 {
-    dst = DFPREG(dst);
     tcg_gen_mov_i64(cpu_fpr[dst / 2], v);
     gen_update_fprs_dirty(dc, dst);
 }
 
 static TCGv_i64 gen_dest_fpr_D(DisasContext *dc, unsigned int dst)
 {
-    return cpu_fpr[DFPREG(dst) / 2];
+    return cpu_fpr[dst / 2];
 }
 
 static TCGv_i128 gen_load_fpr_Q(DisasContext *dc, unsigned int src)
 {
     TCGv_i128 ret = tcg_temp_new_i128();
 
-    src = QFPREG(src);
     tcg_gen_concat_i64_i128(ret, cpu_fpr[src / 2 + 1], cpu_fpr[src / 2]);
     return ret;
 }
 
 static void gen_store_fpr_Q(DisasContext *dc, unsigned int dst, TCGv_i128 v)
 {
-    dst = DFPREG(dst);
     tcg_gen_extr_i128_i64(cpu_fpr[dst / 2 + 1], cpu_fpr[dst / 2], v);
     gen_update_fprs_dirty(dc, dst);
 }
@@ -2045,16 +2033,14 @@ static void gen_fmovd(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
 #ifdef TARGET_SPARC64
-    int qd = QFPREG(rd);
-    int qs = QFPREG(rs);
     TCGv c2 = tcg_constant_tl(cmp->c2);
 
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2], cmp->c1, c2,
-                        cpu_fpr[qs / 2], cpu_fpr[qd / 2]);
-    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2 + 1], cmp->c1, c2,
-                        cpu_fpr[qs / 2 + 1], cpu_fpr[qd / 2 + 1]);
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[rd / 2], cmp->c1, c2,
+                        cpu_fpr[rs / 2], cpu_fpr[rd / 2]);
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[rd / 2 + 1], cmp->c1, c2,
+                        cpu_fpr[rs / 2 + 1], cpu_fpr[rd / 2 + 1]);
 
-    gen_update_fprs_dirty(dc, qd);
+    gen_update_fprs_dirty(dc, rd);
 #else
     qemu_build_not_reached();
 #endif
@@ -2086,12 +2072,20 @@ static void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr)
 
 static int extract_dfpreg(DisasContext *dc, int x)
 {
-    return DFPREG(x);
+    int r = x & 0x1e;
+#ifdef TARGET_SPARC64
+    r |= (x & 1) << 5;
+#endif
+    return r;
 }
 
 static int extract_qfpreg(DisasContext *dc, int x)
 {
-    return QFPREG(x);
+    int r = x & 0x1c;
+#ifdef TARGET_SPARC64
+    r |= (x & 1) << 5;
+#endif
+    return r;
 }
 
 /* Include the auto-generated decoder.  */
@@ -4253,7 +4247,6 @@ static bool do_dc(DisasContext *dc, int rd, int64_t c)
         return true;
     }
 
-    rd = DFPREG(rd);
     tcg_gen_movi_i64(cpu_fpr[rd / 2], c);
     gen_update_fprs_dirty(dc, rd);
     return advance_pc(dc);
