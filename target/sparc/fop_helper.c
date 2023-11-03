@@ -147,9 +147,9 @@ float64 helper_fitod(CPUSPARCState *env, int32_t src)
     return int32_to_float64(src, &env->fp_status);
 }
 
-void helper_fitoq(CPUSPARCState *env, int32_t src)
+Int128 helper_fitoq(CPUSPARCState *env, int32_t src)
 {
-    QT0 = int32_to_float128(src, &env->fp_status);
+    return f128_ret(int32_to_float128(src, &env->fp_status));
 }
 
 #ifdef TARGET_SPARC64
@@ -185,9 +185,9 @@ float32 helper_fqtos(CPUSPARCState *env, Int128 src)
     return float128_to_float32(f128_in(src), &env->fp_status);
 }
 
-void helper_fstoq(CPUSPARCState *env, float32 src)
+Int128 helper_fstoq(CPUSPARCState *env, float32 src)
 {
-    QT0 = float32_to_float128(src, &env->fp_status);
+    return f128_ret(float32_to_float128(src, &env->fp_status));
 }
 
 float64 helper_fqtod(CPUSPARCState *env, Int128 src)
