@@ -24,3 +24,11 @@ guest hardware that is specific to QEMU.
    acpi_erst
    sev-guest-firmware
    fw_cfg
+   vmw_pvscsi-spec
+   edu
+   ivshmem-spec
+   pvpanic
+   standard-vga
+   virt-ctlr
+   vmcoreinfo
+   vmgenid

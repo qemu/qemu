@@ -103,7 +103,7 @@ uint32_t get_elf_hwcap(void);
 const char *elf_hwcap_str(uint32_t bit);
 #endif
 #if defined(TARGET_AARCH64) || defined(TARGET_ARM)
-uint32_t get_elf_hwcap2(void);
+uint64_t get_elf_hwcap2(void);
 const char *elf_hwcap2_str(uint32_t bit);
 #endif
 

@@ -50,7 +50,7 @@ maintained as part of the virtio specification.
   by QEMU.
 
 1af4:1110
-  ivshmem device (shared memory, ``docs/specs/ivshmem-spec.txt``)
+  ivshmem device (:doc:`ivshmem-spec`)
 
 All other device IDs are reserved.
 

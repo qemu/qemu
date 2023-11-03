@@ -33,7 +33,7 @@ syntax when using the shared memory server is:
 When using the server, the guest will be assigned a VM ID (>=0) that
 allows guests using the same server to communicate via interrupts.
 Guests can read their VM ID from a device register (see
-ivshmem-spec.txt).
+:doc:`../../specs/ivshmem-spec`).
 
 Migration with ivshmem
 ~~~~~~~~~~~~~~~~~~~~~~

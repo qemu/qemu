@@ -1,9 +1,9 @@
 Virtual System Controller
 =========================
 
-This device is a simple interface defined for the pure virtual machine with no
-hardware reference implementation to allow the guest kernel to send command
-to the host hypervisor.
+The ``virt-ctrl`` device is a simple interface defined for the pure
+virtual machine with no hardware reference implementation to allow the
+guest kernel to send command to the host hypervisor.
 
 The specification can evolve, the current state is defined as below.
 
@@ -11,14 +11,12 @@ This is a MMIO mapped device using 256 bytes.
 
 Two 32bit registers are defined:
 
-1- the features register (read-only, address 0x00)
-
+the features register (read-only, address 0x00)
    This register allows the device to report features supported by the
    controller.
    The only feature supported for the moment is power control (0x01).
 
-2- the command register (write-only, address 0x04)
-
+the command register (write-only, address 0x04)
    This register allows the kernel to send the commands to the hypervisor.
    The implemented commands are part of the power control feature and
    are reset (1), halt (2) and panic (3).
