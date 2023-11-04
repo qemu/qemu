@@ -238,6 +238,46 @@ VIS_CMPHELPER(helper_fcmpeq, FCMPEQ)
 VIS_CMPHELPER(helper_fcmple, FCMPLE)
 VIS_CMPHELPER(helper_fcmpne, FCMPNE)
 
+uint64_t helper_fcmpeq8(uint64_t src1, uint64_t src2)
+{
+    uint64_t a = src1 ^ src2;
+    uint64_t m = 0x7f7f7f7f7f7f7f7fULL;
+    uint64_t c = ~(((a & m) + m) | a | m);
+
+    /* a.......b.......c.......d.......e.......f.......g.......h....... */
+    c |= c << 7;
+    /* ab......bc......cd......de......ef......fg......gh......h....... */
+    c |= c << 14;
+    /* abcd....bcde....cdef....defg....efgh....fgh.....gh......h....... */
+    c |= c << 28;
+    /* abcdefghbcdefgh.cdefgh..defgh...efgh....fgh.....gh......h....... */
+    return c >> 56;
+}
+
+uint64_t helper_fcmpne8(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmpeq8(src1, src2) ^ 0xff;
+}
+
+uint64_t helper_fcmpule8(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 8; ++i) {
+        r |= (s1.VIS_B64(i) <= s2.VIS_B64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpugt8(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmpule8(src1, src2) ^ 0xff;
+}
+
 uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
 {
     int i;
