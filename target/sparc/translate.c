@@ -788,6 +788,37 @@ static void gen_op_fmuld8sux16(TCGv_i64 dst, TCGv_i32 src1, TCGv_i32 src2)
     tcg_gen_concat_i32_i64(dst, t0, t1);
 }
 
+#ifdef TARGET_SPARC64
+static void gen_vec_fchksm16(unsigned vece, TCGv_vec dst,
+                             TCGv_vec src1, TCGv_vec src2)
+{
+    TCGv_vec a = tcg_temp_new_vec_matching(dst);
+    TCGv_vec c = tcg_temp_new_vec_matching(dst);
+
+    tcg_gen_add_vec(vece, a, src1, src2);
+    tcg_gen_cmp_vec(TCG_COND_LTU, vece, c, a, src1);
+    /* Vector cmp produces -1 for true, so subtract to add carry. */
+    tcg_gen_sub_vec(vece, dst, a, c);
+}
+
+static void gen_op_fchksm16(unsigned vece, uint32_t dofs, uint32_t aofs,
+                            uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, INDEX_op_add_vec, INDEX_op_sub_vec,
+    };
+    static const GVecGen3 op = {
+        .fni8 = gen_helper_fchksm16,
+        .fniv = gen_vec_fchksm16,
+        .opt_opc = vecop_list,
+        .vece = MO_16,
+    };
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &op);
+}
+#else
+#define gen_op_fchksm16   ({ qemu_build_not_reached(); NULL; })
+#endif
+
 static void finishing_insn(DisasContext *dc)
 {
     /*
@@ -4761,6 +4792,7 @@ TRANS(FPADD16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_add)
 TRANS(FPADD32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_add)
 TRANS(FPSUB16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sub)
 TRANS(FPSUB32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sub)
+TRANS(FCHKSM16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fchksm16)
 
 static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))

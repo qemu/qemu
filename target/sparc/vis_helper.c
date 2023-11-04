@@ -389,3 +389,26 @@ uint64_t helper_cmask32(uint64_t gsr, uint64_t src)
 
     return deposit64(gsr, 32, 32, mask);
 }
+
+static inline uint16_t do_fchksm16(uint16_t src1, uint16_t src2)
+{
+    uint16_t a = src1 + src2;
+    uint16_t c = a < src1;
+    return a + c;
+}
+
+uint64_t helper_fchksm16(uint64_t src1, uint64_t src2)
+{
+    VIS64 r, s1, s2;
+
+    s1.ll = src1;
+    s2.ll = src2;
+    r.ll = 0;
+
+    r.VIS_W64(0) = do_fchksm16(s1.VIS_W64(0), s2.VIS_W64(0));
+    r.VIS_W64(1) = do_fchksm16(s1.VIS_W64(1), s2.VIS_W64(1));
+    r.VIS_W64(2) = do_fchksm16(s1.VIS_W64(2), s2.VIS_W64(2));
+    r.VIS_W64(3) = do_fchksm16(s1.VIS_W64(3), s2.VIS_W64(3));
+
+    return r.ll;
+}
