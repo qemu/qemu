@@ -359,6 +359,74 @@ float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
     return ret;
 }
 
+float32 helper_fnadds(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float32 ret = float32_add(src1, src2, &env->fp_status);
+
+    /*
+     * NaN inputs or result do not get a sign change.
+     * Nor, apparently, does zero: on hardware, -(x + -x) yields +0.
+     */
+    if (!float32_is_any_nan(ret) && !float32_is_zero(ret)) {
+        ret = float32_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float32 helper_fnmuls(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float32 ret = float32_mul(src1, src2, &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float32_is_any_nan(ret)) {
+        ret = float32_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnaddd(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    float64 ret = float64_add(src1, src2, &env->fp_status);
+
+    /*
+     * NaN inputs or result do not get a sign change.
+     * Nor, apparently, does zero: on hardware, -(x + -x) yields +0.
+     */
+    if (!float64_is_any_nan(ret) && !float64_is_zero(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnmuld(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    float64 ret = float64_mul(src1, src2, &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float64_is_any_nan(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnsmuld(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float64 ret = float64_mul(float32_to_float64(src1, &env->fp_status),
+                              float32_to_float64(src2, &env->fp_status),
+                              &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float64_is_any_nan(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
 static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
 {
     check_ieee_exceptions(env, ra);

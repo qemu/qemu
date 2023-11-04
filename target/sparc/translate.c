@@ -1234,6 +1234,51 @@ static void gen_op_fnmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
     gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
 }
 
+/* Use muladd to compute (1 * src1) + src2 / 2 with one rounding. */
+static void gen_op_fhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
+{
+    TCGv_i32 one = tcg_constant_i32(float32_one);
+    int op = float_muladd_halve_result;
+    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
+static void gen_op_fhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
+{
+    TCGv_i64 one = tcg_constant_i64(float64_one);
+    int op = float_muladd_halve_result;
+    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
+/* Use muladd to compute (1 * src1) - src2 / 2 with one rounding. */
+static void gen_op_fhsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
+{
+    TCGv_i32 one = tcg_constant_i32(float32_one);
+    int op = float_muladd_negate_c | float_muladd_halve_result;
+    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
+static void gen_op_fhsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
+{
+    TCGv_i64 one = tcg_constant_i64(float64_one);
+    int op = float_muladd_negate_c | float_muladd_halve_result;
+    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
+/* Use muladd to compute -((1 * src1) + src2 / 2) with one rounding. */
+static void gen_op_fnhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
+{
+    TCGv_i32 one = tcg_constant_i32(float32_one);
+    int op = float_muladd_negate_result | float_muladd_halve_result;
+    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
+static void gen_op_fnhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
+{
+    TCGv_i64 one = tcg_constant_i64(float64_one);
+    int op = float_muladd_negate_result | float_muladd_halve_result;
+    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+}
+
 static void gen_op_fpexception_im(DisasContext *dc, int ftt)
 {
     /*
@@ -4710,6 +4755,10 @@ TRANS(FXNORs, VIS1, do_fff, a, tcg_gen_eqv_i32)
 TRANS(FORNOTs, VIS1, do_fff, a, tcg_gen_orc_i32)
 TRANS(FORs, VIS1, do_fff, a, tcg_gen_or_i32)
 
+TRANS(FHADDs, VIS3, do_fff, a, gen_op_fhadds)
+TRANS(FHSUBs, VIS3, do_fff, a, gen_op_fhsubs)
+TRANS(FNHADDs, VIS3, do_fff, a, gen_op_fnhadds)
+
 static bool do_env_fff(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32))
 {
@@ -4730,6 +4779,8 @@ TRANS(FADDs, ALL, do_env_fff, a, gen_helper_fadds)
 TRANS(FSUBs, ALL, do_env_fff, a, gen_helper_fsubs)
 TRANS(FMULs, ALL, do_env_fff, a, gen_helper_fmuls)
 TRANS(FDIVs, ALL, do_env_fff, a, gen_helper_fdivs)
+TRANS(FNADDs, VIS3, do_env_fff, a, gen_helper_fnadds)
+TRANS(FNMULs, VIS3, do_env_fff, a, gen_helper_fnmuls)
 
 static bool do_dff(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i32, TCGv_i32))
@@ -4827,6 +4878,10 @@ TRANS(FPACK32, VIS1, do_ddd, a, gen_op_fpack32)
 TRANS(FALIGNDATAg, VIS1, do_ddd, a, gen_op_faligndata)
 TRANS(BSHUFFLE, VIS2, do_ddd, a, gen_op_bshuffle)
 
+TRANS(FHADDd, VIS3, do_ddd, a, gen_op_fhaddd)
+TRANS(FHSUBd, VIS3, do_ddd, a, gen_op_fhsubd)
+TRANS(FNHADDd, VIS3, do_ddd, a, gen_op_fnhaddd)
+
 static bool do_rdd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv, TCGv_i64, TCGv_i64))
 {
@@ -4876,6 +4931,8 @@ TRANS(FADDd, ALL, do_env_ddd, a, gen_helper_faddd)
 TRANS(FSUBd, ALL, do_env_ddd, a, gen_helper_fsubd)
 TRANS(FMULd, ALL, do_env_ddd, a, gen_helper_fmuld)
 TRANS(FDIVd, ALL, do_env_ddd, a, gen_helper_fdivd)
+TRANS(FNADDd, VIS3, do_env_ddd, a, gen_helper_fnaddd)
+TRANS(FNMULd, VIS3, do_env_ddd, a, gen_helper_fnmuld)
 
 static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
 {
@@ -4893,6 +4950,25 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     gen_helper_fsmuld(dst, tcg_env, src1, src2);
+    gen_store_fpr_D(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+static bool trans_FNsMULd(DisasContext *dc, arg_r_r_r *a)
+{
+    TCGv_i64 dst;
+    TCGv_i32 src1, src2;
+
+    if (!avail_VIS3(dc)) {
+        return false;
+    }
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+    dst = tcg_temp_new_i64();
+    src1 = gen_load_fpr_F(dc, a->rs1);
+    src2 = gen_load_fpr_F(dc, a->rs2);
+    gen_helper_fnsmuld(dst, tcg_env, src1, src2);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
