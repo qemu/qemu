@@ -28,6 +28,7 @@
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "fpu/softfloat.h"
 #include "asi.h"
 
 #define HELPER_H "helper.h"
@@ -1142,6 +1143,52 @@ static void gen_op_fabsq(TCGv_i128 dst, TCGv_i128 src)
     tcg_gen_concat_i64_i128(dst, l, h);
 }
 
+static void gen_op_fmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
+{
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+}
+
+static void gen_op_fmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
+{
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+}
+
+static void gen_op_fmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
+{
+    int op = float_muladd_negate_c;
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
+static void gen_op_fmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
+{
+    int op = float_muladd_negate_c;
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
+static void gen_op_fnmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
+{
+    int op = float_muladd_negate_c | float_muladd_negate_result;
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
+static void gen_op_fnmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
+{
+    int op = float_muladd_negate_c | float_muladd_negate_result;
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
+static void gen_op_fnmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
+{
+    int op = float_muladd_negate_result;
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
+static void gen_op_fnmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
+{
+    int op = float_muladd_negate_result;
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+}
+
 static void gen_op_fpexception_im(DisasContext *dc, int ftt)
 {
     /*
@@ -2136,6 +2183,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_MUL(C)     true
 # define avail_POWERDOWN(C) false
 # define avail_64(C)      true
+# define avail_FMAF(C)    ((C)->def->features & CPU_FEATURE_FMAF)
 # define avail_GL(C)      ((C)->def->features & CPU_FEATURE_GL)
 # define avail_HYPV(C)    ((C)->def->features & CPU_FEATURE_HYPV)
 # define avail_VIS1(C)    ((C)->def->features & CPU_FEATURE_VIS1)
@@ -2148,6 +2196,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_MUL(C)     ((C)->def->features & CPU_FEATURE_MUL)
 # define avail_POWERDOWN(C) ((C)->def->features & CPU_FEATURE_POWERDOWN)
 # define avail_64(C)      false
+# define avail_FMAF(C)    false
 # define avail_GL(C)      false
 # define avail_HYPV(C)    false
 # define avail_VIS1(C)    false
@@ -4785,25 +4834,52 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
     return advance_pc(dc);
 }
 
-static bool do_dddd(DisasContext *dc, arg_r_r_r *a,
+static bool do_ffff(DisasContext *dc, arg_r_r_r_r *a,
+                    void (*func)(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 dst, src1, src2, src3;
+
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    src1 = gen_load_fpr_F(dc, a->rs1);
+    src2 = gen_load_fpr_F(dc, a->rs2);
+    src3 = gen_load_fpr_F(dc, a->rs3);
+    dst = tcg_temp_new_i32();
+    func(dst, src1, src2, src3);
+    gen_store_fpr_F(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+TRANS(FMADDs, FMAF, do_ffff, a, gen_op_fmadds)
+TRANS(FMSUBs, FMAF, do_ffff, a, gen_op_fmsubs)
+TRANS(FNMSUBs, FMAF, do_ffff, a, gen_op_fnmsubs)
+TRANS(FNMADDs, FMAF, do_ffff, a, gen_op_fnmadds)
+
+static bool do_dddd(DisasContext *dc, arg_r_r_r_r *a,
                     void (*func)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
-    TCGv_i64 dst, src0, src1, src2;
+    TCGv_i64 dst, src1, src2, src3;
 
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
 
     dst  = tcg_temp_new_i64();
-    src0 = gen_load_fpr_D(dc, a->rd);
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
-    func(dst, src0, src1, src2);
+    src3 = gen_load_fpr_D(dc, a->rs3);
+    func(dst, src1, src2, src3);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
 
 TRANS(PDIST, VIS1, do_dddd, a, gen_helper_pdist)
+TRANS(FMADDd, FMAF, do_dddd, a, gen_op_fmaddd)
+TRANS(FMSUBd, FMAF, do_dddd, a, gen_op_fmsubd)
+TRANS(FNMSUBd, FMAF, do_dddd, a, gen_op_fnmsubd)
+TRANS(FNMADDd, FMAF, do_dddd, a, gen_op_fnmaddd)
 
 static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i128, TCGv_env, TCGv_i128, TCGv_i128))

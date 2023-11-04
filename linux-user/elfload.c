@@ -1003,6 +1003,7 @@ static uint32_t get_elf_hwcap(void)
     r |= features & CPU_FEATURE_FSMULD ? HWCAP_SPARC_FSMULD : 0;
     r |= features & CPU_FEATURE_VIS1 ? HWCAP_SPARC_VIS : 0;
     r |= features & CPU_FEATURE_VIS2 ? HWCAP_SPARC_VIS2 : 0;
+    r |= features & CPU_FEATURE_FMAF ? HWCAP_SPARC_FMAF : 0;
 #endif
 
     return r;

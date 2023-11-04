@@ -343,6 +343,22 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
     return f128_ret(ret);
 }
 
+float32 helper_fmadds(CPUSPARCState *env, float32 s1,
+                      float32 s2, float32 s3, uint32_t op)
+{
+    float32 ret = float32_muladd(s1, s2, s3, op, &env->fp_status);
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
+                      float64 s2, float64 s3, uint32_t op)
+{
+    float64 ret = float64_muladd(s1, s2, s3, op, &env->fp_status);
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
 static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
 {
     check_ieee_exceptions(env, ra);
