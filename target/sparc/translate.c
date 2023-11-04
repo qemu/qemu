@@ -433,6 +433,17 @@ static void gen_op_addccc(TCGv dst, TCGv src1, TCGv src2)
     gen_op_addcc_int(dst, src1, src2, gen_carry32());
 }
 
+static void gen_op_addxc(TCGv dst, TCGv src1, TCGv src2)
+{
+    tcg_gen_add_tl(dst, src1, src2);
+    tcg_gen_add_tl(dst, dst, cpu_cc_C);
+}
+
+static void gen_op_addxccc(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_addcc_int(dst, src1, src2, cpu_cc_C);
+}
+
 static void gen_op_subcc_int(TCGv dst, TCGv src1, TCGv src2, TCGv cin)
 {
     TCGv z = tcg_constant_tl(0);
@@ -3691,6 +3702,9 @@ static bool do_rrr(DisasContext *dc, arg_r_r_r *a,
 TRANS(ARRAY8, VIS1, do_rrr, a, gen_helper_array8)
 TRANS(ARRAY16, VIS1, do_rrr, a, gen_op_array16)
 TRANS(ARRAY32, VIS1, do_rrr, a, gen_op_array32)
+
+TRANS(ADDXC, VIS3, do_rrr, a, gen_op_addxc)
+TRANS(ADDXCcc, VIS3, do_rrr, a, gen_op_addxccc)
 
 static void gen_op_alignaddr(TCGv dst, TCGv s1, TCGv s2)
 {
