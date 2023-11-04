@@ -815,8 +815,37 @@ static void gen_op_fchksm16(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &op);
 }
+
+static void gen_vec_fmean16(unsigned vece, TCGv_vec dst,
+                            TCGv_vec src1, TCGv_vec src2)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(dst);
+
+    tcg_gen_or_vec(vece, t, src1, src2);
+    tcg_gen_and_vec(vece, t, t, tcg_constant_vec_matching(dst, vece, 1));
+    tcg_gen_sari_vec(vece, src1, src1, 1);
+    tcg_gen_sari_vec(vece, src2, src2, 1);
+    tcg_gen_add_vec(vece, dst, src1, src2);
+    tcg_gen_add_vec(vece, dst, dst, t);
+}
+
+static void gen_op_fmean16(unsigned vece, uint32_t dofs, uint32_t aofs,
+                           uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_add_vec, INDEX_op_sari_vec,
+    };
+    static const GVecGen3 op = {
+        .fni8 = gen_helper_fmean16,
+        .fniv = gen_vec_fmean16,
+        .opt_opc = vecop_list,
+        .vece = MO_16,
+    };
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &op);
+}
 #else
 #define gen_op_fchksm16   ({ qemu_build_not_reached(); NULL; })
+#define gen_op_fmean16    ({ qemu_build_not_reached(); NULL; })
 #endif
 
 static void finishing_insn(DisasContext *dc)
@@ -4844,6 +4873,7 @@ TRANS(FPADD32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_add)
 TRANS(FPSUB16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sub)
 TRANS(FPSUB32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sub)
 TRANS(FCHKSM16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fchksm16)
+TRANS(FMEAN16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fmean16)
 
 static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))
