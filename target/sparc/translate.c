@@ -4912,6 +4912,9 @@ TRANS(FHADDd, VIS3, do_ddd, a, gen_op_fhaddd)
 TRANS(FHSUBd, VIS3, do_ddd, a, gen_op_fhsubd)
 TRANS(FNHADDd, VIS3, do_ddd, a, gen_op_fnhaddd)
 
+TRANS(FPADD64, VIS3B, do_ddd, a, tcg_gen_add_i64)
+TRANS(FPSUB64, VIS3B, do_ddd, a, tcg_gen_sub_i64)
+
 static bool do_rdd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv, TCGv_i64, TCGv_i64))
 {
