@@ -351,3 +351,41 @@ uint64_t helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
 
     return r.ll;
 }
+
+uint64_t helper_cmask8(uint64_t gsr, uint64_t src)
+{
+    uint32_t mask = 0;
+
+    mask |= (src & 0x01 ? 0x00000007 : 0x0000000f);
+    mask |= (src & 0x02 ? 0x00000060 : 0x000000e0);
+    mask |= (src & 0x04 ? 0x00000500 : 0x00000d00);
+    mask |= (src & 0x08 ? 0x00004000 : 0x0000c000);
+    mask |= (src & 0x10 ? 0x00030000 : 0x000b0000);
+    mask |= (src & 0x20 ? 0x00200000 : 0x00a00000);
+    mask |= (src & 0x40 ? 0x01000000 : 0x09000000);
+    mask |= (src & 0x80 ? 0x00000000 : 0x80000000);
+
+    return deposit64(gsr, 32, 32, mask);
+}
+
+uint64_t helper_cmask16(uint64_t gsr, uint64_t src)
+{
+    uint32_t mask = 0;
+
+    mask |= (src & 0x1 ? 0x00000067 : 0x000000ef);
+    mask |= (src & 0x2 ? 0x00004500 : 0x0000cd00);
+    mask |= (src & 0x4 ? 0x00230000 : 0x00ab0000);
+    mask |= (src & 0x8 ? 0x01000000 : 0x89000000);
+
+    return deposit64(gsr, 32, 32, mask);
+}
+
+uint64_t helper_cmask32(uint64_t gsr, uint64_t src)
+{
+    uint32_t mask = 0;
+
+    mask |= (src & 0x1 ? 0x00004567 : 0x0000cdef);
+    mask |= (src & 0x2 ? 0x01230000 : 0x89ab0000);
+
+    return deposit64(gsr, 32, 32, mask);
+}

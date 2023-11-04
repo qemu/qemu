@@ -61,6 +61,9 @@
 # define gen_helper_write_softint(E, S)         qemu_build_not_reached()
 # define gen_helper_wrpil(E, S)                 qemu_build_not_reached()
 # define gen_helper_wrpstate(E, S)              qemu_build_not_reached()
+# define gen_helper_cmask8               ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_cmask16              ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_cmask32              ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpeq16             ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpeq32             ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fcmpgt16             ({ qemu_build_not_reached(); NULL; })
@@ -3747,6 +3750,16 @@ static void gen_op_bmask(TCGv dst, TCGv s1, TCGv s2)
 }
 
 TRANS(BMASK, VIS2, do_rrr, a, gen_op_bmask)
+
+static bool do_cmask(DisasContext *dc, int rs2, void (*func)(TCGv, TCGv, TCGv))
+{
+    func(cpu_gsr, cpu_gsr, gen_load_gpr(dc, rs2));
+    return true;
+}
+
+TRANS(CMASK8, VIS3, do_cmask, a->rs2, gen_helper_cmask8)
+TRANS(CMASK16, VIS3, do_cmask, a->rs2, gen_helper_cmask16)
+TRANS(CMASK32, VIS3, do_cmask, a->rs2, gen_helper_cmask32)
 
 static bool do_shift_r(DisasContext *dc, arg_shiftr *a, bool l, bool u)
 {
