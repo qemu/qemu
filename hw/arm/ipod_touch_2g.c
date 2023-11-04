@@ -132,6 +132,47 @@ static uint32_t s5l8720_usb_hwcfg[] = {
     0x01f08024
 };
 
+static void ipod_touch_key_event(void *opaque, int keycode)
+{
+    bool do_irq = false;
+    int gpio_group = 0, gpio_selector = 0;
+
+    IPodTouchMultitouchState *s = (IPodTouchMultitouchState *)opaque;
+    if(keycode == 25 || keycode == 153) {
+        // power button
+        gpio_group = GPIO_BUTTON_POWER_IRQ / NUM_GPIO_PINS;
+        gpio_selector = GPIO_BUTTON_POWER_IRQ % NUM_GPIO_PINS;
+        
+        if(keycode == 25 && (s->gpio_state->gpio_state & (1 << (GPIO_BUTTON_POWER & 0xf))) == 0) {
+            s->gpio_state->gpio_state |= (1 << (GPIO_BUTTON_POWER & 0xf));
+            do_irq = true;
+        }
+        else if(keycode == 153) {
+            s->gpio_state->gpio_state &= ~(1 << (GPIO_BUTTON_POWER & 0xf));
+            do_irq = true;
+        }
+    }
+    else if(keycode == 35 || keycode == 163) {
+        // home button
+        gpio_group = GPIO_BUTTON_HOME_IRQ / NUM_GPIO_PINS;
+        gpio_selector = GPIO_BUTTON_HOME_IRQ % NUM_GPIO_PINS;
+
+        if(keycode == 35 && (s->gpio_state->gpio_state & (1 << (GPIO_BUTTON_HOME & 0xf))) == 0) {
+            s->gpio_state->gpio_state |= (1 << (GPIO_BUTTON_HOME & 0xf));
+            do_irq = true;
+        }
+        else if(keycode == 163) {
+            s->gpio_state->gpio_state &= ~(1 << (GPIO_BUTTON_HOME & 0xf));
+            do_irq = true;
+        }
+    }
+    
+    if(do_irq) {
+        s->sysic->gpio_int_status[gpio_group] |= (1 << gpio_selector);
+        qemu_irq_raise(s->sysic->gpio_irqs[gpio_group]);
+    }
+}
+
 static void ipod_touch_machine_init(MachineState *machine)
 {
 	IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
@@ -425,6 +466,8 @@ static void ipod_touch_machine_init(MachineState *machine)
     memory_region_add_subregion(sysmem, MBX2_MEM_BASE, &mbx_state->iomem2);
 
     qemu_register_reset(ipod_touch_cpu_reset, nms);
+
+    qemu_add_kbd_event_handler(ipod_touch_key_event, spi4_state->mt);
 }
 
 static void ipod_touch_machine_class_init(ObjectClass *klass, void *data)

@@ -13,11 +13,11 @@ static void s5l8900_gpio_write(void *opaque, hwaddr addr, uint64_t value, unsign
 
 static uint64_t s5l8900_gpio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    //fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
+    fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
     IPodTouchGPIOState *s = (struct IPodTouchGPIOState *) opaque;
 
     switch(addr) {
-        case 0x2c4:
+        case 0x184:  // TODO: This offset only makes sure that the GPIO triggers associated with the home/power button work correctly!!
             return s->gpio_state;
         default:
             break;
@@ -38,7 +38,7 @@ static void s5l8900_gpio_init(Object *obj)
     DeviceState *dev = DEVICE(sbd);
     IPodTouchGPIOState *s = IPOD_TOUCH_GPIO(dev);
 
-    memory_region_init_io(&s->iomem, obj, &gpio_ops, s, "gpio", 0x10000);
+    memory_region_init_io(&s->iomem, obj, &gpio_ops, s, "gpio", 0x1000);
 }
 
 static void s5l8900_gpio_class_init(ObjectClass *klass, void *data)

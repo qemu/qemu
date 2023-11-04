@@ -5,6 +5,7 @@
 #include "hw/boards.h"
 #include "hw/intc/pl192.h"
 #include "hw/arm/boot.h"
+#include "ui/console.h"
 #include "cpu.h"
 #include "hw/dma/pl080.h"
 #include "hw/i2c/ipod_touch_i2c.h"
