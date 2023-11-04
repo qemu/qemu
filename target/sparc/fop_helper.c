@@ -490,6 +490,52 @@ uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
     return finish_fcmp(env, r, GETPC());
 }
 
+uint32_t helper_flcmps(float32 src1, float32 src2)
+{
+    /*
+     * FLCMP never raises an exception nor modifies any FSR fields.
+     * Perform the comparison with a dummy fp environment.
+     */
+    float_status discard = { };
+    FloatRelation r = float32_compare_quiet(src1, src2, &discard);
+
+    switch (r) {
+    case float_relation_equal:
+        if (src2 == float32_zero && src1 != float32_zero) {
+            return 1;  /* -0.0 < +0.0 */
+        }
+        return 0;
+    case float_relation_less:
+        return 1;
+    case float_relation_greater:
+        return 0;
+    case float_relation_unordered:
+        return float32_is_any_nan(src2) ? 3 : 2;
+    }
+    g_assert_not_reached();
+}
+
+uint32_t helper_flcmpd(float64 src1, float64 src2)
+{
+    float_status discard = { };
+    FloatRelation r = float64_compare_quiet(src1, src2, &discard);
+
+    switch (r) {
+    case float_relation_equal:
+        if (src2 == float64_zero && src1 != float64_zero) {
+            return 1;  /* -0.0 < +0.0 */
+        }
+        return 0;
+    case float_relation_less:
+        return 1;
+    case float_relation_greater:
+        return 0;
+    case float_relation_unordered:
+        return float64_is_any_nan(src2) ? 3 : 2;
+    }
+    g_assert_not_reached();
+}
+
 target_ulong cpu_get_fsr(CPUSPARCState *env)
 {
     target_ulong fsr = env->fsr | env->fsr_cexc_ftt;
