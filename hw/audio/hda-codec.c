@@ -868,10 +868,10 @@ static Property hda_audio_properties[] = {
 static void hda_audio_init_output(HDACodecDevice *hda, Error **errp)
 {
     HDAAudioState *a = HDA_AUDIO(hda);
-    const struct desc_codec *desc = &output_nomixemu;
+    const struct desc_codec *desc = &output_mixemu;
 
     if (!a->mixer) {
-        desc = &output_mixemu;
+        desc = &output_nomixemu;
     }
 
     hda_audio_init(hda, desc, errp);
@@ -880,10 +880,10 @@ static void hda_audio_init_output(HDACodecDevice *hda, Error **errp)
 static void hda_audio_init_duplex(HDACodecDevice *hda, Error **errp)
 {
     HDAAudioState *a = HDA_AUDIO(hda);
-    const struct desc_codec *desc = &duplex_nomixemu;
+    const struct desc_codec *desc = &duplex_mixemu;
 
     if (!a->mixer) {
-        desc = &duplex_mixemu;
+        desc = &duplex_nomixemu;
     }
 
     hda_audio_init(hda, desc, errp);
@@ -892,10 +892,10 @@ static void hda_audio_init_duplex(HDACodecDevice *hda, Error **errp)
 static void hda_audio_init_micro(HDACodecDevice *hda, Error **errp)
 {
     HDAAudioState *a = HDA_AUDIO(hda);
-    const struct desc_codec *desc = &micro_nomixemu;
+    const struct desc_codec *desc = &micro_mixemu;
 
     if (!a->mixer) {
-        desc = &micro_mixemu;
+        desc = &micro_nomixemu;
     }
 
     hda_audio_init(hda, desc, errp);
