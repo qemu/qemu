@@ -809,7 +809,8 @@ static void gen_op_fpsubs32s(TCGv_i32 d, TCGv_i32 src1, TCGv_i32 src2)
     tcg_gen_movcond_i32(TCG_COND_LT, d, v, z, t, r);
 }
 
-static void gen_op_faligndata(TCGv_i64 dst, TCGv_i64 s1, TCGv_i64 s2)
+static void gen_op_faligndata_i(TCGv_i64 dst, TCGv_i64 s1,
+                                TCGv_i64 s2, TCGv gsr)
 {
 #ifdef TARGET_SPARC64
     TCGv t1, t2, shift;
@@ -818,7 +819,7 @@ static void gen_op_faligndata(TCGv_i64 dst, TCGv_i64 s1, TCGv_i64 s2)
     t2 = tcg_temp_new();
     shift = tcg_temp_new();
 
-    tcg_gen_andi_tl(shift, cpu_gsr, 7);
+    tcg_gen_andi_tl(shift, gsr, 7);
     tcg_gen_shli_tl(shift, shift, 3);
     tcg_gen_shl_tl(t1, s1, shift);
 
@@ -834,6 +835,11 @@ static void gen_op_faligndata(TCGv_i64 dst, TCGv_i64 s1, TCGv_i64 s2)
 #else
     g_assert_not_reached();
 #endif
+}
+
+static void gen_op_faligndata_g(TCGv_i64 dst, TCGv_i64 s1, TCGv_i64 s2)
+{
+    gen_op_faligndata_i(dst, s1, s2, cpu_gsr);
 }
 
 static void gen_op_bshuffle(TCGv_i64 dst, TCGv_i64 src1, TCGv_i64 src2)
@@ -5068,7 +5074,7 @@ TRANS(FORNOTd, VIS1, do_ddd, a, tcg_gen_orc_i64)
 TRANS(FORd, VIS1, do_ddd, a, tcg_gen_or_i64)
 
 TRANS(FPACK32, VIS1, do_ddd, a, gen_op_fpack32)
-TRANS(FALIGNDATAg, VIS1, do_ddd, a, gen_op_faligndata)
+TRANS(FALIGNDATAg, VIS1, do_ddd, a, gen_op_faligndata_g)
 TRANS(BSHUFFLE, VIS2, do_ddd, a, gen_op_bshuffle)
 
 TRANS(FHADDd, VIS3, do_ddd, a, gen_op_fhaddd)
@@ -5228,6 +5234,27 @@ TRANS(FNMSUBd, FMAF, do_dddd, a, gen_op_fnmsubd)
 TRANS(FNMADDd, FMAF, do_dddd, a, gen_op_fnmaddd)
 TRANS(FPMADDX, IMA, do_dddd, a, gen_op_fpmaddx)
 TRANS(FPMADDXHI, IMA, do_dddd, a, gen_op_fpmaddxhi)
+
+static bool trans_FALIGNDATAi(DisasContext *dc, arg_r_r_r *a)
+{
+    TCGv_i64 dst, src1, src2;
+    TCGv src3;
+
+    if (!avail_VIS4(dc)) {
+        return false;
+    }
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    dst  = tcg_temp_new_i64();
+    src1 = gen_load_fpr_D(dc, a->rd);
+    src2 = gen_load_fpr_D(dc, a->rs2);
+    src3 = gen_load_gpr(dc, a->rs1);
+    gen_op_faligndata_i(dst, src1, src2, src3);
+    gen_store_fpr_D(dc, a->rd, dst);
+    return advance_pc(dc);
+}
 
 static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i128, TCGv_env, TCGv_i128, TCGv_i128))
