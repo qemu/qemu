@@ -4458,7 +4458,7 @@ static bool trans_LDFSR(DisasContext *dc, arg_r_r_ri *a)
     return advance_pc(dc);
 }
 
-static bool trans_LDXFSR(DisasContext *dc, arg_r_r_ri *a)
+static bool do_ldxfsr(DisasContext *dc, arg_r_r_ri *a, bool entire)
 {
 #ifdef TARGET_SPARC64
     TCGv addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
@@ -4483,12 +4483,19 @@ static bool trans_LDXFSR(DisasContext *dc, arg_r_r_ri *a)
     tcg_gen_extract_i32(cpu_fcc[2], hi, FSR_FCC2_SHIFT - 32, 2);
     tcg_gen_extract_i32(cpu_fcc[3], hi, FSR_FCC3_SHIFT - 32, 2);
 
-    gen_helper_set_fsr_nofcc_noftt(tcg_env, lo);
+    if (entire) {
+        gen_helper_set_fsr_nofcc(tcg_env, lo);
+    } else {
+        gen_helper_set_fsr_nofcc_noftt(tcg_env, lo);
+    }
     return advance_pc(dc);
 #else
     return false;
 #endif
 }
+
+TRANS(LDXFSR, 64, do_ldxfsr, a, false)
+TRANS(LDXEFSR, VIS3B, do_ldxfsr, a, true)
 
 static bool do_stfsr(DisasContext *dc, arg_r_r_ri *a, MemOp mop)
 {

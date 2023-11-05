@@ -602,3 +602,9 @@ void helper_set_fsr_nofcc_noftt(CPUSPARCState *env, uint32_t fsr)
     env->fsr_cexc_ftt |= fsr & FSR_CEXC_MASK;
     set_fsr_nonsplit(env, fsr);
 }
+
+void helper_set_fsr_nofcc(CPUSPARCState *env, uint32_t fsr)
+{
+    env->fsr_cexc_ftt = fsr & (FSR_CEXC_MASK | FSR_FTT_MASK);
+    set_fsr_nonsplit(env, fsr);
+}
