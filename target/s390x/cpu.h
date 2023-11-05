@@ -55,7 +55,7 @@ typedef struct PSW {
     uint64_t addr;
 } PSW;
 
-struct CPUArchState {
+typedef struct CPUArchState {
     uint64_t regs[16];     /* GP registers */
     /*
      * The floating point registers are part of the vector registers.
@@ -157,7 +157,7 @@ struct CPUArchState {
     /* currently processed sigp order */
     uint8_t sigp_order;
 
-};
+} CPUS390XState;
 
 static inline uint64_t *get_freg(CPUS390XState *cs, int nr)
 {
