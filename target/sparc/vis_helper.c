@@ -66,6 +66,7 @@ target_ulong helper_array8(target_ulong rs1, target_ulong rs2)
 #define VIS_W64(n) w[3 - (n)]
 #define VIS_SW64(n) sw[3 - (n)]
 #define VIS_L64(n) l[1 - (n)]
+#define VIS_SL64(n) sl[1 - (n)]
 #define VIS_B32(n) b[3 - (n)]
 #define VIS_W32(n) w[1 - (n)]
 #else
@@ -74,6 +75,7 @@ target_ulong helper_array8(target_ulong rs1, target_ulong rs2)
 #define VIS_W64(n) w[n]
 #define VIS_SW64(n) sw[n]
 #define VIS_L64(n) l[n]
+#define VIS_SL64(n) sl[n]
 #define VIS_B32(n) b[n]
 #define VIS_W32(n) w[n]
 #endif
@@ -84,6 +86,7 @@ typedef union {
     uint16_t w[4];
     int16_t sw[4];
     uint32_t l[2];
+    int32_t sl[2];
     uint64_t ll;
     float64 d;
 } VIS64;
@@ -198,47 +201,6 @@ uint64_t helper_fexpand(uint32_t src2)
     return d.ll;
 }
 
-#define VIS_CMPHELPER(name, F)                                    \
-    uint64_t name##16(uint64_t src1, uint64_t src2)               \
-    {                                                             \
-        VIS64 s, d;                                               \
-                                                                  \
-        s.ll = src1;                                              \
-        d.ll = src2;                                              \
-                                                                  \
-        d.VIS_W64(0) = F(s.VIS_W64(0), d.VIS_W64(0)) ? 1 : 0;     \
-        d.VIS_W64(0) |= F(s.VIS_W64(1), d.VIS_W64(1)) ? 2 : 0;    \
-        d.VIS_W64(0) |= F(s.VIS_W64(2), d.VIS_W64(2)) ? 4 : 0;    \
-        d.VIS_W64(0) |= F(s.VIS_W64(3), d.VIS_W64(3)) ? 8 : 0;    \
-        d.VIS_W64(1) = d.VIS_W64(2) = d.VIS_W64(3) = 0;           \
-                                                                  \
-        return d.ll;                                              \
-    }                                                             \
-                                                                  \
-    uint64_t name##32(uint64_t src1, uint64_t src2)               \
-    {                                                             \
-        VIS64 s, d;                                               \
-                                                                  \
-        s.ll = src1;                                              \
-        d.ll = src2;                                              \
-                                                                  \
-        d.VIS_L64(0) = F(s.VIS_L64(0), d.VIS_L64(0)) ? 1 : 0;     \
-        d.VIS_L64(0) |= F(s.VIS_L64(1), d.VIS_L64(1)) ? 2 : 0;    \
-        d.VIS_L64(1) = 0;                                         \
-                                                                  \
-        return d.ll;                                              \
-    }
-
-#define FCMPGT(a, b) ((a) > (b))
-#define FCMPEQ(a, b) ((a) == (b))
-#define FCMPLE(a, b) ((a) <= (b))
-#define FCMPNE(a, b) ((a) != (b))
-
-VIS_CMPHELPER(helper_fcmpgt, FCMPGT)
-VIS_CMPHELPER(helper_fcmpeq, FCMPEQ)
-VIS_CMPHELPER(helper_fcmple, FCMPLE)
-VIS_CMPHELPER(helper_fcmpne, FCMPNE)
-
 uint64_t helper_fcmpeq8(uint64_t src1, uint64_t src2)
 {
     uint64_t a = src1 ^ src2;
@@ -260,6 +222,25 @@ uint64_t helper_fcmpne8(uint64_t src1, uint64_t src2)
     return helper_fcmpeq8(src1, src2) ^ 0xff;
 }
 
+uint64_t helper_fcmple8(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 8; ++i) {
+        r |= (s1.VIS_SB64(i) <= s2.VIS_SB64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpgt8(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmple8(src1, src2) ^ 0xff;
+}
+
 uint64_t helper_fcmpule8(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
@@ -277,6 +258,113 @@ uint64_t helper_fcmpule8(uint64_t src1, uint64_t src2)
 uint64_t helper_fcmpugt8(uint64_t src1, uint64_t src2)
 {
     return helper_fcmpule8(src1, src2) ^ 0xff;
+}
+
+uint64_t helper_fcmpeq16(uint64_t src1, uint64_t src2)
+{
+    uint64_t a = src1 ^ src2;
+    uint64_t m = 0x7fff7fff7fff7fffULL;
+    uint64_t c = ~(((a & m) + m) | a | m);
+
+    /* a...............b...............c...............d............... */
+    c |= c << 15;
+    /* ab..............bc..............cd..............d............... */
+    c |= c << 30;
+    /* abcd............bcd.............cd..............d............... */
+    return c >> 60;
+}
+
+uint64_t helper_fcmpne16(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmpeq16(src1, src2) ^ 0xf;
+}
+
+uint64_t helper_fcmple16(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 4; ++i) {
+        r |= (s1.VIS_SW64(i) <= s2.VIS_SW64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpgt16(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmple16(src1, src2) ^ 0xf;
+}
+
+uint64_t helper_fcmpule16(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 4; ++i) {
+        r |= (s1.VIS_W64(i) <= s2.VIS_W64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpugt16(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmpule16(src1, src2) ^ 0xf;
+}
+
+uint64_t helper_fcmpeq32(uint64_t src1, uint64_t src2)
+{
+    uint64_t a = src1 ^ src2;
+    return ((uint32_t)a == 0) | (a >> 32 ? 0 : 2);
+}
+
+uint64_t helper_fcmpne32(uint64_t src1, uint64_t src2)
+{
+    uint64_t a = src1 ^ src2;
+    return ((uint32_t)a != 0) | (a >> 32 ? 2 : 0);
+}
+
+uint64_t helper_fcmple32(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 2; ++i) {
+        r |= (s1.VIS_SL64(i) <= s2.VIS_SL64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpgt32(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmple32(src1, src2) ^ 3;
+}
+
+uint64_t helper_fcmpule32(uint64_t src1, uint64_t src2)
+{
+    VIS64 s1, s2;
+    uint64_t r = 0;
+
+    s1.ll = src1;
+    s2.ll = src2;
+
+    for (int i = 0; i < 2; ++i) {
+        r |= (s1.VIS_L64(i) <= s2.VIS_L64(i)) << i;
+    }
+    return r;
+}
+
+uint64_t helper_fcmpugt32(uint64_t src1, uint64_t src2)
+{
+    return helper_fcmpule32(src1, src2) ^ 3;
 }
 
 uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
