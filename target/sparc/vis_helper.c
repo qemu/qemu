@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "crypto/clmul.h"
 
 target_ulong helper_array8(target_ulong rs1, target_ulong rs2)
 {
@@ -508,4 +509,14 @@ uint64_t helper_fslas32(uint64_t src1, uint64_t src2)
     }
 
     return r.ll;
+}
+
+uint64_t helper_xmulx(uint64_t src1, uint64_t src2)
+{
+    return int128_getlo(clmul_64(src1, src2));
+}
+
+uint64_t helper_xmulxhi(uint64_t src1, uint64_t src2)
+{
+    return int128_gethi(clmul_64(src1, src2));
 }

@@ -90,6 +90,8 @@
 # define gen_helper_fxtoq                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fxtos                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_pdist                ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_xmulx                ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_xmulxhi              ({ qemu_build_not_reached(); NULL; })
 # define MAXTL_MASK                             0
 #endif
 
@@ -5088,6 +5090,8 @@ TRANS(FPCMPULE8, VIS3B, do_rdd, a, gen_helper_fcmpule8)
 TRANS(FPCMPUGT8, VIS3B, do_rdd, a, gen_helper_fcmpugt8)
 
 TRANS(PDISTN, VIS3, do_rdd, a, gen_op_pdistn)
+TRANS(XMULX, VIS3, do_rrr, a, gen_helper_xmulx)
+TRANS(XMULXHI, VIS3, do_rrr, a, gen_helper_xmulxhi)
 
 static bool do_env_ddd(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i64, TCGv_env, TCGv_i64, TCGv_i64))
