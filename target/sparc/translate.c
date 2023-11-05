@@ -5401,6 +5401,42 @@ static bool trans_FLCMPd(DisasContext *dc, arg_FLCMPd *a)
     return advance_pc(dc);
 }
 
+static bool do_movf2r(DisasContext *dc, arg_r_r *a,
+                      int (*offset)(unsigned int),
+                      void (*load)(TCGv, TCGv_ptr, tcg_target_long))
+{
+    TCGv dst;
+
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+    dst = gen_dest_gpr(dc, a->rd);
+    load(dst, tcg_env, offset(a->rs));
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+TRANS(MOVsTOsw, VIS3B, do_movf2r, a, gen_offset_fpr_F, tcg_gen_ld32s_tl)
+TRANS(MOVsTOuw, VIS3B, do_movf2r, a, gen_offset_fpr_F, tcg_gen_ld32u_tl)
+TRANS(MOVdTOx, VIS3B, do_movf2r, a, gen_offset_fpr_D, tcg_gen_ld_tl)
+
+static bool do_movr2f(DisasContext *dc, arg_r_r *a,
+                      int (*offset)(unsigned int),
+                      void (*store)(TCGv, TCGv_ptr, tcg_target_long))
+{
+    TCGv src;
+
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+    src = gen_load_gpr(dc, a->rs);
+    store(src, tcg_env, offset(a->rd));
+    return advance_pc(dc);
+}
+
+TRANS(MOVwTOs, VIS3B, do_movr2f, a, gen_offset_fpr_F, tcg_gen_st32_tl)
+TRANS(MOVxTOd, VIS3B, do_movr2f, a, gen_offset_fpr_D, tcg_gen_st_tl)
+
 static void sparc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
