@@ -473,3 +473,39 @@ uint64_t helper_fmean16(uint64_t src1, uint64_t src2)
 
     return r.ll;
 }
+
+uint64_t helper_fslas16(uint64_t src1, uint64_t src2)
+{
+    VIS64 r, s1, s2;
+
+    s1.ll = src1;
+    s2.ll = src2;
+    r.ll = 0;
+
+    for (int i = 0; i < 4; ++i) {
+        int t = s1.VIS_SW64(i) << (s2.VIS_W64(i) % 16);
+        t = MIN(t, INT16_MAX);
+        t = MAX(t, INT16_MIN);
+        r.VIS_SW64(i) = t;
+    }
+
+    return r.ll;
+}
+
+uint64_t helper_fslas32(uint64_t src1, uint64_t src2)
+{
+    VIS64 r, s1, s2;
+
+    s1.ll = src1;
+    s2.ll = src2;
+    r.ll = 0;
+
+    for (int i = 0; i < 2; ++i) {
+        int64_t t = (int64_t)(int32_t)s1.VIS_L64(i) << (s2.VIS_L64(i) % 32);
+        t = MIN(t, INT32_MAX);
+        t = MAX(t, INT32_MIN);
+        r.VIS_L64(i) = t;
+    }
+
+    return r.ll;
+}
