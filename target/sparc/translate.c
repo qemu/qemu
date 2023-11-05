@@ -1607,6 +1607,7 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
         case ASI_BLK_AIUP_L_4V:
         case ASI_BLK_AIUP:
         case ASI_BLK_AIUPL:
+        case ASI_MON_AIUP:
             mem_idx = MMU_USER_IDX;
             break;
         case ASI_AIUS:  /* As if user secondary */
@@ -1617,6 +1618,7 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
         case ASI_BLK_AIUS_L_4V:
         case ASI_BLK_AIUS:
         case ASI_BLK_AIUSL:
+        case ASI_MON_AIUS:
             mem_idx = MMU_USER_SECONDARY_IDX;
             break;
         case ASI_S:  /* Secondary */
@@ -1630,6 +1632,7 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
         case ASI_FL8_SL:
         case ASI_FL16_S:
         case ASI_FL16_SL:
+        case ASI_MON_S:
             if (mem_idx == MMU_USER_IDX) {
                 mem_idx = MMU_USER_SECONDARY_IDX;
             } else if (mem_idx == MMU_KERNEL_IDX) {
@@ -1647,6 +1650,7 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
         case ASI_FL8_PL:
         case ASI_FL16_P:
         case ASI_FL16_PL:
+        case ASI_MON_P:
             break;
         }
         switch (asi) {
@@ -1664,6 +1668,10 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
         case ASI_SL:
         case ASI_P:
         case ASI_PL:
+        case ASI_MON_P:
+        case ASI_MON_S:
+        case ASI_MON_AIUP:
+        case ASI_MON_AIUS:
             type = GET_ASI_DIRECT;
             break;
         case ASI_TWINX_REAL:
