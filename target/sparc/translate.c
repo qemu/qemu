@@ -5025,17 +5025,28 @@ static bool do_gvec_ddd(DisasContext *dc, arg_r_r_r *a, MemOp vece,
     return advance_pc(dc);
 }
 
+TRANS(FPADD8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_add)
 TRANS(FPADD16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_add)
 TRANS(FPADD32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_add)
+
+TRANS(FPSUB8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_sub)
 TRANS(FPSUB16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sub)
 TRANS(FPSUB32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sub)
+
 TRANS(FCHKSM16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fchksm16)
 TRANS(FMEAN16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fmean16)
 
+TRANS(FPADDS8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_ssadd)
 TRANS(FPADDS16, VIS3, do_gvec_ddd, a, MO_16, tcg_gen_gvec_ssadd)
 TRANS(FPADDS32, VIS3, do_gvec_ddd, a, MO_32, tcg_gen_gvec_ssadd)
+TRANS(FPADDUS8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_usadd)
+TRANS(FPADDUS16, VIS4, do_gvec_ddd, a, MO_16, tcg_gen_gvec_usadd)
+
+TRANS(FPSUBS8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_sssub)
 TRANS(FPSUBS16, VIS3, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sssub)
 TRANS(FPSUBS32, VIS3, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sssub)
+TRANS(FPSUBUS8, VIS4, do_gvec_ddd, a, MO_8, tcg_gen_gvec_ussub)
+TRANS(FPSUBUS16, VIS4, do_gvec_ddd, a, MO_16, tcg_gen_gvec_ussub)
 
 TRANS(FSLL16, VIS3, do_gvec_ddd, a, MO_16, tcg_gen_gvec_shlv)
 TRANS(FSLL32, VIS3, do_gvec_ddd, a, MO_32, tcg_gen_gvec_shlv)
