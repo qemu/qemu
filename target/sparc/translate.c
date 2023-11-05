@@ -817,6 +817,15 @@ static void gen_op_bshuffle(TCGv_i64 dst, TCGv_i64 src1, TCGv_i64 src2)
 #endif
 }
 
+static void gen_op_pdistn(TCGv dst, TCGv_i64 src1, TCGv_i64 src2)
+{
+#ifdef TARGET_SPARC64
+    gen_helper_pdist(dst, tcg_constant_i64(0), src1, src2);
+#else
+    g_assert_not_reached();
+#endif
+}
+
 static void gen_op_fmul8x16al(TCGv_i64 dst, TCGv_i32 src1, TCGv_i32 src2)
 {
     tcg_gen_ext16s_i32(src2, src2);
@@ -5069,6 +5078,8 @@ TRANS(FPCMPEQ8, VIS3B, do_rdd, a, gen_helper_fcmpeq8)
 TRANS(FPCMPNE8, VIS3B, do_rdd, a, gen_helper_fcmpne8)
 TRANS(FPCMPULE8, VIS3B, do_rdd, a, gen_helper_fcmpule8)
 TRANS(FPCMPUGT8, VIS3B, do_rdd, a, gen_helper_fcmpugt8)
+
+TRANS(PDISTN, VIS3, do_rdd, a, gen_op_pdistn)
 
 static bool do_env_ddd(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i64, TCGv_env, TCGv_i64, TCGv_i64))
