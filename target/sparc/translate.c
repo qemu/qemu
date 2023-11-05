@@ -589,6 +589,26 @@ static void gen_op_umulxhi(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mulu2_tl(discard, dst, src1, src2);
 }
 
+static void gen_op_fpmaddx(TCGv_i64 dst, TCGv_i64 src1,
+                           TCGv_i64 src2, TCGv_i64 src3)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t, src1, src2);
+    tcg_gen_add_i64(dst, src3, t);
+}
+
+static void gen_op_fpmaddxhi(TCGv_i64 dst, TCGv_i64 src1,
+                             TCGv_i64 src2, TCGv_i64 src3)
+{
+    TCGv_i64 l = tcg_temp_new_i64();
+    TCGv_i64 h = tcg_temp_new_i64();
+    TCGv_i64 z = tcg_constant_i64(0);
+
+    tcg_gen_mulu2_i64(l, h, src1, src2);
+    tcg_gen_add2_i64(l, dst, l, h, src3, z);
+}
+
 static void gen_op_sdiv(TCGv dst, TCGv src1, TCGv src2)
 {
 #ifdef TARGET_SPARC64
@@ -2405,6 +2425,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_FMAF(C)    ((C)->def->features & CPU_FEATURE_FMAF)
 # define avail_GL(C)      ((C)->def->features & CPU_FEATURE_GL)
 # define avail_HYPV(C)    ((C)->def->features & CPU_FEATURE_HYPV)
+# define avail_IMA(C)     ((C)->def->features & CPU_FEATURE_IMA)
 # define avail_VIS1(C)    ((C)->def->features & CPU_FEATURE_VIS1)
 # define avail_VIS2(C)    ((C)->def->features & CPU_FEATURE_VIS2)
 # define avail_VIS3(C)    ((C)->def->features & CPU_FEATURE_VIS3)
@@ -2420,6 +2441,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_FMAF(C)    false
 # define avail_GL(C)      false
 # define avail_HYPV(C)    false
+# define avail_IMA(C)     false
 # define avail_VIS1(C)    false
 # define avail_VIS2(C)    false
 # define avail_VIS3(C)    false
@@ -5202,6 +5224,8 @@ TRANS(FMADDd, FMAF, do_dddd, a, gen_op_fmaddd)
 TRANS(FMSUBd, FMAF, do_dddd, a, gen_op_fmsubd)
 TRANS(FNMSUBd, FMAF, do_dddd, a, gen_op_fnmsubd)
 TRANS(FNMADDd, FMAF, do_dddd, a, gen_op_fnmaddd)
+TRANS(FPMADDX, IMA, do_dddd, a, gen_op_fpmaddx)
+TRANS(FPMADDXHI, IMA, do_dddd, a, gen_op_fpmaddxhi)
 
 static bool do_env_qqq(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i128, TCGv_env, TCGv_i128, TCGv_i128))
