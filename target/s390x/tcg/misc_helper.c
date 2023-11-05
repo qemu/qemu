@@ -761,10 +761,11 @@ void HELPER(stpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
 
 void HELPER(sic)(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
+    S390CPU *cpu = env_archcpu(env);
     int r;
 
     qemu_mutex_lock_iothread();
-    r = css_do_sic(env, (r3 >> 27) & 0x7, r1 & 0xffff);
+    r = css_do_sic(cpu, (r3 >> 27) & 0x7, r1 & 0xffff);
     qemu_mutex_unlock_iothread();
     /* css_do_sic() may actually return a PGM_xxx value to inject */
     if (r) {

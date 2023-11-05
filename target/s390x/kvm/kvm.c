@@ -1358,7 +1358,7 @@ static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
 
     mode = env->regs[r1] & 0xffff;
     isc = (env->regs[r3] >> 27) & 0x7;
-    r = css_do_sic(env, isc, mode);
+    r = css_do_sic(cpu, isc, mode);
     if (r) {
         kvm_s390_program_interrupt(cpu, -r);
     }

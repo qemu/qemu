@@ -233,7 +233,7 @@ typedef enum {
 } CssIoAdapterType;
 
 void css_adapter_interrupt(CssIoAdapterType type, uint8_t isc);
-int css_do_sic(CPUS390XState *env, uint8_t isc, uint16_t mode);
+int css_do_sic(S390CPU *cpu, uint8_t isc, uint16_t mode);
 uint32_t css_get_adapter_id(CssIoAdapterType type, uint8_t isc);
 void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
                               uint8_t flags, Error **errp);
