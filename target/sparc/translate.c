@@ -658,6 +658,11 @@ static void gen_op_popc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_ctpop_tl(dst, src2);
 }
 
+static void gen_op_lzcnt(TCGv dst, TCGv src)
+{
+    tcg_gen_clzi_tl(dst, src, TARGET_LONG_BITS);
+}
+
 #ifndef TARGET_SPARC64
 static void gen_helper_array8(TCGv dst, TCGv src1, TCGv src2)
 {
@@ -3872,6 +3877,19 @@ TRANS(EDGE16N, VIS2, gen_edge, a, 16, 0, 0)
 TRANS(EDGE16LN, VIS2, gen_edge, a, 16, 0, 1)
 TRANS(EDGE32N, VIS2, gen_edge, a, 32, 0, 0)
 TRANS(EDGE32LN, VIS2, gen_edge, a, 32, 0, 1)
+
+static bool do_rr(DisasContext *dc, arg_r_r *a,
+                  void (*func)(TCGv, TCGv))
+{
+    TCGv dst = gen_dest_gpr(dc, a->rd);
+    TCGv src = gen_load_gpr(dc, a->rs);
+
+    func(dst, src);
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+TRANS(LZCNT, VIS3, do_rr, a, gen_op_lzcnt)
 
 static bool do_rrr(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv, TCGv, TCGv))
