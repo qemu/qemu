@@ -581,6 +581,12 @@ static void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     gen_op_multiply(dst, src1, src2, 1);
 }
 
+static void gen_op_umulxhi(TCGv dst, TCGv src1, TCGv src2)
+{
+    TCGv discard = tcg_temp_new();
+    tcg_gen_mulu2_tl(discard, dst, src1, src2);
+}
+
 static void gen_op_sdiv(TCGv dst, TCGv src1, TCGv src2)
 {
 #ifdef TARGET_SPARC64
@@ -3918,6 +3924,8 @@ TRANS(ARRAY32, VIS1, do_rrr, a, gen_op_array32)
 
 TRANS(ADDXC, VIS3, do_rrr, a, gen_op_addxc)
 TRANS(ADDXCcc, VIS3, do_rrr, a, gen_op_addxccc)
+
+TRANS(UMULXHI, VIS3, do_rrr, a, gen_op_umulxhi)
 
 static void gen_op_alignaddr(TCGv dst, TCGv s1, TCGv s2)
 {
