@@ -515,6 +515,17 @@ static void gen_op_subccc(TCGv dst, TCGv src1, TCGv src2)
     gen_op_subcc_int(dst, src1, src2, gen_carry32());
 }
 
+static void gen_op_subxc(TCGv dst, TCGv src1, TCGv src2)
+{
+    tcg_gen_sub_tl(dst, src1, src2);
+    tcg_gen_sub_tl(dst, dst, cpu_cc_C);
+}
+
+static void gen_op_subxccc(TCGv dst, TCGv src1, TCGv src2)
+{
+    gen_op_subcc_int(dst, src1, src2, cpu_cc_C);
+}
+
 static void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
 {
     TCGv zero = tcg_constant_tl(0);
@@ -3962,6 +3973,9 @@ TRANS(ARRAY32, VIS1, do_rrr, a, gen_op_array32)
 
 TRANS(ADDXC, VIS3, do_rrr, a, gen_op_addxc)
 TRANS(ADDXCcc, VIS3, do_rrr, a, gen_op_addxccc)
+
+TRANS(SUBXC, VIS4, do_rrr, a, gen_op_subxc)
+TRANS(SUBXCcc, VIS4, do_rrr, a, gen_op_subxccc)
 
 TRANS(UMULXHI, VIS3, do_rrr, a, gen_op_umulxhi)
 
