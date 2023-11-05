@@ -124,6 +124,7 @@ CALL    01 i:s30
     WRTICK_CMPR     10 10111 110000 ..... . .............  @n_r_ri
     WRSTICK         10 11000 110000 ..... . .............  @n_r_ri
     WRSTICK_CMPR    10 11001 110000 ..... . .............  @n_r_ri
+    WRMWAIT         10 11100 110000 ..... . .............  @n_r_ri
   ]
   # Before v8, rs1==0 was WRY, and the rest executed as nop.
   [

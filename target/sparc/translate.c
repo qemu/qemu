@@ -3344,6 +3344,17 @@ static void do_wrpowerdown(DisasContext *dc, TCGv src)
 
 TRANS(WRPOWERDOWN, POWERDOWN, do_wr_special, a, supervisor(dc), do_wrpowerdown)
 
+static void do_wrmwait(DisasContext *dc, TCGv src)
+{
+    /*
+     * TODO: This is a stub version of mwait, which merely recognizes
+     * interrupts immediately and does not wait.
+     */
+    dc->base.is_jmp = DISAS_EXIT;
+}
+
+TRANS(WRMWAIT, VIS4, do_wr_special, a, true, do_wrmwait)
+
 static void do_wrpsr(DisasContext *dc, TCGv src)
 {
     gen_helper_wrpsr(tcg_env, src);
