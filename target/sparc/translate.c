@@ -698,6 +698,78 @@ static void gen_op_fpack32(TCGv_i64 dst, TCGv_i64 src1, TCGv_i64 src2)
 #endif
 }
 
+static void gen_op_fpadds16s(TCGv_i32 d, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 t[2];
+
+    for (int i = 0; i < 2; i++) {
+        TCGv_i32 u = tcg_temp_new_i32();
+        TCGv_i32 v = tcg_temp_new_i32();
+
+        tcg_gen_sextract_i32(u, src1, i * 16, 16);
+        tcg_gen_sextract_i32(v, src2, i * 16, 16);
+        tcg_gen_add_i32(u, u, v);
+        tcg_gen_smax_i32(u, u, tcg_constant_i32(INT16_MIN));
+        tcg_gen_smin_i32(u, u, tcg_constant_i32(INT16_MAX));
+        t[i] = u;
+    }
+    tcg_gen_deposit_i32(d, t[0], t[1], 16, 16);
+}
+
+static void gen_op_fpsubs16s(TCGv_i32 d, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 t[2];
+
+    for (int i = 0; i < 2; i++) {
+        TCGv_i32 u = tcg_temp_new_i32();
+        TCGv_i32 v = tcg_temp_new_i32();
+
+        tcg_gen_sextract_i32(u, src1, i * 16, 16);
+        tcg_gen_sextract_i32(v, src2, i * 16, 16);
+        tcg_gen_sub_i32(u, u, v);
+        tcg_gen_smax_i32(u, u, tcg_constant_i32(INT16_MIN));
+        tcg_gen_smin_i32(u, u, tcg_constant_i32(INT16_MAX));
+        t[i] = u;
+    }
+    tcg_gen_deposit_i32(d, t[0], t[1], 16, 16);
+}
+
+static void gen_op_fpadds32s(TCGv_i32 d, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 r = tcg_temp_new_i32();
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGv_i32 v = tcg_temp_new_i32();
+    TCGv_i32 z = tcg_constant_i32(0);
+
+    tcg_gen_add_i32(r, src1, src2);
+    tcg_gen_xor_i32(t, src1, src2);
+    tcg_gen_xor_i32(v, r, src2);
+    tcg_gen_andc_i32(v, v, t);
+
+    tcg_gen_setcond_i32(TCG_COND_GE, t, r, z);
+    tcg_gen_addi_i32(t, t, INT32_MAX);
+
+    tcg_gen_movcond_i32(TCG_COND_LT, d, v, z, t, r);
+}
+
+static void gen_op_fpsubs32s(TCGv_i32 d, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 r = tcg_temp_new_i32();
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGv_i32 v = tcg_temp_new_i32();
+    TCGv_i32 z = tcg_constant_i32(0);
+
+    tcg_gen_sub_i32(r, src1, src2);
+    tcg_gen_xor_i32(t, src1, src2);
+    tcg_gen_xor_i32(v, r, src1);
+    tcg_gen_and_i32(v, v, t);
+
+    tcg_gen_setcond_i32(TCG_COND_GE, t, r, z);
+    tcg_gen_addi_i32(t, t, INT32_MAX);
+
+    tcg_gen_movcond_i32(TCG_COND_LT, d, v, z, t, r);
+}
+
 static void gen_op_faligndata(TCGv_i64 dst, TCGv_i64 s1, TCGv_i64 s2)
 {
 #ifdef TARGET_SPARC64
@@ -4788,6 +4860,11 @@ TRANS(FHADDs, VIS3, do_fff, a, gen_op_fhadds)
 TRANS(FHSUBs, VIS3, do_fff, a, gen_op_fhsubs)
 TRANS(FNHADDs, VIS3, do_fff, a, gen_op_fnhadds)
 
+TRANS(FPADDS16s, VIS3, do_fff, a, gen_op_fpadds16s)
+TRANS(FPSUBS16s, VIS3, do_fff, a, gen_op_fpsubs16s)
+TRANS(FPADDS32s, VIS3, do_fff, a, gen_op_fpadds32s)
+TRANS(FPSUBS32s, VIS3, do_fff, a, gen_op_fpsubs32s)
+
 static bool do_env_fff(DisasContext *dc, arg_r_r_r *a,
                        void (*func)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32))
 {
@@ -4874,6 +4951,11 @@ TRANS(FPSUB16, VIS1, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sub)
 TRANS(FPSUB32, VIS1, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sub)
 TRANS(FCHKSM16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fchksm16)
 TRANS(FMEAN16, VIS3, do_gvec_ddd, a, MO_16, gen_op_fmean16)
+
+TRANS(FPADDS16, VIS3, do_gvec_ddd, a, MO_16, tcg_gen_gvec_ssadd)
+TRANS(FPADDS32, VIS3, do_gvec_ddd, a, MO_32, tcg_gen_gvec_ssadd)
+TRANS(FPSUBS16, VIS3, do_gvec_ddd, a, MO_16, tcg_gen_gvec_sssub)
+TRANS(FPSUBS32, VIS3, do_gvec_ddd, a, MO_32, tcg_gen_gvec_sssub)
 
 static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))
