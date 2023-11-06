@@ -42,6 +42,7 @@ TESTS+=mdeb
 TESTS+=cgebra
 TESTS+=clgebr
 TESTS+=clc
+TESTS+=laalg
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
