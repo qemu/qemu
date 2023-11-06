@@ -24,6 +24,7 @@ TESTS+=trap
 TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
+TESTS+=laalg
 
 Z13_TESTS=vistr
 Z13_TESTS+=lcbb
