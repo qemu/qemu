@@ -411,12 +411,20 @@ void dirtylimit_set_all(uint64_t quota,
 
 void dirtylimit_vcpu_execute(CPUState *cpu)
 {
-    if (dirtylimit_in_service() &&
-        dirtylimit_vcpu_get_state(cpu->cpu_index)->enabled &&
-        cpu->throttle_us_per_full) {
-        trace_dirtylimit_vcpu_execute(cpu->cpu_index,
-                cpu->throttle_us_per_full);
-        usleep(cpu->throttle_us_per_full);
+    if (cpu->throttle_us_per_full) {
+        dirtylimit_state_lock();
+
+        if (dirtylimit_in_service() &&
+            dirtylimit_vcpu_get_state(cpu->cpu_index)->enabled) {
+            dirtylimit_state_unlock();
+            trace_dirtylimit_vcpu_execute(cpu->cpu_index,
+                    cpu->throttle_us_per_full);
+
+            g_usleep(cpu->throttle_us_per_full);
+            return;
+        }
+
+        dirtylimit_state_unlock();
     }
 }
 
@@ -644,10 +652,6 @@ static struct DirtyLimitInfoList *dirtylimit_query_all(void)
 
 struct DirtyLimitInfoList *qmp_query_vcpu_dirty_limit(Error **errp)
 {
-    if (!dirtylimit_in_service()) {
-        return NULL;
-    }
-
     return dirtylimit_query_all();
 }
 

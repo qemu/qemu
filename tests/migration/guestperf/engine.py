@@ -102,6 +102,8 @@ class Engine(object):
             info.get("expected-downtime", 0),
             info.get("setup-time", 0),
             info.get("cpu-throttle-percentage", 0),
+            info.get("dirty-limit-throttle-time-per-round", 0),
+            info.get("dirty-limit-ring-full-time", 0),
         )
 
     def _migrate(self, hardware, scenario, src, dst, connect_uri):
@@ -202,6 +204,21 @@ class Engine(object):
                            ])
             resp = dst.cmd("migrate-set-parameters",
                            multifd_channels=scenario._multifd_channels)
+
+        if scenario._dirty_limit:
+            if not hardware._dirty_ring_size:
+                raise Exception("dirty ring size must be configured when "
+                                "testing dirty limit migration")
+
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "dirty-limit",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                x_vcpu_dirty_limit_period=scenario._x_vcpu_dirty_limit_period)
+            resp = src.cmd("migrate-set-parameters",
+                           vcpu_dirty_limit=scenario._vcpu_dirty_limit)
 
         resp = src.cmd("migrate", uri=connect_uri)
 
@@ -325,7 +342,6 @@ class Engine(object):
             cmdline = "'" + cmdline + "'"
 
         argv = [
-            "-accel", "kvm",
             "-cpu", "host",
             "-kernel", self._kernel,
             "-initrd", self._initrd,
@@ -333,6 +349,11 @@ class Engine(object):
             "-m", str((hardware._mem * 1024) + 512),
             "-smp", str(hardware._cpus),
         ]
+        if hardware._dirty_ring_size:
+            argv.extend(["-accel", "kvm,dirty-ring-size=%s" %
+                         hardware._dirty_ring_size])
+        else:
+            argv.extend(["-accel", "kvm"])
 
         argv.extend(self._get_qemu_serial_args())
 
