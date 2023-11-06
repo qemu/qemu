@@ -15,11 +15,23 @@
 #
 # @elf: elf format
 #
-# @kdump-zlib: kdump-compressed format with zlib-compressed
+# @kdump-zlib: makedumpfile flattened, kdump-compressed format with zlib
+#     compression
 #
-# @kdump-lzo: kdump-compressed format with lzo-compressed
+# @kdump-lzo: makedumpfile flattened, kdump-compressed format with lzo
+#     compression
 #
-# @kdump-snappy: kdump-compressed format with snappy-compressed
+# @kdump-snappy: makedumpfile flattened, kdump-compressed format with snappy
+#     compression
+#
+# @kdump-raw-zlib: raw assembled kdump-compressed format with zlib compression
+#     (since 8.2)
+#
+# @kdump-raw-lzo: raw assembled kdump-compressed format with lzo compression
+#     (since 8.2)
+#
+# @kdump-raw-snappy: raw assembled kdump-compressed format with snappy
+#     compression (since 8.2)
 #
 # @win-dmp: Windows full crashdump format, can be used instead of ELF
 #     converting (since 2.13)
@@ -27,7 +39,11 @@
 # Since: 2.0
 ##
 { 'enum': 'DumpGuestMemoryFormat',
-  'data': [ 'elf', 'kdump-zlib', 'kdump-lzo', 'kdump-snappy', 'win-dmp' ] }
+  'data': [
+      'elf',
+      'kdump-zlib', 'kdump-lzo', 'kdump-snappy',
+      'kdump-raw-zlib', 'kdump-raw-lzo', 'kdump-raw-snappy',
+      'win-dmp' ] }
 
 ##
 # @dump-guest-memory:
