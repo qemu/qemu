@@ -269,9 +269,9 @@ static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
  * service_interrupt call.
  */
 #define SCLP_PV_DUMMY_ADDR 0x4000
-int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
-                                uint32_t code)
+int sclp_service_call_protected(S390CPU *cpu, uint64_t sccb, uint32_t code)
 {
+    CPUS390XState *env = &cpu->env;
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     SCCBHeader header;
@@ -296,8 +296,9 @@ out_write:
     return 0;
 }
 
-int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
+int sclp_service_call(S390CPU *cpu, uint64_t sccb, uint32_t code)
 {
+    CPUS390XState *env = &cpu->env;
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     SCCBHeader header;
