@@ -631,7 +631,8 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
         qemu_fdt_setprop(ms->fdt, "/pmu", "compatible",
                          compat, sizeof(compat));
         qemu_fdt_setprop_cells(ms->fdt, "/pmu", "interrupts",
-                               GIC_FDT_IRQ_TYPE_PPI, VIRTUAL_PMU_IRQ, irqflags);
+                               GIC_FDT_IRQ_TYPE_PPI,
+                               INTID_TO_PPI(VIRTUAL_PMU_IRQ), irqflags);
     }
 }
 
