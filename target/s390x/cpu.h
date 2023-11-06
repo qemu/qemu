@@ -29,7 +29,6 @@
 #include "cpu_models.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
-#include "tcg/tcg_s390x.h"
 #include "qapi/qapi-types-machine-common.h"
 
 #define ELF_MACHINE_UNAME "S390X"
@@ -383,6 +382,10 @@ static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 #endif
 }
 
+#ifdef CONFIG_TCG
+
+#include "tcg/tcg_s390x.h"
+
 static inline void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
@@ -404,6 +407,8 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
         *flags |= FLAG_MASK_VECTOR;
     }
 }
+
+#endif /* CONFIG_TCG */
 
 /* PER bits from control register 9 */
 #define PER_CR9_EVENT_BRANCH           0x80000000
