@@ -885,67 +885,45 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
     case CC_OP_STATIC:
         c->is_64 = false;
         c->u.s32.a = cc_op;
-        switch (mask) {
-        case 0x8 | 0x4 | 0x2: /* cc != 3 */
-            cond = TCG_COND_NE;
+
+        /* Fold half of the cases using bit 3 to invert. */
+        switch (mask & 8 ? mask ^ 0xf : mask) {
+        case 0x1: /* cc == 3 */
+            cond = TCG_COND_EQ;
             c->u.s32.b = tcg_constant_i32(3);
-            break;
-        case 0x8 | 0x4 | 0x1: /* cc != 2 */
-            cond = TCG_COND_NE;
-            c->u.s32.b = tcg_constant_i32(2);
-            break;
-        case 0x8 | 0x2 | 0x1: /* cc != 1 */
-            cond = TCG_COND_NE;
-            c->u.s32.b = tcg_constant_i32(1);
-            break;
-        case 0x8 | 0x2: /* cc == 0 || cc == 2 => (cc & 1) == 0 */
-            cond = TCG_COND_EQ;
-            c->u.s32.a = tcg_temp_new_i32();
-            c->u.s32.b = tcg_constant_i32(0);
-            tcg_gen_andi_i32(c->u.s32.a, cc_op, 1);
-            break;
-        case 0x8 | 0x4: /* cc < 2 */
-            cond = TCG_COND_LTU;
-            c->u.s32.b = tcg_constant_i32(2);
-            break;
-        case 0x8: /* cc == 0 */
-            cond = TCG_COND_EQ;
-            c->u.s32.b = tcg_constant_i32(0);
-            break;
-        case 0x4 | 0x2 | 0x1: /* cc != 0 */
-            cond = TCG_COND_NE;
-            c->u.s32.b = tcg_constant_i32(0);
-            break;
-        case 0x4 | 0x1: /* cc == 1 || cc == 3 => (cc & 1) != 0 */
-            cond = TCG_COND_NE;
-            c->u.s32.a = tcg_temp_new_i32();
-            c->u.s32.b = tcg_constant_i32(0);
-            tcg_gen_andi_i32(c->u.s32.a, cc_op, 1);
-            break;
-        case 0x4: /* cc == 1 */
-            cond = TCG_COND_EQ;
-            c->u.s32.b = tcg_constant_i32(1);
-            break;
-        case 0x2 | 0x1: /* cc > 1 */
-            cond = TCG_COND_GTU;
-            c->u.s32.b = tcg_constant_i32(1);
             break;
         case 0x2: /* cc == 2 */
             cond = TCG_COND_EQ;
             c->u.s32.b = tcg_constant_i32(2);
             break;
-        case 0x1: /* cc == 3 */
+        case 0x4: /* cc == 1 */
             cond = TCG_COND_EQ;
-            c->u.s32.b = tcg_constant_i32(3);
+            c->u.s32.b = tcg_constant_i32(1);
+            break;
+        case 0x2 | 0x1: /* cc == 2 || cc == 3 => cc > 1 */
+            cond = TCG_COND_GTU;
+            c->u.s32.b = tcg_constant_i32(1);
+            break;
+        case 0x4 | 0x1: /* cc == 1 || cc == 3 => (cc & 1) != 0 */
+            cond = TCG_COND_TSTNE;
+            c->u.s32.b = tcg_constant_i32(1);
+            break;
+        case 0x4 | 0x2: /* cc == 1 || cc == 2 => (cc - 1) <= 1 */
+            cond = TCG_COND_LEU;
+            c->u.s32.a = tcg_temp_new_i32();
+            c->u.s32.b = tcg_constant_i32(1);
+            tcg_gen_addi_i32(c->u.s32.a, cc_op, -1);
+            break;
+        case 0x4 | 0x2 | 0x1: /* cc != 0 */
+            cond = TCG_COND_NE;
+            c->u.s32.b = tcg_constant_i32(0);
             break;
         default:
-            /* CC is masked by something else: (8 >> cc) & mask.  */
-            cond = TCG_COND_NE;
-            c->u.s32.a = tcg_temp_new_i32();
-            c->u.s32.b = tcg_constant_i32(0);
-            tcg_gen_shr_i32(c->u.s32.a, tcg_constant_i32(8), cc_op);
-            tcg_gen_andi_i32(c->u.s32.a, c->u.s32.a, mask);
-            break;
+            /* case 0: never, handled above. */
+            g_assert_not_reached();
+        }
+        if (mask & 8) {
+            cond = tcg_invert_cond(cond);
         }
         break;
 
