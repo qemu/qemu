@@ -1011,9 +1011,9 @@ if test "$targetos" = "bogus"; then
 fi
 
 # test for any invalid configuration combinations
-if test "$targetos" = "windows"; then
+if test "$targetos" = "windows" && ! has "$dlltool"; then
   if test "$plugins" = "yes"; then
-    error_exit "TCG plugins not currently supported on Windows platforms"
+    error_exit "TCG plugins requires dlltool to build on Windows platforms"
   fi
   plugins="no"
 fi
