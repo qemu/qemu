@@ -754,10 +754,10 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
     case CC_OP_TM_64:
         switch (mask) {
         case 8:
-            cond = TCG_COND_EQ;
+            cond = TCG_COND_TSTEQ;
             break;
         case 4 | 2 | 1:
-            cond = TCG_COND_NE;
+            cond = TCG_COND_TSTNE;
             break;
         default:
             goto do_dynamic;
@@ -768,11 +768,11 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
     case CC_OP_ICM:
         switch (mask) {
         case 8:
-            cond = TCG_COND_EQ;
+            cond = TCG_COND_TSTEQ;
             break;
         case 4 | 2 | 1:
         case 4 | 2:
-            cond = TCG_COND_NE;
+            cond = TCG_COND_TSTNE;
             break;
         default:
             goto do_dynamic;
@@ -854,18 +854,14 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         c->u.s64.a = cc_dst;
         c->u.s64.b = tcg_constant_i64(0);
         break;
+
     case CC_OP_LTGT_64:
     case CC_OP_LTUGTU_64:
-        c->u.s64.a = cc_src;
-        c->u.s64.b = cc_dst;
-        break;
-
     case CC_OP_TM_32:
     case CC_OP_TM_64:
     case CC_OP_ICM:
-        c->u.s64.a = tcg_temp_new_i64();
-        c->u.s64.b = tcg_constant_i64(0);
-        tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
+        c->u.s64.a = cc_src;
+        c->u.s64.b = cc_dst;
         break;
 
     case CC_OP_ADDU:
