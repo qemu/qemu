@@ -197,10 +197,8 @@ static uint32_t do_getpsr(CPUSPARCState *env)
 /* Avoid ifdefs below for the abi32 and abi64 paths. */
 #ifdef TARGET_ABI32
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x10) /* t_linux */
-#define syscall_cc         psr
 #else
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x6d) /* tl0_linux64 */
-#define syscall_cc         xcc
 #endif
 
 /* Avoid ifdefs below for the v9 and pre-v9 hw traps. */
@@ -224,11 +222,6 @@ void cpu_loop (CPUSPARCState *env)
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
-        /* Compute PSR before exposing state.  */
-        if (env->cc_op != CC_OP_FLAGS) {
-            cpu_get_psr(env);
-        }
-
         switch (trapnr) {
         case TARGET_TT_SYSCALL:
             ret = do_syscall (env, env->gregs[1],
@@ -240,10 +233,10 @@ void cpu_loop (CPUSPARCState *env)
                 break;
             }
             if ((abi_ulong)ret >= (abi_ulong)(-515)) {
-                env->syscall_cc |= PSR_CARRY;
+                set_syscall_C(env, 1);
                 ret = -ret;
             } else {
-                env->syscall_cc &= ~PSR_CARRY;
+                set_syscall_C(env, 0);
             }
             env->regwptr[0] = ret;
             /* next instruction */

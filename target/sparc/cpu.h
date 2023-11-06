@@ -137,32 +137,6 @@ enum {
 #define PSR_CWP   0x1f
 #endif
 
-#define CC_SRC (env->cc_src)
-#define CC_SRC2 (env->cc_src2)
-#define CC_DST (env->cc_dst)
-#define CC_OP  (env->cc_op)
-
-/* Even though lazy evaluation of CPU condition codes tends to be less
- * important on RISC systems where condition codes are only updated
- * when explicitly requested, SPARC uses it to update 32-bit and 64-bit
- * condition codes.
- */
-enum {
-    CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
-    CC_OP_FLAGS,   /* all cc are back in status register */
-    CC_OP_DIV,     /* modify N, Z and V, C = 0*/
-    CC_OP_ADD,     /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_ADDX,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_TADD,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_TADDTV,  /* modify all flags except V, CC_DST = res, CC_SRC = src1 */
-    CC_OP_SUB,     /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_SUBX,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_TSUB,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
-    CC_OP_TSUBTV,  /* modify all flags except V, CC_DST = res, CC_SRC = src1 */
-    CC_OP_LOGIC,   /* modify N and Z, C = V = 0, CC_DST = res */
-    CC_OP_NB,
-};
-
 /* Trap base register */
 #define TBR_BASE_MASK 0xfffff000
 
@@ -458,15 +432,35 @@ struct CPUArchState {
     target_ulong npc;      /* next program counter */
     target_ulong y;        /* multiply/divide register */
 
-    /* emulator internal flags handling */
-    target_ulong cc_src, cc_src2;
-    target_ulong cc_dst;
-    uint32_t cc_op;
+    /*
+     * Bit 31 is for icc, bit 63 for xcc.
+     * Other bits are garbage.
+     */
+    target_long cc_N;
+    target_long cc_V;
+
+    /*
+     * Z is represented as == 0; any non-zero value is !Z.
+     * For sparc64, the high 32-bits of icc.Z are garbage.
+     */
+    target_ulong icc_Z;
+#ifdef TARGET_SPARC64
+    target_ulong xcc_Z;
+#endif
+
+    /*
+     * For sparc32, icc.C is boolean.
+     * For sparc64, xcc.C is boolean;
+     *              icc.C is bit 32 with other bits garbage.
+     */
+    target_ulong icc_C;
+#ifdef TARGET_SPARC64
+    target_ulong xcc_C;
+#endif
 
     target_ulong cond; /* conditional branch result (XXX: save it in a
                           temporary register when possible) */
 
-    uint32_t psr;      /* processor state register */
     target_ulong fsr;      /* FPU state register */
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
@@ -522,7 +516,6 @@ struct CPUArchState {
 #define MAXTL_MAX 8
 #define MAXTL_MASK (MAXTL_MAX - 1)
     trap_state ts[MAXTL_MAX];
-    uint32_t xcc;               /* Extended integer condition codes */
     uint32_t asi;
     uint32_t pstate;
     uint32_t tl;
@@ -619,6 +612,7 @@ void sparc_restore_state_to_opc(CPUState *cs,
 /* win_helper.c */
 target_ulong cpu_get_psr(CPUSPARCState *env1);
 void cpu_put_psr(CPUSPARCState *env1, target_ulong val);
+void cpu_put_psr_icc(CPUSPARCState *env1, target_ulong val);
 void cpu_put_psr_raw(CPUSPARCState *env1, target_ulong val);
 #ifdef TARGET_SPARC64
 void cpu_change_pstate(CPUSPARCState *env1, uint32_t new_pstate);
