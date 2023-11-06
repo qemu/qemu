@@ -488,6 +488,7 @@ static void gen_op_subccc(TCGv dst, TCGv src1, TCGv src2)
 static void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
 {
     TCGv zero = tcg_constant_tl(0);
+    TCGv one = tcg_constant_tl(1);
     TCGv t_src1 = tcg_temp_new();
     TCGv t_src2 = tcg_temp_new();
     TCGv t0 = tcg_temp_new();
@@ -499,8 +500,7 @@ static void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
      * if (!(env->y & 1))
      *   src2 = 0;
      */
-    tcg_gen_andi_tl(t0, cpu_y, 0x1);
-    tcg_gen_movcond_tl(TCG_COND_EQ, t_src2, t0, zero, zero, t_src2);
+    tcg_gen_movcond_tl(TCG_COND_TSTEQ, t_src2, cpu_y, one, zero, t_src2);
 
     /*
      * b2 = src1 & 1;
