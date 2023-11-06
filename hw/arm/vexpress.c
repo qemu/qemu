@@ -177,7 +177,6 @@ struct VexpressMachineState {
     MemoryRegion vram;
     MemoryRegion sram;
     MemoryRegion flashalias;
-    MemoryRegion lowram;
     MemoryRegion a15sram;
     bool secure;
     bool virt;
@@ -276,7 +275,6 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
 {
     MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
-    ram_addr_t low_ram_size;
 
     if (ram_size > 0x40000000) {
         /* 1GB is the maximum the address space permits */
@@ -284,17 +282,11 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
         exit(1);
     }
 
-    low_ram_size = ram_size;
-    if (low_ram_size > 0x4000000) {
-        low_ram_size = 0x4000000;
-    }
-    /* RAM is from 0x60000000 upwards. The bottom 64MB of the
+    /*
+     * RAM is from 0x60000000 upwards. The bottom 64MB of the
      * address space should in theory be remappable to various
-     * things including ROM or RAM; we always map the RAM there.
+     * things including ROM or RAM; we always map the flash there.
      */
-    memory_region_init_alias(&vms->lowram, NULL, "vexpress.lowmem",
-                             machine->ram, 0, low_ram_size);
-    memory_region_add_subregion(sysmem, 0x0, &vms->lowram);
     memory_region_add_subregion(sysmem, 0x60000000, machine->ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
