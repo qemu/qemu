@@ -1599,7 +1599,7 @@ vhost_user_backend_handle_shared_object_add(struct vhost_dev *dev,
 
     memcpy(uuid.data, object->uuid, sizeof(object->uuid));
     dev->shared_uuids = g_slist_append(dev->shared_uuids, &uuid);
-    return virtio_add_vhost_device(&uuid, dev);
+    return virtio_dmabuf_add_vhost_device(&uuid, dev);
 }
 
 static int
@@ -1608,10 +1608,10 @@ vhost_user_backend_handle_shared_object_remove(struct vhost_dev *dev,
 {
     QemuUUID uuid;
 
-    switch (virtio_object_type(&uuid)) {
+    switch (virtio_dmabuf_object_type(&uuid)) {
     case TYPE_VHOST_DEV:
     {
-        struct vhost_dev *owner = virtio_lookup_vhost_device(&uuid);
+        struct vhost_dev *owner = virtio_dmabuf_lookup_vhost_device(&uuid);
         if (owner == NULL || dev != owner) {
             /* Not allowed to remove non-owned entries */
             return 0;
@@ -1625,7 +1625,7 @@ vhost_user_backend_handle_shared_object_remove(struct vhost_dev *dev,
 
     memcpy(uuid.data, object->uuid, sizeof(object->uuid));
     dev->shared_uuids = g_slist_remove_all(dev->shared_uuids, &uuid);
-    return virtio_remove_resource(&uuid);
+    return virtio_dmabuf_remove_resource(&uuid);
 }
 
 static bool vhost_user_send_resp(QIOChannel *ioc, VhostUserHeader *hdr,
@@ -1703,13 +1703,13 @@ vhost_user_backend_handle_shared_object_lookup(struct vhost_user *u,
     memcpy(uuid.data, payload->object.uuid, sizeof(payload->object.uuid));
 
     payload->u64 = 0;
-    switch (virtio_object_type(&uuid)) {
+    switch (virtio_dmabuf_object_type(&uuid)) {
     case TYPE_DMABUF:
-        dmabuf_fd = virtio_lookup_dmabuf(&uuid);
+        dmabuf_fd = virtio_dmabuf_lookup(&uuid);
         break;
     case TYPE_VHOST_DEV:
     {
-        struct vhost_dev *dev = virtio_lookup_vhost_device(&uuid);
+        struct vhost_dev *dev = virtio_dmabuf_lookup_vhost_device(&uuid);
         if (dev == NULL) {
             payload->u64 = -EINVAL;
             break;

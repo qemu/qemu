@@ -1601,7 +1601,8 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     /* free virtio shared objects */
-    g_slist_foreach(hdev->shared_uuids, (GFunc)virtio_remove_resource, NULL);
+    g_slist_foreach(hdev->shared_uuids, (GFunc)virtio_dmabuf_remove_resource,
+                    NULL);
     g_slist_free_full(g_steal_pointer(&hdev->shared_uuids), g_free);
     if (hdev->vhost_ops) {
         hdev->vhost_ops->vhost_backend_cleanup(hdev);

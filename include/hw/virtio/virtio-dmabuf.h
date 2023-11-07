@@ -28,7 +28,7 @@ typedef struct VirtioSharedObject {
 } VirtioSharedObject;
 
 /**
- * virtio_add_dmabuf() - Add a new dma-buf resource to the lookup table
+ * virtio_dmabuf_add() - Add a new dma-buf resource to the lookup table
  * @uuid: new resource's UUID
  * @dmabuf_fd: the dma-buf descriptor that will be stored and shared with
  *             other virtio devices. The caller retains ownership over the
@@ -41,11 +41,11 @@ typedef struct VirtioSharedObject {
  * Note that if it finds a repeated UUID, the resource is not inserted in
  * the lookup table.
  */
-bool virtio_add_dmabuf(QemuUUID *uuid, int dmabuf_fd);
+bool virtio_dmabuf_add(QemuUUID *uuid, int dmabuf_fd);
 
 /**
- * virtio_add_vhost_device() - Add a new exporter vhost device that holds the
- * resource with the associated UUID
+ * virtio_dmabuf_add_vhost_device() - Add a new exporter vhost device that
+ * holds the resource with the associated UUID
  * @uuid: new resource's UUID
  * @dev: the pointer to the vhost device that holds the resource. The caller
  *       retains ownership over the device struct and its lifecycle.
@@ -55,46 +55,47 @@ bool virtio_add_dmabuf(QemuUUID *uuid, int dmabuf_fd);
  * Note that if it finds a repeated UUID, the resource is not inserted in
  * the lookup table.
  */
-bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev);
+bool virtio_dmabuf_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev);
 
 /**
- * virtio_remove_resource() - Removes a resource from the lookup table
+ * virtio_dmabuf_remove_resource() - Removes a resource from the lookup table
  * @uuid: resource's UUID
  *
  * Return: true if the UUID has been found and removed from the lookup table.
  */
-bool virtio_remove_resource(const QemuUUID *uuid);
+bool virtio_dmabuf_remove_resource(const QemuUUID *uuid);
 
 /**
- * virtio_lookup_dmabuf() - Looks for a dma-buf resource in the lookup table
+ * virtio_dmabuf_lookup() - Looks for a dma-buf resource in the lookup table
  * @uuid: resource's UUID
  *
  * Return: the dma-buf file descriptor integer, or -1 if the key is not found.
  */
-int virtio_lookup_dmabuf(const QemuUUID *uuid);
+int virtio_dmabuf_lookup(const QemuUUID *uuid);
 
 /**
- * virtio_lookup_vhost_device() - Looks for an exporter vhost device in the
- * lookup table
+ * virtio_dmabuf_lookup_vhost_device() - Looks for an exporter vhost device
+ * in the lookup table
  * @uuid: resource's UUID
  *
  * Return: pointer to the vhost_dev struct, or NULL if the key is not found.
  */
-struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid);
+struct vhost_dev *virtio_dmabuf_lookup_vhost_device(const QemuUUID *uuid);
 
 /**
- * virtio_object_type() - Looks for the type of resource in the lookup table
+ * virtio_dmabuf_object_type() - Looks for the type of resource in the
+ * lookup table
  * @uuid: resource's UUID
  *
  * Return: the type of resource associated with the UUID, or TYPE_INVALID if
  * the key is not found.
  */
-SharedObjectType virtio_object_type(const QemuUUID *uuid);
+SharedObjectType virtio_dmabuf_object_type(const QemuUUID *uuid);
 
 /**
- * virtio_free_resources() - Destroys all keys and values of the shared
+ * virtio_dmabuf_free_resources() - Destroys all keys and values of the shared
  * resources lookup table, and frees them
  */
-void virtio_free_resources(void);
+void virtio_dmabuf_free_resources(void);
 
 #endif /* VIRTIO_DMABUF_H */
