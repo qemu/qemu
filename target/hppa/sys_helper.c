@@ -24,7 +24,7 @@
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 
-void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
+void HELPER(write_interval_timer)(CPUHPPAState *env, target_ulong val)
 {
     HPPACPU *cpu = env_archcpu(env);
     uint64_t current = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -58,7 +58,7 @@ void HELPER(reset)(CPUHPPAState *env)
     helper_excp(env, EXCP_HLT);
 }
 
-target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
+target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
 {
     target_ulong psw = env->psw;
     /*
@@ -80,6 +80,16 @@ void HELPER(rfi)(CPUHPPAState *env)
     env->iasq_b = (uint64_t)env->cr_back[0] << 32;
     env->iaoq_f = env->cr[CR_IIAOQ];
     env->iaoq_b = env->cr_back[1];
+
+    /*
+     * For pa2.0, IIASQ is the top bits of the virtual address.
+     * To recreate the space identifier, remove the offset bits.
+     */
+    if (hppa_is_pa20(env)) {
+        env->iasq_f &= ~env->iaoq_f;
+        env->iasq_b &= ~env->iaoq_b;
+    }
+
     cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
 }
 

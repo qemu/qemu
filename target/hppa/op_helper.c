@@ -42,25 +42,25 @@ G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void HELPER(tsv)(CPUHPPAState *env, target_ureg cond)
+void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
 {
-    if (unlikely((target_sreg)cond < 0)) {
+    if (unlikely((target_long)cond < 0)) {
         hppa_dynamic_excp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
-void HELPER(tcond)(CPUHPPAState *env, target_ureg cond)
+void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
 {
     if (unlikely(cond)) {
         hppa_dynamic_excp(env, EXCP_COND, GETPC());
     }
 }
 
-static void atomic_store_3(CPUHPPAState *env, target_ulong addr,
-                           uint32_t val, uintptr_t ra)
+static void atomic_store_mask32(CPUHPPAState *env, target_ulong addr,
+                                uint32_t val, uint32_t mask, uintptr_t ra)
 {
     int mmu_idx = cpu_mmu_index(env, 0);
-    uint32_t old, new, cmp, mask, *haddr;
+    uint32_t old, new, cmp, *haddr;
     void *vaddr;
 
     vaddr = probe_access(env, addr, 3, MMU_DATA_STORE, mmu_idx, ra);
@@ -81,7 +81,36 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr,
     }
 }
 
-static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
+static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
+                                uint64_t val, uint64_t mask,
+                                int size, uintptr_t ra)
+{
+#ifdef CONFIG_ATOMIC64
+    int mmu_idx = cpu_mmu_index(env, 0);
+    uint64_t old, new, cmp, *haddr;
+    void *vaddr;
+
+    vaddr = probe_access(env, addr, size, MMU_DATA_STORE, mmu_idx, ra);
+    if (vaddr == NULL) {
+        cpu_loop_exit_atomic(env_cpu(env), ra);
+    }
+    haddr = (uint64_t *)((uintptr_t)vaddr & -8);
+
+    old = *haddr;
+    while (1) {
+        new = be32_to_cpu((cpu_to_be32(old) & ~mask) | (val & mask));
+        cmp = qatomic_cmpxchg__nocheck(haddr, old, new);
+        if (cmp == old) {
+            return;
+        }
+        old = cmp;
+    }
+#else
+    cpu_loop_exit_atomic(env_cpu(env), ra);
+#endif
+}
+
+static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
                       bool parallel, uintptr_t ra)
 {
     switch (addr & 3) {
@@ -94,7 +123,7 @@ static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
     case 1:
         /* The 3 byte store must appear atomic.  */
         if (parallel) {
-            atomic_store_3(env, addr, val, ra);
+            atomic_store_mask32(env, addr, val, 0x00ffffffu, ra);
         } else {
             cpu_stb_data_ra(env, addr, val >> 16, ra);
             cpu_stw_data_ra(env, addr + 1, val, ra);
@@ -106,25 +135,92 @@ static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
     }
 }
 
-void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+static void do_stdby_b(CPUHPPAState *env, target_ulong addr, uint64_t val,
+                       bool parallel, uintptr_t ra)
+{
+    switch (addr & 7) {
+    case 7:
+        cpu_stb_data_ra(env, addr, val, ra);
+        break;
+    case 6:
+        cpu_stw_data_ra(env, addr, val, ra);
+        break;
+    case 5:
+        /* The 3 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask32(env, addr, val, 0x00ffffffu, ra);
+        } else {
+            cpu_stb_data_ra(env, addr, val >> 16, ra);
+            cpu_stw_data_ra(env, addr + 1, val, ra);
+        }
+        break;
+    case 4:
+        cpu_stl_data_ra(env, addr, val, ra);
+        break;
+    case 3:
+        /* The 5 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr, val, 0x000000ffffffffffull, 5, ra);
+        } else {
+            cpu_stb_data_ra(env, addr, val >> 32, ra);
+            cpu_stl_data_ra(env, addr + 1, val, ra);
+        }
+        break;
+    case 2:
+        /* The 6 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr, val, 0x0000ffffffffffffull, 6, ra);
+        } else {
+            cpu_stw_data_ra(env, addr, val >> 32, ra);
+            cpu_stl_data_ra(env, addr + 2, val, ra);
+        }
+        break;
+    case 1:
+        /* The 7 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr, val, 0x00ffffffffffffffull, 7, ra);
+        } else {
+            cpu_stb_data_ra(env, addr, val >> 48, ra);
+            cpu_stw_data_ra(env, addr + 1, val >> 32, ra);
+            cpu_stl_data_ra(env, addr + 3, val, ra);
+        }
+        break;
+    default:
+        cpu_stq_data_ra(env, addr, val, ra);
+        break;
+    }
+}
+
+void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stby_b(env, addr, val, false, GETPC());
 }
 
 void HELPER(stby_b_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ureg val)
+                             target_ulong val)
 {
     do_stby_b(env, addr, val, true, GETPC());
 }
 
-static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ureg val,
+void HELPER(stdby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+{
+    do_stdby_b(env, addr, val, false, GETPC());
+}
+
+void HELPER(stdby_b_parallel)(CPUHPPAState *env, target_ulong addr,
+                              target_ulong val)
+{
+    do_stdby_b(env, addr, val, true, GETPC());
+}
+
+static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
                       bool parallel, uintptr_t ra)
 {
     switch (addr & 3) {
     case 3:
         /* The 3 byte store must appear atomic.  */
         if (parallel) {
-            atomic_store_3(env, addr - 3, val, ra);
+            atomic_store_mask32(env, addr - 3, val, 0xffffff00u, ra);
         } else {
             cpu_stw_data_ra(env, addr - 3, val >> 16, ra);
             cpu_stb_data_ra(env, addr - 1, val >> 8, ra);
@@ -144,15 +240,87 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ureg val,
     }
 }
 
-void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ureg val)
+static void do_stdby_e(CPUHPPAState *env, target_ulong addr, uint64_t val,
+                       bool parallel, uintptr_t ra)
+{
+    switch (addr & 7) {
+    case 7:
+        /* The 7 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr - 7, val,
+                                0xffffffffffffff00ull, 7, ra);
+        } else {
+            cpu_stl_data_ra(env, addr - 7, val >> 32, ra);
+            cpu_stw_data_ra(env, addr - 3, val >> 16, ra);
+            cpu_stb_data_ra(env, addr - 1, val >> 8, ra);
+        }
+        break;
+    case 6:
+        /* The 6 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr - 6, val,
+                                0xffffffffffff0000ull, 6, ra);
+        } else {
+            cpu_stl_data_ra(env, addr - 6, val >> 32, ra);
+            cpu_stw_data_ra(env, addr - 2, val >> 16, ra);
+        }
+        break;
+    case 5:
+        /* The 5 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask64(env, addr - 5, val,
+                                0xffffffffff000000ull, 5, ra);
+        } else {
+            cpu_stl_data_ra(env, addr - 5, val >> 32, ra);
+            cpu_stb_data_ra(env, addr - 1, val >> 24, ra);
+        }
+        break;
+    case 4:
+        cpu_stl_data_ra(env, addr - 4, val >> 32, ra);
+        break;
+    case 3:
+        /* The 3 byte store must appear atomic.  */
+        if (parallel) {
+            atomic_store_mask32(env, addr - 3, val, 0xffffff00u, ra);
+        } else {
+            cpu_stw_data_ra(env, addr - 3, val >> 16, ra);
+            cpu_stb_data_ra(env, addr - 1, val >> 8, ra);
+        }
+        break;
+    case 2:
+        cpu_stw_data_ra(env, addr - 2, val >> 16, ra);
+        break;
+    case 1:
+        cpu_stb_data_ra(env, addr - 1, val >> 24, ra);
+        break;
+    default:
+        /* Nothing is stored, but protection is checked and the
+           cacheline is marked dirty.  */
+        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
+        break;
+    }
+}
+
+void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 {
     do_stby_e(env, addr, val, false, GETPC());
 }
 
 void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ureg val)
+                             target_ulong val)
 {
     do_stby_e(env, addr, val, true, GETPC());
+}
+
+void HELPER(stdby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+{
+    do_stdby_e(env, addr, val, false, GETPC());
+}
+
+void HELPER(stdby_e_parallel)(CPUHPPAState *env, target_ulong addr,
+                              target_ulong val)
+{
+    do_stdby_e(env, addr, val, true, GETPC());
 }
 
 void HELPER(ldc_check)(target_ulong addr)
@@ -164,7 +332,7 @@ void HELPER(ldc_check)(target_ulong addr)
     }
 }
 
-target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
+target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
                           uint32_t level, uint32_t want)
 {
 #ifdef CONFIG_USER_ONLY
@@ -196,7 +364,7 @@ target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
 #endif
 }
 
-target_ureg HELPER(read_interval_timer)(void)
+target_ulong HELPER(read_interval_timer)(void)
 {
 #ifdef CONFIG_USER_ONLY
     /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.
@@ -208,4 +376,114 @@ target_ureg HELPER(read_interval_timer)(void)
        present it with a well-timed clock fixed at 250MHz.  */
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2;
 #endif
+}
+
+uint64_t HELPER(hadd_ss)(uint64_t r1, uint64_t r2)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = sextract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = f1 + f2;
+
+        fr = MIN(fr, INT16_MAX);
+        fr = MAX(fr, INT16_MIN);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
+}
+
+uint64_t HELPER(hadd_us)(uint64_t r1, uint64_t r2)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = extract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = f1 + f2;
+
+        fr = MIN(fr, UINT16_MAX);
+        fr = MAX(fr, 0);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
+}
+
+uint64_t HELPER(havg)(uint64_t r1, uint64_t r2)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = extract64(r1, i, 16);
+        int f2 = extract64(r2, i, 16);
+        int fr = f1 + f2;
+
+        ret = deposit64(ret, i, 16, (fr >> 1) | (fr & 1));
+    }
+    return ret;
+}
+
+uint64_t HELPER(hsub_ss)(uint64_t r1, uint64_t r2)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = sextract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = f1 - f2;
+
+        fr = MIN(fr, INT16_MAX);
+        fr = MAX(fr, INT16_MIN);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
+}
+
+uint64_t HELPER(hsub_us)(uint64_t r1, uint64_t r2)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = extract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = f1 - f2;
+
+        fr = MIN(fr, UINT16_MAX);
+        fr = MAX(fr, 0);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
+}
+
+uint64_t HELPER(hshladd)(uint64_t r1, uint64_t r2, uint32_t sh)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = sextract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = (f1 << sh) + f2;
+
+        fr = MIN(fr, INT16_MAX);
+        fr = MAX(fr, INT16_MIN);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
+}
+
+uint64_t HELPER(hshradd)(uint64_t r1, uint64_t r2, uint32_t sh)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 64; i += 16) {
+        int f1 = sextract64(r1, i, 16);
+        int f2 = sextract64(r2, i, 16);
+        int fr = (f1 >> sh) + f2;
+
+        fr = MIN(fr, INT16_MAX);
+        fr = MAX(fr, INT16_MIN);
+        ret = deposit64(ret, i, 16, fr);
+    }
+    return ret;
 }

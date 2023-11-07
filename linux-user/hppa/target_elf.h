@@ -9,6 +9,6 @@
 #define HPPA_TARGET_ELF_H
 static inline const char *cpu_get_model(uint32_t eflags)
 {
-    return "any";
+    return "hppa";
 }
 #endif

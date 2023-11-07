@@ -25,72 +25,136 @@
 #include "hw/core/cpu.h"
 #include "trace.h"
 
-static hppa_tlb_entry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
+hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
 {
-    int i;
+    if (likely(extract64(addr, 58, 4) != 0xf)) {
+        /* Memory address space */
+        return addr & MAKE_64BIT_MASK(0, 62);
+    }
+    if (extract64(addr, 54, 4) != 0) {
+        /* I/O address space */
+        return addr | MAKE_64BIT_MASK(62, 2);
+    }
+    /* PDC address space */
+    return (addr & MAKE_64BIT_MASK(0, 54)) | MAKE_64BIT_MASK(60, 4);
+}
 
-    for (i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
-        hppa_tlb_entry *ent = &env->tlb[i];
-        if (ent->va_b <= addr && addr <= ent->va_e) {
-            trace_hppa_tlb_find_entry(env, ent + i, ent->entry_valid,
-                                      ent->va_b, ent->va_e, ent->pa);
-            return ent;
-        }
+hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
+{
+    if (likely(extract32(addr, 28, 4) != 0xf)) {
+        /* Memory address space */
+        return addr & MAKE_64BIT_MASK(0, 32);
+    }
+    if (extract32(addr, 24, 4) != 0) {
+        /* I/O address space */
+        return addr | MAKE_64BIT_MASK(32, 32);
+    }
+    /* PDC address space */
+    return (addr & MAKE_64BIT_MASK(0, 24)) | MAKE_64BIT_MASK(60, 4);
+}
+
+static hwaddr hppa_abs_to_phys(CPUHPPAState *env, vaddr addr)
+{
+    if (!hppa_is_pa20(env)) {
+        return addr;
+    } else if (env->psw & PSW_W) {
+        return hppa_abs_to_phys_pa2_w1(addr);
+    } else {
+        return hppa_abs_to_phys_pa2_w0(addr);
+    }
+}
+
+static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
+{
+    IntervalTreeNode *i = interval_tree_iter_first(&env->tlb_root, addr, addr);
+
+    if (i) {
+        HPPATLBEntry *ent = container_of(i, HPPATLBEntry, itree);
+        trace_hppa_tlb_find_entry(env, ent, ent->entry_valid,
+                                  ent->itree.start, ent->itree.last, ent->pa);
+        return ent;
     }
     trace_hppa_tlb_find_entry_not_found(env, addr);
     return NULL;
 }
 
-static void hppa_flush_tlb_ent(CPUHPPAState *env, hppa_tlb_entry *ent,
+static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
                                bool force_flush_btlb)
 {
     CPUState *cs = env_cpu(env);
+    bool is_btlb;
 
     if (!ent->entry_valid) {
         return;
     }
 
-    trace_hppa_tlb_flush_ent(env, ent, ent->va_b, ent->va_e, ent->pa);
+    trace_hppa_tlb_flush_ent(env, ent, ent->itree.start,
+                             ent->itree.last, ent->pa);
 
-    tlb_flush_range_by_mmuidx(cs, ent->va_b,
-                                ent->va_e - ent->va_b + 1,
-                                HPPA_MMU_FLUSH_MASK, TARGET_LONG_BITS);
+    tlb_flush_range_by_mmuidx(cs, ent->itree.start,
+                              ent->itree.last - ent->itree.start + 1,
+                              HPPA_MMU_FLUSH_MASK, TARGET_LONG_BITS);
 
-    /* never clear BTLBs, unless forced to do so. */
-    if (ent < &env->tlb[HPPA_BTLB_ENTRIES] && !force_flush_btlb) {
+    /* Never clear BTLBs, unless forced to do so. */
+    is_btlb = ent < &env->tlb[HPPA_BTLB_ENTRIES(env)];
+    if (is_btlb && !force_flush_btlb) {
         return;
     }
 
+    interval_tree_remove(&ent->itree, &env->tlb_root);
     memset(ent, 0, sizeof(*ent));
-    ent->va_b = -1;
+
+    if (!is_btlb) {
+        ent->unused_next = env->tlb_unused;
+        env->tlb_unused = ent;
+    }
 }
 
-static hppa_tlb_entry *hppa_alloc_tlb_ent(CPUHPPAState *env)
+static void hppa_flush_tlb_range(CPUHPPAState *env, vaddr va_b, vaddr va_e)
 {
-    hppa_tlb_entry *ent;
-    uint32_t i;
+    IntervalTreeNode *i, *n;
 
-    if (env->tlb_last < HPPA_BTLB_ENTRIES || env->tlb_last >= ARRAY_SIZE(env->tlb)) {
-        i = HPPA_BTLB_ENTRIES;
-        env->tlb_last = HPPA_BTLB_ENTRIES + 1;
-    } else {
-        i = env->tlb_last;
-        env->tlb_last++;
+    i = interval_tree_iter_first(&env->tlb_root, va_b, va_e);
+    for (; i ; i = n) {
+        HPPATLBEntry *ent = container_of(i, HPPATLBEntry, itree);
+
+        /*
+         * Find the next entry now: In the normal case the current entry
+         * will be removed, but in the BTLB case it will remain.
+         */
+        n = interval_tree_iter_next(i, va_b, va_e);
+        hppa_flush_tlb_ent(env, ent, false);
+    }
+}
+
+static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
+{
+    HPPATLBEntry *ent = env->tlb_unused;
+
+    if (ent == NULL) {
+        uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
+        uint32_t i = env->tlb_last;
+
+        if (i < btlb_entries || i >= ARRAY_SIZE(env->tlb)) {
+            i = btlb_entries;
+        }
+        env->tlb_last = i + 1;
+
+        ent = &env->tlb[i];
+        hppa_flush_tlb_ent(env, ent, false);
     }
 
-    ent = &env->tlb[i];
-
-    hppa_flush_tlb_ent(env, ent, false);
+    env->tlb_unused = ent->unused_next;
     return ent;
 }
 
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot,
-                              hppa_tlb_entry **tlb_entry)
+                              HPPATLBEntry **tlb_entry)
 {
     hwaddr phys;
     int prot, r_prot, w_prot, x_prot, priv;
-    hppa_tlb_entry *ent;
+    HPPATLBEntry *ent;
     int ret = -1;
 
     if (tlb_entry) {
@@ -106,7 +170,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
 
     /* Find a valid tlb entry that matches the virtual address.  */
     ent = hppa_find_tlb(env, addr);
-    if (ent == NULL || !ent->entry_valid) {
+    if (ent == NULL) {
         phys = 0;
         prot = 0;
         ret = (type == PAGE_EXEC) ? EXCP_ITLB_MISS : EXCP_DTLB_MISS;
@@ -118,7 +182,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
     /* We now know the physical address.  */
-    phys = ent->pa + (addr - ent->va_b);
+    phys = ent->pa + (addr - ent->itree.start);
 
     /* Map TLB access_rights field to QEMU protection.  */
     priv = MMU_IDX_TO_PRIV(mmu_idx);
@@ -144,7 +208,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
     /* access_id == 0 means public page and no check is performed */
-    if ((env->psw & PSW_P) && ent->access_id) {
+    if (ent->access_id && MMU_IDX_TO_P(mmu_idx)) {
         /* If bits [31:1] match, and bit 0 is set, suppress write.  */
         int match = ent->access_id * 2 + 1;
 
@@ -197,7 +261,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
  egress:
-    *pphys = phys;
+    *pphys = phys = hppa_abs_to_phys(env, phys);
     *pprot = prot;
     trace_hppa_tlb_get_physical_address(env, ret, prot, addr, phys);
     return ret;
@@ -213,7 +277,7 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     /* ??? We really ought to know if the code mmu is disabled too,
        in order to get the correct debugging dumps.  */
     if (!(cpu->env.psw & PSW_D)) {
-        return addr;
+        return hppa_abs_to_phys(&cpu->env, addr);
     }
 
     excp = hppa_get_physical_address(&cpu->env, addr, MMU_KERNEL_IDX, 0,
@@ -225,13 +289,60 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return excp == EXCP_DTLB_MISS ? -1 : phys;
 }
 
+G_NORETURN static void
+raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
+                         vaddr addr, bool mmu_disabled)
+{
+    CPUState *cs = env_cpu(env);
+
+    cs->exception_index = excp;
+
+    if (env->psw & PSW_Q) {
+        /*
+         * For pa1.x, the offset and space never overlap, and so we
+         * simply extract the high and low part of the virtual address.
+         *
+         * For pa2.0, the formation of these are described in section
+         * "Interruption Parameter Registers", page 2-15.
+         */
+        env->cr[CR_IOR] = (uint32_t)addr;
+        env->cr[CR_ISR] = addr >> 32;
+
+        if (hppa_is_pa20(env)) {
+            if (mmu_disabled) {
+                /*
+                 * If data translation was disabled, the ISR contains
+                 * the upper portion of the abs address, zero-extended.
+                 */
+                env->cr[CR_ISR] &= 0x3fffffff;
+            } else {
+                /*
+                 * If data translation was enabled, the upper two bits
+                 * of the IOR (the b field) are equal to the two space
+                 * bits from the base register used to form the gva.
+                 */
+                uint64_t b;
+
+                cpu_restore_state(cs, retaddr);
+
+                b = env->gr[env->unwind_breg];
+                b >>= (env->psw & PSW_W ? 62 : 30);
+                env->cr[CR_IOR] |= b << 62;
+
+                cpu_loop_exit(cs);
+            }
+        }
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                        MMUAccessType type, int mmu_idx,
                        bool probe, uintptr_t retaddr)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    hppa_tlb_entry *ent;
+    HPPATLBEntry *ent;
     int prot, excp, a_prot;
     hwaddr phys;
 
@@ -254,56 +365,51 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
             return false;
         }
         trace_hppa_tlb_fill_excp(env, addr, size, type, mmu_idx);
+
         /* Failure.  Raise the indicated exception.  */
-        cs->exception_index = excp;
-        if (cpu->env.psw & PSW_Q) {
-            /* ??? Needs tweaking for hppa64.  */
-            cpu->env.cr[CR_IOR] = addr;
-            cpu->env.cr[CR_ISR] = addr >> 32;
-        }
-        cpu_loop_exit_restore(cs, retaddr);
+        raise_exception_with_ior(env, excp, retaddr,
+                                 addr, mmu_idx == MMU_PHYS_IDX);
     }
 
     trace_hppa_tlb_fill_success(env, addr & TARGET_PAGE_MASK,
                                 phys & TARGET_PAGE_MASK, size, type, mmu_idx);
-    /* Success!  Store the translation into the QEMU TLB.  */
+
+    /*
+     * Success!  Store the translation into the QEMU TLB.
+     * Note that we always install a single-page entry, because that
+     * is what works best with softmmu -- anything else will trigger
+     * the large page protection mask.  We do not require this,
+     * because we record the large page here in the hppa tlb.
+     */
     tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
-                 prot, mmu_idx, TARGET_PAGE_SIZE << (ent ? 2 * ent->page_size : 0));
+                 prot, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
-void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
-    hppa_tlb_entry *empty = NULL;
-    int i;
+    HPPATLBEntry *ent;
 
-    /* Zap any old entries covering ADDR; notice empty entries on the way.  */
-    for (i = HPPA_BTLB_ENTRIES; i < ARRAY_SIZE(env->tlb); ++i) {
-        hppa_tlb_entry *ent = &env->tlb[i];
-        if (ent->va_b <= addr && addr <= ent->va_e) {
-            if (ent->entry_valid) {
-                hppa_flush_tlb_ent(env, ent, false);
-            }
-            if (!empty) {
-                empty = ent;
-            }
-        }
+    /* Zap any old entries covering ADDR. */
+    addr &= TARGET_PAGE_MASK;
+    hppa_flush_tlb_range(env, addr, addr + TARGET_PAGE_SIZE - 1);
+
+    ent = env->tlb_partial;
+    if (ent == NULL) {
+        ent = hppa_alloc_tlb_ent(env);
+        env->tlb_partial = ent;
     }
 
-    /* If we didn't see an empty entry, evict one.  */
-    if (empty == NULL) {
-        empty = hppa_alloc_tlb_ent(env);
-    }
-
-    /* Note that empty->entry_valid == 0 already.  */
-    empty->va_b = addr & TARGET_PAGE_MASK;
-    empty->va_e = empty->va_b + TARGET_PAGE_SIZE - 1;
-    empty->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
-    trace_hppa_tlb_itlba(env, empty, empty->va_b, empty->va_e, empty->pa);
+    /* Note that ent->entry_valid == 0 already.  */
+    ent->itree.start = addr;
+    ent->itree.last = addr + TARGET_PAGE_SIZE - 1;
+    ent->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
+    trace_hppa_tlb_itlba(env, ent, ent->itree.start, ent->itree.last, ent->pa);
 }
 
-static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg reg)
+static void set_access_bits_pa11(CPUHPPAState *env, HPPATLBEntry *ent,
+                                 target_ulong reg)
 {
     ent->access_id = extract32(reg, 1, 18);
     ent->u = extract32(reg, 19, 1);
@@ -314,49 +420,153 @@ static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg 
     ent->d = extract32(reg, 28, 1);
     ent->t = extract32(reg, 29, 1);
     ent->entry_valid = 1;
+
+    interval_tree_insert(&ent->itree, &env->tlb_root);
     trace_hppa_tlb_itlbp(env, ent, ent->access_id, ent->u, ent->ar_pl2,
                          ent->ar_pl1, ent->ar_type, ent->b, ent->d, ent->t);
 }
 
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
-void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
-    hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
+    HPPATLBEntry *ent = env->tlb_partial;
 
-    if (unlikely(ent == NULL)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
-        return;
+    if (ent) {
+        env->tlb_partial = NULL;
+        if (ent->itree.start <= addr && addr <= ent->itree.last) {
+            set_access_bits_pa11(env, ent, reg);
+            return;
+        }
     }
-
-    set_access_bits(env, ent, reg);
+    qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
 }
 
-/* Purge (Insn/Data) TLB.  This is explicitly page-based, and is
-   synchronous across all processors.  */
+static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
+                       target_ulong r2, vaddr va_b)
+{
+    HPPATLBEntry *ent;
+    vaddr va_e;
+    uint64_t va_size;
+    int mask_shift;
+
+    mask_shift = 2 * (r1 & 0xf);
+    va_size = TARGET_PAGE_SIZE << mask_shift;
+    va_b &= -va_size;
+    va_e = va_b + va_size - 1;
+
+    hppa_flush_tlb_range(env, va_b, va_e);
+    ent = hppa_alloc_tlb_ent(env);
+
+    ent->itree.start = va_b;
+    ent->itree.last = va_e;
+    ent->pa = (r1 << 7) & (TARGET_PAGE_MASK << mask_shift);
+    ent->t = extract64(r2, 61, 1);
+    ent->d = extract64(r2, 60, 1);
+    ent->b = extract64(r2, 59, 1);
+    ent->ar_type = extract64(r2, 56, 3);
+    ent->ar_pl1 = extract64(r2, 54, 2);
+    ent->ar_pl2 = extract64(r2, 52, 2);
+    ent->u = extract64(r2, 51, 1);
+    /* o = bit 50 */
+    /* p = bit 49 */
+    ent->access_id = extract64(r2, 1, 31);
+    ent->entry_valid = 1;
+
+    interval_tree_insert(&ent->itree, &env->tlb_root);
+    trace_hppa_tlb_itlba(env, ent, ent->itree.start, ent->itree.last, ent->pa);
+    trace_hppa_tlb_itlbp(env, ent, ent->access_id, ent->u,
+                         ent->ar_pl2, ent->ar_pl1, ent->ar_type,
+                         ent->b, ent->d, ent->t);
+}
+
+void HELPER(idtlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
+{
+    vaddr va_b = deposit64(env->cr[CR_IOR], 32, 32, env->cr[CR_ISR]);
+    itlbt_pa20(env, r1, r2, va_b);
+}
+
+void HELPER(iitlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
+{
+    vaddr va_b = deposit64(env->cr[CR_IIAOQ], 32, 32, env->cr[CR_IIASQ]);
+    itlbt_pa20(env, r1, r2, va_b);
+}
+
+/* Purge (Insn/Data) TLB. */
 static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUHPPAState *env = cpu_env(cpu);
-    target_ulong addr = (target_ulong) data.target_ptr;
-    hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
+    vaddr start = data.target_ptr;
+    vaddr end;
 
-    if (ent && ent->entry_valid) {
-        hppa_flush_tlb_ent(env, ent, false);
-    }
+    /*
+     * PA2.0 allows a range of pages encoded into GR[b], which we have
+     * copied into the bottom bits of the otherwise page-aligned address.
+     * PA1.x will always provide zero here, for a single page flush.
+     */
+    end = start & 0xf;
+    start &= TARGET_PAGE_MASK;
+    end = TARGET_PAGE_SIZE << (2 * end);
+    end = start + end - 1;
+
+    hppa_flush_tlb_range(env, start, end);
 }
 
+/* This is local to the current cpu. */
+void HELPER(ptlb_l)(CPUHPPAState *env, target_ulong addr)
+{
+    trace_hppa_tlb_ptlb_local(env);
+    ptlb_work(env_cpu(env), RUN_ON_CPU_TARGET_PTR(addr));
+}
+
+/* This is synchronous across all processors.  */
 void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 {
     CPUState *src = env_cpu(env);
     CPUState *cpu;
+    bool wait = false;
+
     trace_hppa_tlb_ptlb(env);
     run_on_cpu_data data = RUN_ON_CPU_TARGET_PTR(addr);
 
     CPU_FOREACH(cpu) {
         if (cpu != src) {
             async_run_on_cpu(cpu, ptlb_work, data);
+            wait = true;
         }
     }
-    async_safe_run_on_cpu(src, ptlb_work, data);
+    if (wait) {
+        async_safe_run_on_cpu(src, ptlb_work, data);
+    } else {
+        ptlb_work(src, data);
+    }
+}
+
+void hppa_ptlbe(CPUHPPAState *env)
+{
+    uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
+    uint32_t i;
+
+    /* Zap the (non-btlb) tlb entries themselves. */
+    memset(&env->tlb[btlb_entries], 0,
+           sizeof(env->tlb) - btlb_entries * sizeof(env->tlb[0]));
+    env->tlb_last = btlb_entries;
+    env->tlb_partial = NULL;
+
+    /* Put them all onto the unused list. */
+    env->tlb_unused = &env->tlb[btlb_entries];
+    for (i = btlb_entries; i < ARRAY_SIZE(env->tlb) - 1; ++i) {
+        env->tlb[i].unused_next = &env->tlb[i + 1];
+    }
+
+    /* Re-initialize the interval tree with only the btlb entries. */
+    memset(&env->tlb_root, 0, sizeof(env->tlb_root));
+    for (i = 0; i < btlb_entries; ++i) {
+        if (env->tlb[i].entry_valid) {
+            interval_tree_insert(&env->tlb[i].itree, &env->tlb_root);
+        }
+    }
+
+    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
 }
 
 /* Purge (Insn/Data) TLB entry.  This affects an implementation-defined
@@ -365,17 +575,12 @@ void HELPER(ptlbe)(CPUHPPAState *env)
 {
     trace_hppa_tlb_ptlbe(env);
     qemu_log_mask(CPU_LOG_MMU, "FLUSH ALL TLB ENTRIES\n");
-    memset(&env->tlb[HPPA_BTLB_ENTRIES], 0,
-        sizeof(env->tlb) - HPPA_BTLB_ENTRIES * sizeof(env->tlb[0]));
-    env->tlb_last = HPPA_BTLB_ENTRIES;
-    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
+    hppa_ptlbe(env);
 }
 
 void cpu_hppa_change_prot_id(CPUHPPAState *env)
 {
-    if (env->psw & PSW_P) {
-        tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
-    }
+    tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_P_MASK);
 }
 
 void HELPER(change_prot_id)(CPUHPPAState *env)
@@ -383,7 +588,7 @@ void HELPER(change_prot_id)(CPUHPPAState *env)
     cpu_hppa_change_prot_id(env);
 }
 
-target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
+target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
 {
     hwaddr phys;
     int prot, excp;
@@ -391,16 +596,11 @@ target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
     excp = hppa_get_physical_address(env, addr, MMU_KERNEL_IDX, 0,
                                      &phys, &prot, NULL);
     if (excp >= 0) {
-        if (env->psw & PSW_Q) {
-            /* ??? Needs tweaking for hppa64.  */
-            env->cr[CR_IOR] = addr;
-            env->cr[CR_ISR] = addr >> 32;
-        }
         if (excp == EXCP_DTLB_MISS) {
             excp = EXCP_NA_DTLB_MISS;
         }
         trace_hppa_tlb_lpa_failed(env, addr);
-        hppa_dynamic_excp(env, excp, GETPC());
+        raise_exception_with_ior(env, excp, GETPC(), addr, false);
     }
     trace_hppa_tlb_lpa_success(env, addr, phys);
     return phys;
@@ -409,7 +609,7 @@ target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
 /* Return the ar_type of the TLB at VADDR, or -1.  */
 int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
 {
-    hppa_tlb_entry *ent = hppa_find_tlb(env, vaddr);
+    HPPATLBEntry *ent = hppa_find_tlb(env, vaddr);
     return ent ? ent->ar_type : -1;
 }
 
@@ -424,15 +624,17 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     unsigned int phys_page, len, slot;
     int mmu_idx = cpu_mmu_index(env, 0);
     uintptr_t ra = GETPC();
-    hppa_tlb_entry *btlb;
+    HPPATLBEntry *btlb;
     uint64_t virt_page;
     uint32_t *vaddr;
+    uint32_t btlb_entries = HPPA_BTLB_ENTRIES(env);
 
-#ifdef TARGET_HPPA64
     /* BTLBs are not supported on 64-bit CPUs */
-    env->gr[28] = -1; /* nonexistent procedure */
-    return;
-#endif
+    if (btlb_entries == 0) {
+        env->gr[28] = -1; /* nonexistent procedure */
+        return;
+    }
+
     env->gr[28] = 0; /* PDC_OK */
 
     switch (env->gr[25]) {
@@ -446,8 +648,8 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         } else {
             vaddr[0] = cpu_to_be32(1);
             vaddr[1] = cpu_to_be32(16 * 1024);
-            vaddr[2] = cpu_to_be32(HPPA_BTLB_FIXED);
-            vaddr[3] = cpu_to_be32(HPPA_BTLB_VARIABLE);
+            vaddr[2] = cpu_to_be32(PA10_BTLB_FIXED);
+            vaddr[3] = cpu_to_be32(PA10_BTLB_VARIABLE);
         }
         break;
     case 1:
@@ -464,15 +666,17 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
                     (long long) virt_page << TARGET_PAGE_BITS,
                     (long long) (virt_page + len) << TARGET_PAGE_BITS,
                     (long long) virt_page, phys_page, len, slot);
-        if (slot < HPPA_BTLB_ENTRIES) {
+        if (slot < btlb_entries) {
             btlb = &env->tlb[slot];
-            /* force flush of possibly existing BTLB entry */
+
+            /* Force flush of possibly existing BTLB entry. */
             hppa_flush_tlb_ent(env, btlb, true);
-            /* create new BTLB entry */
-            btlb->va_b = virt_page << TARGET_PAGE_BITS;
-            btlb->va_e = btlb->va_b + len * TARGET_PAGE_SIZE - 1;
+
+            /* Create new BTLB entry */
+            btlb->itree.start = virt_page << TARGET_PAGE_BITS;
+            btlb->itree.last = btlb->itree.start + len * TARGET_PAGE_SIZE - 1;
             btlb->pa = phys_page << TARGET_PAGE_BITS;
-            set_access_bits(env, btlb, env->gr[20]);
+            set_access_bits_pa11(env, btlb, env->gr[20]);
             btlb->t = 0;
             btlb->d = 1;
         } else {
@@ -484,7 +688,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         slot = env->gr[22];
         qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE slot %d\n",
                                     slot);
-        if (slot < HPPA_BTLB_ENTRIES) {
+        if (slot < btlb_entries) {
             btlb = &env->tlb[slot];
             hppa_flush_tlb_ent(env, btlb, true);
         } else {
@@ -494,7 +698,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     case 3:
         /* Purge all BTLB entries */
         qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_PURGE_ALL\n");
-        for (slot = 0; slot < HPPA_BTLB_ENTRIES; slot++) {
+        for (slot = 0; slot < btlb_entries; slot++) {
             btlb = &env->tlb[slot];
             hppa_flush_tlb_ent(env, btlb, true);
         }

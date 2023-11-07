@@ -385,10 +385,11 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
     }
 
     if (pflags) {
-        *pflags = (elf_word)ehdr.e_flags;
+        *pflags = ehdr.e_flags;
     }
-    if (pentry)
-        *pentry = (uint64_t)(elf_sword)ehdr.e_entry;
+    if (pentry) {
+        *pentry = ehdr.e_entry;
+    }
 
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb, sym_cb);
 
@@ -610,10 +611,12 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
         }
     }
 
-    if (lowaddr)
-        *lowaddr = (uint64_t)(elf_sword)low;
-    if (highaddr)
-        *highaddr = (uint64_t)(elf_sword)high;
+    if (lowaddr) {
+        *lowaddr = low;
+    }
+    if (highaddr) {
+        *highaddr = high;
+    }
     ret = total_size;
  fail:
     if (mapped_file) {

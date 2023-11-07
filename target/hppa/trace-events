@@ -10,6 +10,7 @@ disable hppa_tlb_fill_success(void *env, uint64_t addr, uint64_t phys, int size,
 disable hppa_tlb_itlba(void *env, void *ent, uint64_t va_b, uint64_t va_e, uint64_t pa) "env=%p ent=%p va_b=0x%lx va_e=0x%lx pa=0x%lx"
 disable hppa_tlb_itlbp(void *env, void *ent, int access_id, int u, int pl2, int pl1, int type, int b, int d, int t) "env=%p ent=%p access_id=%x u=%d pl2=%d pl1=%d type=%d b=%d d=%d t=%d"
 disable hppa_tlb_ptlb(void *env) "env=%p"
+disable hppa_tlb_ptlb_local(void *env) "env=%p"
 disable hppa_tlb_ptlbe(void *env) "env=%p"
 disable hppa_tlb_lpa_success(void *env, uint64_t addr, uint64_t phys) "env=%p addr=0x%lx phys=0x%lx"
 disable hppa_tlb_lpa_failed(void *env, uint64_t addr) "env=%p addr=0x%lx"

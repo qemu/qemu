@@ -8,26 +8,16 @@
 #ifndef HPPA_CPU_PARAM_H
 #define HPPA_CPU_PARAM_H
 
-#ifdef TARGET_HPPA64
-# define TARGET_LONG_BITS             64
-# define TARGET_REGISTER_BITS         64
-# define TARGET_VIRT_ADDR_SPACE_BITS  64
-# define TARGET_PHYS_ADDR_SPACE_BITS  64
-#elif defined(CONFIG_USER_ONLY)
-# define TARGET_LONG_BITS             32
-# define TARGET_REGISTER_BITS         32
+#define TARGET_LONG_BITS              64
+
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_ABI32)
+# define TARGET_PHYS_ADDR_SPACE_BITS  32
 # define TARGET_VIRT_ADDR_SPACE_BITS  32
-# define TARGET_PHYS_ADDR_SPACE_BITS  32
 #else
-/*
- * In order to form the GVA from space:offset,
- * we need a 64-bit virtual address space.
- */
-# define TARGET_LONG_BITS             64
-# define TARGET_REGISTER_BITS         32
+# define TARGET_PHYS_ADDR_SPACE_BITS  64
 # define TARGET_VIRT_ADDR_SPACE_BITS  64
-# define TARGET_PHYS_ADDR_SPACE_BITS  32
 #endif
+
 #define TARGET_PAGE_BITS 12
 
 #endif
