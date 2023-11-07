@@ -1598,6 +1598,7 @@ vhost_user_backend_handle_shared_object_add(struct vhost_dev *dev,
     QemuUUID uuid;
 
     memcpy(uuid.data, object->uuid, sizeof(object->uuid));
+    dev->shared_uuids = g_slist_append(dev->shared_uuids, &uuid);
     return virtio_add_vhost_device(&uuid, dev);
 }
 
@@ -1623,6 +1624,7 @@ vhost_user_backend_handle_shared_object_remove(struct vhost_dev *dev,
     }
 
     memcpy(uuid.data, object->uuid, sizeof(object->uuid));
+    dev->shared_uuids = g_slist_remove_all(dev->shared_uuids, &uuid);
     return virtio_remove_resource(&uuid);
 }
 

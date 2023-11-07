@@ -118,6 +118,12 @@ struct vhost_dev {
      */
     uint64_t protocol_features;
 
+    /**
+     * @shared_uuids: contains the UUIDs of all the exported
+     * virtio objects owned by the vhost device.
+     */
+    GSList *shared_uuids;
+
     uint64_t max_queues;
     uint64_t backend_cap;
     /* @started: is the vhost device started? */

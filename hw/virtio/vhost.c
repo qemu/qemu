@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/virtio-dmabuf.h"
 #include "qemu/atomic.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
@@ -1599,6 +1600,9 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     migrate_del_blocker(&hdev->migration_blocker);
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
+    /* free virtio shared objects */
+    g_slist_foreach(hdev->shared_uuids, (GFunc)virtio_remove_resource, NULL);
+    g_slist_free_full(g_steal_pointer(&hdev->shared_uuids), g_free);
     if (hdev->vhost_ops) {
         hdev->vhost_ops->vhost_backend_cleanup(hdev);
     }
