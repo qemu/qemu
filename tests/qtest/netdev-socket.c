@@ -18,6 +18,32 @@
 
 #define CONNECTION_TIMEOUT    120
 
+static double connection_timeout(void)
+{
+    double load;
+    int ret = getloadavg(&load, 1);
+
+    /*
+     * If we can't get load data, or load is low because we just started
+     * running, assume load of 1 (we are alone in this system).
+     */
+    if (ret < 1 || load < 1.0) {
+        load = 1.0;
+    }
+    /*
+     * No one wants to wait more than 10 minutes for this test. Higher load?
+     * Too bad.
+     */
+    if (load > 10.0) {
+        fprintf(stderr, "Warning: load %f higher than 10 - test might timeout\n",
+                load);
+        load = 10.0;
+    }
+
+    /* if load is high increase timeout as we might not get a chance to run */
+    return load * CONNECTION_TIMEOUT;
+}
+
 #define EXPECT_STATE(q, e, t)                             \
 do {                                                      \
     char *resp = NULL;                                    \
@@ -31,7 +57,7 @@ do {                                                      \
         if (g_str_equal(resp, e)) {                       \
             break;                                        \
         }                                                 \
-    } while (g_test_timer_elapsed() < CONNECTION_TIMEOUT); \
+    } while (g_test_timer_elapsed() < connection_timeout()); \
     g_assert_cmpstr(resp, ==, e);                         \
     g_free(resp);                                         \
 } while (0)
