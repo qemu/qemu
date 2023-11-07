@@ -23,7 +23,6 @@
 #include <sys/ioctl.h>
 
 #include "hw/vfio/vfio-common.h"
-#include "hw/vfio/vfio.h"
 #include "hw/hw.h"
 #include "trace.h"
 #include "qapi/error.h"

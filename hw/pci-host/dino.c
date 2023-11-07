@@ -354,6 +354,10 @@ static AddressSpace *dino_pcihost_set_iommu(PCIBus *bus, void *opaque,
     return &s->bm_as;
 }
 
+static const PCIIOMMUOps dino_iommu_ops = {
+    .get_address_space = dino_pcihost_set_iommu,
+};
+
 /*
  * Dino interrupts are connected as shown on Page 78, Table 23
  * (Little-endian bit numbers)
@@ -481,7 +485,7 @@ static void dino_pcihost_init(Object *obj)
         g_free(name);
     }
 
-    pci_setup_iommu(phb->bus, dino_pcihost_set_iommu, s);
+    pci_setup_iommu(phb->bus, &dino_iommu_ops, s);
 
     sysbus_init_mmio(sbd, &s->this_mem);
 

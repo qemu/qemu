@@ -24,6 +24,7 @@
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/int128.h"
+#include "qemu/range.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
@@ -79,8 +80,7 @@ extern unsigned int global_dirty_tracking;
 typedef struct MemoryRegionOps MemoryRegionOps;
 
 struct ReservedRegion {
-    hwaddr low;
-    hwaddr high;
+    Range range;
     unsigned type;
 };
 
@@ -527,6 +527,26 @@ struct IOMMUMemoryRegionClass {
      int (*iommu_set_page_size_mask)(IOMMUMemoryRegion *iommu,
                                      uint64_t page_size_mask,
                                      Error **errp);
+    /**
+     * @iommu_set_iova_ranges:
+     *
+     * Propagate information about the usable IOVA ranges for a given IOMMU
+     * memory region. Used for example to propagate host physical device
+     * reserved memory region constraints to the virtual IOMMU.
+     *
+     * Optional method: if this method is not provided, then the default IOVA
+     * aperture is used.
+     *
+     * @iommu: the IOMMUMemoryRegion
+     *
+     * @iova_ranges: list of ordered IOVA ranges (at least one range)
+     *
+     * Returns 0 on success, or a negative error. In case of failure, the error
+     * object must be created.
+     */
+     int (*iommu_set_iova_ranges)(IOMMUMemoryRegion *iommu,
+                                  GList *iova_ranges,
+                                  Error **errp);
 };
 
 typedef struct RamDiscardListener RamDiscardListener;
@@ -1855,6 +1875,18 @@ int memory_region_iommu_num_indexes(IOMMUMemoryRegion *iommu_mr);
 int memory_region_iommu_set_page_size_mask(IOMMUMemoryRegion *iommu_mr,
                                            uint64_t page_size_mask,
                                            Error **errp);
+
+/**
+ * memory_region_iommu_set_iova_ranges - Set the usable IOVA ranges
+ * for a given IOMMU MR region
+ *
+ * @iommu: IOMMU memory region
+ * @iova_ranges: list of ordered IOVA ranges (at least one range)
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+int memory_region_iommu_set_iova_ranges(IOMMUMemoryRegion *iommu,
+                                        GList *iova_ranges,
+                                        Error **errp);
 
 /**
  * memory_region_name: get a memory region's name

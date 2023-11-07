@@ -2271,7 +2271,7 @@ static void vmbus_dev_realize(DeviceState *dev, Error **errp)
     VMBus *vmbus = VMBUS(qdev_get_parent_bus(dev));
     BusChild *child;
     Error *err = NULL;
-    char idstr[UUID_FMT_LEN + 1];
+    char idstr[UUID_STR_LEN];
 
     assert(!qemu_uuid_is_null(&vdev->instanceid));
 
@@ -2467,7 +2467,7 @@ static char *vmbus_get_dev_path(DeviceState *dev)
 static char *vmbus_get_fw_dev_path(DeviceState *dev)
 {
     VMBusDevice *vdev = VMBUS_DEVICE(dev);
-    char uuid[UUID_FMT_LEN + 1];
+    char uuid[UUID_STR_LEN];
 
     qemu_uuid_unparse(&vdev->instanceid, uuid);
     return g_strdup_printf("%s@%s", qdev_fw_name(dev), uuid);

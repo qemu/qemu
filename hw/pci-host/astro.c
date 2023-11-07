@@ -345,6 +345,10 @@ static AddressSpace *elroy_pcihost_set_iommu(PCIBus *bus, void *opaque,
     return &s->astro->iommu_as;
 }
 
+static const PCIIOMMUOps elroy_pcihost_iommu_ops = {
+    .get_address_space = elroy_pcihost_set_iommu,
+};
+
 /*
  * Encoding in IOSAPIC:
  * base_addr == 0xfffa0000, we want to get 0xa0ff0000.
@@ -834,7 +838,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
                                  &elroy->pci_io);
 
         /* Host memory as seen from the PCI side, via the IOMMU.  */
-        pci_setup_iommu(PCI_HOST_BRIDGE(elroy)->bus, elroy_pcihost_set_iommu,
+        pci_setup_iommu(PCI_HOST_BRIDGE(elroy)->bus, &elroy_pcihost_iommu_ops,
                                  elroy);
     }
 }
