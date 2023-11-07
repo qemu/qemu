@@ -48,6 +48,7 @@
 #define AMCGPIO_EN_MIR                          0x00a8
 #define PALETTE_INDEX                           0x00b0
 #define PALETTE_DATA                            0x00b4
+#define PALETTE_30_DATA                         0x00b8
 #define CNFG_CNTL                               0x00e0
 #define GEN_RESET_CNTL                          0x00f0
 #define CNFG_MEMSIZE                            0x00f8
@@ -56,6 +57,7 @@
 #define CONFIG_APER_SIZE                        0x0108
 #define CONFIG_REG_1_BASE                       0x010c
 #define CONFIG_REG_APER_SIZE                    0x0110
+#define HOST_PATH_CNTL                          0x0130
 #define MEM_CNTL                                0x0140
 #define MC_FB_LOCATION                          0x0148
 #define MC_AGP_LOCATION                         0x014C

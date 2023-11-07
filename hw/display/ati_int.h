@@ -44,6 +44,7 @@ typedef struct ATIVGARegs {
     uint32_t gpio_dvi_ddc;
     uint32_t gpio_monid;
     uint32_t config_cntl;
+    uint32_t palette[256];
     uint32_t crtc_h_total_disp;
     uint32_t crtc_h_sync_strt_wid;
     uint32_t crtc_v_total_disp;
@@ -89,6 +90,7 @@ struct ATIVGAState {
     char *model;
     uint16_t dev_id;
     uint8_t mode;
+    uint8_t use_pixman;
     bool cursor_guest_mode;
     uint16_t cursor_size;
     uint32_t cursor_offset;
