@@ -27,30 +27,39 @@
 
 hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
 {
-    if (likely(extract64(addr, 58, 4) != 0xf)) {
-        /* Memory address space */
-        return addr & MAKE_64BIT_MASK(0, 62);
-    }
-    if (extract64(addr, 54, 4) != 0) {
-        /* I/O address space */
-        return addr | MAKE_64BIT_MASK(62, 2);
-    }
-    /* PDC address space */
-    return (addr & MAKE_64BIT_MASK(0, 54)) | MAKE_64BIT_MASK(60, 4);
+    /*
+     * Figure H-8 "62-bit Absolute Accesses when PSW W-bit is 1" describes
+     * an algorithm in which a 62-bit absolute address is transformed to
+     * a 64-bit physical address.  This must then be combined with that
+     * pictured in Figure H-11 "Physical Address Space Mapping", in which
+     * the full physical address is truncated to the N-bit physical address
+     * supported by the implementation.
+     *
+     * Since the supported physical address space is below 54 bits, the
+     * H-8 algorithm is moot and all that is left is to truncate.
+     */
+    QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > 54);
+    return sextract64(addr, 0, TARGET_PHYS_ADDR_SPACE_BITS);
 }
 
 hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
 {
+    /*
+     * See Figure H-10, "Absolute Accesses when PSW W-bit is 0",
+     * combined with Figure H-11, as above.
+     */
     if (likely(extract32(addr, 28, 4) != 0xf)) {
         /* Memory address space */
-        return addr & MAKE_64BIT_MASK(0, 32);
-    }
-    if (extract32(addr, 24, 4) != 0) {
+        addr = (uint32_t)addr;
+    } else if (extract32(addr, 24, 4) != 0) {
         /* I/O address space */
-        return addr | MAKE_64BIT_MASK(32, 32);
+        addr = (int32_t)addr;
+    } else {
+        /* PDC address space */
+        addr &= MAKE_64BIT_MASK(0, 24);
+        addr |= -1ull << (TARGET_PHYS_ADDR_SPACE_BITS - 4);
     }
-    /* PDC address space */
-    return (addr & MAKE_64BIT_MASK(0, 24)) | MAKE_64BIT_MASK(60, 4);
+    return addr;
 }
 
 static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
@@ -460,7 +469,14 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
 
     ent->itree.start = va_b;
     ent->itree.last = va_e;
-    ent->pa = (r1 << 7) & (TARGET_PAGE_MASK << mask_shift);
+
+    /* Extract all 52 bits present in the page table entry. */
+    ent->pa = r1 << (TARGET_PAGE_BITS - 5);
+    /* Align per the page size. */
+    ent->pa &= TARGET_PAGE_MASK << mask_shift;
+    /* Ignore the bits beyond physical address space. */
+    ent->pa = sextract64(ent->pa, 0, TARGET_PHYS_ADDR_SPACE_BITS);
+
     ent->t = extract64(r2, 61, 1);
     ent->d = extract64(r2, 60, 1);
     ent->b = extract64(r2, 59, 1);
