@@ -53,17 +53,6 @@ hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
     return (addr & MAKE_64BIT_MASK(0, 24)) | MAKE_64BIT_MASK(60, 4);
 }
 
-static hwaddr hppa_abs_to_phys(CPUHPPAState *env, vaddr addr)
-{
-    if (!hppa_is_pa20(env)) {
-        return addr;
-    } else if (env->psw & PSW_W) {
-        return hppa_abs_to_phys_pa2_w1(addr);
-    } else {
-        return hppa_abs_to_phys_pa2_w0(addr);
-    }
-}
-
 static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
 {
     IntervalTreeNode *i = interval_tree_iter_first(&env->tlb_root, addr, addr);
@@ -161,9 +150,22 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         *tlb_entry = NULL;
     }
 
-    /* Virtual translation disabled.  Direct map virtual to physical.  */
-    if (mmu_idx == MMU_PHYS_IDX) {
-        phys = addr;
+    /* Virtual translation disabled.  Map absolute to physical.  */
+    if (MMU_IDX_MMU_DISABLED(mmu_idx)) {
+        switch (mmu_idx) {
+        case MMU_ABS_W_IDX:
+            phys = hppa_abs_to_phys_pa2_w1(addr);
+            break;
+        case MMU_ABS_IDX:
+            if (hppa_is_pa20(env)) {
+                phys = hppa_abs_to_phys_pa2_w0(addr);
+            } else {
+                phys = (uint32_t)addr;
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         goto egress;
     }
@@ -261,7 +263,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
  egress:
-    *pphys = phys = hppa_abs_to_phys(env, phys);
+    *pphys = phys;
     *pprot = prot;
     trace_hppa_tlb_get_physical_address(env, ret, prot, addr, phys);
     return ret;
@@ -271,16 +273,15 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     hwaddr phys;
-    int prot, excp;
+    int prot, excp, mmu_idx;
 
     /* If the (data) mmu is disabled, bypass translation.  */
     /* ??? We really ought to know if the code mmu is disabled too,
        in order to get the correct debugging dumps.  */
-    if (!(cpu->env.psw & PSW_D)) {
-        return hppa_abs_to_phys(&cpu->env, addr);
-    }
+    mmu_idx = (cpu->env.psw & PSW_D ? MMU_KERNEL_IDX :
+               cpu->env.psw & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
-    excp = hppa_get_physical_address(&cpu->env, addr, MMU_KERNEL_IDX, 0,
+    excp = hppa_get_physical_address(&cpu->env, addr, mmu_idx, 0,
                                      &phys, &prot, NULL);
 
     /* Since we're translating for debugging, the only error that is a

@@ -3172,7 +3172,7 @@ static bool trans_lda(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_ld(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -3183,7 +3183,7 @@ static bool trans_sta(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_st(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -4435,7 +4435,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D
                     ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
-                    : MMU_PHYS_IDX);
+                    : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
     /* Recover the IAOQ values from the GVA + PRIV.  */
     uint64_t cs_base = ctx->base.tb->cs_base;
