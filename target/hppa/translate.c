@@ -2297,7 +2297,7 @@ static bool trans_probe(DisasContext *ctx, arg_probe *a)
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
 
     if (a->imm) {
-        level = tcg_constant_i32(a->ri);
+        level = tcg_constant_i32(a->ri & 3);
     } else {
         level = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(level, load_gpr(ctx, a->ri));
