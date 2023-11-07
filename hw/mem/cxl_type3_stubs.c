@@ -33,7 +33,8 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log, uint8_t flags,
                                bool has_bank, uint8_t bank,
                                bool has_row, uint32_t row,
                                bool has_column, uint16_t column,
-                               bool has_correction_mask, uint64List *correction_mask,
+                               bool has_correction_mask,
+                               uint64List *correction_mask,
                                Error **errp) {}
 
 void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
@@ -45,7 +46,7 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
                                         int16_t temperature,
                                         uint32_t dirty_shutdown_count,
                                         uint32_t corrected_volatile_error_count,
-                                        uint32_t corrected_persistent_error_count,
+                                        uint32_t corrected_persist_error_count,
                                         Error **errp) {}
 
 void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,

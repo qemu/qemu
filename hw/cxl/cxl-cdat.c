@@ -60,7 +60,8 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
         return;
     }
 
-    cdat->built_buf_len = cdat->build_cdat_table(&cdat->built_buf, cdat->private);
+    cdat->built_buf_len = cdat->build_cdat_table(&cdat->built_buf,
+                                                 cdat->private);
 
     if (!cdat->built_buf_len) {
         /* Build later as not all data available yet */

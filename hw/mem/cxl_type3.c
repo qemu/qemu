@@ -23,6 +23,7 @@
 #include "qemu/pmem.h"
 #include "qemu/range.h"
 #include "qemu/rcu.h"
+#include "qemu/guest-random.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
 #include "hw/cxl/cxl.h"
@@ -208,10 +209,9 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
 
     if (nonvolatile_mr) {
+        uint64_t base = volatile_mr ? memory_region_size(volatile_mr) : 0;
         rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++,
-                                           nonvolatile_mr, true,
-                                           (volatile_mr ?
-                                            memory_region_size(volatile_mr) : 0));
+                                           nonvolatile_mr, true, base);
         if (rc < 0) {
             goto error_cleanup;
         }
@@ -514,7 +514,8 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
     case A_CXL_RAS_UNC_ERR_STATUS:
     {
         uint32_t capctrl = ldl_le_p(cache_mem + R_CXL_RAS_ERR_CAP_CTRL);
-        uint32_t fe = FIELD_EX32(capctrl, CXL_RAS_ERR_CAP_CTRL, FIRST_ERROR_POINTER);
+        uint32_t fe = FIELD_EX32(capctrl, CXL_RAS_ERR_CAP_CTRL,
+                                 FIRST_ERROR_POINTER);
         CXLError *cxl_err;
         uint32_t unc_err;
 
@@ -533,7 +534,8 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
                  * closest to behavior of hardware not capable of multiple
                  * header recording.
                  */
-                QTAILQ_FOREACH_SAFE(cxl_err, &ct3d->error_list, node, cxl_next) {
+                QTAILQ_FOREACH_SAFE(cxl_err, &ct3d->error_list, node,
+                                    cxl_next) {
                     if ((1 << cxl_err->type) & value) {
                         QTAILQ_REMOVE(&ct3d->error_list, cxl_err, node);
                         g_free(cxl_err);
@@ -715,7 +717,8 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
         pci_dev, CXL_COMPONENT_REG_BAR_IDX,
         PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64, mr);
 
-    cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate);
+    cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
+                                   &ct3d->cci);
     pci_register_bar(pci_dev, CXL_DEVICE_REG_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
@@ -885,14 +888,20 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs)
 {
+    CXLType3Dev *ct3d = CXL_TYPE3(d);
     uint64_t dpa_offset = 0;
     AddressSpace *as = NULL;
     int res;
 
-    res = cxl_type3_hpa_to_as_and_dpa(CXL_TYPE3(d), host_addr, size,
+    res = cxl_type3_hpa_to_as_and_dpa(ct3d, host_addr, size,
                                       &as, &dpa_offset);
     if (res) {
         return MEMTX_ERROR;
+    }
+
+    if (sanitize_running(&ct3d->cci)) {
+        qemu_guest_getrandom_nofail(data, size);
+        return MEMTX_OK;
     }
 
     return address_space_read(as, dpa_offset, attrs, data, size);
@@ -901,14 +910,19 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
                             unsigned size, MemTxAttrs attrs)
 {
+    CXLType3Dev *ct3d = CXL_TYPE3(d);
     uint64_t dpa_offset = 0;
     AddressSpace *as = NULL;
     int res;
 
-    res = cxl_type3_hpa_to_as_and_dpa(CXL_TYPE3(d), host_addr, size,
+    res = cxl_type3_hpa_to_as_and_dpa(ct3d, host_addr, size,
                                       &as, &dpa_offset);
     if (res) {
         return MEMTX_ERROR;
+    }
+
+    if (sanitize_running(&ct3d->cci)) {
+        return MEMTX_OK;
     }
 
     return address_space_write(as, dpa_offset, attrs, &data, size);
@@ -921,7 +935,18 @@ static void ct3d_reset(DeviceState *dev)
     uint32_t *write_msk = ct3d->cxl_cstate.crb.cache_mem_regs_write_mask;
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_TYPE3_DEVICE);
-    cxl_device_register_init_common(&ct3d->cxl_dstate);
+    cxl_device_register_init_t3(ct3d);
+
+    /*
+     * Bring up an endpoint to target with MCTP over VDM.
+     * This device is emulating an MLD with single LD for now.
+     */
+    cxl_initialize_t3_fm_owned_ld_mctpcci(&ct3d->vdm_fm_owned_ld_mctp_cci,
+                                          DEVICE(ct3d), DEVICE(ct3d),
+                                          512); /* Max payload made up */
+    cxl_initialize_t3_ld_cci(&ct3d->ld0_cci, DEVICE(ct3d), DEVICE(ct3d),
+                             512); /* Max payload made up */
+
 }
 
 static Property ct3_props[] = {
@@ -1072,7 +1097,8 @@ void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,
         if (((start >= p->start) && (start < p->start + p->length)) ||
             ((start + length > p->start) &&
              (start + length <= p->start + p->length))) {
-            error_setg(errp, "Overlap with existing poisoned region not supported");
+            error_setg(errp,
+                       "Overlap with existing poisoned region not supported");
             return;
         }
     }
@@ -1085,7 +1111,8 @@ void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,
     p = g_new0(CXLPoison, 1);
     p->length = length;
     p->start = start;
-    p->type = CXL_POISON_TYPE_INTERNAL; /* Different from injected via the mbox */
+    /* Different from injected via the mbox */
+    p->type = CXL_POISON_TYPE_INTERNAL;
 
     QLIST_INSERT_HEAD(&ct3d->poison_list, p, node);
     ct3d->poison_list_cnt++;
@@ -1222,7 +1249,8 @@ void qmp_cxl_inject_correctable_error(const char *path, CxlCorErrorType type,
         return;
     }
     /* If the error is masked, nothting to do here */
-    if (!((1 << cxl_err_type) & ~ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_MASK))) {
+    if (!((1 << cxl_err_type) &
+          ~ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_MASK))) {
         return;
     }
 
@@ -1372,7 +1400,8 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log, uint8_t flags,
                                bool has_bank, uint8_t bank,
                                bool has_row, uint32_t row,
                                bool has_column, uint16_t column,
-                               bool has_correction_mask, uint64List *correction_mask,
+                               bool has_correction_mask,
+                               uint64List *correction_mask,
                                Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
@@ -1473,7 +1502,7 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
                                         int16_t temperature,
                                         uint32_t dirty_shutdown_count,
                                         uint32_t corrected_volatile_error_count,
-                                        uint32_t corrected_persistent_error_count,
+                                        uint32_t corrected_persist_error_count,
                                         Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
@@ -1513,8 +1542,10 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
     module.life_used = life_used;
     stw_le_p(&module.temperature, temperature);
     stl_le_p(&module.dirty_shutdown_count, dirty_shutdown_count);
-    stl_le_p(&module.corrected_volatile_error_count, corrected_volatile_error_count);
-    stl_le_p(&module.corrected_persistent_error_count, corrected_persistent_error_count);
+    stl_le_p(&module.corrected_volatile_error_count,
+             corrected_volatile_error_count);
+    stl_le_p(&module.corrected_persistent_error_count,
+             corrected_persist_error_count);
 
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&module)) {
         cxl_event_irq_assert(ct3d);

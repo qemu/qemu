@@ -18,7 +18,7 @@
 #
 #
 # Author:
-#  Ani Sinha <ani@anisinha.ca>
+#  Ani Sinha <anisinha@redhat.com>
 
 # pylint: disable=invalid-name
 # pylint: disable=consider-using-f-string
@@ -48,6 +48,7 @@ from typing import (
 )
 from qemu.machine import QEMUMachine
 from avocado import skipIf
+from avocado.utils import datadrainer as drainer
 from avocado_qemu import QemuBaseTest
 
 deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
@@ -141,12 +142,12 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._baseDir = None
 
         # following are some standard configuration constants
-        self._bitsInternalVer = 2020
-        self._bitsCommitHash = 'b48b88ff' # commit hash must match
+        self._bitsInternalVer = 2020 # gitlab CI does shallow clones of depth 20
+        self._bitsCommitHash = 'c7920d2b' # commit hash must match
                                           # the artifact tag below
-        self._bitsTag = "qemu-bits-10182022" # this is the latest bits
+        self._bitsTag = "qemu-bits-10262023" # this is the latest bits
                                              # release as of today.
-        self._bitsArtSHA1Hash = 'b04790ac9b99b5662d0416392c73b97580641fe5'
+        self._bitsArtSHA1Hash = 'b22cdfcfc7453875297d06d626f5474ee36a343f'
         self._bitsArtURL = ("https://gitlab.com/qemu-project/"
                             "biosbits-bits/-/jobs/artifacts/%s/"
                             "download?job=qemu-bits-build" %self._bitsTag)
@@ -380,16 +381,26 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         # consistent in terms of timing. smilatency tests have consistent
         # timing requirements.
         self._vm.add_args('-icount', 'auto')
+        # currently there is no support in bits for recognizing 64-bit SMBIOS
+        # entry points. QEMU defaults to 64-bit entry points since the
+        # upstream commit bf376f3020 ("hw/i386/pc: Default to use SMBIOS 3.0
+        # for newer machine models"). Therefore, enforce 32-bit entry point.
+        self._vm.add_args('-machine', 'smbios-entry-point-type=32')
 
-        args = " ".join(str(arg) for arg in self._vm.base_args()) + \
-            " " + " ".join(str(arg) for arg in self._vm.args)
-
-        self.logger.info("launching QEMU vm with the following arguments: %s",
-                         args)
-
+        # enable console logging
+        self._vm.set_console()
         self._vm.launch()
+
+        self.logger.debug("Console output from bits VM follows ...")
+        c_drainer = drainer.LineLogger(self._vm.console_socket.fileno(),
+                                       logger=self.logger.getChild("console"),
+                                       stop_check=(lambda :
+                                                   not self._vm.is_running()))
+        c_drainer.start()
+
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
         # Rely on avocado's unit test timeout.
+        self._vm.event_wait('SHUTDOWN')
         self._vm.wait(timeout=None)
         self.parse_log()
