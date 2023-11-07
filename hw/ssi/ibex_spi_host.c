@@ -205,8 +205,9 @@ static void ibex_spi_host_irq(IbexSPIHostState *s)
         if (err_irq) {
             s->regs[IBEX_SPI_HOST_INTR_STATE] |= R_INTR_STATE_ERROR_MASK;
         }
-        qemu_set_irq(s->host_err, err_irq);
     }
+
+    qemu_set_irq(s->host_err, err_irq);
 
     /* Event IRQ Enabled and Event IRQ Cleared */
     if (event_en && !status_pending) {
@@ -229,8 +230,9 @@ static void ibex_spi_host_irq(IbexSPIHostState *s)
         if (event_irq) {
             s->regs[IBEX_SPI_HOST_INTR_STATE] |= R_INTR_STATE_SPI_EVENT_MASK;
         }
-        qemu_set_irq(s->event, event_irq);
     }
+
+    qemu_set_irq(s->event, event_irq);
 }
 
 static void ibex_spi_host_transfer(IbexSPIHostState *s)

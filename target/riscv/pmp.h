@@ -28,6 +28,7 @@ typedef enum {
     PMP_READ  = 1 << 0,
     PMP_WRITE = 1 << 1,
     PMP_EXEC  = 1 << 2,
+    PMP_AMATCH = (3 << 3),
     PMP_LOCK  = 1 << 7
 } pmp_priv_t;
 
@@ -81,6 +82,7 @@ void pmp_update_rule_addr(CPURISCVState *env, uint32_t pmp_index);
 void pmp_update_rule_nums(CPURISCVState *env);
 uint32_t pmp_get_num_rules(CPURISCVState *env);
 int pmp_priv_to_page_prot(pmp_priv_t pmp_priv);
+void pmp_unlock_entries(CPURISCVState *env);
 
 #define MSECCFG_MML_ISSET(env) get_field(env->mseccfg, MSECCFG_MML)
 #define MSECCFG_MMWP_ISSET(env) get_field(env->mseccfg, MSECCFG_MMWP)
