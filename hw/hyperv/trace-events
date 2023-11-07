@@ -16,3 +16,21 @@ vmbus_gpadl_torndown(uint32_t gpadl_id) "gpadl #%d"
 vmbus_open_channel(uint32_t chan_id, uint32_t gpadl_id, uint32_t target_vp) "channel #%d gpadl #%d target vp %d"
 vmbus_channel_open(uint32_t chan_id, uint32_t status) "channel #%d status %d"
 vmbus_close_channel(uint32_t chan_id) "channel #%d"
+
+# hv-balloon
+hv_balloon_state_change(const char *tostr) "-> %s"
+hv_balloon_incoming_version(uint16_t major, uint16_t minor) "incoming proto version %u.%u"
+hv_balloon_incoming_caps(uint32_t caps) "incoming caps 0x%x"
+hv_balloon_outgoing_unballoon(uint32_t trans_id, uint64_t count, uint64_t start, uint64_t rempages) "posting unballoon %"PRIu32" for %"PRIu64" @ 0x%"PRIx64", remaining %"PRIu64
+hv_balloon_incoming_unballoon(uint32_t trans_id) "incoming unballoon response %"PRIu32
+hv_balloon_outgoing_hot_add(uint32_t trans_id, uint64_t count, uint64_t start) "posting hot add %"PRIu32" for %"PRIu64" @ 0x%"PRIx64
+hv_balloon_incoming_hot_add(uint32_t trans_id, uint32_t result, uint32_t count) "incoming hot add response %"PRIu32", result %"PRIu32", count %"PRIu32
+hv_balloon_outgoing_balloon(uint32_t trans_id, uint64_t count, uint64_t rempages) "posting balloon %"PRIu32" for %"PRIu64", remaining %"PRIu64
+hv_balloon_incoming_balloon(uint32_t trans_id, uint32_t range_count, uint32_t more_pages) "incoming balloon response %"PRIu32", ranges %"PRIu32", more %"PRIu32
+hv_balloon_our_range_add(uint64_t count, uint64_t start) "adding our range %"PRIu64" @ 0x%"PRIx64
+hv_balloon_remove_response(uint64_t count, uint64_t start, unsigned int both) "processing remove response range %"PRIu64" @ 0x%"PRIx64", both %u"
+hv_balloon_remove_response_hole(uint64_t counthole, uint64_t starthole, uint64_t countrange, uint64_t startrange, uint64_t starthpr, unsigned int both) "response range hole %"PRIu64" @ 0x%"PRIx64" from range %"PRIu64" @ 0x%"PRIx64", before our start 0x%"PRIx64", both %u"
+hv_balloon_remove_response_common(uint64_t countcommon, uint64_t startcommon, uint64_t countrange, uint64_t startrange, uint64_t counthpr, uint64_t starthpr, uint64_t removed, unsigned int both) "response common range %"PRIu64" @ 0x%"PRIx64" from range %"PRIu64" @ 0x%"PRIx64" with our %"PRIu64" @ 0x%"PRIx64", removed %"PRIu64", both %u"
+hv_balloon_remove_response_remainder(uint64_t count, uint64_t start, unsigned int both) "remove response remaining range %"PRIu64" @ 0x%"PRIx64", both %u"
+hv_balloon_map_slot(unsigned int idx, unsigned int total_slots, uint64_t offset) "mapping memslot %u / %u @ 0x%"PRIx64
+hv_balloon_unmap_slot(unsigned int idx, unsigned int total_slots, uint64_t offset) "unmapping memslot %u / %u @ 0x%"PRIx64

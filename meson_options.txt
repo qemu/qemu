@@ -150,6 +150,8 @@ option('gio', type : 'feature', value : 'auto',
        description: 'use libgio for D-Bus support')
 option('glusterfs', type : 'feature', value : 'auto',
        description: 'Glusterfs block device driver')
+option('hv_balloon', type : 'feature', value : 'auto',
+       description: 'hv-balloon driver (requires Glib 2.68+ GTree API)')
 option('libdw', type : 'feature', value : 'auto',
        description: 'debuginfo support')
 option('libiscsi', type : 'feature', value : 'auto',

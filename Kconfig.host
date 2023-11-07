@@ -46,3 +46,6 @@ config FUZZ
 config VFIO_USER_SERVER_ALLOWED
     bool
     imply VFIO_USER_SERVER
+
+config HV_BALLOON_POSSIBLE
+    bool
