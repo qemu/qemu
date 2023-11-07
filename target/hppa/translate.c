@@ -77,11 +77,14 @@ typedef struct DisasContext {
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
 static int expand_sm_imm(DisasContext *ctx, int val)
 {
-    if (val & PSW_SM_E) {
-        val = (val & ~PSW_SM_E) | PSW_E;
-    }
-    if (val & PSW_SM_W) {
-        val = (val & ~PSW_SM_W) | PSW_W;
+    /* Keep unimplemented bits disabled -- see cpu_hppa_put_psw. */
+    if (ctx->is_pa20) {
+        if (val & PSW_SM_W) {
+            val |= PSW_W;
+        }
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_G);
+    } else {
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_O);
     }
     return val;
 }
