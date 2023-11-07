@@ -87,7 +87,6 @@ extern bool have_zbb;
 #endif
 
 /* optional instructions */
-#define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_negsetcond_i32   1
 #define TCG_TARGET_HAS_div_i32          1
 #define TCG_TARGET_HAS_rem_i32          1
@@ -110,7 +109,6 @@ extern bool have_zbb;
 #define TCG_TARGET_HAS_bswap16_i32      have_zbb
 #define TCG_TARGET_HAS_bswap32_i32      have_zbb
 #define TCG_TARGET_HAS_not_i32          1
-#define TCG_TARGET_HAS_neg_i32          1
 #define TCG_TARGET_HAS_andc_i32         have_zbb
 #define TCG_TARGET_HAS_orc_i32          have_zbb
 #define TCG_TARGET_HAS_eqv_i32          have_zbb
@@ -123,7 +121,6 @@ extern bool have_zbb;
 #define TCG_TARGET_HAS_setcond2         1
 #define TCG_TARGET_HAS_qemu_st8_i32     0
 
-#define TCG_TARGET_HAS_movcond_i64      1
 #define TCG_TARGET_HAS_negsetcond_i64   1
 #define TCG_TARGET_HAS_div_i64          1
 #define TCG_TARGET_HAS_rem_i64          1
@@ -144,7 +141,6 @@ extern bool have_zbb;
 #define TCG_TARGET_HAS_bswap32_i64      have_zbb
 #define TCG_TARGET_HAS_bswap64_i64      have_zbb
 #define TCG_TARGET_HAS_not_i64          1
-#define TCG_TARGET_HAS_neg_i64          1
 #define TCG_TARGET_HAS_andc_i64         have_zbb
 #define TCG_TARGET_HAS_orc_i64          have_zbb
 #define TCG_TARGET_HAS_eqv_i64          have_zbb

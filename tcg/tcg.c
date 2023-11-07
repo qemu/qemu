@@ -653,6 +653,7 @@ static void tcg_out_movext3(TCGContext *s, const TCGMovExtend *i1,
 #define C_O1_I4(O1, I1, I2, I3, I4)     C_PFX5(c_o1_i4_, O1, I1, I2, I3, I4),
 
 #define C_N1_I2(O1, I1, I2)             C_PFX3(c_n1_i2_, O1, I1, I2),
+#define C_N2_I1(O1, O2, I1)             C_PFX3(c_n2_i1_, O1, O2, I1),
 
 #define C_O2_I1(O1, O2, I1)             C_PFX3(c_o2_i1_, O1, O2, I1),
 #define C_O2_I2(O1, O2, I1, I2)         C_PFX4(c_o2_i2_, O1, O2, I1, I2),
@@ -675,6 +676,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode);
 #undef C_O1_I3
 #undef C_O1_I4
 #undef C_N1_I2
+#undef C_N2_I1
 #undef C_O2_I1
 #undef C_O2_I2
 #undef C_O2_I3
@@ -694,6 +696,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode);
 #define C_O1_I4(O1, I1, I2, I3, I4)     { .args_ct_str = { #O1, #I1, #I2, #I3, #I4 } },
 
 #define C_N1_I2(O1, I1, I2)             { .args_ct_str = { "&" #O1, #I1, #I2 } },
+#define C_N2_I1(O1, O2, I1)             { .args_ct_str = { "&" #O1, "&" #O2, #I1 } },
 
 #define C_O2_I1(O1, O2, I1)             { .args_ct_str = { #O1, #O2, #I1 } },
 #define C_O2_I2(O1, O2, I1, I2)         { .args_ct_str = { #O1, #O2, #I1, #I2 } },
@@ -715,6 +718,7 @@ static const TCGTargetOpDef constraint_sets[] = {
 #undef C_O1_I3
 #undef C_O1_I4
 #undef C_N1_I2
+#undef C_N2_I1
 #undef C_O2_I1
 #undef C_O2_I2
 #undef C_O2_I3
@@ -734,6 +738,7 @@ static const TCGTargetOpDef constraint_sets[] = {
 #define C_O1_I4(O1, I1, I2, I3, I4)     C_PFX5(c_o1_i4_, O1, I1, I2, I3, I4)
 
 #define C_N1_I2(O1, I1, I2)             C_PFX3(c_n1_i2_, O1, I1, I2)
+#define C_N2_I1(O1, O2, I1)             C_PFX3(c_n2_i1_, O1, O2, I1)
 
 #define C_O2_I1(O1, O2, I1)             C_PFX3(c_o2_i1_, O1, O2, I1)
 #define C_O2_I2(O1, O2, I1, I2)         C_PFX4(c_o2_i2_, O1, O2, I1, I2)
@@ -1567,8 +1572,8 @@ void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size)
         = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, reg, "_frame");
 }
 
-TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
-                                     intptr_t offset, const char *name)
+static TCGTemp *tcg_global_mem_new_internal(TCGv_ptr base, intptr_t offset,
+                                            const char *name, TCGType type)
 {
     TCGContext *s = tcg_ctx;
     TCGTemp *base_ts = tcgv_ptr_temp(base);
@@ -1627,7 +1632,25 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
     return ts;
 }
 
-TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
+TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t off, const char *name)
+{
+    TCGTemp *ts = tcg_global_mem_new_internal(reg, off, name, TCG_TYPE_I32);
+    return temp_tcgv_i32(ts);
+}
+
+TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t off, const char *name)
+{
+    TCGTemp *ts = tcg_global_mem_new_internal(reg, off, name, TCG_TYPE_I64);
+    return temp_tcgv_i64(ts);
+}
+
+TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t off, const char *name)
+{
+    TCGTemp *ts = tcg_global_mem_new_internal(reg, off, name, TCG_TYPE_PTR);
+    return temp_tcgv_ptr(ts);
+}
+
+static TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
 {
     TCGContext *s = tcg_ctx;
     TCGTemp *ts;
@@ -1691,6 +1714,46 @@ TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
     return ts;
 }
 
+TCGv_i32 tcg_temp_new_i32(void)
+{
+    return temp_tcgv_i32(tcg_temp_new_internal(TCG_TYPE_I32, TEMP_TB));
+}
+
+TCGv_i32 tcg_temp_ebb_new_i32(void)
+{
+    return temp_tcgv_i32(tcg_temp_new_internal(TCG_TYPE_I32, TEMP_EBB));
+}
+
+TCGv_i64 tcg_temp_new_i64(void)
+{
+    return temp_tcgv_i64(tcg_temp_new_internal(TCG_TYPE_I64, TEMP_TB));
+}
+
+TCGv_i64 tcg_temp_ebb_new_i64(void)
+{
+    return temp_tcgv_i64(tcg_temp_new_internal(TCG_TYPE_I64, TEMP_EBB));
+}
+
+TCGv_ptr tcg_temp_new_ptr(void)
+{
+    return temp_tcgv_ptr(tcg_temp_new_internal(TCG_TYPE_PTR, TEMP_TB));
+}
+
+TCGv_ptr tcg_temp_ebb_new_ptr(void)
+{
+    return temp_tcgv_ptr(tcg_temp_new_internal(TCG_TYPE_PTR, TEMP_EBB));
+}
+
+TCGv_i128 tcg_temp_new_i128(void)
+{
+    return temp_tcgv_i128(tcg_temp_new_internal(TCG_TYPE_I128, TEMP_TB));
+}
+
+TCGv_i128 tcg_temp_ebb_new_i128(void)
+{
+    return temp_tcgv_i128(tcg_temp_new_internal(TCG_TYPE_I128, TEMP_EBB));
+}
+
 TCGv_vec tcg_temp_new_vec(TCGType type)
 {
     TCGTemp *t;
@@ -1746,6 +1809,31 @@ void tcg_temp_free_internal(TCGTemp *ts)
     }
 }
 
+void tcg_temp_free_i32(TCGv_i32 arg)
+{
+    tcg_temp_free_internal(tcgv_i32_temp(arg));
+}
+
+void tcg_temp_free_i64(TCGv_i64 arg)
+{
+    tcg_temp_free_internal(tcgv_i64_temp(arg));
+}
+
+void tcg_temp_free_i128(TCGv_i128 arg)
+{
+    tcg_temp_free_internal(tcgv_i128_temp(arg));
+}
+
+void tcg_temp_free_ptr(TCGv_ptr arg)
+{
+    tcg_temp_free_internal(tcgv_ptr_temp(arg));
+}
+
+void tcg_temp_free_vec(TCGv_vec arg)
+{
+    tcg_temp_free_internal(tcgv_vec_temp(arg));
+}
+
 TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
 {
     TCGContext *s = tcg_ctx;
@@ -1799,6 +1887,21 @@ TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
     }
 
     return ts;
+}
+
+TCGv_i32 tcg_constant_i32(int32_t val)
+{
+    return temp_tcgv_i32(tcg_constant_internal(TCG_TYPE_I32, val));
+}
+
+TCGv_i64 tcg_constant_i64(int64_t val)
+{
+    return temp_tcgv_i64(tcg_constant_internal(TCG_TYPE_I64, val));
+}
+
+TCGv_ptr tcg_constant_ptr_int(intptr_t val)
+{
+    return temp_tcgv_ptr(tcg_constant_internal(TCG_TYPE_PTR, val));
 }
 
 TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val)
@@ -1874,6 +1977,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_mov_i32:
     case INDEX_op_setcond_i32:
     case INDEX_op_brcond_i32:
+    case INDEX_op_movcond_i32:
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld16u_i32:
@@ -1884,6 +1988,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_st_i32:
     case INDEX_op_add_i32:
     case INDEX_op_sub_i32:
+    case INDEX_op_neg_i32:
     case INDEX_op_mul_i32:
     case INDEX_op_and_i32:
     case INDEX_op_or_i32:
@@ -1895,8 +2000,6 @@ bool tcg_op_supported(TCGOpcode op)
 
     case INDEX_op_negsetcond_i32:
         return TCG_TARGET_HAS_negsetcond_i32;
-    case INDEX_op_movcond_i32:
-        return TCG_TARGET_HAS_movcond_i32;
     case INDEX_op_div_i32:
     case INDEX_op_divu_i32:
         return TCG_TARGET_HAS_div_i32;
@@ -1943,8 +2046,6 @@ bool tcg_op_supported(TCGOpcode op)
         return TCG_TARGET_HAS_bswap32_i32;
     case INDEX_op_not_i32:
         return TCG_TARGET_HAS_not_i32;
-    case INDEX_op_neg_i32:
-        return TCG_TARGET_HAS_neg_i32;
     case INDEX_op_andc_i32:
         return TCG_TARGET_HAS_andc_i32;
     case INDEX_op_orc_i32:
@@ -1969,6 +2070,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_mov_i64:
     case INDEX_op_setcond_i64:
     case INDEX_op_brcond_i64:
+    case INDEX_op_movcond_i64:
     case INDEX_op_ld8u_i64:
     case INDEX_op_ld8s_i64:
     case INDEX_op_ld16u_i64:
@@ -1982,6 +2084,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_st_i64:
     case INDEX_op_add_i64:
     case INDEX_op_sub_i64:
+    case INDEX_op_neg_i64:
     case INDEX_op_mul_i64:
     case INDEX_op_and_i64:
     case INDEX_op_or_i64:
@@ -1995,8 +2098,6 @@ bool tcg_op_supported(TCGOpcode op)
 
     case INDEX_op_negsetcond_i64:
         return TCG_TARGET_HAS_negsetcond_i64;
-    case INDEX_op_movcond_i64:
-        return TCG_TARGET_HAS_movcond_i64;
     case INDEX_op_div_i64:
     case INDEX_op_divu_i64:
         return TCG_TARGET_HAS_div_i64;
@@ -2040,8 +2141,6 @@ bool tcg_op_supported(TCGOpcode op)
         return TCG_TARGET_HAS_bswap64_i64;
     case INDEX_op_not_i64:
         return TCG_TARGET_HAS_not_i64;
-    case INDEX_op_neg_i64:
-        return TCG_TARGET_HAS_neg_i64;
     case INDEX_op_andc_i64:
         return TCG_TARGET_HAS_andc_i64;
     case INDEX_op_orc_i64:
@@ -5927,11 +6026,6 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
     tcg_out_helper_load_common_args(s, ldst, parm, info, next_arg);
 }
 
-void tcg_dump_op_count(GString *buf)
-{
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
-}
-
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 {
     int i, start_words, num_insns;
@@ -6126,11 +6220,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 #endif
 
     return tcg_current_code_size(s);
-}
-
-void tcg_dump_info(GString *buf)
-{
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
 }
 
 #ifdef ELF_HOST_MACHINE

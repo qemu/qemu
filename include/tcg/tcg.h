@@ -82,7 +82,6 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_bswap16_i64      0
 #define TCG_TARGET_HAS_bswap32_i64      0
 #define TCG_TARGET_HAS_bswap64_i64      0
-#define TCG_TARGET_HAS_neg_i64          0
 #define TCG_TARGET_HAS_not_i64          0
 #define TCG_TARGET_HAS_andc_i64         0
 #define TCG_TARGET_HAS_orc_i64          0
@@ -96,7 +95,6 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_extract_i64      0
 #define TCG_TARGET_HAS_sextract_i64     0
 #define TCG_TARGET_HAS_extract2_i64     0
-#define TCG_TARGET_HAS_movcond_i64      0
 #define TCG_TARGET_HAS_negsetcond_i64   0
 #define TCG_TARGET_HAS_add2_i64         0
 #define TCG_TARGET_HAS_sub2_i64         0
@@ -795,60 +793,6 @@ void tb_target_set_jmp_target(const TranslationBlock *, int,
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
 
-TCGTemp *tcg_global_mem_new_internal(TCGType, TCGv_ptr,
-                                     intptr_t, const char *);
-TCGTemp *tcg_temp_new_internal(TCGType, TCGTempKind);
-TCGv_vec tcg_temp_new_vec(TCGType type);
-TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match);
-
-static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
-                                              const char *name)
-{
-    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
-    return temp_tcgv_i32(t);
-}
-
-static inline TCGv_i32 tcg_temp_new_i32(void)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I32, TEMP_TB);
-    return temp_tcgv_i32(t);
-}
-
-static inline TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t offset,
-                                              const char *name)
-{
-    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
-    return temp_tcgv_i64(t);
-}
-
-static inline TCGv_i64 tcg_temp_new_i64(void)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, TEMP_TB);
-    return temp_tcgv_i64(t);
-}
-
-static inline TCGv_i128 tcg_temp_new_i128(void)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I128, TEMP_TB);
-    return temp_tcgv_i128(t);
-}
-
-static inline TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t offset,
-                                              const char *name)
-{
-    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_PTR, reg, offset, name);
-    return temp_tcgv_ptr(t);
-}
-
-static inline TCGv_ptr tcg_temp_new_ptr(void)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_PTR, TEMP_TB);
-    return temp_tcgv_ptr(t);
-}
-
-void tcg_dump_info(GString *buf);
-void tcg_dump_op_count(GString *buf);
-
 #define TCG_CT_CONST  1 /* any constant of register size */
 
 typedef struct TCGArgConstraint {
@@ -936,32 +880,6 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op,
 void tcg_remove_ops_after(TCGOp *op);
 
 void tcg_optimize(TCGContext *s);
-
-/*
- * Locate or create a read-only temporary that is a constant.
- * This kind of temporary need not be freed, but for convenience
- * will be silently ignored by tcg_temp_free_*.
- */
-TCGTemp *tcg_constant_internal(TCGType type, int64_t val);
-
-static inline TCGv_i32 tcg_constant_i32(int32_t val)
-{
-    return temp_tcgv_i32(tcg_constant_internal(TCG_TYPE_I32, val));
-}
-
-static inline TCGv_i64 tcg_constant_i64(int64_t val)
-{
-    return temp_tcgv_i64(tcg_constant_internal(TCG_TYPE_I64, val));
-}
-
-TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val);
-TCGv_vec tcg_constant_vec_matching(TCGv_vec match, unsigned vece, int64_t val);
-
-#if UINTPTR_MAX == UINT32_MAX
-# define tcg_constant_ptr(x)     ((TCGv_ptr)tcg_constant_i32((intptr_t)(x)))
-#else
-# define tcg_constant_ptr(x)     ((TCGv_ptr)tcg_constant_i64((intptr_t)(x)))
-#endif
 
 TCGLabel *gen_new_label(void);
 
