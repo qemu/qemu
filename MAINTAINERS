@@ -1192,6 +1192,7 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Helge Deller <deller@gmx.de>
 S: Odd Fixes
 F: configs/devices/hppa-softmmu/default.mak
+F: hw/display/artist.c
 F: hw/hppa/
 F: hw/input/lasips2.c
 F: hw/net/*i82596*
