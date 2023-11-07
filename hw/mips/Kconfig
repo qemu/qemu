@@ -45,6 +45,7 @@ config LOONGSON3V
     select PCI_EXPRESS_GENERIC_BRIDGE
     select MSI_NONBROKEN
     select FW_CFG_MIPS
+    select UNIMP
 
 config MIPS_CPS
     bool
