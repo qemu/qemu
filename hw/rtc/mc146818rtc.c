@@ -599,7 +599,7 @@ static void rtc_get_time(MC146818RtcState *s, struct tm *tm)
 
 static void rtc_set_time(MC146818RtcState *s)
 {
-    struct tm tm;
+    struct tm tm = {};
     g_autofree const char *qom_path = object_get_canonical_path(OBJECT(s));
 
     rtc_get_time(s, &tm);
