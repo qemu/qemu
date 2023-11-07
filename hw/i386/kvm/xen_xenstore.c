@@ -25,6 +25,7 @@
 #include "hw/xen/xen_backend_ops.h"
 #include "xen_overlay.h"
 #include "xen_evtchn.h"
+#include "xen_primary_console.h"
 #include "xen_xenstore.h"
 
 #include "sysemu/kvm.h"
@@ -331,7 +332,7 @@ static void xs_error(XenXenstoreState *s, unsigned int id,
     const char *errstr = NULL;
 
     for (unsigned int i = 0; i < ARRAY_SIZE(xsd_errors); i++) {
-        struct xsd_errors *xsd_error = &xsd_errors[i];
+        const struct xsd_errors *xsd_error = &xsd_errors[i];
 
         if (xsd_error->errnum == errnum) {
             errstr = xsd_error->errstring;
@@ -1434,6 +1435,8 @@ static void alloc_guest_port(XenXenstoreState *s)
 int xen_xenstore_reset(void)
 {
     XenXenstoreState *s = xen_xenstore_singleton;
+    int console_port;
+    GList *perms;
     int err;
 
     if (!s) {
@@ -1460,6 +1463,24 @@ int xen_xenstore_reset(void)
         return err;
     }
     s->be_port = err;
+
+    /* Create frontend store nodes */
+    perms = g_list_append(NULL, xs_perm_as_string(XS_PERM_NONE, DOMID_QEMU));
+    perms = g_list_append(perms, xs_perm_as_string(XS_PERM_READ, xen_domid));
+
+    relpath_printf(s, perms, "store/port", "%u", s->guest_port);
+    relpath_printf(s, perms, "store/ring-ref", "%lu",
+                   XEN_SPECIAL_PFN(XENSTORE));
+
+    console_port = xen_primary_console_get_port();
+    if (console_port) {
+        relpath_printf(s, perms, "console/ring-ref", "%lu",
+                       XEN_SPECIAL_PFN(CONSOLE));
+        relpath_printf(s, perms, "console/port", "%u", console_port);
+        relpath_printf(s, perms, "console/state", "%u", XenbusStateInitialised);
+    }
+
+    g_list_free_full(perms, g_free);
 
     /*
      * We don't actually access the guest's page through the grant, because
