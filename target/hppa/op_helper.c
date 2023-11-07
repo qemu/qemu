@@ -338,7 +338,7 @@ target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
 #ifdef CONFIG_USER_ONLY
     return page_check_range(addr, 1, want);
 #else
-    int prot, excp;
+    int prot, excp, mmu_idx;
     hwaddr phys;
 
     trace_hppa_tlb_probe(addr, level, want);
@@ -347,7 +347,8 @@ target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
         return 0;
     }
 
-    excp = hppa_get_physical_address(env, addr, level, 0, &phys,
+    mmu_idx = PRIV_P_TO_MMU_IDX(level, env->psw & PSW_P);
+    excp = hppa_get_physical_address(env, addr, mmu_idx, 0, &phys,
                                      &prot, NULL);
     if (excp >= 0) {
         if (env->psw & PSW_Q) {
