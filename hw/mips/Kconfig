@@ -33,6 +33,7 @@ config JAZZ
 config FULOONG
     bool
     select PCI_BONITO
+    select VT82C686
 
 config LOONGSON3V
     bool

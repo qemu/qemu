@@ -450,7 +450,7 @@ config STM32F405_SOC
 
 config XLNX_ZYNQMP_ARM
     bool
-    default y
+    default y if PIXMAN
     depends on TCG && AARCH64
     select AHCI
     select ARM_GIC
@@ -463,6 +463,7 @@ config XLNX_ZYNQMP_ARM
     select XILINX_AXI
     select XILINX_SPIPS
     select XLNX_CSU_DMA
+    select XLNX_DISPLAYPORT
     select XLNX_ZYNQMP
     select XLNX_ZDMA
     select USB_DWC3
@@ -483,6 +484,7 @@ config XLNX_VERSAL
     select XLNX_EFUSE_VERSAL
     select XLNX_USB_SUBSYS
     select XLNX_VERSAL_TRNG
+    select XLNX_CSU_DMA
 
 config NPCM7XX
     bool

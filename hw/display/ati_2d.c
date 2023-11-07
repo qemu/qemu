@@ -123,6 +123,7 @@ void ati_2d_blt(ATIVGAState *s)
                 src_bits, dst_bits, src_stride, dst_stride, bpp, bpp,
                 src_x, src_y, dst_x, dst_y,
                 s->regs.dst_width, s->regs.dst_height);
+#ifdef CONFIG_PIXMAN
         if ((s->use_pixman & BIT(1)) &&
             s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT &&
             s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM) {
@@ -147,7 +148,9 @@ void ati_2d_blt(ATIVGAState *s)
                                        s->regs.dst_width, s->regs.dst_height);
             }
             g_free(tmp);
-        } else {
+        } else
+#endif
+        {
             fallback = true;
         }
         if (fallback) {
@@ -206,9 +209,12 @@ void ati_2d_blt(ATIVGAState *s)
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
                 dst_bits, dst_stride, bpp, dst_x, dst_y,
                 s->regs.dst_width, s->regs.dst_height, filler);
+#ifdef CONFIG_PIXMAN
         if (!(s->use_pixman & BIT(0)) ||
             !pixman_fill((uint32_t *)dst_bits, dst_stride, bpp, dst_x, dst_y,
-                    s->regs.dst_width, s->regs.dst_height, filler)) {
+                    s->regs.dst_width, s->regs.dst_height, filler))
+#endif
+        {
             /* fallback when pixman failed or we don't want to call it */
             unsigned int x, y, i, bypp = bpp / 8;
             unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
