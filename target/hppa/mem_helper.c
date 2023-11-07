@@ -367,8 +367,8 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         trace_hppa_tlb_fill_excp(env, addr, size, type, mmu_idx);
 
         /* Failure.  Raise the indicated exception.  */
-        raise_exception_with_ior(env, excp, retaddr,
-                                 addr, mmu_idx == MMU_PHYS_IDX);
+        raise_exception_with_ior(env, excp, retaddr, addr,
+                                 MMU_IDX_MMU_DISABLED(mmu_idx));
     }
 
     trace_hppa_tlb_fill_success(env, addr & TARGET_PAGE_MASK,
