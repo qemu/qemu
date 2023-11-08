@@ -196,11 +196,7 @@ uint32_t s390_get_ibc_val(void)
 
 void s390_get_feat_block(S390FeatType type, uint8_t *data)
 {
-    static S390CPU *cpu;
-
-    if (!cpu) {
-        cpu = S390_CPU(qemu_get_cpu(0));
-    }
+    S390CPU *cpu = S390_CPU(first_cpu);
 
     if (!cpu || !cpu->model) {
         return;

@@ -38,10 +38,8 @@
 #define MAX_STORAGE_INCREMENTS                  1020
 
 /* CPU hotplug SCLP codes */
-#define SCLP_HAS_CPU_INFO                       0x0C00000000000000ULL
+#define SCLP_HAS_CPU_INFO                       0x0800000000000000ULL
 #define SCLP_CMDW_READ_CPU_INFO                 0x00010001
-#define SCLP_CMDW_CONFIGURE_CPU                 0x00110001
-#define SCLP_CMDW_DECONFIGURE_CPU               0x00100001
 
 /* SCLP PCI codes */
 #define SCLP_HAS_IOA_RECONFIG                   0x0000000040000000ULL

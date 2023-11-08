@@ -210,6 +210,9 @@ static S390TopologyId s390_topology_from_cpu(S390CPU *cpu)
 static int s390_topology_id_cmp(const S390TopologyId *l,
                                 const S390TopologyId *r)
 {
+    int l_polarization = l->vertical ? l->entitlement : 0;
+    int r_polarization = r->vertical ? r->entitlement : 0;
+
     /*
      * lexical order, compare less significant values only if more significant
      * ones are equal
@@ -219,9 +222,8 @@ static int s390_topology_id_cmp(const S390TopologyId *l,
            l->book - r->book ?:
            l->socket - r->socket ?:
            l->type - r->type ?:
-           /* logic is inverted for the next three */
-           r->vertical - l->vertical ?:
-           r->entitlement - l->entitlement ?:
+           /* logic is inverted for the next two */
+           r_polarization - l_polarization ?:
            r->dedicated - l->dedicated ?:
            l->origin - r->origin;
 }

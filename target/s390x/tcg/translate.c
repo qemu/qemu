@@ -2007,6 +2007,7 @@ static DisasJumpType op_cksm(DisasContext *s, DisasOps *o)
 static DisasJumpType op_clc(DisasContext *s, DisasOps *o)
 {
     int l = get_field(s, l1);
+    TCGv_i64 src;
     TCGv_i32 vl;
     MemOp mop;
 
@@ -2016,9 +2017,11 @@ static DisasJumpType op_clc(DisasContext *s, DisasOps *o)
     case 4:
     case 8:
         mop = ctz32(l + 1) | MO_TE;
-        tcg_gen_qemu_ld_tl(cc_src, o->addr1, get_mem_index(s), mop);
+        /* Do not update cc_src yet: loading cc_dst may cause an exception. */
+        src = tcg_temp_new_i64();
+        tcg_gen_qemu_ld_tl(src, o->addr1, get_mem_index(s), mop);
         tcg_gen_qemu_ld_tl(cc_dst, o->in2, get_mem_index(s), mop);
-        gen_op_update2_cc_i64(s, CC_OP_LTUGTU_64, cc_src, cc_dst);
+        gen_op_update2_cc_i64(s, CC_OP_LTUGTU_64, src, cc_dst);
         return DISAS_NEXT;
     default:
         vl = tcg_constant_i32(l);
@@ -2674,15 +2677,30 @@ static DisasJumpType op_kxb(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static DisasJumpType op_laa(DisasContext *s, DisasOps *o)
+static DisasJumpType help_laa(DisasContext *s, DisasOps *o, bool addu64)
 {
     /* The real output is indeed the original value in memory;
        recompute the addition for the computation of CC.  */
     tcg_gen_atomic_fetch_add_i64(o->in2, o->in2, o->in1, get_mem_index(s),
                                  s->insn->data | MO_ALIGN);
     /* However, we need to recompute the addition for setting CC.  */
-    tcg_gen_add_i64(o->out, o->in1, o->in2);
+    if (addu64) {
+        tcg_gen_movi_i64(cc_src, 0);
+        tcg_gen_add2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+    } else {
+        tcg_gen_add_i64(o->out, o->in1, o->in2);
+    }
     return DISAS_NEXT;
+}
+
+static DisasJumpType op_laa(DisasContext *s, DisasOps *o)
+{
+    return help_laa(s, o, false);
+}
+
+static DisasJumpType op_laa_addu64(DisasContext *s, DisasOps *o)
+{
+    return help_laa(s, o, true);
 }
 
 static DisasJumpType op_lan(DisasContext *s, DisasOps *o)
