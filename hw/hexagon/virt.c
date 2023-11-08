@@ -14,6 +14,7 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
+#include "hw/timer/qct-qtimer.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
@@ -244,6 +245,26 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
     }
 }
 
+static void create_qtimer(HexagonVirtMachineState *vms,
+                          const hexagon_machine_config *m_cfg)
+{
+    Error **errp = NULL;
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames", 2, errp);
+    object_property_set_uint(OBJECT(qtimer), "nr_views", 1, errp);
+    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), errp);
+
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0, m_cfg->qtmr_rg1);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
+}
+
 static void virt_instance_init(Object *obj)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
@@ -353,6 +374,7 @@ static void virt_init(MachineState *ms)
     fdt_add_clocks(vms);
     fdt_add_uart(vms, VIRT_UART0);
     fdt_add_gpt_node(vms);
+    create_qtimer(vms, m_cfg);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,

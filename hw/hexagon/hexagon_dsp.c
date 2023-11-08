@@ -3,7 +3,6 @@
  * subsystem with few peripherals, like the Compute DSP.
  *
  * Copyright (c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 

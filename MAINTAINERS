@@ -227,7 +227,9 @@ S: Supported
 F: target/hexagon/
 F: hw/intc/l2vic.[ch]
 F: hw/hexagon/
+F: hw/timer/qct-qtimer.c
 F: include/hw/hexagon/
+F: include/hw/timer/qct-qtimer.h
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
