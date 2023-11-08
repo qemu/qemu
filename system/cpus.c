@@ -201,6 +201,13 @@ bool cpus_are_resettable(void)
     return true;
 }
 
+void cpu_exec_reset_hold(CPUState *cpu)
+{
+    if (cpus_accel->cpu_reset_hold) {
+        cpus_accel->cpu_reset_hold(cpu);
+    }
+}
+
 int64_t cpus_get_virtual_clock(void)
 {
     /*
@@ -624,7 +631,7 @@ void qemu_init_vcpu(CPUState *cpu)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
 
-    cpu->nr_cores = ms->smp.cores;
+    cpu->nr_cores = machine_topo_get_cores_per_socket(ms);
     cpu->nr_threads =  ms->smp.threads;
     cpu->stopped = true;
     cpu->random_seed = qemu_guest_random_seed_thread_part1();

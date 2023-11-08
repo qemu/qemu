@@ -2160,6 +2160,7 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
         return;
     }
     if (kdump_raw && lseek(fd, 0, SEEK_CUR) == (off_t) -1) {
+        close(fd);
         error_setg(errp, "kdump-raw formats require a seekable file");
         return;
     }

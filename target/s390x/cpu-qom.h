@@ -1,5 +1,5 @@
 /*
- * QEMU S/390 CPU
+ * QEMU S/390 CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -21,47 +21,12 @@
 #define QEMU_S390_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_S390_CPU "s390x-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(S390CPU, S390CPUClass, S390_CPU)
 
-typedef struct S390CPUModel S390CPUModel;
-typedef struct S390CPUDef S390CPUDef;
-
-typedef struct CPUArchState CPUS390XState;
-
-typedef enum cpu_reset_type {
-    S390_CPU_RESET_NORMAL,
-    S390_CPU_RESET_INITIAL,
-    S390_CPU_RESET_CLEAR,
-} cpu_reset_type;
-
-/**
- * S390CPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_reset: The parent class' reset handler.
- * @load_normal: Performs a load normal.
- * @cpu_reset: Performs a CPU reset.
- * @initial_cpu_reset: Performs an initial CPU reset.
- *
- * An S/390 CPU model.
- */
-struct S390CPUClass {
-    /*< private >*/
-    CPUClass parent_class;
-    /*< public >*/
-    const S390CPUDef *cpu_def;
-    bool kvm_required;
-    bool is_static;
-    bool is_migration_safe;
-    const char *desc;
-
-    DeviceRealize parent_realize;
-    DeviceReset parent_reset;
-    void (*load_normal)(CPUState *cpu);
-    void (*reset)(CPUState *cpu, cpu_reset_type type);
-};
+#define S390_CPU_TYPE_SUFFIX "-" TYPE_S390_CPU
+#define S390_CPU_TYPE_NAME(name) (name S390_CPU_TYPE_SUFFIX)
 
 #endif

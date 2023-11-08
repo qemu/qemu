@@ -644,8 +644,9 @@ void css_conditional_io_interrupt(SubchDev *sch)
     }
 }
 
-int css_do_sic(CPUS390XState *env, uint8_t isc, uint16_t mode)
+int css_do_sic(S390CPU *cpu, uint8_t isc, uint16_t mode)
 {
+    CPUS390XState *env = &cpu->env;
     S390FLICState *fs = s390_get_flic();
     S390FLICStateClass *fsc = s390_get_flic_class(fs);
     int r;

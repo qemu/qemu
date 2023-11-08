@@ -102,7 +102,7 @@ uint64_t HELPER(stck)(CPUS390XState *env)
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     qemu_mutex_lock_iothread();
-    int r = sclp_service_call(env, r1, r2);
+    int r = sclp_service_call(env_archcpu(env), r1, r2);
     qemu_mutex_unlock_iothread();
     if (r < 0) {
         tcg_s390_program_interrupt(env, -r, GETPC());
@@ -761,10 +761,11 @@ void HELPER(stpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
 
 void HELPER(sic)(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
+    S390CPU *cpu = env_archcpu(env);
     int r;
 
     qemu_mutex_lock_iothread();
-    r = css_do_sic(env, (r3 >> 27) & 0x7, r1 & 0xffff);
+    r = css_do_sic(cpu, (r3 >> 27) & 0x7, r1 & 0xffff);
     qemu_mutex_unlock_iothread();
     /* css_do_sic() may actually return a PGM_xxx value to inject */
     if (r) {

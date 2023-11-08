@@ -164,13 +164,24 @@ typedef struct CPUArchState {
  * A Motorola 68k CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
     CPUM68KState env;
 };
 
+/*
+ * M68kCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A Motorola 68k CPU model.
+ */
+struct M68kCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
 
 #ifndef CONFIG_USER_ONLY
 void m68k_cpu_do_interrupt(CPUState *cpu);
@@ -563,8 +574,6 @@ enum {
     ACCESS_DATA  = 0x20, /* Data load/store access        */
 };
 
-#define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
-#define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_M68K_CPU
 
 #define cpu_list m68k_cpu_list

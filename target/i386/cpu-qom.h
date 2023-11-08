@@ -21,8 +21,6 @@
 #define QEMU_I386_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qemu/notify.h"
-#include "qom/object.h"
 
 #ifdef TARGET_X86_64
 #define TYPE_X86_CPU "x86_64-cpu"
@@ -32,43 +30,7 @@
 
 OBJECT_DECLARE_CPU_TYPE(X86CPU, X86CPUClass, X86_CPU)
 
-typedef struct X86CPUModel X86CPUModel;
-
-/**
- * X86CPUClass:
- * @cpu_def: CPU model definition
- * @host_cpuid_required: Whether CPU model requires cpuid from host.
- * @ordering: Ordering on the "-cpu help" CPU model list.
- * @migration_safe: See CpuDefinitionInfo::migration_safe
- * @static_model: See CpuDefinitionInfo::static
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- *
- * An x86 CPU model or family.
- */
-struct X86CPUClass {
-    /*< private >*/
-    CPUClass parent_class;
-    /*< public >*/
-
-    /* CPU definition, automatically loaded by instance_init if not NULL.
-     * Should be eventually replaced by subclass-specific property defaults.
-     */
-    X86CPUModel *model;
-
-    bool host_cpuid_required;
-    int ordering;
-    bool migration_safe;
-    bool static_model;
-
-    /* Optional description of CPU model.
-     * If unavailable, cpu_def->model_id is used */
-    const char *model_description;
-
-    DeviceRealize parent_realize;
-    DeviceUnrealize parent_unrealize;
-    ResettablePhases parent_phases;
-};
-
+#define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
+#define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * QEMU SuperH CPU
+ * QEMU SuperH CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -21,7 +21,6 @@
 #define QEMU_SUPERH_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 
@@ -31,28 +30,7 @@
 
 OBJECT_DECLARE_CPU_TYPE(SuperHCPU, SuperHCPUClass, SUPERH_CPU)
 
-/**
- * SuperHCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- * @pvr: Processor Version Register
- * @prr: Processor Revision Register
- * @cvr: Cache Version Register
- *
- * A SuperH CPU model.
- */
-struct SuperHCPUClass {
-    /*< private >*/
-    CPUClass parent_class;
-    /*< public >*/
-
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-
-    uint32_t pvr;
-    uint32_t prr;
-    uint32_t cvr;
-};
-
+#define SUPERH_CPU_TYPE_SUFFIX "-" TYPE_SUPERH_CPU
+#define SUPERH_CPU_TYPE_NAME(model) model SUPERH_CPU_TYPE_SUFFIX
 
 #endif
