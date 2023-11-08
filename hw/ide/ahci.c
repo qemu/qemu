@@ -623,9 +623,13 @@ static void ahci_init_d2h(AHCIDevice *ad)
         return;
     }
 
+    /*
+     * For simplicity, do not call ahci_clear_cmd_issue() for this
+     * ahci_write_fis_d2h(). (The reset value for PxCI is 0.)
+     */
     if (ahci_write_fis_d2h(ad, true)) {
         ad->init_d2h_sent = true;
-        /* We're emulating receiving the first Reg H2D Fis from the device;
+        /* We're emulating receiving the first Reg D2H FIS from the device;
          * Update the SIG register, but otherwise proceed as normal. */
         pr->sig = ((uint32_t)ide_state->hcyl << 24) |
             (ide_state->lcyl << 16) |
@@ -663,6 +667,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     pr->scr_act = 0;
     pr->tfdata = 0x7F;
     pr->sig = 0xFFFFFFFF;
+    pr->cmd_issue = 0;
     d->busy_slot = -1;
     d->init_d2h_sent = false;
 
@@ -1243,10 +1248,30 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
         case STATE_RUN:
             if (cmd_fis[15] & ATA_SRST) {
                 s->dev[port].port_state = STATE_RESET;
+                /*
+                 * When setting SRST in the first H2D FIS in the reset sequence,
+                 * the device does not send a D2H FIS. Host software thus has to
+                 * set the "Clear Busy upon R_OK" bit such that PxCI (and BUSY)
+                 * gets cleared. See AHCI 1.3.1, section 10.4.1 Software Reset.
+                 */
+                if (opts & AHCI_CMD_CLR_BUSY) {
+                    ahci_clear_cmd_issue(ad, slot);
+                }
             }
             break;
         case STATE_RESET:
             if (!(cmd_fis[15] & ATA_SRST)) {
+                /*
+                 * When clearing SRST in the second H2D FIS in the reset
+                 * sequence, the device will execute diagnostics. When this is
+                 * done, the device will send a D2H FIS with the good status.
+                 * See SATA 3.5a Gold, section 11.4 Software reset protocol.
+                 *
+                 * This D2H FIS is the first D2H FIS received from the device,
+                 * and is received regardless if the reset was performed by a
+                 * COMRESET or by setting and clearing the SRST bit. Therefore,
+                 * the logic for this is found in ahci_init_d2h() and not here.
+                 */
                 ahci_reset_port(s, port);
             }
             break;
