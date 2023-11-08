@@ -92,7 +92,7 @@ ALLOWED_TYPES = [
 def validate_type(name):
     bits = name.split(" ")
     for bit in bits:
-        bit = re.sub("\*", "", bit)
+        bit = re.sub(r"\*", "", bit)
         if bit == "":
             continue
         if bit == "const":
