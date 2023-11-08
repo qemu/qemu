@@ -93,11 +93,27 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
+        DeviceState *l2vic_dev;
+        l2vic_dev = sysbus_create_varargs("l2vic", m_cfg->l2vic_base,
+                /* IRQ#, Evnt#,CauseCode */
+                qdev_get_gpio_in(DEVICE(cpu), 0),
+                qdev_get_gpio_in(DEVICE(cpu), 1),
+                qdev_get_gpio_in(DEVICE(cpu), 2),
+                qdev_get_gpio_in(DEVICE(cpu), 3),
+                qdev_get_gpio_in(DEVICE(cpu), 4),
+                qdev_get_gpio_in(DEVICE(cpu), 5),
+                qdev_get_gpio_in(DEVICE(cpu), 6),
+                qdev_get_gpio_in(DEVICE(cpu), 7),
+                NULL);
+        sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+            m_cfg->cfgtable.fastl2vic_base);
+
         /*
          * CPU #0 is the only CPU running at boot, others must be
          * explicitly enabled via start instruction.
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
+        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
 
         if (i == 0) {
             hexagon_init_bootstrap(machine, cpu);

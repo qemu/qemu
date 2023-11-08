@@ -230,6 +230,7 @@ M: Brian Cain <brian.cain@oss.qualcomm.com>
 S: Supported
 F: target/hexagon/
 F: hw/hexagon/
+F: hw/intc/l2vic.[ch]
 F: include/hw/hexagon/
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
@@ -243,6 +244,7 @@ F: gdb-xml/hexagon*.xml
 F: docs/system/target-hexagon.rst
 F: docs/devel/hexagon-sys.rst
 F: docs/devel/hexagon-vm.rst
+F: docs/devel/hexagon-l2vic.rst
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser

@@ -8,6 +8,9 @@ config I8259
 config PL190
     bool
 
+config L2VIC
+    bool
+
 config IOAPIC
     bool
     select I8259
