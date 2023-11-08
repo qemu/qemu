@@ -4096,12 +4096,12 @@ TRANS(RETT, 32, do_add_special, a, do_rett)
 static bool do_return(DisasContext *dc, int rd, TCGv src)
 {
     gen_check_align(dc, src, 3);
+    gen_helper_restore(tcg_env);
 
     gen_mov_pc_npc(dc);
     tcg_gen_mov_tl(cpu_npc, src);
     gen_address_mask(dc, cpu_npc);
 
-    gen_helper_restore(tcg_env);
     dc->npc = DYNAMIC_PC_LOOKUP;
     return true;
 }
