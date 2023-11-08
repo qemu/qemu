@@ -1,12 +1,5 @@
 #include "hw/arm/ipod_touch_fmss.h"
 
-static uint32_t reverse_byte_order(uint32_t value) {
-    return ((value & 0x000000FF) << 24) |
-           ((value & 0x0000FF00) << 8) |
-           ((value & 0x00FF0000) >> 8) |
-           ((value & 0xFF000000) >> 24);
-}
-
 static uint8_t find_bit_index(uint8_t num) {
     int index = 0;
     while (num > 1) {
@@ -35,7 +28,7 @@ static void read_nand_pages(IPodTouchFMSSState *s)
     cpu_physical_memory_write(0x0ff2a584, boot_args, strlen(boot_args));
 
     // patch iBoot - we want to inject the bluetooth MAC address which is located as sub-node of uart1 and not uart3 in the device tree...
-    char *chr = "arm-io/uart1/bluetooth";
+    const char *chr = "arm-io/uart1/bluetooth";
     cpu_physical_memory_write(0x0ff2206c, chr, strlen(chr));
 
     int page_out_buf_ind = 0;
@@ -51,14 +44,14 @@ static void read_nand_pages(IPodTouchFMSSState *s)
         cs = find_bit_index(cs);
 
         if(cs > 3) {
-            printf("CS %d invalid! (og CS: %d, reading page %d)\n", cs, og_cs, page_nr);
+            printf("CS %d invalid! (original CS: %d, reading page %d)\n", cs, og_cs, page_nr);
             dump_registers(s);
             hw_error("CS %d invalid!", cs);
         }
 
         // prepare the page
         char filename[200];
-        sprintf(filename, "/Users/martijndevos/Documents/generate_nand_it2g/nand/cs%d/%d.page", cs, page_nr);
+        sprintf(filename, "%s/cs%d/%d.page", s->nand_path, cs, page_nr);
         struct stat st = {0};
         if (stat(filename, &st) == -1) {
             // page storage does not exist - initialize an empty buffer

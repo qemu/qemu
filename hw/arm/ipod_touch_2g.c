@@ -96,10 +96,22 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;
     unsigned long fsize;
-    if (g_file_get_contents("/Users/martijndevos/Documents/ipod_touch_2g_emulation/bootrom_240_4", (char **)&file_data, &fsize, NULL)) {
+    if (g_file_get_contents(nms->bootrom_path, (char **)&file_data, &fsize, NULL)) {
         allocate_ram(sysmem, "vrom", 0x0, 0x20000);
         address_space_rw(nsas, VROM_MEM_BASE, MEMTXATTRS_UNSPECIFIED, (uint8_t *)file_data, fsize, 1);
     }
+}
+
+static char *ipod_touch_get_bootrom_path(Object *obj, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    return g_strdup(nms->bootrom_path);
+}
+
+static void ipod_touch_set_bootrom_path(Object *obj, const char *value, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    g_strlcpy(nms->bootrom_path, value, sizeof(nms->bootrom_path));
 }
 
 static char *ipod_touch_get_nor_path(Object *obj, Error **errp)
@@ -114,10 +126,28 @@ static void ipod_touch_set_nor_path(Object *obj, const char *value, Error **errp
     g_strlcpy(nms->nor_path, value, sizeof(nms->nor_path));
 }
 
+static char *ipod_touch_get_nand_path(Object *obj, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    return g_strdup(nms->nand_path);
+}
+
+static void ipod_touch_set_nand_path(Object *obj, const char *value, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    g_strlcpy(nms->nand_path, value, sizeof(nms->nand_path));
+}
+
 static void ipod_touch_instance_init(Object *obj)
 {
+    object_property_add_str(obj, "bootrom", ipod_touch_get_bootrom_path, ipod_touch_set_bootrom_path);
+    object_property_set_description(obj, "bootrom", "Path to the S5L8720 bootrom binary");
+
 	object_property_add_str(obj, "nor", ipod_touch_get_nor_path, ipod_touch_set_nor_path);
     object_property_set_description(obj, "nor", "Path to the S5L8720 NOR image");
+
+    object_property_add_str(obj, "nand", ipod_touch_get_nand_path, ipod_touch_set_nand_path);
+    object_property_set_description(obj, "nand", "Path to the NAND files");
 }
 
 static inline qemu_irq s5l8900_get_irq(IPodTouchMachineState *s, int n)
@@ -263,26 +293,22 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     dev = exynos4210_uart_create(UART0_MEM_BASE, 256, 0, serial_hd(0), nms->irq[0][24]);
     if (!dev) {
-        printf("Failed to create uart0 device!\n");
-        abort();
+        hw_error("Failed to create UART0 device!");
     }
 
     dev = exynos4210_uart_create(UART1_MEM_BASE, 256, 1, serial_hd(1), nms->irq[0][25]);
     if (!dev) {
-        printf("Failed to create uart1 device!\n");
-        abort();
+        hw_error("Failed to create UART0 device!");
     }
 
     dev = exynos4210_uart_create(UART2_MEM_BASE, 256, 2, serial_hd(2), nms->irq[0][26]);
     if (!dev) {
-        printf("Failed to create uart2 device!\n");
-        abort();
+        hw_error("Failed to create UART0 device!");
     }
 
     dev = exynos4210_uart_create(UART3_MEM_BASE, 256, 3, serial_hd(3), nms->irq[0][27]);
     if (!dev) {
-        printf("Failed to create uart3 device!\n");
-        abort();
+        hw_error("Failed to create UART0 device!");
     }
 
     // dev = exynos4210_uart_create(UART4_MEM_BASE, 256, 4, serial_hd(4), nms->irq[0][28]);
@@ -295,14 +321,13 @@ static void ipod_touch_machine_init(MachineState *machine)
     set_spi_base(0);
     dev = sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
     IPodTouchSPIState *spi0_state = IPOD_TOUCH_SPI(dev);
+    spi0_state->nor->nor_path = nms->nor_path;
     nms->spi0_state = spi0_state;
-    strcpy(spi0_state->nor->nor_path, nms->nor_path);
 
     set_spi_base(1);
     dev = sysbus_create_simple("ipodtouch.spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI1_IRQ));
     IPodTouchSPIState *spi1_state = IPOD_TOUCH_SPI(dev);
     nms->spi1_state = spi1_state;
-    //strcpy(spi1_state->nor->nor_path, nms->nor_path);
 
     set_spi_base(2);
     sysbus_create_simple("ipodtouch.spi", SPI2_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI2_IRQ));
@@ -395,6 +420,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     // init the FMSS flash controller
     dev = qdev_new("ipodtouch.fmss");
     IPodTouchFMSSState *fmss_state = IPOD_TOUCH_FMSS(dev);
+    fmss_state->nand_path = nms->nand_path;
     nms->fmss_state = fmss_state;
     busdev = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(sysmem, FMSS_MEM_BASE, &fmss_state->iomem);
@@ -451,12 +477,6 @@ static void ipod_touch_machine_init(MachineState *machine)
     IPodTouchPKEState *pke_state = IPOD_TOUCH_PKE(dev);
     nms->pke_state = pke_state;
     memory_region_add_subregion(sysmem, PKE_MEM_BASE, &pke_state->iomem);
-
-    // init block device engine
-    dev = qdev_new("ipodtouch.blockdevice");
-    IPodTouchBlockDeviceState *bdev_state = IPOD_TOUCH_BLOCK_DEVICE(dev);
-    nms->bdev_state = bdev_state;
-    memory_region_add_subregion(sysmem, BLOCK_DEVICE_MEM_BASE, &bdev_state->iomem);
 
     // init the MBX
     dev = qdev_new("ipodtouch.mbx");

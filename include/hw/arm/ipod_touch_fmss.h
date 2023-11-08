@@ -44,6 +44,7 @@ typedef struct IPodTouchFMSSState
     uint32_t reg_page_spare_out_addr;
     uint32_t reg_pages_out_addr;
     uint32_t reg_csgenrc;
+    char *nand_path;
 } IPodTouchFMSSState;
 
 #endif

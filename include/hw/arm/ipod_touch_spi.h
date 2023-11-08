@@ -63,6 +63,7 @@ typedef struct IPodTouchSPIState {
     MemoryRegion iomem;
     SSIBus *spi;
     IPodTouchMultitouchState *mt;
+    IPodTouchNORSPIState *nor;
 
     qemu_irq irq;
     uint32_t last_irq;
@@ -70,7 +71,6 @@ typedef struct IPodTouchSPIState {
 
     uint32_t regs[MMIO_SIZE >> 2];
     uint8_t base;
-    IPodTouchNORSPIState *nor;
     Fifo8 rx_fifo;
     Fifo8 tx_fifo;
 } IPodTouchSPIState;

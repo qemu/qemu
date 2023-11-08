@@ -24,7 +24,6 @@
 #include "hw/arm/ipod_touch_lcd.h"
 #include "hw/arm/ipod_touch_mipi_dsi.h"
 #include "hw/arm/ipod_touch_fmss.h"
-#include "hw/arm/ipod_touch_block_device.h"
 #include "hw/arm/ipod_touch_mbx.h"
 #include "hw/arm/ipod_touch_scaler_csc.h"
 #include "hw/arm/ipod_touch_sdio.h"
@@ -80,7 +79,6 @@ const int S5L8900_GPIO_IRQS[5] = { S5L8900_GPIO_G0_IRQ, S5L8900_GPIO_G1_IRQ, S5L
 #define DMAC1_0_MEM_BASE      0x38700000
 #define DISPLAY_MEM_BASE      0x38900000
 #define FMSS_MEM_BASE         0x38A00000
-#define BLOCK_DEVICE_MEM_BASE 0x38A00F00
 #define AES_MEM_BASE          0x38C00000
 #define SDIO_MEM_BASE         0x38D00000
 #define VIC0_MEM_BASE         0x38E00000
@@ -147,13 +145,14 @@ typedef struct {
 	IPodTouchLCDState *lcd_state;
 	IPodTouchMIPIDSIState *mipi_dsi_state;
 	IPodTouchFMSSState *fmss_state;
-	IPodTouchBlockDeviceState *bdev_state;
 	IPodTouchMBXState *mbx_state;
 	IPodTouchScalerCSCState *scaler_csc_state;
 	IPodTouchSDIOState *sdio_state;
 	IPodTouchTVOutState *tvout_state;
 	Clock *sysclk;
+	char bootrom_path[1024];
 	char nor_path[1024];
+	char nand_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);
 	IT2G_CPREG_VAR_DEF(REG1);
 } IPodTouchMachineState;
