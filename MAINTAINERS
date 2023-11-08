@@ -1539,6 +1539,14 @@ F: hw/pci-host/mv64361.c
 F: hw/pci-host/mv643xx.h
 F: include/hw/pci-host/mv64361.h
 
+amigaone
+M: BALATON Zoltan <balaton@eik.bme.hu>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ppc/amigaone.c
+F: hw/pci-host/articia.c
+F: include/hw/pci-host/articia.h
+
 Virtual Open Firmware (VOF)
 M: Alexey Kardashevskiy <aik@ozlabs.ru>
 R: David Gibson <david@gibson.dropbear.id.au>

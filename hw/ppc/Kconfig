@@ -69,6 +69,13 @@ config SAM460EX
     select USB_OHCI
     select FDT_PPC
 
+config AMIGAONE
+    bool
+    imply ATI_VGA
+    select ARTICIA
+    select VT82C686
+    select SMBUS_EEPROM
+
 config PEGASOS2
     bool
     imply ATI_VGA

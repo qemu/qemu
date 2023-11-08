@@ -38,7 +38,6 @@
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/ppc/spapr_rtas.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 
@@ -531,8 +530,8 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_PARAMETER;
 }
 
-uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
-                         uint32_t nret, uint64_t rets)
+static uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
+                                uint32_t nret, uint64_t rets)
 {
     int token;
 
