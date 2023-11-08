@@ -194,7 +194,6 @@ static uint32_t ipod_touch_multitouch_transfer(SSIPeripheral *dev, uint32_t valu
             s->buf_size = 16;
         }
         else if(value == MT_CMD_FRAME_READ) {
-            printf("Will read frame!\n");
             s->buf_size = sizeof(MTFrame);
             free(s->out_buffer);
             s->out_buffer = (uint8_t *) s->next_frame;
