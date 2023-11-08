@@ -10,6 +10,7 @@
  */
 #if defined(CONFIG_INT128) && !defined(CONFIG_TCG_INTERPRETER)
 typedef __int128_t Int128;
+typedef __int128_t __attribute__((aligned(16))) Int128Aligned;
 
 static inline Int128 int128_make64(uint64_t a)
 {
@@ -224,6 +225,7 @@ static inline Int128 int128_rems(Int128 a, Int128 b)
 #else /* !CONFIG_INT128 */
 
 typedef struct Int128 Int128;
+typedef struct Int128 __attribute__((aligned(16))) Int128Aligned;
 
 /*
  * We guarantee that the in-memory byte representation of an
