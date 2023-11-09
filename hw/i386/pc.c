@@ -44,6 +44,7 @@
 #include "sysemu/reset.h"
 #include "kvm/kvm_i386.h"
 #include "hw/xen/xen.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/error-report.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "acpi-build.h"
@@ -1457,10 +1458,11 @@ static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         /* Declare the APIC range as the reserved MSI region */
         char *resv_prop_str = g_strdup_printf("0xfee00000:0xfeefffff:%d",
                                               VIRTIO_IOMMU_RESV_MEM_T_MSI);
+        QList *reserved_regions = qlist_new();
 
-        object_property_set_uint(OBJECT(dev), "len-reserved-regions", 1, errp);
-        object_property_set_str(OBJECT(dev), "reserved-regions[0]",
-                                resv_prop_str, errp);
+        qlist_append_str(reserved_regions, resv_prop_str);
+        qdev_prop_set_array(dev, "reserved-regions", reserved_regions);
+
         g_free(resv_prop_str);
     }
 
