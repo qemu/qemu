@@ -72,6 +72,7 @@
   - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
       bison diffutils flex
       git grep make sed
+      $MINGW_TARGET-binutils
       $MINGW_TARGET-capstone
       $MINGW_TARGET-ccache
       $MINGW_TARGET-curl

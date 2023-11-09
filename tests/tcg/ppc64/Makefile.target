@@ -38,4 +38,11 @@ PPC64_TESTS += signal_save_restore_xer
 PPC64_TESTS += xxspltw
 PPC64_TESTS += test-aes
 
+ifneq ($(GDB),)
+# Skip for now until vsx registers sorted out
+run-gdbstub-registers:
+	$(call skip-test, $<, "BROKEN reading VSX registers")
+endif
+
+
 TESTS += $(PPC64_TESTS)

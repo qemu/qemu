@@ -2942,7 +2942,7 @@ F: gdbstub/*
 F: include/exec/gdbstub.h
 F: include/gdbstub/*
 F: gdb-xml/
-F: tests/tcg/multiarch/gdbstub/
+F: tests/tcg/multiarch/gdbstub/*
 F: scripts/feature_to_c.py
 F: scripts/probe-gdb-support.py
 
