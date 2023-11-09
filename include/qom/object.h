@@ -1094,6 +1094,14 @@ void object_property_set_default_bool(ObjectProperty *prop, bool value);
 void object_property_set_default_str(ObjectProperty *prop, const char *value);
 
 /**
+ * object_property_set_default_list:
+ * @prop: the property to set
+ *
+ * Set the property default value to be an empty list.
+ */
+void object_property_set_default_list(ObjectProperty *prop);
+
+/**
  * object_property_set_default_int:
  * @prop: the property to set
  * @value: the value to be written to the property

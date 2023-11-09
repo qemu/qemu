@@ -31,6 +31,7 @@
  * of the QOM core on QObject?  */
 #include "qom/qom-qobject.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
@@ -1586,6 +1587,11 @@ void object_property_set_default_bool(ObjectProperty *prop, bool value)
 void object_property_set_default_str(ObjectProperty *prop, const char *value)
 {
     object_property_set_default(prop, QOBJECT(qstring_from_str(value)));
+}
+
+void object_property_set_default_list(ObjectProperty *prop)
+{
+    object_property_set_default(prop, QOBJECT(qlist_new()));
 }
 
 void object_property_set_default_int(ObjectProperty *prop, int64_t value)
