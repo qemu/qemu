@@ -1102,7 +1102,9 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    AUD_register_card("virtio-sound", &vsnd->card, errp);
+    if (!AUD_register_card("virtio-sound", &vsnd->card, errp)) {
+        return;
+    }
 
     /* set default params for all streams */
     default_params.features = 0;
