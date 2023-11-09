@@ -151,6 +151,7 @@
 #define I2C_RESET_S_SDA_REG             0x11
 
 #define PNV_I2C_FIFO_SIZE 8
+#define PNV_I2C_MAX_BUSSES 64
 
 static I2CBus *pnv_i2c_get_bus(PnvI2C *i2c)
 {
@@ -437,7 +438,7 @@ static uint64_t pnv_i2c_xscom_read(void *opaque, hwaddr addr,
     case I2C_PORT_BUSY_REG: /* compute busy bit for each port  */
         val = 0;
         for (i = 0; i < i2c->num_busses; i++) {
-            val |= i2c_bus_busy(i2c->busses[i]) << i;
+            val |= (uint64_t)i2c_bus_busy(i2c->busses[i]) << i;
         }
         break;
 
@@ -640,6 +641,11 @@ static void pnv_i2c_realize(DeviceState *dev, Error **errp)
     int i;
 
     assert(i2c->chip);
+
+    if (i2c->num_busses > PNV_I2C_MAX_BUSSES) {
+        error_setg(errp, "Invalid number of busses: %u", i2c->num_busses);
+        return;
+    }
 
     pnv_xscom_region_init(&i2c->xscom_regs, OBJECT(i2c), &pnv_i2c_xscom_ops,
                           i2c, "xscom-i2c", PNV9_XSCOM_I2CM_SIZE);
