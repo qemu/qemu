@@ -24,6 +24,7 @@ typedef struct ArchDumpInfo {
     void (*arch_sections_add_fn)(DumpState *s);
     uint64_t (*arch_sections_write_hdr_fn)(DumpState *s, uint8_t *buff);
     int (*arch_sections_write_fn)(DumpState *s, uint8_t *buff);
+    void (*arch_cleanup_fn)(DumpState *s);
 } ArchDumpInfo;
 
 struct GuestPhysBlockList; /* memory_mapping.h */
