@@ -366,7 +366,7 @@ static void hv_balloon_unballoon_posting(HvBalloon *balloon, StateDesc *stdesc)
     PageRangeTree dtree;
     uint64_t *dctr;
     bool our_range;
-    struct dm_unballoon_request *ur;
+    g_autofree struct dm_unballoon_request *ur = NULL;
     size_t ur_size = sizeof(*ur) + sizeof(ur->range_array[0]);
     PageRange range;
     bool bret;
@@ -388,8 +388,7 @@ static void hv_balloon_unballoon_posting(HvBalloon *balloon, StateDesc *stdesc)
     assert(dtree.t);
     assert(dctr);
 
-    ur = alloca(ur_size);
-    memset(ur, 0, ur_size);
+    ur = g_malloc0(ur_size);
     ur->hdr.type = DM_UNBALLOON_REQUEST;
     ur->hdr.size = ur_size;
     ur->hdr.trans_id = balloon->trans_id;
@@ -531,7 +530,7 @@ static void hv_balloon_hot_add_posting(HvBalloon *balloon, StateDesc *stdesc)
     PageRange *hot_add_range = &balloon->hot_add_range;
     uint64_t *current_count = &balloon->ha_current_count;
     VMBusChannel *chan = hv_balloon_get_channel(balloon);
-    struct dm_hot_add *ha;
+    g_autofree struct dm_hot_add *ha = NULL;
     size_t ha_size = sizeof(*ha) + sizeof(ha->range);
     union dm_mem_page_range *ha_region;
     uint64_t align, chunk_max_size;
@@ -560,9 +559,8 @@ static void hv_balloon_hot_add_posting(HvBalloon *balloon, StateDesc *stdesc)
      */
     *current_count = MIN(hot_add_range->count, chunk_max_size);
 
-    ha = alloca(ha_size);
+    ha = g_malloc0(ha_size);
     ha_region = &(&ha->range)[1];
-    memset(ha, 0, ha_size);
     ha->hdr.type = DM_MEM_HOT_ADD_REQUEST;
     ha->hdr.size = ha_size;
     ha->hdr.trans_id = balloon->trans_id;
