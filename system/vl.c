@@ -198,6 +198,7 @@ static const struct {
     const char *driver;
     int *flag;
 } default_list[] = {
+    { .driver = "xen-console",          .flag = &default_serial    },
     { .driver = "isa-serial",           .flag = &default_serial    },
     { .driver = "isa-parallel",         .flag = &default_parallel  },
     { .driver = "isa-fdc",              .flag = &default_floppy    },
