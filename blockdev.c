@@ -1610,7 +1610,12 @@ static void external_snapshot_abort(void *opaque)
                 aio_context_acquire(aio_context);
             }
 
+            bdrv_drained_begin(state->new_bs);
+            bdrv_graph_wrlock(state->old_bs);
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
+            bdrv_graph_wrunlock();
+            bdrv_drained_end(state->new_bs);
+
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
 
             aio_context_release(aio_context);
@@ -1710,7 +1715,6 @@ static void drive_backup_action(DriveBackup *backup,
         bdrv_graph_rdunlock_main_loop();
         goto out;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     flags = bs->open_flags | BDRV_O_RDWR;
 
@@ -1735,6 +1739,7 @@ static void drive_backup_action(DriveBackup *backup,
         flags |= BDRV_O_NO_BACKING;
         set_backing_hd = true;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -1746,10 +1751,10 @@ static void drive_backup_action(DriveBackup *backup,
         assert(format);
         if (source) {
             /* Implicit filters should not appear in the filename */
-            BlockDriverState *explicit_backing =
-                bdrv_skip_implicit_filters(source);
+            BlockDriverState *explicit_backing;
 
             bdrv_graph_rdlock_main_loop();
+            explicit_backing = bdrv_skip_implicit_filters(source);
             bdrv_refresh_filename(explicit_backing);
             bdrv_graph_rdunlock_main_loop();
 
@@ -2450,11 +2455,12 @@ void qmp_block_stream(const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    bdrv_graph_rdlock_main_loop();
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
             error_setg(errp, "Can't find '%s' in the backing chain", base);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
     }
@@ -2462,38 +2468,36 @@ void qmp_block_stream(const char *job_id, const char *device,
     if (base_node) {
         base_bs = bdrv_lookup_bs(NULL, base_node, errp);
         if (!base_bs) {
-            goto out;
+            goto out_rdlock;
         }
         if (bs == base_bs || !bdrv_chain_contains(bs, base_bs)) {
             error_setg(errp, "Node '%s' is not a backing image of '%s'",
                        base_node, device);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
 
-        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(base_bs);
-        bdrv_graph_rdunlock_main_loop();
     }
 
     if (bottom) {
         bottom_bs = bdrv_lookup_bs(NULL, bottom, errp);
         if (!bottom_bs) {
-            goto out;
+            goto out_rdlock;
         }
         if (!bottom_bs->drv) {
             error_setg(errp, "Node '%s' is not open", bottom);
-            goto out;
+            goto out_rdlock;
         }
         if (bottom_bs->drv->is_filter) {
             error_setg(errp, "Node '%s' is a filter, use a non-filter node "
                        "as 'bottom'", bottom);
-            goto out;
+            goto out_rdlock;
         }
         if (!bdrv_chain_contains(bs, bottom_bs)) {
             error_setg(errp, "Node '%s' is not in a chain starting from '%s'",
                        bottom, device);
-            goto out;
+            goto out_rdlock;
         }
         assert(bdrv_get_aio_context(bottom_bs) == aio_context);
     }
@@ -2502,13 +2506,11 @@ void qmp_block_stream(const char *job_id, const char *device,
      * Check for op blockers in the whole chain between bs and base (or bottom)
      */
     iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
-    bdrv_graph_rdlock_main_loop();
     for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
-            bdrv_graph_rdunlock_main_loop();
-            goto out;
+            goto out_rdlock;
         }
     }
     bdrv_graph_rdunlock_main_loop();
@@ -2539,6 +2541,11 @@ void qmp_block_stream(const char *job_id, const char *device,
     trace_qmp_block_stream(bs);
 
 out:
+    aio_context_release(aio_context);
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
     aio_context_release(aio_context);
 }
 
@@ -3054,7 +3061,6 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_graph_rdunlock_main_loop();
         return;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -3076,6 +3082,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     if (arg->sync == MIRROR_SYNC_MODE_NONE) {
         target_backing_bs = bs;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -3108,16 +3115,18 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_img_create(arg->target, format,
                         NULL, NULL, NULL, size, flags, false, &local_err);
     } else {
-        /* Implicit filters should not appear in the filename */
-        BlockDriverState *explicit_backing =
-            bdrv_skip_implicit_filters(target_backing_bs);
+        BlockDriverState *explicit_backing;
 
         switch (arg->mode) {
         case NEW_IMAGE_MODE_EXISTING:
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
-            /* create new image with backing file */
+            /*
+             * Create new image with backing file.
+             * Implicit filters should not appear in the filename.
+             */
             bdrv_graph_rdlock_main_loop();
+            explicit_backing = bdrv_skip_implicit_filters(target_backing_bs);
             bdrv_refresh_filename(explicit_backing);
             bdrv_graph_rdunlock_main_loop();
 
@@ -3156,9 +3165,11 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         return;
     }
 
+    bdrv_graph_rdlock_main_loop();
     zero_target = (arg->sync == MIRROR_SYNC_MODE_FULL &&
                    (arg->mode == NEW_IMAGE_MODE_EXISTING ||
                     !bdrv_has_zero_init(target_bs)));
+    bdrv_graph_rdunlock_main_loop();
 
 
     /* Honor bdrv_try_change_aio_context() context acquisition requirements. */
@@ -3435,38 +3446,38 @@ void qmp_change_backing_file(const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    bdrv_graph_rdlock_main_loop();
+
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
+        goto out_rdlock;
     }
 
     if (!image_bs) {
         error_setg(errp, "image file not found");
-        goto out;
+        goto out_rdlock;
     }
 
     if (bdrv_find_base(image_bs) == image_bs) {
         error_setg(errp, "not allowing backing file change on an image "
                          "without a backing file");
-        goto out;
+        goto out_rdlock;
     }
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
-    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
-        bdrv_graph_rdunlock_main_loop();
-        goto out;
+        goto out_rdlock;
     }
-    bdrv_graph_rdunlock_main_loop();
 
     /* final sanity check */
     if (!bdrv_chain_contains(bs, image_bs)) {
         error_setg(errp, "'%s' and image file are not in the same chain",
                    device);
-        goto out;
+        goto out_rdlock;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     /* if not r/w, reopen to make r/w */
     ro = bdrv_is_read_only(image_bs);
@@ -3493,6 +3504,11 @@ void qmp_change_backing_file(const char *device,
     }
 
 out:
+    aio_context_release(aio_context);
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
     aio_context_release(aio_context);
 }
 

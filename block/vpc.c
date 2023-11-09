@@ -238,6 +238,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     opts = qemu_opts_create(&vpc_runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         ret = -EINVAL;
@@ -446,11 +448,9 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Disable migration when VHD images are used */
-    bdrv_graph_rdlock_main_loop();
     error_setg(&s->migration_blocker, "The vpc format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    bdrv_graph_rdunlock_main_loop();
 
     ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
     if (ret < 0) {
@@ -1170,7 +1170,7 @@ fail:
 }
 
 
-static int vpc_has_zero_init(BlockDriverState *bs)
+static int GRAPH_RDLOCK vpc_has_zero_init(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
 

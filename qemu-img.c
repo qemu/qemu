@@ -1050,12 +1050,14 @@ static int img_commit(int argc, char **argv)
     qemu_progress_init(progress, 1.f);
     qemu_progress_print(0.f, 100);
 
+    bdrv_graph_rdlock_main_loop();
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
             error_setg(&local_err,
                        "Did not find '%s' in the backing chain of '%s'",
                        base, filename);
+            bdrv_graph_rdunlock_main_loop();
             goto done;
         }
     } else {
@@ -1065,9 +1067,11 @@ static int img_commit(int argc, char **argv)
         base_bs = bdrv_backing_chain_next(bs);
         if (!base_bs) {
             error_setg(&local_err, "Image does not have a backing file");
+            bdrv_graph_rdunlock_main_loop();
             goto done;
         }
     }
+    bdrv_graph_rdunlock_main_loop();
 
     cbi = (CommonBlockJobCBInfo){
         .errp = &local_err,
@@ -1713,7 +1717,8 @@ static void convert_select_part(ImgConvertState *s, int64_t sector_num,
     }
 }
 
-static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
+static int coroutine_mixed_fn GRAPH_RDLOCK
+convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 {
     int64_t src_cur_offset;
     int ret, n, src_cur;
@@ -2099,7 +2104,9 @@ static int convert_do_copy(ImgConvertState *s)
     /* Check whether we have zero initialisation or can get it efficiently */
     if (!s->has_zero_init && s->target_is_new && s->min_sparse &&
         !s->target_has_backing) {
+        bdrv_graph_rdlock_main_loop();
         s->has_zero_init = bdrv_has_zero_init(blk_bs(s->target));
+        bdrv_graph_rdunlock_main_loop();
     }
 
     /* Allocate buffer for copied data. For compressed images, only one cluster
@@ -2113,7 +2120,9 @@ static int convert_do_copy(ImgConvertState *s)
     }
 
     while (sector_num < s->total_sectors) {
+        bdrv_graph_rdlock_main_loop();
         n = convert_iteration_sectors(s, sector_num);
+        bdrv_graph_rdunlock_main_loop();
         if (n < 0) {
             return n;
         }
@@ -2755,8 +2764,10 @@ static int img_convert(int argc, char **argv)
          * s.target_backing_sectors has to be negative, which it will
          * be automatically).  The backing file length is used only
          * for optimizations, so such a case is not fatal. */
+        bdrv_graph_rdlock_main_loop();
         s.target_backing_sectors =
             bdrv_nb_sectors(bdrv_backing_chain_next(out_bs));
+        bdrv_graph_rdunlock_main_loop();
     } else {
         s.target_backing_sectors = -1;
     }
@@ -3143,6 +3154,9 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     int64_t map;
     char *filename = NULL;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
      * range repeatedly.
@@ -3171,9 +3185,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
 
     if (file && has_offset) {
-        bdrv_graph_rdlock_main_loop();
         bdrv_refresh_filename(file);
-        bdrv_graph_rdunlock_main_loop();
         filename = file->filename;
     }
 
@@ -3529,7 +3541,7 @@ static int img_rebase(int argc, char **argv)
     uint8_t *buf_old = NULL;
     uint8_t *buf_new = NULL;
     BlockDriverState *bs = NULL, *prefix_chain_bs = NULL;
-    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs, *unfiltered_bs_cow;
     BlockDriverInfo bdi = {0};
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
@@ -3661,7 +3673,10 @@ static int img_rebase(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
+    bdrv_graph_rdlock_main_loop();
     unfiltered_bs = bdrv_skip_filters(bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    bdrv_graph_rdunlock_main_loop();
 
     if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
         error_report("Compression not supported for this file format");
@@ -3696,7 +3711,11 @@ static int img_rebase(int argc, char **argv)
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
         QDict *options = NULL;
-        BlockDriverState *base_bs = bdrv_cow_bs(unfiltered_bs);
+        BlockDriverState *base_bs;
+
+        bdrv_graph_rdlock_main_loop();
+        base_bs = bdrv_cow_bs(unfiltered_bs);
+        bdrv_graph_rdunlock_main_loop();
 
         if (base_bs) {
             blk_old_backing = blk_new(qemu_get_aio_context(),
@@ -3862,7 +3881,7 @@ static int img_rebase(int argc, char **argv)
                  * If cluster wasn't changed since prefix_chain, we don't need
                  * to take action
                  */
-                ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                ret = bdrv_is_allocated_above(unfiltered_bs_cow,
                                               prefix_chain_bs, false,
                                               offset, n, &n);
                 if (ret < 0) {

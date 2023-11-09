@@ -48,8 +48,10 @@ static int commit_prepare(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
     s->chain_frozen = false;
+    bdrv_graph_rdunlock_main_loop();
 
     /* Remove base node parent that still uses BLK_PERM_WRITE/RESIZE before
      * the normal backing chain can be restored. */
@@ -66,9 +68,12 @@ static void commit_abort(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     BlockDriverState *top_bs = blk_bs(s->top);
+    BlockDriverState *commit_top_backing_bs;
 
     if (s->chain_frozen) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
+        bdrv_graph_rdunlock_main_loop();
     }
 
     /* Make sure commit_top_bs and top stay around until bdrv_replace_node() */
@@ -90,8 +95,15 @@ static void commit_abort(Job *job)
      * XXX Can (or should) we somehow keep 'consistent read' blocked even
      * after the failed/cancelled commit job is gone? If we already wrote
      * something to base, the intermediate images aren't valid any more. */
-    bdrv_replace_node(s->commit_top_bs, s->commit_top_bs->backing->bs,
-                      &error_abort);
+    bdrv_graph_rdlock_main_loop();
+    commit_top_backing_bs = s->commit_top_bs->backing->bs;
+    bdrv_graph_rdunlock_main_loop();
+
+    bdrv_drained_begin(commit_top_backing_bs);
+    bdrv_graph_wrlock(commit_top_backing_bs);
+    bdrv_replace_node(s->commit_top_bs, commit_top_backing_bs, &error_abort);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(commit_top_backing_bs);
 
     bdrv_unref(s->commit_top_bs);
     bdrv_unref(top_bs);
@@ -210,7 +222,7 @@ bdrv_commit_top_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
 
-static void bdrv_commit_top_refresh_filename(BlockDriverState *bs)
+static GRAPH_RDLOCK void bdrv_commit_top_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->backing->bs->filename);
@@ -255,10 +267,13 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     GLOBAL_STATE_CODE();
 
     assert(top != bs);
+    bdrv_graph_rdlock_main_loop();
     if (bdrv_skip_filters(top) == bdrv_skip_filters(base)) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
+    bdrv_graph_rdunlock_main_loop();
 
     base_size = bdrv_getlength(base);
     if (base_size < 0) {
@@ -324,6 +339,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      * this is the responsibility of the interface (i.e. whoever calls
      * commit_start()).
      */
+    bdrv_graph_wrlock(top);
     s->base_overlay = bdrv_find_overlay(top, base);
     assert(s->base_overlay);
 
@@ -354,16 +370,20 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  iter_shared_perms, errp);
         if (ret < 0) {
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
 
     if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
+        bdrv_graph_wrunlock();
         goto fail;
     }
     s->chain_frozen = true;
 
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
+    bdrv_graph_wrunlock();
+
     if (ret < 0) {
         goto fail;
     }
@@ -396,7 +416,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
 fail:
     if (s->chain_frozen) {
+        bdrv_graph_rdlock_main_loop();
         bdrv_unfreeze_backing_chain(commit_top_bs, base);
+        bdrv_graph_rdunlock_main_loop();
     }
     if (s->base) {
         blk_unref(s->base);
@@ -411,7 +433,11 @@ fail:
     /* commit_top_bs has to be replaced after deleting the block job,
      * otherwise this would fail because of lack of permissions. */
     if (commit_top_bs) {
+        bdrv_drained_begin(top);
+        bdrv_graph_wrlock(top);
         bdrv_replace_node(commit_top_bs, top, &error_abort);
+        bdrv_graph_wrunlock();
+        bdrv_drained_end(top);
     }
 }
 

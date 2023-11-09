@@ -641,7 +641,7 @@ static inline void set_l2_bitmap(BDRVQcow2State *s, uint64_t *l2_slice,
     l2_slice[idx + 1] = cpu_to_be64(bitmap);
 }
 
-static inline bool has_data_file(BlockDriverState *bs)
+static inline bool GRAPH_RDLOCK has_data_file(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     return (s->data_file != bs->file);
@@ -709,8 +709,8 @@ static inline int64_t qcow2_vm_state_offset(BDRVQcow2State *s)
     return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
 }
 
-static inline QCow2ClusterType qcow2_get_cluster_type(BlockDriverState *bs,
-                                                      uint64_t l2_entry)
+static inline QCow2ClusterType GRAPH_RDLOCK
+qcow2_get_cluster_type(BlockDriverState *bs, uint64_t l2_entry)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -743,7 +743,7 @@ static inline QCow2ClusterType qcow2_get_cluster_type(BlockDriverState *bs,
  * (this checks the whole entry and bitmap, not only the bits related
  * to subcluster @sc_index).
  */
-static inline
+static inline GRAPH_RDLOCK
 QCow2SubclusterType qcow2_get_subcluster_type(BlockDriverState *bs,
                                               uint64_t l2_entry,
                                               uint64_t l2_bitmap,
@@ -834,9 +834,9 @@ int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
                                      int refcount_order, bool generous_increase,
                                      uint64_t *refblock_count);
 
-int qcow2_mark_dirty(BlockDriverState *bs);
-int qcow2_mark_corrupt(BlockDriverState *bs);
-int qcow2_update_header(BlockDriverState *bs);
+int GRAPH_RDLOCK qcow2_mark_dirty(BlockDriverState *bs);
+int GRAPH_RDLOCK qcow2_mark_corrupt(BlockDriverState *bs);
+int GRAPH_RDLOCK qcow2_update_header(BlockDriverState *bs);
 
 void GRAPH_RDLOCK
 qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
@@ -890,10 +890,11 @@ int GRAPH_RDLOCK qcow2_write_caches(BlockDriverState *bs);
 int coroutine_fn qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                        BdrvCheckMode fix);
 
-void qcow2_process_discards(BlockDriverState *bs, int ret);
+void GRAPH_RDLOCK qcow2_process_discards(BlockDriverState *bs, int ret);
 
-int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
-                                 int64_t size);
+int GRAPH_RDLOCK
+qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
+                             int64_t size);
 int GRAPH_RDLOCK
 qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                               int64_t size, bool data_file);
@@ -939,8 +940,9 @@ qcow2_alloc_host_offset(BlockDriverState *bs, uint64_t offset,
 int coroutine_fn GRAPH_RDLOCK
 qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs, uint64_t offset,
                                       int compressed_size, uint64_t *host_offset);
-void qcow2_parse_compressed_l2_entry(BlockDriverState *bs, uint64_t l2_entry,
-                                     uint64_t *coffset, int *csize);
+void GRAPH_RDLOCK
+qcow2_parse_compressed_l2_entry(BlockDriverState *bs, uint64_t l2_entry,
+                                uint64_t *coffset, int *csize);
 
 int coroutine_fn GRAPH_RDLOCK
 qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
@@ -972,11 +974,12 @@ int GRAPH_RDLOCK
 qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id,
                           const char *name, Error **errp);
 
-int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
-int qcow2_snapshot_load_tmp(BlockDriverState *bs,
-                            const char *snapshot_id,
-                            const char *name,
-                            Error **errp);
+int GRAPH_RDLOCK
+qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
+
+int GRAPH_RDLOCK
+qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_id,
+                        const char *name, Error **errp);
 
 void qcow2_free_snapshots(BlockDriverState *bs);
 int coroutine_fn GRAPH_RDLOCK
@@ -992,8 +995,9 @@ qcow2_check_fix_snapshot_table(BlockDriverState *bs, BdrvCheckResult *result,
                                BdrvCheckMode fix);
 
 /* qcow2-cache.c functions */
-Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
-                               unsigned table_size);
+Qcow2Cache * GRAPH_RDLOCK
+qcow2_cache_create(BlockDriverState *bs, int num_tables, unsigned table_size);
+
 int qcow2_cache_destroy(Qcow2Cache *c);
 
 void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table);
@@ -1019,17 +1023,24 @@ void *qcow2_cache_is_table_offset(Qcow2Cache *c, uint64_t offset);
 void qcow2_cache_discard(Qcow2Cache *c, void *table);
 
 /* qcow2-bitmap.c functions */
-int coroutine_fn
+int coroutine_fn GRAPH_RDLOCK
 qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                               void **refcount_table,
                               int64_t *refcount_table_size);
+
 bool coroutine_fn GRAPH_RDLOCK
-qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated, Error **errp);
-bool qcow2_get_bitmap_info_list(BlockDriverState *bs,
-                                Qcow2BitmapInfoList **info_list, Error **errp);
+qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
+                         Error **errp);
+
+bool GRAPH_RDLOCK
+qcow2_get_bitmap_info_list(BlockDriverState *bs,
+                           Qcow2BitmapInfoList **info_list, Error **errp);
+
 int GRAPH_RDLOCK qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp);
 int GRAPH_RDLOCK qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp);
-int coroutine_fn qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp);
+
+int coroutine_fn GRAPH_RDLOCK
+qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp);
 
 bool GRAPH_RDLOCK
 qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, bool release_stored,

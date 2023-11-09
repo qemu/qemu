@@ -71,8 +71,10 @@ bdrv_co_create_file(const char *filename, QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new(void);
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                 Error **errp);
-int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
-                      Error **errp);
+
+int GRAPH_WRLOCK
+bdrv_replace_node(BlockDriverState *from, BlockDriverState *to, Error **errp);
+
 int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
                           Error **errp);
 BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
@@ -101,9 +103,10 @@ bdrv_co_open_blockdev_ref(BlockdevRef *ref, Error **errp);
 
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp);
-int bdrv_set_backing_hd_drained(BlockDriverState *bs,
-                                BlockDriverState *backing_hd,
-                                Error **errp);
+int GRAPH_WRLOCK
+bdrv_set_backing_hd_drained(BlockDriverState *bs, BlockDriverState *backing_hd,
+                            Error **errp);
+
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
 
@@ -139,19 +142,21 @@ bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
 
 int bdrv_commit(BlockDriverState *bs);
 int GRAPH_RDLOCK bdrv_make_empty(BdrvChild *c, Error **errp);
-int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
-                             const char *backing_fmt, bool warn);
+
 void bdrv_register(BlockDriver *bdrv);
 int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
                            const char *backing_file_str);
-BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
-                                    BlockDriverState *bs);
-BlockDriverState *bdrv_find_base(BlockDriverState *bs);
-bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
-                                  Error **errp);
-int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
-                              Error **errp);
-void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
+
+BlockDriverState * GRAPH_RDLOCK
+bdrv_find_overlay(BlockDriverState *active, BlockDriverState *bs);
+
+BlockDriverState * GRAPH_RDLOCK bdrv_find_base(BlockDriverState *bs);
+
+int GRAPH_RDLOCK
+bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
+                          Error **errp);
+void GRAPH_RDLOCK
+bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
 
 /*
  * The units of offset and total_work_size may be chosen arbitrarily by the
@@ -189,14 +194,16 @@ void bdrv_drain_all(void);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 
 int bdrv_has_zero_init_1(BlockDriverState *bs);
-int bdrv_has_zero_init(BlockDriverState *bs);
+int coroutine_mixed_fn GRAPH_RDLOCK bdrv_has_zero_init(BlockDriverState *bs);
 BlockDriverState *bdrv_find_node(const char *node_name);
 BlockDeviceInfoList *bdrv_named_nodes_list(bool flat, Error **errp);
 XDbgBlockGraph * GRAPH_RDLOCK bdrv_get_xdbg_block_graph(Error **errp);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp);
-bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
+bool GRAPH_RDLOCK
+bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
+
 BlockDriverState *bdrv_next_node(BlockDriverState *bs);
 BlockDriverState *bdrv_next_all_states(BlockDriverState *bs);
 
@@ -281,7 +288,7 @@ bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
 int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
                                 BdrvChild *ignore_child, Error **errp);
 
-int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
+int GRAPH_RDLOCK bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
 void GRAPH_WRLOCK

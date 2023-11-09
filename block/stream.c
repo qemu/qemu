@@ -53,12 +53,19 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
 static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
-    BlockDriverState *unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs_cow;
     BlockDriverState *base;
     BlockDriverState *unfiltered_base;
     Error *local_err = NULL;
     int ret = 0;
+
+    GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
+    unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    bdrv_graph_rdunlock_main_loop();
 
     /* We should drop filter at this point, as filter hold the backing chain */
     bdrv_cor_filter_drop(s->cor_filter_bs);
@@ -78,10 +85,12 @@ static int stream_prepare(Job *job)
         bdrv_drained_begin(unfiltered_bs_cow);
     }
 
+    bdrv_graph_rdlock_main_loop();
     base = bdrv_filter_or_cow_bs(s->above_base);
     unfiltered_base = bdrv_skip_filters(base);
+    bdrv_graph_rdunlock_main_loop();
 
-    if (bdrv_cow_child(unfiltered_bs)) {
+    if (unfiltered_bs_cow) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (unfiltered_base) {
             base_id = s->backing_file_str ?: unfiltered_base->filename;
@@ -90,7 +99,9 @@ static int stream_prepare(Job *job)
             }
         }
 
+        bdrv_graph_wrlock(base);
         bdrv_set_backing_hd_drained(unfiltered_bs, base, &local_err);
+        bdrv_graph_wrunlock();
 
         /*
          * This call will do I/O, so the graph can change again from here on.
@@ -138,18 +149,19 @@ static void stream_clean(Job *job)
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    BlockDriverState *unfiltered_bs;
     int64_t len;
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
 
-    if (unfiltered_bs == s->base_overlay) {
-        /* Nothing to stream */
-        return 0;
-    }
-
     WITH_GRAPH_RDLOCK_GUARD() {
+        unfiltered_bs = bdrv_skip_filters(s->target_bs);
+        if (unfiltered_bs == s->base_overlay) {
+            /* Nothing to stream */
+            return 0;
+        }
+
         len = bdrv_co_getlength(s->target_bs);
         if (len < 0) {
             return len;
@@ -256,6 +268,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
 
+    bdrv_graph_rdlock_main_loop();
+
     if (bottom) {
         /*
          * New simple interface. The code is written in terms of old interface
@@ -272,7 +286,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         if (!base_overlay) {
             error_setg(errp, "'%s' is not in the backing chain of '%s'",
                        base->node_name, bs->node_name);
-            return;
+            goto out_rdlock;
         }
 
         /*
@@ -294,7 +308,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     if (bs_read_only) {
         /* Hold the chain during reopen */
         if (bdrv_freeze_backing_chain(bs, above_base, errp) < 0) {
-            return;
+            goto out_rdlock;
         }
 
         ret = bdrv_reopen_set_read_only(bs, false, errp);
@@ -303,9 +317,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         bdrv_unfreeze_backing_chain(bs, above_base);
 
         if (ret < 0) {
-            return;
+            goto out_rdlock;
         }
     }
+
+    bdrv_graph_rdunlock_main_loop();
 
     opts = qdict_new();
 
@@ -350,8 +366,10 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * already have our own plans. Also don't allow resize as the image size is
      * queried only at the job start and then cached.
      */
+    bdrv_graph_wrlock(bs);
     if (block_job_add_bdrv(&s->common, "active node", bs, 0,
                            basic_flags | BLK_PERM_WRITE, errp)) {
+        bdrv_graph_wrunlock();
         goto fail;
     }
 
@@ -371,9 +389,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  basic_flags, errp);
         if (ret < 0) {
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
+    bdrv_graph_wrunlock();
 
     s->base_overlay = base_overlay;
     s->above_base = above_base;
@@ -397,4 +417,8 @@ fail:
     if (bs_read_only) {
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
 }

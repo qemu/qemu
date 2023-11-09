@@ -124,8 +124,10 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
-        goto fail;
+        goto fail_unlocked;
     }
+
+    bdrv_graph_rdlock_main_loop();
 
     ret = bdrv_pread(bs->file, 0, sizeof(header), &header, 0);
     if (ret < 0) {
@@ -301,11 +303,9 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Disable migration when qcow images are used */
-    bdrv_graph_rdlock_main_loop();
     error_setg(&s->migration_blocker, "The qcow format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    bdrv_graph_rdunlock_main_loop();
 
     ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
     if (ret < 0) {
@@ -315,9 +315,12 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     qobject_unref(encryptopts);
     qapi_free_QCryptoBlockOpenOptions(crypto_opts);
     qemu_co_mutex_init(&s->lock);
+    bdrv_graph_rdunlock_main_loop();
     return 0;
 
- fail:
+fail:
+    bdrv_graph_rdunlock_main_loop();
+fail_unlocked:
     g_free(s->l1_table);
     qemu_vfree(s->l2_cache);
     g_free(s->cluster_cache);
@@ -1024,7 +1027,7 @@ fail:
     return ret;
 }
 
-static int qcow_make_empty(BlockDriverState *bs)
+static int GRAPH_RDLOCK qcow_make_empty(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint32_t l1_length = s->l1_size * sizeof(uint64_t);

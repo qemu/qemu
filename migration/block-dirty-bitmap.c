@@ -607,6 +607,10 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
     BlockBackend *blk;
     GHashTable *alias_map = NULL;
 
+    /* Runs in the migration thread, but holds the iothread lock */
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (migrate_has_block_bitmap_mapping()) {
         alias_map = construct_alias_map(migrate_block_bitmap_mapping(), true,
                                         &error_abort);

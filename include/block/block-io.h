@@ -183,7 +183,7 @@ bdrv_co_eject(BlockDriverState *bs, bool eject_flag);
 
 const char *bdrv_get_format_name(BlockDriverState *bs);
 
-bool bdrv_supports_compressed_writes(BlockDriverState *bs);
+bool GRAPH_RDLOCK bdrv_supports_compressed_writes(BlockDriverState *bs);
 const char *bdrv_get_node_name(const BlockDriverState *bs);
 
 const char * GRAPH_RDLOCK
@@ -209,6 +209,14 @@ void bdrv_round_to_subclusters(BlockDriverState *bs,
 
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
+
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                            const char *backing_fmt, bool warn);
+
+int co_wrapper_bdrv_rdlock
+bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
+                         const char *backing_fmt, bool warn);
 
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                       int64_t pos, int size);

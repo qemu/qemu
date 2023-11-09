@@ -67,6 +67,8 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t offsets_size, max_compressed_block_size = 1, i;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
     bdrv_graph_rdunlock_main_loop();
@@ -78,6 +80,8 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* read header */
     ret = bdrv_pread(bs->file, 128, 4, &s->block_size, 0);

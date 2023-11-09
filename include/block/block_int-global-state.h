@@ -196,12 +196,13 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                             BlockCompletionFunc *cb, void *opaque,
                             JobTxn *txn, Error **errp);
 
-BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
-                                  const char *child_name,
-                                  const BdrvChildClass *child_class,
-                                  BdrvChildRole child_role,
-                                  uint64_t perm, uint64_t shared_perm,
-                                  void *opaque, Error **errp);
+BdrvChild * GRAPH_WRLOCK
+bdrv_root_attach_child(BlockDriverState *child_bs, const char *child_name,
+                       const BdrvChildClass *child_class,
+                       BdrvChildRole child_role,
+                       uint64_t perm, uint64_t shared_perm,
+                       void *opaque, Error **errp);
+
 void GRAPH_WRLOCK bdrv_root_unref_child(BdrvChild *child);
 
 void GRAPH_RDLOCK bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
@@ -276,7 +277,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
                                            Error **errp);
 
 
-BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK
+bdrv_skip_implicit_filters(BlockDriverState *bs);
 
 /**
  * bdrv_add_aio_context_notifier:

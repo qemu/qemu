@@ -206,6 +206,9 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     BlockBackend *blk;
     int ret;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!strcmp(device, "all")) {
         ret = blk_commit_all();
     } else {

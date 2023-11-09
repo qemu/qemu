@@ -311,7 +311,7 @@ static void GRAPH_UNLOCKED
 secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
-    BdrvChild *active_disk = bs->file;
+    BdrvChild *active_disk;
     Error *local_err = NULL;
     int ret;
 
@@ -328,6 +328,7 @@ secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
         return;
     }
 
+    active_disk = bs->file;
     if (!active_disk->bs->drv) {
         error_setg(errp, "Active disk %s is ejected",
                    active_disk->bs->node_name);
@@ -362,6 +363,9 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     BDRVReplicationState *s = bs->opaque;
     BdrvChild *hidden_disk, *secondary_disk;
     BlockReopenQueue *reopen_queue = NULL;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /*
      * s->hidden_disk and s->secondary_disk may not be set yet, as they will
@@ -496,9 +500,11 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     case REPLICATION_MODE_PRIMARY:
         break;
     case REPLICATION_MODE_SECONDARY:
+        bdrv_graph_rdlock_main_loop();
         active_disk = bs->file;
         if (!active_disk || !active_disk->bs || !active_disk->bs->backing) {
             error_setg(errp, "Active disk doesn't have backing file");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
@@ -506,11 +512,11 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         hidden_disk = active_disk->bs->backing;
         if (!hidden_disk->bs || !hidden_disk->bs->backing) {
             error_setg(errp, "Hidden disk doesn't have backing file");
+            bdrv_graph_rdunlock_main_loop();
             aio_context_release(aio_context);
             return;
         }
 
-        bdrv_graph_rdlock_main_loop();
         secondary_disk = hidden_disk->bs->backing;
         if (!secondary_disk->bs || !bdrv_has_blk(secondary_disk->bs)) {
             error_setg(errp, "The secondary disk doesn't have block backend");
@@ -750,11 +756,13 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
             return;
         }
 
+        bdrv_graph_rdlock_main_loop();
         s->stage = BLOCK_REPLICATION_FAILOVER;
         s->commit_job = commit_active_start(
                             NULL, bs->file->bs, s->secondary_disk->bs,
                             JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
                             NULL, replication_done, bs, true, errp);
+        bdrv_graph_rdunlock_main_loop();
         break;
     default:
         aio_context_release(aio_context);

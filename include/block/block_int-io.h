@@ -130,26 +130,29 @@ bdrv_co_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 int co_wrapper_mixed_bdrv_rdlock
 bdrv_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 
-BdrvChild *bdrv_cow_child(BlockDriverState *bs);
-BdrvChild *bdrv_filter_child(BlockDriverState *bs);
-BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_cow_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_filter_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_filter_or_cow_child(BlockDriverState *bs);
 BdrvChild * GRAPH_RDLOCK bdrv_primary_child(BlockDriverState *bs);
-BlockDriverState *bdrv_skip_filters(BlockDriverState *bs);
-BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_skip_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_backing_chain_next(BlockDriverState *bs);
 
-static inline BlockDriverState *bdrv_cow_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_cow_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_cow_child(bs));
 }
 
-static inline BlockDriverState *bdrv_filter_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_filter_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_filter_child(bs));
 }
 
-static inline BlockDriverState *bdrv_filter_or_cow_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_filter_or_cow_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_filter_or_cow_child(bs));

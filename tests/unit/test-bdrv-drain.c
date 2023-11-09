@@ -96,9 +96,9 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
-static int bdrv_test_change_backing_file(BlockDriverState *bs,
-                                         const char *backing_file,
-                                         const char *backing_fmt)
+static int bdrv_test_co_change_backing_file(BlockDriverState *bs,
+                                            const char *backing_file,
+                                            const char *backing_fmt)
 {
     return 0;
 }
@@ -116,7 +116,7 @@ static BlockDriver bdrv_test = {
 
     .bdrv_child_perm        = bdrv_default_perms,
 
-    .bdrv_change_backing_file = bdrv_test_change_backing_file,
+    .bdrv_co_change_backing_file = bdrv_test_co_change_backing_file,
 };
 
 static void aio_ret_cb(void *opaque, int ret)
@@ -218,8 +218,14 @@ static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *
     }
 }
 
-static void test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
-                               bool recursive)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
+                   bool recursive)
 {
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *backing = bs->backing->bs;
@@ -307,8 +313,14 @@ static void test_drv_cb_co_drain(void)
     blk_unref(blk);
 }
 
-static void test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
-                                bool recursive)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
+                    bool recursive)
 {
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *backing = bs->backing->bs;
@@ -794,7 +806,10 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
                             0, 0, NULL, NULL, &error_abort);
     tjob->bs = src;
     job = &tjob->common;
+
+    bdrv_graph_wrlock(target);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
+    bdrv_graph_wrunlock();
 
     switch (result) {
     case TEST_JOB_SUCCESS:
@@ -1865,6 +1880,8 @@ static void bdrv_replace_test_drain_end(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!s->setup_completed) {
         return;
     }
@@ -1997,7 +2014,13 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     parent_s->was_undrained = false;
 
     g_assert(parent_bs->quiesce_counter == old_drain_count);
+    bdrv_drained_begin(old_child_bs);
+    bdrv_drained_begin(new_child_bs);
+    bdrv_graph_wrlock(NULL);
     bdrv_replace_node(old_child_bs, new_child_bs, &error_abort);
+    bdrv_graph_wrunlock();
+    bdrv_drained_end(new_child_bs);
+    bdrv_drained_end(old_child_bs);
     g_assert(parent_bs->quiesce_counter == new_drain_count);
 
     if (!old_drain_count && !new_drain_count) {

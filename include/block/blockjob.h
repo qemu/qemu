@@ -138,8 +138,9 @@ BlockJob *block_job_get_locked(const char *id);
  * @job. This means that all operations will be blocked on @bs while
  * @job exists.
  */
-int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
-                       uint64_t perm, uint64_t shared_perm, Error **errp);
+int GRAPH_WRLOCK
+block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
+                   uint64_t perm, uint64_t shared_perm, Error **errp);
 
 /**
  * block_job_remove_all_bdrv:

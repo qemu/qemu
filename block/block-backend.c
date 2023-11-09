@@ -931,10 +931,12 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     GLOBAL_STATE_CODE();
     bdrv_ref(bs);
+    bdrv_graph_wrlock(bs);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                                        blk->perm, blk->shared_perm,
                                        blk, errp);
+    bdrv_graph_wrunlock();
     if (blk->root == NULL) {
         return -EPERM;
     }
@@ -2666,6 +2668,8 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 {
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
@@ -2726,6 +2730,7 @@ int blk_commit_all(void)
 {
     BlockBackend *blk = NULL;
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while ((blk = blk_all_next(blk)) != NULL) {
         AioContext *aio_context = blk_get_aio_context(blk);

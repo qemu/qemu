@@ -310,7 +310,7 @@ struct BlockDriver {
      * One example usage is to avoid waiting for an nbd target node reconnect
      * timeout during job-cancel with force=true.
      */
-    void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
+    void GRAPH_RDLOCK_PTR (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 
     int GRAPH_RDLOCK_PTR (*bdrv_inactivate)(BlockDriverState *bs);
 
@@ -324,15 +324,16 @@ struct BlockDriver {
         BlockDriverState *bs, const char *snapshot_id, const char *name,
         Error **errp);
 
-    int (*bdrv_snapshot_list)(BlockDriverState *bs,
-                              QEMUSnapshotInfo **psn_info);
-    int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
-                                  const char *snapshot_id,
-                                  const char *name,
-                                  Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_list)(
+        BlockDriverState *bs, QEMUSnapshotInfo **psn_info);
 
-    int (*bdrv_change_backing_file)(BlockDriverState *bs,
-        const char *backing_file, const char *backing_fmt);
+    int GRAPH_RDLOCK_PTR (*bdrv_snapshot_load_tmp)(
+        BlockDriverState *bs, const char *snapshot_id, const char *name,
+        Error **errp);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_change_backing_file)(
+        BlockDriverState *bs, const char *backing_file,
+        const char *backing_fmt);
 
     /* TODO Better pass a option string/QDict/QemuOpts to add any rule? */
     int (*bdrv_debug_breakpoint)(BlockDriverState *bs, const char *event,
@@ -349,7 +350,7 @@ struct BlockDriver {
      * Returns 1 if newly created images are guaranteed to contain only
      * zeros, 0 otherwise.
      */
-    int (*bdrv_has_zero_init)(BlockDriverState *bs);
+    int GRAPH_RDLOCK_PTR (*bdrv_has_zero_init)(BlockDriverState *bs);
 
     /*
      * Remove fd handlers, timers, and other event loop callbacks so the event
@@ -386,7 +387,8 @@ struct BlockDriver {
      * On success, store them in @bsz and return zero.
      * On failure, return negative errno.
      */
-    int (*bdrv_probe_blocksizes)(BlockDriverState *bs, BlockSizes *bsz);
+    int GRAPH_RDLOCK_PTR (*bdrv_probe_blocksizes)(
+        BlockDriverState *bs, BlockSizes *bsz);
     /**
      * Try to get @bs's geometry (cyls, heads, sectors)
      * On success, store them in @geo and return 0.
@@ -394,7 +396,8 @@ struct BlockDriver {
      * Only drivers that want to override guest geometry implement this
      * callback; see hd_geometry_guess().
      */
-    int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
+    int GRAPH_RDLOCK_PTR (*bdrv_probe_geometry)(
+        BlockDriverState *bs, HDGeometry *geo);
 
     void GRAPH_WRLOCK_PTR (*bdrv_add_child)(
         BlockDriverState *parent, BlockDriverState *child, Error **errp);
@@ -1177,8 +1180,8 @@ struct BlockDriverState {
      * are connected with BdrvChildRole.
      */
     QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) children;
-    BdrvChild *backing;
-    BdrvChild *file;
+    BdrvChild * GRAPH_RDLOCK_PTR backing;
+    BdrvChild * GRAPH_RDLOCK_PTR file;
 
     QLIST_HEAD(, BdrvChild GRAPH_RDLOCK_PTR) parents;
 

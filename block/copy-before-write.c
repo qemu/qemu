@@ -203,7 +203,7 @@ static int coroutine_fn GRAPH_RDLOCK cbw_co_flush(BlockDriverState *bs)
  * It's guaranteed that guest writes will not interact in the region until
  * cbw_snapshot_read_unlock() called.
  */
-static coroutine_fn BlockReq *
+static BlockReq * coroutine_fn GRAPH_RDLOCK
 cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
                        int64_t *pnum, BdrvChild **file)
 {
@@ -335,7 +335,7 @@ cbw_co_pdiscard_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return bdrv_co_pdiscard(s->target, offset, bytes);
 }
 
-static void cbw_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK cbw_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->file->bs->filename);
@@ -432,6 +432,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     if (!s->target) {
         return -EINVAL;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);

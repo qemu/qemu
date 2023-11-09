@@ -84,6 +84,9 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     bs->supported_write_flags = bs->file->bs->supported_write_flags |
                                 BDRV_REQ_WRITE_UNCHANGED;
     bs->supported_zero_flags = bs->file->bs->supported_zero_flags |

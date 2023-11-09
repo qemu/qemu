@@ -143,6 +143,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVPreallocateState *s = bs->opaque;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     /*
      * s->data_end and friends should be initialized on permission update.
      * For this to work, mark them invalid.
@@ -154,6 +156,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!preallocate_absorb_opts(&s->opts, options, bs->file->bs, errp)) {
         return -EINVAL;
@@ -169,7 +173,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 }
 
-static int preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
+static int GRAPH_RDLOCK
+preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
 {
     BDRVPreallocateState *s = bs->opaque;
     int ret;
@@ -200,6 +205,9 @@ static void preallocate_close(BlockDriverState *bs)
 {
     BDRVPreallocateState *s = bs->opaque;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     qemu_bh_cancel(s->drop_resize_bh);
     qemu_bh_delete(s->drop_resize_bh);
 
@@ -222,6 +230,9 @@ static int preallocate_reopen_prepare(BDRVReopenState *reopen_state,
 {
     PreallocateOpts *opts = g_new0(PreallocateOpts, 1);
     int ret;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!preallocate_absorb_opts(opts, reopen_state->options,
                                  reopen_state->bs->file->bs, errp)) {
@@ -283,7 +294,7 @@ static bool can_write_resize(uint64_t perm)
     return (perm & BLK_PERM_WRITE) && (perm & BLK_PERM_RESIZE);
 }
 
-static bool has_prealloc_perms(BlockDriverState *bs)
+static bool GRAPH_RDLOCK has_prealloc_perms(BlockDriverState *bs)
 {
     BDRVPreallocateState *s = bs->opaque;
 
@@ -499,7 +510,8 @@ preallocate_co_getlength(BlockDriverState *bs)
     return ret;
 }
 
-static int preallocate_drop_resize(BlockDriverState *bs, Error **errp)
+static int GRAPH_RDLOCK
+preallocate_drop_resize(BlockDriverState *bs, Error **errp)
 {
     BDRVPreallocateState *s = bs->opaque;
     int ret;
@@ -525,15 +537,16 @@ static int preallocate_drop_resize(BlockDriverState *bs, Error **errp)
      */
     s->data_end = s->file_end = s->zero_start = -EINVAL;
 
-    bdrv_graph_rdlock_main_loop();
     bdrv_child_refresh_perms(bs, bs->file, NULL);
-    bdrv_graph_rdunlock_main_loop();
 
     return 0;
 }
 
 static void preallocate_drop_resize_bh(void *opaque)
 {
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /*
      * In case of errors, we'll simply keep the exclusive lock on the image
      * indefinitely.
@@ -541,8 +554,8 @@ static void preallocate_drop_resize_bh(void *opaque)
     preallocate_drop_resize(opaque, NULL);
 }
 
-static void preallocate_set_perm(BlockDriverState *bs,
-                                 uint64_t perm, uint64_t shared)
+static void GRAPH_RDLOCK
+preallocate_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 {
     BDRVPreallocateState *s = bs->opaque;
 

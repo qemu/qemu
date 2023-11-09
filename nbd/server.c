@@ -1689,6 +1689,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     size_t i;
     int ret;
 
+    GLOBAL_STATE_CODE();
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
 
     if (!nbd_server_is_running()) {
@@ -1742,6 +1743,8 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
                           NBD_FLAG_SEND_FAST_ZERO);
     }
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
+
+    bdrv_graph_rdlock_main_loop();
 
     for (bitmaps = arg->bitmaps; bitmaps; bitmaps = bitmaps->next) {
         exp->nr_export_bitmaps++;
@@ -1825,9 +1828,12 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
 
     QTAILQ_INSERT_TAIL(&exports, exp, next);
 
+    bdrv_graph_rdunlock_main_loop();
+
     return 0;
 
 fail:
+    bdrv_graph_rdunlock_main_loop();
     g_free(exp->export_bitmaps);
     g_free(exp->name);
     g_free(exp->description);
