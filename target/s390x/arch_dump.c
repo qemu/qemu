@@ -448,10 +448,6 @@ int cpu_get_dump_info(ArchDumpInfo *info,
         info->arch_sections_add_fn = *arch_sections_add;
         info->arch_sections_write_hdr_fn = *arch_sections_write_hdr;
         info->arch_sections_write_fn = *arch_sections_write;
-    } else {
-        info->arch_sections_add_fn = NULL;
-        info->arch_sections_write_hdr_fn = NULL;
-        info->arch_sections_write_fn = NULL;
     }
     return 0;
 }
