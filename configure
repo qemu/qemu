@@ -968,14 +968,14 @@ meson="$(cd pyvenv/bin; pwd)/meson"
 
 # Conditionally ensure Sphinx is installed.
 
-mkvenv_flags=""
-if test "$download" = "enabled" -a "$docs" = "enabled" ; then
-    mkvenv_flags="--online"
+mkvenv_online_flag=""
+if test "$download" = "enabled" ; then
+    mkvenv_online_flag=" --online"
 fi
 
 if test "$docs" != "disabled" ; then
     if ! $mkvenv ensuregroup \
-         $mkvenv_flags \
+         $(test "$docs" = "enabled" && echo "$mkvenv_online_flag") \
          ${source_path}/pythondeps.toml docs;
     then
         if test "$docs" = "enabled" ; then
@@ -1634,6 +1634,7 @@ if test "$container" != no; then
 fi
 echo "SUBDIRS=$subdirs" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
+echo "MKVENV_ENSUREGROUP=$mkvenv ensuregroup $mkvenv_online_flag" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
