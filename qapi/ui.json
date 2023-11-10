@@ -1428,6 +1428,9 @@
 #     turned off the host window will be resized instead. Defaults to
 #     "off". (Since 8.2)
 #
+# @zoom-interpolation: Apply interpolation to smooth output when
+#     zoom-to-fit is enabled. Defaults to "off". (Since 9.0)
+#
 # Since: 7.0
 ##
 { 'struct': 'DisplayCocoa',
@@ -1435,7 +1438,8 @@
       '*left-command-key': 'bool',
       '*full-grab': 'bool',
       '*swap-opt-cmd': 'bool',
-      '*zoom-to-fit': 'bool'
+      '*zoom-to-fit': 'bool',
+      '*zoom-interpolation': 'bool'
   } }
 
 ##

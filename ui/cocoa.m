@@ -105,6 +105,7 @@ static int left_command_key_enabled = 1;
 static bool swap_opt_cmd;
 
 static bool stretch_video;
+static CGInterpolationQuality zoom_interpolation = kCGInterpolationNone;
 static NSTextField *pauseLabel;
 
 static bool allow_events;
@@ -455,7 +456,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     // get CoreGraphic context
     CGContextRef viewContextRef = [[NSGraphicsContext currentContext] CGContext];
 
-    CGContextSetInterpolationQuality (viewContextRef, kCGInterpolationNone);
+    CGContextSetInterpolationQuality (viewContextRef, zoom_interpolation);
     CGContextSetShouldAntialias (viewContextRef, NO);
 
     // draw screen bitmap directly to Core Graphics context
@@ -1411,6 +1412,17 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 }
 
+- (void)toggleZoomInterpolation:(id) sender
+{
+    if (zoom_interpolation == kCGInterpolationNone) {
+        zoom_interpolation = kCGInterpolationLow;
+        [sender setState: NSControlStateValueOn];
+    } else {
+        zoom_interpolation = kCGInterpolationNone;
+        [sender setState: NSControlStateValueOff];
+    }
+}
+
 /* Displays the console on the screen */
 - (void)displayConsole:(id)sender
 {
@@ -1672,6 +1684,9 @@ static void create_initial_menus(void)
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease];
     [menuItem setState: stretch_video ? NSControlStateValueOn : NSControlStateValueOff];
+    [menu addItem: menuItem];
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Zoom Interpolation" action:@selector(toggleZoomInterpolation:) keyEquivalent:@""] autorelease];
+    [menuItem setState: zoom_interpolation == kCGInterpolationLow ? NSControlStateValueOn : NSControlStateValueOff];
     [menu addItem: menuItem];
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
@@ -2068,6 +2083,10 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 
     if (opts->u.cocoa.has_zoom_to_fit && opts->u.cocoa.zoom_to_fit) {
         stretch_video = true;
+    }
+
+    if (opts->u.cocoa.has_zoom_interpolation && opts->u.cocoa.zoom_interpolation) {
+        zoom_interpolation = kCGInterpolationLow;
     }
 
     create_initial_menus();
