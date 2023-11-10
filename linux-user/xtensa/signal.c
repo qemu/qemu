@@ -157,6 +157,9 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 {
     abi_ulong frame_addr;
     struct target_rt_sigframe *frame;
+    int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
+    abi_ulong handler = 0;
+    abi_ulong handler_fdpic_GOT = 0;
     uint32_t ra;
     bool abi_call0;
     unsigned base;
@@ -164,6 +167,17 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     trace_user_setup_rt_frame(env, frame_addr);
+
+    if (is_fdpic) {
+        abi_ulong funcdesc_ptr = ka->_sa_handler;
+
+        if (get_user_ual(handler, funcdesc_ptr)
+            || get_user_ual(handler_fdpic_GOT, funcdesc_ptr + 4)) {
+            goto give_sigsegv;
+        }
+    } else {
+        handler = ka->_sa_handler;
+    }
 
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
         goto give_sigsegv;
@@ -185,14 +199,21 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        ra = ka->sa_restorer;
+        if (is_fdpic) {
+            if (get_user_ual(ra, ka->sa_restorer)) {
+                unlock_user_struct(frame, frame_addr, 0);
+                goto give_sigsegv;
+            }
+        } else {
+            ra = ka->sa_restorer;
+        }
     } else {
         /* Not used, but retain for ABI compatibility. */
         install_sigtramp(frame->retcode);
         ra = default_rt_sigreturn;
     }
     memset(env->regs, 0, sizeof(env->regs));
-    env->pc = ka->_sa_handler;
+    env->pc = handler;
     env->regs[1] = frame_addr;
     env->sregs[WINDOW_BASE] = 0;
     env->sregs[WINDOW_START] = 1;
@@ -212,6 +233,9 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->regs[base + 3] = frame_addr + offsetof(struct target_rt_sigframe,
                                                 info);
     env->regs[base + 4] = frame_addr + offsetof(struct target_rt_sigframe, uc);
+    if (is_fdpic) {
+        env->regs[base + 11] = handler_fdpic_GOT;
+    }
     unlock_user_struct(frame, frame_addr, 1);
     return;
 
