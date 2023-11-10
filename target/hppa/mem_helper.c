@@ -450,7 +450,7 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
     int mask_shift;
 
     mask_shift = 2 * (r1 & 0xf);
-    va_size = TARGET_PAGE_SIZE << mask_shift;
+    va_size = (uint64_t)TARGET_PAGE_SIZE << mask_shift;
     va_b &= -va_size;
     va_e = va_b + va_size - 1;
 
@@ -505,7 +505,7 @@ static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
      */
     end = start & 0xf;
     start &= TARGET_PAGE_MASK;
-    end = TARGET_PAGE_SIZE << (2 * end);
+    end = (vaddr)TARGET_PAGE_SIZE << (2 * end);
     end = start + end - 1;
 
     hppa_flush_tlb_range(env, start, end);
