@@ -66,6 +66,10 @@ S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 
     assert(vpdev);
 
+    if (!vpdev->vbasedev.group) {
+        return NULL;
+    }
+
     id = vpdev->vbasedev.group->container->fd;
 
     if (!s390_pci_update_dma_avail(id, &avail)) {
