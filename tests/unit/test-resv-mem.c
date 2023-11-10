@@ -44,6 +44,10 @@ static void compare_ranges(const char *prefix, GList *ranges,
     print_ranges("out", ranges);
     print_ranges("expected", expected);
 #endif
+    if (!expected) {
+        g_assert_true(!ranges);
+        return;
+    }
     g_assert_cmpint(g_list_length(ranges), ==, g_list_length(expected));
     for (l = ranges, e = expected; l ; l = l->next, e = e->next) {
         Range *r = (Range *)l->data;
