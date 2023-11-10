@@ -2880,20 +2880,22 @@ uint64_t helper_XSCVSPDPN(uint64_t xb)
 #define VSX_CVT_FP_TO_INT(op, nels, stp, ttp, sfld, tfld, sfi, rnan)         \
 void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
 {                                                                            \
+    int all_flags = 0;                                                       \
     ppc_vsr_t t = { };                                                       \
     int i, flags;                                                            \
                                                                              \
-    helper_reset_fpstatus(env);                                              \
-                                                                             \
     for (i = 0; i < nels; i++) {                                             \
+        helper_reset_fpstatus(env);                                          \
         t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);  \
         flags = env->fp_status.float_exception_flags;                        \
+        all_flags |= flags;                                                  \
         if (unlikely(flags & float_flag_invalid)) {                          \
             t.tfld = float_invalid_cvt(env, flags, t.tfld, rnan, 0, GETPC());\
         }                                                                    \
     }                                                                        \
                                                                              \
     *xt = t;                                                                 \
+    env->fp_status.float_exception_flags = all_flags;                        \
     do_float_check_status(env, sfi, GETPC());                                \
 }
 
@@ -2945,15 +2947,16 @@ VSX_CVT_FP_TO_INT128(XSCVQPSQZ, int128, 0x8000000000000000ULL);
 #define VSX_CVT_FP_TO_INT2(op, nels, stp, ttp, sfi, rnan)                    \
 void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
 {                                                                            \
+    int all_flags = 0;                                                       \
     ppc_vsr_t t = { };                                                       \
     int i, flags;                                                            \
                                                                              \
-    helper_reset_fpstatus(env);                                              \
-                                                                             \
     for (i = 0; i < nels; i++) {                                             \
+        helper_reset_fpstatus(env);                                          \
         t.VsrW(2 * i) = stp##_to_##ttp##_round_to_zero(xb->VsrD(i),          \
                                                        &env->fp_status);     \
         flags = env->fp_status.float_exception_flags;                        \
+        all_flags |= flags;                                                  \
         if (unlikely(flags & float_flag_invalid)) {                          \
             t.VsrW(2 * i) = float_invalid_cvt(env, flags, t.VsrW(2 * i),     \
                                               rnan, 0, GETPC());             \
@@ -2962,6 +2965,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
     }                                                                        \
                                                                              \
     *xt = t;                                                                 \
+    env->fp_status.float_exception_flags = all_flags;                        \
     do_float_check_status(env, sfi, GETPC());                                \
 }
 
