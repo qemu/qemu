@@ -228,6 +228,7 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
  * is thread-safe.
  *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
+ *          or -1 on error.
  */
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
@@ -242,6 +243,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
  * attempted to be written.  This function is thread-safe.
  *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
+ *          or -1 on error.
  */
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
@@ -253,6 +255,7 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
  * Read data to a buffer from the back end.
  *
  * Returns: the number of bytes read (0 if no associated Chardev)
+ *          or -1 on error.
  */
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
