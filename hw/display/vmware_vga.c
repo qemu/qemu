@@ -336,8 +336,8 @@ static inline bool vmsvga_verify_rect(DisplaySurface *surface,
         return false;
     }
     if (h > SVGA_MAX_HEIGHT) {
-        trace_vmware_verify_rect_greater_than_bound(name, "y", SVGA_MAX_HEIGHT,
-                                                    y);
+        trace_vmware_verify_rect_greater_than_bound(name, "h", SVGA_MAX_HEIGHT,
+                                                    h);
         return false;
     }
     if (y + h > surface_height(surface)) {
