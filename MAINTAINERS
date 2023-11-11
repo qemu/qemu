@@ -2241,7 +2241,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: hw/virtio/vhost-user-fs*
 F: include/hw/virtio/vhost-user-fs.h
-L: virtio-fs@redhat.com
+L: virtio-fs@lists.linux.dev
 
 virtio-input
 M: Gerd Hoffmann <kraxel@redhat.com>
