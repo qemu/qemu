@@ -34,7 +34,7 @@
 #include "net/net.h"
 #include "qemu/log.h"
 
-#define MIN_SEABIOS_HPPA_VERSION 10 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
 
 /* Power button address at &PAGE0->pad[4] */
 #define HPA_POWER_BUTTON (0x40 + 4 * sizeof(uint32_t))
