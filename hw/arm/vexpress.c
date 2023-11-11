@@ -43,6 +43,7 @@
 #include "hw/cpu/a15mpcore.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
+#include "qapi/qmp/qlist.h"
 #include "qom/object.h"
 #include "audio/audio.h"
 
@@ -544,6 +545,7 @@ static void vexpress_common_init(MachineState *machine)
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
     const hwaddr *map = daughterboard->motherboard_map;
+    QList *db_voltage, *db_clock;
     int i;
 
     daughterboard->init(vms, machine->ram_size, machine->cpu_type, pic);
@@ -584,20 +586,19 @@ static void vexpress_common_init(MachineState *machine)
     sysctl = qdev_new("realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
-    qdev_prop_set_uint32(sysctl, "len-db-voltage",
-                         daughterboard->num_voltage_sensors);
+
+    db_voltage = qlist_new();
     for (i = 0; i < daughterboard->num_voltage_sensors; i++) {
-        char *propname = g_strdup_printf("db-voltage[%d]", i);
-        qdev_prop_set_uint32(sysctl, propname, daughterboard->voltages[i]);
-        g_free(propname);
+        qlist_append_int(db_voltage, daughterboard->voltages[i]);
     }
-    qdev_prop_set_uint32(sysctl, "len-db-clock",
-                         daughterboard->num_clocks);
+    qdev_prop_set_array(sysctl, "db-voltage", db_voltage);
+
+    db_clock = qlist_new();
     for (i = 0; i < daughterboard->num_clocks; i++) {
-        char *propname = g_strdup_printf("db-clock[%d]", i);
-        qdev_prop_set_uint32(sysctl, propname, daughterboard->clocks[i]);
-        g_free(propname);
+        qlist_append_int(db_clock, daughterboard->clocks[i]);
     }
+    qdev_prop_set_array(sysctl, "db-clock", db_clock);
+
     sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
