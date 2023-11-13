@@ -808,13 +808,6 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_WRITE ? 'w' : '-',
                   tlb->prot & PAGE_EXEC ? 'x' : '-',
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
-    /* Invalidate new TLB (if valid) */
-    if (tlb->prot & PAGE_VALID) {
-        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate TLB %d start "
-                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
-                      (int)entry, tlb->EPN, tlb->EPN + tlb->size);
-        ppcemb_tlb_flush(cs, tlb);
-    }
 }
 
 void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
