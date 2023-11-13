@@ -513,8 +513,8 @@ ret_idle:
 static void hv_balloon_hot_add_rb_wait(HvBalloon *balloon, StateDesc *stdesc)
 {
     VMBusChannel *chan = hv_balloon_get_channel(balloon);
-    struct dm_hot_add *ha;
-    size_t ha_size = sizeof(*ha) + sizeof(ha->range);
+    struct dm_hot_add_with_region *ha;
+    size_t ha_size = sizeof(*ha);
 
     assert(balloon->state == S_HOT_ADD_RB_WAIT);
 
@@ -530,8 +530,8 @@ static void hv_balloon_hot_add_posting(HvBalloon *balloon, StateDesc *stdesc)
     PageRange *hot_add_range = &balloon->hot_add_range;
     uint64_t *current_count = &balloon->ha_current_count;
     VMBusChannel *chan = hv_balloon_get_channel(balloon);
-    g_autofree struct dm_hot_add *ha = NULL;
-    size_t ha_size = sizeof(*ha) + sizeof(ha->range);
+    g_autofree struct dm_hot_add_with_region *ha = NULL;
+    size_t ha_size = sizeof(*ha);
     union dm_mem_page_range *ha_region;
     uint64_t align, chunk_max_size;
     ssize_t ret;
@@ -560,7 +560,7 @@ static void hv_balloon_hot_add_posting(HvBalloon *balloon, StateDesc *stdesc)
     *current_count = MIN(hot_add_range->count, chunk_max_size);
 
     ha = g_malloc0(ha_size);
-    ha_region = &(&ha->range)[1];
+    ha_region = &ha->region;
     ha->hdr.type = DM_MEM_HOT_ADD_REQUEST;
     ha->hdr.size = ha_size;
     ha->hdr.trans_id = balloon->trans_id;

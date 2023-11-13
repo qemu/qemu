@@ -328,13 +328,20 @@ struct dm_unballoon_response {
 /*
  * Hot add request message. Message sent from the host to the guest.
  *
- * mem_range: Memory range to hot add.
+ * range: Memory range to hot add.
+ * region: Explicit hot add memory region for guest to use. Optional.
  *
  */
 
 struct dm_hot_add {
     struct dm_header hdr;
     union dm_mem_page_range range;
+} QEMU_PACKED;
+
+struct dm_hot_add_with_region {
+    struct dm_header hdr;
+    union dm_mem_page_range range;
+    union dm_mem_page_range region;
 } QEMU_PACKED;
 
 /*
