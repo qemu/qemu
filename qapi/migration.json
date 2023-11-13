@@ -1658,7 +1658,7 @@
 #
 # Migration stream channel parameters.
 #
-# @channel-type: Channel type for transfering packet information.
+# @channel-type: Channel type for transferring packet information.
 #
 # @addr: Migration endpoint configuration on destination interface.
 #
