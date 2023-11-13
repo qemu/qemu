@@ -855,49 +855,34 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
 {
     ppcemb_tlb_t *tlb;
-    target_ulong EPN, RPN, size;
-    int do_flush_tlbs;
 
     qemu_log_mask(CPU_LOG_MMU, "%s word %d entry %d value " TARGET_FMT_lx "\n",
                   __func__, word, (int)entry, value);
-    do_flush_tlbs = 0;
     entry &= 0x3F;
     tlb = &env->tlb.tlbe[entry];
+
+    /* Invalidate previous TLB (if it's valid) */
+    if (tlb->prot & PAGE_VALID) {
+        tlb_flush(env_cpu(env));
+    }
+
     switch (word) {
     default:
         /* Just here to please gcc */
     case 0:
-        EPN = value & 0xFFFFFC00;
-        if ((tlb->prot & PAGE_VALID) && EPN != tlb->EPN) {
-            do_flush_tlbs = 1;
-        }
-        tlb->EPN = EPN;
-        size = booke_tlb_to_page_size((value >> 4) & 0xF);
-        if ((tlb->prot & PAGE_VALID) && tlb->size < size) {
-            do_flush_tlbs = 1;
-        }
-        tlb->size = size;
+        tlb->EPN = value & 0xFFFFFC00;
+        tlb->size = booke_tlb_to_page_size((value >> 4) & 0xF);
         tlb->attr &= ~0x1;
         tlb->attr |= (value >> 8) & 1;
         if (value & 0x200) {
             tlb->prot |= PAGE_VALID;
         } else {
-            if (tlb->prot & PAGE_VALID) {
-                tlb->prot &= ~PAGE_VALID;
-                do_flush_tlbs = 1;
-            }
+            tlb->prot &= ~PAGE_VALID;
         }
         tlb->PID = env->spr[SPR_440_MMUCR] & 0x000000FF;
-        if (do_flush_tlbs) {
-            tlb_flush(env_cpu(env));
-        }
         break;
     case 1:
-        RPN = value & 0xFFFFFC0F;
-        if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN) {
-            tlb_flush(env_cpu(env));
-        }
-        tlb->RPN = RPN;
+        tlb->RPN = value & 0xFFFFFC0F;
         break;
     case 2:
         tlb->attr = (tlb->attr & 0x1) | (value & 0x0000FF00);
