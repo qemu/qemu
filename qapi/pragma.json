@@ -3,8 +3,8 @@
 
 { 'pragma': { 'doc-required': true } }
 
-# Whitelists to permit QAPI rule violations; think twice before you
-# add to them!
+# Entries in these lists are allowed to violate the QAPI rules (for
+# historical reasons); think twice before you add to them!
 { 'pragma': {
     # Command names containing '_'
     'command-name-exceptions': [
