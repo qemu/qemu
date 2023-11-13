@@ -668,11 +668,11 @@ suppressing it.  More information on the file format can be found here:
 
 https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
 
-tests/tsan/blacklist.tsan - Has TSan warnings we wish to disable
+tests/tsan/ignore.tsan - Has TSan warnings we wish to disable
 at compile time for test or debug.
 Add flags to configure to enable:
 
-"--extra-cflags=-fsanitize-blacklist=<src path>/tests/tsan/blacklist.tsan"
+"--extra-cflags=-fsanitize-blacklist=<src path>/tests/tsan/ignore.tsan"
 
 More information on the file format can be found here under "Blacklist Format":
 

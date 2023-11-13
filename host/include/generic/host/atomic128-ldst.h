@@ -58,7 +58,7 @@ atomic16_read_rw(Int128 *ptr)
 static inline void ATTRIBUTE_ATOMIC128_OPT
 atomic16_set(Int128 *ptr, Int128 val)
 {
-    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
+    Int128Aligned *ptr_align = __builtin_assume_aligned(ptr, 16);
     __int128_t old;
     Int128Alias new;
 

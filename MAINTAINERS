@@ -131,6 +131,17 @@ K: ^Subject:.*(?i)mips
 F: docs/system/target-mips.rst
 F: configs/targets/mips*
 
+X86 general architecture support
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: configs/devices/i386-softmmu/default.mak
+F: configs/targets/i386-softmmu.mak
+F: configs/targets/x86_64-softmmu.mak
+F: docs/system/target-i386*
+F: target/i386/*.[ch]
+F: target/i386/Kconfig
+F: target/i386/meson.build
+
 Guest CPU cores (TCG)
 ---------------------
 Overall TCG CPUs
@@ -657,6 +668,7 @@ F: include/hw/dma/pl080.h
 F: hw/dma/pl330.c
 F: hw/gpio/pl061.c
 F: hw/input/pl050.c
+F: include/hw/input/pl050.h
 F: hw/intc/pl190.c
 F: hw/sd/pl181.c
 F: hw/ssi/pl022.c
@@ -927,6 +939,7 @@ F: hw/*/pxa2xx*
 F: hw/display/tc6393xb.c
 F: hw/gpio/max7310.c
 F: hw/gpio/zaurus.c
+F: hw/input/ads7846.c
 F: hw/misc/mst_fpga.c
 F: hw/adc/max111x.c
 F: include/hw/adc/max111x.h
@@ -979,7 +992,9 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/stellaris*
+F: hw/display/ssd03*
 F: include/hw/input/gamepad.h
+F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
 
 STM32VLDISCOVERY
@@ -994,6 +1009,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/vexpress.c
+F: hw/display/sii9022.c
 F: docs/system/arm/vexpress.rst
 
 Versatile PB

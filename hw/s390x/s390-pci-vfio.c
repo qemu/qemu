@@ -66,6 +66,10 @@ S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 
     assert(vpdev);
 
+    if (!vpdev->vbasedev.group) {
+        return NULL;
+    }
+
     id = vpdev->vbasedev.group->container->fd;
 
     if (!s390_pci_update_dma_avail(id, &avail)) {
@@ -132,7 +136,7 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
      * to the guest based upon the vfio DMA limit.
      */
     vfio_size = pbdev->iommu->max_dma_limit << TARGET_PAGE_BITS;
-    if (vfio_size < (cap->end_dma - cap->start_dma + 1)) {
+    if (vfio_size > 0 && vfio_size < cap->end_dma - cap->start_dma + 1) {
         pbdev->zpci_fn.edma = cap->start_dma + vfio_size - 1;
     }
 }
