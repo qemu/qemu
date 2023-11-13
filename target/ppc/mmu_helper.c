@@ -864,7 +864,7 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
 
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
-        tlb_flush(env_cpu(env));
+        ppcemb_tlb_flush(env_cpu(env), tlb);
     }
 
     switch (word) {
