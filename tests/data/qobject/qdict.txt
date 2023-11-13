@@ -1866,10 +1866,6 @@ blackfin: 4096
 blackfin.c: 7552
 blackfin.h: 1089
 blackfin_sram.h: 1207
-blacklist.c: 8658
-blacklist.h: 108
-blackstamp.c: 9838
-BlackStamp_defconfig: 27434
 blinken.h: 617
 blizzard.c: 41338
 blizzard.h: 249
