@@ -36,8 +36,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
     dmesg_clear_count = 1
     def clear_guest_dmesg(self):
         exec_command_and_wait_for_pattern(self, 'dmesg -c > /dev/null; '
-                    'echo dm_clear\ ' + str(self.dmesg_clear_count),
-                    'dm_clear ' + str(self.dmesg_clear_count))
+                    r'echo dm_clear\ ' + str(self.dmesg_clear_count),
+                    r'dm_clear ' + str(self.dmesg_clear_count))
         self.dmesg_clear_count += 1
 
     def test_s390x_devices(self):
@@ -121,15 +121,15 @@ class S390CCWVirtioMachine(QemuSystemTest):
                                     'cat /sys/bus/ccw/devices/0.1.1111/cutype',
                                     '3832/01')
         exec_command_and_wait_for_pattern(self,
-                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
-                    '0x1af4')
+                    r'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
+                    r'0x1af4')
         exec_command_and_wait_for_pattern(self,
-                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
-                    '0x0001')
+                    r'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
+                    r'0x0001')
         # check fid propagation
         exec_command_and_wait_for_pattern(self,
-                        'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
-                        '0x0000000c')
+                    r'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
+                    r'0x0000000c')
         # add another device
         self.clear_guest_dmesg()
         self.vm.cmd('device_add', driver='virtio-net-ccw',
@@ -235,7 +235,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                         'while ! (dmesg | grep gpudrmfb) ; do sleep 1 ; done',
                         'virtio_gpudrmfb frame buffer device')
             exec_command_and_wait_for_pattern(self,
-                'echo -e "\e[?25l" > /dev/tty0', ':/#')
+                r'echo -e "\e[?25l" > /dev/tty0', ':/#')
             exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
                 'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
                 'done',
