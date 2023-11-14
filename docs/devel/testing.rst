@@ -1016,7 +1016,7 @@ class.  Here's a simple usage example:
           self.vm.launch()
           res = self.vm.cmd('human-monitor-command',
                             command_line='info version')
-          self.assertRegexpMatches(res, r'^(\d+\.\d+\.\d)')
+          self.assertRegex(res, r'^(\d+\.\d+\.\d)')
 
 To execute your test, run:
 
