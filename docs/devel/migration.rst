@@ -1061,7 +1061,7 @@ QEMU version, in this case pc-5.1.
 
 4 - qemu-5.1 -M pc-5.2  -> migrates to -> qemu-5.1 -M pc-5.2
 
-  This combination is not possible as the qemu-5.1 doen't understand
+  This combination is not possible as the qemu-5.1 doesn't understand
   pc-5.2 machine type.  So nothing to worry here.
 
 Now it comes the interesting ones, when both QEMU processes are
@@ -1214,8 +1214,8 @@ machine types to have the right value::
          ...
      };
 
-A device with diferent features on both sides
----------------------------------------------
+A device with different features on both sides
+----------------------------------------------
 
 Let's assume that we are using the same QEMU binary on both sides,
 just to make the things easier.  But we have a device that has
@@ -1294,12 +1294,12 @@ Host B:
 
 $ qemu-system-x86_64 -cpu host,taa-no=off
 
-And you would be able to migrate between them.  It is responsability
+And you would be able to migrate between them.  It is responsibility
 of the management application or of the user to make sure that the
 configuration is correct.  QEMU doesn't know how to look at this kind
 of features in general.
 
-Notice that we don't recomend to use -cpu host for migration.  It is
+Notice that we don't recommend to use -cpu host for migration.  It is
 used in this example because it makes the example simpler.
 
 Other devices have worse control about individual features.  If they
