@@ -225,8 +225,8 @@ REG32(WOLAN, 0xb8) /* Wake on LAN reg */
 REG32(IPGSTRETCH, 0xbc) /* IPG Stretch reg */
 REG32(SVLAN, 0xc0) /* Stacked VLAN reg */
 REG32(MODID, 0xfc) /* Module ID reg */
-REG32(OCTTXLO, 0x100) /* Octects transmitted Low reg */
-REG32(OCTTXHI, 0x104) /* Octects transmitted High reg */
+REG32(OCTTXLO, 0x100) /* Octets transmitted Low reg */
+REG32(OCTTXHI, 0x104) /* Octets transmitted High reg */
 REG32(TXCNT, 0x108) /* Error-free Frames transmitted */
 REG32(TXBCNT, 0x10c) /* Error-free Broadcast Frames */
 REG32(TXMCNT, 0x110) /* Error-free Multicast Frame */
@@ -245,8 +245,8 @@ REG32(EXCESSCOLLCNT, 0x140) /* Excessive Collision Frames */
 REG32(LATECOLLCNT, 0x144) /* Late Collision Frames */
 REG32(DEFERTXCNT, 0x148) /* Deferred Transmission Frames */
 REG32(CSENSECNT, 0x14c) /* Carrier Sense Error Counter */
-REG32(OCTRXLO, 0x150) /* Octects Received register Low */
-REG32(OCTRXHI, 0x154) /* Octects Received register High */
+REG32(OCTRXLO, 0x150) /* Octets Received register Low */
+REG32(OCTRXHI, 0x154) /* Octets Received register High */
 REG32(RXCNT, 0x158) /* Error-free Frames Received */
 REG32(RXBROADCNT, 0x15c) /* Error-free Broadcast Frames RX */
 REG32(RXMULTICNT, 0x160) /* Error-free Multicast Frames RX */
