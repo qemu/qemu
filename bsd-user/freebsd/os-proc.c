@@ -115,7 +115,7 @@ abi_long freebsd_exec_common(abi_ulong path_or_fd, abi_ulong guest_argp,
     }
 
     qarg0 = argp = g_new0(char *, argc + 9);
-    /* save the first agrument for the emulator */
+    /* save the first argument for the emulator */
     *argp++ = (char *)getprogname();
     qargp = argp;
     *argp++ = (char *)getprogname();

@@ -146,7 +146,7 @@ static inline abi_long do_freebsd_fstatat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
-/* undocummented nstat(char *path, struct nstat *ub) syscall */
+/* undocumented nstat(char *path, struct nstat *ub) syscall */
 static abi_long do_freebsd11_nstat(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
@@ -162,7 +162,7 @@ static abi_long do_freebsd11_nstat(abi_long arg1, abi_long arg2)
     return ret;
 }
 
-/* undocummented nfstat(int fd, struct nstat *sb) syscall */
+/* undocumented nfstat(int fd, struct nstat *sb) syscall */
 static abi_long do_freebsd11_nfstat(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
@@ -175,7 +175,7 @@ static abi_long do_freebsd11_nfstat(abi_long arg1, abi_long arg2)
     return ret;
 }
 
-/* undocummented nlstat(char *path, struct nstat *ub) syscall */
+/* undocumented nlstat(char *path, struct nstat *ub) syscall */
 static abi_long do_freebsd11_nlstat(abi_long arg1, abi_long arg2)
 {
     abi_long ret;
