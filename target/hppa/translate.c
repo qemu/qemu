@@ -69,19 +69,24 @@ typedef struct DisasContext {
 } DisasContext;
 
 #ifdef CONFIG_USER_ONLY
-#define UNALIGN(C)  (C)->unalign
+#define UNALIGN(C)       (C)->unalign
+#define MMU_DISABLED(C)  false
 #else
-#define UNALIGN(C)  MO_ALIGN
+#define UNALIGN(C)       MO_ALIGN
+#define MMU_DISABLED(C)  MMU_IDX_MMU_DISABLED((C)->mmu_idx)
 #endif
 
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
 static int expand_sm_imm(DisasContext *ctx, int val)
 {
-    if (val & PSW_SM_E) {
-        val = (val & ~PSW_SM_E) | PSW_E;
-    }
-    if (val & PSW_SM_W) {
-        val = (val & ~PSW_SM_W) | PSW_W;
+    /* Keep unimplemented bits disabled -- see cpu_hppa_put_psw. */
+    if (ctx->is_pa20) {
+        if (val & PSW_SM_W) {
+            val |= PSW_W;
+        }
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_G);
+    } else {
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_O);
     }
     return val;
 }
@@ -1372,7 +1377,7 @@ static void do_load_32(DisasContext *ctx, TCGv_i32 dest, unsigned rb,
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_ld_i32(dest, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -1390,7 +1395,7 @@ static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_ld_i64(dest, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -1408,7 +1413,7 @@ static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_st_i32(src, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -1426,7 +1431,7 @@ static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_st_i64(src, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -2294,7 +2299,7 @@ static bool trans_probe(DisasContext *ctx, arg_probe *a)
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
 
     if (a->imm) {
-        level = tcg_constant_i32(a->ri);
+        level = tcg_constant_i32(a->ri & 3);
     } else {
         level = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(level, load_gpr(ctx, a->ri));
@@ -3075,7 +3080,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
     }
 
     form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? a->size : 0,
-             a->disp, a->sp, a->m, ctx->mmu_idx == MMU_PHYS_IDX);
+             a->disp, a->sp, a->m, MMU_DISABLED(ctx));
 
     /*
      * For hppa1.1, LDCW is undefined unless aligned mod 16.
@@ -3105,7 +3110,7 @@ static bool trans_stby(DisasContext *ctx, arg_stby *a)
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     val = load_gpr(ctx, a->r);
     if (a->a) {
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
@@ -3139,7 +3144,7 @@ static bool trans_stdby(DisasContext *ctx, arg_stby *a)
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     val = load_gpr(ctx, a->r);
     if (a->a) {
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
@@ -3167,7 +3172,7 @@ static bool trans_lda(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_ld(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -3178,7 +3183,7 @@ static bool trans_sta(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_st(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -4430,7 +4435,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D
                     ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
-                    : MMU_PHYS_IDX);
+                    : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
     /* Recover the IAOQ values from the GVA + PRIV.  */
     uint64_t cs_base = ctx->base.tb->cs_base;

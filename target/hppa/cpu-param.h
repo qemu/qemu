@@ -14,7 +14,8 @@
 # define TARGET_PHYS_ADDR_SPACE_BITS  32
 # define TARGET_VIRT_ADDR_SPACE_BITS  32
 #else
-# define TARGET_PHYS_ADDR_SPACE_BITS  64
+/* ??? PA-8000 through 8600 have 40 bits; PA-8700 and 8900 have 44 bits. */
+# define TARGET_PHYS_ADDR_SPACE_BITS  40
 # define TARGET_VIRT_ADDR_SPACE_BITS  64
 #endif
 

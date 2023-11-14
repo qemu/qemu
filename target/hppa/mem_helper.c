@@ -27,41 +27,39 @@
 
 hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
 {
-    if (likely(extract64(addr, 58, 4) != 0xf)) {
-        /* Memory address space */
-        return addr & MAKE_64BIT_MASK(0, 62);
-    }
-    if (extract64(addr, 54, 4) != 0) {
-        /* I/O address space */
-        return addr | MAKE_64BIT_MASK(62, 2);
-    }
-    /* PDC address space */
-    return (addr & MAKE_64BIT_MASK(0, 54)) | MAKE_64BIT_MASK(60, 4);
+    /*
+     * Figure H-8 "62-bit Absolute Accesses when PSW W-bit is 1" describes
+     * an algorithm in which a 62-bit absolute address is transformed to
+     * a 64-bit physical address.  This must then be combined with that
+     * pictured in Figure H-11 "Physical Address Space Mapping", in which
+     * the full physical address is truncated to the N-bit physical address
+     * supported by the implementation.
+     *
+     * Since the supported physical address space is below 54 bits, the
+     * H-8 algorithm is moot and all that is left is to truncate.
+     */
+    QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > 54);
+    return sextract64(addr, 0, TARGET_PHYS_ADDR_SPACE_BITS);
 }
 
 hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
 {
+    /*
+     * See Figure H-10, "Absolute Accesses when PSW W-bit is 0",
+     * combined with Figure H-11, as above.
+     */
     if (likely(extract32(addr, 28, 4) != 0xf)) {
         /* Memory address space */
-        return addr & MAKE_64BIT_MASK(0, 32);
-    }
-    if (extract32(addr, 24, 4) != 0) {
+        addr = (uint32_t)addr;
+    } else if (extract32(addr, 24, 4) != 0) {
         /* I/O address space */
-        return addr | MAKE_64BIT_MASK(32, 32);
-    }
-    /* PDC address space */
-    return (addr & MAKE_64BIT_MASK(0, 24)) | MAKE_64BIT_MASK(60, 4);
-}
-
-static hwaddr hppa_abs_to_phys(CPUHPPAState *env, vaddr addr)
-{
-    if (!hppa_is_pa20(env)) {
-        return addr;
-    } else if (env->psw & PSW_W) {
-        return hppa_abs_to_phys_pa2_w1(addr);
+        addr = (int32_t)addr;
     } else {
-        return hppa_abs_to_phys_pa2_w0(addr);
+        /* PDC address space */
+        addr &= MAKE_64BIT_MASK(0, 24);
+        addr |= -1ull << (TARGET_PHYS_ADDR_SPACE_BITS - 4);
     }
+    return addr;
 }
 
 static HPPATLBEntry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
@@ -161,9 +159,22 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         *tlb_entry = NULL;
     }
 
-    /* Virtual translation disabled.  Direct map virtual to physical.  */
-    if (mmu_idx == MMU_PHYS_IDX) {
-        phys = addr;
+    /* Virtual translation disabled.  Map absolute to physical.  */
+    if (MMU_IDX_MMU_DISABLED(mmu_idx)) {
+        switch (mmu_idx) {
+        case MMU_ABS_W_IDX:
+            phys = hppa_abs_to_phys_pa2_w1(addr);
+            break;
+        case MMU_ABS_IDX:
+            if (hppa_is_pa20(env)) {
+                phys = hppa_abs_to_phys_pa2_w0(addr);
+            } else {
+                phys = (uint32_t)addr;
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         goto egress;
     }
@@ -261,7 +272,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     }
 
  egress:
-    *pphys = phys = hppa_abs_to_phys(env, phys);
+    *pphys = phys;
     *pprot = prot;
     trace_hppa_tlb_get_physical_address(env, ret, prot, addr, phys);
     return ret;
@@ -271,16 +282,15 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     hwaddr phys;
-    int prot, excp;
+    int prot, excp, mmu_idx;
 
     /* If the (data) mmu is disabled, bypass translation.  */
     /* ??? We really ought to know if the code mmu is disabled too,
        in order to get the correct debugging dumps.  */
-    if (!(cpu->env.psw & PSW_D)) {
-        return hppa_abs_to_phys(&cpu->env, addr);
-    }
+    mmu_idx = (cpu->env.psw & PSW_D ? MMU_KERNEL_IDX :
+               cpu->env.psw & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
-    excp = hppa_get_physical_address(&cpu->env, addr, MMU_KERNEL_IDX, 0,
+    excp = hppa_get_physical_address(&cpu->env, addr, mmu_idx, 0,
                                      &phys, &prot, NULL);
 
     /* Since we're translating for debugging, the only error that is a
@@ -367,8 +377,8 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         trace_hppa_tlb_fill_excp(env, addr, size, type, mmu_idx);
 
         /* Failure.  Raise the indicated exception.  */
-        raise_exception_with_ior(env, excp, retaddr,
-                                 addr, mmu_idx == MMU_PHYS_IDX);
+        raise_exception_with_ior(env, excp, retaddr, addr,
+                                 MMU_IDX_MMU_DISABLED(mmu_idx));
     }
 
     trace_hppa_tlb_fill_success(env, addr & TARGET_PAGE_MASK,
@@ -450,7 +460,7 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
     int mask_shift;
 
     mask_shift = 2 * (r1 & 0xf);
-    va_size = TARGET_PAGE_SIZE << mask_shift;
+    va_size = (uint64_t)TARGET_PAGE_SIZE << mask_shift;
     va_b &= -va_size;
     va_e = va_b + va_size - 1;
 
@@ -459,7 +469,14 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
 
     ent->itree.start = va_b;
     ent->itree.last = va_e;
-    ent->pa = (r1 << 7) & (TARGET_PAGE_MASK << mask_shift);
+
+    /* Extract all 52 bits present in the page table entry. */
+    ent->pa = r1 << (TARGET_PAGE_BITS - 5);
+    /* Align per the page size. */
+    ent->pa &= TARGET_PAGE_MASK << mask_shift;
+    /* Ignore the bits beyond physical address space. */
+    ent->pa = sextract64(ent->pa, 0, TARGET_PHYS_ADDR_SPACE_BITS);
+
     ent->t = extract64(r2, 61, 1);
     ent->d = extract64(r2, 60, 1);
     ent->b = extract64(r2, 59, 1);
@@ -505,7 +522,7 @@ static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
      */
     end = start & 0xf;
     start &= TARGET_PAGE_MASK;
-    end = TARGET_PAGE_SIZE << (2 * end);
+    end = (vaddr)TARGET_PAGE_SIZE << (2 * end);
     end = start + end - 1;
 
     hppa_flush_tlb_range(env, start, end);

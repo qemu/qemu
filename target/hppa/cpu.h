@@ -31,23 +31,25 @@
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
-#define MMU_KERNEL_IDX    7
-#define MMU_KERNEL_P_IDX  8
-#define MMU_PL1_IDX       9
-#define MMU_PL1_P_IDX     10
-#define MMU_PL2_IDX       11
-#define MMU_PL2_P_IDX     12
-#define MMU_USER_IDX      13
-#define MMU_USER_P_IDX    14
-#define MMU_PHYS_IDX      15
+#define MMU_ABS_W_IDX     6
+#define MMU_ABS_IDX       7
+#define MMU_KERNEL_IDX    8
+#define MMU_KERNEL_P_IDX  9
+#define MMU_PL1_IDX       10
+#define MMU_PL1_P_IDX     11
+#define MMU_PL2_IDX       12
+#define MMU_PL2_P_IDX     13
+#define MMU_USER_IDX      14
+#define MMU_USER_P_IDX    15
 
+#define MMU_IDX_MMU_DISABLED(MIDX)  ((MIDX) < MMU_KERNEL_IDX)
 #define MMU_IDX_TO_PRIV(MIDX)       (((MIDX) - MMU_KERNEL_IDX) / 2)
 #define MMU_IDX_TO_P(MIDX)          (((MIDX) - MMU_KERNEL_IDX) & 1)
 #define PRIV_P_TO_MMU_IDX(PRIV, P)  ((PRIV) * 2 + !!(P) + MMU_KERNEL_IDX)
 
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
-/* No need to flush MMU_PHYS_IDX  */
+/* No need to flush MMU_ABS*_IDX  */
 #define HPPA_MMU_FLUSH_MASK                             \
         (1 << MMU_KERNEL_IDX | 1 << MMU_KERNEL_P_IDX |  \
          1 << MMU_PL1_IDX    | 1 << MMU_PL1_P_IDX    |  \
@@ -287,7 +289,8 @@ static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
     if (env->psw & (ifetch ? PSW_C : PSW_D)) {
         return PRIV_P_TO_MMU_IDX(env->iaoq_f & 3, env->psw & PSW_P);
     }
-    return MMU_PHYS_IDX;  /* mmu disabled */
+    /* mmu disabled */
+    return env->psw & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
 #endif
 }
 
