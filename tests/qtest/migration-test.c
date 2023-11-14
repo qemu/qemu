@@ -3138,7 +3138,7 @@ static void test_migrate_dirty_limit(void)
     uint64_t throttle_us_per_full;
     /*
      * We want the test to be stable and as fast as possible.
-     * E.g., with 1Gb/s bandwith migration may pass without dirty limit,
+     * E.g., with 1Gb/s bandwidth migration may pass without dirty limit,
      * so we need to decrease a bandwidth.
      */
     const int64_t dirtylimit_period = 1000, dirtylimit_value = 50;
