@@ -433,6 +433,22 @@ static int arch_sections_write(DumpState *s, uint8_t *buff)
     return 0;
 }
 
+static void arch_cleanup(DumpState *s)
+{
+    g_autofree uint8_t *buff = NULL;
+    int rc;
+
+    if (!pv_dump_initialized) {
+        return;
+    }
+
+    buff = g_malloc(kvm_s390_pv_dmp_get_size_completion_data());
+    rc = kvm_s390_dump_completion_data(buff);
+    if (!rc) {
+            pv_dump_initialized = false;
+    }
+}
+
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)
 {
@@ -448,10 +464,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
         info->arch_sections_add_fn = *arch_sections_add;
         info->arch_sections_write_hdr_fn = *arch_sections_write_hdr;
         info->arch_sections_write_fn = *arch_sections_write;
-    } else {
-        info->arch_sections_add_fn = NULL;
-        info->arch_sections_write_hdr_fn = NULL;
-        info->arch_sections_write_fn = NULL;
+        info->arch_cleanup_fn = *arch_cleanup;
     }
     return 0;
 }
