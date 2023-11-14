@@ -657,8 +657,7 @@ char *riscv_cpu_get_name(RISCVCPU *cpu)
 
     g_assert(g_str_has_suffix(typename, RISCV_CPU_TYPE_SUFFIX));
 
-    return g_strndup(typename,
-                     strlen(typename) - strlen(RISCV_CPU_TYPE_SUFFIX));
+    return cpu_model_from_type(typename);
 }
 
 static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
