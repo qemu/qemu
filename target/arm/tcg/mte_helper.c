@@ -1101,10 +1101,18 @@ uint64_t mte_mops_probe_rev(CPUARMState *env, uint64_t ptr, uint64_t size,
     uint32_t n;
 
     mmu_idx = FIELD_EX32(desc, MTEDESC, MIDX);
-    /* True probe; this will never fault */
+    /*
+     * True probe; this will never fault. Note that our caller passes
+     * us a pointer to the end of the region, but allocation_tag_mem_probe()
+     * wants a pointer to the start. Because we know we don't span a page
+     * boundary and that allocation_tag_mem_probe() doesn't otherwise care
+     * about the size, pass in a size of 1 byte. This is simpler than
+     * adjusting the ptr to point to the start of the region and then having
+     * to adjust the returned 'mem' to get the end of the tag memory.
+     */
     mem = allocation_tag_mem_probe(env, mmu_idx, ptr,
                                    w ? MMU_DATA_STORE : MMU_DATA_LOAD,
-                                   size, MMU_DATA_LOAD, true, 0);
+                                   1, MMU_DATA_LOAD, true, 0);
     if (!mem) {
         return size;
     }
