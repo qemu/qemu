@@ -2204,7 +2204,7 @@ retry:
     stat64_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
     /*
      * We are adding to transferred the amount of data written, but no
-     * overhead at all.  I will asume that RDMA is magicaly and don't
+     * overhead at all.  I will assume that RDMA is magicaly and don't
      * need to transfer (at least) the addresses where it wants to
      * write the pages.  Here it looks like it should be something
      * like:
