@@ -657,7 +657,7 @@ typedef struct QEMU_PACKED UtpTaskReqDesc {
 #define UFS_UPIU_MAX_WB_LUN_ID 8
 
 /*
- * WriteBooster buffer lifetime has a limit setted by vendor.
+ * WriteBooster buffer lifetime has a limit set by vendor.
  * If it is over the limit, WriteBooster feature will be disabled.
  */
 #define UFS_WB_EXCEED_LIFETIME 0x0B
