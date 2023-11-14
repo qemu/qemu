@@ -54,9 +54,11 @@ class IntelIOMMU(LinuxTest):
             return
 
         kernel_url = self.distro.pxeboot_url + 'vmlinuz'
+        kernel_hash = '5b6f6876e1b5bda314f93893271da0d5777b1f3c'
         initrd_url = self.distro.pxeboot_url + 'initrd.img'
-        self.kernel_path = self.fetch_asset(kernel_url)
-        self.initrd_path = self.fetch_asset(initrd_url)
+        initrd_hash = 'dd0340a1b39bd28f88532babd4581c67649ec5b1'
+        self.kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        self.initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
 
     def run_and_check(self):
         if self.kernel_path:
