@@ -456,7 +456,7 @@ int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
  * Must only be called while the device and all its vrings are stopped
  * (`VHOST_TRANSFER_STATE_PHASE_STOPPED`).
  *
- * @dev: The vhost device to which to send the sate
+ * @dev: The vhost device to which to send the state
  * @f: Migration stream from which to load the state
  * @errp: Potential error message
  *
