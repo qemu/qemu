@@ -29,7 +29,7 @@ static bool memory_device_is_empty(const MemoryDeviceState *md)
     /* dropping const here is fine as we don't touch the memory region */
     mr = mdc->get_memory_region((MemoryDeviceState *)md, &local_err);
     if (local_err) {
-        /* Not empty, we'll report errors later when ontaining the MR again. */
+        /* Not empty, we'll report errors later when containing the MR again. */
         error_free(local_err);
         return false;
     }
