@@ -81,7 +81,7 @@ static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
         return 0;
     default:
         /*
-         * In line with specifiction limitaions on access sizes, this
+         * In line with specification limitaions on access sizes, this
          * routine is not called with other sizes.
          */
         g_assert_not_reached();
@@ -152,7 +152,7 @@ static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
         return;
     default:
         /*
-         * In line with specifiction limitaions on access sizes, this
+         * In line with specification limitaions on access sizes, this
          * routine is not called with other sizes.
          */
         g_assert_not_reached();

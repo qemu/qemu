@@ -403,7 +403,7 @@ struct CXLType3Dev {
     CXLComponentState cxl_cstate;
     CXLDeviceState cxl_dstate;
     CXLCCI cci; /* Primary PCI mailbox CCI */
-    /* Always intialized as no way to know if a VDM might show up */
+    /* Always initialized as no way to know if a VDM might show up */
     CXLCCI vdm_fm_owned_ld_mctp_cci;
     CXLCCI ld0_cci;
 
