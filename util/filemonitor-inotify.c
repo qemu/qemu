@@ -89,7 +89,7 @@ static void qemu_file_monitor_watch(void *arg)
         struct inotify_event *ev = (struct inotify_event *)(buf + used);
 
         /*
-         * We trust the kenel to provide valid buffer with complete event
+         * We trust the kernel to provide valid buffer with complete event
          * records.
          */
         assert(len - used >= sizeof(struct inotify_event));
