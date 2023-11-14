@@ -751,11 +751,20 @@ target_ulong helper_4xx_tlbre_lo(CPUPPCState *env, target_ulong entry)
 
 static void ppcemb_tlb_flush(CPUState *cs, ppcemb_tlb_t *tlb)
 {
-    target_ulong ea;
+    unsigned mmu_idx = 0;
 
-    for (ea = tlb->EPN; ea < tlb->EPN + tlb->size; ea += TARGET_PAGE_SIZE) {
-        tlb_flush_page(cs, ea);
+    if (tlb->prot & 0xf) {
+        mmu_idx |= 0x1;
     }
+    if ((tlb->prot >> 4) & 0xf) {
+        mmu_idx |= 0x2;
+    }
+    if (tlb->attr & 1) {
+        mmu_idx <<= 2;
+    }
+
+    tlb_flush_range_by_mmuidx(cs, tlb->EPN, tlb->size, mmu_idx,
+                              TARGET_LONG_BITS);
 }
 
 void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
@@ -770,7 +779,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
     /* Invalidate previous TLB (if it's valid) */
-    if (tlb->prot & PAGE_VALID) {
+    if ((tlb->prot & PAGE_VALID) && tlb->PID == env->spr[SPR_40x_PID]) {
         qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
                       TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
                       (int)entry, tlb->EPN, tlb->EPN + tlb->size);
@@ -821,7 +830,7 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
     /* Invalidate previous TLB (if it's valid) */
-    if (tlb->prot & PAGE_VALID) {
+    if ((tlb->prot & PAGE_VALID) && tlb->PID == env->spr[SPR_40x_PID]) {
         qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
                       TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
                       (int)entry, tlb->EPN, tlb->EPN + tlb->size);
@@ -851,6 +860,25 @@ target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
     return ppcemb_tlb_search(env, address, env->spr[SPR_40x_PID]);
 }
 
+static bool mmubooke_pid_match(CPUPPCState *env, ppcemb_tlb_t *tlb)
+{
+    if (tlb->PID == env->spr[SPR_BOOKE_PID]) {
+        return true;
+    }
+    if (!env->nb_pids) {
+        return false;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] && tlb->PID == env->spr[SPR_BOOKE_PID1]) {
+        return true;
+    }
+    if (env->spr[SPR_BOOKE_PID2] && tlb->PID == env->spr[SPR_BOOKE_PID2]) {
+        return true;
+    }
+
+    return false;
+}
+
 /* PowerPC 440 TLB management */
 void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
@@ -863,7 +891,10 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
     tlb = &env->tlb.tlbe[entry];
 
     /* Invalidate previous TLB (if it's valid) */
-    if (tlb->prot & PAGE_VALID) {
+    if ((tlb->prot & PAGE_VALID) && mmubooke_pid_match(env, tlb)) {
+        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
+                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
+                      (int)entry, tlb->EPN, tlb->EPN + tlb->size);
         ppcemb_tlb_flush(env_cpu(env), tlb);
     }
 
