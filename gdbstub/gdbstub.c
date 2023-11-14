@@ -692,7 +692,7 @@ static int gdb_handle_vcont(const char *p)
     /*
      * target_count and last_target keep track of how many CPUs we are going to
      * step or resume, and a pointer to the state structure of one of them,
-     * respectivelly
+     * respectively
      */
     int target_count = 0;
     CPUState *last_target = NULL;
