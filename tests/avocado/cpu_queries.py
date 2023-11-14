@@ -31,4 +31,4 @@ class QueryCPUModelExpansion(QemuSystemTest):
         for c in cpus:
             model = {'name': c['name']}
             e = self.vm.command('query-cpu-model-expansion', model=model, type='full')
-            self.assertEquals(e['model']['name'], c['name'])
+            self.assertEqual(e['model']['name'], c['name'])
