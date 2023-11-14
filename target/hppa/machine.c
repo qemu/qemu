@@ -129,7 +129,7 @@ static int tlb_post_load(void *opaque, int version_id)
 
     /*
      * Re-create the interval tree from the valid entries.
-     * Truely invalid entries should have start == end == 0.
+     * Truly invalid entries should have start == end == 0.
      * Otherwise it should be the in-flight tlb_partial entry.
      */
     for (uint32_t i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
