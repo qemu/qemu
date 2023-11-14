@@ -319,7 +319,7 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     ufs_wreg(ufs, A_IE, ie);
     ufs_wreg(ufs, A_UTRIACR, 0);
 
-    /* Enable tranfer request and task management request */
+    /* Enable transfer request and task management request */
     cap = ufs_rreg(ufs, A_CAP);
     nutrs = FIELD_EX32(cap, CAP, NUTRS) + 1;
     nutmrs = FIELD_EX32(cap, CAP, NUTMRS) + 1;
