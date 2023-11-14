@@ -152,5 +152,6 @@ enum {
 
 uint64_t igb_mmio_read(void *opaque, hwaddr addr, unsigned size);
 void igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+void igb_vf_reset(void *opaque, uint16_t vfn);
 
 #endif

@@ -130,6 +130,9 @@ igb_core_set_link_status(IGBCore *core);
 void
 igb_core_pci_uninit(IGBCore *core);
 
+void
+igb_core_vf_reset(IGBCore *core, uint16_t vfn);
+
 bool
 igb_can_receive(IGBCore *core);
 
