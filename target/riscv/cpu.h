@@ -214,13 +214,13 @@ struct CPUArchState {
 
     /*
      * When mideleg[i]=0 and mvien[i]=1, sie[i] is no more
-     * alias of mie[i] and needs to be maintained separatly.
+     * alias of mie[i] and needs to be maintained separately.
      */
     uint64_t sie;
 
     /*
      * When hideleg[i]=0 and hvien[i]=1, vsie[i] is no more
-     * alias of sie[i] (mie[i]) and needs to be maintained separatly.
+     * alias of sie[i] (mie[i]) and needs to be maintained separately.
      */
     uint64_t vsie;
 
