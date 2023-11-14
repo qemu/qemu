@@ -98,7 +98,7 @@ void range_inverse_array(GList *in, GList **rev,
         out = append_new_range(out, low, MIN(range_lob(r) - 1, high));
     }
 
-    /* insert a range inbetween each original range until we reach high */
+    /* insert a range in between each original range until we reach high */
     for (; l->next; l = l->next) {
         r = (Range *)l->data;
         rn = (Range *)l->next->data;
