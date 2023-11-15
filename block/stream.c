@@ -99,9 +99,9 @@ static int stream_prepare(Job *job)
             }
         }
 
-        bdrv_graph_wrlock(base);
+        bdrv_graph_wrlock(s->target_bs);
         bdrv_set_backing_hd_drained(unfiltered_bs, base, &local_err);
-        bdrv_graph_wrunlock(base);
+        bdrv_graph_wrunlock(s->target_bs);
 
         /*
          * This call will do I/O, so the graph can change again from here on.
