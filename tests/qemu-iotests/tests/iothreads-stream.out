@@ -1,0 +1,11 @@
+Preparing disks...
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+Launching VM...
+Starting stream jobs...
+{"return": {}}
+{"return": {}}
