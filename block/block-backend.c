@@ -882,6 +882,8 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
 
 /*
  * Disassociates the currently associated BlockDriverState from @blk.
+ *
+ * The caller must hold the AioContext lock for the BlockBackend.
  */
 void blk_remove_bs(BlockBackend *blk)
 {
@@ -916,7 +918,7 @@ void blk_remove_bs(BlockBackend *blk)
     root = blk->root;
     blk->root = NULL;
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock(root->bs);
     bdrv_root_unref_child(root);
     bdrv_graph_wrunlock();
 }
