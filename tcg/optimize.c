@@ -1343,6 +1343,25 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
     t2 = arg_info(op->args[2]);
     z_mask = t1->z_mask;
 
+    if (ti_is_const(t2)) {
+        /* Fold andc r,x,i to and r,x,~i. */
+        switch (ctx->type) {
+        case TCG_TYPE_I32:
+        case TCG_TYPE_I64:
+            op->opc = INDEX_op_and;
+            break;
+        case TCG_TYPE_V64:
+        case TCG_TYPE_V128:
+        case TCG_TYPE_V256:
+            op->opc = INDEX_op_and_vec;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        op->args[2] = arg_new_constant(ctx, ~ti_const_val(t2));
+        return fold_and(ctx, op);
+    }
+
     /*
      * Known-zeros does not imply known-ones.  Therefore unless
      * arg2 is constant, we can't infer anything from it.
