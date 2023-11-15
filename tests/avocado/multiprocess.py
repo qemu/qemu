@@ -18,8 +18,8 @@ class Multiprocess(QemuSystemTest):
     """
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
-    def do_test(self, kernel_url, initrd_url, kernel_command_line,
-                machine_type):
+    def do_test(self, kernel_url, kernel_hash, initrd_url, initrd_hash,
+                kernel_command_line, machine_type):
         """Main test method"""
         self.require_accelerator('kvm')
         self.require_multiprocess()
@@ -30,8 +30,8 @@ class Multiprocess(QemuSystemTest):
         os.set_inheritable(proxy_sock.fileno(), True)
         os.set_inheritable(remote_sock.fileno(), True)
 
-        kernel_path = self.fetch_asset(kernel_url)
-        initrd_path = self.fetch_asset(initrd_url)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
 
         # Create remote process
         remote_vm = self.get_vm()
@@ -72,13 +72,16 @@ class Multiprocess(QemuSystemTest):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/x86_64/os/images'
                       '/pxeboot/vmlinuz')
+        kernel_hash = '5b6f6876e1b5bda314f93893271da0d5777b1f3c'
         initrd_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/x86_64/os/images'
                       '/pxeboot/initrd.img')
+        initrd_hash = 'dd0340a1b39bd28f88532babd4581c67649ec5b1'
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyS0 rdinit=/bin/bash')
         machine_type = 'pc'
-        self.do_test(kernel_url, initrd_url, kernel_command_line, machine_type)
+        self.do_test(kernel_url, kernel_hash, initrd_url, initrd_hash,
+                     kernel_command_line, machine_type)
 
     def test_multiprocess_aarch64(self):
         """
@@ -87,10 +90,13 @@ class Multiprocess(QemuSystemTest):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/aarch64/os/images'
                       '/pxeboot/vmlinuz')
+        kernel_hash = '3505f2751e2833c681de78cee8dda1e49cabd2e8'
         initrd_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/aarch64/os/images'
                       '/pxeboot/initrd.img')
+        initrd_hash = '519a1962daf17d67fc3a9c89d45affcb399607db'
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'rdinit=/bin/bash console=ttyAMA0')
         machine_type = 'virt,gic-version=3'
-        self.do_test(kernel_url, initrd_url, kernel_command_line, machine_type)
+        self.do_test(kernel_url, kernel_hash, initrd_url, initrd_hash,
+                     kernel_command_line, machine_type)
