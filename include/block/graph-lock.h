@@ -123,8 +123,21 @@ bdrv_graph_wrlock(BlockDriverState *bs);
  * bdrv_graph_wrunlock:
  * Write finished, reset global has_writer to 0 and restart
  * all readers that are waiting.
+ *
+ * If @bs is non-NULL, its AioContext is temporarily released.
  */
-void bdrv_graph_wrunlock(void) TSA_RELEASE(graph_lock) TSA_NO_TSA;
+void no_coroutine_fn TSA_RELEASE(graph_lock) TSA_NO_TSA
+bdrv_graph_wrunlock(BlockDriverState *bs);
+
+/*
+ * bdrv_graph_wrunlock_ctx:
+ * Write finished, reset global has_writer to 0 and restart
+ * all readers that are waiting.
+ *
+ * If @ctx is non-NULL, its lock is temporarily released.
+ */
+void no_coroutine_fn TSA_RELEASE(graph_lock) TSA_NO_TSA
+bdrv_graph_wrunlock_ctx(AioContext *ctx);
 
 /*
  * bdrv_graph_co_rdlock:

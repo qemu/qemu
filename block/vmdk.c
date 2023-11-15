@@ -283,7 +283,7 @@ static void vmdk_free_extents(BlockDriverState *bs)
             bdrv_unref_child(bs, e->file);
         }
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     g_free(s->extents);
 }
@@ -1237,7 +1237,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
                 bdrv_graph_rdunlock_main_loop();
                 bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
-                bdrv_graph_wrunlock();
+                bdrv_graph_wrunlock(NULL);
                 bdrv_graph_rdlock_main_loop();
                 goto out;
             }
@@ -1256,7 +1256,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
                 bdrv_graph_rdunlock_main_loop();
                 bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
-                bdrv_graph_wrunlock();
+                bdrv_graph_wrunlock(NULL);
                 bdrv_graph_rdlock_main_loop();
                 goto out;
             }
@@ -1267,7 +1267,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
                 bdrv_graph_rdunlock_main_loop();
                 bdrv_graph_wrlock(NULL);
                 bdrv_unref_child(bs, extent_file);
-                bdrv_graph_wrunlock();
+                bdrv_graph_wrunlock(NULL);
                 bdrv_graph_rdlock_main_loop();
                 goto out;
             }
@@ -1277,7 +1277,7 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
             bdrv_graph_rdunlock_main_loop();
             bdrv_graph_wrlock(NULL);
             bdrv_unref_child(bs, extent_file);
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(NULL);
             bdrv_graph_rdlock_main_loop();
             ret = -ENOTSUP;
             goto out;

@@ -101,7 +101,7 @@ static int stream_prepare(Job *job)
 
         bdrv_graph_wrlock(base);
         bdrv_set_backing_hd_drained(unfiltered_bs, base, &local_err);
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(base);
 
         /*
          * This call will do I/O, so the graph can change again from here on.
@@ -369,7 +369,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     bdrv_graph_wrlock(bs);
     if (block_job_add_bdrv(&s->common, "active node", bs, 0,
                            basic_flags | BLK_PERM_WRITE, errp)) {
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(bs);
         goto fail;
     }
 
@@ -389,11 +389,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  basic_flags, errp);
         if (ret < 0) {
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(bs);
             goto fail;
         }
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(bs);
 
     s->base_overlay = base_overlay;
     s->above_base = above_base;

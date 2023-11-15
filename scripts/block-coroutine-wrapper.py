@@ -262,7 +262,7 @@ def gen_no_co_wrapper(func: FuncDecl) -> str:
         graph_unlock='    bdrv_graph_rdunlock_main_loop();'
     elif func.graph_wrlock:
         graph_lock='    bdrv_graph_wrlock(NULL);'
-        graph_unlock='    bdrv_graph_wrunlock();'
+        graph_unlock='    bdrv_graph_wrunlock(NULL);'
 
     return f"""\
 /*

@@ -102,7 +102,7 @@ static void commit_abort(Job *job)
     bdrv_drained_begin(commit_top_backing_bs);
     bdrv_graph_wrlock(commit_top_backing_bs);
     bdrv_replace_node(s->commit_top_bs, commit_top_backing_bs, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(commit_top_backing_bs);
     bdrv_drained_end(commit_top_backing_bs);
 
     bdrv_unref(s->commit_top_bs);
@@ -370,19 +370,19 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  iter_shared_perms, errp);
         if (ret < 0) {
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(top);
             goto fail;
         }
     }
 
     if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(top);
         goto fail;
     }
     s->chain_frozen = true;
 
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(top);
 
     if (ret < 0) {
         goto fail;
@@ -436,7 +436,7 @@ fail:
         bdrv_drained_begin(top);
         bdrv_graph_wrlock(top);
         bdrv_replace_node(commit_top_bs, top, &error_abort);
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(top);
         bdrv_drained_end(top);
     }
 }

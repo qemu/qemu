@@ -809,7 +809,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
 
     bdrv_graph_wrlock(target);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(target);
 
     switch (result) {
     case TEST_JOB_SUCCESS:
@@ -995,7 +995,7 @@ static void bdrv_test_top_close(BlockDriverState *bs)
     QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
         bdrv_unref_child(bs, c);
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1088,7 +1088,7 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
     bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     /* This child will be the one to pass to requests through to, and
      * it will stall until a drain occurs */
@@ -1101,7 +1101,7 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
                                         &child_of_bds,
                                         BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                                         &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
@@ -1110,7 +1110,7 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
     bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds, BDRV_CHILD_DATA,
                       &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
@@ -1200,7 +1200,7 @@ static void no_coroutine_fn detach_indirect_bh(void *opaque)
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
                                       &child_of_bds, BDRV_CHILD_DATA,
                                       &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 }
 
 static void coroutine_mixed_fn detach_by_parent_aio_cb(void *opaque, int ret)
@@ -1308,7 +1308,7 @@ static void TSA_NO_TSA test_detach_indirect(bool by_parent_cb)
     bdrv_attach_child(parent_a, a, "PA-A",
                       by_parent_cb ? &child_of_bds : &detach_by_driver_cb_class,
                       BDRV_CHILD_DATA, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
     g_assert_cmpint(parent_b->refcnt, ==, 1);
@@ -1735,7 +1735,7 @@ static void test_drop_intermediate_poll(void)
                               &chain_child_class, BDRV_CHILD_COW, &error_abort);
         }
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     job = block_job_create("job", &test_simple_job_driver, NULL, job_node,
                            0, BLK_PERM_ALL, 0, 0, NULL, NULL, &error_abort);
@@ -1985,7 +1985,7 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     bdrv_graph_wrlock(NULL);
     bdrv_attach_child(parent_bs, old_child_bs, "child", &child_of_bds,
                       BDRV_CHILD_COW, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
     parent_s->setup_completed = true;
 
     for (i = 0; i < old_drain_count; i++) {
@@ -2018,7 +2018,7 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     bdrv_drained_begin(new_child_bs);
     bdrv_graph_wrlock(NULL);
     bdrv_replace_node(old_child_bs, new_child_bs, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
     bdrv_drained_end(new_child_bs);
     bdrv_drained_end(old_child_bs);
     g_assert(parent_bs->quiesce_counter == new_drain_count);

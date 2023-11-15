@@ -161,10 +161,20 @@ void no_coroutine_fn bdrv_graph_wrlock(BlockDriverState *bs)
     }
 }
 
-void bdrv_graph_wrunlock(void)
+void no_coroutine_fn bdrv_graph_wrunlock_ctx(AioContext *ctx)
 {
     GLOBAL_STATE_CODE();
     assert(qatomic_read(&has_writer));
+
+    /*
+     * Release only non-mainloop AioContext. The mainloop often relies on the
+     * BQL and doesn't lock the main AioContext before doing things.
+     */
+    if (ctx && ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
+    } else {
+        ctx = NULL;
+    }
 
     WITH_QEMU_LOCK_GUARD(&aio_context_list_lock) {
         /*
@@ -187,6 +197,17 @@ void bdrv_graph_wrunlock(void)
      * progress.
      */
     aio_bh_poll(qemu_get_aio_context());
+
+    if (ctx) {
+        aio_context_acquire(ctx);
+    }
+}
+
+void no_coroutine_fn bdrv_graph_wrunlock(BlockDriverState *bs)
+{
+    AioContext *ctx = bs ? bdrv_get_aio_context(bs) : NULL;
+
+    bdrv_graph_wrunlock_ctx(ctx);
 }
 
 void coroutine_fn bdrv_graph_co_rdlock(void)

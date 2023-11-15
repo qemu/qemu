@@ -2809,7 +2809,7 @@ qcow2_do_close(BlockDriverState *bs, bool close_data_file)
         bdrv_graph_rdunlock_main_loop();
         bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, s->data_file);
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(NULL);
         s->data_file = NULL;
         bdrv_graph_rdlock_main_loop();
     }
