@@ -81,6 +81,18 @@ static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
 
 static void ide_dummy_transfer_stop(IDEState *s);
 
+const MemoryRegionPortio ide_portio_list[] = {
+    { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
+    { 0, 1, 2, .read = ide_data_readw, .write = ide_data_writew },
+    { 0, 1, 4, .read = ide_data_readl, .write = ide_data_writel },
+    PORTIO_END_OF_LIST(),
+};
+
+const MemoryRegionPortio ide_portio2_list[] = {
+    { 0, 1, 1, .read = ide_status_read, .write = ide_ctrl_write },
+    PORTIO_END_OF_LIST(),
+};
+
 static void padstr(char *str, const char *src, int len)
 {
     int i, v;
