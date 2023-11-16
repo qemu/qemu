@@ -36,6 +36,7 @@ static void virtio_snd_pcm_out_cb(void *data, int available);
 static void virtio_snd_process_cmdq(VirtIOSound *s);
 static void virtio_snd_pcm_flush(VirtIOSoundPCMStream *stream);
 static void virtio_snd_pcm_in_cb(void *data, int available);
+static void virtio_snd_unrealize(DeviceState *dev);
 
 static uint32_t supported_formats = BIT(VIRTIO_SND_PCM_FMT_S8)
                                   | BIT(VIRTIO_SND_PCM_FMT_U8)
@@ -1065,23 +1066,9 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     virtio_snd_pcm_set_params default_params = { 0 };
     uint32_t status;
 
-    vsnd->pcm = NULL;
-    vsnd->vmstate =
-        qemu_add_vm_change_state_handler(virtio_snd_vm_state_change, vsnd);
-
     trace_virtio_snd_realize(vsnd);
 
-    vsnd->pcm = g_new0(VirtIOSoundPCM, 1);
-    vsnd->pcm->snd = vsnd;
-    vsnd->pcm->streams =
-        g_new0(VirtIOSoundPCMStream *, vsnd->snd_conf.streams);
-    vsnd->pcm->pcm_params =
-        g_new0(virtio_snd_pcm_set_params, vsnd->snd_conf.streams);
-
-    virtio_init(vdev, VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
-    virtio_add_feature(&vsnd->features, VIRTIO_F_VERSION_1);
-
-    /* set number of jacks and streams */
+    /* check number of jacks and streams */
     if (vsnd->snd_conf.jacks > 8) {
         error_setg(errp,
                    "Invalid number of jacks: %"PRIu32,
@@ -1105,6 +1092,19 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     if (!AUD_register_card("virtio-sound", &vsnd->card, errp)) {
         return;
     }
+
+    vsnd->vmstate =
+        qemu_add_vm_change_state_handler(virtio_snd_vm_state_change, vsnd);
+
+    vsnd->pcm = g_new0(VirtIOSoundPCM, 1);
+    vsnd->pcm->snd = vsnd;
+    vsnd->pcm->streams =
+        g_new0(VirtIOSoundPCMStream *, vsnd->snd_conf.streams);
+    vsnd->pcm->pcm_params =
+        g_new0(virtio_snd_pcm_set_params, vsnd->snd_conf.streams);
+
+    virtio_init(vdev, VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
+    virtio_add_feature(&vsnd->features, VIRTIO_F_VERSION_1);
 
     /* set default params for all streams */
     default_params.features = 0;
@@ -1130,16 +1130,21 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
             error_setg(errp,
                        "Can't initialize stream params, device responded with %s.",
                        print_code(status));
-            return;
+            goto error_cleanup;
         }
         status = virtio_snd_pcm_prepare(vsnd, i);
         if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
             error_setg(errp,
                        "Can't prepare streams, device responded with %s.",
                        print_code(status));
-            return;
+            goto error_cleanup;
         }
     }
+
+    return;
+
+error_cleanup:
+    virtio_snd_unrealize(dev);
 }
 
 static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
