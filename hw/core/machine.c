@@ -1390,6 +1390,14 @@ out:
     return r;
 }
 
+const char *machine_class_default_cpu_type(MachineClass *mc)
+{
+    if (mc->valid_cpu_types && !mc->valid_cpu_types[1]) {
+        /* Only a single CPU type allowed: use it as default. */
+        return mc->valid_cpu_types[0];
+    }
+    return mc->default_cpu_type;
+}
 
 void machine_run_board_init(MachineState *machine, const char *mem_path, Error **errp)
 {
