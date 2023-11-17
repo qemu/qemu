@@ -3438,9 +3438,9 @@ static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
             TCGv_i64 n = tcg_temp_new_i64();
 
             tcg_gen_xori_i64(n, cpu_sar, 63);
-            tcg_gen_shl_i64(t, src2, n);
+            tcg_gen_shl_i64(t, src1, n);
             tcg_gen_shli_i64(t, t, 1);
-            tcg_gen_shr_i64(dest, src1, cpu_sar);
+            tcg_gen_shr_i64(dest, src2, cpu_sar);
             tcg_gen_or_i64(dest, dest, t);
         } else {
             TCGv_i64 t = tcg_temp_new_i64();
