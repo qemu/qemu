@@ -43,11 +43,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(STM32F100State, STM32F100_SOC)
 #define SRAM_SIZE (8 * 1024)
 
 struct STM32F100State {
-    /*< private >*/
     SysBusDevice parent_obj;
-
-    /*< public >*/
-    char *cpu_type;
 
     ARMv7MState armv7m;
 
