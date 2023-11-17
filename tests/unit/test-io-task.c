@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 
-#define TYPE_DUMMY "qemu:dummy"
+#define TYPE_DUMMY "qemu-dummy"
 
 typedef struct DummyObject DummyObject;
 typedef struct DummyObjectClass DummyObjectClass;
