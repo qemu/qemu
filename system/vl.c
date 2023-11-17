@@ -1391,7 +1391,7 @@ static void qemu_create_default_devices(void)
         }
     }
 
-    if (nographic || (!vc && !is_daemonized() && isatty(STDOUT_FILENO))) {
+    if (nographic) {
         if (default_parallel) {
             add_device_config(DEV_PARALLEL, "null");
         }
