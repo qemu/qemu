@@ -13,7 +13,7 @@
 #include "hw/register.h"
 #include "target/arm/cpu.h"
 
-#define TYPE_XLNX_VERSAL_CRL "xlnx,versal-crl"
+#define TYPE_XLNX_VERSAL_CRL "xlnx-versal-crl"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalCRL, XLNX_VERSAL_CRL)
 
 REG32(ERR_CTRL, 0x0)
