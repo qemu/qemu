@@ -88,9 +88,6 @@ DOCKER_PARTIAL_IMAGES += debian-s390x-cross
 DOCKER_PARTIAL_IMAGES += fedora
 endif
 
-# The native build should never use the registry
-docker-image-debian-native: DOCKER_REGISTRY=
-
 # alpine has no adduser
 docker-image-alpine: NOUSER=1
 
