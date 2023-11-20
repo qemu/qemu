@@ -46,6 +46,12 @@ loongarch-debian-cross-container:
   variables:
     NAME: debian-loongarch-cross
 
+i686-debian-cross-container:
+  extends: .container_job_template
+  stage: containers
+  variables:
+    NAME: debian-i686-cross
+
 mips64el-debian-cross-container:
   extends: .container_job_template
   stage: containers
@@ -94,11 +100,6 @@ cris-fedora-cross-container:
   extends: .container_job_template
   variables:
     NAME: fedora-cris-cross
-
-i386-fedora-cross-container:
-  extends: .container_job_template
-  variables:
-    NAME: fedora-i386-cross
 
 win32-fedora-cross-container:
   extends: .container_job_template

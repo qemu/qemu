@@ -1307,8 +1307,8 @@ probe_target_compiler() {
         container_cross_cc=${container_cross_prefix}gcc
         ;;
       i386)
-        container_image=fedora-i386-cross
-        container_cross_prefix=
+        container_image=debian-i686-cross
+        container_cross_prefix=i686-linux-gnu-
         ;;
       loongarch64)
         container_image=debian-loongarch-cross
