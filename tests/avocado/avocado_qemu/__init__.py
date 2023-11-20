@@ -254,7 +254,7 @@ class QemuBaseTest(avocado.Test):
             self.cancel("No QEMU binary defined or found in the build tree")
 
     def fetch_asset(self, name,
-                    asset_hash=None, algorithm=None,
+                    asset_hash, algorithm=None,
                     locations=None, expire=None,
                     find_only=False, cancel_on_missing=True):
         return super().fetch_asset(name,
