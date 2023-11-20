@@ -462,7 +462,6 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
 {
     g_autoptr(MigrationChannel) val = g_new0(MigrationChannel, 1);
     g_autoptr(MigrationAddress) addr = g_new0(MigrationAddress, 1);
-    SocketAddress *saddr = NULL;
     InetSocketAddress *isock = &addr->u.rdma;
     strList **tail = &addr->u.exec.args;
 
@@ -487,12 +486,14 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                 strstart(uri, "vsock:", NULL) ||
                 strstart(uri, "fd:", NULL)) {
         addr->transport = MIGRATION_ADDRESS_TYPE_SOCKET;
-        saddr = socket_parse(uri, errp);
+        SocketAddress *saddr = socket_parse(uri, errp);
         if (!saddr) {
             return false;
         }
         addr->u.socket.type = saddr->type;
         addr->u.socket.u = saddr->u;
+        /* Don't free the objects inside; their ownership moved to "addr" */
+        g_free(saddr);
     } else if (strstart(uri, "file:", NULL)) {
         addr->transport = MIGRATION_ADDRESS_TYPE_FILE;
         addr->u.file.filename = g_strdup(uri + strlen("file:"));
