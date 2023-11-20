@@ -32,6 +32,9 @@
 #include "hw/virtio/virtio-net.h"
 #include "audio/audio.h"
 
+GlobalProperty hw_compat_8_2[] = {};
+const size_t hw_compat_8_2_len = G_N_ELEMENTS(hw_compat_8_2);
+
 GlobalProperty hw_compat_8_1[] = {
     { TYPE_PCI_BRIDGE, "x-pci-express-writeable-slt-bug", "true" },
     { "ramfb", "x-migrate", "off" },
