@@ -90,17 +90,17 @@ BalloonInfo *qmp_query_balloon(Error **errp)
     return info;
 }
 
-void qmp_balloon(int64_t target, Error **errp)
+void qmp_balloon(int64_t value, Error **errp)
 {
     if (!have_balloon(errp)) {
         return;
     }
 
-    if (target <= 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
+    if (value <= 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "value", "a size");
         return;
     }
 
-    trace_balloon_event(balloon_opaque, target);
-    balloon_event_fn(balloon_opaque, target);
+    trace_balloon_event(balloon_opaque, value);
+    balloon_event_fn(balloon_opaque, value);
 }
