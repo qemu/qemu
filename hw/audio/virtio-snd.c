@@ -1126,7 +1126,7 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
         status = virtio_snd_set_pcm_params(vsnd, i, &default_params);
         if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
             error_setg(errp,
-                       "Can't initalize stream params, device responded with %s.",
+                       "Can't initialize stream params, device responded with %s.",
                        print_code(status));
             return;
         }

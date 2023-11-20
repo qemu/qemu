@@ -401,7 +401,7 @@ virgl_cmd_set_scanout(VuGpu *g,
 
         if (g->use_modifiers) {
             /*
-             * The mesage uses all the fields set in dmabuf_scanout plus
+             * The message uses all the fields set in dmabuf_scanout plus
              * modifiers which is appended after VhostUserGpuDMABUFScanout.
              */
             msg.request = VHOST_USER_GPU_DMABUF_SCANOUT2;

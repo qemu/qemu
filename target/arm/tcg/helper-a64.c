@@ -1414,7 +1414,7 @@ void HELPER(setge)(CPUARMState *env, uint32_t syndrome, uint32_t mtedesc)
 /*
  * Perform part of a memory copy from the guest memory at fromaddr
  * and extending for copysize bytes, to the guest memory at
- * toaddr. Both addreses are dirty.
+ * toaddr. Both addresses are dirty.
  *
  * Returns the number of bytes actually set, which might be less than
  * copysize; the caller should loop until the whole copy has been done.

@@ -56,7 +56,7 @@
          1 << MMU_PL2_IDX    | 1 << MMU_PL2_P_IDX    |  \
          1 << MMU_USER_IDX   | 1 << MMU_USER_P_IDX)
 
-/* Indicies to flush for access_id changes. */
+/* Indices to flush for access_id changes. */
 #define HPPA_MMU_FLUSH_P_MASK \
         (1 << MMU_KERNEL_P_IDX | 1 << MMU_PL1_P_IDX  |  \
          1 << MMU_PL2_P_IDX    | 1 << MMU_USER_P_IDX)

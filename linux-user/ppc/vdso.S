@@ -227,7 +227,7 @@ endf	__kernel_sigtramp_rt
 #ifndef _ARCH_PPC64
 	/*
 	 * The non-rt sigreturn has the same layout at a different offset.
-	 * Move the CFA and leave all othe other descriptions the same.
+	 * Move the CFA and leave all the other descriptions the same.
 	 */
 	.cfi_def_cfa	1, SIGNAL_FRAMESIZE + offsetof_sigframe_mcontext
 	nop

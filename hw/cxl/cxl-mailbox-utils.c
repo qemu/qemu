@@ -431,7 +431,7 @@ static CXLRetCode cmd_identify_switch_device(const struct cxl_cmd *cmd,
     out = (struct cxl_fmapi_ident_switch_dev_resp_pl *)payload_out;
     *out = (struct cxl_fmapi_ident_switch_dev_resp_pl) {
         .num_physical_ports = num_phys_ports + 1, /* 1 USP */
-        .num_vcss = 1, /* Not yet support multiple VCS - potentialy tricky */
+        .num_vcss = 1, /* Not yet support multiple VCS - potentially tricky */
         .active_vcs_bitmask[0] = 0x1,
         .total_vppbs = num_phys_ports + 1,
         .bound_vppbs = num_phys_ports + 1,
