@@ -308,6 +308,9 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
          */
         tcg_out_opc_or(s, ret, arg, TCG_REG_ZERO);
         break;
+    case TCG_TYPE_V128:
+        tcg_out_opc_vori_b(s, ret, arg, 0);
+        break;
     default:
         g_assert_not_reached();
     }
