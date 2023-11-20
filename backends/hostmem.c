@@ -331,9 +331,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     if (!bc->alloc) {
         return;
     }
-    bc->alloc(backend, &local_err);
-    if (local_err) {
-        goto out;
+    if (!bc->alloc(backend, errp)) {
+        return;
     }
 
     ptr = memory_region_get_ram_ptr(&backend->mr);

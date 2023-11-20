@@ -31,7 +31,7 @@ struct HostMemoryBackendMemfd {
     bool seal;
 };
 
-static void
+static bool
 memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(backend);
@@ -41,7 +41,7 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
-        return;
+        return false;
     }
 
     fd = qemu_memfd_create(TYPE_MEMORY_BACKEND_MEMFD, backend->size,
@@ -49,14 +49,14 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
                            F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL : 0,
                            errp);
     if (fd == -1) {
-        return;
+        return false;
     }
 
     name = host_memory_backend_get_name(backend);
     ram_flags = backend->share ? RAM_SHARED : 0;
     ram_flags |= backend->reserve ? 0 : RAM_NORESERVE;
-    memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
-                                   backend->size, ram_flags, fd, 0, errp);
+    return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
+                                          backend->size, ram_flags, fd, 0, errp);
 }
 
 static bool
