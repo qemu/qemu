@@ -1633,7 +1633,7 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr,
     return true;
 }
 
-void memory_region_init_ram_from_fd(MemoryRegion *mr,
+bool memory_region_init_ram_from_fd(MemoryRegion *mr,
                                     Object *owner,
                                     const char *name,
                                     uint64_t size,
@@ -1654,7 +1654,9 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
         mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
+        return false;
     }
+    return true;
 }
 #endif
 
