@@ -164,18 +164,6 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    vbasedev->ops = &vfio_ap_ops;
-    vbasedev->type = VFIO_DEVICE_TYPE_AP;
-    vbasedev->dev = dev;
-
-    /*
-     * vfio-ap devices operate in a way compatible with discarding of
-     * memory in RAM blocks, as no pages are pinned in the host.
-     * This needs to be set before vfio_get_device() for vfio common to
-     * handle ram_block_discard_disable().
-     */
-    vapdev->vdev.ram_block_discard_allowed = true;
-
     ret = vfio_attach_device(vbasedev->name, vbasedev,
                              &address_space_memory, errp);
     if (ret) {
@@ -236,8 +224,20 @@ static const VMStateDescription vfio_ap_vmstate = {
 static void vfio_ap_instance_init(Object *obj)
 {
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(obj);
+    VFIODevice *vbasedev = &vapdev->vdev;
 
-    vapdev->vdev.fd = -1;
+    vbasedev->type = VFIO_DEVICE_TYPE_AP;
+    vbasedev->ops = &vfio_ap_ops;
+    vbasedev->dev = DEVICE(vapdev);
+    vbasedev->fd = -1;
+
+    /*
+     * vfio-ap devices operate in a way compatible with discarding of
+     * memory in RAM blocks, as no pages are pinned in the host.
+     * This needs to be set before vfio_get_device() for vfio common to
+     * handle ram_block_discard_disable().
+     */
+    vbasedev->ram_block_discard_allowed = true;
 }
 
 #ifdef CONFIG_IOMMUFD
