@@ -594,20 +594,6 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    vbasedev->ops = &vfio_ccw_ops;
-    vbasedev->type = VFIO_DEVICE_TYPE_CCW;
-    vbasedev->dev = dev;
-
-    /*
-     * All vfio-ccw devices are believed to operate in a way compatible with
-     * discarding of memory in RAM blocks, ie. pages pinned in the host are
-     * in the current working set of the guest driver and therefore never
-     * overlap e.g., with pages available to the guest balloon driver.  This
-     * needs to be set before vfio_get_device() for vfio common to handle
-     * ram_block_discard_disable().
-     */
-    vbasedev->ram_block_discard_allowed = true;
-
     ret = vfio_attach_device(cdev->mdevid, vbasedev,
                              &address_space_memory, errp);
     if (ret) {
@@ -695,8 +681,22 @@ static const VMStateDescription vfio_ccw_vmstate = {
 static void vfio_ccw_instance_init(Object *obj)
 {
     VFIOCCWDevice *vcdev = VFIO_CCW(obj);
+    VFIODevice *vbasedev = &vcdev->vdev;
 
-    vcdev->vdev.fd = -1;
+    vbasedev->type = VFIO_DEVICE_TYPE_CCW;
+    vbasedev->ops = &vfio_ccw_ops;
+    vbasedev->dev = DEVICE(vcdev);
+    vbasedev->fd = -1;
+
+    /*
+     * All vfio-ccw devices are believed to operate in a way compatible with
+     * discarding of memory in RAM blocks, ie. pages pinned in the host are
+     * in the current working set of the guest driver and therefore never
+     * overlap e.g., with pages available to the guest balloon driver.  This
+     * needs to be set before vfio_get_device() for vfio common to handle
+     * ram_block_discard_disable().
+     */
+    vbasedev->ram_block_discard_allowed = true;
 }
 
 #ifdef CONFIG_IOMMUFD
