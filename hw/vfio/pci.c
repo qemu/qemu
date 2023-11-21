@@ -2445,10 +2445,48 @@ static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
     return (strcmp(tmp, name) == 0);
 }
 
+int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
+                                    struct vfio_pci_hot_reset_info **info_p)
+{
+    struct vfio_pci_hot_reset_info *info;
+    int ret, count;
+
+    assert(info_p && !*info_p);
+
+    info = g_malloc0(sizeof(*info));
+    info->argsz = sizeof(*info);
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret && errno != ENOSPC) {
+        ret = -errno;
+        g_free(info);
+        if (!vdev->has_pm_reset) {
+            error_report("vfio: Cannot reset device %s, "
+                         "no available reset mechanism.", vdev->vbasedev.name);
+        }
+        return ret;
+    }
+
+    count = info->count;
+    info = g_realloc(info, sizeof(*info) + (count * sizeof(info->devices[0])));
+    info->argsz = sizeof(*info) + (count * sizeof(info->devices[0]));
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret) {
+        ret = -errno;
+        g_free(info);
+        error_report("vfio: hot reset info failed: %m");
+        return ret;
+    }
+
+    *info_p = info;
+    return 0;
+}
+
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 {
     VFIOGroup *group;
-    struct vfio_pci_hot_reset_info *info;
+    struct vfio_pci_hot_reset_info *info = NULL;
     struct vfio_pci_dependent_device *devices;
     struct vfio_pci_hot_reset *reset;
     int32_t *fds;
@@ -2462,30 +2500,12 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     }
     vdev->vbasedev.needs_reset = false;
 
-    info = g_malloc0(sizeof(*info));
-    info->argsz = sizeof(*info);
+    ret = vfio_pci_get_pci_hot_reset_info(vdev, &info);
 
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
-    if (ret && errno != ENOSPC) {
-        ret = -errno;
-        if (!vdev->has_pm_reset) {
-            error_report("vfio: Cannot reset device %s, "
-                         "no available reset mechanism.", vdev->vbasedev.name);
-        }
-        goto out_single;
-    }
-
-    count = info->count;
-    info = g_realloc(info, sizeof(*info) + (count * sizeof(*devices)));
-    info->argsz = sizeof(*info) + (count * sizeof(*devices));
-    devices = &info->devices[0];
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
     if (ret) {
-        ret = -errno;
-        error_report("vfio: hot reset info failed: %m");
         goto out_single;
     }
+    devices = &info->devices[0];
 
     trace_vfio_pci_hot_reset_has_dep_devices(vdev->vbasedev.name);
 
