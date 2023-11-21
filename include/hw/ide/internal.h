@@ -354,6 +354,9 @@ enum ide_dma_cmd {
 
 extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
+extern const MemoryRegionPortio ide_portio_list[];
+extern const MemoryRegionPortio ide_portio2_list[];
+
 #define ide_cmd_is_read(s) \
         ((s)->dma_cmd == IDE_DMA_READ)
 

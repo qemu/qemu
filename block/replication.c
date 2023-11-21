@@ -568,7 +568,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
                                            &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(bs);
             aio_context_release(aio_context);
             return;
         }
@@ -579,7 +579,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
                                               BDRV_CHILD_DATA, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(bs);
             aio_context_release(aio_context);
             return;
         }
@@ -592,7 +592,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         if (!top_bs || !bdrv_is_root_node(top_bs) ||
             !check_top_bs(top_bs, bs)) {
             error_setg(errp, "No top_bs or it is invalid");
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(bs);
             reopen_backing_file(bs, false, NULL);
             aio_context_release(aio_context);
             return;
@@ -600,7 +600,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(bs);
 
         s->backup_job = backup_job_create(
                                 NULL, s->secondary_disk->bs, s->hidden_disk->bs,
@@ -696,7 +696,7 @@ static void replication_done(void *opaque, int ret)
         s->secondary_disk = NULL;
         bdrv_unref_child(bs, s->hidden_disk);
         s->hidden_disk = NULL;
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(NULL);
 
         s->error = 0;
     } else {

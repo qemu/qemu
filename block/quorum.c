@@ -1044,7 +1044,7 @@ close_exit:
         }
         bdrv_unref_child(bs, s->children[i]);
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
     g_free(s->children);
     g_free(opened);
 exit:
@@ -1061,7 +1061,7 @@ static void quorum_close(BlockDriverState *bs)
     for (i = 0; i < s->num_children; i++) {
         bdrv_unref_child(bs, s->children[i]);
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 
     g_free(s->children);
 }

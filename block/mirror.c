@@ -773,7 +773,7 @@ static int mirror_exit_common(Job *job)
                        "would not lead to an abrupt change of visible data",
                        to_replace->node_name, target_bs->node_name);
         }
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(target_bs);
         bdrv_drained_end(to_replace);
         if (local_err) {
             error_report_err(local_err);
@@ -798,7 +798,7 @@ static int mirror_exit_common(Job *job)
     block_job_remove_all_bdrv(bjob);
     bdrv_graph_wrlock(mirror_top_bs);
     bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(mirror_top_bs);
 
     bdrv_drained_end(target_bs);
     bdrv_unref(target_bs);
@@ -1920,7 +1920,7 @@ static BlockJob *mirror_start_job(
                              BLK_PERM_CONSISTENT_READ,
                              errp);
     if (ret < 0) {
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(bs);
         goto fail;
     }
 
@@ -1965,17 +1965,17 @@ static BlockJob *mirror_start_job(
             ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                      iter_shared_perms, errp);
             if (ret < 0) {
-                bdrv_graph_wrunlock();
+                bdrv_graph_wrunlock(bs);
                 goto fail;
             }
         }
 
         if (bdrv_freeze_backing_chain(mirror_top_bs, target, errp) < 0) {
-            bdrv_graph_wrunlock();
+            bdrv_graph_wrunlock(bs);
             goto fail;
         }
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(bs);
 
     QTAILQ_INIT(&s->ops_in_flight);
 
@@ -2006,7 +2006,7 @@ fail:
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
     bdrv_replace_node(mirror_top_bs, bs, &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(bs);
     bdrv_drained_end(bs);
 
     bdrv_unref(mirror_top_bs);

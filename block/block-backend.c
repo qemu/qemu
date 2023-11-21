@@ -882,11 +882,14 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
 
 /*
  * Disassociates the currently associated BlockDriverState from @blk.
+ *
+ * The caller must hold the AioContext lock for the BlockBackend.
  */
 void blk_remove_bs(BlockBackend *blk)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     BdrvChild *root;
+    AioContext *ctx;
 
     GLOBAL_STATE_CODE();
 
@@ -916,9 +919,10 @@ void blk_remove_bs(BlockBackend *blk)
     root = blk->root;
     blk->root = NULL;
 
-    bdrv_graph_wrlock(NULL);
+    ctx = bdrv_get_aio_context(root->bs);
+    bdrv_graph_wrlock(root->bs);
     bdrv_root_unref_child(root);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock_ctx(ctx);
 }
 
 /*
@@ -929,6 +933,8 @@ void blk_remove_bs(BlockBackend *blk)
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
     GLOBAL_STATE_CODE();
     bdrv_ref(bs);
     bdrv_graph_wrlock(bs);
@@ -936,7 +942,7 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
                                        BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                                        blk->perm, blk->shared_perm,
                                        blk, errp);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock_ctx(ctx);
     if (blk->root == NULL) {
         return -EPERM;
     }

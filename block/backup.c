@@ -499,7 +499,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     bdrv_graph_wrlock(target);
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(target);
 
     return &job->common;
 

@@ -253,7 +253,7 @@ fail_log:
     if (ret < 0) {
         bdrv_graph_wrlock(NULL);
         bdrv_unref_child(bs, s->log_file);
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(NULL);
         s->log_file = NULL;
     }
 fail:
@@ -268,7 +268,7 @@ static void blk_log_writes_close(BlockDriverState *bs)
     bdrv_graph_wrlock(NULL);
     bdrv_unref_child(bs, s->log_file);
     s->log_file = NULL;
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(NULL);
 }
 
 static int64_t coroutine_fn GRAPH_RDLOCK

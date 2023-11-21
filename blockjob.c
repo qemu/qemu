@@ -212,7 +212,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
 
         g_slist_free_1(l);
     }
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock_ctx(job->job.aio_context);
 }
 
 bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
@@ -523,7 +523,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job = job_create(job_id, &driver->job_driver, txn, bdrv_get_aio_context(bs),
                      flags, cb, opaque, errp);
     if (job == NULL) {
-        bdrv_graph_wrunlock();
+        bdrv_graph_wrunlock(bs);
         return NULL;
     }
 
@@ -563,11 +563,11 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         goto fail;
     }
 
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(bs);
     return job;
 
 fail:
-    bdrv_graph_wrunlock();
+    bdrv_graph_wrunlock(bs);
     job_early_fail(&job->job);
     return NULL;
 }
