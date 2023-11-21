@@ -329,6 +329,13 @@ static void mps2_scc_realize(DeviceState *dev, Error **errp)
     s->oscclk = g_new0(uint32_t, s->num_oscclk);
 }
 
+static void mps2_scc_finalize(Object *obj)
+{
+    MPS2SCC *s = MPS2_SCC(obj);
+
+    g_free(s->oscclk_reset);
+}
+
 static const VMStateDescription mps2_scc_vmstate = {
     .name = "mps2-scc",
     .version_id = 3,
@@ -385,6 +392,7 @@ static const TypeInfo mps2_scc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MPS2SCC),
     .instance_init = mps2_scc_init,
+    .instance_finalize = mps2_scc_finalize,
     .class_init = mps2_scc_class_init,
 };
 
