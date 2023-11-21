@@ -95,6 +95,7 @@ config Q35
     imply E1000E_PCI_EXPRESS
     imply VMPORT
     imply VMMOUSE
+    imply IOMMUFD
     select PC_PCI
     select PC_ACPI
     select PCI_EXPRESS_Q35
