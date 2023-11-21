@@ -689,23 +689,36 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
     void **arrayptr = (void *)obj + prop->arrayoffset;
-    char *elem = *arrayptr;
-    GenericList *list;
-    const size_t list_elem_size = sizeof(*list) + prop->arrayfieldsize;
+    char *elemptr = *arrayptr;
+    ArrayElementList *list = NULL, *elem;
+    ArrayElementList **tail = &list;
+    const size_t size = sizeof(*list);
     int i;
     bool ok;
 
-    if (!visit_start_list(v, name, &list, list_elem_size, errp)) {
+    /* At least the string output visitor needs a real list */
+    for (i = 0; i < *alenptr; i++) {
+        elem = g_new0(ArrayElementList, 1);
+        elem->value = elemptr;
+        elemptr += prop->arrayfieldsize;
+
+        *tail = elem;
+        tail = &elem->next;
+    }
+
+    if (!visit_start_list(v, name, (GenericList **) &list, size, errp)) {
         return;
     }
 
-    for (i = 0; i < *alenptr; i++) {
-        Property elem_prop = array_elem_prop(obj, prop, name, elem);
+    elem = list;
+    while (elem) {
+        Property elem_prop = array_elem_prop(obj, prop, name, elem->value);
         prop->arrayinfo->get(obj, v, NULL, &elem_prop, errp);
         if (*errp) {
             goto out_obj;
         }
-        elem += prop->arrayfieldsize;
+        elem = (ArrayElementList *) visit_next_list(v, (GenericList*) elem,
+                                                    size);
     }
 
     /* visit_check_list() can only fail for input visitors */
@@ -714,6 +727,12 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
 
 out_obj:
     visit_end_list(v, (void**) &list);
+
+    while (list) {
+        elem = list;
+        list = elem->next;
+        g_free(elem);
+    }
 }
 
 static void default_prop_array(ObjectProperty *op, const Property *prop)
