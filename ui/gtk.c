@@ -2534,6 +2534,7 @@ static QemuDisplay qemu_display_gtk = {
     .type       = DISPLAY_TYPE_GTK,
     .early_init = early_gtk_display_init,
     .init       = gtk_display_init,
+    .vc         = "vc",
 };
 
 static void register_gtk(void)

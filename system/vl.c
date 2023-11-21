@@ -1110,6 +1110,7 @@ static void parse_display(const char *p)
          */
         if (*opts == '=') {
             vnc_parse(opts + 1);
+            display_remote++;
         } else {
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
@@ -1359,6 +1360,7 @@ static void qemu_setup_display(void)
             dpy.type = DISPLAY_TYPE_NONE;
 #if defined(CONFIG_VNC)
             vnc_parse("localhost:0,to=99,id=default");
+            display_remote++;
 #endif
         }
     }
@@ -1391,7 +1393,7 @@ static void qemu_create_default_devices(void)
         }
     }
 
-    if (nographic || (!vc && !is_daemonized() && isatty(STDOUT_FILENO))) {
+    if (nographic) {
         if (default_parallel) {
             add_device_config(DEV_PARALLEL, "null");
         }
