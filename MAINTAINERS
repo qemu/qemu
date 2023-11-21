@@ -2176,6 +2176,7 @@ F: backends/iommufd.c
 F: include/sysemu/iommufd.h
 F: include/qemu/chardev_open.h
 F: util/chardev_open.c
+F: docs/devel/vfio-iommufd.rst
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
