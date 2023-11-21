@@ -3771,9 +3771,11 @@ foreach target : target_dirs
     arch_deps += t.dependencies()
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch
-    hw = hw_arch[hw_dir].apply(config_target, strict: false)
-    arch_srcs += hw.sources()
-    arch_deps += hw.dependencies()
+    if hw_arch.has_key(hw_dir)
+      hw = hw_arch[hw_dir].apply(config_target, strict: false)
+      arch_srcs += hw.sources()
+      arch_deps += hw.dependencies()
+    endif
 
     arch_srcs += config_devices_h[target]
     link_args += ['@block.syms', '@qemu.syms']
