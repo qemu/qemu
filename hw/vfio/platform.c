@@ -581,10 +581,6 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     VFIODevice *vbasedev = &vdev->vbasedev;
     int i, ret;
 
-    vbasedev->type = VFIO_DEVICE_TYPE_PLATFORM;
-    vbasedev->dev = dev;
-    vbasedev->ops = &vfio_platform_ops;
-
     qemu_mutex_init(&vdev->intp_mutex);
 
     trace_vfio_platform_realize(vbasedev->sysfsdev ?
@@ -659,8 +655,12 @@ static Property vfio_platform_dev_properties[] = {
 static void vfio_platform_instance_init(Object *obj)
 {
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(obj);
+    VFIODevice *vbasedev = &vdev->vbasedev;
 
-    vdev->vbasedev.fd = -1;
+    vbasedev->type = VFIO_DEVICE_TYPE_PLATFORM;
+    vbasedev->ops = &vfio_platform_ops;
+    vbasedev->dev = DEVICE(vdev);
+    vbasedev->fd = -1;
 }
 
 #ifdef CONFIG_IOMMUFD
