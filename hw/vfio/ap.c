@@ -226,18 +226,14 @@ static void vfio_ap_instance_init(Object *obj)
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(obj);
     VFIODevice *vbasedev = &vapdev->vdev;
 
-    vbasedev->type = VFIO_DEVICE_TYPE_AP;
-    vbasedev->ops = &vfio_ap_ops;
-    vbasedev->dev = DEVICE(vapdev);
-    vbasedev->fd = -1;
-
     /*
      * vfio-ap devices operate in a way compatible with discarding of
      * memory in RAM blocks, as no pages are pinned in the host.
      * This needs to be set before vfio_get_device() for vfio common to
      * handle ram_block_discard_disable().
      */
-    vbasedev->ram_block_discard_allowed = true;
+    vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_AP, &vfio_ap_ops,
+                     DEVICE(vapdev), true);
 }
 
 #ifdef CONFIG_IOMMUFD

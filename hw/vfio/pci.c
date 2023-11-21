@@ -3327,10 +3327,8 @@ static void vfio_instance_init(Object *obj)
     vdev->host.slot = ~0U;
     vdev->host.function = ~0U;
 
-    vbasedev->type = VFIO_DEVICE_TYPE_PCI;
-    vbasedev->ops = &vfio_pci_ops;
-    vbasedev->dev = DEVICE(vdev);
-    vbasedev->fd = -1;
+    vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_PCI, &vfio_pci_ops,
+                     DEVICE(vdev), false);
 
     vdev->nv_gpudirect_clique = 0xFF;
 

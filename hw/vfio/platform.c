@@ -657,10 +657,8 @@ static void vfio_platform_instance_init(Object *obj)
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(obj);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
-    vbasedev->type = VFIO_DEVICE_TYPE_PLATFORM;
-    vbasedev->ops = &vfio_platform_ops;
-    vbasedev->dev = DEVICE(vdev);
-    vbasedev->fd = -1;
+    vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_PLATFORM, &vfio_platform_ops,
+                     DEVICE(vdev), false);
 }
 
 #ifdef CONFIG_IOMMUFD

@@ -683,11 +683,6 @@ static void vfio_ccw_instance_init(Object *obj)
     VFIOCCWDevice *vcdev = VFIO_CCW(obj);
     VFIODevice *vbasedev = &vcdev->vdev;
 
-    vbasedev->type = VFIO_DEVICE_TYPE_CCW;
-    vbasedev->ops = &vfio_ccw_ops;
-    vbasedev->dev = DEVICE(vcdev);
-    vbasedev->fd = -1;
-
     /*
      * All vfio-ccw devices are believed to operate in a way compatible with
      * discarding of memory in RAM blocks, ie. pages pinned in the host are
@@ -696,7 +691,8 @@ static void vfio_ccw_instance_init(Object *obj)
      * needs to be set before vfio_get_device() for vfio common to handle
      * ram_block_discard_disable().
      */
-    vbasedev->ram_block_discard_allowed = true;
+    vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_CCW, &vfio_ccw_ops,
+                     DEVICE(vcdev), true);
 }
 
 #ifdef CONFIG_IOMMUFD
