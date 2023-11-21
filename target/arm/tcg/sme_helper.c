@@ -1037,10 +1037,9 @@ void HELPER(sme_fmopa_h)(void *vza, void *vzn, void *vzm, void *vpn,
 
                         m = f16mop_adj_pair(m, pcol, 0);
                         *a = f16_dotadd(*a, n, m, &fpst_std, &fpst_odd);
-
-                        col += 4;
-                        pcol >>= 4;
                     }
+                    col += 4;
+                    pcol >>= 4;
                 } while (col & 15);
             }
             row += 4;
@@ -1073,10 +1072,9 @@ void HELPER(sme_bfmopa)(void *vza, void *vzn, void *vzm, void *vpn,
 
                         m = f16mop_adj_pair(m, pcol, 0);
                         *a = bfdotadd(*a, n, m);
-
-                        col += 4;
-                        pcol >>= 4;
                     }
+                    col += 4;
+                    pcol >>= 4;
                 } while (col & 15);
             }
             row += 4;
