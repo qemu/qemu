@@ -251,4 +251,8 @@ int vfio_devices_query_dirty_bitmap(VFIOContainerBase *bcontainer,
                                     hwaddr size);
 int vfio_get_dirty_bitmap(VFIOContainerBase *bcontainer, uint64_t iova,
                                  uint64_t size, ram_addr_t ram_addr);
+
+/* Returns 0 on success, or a negative errno. */
+int vfio_device_get_name(VFIODevice *vbasedev, Error **errp);
+void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp);
 #endif /* HW_VFIO_VFIO_COMMON_H */
