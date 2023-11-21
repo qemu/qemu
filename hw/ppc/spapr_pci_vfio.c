@@ -26,10 +26,12 @@
 #include "hw/pci/pci_device.h"
 #include "hw/vfio/vfio-common.h"
 #include "qemu/error-report.h"
+#include CONFIG_DEVICES /* CONFIG_VFIO_PCI */
 
 /*
  * Interfaces for IBM EEH (Enhanced Error Handling)
  */
+#ifdef CONFIG_VFIO_PCI
 static bool vfio_eeh_container_ok(VFIOContainer *container)
 {
     /*
@@ -314,3 +316,37 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
 
     return RTAS_OUT_SUCCESS;
 }
+
+#else
+
+bool spapr_phb_eeh_available(SpaprPhbState *sphb)
+{
+    return false;
+}
+
+void spapr_phb_vfio_reset(DeviceState *qdev)
+{
+}
+
+int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
+                                  unsigned int addr, int option)
+{
+    return RTAS_OUT_NOT_SUPPORTED;
+}
+
+int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
+{
+    return RTAS_OUT_NOT_SUPPORTED;
+}
+
+int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
+{
+    return RTAS_OUT_NOT_SUPPORTED;
+}
+
+int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
+{
+    return RTAS_OUT_NOT_SUPPORTED;
+}
+
+#endif /* CONFIG_VFIO_PCI */
