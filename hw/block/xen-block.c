@@ -91,9 +91,27 @@ static bool xen_block_find_free_vdev(XenBlockDevice *blockdev, Error **errp)
 
     existing_frontends = qemu_xen_xs_directory(xenbus->xsh, XBT_NULL, fe_path,
                                                &nr_existing);
-    if (!existing_frontends && errno != ENOENT) {
-        error_setg_errno(errp, errno, "cannot read %s", fe_path);
-        return false;
+    if (!existing_frontends) {
+        if (errno == ENOENT) {
+            /*
+             * If the frontend directory doesn't exist because there are
+             * no existing vbd devices, that's fine. Just ensure that we
+             * don't dereference the NULL existing_frontends pointer, by
+             * checking that nr_existing is zero so the loop below is not
+             * entered.
+             *
+             * In fact this is redundant since nr_existing is initialized
+             * to zero, but setting it again here makes it abundantly clear
+             * to Coverity, and to the human reader who doesn't know the
+             * semantics of qemu_xen_xs_directory() off the top of their
+             * head.
+             */
+            nr_existing = 0;
+        } else {
+            /* All other errors accessing the frontend directory are fatal. */
+            error_setg_errno(errp, errno, "cannot read %s", fe_path);
+            return false;
+        }
     }
 
     memset(used_devs, 0, sizeof(used_devs));
