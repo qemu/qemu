@@ -113,6 +113,45 @@ typedef struct pixman_color {
     uint16_t    alpha;
 } pixman_color_t;
 
+static inline uint32_t *create_bits(pixman_format_code_t format,
+                                    int width,
+                                    int height,
+                                    int *rowstride_bytes)
+{
+    int stride = 0;
+    size_t buf_size = 0;
+    int bpp = PIXMAN_FORMAT_BPP(format);
+
+    /*
+     * Calculate the following while checking for overflow truncation:
+     * stride = ((width * bpp + 0x1f) >> 5) * sizeof(uint32_t);
+     */
+
+    if (unlikely(__builtin_mul_overflow(width, bpp, &stride))) {
+        return NULL;
+    }
+
+    if (unlikely(__builtin_add_overflow(stride, 0x1f, &stride))) {
+        return NULL;
+    }
+
+    stride >>= 5;
+
+    stride *= sizeof(uint32_t);
+
+    if (unlikely(__builtin_mul_overflow((size_t) height,
+                                        (size_t) stride,
+                                        &buf_size))) {
+        return NULL;
+    }
+
+    if (rowstride_bytes) {
+        *rowstride_bytes = stride;
+    }
+
+    return g_malloc0(buf_size);
+}
+
 static inline pixman_image_t *pixman_image_create_bits(pixman_format_code_t format,
                                                        int width,
                                                        int height,
@@ -123,13 +162,18 @@ static inline pixman_image_t *pixman_image_create_bits(pixman_format_code_t form
 
     i->width = width;
     i->height = height;
-    i->stride = rowstride_bytes ?: width * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     i->format = format;
     if (bits) {
         i->data = bits;
     } else {
-        i->free_me = i->data = g_malloc0(rowstride_bytes * height);
+        i->free_me = i->data =
+            create_bits(format, width, height, &rowstride_bytes);
+        if (width && height) {
+            assert(i->data);
+        }
     }
+    i->stride = rowstride_bytes ? rowstride_bytes :
+                            width * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     i->ref_count = 1;
 
     return i;
