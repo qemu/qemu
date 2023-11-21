@@ -821,7 +821,8 @@ static void npcm7xx_emc_realize(DeviceState *dev, Error **errp)
 
     qemu_macaddr_default_if_unset(&emc->conf.macaddr);
     emc->nic = qemu_new_nic(&net_npcm7xx_emc_info, &emc->conf,
-                            object_get_typename(OBJECT(dev)), dev->id, emc);
+                            object_get_typename(OBJECT(dev)), dev->id,
+                            &dev->mem_reentrancy_guard, emc);
     qemu_format_nic_info_str(qemu_get_queue(emc->nic), emc->conf.macaddr.a);
 }
 

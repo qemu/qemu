@@ -325,7 +325,8 @@ static void spapr_vlan_realize(SpaprVioDevice *sdev, Error **errp)
     memcpy(&dev->perm_mac.a, &dev->nicconf.macaddr.a, sizeof(dev->perm_mac.a));
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
-                            object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
+                            object_get_typename(OBJECT(sdev)), sdev->qdev.id,
+                            &sdev->qdev.mem_reentrancy_guard, dev);
     qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
     dev->rxp_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, spapr_vlan_flush_rx_queue,

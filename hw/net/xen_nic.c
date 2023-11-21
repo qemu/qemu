@@ -325,7 +325,8 @@ static void xen_netdev_realize(XenDevice *xendev, Error **errp)
 
     netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf,
                                object_get_typename(OBJECT(xendev)),
-                               DEVICE(xendev)->id, netdev);
+                               DEVICE(xendev)->id,
+                               &xendev->qdev.mem_reentrancy_guard, netdev);
 
     nc = qemu_get_queue(netdev->nic);
     qemu_format_nic_info_str(nc, netdev->conf.macaddr.a);
