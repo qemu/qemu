@@ -2969,9 +2969,6 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (vfio_device_get_name(vbasedev, errp) < 0) {
         return;
     }
-    vbasedev->ops = &vfio_pci_ops;
-    vbasedev->type = VFIO_DEVICE_TYPE_PCI;
-    vbasedev->dev = DEVICE(vdev);
 
     /*
      * Mediated devices *might* operate compatibly with discarding of RAM, but
@@ -3320,6 +3317,7 @@ static void vfio_instance_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
     VFIOPCIDevice *vdev = VFIO_PCI(obj);
+    VFIODevice *vbasedev = &vdev->vbasedev;
 
     device_add_bootindex_property(obj, &vdev->bootindex,
                                   "bootindex", NULL,
@@ -3328,7 +3326,11 @@ static void vfio_instance_init(Object *obj)
     vdev->host.bus = ~0U;
     vdev->host.slot = ~0U;
     vdev->host.function = ~0U;
-    vdev->vbasedev.fd = -1;
+
+    vbasedev->type = VFIO_DEVICE_TYPE_PCI;
+    vbasedev->ops = &vfio_pci_ops;
+    vbasedev->dev = DEVICE(vdev);
+    vbasedev->fd = -1;
 
     vdev->nv_gpudirect_clique = 0xFF;
 
