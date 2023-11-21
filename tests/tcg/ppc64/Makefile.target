@@ -16,6 +16,11 @@ PPC64_TESTS=bcdsub non_signalling_xscv
 endif
 $(PPC64_TESTS): CFLAGS += -mpower8-vector
 
+ifneq ($(CROSS_CC_HAS_POWER8_VECTOR),)
+PPC64_TESTS += vsx_f2i_nan
+endif
+vsx_f2i_nan: CFLAGS += -mpower8-vector -I$(SRC_PATH)/include
+
 PPC64_TESTS += mtfsf
 PPC64_TESTS += mffsce
 
