@@ -69,6 +69,11 @@ static uint8_t *inflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
         }
     }
 
+    *size = stream.total_out;
+    inflateEnd(&stream);
+
+    return out;
+
 err_end:
     inflateEnd(&stream);
 err:
