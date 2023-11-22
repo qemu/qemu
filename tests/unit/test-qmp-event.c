@@ -30,7 +30,6 @@ typedef struct TestEventData {
 } TestEventData;
 
 TestEventData *test_event_data;
-static GMutex test_event_lock;
 
 void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 {
@@ -59,9 +58,6 @@ void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 static void event_prepare(TestEventData *data,
                           const void *unused)
 {
-    /* Global variable test_event_data was used to pass the expectation, so
-       test cases can't be executed at same time. */
-    g_mutex_lock(&test_event_lock);
     test_event_data = data;
 }
 
@@ -69,7 +65,6 @@ static void event_teardown(TestEventData *data,
                            const void *unused)
 {
     test_event_data = NULL;
-    g_mutex_unlock(&test_event_lock);
 }
 
 static void event_test_add(const char *testpath,
