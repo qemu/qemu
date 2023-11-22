@@ -40,7 +40,7 @@ def get_default_machine(qemu_prog: str) -> str:
 
     machines = outp.split('\n')
     try:
-        default_machine = next(m for m in machines if m.endswith(' (default)'))
+        default_machine = next(m for m in machines if ' (default)' in m)
     except StopIteration:
         return ''
     default_machine = default_machine.split(' ', 1)[0]
