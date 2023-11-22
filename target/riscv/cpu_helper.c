@@ -1032,13 +1032,29 @@ restart:
         prot |= PAGE_WRITE;
     }
     if (pte & PTE_X) {
-        bool mxr;
+        bool mxr = false;
 
-        if (first_stage == true) {
+        /*
+         * Use mstatus for first stage or for the second stage without
+         * virt_enabled (MPRV+MPV)
+         */
+        if (first_stage || !env->virt_enabled) {
             mxr = get_field(env->mstatus, MSTATUS_MXR);
-        } else {
-            mxr = get_field(env->vsstatus, MSTATUS_MXR);
         }
+
+        /* MPRV+MPV case, check VSSTATUS */
+        if (first_stage && two_stage && !env->virt_enabled) {
+            mxr |= get_field(env->vsstatus, MSTATUS_MXR);
+        }
+
+        /*
+         * Setting MXR at HS-level overrides both VS-stage and G-stage
+         * execute-only permissions
+         */
+        if (env->virt_enabled) {
+            mxr |= get_field(env->mstatus_hs, MSTATUS_MXR);
+        }
+
         if (mxr) {
             prot |= PAGE_READ;
         }
@@ -1143,47 +1159,31 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
                                 bool two_stage_indirect)
 {
     CPUState *cs = env_cpu(env);
-    int page_fault_exceptions, vm;
-    uint64_t stap_mode;
-
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        stap_mode = SATP32_MODE;
-    } else {
-        stap_mode = SATP64_MODE;
-    }
-
-    if (first_stage) {
-        vm = get_field(env->satp, stap_mode);
-    } else {
-        vm = get_field(env->hgatp, stap_mode);
-    }
-
-    page_fault_exceptions = vm != VM_1_10_MBARE && !pmp_violation;
 
     switch (access_type) {
     case MMU_INST_FETCH:
         if (env->virt_enabled && !first_stage) {
             cs->exception_index = RISCV_EXCP_INST_GUEST_PAGE_FAULT;
         } else {
-            cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_INST_PAGE_FAULT : RISCV_EXCP_INST_ACCESS_FAULT;
+            cs->exception_index = pmp_violation ?
+                RISCV_EXCP_INST_ACCESS_FAULT : RISCV_EXCP_INST_PAGE_FAULT;
         }
         break;
     case MMU_DATA_LOAD:
         if (two_stage && !first_stage) {
             cs->exception_index = RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT;
         } else {
-            cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_LOAD_PAGE_FAULT : RISCV_EXCP_LOAD_ACCESS_FAULT;
+            cs->exception_index = pmp_violation ?
+                RISCV_EXCP_LOAD_ACCESS_FAULT : RISCV_EXCP_LOAD_PAGE_FAULT;
         }
         break;
     case MMU_DATA_STORE:
         if (two_stage && !first_stage) {
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
         } else {
-            cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_STORE_PAGE_FAULT :
-                RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
+            cs->exception_index = pmp_violation ?
+                RISCV_EXCP_STORE_AMO_ACCESS_FAULT :
+                RISCV_EXCP_STORE_PAGE_FAULT;
         }
         break;
     default:
