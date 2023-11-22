@@ -26,7 +26,6 @@
 
 typedef struct TestEventData {
     QDict *expect;
-    bool emitted;
 } TestEventData;
 
 TestEventData *test_event_data;
@@ -35,6 +34,8 @@ void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 {
     QDict *t;
     int64_t s, ms;
+
+    g_assert(test_event_data->expect);
 
     /* Verify that we have timestamp, then remove it to compare other fields */
     t = qdict_get_qdict(d, "timestamp");
@@ -52,7 +53,8 @@ void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
     qdict_del(d, "timestamp");
 
     g_assert(qobject_is_equal(QOBJECT(d), QOBJECT(test_event_data->expect)));
-    test_event_data->emitted = true;
+    qobject_unref(test_event_data->expect);
+    test_event_data->expect = NULL;
 }
 
 static void event_prepare(TestEventData *data,
@@ -83,8 +85,7 @@ static void test_event_a(TestEventData *data,
 {
     data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_A' }");
     qapi_event_send_event_a();
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!data->expect);
 }
 
 static void test_event_b(TestEventData *data,
@@ -92,8 +93,7 @@ static void test_event_b(TestEventData *data,
 {
     data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_B' }");
     qapi_event_send_event_b();
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!data->expect);
 }
 
 static void test_event_c(TestEventData *data,
@@ -105,8 +105,7 @@ static void test_event_c(TestEventData *data,
         "{ 'event': 'EVENT_C', 'data': {"
         " 'a': 1, 'b': { 'integer': 2, 'string': 'test1' }, 'c': 'test2' } }");
     qapi_event_send_event_c(true, 1, &b, "test2");
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!data->expect);
 }
 
 /* Complex type */
@@ -131,8 +130,7 @@ static void test_event_d(TestEventData *data,
         "  'string': 'test2', 'enum2': 'value2' },"
         " 'b': 'test3', 'enum3': 'value3' } }");
     qapi_event_send_event_d(&a, "test3", NULL, true, ENUM_ONE_VALUE3);
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!data->expect);
 }
 
 static void test_event_deprecated(TestEventData *data, const void *unused)
@@ -142,15 +140,11 @@ static void test_event_deprecated(TestEventData *data, const void *unused)
     memset(&compat_policy, 0, sizeof(compat_policy));
 
     qapi_event_send_test_event_features1();
-    g_assert(data->emitted);
+    g_assert(!data->expect);
 
     compat_policy.has_deprecated_output = true;
     compat_policy.deprecated_output = COMPAT_POLICY_OUTPUT_HIDE;
-    data->emitted = false;
     qapi_event_send_test_event_features1();
-    g_assert(!data->emitted);
-
-    qobject_unref(data->expect);
 }
 
 static void test_event_deprecated_data(TestEventData *data, const void *unused)
@@ -160,17 +154,13 @@ static void test_event_deprecated_data(TestEventData *data, const void *unused)
     data->expect = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0',"
                                            " 'data': { 'foo': 42 } }");
     qapi_event_send_test_event_features0(42);
-    g_assert(data->emitted);
+    g_assert(!data->expect);
 
-    qobject_unref(data->expect);
 
     compat_policy.has_deprecated_output = true;
     compat_policy.deprecated_output = COMPAT_POLICY_OUTPUT_HIDE;
     data->expect = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0' }");
     qapi_event_send_test_event_features0(42);
-    g_assert(data->emitted);
-
-    qobject_unref(data->expect);
 }
 
 int main(int argc, char **argv)
