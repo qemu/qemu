@@ -178,7 +178,6 @@ static void register_vfs(PCIDevice *dev)
     num_vfs = pci_get_word(dev->config + sriov_cap + PCI_SRIOV_NUM_VF);
 
     dev->exp.sriov_pf.vf = g_new(PCIDevice *, num_vfs);
-    assert(dev->exp.sriov_pf.vf);
 
     trace_sriov_register_vfs(dev->name, PCI_SLOT(dev->devfn),
                              PCI_FUNC(dev->devfn), num_vfs);
