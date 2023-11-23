@@ -360,6 +360,20 @@ static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void vhost_user_scsi_reset(VirtIODevice *vdev)
+{
+    VHostUserSCSI *s = VHOST_USER_SCSI(vdev);
+    VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
+
+    vhost_dev_free_inflight(vsc->inflight);
+}
+
+static struct vhost_dev *vhost_user_scsi_get_vhost(VirtIODevice *vdev)
+{
+    VHostSCSICommon *vsc = VHOST_SCSI_COMMON(vdev);
+    return &vsc->dev;
+}
+
 static const VMStateDescription vmstate_vhost_scsi = {
     .name = "virtio-scsi",
     .minimum_version_id = 1,
@@ -385,6 +399,8 @@ static void vhost_user_scsi_class_init(ObjectClass *klass, void *data)
     vdc->set_config = vhost_scsi_common_set_config;
     vdc->set_status = vhost_user_scsi_set_status;
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;
+    vdc->reset = vhost_user_scsi_reset;
+    vdc->get_vhost = vhost_user_scsi_get_vhost;
 }
 
 static void vhost_user_scsi_instance_init(Object *obj)
