@@ -147,7 +147,6 @@ static int vhost_user_scsi_connect(DeviceState *dev, Error **errp)
     if (s->connected) {
         return 0;
     }
-    s->connected = true;
 
     vsc->dev.num_queues = vs->conf.num_queues;
     vsc->dev.nvqs = VIRTIO_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
@@ -160,6 +159,8 @@ static int vhost_user_scsi_connect(DeviceState *dev, Error **errp)
     if (ret < 0) {
         return ret;
     }
+
+    s->connected = true;
 
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {

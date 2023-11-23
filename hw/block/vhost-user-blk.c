@@ -326,7 +326,6 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     if (s->connected) {
         return 0;
     }
-    s->connected = true;
 
     s->dev.num_queues = s->num_queues;
     s->dev.nvqs = s->num_queues;
@@ -343,15 +342,14 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
         return ret;
     }
 
+    s->connected = true;
+
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {
         ret = vhost_user_blk_start(vdev, errp);
-        if (ret < 0) {
-            return ret;
-        }
     }
 
-    return 0;
+    return ret;
 }
 
 static void vhost_user_blk_disconnect(DeviceState *dev)
