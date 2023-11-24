@@ -60,13 +60,24 @@ As TCG cannot track all memory accesses in user-mode there is no
 support for watchpoints.
 
 Relocating code
----------------
+===============
 
 On modern kernels confusion can be caused by code being relocated by
 features such as address space layout randomisation. To avoid
 confusion when debugging such things you either need to update gdb's
 view of where things are in memory or perhaps more trivially disable
 ASLR when booting the system.
+
+Debugging user-space in system emulation
+========================================
+
+While it is technically possible to debug a user-space program running
+inside a system image, it does present challenges. Kernel preemption
+and execution mode changes between kernel and user mode can make it
+hard to follow what's going on. Unless you are specifically trying to
+debug some interaction between kernel and user-space you are better
+off running your guest program with gdb either in the guest or using
+a gdbserver exposed via a port to the outside world.
 
 Debugging multicore machines
 ============================

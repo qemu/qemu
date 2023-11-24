@@ -1307,8 +1307,8 @@ probe_target_compiler() {
         container_cross_cc=${container_cross_prefix}gcc
         ;;
       i386)
-        container_image=fedora-i386-cross
-        container_cross_prefix=
+        container_image=debian-i686-cross
+        container_cross_prefix=i686-linux-gnu-
         ;;
       loongarch64)
         container_image=debian-loongarch-cross
@@ -1391,16 +1391,19 @@ probe_target_compiler() {
   done
 
   try=cross
-  case "$target_arch:$cpu" in
-    aarch64_be:aarch64 | \
-    armeb:arm | \
-    i386:x86_64 | \
-    mips*:mips64 | \
-    ppc*:ppc64 | \
-    sparc:sparc64 | \
-    "$cpu:$cpu")
-      try='native cross' ;;
-  esac
+  # For softmmu/roms we might be able to use the host compiler
+  if [ "${1%softmmu}" != "$1" ]; then
+      case "$target_arch:$cpu" in
+        aarch64_be:aarch64 | \
+        armeb:arm | \
+        i386:x86_64 | \
+        mips*:mips64 | \
+        ppc*:ppc64 | \
+        sparc:sparc64 | \
+        "$cpu:$cpu")
+        try='native cross' ;;
+      esac
+  fi
   eval "target_cflags=\${cross_cc_cflags_$target_arch}"
   for thistry in $try; do
     case $thistry in

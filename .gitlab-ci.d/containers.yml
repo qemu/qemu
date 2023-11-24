@@ -11,7 +11,7 @@ amd64-debian-container:
   extends: .container_job_template
   stage: containers
   variables:
-    NAME: debian-amd64
+    NAME: debian
 
 amd64-ubuntu2204-container:
   extends: .container_job_template
