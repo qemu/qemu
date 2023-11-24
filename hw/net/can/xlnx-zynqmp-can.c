@@ -778,14 +778,18 @@ static void update_rx_fifo(XlnxZynqMPCANState *s, const qemu_can_frame *frame)
     }
 }
 
-static uint64_t can_rxfifo_pre_read(RegisterInfo *reg, uint64_t val)
+static uint64_t can_rxfifo_post_read_id(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqMPCANState *s = XLNX_ZYNQMP_CAN(reg->opaque);
+    unsigned used = fifo32_num_used(&s->rx_fifo);
 
-    if (!fifo32_is_empty(&s->rx_fifo)) {
-        val = fifo32_pop(&s->rx_fifo);
-    } else {
+    if (used < CAN_FRAME_SIZE) {
         ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, RXUFLW, 1);
+    } else {
+        val = s->regs[R_RXFIFO_ID] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DLC] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DATA1] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DATA2] = fifo32_pop(&s->rx_fifo);
     }
 
     can_update_irq(s);
@@ -946,14 +950,11 @@ static const RegisterAccessInfo can_regs_info[] = {
         .post_write = can_tx_post_write,
     },{ .name = "RXFIFO_ID",  .addr = A_RXFIFO_ID,
         .ro = 0xffffffff,
-        .post_read = can_rxfifo_pre_read,
+        .post_read = can_rxfifo_post_read_id,
     },{ .name = "RXFIFO_DLC",  .addr = A_RXFIFO_DLC,
         .rsvd = 0xfff0000,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "RXFIFO_DATA1",  .addr = A_RXFIFO_DATA1,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "RXFIFO_DATA2",  .addr = A_RXFIFO_DATA2,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "AFR",  .addr = A_AFR,
         .rsvd = 0xfffffff0,
         .post_write = can_filter_enable_post_write,
