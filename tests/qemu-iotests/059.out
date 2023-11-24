@@ -2032,6 +2032,10 @@ Format specific information:
             virtual size: 2147483648
             filename: TEST_DIR/t-f500.IMGFMT
             format: FLAT
+wrote 512/512 bytes at offset 1063004405760
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 1063004405760
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing malformed VMFS extent description line ===
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent line: RW 12582912 VMFS "dummy.IMGFMT" 1
