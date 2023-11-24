@@ -84,60 +84,60 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
     if (do_irq) {
         irq_vector = sh_intc_get_pending_vector(env->intc_handle,
-						(env->sr >> 4) & 0xf);
+                                                (env->sr >> 4) & 0xf);
         if (irq_vector == -1) {
             return; /* masked */
-	}
+        }
     }
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
-	const char *expname;
+        const char *expname;
         switch (cs->exception_index) {
-	case 0x0e0:
-	    expname = "addr_error";
-	    break;
-	case 0x040:
-	    expname = "tlb_miss";
-	    break;
-	case 0x0a0:
-	    expname = "tlb_violation";
-	    break;
-	case 0x180:
-	    expname = "illegal_instruction";
-	    break;
-	case 0x1a0:
-	    expname = "slot_illegal_instruction";
-	    break;
-	case 0x800:
-	    expname = "fpu_disable";
-	    break;
-	case 0x820:
-	    expname = "slot_fpu";
-	    break;
-	case 0x100:
-	    expname = "data_write";
-	    break;
-	case 0x060:
-	    expname = "dtlb_miss_write";
-	    break;
-	case 0x0c0:
-	    expname = "dtlb_violation_write";
-	    break;
-	case 0x120:
-	    expname = "fpu_exception";
-	    break;
-	case 0x080:
-	    expname = "initial_page_write";
-	    break;
-	case 0x160:
-	    expname = "trapa";
-	    break;
-	default:
+        case 0x0e0:
+            expname = "addr_error";
+            break;
+        case 0x040:
+            expname = "tlb_miss";
+            break;
+        case 0x0a0:
+            expname = "tlb_violation";
+            break;
+        case 0x180:
+            expname = "illegal_instruction";
+            break;
+        case 0x1a0:
+            expname = "slot_illegal_instruction";
+            break;
+        case 0x800:
+            expname = "fpu_disable";
+            break;
+        case 0x820:
+            expname = "slot_fpu";
+            break;
+        case 0x100:
+            expname = "data_write";
+            break;
+        case 0x060:
+            expname = "dtlb_miss_write";
+            break;
+        case 0x0c0:
+            expname = "dtlb_violation_write";
+            break;
+        case 0x120:
+            expname = "fpu_exception";
+            break;
+        case 0x080:
+            expname = "initial_page_write";
+            break;
+        case 0x160:
+            expname = "trapa";
+            break;
+        default:
             expname = do_irq ? "interrupt" : "???";
             break;
-	}
-	qemu_log("exception 0x%03x [%s] raised\n",
-		  irq_vector, expname);
+        }
+        qemu_log("exception 0x%03x [%s] raised\n",
+                  irq_vector, expname);
         log_cpu_state(cs, 0);
     }
 
@@ -149,8 +149,8 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
     if (env->flags & TB_FLAG_DELAY_SLOT_MASK) {
         /* Branch instruction should be executed again before delay slot. */
-	env->spc -= 2;
-	/* Clear flags for exception/interrupt routine. */
+        env->spc -= 2;
+        /* Clear flags for exception/interrupt routine. */
         env->flags &= ~TB_FLAG_DELAY_SLOT_MASK;
     }
 
@@ -191,19 +191,19 @@ static void update_itlb_use(CPUSH4State * env, int itlbnb)
 
     switch (itlbnb) {
     case 0:
-	and_mask = 0x1f;
-	break;
+        and_mask = 0x1f;
+        break;
     case 1:
-	and_mask = 0xe7;
-	or_mask = 0x80;
-	break;
+        and_mask = 0xe7;
+        or_mask = 0x80;
+        break;
     case 2:
-	and_mask = 0xfb;
-	or_mask = 0x50;
-	break;
+        and_mask = 0xfb;
+        or_mask = 0x50;
+        break;
     case 3:
-	or_mask = 0x2c;
-	break;
+        or_mask = 0x2c;
+        break;
     }
 
     env->mmucr &= (and_mask << 24) | 0x00ffffff;
@@ -213,16 +213,16 @@ static void update_itlb_use(CPUSH4State * env, int itlbnb)
 static int itlb_replacement(CPUSH4State * env)
 {
     if ((env->mmucr & 0xe0000000) == 0xe0000000) {
-	return 0;
+        return 0;
     }
     if ((env->mmucr & 0x98000000) == 0x18000000) {
-	return 1;
+        return 1;
     }
     if ((env->mmucr & 0x54000000) == 0x04000000) {
-	return 2;
+        return 2;
     }
     if ((env->mmucr & 0x2c000000) == 0x00000000) {
-	return 3;
+        return 3;
     }
     cpu_abort(env_cpu(env), "Unhandled itlb_replacement");
 }
@@ -231,7 +231,7 @@ static int itlb_replacement(CPUSH4State * env)
    Return entry, MMU_DTLB_MISS or MMU_DTLB_MULTIPLE
 */
 static int find_tlb_entry(CPUSH4State * env, target_ulong address,
-			  tlb_t * entries, uint8_t nbtlb, int use_asid)
+                          tlb_t * entries, uint8_t nbtlb, int use_asid)
 {
     int match = MMU_DTLB_MISS;
     uint32_t start, end;
@@ -241,17 +241,17 @@ static int find_tlb_entry(CPUSH4State * env, target_ulong address,
     asid = env->pteh & 0xff;
 
     for (i = 0; i < nbtlb; i++) {
-	if (!entries[i].v)
-	    continue;		/* Invalid entry */
-	if (!entries[i].sh && use_asid && entries[i].asid != asid)
-	    continue;		/* Bad ASID */
-	start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
-	end = start + entries[i].size - 1;
-	if (address >= start && address <= end) {	/* Match */
-	    if (match != MMU_DTLB_MISS)
-		return MMU_DTLB_MULTIPLE;	/* Multiple match */
-	    match = i;
-	}
+        if (!entries[i].v)
+            continue; /* Invalid entry */
+        if (!entries[i].sh && use_asid && entries[i].asid != asid)
+            continue; /* Bad ASID */
+        start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
+        end = start + entries[i].size - 1;
+        if (address >= start && address <= end) { /* Match */
+            if (match != MMU_DTLB_MISS)
+                return MMU_DTLB_MULTIPLE; /* Multiple match */
+            match = i;
+        }
     }
     return match;
 }
@@ -265,7 +265,7 @@ static void increment_urc(CPUSH4State * env)
     urc = ((env->mmucr) >> 10) & 0x3f;
     urc++;
     if ((urb > 0 && urc > urb) || urc > (UTLB_SIZE - 1))
-	urc = 0;
+        urc = 0;
     env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
 }
 
@@ -297,11 +297,11 @@ static int find_itlb_entry(CPUSH4State * env, target_ulong address,
 
     e = find_tlb_entry(env, address, env->itlb, ITLB_SIZE, use_asid);
     if (e == MMU_DTLB_MULTIPLE) {
-	e = MMU_ITLB_MULTIPLE;
+        e = MMU_ITLB_MULTIPLE;
     } else if (e == MMU_DTLB_MISS) {
-	e = MMU_ITLB_MISS;
+        e = MMU_ITLB_MISS;
     } else if (e >= 0) {
-	update_itlb_use(env, e);
+        update_itlb_use(env, e);
     }
     return e;
 }
@@ -518,7 +518,7 @@ uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,
 }
 
 void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, hwaddr addr,
-				    uint32_t mem_value)
+                                    uint32_t mem_value)
 {
     uint32_t vpn = (mem_value & 0xfffffc00) >> 10;
     uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
@@ -601,7 +601,7 @@ uint32_t cpu_sh4_read_mmaped_utlb_addr(CPUSH4State *s,
 }
 
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
-				    uint32_t mem_value)
+                                    uint32_t mem_value)
 {
     int associate = addr & 0x0000080;
     uint32_t vpn = (mem_value & 0xfffffc00) >> 10;
@@ -612,48 +612,48 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
 
     if (associate) {
         int i;
-	tlb_t * utlb_match_entry = NULL;
-	int needs_tlb_flush = 0;
+        tlb_t * utlb_match_entry = NULL;
+        int needs_tlb_flush = 0;
 
-	/* search UTLB */
-	for (i = 0; i < UTLB_SIZE; i++) {
+        /* search UTLB */
+        for (i = 0; i < UTLB_SIZE; i++) {
             tlb_t * entry = &s->utlb[i];
             if (!entry->v)
-	        continue;
+                continue;
 
             if (entry->vpn == vpn
                 && (!use_asid || entry->asid == asid || entry->sh)) {
-	        if (utlb_match_entry) {
+                if (utlb_match_entry) {
                     CPUState *cs = env_cpu(s);
 
-		    /* Multiple TLB Exception */
+                    /* Multiple TLB Exception */
                     cs->exception_index = 0x140;
-		    s->tea = addr;
-		    break;
-	        }
-		if (entry->v && !v)
-		    needs_tlb_flush = 1;
-		entry->v = v;
-		entry->d = d;
-	        utlb_match_entry = entry;
-	    }
-	    increment_urc(s); /* per utlb access */
-	}
+                    s->tea = addr;
+                    break;
+                }
+                if (entry->v && !v)
+                    needs_tlb_flush = 1;
+                entry->v = v;
+                entry->d = d;
+                utlb_match_entry = entry;
+            }
+            increment_urc(s); /* per utlb access */
+        }
 
-	/* search ITLB */
-	for (i = 0; i < ITLB_SIZE; i++) {
+        /* search ITLB */
+        for (i = 0; i < ITLB_SIZE; i++) {
             tlb_t * entry = &s->itlb[i];
             if (entry->vpn == vpn
                 && (!use_asid || entry->asid == asid || entry->sh)) {
-	        if (entry->v && !v)
-		    needs_tlb_flush = 1;
-	        if (utlb_match_entry)
-		    *entry = *utlb_match_entry;
-	        else
-		    entry->v = v;
-		break;
-	    }
-	}
+                if (entry->v && !v)
+                    needs_tlb_flush = 1;
+                if (utlb_match_entry)
+                    *entry = *utlb_match_entry;
+                else
+                    entry->v = v;
+                break;
+            }
+        }
 
         if (needs_tlb_flush) {
             tlb_flush_page(env_cpu(s), vpn << 10);
@@ -661,18 +661,18 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
     } else {
         int index = (addr & 0x00003f00) >> 8;
         tlb_t * entry = &s->utlb[index];
-	if (entry->v) {
+        if (entry->v) {
             CPUState *cs = env_cpu(s);
 
-	    /* Overwriting valid entry in utlb. */
+            /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
             tlb_flush_page(cs, address);
-	}
-	entry->asid = asid;
-	entry->vpn = vpn;
-	entry->d = d;
-	entry->v = v;
-	increment_urc(s);
+        }
+        entry->asid = asid;
+        entry->vpn = vpn;
+        entry->d = d;
+        entry->v = v;
+        increment_urc(s);
     }
 }
 

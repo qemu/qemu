@@ -107,19 +107,19 @@
                                   TB_FLAG_GUSA_MASK)
 
 typedef struct tlb_t {
-    uint32_t vpn;		/* virtual page number */
-    uint32_t ppn;		/* physical page number */
-    uint32_t size;		/* mapped page size in bytes */
-    uint8_t asid;		/* address space identifier */
-    uint8_t v:1;		/* validity */
-    uint8_t sz:2;		/* page size */
-    uint8_t sh:1;		/* share status */
-    uint8_t c:1;		/* cacheability */
-    uint8_t pr:2;		/* protection key */
-    uint8_t d:1;		/* dirty */
-    uint8_t wt:1;		/* write through */
-    uint8_t sa:3;		/* space attribute (PCMCIA) */
-    uint8_t tc:1;		/* timing control */
+    uint32_t vpn;        /* virtual page number */
+    uint32_t ppn;        /* physical page number */
+    uint32_t size;       /* mapped page size in bytes */
+    uint8_t asid;        /* address space identifier */
+    uint8_t v:1;         /* validity */
+    uint8_t sz:2;        /* page size */
+    uint8_t sh:1;        /* share status */
+    uint8_t c:1;         /* cacheability */
+    uint8_t pr:2;        /* protection key */
+    uint8_t d:1;         /* dirty */
+    uint8_t wt:1;        /* write through */
+    uint8_t sa:3;        /* space attribute (PCMCIA) */
+    uint8_t tc:1;        /* timing control */
 } tlb_t;
 
 #define UTLB_SIZE 64
@@ -139,44 +139,44 @@ typedef struct memory_content {
 } memory_content;
 
 typedef struct CPUArchState {
-    uint32_t flags;		/* general execution flags */
-    uint32_t gregs[24];		/* general registers */
-    float32 fregs[32];		/* floating point registers */
+    uint32_t flags;             /* general execution flags */
+    uint32_t gregs[24];         /* general registers */
+    float32 fregs[32];          /* floating point registers */
     uint32_t sr;                /* status register (with T split out) */
     uint32_t sr_m;              /* M bit of status register */
     uint32_t sr_q;              /* Q bit of status register */
     uint32_t sr_t;              /* T bit of status register */
-    uint32_t ssr;		/* saved status register */
-    uint32_t spc;		/* saved program counter */
-    uint32_t gbr;		/* global base register */
-    uint32_t vbr;		/* vector base register */
-    uint32_t sgr;		/* saved global register 15 */
-    uint32_t dbr;		/* debug base register */
-    uint32_t pc;		/* program counter */
+    uint32_t ssr;               /* saved status register */
+    uint32_t spc;               /* saved program counter */
+    uint32_t gbr;               /* global base register */
+    uint32_t vbr;               /* vector base register */
+    uint32_t sgr;               /* saved global register 15 */
+    uint32_t dbr;               /* debug base register */
+    uint32_t pc;                /* program counter */
     uint32_t delayed_pc;        /* target of delayed branch */
     uint32_t delayed_cond;      /* condition of delayed branch */
-    uint32_t mach;		/* multiply and accumulate high */
-    uint32_t macl;		/* multiply and accumulate low */
-    uint32_t pr;		/* procedure register */
-    uint32_t fpscr;		/* floating point status/control register */
-    uint32_t fpul;		/* floating point communication register */
+    uint32_t mach;              /* multiply and accumulate high */
+    uint32_t macl;              /* multiply and accumulate low */
+    uint32_t pr;                /* procedure register */
+    uint32_t fpscr;             /* floating point status/control register */
+    uint32_t fpul;              /* floating point communication register */
 
     /* float point status register */
     float_status fp_status;
 
     /* Those belong to the specific unit (SH7750) but are handled here */
-    uint32_t mmucr;		/* MMU control register */
-    uint32_t pteh;		/* page table entry high register */
-    uint32_t ptel;		/* page table entry low register */
-    uint32_t ptea;		/* page table entry assistance register */
+    uint32_t mmucr;             /* MMU control register */
+    uint32_t pteh;              /* page table entry high register */
+    uint32_t ptel;              /* page table entry low register */
+    uint32_t ptea;              /* page table entry assistance register */
     uint32_t ttb;               /* translation table base register */
-    uint32_t tea;		/* TLB exception address register */
-    uint32_t tra;		/* TRAPA exception register */
-    uint32_t expevt;		/* exception event register */
-    uint32_t intevt;		/* interrupt event register */
+    uint32_t tea;               /* TLB exception address register */
+    uint32_t tra;               /* TRAPA exception register */
+    uint32_t expevt;            /* exception event register */
+    uint32_t intevt;            /* interrupt event register */
 
-    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
-    tlb_t utlb[UTLB_SIZE];	/* unified translation table */
+    tlb_t itlb[ITLB_SIZE];      /* instruction translation table */
+    tlb_t utlb[UTLB_SIZE];      /* unified translation table */
 
     /* LDST = LOCK_ADDR != -1.  */
     uint32_t lock_addr;
@@ -186,13 +186,13 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     /* Fields from here on are preserved over CPU reset. */
-    int id;			/* CPU model */
+    int id;                     /* CPU model */
 
     /* The features that we should emulate. See sh_features above.  */
     uint32_t features;
 
     void *intc_handle;
-    int in_sleep;		/* SR_BL ignored during sleep */
+    int in_sleep;               /* SR_BL ignored during sleep */
     memory_content *movcal_backup;
     memory_content **movcal_backup_tail;
 } CPUSH4State;
