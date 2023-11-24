@@ -33,7 +33,9 @@
 
 typedef struct XilinxSPIPS XilinxSPIPS;
 
+/* For SPIPS, QSPIPS.  */
 #define XLNX_SPIPS_R_MAX        (0x100 / 4)
+/* For ZYNQMP_QSPIPS.  */
 #define XLNX_ZYNQMP_SPIPS_R_MAX (0x200 / 4)
 
 /* Bite off 4k chunks at a time */
@@ -125,6 +127,7 @@ struct XilinxSPIPSClass {
     SysBusDeviceClass parent_class;
 
     const MemoryRegionOps *reg_ops;
+    uint64_t reg_size;
 
     uint32_t rx_fifo_size;
     uint32_t tx_fifo_size;
