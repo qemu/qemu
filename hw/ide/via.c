@@ -163,13 +163,18 @@ static uint32_t via_ide_cfg_read(PCIDevice *pd, uint32_t addr, int len)
     uint32_t val = pci_default_read_config(pd, addr, len);
     uint8_t mode = pd->config[PCI_CLASS_PROG];
 
-    if ((mode & 0xf) == 0xa && ranges_overlap(addr, len,
-                                              PCI_BASE_ADDRESS_0, 16)) {
-        /* BARs always read back zero in legacy mode */
-        for (int i = addr; i < addr + len; i++) {
-            if (i >= PCI_BASE_ADDRESS_0 && i < PCI_BASE_ADDRESS_0 + 16) {
-                val &= ~(0xffULL << ((i - addr) << 3));
+    if ((mode & 0xf) == 0xa) {
+        if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 16)) {
+            /* BARs 0-3 always read back zero in legacy mode */
+            for (int i = addr; i < addr + len; i++) {
+                if (i >= PCI_BASE_ADDRESS_0 && i < PCI_BASE_ADDRESS_0 + 16) {
+                    val &= ~(0xffULL << ((i - addr) << 3));
+                }
             }
+        }
+        if (addr == PCI_BASE_ADDRESS_4 && val == PCI_BASE_ADDRESS_SPACE_IO) {
+            /* BAR4 default value if unset */
+            val = 0xcc00 | PCI_BASE_ADDRESS_SPACE_IO;
         }
     }
 
