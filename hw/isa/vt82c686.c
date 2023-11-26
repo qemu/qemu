@@ -549,6 +549,7 @@ struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa_irqs_in;
+    uint16_t irq_state[ISA_NUM_IRQS];
     ViaSuperIOState via_sio;
     MC146818RtcState rtc;
     PCIIDEState ide;
@@ -591,6 +592,46 @@ static const TypeInfo via_isa_info = {
         { },
     },
 };
+
+void via_isa_set_irq(PCIDevice *d, int pin, int level)
+{
+    ViaISAState *s = VIA_ISA(pci_get_function_0(d));
+    uint8_t irq = d->config[PCI_INTERRUPT_LINE], max_irq = 15;
+    int f = PCI_FUNC(d->devfn);
+    uint16_t mask = BIT(f);
+
+    switch (f) {
+    case 2: /* USB ports 0-1 */
+    case 3: /* USB ports 2-3 */
+        max_irq = 14;
+        break;
+    }
+
+    /* Keep track of the state of all sources */
+    if (level) {
+        s->irq_state[0] |= mask;
+    } else {
+        s->irq_state[0] &= ~mask;
+    }
+    if (irq == 0 || irq == 0xff) {
+        return; /* disabled */
+    }
+    if (unlikely(irq > max_irq || irq == 2)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid ISA IRQ routing %d for %d",
+                      irq, f);
+        return;
+    }
+    /* Record source state at mapped IRQ */
+    if (level) {
+        s->irq_state[irq] |= mask;
+    } else {
+        s->irq_state[irq] &= ~mask;
+    }
+    /* Make sure there are no stuck bits if mapping has changed */
+    s->irq_state[irq] &= s->irq_state[0];
+    /* ISA IRQ level is the OR of all sources routed to it */
+    qemu_set_irq(s->isa_irqs_in[irq], !!s->irq_state[irq]);
+}
 
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {

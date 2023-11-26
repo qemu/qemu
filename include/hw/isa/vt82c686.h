@@ -34,4 +34,6 @@ struct ViaAC97State {
     uint32_t ac97_cmd;
 };
 
+void via_isa_set_irq(PCIDevice *d, int n, int level);
+
 #endif
