@@ -622,6 +622,7 @@ void via_isa_set_irq(PCIDevice *d, int pin, int level)
         break;
     case 2: /* USB ports 0-1 */
     case 3: /* USB ports 2-3 */
+    case 5: /* AC97 audio */
         max_irq = 14;
         break;
     }
