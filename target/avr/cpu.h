@@ -150,6 +150,9 @@ struct ArchCPU {
 
     CPUNegativeOffsetState neg;
     CPUAVRState env;
+
+    /* Initial value of stack pointer */
+    uint32_t init_sp;
 };
 
 extern const struct VMStateDescription vms_avr_cpu;
