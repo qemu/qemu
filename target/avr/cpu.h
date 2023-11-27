@@ -145,6 +145,9 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPUAVRState env;
+
+    /* Initial value of stack pointer */
+    uint32_t init_sp;
 };
 
 /**
