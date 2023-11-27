@@ -45,6 +45,7 @@ typedef struct {
     /* Protected by ctx lock */
     bool in_qio_channel_yield;
     bool wait_idle;
+    bool quiescing;
     VuDev vu_dev;
     QIOChannel *ioc; /* The I/O channel with the client */
     QIOChannelSocket *sioc; /* The underlying data channel with the client */
