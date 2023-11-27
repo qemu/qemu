@@ -41,8 +41,8 @@ def main() -> int:
     parser.parse_args()
 
     packages = {
-        "meson==0.63.3":
-        "d677b809c4895dcbaac9bf6c43703fcb3609a4b24c6057c78f828590049cf43a",
+        "meson==1.2.3":
+        "4533a43c34548edd1f63a276a42690fce15bde9409bcf20c4b8fa3d7e4d7cac1",
 
         "tomli==2.0.1":
         "939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",

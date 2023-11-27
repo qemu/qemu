@@ -207,6 +207,7 @@ try:
     #
     generate_cirrus("freebsd-13")
     generate_cirrus("macos-13")
+    generate_cirrus("macos-14")
 
     #
     # VM packages lists

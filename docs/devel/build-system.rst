@@ -122,10 +122,78 @@ functioning.  These are performed using a few more helper functions:
    indicated by $TMPC.
 
 
-Python virtual environments and the QEMU build system
------------------------------------------------------
+Python virtual environments and the build process
+-------------------------------------------------
 
-TBD
+An important step in ``configure`` is to create a Python virtual
+environment (venv) during the configuration phase.  The Python interpreter
+comes from the ``--python`` command line option, the ``$PYTHON`` variable
+from the environment, or the system PATH, in this order.  The venv resides
+in the ``pyvenv`` directory in the build tree, and provides consistency
+in how the build process runs Python code.
+
+At this stage, ``configure`` also queries the chosen Python interpreter
+about QEMU's build dependencies.  Note that the build process does  *not*
+look for ``meson``, ``sphinx-build`` or ``avocado`` binaries in the PATH;
+likewise, there are no options such as ``--meson`` or ``--sphinx-build``.
+This avoids a potential mismatch, where Meson and Sphinx binaries on the
+PATH might operate in a different Python environment than the one chosen
+by the user during the build process.  On the other hand, it introduces
+a potential source of confusion where the user installs a dependency but
+``configure`` is not able to find it.  When this happens, the dependency
+was installed in the ``site-packages`` directory of another interpreter,
+or with the wrong ``pip`` program.
+
+If a package is available for the chosen interpreter, ``configure``
+prepares a small script that invokes it from the venv itself[#distlib]_.
+If not, ``configure`` can also optionally install dependencies in the
+virtual environment with ``pip``, either from wheels in ``python/wheels``
+or by downloading the package with PyPI.  Downloading can be disabled with
+``--disable-download``; and anyway, it only happens when a ``configure``
+option (currently, only ``--enable-docs``) is explicitly enabled but
+the dependencies are not present[#pip]_.
+
+.. [#distlib] The scripts are created based on the package's metadata,
+              specifically the ``console_script`` entry points.  This is the
+              same mechanism that ``pip`` uses when installing a package.
+              Currently, in all cases it would be possible to use ``python -m``
+              instead of an entry point script, which makes this approach a
+              bit overkill.  On the other hand, creating the scripts is
+              future proof and it makes the contents of the ``pyvenv/bin``
+              directory more informative.  Portability is also not an issue,
+              because the Python Packaging Authority provides a package
+              ``distlib.scripts`` to perform this task.
+
+.. [#pip] ``pip`` might also be used when running ``make check-avocado``
+           if downloading is enabled, to ensure that Avocado is
+           available.
+
+The required versions of the packages are stored in a configuration file
+``pythondeps.toml``.  The format is custom to QEMU, but it is documented
+at the top of the file itself and it should be easy to understand.  The
+requirements should make it possible to use the version that is packaged
+that is provided by supported distros.
+
+When dependencies are downloaded, instead, ``configure`` uses a "known
+good" version that is also listed in ``pythondeps.toml``.  In this
+scenario, ``pythondeps.toml`` behaves like the "lock file" used by
+``cargo``, ``poetry`` or other dependency management systems.
+
+
+Bundled Python packages
+-----------------------
+
+Python packages that are **mandatory** dependencies to build QEMU,
+but are not available in all supported distros, are bundled with the
+QEMU sources.  Currently this includes Meson (outdated in CentOS 8
+and derivatives, Ubuntu 20.04 and 22.04, and openSUSE Leap) and tomli
+(absent in Ubuntu 20.04).
+
+If you need to update these, please do so by modifying and rerunning
+``python/scripts/vendor.py``.  This script embeds the sha256 hash of
+package sources and checks it.  The pypi.org web site provides an easy
+way to retrieve the sha256 hash of the sources.
+
 
 Stage 2: Meson
 ==============
@@ -376,6 +444,15 @@ This is needed to obey the --python= option passed to the configure
 script, which may point to something other than the first python3
 binary on the path.
 
+By the time Meson runs, Python dependencies are available in the virtual
+environment and should be invoked through the scripts that ``configure``
+places under ``pyvenv``.  One way to do so is as follows, using Meson's
+``find_program`` function::
+
+  sphinx_build = find_program(
+       fs.parent(python.full_path()) / 'sphinx-build',
+       required: get_option('docs'))
+
 
 Stage 3: Make
 =============
@@ -433,6 +510,11 @@ number of dynamically created files listed later.
   Meson build system, and it coordinates the configuration and build of all
   executables.  Build rules for various subdirectories are included in
   other meson.build files spread throughout the QEMU source tree.
+
+``python/scripts/mkvenv.py``
+  A wrapper for the Python ``venv`` and ``distlib.scripts`` packages.
+  It handles creating the virtual environment, creating scripts in
+  ``pyvenv/bin``, and calling ``pip`` to install dependencies.
 
 ``tests/Makefile.include``
   Rules for external test harnesses. These include the TCG tests

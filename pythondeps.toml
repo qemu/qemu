@@ -10,7 +10,8 @@
 # - accepted: accepted versions when using a system package
 # - installed: fixed version to install in the virtual environment
 #              if a system package is not found; if not specified,
-#              the minimum and maximum
+#              defaults to the same as "accepted" or, if also missing,
+#              to the newest version available on PyPI.
 # - canary: if specified, use this program name to present more
 #           precise error diagnostics to the user.  For example,
 #           'sphinx-build' can be used as a bellwether for the
@@ -18,7 +19,7 @@
 
 [meson]
 # The install key should match the version in python/wheels/
-meson = { accepted = ">=0.63.0", installed = "0.63.3", canary = "meson" }
+meson = { accepted = ">=0.63.0", installed = "1.2.3", canary = "meson" }
 
 [docs]
 sphinx = { accepted = ">=1.6", installed = "5.3.0", canary = "sphinx-build" }
