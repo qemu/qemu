@@ -12,7 +12,7 @@
  *     https://www.xilinx.com/support/documentation/architecture-manuals/am011-versal-acap-trm.pdf
  *
  * [2] Versal ACAP Register Reference,
- *     https://www.xilinx.com/htmldocs/registers/am012/am012-versal-register-reference.html
+ *     https://docs.xilinx.com/r/en-US/am012-versal-register-reference/CFU_CSR-Module
  */
 #ifndef HW_MISC_XLNX_VERSAL_CFU_APB_H
 #define HW_MISC_XLNX_VERSAL_CFU_APB_H

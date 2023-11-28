@@ -434,6 +434,52 @@ static bool tx_ready_check(XlnxZynqMPCANState *s)
     return true;
 }
 
+static void read_tx_frame(XlnxZynqMPCANState *s, Fifo32 *fifo, uint32_t *data)
+{
+    unsigned used = fifo32_num_used(fifo);
+    bool is_txhpb = fifo == &s->txhpb_fifo;
+
+    assert(used > 0);
+    used %= CAN_FRAME_SIZE;
+
+    /*
+     * Frame Message Format
+     *
+     * Each frame includes four words (16 bytes). Software must read and write
+     * all four words regardless of the actual number of data bytes and valid
+     * fields in the message.
+     * If software misbehave (not writing all four words), we use the previous
+     * registers content to initialize each missing word.
+     *
+     * If used is 1 then ID, DLC and DATA1 are missing.
+     * if used is 2 then ID and DLC are missing.
+     * if used is 3 then only ID is missing.
+     */
+     if (used > 0) {
+        data[0] = s->regs[is_txhpb ? R_TXHPB_ID : R_TXFIFO_ID];
+    } else {
+        data[0] = fifo32_pop(fifo);
+    }
+    if (used == 1 || used == 2) {
+        data[1] = s->regs[is_txhpb ? R_TXHPB_DLC : R_TXFIFO_DLC];
+    } else {
+        data[1] = fifo32_pop(fifo);
+    }
+    if (used == 1) {
+        data[2] = s->regs[is_txhpb ? R_TXHPB_DATA1 : R_TXFIFO_DATA1];
+    } else {
+        data[2] = fifo32_pop(fifo);
+    }
+    /* DATA2 triggered the transfer thus is always available */
+    data[3] = fifo32_pop(fifo);
+
+    if (used) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Incomplete CAN frame (only %u/%u slots used)\n",
+                      TYPE_XLNX_ZYNQMP_CAN, used, CAN_FRAME_SIZE);
+    }
+}
+
 static void transfer_fifo(XlnxZynqMPCANState *s, Fifo32 *fifo)
 {
     qemu_can_frame frame;
@@ -451,9 +497,7 @@ static void transfer_fifo(XlnxZynqMPCANState *s, Fifo32 *fifo)
     }
 
     while (!fifo32_is_empty(fifo)) {
-        for (i = 0; i < CAN_FRAME_SIZE; i++) {
-            data[i] = fifo32_pop(fifo);
-        }
+        read_tx_frame(s, fifo, data);
 
         if (ARRAY_FIELD_EX32(s->regs, STATUS_REGISTER, LBACK)) {
             /*
@@ -734,14 +778,18 @@ static void update_rx_fifo(XlnxZynqMPCANState *s, const qemu_can_frame *frame)
     }
 }
 
-static uint64_t can_rxfifo_pre_read(RegisterInfo *reg, uint64_t val)
+static uint64_t can_rxfifo_post_read_id(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqMPCANState *s = XLNX_ZYNQMP_CAN(reg->opaque);
+    unsigned used = fifo32_num_used(&s->rx_fifo);
 
-    if (!fifo32_is_empty(&s->rx_fifo)) {
-        val = fifo32_pop(&s->rx_fifo);
-    } else {
+    if (used < CAN_FRAME_SIZE) {
         ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, RXUFLW, 1);
+    } else {
+        val = s->regs[R_RXFIFO_ID] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DLC] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DATA1] = fifo32_pop(&s->rx_fifo);
+        s->regs[R_RXFIFO_DATA2] = fifo32_pop(&s->rx_fifo);
     }
 
     can_update_irq(s);
@@ -902,14 +950,11 @@ static const RegisterAccessInfo can_regs_info[] = {
         .post_write = can_tx_post_write,
     },{ .name = "RXFIFO_ID",  .addr = A_RXFIFO_ID,
         .ro = 0xffffffff,
-        .post_read = can_rxfifo_pre_read,
+        .post_read = can_rxfifo_post_read_id,
     },{ .name = "RXFIFO_DLC",  .addr = A_RXFIFO_DLC,
         .rsvd = 0xfff0000,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "RXFIFO_DATA1",  .addr = A_RXFIFO_DATA1,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "RXFIFO_DATA2",  .addr = A_RXFIFO_DATA2,
-        .post_read = can_rxfifo_pre_read,
     },{ .name = "AFR",  .addr = A_AFR,
         .rsvd = 0xfffffff0,
         .post_write = can_filter_enable_post_write,

@@ -34,7 +34,7 @@
  *     https://www.xilinx.com/support/documentation/architecture-manuals/am011-versal-acap-trm.pdf
  *
  * [2] Versal ACAP Register Reference,
- *     https://www.xilinx.com/html_docs/registers/am012/am012-versal-register-reference.html#mod___ospi.html
+ *     https://docs.xilinx.com/r/en-US/am012-versal-register-reference/OSPI-Module
  *
  *
  * QEMU interface:
