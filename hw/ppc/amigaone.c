@@ -36,9 +36,18 @@
  * -device VGA,romfile=VGABIOS-lgpl-latest.bin
  * from http://www.nongnu.org/vgabios/ instead.
  */
-#define PROM_FILENAME "u-boot-amigaone.bin"
 #define PROM_ADDR 0xfff00000
 #define PROM_SIZE (512 * KiB)
+
+/* AmigaOS calls this routine from ROM, use this if no firmware loaded */
+static const char dummy_fw[] = {
+    0x38, 0x00, 0x00, 0x08, /* li      r0,8 */
+    0x7c, 0x09, 0x03, 0xa6, /* mtctr   r0 */
+    0x54, 0x63, 0xf8, 0x7e, /* srwi    r3,r3,1 */
+    0x42, 0x00, 0xff, 0xfc, /* bdnz    0x8 */
+    0x7c, 0x63, 0x18, 0xf8, /* not     r3,r3 */
+    0x4e, 0x80, 0x00, 0x20, /* blr */
+};
 
 static void amigaone_cpu_reset(void *opaque)
 {
@@ -60,8 +69,6 @@ static void amigaone_init(MachineState *machine)
     PowerPCCPU *cpu;
     CPUPPCState *env;
     MemoryRegion *rom, *pci_mem, *mr;
-    const char *fwname = machine->firmware ?: PROM_FILENAME;
-    char *filename;
     ssize_t sz;
     PCIBus *pci_bus;
     Object *via;
@@ -94,20 +101,24 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* allocate and load firmware */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, fwname);
-    if (filename) {
-        rom = g_new(MemoryRegion, 1);
-        memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
-        memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
+    rom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
+    if (!machine->firmware) {
+        rom_add_blob_fixed("dummy-fw", dummy_fw, sizeof(dummy_fw),
+                           PROM_ADDR + PROM_SIZE - 0x80);
+    } else {
+        g_autofree char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                                   machine->firmware);
+        if (!filename) {
+            error_report("Could not find firmware '%s'", machine->firmware);
+            exit(1);
+        }
         sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE);
         if (sz <= 0 || sz > PROM_SIZE) {
             error_report("Could not load firmware '%s'", filename);
             exit(1);
         }
-        g_free(filename);
-    } else if (!qtest_enabled()) {
-        error_report("Could not find firmware '%s'", fwname);
-        exit(1);
     }
 
     /* Articia S */
