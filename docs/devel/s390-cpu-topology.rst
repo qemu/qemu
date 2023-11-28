@@ -15,7 +15,7 @@ have default values:
     -smp 1,drawers=3,books=3,sockets=2,cores=2,maxcpus=36 \
     -device z14-s390x-cpu,core-id=19,entitlement=high \
     -device z14-s390x-cpu,core-id=11,entitlement=low \
-    -device z14-s390x-cpu,core-id=112,entitlement=high \
+    -device z14-s390x-cpu,core-id=12,entitlement=high \
    ...
 
 Additions to query-cpus-fast
@@ -78,7 +78,7 @@ modifiers for all configured vCPUs.
       "dedicated": true,
       "thread-id": 537005,
       "props": {
-        "core-id": 112,
+        "core-id": 12,
         "socket-id": 0,
         "drawer-id": 3,
         "book-id": 2
@@ -86,7 +86,7 @@ modifiers for all configured vCPUs.
       "cpu-state": "operating",
       "entitlement": "high",
       "qom-path": "/machine/peripheral-anon/device[2]",
-      "cpu-index": 112,
+      "cpu-index": 12,
       "target": "s390x"
     }
   ]

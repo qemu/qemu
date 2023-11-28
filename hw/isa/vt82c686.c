@@ -549,6 +549,7 @@ struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa_irqs_in;
+    uint16_t irq_state[ISA_NUM_IRQS];
     ViaSuperIOState via_sio;
     MC146818RtcState rtc;
     PCIIDEState ide;
@@ -592,15 +593,9 @@ static const TypeInfo via_isa_info = {
     },
 };
 
-static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
+static int via_isa_get_pci_irq(const ViaISAState *s, int pin)
 {
-    ViaISAState *s = opaque;
-    qemu_set_irq(s->cpu_intr, level);
-}
-
-static int via_isa_get_pci_irq(const ViaISAState *s, int irq_num)
-{
-    switch (irq_num) {
+    switch (pin) {
     case 0:
         return s->dev.config[0x55] >> 4;
     case 1:
@@ -613,29 +608,60 @@ static int via_isa_get_pci_irq(const ViaISAState *s, int irq_num)
     return 0;
 }
 
-static void via_isa_set_pci_irq(void *opaque, int irq_num, int level)
+void via_isa_set_irq(PCIDevice *d, int pin, int level)
 {
-    ViaISAState *s = opaque;
-    PCIBus *bus = pci_get_bus(&s->dev);
-    int i, pic_level, pic_irq = via_isa_get_pci_irq(s, irq_num);
+    ViaISAState *s = VIA_ISA(pci_get_function_0(d));
+    uint8_t irq = d->config[PCI_INTERRUPT_LINE], max_irq = 15;
+    int f = PCI_FUNC(d->devfn);
+    uint16_t mask = BIT(f);
 
-    /* IRQ 0: disabled, IRQ 2,8,13: reserved */
-    if (!pic_irq) {
+    switch (f) {
+    case 0: /* PIRQ/PINT inputs */
+        irq = via_isa_get_pci_irq(s, pin);
+        f = 8 + pin; /* Use function 8-11 for PCI interrupt inputs */
+        break;
+    case 2: /* USB ports 0-1 */
+    case 3: /* USB ports 2-3 */
+    case 5: /* AC97 audio */
+        max_irq = 14;
+        break;
+    }
+
+    /* Keep track of the state of all sources */
+    if (level) {
+        s->irq_state[0] |= mask;
+    } else {
+        s->irq_state[0] &= ~mask;
+    }
+    if (irq == 0 || irq == 0xff) {
+        return; /* disabled */
+    }
+    if (unlikely(irq > max_irq || irq == 2)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid ISA IRQ routing %d for %d",
+                      irq, f);
         return;
     }
-    if (unlikely(pic_irq == 2 || pic_irq == 8 || pic_irq == 13)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "Invalid ISA IRQ routing");
+    /* Record source state at mapped IRQ */
+    if (level) {
+        s->irq_state[irq] |= mask;
+    } else {
+        s->irq_state[irq] &= ~mask;
     }
+    /* Make sure there are no stuck bits if mapping has changed */
+    s->irq_state[irq] &= s->irq_state[0];
+    /* ISA IRQ level is the OR of all sources routed to it */
+    qemu_set_irq(s->isa_irqs_in[irq], !!s->irq_state[irq]);
+}
 
-    /* The pic level is the logical OR of all the PCI irqs mapped to it. */
-    pic_level = 0;
-    for (i = 0; i < PCI_NUM_PINS; i++) {
-        if (pic_irq == via_isa_get_pci_irq(s, i)) {
-            pic_level |= pci_bus_get_irq_level(bus, i);
-        }
-    }
-    /* Now we change the pic irq level according to the via irq mappings. */
-    qemu_set_irq(s->isa_irqs_in[pic_irq], pic_level);
+static void via_isa_pirq(void *opaque, int pin, int level)
+{
+    via_isa_set_irq(opaque, pin, level);
+}
+
+static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
+{
+    ViaISAState *s = opaque;
+    qemu_set_irq(s->cpu_intr, level);
 }
 
 static void via_isa_realize(PCIDevice *d, Error **errp)
@@ -648,6 +674,7 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     int i;
 
     qdev_init_gpio_out(dev, &s->cpu_intr, 1);
+    qdev_init_gpio_in_named(dev, via_isa_pirq, "pirq", PCI_NUM_PINS);
     isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     isa_bus = isa_bus_new(dev, pci_address_space(d), pci_address_space_io(d),
                           errp);
@@ -660,8 +687,6 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     isa_bus_register_input_irqs(isa_bus, s->isa_irqs_in);
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(isa_bus, 0);
-
-    qdev_init_gpio_in_named(dev, via_isa_set_pci_irq, "pirq", PCI_NUM_PINS);
 
     /* RTC */
     qdev_prop_set_int32(DEVICE(&s->rtc), "base_year", 2000);
