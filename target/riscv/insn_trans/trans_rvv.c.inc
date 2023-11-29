@@ -3631,13 +3631,14 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
 }
 
 /*
- * Whole Vector Register Move Instructions ignore vtype and vl setting.
- * Thus, we don't need to check vill bit. (Section 16.6)
+ * Whole Vector Register Move Instructions depend on vtype register(vsew).
+ * Thus, we need to check vill bit. (Section 16.6)
  */
 #define GEN_VMV_WHOLE_TRANS(NAME, LEN)                             \
 static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
 {                                                                       \
     if (require_rvv(s) &&                                               \
+        vext_check_isa_ill(s) &&                                        \
         QEMU_IS_ALIGNED(a->rd, LEN) &&                                  \
         QEMU_IS_ALIGNED(a->rs2, LEN)) {                                 \
         uint32_t maxsz = (s->cfg_ptr->vlen >> 3) * LEN;                 \
