@@ -119,6 +119,8 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=5)
 
+    # See https://gitlab.com/qemu-project/qemu/-/issues/2013
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_mips64el_malta(self):
         """
         This test requires the ar tool to extract "data.tar.gz" from
@@ -134,6 +136,7 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         :avocado: tags=arch:mips64el
         :avocado: tags=machine:malta
+        :avocado: tags=flaky
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20130217T032700Z/pool/main/l/linux-2.6/'
