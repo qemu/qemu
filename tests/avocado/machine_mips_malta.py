@@ -128,8 +128,9 @@ class MaltaMachineFramebuffer(QemuSystemTest):
 class MaltaMachine(QemuSystemTest):
 
     def do_test_yamon(self):
-        rom_url = ('http://www.imgtec.com/tools/mips-tools/downloads/'
-                   'yamon/yamon-bin-02.22.zip')
+        rom_url = ('https://s3-eu-west-1.amazonaws.com/'
+                   'downloads-mips/mips-downloads/'
+                   'YAMON/yamon-bin-02.22.zip')
         rom_hash = '8da7ecddbc5312704b8b324341ee238189bde480'
         zip_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
 
