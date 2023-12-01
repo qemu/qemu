@@ -317,6 +317,7 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:ast2500-evb
+        :avocado: tags=flaky
         """
 
         image_url = ('https://github.com/AspeedTech-BMC/openbmc/releases/'
@@ -336,6 +337,7 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:ast2600-evb
+        :avocado: tags=flaky
         """
 
         image_url = ('https://github.com/AspeedTech-BMC/openbmc/releases/'

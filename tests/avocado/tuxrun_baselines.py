@@ -561,6 +561,7 @@ class TuxRunBaselineTest(QemuSystemTest):
         :avocado: tags=image:zImage
         :avocado: tags=root:sda
         :avocado: tags=console:ttySC1
+        :avocado: tags=flaky
         """
         sums = { "rootfs.ext4.zst" :
                  "3592a7a3d5a641e8b9821449e77bc43c9904a56c30d45da0694349cfd86743fd",

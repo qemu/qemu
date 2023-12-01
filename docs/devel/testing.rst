@@ -1387,16 +1387,17 @@ the code snippet below:
   def test(self):
       do_something()
 
-Tests should not live in this state forever and should either be fixed
-or eventually removed.
-
-To run such tests locally you will need to set the environment
-variable. For example:
+You can also add ``:avocado: tags=flaky`` to the test meta-data so
+only the flaky tests can be run as a group:
 
 .. code::
 
-   env QEMU_TEST_FLAKY_TESTS=1 ./pyvenv/bin/avocado run \
-      tests/avocado/boot_linux.py:BootLinuxPPC64.test_pseries_tcg
+   env QEMU_TEST_FLAKY_TESTS=1 ./pyvenv/bin/avocado \
+      run tests/avocado -filter-by-tags=flaky
+
+Tests should not live in this state forever and should either be fixed
+or eventually removed.
+
 
 Uninstalling Avocado
 ~~~~~~~~~~~~~~~~~~~~

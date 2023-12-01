@@ -22,6 +22,7 @@ class IntelIOMMU(LinuxTest):
     :avocado: tags=machine:q35
     :avocado: tags=accel:kvm
     :avocado: tags=intel_iommu
+    :avocado: tags=flaky
     """
 
     IOMMU_ADDON = ',iommu_platform=on,disable-modern=off,disable-legacy=on'

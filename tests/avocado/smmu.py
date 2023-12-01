@@ -22,6 +22,7 @@ class SMMU(LinuxTest):
     :avocado: tags=machine:virt
     :avocado: tags=distro:fedora
     :avocado: tags=smmu
+    :avocado: tags=flaky
     """
 
     IOMMU_ADDON = ',iommu_platform=on,disable-modern=off,disable-legacy=on'

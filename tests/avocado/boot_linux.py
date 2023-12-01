@@ -99,6 +99,7 @@ class BootLinuxPPC64(LinuxTest):
         """
         :avocado: tags=machine:pseries
         :avocado: tags=accel:tcg
+        :avocado: tags=flaky
         """
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
@@ -118,6 +119,7 @@ class BootLinuxS390X(LinuxTest):
         """
         :avocado: tags=machine:s390-ccw-virtio
         :avocado: tags=accel:tcg
+        :avocado: tags=flaky
         """
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")

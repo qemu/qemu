@@ -167,6 +167,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
         :avocado: tags=device:virtio-gpu
         :avocado: tags=device:virtio-crypto
         :avocado: tags=device:virtio-net
+        :avocado: tags=flaky
         """
 
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'

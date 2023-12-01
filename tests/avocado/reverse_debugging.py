@@ -255,6 +255,7 @@ class ReverseDebugging_ppc64(ReverseDebugging):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:pseries
+        :avocado: tags=flaky
         """
         # SLOF branches back to its entry point, which causes this test
         # to take the 'hit a breakpoint again' path. That's not a problem,
@@ -269,6 +270,7 @@ class ReverseDebugging_ppc64(ReverseDebugging):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:powernv
+        :avocado: tags=flaky
         """
         self.endian_is_le = False
         self.reverse_debugging()

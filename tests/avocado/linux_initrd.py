@@ -57,6 +57,8 @@ class LinuxInitrd(QemuSystemTest):
 
     def test_with_2gib_file_should_work_with_linux_v4_16(self):
         """
+        :avocado: tags=flaky
+
         QEMU has supported up to 4 GiB initrd for recent kernel
         Expect guest can reach 'Unpacking initramfs...'
         """

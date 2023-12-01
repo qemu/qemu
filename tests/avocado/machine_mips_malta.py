@@ -109,6 +109,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         :avocado: tags=machine:malta
         :avocado: tags=cpu:I6400
         :avocado: tags=mips:smp
+        :avocado: tags=flaky
         """
         self.do_test_i6400_framebuffer_logo(7)
 
@@ -120,6 +121,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         :avocado: tags=machine:malta
         :avocado: tags=cpu:I6400
         :avocado: tags=mips:smp
+        :avocado: tags=flaky
         """
         self.do_test_i6400_framebuffer_logo(8)
 
