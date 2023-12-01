@@ -10,7 +10,7 @@
 import os
 import logging
 
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import BUILD_DIR
 from avocado.utils import datadrainer
 from avocado.utils import gdb
@@ -206,7 +206,8 @@ class ReverseDebugging_X86_64(ReverseDebugging):
             + self.get_reg_le(g, self.REG_CS) * 0x10
 
     # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
@@ -223,7 +224,8 @@ class ReverseDebugging_AArch64(ReverseDebugging):
     REG_PC = 32
 
     # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_aarch64_virt(self):
         """
         :avocado: tags=arch:aarch64
@@ -247,7 +249,8 @@ class ReverseDebugging_ppc64(ReverseDebugging):
     REG_PC = 0x40
 
     # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_ppc64_pseries(self):
         """
         :avocado: tags=arch:ppc64
@@ -260,7 +263,8 @@ class ReverseDebugging_ppc64(ReverseDebugging):
         self.reverse_debugging()
 
     # See https://gitlab.com/qemu-project/qemu/-/issues/1992
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_ppc64_powernv(self):
         """
         :avocado: tags=arch:ppc64

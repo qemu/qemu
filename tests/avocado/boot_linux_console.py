@@ -15,7 +15,7 @@ import shutil
 
 from avocado import skip
 from avocado import skipUnless
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import QemuSystemTest
 from avocado_qemu import exec_command
 from avocado_qemu import exec_command_and_wait_for_pattern
@@ -1419,7 +1419,8 @@ class BootLinuxConsole(LinuxKernelTest):
     # This test has a 6-10% failure rate on various hosts that look
     # like issues with a buggy kernel. As a result we don't want it
     # gating releases on Gitlab.
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_sh4_r2d(self):
         """
         :avocado: tags=arch:sh4

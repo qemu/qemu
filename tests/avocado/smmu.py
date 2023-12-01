@@ -9,10 +9,11 @@
 # later.  See the COPYING file in the top-level directory.
 import os
 
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import LinuxTest, BUILD_DIR
 
-@skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+@skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
 class SMMU(LinuxTest):
     """
     :avocado: tags=accel:kvm

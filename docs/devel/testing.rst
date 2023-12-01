@@ -1371,23 +1371,32 @@ conditions. For example, tests that take longer to execute when QEMU is
 compiled with debug flags. Therefore, the ``AVOCADO_TIMEOUT_EXPECTED`` variable
 has been used to determine whether those tests should run or not.
 
-GITLAB_CI
-^^^^^^^^^
-A number of tests are flagged to not run on the GitLab CI. Usually because
-they proved to the flaky or there are constraints on the CI environment which
-would make them fail. If you encounter a similar situation then use that
-variable as shown on the code snippet below to skip the test:
-
-.. code::
-
-  @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
-  def test(self):
-      do_something()
-
 QEMU_TEST_FLAKY_TESTS
 ^^^^^^^^^^^^^^^^^^^^^
 Some tests are not working reliably and thus are disabled by default.
-Set this environment variable to enable them.
+This includes tests that don't run reliably on GitLab's CI which
+usually expose real issues that are rarely seen on developer machines
+due to the constraints of the CI environment. If you encounter a
+similar situation then raise a bug and then mark the test as shown on
+the code snippet below:
+
+.. code::
+
+  # See https://gitlab.com/qemu-project/qemu/-/issues/nnnn
+  @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+  def test(self):
+      do_something()
+
+Tests should not live in this state forever and should either be fixed
+or eventually removed.
+
+To run such tests locally you will need to set the environment
+variable. For example:
+
+.. code::
+
+   env QEMU_TEST_FLAKY_TESTS=1 ./pyvenv/bin/avocado run \
+      tests/avocado/boot_linux.py:BootLinuxPPC64.test_pseries_tcg
 
 Uninstalling Avocado
 ~~~~~~~~~~~~~~~~~~~~
