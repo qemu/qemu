@@ -20,6 +20,10 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     """
     :avocado: tags=arch:aarch64
     :avocado: tags=machine:sbsa-ref
+    :avocado: tags=accel:tcg
+
+    As firmware runs at a higher privilege level than the hypervisor we
+    can only run these tests under TCG emulation.
     """
 
     timeout = 180
