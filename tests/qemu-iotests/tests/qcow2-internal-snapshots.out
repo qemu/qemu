@@ -1,0 +1,107 @@
+QA output created by qcow2-internal-snapshots
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+
+=== Write some data, take a snapshot and overwrite part of it ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io disk0 "write -P0x11 0 1M"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) savevm snap0
+(qemu) qemu-io disk0 "write -P0x22 0 512k"
+wrote 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+
+Snapshot list:
+ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+No errors were found on the image.
+
+=== Verify that loading the snapshot reverts to the old content ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io disk0 "read -P0x11 0 1M"
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "write -P0x33 512k 512k"
+wrote 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) loadvm snap0
+(qemu) qemu-io disk0 "read -P0x11 0 1M"
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "write -P0x33 63k 2k"
+wrote 2048/2048 bytes at offset 64512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "read -P0x11 0 63k"
+read 64512/64512 bytes at offset 0
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "read -P0x33 63k 2k"
+read 2048/2048 bytes at offset 64512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "read -P0x11 65k 63k"
+read 64512/64512 bytes at offset 66560
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) savevm snap1
+(qemu) quit
+
+Snapshot list:
+ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+2         snap1                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+No errors were found on the image.
+
+=== qemu-img snapshot can revert to snapshots ===
+
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 64512/64512 bytes at offset 0
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2048/2048 bytes at offset 64512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 64512/64512 bytes at offset 66560
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Deleting snapshots ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) delvm snap1
+(qemu) qemu-io disk0 "read -P0x11 0 63k"
+read 64512/64512 bytes at offset 0
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "read -P0x33 63k 2k"
+read 2048/2048 bytes at offset 64512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) qemu-io disk0 "read -P0x11 65k 63k"
+read 64512/64512 bytes at offset 66560
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+
+Snapshot list:
+ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+No errors were found on the image.
+
+=== Error cases ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: Snapshot 'snap1' does not exist in one or more devices
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) loadvm snap1
+Error: Snapshot 'snap1' does not exist in one or more devices
+(qemu) quit
+
+QEMU_PROG: 'incoming' and 'loadvm' options are mutually exclusive
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) loadvm snap0
+Error: Device 'disk0' is writable but does not support snapshots
+(qemu) delvm snap0
+Error: Device 'disk0' is writable but does not support snapshots
+(qemu) savevm snap1
+Error: Device 'disk0' is writable but does not support snapshots
+(qemu) quit
+
+QEMU_PROG: 'preconfig' and 'loadvm' options are mutually exclusive
+*** done

@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test case for internal snapshots in qcow2
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto generic
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'compat=0.10' 'refcount_bits=1[^0-9]' data_file
+
+IMG_SIZE=64M
+
+_qemu()
+{
+    $QEMU -no-shutdown -nographic -monitor stdio -serial none \
+          -blockdev file,filename="$TEST_IMG",node-name=disk0-file \
+          -blockdev "$IMGFMT",file=disk0-file,node-name=disk0 \
+          -object iothread,id=iothread0 \
+          -device virtio-scsi,iothread=iothread0 \
+          -device scsi-hd,drive=disk0,share-rw=on \
+          "$@" 2>&1 |\
+    _filter_qemu | _filter_hmp | _filter_qemu_io
+}
+
+_make_test_img $IMG_SIZE
+
+echo
+echo "=== Write some data, take a snapshot and overwrite part of it ==="
+echo
+
+{
+    echo 'qemu-io disk0 "write -P0x11 0 1M"'
+    # Give qemu some time to boot before saving the VM state
+    sleep 0.5
+    echo "savevm snap0"
+    echo 'qemu-io disk0 "write -P0x22 0 512k"'
+    echo "quit"
+} | _qemu
+
+echo
+$QEMU_IMG snapshot -l "$TEST_IMG" | _filter_date | _filter_vmstate_size
+_check_test_img
+
+echo
+echo "=== Verify that loading the snapshot reverts to the old content ==="
+echo
+
+{
+    # -loadvm reverted the write from the previous QEMU instance
+    echo 'qemu-io disk0 "read -P0x11 0 1M"'
+
+    # Verify that it works without restarting QEMU, too
+    echo 'qemu-io disk0 "write -P0x33 512k 512k"'
+    echo "loadvm snap0"
+    echo 'qemu-io disk0 "read -P0x11 0 1M"'
+
+    # Verify COW by writing a partial cluster
+    echo 'qemu-io disk0 "write -P0x33 63k 2k"'
+    echo 'qemu-io disk0 "read -P0x11 0 63k"'
+    echo 'qemu-io disk0 "read -P0x33 63k 2k"'
+    echo 'qemu-io disk0 "read -P0x11 65k 63k"'
+
+    # Take a second snapshot
+    echo "savevm snap1"
+
+    echo "quit"
+} | _qemu -loadvm snap0
+
+echo
+$QEMU_IMG snapshot -l "$TEST_IMG" | _filter_date | _filter_vmstate_size
+_check_test_img
+
+echo
+echo "=== qemu-img snapshot can revert to snapshots ==="
+echo
+
+$QEMU_IMG snapshot -a snap0 "$TEST_IMG"
+$QEMU_IO -c "read -P0x11 0 1M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a snap1 "$TEST_IMG"
+$QEMU_IO \
+    -c "read -P0x11 0 63k" \
+    -c "read -P0x33 63k 2k" \
+    -c "read -P0x11 65k 63k" \
+    "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Deleting snapshots ==="
+echo
+{
+    # The active layer stays unaffected by deleting the snapshot
+    echo "delvm snap1"
+    echo 'qemu-io disk0 "read -P0x11 0 63k"'
+    echo 'qemu-io disk0 "read -P0x33 63k 2k"'
+    echo 'qemu-io disk0 "read -P0x11 65k 63k"'
+
+    echo "quit"
+} | _qemu
+
+
+echo
+$QEMU_IMG snapshot -l "$TEST_IMG" | _filter_date | _filter_vmstate_size
+_check_test_img
+
+echo
+echo "=== Error cases ==="
+echo
+
+# snap1 should not exist any more
+_qemu -loadvm snap1
+
+echo
+{
+    echo "loadvm snap1"
+    echo "quit"
+} | _qemu
+
+# Snapshot operations and inactive images are incompatible
+echo
+_qemu -loadvm snap0 -incoming defer
+{
+    echo "loadvm snap0"
+    echo "delvm snap0"
+    echo "savevm snap1"
+    echo "quit"
+} | _qemu -incoming defer
+
+# -loadvm and -preconfig are incompatible
+echo
+_qemu -loadvm snap0 -preconfig
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
