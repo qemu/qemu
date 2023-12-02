@@ -24,7 +24,6 @@
 #include "exec/tswap.h"
 #include "qemu/thread.h"
 #include "hw/core/cpu.h"
-#include "qemu/rcu.h"
 
 /* some important defines:
  *
