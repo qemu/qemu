@@ -159,15 +159,18 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
     case TIM_CR1:
         return s->tim_cr1;
     case TIM_CR2:
-        return s->tim_cr2;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: CR2 not supported");
+        return 0;
     case TIM_SMCR:
-        return s->tim_smcr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: SMCR not supported");
+        return 0;
     case TIM_DIER:
         return s->tim_dier;
     case TIM_SR:
         return s->tim_sr;
     case TIM_EGR:
-        return s->tim_egr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: EGR write only");
+        return 0;
     case TIM_CCMR1:
         return s->tim_ccmr1;
     case TIM_CCMR2:
@@ -175,8 +178,7 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
     case TIM_CCER:
         return s->tim_ccer;
     case TIM_CNT:
-        return stm32f2xx_ns_to_ticks(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) -
-               s->tick_offset;
+        return stm32f2xx_timer_get_count(s);
     case TIM_PSC:
         return s->tim_psc;
     case TIM_ARR:
@@ -190,16 +192,17 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
     case TIM_CCR4:
         return s->tim_ccr4;
     case TIM_DCR:
-        return s->tim_dcr;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: DCR not supported");
+        return 0;
     case TIM_DMAR:
-        return s->tim_dmar;
+        qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: CR2 not supported");
+        return 0;
     case TIM_OR:
         return s->tim_or;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, offset);
     }
-
     return 0;
 }
 
