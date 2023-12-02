@@ -59,6 +59,16 @@ static uint32_t stm32f2xx_timer_get_count(STM32F2XXTimerState *s)
 }
 
 
+static void stm32f2xx_timer_set_count(STM32F2XXTimerState *s, uint32_t cnt)
+{
+    if (s->count_mode == TIMER_UP_COUNT) {
+        ptimer_set_count(s->timer, s->tim_arr - (cnt & 0xffff));
+    } else {
+        ptimer_set_count(s->timer, cnt & 0xffff);
+    }
+}
+
+
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
     STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
