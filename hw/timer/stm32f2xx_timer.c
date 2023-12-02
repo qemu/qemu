@@ -348,10 +348,10 @@ static const MemoryRegionOps stm32f2xx_timer_ops = {
 
 static const VMStateDescription vmstate_stm32f2xx_timer = {
     .name = TYPE_STM32F2XX_TIMER,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_INT64(tick_offset, STM32F2XXTimerState),
+        VMSTATE_INT32(count_mode, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_cr1, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_cr2, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_smcr, STM32F2XXTimerState),
@@ -376,7 +376,7 @@ static const VMStateDescription vmstate_stm32f2xx_timer = {
 
 static Property stm32f2xx_timer_properties[] = {
     DEFINE_PROP_UINT64("clock-frequency", struct STM32F2XXTimerState,
-                       freq_hz, 1000000000),
+                       freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
