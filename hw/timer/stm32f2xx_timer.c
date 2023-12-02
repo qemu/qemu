@@ -206,6 +206,14 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
     return 0;
 }
 
+static void stm32f2xx_update_cr1(STM32F2XXTimerState *s, uint64_t value)
+{
+    s->tim_cr1 = value & 0x3FF;
+    ptimer_transaction_begin(s->timer);
+    stm32f2xx_timer_update(s);
+    ptimer_transaction_commit(s->timer);
+    DB_PRINT("write cr1 = %x\n", s->tim_cr1);
+}
 static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
                         uint64_t val64, unsigned size)
 {
