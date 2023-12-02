@@ -97,6 +97,34 @@ static void stm32f2xx_timer_update_uif(STM32F2XXTimerState *s, uint8_t value)
     qemu_set_irq(s->irq, value);
 }
 
+static void stm32f2xx_timer_tick(void *opaque)
+{
+    STM32F2XXTimerState *s = (STM32F2XXTimerState *)opaque;
+    DB_PRINT("Alarm raised\n");
+    stm32f2xx_timer_update_uif(s, 1);
+
+    if (s->count_mode == TIMER_UP_COUNT) {
+        stm32f2xx_timer_set_count(s, 0);
+    } else {
+        stm32f2xx_timer_set_count(s, s->tim_arr);
+    }
+
+    if (s->tim_cr1 & TIM_CR1_CMS) {
+        if (s->count_mode == TIMER_UP_COUNT) {
+            s->count_mode = TIMER_DOWN_COUNT;
+        } else {
+            s->count_mode = TIMER_UP_COUNT;
+        }
+    }
+
+    if (s->tim_cr1 & TIM_CR1_OPM) {
+        s->tim_cr1 &= ~TIM_CR1_CEN;
+    } else {
+        stm32f2xx_timer_update(s);
+    }
+}
+
+
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
     STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
