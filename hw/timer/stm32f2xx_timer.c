@@ -68,6 +68,28 @@ static void stm32f2xx_timer_set_count(STM32F2XXTimerState *s, uint32_t cnt)
     }
 }
 
+static void stm32f2xx_timer_update(STM32F2XXTimerState *s)
+{
+    if (s->tim_cr1 & TIM_CR1_DIR) {
+        s->count_mode = TIMER_DOWN_COUNT;
+    } else {
+        s->count_mode = TIMER_UP_COUNT;
+    }
+
+    if (s->tim_cr1 & TIM_CR1_CMS) {
+        s->count_mode = TIMER_UP_COUNT;
+    }
+
+    if (s->tim_cr1 & TIM_CR1_CEN) {
+        DB_PRINT("Enabling timer\n");
+        ptimer_set_freq(s->timer, s->freq_hz);
+        ptimer_run(s->timer, !(s->tim_cr1 & 0x04));
+    } else {
+        DB_PRINT("Disabling timer\n");
+        ptimer_stop(s->timer);
+    }
+}
+
 
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
