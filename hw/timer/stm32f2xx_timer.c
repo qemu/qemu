@@ -128,8 +128,6 @@ static void stm32f2xx_timer_tick(void *opaque)
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
     STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
     s->tim_cr1 = 0;
     s->tim_cr2 = 0;
     s->tim_smcr = 0;
@@ -148,8 +146,6 @@ static void stm32f2xx_timer_reset(DeviceState *dev)
     s->tim_dcr = 0;
     s->tim_dmar = 0;
     s->tim_or = 0;
-
-    s->tick_offset = stm32f2xx_ns_to_ticks(s, now);
 }
 
 static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
