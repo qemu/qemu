@@ -394,7 +394,11 @@ static void stm32f2xx_timer_init(Object *obj)
 static void stm32f2xx_timer_realize(DeviceState *dev, Error **errp)
 {
     STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32f2xx_timer_interrupt, s);
+    if (s->freq_hz == 0) {
+        error_setg(errp, "stm32f2xx_timer: Timer clock not defined");
+        return;
+    }
+    s->timer = ptimer_init(stm32f2xx_timer_tick, s, PTIMER_POLICY_LEGACY);
 }
 
 static void stm32f2xx_timer_class_init(ObjectClass *klass, void *data)
