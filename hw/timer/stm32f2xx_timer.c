@@ -233,6 +233,21 @@ static void stm32f2xx_update_psc(STM32F2XXTimerState *s, uint64_t value)
     ptimer_transaction_commit(s->timer);
     DB_PRINT("write psc = %x\n", s->tim_psc);
 }
+
+static void stm32f2xx_update_egr(STM32F2XXTimerState *s, uint64_t value)
+{
+    s->tim_egr = value & 0x1E;
+    if (value & TIM_EGR_TG) {
+        s->tim_sr |= TIM_EGR_TG;
+    }
+    if (value & TIM_EGR_UG) {
+        /* UG bit - reload */
+        ptimer_transaction_begin(s->timer);
+        ptimer_set_limit(s->timer, s->tim_arr, 1);
+        ptimer_transaction_commit(s->timer);
+    }
+    DB_PRINT("write EGR = %x\n", s->tim_egr);
+}
 static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
                         uint64_t val64, unsigned size)
 {
