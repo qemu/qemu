@@ -214,6 +214,16 @@ static void stm32f2xx_update_cr1(STM32F2XXTimerState *s, uint64_t value)
     ptimer_transaction_commit(s->timer);
     DB_PRINT("write cr1 = %x\n", s->tim_cr1);
 }
+
+static void stm32f2xx_update_sr(STM32F2XXTimerState *s, uint64_t value)
+{
+    s->tim_sr ^= (value ^ 0xFFFF);
+    s->tim_sr &= 0x1eFF;
+    ptimer_transaction_begin(s->timer);
+    stm32f2xx_timer_update_uif(s, s->tim_sr & 0x1);
+    ptimer_transaction_commit(s->timer);
+    DB_PRINT("write sr = %x\n", s->tim_sr);
+}
 static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
                         uint64_t val64, unsigned size)
 {
