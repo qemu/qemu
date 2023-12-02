@@ -65,6 +65,7 @@ source sparc/Kconfig
 source sparc64/Kconfig
 source tricore/Kconfig
 source xtensa/Kconfig
+source hexagon/Kconfig
 
 # Symbols used by multiple targets
 config TEST_DEVICES

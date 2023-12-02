@@ -229,12 +229,15 @@ Hexagon TCG CPUs
 M: Brian Cain <brian.cain@oss.qualcomm.com>
 S: Supported
 F: target/hexagon/
+F: hw/hexagon/
+F: include/hw/hexagon/
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
 F: tests/tcg/hexagon/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
+F: configs/devices/hexagon-softmmu/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdb-xml/hexagon*.xml
 F: docs/system/target-hexagon.rst

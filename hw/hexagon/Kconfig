@@ -1,0 +1,5 @@
+config HEX_DSP
+    bool
+    default y
+    depends on HEXAGON && TCG
+    imply PTIMER
