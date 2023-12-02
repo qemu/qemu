@@ -48,6 +48,16 @@
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
 
+static uint32_t stm32f2xx_timer_get_count(STM32F2XXTimerState *s)
+{
+    uint64_t cnt = ptimer_get_count(s->timer);
+    if (s->count_mode == TIMER_UP_COUNT) {
+        return s->tim_arr - (cnt & 0xffff);
+    } else {
+        return cnt & 0xffff;
+    }
+}
+
 
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
