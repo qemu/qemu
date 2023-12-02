@@ -256,6 +256,15 @@ static void stm32f2xx_update_cnt(STM32F2XXTimerState *s, uint64_t value)
     ptimer_transaction_commit(s->timer);
     DB_PRINT("write cnt = %x\n", stm32f2xx_timer_get_count(s));
 }
+
+static void stm32f2xx_update_arr(STM32F2XXTimerState *s, uint64_t value)
+{
+    s->tim_arr = value & 0xffff;
+    ptimer_transaction_begin(s->timer);
+    ptimer_set_limit(s->timer, s->tim_arr, 1);
+    ptimer_transaction_commit(s->timer);
+    DB_PRINT("write arr = %x\n", s->tim_arr);
+}
 static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
                         uint64_t val64, unsigned size)
 {
