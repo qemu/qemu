@@ -23,12 +23,17 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/stm32f2xx_timer.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/typedefs.h"
+#include "qemu/timer.h"
+#include "qemu/main-loop.h"
+#include "sysemu/dma.h"
 
 #ifndef STM_TIMER_ERR_DEBUG
 #define STM_TIMER_ERR_DEBUG 0
@@ -42,57 +47,7 @@
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now);
 
-static void stm32f2xx_timer_interrupt(void *opaque)
-{
-    STM32F2XXTimerState *s = opaque;
-
-    DB_PRINT("Interrupt\n");
-
-    if (s->tim_dier & TIM_DIER_UIE && s->tim_cr1 & TIM_CR1_CEN) {
-        s->tim_sr |= 1;
-        qemu_irq_pulse(s->irq);
-        stm32f2xx_timer_set_alarm(s, s->hit_time);
-    }
-
-    if (s->tim_ccmr1 & (TIM_CCMR1_OC2M2 | TIM_CCMR1_OC2M1) &&
-        !(s->tim_ccmr1 & TIM_CCMR1_OC2M0) &&
-        s->tim_ccmr1 & TIM_CCMR1_OC2PE &&
-        s->tim_ccer & TIM_CCER_CC2E) {
-        /* PWM 2 - Mode 1 */
-        DB_PRINT("PWM2 Duty Cycle: %d%%\n",
-                s->tim_ccr2 / (100 * (s->tim_psc + 1)));
-    }
-}
-
-static inline int64_t stm32f2xx_ns_to_ticks(STM32F2XXTimerState *s, int64_t t)
-{
-    return muldiv64(t, s->freq_hz, 1000000000ULL) / (s->tim_psc + 1);
-}
-
-static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now)
-{
-    uint64_t ticks;
-    int64_t now_ticks;
-
-    if (s->tim_arr == 0) {
-        return;
-    }
-
-    DB_PRINT("Alarm set at: 0x%x\n", s->tim_cr1);
-
-    now_ticks = stm32f2xx_ns_to_ticks(s, now);
-    ticks = s->tim_arr - (now_ticks - s->tick_offset);
-
-    DB_PRINT("Alarm set in %d ticks\n", (int) ticks);
-
-    s->hit_time = muldiv64((ticks + (uint64_t) now_ticks) * (s->tim_psc + 1),
-                               1000000000ULL, s->freq_hz);
-
-    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->hit_time);
-    DB_PRINT("Wait Time: %" PRId64 " ticks\n", s->hit_time);
-}
 
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
