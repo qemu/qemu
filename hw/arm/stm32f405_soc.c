@@ -183,7 +183,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     /* Timer 2 to 5 */
     for (i = 0; i < STM_NUM_TIMERS; i++) {
         dev = DEVICE(&(s->timer[i]));
-        qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
+        qdev_prop_set_uint64(dev, "clock-frequency", 48000000);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
             return;
         }
