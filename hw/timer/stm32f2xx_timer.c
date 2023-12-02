@@ -90,6 +90,12 @@ static void stm32f2xx_timer_update(STM32F2XXTimerState *s)
     }
 }
 
+static void stm32f2xx_timer_update_uif(STM32F2XXTimerState *s, uint8_t value)
+{
+    s->tim_sr &= ~TIM_SR1_UIF;
+    s->tim_sr |= (value & TIM_SR1_UIF);
+    qemu_set_irq(s->irq, value);
+}
 
 static void stm32f2xx_timer_reset(DeviceState *dev)
 {
