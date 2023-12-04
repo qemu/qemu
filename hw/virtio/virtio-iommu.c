@@ -698,9 +698,6 @@ static int virtio_iommu_probe(VirtIOIOMMU *s,
     }
 
     sdev = container_of(iommu_mr, IOMMUDevice, iommu_mr);
-    if (!sdev) {
-        return -EINVAL;
-    }
 
     count = virtio_iommu_fill_resv_mem_prop(sdev, ep_id, buf, free);
     if (count < 0) {

@@ -229,7 +229,6 @@ static int vu_gpio_connect(DeviceState *dev, Error **errp)
     if (gpio->connected) {
         return 0;
     }
-    gpio->connected = true;
 
     vhost_dev_set_config_notifier(vhost_dev, &gpio_ops);
     gpio->vhost_user.supports_config = true;
@@ -242,6 +241,8 @@ static int vu_gpio_connect(DeviceState *dev, Error **errp)
     if (ret < 0) {
         return ret;
     }
+
+    gpio->connected = true;
 
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {

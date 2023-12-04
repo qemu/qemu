@@ -2137,7 +2137,7 @@ void virtio_reset(void *opaque)
         vdev->device_endian = virtio_default_endian();
     }
 
-    if (vdev->vhost_started) {
+    if (vdev->vhost_started && k->get_vhost) {
         vhost_reset_device(k->get_vhost(vdev));
     }
 
