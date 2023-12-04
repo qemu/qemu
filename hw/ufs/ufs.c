@@ -1323,9 +1323,17 @@ static bool ufs_bus_check_address(BusState *qbus, DeviceState *qdev,
     return true;
 }
 
+static char *ufs_bus_get_dev_path(DeviceState *dev)
+{
+    BusState *bus = qdev_get_parent_bus(dev);
+
+    return qdev_get_dev_path(bus->parent);
+}
+
 static void ufs_bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
+    bc->get_dev_path = ufs_bus_get_dev_path;
     bc->check_address = ufs_bus_check_address;
 }
 
