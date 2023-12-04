@@ -13,7 +13,7 @@ import os
 import time
 import tempfile
 
-from avocado import skip, skipIf
+from avocado import skip, skipUnless
 from avocado_qemu import QemuSystemTest
 from avocado_qemu import exec_command, exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
@@ -551,7 +551,7 @@ class TuxRunBaselineTest(QemuSystemTest):
                            haltmsg="Requesting system halt")
 
     # Note: some segfaults caused by unaligned userspace access
-    @skipIf(os.getenv('GITLAB_CI'), 'Skipping unstable test on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_sh4(self):
         """
         :avocado: tags=arch:sh4
@@ -561,6 +561,7 @@ class TuxRunBaselineTest(QemuSystemTest):
         :avocado: tags=image:zImage
         :avocado: tags=root:sda
         :avocado: tags=console:ttySC1
+        :avocado: tags=flaky
         """
         sums = { "rootfs.ext4.zst" :
                  "3592a7a3d5a641e8b9821449e77bc43c9904a56c30d45da0694349cfd86743fd",

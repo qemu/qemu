@@ -9,10 +9,11 @@
 # later.  See the COPYING file in the top-level directory.
 import os
 
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import LinuxTest
 
-@skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+@skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
 class IntelIOMMU(LinuxTest):
     """
     :avocado: tags=arch:x86_64
@@ -21,6 +22,7 @@ class IntelIOMMU(LinuxTest):
     :avocado: tags=machine:q35
     :avocado: tags=accel:kvm
     :avocado: tags=intel_iommu
+    :avocado: tags=flaky
     """
 
     IOMMU_ADDON = ',iommu_platform=on,disable-modern=off,disable-legacy=on'

@@ -12,7 +12,7 @@ import os
 
 from avocado_qemu import LinuxTest, BUILD_DIR
 
-from avocado import skipIf
+from avocado import skipUnless
 
 
 class BootLinuxX8664(LinuxTest):
@@ -93,11 +93,13 @@ class BootLinuxPPC64(LinuxTest):
 
     timeout = 360
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_pseries_tcg(self):
         """
         :avocado: tags=machine:pseries
         :avocado: tags=accel:tcg
+        :avocado: tags=flaky
         """
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
@@ -111,11 +113,13 @@ class BootLinuxS390X(LinuxTest):
 
     timeout = 240
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_s390_ccw_virtio_tcg(self):
         """
         :avocado: tags=machine:s390-ccw-virtio
         :avocado: tags=accel:tcg
+        :avocado: tags=flaky
         """
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
