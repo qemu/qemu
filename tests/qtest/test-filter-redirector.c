@@ -118,6 +118,7 @@ static void test_redirector_tx(void)
     g_assert_cmpint(len, ==, sizeof(send_buf));
     recv_buf = g_malloc(len);
     ret = recv(recv_sock, recv_buf, len, 0);
+    g_assert_cmpint(ret, ==, len);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
     g_free(recv_buf);
@@ -185,6 +186,7 @@ static void test_redirector_rx(void)
     g_assert_cmpint(len, ==, sizeof(send_buf));
     recv_buf = g_malloc(len);
     ret = recv(backend_sock[0], recv_buf, len, 0);
+    g_assert_cmpint(ret, ==, len);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
     close(send_sock);

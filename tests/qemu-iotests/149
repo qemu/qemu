@@ -518,7 +518,7 @@ configs = [
 
 ]
 
-blacklist = [
+unsupported_configs = [
     # We don't have a cast-6 cipher impl for QEMU yet
     "cast6-256-xts-plain64-sha1",
     "cast6-128-xts-plain64-sha1",
@@ -528,17 +528,19 @@ blacklist = [
     "twofish-192-xts-plain64-sha1",
 ]
 
-whitelist = []
+# Optionally test only the configurations in the LUKS_CONFIG
+# environment variable
+tested_configs = None
 if "LUKS_CONFIG" in os.environ:
-    whitelist = os.environ["LUKS_CONFIG"].split(",")
+    tested_configs = os.environ["LUKS_CONFIG"].split(",")
 
 for config in configs:
-    if config.name in blacklist:
-        iotests.log("Skipping %s in blacklist" % config.name)
+    if config.name in unsupported_configs:
+        iotests.log("Skipping %s (config not supported)" % config.name)
         continue
 
-    if len(whitelist) > 0 and config.name not in whitelist:
-        iotests.log("Skipping %s not in whitelist" % config.name)
+    if tested_configs is not None and config.name not in tested_configs:
+        iotests.log("Skipping %s (by user request)" % config.name)
         continue
 
     test_once(config, qemu_img=False)
