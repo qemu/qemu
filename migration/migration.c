@@ -516,7 +516,7 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
                                           MigrationChannelList *channels,
                                           Error **errp)
 {
-    MigrationChannel *channel = NULL;
+    g_autoptr(MigrationChannel) channel = NULL;
     MigrationAddress *addr = NULL;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
@@ -534,18 +534,18 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
             error_setg(errp, "Channel list has more than one entries");
             return;
         }
-        channel = channels->value;
+        addr = channels->value->addr;
     } else if (uri) {
         /* caller uses the old URI syntax */
         if (!migrate_uri_parse(uri, &channel, errp)) {
             return;
         }
+        addr = channel->addr;
     } else {
         error_setg(errp, "neither 'uri' or 'channels' argument are "
                    "specified in 'migrate-incoming' qmp command ");
         return;
     }
-    addr = channel->addr;
 
     /* transport mechanism not suitable for migration? */
     if (!migration_channels_and_transport_compatible(addr, errp)) {
@@ -1933,7 +1933,7 @@ void qmp_migrate(const char *uri, bool has_channels,
     bool resume_requested;
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    MigrationChannel *channel = NULL;
+    g_autoptr(MigrationChannel) channel = NULL;
     MigrationAddress *addr = NULL;
 
     /*
@@ -1950,18 +1950,18 @@ void qmp_migrate(const char *uri, bool has_channels,
             error_setg(errp, "Channel list has more than one entries");
             return;
         }
-        channel = channels->value;
+        addr = channels->value->addr;
     } else if (uri) {
         /* caller uses the old URI syntax */
         if (!migrate_uri_parse(uri, &channel, errp)) {
             return;
         }
+        addr = channel->addr;
     } else {
         error_setg(errp, "neither 'uri' or 'channels' argument are "
                    "specified in 'migrate' qmp command ");
         return;
     }
-    addr = channel->addr;
 
     /* transport mechanism not suitable for migration? */
     if (!migration_channels_and_transport_compatible(addr, errp)) {
