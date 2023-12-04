@@ -69,6 +69,7 @@ static const VMStateDescription vmstate_virtio_snd_device = {
 
 static const VMStateDescription vmstate_virtio_snd = {
     .name = TYPE_VIRTIO_SND,
+    .unmigratable = 1,
     .minimum_version_id = VIRTIO_SOUND_VM_VERSION,
     .version_id = VIRTIO_SOUND_VM_VERSION,
     .fields = (VMStateField[]) {
