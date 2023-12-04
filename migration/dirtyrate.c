@@ -129,8 +129,7 @@ static DirtyPageRecord *vcpu_dirty_stat_alloc(VcpuStat *stat)
     return g_new0(DirtyPageRecord, nvcpu);
 }
 
-static void vcpu_dirty_stat_collect(VcpuStat *stat,
-                                    DirtyPageRecord *records,
+static void vcpu_dirty_stat_collect(DirtyPageRecord *records,
                                     bool start)
 {
     CPUState *cpu;
@@ -158,7 +157,7 @@ retry:
     WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
         gen_id = cpu_list_generation_id_get();
         records = vcpu_dirty_stat_alloc(stat);
-        vcpu_dirty_stat_collect(stat, records, true);
+        vcpu_dirty_stat_collect(records, true);
     }
 
     duration = dirty_stat_wait(calc_time_ms, init_time_ms);
@@ -172,7 +171,7 @@ retry:
             cpu_list_unlock();
             goto retry;
         }
-        vcpu_dirty_stat_collect(stat, records, false);
+        vcpu_dirty_stat_collect(records, false);
     }
 
     for (i = 0; i < stat->nvcpu; i++) {
