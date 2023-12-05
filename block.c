@@ -1708,12 +1708,12 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
 open_failed:
     bs->drv = NULL;
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     if (bs->file != NULL) {
         bdrv_unref_child(bs, bs->file);
         assert(!bs->file);
     }
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     g_free(bs->opaque);
     bs->opaque = NULL;
@@ -3575,9 +3575,9 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 
     bdrv_ref(drain_bs);
     bdrv_drained_begin(drain_bs);
-    bdrv_graph_wrlock(backing_hd);
+    bdrv_graph_wrlock();
     ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
-    bdrv_graph_wrunlock(backing_hd);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(drain_bs);
     bdrv_unref(drain_bs);
 
@@ -3790,13 +3790,13 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
     child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
                               errp);
     aio_context_release(ctx);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     return child;
 }
@@ -4650,9 +4650,9 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         aio_context_release(ctx);
     }
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     tran_commit(tran);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
         BlockDriverState *bs = bs_entry->state.bs;
@@ -4669,9 +4669,9 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     goto cleanup;
 
 abort:
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     tran_abort(tran);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (bs_entry->prepared) {
@@ -4852,12 +4852,12 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
     }
 
     bdrv_graph_rdunlock_main_loop();
-    bdrv_graph_wrlock(new_child_bs);
+    bdrv_graph_wrlock();
 
     ret = bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
                                           tran, errp);
 
-    bdrv_graph_wrunlock_ctx(ctx);
+    bdrv_graph_wrunlock();
 
     if (old_ctx != ctx) {
         aio_context_release(ctx);
@@ -5209,14 +5209,14 @@ static void bdrv_close(BlockDriverState *bs)
         bs->drv = NULL;
     }
 
-    bdrv_graph_wrlock(bs);
+    bdrv_graph_wrlock();
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_unref_child(bs, child);
     }
 
     assert(!bs->backing);
     assert(!bs->file);
-    bdrv_graph_wrunlock(bs);
+    bdrv_graph_wrunlock();
 
     g_free(bs->opaque);
     bs->opaque = NULL;
@@ -5509,9 +5509,9 @@ int bdrv_drop_filter(BlockDriverState *bs, Error **errp)
     bdrv_graph_rdunlock_main_loop();
 
     bdrv_drained_begin(child_bs);
-    bdrv_graph_wrlock(bs);
+    bdrv_graph_wrlock();
     ret = bdrv_replace_node_common(bs, child_bs, true, true, errp);
-    bdrv_graph_wrunlock(bs);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(child_bs);
 
     return ret;
@@ -5561,7 +5561,7 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     aio_context_acquire(old_context);
     new_context = NULL;
 
-    bdrv_graph_wrlock(bs_top);
+    bdrv_graph_wrlock();
 
     child = bdrv_attach_child_noperm(bs_new, bs_top, "backing",
                                      &child_of_bds, bdrv_backing_role(bs_new),
@@ -5593,7 +5593,7 @@ out:
     tran_finalize(tran, ret);
 
     bdrv_refresh_limits(bs_top, NULL, NULL);
-    bdrv_graph_wrunlock(bs_top);
+    bdrv_graph_wrunlock();
 
     bdrv_drained_end(bs_top);
     bdrv_drained_end(bs_new);
@@ -5620,7 +5620,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     bdrv_ref(old_bs);
     bdrv_drained_begin(old_bs);
     bdrv_drained_begin(new_bs);
-    bdrv_graph_wrlock(new_bs);
+    bdrv_graph_wrlock();
 
     bdrv_replace_child_tran(child, new_bs, tran);
 
@@ -5631,7 +5631,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
 
     tran_finalize(tran, ret);
 
-    bdrv_graph_wrunlock(new_bs);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(old_bs);
     bdrv_drained_end(new_bs);
     bdrv_unref(old_bs);
@@ -5718,9 +5718,9 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
     bdrv_ref(bs);
     bdrv_drained_begin(bs);
     bdrv_drained_begin(new_node_bs);
-    bdrv_graph_wrlock(new_node_bs);
+    bdrv_graph_wrlock();
     ret = bdrv_replace_node(bs, new_node_bs, errp);
-    bdrv_graph_wrunlock(new_node_bs);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(new_node_bs);
     bdrv_drained_end(bs);
     bdrv_unref(bs);
@@ -5975,7 +5975,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     bdrv_ref(top);
     bdrv_drained_begin(base);
-    bdrv_graph_wrlock(base);
+    bdrv_graph_wrlock();
 
     if (!top->drv || !base->drv) {
         goto exit_wrlock;
@@ -6015,7 +6015,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
      * That's a FIXME.
      */
     bdrv_replace_node_common(top, base, false, false, &local_err);
-    bdrv_graph_wrunlock(base);
+    bdrv_graph_wrunlock();
 
     if (local_err) {
         error_report_err(local_err);
@@ -6052,7 +6052,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     goto exit;
 
 exit_wrlock:
-    bdrv_graph_wrunlock(base);
+    bdrv_graph_wrunlock();
 exit:
     bdrv_drained_end(base);
     bdrv_unref(top);

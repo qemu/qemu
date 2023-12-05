@@ -560,7 +560,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
-        bdrv_graph_wrlock(bs);
+        bdrv_graph_wrlock();
 
         bdrv_ref(hidden_disk->bs);
         s->hidden_disk = bdrv_attach_child(bs, hidden_disk->bs, "hidden disk",
@@ -568,7 +568,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
                                            &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            bdrv_graph_wrunlock(bs);
+            bdrv_graph_wrunlock();
             aio_context_release(aio_context);
             return;
         }
@@ -579,7 +579,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
                                               BDRV_CHILD_DATA, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            bdrv_graph_wrunlock(bs);
+            bdrv_graph_wrunlock();
             aio_context_release(aio_context);
             return;
         }
@@ -592,7 +592,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         if (!top_bs || !bdrv_is_root_node(top_bs) ||
             !check_top_bs(top_bs, bs)) {
             error_setg(errp, "No top_bs or it is invalid");
-            bdrv_graph_wrunlock(bs);
+            bdrv_graph_wrunlock();
             reopen_backing_file(bs, false, NULL);
             aio_context_release(aio_context);
             return;
@@ -600,7 +600,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        bdrv_graph_wrunlock(bs);
+        bdrv_graph_wrunlock();
 
         s->backup_job = backup_job_create(
                                 NULL, s->secondary_disk->bs, s->hidden_disk->bs,
@@ -691,12 +691,12 @@ static void replication_done(void *opaque, int ret)
     if (ret == 0) {
         s->stage = BLOCK_REPLICATION_DONE;
 
-        bdrv_graph_wrlock(NULL);
+        bdrv_graph_wrlock();
         bdrv_unref_child(bs, s->secondary_disk);
         s->secondary_disk = NULL;
         bdrv_unref_child(bs, s->hidden_disk);
         s->hidden_disk = NULL;
-        bdrv_graph_wrunlock(NULL);
+        bdrv_graph_wrunlock();
 
         s->error = 0;
     } else {

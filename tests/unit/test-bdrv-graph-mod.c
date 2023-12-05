@@ -137,10 +137,10 @@ static void test_update_perm_tree(void)
 
     blk_insert_bs(root, bs, &error_abort);
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     bdrv_attach_child(filter, bs, "child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     aio_context_acquire(qemu_get_aio_context());
     ret = bdrv_append(filter, bs, NULL);
@@ -206,11 +206,11 @@ static void test_should_update_child(void)
 
     bdrv_set_backing_hd(target, bs, &error_abort);
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     g_assert(target->backing->bs == bs);
     bdrv_attach_child(filter, target, "target", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
     aio_context_acquire(qemu_get_aio_context());
     bdrv_append(filter, bs, &error_abort);
     aio_context_release(qemu_get_aio_context());
@@ -248,7 +248,7 @@ static void test_parallel_exclusive_write(void)
     bdrv_ref(base);
     bdrv_ref(fl1);
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     bdrv_attach_child(top, fl1, "backing", &child_of_bds,
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                       &error_abort);
@@ -260,7 +260,7 @@ static void test_parallel_exclusive_write(void)
                       &error_abort);
 
     bdrv_replace_node(fl1, fl2, &error_abort);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     bdrv_drained_end(fl2);
     bdrv_drained_end(fl1);
@@ -367,7 +367,7 @@ static void test_parallel_perm_update(void)
      */
     bdrv_ref(base);
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     bdrv_attach_child(top, ws, "file", &child_of_bds, BDRV_CHILD_DATA,
                       &error_abort);
     c_fl1 = bdrv_attach_child(ws, fl1, "first", &child_of_bds,
@@ -380,7 +380,7 @@ static void test_parallel_perm_update(void)
     bdrv_attach_child(fl2, base, "backing", &child_of_bds,
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                       &error_abort);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     /* Select fl1 as first child to be active */
     s->selected = c_fl1;
@@ -434,11 +434,11 @@ static void test_append_greedy_filter(void)
     BlockDriverState *base = no_perm_node("base");
     BlockDriverState *fl = exclusive_writer_node("fl1");
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     bdrv_attach_child(top, base, "backing", &child_of_bds,
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                       &error_abort);
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 
     aio_context_acquire(qemu_get_aio_context());
     bdrv_append(fl, base, &error_abort);

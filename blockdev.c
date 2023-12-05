@@ -1611,9 +1611,9 @@ static void external_snapshot_abort(void *opaque)
             }
 
             bdrv_drained_begin(state->new_bs);
-            bdrv_graph_wrlock(state->old_bs);
+            bdrv_graph_wrlock();
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
-            bdrv_graph_wrunlock(state->old_bs);
+            bdrv_graph_wrunlock();
             bdrv_drained_end(state->new_bs);
 
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
@@ -3657,7 +3657,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
     BlockDriverState *parent_bs, *new_bs = NULL;
     BdrvChild *p_child;
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
 
     parent_bs = bdrv_lookup_bs(parent, parent, errp);
     if (!parent_bs) {
@@ -3693,7 +3693,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
     }
 
 out:
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
