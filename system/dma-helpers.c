@@ -119,6 +119,9 @@ static void dma_blk_cb(void *opaque, int ret)
 
     trace_dma_blk_cb(dbs, ret);
 
+    /* DMAAIOCB is not thread-safe and must be accessed only from dbs->ctx */
+    assert(ctx == qemu_get_current_aio_context());
+
     dbs->acb = NULL;
     dbs->offset += dbs->iov.size;
 
