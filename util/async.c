@@ -725,12 +725,12 @@ void aio_context_unref(AioContext *ctx)
 
 void aio_context_acquire(AioContext *ctx)
 {
-    qemu_rec_mutex_lock(&ctx->lock);
+    /* TODO remove this function */
 }
 
 void aio_context_release(AioContext *ctx)
 {
-    qemu_rec_mutex_unlock(&ctx->lock);
+    /* TODO remove this function */
 }
 
 QEMU_DEFINE_STATIC_CO_TLS(AioContext *, my_aiocontext)
