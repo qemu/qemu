@@ -1192,8 +1192,6 @@ struct BlockDriverState {
     /* The error object in use for blocking operations on backing_hd */
     Error *backing_blocker;
 
-    /* Protected by AioContext lock */
-
     /*
      * If we are reading a disk image, give its size in sectors.
      * Generally read-only; it is written to by load_snapshot and

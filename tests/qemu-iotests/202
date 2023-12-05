@@ -21,7 +21,7 @@
 # Check that QMP 'transaction' blockdev-snapshot-sync with multiple drives on a
 # single IOThread completes successfully.  This particular command triggered a
 # hang due to recursive AioContext locking and BDRV_POLL_WHILE().  Protect
-# against regressions.
+# against regressions even though the AioContext lock no longer exists.
 
 import iotests
 

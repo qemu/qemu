@@ -278,7 +278,6 @@ static void vu_blk_exp_resize(void *opaque)
     vu_config_change_msg(&vexp->vu_server.vu_dev);
 }
 
-/* Called with vexp->export.ctx acquired */
 static void vu_blk_drained_begin(void *opaque)
 {
     VuBlkExport *vexp = opaque;
@@ -287,7 +286,6 @@ static void vu_blk_drained_begin(void *opaque)
     vhost_user_server_detach_aio_context(&vexp->vu_server);
 }
 
-/* Called with vexp->export.blk AioContext acquired */
 static void vu_blk_drained_end(void *opaque)
 {
     VuBlkExport *vexp = opaque;
@@ -300,8 +298,6 @@ static void vu_blk_drained_end(void *opaque)
  * Ensures that bdrv_drained_begin() waits until in-flight requests complete
  * and the server->co_trip coroutine has terminated. It will be restarted in
  * vhost_user_server_attach_aio_context().
- *
- * Called with vexp->export.ctx acquired.
  */
 static bool vu_blk_drained_poll(void *opaque)
 {

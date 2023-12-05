@@ -1616,11 +1616,6 @@ out:
     g_free(gen_node_name);
 }
 
-/*
- * The caller must always hold @bs AioContext lock, because this function calls
- * bdrv_refresh_total_sectors() which polls when called from non-coroutine
- * context.
- */
 static int no_coroutine_fn GRAPH_UNLOCKED
 bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
                  QDict *options, int open_flags, Error **errp)
@@ -2901,7 +2896,7 @@ uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm)
  * Replaces the node that a BdrvChild points to without updating permissions.
  *
  * If @new_bs is non-NULL, the parent of @child must already be drained through
- * @child and the caller must hold the AioContext lock for @new_bs.
+ * @child.
  */
 static void GRAPH_WRLOCK
 bdrv_replace_child_noperm(BdrvChild *child, BlockDriverState *new_bs)
@@ -3041,9 +3036,8 @@ static TransactionActionDrv bdrv_attach_child_common_drv = {
  *
  * Returns new created child.
  *
- * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
- * @child_bs can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * Both @parent_bs and @child_bs can move to a different AioContext in this
+ * function.
  */
 static BdrvChild * GRAPH_WRLOCK
 bdrv_attach_child_common(BlockDriverState *child_bs,
@@ -3142,9 +3136,8 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
 /*
  * Function doesn't update permissions, caller is responsible for this.
  *
- * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
- * @child_bs can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * Both @parent_bs and @child_bs can move to a different AioContext in this
+ * function.
  *
  * After calling this function, the transaction @tran may only be completed
  * while holding a writer lock for the graph.
@@ -3184,9 +3177,6 @@ bdrv_attach_child_noperm(BlockDriverState *parent_bs,
  *
  * On failure NULL is returned, errp is set and the reference to
  * child_bs is also dropped.
- *
- * The caller must hold the AioContext lock @child_bs, but not that of @ctx
- * (unless @child_bs is already in @ctx).
  */
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
@@ -3226,9 +3216,6 @@ out:
  *
  * On failure NULL is returned, errp is set and the reference to
  * child_bs is also dropped.
- *
- * If @parent_bs and @child_bs are in different AioContexts, the caller must
- * hold the AioContext lock for @child_bs, but not for @parent_bs.
  */
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
@@ -3418,9 +3405,8 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
  *
  * Function doesn't update permissions, caller is responsible for this.
  *
- * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
- * @child_bs can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * Both @parent_bs and @child_bs can move to a different AioContext in this
+ * function.
  *
  * After calling this function, the transaction @tran may only be completed
  * while holding a writer lock for the graph.
@@ -3513,9 +3499,8 @@ out:
 }
 
 /*
- * The caller must hold the AioContext lock for @backing_hd. Both @bs and
- * @backing_hd can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * Both @bs and @backing_hd can move to a different AioContext in this
+ * function.
  *
  * If a backing child is already present (i.e. we're detaching a node), that
  * child node must be drained.
@@ -3573,8 +3558,6 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
  * That QDict has to be flattened; therefore, if the BlockdevRef is a QDict
  * itself, all options starting with "${bdref_key}." are considered part of the
  * BlockdevRef.
- *
- * The caller must hold the main AioContext lock.
  *
  * TODO Can this be unified with bdrv_open_image()?
  */
@@ -3745,9 +3728,7 @@ done:
  *
  * The BlockdevRef will be removed from the options QDict.
  *
- * The caller must hold the lock of the main AioContext and no other AioContext.
- * @parent can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * @parent can move to a different AioContext in this function.
  */
 BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
@@ -3778,9 +3759,7 @@ BdrvChild *bdrv_open_child(const char *filename,
 /*
  * Wrapper on bdrv_open_child() for most popular case: open primary child of bs.
  *
- * The caller must hold the lock of the main AioContext and no other AioContext.
- * @parent can move to a different AioContext in this function. Callers must
- * make sure that their AioContext locking is still correct after this.
+ * @parent can move to a different AioContext in this function.
  */
 int bdrv_open_file_child(const char *filename,
                          QDict *options, const char *bdref_key,
@@ -3923,8 +3902,6 @@ out:
  * The reference parameter may be used to specify an existing block device which
  * should be opened. If specified, neither options nor a filename may be given,
  * nor can an existing BDS be reused (that is, *pbs has to be NULL).
- *
- * The caller must always hold the main AioContext lock.
  */
 static BlockDriverState * no_coroutine_fn
 bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
@@ -4217,7 +4194,6 @@ close_and_fail:
     return NULL;
 }
 
-/* The caller must always hold the main AioContext lock. */
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
                             QDict *options, int flags, Error **errp)
 {
@@ -4665,10 +4641,7 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
  *
  * Return 0 on success, otherwise return < 0 and set @errp.
  *
- * The caller must hold the AioContext lock of @reopen_state->bs.
  * @reopen_state->bs can move to a different AioContext in this function.
- * Callers must make sure that their AioContext locking is still correct after
- * this.
  */
 static int GRAPH_UNLOCKED
 bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
@@ -4800,8 +4773,6 @@ out_rdlock:
  * On failure, bdrv_reopen_abort() will be called to clean up any data.
  * It is the responsibility of the caller to then call the abort() or
  * commit() for any other BDS that have been left in a prepare() state
- *
- * The caller must hold the AioContext lock of @reopen_state->bs.
  *
  * After calling this function, the transaction @change_child_tran may only be
  * completed while holding a writer lock for the graph.
@@ -5437,8 +5408,6 @@ int bdrv_drop_filter(BlockDriverState *bs, Error **errp)
  * child.
  *
  * This function does not create any image files.
- *
- * The caller must hold the AioContext lock for @bs_top.
  */
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                 Error **errp)
@@ -5545,9 +5514,8 @@ static void bdrv_delete(BlockDriverState *bs)
  * after the call (even on failure), so if the caller intends to reuse the
  * dictionary, it needs to use qobject_ref() before calling bdrv_open.
  *
- * The caller holds the AioContext lock for @bs. It must make sure that @bs
- * stays in the same AioContext, i.e. @options must not refer to nodes in a
- * different AioContext.
+ * The caller must make sure that @bs stays in the same AioContext, i.e.
+ * @options must not refer to nodes in a different AioContext.
  */
 BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
                                    int flags, Error **errp)
@@ -7565,10 +7533,6 @@ static TransactionActionDrv set_aio_context = {
  *
  * Must be called from the main AioContext.
  *
- * The caller must own the AioContext lock for the old AioContext of bs, but it
- * must not own the AioContext lock for new_context (unless new_context is the
- * same as the current context of bs).
- *
  * @visited will accumulate all visited BdrvChild objects. The caller is
  * responsible for freeing the list afterwards.
  */
@@ -7621,13 +7585,6 @@ static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
  *
  * If ignore_child is not NULL, that child (and its subgraph) will not
  * be touched.
- *
- * This function still requires the caller to take the bs current
- * AioContext lock, otherwise draining will fail since AIO_WAIT_WHILE
- * assumes the lock is always held if bs is in another AioContext.
- * For the same reason, it temporarily also holds the new AioContext, since
- * bdrv_drained_end calls BDRV_POLL_WHILE that assumes the lock is taken too.
- * Therefore the new AioContext lock must not be taken by the caller.
  */
 int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
                                 BdrvChild *ignore_child, Error **errp)
@@ -7653,8 +7610,8 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
 
     /*
      * Linear phase: go through all callbacks collected in the transaction.
-     * Run all callbacks collected in the recursion to switch all nodes
-     * AioContext lock (transaction commit), or undo all changes done in the
+     * Run all callbacks collected in the recursion to switch every node's
+     * AioContext (transaction commit), or undo all changes done in the
      * recursion (transaction abort).
      */
 
