@@ -2420,6 +2420,8 @@ void qmp_block_commit(const char *job_id, const char *device,
                       const char *top_node,
                       const char *top,
                       const char *backing_file,
+                      bool has_backing_mask_protocol,
+                      bool backing_mask_protocol,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
                       const char *filter_node_name,
@@ -2449,6 +2451,9 @@ void qmp_block_commit(const char *job_id, const char *device,
     }
     if (has_auto_dismiss && !auto_dismiss) {
         job_flags |= JOB_MANUAL_DISMISS;
+    }
+    if (!has_backing_mask_protocol) {
+        backing_mask_protocol = false;
     }
 
     /* Important Note:
@@ -2591,6 +2596,7 @@ void qmp_block_commit(const char *job_id, const char *device,
         }
         commit_start(job_id, bs, base_bs, top_bs, job_flags,
                      speed, on_error, backing_file,
+                     backing_mask_protocol,
                      filter_node_name, &local_err);
     }
     if (local_err != NULL) {

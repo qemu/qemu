@@ -42,6 +42,7 @@ typedef struct CommitBlockJob {
     bool base_read_only;
     bool chain_frozen;
     char *backing_file_str;
+    bool backing_mask_protocol;
 } CommitBlockJob;
 
 static int commit_prepare(Job *job)
@@ -61,7 +62,8 @@ static int commit_prepare(Job *job)
     /* FIXME: bdrv_drop_intermediate treats total failures and partial failures
      * identically. Further work is needed to disambiguate these cases. */
     return bdrv_drop_intermediate(s->commit_top_bs, s->base_bs,
-                                  s->backing_file_str);
+                                  s->backing_file_str,
+                                  s->backing_mask_protocol);
 }
 
 static void commit_abort(Job *job)
@@ -254,6 +256,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, BlockDriverState *top,
                   int creation_flags, int64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
+                  bool backing_mask_protocol,
                   const char *filter_node_name, Error **errp)
 {
     CommitBlockJob *s;
@@ -408,6 +411,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     blk_set_disable_request_queuing(s->top, true);
 
     s->backing_file_str = g_strdup(backing_file_str);
+    s->backing_mask_protocol = backing_mask_protocol;
     s->on_error = on_error;
 
     trace_commit_start(bs, base, top, s);

@@ -985,7 +985,9 @@ struct BdrvChildClass {
      * can update its reference.
      */
     int (*update_filename)(BdrvChild *child, BlockDriverState *new_base,
-                           const char *filename, Error **errp);
+                           const char *filename,
+                           bool backing_mask_protocol,
+                           Error **errp);
 
     bool (*change_aio_ctx)(BdrvChild *child, AioContext *ctx,
                            GHashTable *visited, Transaction *tran,
