@@ -527,9 +527,7 @@ static bool GRAPH_RDLOCK bdrv_all_snapshots_includes_bs(BlockDriverState *bs)
     return bdrv_has_blk(bs) || QLIST_EMPTY(&bs->parents);
 }
 
-/* Group operations. All block drivers are involved.
- * These functions will properly handle dataplane (take aio_context_acquire
- * when appropriate for appropriate block drivers) */
+/* Group operations. All block drivers are involved. */
 
 bool bdrv_all_can_snapshot(bool has_devices, strList *devices,
                            Error **errp)
@@ -547,14 +545,11 @@ bool bdrv_all_can_snapshot(bool has_devices, strList *devices,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         bool ok = true;
 
-        aio_context_acquire(ctx);
         if (devices || bdrv_all_snapshots_includes_bs(bs)) {
             ok = bdrv_can_snapshot(bs);
         }
-        aio_context_release(ctx);
         if (!ok) {
             error_setg(errp, "Device '%s' is writable but does not support "
                        "snapshots", bdrv_get_device_or_node_name(bs));
@@ -584,18 +579,15 @@ int bdrv_all_delete_snapshot(const char *name,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         QEMUSnapshotInfo sn1, *snapshot = &sn1;
         int ret = 0;
 
-        aio_context_acquire(ctx);
         if ((devices || bdrv_all_snapshots_includes_bs(bs)) &&
             bdrv_snapshot_find(bs, snapshot, name) >= 0)
         {
             ret = bdrv_snapshot_delete(bs, snapshot->id_str,
                                        snapshot->name, errp);
         }
-        aio_context_release(ctx);
         if (ret < 0) {
             error_prepend(errp, "Could not delete snapshot '%s' on '%s': ",
                           name, bdrv_get_device_or_node_name(bs));
@@ -630,17 +622,14 @@ int bdrv_all_goto_snapshot(const char *name,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         bool all_snapshots_includes_bs;
 
-        aio_context_acquire(ctx);
         bdrv_graph_rdlock_main_loop();
         all_snapshots_includes_bs = bdrv_all_snapshots_includes_bs(bs);
         bdrv_graph_rdunlock_main_loop();
 
         ret = (devices || all_snapshots_includes_bs) ?
               bdrv_snapshot_goto(bs, name, errp) : 0;
-        aio_context_release(ctx);
         if (ret < 0) {
             bdrv_graph_rdlock_main_loop();
             error_prepend(errp, "Could not load snapshot '%s' on '%s': ",
@@ -672,15 +661,12 @@ int bdrv_all_has_snapshot(const char *name,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         QEMUSnapshotInfo sn;
         int ret = 0;
 
-        aio_context_acquire(ctx);
         if (devices || bdrv_all_snapshots_includes_bs(bs)) {
             ret = bdrv_snapshot_find(bs, &sn, name);
         }
-        aio_context_release(ctx);
         if (ret < 0) {
             if (ret == -ENOENT) {
                 return 0;
@@ -717,10 +703,8 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         int ret = 0;
 
-        aio_context_acquire(ctx);
         if (bs == vm_state_bs) {
             sn->vm_state_size = vm_state_size;
             ret = bdrv_snapshot_create(bs, sn);
@@ -728,7 +712,6 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
             sn->vm_state_size = 0;
             ret = bdrv_snapshot_create(bs, sn);
         }
-        aio_context_release(ctx);
         if (ret < 0) {
             error_setg(errp, "Could not create snapshot '%s' on '%s'",
                        sn->name, bdrv_get_device_or_node_name(bs));
@@ -759,13 +742,10 @@ BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
     iterbdrvs = bdrvs;
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         bool found = false;
 
-        aio_context_acquire(ctx);
         found = (devices || bdrv_all_snapshots_includes_bs(bs)) &&
             bdrv_can_snapshot(bs);
-        aio_context_release(ctx);
 
         if (vmstate_bs) {
             if (g_str_equal(vmstate_bs,

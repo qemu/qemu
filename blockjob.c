@@ -198,9 +198,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
      * one to make sure that such a concurrent access does not attempt
      * to process an already freed BdrvChild.
      */
-    aio_context_release(job->job.aio_context);
     bdrv_graph_wrlock();
-    aio_context_acquire(job->job.aio_context);
     while (job->nodes) {
         GSList *l = job->nodes;
         BdrvChild *c = l->data;
@@ -234,28 +232,12 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
                        uint64_t perm, uint64_t shared_perm, Error **errp)
 {
     BdrvChild *c;
-    AioContext *ctx = bdrv_get_aio_context(bs);
-    bool need_context_ops;
     GLOBAL_STATE_CODE();
 
     bdrv_ref(bs);
 
-    need_context_ops = ctx != job->job.aio_context;
-
-    if (need_context_ops) {
-        if (job->job.aio_context != qemu_get_aio_context()) {
-            aio_context_release(job->job.aio_context);
-        }
-        aio_context_acquire(ctx);
-    }
     c = bdrv_root_attach_child(bs, name, &child_job, 0, perm, shared_perm, job,
                                errp);
-    if (need_context_ops) {
-        aio_context_release(ctx);
-        if (job->job.aio_context != qemu_get_aio_context()) {
-            aio_context_acquire(job->job.aio_context);
-        }
-    }
     if (c == NULL) {
         return -EPERM;
     }

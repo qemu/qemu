@@ -31,8 +31,7 @@
 
 /*
  * I/O API functions. These functions are thread-safe, and therefore
- * can run in any thread as long as the thread has called
- * aio_context_acquire/release().
+ * can run in any thread.
  *
  * These functions can only call functions from I/O and Common categories,
  * but can be invoked by GS, "I/O or GS" and I/O APIs.

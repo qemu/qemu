@@ -144,7 +144,6 @@ static char *replay_find_nearest_snapshot(int64_t icount,
     char *ret = NULL;
     int rv;
     int nb_sns, i;
-    AioContext *aio_context;
 
     *snapshot_icount = -1;
 
@@ -152,11 +151,8 @@ static char *replay_find_nearest_snapshot(int64_t icount,
     if (!bs) {
         goto fail;
     }
-    aio_context = bdrv_get_aio_context(bs);
 
-    aio_context_acquire(aio_context);
     nb_sns = bdrv_snapshot_list(bs, &sn_tab);
-    aio_context_release(aio_context);
 
     for (i = 0; i < nb_sns; i++) {
         rv = bdrv_all_has_snapshot(sn_tab[i].name, false, NULL, NULL);

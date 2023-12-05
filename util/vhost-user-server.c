@@ -360,10 +360,7 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
 
     qio_channel_set_follow_coroutine_ctx(server->ioc, true);
 
-    /* Attaching the AioContext starts the vu_client_trip coroutine */
-    aio_context_acquire(server->ctx);
     vhost_user_server_attach_aio_context(server, server->ctx);
-    aio_context_release(server->ctx);
 }
 
 /* server->ctx acquired by caller */

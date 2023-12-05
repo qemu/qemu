@@ -31,11 +31,10 @@
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
- * If a function modifies the graph, it also uses drain and/or
- * aio_context_acquire/release to be sure it has unique access.
- * aio_context locking is needed together with BQL because of
- * the thread-safe I/O API that concurrently runs and accesses
- * the graph without the BQL.
+ * If a function modifies the graph, it also uses the graph lock to be sure it
+ * has unique access. The graph lock is needed together with BQL because of the
+ * thread-safe I/O API that concurrently runs and accesses the graph without
+ * the BQL.
  *
  * It is important to note that not all of these functions are
  * necessarily limited to running under the BQL, but they would

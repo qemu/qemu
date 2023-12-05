@@ -179,13 +179,7 @@ static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
 
 static void do_drain_begin_unlocked(enum drain_type drain_type, BlockDriverState *bs)
 {
-    if (drain_type != BDRV_DRAIN_ALL) {
-        aio_context_acquire(bdrv_get_aio_context(bs));
-    }
     do_drain_begin(drain_type, bs);
-    if (drain_type != BDRV_DRAIN_ALL) {
-        aio_context_release(bdrv_get_aio_context(bs));
-    }
 }
 
 static BlockBackend * no_coroutine_fn test_setup(void)
@@ -209,13 +203,7 @@ static BlockBackend * no_coroutine_fn test_setup(void)
 
 static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *bs)
 {
-    if (drain_type != BDRV_DRAIN_ALL) {
-        aio_context_acquire(bdrv_get_aio_context(bs));
-    }
     do_drain_end(drain_type, bs);
-    if (drain_type != BDRV_DRAIN_ALL) {
-        aio_context_release(bdrv_get_aio_context(bs));
-    }
 }
 
 /*
@@ -520,12 +508,8 @@ static void test_iothread_main_thread_bh(void *opaque)
 {
     struct test_iothread_data *data = opaque;
 
-    /* Test that the AioContext is not yet locked in a random BH that is
-     * executed during drain, otherwise this would deadlock. */
-    aio_context_acquire(bdrv_get_aio_context(data->bs));
     bdrv_flush(data->bs);
     bdrv_dec_in_flight(data->bs); /* incremented by test_iothread_common() */
-    aio_context_release(bdrv_get_aio_context(data->bs));
 }
 
 /*
@@ -567,7 +551,6 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     blk_set_disable_request_queuing(blk, true);
 
     blk_set_aio_context(blk, ctx_a, &error_abort);
-    aio_context_acquire(ctx_a);
 
     s->bh_indirection_ctx = ctx_b;
 
@@ -582,8 +565,6 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     g_assert(acb != NULL);
     g_assert_cmpint(aio_ret, ==, -EINPROGRESS);
 
-    aio_context_release(ctx_a);
-
     data = (struct test_iothread_data) {
         .bs         = bs,
         .drain_type = drain_type,
@@ -592,10 +573,6 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
 
     switch (drain_thread) {
     case 0:
-        if (drain_type != BDRV_DRAIN_ALL) {
-            aio_context_acquire(ctx_a);
-        }
-
         /*
          * Increment in_flight so that do_drain_begin() waits for
          * test_iothread_main_thread_bh(). This prevents the race between
@@ -613,20 +590,10 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         do_drain_begin(drain_type, bs);
         g_assert_cmpint(bs->in_flight, ==, 0);
 
-        if (drain_type != BDRV_DRAIN_ALL) {
-            aio_context_release(ctx_a);
-        }
         qemu_event_wait(&done_event);
-        if (drain_type != BDRV_DRAIN_ALL) {
-            aio_context_acquire(ctx_a);
-        }
 
         g_assert_cmpint(aio_ret, ==, 0);
         do_drain_end(drain_type, bs);
-
-        if (drain_type != BDRV_DRAIN_ALL) {
-            aio_context_release(ctx_a);
-        }
         break;
     case 1:
         co = qemu_coroutine_create(test_iothread_drain_co_entry, &data);
@@ -637,9 +604,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         g_assert_not_reached();
     }
 
-    aio_context_acquire(ctx_a);
     blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
-    aio_context_release(ctx_a);
 
     bdrv_unref(bs);
     blk_unref(blk);
@@ -757,7 +722,6 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     BlockJob *job;
     TestBlockJob *tjob;
     IOThread *iothread = NULL;
-    AioContext *ctx;
     int ret;
 
     src = bdrv_new_open_driver(&bdrv_test, "source", BDRV_O_RDWR,
@@ -787,11 +751,11 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     }
 
     if (use_iothread) {
+        AioContext *ctx;
+
         iothread = iothread_new();
         ctx = iothread_get_aio_context(iothread);
         blk_set_aio_context(blk_src, ctx, &error_abort);
-    } else {
-        ctx = qemu_get_aio_context();
     }
 
     target = bdrv_new_open_driver(&bdrv_test, "target", BDRV_O_RDWR,
@@ -800,7 +764,6 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     blk_insert_bs(blk_target, target, &error_abort);
     blk_set_allow_aio_context_change(blk_target, true);
 
-    aio_context_acquire(ctx);
     tjob = block_job_create("job0", &test_job_driver, NULL, src,
                             0, BLK_PERM_ALL,
                             0, 0, NULL, NULL, &error_abort);
@@ -821,7 +784,6 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         tjob->prepare_ret = -EIO;
         break;
     }
-    aio_context_release(ctx);
 
     job_start(&job->job);
 
@@ -912,12 +874,10 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     }
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
-    aio_context_acquire(ctx);
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
         assert(blk_get_aio_context(blk_target) == qemu_get_aio_context());
     }
-    aio_context_release(ctx);
 
     blk_unref(blk_src);
     blk_unref(blk_target);
@@ -1401,9 +1361,7 @@ static void test_append_to_drained(void)
     g_assert_cmpint(base_s->drain_count, ==, 1);
     g_assert_cmpint(base->in_flight, ==, 0);
 
-    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(overlay, base, &error_abort);
-    aio_context_release(qemu_get_aio_context());
 
     g_assert_cmpint(base->in_flight, ==, 0);
     g_assert_cmpint(overlay->in_flight, ==, 0);
@@ -1438,16 +1396,11 @@ static void test_set_aio_context(void)
 
     bdrv_drained_begin(bs);
     bdrv_try_change_aio_context(bs, ctx_a, NULL, &error_abort);
-
-    aio_context_acquire(ctx_a);
     bdrv_drained_end(bs);
 
     bdrv_drained_begin(bs);
     bdrv_try_change_aio_context(bs, ctx_b, NULL, &error_abort);
-    aio_context_release(ctx_a);
-    aio_context_acquire(ctx_b);
     bdrv_try_change_aio_context(bs, qemu_get_aio_context(), NULL, &error_abort);
-    aio_context_release(ctx_b);
     bdrv_drained_end(bs);
 
     bdrv_unref(bs);

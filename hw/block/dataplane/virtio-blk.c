@@ -124,7 +124,6 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     VirtIOBlockDataPlane *s = vblk->dataplane;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vblk)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    AioContext *old_context;
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
     Error *local_err = NULL;
@@ -178,10 +177,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     trace_virtio_blk_data_plane_start(s);
 
-    old_context = blk_get_aio_context(s->conf->conf.blk);
-    aio_context_acquire(old_context);
     r = blk_set_aio_context(s->conf->conf.blk, s->ctx, &local_err);
-    aio_context_release(old_context);
     if (r < 0) {
         error_report_err(local_err);
         goto fail_aio_context;
@@ -208,13 +204,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     /* Get this show started by hooking up our callbacks */
     if (!blk_in_drain(s->conf->conf.blk)) {
-        aio_context_acquire(s->ctx);
         for (i = 0; i < nvqs; i++) {
             VirtQueue *vq = virtio_get_queue(s->vdev, i);
 
             virtio_queue_aio_attach_host_notifier(vq, s->ctx);
         }
-        aio_context_release(s->ctx);
     }
     return 0;
 
@@ -314,8 +308,6 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
      */
     vblk->dataplane_started = false;
 
-    aio_context_acquire(s->ctx);
-
     /* Wait for virtio_blk_dma_restart_bh() and in flight I/O to complete */
     blk_drain(s->conf->conf.blk);
 
@@ -324,8 +316,6 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
      * BlockBackend in the iothread, that's ok
      */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context(), NULL);
-
-    aio_context_release(s->ctx);
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, nvqs, false);

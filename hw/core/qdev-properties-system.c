@@ -120,9 +120,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
                        "node");
         }
 
-        aio_context_acquire(ctx);
         blk_replace_bs(blk, bs, errp);
-        aio_context_release(ctx);
         return;
     }
 
@@ -148,10 +146,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
                           0, BLK_PERM_ALL);
             blk_created = true;
 
-            aio_context_acquire(ctx);
             ret = blk_insert_bs(blk, bs, errp);
-            aio_context_release(ctx);
-
             if (ret < 0) {
                 goto fail;
             }
@@ -207,12 +202,8 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     BlockBackend **ptr = object_field_prop_ptr(obj, prop);
 
     if (*ptr) {
-        AioContext *ctx = blk_get_aio_context(*ptr);
-
-        aio_context_acquire(ctx);
         blockdev_auto_del(*ptr);
         blk_detach_dev(*ptr, dev);
-        aio_context_release(ctx);
     }
 }
 

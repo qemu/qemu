@@ -429,7 +429,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    AioContext *ctx;
     uint64_t perm = 0;
     uint64_t shared = BLK_PERM_ALL;
 
@@ -459,23 +458,18 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         shared = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
     }
 
-    aio_context_acquire(qemu_get_aio_context());
     bs = bdrv_open(filename, reference, options, flags, errp);
-    aio_context_release(qemu_get_aio_context());
     if (!bs) {
         return NULL;
     }
 
     /* bdrv_open() could have moved bs to a different AioContext */
-    ctx = bdrv_get_aio_context(bs);
     blk = blk_new(bdrv_get_aio_context(bs), perm, shared);
     blk->perm = perm;
     blk->shared_perm = shared;
 
-    aio_context_acquire(ctx);
     blk_insert_bs(blk, bs, errp);
     bdrv_unref(bs);
-    aio_context_release(ctx);
 
     if (!blk->root) {
         blk_unref(blk);
@@ -577,13 +571,9 @@ void blk_remove_all_bs(void)
     GLOBAL_STATE_CODE();
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *ctx = blk_get_aio_context(blk);
-
-        aio_context_acquire(ctx);
         if (blk->root) {
             blk_remove_bs(blk);
         }
-        aio_context_release(ctx);
     }
 }
 
@@ -2736,20 +2726,16 @@ int blk_commit_all(void)
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *aio_context = blk_get_aio_context(blk);
         BlockDriverState *unfiltered_bs = bdrv_skip_filters(blk_bs(blk));
 
-        aio_context_acquire(aio_context);
         if (blk_is_inserted(blk) && bdrv_cow_child(unfiltered_bs)) {
             int ret;
 
             ret = bdrv_commit(unfiltered_bs);
             if (ret < 0) {
-                aio_context_release(aio_context);
                 return ret;
             }
         }
-        aio_context_release(aio_context);
     }
     return 0;
 }

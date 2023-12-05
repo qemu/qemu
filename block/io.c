@@ -294,8 +294,6 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BlockDriverState *bs = data->bs;
 
     if (bs) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-        aio_context_acquire(ctx);
         bdrv_dec_in_flight(bs);
         if (data->begin) {
             bdrv_do_drained_begin(bs, data->parent, data->poll);
@@ -303,7 +301,6 @@ static void bdrv_co_drain_bh_cb(void *opaque)
             assert(!data->poll);
             bdrv_do_drained_end(bs, data->parent);
         }
-        aio_context_release(ctx);
     } else {
         assert(data->begin);
         bdrv_drain_all_begin();
@@ -320,8 +317,6 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
 {
     BdrvCoDrainData data;
     Coroutine *self = qemu_coroutine_self();
-    AioContext *ctx = bdrv_get_aio_context(bs);
-    AioContext *co_ctx = qemu_coroutine_get_aio_context(self);
 
     /* Calling bdrv_drain() from a BH ensures the current coroutine yields and
      * other coroutines run if they were queued by aio_co_enter(). */
@@ -340,17 +335,6 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
         bdrv_inc_in_flight(bs);
     }
 
-    /*
-     * Temporarily drop the lock across yield or we would get deadlocks.
-     * bdrv_co_drain_bh_cb() reaquires the lock as needed.
-     *
-     * When we yield below, the lock for the current context will be
-     * released, so if this is actually the lock that protects bs, don't drop
-     * it a second time.
-     */
-    if (ctx != co_ctx) {
-        aio_context_release(ctx);
-    }
     replay_bh_schedule_oneshot_event(qemu_get_aio_context(),
                                      bdrv_co_drain_bh_cb, &data);
 
@@ -358,11 +342,6 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     /* If we are resumed from some other event (such as an aio completion or a
      * timer callback), it is a bug in the caller that should be fixed. */
     assert(data.done);
-
-    /* Reacquire the AioContext of bs if we dropped it */
-    if (ctx != co_ctx) {
-        aio_context_acquire(ctx);
-    }
 }
 
 static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
@@ -478,13 +457,12 @@ static bool bdrv_drain_all_poll(void)
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    /* bdrv_drain_poll() can't make changes to the graph and we are holding the
-     * main AioContext lock, so iterating bdrv_next_all_states() is safe. */
+    /*
+     * bdrv_drain_poll() can't make changes to the graph and we hold the BQL,
+     * so iterating bdrv_next_all_states() is safe.
+     */
     while ((bs = bdrv_next_all_states(bs))) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        aio_context_acquire(aio_context);
         result |= bdrv_drain_poll(bs, NULL, true);
-        aio_context_release(aio_context);
     }
 
     return result;
@@ -525,11 +503,7 @@ void bdrv_drain_all_begin_nopoll(void)
     /* Quiesce all nodes, without polling in-flight requests yet. The graph
      * cannot change during this loop. */
     while ((bs = bdrv_next_all_states(bs))) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(aio_context);
         bdrv_do_drained_begin(bs, NULL, false);
-        aio_context_release(aio_context);
     }
 }
 
@@ -588,11 +562,7 @@ void bdrv_drain_all_end(void)
     }
 
     while ((bs = bdrv_next_all_states(bs))) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(aio_context);
         bdrv_do_drained_end(bs, NULL);
-        aio_context_release(aio_context);
     }
 
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
@@ -2368,15 +2338,10 @@ int bdrv_flush_all(void)
     }
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        int ret;
-
-        aio_context_acquire(aio_context);
-        ret = bdrv_flush(bs);
+        int ret = bdrv_flush(bs);
         if (ret < 0 && !result) {
             result = ret;
         }
-        aio_context_release(aio_context);
     }
 
     return result;

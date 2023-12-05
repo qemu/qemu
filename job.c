@@ -464,12 +464,8 @@ void job_unref_locked(Job *job)
         assert(!job->txn);
 
         if (job->driver->free) {
-            AioContext *aio_context = job->aio_context;
             job_unlock();
-            /* FIXME: aiocontext lock is required because cb calls blk_unref */
-            aio_context_acquire(aio_context);
             job->driver->free(job);
-            aio_context_release(aio_context);
             job_lock();
         }
 
@@ -840,12 +836,10 @@ static void job_clean(Job *job)
 
 /*
  * Called with job_mutex held, but releases it temporarily.
- * Takes AioContext lock internally to invoke a job->driver callback.
  */
 static int job_finalize_single_locked(Job *job)
 {
     int job_ret;
-    AioContext *ctx = job->aio_context;
 
     assert(job_is_completed_locked(job));
 
@@ -854,7 +848,6 @@ static int job_finalize_single_locked(Job *job)
 
     job_ret = job->ret;
     job_unlock();
-    aio_context_acquire(ctx);
 
     if (!job_ret) {
         job_commit(job);
@@ -867,7 +860,6 @@ static int job_finalize_single_locked(Job *job)
         job->cb(job->opaque, job_ret);
     }
 
-    aio_context_release(ctx);
     job_lock();
 
     /* Emit events only if we actually started */
@@ -886,17 +878,13 @@ static int job_finalize_single_locked(Job *job)
 
 /*
  * Called with job_mutex held, but releases it temporarily.
- * Takes AioContext lock internally to invoke a job->driver callback.
  */
 static void job_cancel_async_locked(Job *job, bool force)
 {
-    AioContext *ctx = job->aio_context;
     GLOBAL_STATE_CODE();
     if (job->driver->cancel) {
         job_unlock();
-        aio_context_acquire(ctx);
         force = job->driver->cancel(job, force);
-        aio_context_release(ctx);
         job_lock();
     } else {
         /* No .cancel() means the job will behave as if force-cancelled */
@@ -931,7 +919,6 @@ static void job_cancel_async_locked(Job *job, bool force)
 
 /*
  * Called with job_mutex held, but releases it temporarily.
- * Takes AioContext lock internally to invoke a job->driver callback.
  */
 static void job_completed_txn_abort_locked(Job *job)
 {
@@ -979,15 +966,12 @@ static void job_completed_txn_abort_locked(Job *job)
 static int job_prepare_locked(Job *job)
 {
     int ret;
-    AioContext *ctx = job->aio_context;
 
     GLOBAL_STATE_CODE();
 
     if (job->ret == 0 && job->driver->prepare) {
         job_unlock();
-        aio_context_acquire(ctx);
         ret = job->driver->prepare(job);
-        aio_context_release(ctx);
         job_lock();
         job->ret = ret;
         job_update_rc_locked(job);

@@ -142,10 +142,8 @@ static void test_update_perm_tree(void)
                       BDRV_CHILD_DATA, &error_abort);
     bdrv_graph_wrunlock();
 
-    aio_context_acquire(qemu_get_aio_context());
     ret = bdrv_append(filter, bs, NULL);
     g_assert_cmpint(ret, <, 0);
-    aio_context_release(qemu_get_aio_context());
 
     bdrv_unref(filter);
     blk_unref(root);
@@ -211,9 +209,7 @@ static void test_should_update_child(void)
     bdrv_attach_child(filter, target, "target", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
     bdrv_graph_wrunlock();
-    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(filter, bs, &error_abort);
-    aio_context_release(qemu_get_aio_context());
 
     bdrv_graph_rdlock_main_loop();
     g_assert(target->backing->bs == bs);
@@ -440,9 +436,7 @@ static void test_append_greedy_filter(void)
                       &error_abort);
     bdrv_graph_wrunlock();
 
-    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(fl, base, &error_abort);
-    aio_context_release(qemu_get_aio_context());
     bdrv_unref(fl);
     bdrv_unref(top);
 }

@@ -278,12 +278,9 @@ typedef struct {struct_name} {{
 static void {name}_bh(void *opaque)
 {{
     {struct_name} *s = opaque;
-    AioContext *ctx = {func.gen_ctx('s->')};
 
 {graph_lock}
-    aio_context_acquire(ctx);
     {func.get_result}{name}({ func.gen_list('s->{name}') });
-    aio_context_release(ctx);
 {graph_unlock}
 
     aio_co_wake(s->co);

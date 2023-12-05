@@ -1625,7 +1625,6 @@ static int no_coroutine_fn GRAPH_UNLOCKED
 bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
                  QDict *options, int open_flags, Error **errp)
 {
-    AioContext *ctx;
     Error *local_err = NULL;
     int i, ret;
     GLOBAL_STATE_CODE();
@@ -1673,21 +1672,15 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
     bs->supported_read_flags |= BDRV_REQ_REGISTERED_BUF;
     bs->supported_write_flags |= BDRV_REQ_REGISTERED_BUF;
 
-    /* Get the context after .bdrv_open, it can change the context */
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
-
     ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
-        aio_context_release(ctx);
         return ret;
     }
 
     bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, &local_err);
     bdrv_graph_rdunlock_main_loop();
-    aio_context_release(ctx);
 
     if (local_err) {
         error_propagate(errp, local_err);
@@ -3062,7 +3055,7 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
                          Transaction *tran, Error **errp)
 {
     BdrvChild *new_child;
-    AioContext *parent_ctx, *new_child_ctx;
+    AioContext *parent_ctx;
     AioContext *child_ctx = bdrv_get_aio_context(child_bs);
 
     assert(child_class->get_parent_desc);
@@ -3114,12 +3107,6 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
         }
     }
 
-    new_child_ctx = bdrv_get_aio_context(child_bs);
-    if (new_child_ctx != child_ctx) {
-        aio_context_release(child_ctx);
-        aio_context_acquire(new_child_ctx);
-    }
-
     bdrv_ref(child_bs);
     /*
      * Let every new BdrvChild start with a drained parent. Inserting the child
@@ -3148,11 +3135,6 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
         .old_child_ctx = child_ctx,
     };
     tran_add(tran, &bdrv_attach_child_common_drv, s);
-
-    if (new_child_ctx != child_ctx) {
-        aio_context_release(new_child_ctx);
-        aio_context_acquire(child_ctx);
-    }
 
     return new_child;
 }
@@ -3605,7 +3587,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     int ret = 0;
     bool implicit_backing = false;
     BlockDriverState *backing_hd;
-    AioContext *backing_hd_ctx;
     QDict *options;
     QDict *tmp_parent_options = NULL;
     Error *local_err = NULL;
@@ -3691,11 +3672,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
-    backing_hd_ctx = bdrv_get_aio_context(backing_hd);
-    aio_context_acquire(backing_hd_ctx);
     ret = bdrv_set_backing_hd(bs, backing_hd, errp);
     bdrv_unref(backing_hd);
-    aio_context_release(backing_hd_ctx);
 
     if (ret < 0) {
         goto free_exit;
@@ -3780,7 +3758,6 @@ BdrvChild *bdrv_open_child(const char *filename,
 {
     BlockDriverState *bs;
     BdrvChild *child;
-    AioContext *ctx;
 
     GLOBAL_STATE_CODE();
 
@@ -3791,11 +3768,8 @@ BdrvChild *bdrv_open_child(const char *filename,
     }
 
     bdrv_graph_wrlock();
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
     child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
                               errp);
-    aio_context_release(ctx);
     bdrv_graph_wrunlock();
 
     return child;
@@ -3881,7 +3855,6 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
     int64_t total_size;
     QemuOpts *opts = NULL;
     BlockDriverState *bs_snapshot = NULL;
-    AioContext *ctx = bdrv_get_aio_context(bs);
     int ret;
 
     GLOBAL_STATE_CODE();
@@ -3890,9 +3863,7 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
        instead of opening 'filename' directly */
 
     /* Get the required size from the image */
-    aio_context_acquire(ctx);
     total_size = bdrv_getlength(bs);
-    aio_context_release(ctx);
 
     if (total_size < 0) {
         error_setg_errno(errp, -total_size, "Could not get image size");
@@ -3927,10 +3898,7 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
         goto out;
     }
 
-    aio_context_acquire(ctx);
     ret = bdrv_append(bs_snapshot, bs, errp);
-    aio_context_release(ctx);
-
     if (ret < 0) {
         bs_snapshot = NULL;
         goto out;
@@ -3974,7 +3942,6 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     Error *local_err = NULL;
     QDict *snapshot_options = NULL;
     int snapshot_flags = 0;
-    AioContext *ctx = qemu_get_aio_context();
 
     assert(!child_class || !flags);
     assert(!child_class == !parent);
@@ -4115,12 +4082,10 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
             /* Not requesting BLK_PERM_CONSISTENT_READ because we're only
              * looking at the header to guess the image format. This works even
              * in cases where a guest would not see a consistent state. */
-            ctx = bdrv_get_aio_context(file_bs);
-            aio_context_acquire(ctx);
+            AioContext *ctx = bdrv_get_aio_context(file_bs);
             file = blk_new(ctx, 0, BLK_PERM_ALL);
             blk_insert_bs(file, file_bs, &local_err);
             bdrv_unref(file_bs);
-            aio_context_release(ctx);
 
             if (local_err) {
                 goto fail;
@@ -4167,13 +4132,8 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
         goto fail;
     }
 
-    /* The AioContext could have changed during bdrv_open_common() */
-    ctx = bdrv_get_aio_context(bs);
-
     if (file) {
-        aio_context_acquire(ctx);
         blk_unref(file);
-        aio_context_release(ctx);
         file = NULL;
     }
 
@@ -4231,16 +4191,13 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
          * (snapshot_bs); thus, we have to drop the strong reference to bs
          * (which we obtained by calling bdrv_new()). bs will not be deleted,
          * though, because the overlay still has a reference to it. */
-        aio_context_acquire(ctx);
         bdrv_unref(bs);
-        aio_context_release(ctx);
         bs = snapshot_bs;
     }
 
     return bs;
 
 fail:
-    aio_context_acquire(ctx);
     blk_unref(file);
     qobject_unref(snapshot_options);
     qobject_unref(bs->explicit_options);
@@ -4249,14 +4206,11 @@ fail:
     bs->options = NULL;
     bs->explicit_options = NULL;
     bdrv_unref(bs);
-    aio_context_release(ctx);
     error_propagate(errp, local_err);
     return NULL;
 
 close_and_fail:
-    aio_context_acquire(ctx);
     bdrv_unref(bs);
-    aio_context_release(ctx);
     qobject_unref(snapshot_options);
     qobject_unref(options);
     error_propagate(errp, local_err);
@@ -4540,12 +4494,7 @@ void bdrv_reopen_queue_free(BlockReopenQueue *bs_queue)
     if (bs_queue) {
         BlockReopenQueueEntry *bs_entry, *next;
         QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
-            AioContext *ctx = bdrv_get_aio_context(bs_entry->state.bs);
-
-            aio_context_acquire(ctx);
             bdrv_drained_end(bs_entry->state.bs);
-            aio_context_release(ctx);
-
             qobject_unref(bs_entry->state.explicit_options);
             qobject_unref(bs_entry->state.options);
             g_free(bs_entry);
@@ -4577,7 +4526,6 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
-    AioContext *ctx;
     Transaction *tran = tran_new();
     g_autoptr(GSList) refresh_list = NULL;
 
@@ -4586,10 +4534,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     GLOBAL_STATE_CODE();
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
-        ctx = bdrv_get_aio_context(bs_entry->state.bs);
-        aio_context_acquire(ctx);
         ret = bdrv_flush(bs_entry->state.bs);
-        aio_context_release(ctx);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Error flushing drive");
             goto abort;
@@ -4598,10 +4543,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
-        ctx = bdrv_get_aio_context(bs_entry->state.bs);
-        aio_context_acquire(ctx);
         ret = bdrv_reopen_prepare(&bs_entry->state, bs_queue, tran, errp);
-        aio_context_release(ctx);
         if (ret < 0) {
             goto abort;
         }
@@ -4644,10 +4586,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
      * to first element.
      */
     QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
-        ctx = bdrv_get_aio_context(bs_entry->state.bs);
-        aio_context_acquire(ctx);
         bdrv_reopen_commit(&bs_entry->state);
-        aio_context_release(ctx);
     }
 
     bdrv_graph_wrlock();
@@ -4658,10 +4597,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         BlockDriverState *bs = bs_entry->state.bs;
 
         if (bs->drv->bdrv_reopen_commit_post) {
-            ctx = bdrv_get_aio_context(bs);
-            aio_context_acquire(ctx);
             bs->drv->bdrv_reopen_commit_post(&bs_entry->state);
-            aio_context_release(ctx);
         }
     }
 
@@ -4675,10 +4611,7 @@ abort:
 
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (bs_entry->prepared) {
-            ctx = bdrv_get_aio_context(bs_entry->state.bs);
-            aio_context_acquire(ctx);
             bdrv_reopen_abort(&bs_entry->state);
-            aio_context_release(ctx);
         }
     }
 
@@ -4691,24 +4624,13 @@ cleanup:
 int bdrv_reopen(BlockDriverState *bs, QDict *opts, bool keep_old_opts,
                 Error **errp)
 {
-    AioContext *ctx = bdrv_get_aio_context(bs);
     BlockReopenQueue *queue;
-    int ret;
 
     GLOBAL_STATE_CODE();
 
     queue = bdrv_reopen_queue(NULL, bs, opts, keep_old_opts);
 
-    if (ctx != qemu_get_aio_context()) {
-        aio_context_release(ctx);
-    }
-    ret = bdrv_reopen_multiple(queue, errp);
-
-    if (ctx != qemu_get_aio_context()) {
-        aio_context_acquire(ctx);
-    }
-
-    return ret;
+    return bdrv_reopen_multiple(queue, errp);
 }
 
 int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
@@ -4760,7 +4682,6 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
     const char *child_name = is_backing ? "backing" : "file";
     QObject *value;
     const char *str;
-    AioContext *ctx, *old_ctx;
     bool has_child;
     int ret;
 
@@ -4844,13 +4765,6 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         bdrv_drained_begin(old_child_bs);
     }
 
-    old_ctx = bdrv_get_aio_context(bs);
-    ctx = bdrv_get_aio_context(new_child_bs);
-    if (old_ctx != ctx) {
-        aio_context_release(old_ctx);
-        aio_context_acquire(ctx);
-    }
-
     bdrv_graph_rdunlock_main_loop();
     bdrv_graph_wrlock();
 
@@ -4858,11 +4772,6 @@ bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
                                           tran, errp);
 
     bdrv_graph_wrunlock();
-
-    if (old_ctx != ctx) {
-        aio_context_release(ctx);
-        aio_context_acquire(old_ctx);
-    }
 
     if (old_child_bs) {
         bdrv_drained_end(old_child_bs);
@@ -5537,7 +5446,6 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     int ret;
     BdrvChild *child;
     Transaction *tran = tran_new();
-    AioContext *old_context, *new_context = NULL;
 
     GLOBAL_STATE_CODE();
 
@@ -5545,21 +5453,8 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     assert(!bs_new->backing);
     bdrv_graph_rdunlock_main_loop();
 
-    old_context = bdrv_get_aio_context(bs_top);
     bdrv_drained_begin(bs_top);
-
-    /*
-     * bdrv_drained_begin() requires that only the AioContext of the drained
-     * node is locked, and at this point it can still differ from the AioContext
-     * of bs_top.
-     */
-    new_context = bdrv_get_aio_context(bs_new);
-    aio_context_release(old_context);
-    aio_context_acquire(new_context);
     bdrv_drained_begin(bs_new);
-    aio_context_release(new_context);
-    aio_context_acquire(old_context);
-    new_context = NULL;
 
     bdrv_graph_wrlock();
 
@@ -5569,18 +5464,6 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     if (!child) {
         ret = -EINVAL;
         goto out;
-    }
-
-    /*
-     * bdrv_attach_child_noperm could change the AioContext of bs_top and
-     * bs_new, but at least they are in the same AioContext now. This is the
-     * AioContext that we need to lock for the rest of the function.
-     */
-    new_context = bdrv_get_aio_context(bs_top);
-
-    if (old_context != new_context) {
-        aio_context_release(old_context);
-        aio_context_acquire(new_context);
     }
 
     ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
@@ -5597,11 +5480,6 @@ out:
 
     bdrv_drained_end(bs_top);
     bdrv_drained_end(bs_new);
-
-    if (new_context && old_context != new_context) {
-        aio_context_release(new_context);
-        aio_context_acquire(old_context);
-    }
 
     return ret;
 }
@@ -5697,12 +5575,8 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
 
     GLOBAL_STATE_CODE();
 
-    aio_context_release(ctx);
-    aio_context_acquire(qemu_get_aio_context());
     new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options, flags,
                                             errp);
-    aio_context_release(qemu_get_aio_context());
-    aio_context_acquire(ctx);
     assert(bdrv_get_aio_context(bs) == ctx);
 
     options = NULL; /* bdrv_new_open_driver() eats options */
@@ -7037,12 +6911,9 @@ void bdrv_activate_all(Error **errp)
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
         int ret;
 
-        aio_context_acquire(aio_context);
         ret = bdrv_activate(bs, errp);
-        aio_context_release(aio_context);
         if (ret < 0) {
             bdrv_next_cleanup(&it);
             return;
@@ -7137,19 +7008,9 @@ int bdrv_inactivate_all(void)
     BlockDriverState *bs = NULL;
     BdrvNextIterator it;
     int ret = 0;
-    GSList *aio_ctxs = NULL, *ctx;
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
-
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        if (!g_slist_find(aio_ctxs, aio_context)) {
-            aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
-            aio_context_acquire(aio_context);
-        }
-    }
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         /* Nodes with BDS parents are covered by recursion from the last
@@ -7161,16 +7022,9 @@ int bdrv_inactivate_all(void)
         ret = bdrv_inactivate_recurse(bs);
         if (ret < 0) {
             bdrv_next_cleanup(&it);
-            goto out;
+            break;
         }
     }
-
-out:
-    for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
-        AioContext *aio_context = ctx->data;
-        aio_context_release(aio_context);
-    }
-    g_slist_free(aio_ctxs);
 
     return ret;
 }
@@ -7257,11 +7111,8 @@ void bdrv_unref(BlockDriverState *bs)
 static void bdrv_schedule_unref_bh(void *opaque)
 {
     BlockDriverState *bs = opaque;
-    AioContext *ctx = bdrv_get_aio_context(bs);
 
-    aio_context_acquire(ctx);
     bdrv_unref(bs);
-    aio_context_release(ctx);
 }
 
 /*
@@ -7397,8 +7248,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
                    proto_drv->format_name);
         return;
     }
-
-    aio_context_acquire(qemu_get_aio_context());
 
     /* Create parameter list */
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
@@ -7549,7 +7398,6 @@ out:
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     error_propagate(errp, local_err);
-    aio_context_release(qemu_get_aio_context());
 }
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
@@ -7585,29 +7433,12 @@ void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx)
 
 void coroutine_fn bdrv_co_lock(BlockDriverState *bs)
 {
-    AioContext *ctx = bdrv_get_aio_context(bs);
-
-    /* In the main thread, bs->aio_context won't change concurrently */
-    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
-
-    /*
-     * We're in coroutine context, so we already hold the lock of the main
-     * loop AioContext. Don't lock it twice to avoid deadlocks.
-     */
-    assert(qemu_in_coroutine());
-    if (ctx != qemu_get_aio_context()) {
-        aio_context_acquire(ctx);
-    }
+    /* TODO removed in next patch */
 }
 
 void coroutine_fn bdrv_co_unlock(BlockDriverState *bs)
 {
-    AioContext *ctx = bdrv_get_aio_context(bs);
-
-    assert(qemu_in_coroutine());
-    if (ctx != qemu_get_aio_context()) {
-        aio_context_release(ctx);
-    }
+    /* TODO removed in next patch */
 }
 
 static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)
@@ -7728,21 +7559,8 @@ static void bdrv_set_aio_context_commit(void *opaque)
     BdrvStateSetAioContext *state = (BdrvStateSetAioContext *) opaque;
     BlockDriverState *bs = (BlockDriverState *) state->bs;
     AioContext *new_context = state->new_ctx;
-    AioContext *old_context = bdrv_get_aio_context(bs);
 
-    /*
-     * Take the old AioContex when detaching it from bs.
-     * At this point, new_context lock is already acquired, and we are now
-     * also taking old_context. This is safe as long as bdrv_detach_aio_context
-     * does not call AIO_POLL_WHILE().
-     */
-    if (old_context != qemu_get_aio_context()) {
-        aio_context_acquire(old_context);
-    }
     bdrv_detach_aio_context(bs);
-    if (old_context != qemu_get_aio_context()) {
-        aio_context_release(old_context);
-    }
     bdrv_attach_aio_context(bs, new_context);
 }
 
@@ -7827,7 +7645,6 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
     Transaction *tran;
     GHashTable *visited;
     int ret;
-    AioContext *old_context = bdrv_get_aio_context(bs);
     GLOBAL_STATE_CODE();
 
     /*
@@ -7857,34 +7674,7 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
         return -EPERM;
     }
 
-    /*
-     * Release old AioContext, it won't be needed anymore, as all
-     * bdrv_drained_begin() have been called already.
-     */
-    if (qemu_get_aio_context() != old_context) {
-        aio_context_release(old_context);
-    }
-
-    /*
-     * Acquire new AioContext since bdrv_drained_end() is going to be called
-     * after we switched all nodes in the new AioContext, and the function
-     * assumes that the lock of the bs is always taken.
-     */
-    if (qemu_get_aio_context() != ctx) {
-        aio_context_acquire(ctx);
-    }
-
     tran_commit(tran);
-
-    if (qemu_get_aio_context() != ctx) {
-        aio_context_release(ctx);
-    }
-
-    /* Re-acquire the old AioContext, since the caller takes and releases it. */
-    if (qemu_get_aio_context() != old_context) {
-        aio_context_acquire(old_context);
-    }
-
     return 0;
 }
 
@@ -8006,7 +7796,6 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp)
 {
     BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
-    AioContext *aio_context;
 
     GLOBAL_STATE_CODE();
 
@@ -8015,12 +7804,8 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
         return NULL;
     }
 
-    aio_context = bdrv_get_aio_context(to_replace_bs);
-    aio_context_acquire(aio_context);
-
     if (bdrv_op_is_blocked(to_replace_bs, BLOCK_OP_TYPE_REPLACE, errp)) {
-        to_replace_bs = NULL;
-        goto out;
+        return NULL;
     }
 
     /* We don't want arbitrary node of the BDS chain to be replaced only the top
@@ -8033,12 +7818,9 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                    "because it cannot be guaranteed that doing so would not "
                    "lead to an abrupt change of visible data",
                    node_name, parent_bs->node_name);
-        to_replace_bs = NULL;
-        goto out;
+        return NULL;
     }
 
-out:
-    aio_context_release(aio_context);
     return to_replace_bs;
 }
 

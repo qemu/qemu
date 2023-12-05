@@ -1123,9 +1123,7 @@ int main(int argc, char **argv)
         qdict_put_str(raw_opts, "file", bs->node_name);
         qdict_put_int(raw_opts, "offset", dev_offset);
 
-        aio_context_acquire(qemu_get_aio_context());
         bs = bdrv_open(NULL, NULL, raw_opts, flags, &error_fatal);
-        aio_context_release(qemu_get_aio_context());
 
         blk_remove_bs(blk);
         blk_insert_bs(blk, bs, &error_fatal);

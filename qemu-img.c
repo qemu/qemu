@@ -960,7 +960,6 @@ static int img_commit(int argc, char **argv)
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
     bool image_opts = false;
-    AioContext *aio_context;
     int64_t rate_limit = 0;
 
     fmt = NULL;
@@ -1078,12 +1077,9 @@ static int img_commit(int argc, char **argv)
         .bs   = bs,
     };
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
     commit_active_start("commit", bs, base_bs, JOB_DEFAULT, rate_limit,
                         BLOCKDEV_ON_ERROR_REPORT, NULL, common_block_job_cb,
                         &cbi, false, &local_err);
-    aio_context_release(aio_context);
     if (local_err) {
         goto done;
     }

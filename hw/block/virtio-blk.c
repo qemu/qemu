@@ -1210,17 +1210,13 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    AioContext *ctx;
     VirtIOBlockReq *req;
 
     /* Dataplane has stopped... */
     assert(!s->dataplane_started);
 
     /* ...but requests may still be in flight. */
-    ctx = blk_get_aio_context(s->blk);
-    aio_context_acquire(ctx);
     blk_drain(s->blk);
-    aio_context_release(ctx);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
      * produce them. */
@@ -1250,10 +1246,6 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     uint64_t capacity;
     int64_t length;
     int blk_size = conf->logical_block_size;
-    AioContext *ctx;
-
-    ctx = blk_get_aio_context(s->blk);
-    aio_context_acquire(ctx);
 
     blk_get_geometry(s->blk, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
@@ -1277,7 +1269,6 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * per track (cylinder).
      */
     length = blk_getlength(s->blk);
-    aio_context_release(ctx);
     if (length > 0 && length / conf->heads / conf->secs % blk_size) {
         blkcfg.geometry.sectors = conf->secs & ~s->sector_mask;
     } else {
@@ -1344,9 +1335,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     memcpy(&blkcfg, config, s->config_size);
 
-    aio_context_acquire(blk_get_aio_context(s->blk));
     blk_set_enable_write_cache(s->blk, blkcfg.wce != 0);
-    aio_context_release(blk_get_aio_context(s->blk));
 }
 
 static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
@@ -1414,11 +1403,9 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      * s->blk would erroneously be placed in writethrough mode.
      */
     if (!virtio_vdev_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE)) {
-        aio_context_acquire(blk_get_aio_context(s->blk));
         blk_set_enable_write_cache(s->blk,
                                    virtio_vdev_has_feature(vdev,
                                                            VIRTIO_BLK_F_WCE));
-        aio_context_release(blk_get_aio_context(s->blk));
     }
 }
 

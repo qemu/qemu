@@ -662,7 +662,6 @@ static int mirror_exit_common(Job *job)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
     MirrorBDSOpaque *bs_opaque;
-    AioContext *replace_aio_context = NULL;
     BlockDriverState *src;
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
@@ -677,7 +676,6 @@ static int mirror_exit_common(Job *job)
     }
     s->prepared = true;
 
-    aio_context_acquire(qemu_get_aio_context());
     bdrv_graph_rdlock_main_loop();
 
     mirror_top_bs = s->mirror_top_bs;
@@ -742,11 +740,6 @@ static int mirror_exit_common(Job *job)
     }
     bdrv_graph_rdunlock_main_loop();
 
-    if (s->to_replace) {
-        replace_aio_context = bdrv_get_aio_context(s->to_replace);
-        aio_context_acquire(replace_aio_context);
-    }
-
     if (s->should_complete && !abort) {
         BlockDriverState *to_replace = s->to_replace ?: src;
         bool ro = bdrv_is_read_only(to_replace);
@@ -785,9 +778,6 @@ static int mirror_exit_common(Job *job)
         error_free(s->replace_blocker);
         bdrv_unref(s->to_replace);
     }
-    if (replace_aio_context) {
-        aio_context_release(replace_aio_context);
-    }
     g_free(s->replaces);
 
     /*
@@ -810,8 +800,6 @@ static int mirror_exit_common(Job *job)
     s->in_drain = false;
     bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
-
-    aio_context_release(qemu_get_aio_context());
 
     return ret;
 }
@@ -1191,24 +1179,17 @@ static void mirror_complete(Job *job, Error **errp)
 
     /* block all operations on to_replace bs */
     if (s->replaces) {
-        AioContext *replace_aio_context;
-
         s->to_replace = bdrv_find_node(s->replaces);
         if (!s->to_replace) {
             error_setg(errp, "Node name '%s' not found", s->replaces);
             return;
         }
 
-        replace_aio_context = bdrv_get_aio_context(s->to_replace);
-        aio_context_acquire(replace_aio_context);
-
         /* TODO Translate this into child freeze system. */
         error_setg(&s->replace_blocker,
                    "block device is in use by block-job-complete");
         bdrv_op_block_all(s->to_replace, s->replace_blocker);
         bdrv_ref(s->to_replace);
-
-        aio_context_release(replace_aio_context);
     }
 
     s->should_complete = true;
