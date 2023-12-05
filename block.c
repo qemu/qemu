@@ -7431,16 +7431,6 @@ void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx)
     bdrv_dec_in_flight(bs);
 }
 
-void coroutine_fn bdrv_co_lock(BlockDriverState *bs)
-{
-    /* TODO removed in next patch */
-}
-
-void coroutine_fn bdrv_co_unlock(BlockDriverState *bs)
-{
-    /* TODO removed in next patch */
-}
-
 static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)
 {
     GLOBAL_STATE_CODE();
