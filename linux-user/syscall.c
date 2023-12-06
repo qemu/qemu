@@ -25,6 +25,7 @@
 #include "qemu/plugin.h"
 #include "tcg/startup.h"
 #include "target_mman.h"
+#include "exec/page-protection.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>

@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "gdbstub/user.h"
+#include "exec/page-protection.h"
 #include "hw/core/tcg-cpu-ops.h"
 
 #include <sys/ucontext.h>

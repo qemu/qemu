@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 
 #include "exec/target_page.h"
+#include "exec/page-protection.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"

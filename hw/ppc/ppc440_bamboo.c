@@ -15,6 +15,7 @@
 #include "qemu/units.h"
 #include "qemu/datadir.h"
 #include "qemu/error-report.h"
+#include "exec/page-protection.h"
 #include "net/net.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"

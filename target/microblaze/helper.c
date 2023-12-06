@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/page-protection.h"
 #include "qemu/host-utils.h"
 #include "exec/log.h"
 

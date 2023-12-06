@@ -34,6 +34,7 @@ extern char **environ;
 #include "target_os_signal.h"
 #include "target.h"
 #include "exec/gdbstub.h"
+#include "exec/page-protection.h"
 #include "qemu/clang-tsa.h"
 
 #include "qemu-os.h"

@@ -8,6 +8,7 @@
 
 #include "qemu.h"
 #include "user/tswap-target.h"
+#include "exec/page-protection.h"
 #include "user/guest-base.h"
 #include "user-internals.h"
 #include "signal-common.h"
