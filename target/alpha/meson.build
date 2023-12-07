@@ -4,6 +4,7 @@ alpha_ss.add(files(
   'fpu_helper.c',
   'gdbstub.c',
   'helper.c',
+  'clk_helper.c',
   'int_helper.c',
   'mem_helper.c',
   'sys_helper.c',
