@@ -467,23 +467,6 @@ enum VncFeatures {
     VNC_FEATURE_AUDIO,
 };
 
-#define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
-#define VNC_FEATURE_RESIZE_EXT_MASK          (1 << VNC_FEATURE_RESIZE_EXT)
-#define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
-#define VNC_FEATURE_POINTER_TYPE_CHANGE_MASK (1 << VNC_FEATURE_POINTER_TYPE_CHANGE)
-#define VNC_FEATURE_WMVI_MASK                (1 << VNC_FEATURE_WMVI)
-#define VNC_FEATURE_TIGHT_MASK               (1 << VNC_FEATURE_TIGHT)
-#define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
-#define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
-#define VNC_FEATURE_ALPHA_CURSOR_MASK        (1 << VNC_FEATURE_ALPHA_CURSOR)
-#define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
-#define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
-#define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
-#define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
-#define VNC_FEATURE_XVP_MASK                 (1 << VNC_FEATURE_XVP)
-#define VNC_FEATURE_CLIPBOARD_EXT_MASK       (1 <<  VNC_FEATURE_CLIPBOARD_EXT)
-#define VNC_FEATURE_AUDIO_MASK               (1 <<  VNC_FEATURE_AUDIO)
-
 
 /* Client -> Server message IDs */
 #define VNC_MSG_CLIENT_SET_PIXEL_FORMAT           0
@@ -597,6 +580,11 @@ void start_auth_vnc(VncState *vs);
 
 static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
     return (vs->features & (1 << feature));
+}
+
+static inline void vnc_set_feature(VncState *vs, enum VncFeatures feature)
+{
+    vs->features |= (1 << feature);
 }
 
 /* Framebuffer */

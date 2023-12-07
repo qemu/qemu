@@ -2144,16 +2144,16 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_HEXTILE:
-            vs->features |= VNC_FEATURE_HEXTILE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_HEXTILE);
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_TIGHT:
-            vs->features |= VNC_FEATURE_TIGHT_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_TIGHT);
             vs->vnc_encoding = enc;
             break;
 #ifdef CONFIG_PNG
         case VNC_ENCODING_TIGHT_PNG:
-            vs->features |= VNC_FEATURE_TIGHT_PNG_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_TIGHT_PNG);
             vs->vnc_encoding = enc;
             break;
 #endif
@@ -2163,57 +2163,57 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
              * So prioritize ZRLE, even if the client hints that it prefers
              * ZLIB.
              */
-            if ((vs->features & VNC_FEATURE_ZRLE_MASK) == 0) {
-                vs->features |= VNC_FEATURE_ZLIB_MASK;
+            if (!vnc_has_feature(vs, VNC_FEATURE_ZRLE)) {
+                vnc_set_feature(vs, VNC_FEATURE_ZLIB);
                 vs->vnc_encoding = enc;
             }
             break;
         case VNC_ENCODING_ZRLE:
-            vs->features |= VNC_FEATURE_ZRLE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_ZRLE);
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_ZYWRLE:
-            vs->features |= VNC_FEATURE_ZYWRLE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_ZYWRLE);
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_DESKTOPRESIZE:
-            vs->features |= VNC_FEATURE_RESIZE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_RESIZE);
             break;
         case VNC_ENCODING_DESKTOP_RESIZE_EXT:
-            vs->features |= VNC_FEATURE_RESIZE_EXT_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_RESIZE_EXT);
             break;
         case VNC_ENCODING_POINTER_TYPE_CHANGE:
-            vs->features |= VNC_FEATURE_POINTER_TYPE_CHANGE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE);
             break;
         case VNC_ENCODING_RICH_CURSOR:
-            vs->features |= VNC_FEATURE_RICH_CURSOR_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_RICH_CURSOR);
             break;
         case VNC_ENCODING_ALPHA_CURSOR:
-            vs->features |= VNC_FEATURE_ALPHA_CURSOR_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_ALPHA_CURSOR);
             break;
         case VNC_ENCODING_EXT_KEY_EVENT:
             send_ext_key_event_ack(vs);
             break;
         case VNC_ENCODING_AUDIO:
             if (vs->vd->audio_state) {
-                vs->features |= VNC_FEATURE_AUDIO_MASK;
+                vnc_set_feature(vs, VNC_FEATURE_AUDIO);
                 send_ext_audio_ack(vs);
             }
             break;
         case VNC_ENCODING_WMVi:
-            vs->features |= VNC_FEATURE_WMVI_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_WMVI);
             break;
         case VNC_ENCODING_LED_STATE:
-            vs->features |= VNC_FEATURE_LED_STATE_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_LED_STATE);
             break;
         case VNC_ENCODING_XVP:
             if (vs->vd->power_control) {
-                vs->features |= VNC_FEATURE_XVP_MASK;
+                vnc_set_feature(vs, VNC_FEATURE_XVP);
                 send_xvp_message(vs, VNC_XVP_CODE_INIT);
             }
             break;
         case VNC_ENCODING_CLIPBOARD_EXT:
-            vs->features |= VNC_FEATURE_CLIPBOARD_EXT_MASK;
+            vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_EXT);
             vnc_server_cut_text_caps(vs);
             break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
