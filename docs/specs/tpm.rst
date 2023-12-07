@@ -1,3 +1,5 @@
+.. _tpm-device:
+
 ===============
 QEMU TPM Device
 ===============
