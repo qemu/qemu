@@ -2400,8 +2400,9 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
 
     bdrv_co_lock(bs);
     bdrv_drained_end(bs);
-    blk_co_unref(blk);
     bdrv_co_unlock(bs);
+
+    blk_co_unref(blk);
 }
 
 void qmp_block_stream(const char *job_id, const char *device,
