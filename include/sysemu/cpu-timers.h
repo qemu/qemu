@@ -50,8 +50,14 @@ int64_t icount_get(void);
  */
 int64_t icount_to_ns(int64_t icount);
 
-/* configure the icount options, including "shift" */
-void icount_configure(QemuOpts *opts, Error **errp);
+/**
+ * icount_configure: configure the icount options, including "shift"
+ * @opts: Options to parse
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Return: true on success, else false setting @errp with error
+ */
+bool icount_configure(QemuOpts *opts, Error **errp);
 
 /* used by tcg vcpu thread to calc icount budget */
 int64_t icount_round(int64_t count);

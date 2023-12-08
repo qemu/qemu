@@ -419,7 +419,7 @@ void icount_account_warp_timer(void)
     icount_warp_rt();
 }
 
-void icount_configure(QemuOpts *opts, Error **errp)
+bool icount_configure(QemuOpts *opts, Error **errp)
 {
     const char *option = qemu_opt_get(opts, "shift");
     bool sleep = qemu_opt_get_bool(opts, "sleep", true);
@@ -429,27 +429,28 @@ void icount_configure(QemuOpts *opts, Error **errp)
     if (!option) {
         if (qemu_opt_get(opts, "align") != NULL) {
             error_setg(errp, "Please specify shift option when using align");
+            return false;
         }
-        return;
+        return true;
     }
 
     if (align && !sleep) {
         error_setg(errp, "align=on and sleep=off are incompatible");
-        return;
+        return false;
     }
 
     if (strcmp(option, "auto") != 0) {
         if (qemu_strtol(option, NULL, 0, &time_shift) < 0
             || time_shift < 0 || time_shift > MAX_ICOUNT_SHIFT) {
             error_setg(errp, "icount: Invalid shift value");
-            return;
+            return false;
         }
     } else if (icount_align_option) {
         error_setg(errp, "shift=auto and align=on are incompatible");
-        return;
+        return false;
     } else if (!icount_sleep) {
         error_setg(errp, "shift=auto and sleep=off are incompatible");
-        return;
+        return false;
     }
 
     icount_sleep = sleep;
@@ -463,7 +464,7 @@ void icount_configure(QemuOpts *opts, Error **errp)
     if (time_shift >= 0) {
         timers_state.icount_time_shift = time_shift;
         icount_enable_precise();
-        return;
+        return true;
     }
 
     icount_enable_adaptive();
@@ -491,6 +492,7 @@ void icount_configure(QemuOpts *opts, Error **errp)
     timer_mod(timers_state.icount_vm_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    NANOSECONDS_PER_SECOND / 10);
+    return true;
 }
 
 void icount_notify_exit(void)
