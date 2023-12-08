@@ -17,7 +17,7 @@ from avocado_qemu import wait_for_console_pattern
 from boot_linux_console import LinuxKernelTest
 
 
-class BootXenBase(LinuxKernelTest):
+class BootXen(LinuxKernelTest):
     """
     Boots a Xen hypervisor with a Linux DomU kernel.
     """
@@ -58,9 +58,6 @@ class BootXenBase(LinuxKernelTest):
 
         console_pattern = 'VFS: Cannot open root device'
         wait_for_console_pattern(self, console_pattern, "Panic on CPU 0:")
-
-
-class BootXen(BootXenBase):
 
     def test_arm64_xen_411_and_dom0(self):
         """
