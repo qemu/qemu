@@ -123,8 +123,17 @@ if get_option('kvm').allowed() and targetos == 'linux'
   kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
 endif
 config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
-
 accelerator_targets = { 'CONFIG_KVM': kvm_targets }
+
+if cpu in ['x86', 'x86_64']
+  xen_targets = ['i386-softmmu', 'x86_64-softmmu']
+elif cpu in ['arm', 'aarch64']
+  # i386 emulator provides xenpv machine type for multiple architectures
+  xen_targets = ['i386-softmmu', 'x86_64-softmmu', 'aarch64-softmmu']
+else
+  xen_targets = []
+endif
+accelerator_targets += { 'CONFIG_XEN': xen_targets }
 
 if cpu in ['aarch64']
   accelerator_targets += {
@@ -132,12 +141,6 @@ if cpu in ['aarch64']
   }
 endif
 
-if cpu in ['x86', 'x86_64', 'arm', 'aarch64']
-  # i386 emulator provides xenpv machine type for multiple architectures
-  accelerator_targets += {
-    'CONFIG_XEN': ['i386-softmmu', 'x86_64-softmmu', 'aarch64-softmmu'],
-  }
-endif
 if cpu in ['x86', 'x86_64']
   accelerator_targets += {
     'CONFIG_HVF': ['x86_64-softmmu'],
