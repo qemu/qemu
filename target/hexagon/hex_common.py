@@ -94,10 +94,6 @@ def is_cond_call(tag):
 def calculate_attribs():
     add_qemu_macro_attrib("fREAD_PC", "A_IMPLICIT_READS_PC")
     add_qemu_macro_attrib("fTRAP", "A_IMPLICIT_READS_PC")
-    add_qemu_macro_attrib("fWRITE_P0", "A_WRITES_PRED_REG")
-    add_qemu_macro_attrib("fWRITE_P1", "A_WRITES_PRED_REG")
-    add_qemu_macro_attrib("fWRITE_P2", "A_WRITES_PRED_REG")
-    add_qemu_macro_attrib("fWRITE_P3", "A_WRITES_PRED_REG")
     add_qemu_macro_attrib("fSET_OVERFLOW", "A_IMPLICIT_WRITES_USR")
     add_qemu_macro_attrib("fSET_LPCFG", "A_IMPLICIT_WRITES_USR")
     add_qemu_macro_attrib("fLOAD", "A_SCALAR_LOAD")
@@ -122,13 +118,6 @@ def calculate_attribs():
                 continue
             macro = macros[macname]
             attribdict[tag] |= set(macro.attribs)
-    # Figure out which instructions write predicate registers
-    tagregs = get_tagregs()
-    for tag in tags:
-        regs = tagregs[tag]
-        for regtype, regid in regs:
-            if regtype == "P" and is_written(regid):
-                attribdict[tag].add("A_WRITES_PRED_REG")
     # Mark conditional jumps and calls
     #     Not all instructions are properly marked with A_CONDEXEC
     for tag in tags:
