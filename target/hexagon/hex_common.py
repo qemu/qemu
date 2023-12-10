@@ -33,9 +33,6 @@ tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
 
-def bad_register(regtype, regid):
-    raise Exception(f"Bad register parse: regtype '{regtype}' regid '{regid}'")
-
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
 def uniquify(seq):
@@ -200,46 +197,6 @@ def get_tagimms():
     return dict(zip(tags, list(map(compute_tag_immediates, tags))))
 
 
-def is_pair(regid):
-    return len(regid) == 2
-
-
-def is_single(regid):
-    return len(regid) == 1
-
-
-def is_written(regid):
-    return regid[0] in "dexy"
-
-
-def is_writeonly(regid):
-    return regid[0] in "de"
-
-
-def is_read(regid):
-    return regid[0] in "stuvwxy"
-
-
-def is_readwrite(regid):
-    return regid[0] in "xy"
-
-
-def is_scalar_reg(regtype):
-    return regtype in "RPC"
-
-
-def is_hvx_reg(regtype):
-    return regtype in "VQ"
-
-
-def is_old_val(regtype, regid, tag):
-    return regtype + regid + "V" in semdict[tag]
-
-
-def is_new_val(regtype, regid, tag):
-    return regtype + regid + "N" in semdict[tag]
-
-
 def need_slot(tag):
     if (
         "A_CVI_SCATTER" not in attribdict[tag]
@@ -278,14 +235,6 @@ def need_pkt_need_commit(tag):
 
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
-
-
-def is_tmp_result(tag):
-    return "A_CVI_TMP" in attribdict[tag] or "A_CVI_TMP_DST" in attribdict[tag]
-
-
-def is_new_result(tag):
-    return "A_CVI_NEW" in attribdict[tag]
 
 
 def is_idef_parser_enabled(tag):
