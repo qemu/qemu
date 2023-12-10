@@ -462,8 +462,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fPM_CIRI(REG, IMM, MVAL) \
     do { \
         TCGv tcgv_siV = tcg_constant_tl(siV); \
-        gen_helper_fcircadd(REG, REG, tcgv_siV, MuV, \
-                            hex_gpr[HEX_REG_CS0 + MuN]); \
+        gen_helper_fcircadd(REG, REG, tcgv_siV, MuV, CS); \
     } while (0)
 #else
 #define fEA_IMM(IMM)        do { EA = (IMM); } while (0)

@@ -99,10 +99,15 @@ def genptr_decl(f, tag, regtype, regid, regno):
             hex_common.bad_register(regtype, regid)
     elif regtype == "M":
         if regid == "u":
-            f.write(f"    const int {regtype}{regid}N = " f"insn->regno[{regno}];\n")
             f.write(
-                f"    TCGv {regtype}{regid}V = hex_gpr[{regtype}{regid}N + "
-                "HEX_REG_M0];\n"
+                f"    const int {regN} = insn->regno[{regno}] + HEX_REG_M0;\n"
+            )
+            f.write(
+                f"    TCGv {regtype}{regid}V = hex_gpr[{regN}];\n"
+            )
+            f.write(
+                f"    TCGv CS G_GNUC_UNUSED = "
+                f"hex_gpr[{regN} - HEX_REG_M0 + HEX_REG_CS0];\n"
             )
         else:
             hex_common.bad_register(regtype, regid)
@@ -528,7 +533,7 @@ def gen_tcg_func(f, tag, regs, imms):
             ):
                 declared.append(f"{regtype}{regid}V")
                 if regtype == "M":
-                    declared.append(f"{regtype}{regid}N")
+                    declared.append("CS")
             elif hex_common.is_new_val(regtype, regid, tag):
                 declared.append(f"{regtype}{regid}N")
             else:

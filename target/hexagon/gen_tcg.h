@@ -68,15 +68,14 @@
     do { \
         TCGv tcgv_siV = tcg_constant_tl(siV); \
         tcg_gen_mov_tl(EA, RxV); \
-        gen_helper_fcircadd(RxV, RxV, tcgv_siV, MuV, \
-                            hex_gpr[HEX_REG_CS0 + MuN]); \
+        gen_helper_fcircadd(RxV, RxV, tcgv_siV, MuV, CS); \
     } while (0)
 #define GET_EA_pcr(SHIFT) \
     do { \
         TCGv ireg = tcg_temp_new(); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_read_ireg(ireg, MuV, (SHIFT)); \
-        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, CS); \
     } while (0)
 
 /* Instructions with multiple definitions */
@@ -113,7 +112,7 @@
         TCGv ireg = tcg_temp_new(); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_read_ireg(ireg, MuV, SHIFT); \
-        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, CS); \
         LOAD; \
     } while (0)
 
@@ -427,7 +426,7 @@
         TCGv BYTE G_GNUC_UNUSED = tcg_temp_new(); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_read_ireg(ireg, MuV, SHIFT); \
-        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, CS); \
         STORE; \
     } while (0)
 
