@@ -290,13 +290,6 @@ def need_pkt_has_multi_cof(tag):
 def need_pkt_need_commit(tag):
     return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
 
-def need_condexec_reg(tag, regs):
-    if "A_CONDEXEC" in attribdict[tag]:
-        for regtype, regid in regs:
-            if is_writeonly(regid) and not is_hvx_reg(regtype):
-                return True
-    return False
-
 
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
