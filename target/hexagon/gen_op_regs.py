@@ -70,6 +70,7 @@ def strip_reg_prefix(x):
 def main():
     hex_common.read_semantics_file(sys.argv[1])
     hex_common.read_attribs_file(sys.argv[2])
+    hex_common.init_registers()
     tagregs = hex_common.get_tagregs(full=True)
     tagimms = hex_common.get_tagimms()
 
@@ -80,11 +81,12 @@ def main():
             wregs = []
             regids = ""
             for regtype, regid, _, numregs in regs:
-                if hex_common.is_read(regid):
+                reg = hex_common.get_register(tag, regtype, regid)
+                if reg.is_read():
                     if regid[0] not in regids:
                         regids += regid[0]
                     rregs.append(regtype + regid + numregs)
-                if hex_common.is_written(regid):
+                if reg.is_written():
                     wregs.append(regtype + regid + numregs)
                     if regid[0] not in regids:
                         regids += regid[0]
