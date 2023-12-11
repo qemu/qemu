@@ -70,6 +70,11 @@ int replay_get_instructions(void);
 /*! Updates instructions counter in replay mode. */
 void replay_account_executed_instructions(void);
 
+/**
+ * replay_can_wait: check if we should pause for wait-io
+ */
+bool replay_can_wait(void);
+
 /* Processing clocks and other time sources */
 
 /*! Save the specified clock */

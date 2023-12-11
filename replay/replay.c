@@ -449,6 +449,27 @@ void replay_start(void)
     replay_enable_events();
 }
 
+/*
+ * For none/record the answer is yes.
+ */
+bool replay_can_wait(void)
+{
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        /*
+         * For playback we shouldn't ever be at a point we wait. If
+         * the instruction count has reached zero and we have an
+         * unconsumed event we should go around again and consume it.
+         */
+        if (replay_state.instruction_count == 0 && replay_state.has_unread_data) {
+            return false;
+        } else {
+            replay_sync_error("Playback shouldn't have to iowait");
+        }
+    }
+    return true;
+}
+
+
 void replay_finish(void)
 {
     if (replay_mode == REPLAY_MODE_NONE) {
