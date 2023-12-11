@@ -175,6 +175,7 @@ void replay_fetch_data_kind(void)
     if (replay_file) {
         if (!replay_state.has_unread_data) {
             replay_state.data_kind = replay_get_byte();
+            replay_state.current_event++;
             if (replay_state.data_kind == EVENT_INSTRUCTION) {
                 replay_state.instruction_count = replay_get_dword();
             }

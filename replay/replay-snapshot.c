@@ -55,6 +55,7 @@ static const VMStateDescription vmstate_replay = {
         VMSTATE_INT64_ARRAY(cached_clock, ReplayState, REPLAY_CLOCK_COUNT),
         VMSTATE_UINT64(current_icount, ReplayState),
         VMSTATE_INT32(instruction_count, ReplayState),
+        VMSTATE_UINT32(current_event, ReplayState),
         VMSTATE_UINT32(data_kind, ReplayState),
         VMSTATE_BOOL(has_unread_data, ReplayState),
         VMSTATE_UINT64(file_offset, ReplayState),

@@ -25,7 +25,12 @@ typedef enum ReplayAsyncEventKind {
     REPLAY_ASYNC_COUNT
 } ReplayAsyncEventKind;
 
-/* Any changes to order/number of events will need to bump REPLAY_VERSION */
+/*
+ * Any changes to order/number of events will need to bump
+ * REPLAY_VERSION to prevent confusion with old logs. Also don't
+ * forget to update replay_event_name() to make your debugging life
+ * easier.
+ */
 enum ReplayEvents {
     /* for instruction event */
     EVENT_INSTRUCTION,
@@ -74,6 +79,7 @@ enum ReplayEvents {
  * @cached_clock: Cached clocks values
  * @current_icount: number of processed instructions
  * @instruction_count: number of instructions until next event
+ * @current_event: current event index
  * @data_kind: current event
  * @has_unread_data: true if event not yet processed
  * @file_offset: offset into replay log at replay snapshot
@@ -84,6 +90,7 @@ typedef struct ReplayState {
     int64_t cached_clock[REPLAY_CLOCK_COUNT];
     uint64_t current_icount;
     int instruction_count;
+    unsigned int current_event;
     unsigned int data_kind;
     bool has_unread_data;
     uint64_t file_offset;
@@ -187,6 +194,16 @@ void replay_event_net_run(void *opaque);
 void replay_event_net_save(void *opaque);
 /*! Reads network from the file. */
 void *replay_event_net_load(void);
+
+/* Diagnostics */
+
+/**
+ * replay_sync_error(): report sync error and exit
+ *
+ * When we reach an error condition we want to report it centrally so
+ * we can also dump some useful information into the logs.
+ */
+G_NORETURN void replay_sync_error(const char *error);
 
 /* VMState-related functions */
 
