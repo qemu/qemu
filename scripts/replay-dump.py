@@ -157,10 +157,13 @@ def decode_async(eid, name, dumpfile):
 
     return call_decode(async_decode_table, async_event_kind, dumpfile)
 
+total_insns = 0
 
 def decode_instruction(eid, name, dumpfile):
+    global total_insns
     ins_diff = read_dword(dumpfile)
-    print_event(eid, name, "0x%x" % (ins_diff))
+    total_insns += ins_diff
+    print_event(eid, name, "+ %d -> %d" % (ins_diff, total_insns))
     return True
 
 def decode_char_write(eid, name, dumpfile):
