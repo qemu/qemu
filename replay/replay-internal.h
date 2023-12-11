@@ -75,7 +75,7 @@ enum ReplayEvents {
  * @current_icount: number of processed instructions
  * @instruction_count: number of instructions until next event
  * @data_kind: current event
- * @has_unread_data: 1 if event not yet processed
+ * @has_unread_data: true if event not yet processed
  * @file_offset: offset into replay log at replay snapshot
  * @block_request_id: current serialised block request id
  * @read_event_id: current async read event id
@@ -85,7 +85,7 @@ typedef struct ReplayState {
     uint64_t current_icount;
     int instruction_count;
     unsigned int data_kind;
-    unsigned int has_unread_data;
+    bool has_unread_data;
     uint64_t file_offset;
     uint64_t block_request_id;
     uint64_t read_event_id;
