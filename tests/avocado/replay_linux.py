@@ -94,7 +94,7 @@ class ReplayLinux(LinuxTest):
         else:
             vm.event_wait('SHUTDOWN', self.timeout)
             vm.wait()
-            logger.info('successfully fihished the replay')
+            logger.info('successfully finished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
         return elapsed
