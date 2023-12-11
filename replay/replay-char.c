@@ -113,8 +113,7 @@ void replay_char_write_event_load(int *res, int *offset)
         *offset = replay_get_dword();
         replay_finish_event();
     } else {
-        error_report("Missing character write event in the replay log");
-        exit(1);
+        replay_sync_error("Missing character write event in the replay log");
     }
 }
 
@@ -135,8 +134,7 @@ int replay_char_read_all_load(uint8_t *buf)
         replay_finish_event();
         return res;
     } else {
-        error_report("Missing character read all event in the replay log");
-        exit(1);
+        replay_sync_error("Missing character read all event in the replay log");
     }
 }
 
