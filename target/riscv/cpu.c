@@ -1570,9 +1570,9 @@ static void cpu_set_mvendorid(Object *obj, Visitor *v, const char *name,
 static void cpu_get_mvendorid(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
-    bool value = RISCV_CPU(obj)->cfg.mvendorid;
+    uint32_t value = RISCV_CPU(obj)->cfg.mvendorid;
 
-    visit_type_bool(v, name, &value, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static void cpu_set_mimpid(Object *obj, Visitor *v, const char *name,
@@ -1599,9 +1599,9 @@ static void cpu_set_mimpid(Object *obj, Visitor *v, const char *name,
 static void cpu_get_mimpid(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
-    bool value = RISCV_CPU(obj)->cfg.mimpid;
+    uint64_t value = RISCV_CPU(obj)->cfg.mimpid;
 
-    visit_type_bool(v, name, &value, errp);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void cpu_set_marchid(Object *obj, Visitor *v, const char *name,
@@ -1649,9 +1649,9 @@ static void cpu_set_marchid(Object *obj, Visitor *v, const char *name,
 static void cpu_get_marchid(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
-    bool value = RISCV_CPU(obj)->cfg.marchid;
+    uint64_t value = RISCV_CPU(obj)->cfg.marchid;
 
-    visit_type_bool(v, name, &value, errp);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void riscv_cpu_class_init(ObjectClass *c, void *data)
