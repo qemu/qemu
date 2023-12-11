@@ -63,24 +63,31 @@ enum ReplayEvents {
     EVENT_COUNT
 };
 
+/**
+ * typedef ReplayState - global tracking Replay state
+ *
+ * This structure tracks where we are in the current ReplayState
+ * including the logged events from the recorded replay stream. Some
+ * of the data is also stored/restored from VMStateDescription when VM
+ * save/restore events take place.
+ *
+ * @cached_clock: Cached clocks values
+ * @current_icount: number of processed instructions
+ * @instruction_count: number of instructions until next event
+ * @data_kind: current event
+ * @has_unread_data: 1 if event not yet processed
+ * @file_offset: offset into replay log at replay snapshot
+ * @block_request_id: current serialised block request id
+ * @read_event_id: current async read event id
+ */
 typedef struct ReplayState {
-    /*! Cached clock values. */
     int64_t cached_clock[REPLAY_CLOCK_COUNT];
-    /*! Current icount - number of processed instructions. */
     uint64_t current_icount;
-    /*! Number of instructions to be executed before other events happen. */
     int instruction_count;
-    /*! Type of the currently executed event. */
     unsigned int data_kind;
-    /*! Flag which indicates that event is not processed yet. */
     unsigned int has_unread_data;
-    /*! Temporary variable for saving current log offset. */
     uint64_t file_offset;
-    /*! Next block operation id.
-        This counter is global, because requests from different
-        block devices should not get overlapping ids. */
     uint64_t block_request_id;
-    /*! Asynchronous event id read from the log */
     uint64_t read_event_id;
 } ReplayState;
 extern ReplayState replay_state;
