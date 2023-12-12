@@ -52,7 +52,12 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
     /* The instruction pointer is always up to date with TARGET_TB_PCREL. */
     if (!TARGET_TB_PCREL) {
         CPUX86State *env = cs->env_ptr;
-        env->eip = tb_pc(tb) - tb->cs_base;
+
+        if (tb->flags & HF_CS64_MASK) {
+            env->eip = tb_pc(tb);
+        } else {
+            env->eip = (uint32_t)(tb_pc(tb) - tb->cs_base);
+        }
     }
 }
 
@@ -66,8 +71,10 @@ static void x86_restore_state_to_opc(CPUState *cs,
 
     if (TARGET_TB_PCREL) {
         env->eip = (env->eip & TARGET_PAGE_MASK) | data[0];
+    } else if (tb->flags & HF_CS64_MASK) {
+        env->eip = data[0];
     } else {
-        env->eip = data[0] - tb->cs_base;
+        env->eip = (uint32_t)(data[0] - tb->cs_base);
     }
     if (cc_op != CC_OP_DYNAMIC) {
         env->cc_op = cc_op;
