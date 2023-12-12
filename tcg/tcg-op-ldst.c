@@ -77,6 +77,13 @@ static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
     if (st) {
         op &= ~MO_SIGN;
     }
+
+    /* In serial mode, reduce atomicity. */
+    if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+        op &= ~MO_ATOM_MASK;
+        op |= MO_ATOM_NONE;
+    }
+
     return op;
 }
 
@@ -428,8 +435,7 @@ static bool use_two_i64_for_i128(MemOp mop)
     case MO_ATOM_SUBALIGN:
     case MO_ATOM_WITHIN16:
     case MO_ATOM_WITHIN16_PAIR:
-        /* In a serialized context, no atomicity is required. */
-        return !(tcg_ctx->gen_tb->cflags & CF_PARALLEL);
+        return false;
     default:
         g_assert_not_reached();
     }
@@ -499,12 +505,19 @@ static void maybe_free_addr64(TCGv_i64 a64)
 static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
                                      TCGArg idx, MemOp memop)
 {
-    const MemOpIdx orig_oi = make_memop_idx(memop, idx);
+    MemOpIdx orig_oi;
     TCGv_i64 ext_addr = NULL;
     TCGOpcode opc;
 
     check_max_alignment(get_alignment_bits(memop));
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
+
+    /* In serial mode, reduce atomicity. */
+    if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+        memop &= ~MO_ATOM_MASK;
+        memop |= MO_ATOM_NONE;
+    }
+    orig_oi = make_memop_idx(memop, idx);
 
     /* TODO: For now, force 32-bit hosts to use the helper. */
     if (TCG_TARGET_HAS_qemu_ldst_i128 && TCG_TARGET_REG_BITS == 64) {
@@ -608,12 +621,19 @@ void tcg_gen_qemu_ld_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
 static void tcg_gen_qemu_st_i128_int(TCGv_i128 val, TCGTemp *addr,
                                      TCGArg idx, MemOp memop)
 {
-    const MemOpIdx orig_oi = make_memop_idx(memop, idx);
+    MemOpIdx orig_oi;
     TCGv_i64 ext_addr = NULL;
     TCGOpcode opc;
 
     check_max_alignment(get_alignment_bits(memop));
     tcg_gen_req_mo(TCG_MO_ST_LD | TCG_MO_ST_ST);
+
+    /* In serial mode, reduce atomicity. */
+    if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+        memop &= ~MO_ATOM_MASK;
+        memop |= MO_ATOM_NONE;
+    }
+    orig_oi = make_memop_idx(memop, idx);
 
     /* TODO: For now, force 32-bit hosts to use the helper. */
 

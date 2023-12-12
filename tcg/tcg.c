@@ -5440,15 +5440,8 @@ static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc,
     MemOp align = get_alignment_bits(opc);
     MemOp size = opc & MO_SIZE;
     MemOp half = size ? size - 1 : 0;
+    MemOp atom = opc & MO_ATOM_MASK;
     MemOp atmax;
-    MemOp atom;
-
-    /* When serialized, no further atomicity required.  */
-    if (s->gen_tb->cflags & CF_PARALLEL) {
-        atom = opc & MO_ATOM_MASK;
-    } else {
-        atom = MO_ATOM_NONE;
-    }
 
     switch (atom) {
     case MO_ATOM_NONE:
