@@ -22,6 +22,7 @@
 #include <sys/ioccom.h>
 
 #include "qemu.h"
+#include "user/tswap-target.h"
 
 #include "os-strace.h"  /* OS dependent strace print functions */
 

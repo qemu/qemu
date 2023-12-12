@@ -23,6 +23,7 @@
 #include <sys/param.h>
 #include "target_arch_sigtramp.h"
 #include "qemu/guest-random.h"
+#include "user/tswap-target.h"
 
 /*
  * The initial FreeBSD stack is as follows:

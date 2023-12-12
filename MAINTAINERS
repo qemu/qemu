@@ -3692,6 +3692,7 @@ Overall usermode emulation
 M: Riku Voipio <riku.voipio@iki.fi>
 S: Maintained
 F: accel/tcg/user-exec*.c
+F: include/exec/user/
 F: include/user/
 F: common-user/
 
