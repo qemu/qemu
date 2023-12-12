@@ -1,3 +1,5 @@
+HXCOMM See docs/devel/docs.rst for the format of this file.
+HXCOMM
 HXCOMM Keep the list of subcommands sorted by name.
 HXCOMM Use DEFHEADING() to define headings in both help text and rST
 HXCOMM Text between SRST and ERST are copied to rST version and
