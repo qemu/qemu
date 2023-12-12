@@ -532,7 +532,7 @@ static inline int xendevicemodel_set_irq_level(xendevicemodel_handle *dmod,
 }
 #endif
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION <= 41700
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41700
 #define GUEST_VIRTIO_MMIO_BASE   xen_mk_ullong(0x02000000)
 #define GUEST_VIRTIO_MMIO_SIZE   xen_mk_ullong(0x00100000)
 #define GUEST_VIRTIO_MMIO_SPI_FIRST   33
