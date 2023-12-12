@@ -552,8 +552,10 @@ static void gen_update_eip_cur(DisasContext *s)
     assert(s->pc_save != -1);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, s->base.pc_next - s->pc_save);
+    } else if (CODE64(s)) {
+        tcg_gen_movi_tl(cpu_eip, s->base.pc_next);
     } else {
-        tcg_gen_movi_tl(cpu_eip, s->base.pc_next - s->cs_base);
+        tcg_gen_movi_tl(cpu_eip, (uint32_t)(s->base.pc_next - s->cs_base));
     }
     s->pc_save = s->base.pc_next;
 }
@@ -563,8 +565,10 @@ static void gen_update_eip_next(DisasContext *s)
     assert(s->pc_save != -1);
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, s->pc - s->pc_save);
+    } else if (CODE64(s)) {
+        tcg_gen_movi_tl(cpu_eip, s->base.pc_next);
     } else {
-        tcg_gen_movi_tl(cpu_eip, s->pc - s->cs_base);
+        tcg_gen_movi_tl(cpu_eip, (uint32_t)(s->base.pc_next - s->cs_base));
     }
     s->pc_save = s->pc;
 }
@@ -610,8 +614,10 @@ static TCGv eip_next_tl(DisasContext *s)
         TCGv ret = tcg_temp_new();
         tcg_gen_addi_tl(ret, cpu_eip, s->pc - s->pc_save);
         return ret;
+    } else if (CODE64(s)) {
+        return tcg_constant_tl(s->pc);
     } else {
-        return tcg_constant_tl(s->pc - s->cs_base);
+        return tcg_constant_tl((uint32_t)(s->pc - s->cs_base));
     }
 }
 
@@ -622,8 +628,10 @@ static TCGv eip_cur_tl(DisasContext *s)
         TCGv ret = tcg_temp_new();
         tcg_gen_addi_tl(ret, cpu_eip, s->base.pc_next - s->pc_save);
         return ret;
+    } else if (CODE64(s)) {
+        return tcg_constant_tl(s->base.pc_next);
     } else {
-        return tcg_constant_tl(s->base.pc_next - s->cs_base);
+        return tcg_constant_tl((uint32_t)(s->base.pc_next - s->cs_base));
     }
 }
 
@@ -2859,6 +2867,10 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
         }
     }
     new_eip &= mask;
+    new_pc = new_eip + s->cs_base;
+    if (!CODE64(s)) {
+        new_pc = (uint32_t)new_pc;
+    }
 
     gen_update_cc_op(s);
     set_cc_op(s, CC_OP_DYNAMIC);
@@ -2876,8 +2888,7 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
         }
     }
 
-    if (use_goto_tb &&
-        translator_use_goto_tb(&s->base, new_eip + s->cs_base)) {
+    if (use_goto_tb && translator_use_goto_tb(&s->base, new_pc)) {
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         if (!(tb_cflags(s->base.tb) & CF_PCREL)) {
