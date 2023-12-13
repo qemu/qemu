@@ -167,7 +167,7 @@ sev_ioctl(int fd, int cmd, void *data, int *error)
 
     input.id = cmd;
     input.sev_fd = fd;
-    input.data = (__u64)(unsigned long)data;
+    input.data = (uintptr_t)data;
 
     r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_OP, &input);
 
@@ -240,7 +240,7 @@ sev_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
         return;
     }
 
-    range.addr = (__u64)(unsigned long)host;
+    range.addr = (uintptr_t)host;
     range.size = max_size;
 
     trace_kvm_memcrypt_register_region(host, max_size);
@@ -270,7 +270,7 @@ sev_ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
         return;
     }
 
-    range.addr = (__u64)(unsigned long)host;
+    range.addr = (uintptr_t)host;
     range.size = max_size;
 
     trace_kvm_memcrypt_unregister_region(host, max_size);
@@ -767,7 +767,7 @@ sev_launch_update_data(SevGuestState *sev, uint8_t *addr, uint64_t len)
         return 1;
     }
 
-    update.uaddr = (__u64)(unsigned long)addr;
+    update.uaddr = (uintptr_t)addr;
     update.len = len;
     trace_kvm_sev_launch_update_data(addr, len);
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_UPDATE_DATA,

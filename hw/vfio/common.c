@@ -1000,7 +1000,7 @@ vfio_device_feature_dma_logging_start_create(VFIOContainerBase *bcontainer,
         return NULL;
     }
 
-    control->ranges = (__u64)(uintptr_t)ranges;
+    control->ranges = (uintptr_t)ranges;
     if (tracking->max32) {
         ranges->iova = tracking->min32;
         ranges->length = (tracking->max32 - tracking->min32) + 1;
@@ -1126,7 +1126,7 @@ static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
     report->iova = iova;
     report->length = size;
     report->page_size = qemu_real_host_page_size();
-    report->bitmap = (__u64)(uintptr_t)bitmap;
+    report->bitmap = (uintptr_t)bitmap;
 
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_GET |
