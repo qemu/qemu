@@ -355,9 +355,7 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
 
-    AddressSpace address_space_iocsr;
-    MemoryRegion system_iocsr;
-    MemoryRegion iocsr_mem;
+    AddressSpace *address_space_iocsr;
     bool load_elf;
     uint64_t elf_address;
     uint32_t mp_state;

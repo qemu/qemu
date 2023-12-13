@@ -282,9 +282,6 @@ static void loongarch_extioi_instance_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), extioi_setirq, EXTIOI_IRQS);
 
     for (cpu = 0; cpu < EXTIOI_CPUS; cpu++) {
-        memory_region_init_io(&s->extioi_iocsr_mem[cpu], OBJECT(s), &extioi_ops,
-                              s, "extioi_iocsr", 0x900);
-        sysbus_init_mmio(dev, &s->extioi_iocsr_mem[cpu]);
         for (pin = 0; pin < LS3A_INTC_IP; pin++) {
             qdev_init_gpio_out(DEVICE(obj), &s->parent_irq[cpu][pin], 1);
         }

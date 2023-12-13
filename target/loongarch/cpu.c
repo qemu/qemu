@@ -589,47 +589,6 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
     lacc->parent_realize(dev, errp);
 }
 
-#ifndef CONFIG_USER_ONLY
-static void loongarch_qemu_write(void *opaque, hwaddr addr,
-                                 uint64_t val, unsigned size)
-{
-    qemu_log_mask(LOG_UNIMP, "[%s]: Unimplemented reg 0x%" HWADDR_PRIx "\n",
-                  __func__, addr);
-}
-
-static uint64_t loongarch_qemu_read(void *opaque, hwaddr addr, unsigned size)
-{
-    switch (addr) {
-    case VERSION_REG:
-        return 0x11ULL;
-    case FEATURE_REG:
-        return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
-               1ULL << IOCSRF_CSRIPI;
-    case VENDOR_REG:
-        return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
-    case CPUNAME_REG:
-        return 0x303030354133ULL;     /* "3A5000" */
-    case MISC_FUNC_REG:
-        return 1ULL << IOCSRM_EXTIOI_EN;
-    }
-    return 0ULL;
-}
-
-static const MemoryRegionOps loongarch_qemu_ops = {
-    .read = loongarch_qemu_read,
-    .write = loongarch_qemu_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-};
-#endif
-
 static bool loongarch_get_lsx(Object *obj, Error **errp)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
@@ -700,19 +659,12 @@ static void loongarch_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    CPULoongArchState *env = &cpu->env;
 
     qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, N_IRQS);
 #ifdef CONFIG_TCG
     timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
                   &loongarch_constant_timer_cb, cpu);
 #endif
-    memory_region_init_io(&env->system_iocsr, OBJECT(cpu), NULL,
-                          env, "iocsr", UINT64_MAX);
-    address_space_init(&env->address_space_iocsr, &env->system_iocsr, "IOCSR");
-    memory_region_init_io(&env->iocsr_mem, OBJECT(cpu), &loongarch_qemu_ops,
-                          NULL, "iocsr_misc", 0x428);
-    memory_region_add_subregion(&env->system_iocsr, 0, &env->iocsr_mem);
 #endif
 }
 

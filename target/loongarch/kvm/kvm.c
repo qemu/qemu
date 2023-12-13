@@ -733,7 +733,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     trace_kvm_arch_handle_exit(run->exit_reason);
     switch (run->exit_reason) {
     case KVM_EXIT_LOONGARCH_IOCSR:
-        address_space_rw(&env->address_space_iocsr,
+        address_space_rw(env->address_space_iocsr,
                          run->iocsr_io.phys_addr,
                          attrs,
                          run->iocsr_io.data,

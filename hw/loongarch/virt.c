@@ -535,9 +535,6 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     CPUState *cpu_state;
     int cpu, pin, i, start, num;
 
-    extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
-
     /*
      * The connection of interrupts:
      *   +-----+    +---------+     +-------+
@@ -559,35 +556,35 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
      * | UARTs  | | Devices | | Devices |
      * +--------+ +---------+ +---------+
      */
+
+    /* Create IPI device */
+    ipi = qdev_new(TYPE_LOONGARCH_IPI);
+    qdev_prop_set_uint32(ipi, "num-cpu", ms->smp.cpus);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+
+    /* IPI iocsr memory region */
+    memory_region_add_subregion(&lams->system_iocsr, SMP_IPI_MAILBOX,
+                   sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
+    memory_region_add_subregion(&lams->system_iocsr, MAIL_SEND_ADDR,
+                   sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
+
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         cpu_state = qemu_get_cpu(cpu);
         cpudev = DEVICE(cpu_state);
         lacpu = LOONGARCH_CPU(cpu_state);
         env = &(lacpu->env);
-
-        ipi = qdev_new(TYPE_LOONGARCH_IPI);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+        env->address_space_iocsr = &lams->as_iocsr;
 
         /* connect ipi irq to cpu irq */
-        qdev_connect_gpio_out(ipi, 0, qdev_get_gpio_in(cpudev, IRQ_IPI));
-        /* IPI iocsr memory region */
-        memory_region_add_subregion(&env->system_iocsr, SMP_IPI_MAILBOX,
-                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    0));
-        memory_region_add_subregion(&env->system_iocsr, MAIL_SEND_ADDR,
-                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    1));
-        /*
-	 * extioi iocsr memory region
-	 * only one extioi is added on loongarch virt machine
-	 * external device interrupt can only be routed to cpu 0-3
-	 */
-	if (cpu < EXTIOI_CPUS)
-            memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
-                                cpu));
+        qdev_connect_gpio_out(ipi, cpu, qdev_get_gpio_in(cpudev, IRQ_IPI));
         env->ipistate = ipi;
     }
+
+    /* Create EXTIOI device */
+    extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
+    memory_region_add_subregion(&lams->system_iocsr, APIC_BASE,
+                   sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi), 0));
 
     /*
      * connect ext irq to the cpu irq
@@ -733,6 +730,43 @@ static void loongarch_direct_kernel_boot(LoongArchMachineState *lams,
     }
 }
 
+static void loongarch_qemu_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+}
+
+static uint64_t loongarch_qemu_read(void *opaque, hwaddr addr, unsigned size)
+{
+    switch (addr) {
+    case VERSION_REG:
+        return 0x11ULL;
+    case FEATURE_REG:
+        return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
+               1ULL << IOCSRF_CSRIPI;
+    case VENDOR_REG:
+        return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
+    case CPUNAME_REG:
+        return 0x303030354133ULL;     /* "3A5000" */
+    case MISC_FUNC_REG:
+        return 1ULL << IOCSRM_EXTIOI_EN;
+    }
+    return 0ULL;
+}
+
+static const MemoryRegionOps loongarch_qemu_ops = {
+    .read = loongarch_qemu_read,
+    .write = loongarch_qemu_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 8,
+        .max_access_size = 8,
+    },
+};
+
 static void loongarch_init(MachineState *machine)
 {
     LoongArchCPU *lacpu;
@@ -761,8 +795,17 @@ static void loongarch_init(MachineState *machine)
         exit(1);
     }
     create_fdt(lams);
-    /* Init CPUs */
 
+    /* Create IOCSR space */
+    memory_region_init_io(&lams->system_iocsr, OBJECT(machine), NULL,
+                          machine, "iocsr", UINT64_MAX);
+    address_space_init(&lams->as_iocsr, &lams->system_iocsr, "IOCSR");
+    memory_region_init_io(&lams->iocsr_mem, OBJECT(machine),
+                          &loongarch_qemu_ops,
+                          machine, "iocsr_misc", 0x428);
+    memory_region_add_subregion(&lams->system_iocsr, 0, &lams->iocsr_mem);
+
+    /* Init CPUs */
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     for (i = 0; i < possible_cpus->len; i++) {
         cpu = cpu_create(machine->cpu_type);
