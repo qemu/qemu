@@ -140,7 +140,7 @@ if targetos == 'windows'
       qemu_ga_msi_vss = ['-D', 'InstallVss']
       deps += qga_vss
     endif
-    if glib.version() < '2.73.2'
+    if glib.version().version_compare('<2.73.2')
       libpcre = 'libpcre1'
     else
       libpcre = 'libpcre2'
