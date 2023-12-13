@@ -101,7 +101,7 @@ option('cfi_debug', type: 'boolean', value: false,
        description: 'Verbose errors in case of CFI violation')
 option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
-option('relocatable', type : 'boolean', value : 'true',
+option('relocatable', type : 'boolean', value : true,
        description: 'toggle relocatable install')
 option('vfio_user_server', type: 'feature', value: 'disabled',
        description: 'vfio-user server support')
