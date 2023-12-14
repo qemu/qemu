@@ -139,7 +139,7 @@ typedef struct testdef {
     const uint8_t *bios;    /* Set in case we use our own mini bios */
 } testdef_t;
 
-static testdef_t tests[] = {
+static const testdef_t tests[] = {
     { "alpha", "clipper", "", "PCI:" },
     { "avr", "arduino-duemilanove", "", "T", sizeof(bios_avr), NULL, bios_avr },
     { "avr", "arduino-mega-2560-v3", "", "T", sizeof(bios_avr), NULL, bios_avr},
@@ -224,15 +224,16 @@ static bool check_guest_output(QTestState *qts, const testdef_t *test, int fd)
 static void test_machine(const void *data)
 {
     const testdef_t *test = data;
-    char serialtmp[] = "/tmp/qtest-boot-serial-sXXXXXX";
-    char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
+    g_autofree char *serialtmp = NULL;
+    g_autofree char *codetmp = NULL;
     const char *codeparam = "";
     const uint8_t *code = NULL;
     QTestState *qts;
     int ser_fd;
 
-    ser_fd = mkstemp(serialtmp);
+    ser_fd = g_file_open_tmp("qtest-boot-serial-sXXXXXX", &serialtmp, NULL);
     g_assert(ser_fd != -1);
+    close(ser_fd);
 
     if (test->kernel) {
         code = test->kernel;
@@ -246,7 +247,7 @@ static void test_machine(const void *data)
         ssize_t wlen;
         int code_fd;
 
-        code_fd = mkstemp(codetmp);
+        code_fd = g_file_open_tmp("qtest-boot-serial-cXXXXXX", &codetmp, NULL);
         g_assert(code_fd != -1);
         wlen = write(code_fd, code, test->codesize);
         g_assert(wlen == test->codesize);
@@ -266,6 +267,8 @@ static void test_machine(const void *data)
         unlink(codetmp);
     }
 
+    ser_fd = open(serialtmp, O_RDONLY);
+    g_assert(ser_fd != -1);
     if (!check_guest_output(qts, test, ser_fd)) {
         g_error("Failed to find expected string. Please check '%s'",
                 serialtmp);
@@ -283,6 +286,11 @@ int main(int argc, char *argv[])
     int i;
 
     g_test_init(&argc, &argv, NULL);
+
+    if (!qtest_has_accel("tcg") && !qtest_has_accel("kvm")) {
+        g_test_skip("No KVM or TCG accelerator available");
+        return 0;
+    }
 
     for (i = 0; tests[i].arch != NULL; i++) {
         if (g_str_equal(arch, tests[i].arch) &&

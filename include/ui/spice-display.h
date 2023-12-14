@@ -28,11 +28,9 @@
 #include "ui/console.h"
 
 #if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
-# if SPICE_SERVER_VERSION >= 0x000d01 /* release 0.13.1 */
 #  define HAVE_SPICE_GL 1
 #  include "ui/egl-helpers.h"
 #  include "ui/egl-context.h"
-# endif
 #endif
 
 #define NUM_MEMSLOTS 8
@@ -44,7 +42,7 @@
 #define NUM_MEMSLOTS_GROUPS 2
 
 /*
- * Internal enum to differenciate between options for
+ * Internal enum to differentiate between options for
  * io calls that have a sync (old) version and an _async (new)
  * version:
  *  QXL_SYNC: use the old version

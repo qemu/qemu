@@ -51,10 +51,8 @@ do {                                        \
     unlock_user(p1, arg1, 0);               \
 } while (0)
 
-extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
-        int copy);
-extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
-        int copy);
+struct iovec *lock_iovec(int type, abi_ulong target_addr, int count, int copy);
+void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count, int copy);
 
 int safe_open(const char *path, int flags, mode_t mode);
 int safe_openat(int fd, const char *path, int flags, mode_t mode);

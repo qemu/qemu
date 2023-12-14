@@ -18,6 +18,47 @@
 #include <poll.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
+
+typedef enum {
+    UFFD_UNINITIALIZED = 0,
+    UFFD_USE_DEV_PATH,
+    UFFD_USE_SYSCALL,
+} uffd_open_mode;
+
+int uffd_open(int flags)
+{
+#if defined(__NR_userfaultfd)
+    static uffd_open_mode open_mode;
+    static int uffd_dev;
+
+    /* Detect how to generate uffd desc when run the 1st time */
+    if (open_mode == UFFD_UNINITIALIZED) {
+        /*
+         * Make /dev/userfaultfd the default approach because it has better
+         * permission controls, meanwhile allows kernel faults without any
+         * privilege requirement (e.g. SYS_CAP_PTRACE).
+         */
+        uffd_dev = open("/dev/userfaultfd", O_RDWR | O_CLOEXEC);
+        if (uffd_dev >= 0) {
+            open_mode = UFFD_USE_DEV_PATH;
+        } else {
+            /* Fallback to the system call */
+            open_mode = UFFD_USE_SYSCALL;
+        }
+        trace_uffd_detect_open_mode(open_mode);
+    }
+
+    if (open_mode == UFFD_USE_DEV_PATH) {
+        assert(uffd_dev >= 0);
+        return ioctl(uffd_dev, USERFAULTFD_IOC_NEW, flags);
+    }
+
+    return syscall(__NR_userfaultfd, flags);
+#else
+    return -EINVAL;
+#endif
+}
 
 /**
  * uffd_query_features: query UFFD features
@@ -32,7 +73,7 @@ int uffd_query_features(uint64_t *features)
     struct uffdio_api api_struct = { 0 };
     int ret = -1;
 
-    uffd_fd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    uffd_fd = uffd_open(O_CLOEXEC);
     if (uffd_fd < 0) {
         trace_uffd_query_features_nosys(errno);
         return -1;
@@ -69,7 +110,7 @@ int uffd_create_fd(uint64_t features, bool non_blocking)
     uint64_t ioctl_mask = BIT(_UFFDIO_REGISTER) | BIT(_UFFDIO_UNREGISTER);
 
     flags = O_CLOEXEC | (non_blocking ? O_NONBLOCK : 0);
-    uffd_fd = syscall(__NR_userfaultfd, flags);
+    uffd_fd = uffd_open(flags);
     if (uffd_fd < 0) {
         trace_uffd_create_fd_nosys(errno);
         return -1;

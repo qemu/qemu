@@ -26,7 +26,6 @@
 #include "qemu/datadir.h"
 #include "hw/clock.h"
 #include "hw/mips/mips.h"
-#include "hw/mips/cpudevs.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
 #include "hw/char/serial.h"
@@ -114,6 +113,40 @@ static const MemoryRegionOps dma_dummy_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void mips_jazz_init_net(NICInfo *nd, IOMMUMemoryRegion *rc4030_dma_mr,
+                               DeviceState *rc4030, MemoryRegion *dp8393x_prom)
+{
+    DeviceState *dev;
+    SysBusDevice *sysbus;
+    int checksum, i;
+    uint8_t *prom;
+
+    qemu_check_nic_model(nd, "dp83932");
+
+    dev = qdev_new("dp8393x");
+    qdev_set_nic_properties(dev, nd);
+    qdev_prop_set_uint8(dev, "it_shift", 2);
+    qdev_prop_set_bit(dev, "big_endian", TARGET_BIG_ENDIAN);
+    object_property_set_link(OBJECT(dev), "dma_mr",
+                             OBJECT(rc4030_dma_mr), &error_abort);
+    sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_mmio_map(sysbus, 0, 0x80001000);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
+
+    /* Add MAC address with valid checksum to PROM */
+    prom = memory_region_get_ram_ptr(dp8393x_prom);
+    checksum = 0;
+    for (i = 0; i < 6; i++) {
+        prom[i] = nd->macaddr.a[i];
+        checksum += prom[i];
+        if (checksum > 0xff) {
+            checksum = (checksum + 1) & 0xff;
+        }
+    }
+    prom[7] = 0xff - checksum;
+}
+
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE                                                       \
         (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
@@ -125,7 +158,7 @@ static void mips_jazz_init(MachineState *machine,
 {
     MemoryRegion *address_space = get_system_memory();
     char *filename;
-    int bios_size, n, big_endian;
+    int bios_size, n;
     Clock *cpuclk;
     MIPSCPU *cpu;
     MIPSCPUClass *mcc;
@@ -138,12 +171,12 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *rtc = g_new(MemoryRegion, 1);
     MemoryRegion *dma_dummy = g_new(MemoryRegion, 1);
     MemoryRegion *dp8393x_prom = g_new(MemoryRegion, 1);
-    NICInfo *nd;
     DeviceState *dev, *rc4030;
     MMIOKBDState *i8042;
     SysBusDevice *sysbus;
     ISABus *isa_bus;
     ISADevice *pit;
+    ISADevice *pcspk;
     DriveInfo *fds[MAX_FD];
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MemoryRegion *bios2 = g_new(MemoryRegion, 1);
@@ -156,12 +189,6 @@ static void mips_jazz_init(MachineState *machine,
         [JAZZ_MAGNUM] = {50000000, 2},
         [JAZZ_PICA61] = {33333333, 4},
     };
-
-#if TARGET_BIG_ENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     if (machine->ram_size > 256 * MiB) {
         error_report("RAM size more than 256Mb is not supported");
@@ -249,10 +276,12 @@ static void mips_jazz_init(MachineState *machine,
 
     /* ISA devices */
     i8259 = i8259_init(isa_bus, env->irq[4]);
-    isa_bus_irqs(isa_bus, i8259);
+    isa_bus_register_input_irqs(isa_bus, i8259);
     i8257_dma_init(isa_bus, 0);
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    pcspk_init(isa_new(TYPE_PC_SPEAKER), isa_bus, pit);
+    pcspk = isa_new(TYPE_PC_SPEAKER);
+    object_property_set_link(OBJECT(pcspk), "pit", OBJECT(pit), &error_fatal);
+    isa_realize_and_unref(pcspk, isa_bus, &error_fatal);
 
     /* Video card */
     switch (jazz_model) {
@@ -287,47 +316,11 @@ static void mips_jazz_init(MachineState *machine,
     }
 
     /* Network controller */
-    for (n = 0; n < nb_nics; n++) {
-        nd = &nd_table[n];
-        if (!nd->model) {
-            nd->model = g_strdup("dp83932");
-        }
-        if (strcmp(nd->model, "dp83932") == 0) {
-            int checksum, i;
-            uint8_t *prom;
-
-            qemu_check_nic_model(nd, "dp83932");
-
-            dev = qdev_new("dp8393x");
-            qdev_set_nic_properties(dev, nd);
-            qdev_prop_set_uint8(dev, "it_shift", 2);
-            qdev_prop_set_bit(dev, "big_endian", big_endian > 0);
-            object_property_set_link(OBJECT(dev), "dma_mr",
-                                     OBJECT(rc4030_dma_mr), &error_abort);
-            sysbus = SYS_BUS_DEVICE(dev);
-            sysbus_realize_and_unref(sysbus, &error_fatal);
-            sysbus_mmio_map(sysbus, 0, 0x80001000);
-            sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
-
-            /* Add MAC address with valid checksum to PROM */
-            prom = memory_region_get_ram_ptr(dp8393x_prom);
-            checksum = 0;
-            for (i = 0; i < 6; i++) {
-                prom[i] = nd->macaddr.a[i];
-                checksum += prom[i];
-                if (checksum > 0xff) {
-                    checksum = (checksum + 1) & 0xff;
-                }
-            }
-            prom[7] = 0xff - checksum;
-            break;
-        } else if (is_help_option(nd->model)) {
-            error_report("Supported NICs: dp83932");
-            exit(1);
-        } else {
-            error_report("Unsupported NIC: %s", nd->model);
-            exit(1);
-        }
+    if (nb_nics == 1) {
+        mips_jazz_init_net(&nd_table[0], rc4030_dma_mr, rc4030, dp8393x_prom);
+    } else if (nb_nics > 1) {
+        error_report("This machine only supports one NIC");
+        exit(1);
     }
 
     /* SCSI adapter */

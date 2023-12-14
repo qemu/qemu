@@ -17,7 +17,6 @@ introspect = os.environ.get('MESONINTROSPECT')
 out = subprocess.run([*introspect.split(' '), '--installed'],
                      stdout=subprocess.PIPE, check=True).stdout
 for source, dest in json.loads(out).items():
-    assert os.path.isabs(source)
     bundle_dest = destdir_join('qemu-bundle', dest)
     path = os.path.dirname(bundle_dest)
     try:
@@ -29,5 +28,8 @@ for source, dest in json.loads(out).items():
         os.symlink(source, bundle_dest)
     except BaseException as e:
         if not isinstance(e, OSError) or e.errno != errno.EEXIST:
+            if os.name == 'nt':
+                print('Please enable Developer Mode to support soft link '
+                      'without Administrator permission')
             print(f'error making symbolic link {dest}', file=sys.stderr)
             raise e

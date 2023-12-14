@@ -127,11 +127,10 @@ class QEMUMachine:
                  name: Optional[str] = None,
                  base_temp_dir: str = "/var/tmp",
                  monitor_address: Optional[SocketAddrT] = None,
-                 sock_dir: Optional[str] = None,
                  drain_console: bool = False,
                  console_log: Optional[str] = None,
                  log_dir: Optional[str] = None,
-                 qmp_timer: Optional[float] = None):
+                 qmp_timer: Optional[float] = 30):
         '''
         Initialize a QEMUMachine
 
@@ -141,7 +140,6 @@ class QEMUMachine:
         @param name: prefix for socket and log file names (default: qemu-PID)
         @param base_temp_dir: default location where temp files are created
         @param monitor_address: address for QMP monitor
-        @param sock_dir: where to create socket (defaults to base_temp_dir)
         @param drain_console: (optional) True to drain console socket to buffer
         @param console_log: (optional) path to console log file
         @param log_dir: where to create and keep log files
@@ -157,18 +155,15 @@ class QEMUMachine:
         self._wrapper = wrapper
         self._qmp_timer = qmp_timer
 
-        self._name = name or f"qemu-{os.getpid()}-{id(self):02x}"
+        self._name = name or f"{id(self):x}"
+        self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
+        self._cons_sock_pair: Optional[
+            Tuple[socket.socket, socket.socket]] = None
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
-        self._sock_dir = sock_dir
         self._log_dir = log_dir
 
-        if monitor_address is not None:
-            self._monitor_address = monitor_address
-        else:
-            self._monitor_address = os.path.join(
-                self.sock_dir, f"{self._name}-monitor.sock"
-            )
+        self._monitor_address = monitor_address
 
         self._console_log_path = console_log
         if self._console_log_path:
@@ -191,10 +186,8 @@ class QEMUMachine:
         self._console_index = 0
         self._console_set = False
         self._console_device_type: Optional[str] = None
-        self._console_address = os.path.join(
-            self.sock_dir, f"{self._name}-console.sock"
-        )
         self._console_socket: Optional[socket.socket] = None
+        self._console_file: Optional[socket.SocketIO] = None
         self._remove_files: List[str] = []
         self._user_killed = False
         self._quit_issued = False
@@ -303,7 +296,9 @@ class QEMUMachine:
         args = ['-display', 'none', '-vga', 'none']
 
         if self._qmp_set:
-            if isinstance(self._monitor_address, tuple):
+            if self._sock_pair:
+                moncdev = f"socket,id=mon,fd={self._sock_pair[0].fileno()}"
+            elif isinstance(self._monitor_address, tuple):
                 moncdev = "socket,id=mon,host={},port={}".format(
                     *self._monitor_address
                 )
@@ -317,8 +312,9 @@ class QEMUMachine:
         for _ in range(self._console_index):
             args.extend(['-serial', 'null'])
         if self._console_set:
-            chardev = ('socket,id=console,path=%s,server=on,wait=off' %
-                       self._console_address)
+            assert self._cons_sock_pair is not None
+            fd = self._cons_sock_pair[0].fileno()
+            chardev = f"socket,id=console,fd={fd}"
             args.extend(['-chardev', chardev])
             if self._console_device_type is None:
                 args.extend(['-serial', 'chardev:console'])
@@ -333,17 +329,26 @@ class QEMUMachine:
         return self._args
 
     def _pre_launch(self) -> None:
-        if self._console_set:
-            self._remove_files.append(self._console_address)
-
         if self._qmp_set:
+            if self._monitor_address is None:
+                self._sock_pair = socket.socketpair()
+                os.set_inheritable(self._sock_pair[0].fileno(), True)
+                sock = self._sock_pair[1]
             if isinstance(self._monitor_address, str):
                 self._remove_files.append(self._monitor_address)
+
+            sock_or_addr = self._monitor_address or sock
+            assert sock_or_addr is not None
+
             self._qmp_connection = QEMUMonitorProtocol(
-                self._monitor_address,
-                server=True,
+                sock_or_addr,
+                server=bool(self._monitor_address),
                 nickname=self._name
             )
+
+        if self._console_set:
+            self._cons_sock_pair = socket.socketpair()
+            os.set_inheritable(self._cons_sock_pair[0].fileno(), True)
 
         # NOTE: Make sure any opened resources are *definitely* freed in
         # _post_shutdown()!
@@ -360,8 +365,16 @@ class QEMUMachine:
         ))
 
     def _post_launch(self) -> None:
+        if self._sock_pair:
+            self._sock_pair[0].close()
+        if self._cons_sock_pair:
+            self._cons_sock_pair[0].close()
+
         if self._qmp_connection:
-            self._qmp.accept(self._qmp_timer)
+            if self._sock_pair:
+                self._qmp.connect()
+            else:
+                self._qmp.accept(self._qmp_timer)
 
     def _close_qemu_log_file(self) -> None:
         if self._qemu_log_file is not None:
@@ -373,6 +386,7 @@ class QEMUMachine:
         Called to cleanup the VM instance after the process has exited.
         May also be called after a failed launch.
         """
+        LOG.debug("Cleaning up after VM process")
         try:
             self._close_qmp_connection()
         except Exception as err:  # pylint: disable=broad-except
@@ -382,6 +396,11 @@ class QEMUMachine:
             )
         finally:
             assert self._qmp_connection is None
+
+        if self._sock_pair:
+            self._sock_pair[0].close()
+            self._sock_pair[1].close()
+            self._sock_pair = None
 
         self._close_qemu_log_file()
 
@@ -496,9 +515,20 @@ class QEMUMachine:
         # If we keep the console socket open, we may deadlock waiting
         # for QEMU to exit, while QEMU is waiting for the socket to
         # become writable.
+        if self._console_file is not None:
+            LOG.debug("Closing console file")
+            self._console_file.close()
+            self._console_file = None
+
         if self._console_socket is not None:
+            LOG.debug("Closing console socket")
             self._console_socket.close()
             self._console_socket = None
+
+        if self._cons_sock_pair:
+            self._cons_sock_pair[0].close()
+            self._cons_sock_pair[1].close()
+            self._cons_sock_pair = None
 
     def _hard_shutdown(self) -> None:
         """
@@ -507,6 +537,7 @@ class QEMUMachine:
         :raise subprocess.Timeout: When timeout is exceeds 60 seconds
             waiting for the QEMU process to terminate.
         """
+        LOG.debug("Performing hard shutdown")
         self._early_cleanup()
         self._subp.kill()
         self._subp.wait(timeout=60)
@@ -523,7 +554,17 @@ class QEMUMachine:
         :raise subprocess.TimeoutExpired: When timeout is exceeded waiting for
             the QEMU process to terminate.
         """
+        LOG.debug("Attempting graceful termination")
+
         self._early_cleanup()
+
+        if self._quit_issued:
+            LOG.debug(
+                "Anticipating QEMU termination due to prior 'quit' command, "
+                "or explicit call to wait()"
+            )
+        else:
+            LOG.debug("Politely asking QEMU to terminate")
 
         if self._qmp_connection:
             try:
@@ -534,8 +575,18 @@ class QEMUMachine:
             finally:
                 # Regardless, we want to quiesce the connection.
                 self._close_qmp_connection()
+        elif not self._quit_issued:
+            LOG.debug(
+                "Not anticipating QEMU quit and no QMP connection present, "
+                "issuing SIGTERM"
+            )
+            self._subp.terminate()
 
         # May raise subprocess.TimeoutExpired
+        LOG.debug(
+            "Waiting (timeout=%s) for QEMU process (pid=%s) to terminate",
+            timeout, self._subp.pid
+        )
         self._subp.wait(timeout=timeout)
 
     def _do_shutdown(self, timeout: Optional[int]) -> None:
@@ -553,6 +604,10 @@ class QEMUMachine:
         try:
             self._soft_shutdown(timeout)
         except Exception as exc:
+            if isinstance(exc, subprocess.TimeoutExpired):
+                LOG.debug("Timed out waiting for QEMU process to exit")
+            LOG.debug("Graceful shutdown failed", exc_info=True)
+            LOG.debug("Falling back to hard shutdown")
             self._hard_shutdown()
             raise AbnormalShutdown("Could not perform graceful shutdown") \
                 from exc
@@ -574,6 +629,10 @@ class QEMUMachine:
         """
         if not self._launched:
             return
+
+        LOG.debug("Shutting down VM appliance; timeout=%s", timeout)
+        if hard:
+            LOG.debug("Caller requests immediate termination of QEMU process.")
 
         try:
             if hard:
@@ -643,21 +702,31 @@ class QEMUMachine:
             conv_keys = True
 
         qmp_args = self._qmp_args(conv_keys, args)
-        ret = self._qmp.cmd(cmd, args=qmp_args)
+        ret = self._qmp.cmd_raw(cmd, args=qmp_args)
         if cmd == 'quit' and 'error' not in ret and 'return' in ret:
             self._quit_issued = True
         return ret
 
-    def command(self, cmd: str,
-                conv_keys: bool = True,
-                **args: Any) -> QMPReturnValue:
+    def cmd(self, cmd: str,
+            args_dict: Optional[Dict[str, object]] = None,
+            conv_keys: Optional[bool] = None,
+            **args: Any) -> QMPReturnValue:
         """
         Invoke a QMP command.
         On success return the response dict.
         On failure raise an exception.
         """
+        if args_dict is not None:
+            assert not args
+            assert conv_keys is None
+            args = args_dict
+            conv_keys = False
+
+        if conv_keys is None:
+            conv_keys = True
+
         qmp_args = self._qmp_args(conv_keys, args)
-        ret = self._qmp.command(cmd, **qmp_args)
+        ret = self._qmp.cmd(cmd, **qmp_args)
         if cmd == 'quit':
             self._quit_issued = True
         return ret
@@ -831,11 +900,33 @@ class QEMUMachine:
         Returns a socket connected to the console
         """
         if self._console_socket is None:
+            LOG.debug("Opening console socket")
+            if not self._console_set:
+                raise QEMUMachineError(
+                    "Attempt to access console socket with no connection")
+            assert self._cons_sock_pair is not None
+            # os.dup() is used here for sock_fd because otherwise we'd
+            # have two rich python socket objects that would each try to
+            # close the same underlying fd when either one gets garbage
+            # collected.
             self._console_socket = console_socket.ConsoleSocket(
-                self._console_address,
+                sock_fd=os.dup(self._cons_sock_pair[1].fileno()),
                 file=self._console_log_path,
                 drain=self._drain_console)
+            self._cons_sock_pair[1].close()
         return self._console_socket
+
+    @property
+    def console_file(self) -> socket.SocketIO:
+        """
+        Returns a file associated with the console socket
+        """
+        if self._console_file is None:
+            LOG.debug("Opening console file")
+            self._console_file = self.console_socket.makefile(mode='rb',
+                                                              buffering=0,
+                                                              encoding='utf-8')
+        return self._console_file
 
     @property
     def temp_dir(self) -> str:
@@ -846,15 +937,6 @@ class QEMUMachine:
             self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
                                               dir=self._base_temp_dir)
         return self._temp_dir
-
-    @property
-    def sock_dir(self) -> str:
-        """
-        Returns the directory used for sockfiles by this machine.
-        """
-        if self._sock_dir:
-            return self._sock_dir
-        return self.temp_dir
 
     @property
     def log_dir(self) -> str:

@@ -32,14 +32,12 @@
 
 static void xen_init_pv(MachineState *machine)
 {
-    DriveInfo *dinfo;
     int i;
 
+    setup_xen_backend_ops();
+
     /* Initialize backend core & drivers */
-    if (xen_be_init() != 0) {
-        error_report("%s: xen backend core setup failed", __func__);
-        exit(1);
-    }
+    xen_be_init();
 
     switch (xen_mode) {
     case XEN_ATTACH:
@@ -55,23 +53,13 @@ static void xen_init_pv(MachineState *machine)
         break;
     }
 
-    xen_be_register_common();
     xen_be_register("vfb", &xen_framebuffer_ops);
-    xen_be_register("qnic", &xen_netdev_ops);
 
     /* configure framebuffer */
     if (vga_interface_type == VGA_XENFB) {
         xen_config_dev_vfb(0, "vnc");
         xen_config_dev_vkbd(0);
         vga_interface_created = true;
-    }
-
-    /* configure disks */
-    for (i = 0; i < 16; i++) {
-        dinfo = drive_get(IF_XEN, 0, i);
-        if (!dinfo)
-            continue;
-        xen_config_dev_blk(dinfo);
     }
 
     /* configure nics */

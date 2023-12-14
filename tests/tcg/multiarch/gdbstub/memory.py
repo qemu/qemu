@@ -1,6 +1,6 @@
 from __future__ import print_function
 #
-# Test some of the softmmu debug features with the multiarch memory
+# Test some of the system debug features with the multiarch memory
 # test. It is a port of the original vmlinux focused test case but
 # using the "memory" test instead.
 #
@@ -115,9 +115,6 @@ if gdb.parse_and_eval('$pc') == 0:
     exit(0)
 
 try:
-    # These are not very useful in scripts
-    gdb.execute("set pagination off")
-
     # Run the actual tests
     run_test()
 except (gdb.error):

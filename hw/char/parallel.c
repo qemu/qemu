@@ -27,13 +27,11 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "chardev/char-parallel.h"
-#include "chardev/char-fe.h"
 #include "hw/acpi/acpi_aml_interface.h"
-#include "hw/irq.h"
-#include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+#include "hw/char/parallel-isa.h"
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
@@ -57,53 +55,24 @@
 /*
  * These are the definitions for the Printer Status Register
  */
-#define PARA_STS_BUSY	0x80	/* Busy complement */
-#define PARA_STS_ACK	0x40	/* Acknowledge */
-#define PARA_STS_PAPER	0x20	/* Out of paper */
-#define PARA_STS_ONLINE	0x10	/* Online */
-#define PARA_STS_ERROR	0x08	/* Error complement */
-#define PARA_STS_TMOUT	0x01	/* EPP timeout */
+#define PARA_STS_BUSY   0x80    /* Busy complement */
+#define PARA_STS_ACK    0x40    /* Acknowledge */
+#define PARA_STS_PAPER  0x20    /* Out of paper */
+#define PARA_STS_ONLINE 0x10    /* Online */
+#define PARA_STS_ERROR  0x08    /* Error complement */
+#define PARA_STS_TMOUT  0x01    /* EPP timeout */
 
 /*
  * These are the definitions for the Printer Control Register
  */
-#define PARA_CTR_DIR	0x20	/* Direction (1=read, 0=write) */
-#define PARA_CTR_INTEN	0x10	/* IRQ Enable */
-#define PARA_CTR_SELECT	0x08	/* Select In complement */
-#define PARA_CTR_INIT	0x04	/* Initialize Printer complement */
-#define PARA_CTR_AUTOLF	0x02	/* Auto linefeed complement */
-#define PARA_CTR_STROBE	0x01	/* Strobe complement */
+#define PARA_CTR_DIR    0x20    /* Direction (1=read, 0=write) */
+#define PARA_CTR_INTEN  0x10    /* IRQ Enable */
+#define PARA_CTR_SELECT 0x08    /* Select In complement */
+#define PARA_CTR_INIT   0x04    /* Initialize Printer complement */
+#define PARA_CTR_AUTOLF 0x02    /* Auto linefeed complement */
+#define PARA_CTR_STROBE 0x01    /* Strobe complement */
 
 #define PARA_CTR_SIGNAL (PARA_CTR_SELECT|PARA_CTR_INIT|PARA_CTR_AUTOLF|PARA_CTR_STROBE)
-
-typedef struct ParallelState {
-    MemoryRegion iomem;
-    uint8_t dataw;
-    uint8_t datar;
-    uint8_t status;
-    uint8_t control;
-    qemu_irq irq;
-    int irq_pending;
-    CharBackend chr;
-    int hw_driver;
-    int epp_timeout;
-    uint32_t last_read_offset; /* For debugging */
-    /* Memory-mapped interface */
-    int it_shift;
-    PortioList portio_list;
-} ParallelState;
-
-#define TYPE_ISA_PARALLEL "isa-parallel"
-OBJECT_DECLARE_SIMPLE_TYPE(ISAParallelState, ISA_PARALLEL)
-
-struct ISAParallelState {
-    ISADevice parent_obj;
-
-    uint32_t index;
-    uint32_t iobase;
-    uint32_t isairq;
-    ParallelState state;
-};
 
 static void parallel_update_irq(ParallelState *s)
 {

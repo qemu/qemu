@@ -8,6 +8,6 @@ void deprecated_register_soundhw(const char *name, const char *descr,
 
 void soundhw_init(void);
 void show_valid_soundhw(void);
-void select_soundhw(const char *optarg, const char *audiodev);
+void select_soundhw(const char *name, const char *audiodev);
 
 #endif

@@ -1,0 +1,33 @@
+# This file describes Python package requirements to be
+# installed in the pyvenv Python virtual environment.
+#
+# Packages are placed in groups, which are installed using
+# the ensuregroup subcommand of python/scripts/mkvenv.py.
+# Each group forms a TOML section and each entry in the
+# section is a TOML key-value list describing a package.
+# All fields are optional; valid fields are:
+#
+# - accepted: accepted versions when using a system package
+# - installed: fixed version to install in the virtual environment
+#              if a system package is not found; if not specified,
+#              defaults to the same as "accepted" or, if also missing,
+#              to the newest version available on PyPI.
+# - canary: if specified, use this program name to present more
+#           precise error diagnostics to the user.  For example,
+#           'sphinx-build' can be used as a bellwether for the
+#           presence of 'sphinx' in the system.
+
+[meson]
+# The install key should match the version in python/wheels/
+meson = { accepted = ">=0.63.0", installed = "1.2.3", canary = "meson" }
+
+[docs]
+sphinx = { accepted = ">=1.6", installed = "5.3.0", canary = "sphinx-build" }
+sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.1.1" }
+
+[avocado]
+# Note that qemu.git/python/ is always implicitly installed.
+# Prefer an LTS version when updating the accepted versions of
+# avocado-framework, for example right now the limit is 92.x.
+avocado-framework = { accepted = "(>=88.1, <93.0)", installed = "88.1", canary = "avocado" }
+pycdlib = { accepted = ">=1.11.0" }

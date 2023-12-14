@@ -48,6 +48,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
+#include "qemu/job.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -298,7 +299,7 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
         case OPTION_DAEMONIZE:
             if (os_set_daemonize(true) < 0) {
                 /*
-                 * --daemonize is parsed before monitor_init_globals_core(), so
+                 * --daemonize is parsed before monitor_init_globals(), so
                  * error_report() does not work yet
                  */
                 fprintf(stderr, "--daemonize not supported in this build\n");
@@ -410,7 +411,7 @@ int main(int argc, char *argv[])
     qemu_add_opts(&qemu_trace_opts);
     qcrypto_init(&error_fatal);
     bdrv_init();
-    monitor_init_globals_core();
+    monitor_init_globals();
     init_qmp_commands();
 
     if (!trace_init_backends()) {

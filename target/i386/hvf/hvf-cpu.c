@@ -15,6 +15,7 @@
 #include "hw/boards.h"
 #include "sysemu/hvf.h"
 #include "hw/core/accel-cpu.h"
+#include "hvf-i386.h"
 
 static void hvf_cpu_max_instance_init(X86CPU *cpu)
 {
@@ -77,7 +78,7 @@ static void hvf_cpu_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 
-    acc->cpu_realizefn = host_cpu_realizefn;
+    acc->cpu_target_realize = host_cpu_realizefn;
     acc->cpu_instance_init = hvf_cpu_instance_init;
 }
 

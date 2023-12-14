@@ -6,8 +6,9 @@ exports available: 1
  export: ''
   size:  1024
   min block: 1
-[{ "start": 0, "length": 1000, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1000, "length": 24, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
+  transaction size: 64-bit
+[{ "start": 0, "length": 1000, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 1000, "length": 24, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 
 === Exporting unaligned raw image, forced server sector alignment ===
@@ -16,7 +17,8 @@ exports available: 1
  export: ''
   size:  1024
   min block: 512
-[{ "start": 0, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+  transaction size: 64-bit
+[{ "start": 0, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
          Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
@@ -28,7 +30,8 @@ exports available: 1
  export: ''
   size:  1024
   min block: 1
-[{ "start": 0, "length": 1000, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1000, "length": 24, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
+  transaction size: 64-bit
+[{ "start": 0, "length": 1000, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 1000, "length": 24, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 *** done

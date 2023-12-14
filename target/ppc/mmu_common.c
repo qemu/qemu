@@ -28,7 +28,6 @@
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "internal.h"
 #include "mmu-book3s-v3.h"
@@ -252,7 +251,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
     }
     if (best != -1) {
     done:
-        qemu_log_mask(CPU_LOG_MMU, "found TLB at addr " TARGET_FMT_plx
+        qemu_log_mask(CPU_LOG_MMU, "found TLB at addr " HWADDR_FMT_plx
                       " prot=%01x ret=%d\n",
                       ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         /* Update page flags */
@@ -328,7 +327,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 ctx->prot = prot;
                 ret = check_prot(ctx->prot, access_type);
                 if (ret == 0) {
-                    qemu_log_mask(CPU_LOG_MMU, "BAT %d match: r " TARGET_FMT_plx
+                    qemu_log_mask(CPU_LOG_MMU, "BAT %d match: r " HWADDR_FMT_plx
                                   " prot=%c%c\n", i, ctx->raddr,
                                   ctx->prot & PAGE_READ ? 'R' : '-',
                                   ctx->prot & PAGE_WRITE ? 'W' : '-');
@@ -403,9 +402,9 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         /* Check if instruction fetch is allowed, if needed */
         if (type != ACCESS_CODE || ctx->nx == 0) {
             /* Page address translation */
-            qemu_log_mask(CPU_LOG_MMU, "htab_base " TARGET_FMT_plx
-                    " htab_mask " TARGET_FMT_plx
-                    " hash " TARGET_FMT_plx "\n",
+            qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx
+                    " htab_mask " HWADDR_FMT_plx
+                    " hash " HWADDR_FMT_plx "\n",
                     ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
             ctx->hash[0] = hash;
             ctx->hash[1] = ~hash;
@@ -420,7 +419,7 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 hwaddr curaddr;
                 uint32_t a0, a1, a2, a3;
 
-                qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
+                qemu_log("Page table: " HWADDR_FMT_plx " len " HWADDR_FMT_plx
                          "\n", ppc_hash32_hpt_base(cpu),
                          ppc_hash32_hpt_mask(cpu) + 0x80);
                 for (curaddr = ppc_hash32_hpt_base(cpu);
@@ -432,7 +431,7 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                     a2 = ldl_phys(cs->as, curaddr + 8);
                     a3 = ldl_phys(cs->as, curaddr + 12);
                     if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                        qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
+                        qemu_log(HWADDR_FMT_plx ": %08x %08x %08x %08x\n",
                                  curaddr, a0, a1, a2, a3);
                     }
                 }
@@ -489,16 +488,15 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 /* Generic TLB check function for embedded PowerPC implementations */
-int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
-                            hwaddr *raddrp,
-                            target_ulong address, uint32_t pid, int ext,
-                            int i)
+static bool ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                             hwaddr *raddrp,
+                             target_ulong address, uint32_t pid, int i)
 {
     target_ulong mask;
 
     /* Check valid flag */
     if (!(tlb->prot & PAGE_VALID)) {
-        return -1;
+        return false;
     }
     mask = ~(tlb->size - 1);
     qemu_log_mask(CPU_LOG_MMU, "%s: TLB %d address " TARGET_FMT_lx
@@ -507,19 +505,30 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
                   mask, (uint32_t)tlb->PID, tlb->prot);
     /* Check PID */
     if (tlb->PID != 0 && tlb->PID != pid) {
-        return -1;
+        return false;
     }
     /* Check effective address */
     if ((address & mask) != tlb->EPN) {
-        return -1;
+        return false;
     }
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
-    if (ext) {
-        /* Extend the physical address to 36 bits */
-        *raddrp |= (uint64_t)(tlb->RPN & 0xF) << 32;
-    }
+    return true;
+}
 
-    return 0;
+/* Generic TLB search function for PowerPC embedded implementations */
+int ppcemb_tlb_search(CPUPPCState *env, target_ulong address, uint32_t pid)
+{
+    ppcemb_tlb_t *tlb;
+    hwaddr raddr;
+    int i;
+
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb.tlbe[i];
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, i)) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
@@ -535,8 +544,8 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     pr = FIELD_EX64(env->msr, MSR, PR);
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
-        if (ppcemb_tlb_check(env, tlb, &raddr, address,
-                             env->spr[SPR_40x_PID], 0, i) < 0) {
+        if (!ppcemb_tlb_check(env, tlb, &raddr, address,
+                              env->spr[SPR_40x_PID], i)) {
             continue;
         }
         zsel = (tlb->attr >> 4) & 0xF;
@@ -578,17 +587,40 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         if (ret >= 0) {
             ctx->raddr = raddr;
             qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                          " => " TARGET_FMT_plx
+                          " => " HWADDR_FMT_plx
                           " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
                           ret);
             return 0;
         }
     }
      qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                   " => " TARGET_FMT_plx
+                   " => " HWADDR_FMT_plx
                    " %d %d\n", __func__, address, raddr, ctx->prot, ret);
 
     return ret;
+}
+
+static bool mmubooke_check_pid(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                               hwaddr *raddr, target_ulong addr, int i)
+{
+    if (ppcemb_tlb_check(env, tlb, raddr, addr, env->spr[SPR_BOOKE_PID], i)) {
+        if (!env->nb_pids) {
+            /* Extend the physical address to 36 bits */
+            *raddr |= (uint64_t)(tlb->RPN & 0xF) << 32;
+        }
+        return true;
+    } else if (!env->nb_pids) {
+        return false;
+    }
+    if (env->spr[SPR_BOOKE_PID1] &&
+        ppcemb_tlb_check(env, tlb, raddr, addr, env->spr[SPR_BOOKE_PID1], i)) {
+        return true;
+    }
+    if (env->spr[SPR_BOOKE_PID2] &&
+        ppcemb_tlb_check(env, tlb, raddr, addr, env->spr[SPR_BOOKE_PID2], i)) {
+        return true;
+    }
+    return false;
 }
 
 static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
@@ -597,28 +629,10 @@ static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
 {
     int prot2;
 
-    if (ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID],
-                         !env->nb_pids, i) >= 0) {
-        goto found_tlb;
+    if (!mmubooke_check_pid(env, tlb, raddr, address, i)) {
+        qemu_log_mask(CPU_LOG_MMU, "%s: TLB entry not found\n", __func__);
+        return -1;
     }
-
-    if (env->spr[SPR_BOOKE_PID1] &&
-        ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID1], 0, i) >= 0) {
-        goto found_tlb;
-    }
-
-    if (env->spr[SPR_BOOKE_PID2] &&
-        ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID2], 0, i) >= 0) {
-        goto found_tlb;
-    }
-
-     qemu_log_mask(CPU_LOG_MMU, "%s: TLB entry not found\n", __func__);
-    return -1;
-
-found_tlb:
 
     if (FIELD_EX64(env->msr, MSR, PR)) {
         prot2 = tlb->prot & 0xF;
@@ -666,19 +680,18 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     if (ret >= 0) {
         ctx->raddr = raddr;
         qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                      " => " TARGET_FMT_plx " %d %d\n", __func__,
+                      " => " HWADDR_FMT_plx " %d %d\n", __func__,
                       address, ctx->raddr, ctx->prot, ret);
     } else {
          qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__,
+                       " => " HWADDR_FMT_plx " %d %d\n", __func__,
                        address, raddr, ctx->prot, ret);
     }
 
     return ret;
 }
 
-hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
-                                        ppcmas_tlb_t *tlb)
+hwaddr booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb)
 {
     int tlbm_size;
 
@@ -688,9 +701,8 @@ hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
 }
 
 /* TLB check function for MAS based SoftTLBs */
-int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                            hwaddr *raddrp, target_ulong address,
-                            uint32_t pid)
+int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb, hwaddr *raddrp,
+                     target_ulong address, uint32_t pid)
 {
     hwaddr mask;
     uint32_t tlb_pid;
@@ -811,7 +823,8 @@ static int mmubooke206_check_tlb(CPUPPCState *env, ppcmas_tlb_t *tlb,
         }
     }
 
-     qemu_log_mask(CPU_LOG_MMU, "%s: TLB entry not found\n", __func__);
+    qemu_log_mask(CPU_LOG_MMU, "%s: No TLB entry found for effective address "
+                  "0x" TARGET_FMT_lx "\n", __func__, address);
     return -1;
 
 found_tlb:
@@ -893,11 +906,11 @@ found_tlb:
     if (ret >= 0) {
         ctx->raddr = raddr;
          qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__, address,
+                       " => " HWADDR_FMT_plx " %d %d\n", __func__, address,
                        ctx->raddr, ctx->prot, ret);
     } else {
          qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__, address,
+                       " => " HWADDR_FMT_plx " %d %d\n", __func__, address,
                        raddr, ctx->prot, ret);
     }
 
@@ -916,10 +929,12 @@ static void mmubooke_dump_mmu(CPUPPCState *env)
     ppcemb_tlb_t *entry;
     int i;
 
+#ifdef CONFIG_KVM
     if (kvm_enabled() && !env->kvm_sw_tlb) {
         qemu_printf("Cannot access KVM TLB\n");
         return;
     }
+#endif
 
     qemu_printf("\nTLB:\n");
     qemu_printf("Effective          Physical           Size PID   Prot     "
@@ -979,7 +994,7 @@ static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,
         pa = entry->mas7_3 & ~(size - 1);
 
         qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %4s %-5u %1u  S%c%c%c"
-                    "U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
+                    " U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
                     (uint64_t)ea, (uint64_t)pa,
                     book3e_tsize_to_str[tsize],
                     (entry->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT,
@@ -1007,10 +1022,12 @@ static void mmubooke206_dump_mmu(CPUPPCState *env)
     int offset = 0;
     int i;
 
+#ifdef CONFIG_KVM
     if (kvm_enabled() && !env->kvm_sw_tlb) {
         qemu_printf("Cannot access KVM TLB\n");
         return;
     }
+#endif
 
     for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
         int size = booke206_tlb_size(env, i);

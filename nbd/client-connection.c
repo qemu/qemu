@@ -1,5 +1,5 @@
 /*
- * QEMU Block driver for  NBD
+ * QEMU Block driver for NBD
  *
  * Copyright (c) 2021 Virtuozzo International GmbH.
  *
@@ -29,6 +29,7 @@
 
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/clone-visitor.h"
+#include "qemu/coroutine.h"
 
 struct NBDClientConnection {
     /* Initialization constants, never change */
@@ -92,7 +93,7 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
         .do_negotiation = do_negotiation,
 
         .initial_info.request_sizes = true,
-        .initial_info.structured_reply = true,
+        .initial_info.mode = NBD_MODE_EXTENDED,
         .initial_info.base_allocation = true,
         .initial_info.x_dirty_bitmap = g_strdup(x_dirty_bitmap),
         .initial_info.name = g_strdup(export_name ?: "")
@@ -145,8 +146,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
         return 0;
     }
 
-    ret = nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc), tlscreds,
-                                tlshostname,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), tlscreds, tlshostname,
                                 outioc, info, errp);
     if (ret < 0) {
         /*
@@ -155,7 +155,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
          * channel.
          */
         if (outioc && *outioc) {
-            qio_channel_close(QIO_CHANNEL(*outioc), NULL);
+            qio_channel_close(*outioc, NULL);
             object_unref(OBJECT(*outioc));
             *outioc = NULL;
         } else {
@@ -196,7 +196,7 @@ static void *connect_thread_func(void *opaque)
          * conn->updated_info will finally be returned to the user. Clear the
          * pointers to our internally allocated strings, which are IN parameters
          * of nbd_receive_negotiate() and therefore nbd_connect(). Caller
-         * shoudn't be interested in these fields.
+         * shouldn't be interested in these fields.
          */
         conn->updated_info.x_dirty_bitmap = NULL;
         conn->updated_info.name = NULL;

@@ -33,7 +33,7 @@
 
 static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     uint64_t addr = phb->regs[PHB_CONFIG_ADDRESS >> 3];
     uint8_t bus, devfn;
 
@@ -129,17 +129,17 @@ static uint64_t pnv_phb4_config_read(PnvPHB4 *phb, unsigned off,
 static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
                                      unsigned size, uint64_t val)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     PCIDevice *pdev;
 
     if (size != 4) {
-        phb_error(phb, "rc_config_write invalid size %d\n", size);
+        phb_error(phb, "rc_config_write invalid size %d", size);
         return;
     }
 
     pdev = pci_find_device(pci->bus, 0, 0);
     if (!pdev) {
-        phb_error(phb, "rc_config_write device not found\n");
+        phb_error(phb, "rc_config_write device not found");
         return;
     }
 
@@ -150,18 +150,18 @@ static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
 static uint64_t pnv_phb4_rc_config_read(PnvPHB4 *phb, unsigned off,
                                         unsigned size)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     PCIDevice *pdev;
     uint64_t val;
 
     if (size != 4) {
-        phb_error(phb, "rc_config_read invalid size %d\n", size);
+        phb_error(phb, "rc_config_read invalid size %d", size);
         return ~0ull;
     }
 
     pdev = pci_find_device(pci->bus, 0, 0);
     if (!pdev) {
-        phb_error(phb, "rc_config_read device not found\n");
+        phb_error(phb, "rc_config_read device not found");
         return ~0ull;
     }
 
@@ -207,7 +207,7 @@ static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
         start = base | (phb->regs[PHB_M64_UPPER_BITS >> 3]);
     }
 
-    /* TODO: Figure out how to implemet/decode AOMASK */
+    /* TODO: Figure out how to implement/decode AOMASK */
 
     /* Check if it matches an enabled MMIO region in the PEC stack */
     if (memory_region_is_mapped(&phb->mmbar0) &&
@@ -391,7 +391,7 @@ static void pnv_phb4_ioda_write(PnvPHB4 *phb, uint64_t val)
     case IODA3_TBL_MBT:
         *tptr = val;
 
-        /* Copy accross the valid bit to the other half */
+        /* Copy across the valid bit to the other half */
         phb->ioda_MBT[idx ^ 1] &= 0x7fffffffffffffffull;
         phb->ioda_MBT[idx ^ 1] |= 0x8000000000000000ull & val;
 
@@ -855,7 +855,7 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are read-able */
     return phb->nest_regs[reg];
 }
 
@@ -1000,7 +1000,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
 
     switch (reg) {
     case PEC_NEST_STK_PCI_NEST_FIR:
-        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_CLR:
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] &= val;
@@ -1009,7 +1009,8 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] |= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSK:
-        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val &
+                                                        PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSKC:
         phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] &= val;
@@ -1019,7 +1020,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_ACT0:
     case PEC_NEST_STK_PCI_NEST_FIR_ACT1:
-        phb->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_WOF:
         phb->nest_regs[reg] = 0;
@@ -1030,7 +1031,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         /* Flag error ? */
         break;
     case PEC_NEST_STK_PBCQ_MODE:
-        phb->nest_regs[reg] = val & 0xff00000000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 7);
         break;
     case PEC_NEST_STK_MMIO_BAR0:
     case PEC_NEST_STK_MMIO_BAR0_MASK:
@@ -1039,30 +1040,35 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         if (phb->nest_regs[PEC_NEST_STK_BAR_EN] &
             (PEC_NEST_STK_BAR_EN_MMIO0 |
              PEC_NEST_STK_BAR_EN_MMIO1)) {
-            phb_pec_error(pec, "Changing enabled BAR unsupported\n");
+            phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xffffffffff000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 39);
         break;
     case PEC_NEST_STK_PHB_REGS_BAR:
         if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_PHB) {
-            phb_pec_error(pec, "Changing enabled BAR unsupported\n");
+            phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xffffffffffc00000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 41);
         break;
     case PEC_NEST_STK_INT_BAR:
         if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_INT) {
-            phb_pec_error(pec, "Changing enabled BAR unsupported\n");
+            phb_pec_error(pec, "Changing enabled BAR unsupported");
         }
-        phb->nest_regs[reg] = val & 0xfffffff000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
         break;
     case PEC_NEST_STK_BAR_EN:
-        phb->nest_regs[reg] = val & 0xf000000000000000ull;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 3);
         pnv_pec_phb_update_map(phb);
         break;
     case PEC_NEST_STK_DATA_FRZ_TYPE:
-    case PEC_NEST_STK_PBCQ_TUN_BAR:
         /* Not used for now */
-        phb->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 27);
+        break;
+    case PEC_NEST_STK_PBCQ_SPARSE_PAGE:
+        phb->nest_regs[reg] = val & PPC_BITMASK(3, 5);
+        break;
+    case PEC_NEST_STK_PBCQ_CACHE_INJ:
+        phb->nest_regs[reg] = val & PPC_BITMASK(0, 7);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec: nest_xscom_write 0x%"HWADDR_PRIx
@@ -1086,7 +1092,7 @@ static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are read-able */
     return phb->pci_regs[reg];
 }
 
@@ -1095,10 +1101,9 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
 {
     PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
-
     switch (reg) {
     case PEC_PCI_STK_PCI_FIR:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_CLR:
         phb->pci_regs[PEC_PCI_STK_PCI_FIR] &= val;
@@ -1107,7 +1112,7 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
         phb->pci_regs[PEC_PCI_STK_PCI_FIR] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSK:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_MSKC:
         phb->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
@@ -1117,20 +1122,25 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
         break;
     case PEC_PCI_STK_PCI_FIR_ACT0:
     case PEC_PCI_STK_PCI_FIR_ACT1:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & PPC_BITMASK(0, 5);
         break;
     case PEC_PCI_STK_PCI_FIR_WOF:
         phb->pci_regs[reg] = 0;
         break;
     case PEC_PCI_STK_ETU_RESET:
-        phb->pci_regs[reg] = val & 0x8000000000000000ull;
+        phb->pci_regs[reg] = val & PPC_BIT(0);
         /* TODO: Implement reset */
         break;
     case PEC_PCI_STK_PBAIB_ERR_REPORT:
         break;
     case PEC_PCI_STK_PBAIB_TX_CMD_CRED:
+        phb->pci_regs[reg] = val &
+                                 ((PPC_BITMASK(0, 2) | PPC_BITMASK(10, 18)
+                                   | PPC_BITMASK(26, 34) | PPC_BITMASK(41, 50)
+                                   | PPC_BITMASK(58, 63)));
+        break;
     case PEC_PCI_STK_PBAIB_TX_DAT_CRED:
-        phb->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val & (PPC_BITMASK(33, 34) | PPC_BITMASK(44, 47));
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec_stk: pci_xscom_write 0x%"HWADDR_PRIx
@@ -1408,7 +1418,7 @@ static void pnv_phb4_msi_write(void *opaque, hwaddr addr,
         return;
     }
 
-    /* TODO: check PE/MSI assignement */
+    /* TODO: check PE/MSI assignment */
 
     qemu_irq_pulse(phb->qirqs[src]);
 }
@@ -1497,7 +1507,7 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
-    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
+    snprintf(name, sizeof(name), "xscom-pec-%d.%d-phb-%d",
              pec->chip_id, pec->index, stack_no);
     pnv_xscom_region_init(&phb->phb_regs_mr, OBJECT(phb),
                           &pnv_phb4_xscom_ops, phb, name, 0x40);
@@ -1518,6 +1528,10 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                             &phb->phb_regs_mr);
 }
 
+static PCIIOMMUOps pnv_phb4_iommu_ops = {
+    .get_address_space = pnv_phb4_dma_iommu,
+};
+
 static void pnv_phb4_instance_init(Object *obj)
 {
     PnvPHB4 *phb = PNV_PHB4(obj);
@@ -1528,11 +1542,42 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
+void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
+{
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    char name[32];
+
+    /*
+     * PHB4 doesn't support IO space. However, qemu gets very upset if
+     * we don't have an IO region to anchor IO BARs onto so we just
+     * initialize one which we never hook up to anything
+     */
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
+
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
+                       PCI_MMIO_TOTAL_SIZE);
+
+    pci->bus = pci_register_root_bus(dev, dev->id ? dev->id : NULL,
+                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
+                                     &phb->pci_mmio, &phb->pci_io,
+                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
+
+    object_property_set_int(OBJECT(pci->bus), "phb-id", phb->phb_id,
+                            &error_abort);
+    object_property_set_int(OBJECT(pci->bus), "chip-id", phb->chip_id,
+                            &error_abort);
+
+    pci_setup_iommu(pci->bus, &pnv_phb4_iommu_ops, phb);
+    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+}
+
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(dev);
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     XiveSource *xsrc = &phb->xsrc;
     int nr_irqs;
     char name[32];
@@ -1545,32 +1590,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
              phb->phb_id);
     memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
                           name, 0x2000);
-
-    /*
-     * PHB4 doesn't support IO space. However, qemu gets very upset if
-     * we don't have an IO region to anchor IO BARs onto so we just
-     * initialize one which we never hook up to anything
-     */
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
-                       PCI_MMIO_TOTAL_SIZE);
-
-    pci->bus = pci_register_root_bus(dev, dev->id,
-                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
-                                     &phb->pci_mmio, &phb->pci_io,
-                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
-    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
-
-    /* Add a single Root port if running with defaults */
-    pnv_phb_attach_root_port(pci, pecc->rp_model,
-                             phb->phb_id, phb->chip_id);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {
@@ -1589,16 +1608,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
     pnv_phb4_xscom_realize(phb);
-}
-
-static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
-{
-    PnvPHB4 *phb = PNV_PHB4(host_bridge);
-
-    snprintf(phb->bus_path, sizeof(phb->bus_path), "00%02x:%02x",
-             phb->chip_id, phb->phb_id);
-    return phb->bus_path;
 }
 
 /*
@@ -1685,19 +1694,17 @@ static Property pnv_phb4_properties[] = {
     DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
     DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
                      PnvPhb4PecState *),
+    DEFINE_PROP_LINK("phb-base", PnvPHB4, phb_base, TYPE_PNV_PHB, PnvPHB *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb4_class_init(ObjectClass *klass, void *data)
 {
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
 
-    hc->root_bus_path   = pnv_phb4_root_bus_path;
     dc->realize         = pnv_phb4_realize;
     device_class_set_props(dc, pnv_phb4_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable  = false;
 
     xfc->notify         = pnv_phb4_xive_notify;
@@ -1705,7 +1712,7 @@ static void pnv_phb4_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pnv_phb4_type_info = {
     .name          = TYPE_PNV_PHB4,
-    .parent        = TYPE_PCIE_HOST_BRIDGE,
+    .parent        = TYPE_DEVICE,
     .instance_init = pnv_phb4_instance_init,
     .instance_size = sizeof(PnvPHB4),
     .class_init    = pnv_phb4_class_init,
@@ -1721,9 +1728,54 @@ static const TypeInfo pnv_phb5_type_info = {
     .instance_size = sizeof(PnvPHB4),
 };
 
+static void pnv_phb4_root_bus_get_prop(Object *obj, Visitor *v,
+                                       const char *name,
+                                       void *opaque, Error **errp)
+{
+    PnvPHB4RootBus *bus = PNV_PHB4_ROOT_BUS(obj);
+    uint64_t value = 0;
+
+    if (strcmp(name, "phb-id") == 0) {
+        value = bus->phb_id;
+    } else {
+        value = bus->chip_id;
+    }
+
+    visit_type_size(v, name, &value, errp);
+}
+
+static void pnv_phb4_root_bus_set_prop(Object *obj, Visitor *v,
+                                       const char *name,
+                                       void *opaque, Error **errp)
+
+{
+    PnvPHB4RootBus *bus = PNV_PHB4_ROOT_BUS(obj);
+    uint64_t value;
+
+    if (!visit_type_size(v, name, &value, errp)) {
+        return;
+    }
+
+    if (strcmp(name, "phb-id") == 0) {
+        bus->phb_id = value;
+    } else {
+        bus->chip_id = value;
+    }
+}
+
 static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+
+    object_class_property_add(klass, "phb-id", "int",
+                              pnv_phb4_root_bus_get_prop,
+                              pnv_phb4_root_bus_set_prop,
+                              NULL, NULL);
+
+    object_class_property_add(klass, "chip-id", "int",
+                              pnv_phb4_root_bus_get_prop,
+                              pnv_phb4_root_bus_set_prop,
+                              NULL, NULL);
 
     /*
      * PHB4 has only a single root complex. Enforce the limit on the
@@ -1735,97 +1787,13 @@ static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_phb4_root_bus_info = {
     .name = TYPE_PNV_PHB4_ROOT_BUS,
     .parent = TYPE_PCIE_BUS,
+    .instance_size = sizeof(PnvPHB4RootBus),
     .class_init = pnv_phb4_root_bus_class_init,
-};
-
-static void pnv_phb4_root_port_reset(DeviceState *dev)
-{
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    PCIDevice *d = PCI_DEVICE(dev);
-    uint8_t *conf = d->config;
-
-    rpc->parent_reset(dev);
-
-    pci_byte_test_and_set_mask(conf + PCI_IO_BASE,
-                               PCI_IO_RANGE_MASK & 0xff);
-    pci_byte_test_and_clear_mask(conf + PCI_IO_LIMIT,
-                                 PCI_IO_RANGE_MASK & 0xff);
-    pci_set_word(conf + PCI_MEMORY_BASE, 0);
-    pci_set_word(conf + PCI_MEMORY_LIMIT, 0xfff0);
-    pci_set_word(conf + PCI_PREF_MEMORY_BASE, 0x1);
-    pci_set_word(conf + PCI_PREF_MEMORY_LIMIT, 0xfff1);
-    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0x1); /* Hack */
-    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0xffffffff);
-    pci_config_set_interrupt_pin(conf, 0);
-}
-
-static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
-{
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    rpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-}
-
-static void pnv_phb4_root_port_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
-
-    dc->desc     = "IBM PHB4 PCIE Root Port";
-    dc->user_creatable = false;
-
-    device_class_set_parent_realize(dc, pnv_phb4_root_port_realize,
-                                    &rpc->parent_realize);
-    device_class_set_parent_reset(dc, pnv_phb4_root_port_reset,
-                                  &rpc->parent_reset);
-
-    k->vendor_id = PCI_VENDOR_ID_IBM;
-    k->device_id = PNV_PHB4_DEVICE_ID;
-    k->revision  = 0;
-
-    rpc->exp_offset = 0x48;
-    rpc->aer_offset = 0x100;
-
-    dc->reset = &pnv_phb4_root_port_reset;
-}
-
-static const TypeInfo pnv_phb4_root_port_info = {
-    .name          = TYPE_PNV_PHB4_ROOT_PORT,
-    .parent        = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(PnvPHB4RootPort),
-    .class_init    = pnv_phb4_root_port_class_init,
-};
-
-static void pnv_phb5_root_port_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    dc->desc     = "IBM PHB5 PCIE Root Port";
-    dc->user_creatable = false;
-
-    k->vendor_id = PCI_VENDOR_ID_IBM;
-    k->device_id = PNV_PHB5_DEVICE_ID;
-}
-
-static const TypeInfo pnv_phb5_root_port_info = {
-    .name          = TYPE_PNV_PHB5_ROOT_PORT,
-    .parent        = TYPE_PNV_PHB4_ROOT_PORT,
-    .instance_size = sizeof(PnvPHB4RootPort),
-    .class_init    = pnv_phb5_root_port_class_init,
 };
 
 static void pnv_phb4_register_types(void)
 {
     type_register_static(&pnv_phb4_root_bus_info);
-    type_register_static(&pnv_phb5_root_port_info);
-    type_register_static(&pnv_phb4_root_port_info);
     type_register_static(&pnv_phb4_type_info);
     type_register_static(&pnv_phb5_type_info);
     type_register_static(&pnv_phb4_iommu_memory_region_info);

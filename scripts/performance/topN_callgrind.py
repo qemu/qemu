@@ -4,7 +4,7 @@
 #  Syntax:
 #  topN_callgrind.py [-h] [-n] <number of displayed top functions>  -- \
 #           <qemu executable> [<qemu executable options>] \
-#           <target executable> [<target execurable options>]
+#           <target executable> [<target executable options>]
 #
 #  [-h] - Print the script arguments help message.
 #  [-n] - Specify the number of top functions to print.

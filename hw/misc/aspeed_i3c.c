@@ -296,13 +296,13 @@ static void aspeed_i3c_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->iomem_container, 0x0, &s->iomem);
 
     for (i = 0; i < ASPEED_I3C_NR_DEVICES; ++i) {
-        Object *dev = OBJECT(&s->devices[i]);
+        Object *i3c_dev = OBJECT(&s->devices[i]);
 
-        if (!object_property_set_uint(dev, "device-id", i, errp)) {
+        if (!object_property_set_uint(i3c_dev, "device-id", i, errp)) {
             return;
         }
 
-        if (!sysbus_realize(SYS_BUS_DEVICE(dev), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(i3c_dev), errp)) {
             return;
         }
 

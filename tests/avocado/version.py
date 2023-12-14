@@ -15,10 +15,11 @@ from avocado_qemu import QemuSystemTest
 class Version(QemuSystemTest):
     """
     :avocado: tags=quick
+    :avocado: tags=machine:none
     """
     def test_qmp_human_info_version(self):
         self.vm.add_args('-nodefaults')
         self.vm.launch()
-        res = self.vm.command('human-monitor-command',
-                              command_line='info version')
-        self.assertRegexpMatches(res, r'^(\d+\.\d+\.\d)')
+        res = self.vm.cmd('human-monitor-command',
+                          command_line='info version')
+        self.assertRegex(res, r'^(\d+\.\d+\.\d)')

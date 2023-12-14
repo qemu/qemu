@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
+#include "tcg/debug-assert.h"
 
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -32,12 +33,29 @@ static void rx_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static vaddr rx_cpu_get_pc(CPUState *cs)
+{
+    RXCPU *cpu = RX_CPU(cs);
+
+    return cpu->env.pc;
+}
+
 static void rx_cpu_synchronize_from_tb(CPUState *cs,
                                        const TranslationBlock *tb)
 {
     RXCPU *cpu = RX_CPU(cs);
 
+    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
     cpu->env.pc = tb->pc;
+}
+
+static void rx_restore_state_to_opc(CPUState *cs,
+                                    const TranslationBlock *tb,
+                                    const uint64_t *data)
+{
+    RXCPU *cpu = RX_CPU(cs);
+
+    cpu->env.pc = data[0];
 }
 
 static bool rx_cpu_has_work(CPUState *cs)
@@ -46,14 +64,16 @@ static bool rx_cpu_has_work(CPUState *cs)
         (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIR);
 }
 
-static void rx_cpu_reset(DeviceState *dev)
+static void rx_cpu_reset_hold(Object *obj)
 {
-    RXCPU *cpu = RX_CPU(dev);
+    RXCPU *cpu = RX_CPU(obj);
     RXCPUClass *rcc = RX_CPU_GET_CLASS(cpu);
     CPURXState *env = &cpu->env;
     uint32_t *resetvec;
 
-    rcc->parent_reset(dev);
+    if (rcc->parent_phases.hold) {
+        rcc->parent_phases.hold(obj);
+    }
 
     memset(env, 0, offsetof(CPURXState, end_reset_fields));
 
@@ -91,16 +111,12 @@ static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
     char *typename;
 
     oc = object_class_by_name(cpu_model);
-    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_RX_CPU) != NULL &&
-        !object_class_is_abstract(oc)) {
+    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_RX_CPU) != NULL) {
         return oc;
     }
     typename = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
-    if (oc != NULL && object_class_is_abstract(oc)) {
-        oc = NULL;
-    }
 
     return oc;
 }
@@ -163,12 +179,8 @@ static bool rx_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 
 static void rx_cpu_init(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     RXCPU *cpu = RX_CPU(obj);
-    CPURXState *env = &cpu->env;
 
-    cpu_set_cpustate_pointers(cpu);
-    cs->env_ptr = env;
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 
@@ -185,6 +197,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 static const struct TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
+    .restore_state_to_opc = rx_restore_state_to_opc,
     .tlb_fill = rx_cpu_tlb_fill,
 
 #ifndef CONFIG_USER_ONLY
@@ -198,16 +211,18 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *cc = CPU_CLASS(klass);
     RXCPUClass *rcc = RX_CPU_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_parent_realize(dc, rx_cpu_realize,
                                     &rcc->parent_realize);
-    device_class_set_parent_reset(dc, rx_cpu_reset,
-                                  &rcc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, rx_cpu_reset_hold, NULL,
+                                       &rcc->parent_phases);
 
     cc->class_by_name = rx_cpu_class_by_name;
     cc->has_work = rx_cpu_has_work;
     cc->dump_state = rx_cpu_dump_state;
     cc->set_pc = rx_cpu_set_pc;
+    cc->get_pc = rx_cpu_get_pc;
 
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &rx_sysemu_ops;
@@ -225,6 +240,7 @@ static const TypeInfo rx_cpu_info = {
     .name = TYPE_RX_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(RXCPU),
+    .instance_align = __alignof(RXCPU),
     .instance_init = rx_cpu_init,
     .abstract = true,
     .class_size = sizeof(RXCPUClass),

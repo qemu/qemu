@@ -20,4 +20,8 @@ void tpm_tis_test_check_access_reg_seize(const void *data);
 void tpm_tis_test_check_access_reg_release(const void *data);
 void tpm_tis_test_check_transmit(const void *data);
 
+void tpm_tis_transfer(QTestState *s,
+                      const unsigned char *req, size_t req_size,
+                      unsigned char *rsp, size_t rsp_size);
+
 #endif /* TESTS_TPM_TIS_UTIL_H */

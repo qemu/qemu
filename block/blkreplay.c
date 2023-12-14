@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "sysemu/replay.h"
 #include "qapi/error.h"
@@ -26,11 +27,8 @@ static int blkreplay_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
 
     /* Open the image file */
-    bs->file = bdrv_open_child(NULL, options, "image", bs, &child_of_bds,
-                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
-                               false, errp);
-    if (!bs->file) {
-        ret = -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "image", bs, errp);
+    if (ret < 0) {
         goto fail;
     }
 
@@ -42,9 +40,10 @@ fail:
     return ret;
 }
 
-static int64_t blkreplay_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blkreplay_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 /* This bh is used for synchronization of return from coroutines.
@@ -71,8 +70,9 @@ static void block_request_create(uint64_t reqid, BlockDriverState *bs,
     replay_block_event(req->bh, reqid);
 }
 
-static int coroutine_fn blkreplay_co_preadv(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+blkreplay_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
@@ -82,8 +82,9 @@ static int coroutine_fn blkreplay_co_preadv(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_pwritev(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+blkreplay_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                     QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
@@ -93,8 +94,9 @@ static int coroutine_fn blkreplay_co_pwritev(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+blkreplay_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                           BdrvRequestFlags flags)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
@@ -104,8 +106,8 @@ static int coroutine_fn blkreplay_co_pwrite_zeroes(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
-                                              int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+blkreplay_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_pdiscard(bs->file, offset, bytes);
@@ -115,7 +117,7 @@ static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK blkreplay_co_flush(BlockDriverState *bs)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_flush(bs->file->bs);
@@ -128,7 +130,13 @@ static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
 static int blkreplay_snapshot_goto(BlockDriverState *bs,
                                    const char *snapshot_id)
 {
-    return bdrv_snapshot_goto(bs->file->bs, snapshot_id, NULL);
+    BlockDriverState *file_bs;
+
+    bdrv_graph_rdlock_main_loop();
+    file_bs = bs->file->bs;
+    bdrv_graph_rdunlock_main_loop();
+
+    return bdrv_snapshot_goto(file_bs, snapshot_id, NULL);
 }
 
 static BlockDriver bdrv_blkreplay = {
@@ -138,7 +146,7 @@ static BlockDriver bdrv_blkreplay = {
 
     .bdrv_open              = blkreplay_open,
     .bdrv_child_perm        = bdrv_default_perms,
-    .bdrv_getlength         = blkreplay_getlength,
+    .bdrv_co_getlength      = blkreplay_co_getlength,
 
     .bdrv_co_preadv         = blkreplay_co_preadv,
     .bdrv_co_pwritev        = blkreplay_co_pwritev,

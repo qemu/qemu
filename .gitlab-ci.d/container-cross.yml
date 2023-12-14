@@ -1,23 +1,20 @@
-alpha-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-alpha-cross
-
 amd64-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-amd64-cross
 
 amd64-debian-user-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-all-test-cross
+
+amd64-debian-legacy-cross-container:
+  extends: .container_job_template
+  stage: containers
+  variables:
+    NAME: debian-legacy-test-cross
 
 arm64-debian-cross-container:
   extends: .container_job_template
@@ -37,52 +34,23 @@ armhf-debian-cross-container:
   variables:
     NAME: debian-armhf-cross
 
-# We never want to build hexagon in the CI system and by default we
-# always want to refer to the master registry where it lives.
 hexagon-cross-container:
-  extends: .base_job_template
-  image: docker:stable
+  extends: .container_job_template
   stage: containers
   variables:
     NAME: debian-hexagon-cross
-    GIT_DEPTH: 1
-    QEMU_JOB_ONLY_FORKS: 1
-  services:
-    - docker:dind
-  before_script:
-    - export TAG="$CI_REGISTRY_IMAGE/qemu/$NAME:latest"
-    - export COMMON_TAG="$CI_REGISTRY/qemu-project/qemu/qemu/$NAME:latest"
-    - docker info
-    - docker login $CI_REGISTRY -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
-  script:
-    - echo "TAG:$TAG"
-    - echo "COMMON_TAG:$COMMON_TAG"
-    - docker pull $COMMON_TAG
-    - docker tag $COMMON_TAG $TAG
-    - docker push "$TAG"
-  after_script:
-    - docker logout
 
-hppa-debian-cross-container:
+loongarch-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
-    NAME: debian-hppa-cross
+    NAME: debian-loongarch-cross
 
-m68k-debian-cross-container:
+i686-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
-    NAME: debian-m68k-cross
-
-mips64-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-mips64-cross
+    NAME: debian-i686-cross
 
 mips64el-debian-cross-container:
   extends: .container_job_template
@@ -90,25 +58,11 @@ mips64el-debian-cross-container:
   variables:
     NAME: debian-mips64el-cross
 
-mips-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-mips-cross
-
 mipsel-debian-cross-container:
   extends: .container_job_template
   stage: containers
   variables:
     NAME: debian-mipsel-cross
-
-powerpc-test-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian11-container']
-  variables:
-    NAME: debian-powerpc-test-cross
 
 ppc64el-debian-cross-container:
   extends: .container_job_template
@@ -123,14 +77,7 @@ riscv64-debian-cross-container:
   allow_failure: true
   variables:
     NAME: debian-riscv64-cross
-
-# we can however build TCG tests using a non-sid base
-riscv64-debian-test-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian11-container']
-  variables:
-    NAME: debian-riscv64-test-cross
+    QEMU_JOB_OPTIONAL: 1
 
 s390x-debian-cross-container:
   extends: .container_job_template
@@ -138,24 +85,9 @@ s390x-debian-cross-container:
   variables:
     NAME: debian-s390x-cross
 
-sh4-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-sh4-cross
-
-sparc64-debian-cross-container:
-  extends: .container_job_template
-  stage: containers
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-sparc64-cross
-
 tricore-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-tricore-cross
 
@@ -168,11 +100,6 @@ cris-fedora-cross-container:
   extends: .container_job_template
   variables:
     NAME: fedora-cris-cross
-
-i386-fedora-cross-container:
-  extends: .container_job_template
-  variables:
-    NAME: fedora-i386-cross
 
 win32-fedora-cross-container:
   extends: .container_job_template

@@ -7,7 +7,7 @@
 mutex:aio_context_acquire
 mutex:pthread_mutex_lock
 
-# TSan reports a race betwen pthread_mutex_init() and
+# TSan reports a race between pthread_mutex_init() and
 # pthread_mutex_lock().  Since this is outside of QEMU,
 # we choose to ignore it.
 race:pthread_mutex_init

@@ -147,8 +147,21 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
 
 DeviceState *qdev_new(const char *name)
 {
-    if (!object_class_by_name(name)) {
-        module_load_qom_one(name);
+    ObjectClass *oc = object_class_by_name(name);
+#ifdef CONFIG_MODULES
+    if (!oc) {
+        int rv = module_load_qom(name, &error_fatal);
+        if (rv > 0) {
+            oc = object_class_by_name(name);
+        } else {
+            error_report("could not find a module for type '%s'", name);
+            exit(1);
+        }
+    }
+#endif
+    if (!oc) {
+        error_report("unknown type '%s'", name);
+        abort();
     }
     return DEVICE(object_new(name));
 }
@@ -237,60 +250,6 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
     dev->alias_required_for_version = required_for_version;
 }
 
-static int qdev_prereset(DeviceState *dev, void *opaque)
-{
-    trace_qdev_reset_tree(dev, object_get_typename(OBJECT(dev)));
-    return 0;
-}
-
-static int qbus_prereset(BusState *bus, void *opaque)
-{
-    trace_qbus_reset_tree(bus, object_get_typename(OBJECT(bus)));
-    return 0;
-}
-
-static int qdev_reset_one(DeviceState *dev, void *opaque)
-{
-    device_legacy_reset(dev);
-
-    return 0;
-}
-
-static int qbus_reset_one(BusState *bus, void *opaque)
-{
-    BusClass *bc = BUS_GET_CLASS(bus);
-    trace_qbus_reset(bus, object_get_typename(OBJECT(bus)));
-    if (bc->reset) {
-        bc->reset(bus);
-    }
-    return 0;
-}
-
-void qdev_reset_all(DeviceState *dev)
-{
-    trace_qdev_reset_all(dev, object_get_typename(OBJECT(dev)));
-    qdev_walk_children(dev, qdev_prereset, qbus_prereset,
-                       qdev_reset_one, qbus_reset_one, NULL);
-}
-
-void qdev_reset_all_fn(void *opaque)
-{
-    qdev_reset_all(DEVICE(opaque));
-}
-
-void qbus_reset_all(BusState *bus)
-{
-    trace_qbus_reset_all(bus, object_get_typename(OBJECT(bus)));
-    qbus_walk_children(bus, qdev_prereset, qbus_prereset,
-                       qdev_reset_one, qbus_reset_one, NULL);
-}
-
-void qbus_reset_all_fn(void *opaque)
-{
-    BusState *bus = opaque;
-    qbus_reset_all(bus);
-}
-
 void device_cold_reset(DeviceState *dev)
 {
     resettable_reset(OBJECT(dev), RESET_TYPE_COLD);
@@ -371,7 +330,7 @@ bool qdev_machine_modified(void)
     return qdev_hot_added || qdev_hot_removed;
 }
 
-BusState *qdev_get_parent_bus(DeviceState *dev)
+BusState *qdev_get_parent_bus(const DeviceState *dev)
 {
     return dev->parent_bus;
 }
@@ -480,8 +439,6 @@ void qdev_del_unplug_blocker(DeviceState *dev, Error *reason)
 
 bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
 {
-    ERRP_GUARD();
-
     if (dev->unplug_blockers) {
         error_propagate(errp, error_copy(dev->unplug_blockers->data));
         return true;
@@ -744,7 +701,7 @@ static void device_finalize(Object *obj)
     if (dev->pending_deleted_event) {
         g_assert(dev->canonical_path);
 
-        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path);
+        qapi_event_send_device_deleted(dev->id, dev->canonical_path);
         g_free(dev->canonical_path);
         dev->canonical_path = NULL;
     }
@@ -909,16 +866,6 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
 {
     *parent_unrealize = dc->unrealize;
     dc->unrealize = dev_unrealize;
-}
-
-void device_legacy_reset(DeviceState *dev)
-{
-    DeviceClass *klass = DEVICE_GET_CLASS(dev);
-
-    trace_qdev_reset(dev, object_get_typename(OBJECT(dev)));
-    if (klass->reset) {
-        klass->reset(dev);
-    }
 }
 
 Object *qdev_get_machine(void)

@@ -5,21 +5,60 @@
   - windows
   - windows-1809
   cache:
-    key: "${CI_JOB_NAME}-cache"
+    key: "$CI_JOB_NAME"
     paths:
-      - ${CI_PROJECT_DIR}/msys64/var/cache
+      - msys64/var/cache
+      - ccache
+    when: always
   needs: []
   stage: build
-  timeout: 70m
+  timeout: 100m
+  variables:
+    # This feature doesn't (currently) work with PowerShell, it stops
+    # the echo'ing of commands being run and doesn't show any timing
+    FF_SCRIPT_SECTIONS: 0
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    expire_in: 7 days
+    paths:
+      - build/meson-logs/testlog.txt
+    reports:
+      junit: "build/meson-logs/testlog.junit.xml"
   before_script:
+  - Write-Output "Acquiring msys2.exe installer at $(Get-Date -Format u)"
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
       mkdir msys64\var\cache
     }
-  - If ( !(Test-Path -Path msys64\var\cache\msys2.exe ) ) {
-      Invoke-WebRequest
-      "https://github.com/msys2/msys2-installer/releases/download/2022-06-03/msys2-base-x86_64-20220603.sfx.exe"
-      -outfile "msys64\var\cache\msys2.exe"
+  - Invoke-WebRequest
+    "https://repo.msys2.org/distrib/msys2-x86_64-latest.sfx.exe.sig"
+    -outfile "msys2.exe.sig"
+  - if ( Test-Path -Path msys64\var\cache\msys2.exe.sig ) {
+      Write-Output "Cached installer sig" ;
+      if ( ((Get-FileHash msys2.exe.sig).Hash -ne (Get-FileHash msys64\var\cache\msys2.exe.sig).Hash) ) {
+        Write-Output "Mis-matched installer sig, new installer download required" ;
+        Remove-Item -Path msys64\var\cache\msys2.exe.sig ;
+        if ( Test-Path -Path msys64\var\cache\msys2.exe ) {
+          Remove-Item -Path msys64\var\cache\msys2.exe
+        }
+      } else {
+        Write-Output "Matched installer sig, cached installer still valid"
+      }
+    } else {
+      Write-Output "No cached installer sig, new installer download required" ;
+      if ( Test-Path -Path msys64\var\cache\msys2.exe ) {
+        Remove-Item -Path msys64\var\cache\msys2.exe
+      }
     }
+  - if ( !(Test-Path -Path msys64\var\cache\msys2.exe ) ) {
+      Write-Output "Fetching latest installer" ;
+      Invoke-WebRequest
+      "https://repo.msys2.org/distrib/msys2-x86_64-latest.sfx.exe"
+      -outfile "msys64\var\cache\msys2.exe" ;
+      Copy-Item -Path msys2.exe.sig -Destination msys64\var\cache\msys2.exe.sig
+    } else {
+      Write-Output "Using cached installer"
+    }
+  - Write-Output "Invoking msys2.exe installer at $(Get-Date -Format u)"
   - msys64\var\cache\msys2.exe -y
   - ((Get-Content -path .\msys64\etc\\post-install\\07-pacman-key.post -Raw)
       -replace '--refresh-keys', '--version') |
@@ -28,71 +67,75 @@
   - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Core update
   - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
   - taskkill /F /FI "MODULES eq msys-2.0.dll"
+  script:
+  - Write-Output "Installing mingw packages at $(Get-Date -Format u)"
+  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
+      bison diffutils flex
+      git grep make sed
+      $MINGW_TARGET-binutils
+      $MINGW_TARGET-capstone
+      $MINGW_TARGET-ccache
+      $MINGW_TARGET-curl
+      $MINGW_TARGET-cyrus-sasl
+      $MINGW_TARGET-dtc
+      $MINGW_TARGET-gcc
+      $MINGW_TARGET-glib2
+      $MINGW_TARGET-gnutls
+      $MINGW_TARGET-gtk3
+      $MINGW_TARGET-libgcrypt
+      $MINGW_TARGET-libjpeg-turbo
+      $MINGW_TARGET-libnfs
+      $MINGW_TARGET-libpng
+      $MINGW_TARGET-libssh
+      $MINGW_TARGET-libtasn1
+      $MINGW_TARGET-libusb
+      $MINGW_TARGET-lzo2
+      $MINGW_TARGET-nettle
+      $MINGW_TARGET-ninja
+      $MINGW_TARGET-pixman
+      $MINGW_TARGET-pkgconf
+      $MINGW_TARGET-python
+      $MINGW_TARGET-SDL2
+      $MINGW_TARGET-SDL2_image
+      $MINGW_TARGET-snappy
+      $MINGW_TARGET-spice
+      $MINGW_TARGET-usbredir
+      $MINGW_TARGET-zstd "
+  - Write-Output "Running build at $(Get-Date -Format u)"
+  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
+  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
+  - $env:CCACHE_BASEDIR = "$env:CI_PROJECT_DIR"
+  - $env:CCACHE_DIR = "$env:CCACHE_BASEDIR/ccache"
+  - $env:CCACHE_MAXSIZE = "500M"
+  - $env:CCACHE_DEPEND = 1 # cache misses are too expensive with preprocessor mode
+  - $env:CC = "ccache gcc"
+  - mkdir build
+  - cd build
+  - ..\msys64\usr\bin\bash -lc "ccache --zero-stats"
+  - ..\msys64\usr\bin\bash -lc "../configure --enable-fdt=system $CONFIGURE_ARGS"
+  - ..\msys64\usr\bin\bash -lc "make"
+  - ..\msys64\usr\bin\bash -lc "make check MTESTARGS='$TEST_ARGS' || { cat meson-logs/testlog.txt; exit 1; } ;"
+  - ..\msys64\usr\bin\bash -lc "ccache --show-stats"
+  - Write-Output "Finished build at $(Get-Date -Format u)"
 
 msys2-64bit:
   extends: .shared_msys2_builder
-  script:
-  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
-      diffutils git grep make sed
-      mingw-w64-x86_64-capstone
-      mingw-w64-x86_64-curl
-      mingw-w64-x86_64-cyrus-sasl
-      mingw-w64-x86_64-gcc
-      mingw-w64-x86_64-glib2
-      mingw-w64-x86_64-gnutls
-      mingw-w64-x86_64-libnfs
-      mingw-w64-x86_64-libpng
-      mingw-w64-x86_64-libssh
-      mingw-w64-x86_64-libtasn1
-      mingw-w64-x86_64-libusb
-      mingw-w64-x86_64-nettle
-      mingw-w64-x86_64-ninja
-      mingw-w64-x86_64-pixman
-      mingw-w64-x86_64-pkgconf
-      mingw-w64-x86_64-python
-      mingw-w64-x86_64-SDL2
-      mingw-w64-x86_64-SDL2_image
-      mingw-w64-x86_64-snappy
-      mingw-w64-x86_64-usbredir
-      mingw-w64-x86_64-zstd "
-  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
-  - $env:MSYSTEM = 'MINGW64'     # Start a 64 bit Mingw environment
-  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
-  - .\msys64\usr\bin\bash -lc './configure --target-list=x86_64-softmmu
-      --enable-capstone --without-default-devices'
-  - .\msys64\usr\bin\bash -lc "sed -i '/^ROMS=/d' build/config-host.mak"
-  - .\msys64\usr\bin\bash -lc 'make -j2'
-  - .\msys64\usr\bin\bash -lc 'make check'
+  variables:
+    MINGW_TARGET: mingw-w64-x86_64
+    MSYSTEM: MINGW64
+    # do not remove "--without-default-devices"!
+    # commit 9f8e6cad65a6 ("gitlab-ci: Speed up the msys2-64bit job by using --without-default-devices"
+    # changed to compile QEMU with the --without-default-devices switch
+    # for the msys2 64-bit job, due to the build could not complete within
+    CONFIGURE_ARGS:  --target-list=x86_64-softmmu --without-default-devices -Ddebug=false -Doptimization=0
+    # qTests don't run successfully with "--without-default-devices",
+    # so let's exclude the qtests from CI for now.
+    TEST_ARGS: --no-suite qtest
 
 msys2-32bit:
   extends: .shared_msys2_builder
-  script:
-  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
-      diffutils git grep make sed
-      mingw-w64-i686-capstone
-      mingw-w64-i686-curl
-      mingw-w64-i686-cyrus-sasl
-      mingw-w64-i686-gcc
-      mingw-w64-i686-glib2
-      mingw-w64-i686-gnutls
-      mingw-w64-i686-gtk3
-      mingw-w64-i686-libgcrypt
-      mingw-w64-i686-libjpeg-turbo
-      mingw-w64-i686-libssh
-      mingw-w64-i686-libtasn1
-      mingw-w64-i686-libusb
-      mingw-w64-i686-lzo2
-      mingw-w64-i686-ninja
-      mingw-w64-i686-pixman
-      mingw-w64-i686-pkgconf
-      mingw-w64-i686-python
-      mingw-w64-i686-snappy
-      mingw-w64-i686-usbredir "
-  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
-  - $env:MSYSTEM = 'MINGW32'     # Start a 32-bit MinG environment
-  - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
-  - mkdir output
-  - cd output
-  - ..\msys64\usr\bin\bash -lc "../configure --target-list=ppc64-softmmu"
-  - ..\msys64\usr\bin\bash -lc 'make -j2'
-  - ..\msys64\usr\bin\bash -lc 'make check'
+  variables:
+    MINGW_TARGET: mingw-w64-i686
+    MSYSTEM: MINGW32
+    CONFIGURE_ARGS:  --target-list=ppc64-softmmu -Ddebug=false -Doptimization=0
+    TEST_ARGS: --no-suite qtest

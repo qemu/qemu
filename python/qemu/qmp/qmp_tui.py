@@ -71,7 +71,7 @@ def format_json(msg: str) -> str:
     due to an decoding error then a simple string manipulation is done to
     achieve a single line JSON string.
 
-    Converting into single line is more asthetically pleasing when looking
+    Converting into single line is more aesthetically pleasing when looking
     along with error messages.
 
     Eg:
@@ -91,7 +91,7 @@ def format_json(msg: str) -> str:
 
         [1, true, 3]: QMP message is not a JSON object.
 
-    The single line mode is more asthetically pleasing.
+    The single line mode is more aesthetically pleasing.
 
     :param msg:
         The message to formatted into single line.
@@ -346,7 +346,10 @@ class App(QMPClient):
                 self._set_status('[Disconnected]')
                 await self.disconnect()
                 # check if a retry is needed
-                if self.runstate == Runstate.IDLE:
+                # mypy 1.4.0 doesn't believe runstate can change after
+                # disconnect(), hence the cast.
+                state = cast(Runstate, self.runstate)
+                if state == Runstate.IDLE:
                     continue
             await self.runstate_changed()
 
@@ -498,7 +501,7 @@ class EditorWidget(urwid.Filler):
 class HistoryBox(urwid.ListBox):
     """
     This widget is modelled using the ListBox widget, contains the list of
-    all messages both QMP messages and log messsages to be shown in the TUI.
+    all messages both QMP messages and log messages to be shown in the TUI.
 
     The messages are urwid.Text widgets. On every append of a message, the
     focus is shifted to the last appended message.

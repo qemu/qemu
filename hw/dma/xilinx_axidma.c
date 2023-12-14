@@ -168,6 +168,11 @@ static inline int stream_idle(struct Stream *s)
     return !!(s->regs[R_DMASR] & DMASR_IDLE);
 }
 
+static inline int stream_halted(struct Stream *s)
+{
+    return !!(s->regs[R_DMASR] & DMASR_HALTED);
+}
+
 static void stream_reset(struct Stream *s)
 {
     s->regs[R_DMASR] = DMASR_HALTED;  /* starts up halted.  */
@@ -269,7 +274,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
     uint64_t addr;
     bool eop;
 
-    if (!stream_running(s) || stream_idle(s)) {
+    if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         return;
     }
 
@@ -326,7 +331,7 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
     unsigned int rxlen;
     size_t pos = 0;
 
-    if (!stream_running(s) || stream_idle(s)) {
+    if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         return 0;
     }
 
@@ -407,7 +412,7 @@ xilinx_axidma_data_stream_can_push(StreamSink *obj,
     XilinxAXIDMAStreamSink *ds = XILINX_AXI_DMA_DATA_STREAM(obj);
     struct Stream *s = &ds->dma->streams[1];
 
-    if (!stream_running(s) || stream_idle(s)) {
+    if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         ds->dma->notify = notify;
         ds->dma->notify_opaque = notify_opaque;
         return false;
@@ -456,7 +461,7 @@ static uint64_t axidma_read(void *opaque, hwaddr addr,
             break;
         default:
             r = s->regs[addr];
-            D(qemu_log("%s ch=%d addr=" TARGET_FMT_plx " v=%x\n",
+            D(qemu_log("%s ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
                            __func__, sid, addr * 4, r));
             break;
     }
@@ -509,7 +514,7 @@ static void axidma_write(void *opaque, hwaddr addr,
             }
             break;
         default:
-            D(qemu_log("%s: ch=%d addr=" TARGET_FMT_plx " v=%x\n",
+            D(qemu_log("%s: ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
                   __func__, sid, addr * 4, (unsigned)value));
             s->regs[addr] = value;
             break;
@@ -572,10 +577,6 @@ static void xilinx_axidma_init(Object *obj)
     object_initialize_child(OBJECT(s), "axistream-control-connected-target",
                             &s->rx_control_dev,
                             TYPE_XILINX_AXI_DMA_CONTROL_STREAM);
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
 
     sysbus_init_irq(sbd, &s->streams[0].irq);
     sysbus_init_irq(sbd, &s->streams[1].irq);
@@ -591,6 +592,8 @@ static Property axidma_properties[] = {
                      tx_data_dev, TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("axistream-control-connected", XilinxAXIDMA,
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
+    DEFINE_PROP_LINK("dma", XilinxAXIDMA, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

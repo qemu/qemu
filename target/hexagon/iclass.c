@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -51,8 +51,10 @@ SlotMask find_iclass_slots(Opcode opcode, int itype)
         return SLOTS_0;
     } else if ((opcode == J2_trap0) ||
                (opcode == Y2_isync) ||
-               (opcode == J2_pause) || (opcode == J4_hintjumpr)) {
+               (opcode == J2_pause)) {
         return SLOTS_2;
+    } else if (opcode == J4_hintjumpr) {
+        return SLOTS_23;
     } else if (GET_ATTRIB(opcode, A_CRSLOT23)) {
         return SLOTS_23;
     } else if (GET_ATTRIB(opcode, A_RESTRICT_PREFERSLOT0)) {

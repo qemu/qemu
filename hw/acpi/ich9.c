@@ -34,9 +34,9 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
-#include "hw/acpi/tco.h"
+#include "hw/acpi/ich9_tco.h"
 
-#include "hw/i386/ich9.h"
+#include "hw/southbridge/ich9.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 
@@ -218,7 +218,7 @@ static bool vmstate_test_use_pcihp(void *opaque)
 {
     ICH9LPCPMRegs *s = opaque;
 
-    return s->use_acpi_hotplug_bridge;
+    return s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static const VMStateDescription vmstate_pcihp_state = {
@@ -277,8 +277,8 @@ static void pm_reset(void *opaque)
     }
     pm->smi_en_wmask = ~0;
 
-    if (pm->use_acpi_hotplug_bridge) {
-        acpi_pcihp_reset(&pm->acpi_pci_hotplug, true);
+    if (pm->acpi_pci_hotplug.use_acpi_hotplug_bridge) {
+        acpi_pcihp_reset(&pm->acpi_pci_hotplug);
     }
 
     acpi_update_sci(&pm->acpi_regs, pm->irq);
@@ -291,9 +291,7 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&pm->acpi_regs);
 }
 
-void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
-                  bool smm_enabled,
-                  qemu_irq sci_irq)
+void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
 {
     memory_region_init(&pm->io, OBJECT(lpc_pci), "ich9-pm", ICH9_PMIO_SIZE);
     memory_region_set_enabled(&pm->io, false);
@@ -303,7 +301,7 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_evt_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io, pm->disable_s3, pm->disable_s4,
-                      pm->s4_val, !pm->smm_compat && !smm_enabled);
+                      pm->s4_val, !pm->smm_compat && !pm->smm_enabled);
 
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
     memory_region_init_io(&pm->io_gpe, OBJECT(lpc_pci), &ich9_gpe_ops, pm,
@@ -314,17 +312,15 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                           "acpi-smi", 8);
     memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
 
-    pm->smm_enabled = smm_enabled;
+    if (pm->enable_tco) {
+        acpi_pm_tco_init(&pm->tco_regs, &pm->io);
+    }
 
-    pm->enable_tco = true;
-    acpi_pm_tco_init(&pm->tco_regs, &pm->io);
-
-    if (pm->use_acpi_hotplug_bridge) {
+    if (pm->acpi_pci_hotplug.use_acpi_hotplug_bridge) {
         acpi_pcihp_init(OBJECT(lpc_pci),
                         &pm->acpi_pci_hotplug,
                         pci_get_bus(lpc_pci),
                         pci_address_space_io(lpc_pci),
-                        true,
                         ACPI_PCIHP_ADDR_ICH9);
 
         qbus_set_hotplug_handler(BUS(pci_get_bus(lpc_pci)),
@@ -406,14 +402,14 @@ static bool ich9_pm_get_acpi_pci_hotplug(Object *obj, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
-    return s->pm.use_acpi_hotplug_bridge;
+    return s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static void ich9_pm_set_acpi_pci_hotplug(Object *obj, bool value, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
-    s->pm.use_acpi_hotplug_bridge = value;
+    s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge = value;
 }
 
 static bool ich9_pm_get_keep_pci_slot_hpc(Object *obj, Error **errp)
@@ -438,8 +434,9 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
     pm->disable_s3 = 0;
     pm->disable_s4 = 0;
     pm->s4_val = 2;
-    pm->use_acpi_hotplug_bridge = true;
+    pm->acpi_pci_hotplug.use_acpi_hotplug_bridge = true;
     pm->keep_pci_slot_hpc = true;
+    pm->enable_tco = true;
 
     object_property_add_uint32_ptr(obj, ACPI_PM_PROP_PM_IO_BASE,
                                    &pm->pm_io_base, OBJ_PROP_FLAG_READ);
@@ -579,6 +576,12 @@ void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         error_setg(errp, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
+}
+
+bool ich9_pm_is_hotpluggable_bus(HotplugHandler *hotplug_dev, BusState *bus)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+    return acpi_pcihp_is_hotpluggbale_bus(&lpc->pm.acpi_pci_hotplug, bus);
 }
 
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)

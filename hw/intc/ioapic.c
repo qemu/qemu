@@ -24,10 +24,10 @@
 #include "qapi/error.h"
 #include "monitor/monitor.h"
 #include "hw/i386/apic.h"
-#include "hw/i386/ioapic.h"
-#include "hw/i386/ioapic_internal.h"
 #include "hw/i386/x86.h"
 #include "hw/intc/i8259.h"
+#include "hw/intc/ioapic.h"
+#include "hw/intc/ioapic_internal.h"
 #include "hw/pci/msi.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/kvm.h"
@@ -405,6 +405,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                 s->ioredtbl[index] |= ro_bits;
                 s->irq_eoi[index] = 0;
                 ioapic_fix_edge_remote_irr(&s->ioredtbl[index]);
+                ioapic_update_kvm_routes(s);
                 ioapic_service(s);
             }
         }
@@ -417,8 +418,6 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         ioapic_eoi_broadcast(val);
         break;
     }
-
-    ioapic_update_kvm_routes(s);
 }
 
 static const MemoryRegionOps ioapic_io_ops = {

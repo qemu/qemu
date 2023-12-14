@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/ctype.h"
 #include "qapi/qmp/qjson.h"
 
 #include "migration-helpers.h"
@@ -23,86 +24,50 @@
  */
 #define MIGRATION_STATUS_WAIT_TIMEOUT 120
 
-bool got_stop;
-
-static void check_stop_event(QTestState *who)
+bool migrate_watch_for_stop(QTestState *who, const char *name,
+                            QDict *event, void *opaque)
 {
-    QDict *event = qtest_qmp_event_ref(who, "STOP");
-    if (event) {
-        got_stop = true;
-        qobject_unref(event);
+    bool *seen = opaque;
+
+    if (g_str_equal(name, "STOP")) {
+        *seen = true;
+        return true;
     }
+
+    return false;
 }
 
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
+bool migrate_watch_for_resume(QTestState *who, const char *name,
+                              QDict *event, void *opaque)
 {
-    va_list ap;
-    QDict *resp, *ret;
+    bool *seen = opaque;
 
-    va_start(ap, command);
-    qtest_qmp_vsend_fds(who, &fd, 1, command, ap);
-    va_end(ap);
+    if (g_str_equal(name, "RESUME")) {
+        *seen = true;
+        return true;
+    }
 
-    resp = qtest_qmp_receive(who);
-    check_stop_event(who);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
+    return false;
 }
 
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-QDict *wait_command(QTestState *who, const char *command, ...)
+void migrate_qmp_fail(QTestState *who, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *resp, *ret;
+    QDict *args, *err;
 
-    va_start(ap, command);
-    resp = qtest_vqmp(who, command, ap);
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
     va_end(ap);
 
-    check_stop_event(who);
+    g_assert(!qdict_haskey(args, "uri"));
+    qdict_put_str(args, "uri", uri);
 
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
+    err = qtest_qmp_assert_failure_ref(
+        who, "{ 'execute': 'migrate', 'arguments': %p}", args);
 
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
+    g_assert(qdict_haskey(err, "desc"));
 
-    return ret;
-}
-
-/*
- * Execute the qmp command only
- */
-QDict *qmp_command(QTestState *who, const char *command, ...)
-{
-    va_list ap;
-    QDict *resp, *ret;
-
-    va_start(ap, command);
-    resp = qtest_vqmp(who, command, ap);
-    va_end(ap);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
+    qobject_unref(err);
 }
 
 /*
@@ -113,7 +78,7 @@ QDict *qmp_command(QTestState *who, const char *command, ...)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *args, *rsp;
+    QDict *args;
 
     va_start(ap, fmt);
     args = qdict_from_vjsonf_nofail(fmt, ap);
@@ -122,9 +87,47 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
     g_assert(!qdict_haskey(args, "uri"));
     qdict_put_str(args, "uri", uri);
 
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate', 'arguments': %p}", args);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate', 'arguments': %p}", args);
+}
 
+void migrate_set_capability(QTestState *who, const char *capability,
+                            bool value)
+{
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-capabilities',"
+                             "'arguments': { "
+                             "'capabilities': [ { "
+                             "'capability': %s, 'state': %i } ] } }",
+                             capability, value);
+}
+
+void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *args, *rsp, *data;
+
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    va_end(ap);
+
+    g_assert(!qdict_haskey(args, "uri"));
+    qdict_put_str(args, "uri", uri);
+
+    migrate_set_capability(to, "events", true);
+
+    rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
+                    args);
     g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+
+    rsp = qtest_qmp_eventwait_ref(to, "MIGRATION");
+    g_assert(qdict_haskey(rsp, "data"));
+
+    data = qdict_get_qdict(rsp, "data");
+    g_assert(qdict_haskey(data, "status"));
+    g_assert_cmpstr(qdict_get_str(data, "status"), ==, "setup");
+
     qobject_unref(rsp);
 }
 
@@ -134,7 +137,7 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
  */
 QDict *migrate_query(QTestState *who)
 {
-    return wait_command(who, "{ 'execute': 'query-migrate' }");
+    return qtest_qmp_assert_success_ref(who, "{ 'execute': 'query-migrate' }");
 }
 
 QDict *migrate_query_not_failed(QTestState *who)
@@ -232,8 +235,60 @@ void wait_for_migration_fail(QTestState *from, bool allow_active)
     } while (!failed);
 
     /* Is the machine currently running? */
-    rsp_return = wait_command(from, "{ 'execute': 'query-status' }");
+    rsp_return = qtest_qmp_assert_success_ref(from,
+                                              "{ 'execute': 'query-status' }");
     g_assert(qdict_haskey(rsp_return, "running"));
     g_assert(qdict_get_bool(rsp_return, "running"));
     qobject_unref(rsp_return);
+}
+
+char *find_common_machine_version(const char *mtype, const char *var1,
+                                  const char *var2)
+{
+    g_autofree char *type1 = qtest_resolve_machine_alias(var1, mtype);
+    g_autofree char *type2 = qtest_resolve_machine_alias(var2, mtype);
+
+    g_assert(type1 && type2);
+
+    if (g_str_equal(type1, type2)) {
+        /* either can be used */
+        return g_strdup(type1);
+    }
+
+    if (qtest_has_machine_with_env(var2, type1)) {
+        return g_strdup(type1);
+    }
+
+    if (qtest_has_machine_with_env(var1, type2)) {
+        return g_strdup(type2);
+    }
+
+    g_test_message("No common machine version for machine type '%s' between "
+                   "binaries %s and %s", mtype, getenv(var1), getenv(var2));
+    g_assert_not_reached();
+}
+
+char *resolve_machine_version(const char *alias, const char *var1,
+                              const char *var2)
+{
+    const char *mname = g_getenv("QTEST_QEMU_MACHINE_TYPE");
+    g_autofree char *machine_name = NULL;
+
+    if (mname) {
+        const char *dash = strrchr(mname, '-');
+        const char *dot = strrchr(mname, '.');
+
+        machine_name = g_strdup(mname);
+
+        if (dash && dot) {
+            assert(qtest_has_machine(machine_name));
+            return g_steal_pointer(&machine_name);
+        }
+        /* else: probably an alias, let it be resolved below */
+    } else {
+        /* use the hardcoded alias */
+        machine_name = g_strdup(alias);
+    }
+
+    return find_common_machine_version(machine_name, var1, var2);
 }

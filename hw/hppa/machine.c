@@ -1,6 +1,8 @@
 /*
  * QEMU HPPA hardware system emulator.
- * Copyright 2018 Helge Deller <deller@gmx.de>
+ * (C) Copyright 2018-2023 Helge Deller <deller@gmx.de>
+ *
+ * This work is licensed under the GNU GPL license version 2 or later.
  */
 
 #include "qemu/osdep.h"
@@ -20,7 +22,10 @@
 #include "hw/input/lasips2.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
+#include "hw/usb.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
+#include "hw/pci-host/astro.h"
 #include "hw/pci-host/dino.h"
 #include "hw/misc/lasi.h"
 #include "hppa_hardware.h"
@@ -28,16 +33,15 @@
 #include "qapi/error.h"
 #include "net/net.h"
 #include "qemu/log.h"
-#include "net/net.h"
 
-#define MAX_IDE_BUS 2
+#define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
 
-#define MIN_SEABIOS_HPPA_VERSION 6 /* require at least this fw version */
-
-#define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
+/* Power button address at &PAGE0->pad[4] */
+#define HPA_POWER_BUTTON (0x40 + 4 * sizeof(uint32_t))
 
 #define enable_lasi_lan()       0
 
+static DeviceState *lasi_dev;
 
 static void hppa_powerdown_req(Notifier *n, void *opaque)
 {
@@ -84,7 +88,7 @@ static const MemoryRegionOps hppa_pci_ignore_ops = {
     },
 };
 
-static ISABus *hppa_isa_bus(void)
+static ISABus *hppa_isa_bus(hwaddr addr)
 {
     ISABus *isa_bus;
     qemu_irq *isa_irqs;
@@ -93,23 +97,88 @@ static ISABus *hppa_isa_bus(void)
     isa_region = g_new(MemoryRegion, 1);
     memory_region_init_io(isa_region, NULL, &hppa_pci_ignore_ops,
                           NULL, "isa-io", 0x800);
-    memory_region_add_subregion(get_system_memory(), IDE_HPA,
-                                isa_region);
+    memory_region_add_subregion(get_system_memory(), addr, isa_region);
 
     isa_bus = isa_bus_new(NULL, get_system_memory(), isa_region,
                           &error_abort);
-    isa_irqs = i8259_init(isa_bus,
-                          /* qemu_allocate_irq(dino_set_isa_irq, s, 0)); */
-                          NULL);
-    isa_bus_irqs(isa_bus, isa_irqs);
+    isa_irqs = i8259_init(isa_bus, NULL);
+    isa_bus_register_input_irqs(isa_bus, isa_irqs);
 
     return isa_bus;
 }
 
-static uint64_t cpu_hppa_to_phys(void *opaque, uint64_t addr)
+/*
+ * Helper functions to emulate RTC clock and DebugOutputPort
+ */
+static time_t rtc_ref;
+
+static uint64_t io_cpu_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val = 0;
+
+    switch (addr) {
+    case 0:             /* RTC clock */
+        val = time(NULL);
+        val += rtc_ref;
+        break;
+    case 8:             /* DebugOutputPort */
+        return 0xe9;    /* readback */
+    }
+    return val;
+}
+
+static void io_cpu_write(void *opaque, hwaddr addr,
+                         uint64_t val, unsigned size)
+{
+    unsigned char ch;
+    Chardev *debugout;
+
+    switch (addr) {
+    case 0:             /* RTC clock */
+        rtc_ref = val - time(NULL);
+        break;
+    case 8:             /* DebugOutputPort */
+        ch = val;
+        debugout = serial_hd(0);
+        if (debugout) {
+            qemu_chr_fe_write_all(debugout->be, &ch, 1);
+        } else {
+            fprintf(stderr, "%c", ch);
+        }
+        break;
+    }
+}
+
+static const MemoryRegionOps hppa_io_helper_ops = {
+    .read = io_cpu_read,
+    .write = io_cpu_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+typedef uint64_t TranslateFn(void *opaque, uint64_t addr);
+
+static uint64_t linux_kernel_virt_to_phys(void *opaque, uint64_t addr)
 {
     addr &= (0x10000000 - 1);
     return addr;
+}
+
+static uint64_t translate_pa10(void *dummy, uint64_t addr)
+{
+    return (uint32_t)addr;
+}
+
+static uint64_t translate_pa20(void *dummy, uint64_t addr)
+{
+    return hppa_abs_to_phys_pa2_w0(addr);
 }
 
 static HPPACPU *cpu[HPPA_MAX_CPUS];
@@ -121,12 +190,17 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static FWCfgState *create_fw_cfg(MachineState *ms)
+static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus,
+                                 hwaddr addr)
 {
     FWCfgState *fw_cfg;
     uint64_t val;
+    const char qemu_version[] = QEMU_VERSION;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    int btlb_entries = HPPA_BTLB_ENTRIES(&cpu[0]->env);
+    int len;
 
-    fw_cfg = fw_cfg_init_mem(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4);
+    fw_cfg = fw_cfg_init_mem(addr, addr + 4);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, ms->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, HPPA_MAX_CPUS);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, ms->ram_size);
@@ -135,20 +209,38 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     fw_cfg_add_file(fw_cfg, "/etc/firmware-min-version",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
-    val = cpu_to_le64(HPPA_TLB_ENTRIES);
+    val = cpu_to_le64(HPPA_TLB_ENTRIES - btlb_entries);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/tlb_entries",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
-    val = cpu_to_le64(HPPA_BTLB_ENTRIES);
+    val = cpu_to_le64(btlb_entries);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/btlb_entries",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
+    len = strlen(mc->name) + 1;
+    fw_cfg_add_file(fw_cfg, "/etc/hppa/machine",
+                    g_memdup(mc->name, len), len);
+
     val = cpu_to_le64(HPA_POWER_BUTTON);
-    fw_cfg_add_file(fw_cfg, "/etc/power-button-addr",
+    fw_cfg_add_file(fw_cfg, "/etc/hppa/power-button-addr",
+                    g_memdup(&val, sizeof(val)), sizeof(val));
+
+    val = cpu_to_le64(CPU_HPA + 16);
+    fw_cfg_add_file(fw_cfg, "/etc/hppa/rtc-addr",
+                    g_memdup(&val, sizeof(val)), sizeof(val));
+
+    val = cpu_to_le64(CPU_HPA + 24);
+    fw_cfg_add_file(fw_cfg, "/etc/hppa/DebugOutputPort",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_config.order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+
+    fw_cfg_add_file(fw_cfg, "/etc/qemu-version",
+                    g_memdup(qemu_version, sizeof(qemu_version)),
+                    sizeof(qemu_version));
+
+    fw_cfg_add_extra_pci_roots(pci_bus, fw_cfg);
 
     return fw_cfg;
 }
@@ -175,37 +267,48 @@ static DinoState *dino_init(MemoryRegion *addr_space)
     return DINO_PCI_HOST_BRIDGE(dev);
 }
 
-static void machine_hppa_init(MachineState *machine)
+/*
+ * Step 1: Create CPUs and Memory
+ */
+static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
-    DeviceState *dev, *dino_dev, *lasi_dev;
-    PCIBus *pci_bus;
-    ISABus *isa_bus;
-    char *firmware_filename;
-    uint64_t firmware_low, firmware_high;
-    long size;
-    uint64_t kernel_entry = 0, kernel_low, kernel_high;
     MemoryRegion *addr_space = get_system_memory();
-    MemoryRegion *rom_region;
-    MemoryRegion *cpu_region;
-    long i;
     unsigned int smp_cpus = machine->smp.cpus;
-    SysBusDevice *s;
+    TranslateFn *translate;
+    MemoryRegion *cpu_region;
 
     /* Create CPUs.  */
-    for (i = 0; i < smp_cpus; i++) {
-        char *name = g_strdup_printf("cpu%ld-io-eir", i);
+    for (unsigned int i = 0; i < smp_cpus; i++) {
         cpu[i] = HPPA_CPU(cpu_create(machine->cpu_type));
+    }
+
+    /*
+     * For now, treat address layout as if PSW_W is clear.
+     * TODO: create a proper hppa64 board model and load elf64 firmware.
+     */
+    if (hppa_is_pa20(&cpu[0]->env)) {
+        translate = translate_pa20;
+    } else {
+        translate = translate_pa10;
+    }
+
+    for (unsigned int i = 0; i < smp_cpus; i++) {
+        g_autofree char *name = g_strdup_printf("cpu%u-io-eir", i);
 
         cpu_region = g_new(MemoryRegion, 1);
         memory_region_init_io(cpu_region, OBJECT(cpu[i]), &hppa_io_eir_ops,
                               cpu[i], name, 4);
-        memory_region_add_subregion(addr_space, CPU_HPA + i * 0x1000,
+        memory_region_add_subregion(addr_space,
+                                    translate(NULL, CPU_HPA + i * 0x1000),
                                     cpu_region);
-        g_free(name);
     }
+
+    /* RTC and DebugOutputPort on CPU #0 */
+    cpu_region = g_new(MemoryRegion, 1);
+    memory_region_init_io(cpu_region, OBJECT(cpu[0]), &hppa_io_helper_ops,
+                          cpu[0], "cpu0-io-rtc", 2 * sizeof(uint64_t));
+    memory_region_add_subregion(addr_space, translate(NULL, CPU_HPA + 16),
+                                cpu_region);
 
     /* Main memory region. */
     if (machine->ram_size > 3 * GiB) {
@@ -214,44 +317,30 @@ static void machine_hppa_init(MachineState *machine)
     }
     memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
 
+    return translate;
+}
 
-    /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_init());
-    memory_region_add_subregion(addr_space, LASI_HPA,
-                                sysbus_mmio_get_region(
-                                    SYS_BUS_DEVICE(lasi_dev), 0));
-
-    /* Init Dino (PCI host bus chip).  */
-    dino_dev = DEVICE(dino_init(addr_space));
-    memory_region_add_subregion(addr_space, DINO_HPA,
-                                sysbus_mmio_get_region(
-                                    SYS_BUS_DEVICE(dino_dev), 0));
-    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
-    assert(pci_bus);
-
-    /* Create ISA bus. */
-    isa_bus = hppa_isa_bus();
-    assert(isa_bus);
-
-    /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, NULL);
-
-    /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
-    serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
-        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
-        serial_hd(0), DEVICE_BIG_ENDIAN);
-
-    serial_mm_init(addr_space, DINO_UART_HPA + 0x800, 0,
-        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
-        serial_hd(1), DEVICE_BIG_ENDIAN);
-
-    /* Parallel port */
-    parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
-                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
-                     parallel_hds[0]);
-
-    /* fw_cfg configuration interface */
-    create_fw_cfg(machine);
+/*
+ * Last creation step: Add SCSI discs, NICs, graphics & load firmware
+ */
+static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
+                                        TranslateFn *translate)
+{
+    const char *kernel_filename = machine->kernel_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
+    const char *initrd_filename = machine->initrd_filename;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    DeviceState *dev;
+    PCIDevice *pci_dev;
+    char *firmware_filename;
+    uint64_t firmware_low, firmware_high;
+    long size;
+    uint64_t kernel_entry = 0, kernel_low, kernel_high;
+    MemoryRegion *addr_space = get_system_memory();
+    MemoryRegion *rom_region;
+    long i;
+    unsigned int smp_cpus = machine->smp.cpus;
+    SysBusDevice *s;
 
     /* SCSI disk setup. */
     dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
@@ -263,36 +352,57 @@ static void machine_hppa_init(MachineState *machine)
         dev = qdev_new("artist");
         s = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(s, &error_fatal);
-        sysbus_mmio_map(s, 0, LASI_GFX_HPA);
-        sysbus_mmio_map(s, 1, ARTIST_FB_ADDR);
+        sysbus_mmio_map(s, 0, translate(NULL, LASI_GFX_HPA));
+        sysbus_mmio_map(s, 1, translate(NULL, ARTIST_FB_ADDR));
     }
 
     /* Network setup. */
     if (enable_lasi_lan()) {
-        lasi_82596_init(addr_space, LASI_LAN_HPA,
+        lasi_82596_init(addr_space, translate(NULL, LASI_LAN_HPA),
                         qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
     }
 
     for (i = 0; i < nb_nics; i++) {
         if (!enable_lasi_lan()) {
-            pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
         }
     }
 
-    /* PS/2 Keyboard/Mouse */
-    dev = qdev_new(TYPE_LASIPS2);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
-                       qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
-    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
-                                                       0));
-    memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA + 0x100,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
-                                                       1));
+    /* BMC board: HP Powerbar SP2 Diva (with console only) */
+    pci_dev = pci_new(-1, "pci-serial");
+    if (!lasi_dev) {
+        /* bind default keyboard/serial to Diva card */
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev", serial_hd(0));
+    }
+    qdev_prop_set_uint8(DEVICE(pci_dev), "prog_if", 0);
+    pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+    pci_config_set_vendor_id(pci_dev->config, PCI_VENDOR_ID_HP);
+    pci_config_set_device_id(pci_dev->config, 0x1048);
+    pci_set_word(&pci_dev->config[PCI_SUBSYSTEM_VENDOR_ID], PCI_VENDOR_ID_HP);
+    pci_set_word(&pci_dev->config[PCI_SUBSYSTEM_ID], 0x1227); /* Powerbar */
+
+    /* create a second serial PCI card when running Astro */
+    if (!lasi_dev) {
+        pci_dev = pci_new(-1, "pci-serial-4x");
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(1));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev2", serial_hd(2));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev3", serial_hd(3));
+        qdev_prop_set_chr(DEVICE(pci_dev), "chardev4", serial_hd(4));
+        pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+    }
+
+    /* create USB OHCI controller for USB keyboard & mouse on Astro machines */
+    if (!lasi_dev && machine->enable_graphics) {
+        pci_create_simple(pci_bus, -1, "pci-ohci");
+        usb_create_simple(usb_bus_find(-1), "usb-kbd");
+        usb_create_simple(usb_bus_find(-1), "usb-mouse");
+    }
 
     /* register power switch emulation */
     qemu_register_powerdown_notifier(&hppa_system_powerdown_notifier);
+
+    /* fw_cfg configuration interface */
+    create_fw_cfg(machine, pci_bus, translate(NULL, FW_CFG_IO_BASE));
 
     /* Load firmware.  Given that this is not "real" firmware,
        but one explicitly written for the emulation, we might as
@@ -304,14 +414,9 @@ static void machine_hppa_init(MachineState *machine)
         exit(1);
     }
 
-    size = load_elf(firmware_filename, NULL, NULL, NULL,
+    size = load_elf(firmware_filename, NULL, translate, NULL,
                     &firmware_entry, &firmware_low, &firmware_high, NULL,
                     true, EM_PARISC, 0, 0);
-
-    /* Unfortunately, load_elf sign-extends reading elf32.  */
-    firmware_entry = (target_ureg)firmware_entry;
-    firmware_low = (target_ureg)firmware_low;
-    firmware_high = (target_ureg)firmware_high;
 
     if (size < 0) {
         error_report("could not load firmware '%s'", firmware_filename);
@@ -320,7 +425,8 @@ static void machine_hppa_init(MachineState *machine)
     qemu_log_mask(CPU_LOG_PAGE, "Firmware loaded at 0x%08" PRIx64
                   "-0x%08" PRIx64 ", entry at 0x%08" PRIx64 ".\n",
                   firmware_low, firmware_high, firmware_entry);
-    if (firmware_low < FIRMWARE_START || firmware_high >= FIRMWARE_END) {
+    if (firmware_low < translate(NULL, FIRMWARE_START) ||
+        firmware_high >= translate(NULL, FIRMWARE_END)) {
         error_report("Firmware overlaps with memory or IO space");
         exit(1);
     }
@@ -329,18 +435,16 @@ static void machine_hppa_init(MachineState *machine)
     rom_region = g_new(MemoryRegion, 1);
     memory_region_init_ram(rom_region, NULL, "firmware",
                            (FIRMWARE_END - FIRMWARE_START), &error_fatal);
-    memory_region_add_subregion(addr_space, FIRMWARE_START, rom_region);
+    memory_region_add_subregion(addr_space,
+                                translate(NULL, FIRMWARE_START), rom_region);
 
     /* Load kernel */
     if (kernel_filename) {
-        size = load_elf(kernel_filename, NULL, &cpu_hppa_to_phys,
+        size = load_elf(kernel_filename, NULL, linux_kernel_virt_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
                         true, EM_PARISC, 0, 0);
 
-        /* Unfortunately, load_elf sign-extends reading elf32.  */
-        kernel_entry = (target_ureg) cpu_hppa_to_phys(NULL, kernel_entry);
-        kernel_low = (target_ureg)kernel_low;
-        kernel_high = (target_ureg)kernel_high;
+        kernel_entry = linux_kernel_virt_to_phys(NULL, kernel_entry);
 
         if (size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
@@ -411,19 +515,138 @@ static void machine_hppa_init(MachineState *machine)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
-static void hppa_machine_reset(MachineState *ms)
+/*
+ * Create HP B160L workstation
+ */
+static void machine_HP_B160L_init(MachineState *machine)
+{
+    DeviceState *dev, *dino_dev;
+    MemoryRegion *addr_space = get_system_memory();
+    TranslateFn *translate;
+    ISABus *isa_bus;
+    PCIBus *pci_bus;
+
+    /* Create CPUs and RAM.  */
+    translate = machine_HP_common_init_cpus(machine);
+
+    if (hppa_is_pa20(&cpu[0]->env)) {
+        error_report("The HP B160L workstation requires a 32-bit "
+                     "CPU. Use '-machine C3700' instead.");
+        exit(1);
+    }
+
+    /* Init Lasi chip */
+    lasi_dev = DEVICE(lasi_init());
+    memory_region_add_subregion(addr_space, translate(NULL, LASI_HPA),
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(lasi_dev), 0));
+
+    /* Init Dino (PCI host bus chip).  */
+    dino_dev = DEVICE(dino_init(addr_space));
+    memory_region_add_subregion(addr_space, translate(NULL, DINO_HPA),
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(dino_dev), 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
+    assert(pci_bus);
+
+    /* Create ISA bus, needed for PS/2 kbd/mouse port emulation */
+    isa_bus = hppa_isa_bus(translate(NULL, IDE_HPA));
+    assert(isa_bus);
+
+    /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
+    serial_mm_init(addr_space, translate(NULL, LASI_UART_HPA + 0x800), 0,
+        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
+        serial_hd(0), DEVICE_BIG_ENDIAN);
+
+    serial_mm_init(addr_space, translate(NULL, DINO_UART_HPA + 0x800), 0,
+        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
+        serial_hd(1), DEVICE_BIG_ENDIAN);
+
+    /* Parallel port */
+    parallel_mm_init(addr_space, translate(NULL, LASI_LPT_HPA + 0x800), 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+                     parallel_hds[0]);
+
+    /* PS/2 Keyboard/Mouse */
+    dev = qdev_new(TYPE_LASIPS2);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
+    memory_region_add_subregion(addr_space,
+                                translate(NULL, LASI_PS2KBD_HPA),
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       0));
+    memory_region_add_subregion(addr_space,
+                                translate(NULL, LASI_PS2KBD_HPA + 0x100),
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       1));
+
+    /* Add SCSI discs, NICs, graphics & load firmware */
+    machine_HP_common_init_tail(machine, pci_bus, translate);
+}
+
+static AstroState *astro_init(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_ASTRO_CHIP);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return ASTRO_CHIP(dev);
+}
+
+/*
+ * Create HP C3700 workstation
+ */
+static void machine_HP_C3700_init(MachineState *machine)
+{
+    PCIBus *pci_bus;
+    AstroState *astro;
+    DeviceState *astro_dev;
+    MemoryRegion *addr_space = get_system_memory();
+    TranslateFn *translate;
+
+    /* Create CPUs and RAM.  */
+    translate = machine_HP_common_init_cpus(machine);
+
+    if (!hppa_is_pa20(&cpu[0]->env)) {
+        error_report("The HP C3000 workstation requires a 64-bit CPU. "
+                     "Use '-machine B160L' instead.");
+        exit(1);
+    }
+
+    /* Init Astro and the Elroys (PCI host bus chips).  */
+    astro = astro_init();
+    astro_dev = DEVICE(astro);
+    memory_region_add_subregion(addr_space, translate(NULL, ASTRO_HPA),
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(astro_dev), 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(DEVICE(astro->elroy[0]), "pci"));
+    assert(pci_bus);
+
+    /* Add SCSI discs, NICs, graphics & load firmware */
+    machine_HP_common_init_tail(machine, pci_bus, translate);
+}
+
+static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
 {
     unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
-    qemu_devices_reset();
+    qemu_devices_reset(reason);
 
     /* Start all CPUs at the firmware entry point.
      *  Monarch CPU will initialize firmware, secondary CPUs
-     *  will enter a small idle look and wait for rendevouz. */
+     *  will enter a small idle loop and wait for rendevouz. */
     for (i = 0; i < smp_cpus; i++) {
-        cpu_set_pc(CPU(cpu[i]), firmware_entry);
+        CPUState *cs = CPU(cpu[i]);
+
+        cpu_set_pc(cs, firmware_entry);
+        cpu[i]->env.psw = PSW_Q;
         cpu[i]->env.gr[5] = CPU_HPA + i * 0x1000;
+
+        cs->exception_index = -1;
+        cs->halted = 0;
     }
 
     /* already initialized by machine_hppa_init()? */
@@ -449,14 +672,19 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
+static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        TYPE_HPPA_CPU,
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->desc = "HPPA B160L machine";
+    mc->desc = "HP B160L workstation";
     mc->default_cpu_type = TYPE_HPPA_CPU;
-    mc->init = machine_hppa_init;
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->init = machine_HP_B160L_init;
     mc->reset = hppa_machine_reset;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = HPPA_MAX_CPUS;
@@ -465,14 +693,51 @@ static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
     mc->default_ram_id = "ram";
+    mc->default_nic = "tulip";
 
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo hppa_machine_init_typeinfo = {
-    .name = MACHINE_TYPE_NAME("hppa"),
+static const TypeInfo HP_B160L_machine_init_typeinfo = {
+    .name = MACHINE_TYPE_NAME("B160L"),
     .parent = TYPE_MACHINE,
-    .class_init = hppa_machine_init_class_init,
+    .class_init = HP_B160L_machine_init_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
+};
+
+static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
+{
+    static const char * const valid_cpu_types[] = {
+        TYPE_HPPA64_CPU,
+        NULL
+    };
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->desc = "HP C3700 workstation";
+    mc->default_cpu_type = TYPE_HPPA64_CPU;
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->init = machine_HP_C3700_init;
+    mc->reset = hppa_machine_reset;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = HPPA_MAX_CPUS;
+    mc->default_cpus = 1;
+    mc->is_default = false;
+    mc->default_ram_size = 1024 * MiB;
+    mc->default_boot_order = "cd";
+    mc->default_ram_id = "ram";
+    mc->default_nic = "tulip";
+
+    nc->nmi_monitor_handler = hppa_nmi;
+}
+
+static const TypeInfo HP_C3700_machine_init_typeinfo = {
+    .name = MACHINE_TYPE_NAME("C3700"),
+    .parent = TYPE_MACHINE,
+    .class_init = HP_C3700_machine_init_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
         { }
@@ -481,7 +746,8 @@ static const TypeInfo hppa_machine_init_typeinfo = {
 
 static void hppa_machine_init_register_types(void)
 {
-    type_register_static(&hppa_machine_init_typeinfo);
+    type_register_static(&HP_B160L_machine_init_typeinfo);
+    type_register_static(&HP_C3700_machine_init_typeinfo);
 }
 
 type_init(hppa_machine_init_register_types)

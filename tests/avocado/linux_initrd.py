@@ -13,7 +13,7 @@ import logging
 import tempfile
 
 from avocado_qemu import QemuSystemTest
-from avocado import skipIf
+from avocado import skipUnless
 
 
 class LinuxInitrd(QemuSystemTest):
@@ -53,9 +53,12 @@ class LinuxInitrd(QemuSystemTest):
                 max_size + 1)
             self.assertRegex(self.vm.get_log(), expected_msg)
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_with_2gib_file_should_work_with_linux_v4_16(self):
         """
+        :avocado: tags=flaky
+
         QEMU has supported up to 4 GiB initrd for recent kernel
         Expect guest can reach 'Unpacking initramfs...'
         """

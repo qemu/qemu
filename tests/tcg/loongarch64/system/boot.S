@@ -21,9 +21,10 @@ _start:
 	.align 16
 _exit:
 2:      /* QEMU ACPI poweroff */
-	li.w  t0, 0xff
-	li.w  t1, 0x10080010
-	st.w  t0, t1, 0
+	li.w  t0, 0x34
+	li.w  t1, 0x100e001c
+	st.b  t0, t1, 0
+
 	idle  0
 	bl    2b
 

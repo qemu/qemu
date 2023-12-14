@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# group: rw backing auto quick
+#
+# Test qemu-img rebase with compression
+#
+# Copyright (c) 2023 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=andrey.drobyshev@virtuozzo.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    _rm_test_img "$TEST_IMG.base"
+    _rm_test_img "$TEST_IMG.itmd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# Want the size divisible by 2 and 3
+size=$(( 48 * 1024 * 1024 ))
+half_size=$(( size / 2 ))
+third_size=$(( size / 3 ))
+
+# 1. "qemu-img rebase -c" should refuse working with any format which doesn't
+# support compression.  We only check "-f raw" here.
+echo
+echo "=== Testing compressed rebase format compatibility ==="
+echo
+
+$QEMU_IMG create -f raw "$TEST_IMG" "$size" | _filter_img_create
+$QEMU_IMG rebase -c -f raw -b "" "$TEST_IMG"
+
+# 2. Write the 1st half of $size to backing file (compressed), 2nd half -- to
+# the top image (also compressed).  Rebase the top image onto no backing file,
+# with compression (i.e. "qemu-img -c -b ''").  Check that the resulting image
+# has the written data preserved, and "qemu-img check" reports 100% clusters
+# as compressed.
+echo
+echo "=== Testing rebase with compression onto no backing file ==="
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $size
+
+$QEMU_IO -c "write -c -P 0xaa 0 $half_size" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xbb $half_size $half_size" "$TEST_IMG" \
+    | _filter_qemu_io
+
+$QEMU_IMG rebase -c -f $IMGFMT -b "" "$TEST_IMG"
+
+$QEMU_IO -c "read -P 0xaa 0 $half_size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xbb $half_size $half_size" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG check "$TEST_IMG" | _filter_testdir
+
+# 3. Same as the previous one, but with raw backing file (hence write to
+# the backing is uncompressed).
+echo
+echo "=== Testing rebase with compression with raw backing file ==="
+echo
+
+$QEMU_IMG create -f raw "$TEST_IMG.base" "$half_size" | _filter_img_create
+_make_test_img -b "$TEST_IMG.base" -F raw $size
+
+$QEMU_IO -f raw -c "write -P 0xaa 0 $half_size" "$TEST_IMG.base" \
+    | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xbb $half_size $half_size" \
+    "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG rebase -c -f $IMGFMT -b "" "$TEST_IMG"
+
+$QEMU_IO -c "read -P 0xaa 0 $half_size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xbb $half_size $half_size" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG check "$TEST_IMG" | _filter_testdir
+
+# 4. Create a backing chain base<--itmd<--img, filling 1st, 2nd and 3rd
+# thirds of them, respectively (with compression).  Rebase img onto base,
+# effectively deleting itmd from the chain, and check that written data is
+# preserved in the resulting image.  Also check that "qemu-img check" reports
+# 100% clusters as compressed.
+echo
+echo "=== Testing compressed rebase removing single delta from the chain ==="
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+TEST_IMG="$TEST_IMG.itmd" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT $size
+_make_test_img -b "$TEST_IMG.itmd" -F $IMGFMT $size
+
+$QEMU_IO -c "write -c -P 0xaa 0 $third_size" \
+    "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xbb $third_size $third_size" \
+    "$TEST_IMG.itmd" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xcc $((third_size * 2 )) $third_size" \
+    "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG rebase -c -f $IMGFMT -b "$TEST_IMG.base" -F $IMGFMT "$TEST_IMG"
+
+$QEMU_IO -c "read -P 0xaa 0 $third_size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xbb $third_size $third_size" \
+    "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xcc $(( third_size * 2 )) $third_size" \
+    "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG check "$TEST_IMG" | _filter_testdir
+
+# 5. Create one-cluster backing and overlay images, and fill only the first
+# (half - 1) bytes of the backing with data (uncompressed).  Rebase the
+# overlay onto no backing file with compression.  Check that data is still
+# read correctly, and that cluster is now really compressed ("qemu-img check"
+# reports 100% clusters as compressed.
+echo
+echo "=== Testing compressed rebase with unaligned unmerged data ==="
+echo
+
+CLUSTER_SIZE=65536
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $CLUSTER_SIZE
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $CLUSTER_SIZE
+
+$QEMU_IO -c "write -P 0xaa 0 $(( CLUSTER_SIZE / 2 - 1 ))" $TEST_IMG.base \
+    | _filter_qemu_io
+
+$QEMU_IMG rebase -c -f $IMGFMT -b "" "$TEST_IMG"
+
+$QEMU_IO -c "read -P 0xaa 0 $(( CLUSTER_SIZE / 2 - 1 ))" "$TEST_IMG" \
+    | _filter_qemu_io
+$QEMU_IO -c \
+    "read -P 0x00 $(( CLUSTER_SIZE / 2 - 1 )) $(( CLUSTER_SIZE / 2 + 1 ))" \
+    "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG check "$TEST_IMG" | _filter_testdir
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0

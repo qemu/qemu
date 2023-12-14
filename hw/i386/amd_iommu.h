@@ -210,8 +210,6 @@
 #define AMDVI_INT_ADDR_FIRST    0xfee00000
 #define AMDVI_INT_ADDR_LAST     0xfeefffff
 #define AMDVI_INT_ADDR_SIZE     (AMDVI_INT_ADDR_LAST - AMDVI_INT_ADDR_FIRST + 1)
-#define AMDVI_MSI_ADDR_HI_MASK  (0xffffffff00000000ULL)
-#define AMDVI_MSI_ADDR_LO_MASK  (0x00000000ffffffffULL)
 
 /* SB IOAPIC is always on this device in AMD systems */
 #define AMDVI_IOAPIC_SB_DEVID   PCI_BUILD_BDF(0, PCI_DEVFN(0x14, 0))
@@ -300,26 +298,25 @@ struct irte_ga {
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 
 #define TYPE_AMD_IOMMU_PCI "AMDVI-PCI"
+OBJECT_DECLARE_SIMPLE_TYPE(AMDVIPCIState, AMD_IOMMU_PCI)
 
 #define TYPE_AMD_IOMMU_MEMORY_REGION "amd-iommu-iommu-memory-region"
 
 typedef struct AMDVIAddressSpace AMDVIAddressSpace;
 
 /* functions to steal PCI config space */
-typedef struct AMDVIPCIState {
+struct AMDVIPCIState {
     PCIDevice dev;               /* The PCI device itself        */
-} AMDVIPCIState;
+    uint32_t capab_offset;       /* capability offset pointer    */
+};
 
 struct AMDVIState {
     X86IOMMUState iommu;        /* IOMMU bus device             */
     AMDVIPCIState pci;          /* IOMMU PCI device             */
 
     uint32_t version;
-    uint32_t capab_offset;       /* capability offset pointer    */
 
     uint64_t mmio_addr;
-
-    uint32_t devid;              /* auto-assigned devid          */
 
     bool enabled;                /* IOMMU enabled                */
     bool ats_enabled;            /* address translation enabled  */

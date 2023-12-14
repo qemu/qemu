@@ -22,6 +22,6 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostIOVATree, vhost_iova_tree_delete);
 const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *iova_tree,
                                         const DMAMap *map);
 int vhost_iova_tree_map_alloc(VhostIOVATree *iova_tree, DMAMap *map);
-void vhost_iova_tree_remove(VhostIOVATree *iova_tree, const DMAMap *map);
+void vhost_iova_tree_remove(VhostIOVATree *iova_tree, DMAMap map);
 
 #endif

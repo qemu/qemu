@@ -28,7 +28,6 @@
 
 #ifdef CONFIG_VHOST_CRYPTO
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-crypto.h"
 #include "sysemu/cryptodev-vhost-user.h"
@@ -94,7 +93,7 @@ cryptodev_vhost_start_one(CryptoDevBackendVhost *crypto,
         goto fail_notifiers;
     }
 
-    r = vhost_dev_start(&crypto->dev, dev);
+    r = vhost_dev_start(&crypto->dev, dev, false);
     if (r < 0) {
         goto fail_start;
     }
@@ -111,7 +110,7 @@ static void
 cryptodev_vhost_stop_one(CryptoDevBackendVhost *crypto,
                                  VirtIODevice *dev)
 {
-    vhost_dev_stop(&crypto->dev, dev);
+    vhost_dev_stop(&crypto->dev, dev, false);
     vhost_dev_disable_notifiers(&crypto->dev, dev);
 }
 
@@ -128,7 +127,7 @@ cryptodev_get_vhost(CryptoDevBackendClient *cc,
 
     switch (cc->type) {
 #if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
-    case CRYPTODEV_BACKEND_TYPE_VHOST_USER:
+    case QCRYPTODEV_BACKEND_TYPE_VHOST_USER:
         vhost_crypto = cryptodev_vhost_user_get_vhost(cc, b, queue);
         break;
 #endif
@@ -196,7 +195,7 @@ int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
          * because vhost user doesn't interrupt masking/unmasking
          * properly.
          */
-        if (cc->type == CRYPTODEV_BACKEND_TYPE_VHOST_USER) {
+        if (cc->type == QCRYPTODEV_BACKEND_TYPE_VHOST_USER) {
             dev->use_guest_notifier_mask = false;
         }
      }

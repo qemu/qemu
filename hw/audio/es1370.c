@@ -22,18 +22,19 @@
  * THE SOFTWARE.
  */
 
-/* #define DEBUG_ES1370 */
-/* #define VERBOSE_ES1370 */
-#define SILENT_ES1370
+#define DEBUG_ES1370 0
+#define VERBOSE_ES1370 0
 
 #include "qemu/osdep.h"
 #include "hw/audio/soundhw.h"
 #include "audio/audio.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
+#include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "qom/object.h"
+#include "trace.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -164,97 +165,88 @@ static void es1370_dac1_callback (void *opaque, int free);
 static void es1370_dac2_callback (void *opaque, int free);
 static void es1370_adc_callback (void *opaque, int avail);
 
-#ifdef DEBUG_ES1370
-
-#define ldebug(...) AUD_log ("es1370", __VA_ARGS__)
-
-static void print_ctl (uint32_t val)
+static void print_ctl(uint32_t val)
 {
-    char buf[1024];
+    if (DEBUG_ES1370) {
+        char buf[1024];
 
-    buf[0] = '\0';
-#define a(n) if (val & CTRL_##n) strcat (buf, " "#n)
-    a (ADC_STOP);
-    a (XCTL1);
-    a (OPEN);
-    a (MSFMTSEL);
-    a (M_SBB);
-    a (DAC_SYNC);
-    a (CCB_INTRM);
-    a (M_CB);
-    a (XCTL0);
-    a (BREQ);
-    a (DAC1_EN);
-    a (DAC2_EN);
-    a (ADC_EN);
-    a (UART_EN);
-    a (JYSTK_EN);
-    a (CDC_EN);
-    a (SERR_DIS);
+        buf[0] = '\0';
+#define a(n) if (val & CTRL_##n) pstrcat(buf, sizeof(buf), " "#n)
+        a(ADC_STOP);
+        a(XCTL1);
+        a(OPEN);
+        a(MSFMTSEL);
+        a(M_SBB);
+        a(DAC_SYNC);
+        a(CCB_INTRM);
+        a(M_CB);
+        a(XCTL0);
+        a(BREQ);
+        a(DAC1_EN);
+        a(DAC2_EN);
+        a(ADC_EN);
+        a(UART_EN);
+        a(JYSTK_EN);
+        a(CDC_EN);
+        a(SERR_DIS);
 #undef a
-    AUD_log ("es1370", "ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s\n",
-             (val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV,
-             DAC2_DIVTOSR ((val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV),
-             dac1_samplerate[(val & CTRL_WTSRSEL) >> CTRL_SH_WTSRSEL],
-             buf);
+        AUD_log("es1370", "ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s\n",
+                (val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV,
+                DAC2_DIVTOSR((val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV),
+                dac1_samplerate[(val & CTRL_WTSRSEL) >> CTRL_SH_WTSRSEL],
+                buf);
+    }
 }
 
-static void print_sctl (uint32_t val)
+static void print_sctl(uint32_t val)
 {
-    static const char *fmt_names[] = {"8M", "8S", "16M", "16S"};
-    char buf[1024];
+    if (DEBUG_ES1370) {
+        static const char *fmt_names[] = {"8M", "8S", "16M", "16S"};
+        char buf[1024];
 
-    buf[0] = '\0';
+        buf[0] = '\0';
 
-#define a(n) if (val & SCTRL_##n) strcat (buf, " "#n)
-#define b(n) if (!(val & SCTRL_##n)) strcat (buf, " "#n)
-    b (R1LOOPSEL);
-    b (P2LOOPSEL);
-    b (P1LOOPSEL);
-    a (P2PAUSE);
-    a (P1PAUSE);
-    a (R1INTEN);
-    a (P2INTEN);
-    a (P1INTEN);
-    a (P1SCTRLD);
-    a (P2DACSEN);
-    if (buf[0]) {
-        strcat (buf, "\n        ");
-    }
-    else {
-        buf[0] = ' ';
-        buf[1] = '\0';
-    }
+#define a(n) if (val & SCTRL_##n) pstrcat(buf, sizeof(buf), " "#n)
+#define b(n) if (!(val & SCTRL_##n)) pstrcat(buf, sizeof(buf), " "#n)
+        b(R1LOOPSEL);
+        b(P2LOOPSEL);
+        b(P1LOOPSEL);
+        a(P2PAUSE);
+        a(P1PAUSE);
+        a(R1INTEN);
+        a(P2INTEN);
+        a(P1INTEN);
+        a(P1SCTRLD);
+        a(P2DACSEN);
+        if (buf[0]) {
+            pstrcat(buf, sizeof(buf), "\n        ");
+        } else {
+            buf[0] = ' ';
+            buf[1] = '\0';
+        }
 #undef b
 #undef a
-    AUD_log ("es1370",
-             "%s"
-             "p2_end_inc %d, p2_st_inc %d, r1_fmt %s, p2_fmt %s, p1_fmt %s\n",
-             buf,
-             (val & SCTRL_P2ENDINC) >> SCTRL_SH_P2ENDINC,
-             (val & SCTRL_P2STINC) >> SCTRL_SH_P2STINC,
-             fmt_names [(val >> SCTRL_SH_R1FMT) & 3],
-             fmt_names [(val >> SCTRL_SH_P2FMT) & 3],
-             fmt_names [(val >> SCTRL_SH_P1FMT) & 3]
-        );
+        AUD_log("es1370",
+                "%s p2_end_inc %d, p2_st_inc %d,"
+                " r1_fmt %s, p2_fmt %s, p1_fmt %s\n",
+                buf,
+                (val & SCTRL_P2ENDINC) >> SCTRL_SH_P2ENDINC,
+                (val & SCTRL_P2STINC) >> SCTRL_SH_P2STINC,
+                fmt_names[(val >> SCTRL_SH_R1FMT) & 3],
+                fmt_names[(val >> SCTRL_SH_P2FMT) & 3],
+                fmt_names[(val >> SCTRL_SH_P1FMT) & 3]);
+    }
 }
-#else
-#define ldebug(...)
-#define print_ctl(...)
-#define print_sctl(...)
-#endif
 
-#ifdef VERBOSE_ES1370
-#define dolog(...) AUD_log ("es1370", __VA_ARGS__)
-#else
-#define dolog(...)
-#endif
+#define lwarn(...) \
+do { \
+    if (VERBOSE_ES1370) { \
+        AUD_log("es1370: warning", __VA_ARGS__); \
+    } \
+} while (0)
 
-#ifndef SILENT_ES1370
-#define lwarn(...) AUD_log ("es1370: warning", __VA_ARGS__)
-#else
-#define lwarn(...)
-#endif
+#define TYPE_ES1370 "ES1370"
+OBJECT_DECLARE_SIMPLE_TYPE(ES1370State, ES1370)
 
 struct chan {
     uint32_t shift;
@@ -278,7 +270,6 @@ struct ES1370State {
     uint32_t codec;
     uint32_t sctl;
 };
-typedef struct ES1370State ES1370State;
 
 struct chan_bits {
     uint32_t ctl_en;
@@ -291,9 +282,6 @@ struct chan_bits {
     void (*calc_freq) (ES1370State *s, uint32_t ctl,
                        uint32_t *old_freq, uint32_t *new_freq);
 };
-
-#define TYPE_ES1370 "ES1370"
-OBJECT_DECLARE_SIMPLE_TYPE(ES1370State, ES1370)
 
 static void es1370_dac1_calc_freq (ES1370State *s, uint32_t ctl,
                                    uint32_t *old_freq, uint32_t *new_freq);
@@ -321,8 +309,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
 
     if (level) {
         s->status = new_status | STAT_INTR;
-    }
-    else {
+    } else {
         s->status = new_status & ~STAT_INTR;
     }
     pci_set_irq(&s->dev, !!level);
@@ -345,8 +332,7 @@ static void es1370_reset (ES1370State *s)
         if (i == ADC_CHANNEL) {
             AUD_close_in (&s->card, s->adc_voice);
             s->adc_voice = NULL;
-        }
-        else {
+        } else {
             AUD_close_out (&s->card, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
@@ -412,12 +398,9 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
         if ((old_fmt != new_fmt) || (old_freq != new_freq)) {
             d->shift = (new_fmt & 1) + (new_fmt >> 1);
-            ldebug ("channel %zu, freq = %d, nchannels %d, fmt %d, shift %d\n",
-                    i,
-                    new_freq,
-                    1 << (new_fmt & 1),
-                    (new_fmt & 2) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_U8,
-                    d->shift);
+            trace_es1370_stream_format(i, new_freq,
+                new_fmt & 2 ? "s16" : "u8", new_fmt & 1 ? "stereo" : "mono",
+                d->shift);
             if (new_freq) {
                 struct audsettings as;
 
@@ -436,8 +419,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             es1370_adc_callback,
                             &as
                             );
-                }
-                else {
+                } else {
                     s->dac_voice[i] =
                         AUD_open_out (
                             &s->card,
@@ -457,8 +439,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
             if (i == ADC_CHANNEL) {
                 AUD_set_active_in (s->adc_voice, on);
-            }
-            else {
+            } else {
                 AUD_set_active_out (s->dac_voice[i], on);
             }
         }
@@ -471,8 +452,9 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
 {
     addr &= 0xff;
-    if (addr >= 0x30 && addr <= 0x3f)
+    if (addr >= 0x30 && addr <= 0x3f) {
         addr |= s->mempage << 8;
+    }
     return addr;
 }
 
@@ -503,9 +485,9 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case ES1370_REG_DAC2_SCOUNT:
     case ES1370_REG_ADC_SCOUNT:
         d += (addr - ES1370_REG_DAC1_SCOUNT) >> 2;
-        d->scount = (val & 0xffff) | (d->scount & ~0xffff);
-        ldebug ("chan %td CURR_SAMP_CT %d, SAMP_CT %d\n",
-                d - &s->chan[0], val >> 16, (val & 0xffff));
+        d->scount = (val & 0xffff) << 16 | (val & 0xffff);
+        trace_es1370_sample_count_wr(d - &s->chan[0],
+            d->scount >> 16, d->scount & 0xffff);
         break;
 
     case ES1370_REG_ADC_FRAMEADR:
@@ -516,14 +498,14 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         d += (addr - ES1370_REG_DAC1_FRAMEADR) >> 3;
     frameadr:
         d->frame_addr = val;
-        ldebug ("chan %td frame address %#x\n", d - &s->chan[0], val);
+        trace_es1370_frame_address_wr(d - &s->chan[0], d->frame_addr);
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
-        lwarn ("writing to phantom frame count %#x\n", val);
+        lwarn("writing to phantom frame count 0x%" PRIx64 "\n", val);
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
-        lwarn ("writing to phantom frame address %#x\n", val);
+        lwarn("writing to phantom frame address 0x%" PRIx64 "\n", val);
         break;
 
     case ES1370_REG_ADC_FRAMECNT:
@@ -535,12 +517,12 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     framecnt:
         d->frame_cnt = val;
         d->leftover = 0;
-        ldebug ("chan %td frame count %d, buffer size %d\n",
-                d - &s->chan[0], val >> 16, val & 0xffff);
+        trace_es1370_frame_count_wr(d - &s->chan[0],
+            d->frame_cnt >> 16, d->frame_cnt & 0xffff);
         break;
 
     default:
-        lwarn ("writel %#x <- %#x\n", addr, val);
+        lwarn("writel 0x%" PRIx64 " <- 0x%" PRIx64 "\n", addr, val);
         break;
     }
 }
@@ -574,17 +556,9 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_SCOUNT:
     case ES1370_REG_ADC_SCOUNT:
         d += (addr - ES1370_REG_DAC1_SCOUNT) >> 2;
+        trace_es1370_sample_count_rd(d - &s->chan[0],
+            d->scount >> 16, d->scount & 0xffff);
         val = d->scount;
-#ifdef DEBUG_ES1370
-        {
-            uint32_t curr_count = d->scount >> 16;
-            uint32_t count = d->scount & 0xffff;
-
-            curr_count <<= d->shift;
-            count <<= d->shift;
-            dolog ("read scount curr %d, total %d\n", curr_count, count);
-        }
-#endif
         break;
 
     case ES1370_REG_ADC_FRAMECNT:
@@ -594,17 +568,9 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_FRAMECNT:
         d += (addr - ES1370_REG_DAC1_FRAMECNT) >> 3;
     framecnt:
+        trace_es1370_frame_count_rd(d - &s->chan[0],
+            d->frame_cnt >> 16, d->frame_cnt & 0xffff);
         val = d->frame_cnt;
-#ifdef DEBUG_ES1370
-        {
-            uint32_t size = ((d->frame_cnt & 0xffff) + 1) << 2;
-            uint32_t curr = ((d->frame_cnt >> 16) + 1) << 2;
-            if (curr > size) {
-                dolog ("read framecnt curr %d, size %d %d\n", curr, size,
-                       curr > size);
-            }
-        }
-#endif
         break;
 
     case ES1370_REG_ADC_FRAMEADR:
@@ -614,30 +580,32 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
     case ES1370_REG_DAC2_FRAMEADR:
         d += (addr - ES1370_REG_DAC1_FRAMEADR) >> 3;
     frameadr:
+        trace_es1370_frame_address_rd(d - &s->chan[0], d->frame_addr);
         val = d->frame_addr;
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
         val = ~0U;
-        lwarn ("reading from phantom frame count\n");
+        lwarn("reading from phantom frame count\n");
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
         val = ~0U;
-        lwarn ("reading from phantom frame address\n");
+        lwarn("reading from phantom frame address\n");
         break;
 
     default:
         val = ~0U;
-        lwarn ("readl %#x -> %#x\n", addr, val);
+        lwarn("readl 0x%" PRIx64 " -> 0x%x\n", addr, val);
         break;
     }
     return val;
 }
 
 static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
-                                   int max, int *irq)
+                                   int max, bool *irq)
 {
     uint8_t tmpbuf[4096];
+    size_t to_transfer;
     uint32_t addr = d->frame_addr;
     int sc = d->scount & 0xffff;
     int csc = d->scount >> 16;
@@ -649,77 +617,87 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     }
     int left = ((size - cnt + 1) << 2) + d->leftover;
     int transferred = 0;
-    int temp = MIN (max, MIN (left, csc_bytes));
     int index = d - &s->chan[0];
 
+    to_transfer = MIN(max, MIN(left, csc_bytes));
     addr += (cnt << 2) + d->leftover;
 
     if (index == ADC_CHANNEL) {
-        while (temp > 0) {
+        while (to_transfer > 0) {
             int acquired, to_copy;
 
-            to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
+            to_copy = MIN(to_transfer, sizeof(tmpbuf));
             acquired = AUD_read (s->adc_voice, tmpbuf, to_copy);
-            if (!acquired)
+            if (!acquired) {
                 break;
+            }
 
             pci_dma_write (&s->dev, addr, tmpbuf, acquired);
 
-            temp -= acquired;
+            to_transfer -= acquired;
             addr += acquired;
             transferred += acquired;
         }
-    }
-    else {
+    } else {
         SWVoiceOut *voice = s->dac_voice[index];
 
-        while (temp > 0) {
+        while (to_transfer > 0) {
             int copied, to_copy;
 
-            to_copy = MIN ((size_t) temp, sizeof (tmpbuf));
+            to_copy = MIN(to_transfer, sizeof(tmpbuf));
             pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
-            if (!copied)
+            if (!copied) {
                 break;
-            temp -= copied;
+            }
+            to_transfer -= copied;
             addr += copied;
             transferred += copied;
         }
     }
 
     if (csc_bytes == transferred) {
-        *irq = 1;
+        if (*irq) {
+            trace_es1370_lost_interrupt(index);
+        }
+        *irq = true;
         d->scount = sc | (sc << 16);
-        ldebug ("sc = %d, rate = %f\n",
-                (sc + 1) << d->shift,
-                (sc + 1) / (double) 44100);
-    }
-    else {
-        *irq = 0;
+    } else {
+        *irq = false;
         d->scount = sc | (((csc_bytes - transferred - 1) >> d->shift) << 16);
     }
 
     cnt += (transferred + d->leftover) >> 2;
 
     if (s->sctl & loop_sel) {
-        /* Bah, how stupid is that having a 0 represent true value?
-           i just spent few hours on this shit */
+        /*
+         * loop_sel tells us which bit in the SCTL register to look at
+         * (either P1_LOOP_SEL, P2_LOOP_SEL or R1_LOOP_SEL). The sense
+         * of these bits is 0 for loop mode (set interrupt and keep recording
+         * when the sample count reaches zero) or 1 for stop mode (set
+         * interrupt and stop recording).
+         */
         AUD_log ("es1370: warning", "non looping mode\n");
-    }
-    else {
+    } else {
         d->frame_cnt = size;
 
-        if ((uint32_t) cnt <= d->frame_cnt)
+        if ((uint32_t) cnt <= d->frame_cnt) {
             d->frame_cnt |= cnt << 16;
+        }
     }
 
     d->leftover = (transferred + d->leftover) & 3;
+    trace_es1370_transfer_audio(index,
+        d->frame_cnt >> 16, d->frame_cnt & 0xffff,
+        d->scount >> 16, d->scount & 0xffff,
+        d->leftover, *irq);
 }
 
 static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
 {
     uint32_t new_status = s->status;
-    int max_bytes, irq;
+    int max_bytes;
+    bool irq;
     struct chan *d = &s->chan[chan];
     const struct chan_bits *b = &es1370_chan_bits[chan];
 
@@ -732,6 +710,8 @@ static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
     if (!max_bytes) {
         return;
     }
+
+    irq = s->sctl & b->sctl_inten && s->status & b->stat_int;
 
     es1370_transfer_audio (s, d, b->sctl_loopsel, max_bytes, &irq);
 
@@ -807,8 +787,7 @@ static int es1370_post_load (void *opaque, int version_id)
                 AUD_close_in (&s->card, s->adc_voice);
                 s->adc_voice = NULL;
             }
-        }
-        else {
+        } else {
             if (s->dac_voice[i]) {
                 AUD_close_out (&s->card, s->dac_voice[i]);
                 s->dac_voice[i] = NULL;
@@ -844,7 +823,8 @@ static const VMStateDescription vmstate_es1370 = {
 
 static void es1370_on_reset(DeviceState *dev)
 {
-    ES1370State *s = container_of(dev, ES1370State, dev.qdev);
+    ES1370State *s = ES1370(dev);
+
     es1370_reset (s);
 }
 
@@ -852,6 +832,10 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
 {
     ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
+
+    if (!AUD_register_card ("es1370", &s->card, errp)) {
+        return;
+    }
 
     c[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_SLOW >> 8;
 
@@ -868,7 +852,6 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
-    AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
 }
 

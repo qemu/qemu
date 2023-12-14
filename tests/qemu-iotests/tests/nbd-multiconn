@@ -20,6 +20,8 @@
 
 import os
 from contextlib import contextmanager
+from types import ModuleType
+
 import iotests
 from iotests import qemu_img_create, qemu_io
 
@@ -28,7 +30,7 @@ disk = os.path.join(iotests.test_dir, 'disk')
 size = '4M'
 nbd_sock = os.path.join(iotests.sock_dir, 'nbd_sock')
 nbd_uri = 'nbd+unix:///{}?socket=' + nbd_sock
-
+nbd: ModuleType
 
 @contextmanager
 def open_nbd(export_name):
@@ -46,12 +48,11 @@ class TestNbdMulticonn(iotests.QMPTestCase):
 
         self.vm = iotests.VM()
         self.vm.launch()
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'driver': 'qcow2',
             'node-name': 'n',
             'file': {'driver': 'file', 'filename': disk}
         })
-        self.assert_qmp(result, 'return', {})
 
     def tearDown(self):
         self.vm.shutdown()
@@ -72,12 +73,10 @@ class TestNbdMulticonn(iotests.QMPTestCase):
         if max_connections is not None:
             args['max-connections'] = max_connections
 
-        result = self.vm.qmp('nbd-server-start', args)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-start', args)
         yield
 
-        result = self.vm.qmp('nbd-server-stop')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-stop')
 
     def add_export(self, name, writable=None):
         args = {
@@ -89,8 +88,7 @@ class TestNbdMulticonn(iotests.QMPTestCase):
         if writable is not None:
             args['writable'] = writable
 
-        result = self.vm.qmp('block-export-add', args)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-export-add', args)
 
     def test_default_settings(self):
         with self.run_server():
@@ -142,4 +140,4 @@ if __name__ == '__main__':
 
         iotests.main(supported_fmts=['qcow2'])
     except ImportError:
-        iotests.notrun('libnbd not installed')
+        iotests.notrun('Python bindings to libnbd are not installed')

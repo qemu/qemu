@@ -54,7 +54,7 @@
 ##
 # @Enum:
 #
-# @one: The _one_ {and only}
+# @one: The _one_ {and only}, description on the same line
 #
 # Features:
 # @enum-feat: Also _one_ {and only}
@@ -73,7 +73,8 @@
 # @Base:
 #
 # @base1:
-# the first member
+# description starts on a new line,
+# not indented
 ##
 { 'struct': 'Base', 'data': { 'base1': 'Enum' },
   'if': { 'all': ['IFALL1', 'IFALL2'] } }
@@ -83,7 +84,9 @@
 #
 # A paragraph
 #
-# Another paragraph (but no @var: line)
+# Another paragraph
+#
+# @var1 is undocumented
 #
 # Features:
 # @variant1-feat: a feature
@@ -118,7 +121,8 @@
 ##
 # @Alternate:
 #
-# @i: an integer
+# @i: description starts on the same line
+#     remainder indented the same
 #     @b is undocumented
 #
 # Features:
@@ -136,10 +140,12 @@
 ##
 # @cmd:
 #
-# @arg1: the first argument
+# @arg1:
+#     description starts on a new line,
+#     indented
 #
-# @arg2: the second
-#        argument
+# @arg2: description starts on the same line
+#     remainder indented differently
 #
 # Features:
 # @cmd-feat1: a feature

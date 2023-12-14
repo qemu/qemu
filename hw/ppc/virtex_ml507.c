@@ -43,7 +43,8 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/qdev-properties.h"
-#include "ppc405.h"
+
+#include <libfdt.h>
 
 #define EPAPR_MAGIC    (0x45504150)
 #define FLASH_SIZE     (16 * MiB)
@@ -104,12 +105,9 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
 
     /* interrupt controller */
     uicdev = qdev_new(TYPE_PPC_UIC);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uicdev), cpu, &error_fatal);
+    object_unref(OBJECT(uicdev));
     uicsbd = SYS_BUS_DEVICE(uicdev);
-
-    object_property_set_link(OBJECT(uicdev), "cpu", OBJECT(cpu),
-                             &error_fatal);
-    sysbus_realize_and_unref(uicsbd, &error_fatal);
-
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT,
@@ -147,11 +145,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 #define BINARY_DEVICE_TREE_FILE "virtex-ml507.dtb"
-static int xilinx_load_device_tree(hwaddr addr,
-                                      uint32_t ramsize,
-                                      hwaddr initrd_base,
-                                      hwaddr initrd_size,
-                                      const char *kernel_cmdline)
+static int xilinx_load_device_tree(MachineState *machine,
+                                   hwaddr addr,
+                                   hwaddr initrd_base,
+                                   hwaddr initrd_size)
 {
     char *path;
     int fdt_size;
@@ -159,7 +156,7 @@ static int xilinx_load_device_tree(hwaddr addr,
     int r;
     const char *dtb_filename;
 
-    dtb_filename = current_machine->dtb;
+    dtb_filename = machine->dtb;
     if (dtb_filename) {
         fdt = load_device_tree(dtb_filename, &fdt_size);
         if (!fdt) {
@@ -193,18 +190,21 @@ static int xilinx_load_device_tree(hwaddr addr,
         error_report("couldn't set /chosen/linux,initrd-end");
     }
 
-    r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
+    r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                                machine->kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
     cpu_physical_memory_write(addr, fdt, fdt_size);
-    g_free(fdt);
+
+    /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+    machine->fdt = fdt;
+
     return fdt_size;
 }
 
 static void virtex_init(MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
     hwaddr initrd_base = 0;
     int initrd_size = 0;
     MemoryRegion *address_space_mem = get_system_memory();
@@ -297,9 +297,8 @@ static void virtex_init(MachineState *machine)
         boot_info.fdt = high + (8192 * 2);
         boot_info.fdt &= ~8191;
 
-        xilinx_load_device_tree(boot_info.fdt, machine->ram_size,
-                                initrd_base, initrd_size,
-                                kernel_cmdline);
+        xilinx_load_device_tree(machine, boot_info.fdt,
+                                initrd_base, initrd_size);
     }
     env->load_info = &boot_info;
 }

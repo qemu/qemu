@@ -202,7 +202,7 @@ static void exynos4210_rtc_update_freq(Exynos4210RTCState *s,
     uint32_t freq;
 
     freq = s->freq;
-    /* set frequncy for time generator */
+    /* set frequency for time generator */
     s->freq = RTC_BASE_FREQ / (1 << TICCKSEL(reg_value));
 
     if (freq != s->freq) {
@@ -374,7 +374,7 @@ static uint64_t exynos4210_rtc_read(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.rtc: bad read offset " TARGET_FMT_plx,
+                      "exynos4210.rtc: bad read offset " HWADDR_FMT_plx,
                       offset);
         break;
     }
@@ -508,7 +508,7 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.rtc: bad write offset " TARGET_FMT_plx,
+                      "exynos4210.rtc: bad write offset " HWADDR_FMT_plx,
                       offset);
         break;
 

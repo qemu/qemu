@@ -213,8 +213,7 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
         result = vm.qmp('query-block-jobs')
         assert len(result['return']) == 1
 
-        result = vm.qmp('block-job-set-speed', device='push-backup', speed=0)
-        assert result == {'return': {}}
+        vm.cmd('block-job-set-speed', device='push-backup', speed=0)
 
         log(vm.event_wait(name='BLOCK_JOB_COMPLETED',
                           match={'data': {'device': 'push-backup'}}),

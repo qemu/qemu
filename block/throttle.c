@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
+#include "block/block_int.h"
 #include "block/throttle-groups.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -78,12 +80,13 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     char *group;
     int ret;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
-                               false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     bs->supported_write_flags = bs->file->bs->supported_write_flags |
                                 BDRV_REQ_WRITE_UNCHANGED;
     bs->supported_zero_flags = bs->file->bs->supported_zero_flags |
@@ -106,63 +109,61 @@ static void throttle_close(BlockDriverState *bs)
 }
 
 
-static int64_t throttle_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+throttle_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
-static int coroutine_fn throttle_co_preadv(BlockDriverState *bs,
-                                           int64_t offset, int64_t bytes,
-                                           QEMUIOVector *qiov,
-                                           BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                   QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
 
     ThrottleGroupMember *tgm = bs->opaque;
-    throttle_group_co_io_limits_intercept(tgm, bytes, false);
+    throttle_group_co_io_limits_intercept(tgm, bytes, THROTTLE_READ);
 
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn throttle_co_pwritev(BlockDriverState *bs,
-                                            int64_t offset, int64_t bytes,
-                                            QEMUIOVector *qiov,
-                                            BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     ThrottleGroupMember *tgm = bs->opaque;
-    throttle_group_co_io_limits_intercept(tgm, bytes, true);
+    throttle_group_co_io_limits_intercept(tgm, bytes, THROTTLE_WRITE);
 
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn throttle_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset, int64_t bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          BdrvRequestFlags flags)
 {
     ThrottleGroupMember *tgm = bs->opaque;
-    throttle_group_co_io_limits_intercept(tgm, bytes, true);
+    throttle_group_co_io_limits_intercept(tgm, bytes, THROTTLE_WRITE);
 
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
-static int coroutine_fn throttle_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     ThrottleGroupMember *tgm = bs->opaque;
-    throttle_group_co_io_limits_intercept(tgm, bytes, true);
+    throttle_group_co_io_limits_intercept(tgm, bytes, THROTTLE_WRITE);
 
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
-static int coroutine_fn throttle_co_pwritev_compressed(BlockDriverState *bs,
-                                                       int64_t offset,
-                                                       int64_t bytes,
-                                                       QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwritev_compressed(BlockDriverState *bs, int64_t offset,
+                               int64_t bytes, QEMUIOVector *qiov)
 {
     return throttle_co_pwritev(bs, offset, bytes, qiov,
                                BDRV_REQ_WRITE_COMPRESSED);
 }
 
-static int throttle_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK throttle_co_flush(BlockDriverState *bs)
 {
     return bdrv_co_flush(bs->file->bs);
 }
@@ -216,7 +217,7 @@ static void throttle_reopen_abort(BDRVReopenState *reopen_state)
     reopen_state->opaque = NULL;
 }
 
-static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
+static void throttle_drain_begin(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     if (qatomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
@@ -224,7 +225,7 @@ static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
     }
 }
 
-static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
+static void throttle_drain_end(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     assert(tgm->io_limits_disabled);
@@ -247,7 +248,7 @@ static BlockDriver bdrv_throttle = {
 
     .bdrv_child_perm                    =   bdrv_default_perms,
 
-    .bdrv_getlength                     =   throttle_getlength,
+    .bdrv_co_getlength                  =   throttle_co_getlength,
 
     .bdrv_co_preadv                     =   throttle_co_preadv,
     .bdrv_co_pwritev                    =   throttle_co_pwritev,
@@ -263,8 +264,8 @@ static BlockDriver bdrv_throttle = {
     .bdrv_reopen_commit                 =   throttle_reopen_commit,
     .bdrv_reopen_abort                  =   throttle_reopen_abort,
 
-    .bdrv_co_drain_begin                =   throttle_co_drain_begin,
-    .bdrv_co_drain_end                  =   throttle_co_drain_end,
+    .bdrv_drain_begin                   =   throttle_drain_begin,
+    .bdrv_drain_end                     =   throttle_drain_end,
 
     .is_filter                          =   true,
     .strong_runtime_opts                =   throttle_strong_runtime_opts,

@@ -9,18 +9,14 @@
 #ifndef PLUGIN_MEMORY_H
 #define PLUGIN_MEMORY_H
 
+#include "exec/cpu-defs.h"
+#include "exec/hwaddr.h"
+
 struct qemu_plugin_hwaddr {
     bool is_io;
     bool is_store;
-    union {
-        struct {
-            MemoryRegionSection *section;
-            hwaddr    offset;
-        } io;
-        struct {
-            void *hostaddr;
-        } ram;
-    } v;
+    hwaddr phys_addr;
+    MemoryRegion *mr;
 };
 
 /**
@@ -34,7 +30,7 @@ struct qemu_plugin_hwaddr {
  * It would only fail if not called from an instrumented memory access
  * which would be an abuse of the API.
  */
-bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
+bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
                        bool is_store, struct qemu_plugin_hwaddr *data);
 
 #endif /* PLUGIN_MEMORY_H */

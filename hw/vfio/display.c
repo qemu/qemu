@@ -14,6 +14,7 @@
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 
+#include "qemu/error-report.h"
 #include "hw/display/edid.h"
 #include "ui/console.h"
 #include "qapi/error.h"
@@ -242,6 +243,8 @@ static VFIODMABuf *vfio_display_get_dmabuf(VFIOPCIDevice *vdev,
     dmabuf->dmabuf_id  = plane.dmabuf_id;
     dmabuf->buf.width  = plane.width;
     dmabuf->buf.height = plane.height;
+    dmabuf->buf.backing_width = plane.width;
+    dmabuf->buf.backing_height = plane.height;
     dmabuf->buf.stride = plane.stride;
     dmabuf->buf.fourcc = plane.drm_format;
     dmabuf->buf.modifier = plane.drm_format_mod;
@@ -541,3 +544,24 @@ void vfio_display_finalize(VFIOPCIDevice *vdev)
     vfio_display_edid_exit(vdev->dpy);
     g_free(vdev->dpy);
 }
+
+static bool migrate_needed(void *opaque)
+{
+    VFIODisplay *dpy = opaque;
+    bool ramfb_exists = dpy->ramfb != NULL;
+
+    /* see vfio_display_migration_needed() */
+    assert(ramfb_exists);
+    return ramfb_exists;
+}
+
+const VMStateDescription vfio_display_vmstate = {
+    .name = "VFIODisplay",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = migrate_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER(ramfb, VFIODisplay, ramfb_vmstate, RAMFBState),
+        VMSTATE_END_OF_LIST(),
+    }
+};

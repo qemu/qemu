@@ -384,7 +384,7 @@ static void test_pause_resume(gconstpointer test_data)
     g_assert_true(qtest_get_irq(global_qtest, tim_timer_irq(td)));
 }
 
-/* Verifies that the prescaler can be changed while the timer is runnin. */
+/* Verifies that the prescaler can be changed while the timer is running. */
 static void test_prescaler_change(gconstpointer test_data)
 {
     const TestData *td = test_data;
@@ -465,6 +465,7 @@ static void test_periodic_interrupt(gconstpointer test_data)
     int i;
 
     tim_reset(td);
+    clock_step_next();
 
     tim_write_ticr(td, count);
     tim_write_tcsr(td, CEN | IE | MODE_PERIODIC | PRESCALE(ps));

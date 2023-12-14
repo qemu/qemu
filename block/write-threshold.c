@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/write-threshold.h"
 #include "qapi/error.h"

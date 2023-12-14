@@ -12,7 +12,9 @@
 # An enumeration of TPM models
 #
 # @tpm-tis: TPM TIS model
+#
 # @tpm-crb: TPM CRB model (since 2.12)
+#
 # @tpm-spapr: TPM SPAPR model (since 5.0)
 #
 # Since: 1.5
@@ -33,7 +35,6 @@
 #
 # -> { "execute": "query-tpm-models" }
 # <- { "return": [ "tpm-tis", "tpm-crb", "tpm-spapr" ] }
-#
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'],
   'if': 'CONFIG_TPM' }
@@ -44,8 +45,8 @@
 # An enumeration of TPM types
 #
 # @passthrough: TPM passthrough type
-# @emulator: Software Emulator TPM type
-#            Since: 2.11
+#
+# @emulator: Software Emulator TPM type (since 2.11)
 #
 # Since: 1.5
 ##
@@ -65,7 +66,6 @@
 #
 # -> { "execute": "query-tpm-types" }
 # <- { "return": [ "passthrough", "emulator" ] }
-#
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'],
   'if': 'CONFIG_TPM' }
@@ -77,8 +77,8 @@
 #
 # @path: string describing the path used for accessing the TPM device
 #
-# @cancel-path: string showing the TPM's sysfs cancel file
-#               for cancellation of TPM commands while they are executing
+# @cancel-path: string showing the TPM's sysfs cancel file for
+#     cancellation of TPM commands while they are executing
 #
 # Since: 1.5
 ##
@@ -120,10 +120,14 @@
 ##
 # @TpmTypeOptions:
 #
-# A union referencing different TPM backend types' configuration options
+# A union referencing different TPM backend types' configuration
+# options
 #
-# @type: - 'passthrough' The configuration options for the TPM passthrough type
-#        - 'emulator' The configuration options for TPM emulator backend type
+# @type:
+#     - 'passthrough' The configuration options for the TPM
+#       passthrough type
+#     - 'emulator' The configuration options for TPM emulator backend
+#       type
 #
 # Since: 1.5
 ##
@@ -179,7 +183,6 @@
 #        }
 #      ]
 #    }
-#
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'],
   'if': 'CONFIG_TPM' }

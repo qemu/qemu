@@ -15,7 +15,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-serial.h"
 #include "virtio-ccw.h"
-#include "hw/virtio/virtio-serial.h"
 
 #define TYPE_VIRTIO_SERIAL_CCW "virtio-serial-ccw"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtioSerialCcw, VIRTIO_SERIAL_CCW)

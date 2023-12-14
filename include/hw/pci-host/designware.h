@@ -22,9 +22,6 @@
 #define DESIGNWARE_H
 
 #include "hw/sysbus.h"
-#include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
-#include "hw/pci/pcie_host.h"
 #include "hw/pci/pci_bridge.h"
 #include "qom/object.h"
 

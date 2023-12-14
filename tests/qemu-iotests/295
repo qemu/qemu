@@ -57,8 +57,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         # create the secrets and load 'em into the VM
         self.secrets = [ Secret(i) for i in range(0, 6) ]
         for secret in self.secrets:
-            result = self.vm.qmp("object-add", **secret.to_qmp_object())
-            self.assert_qmp(result, 'return', {})
+            self.vm.cmd("object-add", **secret.to_qmp_object())
 
         if iotests.imgfmt == "qcow2":
             self.pfx = "encrypt."
@@ -102,8 +101,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
                 }
             }
 
-        result = self.vm.qmp('blockdev-add', **
-            {
+        self.vm.cmd('blockdev-add', {
                 'driver': iotests.imgfmt,
                 'node-name': id,
                 'read-only': read_only,
@@ -116,12 +114,10 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
                 }
             }
         )
-        self.assert_qmp(result, 'return', {})
 
     # close the encrypted block device
     def closeImageQmp(self, id):
-        result = self.vm.qmp('blockdev-del', **{ 'node-name': id })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', {'node-name': id})
 
     ###########################################################################
     # add a key to an encrypted block device
@@ -160,8 +156,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             args['force'] = True
 
         #TODO: check what jobs return
-        result = self.vm.qmp('x-blockdev-amend', **args)
-        assert result['return'] == {}
+        self.vm.cmd('x-blockdev-amend', **args)
         self.vm.run_job('job_add_key')
 
     # erase a key from an encrypted block device
@@ -194,8 +189,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         if force == True:
             args['force'] = True
 
-        result = self.vm.qmp('x-blockdev-amend', **args)
-        assert result['return'] == {}
+        self.vm.cmd('x-blockdev-amend', **args)
         self.vm.run_job('job_erase_key')
 
     ###########################################################################

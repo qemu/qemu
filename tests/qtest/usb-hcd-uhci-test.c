@@ -17,10 +17,6 @@
 
 static QOSState *qs;
 
-static void test_uhci_init(void)
-{
-}
-
 static void test_port(int port)
 {
     struct qhc uhci;
@@ -66,15 +62,21 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("/uhci/pci/init", test_uhci_init);
+    if (!qtest_has_device("piix3-usb-uhci")) {
+        g_debug("piix3-usb-uhci not available");
+        return 0;
+    }
+
     qtest_add_func("/uhci/pci/port1", test_port_1);
     qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
-    qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
+    if (qtest_has_device("usb-storage")) {
+        qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qs = qtest_pc_boot(cmd);
+        qs = qtest_pc_boot("%s", cmd);
     } else if (strcmp(arch, "ppc64") == 0) {
-        qs = qtest_spapr_boot(cmd);
+        qs = qtest_spapr_boot("%s", cmd);
     } else {
         g_printerr("usb-hcd-uhci-test tests are only "
                    "available on x86 or ppc64\n");

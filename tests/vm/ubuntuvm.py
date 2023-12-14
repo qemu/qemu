@@ -51,7 +51,7 @@ class UbuntuVM(basevm.BaseVM):
         # then we will jump right to the graceful shutdown
         if self._config['install_cmds'] != "":
             # Issue the install commands.
-            # This can be overriden by the user in the config .yml.
+            # This can be overridden by the user in the config .yml.
             install_cmds = self._config['install_cmds'].split(',')
             for cmd in install_cmds:
                 self.ssh_root(cmd)

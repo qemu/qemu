@@ -111,7 +111,12 @@ cat >"$COCCIFILE" <<EOT
 )
 EOT
 
+files=
 for f in "$@"; do
+  if [ -L "$f" ]; then
+      echo "SKIPPING $f (symbolic link)"
+      continue
+  fi
   case "$f" in
     *.c.inc)
       # These aren't standalone C source files
@@ -144,6 +149,7 @@ for f in "$@"; do
       continue
       ;;
   esac
+  files="$files $f"
 
   if [ "$MODE" = "c" ]; then
     # First, use Coccinelle to add qemu/osdep.h before the first existing include
@@ -174,24 +180,29 @@ for f in "$@"; do
 
 done
 
-if [ "$DUPHEAD" = "yes" ]; then
-    egrep "^[[:space:]]*#[[:space:]]*include" "$@" | tr -d '[:blank:]' \
-        | sort | uniq -c | awk '{if ($1 > 1) print $0}'
-    if [ $? -eq 0 ]; then
+if [ "$DUPHEAD" = "yes" ] && [ -n "$files" ]; then
+    if egrep "^[[:space:]]*#[[:space:]]*include" $files | tr -d '[:blank:]' \
+        | sort | uniq -c | grep -v '^ *1 '; then
         echo "Found duplicate header file includes. Please check the above files manually."
         exit 1
     fi
 fi
 
 if [ "$GIT" = "yes" ]; then
-    git add -- "$@"
+    git add -- $files
     git commit --signoff -F - <<EOF
 $GITSUBJ: Clean up includes
 
-Clean up includes so that osdep.h is included first and headers
-which it implies are not included manually.
-
 This commit was created with scripts/clean-includes.
+
+All .c should include qemu/osdep.h first.  The script performs three
+related cleanups:
+
+* Ensure .c files include qemu/osdep.h first.
+* Including it in a .h is redundant, since the .c  already includes
+  it.  Drop such inclusions.
+* Likewise, including headers qemu/osdep.h includes is redundant.
+  Drop these, too.
 
 EOF
 

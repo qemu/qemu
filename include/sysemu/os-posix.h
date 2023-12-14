@@ -42,20 +42,17 @@
 extern "C" {
 #endif
 
-int os_parse_cmd_args(int index, const char *optarg);
 void os_set_line_buffering(void);
 void os_setup_early_signal_handling(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);
-void os_daemonize(void);
-void os_setup_post(void);
-int os_mlock(void);
-
-#define closesocket(s) close(s)
-#define ioctlsocket(s, r, v) ioctl(s, r, v)
-
 int os_set_daemonize(bool d);
 bool is_daemonized(void);
+void os_daemonize(void);
+bool os_set_runas(const char *user_id);
+void os_set_chroot(const char *path);
+void os_setup_post(void);
+int os_mlock(void);
 
 /**
  * qemu_alloc_stack:

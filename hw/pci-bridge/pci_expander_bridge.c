@@ -15,6 +15,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
@@ -49,25 +50,8 @@ struct PXBBus {
     char bus_path[8];
 };
 
-#define TYPE_PXB_DEVICE "pxb"
-typedef struct PXBDev PXBDev;
-DECLARE_INSTANCE_CHECKER(PXBDev, PXB_DEV,
-                         TYPE_PXB_DEVICE)
-
-#define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
-DECLARE_INSTANCE_CHECKER(PXBDev, PXB_PCIE_DEV,
-                         TYPE_PXB_PCIE_DEVICE)
-
-static PXBDev *convert_to_pxb(PCIDevice *dev)
-{
-    /* A CXL PXB's parent bus is PCIe, so the normal check won't work */
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PXB_CXL_DEVICE)) {
-        return PXB_CXL_DEV(dev);
-    }
-
-    return pci_bus_is_express(pci_get_bus(dev))
-        ? PXB_PCIE_DEV(dev) : PXB_DEV(dev);
-}
+#define TYPE_PXB_PCIE_DEV "pxb-pcie"
+OBJECT_DECLARE_SIMPLE_TYPE(PXBPCIEDev, PXB_PCIE_DEV)
 
 static GList *pxb_dev_list;
 
@@ -80,16 +64,23 @@ CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb)
     return &host->cxl_cstate;
 }
 
+bool cxl_get_hb_passthrough(PCIHostState *hb)
+{
+    CXLHost *host = PXB_CXL_HOST(hb);
+
+    return host->passthrough;
+}
+
 static int pxb_bus_num(PCIBus *bus)
 {
-    PXBDev *pxb = convert_to_pxb(bus->parent_dev);
+    PXBDev *pxb = PXB_DEV(bus->parent_dev);
 
     return pxb->bus_nr;
 }
 
 static uint16_t pxb_bus_numa_node(PCIBus *bus)
 {
-    PXBDev *pxb = convert_to_pxb(bus->parent_dev);
+    PXBDev *pxb = PXB_DEV(bus->parent_dev);
 
     return pxb->numa_node;
 }
@@ -147,7 +138,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
 
     pxb_host = PCI_HOST_BRIDGE(dev);
     pxb_bus = pxb_host->bus;
-    pxb_dev = convert_to_pxb(pxb_bus->parent_dev);
+    pxb_dev = PXB_DEV(pxb_bus->parent_dev);
     position = g_list_index(pxb_dev_list, pxb_dev);
     assert(position >= 0);
 
@@ -156,7 +147,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     main_host_sbd = SYS_BUS_DEVICE(main_host);
 
     if (main_host_sbd->num_mmio > 0) {
-        return g_strdup_printf(TARGET_FMT_plx ",%x",
+        return g_strdup_printf(HWADDR_FMT_plx ",%x",
                                main_host_sbd->mmio[0].addr, position + 1);
     }
     if (main_host_sbd->num_pio > 0) {
@@ -205,8 +196,8 @@ static void pxb_cxl_realize(DeviceState *dev, Error **errp)
  */
 void pxb_cxl_hook_up_registers(CXLState *cxl_state, PCIBus *bus, Error **errp)
 {
-    PXBDev *pxb =  PXB_CXL_DEV(pci_bridge_get_device(bus));
-    CXLHost *cxl = pxb->cxl.cxl_host_bridge;
+    PXBCXLDev *pxb =  PXB_CXL_DEV(pci_bridge_get_device(bus));
+    CXLHost *cxl = pxb->cxl_host_bridge;
     CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
     struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
     hwaddr offset;
@@ -272,7 +263,7 @@ static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
 
     /*
      * First carry out normal swizzle to handle
-     * multple root ports on a pxb instance.
+     * multiple root ports on a pxb instance.
      */
     pin = pci_swizzle_map_irq_fn(pci_dev, pin);
 
@@ -290,15 +281,32 @@ static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
     return pin - PCI_SLOT(pxb->devfn);
 }
 
-static void pxb_dev_reset(DeviceState *dev)
+static void pxb_cxl_dev_reset(DeviceState *dev)
 {
-    CXLHost *cxl = PXB_CXL_DEV(dev)->cxl.cxl_host_bridge;
+    CXLHost *cxl = PXB_CXL_DEV(dev)->cxl_host_bridge;
     CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
+    PCIHostState *hb = PCI_HOST_BRIDGE(cxl);
     uint32_t *reg_state = cxl_cstate->crb.cache_mem_registers;
     uint32_t *write_msk = cxl_cstate->crb.cache_mem_regs_write_mask;
+    int dsp_count = 0;
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_ROOT_PORT);
-    ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT, 8);
+    /*
+     * The CXL specification allows for host bridges with no HDM decoders
+     * if they only have a single root port.
+     */
+    if (!PXB_CXL_DEV(dev)->hdm_for_passthrough) {
+        dsp_count = pcie_count_ds_ports(hb->bus);
+    }
+    /* Initial reset will have 0 dsp so wait until > 0 */
+    if (dsp_count == 1) {
+        cxl->passthrough = true;
+        /* Set Capability ID in header to NONE */
+        ARRAY_FIELD_DP32(reg_state, CXL_HDM_CAPABILITY_HEADER, ID, 0);
+    } else {
+        ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT,
+                         8);
+    }
 }
 
 static gint pxb_compare(gconstpointer a, gconstpointer b)
@@ -313,7 +321,7 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
 static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
                                    Error **errp)
 {
-    PXBDev *pxb = convert_to_pxb(dev);
+    PXBDev *pxb = PXB_DEV(dev);
     DeviceState *ds, *bds = NULL;
     PCIBus *bus;
     const char *dev_name = NULL;
@@ -341,7 +349,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
     } else if (type == CXL) {
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_CXL_BUS);
         bus->flags |= PCI_BUS_CXL;
-        PXB_CXL_DEV(dev)->cxl.cxl_host_bridge = PXB_CXL_HOST(ds);
+        PXB_CXL_DEV(dev)->cxl_host_bridge = PXB_CXL_HOST(ds);
     } else {
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_new("pci-bridge");
@@ -394,7 +402,7 @@ static void pxb_dev_realize(PCIDevice *dev, Error **errp)
 
 static void pxb_dev_exitfn(PCIDevice *pci_dev)
 {
-    PXBDev *pxb = convert_to_pxb(pci_dev);
+    PXBDev *pxb = PXB_DEV(pci_dev);
 
     pxb_dev_list = g_list_remove(pxb_dev_list, pxb);
 }
@@ -425,7 +433,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxb_dev_info = {
-    .name          = TYPE_PXB_DEVICE,
+    .name          = TYPE_PXB_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PXBDev),
     .class_init    = pxb_dev_class_init,
@@ -457,15 +465,14 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
 
     dc->desc = "PCI Express Expander Bridge";
-    device_class_set_props(dc, pxb_dev_properties);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pxb_pcie_dev_info = {
-    .name          = TYPE_PXB_PCIE_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PXBDev),
+    .name          = TYPE_PXB_PCIE_DEV,
+    .parent        = TYPE_PXB_DEV,
+    .instance_size = sizeof(PXBPCIEDev),
     .class_init    = pxb_pcie_dev_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -482,8 +489,13 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
     }
 
     pxb_dev_realize_common(dev, CXL, errp);
-    pxb_dev_reset(DEVICE(dev));
+    pxb_cxl_dev_reset(DEVICE(dev));
 }
+
+static Property pxb_cxl_dev_properties[] = {
+    DEFINE_PROP_BOOL("hdm_for_passthrough", PXBCXLDev, hdm_for_passthrough, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
 {
@@ -498,18 +510,18 @@ static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
      */
 
     dc->desc = "CXL Host Bridge";
-    device_class_set_props(dc, pxb_dev_properties);
+    device_class_set_props(dc, pxb_cxl_dev_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 
     /* Host bridges aren't hotpluggable. FIXME: spec reference */
     dc->hotpluggable = false;
-    dc->reset = pxb_dev_reset;
+    dc->reset = pxb_cxl_dev_reset;
 }
 
 static const TypeInfo pxb_cxl_dev_info = {
-    .name          = TYPE_PXB_CXL_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PXBDev),
+    .name          = TYPE_PXB_CXL_DEV,
+    .parent        = TYPE_PXB_PCIE_DEV,
+    .instance_size = sizeof(PXBCXLDev),
     .class_init    = pxb_cxl_dev_class_init,
     .interfaces =
         (InterfaceInfo[]){

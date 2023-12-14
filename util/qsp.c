@@ -144,7 +144,7 @@ uint32_t do_qsp_callsite_hash(const QSPCallSite *callsite, uint64_t ab)
     uint32_t e = callsite->line;
     uint32_t f = callsite->type;
 
-    return qemu_xxhash6(ab, cd, e, f);
+    return qemu_xxhash8(ab, cd, 0, e, f);
 }
 
 static inline

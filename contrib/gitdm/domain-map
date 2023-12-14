@@ -4,21 +4,32 @@
 # This maps email domains to nice easy to read company names
 #
 
+linux.alibaba.com Alibaba
+amazon.com      Amazon
+amazon.co.uk    Amazon
+amazon.de       Amazon
 amd.com         AMD
+aspeedtech.com  ASPEED Technology Inc.
 baidu.com       Baidu
 bytedance.com   ByteDance
+cestc.cn        Cestc
 cmss.chinamobile.com China Mobile
 citrix.com      Citrix
 crudebyte.com   Crudebyte
+chinatelecom.cn China Telecom
+daynix.com      Daynix
 eldorado.org.br Instituto de Pesquisas Eldorado
+fb.com          Facebook
 fujitsu.com     Fujitsu
 google.com      Google
 greensocs.com   GreenSocs
+hisilicon.com   Huawei
 huawei.com      Huawei
 ibm.com         IBM
 igalia.com      Igalia
 intel.com       Intel
 linaro.org      Linaro
+loongson.cn     Loongson Technology
 lwn.net         LWN
 microsoft.com   Microsoft
 mvista.com      MontaVista
@@ -29,15 +40,19 @@ oracle.com      Oracle
 proxmox.com     Proxmox
 quicinc.com     Qualcomm Innovation Center
 redhat.com      Red Hat
+rev.ng          rev.ng Labs
+rivosinc.com    Rivos Inc
 rt-rk.com       RT-RK
 samsung.com     Samsung
 siemens.com     Siemens
 sifive.com      SiFive
 suse.com        SUSE
 suse.de         SUSE
+syrmia.com      SYRMIA
+ventanamicro.com Ventana Micro Systems
 virtuozzo.com   Virtuozzo
+vrull.eu        VRULL
 wdc.com         Western Digital
 windriver.com   Wind River
-xilinx.com      Xilinx
 yadro.com       YADRO
 yandex-team.ru  Yandex

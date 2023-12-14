@@ -193,7 +193,7 @@ void HELPER(vstl)(CPUS390XState *env, const void *v1, uint64_t addr,
                   uint64_t bytes)
 {
     /* Probe write access before actually modifying memory */
-    probe_write_access(env, addr, bytes, GETPC());
+    probe_write_access(env, addr, MIN(bytes, 16), GETPC());
 
     if (likely(bytes >= 16)) {
         cpu_stq_data_ra(env, addr, s390_vec_read_element64(v1, 0), GETPC());

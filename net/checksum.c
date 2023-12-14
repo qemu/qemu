@@ -74,7 +74,7 @@ void net_checksum_calculate(uint8_t *data, int length, int csum_flag)
         return;
     }
 
-    /* Handle the optionnal VLAN headers */
+    /* Handle the optional VLAN headers */
     switch (lduw_be_p(&PKT_GET_ETH_HDR(data)->h_proto)) {
     case ETH_P_VLAN:
         mac_hdr_len = sizeof(struct eth_header) +
@@ -96,7 +96,7 @@ void net_checksum_calculate(uint8_t *data, int length, int csum_flag)
 
     length -= mac_hdr_len;
 
-    /* Now check we have an IP header (with an optionnal VLAN header) */
+    /* Now check we have an IP header (with an optional VLAN header) */
     if (length < sizeof(struct ip_header)) {
         return;
     }

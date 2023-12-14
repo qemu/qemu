@@ -73,10 +73,6 @@ if gdb.parse_and_eval('$pc') == 0:
     exit(0)
 
 try:
-    # These are not very useful in scripts
-    gdb.execute("set pagination off")
-    gdb.execute("set confirm off")
-
     # Run the actual tests
     run_test()
 except (gdb.error):

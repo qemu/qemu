@@ -74,7 +74,7 @@ uint64_t replay_get_current_icount(void)
 int replay_get_instructions(void)
 {
     int res = 0;
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
     if (replay_next_event_is(EVENT_INSTRUCTION)) {
         res = replay_state.instruction_count;
         if (replay_break_icount != -1LL) {
@@ -85,7 +85,6 @@ int replay_get_instructions(void)
             }
         }
     }
-    replay_mutex_unlock();
     return res;
 }
 
@@ -366,10 +365,8 @@ void replay_finish(void)
         fclose(replay_file);
         replay_file = NULL;
     }
-    if (replay_filename) {
-        g_free(replay_filename);
-        replay_filename = NULL;
-    }
+    g_free(replay_filename);
+    replay_filename = NULL;
 
     g_free(replay_snapshot);
     replay_snapshot = NULL;
@@ -378,8 +375,12 @@ void replay_finish(void)
     replay_mode = REPLAY_MODE_NONE;
 }
 
-void replay_add_blocker(Error *reason)
+void replay_add_blocker(const char *feature)
 {
+    Error *reason = NULL;
+
+    error_setg(&reason, "Record/replay feature is not supported for '%s'",
+               feature);
     replay_blockers = g_slist_prepend(replay_blockers, reason);
 }
 

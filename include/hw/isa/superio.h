@@ -44,7 +44,7 @@ typedef struct ISASuperIOFuncs {
 
 struct ISASuperIOClass {
     /*< private >*/
-    ISADeviceClass parent_class;
+    DeviceClass parent_class;
     /*< public >*/
     DeviceRealize parent_realize;
 

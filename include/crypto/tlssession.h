@@ -249,6 +249,17 @@ ssize_t qcrypto_tls_session_read(QCryptoTLSSession *sess,
                                  size_t len);
 
 /**
+ * qcrypto_tls_session_check_pending:
+ * @sess: the TLS session object
+ *
+ * Check if there are unread data in the TLS buffers that have
+ * already been read from the underlying data source.
+ *
+ * Returns: the number of bytes available or zero
+ */
+size_t qcrypto_tls_session_check_pending(QCryptoTLSSession *sess);
+
+/**
  * qcrypto_tls_session_handshake:
  * @sess: the TLS session object
  * @errp: pointer to a NULL-initialized error object

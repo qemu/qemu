@@ -350,7 +350,7 @@ static int in_cache(Cache *cache, uint64_t addr)
  * @cache: The cache under simulation
  * @addr: The address of the requested memory location
  *
- * Returns true if the requsted data is hit in the cache and false when missed.
+ * Returns true if the requested data is hit in the cache and false when missed.
  * The cache is updated on miss for the next access.
  */
 static bool access_cache(Cache *cache, uint64_t addr)
@@ -405,7 +405,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
     g_mutex_lock(&l1_dcache_locks[cache_idx]);
     hit_in_l1 = access_cache(l1_dcaches[cache_idx], effective_addr);
     if (!hit_in_l1) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l1_dmisses, 1, __ATOMIC_SEQ_CST);
         l1_dcaches[cache_idx]->misses++;
     }
@@ -419,7 +419,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
 
     g_mutex_lock(&l2_ucache_locks[cache_idx]);
     if (!access_cache(l2_ucaches[cache_idx], effective_addr)) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l2_misses, 1, __ATOMIC_SEQ_CST);
         l2_ucaches[cache_idx]->misses++;
     }
@@ -440,7 +440,7 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
     g_mutex_lock(&l1_icache_locks[cache_idx]);
     hit_in_l1 = access_cache(l1_icaches[cache_idx], insn_addr);
     if (!hit_in_l1) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l1_imisses, 1, __ATOMIC_SEQ_CST);
         l1_icaches[cache_idx]->misses++;
     }
@@ -454,7 +454,7 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
 
     g_mutex_lock(&l2_ucache_locks[cache_idx]);
     if (!access_cache(l2_ucaches[cache_idx], insn_addr)) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l2_misses, 1, __ATOMIC_SEQ_CST);
         l2_ucaches[cache_idx]->misses++;
     }
@@ -535,18 +535,16 @@ static void caches_free(Cache **caches)
     }
 }
 
-static void append_stats_line(GString *line, uint64_t l1_daccess,
-                              uint64_t l1_dmisses, uint64_t l1_iaccess,
-                              uint64_t l1_imisses,  uint64_t l2_access,
-                              uint64_t l2_misses)
+static void append_stats_line(GString *line,
+                              uint64_t l1_daccess, uint64_t l1_dmisses,
+                              uint64_t l1_iaccess, uint64_t l1_imisses,
+                              uint64_t l2_access, uint64_t l2_misses)
 {
-    double l1_dmiss_rate, l1_imiss_rate, l2_miss_rate;
+    double l1_dmiss_rate = ((double) l1_dmisses) / (l1_daccess) * 100.0;
+    double l1_imiss_rate = ((double) l1_imisses) / (l1_iaccess) * 100.0;
 
-    l1_dmiss_rate = ((double) l1_dmisses) / (l1_daccess) * 100.0;
-    l1_imiss_rate = ((double) l1_imisses) / (l1_iaccess) * 100.0;
-
-    g_string_append_printf(line, "%-14lu %-12lu %9.4lf%%  %-14lu %-12lu"
-                           " %9.4lf%%",
+    g_string_append_printf(line, "%-14" PRIu64 " %-12" PRIu64 " %9.4lf%%"
+                           "  %-14" PRIu64 " %-12" PRIu64 " %9.4lf%%",
                            l1_daccess,
                            l1_dmisses,
                            l1_daccess ? l1_dmiss_rate : 0.0,
@@ -554,9 +552,10 @@ static void append_stats_line(GString *line, uint64_t l1_daccess,
                            l1_imisses,
                            l1_iaccess ? l1_imiss_rate : 0.0);
 
-    if (use_l2) {
-        l2_miss_rate =  ((double) l2_misses) / (l2_access) * 100.0;
-        g_string_append_printf(line, "  %-12lu %-11lu %10.4lf%%",
+    if (l2_access && l2_misses) {
+        double l2_miss_rate =  ((double) l2_misses) / (l2_access) * 100.0;
+        g_string_append_printf(line,
+                               "  %-12" PRIu64 " %-11" PRIu64 " %10.4lf%%",
                                l2_access,
                                l2_misses,
                                l2_access ? l2_miss_rate : 0.0);
@@ -662,8 +661,8 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l1_dmisses,
-                               insn->disas_str);
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n",
+                               insn->l1_dmisses, insn->disas_str);
     }
 
     miss_insns = g_list_sort(miss_insns, icmp);
@@ -675,8 +674,8 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l1_imisses,
-                               insn->disas_str);
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n",
+                               insn->l1_imisses, insn->disas_str);
     }
 
     if (!use_l2) {
@@ -692,8 +691,8 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l2_misses,
-                               insn->disas_str);
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n",
+                               insn->l2_misses, insn->disas_str);
     }
 
 finish:
@@ -772,7 +771,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
-        g_autofree char **tokens = g_strsplit(opt, "=", 2);
+        g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
 
         if (g_strcmp0(tokens[0], "iblksize") == 0) {
             l1_iblksize = STRTOLL(tokens[1]);

@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -256,6 +256,11 @@ DEF_ENC(V6_vasruhubrndsat,         ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 111 ddd
 
 DEF_ENC(V6_vasruwuhsat,         ICLASS_CJ" 1 000 vvv vvttt PP 1 uuuuu 100 ddddd") //
 DEF_ENC(V6_vasruhubsat,            ICLASS_CJ" 1 000 vvv vvttt PP 1 uuuuu 101 ddddd") //
+
+DEF_ENC(V6_vasrvuhubrndsat,"00011101000vvvvvPP0uuuuu011ddddd")
+DEF_ENC(V6_vasrvuhubsat,"00011101000vvvvvPP0uuuuu010ddddd")
+DEF_ENC(V6_vasrvwuhrndsat,"00011101000vvvvvPP0uuuuu001ddddd")
+DEF_ENC(V6_vasrvwuhsat,"00011101000vvvvvPP0uuuuu000ddddd")
 
 /***************************************************************
 *
@@ -716,6 +721,7 @@ DEF_ENC(V6_vaddclbw,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 001 ddddd") //
 
 DEF_ENC(V6_vavguw,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 010 ddddd") //
 DEF_ENC(V6_vavguwrnd,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 011 ddddd") //
+DEF_ENC(V6_vassign_tmp,"00011110--0---01PP0uuuuu110ddddd")
 DEF_ENC(V6_vavgb,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 100 ddddd") //
 DEF_ENC(V6_vavgbrnd,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 101 ddddd") //
 DEF_ENC(V6_vnavgb,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 110 ddddd") //
@@ -730,6 +736,8 @@ DEF_ENC(V6_vmaxb,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 101 ddddd") //
 DEF_ENC(V6_vsatuwuh,    ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 110 ddddd") //
 DEF_ENC(V6_vdealb4w,     ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 111 ddddd") //
 
+DEF_ENC(V6_v6mpyvubs10_vxx, 	ICLASS_CJ" 1 111 001 vvvvv PP 1 uuuuu 0ii xxxxx")
+DEF_ENC(V6_v6mpyhubs10_vxx, 	ICLASS_CJ" 1 111 001 vvvvv PP 1 uuuuu 1ii xxxxx")
 
 DEF_ENC(V6_vmpyowh_rnd,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 000 ddddd") //
 DEF_ENC(V6_vshuffeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 001 ddddd") //
@@ -739,6 +747,11 @@ DEF_ENC(V6_vshufoh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 100 ddddd") //
 DEF_ENC(V6_vshufoeh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 101 ddddd") //
 DEF_ENC(V6_vshufoeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 110 ddddd") //
 DEF_ENC(V6_vcombine,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 111 ddddd") //
+DEF_ENC(V6_vcombine_tmp,"00011110101vvvvvPP0uuuuu111ddddd")
+
+DEF_ENC(V6_v6mpyvubs10,  ICLASS_CJ" 1 111 010 vvvvv PP 1 uuuuu 0ii ddddd")
+DEF_ENC(V6_v6mpyhubs10,  ICLASS_CJ" 1 111 010 vvvvv PP 1 uuuuu 1ii ddddd")
+
 
 DEF_ENC(V6_vmpyieoh,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 000 ddddd") //
 DEF_ENC(V6_vadduwsat,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 001 ddddd") //
@@ -789,6 +802,7 @@ DEF_ENC(V6_vrounduhub,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 011 ddddd") //
 DEF_ENC(V6_vrounduwuh,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 100 ddddd") //
 DEF_ENC(V6_vmpyewuh,    ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 101 ddddd")
 DEF_ENC(V6_vmpyowh,        ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 111 ddddd")
+DEF_ENC(V6_vmpyuhvs,"00011111110vvvvvPP1uuuuu111ddddd")
 
 
 #endif /* NO MMVEC */

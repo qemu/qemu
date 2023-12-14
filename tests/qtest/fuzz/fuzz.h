@@ -49,13 +49,13 @@ typedef struct FuzzTarget {
 
 
     /*
-     * Returns the arguments that are passed to qemu/softmmu init(). Freed by
+     * Returns the arguments that are passed to qemu/system init(). Freed by
      * the caller.
      */
     GString *(*get_init_cmdline)(struct FuzzTarget *);
 
     /*
-     * will run once, prior to running qemu/softmmu init.
+     * will run once, prior to running qemu/system init.
      * eg: set up shared-memory for communication with the child-process
      * Can be NULL
      */
@@ -103,7 +103,7 @@ typedef struct FuzzTarget {
 } FuzzTarget;
 
 void flush_events(QTestState *);
-void reboot(QTestState *);
+void fuzz_reset(QTestState *);
 
 /* Use the QTest ASCII protocol or call address_space API directly?*/
 void fuzz_qtest_set_serialize(bool option);

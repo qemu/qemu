@@ -124,6 +124,29 @@ VhostUserGpuDMABUFScanout
 :fourcc: ``i32``, the DMABUF fourcc
 
 
+VhostUserGpuEdidRequest
+^^^^^^^^^^^^^^^^^^^^^^^
+
++------------+
+| scanout-id |
++------------+
+
+:scanout-id: ``u32``, the scanout to get edid from
+
+
+VhostUserGpuDMABUFScanout2
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
++----------------+----------+
+| dmabuf_scanout | modifier |
++----------------+----------+
+
+:dmabuf_scanout: ``VhostUserGpuDMABUFScanout``, filled as described in the
+                 VhostUserGpuDMABUFScanout structure.
+
+:modifier: ``u64``, the DMABUF modifiers
+
+
 C structure
 -----------
 
@@ -141,6 +164,8 @@ In QEMU the vhost-user-gpu message is implemented with the following struct:
           VhostUserGpuScanout scanout;
           VhostUserGpuUpdate update;
           VhostUserGpuDMABUFScanout dmabuf_scanout;
+          VhostUserGpuEdidRequest edid_req;
+          struct virtio_gpu_resp_edid resp_edid;
           struct virtio_gpu_resp_display_info display_info;
           uint64_t u64;
       } payload;
@@ -149,10 +174,12 @@ In QEMU the vhost-user-gpu message is implemented with the following struct:
 Protocol features
 -----------------
 
-None yet.
+.. code:: c
 
-As the protocol may need to evolve, new messages and communication
-changes are negotiated thanks to preliminary
+  #define VHOST_USER_GPU_PROTOCOL_F_EDID    0
+  #define VHOST_USER_GPU_PROTOCOL_F_DMABUF2 1
+
+New messages and communication changes are negotiated thanks to the
 ``VHOST_USER_GPU_GET_PROTOCOL_FEATURES`` and
 ``VHOST_USER_GPU_SET_PROTOCOL_FEATURES`` requests.
 
@@ -241,3 +268,22 @@ Message types
   Note: there is no data payload, since the scanout is shared thanks
   to DMABUF, that must have been set previously with
   ``VHOST_USER_GPU_DMABUF_SCANOUT``.
+
+``VHOST_USER_GPU_GET_EDID``
+  :id: 11
+  :request payload: ``struct VhostUserGpuEdidRequest``
+  :reply payload: ``struct virtio_gpu_resp_edid`` (from virtio specification)
+
+  Retrieve the EDID data for a given scanout.
+  This message requires the ``VHOST_USER_GPU_PROTOCOL_F_EDID`` protocol
+  feature to be supported.
+
+``VHOST_USER_GPU_DMABUF_SCANOUT2``
+  :id: 12
+  :request payload: ``VhostUserGpuDMABUFScanout2``
+  :reply payload: N/A
+
+  Same as VHOST_USER_GPU_DMABUF_SCANOUT, but also sends the dmabuf modifiers
+  appended to the message, which were not provided in the other message.
+  This message requires the ``VHOST_USER_GPU_PROTOCOL_F_DMABUF2`` protocol
+  feature to be supported.

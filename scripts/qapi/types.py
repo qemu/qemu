@@ -142,7 +142,7 @@ def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
     ret = ''
     for memb in members:
         ret += memb.ifcond.gen_if()
-        if memb.optional:
+        if memb.need_has():
             ret += mcgen('''
     bool has_%(c_name)s;
 ''',

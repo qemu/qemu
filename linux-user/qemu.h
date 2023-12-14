@@ -29,12 +29,10 @@ struct image_info {
         abi_ulong       end_code;
         abi_ulong       start_data;
         abi_ulong       end_data;
-        abi_ulong       start_brk;
         abi_ulong       brk;
-        abi_ulong       reserve_brk;
-        abi_ulong       start_mmap;
         abi_ulong       start_stack;
         abi_ulong       stack_limit;
+        abi_ulong       vdso;
         abi_ulong       entry;
         abi_ulong       code_offset;
         abi_ulong       data_offset;
@@ -48,6 +46,7 @@ struct image_info {
         uint32_t        elf_flags;
         int             personality;
         abi_ulong       alignment;
+        bool            exec_stack;
 
         /* Generic semihosting knows about these pointers. */
         abi_ulong       arg_strings;   /* strings for argv */
@@ -164,9 +163,13 @@ typedef struct TaskState {
 } TaskState;
 
 abi_long do_brk(abi_ulong new_brk);
+int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
+                    int flags, mode_t mode, bool safe);
+ssize_t do_guest_readlink(const char *pathname, char *buf, size_t bufsiz);
 
 /* user access */
 
+#define VERIFY_NONE  0
 #define VERIFY_READ  PAGE_READ
 #define VERIFY_WRITE (PAGE_READ | PAGE_WRITE)
 
@@ -177,7 +180,7 @@ static inline bool access_ok_untagged(int type, abi_ulong addr, abi_ulong size)
         : !guest_range_valid_untagged(addr, size)) {
         return false;
     }
-    return page_check_range((target_ulong)addr, size, type) == 0;
+    return page_check_range((target_ulong)addr, size, type);
 }
 
 static inline bool access_ok(CPUState *cpu, int type,

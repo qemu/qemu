@@ -22,54 +22,64 @@
 #include "qemu/cutils.h"
 #include "hw/riscv/opentitan.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "hw/misc/unimp.h"
 #include "hw/riscv/boot.h"
 #include "qemu/units.h"
 #include "sysemu/sysemu.h"
 
+/*
+ * This version of the OpenTitan machine currently supports
+ * OpenTitan RTL version:
+ * <lowRISC/opentitan@565e4af39760a123c59a184aa2f5812a961fde47>
+ *
+ * MMIO mapping as per (specified commit):
+ * lowRISC/opentitan: hw/top_earlgrey/sw/autogen/top_earlgrey_memory.h
+ */
 static const MemMapEntry ibex_memmap[] = {
-    [IBEX_DEV_ROM] =            {  0x00008000, 16 * KiB },
-    [IBEX_DEV_RAM] =            {  0x10000000,  0x10000 },
-    [IBEX_DEV_FLASH] =          {  0x20000000,  0x80000 },
-    [IBEX_DEV_UART] =           {  0x40000000,  0x1000  },
-    [IBEX_DEV_GPIO] =           {  0x40040000,  0x1000  },
-    [IBEX_DEV_SPI_DEVICE] =     {  0x40050000,  0x1000  },
-    [IBEX_DEV_I2C] =            {  0x40080000,  0x1000  },
-    [IBEX_DEV_PATTGEN] =        {  0x400e0000,  0x1000  },
-    [IBEX_DEV_TIMER] =          {  0x40100000,  0x1000  },
-    [IBEX_DEV_SENSOR_CTRL] =    {  0x40110000,  0x1000  },
-    [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x4000  },
-    [IBEX_DEV_USBDEV] =         {  0x40150000,  0x1000  },
-    [IBEX_DEV_SPI_HOST0] =      {  0x40300000,  0x1000  },
-    [IBEX_DEV_SPI_HOST1] =      {  0x40310000,  0x1000  },
-    [IBEX_DEV_PWRMGR] =         {  0x40400000,  0x1000  },
-    [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x1000  },
-    [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x1000  },
-    [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000  },
-    [IBEX_DEV_PADCTRL] =        {  0x40470000,  0x1000  },
-    [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x1000  },
-    [IBEX_DEV_AES] =            {  0x41100000,  0x1000  },
-    [IBEX_DEV_HMAC] =           {  0x41110000,  0x1000  },
-    [IBEX_DEV_KMAC] =           {  0x41120000,  0x1000  },
-    [IBEX_DEV_OTBN] =           {  0x41130000,  0x10000 },
-    [IBEX_DEV_KEYMGR] =         {  0x41140000,  0x1000  },
-    [IBEX_DEV_CSRNG] =          {  0x41150000,  0x1000  },
-    [IBEX_DEV_ENTROPY] =        {  0x41160000,  0x1000  },
-    [IBEX_DEV_EDNO] =           {  0x41170000,  0x1000  },
-    [IBEX_DEV_EDN1] =           {  0x41180000,  0x1000  },
-    [IBEX_DEV_ALERT_HANDLER] =  {  0x411b0000,  0x1000  },
-    [IBEX_DEV_NMI_GEN] =        {  0x411c0000,  0x1000  },
-    [IBEX_DEV_PERI] =           {  0x411f0000,  0x10000 },
-    [IBEX_DEV_PLIC] =           {  0x48000000,  0x4005000  },
-    [IBEX_DEV_FLASH_VIRTUAL] =  {  0x80000000,  0x80000 },
+    [IBEX_DEV_ROM] =            {  0x00008000,  0x8000      },
+    [IBEX_DEV_RAM] =            {  0x10000000,  0x20000     },
+    [IBEX_DEV_FLASH] =          {  0x20000000,  0x100000    },
+    [IBEX_DEV_UART] =           {  0x40000000,  0x40        },
+    [IBEX_DEV_GPIO] =           {  0x40040000,  0x40        },
+    [IBEX_DEV_SPI_DEVICE] =     {  0x40050000,  0x2000      },
+    [IBEX_DEV_I2C] =            {  0x40080000,  0x80        },
+    [IBEX_DEV_PATTGEN] =        {  0x400e0000,  0x40        },
+    [IBEX_DEV_TIMER] =          {  0x40100000,  0x200       },
+    [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x2000      },
+    [IBEX_DEV_LC_CTRL] =        {  0x40140000,  0x100       },
+    [IBEX_DEV_ALERT_HANDLER] =  {  0x40150000,  0x800       },
+    [IBEX_DEV_SPI_HOST0] =      {  0x40300000,  0x40        },
+    [IBEX_DEV_SPI_HOST1] =      {  0x40310000,  0x40        },
+    [IBEX_DEV_USBDEV] =         {  0x40320000,  0x1000      },
+    [IBEX_DEV_PWRMGR] =         {  0x40400000,  0x80        },
+    [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x80        },
+    [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x80        },
+    [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000      },
+    [IBEX_DEV_AON_TIMER] =      {  0x40470000,  0x40        },
+    [IBEX_DEV_SENSOR_CTRL] =    {  0x40490000,  0x40        },
+    [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x200       },
+    [IBEX_DEV_AES] =            {  0x41100000,  0x100       },
+    [IBEX_DEV_HMAC] =           {  0x41110000,  0x1000      },
+    [IBEX_DEV_KMAC] =           {  0x41120000,  0x1000      },
+    [IBEX_DEV_OTBN] =           {  0x41130000,  0x10000     },
+    [IBEX_DEV_KEYMGR] =         {  0x41140000,  0x100       },
+    [IBEX_DEV_CSRNG] =          {  0x41150000,  0x80        },
+    [IBEX_DEV_ENTROPY] =        {  0x41160000,  0x100       },
+    [IBEX_DEV_EDNO] =           {  0x41170000,  0x80        },
+    [IBEX_DEV_EDN1] =           {  0x41180000,  0x80        },
+    [IBEX_DEV_SRAM_CTRL] =      {  0x411c0000,  0x20        },
+    [IBEX_DEV_IBEX_CFG] =       {  0x411f0000,  0x100       },
+    [IBEX_DEV_PLIC] =           {  0x48000000,  0x8000000   },
+    [IBEX_DEV_FLASH_VIRTUAL] =  {  0x80000000,  0x80000     },
 };
 
-static void opentitan_board_init(MachineState *machine)
+static void opentitan_machine_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    OpenTitanState *s = OPENTITAN_MACHINE(machine);
     const MemMapEntry *memmap = ibex_memmap;
-    OpenTitanState *s = g_new0(OpenTitanState, 1);
     MemoryRegion *sys_mem = get_system_memory();
 
     if (machine->ram_size != mc->default_ram_size) {
@@ -92,22 +102,23 @@ static void opentitan_board_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        riscv_load_kernel(machine->kernel_filename,
-                          memmap[IBEX_DEV_RAM].base, NULL);
+        riscv_load_kernel(machine, &s->soc.cpus,
+                          memmap[IBEX_DEV_RAM].base,
+                          false, NULL);
     }
 }
 
-static void opentitan_machine_init(MachineClass *mc)
+static void opentitan_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "RISC-V Board compatible with OpenTitan";
-    mc->init = opentitan_board_init;
+    mc->init = opentitan_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = TYPE_RISCV_CPU_IBEX;
     mc->default_ram_id = "riscv.lowrisc.ibex.ram";
     mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
-
-DEFINE_MACHINE("opentitan", opentitan_machine_init)
 
 static void lowrisc_ibex_soc_init(Object *obj)
 {
@@ -141,7 +152,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpus), "num-harts", ms->smp.cpus,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->cpus), "resetvec", 0x8080, &error_abort);
+    object_property_set_int(OBJECT(&s->cpus), "resetvec", s->resetvec,
+                            &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_fatal);
 
     /* Boot ROM */
@@ -163,10 +175,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* PLIC */
     qdev_prop_set_string(DEVICE(&s->plic), "hart-config", "M");
-    qdev_prop_set_uint32(DEVICE(&s->plic), "hartid-base", 0);
     qdev_prop_set_uint32(DEVICE(&s->plic), "num-sources", 180);
     qdev_prop_set_uint32(DEVICE(&s->plic), "num-priorities", 3);
-    qdev_prop_set_uint32(DEVICE(&s->plic), "priority-base", 0x00);
     qdev_prop_set_uint32(DEVICE(&s->plic), "pending-base", 0x1000);
     qdev_prop_set_uint32(DEVICE(&s->plic), "enable-base", 0x2000);
     qdev_prop_set_uint32(DEVICE(&s->plic), "enable-stride", 32);
@@ -217,7 +227,7 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
                                            IRQ_M_TIMER));
 
     /* SPI-Hosts */
-    for (int i = 0; i < OPENTITAN_NUM_SPI_HOSTS; ++i) {
+    for (i = 0; i < OPENTITAN_NUM_SPI_HOSTS; ++i) {
         dev = DEVICE(&(s->spi_host[i]));
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi_host[i]), errp)) {
             return;
@@ -253,6 +263,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_SENSOR_CTRL].base, memmap[IBEX_DEV_SENSOR_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.otp_ctrl",
         memmap[IBEX_DEV_OTP_CTRL].base, memmap[IBEX_DEV_OTP_CTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.lc_ctrl",
+        memmap[IBEX_DEV_LC_CTRL].base, memmap[IBEX_DEV_LC_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pwrmgr",
         memmap[IBEX_DEV_PWRMGR].base, memmap[IBEX_DEV_PWRMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.rstmgr",
@@ -261,8 +273,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_CLKMGR].base, memmap[IBEX_DEV_CLKMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
         memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.padctrl",
-        memmap[IBEX_DEV_PADCTRL].base, memmap[IBEX_DEV_PADCTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.aon_timer",
+        memmap[IBEX_DEV_AON_TIMER].base, memmap[IBEX_DEV_AON_TIMER].size);
     create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
         memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
     create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",
@@ -285,34 +297,42 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_EDN1].base, memmap[IBEX_DEV_EDN1].size);
     create_unimplemented_device("riscv.lowrisc.ibex.alert_handler",
         memmap[IBEX_DEV_ALERT_HANDLER].base, memmap[IBEX_DEV_ALERT_HANDLER].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.nmi_gen",
-        memmap[IBEX_DEV_NMI_GEN].base, memmap[IBEX_DEV_NMI_GEN].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.sram_ctrl",
+        memmap[IBEX_DEV_SRAM_CTRL].base, memmap[IBEX_DEV_SRAM_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.otbn",
         memmap[IBEX_DEV_OTBN].base, memmap[IBEX_DEV_OTBN].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.peri",
-        memmap[IBEX_DEV_PERI].base, memmap[IBEX_DEV_PERI].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.ibex_cfg",
+        memmap[IBEX_DEV_IBEX_CFG].base, memmap[IBEX_DEV_IBEX_CFG].size);
 }
+
+static Property lowrisc_ibex_soc_props[] = {
+    DEFINE_PROP_UINT32("resetvec", LowRISCIbexSoCState, resetvec, 0x20000400),
+    DEFINE_PROP_END_OF_LIST()
+};
 
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, lowrisc_ibex_soc_props);
     dc->realize = lowrisc_ibex_soc_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo lowrisc_ibex_soc_type_info = {
-    .name = TYPE_RISCV_IBEX_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(LowRISCIbexSoCState),
-    .instance_init = lowrisc_ibex_soc_init,
-    .class_init = lowrisc_ibex_soc_class_init,
+static const TypeInfo open_titan_types[] = {
+    {
+        .name           = TYPE_RISCV_IBEX_SOC,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(LowRISCIbexSoCState),
+        .instance_init  = lowrisc_ibex_soc_init,
+        .class_init     = lowrisc_ibex_soc_class_init,
+    }, {
+        .name           = TYPE_OPENTITAN_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .instance_size  = sizeof(OpenTitanState),
+        .class_init     = opentitan_machine_class_init,
+    }
 };
 
-static void lowrisc_ibex_soc_register_types(void)
-{
-    type_register_static(&lowrisc_ibex_soc_type_info);
-}
-
-type_init(lowrisc_ibex_soc_register_types)
+DEFINE_TYPES(open_titan_types)

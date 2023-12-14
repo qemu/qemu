@@ -14,18 +14,19 @@
 #
 # Specify an ACPI table on the command line to load.
 #
-# At most one of @file and @data can be specified. The list of files specified
-# by any one of them is loaded and concatenated in order. If both are omitted,
-# @data is implied.
+# At most one of @file and @data can be specified.  The list of files
+# specified by any one of them is loaded and concatenated in order.
+# If both are omitted, @data is implied.
 #
-# Other fields / optargs can be used to override fields of the generic ACPI
-# table header; refer to the ACPI specification 5.0, section 5.2.6 System
-# Description Table Header. If a header field is not overridden, then the
-# corresponding value from the concatenated blob is used (in case of @file), or
-# it is filled in with a hard-coded value (in case of @data).
+# Other fields / optargs can be used to override fields of the generic
+# ACPI table header; refer to the ACPI specification 5.0, section
+# 5.2.6 System Description Table Header.  If a header field is not
+# overridden, then the corresponding value from the concatenated blob
+# is used (in case of @file), or it is filled in with a hard-coded
+# value (in case of @data).
 #
-# String fields are copied into the matching ACPI member from lowest address
-# upwards, and silently truncated / NUL-padded to length.
+# String fields are copied into the matching ACPI member from lowest
+# address upwards, and silently truncated / NUL-padded to length.
 #
 # @sig: table signature / identifier (4 bytes)
 #
@@ -38,20 +39,20 @@
 # @oem_rev: OEM-supplied revision number (4 bytes)
 #
 # @asl_compiler_id: identifier of the utility that created the table
-#                   (4 bytes)
+#     (4 bytes)
 #
 # @asl_compiler_rev: revision number of the utility that created the
-#                    table (4 bytes)
+#     table (4 bytes)
 #
-# @file: colon (:) separated list of pathnames to load and
-#        concatenate as table data. The resultant binary blob is expected to
-#        have an ACPI table header. At least one file is required. This field
-#        excludes @data.
+# @file: colon (:) separated list of pathnames to load and concatenate
+#     as table data.  The resultant binary blob is expected to have an
+#     ACPI table header.  At least one file is required.  This field
+#     excludes @data.
 #
-# @data: colon (:) separated list of pathnames to load and
-#        concatenate as table data. The resultant binary blob must not have an
-#        ACPI table header. At least one file is required. This field excludes
-#        @file.
+# @data: colon (:) separated list of pathnames to load and concatenate
+#     as table data.  The resultant binary blob must not have an ACPI
+#     table header.  At least one file is required.  This field
+#     excludes @file.
 #
 # Since: 1.5
 ##
@@ -71,6 +72,7 @@
 # @ACPISlotType:
 #
 # @DIMM: memory slot
+#
 # @CPU: logical CPU slot (since 2.7)
 ##
 { 'enum': 'ACPISlotType', 'data': [ 'DIMM', 'CPU' ] }
@@ -78,9 +80,9 @@
 ##
 # @ACPIOSTInfo:
 #
-# OSPM Status Indication for a device
-# For description of possible values of @source and @status fields
-# see "_OST (OSPM Status Indication)" chapter of ACPI5.0 spec.
+# OSPM Status Indication for a device For description of possible
+# values of @source and @status fields see "_OST (OSPM Status
+# Indication)" chapter of ACPI5.0 spec.
 #
 # @device: device ID associated with slot
 #
@@ -117,7 +119,6 @@
 #                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
 #                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
 #    ]}
-#
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
@@ -136,7 +137,6 @@
 #      "data": { "info": { "device": "d1", "slot": "0",
 #                          "slot-type": "DIMM", "source": 1, "status": 0 } },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-#
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }

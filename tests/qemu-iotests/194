@@ -74,6 +74,11 @@ with iotests.FilePath('source.img') as source_img_path, \
 
     while True:
         event1 = source_vm.event_wait('MIGRATION')
+        if event1['data']['status'] == 'postcopy-active':
+            # This event is racy, it depends do we really do postcopy or bitmap
+            # was migrated during downtime (and no data to migrate in postcopy
+            # phase). So, don't log it.
+            continue
         iotests.log(event1, filters=[iotests.filter_qmp_event])
         if event1['data']['status'] in ('completed', 'failed'):
             iotests.log('Gracefully ending the `drive-mirror` job on source...')

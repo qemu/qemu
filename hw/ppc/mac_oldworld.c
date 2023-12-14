@@ -30,13 +30,14 @@
 #include "qapi/error.h"
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
-#include "mac.h"
+#include "hw/boards.h"
 #include "hw/input/adb.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci-host/grackle.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
@@ -56,9 +57,14 @@
 
 #define NDRV_VGA_FILENAME "qemu_vga.ndrv"
 
-#define GRACKLE_BASE 0xfec00000
+#define PROM_FILENAME "openbios-ppc"
 #define PROM_BASE 0xffc00000
 #define PROM_SIZE (4 * MiB)
+
+#define KERNEL_LOAD_ADDR 0x01000000
+#define KERNEL_GAP       0x00100000
+
+#define GRACKLE_BASE 0xfec00000
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
@@ -75,38 +81,35 @@ static void ppc_heathrow_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
+    cpu_ppc_tb_reset(&cpu->env);
     cpu_reset(CPU(cpu));
 }
 
 static void ppc_heathrow_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
     const char *bios_name = machine->firmware ?: PROM_FILENAME;
-    const char *boot_device = machine->boot_config.order;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
-    int i;
+    int i, bios_size = -1;
     MemoryRegion *bios = g_new(MemoryRegion, 1);
-    uint32_t kernel_base, initrd_base, cmdline_base = 0;
-    int32_t kernel_size, initrd_size;
+    uint64_t bios_addr;
+    uint32_t kernel_base = 0, initrd_base = 0, cmdline_base = 0;
+    int32_t kernel_size = 0, initrd_size = 0;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    Object *macio;
     MACIOIDEState *macio_ide;
-    ESCCState *escc;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev, *grackle_dev;
     BusState *adb_bus;
-    uint64_t bios_addr;
-    int bios_size;
-    unsigned int smp_cpus = machine->smp.cpus;
     uint16_t ppc_boot_device;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *dinfo, *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
-    uint64_t tbfreq;
+    uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
 
     /* init CPUs */
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < machine->smp.cpus; i++) {
         cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
@@ -116,9 +119,9 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    if (ram_size > 2047 * MiB) {
+    if (machine->ram_size > 2047 * MiB) {
         error_report("Too much memory for this machine: %" PRId64 " MB, "
-                     "maximum 2047 MB", ram_size / MiB);
+                     "maximum 2047 MB", machine->ram_size / MiB);
         exit(1);
     }
 
@@ -143,8 +146,6 @@ static void ppc_heathrow_init(MachineState *machine)
             bios_addr = PROM_BASE;
         }
         g_free(filename);
-    } else {
-        bios_size = -1;
     }
     if (bios_size < 0 || bios_addr - PROM_BASE + bios_size > PROM_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
@@ -152,25 +153,25 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        int bswap_needed;
+        int bswap_needed = 0;
 
 #ifdef BSWAP_NEEDED
         bswap_needed = 1;
-#else
-        bswap_needed = 0;
 #endif
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
                                NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
-        if (kernel_size < 0)
+        if (kernel_size < 0) {
             kernel_size = load_aout(machine->kernel_filename, kernel_base,
-                                    ram_size - kernel_base, bswap_needed,
-                                    TARGET_PAGE_SIZE);
-        if (kernel_size < 0)
+                                    machine->ram_size - kernel_base,
+                                    bswap_needed, TARGET_PAGE_SIZE);
+        }
+        if (kernel_size < 0) {
             kernel_size = load_image_targphys(machine->kernel_filename,
                                               kernel_base,
-                                              ram_size - kernel_base);
+                                              machine->ram_size - kernel_base);
+        }
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'",
                          machine->kernel_filename);
@@ -182,7 +183,7 @@ static void ppc_heathrow_init(MachineState *machine)
                                             KERNEL_GAP);
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               initrd_base,
-                                              ram_size - initrd_base);
+                                              machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              machine->initrd_filename);
@@ -190,30 +191,27 @@ static void ppc_heathrow_init(MachineState *machine)
             }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
         } else {
-            initrd_base = 0;
-            initrd_size = 0;
             cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);
         }
         ppc_boot_device = 'm';
     } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
         ppc_boot_device = '\0';
-        for (i = 0; boot_device[i] != '\0'; i++) {
-            /* TOFIX: for now, the second IDE channel is not properly
+        for (i = 0; machine->boot_config.order[i] != '\0'; i++) {
+            /*
+             * TOFIX: for now, the second IDE channel is not properly
              *        used by OHW. The Mac floppy disk are not emulated.
              *        For now, OHW cannot boot from the network.
              */
 #if 0
-            if (boot_device[i] >= 'a' && boot_device[i] <= 'f') {
-                ppc_boot_device = boot_device[i];
+            if (machine->boot_config.order[i] >= 'a' &&
+                machine->boot_config.order[i] <= 'f') {
+                ppc_boot_device = machine->boot_config.order[i];
                 break;
             }
 #else
-            if (boot_device[i] >= 'c' && boot_device[i] <= 'd') {
-                ppc_boot_device = boot_device[i];
+            if (machine->boot_config.order[i] >= 'c' &&
+                machine->boot_config.order[i] <= 'd') {
+                ppc_boot_device = machine->boot_config.order[i];
                 break;
             }
 #endif
@@ -222,13 +220,6 @@ static void ppc_heathrow_init(MachineState *machine)
             error_report("No valid boot device for G3 Beige machine");
             exit(1);
         }
-    }
-
-    /* Timebase Frequency */
-    if (kvm_enabled()) {
-        tbfreq = kvmppc_get_tbfreq();
-    } else {
-        tbfreq = TBFREQ;
     }
 
     /* Grackle PCI host bridge */
@@ -249,24 +240,29 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
-    macio = pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO);
-    dev = DEVICE(macio);
-    qdev_prop_set_uint64(dev, "frequency", tbfreq);
+    macio = OBJECT(pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO));
+    qdev_prop_set_uint64(DEVICE(macio), "frequency", tbfreq);
 
-    escc = ESCC(object_resolve_path_component(OBJECT(macio), "escc"));
-    qdev_prop_set_chr(DEVICE(escc), "chrA", serial_hd(0));
-    qdev_prop_set_chr(DEVICE(escc), "chrB", serial_hd(1));
+    dev = DEVICE(object_resolve_path_component(macio, "escc"));
+    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
+    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
 
-    pci_realize_and_unref(macio, pci_bus, &error_fatal);
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        dev = DEVICE(object_resolve_path_component(macio, "nvram"));
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
 
-    pic_dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pic"));
+    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
+
+    pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
         qdev_connect_gpio_out(grackle_dev, i,
                               qdev_get_gpio_in(pic_dev, 0x15 + i));
     }
 
     /* Connect the heathrow PIC outputs to the 6xx bus */
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < machine->smp.cpus; i++) {
         switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_6xx:
             /* XXX: we register only 1 output pin for heathrow PIC */
@@ -282,21 +278,19 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_vga_init(pci_bus);
 
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
     }
 
     /* MacIO IDE */
     ide_drive_get(hd, ARRAY_SIZE(hd));
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[0]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[1]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     /* MacIO CUDA/ADB */
-    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    dev = DEVICE(object_resolve_path_component(macio, "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
@@ -307,8 +301,9 @@ static void ppc_heathrow_init(MachineState *machine)
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
-    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
+    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
         graphic_depth = 15;
+    }
 
     /* No PCI init: the BIOS will do it */
 
@@ -316,16 +311,15 @@ static void ppc_heathrow_init(MachineState *machine)
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(fw_cfg));
+    object_property_add_child(OBJECT(machine), TYPE_FW_CFG, OBJECT(fw_cfg));
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
 
-    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)machine->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)machine->smp.max_cpus);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)machine->ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_HEATHROW);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
@@ -432,6 +426,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     mc->kvm_type = heathrow_kvm_type;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
     mc->default_display = "std";
+    mc->default_nic = "ne2k_pci";
     mc->ignore_boot_device_suffixes = true;
     mc->default_ram_id = "ppc_heathrow.ram";
     fwc->get_dev_path = heathrow_fw_dev_path;

@@ -22,7 +22,6 @@
 #include "hw/remote/iohub.h"
 #include "hw/remote/iommu.h"
 #include "hw/qdev-core.h"
-#include "hw/remote/iommu.h"
 #include "hw/remote/vfio-user-obj.h"
 #include "hw/pci/msi.h"
 
@@ -63,8 +62,9 @@ static void remote_machine_init(MachineState *machine)
     } else {
         remote_iohub_init(&s->iohub);
 
-        pci_bus_irqs(pci_host->bus, remote_iohub_set_irq, remote_iohub_map_irq,
+        pci_bus_irqs(pci_host->bus, remote_iohub_set_irq,
                      &s->iohub, REMOTE_IOHUB_NB_PIRQS);
+        pci_bus_map_irqs(pci_host->bus, remote_iohub_map_irq);
     }
 
     qbus_set_hotplug_handler(BUS(pci_host->bus), OBJECT(s));

@@ -203,8 +203,7 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
             cf_rte(env);
             return;
         case EXCP_HALT_INSN:
-            if (semihosting_enabled()
-                    && (env->sr & SR_S) != 0
+            if (semihosting_enabled((env->sr & SR_S) == 0)
                     && (env->pc & 3) == 0
                     && cpu_lduw_code(env, env->pc - 4) == 0x4e71
                     && cpu_ldl_code(env, env->pc) == 0x4e7bf000) {
@@ -433,7 +432,7 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
-    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+    if (m68k_feature(env, M68K_FEATURE_M68K)) {
         m68k_interrupt_all(env, is_hw);
         return;
     }
@@ -461,7 +460,7 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     M68kCPU *cpu = M68K_CPU(cs);
     CPUM68KState *env = &cpu->env;
 
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
         env->mmu.mmusr = 0;
@@ -559,7 +558,7 @@ raise_exception_format2(CPUM68KState *env, int tt, int ilen, uintptr_t raddr)
     cs->exception_index = tt;
 
     /* Recover PC and CC_OP for the beginning of the insn.  */
-    cpu_restore_state(cs, raddr, true);
+    cpu_restore_state(cs, raddr);
 
     /* Flags are current in env->cc_*, or are undefined. */
     env->cc_op = CC_OP_FLAGS;

@@ -51,6 +51,12 @@ void flush_events(QTestState *s)
     }
 }
 
+void fuzz_reset(QTestState *s)
+{
+    qemu_system_reset(SHUTDOWN_CAUSE_GUEST_RESET);
+    main_loop_wait(true);
+}
+
 static QTestState *qtest_setup(void)
 {
     qtest_server_set_send_handler(&qtest_client_inproc_recv, &fuzz_qts);
@@ -201,7 +207,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
         fuzz_target->pre_vm_init();
     }
 
-    /* Run QEMU's softmmu main with the fuzz-target dependent arguments */
+    /* Run QEMU's system main with the fuzz-target dependent arguments */
     cmd_line = fuzz_target->get_init_cmdline(fuzz_target);
     g_string_append_printf(cmd_line, " %s -qtest /dev/null ",
                            getenv("QTEST_LOG") ? "" : "-qtest-log none");
@@ -218,7 +224,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
         g_free(pretty_cmd_line);
     }
 
-    qemu_init(result.we_wordc, result.we_wordv, NULL);
+    qemu_init(result.we_wordc, result.we_wordv);
 
     /* re-enable the rcu atfork, which was previously disabled in qemu_init */
     rcu_enable_atfork();

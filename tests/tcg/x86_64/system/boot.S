@@ -121,7 +121,7 @@ _start:
 	// Setup stack ASAP
 	movq $stack_end,%rsp
 
-        /* don't worry about stack frame, assume everthing is garbage when we return */
+        /* don't worry about stack frame, assume everything is garbage when we return */
 	call main
 
 _exit:	/* output any non-zero result in eax to isa-debug-exit device */
@@ -195,7 +195,7 @@ idt_1F: .int 0, 0
 	 *
 	 * This describes various memory areas (segments) through
 	 * segment descriptors. In 32 bit mode each segment each
-	 * segement is associated with segment registers which are
+	 * segment is associated with segment registers which are
 	 * implicitly (or explicitly) referenced depending on the
 	 * instruction. However in 64 bit mode selectors are flat and
 	 * segmented addressing isn't used.

@@ -36,13 +36,13 @@ class VirtioGPUx86(QemuSystemTest):
 
     KERNEL_COMMAND_LINE = "printk.time=0 console=ttyS0 rdinit=/bin/bash"
     KERNEL_URL = (
-        "https://archives.fedoraproject.org/pub/fedora"
+        "https://archives.fedoraproject.org/pub/archive/fedora"
         "/linux/releases/33/Everything/x86_64/os/images"
         "/pxeboot/vmlinuz"
     )
     KERNEL_HASH = '1433cfe3f2ffaa44de4ecfb57ec25dc2399cdecf'
     INITRD_URL = (
-        "https://archives.fedoraproject.org/pub/fedora"
+        "https://archives.fedoraproject.org/pub/archive/fedora"
         "/linux/releases/33/Everything/x86_64/os/images"
         "/pxeboot/initrd.img"
     )
@@ -143,12 +143,14 @@ class VirtioGPUx86(QemuSystemTest):
             "-append",
             self.KERNEL_COMMAND_LINE,
         )
-        self.vm.launch()
+        try:
+            self.vm.launch()
+        except:
+            # TODO: probably fails because we are missing the VirGL features
+            self.cancel("VirGL not enabled?")
         self.wait_for_console_pattern("as init process")
-        exec_command_and_wait_for_pattern(
-            self, "/usr/sbin/modprobe virtio_gpu", ""
-        )
-        self.wait_for_console_pattern("features: +virgl -edid")
+        exec_command_and_wait_for_pattern(self, "/usr/sbin/modprobe virtio_gpu",
+                                          "features: +virgl +edid")
         self.vm.shutdown()
         qemu_sock.close()
         vugp.terminate()

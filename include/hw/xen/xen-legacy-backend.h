@@ -1,7 +1,7 @@
 #ifndef HW_XEN_LEGACY_BACKEND_H
 #define HW_XEN_LEGACY_BACKEND_H
 
-#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
 #include "qom/object.h"
@@ -15,7 +15,7 @@ DECLARE_INSTANCE_CHECKER(XenLegacyDevice, XENBACKEND,
                          TYPE_XENBACKEND)
 
 /* variables */
-extern struct xs_handle *xenstore;
+extern struct qemu_xs_handle *xenstore;
 extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
 extern BusState *xen_sysbus;
@@ -30,9 +30,6 @@ int xenstore_write_be_int64(struct XenLegacyDevice *xendev, const char *node,
 char *xenstore_read_be_str(struct XenLegacyDevice *xendev, const char *node);
 int xenstore_read_be_int(struct XenLegacyDevice *xendev, const char *node,
                          int *ival);
-void xenstore_update_fe(char *watch, struct XenLegacyDevice *xendev);
-void xenstore_update_be(char *watch, char *type, int dom,
-                        struct XenDevOps *ops);
 char *xenstore_read_fe_str(struct XenLegacyDevice *xendev, const char *node);
 int xenstore_read_fe_int(struct XenLegacyDevice *xendev, const char *node,
                          int *ival);
@@ -42,8 +39,7 @@ int xenstore_read_fe_uint64(struct XenLegacyDevice *xendev, const char *node,
 void xen_be_check_state(struct XenLegacyDevice *xendev);
 
 /* xen backend driver bits */
-int xen_be_init(void);
-void xen_be_register_common(void);
+void xen_be_init(void);
 int xen_be_register(const char *type, struct XenDevOps *ops);
 int xen_be_set_state(struct XenLegacyDevice *xendev, enum xenbus_state state);
 int xen_be_bind_evtchn(struct XenLegacyDevice *xendev);
@@ -52,18 +48,7 @@ void xen_be_set_max_grant_refs(struct XenLegacyDevice *xendev,
 void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
                             unsigned int nr_refs, int prot);
 void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
-                             unsigned int nr_refs);
-
-typedef struct XenGrantCopySegment {
-    union {
-        void *virt;
-        struct {
-            uint32_t ref;
-            off_t offset;
-        } foreign;
-    } source, dest;
-    size_t len;
-} XenGrantCopySegment;
+                             uint32_t *refs, unsigned int nr_refs);
 
 int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
                            bool to_domain, XenGrantCopySegment segs[],
@@ -76,9 +61,9 @@ static inline void *xen_be_map_grant_ref(struct XenLegacyDevice *xendev,
 }
 
 static inline void xen_be_unmap_grant_ref(struct XenLegacyDevice *xendev,
-                                          void *ptr)
+                                          void *ptr, uint32_t ref)
 {
-    return xen_be_unmap_grant_refs(xendev, ptr, 1);
+    return xen_be_unmap_grant_refs(xendev, ptr, &ref, 1);
 }
 
 /* actual backend drivers */
@@ -96,7 +81,6 @@ extern struct XenDevOps xen_usb_ops;          /* xen-usb.c         */
 
 /* configuration (aka xenbus setup) */
 void xen_config_cleanup(void);
-int xen_config_dev_blk(DriveInfo *disk);
 int xen_config_dev_nic(NICInfo *nic);
 int xen_config_dev_vfb(int vdev, const char *type);
 int xen_config_dev_vkbd(int vdev);

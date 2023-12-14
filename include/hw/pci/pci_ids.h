@@ -26,6 +26,7 @@
 #define PCI_CLASS_STORAGE_SATA           0x0106
 #define PCI_CLASS_STORAGE_SAS            0x0107
 #define PCI_CLASS_STORAGE_EXPRESS        0x0108
+#define PCI_CLASS_STORAGE_UFS            0x0109
 #define PCI_CLASS_STORAGE_OTHER          0x0180
 
 #define PCI_BASE_CLASS_NETWORK           0x02
@@ -157,6 +158,9 @@
 
 /* Vendors and devices.  Sort key: vendor first, device next. */
 
+/* Ref: PCIe r6.0 Table 6-32 */
+#define PCI_VENDOR_ID_PCI_SIG            0x0001
+
 #define PCI_VENDOR_ID_LSI_LOGIC          0x1000
 #define PCI_DEVICE_ID_LSI_53C810         0x0001
 #define PCI_DEVICE_ID_LSI_53C895A        0x0012
@@ -166,7 +170,6 @@
 
 #define PCI_VENDOR_ID_DEC                0x1011
 #define PCI_DEVICE_ID_DEC_21143          0x0019
-#define PCI_DEVICE_ID_DEC_21154          0x0026
 
 #define PCI_VENDOR_ID_CIRRUS             0x1013
 
@@ -175,6 +178,8 @@
 #define PCI_VENDOR_ID_AMD                0x1022
 #define PCI_DEVICE_ID_AMD_LANCE          0x2000
 #define PCI_DEVICE_ID_AMD_SCSI           0x2020
+
+#define PCI_VENDOR_ID_HP                 0x103c
 
 #define PCI_VENDOR_ID_TI                 0x104c
 

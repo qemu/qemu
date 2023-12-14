@@ -29,6 +29,7 @@
 #include "hw/irq.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
+#include "audio/audio.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -207,6 +208,9 @@ static void realview_init(MachineState *machine,
 
     pl041 = qdev_new("pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
+    if (machine->audiodev) {
+        qdev_prop_set_string(pl041, "audiodev", machine->audiodev);
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(pl041), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[19]);
@@ -309,7 +313,7 @@ static void realview_init(MachineState *machine,
         }
     }
 
-    dev = sysbus_create_simple(TYPE_VERSATILE_I2C, 0x10002000, NULL);
+    dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_slave_create_simple(i2c, "ds1338", 0x68);
 
@@ -380,7 +384,7 @@ static void realview_init(MachineState *machine,
     realview_binfo.ram_size = ram_size;
     realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &realview_binfo);
+    arm_load_kernel(cpu, machine, &realview_binfo);
 }
 
 static void realview_eb_init(MachineState *machine)
@@ -412,6 +416,8 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo realview_eb_type = {
@@ -430,6 +436,8 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo realview_eb_mpcore_type = {
@@ -446,6 +454,8 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
     mc->init = realview_pb_a8_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo realview_pb_a8_type = {
@@ -463,6 +473,8 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo realview_pbx_a9_type = {

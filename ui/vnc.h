@@ -159,7 +159,6 @@ struct VncDisplay
     QKbdState *kbd;
     QemuMutex mutex;
 
-    QEMUCursor *cursor;
     int cursor_msize;
     uint8_t *cursor_mask;
 
@@ -465,6 +464,7 @@ enum VncFeatures {
     VNC_FEATURE_LED_STATE,
     VNC_FEATURE_XVP,
     VNC_FEATURE_CLIPBOARD_EXT,
+    VNC_FEATURE_AUDIO,
 };
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
@@ -482,6 +482,7 @@ enum VncFeatures {
 #define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
 #define VNC_FEATURE_XVP_MASK                 (1 << VNC_FEATURE_XVP)
 #define VNC_FEATURE_CLIPBOARD_EXT_MASK       (1 <<  VNC_FEATURE_CLIPBOARD_EXT)
+#define VNC_FEATURE_AUDIO_MASK               (1 <<  VNC_FEATURE_AUDIO)
 
 
 /* Client -> Server message IDs */

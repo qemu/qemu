@@ -15,6 +15,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu/osdep.h"
+#include "qemu/defer-call.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
@@ -48,7 +49,7 @@ struct ThreadPoolElement {
     /* Access to this list is protected by lock.  */
     QTAILQ_ENTRY(ThreadPoolElement) reqs;
 
-    /* Access to this list is protected by the global mutex.  */
+    /* This list is only written by the thread pool's mother thread.  */
     QLIST_ENTRY(ThreadPoolElement) all;
 };
 
@@ -120,13 +121,13 @@ static void *worker_thread(void *opaque)
 
     pool->cur_threads--;
     qemu_cond_signal(&pool->worker_stopped);
-    qemu_mutex_unlock(&pool->lock);
 
     /*
      * Wake up another thread, in case we got a wakeup but decided
      * to exit due to pool->cur_threads > pool->max_threads.
      */
     qemu_cond_signal(&pool->request_cond);
+    qemu_mutex_unlock(&pool->lock);
     return NULL;
 }
 
@@ -175,7 +176,8 @@ static void thread_pool_completion_bh(void *opaque)
     ThreadPool *pool = opaque;
     ThreadPoolElement *elem, *next;
 
-    aio_context_acquire(pool->ctx);
+    defer_call_begin(); /* cb() may use defer_call() to coalesce work */
+
 restart:
     QLIST_FOREACH_SAFE(elem, &pool->head, all, next) {
         if (elem->state != THREAD_DONE) {
@@ -195,9 +197,7 @@ restart:
              */
             qemu_bh_schedule(pool->completion_bh);
 
-            aio_context_release(pool->ctx);
             elem->common.cb(elem->common.opaque, elem->ret);
-            aio_context_acquire(pool->ctx);
 
             /* We can safely cancel the completion_bh here regardless of someone
              * else having scheduled it meanwhile because we reenter the
@@ -211,7 +211,8 @@ restart:
             qemu_aio_unref(elem);
         }
     }
-    aio_context_release(pool->ctx);
+
+    defer_call_end();
 }
 
 static void thread_pool_cancel(BlockAIOCB *acb)
@@ -232,24 +233,20 @@ static void thread_pool_cancel(BlockAIOCB *acb)
 
 }
 
-static AioContext *thread_pool_get_aio_context(BlockAIOCB *acb)
-{
-    ThreadPoolElement *elem = (ThreadPoolElement *)acb;
-    ThreadPool *pool = elem->pool;
-    return pool->ctx;
-}
-
 static const AIOCBInfo thread_pool_aiocb_info = {
     .aiocb_size         = sizeof(ThreadPoolElement),
     .cancel_async       = thread_pool_cancel,
-    .get_aio_context    = thread_pool_get_aio_context,
 };
 
-BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
-        ThreadPoolFunc *func, void *arg,
-        BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
+                                   BlockCompletionFunc *cb, void *opaque)
 {
     ThreadPoolElement *req;
+    AioContext *ctx = qemu_get_current_aio_context();
+    ThreadPool *pool = aio_get_thread_pool(ctx);
+
+    /* Assert that the thread submitting work is the same running the pool */
+    assert(pool->ctx == qemu_get_current_aio_context());
 
     req = qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque);
     req->func = func;
@@ -284,19 +281,18 @@ static void thread_pool_co_cb(void *opaque, int ret)
     aio_co_wake(co->co);
 }
 
-int coroutine_fn thread_pool_submit_co(ThreadPool *pool, ThreadPoolFunc *func,
-                                       void *arg)
+int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg)
 {
     ThreadPoolCo tpc = { .co = qemu_coroutine_self(), .ret = -EINPROGRESS };
     assert(qemu_in_coroutine());
-    thread_pool_submit_aio(pool, func, arg, thread_pool_co_cb, &tpc);
+    thread_pool_submit_aio(func, arg, thread_pool_co_cb, &tpc);
     qemu_coroutine_yield();
     return tpc.ret;
 }
 
-void thread_pool_submit(ThreadPool *pool, ThreadPoolFunc *func, void *arg)
+void thread_pool_submit(ThreadPoolFunc *func, void *arg)
 {
-    thread_pool_submit_aio(pool, func, arg, NULL, NULL);
+    thread_pool_submit_aio(func, arg, NULL, NULL);
 }
 
 void thread_pool_update_params(ThreadPool *pool, AioContext *ctx)

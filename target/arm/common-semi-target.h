@@ -10,9 +10,7 @@
 #ifndef TARGET_ARM_COMMON_SEMI_TARGET_H
 #define TARGET_ARM_COMMON_SEMI_TARGET_H
 
-#ifndef CONFIG_USER_ONLY
-#include "hw/arm/boot.h"
-#endif
+#include "target/arm/cpu-qom.h"
 
 static inline target_ulong common_semi_arg(CPUState *cs, int argno)
 {
@@ -38,7 +36,7 @@ static inline void common_semi_set_ret(CPUState *cs, target_ulong ret)
 
 static inline bool common_semi_sys_exit_extended(CPUState *cs, int nr)
 {
-    return (nr == TARGET_SYS_EXIT_EXTENDED || is_a64(cs->env_ptr));
+    return nr == TARGET_SYS_EXIT_EXTENDED || is_a64(cpu_env(cs));
 }
 
 static inline bool is_64bit_semihosting(CPUArchState *env)

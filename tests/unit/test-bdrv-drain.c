@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/block.h"
+#include "block/block_int.h"
 #include "block/blockjob_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
@@ -38,16 +38,26 @@ typedef struct BDRVTestState {
     bool sleep_in_drain_begin;
 } BDRVTestState;
 
-static void coroutine_fn bdrv_test_co_drain_begin(BlockDriverState *bs)
+static void coroutine_fn sleep_in_drain_begin(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+    bdrv_dec_in_flight(bs);
+}
+
+static void bdrv_test_drain_begin(BlockDriverState *bs)
 {
     BDRVTestState *s = bs->opaque;
     s->drain_count++;
     if (s->sleep_in_drain_begin) {
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+        Coroutine *co = qemu_coroutine_create(sleep_in_drain_begin, bs);
+        bdrv_inc_in_flight(bs);
+        aio_co_enter(bdrv_get_aio_context(bs), co);
     }
 }
 
-static void coroutine_fn bdrv_test_co_drain_end(BlockDriverState *bs)
+static void bdrv_test_drain_end(BlockDriverState *bs)
 {
     BDRVTestState *s = bs->opaque;
     s->drain_count--;
@@ -86,9 +96,9 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
-static int bdrv_test_change_backing_file(BlockDriverState *bs,
-                                         const char *backing_file,
-                                         const char *backing_fmt)
+static int bdrv_test_co_change_backing_file(BlockDriverState *bs,
+                                            const char *backing_file,
+                                            const char *backing_fmt)
 {
     return 0;
 }
@@ -101,12 +111,12 @@ static BlockDriver bdrv_test = {
     .bdrv_close             = bdrv_test_close,
     .bdrv_co_preadv         = bdrv_test_co_preadv,
 
-    .bdrv_co_drain_begin    = bdrv_test_co_drain_begin,
-    .bdrv_co_drain_end      = bdrv_test_co_drain_end,
+    .bdrv_drain_begin       = bdrv_test_drain_begin,
+    .bdrv_drain_end         = bdrv_test_drain_end,
 
     .bdrv_child_perm        = bdrv_default_perms,
 
-    .bdrv_change_backing_file = bdrv_test_change_backing_file,
+    .bdrv_co_change_backing_file = bdrv_test_co_change_backing_file,
 };
 
 static void aio_ret_cb(void *opaque, int ret)
@@ -146,7 +156,6 @@ static void call_in_coroutine(void (*entry)(void))
 enum drain_type {
     BDRV_DRAIN_ALL,
     BDRV_DRAIN,
-    BDRV_SUBTREE_DRAIN,
     DRAIN_TYPE_MAX,
 };
 
@@ -155,7 +164,6 @@ static void do_drain_begin(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_begin(); break;
     case BDRV_DRAIN:            bdrv_drained_begin(bs); break;
-    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_begin(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -165,7 +173,6 @@ static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_end(); break;
     case BDRV_DRAIN:            bdrv_drained_end(bs); break;
-    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_end(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -181,6 +188,25 @@ static void do_drain_begin_unlocked(enum drain_type drain_type, BlockDriverState
     }
 }
 
+static BlockBackend * no_coroutine_fn test_setup(void)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs, *backing;
+
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    bdrv_set_backing_hd(bs, backing, &error_abort);
+
+    bdrv_unref(backing);
+    bdrv_unref(bs);
+
+    return blk;
+}
+
 static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *bs)
 {
     if (drain_type != BDRV_DRAIN_ALL) {
@@ -192,25 +218,25 @@ static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *
     }
 }
 
-static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
+                   bool recursive)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs, *backing;
+    BlockDriverState *bs = blk_bs(blk);
+    BlockDriverState *backing = bs->backing->bs;
     BDRVTestState *s, *backing_s;
     BlockAIOCB *acb;
     int aio_ret;
 
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
     s = bs->opaque;
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
     backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs, backing, &error_abort);
 
     /* Simple bdrv_drain_all_begin/end pair, check that CBs are called */
     g_assert_cmpint(s->drain_count, ==, 0);
@@ -245,101 +271,116 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
     g_assert_cmpint(s->drain_count, ==, 0);
     g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
 }
 
 static void test_drv_cb_drain_all(void)
 {
-    test_drv_cb_common(BDRV_DRAIN_ALL, true);
+    BlockBackend *blk = test_setup();
+    test_drv_cb_common(blk, BDRV_DRAIN_ALL, true);
+    blk_unref(blk);
 }
 
 static void test_drv_cb_drain(void)
 {
-    test_drv_cb_common(BDRV_DRAIN, false);
+    BlockBackend *blk = test_setup();
+    test_drv_cb_common(blk, BDRV_DRAIN, false);
+    blk_unref(blk);
 }
 
-static void test_drv_cb_drain_subtree(void)
+static void coroutine_fn test_drv_cb_co_drain_all_entry(void)
 {
-    test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
+    BlockBackend *blk = blk_all_next(NULL);
+    test_drv_cb_common(blk, BDRV_DRAIN_ALL, true);
 }
 
 static void test_drv_cb_co_drain_all(void)
 {
-    call_in_coroutine(test_drv_cb_drain_all);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_drv_cb_co_drain_all_entry);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_drv_cb_co_drain_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_drv_cb_common(blk, BDRV_DRAIN, false);
 }
 
 static void test_drv_cb_co_drain(void)
 {
-    call_in_coroutine(test_drv_cb_drain);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_drv_cb_co_drain_entry);
+    blk_unref(blk);
 }
 
-static void test_drv_cb_co_drain_subtree(void)
+/*
+ * Locking the block graph would be a bit cumbersome here because this function
+ * is called both in coroutine and non-coroutine context. We know this is a test
+ * and nothing else is running, so don't bother with TSA.
+ */
+static void coroutine_mixed_fn TSA_NO_TSA
+test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
+                    bool recursive)
 {
-    call_in_coroutine(test_drv_cb_drain_subtree);
-}
-
-static void test_quiesce_common(enum drain_type drain_type, bool recursive)
-{
-    BlockBackend *blk;
-    BlockDriverState *bs, *backing;
-
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    bdrv_set_backing_hd(bs, backing, &error_abort);
+    BlockDriverState *bs = blk_bs(blk);
+    BlockDriverState *backing = bs->backing->bs;
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
 
     do_drain_begin(drain_type, bs);
 
-    g_assert_cmpint(bs->quiesce_counter, ==, 1);
+    if (drain_type == BDRV_DRAIN_ALL) {
+        g_assert_cmpint(bs->quiesce_counter, ==, 2);
+    } else {
+        g_assert_cmpint(bs->quiesce_counter, ==, 1);
+    }
     g_assert_cmpint(backing->quiesce_counter, ==, !!recursive);
 
     do_drain_end(drain_type, bs);
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
 }
 
 static void test_quiesce_drain_all(void)
 {
-    test_quiesce_common(BDRV_DRAIN_ALL, true);
+    BlockBackend *blk = test_setup();
+    test_quiesce_common(blk, BDRV_DRAIN_ALL, true);
+    blk_unref(blk);
 }
 
 static void test_quiesce_drain(void)
 {
-    test_quiesce_common(BDRV_DRAIN, false);
+    BlockBackend *blk = test_setup();
+    test_quiesce_common(blk, BDRV_DRAIN, false);
+    blk_unref(blk);
 }
 
-static void test_quiesce_drain_subtree(void)
+static void coroutine_fn test_quiesce_co_drain_all_entry(void)
 {
-    test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+    BlockBackend *blk = blk_all_next(NULL);
+    test_quiesce_common(blk, BDRV_DRAIN_ALL, true);
 }
 
 static void test_quiesce_co_drain_all(void)
 {
-    call_in_coroutine(test_quiesce_drain_all);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_quiesce_co_drain_all_entry);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_quiesce_co_drain_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_quiesce_common(blk, BDRV_DRAIN, false);
 }
 
 static void test_quiesce_co_drain(void)
 {
-    call_in_coroutine(test_quiesce_drain);
-}
-
-static void test_quiesce_co_drain_subtree(void)
-{
-    call_in_coroutine(test_quiesce_drain_subtree);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_quiesce_co_drain_entry);
+    blk_unref(blk);
 }
 
 static void test_nested(void)
@@ -361,8 +402,8 @@ static void test_nested(void)
 
     for (outer = 0; outer < DRAIN_TYPE_MAX; outer++) {
         for (inner = 0; inner < DRAIN_TYPE_MAX; inner++) {
-            int backing_quiesce = (outer != BDRV_DRAIN) +
-                                  (inner != BDRV_DRAIN);
+            int backing_quiesce = (outer == BDRV_DRAIN_ALL) +
+                                  (inner == BDRV_DRAIN_ALL);
 
             g_assert_cmpint(bs->quiesce_counter, ==, 0);
             g_assert_cmpint(backing->quiesce_counter, ==, 0);
@@ -372,10 +413,10 @@ static void test_nested(void)
             do_drain_begin(outer, bs);
             do_drain_begin(inner, bs);
 
-            g_assert_cmpint(bs->quiesce_counter, ==, 2);
+            g_assert_cmpint(bs->quiesce_counter, ==, 2 + !!backing_quiesce);
             g_assert_cmpint(backing->quiesce_counter, ==, backing_quiesce);
-            g_assert_cmpint(s->drain_count, ==, 2);
-            g_assert_cmpint(backing_s->drain_count, ==, backing_quiesce);
+            g_assert_cmpint(s->drain_count, ==, 1);
+            g_assert_cmpint(backing_s->drain_count, ==, !!backing_quiesce);
 
             do_drain_end(inner, bs);
             do_drain_end(outer, bs);
@@ -390,158 +431,6 @@ static void test_nested(void)
     bdrv_unref(backing);
     bdrv_unref(bs);
     blk_unref(blk);
-}
-
-static void test_multiparent(void)
-{
-    BlockBackend *blk_a, *blk_b;
-    BlockDriverState *bs_a, *bs_b, *backing;
-    BDRVTestState *a_s, *b_s, *backing_s;
-
-    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
-                                &error_abort);
-    a_s = bs_a->opaque;
-    blk_insert_bs(blk_a, bs_a, &error_abort);
-
-    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
-                                &error_abort);
-    b_s = bs_b->opaque;
-    blk_insert_bs(blk_b, bs_b, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs_a, backing, &error_abort);
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
-    g_assert_cmpint(backing->quiesce_counter, ==, 1);
-    g_assert_cmpint(a_s->drain_count, ==, 1);
-    g_assert_cmpint(b_s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, 1);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 2);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
-    g_assert_cmpint(backing->quiesce_counter, ==, 2);
-    g_assert_cmpint(a_s->drain_count, ==, 2);
-    g_assert_cmpint(b_s->drain_count, ==, 2);
-    g_assert_cmpint(backing_s->drain_count, ==, 2);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
-    g_assert_cmpint(backing->quiesce_counter, ==, 1);
-    g_assert_cmpint(a_s->drain_count, ==, 1);
-    g_assert_cmpint(b_s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, 1);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs_a);
-    bdrv_unref(bs_b);
-    blk_unref(blk_a);
-    blk_unref(blk_b);
-}
-
-static void test_graph_change_drain_subtree(void)
-{
-    BlockBackend *blk_a, *blk_b;
-    BlockDriverState *bs_a, *bs_b, *backing;
-    BDRVTestState *a_s, *b_s, *backing_s;
-
-    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
-                                &error_abort);
-    a_s = bs_a->opaque;
-    blk_insert_bs(blk_a, bs_a, &error_abort);
-
-    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
-                                &error_abort);
-    b_s = bs_b->opaque;
-    blk_insert_bs(blk_b, bs_b, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs_a, backing, &error_abort);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
-    g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
-    g_assert_cmpint(backing_s->drain_count, ==, 5);
-
-    bdrv_set_backing_hd(bs_b, NULL, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 3);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
-    g_assert_cmpint(backing->quiesce_counter, ==, 3);
-    g_assert_cmpint(a_s->drain_count, ==, 3);
-    g_assert_cmpint(b_s->drain_count, ==, 2);
-    g_assert_cmpint(backing_s->drain_count, ==, 3);
-
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
-    g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
-    g_assert_cmpint(backing_s->drain_count, ==, 5);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs_a);
-    bdrv_unref(bs_b);
-    blk_unref(blk_a);
-    blk_unref(blk_b);
 }
 
 static void test_graph_change_drain_all(void)
@@ -596,7 +485,6 @@ static void test_graph_change_drain_all(void)
 
     g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
     g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(qemu_get_aio_context()->external_disable_cnt, ==, 0);
 
     bdrv_unref(bs_b);
     blk_unref(blk_b);
@@ -606,19 +494,19 @@ struct test_iothread_data {
     BlockDriverState *bs;
     enum drain_type drain_type;
     int *aio_ret;
+    bool co_done;
 };
 
-static void test_iothread_drain_entry(void *opaque)
+static void coroutine_fn test_iothread_drain_co_entry(void *opaque)
 {
     struct test_iothread_data *data = opaque;
 
-    aio_context_acquire(bdrv_get_aio_context(data->bs));
     do_drain_begin(data->drain_type, data->bs);
     g_assert_cmpint(*data->aio_ret, ==, 0);
     do_drain_end(data->drain_type, data->bs);
-    aio_context_release(bdrv_get_aio_context(data->bs));
 
-    qemu_event_set(&done_event);
+    data->co_done = true;
+    aio_wait_kick();
 }
 
 static void test_iothread_aio_cb(void *opaque, int ret)
@@ -636,6 +524,7 @@ static void test_iothread_main_thread_bh(void *opaque)
      * executed during drain, otherwise this would deadlock. */
     aio_context_acquire(bdrv_get_aio_context(data->bs));
     bdrv_flush(data->bs);
+    bdrv_dec_in_flight(data->bs); /* incremented by test_iothread_common() */
     aio_context_release(bdrv_get_aio_context(data->bs));
 }
 
@@ -654,6 +543,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     BlockDriverState *bs;
     BDRVTestState *s;
     BlockAIOCB *acb;
+    Coroutine *co;
     int aio_ret;
     struct test_iothread_data data;
 
@@ -706,6 +596,13 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
             aio_context_acquire(ctx_a);
         }
 
+        /*
+         * Increment in_flight so that do_drain_begin() waits for
+         * test_iothread_main_thread_bh(). This prevents the race between
+         * test_iothread_main_thread_bh() in IOThread a and do_drain_begin() in
+         * this thread. test_iothread_main_thread_bh() decrements in_flight.
+         */
+        bdrv_inc_in_flight(bs);
         aio_bh_schedule_oneshot(ctx_a, test_iothread_main_thread_bh, &data);
 
         /* The request is running on the IOThread a. Draining its block device
@@ -732,8 +629,9 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         }
         break;
     case 1:
-        aio_bh_schedule_oneshot(ctx_a, test_iothread_drain_entry, &data);
-        qemu_event_wait(&done_event);
+        co = qemu_coroutine_create(test_iothread_drain_co_entry, &data);
+        aio_co_enter(ctx_a, co);
+        AIO_WAIT_WHILE_UNLOCKED(NULL, !data.co_done);
         break;
     default:
         g_assert_not_reached();
@@ -761,12 +659,6 @@ static void test_iothread_drain(void)
 {
     test_iothread_common(BDRV_DRAIN, 0);
     test_iothread_common(BDRV_DRAIN, 1);
-}
-
-static void test_iothread_drain_subtree(void)
-{
-    test_iothread_common(BDRV_SUBTREE_DRAIN, 0);
-    test_iothread_common(BDRV_SUBTREE_DRAIN, 1);
 }
 
 
@@ -853,7 +745,6 @@ enum test_job_result {
 enum test_job_drain_node {
     TEST_JOB_DRAIN_SRC,
     TEST_JOB_DRAIN_SRC_CHILD,
-    TEST_JOB_DRAIN_SRC_PARENT,
 };
 
 static void test_blockjob_common_drain_node(enum drain_type drain_type,
@@ -891,9 +782,6 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     case TEST_JOB_DRAIN_SRC_CHILD:
         drain_bs = src_backing;
         break;
-    case TEST_JOB_DRAIN_SRC_PARENT:
-        drain_bs = src_overlay;
-        break;
     default:
         g_assert_not_reached();
     }
@@ -918,7 +806,10 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
                             0, 0, NULL, NULL, &error_abort);
     tjob->bs = src;
     job = &tjob->common;
+
+    bdrv_graph_wrlock(target);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
+    bdrv_graph_wrunlock(target);
 
     switch (result) {
     case TEST_JOB_SUCCESS:
@@ -930,9 +821,9 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         tjob->prepare_ret = -EIO;
         break;
     }
+    aio_context_release(ctx);
 
     job_start(&job->job);
-    aio_context_release(ctx);
 
     if (use_iothread) {
         /* job_co_entry() is run in the I/O thread, wait for the actual job
@@ -943,63 +834,85 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
-    g_assert_true(tjob->running);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    WITH_JOB_LOCK_GUARD() {
+        g_assert_cmpint(job->job.pause_count, ==, 0);
+        g_assert_false(job->job.paused);
+        g_assert_true(tjob->running);
+        g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    }
 
     do_drain_begin_unlocked(drain_type, drain_bs);
 
-    if (drain_type == BDRV_DRAIN_ALL) {
-        /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->job.pause_count, ==, 2);
-    } else {
-        g_assert_cmpint(job->job.pause_count, ==, 1);
+    WITH_JOB_LOCK_GUARD() {
+        if (drain_type == BDRV_DRAIN_ALL) {
+            /* bdrv_drain_all() drains both src and target */
+            g_assert_cmpint(job->job.pause_count, ==, 2);
+        } else {
+            g_assert_cmpint(job->job.pause_count, ==, 1);
+        }
+        g_assert_true(job->job.paused);
+        g_assert_false(job->job.busy); /* The job is paused */
     }
-    g_assert_true(job->job.paused);
-    g_assert_false(job->job.busy); /* The job is paused */
 
     do_drain_end_unlocked(drain_type, drain_bs);
 
     if (use_iothread) {
-        /* paused is reset in the I/O thread, wait for it */
+        /*
+         * Here we are waiting for the paused status to change,
+         * so don't bother protecting the read every time.
+         *
+         * paused is reset in the I/O thread, wait for it
+         */
         while (job->job.paused) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    WITH_JOB_LOCK_GUARD() {
+        g_assert_cmpint(job->job.pause_count, ==, 0);
+        g_assert_false(job->job.paused);
+        g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    }
 
     do_drain_begin_unlocked(drain_type, target);
 
-    if (drain_type == BDRV_DRAIN_ALL) {
-        /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->job.pause_count, ==, 2);
-    } else {
-        g_assert_cmpint(job->job.pause_count, ==, 1);
+    WITH_JOB_LOCK_GUARD() {
+        if (drain_type == BDRV_DRAIN_ALL) {
+            /* bdrv_drain_all() drains both src and target */
+            g_assert_cmpint(job->job.pause_count, ==, 2);
+        } else {
+            g_assert_cmpint(job->job.pause_count, ==, 1);
+        }
+        g_assert_true(job->job.paused);
+        g_assert_false(job->job.busy); /* The job is paused */
     }
-    g_assert_true(job->job.paused);
-    g_assert_false(job->job.busy); /* The job is paused */
 
     do_drain_end_unlocked(drain_type, target);
 
     if (use_iothread) {
-        /* paused is reset in the I/O thread, wait for it */
+        /*
+         * Here we are waiting for the paused status to change,
+         * so don't bother protecting the read every time.
+         *
+         * paused is reset in the I/O thread, wait for it
+         */
         while (job->job.paused) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    WITH_JOB_LOCK_GUARD() {
+        g_assert_cmpint(job->job.pause_count, ==, 0);
+        g_assert_false(job->job.paused);
+        g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    }
 
-    aio_context_acquire(ctx);
-    ret = job_complete_sync(&job->job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        ret = job_complete_sync_locked(&job->job, &error_abort);
+    }
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
+    aio_context_acquire(ctx);
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
         assert(blk_get_aio_context(blk_target) == qemu_get_aio_context());
@@ -1023,10 +936,6 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
                                     TEST_JOB_DRAIN_SRC);
     test_blockjob_common_drain_node(drain_type, use_iothread, result,
                                     TEST_JOB_DRAIN_SRC_CHILD);
-    if (drain_type == BDRV_SUBTREE_DRAIN) {
-        test_blockjob_common_drain_node(drain_type, use_iothread, result,
-                                        TEST_JOB_DRAIN_SRC_PARENT);
-    }
 }
 
 static void test_blockjob_drain_all(void)
@@ -1037,11 +946,6 @@ static void test_blockjob_drain_all(void)
 static void test_blockjob_drain(void)
 {
     test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_SUCCESS);
-}
-
-static void test_blockjob_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_error_drain_all(void)
@@ -1056,12 +960,6 @@ static void test_blockjob_error_drain(void)
     test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_FAIL_PREPARE);
 }
 
-static void test_blockjob_error_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_RUN);
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_PREPARE);
-}
-
 static void test_blockjob_iothread_drain_all(void)
 {
     test_blockjob_common(BDRV_DRAIN_ALL, true, TEST_JOB_SUCCESS);
@@ -1070,11 +968,6 @@ static void test_blockjob_iothread_drain_all(void)
 static void test_blockjob_iothread_drain(void)
 {
     test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_SUCCESS);
-}
-
-static void test_blockjob_iothread_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_iothread_error_drain_all(void)
@@ -1089,12 +982,6 @@ static void test_blockjob_iothread_error_drain(void)
     test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_FAIL_PREPARE);
 }
 
-static void test_blockjob_iothread_error_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_RUN);
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_PREPARE);
-}
-
 
 typedef struct BDRVTestTopState {
     BdrvChild *wait_child;
@@ -1103,15 +990,17 @@ typedef struct BDRVTestTopState {
 static void bdrv_test_top_close(BlockDriverState *bs)
 {
     BdrvChild *c, *next_c;
+
+    bdrv_graph_wrlock(NULL);
     QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
         bdrv_unref_child(bs, c);
     }
+    bdrv_graph_wrunlock(NULL);
 }
 
-static int coroutine_fn bdrv_test_top_co_preadv(BlockDriverState *bs,
-                                                int64_t offset, int64_t bytes,
-                                                QEMUIOVector *qiov,
-                                                BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_test_top_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVTestTopState *tts = bs->opaque;
     return bdrv_co_preadv(tts->wait_child, offset, bytes, qiov, flags);
@@ -1150,17 +1039,23 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
      * everything will be drained before we go back down the tree, but
      * we do not want that.  We want to be in the middle of draining
      * when this following requests returns. */
+    bdrv_graph_co_rdlock();
     bdrv_co_preadv(tts->wait_child, 0, 65536, &qiov, 0);
+    bdrv_graph_co_rdunlock();
 
     g_assert_cmpint(bs->refcnt, ==, 1);
 
     if (!dbdd->detach_instead_of_delete) {
-        blk_unref(blk);
+        blk_co_unref(blk);
     } else {
         BdrvChild *c, *next_c;
+        bdrv_graph_co_rdlock();
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
-            bdrv_unref_child(bs, c);
+            bdrv_graph_co_rdunlock();
+            bdrv_co_unref_child(bs, c);
+            bdrv_graph_co_rdlock();
         }
+        bdrv_graph_co_rdunlock();
     }
 
     dbdd->done = true;
@@ -1190,8 +1085,10 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
+    bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
+    bdrv_graph_wrunlock(NULL);
 
     /* This child will be the one to pass to requests through to, and
      * it will stall until a drain occurs */
@@ -1199,17 +1096,21 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
                                     &error_abort);
     child_bs->total_sectors = 65536 >> BDRV_SECTOR_BITS;
     /* Takes our reference to child_bs */
+    bdrv_graph_wrlock(NULL);
     tts->wait_child = bdrv_attach_child(bs, child_bs, "wait-child",
                                         &child_of_bds,
                                         BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                                         &error_abort);
+    bdrv_graph_wrunlock(NULL);
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
+    bdrv_graph_wrlock(NULL);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds, BDRV_CHILD_DATA,
                       &error_abort);
+    bdrv_graph_wrunlock(NULL);
 
     blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
@@ -1240,14 +1141,6 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
         bdrv_ref(child_bs);
         bdrv_drain(child_bs);
         bdrv_unref(child_bs);
-        break;
-    case BDRV_SUBTREE_DRAIN:
-        /* Would have to ref/unref bs here for !detach_instead_of_delete, but
-         * then the whole test becomes pointless because the graph changes
-         * don't occur during the drain any more. */
-        assert(detach_instead_of_delete);
-        bdrv_subtree_drained_begin(bs);
-        bdrv_subtree_drained_end(bs);
         break;
     case BDRV_DRAIN_ALL:
         bdrv_drain_all_begin();
@@ -1283,11 +1176,6 @@ static void test_detach_by_drain(void)
     do_test_delete_by_drain(true, BDRV_DRAIN);
 }
 
-static void test_detach_by_drain_subtree(void)
-{
-    do_test_delete_by_drain(true, BDRV_SUBTREE_DRAIN);
-}
-
 
 struct detach_by_parent_data {
     BlockDriverState *parent_b;
@@ -1295,33 +1183,48 @@ struct detach_by_parent_data {
     BlockDriverState *c;
     BdrvChild *child_c;
     bool by_parent_cb;
+    bool detach_on_drain;
 };
 static struct detach_by_parent_data detach_by_parent_data;
 
-static void detach_indirect_bh(void *opaque)
+static void no_coroutine_fn detach_indirect_bh(void *opaque)
 {
     struct detach_by_parent_data *data = opaque;
 
+    bdrv_dec_in_flight(data->child_b->bs);
+
+    bdrv_graph_wrlock(NULL);
     bdrv_unref_child(data->parent_b, data->child_b);
 
     bdrv_ref(data->c);
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
                                       &child_of_bds, BDRV_CHILD_DATA,
                                       &error_abort);
+    bdrv_graph_wrunlock(NULL);
 }
 
-static void detach_by_parent_aio_cb(void *opaque, int ret)
+static void coroutine_mixed_fn detach_by_parent_aio_cb(void *opaque, int ret)
 {
     struct detach_by_parent_data *data = &detach_by_parent_data;
 
     g_assert_cmpint(ret, ==, 0);
     if (data->by_parent_cb) {
-        detach_indirect_bh(data);
+        bdrv_inc_in_flight(data->child_b->bs);
+        aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
+                                detach_indirect_bh, &detach_by_parent_data);
     }
 }
 
-static void detach_by_driver_cb_drained_begin(BdrvChild *child)
+static void GRAPH_RDLOCK detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
+    struct detach_by_parent_data *data = &detach_by_parent_data;
+
+    if (!data->detach_on_drain) {
+        return;
+    }
+    data->detach_on_drain = false;
+
+    bdrv_inc_in_flight(data->child_b->bs);
     aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
                             detach_indirect_bh, &detach_by_parent_data);
     child_of_bds.drained_begin(child);
@@ -1349,7 +1252,7 @@ static BdrvChildClass detach_by_driver_cb_class;
  *     state is messed up, but if it is only polled in the single
  *     BDRV_POLL_WHILE() at the end of the drain, this should work fine.
  */
-static void test_detach_indirect(bool by_parent_cb)
+static void TSA_NO_TSA test_detach_indirect(bool by_parent_cb)
 {
     BlockBackend *blk;
     BlockDriverState *parent_a, *parent_b, *a, *b, *c;
@@ -1362,7 +1265,13 @@ static void test_detach_indirect(bool by_parent_cb)
         detach_by_driver_cb_class = child_of_bds;
         detach_by_driver_cb_class.drained_begin =
             detach_by_driver_cb_drained_begin;
+        detach_by_driver_cb_class.drained_end = NULL;
+        detach_by_driver_cb_class.drained_poll = NULL;
     }
+
+    detach_by_parent_data = (struct detach_by_parent_data) {
+        .detach_on_drain = false,
+    };
 
     /* Create all involved nodes */
     parent_a = bdrv_new_open_driver(&bdrv_test, "parent-a", BDRV_O_RDWR,
@@ -1389,6 +1298,7 @@ static void test_detach_indirect(bool by_parent_cb)
     /* Set child relationships */
     bdrv_ref(b);
     bdrv_ref(a);
+    bdrv_graph_wrlock(NULL);
     child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_of_bds,
                                 BDRV_CHILD_DATA, &error_abort);
     child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_of_bds,
@@ -1398,6 +1308,7 @@ static void test_detach_indirect(bool by_parent_cb)
     bdrv_attach_child(parent_a, a, "PA-A",
                       by_parent_cb ? &child_of_bds : &detach_by_driver_cb_class,
                       BDRV_CHILD_DATA, &error_abort);
+    bdrv_graph_wrunlock(NULL);
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
     g_assert_cmpint(parent_b->refcnt, ==, 1);
@@ -1415,12 +1326,16 @@ static void test_detach_indirect(bool by_parent_cb)
         .child_b = child_b,
         .c = c,
         .by_parent_cb = by_parent_cb,
+        .detach_on_drain = true,
     };
     acb = blk_aio_preadv(blk, 0, &qiov, 0, detach_by_parent_aio_cb, NULL);
     g_assert(acb != NULL);
 
     /* Drain and check the expected result */
-    bdrv_subtree_drained_begin(parent_b);
+    bdrv_drained_begin(parent_b);
+    bdrv_drained_begin(a);
+    bdrv_drained_begin(b);
+    bdrv_drained_begin(c);
 
     g_assert(detach_by_parent_data.child_c != NULL);
 
@@ -1435,12 +1350,15 @@ static void test_detach_indirect(bool by_parent_cb)
     g_assert(QLIST_NEXT(child_a, next) == NULL);
 
     g_assert_cmpint(parent_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(parent_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(parent_b->quiesce_counter, ==, 3);
     g_assert_cmpint(a->quiesce_counter, ==, 1);
-    g_assert_cmpint(b->quiesce_counter, ==, 0);
+    g_assert_cmpint(b->quiesce_counter, ==, 1);
     g_assert_cmpint(c->quiesce_counter, ==, 1);
 
-    bdrv_subtree_drained_end(parent_b);
+    bdrv_drained_end(parent_b);
+    bdrv_drained_end(a);
+    bdrv_drained_end(b);
+    bdrv_drained_end(c);
 
     bdrv_unref(parent_b);
     blk_unref(blk);
@@ -1483,7 +1401,10 @@ static void test_append_to_drained(void)
     g_assert_cmpint(base_s->drain_count, ==, 1);
     g_assert_cmpint(base->in_flight, ==, 0);
 
+    aio_context_acquire(qemu_get_aio_context());
     bdrv_append(overlay, base, &error_abort);
+    aio_context_release(qemu_get_aio_context());
+
     g_assert_cmpint(base->in_flight, ==, 0);
     g_assert_cmpint(overlay->in_flight, ==, 0);
 
@@ -1516,16 +1437,16 @@ static void test_set_aio_context(void)
                               &error_abort);
 
     bdrv_drained_begin(bs);
-    bdrv_try_set_aio_context(bs, ctx_a, &error_abort);
+    bdrv_try_change_aio_context(bs, ctx_a, NULL, &error_abort);
 
     aio_context_acquire(ctx_a);
     bdrv_drained_end(bs);
 
     bdrv_drained_begin(bs);
-    bdrv_try_set_aio_context(bs, ctx_b, &error_abort);
+    bdrv_try_change_aio_context(bs, ctx_b, NULL, &error_abort);
     aio_context_release(ctx_a);
     aio_context_acquire(ctx_b);
-    bdrv_try_set_aio_context(bs, qemu_get_aio_context(), &error_abort);
+    bdrv_try_change_aio_context(bs, qemu_get_aio_context(), NULL, &error_abort);
     aio_context_release(ctx_b);
     bdrv_drained_end(bs);
 
@@ -1671,6 +1592,7 @@ static void test_blockjob_commit_by_drained_end(void)
     bdrv_drained_begin(bs_child);
     g_assert(!job_has_completed);
     bdrv_drained_end(bs_child);
+    aio_poll(qemu_get_aio_context(), false);
     g_assert(job_has_completed);
 
     bdrv_unref(bs_parents[0]);
@@ -1805,14 +1727,15 @@ static void test_drop_intermediate_poll(void)
      * Establish the chain last, so the chain links are the first
      * elements in the BDS.parents lists
      */
+    bdrv_graph_wrlock(NULL);
     for (i = 0; i < 3; i++) {
         if (i) {
             /* Takes the reference to chain[i - 1] */
-            chain[i]->backing = bdrv_attach_child(chain[i], chain[i - 1],
-                                                  "chain", &chain_child_class,
-                                                  BDRV_CHILD_COW, &error_abort);
+            bdrv_attach_child(chain[i], chain[i - 1], "chain",
+                              &chain_child_class, BDRV_CHILD_COW, &error_abort);
         }
     }
+    bdrv_graph_wrunlock(NULL);
 
     job = block_job_create("job", &test_simple_job_driver, NULL, job_node,
                            0, BLK_PERM_ALL, 0, 0, NULL, NULL, &error_abort);
@@ -1827,6 +1750,7 @@ static void test_drop_intermediate_poll(void)
 
     g_assert(!job_has_completed);
     ret = bdrv_drop_intermediate(chain[1], chain[0], NULL);
+    aio_poll(qemu_get_aio_context(), false);
     g_assert(ret == 0);
     g_assert(job_has_completed);
 
@@ -1835,6 +1759,7 @@ static void test_drop_intermediate_poll(void)
 
 
 typedef struct BDRVReplaceTestState {
+    bool setup_completed;
     bool was_drained;
     bool was_undrained;
     bool has_read;
@@ -1860,11 +1785,9 @@ static void bdrv_replace_test_close(BlockDriverState *bs)
  * Otherwise:
  *   Set .has_read to true and return success.
  */
-static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
-                                                    int64_t offset,
-                                                    int64_t bytes,
-                                                    QEMUIOVector *qiov,
-                                                    BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_replace_test_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                            QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
@@ -1895,28 +1818,57 @@ static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
+static void coroutine_fn bdrv_replace_test_drain_co(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVReplaceTestState *s = bs->opaque;
+
+    /* Keep waking io_co up until it is done */
+    while (s->io_co) {
+        aio_co_wake(s->io_co);
+        s->io_co = NULL;
+        qemu_coroutine_yield();
+    }
+    s->drain_co = NULL;
+    bdrv_dec_in_flight(bs);
+}
+
 /**
  * If .drain_count is 0, wake up .io_co if there is one; and set
  * .was_drained.
  * Increment .drain_count.
  */
-static void coroutine_fn bdrv_replace_test_co_drain_begin(BlockDriverState *bs)
+static void bdrv_replace_test_drain_begin(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
-    if (!s->drain_count) {
-        /* Keep waking io_co up until it is done */
-        s->drain_co = qemu_coroutine_self();
-        while (s->io_co) {
-            aio_co_wake(s->io_co);
-            s->io_co = NULL;
-            qemu_coroutine_yield();
-        }
-        s->drain_co = NULL;
+    if (!s->setup_completed) {
+        return;
+    }
 
+    if (!s->drain_count) {
+        s->drain_co = qemu_coroutine_create(bdrv_replace_test_drain_co, bs);
+        bdrv_inc_in_flight(bs);
+        aio_co_enter(bdrv_get_aio_context(bs), s->drain_co);
         s->was_drained = true;
     }
     s->drain_count++;
+}
+
+static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    char data;
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, &data, 1);
+    int ret;
+
+    /* Queue a read request post-drain */
+    bdrv_graph_co_rdlock();
+    ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
+    bdrv_graph_co_rdunlock();
+
+    g_assert(ret >= 0);
+    bdrv_dec_in_flight(bs);
 }
 
 /**
@@ -1924,23 +1876,25 @@ static void coroutine_fn bdrv_replace_test_co_drain_begin(BlockDriverState *bs)
  * If .drain_count reaches 0 and the node has a backing file, issue a
  * read request.
  */
-static void coroutine_fn bdrv_replace_test_co_drain_end(BlockDriverState *bs)
+static void bdrv_replace_test_drain_end(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    if (!s->setup_completed) {
+        return;
+    }
+
     g_assert(s->drain_count > 0);
     if (!--s->drain_count) {
-        int ret;
-
         s->was_undrained = true;
 
         if (bs->backing) {
-            char data;
-            QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, &data, 1);
-
-            /* Queue a read request post-drain */
-            ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
-            g_assert(ret >= 0);
+            Coroutine *co = qemu_coroutine_create(bdrv_replace_test_read_entry,
+                                                  bs);
+            bdrv_inc_in_flight(bs);
+            aio_co_enter(bdrv_get_aio_context(bs), co);
         }
     }
 }
@@ -1948,12 +1902,13 @@ static void coroutine_fn bdrv_replace_test_co_drain_end(BlockDriverState *bs)
 static BlockDriver bdrv_replace_test = {
     .format_name            = "replace_test",
     .instance_size          = sizeof(BDRVReplaceTestState),
+    .supports_backing       = true,
 
     .bdrv_close             = bdrv_replace_test_close,
     .bdrv_co_preadv         = bdrv_replace_test_co_preadv,
 
-    .bdrv_co_drain_begin    = bdrv_replace_test_co_drain_begin,
-    .bdrv_co_drain_end      = bdrv_replace_test_co_drain_end,
+    .bdrv_drain_begin       = bdrv_replace_test_drain_begin,
+    .bdrv_drain_end         = bdrv_replace_test_drain_end,
 
     .bdrv_child_perm        = bdrv_default_perms,
 };
@@ -2027,9 +1982,11 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     new_child_bs->total_sectors = 1;
 
     bdrv_ref(old_child_bs);
-    parent_bs->backing = bdrv_attach_child(parent_bs, old_child_bs, "child",
-                                           &child_of_bds, BDRV_CHILD_COW,
-                                           &error_abort);
+    bdrv_graph_wrlock(NULL);
+    bdrv_attach_child(parent_bs, old_child_bs, "child", &child_of_bds,
+                      BDRV_CHILD_COW, &error_abort);
+    bdrv_graph_wrunlock(NULL);
+    parent_s->setup_completed = true;
 
     for (i = 0; i < old_drain_count; i++) {
         bdrv_drained_begin(old_child_bs);
@@ -2057,7 +2014,13 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     parent_s->was_undrained = false;
 
     g_assert(parent_bs->quiesce_counter == old_drain_count);
+    bdrv_drained_begin(old_child_bs);
+    bdrv_drained_begin(new_child_bs);
+    bdrv_graph_wrlock(NULL);
     bdrv_replace_node(old_child_bs, new_child_bs, &error_abort);
+    bdrv_graph_wrunlock(NULL);
+    bdrv_drained_end(new_child_bs);
+    bdrv_drained_end(old_child_bs);
     g_assert(parent_bs->quiesce_counter == new_drain_count);
 
     if (!old_drain_count && !new_drain_count) {
@@ -2151,70 +2114,47 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/driver-cb/drain_all", test_drv_cb_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/drain", test_drv_cb_drain);
-    g_test_add_func("/bdrv-drain/driver-cb/drain_subtree",
-                    test_drv_cb_drain_subtree);
 
     g_test_add_func("/bdrv-drain/driver-cb/co/drain_all",
                     test_drv_cb_co_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/co/drain", test_drv_cb_co_drain);
-    g_test_add_func("/bdrv-drain/driver-cb/co/drain_subtree",
-                    test_drv_cb_co_drain_subtree);
-
 
     g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
-    g_test_add_func("/bdrv-drain/quiesce/drain_subtree",
-                    test_quiesce_drain_subtree);
 
     g_test_add_func("/bdrv-drain/quiesce/co/drain_all",
                     test_quiesce_co_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/co/drain", test_quiesce_co_drain);
-    g_test_add_func("/bdrv-drain/quiesce/co/drain_subtree",
-                    test_quiesce_co_drain_subtree);
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
-    g_test_add_func("/bdrv-drain/multiparent", test_multiparent);
 
-    g_test_add_func("/bdrv-drain/graph-change/drain_subtree",
-                    test_graph_change_drain_subtree);
     g_test_add_func("/bdrv-drain/graph-change/drain_all",
                     test_graph_change_drain_all);
 
     g_test_add_func("/bdrv-drain/iothread/drain_all", test_iothread_drain_all);
     g_test_add_func("/bdrv-drain/iothread/drain", test_iothread_drain);
-    g_test_add_func("/bdrv-drain/iothread/drain_subtree",
-                    test_iothread_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
-    g_test_add_func("/bdrv-drain/blockjob/drain_subtree",
-                    test_blockjob_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/error/drain_all",
                     test_blockjob_error_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/error/drain",
                     test_blockjob_error_drain);
-    g_test_add_func("/bdrv-drain/blockjob/error/drain_subtree",
-                    test_blockjob_error_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain_all",
                     test_blockjob_iothread_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain",
                     test_blockjob_iothread_drain);
-    g_test_add_func("/bdrv-drain/blockjob/iothread/drain_subtree",
-                    test_blockjob_iothread_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_all",
                     test_blockjob_iothread_error_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain",
                     test_blockjob_iothread_error_drain);
-    g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_subtree",
-                    test_blockjob_iothread_error_drain_subtree);
 
     g_test_add_func("/bdrv-drain/deletion/drain", test_delete_by_drain);
     g_test_add_func("/bdrv-drain/detach/drain_all", test_detach_by_drain_all);
     g_test_add_func("/bdrv-drain/detach/drain", test_detach_by_drain);
-    g_test_add_func("/bdrv-drain/detach/drain_subtree", test_detach_by_drain_subtree);
     g_test_add_func("/bdrv-drain/detach/parent_cb", test_detach_by_parent_cb);
     g_test_add_func("/bdrv-drain/detach/driver_cb", test_detach_by_driver_cb);
 

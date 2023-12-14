@@ -1,0 +1,1702 @@
+# AArch64 SVE instruction descriptions
+#
+#  Copyright (c) 2017 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+
+###########################################################################
+# Named fields.  These are primarily for disjoint fields.
+
+%imm4_16_p1     16:4 !function=plus_1
+%imm6_22_5      22:1 5:5
+%imm7_22_16     22:2 16:5
+%imm8_16_10     16:5 10:3
+%imm9_16_10     16:s6 10:3
+%size_23        23:2
+%dtype_23_13    23:2 13:2
+%index3_22_19   22:1 19:2
+%index3_19_11   19:2 11:1
+%index2_20_11   20:1 11:1
+
+# A combination of tsz:imm3 -- extract esize.
+%tszimm_esz     22:2 5:5 !function=tszimm_esz
+# A combination of tsz:imm3 -- extract (2 * esize) - (tsz:imm3)
+%tszimm_shr     22:2 5:5 !function=tszimm_shr
+# A combination of tsz:imm3 -- extract (tsz:imm3) - esize
+%tszimm_shl     22:2 5:5 !function=tszimm_shl
+
+# Similarly for the tszh/tszl pair at 22/16 for zzi
+%tszimm16_esz   22:2 16:5 !function=tszimm_esz
+%tszimm16_shr   22:2 16:5 !function=tszimm_shr
+%tszimm16_shl   22:2 16:5 !function=tszimm_shl
+
+# Signed 8-bit immediate, optionally shifted left by 8.
+%sh8_i8s        5:9 !function=expand_imm_sh8s
+# Unsigned 8-bit immediate, optionally shifted left by 8.
+%sh8_i8u        5:9 !function=expand_imm_sh8u
+
+# Unsigned load of msz into esz=2, represented as a dtype.
+%msz_dtype      23:2 !function=msz_dtype
+
+# Either a copy of rd (at bit 0), or a different source
+# as propagated via the MOVPRFX instruction.
+%reg_movprfx    0:5
+
+###########################################################################
+# Named attribute sets.  These are used to make nice(er) names
+# when creating helpers common to those for the individual
+# instruction patterns.
+
+&rr_esz         rd rn esz
+&rri            rd rn imm
+&rr_dbm         rd rn dbm
+&rrri           rd rn rm imm
+&rri_esz        rd rn imm esz
+&rrri_esz       rd rn rm imm esz
+&rrr_esz        rd rn rm esz
+&rrx_esz        rd rn rm index esz
+&rpr_esz        rd pg rn esz
+&rpr_s          rd pg rn s
+&rprr_s         rd pg rn rm s
+&rprr_esz       rd pg rn rm esz
+&rrrr_esz       rd ra rn rm esz
+&rrxr_esz       rd rn rm ra index esz
+&rprrr_esz      rd pg rn rm ra esz
+&rpri_esz       rd pg rn imm esz
+&ptrue          rd esz pat s
+&incdec_cnt     rd pat esz imm d u
+&incdec2_cnt    rd rn pat esz imm d u
+&incdec_pred    rd pg esz d u
+&incdec2_pred   rd rn pg esz d u
+&rprr_load      rd pg rn rm dtype nreg
+&rpri_load      rd pg rn imm dtype nreg
+&rprr_store     rd pg rn rm msz esz nreg
+&rpri_store     rd pg rn imm msz esz nreg
+&rprr_gather_load       rd pg rn rm esz msz u ff xs scale
+&rpri_gather_load       rd pg rn imm esz msz u ff
+&rprr_scatter_store     rd pg rn rm esz msz xs scale
+&rpri_scatter_store     rd pg rn imm esz msz
+
+###########################################################################
+# Named instruction formats.  These are generally used to
+# reduce the amount of duplication between instruction patterns.
+
+# Two operand with unused vector element size
+@pd_pn_e0       ........ ........ ....... rn:4 . rd:4           &rr_esz esz=0
+
+# Two operand
+@pd_pn          ........ esz:2 .. .... ....... rn:4 . rd:4      &rr_esz
+@rd_rn          ........ esz:2 ...... ...... rn:5 rd:5          &rr_esz
+
+# Two operand with governing predicate, flags setting
+@pd_pg_pn_s     ........ . s:1 ...... .. pg:4 . rn:4 . rd:4     &rpr_s
+@pd_pg_pn_s0    ........ . .   ...... .. pg:4 . rn:4 . rd:4     &rpr_s s=0
+
+# Three operand with unused vector element size
+@rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
+
+# Three predicate operand, with governing predicate, flag setting
+@pd_pg_pn_pm_s  ........ . s:1 .. rm:4 .. pg:4 . rn:4 . rd:4    &rprr_s
+
+# Three operand, vector element size
+@rd_rn_rm       ........ esz:2 . rm:5 ... ... rn:5 rd:5         &rrr_esz
+@pd_pn_pm       ........ esz:2 .. rm:4 ....... rn:4 . rd:4      &rrr_esz
+@rdn_rm         ........ esz:2 ...... ...... rm:5 rd:5 \
+                &rrr_esz rn=%reg_movprfx
+@rdn_rm_e0      ........ .. ...... ...... rm:5 rd:5 \
+                &rrr_esz rn=%reg_movprfx esz=0
+@rdn_sh_i8u     ........ esz:2 ...... ...... ..... rd:5 \
+                &rri_esz rn=%reg_movprfx imm=%sh8_i8u
+@rdn_i8u        ........ esz:2 ...... ... imm:8 rd:5 \
+                &rri_esz rn=%reg_movprfx
+@rdn_i8s        ........ esz:2 ...... ... imm:s8 rd:5 \
+                &rri_esz rn=%reg_movprfx
+
+# Four operand, vector element size
+@rda_rn_rm      ........ esz:2 . rm:5 ... ... rn:5 rd:5 \
+                &rrrr_esz ra=%reg_movprfx
+
+# Four operand with unused vector element size
+@rda_rn_rm_e0   ........ ... rm:5 ... ... rn:5 rd:5 \
+                &rrrr_esz esz=0 ra=%reg_movprfx
+@rdn_ra_rm_e0   ........ ... rm:5 ... ... ra:5 rd:5 \
+                &rrrr_esz esz=0 rn=%reg_movprfx
+
+# Three operand with "memory" size, aka immediate left shift
+@rd_rn_msz_rm   ........ ... rm:5 .... imm:2 rn:5 rd:5          &rrri
+
+# Two register operand, with governing predicate, vector element size
+@rdn_pg_rm      ........ esz:2 ... ... ... pg:3 rm:5 rd:5 \
+                &rprr_esz rn=%reg_movprfx
+@rdm_pg_rn      ........ esz:2 ... ... ... pg:3 rn:5 rd:5 \
+                &rprr_esz rm=%reg_movprfx
+@rd_pg4_rn_rm   ........ esz:2 . rm:5  .. pg:4  rn:5 rd:5       &rprr_esz
+@pd_pg_rn_rm    ........ esz:2 . rm:5 ... pg:3 rn:5 . rd:4      &rprr_esz
+
+# Three register operand, with governing predicate, vector element size
+@rda_pg_rn_rm   ........ esz:2 . rm:5  ... pg:3 rn:5 rd:5 \
+                &rprrr_esz ra=%reg_movprfx
+@rdn_pg_ra_rm   ........ esz:2 . rm:5  ... pg:3 ra:5 rd:5 \
+                &rprrr_esz rn=%reg_movprfx
+@rdn_pg_rm_ra   ........ esz:2 . ra:5  ... pg:3 rm:5 rd:5 \
+                &rprrr_esz rn=%reg_movprfx
+@rd_pg_rn_rm   ........ esz:2 . rm:5 ... pg:3 rn:5 rd:5       &rprr_esz
+
+# One register operand, with governing predicate, vector element size
+@rd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 rd:5       &rpr_esz
+@rd_pg4_pn      ........ esz:2 ... ... .. pg:4 . rn:4 rd:5      &rpr_esz
+@pd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 . rd:4     &rpr_esz
+
+# One register operand, with governing predicate, no vector element size
+@rd_pg_rn_e0    ........ .. ... ... ... pg:3 rn:5 rd:5          &rpr_esz esz=0
+
+# Two register operands with a 6-bit signed immediate.
+@rd_rn_i6       ........ ... rn:5 ..... imm:s6 rd:5             &rri
+
+# Two register operand, one immediate operand, with predicate,
+# element size encoded as TSZHL.
+@rdn_pg_tszimm_shl  ........ .. ... ... ... pg:3 ..... rd:5 \
+                    &rpri_esz rn=%reg_movprfx esz=%tszimm_esz imm=%tszimm_shl
+@rdn_pg_tszimm_shr  ........ .. ... ... ... pg:3 ..... rd:5 \
+                    &rpri_esz rn=%reg_movprfx esz=%tszimm_esz imm=%tszimm_shr
+
+# Similarly without predicate.
+@rd_rn_tszimm_shl   ........ .. ... ... ...... rn:5 rd:5 \
+                    &rri_esz esz=%tszimm16_esz imm=%tszimm16_shl
+@rd_rn_tszimm_shr   ........ .. ... ... ...... rn:5 rd:5 \
+                    &rri_esz esz=%tszimm16_esz imm=%tszimm16_shr
+
+# Two register operand, one immediate operand, with 4-bit predicate.
+# User must fill in imm.
+@rdn_pg4        ........ esz:2 .. pg:4 ... ........ rd:5 \
+                &rpri_esz rn=%reg_movprfx
+
+# Two register operand, one one-bit floating-point operand.
+@rdn_i1         ........ esz:2 ......... pg:3 .... imm:1 rd:5 \
+                &rpri_esz rn=%reg_movprfx
+
+# Two register operand, one encoded bitmask.
+@rdn_dbm        ........ .. .... dbm:13 rd:5 \
+                &rr_dbm rn=%reg_movprfx
+
+# Predicate output, vector and immediate input,
+# controlling predicate, element size.
+@pd_pg_rn_i7    ........ esz:2 . imm:7 . pg:3 rn:5 . rd:4       &rpri_esz
+@pd_pg_rn_i5    ........ esz:2 . imm:s5 ... pg:3 rn:5 . rd:4    &rpri_esz
+
+# Basic Load/Store with 9-bit immediate offset
+@pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
+                &rri imm=%imm9_16_10
+@rd_rn_i9       ........ ........ ...... rn:5 rd:5      \
+                &rri imm=%imm9_16_10
+
+# One register, pattern, and uint4+1.
+# User must fill in U and D.
+@incdec_cnt     ........ esz:2 .. .... ...... pat:5 rd:5 \
+                &incdec_cnt imm=%imm4_16_p1
+@incdec2_cnt    ........ esz:2 .. .... ...... pat:5 rd:5 \
+                &incdec2_cnt imm=%imm4_16_p1 rn=%reg_movprfx
+
+# One register, predicate.
+# User must fill in U and D.
+@incdec_pred    ........ esz:2 .... .. ..... .. pg:4 rd:5       &incdec_pred
+@incdec2_pred   ........ esz:2 .... .. ..... .. pg:4 rd:5 \
+                &incdec2_pred rn=%reg_movprfx
+
+# Loads; user must fill in NREG.
+@rprr_load_dt   ....... dtype:4 rm:5 ... pg:3 rn:5 rd:5         &rprr_load
+@rpri_load_dt   ....... dtype:4 . imm:s4 ... pg:3 rn:5 rd:5     &rpri_load
+
+@rprr_load_msz  ....... .... rm:5 ... pg:3 rn:5 rd:5 \
+                &rprr_load dtype=%msz_dtype
+@rpri_load_msz  ....... .... . imm:s4 ... pg:3 rn:5 rd:5 \
+                &rpri_load dtype=%msz_dtype
+
+# Gather Loads.
+@rprr_g_load_u        ....... .. .    . rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rprr_g_load_xs_u     ....... .. xs:1 . rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_xs_u_sc  ....... .. xs:1 scale:1 rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_xs_sc    ....... .. xs:1 scale:1 rm:5 . . ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_u_sc     ....... .. .    scale:1 rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rprr_g_load_sc       ....... .. .    scale:1 rm:5 . . ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rpri_g_load          ....... msz:2 .. imm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rpri_gather_load
+
+# Stores; user must fill in ESZ, MSZ, NREG as needed.
+@rprr_store         ....... ..    ..     rm:5 ... pg:3 rn:5 rd:5    &rprr_store
+@rpri_store_msz     ....... msz:2 .. . imm:s4 ... pg:3 rn:5 rd:5    &rpri_store
+@rprr_store_esz_n0  ....... ..    esz:2  rm:5 ... pg:3 rn:5 rd:5 \
+                    &rprr_store nreg=0
+@rprr_scatter_store ....... msz:2 ..     rm:5 ... pg:3 rn:5 rd:5 \
+                    &rprr_scatter_store
+@rpri_scatter_store ....... msz:2 ..    imm:5 ... pg:3 rn:5 rd:5 \
+                    &rpri_scatter_store
+
+# Two registers and a scalar by N-bit index
+@rrx_3          ........ .. . ..      rm:3 ...... rn:5 rd:5 \
+                &rrx_esz index=%index3_22_19
+@rrx_2          ........ .. . index:2 rm:3 ...... rn:5 rd:5  &rrx_esz
+@rrx_1          ........ .. . index:1 rm:4 ...... rn:5 rd:5  &rrx_esz
+
+# Two registers and a scalar by N-bit index, alternate
+@rrx_3a         ........ .. . .. rm:3 ...... rn:5 rd:5 \
+                &rrx_esz index=%index3_19_11
+@rrx_2a         ........ .. . .  rm:4 ...... rn:5 rd:5 \
+                &rrx_esz index=%index2_20_11
+
+# Three registers and a scalar by N-bit index
+@rrxr_3         ........ .. . ..      rm:3 ...... rn:5 rd:5 \
+                &rrxr_esz ra=%reg_movprfx index=%index3_22_19
+@rrxr_2         ........ .. . index:2 rm:3 ...... rn:5 rd:5 \
+                &rrxr_esz ra=%reg_movprfx
+@rrxr_1         ........ .. . index:1 rm:4 ...... rn:5 rd:5 \
+                &rrxr_esz ra=%reg_movprfx
+
+# Three registers and a scalar by N-bit index, alternate
+@rrxr_3a        ........ .. ... rm:3 ...... rn:5 rd:5 \
+                &rrxr_esz ra=%reg_movprfx index=%index3_19_11
+@rrxr_2a        ........ .. ..  rm:4 ...... rn:5 rd:5 \
+                &rrxr_esz ra=%reg_movprfx index=%index2_20_11
+
+###########################################################################
+# Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
+
+### SVE Integer Arithmetic - Binary Predicated Group
+
+# SVE bitwise logical vector operations (predicated)
+ORR_zpzz        00000100 .. 011 000 000 ... ..... .....   @rdn_pg_rm
+EOR_zpzz        00000100 .. 011 001 000 ... ..... .....   @rdn_pg_rm
+AND_zpzz        00000100 .. 011 010 000 ... ..... .....   @rdn_pg_rm
+BIC_zpzz        00000100 .. 011 011 000 ... ..... .....   @rdn_pg_rm
+
+# SVE integer add/subtract vectors (predicated)
+ADD_zpzz        00000100 .. 000 000 000 ... ..... .....   @rdn_pg_rm
+SUB_zpzz        00000100 .. 000 001 000 ... ..... .....   @rdn_pg_rm
+SUB_zpzz        00000100 .. 000 011 000 ... ..... .....   @rdm_pg_rn # SUBR
+
+# SVE integer min/max/difference (predicated)
+SMAX_zpzz       00000100 .. 001 000 000 ... ..... .....   @rdn_pg_rm
+UMAX_zpzz       00000100 .. 001 001 000 ... ..... .....   @rdn_pg_rm
+SMIN_zpzz       00000100 .. 001 010 000 ... ..... .....   @rdn_pg_rm
+UMIN_zpzz       00000100 .. 001 011 000 ... ..... .....   @rdn_pg_rm
+SABD_zpzz       00000100 .. 001 100 000 ... ..... .....   @rdn_pg_rm
+UABD_zpzz       00000100 .. 001 101 000 ... ..... .....   @rdn_pg_rm
+
+# SVE integer multiply/divide (predicated)
+MUL_zpzz        00000100 .. 010 000 000 ... ..... .....   @rdn_pg_rm
+SMULH_zpzz      00000100 .. 010 010 000 ... ..... .....   @rdn_pg_rm
+UMULH_zpzz      00000100 .. 010 011 000 ... ..... .....   @rdn_pg_rm
+# Note that divide requires size >= 2; below 2 is unallocated.
+SDIV_zpzz       00000100 .. 010 100 000 ... ..... .....   @rdn_pg_rm
+UDIV_zpzz       00000100 .. 010 101 000 ... ..... .....   @rdn_pg_rm
+SDIV_zpzz       00000100 .. 010 110 000 ... ..... .....   @rdm_pg_rn # SDIVR
+UDIV_zpzz       00000100 .. 010 111 000 ... ..... .....   @rdm_pg_rn # UDIVR
+
+### SVE Integer Reduction Group
+
+# SVE bitwise logical reduction (predicated)
+ORV             00000100 .. 011 000 001 ... ..... .....         @rd_pg_rn
+EORV            00000100 .. 011 001 001 ... ..... .....         @rd_pg_rn
+ANDV            00000100 .. 011 010 001 ... ..... .....         @rd_pg_rn
+
+# SVE constructive prefix (predicated)
+MOVPRFX_z       00000100 .. 010 000 001 ... ..... .....         @rd_pg_rn
+MOVPRFX_m       00000100 .. 010 001 001 ... ..... .....         @rd_pg_rn
+
+# SVE integer add reduction (predicated)
+# Note that saddv requires size != 3.
+UADDV           00000100 .. 000 001 001 ... ..... .....         @rd_pg_rn
+SADDV           00000100 .. 000 000 001 ... ..... .....         @rd_pg_rn
+
+# SVE integer min/max reduction (predicated)
+SMAXV           00000100 .. 001 000 001 ... ..... .....         @rd_pg_rn
+UMAXV           00000100 .. 001 001 001 ... ..... .....         @rd_pg_rn
+SMINV           00000100 .. 001 010 001 ... ..... .....         @rd_pg_rn
+UMINV           00000100 .. 001 011 001 ... ..... .....         @rd_pg_rn
+
+### SVE Shift by Immediate - Predicated Group
+
+# SVE bitwise shift by immediate (predicated)
+ASR_zpzi        00000100 .. 000 000 100 ... .. ... .....  @rdn_pg_tszimm_shr
+LSR_zpzi        00000100 .. 000 001 100 ... .. ... .....  @rdn_pg_tszimm_shr
+LSL_zpzi        00000100 .. 000 011 100 ... .. ... .....  @rdn_pg_tszimm_shl
+ASRD            00000100 .. 000 100 100 ... .. ... .....  @rdn_pg_tszimm_shr
+SQSHL_zpzi      00000100 .. 000 110 100 ... .. ... .....  @rdn_pg_tszimm_shl
+UQSHL_zpzi      00000100 .. 000 111 100 ... .. ... .....  @rdn_pg_tszimm_shl
+SRSHR           00000100 .. 001 100 100 ... .. ... .....  @rdn_pg_tszimm_shr
+URSHR           00000100 .. 001 101 100 ... .. ... .....  @rdn_pg_tszimm_shr
+SQSHLU          00000100 .. 001 111 100 ... .. ... .....  @rdn_pg_tszimm_shl
+
+# SVE bitwise shift by vector (predicated)
+ASR_zpzz        00000100 .. 010 000 100 ... ..... .....   @rdn_pg_rm
+LSR_zpzz        00000100 .. 010 001 100 ... ..... .....   @rdn_pg_rm
+LSL_zpzz        00000100 .. 010 011 100 ... ..... .....   @rdn_pg_rm
+ASR_zpzz        00000100 .. 010 100 100 ... ..... .....   @rdm_pg_rn # ASRR
+LSR_zpzz        00000100 .. 010 101 100 ... ..... .....   @rdm_pg_rn # LSRR
+LSL_zpzz        00000100 .. 010 111 100 ... ..... .....   @rdm_pg_rn # LSLR
+
+# SVE bitwise shift by wide elements (predicated)
+# Note these require size != 3.
+ASR_zpzw        00000100 .. 011 000 100 ... ..... .....         @rdn_pg_rm
+LSR_zpzw        00000100 .. 011 001 100 ... ..... .....         @rdn_pg_rm
+LSL_zpzw        00000100 .. 011 011 100 ... ..... .....         @rdn_pg_rm
+
+### SVE Integer Arithmetic - Unary Predicated Group
+
+# SVE unary bit operations (predicated)
+# Note esz != 0 for FABS and FNEG.
+CLS             00000100 .. 011 000 101 ... ..... .....         @rd_pg_rn
+CLZ             00000100 .. 011 001 101 ... ..... .....         @rd_pg_rn
+CNT_zpz         00000100 .. 011 010 101 ... ..... .....         @rd_pg_rn
+CNOT            00000100 .. 011 011 101 ... ..... .....         @rd_pg_rn
+NOT_zpz         00000100 .. 011 110 101 ... ..... .....         @rd_pg_rn
+FABS            00000100 .. 011 100 101 ... ..... .....         @rd_pg_rn
+FNEG            00000100 .. 011 101 101 ... ..... .....         @rd_pg_rn
+
+# SVE integer unary operations (predicated)
+# Note esz > original size for extensions.
+ABS             00000100 .. 010 110 101 ... ..... .....         @rd_pg_rn
+NEG             00000100 .. 010 111 101 ... ..... .....         @rd_pg_rn
+SXTB            00000100 .. 010 000 101 ... ..... .....         @rd_pg_rn
+UXTB            00000100 .. 010 001 101 ... ..... .....         @rd_pg_rn
+SXTH            00000100 .. 010 010 101 ... ..... .....         @rd_pg_rn
+UXTH            00000100 .. 010 011 101 ... ..... .....         @rd_pg_rn
+SXTW            00000100 .. 010 100 101 ... ..... .....         @rd_pg_rn
+UXTW            00000100 .. 010 101 101 ... ..... .....         @rd_pg_rn
+
+### SVE Floating Point Compare - Vectors Group
+
+# SVE floating-point compare vectors
+FCMGE_ppzz      01100101 .. 0 ..... 010 ... ..... 0 ....        @pd_pg_rn_rm
+FCMGT_ppzz      01100101 .. 0 ..... 010 ... ..... 1 ....        @pd_pg_rn_rm
+FCMEQ_ppzz      01100101 .. 0 ..... 011 ... ..... 0 ....        @pd_pg_rn_rm
+FCMNE_ppzz      01100101 .. 0 ..... 011 ... ..... 1 ....        @pd_pg_rn_rm
+FCMUO_ppzz      01100101 .. 0 ..... 110 ... ..... 0 ....        @pd_pg_rn_rm
+FACGE_ppzz      01100101 .. 0 ..... 110 ... ..... 1 ....        @pd_pg_rn_rm
+FACGT_ppzz      01100101 .. 0 ..... 111 ... ..... 1 ....        @pd_pg_rn_rm
+
+### SVE Integer Multiply-Add Group
+
+# SVE integer multiply-add writing addend (predicated)
+MLA             00000100 .. 0 ..... 010 ... ..... .....   @rda_pg_rn_rm
+MLS             00000100 .. 0 ..... 011 ... ..... .....   @rda_pg_rn_rm
+
+# SVE integer multiply-add writing multiplicand (predicated)
+MLA             00000100 .. 0 ..... 110 ... ..... .....   @rdn_pg_ra_rm # MAD
+MLS             00000100 .. 0 ..... 111 ... ..... .....   @rdn_pg_ra_rm # MSB
+
+### SVE Integer Arithmetic - Unpredicated Group
+
+# SVE integer add/subtract vectors (unpredicated)
+ADD_zzz         00000100 .. 1 ..... 000 000 ..... .....         @rd_rn_rm
+SUB_zzz         00000100 .. 1 ..... 000 001 ..... .....         @rd_rn_rm
+SQADD_zzz       00000100 .. 1 ..... 000 100 ..... .....         @rd_rn_rm
+UQADD_zzz       00000100 .. 1 ..... 000 101 ..... .....         @rd_rn_rm
+SQSUB_zzz       00000100 .. 1 ..... 000 110 ..... .....         @rd_rn_rm
+UQSUB_zzz       00000100 .. 1 ..... 000 111 ..... .....         @rd_rn_rm
+
+### SVE Logical - Unpredicated Group
+
+# SVE bitwise logical operations (unpredicated)
+AND_zzz         00000100 00 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+ORR_zzz         00000100 01 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+EOR_zzz         00000100 10 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+BIC_zzz         00000100 11 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+
+XAR             00000100 .. 1 ..... 001 101 rm:5  rd:5   &rrri_esz \
+                rn=%reg_movprfx esz=%tszimm16_esz imm=%tszimm16_shr
+
+# SVE2 bitwise ternary operations
+EOR3            00000100 00 1 ..... 001 110 ..... .....         @rdn_ra_rm_e0
+BSL             00000100 00 1 ..... 001 111 ..... .....         @rdn_ra_rm_e0
+BCAX            00000100 01 1 ..... 001 110 ..... .....         @rdn_ra_rm_e0
+BSL1N           00000100 01 1 ..... 001 111 ..... .....         @rdn_ra_rm_e0
+BSL2N           00000100 10 1 ..... 001 111 ..... .....         @rdn_ra_rm_e0
+NBSL            00000100 11 1 ..... 001 111 ..... .....         @rdn_ra_rm_e0
+
+### SVE Index Generation Group
+
+# SVE index generation (immediate start, immediate increment)
+INDEX_ii        00000100 esz:2 1 imm2:s5 010000 imm1:s5 rd:5
+
+# SVE index generation (immediate start, register increment)
+INDEX_ir        00000100 esz:2 1 rm:5 010010 imm:s5 rd:5
+
+# SVE index generation (register start, immediate increment)
+INDEX_ri        00000100 esz:2 1 imm:s5 010001 rn:5 rd:5
+
+# SVE index generation (register start, register increment)
+INDEX_rr        00000100 .. 1 ..... 010011 ..... .....          @rd_rn_rm
+
+### SVE / Streaming SVE Stack Allocation Group
+
+# SVE stack frame adjustment
+ADDVL           00000100 001 ..... 01010 ...... .....           @rd_rn_i6
+ADDSVL          00000100 001 ..... 01011 ...... .....           @rd_rn_i6
+ADDPL           00000100 011 ..... 01010 ...... .....           @rd_rn_i6
+ADDSPL          00000100 011 ..... 01011 ...... .....           @rd_rn_i6
+
+# SVE stack frame size
+RDVL            00000100 101 11111 01010 imm:s6 rd:5
+RDSVL           00000100 101 11111 01011 imm:s6 rd:5
+
+### SVE Bitwise Shift - Unpredicated Group
+
+# SVE bitwise shift by immediate (unpredicated)
+ASR_zzi         00000100 .. 1 ..... 1001 00 ..... .....  @rd_rn_tszimm_shr
+LSR_zzi         00000100 .. 1 ..... 1001 01 ..... .....  @rd_rn_tszimm_shr
+LSL_zzi         00000100 .. 1 ..... 1001 11 ..... .....  @rd_rn_tszimm_shl
+
+# SVE bitwise shift by wide elements (unpredicated)
+# Note esz != 3
+ASR_zzw         00000100 .. 1 ..... 1000 00 ..... .....         @rd_rn_rm
+LSR_zzw         00000100 .. 1 ..... 1000 01 ..... .....         @rd_rn_rm
+LSL_zzw         00000100 .. 1 ..... 1000 11 ..... .....         @rd_rn_rm
+
+### SVE Compute Vector Address Group
+
+# SVE vector address generation
+ADR_s32         00000100 00 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_u32         00000100 01 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_p32         00000100 10 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_p64         00000100 11 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+
+### SVE Integer Misc - Unpredicated Group
+
+# SVE constructive prefix (unpredicated)
+MOVPRFX         00000100 00 1 00000 101111 rn:5 rd:5
+
+# SVE floating-point exponential accelerator
+# Note esz != 0
+FEXPA           00000100 .. 1 00000 101110 ..... .....          @rd_rn
+
+# SVE floating-point trig select coefficient
+# Note esz != 0
+FTSSEL          00000100 .. 1 ..... 101100 ..... .....          @rd_rn_rm
+
+### SVE Element Count Group
+
+# SVE element count
+CNT_r           00000100 .. 10 .... 1110 0 0 ..... .....    @incdec_cnt d=0 u=1
+
+# SVE inc/dec register by element count
+INCDEC_r        00000100 .. 11 .... 1110 0 d:1 ..... .....      @incdec_cnt u=1
+
+# SVE saturating inc/dec register by element count
+SINCDEC_r_32    00000100 .. 10 .... 1111 d:1 u:1 ..... .....    @incdec_cnt
+SINCDEC_r_64    00000100 .. 11 .... 1111 d:1 u:1 ..... .....    @incdec_cnt
+
+# SVE inc/dec vector by element count
+# Note this requires esz != 0.
+INCDEC_v        00000100 .. 1 1 .... 1100 0 d:1 ..... .....    @incdec2_cnt u=1
+
+# SVE saturating inc/dec vector by element count
+# Note these require esz != 0.
+SINCDEC_v       00000100 .. 1 0 .... 1100 d:1 u:1 ..... .....   @incdec2_cnt
+
+### SVE Bitwise Immediate Group
+
+# SVE bitwise logical with immediate (unpredicated)
+ORR_zzi         00000101 00 0000 ............. .....            @rdn_dbm
+EOR_zzi         00000101 01 0000 ............. .....            @rdn_dbm
+AND_zzi         00000101 10 0000 ............. .....            @rdn_dbm
+
+# SVE broadcast bitmask immediate
+DUPM            00000101 11 0000 dbm:13 rd:5
+
+### SVE Integer Wide Immediate - Predicated Group
+
+# SVE copy floating-point immediate (predicated)
+FCPY            00000101 .. 01 .... 110 imm:8 .....             @rdn_pg4
+
+# SVE copy integer immediate (predicated)
+{
+  INVALID       00000101 00 01 ---- 01 1 -------- -----
+  CPY_m_i       00000101 .. 01 .... 01 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+}
+{
+  INVALID       00000101 00 01 ---- 00 1 -------- -----
+  CPY_z_i       00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+}
+
+### SVE Permute - Extract Group
+
+# SVE extract vector (destructive)
+EXT             00000101 001 ..... 000 ... rm:5 rd:5 \
+                &rrri rn=%reg_movprfx imm=%imm8_16_10
+
+# SVE2 extract vector (constructive)
+EXT_sve2        00000101 011 ..... 000 ... rn:5 rd:5 \
+                &rri imm=%imm8_16_10
+
+### SVE Permute - Unpredicated Group
+
+# SVE broadcast general register
+DUP_s           00000101 .. 1 00000 001110 ..... .....          @rd_rn
+
+# SVE broadcast indexed element
+DUP_x           00000101 .. 1 ..... 001000 rn:5 rd:5 \
+                &rri imm=%imm7_22_16
+
+# SVE insert SIMD&FP scalar register
+INSR_f          00000101 .. 1 10100 001110 ..... .....          @rdn_rm
+
+# SVE insert general register
+INSR_r          00000101 .. 1 00100 001110 ..... .....          @rdn_rm
+
+# SVE reverse vector elements
+REV_v           00000101 .. 1 11000 001110 ..... .....          @rd_rn
+
+# SVE vector table lookup
+TBL             00000101 .. 1 ..... 001100 ..... .....          @rd_rn_rm
+
+# SVE unpack vector elements
+UNPK            00000101 esz:2 1100 u:1 h:1 001110 rn:5 rd:5
+
+# SVE2 Table Lookup (three sources)
+
+TBL_sve2        00000101 .. 1 ..... 001010 ..... .....          @rd_rn_rm
+TBX             00000101 .. 1 ..... 001011 ..... .....          @rd_rn_rm
+
+### SVE Permute - Predicates Group
+
+# SVE permute predicate elements
+ZIP1_p          00000101 .. 10 .... 010 000 0 .... 0 ....       @pd_pn_pm
+ZIP2_p          00000101 .. 10 .... 010 001 0 .... 0 ....       @pd_pn_pm
+UZP1_p          00000101 .. 10 .... 010 010 0 .... 0 ....       @pd_pn_pm
+UZP2_p          00000101 .. 10 .... 010 011 0 .... 0 ....       @pd_pn_pm
+TRN1_p          00000101 .. 10 .... 010 100 0 .... 0 ....       @pd_pn_pm
+TRN2_p          00000101 .. 10 .... 010 101 0 .... 0 ....       @pd_pn_pm
+
+# SVE reverse predicate elements
+REV_p           00000101 .. 11 0100 010 000 0 .... 0 ....       @pd_pn
+
+# SVE unpack predicate elements
+PUNPKLO         00000101 00 11 0000 010 000 0 .... 0 ....       @pd_pn_e0
+PUNPKHI         00000101 00 11 0001 010 000 0 .... 0 ....       @pd_pn_e0
+
+### SVE Permute - Interleaving Group
+
+# SVE permute vector elements
+ZIP1_z          00000101 .. 1 ..... 011 000 ..... .....         @rd_rn_rm
+ZIP2_z          00000101 .. 1 ..... 011 001 ..... .....         @rd_rn_rm
+UZP1_z          00000101 .. 1 ..... 011 010 ..... .....         @rd_rn_rm
+UZP2_z          00000101 .. 1 ..... 011 011 ..... .....         @rd_rn_rm
+TRN1_z          00000101 .. 1 ..... 011 100 ..... .....         @rd_rn_rm
+TRN2_z          00000101 .. 1 ..... 011 101 ..... .....         @rd_rn_rm
+
+# SVE2 permute vector segments
+ZIP1_q          00000101 10 1 ..... 000 000 ..... .....         @rd_rn_rm_e0
+ZIP2_q          00000101 10 1 ..... 000 001 ..... .....         @rd_rn_rm_e0
+UZP1_q          00000101 10 1 ..... 000 010 ..... .....         @rd_rn_rm_e0
+UZP2_q          00000101 10 1 ..... 000 011 ..... .....         @rd_rn_rm_e0
+TRN1_q          00000101 10 1 ..... 000 110 ..... .....         @rd_rn_rm_e0
+TRN2_q          00000101 10 1 ..... 000 111 ..... .....         @rd_rn_rm_e0
+
+### SVE Permute - Predicated Group
+
+# SVE compress active elements
+# Note esz >= 2
+COMPACT         00000101 .. 100001 100 ... ..... .....          @rd_pg_rn
+
+# SVE conditionally broadcast element to vector
+CLASTA_z        00000101 .. 10100 0 100 ... ..... .....         @rdn_pg_rm
+CLASTB_z        00000101 .. 10100 1 100 ... ..... .....         @rdn_pg_rm
+
+# SVE conditionally copy element to SIMD&FP scalar
+CLASTA_v        00000101 .. 10101 0 100 ... ..... .....         @rd_pg_rn
+CLASTB_v        00000101 .. 10101 1 100 ... ..... .....         @rd_pg_rn
+
+# SVE conditionally copy element to general register
+CLASTA_r        00000101 .. 11000 0 101 ... ..... .....         @rd_pg_rn
+CLASTB_r        00000101 .. 11000 1 101 ... ..... .....         @rd_pg_rn
+
+# SVE copy element to SIMD&FP scalar register
+LASTA_v         00000101 .. 10001 0 100 ... ..... .....         @rd_pg_rn
+LASTB_v         00000101 .. 10001 1 100 ... ..... .....         @rd_pg_rn
+
+# SVE copy element to general register
+LASTA_r         00000101 .. 10000 0 101 ... ..... .....         @rd_pg_rn
+LASTB_r         00000101 .. 10000 1 101 ... ..... .....         @rd_pg_rn
+
+# SVE copy element from SIMD&FP scalar register
+CPY_m_v         00000101 .. 100000 100 ... ..... .....          @rd_pg_rn
+
+# SVE copy element from general register to vector (predicated)
+CPY_m_r         00000101 .. 101000 101 ... ..... .....          @rd_pg_rn
+
+# SVE reverse within elements
+# Note esz >= operation size
+REVB            00000101 .. 1001 00 100 ... ..... .....         @rd_pg_rn
+REVH            00000101 .. 1001 01 100 ... ..... .....         @rd_pg_rn
+REVW            00000101 .. 1001 10 100 ... ..... .....         @rd_pg_rn
+RBIT            00000101 .. 1001 11 100 ... ..... .....         @rd_pg_rn
+REVD            00000101 00 1011 10 100 ... ..... .....         @rd_pg_rn_e0
+
+# SVE vector splice (predicated, destructive)
+SPLICE          00000101 .. 101 100 100 ... ..... .....         @rdn_pg_rm
+
+# SVE2 vector splice (predicated, constructive)
+SPLICE_sve2     00000101 .. 101 101 100 ... ..... .....         @rd_pg_rn
+
+### SVE Select Vectors Group
+
+# SVE select vector elements (predicated)
+SEL_zpzz        00000101 .. 1 ..... 11 .... ..... .....         @rd_pg4_rn_rm
+
+### SVE Integer Compare - Vectors Group
+
+# SVE integer compare_vectors
+CMPHS_ppzz      00100100 .. 0 ..... 000 ... ..... 0 ....        @pd_pg_rn_rm
+CMPHI_ppzz      00100100 .. 0 ..... 000 ... ..... 1 ....        @pd_pg_rn_rm
+CMPGE_ppzz      00100100 .. 0 ..... 100 ... ..... 0 ....        @pd_pg_rn_rm
+CMPGT_ppzz      00100100 .. 0 ..... 100 ... ..... 1 ....        @pd_pg_rn_rm
+CMPEQ_ppzz      00100100 .. 0 ..... 101 ... ..... 0 ....        @pd_pg_rn_rm
+CMPNE_ppzz      00100100 .. 0 ..... 101 ... ..... 1 ....        @pd_pg_rn_rm
+
+# SVE integer compare with wide elements
+# Note these require esz != 3.
+CMPEQ_ppzw      00100100 .. 0 ..... 001 ... ..... 0 ....        @pd_pg_rn_rm
+CMPNE_ppzw      00100100 .. 0 ..... 001 ... ..... 1 ....        @pd_pg_rn_rm
+CMPGE_ppzw      00100100 .. 0 ..... 010 ... ..... 0 ....        @pd_pg_rn_rm
+CMPGT_ppzw      00100100 .. 0 ..... 010 ... ..... 1 ....        @pd_pg_rn_rm
+CMPLT_ppzw      00100100 .. 0 ..... 011 ... ..... 0 ....        @pd_pg_rn_rm
+CMPLE_ppzw      00100100 .. 0 ..... 011 ... ..... 1 ....        @pd_pg_rn_rm
+CMPHS_ppzw      00100100 .. 0 ..... 110 ... ..... 0 ....        @pd_pg_rn_rm
+CMPHI_ppzw      00100100 .. 0 ..... 110 ... ..... 1 ....        @pd_pg_rn_rm
+CMPLO_ppzw      00100100 .. 0 ..... 111 ... ..... 0 ....        @pd_pg_rn_rm
+CMPLS_ppzw      00100100 .. 0 ..... 111 ... ..... 1 ....        @pd_pg_rn_rm
+
+### SVE Integer Compare - Unsigned Immediate Group
+
+# SVE integer compare with unsigned immediate
+CMPHS_ppzi      00100100 .. 1 ....... 0 ... ..... 0 ....      @pd_pg_rn_i7
+CMPHI_ppzi      00100100 .. 1 ....... 0 ... ..... 1 ....      @pd_pg_rn_i7
+CMPLO_ppzi      00100100 .. 1 ....... 1 ... ..... 0 ....      @pd_pg_rn_i7
+CMPLS_ppzi      00100100 .. 1 ....... 1 ... ..... 1 ....      @pd_pg_rn_i7
+
+### SVE Integer Compare - Signed Immediate Group
+
+# SVE integer compare with signed immediate
+CMPGE_ppzi      00100101 .. 0 ..... 000 ... ..... 0 ....      @pd_pg_rn_i5
+CMPGT_ppzi      00100101 .. 0 ..... 000 ... ..... 1 ....      @pd_pg_rn_i5
+CMPLT_ppzi      00100101 .. 0 ..... 001 ... ..... 0 ....      @pd_pg_rn_i5
+CMPLE_ppzi      00100101 .. 0 ..... 001 ... ..... 1 ....      @pd_pg_rn_i5
+CMPEQ_ppzi      00100101 .. 0 ..... 100 ... ..... 0 ....      @pd_pg_rn_i5
+CMPNE_ppzi      00100101 .. 0 ..... 100 ... ..... 1 ....      @pd_pg_rn_i5
+
+### SVE Predicate Logical Operations Group
+
+# SVE predicate logical operations
+AND_pppp        00100101 0. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+BIC_pppp        00100101 0. 00 .... 01 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+EOR_pppp        00100101 0. 00 .... 01 .... 1 .... 0 ....       @pd_pg_pn_pm_s
+SEL_pppp        00100101 0. 00 .... 01 .... 1 .... 1 ....       @pd_pg_pn_pm_s
+ORR_pppp        00100101 1. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+ORN_pppp        00100101 1. 00 .... 01 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+NOR_pppp        00100101 1. 00 .... 01 .... 1 .... 0 ....       @pd_pg_pn_pm_s
+NAND_pppp       00100101 1. 00 .... 01 .... 1 .... 1 ....       @pd_pg_pn_pm_s
+
+### SVE Predicate Misc Group
+
+# SVE predicate test
+PTEST           00100101 01 010000 11 pg:4 0 rn:4 0 0000
+
+# SVE predicate initialize
+PTRUE           00100101 esz:2 01100 s:1 111000 pat:5 0 rd:4
+
+# SVE initialize FFR
+SETFFR          00100101 0010 1100 1001 0000 0000 0000
+
+# SVE zero predicate register
+PFALSE          00100101 0001 1000 1110 0100 0000 rd:4
+
+# SVE predicate read from FFR (predicated)
+RDFFR_p         00100101 0 s:1 0110001111000 pg:4 0 rd:4
+
+# SVE predicate read from FFR (unpredicated)
+RDFFR           00100101 0001 1001 1111 0000 0000 rd:4
+
+# SVE FFR write from predicate (WRFFR)
+WRFFR           00100101 0010 1000 1001 000 rn:4 00000
+
+# SVE predicate first active
+PFIRST          00100101 01 011 000 11000 00 .... 0 ....        @pd_pn_e0
+
+# SVE predicate next active
+PNEXT           00100101 .. 011 001 11000 10 .... 0 ....        @pd_pn
+
+### SVE Partition Break Group
+
+# SVE propagate break from previous partition
+BRKPA           00100101 0. 00 .... 11 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+BRKPB           00100101 0. 00 .... 11 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+
+# SVE partition break condition
+BRKA_z          00100101 0. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
+BRKB_z          00100101 1. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
+BRKA_m          00100101 00 01000001 .... 0 .... 1 ....         @pd_pg_pn_s0
+BRKB_m          00100101 10 01000001 .... 0 .... 1 ....         @pd_pg_pn_s0
+
+# SVE propagate break to next partition
+BRKN            00100101 0. 01100001 .... 0 .... 0 ....         @pd_pg_pn_s
+
+### SVE Predicate Count Group
+
+# SVE predicate count
+CNTP            00100101 .. 100 000 10 .... 0 .... .....        @rd_pg4_pn
+
+# SVE inc/dec register by predicate count
+INCDECP_r       00100101 .. 10110 d:1 10001 00 .... .....     @incdec_pred u=1
+
+# SVE inc/dec vector by predicate count
+INCDECP_z       00100101 .. 10110 d:1 10000 00 .... .....    @incdec2_pred u=1
+
+# SVE saturating inc/dec register by predicate count
+SINCDECP_r_32   00100101 .. 1010 d:1 u:1 10001 00 .... .....    @incdec_pred
+SINCDECP_r_64   00100101 .. 1010 d:1 u:1 10001 10 .... .....    @incdec_pred
+
+# SVE saturating inc/dec vector by predicate count
+SINCDECP_z      00100101 .. 1010 d:1 u:1 10000 00 .... .....    @incdec2_pred
+
+### SVE Integer Compare - Scalars Group
+
+# SVE conditionally terminate scalars
+CTERM           00100101 1 sf:1 1 rm:5 001000 rn:5 ne:1 0000
+
+# SVE integer compare scalar count and limit
+WHILE           00100101 esz:2 1 rm:5 000 sf:1 u:1 lt:1 rn:5 eq:1 rd:4
+
+# SVE2 pointer conflict compare
+WHILE_ptr       00100101 esz:2 1 rm:5 001 100 rn:5 rw:1 rd:4
+
+### SVE Integer Wide Immediate - Unpredicated Group
+
+# SVE broadcast floating-point immediate (unpredicated)
+FDUP            00100101 esz:2 111 00 1110 imm:8 rd:5
+
+# SVE broadcast integer immediate (unpredicated)
+{
+  INVALID       00100101 00    111 00 011 1 -------- -----
+  DUP_i         00100101 esz:2 111 00 011 . ........ rd:5       imm=%sh8_i8s
+}
+
+# SVE integer add/subtract immediate (unpredicated)
+{
+  INVALID       00100101 00 100 000 11 1 -------- -----
+  ADD_zzi       00100101 .. 100 000 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 001 11 1 -------- -----
+  SUB_zzi       00100101 .. 100 001 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 011 11 1 -------- -----
+  SUBR_zzi      00100101 .. 100 011 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 100 11 1 -------- -----
+  SQADD_zzi     00100101 .. 100 100 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 101 11 1 -------- -----
+  UQADD_zzi     00100101 .. 100 101 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 110 11 1 -------- -----
+  SQSUB_zzi     00100101 .. 100 110 11 . ........ .....         @rdn_sh_i8u
+}
+{
+  INVALID       00100101 00 100 111 11 1 -------- -----
+  UQSUB_zzi     00100101 .. 100 111 11 . ........ .....         @rdn_sh_i8u
+}
+
+# SVE integer min/max immediate (unpredicated)
+SMAX_zzi        00100101 .. 101 000 110 ........ .....          @rdn_i8s
+UMAX_zzi        00100101 .. 101 001 110 ........ .....          @rdn_i8u
+SMIN_zzi        00100101 .. 101 010 110 ........ .....          @rdn_i8s
+UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
+
+# SVE integer multiply immediate (unpredicated)
+MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
+
+# SVE integer dot product (unpredicated)
+DOT_zzzz        01000100 1 sz:1 0 rm:5 00000 u:1 rn:5 rd:5 \
+                ra=%reg_movprfx
+
+# SVE2 complex dot product (vectors)
+CDOT_zzzz       01000100 esz:2 0 rm:5 0001 rot:2 rn:5 rd:5  ra=%reg_movprfx
+
+#### SVE Multiply - Indexed
+
+# SVE integer dot product (indexed)
+SDOT_zzxw_s     01000100 10 1 ..... 000000 ..... .....   @rrxr_2 esz=2
+SDOT_zzxw_d     01000100 11 1 ..... 000000 ..... .....   @rrxr_1 esz=3
+UDOT_zzxw_s     01000100 10 1 ..... 000001 ..... .....   @rrxr_2 esz=2
+UDOT_zzxw_d     01000100 11 1 ..... 000001 ..... .....   @rrxr_1 esz=3
+
+# SVE2 integer multiply-add (indexed)
+MLA_zzxz_h      01000100 0. 1 ..... 000010 ..... .....   @rrxr_3 esz=1
+MLA_zzxz_s      01000100 10 1 ..... 000010 ..... .....   @rrxr_2 esz=2
+MLA_zzxz_d      01000100 11 1 ..... 000010 ..... .....   @rrxr_1 esz=3
+MLS_zzxz_h      01000100 0. 1 ..... 000011 ..... .....   @rrxr_3 esz=1
+MLS_zzxz_s      01000100 10 1 ..... 000011 ..... .....   @rrxr_2 esz=2
+MLS_zzxz_d      01000100 11 1 ..... 000011 ..... .....   @rrxr_1 esz=3
+
+# SVE2 saturating multiply-add high (indexed)
+SQRDMLAH_zzxz_h 01000100 0. 1 ..... 000100 ..... .....   @rrxr_3 esz=1
+SQRDMLAH_zzxz_s 01000100 10 1 ..... 000100 ..... .....   @rrxr_2 esz=2
+SQRDMLAH_zzxz_d 01000100 11 1 ..... 000100 ..... .....   @rrxr_1 esz=3
+SQRDMLSH_zzxz_h 01000100 0. 1 ..... 000101 ..... .....   @rrxr_3 esz=1
+SQRDMLSH_zzxz_s 01000100 10 1 ..... 000101 ..... .....   @rrxr_2 esz=2
+SQRDMLSH_zzxz_d 01000100 11 1 ..... 000101 ..... .....   @rrxr_1 esz=3
+
+# SVE mixed sign dot product (indexed)
+USDOT_zzxw_s    01000100 10 1 ..... 000110 ..... .....   @rrxr_2 esz=2
+SUDOT_zzxw_s    01000100 10 1 ..... 000111 ..... .....   @rrxr_2 esz=2
+
+# SVE2 saturating multiply-add (indexed)
+SQDMLALB_zzxw_s 01000100 10 1 ..... 0010.0 ..... .....   @rrxr_3a esz=2
+SQDMLALB_zzxw_d 01000100 11 1 ..... 0010.0 ..... .....   @rrxr_2a esz=3
+SQDMLALT_zzxw_s 01000100 10 1 ..... 0010.1 ..... .....   @rrxr_3a esz=2
+SQDMLALT_zzxw_d 01000100 11 1 ..... 0010.1 ..... .....   @rrxr_2a esz=3
+SQDMLSLB_zzxw_s 01000100 10 1 ..... 0011.0 ..... .....   @rrxr_3a esz=2
+SQDMLSLB_zzxw_d 01000100 11 1 ..... 0011.0 ..... .....   @rrxr_2a esz=3
+SQDMLSLT_zzxw_s 01000100 10 1 ..... 0011.1 ..... .....   @rrxr_3a esz=2
+SQDMLSLT_zzxw_d 01000100 11 1 ..... 0011.1 ..... .....   @rrxr_2a esz=3
+
+# SVE2 complex integer dot product (indexed)
+CDOT_zzxw_s     01000100 10 1 index:2 rm:3 0100 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx
+CDOT_zzxw_d     01000100 11 1 index:1 rm:4 0100 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx
+
+# SVE2 complex integer multiply-add (indexed)
+CMLA_zzxz_h     01000100 10 1 index:2 rm:3 0110 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx
+CMLA_zzxz_s     01000100 11 1 index:1 rm:4 0110 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx
+
+# SVE2 complex saturating integer multiply-add (indexed)
+SQRDCMLAH_zzxz_h  01000100 10 1 index:2 rm:3 0111 rot:2 rn:5 rd:5 \
+                  ra=%reg_movprfx
+SQRDCMLAH_zzxz_s  01000100 11 1 index:1 rm:4 0111 rot:2 rn:5 rd:5 \
+                  ra=%reg_movprfx
+
+# SVE2 multiply-add long (indexed)
+SMLALB_zzxw_s   01000100 10 1 ..... 1000.0 ..... .....   @rrxr_3a esz=2
+SMLALB_zzxw_d   01000100 11 1 ..... 1000.0 ..... .....   @rrxr_2a esz=3
+SMLALT_zzxw_s   01000100 10 1 ..... 1000.1 ..... .....   @rrxr_3a esz=2
+SMLALT_zzxw_d   01000100 11 1 ..... 1000.1 ..... .....   @rrxr_2a esz=3
+UMLALB_zzxw_s   01000100 10 1 ..... 1001.0 ..... .....   @rrxr_3a esz=2
+UMLALB_zzxw_d   01000100 11 1 ..... 1001.0 ..... .....   @rrxr_2a esz=3
+UMLALT_zzxw_s   01000100 10 1 ..... 1001.1 ..... .....   @rrxr_3a esz=2
+UMLALT_zzxw_d   01000100 11 1 ..... 1001.1 ..... .....   @rrxr_2a esz=3
+SMLSLB_zzxw_s   01000100 10 1 ..... 1010.0 ..... .....   @rrxr_3a esz=2
+SMLSLB_zzxw_d   01000100 11 1 ..... 1010.0 ..... .....   @rrxr_2a esz=3
+SMLSLT_zzxw_s   01000100 10 1 ..... 1010.1 ..... .....   @rrxr_3a esz=2
+SMLSLT_zzxw_d   01000100 11 1 ..... 1010.1 ..... .....   @rrxr_2a esz=3
+UMLSLB_zzxw_s   01000100 10 1 ..... 1011.0 ..... .....   @rrxr_3a esz=2
+UMLSLB_zzxw_d   01000100 11 1 ..... 1011.0 ..... .....   @rrxr_2a esz=3
+UMLSLT_zzxw_s   01000100 10 1 ..... 1011.1 ..... .....   @rrxr_3a esz=2
+UMLSLT_zzxw_d   01000100 11 1 ..... 1011.1 ..... .....   @rrxr_2a esz=3
+
+# SVE2 integer multiply long (indexed)
+SMULLB_zzx_s    01000100 10 1 ..... 1100.0 ..... .....   @rrx_3a esz=2
+SMULLB_zzx_d    01000100 11 1 ..... 1100.0 ..... .....   @rrx_2a esz=3
+SMULLT_zzx_s    01000100 10 1 ..... 1100.1 ..... .....   @rrx_3a esz=2
+SMULLT_zzx_d    01000100 11 1 ..... 1100.1 ..... .....   @rrx_2a esz=3
+UMULLB_zzx_s    01000100 10 1 ..... 1101.0 ..... .....   @rrx_3a esz=2
+UMULLB_zzx_d    01000100 11 1 ..... 1101.0 ..... .....   @rrx_2a esz=3
+UMULLT_zzx_s    01000100 10 1 ..... 1101.1 ..... .....   @rrx_3a esz=2
+UMULLT_zzx_d    01000100 11 1 ..... 1101.1 ..... .....   @rrx_2a esz=3
+
+# SVE2 saturating multiply (indexed)
+SQDMULLB_zzx_s  01000100 10 1 ..... 1110.0 ..... .....   @rrx_3a esz=2
+SQDMULLB_zzx_d  01000100 11 1 ..... 1110.0 ..... .....   @rrx_2a esz=3
+SQDMULLT_zzx_s  01000100 10 1 ..... 1110.1 ..... .....   @rrx_3a esz=2
+SQDMULLT_zzx_d  01000100 11 1 ..... 1110.1 ..... .....   @rrx_2a esz=3
+
+# SVE2 saturating multiply high (indexed)
+SQDMULH_zzx_h   01000100 0. 1 ..... 111100 ..... .....   @rrx_3 esz=1
+SQDMULH_zzx_s   01000100 10 1 ..... 111100 ..... .....   @rrx_2 esz=2
+SQDMULH_zzx_d   01000100 11 1 ..... 111100 ..... .....   @rrx_1 esz=3
+SQRDMULH_zzx_h  01000100 0. 1 ..... 111101 ..... .....   @rrx_3 esz=1
+SQRDMULH_zzx_s  01000100 10 1 ..... 111101 ..... .....   @rrx_2 esz=2
+SQRDMULH_zzx_d  01000100 11 1 ..... 111101 ..... .....   @rrx_1 esz=3
+
+# SVE2 integer multiply (indexed)
+MUL_zzx_h       01000100 0. 1 ..... 111110 ..... .....   @rrx_3 esz=1
+MUL_zzx_s       01000100 10 1 ..... 111110 ..... .....   @rrx_2 esz=2
+MUL_zzx_d       01000100 11 1 ..... 111110 ..... .....   @rrx_1 esz=3
+
+# SVE floating-point complex add (predicated)
+FCADD           01100100 esz:2 00000 rot:1 100 pg:3 rm:5 rd:5 \
+                rn=%reg_movprfx
+
+# SVE floating-point complex multiply-add (predicated)
+FCMLA_zpzzz     01100100 esz:2 0 rm:5 0 rot:2 pg:3 rn:5 rd:5 \
+                ra=%reg_movprfx
+
+# SVE floating-point complex multiply-add (indexed)
+FCMLA_zzxz      01100100 10 1 index:2 rm:3 0001 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx esz=1
+FCMLA_zzxz      01100100 11 1 index:1 rm:4 0001 rot:2 rn:5 rd:5 \
+                ra=%reg_movprfx esz=2
+
+### SVE FP Multiply-Add Indexed Group
+
+# SVE floating-point multiply-add (indexed)
+FMLA_zzxz       01100100 0. 1 ..... 000000 ..... .....  @rrxr_3 esz=1
+FMLA_zzxz       01100100 10 1 ..... 000000 ..... .....  @rrxr_2 esz=2
+FMLA_zzxz       01100100 11 1 ..... 000000 ..... .....  @rrxr_1 esz=3
+FMLS_zzxz       01100100 0. 1 ..... 000001 ..... .....  @rrxr_3 esz=1
+FMLS_zzxz       01100100 10 1 ..... 000001 ..... .....  @rrxr_2 esz=2
+FMLS_zzxz       01100100 11 1 ..... 000001 ..... .....  @rrxr_1 esz=3
+
+### SVE FP Multiply Indexed Group
+
+# SVE floating-point multiply (indexed)
+FMUL_zzx        01100100 0. 1 ..... 001000 ..... .....   @rrx_3 esz=1
+FMUL_zzx        01100100 10 1 ..... 001000 ..... .....   @rrx_2 esz=2
+FMUL_zzx        01100100 11 1 ..... 001000 ..... .....   @rrx_1 esz=3
+
+### SVE FP Fast Reduction Group
+
+FADDV           01100101 .. 000 000 001 ... ..... .....         @rd_pg_rn
+FMAXNMV         01100101 .. 000 100 001 ... ..... .....         @rd_pg_rn
+FMINNMV         01100101 .. 000 101 001 ... ..... .....         @rd_pg_rn
+FMAXV           01100101 .. 000 110 001 ... ..... .....         @rd_pg_rn
+FMINV           01100101 .. 000 111 001 ... ..... .....         @rd_pg_rn
+
+## SVE Floating Point Unary Operations - Unpredicated Group
+
+FRECPE          01100101 .. 001 110 001100 ..... .....          @rd_rn
+FRSQRTE         01100101 .. 001 111 001100 ..... .....          @rd_rn
+
+### SVE FP Compare with Zero Group
+
+FCMGE_ppz0      01100101 .. 0100 00 001 ... ..... 0 ....        @pd_pg_rn
+FCMGT_ppz0      01100101 .. 0100 00 001 ... ..... 1 ....        @pd_pg_rn
+FCMLT_ppz0      01100101 .. 0100 01 001 ... ..... 0 ....        @pd_pg_rn
+FCMLE_ppz0      01100101 .. 0100 01 001 ... ..... 1 ....        @pd_pg_rn
+FCMEQ_ppz0      01100101 .. 0100 10 001 ... ..... 0 ....        @pd_pg_rn
+FCMNE_ppz0      01100101 .. 0100 11 001 ... ..... 0 ....        @pd_pg_rn
+
+### SVE FP Accumulating Reduction Group
+
+# SVE floating-point serial reduction (predicated)
+FADDA           01100101 .. 011 000 001 ... ..... .....         @rdn_pg_rm
+
+### SVE Floating Point Arithmetic - Unpredicated Group
+
+# SVE floating-point arithmetic (unpredicated)
+FADD_zzz        01100101 .. 0 ..... 000 000 ..... .....         @rd_rn_rm
+FSUB_zzz        01100101 .. 0 ..... 000 001 ..... .....         @rd_rn_rm
+FMUL_zzz        01100101 .. 0 ..... 000 010 ..... .....         @rd_rn_rm
+FTSMUL          01100101 .. 0 ..... 000 011 ..... .....         @rd_rn_rm
+FRECPS          01100101 .. 0 ..... 000 110 ..... .....         @rd_rn_rm
+FRSQRTS         01100101 .. 0 ..... 000 111 ..... .....         @rd_rn_rm
+
+### SVE FP Arithmetic Predicated Group
+
+# SVE floating-point arithmetic (predicated)
+FADD_zpzz       01100101 .. 00 0000 100 ... ..... .....    @rdn_pg_rm
+FSUB_zpzz       01100101 .. 00 0001 100 ... ..... .....    @rdn_pg_rm
+FMUL_zpzz       01100101 .. 00 0010 100 ... ..... .....    @rdn_pg_rm
+FSUB_zpzz       01100101 .. 00 0011 100 ... ..... .....    @rdm_pg_rn # FSUBR
+FMAXNM_zpzz     01100101 .. 00 0100 100 ... ..... .....    @rdn_pg_rm
+FMINNM_zpzz     01100101 .. 00 0101 100 ... ..... .....    @rdn_pg_rm
+FMAX_zpzz       01100101 .. 00 0110 100 ... ..... .....    @rdn_pg_rm
+FMIN_zpzz       01100101 .. 00 0111 100 ... ..... .....    @rdn_pg_rm
+FABD            01100101 .. 00 1000 100 ... ..... .....    @rdn_pg_rm
+FSCALE          01100101 .. 00 1001 100 ... ..... .....    @rdn_pg_rm
+FMULX           01100101 .. 00 1010 100 ... ..... .....    @rdn_pg_rm
+FDIV            01100101 .. 00 1100 100 ... ..... .....    @rdm_pg_rn # FDIVR
+FDIV            01100101 .. 00 1101 100 ... ..... .....    @rdn_pg_rm
+
+# SVE floating-point arithmetic with immediate (predicated)
+FADD_zpzi       01100101 .. 011 000 100 ... 0000 . .....        @rdn_i1
+FSUB_zpzi       01100101 .. 011 001 100 ... 0000 . .....        @rdn_i1
+FMUL_zpzi       01100101 .. 011 010 100 ... 0000 . .....        @rdn_i1
+FSUBR_zpzi      01100101 .. 011 011 100 ... 0000 . .....        @rdn_i1
+FMAXNM_zpzi     01100101 .. 011 100 100 ... 0000 . .....        @rdn_i1
+FMINNM_zpzi     01100101 .. 011 101 100 ... 0000 . .....        @rdn_i1
+FMAX_zpzi       01100101 .. 011 110 100 ... 0000 . .....        @rdn_i1
+FMIN_zpzi       01100101 .. 011 111 100 ... 0000 . .....        @rdn_i1
+
+# SVE floating-point trig multiply-add coefficient
+FTMAD           01100101 esz:2 010 imm:3 100000 rm:5 rd:5       rn=%reg_movprfx
+
+### SVE FP Multiply-Add Group
+
+# SVE floating-point multiply-accumulate writing addend
+FMLA_zpzzz      01100101 .. 1 ..... 000 ... ..... .....         @rda_pg_rn_rm
+FMLS_zpzzz      01100101 .. 1 ..... 001 ... ..... .....         @rda_pg_rn_rm
+FNMLA_zpzzz     01100101 .. 1 ..... 010 ... ..... .....         @rda_pg_rn_rm
+FNMLS_zpzzz     01100101 .. 1 ..... 011 ... ..... .....         @rda_pg_rn_rm
+
+# SVE floating-point multiply-accumulate writing multiplicand
+# Alter the operand extraction order and reuse the helpers from above.
+# FMAD, FMSB, FNMAD, FNMS
+FMLA_zpzzz      01100101 .. 1 ..... 100 ... ..... .....         @rdn_pg_rm_ra
+FMLS_zpzzz      01100101 .. 1 ..... 101 ... ..... .....         @rdn_pg_rm_ra
+FNMLA_zpzzz     01100101 .. 1 ..... 110 ... ..... .....         @rdn_pg_rm_ra
+FNMLS_zpzzz     01100101 .. 1 ..... 111 ... ..... .....         @rdn_pg_rm_ra
+
+### SVE FP Unary Operations Predicated Group
+
+# SVE floating-point convert precision
+FCVT_sh         01100101 10 0010 00 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_hs         01100101 10 0010 01 101 ... ..... .....         @rd_pg_rn_e0
+BFCVT           01100101 10 0010 10 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_dh         01100101 11 0010 00 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_hd         01100101 11 0010 01 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_ds         01100101 11 0010 10 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_sd         01100101 11 0010 11 101 ... ..... .....         @rd_pg_rn_e0
+
+# SVE floating-point convert to integer
+FCVTZS_hh       01100101 01 011 01 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hh       01100101 01 011 01 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_hs       01100101 01 011 10 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hs       01100101 01 011 10 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_hd       01100101 01 011 11 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hd       01100101 01 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_ss       01100101 10 011 10 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_ss       01100101 10 011 10 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_ds       01100101 11 011 00 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_ds       01100101 11 011 00 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_sd       01100101 11 011 10 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_sd       01100101 11 011 10 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_dd       01100101 11 011 11 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_dd       01100101 11 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
+
+# SVE floating-point round to integral value
+FRINTN          01100101 .. 000 000 101 ... ..... .....         @rd_pg_rn
+FRINTP          01100101 .. 000 001 101 ... ..... .....         @rd_pg_rn
+FRINTM          01100101 .. 000 010 101 ... ..... .....         @rd_pg_rn
+FRINTZ          01100101 .. 000 011 101 ... ..... .....         @rd_pg_rn
+FRINTA          01100101 .. 000 100 101 ... ..... .....         @rd_pg_rn
+FRINTX          01100101 .. 000 110 101 ... ..... .....         @rd_pg_rn
+FRINTI          01100101 .. 000 111 101 ... ..... .....         @rd_pg_rn
+
+# SVE floating-point unary operations
+FRECPX          01100101 .. 001 100 101 ... ..... .....         @rd_pg_rn
+FSQRT           01100101 .. 001 101 101 ... ..... .....         @rd_pg_rn
+
+# SVE integer convert to floating-point
+SCVTF_hh        01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_sh        01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_dh        01100101 01 010 11 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_ss        01100101 10 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_sd        01100101 11 010 00 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_ds        01100101 11 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_dd        01100101 11 010 11 0 101 ... ..... .....        @rd_pg_rn_e0
+
+UCVTF_hh        01100101 01 010 01 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_sh        01100101 01 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_dh        01100101 01 010 11 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_ss        01100101 10 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_sd        01100101 11 010 00 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_ds        01100101 11 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_dd        01100101 11 010 11 1 101 ... ..... .....        @rd_pg_rn_e0
+
+### SVE Memory - 32-bit Gather and Unsized Contiguous Group
+
+# SVE load predicate register
+LDR_pri         10000101 10 ...... 000 ... ..... 0 ....         @pd_rn_i9
+
+# SVE load vector register
+LDR_zri         10000101 10 ...... 010 ... ..... .....          @rd_rn_i9
+
+# SVE load and broadcast element
+LD1R_zpri       1000010 .. 1 imm:6 1.. pg:3 rn:5 rd:5 \
+                &rpri_load dtype=%dtype_23_13 nreg=0
+
+# SVE 32-bit gather load (scalar plus 32-bit unscaled offsets)
+# SVE 32-bit gather load (scalar plus 32-bit scaled offsets)
+LD1_zprz        1000010 00 .0 ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u esz=2 msz=0 scale=0
+LD1_zprz        1000010 01 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=2 msz=1
+LD1_zprz        1000010 10 .. ..... 01. ... ..... ..... \
+                @rprr_g_load_xs_sc esz=2 msz=2 u=1
+
+# SVE 32-bit gather load (vector plus immediate)
+LD1_zpiz        1000010 .. 01 ..... 1.. ... ..... ..... \
+                @rpri_g_load esz=2
+
+### SVE Memory Contiguous Load Group
+
+# SVE contiguous load (scalar plus scalar)
+LD_zprr         1010010 .... ..... 010 ... ..... .....    @rprr_load_dt nreg=0
+
+# SVE contiguous first-fault load (scalar plus scalar)
+LDFF1_zprr      1010010 .... ..... 011 ... ..... .....    @rprr_load_dt nreg=0
+
+# SVE contiguous load (scalar plus immediate)
+LD_zpri         1010010 .... 0.... 101 ... ..... .....    @rpri_load_dt nreg=0
+
+# SVE contiguous non-fault load (scalar plus immediate)
+LDNF1_zpri      1010010 .... 1.... 101 ... ..... .....    @rpri_load_dt nreg=0
+
+# SVE contiguous non-temporal load (scalar plus scalar)
+# LDNT1B, LDNT1H, LDNT1W, LDNT1D
+# SVE load multiple structures (scalar plus scalar)
+# LD2B, LD2H, LD2W, LD2D; etc.
+LD_zprr         1010010 .. nreg:2 ..... 110 ... ..... .....     @rprr_load_msz
+
+# SVE contiguous non-temporal load (scalar plus immediate)
+# LDNT1B, LDNT1H, LDNT1W, LDNT1D
+# SVE load multiple structures (scalar plus immediate)
+# LD2B, LD2H, LD2W, LD2D; etc.
+LD_zpri         1010010 .. nreg:2 0.... 111 ... ..... .....     @rpri_load_msz
+
+# SVE load and broadcast quadword (scalar plus scalar)
+LD1RQ_zprr      1010010 .. 00 ..... 000 ... ..... ..... \
+                @rprr_load_msz nreg=0
+LD1RO_zprr      1010010 .. 01 ..... 000 ... ..... ..... \
+                @rprr_load_msz nreg=0
+
+# SVE load and broadcast quadword (scalar plus immediate)
+# LD1RQB, LD1RQH, LD1RQS, LD1RQD
+LD1RQ_zpri      1010010 .. 00 0.... 001 ... ..... ..... \
+                @rpri_load_msz nreg=0
+LD1RO_zpri      1010010 .. 01 0.... 001 ... ..... ..... \
+                @rpri_load_msz nreg=0
+
+# SVE 32-bit gather prefetch (scalar plus 32-bit scaled offsets)
+PRF_ns          1000010 00 -1 ----- 0-- --- ----- 0 ----
+
+# SVE 32-bit gather prefetch (vector plus immediate)
+PRF_ns          1000010 -- 00 ----- 111 --- ----- 0 ----
+
+# SVE contiguous prefetch (scalar plus immediate)
+PRF             1000010 11 1- ----- 0-- --- ----- 0 ----
+
+# SVE contiguous prefetch (scalar plus scalar)
+PRF_rr          1000010 -- 00 rm:5 110 --- ----- 0 ----
+
+### SVE Memory 64-bit Gather Group
+
+# SVE 64-bit gather load (scalar plus 32-bit unpacked unscaled offsets)
+# SVE 64-bit gather load (scalar plus 32-bit unpacked scaled offsets)
+LD1_zprz        1100010 00 .0 ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u esz=3 msz=0 scale=0
+LD1_zprz        1100010 01 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=3 msz=1
+LD1_zprz        1100010 10 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=3 msz=2
+LD1_zprz        1100010 11 .. ..... 01. ... ..... ..... \
+                @rprr_g_load_xs_sc esz=3 msz=3 u=1
+
+# SVE 64-bit gather load (scalar plus 64-bit unscaled offsets)
+# SVE 64-bit gather load (scalar plus 64-bit scaled offsets)
+LD1_zprz        1100010 00 10 ..... 1.. ... ..... ..... \
+                @rprr_g_load_u esz=3 msz=0 scale=0
+LD1_zprz        1100010 01 1. ..... 1.. ... ..... ..... \
+                @rprr_g_load_u_sc esz=3 msz=1
+LD1_zprz        1100010 10 1. ..... 1.. ... ..... ..... \
+                @rprr_g_load_u_sc esz=3 msz=2
+LD1_zprz        1100010 11 1. ..... 11. ... ..... ..... \
+                @rprr_g_load_sc esz=3 msz=3 u=1
+
+# SVE 64-bit gather load (vector plus immediate)
+LD1_zpiz        1100010 .. 01 ..... 1.. ... ..... ..... \
+                @rpri_g_load esz=3
+
+# SVE 64-bit gather prefetch (scalar plus 64-bit scaled offsets)
+PRF_ns          1100010 00 11 ----- 1-- --- ----- 0 ----
+
+# SVE 64-bit gather prefetch (scalar plus unpacked 32-bit scaled offsets)
+PRF_ns          1100010 00 -1 ----- 0-- --- ----- 0 ----
+
+# SVE 64-bit gather prefetch (vector plus immediate)
+PRF_ns          1100010 -- 00 ----- 111 --- ----- 0 ----
+
+### SVE Memory Store Group
+
+# SVE store predicate register
+STR_pri         1110010 11 0.     ..... 000 ... ..... 0 ....    @pd_rn_i9
+
+# SVE store vector register
+STR_zri         1110010 11 0.     ..... 010 ... ..... .....     @rd_rn_i9
+
+# SVE contiguous store (scalar plus immediate)
+# ST1B, ST1H, ST1W, ST1D; require msz <= esz
+ST_zpri         1110010 .. esz:2  0.... 111 ... ..... ..... \
+                @rpri_store_msz nreg=0
+
+# SVE contiguous store (scalar plus scalar)
+# ST1B, ST1H, ST1W, ST1D; require msz <= esz
+# Enumerate msz lest we conflict with STR_zri.
+ST_zprr         1110010 00 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=0
+ST_zprr         1110010 01 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=1
+ST_zprr         1110010 10 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=2
+ST_zprr         1110010 11 11     ..... 010 ... ..... ..... \
+                @rprr_store msz=3 esz=3 nreg=0
+
+# SVE contiguous non-temporal store (scalar plus immediate)  (nreg == 0)
+# SVE store multiple structures (scalar plus immediate)      (nreg != 0)
+ST_zpri         1110010 .. nreg:2 1.... 111 ... ..... ..... \
+                @rpri_store_msz esz=%size_23
+
+# SVE contiguous non-temporal store (scalar plus scalar)     (nreg == 0)
+# SVE store multiple structures (scalar plus scalar)         (nreg != 0)
+ST_zprr         1110010 msz:2 nreg:2 ..... 011 ... ..... ..... \
+                @rprr_store esz=%size_23
+
+# SVE 32-bit scatter store (scalar plus 32-bit scaled offsets)
+# Require msz > 0 && msz <= esz.
+ST1_zprz        1110010 .. 11 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=2 scale=1
+ST1_zprz        1110010 .. 11 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=2 scale=1
+
+# SVE 32-bit scatter store (scalar plus 32-bit unscaled offsets)
+# Require msz <= esz.
+ST1_zprz        1110010 .. 10 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=2 scale=0
+ST1_zprz        1110010 .. 10 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=2 scale=0
+
+# SVE 64-bit scatter store (scalar plus 64-bit scaled offset)
+# Require msz > 0
+ST1_zprz        1110010 .. 01 ..... 101 ... ..... ..... \
+                @rprr_scatter_store xs=2 esz=3 scale=1
+
+# SVE 64-bit scatter store (scalar plus 64-bit unscaled offset)
+ST1_zprz        1110010 .. 00 ..... 101 ... ..... ..... \
+                @rprr_scatter_store xs=2 esz=3 scale=0
+
+# SVE 64-bit scatter store (vector plus immediate)
+ST1_zpiz        1110010 .. 10 ..... 101 ... ..... ..... \
+                @rpri_scatter_store esz=3
+
+# SVE 32-bit scatter store (vector plus immediate)
+ST1_zpiz        1110010 .. 11 ..... 101 ... ..... ..... \
+                @rpri_scatter_store esz=2
+
+# SVE 64-bit scatter store (scalar plus unpacked 32-bit scaled offset)
+# Require msz > 0
+ST1_zprz        1110010 .. 01 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=3 scale=1
+ST1_zprz        1110010 .. 01 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=3 scale=1
+
+# SVE 64-bit scatter store (scalar plus unpacked 32-bit unscaled offset)
+ST1_zprz        1110010 .. 00 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=3 scale=0
+ST1_zprz        1110010 .. 00 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=3 scale=0
+
+#### SVE2 Support
+
+### SVE2 Integer Multiply - Unpredicated
+
+# SVE2 integer multiply vectors (unpredicated)
+MUL_zzz         00000100 .. 1 ..... 0110 00 ..... .....  @rd_rn_rm
+SMULH_zzz       00000100 .. 1 ..... 0110 10 ..... .....  @rd_rn_rm
+UMULH_zzz       00000100 .. 1 ..... 0110 11 ..... .....  @rd_rn_rm
+PMUL_zzz        00000100 00 1 ..... 0110 01 ..... .....  @rd_rn_rm_e0
+
+# SVE2 signed saturating doubling multiply high (unpredicated)
+SQDMULH_zzz     00000100 .. 1 ..... 0111 00 ..... .....  @rd_rn_rm
+SQRDMULH_zzz    00000100 .. 1 ..... 0111 01 ..... .....  @rd_rn_rm
+
+### SVE2 Integer - Predicated
+
+SADALP_zpzz     01000100 .. 000 100 101 ... ..... .....  @rdm_pg_rn
+UADALP_zpzz     01000100 .. 000 101 101 ... ..... .....  @rdm_pg_rn
+
+### SVE2 integer unary operations (predicated)
+
+URECPE          01000100 .. 000 000 101 ... ..... .....  @rd_pg_rn
+URSQRTE         01000100 .. 000 001 101 ... ..... .....  @rd_pg_rn
+SQABS           01000100 .. 001 000 101 ... ..... .....  @rd_pg_rn
+SQNEG           01000100 .. 001 001 101 ... ..... .....  @rd_pg_rn
+
+### SVE2 saturating/rounding bitwise shift left (predicated)
+
+SRSHL           01000100 .. 000 010 100 ... ..... .....  @rdn_pg_rm
+URSHL           01000100 .. 000 011 100 ... ..... .....  @rdn_pg_rm
+SRSHL           01000100 .. 000 110 100 ... ..... .....  @rdm_pg_rn # SRSHLR
+URSHL           01000100 .. 000 111 100 ... ..... .....  @rdm_pg_rn # URSHLR
+
+SQSHL           01000100 .. 001 000 100 ... ..... .....  @rdn_pg_rm
+UQSHL           01000100 .. 001 001 100 ... ..... .....  @rdn_pg_rm
+SQSHL           01000100 .. 001 100 100 ... ..... .....  @rdm_pg_rn # SQSHLR
+UQSHL           01000100 .. 001 101 100 ... ..... .....  @rdm_pg_rn # UQSHLR
+
+SQRSHL          01000100 .. 001 010 100 ... ..... .....  @rdn_pg_rm
+UQRSHL          01000100 .. 001 011 100 ... ..... .....  @rdn_pg_rm
+SQRSHL          01000100 .. 001 110 100 ... ..... .....  @rdm_pg_rn # SQRSHLR
+UQRSHL          01000100 .. 001 111 100 ... ..... .....  @rdm_pg_rn # UQRSHLR
+
+### SVE2 integer halving add/subtract (predicated)
+
+SHADD           01000100 .. 010 000 100 ... ..... .....  @rdn_pg_rm
+UHADD           01000100 .. 010 001 100 ... ..... .....  @rdn_pg_rm
+SHSUB           01000100 .. 010 010 100 ... ..... .....  @rdn_pg_rm
+UHSUB           01000100 .. 010 011 100 ... ..... .....  @rdn_pg_rm
+SRHADD          01000100 .. 010 100 100 ... ..... .....  @rdn_pg_rm
+URHADD          01000100 .. 010 101 100 ... ..... .....  @rdn_pg_rm
+SHSUB           01000100 .. 010 110 100 ... ..... .....  @rdm_pg_rn # SHSUBR
+UHSUB           01000100 .. 010 111 100 ... ..... .....  @rdm_pg_rn # UHSUBR
+
+### SVE2 integer pairwise arithmetic
+
+ADDP            01000100 .. 010 001 101 ... ..... .....  @rdn_pg_rm
+SMAXP           01000100 .. 010 100 101 ... ..... .....  @rdn_pg_rm
+UMAXP           01000100 .. 010 101 101 ... ..... .....  @rdn_pg_rm
+SMINP           01000100 .. 010 110 101 ... ..... .....  @rdn_pg_rm
+UMINP           01000100 .. 010 111 101 ... ..... .....  @rdn_pg_rm
+
+### SVE2 saturating add/subtract (predicated)
+
+SQADD_zpzz      01000100 .. 011 000 100 ... ..... .....  @rdn_pg_rm
+UQADD_zpzz      01000100 .. 011 001 100 ... ..... .....  @rdn_pg_rm
+SQSUB_zpzz      01000100 .. 011 010 100 ... ..... .....  @rdn_pg_rm
+UQSUB_zpzz      01000100 .. 011 011 100 ... ..... .....  @rdn_pg_rm
+SUQADD          01000100 .. 011 100 100 ... ..... .....  @rdn_pg_rm
+USQADD          01000100 .. 011 101 100 ... ..... .....  @rdn_pg_rm
+SQSUB_zpzz      01000100 .. 011 110 100 ... ..... .....  @rdm_pg_rn # SQSUBR
+UQSUB_zpzz      01000100 .. 011 111 100 ... ..... .....  @rdm_pg_rn # UQSUBR
+
+#### SVE2 Widening Integer Arithmetic
+
+## SVE2 integer add/subtract long
+
+SADDLB          01000101 .. 0 ..... 00 0000 ..... .....  @rd_rn_rm
+SADDLT          01000101 .. 0 ..... 00 0001 ..... .....  @rd_rn_rm
+UADDLB          01000101 .. 0 ..... 00 0010 ..... .....  @rd_rn_rm
+UADDLT          01000101 .. 0 ..... 00 0011 ..... .....  @rd_rn_rm
+
+SSUBLB          01000101 .. 0 ..... 00 0100 ..... .....  @rd_rn_rm
+SSUBLT          01000101 .. 0 ..... 00 0101 ..... .....  @rd_rn_rm
+USUBLB          01000101 .. 0 ..... 00 0110 ..... .....  @rd_rn_rm
+USUBLT          01000101 .. 0 ..... 00 0111 ..... .....  @rd_rn_rm
+
+SABDLB          01000101 .. 0 ..... 00 1100 ..... .....  @rd_rn_rm
+SABDLT          01000101 .. 0 ..... 00 1101 ..... .....  @rd_rn_rm
+UABDLB          01000101 .. 0 ..... 00 1110 ..... .....  @rd_rn_rm
+UABDLT          01000101 .. 0 ..... 00 1111 ..... .....  @rd_rn_rm
+
+## SVE2 integer add/subtract interleaved long
+
+SADDLBT         01000101 .. 0 ..... 1000 00 ..... .....  @rd_rn_rm
+SSUBLBT         01000101 .. 0 ..... 1000 10 ..... .....  @rd_rn_rm
+SSUBLTB         01000101 .. 0 ..... 1000 11 ..... .....  @rd_rn_rm
+
+## SVE2 integer add/subtract wide
+
+SADDWB          01000101 .. 0 ..... 010 000 ..... .....  @rd_rn_rm
+SADDWT          01000101 .. 0 ..... 010 001 ..... .....  @rd_rn_rm
+UADDWB          01000101 .. 0 ..... 010 010 ..... .....  @rd_rn_rm
+UADDWT          01000101 .. 0 ..... 010 011 ..... .....  @rd_rn_rm
+
+SSUBWB          01000101 .. 0 ..... 010 100 ..... .....  @rd_rn_rm
+SSUBWT          01000101 .. 0 ..... 010 101 ..... .....  @rd_rn_rm
+USUBWB          01000101 .. 0 ..... 010 110 ..... .....  @rd_rn_rm
+USUBWT          01000101 .. 0 ..... 010 111 ..... .....  @rd_rn_rm
+
+## SVE2 integer multiply long
+
+SQDMULLB_zzz    01000101 .. 0 ..... 011 000 ..... .....  @rd_rn_rm
+SQDMULLT_zzz    01000101 .. 0 ..... 011 001 ..... .....  @rd_rn_rm
+PMULLB          01000101 .. 0 ..... 011 010 ..... .....  @rd_rn_rm
+PMULLT          01000101 .. 0 ..... 011 011 ..... .....  @rd_rn_rm
+SMULLB_zzz      01000101 .. 0 ..... 011 100 ..... .....  @rd_rn_rm
+SMULLT_zzz      01000101 .. 0 ..... 011 101 ..... .....  @rd_rn_rm
+UMULLB_zzz      01000101 .. 0 ..... 011 110 ..... .....  @rd_rn_rm
+UMULLT_zzz      01000101 .. 0 ..... 011 111 ..... .....  @rd_rn_rm
+
+## SVE2 bitwise shift left long
+
+# Note bit23 == 0 is handled by esz > 0 in do_sve2_shll_tb.
+SSHLLB          01000101 .. 0 ..... 1010 00 ..... .....  @rd_rn_tszimm_shl
+SSHLLT          01000101 .. 0 ..... 1010 01 ..... .....  @rd_rn_tszimm_shl
+USHLLB          01000101 .. 0 ..... 1010 10 ..... .....  @rd_rn_tszimm_shl
+USHLLT          01000101 .. 0 ..... 1010 11 ..... .....  @rd_rn_tszimm_shl
+
+## SVE2 bitwise exclusive-or interleaved
+
+EORBT           01000101 .. 0 ..... 10010 0 ..... .....  @rd_rn_rm
+EORTB           01000101 .. 0 ..... 10010 1 ..... .....  @rd_rn_rm
+
+## SVE integer matrix multiply accumulate
+
+SMMLA           01000101 00 0 ..... 10011 0 ..... .....  @rda_rn_rm_e0
+USMMLA          01000101 10 0 ..... 10011 0 ..... .....  @rda_rn_rm_e0
+UMMLA           01000101 11 0 ..... 10011 0 ..... .....  @rda_rn_rm_e0
+
+## SVE2 bitwise permute
+
+BEXT            01000101 .. 0 ..... 1011 00 ..... .....  @rd_rn_rm
+BDEP            01000101 .. 0 ..... 1011 01 ..... .....  @rd_rn_rm
+BGRP            01000101 .. 0 ..... 1011 10 ..... .....  @rd_rn_rm
+
+#### SVE2 Accumulate
+
+## SVE2 complex integer add
+
+CADD_rot90      01000101 .. 00000 0 11011 0 ..... .....  @rdn_rm
+CADD_rot270     01000101 .. 00000 0 11011 1 ..... .....  @rdn_rm
+SQCADD_rot90    01000101 .. 00000 1 11011 0 ..... .....  @rdn_rm
+SQCADD_rot270   01000101 .. 00000 1 11011 1 ..... .....  @rdn_rm
+
+## SVE2 integer absolute difference and accumulate long
+
+SABALB          01000101 .. 0 ..... 1100 00 ..... .....  @rda_rn_rm
+SABALT          01000101 .. 0 ..... 1100 01 ..... .....  @rda_rn_rm
+UABALB          01000101 .. 0 ..... 1100 10 ..... .....  @rda_rn_rm
+UABALT          01000101 .. 0 ..... 1100 11 ..... .....  @rda_rn_rm
+
+## SVE2 integer add/subtract long with carry
+
+# ADC and SBC decoded via size in helper dispatch.
+ADCLB           01000101 .. 0 ..... 11010 0 ..... .....  @rda_rn_rm
+ADCLT           01000101 .. 0 ..... 11010 1 ..... .....  @rda_rn_rm
+
+## SVE2 bitwise shift right and accumulate
+
+# TODO: Use @rda and %reg_movprfx here.
+SSRA            01000101 .. 0 ..... 1110 00 ..... .....  @rd_rn_tszimm_shr
+USRA            01000101 .. 0 ..... 1110 01 ..... .....  @rd_rn_tszimm_shr
+SRSRA           01000101 .. 0 ..... 1110 10 ..... .....  @rd_rn_tszimm_shr
+URSRA           01000101 .. 0 ..... 1110 11 ..... .....  @rd_rn_tszimm_shr
+
+## SVE2 bitwise shift and insert
+
+SRI             01000101 .. 0 ..... 11110 0 ..... .....  @rd_rn_tszimm_shr
+SLI             01000101 .. 0 ..... 11110 1 ..... .....  @rd_rn_tszimm_shl
+
+## SVE2 integer absolute difference and accumulate
+
+# TODO: Use @rda and %reg_movprfx here.
+SABA            01000101 .. 0 ..... 11111 0 ..... .....  @rd_rn_rm
+UABA            01000101 .. 0 ..... 11111 1 ..... .....  @rd_rn_rm
+
+#### SVE2 Narrowing
+
+## SVE2 saturating extract narrow
+
+# Bits 23, 18-16 are zero, limited in the translator via esz < 3 & imm == 0.
+SQXTNB          01000101 .. 1 ..... 010 000 ..... .....  @rd_rn_tszimm_shl
+SQXTNT          01000101 .. 1 ..... 010 001 ..... .....  @rd_rn_tszimm_shl
+UQXTNB          01000101 .. 1 ..... 010 010 ..... .....  @rd_rn_tszimm_shl
+UQXTNT          01000101 .. 1 ..... 010 011 ..... .....  @rd_rn_tszimm_shl
+SQXTUNB         01000101 .. 1 ..... 010 100 ..... .....  @rd_rn_tszimm_shl
+SQXTUNT         01000101 .. 1 ..... 010 101 ..... .....  @rd_rn_tszimm_shl
+
+## SVE2 bitwise shift right narrow
+
+# Bit 23 == 0 is handled by esz > 0 in the translator.
+SQSHRUNB        01000101 .. 1 ..... 00 0000 ..... .....  @rd_rn_tszimm_shr
+SQSHRUNT        01000101 .. 1 ..... 00 0001 ..... .....  @rd_rn_tszimm_shr
+SQRSHRUNB       01000101 .. 1 ..... 00 0010 ..... .....  @rd_rn_tszimm_shr
+SQRSHRUNT       01000101 .. 1 ..... 00 0011 ..... .....  @rd_rn_tszimm_shr
+SHRNB           01000101 .. 1 ..... 00 0100 ..... .....  @rd_rn_tszimm_shr
+SHRNT           01000101 .. 1 ..... 00 0101 ..... .....  @rd_rn_tszimm_shr
+RSHRNB          01000101 .. 1 ..... 00 0110 ..... .....  @rd_rn_tszimm_shr
+RSHRNT          01000101 .. 1 ..... 00 0111 ..... .....  @rd_rn_tszimm_shr
+SQSHRNB         01000101 .. 1 ..... 00 1000 ..... .....  @rd_rn_tszimm_shr
+SQSHRNT         01000101 .. 1 ..... 00 1001 ..... .....  @rd_rn_tszimm_shr
+SQRSHRNB        01000101 .. 1 ..... 00 1010 ..... .....  @rd_rn_tszimm_shr
+SQRSHRNT        01000101 .. 1 ..... 00 1011 ..... .....  @rd_rn_tszimm_shr
+UQSHRNB         01000101 .. 1 ..... 00 1100 ..... .....  @rd_rn_tszimm_shr
+UQSHRNT         01000101 .. 1 ..... 00 1101 ..... .....  @rd_rn_tszimm_shr
+UQRSHRNB        01000101 .. 1 ..... 00 1110 ..... .....  @rd_rn_tszimm_shr
+UQRSHRNT        01000101 .. 1 ..... 00 1111 ..... .....  @rd_rn_tszimm_shr
+
+## SVE2 integer add/subtract narrow high part
+
+ADDHNB          01000101 .. 1 ..... 011 000 ..... .....  @rd_rn_rm
+ADDHNT          01000101 .. 1 ..... 011 001 ..... .....  @rd_rn_rm
+RADDHNB         01000101 .. 1 ..... 011 010 ..... .....  @rd_rn_rm
+RADDHNT         01000101 .. 1 ..... 011 011 ..... .....  @rd_rn_rm
+SUBHNB          01000101 .. 1 ..... 011 100 ..... .....  @rd_rn_rm
+SUBHNT          01000101 .. 1 ..... 011 101 ..... .....  @rd_rn_rm
+RSUBHNB         01000101 .. 1 ..... 011 110 ..... .....  @rd_rn_rm
+RSUBHNT         01000101 .. 1 ..... 011 111 ..... .....  @rd_rn_rm
+
+### SVE2 Character Match
+
+MATCH           01000101 .. 1 ..... 100 ... ..... 0 .... @pd_pg_rn_rm
+NMATCH          01000101 .. 1 ..... 100 ... ..... 1 .... @pd_pg_rn_rm
+
+### SVE2 Histogram Computation
+
+HISTCNT         01000101 .. 1 ..... 110 ... ..... .....  @rd_pg_rn_rm
+HISTSEG         01000101 .. 1 ..... 101 000 ..... .....  @rd_rn_rm
+
+## SVE2 floating-point pairwise operations
+
+FADDP           01100100 .. 010 00 0 100 ... ..... ..... @rdn_pg_rm
+FMAXNMP         01100100 .. 010 10 0 100 ... ..... ..... @rdn_pg_rm
+FMINNMP         01100100 .. 010 10 1 100 ... ..... ..... @rdn_pg_rm
+FMAXP           01100100 .. 010 11 0 100 ... ..... ..... @rdn_pg_rm
+FMINP           01100100 .. 010 11 1 100 ... ..... ..... @rdn_pg_rm
+
+#### SVE Integer Multiply-Add (unpredicated)
+
+## SVE2 saturating multiply-add long
+
+SQDMLALB_zzzw   01000100 .. 0 ..... 0110 00 ..... .....  @rda_rn_rm
+SQDMLALT_zzzw   01000100 .. 0 ..... 0110 01 ..... .....  @rda_rn_rm
+SQDMLSLB_zzzw   01000100 .. 0 ..... 0110 10 ..... .....  @rda_rn_rm
+SQDMLSLT_zzzw   01000100 .. 0 ..... 0110 11 ..... .....  @rda_rn_rm
+
+## SVE2 saturating multiply-add interleaved long
+
+SQDMLALBT       01000100 .. 0 ..... 00001 0 ..... .....  @rda_rn_rm
+SQDMLSLBT       01000100 .. 0 ..... 00001 1 ..... .....  @rda_rn_rm
+
+## SVE2 saturating multiply-add high
+
+SQRDMLAH_zzzz   01000100 .. 0 ..... 01110 0 ..... .....  @rda_rn_rm
+SQRDMLSH_zzzz   01000100 .. 0 ..... 01110 1 ..... .....  @rda_rn_rm
+
+## SVE2 integer multiply-add long
+
+SMLALB_zzzw     01000100 .. 0 ..... 010 000 ..... .....  @rda_rn_rm
+SMLALT_zzzw     01000100 .. 0 ..... 010 001 ..... .....  @rda_rn_rm
+UMLALB_zzzw     01000100 .. 0 ..... 010 010 ..... .....  @rda_rn_rm
+UMLALT_zzzw     01000100 .. 0 ..... 010 011 ..... .....  @rda_rn_rm
+SMLSLB_zzzw     01000100 .. 0 ..... 010 100 ..... .....  @rda_rn_rm
+SMLSLT_zzzw     01000100 .. 0 ..... 010 101 ..... .....  @rda_rn_rm
+UMLSLB_zzzw     01000100 .. 0 ..... 010 110 ..... .....  @rda_rn_rm
+UMLSLT_zzzw     01000100 .. 0 ..... 010 111 ..... .....  @rda_rn_rm
+
+## SVE2 complex integer multiply-add
+
+CMLA_zzzz       01000100 esz:2 0 rm:5 0010 rot:2 rn:5 rd:5  ra=%reg_movprfx
+SQRDCMLAH_zzzz  01000100 esz:2 0 rm:5 0011 rot:2 rn:5 rd:5  ra=%reg_movprfx
+
+## SVE mixed sign dot product
+
+USDOT_zzzz      01000100 .. 0 ..... 011 110 ..... .....  @rda_rn_rm
+
+### SVE2 floating point matrix multiply accumulate
+BFMMLA          01100100 01 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
+FMMLA_s         01100100 10 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
+FMMLA_d         01100100 11 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
+
+### SVE2 Memory Gather Load Group
+
+# SVE2 64-bit gather non-temporal load (scalar plus 64-bit unscaled offsets)
+LDNT1_zprz      1100010 msz:2 00 rm:5 1 u:1 0 pg:3 rn:5 rd:5 \
+                &rprr_gather_load xs=2 esz=3 scale=0 ff=0
+
+# SVE2 32-bit gather non-temporal load (scalar plus 32-bit unscaled offsets)
+LDNT1_zprz      1000010 msz:2 00 rm:5 10 u:1 pg:3 rn:5 rd:5 \
+                &rprr_gather_load xs=0 esz=2 scale=0 ff=0
+
+### SVE2 Memory Store Group
+
+# SVE2 64-bit scatter non-temporal store (vector plus scalar)
+STNT1_zprz      1110010 .. 00 ..... 001 ... ..... ..... \
+                @rprr_scatter_store xs=2 esz=3 scale=0
+
+# SVE2 32-bit scatter non-temporal store (vector plus scalar)
+STNT1_zprz      1110010 .. 10 ..... 001 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=2 scale=0
+
+### SVE2 Crypto Extensions
+
+# SVE2 crypto unary operations
+AESMC           01000101 00 10000011100 0 00000 rd:5
+AESIMC          01000101 00 10000011100 1 00000 rd:5
+
+# SVE2 crypto destructive binary operations
+AESE            01000101 00 10001 0 11100 0 ..... .....  @rdn_rm_e0
+AESD            01000101 00 10001 0 11100 1 ..... .....  @rdn_rm_e0
+SM4E            01000101 00 10001 1 11100 0 ..... .....  @rdn_rm_e0
+
+# SVE2 crypto constructive binary operations
+SM4EKEY         01000101 00 1 ..... 11110 0 ..... .....  @rd_rn_rm_e0
+RAX1            01000101 00 1 ..... 11110 1 ..... .....  @rd_rn_rm_e0
+
+### SVE2 floating-point convert precision odd elements
+FCVTXNT_ds      01100100 00 0010 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTX_ds        01100101 00 0010 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTNT_sh       01100100 10 0010 00 101 ... ..... .....  @rd_pg_rn_e0
+BFCVTNT         01100100 10 0010 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTLT_hs       01100100 10 0010 01 101 ... ..... .....  @rd_pg_rn_e0
+FCVTNT_ds       01100100 11 0010 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTLT_sd       01100100 11 0010 11 101 ... ..... .....  @rd_pg_rn_e0
+
+### SVE2 floating-point convert to integer
+FLOGB           01100101 00 011 esz:2 0101 pg:3 rn:5 rd:5  &rpr_esz
+
+### SVE2 floating-point multiply-add long (vectors)
+FMLALB_zzzw     01100100 10 1 ..... 10 0 00 0 ..... .....  @rda_rn_rm_e0
+FMLALT_zzzw     01100100 10 1 ..... 10 0 00 1 ..... .....  @rda_rn_rm_e0
+FMLSLB_zzzw     01100100 10 1 ..... 10 1 00 0 ..... .....  @rda_rn_rm_e0
+FMLSLT_zzzw     01100100 10 1 ..... 10 1 00 1 ..... .....  @rda_rn_rm_e0
+
+BFMLALB_zzzw    01100100 11 1 ..... 10 0 00 0 ..... .....  @rda_rn_rm_e0
+BFMLALT_zzzw    01100100 11 1 ..... 10 0 00 1 ..... .....  @rda_rn_rm_e0
+
+### SVE2 floating-point bfloat16 dot-product
+BFDOT_zzzz      01100100 01 1 ..... 10 0 00 0 ..... .....  @rda_rn_rm_e0
+
+### SVE2 floating-point multiply-add long (indexed)
+FMLALB_zzxw     01100100 10 1 ..... 0100.0 ..... .....     @rrxr_3a esz=2
+FMLALT_zzxw     01100100 10 1 ..... 0100.1 ..... .....     @rrxr_3a esz=2
+FMLSLB_zzxw     01100100 10 1 ..... 0110.0 ..... .....     @rrxr_3a esz=2
+FMLSLT_zzxw     01100100 10 1 ..... 0110.1 ..... .....     @rrxr_3a esz=2
+BFMLALB_zzxw    01100100 11 1 ..... 0100.0 ..... .....     @rrxr_3a esz=2
+BFMLALT_zzxw    01100100 11 1 ..... 0100.1 ..... .....     @rrxr_3a esz=2
+
+### SVE2 floating-point bfloat16 dot-product (indexed)
+BFDOT_zzxz      01100100 01 1 ..... 010000 ..... .....     @rrxr_2 esz=2
+
+### SVE broadcast predicate element
+
+&psel           esz pd pn pm rv imm
+%psel_rv        16:2 !function=plus_12
+%psel_imm_b     22:2 19:2
+%psel_imm_h     22:2 20:1
+%psel_imm_s     22:2
+%psel_imm_d     23:1
+@psel           ........ .. . ... .. .. pn:4 . pm:4 . pd:4  \
+                &psel rv=%psel_rv
+
+PSEL            00100101 .. 1 ..1 .. 01 .... 0 .... 0 ....  \
+                @psel esz=0 imm=%psel_imm_b
+PSEL            00100101 .. 1 .10 .. 01 .... 0 .... 0 ....  \
+                @psel esz=1 imm=%psel_imm_h
+PSEL            00100101 .. 1 100 .. 01 .... 0 .... 0 ....  \
+                @psel esz=2 imm=%psel_imm_s
+PSEL            00100101 .1 1 000 .. 01 .... 0 .... 0 ....  \
+                @psel esz=3 imm=%psel_imm_d
+
+### SVE clamp
+
+SCLAMP          01000100 .. 0 ..... 110000 ..... .....          @rda_rn_rm
+UCLAMP          01000100 .. 0 ..... 110001 ..... .....          @rda_rn_rm

@@ -20,6 +20,7 @@ The STM32F4 series is based on ARM Cortex-M4F core. This series is pin-to-pin
 compatible with STM32F2 series. The following machines are based on this chip :
 
 - ``netduinoplus2``     Netduino Plus 2 board with STM32F405RGT6 microcontroller
+- ``olimex-stm32-h405`` Olimex STM32 H405 board with STM32F405RGT6 microcontroller
 
 There are many other STM32 series that are currently not supported by QEMU.
 

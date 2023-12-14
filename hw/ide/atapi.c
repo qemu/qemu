@@ -27,6 +27,7 @@
 #include "hw/ide/internal.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/block-backend.h"
+#include "scsi/constants.h"
 #include "trace.h"
 
 #define ATAPI_SECTOR_BITS (2 + BDRV_SECTOR_BITS)
@@ -178,7 +179,7 @@ void ide_atapi_cmd_ok(IDEState *s)
     s->status = READY_STAT | SEEK_STAT;
     s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
     ide_transfer_stop(s);
-    ide_set_irq(s->bus);
+    ide_bus_set_irq(s->bus);
 }
 
 void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc)
@@ -190,7 +191,7 @@ void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc)
     s->sense_key = sense_key;
     s->asc = asc;
     ide_transfer_stop(s);
-    ide_set_irq(s->bus);
+    ide_bus_set_irq(s->bus);
 }
 
 void ide_atapi_io_error(IDEState *s, int ret)
@@ -253,7 +254,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
         } else {
             /* a new transfer is needed */
             s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO;
-            ide_set_irq(s->bus);
+            ide_bus_set_irq(s->bus);
             byte_count_limit = atapi_byte_count_limit(s);
             trace_ide_atapi_cmd_reply_end_bcl(s, byte_count_limit);
             size = s->packet_transfer_size;
@@ -293,7 +294,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
     /* end of transfer */
     trace_ide_atapi_cmd_reply_end_eot(s, s->status);
     ide_atapi_cmd_ok(s);
-    ide_set_irq(s->bus);
+    ide_bus_set_irq(s->bus);
 }
 
 /* send a reply of 'size' bytes in s->io_buffer to an ATAPI command */
@@ -339,7 +340,7 @@ static void ide_atapi_cmd_check_status(IDEState *s)
     s->error = MC_ERR | (UNIT_ATTENTION << 4);
     s->status = ERR_STAT;
     s->nsector = 0;
-    ide_set_irq(s->bus);
+    ide_bus_set_irq(s->bus);
 }
 /* ATAPI DMA support */
 
@@ -383,7 +384,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     if (s->packet_transfer_size <= 0) {
         s->status = READY_STAT | SEEK_STAT;
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
-        ide_set_irq(s->bus);
+        ide_bus_set_irq(s->bus);
         goto eot;
     }
 

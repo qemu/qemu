@@ -140,7 +140,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
-    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent) + len);
+    EmulEvent *event = g_malloc(sizeof(EmulEvent) + len);
 
     assert(event);
     event->p.data.type = EMUL_GUEST_APDU;
@@ -248,7 +248,7 @@ static void *handle_apdu_thread(void* arg)
         WITH_QEMU_LOCK_GUARD(&card->vreader_mutex) {
             while (!QSIMPLEQ_EMPTY(&card->guest_apdu_list)) {
                 event = QSIMPLEQ_FIRST(&card->guest_apdu_list);
-                assert((unsigned long)event > 1000);
+                assert(event != NULL);
                 QSIMPLEQ_REMOVE_HEAD(&card->guest_apdu_list, entry);
                 if (event->p.data.type != EMUL_GUEST_APDU) {
                     DPRINTF(card, 1, "unexpected message in handle_apdu_thread\n");
@@ -518,7 +518,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         goto out2;
     }
 
-    /* TODO: a passthru backened that works on local machine. third card type?*/
+    /* TODO: a passthru backend that works on local machine. third card type?*/
     if (card->backend == BACKEND_CERTIFICATES) {
         if (card->cert1 != NULL && card->cert2 != NULL && card->cert3 != NULL) {
             ret = emulated_initialize_vcard_from_certificates(card);

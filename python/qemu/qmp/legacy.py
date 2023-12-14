@@ -22,6 +22,7 @@ old interface.
 #
 
 import asyncio
+import socket
 from types import TracebackType
 from typing import (
     Any,
@@ -67,16 +68,22 @@ class QEMUMonitorProtocol:
     Provide an API to connect to QEMU via QEMU Monitor Protocol (QMP)
     and then allow to handle commands and events.
 
-    :param address:  QEMU address, can be either a unix socket path (string)
-                     or a tuple in the form ( address, port ) for a TCP
-                     connection
+    :param address:  QEMU address, can be a unix socket path (string), a tuple
+                     in the form ( address, port ) for a TCP connection, or an
+                     existing `socket.socket` object.
     :param server:   Act as the socket server. (See 'accept')
+                     Not applicable when passing a socket directly.
     :param nickname: Optional nickname used for logging.
     """
 
-    def __init__(self, address: SocketAddrT,
+    def __init__(self,
+                 address: Union[SocketAddrT, socket.socket],
                  server: bool = False,
                  nickname: Optional[str] = None):
+
+        if server and isinstance(address, socket.socket):
+            raise ValueError(
+                "server argument should be False when passing a socket")
 
         self._qmp = QMPClient(nickname)
         self._aloop = asyncio.get_event_loop()
@@ -84,6 +91,7 @@ class QEMUMonitorProtocol:
         self._timeout: Optional[float] = None
 
         if server:
+            assert not isinstance(self._address, socket.socket)
             self._sync(self._qmp.start_server(self._address))
 
     _T = TypeVar('_T')
@@ -186,24 +194,20 @@ class QEMUMonitorProtocol:
             )
         )
 
-    def cmd(self, name: str,
-            args: Optional[Dict[str, object]] = None,
-            cmd_id: Optional[object] = None) -> QMPMessage:
+    def cmd_raw(self, name: str,
+                args: Optional[Dict[str, object]] = None) -> QMPMessage:
         """
         Build a QMP command and send it to the QMP Monitor.
 
         :param name: command name (string)
         :param args: command arguments (dict)
-        :param cmd_id: command id (dict, list, string or int)
         """
         qmp_cmd: QMPMessage = {'execute': name}
         if args:
             qmp_cmd['arguments'] = args
-        if cmd_id:
-            qmp_cmd['id'] = cmd_id
         return self.cmd_obj(qmp_cmd)
 
-    def command(self, cmd: str, **kwds: object) -> QMPReturnValue:
+    def cmd(self, cmd: str, **kwds: object) -> QMPReturnValue:
         """
         Build and send a QMP command to the monitor, report errors if any
         """

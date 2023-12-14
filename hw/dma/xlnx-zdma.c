@@ -795,11 +795,6 @@ static void zdma_init(Object *obj)
                           TYPE_XLNX_ZDMA, ZDMA_R_MAX * 4);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
-
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static const VMStateDescription vmstate_zdma = {
@@ -817,6 +812,8 @@ static const VMStateDescription vmstate_zdma = {
 
 static Property zdma_props[] = {
     DEFINE_PROP_UINT32("bus-width", XlnxZDMA, cfg.bus_width, 64),
+    DEFINE_PROP_LINK("dma", XlnxZDMA, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

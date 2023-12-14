@@ -211,7 +211,7 @@ static void fifo_reset(Exynos4210UartFIFO *q)
     g_free(q->data);
     q->data = NULL;
 
-    q->data = (uint8_t *)g_malloc0(q->size);
+    q->data = g_malloc0(q->size);
 
     q->sp = 0;
     q->rp = 0;

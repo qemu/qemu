@@ -70,18 +70,6 @@ typedef struct target_sigaltstack {
 /* mask for all SS_xxx flags */
 #define TARGET_SS_FLAG_BITS  TARGET_SS_AUTODISARM
 
-/*
- * We cannot use a bare sigtramp page for hppa-linux.
- *
- * Unlike other guests where we use the instructions at PC to validate
- * an offset from SP, the hppa libgcc signal frame fallback unwinding uses
- * the PC address itself to find the frame.  This is due to the fact that
- * the hppa grows the stack upward, and the frame is of unknown size.
- *
- * TODO: We should be able to use a VDSO to address this, by providing
- * proper unwind info for the sigtramp code, at which point the fallback
- * unwinder will not be used.
- */
-#define TARGET_ARCH_HAS_SIGTRAMP_PAGE 0
+#define TARGET_ARCH_HAS_SIGTRAMP_PAGE 1
 
 #endif /* HPPA_TARGET_SIGNAL_H */

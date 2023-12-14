@@ -12,7 +12,7 @@
 # BBIT132    111110 ..... ..... ................
 
 %bbit_p      28:1 16:5
-BBIT         11 set:1 . 10 rs:5 ..... offset:16 p=%bbit_p
+BBIT         11 set:1 . 10 rs:5 ..... offset:s16 p=%bbit_p
 
 # Arithmetic
 # BADDU rd, rs, rt

@@ -19,7 +19,7 @@
 
 #include "net/net.h"
 #include "hw/net/vmxnet3.h"
-#include "qom/object.h"
+#include "hw/pci/pci_device.h"
 
 #define TYPE_VMXNET3 "vmxnet3"
 typedef struct VMXNET3State VMXNET3State;

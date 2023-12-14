@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "target/arm/cpu-features.h"
 
 struct target_sigcontext {
     uint64_t fault_address;
@@ -665,17 +666,8 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
         env->btype = 2;
     }
 
-    /*
-     * Invoke the signal handler with both SM and ZA disabled.
-     * When clearing SM, ResetSVEState, per SMSTOP.
-     */
-    if (FIELD_EX64(env->svcr, SVCR, SM)) {
-        arm_reset_sve_state(env);
-    }
-    if (env->svcr) {
-        env->svcr = 0;
-        arm_rebuild_hflags(env);
-    }
+    /* Invoke the signal handler with both SM and ZA disabled. */
+    aarch64_set_svcr(env, 0, R_SVCR_SM_MASK | R_SVCR_ZA_MASK);
 
     if (info) {
         tswap_siginfo(&frame->info, info);

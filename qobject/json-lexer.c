@@ -139,7 +139,7 @@ static const uint8_t json_lexer[][256] =  {
          * bytes '\xFE', '\xFF'.  Structural characters and line
          * endings are promising resynchronization points.  Clients
          * may use the others to force the JSON parser into known-good
-         * state; see docs/interop/qmp-spec.txt.
+         * state; see docs/interop/qmp-spec.rst.
          */
         [0 ... 0x1F] = IN_START | LOOKAHEAD,
         [0x20 ... 0xFD] = IN_RECOVERY,

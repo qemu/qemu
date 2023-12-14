@@ -89,7 +89,20 @@ void icount_handle_deadline(void)
     }
 }
 
-void icount_prepare_for_run(CPUState *cpu)
+/* Distribute the budget evenly across all CPUs */
+int64_t icount_percpu_budget(int cpu_count)
+{
+    int64_t limit = icount_get_limit();
+    int64_t timeslice = limit / cpu_count;
+
+    if (timeslice == 0) {
+        timeslice = limit;
+    }
+
+    return timeslice;
+}
+
+void icount_prepare_for_run(CPUState *cpu, int64_t cpu_budget)
 {
     int insns_left;
 
@@ -98,15 +111,15 @@ void icount_prepare_for_run(CPUState *cpu)
      * each vCPU execution. However u16.high can be raised
      * asynchronously by cpu_exit/cpu_interrupt/tcg_handle_interrupt
      */
-    g_assert(cpu_neg(cpu)->icount_decr.u16.low == 0);
+    g_assert(cpu->neg.icount_decr.u16.low == 0);
     g_assert(cpu->icount_extra == 0);
 
-    cpu->icount_budget = icount_get_limit();
-    insns_left = MIN(0xffff, cpu->icount_budget);
-    cpu_neg(cpu)->icount_decr.u16.low = insns_left;
-    cpu->icount_extra = cpu->icount_budget - insns_left;
-
     replay_mutex_lock();
+
+    cpu->icount_budget = MIN(icount_get_limit(), cpu_budget);
+    insns_left = MIN(0xffff, cpu->icount_budget);
+    cpu->neg.icount_decr.u16.low = insns_left;
+    cpu->icount_extra = cpu->icount_budget - insns_left;
 
     if (cpu->icount_budget == 0) {
         /*
@@ -125,7 +138,7 @@ void icount_process_data(CPUState *cpu)
     icount_update(cpu);
 
     /* Reset the counters */
-    cpu_neg(cpu)->icount_decr.u16.low = 0;
+    cpu->neg.icount_decr.u16.low = 0;
     cpu->icount_extra = 0;
     cpu->icount_budget = 0;
 
@@ -140,7 +153,7 @@ void icount_handle_interrupt(CPUState *cpu, int mask)
 
     tcg_handle_interrupt(cpu, mask);
     if (qemu_cpu_is_self(cpu) &&
-        !cpu->can_do_io
+        !cpu->neg.can_do_io
         && (mask & ~old_mask) != 0) {
         cpu_abort(cpu, "Raised interrupt while not in I/O function");
     }

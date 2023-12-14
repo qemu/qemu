@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "hw/i2c/i2c.h"
@@ -26,6 +27,7 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \
@@ -297,26 +299,24 @@ static const TypeInfo aer915_info = {
     .class_init    = aer915_class_init,
 };
 
+#define FLASH_SECTOR_SIZE   (64 * KiB)
+
 static void z2_init(MachineState *machine)
 {
-    MemoryRegion *address_space_mem = get_system_memory();
-    uint32_t sector_len = 0x10000;
     PXA2xxState *mpu;
     DriveInfo *dinfo;
     void *z2_lcd;
     I2CBus *bus;
     DeviceState *wm;
+    I2CSlave *i2c_dev;
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, z2_binfo.ram_size, machine->cpu_type);
+    mpu = pxa270_init(z2_binfo.ram_size, machine->cpu_type);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!pflash_cfi01_register(Z2_FLASH_BASE, "z2.flash0", Z2_FLASH_SIZE,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               sector_len, 4, 0, 0, 0, 0, 0)) {
-        error_report("Error registering flash memory");
-        exit(1);
-    }
+    pflash_cfi01_register(Z2_FLASH_BASE, "z2.flash0", Z2_FLASH_SIZE,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                          FLASH_SECTOR_SIZE, 4, 0, 0, 0, 0, 0);
 
     /* setup keypad */
     pxa27x_register_keypad(mpu->kp, map, 0x100);
@@ -330,8 +330,17 @@ static void z2_init(MachineState *machine)
     type_register_static(&aer915_info);
     z2_lcd = ssi_create_peripheral(mpu->ssp[1], TYPE_ZIPIT_LCD);
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
+
     i2c_slave_create_simple(bus, TYPE_AER915, 0x55);
-    wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0x1b));
+
+    i2c_dev = i2c_slave_new(TYPE_WM8750, 0x1b);
+    wm = DEVICE(i2c_dev);
+
+    if (machine->audiodev) {
+        qdev_prop_set_string(wm, "audiodev", machine->audiodev);
+    }
+    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;
     mpu->i2s->codec_in = wm8750_adc_dat;
@@ -350,6 +359,8 @@ static void z2_machine_init(MachineClass *mc)
     mc->init = z2_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
+
+    machine_add_audiodev_property(mc);
 }
 
 DEFINE_MACHINE("z2", z2_machine_init)

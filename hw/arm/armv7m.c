@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "target/arm/idau.h"
+#include "target/arm/cpu-features.h"
 #include "migration/vmstate.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
@@ -335,6 +336,25 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
 
     /*
+     * Real M-profile hardware can be configured with a different number of
+     * MPU regions for Secure vs NonSecure. QEMU's CPU implementation doesn't
+     * support that yet, so catch attempts to select that.
+     */
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY) &&
+        s->mpu_ns_regions != s->mpu_s_regions) {
+        error_setg(errp,
+                   "mpu-ns-regions and mpu-s-regions properties must have the same value");
+        return;
+    }
+    if (s->mpu_ns_regions != UINT_MAX &&
+        object_property_find(OBJECT(s->cpu), "pmsav7-dregion")) {
+        if (!object_property_set_uint(OBJECT(s->cpu), "pmsav7-dregion",
+                                      s->mpu_ns_regions, errp)) {
+            return;
+        }
+    }
+
+    /*
      * Tell the CPU where the NVIC is; it will fail realize if it doesn't
      * have one. Similarly, tell the NVIC where its CPU is.
      */
@@ -498,7 +518,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         if (s->enable_bitband) {
             Object *obj = OBJECT(&s->bitband[i]);
-            SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
+            sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
             if (!object_property_set_int(obj, "base",
                                          bitband_input_addr[i], errp)) {
@@ -530,6 +550,8 @@ static Property armv7m_properties[] = {
                      false),
     DEFINE_PROP_BOOL("vfp", ARMv7MState, vfp, true),
     DEFINE_PROP_BOOL("dsp", ARMv7MState, dsp, true),
+    DEFINE_PROP_UINT32("mpu-ns-regions", ARMv7MState, mpu_ns_regions, UINT_MAX),
+    DEFINE_PROP_UINT32("mpu-s-regions", ARMv7MState, mpu_s_regions, UINT_MAX),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -568,20 +590,14 @@ static void armv7m_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
+void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
+                        hwaddr mem_base, int mem_size)
 {
     ssize_t image_size;
     uint64_t entry;
-    int big_endian;
     AddressSpace *as;
     int asidx;
     CPUState *cs = CPU(cpu);
-
-#if TARGET_BIG_ENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
         asidx = ARMASIdx_S;
@@ -593,9 +609,9 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
     if (kernel_filename) {
         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
                                  &entry, NULL, NULL,
-                                 NULL, big_endian, EM_ARM, 1, 0, as);
+                                 NULL, 0, EM_ARM, 1, 0, as);
         if (image_size < 0) {
-            image_size = load_image_targphys_as(kernel_filename, 0,
+            image_size = load_image_targphys_as(kernel_filename, mem_base,
                                                 mem_size, as);
         }
         if (image_size < 0) {

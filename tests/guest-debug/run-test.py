@@ -26,11 +26,12 @@ def get_args():
     parser.add_argument("--qargs", help="Qemu arguments for test")
     parser.add_argument("--binary", help="Binary to debug",
                         required=True)
-    parser.add_argument("--test", help="GDB test script",
-                        required=True)
+    parser.add_argument("--test", help="GDB test script")
     parser.add_argument("--gdb", help="The gdb binary to use",
                         default=None)
+    parser.add_argument("--gdb-args", help="Additional gdb arguments")
     parser.add_argument("--output", help="A file to redirect output to")
+    parser.add_argument("--stderr", help="A file to redirect stderr to")
 
     return parser.parse_args()
 
@@ -58,39 +59,45 @@ if __name__ == '__main__':
         output = open(args.output, "w")
     else:
         output = None
+    if args.stderr:
+        stderr = open(args.stderr, "w")
+    else:
+        stderr = None
 
     socket_dir = TemporaryDirectory("qemu-gdbstub")
     socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
 
     # Launch QEMU with binary
     if "system" in args.qemu:
-        cmd = "%s %s %s -gdb unix:path=%s,server=on" % (args.qemu,
-                                                        args.qargs,
-                                                        args.binary,
-                                                        socket_name)
+        cmd = f'{args.qemu} {args.qargs} {args.binary}' \
+            f' -S -gdb unix:path={socket_name},server=on'
     else:
-        cmd = "%s %s -g %s %s" % (args.qemu, args.qargs, socket_name,
-                                  args.binary)
+        cmd = f'{args.qemu} {args.qargs} -g {socket_name} {args.binary}'
 
     log(output, "QEMU CMD: %s" % (cmd))
     inferior = subprocess.Popen(shlex.split(cmd))
 
     # Now launch gdb with our test and collect the result
     gdb_cmd = "%s %s" % (args.gdb, args.binary)
+    if args.gdb_args:
+        gdb_cmd += " %s" % (args.gdb_args)
     # run quietly and ignore .gdbinit
     gdb_cmd += " -q -n -batch"
+    # disable pagination
+    gdb_cmd += " -ex 'set pagination off'"
     # disable prompts in case of crash
     gdb_cmd += " -ex 'set confirm off'"
     # connect to remote
     gdb_cmd += " -ex 'target remote %s'" % (socket_name)
     # finally the test script itself
-    gdb_cmd += " -x %s" % (args.test)
+    if args.test:
+        gdb_cmd += " -x %s" % (args.test)
 
 
     sleep(1)
     log(output, "GDB CMD: %s" % (gdb_cmd))
 
-    result = subprocess.call(gdb_cmd, shell=True, stdout=output)
+    result = subprocess.call(gdb_cmd, shell=True, stdout=output, stderr=stderr)
 
     # A result of greater than 128 indicates a fatal signal (likely a
     # crash due to gdb internal failure). That's a problem for GDB and

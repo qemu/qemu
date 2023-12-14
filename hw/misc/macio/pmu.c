@@ -29,15 +29,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ppc/mac.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/input/adb.h"
 #include "hw/irq.h"
-#include "hw/misc/mos6522.h"
-#include "hw/misc/macio/gpio.h"
 #include "hw/misc/macio/pmu.h"
-#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 #include "sysemu/rtc.h"
@@ -798,14 +793,16 @@ static void mos6522_pmu_portB_write(MOS6522State *s)
     pmu_update(ps);
 }
 
-static void mos6522_pmu_reset(DeviceState *dev)
+static void mos6522_pmu_reset_hold(Object *obj)
 {
-    MOS6522State *ms = MOS6522(dev);
+    MOS6522State *ms = MOS6522(obj);
     MOS6522PMUState *mps = container_of(ms, MOS6522PMUState, parent_obj);
     PMUState *s = container_of(mps, PMUState, mos6522_pmu);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
-    mdc->parent_reset(dev);
+    if (mdc->parent_phases.hold) {
+        mdc->parent_phases.hold(obj);
+    }
 
     ms->timers[0].frequency = VIA_TIMER_FREQ;
     ms->timers[1].frequency = (SCALE_US * 6000) / 4700;
@@ -815,11 +812,11 @@ static void mos6522_pmu_reset(DeviceState *dev)
 
 static void mos6522_pmu_class_init(ObjectClass *oc, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    device_class_set_parent_reset(dc, mos6522_pmu_reset,
-                                  &mdc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, mos6522_pmu_reset_hold,
+                                       NULL, &mdc->parent_phases);
     mdc->portB_write = mos6522_pmu_portB_write;
 }
 

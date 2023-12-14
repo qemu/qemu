@@ -30,30 +30,35 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "hw/char/parallel-isa.h"
 #include "hw/loader.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
-#include "hw/kvm/clock.h"
+#include "hw/i386/kvm/clock.h"
 #include "hw/pci-host/q35.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
-#include "hw/i386/ich9.h"
 #include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/display/ramfb.h"
 #include "hw/firmware/smbios.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
+#include "hw/intc/ioapic.h"
+#include "hw/southbridge/ich9.h"
 #include "hw/usb.h"
+#include "hw/usb/hcd-uhci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/i386/acpi-build.h"
+#include "target/i386/cpu.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -65,15 +70,15 @@ struct ehci_companions {
 };
 
 static const struct ehci_companions ich9_1d[] = {
-    { .name = "ich9-usb-uhci1", .func = 0, .port = 0 },
-    { .name = "ich9-usb-uhci2", .func = 1, .port = 2 },
-    { .name = "ich9-usb-uhci3", .func = 2, .port = 4 },
+    { .name = TYPE_ICH9_USB_UHCI(1), .func = 0, .port = 0 },
+    { .name = TYPE_ICH9_USB_UHCI(2), .func = 1, .port = 2 },
+    { .name = TYPE_ICH9_USB_UHCI(3), .func = 2, .port = 4 },
 };
 
 static const struct ehci_companions ich9_1a[] = {
-    { .name = "ich9-usb-uhci4", .func = 0, .port = 0 },
-    { .name = "ich9-usb-uhci5", .func = 1, .port = 2 },
-    { .name = "ich9-usb-uhci6", .func = 2, .port = 4 },
+    { .name = TYPE_ICH9_USB_UHCI(4), .func = 0, .port = 0 },
+    { .name = TYPE_ICH9_USB_UHCI(5), .func = 1, .port = 2 },
+    { .name = TYPE_ICH9_USB_UHCI(6), .func = 2, .port = 4 },
 };
 
 static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
@@ -97,12 +102,12 @@ static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
         return -1;
     }
 
-    ehci = pci_new_multifunction(PCI_DEVFN(slot, 7), true, name);
+    ehci = pci_new_multifunction(PCI_DEVFN(slot, 7), name);
     pci_realize_and_unref(ehci, bus, &error_fatal);
     usbbus = QLIST_FIRST(&ehci->qdev.child_bus);
 
     for (i = 0; i < 3; i++) {
-        uhci = pci_new_multifunction(PCI_DEVFN(slot, comp[i].func), true,
+        uhci = pci_new_multifunction(PCI_DEVFN(slot, comp[i].func),
                                      comp[i].name);
         qdev_prop_set_string(&uhci->qdev, "masterbus", usbbus->name);
         qdev_prop_set_uint32(&uhci->qdev, "firstport", comp[i].port);
@@ -117,21 +122,19 @@ static void pc_q35_init(MachineState *machine)
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(machine);
-    Q35PCIHost *q35_host;
-    PCIHostState *phb;
+    Object *phb;
     PCIBus *host_bus;
     PCIDevice *lpc;
     DeviceState *lpc_dev;
     BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
+    MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
-    MemoryRegion *ram_memory;
     GSIState *gsi_state;
     ISABus *isa_bus;
     int i;
-    ICH9LPCState *ich9_lpc;
     PCIDevice *ahci;
     ram_addr_t lowmem;
     DriveInfo *hd[MAX_SATA_PORTS];
@@ -182,7 +185,9 @@ static void pc_q35_init(MachineState *machine)
     pc_machine_init_sgx_epc(pcms);
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
-    kvmclock_create(pcmc->kvmclock_create_always);
+    if (kvm_enabled()) {
+        kvmclock_create(pcmc->kvmclock_create_always);
+    }
 
     /* pci enabled */
     if (pcmc->pci_enabled) {
@@ -191,53 +196,67 @@ static void pc_q35_init(MachineState *machine)
         rom_memory = pci_memory;
     } else {
         pci_memory = NULL;
-        rom_memory = get_system_memory();
+        rom_memory = system_memory;
     }
 
     pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
+        smbios_set_defaults("QEMU", mc->desc,
                             mc->name, pcmc->smbios_legacy_mode,
                             pcmc->smbios_uuid_encoded,
                             pcms->smbios_entry_point_type);
     }
 
     /* create pci host bus */
-    q35_host = Q35_HOST_DEVICE(qdev_new(TYPE_Q35_HOST_DEVICE));
+    phb = OBJECT(qdev_new(TYPE_Q35_HOST_DEVICE));
 
     if (pcmc->pci_enabled) {
-        pci_hole64_size = object_property_get_uint(OBJECT(q35_host),
+        pci_hole64_size = object_property_get_uint(phb,
                                                    PCI_HOST_PROP_PCI_HOLE64_SIZE,
                                                    &error_abort);
     }
 
     /* allocate ram and load rom/bios */
-    pc_memory_init(pcms, get_system_memory(), rom_memory, &ram_memory,
-                   pci_hole64_size);
+    pc_memory_init(pcms, system_memory, rom_memory, pci_hole64_size);
 
-    object_property_add_child(qdev_get_machine(), "q35", OBJECT(q35_host));
-    object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_RAM_MEM,
-                             OBJECT(ram_memory), NULL);
-    object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_PCI_MEM,
+    object_property_add_child(OBJECT(machine), "q35", phb);
+    object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
+                             OBJECT(machine->ram), NULL);
+    object_property_set_link(phb, PCI_HOST_PROP_PCI_MEM,
                              OBJECT(pci_memory), NULL);
-    object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_SYSTEM_MEM,
-                             OBJECT(get_system_memory()), NULL);
-    object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_IO_MEM,
+    object_property_set_link(phb, PCI_HOST_PROP_SYSTEM_MEM,
+                             OBJECT(system_memory), NULL);
+    object_property_set_link(phb, PCI_HOST_PROP_IO_MEM,
                              OBJECT(system_io), NULL);
-    object_property_set_int(OBJECT(q35_host), PCI_HOST_BELOW_4G_MEM_SIZE,
+    object_property_set_int(phb, PCI_HOST_BELOW_4G_MEM_SIZE,
                             x86ms->below_4g_mem_size, NULL);
-    object_property_set_int(OBJECT(q35_host), PCI_HOST_ABOVE_4G_MEM_SIZE,
+    object_property_set_int(phb, PCI_HOST_ABOVE_4G_MEM_SIZE,
                             x86ms->above_4g_mem_size, NULL);
+    object_property_set_bool(phb, PCI_HOST_BYPASS_IOMMU,
+                             pcms->default_bus_bypass_iommu, NULL);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(phb), &error_fatal);
+
     /* pci */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(q35_host), &error_fatal);
-    phb = PCI_HOST_BRIDGE(q35_host);
-    host_bus = phb->bus;
+    host_bus = PCI_BUS(qdev_get_child_bus(DEVICE(phb), "pcie.0"));
+    pcms->bus = host_bus;
+
+    /* irq lines */
+    gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
+
     /* create ISA bus */
-    lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
-                                          ICH9_LPC_FUNC), true,
-                                          TYPE_ICH9_LPC_DEVICE);
+    lpc = pci_new_multifunction(PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC),
+                                TYPE_ICH9_LPC_DEVICE);
+    qdev_prop_set_bit(DEVICE(lpc), "smm-enabled",
+                      x86_machine_is_smm_enabled(x86ms));
+    lpc_dev = DEVICE(lpc);
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, x86ms->gsi[i]);
+    }
+    pci_realize_and_unref(lpc, host_bus, &error_fatal);
+
+    rtc_state = ISA_DEVICE(object_resolve_path_component(OBJECT(lpc), "rtc"));
 
     object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              TYPE_HOTPLUG_HANDLER,
@@ -256,22 +275,12 @@ static void pc_q35_init(MachineState *machine)
                                                  NULL);
 
     if (!keep_pci_slot_hpc && acpi_pcihp) {
-        object_register_sugar_prop(TYPE_PCIE_SLOT, "x-native-hotplug",
-                                   "false", true);
+        object_register_sugar_prop(TYPE_PCIE_SLOT,
+                                   "x-do-not-expose-native-hotplug-cap",
+                                   "true", true);
     }
 
-    /* irq lines */
-    gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
-
-    ich9_lpc = ICH9_LPC_DEVICE(lpc);
-    lpc_dev = DEVICE(lpc);
-    for (i = 0; i < GSI_NUM_PINS; i++) {
-        qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, x86ms->gsi[i]);
-    }
-    pci_bus_irqs(host_bus, ich9_lpc_set_irq, ich9_lpc_map_irq, ich9_lpc,
-                 ICH9_LPC_NB_PIRQS);
-    pci_bus_set_route_irq_fn(host_bus, ich9_route_intx_pin_to_irq);
-    isa_bus = ich9_lpc->isa_bus;
+    isa_bus = ISA_BUS(qdev_get_child_bus(lpc_dev, "isa.0"));
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
         pc_i8259_create(isa_bus, gsi_state->i8259_irq);
@@ -291,18 +300,15 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, &rtc_state, !mc->no_floppy,
+    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, rtc_state, !mc->no_floppy,
                          0xff0104);
-
-    /* connect pm stuff to lpc */
-    ich9_lpc_pm_init(lpc, x86_machine_is_smm_enabled(x86ms));
 
     if (pcms->sata_enabled) {
         /* ahci and SATA device, for q35 1 ahci controller is built-in */
         ahci = pci_create_simple_multifunction(host_bus,
                                                PCI_DEVFN(ICH9_SATA1_DEV,
                                                          ICH9_SATA1_FUNC),
-                                               true, "ich9-ahci");
+                                               "ich9-ahci");
         idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
         g_assert(MAX_SATA_PORTS == ahci_get_num_ports(ahci));
@@ -318,10 +324,15 @@ static void pc_q35_init(MachineState *machine)
     }
 
     if (pcms->smbus_enabled) {
+        PCIDevice *smb;
+
         /* TODO: Populate SPD eeprom data.  */
-        pcms->smbus = ich9_smb_init(host_bus,
-                                    PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
-                                    0xb100);
+        smb = pci_create_simple_multifunction(host_bus,
+                                              PCI_DEVFN(ICH9_SMB_DEV,
+                                                        ICH9_SMB_FUNC),
+                                              TYPE_ICH9_SMB_DEVICE);
+        pcms->smbus = I2C_BUS(qdev_get_child_bus(DEVICE(smb), "i2c"));
+
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
     }
 
@@ -329,7 +340,7 @@ static void pc_q35_init(MachineState *machine)
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
-    pc_nic_init(pcmc, isa_bus, host_bus);
+    pc_nic_init(pcmc, isa_bus, host_bus, pcms->xenbus);
 
     if (machine->nvdimms_state->is_enabled) {
         nvdimm_init_acpi_state(machine->nvdimms_state, system_io,
@@ -353,30 +364,78 @@ static void pc_q35_init(MachineState *machine)
 static void pc_q35_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    pcmc->default_nic_model = "e1000e";
     pcmc->pci_root_uid = 0;
+    pcmc->default_cpu_version = 1;
 
     m->family = "pc_q35";
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->units_per_default_bus = 1;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
+    m->default_nic = "e1000e";
     m->default_kernel_irqchip_split = false;
     m->no_floppy = 1;
+    m->max_cpus = 1024;
+    m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
+}
+
+static void pc_q35_8_2_machine_options(MachineClass *m)
+{
+    pc_q35_machine_options(m);
+    m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(v8_2, "pc-q35-8.2", NULL,
+                   pc_q35_8_2_machine_options);
+
+static void pc_q35_8_1_machine_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_8_2_machine_options(m);
+    m->alias = NULL;
+    pcmc->broken_32bit_mem_addr_check = true;
+    compat_props_add(m->compat_props, hw_compat_8_1, hw_compat_8_1_len);
+    compat_props_add(m->compat_props, pc_compat_8_1, pc_compat_8_1_len);
+}
+
+DEFINE_Q35_MACHINE(v8_1, "pc-q35-8.1", NULL,
+                   pc_q35_8_1_machine_options);
+
+static void pc_q35_8_0_machine_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
+    pc_q35_8_1_machine_options(m);
+    compat_props_add(m->compat_props, hw_compat_8_0, hw_compat_8_0_len);
+    compat_props_add(m->compat_props, pc_compat_8_0, pc_compat_8_0_len);
+
+    /* For pc-q35-8.0 and older, use SMBIOS 2.8 by default */
+    pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_32;
     m->max_cpus = 288;
 }
 
+DEFINE_Q35_MACHINE(v8_0, "pc-q35-8.0", NULL,
+                   pc_q35_8_0_machine_options);
+
+static void pc_q35_7_2_machine_options(MachineClass *m)
+{
+    pc_q35_8_0_machine_options(m);
+    compat_props_add(m->compat_props, hw_compat_7_2, hw_compat_7_2_len);
+    compat_props_add(m->compat_props, pc_compat_7_2, pc_compat_7_2_len);
+}
+
+DEFINE_Q35_MACHINE(v7_2, "pc-q35-7.2", NULL,
+                   pc_q35_7_2_machine_options);
+
 static void pc_q35_7_1_machine_options(MachineClass *m)
 {
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    pc_q35_machine_options(m);
-    m->alias = "q35";
-    pcmc->default_cpu_version = 1;
-    pcmc->legacy_no_rng_seed = true;
+    pc_q35_7_2_machine_options(m);
+    compat_props_add(m->compat_props, hw_compat_7_1, hw_compat_7_1_len);
+    compat_props_add(m->compat_props, pc_compat_7_1, pc_compat_7_1_len);
 }
 
 DEFINE_Q35_MACHINE(v7_1, "pc-q35-7.1", NULL,
@@ -386,7 +445,6 @@ static void pc_q35_7_0_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_7_1_machine_options(m);
-    m->alias = NULL;
     pcmc->enforce_amd_1tb_hole = false;
     compat_props_add(m->compat_props, hw_compat_7_0, hw_compat_7_0_len);
     compat_props_add(m->compat_props, pc_compat_7_0, pc_compat_7_0_len);
@@ -398,7 +456,6 @@ DEFINE_Q35_MACHINE(v7_0, "pc-q35-7.0", NULL,
 static void pc_q35_6_2_machine_options(MachineClass *m)
 {
     pc_q35_7_0_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_6_2, hw_compat_6_2_len);
     compat_props_add(m->compat_props, pc_compat_6_2, pc_compat_6_2_len);
 }
@@ -409,7 +466,6 @@ DEFINE_Q35_MACHINE(v6_2, "pc-q35-6.2", NULL,
 static void pc_q35_6_1_machine_options(MachineClass *m)
 {
     pc_q35_6_2_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_6_1, hw_compat_6_1_len);
     compat_props_add(m->compat_props, pc_compat_6_1, pc_compat_6_1_len);
     m->smp_props.prefer_sockets = true;
@@ -421,7 +477,6 @@ DEFINE_Q35_MACHINE(v6_1, "pc-q35-6.1", NULL,
 static void pc_q35_6_0_machine_options(MachineClass *m)
 {
     pc_q35_6_1_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_6_0, hw_compat_6_0_len);
     compat_props_add(m->compat_props, pc_compat_6_0, pc_compat_6_0_len);
 }
@@ -432,7 +487,6 @@ DEFINE_Q35_MACHINE(v6_0, "pc-q35-6.0", NULL,
 static void pc_q35_5_2_machine_options(MachineClass *m)
 {
     pc_q35_6_0_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_5_2, hw_compat_5_2_len);
     compat_props_add(m->compat_props, pc_compat_5_2, pc_compat_5_2_len);
 }
@@ -445,7 +499,6 @@ static void pc_q35_5_1_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
 
     pc_q35_5_2_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_5_1, hw_compat_5_1_len);
     compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
     pcmc->kvmclock_create_always = false;
@@ -458,7 +511,6 @@ DEFINE_Q35_MACHINE(v5_1, "pc-q35-5.1", NULL,
 static void pc_q35_5_0_machine_options(MachineClass *m)
 {
     pc_q35_5_1_machine_options(m);
-    m->alias = NULL;
     m->numa_mem_supported = true;
     compat_props_add(m->compat_props, hw_compat_5_0, hw_compat_5_0_len);
     compat_props_add(m->compat_props, pc_compat_5_0, pc_compat_5_0_len);
@@ -471,7 +523,6 @@ DEFINE_Q35_MACHINE(v5_0, "pc-q35-5.0", NULL,
 static void pc_q35_4_2_machine_options(MachineClass *m)
 {
     pc_q35_5_0_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_4_2, hw_compat_4_2_len);
     compat_props_add(m->compat_props, pc_compat_4_2, pc_compat_4_2_len);
 }
@@ -482,7 +533,6 @@ DEFINE_Q35_MACHINE(v4_2, "pc-q35-4.2", NULL,
 static void pc_q35_4_1_machine_options(MachineClass *m)
 {
     pc_q35_4_2_machine_options(m);
-    m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(m->compat_props, pc_compat_4_1, pc_compat_4_1_len);
 }
@@ -494,7 +544,6 @@ static void pc_q35_4_0_1_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_4_1_machine_options(m);
-    m->alias = NULL;
     pcmc->default_cpu_version = CPU_VERSION_LEGACY;
     /*
      * This is the default machine for the 4.0-stable branch. It is basically
@@ -512,7 +561,6 @@ static void pc_q35_4_0_machine_options(MachineClass *m)
 {
     pc_q35_4_0_1_machine_options(m);
     m->default_kernel_irqchip_split = true;
-    m->alias = NULL;
     /* Compat props are applied by the 4.0.1 machine */
 }
 
@@ -526,7 +574,6 @@ static void pc_q35_3_1_machine_options(MachineClass *m)
     pc_q35_4_0_machine_options(m);
     m->default_kernel_irqchip_split = false;
     m->smbus_no_migration_support = true;
-    m->alias = NULL;
     pcmc->pvh_enabled = false;
     compat_props_add(m->compat_props, hw_compat_3_1, hw_compat_3_1_len);
     compat_props_add(m->compat_props, pc_compat_3_1, pc_compat_3_1_len);
@@ -557,10 +604,8 @@ DEFINE_Q35_MACHINE(v2_12, "pc-q35-2.12", NULL,
 
 static void pc_q35_2_11_machine_options(MachineClass *m)
 {
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-
     pc_q35_2_12_machine_options(m);
-    pcmc->default_nic_model = "e1000";
+    m->default_nic = "e1000";
     compat_props_add(m->compat_props, hw_compat_2_11, hw_compat_2_11_len);
     compat_props_add(m->compat_props, pc_compat_2_11, pc_compat_2_11_len);
 }

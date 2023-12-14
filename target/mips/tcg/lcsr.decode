@@ -1,0 +1,17 @@
+# Loongson CSR instructions
+#
+# Copyright (C) 2023 Jiaxun Yang <jiaxun.yang@flygoat.com>
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+
+&r           rs rt rd sa
+
+@rs_rd       ...... rs:5 ..... rd:5 ..... ...... &r rt=0 sa=0
+
+CPUCFG       110010 ..... 01000 ..... 00100 011000 @rs_rd
+
+RDCSR        110010 ..... 00000 ..... 00100 011000 @rs_rd
+WRCSR        110010 ..... 00001 ..... 00100 011000 @rs_rd
+DRDCSR       110010 ..... 00010 ..... 00100 011000 @rs_rd
+DWRCSR       110010 ..... 00011 ..... 00100 011000 @rs_rd

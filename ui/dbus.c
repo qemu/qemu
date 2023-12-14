@@ -23,14 +23,17 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qemu/dbus.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
 #include "ui/dbus-module.h"
+#ifdef CONFIG_OPENGL
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
+#endif
 #include "audio/audio.h"
 #include "audio/audio_int.h"
 #include "qapi/error.h"
@@ -40,6 +43,7 @@
 
 static DBusDisplay *dbus_display;
 
+#ifdef CONFIG_OPENGL
 static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
                                          QEMUGLParams *params)
 {
@@ -52,7 +56,9 @@ static bool
 dbus_is_compatible_dcl(DisplayGLCtx *dgc,
                        DisplayChangeListener *dcl)
 {
-    return dcl->ops == &dbus_gl_dcl_ops || dcl->ops == &dbus_console_dcl_ops;
+    return
+        dcl->ops == &dbus_gl_dcl_ops ||
+        dcl->ops == &dbus_console_dcl_ops;
 }
 
 static void
@@ -83,6 +89,7 @@ static const DisplayGLCtxOps dbus_gl_ops = {
     .dpy_gl_ctx_destroy_texture = dbus_destroy_texture,
     .dpy_gl_ctx_update_texture = dbus_update_texture,
 };
+#endif
 
 static NotifierList dbus_display_notifiers =
     NOTIFIER_LIST_INITIALIZER(dbus_display_notifiers);
@@ -111,10 +118,12 @@ dbus_display_init(Object *o)
     DBusDisplay *dd = DBUS_DISPLAY(o);
     g_autoptr(GDBusObjectSkeleton) vm = NULL;
 
+#ifdef CONFIG_OPENGL
     dd->glctx.ops = &dbus_gl_ops;
     if (display_opengl) {
         dd->glctx.gls = qemu_gl_init_shader();
     }
+#endif
     dd->iface = qemu_dbus_display1_vm_skeleton_new();
     dd->consoles = g_ptr_array_new_with_free_func(g_object_unref);
 
@@ -151,7 +160,9 @@ dbus_display_finalize(Object *o)
     g_clear_object(&dd->iface);
     g_free(dd->dbus_addr);
     g_free(dd->audiodev);
+#ifdef CONFIG_OPENGL
     g_clear_pointer(&dd->glctx.gls, qemu_gl_fini_shader);
+#endif
     dbus_display = NULL;
 }
 
@@ -209,9 +220,8 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
     }
 
     if (dd->audiodev && *dd->audiodev) {
-        AudioState *audio_state = audio_state_by_name(dd->audiodev);
+        AudioState *audio_state = audio_state_by_name(dd->audiodev, errp);
         if (!audio_state) {
-            error_setg(errp, "Audiodev '%s' not found", dd->audiodev);
             return;
         }
         if (!g_str_equal(audio_state->drv->name, "dbus")) {
@@ -219,7 +229,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
                        dd->audiodev);
             return;
         }
-        audio_state->drv->set_dbus_server(audio_state, dd->server);
+        audio_state->drv->set_dbus_server(audio_state, dd->server, dd->p2p);
     }
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
@@ -289,11 +299,20 @@ dbus_display_add_client(int csock, Error **errp)
         g_cancellable_cancel(dbus_display->add_client_cancellable);
     }
 
+#ifdef WIN32
+    socket = g_socket_new_from_fd(_get_osfhandle(csock), &err);
+#else
     socket = g_socket_new_from_fd(csock, &err);
+#endif
     if (!socket) {
         error_setg(errp, "Failed to setup D-Bus socket: %s", err->message);
+        close(csock);
         return false;
     }
+#ifdef WIN32
+    /* socket owns the SOCKET handle now, so release our osf handle */
+    qemu_close_socket_osfhandle(csock);
+#endif
 
     conn = g_socket_connection_factory_create_connection(socket);
 
@@ -450,12 +469,11 @@ early_dbus_init(DisplayOptions *opts)
     DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_OFF;
 
     if (mode != DISPLAYGL_MODE_OFF) {
-        if (egl_rendernode_init(opts->u.dbus.rendernode, mode) < 0) {
-            error_report("dbus: render node init failed");
-            exit(1);
-        }
-
-        display_opengl = 1;
+#ifdef CONFIG_OPENGL
+        egl_init(opts->u.dbus.rendernode, mode, &error_fatal);
+#else
+        error_report("dbus: GL rendering is not supported");
+#endif
     }
 
     type_register(&dbus_vc_type_info);
@@ -500,6 +518,7 @@ static QemuDisplay qemu_display_dbus = {
     .type       = DISPLAY_TYPE_DBUS,
     .early_init = early_dbus_init,
     .init       = dbus_init,
+    .vc         = "vc",
 };
 
 static void register_dbus(void)

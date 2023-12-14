@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include "cpu.h"
-#include "exec/helper-proto.h"
+#include "exec/helper-proto-common.h"
 #include "tcg/tcg-gvec-desc.h"
 
 
@@ -550,6 +550,17 @@ void HELPER(gvec_ands)(void *d, void *a, uint64_t b, uint32_t desc)
     clear_high(d, oprsz, desc);
 }
 
+void HELPER(gvec_andcs)(void *d, void *a, uint64_t b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint64_t)) {
+        *(uint64_t *)(d + i) = *(uint64_t *)(a + i) & ~b;
+    }
+    clear_high(d, oprsz, desc);
+}
+
 void HELPER(gvec_xors)(void *d, void *a, uint64_t b, uint32_t desc)
 {
     intptr_t oprsz = simd_oprsz(desc);
@@ -1022,6 +1033,32 @@ void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                \
     DO_CMP1(gvec_le##SZ, int##SZ##_t, <=)     \
     DO_CMP1(gvec_ltu##SZ, uint##SZ##_t, <)    \
     DO_CMP1(gvec_leu##SZ, uint##SZ##_t, <=)
+
+DO_CMP2(8)
+DO_CMP2(16)
+DO_CMP2(32)
+DO_CMP2(64)
+
+#undef DO_CMP1
+#undef DO_CMP2
+
+#define DO_CMP1(NAME, TYPE, OP)                                            \
+void HELPER(NAME)(void *d, void *a, uint64_t b64, uint32_t desc)           \
+{                                                                          \
+    intptr_t oprsz = simd_oprsz(desc);                                     \
+    TYPE inv = simd_data(desc), b = b64;                                   \
+    for (intptr_t i = 0; i < oprsz; i += sizeof(TYPE)) {                   \
+        *(TYPE *)(d + i) = -((*(TYPE *)(a + i) OP b) ^ inv);               \
+    }                                                                      \
+    clear_high(d, oprsz, desc);                                            \
+}
+
+#define DO_CMP2(SZ) \
+    DO_CMP1(gvec_eqs##SZ, uint##SZ##_t, ==)    \
+    DO_CMP1(gvec_lts##SZ, int##SZ##_t, <)      \
+    DO_CMP1(gvec_les##SZ, int##SZ##_t, <=)     \
+    DO_CMP1(gvec_ltus##SZ, uint##SZ##_t, <)    \
+    DO_CMP1(gvec_leus##SZ, uint##SZ##_t, <=)
 
 DO_CMP2(8)
 DO_CMP2(16)

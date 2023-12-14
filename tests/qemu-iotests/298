@@ -80,25 +80,23 @@ class TestPreallocateFilter(TestPreallocateBase):
     def test_external_snapshot(self):
         self.test_prealloc()
 
-        result = self.vm.qmp('blockdev-snapshot-sync', node_name='disk',
-                             snapshot_file=overlay,
-                             snapshot_node_name='overlay')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-snapshot-sync', node_name='disk',
+                    snapshot_file=overlay,
+                    snapshot_node_name='overlay')
 
         # on reopen to  r-o base preallocation should be dropped
         self.check_small()
 
         self.vm.hmp_qemu_io('drive0', 'write 1M 1M')
 
-        result = self.vm.qmp('block-commit', device='overlay')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='overlay')
         self.complete_and_wait()
 
         # commit of new megabyte should trigger preallocation
         self.check_big()
 
     def test_reopen_opts(self):
-        result = self.vm.qmp('blockdev-reopen', options=[{
+        self.vm.cmd('blockdev-reopen', options=[{
             'node-name': 'disk',
             'driver': iotests.imgfmt,
             'file': {
@@ -113,7 +111,6 @@ class TestPreallocateFilter(TestPreallocateBase):
                 }
             }
         }])
-        self.assert_qmp(result, 'return', {})
 
         self.vm.hmp_qemu_io('drive0', 'write 0 1M')
         self.assertTrue(os.path.getsize(disk) == 25 * MiB)
@@ -140,8 +137,8 @@ class TestTruncate(iotests.QMPTestCase):
         stat = os.stat(disk)
         refstat = os.stat(refdisk)
 
-        # Probably we'll want preallocate filter to keep align to cluster when
-        # shrink preallocation, so, ignore small differece
+        # The preallocate filter may keep cluster alignment when shrinking,
+        # so ignore small differences
         self.assertLess(abs(stat.st_size - refstat.st_size), 64 * 1024)
 
         # Preallocate filter may leak some internal clusters (for example, if

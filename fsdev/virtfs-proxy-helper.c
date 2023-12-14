@@ -9,7 +9,13 @@
  * the COPYING file in the top-level directory.
  */
 
+/*
+ * NOTE: The 9p 'proxy' backend is deprecated (since QEMU 8.1) and will be
+ * removed in a future version of QEMU!
+ */
+
 #include "qemu/osdep.h"
+#include <glib/gstdio.h>
 #include <sys/resource.h>
 #include <getopt.h>
 #include <syslog.h>
@@ -25,6 +31,7 @@
 #include "qemu/xattr.h"
 #include "9p-iov-marshal.h"
 #include "hw/9pfs/9p-proxy.h"
+#include "hw/9pfs/9p-util.h"
 #include "fsdev/9p-iov-marshal.h"
 
 #define PROGNAME "virtfs-proxy-helper"
@@ -338,6 +345,28 @@ static void resetugid(int suid, int sgid)
 }
 
 /*
+ * Open regular file or directory. Attempts to open any special file are
+ * rejected.
+ *
+ * returns file descriptor or -1 on error
+ */
+static int open_regular(const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+
+    fd = open(pathname, flags, mode);
+    if (fd < 0) {
+        return fd;
+    }
+
+    if (close_if_special_file(fd) < 0) {
+        return -1;
+    }
+
+    return fd;
+}
+
+/*
  * send response in two parts
  * 1) ProxyHeader
  * 2) Response or error status
@@ -639,7 +668,7 @@ static int do_create_others(int type, struct iovec *iovec)
         if (retval < 0) {
             goto err_out;
         }
-        retval = mkdir(path.data, mode);
+        retval = g_mkdir(path.data, mode);
         break;
     case T_SYMLINK:
         retval = proxy_unmarshal(iovec, offset, "ss", &oldpath, &path);
@@ -681,7 +710,7 @@ static int do_create(struct iovec *iovec)
     if (ret < 0) {
         goto unmarshal_err_out;
     }
-    ret = open(path.data, flags, mode);
+    ret = open_regular(path.data, flags, mode);
     if (ret < 0) {
         ret = -errno;
     }
@@ -706,7 +735,7 @@ static int do_open(struct iovec *iovec)
     if (ret < 0) {
         goto err_out;
     }
-    ret = open(path.data, flags);
+    ret = open_regular(path.data, flags, 0);
     if (ret < 0) {
         ret = -errno;
     }
@@ -1032,6 +1061,10 @@ int main(int argc, char **argv)
     int retval;
     struct statfs st_fs;
 #endif
+
+    fprintf(stderr, "NOTE: The 9p 'proxy' backend is deprecated (since "
+                    "QEMU 8.1) and will be removed in a future version of "
+                    "QEMU!\n");
 
     prog_name = g_path_get_basename(argv[0]);
 

@@ -20,7 +20,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/pvpanic.h"
 #include "qom/object.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "standard-headers/linux/pvpanic.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PVPanicPCIState, PVPANIC_PCI_DEVICE)

@@ -18,11 +18,15 @@
 # Enumeration of statistics types
 #
 # @cumulative: stat is cumulative; value can only increase.
+#
 # @instant: stat is instantaneous; value can increase or decrease.
+#
 # @peak: stat is the peak value; value can only increase.
+#
 # @linear-histogram: stat is a linear histogram.
+#
 # @log2-histogram: stat is a logarithmic histogram, with one bucket
-#                  for each power of two.
+#     for each power of two.
 #
 # Since: 7.1
 ##
@@ -36,8 +40,11 @@
 # Enumeration of unit of measurement for statistics
 #
 # @bytes: stat reported in bytes.
+#
 # @seconds: stat reported in seconds.
+#
 # @cycles: stat reported in clock cycles.
+#
 # @boolean: stat is a boolean value.
 #
 # Since: 7.1
@@ -50,33 +57,40 @@
 #
 # Enumeration of statistics providers.
 #
+# @kvm: since 7.1
+#
+# @cryptodev: since 8.0
+#
 # Since: 7.1
 ##
 { 'enum': 'StatsProvider',
-  'data': [ 'kvm' ] }
+  'data': [ 'kvm', 'cryptodev' ] }
 
 ##
 # @StatsTarget:
 #
 # The kinds of objects on which one can request statistics.
 #
-# @vm: statistics that apply to the entire virtual machine or
-#      the entire QEMU process.
+# @vm: statistics that apply to the entire virtual machine or the
+#     entire QEMU process.
 #
 # @vcpu: statistics that apply to a single virtual CPU.
+#
+# @cryptodev: statistics that apply to a crypto device (since 8.0)
 #
 # Since: 7.1
 ##
 { 'enum': 'StatsTarget',
-  'data': [ 'vm', 'vcpu' ] }
+  'data': [ 'vm', 'vcpu', 'cryptodev' ] }
 
 ##
 # @StatsRequest:
 #
-# Indicates a set of statistics that should be returned by query-stats.
+# Indicates a set of statistics that should be returned by
+# query-stats.
 #
 # @provider: provider for which to return statistics.
-
+#
 # @names: statistics to be returned (all if omitted).
 #
 # Since: 7.1
@@ -98,9 +112,10 @@
 ##
 # @StatsFilter:
 #
-# The arguments to the query-stats command; specifies a target for which to
-# request statistics and optionally the required subset of information for
-# that target:
+# The arguments to the query-stats command; specifies a target for
+# which to request statistics and optionally the required subset of
+# information for that target:
+#
 # - which vCPUs to request statistics for
 # - which providers to request statistics from
 # - which named values to return within each provider
@@ -118,6 +133,7 @@
 # @StatsValue:
 #
 # @scalar: single unsigned 64-bit integers.
+#
 # @list: list of unsigned 64-bit integers (used for histograms).
 #
 # Since: 7.1
@@ -131,6 +147,7 @@
 # @Stats:
 #
 # @name: name of stat.
+#
 # @value: stat value.
 #
 # Since: 7.1
@@ -145,7 +162,7 @@
 # @provider: provider for this set of statistics.
 #
 # @qom-path: Path to the object for which the statistics are returned,
-#            if the object is exposed in the QOM tree
+#     if the object is exposed in the QOM tree
 #
 # @stats: list of statistics.
 #
@@ -159,14 +176,14 @@
 ##
 # @query-stats:
 #
-# Return runtime-collected statistics for objects such as the
-# VM or its vCPUs.
+# Return runtime-collected statistics for objects such as the VM or
+# its vCPUs.
 #
 # The arguments are a StatsFilter and specify the provider and objects
 # to return statistics about.
 #
 # Returns: a list of StatsResult, one for each provider and object
-#          (e.g., for each vCPU).
+#     (e.g., for each vCPU).
 #
 # Since: 7.1
 ##
@@ -181,24 +198,25 @@
 # Schema for a single statistic.
 #
 # @name: name of the statistic; each element of the schema is uniquely
-#        identified by a target, a provider (both available in @StatsSchema)
-#        and the name.
+#     identified by a target, a provider (both available in
+#     @StatsSchema) and the name.
 #
 # @type: kind of statistic.
 #
-# @unit: basic unit of measure for the statistic; if missing, the statistic
-#        is a simple number or counter.
+# @unit: basic unit of measure for the statistic; if missing, the
+#     statistic is a simple number or counter.
 #
-# @base: base for the multiple of @unit in which the statistic is measured.
-#        Only present if @exponent is non-zero; @base and @exponent together
-#        form a SI prefix (e.g., _nano-_ for ``base=10`` and ``exponent=-9``)
-#        or IEC binary prefix (e.g. _kibi-_ for ``base=2`` and ``exponent=10``)
+# @base: base for the multiple of @unit in which the statistic is
+#     measured.  Only present if @exponent is non-zero; @base and
+#     @exponent together form a SI prefix (e.g., _nano-_ for
+#     ``base=10`` and ``exponent=-9``) or IEC binary prefix (e.g.
+#     _kibi-_ for ``base=2`` and ``exponent=10``)
 #
-# @exponent: exponent for the multiple of @unit in which the statistic is
-#            expressed, or 0 for the basic unit
+# @exponent: exponent for the multiple of @unit in which the statistic
+#     is expressed, or 0 for the basic unit
 #
-# @bucket-size: Present when @type is "linear-histogram", contains the width
-#               of each bucket of the histogram.
+# @bucket-size: Present when @type is "linear-histogram", contains the
+#     width of each bucket of the histogram.
 #
 # Since: 7.1
 ##
@@ -217,7 +235,8 @@
 #
 # @provider: provider for this set of statistics.
 #
-# @target: the kind of object that can be queried through the provider.
+# @target: the kind of object that can be queried through the
+#     provider.
 #
 # @stats: list of statistics.
 #
@@ -233,16 +252,17 @@
 #
 # Return the schema for all available runtime-collected statistics.
 #
-# Note: runtime-collected statistics and their names fall outside QEMU's usual
-#       deprecation policies.  QEMU will try to keep the set of available data
-#       stable, together with their names, but will not guarantee stability
-#       at all costs; the same is true of providers that source statistics
-#       externally, e.g. from Linux.  For example, if the same value is being
-#       tracked with different names on different architectures or by different
-#       providers, one of them might be renamed.  A statistic might go away if
-#       an algorithm is changed or some code is removed; changing a default
-#       might cause previously useful statistics to always report 0.  Such
-#       changes, however, are expected to be rare.
+# Note: runtime-collected statistics and their names fall outside
+#     QEMU's usual deprecation policies.  QEMU will try to keep the
+#     set of available data stable, together with their names, but
+#     will not guarantee stability at all costs; the same is true of
+#     providers that source statistics externally, e.g. from Linux.
+#     For example, if the same value is being tracked with different
+#     names on different architectures or by different providers, one
+#     of them might be renamed.  A statistic might go away if an
+#     algorithm is changed or some code is removed; changing a default
+#     might cause previously useful statistics to always report 0.
+#     Such changes, however, are expected to be rare.
 #
 # Since: 7.1
 ##

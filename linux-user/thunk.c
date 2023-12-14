@@ -436,29 +436,29 @@ const argtype *thunk_print(void *arg, const argtype *type_ptr)
 /* Utility function: Table-driven functions to translate bitmasks
  * between host and target formats
  */
-unsigned int target_to_host_bitmask(unsigned int target_mask,
-                                    const bitmask_transtbl * trans_tbl)
+unsigned int target_to_host_bitmask_len(unsigned int target_mask,
+                                        const bitmask_transtbl *tbl,
+                                        size_t len)
 {
-    const bitmask_transtbl *btp;
     unsigned int host_mask = 0;
 
-    for (btp = trans_tbl; btp->target_mask && btp->host_mask; btp++) {
-        if ((target_mask & btp->target_mask) == btp->target_bits) {
-            host_mask |= btp->host_bits;
+    for (size_t i = 0; i < len; ++i) {
+        if ((target_mask & tbl[i].target_mask) == tbl[i].target_bits) {
+            host_mask |= tbl[i].host_bits;
         }
     }
     return host_mask;
 }
 
-unsigned int host_to_target_bitmask(unsigned int host_mask,
-                                    const bitmask_transtbl * trans_tbl)
+unsigned int host_to_target_bitmask_len(unsigned int host_mask,
+                                        const bitmask_transtbl *tbl,
+                                        size_t len)
 {
-    const bitmask_transtbl *btp;
     unsigned int target_mask = 0;
 
-    for (btp = trans_tbl; btp->target_mask && btp->host_mask; btp++) {
-        if ((host_mask & btp->host_mask) == btp->host_bits) {
-            target_mask |= btp->target_bits;
+    for (size_t i = 0; i < len; ++i) {
+        if ((host_mask & tbl[i].host_mask) == tbl[i].host_bits) {
+            target_mask |= tbl[i].target_bits;
         }
     }
     return target_mask;

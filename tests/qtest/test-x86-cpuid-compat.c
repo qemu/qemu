@@ -313,18 +313,10 @@ int main(int argc, char **argv)
                        "xlevel2", 0);
     }
     /*
-     * QEMU 1.4.0 had auto-level enabled for CPUID[7], already,
+     * QEMU 2.3.0 had auto-level enabled for CPUID[7], already,
      * and the compat code that sets default level shouldn't
      * disable the auto-level=7 code:
      */
-    if (qtest_has_machine("pc-i440fx-1.4")) {
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.4/off",
-                       "-machine pc-i440fx-1.4 -cpu Nehalem",
-                       "level", 2);
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.5/on",
-                       "-machine pc-i440fx-1.4 -cpu Nehalem,smap=on",
-                       "level", 7);
-    }
     if (qtest_has_machine("pc-i440fx-2.3")) {
         add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
                        "-machine pc-i440fx-2.3 -cpu Penryn",

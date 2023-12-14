@@ -140,3 +140,16 @@ G_NORETURN void raise_exception_ra(CPUX86State *env, int exception_index,
 {
     raise_interrupt2(env, exception_index, 0, 0, 0, retaddr);
 }
+
+G_NORETURN void handle_unaligned_access(CPUX86State *env, vaddr vaddr,
+                                        MMUAccessType access_type,
+                                        uintptr_t retaddr)
+{
+    /*
+     * Unaligned accesses are currently only triggered by SSE/AVX
+     * instructions that impose alignment requirements on memory
+     * operands. These instructions raise #GP(0) upon accessing an
+     * unaligned address.
+     */
+    raise_exception_ra(env, EXCP0D_GPF, retaddr);
+}

@@ -24,9 +24,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/pci/pci.h"
+#include "hw/net/mii.h"
+#include "hw/pci/pci_device.h"
+#include "net/eth.h"
 #include "net/net.h"
 
+#include "e1000_common.h"
 #include "e1000x_common.h"
 
 #include "trace.h"
@@ -45,9 +48,9 @@ bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac)
     return true;
 }
 
-bool e1000x_is_vlan_packet(const uint8_t *buf, uint16_t vet)
+bool e1000x_is_vlan_packet(const void *buf, uint16_t vet)
 {
-    uint16_t eth_proto = lduw_be_p(buf + 12);
+    uint16_t eth_proto = lduw_be_p(&PKT_GET_ETH_HDR(buf)->h_proto);
     bool res = (eth_proto == vet);
 
     trace_e1000x_vlan_is_vlan_pkt(res, eth_proto, vet);
@@ -55,10 +58,42 @@ bool e1000x_is_vlan_packet(const uint8_t *buf, uint16_t vet)
     return res;
 }
 
-bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf)
+bool e1000x_rx_vlan_filter(uint32_t *mac, const struct vlan_header *vhdr)
+{
+    if (e1000x_vlan_rx_filter_enabled(mac)) {
+        uint16_t vid = lduw_be_p(&vhdr->h_tci);
+        uint32_t vfta =
+            ldl_le_p((uint32_t *)(mac + VFTA) +
+                     ((vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK));
+        if ((vfta & (1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK))) == 0) {
+            trace_e1000x_rx_flt_vlan_mismatch(vid);
+            return false;
+        }
+
+        trace_e1000x_rx_flt_vlan_match(vid);
+    }
+
+    return true;
+}
+
+bool e1000x_rx_group_filter(uint32_t *mac, const struct eth_header *ehdr)
 {
     static const int mta_shift[] = { 4, 3, 2, 0 };
     uint32_t f, ra[2], *rp, rctl = mac[RCTL];
+
+    if (is_broadcast_ether_addr(ehdr->h_dest)) {
+        if (rctl & E1000_RCTL_BAM) {
+            return true;
+        }
+    } else if (is_multicast_ether_addr(ehdr->h_dest)) {
+        if (rctl & E1000_RCTL_MPE) {
+            return true;
+        }
+    } else {
+        if (rctl & E1000_RCTL_UPE) {
+            return true;
+        }
+    }
 
     for (rp = mac + RA; rp < mac + RA + 32; rp += 2) {
         if (!(rp[1] & E1000_RAH_AV)) {
@@ -66,22 +101,21 @@ bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf)
         }
         ra[0] = cpu_to_le32(rp[0]);
         ra[1] = cpu_to_le32(rp[1]);
-        if (!memcmp(buf, (uint8_t *)ra, 6)) {
+        if (!memcmp(ehdr->h_dest, (uint8_t *)ra, ETH_ALEN)) {
             trace_e1000x_rx_flt_ucast_match((int)(rp - mac - RA) / 2,
-                                            MAC_ARG(buf));
+                                            MAC_ARG(ehdr->h_dest));
             return true;
         }
     }
-    trace_e1000x_rx_flt_ucast_mismatch(MAC_ARG(buf));
+    trace_e1000x_rx_flt_ucast_mismatch(MAC_ARG(ehdr->h_dest));
 
     f = mta_shift[(rctl >> E1000_RCTL_MO_SHIFT) & 3];
-    f = (((buf[5] << 8) | buf[4]) >> f) & 0xfff;
+    f = (((ehdr->h_dest[5] << 8) | ehdr->h_dest[4]) >> f) & 0xfff;
     if (mac[MTA + (f >> 5)] & (1 << (f & 0x1f))) {
-        e1000x_inc_reg_if_not_full(mac, MPRC);
         return true;
     }
 
-    trace_e1000x_rx_flt_inexact_mismatch(MAC_ARG(buf),
+    trace_e1000x_rx_flt_inexact_mismatch(MAC_ARG(ehdr->h_dest),
                                          (rctl >> E1000_RCTL_MO_SHIFT) & 3,
                                          f >> 5,
                                          mac[MTA + (f >> 5)]);
@@ -106,16 +140,16 @@ bool e1000x_hw_rx_enabled(uint32_t *mac)
 
 bool e1000x_is_oversized(uint32_t *mac, size_t size)
 {
+    size_t header_size = sizeof(struct eth_header) + sizeof(struct vlan_header);
     /* this is the size past which hardware will
        drop packets when setting LPE=0 */
-    static const int maximum_ethernet_vlan_size = 1522;
+    size_t maximum_short_size = header_size + ETH_MTU;
     /* this is the size past which hardware will
        drop packets when setting LPE=1 */
-    static const int maximum_ethernet_lpe_size = 16 * KiB;
+    size_t maximum_large_size = 16 * KiB - ETH_FCS_LEN;
 
-    if ((size > maximum_ethernet_lpe_size ||
-        (size > maximum_ethernet_vlan_size
-            && !(mac[RCTL] & E1000_RCTL_LPE)))
+    if ((size > maximum_large_size ||
+        (size > maximum_short_size && !(mac[RCTL] & E1000_RCTL_LPE)))
         && !(mac[RCTL] & E1000_RCTL_SBP)) {
         e1000x_inc_reg_if_not_full(mac, ROC);
         trace_e1000x_rx_oversized(size);
@@ -152,8 +186,8 @@ void e1000x_reset_mac_addr(NICState *nic, uint32_t *mac_regs,
 void e1000x_update_regs_on_autoneg_done(uint32_t *mac, uint16_t *phy)
 {
     e1000x_update_regs_on_link_up(mac, phy);
-    phy[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
-    phy[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    phy[MII_ANLPAR] |= MII_ANLPAR_ACK;
+    phy[MII_BMSR] |= MII_BMSR_AN_COMP;
     trace_e1000x_link_negotiation_done();
 }
 
@@ -209,23 +243,36 @@ e1000x_rxbufsize(uint32_t rctl)
 
 void
 e1000x_update_rx_total_stats(uint32_t *mac,
-                             size_t data_size,
-                             size_t data_fcs_size)
+                             eth_pkt_types_e pkt_type,
+                             size_t pkt_size,
+                             size_t pkt_fcs_size)
 {
     static const int PRCregs[6] = { PRC64, PRC127, PRC255, PRC511,
                                     PRC1023, PRC1522 };
 
-    e1000x_increase_size_stats(mac, PRCregs, data_fcs_size);
+    e1000x_increase_size_stats(mac, PRCregs, pkt_fcs_size);
     e1000x_inc_reg_if_not_full(mac, TPR);
-    mac[GPRC] = mac[TPR];
+    e1000x_inc_reg_if_not_full(mac, GPRC);
     /* TOR - Total Octets Received:
     * This register includes bytes received in a packet from the <Destination
     * Address> field through the <CRC> field, inclusively.
     * Always include FCS length (4) in size.
     */
-    e1000x_grow_8reg_if_not_full(mac, TORL, data_size + 4);
-    mac[GORCL] = mac[TORL];
-    mac[GORCH] = mac[TORH];
+    e1000x_grow_8reg_if_not_full(mac, TORL, pkt_size + 4);
+    e1000x_grow_8reg_if_not_full(mac, GORCL, pkt_size + 4);
+
+    switch (pkt_type) {
+    case ETH_PKT_BCAST:
+        e1000x_inc_reg_if_not_full(mac, BPRC);
+        break;
+
+    case ETH_PKT_MCAST:
+        e1000x_inc_reg_if_not_full(mac, MPRC);
+        break;
+
+    default:
+        break;
+    }
 }
 
 void
@@ -264,4 +311,29 @@ e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
     props->ip = (op & E1000_TXD_CMD_IP) ? 1 : 0;
     props->tcp = (op & E1000_TXD_CMD_TCP) ? 1 : 0;
     props->tse = (op & E1000_TXD_CMD_TSE) ? 1 : 0;
+}
+
+void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi)
+{
+    int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint32_t timinca = mac[TIMINCA];
+    uint32_t incvalue = timinca & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t incperiod = MAX(timinca >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+    int64_t timestamp = timadj + muldiv64(ns, incvalue, incperiod * 16);
+
+    mac[lo] = timestamp & 0xffffffff;
+    mac[hi] = timestamp >> 32;
+}
+
+void e1000x_set_timinca(uint32_t *mac, int64_t *timadj, uint32_t val)
+{
+    int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint32_t old_val = mac[TIMINCA];
+    uint32_t old_incvalue = old_val & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t old_incperiod = MAX(old_val >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+    uint32_t incvalue = val & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t incperiod = MAX(val >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+
+    mac[TIMINCA] = val;
+    *timadj += (muldiv64(ns, incvalue, incperiod) - muldiv64(ns, old_incvalue, old_incperiod)) / 16;
 }

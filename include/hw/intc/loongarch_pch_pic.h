@@ -5,15 +5,14 @@
  * Copyright (c) 2021 Loongson Technology Corporation Limited
  */
 
+#include "hw/sysbus.h"
+
 #define TYPE_LOONGARCH_PCH_PIC "loongarch_pch_pic"
 #define PCH_PIC_NAME(name) TYPE_LOONGARCH_PCH_PIC#name
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHPIC, LOONGARCH_PCH_PIC)
 
-#define PCH_PIC_IRQ_START               0
-#define PCH_PIC_IRQ_END                 63
-#define PCH_PIC_IRQ_NUM                 64
 #define PCH_PIC_INT_ID_VAL              0x7000000UL
-#define PCH_PIC_INT_ID_NUM              0x3f0001UL
+#define PCH_PIC_INT_ID_VER              0x1UL
 
 #define PCH_PIC_INT_ID_LO               0x00
 #define PCH_PIC_INT_ID_HI               0x04
@@ -66,4 +65,5 @@ struct LoongArchPCHPIC {
     MemoryRegion iomem32_low;
     MemoryRegion iomem32_high;
     MemoryRegion iomem8;
+    unsigned int irq_num;
 };

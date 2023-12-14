@@ -67,8 +67,8 @@ enum {
     ARM_CP_ALIAS                 = 1 << 8,
     /*
      * Flag: Register does I/O and therefore its accesses need to be marked
-     * with gen_io_start() and also end the TB. In particular, registers which
-     * implement clocks or timers require this.
+     * with translator_io_start() and also end the TB. In particular,
+     * registers which implement clocks or timers require this.
      */
     ARM_CP_IO                    = 1 << 9,
     /*
@@ -119,6 +119,104 @@ enum {
      */
     ARM_CP_SME                   = 1 << 19,
 };
+
+/*
+ * Interface for defining coprocessor registers.
+ * Registers are defined in tables of arm_cp_reginfo structs
+ * which are passed to define_arm_cp_regs().
+ */
+
+/*
+ * When looking up a coprocessor register we look for it
+ * via an integer which encodes all of:
+ *  coprocessor number
+ *  Crn, Crm, opc1, opc2 fields
+ *  32 or 64 bit register (ie is it accessed via MRC/MCR
+ *    or via MRRC/MCRR?)
+ *  non-secure/secure bank (AArch32 only)
+ * We allow 4 bits for opc1 because MRRC/MCRR have a 4 bit field.
+ * (In this case crn and opc2 should be zero.)
+ * For AArch64, there is no 32/64 bit size distinction;
+ * instead all registers have a 2 bit op0, 3 bit op1 and op2,
+ * and 4 bit CRn and CRm. The encoding patterns are chosen
+ * to be easy to convert to and from the KVM encodings, and also
+ * so that the hashtable can contain both AArch32 and AArch64
+ * registers (to allow for interprocessing where we might run
+ * 32 bit code on a 64 bit core).
+ */
+/*
+ * This bit is private to our hashtable cpreg; in KVM register
+ * IDs the AArch64/32 distinction is the KVM_REG_ARM/ARM64
+ * in the upper bits of the 64 bit ID.
+ */
+#define CP_REG_AA64_SHIFT 28
+#define CP_REG_AA64_MASK (1 << CP_REG_AA64_SHIFT)
+
+/*
+ * To enable banking of coprocessor registers depending on ns-bit we
+ * add a bit to distinguish between secure and non-secure cpregs in the
+ * hashtable.
+ */
+#define CP_REG_NS_SHIFT 29
+#define CP_REG_NS_MASK (1 << CP_REG_NS_SHIFT)
+
+#define ENCODE_CP_REG(cp, is64, ns, crn, crm, opc1, opc2)   \
+    ((ns) << CP_REG_NS_SHIFT | ((cp) << 16) | ((is64) << 15) |   \
+     ((crn) << 11) | ((crm) << 7) | ((opc1) << 3) | (opc2))
+
+#define ENCODE_AA64_CP_REG(cp, crn, crm, op0, op1, op2) \
+    (CP_REG_AA64_MASK |                                 \
+     ((cp) << CP_REG_ARM_COPROC_SHIFT) |                \
+     ((op0) << CP_REG_ARM64_SYSREG_OP0_SHIFT) |         \
+     ((op1) << CP_REG_ARM64_SYSREG_OP1_SHIFT) |         \
+     ((crn) << CP_REG_ARM64_SYSREG_CRN_SHIFT) |         \
+     ((crm) << CP_REG_ARM64_SYSREG_CRM_SHIFT) |         \
+     ((op2) << CP_REG_ARM64_SYSREG_OP2_SHIFT))
+
+/*
+ * Convert a full 64 bit KVM register ID to the truncated 32 bit
+ * version used as a key for the coprocessor register hashtable
+ */
+static inline uint32_t kvm_to_cpreg_id(uint64_t kvmid)
+{
+    uint32_t cpregid = kvmid;
+    if ((kvmid & CP_REG_ARCH_MASK) == CP_REG_ARM64) {
+        cpregid |= CP_REG_AA64_MASK;
+    } else {
+        if ((kvmid & CP_REG_SIZE_MASK) == CP_REG_SIZE_U64) {
+            cpregid |= (1 << 15);
+        }
+
+        /*
+         * KVM is always non-secure so add the NS flag on AArch32 register
+         * entries.
+         */
+         cpregid |= 1 << CP_REG_NS_SHIFT;
+    }
+    return cpregid;
+}
+
+/*
+ * Convert a truncated 32 bit hashtable key into the full
+ * 64 bit KVM register ID.
+ */
+static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
+{
+    uint64_t kvmid;
+
+    if (cpregid & CP_REG_AA64_MASK) {
+        kvmid = cpregid & ~CP_REG_AA64_MASK;
+        kvmid |= CP_REG_SIZE_U64 | CP_REG_ARM64;
+    } else {
+        kvmid = cpregid & ~(1 << 15);
+        if (cpregid & (1 << 15)) {
+            kvmid |= CP_REG_SIZE_U64 | CP_REG_ARM;
+        } else {
+            kvmid |= CP_REG_SIZE_U32 | CP_REG_ARM;
+        }
+    }
+    return kvmid;
+}
 
 /*
  * Valid values for ARMCPRegInfo state field, indicating which of
@@ -224,11 +322,486 @@ typedef enum CPAccessResult {
      * Access fails and results in an exception syndrome 0x0 ("uncategorized").
      * Note that this is not a catch-all case -- the set of cases which may
      * result in this failure is specifically defined by the architecture.
+     * This trap is always to the usual target EL, never directly to a
+     * specified target EL.
      */
     CP_ACCESS_TRAP_UNCATEGORIZED = (2 << 2),
-    CP_ACCESS_TRAP_UNCATEGORIZED_EL2 = CP_ACCESS_TRAP_UNCATEGORIZED | 2,
-    CP_ACCESS_TRAP_UNCATEGORIZED_EL3 = CP_ACCESS_TRAP_UNCATEGORIZED | 3,
 } CPAccessResult;
+
+/* Indexes into fgt_read[] */
+#define FGTREG_HFGRTR 0
+#define FGTREG_HDFGRTR 1
+/* Indexes into fgt_write[] */
+#define FGTREG_HFGWTR 0
+#define FGTREG_HDFGWTR 1
+/* Indexes into fgt_exec[] */
+#define FGTREG_HFGITR 0
+
+FIELD(HFGRTR_EL2, AFSR0_EL1, 0, 1)
+FIELD(HFGRTR_EL2, AFSR1_EL1, 1, 1)
+FIELD(HFGRTR_EL2, AIDR_EL1, 2, 1)
+FIELD(HFGRTR_EL2, AMAIR_EL1, 3, 1)
+FIELD(HFGRTR_EL2, APDAKEY, 4, 1)
+FIELD(HFGRTR_EL2, APDBKEY, 5, 1)
+FIELD(HFGRTR_EL2, APGAKEY, 6, 1)
+FIELD(HFGRTR_EL2, APIAKEY, 7, 1)
+FIELD(HFGRTR_EL2, APIBKEY, 8, 1)
+FIELD(HFGRTR_EL2, CCSIDR_EL1, 9, 1)
+FIELD(HFGRTR_EL2, CLIDR_EL1, 10, 1)
+FIELD(HFGRTR_EL2, CONTEXTIDR_EL1, 11, 1)
+FIELD(HFGRTR_EL2, CPACR_EL1, 12, 1)
+FIELD(HFGRTR_EL2, CSSELR_EL1, 13, 1)
+FIELD(HFGRTR_EL2, CTR_EL0, 14, 1)
+FIELD(HFGRTR_EL2, DCZID_EL0, 15, 1)
+FIELD(HFGRTR_EL2, ESR_EL1, 16, 1)
+FIELD(HFGRTR_EL2, FAR_EL1, 17, 1)
+FIELD(HFGRTR_EL2, ISR_EL1, 18, 1)
+FIELD(HFGRTR_EL2, LORC_EL1, 19, 1)
+FIELD(HFGRTR_EL2, LOREA_EL1, 20, 1)
+FIELD(HFGRTR_EL2, LORID_EL1, 21, 1)
+FIELD(HFGRTR_EL2, LORN_EL1, 22, 1)
+FIELD(HFGRTR_EL2, LORSA_EL1, 23, 1)
+FIELD(HFGRTR_EL2, MAIR_EL1, 24, 1)
+FIELD(HFGRTR_EL2, MIDR_EL1, 25, 1)
+FIELD(HFGRTR_EL2, MPIDR_EL1, 26, 1)
+FIELD(HFGRTR_EL2, PAR_EL1, 27, 1)
+FIELD(HFGRTR_EL2, REVIDR_EL1, 28, 1)
+FIELD(HFGRTR_EL2, SCTLR_EL1, 29, 1)
+FIELD(HFGRTR_EL2, SCXTNUM_EL1, 30, 1)
+FIELD(HFGRTR_EL2, SCXTNUM_EL0, 31, 1)
+FIELD(HFGRTR_EL2, TCR_EL1, 32, 1)
+FIELD(HFGRTR_EL2, TPIDR_EL1, 33, 1)
+FIELD(HFGRTR_EL2, TPIDRRO_EL0, 34, 1)
+FIELD(HFGRTR_EL2, TPIDR_EL0, 35, 1)
+FIELD(HFGRTR_EL2, TTBR0_EL1, 36, 1)
+FIELD(HFGRTR_EL2, TTBR1_EL1, 37, 1)
+FIELD(HFGRTR_EL2, VBAR_EL1, 38, 1)
+FIELD(HFGRTR_EL2, ICC_IGRPENN_EL1, 39, 1)
+FIELD(HFGRTR_EL2, ERRIDR_EL1, 40, 1)
+FIELD(HFGRTR_EL2, ERRSELR_EL1, 41, 1)
+FIELD(HFGRTR_EL2, ERXFR_EL1, 42, 1)
+FIELD(HFGRTR_EL2, ERXCTLR_EL1, 43, 1)
+FIELD(HFGRTR_EL2, ERXSTATUS_EL1, 44, 1)
+FIELD(HFGRTR_EL2, ERXMISCN_EL1, 45, 1)
+FIELD(HFGRTR_EL2, ERXPFGF_EL1, 46, 1)
+FIELD(HFGRTR_EL2, ERXPFGCTL_EL1, 47, 1)
+FIELD(HFGRTR_EL2, ERXPFGCDN_EL1, 48, 1)
+FIELD(HFGRTR_EL2, ERXADDR_EL1, 49, 1)
+FIELD(HFGRTR_EL2, NACCDATA_EL1, 50, 1)
+/* 51-53: RES0 */
+FIELD(HFGRTR_EL2, NSMPRI_EL1, 54, 1)
+FIELD(HFGRTR_EL2, NTPIDR2_EL0, 55, 1)
+/* 56-63: RES0 */
+
+/* These match HFGRTR but bits for RO registers are RES0 */
+FIELD(HFGWTR_EL2, AFSR0_EL1, 0, 1)
+FIELD(HFGWTR_EL2, AFSR1_EL1, 1, 1)
+FIELD(HFGWTR_EL2, AMAIR_EL1, 3, 1)
+FIELD(HFGWTR_EL2, APDAKEY, 4, 1)
+FIELD(HFGWTR_EL2, APDBKEY, 5, 1)
+FIELD(HFGWTR_EL2, APGAKEY, 6, 1)
+FIELD(HFGWTR_EL2, APIAKEY, 7, 1)
+FIELD(HFGWTR_EL2, APIBKEY, 8, 1)
+FIELD(HFGWTR_EL2, CONTEXTIDR_EL1, 11, 1)
+FIELD(HFGWTR_EL2, CPACR_EL1, 12, 1)
+FIELD(HFGWTR_EL2, CSSELR_EL1, 13, 1)
+FIELD(HFGWTR_EL2, ESR_EL1, 16, 1)
+FIELD(HFGWTR_EL2, FAR_EL1, 17, 1)
+FIELD(HFGWTR_EL2, LORC_EL1, 19, 1)
+FIELD(HFGWTR_EL2, LOREA_EL1, 20, 1)
+FIELD(HFGWTR_EL2, LORN_EL1, 22, 1)
+FIELD(HFGWTR_EL2, LORSA_EL1, 23, 1)
+FIELD(HFGWTR_EL2, MAIR_EL1, 24, 1)
+FIELD(HFGWTR_EL2, PAR_EL1, 27, 1)
+FIELD(HFGWTR_EL2, SCTLR_EL1, 29, 1)
+FIELD(HFGWTR_EL2, SCXTNUM_EL1, 30, 1)
+FIELD(HFGWTR_EL2, SCXTNUM_EL0, 31, 1)
+FIELD(HFGWTR_EL2, TCR_EL1, 32, 1)
+FIELD(HFGWTR_EL2, TPIDR_EL1, 33, 1)
+FIELD(HFGWTR_EL2, TPIDRRO_EL0, 34, 1)
+FIELD(HFGWTR_EL2, TPIDR_EL0, 35, 1)
+FIELD(HFGWTR_EL2, TTBR0_EL1, 36, 1)
+FIELD(HFGWTR_EL2, TTBR1_EL1, 37, 1)
+FIELD(HFGWTR_EL2, VBAR_EL1, 38, 1)
+FIELD(HFGWTR_EL2, ICC_IGRPENN_EL1, 39, 1)
+FIELD(HFGWTR_EL2, ERRSELR_EL1, 41, 1)
+FIELD(HFGWTR_EL2, ERXCTLR_EL1, 43, 1)
+FIELD(HFGWTR_EL2, ERXSTATUS_EL1, 44, 1)
+FIELD(HFGWTR_EL2, ERXMISCN_EL1, 45, 1)
+FIELD(HFGWTR_EL2, ERXPFGCTL_EL1, 47, 1)
+FIELD(HFGWTR_EL2, ERXPFGCDN_EL1, 48, 1)
+FIELD(HFGWTR_EL2, ERXADDR_EL1, 49, 1)
+FIELD(HFGWTR_EL2, NACCDATA_EL1, 50, 1)
+FIELD(HFGWTR_EL2, NSMPRI_EL1, 54, 1)
+FIELD(HFGWTR_EL2, NTPIDR2_EL0, 55, 1)
+
+FIELD(HFGITR_EL2, ICIALLUIS, 0, 1)
+FIELD(HFGITR_EL2, ICIALLU, 1, 1)
+FIELD(HFGITR_EL2, ICIVAU, 2, 1)
+FIELD(HFGITR_EL2, DCIVAC, 3, 1)
+FIELD(HFGITR_EL2, DCISW, 4, 1)
+FIELD(HFGITR_EL2, DCCSW, 5, 1)
+FIELD(HFGITR_EL2, DCCISW, 6, 1)
+FIELD(HFGITR_EL2, DCCVAU, 7, 1)
+FIELD(HFGITR_EL2, DCCVAP, 8, 1)
+FIELD(HFGITR_EL2, DCCVADP, 9, 1)
+FIELD(HFGITR_EL2, DCCIVAC, 10, 1)
+FIELD(HFGITR_EL2, DCZVA, 11, 1)
+FIELD(HFGITR_EL2, ATS1E1R, 12, 1)
+FIELD(HFGITR_EL2, ATS1E1W, 13, 1)
+FIELD(HFGITR_EL2, ATS1E0R, 14, 1)
+FIELD(HFGITR_EL2, ATS1E0W, 15, 1)
+FIELD(HFGITR_EL2, ATS1E1RP, 16, 1)
+FIELD(HFGITR_EL2, ATS1E1WP, 17, 1)
+FIELD(HFGITR_EL2, TLBIVMALLE1OS, 18, 1)
+FIELD(HFGITR_EL2, TLBIVAE1OS, 19, 1)
+FIELD(HFGITR_EL2, TLBIASIDE1OS, 20, 1)
+FIELD(HFGITR_EL2, TLBIVAAE1OS, 21, 1)
+FIELD(HFGITR_EL2, TLBIVALE1OS, 22, 1)
+FIELD(HFGITR_EL2, TLBIVAALE1OS, 23, 1)
+FIELD(HFGITR_EL2, TLBIRVAE1OS, 24, 1)
+FIELD(HFGITR_EL2, TLBIRVAAE1OS, 25, 1)
+FIELD(HFGITR_EL2, TLBIRVALE1OS, 26, 1)
+FIELD(HFGITR_EL2, TLBIRVAALE1OS, 27, 1)
+FIELD(HFGITR_EL2, TLBIVMALLE1IS, 28, 1)
+FIELD(HFGITR_EL2, TLBIVAE1IS, 29, 1)
+FIELD(HFGITR_EL2, TLBIASIDE1IS, 30, 1)
+FIELD(HFGITR_EL2, TLBIVAAE1IS, 31, 1)
+FIELD(HFGITR_EL2, TLBIVALE1IS, 32, 1)
+FIELD(HFGITR_EL2, TLBIVAALE1IS, 33, 1)
+FIELD(HFGITR_EL2, TLBIRVAE1IS, 34, 1)
+FIELD(HFGITR_EL2, TLBIRVAAE1IS, 35, 1)
+FIELD(HFGITR_EL2, TLBIRVALE1IS, 36, 1)
+FIELD(HFGITR_EL2, TLBIRVAALE1IS, 37, 1)
+FIELD(HFGITR_EL2, TLBIRVAE1, 38, 1)
+FIELD(HFGITR_EL2, TLBIRVAAE1, 39, 1)
+FIELD(HFGITR_EL2, TLBIRVALE1, 40, 1)
+FIELD(HFGITR_EL2, TLBIRVAALE1, 41, 1)
+FIELD(HFGITR_EL2, TLBIVMALLE1, 42, 1)
+FIELD(HFGITR_EL2, TLBIVAE1, 43, 1)
+FIELD(HFGITR_EL2, TLBIASIDE1, 44, 1)
+FIELD(HFGITR_EL2, TLBIVAAE1, 45, 1)
+FIELD(HFGITR_EL2, TLBIVALE1, 46, 1)
+FIELD(HFGITR_EL2, TLBIVAALE1, 47, 1)
+FIELD(HFGITR_EL2, CFPRCTX, 48, 1)
+FIELD(HFGITR_EL2, DVPRCTX, 49, 1)
+FIELD(HFGITR_EL2, CPPRCTX, 50, 1)
+FIELD(HFGITR_EL2, ERET, 51, 1)
+FIELD(HFGITR_EL2, SVC_EL0, 52, 1)
+FIELD(HFGITR_EL2, SVC_EL1, 53, 1)
+FIELD(HFGITR_EL2, DCCVAC, 54, 1)
+FIELD(HFGITR_EL2, NBRBINJ, 55, 1)
+FIELD(HFGITR_EL2, NBRBIALL, 56, 1)
+
+FIELD(HDFGRTR_EL2, DBGBCRN_EL1, 0, 1)
+FIELD(HDFGRTR_EL2, DBGBVRN_EL1, 1, 1)
+FIELD(HDFGRTR_EL2, DBGWCRN_EL1, 2, 1)
+FIELD(HDFGRTR_EL2, DBGWVRN_EL1, 3, 1)
+FIELD(HDFGRTR_EL2, MDSCR_EL1, 4, 1)
+FIELD(HDFGRTR_EL2, DBGCLAIM, 5, 1)
+FIELD(HDFGRTR_EL2, DBGAUTHSTATUS_EL1, 6, 1)
+FIELD(HDFGRTR_EL2, DBGPRCR_EL1, 7, 1)
+/* 8: RES0: OSLAR_EL1 is WO */
+FIELD(HDFGRTR_EL2, OSLSR_EL1, 9, 1)
+FIELD(HDFGRTR_EL2, OSECCR_EL1, 10, 1)
+FIELD(HDFGRTR_EL2, OSDLR_EL1, 11, 1)
+FIELD(HDFGRTR_EL2, PMEVCNTRN_EL0, 12, 1)
+FIELD(HDFGRTR_EL2, PMEVTYPERN_EL0, 13, 1)
+FIELD(HDFGRTR_EL2, PMCCFILTR_EL0, 14, 1)
+FIELD(HDFGRTR_EL2, PMCCNTR_EL0, 15, 1)
+FIELD(HDFGRTR_EL2, PMCNTEN, 16, 1)
+FIELD(HDFGRTR_EL2, PMINTEN, 17, 1)
+FIELD(HDFGRTR_EL2, PMOVS, 18, 1)
+FIELD(HDFGRTR_EL2, PMSELR_EL0, 19, 1)
+/* 20: RES0: PMSWINC_EL0 is WO */
+/* 21: RES0: PMCR_EL0 is WO */
+FIELD(HDFGRTR_EL2, PMMIR_EL1, 22, 1)
+FIELD(HDFGRTR_EL2, PMBLIMITR_EL1, 23, 1)
+FIELD(HDFGRTR_EL2, PMBPTR_EL1, 24, 1)
+FIELD(HDFGRTR_EL2, PMBSR_EL1, 25, 1)
+FIELD(HDFGRTR_EL2, PMSCR_EL1, 26, 1)
+FIELD(HDFGRTR_EL2, PMSEVFR_EL1, 27, 1)
+FIELD(HDFGRTR_EL2, PMSFCR_EL1, 28, 1)
+FIELD(HDFGRTR_EL2, PMSICR_EL1, 29, 1)
+FIELD(HDFGRTR_EL2, PMSIDR_EL1, 30, 1)
+FIELD(HDFGRTR_EL2, PMSIRR_EL1, 31, 1)
+FIELD(HDFGRTR_EL2, PMSLATFR_EL1, 32, 1)
+FIELD(HDFGRTR_EL2, TRC, 33, 1)
+FIELD(HDFGRTR_EL2, TRCAUTHSTATUS, 34, 1)
+FIELD(HDFGRTR_EL2, TRCAUXCTLR, 35, 1)
+FIELD(HDFGRTR_EL2, TRCCLAIM, 36, 1)
+FIELD(HDFGRTR_EL2, TRCCNTVRn, 37, 1)
+/* 38, 39: RES0 */
+FIELD(HDFGRTR_EL2, TRCID, 40, 1)
+FIELD(HDFGRTR_EL2, TRCIMSPECN, 41, 1)
+/* 42: RES0: TRCOSLAR is WO */
+FIELD(HDFGRTR_EL2, TRCOSLSR, 43, 1)
+FIELD(HDFGRTR_EL2, TRCPRGCTLR, 44, 1)
+FIELD(HDFGRTR_EL2, TRCSEQSTR, 45, 1)
+FIELD(HDFGRTR_EL2, TRCSSCSRN, 46, 1)
+FIELD(HDFGRTR_EL2, TRCSTATR, 47, 1)
+FIELD(HDFGRTR_EL2, TRCVICTLR, 48, 1)
+/* 49: RES0: TRFCR_EL1 is WO */
+FIELD(HDFGRTR_EL2, TRBBASER_EL1, 50, 1)
+FIELD(HDFGRTR_EL2, TRBIDR_EL1, 51, 1)
+FIELD(HDFGRTR_EL2, TRBLIMITR_EL1, 52, 1)
+FIELD(HDFGRTR_EL2, TRBMAR_EL1, 53, 1)
+FIELD(HDFGRTR_EL2, TRBPTR_EL1, 54, 1)
+FIELD(HDFGRTR_EL2, TRBSR_EL1, 55, 1)
+FIELD(HDFGRTR_EL2, TRBTRG_EL1, 56, 1)
+FIELD(HDFGRTR_EL2, PMUSERENR_EL0, 57, 1)
+FIELD(HDFGRTR_EL2, PMCEIDN_EL0, 58, 1)
+FIELD(HDFGRTR_EL2, NBRBIDR, 59, 1)
+FIELD(HDFGRTR_EL2, NBRBCTL, 60, 1)
+FIELD(HDFGRTR_EL2, NBRBDATA, 61, 1)
+FIELD(HDFGRTR_EL2, NPMSNEVFR_EL1, 62, 1)
+FIELD(HDFGRTR_EL2, PMBIDR_EL1, 63, 1)
+
+/*
+ * These match HDFGRTR_EL2, but bits for RO registers are RES0.
+ * A few bits are for WO registers, where the HDFGRTR_EL2 bit is RES0.
+ */
+FIELD(HDFGWTR_EL2, DBGBCRN_EL1, 0, 1)
+FIELD(HDFGWTR_EL2, DBGBVRN_EL1, 1, 1)
+FIELD(HDFGWTR_EL2, DBGWCRN_EL1, 2, 1)
+FIELD(HDFGWTR_EL2, DBGWVRN_EL1, 3, 1)
+FIELD(HDFGWTR_EL2, MDSCR_EL1, 4, 1)
+FIELD(HDFGWTR_EL2, DBGCLAIM, 5, 1)
+FIELD(HDFGWTR_EL2, DBGPRCR_EL1, 7, 1)
+FIELD(HDFGWTR_EL2, OSLAR_EL1, 8, 1)
+FIELD(HDFGWTR_EL2, OSLSR_EL1, 9, 1)
+FIELD(HDFGWTR_EL2, OSECCR_EL1, 10, 1)
+FIELD(HDFGWTR_EL2, OSDLR_EL1, 11, 1)
+FIELD(HDFGWTR_EL2, PMEVCNTRN_EL0, 12, 1)
+FIELD(HDFGWTR_EL2, PMEVTYPERN_EL0, 13, 1)
+FIELD(HDFGWTR_EL2, PMCCFILTR_EL0, 14, 1)
+FIELD(HDFGWTR_EL2, PMCCNTR_EL0, 15, 1)
+FIELD(HDFGWTR_EL2, PMCNTEN, 16, 1)
+FIELD(HDFGWTR_EL2, PMINTEN, 17, 1)
+FIELD(HDFGWTR_EL2, PMOVS, 18, 1)
+FIELD(HDFGWTR_EL2, PMSELR_EL0, 19, 1)
+FIELD(HDFGWTR_EL2, PMSWINC_EL0, 20, 1)
+FIELD(HDFGWTR_EL2, PMCR_EL0, 21, 1)
+FIELD(HDFGWTR_EL2, PMBLIMITR_EL1, 23, 1)
+FIELD(HDFGWTR_EL2, PMBPTR_EL1, 24, 1)
+FIELD(HDFGWTR_EL2, PMBSR_EL1, 25, 1)
+FIELD(HDFGWTR_EL2, PMSCR_EL1, 26, 1)
+FIELD(HDFGWTR_EL2, PMSEVFR_EL1, 27, 1)
+FIELD(HDFGWTR_EL2, PMSFCR_EL1, 28, 1)
+FIELD(HDFGWTR_EL2, PMSICR_EL1, 29, 1)
+FIELD(HDFGWTR_EL2, PMSIRR_EL1, 31, 1)
+FIELD(HDFGWTR_EL2, PMSLATFR_EL1, 32, 1)
+FIELD(HDFGWTR_EL2, TRC, 33, 1)
+FIELD(HDFGWTR_EL2, TRCAUXCTLR, 35, 1)
+FIELD(HDFGWTR_EL2, TRCCLAIM, 36, 1)
+FIELD(HDFGWTR_EL2, TRCCNTVRn, 37, 1)
+FIELD(HDFGWTR_EL2, TRCIMSPECN, 41, 1)
+FIELD(HDFGWTR_EL2, TRCOSLAR, 42, 1)
+FIELD(HDFGWTR_EL2, TRCPRGCTLR, 44, 1)
+FIELD(HDFGWTR_EL2, TRCSEQSTR, 45, 1)
+FIELD(HDFGWTR_EL2, TRCSSCSRN, 46, 1)
+FIELD(HDFGWTR_EL2, TRCVICTLR, 48, 1)
+FIELD(HDFGWTR_EL2, TRFCR_EL1, 49, 1)
+FIELD(HDFGWTR_EL2, TRBBASER_EL1, 50, 1)
+FIELD(HDFGWTR_EL2, TRBLIMITR_EL1, 52, 1)
+FIELD(HDFGWTR_EL2, TRBMAR_EL1, 53, 1)
+FIELD(HDFGWTR_EL2, TRBPTR_EL1, 54, 1)
+FIELD(HDFGWTR_EL2, TRBSR_EL1, 55, 1)
+FIELD(HDFGWTR_EL2, TRBTRG_EL1, 56, 1)
+FIELD(HDFGWTR_EL2, PMUSERENR_EL0, 57, 1)
+FIELD(HDFGWTR_EL2, NBRBCTL, 60, 1)
+FIELD(HDFGWTR_EL2, NBRBDATA, 61, 1)
+FIELD(HDFGWTR_EL2, NPMSNEVFR_EL1, 62, 1)
+
+/* Which fine-grained trap bit register to check, if any */
+FIELD(FGT, TYPE, 10, 3)
+FIELD(FGT, REV, 9, 1) /* Is bit sense reversed? */
+FIELD(FGT, IDX, 6, 3) /* Index within a uint64_t[] array */
+FIELD(FGT, BITPOS, 0, 6) /* Bit position within the uint64_t */
+
+/*
+ * Macros to define FGT_##bitname enum constants to use in ARMCPRegInfo::fgt
+ * fields. We assume for brevity's sake that there are no duplicated
+ * bit names across the various FGT registers.
+ */
+#define DO_BIT(REG, BITNAME)                                    \
+    FGT_##BITNAME = FGT_##REG | R_##REG##_EL2_##BITNAME##_SHIFT
+
+/* Some bits have reversed sense, so 0 means trap and 1 means not */
+#define DO_REV_BIT(REG, BITNAME)                                        \
+    FGT_##BITNAME = FGT_##REG | FGT_REV | R_##REG##_EL2_##BITNAME##_SHIFT
+
+typedef enum FGTBit {
+    /*
+     * These bits tell us which register arrays to use:
+     * if FGT_R is set then reads are checked against fgt_read[];
+     * if FGT_W is set then writes are checked against fgt_write[];
+     * if FGT_EXEC is set then all accesses are checked against fgt_exec[].
+     *
+     * For almost all bits in the R/W register pairs, the bit exists in
+     * both registers for a RW register, in HFGRTR/HDFGRTR for a RO register
+     * with the corresponding HFGWTR/HDFGTWTR bit being RES0, and vice-versa
+     * for a WO register. There are unfortunately a couple of exceptions
+     * (PMCR_EL0, TRFCR_EL1) where the register being trapped is RW but
+     * the FGT system only allows trapping of writes, not reads.
+     *
+     * Note that we arrange these bits so that a 0 FGTBit means "no trap".
+     */
+    FGT_R = 1 << R_FGT_TYPE_SHIFT,
+    FGT_W = 2 << R_FGT_TYPE_SHIFT,
+    FGT_EXEC = 4 << R_FGT_TYPE_SHIFT,
+    FGT_RW = FGT_R | FGT_W,
+    /* Bit to identify whether trap bit is reversed sense */
+    FGT_REV = R_FGT_REV_MASK,
+
+    /*
+     * If a bit exists in HFGRTR/HDFGRTR then either the register being
+     * trapped is RO or the bit also exists in HFGWTR/HDFGWTR, so we either
+     * want to trap for both reads and writes or else it's harmless to mark
+     * it as trap-on-writes.
+     * If a bit exists only in HFGWTR/HDFGWTR then either the register being
+     * trapped is WO, or else it is one of the two oddball special cases
+     * which are RW but have only a write trap. We mark these as only
+     * FGT_W so we get the right behaviour for those special cases.
+     * (If a bit was added in future that provided only a read trap for an
+     * RW register we'd need to do something special to get the FGT_R bit
+     * only. But this seems unlikely to happen.)
+     *
+     * So for the DO_BIT/DO_REV_BIT macros: use FGT_HFGRTR/FGT_HDFGRTR if
+     * the bit exists in that register. Otherwise use FGT_HFGWTR/FGT_HDFGWTR.
+     */
+    FGT_HFGRTR = FGT_RW | (FGTREG_HFGRTR << R_FGT_IDX_SHIFT),
+    FGT_HFGWTR = FGT_W | (FGTREG_HFGWTR << R_FGT_IDX_SHIFT),
+    FGT_HDFGRTR = FGT_RW | (FGTREG_HDFGRTR << R_FGT_IDX_SHIFT),
+    FGT_HDFGWTR = FGT_W | (FGTREG_HDFGWTR << R_FGT_IDX_SHIFT),
+    FGT_HFGITR = FGT_EXEC | (FGTREG_HFGITR << R_FGT_IDX_SHIFT),
+
+    /* Trap bits in HFGRTR_EL2 / HFGWTR_EL2, starting from bit 0. */
+    DO_BIT(HFGRTR, AFSR0_EL1),
+    DO_BIT(HFGRTR, AFSR1_EL1),
+    DO_BIT(HFGRTR, AIDR_EL1),
+    DO_BIT(HFGRTR, AMAIR_EL1),
+    DO_BIT(HFGRTR, APDAKEY),
+    DO_BIT(HFGRTR, APDBKEY),
+    DO_BIT(HFGRTR, APGAKEY),
+    DO_BIT(HFGRTR, APIAKEY),
+    DO_BIT(HFGRTR, APIBKEY),
+    DO_BIT(HFGRTR, CCSIDR_EL1),
+    DO_BIT(HFGRTR, CLIDR_EL1),
+    DO_BIT(HFGRTR, CONTEXTIDR_EL1),
+    DO_BIT(HFGRTR, CPACR_EL1),
+    DO_BIT(HFGRTR, CSSELR_EL1),
+    DO_BIT(HFGRTR, CTR_EL0),
+    DO_BIT(HFGRTR, DCZID_EL0),
+    DO_BIT(HFGRTR, ESR_EL1),
+    DO_BIT(HFGRTR, FAR_EL1),
+    DO_BIT(HFGRTR, ISR_EL1),
+    DO_BIT(HFGRTR, LORC_EL1),
+    DO_BIT(HFGRTR, LOREA_EL1),
+    DO_BIT(HFGRTR, LORID_EL1),
+    DO_BIT(HFGRTR, LORN_EL1),
+    DO_BIT(HFGRTR, LORSA_EL1),
+    DO_BIT(HFGRTR, MAIR_EL1),
+    DO_BIT(HFGRTR, MIDR_EL1),
+    DO_BIT(HFGRTR, MPIDR_EL1),
+    DO_BIT(HFGRTR, PAR_EL1),
+    DO_BIT(HFGRTR, REVIDR_EL1),
+    DO_BIT(HFGRTR, SCTLR_EL1),
+    DO_BIT(HFGRTR, SCXTNUM_EL1),
+    DO_BIT(HFGRTR, SCXTNUM_EL0),
+    DO_BIT(HFGRTR, TCR_EL1),
+    DO_BIT(HFGRTR, TPIDR_EL1),
+    DO_BIT(HFGRTR, TPIDRRO_EL0),
+    DO_BIT(HFGRTR, TPIDR_EL0),
+    DO_BIT(HFGRTR, TTBR0_EL1),
+    DO_BIT(HFGRTR, TTBR1_EL1),
+    DO_BIT(HFGRTR, VBAR_EL1),
+    DO_BIT(HFGRTR, ICC_IGRPENN_EL1),
+    DO_BIT(HFGRTR, ERRIDR_EL1),
+    DO_REV_BIT(HFGRTR, NSMPRI_EL1),
+    DO_REV_BIT(HFGRTR, NTPIDR2_EL0),
+
+    /* Trap bits in HDFGRTR_EL2 / HDFGWTR_EL2, starting from bit 0. */
+    DO_BIT(HDFGRTR, DBGBCRN_EL1),
+    DO_BIT(HDFGRTR, DBGBVRN_EL1),
+    DO_BIT(HDFGRTR, DBGWCRN_EL1),
+    DO_BIT(HDFGRTR, DBGWVRN_EL1),
+    DO_BIT(HDFGRTR, MDSCR_EL1),
+    DO_BIT(HDFGRTR, DBGCLAIM),
+    DO_BIT(HDFGWTR, OSLAR_EL1),
+    DO_BIT(HDFGRTR, OSLSR_EL1),
+    DO_BIT(HDFGRTR, OSECCR_EL1),
+    DO_BIT(HDFGRTR, OSDLR_EL1),
+    DO_BIT(HDFGRTR, PMEVCNTRN_EL0),
+    DO_BIT(HDFGRTR, PMEVTYPERN_EL0),
+    DO_BIT(HDFGRTR, PMCCFILTR_EL0),
+    DO_BIT(HDFGRTR, PMCCNTR_EL0),
+    DO_BIT(HDFGRTR, PMCNTEN),
+    DO_BIT(HDFGRTR, PMINTEN),
+    DO_BIT(HDFGRTR, PMOVS),
+    DO_BIT(HDFGRTR, PMSELR_EL0),
+    DO_BIT(HDFGWTR, PMSWINC_EL0),
+    DO_BIT(HDFGWTR, PMCR_EL0),
+    DO_BIT(HDFGRTR, PMMIR_EL1),
+    DO_BIT(HDFGRTR, PMCEIDN_EL0),
+
+    /* Trap bits in HFGITR_EL2, starting from bit 0 */
+    DO_BIT(HFGITR, ICIALLUIS),
+    DO_BIT(HFGITR, ICIALLU),
+    DO_BIT(HFGITR, ICIVAU),
+    DO_BIT(HFGITR, DCIVAC),
+    DO_BIT(HFGITR, DCISW),
+    DO_BIT(HFGITR, DCCSW),
+    DO_BIT(HFGITR, DCCISW),
+    DO_BIT(HFGITR, DCCVAU),
+    DO_BIT(HFGITR, DCCVAP),
+    DO_BIT(HFGITR, DCCVADP),
+    DO_BIT(HFGITR, DCCIVAC),
+    DO_BIT(HFGITR, DCZVA),
+    DO_BIT(HFGITR, ATS1E1R),
+    DO_BIT(HFGITR, ATS1E1W),
+    DO_BIT(HFGITR, ATS1E0R),
+    DO_BIT(HFGITR, ATS1E0W),
+    DO_BIT(HFGITR, ATS1E1RP),
+    DO_BIT(HFGITR, ATS1E1WP),
+    DO_BIT(HFGITR, TLBIVMALLE1OS),
+    DO_BIT(HFGITR, TLBIVAE1OS),
+    DO_BIT(HFGITR, TLBIASIDE1OS),
+    DO_BIT(HFGITR, TLBIVAAE1OS),
+    DO_BIT(HFGITR, TLBIVALE1OS),
+    DO_BIT(HFGITR, TLBIVAALE1OS),
+    DO_BIT(HFGITR, TLBIRVAE1OS),
+    DO_BIT(HFGITR, TLBIRVAAE1OS),
+    DO_BIT(HFGITR, TLBIRVALE1OS),
+    DO_BIT(HFGITR, TLBIRVAALE1OS),
+    DO_BIT(HFGITR, TLBIVMALLE1IS),
+    DO_BIT(HFGITR, TLBIVAE1IS),
+    DO_BIT(HFGITR, TLBIASIDE1IS),
+    DO_BIT(HFGITR, TLBIVAAE1IS),
+    DO_BIT(HFGITR, TLBIVALE1IS),
+    DO_BIT(HFGITR, TLBIVAALE1IS),
+    DO_BIT(HFGITR, TLBIRVAE1IS),
+    DO_BIT(HFGITR, TLBIRVAAE1IS),
+    DO_BIT(HFGITR, TLBIRVALE1IS),
+    DO_BIT(HFGITR, TLBIRVAALE1IS),
+    DO_BIT(HFGITR, TLBIRVAE1),
+    DO_BIT(HFGITR, TLBIRVAAE1),
+    DO_BIT(HFGITR, TLBIRVALE1),
+    DO_BIT(HFGITR, TLBIRVAALE1),
+    DO_BIT(HFGITR, TLBIVMALLE1),
+    DO_BIT(HFGITR, TLBIVAE1),
+    DO_BIT(HFGITR, TLBIASIDE1),
+    DO_BIT(HFGITR, TLBIVAAE1),
+    DO_BIT(HFGITR, TLBIVALE1),
+    DO_BIT(HFGITR, TLBIVAALE1),
+    DO_BIT(HFGITR, CFPRCTX),
+    DO_BIT(HFGITR, DVPRCTX),
+    DO_BIT(HFGITR, CPPRCTX),
+    DO_BIT(HFGITR, DCCVAC),
+} FGTBit;
+
+#undef DO_BIT
+#undef DO_REV_BIT
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
 
@@ -284,6 +857,11 @@ struct ARMCPRegInfo {
     CPAccessRights access;
     /* Security state: ARM_CP_SECSTATE_* bits/values */
     CPSecureState secure;
+    /*
+     * Which fine-grained trap register bit to check, if any. This
+     * value encodes both the trap register and bit within it.
+     */
+    FGTBit fgt;
     /*
      * The opaque pointer passed to define_arm_cp_regs_with_opaque() when
      * this register was defined: can be used to hand data through to the
@@ -492,5 +1070,13 @@ static inline bool arm_cpreg_in_idspace(const ARMCPRegInfo *ri)
         arm_cpreg_encoding_in_idspace(ri->opc0, ri->opc1, ri->opc2,
                                       ri->crn, ri->crm);
 }
+
+#ifdef CONFIG_USER_ONLY
+static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
+#else
+void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
+#endif
+
+CPAccessResult access_tvm_trvm(CPUARMState *, const ARMCPRegInfo *, bool);
 
 #endif /* TARGET_ARM_CPREGS_H */

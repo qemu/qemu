@@ -25,6 +25,8 @@
 #ifndef XLNX_USB_SUBSYSTEM_H
 #define XLNX_USB_SUBSYSTEM_H
 
+#include "hw/register.h"
+#include "hw/sysbus.h"
 #include "hw/usb/xlnx-versal-usb2-ctrl-regs.h"
 #include "hw/usb/hcd-dwc3.h"
 

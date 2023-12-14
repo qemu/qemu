@@ -22,13 +22,12 @@
 
 #include "hw/cpu/core.h"
 #include "target/ppc/cpu.h"
+#include "hw/ppc/pnv.h"
 #include "qom/object.h"
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
 OBJECT_DECLARE_TYPE(PnvCore, PnvCoreClass,
                     PNV_CORE)
-
-typedef struct PnvChip PnvChip;
 
 struct PnvCore {
     /*< private >*/
@@ -47,6 +46,7 @@ struct PnvCoreClass {
     DeviceClass parent_class;
 
     const MemoryRegionOps *xscom_ops;
+    uint64_t xscom_size;
 };
 
 #define PNV_CORE_TYPE_SUFFIX "-" TYPE_PNV_CORE
@@ -61,13 +61,28 @@ static inline PnvCPUState *pnv_cpu_state(PowerPCCPU *cpu)
     return (PnvCPUState *)cpu->machine_data;
 }
 
+struct PnvQuadClass {
+    DeviceClass parent_class;
+
+    const MemoryRegionOps *xscom_ops;
+    uint64_t xscom_size;
+
+    const MemoryRegionOps *xscom_qme_ops;
+    uint64_t xscom_qme_size;
+};
+
 #define TYPE_PNV_QUAD "powernv-cpu-quad"
-OBJECT_DECLARE_SIMPLE_TYPE(PnvQuad, PNV_QUAD)
+
+#define PNV_QUAD_TYPE_SUFFIX "-" TYPE_PNV_QUAD
+#define PNV_QUAD_TYPE_NAME(cpu_model) cpu_model PNV_QUAD_TYPE_SUFFIX
+
+OBJECT_DECLARE_TYPE(PnvQuad, PnvQuadClass, PNV_QUAD)
 
 struct PnvQuad {
     DeviceState parent_obj;
 
     uint32_t quad_id;
     MemoryRegion xscom_regs;
+    MemoryRegion xscom_qme_regs;
 };
 #endif /* PPC_PNV_CORE_H */

@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/lockable.h"
 #include "sysemu/tcg.h"
 #include "sysemu/replay.h"
 #include "sysemu/cpu-timers.h"
@@ -31,7 +32,7 @@
 #include "qemu/notify.h"
 #include "qemu/guest-random.h"
 #include "exec/exec-all.h"
-
+#include "tcg/startup.h"
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-rr.h"
 #include "tcg-accel-ops-icount.h"
@@ -51,7 +52,7 @@ void rr_kick_vcpu_thread(CPUState *unused)
  *
  * The kick timer is responsible for moving single threaded vCPU
  * emulation on to the next vCPU. If more than one vCPU is running a
- * timer event with force a cpu->exit so the next vCPU can get
+ * timer event we force a cpu->exit so the next vCPU can get
  * scheduled.
  *
  * The timer is removed if all vCPUs are idle and restarted again once
@@ -71,11 +72,13 @@ static void rr_kick_next_cpu(void)
 {
     CPUState *cpu;
     do {
-        cpu = qatomic_mb_read(&rr_current_cpu);
+        cpu = qatomic_read(&rr_current_cpu);
         if (cpu) {
             cpu_exit(cpu);
         }
-    } while (cpu != qatomic_mb_read(&rr_current_cpu));
+        /* Finish kicking this cpu before reading again.  */
+        smp_mb();
+    } while (cpu != qatomic_read(&rr_current_cpu));
 }
 
 static void rr_kick_thread(void *opaque)
@@ -140,6 +143,33 @@ static void rr_force_rcu(Notifier *notify, void *data)
 }
 
 /*
+ * Calculate the number of CPUs that we will process in a single iteration of
+ * the main CPU thread loop so that we can fairly distribute the instruction
+ * count across CPUs.
+ *
+ * The CPU count is cached based on the CPU list generation ID to avoid
+ * iterating the list every time.
+ */
+static int rr_cpu_count(void)
+{
+    static unsigned int last_gen_id = ~0;
+    static int cpu_count;
+    CPUState *cpu;
+
+    QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
+
+    if (cpu_list_generation_id_get() != last_gen_id) {
+        cpu_count = 0;
+        CPU_FOREACH(cpu) {
+            ++cpu_count;
+        }
+        last_gen_id = cpu_list_generation_id_get();
+    }
+
+    return cpu_count;
+}
+
+/*
  * In the single-threaded case each vCPU is simulated in turn. If
  * there is more than a single vCPU we create a simple timer to kick
  * the vCPU and ensure we don't get stuck in a tight loop in one vCPU.
@@ -152,9 +182,7 @@ static void *rr_cpu_thread_fn(void *arg)
     Notifier force_rcu;
     CPUState *cpu = arg;
 
-    g_assert(tcg_enabled());
-    tcg_cpu_init_cflags(cpu, false);
-
+    assert(tcg_enabled());
     rcu_register_thread();
     force_rcu.notify = rr_force_rcu;
     rcu_add_force_rcu_notifier(&force_rcu);
@@ -164,7 +192,7 @@ static void *rr_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
-    cpu->can_do_io = 1;
+    cpu->neg.can_do_io = true;
     cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
@@ -187,11 +215,16 @@ static void *rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
+        /* Only used for icount_enabled() */
+        int64_t cpu_budget = 0;
+
         qemu_mutex_unlock_iothread();
         replay_mutex_lock();
         qemu_mutex_lock_iothread();
 
         if (icount_enabled()) {
+            int cpu_count = rr_cpu_count();
+
             /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
             icount_account_warp_timer();
             /*
@@ -199,6 +232,8 @@ static void *rr_cpu_thread_fn(void *arg)
              * waking up the I/O thread and waiting for completion.
              */
             icount_handle_deadline();
+
+            cpu_budget = icount_percpu_budget(cpu_count);
         }
 
         replay_mutex_unlock();
@@ -208,8 +243,9 @@ static void *rr_cpu_thread_fn(void *arg)
         }
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
+            /* Store rr_current_cpu before evaluating cpu_can_run().  */
+            qatomic_set_mb(&rr_current_cpu, cpu);
 
-            qatomic_mb_set(&rr_current_cpu, cpu);
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -220,7 +256,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
                 qemu_mutex_unlock_iothread();
                 if (icount_enabled()) {
-                    icount_prepare_for_run(cpu);
+                    icount_prepare_for_run(cpu, cpu_budget);
                 }
                 r = tcg_cpus_exec(cpu);
                 if (icount_enabled()) {
@@ -247,11 +283,11 @@ static void *rr_cpu_thread_fn(void *arg)
             cpu = CPU_NEXT(cpu);
         } /* while (cpu && !cpu->exit_request).. */
 
-        /* Does not need qatomic_mb_set because a spurious wakeup is okay.  */
+        /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
 
         if (cpu && cpu->exit_request) {
-            qatomic_mb_set(&cpu->exit_request, 0);
+            qatomic_set_mb(&cpu->exit_request, 0);
         }
 
         if (icount_enabled() && all_cpu_threads_idle()) {
@@ -277,6 +313,9 @@ void rr_start_vcpu_thread(CPUState *cpu)
     static QemuCond *single_tcg_halt_cond;
     static QemuThread *single_tcg_cpu_thread;
 
+    g_assert(tcg_enabled());
+    tcg_cpu_init_cflags(cpu, false);
+
     if (!single_tcg_cpu_thread) {
         cpu->thread = g_new0(QemuThread, 1);
         cpu->halt_cond = g_new0(QemuCond, 1);
@@ -290,15 +329,12 @@ void rr_start_vcpu_thread(CPUState *cpu)
 
         single_tcg_halt_cond = cpu->halt_cond;
         single_tcg_cpu_thread = cpu->thread;
-#ifdef _WIN32
-        cpu->hThread = qemu_thread_get_handle(cpu->thread);
-#endif
     } else {
         /* we share the thread */
         cpu->thread = single_tcg_cpu_thread;
         cpu->halt_cond = single_tcg_halt_cond;
         cpu->thread_id = first_cpu->thread_id;
-        cpu->can_do_io = 1;
+        cpu->neg.can_do_io = 1;
         cpu->created = true;
     }
 }

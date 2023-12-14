@@ -11,9 +11,8 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "hw/irq.h"
 #include "hw/intc/i8259.h"
@@ -72,11 +71,6 @@ struct MV64361PCIState {
     uint64_t remap[5];
 };
 
-static int mv64361_pcihost_map_irq(PCIDevice *pci_dev, int n)
-{
-    return (n + PCI_SLOT(pci_dev->devfn)) % PCI_NUM_PINS;
-}
-
 static void mv64361_pcihost_set_irq(void *opaque, int n, int level)
 {
     MV64361PCIState *s = opaque;
@@ -97,7 +91,7 @@ static void mv64361_pcihost_realize(DeviceState *dev, Error **errp)
     g_free(name);
     name = g_strdup_printf("pci.%d", s->index);
     h->bus = pci_register_root_bus(dev, name, mv64361_pcihost_set_irq,
-                                   mv64361_pcihost_map_irq, dev,
+                                   pci_swizzle_map_irq_fn, dev,
                                    &s->mem, &s->io, 0, 4, TYPE_PCI_BUS);
     g_free(name);
     pci_create_simple(h->bus, 0, TYPE_MV64361_PCI_BRIDGE);
@@ -547,6 +541,12 @@ static uint64_t mv64361_read(void *opaque, hwaddr addr, unsigned int size)
             }
         }
         break;
+    case MV64340_ETH_PHY_ADDR:
+        ret = 0x98;
+        break;
+    case MV64340_ETH_SMI:
+        ret = BIT(27);
+        break;
     case MV64340_CUNIT_ARBITER_CONTROL_REG:
         ret = 0x11ff0000 | (s->gpp_int_level << 10);
         break;
@@ -879,10 +879,6 @@ static void mv64361_realize(DeviceState *dev, Error **errp)
     }
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cpu_irq);
     qdev_init_gpio_in_named(dev, mv64361_gpp_irq, "gpp", 32);
-    /* FIXME: PCI IRQ connections may be board specific */
-    for (i = 0; i < PCI_NUM_PINS; i++) {
-        s->pci[1].irq[i] = qdev_get_gpio_in_named(dev, "gpp", 12 + i);
-    }
 }
 
 static void mv64361_reset(DeviceState *dev)

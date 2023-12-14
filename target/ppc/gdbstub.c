@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/helpers.h"
 #include "internal.h"
 
 static int ppc_gdb_register_len_apple(int n)
@@ -53,12 +54,6 @@ static int ppc_gdb_register_len(int n)
     case 0 ... 31:
         /* gprs */
         return sizeof(target_ulong);
-    case 32 ... 63:
-        /* fprs */
-        if (gdb_has_xml) {
-            return 0;
-        }
-        return 8;
     case 66:
         /* cr */
     case 69:
@@ -72,12 +67,6 @@ static int ppc_gdb_register_len(int n)
         /* lr */
     case 68:
         /* ctr */
-        return sizeof(target_ulong);
-    case 70:
-        /* fpscr */
-        if (gdb_has_xml) {
-            return 0;
-        }
         return sizeof(target_ulong);
     default:
         return 0;
@@ -131,9 +120,6 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
     if (n < 32) {
         /* gprs */
         gdb_get_regl(buf, env->gpr[n]);
-    } else if (n < 64) {
-        /* fprs */
-        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n - 32));
     } else {
         switch (n) {
         case 64:
@@ -144,11 +130,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
             break;
         case 66:
             {
-                uint32_t cr = 0;
-                int i;
-                for (i = 0; i < 8; i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
-                }
+                uint32_t cr = ppc_get_cr(env);
                 gdb_get_reg32(buf, cr);
                 break;
             }
@@ -160,9 +142,6 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
             break;
         case 69:
             gdb_get_reg32(buf, cpu_read_xer(env));
-            break;
-        case 70:
-            gdb_get_reg32(buf, env->fpscr);
             break;
         }
     }
@@ -202,11 +181,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
             break;
         case 66 + 32:
             {
-                uint32_t cr = 0;
-                int i;
-                for (i = 0; i < 8; i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
-                }
+                uint32_t cr = ppc_get_cr(env);
                 gdb_get_reg32(buf, cr);
                 break;
             }
@@ -256,10 +231,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         case 66:
             {
                 uint32_t cr = ldl_p(mem_buf);
-                int i;
-                for (i = 0; i < 8; i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
-                }
+                ppc_set_cr(env, cr);
                 break;
             }
         case 67:
@@ -306,10 +278,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
         case 66 + 32:
             {
                 uint32_t cr = ldl_p(mem_buf);
-                int i;
-                for (i = 0; i < 8; i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
-                }
+                ppc_set_cr(env, cr);
                 break;
             }
         case 67 + 32:
@@ -340,6 +309,25 @@ void ppc_gdb_gen_spr_xml(PowerPCCPU *cpu)
     unsigned int num_regs = 0;
     int i;
 
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (!spr->name) {
+            continue;
+        }
+
+        /*
+         * GDB identifies registers based on the order they are
+         * presented in the XML. These ids will not match QEMU's
+         * representation (which follows the PowerISA).
+         *
+         * Store the position of the current register description so
+         * we can make the correspondence later.
+         */
+        spr->gdb_id = num_regs;
+        num_regs++;
+    }
+
     if (pcc->gdb_spr_xml) {
         return;
     }
@@ -361,17 +349,6 @@ void ppc_gdb_gen_spr_xml(PowerPCCPU *cpu)
 
         g_string_append_printf(xml, " bitsize=\"%d\"", TARGET_LONG_BITS);
         g_string_append(xml, " group=\"spr\"/>");
-
-        /*
-         * GDB identifies registers based on the order they are
-         * presented in the XML. These ids will not match QEMU's
-         * representation (which follows the PowerISA).
-         *
-         * Store the position of the current register description so
-         * we can make the correspondence later.
-         */
-        spr->gdb_id = num_regs;
-        num_regs++;
     }
 
     g_string_append(xml, "</feature>");
@@ -594,12 +571,12 @@ static int gdb_set_vsx_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-gchar *ppc_gdb_arch_name(CPUState *cs)
+const gchar *ppc_gdb_arch_name(CPUState *cs)
 {
 #if defined(TARGET_PPC64)
-    return g_strdup("powerpc:common64");
+    return "powerpc:common64";
 #else
-    return g_strdup("powerpc:common");
+    return "powerpc:common";
 #endif
 }
 

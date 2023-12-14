@@ -373,6 +373,80 @@ uint32_t helper_ftoi(CPUTriCoreState *env, uint32_t arg)
     return (uint32_t)result;
 }
 
+uint32_t helper_hptof(CPUTriCoreState *env, uint32_t arg)
+{
+    float16 f_arg = make_float16(arg);
+    uint32_t result = 0;
+    int32_t flags = 0;
+
+    /*
+     * if we have any NAN we need to move the top 2 and lower 8 input mantissa
+     * bits to the top 2 and lower 8 output mantissa bits respectively.
+     * Softfloat on the other hand uses the top 10 mantissa bits.
+     */
+    if (float16_is_any_nan(f_arg)) {
+        if (float16_is_signaling_nan(f_arg, &env->fp_status)) {
+            flags |= float_flag_invalid;
+        }
+        result = 0;
+        result = float32_set_sign(result, f_arg >> 15);
+        result = deposit32(result, 23, 8, 0xff);
+        result = deposit32(result, 21, 2, extract32(f_arg, 8, 2));
+        result = deposit32(result, 0, 8, extract32(f_arg, 0, 8));
+    } else {
+        set_flush_inputs_to_zero(0, &env->fp_status);
+        result = float16_to_float32(f_arg, true, &env->fp_status);
+        set_flush_inputs_to_zero(1, &env->fp_status);
+        flags = f_get_excp_flags(env);
+    }
+
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+
+    return result;
+}
+
+uint32_t helper_ftohp(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_arg = make_float32(arg);
+    uint32_t result = 0;
+    int32_t flags = 0;
+
+    /*
+     * if we have any NAN we need to move the top 2 and lower 8 input mantissa
+     * bits to the top 2 and lower 8 output mantissa bits respectively.
+     * Softfloat on the other hand uses the top 10 mantissa bits.
+     */
+    if (float32_is_any_nan(f_arg)) {
+        if (float32_is_signaling_nan(f_arg, &env->fp_status)) {
+            flags |= float_flag_invalid;
+        }
+        result = float16_set_sign(result, arg >> 31);
+        result = deposit32(result, 10, 5, 0x1f);
+        result = deposit32(result, 8, 2, extract32(arg, 21, 2));
+        result = deposit32(result, 0, 8, extract32(arg, 0, 8));
+        if (extract32(result, 0, 10) == 0) {
+            result |= (1 << 8);
+        }
+    } else {
+        set_flush_to_zero(0, &env->fp_status);
+        result = float32_to_float16(f_arg, true, &env->fp_status);
+        set_flush_to_zero(1, &env->fp_status);
+        flags = f_get_excp_flags(env);
+    }
+
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+
+    return result;
+}
+
 uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_result;
@@ -429,6 +503,38 @@ uint32_t helper_ftoiz(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
+uint32_t helper_ftou(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_arg = make_float32(arg);
+    uint32_t result;
+    int32_t flags = 0;
+
+    result = float32_to_uint32(f_arg, &env->fp_status);
+
+    flags = f_get_excp_flags(env);
+    if (flags & float_flag_invalid) {
+        flags &= ~float_flag_inexact;
+        if (float32_is_any_nan(f_arg)) {
+            result = 0;
+        }
+    /*
+     * we need to check arg < 0.0 before rounding as TriCore needs to raise
+     * float_flag_invalid as well. For instance, when we have a negative
+     * exponent and sign, softfloat would only raise float_flat_inexact.
+     */
+    } else if (float32_lt_quiet(f_arg, 0, &env->fp_status)) {
+        flags = float_flag_invalid;
+        result = 0;
+    }
+
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+    return result;
+}
+
 uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
@@ -443,6 +549,11 @@ uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
         if (float32_is_any_nan(f_arg)) {
             result = 0;
         }
+    /*
+     * we need to check arg < 0.0 before rounding as TriCore needs to raise
+     * float_flag_invalid as well. For instance, when we have a negative
+     * exponent and sign, softfloat would only raise float_flat_inexact.
+     */
     } else if (float32_lt_quiet(f_arg, 0, &env->fp_status)) {
         flags = float_flag_invalid;
         result = 0;

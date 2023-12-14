@@ -193,6 +193,7 @@ real_time_iso8601(void)
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
  */
+G_GNUC_PRINTF(2, 0)
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
     gchar *timestr;

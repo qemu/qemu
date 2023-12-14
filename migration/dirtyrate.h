@@ -31,10 +31,12 @@
 #define MIN_RAMBLOCK_SIZE                         128
 
 /*
- * Take 1s as minimum time for calculation duration
+ * Allowed range for dirty page rate calculation (in milliseconds).
+ * Lower limit relates to the smallest realistic downtime it
+ * makes sense to impose on migration.
  */
-#define MIN_FETCH_DIRTYRATE_TIME_SEC              1
-#define MAX_FETCH_DIRTYRATE_TIME_SEC              60
+#define MIN_CALC_TIME_MS                          50
+#define MAX_CALC_TIME_MS                       60000
 
 /*
  * Take 1/16 pages in 1G as the maxmum sample page count
@@ -44,7 +46,7 @@
 
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
-    int64_t sample_period_seconds; /* time duration between two sampling */
+    int64_t calc_time_ms; /* desired calculation time (in milliseconds) */
     DirtyRateMeasureMode mode; /* mode of dirtyrate measurement */
 };
 
@@ -73,7 +75,7 @@ typedef struct SampleVMStat {
 struct DirtyRateStat {
     int64_t dirty_rate; /* dirty rate in MB/s */
     int64_t start_time; /* calculation start time in units of second */
-    int64_t calc_time; /* time duration of two sampling in units of second */
+    int64_t calc_time_ms; /* actual calculation time (in milliseconds) */
     uint64_t sample_pages; /* sample pages per GB */
     union {
         SampleVMStat page_sampling;

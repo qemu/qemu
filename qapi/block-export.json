@@ -11,20 +11,24 @@
 ##
 # @NbdServerOptions:
 #
-# Keep this type consistent with the nbd-server-start arguments. The only
-# intended difference is using SocketAddress instead of SocketAddressLegacy.
+# Keep this type consistent with the nbd-server-start arguments.  The
+# only intended difference is using SocketAddress instead of
+# SocketAddressLegacy.
 #
 # @addr: Address on which to listen.
+#
 # @tls-creds: ID of the TLS credentials object (since 2.6).
+#
 # @tls-authz: ID of the QAuthZ authorization object used to validate
-#             the client's x509 distinguished name. This object is
-#             is only resolved at time of use, so can be deleted and
-#             recreated on the fly while the NBD server is active.
-#             If missing, it will default to denying access (since 4.0).
-# @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. Setting this to 1 also stops
-#                   the server from advertising multiple client support
-#                   (since 5.2; default: 0)
+#     the client's x509 distinguished name.  This object is is only
+#     resolved at time of use, so can be deleted and recreated on the
+#     fly while the NBD server is active.  If missing, it will default
+#     to denying access (since 4.0).
+#
+# @max-connections: The maximum number of connections to allow at the
+#     same time, 0 for unlimited.  Setting this to 1 also stops the
+#     server from advertising multiple client support (since 5.2;
+#     default: 0)
 #
 # Since: 4.2
 ##
@@ -38,24 +42,28 @@
 # @nbd-server-start:
 #
 # Start an NBD server listening on the given host and port.  Block
-# devices can then be exported using @nbd-server-add.  The NBD
-# server will present them as named exports; for example, another
-# QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
+# devices can then be exported using @nbd-server-add.  The NBD server
+# will present them as named exports; for example, another QEMU
+# instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
 #
-# Keep this type consistent with the NbdServerOptions type. The only intended
-# difference is using SocketAddressLegacy instead of SocketAddress.
+# Keep this type consistent with the NbdServerOptions type.  The only
+# intended difference is using SocketAddressLegacy instead of
+# SocketAddress.
 #
 # @addr: Address on which to listen.
+#
 # @tls-creds: ID of the TLS credentials object (since 2.6).
+#
 # @tls-authz: ID of the QAuthZ authorization object used to validate
-#             the client's x509 distinguished name. This object is
-#             is only resolved at time of use, so can be deleted and
-#             recreated on the fly while the NBD server is active.
-#             If missing, it will default to denying access (since 4.0).
-# @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. Setting this to 1 also stops
-#                   the server from advertising multiple client support
-#                   (since 5.2; default: 0).
+#     the client's x509 distinguished name.  This object is is only
+#     resolved at time of use, so can be deleted and recreated on the
+#     fly while the NBD server is active.  If missing, it will default
+#     to denying access (since 4.0).
+#
+# @max-connections: The maximum number of connections to allow at the
+#     same time, 0 for unlimited.  Setting this to 1 also stops the
+#     server from advertising multiple client support (since 5.2;
+#     default: 0).
 #
 # Returns: error if the server is already running.
 #
@@ -71,14 +79,14 @@
 ##
 # @BlockExportOptionsNbdBase:
 #
-# An NBD block export (common options shared between nbd-server-add and
-# the NBD branch of block-export-add).
+# An NBD block export (common options shared between nbd-server-add
+# and the NBD branch of block-export-add).
 #
-# @name: Export name. If unspecified, the @device parameter is used as the
-#        export name. (Since 2.12)
+# @name: Export name.  If unspecified, the @device parameter is used
+#     as the export name.  (Since 2.12)
 #
 # @description: Free-form description of the export, up to 4096 bytes.
-#               (Since 5.0)
+#     (Since 5.0)
 #
 # Since: 5.0
 ##
@@ -92,15 +100,15 @@
 # block-export-add).
 #
 # @bitmaps: Also export each of the named dirty bitmaps reachable from
-#           @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
-#           the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
-#           each bitmap.
-#           Since 7.1 bitmap may be specified by node/name pair.
+#     @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
+#     the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
+#     each bitmap.  Since 7.1 bitmap may be specified by node/name
+#     pair.
 #
-# @allocation-depth: Also export the allocation depth map for @device, so
-#                    the NBD client can use NBD_OPT_SET_META_CONTEXT with
-#                    the metadata context name "qemu:allocation-depth" to
-#                    inspect allocation details. (since 5.2)
+# @allocation-depth: Also export the allocation depth map for @device,
+#     so the NBD client can use NBD_OPT_SET_META_CONTEXT with the
+#     metadata context name "qemu:allocation-depth" to inspect
+#     allocation details.  (since 5.2)
 #
 # Since: 5.2
 ##
@@ -114,12 +122,15 @@
 #
 # A vhost-user-blk block export.
 #
-# @addr: The vhost-user socket on which to listen. Both 'unix' and 'fd'
-#        SocketAddress types are supported. Passed fds must be UNIX domain
-#        sockets.
-# @logical-block-size: Logical block size in bytes. Defaults to 512 bytes.
-# @num-queues: Number of request virtqueues. Must be greater than 0. Defaults
-#              to 1.
+# @addr: The vhost-user socket on which to listen.  Both 'unix' and
+#     'fd' SocketAddress types are supported.  Passed fds must be UNIX
+#     domain sockets.
+#
+# @logical-block-size: Logical block size in bytes.  Defaults to 512
+#     bytes.
+#
+# @num-queues: Number of request virtqueues.  Must be greater than 0.
+#     Defaults to 1.
 #
 # Since: 5.2
 ##
@@ -138,7 +149,7 @@
 # @on: Pass allow_other as a mount option.
 #
 # @auto: Try mounting with allow_other first, and if that fails, retry
-#        without allow_other.
+#     without allow_other.
 #
 # Since: 6.1
 ##
@@ -151,24 +162,21 @@
 # Options for exporting a block graph node on some (file) mountpoint
 # as a raw image.
 #
-# @mountpoint: Path on which to export the block device via FUSE.
-#              This must point to an existing regular file.
+# @mountpoint: Path on which to export the block device via FUSE. This
+#     must point to an existing regular file.
 #
 # @growable: Whether writes beyond the EOF should grow the block node
-#            accordingly. (default: false)
+#     accordingly.  (default: false)
 #
 # @allow-other: If this is off, only qemu's user is allowed access to
-#               this export.  That cannot be changed even with chmod or
-#               chown.
-#               Enabling this option will allow other users access to
-#               the export with the FUSE mount option "allow_other".
-#               Note that using allow_other as a non-root user requires
-#               user_allow_other to be enabled in the global fuse.conf
-#               configuration file.
-#               In auto mode (the default), the FUSE export driver will
-#               first attempt to mount the export with allow_other, and
-#               if that fails, try again without.
-#               (since 6.1; default: auto)
+#     this export.  That cannot be changed even with chmod or chown.
+#     Enabling this option will allow other users access to the export
+#     with the FUSE mount option "allow_other". Note that using
+#     allow_other as a non-root user requires user_allow_other to be
+#     enabled in the global fuse.conf configuration file.  In auto
+#     mode (the default), the FUSE export driver will first attempt to
+#     mount the export with allow_other, and if that fails, try again
+#     without.  (since 6.1; default: auto)
 #
 # Since: 6.0
 ##
@@ -184,11 +192,16 @@
 # A vduse-blk block export.
 #
 # @name: the name of VDUSE device (must be unique across the host).
-# @num-queues: the number of virtqueues. Defaults to 1.
-# @queue-size: the size of virtqueue. Defaults to 256.
-# @logical-block-size: Logical block size in bytes. Range [512, PAGE_SIZE]
-#                      and must be power of 2. Defaults to 512 bytes.
-# @serial: the serial number of virtio block device. Defaults to empty string.
+#
+# @num-queues: the number of virtqueues.  Defaults to 1.
+#
+# @queue-size: the size of virtqueue.  Defaults to 256.
+#
+# @logical-block-size: Logical block size in bytes.  Range [512,
+#     PAGE_SIZE] and must be power of 2. Defaults to 512 bytes.
+#
+# @serial: the serial number of virtio block device.  Defaults to
+#     empty string.
 #
 # Since: 7.1
 ##
@@ -206,13 +219,13 @@
 #
 # @device: The device name or node name of the node to be exported
 #
-# @writable: Whether clients should be able to write to the device via the
-#            NBD connection (default false).
+# @writable: Whether clients should be able to write to the device via
+#     the NBD connection (default false).
 #
-# @bitmap: Also export a single dirty bitmap reachable from @device, so the
-#          NBD client can use NBD_OPT_SET_META_CONTEXT with the metadata
-#          context name "qemu:dirty-bitmap:BITMAP" to inspect the bitmap
-#          (since 4.0).
+# @bitmap: Also export a single dirty bitmap reachable from @device,
+#     so the NBD client can use NBD_OPT_SET_META_CONTEXT with the
+#     metadata context name "qemu:dirty-bitmap:BITMAP" to inspect the
+#     bitmap (since 4.0).
 #
 # Since: 5.0
 ##
@@ -226,13 +239,16 @@
 #
 # Export a block node to QEMU's embedded NBD server.
 #
-# The export name will be used as the id for the resulting block export.
+# The export name will be used as the id for the resulting block
+# export.
 #
 # Features:
-# @deprecated: This command is deprecated. Use @block-export-add instead.
 #
-# Returns: error if the server is not running, or export with the same name
-#          already exists.
+# @deprecated: This command is deprecated.  Use @block-export-add
+#     instead.
+#
+# Returns: error if the server is not running, or export with the same
+#     name already exists.
 #
 # Since: 1.3
 ##
@@ -245,17 +261,18 @@
 #
 # Mode for removing a block export.
 #
-# @safe: Remove export if there are no existing connections, fail otherwise.
+# @safe: Remove export if there are no existing connections, fail
+#     otherwise.
 #
 # @hard: Drop all connections immediately and remove export.
 #
-# TODO: Potential additional modes to be added in the future:
+# Potential additional modes to be added in the future:
 #
-#       hide: Just hide export from new clients, leave existing connections as is.
-#       Remove export after all clients are disconnected.
+# hide: Just hide export from new clients, leave existing connections
+# as is.  Remove export after all clients are disconnected.
 #
-#       soft: Hide export from new clients, answer with ESHUTDOWN for all further
-#       requests from existing clients.
+# soft: Hide export from new clients, answer with ESHUTDOWN for all
+# further requests from existing clients.
 #
 # Since: 2.12
 ##
@@ -268,16 +285,19 @@
 #
 # @name: Block export id.
 #
-# @mode: Mode of command operation. See @BlockExportRemoveMode description.
-#        Default is 'safe'.
+# @mode: Mode of command operation.  See @BlockExportRemoveMode
+#     description.  Default is 'safe'.
 #
 # Features:
-# @deprecated: This command is deprecated. Use @block-export-del instead.
+#
+# @deprecated: This command is deprecated.  Use @block-export-del
+#     instead.
 #
 # Returns: error if
-#            - the server is not running
-#            - export is not found
-#            - mode is 'safe' and there are existing connections
+#
+#     - the server is not running
+#     - export is not found
+#     - mode is 'safe' and there are existing connections
 #
 # Since: 2.12
 ##
@@ -289,8 +309,8 @@
 ##
 # @nbd-server-stop:
 #
-# Stop QEMU's embedded NBD server, and unregister all devices previously
-# added via @nbd-server-add.
+# Stop QEMU's embedded NBD server, and unregister all devices
+# previously added via @nbd-server-add.
 #
 # Since: 1.3
 ##
@@ -303,8 +323,11 @@
 # An enumeration of block export types
 #
 # @nbd: NBD export
+#
 # @vhost-user-blk: vhost-user-blk export (since 5.2)
+#
 # @fuse: FUSE export (since: 6.0)
+#
 # @vduse-blk: vduse-blk export (since 7.1)
 #
 # Since: 4.2
@@ -319,28 +342,31 @@
 ##
 # @BlockExportOptions:
 #
-# Describes a block export, i.e. how single node should be exported on an
-# external interface.
+# Describes a block export, i.e. how single node should be exported on
+# an external interface.
 #
-# @id: A unique identifier for the block export (across all export types)
+# @id: A unique identifier for the block export (across all export
+#     types)
 #
-# @node-name: The node name of the block node to be exported (since: 5.2)
+# @node-name: The node name of the block node to be exported
+#     (since: 5.2)
 #
 # @writable: True if clients should be able to write to the export
-#            (default false)
+#     (default false)
 #
-# @writethrough: If true, caches are flushed after every write request to the
-#                export before completion is signalled. (since: 5.2;
-#                default: false)
+# @writethrough: If true, caches are flushed after every write request
+#     to the export before completion is signalled.  (since: 5.2;
+#     default: false)
 #
-# @iothread: The name of the iothread object where the export will run. The
-#            default is to use the thread currently associated with the
-#            block node. (since: 5.2)
+# @iothread: The name of the iothread object where the export will
+#     run.  The default is to use the thread currently associated with
+#     the block node.  (since: 5.2)
 #
-# @fixed-iothread: True prevents the block node from being moved to another
-#                  thread while the export is active. If true and @iothread is
-#                  given, export creation fails if the block node cannot be
-#                  moved to the iothread. The default is false. (since: 5.2)
+# @fixed-iothread: True prevents the block node from being moved to
+#     another thread while the export is active.  If true and
+#     @iothread is given, export creation fails if the block node
+#     cannot be moved to the iothread.  The default is false.
+#     (since: 5.2)
 #
 # Since: 4.2
 ##
@@ -377,17 +403,17 @@
 ##
 # @block-export-del:
 #
-# Request to remove a block export. This drops the user's reference to the
-# export, but the export may still stay around after this command returns until
-# the shutdown of the export has completed.
+# Request to remove a block export.  This drops the user's reference
+# to the export, but the export may still stay around after this
+# command returns until the shutdown of the export has completed.
 #
 # @id: Block export id.
 #
-# @mode: Mode of command operation. See @BlockExportRemoveMode description.
-#        Default is 'safe'.
+# @mode: Mode of command operation.  See @BlockExportRemoveMode
+#     description.  Default is 'safe'.
 #
-# Returns: Error if the export is not found or @mode is 'safe' and the export
-#          is still in use (e.g. by existing client connections)
+# Returns: Error if the export is not found or @mode is 'safe' and the
+#     export is still in use (e.g. by existing client connections)
 #
 # Since: 5.2
 ##
@@ -419,8 +445,7 @@
 # @node-name: The node name of the block node that is exported
 #
 # @shutting-down: True if the export is shutting down (e.g. after a
-#                 block-export-del command, but before the shutdown has
-#                 completed)
+#     block-export-del command, but before the shutdown has completed)
 #
 # Since: 5.2
 ##

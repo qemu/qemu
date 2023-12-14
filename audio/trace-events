@@ -18,6 +18,14 @@ dbus_audio_register(const char *s, const char *dir) "sender = %s, dir = %s"
 dbus_audio_put_buffer_out(size_t len) "len = %zu"
 dbus_audio_read(size_t len) "len = %zu"
 
+# pwaudio.c
+pw_state_changed(int nodeid, const char *s) "node id: %d stream state: %s"
+pw_read(int32_t avail, uint32_t index, size_t len) "avail=%d index=%u len=%zu"
+pw_write(int32_t filled, int32_t avail, uint32_t index, size_t len) "filled=%d avail=%d index=%u len=%zu"
+pw_vol(const char *ret) "set volume: %s"
+pw_period(uint64_t quantum, uint32_t rate) "period =%" PRIu64 "/%u"
+pw_audio_init(void) "Initialize PipeWire context"
+
 # audio.c
 audio_timer_start(int interval) "interval %d ms"
 audio_timer_stop(void) ""

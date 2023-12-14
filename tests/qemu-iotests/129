@@ -55,11 +55,9 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
     def do_test_stop(self, cmd, **args):
         """Test 'stop' while block job is running on a throttled drive.
         The 'stop' command shouldn't drain the job"""
-        result = self.vm.qmp(cmd, **args)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(cmd, **args)
 
-        result = self.vm.qmp("stop")
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd("stop")
         result = self.vm.qmp("query-block-jobs")
 
         self.assert_qmp(result, 'return[0]/status', 'running')
@@ -87,7 +85,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.overlay_img,
                          '1G')
 
-        result = self.vm.qmp('blockdev-add', **{
+        self.vm.cmd('blockdev-add', {
             'node-name': 'overlay',
             'driver': iotests.imgfmt,
             'file': {
@@ -95,11 +93,9 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
                 'filename': self.overlay_img
             }
         })
-        self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-snapshot',
-                             node='source', overlay='overlay')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-snapshot',
+                    node='source', overlay='overlay')
 
         self.do_test_stop('block-commit', device='drive0', top_node='source')
 

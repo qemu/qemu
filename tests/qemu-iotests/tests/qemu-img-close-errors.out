@@ -1,0 +1,23 @@
+QA output created by qemu-img-close-errors
+
+=== Test with 6 bitmaps ===
+wrote 132120576/132120576 bytes at offset 0
+126 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image committed.
+qemu-img commit exit code: 0
+qemu-img bitmap --add exit code: 0
+qemu-img: Lost persistent bitmaps during inactivation of node 'NODE_NAME': Failed to write bitmap 'good-bitmap' to file: No space left on device
+qemu-img: Error while closing the image: Invalid argument
+qemu-img: Lost persistent bitmaps during inactivation of node 'NODE_NAME': Failed to write bitmap 'good-bitmap' to file: No space left on device
+qemu-img bitmap --merge exit code:  1
+
+=== Test with 7 bitmaps ===
+wrote 132120576/132120576 bytes at offset 0
+126 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Lost persistent bitmaps during inactivation of node 'NODE_NAME': Failed to write bitmap 'stale-bitmap-7' to file: No space left on device
+qemu-img: Lost persistent bitmaps during inactivation of node 'NODE_NAME': Failed to write bitmap 'stale-bitmap-7' to file: No space left on device
+qemu-img: Error while closing the image: Invalid argument
+qemu-img commit exit code: 1
+qemu-img bitmap --add exit code: 0
+qemu-img bitmap --merge exit code:  0
+*** done

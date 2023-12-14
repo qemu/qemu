@@ -18,10 +18,12 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "migration/qemu-file-types.h"
+#include "qemu/defer-call.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/dma.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
@@ -42,13 +44,11 @@ typedef struct VirtIOSCSIReq {
     QEMUSGList qsgl;
     QEMUIOVector resp_iov;
 
-    union {
-        /* Used for two-stage request submission */
-        QTAILQ_ENTRY(VirtIOSCSIReq) next;
+    /* Used for two-stage request submission and TMFs deferred to BH */
+    QTAILQ_ENTRY(VirtIOSCSIReq) next;
 
-        /* Used for cancellation of request during TMFs */
-        int remaining;
-    };
+    /* Used for cancellation of request during TMFs */
+    int remaining;
 
     SCSIRequest *sreq;
     size_t resp_size;
@@ -293,6 +293,122 @@ static inline void virtio_scsi_ctx_check(VirtIOSCSI *s, SCSIDevice *d)
     }
 }
 
+static void virtio_scsi_do_one_tmf_bh(VirtIOSCSIReq *req)
+{
+    VirtIOSCSI *s = req->dev;
+    SCSIDevice *d = virtio_scsi_device_get(s, req->req.tmf.lun);
+    BusChild *kid;
+    int target;
+
+    switch (req->req.tmf.subtype) {
+    case VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET:
+        if (!d) {
+            req->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
+            goto out;
+        }
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+            req->resp.tmf.response = VIRTIO_SCSI_S_INCORRECT_LUN;
+            goto out;
+        }
+        qatomic_inc(&s->resetting);
+        device_cold_reset(&d->qdev);
+        qatomic_dec(&s->resetting);
+        break;
+
+    case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
+        target = req->req.tmf.lun[1];
+        qatomic_inc(&s->resetting);
+
+        rcu_read_lock();
+        QTAILQ_FOREACH_RCU(kid, &s->bus.qbus.children, sibling) {
+            SCSIDevice *d1 = SCSI_DEVICE(kid->child);
+            if (d1->channel == 0 && d1->id == target) {
+                device_cold_reset(&d1->qdev);
+            }
+        }
+        rcu_read_unlock();
+
+        qatomic_dec(&s->resetting);
+        break;
+
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+out:
+    object_unref(OBJECT(d));
+
+    virtio_scsi_acquire(s);
+    virtio_scsi_complete_req(req);
+    virtio_scsi_release(s);
+}
+
+/* Some TMFs must be processed from the main loop thread */
+static void virtio_scsi_do_tmf_bh(void *opaque)
+{
+    VirtIOSCSI *s = opaque;
+    QTAILQ_HEAD(, VirtIOSCSIReq) reqs = QTAILQ_HEAD_INITIALIZER(reqs);
+    VirtIOSCSIReq *req;
+    VirtIOSCSIReq *tmp;
+
+    GLOBAL_STATE_CODE();
+
+    virtio_scsi_acquire(s);
+
+    QTAILQ_FOREACH_SAFE(req, &s->tmf_bh_list, next, tmp) {
+        QTAILQ_REMOVE(&s->tmf_bh_list, req, next);
+        QTAILQ_INSERT_TAIL(&reqs, req, next);
+    }
+
+    qemu_bh_delete(s->tmf_bh);
+    s->tmf_bh = NULL;
+
+    virtio_scsi_release(s);
+
+    QTAILQ_FOREACH_SAFE(req, &reqs, next, tmp) {
+        QTAILQ_REMOVE(&reqs, req, next);
+        virtio_scsi_do_one_tmf_bh(req);
+    }
+}
+
+static void virtio_scsi_reset_tmf_bh(VirtIOSCSI *s)
+{
+    VirtIOSCSIReq *req;
+    VirtIOSCSIReq *tmp;
+
+    GLOBAL_STATE_CODE();
+
+    virtio_scsi_acquire(s);
+
+    if (s->tmf_bh) {
+        qemu_bh_delete(s->tmf_bh);
+        s->tmf_bh = NULL;
+    }
+
+    QTAILQ_FOREACH_SAFE(req, &s->tmf_bh_list, next, tmp) {
+        QTAILQ_REMOVE(&s->tmf_bh_list, req, next);
+
+        /* SAM-6 6.3.2 Hard reset */
+        req->resp.tmf.response = VIRTIO_SCSI_S_TARGET_FAILURE;
+        virtio_scsi_complete_req(req);
+    }
+
+    virtio_scsi_release(s);
+}
+
+static void virtio_scsi_defer_tmf_to_bh(VirtIOSCSIReq *req)
+{
+    VirtIOSCSI *s = req->dev;
+
+    QTAILQ_INSERT_TAIL(&s->tmf_bh_list, req, next);
+
+    if (!s->tmf_bh) {
+        s->tmf_bh = qemu_bh_new(virtio_scsi_do_tmf_bh, s);
+        qemu_bh_schedule(s->tmf_bh);
+    }
+}
+
 /* Return 0 if the request is ready to be completed and return to guest;
  * -EINPROGRESS if the request is submitted and will be completed later, in the
  *  case of async cancellation. */
@@ -300,8 +416,6 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     SCSIDevice *d = virtio_scsi_device_get(s, req->req.tmf.lun);
     SCSIRequest *r, *next;
-    BusChild *kid;
-    int target;
     int ret = 0;
 
     virtio_scsi_ctx_check(s, d);
@@ -358,15 +472,9 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         break;
 
     case VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET:
-        if (!d) {
-            goto fail;
-        }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
-            goto incorrect_lun;
-        }
-        s->resetting++;
-        qdev_reset_all(&d->qdev);
-        s->resetting--;
+    case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
+        virtio_scsi_defer_tmf_to_bh(req);
+        ret = -EINPROGRESS;
         break;
 
     case VIRTIO_SCSI_T_TMF_ABORT_TASK_SET:
@@ -407,22 +515,6 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (--req->remaining > 0) {
             ret = -EINPROGRESS;
         }
-        break;
-
-    case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
-        target = req->req.tmf.lun[1];
-        s->resetting++;
-
-        rcu_read_lock();
-        QTAILQ_FOREACH_RCU(kid, &s->bus.qbus.children, sibling) {
-            SCSIDevice *d1 = SCSI_DEVICE(kid->child);
-            if (d1->channel == 0 && d1->id == target) {
-                qdev_reset_all(&d1->qdev);
-            }
-        }
-        rcu_read_unlock();
-
-        s->resetting--;
         break;
 
     case VIRTIO_SCSI_T_TMF_CLEAR_ACA:
@@ -622,7 +714,8 @@ static void virtio_scsi_command_complete(SCSIRequest *r, size_t resid)
 }
 
 static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
-                                 uint8_t *buf, void *hba_private)
+                                 uint8_t *buf, size_t buf_len,
+                                 void *hba_private)
 {
     VirtIOSCSIReq *req = hba_private;
 
@@ -653,7 +746,7 @@ static void virtio_scsi_request_cancelled(SCSIRequest *r)
     if (!req) {
         return;
     }
-    if (req->dev->resetting) {
+    if (qatomic_read(&req->dev->resetting)) {
         req->resp.cmd.response = VIRTIO_SCSI_S_RESET;
     } else {
         req->resp.cmd.response = VIRTIO_SCSI_S_ABORTED;
@@ -669,7 +762,7 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
 
 static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
-    VirtIOSCSICommon *vs = &s->parent_obj;
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     SCSIDevice *d;
     int rc;
 
@@ -696,7 +789,7 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
     virtio_scsi_ctx_check(s, d);
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
-                             req->req.cmd.cdb, req);
+                             req->req.cmd.cdb, vs->cdb_size, req);
 
     if (req->sreq->cmd.mode != SCSI_XFER_NONE
         && (req->sreq->cmd.mode != req->mode ||
@@ -707,7 +800,7 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
         return -ENOBUFS;
     }
     scsi_req_ref(req->sreq);
-    blk_io_plug(d->conf.blk);
+    defer_call_begin();
     object_unref(OBJECT(d));
     return 0;
 }
@@ -718,7 +811,7 @@ static void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
     if (scsi_req_enqueue(sreq)) {
         scsi_req_continue(sreq);
     }
-    blk_io_unplug(sreq->dev->conf.blk);
+    defer_call_end();
     scsi_req_unref(sreq);
 }
 
@@ -744,7 +837,7 @@ static void virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
                 while (!QTAILQ_EMPTY(&reqs)) {
                     req = QTAILQ_FIRST(&reqs);
                     QTAILQ_REMOVE(&reqs, req, next);
-                    blk_io_unplug(req->sreq->dev->conf.blk);
+                    defer_call_end();
                     scsi_req_unref(req->sreq);
                     virtqueue_detach_element(req->vq, &req->elem, 0);
                     virtio_scsi_free_req(req);
@@ -829,22 +922,39 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     assert(!s->dataplane_started);
-    s->resetting++;
-    qbus_reset_all(BUS(&s->bus));
-    s->resetting--;
+
+    virtio_scsi_reset_tmf_bh(s);
+
+    qatomic_inc(&s->resetting);
+    bus_cold_reset(BUS(&s->bus));
+    qatomic_dec(&s->resetting);
 
     vs->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     vs->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
     s->events_dropped = false;
 }
 
-static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
-                                   uint32_t event, uint32_t reason)
+typedef struct {
+    uint32_t event;
+    uint32_t reason;
+    union {
+        /* Used by messages specific to a device */
+        struct {
+            uint32_t id;
+            uint32_t lun;
+        } address;
+    };
+} VirtIOSCSIEventInfo;
+
+static void virtio_scsi_push_event(VirtIOSCSI *s,
+                                   const VirtIOSCSIEventInfo *info)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    uint32_t event = info->event;
+    uint32_t reason = info->reason;
 
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
@@ -870,27 +980,28 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     memset(evt, 0, sizeof(VirtIOSCSIEvent));
     evt->event = virtio_tswap32(vdev, event);
     evt->reason = virtio_tswap32(vdev, reason);
-    if (!dev) {
-        assert(event == VIRTIO_SCSI_T_EVENTS_MISSED);
-    } else {
+    if (event != VIRTIO_SCSI_T_EVENTS_MISSED) {
         evt->lun[0] = 1;
-        evt->lun[1] = dev->id;
+        evt->lun[1] = info->address.id;
 
         /* Linux wants us to keep the same encoding we use for REPORT LUNS.  */
-        if (dev->lun >= 256) {
-            evt->lun[2] = (dev->lun >> 8) | 0x40;
+        if (info->address.lun >= 256) {
+            evt->lun[2] = (info->address.lun >> 8) | 0x40;
         }
-        evt->lun[3] = dev->lun & 0xFF;
+        evt->lun[3] = info->address.lun & 0xFF;
     }
     trace_virtio_scsi_event(virtio_scsi_get_lun(evt->lun), event, reason);
-     
+
     virtio_scsi_complete_req(req);
 }
 
 static void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     if (s->events_dropped) {
-        virtio_scsi_push_event(s, NULL, VIRTIO_SCSI_T_NO_EVENT, 0);
+        VirtIOSCSIEventInfo info = {
+            .event = VIRTIO_SCSI_T_NO_EVENT,
+        };
+        virtio_scsi_push_event(s, &info);
     }
 }
 
@@ -914,9 +1025,17 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_CHANGE) &&
         dev->type != TYPE_ROM) {
+        VirtIOSCSIEventInfo info = {
+            .event   = VIRTIO_SCSI_T_PARAM_CHANGE,
+            .reason  = sense.asc | (sense.ascq << 8),
+            .address = {
+                .id  = dev->id,
+                .lun = dev->lun,
+            },
+        };
+
         virtio_scsi_acquire(s);
-        virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_PARAM_CHANGE,
-                               sense.asc | (sense.ascq << 8));
+        virtio_scsi_push_event(s, &info);
         virtio_scsi_release(s);
     }
 }
@@ -951,10 +1070,18 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
+        VirtIOSCSIEventInfo info = {
+            .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
+            .reason  = VIRTIO_SCSI_EVT_RESET_RESCAN,
+            .address = {
+                .id  = sd->id,
+                .lun = sd->lun,
+            },
+        };
+
         virtio_scsi_acquire(s);
-        virtio_scsi_push_event(s, sd,
-                               VIRTIO_SCSI_T_TRANSPORT_RESET,
-                               VIRTIO_SCSI_EVT_RESET_RESCAN);
+        virtio_scsi_push_event(s, &info);
+        scsi_bus_set_ua(&s->bus, SENSE_CODE(REPORTED_LUNS_CHANGED));
         virtio_scsi_release(s);
     }
 }
@@ -965,25 +1092,81 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
-    AioContext *ctx = s->ctx ?: qemu_get_aio_context();
+    VirtIOSCSIEventInfo info = {
+        .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
+        .reason  = VIRTIO_SCSI_EVT_RESET_REMOVED,
+        .address = {
+            .id  = sd->id,
+            .lun = sd->lun,
+        },
+    };
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
-        virtio_scsi_acquire(s);
-        virtio_scsi_push_event(s, sd,
-                               VIRTIO_SCSI_T_TRANSPORT_RESET,
-                               VIRTIO_SCSI_EVT_RESET_REMOVED);
-        virtio_scsi_release(s);
-    }
-
-    aio_disable_external(ctx);
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
-    aio_enable_external(ctx);
 
     if (s->ctx) {
         virtio_scsi_acquire(s);
         /* If other users keep the BlockBackend in the iothread, that's ok */
         blk_set_aio_context(sd->conf.blk, qemu_get_aio_context(), NULL);
         virtio_scsi_release(s);
+    }
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
+        virtio_scsi_acquire(s);
+        virtio_scsi_push_event(s, &info);
+        scsi_bus_set_ua(&s->bus, SENSE_CODE(REPORTED_LUNS_CHANGED));
+        virtio_scsi_release(s);
+    }
+}
+
+/* Suspend virtqueue ioeventfd processing during drain */
+static void virtio_scsi_drained_begin(SCSIBus *bus)
+{
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
+                            s->parent_obj.conf.num_queues;
+
+    /*
+     * Drain is called when stopping dataplane but the host notifier has
+     * already been detached. Detaching multiple times is a no-op if nothing
+     * else is using the monitoring same file descriptor, but avoid it just in
+     * case.
+     *
+     * Also, don't detach if dataplane has not even been started yet because
+     * the host notifier isn't attached.
+     */
+    if (s->dataplane_stopping || !s->dataplane_started) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < total_queues; i++) {
+        VirtQueue *vq = virtio_get_queue(vdev, i);
+        virtio_queue_aio_detach_host_notifier(vq, s->ctx);
+    }
+}
+
+/* Resume virtqueue ioeventfd processing after drain */
+static void virtio_scsi_drained_end(SCSIBus *bus)
+{
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
+                            s->parent_obj.conf.num_queues;
+
+    /*
+     * Drain is called when stopping dataplane. Keep the host notifier detached
+     * so it's not left dangling after dataplane is stopped.
+     *
+     * Also, don't attach if dataplane has not even been started yet. We're not
+     * ready.
+     */
+    if (s->dataplane_stopping || !s->dataplane_started) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < total_queues; i++) {
+        VirtQueue *vq = virtio_get_queue(vdev, i);
+        virtio_queue_aio_attach_host_notifier(vq, s->ctx);
     }
 }
 
@@ -1001,6 +1184,8 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .get_sg_list = virtio_scsi_get_sg_list,
     .save_request = virtio_scsi_save_request,
     .load_request = virtio_scsi_load_request,
+    .drained_begin = virtio_scsi_drained_begin,
+    .drained_end = virtio_scsi_drained_end,
 };
 
 void virtio_scsi_common_realize(DeviceState *dev,
@@ -1049,6 +1234,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
     Error *err = NULL;
 
+    QTAILQ_INIT(&s->tmf_bh_list);
+
     virtio_scsi_common_realize(dev,
                                virtio_scsi_handle_ctrl,
                                virtio_scsi_handle_event,
@@ -1085,6 +1272,8 @@ void virtio_scsi_common_unrealize(DeviceState *dev)
 static void virtio_scsi_device_unrealize(DeviceState *dev)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
+
+    virtio_scsi_reset_tmf_bh(s);
 
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);
     virtio_scsi_common_unrealize(dev);

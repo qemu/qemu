@@ -81,16 +81,25 @@ static void qemu_file_monitor_watch(void *arg)
 
     /* Loop over all events in the buffer */
     while (used < len) {
-        struct inotify_event *ev =
-            (struct inotify_event *)(buf + used);
-        const char *name = ev->len ? ev->name : "";
-        QFileMonitorDir *dir = g_hash_table_lookup(mon->idmap,
-                                                   GINT_TO_POINTER(ev->wd));
-        uint32_t iev = ev->mask &
-            (IN_CREATE | IN_MODIFY | IN_DELETE | IN_IGNORED |
-             IN_MOVED_TO | IN_MOVED_FROM | IN_ATTRIB);
+        const char *name;
+        QFileMonitorDir *dir;
+        uint32_t iev;
         int qev;
         gsize i;
+        struct inotify_event *ev = (struct inotify_event *)(buf + used);
+
+        /*
+         * We trust the kernel to provide valid buffer with complete event
+         * records.
+         */
+        assert(len - used >= sizeof(struct inotify_event));
+        assert(len - used - sizeof(struct inotify_event) >= ev->len);
+
+        name = ev->len ? ev->name : "";
+        dir = g_hash_table_lookup(mon->idmap, GINT_TO_POINTER(ev->wd));
+        iev = ev->mask &
+            (IN_CREATE | IN_MODIFY | IN_DELETE | IN_IGNORED |
+             IN_MOVED_TO | IN_MOVED_FROM | IN_ATTRIB);
 
         used += sizeof(struct inotify_event) + ev->len;
 

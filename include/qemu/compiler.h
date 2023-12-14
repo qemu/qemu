@@ -33,9 +33,12 @@
 #ifndef glue
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
-#define stringify(s)	tostring(s)
-#define tostring(s)	#s
+#define stringify(s) tostring(s)
+#define tostring(s) #s
 #endif
+
+/* Expands into an identifier stemN, where N is another number each time */
+#define MAKE_IDENTFIER(stem) glue(stem, __COUNTER__)
 
 #ifndef likely
 #define likely(x)   __builtin_expect(!!(x), 1)
@@ -183,5 +186,45 @@
 /* If CFI is not enabled, use an empty define to not change the behavior */
 #define QEMU_DISABLE_CFI
 #endif
+
+/*
+ * Apple clang version 14 has a bug in its __builtin_subcll(); define
+ * BUILTIN_SUBCLL_BROKEN for the offending versions so we can avoid it.
+ * When a version of Apple clang which has this bug fixed is released
+ * we can add an upper bound to this check.
+ * See https://gitlab.com/qemu-project/qemu/-/issues/1631
+ * and https://gitlab.com/qemu-project/qemu/-/issues/1659 for details.
+ * The bug never made it into any upstream LLVM releases, only Apple ones.
+ */
+#if defined(__apple_build_version__) && __clang_major__ >= 14
+#define BUILTIN_SUBCLL_BROKEN
+#endif
+
+#if __has_attribute(annotate)
+#define QEMU_ANNOTATE(x) __attribute__((annotate(x)))
+#else
+#define QEMU_ANNOTATE(x)
+#endif
+
+#if __has_attribute(used)
+# define QEMU_USED __attribute__((used))
+#else
+# define QEMU_USED
+#endif
+
+/*
+ * Ugly CPP trick that is like "defined FOO", but also works in C
+ * code.  Useful to replace #ifdef with "if" statements; assumes
+ * the symbol was defined with Meson's "config.set()", so it is empty
+ * if defined.
+ */
+#define IS_ENABLED(x)                  IS_EMPTY(x)
+
+#define IS_EMPTY_JUNK_                 junk,
+#define IS_EMPTY(value)                IS_EMPTY_(IS_EMPTY_JUNK_##value)
+
+/* Expands to either SECOND_ARG(junk, 1, 0) or SECOND_ARG(IS_EMPTY_JUNK_CONFIG_FOO 1, 0)  */
+#define SECOND_ARG(first, second, ...) second
+#define IS_EMPTY_(junk_maybecomma)     SECOND_ARG(junk_maybecomma 1, 0)
 
 #endif /* COMPILER_H */

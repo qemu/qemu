@@ -69,7 +69,7 @@ static void curses_update(DisplayChangeListener *dcl,
                           int x, int y, int w, int h)
 {
     console_ch_t *line;
-    cchar_t curses_line[width];
+    g_autofree cchar_t *curses_line = g_new(cchar_t, width);
     wchar_t wch[CCHARW_MAX];
     attr_t attrs;
     short colors;
@@ -400,7 +400,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
             if (keysym == -1)
                 keysym = chr;
 
-            kbd_put_keysym(keysym);
+            qemu_text_console_put_keysym(NULL, keysym);
         }
     }
 }

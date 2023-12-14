@@ -304,7 +304,7 @@ static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
     default:
         qemu_log_mask(LOG_UNIMP,
                       "allwinner_emac: read access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      HWADDR_FMT_plx "\n", offset);
         ret = 0;
     }
 
@@ -407,7 +407,7 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
     default:
         qemu_log_mask(LOG_UNIMP,
                       "allwinner_emac: write access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      HWADDR_FMT_plx "\n", offset);
     }
 }
 
@@ -453,7 +453,8 @@ static void aw_emac_realize(DeviceState *dev, Error **errp)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_aw_emac_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id, s);
+                          object_get_typename(OBJECT(dev)), dev->id,
+                          &dev->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     fifo8_create(&s->rx_fifo, RX_FIFO_SIZE);

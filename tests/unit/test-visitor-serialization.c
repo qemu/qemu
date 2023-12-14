@@ -223,7 +223,6 @@ static UserDefTwo *nested_struct_create(void)
     udnp->dict1->dict2->userdef->string = strdup("test_string");
     udnp->dict1->dict2->string = strdup("test_string2");
     udnp->dict1->dict3 = g_malloc0(sizeof(*udnp->dict1->dict3));
-    udnp->dict1->has_dict3 = true;
     udnp->dict1->dict3->userdef = g_new0(UserDefOne, 1);
     udnp->dict1->dict3->userdef->integer = 43;
     udnp->dict1->dict3->userdef->string = strdup("test_string");
@@ -243,7 +242,7 @@ static void nested_struct_compare(UserDefTwo *udnp1, UserDefTwo *udnp2)
                     udnp2->dict1->dict2->userdef->string);
     g_assert_cmpstr(udnp1->dict1->dict2->string, ==,
                     udnp2->dict1->dict2->string);
-    g_assert(udnp1->dict1->has_dict3 == udnp2->dict1->has_dict3);
+    g_assert(!udnp1->dict1->dict3 == !udnp2->dict1->dict3);
     g_assert_cmpint(udnp1->dict1->dict3->userdef->integer, ==,
                     udnp2->dict1->dict3->userdef->integer);
     g_assert_cmpstr(udnp1->dict1->dict3->userdef->string, ==,
@@ -427,131 +426,117 @@ static void test_primitive_lists(gconstpointer opaque)
     ops->deserialize((void **)&pl_copy_ptr, serialize_data,
                      visit_primitive_list, &error_abort);
 
-    i = 0;
+
+    switch (pl_copy.type) {
+    case PTYPE_STRING:
+        cur_head = pl_copy.value.strings;
+        break;
+    case PTYPE_INTEGER:
+        cur_head = pl_copy.value.integers;
+        break;
+    case PTYPE_S8:
+        cur_head = pl_copy.value.s8_integers;
+        break;
+    case PTYPE_S16:
+        cur_head = pl_copy.value.s16_integers;
+        break;
+    case PTYPE_S32:
+        cur_head = pl_copy.value.s32_integers;
+        break;
+    case PTYPE_S64:
+        cur_head = pl_copy.value.s64_integers;
+        break;
+    case PTYPE_U8:
+        cur_head = pl_copy.value.u8_integers;
+        break;
+    case PTYPE_U16:
+        cur_head = pl_copy.value.u16_integers;
+        break;
+    case PTYPE_U32:
+        cur_head = pl_copy.value.u32_integers;
+        break;
+    case PTYPE_U64:
+        cur_head = pl_copy.value.u64_integers;
+        break;
+    case PTYPE_NUMBER:
+        cur_head = pl_copy.value.numbers;
+        break;
+    case PTYPE_BOOLEAN:
+        cur_head = pl_copy.value.booleans;
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     /* compare our deserialized list of primitives to the original */
-    do {
+    i = 0;
+    while (cur_head) {
         switch (pl_copy.type) {
         case PTYPE_STRING: {
-            strList *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.strings;
-            }
+            strList *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpstr(pt->value.string, ==, ptr->value);
             break;
         }
         case PTYPE_INTEGER: {
-            intList *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.integers;
-            }
+            intList *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.integer, ==, ptr->value);
             break;
         }
         case PTYPE_S8: {
-            int8List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.s8_integers;
-            }
+            int8List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.s8, ==, ptr->value);
             break;
         }
         case PTYPE_S16: {
-            int16List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.s16_integers;
-            }
+            int16List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.s16, ==, ptr->value);
             break;
         }
         case PTYPE_S32: {
-            int32List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.s32_integers;
-            }
+            int32List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.s32, ==, ptr->value);
             break;
         }
         case PTYPE_S64: {
-            int64List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.s64_integers;
-            }
+            int64List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.s64, ==, ptr->value);
             break;
         }
         case PTYPE_U8: {
-            uint8List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.u8_integers;
-            }
+            uint8List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.u8, ==, ptr->value);
             break;
         }
         case PTYPE_U16: {
-            uint16List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.u16_integers;
-            }
+            uint16List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.u16, ==, ptr->value);
             break;
         }
         case PTYPE_U32: {
-            uint32List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.u32_integers;
-            }
+            uint32List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.u32, ==, ptr->value);
             break;
         }
         case PTYPE_U64: {
-            uint64List *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.u64_integers;
-            }
+            uint64List *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(pt->value.u64, ==, ptr->value);
             break;
         }
         case PTYPE_NUMBER: {
-            numberList *ptr;
             GString *double_expected = g_string_new("");
             GString *double_actual = g_string_new("");
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.numbers;
-            }
+            numberList *ptr = cur_head;
+            cur_head = ptr->next;
             /* we serialize with %f for our reference visitors, so rather than
              * fuzzy floating math to test "equality", just compare the
              * formatted values
@@ -564,13 +549,8 @@ static void test_primitive_lists(gconstpointer opaque)
             break;
         }
         case PTYPE_BOOLEAN: {
-            boolList *ptr;
-            if (cur_head) {
-                ptr = cur_head;
-                cur_head = ptr->next;
-            } else {
-                cur_head = ptr = pl_copy.value.booleans;
-            }
+            boolList *ptr = cur_head;
+            cur_head = ptr->next;
             g_assert_cmpint(!!pt->value.boolean, ==, !!ptr->value);
             break;
         }
@@ -578,9 +558,9 @@ static void test_primitive_lists(gconstpointer opaque)
             g_assert_not_reached();
         }
         i++;
-    } while (cur_head);
+    }
 
-    g_assert_cmpint(i, ==, 33);
+    g_assert_cmpint(i, ==, 32);
 
     ops->cleanup(serialize_data);
     dealloc_helper(&pl, visit_primitive_list, &error_abort);

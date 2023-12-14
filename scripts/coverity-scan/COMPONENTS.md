@@ -12,6 +12,9 @@ avr
 cris
   ~ (/qemu)?((/include)?/hw/cris/.*|/target/cris/.*)
 
+hexagon-gen (component should be ignored in analysis)
+  ~ (/qemu)?(/target/hexagon/.*generated.*)
+
 hexagon
   ~ (/qemu)?(/target/hexagon/.*)
 
@@ -21,8 +24,11 @@ hppa
 i386
   ~ (/qemu)?((/include)?/hw/i386/.*|/target/i386/.*|/hw/intc/[^/]*apic[^/]*\.c)
 
+loongarch
+  ~ (/qemu)?((/include)?/hw/(loongarch/.*|.*/loongarch.*)|/target/loongarch/.*)
+
 m68k
-  ~ (/qemu)?((/include)?/hw/m68k/.*|/target/m68k/.*|(/include)?/hw(/.*)?/mcf.*)
+  ~ (/qemu)?((/include)?/hw/m68k/.*|/target/m68k/.*|(/include)?/hw(/.*)?/mcf.*|(/include)?/hw/nubus/.*)
 
 microblaze
   ~ (/qemu)?((/include)?/hw/microblaze/.*|/target/microblaze/.*)
@@ -33,11 +39,14 @@ mips
 nios2
   ~ (/qemu)?((/include)?/hw/nios2/.*|/target/nios2/.*)
 
+openrisc
+  ~ (/qemu)?((/include)?/hw/openrisc/.*|/target/openrisc/.*)
+
 ppc
   ~ (/qemu)?((/include)?/hw/ppc/.*|/target/ppc/.*|/hw/pci-host/(uninorth.*|dec.*|prep.*|ppc.*)|/hw/misc/macio/.*|(/include)?/hw/.*/(xics|openpic|spapr).*)
 
 riscv
-  ~ (/qemu)?((/include)?/hw/riscv/.*|/target/riscv/.*)
+  ~ (/qemu)?((/include)?/hw/riscv/.*|/target/riscv/.*|/hw/.*/(riscv_|ibex_|sifive_).*)
 
 rx
   ~ (/qemu)?((/include)?/hw/rx/.*|/target/rx/.*)
@@ -51,11 +60,11 @@ sh4
 sparc
   ~ (/qemu)?((/include)?/hw/sparc(64)?.*|/target/sparc/.*|/hw/.*/grlib.*|/hw/display/cg3.c)
 
-tilegx
-  ~ (/qemu)?(/target/tilegx/.*)
-
 tricore
   ~ (/qemu)?((/include)?/hw/tricore/.*|/target/tricore/.*)
+
+xtensa
+  ~ (/qemu)?((/include)?/hw/xtensa/.*|/target/xtensa/.*)
 
 9pfs
   ~ (/qemu)?(/hw/9pfs/.*|/fsdev/.*)
@@ -64,16 +73,13 @@ audio
   ~ (/qemu)?((/include)?/(audio|hw/audio)/.*)
 
 block
-  ~ (/qemu)?(/block.*|(/include?)(/hw)?/(block|storage-daemon)/.*|(/include)?/hw/ide/.*|/qemu-(img|io).*|/util/(aio|async|thread-pool).*)
+  ~ (/qemu)?(/block.*|(/include?)/(block|storage-daemon)/.*|(/include)?/hw/(block|ide|nvme)/.*|/qemu-(img|io).*|/util/(aio|async|thread-pool).*)
 
 char
   ~ (/qemu)?(/qemu-char\.c|/include/sysemu/char\.h|(/include)?/hw/char/.*)
 
-capstone
-  ~ (/qemu)?(/capstone/.*)
-
 crypto
-  ~ (/qemu)?((/include)?/crypto/.*|/hw/.*/crypto.*)
+  ~ (/qemu)?((/include)?/crypto/.*|/hw/.*/.*crypto.*|(/include/sysemu|/backends)/cryptodev.*)
 
 disas
   ~ (/qemu)?((/include)?/disas.*)
@@ -100,19 +106,13 @@ net
   ~ (/qemu)?((/include)?(/hw)?/(net|rdma)/.*)
 
 pci
-  ~ (/qemu)?(/hw/pci.*|/include/hw/pci.*)
+  ~ (/qemu)?(/include)?/hw/(cxl/|pci).*
 
 qemu-ga
   ~ (/qemu)?(/qga/.*)
 
 scsi
   ~ (/qemu)?(/scsi/.*|/hw/scsi/.*|/include/hw/scsi/.*)
-
-slirp (component should be ignored in analysis)
-  ~ (/qemu)?(/slirp/.*)
-
-tcg
-  ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)
 
 trace
   ~ (/qemu)?(/.*trace.*\.[ch])
@@ -129,11 +129,26 @@ user
 util
   ~ (/qemu)?(/util/.*|/include/qemu/.*)
 
+vfio
+  ~ (/qemu)?(/include)?/hw/vfio/.*
+
+virtio
+  ~ (/qemu)?(/include)?/hw/virtio/.*
+
 xen
   ~ (/qemu)?(.*/xen.*)
 
-virtiofsd
-  ~ (/qemu)?(/tools/virtiofsd/.*)
+hvf
+  ~ (/qemu)?(.*/hvf.*)
+
+kvm
+  ~ (/qemu)?(.*/kvm.*)
+
+tcg
+  ~ (/qemu)?(/accel/tcg|/replay|/tcg)/.*
+
+sysemu
+  ~ (/qemu)?(/system/.*|/accel/.*)
 
 (headers)
   ~ (/qemu)?(/include/.*)
@@ -143,6 +158,3 @@ testlibs
 
 tests
   ~ (/qemu)?(/tests/.*)
-
-loongarch
-  ~ (/qemu)?((/include)?/hw/(loongarch/.*|.*/loongarch.*)|/target/loongarch/.*)

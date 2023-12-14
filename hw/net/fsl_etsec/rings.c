@@ -109,7 +109,7 @@ static void read_buffer_descriptor(eTSEC         *etsec,
 {
     assert(bd != NULL);
 
-    RING_DEBUG("READ Buffer Descriptor @ 0x" TARGET_FMT_plx"\n", addr);
+    RING_DEBUG("READ Buffer Descriptor @ 0x" HWADDR_FMT_plx"\n", addr);
     cpu_physical_memory_read(addr,
                              bd,
                              sizeof(eTSEC_rxtx_bd));
@@ -141,7 +141,7 @@ static void write_buffer_descriptor(eTSEC         *etsec,
         stl_be_p(&bd->bufptr, bd->bufptr);
     }
 
-    RING_DEBUG("Write Buffer Descriptor @ 0x" TARGET_FMT_plx"\n", addr);
+    RING_DEBUG("Write Buffer Descriptor @ 0x" HWADDR_FMT_plx"\n", addr);
     cpu_physical_memory_write(addr,
                               bd,
                               sizeof(eTSEC_rxtx_bd));
@@ -365,12 +365,18 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
     } while (TRUE);
 
     /* Save the Buffer Descriptor Pointers to last bd that was not
-     * succesfully closed */
+     * successfully closed */
     etsec->regs[TBPTR0 + ring_nbr].value = bd_addr;
 
     /* Set transmit halt THLTx */
     etsec->regs[TSTAT].value |= 1 << (31 - ring_nbr);
 }
+
+/*
+ * rx_init_frame() ensures we never do more padding than this
+ * (checksum plus minimum data packet size)
+ */
+#define MAX_RX_PADDING 64
 
 static void fill_rx_bd(eTSEC          *etsec,
                        eTSEC_rxtx_bd  *bd,
@@ -380,8 +386,10 @@ static void fill_rx_bd(eTSEC          *etsec,
     uint16_t to_write;
     hwaddr   bufptr = bd->bufptr +
         ((hwaddr)(etsec->regs[TBDBPH].value & 0xF) << 32);
-    uint8_t  padd[etsec->rx_padding];
+    uint8_t  padd[MAX_RX_PADDING];
     uint8_t  rem;
+
+    assert(etsec->rx_padding <= MAX_RX_PADDING);
 
     RING_DEBUG("eTSEC fill Rx buffer @ 0x%016" HWADDR_PRIx
                " size:%zu(padding + crc:%u) + fcb:%u\n",
@@ -426,7 +434,7 @@ static void fill_rx_bd(eTSEC          *etsec,
         rem = MIN(etsec->regs[MRBLR].value - bd->length, etsec->rx_padding);
 
         if (rem > 0) {
-            memset(padd, 0x0, sizeof(padd));
+            memset(padd, 0x0, rem);
             etsec->rx_padding -= rem;
             *size             -= rem;
             bd->length        += rem;

@@ -35,7 +35,7 @@ static void *e1000_get_driver(void *obj, const char *interface)
         return &e1000->dev;
     }
 
-    fprintf(stderr, "%s not present in e1000e\n", interface);
+    fprintf(stderr, "%s not present in e1000\n", interface);
     g_assert_not_reached();
 }
 

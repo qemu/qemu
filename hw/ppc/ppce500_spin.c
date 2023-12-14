@@ -83,7 +83,9 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     tlb->mas2 = (va & TARGET_PAGE_MASK) | MAS2_M;
     tlb->mas7_3 = pa & TARGET_PAGE_MASK;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
+#ifdef CONFIG_KVM
     env->tlb_dirty = true;
+#endif
 }
 
 static void spin_kick(CPUState *cs, run_on_cpu_data data)

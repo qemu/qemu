@@ -13,10 +13,19 @@
 #ifndef USERFAULTFD_H
 #define USERFAULTFD_H
 
-#include "qemu/osdep.h"
+#ifdef CONFIG_LINUX
+
 #include "exec/hwaddr.h"
 #include <linux/userfaultfd.h>
 
+/**
+ * uffd_open(): Open an userfaultfd handle for current context.
+ *
+ * @flags: The flags we want to pass in when creating the handle.
+ *
+ * Returns: the uffd handle if >=0, or <0 if error happens.
+ */
+int uffd_open(int flags);
 int uffd_query_features(uint64_t *features);
 int uffd_create_fd(uint64_t features, bool non_blocking);
 void uffd_close_fd(int uffd_fd);
@@ -31,5 +40,7 @@ int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake);
 int uffd_wakeup(int uffd_fd, void *addr, uint64_t length);
 int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count);
 bool uffd_poll_events(int uffd_fd, int tmo);
+
+#endif /* CONFIG_LINUX */
 
 #endif /* USERFAULTFD_H */

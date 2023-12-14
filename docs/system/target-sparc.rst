@@ -38,7 +38,7 @@ QEMU emulates the following sun4m peripherals:
 -  Non Volatile RAM M48T02/M48T08
 
 -  Slave I/O: timers, interrupt controllers, Zilog serial ports,
-   keyboard and power/reset logic
+   :ref:`keyboard` and power/reset logic
 
 -  ESP SCSI controller with hard disk and CD-ROM support
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright Red Hat
 # Copyright (c) 2000-2001 Silicon Graphics, Inc.  All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -131,7 +131,6 @@ _filter_img_create_filenames()
         -e "s#$SOCK_DIR#SOCK_DIR#g" \
         -e 's#SOCK_DIR/fuse-#TEST_DIR/#g' \
         -e "s#$IMGFMT#IMGFMT#g" \
-        -e 's#nbd:127.0.0.1:[0-9]\\+#TEST_DIR/t.IMGFMT#g' \
         -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g'
 }
 
@@ -223,12 +222,12 @@ _filter_img_info()
 
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
+    regex_json_child_start='^ *"children": \['
     gsed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
         -e "s#$SOCK_DIR#SOCK_DIR#g" \
         -e "s#$IMGFMT#IMGFMT#g" \
-        -e 's#nbd://127.0.0.1:[0-9]\\+$#TEST_DIR/t.IMGFMT#g' \
         -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g' \
         -e 's#SOCK_DIR/fuse-#TEST_DIR/#g' \
         -e "/encrypted: yes/d" \
@@ -251,20 +250,25 @@ _filter_img_info()
         -e 's/\(compression type: \)\(zlib\|zstd\)/\1COMPRESSION_TYPE/' \
         -e "s/uuid: [-a-f0-9]\\+/uuid: 00000000-0000-0000-0000-000000000000/" | \
     while IFS='' read -r line; do
-        if [[ $format_specific == 1 ]]; then
-            discard=0
-        elif [[ $line == "Format specific information:" ]]; then
-            discard=1
-        elif [[ $line =~ $regex_json_spec_start ]]; then
-            discard=2
-            regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+        if [[ $discard == 0 ]]; then
+            if [[ $format_specific == 0 && $line == "Format specific information:" ]]; then
+                discard=1
+            elif [[ $line =~ "Child node '/" ]]; then
+                discard=1
+            elif [[ $line =~ $regex_json_spec_start ]]; then
+                discard=2
+                regex_json_end="^${line%%[^ ]*}\\},? *$"
+            elif [[ $line =~ $regex_json_child_start ]]; then
+                discard=2
+                regex_json_end="^${line%%[^ ]*}\\],? *$"
+            fi
         fi
         if [[ $discard == 0 ]]; then
             echo "$line"
         elif [[ $discard == 1 && ! $line ]]; then
             echo
             discard=0
-        elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+        elif [[ $discard == 2 && $line =~ $regex_json_end ]]; then
             discard=0
         fi
     done
@@ -353,6 +357,13 @@ _filter_qcow2_compression_type_bit()
     gsed -e 's/\(incompatible_features\s\+\)\[3\(, \)\?/\1[/' \
         -e 's/\(incompatible_features.*\), 3\]/\1]/' \
         -e 's/\(incompatible_features.*\), 3\(,.*\)/\1\2/'
+}
+
+# filter warnings caused for block migration deprecation
+_filter_migration_block_deprecated()
+{
+    gsed -e '/warning: parameter .blk. is deprecated; use blockdev-mirror with NBD instead/d' \
+         -e '/warning: block migration is deprecated; use blockdev-mirror with NBD instead/d'
 }
 
 # make sure this script returns success

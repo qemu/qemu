@@ -8,6 +8,8 @@
 #ifndef RISCV_BOOT_OPENSBI_H
 #define RISCV_BOOT_OPENSBI_H
 
+#include "exec/cpu-defs.h"
+
 /** Expected value of info magic ('OSBI' ascii string in hex) */
 #define FW_DYNAMIC_INFO_MAGIC_VALUE     0x4942534f
 

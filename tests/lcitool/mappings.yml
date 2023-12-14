@@ -1,0 +1,93 @@
+mappings:
+  flake8:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  meson:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3:
+    CentOSStream8: python38
+    OpenSUSELeap15: python311-base
+
+  python3-PyYAML:
+    CentOSStream8: python38-PyYAML
+    OpenSUSELeap15:
+
+  python3-devel:
+    CentOSStream8: python38-devel
+    OpenSUSELeap15: python311-devel
+
+  python3-docutils:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-numpy:
+    CentOSStream8: python38-numpy
+    OpenSUSELeap15:
+
+  python3-opencv:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-pillow:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-pip:
+    CentOSStream8: python38-pip
+    OpenSUSELeap15: python311-pip
+
+  python3-pillow:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-selinux:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-setuptools:
+    CentOSStream8: python38-setuptools
+    OpenSUSELeap15: python311-setuptools
+
+  python3-sphinx:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-sphinx-rtd-theme:
+    CentOSStream8:
+    OpenSUSELeap15:
+
+  python3-tomli:
+    # test using tomllib
+    apk:
+    Fedora:
+    Debian12:
+    OpenSUSELeap15:
+    # Not available for Python 3.8
+    CentOSStream8:
+
+  python3-venv:
+    CentOSStream8: python38
+    OpenSUSELeap15: python311-base
+
+  python3-wheel:
+    CentOSStream8: python38-wheel
+    OpenSUSELeap15: python311-pip
+
+pypi_mappings:
+  # Request more recent version
+  meson:
+    default: meson==0.63.2
+
+  # Drop packages that need devel headers
+  python3-numpy:
+    OpenSUSELeap15:
+
+  # see above
+  python3-tomli:
+    apk:
+    Fedora:
+    Debian12:
+    OpenSUSELeap15:

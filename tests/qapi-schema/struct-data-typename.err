@@ -1,0 +1,2 @@
+struct-data-typename.json: In struct 'Stru2':
+struct-data-typename.json:2: 'data' should be an object or type name

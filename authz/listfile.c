@@ -30,7 +30,6 @@
 #include "qapi/qapi-visit-authz.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qobject.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 
 

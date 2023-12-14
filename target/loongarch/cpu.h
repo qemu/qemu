@@ -8,12 +8,16 @@
 #ifndef LOONGARCH_CPU_H
 #define LOONGARCH_CPU_H
 
+#include "qemu/int128.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 #include "hw/registerfields.h"
 #include "qemu/timer.h"
+#ifndef CONFIG_USER_ONLY
 #include "exec/memory.h"
-#include "hw/sysbus.h"
+#endif
+#include "cpu-csr.h"
+#include "cpu-qom.h"
 
 #define IOCSRF_TEMP             0
 #define IOCSRF_NODECNT          1
@@ -26,6 +30,7 @@
 #define IOCSRF_GMOD             9
 #define IOCSRF_VM               11
 
+#define VERSION_REG             0x0
 #define FEATURE_REG             0x8
 #define VENDOR_REG              0x10
 #define CPUNAME_REG             0x20
@@ -51,6 +56,10 @@ FIELD(FCSR0, CAUSE, 24, 5)
     do { \
         (REG) = FIELD_DP32(REG, FCSR0, CAUSE, V); \
     } while (0)
+#define UPDATE_FP_CAUSE(REG, V) \
+    do { \
+        (REG) |= FIELD_DP32(0, FCSR0, CAUSE, V); \
+    } while (0)
 
 #define GET_FP_ENABLES(REG)    FIELD_EX32(REG, FCSR0, ENABLES)
 #define SET_FP_ENABLES(REG, V) \
@@ -75,33 +84,37 @@ FIELD(FCSR0, CAUSE, 24, 5)
 #define FP_DIV0           8
 #define FP_INVALID        16
 
-#define  EXCCODE_EXTERNAL_INT   64   /* plus external interrupt number */
-#define  EXCCODE_INT                 0
-#define  EXCCODE_PIL                 1
-#define  EXCCODE_PIS                 2
-#define  EXCCODE_PIF                 3
-#define  EXCCODE_PME                 4
-#define  EXCCODE_PNR                 5
-#define  EXCCODE_PNX                 6
-#define  EXCCODE_PPI                 7
-#define  EXCCODE_ADEF                8 /* Different exception subcode */
-#define  EXCCODE_ADEM                8
-#define  EXCCODE_ALE                 9
-#define  EXCCODE_BCE                 10
-#define  EXCCODE_SYS                 11
-#define  EXCCODE_BRK                 12
-#define  EXCCODE_INE                 13
-#define  EXCCODE_IPE                 14
-#define  EXCCODE_FPD                 15
-#define  EXCCODE_SXD                 16
-#define  EXCCODE_ASXD                17
-#define  EXCCODE_FPE                 18 /* Different exception subcode */
-#define  EXCCODE_VFPE                18
-#define  EXCCODE_WPEF                19 /* Different exception subcode */
-#define  EXCCODE_WPEM                19
-#define  EXCCODE_BTD                 20
-#define  EXCCODE_BTE                 21
-#define  EXCCODE_DBP                 26 /* Reserved subcode used for debug */
+#define EXCODE(code, subcode) ( ((subcode) << 6) | (code) )
+#define EXCODE_MCODE(code)    ( (code) & 0x3f )
+#define EXCODE_SUBCODE(code)  ( (code) >> 6 )
+
+#define  EXCCODE_EXTERNAL_INT        64   /* plus external interrupt number */
+#define  EXCCODE_INT                 EXCODE(0, 0)
+#define  EXCCODE_PIL                 EXCODE(1, 0)
+#define  EXCCODE_PIS                 EXCODE(2, 0)
+#define  EXCCODE_PIF                 EXCODE(3, 0)
+#define  EXCCODE_PME                 EXCODE(4, 0)
+#define  EXCCODE_PNR                 EXCODE(5, 0)
+#define  EXCCODE_PNX                 EXCODE(6, 0)
+#define  EXCCODE_PPI                 EXCODE(7, 0)
+#define  EXCCODE_ADEF                EXCODE(8, 0) /* Different exception subcode */
+#define  EXCCODE_ADEM                EXCODE(8, 1)
+#define  EXCCODE_ALE                 EXCODE(9, 0)
+#define  EXCCODE_BCE                 EXCODE(10, 0)
+#define  EXCCODE_SYS                 EXCODE(11, 0)
+#define  EXCCODE_BRK                 EXCODE(12, 0)
+#define  EXCCODE_INE                 EXCODE(13, 0)
+#define  EXCCODE_IPE                 EXCODE(14, 0)
+#define  EXCCODE_FPD                 EXCODE(15, 0)
+#define  EXCCODE_SXD                 EXCODE(16, 0)
+#define  EXCCODE_ASXD                EXCODE(17, 0)
+#define  EXCCODE_FPE                 EXCODE(18, 0) /* Different exception subcode */
+#define  EXCCODE_VFPE                EXCODE(18, 1)
+#define  EXCCODE_WPEF                EXCODE(19, 0) /* Different exception subcode */
+#define  EXCCODE_WPEM                EXCODE(19, 1)
+#define  EXCCODE_BTD                 EXCODE(20, 0)
+#define  EXCCODE_BTE                 EXCODE(21, 0)
+#define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
 
 /* cpucfg[0] bits */
 FIELD(CPUCFG0, PRID, 0, 32)
@@ -119,6 +132,11 @@ FIELD(CPUCFG1, RPLV, 23, 1)
 FIELD(CPUCFG1, HP, 24, 1)
 FIELD(CPUCFG1, IOCSR_BRD, 25, 1)
 FIELD(CPUCFG1, MSG_INT, 26, 1)
+
+/* cpucfg[1].arch */
+#define CPUCFG1_ARCH_LA32R       0
+#define CPUCFG1_ARCH_LA32        1
+#define CPUCFG1_ARCH_LA64        2
 
 /* cpucfg[2] bits */
 FIELD(CPUCFG2, FP, 0, 1)
@@ -234,6 +252,26 @@ FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
 
+#define LSX_LEN    (128)
+#define LASX_LEN   (256)
+
+typedef union VReg {
+    int8_t   B[LASX_LEN / 8];
+    int16_t  H[LASX_LEN / 16];
+    int32_t  W[LASX_LEN / 32];
+    int64_t  D[LASX_LEN / 64];
+    uint8_t  UB[LASX_LEN / 8];
+    uint16_t UH[LASX_LEN / 16];
+    uint32_t UW[LASX_LEN / 32];
+    uint64_t UD[LASX_LEN / 64];
+    Int128   Q[LASX_LEN / 128];
+} VReg;
+
+typedef union fpr_t fpr_t;
+union fpr_t {
+    VReg  vreg;
+};
+
 struct LoongArchTLB {
     uint64_t tlb_misc;
     /* Fields corresponding to CSR_TLBELO0/1 */
@@ -246,7 +284,7 @@ typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
 
-    uint64_t fpr[32];
+    fpr_t fpr[32];
     float_status fp_status;
     bool cf[8];
 
@@ -312,6 +350,7 @@ typedef struct CPUArchState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+    uint64_t CSR_CPUID;
 
 #ifndef CONFIG_USER_ONLY
     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
@@ -321,6 +360,8 @@ typedef struct CPUArchState {
     MemoryRegion iocsr_mem;
     bool load_elf;
     uint64_t elf_address;
+    /* Store ipistate to access from this struct */
+    DeviceState *ipistate;
 #endif
 } CPULoongArchState;
 
@@ -331,37 +372,28 @@ typedef struct CPUArchState {
  * A LoongArch CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
 
-    CPUNegativeOffsetState neg;
     CPULoongArchState env;
     QEMUTimer timer;
+    uint32_t  phy_id;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 };
 
-#define TYPE_LOONGARCH_CPU "loongarch-cpu"
-
-OBJECT_DECLARE_CPU_TYPE(LoongArchCPU, LoongArchCPUClass,
-                        LOONGARCH_CPU)
-
 /**
  * LoongArchCPUClass:
  * @parent_realize: The parent class' realize handler.
- * @parent_reset: The parent class' reset handler.
+ * @parent_phases: The parent class' reset phase handlers.
  *
  * A LoongArch CPU model.
  */
 struct LoongArchCPUClass {
-    /*< private >*/
     CPUClass parent_class;
-    /*< public >*/
 
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
+    ResettablePhases parent_phases;
 };
 
 /*
@@ -369,32 +401,69 @@ struct LoongArchCPUClass {
  * 0 for kernel mode, 3 for user mode.
  * Define an extra index for DA(direct addressing) mode.
  */
-#define MMU_KERNEL_IDX   0
-#define MMU_USER_IDX     3
-#define MMU_DA_IDX       4
+#define MMU_PLV_KERNEL   0
+#define MMU_PLV_USER     3
+#define MMU_IDX_KERNEL   MMU_PLV_KERNEL
+#define MMU_IDX_USER     MMU_PLV_USER
+#define MMU_IDX_DA       4
 
 static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
 {
 #ifdef CONFIG_USER_ONLY
-    return MMU_USER_IDX;
+    return MMU_IDX_USER;
 #else
-    uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
-
-    if (!pg) {
-        return MMU_DA_IDX;
+    if (FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG)) {
+        return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
     }
-    return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+    return MMU_IDX_DA;
 #endif
 }
 
-static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
-                                        target_ulong *pc,
-                                        target_ulong *cs_base,
-                                        uint32_t *flags)
+static inline bool is_la64(CPULoongArchState *env)
+{
+    return FIELD_EX32(env->cpucfg[1], CPUCFG1, ARCH) == CPUCFG1_ARCH_LA64;
+}
+
+static inline bool is_va32(CPULoongArchState *env)
+{
+    /* VA32 if !LA64 or VA32L[1-3] */
+    bool va32 = !is_la64(env);
+    uint64_t plv = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+    if (plv >= 1 && (FIELD_EX64(env->CSR_MISC, CSR_MISC, VA32) & (1 << plv))) {
+        va32 = true;
+    }
+    return va32;
+}
+
+static inline void set_pc(CPULoongArchState *env, uint64_t value)
+{
+    if (is_va32(env)) {
+        env->pc = (uint32_t)value;
+    } else {
+        env->pc = value;
+    }
+}
+
+/*
+ * LoongArch CPUs hardware flags.
+ */
+#define HW_FLAGS_PLV_MASK   R_CSR_CRMD_PLV_MASK  /* 0x03 */
+#define HW_FLAGS_EUEN_FPE   0x04
+#define HW_FLAGS_EUEN_SXE   0x08
+#define HW_FLAGS_CRMD_PG    R_CSR_CRMD_PG_MASK   /* 0x10 */
+#define HW_FLAGS_VA32       0x20
+#define HW_FLAGS_EUEN_ASXE  0x40
+
+static inline void cpu_get_tb_cpu_state(CPULoongArchState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = cpu_mmu_index(env, false);
+    *flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
+    *flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, FPE) * HW_FLAGS_EUEN_FPE;
+    *flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE) * HW_FLAGS_EUEN_SXE;
+    *flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, ASXE) * HW_FLAGS_EUEN_ASXE;
+    *flags |= is_va32(env) * HW_FLAGS_VA32;
 }
 
 void loongarch_cpu_list(void);
@@ -403,8 +472,8 @@ void loongarch_cpu_list(void);
 
 #include "exec/cpu-all.h"
 
-#define LOONGARCH_CPU_TYPE_SUFFIX "-" TYPE_LOONGARCH_CPU
-#define LOONGARCH_CPU_TYPE_NAME(model) model LOONGARCH_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
+
+void loongarch_cpu_post_init(Object *obj);
 
 #endif /* LOONGARCH_CPU_H */

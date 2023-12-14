@@ -1,5 +1,5 @@
 /*
- * Sharing QEMU block devices via vhost-user protocal
+ * Sharing QEMU block devices via vhost-user protocol
  *
  * Parts of the code based on nbd/server.c.
  *
@@ -10,6 +10,7 @@
  * later.  See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "block/block.h"
 #include "subprojects/libvhost-user/libvhost-user.h" /* only for the type definitions */
 #include "standard-headers/linux/virtio_blk.h"
@@ -49,7 +50,10 @@ static void vu_blk_req_complete(VuBlkReq *req, size_t in_len)
     free(req);
 }
 
-/* Called with server refcount increased, must decrease before returning */
+/*
+ * Called with server in_flight counter increased, must decrease before
+ * returning.
+ */
 static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
 {
     VuBlkReq *req = opaque;
@@ -67,12 +71,12 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
                                     in_num, out_num);
     if (in_len < 0) {
         free(req);
-        vhost_user_server_unref(server);
+        vhost_user_server_dec_in_flight(server);
         return;
     }
 
     vu_blk_req_complete(req, in_len);
-    vhost_user_server_unref(server);
+    vhost_user_server_dec_in_flight(server);
 }
 
 static void vu_blk_process_vq(VuDev *vu_dev, int idx)
@@ -94,7 +98,7 @@ static void vu_blk_process_vq(VuDev *vu_dev, int idx)
         Coroutine *co =
             qemu_coroutine_create(vu_blk_virtio_process_req, req);
 
-        vhost_user_server_ref(server);
+        vhost_user_server_inc_in_flight(server);
         qemu_coroutine_enter(co);
     }
 }
@@ -163,7 +167,7 @@ vu_blk_set_config(VuDev *vu_dev, const uint8_t *data,
     uint8_t wce;
 
     /* don't support live migration */
-    if (flags != VHOST_SET_CONFIG_TYPE_MASTER) {
+    if (flags != VHOST_SET_CONFIG_TYPE_FRONTEND) {
         return -EINVAL;
     }
 
@@ -208,15 +212,21 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
     VuBlkExport *vexp = opaque;
 
+    /*
+     * The actual attach will happen in vu_blk_drained_end() and we just
+     * restore ctx here.
+     */
     vexp->export.ctx = ctx;
-    vhost_user_server_attach_aio_context(&vexp->vu_server, ctx);
 }
 
 static void blk_aio_detach(void *opaque)
 {
     VuBlkExport *vexp = opaque;
 
-    vhost_user_server_detach_aio_context(&vexp->vu_server);
+    /*
+     * The actual detach already happened in vu_blk_drained_begin() but from
+     * this point on we must not access ctx anymore.
+     */
     vexp->export.ctx = NULL;
 }
 
@@ -250,6 +260,63 @@ static void vu_blk_exp_request_shutdown(BlockExport *exp)
 
     vhost_user_server_stop(&vexp->vu_server);
 }
+
+static void vu_blk_exp_resize(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+    BlockDriverState *bs = blk_bs(vexp->handler.blk);
+    int64_t new_size = bdrv_getlength(bs);
+
+    if (new_size < 0) {
+        error_printf("Failed to get length of block node '%s'",
+                     bdrv_get_node_name(bs));
+        return;
+    }
+
+    vexp->blkcfg.capacity = cpu_to_le64(new_size >> VIRTIO_BLK_SECTOR_BITS);
+
+    vu_config_change_msg(&vexp->vu_server.vu_dev);
+}
+
+/* Called with vexp->export.ctx acquired */
+static void vu_blk_drained_begin(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+
+    vexp->vu_server.quiescing = true;
+    vhost_user_server_detach_aio_context(&vexp->vu_server);
+}
+
+/* Called with vexp->export.blk AioContext acquired */
+static void vu_blk_drained_end(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+
+    vexp->vu_server.quiescing = false;
+    vhost_user_server_attach_aio_context(&vexp->vu_server, vexp->export.ctx);
+}
+
+/*
+ * Ensures that bdrv_drained_begin() waits until in-flight requests complete
+ * and the server->co_trip coroutine has terminated. It will be restarted in
+ * vhost_user_server_attach_aio_context().
+ *
+ * Called with vexp->export.ctx acquired.
+ */
+static bool vu_blk_drained_poll(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+    VuServer *server = &vexp->vu_server;
+
+    return server->co_trip || vhost_user_server_has_in_flight(server);
+}
+
+static const BlockDevOps vu_blk_dev_ops = {
+    .drained_begin = vu_blk_drained_begin,
+    .drained_end   = vu_blk_drained_end,
+    .drained_poll  = vu_blk_drained_poll,
+    .resize_cb = vu_blk_exp_resize,
+};
 
 static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
                              Error **errp)
@@ -291,6 +358,8 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
 
     blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
                                  vexp);
+
+    blk_set_dev_ops(exp->blk, &vu_blk_dev_ops, vexp);
 
     if (!vhost_user_server_start(&vexp->vu_server, vu_opts->addr, exp->ctx,
                                  num_queues, &vu_blk_iface, errp)) {

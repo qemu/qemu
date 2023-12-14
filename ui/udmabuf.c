@@ -7,8 +7,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "ui/console.h"
+#include "qemu/error-report.h"
 
-#include <fcntl.h>
 #include <sys/ioctl.h>
 
 int udmabuf_fd(void)

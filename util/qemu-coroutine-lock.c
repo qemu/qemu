@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/processor.h"
 #include "qemu/queue.h"
@@ -39,10 +38,15 @@ void qemu_co_queue_init(CoQueue *queue)
     QSIMPLEQ_INIT(&queue->entries);
 }
 
-void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock)
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock,
+                                          CoQueueWaitFlags flags)
 {
     Coroutine *self = qemu_coroutine_self();
-    QSIMPLEQ_INSERT_TAIL(&queue->entries, self, co_queue_next);
+    if (flags & CO_QUEUE_WAIT_FRONT) {
+        QSIMPLEQ_INSERT_HEAD(&queue->entries, self, co_queue_next);
+    } else {
+        QSIMPLEQ_INSERT_TAIL(&queue->entries, self, co_queue_next);
+    }
 
     if (lock) {
         qemu_lockable_unlock(lock);
@@ -135,7 +139,7 @@ typedef struct CoWaitRecord {
     QSLIST_ENTRY(CoWaitRecord) next;
 } CoWaitRecord;
 
-static void push_waiter(CoMutex *mutex, CoWaitRecord *w)
+static void coroutine_fn push_waiter(CoMutex *mutex, CoWaitRecord *w)
 {
     w->co = qemu_coroutine_self();
     QSLIST_INSERT_HEAD_ATOMIC(&mutex->from_push, w, next);
@@ -197,10 +201,16 @@ static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
     trace_qemu_co_mutex_lock_entry(mutex, self);
     push_waiter(mutex, &w);
 
+    /*
+     * Add waiter before reading mutex->handoff.  Pairs with qatomic_set_mb
+     * in qemu_co_mutex_unlock.
+     */
+    smp_mb__after_rmw();
+
     /* This is the "Responsibility Hand-Off" protocol; a lock() picks from
      * a concurrent unlock() the responsibility of waking somebody up.
      */
-    old_handoff = qatomic_mb_read(&mutex->handoff);
+    old_handoff = qatomic_read(&mutex->handoff);
     if (old_handoff &&
         has_waiters(mutex) &&
         qatomic_cmpxchg(&mutex->handoff, old_handoff, 0) == old_handoff) {
@@ -299,7 +309,8 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
         }
 
         our_handoff = mutex->sequence;
-        qatomic_mb_set(&mutex->handoff, our_handoff);
+        /* Set handoff before checking for waiters.  */
+        qatomic_set_mb(&mutex->handoff, our_handoff);
         if (!has_waiters(mutex)) {
             /* The concurrent lock has not added itself yet, so it
              * will be able to pick our handoff.
@@ -332,7 +343,7 @@ void qemu_co_rwlock_init(CoRwlock *lock)
 }
 
 /* Releases the internal CoMutex.  */
-static void qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
+static void coroutine_fn qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
 {
     CoRwTicket *tkt = QSIMPLEQ_FIRST(&lock->tickets);
     Coroutine *co = NULL;
@@ -365,7 +376,7 @@ static void qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
     }
 }
 
-void qemu_co_rwlock_rdlock(CoRwlock *lock)
+void coroutine_fn qemu_co_rwlock_rdlock(CoRwlock *lock)
 {
     Coroutine *self = qemu_coroutine_self();
 
@@ -390,7 +401,7 @@ void qemu_co_rwlock_rdlock(CoRwlock *lock)
     self->locks_held++;
 }
 
-void qemu_co_rwlock_unlock(CoRwlock *lock)
+void coroutine_fn qemu_co_rwlock_unlock(CoRwlock *lock)
 {
     Coroutine *self = qemu_coroutine_self();
 
@@ -408,7 +419,7 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
     qemu_co_rwlock_maybe_wake_one(lock);
 }
 
-void qemu_co_rwlock_downgrade(CoRwlock *lock)
+void coroutine_fn qemu_co_rwlock_downgrade(CoRwlock *lock)
 {
     qemu_co_mutex_lock(&lock->mutex);
     assert(lock->owners == -1);
@@ -418,7 +429,7 @@ void qemu_co_rwlock_downgrade(CoRwlock *lock)
     qemu_co_rwlock_maybe_wake_one(lock);
 }
 
-void qemu_co_rwlock_wrlock(CoRwlock *lock)
+void coroutine_fn qemu_co_rwlock_wrlock(CoRwlock *lock)
 {
     Coroutine *self = qemu_coroutine_self();
 
@@ -438,7 +449,7 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock)
     self->locks_held++;
 }
 
-void qemu_co_rwlock_upgrade(CoRwlock *lock)
+void coroutine_fn qemu_co_rwlock_upgrade(CoRwlock *lock)
 {
     qemu_co_mutex_lock(&lock->mutex);
     assert(lock->owners > 0);

@@ -899,6 +899,137 @@ _concurrent_io     | $QEMU_IO | _filter_qemu_io | \
     sed -e 's/\(20480\|40960\)/OFFSET/'
 _concurrent_verify | $QEMU_IO | _filter_qemu_io
 
+############################################################
+############################################################
+############################################################
+
+echo
+echo "### Rebase of qcow2 images with subclusters ###"
+echo
+
+l2_offset=$((0x400000))
+
+# Check that rebase operation preserve holes between allocated subclusters
+# within one cluster (i.e. does not allocate extra space).  Check that the
+# data is preserved as well.
+#
+# Base (new backing): -- -- -- ... -- -- --
+# Mid (old backing):  -- 11 -- ... -- 22 --
+# Top:                -- -- -- ... -- -- --
+
+echo "### Preservation of unallocated holes after rebase ###"
+echo
+
+echo "# create backing chain"
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img -o cluster_size=1M,extended_l2=on 1M
+TEST_IMG="$TEST_IMG.mid" _make_test_img -o cluster_size=1M,extended_l2=on \
+    -b "$TEST_IMG.base" -F qcow2 1M
+TEST_IMG="$TEST_IMG.top" _make_test_img -o cluster_size=1M,extended_l2=on \
+    -b "$TEST_IMG.mid" -F qcow2 1M
+
+echo
+echo "# fill old backing with data (separate subclusters within cluster)"
+echo
+
+$QEMU_IO -c "write -P 0x11 32k 32k" \
+         -c "write -P 0x22 $(( 30 * 32 ))k 32k" \
+         "$TEST_IMG.mid" | _filter_qemu_io
+
+echo
+echo "# rebase topmost image onto the new backing"
+echo
+
+$QEMU_IMG rebase -b "$TEST_IMG.base" -F qcow2 "$TEST_IMG.top"
+
+echo "# verify that data is read the same before and after rebase"
+echo
+
+$QEMU_IO -c "read -P 0x00 0 32k" \
+         -c "read -P 0x11 32k 32k" \
+         -c "read -P 0x00 64k $(( 28 * 32 ))k" \
+         -c "read -P 0x22 $(( 30 * 32 ))k 32k" \
+         -c "read -P 0x00 $(( 31 * 32 ))k 32k" \
+         "$TEST_IMG.top" | _filter_qemu_io
+
+echo
+echo "# verify that only selected subclusters remain allocated"
+echo
+
+$QEMU_IMG map "$TEST_IMG.top" | _filter_testdir
+
+echo
+echo "# verify image bitmap"
+echo
+
+TEST_IMG="$TEST_IMG.top" alloc="1 30" zero="" _verify_l2_bitmap 0
+
+# Check that rebase with compression works correctly with images containing
+# subclusters.  When compression is enabled and we allocate a new
+# subcluster within the target (overlay) image, we expect the entire cluster
+# containing that subcluster to become compressed.
+#
+# Here we expect 1st and 3rd clusters of the top (overlay) image to become
+# compressed after the rebase, while cluster 2 to remain unallocated and
+# be read from the base (new backing) image.
+#
+# Base (new backing): |-- -- .. -- --|11 11 .. 11 11|-- -- .. -- --|
+# Mid (old backing):  |-- -- .. -- 22|-- -- .. -- --|33 -- .. -- --|
+# Top:                |-- -- .. -- --|-- -- -- -- --|-- -- .. -- --|
+
+echo
+echo "### Rebase with compression for images with subclusters ###"
+echo
+
+echo "# create backing chain"
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img -o cluster_size=1M,extended_l2=on 3M
+TEST_IMG="$TEST_IMG.mid" _make_test_img -o cluster_size=1M,extended_l2=on \
+    -b "$TEST_IMG.base" -F qcow2 3M
+TEST_IMG="$TEST_IMG.top" _make_test_img -o cluster_size=1M,extended_l2=on \
+    -b "$TEST_IMG.mid" -F qcow2 3M
+
+echo
+echo "# fill old and new backing with data"
+echo
+
+$QEMU_IO -c "write -P 0x11 1M 1M" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x22 $(( 31 * 32 ))k 32k" \
+         -c "write -P 0x33 $(( 64 * 32 ))k 32k" \
+         "$TEST_IMG.mid" | _filter_qemu_io
+
+echo
+echo "# rebase topmost image onto the new backing, with compression"
+echo
+
+$QEMU_IMG rebase -c -b "$TEST_IMG.base" -F qcow2 "$TEST_IMG.top"
+
+echo "# verify that the 1st and 3rd clusters've become compressed"
+echo
+
+$QEMU_IMG map --output=json "$TEST_IMG.top" | _filter_testdir
+
+echo
+echo "# verify that data is read the same before and after rebase"
+echo
+
+$QEMU_IO -c "read -P 0x22 $(( 31 * 32 ))k 32k" \
+         -c "read -P 0x11 1M 1M" \
+         -c "read -P 0x33 $(( 64 * 32 ))k 32k" \
+         "$TEST_IMG.top" | _filter_qemu_io
+
+echo
+echo "# verify image bitmap"
+echo
+
+# For compressed clusters bitmap is always 0.  For unallocated cluster
+# there should be no entry at all, thus bitmap is also 0.
+TEST_IMG="$TEST_IMG.top" alloc="" zero="" _verify_l2_bitmap 0
+TEST_IMG="$TEST_IMG.top" alloc="" zero="" _verify_l2_bitmap 1
+TEST_IMG="$TEST_IMG.top" alloc="" zero="" _verify_l2_bitmap 2
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

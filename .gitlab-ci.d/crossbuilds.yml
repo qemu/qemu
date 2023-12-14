@@ -1,26 +1,12 @@
 include:
   - local: '/.gitlab-ci.d/crossbuild-template.yml'
 
-cross-armel-system:
-  extends: .cross_system_build_job
-  needs:
-    job: armel-debian-cross-container
-  variables:
-    IMAGE: debian-armel-cross
-
 cross-armel-user:
   extends: .cross_user_build_job
   needs:
     job: armel-debian-cross-container
   variables:
     IMAGE: debian-armel-cross
-
-cross-armhf-system:
-  extends: .cross_system_build_job
-  needs:
-    job: armhf-debian-cross-container
-  variables:
-    IMAGE: debian-armhf-cross
 
 cross-armhf-user:
   extends: .cross_user_build_job
@@ -43,46 +29,36 @@ cross-arm64-user:
   variables:
     IMAGE: debian-arm64-cross
 
-cross-i386-system:
-  extends: .cross_system_build_job
+cross-arm64-kvm-only:
+  extends: .cross_accel_build_job
   needs:
-    job: i386-fedora-cross-container
+    job: arm64-debian-cross-container
   variables:
-    IMAGE: fedora-i386-cross
-    MAKE_CHECK_ARGS: check-qtest
+    IMAGE: debian-arm64-cross
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-features
 
-cross-i386-user:
-  extends: .cross_user_build_job
+cross-i686-user:
+  extends:
+    - .cross_user_build_job
+    - .cross_test_artifacts
   needs:
-    job: i386-fedora-cross-container
+    job: i686-debian-cross-container
   variables:
-    IMAGE: fedora-i386-cross
+    IMAGE: debian-i686-cross
     MAKE_CHECK_ARGS: check
 
-cross-i386-tci:
-  extends: .cross_accel_build_job
+cross-i686-tci:
+  extends:
+    - .cross_accel_build_job
+    - .cross_test_artifacts
   timeout: 60m
   needs:
-    job: i386-fedora-cross-container
+    job: i686-debian-cross-container
   variables:
-    IMAGE: fedora-i386-cross
+    IMAGE: debian-i686-cross
     ACCEL: tcg-interpreter
-    EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user
+    EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user --disable-plugins
     MAKE_CHECK_ARGS: check check-tcg
-
-cross-mips-system:
-  extends: .cross_system_build_job
-  needs:
-    job: mips-debian-cross-container
-  variables:
-    IMAGE: debian-mips-cross
-
-cross-mips-user:
-  extends: .cross_user_build_job
-  needs:
-    job: mips-debian-cross-container
-  variables:
-    IMAGE: debian-mips-cross
 
 cross-mipsel-system:
   extends: .cross_system_build_job
@@ -126,6 +102,14 @@ cross-ppc64el-user:
   variables:
     IMAGE: debian-ppc64el-cross
 
+cross-ppc64el-kvm-only:
+  extends: .cross_accel_build_job
+  needs:
+    job: ppc64el-debian-cross-container
+  variables:
+    IMAGE: debian-ppc64el-cross
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-devices
+
 # The riscv64 cross-builds currently use a 'sid' container to get
 # compilers and libraries. Until something more stable is found we
 # allow_failure so as not to block CI.
@@ -165,7 +149,7 @@ cross-s390x-kvm-only:
     job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
-    EXTRA_CONFIGURE_OPTS: --disable-tcg
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --enable-trace-backends=ftrace
 
 cross-mips64el-kvm-only:
   extends: .cross_accel_build_job
@@ -181,9 +165,11 @@ cross-win32-system:
     job: win32-fedora-cross-container
   variables:
     IMAGE: fedora-win32-cross
+    EXTRA_CONFIGURE_OPTS: --enable-fdt=internal
     CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu m68k-softmmu
                         microblazeel-softmmu mips64el-softmmu nios2-softmmu
   artifacts:
+    when: on_success
     paths:
       - build/qemu-setup*.exe
 
@@ -193,9 +179,13 @@ cross-win64-system:
     job: win64-fedora-cross-container
   variables:
     IMAGE: fedora-win64-cross
-    CROSS_SKIP_TARGETS: or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
+    EXTRA_CONFIGURE_OPTS: --enable-fdt=internal --disable-plugins
+    CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu
+                        m68k-softmmu microblazeel-softmmu nios2-softmmu
+                        or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
                         tricore-softmmu xtensaeb-softmmu
   artifacts:
+    when: on_success
     paths:
       - build/qemu-setup*.exe
 

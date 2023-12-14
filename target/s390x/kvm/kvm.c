@@ -50,17 +50,7 @@
 #include "exec/memattrs.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/s390-virtio-hcall.h"
-#include "hw/s390x/pv.h"
-
-#ifndef DEBUG_KVM
-#define DEBUG_KVM  0
-#endif
-
-#define DPRINTF(fmt, ...) do {                \
-    if (DEBUG_KVM) {                          \
-        fprintf(stderr, fmt, ## __VA_ARGS__); \
-    }                                         \
-} while (0)
+#include "target/s390x/kvm/pv.h"
 
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
@@ -96,6 +86,7 @@
 
 #define PRIV_B9_EQBS                    0x9c
 #define PRIV_B9_CLP                     0xa0
+#define PRIV_B9_PTF                     0xa2
 #define PRIV_B9_PCISTG                  0xd0
 #define PRIV_B9_PCILG                   0xd2
 #define PRIV_B9_RPCIT                   0xd3
@@ -148,7 +139,6 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
-static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
 static int cap_mem_op_extension;
@@ -157,6 +147,8 @@ static int cap_ri;
 static int cap_hpage_1m;
 static int cap_vcpu_resets;
 static int cap_protected;
+static int cap_zpci_op;
+static int cap_protected_dump;
 
 static bool mem_op_storage_key_support;
 
@@ -248,7 +240,7 @@ static void kvm_s390_enable_cmma(void)
     trace_kvm_enable_cmma(rc);
 }
 
-static void kvm_s390_set_attr(uint64_t attr)
+static void kvm_s390_set_crypto_attr(uint64_t attr)
 {
     struct kvm_device_attr attribute = {
         .group = KVM_S390_VM_CRYPTO,
@@ -273,7 +265,7 @@ static void kvm_s390_init_aes_kw(void)
     }
 
     if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO, attr)) {
-            kvm_s390_set_attr(attr);
+            kvm_s390_set_crypto_attr(attr);
     }
 }
 
@@ -287,7 +279,7 @@ static void kvm_s390_init_dea_kw(void)
     }
 
     if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO, attr)) {
-            kvm_s390_set_attr(attr);
+            kvm_s390_set_crypto_attr(attr);
     }
 }
 
@@ -338,23 +330,35 @@ static void ccw_machine_class_foreach(ObjectClass *oc, void *opaque)
     mc->default_cpu_type = S390_CPU_TYPE_NAME("host");
 }
 
+int kvm_arch_get_default_type(MachineState *ms)
+{
+    return 0;
+}
+
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    int required_caps[] = {
+        KVM_CAP_DEVICE_CTRL,
+        KVM_CAP_SYNC_REGS,
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(required_caps); i++) {
+        if (!kvm_check_extension(s, required_caps[i])) {
+            error_report("KVM is missing capability #%d - "
+                         "please use kernel 3.15 or newer", required_caps[i]);
+            return -1;
+        }
+    }
+
     object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
                          false, NULL);
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
-        error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "
-                     "please use kernel 3.15 or newer");
-        return -1;
-    }
     if (!kvm_check_extension(s, KVM_CAP_S390_COW)) {
         error_report("KVM is missing capability KVM_CAP_S390_COW - "
                      "unsupported environment");
         return -1;
     }
 
-    cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
     cap_mem_op_extension = kvm_check_extension(s, KVM_CAP_S390_MEM_OP_EXTENSION);
@@ -362,10 +366,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
     cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
+    cap_zpci_op = kvm_check_extension(s, KVM_CAP_S390_ZPCI_OP);
+    cap_protected_dump = kvm_check_extension(s, KVM_CAP_S390_PROTECTED_DUMP);
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_CPU_TOPOLOGY, 0);
     if (ri_allowed()) {
         if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
             cap_ri = 1;
@@ -459,37 +466,28 @@ void kvm_s390_reset_vcpu_normal(S390CPU *cpu)
 
 static int can_sync_regs(CPUState *cs, int regs)
 {
-    return cap_sync_regs && (cs->kvm_run->kvm_valid_regs & regs) == regs;
+    return (cs->kvm_run->kvm_valid_regs & regs) == regs;
 }
+
+#define KVM_SYNC_REQUIRED_REGS (KVM_SYNC_GPRS | KVM_SYNC_ACRS | \
+                                KVM_SYNC_CRS | KVM_SYNC_PREFIX)
 
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_sregs sregs;
-    struct kvm_regs regs;
     struct kvm_fpu fpu = {};
     int r;
     int i;
+
+    g_assert(can_sync_regs(cs, KVM_SYNC_REQUIRED_REGS));
 
     /* always save the PSW  and the GPRS*/
     cs->kvm_run->psw_addr = env->psw.addr;
     cs->kvm_run->psw_mask = env->psw.mask;
 
-    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
-        for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.gprs[i] = env->regs[i];
-            cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
-        }
-    } else {
-        for (i = 0; i < 16; i++) {
-            regs.gprs[i] = env->regs[i];
-        }
-        r = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
-        if (r < 0) {
-            return r;
-        }
-    }
+    memcpy(cs->kvm_run->s.regs.gprs, env->regs, sizeof(cs->kvm_run->s.regs.gprs));
+    cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
 
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
@@ -521,6 +519,15 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     if (level == KVM_PUT_RUNTIME_STATE) {
         return 0;
     }
+
+    /*
+     * Access registers, control registers and the prefix - these are
+     * always available via kvm_sync_regs in the kernels that we support
+     */
+    memcpy(cs->kvm_run->s.regs.acrs, env->aregs, sizeof(cs->kvm_run->s.regs.acrs));
+    memcpy(cs->kvm_run->s.regs.crs, env->cregs, sizeof(cs->kvm_run->s.regs.crs));
+    cs->kvm_run->s.regs.prefix = env->psa;
+    cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ACRS | KVM_SYNC_CRS | KVM_SYNC_PREFIX;
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
         cs->kvm_run->s.regs.cputm = env->cputm;
@@ -568,25 +575,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    /* access registers and control registers*/
-    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
-        for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.acrs[i] = env->aregs[i];
-            cs->kvm_run->s.regs.crs[i] = env->cregs[i];
-        }
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ACRS;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_CRS;
-    } else {
-        for (i = 0; i < 16; i++) {
-            sregs.acrs[i] = env->aregs[i];
-            sregs.crs[i] = env->cregs[i];
-        }
-        r = kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
-        if (r < 0) {
-            return r;
-        }
-    }
-
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
         memcpy(cs->kvm_run->s.regs.gscb, env->gscb, 32);
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GSCB;
@@ -608,13 +596,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
     }
 
-    /* Finally the prefix */
-    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        cs->kvm_run->s.regs.prefix = env->psa;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
-    } else {
-        /* prefix is only supported via sync regs */
-    }
     return 0;
 }
 
@@ -622,8 +603,6 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_sregs sregs;
-    struct kvm_regs regs;
     struct kvm_fpu fpu;
     int i, r;
 
@@ -631,37 +610,14 @@ int kvm_arch_get_registers(CPUState *cs)
     env->psw.addr = cs->kvm_run->psw_addr;
     env->psw.mask = cs->kvm_run->psw_mask;
 
-    /* the GPRS */
-    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
-        for (i = 0; i < 16; i++) {
-            env->regs[i] = cs->kvm_run->s.regs.gprs[i];
-        }
-    } else {
-        r = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
-        if (r < 0) {
-            return r;
-        }
-         for (i = 0; i < 16; i++) {
-            env->regs[i] = regs.gprs[i];
-        }
-    }
+    /* the GPRS, ACRS and CRS */
+    g_assert(can_sync_regs(cs, KVM_SYNC_REQUIRED_REGS));
+    memcpy(env->regs, cs->kvm_run->s.regs.gprs, sizeof(env->regs));
+    memcpy(env->aregs, cs->kvm_run->s.regs.acrs, sizeof(env->aregs));
+    memcpy(env->cregs, cs->kvm_run->s.regs.crs, sizeof(env->cregs));
 
-    /* The ACRS and CRS */
-    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
-        for (i = 0; i < 16; i++) {
-            env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
-            env->cregs[i] = cs->kvm_run->s.regs.crs[i];
-        }
-    } else {
-        r = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
-        if (r < 0) {
-            return r;
-        }
-         for (i = 0; i < 16; i++) {
-            env->aregs[i] = sregs.acrs[i];
-            env->cregs[i] = sregs.crs[i];
-        }
-    }
+    /* The prefix */
+    env->psa = cs->kvm_run->s.regs.prefix;
 
     /* Floating point and vector registers */
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
@@ -684,11 +640,6 @@ int kvm_arch_get_registers(CPUState *cs)
             *get_freg(env, i) = fpu.fprs[i];
         }
         env->fpc = fpu.fpc;
-    }
-
-    /* The prefix */
-    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        env->psa = cs->kvm_run->s.regs.prefix;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
@@ -908,11 +859,11 @@ static void determine_sw_breakpoint_instr(void)
         if (kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_USER_INSTR0, 0)) {
             sw_bp_inst = diag_501;
             sw_bp_ilen = sizeof(diag_501);
-            DPRINTF("KVM: will use 4-byte sw breakpoints.\n");
+            trace_kvm_sw_breakpoint(4);
         } else {
             sw_bp_inst = instr_0x0000;
             sw_bp_ilen = sizeof(instr_0x0000);
-            DPRINTF("KVM: will use 2-byte sw breakpoints.\n");
+            trace_kvm_sw_breakpoint(2);
         }
 }
 
@@ -991,8 +942,7 @@ static int insert_hw_breakpoint(target_ulong addr, int len, int type)
     return 0;
 }
 
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
@@ -1010,8 +960,7 @@ int kvm_arch_insert_hw_breakpoint(target_ulong addr,
     return insert_hw_breakpoint(addr, len, type);
 }
 
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     int size;
     struct kvm_hw_breakpoint *bp = find_hw_breakpoint(addr, len, type);
@@ -1031,7 +980,7 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
         }
         size = nb_hw_breakpoints * sizeof(struct kvm_hw_breakpoint);
         hw_breakpoints =
-             (struct kvm_hw_breakpoint *)g_realloc(hw_breakpoints, size);
+             g_realloc(hw_breakpoints, size);
     } else {
         g_free(hw_breakpoints);
         hw_breakpoints = NULL;
@@ -1225,12 +1174,12 @@ static void kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
         break;
     case ICPT_PV_INSTR:
         g_assert(s390_is_pv());
-        sclp_service_call_protected(env, sccb, code);
+        sclp_service_call_protected(cpu, sccb, code);
         /* Setting the CC is done by the Ultravisor. */
         break;
     case ICPT_INSTRUCTION:
         g_assert(!s390_is_pv());
-        r = sclp_service_call(env, sccb, code);
+        r = sclp_service_call(cpu, sccb, code);
         if (r < 0) {
             kvm_s390_program_interrupt(cpu, -r);
             return;
@@ -1303,7 +1252,7 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     default:
         rc = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xb2%x\n", ipa1);
+        trace_kvm_insn_unhandled_priv(ipa1);
         break;
     }
 
@@ -1409,7 +1358,7 @@ static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
 
     mode = env->regs[r1] & 0xffff;
     isc = (env->regs[r3] >> 27) & 0x7;
-    r = css_do_sic(env, isc, mode);
+    r = css_do_sic(cpu, isc, mode);
     if (r) {
         kvm_s390_program_interrupt(cpu, -r);
     }
@@ -1460,6 +1409,13 @@ static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     }
 }
 
+static void kvm_handle_ptf(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb >> 20) & 0x0f;
+
+    s390_handle_ptf(cpu, r1, RA_IGNORED);
+}
+
 static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     int r = 0;
@@ -1477,13 +1433,16 @@ static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     case PRIV_B9_RPCIT:
         r = kvm_rpcit_service_call(cpu, run);
         break;
+    case PRIV_B9_PTF:
+        kvm_handle_ptf(cpu, run);
+        break;
     case PRIV_B9_EQBS:
         /* just inject exception */
         r = -1;
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xb9%x\n", ipa1);
+        trace_kvm_insn_unhandled_priv(ipa1);
         break;
     }
 
@@ -1507,7 +1466,7 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipbl);
+        trace_kvm_insn_unhandled_priv(ipbl);
         break;
     }
 
@@ -1527,7 +1486,7 @@ static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xe3%x\n", ipbl);
+        trace_kvm_insn_unhandled_priv(ipbl);
         break;
     }
 
@@ -1650,7 +1609,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         r = handle_sw_breakpoint(cpu, run);
         break;
     default:
-        DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
+        trace_kvm_insn_diag(func_code);
         kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
         break;
     }
@@ -1680,8 +1639,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
     int r = -1;
 
-    DPRINTF("handle_instruction 0x%x 0x%x\n",
-            run->s390_sieic.ipa, run->s390_sieic.ipb);
+    trace_kvm_insn(run->s390_sieic.ipa, run->s390_sieic.ipb);
     switch (ipa0) {
     case IPA0_B2:
         r = handle_b2(cpu, run, ipa1);
@@ -1761,7 +1719,7 @@ static int handle_intercept(S390CPU *cpu)
     int icpt_code = run->s390_sieic.icptcode;
     int r = 0;
 
-    DPRINTF("intercept: 0x%x (at 0x%lx)\n", icpt_code, (long)run->psw_addr);
+    trace_kvm_intercept(icpt_code, (long)run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
         case ICPT_PV_INSTR:
@@ -1915,8 +1873,11 @@ static int handle_stsi(S390CPU *cpu)
         if (run->s390_stsi.sel1 != 2 || run->s390_stsi.sel2 != 2) {
             return 0;
         }
-        /* Only sysib 3.2.2 needs post-handling for now. */
         insert_stsi_3_2_2(cpu, run->s390_stsi.addr, run->s390_stsi.ar);
+        return 0;
+    case 15:
+        insert_stsi_15_1_x(cpu, run->s390_stsi.sel2, run->s390_stsi.addr,
+                           run->s390_stsi.ar, RA_IGNORED);
         return 0;
     default:
         return 0;
@@ -2043,6 +2004,11 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     return kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
 }
 
+int kvm_s390_get_protected_dump(void)
+{
+    return cap_protected_dump;
+}
+
 int kvm_s390_get_ri(void)
 {
     return cap_ri;
@@ -2141,13 +2107,13 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
 
     if (!dev) {
-        DPRINTF("add_msi_route no pci device\n");
+        trace_kvm_msi_route_fixup("no pci device");
         return -ENODEV;
     }
 
     pbdev = s390_pci_find_dev_by_target(s390_get_phb(), DEVICE(dev)->id);
     if (!pbdev) {
-        DPRINTF("add_msi_route no zpci device\n");
+        trace_kvm_msi_route_fixup("no zpci device");
         return -ENODEV;
     }
 
@@ -2285,6 +2251,53 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
         s390_fill_feat_block(features, S390_FEAT_TYPE_DFLTCC, prop.dfltcc);
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+static bool ap_available(void)
+{
+    return kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO,
+                             KVM_S390_VM_CRYPTO_ENABLE_APIE);
+}
+
+static bool ap_enabled(const S390FeatBitmap features)
+{
+    return test_bit(S390_FEAT_AP, features);
+}
+
+static bool uv_feat_supported(void)
+{
+    return kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
+                             KVM_S390_VM_CPU_PROCESSOR_UV_FEAT_GUEST);
+}
+
+static int query_uv_feat_guest(S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_uv_feat prop = {};
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_MACHINE_UV_FEAT_GUEST,
+        .addr = (uint64_t) &prop,
+    };
+    int rc;
+
+    /* AP support check is currently the only user of the UV feature test */
+    if (!(uv_feat_supported() && ap_available())) {
+        return 0;
+    }
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (rc) {
+        return  rc;
+    }
+
+    if (prop.ap) {
+        set_bit(S390_FEAT_UV_FEAT_AP, features);
+    }
+    if (prop.ap_intr) {
+        set_bit(S390_FEAT_UV_FEAT_AP_INTR, features);
+    }
+
+    return 0;
 }
 
 static int kvm_to_feat[][2] = {
@@ -2447,6 +2460,14 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         set_bit(S390_FEAT_UNPACK, model->features);
     }
 
+    /*
+     * If we have kernel support for CPU Topology indicate the
+     * configuration-topology facility.
+     */
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_CPU_TOPOLOGY)) {
+        set_bit(S390_FEAT_CONFIGURATION_TOPOLOGY, model->features);
+    }
+
     /* We emulate a zPCI bus and AEN, therefore we don't need HW support */
     set_bit(S390_FEAT_ZPCI, model->features);
     set_bit(S390_FEAT_ADAPTER_EVENT_NOTIFICATION, model->features);
@@ -2466,8 +2487,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         return;
     }
     /* for now, we can only provide the AP feature with HW support */
-    if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO,
-        KVM_S390_VM_CRYPTO_ENABLE_APIE)) {
+    if (ap_available()) {
         set_bit(S390_FEAT_AP, model->features);
     }
 
@@ -2482,9 +2502,36 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         set_bit(S390_FEAT_DIAG_318, model->features);
     }
 
+    /* Test for Ultravisor features that influence secure guest behavior */
+    query_uv_feat_guest(model->features);
+
     /* strip of features that are not part of the maximum model */
     bitmap_and(model->features, model->features, model->def->full_feat,
                S390_FEAT_MAX);
+}
+
+static int configure_uv_feat_guest(const S390FeatBitmap features)
+{
+    struct kvm_s390_vm_cpu_uv_feat uv_feat = {};
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CPU_MODEL,
+        .attr = KVM_S390_VM_CPU_PROCESSOR_UV_FEAT_GUEST,
+        .addr = (__u64) &uv_feat,
+    };
+
+    /* AP support check is currently the only user of the UV feature test */
+    if (!(uv_feat_supported() && ap_enabled(features))) {
+        return 0;
+    }
+
+    if (test_bit(S390_FEAT_UV_FEAT_AP, features)) {
+        uv_feat.ap = 1;
+    }
+    if (test_bit(S390_FEAT_UV_FEAT_AP_INTR, features)) {
+        uv_feat.ap_intr = 1;
+    }
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
 }
 
 static void kvm_s390_configure_apie(bool interpret)
@@ -2493,7 +2540,7 @@ static void kvm_s390_configure_apie(bool interpret)
                                 KVM_S390_VM_CRYPTO_DISABLE_APIE;
 
     if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO, attr)) {
-        kvm_s390_set_attr(attr);
+        kvm_s390_set_crypto_attr(attr);
     }
 }
 
@@ -2547,8 +2594,15 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
         kvm_s390_enable_cmma();
     }
 
-    if (test_bit(S390_FEAT_AP, model->features)) {
+    if (ap_enabled(model->features)) {
         kvm_s390_configure_apie(true);
+    }
+
+    /* configure UV-features for the guest indicated via query / test_bit */
+    rc = configure_uv_feat_guest(model->features);
+    if (rc) {
+        error_setg(errp, "KVM: Error configuring CPU UV features %d", rc);
+        return;
     }
 }
 
@@ -2573,4 +2627,30 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
+}
+
+int kvm_s390_get_zpci_op(void)
+{
+    return cap_zpci_op;
+}
+
+int kvm_s390_topology_set_mtcr(uint64_t attr)
+{
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CPU_TOPOLOGY,
+        .attr  = attr,
+    };
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        return 0;
+    }
+    if (!kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY, attr)) {
+        return -ENOTSUP;
+    }
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
+}
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
 }

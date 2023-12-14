@@ -70,6 +70,17 @@ in a handful of namespaces
    repository CI settings, or as git push variables, to influence
    which jobs get run in a pipeline
 
+ * QEMU_CI_CONTAINER_TAG - the tag used to publish containers
+   in stage 1, for use by build jobs in stage 2. Defaults to
+   'latest', but if running pipelines for different branches
+   concurrently, it should be overridden per pipeline.
+
+ * QEMU_CI_UPSTREAM - gitlab namespace that is considered to be
+   the 'upstream'. This defaults to 'qemu-project'. Contributors
+   may choose to override this if they are modifying rules in
+   base.yml and need to validate how they will operate when in
+   an upstream context, as opposed to their fork context.
+
  * nnn - other misc variables not falling into the above
    categories, or using different names for historical reasons
    and not yet converted.
@@ -177,3 +188,10 @@ If you've got access to a CentOS Stream 8 x86_64 host that can be
 used as a gitlab-CI runner, you can set this variable to enable the
 tests that require this kind of host. The runner should be tagged with
 both "centos_stream_8" and "x86_64".
+
+CCACHE_DISABLE
+~~~~~~~~~~~~~~
+The jobs are configured to use "ccache" by default since this typically
+reduces compilation time, at the cost of increased storage. If the
+use of "ccache" is suspected to be hurting the overall job execution
+time, setting the "CCACHE_DISABLE=1" env variable to disable it.

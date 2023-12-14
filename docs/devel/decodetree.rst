@@ -23,22 +23,42 @@ Fields
 
 Syntax::
 
-  field_def     := '%' identifier ( unnamed_field )* ( !function=identifier )?
+  field_def     := '%' identifier ( field )* ( !function=identifier )?
+  field         := unnamed_field | named_field
   unnamed_field := number ':' ( 's' ) number
+  named_field   := identifier ':' ( 's' ) number
 
 For *unnamed_field*, the first number is the least-significant bit position
 of the field and the second number is the length of the field.  If the 's' is
-present, the field is considered signed.  If multiple ``unnamed_fields`` are
-present, they are concatenated.  In this way one can define disjoint fields.
+present, the field is considered signed.
+
+A *named_field* refers to some other field in the instruction pattern
+or format. Regardless of the length of the other field where it is
+defined, it will be inserted into this field with the specified
+signedness and bit width.
+
+Field definitions that involve loops (i.e. where a field is defined
+directly or indirectly in terms of itself) are errors.
+
+A format can include fields that refer to named fields that are
+defined in the instruction pattern(s) that use the format.
+Conversely, an instruction pattern can include fields that refer to
+named fields that are defined in the format it uses. However you
+cannot currently do both at once (i.e. pattern P uses format F; F has
+a field A that refers to a named field B that is defined in P, and P
+has a field C that refers to a named field D that is defined in F).
+
+If multiple ``fields`` are present, they are concatenated.
+In this way one can define disjoint fields.
 
 If ``!function`` is specified, the concatenated result is passed through the
 named function, taking and returning an integral value.
 
-One may use ``!function`` with zero ``unnamed_fields``.  This case is called
+One may use ``!function`` with zero ``fields``.  This case is called
 a *parameter*, and the named function is only passed the ``DisasContext``
 and returns an integral value extracted from there.
 
-A field with no ``unnamed_fields`` and no ``!function`` is in error.
+A field with no ``fields`` and no ``!function`` is in error.
 
 Field examples:
 
@@ -55,6 +75,9 @@ Field examples:
 +---------------------------+---------------------------------------------+
 | %shimm8 5:s8 13:1         | expand_shimm8(sextract(i, 5, 8) << 1 |      |
 |   !function=expand_shimm8 |               extract(i, 13, 1))            |
++---------------------------+---------------------------------------------+
+| %sz_imm 10:2 sz:3         | expand_sz_imm(extract(i, 10, 2) << 3 |      |
+|   !function=expand_sz_imm |               extract(a->sz, 0, 3))         |
 +---------------------------+---------------------------------------------+
 
 Argument Sets

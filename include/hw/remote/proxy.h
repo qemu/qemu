@@ -9,7 +9,7 @@
 #ifndef PROXY_H
 #define PROXY_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "io/channel.h"
 #include "hw/remote/proxy-memory-listener.h"
 #include "qemu/event_notifier.h"

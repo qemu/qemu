@@ -1,0 +1,185 @@
+#
+# Translation routines for the instructions of the XThead* ISA extensions
+#
+# Copyright (c) 2022 Christoph Muellner, christoph.muellner@vrull.eu
+#                    Dr. Philipp Tomsich, philipp.tomsich@vrull.eu
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# The documentation of the ISA extensions can be found here:
+#   https://github.com/T-head-Semi/thead-extension-spec/releases/latest
+
+# Fields:
+%rd        7:5
+%rd1       7:5
+%rs        15:5
+%rs1       15:5
+%rd2       20:5
+%rs2       20:5
+%sh5       20:5
+%imm5      20:s5
+%sh6       20:6
+%sh2       25:2
+%imm2      25:2
+
+# Argument sets
+&r         rd rs1 rs2                               !extern
+&r2        rd rs1                                   !extern
+&shift     shamt rs1 rd                             !extern
+&th_bfext  msb lsb rs1 rd
+&th_pair   rd1 rs rd2 sh2
+&th_memidx rd rs1 rs2 imm2
+&th_meminc rd rs1 imm5 imm2
+
+# Formats
+@sfence_vm  ....... ..... .....   ... ..... ....... %rs1
+@rs2_s      ....... ..... ..... ... ..... .......   %rs2 %rs1
+@r          ....... ..... .....  ... ..... .......  &r %rs2 %rs1 %rd
+@r2         ....... ..... .....  ... ..... .......  &r2 %rs1 %rd
+@th_bfext   msb:6  lsb:6  .....  ... ..... .......  &th_bfext %rs1 %rd
+@sh5        ....... ..... .....  ... ..... .......  &shift  shamt=%sh5      %rs1 %rd
+@sh6        ...... ...... .....  ... ..... .......  &shift shamt=%sh6 %rs1 %rd
+@th_pair    ..... .. ..... ..... ... ..... .......  &th_pair %rd1 %rs %rd2 %sh2
+@th_memidx  ..... .. ..... ..... ... ..... .......  &th_memidx %rd %rs1 %rs2 %imm2
+@th_meminc  ..... .. ..... ..... ... ..... .......  &th_meminc %rd %rs1 %imm5 %imm2
+
+# XTheadBa
+# Instead of defining a new encoding, we simply use the decoder to
+# extract the imm[0:1] field and dispatch to separate translation
+# functions (mirroring the `sh[123]add` instructions from Zba and
+# the regular RVI `add` instruction.
+#
+# The only difference between sh[123]add and addsl is that the shift
+# is applied to rs1 (for addsl) instead of rs2 (for sh[123]add).
+#
+# Note that shift-by-0 is a valid operation according to the manual.
+# This will be equivalent to a regular add.
+add              0000000 ..... ..... 001 ..... 0001011 @r
+th_addsl1        0000001 ..... ..... 001 ..... 0001011 @r
+th_addsl2        0000010 ..... ..... 001 ..... 0001011 @r
+th_addsl3        0000011 ..... ..... 001 ..... 0001011 @r
+
+# XTheadBb
+th_ext           ...... ...... ..... 010 ..... 0001011 @th_bfext
+th_extu          ...... ...... ..... 011 ..... 0001011 @th_bfext
+th_ff0           1000010 00000 ..... 001 ..... 0001011 @r2
+th_ff1           1000011 00000 ..... 001 ..... 0001011 @r2
+th_srri          000100 ...... ..... 001 ..... 0001011 @sh6
+th_srriw         0001010 ..... ..... 001 ..... 0001011 @sh5
+th_rev           1000001 00000 ..... 001 ..... 0001011 @r2
+th_revw          1001000 00000 ..... 001 ..... 0001011 @r2
+th_tstnbz        1000000 00000 ..... 001 ..... 0001011 @r2
+
+# XTheadBs
+th_tst           100010 ...... ..... 001 ..... 0001011 @sh6
+
+# XTheadCmo
+th_dcache_call   0000000 00001 00000 000 00000 0001011
+th_dcache_ciall  0000000 00011 00000 000 00000 0001011
+th_dcache_iall   0000000 00010 00000 000 00000 0001011
+th_dcache_cpa    0000001 01001 ..... 000 00000 0001011 @sfence_vm
+th_dcache_cipa   0000001 01011 ..... 000 00000 0001011 @sfence_vm
+th_dcache_ipa    0000001 01010 ..... 000 00000 0001011 @sfence_vm
+th_dcache_cva    0000001 00101 ..... 000 00000 0001011 @sfence_vm
+th_dcache_civa   0000001 00111 ..... 000 00000 0001011 @sfence_vm
+th_dcache_iva    0000001 00110 ..... 000 00000 0001011 @sfence_vm
+th_dcache_csw    0000001 00001 ..... 000 00000 0001011 @sfence_vm
+th_dcache_cisw   0000001 00011 ..... 000 00000 0001011 @sfence_vm
+th_dcache_isw    0000001 00010 ..... 000 00000 0001011 @sfence_vm
+th_dcache_cpal1  0000001 01000 ..... 000 00000 0001011 @sfence_vm
+th_dcache_cval1  0000001 00100 ..... 000 00000 0001011 @sfence_vm
+th_icache_iall   0000000 10000 00000 000 00000 0001011
+th_icache_ialls  0000000 10001 00000 000 00000 0001011
+th_icache_ipa    0000001 11000 ..... 000 00000 0001011 @sfence_vm
+th_icache_iva    0000001 10000 ..... 000 00000 0001011 @sfence_vm
+th_l2cache_call  0000000 10101 00000 000 00000 0001011
+th_l2cache_ciall 0000000 10111 00000 000 00000 0001011
+th_l2cache_iall  0000000 10110 00000 000 00000 0001011
+
+# XTheadCondMov
+th_mveqz         0100000 ..... .....  001 ..... 0001011 @r
+th_mvnez         0100001 ..... .....  001 ..... 0001011 @r
+
+# XTheadFMemIdx
+th_flrd          01100 .. ..... ..... 110 ..... 0001011 @th_memidx
+th_flrw          01000 .. ..... ..... 110 ..... 0001011 @th_memidx
+th_flurd         01110 .. ..... ..... 110 ..... 0001011 @th_memidx
+th_flurw         01010 .. ..... ..... 110 ..... 0001011 @th_memidx
+th_fsrd          01100 .. ..... ..... 111 ..... 0001011 @th_memidx
+th_fsrw          01000 .. ..... ..... 111 ..... 0001011 @th_memidx
+th_fsurd         01110 .. ..... ..... 111 ..... 0001011 @th_memidx
+th_fsurw         01010 .. ..... ..... 111 ..... 0001011 @th_memidx
+
+# XTheadFmv
+th_fmv_hw_x      1010000  00000 ..... 001 ..... 0001011 @r2
+th_fmv_x_hw      1100000  00000 ..... 001 ..... 0001011 @r2
+
+# XTheadMac
+th_mula          00100 00 ..... ..... 001 ..... 0001011 @r
+th_mulah         00101 00 ..... ..... 001 ..... 0001011 @r
+th_mulaw         00100 10 ..... ..... 001 ..... 0001011 @r
+th_muls          00100 01 ..... ..... 001 ..... 0001011 @r
+th_mulsh         00101 01 ..... ..... 001 ..... 0001011 @r
+th_mulsw         00100 11 ..... ..... 001 ..... 0001011 @r
+
+# XTheadMemIdx
+th_ldia          01111 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_ldib          01101 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lwia          01011 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lwib          01001 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lwuia         11011 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lwuib         11001 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lhia          00111 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lhib          00101 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lhuia         10111 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lhuib         10101 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lbia          00011 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lbib          00001 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lbuia         10011 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_lbuib         10001 .. ..... ..... 100 ..... 0001011 @th_meminc
+th_sdia          01111 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_sdib          01101 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_swia          01011 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_swib          01001 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_shia          00111 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_shib          00101 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_sbia          00011 .. ..... ..... 101 ..... 0001011 @th_meminc
+th_sbib          00001 .. ..... ..... 101 ..... 0001011 @th_meminc
+
+th_lrd           01100 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrw           01000 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrwu          11000 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrh           00100 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrhu          10100 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrb           00000 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lrbu          10000 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_srd           01100 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_srw           01000 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_srh           00100 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_srb           00000 .. ..... ..... 101 ..... 0001011 @th_memidx
+
+th_lurd          01110 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurw          01010 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurwu         11010 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurh          00110 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurhu         10110 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurb          00010 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_lurbu         10010 .. ..... ..... 100 ..... 0001011 @th_memidx
+th_surd          01110 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_surw          01010 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_surh          00110 .. ..... ..... 101 ..... 0001011 @th_memidx
+th_surb          00010 .. ..... ..... 101 ..... 0001011 @th_memidx
+
+# XTheadMemPair
+th_ldd           11111 .. ..... ..... 100 ..... 0001011 @th_pair
+th_lwd           11100 .. ..... ..... 100 ..... 0001011 @th_pair
+th_lwud          11110 .. ..... ..... 100 ..... 0001011 @th_pair
+th_sdd           11111 .. ..... ..... 101 ..... 0001011 @th_pair
+th_swd           11100 .. ..... ..... 101 ..... 0001011 @th_pair
+
+# XTheadSync
+th_sfence_vmas   0000010 ..... ..... 000 00000 0001011 @rs2_s
+th_sync          0000000 11000 00000 000 00000 0001011
+th_sync_i        0000000 11010 00000 000 00000 0001011
+th_sync_is       0000000 11011 00000 000 00000 0001011
+th_sync_s        0000000 11001 00000 000 00000 0001011

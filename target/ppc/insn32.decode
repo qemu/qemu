@@ -20,6 +20,9 @@
 &A              frt fra frb frc rc:bool
 @A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
 
+&A_tb           frt frb rc:bool
+@A_tb           ...... frt:5 ..... frb:5 ..... ..... rc:1       &A_tb
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                         &D
 
@@ -172,6 +175,9 @@
 @X_TSX          ...... ..... ra:5 rb:5 .......... .             &X rt=%x_rt_tsx
 @X_TSXP         ...... ..... ra:5 rb:5 .......... .             &X rt=%rt_tsxp
 
+%x_dw           0:1 21:5 !function=dw_compose_ea
+@X_DW           ...... ..... ra:5 rb:5 .......... .             &X rt=%x_dw
+
 &X_frtp_vrb     frtp vrb
 @X_frtp_vrb     ...... ....0 ..... vrb:5 .......... .           &X_frtp_vrb frtp=%x_frtp
 
@@ -192,6 +198,12 @@
 @XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim xt=%xx_xt xb=%xx_xb
 
 @XX2_uim4       ...... ..... . uim:4 ..... ......... ..         &XX2_uim xt=%xx_xt xb=%xx_xb
+
+%xx_uim7        6:1 2:1 16:5
+@XX2_uim7       ...... ..... ..... ..... .... . ... . ..        &XX2_uim xt=%xx_xt xb=%xx_xb uim=%xx_uim7
+
+&XX2_bf_uim     bf xb uim
+@XX2_bf_uim     ...... bf:3 uim:7 ..... ......... . .           &XX2_bf_uim
 
 &XX2_bf_xb      bf xb
 @XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
@@ -323,6 +335,13 @@ CNTTZDM         011111 ..... ..... ..... 1000111011 -   @X
 PDEPD           011111 ..... ..... ..... 0010011100 -   @X
 PEXTD           011111 ..... ..... ..... 0010111100 -   @X
 
+# Fixed-Point Hash Instructions
+
+HASHST          011111 ..... ..... ..... 1011010010 .   @X_DW
+HASHCHK         011111 ..... ..... ..... 1011110010 .   @X_DW
+HASHSTP         011111 ..... ..... ..... 1010010010 .   @X_DW
+HASHCHKP        011111 ..... ..... ..... 1010110010 .   @X_DW
+
 ## BCD Assist
 
 ADDG6S          011111 ..... ..... ..... - 001001010 -  @X
@@ -353,6 +372,11 @@ STFDU           110111 ..... ...... ...............     @D
 STFDX           011111 ..... ...... .... 1011010111 -   @X
 STFDUX          011111 ..... ...... .... 1011110111 -   @X
 
+### Floating-Point Arithmetic Instructions
+
+FSQRT           111111 ..... ----- ..... ----- 10110 .  @A_tb
+FSQRTS          111011 ..... ----- ..... ----- 10110 .  @A_tb
+
 ### Floating-Point Select Instruction
 
 FSEL            111111 ..... ..... ..... ..... 10111 .  @A
@@ -366,13 +390,19 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 
 ### Move To/From FPSCR
 
-MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
-MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
-MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
-MFFSCDRN        111111 ..... 10100 ..... 1001000111 -   @X_tb
-MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
-MFFSCDRNI       111111 ..... 10101 --... 1001000111 -   @X_imm3
-MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
+{
+  # Before Power ISA v3.0, MFFS bits 11~15 were reserved and should be ignored
+  MFFS_ISA207     111111 ..... ----- ----- 1001000111 .   @X_t_rc
+  [
+    MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
+    MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
+    MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
+    MFFSCDRN        111111 ..... 10100 ..... 1001000111 -   @X_tb
+    MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
+    MFFSCDRNI       111111 ..... 10101 --... 1001000111 -   @X_imm3
+    MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
+  ]
+}
 
 ### Decimal Floating-Point Arithmetic Instructions
 
@@ -501,6 +531,21 @@ VCMPNEZW        000100 ..... ..... ..... . 0110000111   @VC
 VCMPSQ          000100 ... -- ..... ..... 00101000001   @VX_bf
 VCMPUQ          000100 ... -- ..... ..... 00100000001   @VX_bf
 
+## Vector Integer Average Instructions
+
+VAVGSB          000100 ..... ..... ..... 10100000010    @VX
+VAVGSH          000100 ..... ..... ..... 10101000010    @VX
+VAVGSW          000100 ..... ..... ..... 10110000010    @VX
+VAVGUB          000100 ..... ..... ..... 10000000010    @VX
+VAVGUH          000100 ..... ..... ..... 10001000010    @VX
+VAVGUW          000100 ..... ..... ..... 10010000010    @VX
+
+## Vector Integer Absolute Difference Instructions
+
+VABSDUB         000100 ..... ..... ..... 10000000011    @VX
+VABSDUH         000100 ..... ..... ..... 10001000011    @VX
+VABSDUW         000100 ..... ..... ..... 10010000011    @VX
+
 ## Vector Bit Manipulation Instruction
 
 VGNB            000100 ..... -- ... ..... 10011001100   @VX_n
@@ -510,6 +555,10 @@ VCLZDM          000100 ..... ..... ..... 11110000100    @VX
 VCTZDM          000100 ..... ..... ..... 11111000100    @VX
 VPDEPD          000100 ..... ..... ..... 10111001101    @VX
 VPEXTD          000100 ..... ..... ..... 10110001101    @VX
+
+VPRTYBD         000100 ..... 01001 ..... 11000000010    @VX_tb
+VPRTYBQ         000100 ..... 01010 ..... 11000000010    @VX_tb
+VPRTYBW         000100 ..... 01000 ..... 11000000010    @VX_tb
 
 ## Vector Permute and Formatting Instruction
 
@@ -590,12 +639,14 @@ VRLQNM          000100 ..... ..... ..... 00101000101    @VX
 
 ## Vector Integer Arithmetic Instructions
 
+VADDCUW         000100 ..... ..... ..... 00110000000    @VX
 VADDCUQ         000100 ..... ..... ..... 00101000000    @VX
 VADDUQM         000100 ..... ..... ..... 00100000000    @VX
 
 VADDEUQM        000100 ..... ..... ..... ..... 111100   @VA
 VADDECUQ        000100 ..... ..... ..... ..... 111101   @VA
 
+VSUBCUW         000100 ..... ..... ..... 10110000000    @VX
 VSUBCUQ         000100 ..... ..... ..... 10101000000    @VX
 VSUBUQM         000100 ..... ..... ..... 10100000000    @VX
 
@@ -608,6 +659,9 @@ VEXTSB2D        000100 ..... 11000 ..... 11000000010    @VX_tb
 VEXTSH2D        000100 ..... 11001 ..... 11000000010    @VX_tb
 VEXTSW2D        000100 ..... 11010 ..... 11000000010    @VX_tb
 VEXTSD2Q        000100 ..... 11011 ..... 11000000010    @VX_tb
+
+VNEGD           000100 ..... 00111 ..... 11000000010    @VX_tb
+VNEGW           000100 ..... 00110 ..... 11000000010    @VX_tb
 
 ## Vector Mask Manipulation Instructions
 
@@ -675,6 +729,10 @@ VMSUMUHS        000100 ..... ..... ..... ..... 100111   @VA
 VMSUMCUD        000100 ..... ..... ..... ..... 010111   @VA
 VMSUMUDM        000100 ..... ..... ..... ..... 100011   @VA
 
+VMLADDUHM       000100 ..... ..... ..... ..... 100010   @VA
+VMHADDSHS       000100 ..... ..... ..... ..... 100000   @VA
+VMHRADDSHS      000100 ..... ..... ..... ..... 100001   @VA
+
 ## Vector String Instructions
 
 VSTRIBL         000100 ..... 00000 ..... . 0000001101   @VX_tb_rc
@@ -707,6 +765,17 @@ STXVRBX         011111 ..... ..... ..... 0010001101 .   @X_TSX
 STXVRHX         011111 ..... ..... ..... 0010101101 .   @X_TSX
 STXVRWX         011111 ..... ..... ..... 0011001101 .   @X_TSX
 STXVRDX         011111 ..... ..... ..... 0011101101 .   @X_TSX
+
+## VSX Vector Binary Floating-Point Sign Manipulation Instructions
+
+XVABSDP         111100 ..... 00000 ..... 111011001 ..   @XX2
+XVABSSP         111100 ..... 00000 ..... 110011001 ..   @XX2
+XVNABSDP        111100 ..... 00000 ..... 111101001 ..   @XX2
+XVNABSSP        111100 ..... 00000 ..... 110101001 ..   @XX2
+XVNEGDP         111100 ..... 00000 ..... 111111001 ..   @XX2
+XVNEGSP         111100 ..... 00000 ..... 110111001 ..   @XX2
+XVCPSGNDP       111100 ..... ..... ..... 11110000 ...   @XX3
+XVCPSGNSP       111100 ..... ..... ..... 11010000 ...   @XX3
 
 ## VSX Scalar Multiply-Add Instructions
 
@@ -791,6 +860,11 @@ XSCVSPDPN       111100 ..... ----- ..... 101001011 ..   @XX2
 ## VSX Binary Floating-Point Math Support Instructions
 
 XVXSIGSP        111100 ..... 01001 ..... 111011011 ..   @XX2
+XVTSTDCDP       111100 ..... ..... ..... 1111 . 101 ... @XX2_uim7
+XVTSTDCSP       111100 ..... ..... ..... 1101 . 101 ... @XX2_uim7
+XSTSTDCSP       111100 ... ....... ..... 100101010 . -  @XX2_bf_uim xb=%xx_xb
+XSTSTDCDP       111100 ... ....... ..... 101101010 . -  @XX2_bf_uim xb=%xx_xb
+XSTSTDCQP       111111 ... ....... xb:5  1011000100 -   @XX2_bf_uim
 
 ## VSX Vector Test Least-Significant Bit by Byte Instruction
 
@@ -890,3 +964,11 @@ SLBSYNC         011111 ----- ----- ----- 0101010010 -
 
 TLBIE           011111 ..... - .. . . ..... 0100110010 -            @X_tlbie
 TLBIEL          011111 ..... - .. . . ..... 0100010010 -            @X_tlbie
+
+# Processor Control Instructions
+
+MSGCLR          011111 ----- ----- ..... 0011101110 -   @X_rb
+MSGSND          011111 ----- ----- ..... 0011001110 -   @X_rb
+MSGCLRP         011111 ----- ----- ..... 0010101110 -   @X_rb
+MSGSNDP         011111 ----- ----- ..... 0010001110 -   @X_rb
+MSGSYNC         011111 ----- ----- ----- 1101110110 -

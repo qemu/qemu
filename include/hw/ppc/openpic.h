@@ -14,7 +14,7 @@ enum {
     OPENPIC_OUTPUT_INT = 0, /* IRQ                       */
     OPENPIC_OUTPUT_CINT,    /* critical IRQ              */
     OPENPIC_OUTPUT_MCK,     /* Machine check event       */
-    OPENPIC_OUTPUT_DEBUG,   /* Inconditional debug event */
+    OPENPIC_OUTPUT_DEBUG,   /* Unconditional debug event */
     OPENPIC_OUTPUT_RESET,   /* Core reset event          */
     OPENPIC_OUTPUT_NB,
 };
@@ -55,7 +55,7 @@ typedef enum IRQType {
  * Round up to the nearest 64 IRQs so that the queue length
  * won't change when moving between 32 and 64 bit hosts.
  */
-#define IRQQUEUE_SIZE_BITS ((OPENPIC_MAX_IRQ + 63) & ~63)
+#define IRQQUEUE_SIZE_BITS ROUND_UP(OPENPIC_MAX_IRQ, 64)
 
 typedef struct IRQQueue {
     unsigned long *queue;

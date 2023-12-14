@@ -24,11 +24,6 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-static WatchdogTimerModel model = {
-    .wdt_name = TYPE_WDT_SBSA,
-    .wdt_description = "SBSA-compliant generic watchdog device",
-};
-
 static const VMStateDescription vmstate_sbsa_gwdt = {
     .name = "sbsa-gwdt",
     .version_id = 1,
@@ -287,7 +282,6 @@ static const TypeInfo wdt_sbsa_gwdt_info = {
 
 static void wdt_sbsa_gwdt_register_types(void)
 {
-    watchdog_add_model(&model);
     type_register_static(&wdt_sbsa_gwdt_info);
 }
 

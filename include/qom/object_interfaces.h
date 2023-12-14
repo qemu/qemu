@@ -99,7 +99,7 @@ void user_creatable_add_qapi(ObjectOptions *options, Error **errp);
 
 /**
  * user_creatable_parse_str:
- * @optarg: the object definition string as passed on the command line
+ * @str: the object definition string as passed on the command line
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Parses the option for the user creatable object with a keyval parser and
@@ -110,14 +110,14 @@ void user_creatable_add_qapi(ObjectOptions *options, Error **errp);
  * Returns: ObjectOptions on success, NULL when an error occurred (*errp is set
  * then) or help was printed (*errp is not set).
  */
-ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp);
+ObjectOptions *user_creatable_parse_str(const char *str, Error **errp);
 
 /**
  * user_creatable_add_from_str:
- * @optarg: the object definition string as passed on the command line
+ * @str: the object definition string as passed on the command line
  * @errp: if an error occurs, a pointer to an area to store the error
  *
- * Create an instance of the user creatable object by parsing optarg
+ * Create an instance of the user creatable object by parsing @str
  * with a keyval parser and implicit key 'qom-type', converting the
  * result to ObjectOptions and calling into qmp_object_add().
  *
@@ -126,13 +126,13 @@ ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp);
  * Returns: true when an object was successfully created, false when an error
  * occurred (*errp is set then) or help was printed (*errp is not set).
  */
-bool user_creatable_add_from_str(const char *optarg, Error **errp);
+bool user_creatable_add_from_str(const char *str, Error **errp);
 
 /**
  * user_creatable_process_cmdline:
- * @optarg: the object definition string as passed on the command line
+ * @cmdline: the object definition string as passed on the command line
  *
- * Create an instance of the user creatable object by parsing optarg
+ * Create an instance of the user creatable object by parsing @cmdline
  * with a keyval parser and implicit key 'qom-type', converting the
  * result to ObjectOptions and calling into qmp_object_add().
  *
@@ -141,7 +141,7 @@ bool user_creatable_add_from_str(const char *optarg, Error **errp);
  * This function is only meant to be called during command line parsing.
  * It exits the process on failure or after printing help.
  */
-void user_creatable_process_cmdline(const char *optarg);
+void user_creatable_process_cmdline(const char *cmdline);
 
 /**
  * user_creatable_print_help:

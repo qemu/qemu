@@ -43,7 +43,7 @@ class TestMigrateDuringBackup(iotests.QMPTestCase):
 
         self.vm = iotests.VM().add_drive(disk_a)
         self.vm.launch()
-        result = self.vm.qmp('blockdev-add', {
+        self.vm.cmd('blockdev-add', {
             'node-name': 'target',
             'driver': iotests.imgfmt,
             'file': {
@@ -51,26 +51,21 @@ class TestMigrateDuringBackup(iotests.QMPTestCase):
                 'filename': disk_b
             }
         })
-        self.assert_qmp(result, 'return', {})
 
     def test_migrate(self):
-        result = self.vm.qmp('blockdev-backup', device='drive0',
-                             target='target', sync='full',
-                             speed=1, x_perf={
-                                 'max-workers': 1,
-                                 'max-chunk': 64 * 1024
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-backup', device='drive0',
+                    target='target', sync='full',
+                    speed=1, x_perf={
+                        'max-workers': 1,
+                        'max-chunk': 64 * 1024
+                    })
 
-        result = self.vm.qmp('job-pause', id='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('job-pause', id='drive0')
 
-        result = self.vm.qmp('migrate-set-capabilities',
-                             capabilities=[{'capability': 'events',
-                                            'state': True}])
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('migrate', uri=mig_cmd)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('migrate-set-capabilities',
+                    capabilities=[{'capability': 'events',
+                                   'state': True}])
+        self.vm.cmd('migrate', uri=mig_cmd)
 
         e = self.vm.events_wait((('MIGRATION',
                                   {'data': {'status': 'completed'}}),
@@ -80,11 +75,9 @@ class TestMigrateDuringBackup(iotests.QMPTestCase):
         # Don't assert that e is 'failed' now: this way we'll miss
         # possible crash when backup continues :)
 
-        result = self.vm.qmp('block-job-set-speed', device='drive0',
-                             speed=0)
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('job-resume', id='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-set-speed', device='drive0',
+                    speed=0)
+        self.vm.cmd('job-resume', id='drive0')
 
         # For future: if something changes so that both migration
         # and backup pass, let's not miss that moment, as it may

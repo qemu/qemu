@@ -198,7 +198,7 @@ static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
 
 static void omap_update_display(void *opaque)
 {
-    struct omap_lcd_panel_s *omap_lcd = (struct omap_lcd_panel_s *) opaque;
+    struct omap_lcd_panel_s *omap_lcd = opaque;
     DisplaySurface *surface;
     drawfn draw_line;
     int size, height, first, last;
@@ -376,10 +376,9 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
     }
 }
 
-static uint64_t omap_lcdc_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static uint64_t omap_lcdc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
+    struct omap_lcd_panel_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* LCD_CONTROL */
@@ -412,7 +411,7 @@ static uint64_t omap_lcdc_read(void *opaque, hwaddr addr,
 static void omap_lcdc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
+    struct omap_lcd_panel_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* LCD_CONTROL */

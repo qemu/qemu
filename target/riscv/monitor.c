@@ -55,7 +55,7 @@ static void print_pte_header(Monitor *mon)
 static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
                       hwaddr paddr, target_ulong size, int attr)
 {
-    /* santity check on vaddr */
+    /* sanity check on vaddr */
     if (vaddr >= (1UL << va_bits)) {
         return;
     }
@@ -64,7 +64,7 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
         return;
     }
 
-    monitor_printf(mon, TARGET_FMT_lx " " TARGET_FMT_plx " " TARGET_FMT_lx
+    monitor_printf(mon, TARGET_FMT_lx " " HWADDR_FMT_plx " " TARGET_FMT_lx
                    " %c%c%c%c%c%c%c\n",
                    addr_canonical(va_bits, vaddr),
                    paddr, size,
@@ -218,7 +218,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
+    if (!riscv_cpu_cfg(env)->mmu) {
         monitor_printf(mon, "S-mode MMU unavailable\n");
         return;
     }

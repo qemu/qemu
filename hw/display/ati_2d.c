@@ -12,6 +12,7 @@
 #include "ati_regs.h"
 #include "qemu/log.h"
 #include "ui/pixel_ops.h"
+#include "ui/console.h"
 
 /*
  * NOTE:
@@ -84,13 +85,14 @@ void ati_2d_blt(ATIVGAState *s)
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
             s->regs.src_pitch, s->regs.dst_pitch, s->regs.default_pitch,
-            s->regs.src_x, s->regs.src_y, s->regs.dst_x, s->regs.dst_y,
+            s->regs.src_x, s->regs.src_y, dst_x, dst_y,
             s->regs.dst_width, s->regs.dst_height,
             (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ? '>' : '<'),
             (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ? 'v' : '^'));
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
     case ROP3_SRCCOPY:
     {
+        bool fallback = false;
         unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
                        s->regs.src_x : s->regs.src_x + 1 - s->regs.dst_width);
         unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
@@ -121,27 +123,53 @@ void ati_2d_blt(ATIVGAState *s)
                 src_bits, dst_bits, src_stride, dst_stride, bpp, bpp,
                 src_x, src_y, dst_x, dst_y,
                 s->regs.dst_width, s->regs.dst_height);
-        if (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT &&
+#ifdef CONFIG_PIXMAN
+        if ((s->use_pixman & BIT(1)) &&
+            s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT &&
             s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM) {
-            pixman_blt((uint32_t *)src_bits, (uint32_t *)dst_bits,
-                       src_stride, dst_stride, bpp, bpp,
-                       src_x, src_y, dst_x, dst_y,
-                       s->regs.dst_width, s->regs.dst_height);
-        } else {
+            fallback = !pixman_blt((uint32_t *)src_bits, (uint32_t *)dst_bits,
+                                   src_stride, dst_stride, bpp, bpp,
+                                   src_x, src_y, dst_x, dst_y,
+                                   s->regs.dst_width, s->regs.dst_height);
+        } else if (s->use_pixman & BIT(1)) {
             /* FIXME: We only really need a temporary if src and dst overlap */
             int llb = s->regs.dst_width * (bpp / 8);
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
             uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
                                      s->regs.dst_height);
-            pixman_blt((uint32_t *)src_bits, tmp,
-                       src_stride, tmp_stride, bpp, bpp,
-                       src_x, src_y, 0, 0,
-                       s->regs.dst_width, s->regs.dst_height);
-            pixman_blt(tmp, (uint32_t *)dst_bits,
-                       tmp_stride, dst_stride, bpp, bpp,
-                       0, 0, dst_x, dst_y,
-                       s->regs.dst_width, s->regs.dst_height);
+            fallback = !pixman_blt((uint32_t *)src_bits, tmp,
+                                   src_stride, tmp_stride, bpp, bpp,
+                                   src_x, src_y, 0, 0,
+                                   s->regs.dst_width, s->regs.dst_height);
+            if (!fallback) {
+                fallback = !pixman_blt(tmp, (uint32_t *)dst_bits,
+                                       tmp_stride, dst_stride, bpp, bpp,
+                                       0, 0, dst_x, dst_y,
+                                       s->regs.dst_width, s->regs.dst_height);
+            }
             g_free(tmp);
+        } else
+#endif
+        {
+            fallback = true;
+        }
+        if (fallback) {
+            unsigned int y, i, j, bypp = bpp / 8;
+            unsigned int src_pitch = src_stride * sizeof(uint32_t);
+            unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
+
+            for (y = 0; y < s->regs.dst_height; y++) {
+                i = dst_x * bypp;
+                j = src_x * bypp;
+                if (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM) {
+                    i += (dst_y + y) * dst_pitch;
+                    j += (src_y + y) * src_pitch;
+                } else {
+                    i += (dst_y + s->regs.dst_height - 1 - y) * dst_pitch;
+                    j += (src_y + s->regs.dst_height - 1 - y) * src_pitch;
+                }
+                memmove(&dst_bits[i], &src_bits[j], s->regs.dst_width * bypp);
+            }
         }
         if (dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
             dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
@@ -179,14 +207,24 @@ void ati_2d_blt(ATIVGAState *s)
 
         dst_stride /= sizeof(uint32_t);
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
-                dst_bits, dst_stride, bpp,
-                s->regs.dst_x, s->regs.dst_y,
-                s->regs.dst_width, s->regs.dst_height,
-                filler);
-        pixman_fill((uint32_t *)dst_bits, dst_stride, bpp,
-                    s->regs.dst_x, s->regs.dst_y,
-                    s->regs.dst_width, s->regs.dst_height,
-                    filler);
+                dst_bits, dst_stride, bpp, dst_x, dst_y,
+                s->regs.dst_width, s->regs.dst_height, filler);
+#ifdef CONFIG_PIXMAN
+        if (!(s->use_pixman & BIT(0)) ||
+            !pixman_fill((uint32_t *)dst_bits, dst_stride, bpp, dst_x, dst_y,
+                    s->regs.dst_width, s->regs.dst_height, filler))
+#endif
+        {
+            /* fallback when pixman failed or we don't want to call it */
+            unsigned int x, y, i, bypp = bpp / 8;
+            unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
+            for (y = 0; y < s->regs.dst_height; y++) {
+                i = dst_x * bypp + (dst_y + y) * dst_pitch;
+                for (x = 0; x < s->regs.dst_width; x++, i += bypp) {
+                    stn_he_p(&dst_bits[i], bypp, filler);
+                }
+            }
+        }
         if (dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
             dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
             s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {

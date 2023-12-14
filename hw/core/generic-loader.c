@@ -24,7 +24,7 @@
  * callback that does the memory operations.
 
  * This device allows the user to monkey patch memory. To be able to do
- * this it needs a backend to manage the datas, the same as other
+ * this it needs a backend to manage the data, the same as other
  * memory-related devices. In this case as the backend is so trivial we
  * have merged it with the frontend instead of creating and maintaining a
  * separate backend.
@@ -166,7 +166,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    /* Convert the data endiannes */
+    /* Convert the data endianness */
     if (s->data_be) {
         s->data = cpu_to_be64(s->data);
     } else {

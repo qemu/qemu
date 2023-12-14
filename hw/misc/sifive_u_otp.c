@@ -210,13 +210,6 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!dinfo) {
-        dinfo = drive_get(IF_NONE, 0, 0);
-        if (dinfo) {
-            warn_report("using \"-drive if=none\" for the OTP is deprecated, "
-                        "use \"-drive if=pflash\" instead.");
-        }
-    }
     if (dinfo) {
         int ret;
         uint64_t perm;

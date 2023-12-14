@@ -33,7 +33,7 @@ void restore_fp_status(CPULoongArchState *env)
     set_flush_to_zero(0, &env->fp_status);
 }
 
-static int ieee_ex_to_loongarch(int xcpt)
+int ieee_ex_to_loongarch(int xcpt)
 {
     int ret = 0;
     if (xcpt & float_flag_invalid) {

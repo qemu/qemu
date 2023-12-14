@@ -14,10 +14,9 @@
 # Arguments:
 #
 # @enable: An optional list of QMPCapability values to enable.  The
-#          client must not enable any capability that is not
-#          mentioned in the QMP greeting message.  If the field is not
-#          provided, it means no QMP capabilities will be enabled.
-#          (since 2.12)
+#     client must not enable any capability that is not mentioned in
+#     the QMP greeting message.  If the field is not provided, it
+#     means no QMP capabilities will be enabled.  (since 2.12)
 #
 # Example:
 #
@@ -25,12 +24,14 @@
 #      "arguments": { "enable": [ "oob" ] } }
 # <- { "return": {} }
 #
-# Notes: This command is valid exactly when first connecting: it must be
-#        issued before any other command will be accepted, and will fail once the
-#        monitor is accepting other commands. (see qemu docs/interop/qmp-spec.txt)
+# Notes: This command is valid exactly when first connecting: it must
+#     be issued before any other command will be accepted, and will
+#     fail once the monitor is accepting other commands.  (see qemu
+#     docs/interop/qmp-spec.rst)
 #
-#        The QMP client needs to explicitly enable QMP capabilities, otherwise
-#        all the QMP capabilities will be turned off by default.
+#     The QMP client needs to explicitly enable QMP capabilities,
+#     otherwise all the QMP capabilities will be turned off by
+#     default.
 #
 # Since: 0.13
 ##
@@ -44,8 +45,8 @@
 # Enumeration of capabilities to be advertised during initial client
 # connection, used for agreeing on particular QMP extension behaviors.
 #
-# @oob: QMP ability to support out-of-band requests.
-#       (Please refer to qmp-spec.txt for more information on OOB)
+# @oob: QMP ability to support out-of-band requests.  (Please refer to
+#     qmp-spec.rst for more information on OOB)
 #
 # Since: 2.12
 ##
@@ -73,16 +74,16 @@
 #
 # A description of QEMU's version.
 #
-# @qemu: The version of QEMU.  By current convention, a micro
-#        version of 50 signifies a development branch.  A micro version
-#        greater than or equal to 90 signifies a release candidate for
-#        the next minor version.  A micro version of less than 50
-#        signifies a stable release.
+# @qemu: The version of QEMU.  By current convention, a micro version
+#     of 50 signifies a development branch.  A micro version greater
+#     than or equal to 90 signifies a release candidate for the next
+#     minor version.  A micro version of less than 50 signifies a
+#     stable release.
 #
-# @package: QEMU will always set this field to an empty string.  Downstream
-#           versions of QEMU should set this to a non-empty string.  The
-#           exact format depends on the downstream however it highly
-#           recommended that a unique name is used.
+# @package: QEMU will always set this field to an empty string.
+#     Downstream versions of QEMU should set this to a non-empty
+#     string.  The exact format depends on the downstream however it
+#     highly recommended that a unique name is used.
 #
 # Since: 0.14
 ##
@@ -94,7 +95,8 @@
 #
 # Returns the current version of QEMU.
 #
-# Returns: A @VersionInfo object describing the current version of QEMU.
+# Returns: A @VersionInfo object describing the current version of
+#     QEMU.
 #
 # Since: 0.14
 #
@@ -111,7 +113,6 @@
 #          "package":""
 #       }
 #    }
-#
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo',
   'allow-preconfig': true }
@@ -150,8 +151,8 @@
 #      ]
 #    }
 #
-# Note: This example has been shortened as the real response is too long.
-#
+# Note: This example has been shortened as the real response is too
+#     long.
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'],
   'allow-preconfig': true }
@@ -159,10 +160,10 @@
 ##
 # @quit:
 #
-# This command will cause the QEMU process to exit gracefully.  While every
-# attempt is made to send the QMP response before terminating, this is not
-# guaranteed.  When using this interface, a premature EOF would not be
-# unexpected.
+# This command will cause the QEMU process to exit gracefully.  While
+# every attempt is made to send the QMP response before terminating,
+# this is not guaranteed.  When using this interface, a premature EOF
+# would not be unexpected.
 #
 # Since: 0.14
 #
@@ -195,7 +196,7 @@
 # @id: Name of the monitor
 #
 # @mode: Selects the monitor mode (default: readline in the system
-#           emulator, control in qemu-storage-daemon)
+#     emulator, control in qemu-storage-daemon)
 #
 # @pretty: Enables pretty printing (QMP only)
 #

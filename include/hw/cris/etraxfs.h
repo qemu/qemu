@@ -29,6 +29,7 @@
 #include "hw/cris/etraxfs_dma.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 
 DeviceState *etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
                               struct etraxfs_dma_client *dma_out,

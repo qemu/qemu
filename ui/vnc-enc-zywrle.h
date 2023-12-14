@@ -51,14 +51,14 @@ static const unsigned int zywrle_param[3][3]={
         {0x0000F000, 0x00000000, 0x00000000},
         {0x0000C000, 0x00F0F0F0, 0x00000000},
         {0x0000C000, 0x00C0C0C0, 0x00F0F0F0},
-/*	{0x0000FF00, 0x00000000, 0x00000000},
+/*      {0x0000FF00, 0x00000000, 0x00000000},
         {0x0000FF00, 0x00FFFFFF, 0x00000000},
         {0x0000FF00, 0x00FFFFFF, 0x00FFFFFF}, */
 };
 #else
 /* Type B:Non liner quantization filter. */
 static const int8_t zywrle_conv[4][256]={
-{	/* bi=5, bo=5 r=0.0:PSNR=24.849 */
+{       /* bi=5, bo=5 r=0.0:PSNR=24.849 */
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -92,7 +92,7 @@ static const int8_t zywrle_conv[4][256]={
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
 },
-{	/* bi=5, bo=5 r=2.0:PSNR=74.031 */
+{       /* bi=5, bo=5 r=2.0:PSNR=74.031 */
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 32,
@@ -126,7 +126,7 @@ static const int8_t zywrle_conv[4][256]={
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
 },
-{	/* bi=5, bo=4 r=2.0:PSNR=64.441 */
+{       /* bi=5, bo=4 r=2.0:PSNR=64.441 */
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -160,7 +160,7 @@ static const int8_t zywrle_conv[4][256]={
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
 },
-{	/* bi=5, bo=2 r=2.0:PSNR=43.175 */
+{       /* bi=5, bo=2 r=2.0:PSNR=43.175 */
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -274,14 +274,14 @@ static inline void harr(int8_t *px0, int8_t *px1)
         x1 += x0;
         if (((x1 ^ orgx1) & 0x80) == 0) {
             /* |x1| > |x0| */
-            x0 -= x1;	/* H = -B */
+            x0 -= x1;   /* H = -B */
         }
     } else {
         /* same sign */
         x0 -= x1;
         if (((x0 ^ orgx0) & 0x80) == 0) {
             /* |x0| > |x1| */
-            x1 += x0;	/* L = A */
+            x1 += x0;   /* L = A */
         }
     }
     *px0 = (int8_t)x1;
@@ -485,7 +485,7 @@ static inline void wavelet(int *buf, int width, int height, int level)
 
 /*
   RGB <=> YUV conversion stuffs.
-  YUV coversion is explained as following formula in strict meaning:
+  YUV conversion is explained as following formula in strict meaning:
   Y =  0.299R + 0.587G + 0.114B (   0<=Y<=255)
   U = -0.169R - 0.331G + 0.500B (-128<=U<=127)
   V =  0.500R - 0.419G - 0.081B (-128<=V<=127)
@@ -539,7 +539,7 @@ static inline void wavelet(int *buf, int width, int height, int level)
    +------+------+
 
  So, we must transfer each sub images individually in strict meaning.
- But at least ZRLE meaning, following one decompositon image is same as
+ But at least ZRLE meaning, following one decomposition image is same as
  avobe individual sub image. I use this format.
  (Strictly saying, transfer order is reverse(Hxy->Hy->Hx->L)
   for simplified procedure for any wavelet level.)
@@ -585,7 +585,7 @@ static inline void wavelet(int *buf, int width, int height, int level)
         }                                                               \
     } while (0)
 
-#define ZYWRLE_PACK_COEFF(buf, data, t, width, height, scanline, level)	\
+#define ZYWRLE_PACK_COEFF(buf, data, t, width, height, scanline, level) \
     ZYWRLE_TRANSFER_COEFF(buf, data, t, width, height, scanline, level, \
                           ZYWRLE_LOAD_COEFF(ph, r, g, b);               \
                           ZYWRLE_SAVE_PIXEL(data, r, g, b);)

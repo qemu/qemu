@@ -13,6 +13,8 @@
 #ifndef QEMU_9P_UTIL_H
 #define QEMU_9P_UTIL_H
 
+#include "qemu/error-report.h"
+
 #ifdef O_PATH
 #define O_PATH_9P_UTIL O_PATH
 #else
@@ -46,7 +48,7 @@ static inline uint64_t makedev_dotl(uint32_t dev_major, uint32_t dev_minor)
 /*
  * Converts given device number from host's device number format to Linux
  * device number format. As both the size of type dev_t and encoding of
- * dev_t is system dependant, we have to convert them for Linux guests if
+ * dev_t is system dependent, we have to convert them for Linux guests if
  * host is not running Linux.
  */
 static inline uint64_t host_dev_to_dotl_dev(dev_t dev)
@@ -90,20 +92,17 @@ static inline int errno_to_dotl(int err) {
 
 #ifdef CONFIG_DARWIN
 #define qemu_fgetxattr(...) fgetxattr(__VA_ARGS__, 0, 0)
-#define qemu_lgetxattr(...) getxattr(__VA_ARGS__, 0, XATTR_NOFOLLOW)
-#define qemu_llistxattr(...) listxattr(__VA_ARGS__, XATTR_NOFOLLOW)
-#define qemu_lremovexattr(...) removexattr(__VA_ARGS__, XATTR_NOFOLLOW)
-static inline int qemu_lsetxattr(const char *path, const char *name,
-                                 const void *value, size_t size, int flags) {
-    return setxattr(path, name, value, size, 0, flags | XATTR_NOFOLLOW);
-}
 #else
 #define qemu_fgetxattr fgetxattr
-#define qemu_lgetxattr lgetxattr
-#define qemu_llistxattr llistxattr
-#define qemu_lremovexattr lremovexattr
-#define qemu_lsetxattr lsetxattr
 #endif
+
+#define qemu_openat     openat
+#define qemu_fstat      fstat
+#define qemu_fstatat    fstatat
+#define qemu_mkdirat    mkdirat
+#define qemu_renameat   renameat
+#define qemu_utimensat  utimensat
+#define qemu_unlinkat   unlinkat
 
 static inline void close_preserve_errno(int fd)
 {
@@ -112,10 +111,42 @@ static inline void close_preserve_errno(int fd)
     errno = serrno;
 }
 
+/**
+ * close_if_special_file() - Close @fd if neither regular file nor directory.
+ *
+ * @fd: file descriptor of open file
+ * Return: 0 on regular file or directory, -1 otherwise
+ *
+ * CVE-2023-2861: Prohibit opening any special file directly on host
+ * (especially device files), as a compromised client could potentially gain
+ * access outside exported tree under certain, unsafe setups. We expect
+ * client to handle I/O on special files exclusively on guest side.
+ */
+static inline int close_if_special_file(int fd)
+{
+    struct stat stbuf;
+
+    if (qemu_fstat(fd, &stbuf) < 0) {
+        close_preserve_errno(fd);
+        return -1;
+    }
+    if (!S_ISREG(stbuf.st_mode) && !S_ISDIR(stbuf.st_mode)) {
+        error_report_once(
+            "9p: broken or compromised client detected; attempt to open "
+            "special file (i.e. neither regular file, nor directory)"
+        );
+        close(fd);
+        errno = ENXIO;
+        return -1;
+    }
+
+    return 0;
+}
+
 static inline int openat_dir(int dirfd, const char *name)
 {
-    return openat(dirfd, name,
-                  O_DIRECTORY | O_RDONLY | O_NOFOLLOW | O_PATH_9P_UTIL);
+    return qemu_openat(dirfd, name,
+                       O_DIRECTORY | O_RDONLY | O_NOFOLLOW | O_PATH_9P_UTIL);
 }
 
 static inline int openat_file(int dirfd, const char *name, int flags,
@@ -126,8 +157,8 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 #ifndef CONFIG_DARWIN
 again:
 #endif
-    fd = openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
-                mode);
+    fd = qemu_openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
+                     mode);
     if (fd == -1) {
 #ifndef CONFIG_DARWIN
         if (errno == EPERM && (flags & O_NOATIME)) {
@@ -143,6 +174,10 @@ again:
             goto again;
         }
 #endif
+        return -1;
+    }
+
+    if (close_if_special_file(fd) < 0) {
         return -1;
     }
 

@@ -9,7 +9,13 @@
 #ifndef KVM_PPC_H
 #define KVM_PPC_H
 
-#define TYPE_HOST_POWERPC_CPU POWERPC_CPU_TYPE_NAME("host")
+#include "sysemu/kvm.h"
+#include "exec/hwaddr.h"
+#include "cpu.h"
+
+#ifdef CONFIG_USER_ONLY
+#error Cannot include kvm_ppc.h from user emulation
+#endif
 
 #ifdef CONFIG_KVM
 
@@ -40,7 +46,6 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      bool radix, bool gtse,
                                      uint64_t proc_tbl);
-#ifndef CONFIG_USER_ONLY
 bool kvmppc_spapr_use_multitce(void);
 int kvmppc_spapr_enable_inkernel_multitce(void);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
@@ -50,7 +55,6 @@ int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_vrma_limit(unsigned int hash_shift);
 bool kvmppc_has_cap_spapr_vfio(void);
-#endif /* !CONFIG_USER_ONLY */
 bool kvmppc_has_cap_epr(void);
 int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
 int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp);
@@ -73,6 +77,7 @@ int kvmppc_set_cap_nested_kvm_hv(int enable);
 int kvmppc_get_cap_large_decr(void);
 int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable);
 int kvmppc_has_cap_rpt_invalidate(void);
+bool kvmppc_supports_ail_3(void);
 int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
@@ -88,7 +93,34 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset);
 
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
 
-#else
+#define kvmppc_eieio() \
+    do {                                          \
+        if (kvm_enabled()) {                          \
+            asm volatile("eieio" : : : "memory"); \
+        } \
+    } while (0)
+
+/* Store data cache blocks back to memory */
+static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.dcache_line_size) {
+        asm volatile("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+}
+
+/* Invalidate instruction cache blocks */
+static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
+{
+    uint8_t *p;
+
+    for (p = addr; p < addr + len; p += cpu->env.icache_line_size) {
+        asm volatile("icbi 0,%0" : : "r"(p));
+    }
+}
+
+#else /* !CONFIG_KVM */
 
 static inline uint32_t kvmppc_get_tbfreq(void)
 {
@@ -232,7 +264,6 @@ static inline void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
 {
 }
 
-#ifndef CONFIG_USER_ONLY
 static inline bool kvmppc_spapr_use_multitce(void)
 {
     return false;
@@ -291,8 +322,6 @@ static inline void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1)
 {
     abort();
 }
-
-#endif /* !CONFIG_USER_ONLY */
 
 static inline bool kvmppc_has_cap_epr(void)
 {
@@ -393,6 +422,11 @@ static inline int kvmppc_has_cap_rpt_invalidate(void)
     return false;
 }
 
+static inline bool kvmppc_supports_ail_3(void)
+{
+    return false;
+}
+
 static inline int kvmppc_enable_hwrng(void)
 {
     return -1;
@@ -430,10 +464,6 @@ static inline bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
     return false;
 }
 
-#endif
-
-#ifndef CONFIG_KVM
-
 #define kvmppc_eieio() do { } while (0)
 
 static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
@@ -442,35 +472,6 @@ static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 
 static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
 {
-}
-
-#else   /* CONFIG_KVM */
-
-#define kvmppc_eieio() \
-    do {                                          \
-        if (kvm_enabled()) {                          \
-            asm volatile("eieio" : : : "memory"); \
-        } \
-    } while (0)
-
-/* Store data cache blocks back to memory */
-static inline void kvmppc_dcbst_range(PowerPCCPU *cpu, uint8_t *addr, int len)
-{
-    uint8_t *p;
-
-    for (p = addr; p < addr + len; p += cpu->env.dcache_line_size) {
-        asm volatile("dcbst 0,%0" : : "r"(p) : "memory");
-    }
-}
-
-/* Invalidate instruction cache blocks */
-static inline void kvmppc_icbi_range(PowerPCCPU *cpu, uint8_t *addr, int len)
-{
-    uint8_t *p;
-
-    for (p = addr; p < addr + len; p += cpu->env.icache_line_size) {
-        asm volatile("icbi 0,%0" : : "r"(p));
-    }
 }
 
 #endif  /* CONFIG_KVM */

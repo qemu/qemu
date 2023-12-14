@@ -1,7 +1,7 @@
 /*
  * QEMU ISA VGA Emulator.
  *
- * see docs/specs/standard-vga.txt for virtual hardware specs.
+ * see docs/specs/standard-vga.rst for virtual hardware specs.
  *
  * Copyright (c) 2003 Fabrice Bellard
  *
@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
+#include "ui/console.h"
 #include "qom/object.h"
 
 #define TYPE_ISA_VGA "isa-vga"

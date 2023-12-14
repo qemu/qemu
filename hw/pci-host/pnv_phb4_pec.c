@@ -17,6 +17,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_chip.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
 
@@ -33,7 +34,7 @@ static uint64_t pnv_pec_nest_xscom_read(void *opaque, hwaddr addr,
     PnvPhb4PecState *pec = PNV_PHB4_PEC(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are readable */
     return pec->nest_regs[reg];
 }
 
@@ -44,18 +45,36 @@ static void pnv_pec_nest_xscom_write(void *opaque, hwaddr addr,
     uint32_t reg = addr >> 3;
 
     switch (reg) {
-    case PEC_NEST_PBCQ_HW_CONFIG:
     case PEC_NEST_DROP_PRIO_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 25);
+        break;
     case PEC_NEST_PBCQ_ERR_INJECT:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 11);
+        break;
     case PEC_NEST_PCI_NEST_CLK_TRACE_CTL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 16);
+        break;
     case PEC_NEST_PBCQ_PMON_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 37);
+        break;
     case PEC_NEST_PBCQ_PBUS_ADDR_EXT:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 6);
+        break;
     case PEC_NEST_PBCQ_PRED_VEC_TIMEOUT:
-    case PEC_NEST_CAPP_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 15);
+        break;
     case PEC_NEST_PBCQ_READ_STK_OVR:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 48);
+        break;
     case PEC_NEST_PBCQ_WRITE_STK_OVR:
     case PEC_NEST_PBCQ_STORE_STK_OVR:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 24);
+        break;
     case PEC_NEST_PBCQ_RETRY_BKOFF_CTRL:
+        pec->nest_regs[reg] = val & PPC_BITMASK(0, 41);
+        break;
+    case PEC_NEST_PBCQ_HW_CONFIG:
+    case PEC_NEST_CAPP_CTRL:
         pec->nest_regs[reg] = val;
         break;
     default:
@@ -80,7 +99,7 @@ static uint64_t pnv_pec_pci_xscom_read(void *opaque, hwaddr addr,
     PnvPhb4PecState *pec = PNV_PHB4_PEC(opaque);
     uint32_t reg = addr >> 3;
 
-    /* TODO: add list of allowed registers and error out if not */
+    /* All registers are readable */
     return pec->pci_regs[reg];
 }
 
@@ -92,8 +111,13 @@ static void pnv_pec_pci_xscom_write(void *opaque, hwaddr addr,
 
     switch (reg) {
     case PEC_PCI_PBAIB_HW_CONFIG:
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 42);
+        break;
+    case PEC_PCI_PBAIB_HW_OVR:
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 15);
+        break;
     case PEC_PCI_PBAIB_READ_STK_OVR:
-        pec->pci_regs[reg] = val;
+        pec->pci_regs[reg] = val & PPC_BITMASK(0, 48);
         break;
     default:
         phb_pec_error(pec, "%s @0x%"HWADDR_PRIx"=%"PRIx64"\n", __func__,
@@ -111,12 +135,52 @@ static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
-                                        int stack_no,
-                                        Error **errp)
+PnvPhb4PecState *pnv_pec_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp)
 {
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
-    PnvPHB4 *phb = PNV_PHB4(qdev_new(pecc->phb_type));
+    PnvPhb4PecState *pecs = NULL;
+    int chip_id = phb->chip_id;
+    int index = phb->phb_id;
+    int i, j;
+
+    if (phb->version == 4) {
+        Pnv9Chip *chip9 = PNV9_CHIP(chip);
+
+        pecs = chip9->pecs;
+    } else if (phb->version == 5) {
+        Pnv10Chip *chip10 = PNV10_CHIP(chip);
+
+        pecs = chip10->pecs;
+    } else {
+        g_assert_not_reached();
+    }
+
+    for (i = 0; i < chip->num_pecs; i++) {
+        /*
+         * For each PEC, check the amount of phbs it supports
+         * and see if the given phb4 index matches an index.
+         */
+        PnvPhb4PecState *pec = &pecs[i];
+
+        for (j = 0; j < pec->num_phbs; j++) {
+            if (index == pnv_phb4_pec_get_phb_id(pec, j)) {
+                pec->phbs[j] = phb;
+                phb->pec = pec;
+                return pec;
+            }
+        }
+    }
+    error_setg(errp,
+               "pnv-phb4 chip-id %d index %d didn't match any existing PEC",
+               chip_id, index);
+
+    return NULL;
+}
+
+static PnvPHB *pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
+                                           int stack_no,
+                                           Error **errp)
+{
+    PnvPHB *phb = PNV_PHB(qdev_new(TYPE_PNV_PHB));
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
     object_property_add_child(OBJECT(pec), "phb[*]", OBJECT(phb));
@@ -128,8 +192,9 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                             &error_fatal);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
-        return;
+        return NULL;
     }
+    return phb;
 }
 
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
@@ -147,8 +212,11 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     pec->num_phbs = pecc->num_phbs[pec->index];
 
     /* Create PHBs if running with defaults */
-    for (i = 0; i < pec->num_phbs; i++) {
-        pnv_pec_default_phb_realize(pec, i, errp);
+    if (defaults_enabled()) {
+        g_assert(pec->num_phbs <= MAX_PHBS_PER_PEC);
+        for (i = 0; i < pec->num_phbs; i++) {
+            pec->phbs[i] = pnv_pec_default_phb_realize(pec, i, errp);
+        }
     }
 
     /* Initialize the XSCOM regions for the PEC registers */
@@ -195,8 +263,11 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
                       pecc->compat_size)));
 
     for (i = 0; i < pec->num_phbs; i++) {
-        int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
         int stk_offset;
+
+        if (!pec->phbs[i]) {
+            continue;
+        }
 
         name = g_strdup_printf("stack@%x", i);
         stk_offset = fdt_add_subnode(fdt, offset, name);
@@ -205,7 +276,8 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
         _FDT((fdt_setprop(fdt, stk_offset, "compatible", pecc->stk_compat,
                           pecc->stk_compat_size)));
         _FDT((fdt_setprop_cell(fdt, stk_offset, "reg", i)));
-        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index", phb_id)));
+        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index",
+                               pec->phbs[i]->phb_id)));
     }
 
     return 0;
@@ -261,7 +333,6 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->version = PNV_PHB4_VERSION;
     pecc->phb_type = TYPE_PNV_PHB4;
     pecc->num_phbs = pnv_pec_num_phbs;
-    pecc->rp_model = TYPE_PNV_PHB4_ROOT_PORT;
 }
 
 static const TypeInfo pnv_pec_type_info = {
@@ -314,7 +385,6 @@ static void pnv_phb5_pec_class_init(ObjectClass *klass, void *data)
     pecc->version = PNV_PHB5_VERSION;
     pecc->phb_type = TYPE_PNV_PHB5;
     pecc->num_phbs = pnv_phb5_pec_num_stacks;
-    pecc->rp_model = TYPE_PNV_PHB5_ROOT_PORT;
 }
 
 static const TypeInfo pnv_phb5_pec_type_info = {

@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+
+import asyncio
+import iotests
+
+iotests.script_initialize(supported_fmts=['qcow2', 'qcow', 'qed', 'vdi',
+                                          'vmdk', 'parallels'])
+iotests.verify_virtio_scsi_pci_or_ccw()
+
+with iotests.FilePath('disk.img') as img_path, \
+     iotests.VM() as vm:
+
+    iotests.qemu_img_create('-f', 'raw', img_path, '0')
+
+    vm.add_object('iothread,id=iothread0')
+    vm.add_blockdev(f'file,node-name=img-file,read-only=on,'
+                    f'filename={img_path}')
+    vm.add_device('virtio-scsi,iothread=iothread0')
+    vm.add_device('scsi-hd,drive=img-file,share-rw=on')
+
+    vm.launch()
+
+    iotests.log(vm.qmp(
+        'blockdev-reopen',
+        options=[{
+            'driver': 'file',
+            'filename': img_path,
+            'node-name': 'img-file',
+            'read-only': False,
+        }],
+    ))
+    iotests.log(vm.qmp(
+        'blockdev-create',
+        job_id='job0',
+        options={
+            'driver': iotests.imgfmt,
+            'file': 'img-file',
+            'size': 1024 * 1024,
+        },
+    ))
+
+    # Should succeed and not time out
+    try:
+        vm.run_job('job0', wait=5.0)
+        vm.shutdown()
+    except asyncio.TimeoutError:
+        # VM may be stuck, kill it
+        vm.kill()
+        raise

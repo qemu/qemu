@@ -493,6 +493,13 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
 }
 
 
+size_t
+qcrypto_tls_session_check_pending(QCryptoTLSSession *session)
+{
+    return gnutls_record_check_pending(session->handle);
+}
+
+
 int
 qcrypto_tls_session_handshake(QCryptoTLSSession *session,
                               Error **errp)
@@ -612,6 +619,13 @@ qcrypto_tls_session_read(QCryptoTLSSession *sess,
 {
     errno = -EIO;
     return -1;
+}
+
+
+size_t
+qcrypto_tls_session_check_pending(QCryptoTLSSession *session)
+{
+    return 0;
 }
 
 

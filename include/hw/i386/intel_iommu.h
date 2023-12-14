@@ -58,7 +58,6 @@ typedef struct VTDContextEntry VTDContextEntry;
 typedef struct VTDContextCacheEntry VTDContextCacheEntry;
 typedef struct VTDAddressSpace VTDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
-typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDPASIDDirEntry VTDPASIDDirEntry;
@@ -98,28 +97,61 @@ struct VTDPASIDEntry {
 struct VTDAddressSpace {
     PCIBus *bus;
     uint8_t devfn;
+    uint32_t pasid;
     AddressSpace as;
     IOMMUMemoryRegion iommu;
     MemoryRegion root;          /* The root container of the device */
     MemoryRegion nodmar;        /* The alias of shared nodmar MR */
     MemoryRegion iommu_ir;      /* Interrupt region: 0xfeeXXXXX */
+    MemoryRegion iommu_ir_fault; /* Interrupt region for catching fault */
     IntelIOMMUState *iommu_state;
     VTDContextCacheEntry context_cache_entry;
     QLIST_ENTRY(VTDAddressSpace) next;
     /* Superset of notifier flags that this address space has */
     IOMMUNotifierFlag notifier_flags;
-    IOVATree *iova_tree;          /* Traces mapped IOVA ranges */
-};
-
-struct VTDBus {
-    PCIBus* bus;		/* A reference to the bus to provide translation for */
-    /* A table of VTDAddressSpace objects indexed by devfn */
-    VTDAddressSpace *dev_as[];
+    /*
+     * @iova_tree traces mapped IOVA ranges.
+     *
+     * The tree is not needed if no MAP notifier is registered with current
+     * VTD address space, because all guest invalidate commands can be
+     * directly passed to the IOMMU UNMAP notifiers without any further
+     * reshuffling.
+     *
+     * The tree OTOH is required for MAP typed iommu notifiers for a few
+     * reasons.
+     *
+     * Firstly, there's no way to identify whether an PSI (Page Selective
+     * Invalidations) or DSI (Domain Selective Invalidations) event is an
+     * MAP or UNMAP event within the message itself.  Without having prior
+     * knowledge of existing state vIOMMU doesn't know whether it should
+     * notify MAP or UNMAP for a PSI message it received when caching mode
+     * is enabled (for MAP notifiers).
+     *
+     * Secondly, PSI messages received from guest driver can be enlarged in
+     * range, covers but not limited to what the guest driver wanted to
+     * invalidate.  When the range to invalidates gets bigger than the
+     * limit of a PSI message, it can even become a DSI which will
+     * invalidate the whole domain.  If the vIOMMU directly notifies the
+     * registered device with the unmodified range, it may confuse the
+     * registered drivers (e.g. vfio-pci) on either:
+     *
+     *   (1) Trying to map the same region more than once (for
+     *       VFIO_IOMMU_MAP_DMA, -EEXIST will trigger), or,
+     *
+     *   (2) Trying to UNMAP a range that is still partially mapped.
+     *
+     * That accuracy is not required for UNMAP-only notifiers, but it is a
+     * must-to-have for notifiers registered with MAP events, because the
+     * vIOMMU needs to make sure the shadow page table is always in sync
+     * with the guest IOMMU pgtables for a device.
+     */
+    IOVATree *iova_tree;
 };
 
 struct VTDIOTLBEntry {
     uint64_t gfn;
     uint16_t domain_id;
+    uint32_t pasid;
     uint64_t slpte;
     uint64_t mask;
     uint8_t access_flags;
@@ -146,37 +178,39 @@ enum {
 union VTD_IR_TableEntry {
     struct {
 #if HOST_BIG_ENDIAN
-        uint32_t __reserved_1:8;     /* Reserved 1 */
-        uint32_t vector:8;           /* Interrupt Vector */
-        uint32_t irte_mode:1;        /* IRTE Mode */
-        uint32_t __reserved_0:3;     /* Reserved 0 */
-        uint32_t __avail:4;          /* Available spaces for software */
-        uint32_t delivery_mode:3;    /* Delivery Mode */
-        uint32_t trigger_mode:1;     /* Trigger Mode */
-        uint32_t redir_hint:1;       /* Redirection Hint */
-        uint32_t dest_mode:1;        /* Destination Mode */
-        uint32_t fault_disable:1;    /* Fault Processing Disable */
-        uint32_t present:1;          /* Whether entry present/available */
+        uint64_t dest_id:32;         /* Destination ID */
+        uint64_t __reserved_1:8;     /* Reserved 1 */
+        uint64_t vector:8;           /* Interrupt Vector */
+        uint64_t irte_mode:1;        /* IRTE Mode */
+        uint64_t __reserved_0:3;     /* Reserved 0 */
+        uint64_t __avail:4;          /* Available spaces for software */
+        uint64_t delivery_mode:3;    /* Delivery Mode */
+        uint64_t trigger_mode:1;     /* Trigger Mode */
+        uint64_t redir_hint:1;       /* Redirection Hint */
+        uint64_t dest_mode:1;        /* Destination Mode */
+        uint64_t fault_disable:1;    /* Fault Processing Disable */
+        uint64_t present:1;          /* Whether entry present/available */
 #else
-        uint32_t present:1;          /* Whether entry present/available */
-        uint32_t fault_disable:1;    /* Fault Processing Disable */
-        uint32_t dest_mode:1;        /* Destination Mode */
-        uint32_t redir_hint:1;       /* Redirection Hint */
-        uint32_t trigger_mode:1;     /* Trigger Mode */
-        uint32_t delivery_mode:3;    /* Delivery Mode */
-        uint32_t __avail:4;          /* Available spaces for software */
-        uint32_t __reserved_0:3;     /* Reserved 0 */
-        uint32_t irte_mode:1;        /* IRTE Mode */
-        uint32_t vector:8;           /* Interrupt Vector */
-        uint32_t __reserved_1:8;     /* Reserved 1 */
+        uint64_t present:1;          /* Whether entry present/available */
+        uint64_t fault_disable:1;    /* Fault Processing Disable */
+        uint64_t dest_mode:1;        /* Destination Mode */
+        uint64_t redir_hint:1;       /* Redirection Hint */
+        uint64_t trigger_mode:1;     /* Trigger Mode */
+        uint64_t delivery_mode:3;    /* Delivery Mode */
+        uint64_t __avail:4;          /* Available spaces for software */
+        uint64_t __reserved_0:3;     /* Reserved 0 */
+        uint64_t irte_mode:1;        /* IRTE Mode */
+        uint64_t vector:8;           /* Interrupt Vector */
+        uint64_t __reserved_1:8;     /* Reserved 1 */
+        uint64_t dest_id:32;         /* Destination ID */
 #endif
-        uint32_t dest_id;            /* Destination ID */
-        uint16_t source_id;          /* Source-ID */
 #if HOST_BIG_ENDIAN
         uint64_t __reserved_2:44;    /* Reserved 2 */
         uint64_t sid_vtype:2;        /* Source-ID Validation Type */
         uint64_t sid_q:2;            /* Source-ID Qualifier */
+        uint64_t source_id:16;       /* Source-ID */
 #else
+        uint64_t source_id:16;       /* Source-ID */
         uint64_t sid_q:2;            /* Source-ID Qualifier */
         uint64_t sid_vtype:2;        /* Source-ID Validation Type */
         uint64_t __reserved_2:44;    /* Reserved 2 */
@@ -253,8 +287,8 @@ struct IntelIOMMUState {
     uint32_t context_cache_gen;     /* Should be in [1,MAX] */
     GHashTable *iotlb;              /* IOTLB */
 
-    GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */
-    VTDBus *vtd_as_by_bus_num[VTD_PCI_BUS_MAX]; /* VTDBus objects indexed by bus number */
+    GHashTable *vtd_address_spaces;             /* VTD address spaces */
+    VTDAddressSpace *vtd_as_cache[VTD_PCI_BUS_MAX]; /* VTD address space cache */
     /* list of registered notifiers */
     QLIST_HEAD(, VTDAddressSpace) vtd_as_with_notifiers;
 
@@ -268,6 +302,7 @@ struct IntelIOMMUState {
     uint8_t aw_bits;                /* Host/IOVA address width (in bits) */
     bool dma_drain;                 /* Whether DMA r/w draining enabled */
     bool dma_translation;           /* Whether DMA translation supported */
+    bool pasid;                     /* Whether to support PASID */
 
     /*
      * Protects IOMMU states in general.  Currently it protects the
@@ -279,6 +314,7 @@ struct IntelIOMMUState {
 /* Find the VTD Address space associated with the given bus pointer,
  * create a new one if none exists
  */
-VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn);
+VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
+                                 int devfn, unsigned int pasid);
 
 #endif

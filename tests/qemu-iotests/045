@@ -77,8 +77,7 @@ class TestFdSets(iotests.QMPTestCase):
         self.vm.shutdown()
 
     def test_remove_fdset(self):
-        result = self.vm.qmp('remove-fd', fdset_id=2)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('remove-fd', fdset_id=2)
         result = self.vm.qmp('query-fdsets')
         self.assert_qmp(result, 'return[0]/fdset-id', 1)
         self.assert_qmp(result, 'return[1]/fdset-id', 0)
@@ -90,8 +89,7 @@ class TestFdSets(iotests.QMPTestCase):
     def test_remove_fd(self):
         result = self.vm.qmp('query-fdsets')
         fd_image3 = result['return'][0]['fds'][0]['fd']
-        result = self.vm.qmp('remove-fd', fdset_id=2, fd=fd_image3)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('remove-fd', fdset_id=2, fd=fd_image3)
         result = self.vm.qmp('query-fdsets')
         self.assert_qmp(result, 'return[0]/fdset-id', 2)
         self.assert_qmp(result, 'return[1]/fdset-id', 1)
@@ -151,8 +149,7 @@ class TestSCMFd(iotests.QMPTestCase):
 
     def test_getfd(self):
         self._send_fd_by_SCM()
-        result = self.vm.qmp('getfd', fdname='image0:r')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('getfd', fdname='image0:r')
 
     def test_getfd_invalid_fdname(self):
         self._send_fd_by_SCM()
@@ -163,10 +160,8 @@ class TestSCMFd(iotests.QMPTestCase):
 
     def test_closefd(self):
         self._send_fd_by_SCM()
-        result = self.vm.qmp('getfd', fdname='image0:r')
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('closefd', fdname='image0:r')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('getfd', fdname='image0:r')
+        self.vm.cmd('closefd', fdname='image0:r')
 
     def test_closefd_fd_not_found(self):
         fdname = 'image0:r'

@@ -47,7 +47,7 @@ static AddressSpace *remote_iommu_find_add_as(PCIBus *pci_bus,
     elem = g_hash_table_lookup(iommu->elem_by_devfn, INT2VOIDP(devfn));
 
     if (!elem) {
-        elem = g_malloc0(sizeof(RemoteIommuElem));
+        elem = g_new0(RemoteIommuElem, 1);
         g_hash_table_insert(iommu->elem_by_devfn, INT2VOIDP(devfn), elem);
     }
 
@@ -100,6 +100,10 @@ static void remote_iommu_finalize(Object *obj)
     iommu->elem_by_devfn = NULL;
 }
 
+static const PCIIOMMUOps remote_iommu_ops = {
+    .get_address_space = remote_iommu_find_add_as,
+};
+
 void remote_iommu_setup(PCIBus *pci_bus)
 {
     RemoteIommu *iommu = NULL;
@@ -108,7 +112,7 @@ void remote_iommu_setup(PCIBus *pci_bus)
 
     iommu = REMOTE_IOMMU(object_new(TYPE_REMOTE_IOMMU));
 
-    pci_setup_iommu(pci_bus, remote_iommu_find_add_as, iommu);
+    pci_setup_iommu(pci_bus, &remote_iommu_ops, iommu);
 
     object_property_add_child(OBJECT(pci_bus), "remote-iommu", OBJECT(iommu));
 

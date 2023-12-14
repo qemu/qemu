@@ -104,6 +104,14 @@ static void unwind_gusa(CPUSH4State *regs)
 
         /* Reset the SP to the saved version in R1.  */
         regs->gregs[15] = regs->gregs[1];
+    } else if (regs->gregs[15] >= -128u && regs->pc == regs->gregs[0]) {
+        /* If we are on the last instruction of a gUSA region, we must reset
+           the SP, otherwise we would be pushing the signal context to
+           invalid memory.  */
+        regs->gregs[15] = regs->gregs[1];
+    } else if (regs->flags & TB_FLAG_DELAY_SLOT) {
+        /* If we are in a delay slot, push the previous instruction.  */
+        regs->pc -= 2;
     }
 }
 
@@ -161,7 +169,7 @@ static void restore_sigcontext(CPUSH4State *regs, struct target_sigcontext *sc)
     __get_user(regs->fpul, &sc->sc_fpul);
 
     regs->tra = -1;         /* disable syscall checks */
-    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
+    regs->flags = 0;
 }
 
 void setup_frame(int sig, struct target_sigaction *ka,
@@ -199,7 +207,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
     regs->gregs[5] = 0;
     regs->gregs[6] = frame_addr += offsetof(typeof(*frame), sc);
     regs->pc = (unsigned long) ka->_sa_handler;
-    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
+    regs->flags &= ~(TB_FLAG_DELAY_SLOT_MASK | TB_FLAG_GUSA_MASK);
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
@@ -251,7 +259,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     regs->gregs[5] = frame_addr + offsetof(typeof(*frame), info);
     regs->gregs[6] = frame_addr + offsetof(typeof(*frame), uc);
     regs->pc = (unsigned long) ka->_sa_handler;
-    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
+    regs->flags &= ~(TB_FLAG_DELAY_SLOT_MASK | TB_FLAG_GUSA_MASK);
 
     unlock_user_struct(frame, frame_addr, 1);
     return;

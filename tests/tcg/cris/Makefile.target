@@ -30,7 +30,7 @@ AS	= $(CC) -x assembler-with-cpp
 LD      = $(CC)
 
 # we rely on GCC inline:ing the stuff we tell it to in many places here.
-CFLAGS  = -Winline -Wall -g -O2 -static
+CFLAGS  = -Winline -Wall -g -O2 -static -fno-stack-protector
 NOSTDFLAGS = -nostartfiles -nostdlib
 ASFLAGS += -mcpu=v10 -g -Wa,-I,$(SRC_PATH)/tests/tcg/cris/bare
 CRT_FILES = crt.o sys.o
@@ -56,4 +56,7 @@ SIMG:=cris-axis-linux-gnu-run
 
 # e.g.: make -f ../../tests/tcg/Makefile run-check_orm-on-sim
 run-%-on-sim:
-	$(call run-test, $<, $(SIMG) $<, "$< on $(TARGET_NAME) with SIM")
+	$(call run-test, $<, $(SIMG) $<)
+
+# We don't currently support the multiarch tests
+undefine MULTIARCH_TESTS

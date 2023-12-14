@@ -8,37 +8,32 @@
 #ifndef HW_XEN_BUS_H
 #define HW_XEN_BUS_H
 
-#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
 
-typedef void (*XenWatchHandler)(void *opaque);
-
-typedef struct XenWatchList XenWatchList;
-typedef struct XenWatch XenWatch;
 typedef struct XenEventChannel XenEventChannel;
 
 struct XenDevice {
     DeviceState qdev;
     domid_t frontend_id;
     char *name;
-    struct xs_handle *xsh;
-    XenWatchList *watch_list;
+    struct qemu_xs_handle *xsh;
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;
-    XenWatch *backend_state_watch, *frontend_state_watch;
+    struct qemu_xs_watch *backend_state_watch, *frontend_state_watch;
     bool backend_online;
-    XenWatch *backend_online_watch;
+    struct qemu_xs_watch *backend_online_watch;
     xengnttab_handle *xgth;
-    bool feature_grant_copy;
     bool inactive;
     QLIST_HEAD(, XenEventChannel) event_channels;
     QLIST_ENTRY(XenDevice) list;
 };
 typedef struct XenDevice XenDevice;
 
+typedef char *(*XenDeviceGetFrontendPath)(XenDevice *xendev, Error **errp);
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
 typedef void (*XenDeviceRealize)(XenDevice *xendev, Error **errp);
 typedef void (*XenDeviceFrontendChanged)(XenDevice *xendev,
@@ -52,6 +47,7 @@ struct XenDeviceClass {
     /*< public >*/
     const char *backend;
     const char *device;
+    XenDeviceGetFrontendPath get_frontend_path;
     XenDeviceGetName get_name;
     XenDeviceRealize realize;
     XenDeviceFrontendChanged frontend_changed;
@@ -64,10 +60,9 @@ OBJECT_DECLARE_TYPE(XenDevice, XenDeviceClass, XEN_DEVICE)
 struct XenBus {
     BusState qbus;
     domid_t backend_id;
-    struct xs_handle *xsh;
-    XenWatchList *watch_list;
+    struct qemu_xs_handle *xsh;
     unsigned int backend_types;
-    XenWatch **backend_watch;
+    struct qemu_xs_watch **backend_watch;
     QLIST_HEAD(, XenDevice) inactive_devices;
 };
 
@@ -80,7 +75,7 @@ struct XenBusClass {
 OBJECT_DECLARE_TYPE(XenBus, XenBusClass,
                     XEN_BUS)
 
-void xen_bus_init(void);
+BusState *xen_bus_init(void);
 
 void xen_device_backend_set_state(XenDevice *xendev,
                                   enum xenbus_state state);
@@ -94,14 +89,15 @@ void xen_device_frontend_printf(XenDevice *xendev, const char *key,
     G_GNUC_PRINTF(3, 4);
 
 int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
-                              const char *fmt, ...);
+                              const char *fmt, ...)
+    G_GNUC_SCANF(3, 4);
 
 void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
                                    Error **errp);
 void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
                                 unsigned int nr_refs, int prot,
                                 Error **errp);
-void xen_device_unmap_grant_refs(XenDevice *xendev, void *map,
+void xen_device_unmap_grant_refs(XenDevice *xendev, void *map, uint32_t *refs,
                                  unsigned int nr_refs, Error **errp);
 
 typedef struct XenDeviceGrantCopySegment {
@@ -135,5 +131,6 @@ void xen_device_notify_event_channel(XenDevice *xendev,
 void xen_device_unbind_event_channel(XenDevice *xendev,
                                      XenEventChannel *channel,
                                      Error **errp);
+unsigned int xen_event_channel_get_local_port(XenEventChannel *channel);
 
 #endif /* HW_XEN_BUS_H */

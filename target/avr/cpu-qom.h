@@ -1,5 +1,5 @@
 /*
- * QEMU AVR CPU
+ * QEMU AVR CPU QOM header (target agnostic)
  *
  * Copyright (c) 2016-2020 Michael Rolnik
  *
@@ -22,26 +22,12 @@
 #define TARGET_AVR_CPU_QOM_H
 
 #include "hw/core/cpu.h"
-#include "qom/object.h"
 
 #define TYPE_AVR_CPU "avr-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(AVRCPU, AVRCPUClass, AVR_CPU)
 
-/**
- *  AVRCPUClass:
- *  @parent_realize: The parent class' realize handler.
- *  @parent_reset: The parent class' reset handler.
- *
- *  A AVR CPU model.
- */
-struct AVRCPUClass {
-    /*< private >*/
-    CPUClass parent_class;
-    /*< public >*/
-    DeviceRealize parent_realize;
-    DeviceReset parent_reset;
-};
-
+#define AVR_CPU_TYPE_SUFFIX "-" TYPE_AVR_CPU
+#define AVR_CPU_TYPE_NAME(name) (name AVR_CPU_TYPE_SUFFIX)
 
 #endif /* TARGET_AVR_CPU_QOM_H */

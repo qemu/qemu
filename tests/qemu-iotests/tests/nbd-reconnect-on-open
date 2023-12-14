@@ -26,7 +26,8 @@ from iotests import qemu_img_create, file_path, qemu_io_popen, qemu_nbd, \
 
 iotests.script_initialize(supported_fmts=['qcow2'])
 
-disk, nbd_sock = file_path('disk', 'nbd-sock')
+disk = file_path('disk')
+nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
 
 
 def create_args(open_timeout):

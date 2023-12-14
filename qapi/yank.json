@@ -9,7 +9,7 @@
 ##
 # @YankInstanceType:
 #
-# An enumeration of yank instance types. See @YankInstance for more
+# An enumeration of yank instance types.  See @YankInstance for more
 # information.
 #
 # Since: 6.0
@@ -20,8 +20,8 @@
 ##
 # @YankInstanceBlockNode:
 #
-# Specifies which block graph node to yank. See @YankInstance for more
-# information.
+# Specifies which block graph node to yank.  See @YankInstance for
+# more information.
 #
 # @node-name: the name of the block graph node
 #
@@ -33,8 +33,8 @@
 ##
 # @YankInstanceChardev:
 #
-# Specifies which character device to yank. See @YankInstance for more
-# information.
+# Specifies which character device to yank.  See @YankInstance for
+# more information.
 #
 # @id: the chardev's ID
 #
@@ -46,20 +46,18 @@
 ##
 # @YankInstance:
 #
-# A yank instance can be yanked with the @yank qmp command to recover from a
-# hanging QEMU.
+# A yank instance can be yanked with the @yank qmp command to recover
+# from a hanging QEMU.
 #
 # Currently implemented yank instances:
-#  - nbd block device:
-#    Yanking it will shut down the connection to the nbd server without
-#    attempting to reconnect.
-#  - socket chardev:
-#    Yanking it will shut down the connected socket.
-#  - migration:
-#    Yanking it will shut down all migration connections. Unlike
-#    @migrate_cancel, it will not notify the migration process, so migration
-#    will go into @failed state, instead of @cancelled state. @yank should be
-#    used to recover from hangs.
+#
+# - nbd block device: Yanking it will shut down the connection to the
+#   nbd server without attempting to reconnect.
+# - socket chardev: Yanking it will shut down the connected socket.
+# - migration: Yanking it will shut down all migration connections.
+#   Unlike @migrate_cancel, it will not notify the migration process,
+#   so migration will go into @failed state, instead of @cancelled
+#   state.  @yank should be used to recover from hangs.
 #
 # Since: 6.0
 ##
@@ -73,13 +71,14 @@
 ##
 # @yank:
 #
-# Try to recover from hanging QEMU by yanking the specified instances. See
-# @YankInstance for more information.
+# Try to recover from hanging QEMU by yanking the specified instances.
+# See @YankInstance for more information.
 #
 # Takes a list of @YankInstance as argument.
 #
-# Returns: - Nothing on success
-#          - @DeviceNotFound error, if any of the YankInstances doesn't exist
+# Returns:
+# - Nothing on success
+# - @DeviceNotFound error, if any of the YankInstances doesn't exist
 #
 # Example:
 #
@@ -100,7 +99,7 @@
 ##
 # @query-yank:
 #
-# Query yank instances. See @YankInstance for more information.
+# Query yank instances.  See @YankInstance for more information.
 #
 # Returns: list of @YankInstance
 #

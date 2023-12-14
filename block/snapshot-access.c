@@ -26,7 +26,7 @@
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_preadv_part(BlockDriverState *bs,
                                int64_t offset, int64_t bytes,
                                QEMUIOVector *qiov, size_t qiov_offset,
@@ -39,7 +39,7 @@ snapshot_access_co_preadv_part(BlockDriverState *bs,
     return bdrv_co_preadv_snapshot(bs->file, offset, bytes, qiov, qiov_offset);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_block_status(BlockDriverState *bs,
                                 bool want_zero, int64_t offset,
                                 int64_t bytes, int64_t *pnum,
@@ -49,8 +49,8 @@ snapshot_access_co_block_status(BlockDriverState *bs,
                                          bytes, pnum, map, file);
 }
 
-static int coroutine_fn snapshot_access_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+snapshot_access_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard_snapshot(bs->file->bs, offset, bytes);
 }
@@ -73,7 +73,7 @@ snapshot_access_co_pwritev_part(BlockDriverState *bs,
 }
 
 
-static void snapshot_access_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK snapshot_access_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->file->bs->filename);
@@ -82,9 +82,12 @@ static void snapshot_access_refresh_filename(BlockDriverState *bs)
 static int snapshot_access_open(BlockDriverState *bs, QDict *options, int flags,
                                 Error **errp)
 {
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
-                               false, errp);
+    bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                    BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
+                    false, errp);
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!bs->file) {
         return -EINVAL;
     }
@@ -108,7 +111,7 @@ static void snapshot_access_child_perm(BlockDriverState *bs, BdrvChild *c,
     *nshared = BLK_PERM_ALL;
 }
 
-BlockDriver bdrv_snapshot_access_drv = {
+static BlockDriver bdrv_snapshot_access_drv = {
     .format_name = "snapshot-access",
 
     .bdrv_open                  = snapshot_access_open,

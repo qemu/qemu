@@ -11,6 +11,7 @@
 #include "libqtest.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
+#include "migration-helpers.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qjson.h"
@@ -588,6 +589,7 @@ static void test_hotplug_2_reverse(void)
     machine_stop(qts);
 }
 
+#ifndef _WIN32
 static QDict *migrate_status(QTestState *qts)
 {
     QDict *resp, *ret;
@@ -735,26 +737,10 @@ static void test_migrate_out(gconstpointer opaque)
     machine_stop(qts);
 }
 
-static QDict *get_migration_event(QTestState *qts)
-{
-    QDict *resp;
-    QDict *data;
-
-    resp = qtest_qmp_eventwait_ref(qts, "MIGRATION");
-    g_assert(qdict_haskey(resp, "data"));
-
-    data = qdict_get_qdict(resp, "data");
-    g_assert(qdict_haskey(data, "status"));
-    qobject_ref(data);
-    qobject_unref(resp);
-
-    return data;
-}
-
 static void test_migrate_in(gconstpointer opaque)
 {
     QTestState *qts;
-    QDict *resp, *args, *ret;
+    QDict *resp, *ret;
     g_autofree gchar *uri = g_strdup_printf("exec: cat %s", (gchar *)opaque);
 
     qts = machine_start(BASE_MACHINE
@@ -786,18 +772,7 @@ static void test_migrate_in(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, false, "primary0", MAC_PRIMARY0);
 
-    args = qdict_from_jsonf_nofail("{}");
-    g_assert_nonnull(args);
-    qdict_put_str(args, "uri", uri);
-
-    resp = qtest_qmp(qts, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
-                     args);
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-
-    resp = get_migration_event(qts);
-    g_assert_cmpstr(qdict_get_str(resp, "status"), ==, "setup");
-    qobject_unref(resp);
+    migrate_incoming_qmp(qts, uri, "{}");
 
     resp = get_failover_negociated_event(qts);
     g_assert_cmpstr(qdict_get_str(resp, "device-id"), ==, "standby0");
@@ -887,7 +862,7 @@ static void test_off_migrate_out(gconstpointer opaque)
 static void test_off_migrate_in(gconstpointer opaque)
 {
     QTestState *qts;
-    QDict *resp, *args, *ret;
+    QDict *ret;
     g_autofree gchar *uri = g_strdup_printf("exec: cat %s", (gchar *)opaque);
 
     qts = machine_start(BASE_MACHINE
@@ -919,18 +894,7 @@ static void test_off_migrate_in(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, true, "primary0", MAC_PRIMARY0);
 
-    args = qdict_from_jsonf_nofail("{}");
-    g_assert_nonnull(args);
-    qdict_put_str(args, "uri", uri);
-
-    resp = qtest_qmp(qts, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
-                     args);
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-
-    resp = get_migration_event(qts);
-    g_assert_cmpstr(qdict_get_str(resp, "status"), ==, "setup");
-    qobject_unref(resp);
+    migrate_incoming_qmp(qts, uri, "{}");
 
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, true, "primary0", MAC_PRIMARY0);
@@ -1025,7 +989,7 @@ static void test_guest_off_migrate_out(gconstpointer opaque)
 static void test_guest_off_migrate_in(gconstpointer opaque)
 {
     QTestState *qts;
-    QDict *resp, *args, *ret;
+    QDict *ret;
     g_autofree gchar *uri = g_strdup_printf("exec: cat %s", (gchar *)opaque);
 
     qts = machine_start(BASE_MACHINE
@@ -1057,18 +1021,7 @@ static void test_guest_off_migrate_in(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, false, "primary0", MAC_PRIMARY0);
 
-    args = qdict_from_jsonf_nofail("{}");
-    g_assert_nonnull(args);
-    qdict_put_str(args, "uri", uri);
-
-    resp = qtest_qmp(qts, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
-                     args);
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-
-    resp = get_migration_event(qts);
-    g_assert_cmpstr(qdict_get_str(resp, "status"), ==, "setup");
-    qobject_unref(resp);
+    migrate_incoming_qmp(qts, uri, "{}");
 
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, false, "primary0", MAC_PRIMARY0);
@@ -1727,7 +1680,7 @@ static void test_multi_out(gconstpointer opaque)
 static void test_multi_in(gconstpointer opaque)
 {
     QTestState *qts;
-    QDict *resp, *args, *ret;
+    QDict *resp, *ret;
     g_autofree gchar *uri = g_strdup_printf("exec: cat %s", (gchar *)opaque);
 
     qts = machine_start(BASE_MACHINE
@@ -1793,18 +1746,7 @@ static void test_multi_in(gconstpointer opaque)
     check_one_card(qts, true, "standby1", MAC_STANDBY1);
     check_one_card(qts, false, "primary1", MAC_PRIMARY1);
 
-    args = qdict_from_jsonf_nofail("{}");
-    g_assert_nonnull(args);
-    qdict_put_str(args, "uri", uri);
-
-    resp = qtest_qmp(qts, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
-                     args);
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-
-    resp = get_migration_event(qts);
-    g_assert_cmpstr(qdict_get_str(resp, "status"), ==, "setup");
-    qobject_unref(resp);
+    migrate_incoming_qmp(qts, uri, "{}");
 
     resp = get_failover_negociated_event(qts);
     g_assert_cmpstr(qdict_get_str(resp, "device-id"), ==, "standby0");
@@ -1827,6 +1769,7 @@ static void test_multi_in(gconstpointer opaque)
 
     machine_stop(qts);
 }
+#endif /* _WIN32 */
 
 int main(int argc, char **argv)
 {
@@ -1857,7 +1800,11 @@ int main(int argc, char **argv)
     qtest_add_func("failover-virtio-net/hotplug/2_reverse",
                    test_hotplug_2_reverse);
 
-    /* migration tests */
+#ifndef _WIN32
+    /*
+     * These migration tests cases use the exec migration protocol,
+     * which is unsupported on Windows.
+     */
     qtest_add_data_func("failover-virtio-net/migrate/on/out", tmpfile,
                         test_migrate_out);
     qtest_add_data_func("failover-virtio-net/migrate/on/in", tmpfile,
@@ -1886,6 +1833,7 @@ int main(int argc, char **argv)
                         tmpfile, test_multi_out);
     qtest_add_data_func("failover-virtio-net/migrate/multi/in",
                    tmpfile, test_multi_in);
+#endif /* _WIN32 */
 
     ret = g_test_run();
 

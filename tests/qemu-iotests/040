@@ -61,16 +61,14 @@ class ImageCommitTestCase(iotests.QMPTestCase):
     def run_commit_test(self, top, base, need_ready=False, node_names=False):
         self.assert_no_active_block_jobs()
         if node_names:
-            result = self.vm.qmp('block-commit', device='drive0', top_node=top, base_node=base)
+            self.vm.cmd('block-commit', device='drive0', top_node=top, base_node=base)
         else:
-            result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
-        self.assert_qmp(result, 'return', {})
+            self.vm.cmd('block-commit', device='drive0', top=top, base=base)
         self.wait_for_complete(need_ready)
 
     def run_default_commit_test(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0')
         self.wait_for_complete()
 
 class TestSingleDrive(ImageCommitTestCase):
@@ -117,38 +115,30 @@ class TestSingleDrive(ImageCommitTestCase):
 
     @iotests.skip_if_unsupported(['throttle'])
     def test_commit_with_filter_and_quit(self):
-        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', qom_type='throttle-group', id='tg')
 
         # Add a filter outside of the backing chain
-        result = self.vm.qmp('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
 
-        result = self.vm.qmp('block-commit', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0')
 
         # Quit immediately, thus forcing a simultaneous cancel of the
         # block job and a bdrv_drain_all()
-        result = self.vm.qmp('quit')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('quit')
 
     # Same as above, but this time we add the filter after starting the job
     @iotests.skip_if_unsupported(['throttle'])
     def test_commit_plus_filter_and_quit(self):
-        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', qom_type='throttle-group', id='tg')
 
-        result = self.vm.qmp('block-commit', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0')
 
         # Add a filter outside of the backing chain
-        result = self.vm.qmp('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
 
         # Quit immediately, thus forcing a simultaneous cancel of the
         # block job and a bdrv_drain_all()
-        result = self.vm.qmp('quit')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('quit')
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-commit', device='nonexistent', top='%s' % mid_img)
@@ -225,8 +215,7 @@ class TestSingleDrive(ImageCommitTestCase):
     def test_top_node_in_wrong_chain(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('blockdev-add', driver='null-co', node_name='null')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', driver='null-co', node_name='null')
 
         result = self.vm.qmp('block-commit', device='drive0', top_node='null', base_node='base')
         self.assert_qmp(result, 'error/class', 'GenericError')
@@ -239,11 +228,9 @@ class TestSingleDrive(ImageCommitTestCase):
             return
 
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
-                             base=backing_img, speed=(self.image_len // 4))
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('device_del', id='scsi0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0', top=mid_img,
+                    base=backing_img, speed=(self.image_len // 4))
+        self.vm.cmd('device_del', id='scsi0')
 
         cancelled = False
         deleted = False
@@ -269,9 +256,8 @@ class TestSingleDrive(ImageCommitTestCase):
             return
 
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
-                             base=backing_img, speed=(self.image_len // 4))
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0', top=mid_img,
+                    base=backing_img, speed=(self.image_len // 4))
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
@@ -406,8 +392,7 @@ class TestSetSpeed(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
 
         self.vm.pause_drive('drive0')
-        result = self.vm.qmp('block-commit', device='drive0', top=mid_img, speed=1024 * 1024)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', device='drive0', top=mid_img, speed=1024 * 1024)
 
         # Ensure the speed we set was accepted
         result = self.vm.qmp('query-block-jobs')
@@ -480,8 +465,7 @@ class TestErrorHandling(iotests.QMPTestCase):
         os.remove(backing_img)
 
     def blockdev_add(self, **kwargs):
-        result = self.vm.qmp('blockdev-add', **kwargs)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', **kwargs)
 
     def add_block_nodes(self, base_debug=None, mid_debug=None, top_debug=None):
         self.blockdev_add(node_name='base-file', driver='file',
@@ -527,11 +511,9 @@ class TestErrorHandling(iotests.QMPTestCase):
                 completed = True
             elif ev['event'] == 'BLOCK_JOB_ERROR':
                 if error_pauses_job:
-                    result = self.vm.qmp('block-job-resume', device='job0')
-                    self.assert_qmp(result, 'return', {})
+                    self.vm.cmd('block-job-resume', device='job0')
             elif ev['event'] == 'BLOCK_JOB_READY':
-                result = self.vm.qmp('block-job-complete', device='job0')
-                self.assert_qmp(result, 'return', {})
+                self.vm.cmd('block-job-complete', device='job0')
             else:
                 self.fail("Unexpected event: %s" % ev)
             log.append(iotests.filter_qmp_event(ev))
@@ -594,11 +576,10 @@ class TestErrorHandling(iotests.QMPTestCase):
         self.add_block_nodes(top_debug=top_debug, mid_debug=mid_debug,
                              base_debug=base_debug)
 
-        result = self.vm.qmp('block-commit', job_id='job0', device='top-fmt',
-                             top_node='top-fmt' if active else 'mid-fmt',
-                             base_node='mid-fmt' if active else 'base-fmt',
-                             on_error=on_error)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit', job_id='job0', device='top-fmt',
+                    top_node='top-fmt' if active else 'mid-fmt',
+                    base_node='mid-fmt' if active else 'base-fmt',
+                    on_error=on_error)
 
     def testActiveReadErrorReport(self):
         self.prepare_and_start_job('report', top_event='read_aio')
@@ -770,10 +751,9 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
         self.vm.launch()
 
-        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('object-add', qom_type='throttle-group', id='tg')
 
-        result = self.vm.qmp('blockdev-add', **{
+        self.vm.cmd('blockdev-add', {
                 'node-name': 'top-filter',
                 'driver': 'throttle',
                 'throttle-group': 'tg',
@@ -815,7 +795,6 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                     }
                 }
             })
-        self.assert_qmp(result, 'return', {})
 
     def tearDown(self):
         self.vm.shutdown()
@@ -832,30 +811,28 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         return self.vm.node_info(node)['image']['filename']
 
     def test_filterless_commit(self):
-        result = self.vm.qmp('block-commit',
-                             job_id='commit',
-                             device='top-filter',
-                             top_node='cow-2',
-                             base_node='cow-1',
-                             backing_file=self.img1)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit',
+                    job_id='commit',
+                    device='top-filter',
+                    top_node='cow-2',
+                    base_node='cow-1',
+                    backing_file=self.img1)
         self.wait_until_completed(drive='commit')
 
         self.assertIsNotNone(self.vm.node_info('cow-3'))
         self.assertIsNone(self.vm.node_info('cow-2'))
         self.assertIsNotNone(self.vm.node_info('cow-1'))
 
-        # 2 has been comitted into 1
+        # 2 has been committed into 1
         self.pattern_files[2] = self.img1
 
     def test_commit_through_filter(self):
-        result = self.vm.qmp('block-commit',
-                             job_id='commit',
-                             device='top-filter',
-                             top_node='cow-1',
-                             base_node='cow-0',
-                             backing_file=self.img0)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit',
+                    job_id='commit',
+                    device='top-filter',
+                    top_node='cow-1',
+                    base_node='cow-0',
+                    backing_file=self.img0)
         self.wait_until_completed(drive='commit')
 
         self.assertIsNotNone(self.vm.node_info('cow-2'))
@@ -863,16 +840,15 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         self.assertIsNone(self.vm.node_info('bottom-filter'))
         self.assertIsNotNone(self.vm.node_info('cow-0'))
 
-        # 1 has been comitted into 0
+        # 1 has been committed into 0
         self.pattern_files[1] = self.img0
 
     def test_filtered_active_commit_with_filter(self):
         # Add a device, so the commit job finds a parent it can change
         # to point to the base node (so we can test that top-filter is
         # dropped from the graph)
-        result = self.vm.qmp('device_add', id='drv0', driver='scsi-hd',
-                             bus='vio-scsi.0', drive='top-filter')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('device_add', id='drv0', driver='scsi-hd',
+                    bus='vio-scsi.0', drive='top-filter')
 
         # Try to release our reference to top-filter; that should not
         # work because drv0 uses it
@@ -880,16 +856,14 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', 'Node top-filter is in use')
 
-        result = self.vm.qmp('block-commit',
-                             job_id='commit',
-                             device='top-filter',
-                             base_node='cow-2')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit',
+                    job_id='commit',
+                    device='top-filter',
+                    base_node='cow-2')
         self.complete_and_wait(drive='commit')
 
         # Try to release our reference to top-filter again
-        result = self.vm.qmp('blockdev-del', node_name='top-filter')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='top-filter')
 
         self.assertIsNone(self.vm.node_info('top-filter'))
         self.assertIsNone(self.vm.node_info('cow-3'))
@@ -900,23 +874,22 @@ class TestCommitWithFilters(iotests.QMPTestCase):
         drv0 = next(dev for dev in blockdevs if dev['qdev'] == 'drv0')
         self.assertEqual(drv0['inserted']['node-name'], 'cow-2')
 
-        # 3 has been comitted into 2
+        # 3 has been committed into 2
         self.pattern_files[3] = self.img2
 
     def test_filtered_active_commit_without_filter(self):
-        result = self.vm.qmp('block-commit',
-                             job_id='commit',
-                             device='top-filter',
-                             top_node='cow-3',
-                             base_node='cow-2')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit',
+                    job_id='commit',
+                    device='top-filter',
+                    top_node='cow-3',
+                    base_node='cow-2')
         self.complete_and_wait(drive='commit')
 
         self.assertIsNotNone(self.vm.node_info('top-filter'))
         self.assertIsNone(self.vm.node_info('cow-3'))
         self.assertIsNotNone(self.vm.node_info('cow-2'))
 
-        # 3 has been comitted into 2
+        # 3 has been committed into 2
         self.pattern_files[3] = self.img2
 
 class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
@@ -934,23 +907,22 @@ class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
         self.vm.launch()
 
         # Use base_b instead of base_a as the backing of top
-        result = self.vm.qmp('blockdev-add', **{
-                                'node-name': 'top',
-                                'driver': iotests.imgfmt,
-                                'file': {
-                                    'driver': 'file',
-                                    'filename': self.img_top
-                                },
-                                'backing': {
-                                    'node-name': 'base',
-                                    'driver': iotests.imgfmt,
-                                    'file': {
-                                        'driver': 'file',
-                                        'filename': self.img_base_b
-                                    }
-                                }
-                            })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', {
+                        'node-name': 'top',
+                        'driver': iotests.imgfmt,
+                        'file': {
+                            'driver': 'file',
+                            'filename': self.img_top
+                        },
+                        'backing': {
+                            'node-name': 'base',
+                            'driver': iotests.imgfmt,
+                            'file': {
+                                'driver': 'file',
+                                'filename': self.img_base_b
+                            }
+                        }
+                    })
 
     def tearDown(self):
         self.vm.shutdown()
@@ -970,11 +942,10 @@ class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
     def test_commit_to_b(self):
         # Try committing to base_b (which should work, since that is
         # actually top's backing image)
-        result = self.vm.qmp('block-commit',
-                             job_id='commit',
-                             device='top',
-                             base=self.img_base_b)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-commit',
+                    job_id='commit',
+                    device='top',
+                    base=self.img_base_b)
 
         self.vm.event_wait('BLOCK_JOB_READY')
         self.vm.qmp('block-job-complete', device='commit')

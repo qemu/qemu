@@ -26,6 +26,20 @@
         The list of consoles available on ``/org/qemu/Display1/Console_$id``.
     -->
     <property name="ConsoleIDs" type="au" access="read"/>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/VM object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
@@ -39,8 +53,9 @@
       "Text" (see :dbus:prop:`Type` and other properties).
 
       Interactions with a console may be done with
-      :dbus:iface:`org.qemu.Display1.Keyboard` and
-      :dbus:iface:`org.qemu.Display1.Mouse` interfaces when available.
+      :dbus:iface:`org.qemu.Display1.Keyboard`,
+      :dbus:iface:`org.qemu.Display1.Mouse` and
+      :dbus:iface:`org.qemu.Display1.MultiTouch` interfaces when available.
   -->
   <interface name="org.qemu.Display1.Console">
     <!--
@@ -56,7 +71,13 @@
         :dbus:iface:`org.qemu.Display1.Listener` interface.
     -->
     <method name="RegisterListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
@@ -120,12 +141,27 @@
         The device address (ex: "pci/0000/02.0").
     -->
     <property name="DeviceAddress" type="s" access="read"/>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        ``/org/qemu/Display1/Console_$id`` object, and can be used to detect the
+        capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
       org.qemu.Display1.Keyboard:
 
-      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      This interface is optionally implemented on
+      ``/org/qemu/Display1/Console_$id`` (see
       :dbus:iface:`~org.qemu.Display1.Console`).
   -->
   <interface name="org.qemu.Display1.Keyboard">
@@ -164,7 +200,8 @@
   <!--
       org.qemu.Display1.Mouse:
 
-      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      This interface is optionally implemented on
+      ``/org/qemu/Display1/Console_$id`` (see
       :dbus:iface:`~org.qemu.Display1.Console` documentation).
 
       .. _dbus-button-values:
@@ -237,6 +274,46 @@
   </interface>
 
   <!--
+      org.qemu.Display1.MultiTouch:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console` documentation).
+
+      .. _dbus-kind-values:
+
+      **Kind values**::
+
+        Begin       = 0
+        Update      = 1
+        End         = 2
+        Cancel      = 3
+  -->
+  <interface name="org.qemu.Display1.MultiTouch">
+    <!--
+        SendEvent:
+        @kind: The touch event kind
+        @num_slot: The slot number.
+        @x: The x coordinates.
+        @y: The y coordinates.
+
+        Send a touch gesture event.
+    -->
+    <method name="SendEvent">
+      <arg type="u" name="kind" direction="in"/>
+      <arg type="t" name="num_slot" direction="in"/>
+      <arg type="d" name="x" direction="in"/>
+      <arg type="d" name="y" direction="in"/>
+    </method>
+
+    <!--
+        MaxSlots:
+
+        The maximum number of slots.
+    -->
+    <property name="MaxSlots" type="i" access="read"/>
+  </interface>
+
+  <!--
       org.qemu.Display1.Listener:
 
       This client-side interface must be available on
@@ -293,6 +370,7 @@
       </arg>
     </method>
 
+    <?if $(env.TARGETOS) != windows?>
     <!--
         ScanoutDMABUF:
         @dmabuf: the DMABUF file descriptor.
@@ -331,6 +409,7 @@
       <arg type="i" name="width" direction="in"/>
       <arg type="i" name="height" direction="in"/>
     </method>
+    <?endif?>
 
     <!--
         Disable:
@@ -373,6 +452,116 @@
       <arg type="ay" name="data" direction="in">
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
+    </method>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/Listener object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener.Win32.Map:
+
+      This optional client-side interface can complement
+      org.qemu.Display1.Listener on ``/org/qemu/Display1/Listener`` for Windows
+      specific shared memory scanouts.
+  -->
+  <interface name="org.qemu.Display1.Listener.Win32.Map">
+    <!--
+        ScanoutMap:
+        @handle: the shared map handle value.
+        @offset: mapping offset.
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+
+        Resize and update the display content with a shared map.
+    -->
+    <method name="ScanoutMap">
+      <arg type="t" name="handle" direction="in"/>
+      <arg type="u" name="offset" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+    </method>
+
+    <!--
+        UpdateMap:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current shared map and the given region.
+    -->
+    <method name="UpdateMap">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener.Win32.D3d11:
+
+      This optional client-side interface can complement
+      org.qemu.Display1.Listener on ``/org/qemu/Display1/Listener`` for Windows
+      specific Direct3D texture sharing of the scanouts.
+  -->
+  <interface name="org.qemu.Display1.Listener.Win32.D3d11">
+    <!--
+        ScanoutTexture2d:
+        @handle: the NT handle for the shared texture (to be opened back with ID3D11Device1::OpenSharedResource1).
+        @texture_width: texture width, in pixels.
+        @texture_height: texture height, in pixels.
+        @y0_top: whether Y position 0 is the top or not.
+        @x: the X scanout position, in pixels.
+        @y: the Y scanout position, in pixels.
+        @width: the scanout width, in pixels.
+        @height: the scanout height, in pixels.
+
+        Resize and update the display content with a Direct3D 11 2D texture.
+        You must acquire and release the associated KeyedMutex 0 during rendering.
+    -->
+    <method name="ScanoutTexture2d">
+      <arg type="t" name="handle" direction="in"/>
+      <arg type="u" name="texture_width" direction="in"/>
+      <arg type="u" name="texture_height" direction="in"/>
+      <arg type="b" name="y0_top" direction="in"/>
+      <arg type="u" name="x" direction="in"/>
+      <arg type="u" name="y" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+    </method>
+
+    <!--
+        UpdateTexture2d:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current Direct3D 2D texture and the given region.
+        You must acquire and release the associated KeyedMutex 0 during rendering.
+    -->
+    <method name="UpdateTexture2d">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
     </method>
   </interface>
 
@@ -471,6 +660,20 @@
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
     </method>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/Clipboard object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
@@ -491,7 +694,13 @@
         :dbus:iface:`org.qemu.Display1.AudioOutListener` interface.
     -->
     <method name="RegisterOutListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
@@ -506,8 +715,28 @@
         :dbus:iface:`org.qemu.Display1.AudioInListener` interface.
     -->
     <method name="RegisterInListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/Audio object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
@@ -594,6 +823,20 @@
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
     </method>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/AudioOutListener object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
@@ -682,6 +925,20 @@
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
     </method>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        /org/qemu/Display1/AudioInListener object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 
   <!--
@@ -719,7 +976,13 @@
         The current handler, if any, will be replaced.
     -->
     <method name="Register">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="stream" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
@@ -757,5 +1020,19 @@
         The D-Bus unique name of the registered handler.
     -->
     <property name="Owner" type="s" access="read"/>
+
+    <!--
+        Interfaces:
+
+        This property lists extra interfaces provided by the
+        ``/org/qemu/Display1/Chardev_$i`` object, and can be used to detect
+        the capabilities with which they are communicating.
+
+        Unlike the standard D-Bus Introspectable interface, querying this
+        property does not require parsing XML.
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="Interfaces" type="as" access="read"/>
   </interface>
 </node>

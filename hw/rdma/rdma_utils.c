@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/pci/pci_device.h"
 #include "trace.h"
 #include "rdma_utils.h"
 

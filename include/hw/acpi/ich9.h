@@ -27,7 +27,7 @@
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/acpi_dev_interface.h"
-#include "hw/acpi/tco.h"
+#include "hw/acpi/ich9_tco.h"
 
 #define ACPI_PCIHP_ADDR_ICH9 0x0cc0
 
@@ -64,7 +64,7 @@ typedef struct ICH9LPCPMRegs {
     uint8_t disable_s3;
     uint8_t disable_s4;
     uint8_t s4_val;
-    uint8_t smm_enabled;
+    bool smm_enabled;
     bool smm_compat;
     bool enable_tco;
     TCOIORegs tco_regs;
@@ -72,9 +72,7 @@ typedef struct ICH9LPCPMRegs {
 
 #define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
-void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
-                  bool smm_enabled,
-                  qemu_irq sci_irq);
+void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq);
 
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base);
 extern const VMStateDescription vmstate_ich9_pm;
@@ -89,6 +87,7 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp);
 void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp);
+bool ich9_pm_is_hotpluggable_bus(HotplugHandler *hotplug_dev, BusState *bus);
 
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
 #endif /* HW_ACPI_ICH9_H */

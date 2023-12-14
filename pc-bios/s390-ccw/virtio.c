@@ -48,10 +48,10 @@ VirtioDevType virtio_get_device_type(void)
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
                           unsigned long param2, unsigned long param3)
 {
-    register ulong r_nr asm("1") = nr;
-    register ulong r_param1 asm("2") = param1;
-    register ulong r_param2 asm("3") = param2;
-    register ulong r_param3 asm("4") = param3;
+    register unsigned long r_nr asm("1") = nr;
+    register unsigned long r_param1 asm("2") = param1;
+    register unsigned long r_param2 asm("3") = param2;
+    register unsigned long r_param3 asm("4") = param3;
     register long retval asm("2");
 
     asm volatile ("diag %%r2,%%r4,0x500"
@@ -145,7 +145,7 @@ void vring_send_buf(VRing *vr, void *p, int len, int flags)
         vr->avail->ring[vr->avail->idx % vr->num] = vr->next_idx;
     }
 
-    vr->desc[vr->next_idx].addr = (ulong)p;
+    vr->desc[vr->next_idx].addr = (unsigned long)p;
     vr->desc[vr->next_idx].len = len;
     vr->desc[vr->next_idx].flags = flags & ~VRING_HIDDEN_IS_CHAIN;
     vr->desc[vr->next_idx].next = vr->next_idx;
@@ -182,7 +182,7 @@ int vr_poll(VRing *vr)
  */
 int vring_wait_reply(void)
 {
-    ulong target_second = get_time_seconds() + vdev.wait_reply_timeout;
+    unsigned long target_second = get_time_seconds() + vdev.wait_reply_timeout;
 
     /* Wait for any queue to be updated by the host */
     do {

@@ -13,6 +13,8 @@
 #ifndef QEMU_DIRTYRATE_H
 #define QEMU_DIRTYRATE_H
 
+#include "qapi/qapi-types-migration.h"
+
 typedef struct VcpuStat {
     int nvcpu; /* number of vcpu */
     DirtyRateVcpu *rates; /* array of dirty rate for each vcpu */

@@ -37,7 +37,7 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(NextKBDState, NEXTKBD)
 
-/* following defintions from next68k netbsd */
+/* following definitions from next68k netbsd */
 #define CSR_INT 0x00800000
 #define CSR_DATA 0x00400000
 

@@ -12,7 +12,6 @@
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
 #include "hw/ppc/spapr_tpm_proxy.h"
-#include "hw/ppc/vof.h"
 
 struct SpaprVioBus;
 struct SpaprPhbState;
@@ -21,6 +20,8 @@ struct SpaprNvram;
 typedef struct SpaprEventLogEntry SpaprEventLogEntry;
 typedef struct SpaprEventSource SpaprEventSource;
 typedef struct SpaprPendingHpt SpaprPendingHpt;
+
+typedef struct Vof Vof;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
@@ -77,8 +78,10 @@ typedef enum {
 #define SPAPR_CAP_FWNMI                 0x0A
 /* Support H_RPT_INVALIDATE */
 #define SPAPR_CAP_RPT_INVALIDATE        0x0B
+/* Support for AIL modes */
+#define SPAPR_CAP_AIL_MODE_3            0x0C
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_RPT_INVALIDATE + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_AIL_MODE_3 + 1)
 
 /*
  * Capability Values
@@ -100,11 +103,8 @@ typedef enum {
 
 #define FDT_MAX_SIZE                    0x200000
 
-/* Max number of GPUs per system */
-#define NVGPU_MAX_NUM              6
-
 /* Max number of NUMA nodes */
-#define NUMA_NODES_MAX_NUM         (MAX_NODES + NVGPU_MAX_NUM)
+#define NUMA_NODES_MAX_NUM         (MAX_NODES)
 
 /*
  * NUMA FORM1 macros. FORM1_DIST_REF_POINTS was taken from
@@ -157,8 +157,7 @@ struct SpaprMachineClass {
     bool (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio,
                           hwaddr *mmio32, hwaddr *mmio64,
-                          unsigned n_dma, uint32_t *liobns, hwaddr *nv2gpa,
-                          hwaddr *nv2atsd, Error **errp);
+                          unsigned n_dma, uint32_t *liobns, Error **errp);
     SpaprResizeHpt resize_hpt_default;
     SpaprCapabilities default_caps;
     SpaprIrq *irq;
@@ -194,13 +193,14 @@ struct SpaprMachineState {
     SpaprResizeHpt resize_hpt;
     void *htab;
     uint32_t htab_shift;
-    uint64_t patb_entry; /* Process tbl registed in H_REGISTER_PROC_TBL */
+    uint64_t patb_entry; /* Process tbl registered in H_REGISTER_PROC_TBL */
     SpaprPendingHpt *pending_hpt; /* in-progress resize */
 
     hwaddr rma_size;
     uint32_t fdt_size;
     uint32_t fdt_initial_size;
     void *fdt_blob;
+    uint8_t fdt_rng_seed[32];
     long kernel_size;
     bool kernel_le;
     uint64_t kernel_addr;
@@ -272,7 +272,6 @@ struct SpaprMachineState {
     bool cmd_line_caps[SPAPR_CAP_NUM];
     SpaprCapabilities def, eff, mig;
 
-    unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
     uint32_t FORM1_assoc_array[NUMA_NODES_MAX_NUM][FORM1_NUMA_ASSOC_SIZE];
@@ -618,66 +617,6 @@ struct SpaprMachineState {
 #define SVM_H_TPM_COMM              0xEF10
 #define SVM_HCALL_MAX               SVM_H_TPM_COMM
 
-/*
- * Register state for entering a nested guest with H_ENTER_NESTED.
- * New member must be added at the end.
- */
-struct kvmppc_hv_guest_state {
-    uint64_t version;      /* version of this structure layout, must be first */
-    uint32_t lpid;
-    uint32_t vcpu_token;
-    /* These registers are hypervisor privileged (at least for writing) */
-    uint64_t lpcr;
-    uint64_t pcr;
-    uint64_t amor;
-    uint64_t dpdes;
-    uint64_t hfscr;
-    int64_t tb_offset;
-    uint64_t dawr0;
-    uint64_t dawrx0;
-    uint64_t ciabr;
-    uint64_t hdec_expiry;
-    uint64_t purr;
-    uint64_t spurr;
-    uint64_t ic;
-    uint64_t vtb;
-    uint64_t hdar;
-    uint64_t hdsisr;
-    uint64_t heir;
-    uint64_t asdr;
-    /* These are OS privileged but need to be set late in guest entry */
-    uint64_t srr0;
-    uint64_t srr1;
-    uint64_t sprg[4];
-    uint64_t pidr;
-    uint64_t cfar;
-    uint64_t ppr;
-    /* Version 1 ends here */
-    uint64_t dawr1;
-    uint64_t dawrx1;
-    /* Version 2 ends here */
-};
-
-/* Latest version of hv_guest_state structure */
-#define HV_GUEST_STATE_VERSION  2
-
-/* Linux 64-bit powerpc pt_regs struct, used by nested HV */
-struct kvmppc_pt_regs {
-    uint64_t gpr[32];
-    uint64_t nip;
-    uint64_t msr;
-    uint64_t orig_gpr3;    /* Used for restarting system calls */
-    uint64_t ctr;
-    uint64_t link;
-    uint64_t xer;
-    uint64_t ccr;
-    uint64_t softe;        /* Soft enabled/disabled */
-    uint64_t trap;         /* Reason for being here */
-    uint64_t dar;          /* Fault registers */
-    uint64_t dsisr;        /* on 4xx/Book-E used for ESR */
-    uint64_t result;       /* Result of a system call */
-};
-
 typedef struct SpaprDeviceTreeUpdateHeader {
     uint32_t version_id;
 } SpaprDeviceTreeUpdateHeader;
@@ -694,8 +633,6 @@ typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, SpaprMachineState *sm,
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args);
-
-void spapr_exit_nested(PowerPCCPU *cpu, int excp);
 
 target_ulong softmmu_resize_hpt_prepare(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                          target_ulong shift);
@@ -848,7 +785,8 @@ static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
-    return ldl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n));
+    return ldl_be_phys(&address_space_memory,
+                       ppc64_phys_to_real(phys + 4 * n));
 }
 
 static inline uint64_t rtas_ldq(target_ulong phys, int n)
@@ -858,7 +796,7 @@ static inline uint64_t rtas_ldq(target_ulong phys, int n)
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
-    stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n), val);
+    stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4 * n), val);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, SpaprMachineState *sm,
@@ -1070,6 +1008,7 @@ bool spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
 #define SPAPR_OV5_XIVE_BOTH     0x80 /* Only to advertise on the platform */
 
 void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
+void spapr_init_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
 bool spapr_memory_hot_unplug_supported(SpaprMachineState *spapr);
 

@@ -28,7 +28,7 @@ static void *es1370_get_driver(void *obj, const char *interface)
         return &es1370->dev;
     }
 
-    fprintf(stderr, "%s not present in e1000e\n", interface);
+    fprintf(stderr, "%s not present in es1370\n", interface);
     g_assert_not_reached();
 }
 
@@ -46,7 +46,8 @@ static void *es1370_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
 static void es1370_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
-        .extra_device_opts = "addr=04.0",
+        .extra_device_opts = "addr=04.0,audiodev=audio0",
+        .before_cmd_line = "-audiodev driver=none,id=audio0",
     };
     add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
 

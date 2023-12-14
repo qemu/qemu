@@ -28,9 +28,11 @@
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qemu/range.h"
 #include "sysemu/dma.h"
 #include "hw/isa/vt82c686.h"
 #include "hw/ide/pci.h"
+#include "hw/irq.h"
 #include "trace.h"
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
@@ -74,7 +76,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
         bmdma_cmd_writeb(bm, val);
         break;
     case 2:
-        bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+        bmdma_status_writeb(bm, val);
         break;
     default:;
     }
@@ -90,7 +92,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
     int i;
 
     memory_region_init(&d->bmdma_bar, OBJECT(d), "via-bmdma-container", 16);
-    for(i = 0;i < 2; i++) {
+    for (i = 0; i < ARRAY_SIZE(d->bmdma); i++) {
         BMDMAState *bm = &d->bmdma[i];
 
         memory_region_init_io(&bm->extra_io, OBJECT(d), &via_bmdma_ops, bm,
@@ -104,7 +106,8 @@ static void bmdma_setup_bar(PCIIDEState *d)
 
 static void via_ide_set_irq(void *opaque, int n, int level)
 {
-    PCIDevice *d = PCI_DEVICE(opaque);
+    PCIIDEState *s = opaque;
+    PCIDevice *d = PCI_DEVICE(s);
 
     if (level) {
         d->config[0x70 + n * 8] |= 0x80;
@@ -112,7 +115,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    via_isa_set_irq(pci_get_function_0(d), 14 + n, level);
+    qemu_set_irq(s->isa_irq[n], level);
 }
 
 static void via_ide_reset(DeviceState *dev)
@@ -122,20 +125,18 @@ static void via_ide_reset(DeviceState *dev)
     uint8_t *pci_conf = pd->config;
     int i;
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_reset(&d->bus[i]);
     }
+
+    pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy mode */
+    pci_ide_update_mode(d);
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_WAIT);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
 
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, 0x000001f0);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_1, 0x000003f4);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_2, 0x00000170);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_3, 0x00000374);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_4, 0x0000cc01); /* BMIBA: 20-23h */
-    pci_set_long(pci_conf + PCI_INTERRUPT_LINE, 0x0000010e);
+    pci_set_byte(pci_conf + PCI_INTERRUPT_LINE, 0xe);
 
     /* IDE chip enable, IDE configuration 1/2, IDE FIFO Configuration*/
     pci_set_long(pci_conf + 0x40, 0x0a090600);
@@ -157,6 +158,41 @@ static void via_ide_reset(DeviceState *dev)
     pci_set_long(pci_conf + 0xc0, 0x00020001);
 }
 
+static uint32_t via_ide_cfg_read(PCIDevice *pd, uint32_t addr, int len)
+{
+    uint32_t val = pci_default_read_config(pd, addr, len);
+    uint8_t mode = pd->config[PCI_CLASS_PROG];
+
+    if ((mode & 0xf) == 0xa) {
+        if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 16)) {
+            /* BARs 0-3 always read back zero in legacy mode */
+            for (int i = addr; i < addr + len; i++) {
+                if (i >= PCI_BASE_ADDRESS_0 && i < PCI_BASE_ADDRESS_0 + 16) {
+                    val &= ~(0xffULL << ((i - addr) << 3));
+                }
+            }
+        }
+        if (addr == PCI_BASE_ADDRESS_4 && val == PCI_BASE_ADDRESS_SPACE_IO) {
+            /* BAR4 default value if unset */
+            val = 0xcc00 | PCI_BASE_ADDRESS_SPACE_IO;
+        }
+    }
+
+    return val;
+}
+
+static void via_ide_cfg_write(PCIDevice *pd, uint32_t addr,
+                              uint32_t val, int len)
+{
+    PCIIDEState *d = PCI_IDE(pd);
+
+    pci_default_write_config(pd, addr, val, len);
+
+    if (range_covers_byte(addr, len, PCI_CLASS_PROG)) {
+        pci_ide_update_mode(d);
+    }
+}
+
 static void via_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
@@ -164,7 +200,6 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     uint8_t *pci_conf = dev->config;
     int i;
 
-    pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy mode */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
     dev->wmask[PCI_INTERRUPT_LINE] = 0;
     dev->wmask[PCI_CLASS_PROG] = 5;
@@ -188,14 +223,13 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
-    qdev_init_gpio_in(ds, via_ide_set_irq, 2);
-    for (i = 0; i < 2; i++) {
-        ide_bus_init(&d->bus[i], sizeof(d->bus[i]), ds, i, 2);
-        ide_init2(&d->bus[i], qdev_get_gpio_in(ds, i));
+    qdev_init_gpio_in(ds, via_ide_set_irq, ARRAY_SIZE(d->bus));
+    for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
+        ide_bus_init(&d->bus[i], sizeof(d->bus[i]), ds, i, MAX_IDE_DEVS);
+        ide_bus_init_output_irq(&d->bus[i], qdev_get_gpio_in(ds, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
-        d->bmdma[i].bus = &d->bus[i];
-        ide_register_restart_cb(&d->bus[i]);
+        ide_bus_register_restart_cb(&d->bus[i]);
     }
 }
 
@@ -204,7 +238,7 @@ static void via_ide_exitfn(PCIDevice *dev)
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
 
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < ARRAY_SIZE(d->bmdma); ++i) {
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
     }
@@ -220,6 +254,8 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     /* Reason: only works as function of VIA southbridge */
     dc->user_creatable = false;
 
+    k->config_read = via_ide_cfg_read;
+    k->config_write = via_ide_cfg_write;
     k->realize = via_ide_realize;
     k->exit = via_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_VIA;
@@ -230,7 +266,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo via_ide_info = {
-    .name          = "via-ide",
+    .name          = TYPE_VIA_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = via_ide_class_init,
 };

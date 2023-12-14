@@ -42,6 +42,7 @@
 #define MEGASAS_MAX_FRAMES 2048         /* Firmware limit at 65535 */
 #define MEGASAS_DEFAULT_FRAMES 1000     /* Windows requires this */
 #define MEGASAS_GEN2_DEFAULT_FRAMES 1008     /* Windows requires this */
+#define MEGASAS_MIN_SGE 64
 #define MEGASAS_MAX_SGE 128             /* Firmware limit */
 #define MEGASAS_DEFAULT_SGE 80
 #define MEGASAS_MAX_SECTORS 0xFFFF      /* No real limit */
@@ -1062,7 +1063,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         info->inquiry_data[0] = 0x7f; /* Force PQual 0x3, PType 0x1f */
         info->vpd_page83[0] = 0x7f;
         megasas_setup_inquiry(cmdbuf, 0, sizeof(info->inquiry_data));
-        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, sizeof(cmdbuf), cmd);
         if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "PD get info std inquiry");
@@ -1080,7 +1081,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         return MFI_STAT_INVALID_STATUS;
     } else if (info->inquiry_data[0] != 0x7f && info->vpd_page83[0] == 0x7f) {
         megasas_setup_inquiry(cmdbuf, 0x83, sizeof(info->vpd_page83));
-        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, sizeof(cmdbuf), cmd);
         if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "PD get info vpd inquiry");
@@ -1268,7 +1269,7 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
         cmd->iov_buf = g_malloc0(dcmd_size);
         info = cmd->iov_buf;
         megasas_setup_inquiry(cdb, 0x83, sizeof(info->vpd_page83));
-        cmd->req = scsi_req_new(sdev, cmd->index, lun, cdb, cmd);
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cdb, sizeof(cdb), cmd);
         if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "LD get info vpd inquiry");
@@ -1484,7 +1485,7 @@ static int megasas_cluster_reset_ld(MegasasState *s, MegasasCmd *cmd)
         MegasasCmd *tmp_cmd = &s->frames[i];
         if (tmp_cmd->req && tmp_cmd->req->dev->id == target_id) {
             SCSIDevice *d = tmp_cmd->req->dev;
-            qdev_reset_all(&d->qdev);
+            device_cold_reset(&d->qdev);
         }
     }
     return MFI_STAT_OK;
@@ -1748,7 +1749,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
         return MFI_STAT_SCSI_DONE_WITH_ERROR;
     }
 
-    cmd->req = scsi_req_new(sdev, cmd->index, lun_id, cdb, cmd);
+    cmd->req = scsi_req_new(sdev, cmd->index, lun_id, cdb, cdb_len, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
                 mfi_frame_desc(frame_cmd), target_id, lun_id);
@@ -1823,7 +1824,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 
     megasas_encode_lba(cdb, lba_start, lba_count, is_write);
     cmd->req = scsi_req_new(sdev, cmd->index,
-                            lun_id, cdb, cmd);
+                            lun_id, cdb, cdb_len, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
             mfi_frame_desc(frame_cmd), target_id, lun_id);
@@ -2356,6 +2357,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     MegasasState *s = MEGASAS(dev);
     MegasasBaseClass *b = MEGASAS_GET_CLASS(s);
     uint8_t *pci_conf;
+    uint32_t sge;
     int i, bar_type;
     Error *err = NULL;
     int ret;
@@ -2424,13 +2426,15 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     if (!s->hba_serial) {
         s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
     }
-    if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
-        s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
-    } else if (s->fw_sge >= 128 - MFI_PASS_FRAME_SIZE) {
-        s->fw_sge = 128 - MFI_PASS_FRAME_SIZE;
-    } else {
-        s->fw_sge = 64 - MFI_PASS_FRAME_SIZE;
+
+    sge = s->fw_sge + MFI_PASS_FRAME_SIZE;
+    if (sge < MEGASAS_MIN_SGE) {
+        sge = MEGASAS_MIN_SGE;
+    } else if (sge >= MEGASAS_MAX_SGE) {
+        sge = MEGASAS_MAX_SGE;
     }
+    s->fw_sge = sge - MFI_PASS_FRAME_SIZE;
+
     if (s->fw_cmds > MEGASAS_MAX_FRAMES) {
         s->fw_cmds = MEGASAS_MAX_FRAMES;
     }

@@ -31,7 +31,7 @@ void raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin
 {
     CPUState *cs = env_cpu(env);
     /* in case we come from a helper-call we need to restore the PC */
-    cpu_restore_state(cs, pc, true);
+    cpu_restore_state(cs, pc);
 
     /* Tin is loaded into d[15] */
     env->gpr_d[15] = tin;
@@ -84,11 +84,10 @@ void raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin
       ICR.IE and ICR.CCPN are saved */
 
     /* PCXI.PIE = ICR.IE */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
-                ((env->ICR & MASK_ICR_IE_1_3) << 15));
+    pcxi_set_pie(env, icr_get_ie(env));
+
     /* PCXI.PCPN = ICR.CCPN */
-    env->PCXI = (env->PCXI & 0xffffff) +
-                ((env->ICR & MASK_ICR_CCPN) << 24);
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
     /* Update PC using the trap vector table */
     env->PC = env->BTV | (class << 5);
 
@@ -2285,12 +2284,127 @@ uint32_t helper_mulr_h(uint32_t arg00, uint32_t arg01,
     return (result1 & 0xffff0000) | (result0 >> 16);
 }
 
-uint32_t helper_crc32(uint32_t arg0, uint32_t arg1)
+uint32_t helper_crc32b(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[1] = { arg0 & 0xff };
+
+    return crc32(arg1, buf, 1);
+}
+
+
+uint32_t helper_crc32_be(uint32_t arg0, uint32_t arg1)
 {
     uint8_t buf[4];
     stl_be_p(buf, arg0);
 
     return crc32(arg1, buf, 4);
+}
+
+uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[4];
+    stl_le_p(buf, arg0);
+
+    return crc32(arg1, buf, 4);
+}
+
+static uint32_t crc_div(uint32_t crc_in, uint32_t data, uint32_t gen,
+                        uint32_t n, uint32_t m)
+{
+    uint32_t i;
+
+    data = data << n;
+    for (i = 0; i < m; i++) {
+        if (crc_in & (1u << (n - 1))) {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+            crc_in ^= gen;
+        } else {
+            crc_in <<= 1;
+            if (data & (1u << (m - 1))) {
+                crc_in++;
+            }
+        }
+        data <<= 1;
+    }
+
+    return crc_in;
+}
+
+uint32_t helper_crcn(uint32_t arg0, uint32_t arg1, uint32_t arg2)
+{
+    uint32_t crc_out, crc_in;
+    uint32_t n = extract32(arg0, 12, 4) + 1;
+    uint32_t gen = extract32(arg0, 16, n);
+    uint32_t inv = extract32(arg0, 9, 1);
+    uint32_t le = extract32(arg0, 8, 1);
+    uint32_t m = extract32(arg0, 0, 3) + 1;
+    uint32_t data = extract32(arg1, 0, m);
+    uint32_t seed = extract32(arg2, 0, n);
+
+    if (le == 1) {
+        if (m == 0) {
+            data = 0;
+        } else {
+            data = revbit32(data) >> (32 - m);
+        }
+    }
+
+    if (inv == 1) {
+        seed = ~seed;
+    }
+
+    if (m > n) {
+        crc_in = (data >> (m - n)) ^ seed;
+    } else {
+        crc_in = (data << (n - m)) ^ seed;
+    }
+
+    crc_out = crc_div(crc_in, data, gen, n, m);
+
+    if (inv) {
+        crc_out = ~crc_out;
+    }
+
+    return extract32(crc_out, 0, n);
+}
+
+uint32_t helper_shuffle(uint32_t arg0, uint32_t arg1)
+{
+    uint32_t resb;
+    uint32_t byte_select;
+    uint32_t res = 0;
+
+    byte_select = arg1 & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 0;
+
+    byte_select = (arg1 >> 2) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 8;
+
+    byte_select = (arg1 >> 4) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 16;
+
+    byte_select = (arg1 >> 6) & 0x3;
+    resb = extract32(arg0, byte_select * 8, 8);
+    res |= resb << 24;
+
+    if (arg1 & 0x100) {
+        /* Assign the correct nibble position.  */
+        res = ((res & 0xf0f0f0f0) >> 4)
+          | ((res & 0x0f0f0f0f) << 4);
+        /* Assign the correct bit position.  */
+        res = ((res & 0x88888888) >> 3)
+          | ((res & 0x44444444) >> 1)
+          | ((res & 0x22222222) << 1)
+          | ((res & 0x11111111) << 3);
+    }
+
+    return res;
 }
 
 /* context save area (CSA) related helpers */
@@ -2344,7 +2458,7 @@ static bool cdc_zero(target_ulong *psw)
     return count == 0;
 }
 
-static void save_context_upper(CPUTriCoreState *env, int ea)
+static void save_context_upper(CPUTriCoreState *env, target_ulong ea)
 {
     cpu_stl_data(env, ea, env->PCXI);
     cpu_stl_data(env, ea+4, psw_read(env));
@@ -2364,7 +2478,7 @@ static void save_context_upper(CPUTriCoreState *env, int ea)
     cpu_stl_data(env, ea+60, env->gpr_d[15]);
 }
 
-static void save_context_lower(CPUTriCoreState *env, int ea)
+static void save_context_lower(CPUTriCoreState *env, target_ulong ea)
 {
     cpu_stl_data(env, ea, env->PCXI);
     cpu_stl_data(env, ea+4, env->gpr_a[11]);
@@ -2384,7 +2498,7 @@ static void save_context_lower(CPUTriCoreState *env, int ea)
     cpu_stl_data(env, ea+60, env->gpr_d[7]);
 }
 
-static void restore_context_upper(CPUTriCoreState *env, int ea,
+static void restore_context_upper(CPUTriCoreState *env, target_ulong ea,
                                   target_ulong *new_PCXI, target_ulong *new_PSW)
 {
     *new_PCXI = cpu_ldl_data(env, ea);
@@ -2405,7 +2519,7 @@ static void restore_context_upper(CPUTriCoreState *env, int ea,
     env->gpr_d[15] = cpu_ldl_data(env, ea+60);
 }
 
-static void restore_context_lower(CPUTriCoreState *env, int ea,
+static void restore_context_lower(CPUTriCoreState *env, target_ulong ea,
                                   target_ulong *ra, target_ulong *pcxi)
 {
     *pcxi = cpu_ldl_data(env, ea);
@@ -2448,6 +2562,13 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     }
     /* PSW.CDE = 1;*/
     psw |= MASK_PSW_CDE;
+    /*
+     * we need to save PSW.CDE and not PSW.CDC into the CSAs. psw already
+     * contains the CDC from cdc_increment(), so we cannot call psw_write()
+     * here.
+     */
+    env->PSW |= MASK_PSW_CDE;
+
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
     /* EA = {FCX.FCXS, 6'b0, FCX.FCXO, 6'b0}; */
@@ -2461,13 +2582,11 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     save_context_upper(env, ea);
 
     /* PCXI.PCPN = ICR.CCPN; */
-    env->PCXI = (env->PCXI & 0xffffff) +
-                ((env->ICR & MASK_ICR_CCPN) << 24);
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
-                ((env->ICR & MASK_ICR_IE_1_3) << 15));
+    pcxi_set_pie(env, icr_get_ie(env));
     /* PCXI.UL = 1; */
-    env->PCXI |= MASK_PCXI_UL;
+    pcxi_set_ul(env, 1);
 
     /* PCXI[19: 0] = FCX[19: 0]; */
     env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
@@ -2506,7 +2625,7 @@ void helper_ret(CPUTriCoreState *env)
         raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 0) then trap(CTYP); */
-    if ((env->PCXI & MASK_PCXI_UL) == 0) {
+    if (pcxi_get_ul(env) == 0) {
         /* CTYP trap */
         cdc_increment(&psw); /* restore to the start of helper */
         psw_write(env, psw);
@@ -2516,8 +2635,8 @@ void helper_ret(CPUTriCoreState *env)
     env->PC = env->gpr_a[11] & 0xfffffffe;
 
     /* EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0}; */
-    ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
-         ((env->PCXI & MASK_PCXI_PCXO) << 6);
+    ea = (pcxi_get_pcxs(env) << 28) |
+         (pcxi_get_pcxo(env) << 6);
     /* {new_PCXI, new_PSW, A[10], A[11], D[8], D[9], D[10], D[11], A[12],
         A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
     restore_context_upper(env, ea, &new_PCXI, &new_PSW);
@@ -2528,12 +2647,12 @@ void helper_ret(CPUTriCoreState *env)
     /* PCXI = new_PCXI; */
     env->PCXI = new_PCXI;
 
-    if (tricore_feature(env, TRICORE_FEATURE_13)) {
-        /* PSW = new_PSW */
-        psw_write(env, new_PSW);
-    } else {
+    if (tricore_has_feature(env, TRICORE_FEATURE_131)) {
         /* PSW = {new_PSW[31:26], PSW[25:24], new_PSW[23:0]}; */
         psw_write(env, (new_PSW & ~(0x3000000)) + (psw & (0x3000000)));
+    } else { /* TRICORE_FEATURE_13 only */
+        /* PSW = new_PSW */
+        psw_write(env, new_PSW);
     }
 }
 
@@ -2559,21 +2678,21 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
 
 
     /* PCXI.PCPN = ICR.CCPN */
-    env->PCXI = (env->PCXI & 0xffffff) +
-                 ((env->ICR & MASK_ICR_CCPN) << 24);
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
     /* PCXI.PIE  = ICR.IE */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
-                 ((env->ICR & MASK_ICR_IE_1_3) << 15));
+    pcxi_set_pie(env, icr_get_ie(env));
     /* PCXI.UL = 0 */
-    env->PCXI &= ~(MASK_PCXI_UL);
+    pcxi_set_ul(env, 0);
+
     /* PCXI[19: 0] = FCX[19: 0] */
     env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
     /* FXC[19: 0] = new_FCX[19: 0] */
     env->FCX = (env->FCX & 0xfff00000) + (new_FCX & 0xfffff);
-    /* ICR.IE = 1 */
-    env->ICR |= MASK_ICR_IE_1_3;
 
-    env->ICR |= const9; /* ICR.CCPN = const9[7: 0];*/
+    /* ICR.IE = 1 */
+    icr_set_ie(env, 1);
+
+    icr_set_ccpn(env, const9);
 
     if (tmp_FCX == env->LCX) {
         /* FCD trap */
@@ -2592,7 +2711,7 @@ void helper_rfe(CPUTriCoreState *env)
         raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 0) then trap(CTYP); */
-    if ((env->PCXI & MASK_PCXI_UL) == 0) {
+    if (pcxi_get_ul(env) == 0) {
         /* raise CTYP trap */
         raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CTYP, GETPC());
     }
@@ -2603,14 +2722,15 @@ void helper_rfe(CPUTriCoreState *env)
     }
     env->PC = env->gpr_a[11] & ~0x1;
     /* ICR.IE = PCXI.PIE; */
-    env->ICR = (env->ICR & ~MASK_ICR_IE_1_3)
-            + ((env->PCXI & MASK_PCXI_PIE_1_3) >> 15);
+    icr_set_ie(env, pcxi_get_pie(env));
+
     /* ICR.CCPN = PCXI.PCPN; */
-    env->ICR = (env->ICR & ~MASK_ICR_CCPN) +
-               ((env->PCXI & MASK_PCXI_PCPN) >> 24);
+    icr_set_ccpn(env, pcxi_get_pcpn(env));
+
     /*EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0};*/
-    ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
-         ((env->PCXI & MASK_PCXI_PCXO) << 6);
+    ea = (pcxi_get_pcxs(env) << 28) |
+         (pcxi_get_pcxo(env) << 6);
+
     /*{new_PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11], A[12],
       A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
     restore_context_upper(env, ea, &new_PCXI, &new_PSW);
@@ -2628,42 +2748,41 @@ void helper_rfm(CPUTriCoreState *env)
 {
     env->PC = (env->gpr_a[11] & ~0x1);
     /* ICR.IE = PCXI.PIE; */
-    env->ICR = (env->ICR & ~MASK_ICR_IE_1_3)
-            | ((env->PCXI & MASK_PCXI_PIE_1_3) >> 15);
+    icr_set_ie(env, pcxi_get_pie(env));
     /* ICR.CCPN = PCXI.PCPN; */
-    env->ICR = (env->ICR & ~MASK_ICR_CCPN) |
-               ((env->PCXI & MASK_PCXI_PCPN) >> 24);
+    icr_set_ccpn(env, pcxi_get_pcpn(env));
+
     /* {PCXI, PSW, A[10], A[11]} = M(DCX, 4 * word); */
     env->PCXI = cpu_ldl_data(env, env->DCX);
     psw_write(env, cpu_ldl_data(env, env->DCX+4));
     env->gpr_a[10] = cpu_ldl_data(env, env->DCX+8);
     env->gpr_a[11] = cpu_ldl_data(env, env->DCX+12);
 
-    if (tricore_feature(env, TRICORE_FEATURE_131)) {
+    if (tricore_has_feature(env, TRICORE_FEATURE_131)) {
         env->DBGTCR = 0;
     }
 }
 
-void helper_ldlcx(CPUTriCoreState *env, uint32_t ea)
+void helper_ldlcx(CPUTriCoreState *env, target_ulong ea)
 {
     uint32_t dummy;
     /* insn doesn't load PCXI and RA */
     restore_context_lower(env, ea, &dummy, &dummy);
 }
 
-void helper_lducx(CPUTriCoreState *env, uint32_t ea)
+void helper_lducx(CPUTriCoreState *env, target_ulong ea)
 {
     uint32_t dummy;
     /* insn doesn't load PCXI and PSW */
     restore_context_upper(env, ea, &dummy, &dummy);
 }
 
-void helper_stlcx(CPUTriCoreState *env, uint32_t ea)
+void helper_stlcx(CPUTriCoreState *env, target_ulong ea)
 {
     save_context_lower(env, ea);
 }
 
-void helper_stucx(CPUTriCoreState *env, uint32_t ea)
+void helper_stucx(CPUTriCoreState *env, target_ulong ea)
 {
     save_context_upper(env, ea);
 }
@@ -2691,13 +2810,13 @@ void helper_svlcx(CPUTriCoreState *env)
     save_context_lower(env, ea);
 
     /* PCXI.PCPN = ICR.CCPN; */
-    env->PCXI = (env->PCXI & 0xffffff) +
-                ((env->ICR & MASK_ICR_CCPN) << 24);
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
+
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
-                ((env->ICR & MASK_ICR_IE_1_3) << 15));
+    pcxi_set_pie(env, icr_get_ie(env));
+
     /* PCXI.UL = 0; */
-    env->PCXI &= ~MASK_PCXI_UL;
+    pcxi_set_ul(env, 0);
 
     /* PCXI[19: 0] = FCX[19: 0]; */
     env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
@@ -2734,13 +2853,13 @@ void helper_svucx(CPUTriCoreState *env)
     save_context_upper(env, ea);
 
     /* PCXI.PCPN = ICR.CCPN; */
-    env->PCXI = (env->PCXI & 0xffffff) +
-                ((env->ICR & MASK_ICR_CCPN) << 24);
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
+
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
-                ((env->ICR & MASK_ICR_IE_1_3) << 15));
+    pcxi_set_pie(env, icr_get_ie(env));
+
     /* PCXI.UL = 1; */
-    env->PCXI |= MASK_PCXI_UL;
+    pcxi_set_ul(env, 1);
 
     /* PCXI[19: 0] = FCX[19: 0]; */
     env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0xfffff);
@@ -2764,13 +2883,15 @@ void helper_rslcx(CPUTriCoreState *env)
         raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CSU, GETPC());
     }
     /* if (PCXI.UL == 1) then trap(CTYP); */
-    if ((env->PCXI & MASK_PCXI_UL) != 0) {
+    if (pcxi_get_ul(env) == 1) {
         /* CTYP trap */
         raise_exception_sync_helper(env, TRAPC_CTX_MNG, TIN3_CTYP, GETPC());
     }
     /* EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0}; */
-    ea = ((env->PCXI & MASK_PCXI_PCXS) << 12) +
-         ((env->PCXI & MASK_PCXI_PCXO) << 6);
+    /* EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0}; */
+    ea = (pcxi_get_pcxs(env) << 28) |
+         (pcxi_get_pcxo(env) << 6);
+
     /* {new_PCXI, A[11], A[10], A[11], D[8], D[9], D[10], D[11], A[12],
         A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
     restore_context_lower(env, ea, &env->gpr_a[11], &new_PCXI);

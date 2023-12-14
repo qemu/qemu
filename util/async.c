@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "block/aio.h"
 #include "block/thread-pool.h"
+#include "block/graph-lock.h"
 #include "qemu/main-loop.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu_queue.h"
@@ -64,6 +65,7 @@ struct QEMUBH {
     void *opaque;
     QSLIST_ENTRY(QEMUBH) next;
     unsigned flags;
+    MemReentrancyGuard *reentrancy_guard;
 };
 
 /* Called concurrently from any thread */
@@ -73,14 +75,21 @@ static void aio_bh_enqueue(QEMUBH *bh, unsigned new_flags)
     unsigned old_flags;
 
     /*
-     * The memory barrier implicit in qatomic_fetch_or makes sure that:
-     * 1. idle & any writes needed by the callback are done before the
-     *    locations are read in the aio_bh_poll.
-     * 2. ctx is loaded before the callback has a chance to execute and bh
-     *    could be freed.
+     * Synchronizes with atomic_fetch_and() in aio_bh_dequeue(), ensuring that
+     * insertion starts after BH_PENDING is set.
      */
     old_flags = qatomic_fetch_or(&bh->flags, BH_PENDING | new_flags);
+
     if (!(old_flags & BH_PENDING)) {
+        /*
+         * At this point the bottom half becomes visible to aio_bh_poll().
+         * This insertion thus synchronizes with QSLIST_MOVE_ATOMIC in
+         * aio_bh_poll(), ensuring that:
+         * 1. any writes needed by the callback are visible from the callback
+         *    after aio_bh_dequeue() returns bh.
+         * 2. ctx is loaded before the callback has a chance to execute and bh
+         *    could be freed.
+         */
         QSLIST_INSERT_HEAD_ATOMIC(&ctx->bh_list, bh, next);
     }
 
@@ -106,11 +115,8 @@ static QEMUBH *aio_bh_dequeue(BHList *head, unsigned *flags)
     QSLIST_REMOVE_HEAD(head, next);
 
     /*
-     * The qatomic_and is paired with aio_bh_enqueue().  The implicit memory
-     * barrier ensures that the callback sees all writes done by the scheduling
-     * thread.  It also ensures that the scheduling thread sees the cleared
-     * flag before bh->cb has run, and thus will call aio_notify again if
-     * necessary.
+     * Synchronizes with qatomic_fetch_or() in aio_bh_enqueue(), ensuring that
+     * the removal finishes before BH_PENDING is reset.
      */
     *flags = qatomic_fetch_and(&bh->flags,
                               ~(BH_PENDING | BH_SCHEDULED | BH_IDLE));
@@ -132,7 +138,7 @@ void aio_bh_schedule_oneshot_full(AioContext *ctx, QEMUBHFunc *cb,
 }
 
 QEMUBH *aio_bh_new_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
-                        const char *name)
+                        const char *name, MemReentrancyGuard *reentrancy_guard)
 {
     QEMUBH *bh;
     bh = g_new(QEMUBH, 1);
@@ -141,13 +147,30 @@ QEMUBH *aio_bh_new_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
         .cb = cb,
         .opaque = opaque,
         .name = name,
+        .reentrancy_guard = reentrancy_guard,
     };
     return bh;
 }
 
 void aio_bh_call(QEMUBH *bh)
 {
+    bool last_engaged_in_io = false;
+
+    /* Make a copy of the guard-pointer as cb may free the bh */
+    MemReentrancyGuard *reentrancy_guard = bh->reentrancy_guard;
+    if (reentrancy_guard) {
+        last_engaged_in_io = reentrancy_guard->engaged_in_io;
+        if (reentrancy_guard->engaged_in_io) {
+            trace_reentrant_aio(bh->ctx, bh->name);
+        }
+        reentrancy_guard->engaged_in_io = true;
+    }
+
     bh->cb(bh->opaque);
+
+    if (reentrancy_guard) {
+        reentrancy_guard->engaged_in_io = last_engaged_in_io;
+    }
 }
 
 /* Multiple occurrences of aio_bh_poll cannot be called concurrently. */
@@ -157,8 +180,23 @@ int aio_bh_poll(AioContext *ctx)
     BHListSlice *s;
     int ret = 0;
 
+    /* Synchronizes with QSLIST_INSERT_HEAD_ATOMIC in aio_bh_enqueue().  */
     QSLIST_MOVE_ATOMIC(&slice.bh_list, &ctx->bh_list);
+
+    /*
+     * GCC13 [-Werror=dangling-pointer=] complains that the local variable
+     * 'slice' is being stored in the global 'ctx->bh_slice_list' but the
+     * list is emptied before this function returns.
+     */
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wdangling-pointer="
+#endif
     QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, &slice, next);
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     while ((s = QSIMPLEQ_FIRST(&ctx->bh_slice_list))) {
         QEMUBH *bh;
@@ -371,11 +409,12 @@ aio_ctx_finalize(GSource     *source)
         g_free(bh);
     }
 
-    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_lockcnt_destroy(&ctx->list_lock);
     timerlistgroup_deinit(&ctx->tlg);
+    unregister_aiocontext(ctx);
     aio_context_destroy(ctx);
 }
 
@@ -446,15 +485,15 @@ LuringState *aio_get_linux_io_uring(AioContext *ctx)
 void aio_notify(AioContext *ctx)
 {
     /*
-     * Write e.g. bh->flags before writing ctx->notified.  Pairs with smp_mb in
-     * aio_notify_accept.
+     * Write e.g. ctx->bh_list before writing ctx->notified.  Pairs with
+     * smp_mb() in aio_notify_accept().
      */
     smp_wmb();
     qatomic_set(&ctx->notified, true);
 
     /*
-     * Write ctx->notified before reading ctx->notify_me.  Pairs
-     * with smp_mb in aio_ctx_prepare or aio_poll.
+     * Write ctx->notified (and also ctx->bh_list) before reading ctx->notify_me.
+     * Pairs with smp_mb() in aio_ctx_prepare or aio_poll.
      */
     smp_mb();
     if (qatomic_read(&ctx->notify_me)) {
@@ -467,8 +506,9 @@ void aio_notify_accept(AioContext *ctx)
     qatomic_set(&ctx->notified, false);
 
     /*
-     * Write ctx->notified before reading e.g. bh->flags.  Pairs with smp_wmb
-     * in aio_notify.
+     * Order reads of ctx->notified (in aio_context_notifier_poll()) and the
+     * above clearing of ctx->notified before reads of e.g. bh->flags.  Pairs
+     * with smp_wmb() in aio_notify.
      */
     smp_mb();
 }
@@ -491,6 +531,11 @@ static bool aio_context_notifier_poll(void *opaque)
     EventNotifier *e = opaque;
     AioContext *ctx = container_of(e, AioContext, notifier);
 
+    /*
+     * No need for load-acquire because we just want to kick the
+     * event loop.  aio_notify_accept() takes care of synchronizing
+     * the event loop with the producers.
+     */
     return qatomic_read(&ctx->notified);
 }
 
@@ -548,7 +593,6 @@ AioContext *aio_context_new(Error **errp)
     QSLIST_INIT(&ctx->scheduled_coroutines);
 
     aio_set_event_notifier(ctx, &ctx->notifier,
-                           false,
                            aio_context_notifier_cb,
                            aio_context_notifier_poll,
                            aio_context_notifier_poll_ready);
@@ -573,6 +617,8 @@ AioContext *aio_context_new(Error **errp)
 
     ctx->thread_pool_min = 0;
     ctx->thread_pool_max = THREAD_POOL_MAX_THREADS_DEFAULT;
+
+    register_aiocontext(ctx);
 
     return ctx;
 fail:
@@ -636,7 +682,7 @@ void coroutine_fn aio_co_reschedule_self(AioContext *new_ctx)
     }
 }
 
-void aio_co_wake(struct Coroutine *co)
+void aio_co_wake(Coroutine *co)
 {
     AioContext *ctx;
 
@@ -649,7 +695,7 @@ void aio_co_wake(struct Coroutine *co)
     aio_co_enter(ctx, co);
 }
 
-void aio_co_enter(AioContext *ctx, struct Coroutine *co)
+void aio_co_enter(AioContext *ctx, Coroutine *co)
 {
     if (ctx != qemu_get_current_aio_context()) {
         aio_co_schedule(ctx, co);

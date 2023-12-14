@@ -1,0 +1,11 @@
+include $(BUILD_DIR)/tests/tcg/i386-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/i386
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso.so
+
+$(SUBDIR)/vdso.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ -m32 -nostdlib -shared -Wl,-h,linux-gate.so.1 \
+	  -Wl,--build-id=sha1 -Wl,--hash-style=both \
+	  -Wl,-T,$(SUBDIR)/vdso.ld $<

@@ -15,7 +15,7 @@ env:
     folder: $HOME/.cache/qemu-vm
   install_script:
     - dnf update -y
-    - dnf install -y git make openssh-clients qemu-img qemu-system-x86 wget
+    - dnf install -y git make openssh-clients qemu-img qemu-system-x86 wget meson
   clone_script:
     - git clone --depth 100 "$CI_REPOSITORY_URL" .
     - git fetch origin "$CI_COMMIT_REF_NAME"

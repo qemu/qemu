@@ -135,11 +135,6 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     int intno = cs->exception_index;
     trap_state *tsptr;
 
-    /* Compute PSR before exposing state.  */
-    if (env->cc_op != CC_OP_FLAGS) {
-        cpu_get_psr(env);
-    }
-
 #ifdef DEBUG_PCALL
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;

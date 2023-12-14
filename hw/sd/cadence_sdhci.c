@@ -175,17 +175,14 @@ static void cadence_sdhci_class_init(ObjectClass *classp, void *data)
     dc->vmsd = &vmstate_cadence_sdhci;
 }
 
-static const TypeInfo cadence_sdhci_info = {
-    .name          = TYPE_CADENCE_SDHCI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CadenceSDHCIState),
-    .instance_init = cadence_sdhci_instance_init,
-    .class_init    = cadence_sdhci_class_init,
+static const TypeInfo cadence_sdhci_types[] = {
+    {
+        .name           = TYPE_CADENCE_SDHCI,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(CadenceSDHCIState),
+        .instance_init  = cadence_sdhci_instance_init,
+        .class_init     = cadence_sdhci_class_init,
+    },
 };
 
-static void cadence_sdhci_register_types(void)
-{
-    type_register_static(&cadence_sdhci_info);
-}
-
-type_init(cadence_sdhci_register_types)
+DEFINE_TYPES(cadence_sdhci_types)

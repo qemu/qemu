@@ -8,7 +8,7 @@
 #ifndef LIBQOS_PCI_SPAPR_H
 #define LIBQOS_PCI_SPAPR_H
 
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "pci.h"
 #include "qgraph.h"
 

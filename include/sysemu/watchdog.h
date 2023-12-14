@@ -25,20 +25,8 @@
 #include "qemu/queue.h"
 #include "qapi/qapi-types-run-state.h"
 
-struct WatchdogTimerModel {
-    QLIST_ENTRY(WatchdogTimerModel) entry;
-
-    /* Short name of the device - used to select it on the command line. */
-    const char *wdt_name;
-    /* Longer description (eg. manufacturer and full model number). */
-    const char *wdt_description;
-};
-typedef struct WatchdogTimerModel WatchdogTimerModel;
-
 /* in hw/watchdog.c */
-int select_watchdog(const char *p);
 WatchdogAction get_watchdog_action(void);
-void watchdog_add_model(WatchdogTimerModel *model);
 void watchdog_perform_action(void);
 
 #endif /* QEMU_WATCHDOG_H */

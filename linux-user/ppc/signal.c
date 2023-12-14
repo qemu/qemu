@@ -21,14 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
-
-/* Size of dummy stack frame allocated when calling signal handler.
-   See arch/powerpc/include/asm/ptrace.h.  */
-#if defined(TARGET_PPC64)
-#define SIGNAL_FRAMESIZE 128
-#else
-#define SIGNAL_FRAMESIZE 64
-#endif
+#include "vdso-asmoffset.h"
 
 /* See arch/powerpc/include/asm/ucontext.h.  Only used for 32-bit PPC;
    on 64-bit PPC, sigcontext and mcontext are one and the same.  */
@@ -72,6 +65,16 @@ struct target_mcontext {
     } mc_vregs;
 #endif
 };
+
+QEMU_BUILD_BUG_ON(offsetof(struct target_mcontext, mc_fregs)
+                  != offsetof_mcontext_fregs);
+#if defined(TARGET_PPC64)
+QEMU_BUILD_BUG_ON(offsetof(struct target_mcontext, v_regs)
+                  != offsetof_mcontext_vregs_ptr);
+#else
+QEMU_BUILD_BUG_ON(offsetof(struct target_mcontext, mc_vregs)
+                  != offsetof_mcontext_vregs);
+#endif
 
 /* See arch/powerpc/include/asm/sigcontext.h.  */
 struct target_sigcontext {
@@ -161,12 +164,17 @@ struct target_ucontext {
 #endif
 };
 
+#if !defined(TARGET_PPC64)
 /* See arch/powerpc/kernel/signal_32.c.  */
 struct target_sigframe {
     struct target_sigcontext sctx;
     struct target_mcontext mctx;
     int32_t abigap[56];
 };
+
+QEMU_BUILD_BUG_ON(offsetof(struct target_sigframe, mctx)
+                  != offsetof_sigframe_mcontext);
+#endif
 
 #if defined(TARGET_PPC64)
 
@@ -184,6 +192,10 @@ struct target_rt_sigframe {
     char abigap[288];
 } __attribute__((aligned(16)));
 
+QEMU_BUILD_BUG_ON(offsetof(struct target_rt_sigframe,
+                           uc.tuc_sigcontext.mcontext)
+                  != offsetof_rt_sigframe_mcontext);
+
 #else
 
 struct target_rt_sigframe {
@@ -191,6 +203,9 @@ struct target_rt_sigframe {
     struct target_ucontext uc;
     int32_t abigap[56];
 };
+
+QEMU_BUILD_BUG_ON(offsetof(struct target_rt_sigframe, uc.tuc_mcontext)
+                  != offsetof_rt_sigframe_mcontext);
 
 #endif
 
@@ -243,9 +258,7 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
     __put_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK]);
     __put_user(cpu_read_xer(env), &frame->mc_gregs[TARGET_PT_XER]);
 
-    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-        ccr |= env->crf[i] << (32 - ((i + 1) * 4));
-    }
+    ccr = ppc_get_cr(env);
     __put_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
 
     /* Save Altivec registers if necessary.  */
@@ -335,10 +348,7 @@ static void restore_user_regs(CPUPPCState *env,
     cpu_write_xer(env, xer);
 
     __get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
-    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-        env->crf[i] = (ccr >> (32 - ((i + 1) * 4))) & 0xf;
-    }
-
+    ppc_set_cr(env, ccr);
     if (!sig) {
         env->gpr[2] = save_r2;
     }

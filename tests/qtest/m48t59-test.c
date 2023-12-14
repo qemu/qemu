@@ -137,7 +137,7 @@ static void cmos_get_date_time(QTestState *s, struct tm *date)
     date->tm_mday = mday;
     date->tm_mon = mon - 1;
     date->tm_year = base_year + year - 1900;
-#ifndef __sun__
+#if !defined(__sun__) && !defined(_WIN32)
     date->tm_gmtoff = 0;
 #endif
 
@@ -155,7 +155,7 @@ static void bcd_check_time(void)
     struct tm *datep;
     time_t ts;
     const int wiggle = 2;
-    QTestState *s = m48t59_qtest_start();
+    QTestState *qts = m48t59_qtest_start();
 
     /*
      * This check assumes a few things.  First, we cannot guarantee that we get
@@ -173,10 +173,10 @@ static void bcd_check_time(void)
     ts = time(NULL);
     gmtime_r(&ts, &start);
 
-    cmos_get_date_time(s, &date[0]);
-    cmos_get_date_time(s, &date[1]);
-    cmos_get_date_time(s, &date[2]);
-    cmos_get_date_time(s, &date[3]);
+    cmos_get_date_time(qts, &date[0]);
+    cmos_get_date_time(qts, &date[1]);
+    cmos_get_date_time(qts, &date[2]);
+    cmos_get_date_time(qts, &date[3]);
 
     ts = time(NULL);
     gmtime_r(&ts, &end);
@@ -192,22 +192,25 @@ static void bcd_check_time(void)
     }
 
     if (!(tm_cmp(&start, datep) <= 0 && tm_cmp(datep, &end) <= 0)) {
-        long t, s;
+        long date_s, start_s;
+        unsigned long diff;
 
         start.tm_isdst = datep->tm_isdst;
 
-        t = (long)mktime(datep);
-        s = (long)mktime(&start);
-        if (t < s) {
-            g_test_message("RTC is %ld second(s) behind wall-clock", (s - t));
+        date_s = (long)mktime(datep);
+        start_s = (long)mktime(&start);
+        if (date_s < start_s) {
+            diff = start_s - date_s;
+            g_test_message("RTC is %ld second(s) behind wall-clock", diff);
         } else {
-            g_test_message("RTC is %ld second(s) ahead of wall-clock", (t - s));
+            diff = date_s - start_s;
+            g_test_message("RTC is %ld second(s) ahead of wall-clock", diff);
         }
 
-        g_assert_cmpint(ABS(t - s), <=, wiggle);
+        g_assert_cmpint(diff, <=, wiggle);
     }
 
-    qtest_quit(s);
+    qtest_quit(qts);
 }
 
 /* success if no crash or abort */

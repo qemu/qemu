@@ -14,18 +14,25 @@ chardev_ss.add(files(
 ))
 chardev_ss.add(when: 'CONFIG_POSIX', if_true: [files(
   'char-fd.c',
-  'char-parallel.c',
   'char-pty.c',
 ), util])
+if targetos in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
+  chardev_ss.add(files('char-parallel.c'))
+endif
+
 chardev_ss.add(when: 'CONFIG_WIN32', if_true: files(
   'char-console.c',
   'char-win-stdio.c',
   'char-win.c',
 ))
 
-chardev_ss = chardev_ss.apply(config_host, strict: false)
+chardev_ss = chardev_ss.apply(config_targetos, strict: false)
 
-softmmu_ss.add(files('msmouse.c', 'wctablet.c', 'testdev.c'))
+system_ss.add(files(
+    'char-hmp-cmds.c',
+    'msmouse.c',
+    'wctablet.c',
+    'testdev.c'))
 
 chardev_modules = {}
 

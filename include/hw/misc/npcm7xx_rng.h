@@ -18,7 +18,7 @@
 
 #include "hw/sysbus.h"
 
-typedef struct NPCM7xxRNGState {
+struct NPCM7xxRNGState {
     SysBusDevice parent;
 
     MemoryRegion iomem;
@@ -26,9 +26,9 @@ typedef struct NPCM7xxRNGState {
     uint8_t rngcs;
     uint8_t rngd;
     uint8_t rngmode;
-} NPCM7xxRNGState;
+};
 
 #define TYPE_NPCM7XX_RNG "npcm7xx-rng"
-#define NPCM7XX_RNG(obj) OBJECT_CHECK(NPCM7xxRNGState, (obj), TYPE_NPCM7XX_RNG)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxRNGState, NPCM7XX_RNG)
 
 #endif /* NPCM7XX_RNG_H */

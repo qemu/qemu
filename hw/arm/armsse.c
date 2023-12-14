@@ -85,6 +85,8 @@ static Property iotkit_properties[] = {
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
     DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
+    DEFINE_PROP_UINT32("CPU0_MPU_NS", ARMSSE, cpu_mpu_ns[0], 8),
+    DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -98,6 +100,10 @@ static Property sse200_properties[] = {
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], false),
     DEFINE_PROP_BOOL("CPU1_FPU", ARMSSE, cpu_fpu[1], true),
     DEFINE_PROP_BOOL("CPU1_DSP", ARMSSE, cpu_dsp[1], true),
+    DEFINE_PROP_UINT32("CPU0_MPU_NS", ARMSSE, cpu_mpu_ns[0], 8),
+    DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
+    DEFINE_PROP_UINT32("CPU1_MPU_NS", ARMSSE, cpu_mpu_ns[1], 8),
+    DEFINE_PROP_UINT32("CPU1_MPU_S", ARMSSE, cpu_mpu_s[1], 8),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -109,6 +115,8 @@ static Property sse300_properties[] = {
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
     DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
+    DEFINE_PROP_UINT32("CPU0_MPU_NS", ARMSSE, cpu_mpu_ns[0], 8),
+    DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -900,6 +908,7 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
 
 static void armsse_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     ARMSSE *s = ARM_SSE(dev);
     ARMSSEClass *asc = ARM_SSE_GET_CLASS(dev);
     const ARMSSEInfo *info = asc->info;
@@ -913,8 +922,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     DeviceState *dev_secctl;
     DeviceState *dev_splitter;
     uint32_t addr_width_max;
-
-    ERRP_GUARD();
 
     if (!s->board_memory) {
         error_setg(errp, "memory property was not set");
@@ -1029,6 +1036,14 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             if (!object_property_set_bool(cpuobj, "dsp", false, errp)) {
                 return;
             }
+        }
+        if (!object_property_set_uint(cpuobj, "mpu-ns-regions",
+                                      s->cpu_mpu_ns[i], errp)) {
+            return;
+        }
+        if (!object_property_set_uint(cpuobj, "mpu-s-regions",
+                                      s->cpu_mpu_s[i], errp)) {
+            return;
         }
 
         if (i > 0) {
@@ -1453,7 +1468,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     if (info->has_cachectrl) {
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("cachectrl%d", i);
-            MemoryRegion *mr;
 
             qdev_prop_set_string(DEVICE(&s->cachectrl[i]), "name", name);
             g_free(name);
@@ -1469,7 +1483,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     if (info->has_cpusecctrl) {
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("CPUSECCTRL%d", i);
-            MemoryRegion *mr;
 
             qdev_prop_set_string(DEVICE(&s->cpusecctrl[i]), "name", name);
             g_free(name);
@@ -1484,7 +1497,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     if (info->has_cpuid) {
         for (i = 0; i < info->num_cpus; i++) {
-            MemoryRegion *mr;
 
             qdev_prop_set_uint32(DEVICE(&s->cpuid[i]), "CPUID", i);
             if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpuid[i]), errp)) {
@@ -1497,7 +1509,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     if (info->has_cpu_pwrctrl) {
         for (i = 0; i < info->num_cpus; i++) {
-            MemoryRegion *mr;
 
             if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu_pwrctrl[i]), errp)) {
                 return;
@@ -1590,7 +1601,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* Wire up the splitters for the MPC IRQs */
     for (i = 0; i < IOTS_NUM_EXP_MPC + info->sram_banks; i++) {
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
-        DeviceState *dev_splitter = DEVICE(splitter);
+        DeviceState *devs = DEVICE(splitter);
 
         if (!object_property_set_int(OBJECT(splitter), "num-lines", 2,
                                      errp)) {
@@ -1602,22 +1613,22 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
         if (i < IOTS_NUM_EXP_MPC) {
             /* Splitter input is from GPIO input line */
-            s->mpcexp_status_in[i] = qdev_get_gpio_in(dev_splitter, 0);
-            qdev_connect_gpio_out(dev_splitter, 0,
+            s->mpcexp_status_in[i] = qdev_get_gpio_in(devs, 0);
+            qdev_connect_gpio_out(devs, 0,
                                   qdev_get_gpio_in_named(dev_secctl,
                                                          "mpcexp_status", i));
         } else {
             /* Splitter input is from our own MPC */
             qdev_connect_gpio_out_named(DEVICE(&s->mpc[i - IOTS_NUM_EXP_MPC]),
                                         "irq", 0,
-                                        qdev_get_gpio_in(dev_splitter, 0));
-            qdev_connect_gpio_out(dev_splitter, 0,
+                                        qdev_get_gpio_in(devs, 0));
+            qdev_connect_gpio_out(devs, 0,
                                   qdev_get_gpio_in_named(dev_secctl,
                                                          "mpc_status",
                                                          i - IOTS_NUM_EXP_MPC));
         }
 
-        qdev_connect_gpio_out(dev_splitter, 1,
+        qdev_connect_gpio_out(devs, 1,
                               qdev_get_gpio_in(DEVICE(&s->mpc_irq_orgate), i));
     }
     /* Create GPIO inputs which will pass the line state for our

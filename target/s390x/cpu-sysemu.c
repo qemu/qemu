@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "s390x-internal.h"
@@ -32,7 +33,7 @@
 #include "qapi/qapi-visit-run-state.h"
 #include "sysemu/hw_accel.h"
 
-#include "hw/s390x/pv.h"
+#include "target/s390x/kvm/pv.h"
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
@@ -304,5 +305,18 @@ void s390_do_cpu_set_diag318(CPUState *cs, run_on_cpu_data arg)
 {
     if (kvm_enabled()) {
         kvm_s390_set_diag318(cs, arg.host_ulong);
+    }
+}
+
+void s390_cpu_topology_set_changed(bool changed)
+{
+    int ret;
+
+    if (kvm_enabled()) {
+        ret = kvm_s390_topology_set_mtcr(changed);
+        if (ret) {
+            error_report("Failed to set Modified Topology Change Report: %s",
+                         strerror(-ret));
+        }
     }
 }

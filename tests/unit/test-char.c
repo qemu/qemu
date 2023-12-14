@@ -1212,7 +1212,6 @@ static void char_file_fifo_test(void)
     char *fifo = g_build_filename(tmp_path, "fifo", NULL);
     char *out = g_build_filename(tmp_path, "out", NULL);
     ChardevFile file = { .in = fifo,
-                         .has_in = true,
                          .out = out };
     ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
                                .u.file.data = &file };

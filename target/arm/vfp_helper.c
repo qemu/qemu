@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
+#include "cpu-features.h"
 #ifdef CONFIG_TCG
 #include "qemu/log.h"
 #include "fpu/softfloat.h"
@@ -1104,33 +1105,14 @@ float64 HELPER(rintd)(float64 x, void *fp_status)
 }
 
 /* Convert ARM rounding mode to softfloat */
-int arm_rmode_to_sf(int rmode)
-{
-    switch (rmode) {
-    case FPROUNDING_TIEAWAY:
-        rmode = float_round_ties_away;
-        break;
-    case FPROUNDING_ODD:
-        /* FIXME: add support for TIEAWAY and ODD */
-        qemu_log_mask(LOG_UNIMP, "arm: unimplemented rounding mode: %d\n",
-                      rmode);
-        /* fall through for now */
-    case FPROUNDING_TIEEVEN:
-    default:
-        rmode = float_round_nearest_even;
-        break;
-    case FPROUNDING_POSINF:
-        rmode = float_round_up;
-        break;
-    case FPROUNDING_NEGINF:
-        rmode = float_round_down;
-        break;
-    case FPROUNDING_ZERO:
-        rmode = float_round_to_zero;
-        break;
-    }
-    return rmode;
-}
+const FloatRoundMode arm_rmode_to_sf_map[] = {
+    [FPROUNDING_TIEEVEN] = float_round_nearest_even,
+    [FPROUNDING_POSINF] = float_round_up,
+    [FPROUNDING_NEGINF] = float_round_down,
+    [FPROUNDING_ZERO] = float_round_to_zero,
+    [FPROUNDING_TIEAWAY] = float_round_ties_away,
+    [FPROUNDING_ODD] = float_round_to_odd,
+};
 
 /*
  * Implement float64 to int32_t conversion without saturation;
@@ -1139,68 +1121,21 @@ int arm_rmode_to_sf(int rmode)
 uint64_t HELPER(fjcvtzs)(float64 value, void *vstatus)
 {
     float_status *status = vstatus;
-    uint32_t exp, sign;
-    uint64_t frac;
-    uint32_t inexact = 1; /* !Z */
+    uint32_t inexact, frac;
+    uint32_t e_old, e_new;
 
-    sign = extract64(value, 63, 1);
-    exp = extract64(value, 52, 11);
-    frac = extract64(value, 0, 52);
+    e_old = get_float_exception_flags(status);
+    set_float_exception_flags(0, status);
+    frac = float64_to_int32_modulo(value, float_round_to_zero, status);
+    e_new = get_float_exception_flags(status);
+    set_float_exception_flags(e_old | e_new, status);
 
-    if (exp == 0) {
-        /* While not inexact for IEEE FP, -0.0 is inexact for JavaScript.  */
-        inexact = sign;
-        if (frac != 0) {
-            if (status->flush_inputs_to_zero) {
-                float_raise(float_flag_input_denormal, status);
-            } else {
-                float_raise(float_flag_inexact, status);
-                inexact = 1;
-            }
-        }
-        frac = 0;
-    } else if (exp == 0x7ff) {
-        /* This operation raises Invalid for both NaN and overflow (Inf).  */
-        float_raise(float_flag_invalid, status);
-        frac = 0;
+    if (value == float64_chs(float64_zero)) {
+        /* While not inexact for IEEE FP, -0.0 is inexact for JavaScript. */
+        inexact = 1;
     } else {
-        int true_exp = exp - 1023;
-        int shift = true_exp - 52;
-
-        /* Restore implicit bit.  */
-        frac |= 1ull << 52;
-
-        /* Shift the fraction into place.  */
-        if (shift >= 0) {
-            /* The number is so large we must shift the fraction left.  */
-            if (shift >= 64) {
-                /* The fraction is shifted out entirely.  */
-                frac = 0;
-            } else {
-                frac <<= shift;
-            }
-        } else if (shift > -64) {
-            /* Normal case -- shift right and notice if bits shift out.  */
-            inexact = (frac << (64 + shift)) != 0;
-            frac >>= -shift;
-        } else {
-            /* The fraction is shifted out entirely.  */
-            frac = 0;
-        }
-
-        /* Notice overflow or inexact exceptions.  */
-        if (true_exp > 31 || frac > (sign ? 0x80000000ull : 0x7fffffff)) {
-            /* Overflow, for which this operation raises invalid.  */
-            float_raise(float_flag_invalid, status);
-            inexact = 1;
-        } else if (inexact) {
-            float_raise(float_flag_inexact, status);
-        }
-
-        /* Honor the sign.  */
-        if (sign) {
-            frac = -frac;
-        }
+        /* Normal inexact or overflow or NaN */
+        inexact = e_new & (float_flag_inexact | float_flag_invalid);
     }
 
     /* Pack the result and the env->ZF representation of Z together.  */

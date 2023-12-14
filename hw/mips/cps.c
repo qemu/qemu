@@ -24,7 +24,6 @@
 #include "hw/mips/mips.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
-#include "hw/mips/cpudevs.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 
@@ -66,20 +65,17 @@ static bool cpu_mips_itu_supported(CPUMIPSState *env)
 static void mips_cps_realize(DeviceState *dev, Error **errp)
 {
     MIPSCPSState *s = MIPS_CPS(dev);
-    CPUMIPSState *env;
-    MIPSCPU *cpu;
-    int i;
     target_ulong gcr_base;
     bool itu_present = false;
-    bool saar_present = false;
 
     if (!clock_get(s->clock)) {
         error_setg(errp, "CPS input clock is not connected to an output clock");
         return;
     }
 
-    for (i = 0; i < s->num_vp; i++) {
-        cpu = MIPS_CPU(object_new(s->cpu_type));
+    for (int i = 0; i < s->num_vp; i++) {
+        MIPSCPU *cpu = MIPS_CPU(object_new(s->cpu_type));
+        CPUMIPSState *env = &cpu->env;
 
         /* All VPs are halted on reset. Leave powering up to CPC. */
         if (!object_property_set_bool(OBJECT(cpu), "start-powered-off", true,
@@ -97,7 +93,6 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
 
-        env = &cpu->env;
         if (cpu_mips_itu_supported(env)) {
             itu_present = true;
             /* Attach ITC Tag to the VP */
@@ -107,22 +102,15 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         qemu_register_reset(main_cpu_reset, cpu);
     }
 
-    cpu = MIPS_CPU(first_cpu);
-    env = &cpu->env;
-    saar_present = (bool)env->saarp;
-
     /* Inter-Thread Communication Unit */
     if (itu_present) {
         object_initialize_child(OBJECT(dev), "itu", &s->itu, TYPE_MIPS_ITU);
-        object_property_set_int(OBJECT(&s->itu), "num-fifo", 16,
+        object_property_set_link(OBJECT(&s->itu), "cpu[0]",
+                                 OBJECT(first_cpu), &error_abort);
+        object_property_set_uint(OBJECT(&s->itu), "num-fifo", 16,
                                 &error_abort);
-        object_property_set_int(OBJECT(&s->itu), "num-semaphores", 16,
+        object_property_set_uint(OBJECT(&s->itu), "num-semaphores", 16,
                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->itu), "saar-present", saar_present,
-                                 &error_abort);
-        if (saar_present) {
-            s->itu.saar = &env->CP0_SAAR;
-        }
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->itu), errp)) {
             return;
         }
@@ -133,7 +121,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     /* Cluster Power Controller */
     object_initialize_child(OBJECT(dev), "cpc", &s->cpc, TYPE_MIPS_CPC);
-    object_property_set_int(OBJECT(&s->cpc), "num-vp", s->num_vp,
+    object_property_set_uint(OBJECT(&s->cpc), "num-vp", s->num_vp,
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpc), "vp-start-running", 1,
                             &error_abort);
@@ -146,9 +134,9 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     /* Global Interrupt Controller */
     object_initialize_child(OBJECT(dev), "gic", &s->gic, TYPE_MIPS_GIC);
-    object_property_set_int(OBJECT(&s->gic), "num-vp", s->num_vp,
+    object_property_set_uint(OBJECT(&s->gic), "num-vp", s->num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gic), "num-irq", 128,
+    object_property_set_uint(OBJECT(&s->gic), "num-irq", 128,
                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
         return;
@@ -158,10 +146,10 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
 
     /* Global Configuration Registers */
-    gcr_base = env->CP0_CMGCRBase << 4;
+    gcr_base = MIPS_CPU(first_cpu)->env.CP0_CMGCRBase << 4;
 
     object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
-    object_property_set_int(OBJECT(&s->gcr), "num-vp", s->num_vp,
+    object_property_set_uint(OBJECT(&s->gcr), "num-vp", s->num_vp,
                             &error_abort);
     object_property_set_int(OBJECT(&s->gcr), "gcr-rev", 0x800,
                             &error_abort);

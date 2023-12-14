@@ -42,13 +42,16 @@ static void get_dfp128(ppc_vsr_t *dst, ppc_fprp_t *dfp)
 
 static void set_dfp64(ppc_fprp_t *dfp, ppc_vsr_t *src)
 {
-    dfp->VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(1) = 0ULL;
 }
 
 static void set_dfp128(ppc_fprp_t *dfp, ppc_vsr_t *src)
 {
     dfp[0].VsrD(0) = src->VsrD(0);
     dfp[1].VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(1) = 0ULL;
+    dfp[1].VsrD(1) = 0ULL;
 }
 
 static void set_dfp128_to_avr(ppc_avr_t *dst, ppc_vsr_t *src)
@@ -118,7 +121,7 @@ static void dfp_set_round_mode_from_immediate(uint8_t r, uint8_t rmc,
         case 3: /* use FPSCR rounding mode */
             return;
         default:
-            assert(0); /* cannot get here */
+            g_assert_not_reached();
         }
     } else { /* r == 1 */
         switch (rmc & 3) {
@@ -135,7 +138,7 @@ static void dfp_set_round_mode_from_immediate(uint8_t r, uint8_t rmc,
             rnd = DEC_ROUND_HALF_DOWN;
             break;
         default:
-            assert(0); /* cannot get here */
+            g_assert_not_reached();
         }
     }
     decContextSetRounding(&dfp->context, rnd);
@@ -1144,6 +1147,26 @@ static inline uint8_t dfp_get_bcd_digit_128(ppc_vsr_t *t, unsigned n)
     return t->VsrD((n & 0x10) ? 0 : 1) >> ((n << 2) & 63) & 15;
 }
 
+static inline void dfp_invalid_op_vxcvi_64(struct PPC_DFP *dfp)
+{
+    /* TODO: fpscr is incorrectly not being saved to env */
+    dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXCVI, FPSCR_VE);
+    if ((dfp->env->fpscr & FP_VE) == 0) {
+        dfp->vt.VsrD(1) = 0x7c00000000000000; /* QNaN */
+    }
+}
+
+
+static inline void dfp_invalid_op_vxcvi_128(struct PPC_DFP *dfp)
+{
+    /* TODO: fpscr is incorrectly not being saved to env */
+    dfp_set_FPSCR_flag(dfp, FP_VX | FP_VXCVI, FPSCR_VE);
+    if ((dfp->env->fpscr & FP_VE) == 0) {
+        dfp->vt.VsrD(0) = 0x7c00000000000000; /* QNaN */
+        dfp->vt.VsrD(1) = 0x0;
+    }
+}
+
 #define DFP_HELPER_ENBCD(op, size)                                           \
 void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
                  uint32_t s)                                                 \
@@ -1170,7 +1193,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
             sgn = 0;                                                         \
             break;                                                           \
         default:                                                             \
-            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FPSCR_VE);            \
+            dfp_invalid_op_vxcvi_##size(&dfp);                               \
+            set_dfp##size(t, &dfp.vt);                                       \
             return;                                                          \
         }                                                                    \
         }                                                                    \
@@ -1180,7 +1204,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
         digits[(size) / 4 - n] = dfp_get_bcd_digit_##size(&dfp.vb,           \
                                                           offset++);         \
         if (digits[(size) / 4 - n] > 10) {                                   \
-            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FPSCR_VE);            \
+            dfp_invalid_op_vxcvi_##size(&dfp);                               \
+            set_dfp##size(t, &dfp.vt);                                       \
             return;                                                          \
         } else {                                                             \
             nonzero |= (digits[(size) / 4 - n] > 0);                         \

@@ -1,7 +1,9 @@
 #ifndef QEMU_HW_XEN_PVDEV_H
 #define QEMU_HW_XEN_PVDEV_H
 
-#include "hw/xen/xen_common.h"
+#include "hw/qdev-core.h"
+#include "hw/xen/xen_backend_ops.h"
+
 /* ------------------------------------------------------------- */
 
 #define XEN_BUFSIZE 1024
@@ -38,6 +40,7 @@ struct XenLegacyDevice {
     char               name[64];
     int                debug;
 
+    struct qemu_xs_watch *watch;
     enum xenbus_state  be_state;
     enum xenbus_state  fe_state;
     int                online;
@@ -63,7 +66,6 @@ int xenstore_write_int64(const char *base, const char *node, int64_t ival);
 char *xenstore_read_str(const char *base, const char *node);
 int xenstore_read_int(const char *base, const char *node, int *ival);
 int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval);
-void xenstore_update(void *unused);
 
 const char *xenbus_strstate(enum xenbus_state state);
 

@@ -14,8 +14,8 @@
  * side.  The slow side forces processor-level ordering on all other cores
  * through a system call.
  */
-extern void smp_mb_global_init(void);
-extern void smp_mb_global(void);
+void smp_mb_global_init(void);
+void smp_mb_global(void);
 #define smp_mb_placeholder()       barrier()
 #else
 /* Keep it simple, execute a real memory barrier on both sides.  */

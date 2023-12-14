@@ -23,6 +23,7 @@
 #include "s390x-internal.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/helpers.h"
 #include "qemu/bitops.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/tcg.h"
@@ -205,12 +206,8 @@ static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 #define S390_VIRT_CPUTM_REGNUM  1
 #define S390_VIRT_BEA_REGNUM    2
 #define S390_VIRT_PREFIX_REGNUM 3
-#define S390_VIRT_PP_REGNUM     4
-#define S390_VIRT_PFT_REGNUM    5
-#define S390_VIRT_PFS_REGNUM    6
-#define S390_VIRT_PFC_REGNUM    7
 /* total number of registers in s390-virt.xml */
-#define S390_NUM_VIRT_REGS 8
+#define S390_NUM_VIRT_REGS 4
 
 static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
 {
@@ -223,14 +220,6 @@ static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
         return gdb_get_regl(mem_buf, env->gbea);
     case S390_VIRT_PREFIX_REGNUM:
         return gdb_get_regl(mem_buf, env->psa);
-    case S390_VIRT_PP_REGNUM:
-        return gdb_get_regl(mem_buf, env->pp);
-    case S390_VIRT_PFT_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_token);
-    case S390_VIRT_PFS_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_select);
-    case S390_VIRT_PFC_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_compare);
     default:
         return 0;
     }
@@ -255,19 +244,51 @@ static int cpu_write_virt_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
         env->psa = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
         return 8;
-    case S390_VIRT_PP_REGNUM:
+    default:
+        return 0;
+    }
+}
+
+/* the values represent the positions in s390-virt-kvm.xml */
+#define S390_VIRT_KVM_PP_REGNUM     0
+#define S390_VIRT_KVM_PFT_REGNUM    1
+#define S390_VIRT_KVM_PFS_REGNUM    2
+#define S390_VIRT_KVM_PFC_REGNUM    3
+/* total number of registers in s390-virt-kvm.xml */
+#define S390_NUM_VIRT_KVM_REGS 4
+
+static int cpu_read_virt_kvm_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
+{
+    switch (n) {
+    case S390_VIRT_KVM_PP_REGNUM:
+        return gdb_get_regl(mem_buf, env->pp);
+    case S390_VIRT_KVM_PFT_REGNUM:
+        return gdb_get_regl(mem_buf, env->pfault_token);
+    case S390_VIRT_KVM_PFS_REGNUM:
+        return gdb_get_regl(mem_buf, env->pfault_select);
+    case S390_VIRT_KVM_PFC_REGNUM:
+        return gdb_get_regl(mem_buf, env->pfault_compare);
+    default:
+        return 0;
+    }
+}
+
+static int cpu_write_virt_kvm_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case S390_VIRT_KVM_PP_REGNUM:
         env->pp = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
         return 8;
-    case S390_VIRT_PFT_REGNUM:
+    case S390_VIRT_KVM_PFT_REGNUM:
         env->pfault_token = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
         return 8;
-    case S390_VIRT_PFS_REGNUM:
+    case S390_VIRT_KVM_PFS_REGNUM:
         env->pfault_select = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
         return 8;
-    case S390_VIRT_PFC_REGNUM:
+    case S390_VIRT_KVM_PFC_REGNUM:
         env->pfault_compare = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
         return 8;
@@ -320,10 +341,15 @@ void s390_cpu_gdb_init(CPUState *cs)
                              cpu_write_c_reg,
                              S390_NUM_C_REGS, "s390-cr.xml", 0);
 
+    gdb_register_coprocessor(cs, cpu_read_virt_reg,
+                             cpu_write_virt_reg,
+                             S390_NUM_VIRT_REGS, "s390-virt.xml", 0);
+
     if (kvm_enabled()) {
-        gdb_register_coprocessor(cs, cpu_read_virt_reg,
-                                 cpu_write_virt_reg,
-                                 S390_NUM_VIRT_REGS, "s390-virt.xml", 0);
+        gdb_register_coprocessor(cs, cpu_read_virt_kvm_reg,
+                                 cpu_write_virt_kvm_reg,
+                                 S390_NUM_VIRT_KVM_REGS, "s390-virt-kvm.xml",
+                                 0);
     }
 #endif
 }

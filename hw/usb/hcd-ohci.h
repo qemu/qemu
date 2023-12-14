@@ -21,6 +21,7 @@
 #ifndef HCD_OHCI_H
 #define HCD_OHCI_H
 
+#include "hw/sysbus.h"
 #include "sysemu/dma.h"
 #include "hw/usb.h"
 #include "qom/object.h"
@@ -33,7 +34,9 @@ typedef struct OHCIPort {
     uint32_t ctrl;
 } OHCIPort;
 
-typedef struct OHCIState {
+typedef struct OHCIState OHCIState;
+
+struct OHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
@@ -89,8 +92,8 @@ typedef struct OHCIState {
     uint32_t async_td;
     bool async_complete;
 
-    void (*ohci_die)(struct OHCIState *ohci);
-} OHCIState;
+    void (*ohci_die)(OHCIState *ohci);
+};
 
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
 OBJECT_DECLARE_SIMPLE_TYPE(OHCISysBusState, SYSBUS_OHCI)
@@ -112,7 +115,7 @@ extern const VMStateDescription vmstate_ohci_state;
 void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
                    dma_addr_t localmem_base, char *masterbus,
                    uint32_t firstport, AddressSpace *as,
-                   void (*ohci_die_fn)(struct OHCIState *), Error **errp);
+                   void (*ohci_die_fn)(OHCIState *), Error **errp);
 void ohci_bus_stop(OHCIState *ohci);
 void ohci_stop_endpoints(OHCIState *ohci);
 void ohci_hard_reset(OHCIState *ohci);

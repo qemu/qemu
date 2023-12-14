@@ -94,7 +94,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 
 /* similar to visitor_input_test_init(), but does not expect a string
  * literal/format json_string argument and so can be used for
- * programatically generated strings (and we can't pass in programatically
+ * programmatically generated strings (and we can't pass in programmatically
  * generated strings via %s format parameters since qobject_from_jsonv()
  * will wrap those in double-quotes and treat the entire object as a
  * string)
@@ -431,7 +431,7 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
     g_assert_cmpint(udp->dict1->dict2->userdef->integer, ==, 42);
     g_assert_cmpstr(udp->dict1->dict2->userdef->string, ==, "string");
     g_assert_cmpstr(udp->dict1->dict2->string, ==, "string2");
-    g_assert(udp->dict1->has_dict3 == false);
+    g_assert(!udp->dict1->dict3);
 }
 
 static void test_visitor_in_list(TestInputVisitorData *data,
@@ -704,6 +704,51 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
 
     base = qapi_UserDefFlatUnion_base(tmp);
     g_assert(&base->enum1 == &tmp->enum1);
+}
+
+static void test_visitor_in_union_in_union(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    Visitor *v;
+    g_autoptr(TestUnionInUnion) tmp = NULL;
+
+    v = visitor_input_test_init(data,
+                                "{ 'type': 'value-a', "
+                                "  'type-a': 'value-a1', "
+                                "  'integer': 2, "
+                                "  'name': 'fish' }");
+
+    visit_type_TestUnionInUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, TEST_UNION_ENUM_VALUE_A);
+    g_assert_cmpint(tmp->u.value_a.type_a, ==, TEST_UNION_ENUMA_VALUE_A1);
+    g_assert_cmpint(tmp->u.value_a.u.value_a1.integer, ==, 2);
+    g_assert_cmpint(strcmp(tmp->u.value_a.u.value_a1.name, "fish"), ==, 0);
+
+    qapi_free_TestUnionInUnion(tmp);
+
+    v = visitor_input_test_init(data,
+                                "{ 'type': 'value-a', "
+                                "  'type-a': 'value-a2', "
+                                "  'integer': 1729, "
+                                "  'size': 87539319 }");
+
+    visit_type_TestUnionInUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, TEST_UNION_ENUM_VALUE_A);
+    g_assert_cmpint(tmp->u.value_a.type_a, ==, TEST_UNION_ENUMA_VALUE_A2);
+    g_assert_cmpint(tmp->u.value_a.u.value_a2.integer, ==, 1729);
+    g_assert_cmpint(tmp->u.value_a.u.value_a2.size, ==, 87539319);
+
+    qapi_free_TestUnionInUnion(tmp);
+
+    v = visitor_input_test_init(data,
+                                "{ 'type': 'value-b', "
+                                "  'integer': 1729, "
+                                "  'onoff': true }");
+
+    visit_type_TestUnionInUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, TEST_UNION_ENUM_VALUE_B);
+    g_assert_cmpint(tmp->u.value_b.integer, ==, 1729);
+    g_assert_cmpint(tmp->u.value_b.onoff, ==, true);
 }
 
 static void test_visitor_in_alternate(TestInputVisitorData *data,
@@ -1216,6 +1261,8 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_null);
     input_visitor_test_add("/visitor/input/union-flat",
                            NULL, test_visitor_in_union_flat);
+    input_visitor_test_add("/visitor/input/union-in-union",
+                           NULL, test_visitor_in_union_in_union);
     input_visitor_test_add("/visitor/input/alternate",
                            NULL, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",

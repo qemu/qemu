@@ -23,12 +23,13 @@ class QueryCPUModelExpansion(QemuSystemTest):
         self.vm.add_args('-S')
         self.vm.launch()
 
-        cpus = self.vm.command('query-cpu-definitions')
+        cpus = self.vm.cmd('query-cpu-definitions')
         for c in cpus:
             self.log.info("Checking CPU: %s", c)
             self.assertNotIn('', c['unavailable-features'], c['name'])
 
         for c in cpus:
             model = {'name': c['name']}
-            e = self.vm.command('query-cpu-model-expansion', model=model, type='full')
-            self.assertEquals(e['model']['name'], c['name'])
+            e = self.vm.cmd('query-cpu-model-expansion', model=model,
+                            type='full')
+            self.assertEqual(e['model']['name'], c['name'])

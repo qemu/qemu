@@ -8,7 +8,7 @@
  */
 
 /* The controller can support a variety of different displays, but we only
-   implement one.  Most of the commends relating to brightness and geometry
+   implement one.  Most of the commands relating to brightness and geometry
    setup are ignored. */
 
 #include "qemu/osdep.h"

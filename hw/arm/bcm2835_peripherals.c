@@ -90,6 +90,8 @@ static void bcm2835_peripherals_init(Object *obj)
                             TYPE_BCM2835_PROPERTY);
     object_property_add_alias(obj, "board-rev", OBJECT(&s->property),
                               "board-rev");
+    object_property_add_alias(obj, "command-line", OBJECT(&s->property),
+                              "command-line");
 
     object_property_add_const_link(OBJECT(&s->property), "fb",
                                    OBJECT(&s->fb));

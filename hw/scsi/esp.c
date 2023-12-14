@@ -292,7 +292,7 @@ static void do_command_phase(ESPState *s)
     esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, s->lun);
-    s->current_req = scsi_req_new(current_lun, 0, s->lun, buf, s);
+    s->current_req = scsi_req_new(current_lun, 0, s->lun, buf, cmdlen, s);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     fifo8_reset(&s->cmdfifo);
@@ -515,7 +515,7 @@ static void do_dma_pdma_cb(ESPState *s)
         } else {
             /*
              * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to commmand phase
+             * and then switch to command phase
              */
             s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
@@ -627,7 +627,7 @@ static void esp_do_dma(ESPState *s)
         } else {
             /*
              * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to commmand phase
+             * and then switch to command phase
              */
             s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
@@ -738,7 +738,7 @@ static void esp_do_nodma(ESPState *s)
         } else {
             /*
              * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to commmand phase
+             * and then switch to command phase
              */
             s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
@@ -759,7 +759,8 @@ static void esp_do_nodma(ESPState *s)
     }
 
     if (to_device) {
-        len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
+        len = MIN(s->async_len, ESP_FIFO_SZ);
+        len = MIN(len, fifo8_num_used(&s->fifo));
         esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += len;
         s->async_len -= len;
@@ -939,6 +940,11 @@ static void esp_soft_reset(ESPState *s)
     esp_hard_reset(s);
 }
 
+static void esp_bus_reset(ESPState *s)
+{
+    bus_cold_reset(BUS(&s->bus));
+}
+
 static void parent_esp_reset(ESPState *s, int irq, int level)
 {
     if (level) {
@@ -1067,6 +1073,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             break;
         case CMD_BUSRESET:
             trace_esp_mem_writeb_cmd_bus_reset(val);
+            esp_bus_reset(s);
             if (!(s->wregs[ESP_CFG1] & CFG1_RESREPT)) {
                 s->rregs[ESP_RINTR] |= INTR_RST;
                 esp_raise_irq(s);
@@ -1389,7 +1396,7 @@ static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
         parent_esp_reset(s, irq, level);
         break;
     case 1:
-        esp_dma_enable(opaque, irq, level);
+        esp_dma_enable(s, irq, level);
         break;
     }
 }

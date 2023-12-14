@@ -12,7 +12,7 @@
 import os
 import tempfile
 
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import QemuSystemTest
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
@@ -36,8 +36,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
     dmesg_clear_count = 1
     def clear_guest_dmesg(self):
         exec_command_and_wait_for_pattern(self, 'dmesg -c > /dev/null; '
-                    'echo dm_clear\ ' + str(self.dmesg_clear_count),
-                    'dm_clear ' + str(self.dmesg_clear_count))
+                    r'echo dm_clear\ ' + str(self.dmesg_clear_count),
+                    r'dm_clear ' + str(self.dmesg_clear_count))
         self.dmesg_clear_count += 1
 
     def test_s390x_devices(self):
@@ -66,6 +66,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                          '-kernel', kernel_path,
                          '-initrd', initrd_path,
                          '-append', kernel_command_line,
+                         '-cpu', 'max,prno-trng=off',
                          '-device', 'virtio-net-ccw,devno=fe.1.1111',
                          '-device',
                          'virtio-rng-ccw,devno=fe.2.0000,max_revision=0,id=rn1',
@@ -106,10 +107,10 @@ class S390CCWVirtioMachine(QemuSystemTest):
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
                         '10+0 records out')
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='rn1')
+        self.vm.cmd('device_del', id='rn1')
         self.wait_for_crw_reports()
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='rn2')
+        self.vm.cmd('device_del', id='rn2')
         self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self,
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
@@ -120,19 +121,19 @@ class S390CCWVirtioMachine(QemuSystemTest):
                                     'cat /sys/bus/ccw/devices/0.1.1111/cutype',
                                     '3832/01')
         exec_command_and_wait_for_pattern(self,
-                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
-                    '0x1af4')
+                    r'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
+                    r'0x1af4')
         exec_command_and_wait_for_pattern(self,
-                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
-                    '0x0001')
+                    r'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
+                    r'0x0001')
         # check fid propagation
         exec_command_and_wait_for_pattern(self,
-                        'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
-                        '0x0000000c')
+                    r'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
+                    r'0x0000000c')
         # add another device
         self.clear_guest_dmesg()
-        self.vm.command('device_add', driver='virtio-net-ccw',
-                        devno='fe.0.4711', id='net_4711')
+        self.vm.cmd('device_add', driver='virtio-net-ccw',
+                    devno='fe.0.4711', id='net_4711')
         self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self, 'for i in 1 2 3 4 5 6 7 ; do '
                     'if [ -e /sys/bus/ccw/devices/*4711 ]; then break; fi ;'
@@ -140,7 +141,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                     '0.0.4711')
         # and detach it again
         self.clear_guest_dmesg()
-        self.vm.command('device_del', id='net_4711')
+        self.vm.cmd('device_del', id='net_4711')
         self.vm.event_wait(name='DEVICE_DELETED',
                            match={'data': {'device': 'net_4711'}})
         self.wait_for_crw_reports()
@@ -150,15 +151,14 @@ class S390CCWVirtioMachine(QemuSystemTest):
         # test the virtio-balloon device
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
-        self.vm.command('human-monitor-command', command_line='balloon 96')
+        self.vm.cmd('human-monitor-command', command_line='balloon 96')
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:          82872 kB')
-        self.vm.command('human-monitor-command', command_line='balloon 128')
+        self.vm.cmd('human-monitor-command', command_line='balloon 128')
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
 
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390x_fedora(self):
 
         """
@@ -167,6 +167,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
         :avocado: tags=device:virtio-gpu
         :avocado: tags=device:virtio-crypto
         :avocado: tags=device:virtio-net
+        :avocado: tags=flaky
         """
 
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
@@ -228,45 +229,49 @@ class S390CCWVirtioMachine(QemuSystemTest):
         # writing to the framebuffer. Since the PPM is uncompressed, we then
         # can simply read the written "magic bytes" back from the PPM file to
         # check whether the framebuffer is working as expected.
-        self.log.info("Test screendump of virtio-gpu device")
-        exec_command_and_wait_for_pattern(self,
+        # Unfortunately, this test is flaky, so we don't run it by default
+        if os.getenv('QEMU_TEST_FLAKY_TESTS'):
+            self.log.info("Test screendump of virtio-gpu device")
+            exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg | grep gpudrmfb) ; do sleep 1 ; done',
                         'virtio_gpudrmfb frame buffer device')
-        exec_command_and_wait_for_pattern(self,
-            'echo -e "\e[?25l" > /dev/tty0', ':/#')
-        exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
-            'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
-            'done',
-            ':/#')
-        exec_command_and_wait_for_pattern(self,
-            'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
-            '12+0 records out')
-        with tempfile.NamedTemporaryFile(suffix='.ppm',
-                                         prefix='qemu-scrdump-') as ppmfile:
-            self.vm.command('screendump', filename=ppmfile.name)
-            ppmfile.seek(0)
-            line = ppmfile.readline()
-            self.assertEqual(line, b"P6\n")
-            line = ppmfile.readline()
-            self.assertEqual(line, b"1280 800\n")
-            line = ppmfile.readline()
-            self.assertEqual(line, b"255\n")
-            line = ppmfile.readline(256)
-            self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
+            exec_command_and_wait_for_pattern(self,
+                r'echo -e "\e[?25l" > /dev/tty0', ':/#')
+            exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
+                'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
+                'done',
+                ':/#')
+            exec_command_and_wait_for_pattern(self,
+                'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
+                '12+0 records out')
+            with tempfile.NamedTemporaryFile(suffix='.ppm',
+                                             prefix='qemu-scrdump-') as ppmfile:
+                self.vm.cmd('screendump', filename=ppmfile.name)
+                ppmfile.seek(0)
+                line = ppmfile.readline()
+                self.assertEqual(line, b"P6\n")
+                line = ppmfile.readline()
+                self.assertEqual(line, b"1280 800\n")
+                line = ppmfile.readline()
+                self.assertEqual(line, b"255\n")
+                line = ppmfile.readline(256)
+                self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
+        else:
+            self.log.info("Skipped flaky screendump of virtio-gpu device test")
 
         # Hot-plug a virtio-crypto device and see whether it gets accepted
         self.log.info("Test hot-plug virtio-crypto device")
         self.clear_guest_dmesg()
-        self.vm.command('object-add', qom_type='cryptodev-backend-builtin',
-                        id='cbe0')
-        self.vm.command('device_add', driver='virtio-crypto-ccw', id='crypdev0',
-                        cryptodev='cbe0', devno='fe.0.2342')
+        self.vm.cmd('object-add', qom_type='cryptodev-backend-builtin',
+                    id='cbe0')
+        self.vm.cmd('device_add', driver='virtio-crypto-ccw', id='crypdev0',
+                    cryptodev='cbe0', devno='fe.0.2342')
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Accelerator.device) ; do'
                         ' sleep 1 ; done', 'Accelerator device is ready')
         exec_command_and_wait_for_pattern(self, 'lscss', '0.0.2342')
-        self.vm.command('device_del', id='crypdev0')
-        self.vm.command('object-del', id='cbe0')
+        self.vm.cmd('device_del', id='crypdev0')
+        self.vm.cmd('object-del', id='cbe0')
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
                         ' sleep 1 ; done', 'Start virtcrypto_remove.')

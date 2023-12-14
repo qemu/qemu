@@ -181,3 +181,11 @@ DEF_HELPER_1(eret, void, env)
 DEF_HELPER_1(eretnc, void, env)
 DEF_HELPER_1(deret, void, env)
 DEF_HELPER_3(cache, void, env, tl, i32)
+
+#ifdef TARGET_MIPS64
+/* Longson CSR */
+DEF_HELPER_2(lcsr_rdcsr, i64, env, tl)
+DEF_HELPER_2(lcsr_drdcsr, i64, env, tl)
+DEF_HELPER_3(lcsr_wrcsr, void, env, tl, tl)
+DEF_HELPER_3(lcsr_dwrcsr, void, env, tl, tl)
+#endif

@@ -1,0 +1,19 @@
+# This work is licensed under the terms of the GNU LGPL, version 2 or later.
+# See the COPYING.LIB file in the top-level directory.
+
+# field using a named_field
+%imm_sz	8:8 sz:3
+insn 00000000 00000000 ........ 00000000 imm_sz=%imm_sz sz=1
+
+# Ditto, via a format. Here a field in the format
+# references a named field defined in the insn pattern:
+&imm_a imm alpha
+%foo 0:16 alpha:4
+@foo 00000001 ........ ........ ........ &imm_a imm=%foo
+i1   ........ 00000000 ........ ........ @foo alpha=1
+i2   ........ 00000001 ........ ........ @foo alpha=2
+
+# Here the named field is defined in the format and referenced
+# from the insn pattern:
+@bar 00000010 ........ ........ ........ &imm_a alpha=4
+i3   ........ 00000000 ........ ........ @bar imm=%foo

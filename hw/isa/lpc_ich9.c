@@ -34,13 +34,14 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"
+#include "hw/dma/i8257.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/isa/apm.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bridge.h"
-#include "hw/i386/ich9.h"
+#include "hw/southbridge/ich9.h"
+#include "hw/i386/pc.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
 #include "hw/pci/pci_bus.h"
@@ -51,11 +52,10 @@
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/cutils.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "trace.h"
 
 /*****************************************************************************/
 /* ICH9 LPC PCI to ISA bridge */
-
-static void ich9_lpc_reset(DeviceState *qdev);
 
 /* chipset configuration register
  * to access chipset configuration registers, pci_[sg]et_{byte, word, long}
@@ -161,6 +161,7 @@ static void ich9_cc_write(void *opaque, hwaddr addr,
 {
     ICH9LPCState *lpc = (ICH9LPCState *)opaque;
 
+    trace_ich9_cc_write(addr, val, len);
     ich9_cc_addr_len(&addr, &len);
     memcpy(lpc->chip_config + addr, &val, len);
     pci_bus_fire_intx_routing_notifier(pci_get_bus(&lpc->d));
@@ -176,6 +177,7 @@ static uint64_t ich9_cc_read(void *opaque, hwaddr addr,
     uint32_t val = 0;
     ich9_cc_addr_len(&addr, &len);
     memcpy(&val, lpc->chip_config + addr, len);
+    trace_ich9_cc_read(addr, val, len);
     return val;
 }
 
@@ -255,7 +257,7 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
     qemu_set_irq(lpc->gsi[gsi], level);
 }
 
-void ich9_lpc_set_irq(void *opaque, int pirq, int level)
+static void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 {
     ICH9LPCState *lpc = opaque;
     int pic_irq, pic_dis;
@@ -271,7 +273,7 @@ void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 /* return the pirq number (PIRQ[A-H]:0-7) corresponding to
  * a given device irq pin.
  */
-int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
+static int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
 {
     BusState *bus = qdev_get_parent_bus(&pci_dev->qdev);
     PCIBus *pci_bus = PCI_BUS(bus);
@@ -282,7 +284,7 @@ int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
     return lpc->irr[PCI_SLOT(pci_dev->devfn)][intx];
 }
 
-PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
+static PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
 {
     ICH9LPCState *lpc = opaque;
     PCIINTxRoute route;
@@ -302,6 +304,21 @@ PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
             route.irq = -1;
         }
     } else {
+        /*
+         * Strictly speaking, this is wrong. The PIRQ should be routed
+         * to *both* the I/O APIC and the PIC, on different pins. The
+         * I/O APIC has a fixed mapping to IRQ16-23, while the PIC is
+         * routed according to the PIRQx_ROUT configuration. But QEMU
+         * doesn't (yet) cope with the concept of pin numbers differing
+         * between PIC and I/O APIC, and neither does the in-kernel KVM
+         * irqchip support. So we route to the I/O APIC *only* if the
+         * routing to the PIC is disabled in the PIRQx_ROUT settings.
+         *
+         * This seems to work even if we boot a Linux guest with 'noapic'
+         * to make it use the legacy PIC, and then kexec directly into a
+         * new kernel which uses the I/O APIC. The new kernel explicitly
+         * disables the PIRQ routing even though it doesn't need to care.
+         */
         route.irq = ich9_pirq_to_gsi(pirq_pin);
     }
 
@@ -403,14 +420,13 @@ static void smi_features_ok_callback(void *opaque)
     lpc->smi_features_ok = 1;
 }
 
-void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
+static void ich9_lpc_pm_init(ICH9LPCState *lpc)
 {
-    ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
     qemu_irq sci_irq;
     FWCfgState *fw_cfg = fw_cfg_find();
 
     sci_irq = qemu_allocate_irq(ich9_set_sci, lpc, 0);
-    ich9_pm_init(lpc_pci, &lpc->pm, smm_enabled, sci_irq);
+    ich9_pm_init(PCI_DEVICE(lpc), &lpc->pm, sci_irq);
 
     if (lpc->smi_host_features && fw_cfg) {
         uint64_t host_features_le;
@@ -436,8 +452,6 @@ void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
                                  sizeof lpc->smi_features_ok,
                                  true);
     }
-
-    ich9_lpc_reset(DEVICE(lpc));
 }
 
 /* APM */
@@ -659,6 +673,11 @@ static void ich9_lpc_initfn(Object *obj)
     static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
+    object_initialize_child(obj, "rtc", &lpc->rtc, TYPE_MC146818_RTC);
+
+    qdev_init_gpio_out_named(DEVICE(lpc), lpc->gsi, ICH9_GPIO_GSI,
+                             IOAPIC_NUM_PINS);
+
     object_property_add_uint8_ptr(obj, ACPI_PM_PROP_SCI_INT,
                                   &lpc->sci_gsi, OBJ_PROP_FLAG_READ);
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
@@ -675,8 +694,9 @@ static void ich9_lpc_initfn(Object *obj)
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
-    DeviceState *dev = DEVICE(d);
+    PCIBus *pci_bus = pci_get_bus(d);
     ISABus *isa_bus;
+    uint32_t irq;
 
     if ((lpc->smi_host_features & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT)) &&
         !(lpc->smi_host_features & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT))) {
@@ -705,8 +725,6 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     memory_region_init_io(&lpc->rcrb_mem, OBJECT(d), &rcrb_mmio_ops, lpc,
                           "lpc-rcrb-mmio", ICH9_CC_SIZE);
 
-    lpc->isa_bus = isa_bus;
-
     ich9_cc_init(lpc);
     apm_init(d, &lpc->apm, ich9_apm_ctrl_changed, lpc);
 
@@ -719,9 +737,23 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
 
-    qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, GSI_NUM_PINS);
+    isa_bus_register_input_irqs(isa_bus, lpc->gsi);
 
-    isa_bus_irqs(isa_bus, lpc->gsi);
+    i8257_dma_init(isa_bus, 0);
+
+    /* RTC */
+    qdev_prop_set_int32(DEVICE(&lpc->rtc), "base_year", 2000);
+    if (!qdev_realize(DEVICE(&lpc->rtc), BUS(isa_bus), errp)) {
+        return;
+    }
+    irq = object_property_get_uint(OBJECT(&lpc->rtc), "irq", &error_fatal);
+    isa_connect_gpio_out(ISA_DEVICE(&lpc->rtc), 0, irq);
+
+    pci_bus_irqs(pci_bus, ich9_lpc_set_irq, d, ICH9_LPC_NB_PIRQS);
+    pci_bus_map_irqs(pci_bus, ich9_lpc_map_irq);
+    pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
+
+    ich9_lpc_pm_init(lpc);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
@@ -786,8 +818,9 @@ static const VMStateDescription vmstate_ich9_lpc = {
 };
 
 static Property ich9_lpc_properties[] = {
-    DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, true),
+    DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, false),
     DEFINE_PROP_BOOL("smm-compat", ICH9LPCState, pm.smm_compat, false),
+    DEFINE_PROP_BOOL("smm-enabled", ICH9LPCState, pm.smm_enabled, false),
     DEFINE_PROP_BIT64("x-smi-broadcast", ICH9LPCState, smi_host_features,
                       ICH9_LPC_SMI_F_BROADCAST_BIT, true),
     DEFINE_PROP_BIT64("x-smi-cpu-hotplug", ICH9LPCState, smi_host_features,
@@ -806,17 +839,28 @@ static void ich9_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 
 static void build_ich9_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    BusChild *kid;
-    ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
-    BusState *bus = BUS(s->isa_bus);
+    Aml *field;
+    BusState *bus = qdev_get_child_bus(DEVICE(adev), "isa.0");
+    Aml *sb_scope = aml_scope("\\_SB");
 
     /* ICH9 PCI to ISA irq remapping */
     aml_append(scope, aml_operation_region("PIRQ", AML_PCI_CONFIG,
                                            aml_int(0x60), 0x0C));
+    /* Fields declarion has to happen *after* operation region */
+    field = aml_field("PCI0.SF8.PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRQA", 8));
+    aml_append(field, aml_named_field("PRQB", 8));
+    aml_append(field, aml_named_field("PRQC", 8));
+    aml_append(field, aml_named_field("PRQD", 8));
+    aml_append(field, aml_reserved_field(0x20));
+    aml_append(field, aml_named_field("PRQE", 8));
+    aml_append(field, aml_named_field("PRQF", 8));
+    aml_append(field, aml_named_field("PRQG", 8));
+    aml_append(field, aml_named_field("PRQH", 8));
+    aml_append(sb_scope, field);
+    aml_append(scope, sb_scope);
 
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-            call_dev_aml_func(DEVICE(kid->child), scope);
-    }
+    qbus_build_aml(bus, scope);
 }
 
 static void ich9_lpc_class_init(ObjectClass *klass, void *data)
@@ -847,9 +891,9 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     hc->plug = ich9_pm_device_plug_cb;
     hc->unplug_request = ich9_pm_device_unplug_request_cb;
     hc->unplug = ich9_pm_device_unplug_cb;
+    hc->is_hotpluggable_bus = ich9_pm_is_hotpluggable_bus;
     adevc->ospm_status = ich9_pm_ospm_status;
     adevc->send_event = ich9_send_gpe;
-    adevc->madt_cpu = pc_madt_cpu_entry;
     amldevc->build_dev_aml = build_ich9_isa_aml;
 }
 

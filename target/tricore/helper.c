@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/registerfields.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat-helpers.h"
@@ -30,7 +31,6 @@ enum {
     TLBRET_MATCH = 0
 };
 
-#if defined(CONFIG_SOFTMMU)
 static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
                                 int *prot, target_ulong address,
                                 MMUAccessType access_type, int mmu_idx)
@@ -56,9 +56,8 @@ hwaddr tricore_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     }
     return phys_addr;
 }
-#endif
 
-/* TODO: Add exeption support*/
+/* TODO: Add exception support */
 static void raise_mmu_exception(CPUTriCoreState *env, target_ulong address,
                                 int rw, int tlb_error)
 {
@@ -79,7 +78,7 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                                address, rw, mmu_idx);
 
     qemu_log_mask(CPU_LOG_MMU, "%s address=" TARGET_FMT_lx " ret %d physical "
-                  TARGET_FMT_plx " prot %d\n",
+                  HWADDR_FMT_plx " prot %d\n",
                   __func__, (target_ulong)address, ret, physical, prot);
 
     if (ret == TLBRET_MATCH) {
@@ -121,16 +120,31 @@ void tricore_cpu_list(void)
 
 void fpu_set_state(CPUTriCoreState *env)
 {
-    set_float_rounding_mode(env->PSW & MASK_PSW_FPU_RM, &env->fp_status);
+    switch (extract32(env->PSW, 24, 2)) {
+    case 0:
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        break;
+    case 1:
+        set_float_rounding_mode(float_round_up, &env->fp_status);
+        break;
+    case 2:
+        set_float_rounding_mode(float_round_down, &env->fp_status);
+        break;
+    case 3:
+        set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+        break;
+    }
+
     set_flush_inputs_to_zero(1, &env->fp_status);
     set_flush_to_zero(1, &env->fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     set_default_nan_mode(1, &env->fp_status);
 }
 
 uint32_t psw_read(CPUTriCoreState *env)
 {
     /* clear all USB bits */
-    env->PSW &= 0x6ffffff;
+    env->PSW &= 0x7ffffff;
     /* now set them from the cache */
     env->PSW |= ((env->PSW_USB_C != 0) << 31);
     env->PSW |= ((env->PSW_USB_V   & (1 << 31))  >> 1);
@@ -152,3 +166,47 @@ void psw_write(CPUTriCoreState *env, uint32_t val)
 
     fpu_set_state(env);
 }
+
+#define FIELD_GETTER_WITH_FEATURE(NAME, REG, FIELD, FEATURE)     \
+uint32_t NAME(CPUTriCoreState *env)                             \
+{                                                                \
+    if (tricore_has_feature(env, TRICORE_FEATURE_##FEATURE)) {   \
+        return FIELD_EX32(env->REG, REG, FIELD ## _ ## FEATURE); \
+    }                                                            \
+    return FIELD_EX32(env->REG, REG, FIELD ## _13);              \
+}
+
+#define FIELD_GETTER(NAME, REG, FIELD)       \
+uint32_t NAME(CPUTriCoreState *env)         \
+{                                            \
+    return FIELD_EX32(env->REG, REG, FIELD); \
+}
+
+#define FIELD_SETTER_WITH_FEATURE(NAME, REG, FIELD, FEATURE)              \
+void NAME(CPUTriCoreState *env, uint32_t val)                            \
+{                                                                         \
+    if (tricore_has_feature(env, TRICORE_FEATURE_##FEATURE)) {            \
+        env->REG = FIELD_DP32(env->REG, REG, FIELD ## _ ## FEATURE, val); \
+    }                                                                     \
+    env->REG = FIELD_DP32(env->REG, REG, FIELD ## _13, val);              \
+}
+
+#define FIELD_SETTER(NAME, REG, FIELD)                \
+void NAME(CPUTriCoreState *env, uint32_t val)        \
+{                                                     \
+    env->REG = FIELD_DP32(env->REG, REG, FIELD, val); \
+}
+
+FIELD_GETTER_WITH_FEATURE(pcxi_get_pcpn, PCXI, PCPN, 161)
+FIELD_SETTER_WITH_FEATURE(pcxi_set_pcpn, PCXI, PCPN, 161)
+FIELD_GETTER_WITH_FEATURE(pcxi_get_pie, PCXI, PIE, 161)
+FIELD_SETTER_WITH_FEATURE(pcxi_set_pie, PCXI, PIE, 161)
+FIELD_GETTER_WITH_FEATURE(pcxi_get_ul, PCXI, UL, 161)
+FIELD_SETTER_WITH_FEATURE(pcxi_set_ul, PCXI, UL, 161)
+FIELD_GETTER(pcxi_get_pcxs, PCXI, PCXS)
+FIELD_GETTER(pcxi_get_pcxo, PCXI, PCXO)
+
+FIELD_GETTER_WITH_FEATURE(icr_get_ie, ICR, IE, 161)
+FIELD_SETTER_WITH_FEATURE(icr_set_ie, ICR, IE, 161)
+FIELD_GETTER(icr_get_ccpn, ICR, CCPN)
+FIELD_SETTER(icr_set_ccpn, ICR, CCPN)

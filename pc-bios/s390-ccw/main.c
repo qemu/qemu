@@ -17,7 +17,6 @@
 #include "virtio-scsi.h"
 #include "dasd-ipl.h"
 
-char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
 static char loadparm_str[LOADPARM_LEN + 1];
 QemuIplParameters qipl;

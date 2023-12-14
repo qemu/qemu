@@ -44,31 +44,87 @@ _supported_os Linux
 inuse_offset=$((0x2c))
 
 size=$((64 * 1024 * 1024))
-CLUSTER_SIZE=64k
 IMGFMT=parallels
 _make_test_img $size
 
-echo == read empty image ==
-{ $QEMU_IO -c "read -P 0 32k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == write more than 1 block in a row ==
-{ $QEMU_IO -c "write -P 0x11 32k 128k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == read less than block ==
-{ $QEMU_IO -c "read -P 0x11 32k 32k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == read exactly 1 block ==
-{ $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == read more than 1 block ==
-{ $QEMU_IO -c "read -P 0x11 32k 128k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == check that there is no trash after written ==
-{ $QEMU_IO -c "read -P 0 160k 32k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-echo == check that there is no trash before written ==
-{ $QEMU_IO -c "read -P 0 0 32k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+# get cluster size in sectors from "tracks" header field
+CLUSTER_SIZE_OFFSET=28
+CLUSTER_SIZE=$(peek_file_le $TEST_IMG $CLUSTER_SIZE_OFFSET 4)
+CLUSTER_SIZE=$((CLUSTER_SIZE * 512))
+CLUSTER_HALF_SIZE=$((CLUSTER_SIZE / 2))
+CLUSTER_DBL_SIZE=$((CLUSTER_SIZE * 2))
 
-echo "== Corrupt image =="
+echo == read empty image ==
+{ $QEMU_IO -c "read -P 0 $CLUSTER_HALF_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == write more than 1 block in a row ==
+{ $QEMU_IO -c "write -P 0x11 $CLUSTER_HALF_SIZE $CLUSTER_DBL_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == read less than block ==
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_HALF_SIZE $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == read exactly 1 block ==
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == read more than 1 block ==
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_HALF_SIZE $CLUSTER_DBL_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == check that there is no trash after written ==
+{ $QEMU_IO -c "read -P 0 $((CLUSTER_HALF_SIZE + CLUSTER_DBL_SIZE)) $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo == check that there is no trash before written ==
+{ $QEMU_IO -c "read -P 0 0 $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== corrupt image =="
 poke_file "$TEST_IMG" "$inuse_offset" "\x59\x6e\x6f\x74"
-{ $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
-_check_test_img
-_check_test_img -r all
-{ $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+echo "== read corrupted image with repairing =="
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check discard =="
+
+# Clear image
+_make_test_img $size
+
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_DBL_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG map "$TEST_IMG"; } 2>&1 | _filter_qemu_img_map
+{ $QEMU_IO -c "discard 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG map "$TEST_IMG"; } 2>&1 | _filter_qemu_img_map
+{ $QEMU_IO -c "read -P 0 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check simple allocation over the discarded hole =="
+
+{ $QEMU_IO -c "write -P 0x11 $CLUSTER_DBL_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG map "$TEST_IMG"; } 2>&1 | _filter_qemu_img_map
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_DBL_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check more complex allocation over the discard hole =="
+
+# Clear image
+_make_test_img $size
+
+{ $QEMU_IO -c "write -P 0x11 $CLUSTER_DBL_SIZE $CLUSTER_DBL_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "discard $CLUSTER_DBL_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+# There is 1 cluster hole. Fill it fully and allocate 1 cluster at the end
+{ $QEMU_IO -c "write -P 0x12 $CLUSTER_HALF_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG map "$TEST_IMG"; } 2>&1 | _filter_qemu_img_map
+{ $QEMU_IO -c "read -P 0x12 $CLUSTER_HALF_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0 0 $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0 $((CLUSTER_SIZE + CLUSTER_HALF_SIZE)) $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check write-zeroes =="
+
+# Clear image
+_make_test_img $size
+
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_DBL_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "write -z 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG map "$TEST_IMG"; } 2>&1 | _filter_qemu_img_map
+{ $QEMU_IO -c "read -P 0 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_SIZE $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== check cluster-partial write-zeroes =="
+
+# Clear image
+_make_test_img $size
+
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "write -z 0 $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0 0 $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x11 $CLUSTER_HALF_SIZE $CLUSTER_HALF_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo "== allocate with backing =="
 # Verify that allocating clusters works fine even when there is a backing image.
@@ -83,7 +139,7 @@ TEST_IMG="$TEST_IMG.base" _make_test_img $size
 
 # Write some data to the base image (which would trigger an assertion failure if
 # interpreted as a QEMUIOVector)
-$QEMU_IO -c 'write -P 42 0 64k' "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -P 42 0 $CLUSTER_SIZE" "$TEST_IMG.base" | _filter_qemu_io
 
 # Parallels does not seem to support storing a backing filename in the image
 # itself, so we need to build our backing chain on the command line
@@ -99,8 +155,8 @@ QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
     $QEMU_IO --image-opts "$imgopts" \
     -c 'read -P 1 0 64' \
-    -c "read -P 42 64 $((64 * 1024 - 64))" \
-    -c "read -P 0 64k $((size - 64 * 1024))" \
+    -c "read -P 42 64 $((CLUSTER_SIZE - 64))" \
+    -c "read -P 0 $CLUSTER_SIZE $((size - CLUSTER_SIZE))" \
     | _filter_qemu_io
 
 # success, all done

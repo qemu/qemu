@@ -74,6 +74,8 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
 
     kvm_check_mmu(cpu, &error_fatal);
 
+    cpu_ppc_tb_reset(env);
+
     spapr_irq_cpu_intc_reset(spapr, cpu);
 }
 
@@ -255,7 +257,7 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
 }
 
 static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                               SpaprCpuCore *sc, Error **errp)
+                               SpaprCpuCore *sc, int thread_index, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
@@ -266,6 +268,11 @@ static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     kvmppc_set_papr(cpu);
+
+    env->spr_cb[SPR_PIR].default_value = cs->cpu_index;
+    env->spr_cb[SPR_TIR].default_value = thread_index;
+
+    cpu_ppc_set_1lpar(cpu);
 
     /* Set time-base frequency to 512 MHz. vhyp must be set first. */
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
@@ -337,7 +344,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < cc->nr_threads; i++) {
         sc->threads[i] = spapr_create_vcpu(sc, i, errp);
         if (!sc->threads[i] ||
-            !spapr_realize_vcpu(sc->threads[i], spapr, sc, errp)) {
+            !spapr_realize_vcpu(sc->threads[i], spapr, sc, i, errp)) {
             spapr_cpu_core_unrealize(dev);
             return;
         }
@@ -390,6 +397,7 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
     DEFINE_SPAPR_CPU_CORE_TYPE("power8nvl_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power9_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.0"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.2"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power10_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power10_v2.0"),
 #ifdef CONFIG_KVM

@@ -41,8 +41,10 @@ void ppc_hash64_finalize(PowerPCCPU *cpu);
 #define SLB_VSID_KP             0x0000000000000400ULL
 #define SLB_VSID_N              0x0000000000000200ULL /* no-execute */
 #define SLB_VSID_L              0x0000000000000100ULL
+#define SLB_VSID_L_SHIFT        PPC_BIT_NR(55)
 #define SLB_VSID_C              0x0000000000000080ULL /* class */
 #define SLB_VSID_LP             0x0000000000000030ULL
+#define SLB_VSID_LP_SHIFT       PPC_BIT_NR(59)
 #define SLB_VSID_ATTR           0x0000000000000FFFULL
 #define SLB_VSID_LLP_MASK       (SLB_VSID_L | SLB_VSID_LP)
 #define SLB_VSID_4K             0x0000000000000000ULL
@@ -58,6 +60,9 @@ void ppc_hash64_finalize(PowerPCCPU *cpu);
 #define SDR_64_HTABSIZE        0x000000000000001FULL
 
 #define PATE0_HTABORG           0x0FFFFFFFFFFC0000ULL
+#define PATE0_PS                PPC_BITMASK(56, 58)
+#define PATE0_GET_PS(dw0)       (((dw0) & PATE0_PS) >> PPC_BIT_NR(58))
+
 #define HPTES_PER_GROUP         8
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)

@@ -448,7 +448,7 @@ static int load_flat_file(struct linux_binprm * bprm,
      * Allocate the address space.
      */
     probe_guest_base(bprm->filename, 0,
-                     text_len + data_len + extra + indx_len);
+                     text_len + data_len + extra + indx_len - 1);
 
     /*
      * there are a couple of cases here,  the separate code/data
@@ -463,7 +463,7 @@ static int load_flat_file(struct linux_binprm * bprm,
         DBG_FLT("BINFMT_FLAT: ROM mapping of file (we hope)\n");
 
         textpos = target_mmap(0, text_len, PROT_READ|PROT_EXEC,
-                              MAP_PRIVATE, bprm->fd, 0);
+                              MAP_PRIVATE, bprm->src.fd, 0);
         if (textpos == -1) {
             fprintf(stderr, "Unable to mmap process text\n");
             return -1;
@@ -490,7 +490,7 @@ static int load_flat_file(struct linux_binprm * bprm,
         } else
 #endif
         {
-            result = target_pread(bprm->fd, datapos,
+            result = target_pread(bprm->src.fd, datapos,
                                   data_len + (relocs * sizeof(abi_ulong)),
                                   fpos);
         }
@@ -540,10 +540,10 @@ static int load_flat_file(struct linux_binprm * bprm,
         else
 #endif
         {
-            result = target_pread(bprm->fd, textpos,
+            result = target_pread(bprm->src.fd, textpos,
                                   text_len, 0);
             if (result >= 0) {
-                result = target_pread(bprm->fd, datapos,
+                result = target_pread(bprm->src.fd, datapos,
                     data_len + (relocs * sizeof(abi_ulong)),
                     ntohl(hdr->data_start));
             }
@@ -755,15 +755,15 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Update data segment pointers for all libraries */
     for (i=0; i<MAX_SHARED_LIBS; i++) {
         if (libinfo[i].loaded) {
-            abi_ulong p;
-            p = libinfo[i].start_data;
+            abi_ulong seg;
+            seg = libinfo[i].start_data;
             for (j=0; j<MAX_SHARED_LIBS; j++) {
-                p -= 4;
+                seg -= 4;
                 /* FIXME - handle put_user() failures */
                 if (put_user_ual(libinfo[j].loaded
                                  ? libinfo[j].start_data
                                  : UNLOADED_LIB,
-                                 p))
+                                 seg))
                     return -EFAULT;
             }
         }
@@ -780,7 +780,7 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Enforce final stack alignment of 16 bytes.  This is sufficient
        for all current targets, and excess alignment is harmless.  */
     stack_len = bprm->envc + bprm->argc + 2;
-    stack_len += flat_argvp_envp_on_stack() ? 2 : 0; /* arvg, argp */
+    stack_len += flat_argvp_envp_on_stack() ? 2 : 0; /* argv, argp */
     stack_len += 1; /* argc */
     stack_len *= sizeof(abi_ulong);
     sp -= (sp - stack_len) & 15;
@@ -811,7 +811,7 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
     info->end_code = libinfo[0].start_code + libinfo[0].text_len;
     info->start_data = libinfo[0].start_data;
     info->end_data = libinfo[0].end_data;
-    info->start_brk = libinfo[0].start_brk;
+    info->brk = libinfo[0].start_brk;
     info->start_stack = sp;
     info->stack_limit = libinfo[0].start_brk;
     info->entry = start_addr;

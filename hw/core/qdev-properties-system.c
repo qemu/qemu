@@ -32,6 +32,8 @@
 #include "sysemu/blockdev.h"
 #include "net/net.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pcie.h"
+#include "hw/i386/x86.h"
 #include "util/block-helpers.h"
 
 static bool check_prop_still_unset(Object *obj, const char *name,
@@ -105,7 +107,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
     }
 
     if (*ptr) {
-        /* BlockBackend alread exists. So, we want to change attached node */
+        /* BlockBackend already exists. So, we want to change attached node */
         blk = *ptr;
         ctx = blk_get_aio_context(blk);
         bs = bdrv_lookup_bs(NULL, str, errp);
@@ -141,11 +143,15 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
              * aware of iothreads require their BlockBackends to be in the main
              * AioContext.
              */
-            ctx = iothread ? bdrv_get_aio_context(bs) : qemu_get_aio_context();
-            blk = blk_new(ctx, 0, BLK_PERM_ALL);
+            ctx = bdrv_get_aio_context(bs);
+            blk = blk_new(iothread ? ctx : qemu_get_aio_context(),
+                          0, BLK_PERM_ALL);
             blk_created = true;
 
+            aio_context_acquire(ctx);
             ret = blk_insert_bs(blk, bs, errp);
+            aio_context_release(ctx);
+
             if (ret < 0) {
                 goto fail;
             }
@@ -444,7 +450,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     peers_ptr->queues = queues;
 
 out:
-    error_set_from_qdev_prop_error(errp, err, obj, name, str);
+    error_set_from_qdev_prop_error(errp, err, obj, prop->name, str);
     g_free(str);
 }
 
@@ -474,24 +480,16 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
     Property *prop = opaque;
     QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
     AudioState *state;
-    int err = 0;
-    char *str;
+    g_autofree char *str = NULL;
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
-    state = audio_state_by_name(str);
-
-    if (!state) {
-        err = -ENOENT;
-        goto out;
+    state = audio_state_by_name(str, errp);
+    if (state) {
+        card->state = state;
     }
-    card->state = state;
-
-out:
-    error_set_from_qdev_prop_error(errp, err, obj, name, str);
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_audiodev = {
@@ -557,13 +555,38 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
 
 /* --- lost tick policy --- */
 
+static void qdev_propinfo_set_losttickpolicy(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    Property *prop = opaque;
+    int *ptr = object_field_prop_ptr(obj, prop);
+    int value;
+
+    if (!visit_type_enum(v, name, &value, prop->info->enum_table, errp)) {
+        return;
+    }
+
+    if (value == LOST_TICK_POLICY_SLEW) {
+        MachineState *ms = MACHINE(qdev_get_machine());
+
+        if (!object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
+            error_setg(errp,
+                       "the 'slew' policy is only available for x86 machines");
+            return;
+        }
+    }
+
+    *ptr = value;
+}
+
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
     .enum_table  = &LostTickPolicy_lookup,
     .get   = qdev_propinfo_get_enum,
-    .set   = qdev_propinfo_set_enum,
+    .set   = qdev_propinfo_set_losttickpolicy,
     .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
@@ -650,6 +673,20 @@ const PropertyInfo qdev_prop_multifd_compression = {
     .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
+/* --- MigMode --- */
+
+QEMU_BUILD_BUG_ON(sizeof(MigMode) != sizeof(int));
+
+const PropertyInfo qdev_prop_mig_mode = {
+    .name = "MigMode",
+    .description = "mig_mode values, "
+                   "normal,cpr-reboot",
+    .enum_table = &MigMode_lookup,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
+};
+
 /* --- Reserved Region --- */
 
 /*
@@ -668,7 +705,7 @@ static void get_reserved_region(Object *obj, Visitor *v, const char *name,
     int rc;
 
     rc = snprintf(buffer, sizeof(buffer), "0x%"PRIx64":0x%"PRIx64":%u",
-                  rr->low, rr->high, rr->type);
+                  range_lob(&rr->range), range_upb(&rr->range), rr->type);
     assert(rc < sizeof(buffer));
 
     visit_type_str(v, name, &p, errp);
@@ -679,18 +716,16 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
 {
     Property *prop = opaque;
     ReservedRegion *rr = object_field_prop_ptr(obj, prop);
-    Error *local_err = NULL;
     const char *endptr;
+    uint64_t lob, upb;
     char *str;
     int ret;
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
-    ret = qemu_strtou64(str, &endptr, 16, &rr->low);
+    ret = qemu_strtou64(str, &endptr, 16, &lob);
     if (ret) {
         error_setg(errp, "start address of '%s'"
                    " must be a hexadecimal integer", name);
@@ -700,7 +735,7 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
         goto separator_error;
     }
 
-    ret = qemu_strtou64(endptr + 1, &endptr, 16, &rr->high);
+    ret = qemu_strtou64(endptr + 1, &endptr, 16, &upb);
     if (ret) {
         error_setg(errp, "end address of '%s'"
                    " must be a hexadecimal integer", name);
@@ -709,6 +744,8 @@ static void set_reserved_region(Object *obj, Visitor *v, const char *name,
     if (*endptr != ':') {
         goto separator_error;
     }
+
+    range_set_bounds(&rr->range, lob, upb);
 
     ret = qemu_strtoui(endptr + 1, &endptr, 10, &rr->type);
     if (ret) {
@@ -1077,7 +1114,7 @@ static void get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
 {
     Property *prop = opaque;
     QemuUUID *uuid = object_field_prop_ptr(obj, prop);
-    char buffer[UUID_FMT_LEN + 1];
+    char buffer[UUID_STR_LEN];
     char *p = buffer;
 
     qemu_uuid_unparse(uuid, buffer);
@@ -1118,4 +1155,17 @@ const PropertyInfo qdev_prop_uuid = {
     .get   = get_uuid,
     .set   = set_uuid,
     .set_default_value = set_default_uuid_auto,
+};
+
+/* --- s390 cpu entitlement policy --- */
+
+QEMU_BUILD_BUG_ON(sizeof(CpuS390Entitlement) != sizeof(int));
+
+const PropertyInfo qdev_prop_cpus390entitlement = {
+    .name  = "CpuS390Entitlement",
+    .description = "low/medium (default)/high",
+    .enum_table  = &CpuS390Entitlement_lookup,
+    .get   = qdev_propinfo_get_enum,
+    .set   = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };

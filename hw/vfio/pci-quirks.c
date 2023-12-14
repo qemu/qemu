@@ -1490,6 +1490,9 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
  * +---------------------------------+---------------------------------+
  *
  * https://lists.gnu.org/archive/html/qemu-devel/2017-08/pdfUda5iEpgOS.pdf
+ *
+ * Specification for Turning and later GPU architectures:
+ * https://lists.gnu.org/archive/html/qemu-devel/2023-06/pdf142OR4O4c2.pdf
  */
 static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
@@ -1527,10 +1530,18 @@ const PropertyInfo qdev_prop_nv_gpudirect_clique = {
     .set = set_nv_gpudirect_clique_id,
 };
 
+static bool is_valid_std_cap_offset(uint8_t pos)
+{
+    return (pos >= PCI_STD_HEADER_SIZEOF &&
+            pos <= (PCI_CFG_SPACE_SIZE - PCI_CAP_SIZEOF));
+}
+
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
-    int ret, pos = 0xC8;
+    int ret, pos;
+    bool c8_conflict = false, d4_conflict = false;
+    uint8_t tmp;
 
     if (vdev->nv_gpudirect_clique == 0xFF) {
         return 0;
@@ -1544,6 +1555,40 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
     if (pci_get_byte(pdev->config + PCI_CLASS_DEVICE + 1) !=
         PCI_BASE_CLASS_DISPLAY) {
         error_setg(errp, "NVIDIA GPUDirect Clique ID: unsupported PCI class");
+        return -EINVAL;
+    }
+
+    /*
+     * Per the updated specification above, it's recommended to use offset
+     * D4h for Turing and later GPU architectures due to a conflict of the
+     * MSI-X capability at C8h.  We don't know how to determine the GPU
+     * architecture, instead we walk the capability chain to mark conflicts
+     * and choose one or error based on the result.
+     *
+     * NB. Cap list head in pdev->config is already cleared, read from device.
+     */
+    ret = pread(vdev->vbasedev.fd, &tmp, 1,
+                vdev->config_offset + PCI_CAPABILITY_LIST);
+    if (ret != 1 || !is_valid_std_cap_offset(tmp)) {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: error getting cap list");
+        return -EINVAL;
+    }
+
+    do {
+        if (tmp == 0xC8) {
+            c8_conflict = true;
+        } else if (tmp == 0xD4) {
+            d4_conflict = true;
+        }
+        tmp = pdev->config[tmp + PCI_CAP_LIST_NEXT];
+    } while (is_valid_std_cap_offset(tmp));
+
+    if (!c8_conflict) {
+        pos = 0xC8;
+    } else if (!d4_conflict) {
+        pos = 0xD4;
+    } else {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: invalid config space");
         return -EINVAL;
     }
 
@@ -1563,121 +1608,6 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
     pci_set_byte(pdev->config + pos, 0);
 
     return 0;
-}
-
-int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp)
-{
-    int ret;
-    void *p;
-    struct vfio_region_info *nv2reg = NULL;
-    struct vfio_info_cap_header *hdr;
-    struct vfio_region_info_cap_nvlink2_ssatgt *cap;
-    VFIOQuirk *quirk;
-
-    ret = vfio_get_dev_region_info(&vdev->vbasedev,
-                                   VFIO_REGION_TYPE_PCI_VENDOR_TYPE |
-                                   PCI_VENDOR_ID_NVIDIA,
-                                   VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM,
-                                   &nv2reg);
-    if (ret) {
-        return ret;
-    }
-
-    hdr = vfio_get_region_info_cap(nv2reg, VFIO_REGION_INFO_CAP_NVLINK2_SSATGT);
-    if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
-    }
-    cap = (void *) hdr;
-
-    p = mmap(NULL, nv2reg->size, PROT_READ | PROT_WRITE,
-             MAP_SHARED, vdev->vbasedev.fd, nv2reg->offset);
-    if (p == MAP_FAILED) {
-        ret = -errno;
-        goto free_exit;
-    }
-
-    quirk = vfio_quirk_alloc(1);
-    memory_region_init_ram_ptr(&quirk->mem[0], OBJECT(vdev), "nvlink2-mr",
-                               nv2reg->size, p);
-    QLIST_INSERT_HEAD(&vdev->bars[0].quirks, quirk, next);
-
-    object_property_add_uint64_ptr(OBJECT(vdev), "nvlink2-tgt",
-                                   (uint64_t *) &cap->tgt,
-                                   OBJ_PROP_FLAG_READ);
-    trace_vfio_pci_nvidia_gpu_setup_quirk(vdev->vbasedev.name, cap->tgt,
-                                          nv2reg->size);
-free_exit:
-    g_free(nv2reg);
-
-    return ret;
-}
-
-int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp)
-{
-    int ret;
-    void *p;
-    struct vfio_region_info *atsdreg = NULL;
-    struct vfio_info_cap_header *hdr;
-    struct vfio_region_info_cap_nvlink2_ssatgt *captgt;
-    struct vfio_region_info_cap_nvlink2_lnkspd *capspeed;
-    VFIOQuirk *quirk;
-
-    ret = vfio_get_dev_region_info(&vdev->vbasedev,
-                                   VFIO_REGION_TYPE_PCI_VENDOR_TYPE |
-                                   PCI_VENDOR_ID_IBM,
-                                   VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD,
-                                   &atsdreg);
-    if (ret) {
-        return ret;
-    }
-
-    hdr = vfio_get_region_info_cap(atsdreg,
-                                   VFIO_REGION_INFO_CAP_NVLINK2_SSATGT);
-    if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
-    }
-    captgt = (void *) hdr;
-
-    hdr = vfio_get_region_info_cap(atsdreg,
-                                   VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD);
-    if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
-    }
-    capspeed = (void *) hdr;
-
-    /* Some NVLink bridges may not have assigned ATSD */
-    if (atsdreg->size) {
-        p = mmap(NULL, atsdreg->size, PROT_READ | PROT_WRITE,
-                 MAP_SHARED, vdev->vbasedev.fd, atsdreg->offset);
-        if (p == MAP_FAILED) {
-            ret = -errno;
-            goto free_exit;
-        }
-
-        quirk = vfio_quirk_alloc(1);
-        memory_region_init_ram_device_ptr(&quirk->mem[0], OBJECT(vdev),
-                                          "nvlink2-atsd-mr", atsdreg->size, p);
-        QLIST_INSERT_HEAD(&vdev->bars[0].quirks, quirk, next);
-    }
-
-    object_property_add_uint64_ptr(OBJECT(vdev), "nvlink2-tgt",
-                                   (uint64_t *) &captgt->tgt,
-                                   OBJ_PROP_FLAG_READ);
-    trace_vfio_pci_nvlink2_setup_quirk_ssatgt(vdev->vbasedev.name, captgt->tgt,
-                                              atsdreg->size);
-
-    object_property_add_uint32_ptr(OBJECT(vdev), "nvlink2-link-speed",
-                                   &capspeed->link_speed,
-                                   OBJ_PROP_FLAG_READ);
-    trace_vfio_pci_nvlink2_setup_quirk_lnkspd(vdev->vbasedev.name,
-                                              capspeed->link_speed);
-free_exit:
-    g_free(atsdreg);
-
-    return ret;
 }
 
 /*

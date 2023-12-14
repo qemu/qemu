@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/net/dp8393x.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "net/net.h"
@@ -85,7 +86,6 @@ static const char *reg_names[] = {
 #define SONIC_MPT    0x2e
 #define SONIC_MDT    0x2f
 #define SONIC_DCR2   0x3f
-#define SONIC_REG_COUNT  0x40
 
 #define SONIC_CR_HTX     0x0001
 #define SONIC_CR_TXP     0x0002
@@ -139,36 +139,6 @@ static const char *reg_names[] = {
 #define SONIC_DESC_EOL   0x0001
 #define SONIC_DESC_ADDR  0xFFFE
 
-#define TYPE_DP8393X "dp8393x"
-OBJECT_DECLARE_SIMPLE_TYPE(dp8393xState, DP8393X)
-
-struct dp8393xState {
-    SysBusDevice parent_obj;
-
-    /* Hardware */
-    uint8_t it_shift;
-    bool big_endian;
-    bool last_rba_is_full;
-    qemu_irq irq;
-    int irq_level;
-    QEMUTimer *watchdog;
-    int64_t wt_last_update;
-    NICConf conf;
-    NICState *nic;
-    MemoryRegion mmio;
-
-    /* Registers */
-    uint16_t cam[16][3];
-    uint16_t regs[SONIC_REG_COUNT];
-
-    /* Temporaries */
-    uint8_t tx_buffer[0x10000];
-    int loopback_packet;
-
-    /* Memory access */
-    MemoryRegion *dma_mr;
-    AddressSpace as;
-};
 
 /*
  * Accessor functions for values which are formed by
@@ -581,7 +551,7 @@ static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
             val = s->cam[s->regs[SONIC_CEP] & 0xf][SONIC_CAP0 - reg];
         }
         break;
-    /* All other registers have no special contraints */
+    /* All other registers have no special constraints */
     default:
         val = s->regs[reg];
     }
@@ -943,7 +913,8 @@ static void dp8393x_realize(DeviceState *dev, Error **errp)
                           "dp8393x-regs", SONIC_REG_COUNT << s->it_shift);
 
     s->nic = qemu_new_nic(&net_dp83932_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id, s);
+                          object_get_typename(OBJECT(dev)), dev->id,
+                          &dev->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);

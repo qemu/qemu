@@ -22,6 +22,7 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static void scsi_req_dequeue(SCSIRequest *req);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
+static void scsi_clear_reported_luns_changed(SCSIRequest *req);
 
 static int next_scsi_bus;
 
@@ -60,8 +61,7 @@ static SCSIDevice *do_scsi_device_find(SCSIBus *bus,
      * the user access the device.
      */
 
-    if (retval && !include_unrealized &&
-        !qatomic_load_acquire(&retval->qdev.realized)) {
+    if (retval && !include_unrealized && !qdev_is_realized(&retval->qdev)) {
         retval = NULL;
     }
 
@@ -102,15 +102,15 @@ static void scsi_device_unrealize(SCSIDevice *s)
 }
 
 int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
-                       void *hba_private)
+                       size_t buf_len, void *hba_private)
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
     int rc;
 
     assert(cmd->len == 0);
-    rc = scsi_req_parse_cdb(dev, cmd, buf);
+    rc = scsi_req_parse_cdb(dev, cmd, buf, buf_len);
     if (bus->info->parse_cdb) {
-        rc = bus->info->parse_cdb(dev, cmd, buf, hba_private);
+        rc = bus->info->parse_cdb(dev, cmd, buf, buf_len, hba_private);
     }
     return rc;
 }
@@ -193,14 +193,15 @@ static void scsi_dma_restart_cb(void *opaque, bool running, RunState state)
         AioContext *ctx = blk_get_aio_context(s->conf.blk);
         /* The reference is dropped in scsi_dma_restart_bh.*/
         object_ref(OBJECT(s));
-        s->bh = aio_bh_new(ctx, scsi_dma_restart_bh, s);
+        s->bh = aio_bh_new_guarded(ctx, scsi_dma_restart_bh, s,
+                                   &DEVICE(s)->mem_reentrancy_guard);
         qemu_bh_schedule(s->bh);
     }
 }
 
 static bool scsi_bus_is_address_free(SCSIBus *bus,
-				     int channel, int target, int lun,
-				     SCSIDevice **p_dev)
+                                     int channel, int target, int lun,
+                                     SCSIDevice **p_dev)
 {
     SCSIDevice *d;
 
@@ -412,19 +413,35 @@ static const struct SCSIReqOps reqops_invalid_opcode = {
 
 /* SCSIReqOps implementation for unit attention conditions.  */
 
+static void scsi_fetch_unit_attention_sense(SCSIRequest *req)
+{
+    SCSISense *ua = NULL;
+
+    if (req->dev->unit_attention.key == UNIT_ATTENTION) {
+        ua = &req->dev->unit_attention;
+    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
+        ua = &req->bus->unit_attention;
+    }
+
+    /*
+     * Fetch the unit attention sense immediately so that another
+     * scsi_req_new does not use reqops_unit_attention.
+     */
+    if (ua) {
+        scsi_req_build_sense(req, *ua);
+        *ua = SENSE_CODE(NO_SENSE);
+    }
+}
+
 static int32_t scsi_unit_attention(SCSIRequest *req, uint8_t *buf)
 {
-    if (req->dev->unit_attention.key == UNIT_ATTENTION) {
-        scsi_req_build_sense(req, req->dev->unit_attention);
-    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
-        scsi_req_build_sense(req, req->bus->unit_attention);
-    }
     scsi_req_complete(req, CHECK_CONDITION);
     return 0;
 }
 
 static const struct SCSIReqOps reqops_unit_attention = {
     .size         = sizeof(SCSIRequest),
+    .init_req     = scsi_fetch_unit_attention_sense,
     .send_command = scsi_unit_attention
 };
 
@@ -487,7 +504,8 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
             DeviceState *qdev = kid->child;
             SCSIDevice *dev = SCSI_DEVICE(qdev);
 
-            if (dev->channel == channel && dev->id == id && dev->lun != 0) {
+            if (dev->channel == channel && dev->id == id && dev->lun != 0 &&
+                qdev_is_realized(&dev->qdev)) {
                 store_lun(tmp, dev->lun);
                 g_byte_array_append(buf, tmp, 8);
                 len += 8;
@@ -501,6 +519,14 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
 
     /* store the LUN list length */
     stl_be_p(&r->buf[0], len - 8);
+
+    /*
+     * If a REPORT LUNS command enters the enabled command state, [...]
+     * the device server shall clear any pending unit attention condition
+     * with an additional sense code of REPORTED LUNS DATA HAS CHANGED.
+     */
+    scsi_clear_reported_luns_changed(&r->req);
+
     return true;
 }
 
@@ -698,12 +724,17 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
     notifier_list_init(&req->cancel_notifiers);
+
+    if (reqops->init_req) {
+        reqops->init_req(req);
+    }
+
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
 
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                          uint8_t *buf, void *hba_private)
+                          uint8_t *buf, size_t buf_len, void *hba_private)
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
     const SCSIReqOps *ops;
@@ -711,6 +742,11 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     SCSIRequest *req;
     SCSICommand cmd = { .len = 0 };
     int ret;
+
+    if (buf_len == 0) {
+        trace_scsi_req_parse_bad(d->id, lun, tag, 0);
+        goto invalid_opcode;
+    }
 
     if ((d->unit_attention.key == UNIT_ATTENTION ||
          bus->unit_attention.key == UNIT_ATTENTION) &&
@@ -734,13 +770,14 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     }
 
     if (ops != NULL || !sc->parse_cdb) {
-        ret = scsi_req_parse_cdb(d, &cmd, buf);
+        ret = scsi_req_parse_cdb(d, &cmd, buf, buf_len);
     } else {
-        ret = sc->parse_cdb(d, &cmd, buf, hba_private);
+        ret = sc->parse_cdb(d, &cmd, buf, buf_len, hba_private);
     }
 
     if (ret != 0) {
         trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
+invalid_opcode:
         req = scsi_req_alloc(&reqops_invalid_opcode, d, tag, lun, hba_private);
     } else {
         assert(cmd.len != 0);
@@ -788,43 +825,22 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
     return req->ops->get_buf(req);
 }
 
-static void scsi_clear_unit_attention(SCSIRequest *req)
+static void scsi_clear_reported_luns_changed(SCSIRequest *req)
 {
     SCSISense *ua;
-    if (req->dev->unit_attention.key != UNIT_ATTENTION &&
-        req->bus->unit_attention.key != UNIT_ATTENTION) {
-        return;
-    }
-
-    /*
-     * If an INQUIRY command enters the enabled command state,
-     * the device server shall [not] clear any unit attention condition;
-     * See also MMC-6, paragraphs 6.5 and 6.6.2.
-     */
-    if (req->cmd.buf[0] == INQUIRY ||
-        req->cmd.buf[0] == GET_CONFIGURATION ||
-        req->cmd.buf[0] == GET_EVENT_STATUS_NOTIFICATION) {
-        return;
-    }
 
     if (req->dev->unit_attention.key == UNIT_ATTENTION) {
         ua = &req->dev->unit_attention;
-    } else {
+    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
         ua = &req->bus->unit_attention;
-    }
-
-    /*
-     * If a REPORT LUNS command enters the enabled command state, [...]
-     * the device server shall clear any pending unit attention condition
-     * with an additional sense code of REPORTED LUNS DATA HAS CHANGED.
-     */
-    if (req->cmd.buf[0] == REPORT_LUNS &&
-        !(ua->asc == SENSE_CODE(REPORTED_LUNS_CHANGED).asc &&
-          ua->ascq == SENSE_CODE(REPORTED_LUNS_CHANGED).ascq)) {
+    } else {
         return;
     }
 
-    *ua = SENSE_CODE(NO_SENSE);
+    if (ua->asc == SENSE_CODE(REPORTED_LUNS_CHANGED).asc &&
+        ua->ascq == SENSE_CODE(REPORTED_LUNS_CHANGED).ascq) {
+        *ua = SENSE_CODE(NO_SENSE);
+    }
 }
 
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
@@ -1308,14 +1324,15 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     }
 }
 
-int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf)
+int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                       size_t buf_len)
 {
     int rc;
     int len;
 
     cmd->lba = -1;
     len = scsi_cdb_length(buf);
-    if (len < 0) {
+    if (len < 0 || len > buf_len) {
         return -1;
     }
 
@@ -1506,13 +1523,6 @@ void scsi_req_complete(SCSIRequest *req, int status)
         req->dev->sense_is_ua = false;
     }
 
-    /*
-     * Unit attention state is now stored in the device's sense buffer
-     * if the HBA didn't do autosense.  Clear the pending unit attention
-     * flags.
-     */
-    scsi_clear_unit_attention(req);
-
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->info->complete(req, req->residual);
@@ -1609,6 +1619,24 @@ static int scsi_ua_precedence(SCSISense sense)
     return (sense.asc << 8) | sense.ascq;
 }
 
+void scsi_bus_set_ua(SCSIBus *bus, SCSISense sense)
+{
+    int prec1, prec2;
+    if (sense.key != UNIT_ATTENTION) {
+        return;
+    }
+
+    /*
+     * Override a pre-existing unit attention condition, except for a more
+     * important reset condition.
+     */
+    prec1 = scsi_ua_precedence(bus->unit_attention);
+    prec2 = scsi_ua_precedence(sense);
+    if (prec2 < prec1) {
+        bus->unit_attention = sense;
+    }
+}
+
 void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense)
 {
     int prec1, prec2;
@@ -1641,6 +1669,46 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
     blk_drain(sdev->conf.blk);
     aio_context_release(blk_get_aio_context(sdev->conf.blk));
     scsi_device_set_ua(sdev, sense);
+}
+
+void scsi_device_drained_begin(SCSIDevice *sdev)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+    if (!bus) {
+        return;
+    }
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    assert(bus->drain_count < INT_MAX);
+
+    /*
+     * Multiple BlockBackends can be on a SCSIBus and each may begin/end
+     * draining at any time. Keep a counter so HBAs only see begin/end once.
+     */
+    if (bus->drain_count++ == 0) {
+        trace_scsi_bus_drained_begin(bus, sdev);
+        if (bus->info->drained_begin) {
+            bus->info->drained_begin(bus);
+        }
+    }
+}
+
+void scsi_device_drained_end(SCSIDevice *sdev)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+    if (!bus) {
+        return;
+    }
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    assert(bus->drain_count > 0);
+
+    if (bus->drain_count-- == 1) {
+        trace_scsi_bus_drained_end(bus, sdev);
+        if (bus->info->drained_end) {
+            bus->info->drained_end(bus);
+        }
+    }
 }
 
 static char *scsibus_get_dev_path(DeviceState *dev)
@@ -1713,7 +1781,11 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
         qemu_get_buffer(f, buf, sizeof(buf));
         qemu_get_be32s(f, &tag);
         qemu_get_be32s(f, &lun);
-        req = scsi_req_new(s, tag, lun, buf, NULL);
+        /*
+         * A too-short CDB would have been rejected by scsi_req_new, so just use
+         * SCSI_CMD_BUF_SIZE as the CDB length.
+         */
+        req = scsi_req_new(s, tag, lun, buf, sizeof(buf), NULL);
         req->retry = (sbyte == 1);
         if (bus->info->load_request) {
             req->hba_private = bus->info->load_request(f, req);

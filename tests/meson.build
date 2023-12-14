@@ -68,27 +68,19 @@ test_deps = {
   'test-qht-par': qht_bench,
 }
 
-if have_tools and have_vhost_user and 'CONFIG_LINUX' in config_host
+if have_tools and have_vhost_user and targetos == 'linux'
   executable('vhost-user-bridge',
              sources: files('vhost-user-bridge.c'),
              dependencies: [qemuutil, vhost_user])
 endif
 
-test('decodetree', sh,
-     args: [ files('decode/check.sh'), config_host['PYTHON'], files('../scripts/decodetree.py') ],
-     workdir: meson.current_source_dir() / 'decode',
-     suite: 'decodetree')
+subdir('decode')
 
 if 'CONFIG_TCG' in config_all
   subdir('fp')
 endif
 
-if get_option('tcg').allowed()
-  if 'CONFIG_PLUGIN' in config_host
-    subdir('plugin')
-  endif
-endif
-
+subdir('plugin')
 subdir('unit')
 subdir('qapi-schema')
 subdir('qtest')

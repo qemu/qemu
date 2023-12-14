@@ -87,7 +87,12 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (grp->res_reserve.io == -1 && s->hotplug && !s->native_hotplug) {
+    /*
+     * reserving IO space led to worse issues in 6.1, when this hunk was
+     * introduced. (see commit: 211afe5c69b59). Keep this broken for 6.1
+     * machine type ABI compatibility only
+     */
+    if (s->hide_native_hotplug_cap && grp->res_reserve.io == -1 && s->hotplug) {
         grp->res_reserve.io = GEN_PCIE_ROOT_DEFAULT_IO_RANGE;
     }
     int rc = pci_bridge_qemu_reserve_cap_init(d, 0,

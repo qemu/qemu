@@ -16,7 +16,6 @@
 #include "trace.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
-#include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/coroutine-tls.h"
 #include "block/aio.h"
@@ -58,7 +57,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 {
     Coroutine *co = NULL;
 
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         CoroutineQSList *alloc_pool = get_ptr_alloc_pool();
 
         co = QSLIST_FIRST(alloc_pool);
@@ -100,7 +99,7 @@ static void coroutine_delete(Coroutine *co)
 {
     co->caller = NULL;
 
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         if (release_pool_size < qatomic_read(&pool_max_size) * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
             qatomic_inc(&release_pool_size);
@@ -128,9 +127,13 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
         Coroutine *to = QSIMPLEQ_FIRST(&pending);
         CoroutineAction ret;
 
-        /* Cannot rely on the read barrier for to in aio_co_wake(), as there are
-         * callers outside of aio_co_wake() */
-        const char *scheduled = qatomic_mb_read(&to->scheduled);
+        /*
+         * Read to before to->scheduled; pairs with qatomic_cmpxchg in
+         * qemu_co_sleep(), aio_co_schedule() etc.
+         */
+        smp_read_barrier_depends();
+
+        const char *scheduled = qatomic_read(&to->scheduled);
 
         QSIMPLEQ_REMOVE_HEAD(&pending, co_queue_next);
 
@@ -213,7 +216,7 @@ bool qemu_coroutine_entered(Coroutine *co)
     return co->caller;
 }
 
-AioContext *coroutine_fn qemu_coroutine_get_aio_context(Coroutine *co)
+AioContext *qemu_coroutine_get_aio_context(Coroutine *co)
 {
     return co->ctx;
 }

@@ -106,7 +106,7 @@ static int qxl_log_image(PCIQXLDevice *qxl, QXLPHYSICAL addr, int group_id)
     QXLImage *image;
     QXLImageDescriptor *desc;
 
-    image = qxl_phys2virt(qxl, addr, group_id);
+    image = qxl_phys2virt(qxl, addr, group_id, sizeof(QXLImage));
     if (!image) {
         return 1;
     }
@@ -214,7 +214,8 @@ int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
                 cmd->u.set.position.y,
                 cmd->u.set.visible ? "yes" : "no",
                 cmd->u.set.shape);
-        cursor = qxl_phys2virt(qxl, cmd->u.set.shape, group_id);
+        cursor = qxl_phys2virt(qxl, cmd->u.set.shape, group_id,
+                               sizeof(QXLCursor));
         if (!cursor) {
             return 1;
         }
@@ -236,6 +237,7 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
 {
     bool compat = ext->flags & QXL_COMMAND_FLAG_COMPAT;
     void *data;
+    size_t datasz;
     int ret;
 
     if (!qxl->cmdlog) {
@@ -247,7 +249,20 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
             qxl_name(qxl_type, ext->cmd.type),
             compat ? "(compat)" : "");
 
-    data = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+    switch (ext->cmd.type) {
+    case QXL_CMD_DRAW:
+        datasz = compat ? sizeof(QXLCompatDrawable) : sizeof(QXLDrawable);
+        break;
+    case QXL_CMD_SURFACE:
+        datasz = sizeof(QXLSurfaceCmd);
+        break;
+    case QXL_CMD_CURSOR:
+        datasz = sizeof(QXLCursorCmd);
+        break;
+    default:
+        goto out;
+    }
+    data = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id, datasz);
     if (!data) {
         return 1;
     }
@@ -269,6 +284,7 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
         qxl_log_cmd_cursor(qxl, data, ext->group_id);
         break;
     }
+out:
     fprintf(stderr, "\n");
     return 0;
 }

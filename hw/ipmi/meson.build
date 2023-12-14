@@ -8,4 +8,4 @@ ipmi_ss.add(when: 'CONFIG_ISA_IPMI_BT', if_true: files('isa_ipmi_bt.c'))
 ipmi_ss.add(when: 'CONFIG_PCI_IPMI_BT', if_true: files('pci_ipmi_bt.c'))
 ipmi_ss.add(when: 'CONFIG_IPMI_SSIF', if_true: files('smbus_ipmi.c'))
 
-softmmu_ss.add_all(when: 'CONFIG_IPMI', if_true: ipmi_ss)
+system_ss.add_all(when: 'CONFIG_IPMI', if_true: ipmi_ss)

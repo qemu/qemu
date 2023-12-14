@@ -193,8 +193,7 @@ static void handle_set_nonblocking(HANDLE fh)
     SetNamedPipeHandleState(fh, &pipe_state, NULL, NULL);
 }
 
-int64_t qmp_guest_file_open(const char *path, bool has_mode,
-                            const char *mode, Error **errp)
+int64_t qmp_guest_file_open(const char *path, const char *mode, Error **errp)
 {
     int64_t fd = -1;
     HANDLE fh;
@@ -206,7 +205,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
     GError *gerr = NULL;
     wchar_t *w_path = NULL;
 
-    if (!has_mode) {
+    if (!mode) {
         mode = "r";
     }
     slog("guest-file-open called, filepath: %s, mode: %s", path, mode);
@@ -275,13 +274,12 @@ static void acquire_privilege(const char *name, Error **errp)
 {
     HANDLE token = NULL;
     TOKEN_PRIVILEGES priv;
-    Error *local_err = NULL;
 
     if (OpenProcessToken(GetCurrentProcess(),
         TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token))
     {
         if (!LookupPrivilegeValue(NULL, name, &priv.Privileges[0].Luid)) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "no luid for requested privilege");
             goto out;
         }
@@ -290,13 +288,13 @@ static void acquire_privilege(const char *name, Error **errp)
         priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
         if (!AdjustTokenPrivileges(token, FALSE, &priv, 0, NULL, 0)) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "unable to acquire requested privilege");
             goto out;
         }
 
     } else {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to open privilege token");
     }
 
@@ -304,7 +302,6 @@ out:
     if (token) {
         CloseHandle(token);
     }
-    error_propagate(errp, local_err);
 }
 
 static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
@@ -317,14 +314,14 @@ static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
     }
 }
 
-void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
+void qmp_guest_shutdown(const char *mode, Error **errp)
 {
     Error *local_err = NULL;
     UINT shutdown_flag = EWX_FORCE;
 
     slog("guest-shutdown called, mode: %s", mode);
 
-    if (!has_mode || strcmp(mode, "powerdown") == 0) {
+    if (!mode || strcmp(mode, "powerdown") == 0) {
         shutdown_flag |= EWX_POWEROFF;
     } else if (strcmp(mode, "halt") == 0) {
         shutdown_flag |= EWX_SHUTDOWN;
@@ -487,15 +484,13 @@ static GuestDiskBusType win2qemu[] = {
     [BusTypeSata] = GUEST_DISK_BUS_TYPE_SATA,
     [BusTypeSd] =  GUEST_DISK_BUS_TYPE_SD,
     [BusTypeMmc] = GUEST_DISK_BUS_TYPE_MMC,
-#if (_WIN32_WINNT >= 0x0601)
     [BusTypeVirtual] = GUEST_DISK_BUS_TYPE_VIRTUAL,
     [BusTypeFileBackedVirtual] = GUEST_DISK_BUS_TYPE_FILE_BACKED_VIRTUAL,
     /*
-     * BusTypeSpaces currently is not suported
+     * BusTypeSpaces currently is not supported
      */
     [BusTypeSpaces] = GUEST_DISK_BUS_TYPE_UNKNOWN,
     [BusTypeNvme] = GUEST_DISK_BUS_TYPE_NVME,
-#endif
 };
 
 static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
@@ -505,13 +500,6 @@ static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
     }
     return win2qemu[(int)bus];
 }
-
-DEFINE_GUID(GUID_DEVINTERFACE_DISK,
-        0x53f56307L, 0xb6bf, 0x11d0, 0x94, 0xf2,
-        0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
-DEFINE_GUID(GUID_DEVINTERFACE_STORAGEPORT,
-        0x2accfe60L, 0xc130, 0x11d2, 0xb0, 0x82,
-        0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
 
 static void get_pci_address_for_device(GuestPCIAddress *pci,
                                        HDEVINFO dev_info)
@@ -599,6 +587,18 @@ static void get_pci_address_for_device(GuestPCIAddress *pci,
     }
 }
 
+static GuestPCIAddress *get_empty_pci_address(void)
+{
+    GuestPCIAddress *pci = NULL;
+
+    pci = g_malloc0(sizeof(*pci));
+    pci->domain = -1;
+    pci->slot = -1;
+    pci->function = -1;
+    pci->bus = -1;
+    return pci;
+}
+
 static GuestPCIAddress *get_pci_info(int number, Error **errp)
 {
     HDEVINFO dev_info = INVALID_HANDLE_VALUE;
@@ -608,13 +608,7 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
     SP_DEVICE_INTERFACE_DATA dev_iface_data;
     HANDLE dev_file;
     int i;
-    GuestPCIAddress *pci = NULL;
-
-    pci = g_malloc0(sizeof(*pci));
-    pci->domain = -1;
-    pci->slot = -1;
-    pci->function = -1;
-    pci->bus = -1;
+    GuestPCIAddress *pci = get_empty_pci_address();
 
     dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_DISK, 0, 0,
                                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
@@ -833,7 +827,6 @@ static void get_disk_properties(HANDLE vol_h, GuestDiskAddress *disk,
         g_debug("serial number \"%s\"", serial);
         if (*serial != 0) {
             disk->serial = g_strndup(serial, len);
-            disk->has_serial = true;
         }
     }
 out_free:
@@ -872,10 +865,14 @@ static void get_single_disk_info(int disk_number,
      * if that doesn't hold since that suggests some other unexpected
      * breakage
      */
-    disk->pci_controller = get_pci_info(disk_number, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto err_close;
+    if (disk->bus_type == GUEST_DISK_BUS_TYPE_USB) {
+        disk->pci_controller = get_empty_pci_address();
+    } else {
+        disk->pci_controller = get_pci_info(disk_number, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto err_close;
+        }
     }
     if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
             || disk->bus_type == GUEST_DISK_BUS_TYPE_IDE
@@ -951,7 +948,6 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
             /* Possibly CD-ROM or a shared drive. Try to pass the volume */
             g_debug("volume not on disk");
             disk = g_new0(GuestDiskAddress, 1);
-            disk->has_dev = true;
             disk->dev = g_strdup(name);
             get_single_disk_info(0xffffffff, disk, &local_err);
             if (local_err) {
@@ -983,7 +979,6 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
          * See also Naming Files, Paths and Namespaces:
          * https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#win32-device-namespaces
          */
-        disk->has_dev = true;
         disk->dev = g_strdup_printf("\\\\.\\PhysicalDrive%lu",
                                     extents->Extents[i].DiskNumber);
 
@@ -1078,7 +1073,6 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
 
         g_debug("  number: %lu", sdn.DeviceNumber);
         address = g_new0(GuestDiskAddress, 1);
-        address->has_dev = true;
         address->dev = g_strdup(disk->name);
         get_single_disk_info(sdn.DeviceNumber, address, &local_err);
         if (local_err) {
@@ -1089,7 +1083,6 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
             address = NULL;
         } else {
             disk->address = address;
-            disk->has_address = true;
         }
 
         QAPI_LIST_PREPEND(ret, disk);
@@ -1369,7 +1362,6 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         g_free(uc_path);
 
         if (!path) {
-            res->has_error = true;
             res->error = g_strdup(gerr->message);
             g_error_free(gerr);
             break;
@@ -1387,7 +1379,6 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         if (!g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
                           &out /* stdout */, NULL /* stdin */,
                           NULL, &gerr)) {
-            res->has_error = true;
             res->error = g_strdup(gerr->message);
             g_error_free(gerr);
         } else {
@@ -1403,7 +1394,6 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
                 if (g_strstr_len(lines[i], -1, "(0x") == NULL) {
                     continue;
                 }
-                res->has_error = true;
                 res->error = g_strdup(lines[i]);
                 break;
             }
@@ -1683,8 +1673,6 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
                                 (int) mac_addr[0], (int) mac_addr[1],
                                 (int) mac_addr[2], (int) mac_addr[3],
                                 (int) mac_addr[4], (int) mac_addr[5]);
-
-            info->has_hardware_address = true;
         }
 
         head_addr = NULL;
@@ -1713,15 +1701,13 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             info->has_ip_addresses = true;
             info->ip_addresses = head_addr;
         }
-        if (!info->has_statistics) {
+        if (!info->statistics) {
             interface_stat = g_malloc0(sizeof(*interface_stat));
-            if (guest_get_network_stats(addr->AdapterName,
-                interface_stat) == -1) {
-                info->has_statistics = false;
+            if (guest_get_network_stats(addr->AdapterName, interface_stat)
+                == -1) {
                 g_free(interface_stat);
             } else {
                 info->statistics = interface_stat;
-                info->has_statistics = true;
             }
         }
     }
@@ -2005,8 +1991,8 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return NULL;
 }
 
-/* add unsupported commands to the blacklist */
-GList *ga_command_blacklist_init(GList *blacklist)
+/* add unsupported commands to the list of blocked RPCs */
+GList *ga_command_init_blockedrpcs(GList *blockedrpcs)
 {
     const char *list_unsupported[] = {
         "guest-suspend-hybrid",
@@ -2017,7 +2003,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
     char **p = (char **)list_unsupported;
 
     while (*p) {
-        blacklist = g_list_append(blacklist, g_strdup(*p++));
+        blockedrpcs = g_list_append(blockedrpcs, g_strdup(*p++));
     }
 
     if (!vss_init(true)) {
@@ -2028,11 +2014,11 @@ GList *ga_command_blacklist_init(GList *blacklist)
         p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, g_strdup(*p++));
+            blockedrpcs = g_list_append(blockedrpcs, g_strdup(*p++));
         }
     }
 
-    return blacklist;
+    return blockedrpcs;
 }
 
 /* register init/cleanup routines for stateful command groups */
@@ -2113,7 +2099,6 @@ GuestUserList *qmp_guest_get_users(Error **errp)
 
                     user->user = g_strdup(info->UserName);
                     user->domain = g_strdup(info->Domain);
-                    user->has_domain = true;
 
                     user->login_time = login_time;
 
@@ -2267,7 +2252,7 @@ static char *ga_get_win_product_name(Error **errp)
         }
     }
     if (err != ERROR_SUCCESS) {
-        error_setg_win32(errp, err, "failed to retrive ProductName");
+        error_setg_win32(errp, err, "failed to retrieve ProductName");
         goto fail;
     }
 
@@ -2332,29 +2317,19 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 
     info = g_new0(GuestOSInfo, 1);
 
-    info->has_kernel_version = true;
     info->kernel_version = g_strdup_printf("%lu.%lu",
         os_version.dwMajorVersion,
         os_version.dwMinorVersion);
-    info->has_kernel_release = true;
     info->kernel_release = g_strdup_printf("%lu",
         os_version.dwBuildNumber);
-    info->has_machine = true;
     info->machine = ga_get_current_arch();
 
-    info->has_id = true;
     info->id = g_strdup("mswindows");
-    info->has_name = true;
     info->name = g_strdup("Microsoft Windows");
-    info->has_pretty_name = true;
     info->pretty_name = product_name;
-    info->has_version = true;
     info->version = ga_get_win_name(&os_version, false);
-    info->has_version_id = true;
     info->version_id = ga_get_win_name(&os_version, true);
-    info->has_variant = true;
     info->variant = g_strdup(server ? "server" : "client");
-    info->has_variant_id = true;
     info->variant_id = g_strdup(server ? "server" : "client");
 
     return info;
@@ -2478,7 +2453,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             device_id = g_match_info_fetch(match_info, 2);
 
             device->id = g_new0(GuestDeviceId, 1);
-            device->has_id = true;
             device->id->type = GUEST_DEVICE_TYPE_PCI;
             id = &device->id->u.pci;
             id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
@@ -2502,7 +2476,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             error_setg(errp, "conversion to utf8 failed (driver version)");
             return NULL;
         }
-        device->has_driver_version = true;
 
         date = (LPFILETIME)cm_get_property(dev_info_data.DevInst,
             &qga_DEVPKEY_Device_DriverDate, &cm_type);

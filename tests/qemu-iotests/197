@@ -93,7 +93,7 @@ output=$($QEMU_IO -f qcow2 -C -c "read -P 0 1k $((2*1024*1024*1024 - 512))" \
         "$TEST_WRAP" 2>&1 | _filter_qemu_io)
 case $output in
     *allocate*)
-        _notrun "Insufficent memory to run test" ;;
+        _notrun "Insufficient memory to run test" ;;
     *) printf '%s\n' "$output" ;;
 esac
 $QEMU_IO -f qcow2 -C -c "read -P 0 $((3*1024*1024*1024 + 1024)) 1k" \
@@ -120,6 +120,35 @@ IMGPROTO=file IMGFMT=qcow2 TEST_IMG_FILE="$TEST_WRAP" \
     _make_test_img --no-opts -o compat=1.1 1024
 $QEMU_IO -f qcow2 -C -c 'read 0 1024' "$TEST_WRAP" | _filter_qemu_io
 $QEMU_IO -f qcow2 -c map "$TEST_WRAP"
+_check_test_img
+
+echo
+echo '=== Copy-on-read with subclusters ==='
+echo
+
+# Create base and top images 64K (1 cluster) each.  Make subclusters enabled
+# for the top image
+_make_test_img 64K
+IMGPROTO=file IMGFMT=qcow2 TEST_IMG_FILE="$TEST_WRAP" \
+    _make_test_img --no-opts -o extended_l2=true -F "$IMGFMT" -b "$TEST_IMG" \
+    64K | _filter_img_create
+
+$QEMU_IO -c "write -P 0xaa 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+# Allocate individual subclusters in the top image, and not the whole cluster
+$QEMU_IO -f qcow2 -c "write -P 0xbb 28K 2K" -c "write -P 0xcc 34K 2K" "$TEST_WRAP" \
+    | _filter_qemu_io
+
+# Only 2 subclusters should be allocated in the top image at this point
+$QEMU_IO -f qcow2 -c map "$TEST_WRAP"
+
+# Actual copy-on-read operation
+$QEMU_IO -f qcow2 -C -c "read -P 0xaa 30K 4K" "$TEST_WRAP" | _filter_qemu_io
+
+# And here we should have 4 subclusters allocated right in the middle of the
+# top image. Make sure the whole cluster remains unallocated
+$QEMU_IO -f qcow2 -c map "$TEST_WRAP"
+
 _check_test_img
 
 # success, all done

@@ -30,6 +30,11 @@
  *
  * notes - x-vfio-user-server could block IO and monitor during the
  *         initialization phase.
+ *
+ *         When x-remote machine has the auto-shutdown property
+ *         enabled (default), x-vfio-user-server terminates after the last
+ *         client disconnects. Otherwise, it will continue running until
+ *         explicitly killed.
  */
 
 #include "qemu/osdep.h"
@@ -61,9 +66,12 @@
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
 
 /**
- * VFU_OBJECT_ERROR - reports an error message. If auto_shutdown
- * is set, it aborts the machine on error. Otherwise, it logs an
- * error message without aborting.
+ * VFU_OBJECT_ERROR - reports an error message.
+ *
+ * If auto_shutdown is set, it aborts the machine on error. Otherwise,
+ * it logs an error message without aborting. auto_shutdown is disabled
+ * when the server serves clients from multiple VMs; as such, an error
+ * from one VM shouldn't be able to disrupt other VM's services.
  */
 #define VFU_OBJECT_ERROR(o, fmt, ...)                                     \
     {                                                                     \
@@ -602,17 +610,10 @@ static void vfu_msix_irq_state(vfu_ctx_t *vfu_ctx, uint32_t start,
                                uint32_t count, bool mask)
 {
     VfuObject *o = vfu_get_private(vfu_ctx);
-    Error *err = NULL;
     uint32_t vector;
 
     for (vector = start; vector < count; vector++) {
-        msix_set_mask(o->pci_dev, vector, mask, &err);
-        if (err) {
-            VFU_OBJECT_ERROR(o, "vfu: %s: %s", o->device,
-                             error_get_pretty(err));
-            error_free(err);
-            err = NULL;
-        }
+        msix_set_mask(o->pci_dev, vector, mask);
     }
 }
 
@@ -672,8 +673,8 @@ void vfu_object_set_bus_irq(PCIBus *pci_bus)
     int bus_num = pci_bus_num(pci_bus);
     int max_bdf = PCI_BUILD_BDF(bus_num, PCI_DEVFN_MAX - 1);
 
-    pci_bus_irqs(pci_bus, vfu_object_set_irq, vfu_object_map_irq, pci_bus,
-                 max_bdf);
+    pci_bus_irqs(pci_bus, vfu_object_set_irq, pci_bus, max_bdf);
+    pci_bus_map_irqs(pci_bus, vfu_object_map_irq);
 }
 
 static int vfu_object_device_reset(vfu_ctx_t *vfu_ctx, vfu_reset_type_t type)
@@ -685,7 +686,7 @@ static int vfu_object_device_reset(vfu_ctx_t *vfu_ctx, vfu_reset_type_t type)
         return 0;
     }
 
-    qdev_reset_all(DEVICE(o->pci_dev));
+    device_cold_reset(DEVICE(o->pci_dev));
 
     return 0;
 }
@@ -726,7 +727,6 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
  */
 static void vfu_object_init_ctx(VfuObject *o, Error **errp)
 {
-    ERRP_GUARD();
     DeviceState *dev = NULL;
     vfu_pci_type_t pci_type = VFU_PCI_TYPE_CONVENTIONAL;
     int ret;

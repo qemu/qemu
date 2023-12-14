@@ -14,7 +14,9 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "cpu_features.h"
-#include "hw/s390x/pv.h"
+#ifndef CONFIG_USER_ONLY
+#include "target/s390x/kvm/pv.h"
+#endif
 
 #define DEF_FEAT(_FEAT, _NAME, _TYPE, _BIT, _DESC) \
     [S390_FEAT_##_FEAT] = {                        \
@@ -107,6 +109,7 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1);
     }
 
+#ifndef CONFIG_USER_ONLY
     if (!s390_is_pv()) {
         return;
     }
@@ -147,6 +150,7 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     default:
         return;
     }
+#endif
 }
 
 void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
@@ -245,7 +249,7 @@ static void init_groups(void)
 {
     int i;
 
-    /* init all bitmaps from gnerated data initially */
+    /* init all bitmaps from generated data initially */
     for (i = 0; i < ARRAY_SIZE(s390_feature_groups); i++) {
         s390_init_feat_bitmap(s390_feature_groups[i].init,
                               s390_feature_groups[i].feat);

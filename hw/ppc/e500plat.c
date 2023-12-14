@@ -46,13 +46,10 @@ static void e500plat_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
 {
     PPCE500MachineState *pms = PPCE500_MACHINE(hotplug_dev);
+    MachineClass *mc = MACHINE_GET_CLASS(pms);
 
-    if (pms->pbus_dev) {
-        MachineClass *mc = MACHINE_GET_CLASS(pms);
-
-        if (device_is_dynamic_sysbus(mc, dev)) {
-            platform_bus_link_device(pms->pbus_dev, SYS_BUS_DEVICE(dev));
-        }
+    if (device_is_dynamic_sysbus(mc, dev)) {
+        platform_bus_link_device(pms->pbus_dev, SYS_BUS_DEVICE(dev));
     }
 }
 
@@ -86,7 +83,7 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     pmc->fixup_devtree = e500plat_fixup_devtree;
     pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_42;
     pmc->has_mpc8xxx_gpio = true;
-    pmc->has_platform_bus = true;
+    pmc->has_esdhc = true;
     pmc->platform_bus_base = 0xf00000000ULL;
     pmc->platform_bus_size = 128 * MiB;
     pmc->platform_bus_first_irq = 5;
@@ -102,6 +99,7 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
     mc->default_ram_id = "mpc8544ds.ram";
+    mc->default_nic = "virtio-net-pci";
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_ETSEC_COMMON);
  }
 

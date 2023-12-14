@@ -17,6 +17,7 @@ RUN dnf distro-sync -y && \
         alsa-lib-devel \
         bash \
         bc \
+        bison \
         brlapi-devel \
         bzip2 \
         bzip2-devel \
@@ -31,10 +32,10 @@ RUN dnf distro-sync -y && \
         device-mapper-multipath-devel \
         diffutils \
         findutils \
+        flex \
         fuse3-devel \
         gcc \
         gcc-c++ \
-        genisoimage \
         gettext \
         git \
         glib2-devel \
@@ -74,13 +75,14 @@ RUN dnf distro-sync -y && \
         libubsan \
         liburing-devel \
         libusbx-devel \
+        libxdp-devel \
         libzstd-devel \
         llvm \
         lttng-ust-devel \
         lzo-devel \
         make \
         mesa-libgbm-devel \
-        meson \
+        mtools \
         ncurses-devel \
         nettle-devel \
         ninja-build \
@@ -89,35 +91,36 @@ RUN dnf distro-sync -y && \
         openssh-clients \
         pam-devel \
         pcre-static \
-        perl \
+        pipewire-devel \
         pixman-devel \
         pkgconfig \
         pulseaudio-libs-devel \
-        python3 \
-        python3-PyYAML \
-        python3-numpy \
-        python3-pillow \
-        python3-pip \
-        python3-sphinx \
-        python3-sphinx_rtd_theme \
+        python38 \
+        python38-PyYAML \
+        python38-numpy \
+        python38-pip \
+        python38-setuptools \
+        python38-wheel \
         rdma-core-devel \
-        rpm \
         sed \
         snappy-devel \
+        socat \
         spice-protocol \
         spice-server-devel \
+        swtpm \
         systemd-devel \
         systemtap-sdt-devel \
         tar \
-        texinfo \
         usbredir-devel \
         util-linux \
         virglrenderer-devel \
         vte291-devel \
         which \
         xfsprogs-devel \
+        xorriso \
         zlib-devel \
-        zlib-static && \
+        zlib-static \
+        zstd && \
     dnf autoremove -y && \
     dnf clean all -y && \
     rpm -qa | sort > /packages.txt && \
@@ -128,8 +131,20 @@ RUN dnf distro-sync -y && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
+RUN /usr/bin/pip3.8 install \
+                    meson==0.63.2 \
+                    pillow \
+                    sphinx \
+                    sphinx-rtd-theme \
+                    tomli
+
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
 ENV NINJA "/usr/bin/ninja"
-ENV PYTHON "/usr/bin/python3"
-ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+ENV PYTHON "/usr/bin/python3.8"
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

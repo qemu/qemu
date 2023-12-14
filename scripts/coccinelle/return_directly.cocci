@@ -11,9 +11,8 @@ identifier F;
 -    T VAR;
      ... when != VAR
 
--    VAR =
-+    return
-     E;
+-    VAR = (E);
 -    return VAR;
++    return E;
      ... when != VAR
  }

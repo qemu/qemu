@@ -4,54 +4,64 @@ block_ss.add(files(
   'aio_task.c',
   'amend.c',
   'backup.c',
-  'copy-before-write.c',
   'blkdebug.c',
   'blklogwrites.c',
   'blkverify.c',
   'block-backend.c',
   'block-copy.c',
   'commit.c',
+  'copy-before-write.c',
   'copy-on-read.c',
-  'preallocate.c',
-  'progress_meter.c',
   'create.c',
   'crypto.c',
   'dirty-bitmap.c',
   'filter-compress.c',
+  'graph-lock.c',
   'io.c',
   'mirror.c',
   'nbd.c',
   'null.c',
+  'preallocate.c',
+  'progress_meter.c',
   'qapi.c',
+  'qcow2.c',
   'qcow2-bitmap.c',
   'qcow2-cache.c',
   'qcow2-cluster.c',
   'qcow2-refcount.c',
   'qcow2-snapshot.c',
   'qcow2-threads.c',
-  'qcow2.c',
   'quorum.c',
   'raw-format.c',
   'reqlist.c',
   'snapshot.c',
   'snapshot-access.c',
-  'throttle-groups.c',
   'throttle.c',
-  'vhdx-endian.c',
-  'vhdx-log.c',
-  'vhdx.c',
-  'vmdk.c',
-  'vpc.c',
+  'throttle-groups.c',
   'write-threshold.c',
 ), zstd, zlib, gnutls)
 
-softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+system_ss.add(files('block-ram-registrar.c'))
 
 if get_option('qcow1').allowed()
   block_ss.add(files('qcow.c'))
 endif
 if get_option('vdi').allowed()
   block_ss.add(files('vdi.c'))
+endif
+if get_option('vhdx').allowed()
+  block_ss.add(files(
+    'vhdx-endian.c',
+    'vhdx-log.c',
+    'vhdx.c'
+  ))
+endif
+if get_option('vmdk').allowed()
+  block_ss.add(files('vmdk.c'))
+endif
+if get_option('vpc').allowed()
+  block_ss.add(files('vpc.c'))
 endif
 if get_option('cloop').allowed()
   block_ss.add(files('cloop.c'))
@@ -82,7 +92,7 @@ block_ss.add(when: 'CONFIG_WIN32', if_true: files('file-win32.c', 'win32-aio.c')
 block_ss.add(when: 'CONFIG_POSIX', if_true: [files('file-posix.c'), coref, iokit])
 block_ss.add(when: libiscsi, if_true: files('iscsi-opts.c'))
 block_ss.add(when: 'CONFIG_LINUX', if_true: files('nvme.c'))
-if not get_option('replication').disabled()
+if get_option('replication').allowed()
   block_ss.add(files('replication.c'))
 endif
 block_ss.add(when: libaio, if_true: files('linux-aio.c'))
@@ -92,6 +102,7 @@ block_modules = {}
 
 modsrc = []
 foreach m : [
+  [blkio, 'blkio', files('blkio.c')],
   [curl, 'curl', files('curl.c')],
   [glusterfs, 'gluster', files('gluster.c')],
   [libiscsi, 'iscsi', [files('iscsi.c'), libm]],
@@ -135,7 +146,10 @@ block_gen_c = custom_target('block-gen.c',
                             output: 'block-gen.c',
                             input: files(
                                       '../include/block/block-io.h',
+                                      '../include/block/dirty-bitmap.h',
+                                      '../include/block/block_int-io.h',
                                       '../include/block/block-global-state.h',
+                                      '../include/sysemu/block-backend-global-state.h',
                                       '../include/sysemu/block-backend-io.h',
                                       'coroutines.h'
                                       ),
@@ -144,7 +158,7 @@ block_ss.add(block_gen_c)
 
 block_ss.add(files('stream.c'))
 
-softmmu_ss.add(files('qapi-sysemu.c'))
+system_ss.add(files('qapi-sysemu.c'))
 
 subdir('export')
 subdir('monitor')

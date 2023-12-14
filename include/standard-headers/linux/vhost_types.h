@@ -47,6 +47,22 @@ struct vhost_vring_addr {
 	uint64_t log_guest_addr;
 };
 
+struct vhost_worker_state {
+	/*
+	 * For VHOST_NEW_WORKER the kernel will return the new vhost_worker id.
+	 * For VHOST_FREE_WORKER this must be set to the id of the vhost_worker
+	 * to free.
+	 */
+	unsigned int worker_id;
+};
+
+struct vhost_vring_worker {
+	/* vring index */
+	unsigned int index;
+	/* The id of the vhost_worker returned from VHOST_NEW_WORKER */
+	unsigned int worker_id;
+};
+
 /* no alignment requirement */
 struct vhost_iotlb_msg {
 	uint64_t iova;
@@ -87,7 +103,7 @@ struct vhost_msg {
 
 struct vhost_msg_v2 {
 	uint32_t type;
-	uint32_t reserved;
+	uint32_t asid;
 	union {
 		struct vhost_iotlb_msg iotlb;
 		uint8_t padding[64];
@@ -107,7 +123,7 @@ struct vhost_memory_region {
 struct vhost_memory {
 	uint32_t nregions;
 	uint32_t padding;
-	struct vhost_memory_region regions[0];
+	struct vhost_memory_region regions[];
 };
 
 /* VHOST_SCSI specific definitions */
@@ -135,7 +151,7 @@ struct vhost_scsi_target {
 struct vhost_vdpa_config {
 	uint32_t off;
 	uint32_t len;
-	uint8_t buf[0];
+	uint8_t buf[];
 };
 
 /* vhost vdpa IOVA range
@@ -152,5 +168,22 @@ struct vhost_vdpa_iova_range {
 #define VHOST_F_LOG_ALL 26
 /* vhost-net should add virtio_net_hdr for RX, and strip for TX packets. */
 #define VHOST_NET_F_VIRTIO_NET_HDR 27
+
+/* Use message type V2 */
+#define VHOST_BACKEND_F_IOTLB_MSG_V2 0x1
+/* IOTLB can accept batching hints */
+#define VHOST_BACKEND_F_IOTLB_BATCH  0x2
+/* IOTLB can accept address space identifier through V2 type of IOTLB
+ * message
+ */
+#define VHOST_BACKEND_F_IOTLB_ASID  0x3
+/* Device can be suspended */
+#define VHOST_BACKEND_F_SUSPEND  0x4
+/* Device can be resumed */
+#define VHOST_BACKEND_F_RESUME  0x5
+/* Device supports the driver enabling virtqueues both before and after
+ * DRIVER_OK
+ */
+#define VHOST_BACKEND_F_ENABLE_AFTER_DRIVER_OK  0x6
 
 #endif

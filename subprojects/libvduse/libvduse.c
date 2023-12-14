@@ -16,6 +16,10 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -97,7 +101,7 @@ struct VduseVirtq {
     uint16_t signalled_used;
     bool signalled_used_valid;
     int index;
-    int inuse;
+    unsigned int inuse;
     bool ready;
     int fd;
     VduseDev *dev;
@@ -578,7 +582,8 @@ void vduse_queue_notify(VduseVirtq *vq)
 
 static inline void vring_set_avail_event(VduseVirtq *vq, uint16_t val)
 {
-    *((uint16_t *)&vq->vring.used->ring[vq->vring.num]) = htole16(val);
+    uint16_t val_le = htole16(val);
+    memcpy(&vq->vring.used->ring[vq->vring.num], &val_le, sizeof(uint16_t));
 }
 
 static bool vduse_queue_map_single_desc(VduseVirtq *vq, unsigned int *p_num_sg,
@@ -1026,7 +1031,7 @@ int vduse_dev_handler(VduseDev *dev)
         /* The iova will be updated by iova_to_va() later, so just remove it */
         vduse_iova_remove_region(dev, req.iova.start, req.iova.last);
         for (i = 0; i < dev->num_queues; i++) {
-            VduseVirtq *vq = &dev->vqs[i];
+            vq = &dev->vqs[i];
             if (vq->ready) {
                 if (vduse_queue_update_vring(vq, vq->vring.desc_addr,
                                              vq->vring.avail_addr,
@@ -1309,8 +1314,8 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
         goto err_dev;
     }
 
-    strncpy(dev_config->name, name, VDUSE_NAME_MAX);
-    dev_config->name[VDUSE_NAME_MAX - 1] = '\0';
+    assert(!vduse_name_is_invalid(name));
+    strcpy(dev_config->name, name);
     dev_config->device_id = device_id;
     dev_config->vendor_id = vendor_id;
     dev_config->features = features;

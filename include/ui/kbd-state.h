@@ -65,7 +65,7 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down);
  * using qemu_input_event_send_key_delay().
  *
  * @kbd: state tracker state.
- * @delay_ms: the delay in miliseconds.
+ * @delay_ms: the delay in milliseconds.
  */
 void qkbd_state_set_delay(QKbdState *kbd, int delay_ms);
 

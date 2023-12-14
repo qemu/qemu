@@ -15,8 +15,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
+#include "hw/xen/xen-legacy-backend.h"
 
 #define XEN_PT_MERGE_VALUE(value, data, val_mask) \
     (((value) & (val_mask)) | ((data) & ~(val_mask)))
@@ -985,8 +985,8 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .offset     = 0x28,
         .size       = 2,
         .init_val   = 0x0000,
-        .ro_mask    = 0xFFE0,
-        .emu_mask   = 0xFFFF,
+        .ro_mask    = 0xFFA0,
+        .emu_mask   = 0xFFBF,
         .init       = xen_pt_devctrl2_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_word_reg_write,
@@ -1924,7 +1924,7 @@ static void xen_pt_config_reg_init(XenPCIPassthroughState *s,
     if (reg->init) {
         uint32_t host_mask, size_mask;
         unsigned int offset;
-        uint32_t val;
+        uint32_t val = 0;
 
         /* initialize emulate register */
         rc = reg->init(s, reg_entry->reg,

@@ -132,7 +132,7 @@ qemu_file_monitor_test_record_free(QFileMonitorTestRecord *rec)
  * the file monitor event handler. Since events are
  * emitted in the background thread running the event
  * loop, we can't assume there is a record available
- * immediately. Thus we will sleep for upto 5 seconds
+ * immediately. Thus we will sleep for up to 5 seconds
  * to wait for the event to be queued for us.
  */
 static QFileMonitorTestRecord *

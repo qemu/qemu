@@ -61,11 +61,15 @@ typedef struct VFIORegion {
 typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
-    VFIORegion region;
-    uint32_t device_state;
-    int vm_running;
     Notifier migration_state;
-    uint64_t pending_bytes;
+    uint32_t device_state;
+    int data_fd;
+    void *data_buffer;
+    size_t data_buffer_size;
+    uint64_t mig_flags;
+    uint64_t precopy_init_size;
+    uint64_t precopy_dirty_size;
+    bool initial_data_sent;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
@@ -94,6 +98,8 @@ typedef struct VFIOContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainer) next;
+    QLIST_HEAD(, VFIODevice) device_list;
+    GList *iova_ranges;
 } VFIOContainer;
 
 typedef struct VFIOGuestIOMMU {
@@ -125,7 +131,10 @@ typedef struct VFIODeviceOps VFIODeviceOps;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
+    QLIST_ENTRY(VFIODevice) container_next;
+    QLIST_ENTRY(VFIODevice) global_next;
     struct VFIOGroup *group;
+    VFIOContainer *container;
     char *sysfsdev;
     char *name;
     DeviceState *dev;
@@ -135,7 +144,7 @@ typedef struct VFIODevice {
     bool needs_reset;
     bool no_mmap;
     bool ram_block_discard_allowed;
-    bool enable_migration;
+    OnOffAuto enable_migration;
     VFIODeviceOps *ops;
     unsigned int num_irqs;
     unsigned int num_regions;
@@ -143,6 +152,8 @@ typedef struct VFIODevice {
     VFIOMigration *migration;
     Error *migration_blocker;
     OnOffAuto pre_copy_dirty_page_tracking;
+    bool dirty_pages_supported;
+    bool dirty_tracking;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -190,7 +201,34 @@ typedef struct VFIODisplay {
     } dmabuf;
 } VFIODisplay;
 
-void vfio_put_base_device(VFIODevice *vbasedev);
+typedef struct {
+    unsigned long *bitmap;
+    hwaddr size;
+    hwaddr pages;
+} VFIOBitmap;
+
+VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
+void vfio_put_address_space(VFIOAddressSpace *space);
+bool vfio_devices_all_running_and_saving(VFIOContainer *container);
+
+/* container->fd */
+int vfio_dma_unmap(VFIOContainer *container, hwaddr iova,
+                   ram_addr_t size, IOMMUTLBEntry *iotlb);
+int vfio_dma_map(VFIOContainer *container, hwaddr iova,
+                 ram_addr_t size, void *vaddr, bool readonly);
+int vfio_set_dirty_page_tracking(VFIOContainer *container, bool start);
+int vfio_query_dirty_bitmap(VFIOContainer *container, VFIOBitmap *vbmap,
+                            hwaddr iova, hwaddr size);
+
+/* SPAPR specific */
+int vfio_container_add_section_window(VFIOContainer *container,
+                                      MemoryRegionSection *section,
+                                      Error **errp);
+void vfio_container_del_section_window(VFIOContainer *container,
+                                       MemoryRegionSection *section);
+int vfio_spapr_container_init(VFIOContainer *container, Error **errp);
+void vfio_spapr_container_deinit(VFIOContainer *container);
+
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);
 void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index);
 void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index);
@@ -208,17 +246,31 @@ void vfio_region_unmap(VFIORegion *region);
 void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
 void vfio_reset_handler(void *opaque);
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp);
-void vfio_put_group(VFIOGroup *group);
-int vfio_get_device(VFIOGroup *group, const char *name,
-                    VFIODevice *vbasedev, Error **errp);
+struct vfio_device_info *vfio_get_device_info(int fd);
+int vfio_attach_device(char *name, VFIODevice *vbasedev,
+                       AddressSpace *as, Error **errp);
+void vfio_detach_device(VFIODevice *vbasedev);
+
+int vfio_kvm_device_add_fd(int fd, Error **errp);
+int vfio_kvm_device_del_fd(int fd, Error **errp);
 
 extern const MemoryRegionOps vfio_region_ops;
 typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
+typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIOGroupList vfio_group_list;
+extern VFIODeviceList vfio_device_list;
+
+extern const MemoryListener vfio_memory_listener;
+extern int vfio_kvm_device_fd;
 
 bool vfio_mig_active(void);
+int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp);
+void vfio_unblock_multiple_devices_migration(void);
+bool vfio_viommu_preset(VFIODevice *vbasedev);
 int64_t vfio_mig_bytes_transferred(void);
+void vfio_reset_bytes_transferred(void);
+bool vfio_device_state_is_running(VFIODevice *vbasedev);
+bool vfio_device_state_is_precopy(VFIODevice *vbasedev);
 
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
@@ -232,16 +284,19 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
                              unsigned int *avail);
 struct vfio_info_cap_header *
 vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id);
+struct vfio_info_cap_header *
+vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id);
 #endif
-extern const MemoryListener vfio_prereg_listener;
 
-int vfio_spapr_create_window(VFIOContainer *container,
-                             MemoryRegionSection *section,
-                             hwaddr *pgsize);
-int vfio_spapr_remove_window(VFIOContainer *container,
-                             hwaddr offset_within_address_space);
+bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp);
+void vfio_migration_exit(VFIODevice *vbasedev);
 
-int vfio_migration_probe(VFIODevice *vbasedev, Error **errp);
-void vfio_migration_finalize(VFIODevice *vbasedev);
-
+int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size);
+bool vfio_devices_all_running_and_mig_active(VFIOContainer *container);
+bool vfio_devices_all_device_dirty_tracking(VFIOContainer *container);
+int vfio_devices_query_dirty_bitmap(VFIOContainer *container,
+                                    VFIOBitmap *vbmap, hwaddr iova,
+                                    hwaddr size);
+int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
+                                 uint64_t size, ram_addr_t ram_addr);
 #endif /* HW_VFIO_VFIO_COMMON_H */

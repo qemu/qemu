@@ -25,10 +25,6 @@
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
 
-typedef ObjectClass IOThreadClass;
-
-DECLARE_CLASS_CHECKERS(IOThreadClass, IOTHREAD,
-                       TYPE_IOTHREAD)
 
 #ifdef CONFIG_POSIX
 /* Benchmark results from 2016 on NVMe SSD drives show max polling times around
@@ -142,12 +138,14 @@ static void iothread_instance_finalize(Object *obj)
     qemu_sem_destroy(&iothread->init_done_sem);
 }
 
-static void iothread_init_gcontext(IOThread *iothread)
+static void iothread_init_gcontext(IOThread *iothread, const char *thread_name)
 {
     GSource *source;
+    g_autofree char *name = g_strdup_printf("%s aio-context", thread_name);
 
     iothread->worker_context = g_main_context_new();
     source = aio_get_g_source(iothread_get_aio_context(iothread));
+    g_source_set_name(source, name);
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
     iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
@@ -155,8 +153,8 @@ static void iothread_init_gcontext(IOThread *iothread)
 
 static void iothread_set_aio_context_params(EventLoopBase *base, Error **errp)
 {
-    IOThread *iothread = IOTHREAD(base);
     ERRP_GUARD();
+    IOThread *iothread = IOTHREAD(base);
 
     if (!iothread->ctx) {
         return;
@@ -184,7 +182,7 @@ static void iothread_init(EventLoopBase *base, Error **errp)
 {
     Error *local_error = NULL;
     IOThread *iothread = IOTHREAD(base);
-    char *thread_name;
+    g_autofree char *thread_name = NULL;
 
     iothread->stopping = false;
     iothread->running = true;
@@ -193,11 +191,14 @@ static void iothread_init(EventLoopBase *base, Error **errp)
         return;
     }
 
+    thread_name = g_strdup_printf("IO %s",
+                        object_get_canonical_path_component(OBJECT(base)));
+
     /*
      * Init one GMainContext for the iothread unconditionally, even if
      * it's not used
      */
-    iothread_init_gcontext(iothread);
+    iothread_init_gcontext(iothread, thread_name);
 
     iothread_set_aio_context_params(base, &local_error);
     if (local_error) {
@@ -210,11 +211,8 @@ static void iothread_init(EventLoopBase *base, Error **errp)
     /* This assumes we are called from a thread with useful CPU affinity for us
      * to inherit.
      */
-    thread_name = g_strdup_printf("IO %s",
-                        object_get_canonical_path_component(OBJECT(base)));
     qemu_thread_create(&iothread->thread, thread_name, iothread_run,
                        iothread, QEMU_THREAD_JOINABLE);
-    g_free(thread_name);
 
     /* Wait for initialization to complete */
     while (iothread->thread_id == -1) {

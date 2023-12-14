@@ -1,0 +1,10 @@
+# This is an example ignore list.
+# To enable use of the ignore list add this to configure:
+# "--extra-cflags=-fsanitize-blacklist=<src path>/tests/tsan/ignore.tsan"
+# The eventual goal would be to fix these warnings.
+
+# TSan is not happy about setting/getting of dirty bits,
+# for example, cpu_physical_memory_set_dirty_range,
+# and cpu_physical_memory_get_dirty.
+src:bitops.c
+src:bitmap.c

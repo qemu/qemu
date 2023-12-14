@@ -450,6 +450,11 @@ void helper_rdmsr(CPUX86State *env)
      case MSR_IA32_UCODE_REV:
         val = x86_cpu->ucode_rev;
         break;
+    case MSR_CORE_THREAD_COUNT: {
+        CPUState *cs = CPU(x86_cpu);
+        val = (cs->nr_threads * cs->nr_cores) | (cs->nr_cores << 16);
+        break;
+    }
     default:
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
             && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +

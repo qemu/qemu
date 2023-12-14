@@ -1,0 +1,363 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# = CXL devices
+##
+
+##
+# @CxlEventLog:
+#
+# CXL has a number of separate event logs for different types of
+# events.  Each such event log is handled and signaled independently.
+#
+# @informational: Information Event Log
+#
+# @warning: Warning Event Log
+#
+# @failure: Failure Event Log
+#
+# @fatal: Fatal Event Log
+#
+# Since: 8.1
+##
+{ 'enum': 'CxlEventLog',
+  'data': ['informational',
+           'warning',
+           'failure',
+           'fatal']
+ }
+
+##
+# @cxl-inject-general-media-event:
+#
+# Inject an event record for a General Media Event (CXL r3.0
+# 8.2.9.2.1.1).  This event type is reported via one of the event logs
+# specified via the log parameter.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: event log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @dpa: Device Physical Address (relative to @path device).  Note
+#     lower bits include some flags.  See CXL r3.0 Table 8-43 General
+#     Media Event Record, Physical Address.
+#
+# @descriptor: Memory Event Descriptor with additional memory event
+#     information.  See CXL r3.0 Table 8-43 General Media Event
+#     Record, Memory Event Descriptor for bit definitions.
+#
+# @type: Type of memory event that occurred.  See CXL r3.0 Table 8-43
+#     General Media Event Record, Memory Event Type for possible
+#     values.
+#
+# @transaction-type: Type of first transaction that caused the event
+#     to occur.  See CXL r3.0 Table 8-43 General Media Event Record,
+#     Transaction Type for possible values.
+#
+# @channel: The channel of the memory event location.  A channel is an
+#     interface that can be independently accessed for a transaction.
+#
+# @rank: The rank of the memory event location.  A rank is a set of
+#     memory devices on a channel that together execute a transaction.
+#
+# @device: Bitmask that represents all devices in the rank associated
+#     with the memory event location.
+#
+# @component-id: Device specific component identifier for the event.
+#     May describe a field replaceable sub-component of the device.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-general-media-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint8',
+            'dpa': 'uint64', 'descriptor': 'uint8',
+            'type': 'uint8', 'transaction-type': 'uint8',
+            '*channel': 'uint8', '*rank': 'uint8',
+            '*device': 'uint32', '*component-id': 'str' } }
+
+##
+# @cxl-inject-dram-event:
+#
+# Inject an event record for a DRAM Event (CXL r3.0 8.2.9.2.1.2).
+# This event type is reported via one of the event logs specified via
+# the log parameter.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: Event log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @dpa: Device Physical Address (relative to @path device).  Note
+#     lower bits include some flags.  See CXL r3.0 Table 8-44 DRAM
+#     Event Record, Physical Address.
+#
+# @descriptor: Memory Event Descriptor with additional memory event
+#     information.  See CXL r3.0 Table 8-44 DRAM Event Record, Memory
+#     Event Descriptor for bit definitions.
+#
+# @type: Type of memory event that occurred.  See CXL r3.0 Table 8-44
+#     DRAM Event Record, Memory Event Type for possible values.
+#
+# @transaction-type: Type of first transaction that caused the event
+#     to occur.  See CXL r3.0 Table 8-44 DRAM Event Record,
+#     Transaction Type for possible values.
+#
+# @channel: The channel of the memory event location.  A channel is an
+#     interface that can be independently accessed for a transaction.
+#
+# @rank: The rank of the memory event location.  A rank is a set of
+#     memory devices on a channel that together execute a transaction.
+#
+# @nibble-mask: Identifies one or more nibbles that the error affects
+#
+# @bank-group: Bank group of the memory event location, incorporating
+#     a number of Banks.
+#
+# @bank: Bank of the memory event location.  A single bank is accessed
+#     per read or write of the memory.
+#
+# @row: Row address within the DRAM.
+#
+# @column: Column address within the DRAM.
+#
+# @correction-mask: Bits within each nibble.  Used in order of bits
+#     set in the nibble-mask.  Up to 4 nibbles may be covered.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-dram-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint8',
+            'dpa': 'uint64', 'descriptor': 'uint8',
+            'type': 'uint8', 'transaction-type': 'uint8',
+            '*channel': 'uint8', '*rank': 'uint8', '*nibble-mask': 'uint32',
+            '*bank-group': 'uint8', '*bank': 'uint8', '*row': 'uint32',
+            '*column': 'uint16', '*correction-mask': [ 'uint64' ]
+           }}
+
+##
+# @cxl-inject-memory-module-event:
+#
+# Inject an event record for a Memory Module Event (CXL r3.0
+# 8.2.9.2.1.3).  This event includes a copy of the Device Health
+# info at the time of the event.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: Event Log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @type: Device Event Type.  See CXL r3.0 Table 8-45 Memory Module
+#     Event Record for bit definitions for bit definiions.
+#
+# @health-status: Overall health summary bitmap.  See CXL r3.0 Table
+#     8-100 Get Health Info Output Payload, Health Status for bit
+#     definitions.
+#
+# @media-status: Overall media health summary.  See CXL r3.0 Table
+#     8-100 Get Health Info Output Payload, Media Status for bit
+#     definitions.
+#
+# @additional-status: See CXL r3.0 Table 8-100 Get Health Info Output
+#     Payload, Additional Status for subfield definitions.
+#
+# @life-used: Percentage (0-100) of factory expected life span.
+#
+# @temperature: Device temperature in degrees Celsius.
+#
+# @dirty-shutdown-count: Number of times the device has been unable to
+#     determine whether data loss may have occurred.
+#
+# @corrected-volatile-error-count: Total number of correctable errors
+#     in volatile memory.
+#
+# @corrected-persistent-error-count: Total number of correctable
+#     errors in persistent memory
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-memory-module-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags' : 'uint8',
+            'type': 'uint8', 'health-status': 'uint8',
+            'media-status': 'uint8', 'additional-status': 'uint8',
+            'life-used': 'uint8', 'temperature' : 'int16',
+            'dirty-shutdown-count': 'uint32',
+            'corrected-volatile-error-count': 'uint32',
+            'corrected-persistent-error-count': 'uint32'
+            }}
+
+##
+# @cxl-inject-poison:
+#
+# Poison records indicate that a CXL memory device knows that a
+# particular memory region may be corrupted.  This may be because of
+# locally detected errors (e.g. ECC failure) or poisoned writes
+# received from other components in the system.  This injection
+# mechanism enables testing of the OS handling of poison records which
+# may be queried via the CXL mailbox.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @start: Start address; must be 64 byte aligned.
+#
+# @length: Length of poison to inject; must be a multiple of 64 bytes.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-poison',
+  'data': { 'path': 'str', 'start': 'uint64', 'length': 'size' }}
+
+##
+# @CxlUncorErrorType:
+#
+# Type of uncorrectable CXL error to inject.  These errors are
+# reported via an AER uncorrectable internal error with additional
+# information logged at the CXL device.
+#
+# @cache-data-parity: Data error such as data parity or data ECC error
+#     CXL.cache
+#
+# @cache-address-parity: Address parity or other errors associated
+#     with the address field on CXL.cache
+#
+# @cache-be-parity: Byte enable parity or other byte enable errors on
+#     CXL.cache
+#
+# @cache-data-ecc: ECC error on CXL.cache
+#
+# @mem-data-parity: Data error such as data parity or data ECC error
+#     on CXL.mem
+#
+# @mem-address-parity: Address parity or other errors associated with
+#     the address field on CXL.mem
+#
+# @mem-be-parity: Byte enable parity or other byte enable errors on
+#     CXL.mem.
+#
+# @mem-data-ecc: Data ECC error on CXL.mem.
+#
+# @reinit-threshold: REINIT threshold hit.
+#
+# @rsvd-encoding: Received unrecognized encoding.
+#
+# @poison-received: Received poison from the peer.
+#
+# @receiver-overflow: Buffer overflows (first 3 bits of header log
+#     indicate which)
+#
+# @internal: Component specific error
+#
+# @cxl-ide-tx: Integrity and data encryption tx error.
+#
+# @cxl-ide-rx: Integrity and data encryption rx error.
+#
+# Since: 8.0
+##
+
+{ 'enum': 'CxlUncorErrorType',
+  'data': ['cache-data-parity',
+           'cache-address-parity',
+           'cache-be-parity',
+           'cache-data-ecc',
+           'mem-data-parity',
+           'mem-address-parity',
+           'mem-be-parity',
+           'mem-data-ecc',
+           'reinit-threshold',
+           'rsvd-encoding',
+           'poison-received',
+           'receiver-overflow',
+           'internal',
+           'cxl-ide-tx',
+           'cxl-ide-rx'
+           ]
+ }
+
+##
+# @CXLUncorErrorRecord:
+#
+# Record of a single error including header log.
+#
+# @type: Type of error
+#
+# @header: 16 DWORD of header.
+#
+# Since: 8.0
+##
+{ 'struct': 'CXLUncorErrorRecord',
+  'data': {
+      'type': 'CxlUncorErrorType',
+      'header': [ 'uint32' ]
+  }
+}
+
+##
+# @cxl-inject-uncorrectable-errors:
+#
+# Command to allow injection of multiple errors in one go.  This
+# allows testing of multiple header log handling in the OS.
+#
+# @path: CXL Type 3 device canonical QOM path
+#
+# @errors: Errors to inject
+#
+# Since: 8.0
+##
+{ 'command': 'cxl-inject-uncorrectable-errors',
+  'data': { 'path': 'str',
+             'errors': [ 'CXLUncorErrorRecord' ] }}
+
+##
+# @CxlCorErrorType:
+#
+# Type of CXL correctable error to inject
+#
+# @cache-data-ecc: Data ECC error on CXL.cache
+#
+# @mem-data-ecc: Data ECC error on CXL.mem
+#
+# @crc-threshold: Component specific and applicable to 68 byte Flit
+#     mode only.
+#
+# @cache-poison-received: Received poison from a peer on CXL.cache.
+#
+# @mem-poison-received: Received poison from a peer on CXL.mem
+#
+# @physical: Received error indication from the physical layer.
+#
+# Since: 8.0
+##
+{ 'enum': 'CxlCorErrorType',
+  'data': ['cache-data-ecc',
+           'mem-data-ecc',
+           'crc-threshold',
+           'retry-threshold',
+           'cache-poison-received',
+           'mem-poison-received',
+           'physical']
+}
+
+##
+# @cxl-inject-correctable-error:
+#
+# Command to inject a single correctable error.  Multiple error
+# injection of this error type is not interesting as there is no
+# associated header log.  These errors are reported via AER as a
+# correctable internal error, with additional detail available from
+# the CXL device.
+#
+# @path: CXL Type 3 device canonical QOM path
+#
+# @type: Type of error.
+#
+# Since: 8.0
+##
+{'command': 'cxl-inject-correctable-error',
+ 'data': {'path': 'str', 'type': 'CxlCorErrorType'}}

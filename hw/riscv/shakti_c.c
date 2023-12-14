@@ -20,6 +20,7 @@
 #include "hw/boards.h"
 #include "hw/riscv/shakti_c.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/intc/riscv_aclint.h"
 #include "sysemu/sysemu.h"
@@ -66,8 +67,7 @@ static void shakti_c_machine_state_init(MachineState *mstate)
     riscv_setup_rom_reset_vec(mstate, &sms->soc.cpus,
                               shakti_c_memmap[SHAKTI_C_RAM].base,
                               shakti_c_memmap[SHAKTI_C_ROM].base,
-                              shakti_c_memmap[SHAKTI_C_ROM].size, 0, 0,
-                              NULL);
+                              shakti_c_memmap[SHAKTI_C_ROM].size, 0, 0);
     if (mstate->firmware) {
         riscv_load_firmware(mstate->firmware,
                             shakti_c_memmap[SHAKTI_C_RAM].base,

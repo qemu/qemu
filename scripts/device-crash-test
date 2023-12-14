@@ -43,7 +43,7 @@ except ModuleNotFoundError as exc:
     print(f"Module '{exc.name}' not found.")
     print("  Try 'make check-venv' from your build directory,")
     print("  and then one way to run this script is like so:")
-    print(f'  > $builddir/tests/venv/bin/python3 "{path}"')
+    print(f'  > $builddir/pyvenv/bin/python3 "{path}"')
     sys.exit(1)
 
 logger = logging.getLogger('device-crash-test')
@@ -269,14 +269,14 @@ def formatTestCase(t):
 
 def qomListTypeNames(vm, **kwargs):
     """Run qom-list-types QMP command, return type names"""
-    types = vm.command('qom-list-types', **kwargs)
+    types = vm.cmd('qom-list-types', **kwargs)
     return [t['name'] for t in types]
 
 
 def infoQDM(vm):
     """Parse 'info qdm' output"""
     args = {'command-line': 'info qdm'}
-    devhelp = vm.command('human-monitor-command', **args)
+    devhelp = vm.cmd('human-monitor-command', **args)
     for l in devhelp.split('\n'):
         l = l.strip()
         if l == '' or l.endswith(':'):
@@ -304,9 +304,9 @@ class QemuBinaryInfo(object):
             # there's no way to query DeviceClass::user_creatable using QMP,
             # so use 'info qdm':
             self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
-            self.machines = list(m['name'] for m in vm.command('query-machines'))
+            self.machines = list(m['name'] for m in vm.cmd('query-machines'))
             self.user_devs = self.alldevs.difference(self.no_user_devs)
-            self.kvm_available = vm.command('query-kvm')['enabled']
+            self.kvm_available = vm.cmd('query-kvm')['enabled']
         finally:
             vm.shutdown()
 
@@ -397,7 +397,7 @@ def binariesToTest(args, testcase):
 
 
 def accelsToTest(args, testcase):
-    if getBinaryInfo(args, testcase['binary']).kvm_available:
+    if getBinaryInfo(args, testcase['binary']).kvm_available and not args.tcg_only:
         yield 'kvm'
     yield 'tcg'
 
@@ -510,6 +510,8 @@ def main():
                         help="Full mode: test cases that are expected to fail")
     parser.add_argument('--strict', action='store_true', dest='strict',
                         help="Treat all warnings as fatal")
+    parser.add_argument('--tcg-only', action='store_true', dest='tcg_only',
+                        help="Only test with TCG accelerator")
     parser.add_argument('qemu', nargs='*', metavar='QEMU',
                         help='QEMU binary to run')
     args = parser.parse_args()

@@ -354,6 +354,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
         if (proxy->legacy) {
             virtio_queue_update_rings(vdev, vdev->queue_sel);
         } else {
+            virtio_init_region_cache(vdev, vdev->queue_sel);
             proxy->vqs[vdev->queue_sel].num = value;
         }
         break;
@@ -670,7 +671,30 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
 
     return 0;
 }
+static int virtio_mmio_set_config_guest_notifier(DeviceState *d, bool assign,
+                                                 bool with_irqfd)
+{
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    EventNotifier *notifier = virtio_config_get_guest_notifier(vdev);
+    int r = 0;
 
+    if (assign) {
+        r = event_notifier_init(notifier, 0);
+        if (r < 0) {
+            return r;
+        }
+        virtio_config_set_guest_notifier_fd_handler(vdev, assign, with_irqfd);
+    } else {
+        virtio_config_set_guest_notifier_fd_handler(vdev, assign, with_irqfd);
+        event_notifier_cleanup(notifier);
+    }
+    if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
+        vdc->guest_notifier_mask(vdev, VIRTIO_CONFIG_IRQ_IDX, !assign);
+    }
+    return r;
+}
 static int virtio_mmio_set_guest_notifiers(DeviceState *d, int nvqs,
                                            bool assign)
 {
@@ -691,6 +715,10 @@ static int virtio_mmio_set_guest_notifiers(DeviceState *d, int nvqs,
         if (r < 0) {
             goto assign_error;
         }
+    }
+    r = virtio_mmio_set_config_guest_notifier(d, assign, with_irqfd);
+    if (r < 0) {
+        goto assign_error;
     }
 
     return 0;
@@ -732,10 +760,6 @@ static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
 
     qbus_init(&proxy->bus, sizeof(proxy->bus), TYPE_VIRTIO_MMIO_BUS, d, NULL);
     sysbus_init_irq(sbd, &proxy->irq);
-
-    if (!kvm_eventfds_enabled()) {
-        proxy->flags &= ~VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD;
-    }
 
     /* fd-based ioevents can't be synchronized in record/replay */
     if (replay_mode != REPLAY_MODE_NONE) {
@@ -802,10 +826,10 @@ static char *virtio_mmio_bus_get_dev_path(DeviceState *dev)
     assert(section.mr);
 
     if (proxy_path) {
-        path = g_strdup_printf("%s/virtio-mmio@" TARGET_FMT_plx, proxy_path,
+        path = g_strdup_printf("%s/virtio-mmio@" HWADDR_FMT_plx, proxy_path,
                                section.offset_within_address_space);
     } else {
-        path = g_strdup_printf("virtio-mmio@" TARGET_FMT_plx,
+        path = g_strdup_printf("virtio-mmio@" HWADDR_FMT_plx,
                                section.offset_within_address_space);
     }
     memory_region_unref(section.mr);

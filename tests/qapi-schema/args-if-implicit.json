@@ -1,0 +1,4 @@
+{ 'command': 'test-if-cmd',
+  'data': {
+    'foo': 'int',
+    'bar': { 'type': 'str', 'if': 'TEST_IF_CMD_ARG' } } }

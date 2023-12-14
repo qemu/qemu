@@ -16,6 +16,7 @@
 # that patches adding downstream specific devices are not available.
 #
 ../configure \
+--python=/usr/bin/python3.8 \
 --prefix="/usr" \
 --libdir="/usr/lib64" \
 --datadir="/usr/share" \
@@ -28,15 +29,13 @@
 --extra-cflags="-O2 -g -pipe -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -fcf-protection" \
 --with-suffix="qemu-kvm" \
 --firmwarepath=/usr/share/qemu-firmware \
---with-git=meson \
---with-git-submodules=update \
 --target-list="x86_64-softmmu" \
 --block-drv-rw-whitelist="qcow2,raw,file,host_device,nbd,iscsi,rbd,blkdebug,luks,null-co,nvme,copy-on-read,throttle,gluster" \
 --audio-drv-list="" \
 --block-drv-ro-whitelist="vmdk,vhdx,vpc,https,ssh" \
 --with-coroutine=ucontext \
---with-git=git \
 --tls-priority=@QEMU,SYSTEM \
+--disable-af-xdp \
 --disable-attr \
 --disable-auth-pam \
 --disable-avx2 \
@@ -70,7 +69,6 @@
 --disable-gtk \
 --disable-guest-agent \
 --disable-guest-agent-msi \
---disable-hax \
 --disable-hvf \
 --disable-iconv \
 --disable-kvm \
@@ -137,7 +135,6 @@
 --disable-vhost-vdpa \
 --disable-virglrenderer \
 --disable-virtfs \
---disable-virtiofsd \
 --disable-vnc \
 --disable-vnc-jpeg \
 --disable-png \
@@ -188,9 +185,8 @@
 --enable-tcg \
 --enable-tools \
 --enable-tpm \
---enable-trace-backend=dtrace \
+--enable-trace-backends=dtrace \
 --enable-usb-redir \
---enable-virtiofsd \
 --enable-vhost-kernel \
 --enable-vhost-net \
 --enable-vhost-user \

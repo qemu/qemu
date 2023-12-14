@@ -27,7 +27,35 @@
 
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
+#include <linux/magic.h>
 #endif
+
+QemuFsType qemu_fd_getfs(int fd)
+{
+#ifdef CONFIG_LINUX
+    struct statfs fs;
+    int ret;
+
+    if (fd < 0) {
+        return QEMU_FS_TYPE_UNKNOWN;
+    }
+
+    do {
+        ret = fstatfs(fd, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    switch (fs.f_type) {
+    case TMPFS_MAGIC:
+        return QEMU_FS_TYPE_TMPFS;
+    case HUGETLBFS_MAGIC:
+        return QEMU_FS_TYPE_HUGETLBFS;
+    default:
+        return QEMU_FS_TYPE_UNKNOWN;
+    }
+#else
+    return QEMU_FS_TYPE_UNKNOWN;
+#endif
+}
 
 size_t qemu_fd_getpagesize(int fd)
 {
@@ -41,37 +69,6 @@ size_t qemu_fd_getpagesize(int fd)
         } while (ret != 0 && errno == EINTR);
 
         if (ret == 0 && fs.f_type == HUGETLBFS_MAGIC) {
-            return fs.f_bsize;
-        }
-    }
-#ifdef __sparc__
-    /* SPARC Linux needs greater alignment than the pagesize */
-    return QEMU_VMALLOC_ALIGN;
-#endif
-#endif
-
-    return qemu_real_host_page_size();
-}
-
-size_t qemu_mempath_getpagesize(const char *mem_path)
-{
-#ifdef CONFIG_LINUX
-    struct statfs fs;
-    int ret;
-
-    if (mem_path) {
-        do {
-            ret = statfs(mem_path, &fs);
-        } while (ret != 0 && errno == EINTR);
-
-        if (ret != 0) {
-            fprintf(stderr, "Couldn't statfs() memory path: %s\n",
-                    strerror(errno));
-            exit(1);
-        }
-
-        if (fs.f_type == HUGETLBFS_MAGIC) {
-            /* It's hugepage, return the huge page size */
             return fs.f_bsize;
         }
     }

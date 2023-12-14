@@ -9,7 +9,6 @@
 #define RISCV_TARGET_ELF_H
 static inline const char *cpu_get_model(uint32_t eflags)
 {
-    /* TYPE_RISCV_CPU_ANY */
-    return "any";
+    return "max";
 }
 #endif

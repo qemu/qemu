@@ -150,7 +150,7 @@ static bool scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
 }
 
 static bool scsi_read_10(VDev *vdev,
-                         ulong sector, int sectors, void *data,
+                         unsigned long sector, int sectors, void *data,
                          unsigned int data_size)
 {
     ScsiCdbRead10 cdb = {
@@ -269,7 +269,7 @@ static int virtio_scsi_locate_device(VDev *vdev)
 }
 
 int virtio_scsi_read_many(VDev *vdev,
-                          ulong sector, void *load_addr, int sec_num)
+                          unsigned long sector, void *load_addr, int sec_num)
 {
     int sector_count;
     int f = vdev->blk_factor;

@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,6 +32,9 @@ Q6INSN(J2_jump,"jump #r22:2",ATTRIBS(A_JDIR), "direct unconditional jump",
 {fIMMEXT(riV); fPCALIGN(riV); fBRANCH(fREAD_PC()+riV,COF_TYPE_JUMP);})
 
 Q6INSN(J2_jumpr,"jumpr Rs32",ATTRIBS(A_JINDIR), "indirect unconditional jump",
+{fJUMPR(RsN,RsV,COF_TYPE_JUMPR);})
+
+Q6INSN(J2_jumprh,"jumprh Rs32",ATTRIBS(A_JINDIR, A_HINTED_COF), "indirect unconditional jump",
 {fJUMPR(RsN,RsV,COF_TYPE_JUMPR);})
 
 #define OLDCOND_JUMP(TAG,OPER,OPER2,ATTRIB,DESCR,SEMANTICS) \
@@ -196,6 +199,8 @@ Q6INSN(J2_callrt,"if (Pu4) callr Rs32",ATTRIBS(CINDIR_STD),"indirect conditional
 Q6INSN(J2_callrf,"if (!Pu4) callr Rs32",ATTRIBS(CINDIR_STD),"indirect conditional call if false",
 {fBRANCH_SPECULATE_STALL(fLSBOLDNOT(PuV),,SPECULATE_NOT_TAKEN,12,0);if (fLSBOLDNOT(PuV)) { fCALLR(RsV); }})
 
+Q6INSN(J2_callrh,"callrh Rs32",ATTRIBS(CINDIR_STD, A_HINTED_COF), "hinted indirect unconditional call",
+{ fCALLR(RsV); })
 
 
 

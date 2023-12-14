@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/char/xilinx_uartlite.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -52,9 +53,6 @@
 #define CONTROL_RST_TX    0x01
 #define CONTROL_RST_RX    0x02
 #define CONTROL_IE        0x10
-
-#define TYPE_XILINX_UARTLITE "xlnx.xps-uartlite"
-OBJECT_DECLARE_SIMPLE_TYPE(XilinxUARTLite, XILINX_UARTLITE)
 
 struct XilinxUARTLite {
     SysBusDevice parent_obj;

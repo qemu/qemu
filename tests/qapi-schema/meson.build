@@ -27,6 +27,8 @@ schemas = [
   'args-bad-boxed.json',
   'args-boxed-anon.json',
   'args-boxed-string.json',
+  'args-if-implicit.json',
+  'args-if-unboxed.json',
   'args-int.json',
   'args-invalid.json',
   'args-member-array-bad.json',
@@ -164,6 +166,7 @@ schemas = [
   'struct-base-clash-deep.json',
   'struct-base-clash.json',
   'struct-data-invalid.json',
+  'struct-data-typename.json',
   'struct-member-if-invalid.json',
   'struct-member-invalid-dict.json',
   'struct-member-invalid.json',
@@ -194,6 +197,8 @@ schemas = [
   'union-invalid-data.json',
   'union-invalid-discriminator.json',
   'union-invalid-if-discriminator.json',
+  'union-invalid-union-subfield.json',
+  'union-invalid-union-subtype.json',
   'union-no-base.json',
   'union-optional-discriminator.json',
   'union-string-discriminator.json',
@@ -215,18 +220,18 @@ test('QAPI schema regression tests', python,
 
 diff = find_program('diff')
 
-qapi_doc = custom_target('QAPI doc',
-                         output: ['doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
-                                  'doc-good-qapi-emit-events.c', 'doc-good-qapi-emit-events.h',
-                                  'doc-good-qapi-events.c', 'doc-good-qapi-events.h',
-                                  'doc-good-qapi-init-commands.c', 'doc-good-qapi-init-commands.h',
-                                  'doc-good-qapi-introspect.c', 'doc-good-qapi-introspect.h',
-                                  'doc-good-qapi-types.c', 'doc-good-qapi-types.h',
-                                  'doc-good-qapi-visit.c', 'doc-good-qapi-visit.h' ],
-                         input: files('doc-good.json'),
-                         command: [ qapi_gen, '-o', meson.current_build_dir(),
-                                    '-p', 'doc-good-', '@INPUT0@' ],
-                         depend_files: qapi_gen_depends)
+custom_target('QAPI doc',
+              output: ['doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
+                       'doc-good-qapi-emit-events.c', 'doc-good-qapi-emit-events.h',
+                       'doc-good-qapi-events.c', 'doc-good-qapi-events.h',
+                       'doc-good-qapi-init-commands.c', 'doc-good-qapi-init-commands.h',
+                       'doc-good-qapi-introspect.c', 'doc-good-qapi-introspect.h',
+                       'doc-good-qapi-types.c', 'doc-good-qapi-types.h',
+                       'doc-good-qapi-visit.c', 'doc-good-qapi-visit.h' ],
+              input: files('doc-good.json'),
+              command: [ qapi_gen, '-o', meson.current_build_dir(),
+                         '-p', 'doc-good-', '@INPUT0@' ],
+              depend_files: qapi_gen_depends)
 
 if build_docs
   # Test the document-comment document generation code by running a test schema
@@ -259,28 +264,25 @@ if build_docs
   # Fix possible inconsistency in line endings in generated output and
   # in the golden reference (which could otherwise cause test failures
   # on Windows hosts). Unfortunately diff --strip-trailing-cr
-  # is GNU-diff only. The odd-looking perl is because we must avoid
+  # is GNU-diff only. The odd-looking python is because we must avoid
   # using an explicit '\' character in the command arguments to
   # a custom_target(), as Meson will unhelpfully replace it with a '/'
   # (https://github.com/mesonbuild/meson/issues/1564)
+  remove_cr = [python, '-c', 'import sys;[sys.stdout.write(line.replace(chr(13), "")) for line in sys.stdin]']
   qapi_doc_out_nocr = custom_target('QAPI rST doc newline-sanitized',
                                     output: ['doc-good.txt.nocr'],
                                     input: qapi_doc_out[0],
                                     build_by_default: true,
-                                    command: ['perl', '-pe', '$x = chr 13; s/$x$//', '@INPUT@'],
+                                    command: [remove_cr, '@INPUT@'],
                                     capture: true)
 
   qapi_doc_ref_nocr = custom_target('QAPI rST doc reference newline-sanitized',
                                     output: ['doc-good.ref.nocr'],
                                     input: files('doc-good.txt'),
                                     build_by_default: true,
-                                    command: ['perl', '-pe', '$x = chr 13; s/$x$//', '@INPUT@'],
+                                    command: [remove_cr, '@INPUT@'],
                                     capture: true)
 
-  # "full_path()" needed here to work around
-  # https://github.com/mesonbuild/meson/issues/7585
-  test('QAPI rST doc', diff, args: ['-u', qapi_doc_ref_nocr[0].full_path(),
-                                    qapi_doc_out_nocr[0].full_path()],
-       depends: [qapi_doc_ref_nocr, qapi_doc_out_nocr],
+  test('QAPI rST doc', diff, args: ['-u', qapi_doc_ref_nocr[0], qapi_doc_out_nocr[0]],
        suite: ['qapi-schema', 'qapi-doc'])
 endif

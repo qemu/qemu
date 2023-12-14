@@ -520,6 +520,12 @@ static inline void error_propagator_cleanup(ErrorPropagator *prop)
 G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
 
 /*
+ * Special error destination to warn on error.
+ * See error_setg() and error_propagate() for details.
+ */
+extern Error *error_warn;
+
+/*
  * Special error destination to abort on error.
  * See error_setg() and error_propagate() for details.
  */

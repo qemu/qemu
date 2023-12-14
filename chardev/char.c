@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "monitor/monitor.h"
+#include "monitor/qmp-helpers.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
@@ -193,7 +194,7 @@ int qemu_chr_be_can_write(Chardev *s)
     return be->chr_can_read(be->opaque);
 }
 
-void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len)
+void qemu_chr_be_write_impl(Chardev *s, const uint8_t *buf, int len)
 {
     CharBackend *be = s->be;
 
@@ -202,7 +203,7 @@ void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len)
     }
 }
 
-void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len)
+void qemu_chr_be_write(Chardev *s, const uint8_t *buf, int len)
 {
     if (qemu_chr_replay(s)) {
         if (replay_mode == REPLAY_MODE_PLAY) {
@@ -240,7 +241,7 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
     /* Any ChardevCommon member would work */
     ChardevCommon *common = backend ? backend->u.null.data : NULL;
 
-    if (common && common->has_logfile) {
+    if (common && common->logfile) {
         int flags = O_WRONLY;
         if (common->has_logappend &&
             common->logappend) {
@@ -496,9 +497,7 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
 {
     const char *logfile = qemu_opt_get(opts, "logfile");
 
-    backend->has_logfile = logfile != NULL;
     backend->logfile = g_strdup(logfile);
-
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
 }
@@ -531,19 +530,6 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
 
     return cc;
 }
-
-static struct ChardevAlias {
-    const char *typename;
-    const char *alias;
-    bool deprecation_warning_printed;
-} chardev_alias_table[] = {
-#ifdef HAVE_CHARDEV_PARPORT
-    { "parallel", "parport" },
-#endif
-#ifdef HAVE_CHARDEV_SERIAL
-    { "serial", "tty" },
-#endif
-};
 
 typedef struct ChadevClassFE {
     void (*fn)(const char *name, void *opaque);
@@ -580,28 +566,12 @@ help_string_append(const char *name, void *opaque)
     g_string_append_printf(str, "\n  %s", name);
 }
 
-static const char *chardev_alias_translate(const char *name)
-{
-    int i;
-    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
-        if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
-            if (!chardev_alias_table[i].deprecation_warning_printed) {
-                warn_report("The alias '%s' is deprecated, use '%s' instead",
-                            name, chardev_alias_table[i].typename);
-                chardev_alias_table[i].deprecation_warning_printed = true;
-            }
-            return chardev_alias_table[i].typename;
-        }
-    }
-    return name;
-}
-
 ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     const ChardevClass *cc;
     ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
+    const char *name = qemu_opt_get(opts, "backend");
 
     if (name == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend",
@@ -639,7 +609,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
     const ChardevClass *cc;
     Chardev *chr = NULL;
     ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
+    const char *name = qemu_opt_get(opts, "backend");
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
 
@@ -834,6 +804,9 @@ QemuOptsList qemu_chardev_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "path",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "input-path",
             .type = QEMU_OPT_STRING,
         },{
             .name = "host",
@@ -1057,7 +1030,6 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ret = g_new0(ChardevReturn, 1);
     if (CHARDEV_IS_PTY(chr)) {
         ret->pty = g_strdup(chr->filename + 4);
-        ret->has_pty = true;
     }
 
     return ret;
@@ -1143,7 +1115,7 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    /* change successfull, clean up */
+    /* change successful, clean up */
     chr_new->handover_yank_instance = false;
 
     /*
@@ -1160,7 +1132,6 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
     ret = g_new0(ChardevReturn, 1);
     if (CHARDEV_IS_PTY(chr_new)) {
         ret->pty = g_strdup(chr_new->filename + 4);
-        ret->has_pty = true;
     }
 
     return ret;
@@ -1197,6 +1168,23 @@ void qmp_chardev_send_break(const char *id, Error **errp)
         return;
     }
     qemu_chr_be_event(chr, CHR_EVENT_BREAK);
+}
+
+bool qmp_add_client_char(int fd, bool has_skipauth, bool skipauth,
+                         bool has_tls, bool tls, const char *protocol,
+                         Error **errp)
+{
+    Chardev *s = qemu_chr_find(protocol);
+
+    if (!s) {
+        error_setg(errp, "protocol '%s' is invalid", protocol);
+        return false;
+    }
+    if (qemu_chr_add_client(s, fd) < 0) {
+        error_setg(errp, "failed to add client");
+        return false;
+    }
+    return true;
 }
 
 /*

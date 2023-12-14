@@ -34,12 +34,8 @@ static void hex_loader_test(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/tmp/hex_loader", hex_loader_test);
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

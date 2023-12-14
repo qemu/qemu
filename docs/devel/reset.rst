@@ -184,21 +184,20 @@ in reset.
     {
         MyDevClass *myclass = MYDEV_CLASS(class);
         ResettableClass *rc = RESETTABLE_CLASS(class);
-        resettable_class_set_parent_reset_phases(rc,
-                                                 mydev_reset_enter,
-                                                 mydev_reset_hold,
-                                                 mydev_reset_exit,
-                                                 &myclass->parent_phases);
+        resettable_class_set_parent_phases(rc,
+                                           mydev_reset_enter,
+                                           mydev_reset_hold,
+                                           mydev_reset_exit,
+                                           &myclass->parent_phases);
     }
 
 In the above example, we override all three phases. It is possible to override
 only some of them by passing NULL instead of a function pointer to
-``resettable_class_set_parent_reset_phases()``. For example, the following will
+``resettable_class_set_parent_phases()``. For example, the following will
 only override the *enter* phase and leave *hold* and *exit* untouched::
 
-    resettable_class_set_parent_reset_phases(rc, mydev_reset_enter,
-                                             NULL, NULL,
-                                             &myclass->parent_phases);
+    resettable_class_set_parent_phases(rc, mydev_reset_enter, NULL, NULL,
+                                       &myclass->parent_phases);
 
 This is equivalent to providing a trivial implementation of the hold and exit
 phases which does nothing but call the parent class's implementation of the
@@ -210,9 +209,11 @@ Polling the reset state
 Resettable interface provides the ``resettable_is_in_reset()`` function.
 This function returns true if the object parameter is currently under reset.
 
-An object is under reset from the beginning of the *init* phase to the end of
-the *exit* phase. During all three phases, the function will return that the
-object is in reset.
+An object is under reset from the beginning of the *enter* phase (before
+either its children or its own enter method is called) to the *exit*
+phase. During *enter* and *hold* phase only, the function will return that the
+object is in reset. The state is changed after the *exit* is propagated to
+its children and just before calling the object's own *exit* method.
 
 This function may be used if the object behavior has to be adapted
 while in reset state. For example if a device has an irq input,

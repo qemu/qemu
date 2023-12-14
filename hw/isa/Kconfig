@@ -31,20 +31,23 @@ config PC87312
     select FDC_ISA
     select IDE_ISA
 
-config PIIX3
-    bool
-    select ISA_BUS
-
-config PIIX4
+config PIIX
     bool
     # For historical reasons, SuperIO devices are created in the board
     # for PIIX4.
+    select ACPI_PIIX4
+    select I8254
+    select I8257
+    select I8259
+    select IDE_PIIX
     select ISA_BUS
+    select MC146818RTC
     select USB_UHCI
 
 config VT82C686
     bool
     select ISA_SUPERIO
+    select ACPI
     select ACPI_SMBUS
     select SERIAL_ISA
     select FDC_ISA
@@ -53,6 +56,7 @@ config VT82C686
     select I8254
     select I8257
     select I8259
+    select IDE_VIA
     select MC146818RTC
     select PARALLEL
 
@@ -67,6 +71,7 @@ config LPC_ICH9
     bool
     # For historical reasons, SuperIO devices are created in the board
     # for ICH9.
+    select I8257
     select ISA_BUS
-    select ACPI_SMBUS
-    select ACPI_X86_ICH
+    select ACPI_ICH9
+    select MC146818RTC

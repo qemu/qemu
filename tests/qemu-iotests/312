@@ -52,6 +52,7 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 _unsupported_imgopts cluster_size data_file
+_require_drivers quorum
 
 echo
 echo '### Create all images' # three source (quorum), one destination

@@ -111,8 +111,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
         if (is_host) {
 #if defined(HOST_X86_64)
             return 8;
-#elif defined(HOST_ALPHA) || defined(HOST_IA64) || defined(HOST_MIPS) || \
-      defined(HOST_PARISC) || defined(HOST_SPARC64)
+#elif defined(HOST_MIPS) || defined(HOST_SPARC64)
             return 4;
 #elif defined(HOST_PPC)
             return sizeof(void *);
@@ -193,10 +192,17 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
     }
 }
 
-unsigned int target_to_host_bitmask(unsigned int target_mask,
-                                    const bitmask_transtbl * trans_tbl);
-unsigned int host_to_target_bitmask(unsigned int host_mask,
-                                    const bitmask_transtbl * trans_tbl);
+unsigned int target_to_host_bitmask_len(unsigned int target_mask,
+                                        const bitmask_transtbl *trans_tbl,
+                                        size_t trans_len);
+unsigned int host_to_target_bitmask_len(unsigned int host_mask,
+                                        const bitmask_transtbl * trans_tbl,
+                                        size_t trans_len);
+
+#define target_to_host_bitmask(M, T) \
+    target_to_host_bitmask_len(M, T, ARRAY_SIZE(T))
+#define host_to_target_bitmask(M, T) \
+    host_to_target_bitmask_len(M, T, ARRAY_SIZE(T))
 
 void thunk_init(unsigned int max_structs);
 

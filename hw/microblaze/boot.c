@@ -30,6 +30,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/guest-random.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/reset.h"
 #include "hw/boards.h"
@@ -75,6 +76,7 @@ static int microblaze_load_dtb(hwaddr addr,
     int fdt_size;
     void *fdt = NULL;
     int r;
+    uint8_t rng_seed[32];
 
     if (dtb_filename) {
         fdt = load_device_tree(dtb_filename, &fdt_size);
@@ -82,6 +84,9 @@ static int microblaze_load_dtb(hwaddr addr,
     if (!fdt) {
         return 0;
     }
+
+    qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+    qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 
     if (kernel_cmdline) {
         r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
@@ -135,22 +140,17 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         int kernel_size;
         uint64_t entry, high;
         uint32_t base32;
-        int big_endian = 0;
-
-#if TARGET_BIG_ENDIAN
-        big_endian = 1;
-#endif
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, NULL, &high, NULL,
-                               big_endian, EM_MICROBLAZE, 0, 0);
+                               TARGET_BIG_ENDIAN, EM_MICROBLAZE, 0, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
             kernel_size = load_elf(kernel_filename, NULL,
                                    translate_kernel_address, NULL,
                                    &entry, NULL, NULL, NULL,
-                                   big_endian, EM_MICROBLAZE, 0, 0);
+                                   TARGET_BIG_ENDIAN, EM_MICROBLAZE, 0, 0);
         }
         /* Always boot into physical ram.  */
         boot_info.bootstrap_pc = (uint32_t)entry;

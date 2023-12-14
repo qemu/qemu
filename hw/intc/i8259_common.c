@@ -51,7 +51,7 @@ void pic_reset_common(PICCommonState *s)
     s->special_fully_nested_mode = 0;
     s->init4 = 0;
     s->single_mode = 0;
-    /* Note: ELCR is not reset */
+    /* Note: ELCR and LTIM are not reset */
 }
 
 static int pic_dispatch_pre_save(void *opaque)
@@ -144,6 +144,24 @@ static void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
                    s->special_fully_nested_mode);
 }
 
+static bool ltim_state_needed(void *opaque)
+{
+    PICCommonState *s = PIC_COMMON(opaque);
+
+    return !!s->ltim;
+}
+
+static const VMStateDescription vmstate_pic_ltim = {
+    .name = "i8259/ltim",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ltim_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(ltim, PICCommonState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_pic_common = {
     .name = "i8259",
     .version_id = 1,
@@ -168,6 +186,10 @@ static const VMStateDescription vmstate_pic_common = {
         VMSTATE_UINT8(single_mode, PICCommonState),
         VMSTATE_UINT8(elcr, PICCommonState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_pic_ltim,
+        NULL
     }
 };
 

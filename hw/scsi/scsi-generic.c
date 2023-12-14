@@ -111,10 +111,11 @@ static void scsi_command_complete(void *opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
     scsi_command_complete_noio(r, ret);
     aio_context_release(blk_get_aio_context(s->conf.blk));
 }
@@ -190,12 +191,16 @@ static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
     if ((s->type == TYPE_DISK || s->type == TYPE_ZBC) &&
         (r->req.cmd.buf[1] & 0x01)) {
         page = r->req.cmd.buf[2];
-        if (page == 0xb0) {
+        if (page == 0xb0 && r->buflen >= 8) {
+            uint8_t buf[16] = {};
+            uint8_t buf_used = MIN(r->buflen, 16);
             uint64_t max_transfer = calculate_max_transfer(s);
-            stl_be_p(&r->buf[8], max_transfer);
-            /* Also take care of the opt xfer len. */
-            stl_be_p(&r->buf[12],
-                    MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+
+            memcpy(buf, r->buf, buf_used);
+            stl_be_p(&buf[8], max_transfer);
+            stl_be_p(&buf[12], MIN_NON_ZERO(max_transfer, ldl_be_p(&buf[12])));
+            memcpy(r->buf + 8, buf + 8, buf_used - 8);
+
         } else if (s->needs_vpd_bl_emulation && page == 0x00 && r->buflen >= 4) {
             /*
              * Now we're capable of supplying the VPD Block Limits
@@ -269,10 +274,10 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIDevice *s = r->req.dev;
     int len;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
 
     if (ret || r->req.io_canceled) {
         scsi_command_complete_noio(r, ret);
@@ -386,10 +391,10 @@ static void scsi_write_complete(void * opaque, int ret)
 
     trace_scsi_generic_write_complete(ret);
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
 
     if (ret || r->req.io_canceled) {
         scsi_command_complete_noio(r, ret);
@@ -791,9 +796,10 @@ static Property scsi_generic_properties[] = {
 };
 
 static int scsi_generic_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
-                                  uint8_t *buf, void *hba_private)
+                                  uint8_t *buf, size_t buf_len,
+                                  void *hba_private)
 {
-    return scsi_bus_parse_cdb(dev, cmd, buf, hba_private);
+    return scsi_bus_parse_cdb(dev, cmd, buf, buf_len, hba_private);
 }
 
 static void scsi_generic_class_initfn(ObjectClass *klass, void *data)

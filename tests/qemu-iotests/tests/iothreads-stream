@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# group: rw quick auto
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+
+import iotests
+
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
+iotests.verify_virtio_scsi_pci_or_ccw()
+
+with iotests.FilePath('disk1.img') as base1_path, \
+     iotests.FilePath('disk1-snap.img') as snap1_path, \
+     iotests.FilePath('disk2.img') as base2_path, \
+     iotests.FilePath('disk2-snap.img') as snap2_path, \
+     iotests.VM() as vm:
+
+    img_size = '10M'
+
+    # Only one iothread for both disks
+    vm.add_object('iothread,id=iothread0')
+    vm.add_device('virtio-scsi,iothread=iothread0')
+
+    iotests.log('Preparing disks...')
+    for i, base_path, snap_path in ((0, base1_path, snap1_path),
+                                    (1, base2_path, snap2_path)):
+        iotests.qemu_img_create('-f', iotests.imgfmt, base_path, img_size)
+        iotests.qemu_img_create('-f', iotests.imgfmt, '-b', base_path,
+                                '-F', iotests.imgfmt, snap_path)
+
+        iotests.qemu_io_log('-c', f'write 0 {img_size}', base_path)
+
+        vm.add_blockdev(f'file,node-name=disk{i}-base-file,'
+                        f'filename={base_path}')
+        vm.add_blockdev(f'qcow2,node-name=disk{i}-base,file=disk{i}-base-file')
+        vm.add_blockdev(f'file,node-name=disk{i}-file,filename={snap_path}')
+        vm.add_blockdev(f'qcow2,node-name=disk{i},file=disk{i}-file,'
+                        f'backing=disk{i}-base')
+        vm.add_device(f'scsi-hd,drive=disk{i}')
+
+    iotests.log('Launching VM...')
+    vm.launch()
+
+    iotests.log('Starting stream jobs...')
+    iotests.log(vm.qmp('block-stream', device='disk0', job_id='job0'))
+    iotests.log(vm.qmp('block-stream', device='disk1', job_id='job1'))
+
+    finished = 0
+    while True:
+        try:
+            ev = vm.event_wait('JOB_STATUS_CHANGE', timeout=0.1)
+            if ev is not None and ev['data']['status'] == 'null':
+                finished += 1
+                # The test is done once both jobs are gone
+                if finished == 2:
+                    break
+        except TimeoutError:
+            pass
+        vm.cmd('query-jobs')

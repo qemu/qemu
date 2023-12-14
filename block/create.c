@@ -59,6 +59,12 @@ static const JobDriver blockdev_create_job_driver = {
     .run           = blockdev_create_run,
 };
 
+/* Checking whether the function is present doesn't require the graph lock */
+static inline bool TSA_NO_TSA has_bdrv_co_create(BlockDriver *drv)
+{
+    return drv->bdrv_co_create;
+}
+
 void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
                          Error **errp)
 {
@@ -79,7 +85,7 @@ void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
     }
 
     /* Error out if the driver doesn't support .bdrv_co_create */
-    if (!drv->bdrv_co_create) {
+    if (!has_bdrv_co_create(drv)) {
         error_setg(errp, "Driver does not support blockdev-create");
         return;
     }

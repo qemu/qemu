@@ -15,6 +15,7 @@
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
 
+#include "exec/memory.h"
 #include "qom/object.h"
 
 #define TYPE_PVPANIC_ISA_DEVICE "pvpanic"

@@ -23,7 +23,12 @@
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
+#include <numa.h>
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_DEFAULT != MPOL_DEFAULT);
+/*
+ * HOST_MEM_POLICY_PREFERRED may either translate to MPOL_PREFERRED or
+ * MPOL_PREFERRED_MANY, see comments further below.
+ */
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_PREFERRED != MPOL_PREFERRED);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
@@ -232,7 +237,8 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        os_mem_prealloc(fd, ptr, sz, backend->prealloc_threads, &local_err);
+        qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
+                          backend->prealloc_context, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -306,22 +312,12 @@ bool host_memory_backend_is_mapped(HostMemoryBackend *backend)
     return backend->is_mapped;
 }
 
-#ifdef __linux__
 size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 {
-    Object *obj = OBJECT(memdev);
-    char *path = object_property_get_str(obj, "mem-path", NULL);
-    size_t pagesize = qemu_mempath_getpagesize(path);
-
-    g_free(path);
+    size_t pagesize = qemu_ram_pagesize(memdev->mr.ram_block);
+    g_assert(pagesize >= qemu_real_host_page_size());
     return pagesize;
 }
-#else
-size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
-{
-    return qemu_real_host_page_size();
-}
-#endif
 
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
@@ -355,6 +351,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
          * this doesn't catch hugepage case. */
         unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
+        int mode = backend->policy;
 
         /* check for invalid host-nodes and policies and give more verbose
          * error messages than mbind(). */
@@ -378,9 +375,18 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
                BITS_TO_LONGS(MAX_NODES + 1) * sizeof(unsigned long));
         assert(maxnode <= MAX_NODES);
 
+#ifdef HAVE_NUMA_HAS_PREFERRED_MANY
+        if (mode == MPOL_PREFERRED && numa_has_preferred_many() > 0) {
+            /*
+             * Replace with MPOL_PREFERRED_MANY otherwise the mbind() below
+             * silently picks the first node.
+             */
+            mode = MPOL_PREFERRED_MANY;
+        }
+#endif
+
         if (maxnode &&
-            mbind(ptr, sz, backend->policy, backend->host_nodes, maxnode + 1,
-                  flags)) {
+            mbind(ptr, sz, mode, backend->host_nodes, maxnode + 1, flags)) {
             if (backend->policy != MPOL_DEFAULT || errno != ENOSYS) {
                 error_setg_errno(errp, errno,
                                  "cannot bind memory to host NUMA nodes");
@@ -393,8 +399,9 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          * specified NUMA policy in place.
          */
         if (backend->prealloc) {
-            os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz,
-                            backend->prealloc_threads, &local_err);
+            qemu_prealloc_mem(memory_region_get_fd(&backend->mr), ptr, sz,
+                              backend->prealloc_threads,
+                              backend->prealloc_context, &local_err);
             if (local_err) {
                 goto out;
             }
@@ -502,6 +509,11 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "prealloc-threads",
         "Number of CPU threads to use for prealloc");
+    object_class_property_add_link(oc, "prealloc-context",
+        TYPE_THREAD_CONTEXT, offsetof(HostMemoryBackend, prealloc_context),
+        object_property_allow_set_link, OBJ_PROP_LINK_STRONG);
+    object_class_property_set_description(oc, "prealloc-context",
+        "Context to use for creating CPU threads for preallocation");
     object_class_property_add(oc, "size", "int",
         host_memory_backend_get_size,
         host_memory_backend_set_size,

@@ -38,7 +38,7 @@ static inline void yield(void)
 
 static inline void sleep(unsigned int seconds)
 {
-    ulong target = get_time_seconds() + seconds;
+    unsigned long target = get_time_seconds() + seconds;
 
     while (get_time_seconds() < target) {
         yield();

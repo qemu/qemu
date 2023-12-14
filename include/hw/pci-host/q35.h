@@ -22,7 +22,7 @@
 #ifndef HW_Q35_H
 #define HW_Q35_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci-host/pam.h"
 #include "qemu/units.h"
@@ -54,7 +54,6 @@ struct MCHPCIState {
     uint64_t below_4g_mem_size;
     uint64_t above_4g_mem_size;
     uint64_t pci_hole64_size;
-    uint32_t short_root_bus;
     uint16_t ext_tseg_mbytes;
 };
 
@@ -73,11 +72,6 @@ struct Q35PCIHost {
 /*
  * gmch part
  */
-
-#define MCH_HOST_PROP_RAM_MEM "ram-mem"
-#define MCH_HOST_PROP_PCI_MEM "pci-mem"
-#define MCH_HOST_PROP_SYSTEM_MEM "system-mem"
-#define MCH_HOST_PROP_IO_MEM "io-mem"
 
 /* PCI configuration */
 #define MCH_HOST_BRIDGE                        "MCH"

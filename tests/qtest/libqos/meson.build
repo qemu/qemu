@@ -6,7 +6,7 @@ libqos_srcs = files(
         'qos_external.c',
         'pci.c',
         'fw_cfg.c',
-        'malloc.c',
+        'libqos-malloc.c',
         'libqos.c',
         'sdhci-cmd.c',
 
@@ -30,10 +30,10 @@ libqos_srcs = files(
         'i2c.c',
         'i2c-imx.c',
         'i2c-omap.c',
+        'igb.c',
         'sdhci.c',
         'tpci200.c',
         'virtio.c',
-        'virtio-9p.c',
         'virtio-balloon.c',
         'virtio-blk.c',
         'vhost-user-blk.c',
@@ -45,6 +45,8 @@ libqos_srcs = files(
         'virtio-scsi.c',
         'virtio-serial.c',
         'virtio-iommu.c',
+        'virtio-gpio.c',
+        'virtio-scmi.c',
         'generic-pcihost.c',
 
         # qgraph machines:
@@ -59,6 +61,10 @@ libqos_srcs = files(
         'ppc64_pseries-machine.c',
         'x86_64_pc-machine.c',
 )
+
+if have_virtfs
+  libqos_srcs += files('virtio-9p.c', 'virtio-9p-client.c')
+endif
 
 libqos = static_library('qos', libqos_srcs + genh,
                         name_suffix: 'fa',

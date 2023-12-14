@@ -19,6 +19,7 @@
 #include "hw/block/block.h"
 #include "sysemu/iothread.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/block-ram-registrar.h"
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
@@ -54,7 +55,6 @@ struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockBackend *blk;
     void *rq;
-    QEMUBH *bh;
     VirtIOBlkConf conf;
     unsigned short sector_mask;
     bool original_wce;
@@ -64,6 +64,7 @@ struct VirtIOBlock {
     struct VirtIOBlockDataPlane *dataplane;
     uint64_t host_features;
     size_t config_size;
+    BlockRAMRegistrar blk_ram_registrar;
 };
 
 typedef struct VirtIOBlockReq {
@@ -91,6 +92,5 @@ typedef struct MultiReqBuffer {
 } MultiReqBuffer;
 
 void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
-void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh);
 
 #endif

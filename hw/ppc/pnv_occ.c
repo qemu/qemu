@@ -278,7 +278,7 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
                           occ, "occ-common-area",
                           PNV_OCC_SENSOR_DATA_BLOCK_SIZE);
 
-    qdev_init_gpio_out(DEVICE(dev), &occ->psi_irq, 1);
+    qdev_init_gpio_out(dev, &occ->psi_irq, 1);
 }
 
 static void pnv_occ_class_init(ObjectClass *klass, void *data)

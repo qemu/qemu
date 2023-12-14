@@ -8,6 +8,9 @@ config PCI_EXPRESS
 config PCI_DEVICES
     bool
 
+config PCIE_DEVICES
+    bool
+
 config MSI_NONBROKEN
     # selected by interrupt controllers that do not support MSI,
     # or support it and have a good implementation. See commit

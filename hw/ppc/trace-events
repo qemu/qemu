@@ -95,6 +95,17 @@ vof_write(uint32_t ih, unsigned cb, const char *msg) "ih=0x%x [%u] \"%s\""
 vof_avail(uint64_t start, uint64_t end, uint64_t size) "0x%"PRIx64"..0x%"PRIx64" size=0x%"PRIx64
 vof_claimed(uint64_t start, uint64_t end, uint64_t size) "0x%"PRIx64"..0x%"PRIx64" size=0x%"PRIx64
 
+# pnv_sbe.c
+pnv_sbe_xscom_ctrl_read(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_sbe_xscom_ctrl_write(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_sbe_xscom_mbox_read(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_sbe_xscom_mbox_write(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_sbe_reg_set_host_doorbell(uint64_t val) "val 0x%" PRIx64
+pnv_sbe_cmd_timer_start(uint64_t ns) "ns 0x%" PRIu64
+pnv_sbe_cmd_timer_stop(void) ""
+pnv_sbe_cmd_timer_expired(void) ""
+pnv_sbe_msg_recv(uint16_t cmd, uint16_t seq, uint16_t ctrl_flags) "cmd 0x%" PRIx16 " seq %"PRIu16 " ctrl_flags 0x%" PRIx16
+
 # ppc.c
 ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
 ppc_tb_load(uint64_t tb) "tb 0x%016" PRIx64
@@ -116,7 +127,7 @@ ppc40x_set_tb_clk(uint32_t value) "new frequency %" PRIu32
 ppc40x_timers_init(uint32_t value) "frequency %" PRIu32
 
 ppc_irq_set(void *env, uint32_t pin, uint32_t level) "env [%p] pin %d level %d"
-ppc_irq_set_exit(void *env, uint32_t n_IRQ, uint32_t level, uint32_t pending, uint32_t request) "env [%p] n_IRQ %d level %d => pending 0x%08" PRIx32 " req 0x%08" PRIx32
+ppc_irq_set_exit(void *env, uint32_t irq, uint32_t level, uint32_t pending, uint32_t request) "env [%p] irq 0x%05" PRIx32 " level %d => pending 0x%08" PRIx32 " req 0x%08" PRIx32
 ppc_irq_set_state(const char *name, uint32_t level) "\"%s\" level %d"
 ppc_irq_reset(const char *name) "%s"
 ppc_irq_cpu(const char *action) "%s"
@@ -150,11 +161,9 @@ ppc440_pcix_reg_write(uint64_t addr, uint32_t val, uint32_t size) "addr 0x%" PRI
 # ppc405_boards.c
 opba_readb(uint64_t addr, uint32_t val) "addr 0x%" PRIx64 " = 0x%" PRIx32
 opba_writeb(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " = 0x%" PRIx64
-opba_init(uint64_t addr) "offet 0x%" PRIx64
 
 ppc405_gpio_read(uint64_t addr, uint32_t size) "addr 0x%" PRIx64 " size %d"
 ppc405_gpio_write(uint64_t addr, uint32_t size, uint64_t val) "addr 0x%" PRIx64 " size %d = 0x%" PRIx64
-ppc405_gpio_init(uint64_t addr) "offet 0x%" PRIx64
 
 ocm_update_mappings(uint32_t isarc, uint32_t isacntl, uint32_t dsarc, uint32_t dsacntl, uint32_t ocm_isarc, uint32_t ocm_isacntl, uint32_t ocm_dsarc, uint32_t ocm_dsacntl) "OCM update ISA 0x%08" PRIx32 " 0x%08" PRIx32 " (0x%08" PRIx32" 0x%08" PRIx32 ") DSA 0x%08" PRIx32 " 0x%08" PRIx32" (0x%08" PRIx32 " 0x%08" PRIx32 ")"
 ocm_map(const char* prefix, uint32_t isarc) "OCM map %s 0x%08" PRIx32
@@ -162,7 +171,6 @@ ocm_unmap(const char* prefix, uint32_t isarc) "OCM unmap %s 0x%08" PRIx32
 
 ppc4xx_gpt_read(uint64_t addr, uint32_t size) "addr 0x%" PRIx64 " size %d"
 ppc4xx_gpt_write(uint64_t addr, uint32_t size, uint64_t val) "addr 0x%" PRIx64 " size %d = 0x%" PRIx64
-ppc4xx_gpt_init(uint64_t addr) "offet 0x%" PRIx64
 
 ppc405ep_clocks_compute(const char *param, uint32_t param2, uint32_t val) "%s 0x%1" PRIx32 " %d"
 ppc405ep_clocks_setup(const char *trace) "%s"
@@ -171,3 +179,4 @@ ppc405ep_clocks_setup(const char *trace) "%s"
 ppc4xx_sdram_enable(const char *trace) "%s SDRAM controller"
 ppc4xx_sdram_unmap(uint64_t addr, uint64_t size) "Unmap RAM area 0x%" PRIx64 " size 0x%" PRIx64
 ppc4xx_sdram_map(uint64_t addr, uint64_t size) "Map RAM area 0x%" PRIx64 " size 0x%" PRIx64
+ppc4xx_sdram_init(uint64_t base, uint64_t size, uint32_t bcr) "Init RAM area 0x%" PRIx64 " size 0x%" PRIx64 " bcr 0x%x"

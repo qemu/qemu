@@ -41,34 +41,30 @@ iotests.script_initialize(supported_fmts=['qcow2', 'raw'])
 def start_mirror(vm, speed=None, buf_size=None):
     vm.launch()
 
-    ret = vm.qmp('blockdev-add',
-                     node_name='source',
-                     driver='null-co',
-                     size=1048576)
-    assert ret['return'] == {}
+    vm.cmd('blockdev-add',
+               node_name='source',
+               driver='null-co',
+               size=1048576)
 
-    ret = vm.qmp('blockdev-add',
-                     node_name='target',
-                     driver='null-co',
-                     size=1048576)
-    assert ret['return'] == {}
+    vm.cmd('blockdev-add',
+               node_name='target',
+               driver='null-co',
+               size=1048576)
 
     if speed is not None:
-        ret = vm.qmp('blockdev-mirror',
-                         job_id='mirror',
-                         device='source',
-                         target='target',
-                         sync='full',
-                         speed=speed,
-                         buf_size=buf_size)
+        vm.cmd('blockdev-mirror',
+                   job_id='mirror',
+                   device='source',
+                   target='target',
+                   sync='full',
+                   speed=speed,
+                   buf_size=buf_size)
     else:
-        ret = vm.qmp('blockdev-mirror',
-                         job_id='mirror',
-                         device='source',
-                         target='target',
-                         sync='full')
-
-    assert ret['return'] == {}
+        vm.cmd('blockdev-mirror',
+                   job_id='mirror',
+                   device='source',
+                   target='target',
+                   sync='full')
 
 
 log('')
@@ -150,38 +146,33 @@ with iotests.VM() as vm, \
 
     vm.launch()
 
-    ret = vm.qmp('object-add', qom_type='throttle-group', id='tg',
-                 limits={'bps-read': 4096})
-    assert ret['return'] == {}
+    vm.cmd('object-add', qom_type='throttle-group', id='tg',
+           limits={'bps-read': 4096})
 
-    ret = vm.qmp('blockdev-add',
-                 node_name='source',
-                 driver=iotests.imgfmt,
-                 file={
-                     'driver': 'file',
-                     'filename': src_img_path
-                 })
-    assert ret['return'] == {}
+    vm.cmd('blockdev-add',
+           node_name='source',
+           driver=iotests.imgfmt,
+           file={
+               'driver': 'file',
+               'filename': src_img_path
+           })
 
-    ret = vm.qmp('blockdev-add',
-                 node_name='throttled-source',
-                 driver='throttle',
-                 throttle_group='tg',
-                 file='source')
-    assert ret['return'] == {}
+    vm.cmd('blockdev-add',
+           node_name='throttled-source',
+           driver='throttle',
+           throttle_group='tg',
+           file='source')
 
-    ret = vm.qmp('blockdev-add',
-                 node_name='target',
-                 driver='null-co',
-                 size=(64 * 1048576))
-    assert ret['return'] == {}
+    vm.cmd('blockdev-add',
+           node_name='target',
+           driver='null-co',
+           size=(64 * 1048576))
 
-    ret = vm.qmp('blockdev-mirror',
-                 job_id='mirror',
-                 device='throttled-source',
-                 target='target',
-                 sync='full')
-    assert ret['return'] == {}
+    vm.cmd('blockdev-mirror',
+           job_id='mirror',
+           device='throttled-source',
+           target='target',
+           sync='full')
 
     log(vm.qmp('quit'))
 

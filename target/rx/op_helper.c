@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "tcg/debug-assert.h"
 
 static inline G_NORETURN
 void raise_exception(CPURXState *env, int index,
@@ -215,19 +216,19 @@ void helper_scmpu(CPURXState *env)
 }
 
 static uint32_t (* const cpu_ldufn[])(CPUArchState *env,
-                                     target_ulong ptr,
+                                     abi_ptr ptr,
                                      uintptr_t retaddr) = {
     cpu_ldub_data_ra, cpu_lduw_data_ra, cpu_ldl_data_ra,
 };
 
 static uint32_t (* const cpu_ldfn[])(CPUArchState *env,
-                                     target_ulong ptr,
+                                     abi_ptr ptr,
                                      uintptr_t retaddr) = {
     cpu_ldub_data_ra, cpu_lduw_data_ra, cpu_ldl_data_ra,
 };
 
 static void (* const cpu_stfn[])(CPUArchState *env,
-                                 target_ulong ptr,
+                                 abi_ptr ptr,
                                  uint32_t val,
                                  uintptr_t retaddr) = {
     cpu_stb_data_ra, cpu_stw_data_ra, cpu_stl_data_ra,
@@ -286,7 +287,7 @@ void helper_suntil(CPURXState *env, uint32_t sz)
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
     if (env->regs[3] == 0) {
-        return ;
+        return;
     }
     do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());
@@ -305,7 +306,7 @@ void helper_swhile(CPURXState *env, uint32_t sz)
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
     if (env->regs[3] == 0) {
-        return ;
+        return;
     }
     do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());

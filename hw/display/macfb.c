@@ -36,8 +36,8 @@
 #define DAFB_INTR_MASK      0x104
 #define DAFB_INTR_STAT      0x108
 #define DAFB_INTR_CLEAR     0x10c
-#define DAFB_RESET          0x200
-#define DAFB_LUT            0x213
+#define DAFB_LUT_INDEX      0x200
+#define DAFB_LUT            0x210
 
 #define DAFB_INTR_VBL   0x4
 
@@ -537,6 +537,11 @@ static uint64_t macfb_ctrl_read(void *opaque,
     case DAFB_MODE_SENSE:
         val = macfb_sense_read(s);
         break;
+    case DAFB_LUT ... DAFB_LUT + 3:
+        val = s->color_palette[s->palette_current];
+        s->palette_current = (s->palette_current + 1) %
+                             ARRAY_SIZE(s->color_palette);
+        break;
     default:
         if (addr < MACFB_CTRL_TOPADDR) {
             val = s->regs[addr >> 2];
@@ -583,13 +588,11 @@ static void macfb_ctrl_write(void *opaque,
         s->regs[DAFB_INTR_STAT >> 2] &= ~DAFB_INTR_VBL;
         macfb_update_irq(s);
         break;
-    case DAFB_RESET:
-        s->palette_current = 0;
-        s->regs[DAFB_INTR_STAT >> 2] &= ~DAFB_INTR_VBL;
-        macfb_update_irq(s);
+    case DAFB_LUT_INDEX:
+        s->palette_current = (val & 0xff) * 3;
         break;
-    case DAFB_LUT:
-        s->color_palette[s->palette_current] = val;
+    case DAFB_LUT ... DAFB_LUT + 3:
+        s->color_palette[s->palette_current] = val & 0xff;
         s->palette_current = (s->palette_current + 1) %
                              ARRAY_SIZE(s->color_palette);
         if (s->palette_current % 3) {

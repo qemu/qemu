@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "hw/pci/slotid_cap.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 

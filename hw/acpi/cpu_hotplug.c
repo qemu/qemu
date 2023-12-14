@@ -52,6 +52,9 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
         .max_access_size = 1,
     },
 };
@@ -262,26 +265,27 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
 
     /* build Processor object for each processor */
     for (i = 0; i < apic_ids->len; i++) {
-        int apic_id = apic_ids->cpus[i].arch_id;
+        int cpu_apic_id = apic_ids->cpus[i].arch_id;
 
-        assert(apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
+        assert(cpu_apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
 
-        dev = aml_processor(i, 0, 0, "CP%.02X", apic_id);
+        dev = aml_processor(i, 0, 0, "CP%.02X", cpu_apic_id);
 
         method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
         aml_append(method,
-            aml_return(aml_call2(CPU_MAT_METHOD, aml_int(apic_id), aml_int(i))
+            aml_return(aml_call2(CPU_MAT_METHOD,
+                                 aml_int(cpu_apic_id), aml_int(i))
         ));
         aml_append(dev, method);
 
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
         aml_append(method,
-            aml_return(aml_call1(CPU_STATUS_METHOD, aml_int(apic_id))));
+            aml_return(aml_call1(CPU_STATUS_METHOD, aml_int(cpu_apic_id))));
         aml_append(dev, method);
 
         method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
         aml_append(method,
-            aml_return(aml_call2(CPU_EJECT_METHOD, aml_int(apic_id),
+            aml_return(aml_call2(CPU_EJECT_METHOD, aml_int(cpu_apic_id),
                 aml_arg(0)))
         );
         aml_append(dev, method);
@@ -295,11 +299,11 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     /* Arg0 = APIC ID */
     method = aml_method(AML_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
     for (i = 0; i < apic_ids->len; i++) {
-        int apic_id = apic_ids->cpus[i].arch_id;
+        int cpu_apic_id = apic_ids->cpus[i].arch_id;
 
-        if_ctx = aml_if(aml_equal(aml_arg(0), aml_int(apic_id)));
+        if_ctx = aml_if(aml_equal(aml_arg(0), aml_int(cpu_apic_id)));
         aml_append(if_ctx,
-            aml_notify(aml_name("CP%.02X", apic_id), aml_arg(1))
+            aml_notify(aml_name("CP%.02X", cpu_apic_id), aml_arg(1))
         );
         aml_append(method, if_ctx);
     }
@@ -316,13 +320,13 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
                                         aml_varpackage(x86ms->apic_id_limit);
 
     for (i = 0, apic_idx = 0; i < apic_ids->len; i++) {
-        int apic_id = apic_ids->cpus[i].arch_id;
+        int cpu_apic_id = apic_ids->cpus[i].arch_id;
 
-        for (; apic_idx < apic_id; apic_idx++) {
+        for (; apic_idx < cpu_apic_id; apic_idx++) {
             aml_append(pkg, aml_int(0));
         }
         aml_append(pkg, aml_int(apic_ids->cpus[i].cpu ? 1 : 0));
-        apic_idx = apic_id + 1;
+        apic_idx = cpu_apic_id + 1;
     }
     aml_append(sb_scope, aml_name_decl(CPU_ON_BITMAP, pkg));
     aml_append(ctx, sb_scope);

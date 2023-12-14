@@ -26,6 +26,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
+#include "block/dirty-bitmap.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 
@@ -103,7 +105,7 @@ static inline bool can_write(BlockDriverState *bs)
     return !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE);
 }
 
-static int update_header_sync(BlockDriverState *bs)
+static int GRAPH_RDLOCK update_header_sync(BlockDriverState *bs)
 {
     int ret;
 
@@ -115,7 +117,7 @@ static int update_header_sync(BlockDriverState *bs)
     return bdrv_flush(bs->file->bs);
 }
 
-static inline void bitmap_table_to_be(uint64_t *bitmap_table, size_t size)
+static inline void bitmap_table_bswap_be(uint64_t *bitmap_table, size_t size)
 {
     size_t i;
 
@@ -154,10 +156,9 @@ static int64_t get_bitmap_bytes_needed(int64_t len, uint32_t granularity)
     return DIV_ROUND_UP(num_bits, 8);
 }
 
-static int check_constraints_on_bitmap(BlockDriverState *bs,
-                                       const char *name,
-                                       uint32_t granularity,
-                                       Error **errp)
+static int GRAPH_RDLOCK
+check_constraints_on_bitmap(BlockDriverState *bs, const char *name,
+                            uint32_t granularity, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int granularity_bits = ctz32(granularity);
@@ -202,8 +203,9 @@ static int check_constraints_on_bitmap(BlockDriverState *bs,
     return 0;
 }
 
-static void clear_bitmap_table(BlockDriverState *bs, uint64_t *bitmap_table,
-                               uint32_t bitmap_table_size)
+static void GRAPH_RDLOCK
+clear_bitmap_table(BlockDriverState *bs, uint64_t *bitmap_table,
+                   uint32_t bitmap_table_size)
 {
     BDRVQcow2State *s = bs->opaque;
     int i;
@@ -219,8 +221,9 @@ static void clear_bitmap_table(BlockDriverState *bs, uint64_t *bitmap_table,
     }
 }
 
-static int bitmap_table_load(BlockDriverState *bs, Qcow2BitmapTable *tb,
-                             uint64_t **bitmap_table)
+static int GRAPH_RDLOCK
+bitmap_table_load(BlockDriverState *bs, Qcow2BitmapTable *tb,
+                  uint64_t **bitmap_table)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -257,7 +260,8 @@ fail:
     return ret;
 }
 
-static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
+static int GRAPH_RDLOCK
+free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 {
     int ret;
     uint64_t *bitmap_table;
@@ -281,10 +285,9 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 /* load_bitmap_data
  * @bitmap_table entries must satisfy specification constraints.
  * @bitmap must be cleared */
-static int load_bitmap_data(BlockDriverState *bs,
-                            const uint64_t *bitmap_table,
-                            uint32_t bitmap_table_size,
-                            BdrvDirtyBitmap *bitmap)
+static int coroutine_fn GRAPH_RDLOCK
+load_bitmap_data(BlockDriverState *bs, const uint64_t *bitmap_table,
+                 uint32_t bitmap_table_size, BdrvDirtyBitmap *bitmap)
 {
     int ret = 0;
     BDRVQcow2State *s = bs->opaque;
@@ -317,7 +320,7 @@ static int load_bitmap_data(BlockDriverState *bs,
                  * already cleared */
             }
         } else {
-            ret = bdrv_pread(bs->file, data_offset, s->cluster_size, buf, 0);
+            ret = bdrv_co_pread(bs->file, data_offset, s->cluster_size, buf, 0);
             if (ret < 0) {
                 goto finish;
             }
@@ -335,8 +338,9 @@ finish:
     return ret;
 }
 
-static BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
-                                    Qcow2Bitmap *bm, Error **errp)
+static coroutine_fn GRAPH_RDLOCK
+BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
+                             Qcow2Bitmap *bm, Error **errp)
 {
     int ret;
     uint64_t *bitmap_table = NULL;
@@ -548,8 +552,9 @@ static uint32_t bitmap_list_count(Qcow2BitmapList *bm_list)
  * Get bitmap list from qcow2 image. Actually reads bitmap directory,
  * checks it and convert to bitmap list.
  */
-static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
-                                         uint64_t size, Error **errp)
+static Qcow2BitmapList * GRAPH_RDLOCK
+bitmap_list_load(BlockDriverState *bs, uint64_t offset, uint64_t size,
+                 Error **errp)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -647,9 +652,10 @@ fail:
     return NULL;
 }
 
-int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                                  void **refcount_table,
-                                  int64_t *refcount_table_size)
+int coroutine_fn
+qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
+                              void **refcount_table,
+                              int64_t *refcount_table_size)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -727,8 +733,9 @@ out:
  * Store bitmap list to qcow2 image as a bitmap directory.
  * Everything is checked.
  */
-static int bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
-                             uint64_t *offset, uint64_t *size, bool in_place)
+static int GRAPH_RDLOCK
+bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
+                  uint64_t *offset, uint64_t *size, bool in_place)
 {
     int ret;
     uint8_t *dir;
@@ -826,8 +833,9 @@ fail:
  * Bitmap List end
  */
 
-static int update_ext_header_and_dir_in_place(BlockDriverState *bs,
-                                              Qcow2BitmapList *bm_list)
+static int GRAPH_RDLOCK
+update_ext_header_and_dir_in_place(BlockDriverState *bs,
+                                   Qcow2BitmapList *bm_list)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -874,8 +882,8 @@ static int update_ext_header_and_dir_in_place(BlockDriverState *bs,
      */
 }
 
-static int update_ext_header_and_dir(BlockDriverState *bs,
-                                     Qcow2BitmapList *bm_list)
+static int GRAPH_RDLOCK
+update_ext_header_and_dir(BlockDriverState *bs, Qcow2BitmapList *bm_list)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -955,8 +963,9 @@ static void set_readonly_helper(gpointer bitmap, gpointer value)
  * If header_updated is not NULL then it is set appropriately regardless of
  * the return value.
  */
-bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
-                              Error **errp)
+bool coroutine_fn
+qcow2_load_dirty_bitmaps(BlockDriverState *bs,
+                         bool *header_updated, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
@@ -1208,7 +1217,7 @@ int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
         }
     }
 
-    g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, false);
+    g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, (gpointer)false);
     ret = 0;
 
 out:
@@ -1219,7 +1228,7 @@ out:
 }
 
 /* Checks to see if it's safe to resize bitmaps */
-int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
+int coroutine_fn qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
@@ -1267,9 +1276,9 @@ out:
 /* store_bitmap_data()
  * Store bitmap to image, filling bitmap table accordingly.
  */
-static uint64_t *store_bitmap_data(BlockDriverState *bs,
-                                   BdrvDirtyBitmap *bitmap,
-                                   uint32_t *bitmap_table_size, Error **errp)
+static uint64_t * GRAPH_RDLOCK
+store_bitmap_data(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+                  uint32_t *bitmap_table_size, Error **errp)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -1366,7 +1375,8 @@ fail:
  * Store bm->dirty_bitmap to qcow2.
  * Set bm->table_offset and bm->table_size accordingly.
  */
-static int store_bitmap(BlockDriverState *bs, Qcow2Bitmap *bm, Error **errp)
+static int GRAPH_RDLOCK
+store_bitmap(BlockDriverState *bs, Qcow2Bitmap *bm, Error **errp)
 {
     int ret;
     uint64_t *tb;
@@ -1401,9 +1411,10 @@ static int store_bitmap(BlockDriverState *bs, Qcow2Bitmap *bm, Error **errp)
         goto fail;
     }
 
-    bitmap_table_to_be(tb, tb_size);
+    bitmap_table_bswap_be(tb, tb_size);
     ret = bdrv_pwrite(bs->file, tb_offset, tb_size * sizeof(tb[0]), tb, 0);
     if (ret < 0) {
+        bitmap_table_bswap_be(tb, tb_size);
         error_setg_errno(errp, -ret, "Failed to write bitmap '%s' to file",
                          bm_name);
         goto fail;
@@ -1550,7 +1561,6 @@ bool qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs,
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         const char *name = bdrv_dirty_bitmap_name(bitmap);
         uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
-        Qcow2Bitmap *bm;
 
         if (!bdrv_dirty_bitmap_get_persistence(bitmap) ||
             bdrv_dirty_bitmap_inconsistent(bitmap)) {
@@ -1620,7 +1630,7 @@ bool qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs,
 
     /* allocate clusters and store bitmaps */
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        BdrvDirtyBitmap *bitmap = bm->dirty_bitmap;
+        bitmap = bm->dirty_bitmap;
 
         if (bitmap == NULL || bdrv_dirty_bitmap_readonly(bitmap)) {
             continue;

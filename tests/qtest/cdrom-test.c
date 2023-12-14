@@ -17,7 +17,7 @@
 
 static char isoimage[] = "cdrom-boot-iso-XXXXXX";
 
-static int exec_genisoimg(const char **args)
+static int exec_xorrisofs(const char **args)
 {
     gchar *out_err = NULL;
     gint exit_status = -1;
@@ -37,22 +37,22 @@ static int exec_genisoimg(const char **args)
     return exit_status;
 }
 
-static int prepare_image(const char *arch, char *isoimage)
+static int prepare_image(const char *arch, char *isoimagepath)
 {
     char srcdir[] = "cdrom-test-dir-XXXXXX";
     char *codefile = NULL;
     int ifh, ret = -1;
     const char *args[] = {
-        "genisoimage", "-quiet", "-l", "-no-emul-boot",
-        "-b", NULL, "-o", isoimage, srcdir, NULL
+        "xorrisofs", "-quiet", "-l", "-no-emul-boot",
+        "-b", NULL, "-o", isoimagepath, srcdir, NULL
     };
 
-    ifh = mkstemp(isoimage);
+    ifh = mkstemp(isoimagepath);
     if (ifh < 0) {
         perror("Error creating temporary iso image file");
         return -1;
     }
-    if (!mkdtemp(srcdir)) {
+    if (!g_mkdtemp(srcdir)) {
         perror("Error creating temporary directory");
         goto cleanup;
     }
@@ -75,9 +75,9 @@ static int prepare_image(const char *arch, char *isoimage)
     }
 
     args[5] = strchr(codefile, '/') + 1;
-    ret = exec_genisoimg(args);
+    ret = exec_xorrisofs(args);
     if (ret) {
-        fprintf(stderr, "genisoimage failed: %i\n", ret);
+        fprintf(stderr, "xorrisofs failed: %i\n", ret);
     }
 
     unlink(codefile);
@@ -130,10 +130,18 @@ static void test_cdboot(gconstpointer data)
 
 static void add_x86_tests(void)
 {
+    if (!qtest_has_accel("tcg") && !qtest_has_accel("kvm")) {
+        g_test_skip("No KVM or TCG accelerator available, skipping boot tests");
+        return;
+    }
+
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
-    qtest_add_data_func("cdrom/boot/virtio-scsi",
-                        "-device virtio-scsi -device scsi-cd,drive=cdr "
-                        "-blockdev file,node-name=cdr,filename=", test_cdboot);
+    if (qtest_has_device("virtio-scsi-ccw")) {
+        qtest_add_data_func("cdrom/boot/virtio-scsi",
+                            "-device virtio-scsi -device scsi-cd,drive=cdr "
+                            "-blockdev file,node-name=cdr,filename=",
+                            test_cdboot);
+    }
     /*
      * Unstable CI test under load
      * See https://lists.gnu.org/archive/html/qemu-devel/2019-02/msg05509.html
@@ -176,7 +184,19 @@ static void add_x86_tests(void)
 
 static void add_s390x_tests(void)
 {
+    if (!qtest_has_accel("tcg") && !qtest_has_accel("kvm")) {
+        g_test_skip("No KVM or TCG accelerator available, skipping boot tests");
+    }
+    if (!qtest_has_device("virtio-blk-ccw")) {
+        return;
+    }
+
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
+
+    if (!qtest_has_device("virtio-scsi-ccw")) {
+        return;
+    }
+
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
@@ -201,12 +221,12 @@ int main(int argc, char **argv)
 {
     int ret;
     const char *arch = qtest_get_arch();
-    const char *genisocheck[] = { "genisoimage", "-version", NULL };
+    const char *xorrisocheck[] = { "xorrisofs", "-version", NULL };
 
     g_test_init(&argc, &argv, NULL);
 
-    if (exec_genisoimg(genisocheck)) {
-        /* genisoimage not available - so can't run tests */
+    if (exec_xorrisofs(xorrisocheck)) {
+        /* xorrisofs not available - so can't run tests */
         return g_test_run();
     }
 
@@ -244,9 +264,13 @@ int main(int argc, char **argv)
         const char *armmachines[] = {
             "realview-eb", "realview-eb-mpcore", "realview-pb-a8",
             "realview-pbx-a9", "versatileab", "versatilepb", "vexpress-a15",
-            "vexpress-a9", "virt", NULL
+            "vexpress-a9", NULL
         };
         add_cdrom_param_tests(armmachines);
+        if (qtest_has_device("virtio-blk-pci")) {
+            const char *virtmachine[] = { "virt", NULL };
+            add_cdrom_param_tests(virtmachine);
+        }
     } else {
         const char *nonemachine[] = { "none", NULL };
         add_cdrom_param_tests(nonemachine);

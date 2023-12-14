@@ -36,10 +36,17 @@ void tpm_emu_test_wait_cond(TPMTestState *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
+static void tpm_emu_close_ioc(void *ioc)
+{
+    qio_channel_close(ioc, NULL);
+}
+
 static void *tpm_emu_tpm_thread(void *data)
 {
     TPMTestState *s = data;
     QIOChannel *ioc = s->tpm_ioc;
+
+    qtest_add_abrt_handler(tpm_emu_close_ioc, ioc);
 
     s->tpm_msg = g_new(struct tpm_hdr, 1);
     while (true) {
@@ -70,13 +77,14 @@ static void *tpm_emu_tpm_thread(void *data)
             s->tpm_msg->code = cpu_to_be32(TPM_FAIL);
             break;
         default:
-            g_debug("unsupport TPM version %u", s->tpm_version);
+            g_debug("unsupported TPM version %u", s->tpm_version);
             g_assert_not_reached();
         }
         qio_channel_write(ioc, (char *)s->tpm_msg, be32_to_cpu(s->tpm_msg->len),
                           &error_abort);
     }
 
+    qtest_remove_abrt_handler(ioc);
     g_free(s->tpm_msg);
     s->tpm_msg = NULL;
     object_unref(OBJECT(s->tpm_ioc));
@@ -99,6 +107,7 @@ void *tpm_emu_ctrl_thread(void *data)
     qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);
     ioc = QIO_CHANNEL(qio_channel_socket_accept(lioc, &error_abort));
     g_assert(ioc);
+    qtest_add_abrt_handler(tpm_emu_close_ioc, ioc);
 
     {
         uint32_t cmd = 0;
@@ -106,7 +115,7 @@ void *tpm_emu_ctrl_thread(void *data)
         int *pfd = NULL;
         size_t nfd = 0;
 
-        qio_channel_readv_full(ioc, &iov, 1, &pfd, &nfd, &error_abort);
+        qio_channel_readv_full(ioc, &iov, 1, &pfd, &nfd, 0, &error_abort);
         cmd = be32_to_cpu(cmd);
         g_assert_cmpint(cmd, ==, CMD_SET_DATAFD);
         g_assert_cmpint(nfd, ==, 1);
@@ -190,6 +199,7 @@ void *tpm_emu_ctrl_thread(void *data)
         }
     }
 
+    qtest_remove_abrt_handler(ioc);
     object_unref(OBJECT(ioc));
     object_unref(OBJECT(lioc));
     return NULL;

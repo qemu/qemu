@@ -102,7 +102,7 @@ static const name2keysym_t name2keysym[]={
 /* latin 1 extensions */
 { "nobreakspace",         0x0a0},
 { "exclamdown",           0x0a1},
-{ "cent",         	  0x0a2},
+{ "cent",                 0x0a2},
 { "sterling",             0x0a3},
 { "currency",             0x0a4},
 { "yen",                  0x0a5},

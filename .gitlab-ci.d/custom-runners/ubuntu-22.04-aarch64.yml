@@ -1,0 +1,151 @@
+# All ubuntu-22.04 jobs should run successfully in an environment
+# setup by the scripts/ci/setup/qemu/build-environment.yml task
+# "Install basic packages to build QEMU on Ubuntu 22.04"
+
+ubuntu-22.04-aarch64-all-linux-static:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+ script:
+ - mkdir build
+ - cd build
+ # Disable -static-pie due to build error with system libc:
+ # https://bugs.launchpad.net/ubuntu/+source/glibc/+bug/1987438
+ - ../configure --enable-debug --static --disable-system --disable-pie
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+ - make check-tcg
+ - make --output-sync -j`nproc --ignore=40` check
+
+ubuntu-22.04-aarch64-all:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+   allow_failure: true
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+   when: manual
+   allow_failure: true
+ script:
+ - mkdir build
+ - cd build
+ - ../configure
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+ - make --output-sync -j`nproc --ignore=40` check
+
+ubuntu-22.04-aarch64-without-defaults:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+   allow_failure: true
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+   when: manual
+   allow_failure: true
+ script:
+ - mkdir build
+ - cd build
+ - ../configure --disable-user --without-default-devices --without-default-features
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+ - make --output-sync -j`nproc --ignore=40` check
+
+ubuntu-22.04-aarch64-alldbg:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+ script:
+ - mkdir build
+ - cd build
+ - ../configure --enable-debug
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make clean
+ - make --output-sync -j`nproc --ignore=40`
+ - make --output-sync -j`nproc --ignore=40` check
+
+ubuntu-22.04-aarch64-clang:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+   allow_failure: true
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+   when: manual
+   allow_failure: true
+ script:
+ - mkdir build
+ - cd build
+ - ../configure --disable-libssh --cc=clang --cxx=clang++ --enable-sanitizers
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+ - make --output-sync -j`nproc --ignore=40` check
+
+ubuntu-22.04-aarch64-tci:
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+   allow_failure: true
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+   when: manual
+   allow_failure: true
+ script:
+ - mkdir build
+ - cd build
+ - ../configure --enable-tcg-interpreter
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+
+ubuntu-22.04-aarch64-notcg:
+ extends: .custom_runner_template
+ needs: []
+ stage: build
+ tags:
+ - ubuntu_22.04
+ - aarch64
+ rules:
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+   allow_failure: true
+ - if: "$AARCH64_RUNNER_AVAILABLE"
+   when: manual
+   allow_failure: true
+ script:
+ - mkdir build
+ - cd build
+ - ../configure --disable-tcg --with-devices-aarch64=minimal
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
+ - make --output-sync -j`nproc --ignore=40`
+ - make --output-sync -j`nproc --ignore=40` check

@@ -35,7 +35,7 @@ void migration_ioc_register_yank(QIOChannel *ioc)
     if (migration_ioc_yank_supported(ioc)) {
         yank_register_function(MIGRATION_YANK_INSTANCE,
                                migration_yank_iochannel,
-                               QIO_CHANNEL(ioc));
+                               ioc);
     }
 }
 
@@ -44,7 +44,7 @@ void migration_ioc_unregister_yank(QIOChannel *ioc)
     if (migration_ioc_yank_supported(ioc)) {
         yank_unregister_function(MIGRATION_YANK_INSTANCE,
                                  migration_yank_iochannel,
-                                 QIO_CHANNEL(ioc));
+                                 ioc);
     }
 }
 

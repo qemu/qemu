@@ -17,10 +17,10 @@
 #ifndef FSL_IMX6_H
 #define FSL_IMX6_H
 
-#include "hw/arm/boot.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/misc/imx6_ccm.h"
 #include "hw/misc/imx6_src.h"
+#include "hw/misc/imx7_snvs.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "hw/char/imx_serial.h"
 #include "hw/timer/imx_gpt.h"
@@ -59,6 +59,7 @@ struct FslIMX6State {
     A9MPPrivState  a9mpcore;
     IMX6CCMState   ccm;
     IMX6SRCState   src;
+    IMX7SNVSState  snvs;
     IMXSerialState uart[FSL_IMX6_NUM_UARTS];
     IMXGPTState    gpt;
     IMXEPITState   epit[FSL_IMX6_NUM_EPITS];

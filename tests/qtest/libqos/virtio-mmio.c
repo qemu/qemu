@@ -12,7 +12,7 @@
 #include "qemu/module.h"
 #include "virtio.h"
 #include "virtio-mmio.h"
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "qgraph.h"
 #include "standard-headers/linux/virtio_ring.h"
 

@@ -318,6 +318,37 @@ virgl_resource_detach_backing(VuGpu *g,
     vg_cleanup_mapping_iov(g, res_iovs, num_iovs);
 }
 
+static int
+virgl_get_resource_info_modifiers(uint32_t resource_id,
+                                  struct virgl_renderer_resource_info *info,
+                                  uint64_t *modifiers)
+{
+    int ret;
+#ifdef VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION
+    struct virgl_renderer_resource_info_ext info_ext;
+    ret = virgl_renderer_resource_get_info_ext(resource_id, &info_ext);
+    if (ret < 0) {
+        return ret;
+    }
+
+    *info = info_ext.base;
+    *modifiers = info_ext.modifiers;
+#else
+    ret = virgl_renderer_resource_get_info(resource_id, info);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Before virgl_renderer_resource_get_info_ext,
+     * getting the modifiers was not possible.
+     */
+    *modifiers = 0;
+#endif
+
+    return 0;
+}
+
 static void
 virgl_cmd_set_scanout(VuGpu *g,
                       struct virtio_gpu_ctrl_command *cmd)
@@ -338,7 +369,9 @@ virgl_cmd_set_scanout(VuGpu *g,
     memset(&info, 0, sizeof(info));
 
     if (ss.resource_id && ss.r.width && ss.r.height) {
-        ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
+        uint64_t modifiers = 0;
+        ret = virgl_get_resource_info_modifiers(ss.resource_id, &info,
+                                                &modifiers);
         if (ret == -1) {
             g_critical("%s: illegal resource specified %d\n",
                        __func__, ss.resource_id);
@@ -354,8 +387,6 @@ virgl_cmd_set_scanout(VuGpu *g,
         }
         assert(fd >= 0);
         VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_DMABUF_SCANOUT,
-            .size = sizeof(VhostUserGpuDMABUFScanout),
             .payload.dmabuf_scanout.scanout_id = ss.scanout_id,
             .payload.dmabuf_scanout.x =  ss.r.x,
             .payload.dmabuf_scanout.y =  ss.r.y,
@@ -367,6 +398,20 @@ virgl_cmd_set_scanout(VuGpu *g,
             .payload.dmabuf_scanout.fd_flags = info.flags,
             .payload.dmabuf_scanout.fd_drm_fourcc = info.drm_fourcc
         };
+
+        if (g->use_modifiers) {
+            /*
+             * The message uses all the fields set in dmabuf_scanout plus
+             * modifiers which is appended after VhostUserGpuDMABUFScanout.
+             */
+            msg.request = VHOST_USER_GPU_DMABUF_SCANOUT2;
+            msg.size = sizeof(VhostUserGpuDMABUFScanout2);
+            msg.payload.dmabuf_scanout2.modifier = modifiers;
+        } else {
+            msg.request = VHOST_USER_GPU_DMABUF_SCANOUT;
+            msg.size = sizeof(VhostUserGpuDMABUFScanout);
+        }
+
         vg_send_msg(g, &msg, fd);
         close(fd);
     } else {
@@ -494,6 +539,9 @@ void vg_virgl_process_cmd(VuGpu *g, struct virtio_gpu_ctrl_command *cmd)
         break;
     case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
         vg_get_display_info(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_GET_EDID:
+        vg_get_edid(g, cmd);
         break;
     default:
         g_debug("TODO handle ctrl %x\n", cmd->cmd_hdr.type);

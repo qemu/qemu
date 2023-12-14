@@ -11,9 +11,10 @@
 static struct pa_block *pa_space_find_block(struct pa_space *ps, uint64_t pa)
 {
     size_t i;
+
     for (i = 0; i < ps->block_nr; i++) {
         if (ps->block[i].paddr <= pa &&
-                pa <= ps->block[i].paddr + ps->block[i].size) {
+                pa < ps->block[i].paddr + ps->block[i].size) {
             return ps->block + i;
         }
     }
@@ -32,6 +33,30 @@ static uint8_t *pa_space_resolve(struct pa_space *ps, uint64_t pa)
     return block->addr + (pa - block->paddr);
 }
 
+static void pa_block_align(struct pa_block *b)
+{
+    uint64_t low_align = ((b->paddr - 1) | ELF2DMP_PAGE_MASK) + 1 - b->paddr;
+    uint64_t high_align = (b->paddr + b->size) & ELF2DMP_PAGE_MASK;
+
+    if (low_align == 0 && high_align == 0) {
+        return;
+    }
+
+    if (low_align + high_align < b->size) {
+        printf("Block 0x%"PRIx64"+:0x%"PRIx64" will be aligned to "
+                "0x%"PRIx64"+:0x%"PRIx64"\n", b->paddr, b->size,
+                b->paddr + low_align, b->size - low_align - high_align);
+        b->size -= low_align + high_align;
+    } else {
+        printf("Block 0x%"PRIx64"+:0x%"PRIx64" is too small to align\n",
+                b->paddr, b->size);
+        b->size = 0;
+    }
+
+    b->addr += low_align;
+    b->paddr += low_align;
+}
+
 int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
 {
     Elf64_Half phdr_nr = elf_getphdrnum(qemu_elf->map);
@@ -47,10 +72,7 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
         }
     }
 
-    ps->block = malloc(sizeof(*ps->block) * ps->block_nr);
-    if (!ps->block) {
-        return 1;
-    }
+    ps->block = g_new(struct pa_block, ps->block_nr);
 
     for (i = 0; i < phdr_nr; i++) {
         if (phdr[i].p_type == PT_LOAD) {
@@ -59,9 +81,12 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
                 .paddr = phdr[i].p_paddr,
                 .size = phdr[i].p_filesz,
             };
-            block_i++;
+            pa_block_align(&ps->block[block_i]);
+            block_i = ps->block[block_i].size ? (block_i + 1) : block_i;
         }
     }
+
+    ps->block_nr = block_i;
 
     return 0;
 }
@@ -69,7 +94,7 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
 void pa_space_destroy(struct pa_space *ps)
 {
     ps->block_nr = 0;
-    free(ps->block);
+    g_free(ps->block);
 }
 
 void va_space_set_dtb(struct va_space *vs, uint64_t dtb)

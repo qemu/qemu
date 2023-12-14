@@ -29,6 +29,7 @@
 #include "ui/console.h"
 #include "ui/spice-display.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
@@ -95,6 +96,11 @@ static void vc_chr_set_echo(Chardev *chr, bool echo)
     /* TODO: set echo for frontends QMP and qtest */
 }
 
+static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
+{
+    /* fqdn is dealt with in vc_chr_open() */
+}
+
 static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     VCChardevClass *vc = CHARDEV_VC_CLASS(oc);
@@ -102,7 +108,7 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 
     vc->parent_open = cc->open;
 
-    cc->parse = qemu_chr_parse_vc;
+    cc->parse = vc_chr_parse;
     cc->open = vc_chr_open;
     cc->chr_set_echo = vc_chr_set_echo;
 }
@@ -214,6 +220,7 @@ static QemuDisplay qemu_display_spice_app = {
     .type       = DISPLAY_TYPE_SPICE_APP,
     .early_init = spice_app_display_early_init,
     .init       = spice_app_display_init,
+    .vc         = "vc",
 };
 
 static void register_spice_app(void)

@@ -190,14 +190,14 @@ int virtio_get_block_size(void);
 uint8_t virtio_get_heads(void);
 uint8_t virtio_get_sectors(void);
 uint64_t virtio_get_blocks(void);
-int virtio_read_many(ulong sector, void *load_addr, int sec_num);
+int virtio_read_many(unsigned long sector, void *load_addr, int sec_num);
 
 #define VIRTIO_SECTOR_SIZE 512
 #define VIRTIO_ISO_BLOCK_SIZE 2048
 #define VIRTIO_SCSI_BLOCK_SIZE 512
 #define VIRTIO_DASD_DEFAULT_BLOCK_SIZE 4096
 
-static inline ulong virtio_sector_adjust(ulong sector)
+static inline unsigned long virtio_sector_adjust(unsigned long sector)
 {
     return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }

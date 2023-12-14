@@ -1,5 +1,10 @@
 config ARM
     bool
+    select ARM_COMPATIBLE_SEMIHOSTING if TCG
+
+    # We need to select this until we move m_helper.c and the
+    # translate.c v7m helpers under ARM_V7M.
+    select ARM_V7M if TCG
 
 config AARCH64
     bool

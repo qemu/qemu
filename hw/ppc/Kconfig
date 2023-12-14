@@ -3,7 +3,7 @@ config PSERIES
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VIRTIO_VGA
-    imply NVDIMM
+    select NVDIMM
     select DIMM
     select PCI
     select SPAPR_VSCSI
@@ -58,7 +58,6 @@ config PPC4XX
 
 config SAM460EX
     bool
-    select PPC405
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
@@ -70,16 +69,20 @@ config SAM460EX
     select USB_OHCI
     select FDT_PPC
 
+config AMIGAONE
+    bool
+    imply ATI_VGA
+    select ARTICIA
+    select VT82C686
+    select SMBUS_EEPROM
+
 config PEGASOS2
     bool
+    imply ATI_VGA
     select MV64361
     select VT82C686
-    select IDE_VIA
     select SMBUS_EEPROM
     select VOF
-# This should come with VT82C686
-    select ACPI_X86
-    imply ATI_VGA
 
 config PREP
     bool
@@ -119,19 +122,32 @@ config MAC_NEWWORLD
     select MAC_PMU
     select UNIN_PCI
     select FW_CFG_PPC
+    select USB_OHCI_PCI
 
 config E500
     bool
     imply AT24C
     imply VIRTIO_PCI
     select ETSEC
+    select GPIO_MPC8XXX
     select OPENPIC
+    select PFLASH_CFI01
     select PLATFORM_BUS
     select PPCE500_PCI
+    select SDHCI
     select SERIAL
     select MPC_I2C
     select FDT_PPC
     select DS1338
+    select UNIMP
+
+config E500PLAT
+    bool
+    select E500
+
+config MPC8544DS
+    bool
+    select E500
 
 config VIRTEX
     bool

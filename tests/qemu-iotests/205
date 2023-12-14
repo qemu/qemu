@@ -44,10 +44,8 @@ class TestNbdServerRemove(iotests.QMPTestCase):
             }
         }
 
-        result = self.vm.qmp('nbd-server-start', addr=address)
-        self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp('nbd-server-add', device='drive0', name='exp')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-start', addr=address)
+        self.vm.cmd('nbd-server-add', device='drive0', name='exp')
 
     def tearDown(self):
         self.vm.shutdown()

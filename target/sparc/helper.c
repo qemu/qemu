@@ -81,113 +81,58 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 }
 #endif
 
-static target_ulong do_udiv(CPUSPARCState *env, target_ulong a,
-                            target_ulong b, int cc, uintptr_t ra)
+uint64_t helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
-    int overflow = 0;
-    uint64_t x0;
-    uint32_t x1;
+    uint64_t a64 = (uint32_t)a | ((uint64_t)env->y << 32);
+    uint32_t b32 = b;
+    uint32_t r;
 
-    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = (b & 0xffffffff);
-
-    if (x1 == 0) {
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, ra);
-    }
-
-    x0 = x0 / x1;
-    if (x0 > UINT32_MAX) {
-        x0 = UINT32_MAX;
-        overflow = 1;
-    }
-
-    if (cc) {
-        env->cc_dst = x0;
-        env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
-    }
-    return x0;
-}
-
-target_ulong helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_udiv(env, a, b, 0, GETPC());
-}
-
-target_ulong helper_udiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_udiv(env, a, b, 1, GETPC());
-}
-
-static target_ulong do_sdiv(CPUSPARCState *env, target_ulong a,
-                            target_ulong b, int cc, uintptr_t ra)
-{
-    int overflow = 0;
-    int64_t x0;
-    int32_t x1;
-
-    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = (b & 0xffffffff);
-
-    if (x1 == 0) {
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, ra);
-    } else if (x1 == -1 && x0 == INT64_MIN) {
-        x0 = INT32_MAX;
-        overflow = 1;
-    } else {
-        x0 = x0 / x1;
-        if ((int32_t) x0 != x0) {
-            x0 = x0 < 0 ? INT32_MIN : INT32_MAX;
-            overflow = 1;
-        }
-    }
-
-    if (cc) {
-        env->cc_dst = x0;
-        env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
-    }
-    return x0;
-}
-
-target_ulong helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_sdiv(env, a, b, 0, GETPC());
-}
-
-target_ulong helper_sdiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_sdiv(env, a, b, 1, GETPC());
-}
-
-#ifdef TARGET_SPARC64
-int64_t helper_sdivx(CPUSPARCState *env, int64_t a, int64_t b)
-{
-    if (b == 0) {
-        /* Raise divide by zero trap.  */
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
-    } else if (b == -1) {
-        /* Avoid overflow trap with i386 divide insn.  */
-        return -a;
-    } else {
-        return a / b;
-    }
-}
-
-uint64_t helper_udivx(CPUSPARCState *env, uint64_t a, uint64_t b)
-{
-    if (b == 0) {
-        /* Raise divide by zero trap.  */
+    if (b32 == 0) {
         cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
     }
-    return a / b;
+
+    a64 /= b32;
+    r = a64;
+    if (unlikely(a64 > UINT32_MAX)) {
+        return -1; /* r = UINT32_MAX, v = 1 */
+    }
+    return r;
 }
-#endif
+
+uint64_t helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
+{
+    int64_t a64 = (uint32_t)a | ((uint64_t)env->y << 32);
+    int32_t b32 = b;
+    int32_t r;
+
+    if (b32 == 0) {
+        cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
+    }
+
+    if (unlikely(a64 == INT64_MIN)) {
+        /*
+         * Special case INT64_MIN / -1 is required to avoid trap on x86 host.
+         * However, with a dividend of INT64_MIN, there is no 32-bit divisor
+         * which can yield a 32-bit result:
+         *    INT64_MIN / INT32_MIN =  0x1_0000_0000
+         *    INT64_MIN / INT32_MAX = -0x1_0000_0002
+         * Therefore we know we must overflow and saturate.
+         */
+        return (uint32_t)(b32 < 0 ? INT32_MAX : INT32_MIN) | (-1ull << 32);
+    }
+
+    a64 /= b;
+    r = a64;
+    if (unlikely(r != a64)) {
+        return (uint32_t)(a64 < 0 ? INT32_MIN : INT32_MAX) | (-1ull << 32);
+    }
+    return (uint32_t)r;
+}
 
 target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
-    target_ulong dst;
+    target_ulong dst, v;
 
     /* Tag overflow occurs if either input has bits 0 or 1 set.  */
     if ((src1 | src2) & 3) {
@@ -197,15 +142,23 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
     dst = src1 + src2;
 
     /* Tag overflow occurs if the addition overflows.  */
-    if (~(src1 ^ src2) & (src1 ^ dst) & (1u << 31)) {
+    v = ~(src1 ^ src2) & (src1 ^ dst);
+    if (v & (1u << 31)) {
         goto tag_overflow;
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_op = CC_OP_TADDTV;
-    env->cc_src = src1;
-    env->cc_src2 = src2;
-    env->cc_dst = dst;
+    env->cc_V = v;
+    env->cc_N = dst;
+    env->icc_Z = dst;
+#ifdef TARGET_SPARC64
+    env->xcc_Z = dst;
+    env->icc_C = dst ^ src1 ^ src2;
+    env->xcc_C = dst < src1;
+#else
+    env->icc_C = dst < src1;
+#endif
+
     return dst;
 
  tag_overflow:
@@ -215,7 +168,7 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
 target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
-    target_ulong dst;
+    target_ulong dst, v;
 
     /* Tag overflow occurs if either input has bits 0 or 1 set.  */
     if ((src1 | src2) & 3) {
@@ -225,15 +178,23 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
     dst = src1 - src2;
 
     /* Tag overflow occurs if the subtraction overflows.  */
-    if ((src1 ^ src2) & (src1 ^ dst) & (1u << 31)) {
+    v = (src1 ^ src2) & (src1 ^ dst);
+    if (v & (1u << 31)) {
         goto tag_overflow;
     }
 
     /* Only modify the CC after any exceptions have been generated.  */
-    env->cc_op = CC_OP_TSUBTV;
-    env->cc_src = src1;
-    env->cc_src2 = src2;
-    env->cc_dst = dst;
+    env->cc_V = v;
+    env->cc_N = dst;
+    env->icc_Z = dst;
+#ifdef TARGET_SPARC64
+    env->xcc_Z = dst;
+    env->icc_C = dst ^ src1 ^ src2;
+    env->xcc_C = src1 < src2;
+#else
+    env->icc_C = src1 < src2;
+#endif
+
     return dst;
 
  tag_overflow:

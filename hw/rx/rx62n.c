@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
+#include "qapi/qmp/qlist.h"
 #include "qom/object.h"
 
 /*
@@ -114,7 +115,7 @@ static const uint8_t ipr_table[NR_IRQS] = {
 };
 
 /*
- * Level triggerd IRQ list
+ * Level triggered IRQ list
  * Not listed IRQ is Edge trigger.
  * See "11.3.1 Interrupt Vector Table" in hardware manual.
  */
@@ -130,22 +131,22 @@ static void register_icu(RX62NState *s)
 {
     int i;
     SysBusDevice *icu;
+    QList *ipr_map, *trigger_level;
 
     object_initialize_child(OBJECT(s), "icu", &s->icu, TYPE_RX_ICU);
     icu = SYS_BUS_DEVICE(&s->icu);
-    qdev_prop_set_uint32(DEVICE(icu), "len-ipr-map", NR_IRQS);
+
+    ipr_map = qlist_new();
     for (i = 0; i < NR_IRQS; i++) {
-        char propname[32];
-        snprintf(propname, sizeof(propname), "ipr-map[%d]", i);
-        qdev_prop_set_uint32(DEVICE(icu), propname, ipr_table[i]);
+        qlist_append_int(ipr_map, ipr_table[i]);
     }
-    qdev_prop_set_uint32(DEVICE(icu), "len-trigger-level",
-                         ARRAY_SIZE(levelirq));
+    qdev_prop_set_array(DEVICE(icu), "ipr-map", ipr_map);
+
+    trigger_level = qlist_new();
     for (i = 0; i < ARRAY_SIZE(levelirq); i++) {
-        char propname[32];
-        snprintf(propname, sizeof(propname), "trigger-level[%d]", i);
-        qdev_prop_set_uint32(DEVICE(icu), propname, levelirq[i]);
+        qlist_append_int(trigger_level, levelirq[i]);
     }
+    qdev_prop_set_array(DEVICE(icu), "trigger-level", trigger_level);
 
     for (i = 0; i < NR_IRQS; i++) {
         s->irq[i] = qdev_get_gpio_in(DEVICE(icu), i);
@@ -154,7 +155,7 @@ static void register_icu(RX62NState *s)
     sysbus_connect_irq(icu, 0, qdev_get_gpio_in(DEVICE(&s->cpu), RX_CPU_IRQ));
     sysbus_connect_irq(icu, 1, qdev_get_gpio_in(DEVICE(&s->cpu), RX_CPU_FIR));
     sysbus_connect_irq(icu, 2, s->irq[SWI]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(icu), 0, RX62N_ICU_BASE);
+    sysbus_mmio_map(icu, 0, RX62N_ICU_BASE);
 }
 
 static void register_tmr(RX62NState *s, int unit)

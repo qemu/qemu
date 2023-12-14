@@ -902,7 +902,7 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
-    fEA_GPI, /* Calculate EA with Global Poitner + Immediate */
+    fEA_GPI, /* Calculate EA with Global Pointer + Immediate */
     do { EA=fREAD_GP()+IMM; fGP_DOCHKPAGECROSS(fREAD_GP(),EA); } while (0),
     ()
 )

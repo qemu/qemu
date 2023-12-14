@@ -147,13 +147,58 @@ static const uint8_t test_rsa2048_priv_key[] =
     "\x4e\x2f\x4c\xf9\xab\x97\x38\xe4\x20\x32\x32\x96\xc8\x9e\x79\xd3"
     "\x12";
 
+static const uint8_t test_ecdsa_p192_priv_key[] =
+    "\x30\x53"               /* SEQUENCE, offset 0, length 83 */
+    "\x02\x01\x01"           /* INTEGER, offset 2, length 1 */
+    "\x04\x18"               /* OCTET STRING, offset 5, length 24 */
+    "\xcb\xc8\x86\x0e\x66\x3c\xf7\x5a\x44\x13\xb8\xef\xea\x1d\x7b\xa6"
+    "\x1c\xda\xf4\x1b\xc7\x67\x6b\x35"
+    "\xa1\x34"               /* CONTEXT SPECIFIC 1, offset 31, length 52 */
+    "\x03\x32"               /* BIT STRING, offset 33, length 50 */
+    "\x00\x04\xc4\x16\xb3\xff\xac\xd5\x87\x98\xf7\xd9\x45\xfe\xd3\x5c"
+    "\x17\x9d\xb2\x36\x22\xcc\x07\xb3\x6d\x3c\x4e\x04\x5f\xeb\xb6\x52"
+    "\x58\xfb\x36\x10\x52\xb7\x01\x62\x0e\x94\x51\x1d\xe2\xef\x10\x82"
+    "\x88\x78";
+
+static const uint8_t test_ecdsa_p256_priv_key[] =
+    "\x30\x77"              /* SEQUENCE, offset 0, length 119 */
+    "\x02\x01\x01"          /* INTEGER, offset 2, length 1 */
+    "\x04\x20"              /* OCTET STRING, offset 5, length 32 */
+    "\xf6\x92\xdd\x29\x1c\x6e\xef\xb6\xb2\x73\x9f\x40\x1b\xb3\x2a\x28"
+    "\xd2\x37\xd6\x4a\x5b\xe4\x40\x4c\x6a\x95\x99\xfa\xf7\x92\x49\xbe"
+    "\xa0\x0a"              /* CONTEXT SPECIFIC 0, offset 39, length 10 */
+    "\x06\x08"              /* OID, offset 41, length 8 */
+    "\x2a\x86\x48\xce\x3d\x03\x01\x07"
+    "\xa1\x44"              /* CONTEXT SPECIFIC 1, offset 51, length 68 */
+    "\x03\x42"              /* BIT STRING, offset 53, length 66 */
+    "\x00\x04\xed\x42\x9c\x67\x79\xbe\x46\x83\x88\x3e\x8c\xc1\x33\xf3"
+    "\xc3\xf6\x2c\xf3\x13\x6a\x00\xc2\xc9\x3e\x87\x7f\x86\x39\xe6\xae"
+    "\xe3\xb9\xba\x2f\x58\x63\x32\x62\x62\x54\x07\x27\xf9\x5a\x3a\xc7"
+    "\x3a\x6b\x5b\xbc\x0d\x33\xba\xbb\xd4\xa3\xff\x4f\x9e\xdd\xf5\x59"
+    "\xc0\xf6";
+
 #define MAX_CHECKER_COUNT 32
+
+static int qcrypto_wrapped_decode_ctx_tag0(const uint8_t **data, size_t *dlen,
+                                           QCryptoDERDecodeCb cb, void *opaque,
+                                           Error **errp)
+{
+   return qcrypto_der_decode_ctx_tag(data, dlen, 0, cb, opaque, errp);
+}
+
+static int qcrypto_wrapped_decode_ctx_tag1(const uint8_t **data, size_t *dlen,
+                                           QCryptoDERDecodeCb cb, void *opaque,
+                                           Error **errp)
+{
+   return qcrypto_der_decode_ctx_tag(data, dlen, 1, cb, opaque, errp);
+}
 
 typedef struct QCryptoAns1DecoderResultChecker QCryptoAns1DecoderResultChecker;
 struct QCryptoAns1DecoderResultChecker {
     int (*action) (const uint8_t **data, size_t *dlen,
                    QCryptoDERDecodeCb cb, void *opaque, Error **errp);
     QCryptoDERDecodeCb cb;
+    bool constructed;
     const uint8_t *exp_value;
     size_t exp_vlen;
 };
@@ -204,7 +249,7 @@ static void test_ans1(const void *opaque)
         g_assert(checker->action(&c->data, &c->dlen, checker_callback,
                                  (void *)checker, &error_abort)
             == checker->exp_vlen);
-        if (checker->action == qcrypto_der_decode_seq) {
+        if (checker->constructed) {
             ++seq_depth;
             ctx[seq_depth].data = checker->exp_value;
             ctx[seq_depth].dlen = checker->exp_vlen;
@@ -225,25 +270,25 @@ static QCryptoAns1DecoderTestData test_data[] = {
     .test_data = test_rsa512_priv_key,
     .test_data_len = sizeof(test_rsa512_priv_key) - 1,
     .checker = {
-        { qcrypto_der_decode_seq, checker_callback,
+        { qcrypto_der_decode_seq, checker_callback, true,
           test_rsa512_priv_key + 4, 313 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 4 + 2, 1 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 7 + 2, 65 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 74 + 2, 3 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 79 + 2, 64 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 145 + 2, 33 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 180 + 2, 33 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 215 + 2, 32 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 249 + 2, 32 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa512_priv_key + 283 + 2, 32 },
     },
 },
@@ -252,29 +297,66 @@ static QCryptoAns1DecoderTestData test_data[] = {
     .test_data = test_rsa2048_priv_key,
     .test_data_len = sizeof(test_rsa2048_priv_key) - 1,
     .checker = {
-        { qcrypto_der_decode_seq, checker_callback,
+        { qcrypto_der_decode_seq, checker_callback, true,
           test_rsa2048_priv_key + 4, 1190 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 4 + 2, 1 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 7 + 4, 257 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 268 + 2, 3 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 273 + 4, 257 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 534 + 3, 129 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 666 + 3, 129 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 798 + 3, 129 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 930 + 3, 129 },
-        { qcrypto_der_decode_int, checker_callback,
+        { qcrypto_der_decode_int, checker_callback, false,
           test_rsa2048_priv_key + 1062 + 3, 129 },
     },
 },
-
+{
+    .path = "/crypto/der/parse-ecdsa-p192-priv-key",
+    .test_data = test_ecdsa_p192_priv_key,
+    .test_data_len = sizeof(test_ecdsa_p192_priv_key) - 1,
+    .checker = {
+        { qcrypto_der_decode_seq, checker_callback, true,
+          test_ecdsa_p192_priv_key + 2, 83 },
+        { qcrypto_der_decode_int, checker_callback, false,
+          test_ecdsa_p192_priv_key + 2 + 2, 1 },
+        { qcrypto_der_decode_octet_str, checker_callback, false,
+          test_ecdsa_p192_priv_key + 5 + 2, 24 },
+        { qcrypto_wrapped_decode_ctx_tag1, checker_callback, true,
+          test_ecdsa_p192_priv_key + 31 + 2, 52 },
+        { qcrypto_der_decode_bit_str , checker_callback, false,
+          test_ecdsa_p192_priv_key + 33 + 2, 50 },
+    },
+},
+{
+    .path = "/crypto/der/parse-ecdsa-p256-priv-key",
+    .test_data = test_ecdsa_p256_priv_key,
+    .test_data_len = sizeof(test_ecdsa_p256_priv_key) - 1,
+    .checker = {
+        { qcrypto_der_decode_seq, checker_callback, true,
+          test_ecdsa_p256_priv_key + 2, 119 },
+        { qcrypto_der_decode_int, checker_callback, false,
+          test_ecdsa_p256_priv_key + 2 + 2, 1 },
+        { qcrypto_der_decode_octet_str, checker_callback, false,
+          test_ecdsa_p256_priv_key + 5 + 2, 32 },
+        { qcrypto_wrapped_decode_ctx_tag0, checker_callback, true,
+          test_ecdsa_p256_priv_key + 39 + 2, 10 },
+        { qcrypto_der_decode_oid, checker_callback, false,
+          test_ecdsa_p256_priv_key + 41 + 2, 8 },
+        { qcrypto_wrapped_decode_ctx_tag1, checker_callback, true,
+          test_ecdsa_p256_priv_key + 51 + 2, 68 },
+        { qcrypto_der_decode_bit_str , checker_callback, false,
+          test_ecdsa_p256_priv_key + 53 + 2, 66 },
+    },
+},
 };
 
 int main(int argc, char **argv)

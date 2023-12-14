@@ -5,4 +5,4 @@ path=/path/to/org.qemu.guest_agent.0
 pidfile=/var/foo/qemu-ga.pid
 statedir=/var/state
 verbose=true
-blacklist=guest-ping;guest-get-time
+block-rpcs=guest-ping;guest-get-time

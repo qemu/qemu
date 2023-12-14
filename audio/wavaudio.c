@@ -42,7 +42,7 @@ typedef struct WAVVoiceOut {
 static size_t wav_write_out(HWVoiceOut *hw, void *buf, size_t len)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int64_t bytes = audio_rate_get_bytes(&hw->info, &wav->rate, len);
+    int64_t bytes = audio_rate_get_bytes(&wav->rate, &hw->info, len);
     assert(bytes % hw->info.bytes_per_frame == 0);
 
     if (bytes && fwrite(buf, bytes, 1, wav->f) != 1) {
@@ -78,7 +78,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
     Audiodev *dev = drv_opaque;
     AudiodevWavOptions *wopts = &dev->u.wav;
     struct audsettings wav_as = audiodev_to_audsettings(dev->u.wav.out);
-    const char *wav_path = wopts->has_path ? wopts->path : "qemu.wav";
+    const char *wav_path = wopts->path ?: "qemu.wav";
 
     stereo = wav_as.nchannels == 2;
     switch (wav_as.fmt) {
@@ -95,6 +95,10 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
         dolog ("WAVE files can not handle 32bit formats\n");
+        return -1;
+
+    case AUDIO_FORMAT_F32:
+        dolog("WAVE files can not handle float formats\n");
         return -1;
 
     default:
@@ -182,7 +186,7 @@ static void wav_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static void *wav_audio_init(Audiodev *dev)
+static void *wav_audio_init(Audiodev *dev, Error **errp)
 {
     assert(dev->driver == AUDIODEV_DRIVER_WAV);
     return dev;
@@ -208,7 +212,6 @@ static struct audio_driver wav_audio_driver = {
     .init           = wav_audio_init,
     .fini           = wav_audio_fini,
     .pcm_ops        = &wav_pcm_ops,
-    .can_be_default = 0,
     .max_voices_out = 1,
     .max_voices_in  = 0,
     .voice_size_out = sizeof (WAVVoiceOut),

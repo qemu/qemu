@@ -45,7 +45,6 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/bitops.h"
-#include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -645,7 +644,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
 
  error_flash:
     qemu_log_mask(LOG_UNIMP, "%s: Unimplemented flash cmd sequence "
-                  "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)"
+                  "(offset " HWADDR_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)"
                   "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  mode_read_array:
@@ -892,7 +891,7 @@ static Property pflash_cfi01_properties[] = {
     /* num-blocks is the number of blocks actually visible to the guest,
      * ie the total size of the device divided by the sector length.
      * If we're emulating flash devices wired in parallel the actual
-     * number of blocks per indvidual device will differ.
+     * number of blocks per individual device will differ.
      */
     DEFINE_PROP_UINT32("num-blocks", PFlashCFI01, nb_blocs, 0),
     DEFINE_PROP_UINT64("sector-length", PFlashCFI01, sector_len, 0),

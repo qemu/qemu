@@ -18,7 +18,6 @@
 #include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"
 #include "qos_fuzz.h"
-#include "fork_fuzz.h"
 
 
 #define I440FX_PCI_HOST_BRIDGE_CFG 0xcf8
@@ -89,6 +88,7 @@ static void i440fx_fuzz_qtest(QTestState *s,
                               size_t Size)
 {
     ioport_fuzz_qtest(s, Data, Size);
+    fuzz_reset(s);
 }
 
 static void pciconfig_fuzz_qos(QTestState *s, QPCIBus *bus,
@@ -145,17 +145,6 @@ static void i440fx_fuzz_qos(QTestState *s,
     pciconfig_fuzz_qos(s, bus, Data, Size);
 }
 
-static void i440fx_fuzz_qos_fork(QTestState *s,
-        const unsigned char *Data, size_t Size) {
-    if (fork() == 0) {
-        i440fx_fuzz_qos(s, Data, Size);
-        _Exit(0);
-    } else {
-        flush_events(s);
-        wait(NULL);
-    }
-}
-
 static const char *i440fx_qtest_argv = TARGET_NAME " -machine accel=qtest"
                                        " -m 0 -display none";
 static GString *i440fx_argv(FuzzTarget *t)
@@ -163,10 +152,6 @@ static GString *i440fx_argv(FuzzTarget *t)
     return g_string_new(i440fx_qtest_argv);
 }
 
-static void fork_init(void)
-{
-    counter_shm_init();
-}
 
 static void register_pci_fuzz_targets(void)
 {
@@ -178,16 +163,6 @@ static void register_pci_fuzz_targets(void)
                 .get_init_cmdline = i440fx_argv,
                 .fuzz = i440fx_fuzz_qtest});
 
-    /* Uses libqos and forks to prevent state leakage */
-    fuzz_add_qos_target(&(FuzzTarget){
-                .name = "i440fx-qos-fork-fuzz",
-                .description = "Fuzz the i440fx using raw qtest commands and "
-                               "rebooting after each run",
-                .pre_vm_init = &fork_init,
-                .fuzz = i440fx_fuzz_qos_fork,},
-                "i440FX-pcihost",
-                &(QOSGraphTestOptions){}
-                );
 
     /*
      * Uses libqos. Doesn't do anything to reset state. Note that if we were to

@@ -335,10 +335,7 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
     }
     qemu_printf(" PPR 0x%02x\n", apic_get_ppr(s));
 }
-#else
-void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
-{
-}
+
 #endif /* !CONFIG_USER_ONLY */
 
 #define DUMP_CODE_BYTES_TOTAL    50

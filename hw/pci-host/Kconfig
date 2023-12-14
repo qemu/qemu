@@ -73,6 +73,11 @@ config SH_PCI
     bool
     select PCI
 
+config ARTICIA
+    bool
+    select PCI
+    select I8259
+
 config MV64361
     bool
     select PCI
@@ -81,3 +86,13 @@ config MV64361
 config DINO
     bool
     select PCI
+
+config ASTRO
+    bool
+    select PCI
+
+config GT64120
+    bool
+    select PCI
+    select EMPTY_SLOT
+    select I8259

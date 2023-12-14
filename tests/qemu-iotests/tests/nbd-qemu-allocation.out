@@ -11,22 +11,23 @@ wrote 2097152/2097152 bytes at offset 1048576
 
 === Check allocation over NBD ===
 
-[{ "start": 0, "length": 1048576, "depth": 1, "present": true, "zero": false, "data": true, "offset": 327680},
-{ "start": 1048576, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680},
-{ "start": 3145728, "length": 1048576, "depth": 1, "present": false, "zero": true, "data": false}]
+[{ "start": 0, "length": 1048576, "depth": 1, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680},
+{ "start": 1048576, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": 327680},
+{ "start": 3145728, "length": 1048576, "depth": 1, "present": false, "zero": true, "data": false, "compressed": false}]
 exports available: 1
  export: ''
   size:  4194304
-  flags: 0x48f ( readonly flush fua df cache )
+  flags: 0x148f ( readonly flush fua df cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:allocation-depth
-[{ "start": 0, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 3145728, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET}]
-[{ "start": 0, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": true, "offset": OFFSET},
-{ "start": 1048576, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 3145728, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 3145728, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 1048576, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 3145728, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
 *** done

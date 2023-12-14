@@ -15,6 +15,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/linux-boot-if.h"
 #include "sysemu/kvm.h"
+#include "sysemu/tcg.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/boards.h"
@@ -58,26 +59,6 @@ AddressSpace *arm_boot_address_space(ARMCPU *cpu,
 
     return cpu_get_address_space(cs, asidx);
 }
-
-typedef enum {
-    FIXUP_NONE = 0,     /* do nothing */
-    FIXUP_TERMINATOR,   /* end of insns */
-    FIXUP_BOARDID,      /* overwrite with board ID number */
-    FIXUP_BOARD_SETUP,  /* overwrite with board specific setup code address */
-    FIXUP_ARGPTR_LO,    /* overwrite with pointer to kernel args */
-    FIXUP_ARGPTR_HI,    /* overwrite with pointer to kernel args (high half) */
-    FIXUP_ENTRYPOINT_LO, /* overwrite with kernel entry point */
-    FIXUP_ENTRYPOINT_HI, /* overwrite with kernel entry point (high half) */
-    FIXUP_GIC_CPU_IF,   /* overwrite with GIC CPU interface address */
-    FIXUP_BOOTREG,      /* overwrite with boot register address */
-    FIXUP_DSB,          /* overwrite with correct DSB insn for cpu */
-    FIXUP_MAX,
-} FixupType;
-
-typedef struct ARMInsnFixup {
-    uint32_t insn;
-    FixupType fixup;
-} ARMInsnFixup;
 
 static const ARMInsnFixup bootloader_aarch64[] = {
     { 0x580000c0 }, /* ldr x0, arg ; Load the lower 32-bits of DTB */
@@ -149,9 +130,10 @@ static const ARMInsnFixup smpboot[] = {
     { 0, FIXUP_TERMINATOR }
 };
 
-static void write_bootloader(const char *name, hwaddr addr,
-                             const ARMInsnFixup *insns, uint32_t *fixupcontext,
-                             AddressSpace *as)
+void arm_write_bootloader(const char *name,
+                          AddressSpace *as, hwaddr addr,
+                          const ARMInsnFixup *insns,
+                          const uint32_t *fixupcontext)
 {
     /* Fix up the specified bootloader fragment and write it into
      * guest memory using rom_add_blob_fixed(). fixupcontext is
@@ -213,8 +195,8 @@ static void default_write_secondary(ARMCPU *cpu,
         fixupcontext[FIXUP_DSB] = CP15_DSB_INSN;
     }
 
-    write_bootloader("smpboot", info->smp_loader_start,
-                     smpboot, fixupcontext, as);
+    arm_write_bootloader("smpboot", as, info->smp_loader_start,
+                         smpboot, fixupcontext);
 }
 
 void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
@@ -656,15 +638,17 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     }
 
     if (binfo->initrd_size) {
-        rc = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                                   binfo->initrd_start);
+        rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-start",
+                                          acells, binfo->initrd_start);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
             goto fail;
         }
 
-        rc = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                                   binfo->initrd_start + binfo->initrd_size);
+        rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-end",
+                                          acells,
+                                          binfo->initrd_start +
+                                          binfo->initrd_size);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
             goto fail;
@@ -683,8 +667,13 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
      * the DTB is copied again upon reset, even if addr points into RAM.
      */
     rom_add_blob_fixed_as("dtb", fdt, size, addr, as);
+    qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
+                                       rom_ptr_for_as(as, addr, size));
 
-    g_free(fdt);
+    if (fdt != ms->fdt) {
+        g_free(ms->fdt);
+        ms->fdt = fdt;
+    }
 
     return size;
 
@@ -733,70 +722,34 @@ static void do_cpu_reset(void *opaque)
 
             cpu_set_pc(cs, entry);
         } else {
-            /* If we are booting Linux then we need to check whether we are
-             * booting into secure or non-secure state and adjust the state
-             * accordingly.  Out of reset, ARM is defined to be in secure state
-             * (SCR.NS = 0), we change that here if non-secure boot has been
-             * requested.
+            /*
+             * If we are booting Linux then we might need to do so at:
+             *  - AArch64 NS EL2 or NS EL1
+             *  - AArch32 Secure SVC (EL3)
+             *  - AArch32 NS Hyp (EL2)
+             *  - AArch32 NS SVC (EL1)
+             * Configure the CPU in the way boot firmware would do to
+             * drop us down to the appropriate level.
              */
-            if (arm_feature(env, ARM_FEATURE_EL3)) {
-                /* AArch64 is defined to come out of reset into EL3 if enabled.
-                 * If we are booting Linux then we need to adjust our EL as
-                 * Linux expects us to be in EL2 or EL1.  AArch32 resets into
-                 * SVC, which Linux expects, so no privilege/exception level to
-                 * adjust.
-                 */
-                if (env->aarch64) {
-                    env->cp15.scr_el3 |= SCR_RW;
-                    if (arm_feature(env, ARM_FEATURE_EL2)) {
-                        env->cp15.hcr_el2 |= HCR_RW;
-                        env->pstate = PSTATE_MODE_EL2h;
-                    } else {
-                        env->pstate = PSTATE_MODE_EL1h;
-                    }
-                    if (cpu_isar_feature(aa64_pauth, cpu)) {
-                        env->cp15.scr_el3 |= SCR_API | SCR_APK;
-                    }
-                    if (cpu_isar_feature(aa64_mte, cpu)) {
-                        env->cp15.scr_el3 |= SCR_ATA;
-                    }
-                    if (cpu_isar_feature(aa64_sve, cpu)) {
-                        env->cp15.cptr_el[3] |= R_CPTR_EL3_EZ_MASK;
-                    }
-                    /* AArch64 kernels never boot in secure mode */
-                    assert(!info->secure_boot);
-                    /* This hook is only supported for AArch32 currently:
-                     * bootloader_aarch64[] will not call the hook, and
-                     * the code above has already dropped us into EL2 or EL1.
-                     */
-                    assert(!info->secure_board_setup);
-                }
+            int target_el = arm_feature(env, ARM_FEATURE_EL2) ? 2 : 1;
 
-                if (arm_feature(env, ARM_FEATURE_EL2)) {
-                    /* If we have EL2 then Linux expects the HVC insn to work */
-                    env->cp15.scr_el3 |= SCR_HCE;
-                }
-
-                /* Set to non-secure if not a secure boot */
-                if (!info->secure_boot &&
-                    (cs != first_cpu || !info->secure_board_setup)) {
-                    /* Linux expects non-secure state */
-                    env->cp15.scr_el3 |= SCR_NS;
-                    /* Set NSACR.{CP11,CP10} so NS can access the FPU */
-                    env->cp15.nsacr |= 3 << 10;
-                }
-            }
-
-            if (!env->aarch64 && !info->secure_boot &&
-                arm_feature(env, ARM_FEATURE_EL2)) {
+            if (env->aarch64) {
                 /*
-                 * This is an AArch32 boot not to Secure state, and
-                 * we have Hyp mode available, so boot the kernel into
-                 * Hyp mode. This is not how the CPU comes out of reset,
-                 * so we need to manually put it there.
+                 * AArch64 kernels never boot in secure mode, and we don't
+                 * support the secure_board_setup hook for AArch64.
                  */
-                cpsr_write(env, ARM_CPU_MODE_HYP, CPSR_M, CPSRWriteRaw);
+                assert(!info->secure_boot);
+                assert(!info->secure_board_setup);
+            } else {
+                if (arm_feature(env, ARM_FEATURE_EL3) &&
+                    (info->secure_boot ||
+                     (info->secure_board_setup && cs == first_cpu))) {
+                    /* Start this CPU in Secure SVC */
+                    target_el = 3;
+                }
             }
+
+            arm_emulate_firmware_reset(cs, target_el);
 
             if (cs == first_cpu) {
                 AddressSpace *as = arm_boot_address_space(cpu, info);
@@ -814,57 +767,11 @@ static void do_cpu_reset(void *opaque)
                 info->secondary_cpu_reset_hook(cpu, info);
             }
         }
-        arm_rebuild_hflags(env);
-    }
-}
 
-/**
- * load_image_to_fw_cfg() - Load an image file into an fw_cfg entry identified
- *                          by key.
- * @fw_cfg:         The firmware config instance to store the data in.
- * @size_key:       The firmware config key to store the size of the loaded
- *                  data under, with fw_cfg_add_i32().
- * @data_key:       The firmware config key to store the loaded data under,
- *                  with fw_cfg_add_bytes().
- * @image_name:     The name of the image file to load. If it is NULL, the
- *                  function returns without doing anything.
- * @try_decompress: Whether the image should be decompressed (gunzipped) before
- *                  adding it to fw_cfg. If decompression fails, the image is
- *                  loaded as-is.
- *
- * In case of failure, the function prints an error message to stderr and the
- * process exits with status 1.
- */
-static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
-                                 uint16_t data_key, const char *image_name,
-                                 bool try_decompress)
-{
-    size_t size = -1;
-    uint8_t *data;
-
-    if (image_name == NULL) {
-        return;
-    }
-
-    if (try_decompress) {
-        size = load_image_gzipped_buffer(image_name,
-                                         LOAD_IMAGE_MAX_GUNZIP_BYTES, &data);
-    }
-
-    if (size == (size_t)-1) {
-        gchar *contents;
-        gsize length;
-
-        if (!g_file_get_contents(image_name, &contents, &length, NULL)) {
-            error_report("failed to load \"%s\"", image_name);
-            exit(1);
+        if (tcg_enabled()) {
+            arm_rebuild_hflags(env);
         }
-        size = length;
-        data = (uint8_t *)contents;
     }
-
-    fw_cfg_add_i32(fw_cfg, size_key, size);
-    fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
 static int do_arm_linux_init(Object *obj, void *opaque)
@@ -958,6 +865,12 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
             return -1;
         }
         size = len;
+
+        /* Unpack the image if it is a EFI zboot image */
+        if (unpack_efi_zboot_image(&buffer, &size) < 0) {
+            g_free(buffer);
+            return -1;
+        }
     }
 
     /* check the arm64 magic header value -- very old kernels may not have it */
@@ -1209,8 +1122,8 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         fixupcontext[FIXUP_ENTRYPOINT_LO] = entry;
         fixupcontext[FIXUP_ENTRYPOINT_HI] = entry >> 32;
 
-        write_bootloader("bootloader", info->loader_start,
-                         primary_loader, fixupcontext, as);
+        arm_write_bootloader("bootloader", as, info->loader_start,
+                             primary_loader, fixupcontext);
 
         if (info->write_board_setup) {
             info->write_board_setup(cpu, info);

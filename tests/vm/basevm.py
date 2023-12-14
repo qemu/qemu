@@ -27,6 +27,7 @@ import shutil
 import multiprocessing
 import traceback
 import shlex
+import json
 
 from qemu.machine import QEMUMachine
 from qemu.utils import get_info_usernet_hostfwd_port, kvm_available
@@ -233,7 +234,8 @@ class BaseVM(object):
                    "-o", "UserKnownHostsFile=" + os.devnull,
                    "-o",
                    "ConnectTimeout={}".format(self._config["ssh_timeout"]),
-                   "-p", str(self.ssh_port), "-i", self._ssh_tmp_key_file]
+                   "-p", str(self.ssh_port), "-i", self._ssh_tmp_key_file,
+                   "-o", "IdentitiesOnly=yes"]
         # If not in debug mode, set ssh to quiet mode to
         # avoid printing the results of commands.
         if not self.debug:
@@ -310,8 +312,8 @@ class BaseVM(object):
         self._guest = guest
         # Init console so we can start consuming the chars.
         self.console_init()
-        usernet_info = guest.qmp("human-monitor-command",
-                                 command_line="info usernet").get("return")
+        usernet_info = guest.cmd("human-monitor-command",
+                                 command_line="info usernet")
         self.ssh_port = get_info_usernet_hostfwd_port(usernet_info)
         if not self.ssh_port:
             raise Exception("Cannot find ssh port from 'info usernet':\n%s" % \
@@ -329,8 +331,8 @@ class BaseVM(object):
     def console_log(self, text):
         for line in re.split("[\r\n]", text):
             # filter out terminal escape sequences
-            line = re.sub("\x1b\[[0-9;?]*[a-zA-Z]", "", line)
-            line = re.sub("\x1b\([0-9;?]*[a-zA-Z]", "", line)
+            line = re.sub("\x1b\\[[0-9;?]*[a-zA-Z]", "", line)
+            line = re.sub("\x1b\\([0-9;?]*[a-zA-Z]", "", line)
             # replace unprintable chars
             line = re.sub("\x1b", "<esc>", line)
             line = re.sub("[\x00-\x1f]", ".", line)
@@ -500,6 +502,16 @@ class BaseVM(object):
                               stderr=self._stdout)
         return os.path.join(cidir, "cloud-init.iso")
 
+    def get_qemu_packages_from_lcitool_json(self, json_path=None):
+        """Parse a lcitool variables json file and return the PKGS list."""
+        if json_path is None:
+            json_path = os.path.join(
+                os.path.dirname(__file__), "generated", self.name + ".json"
+            )
+        with open(json_path, "r") as fh:
+            return json.load(fh)["pkgs"]
+
+
 def get_qemu_path(arch, build_path=None):
     """Fetch the path to the qemu binary."""
     # If QEMU environment variable set, it takes precedence
@@ -518,7 +530,7 @@ def get_qemu_version(qemu_path):
        and return the major number."""
     output = subprocess.check_output([qemu_path, '--version'])
     version_line = output.decode("utf-8")
-    version_num = re.split(' |\(', version_line)[3].split('.')[0]
+    version_num = re.split(r' |\(', version_line)[3].split('.')[0]
     return int(version_num)
 
 def parse_config(config, args):
@@ -568,8 +580,7 @@ def parse_args(vmcls):
                 # more cores. but only up to a reasonable limit. User
                 # can always override these limits with --jobs.
                 return min(multiprocessing.cpu_count() // 2, 8)
-        else:
-            return 1
+        return 1
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

@@ -34,35 +34,75 @@ typedef enum SMMUTranslationStatus {
 /* MMIO Registers */
 
 REG32(IDR0,                0x0)
+    FIELD(IDR0, S2P,         0 , 1)
     FIELD(IDR0, S1P,         1 , 1)
     FIELD(IDR0, TTF,         2 , 2)
     FIELD(IDR0, COHACC,      4 , 1)
+    FIELD(IDR0, BTM,         5 , 1)
+    FIELD(IDR0, HTTU,        6 , 2)
+    FIELD(IDR0, DORMHINT,    8 , 1)
+    FIELD(IDR0, HYP,         9 , 1)
+    FIELD(IDR0, ATS,         10, 1)
+    FIELD(IDR0, NS1ATS,      11, 1)
     FIELD(IDR0, ASID16,      12, 1)
+    FIELD(IDR0, MSI,         13, 1)
+    FIELD(IDR0, SEV,         14, 1)
+    FIELD(IDR0, ATOS,        15, 1)
+    FIELD(IDR0, PRI,         16, 1)
+    FIELD(IDR0, VMW,         17, 1)
+    FIELD(IDR0, VMID16,      18, 1)
+    FIELD(IDR0, CD2L,        19, 1)
+    FIELD(IDR0, VATOS,       20, 1)
     FIELD(IDR0, TTENDIAN,    21, 2)
+    FIELD(IDR0, ATSRECERR,   23, 1)
     FIELD(IDR0, STALL_MODEL, 24, 2)
     FIELD(IDR0, TERM_MODEL,  26, 1)
     FIELD(IDR0, STLEVEL,     27, 2)
+    FIELD(IDR0, RME_IMPL,    30, 1)
 
 REG32(IDR1,                0x4)
     FIELD(IDR1, SIDSIZE,      0 , 6)
+    FIELD(IDR1, SSIDSIZE,     6 , 5)
+    FIELD(IDR1, PRIQS,        11, 5)
     FIELD(IDR1, EVENTQS,      16, 5)
     FIELD(IDR1, CMDQS,        21, 5)
+    FIELD(IDR1, ATTR_PERMS_OVR, 26, 1)
+    FIELD(IDR1, ATTR_TYPES_OVR, 27, 1)
+    FIELD(IDR1, REL,          28, 1)
+    FIELD(IDR1, QUEUES_PRESET, 29, 1)
+    FIELD(IDR1, TABLES_PRESET, 30, 1)
+    FIELD(IDR1, ECMDQ,        31, 1)
 
 #define SMMU_IDR1_SIDSIZE 16
 #define SMMU_CMDQS   19
 #define SMMU_EVENTQS 19
 
 REG32(IDR2,                0x8)
+     FIELD(IDR2, BA_VATOS, 0, 10)
+
 REG32(IDR3,                0xc)
      FIELD(IDR3, HAD,         2, 1);
+     FIELD(IDR3, PBHA,        3, 1);
+     FIELD(IDR3, XNX,         4, 1);
+     FIELD(IDR3, PPS,         5, 1);
+     FIELD(IDR3, MPAM,        7, 1);
+     FIELD(IDR3, FWB,         8, 1);
+     FIELD(IDR3, STT,         9, 1);
      FIELD(IDR3, RIL,        10, 1);
      FIELD(IDR3, BBML,       11, 2);
+     FIELD(IDR3, E0PD,       13, 1);
+     FIELD(IDR3, PTWNNC,     14, 1);
+     FIELD(IDR3, DPT,        15, 1);
+
 REG32(IDR4,                0x10)
+
 REG32(IDR5,                0x14)
      FIELD(IDR5, OAS,         0, 3);
      FIELD(IDR5, GRAN4K,      4, 1);
      FIELD(IDR5, GRAN16K,     5, 1);
      FIELD(IDR5, GRAN64K,     6, 1);
+     FIELD(IDR5, VAX,        10, 2);
+     FIELD(IDR5, STALL_MAX,  16, 16);
 
 #define SMMU_IDR5_OAS 4
 
@@ -79,6 +119,13 @@ REG32(CR0ACK,              0x24)
 REG32(CR1,                 0x28)
 REG32(CR2,                 0x2c)
 REG32(STATUSR,             0x40)
+REG32(GBPA,                0x44)
+    FIELD(GBPA, ABORT,        20, 1)
+    FIELD(GBPA, UPDATE,       31, 1)
+
+/* Use incoming. */
+#define SMMU_GBPA_RESET_VAL 0x1000
+
 REG32(IRQ_CTRL,            0x50)
     FIELD(IRQ_CTRL, GERROR_IRQEN,        0, 1)
     FIELD(IRQ_CTRL, PRI_IRQEN,           1, 1)
@@ -319,12 +366,9 @@ enum { /* Command completion notification */
 #define CMD_TTL(x)          extract32((x)->word[2], 8 , 2)
 #define CMD_TG(x)           extract32((x)->word[2], 10, 2)
 #define CMD_STE_RANGE(x)    extract32((x)->word[2], 0 , 5)
-#define CMD_ADDR(x) ({                                        \
-            uint64_t high = (uint64_t)(x)->word[3];           \
-            uint64_t low = extract32((x)->word[2], 12, 20);    \
-            uint64_t addr = high << 32 | (low << 12);         \
-            addr;                                             \
-        })
+#define CMD_ADDR(x)                             \
+    (((uint64_t)((x)->word[3]) << 32) |         \
+     ((extract64((x)->word[2], 12, 20)) << 12))
 
 #define SMMU_FEATURE_2LVL_STE (1 << 0)
 
@@ -517,24 +561,20 @@ typedef struct CD {
 #define STE_S2TG(x)        extract32((x)->word[5], 14, 2)
 #define STE_S2PS(x)        extract32((x)->word[5], 16, 3)
 #define STE_S2AA64(x)      extract32((x)->word[5], 19, 1)
-#define STE_S2HD(x)        extract32((x)->word[5], 24, 1)
-#define STE_S2HA(x)        extract32((x)->word[5], 25, 1)
-#define STE_S2S(x)         extract32((x)->word[5], 26, 1)
-#define STE_CTXPTR(x)                                           \
-    ({                                                          \
-        unsigned long addr;                                     \
-        addr = (uint64_t)extract32((x)->word[1], 0, 16) << 32;  \
-        addr |= (uint64_t)((x)->word[0] & 0xffffffc0);          \
-        addr;                                                   \
-    })
+#define STE_S2ENDI(x)      extract32((x)->word[5], 20, 1)
+#define STE_S2AFFD(x)      extract32((x)->word[5], 21, 1)
+#define STE_S2HD(x)        extract32((x)->word[5], 23, 1)
+#define STE_S2HA(x)        extract32((x)->word[5], 24, 1)
+#define STE_S2S(x)         extract32((x)->word[5], 25, 1)
+#define STE_S2R(x)         extract32((x)->word[5], 26, 1)
 
-#define STE_S2TTB(x)                                            \
-    ({                                                          \
-        unsigned long addr;                                     \
-        addr = (uint64_t)extract32((x)->word[7], 0, 16) << 32;  \
-        addr |= (uint64_t)((x)->word[6] & 0xfffffff0);          \
-        addr;                                                   \
-    })
+#define STE_CTXPTR(x)                                   \
+    ((extract64((x)->word[1], 0, 16) << 32) |           \
+     ((x)->word[0] & 0xffffffc0))
+
+#define STE_S2TTB(x)                                    \
+    ((extract64((x)->word[7], 0, 16) << 32) |           \
+     ((x)->word[6] & 0xfffffff0))
 
 static inline int oas2bits(int oas_field)
 {
@@ -572,14 +612,10 @@ static inline int pa_range(STE *ste)
 
 #define CD_VALID(x)   extract32((x)->word[0], 31, 1)
 #define CD_ASID(x)    extract32((x)->word[1], 16, 16)
-#define CD_TTB(x, sel)                                      \
-    ({                                                      \
-        uint64_t hi, lo;                                    \
-        hi = extract32((x)->word[(sel) * 2 + 3], 0, 19);    \
-        hi <<= 32;                                          \
-        lo = (x)->word[(sel) * 2 + 2] & ~0xfULL;            \
-        hi | lo;                                            \
-    })
+#define CD_TTB(x, sel)                                          \
+    ((extract64((x)->word[(sel) * 2 + 3], 0, 19) << 32) |       \
+     ((x)->word[(sel) * 2 + 2] & ~0xfULL))
+
 #define CD_HAD(x, sel)   extract32((x)->word[(sel) * 2 + 2], 1, 1)
 
 #define CD_TSZ(x, sel)   extract32((x)->word[0], (16 * (sel)) + 0, 6)

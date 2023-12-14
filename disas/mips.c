@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, see <http://www.gnu.org/licenses/>.  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "disas/dis-asm.h"
 
 /* mips.h.  Mips opcode list for GDB, the GNU debugger.
@@ -1334,9 +1335,9 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"balc",    "+p",       0xe8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
 {"bc",      "+p",       0xc8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
 {"jic",     "t,o",      0xd8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
-{"beqzc",   "s,+p",     0xd8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"beqzc",   "s,+q",     0xd8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
 {"jialc",   "t,o",      0xf8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
-{"bnezc",   "s,+p",     0xf8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"bnezc",   "s,+q",     0xf8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
 {"beqzalc", "s,t,p",    0x20000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
 {"bovc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
 {"beqc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
@@ -4458,6 +4459,13 @@ print_insn_args (const char *d,
                 if (delta & 0x2000000) {
                     delta |= ~0x3FFFFFF;
                 }
+                info->target = (delta << 2) + pc + INSNLEN;
+                (*info->print_address_func) (info->target, info);
+                break;
+
+            case 'q':
+                /* Sign extend the displacement with 21 bits.  */
+                delta = sextract32(l, OP_SH_DELTA, 21);
                 info->target = (delta << 2) + pc + INSNLEN;
                 (*info->print_address_func) (info->target, info);
                 break;

@@ -23,257 +23,45 @@
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
-#include "exec/cpu_ldst.h"
+#include "tcg/tcg-op-gvec.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
 #include "exec/log.h"
 
-/* Since we have a distinction between register size and address size,
-   we need to redefine all of these.  */
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
-#undef TCGv
+/* Choose to use explicit sizes within this file. */
 #undef tcg_temp_new
-#undef tcg_global_mem_new
-#undef tcg_temp_local_new
-#undef tcg_temp_free
-
-#if TARGET_LONG_BITS == 64
-#define TCGv_tl              TCGv_i64
-#define tcg_temp_new_tl      tcg_temp_new_i64
-#define tcg_temp_free_tl     tcg_temp_free_i64
-#if TARGET_REGISTER_BITS == 64
-#define tcg_gen_extu_reg_tl  tcg_gen_mov_i64
-#else
-#define tcg_gen_extu_reg_tl  tcg_gen_extu_i32_i64
-#endif
-#else
-#define TCGv_tl              TCGv_i32
-#define tcg_temp_new_tl      tcg_temp_new_i32
-#define tcg_temp_free_tl     tcg_temp_free_i32
-#define tcg_gen_extu_reg_tl  tcg_gen_mov_i32
-#endif
-
-#if TARGET_REGISTER_BITS == 64
-#define TCGv_reg             TCGv_i64
-
-#define tcg_temp_new         tcg_temp_new_i64
-#define tcg_global_mem_new   tcg_global_mem_new_i64
-#define tcg_temp_local_new   tcg_temp_local_new_i64
-#define tcg_temp_free        tcg_temp_free_i64
-
-#define tcg_gen_movi_reg     tcg_gen_movi_i64
-#define tcg_gen_mov_reg      tcg_gen_mov_i64
-#define tcg_gen_ld8u_reg     tcg_gen_ld8u_i64
-#define tcg_gen_ld8s_reg     tcg_gen_ld8s_i64
-#define tcg_gen_ld16u_reg    tcg_gen_ld16u_i64
-#define tcg_gen_ld16s_reg    tcg_gen_ld16s_i64
-#define tcg_gen_ld32u_reg    tcg_gen_ld32u_i64
-#define tcg_gen_ld32s_reg    tcg_gen_ld32s_i64
-#define tcg_gen_ld_reg       tcg_gen_ld_i64
-#define tcg_gen_st8_reg      tcg_gen_st8_i64
-#define tcg_gen_st16_reg     tcg_gen_st16_i64
-#define tcg_gen_st32_reg     tcg_gen_st32_i64
-#define tcg_gen_st_reg       tcg_gen_st_i64
-#define tcg_gen_add_reg      tcg_gen_add_i64
-#define tcg_gen_addi_reg     tcg_gen_addi_i64
-#define tcg_gen_sub_reg      tcg_gen_sub_i64
-#define tcg_gen_neg_reg      tcg_gen_neg_i64
-#define tcg_gen_subfi_reg    tcg_gen_subfi_i64
-#define tcg_gen_subi_reg     tcg_gen_subi_i64
-#define tcg_gen_and_reg      tcg_gen_and_i64
-#define tcg_gen_andi_reg     tcg_gen_andi_i64
-#define tcg_gen_or_reg       tcg_gen_or_i64
-#define tcg_gen_ori_reg      tcg_gen_ori_i64
-#define tcg_gen_xor_reg      tcg_gen_xor_i64
-#define tcg_gen_xori_reg     tcg_gen_xori_i64
-#define tcg_gen_not_reg      tcg_gen_not_i64
-#define tcg_gen_shl_reg      tcg_gen_shl_i64
-#define tcg_gen_shli_reg     tcg_gen_shli_i64
-#define tcg_gen_shr_reg      tcg_gen_shr_i64
-#define tcg_gen_shri_reg     tcg_gen_shri_i64
-#define tcg_gen_sar_reg      tcg_gen_sar_i64
-#define tcg_gen_sari_reg     tcg_gen_sari_i64
-#define tcg_gen_brcond_reg   tcg_gen_brcond_i64
-#define tcg_gen_brcondi_reg  tcg_gen_brcondi_i64
-#define tcg_gen_setcond_reg  tcg_gen_setcond_i64
-#define tcg_gen_setcondi_reg tcg_gen_setcondi_i64
-#define tcg_gen_mul_reg      tcg_gen_mul_i64
-#define tcg_gen_muli_reg     tcg_gen_muli_i64
-#define tcg_gen_div_reg      tcg_gen_div_i64
-#define tcg_gen_rem_reg      tcg_gen_rem_i64
-#define tcg_gen_divu_reg     tcg_gen_divu_i64
-#define tcg_gen_remu_reg     tcg_gen_remu_i64
-#define tcg_gen_discard_reg  tcg_gen_discard_i64
-#define tcg_gen_trunc_reg_i32 tcg_gen_extrl_i64_i32
-#define tcg_gen_trunc_i64_reg tcg_gen_mov_i64
-#define tcg_gen_extu_i32_reg tcg_gen_extu_i32_i64
-#define tcg_gen_ext_i32_reg  tcg_gen_ext_i32_i64
-#define tcg_gen_extu_reg_i64 tcg_gen_mov_i64
-#define tcg_gen_ext_reg_i64  tcg_gen_mov_i64
-#define tcg_gen_ext8u_reg    tcg_gen_ext8u_i64
-#define tcg_gen_ext8s_reg    tcg_gen_ext8s_i64
-#define tcg_gen_ext16u_reg   tcg_gen_ext16u_i64
-#define tcg_gen_ext16s_reg   tcg_gen_ext16s_i64
-#define tcg_gen_ext32u_reg   tcg_gen_ext32u_i64
-#define tcg_gen_ext32s_reg   tcg_gen_ext32s_i64
-#define tcg_gen_bswap16_reg  tcg_gen_bswap16_i64
-#define tcg_gen_bswap32_reg  tcg_gen_bswap32_i64
-#define tcg_gen_bswap64_reg  tcg_gen_bswap64_i64
-#define tcg_gen_concat_reg_i64 tcg_gen_concat32_i64
-#define tcg_gen_andc_reg     tcg_gen_andc_i64
-#define tcg_gen_eqv_reg      tcg_gen_eqv_i64
-#define tcg_gen_nand_reg     tcg_gen_nand_i64
-#define tcg_gen_nor_reg      tcg_gen_nor_i64
-#define tcg_gen_orc_reg      tcg_gen_orc_i64
-#define tcg_gen_clz_reg      tcg_gen_clz_i64
-#define tcg_gen_ctz_reg      tcg_gen_ctz_i64
-#define tcg_gen_clzi_reg     tcg_gen_clzi_i64
-#define tcg_gen_ctzi_reg     tcg_gen_ctzi_i64
-#define tcg_gen_clrsb_reg    tcg_gen_clrsb_i64
-#define tcg_gen_ctpop_reg    tcg_gen_ctpop_i64
-#define tcg_gen_rotl_reg     tcg_gen_rotl_i64
-#define tcg_gen_rotli_reg    tcg_gen_rotli_i64
-#define tcg_gen_rotr_reg     tcg_gen_rotr_i64
-#define tcg_gen_rotri_reg    tcg_gen_rotri_i64
-#define tcg_gen_deposit_reg  tcg_gen_deposit_i64
-#define tcg_gen_deposit_z_reg tcg_gen_deposit_z_i64
-#define tcg_gen_extract_reg  tcg_gen_extract_i64
-#define tcg_gen_sextract_reg tcg_gen_sextract_i64
-#define tcg_gen_extract2_reg tcg_gen_extract2_i64
-#define tcg_const_reg        tcg_const_i64
-#define tcg_const_local_reg  tcg_const_local_i64
-#define tcg_constant_reg     tcg_constant_i64
-#define tcg_gen_movcond_reg  tcg_gen_movcond_i64
-#define tcg_gen_add2_reg     tcg_gen_add2_i64
-#define tcg_gen_sub2_reg     tcg_gen_sub2_i64
-#define tcg_gen_qemu_ld_reg  tcg_gen_qemu_ld_i64
-#define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i64
-#define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i64
-#define tcg_gen_trunc_reg_ptr   tcg_gen_trunc_i64_ptr
-#else
-#define TCGv_reg             TCGv_i32
-#define tcg_temp_new         tcg_temp_new_i32
-#define tcg_global_mem_new   tcg_global_mem_new_i32
-#define tcg_temp_local_new   tcg_temp_local_new_i32
-#define tcg_temp_free        tcg_temp_free_i32
-
-#define tcg_gen_movi_reg     tcg_gen_movi_i32
-#define tcg_gen_mov_reg      tcg_gen_mov_i32
-#define tcg_gen_ld8u_reg     tcg_gen_ld8u_i32
-#define tcg_gen_ld8s_reg     tcg_gen_ld8s_i32
-#define tcg_gen_ld16u_reg    tcg_gen_ld16u_i32
-#define tcg_gen_ld16s_reg    tcg_gen_ld16s_i32
-#define tcg_gen_ld32u_reg    tcg_gen_ld_i32
-#define tcg_gen_ld32s_reg    tcg_gen_ld_i32
-#define tcg_gen_ld_reg       tcg_gen_ld_i32
-#define tcg_gen_st8_reg      tcg_gen_st8_i32
-#define tcg_gen_st16_reg     tcg_gen_st16_i32
-#define tcg_gen_st32_reg     tcg_gen_st32_i32
-#define tcg_gen_st_reg       tcg_gen_st_i32
-#define tcg_gen_add_reg      tcg_gen_add_i32
-#define tcg_gen_addi_reg     tcg_gen_addi_i32
-#define tcg_gen_sub_reg      tcg_gen_sub_i32
-#define tcg_gen_neg_reg      tcg_gen_neg_i32
-#define tcg_gen_subfi_reg    tcg_gen_subfi_i32
-#define tcg_gen_subi_reg     tcg_gen_subi_i32
-#define tcg_gen_and_reg      tcg_gen_and_i32
-#define tcg_gen_andi_reg     tcg_gen_andi_i32
-#define tcg_gen_or_reg       tcg_gen_or_i32
-#define tcg_gen_ori_reg      tcg_gen_ori_i32
-#define tcg_gen_xor_reg      tcg_gen_xor_i32
-#define tcg_gen_xori_reg     tcg_gen_xori_i32
-#define tcg_gen_not_reg      tcg_gen_not_i32
-#define tcg_gen_shl_reg      tcg_gen_shl_i32
-#define tcg_gen_shli_reg     tcg_gen_shli_i32
-#define tcg_gen_shr_reg      tcg_gen_shr_i32
-#define tcg_gen_shri_reg     tcg_gen_shri_i32
-#define tcg_gen_sar_reg      tcg_gen_sar_i32
-#define tcg_gen_sari_reg     tcg_gen_sari_i32
-#define tcg_gen_brcond_reg   tcg_gen_brcond_i32
-#define tcg_gen_brcondi_reg  tcg_gen_brcondi_i32
-#define tcg_gen_setcond_reg  tcg_gen_setcond_i32
-#define tcg_gen_setcondi_reg tcg_gen_setcondi_i32
-#define tcg_gen_mul_reg      tcg_gen_mul_i32
-#define tcg_gen_muli_reg     tcg_gen_muli_i32
-#define tcg_gen_div_reg      tcg_gen_div_i32
-#define tcg_gen_rem_reg      tcg_gen_rem_i32
-#define tcg_gen_divu_reg     tcg_gen_divu_i32
-#define tcg_gen_remu_reg     tcg_gen_remu_i32
-#define tcg_gen_discard_reg  tcg_gen_discard_i32
-#define tcg_gen_trunc_reg_i32 tcg_gen_mov_i32
-#define tcg_gen_trunc_i64_reg tcg_gen_extrl_i64_i32
-#define tcg_gen_extu_i32_reg tcg_gen_mov_i32
-#define tcg_gen_ext_i32_reg  tcg_gen_mov_i32
-#define tcg_gen_extu_reg_i64 tcg_gen_extu_i32_i64
-#define tcg_gen_ext_reg_i64  tcg_gen_ext_i32_i64
-#define tcg_gen_ext8u_reg    tcg_gen_ext8u_i32
-#define tcg_gen_ext8s_reg    tcg_gen_ext8s_i32
-#define tcg_gen_ext16u_reg   tcg_gen_ext16u_i32
-#define tcg_gen_ext16s_reg   tcg_gen_ext16s_i32
-#define tcg_gen_ext32u_reg   tcg_gen_mov_i32
-#define tcg_gen_ext32s_reg   tcg_gen_mov_i32
-#define tcg_gen_bswap16_reg  tcg_gen_bswap16_i32
-#define tcg_gen_bswap32_reg  tcg_gen_bswap32_i32
-#define tcg_gen_concat_reg_i64 tcg_gen_concat_i32_i64
-#define tcg_gen_andc_reg     tcg_gen_andc_i32
-#define tcg_gen_eqv_reg      tcg_gen_eqv_i32
-#define tcg_gen_nand_reg     tcg_gen_nand_i32
-#define tcg_gen_nor_reg      tcg_gen_nor_i32
-#define tcg_gen_orc_reg      tcg_gen_orc_i32
-#define tcg_gen_clz_reg      tcg_gen_clz_i32
-#define tcg_gen_ctz_reg      tcg_gen_ctz_i32
-#define tcg_gen_clzi_reg     tcg_gen_clzi_i32
-#define tcg_gen_ctzi_reg     tcg_gen_ctzi_i32
-#define tcg_gen_clrsb_reg    tcg_gen_clrsb_i32
-#define tcg_gen_ctpop_reg    tcg_gen_ctpop_i32
-#define tcg_gen_rotl_reg     tcg_gen_rotl_i32
-#define tcg_gen_rotli_reg    tcg_gen_rotli_i32
-#define tcg_gen_rotr_reg     tcg_gen_rotr_i32
-#define tcg_gen_rotri_reg    tcg_gen_rotri_i32
-#define tcg_gen_deposit_reg  tcg_gen_deposit_i32
-#define tcg_gen_deposit_z_reg tcg_gen_deposit_z_i32
-#define tcg_gen_extract_reg  tcg_gen_extract_i32
-#define tcg_gen_sextract_reg tcg_gen_sextract_i32
-#define tcg_gen_extract2_reg tcg_gen_extract2_i32
-#define tcg_const_reg        tcg_const_i32
-#define tcg_const_local_reg  tcg_const_local_i32
-#define tcg_constant_reg     tcg_constant_i32
-#define tcg_gen_movcond_reg  tcg_gen_movcond_i32
-#define tcg_gen_add2_reg     tcg_gen_add2_i32
-#define tcg_gen_sub2_reg     tcg_gen_sub2_i32
-#define tcg_gen_qemu_ld_reg  tcg_gen_qemu_ld_i32
-#define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i32
-#define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i32
-#define tcg_gen_trunc_reg_ptr   tcg_gen_ext_i32_ptr
-#endif /* TARGET_REGISTER_BITS */
 
 typedef struct DisasCond {
     TCGCond c;
-    TCGv_reg a0, a1;
+    TCGv_i64 a0, a1;
 } DisasCond;
 
 typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
+    TCGOp *insn_start;
 
-    target_ureg iaoq_f;
-    target_ureg iaoq_b;
-    target_ureg iaoq_n;
-    TCGv_reg iaoq_n_var;
-
-    int ntempr, ntempl;
-    TCGv_reg tempr[8];
-    TCGv_tl  templ[4];
+    uint64_t iaoq_f;
+    uint64_t iaoq_b;
+    uint64_t iaoq_n;
+    TCGv_i64 iaoq_n_var;
 
     DisasCond null_cond;
     TCGLabel *null_lab;
+
+    TCGv_i64 zero;
 
     uint32_t insn;
     uint32_t tb_flags;
     int mmu_idx;
     int privilege;
     bool psw_n_nonzero;
+    bool is_pa20;
 
 #ifdef CONFIG_USER_ONLY
     MemOp unalign;
@@ -281,19 +69,24 @@ typedef struct DisasContext {
 } DisasContext;
 
 #ifdef CONFIG_USER_ONLY
-#define UNALIGN(C)  (C)->unalign
+#define UNALIGN(C)       (C)->unalign
+#define MMU_DISABLED(C)  false
 #else
-#define UNALIGN(C)  0
+#define UNALIGN(C)       MO_ALIGN
+#define MMU_DISABLED(C)  MMU_IDX_MMU_DISABLED((C)->mmu_idx)
 #endif
 
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
 static int expand_sm_imm(DisasContext *ctx, int val)
 {
-    if (val & PSW_SM_E) {
-        val = (val & ~PSW_SM_E) | PSW_E;
-    }
-    if (val & PSW_SM_W) {
-        val = (val & ~PSW_SM_W) | PSW_W;
+    /* Keep unimplemented bits disabled -- see cpu_hppa_put_psw. */
+    if (ctx->is_pa20) {
+        if (val & PSW_SM_W) {
+            val |= PSW_W;
+        }
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_G);
+    } else {
+        val &= ~(PSW_SM_W | PSW_SM_E | PSW_O);
     }
     return val;
 }
@@ -340,6 +133,23 @@ static int expand_shl11(DisasContext *ctx, int val)
     return val << 11;
 }
 
+static int assemble_6(DisasContext *ctx, int val)
+{
+    /*
+     * Officially, 32 * x + 32 - y.
+     * Here, x is already in bit 5, and y is [4:0].
+     * Since -y = ~y + 1, in 5 bits 32 - y => y ^ 31 + 1,
+     * with the overflow from bit 4 summing with x.
+     */
+    return (val ^ 31) + 1;
+}
+
+/* Translate CMPI doubleword conditions to standard. */
+static int cmpbid_c(DisasContext *ctx, int val)
+{
+    return val ? val : 4; /* 0 == "*<<" */
+}
+
 
 /* Include the auto-generated decoder.  */
 #include "decode-insns.c.inc"
@@ -358,26 +168,24 @@ static int expand_shl11(DisasContext *ctx, int val)
 #define DISAS_EXIT                  DISAS_TARGET_3
 
 /* global register indexes */
-static TCGv_reg cpu_gr[32];
+static TCGv_i64 cpu_gr[32];
 static TCGv_i64 cpu_sr[4];
 static TCGv_i64 cpu_srH;
-static TCGv_reg cpu_iaoq_f;
-static TCGv_reg cpu_iaoq_b;
+static TCGv_i64 cpu_iaoq_f;
+static TCGv_i64 cpu_iaoq_b;
 static TCGv_i64 cpu_iasq_f;
 static TCGv_i64 cpu_iasq_b;
-static TCGv_reg cpu_sar;
-static TCGv_reg cpu_psw_n;
-static TCGv_reg cpu_psw_v;
-static TCGv_reg cpu_psw_cb;
-static TCGv_reg cpu_psw_cb_msb;
-
-#include "exec/gen-icount.h"
+static TCGv_i64 cpu_sar;
+static TCGv_i64 cpu_psw_n;
+static TCGv_i64 cpu_psw_v;
+static TCGv_i64 cpu_psw_cb;
+static TCGv_i64 cpu_psw_cb_msb;
 
 void hppa_translate_init(void)
 {
 #define DEF_VAR(V)  { &cpu_##V, #V, offsetof(CPUHPPAState, V) }
 
-    typedef struct { TCGv_reg *var; const char *name; int ofs; } GlobalVar;
+    typedef struct { TCGv_i64 *var; const char *name; int ofs; } GlobalVar;
     static const GlobalVar vars[] = {
         { &cpu_sar, "sar", offsetof(CPUHPPAState, cr[CR_SAR]) },
         DEF_VAR(psw_n),
@@ -406,30 +214,37 @@ void hppa_translate_init(void)
 
     cpu_gr[0] = NULL;
     for (i = 1; i < 32; i++) {
-        cpu_gr[i] = tcg_global_mem_new(cpu_env,
+        cpu_gr[i] = tcg_global_mem_new(tcg_env,
                                        offsetof(CPUHPPAState, gr[i]),
                                        gr_names[i]);
     }
     for (i = 0; i < 4; i++) {
-        cpu_sr[i] = tcg_global_mem_new_i64(cpu_env,
+        cpu_sr[i] = tcg_global_mem_new_i64(tcg_env,
                                            offsetof(CPUHPPAState, sr[i]),
                                            sr_names[i]);
     }
-    cpu_srH = tcg_global_mem_new_i64(cpu_env,
+    cpu_srH = tcg_global_mem_new_i64(tcg_env,
                                      offsetof(CPUHPPAState, sr[4]),
                                      sr_names[4]);
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
         const GlobalVar *v = &vars[i];
-        *v->var = tcg_global_mem_new(cpu_env, v->ofs, v->name);
+        *v->var = tcg_global_mem_new(tcg_env, v->ofs, v->name);
     }
 
-    cpu_iasq_f = tcg_global_mem_new_i64(cpu_env,
+    cpu_iasq_f = tcg_global_mem_new_i64(tcg_env,
                                         offsetof(CPUHPPAState, iasq_f),
                                         "iasq_f");
-    cpu_iasq_b = tcg_global_mem_new_i64(cpu_env,
+    cpu_iasq_b = tcg_global_mem_new_i64(tcg_env,
                                         offsetof(CPUHPPAState, iasq_b),
                                         "iasq_b");
+}
+
+static void set_insn_breg(DisasContext *ctx, int breg)
+{
+    assert(ctx->insn_start != NULL);
+    tcg_set_insn_start_param(ctx->insn_start, 2, breg);
+    ctx->insn_start = NULL;
 }
 
 static DisasCond cond_make_f(void)
@@ -455,46 +270,42 @@ static DisasCond cond_make_n(void)
     return (DisasCond){
         .c = TCG_COND_NE,
         .a0 = cpu_psw_n,
-        .a1 = tcg_constant_reg(0)
+        .a1 = tcg_constant_i64(0)
     };
 }
 
-static DisasCond cond_make_0_tmp(TCGCond c, TCGv_reg a0)
+static DisasCond cond_make_tmp(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
     assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
-    return (DisasCond){
-        .c = c, .a0 = a0, .a1 = tcg_constant_reg(0)
-    };
+    return (DisasCond){ .c = c, .a0 = a0, .a1 = a1 };
 }
 
-static DisasCond cond_make_0(TCGCond c, TCGv_reg a0)
+static DisasCond cond_make_0_tmp(TCGCond c, TCGv_i64 a0)
 {
-    TCGv_reg tmp = tcg_temp_new();
-    tcg_gen_mov_reg(tmp, a0);
+    return cond_make_tmp(c, a0, tcg_constant_i64(0));
+}
+
+static DisasCond cond_make_0(TCGCond c, TCGv_i64 a0)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    tcg_gen_mov_i64(tmp, a0);
     return cond_make_0_tmp(c, tmp);
 }
 
-static DisasCond cond_make(TCGCond c, TCGv_reg a0, TCGv_reg a1)
+static DisasCond cond_make(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
-    DisasCond r = { .c = c };
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
 
-    assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
-    r.a0 = tcg_temp_new();
-    tcg_gen_mov_reg(r.a0, a0);
-    r.a1 = tcg_temp_new();
-    tcg_gen_mov_reg(r.a1, a1);
-
-    return r;
+    tcg_gen_mov_i64(t0, a0);
+    tcg_gen_mov_i64(t1, a1);
+    return cond_make_tmp(c, t0, t1);
 }
 
 static void cond_free(DisasCond *cond)
 {
     switch (cond->c) {
     default:
-        if (cond->a0 != cpu_psw_n) {
-            tcg_temp_free(cond->a0);
-        }
-        tcg_temp_free(cond->a1);
         cond->a0 = NULL;
         cond->a1 = NULL;
         /* fallthru */
@@ -506,60 +317,35 @@ static void cond_free(DisasCond *cond)
     }
 }
 
-static TCGv_reg get_temp(DisasContext *ctx)
-{
-    unsigned i = ctx->ntempr++;
-    g_assert(i < ARRAY_SIZE(ctx->tempr));
-    return ctx->tempr[i] = tcg_temp_new();
-}
-
-#ifndef CONFIG_USER_ONLY
-static TCGv_tl get_temp_tl(DisasContext *ctx)
-{
-    unsigned i = ctx->ntempl++;
-    g_assert(i < ARRAY_SIZE(ctx->templ));
-    return ctx->templ[i] = tcg_temp_new_tl();
-}
-#endif
-
-static TCGv_reg load_const(DisasContext *ctx, target_sreg v)
-{
-    TCGv_reg t = get_temp(ctx);
-    tcg_gen_movi_reg(t, v);
-    return t;
-}
-
-static TCGv_reg load_gpr(DisasContext *ctx, unsigned reg)
+static TCGv_i64 load_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0) {
-        TCGv_reg t = get_temp(ctx);
-        tcg_gen_movi_reg(t, 0);
-        return t;
+        return ctx->zero;
     } else {
         return cpu_gr[reg];
     }
 }
 
-static TCGv_reg dest_gpr(DisasContext *ctx, unsigned reg)
+static TCGv_i64 dest_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0 || ctx->null_cond.c != TCG_COND_NEVER) {
-        return get_temp(ctx);
+        return tcg_temp_new_i64();
     } else {
         return cpu_gr[reg];
     }
 }
 
-static void save_or_nullify(DisasContext *ctx, TCGv_reg dest, TCGv_reg t)
+static void save_or_nullify(DisasContext *ctx, TCGv_i64 dest, TCGv_i64 t)
 {
     if (ctx->null_cond.c != TCG_COND_NEVER) {
-        tcg_gen_movcond_reg(ctx->null_cond.c, dest, ctx->null_cond.a0,
+        tcg_gen_movcond_i64(ctx->null_cond.c, dest, ctx->null_cond.a0,
                             ctx->null_cond.a1, dest, t);
     } else {
-        tcg_gen_mov_reg(dest, t);
+        tcg_gen_mov_i64(dest, t);
     }
 }
 
-static void save_gpr(DisasContext *ctx, unsigned reg, TCGv_reg t)
+static void save_gpr(DisasContext *ctx, unsigned reg, TCGv_i64 t)
 {
     if (reg != 0) {
         save_or_nullify(ctx, cpu_gr[reg], t);
@@ -577,7 +363,7 @@ static void save_gpr(DisasContext *ctx, unsigned reg, TCGv_reg t)
 static TCGv_i32 load_frw_i32(unsigned rt)
 {
     TCGv_i32 ret = tcg_temp_new_i32();
-    tcg_gen_ld_i32(ret, cpu_env,
+    tcg_gen_ld_i32(ret, tcg_env,
                    offsetof(CPUHPPAState, fr[rt & 31])
                    + (rt & 32 ? LO_OFS : HI_OFS));
     return ret;
@@ -586,7 +372,9 @@ static TCGv_i32 load_frw_i32(unsigned rt)
 static TCGv_i32 load_frw0_i32(unsigned rt)
 {
     if (rt == 0) {
-        return tcg_const_i32(0);
+        TCGv_i32 ret = tcg_temp_new_i32();
+        tcg_gen_movi_i32(ret, 0);
+        return ret;
     } else {
         return load_frw_i32(rt);
     }
@@ -594,20 +382,20 @@ static TCGv_i32 load_frw0_i32(unsigned rt)
 
 static TCGv_i64 load_frw0_i64(unsigned rt)
 {
+    TCGv_i64 ret = tcg_temp_new_i64();
     if (rt == 0) {
-        return tcg_const_i64(0);
+        tcg_gen_movi_i64(ret, 0);
     } else {
-        TCGv_i64 ret = tcg_temp_new_i64();
-        tcg_gen_ld32u_i64(ret, cpu_env,
+        tcg_gen_ld32u_i64(ret, tcg_env,
                           offsetof(CPUHPPAState, fr[rt & 31])
                           + (rt & 32 ? LO_OFS : HI_OFS));
-        return ret;
     }
+    return ret;
 }
 
 static void save_frw_i32(unsigned rt, TCGv_i32 val)
 {
-    tcg_gen_st_i32(val, cpu_env,
+    tcg_gen_st_i32(val, tcg_env,
                    offsetof(CPUHPPAState, fr[rt & 31])
                    + (rt & 32 ? LO_OFS : HI_OFS));
 }
@@ -618,14 +406,16 @@ static void save_frw_i32(unsigned rt, TCGv_i32 val)
 static TCGv_i64 load_frd(unsigned rt)
 {
     TCGv_i64 ret = tcg_temp_new_i64();
-    tcg_gen_ld_i64(ret, cpu_env, offsetof(CPUHPPAState, fr[rt]));
+    tcg_gen_ld_i64(ret, tcg_env, offsetof(CPUHPPAState, fr[rt]));
     return ret;
 }
 
 static TCGv_i64 load_frd0(unsigned rt)
 {
     if (rt == 0) {
-        return tcg_const_i64(0);
+        TCGv_i64 ret = tcg_temp_new_i64();
+        tcg_gen_movi_i64(ret, 0);
+        return ret;
     } else {
         return load_frd(rt);
     }
@@ -633,7 +423,7 @@ static TCGv_i64 load_frd0(unsigned rt)
 
 static void save_frd(unsigned rt, TCGv_i64 val)
 {
-    tcg_gen_st_i64(val, cpu_env, offsetof(CPUHPPAState, fr[rt]));
+    tcg_gen_st_i64(val, tcg_env, offsetof(CPUHPPAState, fr[rt]));
 }
 
 static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
@@ -646,7 +436,7 @@ static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
     } else if (ctx->tb_flags & TB_FLAG_SR_SAME) {
         tcg_gen_mov_i64(dest, cpu_srH);
     } else {
-        tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUHPPAState, sr[reg]));
+        tcg_gen_ld_i64(dest, tcg_env, offsetof(CPUHPPAState, sr[reg]));
     }
 #endif
 }
@@ -663,18 +453,18 @@ static void nullify_over(DisasContext *ctx)
 
         /* If we're using PSW[N], copy it to a temp because... */
         if (ctx->null_cond.a0 == cpu_psw_n) {
-            ctx->null_cond.a0 = tcg_temp_new();
-            tcg_gen_mov_reg(ctx->null_cond.a0, cpu_psw_n);
+            ctx->null_cond.a0 = tcg_temp_new_i64();
+            tcg_gen_mov_i64(ctx->null_cond.a0, cpu_psw_n);
         }
         /* ... we clear it before branching over the implementation,
            so that (1) it's clear after nullifying this insn and
            (2) if this insn nullifies the next, PSW[N] is valid.  */
         if (ctx->psw_n_nonzero) {
             ctx->psw_n_nonzero = false;
-            tcg_gen_movi_reg(cpu_psw_n, 0);
+            tcg_gen_movi_i64(cpu_psw_n, 0);
         }
 
-        tcg_gen_brcond_reg(ctx->null_cond.c, ctx->null_cond.a0,
+        tcg_gen_brcond_i64(ctx->null_cond.c, ctx->null_cond.a0,
                            ctx->null_cond.a1, ctx->null_lab);
         cond_free(&ctx->null_cond);
     }
@@ -685,12 +475,12 @@ static void nullify_save(DisasContext *ctx)
 {
     if (ctx->null_cond.c == TCG_COND_NEVER) {
         if (ctx->psw_n_nonzero) {
-            tcg_gen_movi_reg(cpu_psw_n, 0);
+            tcg_gen_movi_i64(cpu_psw_n, 0);
         }
         return;
     }
     if (ctx->null_cond.a0 != cpu_psw_n) {
-        tcg_gen_setcond_reg(ctx->null_cond.c, cpu_psw_n,
+        tcg_gen_setcond_i64(ctx->null_cond.c, cpu_psw_n,
                             ctx->null_cond.a0, ctx->null_cond.a1);
         ctx->psw_n_nonzero = true;
     }
@@ -703,7 +493,7 @@ static void nullify_save(DisasContext *ctx)
 static void nullify_set(DisasContext *ctx, bool x)
 {
     if (ctx->psw_n_nonzero || x) {
-        tcg_gen_movi_reg(cpu_psw_n, x);
+        tcg_gen_movi_i64(cpu_psw_n, x);
     }
 }
 
@@ -746,29 +536,49 @@ static bool nullify_end(DisasContext *ctx)
     return true;
 }
 
-static void copy_iaoq_entry(TCGv_reg dest, target_ureg ival, TCGv_reg vval)
+static uint64_t gva_offset_mask(DisasContext *ctx)
 {
-    if (unlikely(ival == -1)) {
-        tcg_gen_mov_reg(dest, vval);
+    return (ctx->tb_flags & PSW_W
+            ? MAKE_64BIT_MASK(0, 62)
+            : MAKE_64BIT_MASK(0, 32));
+}
+
+static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
+                            uint64_t ival, TCGv_i64 vval)
+{
+    uint64_t mask = gva_offset_mask(ctx);
+
+    if (ival != -1) {
+        tcg_gen_movi_i64(dest, ival & mask);
+        return;
+    }
+    tcg_debug_assert(vval != NULL);
+
+    /*
+     * We know that the IAOQ is already properly masked.
+     * This optimization is primarily for "iaoq_f = iaoq_b".
+     */
+    if (vval == cpu_iaoq_f || vval == cpu_iaoq_b) {
+        tcg_gen_mov_i64(dest, vval);
     } else {
-        tcg_gen_movi_reg(dest, ival);
+        tcg_gen_andi_i64(dest, vval, mask);
     }
 }
 
-static inline target_ureg iaoq_dest(DisasContext *ctx, target_sreg disp)
+static inline uint64_t iaoq_dest(DisasContext *ctx, int64_t disp)
 {
     return ctx->iaoq_f + disp + 8;
 }
 
 static void gen_excp_1(int exception)
 {
-    gen_helper_excp(cpu_env, tcg_constant_i32(exception));
+    gen_helper_excp(tcg_env, tcg_constant_i32(exception));
 }
 
 static void gen_excp(DisasContext *ctx, int exception)
 {
-    copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
-    copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
+    copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
+    copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
     nullify_save(ctx);
     gen_excp_1(exception);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -777,8 +587,8 @@ static void gen_excp(DisasContext *ctx, int exception)
 static bool gen_excp_iir(DisasContext *ctx, int exc)
 {
     nullify_over(ctx);
-    tcg_gen_st_reg(tcg_constant_reg(ctx->insn),
-                   cpu_env, offsetof(CPUHPPAState, cr[CR_IIR]));
+    tcg_gen_st_i64(tcg_constant_i64(ctx->insn),
+                   tcg_env, offsetof(CPUHPPAState, cr[CR_IIR]));
     gen_excp(ctx, exc);
     return nullify_end(ctx);
 }
@@ -800,7 +610,7 @@ static bool gen_illegal(DisasContext *ctx)
     } while (0)
 #endif
 
-static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
+static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
     return translator_use_goto_tb(&ctx->base, dest);
 }
@@ -816,16 +626,16 @@ static bool use_nullify_skip(DisasContext *ctx)
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
-                        target_ureg f, target_ureg b)
+                        uint64_t f, uint64_t b)
 {
     if (f != -1 && b != -1 && use_goto_tb(ctx, f)) {
         tcg_gen_goto_tb(which);
-        tcg_gen_movi_reg(cpu_iaoq_f, f);
-        tcg_gen_movi_reg(cpu_iaoq_b, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f, NULL);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, b, NULL);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        copy_iaoq_entry(cpu_iaoq_f, f, cpu_iaoq_b);
-        copy_iaoq_entry(cpu_iaoq_b, b, ctx->iaoq_n_var);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f, cpu_iaoq_b);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, b, ctx->iaoq_n_var);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -840,27 +650,41 @@ static bool cond_need_cb(int c)
     return c == 4 || c == 5;
 }
 
+/* Need extensions from TCGv_i32 to TCGv_i64. */
+static bool cond_need_ext(DisasContext *ctx, bool d)
+{
+    return !(ctx->is_pa20 && d);
+}
+
 /*
  * Compute conditional for arithmetic.  See Page 5-3, Table 5-1, of
  * the Parisc 1.1 Architecture Reference Manual for details.
  */
 
-static DisasCond do_cond(unsigned cf, TCGv_reg res,
-                         TCGv_reg cb_msb, TCGv_reg sv)
+static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
+                         TCGv_i64 res, TCGv_i64 cb_msb, TCGv_i64 sv)
 {
     DisasCond cond;
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
     switch (cf >> 1) {
     case 0: /* Never / TR    (0 / 1) */
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
+        if (cond_need_ext(ctx, d)) {
+            tmp = tcg_temp_new_i64();
+            tcg_gen_ext32u_i64(tmp, res);
+            res = tmp;
+        }
         cond = cond_make_0(TCG_COND_EQ, res);
         break;
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
-        tmp = tcg_temp_new();
-        tcg_gen_xor_reg(tmp, res, sv);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_xor_i64(tmp, res, sv);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_ext32s_i64(tmp, tmp);
+        }
         cond = cond_make_0_tmp(TCG_COND_LT, tmp);
         break;
     case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
@@ -873,27 +697,42 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
          *   !(~(res ^ sv) >> 31) | !res
          *   !(~(res ^ sv) >> 31 & res)
          */
-        tmp = tcg_temp_new();
-        tcg_gen_eqv_reg(tmp, res, sv);
-        tcg_gen_sari_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
-        tcg_gen_and_reg(tmp, tmp, res);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_eqv_i64(tmp, res, sv);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_sextract_i64(tmp, tmp, 31, 1);
+            tcg_gen_and_i64(tmp, tmp, res);
+            tcg_gen_ext32u_i64(tmp, tmp);
+        } else {
+            tcg_gen_sari_i64(tmp, tmp, 63);
+            tcg_gen_and_i64(tmp, tmp, res);
+        }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 4: /* NUV / UV      (!C / C) */
+        /* Only bit 0 of cb_msb is ever set. */
         cond = cond_make_0(TCG_COND_EQ, cb_msb);
         break;
     case 5: /* ZNV / VNZ     (!C | Z / C & !Z) */
-        tmp = tcg_temp_new();
-        tcg_gen_neg_reg(tmp, cb_msb);
-        tcg_gen_and_reg(tmp, tmp, res);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_neg_i64(tmp, cb_msb);
+        tcg_gen_and_i64(tmp, tmp, res);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_ext32u_i64(tmp, tmp);
+        }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 6: /* SV / NSV      (V / !V) */
+        if (cond_need_ext(ctx, d)) {
+            tmp = tcg_temp_new_i64();
+            tcg_gen_ext32s_i64(tmp, sv);
+            sv = tmp;
+        }
         cond = cond_make_0(TCG_COND_LT, sv);
         break;
     case 7: /* OD / EV */
-        tmp = tcg_temp_new();
-        tcg_gen_andi_reg(tmp, res, 1);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_andi_i64(tmp, res, 1);
         cond = cond_make_0_tmp(TCG_COND_NE, tmp);
         break;
     default:
@@ -910,35 +749,55 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
    can use the inputs directly.  This can allow other computation to be
    deleted as unused.  */
 
-static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
-                             TCGv_reg in1, TCGv_reg in2, TCGv_reg sv)
+static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, bool d,
+                             TCGv_i64 res, TCGv_i64 in1,
+                             TCGv_i64 in2, TCGv_i64 sv)
 {
-    DisasCond cond;
+    TCGCond tc;
+    bool ext_uns;
 
     switch (cf >> 1) {
     case 1: /* = / <> */
-        cond = cond_make(TCG_COND_EQ, in1, in2);
+        tc = TCG_COND_EQ;
+        ext_uns = true;
         break;
     case 2: /* < / >= */
-        cond = cond_make(TCG_COND_LT, in1, in2);
+        tc = TCG_COND_LT;
+        ext_uns = false;
         break;
     case 3: /* <= / > */
-        cond = cond_make(TCG_COND_LE, in1, in2);
+        tc = TCG_COND_LE;
+        ext_uns = false;
         break;
     case 4: /* << / >>= */
-        cond = cond_make(TCG_COND_LTU, in1, in2);
+        tc = TCG_COND_LTU;
+        ext_uns = true;
         break;
     case 5: /* <<= / >> */
-        cond = cond_make(TCG_COND_LEU, in1, in2);
+        tc = TCG_COND_LEU;
+        ext_uns = true;
         break;
     default:
-        return do_cond(cf, res, NULL, sv);
-    }
-    if (cf & 1) {
-        cond.c = tcg_invert_cond(cond.c);
+        return do_cond(ctx, cf, d, res, NULL, sv);
     }
 
-    return cond;
+    if (cf & 1) {
+        tc = tcg_invert_cond(tc);
+    }
+    if (cond_need_ext(ctx, d)) {
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+
+        if (ext_uns) {
+            tcg_gen_ext32u_i64(t1, in1);
+            tcg_gen_ext32u_i64(t2, in2);
+        } else {
+            tcg_gen_ext32s_i64(t1, in1);
+            tcg_gen_ext32s_i64(t2, in2);
+        }
+        return cond_make_tmp(tc, t1, t2);
+    }
+    return cond_make(tc, in1, in2);
 }
 
 /*
@@ -950,8 +809,12 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
  * how cases c={2,3} are treated.
  */
 
-static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
+static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
+                             TCGv_i64 res)
 {
+    TCGCond tc;
+    bool ext_uns;
+
     switch (cf) {
     case 0:  /* never */
     case 9:  /* undef, C */
@@ -966,30 +829,55 @@ static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
         return cond_make_t();
 
     case 2:  /* == */
-        return cond_make_0(TCG_COND_EQ, res);
+        tc = TCG_COND_EQ;
+        ext_uns = true;
+        break;
     case 3:  /* <> */
-        return cond_make_0(TCG_COND_NE, res);
+        tc = TCG_COND_NE;
+        ext_uns = true;
+        break;
     case 4:  /* < */
-        return cond_make_0(TCG_COND_LT, res);
+        tc = TCG_COND_LT;
+        ext_uns = false;
+        break;
     case 5:  /* >= */
-        return cond_make_0(TCG_COND_GE, res);
+        tc = TCG_COND_GE;
+        ext_uns = false;
+        break;
     case 6:  /* <= */
-        return cond_make_0(TCG_COND_LE, res);
+        tc = TCG_COND_LE;
+        ext_uns = false;
+        break;
     case 7:  /* > */
-        return cond_make_0(TCG_COND_GT, res);
+        tc = TCG_COND_GT;
+        ext_uns = false;
+        break;
 
     case 14: /* OD */
     case 15: /* EV */
-        return do_cond(cf, res, NULL, NULL);
+        return do_cond(ctx, cf, d, res, NULL, NULL);
 
     default:
         g_assert_not_reached();
     }
+
+    if (cond_need_ext(ctx, d)) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+
+        if (ext_uns) {
+            tcg_gen_ext32u_i64(tmp, res);
+        } else {
+            tcg_gen_ext32s_i64(tmp, res);
+        }
+        return cond_make_0_tmp(tc, tmp);
+    }
+    return cond_make_0(tc, res);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
 
-static DisasCond do_sed_cond(unsigned orig, TCGv_reg res)
+static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, bool d,
+                             TCGv_i64 res)
 {
     unsigned c, f;
 
@@ -1002,29 +890,29 @@ static DisasCond do_sed_cond(unsigned orig, TCGv_reg res)
     }
     f = (orig & 4) / 4;
 
-    return do_log_cond(c * 2 + f, res);
+    return do_log_cond(ctx, c * 2 + f, d, res);
 }
 
 /* Similar, but for unit conditions.  */
 
-static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
-                              TCGv_reg in1, TCGv_reg in2)
+static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_i64 res,
+                              TCGv_i64 in1, TCGv_i64 in2)
 {
     DisasCond cond;
-    TCGv_reg tmp, cb = NULL;
+    TCGv_i64 tmp, cb = NULL;
+    uint64_t d_repl = d ? 0x0000000100000001ull : 1;
 
     if (cf & 8) {
         /* Since we want to test lots of carry-out bits all at once, do not
          * do our normal thing and compute carry-in of bit B+1 since that
          * leaves us with carry bits spread across two words.
          */
-        cb = tcg_temp_new();
-        tmp = tcg_temp_new();
-        tcg_gen_or_reg(cb, in1, in2);
-        tcg_gen_and_reg(tmp, in1, in2);
-        tcg_gen_andc_reg(cb, cb, res);
-        tcg_gen_or_reg(cb, cb, tmp);
-        tcg_temp_free(tmp);
+        cb = tcg_temp_new_i64();
+        tmp = tcg_temp_new_i64();
+        tcg_gen_or_i64(cb, in1, in2);
+        tcg_gen_and_i64(tmp, in1, in2);
+        tcg_gen_andc_i64(cb, cb, res);
+        tcg_gen_or_i64(cb, cb, tmp);
     }
 
     switch (cf >> 1) {
@@ -1038,43 +926,38 @@ static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
         /* See hasless(v,1) from
          * https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
          */
-        tmp = tcg_temp_new();
-        tcg_gen_subi_reg(tmp, res, 0x01010101u);
-        tcg_gen_andc_reg(tmp, tmp, res);
-        tcg_gen_andi_reg(tmp, tmp, 0x80808080u);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_subi_i64(tmp, res, d_repl * 0x01010101u);
+        tcg_gen_andc_i64(tmp, tmp, res);
+        tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80808080u);
         cond = cond_make_0(TCG_COND_NE, tmp);
-        tcg_temp_free(tmp);
         break;
 
     case 3: /* SHZ / NHZ */
-        tmp = tcg_temp_new();
-        tcg_gen_subi_reg(tmp, res, 0x00010001u);
-        tcg_gen_andc_reg(tmp, tmp, res);
-        tcg_gen_andi_reg(tmp, tmp, 0x80008000u);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_subi_i64(tmp, res, d_repl * 0x00010001u);
+        tcg_gen_andc_i64(tmp, tmp, res);
+        tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80008000u);
         cond = cond_make_0(TCG_COND_NE, tmp);
-        tcg_temp_free(tmp);
         break;
 
     case 4: /* SDC / NDC */
-        tcg_gen_andi_reg(cb, cb, 0x88888888u);
+        tcg_gen_andi_i64(cb, cb, d_repl * 0x88888888u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
     case 6: /* SBC / NBC */
-        tcg_gen_andi_reg(cb, cb, 0x80808080u);
+        tcg_gen_andi_i64(cb, cb, d_repl * 0x80808080u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
     case 7: /* SHC / NHC */
-        tcg_gen_andi_reg(cb, cb, 0x80008000u);
+        tcg_gen_andi_i64(cb, cb, d_repl * 0x80008000u);
         cond = cond_make_0(TCG_COND_NE, cb);
         break;
 
     default:
         g_assert_not_reached();
-    }
-    if (cf & 8) {
-        tcg_temp_free(cb);
     }
     if (cf & 1) {
         cond.c = tcg_invert_cond(cond.c);
@@ -1083,70 +966,87 @@ static DisasCond do_unit_cond(unsigned cf, TCGv_reg res,
     return cond;
 }
 
-/* Compute signed overflow for addition.  */
-static TCGv_reg do_add_sv(DisasContext *ctx, TCGv_reg res,
-                          TCGv_reg in1, TCGv_reg in2)
+static TCGv_i64 get_carry(DisasContext *ctx, bool d,
+                          TCGv_i64 cb, TCGv_i64 cb_msb)
 {
-    TCGv_reg sv = get_temp(ctx);
-    TCGv_reg tmp = tcg_temp_new();
+    if (cond_need_ext(ctx, d)) {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_extract_i64(t, cb, 32, 1);
+        return t;
+    }
+    return cb_msb;
+}
 
-    tcg_gen_xor_reg(sv, res, in1);
-    tcg_gen_xor_reg(tmp, in1, in2);
-    tcg_gen_andc_reg(sv, sv, tmp);
-    tcg_temp_free(tmp);
+static TCGv_i64 get_psw_carry(DisasContext *ctx, bool d)
+{
+    return get_carry(ctx, d, cpu_psw_cb, cpu_psw_cb_msb);
+}
+
+/* Compute signed overflow for addition.  */
+static TCGv_i64 do_add_sv(DisasContext *ctx, TCGv_i64 res,
+                          TCGv_i64 in1, TCGv_i64 in2)
+{
+    TCGv_i64 sv = tcg_temp_new_i64();
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_xor_i64(sv, res, in1);
+    tcg_gen_xor_i64(tmp, in1, in2);
+    tcg_gen_andc_i64(sv, sv, tmp);
 
     return sv;
 }
 
 /* Compute signed overflow for subtraction.  */
-static TCGv_reg do_sub_sv(DisasContext *ctx, TCGv_reg res,
-                          TCGv_reg in1, TCGv_reg in2)
+static TCGv_i64 do_sub_sv(DisasContext *ctx, TCGv_i64 res,
+                          TCGv_i64 in1, TCGv_i64 in2)
 {
-    TCGv_reg sv = get_temp(ctx);
-    TCGv_reg tmp = tcg_temp_new();
+    TCGv_i64 sv = tcg_temp_new_i64();
+    TCGv_i64 tmp = tcg_temp_new_i64();
 
-    tcg_gen_xor_reg(sv, res, in1);
-    tcg_gen_xor_reg(tmp, in1, in2);
-    tcg_gen_and_reg(sv, sv, tmp);
-    tcg_temp_free(tmp);
+    tcg_gen_xor_i64(sv, res, in1);
+    tcg_gen_xor_i64(tmp, in1, in2);
+    tcg_gen_and_i64(sv, sv, tmp);
 
     return sv;
 }
 
-static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                   TCGv_reg in2, unsigned shift, bool is_l,
-                   bool is_tsv, bool is_tc, bool is_c, unsigned cf)
+static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                   TCGv_i64 in2, unsigned shift, bool is_l,
+                   bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
 {
-    TCGv_reg dest, cb, cb_msb, sv, tmp;
+    TCGv_i64 dest, cb, cb_msb, cb_cond, sv, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
 
-    dest = tcg_temp_new();
+    dest = tcg_temp_new_i64();
     cb = NULL;
     cb_msb = NULL;
+    cb_cond = NULL;
 
     if (shift) {
-        tmp = get_temp(ctx);
-        tcg_gen_shli_reg(tmp, in1, shift);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_shli_i64(tmp, in1, shift);
         in1 = tmp;
     }
 
     if (!is_l || cond_need_cb(c)) {
-        TCGv_reg zero = tcg_constant_reg(0);
-        cb_msb = get_temp(ctx);
-        tcg_gen_add2_reg(dest, cb_msb, in1, zero, in2, zero);
+        cb_msb = tcg_temp_new_i64();
+        cb = tcg_temp_new_i64();
+
+        tcg_gen_add2_i64(dest, cb_msb, in1, ctx->zero, in2, ctx->zero);
         if (is_c) {
-            tcg_gen_add2_reg(dest, cb_msb, dest, cb_msb, cpu_psw_cb_msb, zero);
+            tcg_gen_add2_i64(dest, cb_msb, dest, cb_msb,
+                             get_psw_carry(ctx, d), ctx->zero);
         }
-        if (!is_l) {
-            cb = get_temp(ctx);
-            tcg_gen_xor_reg(cb, in1, in2);
-            tcg_gen_xor_reg(cb, cb, dest);
+        tcg_gen_xor_i64(cb, in1, in2);
+        tcg_gen_xor_i64(cb, cb, dest);
+        if (cond_need_cb(c)) {
+            cb_cond = get_carry(ctx, d, cb, cb_msb);
         }
     } else {
-        tcg_gen_add_reg(dest, in1, in2);
+        tcg_gen_add_i64(dest, in1, in2);
         if (is_c) {
-            tcg_gen_add_reg(dest, dest, cpu_psw_cb_msb);
+            tcg_gen_add_i64(dest, dest, get_psw_carry(ctx, d));
         }
     }
 
@@ -1156,17 +1056,16 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         sv = do_add_sv(ctx, dest, in1, in2);
         if (is_tsv) {
             /* ??? Need to include overflow from shift.  */
-            gen_helper_tsv(cpu_env, sv);
+            gen_helper_tsv(tcg_env, sv);
         }
     }
 
     /* Emit any conditional trap before any writeback.  */
-    cond = do_cond(cf, dest, cb_msb, sv);
+    cond = do_cond(ctx, cf, d, dest, cb_cond, sv);
     if (is_tc) {
-        tmp = tcg_temp_new();
-        tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
+        gen_helper_tcond(tcg_env, tmp);
     }
 
     /* Write back the result.  */
@@ -1175,68 +1074,71 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         save_or_nullify(ctx, cpu_psw_cb_msb, cb_msb);
     }
     save_gpr(ctx, rt, dest);
-    tcg_temp_free(dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
-static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_sh *a,
+static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_d_sh *a,
                        bool is_l, bool is_tsv, bool is_tc, bool is_c)
 {
-    TCGv_reg tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l, is_tsv, is_tc, is_c, a->cf);
+    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l,
+           is_tsv, is_tc, is_c, a->cf, a->d);
     return nullify_end(ctx);
 }
 
 static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
                        bool is_tsv, bool is_tc)
 {
-    TCGv_reg tcg_im, tcg_r2;
+    TCGv_i64 tcg_im, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_i64(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf);
+    /* All ADDI conditions are 32-bit. */
+    do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf, false);
     return nullify_end(ctx);
 }
 
-static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                   TCGv_reg in2, bool is_tsv, bool is_b,
-                   bool is_tc, unsigned cf)
+static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                   TCGv_i64 in2, bool is_tsv, bool is_b,
+                   bool is_tc, unsigned cf, bool d)
 {
-    TCGv_reg dest, sv, cb, cb_msb, zero, tmp;
+    TCGv_i64 dest, sv, cb, cb_msb, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
 
-    dest = tcg_temp_new();
-    cb = tcg_temp_new();
-    cb_msb = tcg_temp_new();
+    dest = tcg_temp_new_i64();
+    cb = tcg_temp_new_i64();
+    cb_msb = tcg_temp_new_i64();
 
-    zero = tcg_constant_reg(0);
     if (is_b) {
         /* DEST,C = IN1 + ~IN2 + C.  */
-        tcg_gen_not_reg(cb, in2);
-        tcg_gen_add2_reg(dest, cb_msb, in1, zero, cpu_psw_cb_msb, zero);
-        tcg_gen_add2_reg(dest, cb_msb, dest, cb_msb, cb, zero);
-        tcg_gen_xor_reg(cb, cb, in1);
-        tcg_gen_xor_reg(cb, cb, dest);
+        tcg_gen_not_i64(cb, in2);
+        tcg_gen_add2_i64(dest, cb_msb, in1, ctx->zero,
+                         get_psw_carry(ctx, d), ctx->zero);
+        tcg_gen_add2_i64(dest, cb_msb, dest, cb_msb, cb, ctx->zero);
+        tcg_gen_xor_i64(cb, cb, in1);
+        tcg_gen_xor_i64(cb, cb, dest);
     } else {
-        /* DEST,C = IN1 + ~IN2 + 1.  We can produce the same result in fewer
-           operations by seeding the high word with 1 and subtracting.  */
-        tcg_gen_movi_reg(cb_msb, 1);
-        tcg_gen_sub2_reg(dest, cb_msb, in1, cb_msb, in2, zero);
-        tcg_gen_eqv_reg(cb, in1, in2);
-        tcg_gen_xor_reg(cb, cb, dest);
+        /*
+         * DEST,C = IN1 + ~IN2 + 1.  We can produce the same result in fewer
+         * operations by seeding the high word with 1 and subtracting.
+         */
+        TCGv_i64 one = tcg_constant_i64(1);
+        tcg_gen_sub2_i64(dest, cb_msb, in1, one, in2, ctx->zero);
+        tcg_gen_eqv_i64(cb, in1, in2);
+        tcg_gen_xor_i64(cb, cb, dest);
     }
 
     /* Compute signed overflow if required.  */
@@ -1244,73 +1146,70 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     if (is_tsv || cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
         if (is_tsv) {
-            gen_helper_tsv(cpu_env, sv);
+            gen_helper_tsv(tcg_env, sv);
         }
     }
 
     /* Compute the condition.  We cannot use the special case for borrow.  */
     if (!is_b) {
-        cond = do_sub_cond(cf, dest, in1, in2, sv);
+        cond = do_sub_cond(ctx, cf, d, dest, in1, in2, sv);
     } else {
-        cond = do_cond(cf, dest, cb_msb, sv);
+        cond = do_cond(ctx, cf, d, dest, get_carry(ctx, d, cb, cb_msb), sv);
     }
 
     /* Emit any conditional trap before any writeback.  */
     if (is_tc) {
-        tmp = tcg_temp_new();
-        tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
+        gen_helper_tcond(tcg_env, tmp);
     }
 
     /* Write back the result.  */
     save_or_nullify(ctx, cpu_psw_cb, cb);
     save_or_nullify(ctx, cpu_psw_cb_msb, cb_msb);
     save_gpr(ctx, rt, dest);
-    tcg_temp_free(dest);
-    tcg_temp_free(cb);
-    tcg_temp_free(cb_msb);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
-static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf *a,
+static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf_d *a,
                        bool is_tsv, bool is_b, bool is_tc)
 {
-    TCGv_reg tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf);
+    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf, a->d);
     return nullify_end(ctx);
 }
 
 static bool do_sub_imm(DisasContext *ctx, arg_rri_cf *a, bool is_tsv)
 {
-    TCGv_reg tcg_im, tcg_r2;
+    TCGv_i64 tcg_im, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_i64(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf);
+    /* All SUBI conditions are 32-bit. */
+    do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf, false);
     return nullify_end(ctx);
 }
 
-static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                      TCGv_reg in2, unsigned cf)
+static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                      TCGv_i64 in2, unsigned cf, bool d)
 {
-    TCGv_reg dest, sv;
+    TCGv_i64 dest, sv;
     DisasCond cond;
 
-    dest = tcg_temp_new();
-    tcg_gen_sub_reg(dest, in1, in2);
+    dest = tcg_temp_new_i64();
+    tcg_gen_sub_i64(dest, in1, in2);
 
     /* Compute signed overflow if required.  */
     sv = NULL;
@@ -1319,23 +1218,22 @@ static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     }
 
     /* Form the condition for the compare.  */
-    cond = do_sub_cond(cf, dest, in1, in2, sv);
+    cond = do_sub_cond(ctx, cf, d, dest, in1, in2, sv);
 
     /* Clear.  */
-    tcg_gen_movi_reg(dest, 0);
+    tcg_gen_movi_i64(dest, 0);
     save_gpr(ctx, rt, dest);
-    tcg_temp_free(dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
-static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                   TCGv_reg in2, unsigned cf,
-                   void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+static void do_log(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                   TCGv_i64 in2, unsigned cf, bool d,
+                   void (*fn)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
-    TCGv_reg dest = dest_gpr(ctx, rt);
+    TCGv_i64 dest = dest_gpr(ctx, rt);
 
     /* Perform the operation, and writeback.  */
     fn(dest, in1, in2);
@@ -1344,29 +1242,29 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (cf) {
-        ctx->null_cond = do_log_cond(cf, dest);
+        ctx->null_cond = do_log_cond(ctx, cf, d, dest);
     }
 }
 
-static bool do_log_reg(DisasContext *ctx, arg_rrr_cf *a,
-                       void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
+                       void (*fn)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
-    TCGv_reg tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, fn);
+    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d, fn);
     return nullify_end(ctx);
 }
 
-static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                    TCGv_reg in2, unsigned cf, bool is_tc,
-                    void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+static void do_unit(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                    TCGv_i64 in2, unsigned cf, bool d, bool is_tc,
+                    void (*fn)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
     DisasCond cond;
 
     if (cf == 0) {
@@ -1375,16 +1273,15 @@ static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         save_gpr(ctx, rt, dest);
         cond_free(&ctx->null_cond);
     } else {
-        dest = tcg_temp_new();
+        dest = tcg_temp_new_i64();
         fn(dest, in1, in2);
 
-        cond = do_unit_cond(cf, dest, in1, in2);
+        cond = do_unit_cond(cf, d, dest, in1, in2);
 
         if (is_tc) {
-            TCGv_reg tmp = tcg_temp_new();
-            tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
-            gen_helper_tcond(cpu_env, tmp);
-            tcg_temp_free(tmp);
+            TCGv_i64 tmp = tcg_temp_new_i64();
+            tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
+            gen_helper_tcond(tcg_env, tmp);
         }
         save_gpr(ctx, rt, dest);
 
@@ -1398,17 +1295,17 @@ static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
    from the top 2 bits of the base register.  There are a few system
    instructions that have a 3-bit space specifier, for which SR0 is
    not special.  To handle this, pass ~SP.  */
-static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
+static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_i64 base)
 {
     TCGv_ptr ptr;
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
     TCGv_i64 spc;
 
     if (sp != 0) {
         if (sp < 0) {
             sp = ~sp;
         }
-        spc = get_temp_tl(ctx);
+        spc = tcg_temp_new_i64();
         load_spr(ctx, spc, sp);
         return spc;
     }
@@ -1417,54 +1314,50 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
     }
 
     ptr = tcg_temp_new_ptr();
-    tmp = tcg_temp_new();
-    spc = get_temp_tl(ctx);
+    tmp = tcg_temp_new_i64();
+    spc = tcg_temp_new_i64();
 
-    tcg_gen_shri_reg(tmp, base, TARGET_REGISTER_BITS - 5);
-    tcg_gen_andi_reg(tmp, tmp, 030);
-    tcg_gen_trunc_reg_ptr(ptr, tmp);
-    tcg_temp_free(tmp);
+    /* Extract top 2 bits of the address, shift left 3 for uint64_t index. */
+    tcg_gen_shri_i64(tmp, base, (ctx->tb_flags & PSW_W ? 64 : 32) - 5);
+    tcg_gen_andi_i64(tmp, tmp, 030);
+    tcg_gen_trunc_i64_ptr(ptr, tmp);
 
-    tcg_gen_add_ptr(ptr, ptr, cpu_env);
+    tcg_gen_add_ptr(ptr, ptr, tcg_env);
     tcg_gen_ld_i64(spc, ptr, offsetof(CPUHPPAState, sr[4]));
-    tcg_temp_free_ptr(ptr);
 
     return spc;
 }
 #endif
 
-static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
-                     unsigned rb, unsigned rx, int scale, target_sreg disp,
+static void form_gva(DisasContext *ctx, TCGv_i64 *pgva, TCGv_i64 *pofs,
+                     unsigned rb, unsigned rx, int scale, int64_t disp,
                      unsigned sp, int modify, bool is_phys)
 {
-    TCGv_reg base = load_gpr(ctx, rb);
-    TCGv_reg ofs;
+    TCGv_i64 base = load_gpr(ctx, rb);
+    TCGv_i64 ofs;
+    TCGv_i64 addr;
+
+    set_insn_breg(ctx, rb);
 
     /* Note that RX is mutually exclusive with DISP.  */
     if (rx) {
-        ofs = get_temp(ctx);
-        tcg_gen_shli_reg(ofs, cpu_gr[rx], scale);
-        tcg_gen_add_reg(ofs, ofs, base);
+        ofs = tcg_temp_new_i64();
+        tcg_gen_shli_i64(ofs, cpu_gr[rx], scale);
+        tcg_gen_add_i64(ofs, ofs, base);
     } else if (disp || modify) {
-        ofs = get_temp(ctx);
-        tcg_gen_addi_reg(ofs, base, disp);
+        ofs = tcg_temp_new_i64();
+        tcg_gen_addi_i64(ofs, base, disp);
     } else {
         ofs = base;
     }
 
     *pofs = ofs;
-#ifdef CONFIG_USER_ONLY
-    *pgva = (modify <= 0 ? ofs : base);
-#else
-    TCGv_tl addr = get_temp_tl(ctx);
-    tcg_gen_extu_reg_tl(addr, modify <= 0 ? ofs : base);
-    if (ctx->tb_flags & PSW_W) {
-        tcg_gen_andi_tl(addr, addr, 0x3fffffffffffffffull);
-    }
+    *pgva = addr = tcg_temp_new_i64();
+    tcg_gen_andi_i64(addr, modify <= 0 ? ofs : base, gva_offset_mask(ctx));
+#ifndef CONFIG_USER_ONLY
     if (!is_phys) {
-        tcg_gen_or_tl(addr, addr, space_select(ctx, sp, base));
+        tcg_gen_or_i64(addr, addr, space_select(ctx, sp, base));
     }
-    *pgva = addr;
 #endif
 }
 
@@ -1474,35 +1367,35 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
  * = 0 for no base register update.
  */
 static void do_load_32(DisasContext *ctx, TCGv_i32 dest, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify, MemOp mop)
 {
-    TCGv_reg ofs;
-    TCGv_tl addr;
+    TCGv_i64 ofs;
+    TCGv_i64 addr;
 
     /* Caller uses nullify_over/nullify_end.  */
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
-    tcg_gen_qemu_ld_reg(dest, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
+             MMU_DISABLED(ctx));
+    tcg_gen_qemu_ld_i32(dest, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
     }
 }
 
 static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify, MemOp mop)
 {
-    TCGv_reg ofs;
-    TCGv_tl addr;
+    TCGv_i64 ofs;
+    TCGv_i64 addr;
 
     /* Caller uses nullify_over/nullify_end.  */
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_ld_i64(dest, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -1510,17 +1403,17 @@ static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
 }
 
 static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
-                        unsigned rx, int scale, target_sreg disp,
+                        unsigned rx, int scale, int64_t disp,
                         unsigned sp, int modify, MemOp mop)
 {
-    TCGv_reg ofs;
-    TCGv_tl addr;
+    TCGv_i64 ofs;
+    TCGv_i64 addr;
 
     /* Caller uses nullify_over/nullify_end.  */
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_st_i32(src, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
@@ -1528,36 +1421,28 @@ static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
 }
 
 static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
-                        unsigned rx, int scale, target_sreg disp,
+                        unsigned rx, int scale, int64_t disp,
                         unsigned sp, int modify, MemOp mop)
 {
-    TCGv_reg ofs;
-    TCGv_tl addr;
+    TCGv_i64 ofs;
+    TCGv_i64 addr;
 
     /* Caller uses nullify_over/nullify_end.  */
     assert(ctx->null_cond.c == TCG_COND_NEVER);
 
     form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     tcg_gen_qemu_st_i64(src, addr, ctx->mmu_idx, mop | UNALIGN(ctx));
     if (modify) {
         save_gpr(ctx, rb, ofs);
     }
 }
 
-#if TARGET_REGISTER_BITS == 64
-#define do_load_reg   do_load_64
-#define do_store_reg  do_store_64
-#else
-#define do_load_reg   do_load_32
-#define do_store_reg  do_store_32
-#endif
-
 static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
-                    unsigned rx, int scale, target_sreg disp,
+                    unsigned rx, int scale, int64_t disp,
                     unsigned sp, int modify, MemOp mop)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
 
     nullify_over(ctx);
 
@@ -1566,16 +1451,16 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
         dest = dest_gpr(ctx, rt);
     } else {
         /* Make sure if RT == RB, we see the result of the load.  */
-        dest = get_temp(ctx);
+        dest = tcg_temp_new_i64();
     }
-    do_load_reg(ctx, dest, rb, rx, scale, disp, sp, modify, mop);
+    do_load_64(ctx, dest, rb, rx, scale, disp, sp, modify, mop);
     save_gpr(ctx, rt, dest);
 
     return nullify_end(ctx);
 }
 
 static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
-                      unsigned rx, int scale, target_sreg disp,
+                      unsigned rx, int scale, int64_t disp,
                       unsigned sp, int modify)
 {
     TCGv_i32 tmp;
@@ -1585,10 +1470,9 @@ static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
     tmp = tcg_temp_new_i32();
     do_load_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUL);
     save_frw_i32(rt, tmp);
-    tcg_temp_free_i32(tmp);
 
     if (rt == 0) {
-        gen_helper_loaded_fr0(cpu_env);
+        gen_helper_loaded_fr0(tcg_env);
     }
 
     return nullify_end(ctx);
@@ -1601,7 +1485,7 @@ static bool trans_fldw(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
-                      unsigned rx, int scale, target_sreg disp,
+                      unsigned rx, int scale, int64_t disp,
                       unsigned sp, int modify)
 {
     TCGv_i64 tmp;
@@ -1611,10 +1495,9 @@ static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
     tmp = tcg_temp_new_i64();
     do_load_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUQ);
     save_frd(rt, tmp);
-    tcg_temp_free_i64(tmp);
 
     if (rt == 0) {
-        gen_helper_loaded_fr0(cpu_env);
+        gen_helper_loaded_fr0(tcg_env);
     }
 
     return nullify_end(ctx);
@@ -1627,16 +1510,16 @@ static bool trans_fldd(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
-                     target_sreg disp, unsigned sp,
+                     int64_t disp, unsigned sp,
                      int modify, MemOp mop)
 {
     nullify_over(ctx);
-    do_store_reg(ctx, load_gpr(ctx, rt), rb, 0, 0, disp, sp, modify, mop);
+    do_store_64(ctx, load_gpr(ctx, rt), rb, 0, 0, disp, sp, modify, mop);
     return nullify_end(ctx);
 }
 
 static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify)
 {
     TCGv_i32 tmp;
@@ -1645,7 +1528,6 @@ static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
 
     tmp = load_frw_i32(rt);
     do_store_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUL);
-    tcg_temp_free_i32(tmp);
 
     return nullify_end(ctx);
 }
@@ -1657,7 +1539,7 @@ static bool trans_fstw(DisasContext *ctx, arg_ldst *a)
 }
 
 static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
-                       unsigned rx, int scale, target_sreg disp,
+                       unsigned rx, int scale, int64_t disp,
                        unsigned sp, int modify)
 {
     TCGv_i64 tmp;
@@ -1666,7 +1548,6 @@ static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
 
     tmp = load_frd(rt);
     do_store_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUQ);
-    tcg_temp_free_i64(tmp);
 
     return nullify_end(ctx);
 }
@@ -1685,10 +1566,9 @@ static bool do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
     nullify_over(ctx);
     tmp = load_frw0_i32(ra);
 
-    func(tmp, cpu_env, tmp);
+    func(tmp, tcg_env, tmp);
 
     save_frw_i32(rt, tmp);
-    tcg_temp_free_i32(tmp);
     return nullify_end(ctx);
 }
 
@@ -1702,11 +1582,9 @@ static bool do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
     src = load_frd(ra);
     dst = tcg_temp_new_i32();
 
-    func(dst, cpu_env, src);
+    func(dst, tcg_env, src);
 
-    tcg_temp_free_i64(src);
     save_frw_i32(rt, dst);
-    tcg_temp_free_i32(dst);
     return nullify_end(ctx);
 }
 
@@ -1718,10 +1596,9 @@ static bool do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
     nullify_over(ctx);
     tmp = load_frd0(ra);
 
-    func(tmp, cpu_env, tmp);
+    func(tmp, tcg_env, tmp);
 
     save_frd(rt, tmp);
-    tcg_temp_free_i64(tmp);
     return nullify_end(ctx);
 }
 
@@ -1735,11 +1612,9 @@ static bool do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
     src = load_frw0_i32(ra);
     dst = tcg_temp_new_i64();
 
-    func(dst, cpu_env, src);
+    func(dst, tcg_env, src);
 
-    tcg_temp_free_i32(src);
     save_frd(rt, dst);
-    tcg_temp_free_i64(dst);
     return nullify_end(ctx);
 }
 
@@ -1753,11 +1628,9 @@ static bool do_fop_weww(DisasContext *ctx, unsigned rt,
     a = load_frw0_i32(ra);
     b = load_frw0_i32(rb);
 
-    func(a, cpu_env, a, b);
+    func(a, tcg_env, a, b);
 
-    tcg_temp_free_i32(b);
     save_frw_i32(rt, a);
-    tcg_temp_free_i32(a);
     return nullify_end(ctx);
 }
 
@@ -1771,22 +1644,20 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
     a = load_frd0(ra);
     b = load_frd0(rb);
 
-    func(a, cpu_env, a, b);
+    func(a, tcg_env, a, b);
 
-    tcg_temp_free_i64(b);
     save_frd(rt, a);
-    tcg_temp_free_i64(a);
     return nullify_end(ctx);
 }
 
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
-static bool do_dbranch(DisasContext *ctx, target_ureg dest,
+static bool do_dbranch(DisasContext *ctx, uint64_t dest,
                        unsigned link, bool is_n)
 {
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         if (link != 0) {
-            copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
         ctx->iaoq_n = dest;
         if (is_n) {
@@ -1796,7 +1667,7 @@ static bool do_dbranch(DisasContext *ctx, target_ureg dest,
         nullify_over(ctx);
 
         if (link != 0) {
-            copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
 
         if (is_n && use_nullify_skip(ctx)) {
@@ -1818,10 +1689,10 @@ static bool do_dbranch(DisasContext *ctx, target_ureg dest,
 
 /* Emit a conditional branch to a direct target.  If the branch itself
    is nullified, we should have already used nullify_over.  */
-static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
+static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
                        DisasCond *cond)
 {
-    target_ureg dest = iaoq_dest(ctx, disp);
+    uint64_t dest = iaoq_dest(ctx, disp);
     TCGLabel *taken = NULL;
     TCGCond c = cond->c;
     bool n;
@@ -1837,7 +1708,7 @@ static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
     }
 
     taken = gen_new_label();
-    tcg_gen_brcond_reg(c, cond->a0, cond->a1, taken);
+    tcg_gen_brcond_i64(c, cond->a0, cond->a1, taken);
     cond_free(cond);
 
     /* Not taken: Condition not satisfied; nullify on backward branches. */
@@ -1854,7 +1725,7 @@ static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
         if (ctx->iaoq_n == -1) {
             /* The temporary iaoq_n_var died at the branch above.
                Regenerate it here instead of saving it.  */
-            tcg_gen_addi_reg(ctx->iaoq_n_var, cpu_iaoq_b, 4);
+            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
         }
         gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
     }
@@ -1884,24 +1755,25 @@ static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
 
 /* Emit an unconditional branch to an indirect target.  This handles
    nullification of the branch itself.  */
-static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
+static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
                        unsigned link, bool is_n)
 {
-    TCGv_reg a0, a1, next, tmp;
+    TCGv_i64 a0, a1, next, tmp;
     TCGCond c;
 
     assert(ctx->null_lab == NULL);
 
     if (ctx->null_cond.c == TCG_COND_NEVER) {
         if (link != 0) {
-            copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
-        next = get_temp(ctx);
-        tcg_gen_mov_reg(next, dest);
+        next = tcg_temp_new_i64();
+        tcg_gen_mov_i64(next, dest);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
-                tcg_gen_mov_reg(cpu_iaoq_f, next);
-                tcg_gen_addi_reg(cpu_iaoq_b, next, 4);
+                copy_iaoq_entry(ctx, cpu_iaoq_f, -1, next);
+                tcg_gen_addi_i64(next, next, 4);
+                copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
                 nullify_set(ctx, 0);
                 ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
                 return true;
@@ -1923,12 +1795,14 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         /* We do have to handle the non-local temporary, DEST, before
            branching.  Since IOAQ_F is not really live at this point, we
            can simply store DEST optimistically.  Similarly with IAOQ_B.  */
-        tcg_gen_mov_reg(cpu_iaoq_f, dest);
-        tcg_gen_addi_reg(cpu_iaoq_b, dest, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, dest);
+        next = tcg_temp_new_i64();
+        tcg_gen_addi_i64(next, dest, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
 
         nullify_over(ctx);
         if (link != 0) {
-            tcg_gen_movi_reg(cpu_gr[link], ctx->iaoq_n);
+            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
         }
         tcg_gen_lookup_and_goto_ptr();
         return nullify_end(ctx);
@@ -1937,23 +1811,23 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         a0 = ctx->null_cond.a0;
         a1 = ctx->null_cond.a1;
 
-        tmp = tcg_temp_new();
-        next = get_temp(ctx);
+        tmp = tcg_temp_new_i64();
+        next = tcg_temp_new_i64();
 
-        copy_iaoq_entry(tmp, ctx->iaoq_n, ctx->iaoq_n_var);
-        tcg_gen_movcond_reg(c, next, a0, a1, tmp, dest);
+        copy_iaoq_entry(ctx, tmp, ctx->iaoq_n, ctx->iaoq_n_var);
+        tcg_gen_movcond_i64(c, next, a0, a1, tmp, dest);
         ctx->iaoq_n = -1;
         ctx->iaoq_n_var = next;
 
         if (link != 0) {
-            tcg_gen_movcond_reg(c, cpu_gr[link], a0, a1, cpu_gr[link], tmp);
+            tcg_gen_movcond_i64(c, cpu_gr[link], a0, a1, cpu_gr[link], tmp);
         }
 
         if (is_n) {
             /* The branch nullifies the next insn, which means the state of N
                after the branch is the inverse of the state of N that applied
                to the branch.  */
-            tcg_gen_setcond_reg(tcg_invert_cond(c), cpu_psw_n, a0, a1);
+            tcg_gen_setcond_i64(tcg_invert_cond(c), cpu_psw_n, a0, a1);
             cond_free(&ctx->null_cond);
             ctx->null_cond = cond_make_n();
             ctx->psw_n_nonzero = true;
@@ -1971,23 +1845,23 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
  *      IAOQ_Next{30..31} ← IAOQ_Front{30..31};
  * which keeps the privilege level from being increased.
  */
-static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
+static TCGv_i64 do_ibranch_priv(DisasContext *ctx, TCGv_i64 offset)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
     switch (ctx->privilege) {
     case 0:
         /* Privilege 0 is maximum and is allowed to decrease.  */
         return offset;
     case 3:
         /* Privilege 3 is minimum and is never allowed to increase.  */
-        dest = get_temp(ctx);
-        tcg_gen_ori_reg(dest, offset, 3);
+        dest = tcg_temp_new_i64();
+        tcg_gen_ori_i64(dest, offset, 3);
         break;
     default:
-        dest = get_temp(ctx);
-        tcg_gen_andi_reg(dest, offset, -4);
-        tcg_gen_ori_reg(dest, dest, ctx->privilege);
-        tcg_gen_movcond_reg(TCG_COND_GTU, dest, dest, offset, dest, offset);
+        dest = tcg_temp_new_i64();
+        tcg_gen_andi_i64(dest, offset, -4);
+        tcg_gen_ori_i64(dest, dest, ctx->privilege);
+        tcg_gen_movcond_i64(TCG_COND_GTU, dest, dest, offset, dest, offset);
         break;
     }
     return dest;
@@ -2003,14 +1877,16 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
    aforementioned BE.  */
 static void do_page_zero(DisasContext *ctx)
 {
+    TCGv_i64 tmp;
+
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
-       next insn within the privilaged page.  */
+       next insn within the privileged page.  */
     switch (ctx->null_cond.c) {
     case TCG_COND_NEVER:
         break;
     case TCG_COND_ALWAYS:
-        tcg_gen_movi_reg(cpu_psw_n, 0);
+        tcg_gen_movi_i64(cpu_psw_n, 0);
         goto do_sigill;
     default:
         /* Since this is always the first (and only) insn within the
@@ -2038,9 +1914,12 @@ static void do_page_zero(DisasContext *ctx)
         break;
 
     case 0xe0: /* SET_THREAD_POINTER */
-        tcg_gen_st_reg(cpu_gr[26], cpu_env, offsetof(CPUHPPAState, cr[27]));
-        tcg_gen_ori_reg(cpu_iaoq_f, cpu_gr[31], 3);
-        tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
+        tcg_gen_st_i64(cpu_gr[26], tcg_env, offsetof(CPUHPPAState, cr[27]));
+        tmp = tcg_temp_new_i64();
+        tcg_gen_ori_i64(tmp, cpu_gr[31], 3);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
+        tcg_gen_addi_i64(tmp, tmp, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
         break;
 
@@ -2081,8 +1960,8 @@ static bool trans_sync(DisasContext *ctx, arg_sync *a)
 static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
     unsigned rt = a->t;
-    TCGv_reg tmp = dest_gpr(ctx, rt);
-    tcg_gen_movi_reg(tmp, ctx->iaoq_f);
+    TCGv_i64 tmp = dest_gpr(ctx, rt);
+    tcg_gen_movi_i64(tmp, ctx->iaoq_f);
     save_gpr(ctx, rt, tmp);
 
     cond_free(&ctx->null_cond);
@@ -2094,15 +1973,11 @@ static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
     unsigned rt = a->t;
     unsigned rs = a->sp;
     TCGv_i64 t0 = tcg_temp_new_i64();
-    TCGv_reg t1 = tcg_temp_new();
 
     load_spr(ctx, t0, rs);
     tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_reg(t1, t0);
 
-    save_gpr(ctx, rt, t1);
-    tcg_temp_free(t1);
-    tcg_temp_free_i64(t0);
+    save_gpr(ctx, rt, t0);
 
     cond_free(&ctx->null_cond);
     return true;
@@ -2112,27 +1987,24 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
 {
     unsigned rt = a->t;
     unsigned ctl = a->r;
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
     switch (ctl) {
     case CR_SAR:
-#ifdef TARGET_HPPA64
         if (a->e == 0) {
             /* MFSAR without ,W masks low 5 bits.  */
             tmp = dest_gpr(ctx, rt);
-            tcg_gen_andi_reg(tmp, cpu_sar, 31);
+            tcg_gen_andi_i64(tmp, cpu_sar, 31);
             save_gpr(ctx, rt, tmp);
             goto done;
         }
-#endif
         save_gpr(ctx, rt, cpu_sar);
         goto done;
     case CR_IT: /* Interval Timer */
         /* FIXME: Respect PSW_S bit.  */
         nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
+        if (translator_io_start(&ctx->base)) {
             gen_helper_read_interval_timer(tmp);
             ctx->base.is_jmp = DISAS_IAQ_N_STALE;
         } else {
@@ -2149,8 +2021,8 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
         break;
     }
 
-    tmp = get_temp(ctx);
-    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+    tmp = tcg_temp_new_i64();
+    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
     save_gpr(ctx, rt, tmp);
 
  done:
@@ -2162,24 +2034,22 @@ static bool trans_mtsp(DisasContext *ctx, arg_mtsp *a)
 {
     unsigned rr = a->r;
     unsigned rs = a->sp;
-    TCGv_i64 t64;
+    TCGv_i64 tmp;
 
     if (rs >= 5) {
         CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
     }
     nullify_over(ctx);
 
-    t64 = tcg_temp_new_i64();
-    tcg_gen_extu_reg_i64(t64, load_gpr(ctx, rr));
-    tcg_gen_shli_i64(t64, t64, 32);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_shli_i64(tmp, load_gpr(ctx, rr), 32);
 
     if (rs >= 4) {
-        tcg_gen_st_i64(t64, cpu_env, offsetof(CPUHPPAState, sr[rs]));
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUHPPAState, sr[rs]));
         ctx->tb_flags &= ~TB_FLAG_SR_SAME;
     } else {
-        tcg_gen_mov_i64(cpu_sr[rs], t64);
+        tcg_gen_mov_i64(cpu_sr[rs], tmp);
     }
-    tcg_temp_free_i64(t64);
 
     return nullify_end(ctx);
 }
@@ -2187,15 +2057,14 @@ static bool trans_mtsp(DisasContext *ctx, arg_mtsp *a)
 static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 {
     unsigned ctl = a->t;
-    TCGv_reg reg;
-    TCGv_reg tmp;
+    TCGv_i64 reg;
+    TCGv_i64 tmp;
 
     if (ctl == CR_SAR) {
         reg = load_gpr(ctx, a->r);
-        tmp = tcg_temp_new();
-        tcg_gen_andi_reg(tmp, reg, TARGET_REGISTER_BITS - 1);
+        tmp = tcg_temp_new_i64();
+        tcg_gen_andi_i64(tmp, reg, ctx->is_pa20 ? 63 : 31);
         save_or_nullify(ctx, cpu_sar, tmp);
-        tcg_temp_free(tmp);
 
         cond_free(&ctx->null_cond);
         return true;
@@ -2206,17 +2075,23 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 
 #ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    reg = load_gpr(ctx, a->r);
+
+    if (ctx->is_pa20) {
+        reg = load_gpr(ctx, a->r);
+    } else {
+        reg = tcg_temp_new_i64();
+        tcg_gen_ext32u_i64(reg, load_gpr(ctx, a->r));
+    }
 
     switch (ctl) {
     case CR_IT:
-        gen_helper_write_interval_timer(cpu_env, reg);
+        gen_helper_write_interval_timer(tcg_env, reg);
         break;
     case CR_EIRR:
-        gen_helper_write_eirr(cpu_env, reg);
+        gen_helper_write_eirr(tcg_env, reg);
         break;
     case CR_EIEM:
-        gen_helper_write_eiem(cpu_env, reg);
+        gen_helper_write_eiem(tcg_env, reg);
         ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
         break;
 
@@ -2224,11 +2099,11 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
     case CR_IIAOQ:
         /* FIXME: Respect PSW_Q bit */
         /* The write advances the queue and stores to the back element.  */
-        tmp = get_temp(ctx);
-        tcg_gen_ld_reg(tmp, cpu_env,
+        tmp = tcg_temp_new_i64();
+        tcg_gen_ld_i64(tmp, tcg_env,
                        offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
-        tcg_gen_st_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
-        tcg_gen_st_reg(reg, cpu_env,
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
+        tcg_gen_st_i64(reg, tcg_env,
                        offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
         break;
 
@@ -2236,14 +2111,14 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
     case CR_PID2:
     case CR_PID3:
     case CR_PID4:
-        tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+        tcg_gen_st_i64(reg, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
 #ifndef CONFIG_USER_ONLY
-        gen_helper_change_prot_id(cpu_env);
+        gen_helper_change_prot_id(tcg_env);
 #endif
         break;
 
     default:
-        tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+        tcg_gen_st_i64(reg, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
         break;
     }
     return nullify_end(ctx);
@@ -2252,12 +2127,11 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 
 static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
 {
-    TCGv_reg tmp = tcg_temp_new();
+    TCGv_i64 tmp = tcg_temp_new_i64();
 
-    tcg_gen_not_reg(tmp, load_gpr(ctx, a->r));
-    tcg_gen_andi_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
+    tcg_gen_not_i64(tmp, load_gpr(ctx, a->r));
+    tcg_gen_andi_i64(tmp, tmp, ctx->is_pa20 ? 63 : 31);
     save_or_nullify(ctx, cpu_sar, tmp);
-    tcg_temp_free(tmp);
 
     cond_free(&ctx->null_cond);
     return true;
@@ -2265,19 +2139,14 @@ static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
 
 static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
 {
-    TCGv_reg dest = dest_gpr(ctx, a->t);
+    TCGv_i64 dest = dest_gpr(ctx, a->t);
 
 #ifdef CONFIG_USER_ONLY
     /* We don't implement space registers in user mode. */
-    tcg_gen_movi_reg(dest, 0);
+    tcg_gen_movi_i64(dest, 0);
 #else
-    TCGv_i64 t0 = tcg_temp_new_i64();
-
-    tcg_gen_mov_i64(t0, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_reg(dest, t0);
-
-    tcg_temp_free_i64(t0);
+    tcg_gen_mov_i64(dest, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
+    tcg_gen_shri_i64(dest, dest, 32);
 #endif
     save_gpr(ctx, a->t, dest);
 
@@ -2289,14 +2158,14 @@ static bool trans_rsm(DisasContext *ctx, arg_rsm *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
-    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_andi_reg(tmp, tmp, ~a->i);
-    gen_helper_swap_system_mask(tmp, cpu_env, tmp);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
+    tcg_gen_andi_i64(tmp, tmp, ~a->i);
+    gen_helper_swap_system_mask(tmp, tcg_env, tmp);
     save_gpr(ctx, a->t, tmp);
 
     /* Exit the TB to recognize new interrupts, e.g. PSW_M.  */
@@ -2309,14 +2178,14 @@ static bool trans_ssm(DisasContext *ctx, arg_ssm *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
-    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_ori_reg(tmp, tmp, a->i);
-    gen_helper_swap_system_mask(tmp, cpu_env, tmp);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
+    tcg_gen_ori_i64(tmp, tmp, a->i);
+    gen_helper_swap_system_mask(tmp, tcg_env, tmp);
     save_gpr(ctx, a->t, tmp);
 
     /* Exit the TB to recognize new interrupts, e.g. PSW_I.  */
@@ -2329,12 +2198,12 @@ static bool trans_mtsm(DisasContext *ctx, arg_mtsm *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_reg tmp, reg;
+    TCGv_i64 tmp, reg;
     nullify_over(ctx);
 
     reg = load_gpr(ctx, a->r);
-    tmp = get_temp(ctx);
-    gen_helper_swap_system_mask(tmp, cpu_env, reg);
+    tmp = tcg_temp_new_i64();
+    gen_helper_swap_system_mask(tmp, tcg_env, reg);
 
     /* Exit the TB to recognize new interrupts.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
@@ -2349,9 +2218,9 @@ static bool do_rfi(DisasContext *ctx, bool rfi_r)
     nullify_over(ctx);
 
     if (rfi_r) {
-        gen_helper_rfi_r(cpu_env);
+        gen_helper_rfi_r(tcg_env);
     } else {
-        gen_helper_rfi(cpu_env);
+        gen_helper_rfi(tcg_env);
     }
     /* Exit the TB to recognize new interrupts.  */
     tcg_gen_exit_tb(NULL, 0);
@@ -2376,7 +2245,7 @@ static bool trans_halt(DisasContext *ctx, arg_halt *a)
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    gen_helper_halt(cpu_env);
+    gen_helper_halt(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 #endif
@@ -2387,7 +2256,7 @@ static bool trans_reset(DisasContext *ctx, arg_reset *a)
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    gen_helper_reset(cpu_env);
+    gen_helper_reset(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 #endif
@@ -2398,7 +2267,7 @@ static bool trans_getshadowregs(DisasContext *ctx, arg_getshadowregs *a)
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    gen_helper_getshadowregs(cpu_env);
+    gen_helper_getshadowregs(tcg_env);
     return nullify_end(ctx);
 #endif
 }
@@ -2406,12 +2275,12 @@ static bool trans_getshadowregs(DisasContext *ctx, arg_getshadowregs *a)
 static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
 {
     if (a->m) {
-        TCGv_reg dest = dest_gpr(ctx, a->b);
-        TCGv_reg src1 = load_gpr(ctx, a->b);
-        TCGv_reg src2 = load_gpr(ctx, a->x);
+        TCGv_i64 dest = dest_gpr(ctx, a->b);
+        TCGv_i64 src1 = load_gpr(ctx, a->b);
+        TCGv_i64 src2 = load_gpr(ctx, a->x);
 
         /* The only thing we need to do is the base register modification.  */
-        tcg_gen_add_reg(dest, src1, src2);
+        tcg_gen_add_i64(dest, src1, src2);
         save_gpr(ctx, a->b, dest);
     }
     cond_free(&ctx->null_cond);
@@ -2420,9 +2289,9 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
 
 static bool trans_probe(DisasContext *ctx, arg_probe *a)
 {
-    TCGv_reg dest, ofs;
+    TCGv_i64 dest, ofs;
     TCGv_i32 level, want;
-    TCGv_tl addr;
+    TCGv_i64 addr;
 
     nullify_over(ctx);
 
@@ -2430,17 +2299,15 @@ static bool trans_probe(DisasContext *ctx, arg_probe *a)
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
 
     if (a->imm) {
-        level = tcg_constant_i32(a->ri);
+        level = tcg_constant_i32(a->ri & 3);
     } else {
         level = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(level, load_gpr(ctx, a->ri));
+        tcg_gen_extrl_i64_i32(level, load_gpr(ctx, a->ri));
         tcg_gen_andi_i32(level, level, 3);
     }
     want = tcg_constant_i32(a->write ? PAGE_WRITE : PAGE_READ);
 
-    gen_helper_probe(dest, cpu_env, addr, level, want);
-
-    tcg_temp_free_i32(level);
+    gen_helper_probe(dest, tcg_env, addr, level, want);
 
     save_gpr(ctx, a->t, dest);
     return nullify_end(ctx);
@@ -2448,19 +2315,22 @@ static bool trans_probe(DisasContext *ctx, arg_probe *a)
 
 static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
 {
+    if (ctx->is_pa20) {
+        return false;
+    }
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_tl addr;
-    TCGv_reg ofs, reg;
+    TCGv_i64 addr;
+    TCGv_i64 ofs, reg;
 
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
     reg = load_gpr(ctx, a->r);
     if (a->addr) {
-        gen_helper_itlba(cpu_env, addr, reg);
+        gen_helper_itlba_pa11(tcg_env, addr, reg);
     } else {
-        gen_helper_itlbp(cpu_env, addr, reg);
+        gen_helper_itlbp_pa11(tcg_env, addr, reg);
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
@@ -2471,24 +2341,62 @@ static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
 #endif
 }
 
-static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
+static bool do_pxtlb(DisasContext *ctx, arg_ldst *a, bool local)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_tl addr;
-    TCGv_reg ofs;
+    TCGv_i64 addr;
+    TCGv_i64 ofs;
 
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, a->x, 0, 0, a->sp, a->m, false);
+
+    /*
+     * Page align now, rather than later, so that we can add in the
+     * page_size field from pa2.0 from the low 4 bits of GR[b].
+     */
+    tcg_gen_andi_i64(addr, addr, TARGET_PAGE_MASK);
+    if (ctx->is_pa20) {
+        tcg_gen_deposit_i64(addr, addr, load_gpr(ctx, a->b), 0, 4);
+    }
+
+    if (local) {
+        gen_helper_ptlb_l(tcg_env, addr);
+    } else {
+        gen_helper_ptlb(tcg_env, addr);
+    }
+
     if (a->m) {
         save_gpr(ctx, a->b, ofs);
     }
-    if (a->local) {
-        gen_helper_ptlbe(cpu_env);
-    } else {
-        gen_helper_ptlb(cpu_env, addr);
+
+    /* Exit TB for TLB change if mmu is enabled.  */
+    if (ctx->tb_flags & PSW_C) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     }
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_pxtlb(DisasContext *ctx, arg_ldst *a)
+{
+    return do_pxtlb(ctx, a, false);
+}
+
+static bool trans_pxtlb_l(DisasContext *ctx, arg_ldst *a)
+{
+    return ctx->is_pa20 && do_pxtlb(ctx, a, true);
+}
+
+static bool trans_pxtlbe(DisasContext *ctx, arg_ldst *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+
+    trans_nop_addrx(ctx, a);
+    gen_helper_ptlbe(tcg_env);
 
     /* Exit TB for TLB change if mmu is enabled.  */
     if (ctx->tb_flags & PSW_C) {
@@ -2506,10 +2414,13 @@ static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
  */
 static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
 {
+    if (ctx->is_pa20) {
+        return false;
+    }
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_tl addr, atl, stl;
-    TCGv_reg reg;
+    TCGv_i64 addr, atl, stl;
+    TCGv_i64 reg;
 
     nullify_over(ctx);
 
@@ -2517,33 +2428,54 @@ static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
      * FIXME:
      *  if (not (pcxl or pcxl2))
      *    return gen_illegal(ctx);
-     *
-     * Note for future: these are 32-bit systems; no hppa64.
      */
 
-    atl = tcg_temp_new_tl();
-    stl = tcg_temp_new_tl();
-    addr = tcg_temp_new_tl();
+    atl = tcg_temp_new_i64();
+    stl = tcg_temp_new_i64();
+    addr = tcg_temp_new_i64();
 
-    tcg_gen_ld32u_i64(stl, cpu_env,
+    tcg_gen_ld32u_i64(stl, tcg_env,
                       a->data ? offsetof(CPUHPPAState, cr[CR_ISR])
                       : offsetof(CPUHPPAState, cr[CR_IIASQ]));
-    tcg_gen_ld32u_i64(atl, cpu_env,
+    tcg_gen_ld32u_i64(atl, tcg_env,
                       a->data ? offsetof(CPUHPPAState, cr[CR_IOR])
                       : offsetof(CPUHPPAState, cr[CR_IIAOQ]));
     tcg_gen_shli_i64(stl, stl, 32);
-    tcg_gen_or_tl(addr, atl, stl);
-    tcg_temp_free_tl(atl);
-    tcg_temp_free_tl(stl);
+    tcg_gen_or_i64(addr, atl, stl);
 
     reg = load_gpr(ctx, a->r);
     if (a->addr) {
-        gen_helper_itlba(cpu_env, addr, reg);
+        gen_helper_itlba_pa11(tcg_env, addr, reg);
     } else {
-        gen_helper_itlbp(cpu_env, addr, reg);
+        gen_helper_itlbp_pa11(tcg_env, addr, reg);
     }
-    tcg_temp_free_tl(addr);
 
+    /* Exit TB for TLB change if mmu is enabled.  */
+    if (ctx->tb_flags & PSW_C) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    }
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_ixtlbt(DisasContext *ctx, arg_ixtlbt *a)
+{
+    if (!ctx->is_pa20) {
+        return false;
+    }
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    {
+        TCGv_i64 src1 = load_gpr(ctx, a->r1);
+        TCGv_i64 src2 = load_gpr(ctx, a->r2);
+
+        if (a->data) {
+            gen_helper_idtlbt_pa20(tcg_env, src1, src2);
+        } else {
+            gen_helper_iitlbt_pa20(tcg_env, src1, src2);
+        }
+    }
     /* Exit TB for TLB change if mmu is enabled.  */
     if (ctx->tb_flags & PSW_C) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
@@ -2556,22 +2488,21 @@ static bool trans_lpa(DisasContext *ctx, arg_ldst *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_tl vaddr;
-    TCGv_reg ofs, paddr;
+    TCGv_i64 vaddr;
+    TCGv_i64 ofs, paddr;
 
     nullify_over(ctx);
 
     form_gva(ctx, &vaddr, &ofs, a->b, a->x, 0, 0, a->sp, a->m, false);
 
-    paddr = tcg_temp_new();
-    gen_helper_lpa(paddr, cpu_env, vaddr);
+    paddr = tcg_temp_new_i64();
+    gen_helper_lpa(paddr, tcg_env, vaddr);
 
     /* Note that physical address result overrides base modification.  */
     if (a->m) {
         save_gpr(ctx, a->b, ofs);
     }
     save_gpr(ctx, a->t, paddr);
-    tcg_temp_free(paddr);
 
     return nullify_end(ctx);
 #endif
@@ -2585,78 +2516,78 @@ static bool trans_lci(DisasContext *ctx, arg_lci *a)
        physical address.  Two addresses with the same CI have a coherent
        view of the cache.  Our implementation is to return 0 for all,
        since the entire address space is coherent.  */
-    save_gpr(ctx, a->t, tcg_constant_reg(0));
+    save_gpr(ctx, a->t, ctx->zero);
 
     cond_free(&ctx->null_cond);
     return true;
 }
 
-static bool trans_add(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, false, false, false);
 }
 
-static bool trans_add_l(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_l(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, true, false, false, false);
 }
 
-static bool trans_add_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_tsv(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, true, false, false);
 }
 
-static bool trans_add_c(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_c(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, false, false, true);
 }
 
-static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_d_sh *a)
 {
     return do_add_reg(ctx, a, false, true, false, true);
 }
 
-static bool trans_sub(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, false, false);
 }
 
-static bool trans_sub_tsv(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tsv(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, false, false);
 }
 
-static bool trans_sub_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, false, true);
 }
 
-static bool trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, false, true);
 }
 
-static bool trans_sub_b(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_b(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, false, true, false);
 }
 
-static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_sub_reg(ctx, a, true, true, false);
 }
 
-static bool trans_andcm(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_andcm(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    return do_log_reg(ctx, a, tcg_gen_andc_reg);
+    return do_log_reg(ctx, a, tcg_gen_andc_i64);
 }
 
-static bool trans_and(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_and(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    return do_log_reg(ctx, a, tcg_gen_and_reg);
+    return do_log_reg(ctx, a, tcg_gen_and_i64);
 }
 
-static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     if (a->cf == 0) {
         unsigned r2 = a->r2;
@@ -2669,8 +2600,8 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
         }
         if (r2 == 0) { /* COPY */
             if (r1 == 0) {
-                TCGv_reg dest = dest_gpr(ctx, rt);
-                tcg_gen_movi_reg(dest, 0);
+                TCGv_i64 dest = dest_gpr(ctx, rt);
+                tcg_gen_movi_i64(dest, 0);
                 save_gpr(ctx, rt, dest);
             } else {
                 save_gpr(ctx, rt, cpu_gr[r1]);
@@ -2691,12 +2622,12 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
             nullify_over(ctx);
 
             /* Advance the instruction queue.  */
-            copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-            copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+            copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
             nullify_set(ctx, 0);
 
             /* Tell the qemu main loop to halt until this cpu has work.  */
-            tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
+            tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
                            offsetof(CPUState, halted) - offsetof(HPPACPU, env));
             gen_excp_1(EXCP_HALTED);
             ctx->base.is_jmp = DISAS_NORETURN;
@@ -2705,149 +2636,147 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
         }
 #endif
     }
-    return do_log_reg(ctx, a, tcg_gen_or_reg);
+    return do_log_reg(ctx, a, tcg_gen_or_i64);
 }
 
-static bool trans_xor(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_xor(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    return do_log_reg(ctx, a, tcg_gen_xor_reg);
+    return do_log_reg(ctx, a, tcg_gen_xor_i64);
 }
 
-static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    TCGv_reg tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf);
+    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d);
     return nullify_end(ctx);
 }
 
-static bool trans_uxor(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uxor(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    TCGv_reg tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, false, tcg_gen_xor_reg);
+    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d, false, tcg_gen_xor_i64);
     return nullify_end(ctx);
 }
 
-static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
+static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
 {
-    TCGv_reg tcg_r1, tcg_r2, tmp;
+    TCGv_i64 tcg_r1, tcg_r2, tmp;
 
     if (a->cf) {
         nullify_over(ctx);
     }
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    tmp = get_temp(ctx);
-    tcg_gen_not_reg(tmp, tcg_r2);
-    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, is_tc, tcg_gen_add_reg);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_not_i64(tmp, tcg_r2);
+    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, a->d, is_tc, tcg_gen_add_i64);
     return nullify_end(ctx);
 }
 
-static bool trans_uaddcm(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_uaddcm(ctx, a, false);
 }
 
-static bool trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf *a)
+static bool trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf_d *a)
 {
     return do_uaddcm(ctx, a, true);
 }
 
-static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
+static bool do_dcor(DisasContext *ctx, arg_rr_cf_d *a, bool is_i)
 {
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
     nullify_over(ctx);
 
-    tmp = get_temp(ctx);
-    tcg_gen_shri_reg(tmp, cpu_psw_cb, 3);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_shri_i64(tmp, cpu_psw_cb, 3);
     if (!is_i) {
-        tcg_gen_not_reg(tmp, tmp);
+        tcg_gen_not_i64(tmp, tmp);
     }
-    tcg_gen_andi_reg(tmp, tmp, 0x11111111);
-    tcg_gen_muli_reg(tmp, tmp, 6);
-    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, false,
-            is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
+    tcg_gen_andi_i64(tmp, tmp, (uint64_t)0x1111111111111111ull);
+    tcg_gen_muli_i64(tmp, tmp, 6);
+    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, a->d, false,
+            is_i ? tcg_gen_add_i64 : tcg_gen_sub_i64);
     return nullify_end(ctx);
 }
 
-static bool trans_dcor(DisasContext *ctx, arg_rr_cf *a)
+static bool trans_dcor(DisasContext *ctx, arg_rr_cf_d *a)
 {
     return do_dcor(ctx, a, false);
 }
 
-static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf *a)
+static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf_d *a)
 {
     return do_dcor(ctx, a, true);
 }
 
 static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
 {
-    TCGv_reg dest, add1, add2, addc, zero, in1, in2;
+    TCGv_i64 dest, add1, add2, addc, in1, in2;
+    TCGv_i64 cout;
 
     nullify_over(ctx);
 
     in1 = load_gpr(ctx, a->r1);
     in2 = load_gpr(ctx, a->r2);
 
-    add1 = tcg_temp_new();
-    add2 = tcg_temp_new();
-    addc = tcg_temp_new();
-    dest = tcg_temp_new();
-    zero = tcg_constant_reg(0);
+    add1 = tcg_temp_new_i64();
+    add2 = tcg_temp_new_i64();
+    addc = tcg_temp_new_i64();
+    dest = tcg_temp_new_i64();
 
     /* Form R1 << 1 | PSW[CB]{8}.  */
-    tcg_gen_add_reg(add1, in1, in1);
-    tcg_gen_add_reg(add1, add1, cpu_psw_cb_msb);
+    tcg_gen_add_i64(add1, in1, in1);
+    tcg_gen_add_i64(add1, add1, get_psw_carry(ctx, false));
 
-    /* Add or subtract R2, depending on PSW[V].  Proper computation of
-       carry{8} requires that we subtract via + ~R2 + 1, as described in
-       the manual.  By extracting and masking V, we can produce the
-       proper inputs to the addition without movcond.  */
-    tcg_gen_sari_reg(addc, cpu_psw_v, TARGET_REGISTER_BITS - 1);
-    tcg_gen_xor_reg(add2, in2, addc);
-    tcg_gen_andi_reg(addc, addc, 1);
-    /* ??? This is only correct for 32-bit.  */
-    tcg_gen_add2_i32(dest, cpu_psw_cb_msb, add1, zero, add2, zero);
-    tcg_gen_add2_i32(dest, cpu_psw_cb_msb, dest, cpu_psw_cb_msb, addc, zero);
+    /*
+     * Add or subtract R2, depending on PSW[V].  Proper computation of
+     * carry requires that we subtract via + ~R2 + 1, as described in
+     * the manual.  By extracting and masking V, we can produce the
+     * proper inputs to the addition without movcond.
+     */
+    tcg_gen_sextract_i64(addc, cpu_psw_v, 31, 1);
+    tcg_gen_xor_i64(add2, in2, addc);
+    tcg_gen_andi_i64(addc, addc, 1);
 
-    tcg_temp_free(addc);
+    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, add1, ctx->zero, add2, ctx->zero);
+    tcg_gen_add2_i64(dest, cpu_psw_cb_msb, dest, cpu_psw_cb_msb,
+                     addc, ctx->zero);
 
     /* Write back the result register.  */
     save_gpr(ctx, a->t, dest);
 
     /* Write back PSW[CB].  */
-    tcg_gen_xor_reg(cpu_psw_cb, add1, add2);
-    tcg_gen_xor_reg(cpu_psw_cb, cpu_psw_cb, dest);
+    tcg_gen_xor_i64(cpu_psw_cb, add1, add2);
+    tcg_gen_xor_i64(cpu_psw_cb, cpu_psw_cb, dest);
 
     /* Write back PSW[V] for the division step.  */
-    tcg_gen_neg_reg(cpu_psw_v, cpu_psw_cb_msb);
-    tcg_gen_xor_reg(cpu_psw_v, cpu_psw_v, in2);
+    cout = get_psw_carry(ctx, false);
+    tcg_gen_neg_i64(cpu_psw_v, cout);
+    tcg_gen_xor_i64(cpu_psw_v, cpu_psw_v, in2);
 
     /* Install the new nullification.  */
     if (a->cf) {
-        TCGv_reg sv = NULL;
+        TCGv_i64 sv = NULL;
         if (cond_need_sv(a->cf >> 1)) {
             /* ??? The lshift is supposed to contribute to overflow.  */
             sv = do_add_sv(ctx, dest, add1, add2);
         }
-        ctx->null_cond = do_cond(a->cf, dest, cpu_psw_cb_msb, sv);
+        ctx->null_cond = do_cond(ctx, a->cf, false, dest, cout, sv);
     }
-
-    tcg_temp_free(add1);
-    tcg_temp_free(add2);
-    tcg_temp_free(dest);
 
     return nullify_end(ctx);
 }
@@ -2882,23 +2811,241 @@ static bool trans_subi_tsv(DisasContext *ctx, arg_rri_cf *a)
     return do_sub_imm(ctx, a, true);
 }
 
-static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
+static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf_d *a)
 {
-    TCGv_reg tcg_im, tcg_r2;
+    TCGv_i64 tcg_im, tcg_r2;
 
     if (a->cf) {
         nullify_over(ctx);
     }
 
-    tcg_im = load_const(ctx, a->i);
+    tcg_im = tcg_constant_i64(a->i);
     tcg_r2 = load_gpr(ctx, a->r);
-    do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf);
+    do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf, a->d);
 
+    return nullify_end(ctx);
+}
+
+static bool do_multimedia(DisasContext *ctx, arg_rrr *a,
+                          void (*fn)(TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 r1, r2, dest;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r1 = load_gpr(ctx, a->r1);
+    r2 = load_gpr(ctx, a->r2);
+    dest = dest_gpr(ctx, a->t);
+
+    fn(dest, r1, r2);
+    save_gpr(ctx, a->t, dest);
+
+    return nullify_end(ctx);
+}
+
+static bool do_multimedia_sh(DisasContext *ctx, arg_rri *a,
+                             void (*fn)(TCGv_i64, TCGv_i64, int64_t))
+{
+    TCGv_i64 r, dest;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r = load_gpr(ctx, a->r);
+    dest = dest_gpr(ctx, a->t);
+
+    fn(dest, r, a->i);
+    save_gpr(ctx, a->t, dest);
+
+    return nullify_end(ctx);
+}
+
+static bool do_multimedia_shadd(DisasContext *ctx, arg_rrr_sh *a,
+                                void (*fn)(TCGv_i64, TCGv_i64,
+                                           TCGv_i64, TCGv_i32))
+{
+    TCGv_i64 r1, r2, dest;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r1 = load_gpr(ctx, a->r1);
+    r2 = load_gpr(ctx, a->r2);
+    dest = dest_gpr(ctx, a->t);
+
+    fn(dest, r1, r2, tcg_constant_i32(a->sh));
+    save_gpr(ctx, a->t, dest);
+
+    return nullify_end(ctx);
+}
+
+static bool trans_hadd(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, tcg_gen_vec_add16_i64);
+}
+
+static bool trans_hadd_ss(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_helper_hadd_ss);
+}
+
+static bool trans_hadd_us(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_helper_hadd_us);
+}
+
+static bool trans_havg(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_helper_havg);
+}
+
+static bool trans_hshl(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_shl16i_i64);
+}
+
+static bool trans_hshr_s(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_sar16i_i64);
+}
+
+static bool trans_hshr_u(DisasContext *ctx, arg_rri *a)
+{
+    return do_multimedia_sh(ctx, a, tcg_gen_vec_shr16i_i64);
+}
+
+static bool trans_hshladd(DisasContext *ctx, arg_rrr_sh *a)
+{
+    return do_multimedia_shadd(ctx, a, gen_helper_hshladd);
+}
+
+static bool trans_hshradd(DisasContext *ctx, arg_rrr_sh *a)
+{
+    return do_multimedia_shadd(ctx, a, gen_helper_hshradd);
+}
+
+static bool trans_hsub(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, tcg_gen_vec_sub16_i64);
+}
+
+static bool trans_hsub_ss(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_helper_hsub_ss);
+}
+
+static bool trans_hsub_us(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_helper_hsub_us);
+}
+
+static void gen_mixh_l(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    uint64_t mask = 0xffff0000ffff0000ull;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(tmp, r2, mask);
+    tcg_gen_andi_i64(dst, r1, mask);
+    tcg_gen_shri_i64(tmp, tmp, 16);
+    tcg_gen_or_i64(dst, dst, tmp);
+}
+
+static bool trans_mixh_l(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixh_l);
+}
+
+static void gen_mixh_r(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    uint64_t mask = 0x0000ffff0000ffffull;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(tmp, r1, mask);
+    tcg_gen_andi_i64(dst, r2, mask);
+    tcg_gen_shli_i64(tmp, tmp, 16);
+    tcg_gen_or_i64(dst, dst, tmp);
+}
+
+static bool trans_mixh_r(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixh_r);
+}
+
+static void gen_mixw_l(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(tmp, r2, 32);
+    tcg_gen_deposit_i64(dst, r1, tmp, 0, 32);
+}
+
+static bool trans_mixw_l(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixw_l);
+}
+
+static void gen_mixw_r(TCGv_i64 dst, TCGv_i64 r1, TCGv_i64 r2)
+{
+    tcg_gen_deposit_i64(dst, r2, r1, 32, 32);
+}
+
+static bool trans_mixw_r(DisasContext *ctx, arg_rrr *a)
+{
+    return do_multimedia(ctx, a, gen_mixw_r);
+}
+
+static bool trans_permh(DisasContext *ctx, arg_permh *a)
+{
+    TCGv_i64 r, t0, t1, t2, t3;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+
+    nullify_over(ctx);
+
+    r = load_gpr(ctx, a->r1);
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    t3 = tcg_temp_new_i64();
+
+    tcg_gen_extract_i64(t0, r, (3 - a->c0) * 16, 16);
+    tcg_gen_extract_i64(t1, r, (3 - a->c1) * 16, 16);
+    tcg_gen_extract_i64(t2, r, (3 - a->c2) * 16, 16);
+    tcg_gen_extract_i64(t3, r, (3 - a->c3) * 16, 16);
+
+    tcg_gen_deposit_i64(t0, t1, t0, 16, 48);
+    tcg_gen_deposit_i64(t2, t3, t2, 16, 48);
+    tcg_gen_deposit_i64(t0, t2, t0, 32, 32);
+
+    save_gpr(ctx, a->t, t0);
     return nullify_end(ctx);
 }
 
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
+    if (ctx->is_pa20) {
+       /*
+        * With pa20, LDB, LDH, LDW, LDD to %g0 are prefetches.
+        * Any base modification still occurs.
+        */
+        if (a->t == 0) {
+            return trans_nop_addrx(ctx, a);
+        }
+    } else if (a->size > MO_32) {
+        return gen_illegal(ctx);
+    }
     return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
                    a->disp, a->sp, a->m, a->size | MO_TE);
 }
@@ -2906,27 +3053,34 @@ static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 static bool trans_st(DisasContext *ctx, arg_ldst *a)
 {
     assert(a->x == 0 && a->scale == 0);
+    if (!ctx->is_pa20 && a->size > MO_32) {
+        return gen_illegal(ctx);
+    }
     return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 {
     MemOp mop = MO_TE | MO_ALIGN | a->size;
-    TCGv_reg zero, dest, ofs;
-    TCGv_tl addr;
+    TCGv_i64 dest, ofs;
+    TCGv_i64 addr;
+
+    if (!ctx->is_pa20 && a->size > MO_32) {
+        return gen_illegal(ctx);
+    }
 
     nullify_over(ctx);
 
     if (a->m) {
         /* Base register modification.  Make sure if RT == RB,
            we see the result of the load.  */
-        dest = get_temp(ctx);
+        dest = tcg_temp_new_i64();
     } else {
         dest = dest_gpr(ctx, a->t);
     }
 
     form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? a->size : 0,
-             a->disp, a->sp, a->m, ctx->mmu_idx == MMU_PHYS_IDX);
+             a->disp, a->sp, a->m, MMU_DISABLED(ctx));
 
     /*
      * For hppa1.1, LDCW is undefined unless aligned mod 16.
@@ -2938,8 +3092,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
      */
     gen_helper_ldc_check(addr);
 
-    zero = tcg_constant_reg(0);
-    tcg_gen_atomic_xchg_reg(dest, addr, zero, ctx->mmu_idx, mop);
+    tcg_gen_atomic_xchg_i64(dest, addr, ctx->zero, ctx->mmu_idx, mop);
 
     if (a->m) {
         save_gpr(ctx, a->b, ofs);
@@ -2951,29 +3104,63 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 
 static bool trans_stby(DisasContext *ctx, arg_stby *a)
 {
-    TCGv_reg ofs, val;
-    TCGv_tl addr;
+    TCGv_i64 ofs, val;
+    TCGv_i64 addr;
 
     nullify_over(ctx);
 
     form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+             MMU_DISABLED(ctx));
     val = load_gpr(ctx, a->r);
     if (a->a) {
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-            gen_helper_stby_e_parallel(cpu_env, addr, val);
+            gen_helper_stby_e_parallel(tcg_env, addr, val);
         } else {
-            gen_helper_stby_e(cpu_env, addr, val);
+            gen_helper_stby_e(tcg_env, addr, val);
         }
     } else {
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-            gen_helper_stby_b_parallel(cpu_env, addr, val);
+            gen_helper_stby_b_parallel(tcg_env, addr, val);
         } else {
-            gen_helper_stby_b(cpu_env, addr, val);
+            gen_helper_stby_b(tcg_env, addr, val);
         }
     }
     if (a->m) {
-        tcg_gen_andi_reg(ofs, ofs, ~3);
+        tcg_gen_andi_i64(ofs, ofs, ~3);
+        save_gpr(ctx, a->b, ofs);
+    }
+
+    return nullify_end(ctx);
+}
+
+static bool trans_stdby(DisasContext *ctx, arg_stby *a)
+{
+    TCGv_i64 ofs, val;
+    TCGv_i64 addr;
+
+    if (!ctx->is_pa20) {
+        return false;
+    }
+    nullify_over(ctx);
+
+    form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
+             MMU_DISABLED(ctx));
+    val = load_gpr(ctx, a->r);
+    if (a->a) {
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stdby_e_parallel(tcg_env, addr, val);
+        } else {
+            gen_helper_stdby_e(tcg_env, addr, val);
+        }
+    } else {
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stdby_b_parallel(tcg_env, addr, val);
+        } else {
+            gen_helper_stdby_b(tcg_env, addr, val);
+        }
+    }
+    if (a->m) {
+        tcg_gen_andi_i64(ofs, ofs, ~7);
         save_gpr(ctx, a->b, ofs);
     }
 
@@ -2985,7 +3172,7 @@ static bool trans_lda(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_ld(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -2996,7 +3183,7 @@ static bool trans_sta(DisasContext *ctx, arg_ldst *a)
     int hold_mmu_idx = ctx->mmu_idx;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    ctx->mmu_idx = MMU_PHYS_IDX;
+    ctx->mmu_idx = ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
     trans_st(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
     return true;
@@ -3004,9 +3191,9 @@ static bool trans_sta(DisasContext *ctx, arg_ldst *a)
 
 static bool trans_ldil(DisasContext *ctx, arg_ldil *a)
 {
-    TCGv_reg tcg_rt = dest_gpr(ctx, a->t);
+    TCGv_i64 tcg_rt = dest_gpr(ctx, a->t);
 
-    tcg_gen_movi_reg(tcg_rt, a->i);
+    tcg_gen_movi_i64(tcg_rt, a->i);
     save_gpr(ctx, a->t, tcg_rt);
     cond_free(&ctx->null_cond);
     return true;
@@ -3014,10 +3201,10 @@ static bool trans_ldil(DisasContext *ctx, arg_ldil *a)
 
 static bool trans_addil(DisasContext *ctx, arg_addil *a)
 {
-    TCGv_reg tcg_rt = load_gpr(ctx, a->r);
-    TCGv_reg tcg_r1 = dest_gpr(ctx, 1);
+    TCGv_i64 tcg_rt = load_gpr(ctx, a->r);
+    TCGv_i64 tcg_r1 = dest_gpr(ctx, 1);
 
-    tcg_gen_addi_reg(tcg_r1, tcg_rt, a->i);
+    tcg_gen_addi_i64(tcg_r1, tcg_rt, a->i);
     save_gpr(ctx, 1, tcg_r1);
     cond_free(&ctx->null_cond);
     return true;
@@ -3025,77 +3212,101 @@ static bool trans_addil(DisasContext *ctx, arg_addil *a)
 
 static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
 {
-    TCGv_reg tcg_rt = dest_gpr(ctx, a->t);
+    TCGv_i64 tcg_rt = dest_gpr(ctx, a->t);
 
     /* Special case rb == 0, for the LDI pseudo-op.
-       The COPY pseudo-op is handled for free within tcg_gen_addi_tl.  */
+       The COPY pseudo-op is handled for free within tcg_gen_addi_i64.  */
     if (a->b == 0) {
-        tcg_gen_movi_reg(tcg_rt, a->i);
+        tcg_gen_movi_i64(tcg_rt, a->i);
     } else {
-        tcg_gen_addi_reg(tcg_rt, cpu_gr[a->b], a->i);
+        tcg_gen_addi_i64(tcg_rt, cpu_gr[a->b], a->i);
     }
     save_gpr(ctx, a->t, tcg_rt);
     cond_free(&ctx->null_cond);
     return true;
 }
 
-static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
-                    unsigned c, unsigned f, unsigned n, int disp)
+static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_i64 in1,
+                    unsigned c, unsigned f, bool d, unsigned n, int disp)
 {
-    TCGv_reg dest, in2, sv;
+    TCGv_i64 dest, in2, sv;
     DisasCond cond;
 
     in2 = load_gpr(ctx, r);
-    dest = get_temp(ctx);
+    dest = tcg_temp_new_i64();
 
-    tcg_gen_sub_reg(dest, in1, in2);
+    tcg_gen_sub_i64(dest, in1, in2);
 
     sv = NULL;
     if (cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_sub_cond(c * 2 + f, dest, in1, in2, sv);
+    cond = do_sub_cond(ctx, c * 2 + f, d, dest, in1, in2, sv);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
 static bool trans_cmpb(DisasContext *ctx, arg_cmpb *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     nullify_over(ctx);
-    return do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+    return do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1),
+                   a->c, a->f, a->d, a->n, a->disp);
 }
 
 static bool trans_cmpbi(DisasContext *ctx, arg_cmpbi *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     nullify_over(ctx);
-    return do_cmpb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+    return do_cmpb(ctx, a->r, tcg_constant_i64(a->i),
+                   a->c, a->f, a->d, a->n, a->disp);
 }
 
-static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
+static bool do_addb(DisasContext *ctx, unsigned r, TCGv_i64 in1,
                     unsigned c, unsigned f, unsigned n, int disp)
 {
-    TCGv_reg dest, in2, sv, cb_msb;
+    TCGv_i64 dest, in2, sv, cb_cond;
     DisasCond cond;
+    bool d = false;
+
+    /*
+     * For hppa64, the ADDB conditions change with PSW.W,
+     * dropping ZNV, SV, OD in favor of double-word EQ, LT, LE.
+     */
+    if (ctx->tb_flags & PSW_W) {
+        d = c >= 5;
+        if (d) {
+            c &= 3;
+        }
+    }
 
     in2 = load_gpr(ctx, r);
-    dest = tcg_temp_new();
+    dest = tcg_temp_new_i64();
     sv = NULL;
-    cb_msb = NULL;
+    cb_cond = NULL;
 
     if (cond_need_cb(c)) {
-        cb_msb = get_temp(ctx);
-        tcg_gen_movi_reg(cb_msb, 0);
-        tcg_gen_add2_reg(dest, cb_msb, in1, cb_msb, in2, cb_msb);
+        TCGv_i64 cb = tcg_temp_new_i64();
+        TCGv_i64 cb_msb = tcg_temp_new_i64();
+
+        tcg_gen_movi_i64(cb_msb, 0);
+        tcg_gen_add2_i64(dest, cb_msb, in1, cb_msb, in2, cb_msb);
+        tcg_gen_xor_i64(cb, in1, in2);
+        tcg_gen_xor_i64(cb, cb, dest);
+        cb_cond = get_carry(ctx, d, cb, cb_msb);
     } else {
-        tcg_gen_add_reg(dest, in1, in2);
+        tcg_gen_add_i64(dest, in1, in2);
     }
     if (cond_need_sv(c)) {
         sv = do_add_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_cond(c * 2 + f, dest, cb_msb, sv);
+    cond = do_cond(ctx, c * 2 + f, d, dest, cb_cond, sv);
     save_gpr(ctx, r, dest);
-    tcg_temp_free(dest);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
@@ -3108,222 +3319,289 @@ static bool trans_addb(DisasContext *ctx, arg_addb *a)
 static bool trans_addbi(DisasContext *ctx, arg_addbi *a)
 {
     nullify_over(ctx);
-    return do_addb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+    return do_addb(ctx, a->r, tcg_constant_i64(a->i), a->c, a->f, a->n, a->disp);
 }
 
 static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
 {
-    TCGv_reg tmp, tcg_r;
+    TCGv_i64 tmp, tcg_r;
     DisasCond cond;
 
     nullify_over(ctx);
 
-    tmp = tcg_temp_new();
+    tmp = tcg_temp_new_i64();
     tcg_r = load_gpr(ctx, a->r);
-    tcg_gen_shl_reg(tmp, tcg_r, cpu_sar);
+    if (cond_need_ext(ctx, a->d)) {
+        /* Force shift into [32,63] */
+        tcg_gen_ori_i64(tmp, cpu_sar, 32);
+        tcg_gen_shl_i64(tmp, tcg_r, tmp);
+    } else {
+        tcg_gen_shl_i64(tmp, tcg_r, cpu_sar);
+    }
 
-    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
-    tcg_temp_free(tmp);
+    cond = cond_make_0_tmp(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
 static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 {
-    TCGv_reg tmp, tcg_r;
+    TCGv_i64 tmp, tcg_r;
     DisasCond cond;
+    int p;
 
     nullify_over(ctx);
 
-    tmp = tcg_temp_new();
+    tmp = tcg_temp_new_i64();
     tcg_r = load_gpr(ctx, a->r);
-    tcg_gen_shli_reg(tmp, tcg_r, a->p);
+    p = a->p | (cond_need_ext(ctx, a->d) ? 32 : 0);
+    tcg_gen_shli_i64(tmp, tcg_r, p);
 
     cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
-    tcg_temp_free(tmp);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
 static bool trans_movb(DisasContext *ctx, arg_movb *a)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
     DisasCond cond;
 
     nullify_over(ctx);
 
     dest = dest_gpr(ctx, a->r2);
     if (a->r1 == 0) {
-        tcg_gen_movi_reg(dest, 0);
+        tcg_gen_movi_i64(dest, 0);
     } else {
-        tcg_gen_mov_reg(dest, cpu_gr[a->r1]);
+        tcg_gen_mov_i64(dest, cpu_gr[a->r1]);
     }
 
-    cond = do_sed_cond(a->c, dest);
+    /* All MOVB conditions are 32-bit. */
+    cond = do_sed_cond(ctx, a->c, false, dest);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
 static bool trans_movbi(DisasContext *ctx, arg_movbi *a)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
     DisasCond cond;
 
     nullify_over(ctx);
 
     dest = dest_gpr(ctx, a->r);
-    tcg_gen_movi_reg(dest, a->i);
+    tcg_gen_movi_i64(dest, a->i);
 
-    cond = do_sed_cond(a->c, dest);
+    /* All MOVBI conditions are 32-bit. */
+    cond = do_sed_cond(ctx, a->c, false, dest);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
-static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
+static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest, src2;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
 
     dest = dest_gpr(ctx, a->t);
+    src2 = load_gpr(ctx, a->r2);
     if (a->r1 == 0) {
-        tcg_gen_ext32u_reg(dest, load_gpr(ctx, a->r2));
-        tcg_gen_shr_reg(dest, dest, cpu_sar);
+        if (a->d) {
+            tcg_gen_shr_i64(dest, src2, cpu_sar);
+        } else {
+            TCGv_i64 tmp = tcg_temp_new_i64();
+
+            tcg_gen_ext32u_i64(dest, src2);
+            tcg_gen_andi_i64(tmp, cpu_sar, 31);
+            tcg_gen_shr_i64(dest, dest, tmp);
+        }
     } else if (a->r1 == a->r2) {
-        TCGv_i32 t32 = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(t32, load_gpr(ctx, a->r2));
-        tcg_gen_rotr_i32(t32, t32, cpu_sar);
-        tcg_gen_extu_i32_reg(dest, t32);
-        tcg_temp_free_i32(t32);
+        if (a->d) {
+            tcg_gen_rotr_i64(dest, src2, cpu_sar);
+        } else {
+            TCGv_i32 t32 = tcg_temp_new_i32();
+            TCGv_i32 s32 = tcg_temp_new_i32();
+
+            tcg_gen_extrl_i64_i32(t32, src2);
+            tcg_gen_extrl_i64_i32(s32, cpu_sar);
+            tcg_gen_andi_i32(s32, s32, 31);
+            tcg_gen_rotr_i32(t32, t32, s32);
+            tcg_gen_extu_i32_i64(dest, t32);
+        }
     } else {
-        TCGv_i64 t = tcg_temp_new_i64();
-        TCGv_i64 s = tcg_temp_new_i64();
+        TCGv_i64 src1 = load_gpr(ctx, a->r1);
 
-        tcg_gen_concat_reg_i64(t, load_gpr(ctx, a->r2), load_gpr(ctx, a->r1));
-        tcg_gen_extu_reg_i64(s, cpu_sar);
-        tcg_gen_shr_i64(t, t, s);
-        tcg_gen_trunc_i64_reg(dest, t);
+        if (a->d) {
+            TCGv_i64 t = tcg_temp_new_i64();
+            TCGv_i64 n = tcg_temp_new_i64();
 
-        tcg_temp_free_i64(t);
-        tcg_temp_free_i64(s);
+            tcg_gen_xori_i64(n, cpu_sar, 63);
+            tcg_gen_shl_i64(t, src1, n);
+            tcg_gen_shli_i64(t, t, 1);
+            tcg_gen_shr_i64(dest, src2, cpu_sar);
+            tcg_gen_or_i64(dest, dest, t);
+        } else {
+            TCGv_i64 t = tcg_temp_new_i64();
+            TCGv_i64 s = tcg_temp_new_i64();
+
+            tcg_gen_concat32_i64(t, src2, src1);
+            tcg_gen_andi_i64(s, cpu_sar, 31);
+            tcg_gen_shr_i64(dest, t, s);
+        }
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
+static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
 {
-    unsigned sa = 31 - a->cpos;
-    TCGv_reg dest, t2;
+    unsigned width, sa;
+    TCGv_i64 dest, t2;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
+
+    width = a->d ? 64 : 32;
+    sa = width - 1 - a->cpos;
 
     dest = dest_gpr(ctx, a->t);
     t2 = load_gpr(ctx, a->r2);
     if (a->r1 == 0) {
-        tcg_gen_extract_reg(dest, t2, sa, 32 - sa);
-    } else if (TARGET_REGISTER_BITS == 32) {
-        tcg_gen_extract2_reg(dest, t2, cpu_gr[a->r1], sa);
-    } else if (a->r1 == a->r2) {
-        TCGv_i32 t32 = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(t32, t2);
-        tcg_gen_rotri_i32(t32, t32, sa);
-        tcg_gen_extu_i32_reg(dest, t32);
-        tcg_temp_free_i32(t32);
+        tcg_gen_extract_i64(dest, t2, sa, width - sa);
+    } else if (width == TARGET_LONG_BITS) {
+        tcg_gen_extract2_i64(dest, t2, cpu_gr[a->r1], sa);
     } else {
-        TCGv_i64 t64 = tcg_temp_new_i64();
-        tcg_gen_concat_reg_i64(t64, t2, cpu_gr[a->r1]);
-        tcg_gen_shri_i64(t64, t64, sa);
-        tcg_gen_trunc_i64_reg(dest, t64);
-        tcg_temp_free_i64(t64);
+        assert(!a->d);
+        if (a->r1 == a->r2) {
+            TCGv_i32 t32 = tcg_temp_new_i32();
+            tcg_gen_extrl_i64_i32(t32, t2);
+            tcg_gen_rotri_i32(t32, t32, sa);
+            tcg_gen_extu_i32_i64(dest, t32);
+        } else {
+            tcg_gen_concat32_i64(dest, t2, cpu_gr[a->r1]);
+            tcg_gen_extract_i64(dest, dest, sa, 32);
+        }
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
+static bool trans_extr_sar(DisasContext *ctx, arg_extr_sar *a)
 {
-    unsigned len = 32 - a->clen;
-    TCGv_reg dest, src, tmp;
+    unsigned widthm1 = a->d ? 63 : 31;
+    TCGv_i64 dest, src, tmp;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
 
     dest = dest_gpr(ctx, a->t);
     src = load_gpr(ctx, a->r);
-    tmp = tcg_temp_new();
+    tmp = tcg_temp_new_i64();
 
     /* Recall that SAR is using big-endian bit numbering.  */
-    tcg_gen_xori_reg(tmp, cpu_sar, TARGET_REGISTER_BITS - 1);
+    tcg_gen_andi_i64(tmp, cpu_sar, widthm1);
+    tcg_gen_xori_i64(tmp, tmp, widthm1);
+
     if (a->se) {
-        tcg_gen_sar_reg(dest, src, tmp);
-        tcg_gen_sextract_reg(dest, dest, 0, len);
+        if (!a->d) {
+            tcg_gen_ext32s_i64(dest, src);
+            src = dest;
+        }
+        tcg_gen_sar_i64(dest, src, tmp);
+        tcg_gen_sextract_i64(dest, dest, 0, a->len);
     } else {
-        tcg_gen_shr_reg(dest, src, tmp);
-        tcg_gen_extract_reg(dest, dest, 0, len);
+        if (!a->d) {
+            tcg_gen_ext32u_i64(dest, src);
+            src = dest;
+        }
+        tcg_gen_shr_i64(dest, src, tmp);
+        tcg_gen_extract_i64(dest, dest, 0, a->len);
     }
-    tcg_temp_free(tmp);
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
+static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
 {
-    unsigned len = 32 - a->clen;
-    unsigned cpos = 31 - a->pos;
-    TCGv_reg dest, src;
+    unsigned len, cpos, width;
+    TCGv_i64 dest, src;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
+    }
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    cpos = width - 1 - a->pos;
+    if (cpos + len > width) {
+        len = width - cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
     src = load_gpr(ctx, a->r);
     if (a->se) {
-        tcg_gen_sextract_reg(dest, src, cpos, len);
+        tcg_gen_sextract_i64(dest, src, cpos, len);
     } else {
-        tcg_gen_extract_reg(dest, src, cpos, len);
+        tcg_gen_extract_i64(dest, src, cpos, len);
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
+static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
 {
-    unsigned len = 32 - a->clen;
-    target_sreg mask0, mask1;
-    TCGv_reg dest;
+    unsigned len, width;
+    uint64_t mask0, mask1;
+    TCGv_i64 dest;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    if (a->cpos + len > 32) {
-        len = 32 - a->cpos;
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    if (a->cpos + len > width) {
+        len = width - a->cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
@@ -3331,112 +3609,122 @@ static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
     mask1 = deposit64(-1, a->cpos, len, a->i);
 
     if (a->nz) {
-        TCGv_reg src = load_gpr(ctx, a->t);
-        if (mask1 != -1) {
-            tcg_gen_andi_reg(dest, src, mask1);
-            src = dest;
-        }
-        tcg_gen_ori_reg(dest, src, mask0);
+        TCGv_i64 src = load_gpr(ctx, a->t);
+        tcg_gen_andi_i64(dest, src, mask1);
+        tcg_gen_ori_i64(dest, dest, mask0);
     } else {
-        tcg_gen_movi_reg(dest, mask0);
+        tcg_gen_movi_i64(dest, mask0);
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_depw_imm(DisasContext *ctx, arg_depw_imm *a)
+static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
 {
     unsigned rs = a->nz ? a->t : 0;
-    unsigned len = 32 - a->clen;
-    TCGv_reg dest, val;
+    unsigned len, width;
+    TCGv_i64 dest, val;
 
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    if (a->cpos + len > 32) {
-        len = 32 - a->cpos;
+
+    len = a->len;
+    width = a->d ? 64 : 32;
+    if (a->cpos + len > width) {
+        len = width - a->cpos;
     }
 
     dest = dest_gpr(ctx, a->t);
     val = load_gpr(ctx, a->r);
     if (rs == 0) {
-        tcg_gen_deposit_z_reg(dest, val, a->cpos, len);
+        tcg_gen_deposit_z_i64(dest, val, a->cpos, len);
     } else {
-        tcg_gen_deposit_reg(dest, cpu_gr[rs], val, a->cpos, len);
+        tcg_gen_deposit_i64(dest, cpu_gr[rs], val, a->cpos, len);
     }
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
-                        unsigned nz, unsigned clen, TCGv_reg val)
+static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
+                       bool d, bool nz, unsigned len, TCGv_i64 val)
 {
     unsigned rs = nz ? rt : 0;
-    unsigned len = 32 - clen;
-    TCGv_reg mask, tmp, shift, dest;
-    unsigned msb = 1U << (len - 1);
+    unsigned widthm1 = d ? 63 : 31;
+    TCGv_i64 mask, tmp, shift, dest;
+    uint64_t msb = 1ULL << (len - 1);
 
     dest = dest_gpr(ctx, rt);
-    shift = tcg_temp_new();
-    tmp = tcg_temp_new();
+    shift = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
 
     /* Convert big-endian bit numbering in SAR to left-shift.  */
-    tcg_gen_xori_reg(shift, cpu_sar, TARGET_REGISTER_BITS - 1);
+    tcg_gen_andi_i64(shift, cpu_sar, widthm1);
+    tcg_gen_xori_i64(shift, shift, widthm1);
 
-    mask = tcg_const_reg(msb + (msb - 1));
-    tcg_gen_and_reg(tmp, val, mask);
+    mask = tcg_temp_new_i64();
+    tcg_gen_movi_i64(mask, msb + (msb - 1));
+    tcg_gen_and_i64(tmp, val, mask);
     if (rs) {
-        tcg_gen_shl_reg(mask, mask, shift);
-        tcg_gen_shl_reg(tmp, tmp, shift);
-        tcg_gen_andc_reg(dest, cpu_gr[rs], mask);
-        tcg_gen_or_reg(dest, dest, tmp);
+        tcg_gen_shl_i64(mask, mask, shift);
+        tcg_gen_shl_i64(tmp, tmp, shift);
+        tcg_gen_andc_i64(dest, cpu_gr[rs], mask);
+        tcg_gen_or_i64(dest, dest, tmp);
     } else {
-        tcg_gen_shl_reg(dest, tmp, shift);
+        tcg_gen_shl_i64(dest, tmp, shift);
     }
-    tcg_temp_free(shift);
-    tcg_temp_free(mask);
-    tcg_temp_free(tmp);
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+        ctx->null_cond = do_sed_cond(ctx, c, d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_depw_sar(DisasContext *ctx, arg_depw_sar *a)
+static bool trans_dep_sar(DisasContext *ctx, arg_dep_sar *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_gpr(ctx, a->r));
+    return do_dep_sar(ctx, a->t, a->c, a->d, a->nz, a->len,
+                      load_gpr(ctx, a->r));
 }
 
-static bool trans_depwi_sar(DisasContext *ctx, arg_depwi_sar *a)
+static bool trans_depi_sar(DisasContext *ctx, arg_depi_sar *a)
 {
+    if (!ctx->is_pa20 && a->d) {
+        return false;
+    }
     if (a->c) {
         nullify_over(ctx);
     }
-    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_const(ctx, a->i));
+    return do_dep_sar(ctx, a->t, a->c, a->d, a->nz, a->len,
+                      tcg_constant_i64(a->i));
 }
 
 static bool trans_be(DisasContext *ctx, arg_be *a)
 {
-    TCGv_reg tmp;
+    TCGv_i64 tmp;
 
 #ifdef CONFIG_USER_ONLY
     /* ??? It seems like there should be a good way of using
@@ -3454,8 +3742,8 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     nullify_over(ctx);
 #endif
 
-    tmp = get_temp(ctx);
-    tcg_gen_addi_reg(tmp, load_gpr(ctx, a->b), a->disp);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_addi_i64(tmp, load_gpr(ctx, a->b), a->disp);
     tmp = do_ibranch_priv(ctx, tmp);
 
 #ifdef CONFIG_USER_ONLY
@@ -3465,24 +3753,24 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
 
     load_spr(ctx, new_spc, a->sp);
     if (a->l) {
-        copy_iaoq_entry(cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
+        copy_iaoq_entry(ctx, cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
         tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_f);
     }
     if (a->n && use_nullify_skip(ctx)) {
-        tcg_gen_mov_reg(cpu_iaoq_f, tmp);
-        tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
+        tcg_gen_addi_i64(tmp, tmp, 4);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
         tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
     } else {
-        copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
         if (ctx->iaoq_b == -1) {
             tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
         }
-        tcg_gen_mov_reg(cpu_iaoq_b, tmp);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
         tcg_gen_mov_i64(cpu_iasq_b, new_spc);
         nullify_set(ctx, a->n);
     }
-    tcg_temp_free_i64(new_spc);
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
@@ -3496,7 +3784,7 @@ static bool trans_bl(DisasContext *ctx, arg_bl *a)
 
 static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
-    target_ureg dest = iaoq_dest(ctx, a->disp);
+    uint64_t dest = iaoq_dest(ctx, a->disp);
 
     nullify_over(ctx);
 
@@ -3517,7 +3805,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 
 #ifndef CONFIG_USER_ONLY
     if (ctx->tb_flags & PSW_C) {
-        CPUHPPAState *env = ctx->cs->env_ptr;
+        CPUHPPAState *env = cpu_env(ctx->cs);
         int type = hppa_artype_for_page(env, ctx->base.pc_next);
         /* If we could not find a TLB entry, then we need to generate an
            ITLB miss exception so the kernel will provide it.
@@ -3538,11 +3826,11 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 #endif
 
     if (a->l) {
-        TCGv_reg tmp = dest_gpr(ctx, a->l);
+        TCGv_i64 tmp = dest_gpr(ctx, a->l);
         if (ctx->privilege < 3) {
-            tcg_gen_andi_reg(tmp, tmp, -4);
+            tcg_gen_andi_i64(tmp, tmp, -4);
         }
-        tcg_gen_ori_reg(tmp, tmp, ctx->privilege);
+        tcg_gen_ori_i64(tmp, tmp, ctx->privilege);
         save_gpr(ctx, a->l, tmp);
     }
 
@@ -3552,9 +3840,9 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
     if (a->x) {
-        TCGv_reg tmp = get_temp(ctx);
-        tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
-        tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_shli_i64(tmp, load_gpr(ctx, a->x), 3);
+        tcg_gen_addi_i64(tmp, tmp, ctx->iaoq_f + 8);
         /* The computation here never changes privilege level.  */
         return do_ibranch(ctx, tmp, a->l, a->n);
     } else {
@@ -3565,14 +3853,14 @@ static bool trans_blr(DisasContext *ctx, arg_blr *a)
 
 static bool trans_bv(DisasContext *ctx, arg_bv *a)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
 
     if (a->x == 0) {
         dest = load_gpr(ctx, a->b);
     } else {
-        dest = get_temp(ctx);
-        tcg_gen_shli_reg(dest, load_gpr(ctx, a->x), 3);
-        tcg_gen_add_reg(dest, dest, load_gpr(ctx, a->b));
+        dest = tcg_temp_new_i64();
+        tcg_gen_shli_i64(dest, load_gpr(ctx, a->x), 3);
+        tcg_gen_add_i64(dest, dest, load_gpr(ctx, a->b));
     }
     dest = do_ibranch_priv(ctx, dest);
     return do_ibranch(ctx, dest, 0, a->n);
@@ -3580,7 +3868,7 @@ static bool trans_bv(DisasContext *ctx, arg_bv *a)
 
 static bool trans_bve(DisasContext *ctx, arg_bve *a)
 {
-    TCGv_reg dest;
+    TCGv_i64 dest;
 
 #ifdef CONFIG_USER_ONLY
     dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
@@ -3589,20 +3877,26 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
     nullify_over(ctx);
     dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
 
-    copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+    copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
     if (ctx->iaoq_b == -1) {
         tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
     }
-    copy_iaoq_entry(cpu_iaoq_b, -1, dest);
+    copy_iaoq_entry(ctx, cpu_iaoq_b, -1, dest);
     tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
     if (a->l) {
-        copy_iaoq_entry(cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
+        copy_iaoq_entry(ctx, cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
     }
     nullify_set(ctx, a->n);
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 #endif
+}
+
+static bool trans_nopbts(DisasContext *ctx, arg_nopbts *a)
+{
+    /* All branch target stack instructions implement as nop. */
+    return ctx->is_pa20;
 }
 
 /*
@@ -3612,6 +3906,21 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
 static void gen_fcpy_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 {
     tcg_gen_mov_i32(dst, src);
+}
+
+static bool trans_fid_f(DisasContext *ctx, arg_fid_f *a)
+{
+    uint64_t ret;
+
+    if (ctx->is_pa20) {
+        ret = 0x13080000000000ULL; /* PA8700 (PCX-W2) */
+    } else {
+        ret = 0x0f080000000000ULL; /* PA7300LC (PCX-L2) */
+    }
+
+    nullify_over(ctx);
+    save_frd(0, tcg_constant_i64(ret));
+    return nullify_end(ctx);
 }
 
 static bool trans_fcpy_f(DisasContext *ctx, arg_fclass01 *a)
@@ -3858,10 +4167,7 @@ static bool trans_fcmp_f(DisasContext *ctx, arg_fclass2 *a)
     ty = tcg_constant_i32(a->y);
     tc = tcg_constant_i32(a->c);
 
-    gen_helper_fcmp_s(cpu_env, ta, tb, ty, tc);
-
-    tcg_temp_free_i32(ta);
-    tcg_temp_free_i32(tb);
+    gen_helper_fcmp_s(tcg_env, ta, tb, ty, tc);
 
     return nullify_end(ctx);
 }
@@ -3878,22 +4184,19 @@ static bool trans_fcmp_d(DisasContext *ctx, arg_fclass2 *a)
     ty = tcg_constant_i32(a->y);
     tc = tcg_constant_i32(a->c);
 
-    gen_helper_fcmp_d(cpu_env, ta, tb, ty, tc);
-
-    tcg_temp_free_i64(ta);
-    tcg_temp_free_i64(tb);
+    gen_helper_fcmp_d(tcg_env, ta, tb, ty, tc);
 
     return nullify_end(ctx);
 }
 
 static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 {
-    TCGv_reg t;
+    TCGv_i64 t;
 
     nullify_over(ctx);
 
-    t = get_temp(ctx);
-    tcg_gen_ld32u_reg(t, cpu_env, offsetof(CPUHPPAState, fr0_shadow));
+    t = tcg_temp_new_i64();
+    tcg_gen_ld32u_i64(t, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
 
     if (a->y == 1) {
         int mask;
@@ -3901,7 +4204,7 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 
         switch (a->c) {
         case 0: /* simple */
-            tcg_gen_andi_reg(t, t, 0x4000000);
+            tcg_gen_andi_i64(t, t, 0x4000000);
             ctx->null_cond = cond_make_0(TCG_COND_NE, t);
             goto done;
         case 2: /* rej */
@@ -3930,19 +4233,18 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
             return true;
         }
         if (inv) {
-            TCGv_reg c = load_const(ctx, mask);
-            tcg_gen_or_reg(t, t, c);
+            TCGv_i64 c = tcg_constant_i64(mask);
+            tcg_gen_or_i64(t, t, c);
             ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
         } else {
-            tcg_gen_andi_reg(t, t, mask);
+            tcg_gen_andi_i64(t, t, mask);
             ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
         }
     } else {
         unsigned cbit = (a->y ^ 1) - 1;
 
-        tcg_gen_extract_reg(t, t, 21 - cbit, 1);
+        tcg_gen_extract_i64(t, t, 21 - cbit, 1);
         ctx->null_cond = cond_make_0(TCG_COND_NE, t);
-        tcg_temp_free(t);
     }
 
  done:
@@ -4003,8 +4305,6 @@ static bool trans_xmpyu(DisasContext *ctx, arg_xmpyu *a)
     y = load_frw0_i64(a->r2);
     tcg_gen_mul_i64(x, x, y);
     save_frd(a->t, x);
-    tcg_temp_free_i64(x);
-    tcg_temp_free_i64(y);
 
     return nullify_end(ctx);
 }
@@ -4073,15 +4373,12 @@ static bool trans_fmpyfadd_f(DisasContext *ctx, arg_fmpyfadd_f *a)
     z = load_frw0_i32(a->ra3);
 
     if (a->neg) {
-        gen_helper_fmpynfadd_s(x, cpu_env, x, y, z);
+        gen_helper_fmpynfadd_s(x, tcg_env, x, y, z);
     } else {
-        gen_helper_fmpyfadd_s(x, cpu_env, x, y, z);
+        gen_helper_fmpyfadd_s(x, tcg_env, x, y, z);
     }
 
-    tcg_temp_free_i32(y);
-    tcg_temp_free_i32(z);
     save_frw_i32(a->t, x);
-    tcg_temp_free_i32(x);
     return nullify_end(ctx);
 }
 
@@ -4095,22 +4392,27 @@ static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
     z = load_frd0(a->ra3);
 
     if (a->neg) {
-        gen_helper_fmpynfadd_d(x, cpu_env, x, y, z);
+        gen_helper_fmpynfadd_d(x, tcg_env, x, y, z);
     } else {
-        gen_helper_fmpyfadd_d(x, cpu_env, x, y, z);
+        gen_helper_fmpyfadd_d(x, tcg_env, x, y, z);
     }
 
-    tcg_temp_free_i64(y);
-    tcg_temp_free_i64(z);
     save_frd(a->t, x);
-    tcg_temp_free_i64(x);
     return nullify_end(ctx);
 }
 
 static bool trans_diag(DisasContext *ctx, arg_diag *a)
 {
-    qemu_log_mask(LOG_UNIMP, "DIAG opcode ignored\n");
-    cond_free(&ctx->null_cond);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    if (a->i == 0x100) {
+        /* emulate PDC BTLB, called by SeaBIOS-hppa */
+        nullify_over(ctx);
+        gen_helper_diag_btlb(tcg_env);
+        return nullify_end(ctx);
+    }
+#endif
+    qemu_log_mask(LOG_UNIMP, "DIAG opcode 0x%04x ignored\n", a->i);
     return true;
 }
 
@@ -4121,16 +4423,19 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     ctx->cs = cs;
     ctx->tb_flags = ctx->base.tb->flags;
+    ctx->is_pa20 = hppa_is_pa20(cpu_env(cs));
 
 #ifdef CONFIG_USER_ONLY
-    ctx->privilege = MMU_USER_IDX;
+    ctx->privilege = MMU_IDX_TO_PRIV(MMU_USER_IDX);
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->iaoq_f = ctx->base.pc_first | MMU_USER_IDX;
-    ctx->iaoq_b = ctx->base.tb->cs_base | MMU_USER_IDX;
+    ctx->iaoq_f = ctx->base.pc_first | ctx->privilege;
+    ctx->iaoq_b = ctx->base.tb->cs_base | ctx->privilege;
     ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
-    ctx->mmu_idx = (ctx->tb_flags & PSW_D ? ctx->privilege : MMU_PHYS_IDX);
+    ctx->mmu_idx = (ctx->tb_flags & PSW_D
+                    ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
+                    : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
     /* Recover the IAOQ values from the GVA + PRIV.  */
     uint64_t cs_base = ctx->base.tb->cs_base;
@@ -4143,14 +4448,11 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->iaoq_n = -1;
     ctx->iaoq_n_var = NULL;
 
+    ctx->zero = tcg_constant_i64(0);
+
     /* Bound the number of instructions by those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
-
-    ctx->ntempr = 0;
-    ctx->ntempl = 0;
-    memset(ctx->tempr, 0, sizeof(ctx->tempr));
-    memset(ctx->templ, 0, sizeof(ctx->templ));
 }
 
 static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
@@ -4171,15 +4473,15 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b);
+    tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b, 0);
+    ctx->insn_start = tcg_last_op();
 }
 
 static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUHPPAState *env = cs->env_ptr;
+    CPUHPPAState *env = cpu_env(cs);
     DisasJumpType ret;
-    int i, n;
 
     /* Execute one insn.  */
 #ifdef CONFIG_USER_ONLY
@@ -4198,8 +4500,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
            This will be overwritten by a branch.  */
         if (ctx->iaoq_b == -1) {
             ctx->iaoq_n = -1;
-            ctx->iaoq_n_var = get_temp(ctx);
-            tcg_gen_addi_reg(ctx->iaoq_n_var, cpu_iaoq_b, 4);
+            ctx->iaoq_n_var = tcg_temp_new_i64();
+            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
         } else {
             ctx->iaoq_n = ctx->iaoq_b + 4;
             ctx->iaoq_n_var = NULL;
@@ -4217,18 +4519,6 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             assert(ctx->null_lab == NULL);
         }
     }
-
-    /* Free any temporaries allocated.  */
-    for (i = 0, n = ctx->ntempr; i < n; ++i) {
-        tcg_temp_free(ctx->tempr[i]);
-        ctx->tempr[i] = NULL;
-    }
-    for (i = 0, n = ctx->ntempl; i < n; ++i) {
-        tcg_temp_free_tl(ctx->templ[i]);
-        ctx->templ[i] = NULL;
-    }
-    ctx->ntempr = 0;
-    ctx->ntempl = 0;
 
     /* Advance the insn queue.  Note that this check also detects
        a priority change within the instruction queue.  */
@@ -4257,8 +4547,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_IAQ_N_STALE:
     case DISAS_IAQ_N_STALE_EXIT:
         if (ctx->iaoq_f == -1) {
-            tcg_gen_mov_reg(cpu_iaoq_f, cpu_iaoq_b);
-            copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_iaoq_f, -1, cpu_iaoq_b);
+            copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
 #ifndef CONFIG_USER_ONLY
             tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
 #endif
@@ -4267,7 +4557,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                                 ? DISAS_EXIT
                                 : DISAS_IAQ_N_UPDATED);
         } else if (ctx->iaoq_b == -1) {
-            tcg_gen_mov_reg(cpu_iaoq_b, ctx->iaoq_n_var);
+            copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
         }
         break;
 
@@ -4287,8 +4577,8 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_TOO_MANY:
     case DISAS_IAQ_N_STALE:
     case DISAS_IAQ_N_STALE_EXIT:
-        copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
-        copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
         nullify_save(ctx);
         /* FALLTHRU */
     case DISAS_IAQ_N_UPDATED:
@@ -4340,21 +4630,9 @@ static const TranslatorOps hppa_tr_ops = {
     .disas_log          = hppa_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
+                           target_ulong pc, void *host_pc)
 {
     DisasContext ctx;
-    translator_loop(&hppa_tr_ops, &ctx.base, cs, tb, max_insns);
-}
-
-void restore_state_to_opc(CPUHPPAState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->iaoq_f = data[0];
-    if (data[1] != (target_ureg)-1) {
-        env->iaoq_b = data[1];
-    }
-    /* Since we were executing the instruction at IAOQ_F, and took some
-       sort of action that provoked the cpu_restore_state, we can infer
-       that the instruction was not nullified.  */
-    env->psw_n = 0;
+    translator_loop(cs, tb, max_insns, pc, host_pc, &hppa_tr_ops, &ctx.base);
 }

@@ -23,14 +23,14 @@ typedef struct FsThrottle {
     ThrottleState ts;
     ThrottleTimers tt;
     ThrottleConfig cfg;
-    CoQueue      throttled_reqs[2];
+    CoQueue      throttled_reqs[THROTTLE_MAX];
 } FsThrottle;
 
 int fsdev_throttle_parse_opts(QemuOpts *, FsThrottle *, Error **);
 
 void fsdev_throttle_init(FsThrottle *);
 
-void coroutine_fn fsdev_co_throttle_request(FsThrottle *, bool ,
+void coroutine_fn fsdev_co_throttle_request(FsThrottle *, ThrottleDirection ,
                                             struct iovec *, int);
 
 void fsdev_throttle_cleanup(FsThrottle *);

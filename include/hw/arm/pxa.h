@@ -100,8 +100,6 @@ void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPCMCIAState, PXA2XX_PCMCIA)
 
-PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
-                                      hwaddr base);
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
 int pxa2xx_pcmcia_detach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
@@ -119,14 +117,14 @@ void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
                             const struct keymap *map, int size);
 
 /* pxa2xx.c */
-typedef struct PXA2xxI2CState PXA2xxI2CState;
+#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CState, PXA2XX_I2C)
+
 PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t page_size);
 I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
-#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
 typedef struct PXA2xxI2SState PXA2xxI2SState;
-OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CState, PXA2XX_I2C)
 
 #define TYPE_PXA2XX_FIR "pxa2xx-fir"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxFIrState, PXA2XX_FIR)
@@ -193,8 +191,7 @@ struct PXA2xxI2SState {
 
 # define PA_FMT			"0x%08lx"
 
-PXA2xxState *pxa270_init(MemoryRegion *address_space, unsigned int sdram_size,
-                         const char *revision);
-PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size);
+PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision);
+PXA2xxState *pxa255_init(unsigned int sdram_size);
 
 #endif /* PXA_H */

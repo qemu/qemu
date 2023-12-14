@@ -14,10 +14,11 @@
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 #include "qapi/error.h"
-#include "hw/vfio/vfio.h"
 #include "hw/vfio/vfio-common.h"
 #include "hw/s390x/ap-device.h"
 #include "qemu/error-report.h"
+#include "qemu/event_notifier.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -33,6 +34,7 @@
 struct VFIOAPDevice {
     APDevice apdev;
     VFIODevice vdev;
+    EventNotifier req_notifier;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
@@ -50,58 +52,116 @@ struct VFIODeviceOps vfio_ap_ops = {
     .vfio_compute_needs_reset = vfio_ap_compute_needs_reset,
 };
 
-static void vfio_ap_put_device(VFIOAPDevice *vapdev)
+static void vfio_ap_req_notifier_handler(void *opaque)
 {
-    g_free(vapdev->vdev.name);
-    vfio_put_base_device(&vapdev->vdev);
+    VFIOAPDevice *vapdev = opaque;
+    Error *err = NULL;
+
+    if (!event_notifier_test_and_clear(&vapdev->req_notifier)) {
+        return;
+    }
+
+    qdev_unplug(DEVICE(vapdev), &err);
+
+    if (err) {
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vapdev->vdev.name);
+    }
 }
 
-static VFIOGroup *vfio_ap_get_group(VFIOAPDevice *vapdev, Error **errp)
+static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
+                                          unsigned int irq, Error **errp)
 {
-    GError *gerror = NULL;
-    char *symlink, *group_path;
-    int groupid;
+    int fd;
+    size_t argsz;
+    IOHandler *fd_read;
+    EventNotifier *notifier;
+    struct vfio_irq_info *irq_info;
+    VFIODevice *vdev = &vapdev->vdev;
 
-    symlink = g_strdup_printf("%s/iommu_group", vapdev->vdev.sysfsdev);
-    group_path = g_file_read_link(symlink, &gerror);
-    g_free(symlink);
-
-    if (!group_path) {
-        error_setg(errp, "%s: no iommu_group found for %s: %s",
-                   TYPE_VFIO_AP_DEVICE, vapdev->vdev.sysfsdev, gerror->message);
-        g_error_free(gerror);
-        return NULL;
+    switch (irq) {
+    case VFIO_AP_REQ_IRQ_INDEX:
+        notifier = &vapdev->req_notifier;
+        fd_read = vfio_ap_req_notifier_handler;
+        break;
+    default:
+        error_setg(errp, "vfio: Unsupported device irq(%d)", irq);
+        return;
     }
 
-    if (sscanf(basename(group_path), "%d", &groupid) != 1) {
-        error_setg(errp, "vfio: failed to read %s", group_path);
-        g_free(group_path);
-        return NULL;
+    if (vdev->num_irqs < irq + 1) {
+        error_setg(errp, "vfio: IRQ %u not available (number of irqs %u)",
+                   irq, vdev->num_irqs);
+        return;
     }
 
-    g_free(group_path);
+    argsz = sizeof(*irq_info);
+    irq_info = g_malloc0(argsz);
+    irq_info->index = irq;
+    irq_info->argsz = argsz;
 
-    return vfio_get_group(groupid, &address_space_memory, errp);
+    if (ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO,
+              irq_info) < 0 || irq_info->count < 1) {
+        error_setg_errno(errp, errno, "vfio: Error getting irq info");
+        goto out_free_info;
+    }
+
+    if (event_notifier_init(notifier, 0)) {
+        error_setg_errno(errp, errno,
+                         "vfio: Unable to init event notifier for irq (%d)",
+                         irq);
+        goto out_free_info;
+    }
+
+    fd = event_notifier_get_fd(notifier);
+    qemu_set_fd_handler(fd, fd_read, NULL, vapdev);
+
+    if (vfio_set_irq_signaling(vdev, irq, 0, VFIO_IRQ_SET_ACTION_TRIGGER, fd,
+                               errp)) {
+        qemu_set_fd_handler(fd, NULL, NULL, vapdev);
+        event_notifier_cleanup(notifier);
+    }
+
+out_free_info:
+    g_free(irq_info);
+
+}
+
+static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
+                                            unsigned int irq)
+{
+    Error *err = NULL;
+    EventNotifier *notifier;
+
+    switch (irq) {
+    case VFIO_AP_REQ_IRQ_INDEX:
+        notifier = &vapdev->req_notifier;
+        break;
+    default:
+        error_report("vfio: Unsupported device irq(%d)", irq);
+        return;
+    }
+
+    if (vfio_set_irq_signaling(&vapdev->vdev, irq, 0,
+                               VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vapdev->vdev.name);
+    }
+
+    qemu_set_fd_handler(event_notifier_get_fd(notifier),
+                        NULL, NULL, vapdev);
+    event_notifier_cleanup(notifier);
 }
 
 static void vfio_ap_realize(DeviceState *dev, Error **errp)
 {
     int ret;
-    char *mdevid;
-    VFIOGroup *vfio_group;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    Error *err = NULL;
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
+    VFIODevice *vbasedev = &vapdev->vdev;
 
-    vfio_group = vfio_ap_get_group(vapdev, errp);
-    if (!vfio_group) {
-        return;
-    }
-
-    vapdev->vdev.ops = &vfio_ap_ops;
-    vapdev->vdev.type = VFIO_DEVICE_TYPE_AP;
-    mdevid = basename(vapdev->vdev.sysfsdev);
-    vapdev->vdev.name = g_strdup_printf("%s", mdevid);
-    vapdev->vdev.dev = dev;
+    vbasedev->name = g_path_get_basename(vbasedev->sysfsdev);
+    vbasedev->ops = &vfio_ap_ops;
+    vbasedev->type = VFIO_DEVICE_TYPE_AP;
+    vbasedev->dev = dev;
 
     /*
      * vfio-ap devices operate in a way compatible with discarding of
@@ -111,26 +171,35 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
      */
     vapdev->vdev.ram_block_discard_allowed = true;
 
-    ret = vfio_get_device(vfio_group, mdevid, &vapdev->vdev, errp);
+    ret = vfio_attach_device(vbasedev->name, vbasedev,
+                             &address_space_memory, errp);
     if (ret) {
-        goto out_get_dev_err;
+        goto error;
+    }
+
+    vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err);
+    if (err) {
+        /*
+         * Report this error, but do not make it a failing condition.
+         * Lack of this IRQ in the host does not prevent normal operation.
+         */
+        error_report_err(err);
     }
 
     return;
 
-out_get_dev_err:
-    vfio_ap_put_device(vapdev);
-    vfio_put_group(vfio_group);
+error:
+    error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
+    g_free(vbasedev->name);
 }
 
 static void vfio_ap_unrealize(DeviceState *dev)
 {
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
-    VFIOGroup *group = vapdev->vdev.group;
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
-    vfio_ap_put_device(vapdev);
-    vfio_put_group(group);
+    vfio_ap_unregister_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX);
+    vfio_detach_device(&vapdev->vdev);
+    g_free(vapdev->vdev.name);
 }
 
 static Property vfio_ap_properties[] = {
@@ -141,8 +210,7 @@ static Property vfio_ap_properties[] = {
 static void vfio_ap_reset(DeviceState *dev)
 {
     int ret;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
     ret = ioctl(vapdev->vdev.fd, VFIO_DEVICE_RESET);
     if (ret) {

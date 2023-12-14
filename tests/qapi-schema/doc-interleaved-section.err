@@ -1,1 +1,1 @@
-doc-interleaved-section.json:15:1: '@foobar:' can't follow 'Note' section
+doc-interleaved-section.json:15:1: description of '@foobar:' follows a section

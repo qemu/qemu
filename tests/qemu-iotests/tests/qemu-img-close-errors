@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# Check that errors while closing the image, in particular writing back dirty
+# bitmaps, is correctly reported with a failing qemu-img exit code.
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=1G
+
+# The error we are going to use is ENOSPC. Depending on how many bitmaps we
+# create in the backing file (and therefore increase the used up space), we get
+# failures in different places. With a low number, only merging the bitmap
+# fails, whereas with a higher number, already 'qemu-img commit' fails.
+for max_bitmap in 6 7; do
+    echo
+    echo "=== Test with $max_bitmap bitmaps ==="
+
+    TEST_IMG="$TEST_IMG.base" _make_test_img -q $size
+    for i in $(seq 1 $max_bitmap); do
+        $QEMU_IMG bitmap --add "$TEST_IMG.base" "stale-bitmap-$i"
+    done
+
+    # Simulate a block device of 128 MB by resizing the image file accordingly
+    # and then enforcing the size with the raw driver
+    $QEMU_IO -f raw -c "truncate 128M" "$TEST_IMG.base"
+    BASE_JSON='json:{
+        "driver": "qcow2",
+        "file": {
+            "driver": "raw",
+            "size": 134217728,
+            "file": {
+                "driver": "file",
+                "filename":"'"$TEST_IMG.base"'"
+            }
+        }
+    }'
+
+    _make_test_img -q -b "$BASE_JSON" -F $IMGFMT
+    $QEMU_IMG bitmap --add "$TEST_IMG" "good-bitmap"
+
+    $QEMU_IO -c 'write 0 126m' "$TEST_IMG" | _filter_qemu_io
+
+    $QEMU_IMG commit -d "$TEST_IMG" 2>&1 | _filter_generated_node_ids
+    echo "qemu-img commit exit code: ${PIPESTATUS[0]}"
+
+    $QEMU_IMG bitmap --add "$BASE_JSON" "good-bitmap"
+    echo "qemu-img bitmap --add exit code: $?"
+
+    $QEMU_IMG bitmap --merge "good-bitmap" -b "$TEST_IMG" "$BASE_JSON" \
+        "good-bitmap" 2>&1 | _filter_generated_node_ids
+    echo "qemu-img bitmap --merge exit code:  ${PIPESTATUS[0]}"
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
+

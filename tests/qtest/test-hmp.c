@@ -45,9 +45,9 @@ static const char *hmp_cmds[] = {
     "log all",
     "log none",
     "memsave 0 4096 \"/dev/null\"",
-    "migrate_set_parameter xbzrle_cache_size 1",
-    "migrate_set_parameter downtime_limit 1",
-    "migrate_set_parameter max_bandwidth 1",
+    "migrate_set_parameter xbzrle-cache-size 64k",
+    "migrate_set_parameter downtime-limit 1",
+    "migrate_set_parameter max-bandwidth 1",
     "netdev_add user,id=net1",
     "set_link net1 off",
     "set_link net1 on",
@@ -56,6 +56,7 @@ static const char *hmp_cmds[] = {
     "o /w 0 0x1234",
     "object_add memory-backend-ram,id=mem1,size=256M",
     "object_del mem1",
+    "one-insn-per-tb on",
     "pmemsave 0 4096 \"/dev/null\"",
     "p $pc + 8",
     "qom-list /",
@@ -151,7 +152,7 @@ int main(int argc, char **argv)
 {
     char *v_env = getenv("V");
 
-    if (v_env && *v_env >= '2') {
+    if (v_env && atoi(v_env) >= 2) {
         verbose = true;
     }
 

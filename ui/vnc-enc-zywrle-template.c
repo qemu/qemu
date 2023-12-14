@@ -86,17 +86,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #undef L_2
 
 #if ZYWRLE_ENDIAN == ENDIAN_BIG
-#  define S_0	1
-#  define S_1	0
-#  define L_0	3
-#  define L_1	2
-#  define L_2	1
+#  define S_0   1
+#  define S_1   0
+#  define L_0   3
+#  define L_1   2
+#  define L_2   1
 #else
-#  define S_0	0
-#  define S_1	1
-#  define L_0	0
-#  define L_1	1
-#  define L_2	2
+#  define S_0   0
+#  define S_1   1
+#  define L_0   0
+#  define L_1   1
+#  define L_2   2
 #endif
 
 #define ZYWRLE_QUANTIZE

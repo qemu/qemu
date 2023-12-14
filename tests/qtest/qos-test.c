@@ -25,7 +25,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-visit-qom.h"
-#include "libqos/malloc.h"
+#include "libqos/libqos-malloc.h"
 #include "libqos/qgraph.h"
 #include "libqos/qgraph_internal.h"
 #include "libqos/qos_external.h"
@@ -185,7 +185,9 @@ static void run_one_test(const void *arg)
 static void subprocess_run_one_test(const void *arg)
 {
     const gchar *path = arg;
-    g_test_trap_subprocess(path, 0, 0);
+    g_test_trap_subprocess(path, 180 * G_USEC_PER_SEC,
+                           G_TEST_SUBPROCESS_INHERIT_STDOUT |
+                           G_TEST_SUBPROCESS_INHERIT_STDERR);
     g_test_trap_assert_passed();
 }
 
@@ -319,6 +321,11 @@ static void walk_path(QOSGraphNode *orig_path, int len)
 int main(int argc, char **argv, char** envp)
 {
     g_test_init(&argc, &argv, NULL);
+
+    if (g_test_subprocess()) {
+        qos_printf("qos_test running single test in subprocess\n");
+    }
+
     if (g_test_verbose()) {
         qos_printf("ENVIRONMENT VARIABLES: {\n");
         for (char **env = envp; *env != 0; env++) {

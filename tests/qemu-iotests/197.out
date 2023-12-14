@@ -31,4 +31,26 @@ read 1024/1024 bytes at offset 0
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 No errors were found on the image.
+
+=== Copy-on-read with subclusters ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
+Formatting 'TEST_DIR/t.wrap.IMGFMT', fmt=IMGFMT size=65536 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 28672
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 34816
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+28 KiB (0x7000) bytes not allocated at offset 0 bytes (0x0)
+2 KiB (0x800) bytes     allocated at offset 28 KiB (0x7000)
+4 KiB (0x1000) bytes not allocated at offset 30 KiB (0x7800)
+2 KiB (0x800) bytes     allocated at offset 34 KiB (0x8800)
+28 KiB (0x7000) bytes not allocated at offset 36 KiB (0x9000)
+read 4096/4096 bytes at offset 30720
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+28 KiB (0x7000) bytes not allocated at offset 0 bytes (0x0)
+8 KiB (0x2000) bytes     allocated at offset 28 KiB (0x7000)
+28 KiB (0x7000) bytes not allocated at offset 36 KiB (0x9000)
+No errors were found on the image.
 *** done

@@ -52,10 +52,9 @@ hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
     return ta->start[region].size;
 }
 
-static uint64_t omap_l4ta_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static uint64_t omap_l4ta_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
+    struct omap_target_agent_s *s = opaque;
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -79,7 +78,7 @@ static uint64_t omap_l4ta_read(void *opaque, hwaddr addr,
 static void omap_l4ta_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
+    struct omap_target_agent_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);

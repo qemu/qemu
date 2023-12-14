@@ -10,8 +10,9 @@
 import os
 import logging
 
-from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import BUILD_DIR
+from avocado.utils import datadrainer
 from avocado.utils import gdb
 from avocado.utils import process
 from avocado.utils.network.ports import find_free_port
@@ -52,6 +53,10 @@ class ReverseDebugging(LinuxKernelTest):
         if args:
             vm.add_args(*args)
         vm.launch()
+        console_drainer = datadrainer.LineLogger(vm.console_socket.fileno(),
+                                    logger=self.log.getChild('console'),
+                                    stop_check=(lambda : not vm.is_running()))
+        console_drainer.start()
         return vm
 
     @staticmethod
@@ -150,15 +155,32 @@ class ReverseDebugging(LinuxKernelTest):
             self.check_pc(g, addr)
             logger.info('found position %x' % addr)
 
-        logger.info('seeking to the end (icount %s)' % (last_icount - 1))
-        vm.qmp('replay-break', icount=last_icount - 1)
-        # continue - will return after pausing
-        g.cmd(b'c', b'T02thread:01;')
+        # visit the recorded instruction in forward order
+        logger.info('stepping forward')
+        for addr in steps:
+            self.check_pc(g, addr)
+            self.gdb_step(g)
+            logger.info('found position %x' % addr)
 
+        # set breakpoints for the instructions just stepped over
         logger.info('setting breakpoints')
         for addr in steps:
             # hardware breakpoint at addr with len=1
             g.cmd(b'Z1,%x,1' % addr, b'OK')
+
+        # this may hit a breakpoint if first instructions are executed
+        # again
+        logger.info('continuing execution')
+        vm.qmp('replay-break', icount=last_icount - 1)
+        # continue - will return after pausing
+        # This could stop at the end and get a T02 return, or by
+        # re-executing one of the breakpoints and get a T05 return.
+        g.cmd(b'c')
+        if self.vm_get_icount(vm) == last_icount - 1:
+            logger.info('reached the end (icount %s)' % (last_icount - 1))
+        else:
+            logger.info('hit a breakpoint again at %x (icount %s)' %
+                        (self.get_pc(g), self.vm_get_icount(vm)))
 
         logger.info('running reverse continue to reach %x' % steps[-1])
         # reverse continue - will return after stopping at the breakpoint
@@ -173,6 +195,10 @@ class ReverseDebugging(LinuxKernelTest):
         vm.shutdown()
 
 class ReverseDebugging_X86_64(ReverseDebugging):
+    """
+    :avocado: tags=accel:tcg
+    """
+
     REG_PC = 0x10
     REG_CS = 0x12
     def get_pc(self, g):
@@ -180,7 +206,8 @@ class ReverseDebugging_X86_64(ReverseDebugging):
             + self.get_reg_le(g, self.REG_CS) * 0x10
 
     # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
@@ -190,10 +217,15 @@ class ReverseDebugging_X86_64(ReverseDebugging):
         self.reverse_debugging()
 
 class ReverseDebugging_AArch64(ReverseDebugging):
+    """
+    :avocado: tags=accel:tcg
+    """
+
     REG_PC = 32
 
     # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
     def test_aarch64_virt(self):
         """
         :avocado: tags=arch:aarch64
@@ -208,3 +240,37 @@ class ReverseDebugging_AArch64(ReverseDebugging):
 
         self.reverse_debugging(
             args=('-kernel', kernel_path))
+
+class ReverseDebugging_ppc64(ReverseDebugging):
+    """
+    :avocado: tags=accel:tcg
+    """
+
+    REG_PC = 0x40
+
+    # unidentified gitlab timeout problem
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
+    def test_ppc64_pseries(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        :avocado: tags=flaky
+        """
+        # SLOF branches back to its entry point, which causes this test
+        # to take the 'hit a breakpoint again' path. That's not a problem,
+        # just slightly different than the other machines.
+        self.endian_is_le = False
+        self.reverse_debugging()
+
+    # See https://gitlab.com/qemu-project/qemu/-/issues/1992
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+
+    def test_ppc64_powernv(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:powernv
+        :avocado: tags=flaky
+        """
+        self.endian_is_le = False
+        self.reverse_debugging()

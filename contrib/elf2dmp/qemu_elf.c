@@ -94,10 +94,7 @@ static int init_states(QEMU_Elf *qe)
 
     printf("%zu CPU states has been found\n", cpu_nr);
 
-    qe->state = malloc(sizeof(*qe->state) * cpu_nr);
-    if (!qe->state) {
-        return 1;
-    }
+    qe->state = g_new(QEMUCPUState*, cpu_nr);
 
     cpu_nr = 0;
 
@@ -115,7 +112,7 @@ static int init_states(QEMU_Elf *qe)
 
 static void exit_states(QEMU_Elf *qe)
 {
-    free(qe->state);
+    g_free(qe->state);
 }
 
 static bool check_ehdr(QEMU_Elf *qe)
@@ -165,10 +162,40 @@ static bool check_ehdr(QEMU_Elf *qe)
     return true;
 }
 
-int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
+static int QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
 {
+#ifdef CONFIG_LINUX
+    struct stat st;
+    int fd;
+
+    printf("Using Linux mmap\n");
+
+    fd = open(filename, O_RDONLY, 0);
+    if (fd == -1) {
+        eprintf("Failed to open ELF dump file \'%s\'\n", filename);
+        return 1;
+    }
+
+    if (fstat(fd, &st)) {
+        eprintf("Failed to get size of ELF dump file\n");
+        close(fd);
+        return 1;
+    }
+    qe->size = st.st_size;
+
+    qe->map = mmap(NULL, qe->size, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_NORESERVE, fd, 0);
+    if (qe->map == MAP_FAILED) {
+        eprintf("Failed to map ELF file\n");
+        close(fd);
+        return 1;
+    }
+
+    close(fd);
+#else
     GError *gerr = NULL;
-    int err = 0;
+
+    printf("Using GLib mmap\n");
 
     qe->gmf = g_mapped_file_new(filename, TRUE, &gerr);
     if (gerr) {
@@ -179,29 +206,43 @@ int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
 
     qe->map = g_mapped_file_get_contents(qe->gmf);
     qe->size = g_mapped_file_get_length(qe->gmf);
+#endif
+
+    return 0;
+}
+
+static void QEMU_Elf_unmap(QEMU_Elf *qe)
+{
+#ifdef CONFIG_LINUX
+    munmap(qe->map, qe->size);
+#else
+    g_mapped_file_unref(qe->gmf);
+#endif
+}
+
+int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
+{
+    if (QEMU_Elf_map(qe, filename)) {
+        return 1;
+    }
 
     if (!check_ehdr(qe)) {
         eprintf("Input file has the wrong format\n");
-        err = 1;
-        goto out_unmap;
+        QEMU_Elf_unmap(qe);
+        return 1;
     }
 
     if (init_states(qe)) {
         eprintf("Failed to extract QEMU CPU states\n");
-        err = 1;
-        goto out_unmap;
+        QEMU_Elf_unmap(qe);
+        return 1;
     }
 
     return 0;
-
-out_unmap:
-    g_mapped_file_unref(qe->gmf);
-
-    return err;
 }
 
 void QEMU_Elf_exit(QEMU_Elf *qe)
 {
     exit_states(qe);
-    g_mapped_file_unref(qe->gmf);
+    QEMU_Elf_unmap(qe);
 }

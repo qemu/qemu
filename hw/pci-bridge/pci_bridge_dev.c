@@ -186,7 +186,6 @@ static Property pci_bridge_dev_properties[] = {
                      res_reserve.mem_pref_32, -1),
     DEFINE_PROP_SIZE("pref64-reserve", PCIBridgeDev,
                      res_reserve.mem_pref_64, -1),
-
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -254,7 +253,6 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
-    k->is_bridge = true;
     dc->desc = "Standard PCI Bridge";
     dc->reset = qdev_pci_bridge_dev_reset;
     device_class_set_props(dc, pci_bridge_dev_properties);

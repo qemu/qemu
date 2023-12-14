@@ -81,7 +81,7 @@ static void test_machine_cpu_cli(void)
                 " add it to cpus_map\n", arch);
         return; /* TODO: die here to force all targets have a test */
     }
-    qts = qtest_initf("-machine none -cpu '%s'", cpu_model);
+    qts = qtest_initf("-machine none -cpu \"%s\"", cpu_model);
 
     response = qtest_qmp(qts, "{ 'execute': 'quit' }");
     g_assert(qdict_haskey(response, "return"));

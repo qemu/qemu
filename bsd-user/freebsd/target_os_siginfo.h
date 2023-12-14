@@ -72,7 +72,7 @@ typedef struct target_siginfo {
             int32_t _mqd;
         } _mesgp;
 
-        /* SIGPOLL -- Not really genreated in FreeBSD ??? */
+        /* SIGPOLL -- Not really generated in FreeBSD ??? */
         struct {
             int _band;  /* POLL_IN, POLL_OUT, POLL_MSG */
         } _poll;

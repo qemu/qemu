@@ -40,9 +40,9 @@ static void vncws_tls_handshake_done(QIOTask *task,
         if (vs->ioc_tag) {
             g_source_remove(vs->ioc_tag);
         }
-        vs->ioc_tag = qio_channel_add_watch(
-            QIO_CHANNEL(vs->ioc), G_IO_IN | G_IO_HUP | G_IO_ERR,
-            vncws_handshake_io, vs, NULL);
+        vs->ioc_tag = qio_channel_add_watch(vs->ioc,
+                                            G_IO_IN | G_IO_HUP | G_IO_ERR,
+                                            vncws_handshake_io, vs, NULL);
     }
 }
 

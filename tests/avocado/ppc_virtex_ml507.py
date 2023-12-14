@@ -22,9 +22,9 @@ class VirtexMl507Machine(QemuSystemTest):
         :avocado: tags=accel:tcg
         """
         self.require_accelerator("tcg")
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2020/download/hippo.tar.gz')
-        tar_hash = '306b95bfe7d147f125aa176a877e266db8ef914a'
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day08.tar.xz')
+        tar_hash = '74c68f5af7a7b8f21c03097b298f3bb77ff52c1f'
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         archive.extract(file_path, self.workdir)
         self.vm.set_console()

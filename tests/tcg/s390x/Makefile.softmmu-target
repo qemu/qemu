@@ -1,9 +1,47 @@
 S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
 VPATH+=$(S390X_SRC)
-QEMU_OPTS=-action panic=exit-failure -kernel
+QEMU_OPTS=-action panic=exit-failure -nographic -kernel
+LINK_SCRIPT=$(S390X_SRC)/softmmu.ld
+CFLAGS+=-ggdb -O0
+LDFLAGS=-nostdlib -static
 
-%: %.S
-	$(CC) -march=z13 -m64 -nostartfiles -static -Wl,-Ttext=0 \
-		-Wl,--build-id=none $< -o $@
+%.o: %.S
+	$(CC) -march=z13 -m64 -c $< -o $@
 
-TESTS += unaligned-lowcore
+%.o: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -march=z13 -m64 -c $< -o $@
+
+%: %.o
+	$(CC) $< -o $@ $(LDFLAGS)
+
+ASM_TESTS =                                                                    \
+    bal                                                                        \
+    cksm                                                                       \
+    clm                                                                        \
+    exrl-ssm-early                                                             \
+    icm                                                                        \
+    sam                                                                        \
+    lpsw                                                                       \
+    lpswe-early                                                                \
+    lra                                                                        \
+    mc                                                                         \
+    precise-smc-softmmu                                                        \
+    ssm-early                                                                  \
+    stosm-early                                                                \
+    stpq                                                                       \
+    unaligned-lowcore
+
+include $(S390X_SRC)/pgm-specification.mak
+$(PGM_SPECIFICATION_TESTS): pgm-specification-softmmu.o
+$(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-softmmu.o
+ASM_TESTS += $(PGM_SPECIFICATION_TESTS)
+
+$(ASM_TESTS): LDFLAGS += -Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none
+$(ASM_TESTS): $(LINK_SCRIPT)
+TESTS += $(ASM_TESTS)
+
+S390X_MULTIARCH_RUNTIME_OBJS = head64.o console.o $(MINILIB_OBJS)
+$(MULTIARCH_TESTS): $(S390X_MULTIARCH_RUNTIME_OBJS)
+$(MULTIARCH_TESTS): LDFLAGS += $(S390X_MULTIARCH_RUNTIME_OBJS)
+$(MULTIARCH_TESTS): CFLAGS += $(MINILIB_INC)
+memory: CFLAGS += -DCHECK_UNALIGNED=0

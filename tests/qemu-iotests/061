@@ -49,7 +49,7 @@ _supported_os Linux
 # we have explicit tests for various cluster sizes, the remaining tests
 # require the default 64k cluster
 # we don't have explicit tests for zstd qcow2 compression type, as zstd may be
-# not compiled in. And we can't create compat images with comression type
+# not compiled in. And we can't create compat images with compression type
 # extension
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file \
     cluster_size compression_type

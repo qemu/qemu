@@ -24,6 +24,7 @@
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "sysemu/kvm.h"
 
 static int gicv3_its_pre_save(void *opaque)
 {
@@ -122,9 +123,9 @@ void gicv3_its_init_mmio(GICv3ITSState *s, const MemoryRegionOps *ops,
     msi_nonbroken = true;
 }
 
-static void gicv3_its_common_reset(DeviceState *dev)
+static void gicv3_its_common_reset_hold(Object *obj)
 {
-    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(dev);
+    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(obj);
 
     s->ctlr = 0;
     s->cbaser = 0;
@@ -137,8 +138,9 @@ static void gicv3_its_common_reset(DeviceState *dev)
 static void gicv3_its_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->reset = gicv3_its_common_reset;
+    rc->phases.hold = gicv3_its_common_reset_hold;
     dc->vmsd = &vmstate_its;
 }
 
@@ -157,3 +159,13 @@ static void gicv3_its_common_register_types(void)
 }
 
 type_init(gicv3_its_common_register_types)
+
+const char *its_class_name(void)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return "arm-its-kvm";
+    } else {
+        /* Software emulation based model */
+        return "arm-gicv3-its";
+    }
+}

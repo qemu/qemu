@@ -239,7 +239,7 @@ static void vdi_header_to_le(VdiHeader *header)
 
 static void vdi_header_print(VdiHeader *header)
 {
-    char uuidstr[37];
+    char uuidstr[UUID_STR_LEN];
     QemuUUID uuid;
     logout("text        %s", header->text);
     logout("signature   0x%08x\n", header->signature);
@@ -327,9 +327,10 @@ static int coroutine_fn vdi_co_check(BlockDriverState *bs, BdrvCheckResult *res,
     return 0;
 }
 
-static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+vdi_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
-    /* TODO: vdi_get_info would be needed for machine snapshots.
+    /* TODO: vdi_co_get_info would be needed for machine snapshots.
        vm_state_offset is still missing. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
     logout("\n");
@@ -377,11 +378,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     QemuUUID uuid_link, uuid_parent;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_IMAGE, false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     logout("\n");
 
@@ -495,9 +497,9 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vdi format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, errp);
+
+    ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
         goto fail_free_bmap;
     }
 
@@ -518,11 +520,10 @@ static int vdi_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static int coroutine_fn vdi_co_block_status(BlockDriverState *bs,
-                                            bool want_zero,
-                                            int64_t offset, int64_t bytes,
-                                            int64_t *pnum, int64_t *map,
-                                            BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+vdi_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
+                    int64_t bytes, int64_t *pnum, int64_t *map,
+                    BlockDriverState **file)
 {
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
     size_t bmap_index = offset / s->block_size;
@@ -544,7 +545,7 @@ static int coroutine_fn vdi_co_block_status(BlockDriverState *bs,
         (s->header.image_type == VDI_TYPE_STATIC ? BDRV_BLOCK_RECURSE : 0);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vdi_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -600,7 +601,7 @@ vdi_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vdi_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -634,7 +635,6 @@ vdi_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
         bmap_entry = le32_to_cpu(s->bmap[block_index]);
         if (!VDI_IS_ALLOCATED(bmap_entry)) {
             /* Allocate new block and write to it. */
-            uint64_t data_offset;
             qemu_co_rwlock_upgrade(&s->bmap_lock);
             bmap_entry = le32_to_cpu(s->bmap[block_index]);
             if (VDI_IS_ALLOCATED(bmap_entry)) {
@@ -664,7 +664,8 @@ vdi_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
              * so this full-cluster write does not overlap a partial write
              * of the same cluster, issued from the "else" branch.
              */
-            ret = bdrv_pwrite(bs->file, data_offset, s->block_size, block, 0);
+            ret = bdrv_co_pwrite(bs->file, data_offset, s->block_size, block,
+                                 0);
             qemu_co_rwlock_unlock(&s->bmap_lock);
         } else {
 nonallocating_write:
@@ -699,7 +700,7 @@ nonallocating_write:
         /* One or more new blocks were allocated. */
         VdiHeader *header;
         uint8_t *base;
-        uint64_t offset;
+        uint64_t bmap_offset;
         uint32_t n_sectors;
 
         g_free(block);
@@ -709,7 +710,7 @@ nonallocating_write:
         assert(VDI_IS_ALLOCATED(bmap_first));
         *header = s->header;
         vdi_header_to_le(header);
-        ret = bdrv_pwrite(bs->file, 0, sizeof(*header), header, 0);
+        ret = bdrv_co_pwrite(bs->file, 0, sizeof(*header), header, 0);
         g_free(header);
 
         if (ret < 0) {
@@ -722,19 +723,20 @@ nonallocating_write:
         bmap_first /= (SECTOR_SIZE / sizeof(uint32_t));
         bmap_last /= (SECTOR_SIZE / sizeof(uint32_t));
         n_sectors = bmap_last - bmap_first + 1;
-        offset = s->bmap_sector + bmap_first;
+        bmap_offset = s->bmap_sector + bmap_first;
         base = ((uint8_t *)&s->bmap[0]) + bmap_first * SECTOR_SIZE;
         logout("will write %u block map sectors starting from entry %u\n",
                n_sectors, bmap_first);
-        ret = bdrv_pwrite(bs->file, offset * SECTOR_SIZE,
-                          n_sectors * SECTOR_SIZE, base, 0);
+        ret = bdrv_co_pwrite(bs->file, bmap_offset * SECTOR_SIZE,
+                             n_sectors * SECTOR_SIZE, base, 0);
     }
 
     return ret;
 }
 
-static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
-                                         size_t block_size, Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vdi_co_do_create(BlockdevCreateOptions *create_options, size_t block_size,
+                 Error **errp)
 {
     BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
@@ -799,14 +801,14 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
     }
 
     /* Create BlockBackend to write to the image */
-    bs_file = bdrv_open_blockdev_ref(vdi_opts->file, errp);
+    bs_file = bdrv_co_open_blockdev_ref(vdi_opts->file, errp);
     if (!bs_file) {
         ret = -EIO;
         goto exit;
     }
 
-    blk = blk_new_with_bs(bs_file, BLK_PERM_WRITE | BLK_PERM_RESIZE,
-                          BLK_PERM_ALL, errp);
+    blk = blk_co_new_with_bs(bs_file, BLK_PERM_WRITE | BLK_PERM_RESIZE,
+                             BLK_PERM_ALL, errp);
     if (!blk) {
         ret = -EPERM;
         goto exit;
@@ -845,7 +847,7 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
         vdi_header_print(&header);
     }
     vdi_header_to_le(&header);
-    ret = blk_pwrite(blk, offset, sizeof(header), &header, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(header), &header, 0);
     if (ret < 0) {
         error_setg(errp, "Error writing header");
         goto exit;
@@ -866,7 +868,7 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
                 bmap[i] = VDI_UNALLOCATED;
             }
         }
-        ret = blk_pwrite(blk, offset, bmap_size, bmap, 0);
+        ret = blk_co_pwrite(blk, offset, bmap_size, bmap, 0);
         if (ret < 0) {
             error_setg(errp, "Error writing bmap");
             goto exit;
@@ -875,8 +877,8 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
     }
 
     if (image_type == VDI_TYPE_STATIC) {
-        ret = blk_truncate(blk, offset + blocks * block_size, false,
-                           PREALLOC_MODE_OFF, 0, errp);
+        ret = blk_co_truncate(blk, offset + blocks * block_size, false,
+                              PREALLOC_MODE_OFF, 0, errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to statically allocate file");
             goto exit;
@@ -885,22 +887,21 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
 
     ret = 0;
 exit:
-    blk_unref(blk);
-    bdrv_unref(bs_file);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs_file);
     g_free(bmap);
     return ret;
 }
 
-static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
-                                      Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vdi_co_create(BlockdevCreateOptions *create_options, Error **errp)
 {
     return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
 }
 
-static int coroutine_fn vdi_co_create_opts(BlockDriver *drv,
-                                           const char *filename,
-                                           QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vdi_co_create_opts(BlockDriver *drv, const char *filename,
+                   QemuOpts *opts, Error **errp)
 {
     QDict *qdict = NULL;
     BlockdevCreateOptions *create_options = NULL;
@@ -934,13 +935,13 @@ static int coroutine_fn vdi_co_create_opts(BlockDriver *drv,
     qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vdi_create_opts, true);
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, errp);
     if (ret < 0) {
         goto done;
     }
 
-    bs_file = bdrv_open(filename, NULL, NULL,
-                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    bs_file = bdrv_co_open(filename, NULL, NULL,
+                           BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
     if (!bs_file) {
         ret = -EIO;
         goto done;
@@ -975,7 +976,7 @@ static int coroutine_fn vdi_co_create_opts(BlockDriver *drv,
 done:
     qobject_unref(qdict);
     qapi_free_BlockdevCreateOptions(create_options);
-    bdrv_unref(bs_file);
+    bdrv_co_unref(bs_file);
     return ret;
 }
 
@@ -985,11 +986,10 @@ static void vdi_close(BlockDriverState *bs)
 
     qemu_vfree(s->bmap);
 
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
+    migrate_del_blocker(&s->migration_blocker);
 }
 
-static int vdi_has_zero_init(BlockDriverState *bs)
+static int GRAPH_RDLOCK vdi_has_zero_init(BlockDriverState *bs)
 {
     BDRVVdiState *s = bs->opaque;
 
@@ -1049,7 +1049,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_co_pwritev    = vdi_co_pwritev,
 #endif
 
-    .bdrv_get_info = vdi_get_info,
+    .bdrv_co_get_info = vdi_co_get_info,
 
     .is_format = true,
     .create_opts = &vdi_create_opts,

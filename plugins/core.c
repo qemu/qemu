@@ -21,10 +21,9 @@
 #include "qemu/xxhash.h"
 #include "qemu/rcu.h"
 #include "hw/core/cpu.h"
-#include "exec/cpu-common.h"
 
 #include "exec/exec-all.h"
-#include "exec/helper-proto.h"
+#include "exec/tb-flush.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "plugin.h"
@@ -56,7 +55,7 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id)
 static void plugin_cpu_update__async(CPUState *cpu, run_on_cpu_data data)
 {
     bitmap_copy(cpu->plugin_mask, &data.host_ulong, QEMU_PLUGIN_EV_MAX);
-    cpu_tb_jmp_cache_clear(cpu);
+    tcg_flush_jmp_cache(cpu);
 }
 
 static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
@@ -64,7 +63,7 @@ static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
     CPUState *cpu = container_of(k, CPUState, cpu_index);
     run_on_cpu_data mask = RUN_ON_CPU_HOST_ULONG(*plugin.mask);
 
-    if (cpu->created) {
+    if (DEVICE(cpu)->realized) {
         async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
     } else {
         plugin_cpu_update__async(cpu, mask);
@@ -500,26 +499,33 @@ void qemu_plugin_user_exit(void)
     enum qemu_plugin_event ev;
     CPUState *cpu;
 
-    QEMU_LOCK_GUARD(&plugin.lock);
-
+    /*
+     * Locking order: we must acquire locks in an order that is consistent
+     * with the one in fork_start(). That is:
+     * - start_exclusive(), which acquires qemu_cpu_list_lock,
+     *   must be called before acquiring plugin.lock.
+     * - tb_flush(), which acquires mmap_lock(), must be called
+     *   while plugin.lock is not held.
+     */
     start_exclusive();
 
+    qemu_rec_mutex_lock(&plugin.lock);
     /* un-register all callbacks except the final AT_EXIT one */
     for (ev = 0; ev < QEMU_PLUGIN_EV_MAX; ev++) {
         if (ev != QEMU_PLUGIN_EV_ATEXIT) {
-            struct qemu_plugin_ctx *ctx;
-            QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
-                plugin_unregister_cb__locked(ctx, ev);
+            struct qemu_plugin_cb *cb, *next;
+
+            QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
+                plugin_unregister_cb__locked(cb->ctx, ev);
             }
         }
     }
-
-    tb_flush(current_cpu);
-
     CPU_FOREACH(cpu) {
         qemu_plugin_disable_mem_helpers(cpu);
     }
+    qemu_rec_mutex_unlock(&plugin.lock);
 
+    tb_flush(current_cpu);
     end_exclusive();
 
     /* now it's safe to handle the exit case */
@@ -527,13 +533,22 @@ void qemu_plugin_user_exit(void)
 }
 
 /*
- * Call this function after longjmp'ing to the main loop. It's possible that the
- * last instruction of a TB might have used helpers, and therefore the
- * "disable" instruction will never execute because it ended up as dead code.
+ * Helpers for *-user to ensure locks are sane across fork() events.
  */
-void qemu_plugin_disable_mem_helpers(CPUState *cpu)
+
+void qemu_plugin_user_prefork_lock(void)
 {
-    cpu->plugin_mem_cbs = NULL;
+    qemu_rec_mutex_lock(&plugin.lock);
+}
+
+void qemu_plugin_user_postfork(bool is_child)
+{
+    if (is_child) {
+        /* should we just reset via plugin_init? */
+        qemu_rec_mutex_init(&plugin.lock);
+    } else {
+        qemu_rec_mutex_unlock(&plugin.lock);
+    }
 }
 
 static bool plugin_dyn_cb_arr_cmp(const void *ap, const void *bp)

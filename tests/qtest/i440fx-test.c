@@ -281,51 +281,31 @@ static void test_i440fx_pam(gconstpointer opaque)
 #define BLOB_SIZE ((size_t)65536)
 #define ISA_BIOS_MAXSZ ((size_t)(128 * 1024))
 
-/* Create a blob file, and return its absolute pathname as a dynamically
+/*
+ * Create a blob file, and return its absolute pathname as a dynamically
  * allocated string.
  * The file is closed before the function returns.
- * In case of error, NULL is returned. The function prints the error message.
+ * In case of error, the function aborts and prints the error message.
  */
 static char *create_blob_file(void)
 {
-    int ret, fd;
+    int i, fd;
     char *pathname;
     GError *error = NULL;
+    g_autofree uint8_t *buf = g_malloc(BLOB_SIZE);
 
-    ret = -1;
     fd = g_file_open_tmp("blob_XXXXXX", &pathname, &error);
-    if (fd == -1) {
-        fprintf(stderr, "unable to create blob file: %s\n", error->message);
-        g_error_free(error);
-    } else {
-        if (ftruncate(fd, BLOB_SIZE) == -1) {
-            fprintf(stderr, "ftruncate(\"%s\", %zu): %s\n", pathname,
-                    BLOB_SIZE, strerror(errno));
-        } else {
-            void *buf;
+    g_assert_no_error(error);
+    close(fd);
 
-            buf = mmap(NULL, BLOB_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
-            if (buf == MAP_FAILED) {
-                fprintf(stderr, "mmap(\"%s\", %zu): %s\n", pathname, BLOB_SIZE,
-                        strerror(errno));
-            } else {
-                size_t i;
-
-                for (i = 0; i < BLOB_SIZE; ++i) {
-                    ((uint8_t *)buf)[i] = i;
-                }
-                munmap(buf, BLOB_SIZE);
-                ret = 0;
-            }
-        }
-        close(fd);
-        if (ret == -1) {
-            unlink(pathname);
-            g_free(pathname);
-        }
+    for (i = 0; i < BLOB_SIZE; i++) {
+        buf[i] = i;
     }
 
-    return ret == -1 ? NULL : pathname;
+    g_file_set_contents(pathname, (char *)buf, BLOB_SIZE, &error);
+    g_assert_no_error(error);
+
+    return pathname;
 }
 
 static void test_i440fx_firmware(FirmwareTestFixture *fixture,

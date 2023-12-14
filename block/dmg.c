@@ -23,6 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
@@ -30,11 +31,8 @@
 #include "qemu/memalign.h"
 #include "dmg.h"
 
-int (*dmg_uncompress_bz2)(char *next_in, unsigned int avail_in,
-                          char *next_out, unsigned int avail_out);
-
-int (*dmg_uncompress_lzfse)(char *next_in, unsigned int avail_in,
-                            char *next_out, unsigned int avail_out);
+BdrvDmgUncompressFunc *dmg_uncompress_bz2;
+BdrvDmgUncompressFunc *dmg_uncompress_lzfse;
 
 enum {
     /* Limit chunk sizes to prevent unreasonable amounts of memory being used
@@ -72,7 +70,8 @@ static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
+static int GRAPH_RDLOCK
+read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
 {
     uint64_t buffer;
     int ret;
@@ -86,7 +85,8 @@ static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
     return 0;
 }
 
-static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
+static int GRAPH_RDLOCK
+read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
 {
     uint32_t buffer;
     int ret;
@@ -254,6 +254,25 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
     for (i = s->n_chunks; i < s->n_chunks + chunk_count; i++) {
         s->types[i] = buff_read_uint32(buffer, offset);
         if (!dmg_is_known_block_type(s->types[i])) {
+            switch (s->types[i]) {
+            case UDBZ:
+                warn_report_once("dmg-bzip2 module is missing, accessing bzip2 "
+                                 "compressed blocks will result in I/O errors");
+                break;
+            case ULFO:
+                warn_report_once("dmg-lzfse module is missing, accessing lzfse "
+                                 "compressed blocks will result in I/O errors");
+                break;
+            case UDCM:
+            case UDLE:
+                /* Comments and last entry can be ignored without problems */
+                break;
+            default:
+                warn_report_once("Image contains chunks of unknown type %x, "
+                                 "accessing them will result in I/O errors",
+                                 s->types[i]);
+                break;
+            }
             chunk_count--;
             i--;
             offset += 40;
@@ -304,8 +323,9 @@ fail:
     return ret;
 }
 
-static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
-                                  uint64_t info_begin, uint64_t info_length)
+static int GRAPH_RDLOCK
+dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
+                       uint64_t info_begin, uint64_t info_length)
 {
     BDRVDMGState *s = bs->opaque;
     int ret;
@@ -371,8 +391,9 @@ fail:
     return ret;
 }
 
-static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
-                              uint64_t info_begin, uint64_t info_length)
+static int GRAPH_RDLOCK
+dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
+                   uint64_t info_begin, uint64_t info_length)
 {
     BDRVDMGState *s = bs->opaque;
     int ret;
@@ -435,19 +456,33 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t offset;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
+    bdrv_graph_rdunlock_main_loop();
     if (ret < 0) {
         return ret;
     }
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_IMAGE, false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
 
-    block_module_load_one("dmg-bz2");
-    block_module_load_one("dmg-lzfse");
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    /*
+     * NB: if uncompress submodules are absent,
+     * ie block_module_load return value == 0, the function pointers
+     * dmg_uncompress_bz2 and dmg_uncompress_lzfse will be NULL.
+     */
+    if (block_module_load("dmg-bz2", errp) < 0) {
+        return -EINVAL;
+    }
+    if (block_module_load("dmg-lzfse", errp) < 0) {
+        return -EINVAL;
+    }
 
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
@@ -592,7 +627,8 @@ err:
     return s->n_chunks; /* error */
 }
 
-static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
+static int coroutine_fn GRAPH_RDLOCK
+dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
 {
     BDRVDMGState *s = bs->opaque;
 
@@ -609,8 +645,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
         case UDZO: { /* zlib compressed */
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
-                             s->compressed_chunk, 0);
+            ret = bdrv_co_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                                s->compressed_chunk, 0);
             if (ret < 0) {
                 return -1;
             }
@@ -635,8 +671,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
-                             s->compressed_chunk, 0);
+            ret = bdrv_co_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                                s->compressed_chunk, 0);
             if (ret < 0) {
                 return -1;
             }
@@ -656,8 +692,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
-                             s->compressed_chunk, 0);
+            ret = bdrv_co_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                                s->compressed_chunk, 0);
             if (ret < 0) {
                 return -1;
             }
@@ -672,8 +708,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             break;
         case UDRW: /* copy */
-            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
-                             s->uncompressed_chunk, 0);
+            ret = bdrv_co_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                                s->uncompressed_chunk, 0);
             if (ret < 0) {
                 return -1;
             }
@@ -689,7 +725,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
     return 0;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 dmg_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {

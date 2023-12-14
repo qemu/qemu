@@ -38,10 +38,8 @@
 #define MAX_STORAGE_INCREMENTS                  1020
 
 /* CPU hotplug SCLP codes */
-#define SCLP_HAS_CPU_INFO                       0x0C00000000000000ULL
+#define SCLP_HAS_CPU_INFO                       0x0800000000000000ULL
 #define SCLP_CMDW_READ_CPU_INFO                 0x00010001
-#define SCLP_CMDW_CONFIGURE_CPU                 0x00110001
-#define SCLP_CMDW_DECONFIGURE_CPU               0x00100001
 
 /* SCLP PCI codes */
 #define SCLP_HAS_IOA_RECONFIG                   0x0000000040000000ULL
@@ -87,7 +85,7 @@
  * - we work on a private copy of the SCCB, since there are several length
  *   fields, that would cause a security nightmare if we allow the guest to
  *   alter the structure while we parse it. We cannot use ldl_p and friends
- *   either without doing pointer arithmetics
+ *   either without doing pointer arithmetic
  * So we have to double check that all users of sclp data structures use the
  * right endianness wrappers.
  */
@@ -112,11 +110,13 @@ typedef struct CPUEntry {
 } QEMU_PACKED CPUEntry;
 
 #define SCLP_READ_SCP_INFO_FIXED_CPU_OFFSET     128
+#define SCLP_READ_SCP_INFO_MNEST                4
 typedef struct ReadInfo {
     SCCBHeader h;
     uint16_t rnmax;
     uint8_t rnsize;
-    uint8_t  _reserved1[16 - 11];       /* 11-15 */
+    uint8_t  _reserved1[15 - 11];       /* 11-14 */
+    uint8_t stsi_parm;                  /* 15-15 */
     uint16_t entries_cpu;               /* 16-17 */
     uint16_t offset_cpu;                /* 18-19 */
     uint8_t  _reserved2[24 - 20];       /* 20-23 */
@@ -225,8 +225,7 @@ static inline int sccb_data_len(SCCB *sccb)
 void s390_sclp_init(void);
 void sclp_service_interrupt(uint32_t sccb);
 void raise_irq_cpu_hotplug(void);
-int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
-int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
-                                uint32_t code);
+int sclp_service_call(S390CPU *cpu, uint64_t sccb, uint32_t code);
+int sclp_service_call_protected(S390CPU *cpu, uint64_t sccb, uint32_t code);
 
 #endif

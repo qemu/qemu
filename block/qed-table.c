@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
 #include "trace.h"
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "qed.h"
@@ -20,8 +21,8 @@
 #include "qemu/memalign.h"
 
 /* Called with table_lock held.  */
-static int coroutine_fn qed_read_table(BDRVQEDState *s, uint64_t offset,
-                                       QEDTable *table)
+static int coroutine_fn GRAPH_RDLOCK
+qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
 {
     unsigned int bytes = s->header.cluster_size * s->header.table_size;
 
@@ -62,9 +63,9 @@ out:
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_write_table(BDRVQEDState *s, uint64_t offset,
-                                        QEDTable *table, unsigned int index,
-                                        unsigned int n, bool flush)
+static int coroutine_fn GRAPH_RDLOCK
+qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
+                unsigned int index, unsigned int n, bool flush)
 {
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;
@@ -100,7 +101,7 @@ static int coroutine_fn qed_write_table(BDRVQEDState *s, uint64_t offset,
     }
 
     if (flush) {
-        ret = bdrv_flush(s->bs);
+        ret = bdrv_co_flush(s->bs);
         if (ret < 0) {
             goto out;
         }
@@ -121,7 +122,7 @@ int coroutine_fn qed_read_l1_table_sync(BDRVQEDState *s)
 int coroutine_fn qed_write_l1_table(BDRVQEDState *s, unsigned int index,
                                     unsigned int n)
 {
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
     return qed_write_table(s, s->header.l1_table_offset,
                            s->l1_table, index, n, false);
 }
@@ -149,7 +150,7 @@ int coroutine_fn qed_read_l2_table(BDRVQEDState *s, QEDRequest *request,
     request->l2_table = qed_alloc_l2_cache_entry(&s->l2_cache);
     request->l2_table->table = qed_alloc_table(s);
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L2_LOAD);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L2_LOAD);
     ret = qed_read_table(s, offset, request->l2_table->table);
 
     if (ret) {
@@ -182,7 +183,7 @@ int coroutine_fn qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                                     unsigned int index, unsigned int n,
                                     bool flush)
 {
-    BLKDBG_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
     return qed_write_table(s, request->l2_table->offset,
                            request->l2_table->table, index, n, flush);
 }

@@ -65,7 +65,7 @@ enum {
     REG_SD_DLBA       = 0x84,  /* Descriptor List Base Address */
     REG_SD_IDST       = 0x88,  /* Internal DMA Controller Status */
     REG_SD_IDIE       = 0x8C,  /* Internal DMA Controller IRQ Enable */
-    REG_SD_THLDC      = 0x100, /* Card Threshold Control */
+    REG_SD_THLDC      = 0x100, /* Card Threshold Control / FIFO (sun4i only)*/
     REG_SD_DSBD       = 0x10C, /* eMMC DDR Start Bit Detection Control */
     REG_SD_RES_CRC    = 0x110, /* Response CRC from card/eMMC */
     REG_SD_DATA7_CRC  = 0x114, /* CRC Data 7 from card/eMMC */
@@ -77,6 +77,7 @@ enum {
     REG_SD_DATA1_CRC  = 0x12C, /* CRC Data 1 from card/eMMC */
     REG_SD_DATA0_CRC  = 0x130, /* CRC Data 0 from card/eMMC */
     REG_SD_CRC_STA    = 0x134, /* CRC status from card/eMMC during write */
+    REG_SD_SAMP_DL    = 0x144, /* Sample Delay Control (sun50i-a64) */
     REG_SD_FIFO       = 0x200, /* Read/Write FIFO */
 };
 
@@ -158,6 +159,7 @@ enum {
     REG_SD_RES_CRC_RST      = 0x0,
     REG_SD_DATA_CRC_RST     = 0x0,
     REG_SD_CRC_STA_RST      = 0x0,
+    REG_SD_SAMPLE_DL_RST    = 0x00002000,
     REG_SD_FIFO_RST         = 0x0,
 };
 
@@ -191,7 +193,7 @@ static void allwinner_sdhost_update_irq(AwSdHostState *s)
     }
 
     trace_allwinner_sdhost_update_irq(irq);
-    qemu_set_irq(s->irq, irq);
+    qemu_set_irq(s->irq, !!irq);
 }
 
 static void allwinner_sdhost_update_transfer_cnt(AwSdHostState *s,
@@ -302,6 +304,30 @@ static void allwinner_sdhost_auto_stop(AwSdHostState *s)
     }
 }
 
+static void read_descriptor(AwSdHostState *s, hwaddr desc_addr,
+                            TransferDescriptor *desc)
+{
+    uint32_t desc_words[4];
+    dma_memory_read(&s->dma_as, desc_addr, &desc_words, sizeof(desc_words),
+                    MEMTXATTRS_UNSPECIFIED);
+    desc->status = le32_to_cpu(desc_words[0]);
+    desc->size = le32_to_cpu(desc_words[1]);
+    desc->addr = le32_to_cpu(desc_words[2]);
+    desc->next = le32_to_cpu(desc_words[3]);
+}
+
+static void write_descriptor(AwSdHostState *s, hwaddr desc_addr,
+                             const TransferDescriptor *desc)
+{
+    uint32_t desc_words[4];
+    desc_words[0] = cpu_to_le32(desc->status);
+    desc_words[1] = cpu_to_le32(desc->size);
+    desc_words[2] = cpu_to_le32(desc->addr);
+    desc_words[3] = cpu_to_le32(desc->next);
+    dma_memory_write(&s->dma_as, desc_addr, &desc_words, sizeof(desc_words),
+                     MEMTXATTRS_UNSPECIFIED);
+}
+
 static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
                                               hwaddr desc_addr,
                                               TransferDescriptor *desc,
@@ -312,9 +338,7 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
     uint32_t num_bytes = max_bytes;
     uint8_t buf[1024];
 
-    /* Read descriptor */
-    dma_memory_read(&s->dma_as, desc_addr, desc, sizeof(*desc),
-                    MEMTXATTRS_UNSPECIFIED);
+    read_descriptor(s, desc_addr, desc);
     if (desc->size == 0) {
         desc->size = klass->max_desc_size;
     } else if (desc->size > klass->max_desc_size) {
@@ -356,8 +380,7 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
 
     /* Clear hold flag and flush descriptor */
     desc->status &= ~DESC_STATUS_HOLD;
-    dma_memory_write(&s->dma_as, desc_addr, desc, sizeof(*desc),
-                     MEMTXATTRS_UNSPECIFIED);
+    write_descriptor(s, desc_addr, desc);
 
     return num_done;
 }
@@ -415,10 +438,30 @@ static void allwinner_sdhost_dma(AwSdHostState *s)
     }
 }
 
+static uint32_t allwinner_sdhost_fifo_read(AwSdHostState *s)
+{
+    uint32_t res = 0;
+
+    if (sdbus_data_ready(&s->sdbus)) {
+        sdbus_read_data(&s->sdbus, &res, sizeof(uint32_t));
+        le32_to_cpus(&res);
+        allwinner_sdhost_update_transfer_cnt(s, sizeof(uint32_t));
+        allwinner_sdhost_auto_stop(s);
+        allwinner_sdhost_update_irq(s);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no data ready on SD bus\n",
+                      __func__);
+    }
+
+    return res;
+}
+
 static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
     AwSdHostState *s = AW_SDHOST(opaque);
+    AwSdHostClass *sc = AW_SDHOST_GET_CLASS(s);
+    bool out_of_bounds = false;
     uint32_t res = 0;
 
     switch (offset) {
@@ -508,8 +551,12 @@ static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
     case REG_SD_IDIE:      /* Internal DMA Controller Interrupt Enable */
         res = s->dmac_irq;
         break;
-    case REG_SD_THLDC:     /* Card Threshold Control */
-        res = s->card_threshold;
+    case REG_SD_THLDC:     /* Card Threshold Control or FIFO register (sun4i) */
+        if (sc->is_sun4i) {
+            res = allwinner_sdhost_fifo_read(s);
+        } else {
+            res = s->card_threshold;
+        }
         break;
     case REG_SD_DSBD:      /* eMMC DDR Start Bit Detection Control */
         res = s->startbit_detect;
@@ -531,33 +578,45 @@ static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
         res = s->status_crc;
         break;
     case REG_SD_FIFO:      /* Read/Write FIFO */
-        if (sdbus_data_ready(&s->sdbus)) {
-            sdbus_read_data(&s->sdbus, &res, sizeof(uint32_t));
-            le32_to_cpus(&res);
-            allwinner_sdhost_update_transfer_cnt(s, sizeof(uint32_t));
-            allwinner_sdhost_auto_stop(s);
-            allwinner_sdhost_update_irq(s);
+        res = allwinner_sdhost_fifo_read(s);
+        break;
+    case REG_SD_SAMP_DL: /* Sample Delay */
+        if (sc->can_calibrate) {
+            res = s->sample_delay;
         } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: no data ready on SD bus\n",
-                          __func__);
+            out_of_bounds = true;
         }
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset %"
-                      HWADDR_PRIx"\n", __func__, offset);
+        out_of_bounds = true;
         res = 0;
         break;
+    }
+
+    if (out_of_bounds) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset %"
+                      HWADDR_PRIx"\n", __func__, offset);
     }
 
     trace_allwinner_sdhost_read(offset, res, size);
     return res;
 }
 
+static void allwinner_sdhost_fifo_write(AwSdHostState *s, uint64_t value)
+{
+    uint32_t u32 = cpu_to_le32(value);
+    sdbus_write_data(&s->sdbus, &u32, sizeof(u32));
+    allwinner_sdhost_update_transfer_cnt(s, sizeof(u32));
+    allwinner_sdhost_auto_stop(s);
+    allwinner_sdhost_update_irq(s);
+}
+
 static void allwinner_sdhost_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
     AwSdHostState *s = AW_SDHOST(opaque);
-    uint32_t u32;
+    AwSdHostClass *sc = AW_SDHOST_GET_CLASS(s);
+    bool out_of_bounds = false;
 
     trace_allwinner_sdhost_write(offset, value, size);
 
@@ -657,18 +716,18 @@ static void allwinner_sdhost_write(void *opaque, hwaddr offset,
         s->dmac_irq = value;
         allwinner_sdhost_update_irq(s);
         break;
-    case REG_SD_THLDC:     /* Card Threshold Control */
-        s->card_threshold = value;
+    case REG_SD_THLDC:     /* Card Threshold Control or FIFO (sun4i) */
+        if (sc->is_sun4i) {
+            allwinner_sdhost_fifo_write(s, value);
+        } else {
+            s->card_threshold = value;
+        }
         break;
     case REG_SD_DSBD:      /* eMMC DDR Start Bit Detection Control */
         s->startbit_detect = value;
         break;
     case REG_SD_FIFO:      /* Read/Write FIFO */
-        u32 = cpu_to_le32(value);
-        sdbus_write_data(&s->sdbus, &u32, sizeof(u32));
-        allwinner_sdhost_update_transfer_cnt(s, sizeof(u32));
-        allwinner_sdhost_auto_stop(s);
-        allwinner_sdhost_update_irq(s);
+        allwinner_sdhost_fifo_write(s, value);
         break;
     case REG_SD_RES_CRC:   /* Response CRC from card/eMMC */
     case REG_SD_DATA7_CRC: /* CRC Data 7 from card/eMMC */
@@ -681,10 +740,21 @@ static void allwinner_sdhost_write(void *opaque, hwaddr offset,
     case REG_SD_DATA0_CRC: /* CRC Data 0 from card/eMMC */
     case REG_SD_CRC_STA:   /* CRC status from card/eMMC in write operation */
         break;
+    case REG_SD_SAMP_DL: /* Sample delay control */
+        if (sc->can_calibrate) {
+            s->sample_delay = value;
+        } else {
+            out_of_bounds = true;
+        }
+        break;
     default:
+        out_of_bounds = true;
+        break;
+    }
+
+    if (out_of_bounds) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset %"
                       HWADDR_PRIx"\n", __func__, offset);
-        break;
     }
 }
 
@@ -733,6 +803,7 @@ static const VMStateDescription vmstate_allwinner_sdhost = {
         VMSTATE_UINT32(response_crc, AwSdHostState),
         VMSTATE_UINT32_ARRAY(data_crc, AwSdHostState, 8),
         VMSTATE_UINT32(status_crc, AwSdHostState),
+        VMSTATE_UINT32(sample_delay, AwSdHostState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -771,6 +842,7 @@ static void allwinner_sdhost_realize(DeviceState *dev, Error **errp)
 static void allwinner_sdhost_reset(DeviceState *dev)
 {
     AwSdHostState *s = AW_SDHOST(dev);
+    AwSdHostClass *sc = AW_SDHOST_GET_CLASS(s);
 
     s->global_ctl = REG_SD_GCTL_RST;
     s->clock_ctl = REG_SD_CKCR_RST;
@@ -811,6 +883,10 @@ static void allwinner_sdhost_reset(DeviceState *dev)
     }
 
     s->status_crc = REG_SD_CRC_STA_RST;
+
+    if (sc->can_calibrate) {
+        s->sample_delay = REG_SD_SAMPLE_DL_RST;
+    }
 }
 
 static void allwinner_sdhost_bus_class_init(ObjectClass *klass, void *data)
@@ -834,12 +910,34 @@ static void allwinner_sdhost_sun4i_class_init(ObjectClass *klass, void *data)
 {
     AwSdHostClass *sc = AW_SDHOST_CLASS(klass);
     sc->max_desc_size = 8 * KiB;
+    sc->is_sun4i = true;
+    sc->can_calibrate = false;
 }
 
 static void allwinner_sdhost_sun5i_class_init(ObjectClass *klass, void *data)
 {
     AwSdHostClass *sc = AW_SDHOST_CLASS(klass);
     sc->max_desc_size = 64 * KiB;
+    sc->is_sun4i = false;
+    sc->can_calibrate = false;
+}
+
+static void allwinner_sdhost_sun50i_a64_class_init(ObjectClass *klass,
+                                                   void *data)
+{
+    AwSdHostClass *sc = AW_SDHOST_CLASS(klass);
+    sc->max_desc_size = 64 * KiB;
+    sc->is_sun4i = false;
+    sc->can_calibrate = true;
+}
+
+static void allwinner_sdhost_sun50i_a64_emmc_class_init(ObjectClass *klass,
+                                                        void *data)
+{
+    AwSdHostClass *sc = AW_SDHOST_CLASS(klass);
+    sc->max_desc_size = 8 * KiB;
+    sc->is_sun4i = false;
+    sc->can_calibrate = true;
 }
 
 static const TypeInfo allwinner_sdhost_info = {
@@ -864,6 +962,18 @@ static const TypeInfo allwinner_sdhost_sun5i_info = {
     .class_init    = allwinner_sdhost_sun5i_class_init,
 };
 
+static const TypeInfo allwinner_sdhost_sun50i_a64_info = {
+    .name          = TYPE_AW_SDHOST_SUN50I_A64,
+    .parent        = TYPE_AW_SDHOST,
+    .class_init    = allwinner_sdhost_sun50i_a64_class_init,
+};
+
+static const TypeInfo allwinner_sdhost_sun50i_a64_emmc_info = {
+    .name          = TYPE_AW_SDHOST_SUN50I_A64_EMMC,
+    .parent        = TYPE_AW_SDHOST,
+    .class_init    = allwinner_sdhost_sun50i_a64_emmc_class_init,
+};
+
 static const TypeInfo allwinner_sdhost_bus_info = {
     .name = TYPE_AW_SDHOST_BUS,
     .parent = TYPE_SD_BUS,
@@ -876,6 +986,8 @@ static void allwinner_sdhost_register_types(void)
     type_register_static(&allwinner_sdhost_info);
     type_register_static(&allwinner_sdhost_sun4i_info);
     type_register_static(&allwinner_sdhost_sun5i_info);
+    type_register_static(&allwinner_sdhost_sun50i_a64_info);
+    type_register_static(&allwinner_sdhost_sun50i_a64_emmc_info);
     type_register_static(&allwinner_sdhost_bus_info);
 }
 

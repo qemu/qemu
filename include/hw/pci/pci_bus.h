@@ -28,10 +28,12 @@ enum PCIBusFlags {
     PCI_BUS_CXL                                             = 0x0004,
 };
 
+#define PCI_NO_PASID UINT32_MAX
+
 struct PCIBus {
     BusState qbus;
     enum PCIBusFlags flags;
-    PCIIOMMUFunc iommu_fn;
+    const PCIIOMMUOps *iommu_ops;
     void *iommu_opaque;
     uint8_t devfn_min;
     uint32_t slot_reserved_mask;

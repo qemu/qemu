@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qemu/bswap.h"
@@ -66,16 +67,21 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t offsets_size, max_compressed_block_size = 1, i;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
+    bdrv_graph_rdunlock_main_loop();
     if (ret < 0) {
         return ret;
     }
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_IMAGE, false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* read header */
     ret = bdrv_pread(bs->file, 128, 4, &s->block_size, 0);
@@ -212,7 +218,8 @@ static void cloop_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
-static inline int cloop_read_block(BlockDriverState *bs, int block_num)
+static int coroutine_fn GRAPH_RDLOCK
+cloop_read_block(BlockDriverState *bs, int block_num)
 {
     BDRVCloopState *s = bs->opaque;
 
@@ -220,8 +227,8 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
         int ret;
         uint32_t bytes = s->offsets[block_num + 1] - s->offsets[block_num];
 
-        ret = bdrv_pread(bs->file, s->offsets[block_num], bytes,
-                         s->compressed_block, 0);
+        ret = bdrv_co_pread(bs->file, s->offsets[block_num], bytes,
+                            s->compressed_block, 0);
         if (ret < 0) {
             return -1;
         }
@@ -244,7 +251,7 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
     return 0;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 cloop_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                 QEMUIOVector *qiov, BdrvRequestFlags flags)
 {

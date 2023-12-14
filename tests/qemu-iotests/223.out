@@ -83,29 +83,32 @@ exports available: 0
 exports available: 3
  export: 'n'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b
  export: 'n2'
   description: some text
   size:  4194304
-  flags: 0xded ( flush fua trim zeroes df multi cache fast-zero )
+  flags: 0x1ded ( flush fua trim zeroes df multi cache fast-zero block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b2
  export: 'n3'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b3
@@ -120,23 +123,23 @@ read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 2097152/2097152 bytes at offset 2097152
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 4096, "length": 1044480, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 1048576, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
+[{ "start": 0, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 4096, "length": 1044480, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET},
+{ "start": 1048576, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
 
 === Contrast to small granularity dirty-bitmap ===
 
-[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
+[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
 
 === Check bitmap taken from another node ===
 
-[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
 
 === End qemu NBD server ===
 
@@ -202,29 +205,32 @@ exports available: 0
 exports available: 3
  export: 'n'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b
  export: 'n2'
   description: some text
   size:  4194304
-  flags: 0xded ( flush fua trim zeroes df multi cache fast-zero )
+  flags: 0x1ded ( flush fua trim zeroes df multi cache fast-zero block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b2
  export: 'n3'
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
   min block: 1
   opt block: 4096
   max block: 33554432
+  transaction size: 64-bit
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b3
@@ -239,23 +245,23 @@ read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 2097152/2097152 bytes at offset 2097152
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 4096, "length": 1044480, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 1048576, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
+[{ "start": 0, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 4096, "length": 1044480, "depth": 0, "present": true, "zero": true, "data": false, "compressed": false, "offset": OFFSET},
+{ "start": 1048576, "length": 3145728, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
 
 === Contrast to small granularity dirty-bitmap ===
 
-[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
+[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
 
 === Check bitmap taken from another node ===
 
-[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
 
 === End qemu NBD server ===
 
@@ -281,12 +287,12 @@ read 2097152/2097152 bytes at offset 2097152
 
 === Use qemu-nbd as server ===
 
-[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
-[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false},
-{ "start": 1024, "length": 11321, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
-[{ "start": 12345, "length": 2084807, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
+[{ "start": 0, "length": 65536, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
+[{ "start": 0, "length": 512, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 512, "length": 512, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false},
+{ "start": 1024, "length": 11321, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET}]
+[{ "start": 12345, "length": 2084807, "depth": 0, "present": true, "zero": false, "data": true, "compressed": false, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false, "compressed": false}]
 *** done

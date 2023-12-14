@@ -25,22 +25,26 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/tcg.h"
+#include "exec/replay-core.h"
 #include "sysemu/cpu-timers.h"
-#include "tcg/tcg.h"
+#include "tcg/startup.h"
+#include "tcg/oversized-guest.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
+#include "qemu/atomic.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/boards.h"
 #endif
-#include "internal.h"
+#include "internal-target.h"
 
 struct TCGState {
     AccelState parent_obj;
 
     bool mttcg_enabled;
+    bool one_insn_per_tb;
     int splitwx_enabled;
     unsigned long tb_size;
 };
@@ -60,37 +64,23 @@ DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
  * they can set the appropriate CONFIG flags in ${target}-softmmu.mak
  *
  * Once a guest architecture has been converted to the new primitives
- * there are two remaining limitations to check.
- *
- * - The guest can't be oversized (e.g. 64 bit guest on 32 bit host)
- * - The host must have a stronger memory order than the guest
- *
- * It may be possible in future to support strong guests on weak hosts
- * but that will require tagging all load/stores in a guest with their
- * implicit memory order requirements which would likely slow things
- * down a lot.
+ * there is one remaining limitation to check:
+ *   - The guest can't be oversized (e.g. 64 bit guest on 32 bit host)
  */
-
-static bool check_tcg_memory_orders_compatible(void)
-{
-#if defined(TCG_GUEST_DEFAULT_MO) && defined(TCG_TARGET_DEFAULT_MO)
-    return (TCG_GUEST_DEFAULT_MO & ~TCG_TARGET_DEFAULT_MO) == 0;
-#else
-    return false;
-#endif
-}
 
 static bool default_mttcg_enabled(void)
 {
     if (icount_enabled() || TCG_OVERSIZED_GUEST) {
         return false;
-    } else {
-#ifdef TARGET_SUPPORTS_MTTCG
-        return check_tcg_memory_orders_compatible();
-#else
-        return false;
-#endif
     }
+#ifdef TARGET_SUPPORTS_MTTCG
+# ifndef TCG_GUEST_DEFAULT_MO
+#  error "TARGET_SUPPORTS_MTTCG without TCG_GUEST_DEFAULT_MO"
+# endif
+    return true;
+#else
+    return false;
+#endif
 }
 
 static void tcg_accel_instance_init(Object *obj)
@@ -108,6 +98,7 @@ static void tcg_accel_instance_init(Object *obj)
 }
 
 bool mttcg_enabled;
+bool one_insn_per_tb;
 
 static int tcg_init_machine(MachineState *ms)
 {
@@ -130,7 +121,7 @@ static int tcg_init_machine(MachineState *ms)
      * There's no guest base to take into account, so go ahead and
      * initialize the prologue now.
      */
-    tcg_prologue_init(tcg_ctx);
+    tcg_prologue_init();
 #endif
 
     return 0;
@@ -157,11 +148,6 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
             warn_report("Guest not yet converted to MTTCG - "
                         "you may get unexpected results");
 #endif
-            if (!check_tcg_memory_orders_compatible()) {
-                warn_report("Guest expects a stronger memory ordering "
-                            "than the host provides");
-                error_printf("This may cause strange/hard to debug errors\n");
-            }
             s->mttcg_enabled = true;
         }
     } else if (strcmp(value, "single") == 0) {
@@ -207,12 +193,44 @@ static void tcg_set_splitwx(Object *obj, bool value, Error **errp)
     s->splitwx_enabled = value;
 }
 
+static bool tcg_get_one_insn_per_tb(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+    return s->one_insn_per_tb;
+}
+
+static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+    s->one_insn_per_tb = value;
+    /* Set the global also: this changes the behaviour */
+    qatomic_set(&one_insn_per_tb, value);
+}
+
+static int tcg_gdbstub_supported_sstep_flags(void)
+{
+    /*
+     * In replay mode all events will come from the log and can't be
+     * suppressed otherwise we would break determinism. However as those
+     * events are tied to the number of executed instructions we won't see
+     * them occurring every time we single step.
+     */
+    if (replay_mode != REPLAY_MODE_NONE) {
+        return SSTEP_ENABLE;
+    } else {
+        return SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
+    }
+}
+
 static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "tcg";
     ac->init_machine = tcg_init_machine;
+    ac->cpu_common_realize = tcg_exec_realizefn;
+    ac->cpu_common_unrealize = tcg_exec_unrealizefn;
     ac->allowed = &tcg_allowed;
+    ac->gdbstub_supported_sstep_flags = tcg_gdbstub_supported_sstep_flags;
 
     object_class_property_add_str(oc, "thread",
                                   tcg_get_thread,
@@ -228,6 +246,12 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
         tcg_get_splitwx, tcg_set_splitwx);
     object_class_property_set_description(oc, "split-wx",
         "Map jit pages into separate RW and RX regions");
+
+    object_class_property_add_bool(oc, "one-insn-per-tb",
+                                   tcg_get_one_insn_per_tb,
+                                   tcg_set_one_insn_per_tb);
+    object_class_property_set_description(oc, "one-insn-per-tb",
+        "Only put one guest insn in each translation block");
 }
 
 static const TypeInfo tcg_accel_type = {

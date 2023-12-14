@@ -103,11 +103,6 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     CPUSPARCState *env = &cpu->env;
     int cwp, intno = cs->exception_index;
 
-    /* Compute PSR before exposing state.  */
-    if (env->cc_op != CC_OP_FLAGS) {
-        cpu_get_psr(env);
-    }
-
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;

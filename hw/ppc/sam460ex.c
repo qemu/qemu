@@ -25,7 +25,6 @@
 #include "elf.h"
 #include "exec/memory.h"
 #include "ppc440.h"
-#include "ppc405.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
@@ -45,6 +44,9 @@
 /* to extract the official U-Boot bin from the updater: */
 /* dd bs=1 skip=$(($(stat -c '%s' updater/updater-460) - 0x80000)) \
      if=updater/updater-460 of=u-boot-sam460-20100605.bin */
+
+#define PCIE0_DCRN_BASE 0x100
+#define PCIE1_DCRN_BASE 0x120
 
 /* from Sam460 U-Boot include/configs/Sam460ex.h */
 #define FLASH_BASE             0xfff00000
@@ -74,14 +76,6 @@
 #define OPB_FREQ 115000000
 #define EBC_FREQ 115000000
 #define UART_FREQ 11059200
-#define SDRAM_NR_BANKS 4
-
-/* The SoC could also handle 4 GiB but firmware does not work with that. */
-/* Maybe it overflows a signed 32 bit number somewhere? */
-static const ram_addr_t ppc460ex_sdram_bank_sizes[] = {
-    2 * GiB, 1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB,
-    32 * MiB, 0
-};
 
 struct boot_info {
     uint32_t dt_base;
@@ -132,13 +126,12 @@ static int sam460ex_load_uboot(void)
     return 0;
 }
 
-static int sam460ex_load_device_tree(hwaddr addr,
-                                     uint32_t ramsize,
+static int sam460ex_load_device_tree(MachineState *machine,
+                                     hwaddr addr,
                                      hwaddr initrd_base,
-                                     hwaddr initrd_size,
-                                     const char *kernel_cmdline)
+                                     hwaddr initrd_size)
 {
-    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
+    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(machine->ram_size) };
     char *filename;
     int fdt_size;
     void *fdt;
@@ -172,7 +165,8 @@ static int sam460ex_load_device_tree(hwaddr addr,
     qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                           (initrd_base + initrd_size));
 
-    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
+    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                            machine->kernel_cmdline);
 
     /* Copy data from the host device tree into the guest. Since the guest can
      * directly access the timebase without host involvement, we must expose
@@ -209,7 +203,9 @@ static int sam460ex_load_device_tree(hwaddr addr,
                               EBC_FREQ);
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    g_free(fdt);
+
+    /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+    machine->fdt = fdt;
 
     return fdt_size;
 }
@@ -273,14 +269,8 @@ static void main_cpu_reset(void *opaque)
 
 static void sam460ex_init(MachineState *machine)
 {
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *isa = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_memories = g_new(MemoryRegion, SDRAM_NR_BANKS);
-    hwaddr ram_bases[SDRAM_NR_BANKS] = {0};
-    hwaddr ram_sizes[SDRAM_NR_BANKS] = {0};
     MemoryRegion *l2cache_ram = g_new(MemoryRegion, 1);
     DeviceState *uic[4];
-    qemu_irq mal_irqs[4];
     int i;
     PCIBus *pci_bus;
     PowerPCCPU *cpu;
@@ -309,11 +299,12 @@ static void sam460ex_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* PLB arbitrer */
-    ppc4xx_plb_init(env);
+    dev = qdev_new(TYPE_PPC4xx_PLB);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
 
     /* interrupt controllers */
     for (i = 0; i < ARRAY_SIZE(uic); i++) {
-        SysBusDevice *sbd;
         /*
          * UICs 1, 2 and 3 are cascaded through UIC 0.
          * input_ints[n] is the interrupt number on UIC 0 which
@@ -325,43 +316,56 @@ static void sam460ex_init(MachineState *machine)
         const int input_ints[] = { -1, 30, 10, 16 };
 
         uic[i] = qdev_new(TYPE_PPC_UIC);
-        sbd = SYS_BUS_DEVICE(uic[i]);
-
         qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
-        object_property_set_link(OBJECT(uic[i]), "cpu", OBJECT(cpu),
-                                 &error_fatal);
-        sysbus_realize_and_unref(sbd, &error_fatal);
+        ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uic[i]), cpu, &error_fatal);
+        object_unref(OBJECT(uic[i]));
 
+        sbdev = SYS_BUS_DEVICE(uic[i]);
         if (i == 0) {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
         } else {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                                qdev_get_gpio_in(uic[0], input_ints[i]));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                                qdev_get_gpio_in(uic[0], input_ints[i] + 1));
         }
     }
 
     /* SDRAM controller */
-    /* put all RAM on first bank because board has one slot
-     * and firmware only checks that */
-    ppc4xx_sdram_banks(machine->ram, 1, ram_memories, ram_bases, ram_sizes,
-                       ppc460ex_sdram_bank_sizes);
-
+    /* The SoC could also handle 4 GiB but firmware does not work with that. */
+    if (machine->ram_size > 2 * GiB) {
+        error_report("Memory over 2 GiB is not supported");
+        exit(1);
+    }
+    /* Firmware needs at least 64 MiB */
+    if (machine->ram_size < 64 * MiB) {
+        error_report("Memory below 64 MiB is not supported");
+        exit(1);
+    }
+    dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR2);
+    object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
+                             &error_abort);
+    /*
+     * Put all RAM on first bank because board has one slot
+     * and firmware only checks that
+     */
+    object_property_set_int(OBJECT(dev), "nbanks", 1, &error_abort);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
     /* FIXME: does 460EX have ECC interrupts? */
-    ppc440_sdram_init(env, SDRAM_NR_BANKS, ram_memories,
-                      ram_bases, ram_sizes, 1);
+    /* Enable SDRAM memory regions as we may boot without firmware */
+    ppc4xx_sdram_ddr2_enable(PPC4xx_SDRAM_DDR2(dev));
 
     /* IIC controllers and devices */
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
                                qdev_get_gpio_in(uic[0], 2));
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
-    spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
-                                 ram_sizes[0]);
+    spd_data = spd_data_generate(machine->ram_size < 128 * MiB ? DDR : DDR2,
+                                 machine->ram_size);
     spd_data[20] = 4; /* SO-DIMM module */
     smbus_eeprom_init_one(i2c, 0x50, spd_data);
     /* RTC */
@@ -371,7 +375,9 @@ static void sam460ex_init(MachineState *machine)
                                qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
-    ppc405_ebc_init(env);
+    dev = qdev_new(TYPE_PPC4xx_EBC);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
 
     /* CPR */
     ppc4xx_cpr_init(env);
@@ -383,10 +389,15 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    for (i = 0; i < ARRAY_SIZE(mal_irqs); i++) {
-        mal_irqs[i] = qdev_get_gpio_in(uic[2], 3 + i);
+    dev = qdev_new(TYPE_PPC4xx_MAL);
+    qdev_prop_set_uint8(dev, "txc-num", 4);
+    qdev_prop_set_uint8(dev, "rxc-num", 16);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
+    sbdev = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < ARRAY_SIZE(PPC4xx_MAL(dev)->irqs); i++) {
+        sysbus_connect_irq(sbdev, i, qdev_get_gpio_in(uic[2], 3 + i));
     }
-    ppc4xx_mal_init(env, 4, 16, mal_irqs);
 
     /* DMA */
     ppc4xx_dma_init(env, 0x200);
@@ -396,7 +407,8 @@ static void sam460ex_init(MachineState *machine)
     /* FIXME: remove this after fixing l2sram mapping in ppc440_uc.c? */
     memory_region_init_ram(l2cache_ram, NULL, "ppc440.l2cache_ram", 256 * KiB,
                            &error_abort);
-    memory_region_add_subregion(address_space_mem, 0x400000000LL, l2cache_ram);
+    memory_region_add_subregion(get_system_memory(), 0x400000000LL,
+                                l2cache_ram);
 
     /* USB */
     sysbus_create_simple(TYPE_PPC4xx_EHCI, 0x4bffd0400,
@@ -411,16 +423,25 @@ static void sam460ex_init(MachineState *machine)
     usb_create_simple(usb_bus_find(-1), "usb-kbd");
     usb_create_simple(usb_bus_find(-1), "usb-mouse");
 
-    /* PCI bus */
-    ppc460ex_pcie_init(env);
-    /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
-    dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000,
-                               qdev_get_gpio_in(uic[1], 0));
-    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
+    /* PCIe buses */
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 0);
+    qdev_prop_set_int32(dev, "dcrn-base", PCIE0_DCRN_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    memory_region_init_alias(isa, NULL, "isa_mmio", get_system_io(),
-                             0, 0x10000);
-    memory_region_add_subregion(get_system_memory(), 0xc08000000, isa);
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    qdev_prop_set_int32(dev, "busnum", 1);
+    qdev_prop_set_int32(dev, "dcrn-base", PCIE1_DCRN_BASE);
+    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* PCI bus */
+    /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
+    dev = sysbus_create_simple(TYPE_PPC440_PCIX_HOST, 0xc0ec00000,
+                               qdev_get_gpio_in(uic[1], 0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0xc08000000);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* PCI devices */
     pci_create_simple(pci_bus, PCI_DEVFN(6, 0), "sm501");
@@ -434,13 +455,13 @@ static void sam460ex_init(MachineState *machine)
     /* SoC has 4 UARTs
      * but board has only one wired and two are present in fdt */
     if (serial_hd(0) != NULL) {
-        serial_mm_init(address_space_mem, 0x4ef600300, 0,
+        serial_mm_init(get_system_memory(), 0x4ef600300, 0,
                        qdev_get_gpio_in(uic[1], 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(0),
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hd(1) != NULL) {
-        serial_mm_init(address_space_mem, 0x4ef600400, 0,
+        serial_mm_init(get_system_memory(), 0x4ef600400, 0,
                        qdev_get_gpio_in(uic[0], 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(1),
                        DEVICE_BIG_ENDIAN);
@@ -492,9 +513,8 @@ static void sam460ex_init(MachineState *machine)
     if (machine->kernel_filename) {
         int dt_size;
 
-        dt_size = sam460ex_load_device_tree(FDT_ADDR, machine->ram_size,
-                                    RAMDISK_ADDR, initrd_size,
-                                    machine->kernel_cmdline);
+        dt_size = sam460ex_load_device_tree(machine, FDT_ADDR,
+                                            RAMDISK_ADDR, initrd_size);
 
         boot_info->dt_base = FDT_ADDR;
         boot_info->dt_size = dt_size;

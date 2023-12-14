@@ -22,13 +22,7 @@
 #ifndef RISCV_DEBUG_H
 #define RISCV_DEBUG_H
 
-/* trigger indexes implemented */
-enum {
-    TRIGGER_TYPE2_IDX_0 = 0,
-    TRIGGER_TYPE2_IDX_1,
-    TRIGGER_TYPE2_NUM,
-    TRIGGER_NUM = TRIGGER_TYPE2_NUM
-};
+#define RV_MAX_TRIGGERS         2
 
 /* register index of tdata CSRs */
 enum {
@@ -46,24 +40,33 @@ typedef enum {
     TRIGGER_TYPE_EXCP = 5,          /* exception trigger */
     TRIGGER_TYPE_AD_MATCH6 = 6,     /* new address/data match trigger */
     TRIGGER_TYPE_EXT_SRC = 7,       /* external source trigger */
-    TRIGGER_TYPE_UNAVAIL = 15       /* trigger exists, but unavailable */
+    TRIGGER_TYPE_UNAVAIL = 15,      /* trigger exists, but unavailable */
+    TRIGGER_TYPE_NUM
 } trigger_type_t;
 
-typedef struct {
-    target_ulong mcontrol;
-    target_ulong maddress;
-    struct CPUBreakpoint *bp;
-    struct CPUWatchpoint *wp;
-} type2_trigger_t;
+/* actions */
+typedef enum {
+    DBG_ACTION_NONE = -1,           /* sentinel value */
+    DBG_ACTION_BP = 0,
+    DBG_ACTION_DBG_MODE,
+    DBG_ACTION_TRACE0,
+    DBG_ACTION_TRACE1,
+    DBG_ACTION_TRACE2,
+    DBG_ACTION_TRACE3,
+    DBG_ACTION_EXT_DBG0 = 8,
+    DBG_ACTION_EXT_DBG1
+} trigger_action_t;
 
-/* tdata field masks */
+/* tdata1 field masks */
 
 #define RV32_TYPE(t)    ((uint32_t)(t) << 28)
 #define RV32_TYPE_MASK  (0xf << 28)
 #define RV32_DMODE      BIT(27)
+#define RV32_DATA_MASK  0x7ffffff
 #define RV64_TYPE(t)    ((uint64_t)(t) << 60)
 #define RV64_TYPE_MASK  (0xfULL << 60)
 #define RV64_DMODE      BIT_ULL(59)
+#define RV64_DATA_MASK  0x7ffffffffffffff
 
 /* mcontrol field masks */
 
@@ -82,6 +85,24 @@ typedef struct {
 #define TYPE2_HIT       BIT(20)
 #define TYPE2_SIZEHI    (0x3 << 21) /* RV64 only */
 
+/* mcontrol6 field masks */
+
+#define TYPE6_LOAD      BIT(0)
+#define TYPE6_STORE     BIT(1)
+#define TYPE6_EXEC      BIT(2)
+#define TYPE6_U         BIT(3)
+#define TYPE6_S         BIT(4)
+#define TYPE6_M         BIT(6)
+#define TYPE6_MATCH     (0xf << 7)
+#define TYPE6_CHAIN     BIT(11)
+#define TYPE6_ACTION    (0xf << 12)
+#define TYPE6_SIZE      (0xf << 16)
+#define TYPE6_TIMING    BIT(20)
+#define TYPE6_SELECT    BIT(21)
+#define TYPE6_HIT       BIT(22)
+#define TYPE6_VU        BIT(23)
+#define TYPE6_VS        BIT(24)
+
 /* access size */
 enum {
     SIZE_ANY = 0,
@@ -97,6 +118,17 @@ enum {
     SIZE_NUM = 16
 };
 
+/* itrigger filed masks */
+#define ITRIGGER_ACTION       0x3f
+#define ITRIGGER_U            BIT(6)
+#define ITRIGGER_S            BIT(7)
+#define ITRIGGER_PENDING      BIT(8)
+#define ITRIGGER_M            BIT(9)
+#define ITRIGGER_COUNT        (0x3fff << 10)
+#define ITRIGGER_HIT          BIT(24)
+#define ITRIGGER_VU           BIT(25)
+#define ITRIGGER_VS           BIT(26)
+
 bool tdata_available(CPURISCVState *env, int tdata_index);
 
 target_ulong tselect_csr_read(CPURISCVState *env);
@@ -105,10 +137,15 @@ void tselect_csr_write(CPURISCVState *env, target_ulong val);
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index);
 void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val);
 
+target_ulong tinfo_csr_read(CPURISCVState *env);
+
 void riscv_cpu_debug_excp_handler(CPUState *cs);
 bool riscv_cpu_debug_check_breakpoint(CPUState *cs);
 bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
 
-void riscv_trigger_init(CPURISCVState *env);
+void riscv_trigger_realize(CPURISCVState *env);
+void riscv_trigger_reset_hold(CPURISCVState *env);
 
+bool riscv_itrigger_enabled(CPURISCVState *env);
+void riscv_itrigger_update_priv(CPURISCVState *env);
 #endif /* RISCV_DEBUG_H */

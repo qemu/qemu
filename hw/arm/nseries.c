@@ -45,6 +45,8 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
+
 
 /* Nokia N8x0 support */
 struct n800_s {
@@ -230,13 +232,13 @@ static void n8x0_i2c_setup(struct n800_s *s)
 }
 
 /* Touchscreen and keypad controller */
-static MouseTransformInfo n800_pointercal = {
+static const MouseTransformInfo n800_pointercal = {
     .x = 800,
     .y = 480,
     .a = { 14560, -68, -3455208, -39, -9621, 35152972, 65536 },
 };
 
-static MouseTransformInfo n810_pointercal = {
+static const MouseTransformInfo n810_pointercal = {
     .x = 800,
     .y = 480,
     .a = { 15041, 148, -4731056, 171, -10238, 35933380, 65536 },
@@ -334,7 +336,7 @@ static void n810_key_event(void *opaque, int keycode)
 
 #define M	0
 
-static int n810_keys[0x80] = {
+static const int n810_keys[0x80] = {
     [0x01] = 16,	/* Q */
     [0x02] = 37,	/* K */
     [0x03] = 24,	/* O */
@@ -702,7 +704,7 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
 static void *mipid_init(void)
 {
-    struct mipid_s *s = (struct mipid_s *) g_malloc0(sizeof(*s));
+    struct mipid_s *s = g_malloc0(sizeof(*s));
 
     s->id = 0x838f03;
     mipid_reset(s);
@@ -810,7 +812,7 @@ static void n8x0_usb_setup(struct n800_s *s)
 /* Setup done before the main bootloader starts by some early setup code
  * - used when we want to run the main bootloader in emulation.  This
  * isn't documented.  */
-static uint32_t n800_pinout[104] = {
+static const uint32_t n800_pinout[104] = {
     0x080f00d8, 0x00d40808, 0x03080808, 0x080800d0,
     0x00dc0808, 0x0b0f0f00, 0x080800b4, 0x00c00808,
     0x08080808, 0x180800c4, 0x00b80000, 0x08080808,
@@ -1060,7 +1062,7 @@ static void n8x0_boot_init(void *opaque)
 #define OMAP_TAG_CBUS		0x4e03
 #define OMAP_TAG_EM_ASIC_BB5	0x4e04
 
-static struct omap_gpiosw_info_s {
+static const struct omap_gpiosw_info_s {
     const char *name;
     int line;
     int type;
@@ -1078,7 +1080,7 @@ static struct omap_gpiosw_info_s {
         "headphone", N8X0_HEADPHONE_GPIO,
         OMAP_GPIOSW_TYPE_CONNECTION | OMAP_GPIOSW_INVERTED,
     },
-    { NULL }
+    { /* end of list */ }
 }, n810_gpiosw_info[] = {
     {
         "gps_reset", N810_GPS_RESET_GPIO,
@@ -1099,10 +1101,10 @@ static struct omap_gpiosw_info_s {
         "slide", N810_SLIDE_GPIO,
         OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
     },
-    { NULL }
+    { /* end of list */ }
 };
 
-static struct omap_partition_info_s {
+static const struct omap_partition_info_s {
     uint32_t offset;
     uint32_t size;
     int mask;
@@ -1113,27 +1115,25 @@ static struct omap_partition_info_s {
     { 0x00080000, 0x00200000, 0x0, "kernel" },
     { 0x00280000, 0x00200000, 0x3, "initfs" },
     { 0x00480000, 0x0fb80000, 0x3, "rootfs" },
-
-    { 0, 0, 0, NULL }
+    { /* end of list */ }
 }, n810_part_info[] = {
     { 0x00000000, 0x00020000, 0x3, "bootloader" },
     { 0x00020000, 0x00060000, 0x0, "config" },
     { 0x00080000, 0x00220000, 0x0, "kernel" },
     { 0x002a0000, 0x00400000, 0x0, "initfs" },
     { 0x006a0000, 0x0f960000, 0x0, "rootfs" },
-
-    { 0, 0, 0, NULL }
+    { /* end of list */ }
 };
 
-static uint8_t n8x0_bd_addr[6] = { N8X0_BD_ADDR };
+static const uint8_t n8x0_bd_addr[6] = { N8X0_BD_ADDR };
 
 static int n8x0_atag_setup(void *p, int model)
 {
     uint8_t *b;
     uint16_t *w;
     uint32_t *l;
-    struct omap_gpiosw_info_s *gpiosw;
-    struct omap_partition_info_s *partition;
+    const struct omap_gpiosw_info_s *gpiosw;
+    const struct omap_partition_info_s *partition;
     const char *tag;
 
     w = p;
@@ -1300,7 +1300,7 @@ static int n810_atag_setup(const struct arm_boot_info *info, void *p)
 static void n8x0_init(MachineState *machine,
                       struct arm_boot_info *binfo, int model)
 {
-    struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
+    struct n800_s *s = g_malloc0(sizeof(*s));
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (machine->ram_size != mc->default_ram_size) {
@@ -1432,6 +1432,8 @@ static void n800_class_init(ObjectClass *oc, void *data)
     /* Actually two chips of 0x4000000 bytes each */
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "omap2.dram";
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo n800_type = {
@@ -1452,6 +1454,8 @@ static void n810_class_init(ObjectClass *oc, void *data)
     /* Actually two chips of 0x4000000 bytes each */
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "omap2.dram";
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo n810_type = {

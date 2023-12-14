@@ -113,13 +113,22 @@
 #           Virtualization, as specified in the AMD64 Architecture
 #           Programmer's Manual. QEMU command line options related to
 #           this feature are documented in
-#           "docs/amd-memory-encryption.txt".
+#           "docs/system/i386/amd-memory-encryption.rst".
 #
 # @amd-sev-es: The firmware supports running under AMD Secure Encrypted
 #              Virtualization - Encrypted State, as specified in the AMD64
 #              Architecture Programmer's Manual. QEMU command line options
 #              related to this feature are documented in
-#              "docs/amd-memory-encryption.txt".
+#              "docs/system/i386/amd-memory-encryption.rst".
+#
+# @amd-sev-snp: The firmware supports running under AMD Secure Encrypted
+#               Virtualization - Secure Nested Paging, as specified in the
+#               AMD64 Architecture Programmer's Manual. QEMU command line
+#               options related to this feature are documented in
+#               "docs/system/i386/amd-memory-encryption.rst".
+#
+# @intel-tdx: The firmware supports running under Intel Trust Domain
+#             Extensions (TDX).
 #
 # @enrolled-keys: The variable store (NVRAM) template associated with
 #                 the firmware binary has the UEFI Secure Boot
@@ -185,9 +194,11 @@
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
-  'data' : [ 'acpi-s3', 'acpi-s4', 'amd-sev', 'amd-sev-es', 'enrolled-keys',
-             'requires-smm', 'secure-boot', 'verbose-dynamic',
-             'verbose-static' ] }
+  'data' : [ 'acpi-s3', 'acpi-s4',
+             'amd-sev', 'amd-sev-es', 'amd-sev-snp',
+             'intel-tdx',
+             'enrolled-keys', 'requires-smm', 'secure-boot',
+             'verbose-dynamic', 'verbose-static' ] }
 
 ##
 # @FirmwareFlashFile:
@@ -247,7 +258,7 @@
 #
 # @mode: Describes how the firmware build handles code versus variable
 #        storage. If not present, it must be treated as if it was
-#        configured with value ``split``. Since: 7.0.0
+#        configured with value @split. Since: 7.0.0
 #
 # @executable: Identifies the firmware executable. The @mode
 #              indicates whether there will be an associated
@@ -256,13 +267,13 @@
 #                  -drive if=none,id=pflash0,readonly=on,file=@executable.@filename,format=@executable.@format
 #                  -machine pflash0=pflash0
 #              or equivalent -blockdev instead of -drive. When
-#              @mode is ``combined`` the executable must be
+#              @mode is @combined the executable must be
 #              cloned before use and configured with readonly=off.
 #              With QEMU versions older than 4.0, you have to use
 #                  -drive if=pflash,unit=0,readonly=on,file=@executable.@filename,format=@executable.@format
 #
 # @nvram-template: Identifies the NVRAM template compatible with
-#                  @executable, when @mode is set to ``split``,
+#                  @executable, when @mode is set to @split,
 #                  otherwise it should not be present.
 #                  Management software instantiates an
 #                  individual copy -- a specific NVRAM file -- from

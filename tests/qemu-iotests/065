@@ -56,7 +56,7 @@ class TestQemuImgInfo(TestImageInfoSpecific):
     def test_human(self):
         data = qemu_img('info', '--output=human', test_img).stdout.split('\n')
         data = data[(data.index('Format specific information:') + 1)
-                    :data.index('')]
+                    :data.index("Child node '/file':")]
         for field in data:
             self.assertTrue(re.match('^ {4}[^ ]', field) is not None)
         data = [line.strip() for line in data]

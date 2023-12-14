@@ -13,15 +13,11 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib/gstdio.h>
 
 #include "libqtest.h"
 #include "qemu/module.h"
 #include "tpm-tests.h"
 #include "hw/acpi/tpm.h"
-
-/* Not used but needed for linking */
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
 
 typedef struct TestState {
     char *src_tpm_path;
@@ -62,9 +58,9 @@ int main(int argc, char **argv)
                         tpm_crb_swtpm_migration_test);
     ret = g_test_run();
 
-    g_rmdir(ts.dst_tpm_path);
+    tpm_util_rmdir(ts.dst_tpm_path);
     g_free(ts.dst_tpm_path);
-    g_rmdir(ts.src_tpm_path);
+    tpm_util_rmdir(ts.src_tpm_path);
     g_free(ts.src_tpm_path);
     g_free(ts.uri);
 

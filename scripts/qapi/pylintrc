@@ -23,6 +23,7 @@ disable=fixme,
         too-many-statements,
         too-many-instance-attributes,
         consider-using-f-string,
+        useless-option-value,
 
 [REPORTS]
 

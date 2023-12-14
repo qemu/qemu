@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
@@ -25,6 +26,7 @@
 #include "hw/block/flash.h"
 #include "ui/console.h"
 #include "hw/i2c/i2c.h"
+#include "hw/i2c/bitbang_i2c.h"
 #include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "hw/audio/wm8750.h"
@@ -35,6 +37,8 @@
 #include "qemu/cutils.h"
 #include "qom/object.h"
 #include "hw/net/mv88w8618_eth.h"
+#include "audio/audio.h"
+#include "qemu/error-report.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -96,7 +100,7 @@
 #define MP_LCD_SPI_CMD          0x00104011
 #define MP_LCD_SPI_INVALID      0x00000000
 
-/* Commmands */
+/* Commands */
 #define MP_LCD_INST_SETPAGE0    0xB0
 /* ... */
 #define MP_LCD_INST_SETPAGE7    0xB7
@@ -1070,7 +1074,6 @@ struct musicpal_key_state {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion iomem;
     uint32_t kbd_extended;
     uint32_t pressed_keys;
     qemu_irq out[8];
@@ -1159,9 +1162,6 @@ static void musicpal_key_init(Object *obj)
     DeviceState *dev = DEVICE(sbd);
     musicpal_key_state *s = MUSICPAL_KEY(dev);
 
-    memory_region_init(&s->iomem, obj, "dummy", 0);
-    sysbus_init_mmio(sbd, &s->iomem);
-
     s->kbd_extended = 0;
     s->pressed_keys = 0;
 
@@ -1195,6 +1195,8 @@ static const TypeInfo musicpal_key_info = {
     .instance_init = musicpal_key_init,
     .class_init    = musicpal_key_class_init,
 };
+
+#define FLASH_SECTOR_SIZE   (64 * KiB)
 
 static struct arm_boot_info musicpal_binfo = {
     .loader_start = 0x0,
@@ -1248,7 +1250,7 @@ static void musicpal_init(MachineState *machine)
     uart_orgate = DEVICE(object_new(TYPE_OR_IRQ));
     object_property_set_int(OBJECT(uart_orgate), "num-lines", 2, &error_fatal);
     qdev_realize_and_unref(uart_orgate, NULL, &error_fatal);
-    qdev_connect_gpio_out(DEVICE(uart_orgate), 0,
+    qdev_connect_gpio_out(uart_orgate, 0,
                           qdev_get_gpio_in(pic, MP_UART_SHARED_IRQ));
 
     serial_mm_init(address_space_mem, MP_UART1_BASE, 2,
@@ -1264,8 +1266,8 @@ static void musicpal_init(MachineState *machine)
         BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
 
         flash_size = blk_getlength(blk);
-        if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
-            flash_size != 32*1024*1024) {
+        if (flash_size != 8 * MiB && flash_size != 16 * MiB &&
+            flash_size != 32 * MiB) {
             error_report("Invalid flash image size");
             exit(1);
         }
@@ -1277,7 +1279,7 @@ static void musicpal_init(MachineState *machine)
          */
         pflash_cfi02_register(0x100000000ULL - MP_FLASH_SIZE_MAX,
                               "musicpal.flash", flash_size,
-                              blk, 0x10000,
+                              blk, FLASH_SECTOR_SIZE,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 0);
@@ -1300,7 +1302,7 @@ static void musicpal_init(MachineState *machine)
 
     dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
                                qdev_get_gpio_in(pic, MP_GPIO_IRQ));
-    i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
+    i2c_dev = sysbus_create_simple(TYPE_GPIO_I2C, -1, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
@@ -1324,7 +1326,12 @@ static void musicpal_init(MachineState *machine)
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
     }
 
-    wm8750_dev = i2c_slave_create_simple(i2c, TYPE_WM8750, MP_WM_ADDR);
+    wm8750_dev = i2c_slave_new(TYPE_WM8750, MP_WM_ADDR);
+    if (machine->audiodev) {
+        qdev_prop_set_string(DEVICE(wm8750_dev), "audiodev", machine->audiodev);
+    }
+    i2c_slave_realize_and_unref(wm8750_dev, i2c, &error_abort);
+
     dev = qdev_new(TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);
     object_property_set_link(OBJECT(dev), "wm8750", OBJECT(wm8750_dev),
@@ -1345,6 +1352,8 @@ static void musicpal_machine_init(MachineClass *mc)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
     mc->default_ram_size = MP_RAM_DEFAULT_SIZE;
     mc->default_ram_id = "musicpal.ram";
+
+    machine_add_audiodev_property(mc);
 }
 
 DEFINE_MACHINE("musicpal", musicpal_machine_init)

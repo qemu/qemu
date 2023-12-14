@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Migration test direct invokation command
+# Migration test direct invocation command
 #
 # Copyright (c) 2016 Red Hat, Inc.
 #

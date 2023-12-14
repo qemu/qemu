@@ -1,0 +1,591 @@
+# AArch64 A64 allowed instruction decoding
+#
+#  Copyright (c) 2023 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+
+&r               rn
+&ri              rd imm
+&rri_sf          rd rn imm sf
+&i               imm
+
+
+### Data Processing - Immediate
+
+# PC-rel addressing
+
+%imm_pcrel      5:s19 29:2
+@pcrel          . .. ..... ................... rd:5     &ri imm=%imm_pcrel
+
+ADR             0 .. 10000 ................... .....    @pcrel
+ADRP            1 .. 10000 ................... .....    @pcrel
+
+# Add/subtract (immediate)
+
+%imm12_sh12     10:12 !function=shl_12
+@addsub_imm     sf:1 .. ...... . imm:12 rn:5 rd:5
+@addsub_imm12   sf:1 .. ...... . ............ rn:5 rd:5 imm=%imm12_sh12
+
+ADD_i           . 00 100010 0 ............ ..... .....  @addsub_imm
+ADD_i           . 00 100010 1 ............ ..... .....  @addsub_imm12
+ADDS_i          . 01 100010 0 ............ ..... .....  @addsub_imm
+ADDS_i          . 01 100010 1 ............ ..... .....  @addsub_imm12
+
+SUB_i           . 10 100010 0 ............ ..... .....  @addsub_imm
+SUB_i           . 10 100010 1 ............ ..... .....  @addsub_imm12
+SUBS_i          . 11 100010 0 ............ ..... .....  @addsub_imm
+SUBS_i          . 11 100010 1 ............ ..... .....  @addsub_imm12
+
+# Add/subtract (immediate with tags)
+
+&rri_tag        rd rn uimm6 uimm4
+@addsub_imm_tag . .. ...... . uimm6:6 .. uimm4:4 rn:5 rd:5 &rri_tag
+
+ADDG_i          1 00 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
+SUBG_i          1 10 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
+
+# Logical (immediate)
+
+&rri_log        rd rn sf dbm
+@logic_imm_64   1 .. ...... dbm:13 rn:5 rd:5            &rri_log sf=1
+@logic_imm_32   0 .. ...... 0 dbm:12 rn:5 rd:5          &rri_log sf=0
+
+AND_i           . 00 100100 . ...... ...... ..... ..... @logic_imm_64
+AND_i           . 00 100100 . ...... ...... ..... ..... @logic_imm_32
+ORR_i           . 01 100100 . ...... ...... ..... ..... @logic_imm_64
+ORR_i           . 01 100100 . ...... ...... ..... ..... @logic_imm_32
+EOR_i           . 10 100100 . ...... ...... ..... ..... @logic_imm_64
+EOR_i           . 10 100100 . ...... ...... ..... ..... @logic_imm_32
+ANDS_i          . 11 100100 . ...... ...... ..... ..... @logic_imm_64
+ANDS_i          . 11 100100 . ...... ...... ..... ..... @logic_imm_32
+
+# Move wide (immediate)
+
+&movw           rd sf imm hw
+@movw_64        1 .. ...... hw:2   imm:16 rd:5          &movw sf=1
+@movw_32        0 .. ...... 0 hw:1 imm:16 rd:5          &movw sf=0
+
+MOVN            . 00 100101 .. ................ .....   @movw_64
+MOVN            . 00 100101 .. ................ .....   @movw_32
+MOVZ            . 10 100101 .. ................ .....   @movw_64
+MOVZ            . 10 100101 .. ................ .....   @movw_32
+MOVK            . 11 100101 .. ................ .....   @movw_64
+MOVK            . 11 100101 .. ................ .....   @movw_32
+
+# Bitfield
+
+&bitfield       rd rn sf immr imms
+@bitfield_64    1 .. ...... 1 immr:6 imms:6 rn:5 rd:5      &bitfield sf=1
+@bitfield_32    0 .. ...... 0 0 immr:5 0 imms:5 rn:5 rd:5  &bitfield sf=0
+
+SBFM            . 00 100110 . ...... ...... ..... ..... @bitfield_64
+SBFM            . 00 100110 . ...... ...... ..... ..... @bitfield_32
+BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_64
+BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_32
+UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_64
+UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_32
+
+# Extract
+
+&extract        rd rn rm imm sf
+
+EXTR            1 00 100111 1 0 rm:5 imm:6 rn:5 rd:5     &extract sf=1
+EXTR            0 00 100111 0 0 rm:5 0 imm:5 rn:5 rd:5   &extract sf=0
+
+# Branches
+
+%imm26   0:s26 !function=times_4
+@branch         . ..... .......................... &i imm=%imm26
+
+B               0 00101 .......................... @branch
+BL              1 00101 .......................... @branch
+
+%imm19   5:s19 !function=times_4
+&cbz     rt imm sf nz
+
+CBZ             sf:1 011010 nz:1 ................... rt:5 &cbz imm=%imm19
+
+%imm14     5:s14 !function=times_4
+%imm31_19  31:1 19:5
+&tbz       rt imm nz bitpos
+
+TBZ             . 011011 nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=%imm31_19
+
+# B.cond and BC.cond
+B_cond          0101010 0 ................... c:1 cond:4 imm=%imm19
+
+BR              1101011 0000 11111 000000 rn:5 00000 &r
+BLR             1101011 0001 11111 000000 rn:5 00000 &r
+RET             1101011 0010 11111 000000 rn:5 00000 &r
+
+&braz       rn m
+BRAZ            1101011 0000 11111 00001 m:1 rn:5 11111 &braz   # BRAAZ, BRABZ
+BLRAZ           1101011 0001 11111 00001 m:1 rn:5 11111 &braz   # BLRAAZ, BLRABZ
+
+&reta       m
+RETA            1101011 0010 11111 00001 m:1 11111 11111 &reta  # RETAA, RETAB
+
+&bra        rn rm m
+BRA             1101011 1000 11111 00001 m:1 rn:5 rm:5 &bra # BRAA, BRAB
+BLRA            1101011 1001 11111 00001 m:1 rn:5 rm:5 &bra # BLRAA, BLRAB
+
+ERET            1101011 0100 11111 000000 11111 00000
+ERETA           1101011 0100 11111 00001 m:1 11111 11111 &reta  # ERETAA, ERETAB
+
+# We don't need to decode DRPS because it always UNDEFs except when
+# the processor is in halting debug state (which we don't implement).
+# The pattern is listed here as documentation.
+# DRPS            1101011 0101 11111 000000 11111 00000
+
+# Hint instruction group
+{
+  [
+    YIELD       1101 0101 0000 0011 0010 0000 001 11111
+    WFE         1101 0101 0000 0011 0010 0000 010 11111
+    WFI         1101 0101 0000 0011 0010 0000 011 11111
+    # We implement WFE to never block, so our SEV/SEVL are NOPs
+    # SEV       1101 0101 0000 0011 0010 0000 100 11111
+    # SEVL      1101 0101 0000 0011 0010 0000 101 11111
+    # Our DGL is a NOP because we don't merge memory accesses anyway.
+    # DGL       1101 0101 0000 0011 0010 0000 110 11111
+    XPACLRI     1101 0101 0000 0011 0010 0000 111 11111
+    PACIA1716   1101 0101 0000 0011 0010 0001 000 11111
+    PACIB1716   1101 0101 0000 0011 0010 0001 010 11111
+    AUTIA1716   1101 0101 0000 0011 0010 0001 100 11111
+    AUTIB1716   1101 0101 0000 0011 0010 0001 110 11111
+    ESB         1101 0101 0000 0011 0010 0010 000 11111
+    PACIAZ      1101 0101 0000 0011 0010 0011 000 11111
+    PACIASP     1101 0101 0000 0011 0010 0011 001 11111
+    PACIBZ      1101 0101 0000 0011 0010 0011 010 11111
+    PACIBSP     1101 0101 0000 0011 0010 0011 011 11111
+    AUTIAZ      1101 0101 0000 0011 0010 0011 100 11111
+    AUTIASP     1101 0101 0000 0011 0010 0011 101 11111
+    AUTIBZ      1101 0101 0000 0011 0010 0011 110 11111
+    AUTIBSP     1101 0101 0000 0011 0010 0011 111 11111
+  ]
+  # The canonical NOP has CRm == op2 == 0, but all of the space
+  # that isn't specifically allocated to an instruction must NOP
+  NOP           1101 0101 0000 0011 0010 ---- --- 11111
+}
+
+# Barriers
+
+CLREX           1101 0101 0000 0011 0011 ---- 010 11111
+DSB_DMB         1101 0101 0000 0011 0011 domain:2 types:2 10- 11111
+ISB             1101 0101 0000 0011 0011 ---- 110 11111
+SB              1101 0101 0000 0011 0011 0000 111 11111
+
+# PSTATE
+
+CFINV           1101 0101 0000 0 000 0100 0000 000 11111
+XAFLAG          1101 0101 0000 0 000 0100 0000 001 11111
+AXFLAG          1101 0101 0000 0 000 0100 0000 010 11111
+
+# These are architecturally all "MSR (immediate)"; we decode the destination
+# register too because there is no commonality in our implementation.
+@msr_i          .... .... .... . ... .... imm:4 ... .....
+MSR_i_UAO       1101 0101 0000 0 000 0100 .... 011 11111 @msr_i
+MSR_i_PAN       1101 0101 0000 0 000 0100 .... 100 11111 @msr_i
+MSR_i_SPSEL     1101 0101 0000 0 000 0100 .... 101 11111 @msr_i
+MSR_i_SBSS      1101 0101 0000 0 011 0100 .... 001 11111 @msr_i
+MSR_i_DIT       1101 0101 0000 0 011 0100 .... 010 11111 @msr_i
+MSR_i_TCO       1101 0101 0000 0 011 0100 .... 100 11111 @msr_i
+MSR_i_DAIFSET   1101 0101 0000 0 011 0100 .... 110 11111 @msr_i
+MSR_i_DAIFCLEAR 1101 0101 0000 0 011 0100 .... 111 11111 @msr_i
+MSR_i_SVCR      1101 0101 0000 0 011 0100 0 mask:2 imm:1 011 11111
+
+# MRS, MSR (register), SYS, SYSL. These are all essentially the
+# same instruction as far as QEMU is concerned.
+# NB: op0 is bits [20:19], but op0=0b00 is other insns, so we have
+# to hand-decode it.
+SYS             1101 0101 00 l:1 01 op1:3 crn:4 crm:4 op2:3 rt:5 op0=1
+SYS             1101 0101 00 l:1 10 op1:3 crn:4 crm:4 op2:3 rt:5 op0=2
+SYS             1101 0101 00 l:1 11 op1:3 crn:4 crm:4 op2:3 rt:5 op0=3
+
+# Exception generation
+
+@i16            .... .... ... imm:16           ... .. &i
+SVC             1101 0100 000 ................ 000 01 @i16
+HVC             1101 0100 000 ................ 000 10 @i16
+SMC             1101 0100 000 ................ 000 11 @i16
+BRK             1101 0100 001 ................ 000 00 @i16
+HLT             1101 0100 010 ................ 000 00 @i16
+# These insns always UNDEF unless in halting debug state, which
+# we don't implement. So we don't need to decode them. The patterns
+# are listed here as documentation.
+# DCPS1         1101 0100 101 ................ 000 01 @i16
+# DCPS2         1101 0100 101 ................ 000 10 @i16
+# DCPS3         1101 0100 101 ................ 000 11 @i16
+
+# Loads and stores
+
+&stxr           rn rt rt2 rs sz lasr
+&stlr           rn rt sz lasr
+@stxr           sz:2 ...... ... rs:5 lasr:1 rt2:5 rn:5 rt:5 &stxr
+@stlr           sz:2 ...... ... ..... lasr:1 ..... rn:5 rt:5 &stlr
+%imm1_30_p2 30:1 !function=plus_2
+@stxp           .. ...... ... rs:5 lasr:1 rt2:5 rn:5 rt:5 &stxr sz=%imm1_30_p2
+STXR            .. 001000 000 ..... . ..... ..... ..... @stxr  # inc STLXR
+LDXR            .. 001000 010 ..... . ..... ..... ..... @stxr  # inc LDAXR
+STLR            .. 001000 100 11111 . 11111 ..... ..... @stlr  # inc STLLR
+LDAR            .. 001000 110 11111 . 11111 ..... ..... @stlr  # inc LDLAR
+
+STXP            1 . 001000 001 ..... . ..... ..... ..... @stxp # inc STLXP
+LDXP            1 . 001000 011 ..... . ..... ..... ..... @stxp # inc LDAXP
+
+# CASP, CASPA, CASPAL, CASPL (we don't decode the bits that determine
+# acquire/release semantics because QEMU's cmpxchg always has those)
+CASP            0 . 001000 0 - 1 rs:5 - 11111 rn:5 rt:5 sz=%imm1_30_p2
+# CAS, CASA, CASAL, CASL
+CAS             sz:2 001000 1 - 1 rs:5 - 11111 rn:5 rt:5
+
+&ldlit          rt imm sz sign
+@ldlit          .. ... . .. ................... rt:5 &ldlit imm=%imm19
+
+LD_lit          00 011 0 00 ................... ..... @ldlit sz=2 sign=0
+LD_lit          01 011 0 00 ................... ..... @ldlit sz=3 sign=0
+LD_lit          10 011 0 00 ................... ..... @ldlit sz=2 sign=1
+LD_lit_v        00 011 1 00 ................... ..... @ldlit sz=2 sign=0
+LD_lit_v        01 011 1 00 ................... ..... @ldlit sz=3 sign=0
+LD_lit_v        10 011 1 00 ................... ..... @ldlit sz=4 sign=0
+
+# PRFM
+NOP             11 011 0 00 ------------------- -----
+
+&ldstpair       rt2 rt rn imm sz sign w p
+@ldstpair       .. ... . ... . imm:s7 rt2:5 rn:5 rt:5 &ldstpair
+
+# STNP, LDNP: Signed offset, non-temporal hint. We don't emulate caches
+# so we ignore hints about data access patterns, and handle these like
+# plain signed offset.
+STP             00 101 0 000 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+LDP             00 101 0 000 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+STP             10 101 0 000 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+LDP             10 101 0 000 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+STP_v           00 101 1 000 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+LDP_v           00 101 1 000 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+STP_v           01 101 1 000 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+LDP_v           01 101 1 000 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+STP_v           10 101 1 000 0 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=0
+LDP_v           10 101 1 000 1 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=0
+
+# STP and LDP: post-indexed
+STP             00 101 0 001 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=1 w=1
+LDP             00 101 0 001 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=1 w=1
+LDP             01 101 0 001 1 ....... ..... ..... ..... @ldstpair sz=2 sign=1 p=1 w=1
+STP             10 101 0 001 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=1 w=1
+LDP             10 101 0 001 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=1 w=1
+STP_v           00 101 1 001 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=1 w=1
+LDP_v           00 101 1 001 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=1 w=1
+STP_v           01 101 1 001 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=1 w=1
+LDP_v           01 101 1 001 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=1 w=1
+STP_v           10 101 1 001 0 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=1 w=1
+LDP_v           10 101 1 001 1 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=1 w=1
+
+# STP and LDP: offset
+STP             00 101 0 010 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+LDP             00 101 0 010 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+LDP             01 101 0 010 1 ....... ..... ..... ..... @ldstpair sz=2 sign=1 p=0 w=0
+STP             10 101 0 010 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+LDP             10 101 0 010 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+STP_v           00 101 1 010 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+LDP_v           00 101 1 010 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=0
+STP_v           01 101 1 010 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+LDP_v           01 101 1 010 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+STP_v           10 101 1 010 0 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=0
+LDP_v           10 101 1 010 1 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=0
+
+# STP and LDP: pre-indexed
+STP             00 101 0 011 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=1
+LDP             00 101 0 011 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=1
+LDP             01 101 0 011 1 ....... ..... ..... ..... @ldstpair sz=2 sign=1 p=0 w=1
+STP             10 101 0 011 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=1
+LDP             10 101 0 011 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=1
+STP_v           00 101 1 011 0 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=1
+LDP_v           00 101 1 011 1 ....... ..... ..... ..... @ldstpair sz=2 sign=0 p=0 w=1
+STP_v           01 101 1 011 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=1
+LDP_v           01 101 1 011 1 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=1
+STP_v           10 101 1 011 0 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=1
+LDP_v           10 101 1 011 1 ....... ..... ..... ..... @ldstpair sz=4 sign=0 p=0 w=1
+
+# STGP: store tag and pair
+STGP            01 101 0 001 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=1 w=1
+STGP            01 101 0 010 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=0
+STGP            01 101 0 011 0 ....... ..... ..... ..... @ldstpair sz=3 sign=0 p=0 w=1
+
+# Load/store register (unscaled immediate)
+&ldst_imm       rt rn imm sz sign w p unpriv ext
+@ldst_imm       .. ... . .. .. . imm:s9 .. rn:5 rt:5 &ldst_imm unpriv=0 p=0 w=0
+@ldst_imm_pre   .. ... . .. .. . imm:s9 .. rn:5 rt:5 &ldst_imm unpriv=0 p=0 w=1
+@ldst_imm_post  .. ... . .. .. . imm:s9 .. rn:5 rt:5 &ldst_imm unpriv=0 p=1 w=1
+@ldst_imm_user  .. ... . .. .. . imm:s9 .. rn:5 rt:5 &ldst_imm unpriv=1 p=0 w=0
+
+STR_i           sz:2 111 0 00 00 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0
+LDR_i           00 111 0 00 01 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=1 sz=0
+LDR_i           01 111 0 00 01 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=1 sz=1
+LDR_i           10 111 0 00 01 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=1 sz=2
+LDR_i           11 111 0 00 01 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0 sz=3
+LDR_i           00 111 0 00 10 0 ......... 00 ..... ..... @ldst_imm sign=1 ext=0 sz=0
+LDR_i           01 111 0 00 10 0 ......... 00 ..... ..... @ldst_imm sign=1 ext=0 sz=1
+LDR_i           10 111 0 00 10 0 ......... 00 ..... ..... @ldst_imm sign=1 ext=0 sz=2
+LDR_i           00 111 0 00 11 0 ......... 00 ..... ..... @ldst_imm sign=1 ext=1 sz=0
+LDR_i           01 111 0 00 11 0 ......... 00 ..... ..... @ldst_imm sign=1 ext=1 sz=1
+
+STR_i           sz:2 111 0 00 00 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0
+LDR_i           00 111 0 00 01 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=1 sz=0
+LDR_i           01 111 0 00 01 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=1 sz=1
+LDR_i           10 111 0 00 01 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=1 sz=2
+LDR_i           11 111 0 00 01 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0 sz=3
+LDR_i           00 111 0 00 10 0 ......... 01 ..... ..... @ldst_imm_post sign=1 ext=0 sz=0
+LDR_i           01 111 0 00 10 0 ......... 01 ..... ..... @ldst_imm_post sign=1 ext=0 sz=1
+LDR_i           10 111 0 00 10 0 ......... 01 ..... ..... @ldst_imm_post sign=1 ext=0 sz=2
+LDR_i           00 111 0 00 11 0 ......... 01 ..... ..... @ldst_imm_post sign=1 ext=1 sz=0
+LDR_i           01 111 0 00 11 0 ......... 01 ..... ..... @ldst_imm_post sign=1 ext=1 sz=1
+
+STR_i           sz:2 111 0 00 00 0 ......... 10 ..... ..... @ldst_imm_user sign=0 ext=0
+LDR_i           00 111 0 00 01 0 ......... 10 ..... ..... @ldst_imm_user sign=0 ext=1 sz=0
+LDR_i           01 111 0 00 01 0 ......... 10 ..... ..... @ldst_imm_user sign=0 ext=1 sz=1
+LDR_i           10 111 0 00 01 0 ......... 10 ..... ..... @ldst_imm_user sign=0 ext=1 sz=2
+LDR_i           11 111 0 00 01 0 ......... 10 ..... ..... @ldst_imm_user sign=0 ext=0 sz=3
+LDR_i           00 111 0 00 10 0 ......... 10 ..... ..... @ldst_imm_user sign=1 ext=0 sz=0
+LDR_i           01 111 0 00 10 0 ......... 10 ..... ..... @ldst_imm_user sign=1 ext=0 sz=1
+LDR_i           10 111 0 00 10 0 ......... 10 ..... ..... @ldst_imm_user sign=1 ext=0 sz=2
+LDR_i           00 111 0 00 11 0 ......... 10 ..... ..... @ldst_imm_user sign=1 ext=1 sz=0
+LDR_i           01 111 0 00 11 0 ......... 10 ..... ..... @ldst_imm_user sign=1 ext=1 sz=1
+
+STR_i           sz:2 111 0 00 00 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0
+LDR_i           00 111 0 00 01 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=1 sz=0
+LDR_i           01 111 0 00 01 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=1 sz=1
+LDR_i           10 111 0 00 01 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=1 sz=2
+LDR_i           11 111 0 00 01 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0 sz=3
+LDR_i           00 111 0 00 10 0 ......... 11 ..... ..... @ldst_imm_pre sign=1 ext=0 sz=0
+LDR_i           01 111 0 00 10 0 ......... 11 ..... ..... @ldst_imm_pre sign=1 ext=0 sz=1
+LDR_i           10 111 0 00 10 0 ......... 11 ..... ..... @ldst_imm_pre sign=1 ext=0 sz=2
+LDR_i           00 111 0 00 11 0 ......... 11 ..... ..... @ldst_imm_pre sign=1 ext=1 sz=0
+LDR_i           01 111 0 00 11 0 ......... 11 ..... ..... @ldst_imm_pre sign=1 ext=1 sz=1
+
+# PRFM : prefetch memory: a no-op for QEMU
+NOP             11 111 0 00 10 0 --------- 00 ----- -----
+
+STR_v_i         sz:2 111 1 00 00 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0
+STR_v_i         00 111 1 00 10 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0 sz=4
+LDR_v_i         sz:2 111 1 00 01 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0
+LDR_v_i         00 111 1 00 11 0 ......... 00 ..... ..... @ldst_imm sign=0 ext=0 sz=4
+
+STR_v_i         sz:2 111 1 00 00 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0
+STR_v_i         00 111 1 00 10 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0 sz=4
+LDR_v_i         sz:2 111 1 00 01 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0
+LDR_v_i         00 111 1 00 11 0 ......... 01 ..... ..... @ldst_imm_post sign=0 ext=0 sz=4
+
+STR_v_i         sz:2 111 1 00 00 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0
+STR_v_i         00 111 1 00 10 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0 sz=4
+LDR_v_i         sz:2 111 1 00 01 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0
+LDR_v_i         00 111 1 00 11 0 ......... 11 ..... ..... @ldst_imm_pre sign=0 ext=0 sz=4
+
+# Load/store with an unsigned 12 bit immediate, which is scaled by the
+# element size. The function gets the sz:imm and returns the scaled immediate.
+%uimm_scaled   10:12 sz:3 !function=uimm_scaled
+
+@ldst_uimm      .. ... . .. .. ............ rn:5 rt:5 &ldst_imm unpriv=0 p=0 w=0 imm=%uimm_scaled
+
+STR_i           sz:2 111 0 01 00 ............ ..... ..... @ldst_uimm sign=0 ext=0
+LDR_i           00 111 0 01 01 ............ ..... ..... @ldst_uimm sign=0 ext=1 sz=0
+LDR_i           01 111 0 01 01 ............ ..... ..... @ldst_uimm sign=0 ext=1 sz=1
+LDR_i           10 111 0 01 01 ............ ..... ..... @ldst_uimm sign=0 ext=1 sz=2
+LDR_i           11 111 0 01 01 ............ ..... ..... @ldst_uimm sign=0 ext=0 sz=3
+LDR_i           00 111 0 01 10 ............ ..... ..... @ldst_uimm sign=1 ext=0 sz=0
+LDR_i           01 111 0 01 10 ............ ..... ..... @ldst_uimm sign=1 ext=0 sz=1
+LDR_i           10 111 0 01 10 ............ ..... ..... @ldst_uimm sign=1 ext=0 sz=2
+LDR_i           00 111 0 01 11 ............ ..... ..... @ldst_uimm sign=1 ext=1 sz=0
+LDR_i           01 111 0 01 11 ............ ..... ..... @ldst_uimm sign=1 ext=1 sz=1
+
+# PRFM
+NOP             11 111 0 01 10 ------------ ----- -----
+
+STR_v_i         sz:2 111 1 01 00 ............ ..... ..... @ldst_uimm sign=0 ext=0
+STR_v_i         00 111 1 01 10 ............ ..... ..... @ldst_uimm sign=0 ext=0 sz=4
+LDR_v_i         sz:2 111 1 01 01 ............ ..... ..... @ldst_uimm sign=0 ext=0
+LDR_v_i         00 111 1 01 11 ............ ..... ..... @ldst_uimm sign=0 ext=0 sz=4
+
+# Load/store with register offset
+&ldst rm rn rt sign ext sz opt s
+@ldst           .. ... . .. .. . rm:5 opt:3 s:1 .. rn:5 rt:5 &ldst
+STR             sz:2 111 0 00 00 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0
+LDR             00 111 0 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=1 sz=0
+LDR             01 111 0 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=1 sz=1
+LDR             10 111 0 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=1 sz=2
+LDR             11 111 0 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0 sz=3
+LDR             00 111 0 00 10 1 ..... ... . 10 ..... ..... @ldst sign=1 ext=0 sz=0
+LDR             01 111 0 00 10 1 ..... ... . 10 ..... ..... @ldst sign=1 ext=0 sz=1
+LDR             10 111 0 00 10 1 ..... ... . 10 ..... ..... @ldst sign=1 ext=0 sz=2
+LDR             00 111 0 00 11 1 ..... ... . 10 ..... ..... @ldst sign=1 ext=1 sz=0
+LDR             01 111 0 00 11 1 ..... ... . 10 ..... ..... @ldst sign=1 ext=1 sz=1
+
+# PRFM
+NOP             11 111 0 00 10 1 ----- -1- - 10 ----- -----
+
+STR_v           sz:2 111 1 00 00 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0
+STR_v           00 111 1 00 10 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0 sz=4
+LDR_v           sz:2 111 1 00 01 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0
+LDR_v           00 111 1 00 11 1 ..... ... . 10 ..... ..... @ldst sign=0 ext=0 sz=4
+
+# Atomic memory operations
+&atomic         rs rn rt a r sz
+@atomic         sz:2 ... . .. a:1 r:1 . rs:5 . ... .. rn:5 rt:5 &atomic
+LDADD           .. 111 0 00 . . 1 ..... 0000 00 ..... ..... @atomic
+LDCLR           .. 111 0 00 . . 1 ..... 0001 00 ..... ..... @atomic
+LDEOR           .. 111 0 00 . . 1 ..... 0010 00 ..... ..... @atomic
+LDSET           .. 111 0 00 . . 1 ..... 0011 00 ..... ..... @atomic
+LDSMAX          .. 111 0 00 . . 1 ..... 0100 00 ..... ..... @atomic
+LDSMIN          .. 111 0 00 . . 1 ..... 0101 00 ..... ..... @atomic
+LDUMAX          .. 111 0 00 . . 1 ..... 0110 00 ..... ..... @atomic
+LDUMIN          .. 111 0 00 . . 1 ..... 0111 00 ..... ..... @atomic
+SWP             .. 111 0 00 . . 1 ..... 1000 00 ..... ..... @atomic
+
+LDAPR           sz:2 111 0 00 1 0 1 11111 1100 00 rn:5 rt:5
+
+# Load/store register (pointer authentication)
+
+# LDRA immediate is 10 bits signed and scaled, but the bits aren't all contiguous
+%ldra_imm       22:s1 12:9 !function=times_8
+
+LDRA            11 111 0 00 m:1 . 1 ......... w:1 1 rn:5 rt:5 imm=%ldra_imm
+
+&ldapr_stlr_i   rn rt imm sz sign ext
+@ldapr_stlr_i   .. ...... .. . imm:9 .. rn:5 rt:5 &ldapr_stlr_i
+STLR_i          sz:2 011001 00 0 ......... 00 ..... ..... @ldapr_stlr_i sign=0 ext=0
+LDAPR_i         sz:2 011001 01 0 ......... 00 ..... ..... @ldapr_stlr_i sign=0 ext=0
+LDAPR_i         00 011001 10 0 ......... 00 ..... ..... @ldapr_stlr_i sign=1 ext=0 sz=0
+LDAPR_i         01 011001 10 0 ......... 00 ..... ..... @ldapr_stlr_i sign=1 ext=0 sz=1
+LDAPR_i         10 011001 10 0 ......... 00 ..... ..... @ldapr_stlr_i sign=1 ext=0 sz=2
+LDAPR_i         00 011001 11 0 ......... 00 ..... ..... @ldapr_stlr_i sign=1 ext=1 sz=0
+LDAPR_i         01 011001 11 0 ......... 00 ..... ..... @ldapr_stlr_i sign=1 ext=1 sz=1
+
+# Load/store multiple structures
+# The 4-bit opcode in [15:12] encodes repeat count and structure elements
+&ldst_mult      rm rn rt sz q p rpt selem
+@ldst_mult      . q:1 ...... p:1 . . rm:5 .... sz:2 rn:5 rt:5 &ldst_mult
+ST_mult         0 . 001100 . 0 0 ..... 0000 .. ..... ..... @ldst_mult rpt=1 selem=4
+ST_mult         0 . 001100 . 0 0 ..... 0010 .. ..... ..... @ldst_mult rpt=4 selem=1
+ST_mult         0 . 001100 . 0 0 ..... 0100 .. ..... ..... @ldst_mult rpt=1 selem=3
+ST_mult         0 . 001100 . 0 0 ..... 0110 .. ..... ..... @ldst_mult rpt=3 selem=1
+ST_mult         0 . 001100 . 0 0 ..... 0111 .. ..... ..... @ldst_mult rpt=1 selem=1
+ST_mult         0 . 001100 . 0 0 ..... 1000 .. ..... ..... @ldst_mult rpt=1 selem=2
+ST_mult         0 . 001100 . 0 0 ..... 1010 .. ..... ..... @ldst_mult rpt=2 selem=1
+
+LD_mult         0 . 001100 . 1 0 ..... 0000 .. ..... ..... @ldst_mult rpt=1 selem=4
+LD_mult         0 . 001100 . 1 0 ..... 0010 .. ..... ..... @ldst_mult rpt=4 selem=1
+LD_mult         0 . 001100 . 1 0 ..... 0100 .. ..... ..... @ldst_mult rpt=1 selem=3
+LD_mult         0 . 001100 . 1 0 ..... 0110 .. ..... ..... @ldst_mult rpt=3 selem=1
+LD_mult         0 . 001100 . 1 0 ..... 0111 .. ..... ..... @ldst_mult rpt=1 selem=1
+LD_mult         0 . 001100 . 1 0 ..... 1000 .. ..... ..... @ldst_mult rpt=1 selem=2
+LD_mult         0 . 001100 . 1 0 ..... 1010 .. ..... ..... @ldst_mult rpt=2 selem=1
+
+# Load/store single structure
+&ldst_single    rm rn rt p selem index scale
+
+%ldst_single_selem 13:1 21:1 !function=plus_1
+
+%ldst_single_index_b  30:1 10:3
+%ldst_single_index_h  30:1 11:2
+%ldst_single_index_s  30:1 12:1
+
+@ldst_single_b     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=0 selem=%ldst_single_selem \
+                   index=%ldst_single_index_b
+@ldst_single_h     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=1 selem=%ldst_single_selem \
+                   index=%ldst_single_index_h
+@ldst_single_s     .. ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=2 selem=%ldst_single_selem \
+                   index=%ldst_single_index_s
+@ldst_single_d     . index:1 ...... p:1 .. rm:5 ...... rn:5 rt:5 \
+                   &ldst_single scale=3 selem=%ldst_single_selem
+
+ST_single          0 . 001101 . 0 . ..... 00 . ... ..... .....  @ldst_single_b
+ST_single          0 . 001101 . 0 . ..... 01 . ..0 ..... .....  @ldst_single_h
+ST_single          0 . 001101 . 0 . ..... 10 . .00 ..... .....  @ldst_single_s
+ST_single          0 . 001101 . 0 . ..... 10 . 001 ..... .....  @ldst_single_d
+
+LD_single          0 . 001101 . 1 . ..... 00 . ... ..... .....  @ldst_single_b
+LD_single          0 . 001101 . 1 . ..... 01 . ..0 ..... .....  @ldst_single_h
+LD_single          0 . 001101 . 1 . ..... 10 . .00 ..... .....  @ldst_single_s
+LD_single          0 . 001101 . 1 . ..... 10 . 001 ..... .....  @ldst_single_d
+
+# Replicating load case
+LD_single_repl  0 q:1 001101 p:1 1 . rm:5 11 . 0 scale:2 rn:5 rt:5 selem=%ldst_single_selem
+
+%tag_offset     12:s9 !function=scale_by_log2_tag_granule
+&ldst_tag       rn rt imm p w
+@ldst_tag       ........ .. . ......... .. rn:5 rt:5 &ldst_tag imm=%tag_offset
+@ldst_tag_mult  ........ .. . 000000000 .. rn:5 rt:5 &ldst_tag imm=0
+
+STZGM           11011001 00 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+STG             11011001 00 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STG             11011001 00 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STG             11011001 00 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+LDG             11011001 01 1 ......... 00 ..... ..... @ldst_tag p=0 w=0
+STZG            11011001 01 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STZG            11011001 01 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STZG            11011001 01 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+STGM            11011001 10 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+ST2G            11011001 10 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+ST2G            11011001 10 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+ST2G            11011001 10 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+LDGM            11011001 11 1 ......... 00 ..... ..... @ldst_tag_mult p=0 w=0
+STZ2G           11011001 11 1 ......... 01 ..... ..... @ldst_tag p=1 w=1
+STZ2G           11011001 11 1 ......... 10 ..... ..... @ldst_tag p=0 w=0
+STZ2G           11011001 11 1 ......... 11 ..... ..... @ldst_tag p=0 w=1
+
+# Memory operations (memset, memcpy, memmove)
+# Each of these comes in a set of three, eg SETP (prologue), SETM (main),
+# SETE (epilogue), and each of those has different flavours to
+# indicate whether memory accesses should be unpriv or non-temporal.
+# We don't distinguish temporal and non-temporal accesses, but we
+# do need to report it in syndrome register values.
+
+# Memset
+&set rs rn rd unpriv nontemp
+# op2 bit 1 is nontemporal bit
+@set         .. ......... rs:5 .. nontemp:1 unpriv:1 .. rn:5 rd:5 &set
+
+SETP            00 011001110 ..... 00 . . 01 ..... ..... @set
+SETM            00 011001110 ..... 01 . . 01 ..... ..... @set
+SETE            00 011001110 ..... 10 . . 01 ..... ..... @set
+
+# Like SET, but also setting MTE tags
+SETGP           00 011101110 ..... 00 . . 01 ..... ..... @set
+SETGM           00 011101110 ..... 01 . . 01 ..... ..... @set
+SETGE           00 011101110 ..... 10 . . 01 ..... ..... @set
+
+# Memmove/Memcopy: the CPY insns allow overlapping src/dest and
+# copy in the correct direction; the CPYF insns always copy forwards.
+#
+# options has the nontemporal and unpriv bits for src and dest
+&cpy rs rn rd options
+@cpy            .. ... . ..... rs:5 options:4 .. rn:5 rd:5 &cpy
+
+CPYFP           00 011 0 01000 ..... .... 01 ..... ..... @cpy
+CPYFM           00 011 0 01010 ..... .... 01 ..... ..... @cpy
+CPYFE           00 011 0 01100 ..... .... 01 ..... ..... @cpy
+CPYP            00 011 1 01000 ..... .... 01 ..... ..... @cpy
+CPYM            00 011 1 01010 ..... .... 01 ..... ..... @cpy
+CPYE            00 011 1 01100 ..... .... 01 ..... ..... @cpy

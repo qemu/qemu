@@ -19,7 +19,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qom/object_interfaces.h"
-#include "hw/xen/xen_common.h"
 #include "hw/block/xen_blkif.h"
 #include "hw/qdev-properties.h"
 #include "hw/xen/xen-block.h"
@@ -28,13 +27,137 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/iothread.h"
 #include "dataplane/xen-block.h"
+#include "hw/xen/interface/io/xs_wire.h"
 #include "trace.h"
+
+#define XVDA_MAJOR 202
+#define XVDQ_MAJOR (1 << 20)
+#define XVDBGQCV_MAJOR ((1 << 21) - 1)
+#define HDA_MAJOR 3
+#define HDC_MAJOR 22
+#define SDA_MAJOR 8
+
+
+static int vdev_to_diskno(unsigned int vdev_nr)
+{
+    switch (vdev_nr >> 8) {
+    case XVDA_MAJOR:
+    case SDA_MAJOR:
+        return (vdev_nr >> 4) & 0x15;
+
+    case HDA_MAJOR:
+        return (vdev_nr >> 6) & 1;
+
+    case HDC_MAJOR:
+        return ((vdev_nr >> 6) & 1) + 2;
+
+    case XVDQ_MAJOR ... XVDBGQCV_MAJOR:
+        return (vdev_nr >> 8) & 0xfffff;
+
+    default:
+        return -1;
+    }
+}
+
+#define MAX_AUTO_VDEV 4096
+
+/*
+ * Find a free device name in the xvda → xvdfan range and set it in
+ * blockdev->props.vdev. Our definition of "free" is that there must
+ * be no other disk or partition with the same disk number.
+ *
+ * You are technically permitted to have all of hda, hda1, sda, sda1,
+ * xvda and xvda1 as *separate* PV block devices with separate backing
+ * stores. That doesn't make it a good idea. This code will skip xvda
+ * if *any* of those "conflicting" devices already exists.
+ *
+ * The limit of xvdfan (disk 4095) is fairly arbitrary just to avoid a
+ * stupidly sized bitmap, but Linux as of v6.6 doesn't support anything
+ * higher than that anyway.
+ */
+static bool xen_block_find_free_vdev(XenBlockDevice *blockdev, Error **errp)
+{
+    XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(blockdev)));
+    unsigned long used_devs[BITS_TO_LONGS(MAX_AUTO_VDEV)];
+    XenBlockVdev *vdev = &blockdev->props.vdev;
+    char fe_path[XENSTORE_ABS_PATH_MAX + 1];
+    char **existing_frontends;
+    unsigned int nr_existing = 0;
+    unsigned int vdev_nr;
+    int i, disk = 0;
+
+    snprintf(fe_path, sizeof(fe_path), "/local/domain/%u/device/vbd",
+             blockdev->xendev.frontend_id);
+
+    existing_frontends = qemu_xen_xs_directory(xenbus->xsh, XBT_NULL, fe_path,
+                                               &nr_existing);
+    if (!existing_frontends) {
+        if (errno == ENOENT) {
+            /*
+             * If the frontend directory doesn't exist because there are
+             * no existing vbd devices, that's fine. Just ensure that we
+             * don't dereference the NULL existing_frontends pointer, by
+             * checking that nr_existing is zero so the loop below is not
+             * entered.
+             *
+             * In fact this is redundant since nr_existing is initialized
+             * to zero, but setting it again here makes it abundantly clear
+             * to Coverity, and to the human reader who doesn't know the
+             * semantics of qemu_xen_xs_directory() off the top of their
+             * head.
+             */
+            nr_existing = 0;
+        } else {
+            /* All other errors accessing the frontend directory are fatal. */
+            error_setg_errno(errp, errno, "cannot read %s", fe_path);
+            return false;
+        }
+    }
+
+    memset(used_devs, 0, sizeof(used_devs));
+    for (i = 0; i < nr_existing; i++) {
+        if (qemu_strtoui(existing_frontends[i], NULL, 10, &vdev_nr)) {
+            free(existing_frontends[i]);
+            continue;
+        }
+
+        free(existing_frontends[i]);
+
+        disk = vdev_to_diskno(vdev_nr);
+        if (disk < 0 || disk >= MAX_AUTO_VDEV) {
+            continue;
+        }
+
+        set_bit(disk, used_devs);
+    }
+    free(existing_frontends);
+
+    disk = find_first_zero_bit(used_devs, MAX_AUTO_VDEV);
+    if (disk == MAX_AUTO_VDEV) {
+        error_setg(errp, "cannot find device vdev for block device");
+        return false;
+    }
+
+    vdev->type = XEN_BLOCK_VDEV_TYPE_XVD;
+    vdev->partition = 0;
+    vdev->disk = disk;
+    if (disk < (1 << 4)) {
+        vdev->number = (XVDA_MAJOR << 8) | (disk << 4);
+    } else {
+        vdev->number = (XVDQ_MAJOR << 8) | (disk << 8);
+    }
+    return true;
+}
 
 static char *xen_block_get_name(XenDevice *xendev, Error **errp)
 {
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     XenBlockVdev *vdev = &blockdev->props.vdev;
 
+    if (vdev->type == XEN_BLOCK_VDEV_TYPE_INVALID &&
+        !xen_block_find_free_vdev(blockdev, errp)) {
+        return NULL;
+    }
     return g_strdup_printf("%lu", vdev->number);
 }
 
@@ -84,7 +207,8 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
             g_free(ring_ref);
             return;
         }
-    } else if (order <= blockdev->props.max_ring_page_order) {
+    } else if (qemu_xen_gnttab_can_map_multi() &&
+               order <= blockdev->props.max_ring_page_order) {
         unsigned int i;
 
         nr_ring_ref = 1 << order;
@@ -115,9 +239,13 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
         return;
     }
 
-    if (xen_device_frontend_scanf(xendev, "protocol", "%ms",
-                                  &str) != 1) {
-        protocol = BLKIF_PROTOCOL_NATIVE;
+    if (xen_device_frontend_scanf(xendev, "protocol", "%ms", &str) != 1) {
+        /* x86 defaults to the 32-bit protocol even for 64-bit guests. */
+        if (object_dynamic_cast(OBJECT(qdev_get_machine()), "x86-machine")) {
+            protocol = BLKIF_PROTOCOL_X86_32;
+        } else {
+            protocol = BLKIF_PROTOCOL_NATIVE;
+        }
     } else {
         if (strcmp(str, XEN_IO_PROTO_ABI_X86_32) == 0) {
             protocol = BLKIF_PROTOCOL_X86_32;
@@ -189,8 +317,26 @@ static void xen_block_resize_cb(void *opaque)
     xen_device_backend_printf(xendev, "state", "%u", state);
 }
 
+/* Suspend request handling */
+static void xen_block_drained_begin(void *opaque)
+{
+    XenBlockDevice *blockdev = opaque;
+
+    xen_block_dataplane_detach(blockdev->dataplane);
+}
+
+/* Resume request handling */
+static void xen_block_drained_end(void *opaque)
+{
+    XenBlockDevice *blockdev = opaque;
+
+    xen_block_dataplane_attach(blockdev->dataplane);
+}
+
 static const BlockDevOps xen_block_dev_ops = {
-    .resize_cb = xen_block_resize_cb,
+    .resize_cb     = xen_block_resize_cb,
+    .drained_begin = xen_block_drained_begin,
+    .drained_end   = xen_block_drained_end,
 };
 
 static void xen_block_realize(XenDevice *xendev, Error **errp)
@@ -242,8 +388,6 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
         return;
     }
 
-    blk_set_dev_ops(blk, &xen_block_dev_ops, blockdev);
-
     if (conf->discard_granularity == -1) {
         conf->discard_granularity = conf->physical_block_size;
     }
@@ -256,8 +400,12 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     }
 
     xen_device_backend_printf(xendev, "feature-flush-cache", "%u", 1);
-    xen_device_backend_printf(xendev, "max-ring-page-order", "%u",
-                              blockdev->props.max_ring_page_order);
+
+    if (qemu_xen_gnttab_can_map_multi()) {
+        xen_device_backend_printf(xendev, "max-ring-page-order", "%u",
+                                  blockdev->props.max_ring_page_order);
+    }
+
     xen_device_backend_printf(xendev, "info", "%u", blockdev->info);
 
     xen_device_frontend_printf(xendev, "virtual-device", "%lu",
@@ -273,6 +421,8 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     blockdev->dataplane =
         xen_block_dataplane_create(xendev, blk, conf->logical_block_size,
                                    blockdev->props.iothread);
+
+    blk_set_dev_ops(blk, &xen_block_dev_ops, blockdev);
 }
 
 static void xen_block_frontend_changed(XenDevice *xendev,
@@ -347,7 +497,7 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
     case XEN_BLOCK_VDEV_TYPE_XVD:
     case XEN_BLOCK_VDEV_TYPE_HD:
     case XEN_BLOCK_VDEV_TYPE_SD: {
-        char *name = disk_to_vbd_name(vdev->disk);
+        char *vbd_name = disk_to_vbd_name(vdev->disk);
 
         str = g_strdup_printf("%s%s%lu",
                               (vdev->type == XEN_BLOCK_VDEV_TYPE_XVD) ?
@@ -355,8 +505,8 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
                               (vdev->type == XEN_BLOCK_VDEV_TYPE_HD) ?
                               "hd" :
                               "sd",
-                              name, vdev->partition);
-        g_free(name);
+                              vbd_name, vdev->partition);
+        g_free(vbd_name);
         break;
     }
     default:
@@ -456,10 +606,10 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
     case XEN_BLOCK_VDEV_TYPE_DP:
     case XEN_BLOCK_VDEV_TYPE_XVD:
         if (vdev->disk < (1 << 4) && vdev->partition < (1 << 4)) {
-            vdev->number = (202 << 8) | (vdev->disk << 4) |
+            vdev->number = (XVDA_MAJOR << 8) | (vdev->disk << 4) |
                 vdev->partition;
         } else if (vdev->disk < (1 << 20) && vdev->partition < (1 << 8)) {
-            vdev->number = (1 << 28) | (vdev->disk << 8) |
+            vdev->number = (XVDQ_MAJOR << 8) | (vdev->disk << 8) |
                 vdev->partition;
         } else {
             goto invalid;
@@ -469,10 +619,11 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
     case XEN_BLOCK_VDEV_TYPE_HD:
         if ((vdev->disk == 0 || vdev->disk == 1) &&
             vdev->partition < (1 << 6)) {
-            vdev->number = (3 << 8) | (vdev->disk << 6) | vdev->partition;
+            vdev->number = (HDA_MAJOR << 8) | (vdev->disk << 6) |
+                vdev->partition;
         } else if ((vdev->disk == 2 || vdev->disk == 3) &&
                    vdev->partition < (1 << 6)) {
-            vdev->number = (22 << 8) | ((vdev->disk - 2) << 6) |
+            vdev->number = (HDC_MAJOR << 8) | ((vdev->disk - 2) << 6) |
                 vdev->partition;
         } else {
             goto invalid;
@@ -481,7 +632,8 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
 
     case XEN_BLOCK_VDEV_TYPE_SD:
         if (vdev->disk < (1 << 4) && vdev->partition < (1 << 4)) {
-            vdev->number = (8 << 8) | (vdev->disk << 4) | vdev->partition;
+            vdev->number = (SDA_MAJOR << 8) | (vdev->disk << 4) |
+                vdev->partition;
         } else {
             goto invalid;
         }
@@ -759,14 +911,15 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     drive = g_new0(XenBlockDrive, 1);
     drive->id = g_strdup(id);
 
-    file_layer = qdict_new();
-    driver_layer = qdict_new();
-
     rc = stat(filename, &st);
     if (rc) {
         error_setg_errno(errp, errno, "Could not stat file '%s'", filename);
         goto done;
     }
+
+    file_layer = qdict_new();
+    driver_layer = qdict_new();
+
     if (S_ISBLK(st.st_mode)) {
         qdict_put_str(file_layer, "driver", "host_device");
     } else {
@@ -774,7 +927,6 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     }
 
     qdict_put_str(file_layer, "filename", filename);
-    g_free(filename);
 
     if (mode && *mode != 'w') {
         qdict_put_bool(file_layer, "read-only", true);
@@ -809,7 +961,6 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     qdict_put_str(file_layer, "locking", "off");
 
     qdict_put_str(driver_layer, "driver", driver);
-    g_free(driver);
 
     qdict_put(driver_layer, "file", file_layer);
 
@@ -820,6 +971,8 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     qobject_unref(driver_layer);
 
 done:
+    g_free(filename);
+    g_free(driver);
     if (*errp) {
         xen_block_drive_destroy(drive, NULL);
         return NULL;

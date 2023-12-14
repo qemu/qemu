@@ -35,6 +35,10 @@ config VIRTIO_CRYPTO
     default y
     depends on VIRTIO
 
+config VIRTIO_MD
+    bool
+    select MEM_DEVICE
+
 config VIRTIO_PMEM_SUPPORTED
     bool
 
@@ -43,7 +47,7 @@ config VIRTIO_PMEM
     default y
     depends on VIRTIO
     depends on VIRTIO_PMEM_SUPPORTED
-    select MEM_DEVICE
+    select VIRTIO_MD
 
 config VIRTIO_MEM_SUPPORTED
     bool
@@ -54,16 +58,22 @@ config VIRTIO_MEM
     depends on VIRTIO
     depends on LINUX
     depends on VIRTIO_MEM_SUPPORTED
-    select MEM_DEVICE
+    select VIRTIO_MD
+
+config VHOST_VSOCK_COMMON
+    bool
+    depends on VIRTIO
 
 config VHOST_VSOCK
     bool
     default y
+    select VHOST_VSOCK_COMMON
     depends on VIRTIO && VHOST_KERNEL
 
 config VHOST_USER_VSOCK
     bool
     default y
+    select VHOST_VSOCK_COMMON
     depends on VIRTIO && VHOST_USER
 
 config VHOST_USER_I2C
@@ -77,6 +87,21 @@ config VHOST_USER_RNG
     depends on VIRTIO && VHOST_USER
 
 config VHOST_USER_FS
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER
+
+config VHOST_USER_GPIO
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER
+
+config VHOST_VDPA_DEV
+    bool
+    default y
+    depends on VIRTIO && VHOST_VDPA && LINUX
+
+config VHOST_USER_SCMI
     bool
     default y
     depends on VIRTIO && VHOST_USER

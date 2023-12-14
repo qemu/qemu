@@ -77,10 +77,10 @@ typedef enum  {
 
 typedef enum {
     sd_none = -1,
-    sd_bc = 0,	/* broadcast -- no response */
-    sd_bcr,	/* broadcast with response */
-    sd_ac,	/* addressed -- no data transfer */
-    sd_adtc,	/* addressed with data transfer */
+    sd_bc = 0, /* broadcast -- no response */
+    sd_bcr,    /* broadcast with response */
+    sd_ac,     /* addressed -- no data transfer */
+    sd_adtc,   /* addressed with data transfer */
 } sd_cmd_type_t;
 
 typedef struct {
@@ -92,6 +92,9 @@ typedef struct {
 
 #define TYPE_SD_CARD "sd-card"
 OBJECT_DECLARE_TYPE(SDState, SDCardClass, SD_CARD)
+
+#define TYPE_SD_CARD_SPI "sd-card-spi"
+DECLARE_INSTANCE_CHECKER(SDState, SD_CARD_SPI, TYPE_SD_CARD_SPI)
 
 struct SDCardClass {
     /*< private >*/
@@ -124,6 +127,8 @@ struct SDCardClass {
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
+
+    const struct SDProto *proto;
 };
 
 #define TYPE_SD_BUS "sd-bus"

@@ -1,0 +1,4 @@
+[wrap-git]
+url = https://gitlab.com/qemu-project/dtc.git
+revision = b6910bec11614980a21e46fbccc35934b671bd81
+depth = 1

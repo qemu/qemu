@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -148,9 +148,9 @@ decode_shuffle_for_execution_vops(Packet *pkt)
     int i;
     for (i = 0; i < pkt->num_insns; i++) {
         uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_LOAD) &&
-            (GET_ATTRIB(opcode, A_CVI_NEW) ||
-             GET_ATTRIB(opcode, A_CVI_TMP))) {
+        if ((GET_ATTRIB(opcode, A_LOAD) &&
+             GET_ATTRIB(opcode, A_CVI_NEW)) ||
+            GET_ATTRIB(opcode, A_CVI_TMP)) {
             /*
              * Find prior consuming vector instructions
              * Move to end of packet

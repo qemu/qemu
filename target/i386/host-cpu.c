@@ -11,6 +11,7 @@
 #include "cpu.h"
 #include "host-cpu.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 
 /* Note: Only safe for use on x86(-64) hosts */

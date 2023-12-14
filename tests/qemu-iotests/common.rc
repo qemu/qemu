@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright Red Hat
 # Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -711,30 +711,37 @@ _img_info()
 
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
+    regex_json_child_start='^ *"children": \['
     $QEMU_IMG info $QEMU_IMG_EXTRA_ARGS "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$SOCK_DIR/fuse-#TEST_DIR/#g" \
+            -e "s#$SOCK_DIR/#SOCK_DIR/#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e 's/\(compression type: \)\(zlib\|zstd\)/\1COMPRESSION_TYPE/' \
             -e "/^disk size:/ D" \
             -e "/actual-size/ D" | \
         while IFS='' read -r line; do
-            if [[ $format_specific == 1 ]]; then
-                discard=0
-            elif [[ $line == "Format specific information:" ]]; then
-                discard=1
-            elif [[ $line =~ $regex_json_spec_start ]]; then
-                discard=2
-                regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+            if [[ $discard == 0 ]]; then
+                if [[ $format_specific == 0 && $line == "Format specific information:" ]]; then
+                    discard=1
+                elif [[ $line =~ "Child node '/" ]]; then
+                    discard=1
+                elif [[ $format_specific == 0 && $line =~ $regex_json_spec_start ]]; then
+                    discard=2
+                    regex_json_end="^${line%%[^ ]*}\\},? *$"
+                elif [[ $line =~ $regex_json_child_start ]]; then
+                    discard=2
+                    regex_json_end="^${line%%[^ ]*}\\],? *$"
+                fi
             fi
             if [[ $discard == 0 ]]; then
                 echo "$line"
             elif [[ $discard == 1 && ! $line ]]; then
                 echo
                 discard=0
-            elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+            elif [[ $discard == 2 && $line =~ $regex_json_end ]]; then
                 discard=0
             fi
         done
@@ -972,10 +979,15 @@ _require_drivers()
 #
 _require_large_file()
 {
-    if ! truncate --size="$1" "$TEST_IMG"; then
+    if [ -z "$TEST_IMG_FILE" ]; then
+        FILENAME="$TEST_IMG"
+    else
+        FILENAME="$TEST_IMG_FILE"
+    fi
+    if ! truncate --size="$1" "$FILENAME"; then
         _notrun "file system on $TEST_DIR does not support large enough files"
     fi
-    rm "$TEST_IMG"
+    rm "$FILENAME"
 }
 
 # Check that a set of devices is available in the QEMU binary

@@ -16,7 +16,6 @@
 #include "block/block_int.h"
 #include "block/blockjob_int.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/ratelimit.h"
 #include "sysemu/block-backend.h"
@@ -54,26 +53,44 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
 static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs_cow;
     BlockDriverState *base;
     BlockDriverState *unfiltered_base;
     Error *local_err = NULL;
     int ret = 0;
 
+    GLOBAL_STATE_CODE();
+
+    bdrv_graph_rdlock_main_loop();
+    unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    bdrv_graph_rdunlock_main_loop();
+
     /* We should drop filter at this point, as filter hold the backing chain */
     bdrv_cor_filter_drop(s->cor_filter_bs);
     s->cor_filter_bs = NULL;
 
-    bdrv_subtree_drained_begin(s->above_base);
-
-    base = bdrv_filter_or_cow_bs(s->above_base);
-    if (base) {
-        bdrv_ref(base);
+    /*
+     * bdrv_set_backing_hd() requires that the unfiltered_bs and the COW child
+     * of unfiltered_bs is drained. Drain already here and use
+     * bdrv_set_backing_hd_drained() instead because the polling during
+     * drained_begin() might change the graph, and if we do this only later, we
+     * may end up working with the wrong base node (or it might even have gone
+     * away by the time we want to use it).
+     */
+    bdrv_drained_begin(unfiltered_bs);
+    if (unfiltered_bs_cow) {
+        bdrv_ref(unfiltered_bs_cow);
+        bdrv_drained_begin(unfiltered_bs_cow);
     }
 
+    bdrv_graph_rdlock_main_loop();
+    base = bdrv_filter_or_cow_bs(s->above_base);
     unfiltered_base = bdrv_skip_filters(base);
+    bdrv_graph_rdunlock_main_loop();
 
-    if (bdrv_cow_child(unfiltered_bs)) {
+    if (unfiltered_bs_cow) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (unfiltered_base) {
             base_id = s->backing_file_str ?: unfiltered_base->filename;
@@ -82,7 +99,15 @@ static int stream_prepare(Job *job)
             }
         }
 
-        bdrv_set_backing_hd(unfiltered_bs, base, &local_err);
+        bdrv_graph_wrlock(s->target_bs);
+        bdrv_set_backing_hd_drained(unfiltered_bs, base, &local_err);
+        bdrv_graph_wrunlock(s->target_bs);
+
+        /*
+         * This call will do I/O, so the graph can change again from here on.
+         * We have already completed the graph change, so we are not in danger
+         * of operating on the wrong node any more if this happens.
+         */
         ret = bdrv_change_backing_file(unfiltered_bs, base_id, base_fmt, false);
         if (local_err) {
             error_report_err(local_err);
@@ -92,10 +117,11 @@ static int stream_prepare(Job *job)
     }
 
 out:
-    if (base) {
-        bdrv_unref(base);
+    if (unfiltered_bs_cow) {
+        bdrv_drained_end(unfiltered_bs_cow);
+        bdrv_unref(unfiltered_bs_cow);
     }
-    bdrv_subtree_drained_end(s->above_base);
+    bdrv_drained_end(unfiltered_bs);
     return ret;
 }
 
@@ -123,21 +149,23 @@ static void stream_clean(Job *job)
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
+    BlockDriverState *unfiltered_bs;
     int64_t len;
     int64_t offset = 0;
-    uint64_t delay_ns = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
 
-    if (unfiltered_bs == s->base_overlay) {
-        /* Nothing to stream */
-        return 0;
-    }
+    WITH_GRAPH_RDLOCK_GUARD() {
+        unfiltered_bs = bdrv_skip_filters(s->target_bs);
+        if (unfiltered_bs == s->base_overlay) {
+            /* Nothing to stream */
+            return 0;
+        }
 
-    len = bdrv_getlength(s->target_bs);
-    if (len < 0) {
-        return len;
+        len = bdrv_co_getlength(s->target_bs);
+        if (len < 0) {
+            return len;
+        }
     }
     job_progress_set_remaining(&s->common.job, len);
 
@@ -148,28 +176,32 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        job_sleep_ns(&s->common.job, delay_ns);
+        block_job_ratelimit_sleep(&s->common);
         if (job_is_cancelled(&s->common.job)) {
             break;
         }
 
         copy = false;
 
-        ret = bdrv_is_allocated(unfiltered_bs, offset, STREAM_CHUNK, &n);
-        if (ret == 1) {
-            /* Allocated in the top, no need to copy.  */
-        } else if (ret >= 0) {
-            /* Copy if allocated in the intermediate images.  Limit to the
-             * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).  */
-            ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
-                                          s->base_overlay, true,
-                                          offset, n, &n);
-            /* Finish early if end of backing file has been reached */
-            if (ret == 0 && n == 0) {
-                n = len - offset;
-            }
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_co_is_allocated(unfiltered_bs, offset, STREAM_CHUNK, &n);
+            if (ret == 1) {
+                /* Allocated in the top, no need to copy.  */
+            } else if (ret >= 0) {
+                /*
+                 * Copy if allocated in the intermediate images.  Limit to the
+                 * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).
+                 */
+                ret = bdrv_co_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                                                 s->base_overlay, true,
+                                                 offset, n, &n);
+                /* Finish early if end of backing file has been reached */
+                if (ret == 0 && n == 0) {
+                    n = len - offset;
+                }
 
-            copy = (ret > 0);
+                copy = (ret > 0);
+            }
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
@@ -193,9 +225,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         /* Publish progress */
         job_progress_update(&s->common.job, n);
         if (copy) {
-            delay_ns = block_job_ratelimit_get_delay(&s->common, n);
-        } else {
-            delay_ns = 0;
+            block_job_ratelimit_processed_bytes(&s->common, n);
         }
     }
 
@@ -238,6 +268,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
 
+    bdrv_graph_rdlock_main_loop();
+
     if (bottom) {
         /*
          * New simple interface. The code is written in terms of old interface
@@ -254,7 +286,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         if (!base_overlay) {
             error_setg(errp, "'%s' is not in the backing chain of '%s'",
                        base->node_name, bs->node_name);
-            return;
+            goto out_rdlock;
         }
 
         /*
@@ -274,10 +306,9 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     /* Make sure that the image is opened in read-write mode */
     bs_read_only = bdrv_is_read_only(bs);
     if (bs_read_only) {
-        int ret;
         /* Hold the chain during reopen */
         if (bdrv_freeze_backing_chain(bs, above_base, errp) < 0) {
-            return;
+            goto out_rdlock;
         }
 
         ret = bdrv_reopen_set_read_only(bs, false, errp);
@@ -286,9 +317,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         bdrv_unfreeze_backing_chain(bs, above_base);
 
         if (ret < 0) {
-            return;
+            goto out_rdlock;
         }
     }
+
+    bdrv_graph_rdunlock_main_loop();
 
     opts = qdict_new();
 
@@ -333,8 +366,10 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * already have our own plans. Also don't allow resize as the image size is
      * queried only at the job start and then cached.
      */
+    bdrv_graph_wrlock(bs);
     if (block_job_add_bdrv(&s->common, "active node", bs, 0,
                            basic_flags | BLK_PERM_WRITE, errp)) {
+        bdrv_graph_wrunlock(bs);
         goto fail;
     }
 
@@ -354,9 +389,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  basic_flags, errp);
         if (ret < 0) {
+            bdrv_graph_wrunlock(bs);
             goto fail;
         }
     }
+    bdrv_graph_wrunlock(bs);
 
     s->base_overlay = base_overlay;
     s->above_base = above_base;
@@ -380,4 +417,8 @@ fail:
     if (bs_read_only) {
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
+    return;
+
+out_rdlock:
+    bdrv_graph_rdunlock_main_loop();
 }

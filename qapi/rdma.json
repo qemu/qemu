@@ -17,7 +17,7 @@
 #
 # @subnet-prefix: Subnet Prefix
 #
-# @interface-id : Interface ID
+# @interface-id: Interface ID
 #
 # Since: 4.0
 #
@@ -30,7 +30,6 @@
 #         "interface-id": 15880512517475447892,
 #         "gid-status": true,
 #         "subnet-prefix": 33022}}
-#
 ##
 { 'event': 'RDMA_GID_STATUS_CHANGED',
   'data': { 'netdev'        : 'str',

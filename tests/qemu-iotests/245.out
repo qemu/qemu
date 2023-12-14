@@ -10,14 +10,7 @@
 {"return": {}}
 {"data": {"id": "stream0", "type": "stream"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"device": "stream0", "len": 3145728, "offset": 3145728, "speed": 0, "type": "stream"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-....read 1/1 bytes at offset 262144
-1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 1/1 bytes at offset 262152
-1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 1/1 bytes at offset 262160
-1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-
-................
+....................
 ----------------------------------------------------------------------
 Ran 26 tests
 

@@ -32,16 +32,20 @@
 # Information of a tracing event.
 #
 # @name: Event name.
+#
 # @state: Tracing state.
+#
 # @vcpu: Whether this is a per-vCPU event (since 2.7).
 #
-# An event is per-vCPU if it has the "vcpu" property in the "trace-events"
-# files.
+# Features:
+#
+# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Since: 2.2
 ##
 { 'struct': 'TraceEventInfo',
-  'data': {'name': 'str', 'state': 'TraceEventState', 'vcpu': 'bool'} }
+  'data': {'name': 'str', 'state': 'TraceEventState',
+           'vcpu': { 'type': 'bool', 'features': ['deprecated'] } } }
 
 ##
 # @trace-event-get-state:
@@ -49,19 +53,14 @@
 # Query the state of events.
 #
 # @name: Event name pattern (case-sensitive glob).
-# @vcpu: The vCPU to query (any by default; since 2.7).
+#
+# @vcpu: The vCPU to query (since 2.7).
+#
+# Features:
+#
+# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Returns: a list of @TraceEventInfo for the matching events
-#
-#          An event is returned if:
-#
-#          - its name matches the @name pattern, and
-#          - if @vcpu is given, the event has the "vcpu" property.
-#
-#          Therefore, if @vcpu is given, the operation will only match per-vCPU events,
-#          returning their state on the specified vCPU. Special case: if @name is an
-#          exact match, @vcpu is given and the event does not have the "vcpu" property,
-#          an error is returned.
 #
 # Since: 2.2
 #
@@ -70,10 +69,10 @@
 # -> { "execute": "trace-event-get-state",
 #      "arguments": { "name": "qemu_memalign" } }
 # <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
-#
 ##
 { 'command': 'trace-event-get-state',
-  'data': {'name': 'str', '*vcpu': 'int'},
+  'data': {'name': 'str',
+           '*vcpu': {'type': 'int', 'features': ['deprecated'] } },
   'returns': ['TraceEventInfo'] }
 
 ##
@@ -82,18 +81,16 @@
 # Set the dynamic tracing state of events.
 #
 # @name: Event name pattern (case-sensitive glob).
+#
 # @enable: Whether to enable tracing.
+#
 # @ignore-unavailable: Do not match unavailable events with @name.
+#
 # @vcpu: The vCPU to act upon (all by default; since 2.7).
 #
-# An event's state is modified if:
-# - its name matches the @name pattern, and
-# - if @vcpu is given, the event has the "vcpu" property.
+# Features:
 #
-# Therefore, if @vcpu is given, the operation will only match per-vCPU events,
-# setting their state on the specified vCPU. Special case: if @name is an exact
-# match, @vcpu is given and the event does not have the "vcpu" property, an
-# error is returned.
+# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Since: 2.2
 #
@@ -102,8 +99,7 @@
 # -> { "execute": "trace-event-set-state",
 #      "arguments": { "name": "qemu_memalign", "enable": true } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',
-           '*vcpu': 'int'} }
+           '*vcpu': {'type': 'int', 'features': ['deprecated'] } } }

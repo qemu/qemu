@@ -24,6 +24,9 @@
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 
+/* MicroBlaze is always in-order. */
+#define TCG_GUEST_DEFAULT_MO  TCG_MO_ALL
+
 typedef struct CPUArchState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -202,7 +205,7 @@ typedef struct CPUArchState CPUMBState;
 #define PVR10_TARGET_FAMILY_MASK        0xFF000000
 #define PVR10_ASIZE_SHIFT               18
 
-/* MMU descrtiption */
+/* MMU description */
 #define PVR11_USE_MMU                   0xC0000000
 #define PVR11_MMU_ITLB_SIZE             0x38000000
 #define PVR11_MMU_DTLB_SIZE             0x07000000
@@ -340,33 +343,46 @@ typedef struct {
  * A MicroBlaze CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
 
-    /*< public >*/
+    CPUMBState env;
+
     bool ns_axi_dp;
     bool ns_axi_ip;
     bool ns_axi_dc;
     bool ns_axi_ic;
 
-    CPUNegativeOffsetState neg;
-    CPUMBState env;
     MicroBlazeCPUConfig cfg;
 };
 
+/**
+ * MicroBlazeCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A MicroBlaze CPU model.
+ */
+struct MicroBlazeCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
 
 #ifndef CONFIG_USER_ONLY
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
+hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+                                        MemTxAttrs *attrs);
 #endif /* !CONFIG_USER_ONLY */
 G_NORETURN void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                            MMUAccessType access_type,
                                            int mmu_idx, uintptr_t retaddr);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
-                                        MemTxAttrs *attrs);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int mb_cpu_gdb_read_stack_protect(CPUArchState *cpu, GByteArray *buf, int reg);
+int mb_cpu_gdb_write_stack_protect(CPUArchState *cpu, uint8_t *buf, int reg);
 
 static inline uint32_t mb_cpu_read_msr(const CPUMBState *env)
 {
@@ -392,15 +408,15 @@ void mb_tcg_init(void);
 #define MMU_NOMMU_IDX   0
 #define MMU_KERNEL_IDX  1
 #define MMU_USER_IDX    2
-/* See NB_MMU_MODES further up the file.  */
+/* See NB_MMU_MODES in cpu-defs.h. */
 
 #include "exec/cpu-all.h"
 
 /* Ensure there is no overlap between the two masks. */
 QEMU_BUILD_BUG_ON(MSR_TB_MASK & IFLAGS_TB_MASK);
 
-static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUMBState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK);

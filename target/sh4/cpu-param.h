@@ -16,6 +16,5 @@
 #else
 # define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
-#define NB_MMU_MODES 2
 
 #endif

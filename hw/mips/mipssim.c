@@ -30,7 +30,6 @@
 #include "qemu/datadir.h"
 #include "hw/clock.h"
 #include "hw/mips/mips.h"
-#include "hw/mips/cpudevs.h"
 #include "hw/char/serial.h"
 #include "hw/isa/isa.h"
 #include "net/net.h"
@@ -62,18 +61,11 @@ static uint64_t load_kernel(void)
     uint64_t entry, kernel_high, initrd_size;
     long kernel_size;
     ram_addr_t initrd_offset;
-    int big_endian;
-
-#if TARGET_BIG_ENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &entry, NULL,
-                           &kernel_high, NULL, big_endian,
+                           &kernel_high, NULL, TARGET_BIG_ENDIAN,
                            EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",

@@ -38,7 +38,7 @@ static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 
     i2c_read_block(i2cdev, 0, resp, sizeof(resp));
 
-    /* check retrieved time againt local time */
+    /* check retrieved time against local time */
     g_assert_cmpuint(bcd2bin(resp[4]), == , tm_ptr->tm_mday);
     g_assert_cmpuint(bcd2bin(resp[5]), == , 1 + tm_ptr->tm_mon);
     g_assert_cmpuint(2000 + bcd2bin(resp[6]), == , 1900 + tm_ptr->tm_year);

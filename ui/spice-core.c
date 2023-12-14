@@ -90,13 +90,23 @@ struct SpiceWatch {
 static void watch_read(void *opaque)
 {
     SpiceWatch *watch = opaque;
-    watch->func(watch->fd, SPICE_WATCH_EVENT_READ, watch->opaque);
+    int fd = watch->fd;
+
+#ifdef WIN32
+    fd = _get_osfhandle(fd);
+#endif
+    watch->func(fd, SPICE_WATCH_EVENT_READ, watch->opaque);
 }
 
 static void watch_write(void *opaque)
 {
     SpiceWatch *watch = opaque;
-    watch->func(watch->fd, SPICE_WATCH_EVENT_WRITE, watch->opaque);
+    int fd = watch->fd;
+
+#ifdef WIN32
+    fd = _get_osfhandle(fd);
+#endif
+    watch->func(fd, SPICE_WATCH_EVENT_WRITE, watch->opaque);
 }
 
 static void watch_update_mask(SpiceWatch *watch, int event_mask)
@@ -117,6 +127,14 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 {
     SpiceWatch *watch;
 
+#ifdef WIN32
+    fd = _open_osfhandle(fd, _O_BINARY);
+    if (fd < 0) {
+        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        return NULL;
+    }
+#endif
+
     watch = g_malloc0(sizeof(*watch));
     watch->fd     = fd;
     watch->func   = func;
@@ -129,6 +147,10 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 static void watch_remove(SpiceWatch *watch)
 {
     qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
+#ifdef WIN32
+    /* SOCKET is owned by spice */
+    qemu_close_socket_osfhandle(watch->fd);
+#endif
     g_free(watch);
 }
 
@@ -222,7 +244,6 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
         break;
     case SPICE_CHANNEL_EVENT_INITIALIZED:
         if (auth) {
-            server->has_auth = true;
             server->auth = g_strdup(auth);
         }
         add_channel_info(client, info);
@@ -414,9 +435,6 @@ static QemuOptsList qemu_spice_opts = {
             .type = QEMU_OPT_BOOL,
 #endif
         },{
-            .name = "password",
-            .type = QEMU_OPT_STRING,
-        },{
             .name = "password-secret",
             .type = QEMU_OPT_STRING,
         },{
@@ -522,13 +540,9 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
 
-    info->has_auth = true;
     info->auth = g_strdup(auth);
-
-    info->has_host = true;
     info->host = g_strdup(addr ? addr : "*");
 
-    info->has_compiled_version = true;
     major = (SPICE_SERVER_VERSION & 0xff0000) >> 16;
     minor = (SPICE_SERVER_VERSION & 0xff00) >> 8;
     micro = SPICE_SERVER_VERSION & 0xff;
@@ -671,20 +685,8 @@ static void qemu_spice_init(void)
     }
     passwordSecret = qemu_opt_get(opts, "password-secret");
     if (passwordSecret) {
-        if (qemu_opt_get(opts, "password")) {
-            error_report("'password' option is mutually exclusive with "
-                         "'password-secret'");
-            exit(1);
-        }
         password = qcrypto_secret_lookup_as_utf8(passwordSecret,
                                                  &error_fatal);
-    } else {
-        str = qemu_opt_get(opts, "password");
-        if (str) {
-            warn_report("'password' option is deprecated and insecure, "
-                        "use 'password-secret' instead");
-            password = g_strdup(str);
-        }
     }
 
     if (tls_port) {
@@ -819,8 +821,7 @@ static void qemu_spice_init(void)
     };
     using_spice = 1;
 
-    migration_state.notify = migration_state_notifier;
-    add_migration_state_change_notifier(&migration_state);
+    migration_add_notifier(&migration_state, migration_state_notifier);
     spice_migrate.base.sif = &migrate_interface.base;
     qemu_spice.add_interface(&spice_migrate.base);
 
@@ -840,12 +841,7 @@ static void qemu_spice_init(void)
                          "incompatible with -spice port/tls-port");
             exit(1);
         }
-        if (egl_rendernode_init(qemu_opt_get(opts, "rendernode"),
-                                DISPLAYGL_MODE_ON) != 0) {
-            error_report("Failed to initialize EGL render node for SPICE GL");
-            exit(1);
-        }
-        display_opengl = 1;
+        egl_init(qemu_opt_get(opts, "rendernode"), DISPLAYGL_MODE_ON, &error_fatal);
         spice_opengl = 1;
     }
 #endif
@@ -933,6 +929,9 @@ static int qemu_spice_set_pw_expire(time_t expires)
 
 static int qemu_spice_display_add_client(int csock, int skipauth, int tls)
 {
+#ifdef WIN32
+    csock = qemu_close_socket_osfhandle(csock);
+#endif
     if (tls) {
         return spice_server_add_ssl_client(spice_server, csock, skipauth);
     } else {

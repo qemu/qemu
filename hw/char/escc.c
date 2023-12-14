@@ -31,6 +31,8 @@
 #include "qemu/module.h"
 #include "hw/char/escc.h"
 #include "ui/console.h"
+
+#include "qemu/cutils.h"
 #include "trace.h"
 
 /*
@@ -190,6 +192,7 @@
 #define R_MISC1I 14
 #define R_EXTINT 15
 
+static uint8_t sunkbd_layout_dip_switch(const char *sunkbd_layout);
 static void handle_kbd_command(ESCCChannelState *s, int val);
 static int serial_can_receive(void *opaque);
 static void serial_receive_byte(ESCCChannelState *s, int ch);
@@ -650,7 +653,9 @@ static void escc_mem_write(void *opaque, hwaddr addr,
         escc_update_irq(s);
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { /* tx enabled */
-            if (qemu_chr_fe_backend_connected(&s->chr)) {
+            if (s->wregs[W_MISC2] & MISC2_LCL_LOOP) {
+                serial_receive_byte(s, s->tx);
+            } else if (qemu_chr_fe_backend_connected(&s->chr)) {
                 /*
                  * XXX this blocks entire thread. Rewrite to use
                  * qemu_chr_fe_write and background I/O callbacks
@@ -840,11 +845,84 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
     put_queue(s, keycode);
 }
 
-static QemuInputHandler sunkbd_handler = {
+static const QemuInputHandler sunkbd_handler = {
     .name  = "sun keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
     .event = sunkbd_handle_event,
 };
+
+static uint8_t sunkbd_layout_dip_switch(const char *kbd_layout)
+{
+    /* Return the value of the dip-switches in a SUN Type 5 keyboard */
+    static uint8_t ret = 0xff;
+
+    if ((ret == 0xff) && kbd_layout) {
+        int i;
+        struct layout_values {
+            const char *lang;
+            uint8_t dip;
+        } languages[] =
+            /*
+             * Dip values from table 3-16 Layouts for Type 4, 5 and 5c Keyboards
+             */
+            {
+                {"en-us", 0x21}, /* U.S.A. (US5.kt) */
+                                 /* 0x22 is some other US (US_UNIX5.kt) */
+                {"fr",    0x23}, /* France (France5.kt) */
+                {"da",    0x24}, /* Denmark (Denmark5.kt) */
+                {"de",    0x25}, /* Germany (Germany5.kt) */
+                {"it",    0x26}, /* Italy (Italy5.kt) */
+                {"nl",    0x27}, /* The Netherlands (Netherland5.kt) */
+                {"no",    0x28}, /* Norway (Norway.kt) */
+                {"pt",    0x29}, /* Portugal (Portugal5.kt) */
+                {"es",    0x2a}, /* Spain (Spain5.kt) */
+                {"sv",    0x2b}, /* Sweden (Sweden5.kt) */
+                {"fr-ch", 0x2c}, /* Switzerland/French (Switzer_Fr5.kt) */
+                {"de-ch", 0x2d}, /* Switzerland/German (Switzer_Ge5.kt) */
+                {"en-gb", 0x2e}, /* Great Britain (UK5.kt) */
+                {"ko",    0x2f}, /* Korea (Korea5.kt) */
+                {"tw",    0x30}, /* Taiwan (Taiwan5.kt) */
+                {"ja",    0x31}, /* Japan (Japan5.kt) */
+                {"fr-ca", 0x32}, /* Canada/French (Canada_Fr5.kt) */
+                {"hu",    0x33}, /* Hungary (Hungary5.kt) */
+                {"pl",    0x34}, /* Poland (Poland5.kt) */
+                {"cz",    0x35}, /* Czech (Czech5.kt) */
+                {"ru",    0x36}, /* Russia (Russia5.kt) */
+                {"lv",    0x37}, /* Latvia (Latvia5.kt) */
+                {"tr",    0x38}, /* Turkey-Q5 (TurkeyQ5.kt) */
+                {"gr",    0x39}, /* Greece (Greece5.kt) */
+                {"ar",    0x3a}, /* Arabic (Arabic5.kt) */
+                {"lt",    0x3b}, /* Lithuania (Lithuania5.kt) */
+                {"nl-be", 0x3c}, /* Belgium (Belgian5.kt) */
+                {"be",    0x3c}, /* Belgium (Belgian5.kt) */
+            };
+
+        for (i = 0;
+             i < sizeof(languages) / sizeof(struct layout_values);
+             i++) {
+            if (!strcmp(kbd_layout, languages[i].lang)) {
+                ret = languages[i].dip;
+                return ret;
+            }
+        }
+
+        /* Found no known language code */
+        if ((kbd_layout[0] >= '0') && (kbd_layout[0] <= '9')) {
+            unsigned int tmp;
+
+            /* As a fallback we also accept numeric dip switch value */
+            if (!qemu_strtoui(kbd_layout, NULL, 0, &tmp)) {
+                ret = tmp;
+            }
+        }
+    }
+
+    if (ret == 0xff) {
+        /* Final fallback if keyboard_layout was not set or recognized */
+        ret = 0x21; /* en-us layout */
+    }
+    return ret;
+}
 
 static void handle_kbd_command(ESCCChannelState *s, int val)
 {
@@ -867,7 +945,7 @@ static void handle_kbd_command(ESCCChannelState *s, int val)
     case 0xf:
         clear_queue(s);
         put_queue(s, 0xfe);
-        put_queue(s, 0x21); /*  en-us layout */
+        put_queue(s, sunkbd_layout_dip_switch(s->sunkbd_layout));
         break;
     default:
         break;
@@ -976,6 +1054,7 @@ static Property escc_properties[] = {
     DEFINE_PROP_UINT32("chnAtype",  ESCCState, chn[1].type, 0),
     DEFINE_PROP_CHR("chrB", ESCCState, chn[0].chr),
     DEFINE_PROP_CHR("chrA", ESCCState, chn[1].chr),
+    DEFINE_PROP_STRING("chnA-sunkbd-layout", ESCCState, chn[1].sunkbd_layout),
     DEFINE_PROP_END_OF_LIST(),
 };
 

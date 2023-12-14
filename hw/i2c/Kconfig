@@ -14,7 +14,7 @@ config SMBUS_EEPROM
     bool
     select SMBUS
 
-config VERSATILE_I2C
+config ARM_SBCON_I2C
     bool
     select BITBANG_I2C
 
@@ -31,6 +31,10 @@ config IMX_I2C
     select I2C
 
 config MPC_I2C
+    bool
+    select I2C
+
+config ALLWINNER_I2C
     bool
     select I2C
 

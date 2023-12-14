@@ -44,21 +44,28 @@ int parse_packet_early(Packet *pkt)
 {
     int network_length;
     static const uint8_t vlan[] = {0x81, 0x00};
-    uint8_t *data = pkt->data + pkt->vnet_hdr_len;
+    uint8_t *data = pkt->data;
     uint16_t l3_proto;
     ssize_t l2hdr_len;
 
-    if (data == NULL) {
-        trace_colo_proxy_main_vnet_info("This packet is not parsed correctly, "
-                                        "pkt->vnet_hdr_len", pkt->vnet_hdr_len);
-        return 1;
-    }
-    l2hdr_len = eth_get_l2_hdr_length(data);
+    assert(data);
 
-    if (pkt->size < ETH_HLEN + pkt->vnet_hdr_len) {
-        trace_colo_proxy_main("pkt->size < ETH_HLEN");
+    /* Check the received vnet_hdr_len then add the offset */
+    if ((pkt->vnet_hdr_len > sizeof(struct virtio_net_hdr_v1_hash)) ||
+        (pkt->size < sizeof(struct eth_header) + sizeof(struct vlan_header) +
+        pkt->vnet_hdr_len)) {
+        /*
+         * The received remote packet maybe misconfiguration here,
+         * Please enable/disable filter module's the vnet_hdr flag at
+         * the same time.
+         */
+        trace_colo_proxy_main_vnet_info("This received packet load wrong ",
+                                        pkt->vnet_hdr_len, pkt->size);
         return 1;
     }
+    data += pkt->vnet_hdr_len;
+
+    l2hdr_len = eth_get_l2_hdr_length(data);
 
     /*
      * TODO: support vlan.

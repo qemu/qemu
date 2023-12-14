@@ -17,14 +17,15 @@
 #include "sysemu/kvm.h"
 #include "sysemu/tcg.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qemu/hw-version.h"
 #include "qemu/qemu-print.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
+#include "target/s390x/kvm/pv.h"
 #endif
-#include "hw/s390x/pv.h"
 
 #define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
     {                                                                    \
@@ -195,11 +196,7 @@ uint32_t s390_get_ibc_val(void)
 
 void s390_get_feat_block(S390FeatType type, uint8_t *data)
 {
-    static S390CPU *cpu;
-
-    if (!cpu) {
-        cpu = S390_CPU(qemu_get_cpu(0));
-    }
+    S390CPU *cpu = S390_CPU(first_cpu);
 
     if (!cpu || !cpu->model) {
         return;
@@ -236,6 +233,7 @@ bool s390_has_feat(S390Feat feat)
         return 0;
     }
 
+#ifndef CONFIG_USER_ONLY
     if (s390_is_pv()) {
         switch (feat) {
         case S390_FEAT_DIAG_318:
@@ -253,12 +251,14 @@ bool s390_has_feat(S390Feat feat)
         case S390_FEAT_SIE_CMMA:
         case S390_FEAT_SIE_PFMFI:
         case S390_FEAT_SIE_IBS:
+        case S390_FEAT_CONFIGURATION_TOPOLOGY:
             return false;
             break;
         default:
             break;
         }
     }
+#endif
     return test_bit(feat, cpu->model->features);
 }
 
@@ -480,6 +480,8 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_DIAG_318, S390_FEAT_EXTENDED_LENGTH_SCCB },
         { S390_FEAT_NNPA, S390_FEAT_VECTOR },
         { S390_FEAT_RDP, S390_FEAT_LOCAL_TLB_CLEARING },
+        { S390_FEAT_UV_FEAT_AP, S390_FEAT_AP },
+        { S390_FEAT_UV_FEAT_AP_INTR, S390_FEAT_UV_FEAT_AP },
     };
     int i;
 
@@ -604,8 +606,8 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 #if !defined(CONFIG_USER_ONLY)
     cpu->env.cpuid = s390_cpuid_from_cpu_model(cpu->model);
     if (tcg_enabled()) {
-        /* basic mode, write the cpu address into the first 4 bit of the ID */
-        cpu->env.cpuid = deposit64(cpu->env.cpuid, 54, 4, cpu->env.core_id);
+        cpu->env.cpuid = deposit64(cpu->env.cpuid, CPU_PHYS_ADDR_SHIFT,
+                                   CPU_PHYS_ADDR_BITS, cpu->env.core_id);
     }
 #endif
 }
@@ -751,7 +753,7 @@ void s390_set_qemu_cpu_model(uint16_t type, uint8_t gen, uint8_t ec_ga,
     const S390CPUDef *def = s390_find_cpu_def(type, gen, ec_ga, NULL);
 
     g_assert(def);
-    g_assert(QTAILQ_EMPTY_RCU(&cpus));
+    g_assert(QTAILQ_EMPTY_RCU(&cpus_queue));
 
     /* build the CPU model */
     s390_qemu_cpu_model.def = def;
@@ -972,7 +974,7 @@ static void register_types(void)
 
     init_ignored_base_feat();
 
-    /* init all bitmaps from gnerated data initially */
+    /* init all bitmaps from generated data initially */
     s390_init_feat_bitmap(qemu_max_init, qemu_max_cpu_feat);
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
         s390_init_feat_bitmap(s390_cpu_defs[i].base_init,

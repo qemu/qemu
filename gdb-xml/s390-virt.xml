@@ -11,8 +11,4 @@
   <reg name="cputm" bitsize="64" type="uint64" group="system"/>
   <reg name="last_break" bitsize="64" type="code_ptr" group="system"/>
   <reg name="prefix" bitsize="64" type="data_ptr" group="system"/>
-  <reg name="pp" bitsize="64" type="uint64" group="system"/>
-  <reg name="pfault_token" bitsize="64" type="uint64" group="system"/>
-  <reg name="pfault_select" bitsize="64" type="uint64" group="system"/>
-  <reg name="pfault_compare" bitsize="64" type="uint64" group="system"/>
 </feature>

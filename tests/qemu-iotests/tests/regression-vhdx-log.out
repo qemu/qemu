@@ -1,0 +1,14 @@
+QA output created by regression-vhdx-log
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+
+creating pattern
+wrote 4096/4096 bytes at offset 33554432
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 33554432
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+checking image for errors
+No errors were found on the image.
+*** done

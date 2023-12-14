@@ -21,6 +21,10 @@ typedef struct ArchDumpInfo {
     uint32_t page_size;      /* The target's page size. If it's variable and
                               * unknown, then this should be the maximum. */
     uint64_t phys_base;      /* The target's physmem base. */
+    void (*arch_sections_add_fn)(DumpState *s);
+    uint64_t (*arch_sections_write_hdr_fn)(DumpState *s, uint8_t *buff);
+    int (*arch_sections_write_fn)(DumpState *s, uint8_t *buff);
+    void (*arch_cleanup_fn)(DumpState *s);
 } ArchDumpInfo;
 
 struct GuestPhysBlockList; /* memory_mapping.h */

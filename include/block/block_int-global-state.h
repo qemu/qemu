@@ -25,7 +25,10 @@
 #ifndef BLOCK_INT_GLOBAL_STATE_H
 #define BLOCK_INT_GLOBAL_STATE_H
 
-#include "block_int-common.h"
+#include "block/blockjob.h"
+#include "block/block_int-common.h"
+#include "qemu/hbitmap.h"
+#include "qemu/main-loop.h"
 
 /*
  * Global state (GS) API. These functions run under the BQL.
@@ -193,24 +196,26 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                             BlockCompletionFunc *cb, void *opaque,
                             JobTxn *txn, Error **errp);
 
-BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
-                                  const char *child_name,
-                                  const BdrvChildClass *child_class,
-                                  BdrvChildRole child_role,
-                                  uint64_t perm, uint64_t shared_perm,
-                                  void *opaque, Error **errp);
-void bdrv_root_unref_child(BdrvChild *child);
+BdrvChild * GRAPH_WRLOCK
+bdrv_root_attach_child(BlockDriverState *child_bs, const char *child_name,
+                       const BdrvChildClass *child_class,
+                       BdrvChildRole child_role,
+                       uint64_t perm, uint64_t shared_perm,
+                       void *opaque, Error **errp);
 
-void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
-                              uint64_t *shared_perm);
+void GRAPH_WRLOCK bdrv_root_unref_child(BdrvChild *child);
+
+void GRAPH_RDLOCK bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
+                                           uint64_t *shared_perm);
 
 /**
  * Sets a BdrvChild's permissions.  Avoid if the parent is a BDS; use
  * bdrv_child_refresh_perms() instead and make the parent's
  * .bdrv_child_perm() implementation return the correct values.
  */
-int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
-                            Error **errp);
+int GRAPH_RDLOCK
+bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
+                        Error **errp);
 
 /**
  * Calls bs->drv->bdrv_child_perm() and updates the child's permission
@@ -220,10 +225,11 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
  * values than before, but which will not result in the block layer
  * automatically refreshing the permissions.
  */
-int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
+int GRAPH_RDLOCK
+bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
 
-bool bdrv_recurse_can_replace(BlockDriverState *bs,
-                              BlockDriverState *to_replace);
+bool GRAPH_RDLOCK bdrv_recurse_can_replace(BlockDriverState *bs,
+                                           BlockDriverState *to_replace);
 
 /*
  * Default implementation for BlockDriver.bdrv_child_perm() that can
@@ -271,7 +277,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
                                            Error **errp);
 
 
-BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK
+bdrv_skip_implicit_filters(BlockDriverState *bs);
 
 /**
  * bdrv_add_aio_context_notifier:
@@ -309,22 +316,5 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
  * should call it.
  */
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
-
-/**
- * Make sure that the function is running under both drain and BQL.
- * The latter protects from concurrent writings
- * from the GS API, while the former prevents concurrent reads
- * from I/O.
- */
-static inline void assert_bdrv_graph_writable(BlockDriverState *bs)
-{
-    /*
-     * TODO: this function is incomplete. Because the users of this
-     * assert lack the necessary drains, check only for BQL.
-     * Once the necessary drains are added,
-     * assert also for qatomic_read(&bs->quiesce_counter) > 0
-     */
-    assert(qemu_in_main_thread());
-}
 
 #endif /* BLOCK_INT_GLOBAL_STATE_H */

@@ -11,6 +11,7 @@
 # The authorization policy result
 #
 # @deny: deny access
+#
 # @allow: allow access
 #
 # Since: 4.0
@@ -25,6 +26,7 @@
 # The authorization policy match format
 #
 # @exact: an exact string match
+#
 # @glob: string with ? and * shell wildcard support
 #
 # Since: 4.0
@@ -39,7 +41,9 @@
 # A single authorization rule.
 #
 # @match: a string or glob to match against a user identity
+#
 # @policy: the result to return if @match evaluates to true
+#
 # @format: the format of the @match rule (default 'exact')
 #
 # Since: 4.0
@@ -54,7 +58,8 @@
 #
 # Properties for authz-list objects.
 #
-# @policy: Default policy to apply when no rule matches (default: deny)
+# @policy: Default policy to apply when no rule matches (default:
+#     deny)
 #
 # @rules: Authorization rules based on matching user
 #
@@ -69,14 +74,14 @@
 #
 # Properties for authz-listfile objects.
 #
-# @filename: File name to load the configuration from. The file must
-#            contain valid JSON for AuthZListProperties.
+# @filename: File name to load the configuration from.  The file must
+#     contain valid JSON for AuthZListProperties.
 #
-# @refresh: If true, inotify is used to monitor the file, automatically
-#           reloading changes. If an error occurs during reloading, all
-#           authorizations will fail until the file is next successfully
-#           loaded. (default: true if the binary was built with
-#           CONFIG_INOTIFY1, false otherwise)
+# @refresh: If true, inotify is used to monitor the file,
+#     automatically reloading changes.  If an error occurs during
+#     reloading, all authorizations will fail until the file is next
+#     successfully loaded.  (default: true if the binary was built
+#     with CONFIG_INOTIFY1, false otherwise)
 #
 # Since: 4.0
 ##
@@ -101,10 +106,10 @@
 #
 # Properties for authz-simple objects.
 #
-# @identity: Identifies the allowed user. Its format depends on the network
-#            service that authorization object is associated with. For
-#            authorizing based on TLS x509 certificates, the identity must be
-#            the x509 distinguished name.
+# @identity: Identifies the allowed user.  Its format depends on the
+#     network service that authorization object is associated with.
+#     For authorizing based on TLS x509 certificates, the identity
+#     must be the x509 distinguished name.
 #
 # Since: 4.0
 ##

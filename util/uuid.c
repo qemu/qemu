@@ -51,7 +51,7 @@ int qemu_uuid_is_equal(const QemuUUID *lhv, const QemuUUID *rhv)
 void qemu_uuid_unparse(const QemuUUID *uuid, char *out)
 {
     const unsigned char *uu = &uuid->data[0];
-    snprintf(out, UUID_FMT_LEN + 1, UUID_FMT,
+    snprintf(out, UUID_STR_LEN, UUID_FMT,
              uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7],
              uu[8], uu[9], uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
 }
@@ -115,4 +115,18 @@ QemuUUID qemu_uuid_bswap(QemuUUID uuid)
     bswap16s(&uuid.fields.time_mid);
     bswap16s(&uuid.fields.time_high_and_version);
     return uuid;
+}
+
+/* djb2 hash algorithm */
+uint32_t qemu_uuid_hash(const void *uuid)
+{
+    QemuUUID *qid = (QemuUUID *) uuid;
+    uint32_t h = 5381;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(qid->data); i++) {
+        h = (h << 5) + h + qid->data[i];
+    }
+
+    return h;
 }

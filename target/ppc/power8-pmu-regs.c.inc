@@ -16,7 +16,7 @@
  * Checks whether the Group A SPR (MMCR0, MMCR2, MMCRA, and the
  * PMCs) has problem state read access.
  *
- * Read acccess is granted for all PMCC values but 0b01, where a
+ * Read access is granted for all PMCC values but 0b01, where a
  * Facility Unavailable Interrupt will occur.
  */
 static bool spr_groupA_read_allowed(DisasContext *ctx)
@@ -33,7 +33,7 @@ static bool spr_groupA_read_allowed(DisasContext *ctx)
  * Checks whether the Group A SPR (MMCR0, MMCR2, MMCRA, and the
  * PMCs) has problem state write access.
  *
- * Write acccess is granted for PMCC values 0b10 and 0b11. Userspace
+ * Write access is granted for PMCC values 0b10 and 0b11. Userspace
  * writing with PMCC 0b00 will generate a Hypervisor Emulation
  * Assistance Interrupt. Userspace writing with PMCC 0b01 will
  * generate a Facility Unavailable Interrupt.
@@ -58,8 +58,6 @@ static bool spr_groupA_write_allowed(DisasContext *ctx)
 /*
  * Helper function to avoid code repetition between MMCR0 and
  * MMCR2 problem state write functions.
- *
- * 'ret' must be tcg_temp_freed() by the caller.
  */
 static TCGv masked_gprn_for_spr_write(int gprn, int sprn,
                                       uint64_t spr_mask)
@@ -76,8 +74,6 @@ static TCGv masked_gprn_for_spr_write(int gprn, int sprn,
 
     /* Add the masked gprn bits into 'ret' */
     tcg_gen_or_tl(ret, ret, t0);
-
-    tcg_temp_free(t0);
 
     return ret;
 }
@@ -100,8 +96,6 @@ void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
     gen_load_spr(t0, SPR_POWER_MMCR0);
     tcg_gen_andi_tl(t0, t0, MMCR0_UREG_MASK);
     tcg_gen_mov_tl(cpu_gpr[gprn], t0);
-
-    tcg_temp_free(t0);
 }
 
 static void write_MMCR0_common(DisasContext *ctx, TCGv val)
@@ -109,10 +103,10 @@ static void write_MMCR0_common(DisasContext *ctx, TCGv val)
     /*
      * helper_store_mmcr0 will make clock based operations that
      * will cause 'bad icount read' errors if we do not execute
-     * gen_icount_io_start() beforehand.
+     * translator_io_start() beforehand.
      */
-    gen_icount_io_start(ctx);
-    gen_helper_store_mmcr0(cpu_env, val);
+    translator_io_start(&ctx->base);
+    gen_helper_store_mmcr0(tcg_env, val);
 
     /*
      * End the translation block because MMCR0 writes can change
@@ -137,8 +131,6 @@ void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
     masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR0,
                                             MMCR0_UREG_MASK);
     write_MMCR0_common(ctx, masked_gprn);
-
-    tcg_temp_free(masked_gprn);
 }
 
 void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -164,8 +156,6 @@ void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
     gen_load_spr(t0, SPR_POWER_MMCR2);
     tcg_gen_andi_tl(t0, t0, MMCR2_UREG_MASK);
     tcg_gen_mov_tl(cpu_gpr[gprn], t0);
-
-    tcg_temp_free(t0);
 }
 
 void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
@@ -183,18 +173,14 @@ void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
     masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR2,
                                             MMCR2_UREG_MASK);
     gen_store_spr(SPR_POWER_MMCR2, masked_gprn);
-
-    tcg_temp_free(masked_gprn);
 }
 
 void spr_read_PMC(DisasContext *ctx, int gprn, int sprn)
 {
-    TCGv_i32 t_sprn = tcg_const_i32(sprn);
+    TCGv_i32 t_sprn = tcg_constant_i32(sprn);
 
-    gen_icount_io_start(ctx);
-    gen_helper_read_pmc(cpu_gpr[gprn], cpu_env, t_sprn);
-
-    tcg_temp_free_i32(t_sprn);
+    translator_io_start(&ctx->base);
+    gen_helper_read_pmc(cpu_gpr[gprn], tcg_env, t_sprn);
 }
 
 void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -224,12 +210,10 @@ void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
 
 void spr_write_PMC(DisasContext *ctx, int sprn, int gprn)
 {
-    TCGv_i32 t_sprn = tcg_const_i32(sprn);
+    TCGv_i32 t_sprn = tcg_constant_i32(sprn);
 
-    gen_icount_io_start(ctx);
-    gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
-
-    tcg_temp_free_i32(t_sprn);
+    translator_io_start(&ctx->base);
+    gen_helper_store_pmc(tcg_env, t_sprn, cpu_gpr[gprn]);
 }
 
 void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn)
@@ -264,8 +248,8 @@ void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_MMCR1(DisasContext *ctx, int sprn, int gprn)
 {
-    gen_icount_io_start(ctx);
-    gen_helper_store_mmcr1(cpu_env, cpu_gpr[gprn]);
+    translator_io_start(&ctx->base);
+    gen_helper_store_mmcr1(tcg_env, cpu_gpr[gprn]);
 }
 #else
 void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)

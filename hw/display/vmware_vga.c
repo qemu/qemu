@@ -29,10 +29,11 @@
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "trace.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "ui/console.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL
@@ -335,8 +336,8 @@ static inline bool vmsvga_verify_rect(DisplaySurface *surface,
         return false;
     }
     if (h > SVGA_MAX_HEIGHT) {
-        trace_vmware_verify_rect_greater_than_bound(name, "y", SVGA_MAX_HEIGHT,
-                                                    y);
+        trace_vmware_verify_rect_greater_than_bound(name, "h", SVGA_MAX_HEIGHT,
+                                                    h);
         return false;
     }
     if (y + h > surface_height(surface)) {
@@ -549,12 +550,12 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
     default:
         fprintf(stderr, "%s: unhandled bpp %d, using fallback cursor\n",
                 __func__, c->bpp);
-        cursor_put(qc);
+        cursor_unref(qc);
         qc = cursor_builtin_left_ptr();
     }
 
     dpy_cursor_define(s->vga.con, qc);
-    cursor_put(qc);
+    cursor_unref(qc);
 }
 #endif
 
@@ -1263,7 +1264,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
 
     vga_common_init(&s->vga, OBJECT(dev), &error_fatal);
     vga_init(&s->vga, OBJECT(dev), address_space, io, true);
-    vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
+    vmstate_register_any(NULL, &vmstate_vga_common, &s->vga);
     s->new_depth = 32;
 }
 

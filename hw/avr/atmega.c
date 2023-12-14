@@ -233,6 +233,10 @@ static void atmega_realize(DeviceState *dev, Error **errp)
 
     /* CPU */
     object_initialize_child(OBJECT(dev), "cpu", &s->cpu, mc->cpu_type);
+
+    object_property_set_uint(OBJECT(&s->cpu), "init-sp",
+                             mc->io_size + mc->sram_size - 1, &error_abort);
+
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
     cpudev = DEVICE(&s->cpu);
 

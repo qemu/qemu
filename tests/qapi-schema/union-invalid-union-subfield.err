@@ -1,0 +1,2 @@
+union-invalid-union-subfield.json: In union 'TestUnion':
+union-invalid-union-subfield.json:25: member 'teeth' of type 'TestTypeFish' collides with base member 'teeth'

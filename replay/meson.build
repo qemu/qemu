@@ -1,4 +1,4 @@
-softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
+system_ss.add(when: 'CONFIG_TCG', if_true: files(
   'replay.c',
   'replay-internal.c',
   'replay-events.c',

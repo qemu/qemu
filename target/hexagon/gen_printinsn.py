@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -22,24 +22,26 @@ import re
 import string
 import hex_common
 
+
 ##
 ##     Generate data for printing each instruction (format string + operands)
 ##
 def regprinter(m):
     str = m.group(1)
-    str += ":".join(["%d"]*len(m.group(2)))
+    str += ":".join(["%d"] * len(m.group(2)))
     str += m.group(3)
-    if ('S' in m.group(1)) and (len(m.group(2)) == 1):
+    if ("S" in m.group(1)) and (len(m.group(2)) == 1):
         str += "/%s"
-    elif ('C' in m.group(1)) and (len(m.group(2)) == 1):
+    elif ("C" in m.group(1)) and (len(m.group(2)) == 1):
         str += "/%s"
     return str
 
+
 def spacify(s):
     # Regular expression that matches any operator that contains '=' character:
-    opswithequal_re = '[-+^&|!<>=]?='
+    opswithequal_re = "[-+^&|!<>=]?="
     # Regular expression that matches any assignment operator.
-    assignment_re = '[-+^&|]?='
+    assignment_re = "[-+^&|]?="
 
     # Out of the operators that contain the = sign, if the operator is also an
     # assignment, spaces will be added around it, unless it's enclosed within
@@ -54,9 +56,9 @@ def spacify(s):
     pc = 0
     while i < slen:
         c = s[i]
-        if c == '(':
+        if c == "(":
             pc += 1
-        elif c == ')':
+        elif c == ")":
             pc -= 1
         paren_count[i] = pc
         i += 1
@@ -76,31 +78,33 @@ def spacify(s):
         if paren_count[ms] == 0:
             # Check if the entire string t is an assignment.
             am = assign.match(t)
-            if am and len(am.group(0)) == me-ms:
+            if am and len(am.group(0)) == me - ms:
                 # Don't add spaces if they are already there.
-                if ms > 0 and s[ms-1] != ' ':
-                    out.append(' ')
+                if ms > 0 and s[ms - 1] != " ":
+                    out.append(" ")
                 out += t
-                if me < slen and s[me] != ' ':
-                    out.append(' ')
+                if me < slen and s[me] != " ":
+                    out.append(" ")
                 continue
         # If this is not an assignment, just append it to the output
         # string.
         out += t
 
     # Append the remaining part of the string.
-    out += s[pos:len(s)]
-    return ''.join(out)
+    out += s[pos : len(s)]
+    return "".join(out)
+
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])
     hex_common.read_attribs_file(sys.argv[2])
 
-    immext_casere = re.compile(r'IMMEXT\(([A-Za-z])')
+    immext_casere = re.compile(r"IMMEXT\(([A-Za-z])")
 
-    with open(sys.argv[3], 'w') as f:
+    with open(sys.argv[3], "w") as f:
         for tag in hex_common.tags:
-            if not hex_common.behdict[tag]: continue
+            if not hex_common.behdict[tag]:
+                continue
             extendable_upper_imm = False
             extendable_lower_imm = False
             m = immext_casere.search(hex_common.semdict[tag])
@@ -110,46 +114,45 @@ def main():
                 else:
                     extendable_lower_imm = True
             beh = hex_common.behdict[tag]
-            beh = hex_common.regre.sub(regprinter,beh)
-            beh = hex_common.absimmre.sub(r"#%s0x%x",beh)
-            beh = hex_common.relimmre.sub(r"PC+%s%d",beh)
+            beh = hex_common.regre.sub(regprinter, beh)
+            beh = hex_common.absimmre.sub(r"#%s0x%x", beh)
+            beh = hex_common.relimmre.sub(r"PC+%s%d", beh)
             beh = spacify(beh)
             # Print out a literal "%s" at the end, used to match empty string
             # so C won't complain at us
-            if ("A_VECX" in hex_common.attribdict[tag]):
+            if "A_VECX" in hex_common.attribdict[tag]:
                 macname = "DEF_VECX_PRINTINFO"
-            else: macname = "DEF_PRINTINFO"
-            f.write('%s(%s,"%s%%s"' % (macname,tag,beh))
-            regs_or_imms = \
-                hex_common.reg_or_immre.findall(hex_common.behdict[tag])
+            else:
+                macname = "DEF_PRINTINFO"
+            f.write(f'{macname}({tag},"{beh}%s"')
+            regs_or_imms = hex_common.reg_or_immre.findall(hex_common.behdict[tag])
             ri = 0
             seenregs = {}
-            for allregs,a,b,c,d,allimm,immlett,bits,immshift in regs_or_imms:
+            for allregs, a, b, c, d, allimm, immlett, bits, immshift in regs_or_imms:
                 if a:
-                    #register
+                    # register
                     if b in seenregs:
                         regno = seenregs[b]
                     else:
                         regno = ri
                     if len(b) == 1:
-                        f.write(', insn->regno[%d]' % regno)
-                        if 'S' in a:
-                            f.write(', sreg2str(insn->regno[%d])' % regno)
-                        elif 'C' in a:
-                            f.write(', creg2str(insn->regno[%d])' % regno)
+                        f.write(f", insn->regno[{regno}]")
+                        if "S" in a:
+                            f.write(f", sreg2str(insn->regno[{regno}])")
+                        elif "C" in a:
+                            f.write(f", creg2str(insn->regno[{regno}])")
                     elif len(b) == 2:
-                        f.write(', insn->regno[%d] + 1, insn->regno[%d]' % \
-                            (regno,regno))
+                        f.write(f", insn->regno[{regno}] + 1" f", insn->regno[{regno}]")
                     else:
                         print("Put some stuff to handle quads here")
                     if b not in seenregs:
                         seenregs[b] = ri
                         ri += 1
                 else:
-                    #immediate
-                    if (immlett.isupper()):
+                    # immediate
+                    if immlett.isupper():
                         if extendable_upper_imm:
-                            if immlett in 'rR':
+                            if immlett in "rR":
                                 f.write(',insn->extension_valid?"##":""')
                             else:
                                 f.write(',insn->extension_valid?"#":""')
@@ -158,16 +161,17 @@ def main():
                         ii = 1
                     else:
                         if extendable_lower_imm:
-                            if immlett in 'rR':
+                            if immlett in "rR":
                                 f.write(',insn->extension_valid?"##":""')
                             else:
                                 f.write(',insn->extension_valid?"#":""')
                         else:
                             f.write(',""')
                         ii = 0
-                    f.write(', insn->immed[%d]' % ii)
+                    f.write(f", insn->immed[{ii}]")
             # append empty string so there is at least one more arg
             f.write(',"")\n')
+
 
 if __name__ == "__main__":
     main()

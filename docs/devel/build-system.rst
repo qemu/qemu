@@ -4,30 +4,14 @@ The QEMU build system architecture
 
 This document aims to help developers understand the architecture of the
 QEMU build system. As with projects using GNU autotools, the QEMU build
-system has two stages, first the developer runs the "configure" script
+system has two stages; first the developer runs the "configure" script
 to determine the local build environment characteristics, then they run
-"make" to build the project. There is about where the similarities with
+"make" to build the project.  This is about where the similarities with
 GNU autotools end, so try to forget what you know about them.
 
+The two general ways to perform a build are as follows:
 
-Stage 1: configure
-==================
-
-The QEMU configure script is written directly in shell, and should be
-compatible with any POSIX shell, hence it uses #!/bin/sh. An important
-implication of this is that it is important to avoid using bash-isms on
-development platforms where bash is the primary host.
-
-In contrast to autoconf scripts, QEMU's configure is expected to be
-silent while it is checking for features. It will only display output
-when an error occurs, or to show the final feature enablement summary
-on completion.
-
-Because QEMU uses the Meson build system under the hood, only VPATH
-builds are supported.  There are two general ways to invoke configure &
-perform a build:
-
- - VPATH, build artifacts outside of QEMU source tree entirely::
+ - build artifacts outside of QEMU source tree entirely::
 
      cd ../
      mkdir build
@@ -35,93 +19,190 @@ perform a build:
      ../qemu/configure
      make
 
- - VPATH, build artifacts in a subdir of QEMU source tree::
+ - build artifacts in a subdir of QEMU source tree::
 
      mkdir build
      cd build
      ../configure
      make
 
-The configure script automatically recognizes
-command line options for which a same-named Meson option exists;
-dashes in the command line are replaced with underscores.
+Most of the actual build process uses Meson under the hood, therefore
+build artifacts cannot be placed in the source tree itself.
 
-Many checks on the compilation environment are still found in configure
-rather than ``meson.build``, but new checks should be added directly to
-``meson.build``.
 
-Patches are also welcome to move existing checks from the configure
-phase to ``meson.build``.  When doing so, ensure that ``meson.build`` does
-not use anymore the keys that you have removed from ``config-host.mak``.
-Typically these will be replaced in ``meson.build`` by boolean variables,
-``get_option('optname')`` invocations, or ``dep.found()`` expressions.
-In general, the remaining checks have little or no interdependencies,
-so they can be moved one by one.
+Stage 1: configure
+==================
 
-Helper functions
-----------------
+The configure script has five tasks:
 
-The configure script provides a variety of helper functions to assist
-developers in checking for system features:
+ - detect the host architecture
 
-``do_cc $ARGS...``
-   Attempt to run the system C compiler passing it $ARGS...
+ - list the targets for which to build emulators; the list of
+   targets also affects which firmware binaries and tests to build
 
-``do_cxx $ARGS...``
-   Attempt to run the system C++ compiler passing it $ARGS...
+ - find the compilers (native and cross) used to build executables,
+   firmware and tests.  The results are written as either Makefile
+   fragments (``config-host.mak``) or a Meson machine file
+   (``config-meson.cross``)
 
-``compile_object $CFLAGS``
-   Attempt to compile a test program with the system C compiler using
-   $CFLAGS. The test program must have been previously written to a file
-   called $TMPC.  The replacement in Meson is the compiler object ``cc``,
-   which has methods such as ``cc.compiles()``,
-   ``cc.check_header()``, ``cc.has_function()``.
+ - create a virtual environment in which all Python code runs during
+   the build, and possibly install packages into it from PyPI
 
-``compile_prog $CFLAGS $LDFLAGS``
-   Attempt to compile a test program with the system C compiler using
-   $CFLAGS and link it with the system linker using $LDFLAGS. The test
-   program must have been previously written to a file called $TMPC.
-   The replacement in Meson is ``cc.find_library()`` and ``cc.links()``.
+ - invoke Meson in the virtual environment, to perform the actual
+   configuration step for the emulator build
+
+The configure script automatically recognizes command line options for
+which a same-named Meson option exists; dashes in the command line are
+replaced with underscores.
+
+Almost all QEMU developers that need to modify the build system will
+only be concerned with Meson, and therefore can skip the rest of this
+section.
+
+
+Modifying ``configure``
+-----------------------
+
+``configure`` is a shell script; it uses ``#!/bin/sh`` and therefore
+should be compatible with any POSIX shell. It is important to avoid
+using bash-isms to avoid breaking development platforms where bash is
+the primary host.
+
+The configure script provides a variety of functions to help writing
+portable shell code and providing consistent behavior across architectures
+and operating systems:
+
+``error_exit $MESSAGE $MORE...``
+   Print $MESSAGE to stderr, followed by $MORE... and then exit from the
+   configure script with non-zero status.
 
 ``has $COMMAND``
    Determine if $COMMAND exists in the current environment, either as a
    shell builtin, or executable binary, returning 0 on success.  The
    replacement in Meson is ``find_program()``.
 
-``check_define $NAME``
-   Determine if the macro $NAME is defined by the system C compiler
+``probe_target_compiler $TARGET``
+  Detect a cross compiler and cross tools for the QEMU target $TARGET (e.g.,
+  ``$CPU-softmmu``, ``$CPU-linux-user``, ``$CPU-bsd-user``).  If a working
+  compiler is present, return success and set variables ``$target_cc``,
+  ``$target_ar``, etc. to non-empty values.
 
-``check_include $NAME``
-   Determine if the include $NAME file is available to the system C
-   compiler.  The replacement in Meson is ``cc.has_header()``.
+``write_target_makefile``
+  Write a Makefile fragment to stdout, exposing the result of the most
+  ``probe_target_compiler`` call as the usual Make variables (``CC``,
+  ``AR``, ``LD``, etc.).
+
+
+Configure does not generally perform tests for compiler options beyond
+basic checks to detect the host platform and ensure the compiler is
+functioning.  These are performed using a few more helper functions:
+
+``compile_object $CFLAGS``
+   Attempt to compile a test program with the system C compiler using
+   $CFLAGS. The test program must have been previously written to a file
+   called $TMPC.
+
+``compile_prog $CFLAGS $LDFLAGS``
+   Attempt to compile a test program with the system C compiler using
+   $CFLAGS and link it with the system linker using $LDFLAGS. The test
+   program must have been previously written to a file called $TMPC.
+
+``check_define $NAME``
+   Determine if the macro $NAME is defined by the system C compiler.
+
+``do_compiler $CC $ARGS...``
+   Attempt to run the C compiler $CC, passing it $ARGS...  This function
+   does not use flags passed via options such as ``--extra-cflags``, and
+   therefore can be used to check for cross compilers.  However, most
+   such checks are done at ``make`` time instead (see for example the
+   ``cc-option`` macro in ``pc-bios/option-rom/Makefile``).
 
 ``write_c_skeleton``
    Write a minimal C program main() function to the temporary file
-   indicated by $TMPC
+   indicated by $TMPC.
 
-``feature_not_found $NAME $REMEDY``
-   Print a message to stderr that the feature $NAME was not available
-   on the system, suggesting the user try $REMEDY to address the
-   problem.
 
-``error_exit $MESSAGE $MORE...``
-   Print $MESSAGE to stderr, followed by $MORE... and then exit from the
-   configure script with non-zero status
+Python virtual environments and the build process
+-------------------------------------------------
 
-``query_pkg_config $ARGS...``
-   Run pkg-config passing it $ARGS. If QEMU is doing a static build,
-   then --static will be automatically added to $ARGS
+An important step in ``configure`` is to create a Python virtual
+environment (venv) during the configuration phase.  The Python interpreter
+comes from the ``--python`` command line option, the ``$PYTHON`` variable
+from the environment, or the system PATH, in this order.  The venv resides
+in the ``pyvenv`` directory in the build tree, and provides consistency
+in how the build process runs Python code.
+
+At this stage, ``configure`` also queries the chosen Python interpreter
+about QEMU's build dependencies.  Note that the build process does  *not*
+look for ``meson``, ``sphinx-build`` or ``avocado`` binaries in the PATH;
+likewise, there are no options such as ``--meson`` or ``--sphinx-build``.
+This avoids a potential mismatch, where Meson and Sphinx binaries on the
+PATH might operate in a different Python environment than the one chosen
+by the user during the build process.  On the other hand, it introduces
+a potential source of confusion where the user installs a dependency but
+``configure`` is not able to find it.  When this happens, the dependency
+was installed in the ``site-packages`` directory of another interpreter,
+or with the wrong ``pip`` program.
+
+If a package is available for the chosen interpreter, ``configure``
+prepares a small script that invokes it from the venv itself[#distlib]_.
+If not, ``configure`` can also optionally install dependencies in the
+virtual environment with ``pip``, either from wheels in ``python/wheels``
+or by downloading the package with PyPI.  Downloading can be disabled with
+``--disable-download``; and anyway, it only happens when a ``configure``
+option (currently, only ``--enable-docs``) is explicitly enabled but
+the dependencies are not present[#pip]_.
+
+.. [#distlib] The scripts are created based on the package's metadata,
+              specifically the ``console_script`` entry points.  This is the
+              same mechanism that ``pip`` uses when installing a package.
+              Currently, in all cases it would be possible to use ``python -m``
+              instead of an entry point script, which makes this approach a
+              bit overkill.  On the other hand, creating the scripts is
+              future proof and it makes the contents of the ``pyvenv/bin``
+              directory more informative.  Portability is also not an issue,
+              because the Python Packaging Authority provides a package
+              ``distlib.scripts`` to perform this task.
+
+.. [#pip] ``pip`` might also be used when running ``make check-avocado``
+           if downloading is enabled, to ensure that Avocado is
+           available.
+
+The required versions of the packages are stored in a configuration file
+``pythondeps.toml``.  The format is custom to QEMU, but it is documented
+at the top of the file itself and it should be easy to understand.  The
+requirements should make it possible to use the version that is packaged
+that is provided by supported distros.
+
+When dependencies are downloaded, instead, ``configure`` uses a "known
+good" version that is also listed in ``pythondeps.toml``.  In this
+scenario, ``pythondeps.toml`` behaves like the "lock file" used by
+``cargo``, ``poetry`` or other dependency management systems.
+
+
+Bundled Python packages
+-----------------------
+
+Python packages that are **mandatory** dependencies to build QEMU,
+but are not available in all supported distros, are bundled with the
+QEMU sources.  Currently this includes Meson (outdated in CentOS 8
+and derivatives, Ubuntu 20.04 and 22.04, and openSUSE Leap) and tomli
+(absent in Ubuntu 20.04).
+
+If you need to update these, please do so by modifying and rerunning
+``python/scripts/vendor.py``.  This script embeds the sha256 hash of
+package sources and checks it.  The pypi.org web site provides an easy
+way to retrieve the sha256 hash of the sources.
 
 
 Stage 2: Meson
 ==============
 
-The Meson build system is currently used to describe the build
-process for:
+The Meson build system describes the build and install process for:
 
 1) executables, which include:
 
-   - Tools - ``qemu-img``, ``qemu-nbd``, ``qga`` (guest agent), etc
+   - Tools - ``qemu-img``, ``qemu-nbd``, ``qemu-ga`` (guest agent), etc
 
    - System emulators - ``qemu-system-$ARCH``
 
@@ -131,7 +212,8 @@ process for:
 
 2) documentation
 
-3) ROMs, which can be either installed as binary blobs or compiled
+3) ROMs, whether provided as binary blobs in the QEMU distributions
+   or cross compiled under the direction of the configure script
 
 4) other data files, such as icons or desktop files
 
@@ -169,9 +251,9 @@ Target-independent emulator sourcesets:
   This includes error handling infrastructure, standard data structures,
   platform portability wrapper functions, etc.
 
-  Target-independent code lives in the ``common_ss``, ``softmmu_ss`` and
+  Target-independent code lives in the ``common_ss``, ``system_ss`` and
   ``user_ss`` sourcesets.  ``common_ss`` is linked into all emulators,
-  ``softmmu_ss`` only in system emulators, ``user_ss`` only in user-mode
+  ``system_ss`` only in system emulators, ``user_ss`` only in user-mode
   emulators.
 
   Target-independent sourcesets must exercise particular care when using
@@ -183,11 +265,11 @@ Target-independent emulator sourcesets:
   symbol::
 
     # Some targets have CONFIG_ACPI, some don't, so this is not enough
-    softmmu_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
+    system_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
                                         if_false: files('acpi-stub.c'))
 
     # This is required as well:
-    softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
+    system_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
 
 Target-dependent emulator sourcesets:
   In the target-dependent set lives CPU emulation, some device emulation and
@@ -211,20 +293,20 @@ Target-dependent emulator sourcesets:
   The sourceset is only used for system emulators.
 
   Each subdirectory in ``target/`` instead should add one sourceset to each
-  of the ``target_arch`` and ``target_softmmu_arch``, which are used respectively
+  of the ``target_arch`` and ``target_system_arch``, which are used respectively
   for all emulators and for system emulators only.  For example::
 
     arm_ss = ss.source_set()
-    arm_softmmu_ss = ss.source_set()
+    arm_system_ss = ss.source_set()
     ...
     target_arch += {'arm': arm_ss}
-    target_softmmu_arch += {'arm': arm_softmmu_ss}
+    target_system_arch += {'arm': arm_system_ss}
 
 Module sourcesets:
   There are two dictionaries for modules: ``modules`` is used for
   target-independent modules and ``target_modules`` is used for
   target-dependent modules.  When modules are disabled the ``module``
-  source sets are added to ``softmmu_ss`` and the ``target_modules``
+  source sets are added to ``system_ss`` and the ``target_modules``
   source sets are added to ``specific_ss``.
 
   Both dictionaries are nested.  One dictionary is created per
@@ -286,8 +368,7 @@ system/userspace emulation target
 Adding checks
 -------------
 
-New checks should be added to Meson.  Compiler checks can be as simple as
-the following::
+Compiler checks can be as simple as the following::
 
   config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 
@@ -316,8 +397,7 @@ dependency will be used::
   sdl_image = not_found
   if not get_option('sdl_image').auto() or have_system
     sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
-                           method: 'pkg-config',
-                           static: enable_static)
+                           method: 'pkg-config')
   endif
 
 This avoids warnings on static builds of user-mode emulators, for example.
@@ -364,23 +444,40 @@ This is needed to obey the --python= option passed to the configure
 script, which may point to something other than the first python3
 binary on the path.
 
+By the time Meson runs, Python dependencies are available in the virtual
+environment and should be invoked through the scripts that ``configure``
+places under ``pyvenv``.  One way to do so is as follows, using Meson's
+``find_program`` function::
 
-Stage 3: makefiles
-==================
+  sphinx_build = find_program(
+       fs.parent(python.full_path()) / 'sphinx-build',
+       required: get_option('docs'))
 
-The use of GNU make is required with the QEMU build system.
 
-The output of Meson is a build.ninja file, which is used with the Ninja
-build system.  QEMU uses a different approach, where Makefile rules are
-synthesized from the build.ninja file.  The main Makefile includes these
-rules and wraps them so that e.g. submodules are built before QEMU.
-The resulting build system is largely non-recursive in nature, in
-contrast to common practices seen with automake.
+Stage 3: Make
+=============
 
-Tests are also ran by the Makefile with the traditional ``make check``
-phony target, while benchmarks are run with ``make bench``.  Meson test
-suites such as ``unit`` can be ran with ``make check-unit`` too.  It is also
-possible to run tests defined in meson.build with ``meson test``.
+The next step in building QEMU is to invoke make.  GNU Make is required
+to build QEMU, and may be installed as ``gmake`` on some hosts.
+
+The output of Meson is a ``build.ninja`` file, which is used with the
+Ninja build tool.  However, QEMU's build comprises other components than
+just the emulators (namely firmware and the tests in ``tests/tcg``) which
+need different cross compilers.  The QEMU Makefile wraps both Ninja and
+the smaller build systems for firmware and tests; it also takes care of
+running ``configure`` again when the script changes.  Apart from invoking
+these sub-Makefiles, the resulting build is largely non-recursive.
+
+Tests, whether defined in ``meson.build`` or not, are also ran by the
+Makefile with the traditional ``make check`` phony target, while benchmarks
+are run with ``make bench``.  Meson test suites such as ``unit`` can be ran
+with ``make check-unit``, and ``make check-tcg`` builds and runs "non-Meson"
+tests for all targets.
+
+If desired, it is also possible to use ``ninja`` and ``meson test``,
+respectively to build emulators and run tests defined in meson.build.
+The main difference is that ``make`` needs the ``-jN`` flag in order to
+enable parallel builds or tests.
 
 Useful make targets
 -------------------
@@ -391,6 +488,7 @@ Useful make targets
 ``print-VAR``
   Print the value of the variable VAR. Useful for debugging the build
   system.
+
 
 Important files for the build system
 ====================================
@@ -405,8 +503,7 @@ number of dynamically created files listed later.
 ``Makefile``
   The main entry point used when invoking make to build all the components
   of QEMU. The default 'all' target will naturally result in the build of
-  every component. Makefile takes care of recursively building submodules
-  directly via a non-recursive set of rules.
+  every component.
 
 ``*/meson.build``
   The meson.build file in the root directory is the main entry point for the
@@ -414,60 +511,94 @@ number of dynamically created files listed later.
   executables.  Build rules for various subdirectories are included in
   other meson.build files spread throughout the QEMU source tree.
 
+``python/scripts/mkvenv.py``
+  A wrapper for the Python ``venv`` and ``distlib.scripts`` packages.
+  It handles creating the virtual environment, creating scripts in
+  ``pyvenv/bin``, and calling ``pip`` to install dependencies.
+
 ``tests/Makefile.include``
-  Rules for external test harnesses. These include the TCG tests,
-  ``qemu-iotests`` and the Avocado-based integration tests.
+  Rules for external test harnesses. These include the TCG tests
+  and the Avocado-based integration tests.
 
 ``tests/docker/Makefile.include``
-  Rules for Docker tests. Like tests/Makefile, this file is included
-  directly by the top level Makefile, anything defined in this file will
-  influence the entire build system.
+  Rules for Docker tests. Like ``tests/Makefile.include``, this file is
+  included directly by the top level Makefile, anything defined in this
+  file will influence the entire build system.
 
 ``tests/vm/Makefile.include``
-  Rules for VM-based tests. Like tests/Makefile, this file is included
-  directly by the top level Makefile, anything defined in this file will
-  influence the entire build system.
+  Rules for VM-based tests. Like ``tests/Makefile.include``, this file is
+  included directly by the top level Makefile, anything defined in this
+  file will influence the entire build system.
 
 Dynamically created files
 -------------------------
 
-The following files are generated dynamically by configure in order to
-control the behaviour of the statically defined makefiles. This avoids
-the need for QEMU makefiles to go through any pre-processing as seen
-with autotools, where Makefile.am generates Makefile.in which generates
-Makefile.
+The following files are generated at run-time in order to control the
+behaviour of the Makefiles. This avoids the need for QEMU makefiles to
+go through any pre-processing as seen with autotools, where configure
+generates ``Makefile`` from ``Makefile.in``.
 
 Built by configure:
 
 ``config-host.mak``
   When configure has determined the characteristics of the build host it
-  will write a long list of variables to config-host.mak file. This
-  provides the various install directories, compiler / linker flags and a
-  variety of ``CONFIG_*`` variables related to optionally enabled features.
-  This is imported by the top level Makefile and meson.build in order to
-  tailor the build output.
+  will write the paths to various tools to this file, for use in ``Makefile``
+  and to a smaller extent ``meson.build``.
 
-  config-host.mak is also used as a dependency checking mechanism. If make
+  ``config-host.mak`` is also used as a dependency checking mechanism. If make
   sees that the modification timestamp on configure is newer than that on
-  config-host.mak, then configure will be re-run.
+  ``config-host.mak``, then configure will be re-run.
 
-  The variables defined here are those which are applicable to all QEMU
-  build outputs. Variables which are potentially different for each
-  emulator target are defined by the next file...
+``config-meson.cross``
 
+  A Meson "cross file" (or native file) used to communicate the paths to
+  the toolchain and other configuration options.
+
+``config.status``
+
+  A small shell script that will invoke configure again with the same
+  environment variables that were set during the first run.  It's used to
+  rerun configure after changes to the source code, but it can also be
+  inspected manually to check the contents of the environment.
+
+``Makefile.prereqs``
+
+  A set of Makefile dependencies that order the build and execution of
+  firmware and tests after the container images and emulators that they
+  need.
+
+``pc-bios/*/config.mak``, ``tests/tcg/config-host.mak``, ``tests/tcg/*/config-target.mak``
+
+  Configuration variables used to build the firmware and TCG tests,
+  including paths to cross compilation toolchains.
+
+``pyvenv``
+
+  A Python virtual environment that is used for all Python code running
+  during the build.  Using a virtual environment ensures that even code
+  that is run via ``sphinx-build``, ``meson`` etc. uses the same interpreter
+  and packages.
 
 Built by Meson:
 
-``${TARGET-NAME}-config-devices.mak``
-  TARGET-NAME is again the name of a system or userspace emulator. The
-  config-devices.mak file is automatically generated by make using the
-  scripts/make_device_config.sh program, feeding it the
-  default-configs/$TARGET-NAME file as input.
+``config-host.h``
+  Used by C code to determine the properties of the build environment
+  and the set of enabled features for the entire build.
 
-``config-host.h``, ``$TARGET_NAME-config-target.h``, ``$TARGET_NAME-config-devices.h``
-  These files are used by source code to determine what features are
-  enabled.  They are generated from the contents of the corresponding
-  ``*.mak`` files using Meson's ``configure_file()`` function.
+``${TARGET-NAME}-config-devices.mak``
+  TARGET-NAME is the name of a system emulator. The file is
+  generated by Meson using files under ``configs/devices`` as input.
+
+``${TARGET-NAME}-config-target.mak``
+  TARGET-NAME is the name of a system or usermode emulator. The file is
+  generated by Meson using files under ``configs/targets`` as input.
+
+``$TARGET_NAME-config-target.h``, ``$TARGET_NAME-config-devices.h``
+  Used by C code to determine the properties and enabled
+  features for each target.  enabled.  They are generated from
+  the contents of the corresponding ``*.mak`` files using Meson's
+  ``configure_file()`` function; each target can include them using
+  the ``CONFIG_TARGET`` and ``CONFIG_DEVICES`` macro respectively.
 
 ``build.ninja``
   The build rules.

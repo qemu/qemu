@@ -36,8 +36,8 @@
 #include "qom/object.h"
 
 /* Interface requests */
-#define WACOM_GET_REPORT	0x2101
-#define WACOM_SET_REPORT	0x2109
+#define WACOM_GET_REPORT    0x2101
+#define WACOM_SET_REPORT    0x2109
 
 struct USBWacomState {
     USBDevice dev;

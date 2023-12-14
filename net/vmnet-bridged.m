@@ -37,7 +37,7 @@ done:
 }
 
 
-static char* get_valid_ifnames()
+static char* get_valid_ifnames(void)
 {
     xpc_object_t shared_if_list = vmnet_copy_shared_interface_list();
     __block char *if_list = NULL;

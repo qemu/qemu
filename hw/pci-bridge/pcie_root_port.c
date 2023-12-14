@@ -43,9 +43,10 @@ static void rp_write_config(PCIDevice *d, uint32_t address,
     pcie_aer_root_write_config(d, address, val, len, root_cmd);
 }
 
-static void rp_reset(DeviceState *qdev)
+static void rp_reset_hold(Object *obj)
 {
-    PCIDevice *d = PCI_DEVICE(qdev);
+    PCIDevice *d = PCI_DEVICE(obj);
+    DeviceState *qdev = DEVICE(obj);
 
     rp_aer_vector_update(d);
     pcie_cap_root_reset(d);
@@ -171,13 +172,13 @@ static void rp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    k->is_bridge = true;
     k->config_write = rp_write_config;
     k->realize = rp_realize;
     k->exit = rp_exit;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->reset = rp_reset;
+    rc->phases.hold = rp_reset_hold;
     device_class_set_props(dc, rp_props);
 }
 

@@ -380,13 +380,16 @@ static inline void xlnx_dp_audio_mix_buffer(XlnxDPState *s)
 static void xlnx_dp_audio_callback(void *opaque, int avail)
 {
     /*
-     * Get some data from the DPDMA and compute these datas.
-     * Then wait for QEMU's audio subsystem to call this callback.
+     * Get the individual left and right audio streams from the DPDMA,
+     * and fill the output buffer with the combined stereo audio data
+     * adjusted by the volume controls.
+     * QEMU's audio subsystem will call this callback repeatedly;
+     * we return the data from the output buffer until it is emptied,
+     * and then we will read data from the DPDMA again.
      */
     XlnxDPState *s = XLNX_DP(opaque);
     size_t written = 0;
 
-    /* If there are already some data don't get more data. */
     if (s->byte_left == 0) {
         s->audio_data_available[0] = xlnx_dpdma_start_operation(s->dpdma, 4,
                                                                   true);
@@ -1299,6 +1302,10 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     DisplaySurface *surface;
     struct audsettings as;
 
+    if (!AUD_register_card("xlnx_dp.audio", &s->aud_card, errp)) {
+        return;
+    }
+
     aux_bus_realize(s->aux_bus);
 
     qdev_realize(DEVICE(s->dpcd), BUS(s->aux_bus), &error_fatal);
@@ -1316,8 +1323,6 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
-
-    AUD_register_card("xlnx_dp.audio", &s->aud_card);
 
     s->amixer_output_stream = AUD_open_out(&s->aud_card,
                                            s->amixer_output_stream,
@@ -1382,6 +1387,11 @@ static void xlnx_dp_reset(DeviceState *dev)
     xlnx_dp_update_irq(s);
 }
 
+static Property xlnx_dp_device_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(XlnxDPState, aud_card),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xlnx_dp_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -1389,6 +1399,7 @@ static void xlnx_dp_class_init(ObjectClass *oc, void *data)
     dc->realize = xlnx_dp_realize;
     dc->vmsd = &vmstate_dp;
     dc->reset = xlnx_dp_reset;
+    device_class_set_props(dc, xlnx_dp_device_properties);
 }
 
 static const TypeInfo xlnx_dp_info = {

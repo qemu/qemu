@@ -34,6 +34,7 @@
 #include "hw/timer/i8254_internal.h"
 #include "hw/qdev-properties-system.h"
 #include "sysemu/kvm.h"
+#include "target/i386/kvm/kvm_i386.h"
 #include "qom/object.h"
 
 #define KVM_PIT_REINJECT_BIT 0
@@ -96,24 +97,12 @@ static void kvm_pit_get(PITCommonState *pit)
         return;
     }
 
-    if (kvm_has_pit_state2()) {
-        ret = kvm_vm_ioctl(kvm_state, KVM_GET_PIT2, &kpit);
-        if (ret < 0) {
-            fprintf(stderr, "KVM_GET_PIT2 failed: %s\n", strerror(-ret));
-            abort();
-        }
-        pit->channels[0].irq_disabled = kpit.flags & KVM_PIT_FLAGS_HPET_LEGACY;
-    } else {
-        /*
-         * kvm_pit_state2 is superset of kvm_pit_state struct,
-         * so we can use it for KVM_GET_PIT as well.
-         */
-        ret = kvm_vm_ioctl(kvm_state, KVM_GET_PIT, &kpit);
-        if (ret < 0) {
-            fprintf(stderr, "KVM_GET_PIT failed: %s\n", strerror(-ret));
-            abort();
-        }
+    ret = kvm_vm_ioctl(kvm_state, KVM_GET_PIT2, &kpit);
+    if (ret < 0) {
+        fprintf(stderr, "KVM_GET_PIT2 failed: %s\n", strerror(-ret));
+        abort();
     }
+    pit->channels[0].irq_disabled = kpit.flags & KVM_PIT_FLAGS_HPET_LEGACY;
     for (i = 0; i < 3; i++) {
         kchan = &kpit.channels[i];
         sc = &pit->channels[i];
@@ -169,12 +158,9 @@ static void kvm_pit_put(PITCommonState *pit)
         kchan->count_load_time = sc->count_load_time - s->kernel_clock_offset;
     }
 
-    ret = kvm_vm_ioctl(kvm_state,
-                       kvm_has_pit_state2() ? KVM_SET_PIT2 : KVM_SET_PIT,
-                       &kpit);
+    ret = kvm_vm_ioctl(kvm_state, KVM_SET_PIT2, &kpit);
     if (ret < 0) {
-        fprintf(stderr, "%s failed: %s\n",
-                kvm_has_pit_state2() ? "KVM_SET_PIT2" : "KVM_SET_PIT",
+        fprintf(stderr, "KVM_SET_PIT2 failed: %s\n",
                 strerror(-ret));
         abort();
     }
@@ -260,11 +246,12 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
     };
     int ret;
 
-    if (kvm_check_extension(kvm_state, KVM_CAP_PIT2)) {
-        ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT2, &config);
-    } else {
-        ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT);
+    if (!kvm_check_extension(kvm_state, KVM_CAP_PIT_STATE2) ||
+        !kvm_check_extension(kvm_state, KVM_CAP_PIT2)) {
+        error_setg(errp, "In-kernel PIT not available");
     }
+
+    ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT2, &config);
     if (ret < 0) {
         error_setg(errp, "Create kernel PIC irqchip failed: %s",
                    strerror(-ret));
@@ -301,7 +288,6 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property kvm_pit_properties[] = {
-    DEFINE_PROP_UINT32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_POLICY_DELAY),
     DEFINE_PROP_END_OF_LIST(),

@@ -19,8 +19,8 @@ class MicroblazeMachine(QemuSystemTest):
         :avocado: tags=machine:petalogix-s3adsp1800
         """
 
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day17.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day17.tar.xz')
         tar_hash = '08bf3e3bfb6b6c7ce1e54ab65d54e189f2caf13f'
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         archive.extract(file_path, self.workdir)

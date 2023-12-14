@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "ui/egl-context.h"
 
 QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
@@ -32,6 +33,11 @@ void qemu_egl_destroy_context(DisplayGLCtx *dgc, QEMUGLContext ctx)
 int qemu_egl_make_context_current(DisplayGLCtx *dgc,
                                   QEMUGLContext ctx)
 {
-   return eglMakeCurrent(qemu_egl_display,
-                         EGL_NO_SURFACE, EGL_NO_SURFACE, ctx);
+   if (!eglMakeCurrent(qemu_egl_display,
+                       EGL_NO_SURFACE, EGL_NO_SURFACE, ctx)) {
+        error_report("egl: eglMakeCurrent failed: %s", qemu_egl_get_error_string());
+        return -1;
+   }
+
+   return 0;
 }

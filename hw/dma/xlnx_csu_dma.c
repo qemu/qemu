@@ -33,13 +33,13 @@
 
 /*
  * Ref: UG1087 (v1.7) February 8, 2019
- * https://www.xilinx.com/html_docs/registers/ug1087/ug1087-zynq-ultrascale-registers.html
+ * https://www.xilinx.com/html_docs/registers/ug1087/ug1087-zynq-ultrascale-registers
  * CSUDMA Module section
  */
 REG32(ADDR, 0x0)
     FIELD(ADDR, ADDR, 2, 30) /* wo */
 REG32(SIZE, 0x4)
-    FIELD(SIZE, SIZE, 2, 27) /* wo */
+    FIELD(SIZE, SIZE, 2, 27)
     FIELD(SIZE, LAST_WORD, 0, 1) /* rw, only exists in SRC */
 REG32(STATUS, 0x8)
     FIELD(STATUS, DONE_CNT, 13, 3) /* wtc */
@@ -211,7 +211,7 @@ static uint32_t xlnx_csu_dma_read(XlnxCSUDMA *s, uint8_t *buf, uint32_t len)
     if (result == MEMTX_OK) {
         xlnx_csu_dma_data_process(s, buf, len);
     } else {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address " TARGET_FMT_plx
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address " HWADDR_FMT_plx
                       " for mem read", __func__, addr);
         s->regs[R_INT_STATUS] |= R_INT_STATUS_AXI_BRESP_ERR_MASK;
         xlnx_csu_dma_update_irq(s);
@@ -241,7 +241,7 @@ static uint32_t xlnx_csu_dma_write(XlnxCSUDMA *s, uint8_t *buf, uint32_t len)
     }
 
     if (result != MEMTX_OK) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address " TARGET_FMT_plx
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address " HWADDR_FMT_plx
                       " for mem write", __func__, addr);
         s->regs[R_INT_STATUS] |= R_INT_STATUS_AXI_BRESP_ERR_MASK;
         xlnx_csu_dma_update_irq(s);
@@ -335,10 +335,14 @@ static uint64_t addr_pre_write(RegisterInfo *reg, uint64_t val)
 static uint64_t size_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
+    uint64_t size = val & R_SIZE_SIZE_MASK;
 
     if (s->regs[R_SIZE] != 0) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Starting DMA while already running.\n", __func__);
+        if (size || s->is_dst) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Starting DMA while already running.\n",
+                          __func__);
+        }
     }
 
     if (!s->is_dst) {
@@ -346,7 +350,7 @@ static uint64_t size_pre_write(RegisterInfo *reg, uint64_t val)
     }
 
     /* Size is word aligned */
-    return val & R_SIZE_SIZE_MASK;
+    return size;
 }
 
 static uint64_t size_post_read(RegisterInfo *reg, uint64_t val)
@@ -702,6 +706,10 @@ static Property xlnx_csu_dma_properties[] = {
      * which channel the device is connected to.
      */
     DEFINE_PROP_BOOL("is-dst", XlnxCSUDMA, is_dst, true),
+    DEFINE_PROP_LINK("stream-connected-dma", XlnxCSUDMA, tx_dev,
+                     TYPE_STREAM_SINK, StreamSink *),
+    DEFINE_PROP_LINK("dma", XlnxCSUDMA, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -728,15 +736,6 @@ static void xlnx_csu_dma_init(Object *obj)
 
     memory_region_init(&s->iomem, obj, TYPE_XLNX_CSU_DMA,
                        XLNX_CSU_DMA_R_MAX * 4);
-
-    object_property_add_link(obj, "stream-connected-dma", TYPE_STREAM_SINK,
-                             (Object **)&s->tx_dev,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static const TypeInfo xlnx_csu_dma_info = {

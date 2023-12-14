@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all alpine-edge qemu
+#  $ lcitool dockerfile --layers all alpine-318 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/alpine:edge
+FROM docker.io/library/alpine:3.18
 
 RUN apk update && \
     apk upgrade && \
@@ -13,12 +13,12 @@ RUN apk update && \
         attr-dev \
         bash \
         bc \
+        bison \
         bzip2 \
         bzip2-dev \
         ca-certificates \
         capstone-dev \
         ccache \
-        cdrkit \
         ceph-dev \
         clang \
         cmocka-dev \
@@ -30,6 +30,7 @@ RUN apk update && \
         dtc-dev \
         eudev-dev \
         findutils \
+        flex \
         fuse3-dev \
         g++ \
         gcc \
@@ -58,13 +59,15 @@ RUN apk update && \
         libtasn1-dev \
         liburing-dev \
         libusb-dev \
+        libxdp-dev \
         linux-pam-dev \
-        llvm11 \
+        llvm \
         lttng-ust-dev \
         lzo-dev \
         make \
         mesa-dev \
         meson \
+        mtools \
         multipath-tools \
         musl-dev \
         ncurses-dev \
@@ -75,7 +78,7 @@ RUN apk update && \
         numactl-dev \
         openssh-client \
         pcre-dev \
-        perl \
+        pipewire-dev \
         pixman-dev \
         pkgconf \
         pulseaudio-dev \
@@ -92,12 +95,14 @@ RUN apk update && \
         sdl2_image-dev \
         sed \
         snappy-dev \
+        sndio-dev \
+        socat \
         sparse \
         spice-dev \
         spice-protocol \
+        swtpm \
         tar \
         tesseract-ocr \
-        texinfo \
         usbredir-dev \
         util-linux \
         vde2-dev \
@@ -106,8 +111,10 @@ RUN apk update && \
         which \
         xen-dev \
         xfsprogs-dev \
+        xorriso \
         zlib-dev \
         zlib-static \
+        zstd \
         zstd-dev && \
     apk list | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
@@ -117,8 +124,13 @@ RUN apk update && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
 ENV NINJA "/usr/bin/ninja"
 ENV PYTHON "/usr/bin/python3"
-ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

@@ -214,14 +214,19 @@ version 2.
                     type.
 
                     If the incompatible bit "Compression type" is set: the field
-                    must be present and non-zero (which means non-zlib
+                    must be present and non-zero (which means non-deflate
                     compression type). Otherwise, this field must not be present
-                    or must be zero (which means zlib).
+                    or must be zero (which means deflate).
 
                     Available compression type values:
-                        0: zlib <https://www.zlib.net/>
+                        0: deflate <https://www.ietf.org/rfc/rfc1951.txt>
                         1: zstd <http://github.com/facebook/zstd>
 
+                    The deflate compression type is called "zlib"
+                    <https://www.zlib.net/> in QEMU. However, clusters with the
+                    deflate compression type do not have zlib headers.
+
+        105 - 111:  Padding, contents defined below.
 
 === Header padding ===
 

@@ -36,7 +36,6 @@
 #define HW_ARM_ALLWINNER_H3_H
 
 #include "qom/object.h"
-#include "hw/arm/boot.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/misc/allwinner-h3-ccu.h"
@@ -47,6 +46,8 @@
 #include "hw/sd/allwinner-sdhost.h"
 #include "hw/net/allwinner-sun8i-emac.h"
 #include "hw/rtc/allwinner-rtc.h"
+#include "hw/i2c/allwinner-i2c.h"
+#include "hw/watchdog/allwinner-wdt.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -82,6 +83,9 @@ enum {
     AW_H3_DEV_UART2,
     AW_H3_DEV_UART3,
     AW_H3_DEV_EMAC,
+    AW_H3_DEV_TWI0,
+    AW_H3_DEV_TWI1,
+    AW_H3_DEV_TWI2,
     AW_H3_DEV_DRAMCOM,
     AW_H3_DEV_DRAMCTL,
     AW_H3_DEV_DRAMPHY,
@@ -91,7 +95,9 @@ enum {
     AW_H3_DEV_GIC_VCPU,
     AW_H3_DEV_RTC,
     AW_H3_DEV_CPUCFG,
-    AW_H3_DEV_SDRAM
+    AW_H3_DEV_R_TWI,
+    AW_H3_DEV_SDRAM,
+    AW_H3_DEV_WDT
 };
 
 /** Total number of CPU cores in the H3 SoC */
@@ -130,8 +136,13 @@ struct AwH3State {
     AwH3SysCtrlState sysctrl;
     AwSidState sid;
     AwSdHostState mmc0;
+    AWI2CState i2c0;
+    AWI2CState i2c1;
+    AWI2CState i2c2;
+    AWI2CState r_twi;
     AwSun8iEmacState emac;
     AwRtcState rtc;
+    AwWdtState wdt;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;

@@ -125,7 +125,7 @@ aio_flush
 EOF
 
 # Sequential write, but the next cluster is already allocated
-# and phyiscally in the right position
+# and physically in the right position
 cat  <<EOF
 write -P 89 0x80000 0x1000
 write -P 90 0x96000 0x8000

@@ -19,13 +19,12 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
 target_ulong HELPER(divu_i128)(CPURISCVState *env,
-                       target_ulong ul, target_ulong uh,
-                       target_ulong vl, target_ulong vh)
+                               target_ulong ul, target_ulong uh,
+                               target_ulong vl, target_ulong vh)
 {
     target_ulong ql, qh;
     Int128 q;
@@ -44,8 +43,8 @@ target_ulong HELPER(divu_i128)(CPURISCVState *env,
 }
 
 target_ulong HELPER(remu_i128)(CPURISCVState *env,
-                       target_ulong ul, target_ulong uh,
-                       target_ulong vl, target_ulong vh)
+                               target_ulong ul, target_ulong uh,
+                               target_ulong vl, target_ulong vh)
 {
     target_ulong rl, rh;
     Int128 r;
@@ -64,8 +63,8 @@ target_ulong HELPER(remu_i128)(CPURISCVState *env,
 }
 
 target_ulong HELPER(divs_i128)(CPURISCVState *env,
-                       target_ulong ul, target_ulong uh,
-                       target_ulong vl, target_ulong vh)
+                               target_ulong ul, target_ulong uh,
+                               target_ulong vl, target_ulong vh)
 {
     target_ulong qh, ql;
     Int128 q;
@@ -89,8 +88,8 @@ target_ulong HELPER(divs_i128)(CPURISCVState *env,
 }
 
 target_ulong HELPER(rems_i128)(CPURISCVState *env,
-                       target_ulong ul, target_ulong uh,
-                       target_ulong vl, target_ulong vh)
+                               target_ulong ul, target_ulong uh,
+                               target_ulong vl, target_ulong vh)
 {
     target_ulong rh, rl;
     Int128 r;

@@ -58,6 +58,9 @@ Other differences between the hardware and the QEMU model:
   ``vexpress-a15``, and have IRQs from 40 upwards. If a dtb is
   provided on the command line then QEMU will edit it to include
   suitable entries describing these transports for the guest.
+- QEMU does not currently support either dynamic or static remapping
+  of the area of memory at address 0: it is always mapped to alias
+  the first flash bank
 
 Booting a Linux kernel
 ----------------------

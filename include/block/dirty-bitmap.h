@@ -1,6 +1,7 @@
 #ifndef BLOCK_DIRTY_BITMAP_H
 #define BLOCK_DIRTY_BITMAP_H
 
+#include "block/block-common.h"
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/hbitmap.h"
 
@@ -34,8 +35,14 @@ int bdrv_dirty_bitmap_check(const BdrvDirtyBitmap *bitmap, uint32_t flags,
                             Error **errp);
 void bdrv_release_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs);
-int bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
-                                        Error **errp);
+
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
+                                       Error **errp);
+int co_wrapper_bdrv_rdlock
+bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
+                                    Error **errp);
+
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_enable_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap);

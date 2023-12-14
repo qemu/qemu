@@ -57,6 +57,17 @@ uint64_t stat64_get(const Stat64 *s)
     return ((uint64_t)high << 32) | low;
 }
 
+void stat64_set(Stat64 *s, uint64_t val)
+{
+    while (!stat64_wrtrylock(s)) {
+        cpu_relax();
+    }
+
+    qatomic_set(&s->high, val >> 32);
+    qatomic_set(&s->low, val);
+    stat64_wrunlock(s);
+}
+
 bool stat64_add32_carry(Stat64 *s, uint32_t low, uint32_t high)
 {
     uint32_t old;

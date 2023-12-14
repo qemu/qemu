@@ -5,8 +5,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/ctype.h"
 #include "qemu/osdep.h"
+#include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
@@ -340,7 +340,7 @@ static void hv_syndbg_realize(DeviceState *dev, Error **errp)
     syndbg->servaddr.sin_family = AF_INET;
     if (connect(syndbg->socket, (struct sockaddr *)&syndbg->servaddr,
                 sizeof(syndbg->servaddr)) < 0) {
-        closesocket(syndbg->socket);
+        close(syndbg->socket);
         error_setg(errp, "%s failed to connect to socket", TYPE_HV_SYNDBG);
         return;
     }
@@ -357,7 +357,7 @@ static void hv_syndbg_unrealize(DeviceState *dev)
 
     if (syndbg->socket > 0) {
         qemu_set_fd_handler(syndbg->socket, NULL, NULL, NULL);
-        closesocket(syndbg->socket);
+        close(syndbg->socket);
     }
 }
 

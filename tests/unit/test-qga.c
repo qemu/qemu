@@ -32,6 +32,7 @@ static int connect_qga(char *path)
             g_usleep(G_USEC_PER_SEC);
         }
         if (i++ == 10) {
+            close(s);
             return -1;
         }
     } while (ret == -1);
@@ -59,8 +60,8 @@ fixture_setup(TestFixture *fixture, gconstpointer data, gchar **envp)
 
     fixture->loop = g_main_loop_new(NULL, FALSE);
 
-    fixture->test_dir = g_strdup("/tmp/qgatest.XXXXXX");
-    g_assert_nonnull(mkdtemp(fixture->test_dir));
+    fixture->test_dir = g_strdup_printf("%s/qgatest.XXXXXX", g_get_tmp_dir());
+    g_assert_nonnull(g_mkdtemp(fixture->test_dir));
 
     path = g_build_filename(fixture->test_dir, "sock", NULL);
     cwd = g_get_current_dir();
@@ -664,6 +665,36 @@ static void test_qga_blockedrpcs(gconstpointer data)
     fixture_tear_down(&fix, NULL);
 }
 
+static void test_qga_allowedrpcs(gconstpointer data)
+{
+    TestFixture fix;
+    QDict *ret, *error;
+    const gchar *class, *desc;
+
+    fixture_setup(&fix, "-a guest-ping,guest-get-time", NULL);
+
+    /* check allowed RPCs */
+    ret = qmp_fd(fix.fd, "{'execute': 'guest-ping'}");
+    qmp_assert_no_error(ret);
+    qobject_unref(ret);
+
+    ret = qmp_fd(fix.fd, "{'execute': 'guest-get-time'}");
+    qmp_assert_no_error(ret);
+    qobject_unref(ret);
+
+    /* check something else */
+    ret = qmp_fd(fix.fd, "{'execute': 'guest-get-fsinfo'}");
+    g_assert_nonnull(ret);
+    error = qdict_get_qdict(ret, "error");
+    class = qdict_get_try_str(error, "class");
+    desc = qdict_get_try_str(error, "desc");
+    g_assert_cmpstr(class, ==, "CommandNotFound");
+    g_assert_nonnull(g_strstr_len(desc, -1, "has been disabled"));
+    qobject_unref(ret);
+
+    fixture_tear_down(&fix, NULL);
+}
+
 static void test_qga_config(gconstpointer data)
 {
     GError *error = NULL;
@@ -729,7 +760,7 @@ static void test_qga_config(gconstpointer data)
     g_assert_true(g_key_file_get_boolean(kf, "general", "verbose", &error));
     g_assert_no_error(error);
 
-    strv = g_key_file_get_string_list(kf, "general", "blacklist", &n, &error);
+    strv = g_key_file_get_string_list(kf, "general", "block-rpcs", &n, &error);
     g_assert_cmpint(n, ==, 2);
     g_assert_true(g_strv_contains((const char * const *)strv,
                                   "guest-ping"));
@@ -754,32 +785,16 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
     g_assert_cmpstr(status, ==, "thawed");
 }
 
-static void test_qga_guest_exec(gconstpointer fix)
+static QDict *wait_for_guest_exec_completion(int fd, int64_t pid)
 {
-    const TestFixture *fixture = fix;
-    g_autoptr(QDict) ret = NULL;
-    QDict *val;
-    const gchar *out;
-    g_autofree guchar *decoded = NULL;
-    int64_t pid, now, exitcode;
-    gsize len;
+    QDict *ret = NULL;
+    int64_t now;
     bool exited;
+    QDict *val;
 
-    /* exec 'echo foo bar' */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
-                 " 'path': '/bin/echo', 'arg': [ '-n', '\" test_str \"' ],"
-                 " 'capture-output': true } }");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    val = qdict_get_qdict(ret, "return");
-    pid = qdict_get_int(val, "pid");
-    g_assert_cmpint(pid, >, 0);
-    qobject_unref(ret);
-
-    /* wait for completion */
     now = g_get_monotonic_time();
     do {
-        ret = qmp_fd(fixture->fd,
+        ret = qmp_fd(fd,
                      "{'execute': 'guest-exec-status',"
                      " 'arguments': { 'pid': %" PRId64 " } }", pid);
         g_assert_nonnull(ret);
@@ -792,7 +807,34 @@ static void test_qga_guest_exec(gconstpointer fix)
              g_get_monotonic_time() < now + 5 * G_TIME_SPAN_SECOND);
     g_assert(exited);
 
+    return ret;
+}
+
+static void test_qga_guest_exec(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
+    const gchar *out;
+    g_autofree guchar *decoded = NULL;
+    int64_t pid, exitcode;
+    gsize len;
+
+    /* exec 'echo foo bar' */
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
+                 " 'path': '/bin/echo', 'arg': [ '-n', '\" test_str \"' ],"
+                 " 'capture-output': true } }");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+    val = qdict_get_qdict(ret, "return");
+    pid = qdict_get_int(val, "pid");
+    g_assert_cmpint(pid, >, 0);
+    qobject_unref(ret);
+
+    ret = wait_for_guest_exec_completion(fixture->fd, pid);
+
     /* check stdout */
+    val = qdict_get_qdict(ret, "return");
     exitcode = qdict_get_int(val, "exitcode");
     g_assert_cmpint(exitcode, ==, 0);
     out = qdict_get_str(val, "out-data");
@@ -800,6 +842,115 @@ static void test_qga_guest_exec(gconstpointer fix)
     g_assert_cmpint(len, ==, 12);
     g_assert_cmpstr((char *)decoded, ==, "\" test_str \"");
 }
+
+#if defined(G_OS_WIN32)
+static void test_qga_guest_exec_separated(gconstpointer fix)
+{
+}
+static void test_qga_guest_exec_merged(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
+    const gchar *class, *desc;
+    g_autofree guchar *decoded = NULL;
+
+    /* exec 'echo foo bar' */
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
+                 " 'path': 'echo',"
+                 " 'arg': [ 'execution never reaches here' ],"
+                 " 'capture-output': 'merged' } }");
+
+    g_assert_nonnull(ret);
+    val = qdict_get_qdict(ret, "error");
+    g_assert_nonnull(val);
+    class = qdict_get_str(val, "class");
+    desc = qdict_get_str(val, "desc");
+    g_assert_cmpstr(class, ==, "GenericError");
+    g_assert_cmpint(strlen(desc), >, 0);
+}
+#else
+static void test_qga_guest_exec_separated(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
+    const gchar *out, *err;
+    g_autofree guchar *out_decoded = NULL;
+    g_autofree guchar *err_decoded = NULL;
+    int64_t pid, exitcode;
+    gsize len;
+
+    /* exec 'echo foo bar' */
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
+                 " 'path': '/bin/bash',"
+                 " 'arg': [ '-c', 'for i in $(seq 4); do if (( $i %% 2 )); then echo stdout; else echo stderr 1>&2; fi; done;' ],"
+                 " 'capture-output': 'separated' } }");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+    val = qdict_get_qdict(ret, "return");
+    pid = qdict_get_int(val, "pid");
+    g_assert_cmpint(pid, >, 0);
+    qobject_unref(ret);
+
+    ret = wait_for_guest_exec_completion(fixture->fd, pid);
+
+    val = qdict_get_qdict(ret, "return");
+    exitcode = qdict_get_int(val, "exitcode");
+    g_assert_cmpint(exitcode, ==, 0);
+
+    /* check stdout */
+    out = qdict_get_str(val, "out-data");
+    out_decoded = g_base64_decode(out, &len);
+    g_assert_cmpint(len, ==, 14);
+    g_assert_cmpstr((char *)out_decoded, ==, "stdout\nstdout\n");
+
+    /* check stderr */
+    err = qdict_get_try_str(val, "err-data");
+    err_decoded = g_base64_decode(err, &len);
+    g_assert_cmpint(len, ==, 14);
+    g_assert_cmpstr((char *)err_decoded, ==, "stderr\nstderr\n");
+}
+
+static void test_qga_guest_exec_merged(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
+    const gchar *out, *err;
+    g_autofree guchar *decoded = NULL;
+    int64_t pid, exitcode;
+    gsize len;
+
+    /* exec 'echo foo bar' */
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
+                 " 'path': '/bin/bash',"
+                 " 'arg': [ '-c', 'for i in $(seq 4); do if (( $i %% 2 )); then echo stdout; else echo stderr 1>&2; fi; done;' ],"
+                 " 'capture-output': 'merged' } }");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+    val = qdict_get_qdict(ret, "return");
+    pid = qdict_get_int(val, "pid");
+    g_assert_cmpint(pid, >, 0);
+    qobject_unref(ret);
+
+    ret = wait_for_guest_exec_completion(fixture->fd, pid);
+
+    val = qdict_get_qdict(ret, "return");
+    exitcode = qdict_get_int(val, "exitcode");
+    g_assert_cmpint(exitcode, ==, 0);
+
+    /* check stdout */
+    out = qdict_get_str(val, "out-data");
+    decoded = g_base64_decode(out, &len);
+    g_assert_cmpint(len, ==, 28);
+    g_assert_cmpstr((char *)decoded, ==, "stdout\nstderr\nstdout\nstderr\n");
+
+    /* check stderr */
+    err = qdict_get_try_str(val, "err-data");
+    g_assert_null(err);
+}
+#endif
 
 static void test_qga_guest_exec_invalid(gconstpointer fix)
 {
@@ -969,8 +1120,13 @@ int main(int argc, char **argv)
                          test_qga_fsfreeze_status);
 
     g_test_add_data_func("/qga/blockedrpcs", NULL, test_qga_blockedrpcs);
+    g_test_add_data_func("/qga/allowedrpcs", NULL, test_qga_allowedrpcs);
     g_test_add_data_func("/qga/config", NULL, test_qga_config);
     g_test_add_data_func("/qga/guest-exec", &fix, test_qga_guest_exec);
+    g_test_add_data_func("/qga/guest-exec-separated", &fix,
+                         test_qga_guest_exec_separated);
+    g_test_add_data_func("/qga/guest-exec-merged", &fix,
+                         test_qga_guest_exec_merged);
     g_test_add_data_func("/qga/guest-exec-invalid", &fix,
                          test_qga_guest_exec_invalid);
     g_test_add_data_func("/qga/guest-get-osinfo", &fix,

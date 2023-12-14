@@ -125,7 +125,7 @@ static void i82374_realize(DeviceState *dev, Error **errp)
     I82374State *s = I82374(dev);
     ISABus *isa_bus = isa_bus_from_device(ISA_DEVICE(dev));
 
-    if (isa_get_dma(isa_bus, 0)) {
+    if (isa_bus_get_dma(isa_bus, 0)) {
         error_setg(errp, "DMA already initialized on ISA bus");
         return;
     }

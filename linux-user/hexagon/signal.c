@@ -39,15 +39,12 @@ struct target_sigcontext {
     target_ulong m0;
     target_ulong m1;
     target_ulong usr;
-    target_ulong p3_0;
     target_ulong gp;
     target_ulong ugp;
     target_ulong pc;
     target_ulong cause;
     target_ulong badva;
-    target_ulong pad1;
-    target_ulong pad2;
-    target_ulong pad3;
+    target_ulong pred[NUM_PREGS];
 };
 
 struct target_ucontext {
@@ -118,10 +115,14 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUHexagonState *env)
     __put_user(env->gpr[HEX_REG_M0], &sc->m0);
     __put_user(env->gpr[HEX_REG_M1], &sc->m1);
     __put_user(env->gpr[HEX_REG_USR], &sc->usr);
-    __put_user(env->gpr[HEX_REG_P3_0], &sc->p3_0);
     __put_user(env->gpr[HEX_REG_GP], &sc->gp);
     __put_user(env->gpr[HEX_REG_UGP], &sc->ugp);
     __put_user(env->gpr[HEX_REG_PC], &sc->pc);
+
+    int i;
+    for (i = 0; i < NUM_PREGS; i++) {
+        __put_user(env->pred[i], &(sc->pred[i]));
+    }
 }
 
 static void setup_ucontext(struct target_ucontext *uc,
@@ -230,10 +231,14 @@ static void restore_sigcontext(CPUHexagonState *env,
     __get_user(env->gpr[HEX_REG_M0], &sc->m0);
     __get_user(env->gpr[HEX_REG_M1], &sc->m1);
     __get_user(env->gpr[HEX_REG_USR], &sc->usr);
-    __get_user(env->gpr[HEX_REG_P3_0], &sc->p3_0);
     __get_user(env->gpr[HEX_REG_GP], &sc->gp);
     __get_user(env->gpr[HEX_REG_UGP], &sc->ugp);
     __get_user(env->gpr[HEX_REG_PC], &sc->pc);
+
+    int i;
+    for (i = 0; i < NUM_PREGS; i++) {
+        __get_user(env->pred[i], &(sc->pred[i]));
+    }
 }
 
 static void restore_ucontext(CPUHexagonState *env, struct target_ucontext *uc)

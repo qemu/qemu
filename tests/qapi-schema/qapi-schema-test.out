@@ -105,6 +105,35 @@ alternate UserDefAlternate
 object UserDefC
     member string1: str optional=False
     member string2: str optional=False
+enum TestUnionEnum
+    member value-a
+    member value-b
+enum TestUnionEnumA
+    member value-a1
+    member value-a2
+object TestUnionTypeA1
+    member integer: int optional=False
+    member name: str optional=False
+object TestUnionTypeA2
+    member integer: int optional=False
+    member size: int optional=False
+object q_obj_TestUnionTypeA-base
+    member type-a: TestUnionEnumA optional=False
+object TestUnionTypeA
+    base q_obj_TestUnionTypeA-base
+    tag type-a
+    case value-a1: TestUnionTypeA1
+    case value-a2: TestUnionTypeA2
+object TestUnionTypeB
+    member integer: int optional=False
+    member onoff: bool optional=False
+object q_obj_TestUnionInUnion-base
+    member type: TestUnionEnum optional=False
+object TestUnionInUnion
+    base q_obj_TestUnionInUnion-base
+    tag type
+    case value-a: TestUnionTypeA
+    case value-b: TestUnionTypeB
 alternate AltEnumBool
     tag type
     case e: EnumOne
@@ -246,13 +275,15 @@ command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> None
 object TestIfStruct
     member foo: int optional=False
     member bar: int optional=False
-        if TEST_IF_STRUCT_BAR
+        if TEST_IF_STRUCT_MEMBER
+    member baz: str optional=True
+        if TEST_IF_STRUCT_MEMBER
     if TEST_IF_STRUCT
 enum TestIfEnum
     member foo
     member bar
-        if TEST_IF_ENUM_BAR
-    if TEST_IF_ENUM
+        if TEST_IF_ENUM_MEMBER
+    if TEST_IF_UNION
 object q_obj_TestIfUnion-base
     member type: TestIfEnum optional=False
     if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
@@ -261,7 +292,7 @@ object TestIfUnion
     tag type
     case foo: TestStruct
     case bar: UserDefZero
-        if TEST_IF_ENUM_BAR
+        if TEST_IF_ENUM_MEMBER
     if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 object q_obj_test-if-union-cmd-arg
     member union-cmd-arg: TestIfUnion optional=False
@@ -273,7 +304,7 @@ alternate TestIfAlternate
     tag type
     case foo: int
     case bar: TestStruct
-        if TEST_IF_ALT_BAR
+        if TEST_IF_ALT_MEMBER
     if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
 object q_obj_test-if-alternate-cmd-arg
     member alt-cmd-arg: TestIfAlternate optional=False
@@ -281,25 +312,13 @@ object q_obj_test-if-alternate-cmd-arg
 command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
-object q_obj_test-if-cmd-arg
-    member foo: TestIfStruct optional=False
-    member bar: TestIfEnum optional=False
-        if TEST_IF_CMD_BAR
-    if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
-command test-if-cmd q_obj_test-if-cmd-arg -> UserDefThree
-    gen=True success_response=True boxed=False oob=False preconfig=False
+command test-if-cmd TestIfStruct -> UserDefThree
+    gen=True success_response=True boxed=True oob=False preconfig=False
     if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-cmd-return-def-three None -> UserDefThree
     gen=True success_response=True boxed=False oob=False preconfig=False
-array TestIfEnumList TestIfEnum
-    if TEST_IF_ENUM
-object q_obj_TEST_IF_EVENT-arg
-    member foo: TestIfStruct optional=False
-    member bar: TestIfEnumList optional=False
-        if TEST_IF_EVT_BAR
-    if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
-event TEST_IF_EVENT q_obj_TEST_IF_EVENT-arg
-    boxed=False
+event TEST_IF_EVENT TestIfStruct
+    boxed=True
     if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
 event TEST_IF_EVENT2 None
     boxed=False

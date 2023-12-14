@@ -25,7 +25,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "hw/ipmi/ipmi_kcs.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
 #define TYPE_PCI_IPMI_KCS "pci-ipmi-kcs"

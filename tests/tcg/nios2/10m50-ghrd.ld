@@ -44,11 +44,15 @@ SECTIONS
     .data : ALIGN(4) {
         *(.shdata)
         *(.data .data.* .gnu.linkonce.d.*)
-        . = ALIGN(4);
-        _gp = ABSOLUTE(. + 0x8000);
-        *(.got.plt) *(.got)
-        *(.lit8)
-        *(.lit4)
+    } >ram :RAM
+
+    HIDDEN (_gp = ALIGN(16) + 0x7ff0);
+    PROVIDE_HIDDEN (gp = _gp);
+    .got : ALIGN(4) {
+        *(.got.plt) *(.igot.plt) *(.got) *(.igot)
+    } >ram :RAM
+
+    .sdata : ALIGN(4) {
         *(.sdata .sdata.* .gnu.linkonce.s.*)
     } >ram :RAM
 

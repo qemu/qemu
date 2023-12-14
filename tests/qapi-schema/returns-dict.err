@@ -1,2 +1,2 @@
 returns-dict.json: In command 'oops':
-returns-dict.json:2: 'returns' should be a type name
+returns-dict.json:2: 'returns' should be a type name or array

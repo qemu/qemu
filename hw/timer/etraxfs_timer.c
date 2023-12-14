@@ -236,7 +236,7 @@ static void watchdog_hit(void *opaque)
 {
     ETRAXTimerState *t = opaque;
     if (t->wd_hits == 0) {
-        /* real hw gives a single tick before reseting but we are
+        /* real hw gives a single tick before resetting but we are
            a bit friendlier to compensate for our slower execution.  */
         ptimer_set_count(t->ptimer_wd, 10);
         ptimer_run(t->ptimer_wd, 1);
@@ -324,8 +324,7 @@ timer_write(void *opaque, hwaddr addr,
             t->rw_ack_intr = 0;
             break;
         default:
-            printf ("%s " TARGET_FMT_plx " %x\n",
-                __func__, addr, value);
+            printf("%s " HWADDR_FMT_plx " %x\n", __func__, addr, value);
             break;
     }
 }

@@ -19,7 +19,7 @@ typedef struct SysemuCPUOps {
     /**
      * @get_memory_mapping: Callback for obtaining the memory mappings.
      */
-    void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
+    bool (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
     /**
      * @get_paging_enabled: Callback for inquiring whether paging is enabled.
@@ -53,25 +53,25 @@ typedef struct SysemuCPUOps {
      * 32-bit VM coredump.
      */
     int (*write_elf32_note)(WriteCoreDumpFunction f, CPUState *cpu,
-                            int cpuid, void *opaque);
+                            int cpuid, DumpState *s);
     /**
      * @write_elf64_note: Callback for writing a CPU-specific ELF note to a
      * 64-bit VM coredump.
      */
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
-                            int cpuid, void *opaque);
+                            int cpuid, DumpState *s);
     /**
      * @write_elf32_qemunote: Callback for writing a CPU- and QEMU-specific ELF
      * note to a 32-bit VM coredump.
      */
     int (*write_elf32_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
-                                void *opaque);
+                                DumpState *s);
     /**
      * @write_elf64_qemunote: Callback for writing a CPU- and QEMU-specific ELF
      * note to a 64-bit VM coredump.
      */
     int (*write_elf64_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
-                                void *opaque);
+                                DumpState *s);
     /**
      * @virtio_is_big_endian: Callback to return %true if a CPU which supports
      * runtime configurable endianness is currently big-endian.

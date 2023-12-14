@@ -12,6 +12,7 @@
 #ifndef QEMU_SGX_EPC_H
 #define QEMU_SGX_EPC_H
 
+#include "hw/qdev-core.h"
 #include "hw/i386/hostmem-epc.h"
 
 #define TYPE_SGX_EPC "sgx-epc"

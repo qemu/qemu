@@ -212,7 +212,7 @@ typedef struct QEMU_PACKED VHDXLogDataSector {
     uint32_t    sequence_high;          /* 4 MSB of 8 byte sequence_number */
     uint8_t     data[4084];             /* raw data, bytes 8-4091 (inclusive).
                                            see the data descriptor field for the
-                                           other mising bytes */
+                                           other missing bytes */
     uint32_t    sequence_low;           /* 4 LSB of 8 byte sequence_number */
 } VHDXLogDataSector;
 
@@ -257,7 +257,7 @@ typedef struct QEMU_PACKED VHDXMetadataTableHeader {
 
 #define VHDX_META_FLAGS_IS_USER         0x01    /* max 1024 entries */
 #define VHDX_META_FLAGS_IS_VIRTUAL_DISK 0x02    /* virtual disk metadata if set,
-                                                   otherwise file metdata */
+                                                   otherwise file metadata */
 #define VHDX_META_FLAGS_IS_REQUIRED     0x04    /* parse must understand this
                                                    entry to open the file */
 typedef struct QEMU_PACKED VHDXMetadataTableEntry {
@@ -401,8 +401,9 @@ typedef struct BDRVVHDXState {
 
 void vhdx_guid_generate(MSGUID *guid);
 
-int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s, bool rw,
-                        MSGUID *log_guid);
+int GRAPH_RDLOCK
+vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s, bool rw,
+                    MSGUID *log_guid);
 
 uint32_t vhdx_update_checksum(uint8_t *buf, size_t size, int crc_offset);
 uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
@@ -410,11 +411,13 @@ uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
 
 bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 
-int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
-                   Error **errp);
+int GRAPH_RDLOCK
+vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
+               Error **errp);
 
-int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
-                             void *data, uint32_t length, uint64_t offset);
+int coroutine_fn GRAPH_RDLOCK
+vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
+                         void *data, uint32_t length, uint64_t offset);
 
 static inline void leguid_to_cpus(MSGUID *guid)
 {
@@ -446,6 +449,8 @@ void vhdx_metadata_header_le_import(VHDXMetadataTableHeader *hdr);
 void vhdx_metadata_header_le_export(VHDXMetadataTableHeader *hdr);
 void vhdx_metadata_entry_le_import(VHDXMetadataTableEntry *e);
 void vhdx_metadata_entry_le_export(VHDXMetadataTableEntry *e);
-int vhdx_user_visible_write(BlockDriverState *bs, BDRVVHDXState *s);
+
+int GRAPH_RDLOCK
+vhdx_user_visible_write(BlockDriverState *bs, BDRVVHDXState *s);
 
 #endif

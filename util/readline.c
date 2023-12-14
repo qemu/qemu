@@ -286,6 +286,14 @@ void readline_add_completion(ReadLineState *rs, const char *str)
     }
 }
 
+void readline_add_completion_of(ReadLineState *rs,
+                                const char *pfx, const char *str)
+{
+    if (!strncmp(str, pfx, strlen(pfx))) {
+        readline_add_completion(rs, str);
+    }
+}
+
 void readline_set_completion_index(ReadLineState *rs, int index)
 {
     rs->completion_index = index;

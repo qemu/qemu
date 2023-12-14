@@ -16,3 +16,13 @@ config SYNDBG
     bool
     default y
     depends on VMBUS
+
+config HV_BALLOON_SUPPORTED
+    bool
+
+config HV_BALLOON
+    bool
+    default y
+    depends on VMBUS
+    depends on HV_BALLOON_POSSIBLE
+    depends on HV_BALLOON_SUPPORTED

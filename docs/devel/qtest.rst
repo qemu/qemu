@@ -81,7 +81,7 @@ which you can run manually.
 QTest Protocol
 --------------
 
-.. kernel-doc:: softmmu/qtest.c
+.. kernel-doc:: system/qtest.c
    :doc: QTest Protocol
 
 

@@ -1,0 +1,14 @@
+# This work is licensed under the terms of the GNU LGPL, version 2 or later.
+# See the COPYING.LIB file in the top-level directory.
+
+# Diagnose fields where the format refers to a field defined in the
+# pattern and the pattern refers to a field defined in the format.
+# This is theoretically not impossible to implement, but is not
+# supported by the script at this time.
+&abcd a b c d
+%refa        a:3
+%refc        c:4
+# Format defines 'c' and sets 'b' to an indirect ref to 'a'
+@fmt ........ ........ ........ c:8 &abcd b=%refa
+# Pattern defines 'a' and sets 'd' to an indirect ref to 'c'
+insn 00000000 00000000 00000000 ........ @fmt d=%refc a=6

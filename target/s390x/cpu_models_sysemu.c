@@ -210,7 +210,6 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
         qobject_unref(qdict);
     } else {
         info->props = QOBJECT(qdict);
-        info->has_props = true;
     }
 }
 

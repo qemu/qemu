@@ -10,6 +10,7 @@
 #ifndef ACCEL_OPS_H
 #define ACCEL_OPS_H
 
+#include "exec/cpu-common.h"
 #include "qom/object.h"
 
 #define ACCEL_OPS_SUFFIX "-ops"
@@ -29,6 +30,7 @@ struct AccelOpsClass {
     void (*ops_init)(AccelOpsClass *ops);
 
     bool (*cpus_are_resettable)(void);
+    void (*cpu_reset_hold)(CPUState *cpu);
 
     void (*create_vcpu_thread)(CPUState *cpu); /* MANDATORY NON-NULL */
     void (*kick_vcpu_thread)(CPUState *cpu);
@@ -44,6 +46,13 @@ struct AccelOpsClass {
 
     int64_t (*get_virtual_clock)(void);
     int64_t (*get_elapsed_ticks)(void);
+
+    /* gdbstub hooks */
+    bool (*supports_guest_debug)(void);
+    int (*update_guest_debug)(CPUState *cpu);
+    int (*insert_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
+    int (*remove_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
+    void (*remove_all_breakpoints)(CPUState *cpu);
 };
 
 #endif /* ACCEL_OPS_H */

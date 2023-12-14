@@ -22,6 +22,9 @@
 #ifndef HW_SIFIVE_SPI_H
 #define HW_SIFIVE_SPI_H
 
+#include "qemu/fifo8.h"
+#include "hw/sysbus.h"
+
 #define SIFIVE_SPI_REG_NUM  (0x78 / 4)
 
 #define TYPE_SIFIVE_SPI "sifive.spi"

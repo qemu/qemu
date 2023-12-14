@@ -21,7 +21,7 @@
 #ifndef QEMU_MSI_H
 #define QEMU_MSI_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 struct MSIMessage {
     uint64_t address;
@@ -33,6 +33,7 @@ extern bool msi_nonbroken;
 void msi_set_message(PCIDevice *dev, MSIMessage msg);
 MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector);
 bool msi_enabled(const PCIDevice *dev);
+void msi_set_enabled(PCIDevice *dev);
 int msi_init(struct PCIDevice *dev, uint8_t offset,
              unsigned int nr_vectors, bool msi64bit,
              bool msi_per_vector_mask, Error **errp);

@@ -28,7 +28,6 @@
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "internal.h"
 #include "mmu-book3s-v3.h"
@@ -112,27 +111,6 @@ static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
     env->last_way = way;
 }
 
-/* Generic TLB search function for PowerPC embedded implementations */
-static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
-                             uint32_t pid)
-{
-    ppcemb_tlb_t *tlb;
-    hwaddr raddr;
-    int i, ret;
-
-    /* Default return value is no match */
-    ret = -1;
-    for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb.tlbe[i];
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
-            ret = i;
-            break;
-        }
-    }
-
-    return ret;
-}
-
 /* Helpers specific to PowerPC 40x implementations */
 static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
 {
@@ -167,15 +145,6 @@ static void booke206_flush_tlb(CPUPPCState *env, int flags,
 
     tlb_flush(env_cpu(env));
 }
-
-static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                target_ulong eaddr, MMUAccessType access_type,
-                                int type)
-{
-    return get_physical_address_wtlb(env, ctx, eaddr, access_type, type, 0);
-}
-
-
 
 /*****************************************************************************/
 /* BATs management */
@@ -643,7 +612,7 @@ target_ulong helper_rac(CPUPPCState *env, target_ulong addr)
      */
     nb_BATs = env->nb_BATs;
     env->nb_BATs = 0;
-    if (get_physical_address(env, &ctx, addr, 0, ACCESS_INT) == 0) {
+    if (get_physical_address_wtlb(env, &ctx, addr, 0, ACCESS_INT, 0) == 0) {
         ret = ctx.raddr;
     }
     env->nb_BATs = nb_BATs;
@@ -826,7 +795,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         tlb->prot &= ~PAGE_VALID;
     }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
-    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " HWADDR_FMT_plx
                   " EPN " TARGET_FMT_lx " size " TARGET_FMT_lx
                   " prot %c%c%c%c PID %d\n", __func__,
                   (int)entry, tlb->RPN, tlb->EPN, tlb->size,
@@ -864,7 +833,7 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
     if (val & PPC4XX_TLBLO_WR) {
         tlb->prot |= PAGE_WRITE;
     }
-    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " HWADDR_FMT_plx
                   " EPN " TARGET_FMT_lx
                   " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
                   (int)entry, tlb->RPN, tlb->EPN, tlb->size,

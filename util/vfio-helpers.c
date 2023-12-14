@@ -106,15 +106,17 @@ struct QEMUVFIOState {
  */
 static char *sysfs_find_group_file(const char *device, Error **errp)
 {
+    g_autoptr(GError) gerr = NULL;
     char *sysfs_link;
     char *sysfs_group;
     char *p;
     char *path = NULL;
 
     sysfs_link = g_strdup_printf("/sys/bus/pci/devices/%s/iommu_group", device);
-    sysfs_group = g_malloc0(PATH_MAX);
-    if (readlink(sysfs_link, sysfs_group, PATH_MAX - 1) == -1) {
-        error_setg_errno(errp, errno, "Failed to find iommu group sysfs path");
+    sysfs_group = g_file_read_link(sysfs_link, &gerr);
+    if (gerr) {
+        error_setg(errp, "Failed to find iommu group sysfs path: %s",
+                   gerr->message);
         goto out;
     }
     p = strrchr(sysfs_group, '/');
@@ -240,9 +242,9 @@ static int qemu_vfio_pci_read_config(QEMUVFIOState *s, void *buf,
                                     s->config_region_info.offset,
                                     s->config_region_info.size);
     assert(QEMU_IS_ALIGNED(s->config_region_info.offset + ofs, size));
-    do {
-        ret = pread(s->device, buf, size, s->config_region_info.offset + ofs);
-    } while (ret == -1 && errno == EINTR);
+    ret = RETRY_ON_EINTR(
+        pread(s->device, buf, size, s->config_region_info.offset + ofs)
+    );
     return ret == size ? 0 : -errno;
 }
 
@@ -254,9 +256,9 @@ static int qemu_vfio_pci_write_config(QEMUVFIOState *s, void *buf, int size, int
                                      s->config_region_info.offset,
                                      s->config_region_info.size);
     assert(QEMU_IS_ALIGNED(s->config_region_info.offset + ofs, size));
-    do {
-        ret = pwrite(s->device, buf, size, s->config_region_info.offset + ofs);
-    } while (ret == -1 && errno == EINTR);
+    ret = RETRY_ON_EINTR(
+        pwrite(s->device, buf, size, s->config_region_info.offset + ofs)
+    );
     return ret == size ? 0 : -errno;
 }
 
@@ -271,7 +273,7 @@ static void collect_usable_iova_ranges(QEMUVFIOState *s, void *buf)
         if (!cap->next) {
             return;
         }
-        cap = (struct vfio_info_cap_header *)(buf + cap->next);
+        cap = buf + cap->next;
     }
 
     cap_iova_range = (struct vfio_iommu_type1_info_cap_iova_range *)cap;
@@ -847,10 +849,13 @@ void qemu_vfio_close(QEMUVFIOState *s)
     if (!s) {
         return;
     }
+
+    ram_block_notifier_remove(&s->ram_notifier);
+
     for (i = 0; i < s->nr_mappings; ++i) {
         qemu_vfio_undo_mapping(s, &s->mappings[i], NULL);
     }
-    ram_block_notifier_remove(&s->ram_notifier);
+
     g_free(s->usable_iova_ranges);
     s->nb_iova_ranges = 0;
     qemu_vfio_reset(s);

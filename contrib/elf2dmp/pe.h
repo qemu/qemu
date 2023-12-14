@@ -33,75 +33,90 @@ typedef struct IMAGE_DOS_HEADER {
 } __attribute__ ((packed)) IMAGE_DOS_HEADER;
 
 typedef struct IMAGE_FILE_HEADER {
-  uint16_t  Machine;
-  uint16_t  NumberOfSections;
-  uint32_t  TimeDateStamp;
-  uint32_t  PointerToSymbolTable;
-  uint32_t  NumberOfSymbols;
-  uint16_t  SizeOfOptionalHeader;
-  uint16_t  Characteristics;
+    uint16_t  Machine;
+    uint16_t  NumberOfSections;
+    uint32_t  TimeDateStamp;
+    uint32_t  PointerToSymbolTable;
+    uint32_t  NumberOfSymbols;
+    uint16_t  SizeOfOptionalHeader;
+    uint16_t  Characteristics;
 } __attribute__ ((packed)) IMAGE_FILE_HEADER;
 
 typedef struct IMAGE_DATA_DIRECTORY {
-  uint32_t VirtualAddress;
-  uint32_t Size;
+    uint32_t VirtualAddress;
+    uint32_t Size;
 } __attribute__ ((packed)) IMAGE_DATA_DIRECTORY;
 
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES 16
 
 typedef struct IMAGE_OPTIONAL_HEADER64 {
-  uint16_t  Magic; /* 0x20b */
-  uint8_t   MajorLinkerVersion;
-  uint8_t   MinorLinkerVersion;
-  uint32_t  SizeOfCode;
-  uint32_t  SizeOfInitializedData;
-  uint32_t  SizeOfUninitializedData;
-  uint32_t  AddressOfEntryPoint;
-  uint32_t  BaseOfCode;
-  uint64_t  ImageBase;
-  uint32_t  SectionAlignment;
-  uint32_t  FileAlignment;
-  uint16_t  MajorOperatingSystemVersion;
-  uint16_t  MinorOperatingSystemVersion;
-  uint16_t  MajorImageVersion;
-  uint16_t  MinorImageVersion;
-  uint16_t  MajorSubsystemVersion;
-  uint16_t  MinorSubsystemVersion;
-  uint32_t  Win32VersionValue;
-  uint32_t  SizeOfImage;
-  uint32_t  SizeOfHeaders;
-  uint32_t  CheckSum;
-  uint16_t  Subsystem;
-  uint16_t  DllCharacteristics;
-  uint64_t  SizeOfStackReserve;
-  uint64_t  SizeOfStackCommit;
-  uint64_t  SizeOfHeapReserve;
-  uint64_t  SizeOfHeapCommit;
-  uint32_t  LoaderFlags;
-  uint32_t  NumberOfRvaAndSizes;
-  IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+    uint16_t  Magic; /* 0x20b */
+    uint8_t   MajorLinkerVersion;
+    uint8_t   MinorLinkerVersion;
+    uint32_t  SizeOfCode;
+    uint32_t  SizeOfInitializedData;
+    uint32_t  SizeOfUninitializedData;
+    uint32_t  AddressOfEntryPoint;
+    uint32_t  BaseOfCode;
+    uint64_t  ImageBase;
+    uint32_t  SectionAlignment;
+    uint32_t  FileAlignment;
+    uint16_t  MajorOperatingSystemVersion;
+    uint16_t  MinorOperatingSystemVersion;
+    uint16_t  MajorImageVersion;
+    uint16_t  MinorImageVersion;
+    uint16_t  MajorSubsystemVersion;
+    uint16_t  MinorSubsystemVersion;
+    uint32_t  Win32VersionValue;
+    uint32_t  SizeOfImage;
+    uint32_t  SizeOfHeaders;
+    uint32_t  CheckSum;
+    uint16_t  Subsystem;
+    uint16_t  DllCharacteristics;
+    uint64_t  SizeOfStackReserve;
+    uint64_t  SizeOfStackCommit;
+    uint64_t  SizeOfHeapReserve;
+    uint64_t  SizeOfHeapCommit;
+    uint32_t  LoaderFlags;
+    uint32_t  NumberOfRvaAndSizes;
+    IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 } __attribute__ ((packed)) IMAGE_OPTIONAL_HEADER64;
 
 typedef struct IMAGE_NT_HEADERS64 {
-  uint32_t Signature;
-  IMAGE_FILE_HEADER FileHeader;
-  IMAGE_OPTIONAL_HEADER64 OptionalHeader;
+    uint32_t Signature;
+    IMAGE_FILE_HEADER FileHeader;
+    IMAGE_OPTIONAL_HEADER64 OptionalHeader;
 } __attribute__ ((packed)) IMAGE_NT_HEADERS64;
 
+typedef struct IMAGE_EXPORT_DIRECTORY {
+    uint32_t    Characteristics;
+    uint32_t    TimeDateStamp;
+    uint16_t    MajorVersion;
+    uint16_t    MinorVersion;
+    uint32_t    Name;
+    uint32_t    Base;
+    uint32_t    NumberOfFunctions;
+    uint32_t    NumberOfNames;
+    uint32_t    AddressOfFunctions;
+    uint32_t    AddressOfNames;
+    uint32_t    AddressOfNameOrdinals;
+} __attribute__ ((packed)) IMAGE_EXPORT_DIRECTORY;
+
 typedef struct IMAGE_DEBUG_DIRECTORY {
-  uint32_t Characteristics;
-  uint32_t TimeDateStamp;
-  uint16_t MajorVersion;
-  uint16_t MinorVersion;
-  uint32_t Type;
-  uint32_t SizeOfData;
-  uint32_t AddressOfRawData;
-  uint32_t PointerToRawData;
+    uint32_t Characteristics;
+    uint32_t TimeDateStamp;
+    uint16_t MajorVersion;
+    uint16_t MinorVersion;
+    uint32_t Type;
+    uint32_t SizeOfData;
+    uint32_t AddressOfRawData;
+    uint32_t PointerToRawData;
 } __attribute__ ((packed)) IMAGE_DEBUG_DIRECTORY;
 
 #define IMAGE_DEBUG_TYPE_CODEVIEW   2
 #endif
 
+#define IMAGE_FILE_EXPORT_DIRECTORY 0
 #define IMAGE_FILE_DEBUG_DIRECTORY  6
 
 typedef struct guid_t {

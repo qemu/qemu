@@ -1010,7 +1010,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
          * Speeds are defined in linux/usb/ch9.h, file not included
          * due to name conflicts.
          */
-        int rc = ioctl(hostfd, USBDEVFS_GET_SPEED, NULL);
+        rc = ioctl(hostfd, USBDEVFS_GET_SPEED, NULL);
         switch (rc) {
         case 1: /* low */
             libusb_speed = LIBUSB_SPEED_LOW;
@@ -1141,7 +1141,8 @@ static void usb_host_nodev_bh(void *opaque)
 static void usb_host_nodev(USBHostDevice *s)
 {
     if (!s->bh_nodev) {
-        s->bh_nodev = qemu_bh_new(usb_host_nodev_bh, s);
+        s->bh_nodev = qemu_bh_new_guarded(usb_host_nodev_bh, s,
+                                          &DEVICE(s)->mem_reentrancy_guard);
     }
     qemu_bh_schedule(s->bh_nodev);
 }
@@ -1739,7 +1740,8 @@ static int usb_host_post_load(void *opaque, int version_id)
     USBHostDevice *dev = opaque;
 
     if (!dev->bh_postld) {
-        dev->bh_postld = qemu_bh_new(usb_host_post_load_bh, dev);
+        dev->bh_postld = qemu_bh_new_guarded(usb_host_post_load_bh, dev,
+                                             &DEVICE(dev)->mem_reentrancy_guard);
     }
     qemu_bh_schedule(dev->bh_postld);
     dev->bh_postld_pending = true;
@@ -1837,7 +1839,6 @@ static void usb_host_auto_check(void *unused)
     struct USBAutoFilter *f;
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
-    int unconnected = 0;
     int i, n;
 
     if (usb_host_init() != 0) {
@@ -1897,9 +1898,6 @@ static void usb_host_auto_check(void *unused)
         libusb_free_device_list(devs, 1);
 
         QTAILQ_FOREACH(s, &hostdevs, next) {
-            if (s->dh == NULL) {
-                unconnected++;
-            }
             if (s->seen == 0) {
                 if (s->dh) {
                     usb_host_close(s);
@@ -1908,17 +1906,6 @@ static void usb_host_auto_check(void *unused)
             }
             s->seen = 0;
         }
-
-#if 0
-        if (unconnected == 0) {
-            /* nothing to watch */
-            if (usb_auto_timer) {
-                timer_del(usb_auto_timer);
-                trace_usb_host_auto_scan_disabled();
-            }
-            return;
-        }
-#endif
     }
 
     if (!usb_vmstate) {

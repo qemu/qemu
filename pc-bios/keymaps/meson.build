@@ -1,5 +1,5 @@
 keymaps = {
-  'ar': '-l ar',
+  'ar': '-l ara',
   'bepo': '-l fr -v dvorak',
   'cz': '-l cz',
   'da': '-l dk',
@@ -33,12 +33,11 @@ keymaps = {
   'tr': '-l tr',
 }
 
-if meson.is_cross_build() or 'CONFIG_XKBCOMMON' not in config_host
+if meson.is_cross_build() or not xkbcommon.found()
   native_qemu_keymap = find_program('qemu-keymap', required: false, disabler: true)
 else
   native_qemu_keymap = qemu_keymap
 endif
-cp = find_program('cp')
 
 if native_qemu_keymap.found()
   t = []
@@ -48,7 +47,7 @@ if native_qemu_keymap.found()
                        build_by_default: true,
                        output: km,
                        command: [native_qemu_keymap, '-f', '@OUTPUT@', args.split()],
-                       install: true,
+                       install: have_system,
                        install_dir: qemu_datadir / 'keymaps')
   endforeach
 
@@ -57,4 +56,6 @@ else
   install_data(keymaps.keys(), install_dir: qemu_datadir / 'keymaps')
 endif
 
-install_data(['sl', 'sv'], install_dir: qemu_datadir / 'keymaps')
+if have_system
+  install_data(['sl', 'sv'], install_dir: qemu_datadir / 'keymaps')
+endif

@@ -15,9 +15,10 @@
 
 #include "exec/memory.h"
 #include "hw/irq.h"
+#include "hw/nubus/nubus.h"
+#include "hw/sysbus.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "qom/object.h"
 
 typedef enum  {
     MACFB_DISPLAY_APPLE_21_COLOR = 0,

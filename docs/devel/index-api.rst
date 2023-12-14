@@ -11,4 +11,8 @@ generated from in-code annotations to function prototypes.
    loads-stores
    memory
    modules
+   pci
+   qom-api
+   qdev-api
    ui
+   zoned-storage

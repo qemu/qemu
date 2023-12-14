@@ -69,7 +69,7 @@ static void vhost_input_set_config(VirtIODevice *vdev,
 
     ret = vhost_dev_set_config(&vhi->vhost->dev, config_data,
                                0, sizeof(virtio_input_config),
-                               VHOST_SET_CONFIG_TYPE_MASTER);
+                               VHOST_SET_CONFIG_TYPE_FRONTEND);
     if (ret) {
         error_report("vhost-user-input: set device config space failed");
         return;

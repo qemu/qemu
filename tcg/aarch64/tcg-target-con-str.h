@@ -9,7 +9,6 @@
  * REGS(letter, register_mask)
  */
 REGS('r', ALL_GENERAL_REGS)
-REGS('l', ALL_QLDST_REGS)
 REGS('w', ALL_VECTOR_REGS)
 
 /*

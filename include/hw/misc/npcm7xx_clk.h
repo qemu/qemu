@@ -175,6 +175,6 @@ struct NPCM7xxCLKState {
 };
 
 #define TYPE_NPCM7XX_CLK "npcm7xx-clk"
-#define NPCM7XX_CLK(obj) OBJECT_CHECK(NPCM7xxCLKState, (obj), TYPE_NPCM7XX_CLK)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxCLKState, NPCM7XX_CLK)
 
 #endif /* NPCM7XX_CLK_H */

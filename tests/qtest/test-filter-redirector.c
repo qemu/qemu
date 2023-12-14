@@ -58,9 +58,6 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
-/* TODO actually test the results and get rid of this */
-#define qmp_discard_response(qs, ...) qobject_unref(qtest_qmp(qs, __VA_ARGS__))
-
 static void test_redirector_tx(void)
 {
     int backend_sock[2], recv_sock;
@@ -98,7 +95,7 @@ static void test_redirector_tx(void)
     g_assert_cmpint(recv_sock, !=, -1);
 
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp_discard_response(qts, "{ 'execute' : 'query-status'}");
+    qtest_qmp_assert_success(qts, "{ 'execute' : 'query-status'}");
 
     struct iovec iov[] = {
         {
@@ -121,6 +118,7 @@ static void test_redirector_tx(void)
     g_assert_cmpint(len, ==, sizeof(send_buf));
     recv_buf = g_malloc(len);
     ret = recv(recv_sock, recv_buf, len, 0);
+    g_assert_cmpint(ret, ==, len);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
     g_free(recv_buf);
@@ -176,7 +174,7 @@ static void test_redirector_rx(void)
     send_sock = unix_connect(sock_path1, NULL);
     g_assert_cmpint(send_sock, !=, -1);
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp_discard_response(qts, "{ 'execute' : 'query-status'}");
+    qtest_qmp_assert_success(qts, "{ 'execute' : 'query-status'}");
 
     ret = iov_send(send_sock, iov, 2, 0, sizeof(size) + sizeof(send_buf));
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));
@@ -188,6 +186,7 @@ static void test_redirector_rx(void)
     g_assert_cmpint(len, ==, sizeof(send_buf));
     recv_buf = g_malloc(len);
     ret = recv(backend_sock[0], recv_buf, len, 0);
+    g_assert_cmpint(ret, ==, len);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
     close(send_sock);

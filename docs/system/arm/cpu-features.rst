@@ -177,39 +177,32 @@ are named with the prefix "kvm-".  KVM VCPU features may be probed,
 enabled, and disabled in the same way as other CPU features.  Below is
 the list of KVM VCPU features and their descriptions.
 
-  kvm-no-adjvtime          By default kvm-no-adjvtime is disabled.  This
-                           means that by default the virtual time
-                           adjustment is enabled (vtime is not *not*
-                           adjusted).
+``kvm-no-adjvtime``
+  By default kvm-no-adjvtime is disabled.  This means that by default
+  the virtual time adjustment is enabled (vtime is not *not* adjusted).
 
-                           When virtual time adjustment is enabled each
-                           time the VM transitions back to running state
-                           the VCPU's virtual counter is updated to ensure
-                           stopped time is not counted.  This avoids time
-                           jumps surprising guest OSes and applications,
-                           as long as they use the virtual counter for
-                           timekeeping.  However it has the side effect of
-                           the virtual and physical counters diverging.
-                           All timekeeping based on the virtual counter
-                           will appear to lag behind any timekeeping that
-                           does not subtract VM stopped time.  The guest
-                           may resynchronize its virtual counter with
-                           other time sources as needed.
+  When virtual time adjustment is enabled each time the VM transitions
+  back to running state the VCPU's virtual counter is updated to
+  ensure stopped time is not counted.  This avoids time jumps
+  surprising guest OSes and applications, as long as they use the
+  virtual counter for timekeeping.  However it has the side effect of
+  the virtual and physical counters diverging.  All timekeeping based
+  on the virtual counter will appear to lag behind any timekeeping
+  that does not subtract VM stopped time.  The guest may resynchronize
+  its virtual counter with other time sources as needed.
 
-                           Enable kvm-no-adjvtime to disable virtual time
-                           adjustment, also restoring the legacy (pre-5.0)
-                           behavior.
+  Enable kvm-no-adjvtime to disable virtual time adjustment, also
+  restoring the legacy (pre-5.0) behavior.
 
-  kvm-steal-time           Since v5.2, kvm-steal-time is enabled by
-                           default when KVM is enabled, the feature is
-                           supported, and the guest is 64-bit.
+``kvm-steal-time``
+  Since v5.2, kvm-steal-time is enabled by default when KVM is
+  enabled, the feature is supported, and the guest is 64-bit.
 
-                           When kvm-steal-time is enabled a 64-bit guest
-                           can account for time its CPUs were not running
-                           due to the host not scheduling the corresponding
-                           VCPU threads.  The accounting statistics may
-                           influence the guest scheduler behavior and/or be
-                           exposed to the guest userspace.
+  When kvm-steal-time is enabled a 64-bit guest can account for time
+  its CPUs were not running due to the host not scheduling the
+  corresponding VCPU threads.  The accounting statistics may influence
+  the guest scheduler behavior and/or be exposed to the guest
+  userspace.
 
 TCG VCPU Features
 =================
@@ -217,16 +210,20 @@ TCG VCPU Features
 TCG VCPU features are CPU features that are specific to TCG.
 Below is the list of TCG VCPU features and their descriptions.
 
-  pauth-impdef             When ``FEAT_Pauth`` is enabled, either the
-                           *impdef* (Implementation Defined) algorithm
-                           is enabled or the *architected* QARMA algorithm
-                           is enabled.  By default the impdef algorithm
-                           is disabled, and QARMA is enabled.
+``pauth``
+  Enable or disable ``FEAT_Pauth`` entirely.
 
-                           The architected QARMA algorithm has good
-                           cryptographic properties, but can be quite slow
-                           to emulate.  The impdef algorithm used by QEMU
-                           is non-cryptographic but significantly faster.
+``pauth-impdef``
+  When ``pauth`` is enabled, select the QEMU implementation defined algorithm.
+
+``pauth-qarma3``
+  When ``pauth`` is enabled, select the architected QARMA3 algorithm.
+
+Without either ``pauth-impdef`` or ``pauth-qarma3`` enabled,
+the architected QARMA5 algorithm is used.  The architected QARMA5
+and QARMA3 algorithms have good cryptographic properties, but can
+be quite slow to emulate.  The impdef algorithm used by QEMU is
+non-cryptographic but significantly faster.
 
 SVE CPU Properties
 ==================
@@ -433,7 +430,7 @@ additional constraints on the set of vector lengths supported by SME.
 SME User-mode Default Vector Length Property
 --------------------------------------------
 
-For qemu-aarch64, the cpu propery ``sme-default-vector-length=N`` is
+For qemu-aarch64, the cpu property ``sme-default-vector-length=N`` is
 defined to mirror the Linux kernel parameter file
 ``/proc/sys/abi/sme_default_vector_length``.  The default length, ``N``,
 is in units of bytes and must be between 16 and 8192.
@@ -443,3 +440,26 @@ As with ``sve-default-vector-length``, if the default length is larger
 than the maximum vector length enabled, the actual vector length will
 be reduced.  If this property is set to ``-1`` then the default vector
 length is set to the maximum possible length.
+
+RME CPU Properties
+==================
+
+The status of RME support with QEMU is experimental.  At this time we
+only support RME within the CPU proper, not within the SMMU or GIC.
+The feature is enabled by the CPU property ``x-rme``, with the ``x-``
+prefix present as a reminder of the experimental status, and defaults off.
+
+The method for enabling RME will change in some future QEMU release
+without notice or backward compatibility.
+
+RME Level 0 GPT Size Property
+-----------------------------
+
+To aid firmware developers in testing different possible CPU
+configurations, ``x-l0gptsz=S`` may be used to specify the value
+to encode into ``GPCCR_EL3.L0GPTSZ``, a read-only field that
+specifies the size of the Level 0 Granule Protection Table.
+Legal values for ``S`` are 30, 34, 36, and 39; the default is 30.
+
+As with ``x-rme``, the ``x-l0gptsz`` property may be renamed or
+removed in some future QEMU release.

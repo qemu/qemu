@@ -57,7 +57,7 @@ cases. See below for a description of the supported disk formats.
 *OUTPUT_FMT* is the destination format.
 
 *OPTIONS* is a comma separated list of format specific options in a
-name=value format. Use ``-o ?`` for an overview of the options supported
+name=value format. Use ``-o help`` for an overview of the options supported
 by the used format or see the format descriptions below for details.
 
 *SNAPSHOT_PARAM* is param used for internal snapshot, format is
@@ -106,7 +106,11 @@ by the used format or see the format descriptions below for details.
 
 .. option:: -c
 
-  Indicates that target image must be compressed (qcow format only).
+  Indicates that target image must be compressed (qcow/qcow2 and vmdk with
+  streamOptimized subformat only).
+
+  For qcow2, the compression algorithm can be specified with the ``-o
+  compression_type=...`` option (see below).
 
 .. option:: -h
 
@@ -663,7 +667,7 @@ Command description:
 
   List, apply, create or delete snapshots in image *FILENAME*.
 
-.. option:: rebase [--object OBJECTDEF] [--image-opts] [-U] [-q] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-p] [-u] -b BACKING_FILE [-F BACKING_FMT] FILENAME
+.. option:: rebase [--object OBJECTDEF] [--image-opts] [-U] [-q] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-p] [-u] [-c] -b BACKING_FILE [-F BACKING_FMT] FILENAME
 
   Changes the backing file of an image. Only the formats ``qcow2`` and
   ``qed`` support changing the backing file.
@@ -690,7 +694,9 @@ Command description:
 
     In order to achieve this, any clusters that differ between
     *BACKING_FILE* and the old backing file of *FILENAME* are merged
-    into *FILENAME* before actually changing the backing file.
+    into *FILENAME* before actually changing the backing file. With the
+    ``-c`` option specified, the clusters which are being merged (but not
+    the entire *FILENAME* image) are compressed when written.
 
     Note that the safe mode is an expensive operation, comparable to
     converting an image. It only works if the old backing file still
@@ -776,7 +782,7 @@ Supported image file formats:
 
   QEMU image format, the most versatile format. Use it to have smaller
   images (useful if your filesystem does not supports holes, for example
-  on Windows), optional AES encryption, zlib based compression and
+  on Windows), optional AES encryption, zlib or zstd based compression and
   support of multiple VM snapshots.
 
   Supported options:
@@ -793,6 +799,17 @@ Supported image file formats:
 
   ``backing_fmt``
     Image format of the base image
+
+  ``compression_type``
+    This option configures which compression algorithm will be used for
+    compressed clusters on the image. Note that setting this option doesn't yet
+    cause the image to actually receive compressed writes. It is most commonly
+    used with the ``-c`` option of ``qemu-img convert``, but can also be used
+    with the ``compress`` filter driver or backup block jobs with compression
+    enabled.
+
+    Valid values are ``zlib`` and ``zstd``. For images that use
+    ``compat=0.10``, only ``zlib`` compression is available.
 
   ``encryption``
     If this option is set to ``on``, the image is encrypted with

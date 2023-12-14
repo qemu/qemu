@@ -109,7 +109,12 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
 
-        gnutls_psk_set_server_credentials_file(creds->data.server, pskfile);
+        ret = gnutls_psk_set_server_credentials_file(creds->data.server, pskfile);
+        if (ret < 0) {
+            error_setg(errp, "Cannot set PSK server credentials: %s",
+                       gnutls_strerror(ret));
+            goto cleanup;
+        }
         gnutls_psk_set_server_dh_params(creds->data.server,
                                         creds->parent_obj.dh_params);
     } else {
@@ -135,8 +140,13 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
 
-        gnutls_psk_set_client_credentials(creds->data.client,
-                                          username, &key, GNUTLS_PSK_KEY_HEX);
+        ret = gnutls_psk_set_client_credentials(creds->data.client,
+                                                username, &key, GNUTLS_PSK_KEY_HEX);
+        if (ret < 0) {
+            error_setg(errp, "Cannot set PSK client credentials: %s",
+                       gnutls_strerror(ret));
+            goto cleanup;
+        }
     }
 
     rv = 0;

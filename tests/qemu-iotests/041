@@ -65,9 +65,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_complete(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    target=self.qmp_target)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -79,9 +78,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_cancel(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    target=self.qmp_target)
 
         self.cancel_and_wait(force=True)
         result = self.vm.qmp('query-block')
@@ -90,9 +88,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_cancel_after_ready(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    target=self.qmp_target)
 
         self.wait_ready_and_cancel()
         result = self.vm.qmp('query-block')
@@ -104,9 +101,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_pause(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    target=self.qmp_target)
 
         self.pause_job('drive0')
 
@@ -117,8 +113,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
-        result = self.vm.qmp('block-job-resume', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-resume', device='drive0')
 
         self.complete_and_wait()
         self.vm.shutdown()
@@ -129,9 +124,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         # A small buffer is rounded up automatically
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             buf_size=4096, target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    buf_size=4096, target=self.qmp_target)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -145,9 +139,8 @@ class TestSingleDrive(iotests.QMPTestCase):
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
                         % (self.image_len, self.image_len), target_img)
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             buf_size=65536, mode='existing', target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    buf_size=65536, mode='existing', target=self.qmp_target)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -162,9 +155,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
                         % (self.image_len, backing_img),
                  '-F', 'raw', target_img)
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             mode='existing', target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    mode='existing', target=self.qmp_target)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -178,9 +170,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_implicit_node(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, device='drive0', sync='full',
+                    target=self.qmp_target)
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
@@ -236,8 +227,7 @@ class TestSingleBlockdev(TestSingleDrive):
         args = {'driver': iotests.imgfmt,
                 'node-name': self.qmp_target,
                 'file': { 'filename': target_img, 'driver': 'file' } }
-        result = self.vm.qmp("blockdev-add", **args)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd("blockdev-add", args)
 
     def test_mirror_to_self(self):
         result = self.vm.qmp(self.qmp_cmd, job_id='job0',
@@ -254,10 +244,9 @@ class TestSingleBlockdev(TestSingleDrive):
             result = self.vm.qmp('block_resize', node_name=node, size=65536)
             self.assert_qmp(result, 'error/class', 'GenericError')
 
-        result = self.vm.qmp(self.qmp_cmd, job_id='job0', device='drive0',
-                             sync='full', target=self.qmp_target,
-                             auto_finalize=False, auto_dismiss=False)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, job_id='job0', device='drive0',
+                    sync='full', target=self.qmp_target,
+                    auto_finalize=False, auto_dismiss=False)
 
         result = self.vm.run_job('job0', auto_finalize=False,
                                  pre_finalize=pre_finalize)
@@ -270,14 +259,12 @@ class TestSingleBlockdev(TestSingleDrive):
         self.do_test_resize(None, self.qmp_target)
 
     def do_test_target_size(self, size):
-        result = self.vm.qmp('block_resize', node_name=self.qmp_target,
-                             size=size)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block_resize', node_name=self.qmp_target,
+                    size=size)
 
-        result = self.vm.qmp(self.qmp_cmd, job_id='job0',
-                             device='drive0', sync='full', auto_dismiss=False,
-                             target=self.qmp_target)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd(self.qmp_cmd, job_id='job0',
+                    device='drive0', sync='full', auto_dismiss=False,
+                    target=self.qmp_target)
 
         result = self.vm.run_job('job0')
         self.assertEqual(result, 'Source and target image have different sizes')
@@ -337,9 +324,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
 
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=%s' % backing_img, '-F', 'raw', target_img)
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=target_img)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -353,9 +339,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
 
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=%s' % backing_img, '-F', 'raw', target_img)
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=target_img)
 
         self.wait_ready_and_cancel()
         result = self.vm.qmp('query-block')
@@ -374,9 +359,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
                         % (TestMirrorNoBacking.image_len, target_backing_img),
                  '-F', iotests.imgfmt, target_img)
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=target_img)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -409,9 +393,8 @@ class TestMirrorResized(iotests.QMPTestCase):
     def test_complete_top(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='top',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='top',
+                    target=target_img)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -423,9 +406,8 @@ class TestMirrorResized(iotests.QMPTestCase):
     def test_complete_full(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img)
 
         self.complete_and_wait()
         result = self.vm.qmp('query-block')
@@ -488,9 +470,8 @@ new_state = "1"
     def test_report_read(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img)
 
         completed = False
         error = False
@@ -516,9 +497,8 @@ new_state = "1"
     def test_ignore_read(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img, on_source_error='ignore')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img, on_source_error='ignore')
 
         event = self.vm.get_qmp_event(wait=True)
         while event['event'] == 'JOB_STATUS_CHANGE':
@@ -541,10 +521,9 @@ new_state = "1"
         qemu_img('create', '-f', iotests.imgfmt,
                  '-ocluster_size=131072,backing_file=%s' %(backing_img),
                  '-F', 'raw', target_img)
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='top',
-                             on_source_error='ignore',
-                             mode='existing', target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='top',
+                    on_source_error='ignore',
+                    mode='existing', target=target_img)
 
         event = self.vm.get_qmp_event(wait=True)
         while event['event'] == 'JOB_STATUS_CHANGE':
@@ -568,9 +547,8 @@ new_state = "1"
     def test_stop_read(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img, on_source_error='stop')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img, on_source_error='stop')
 
         error = False
         ready = False
@@ -590,8 +568,7 @@ new_state = "1"
                     self.assert_qmp(result, 'return[0]/status', 'paused')
                     self.assert_qmp(result, 'return[0]/io-status', 'failed')
 
-                    result = self.vm.qmp('block-job-resume', device='drive0')
-                    self.assert_qmp(result, 'return', {})
+                    self.vm.cmd('block-job-resume', device='drive0')
                     error = True
                 elif event['event'] == 'BLOCK_JOB_READY':
                     self.assertTrue(error, 'job completed unexpectedly')
@@ -656,9 +633,8 @@ new_state = "1"
     def test_report_write(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=self.target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=self.target_img)
 
         completed = False
         error = False
@@ -682,10 +658,9 @@ new_state = "1"
     def test_ignore_write(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=self.target_img,
-                             on_target_error='ignore')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=self.target_img,
+                    on_target_error='ignore')
 
         event = self.vm.event_wait(name='BLOCK_JOB_ERROR')
         self.assertEqual(event['event'], 'BLOCK_JOB_ERROR')
@@ -698,10 +673,9 @@ new_state = "1"
     def test_stop_write(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=self.target_img,
-                             on_target_error='stop')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    mode='existing', target=self.target_img,
+                    on_target_error='stop')
 
         error = False
         ready = False
@@ -721,8 +695,7 @@ new_state = "1"
                     self.assert_qmp(result, 'return[0]/status', 'paused')
                     self.assert_qmp(result, 'return[0]/io-status', 'failed')
 
-                    result = self.vm.qmp('block-job-resume', device='drive0')
-                    self.assert_qmp(result, 'return', {})
+                    self.vm.cmd('block-job-resume', device='drive0')
 
                     result = self.vm.qmp('query-block-jobs')
                     self.assertIn(result['return'][0]['status'], ['running', 'ready'])
@@ -755,17 +728,15 @@ class TestSetSpeed(iotests.QMPTestCase):
     def test_set_speed(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img)
 
         # Default speed is 0
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 0)
 
-        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=8 * 1024 * 1024)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-set-speed', device='drive0', speed=8 * 1024 * 1024)
 
         # Ensure the speed we set was accepted
         result = self.vm.qmp('query-block-jobs')
@@ -775,9 +746,8 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.wait_ready_and_cancel()
 
         # Check setting speed in drive-mirror works
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img, speed=4*1024*1024)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img, speed=4*1024*1024)
 
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/device', 'drive0')
@@ -794,9 +764,8 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0', sync='full',
+                    target=target_img)
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
@@ -811,13 +780,12 @@ class TestUnbackedSource(iotests.QMPTestCase):
                  str(TestUnbackedSource.image_len))
         self.vm = iotests.VM()
         self.vm.launch()
-        result = self.vm.qmp('blockdev-add', node_name='drive0',
-                             driver=iotests.imgfmt,
-                             file={
-                                 'driver': 'file',
-                                 'filename': test_img,
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', node_name='drive0',
+                    driver=iotests.imgfmt,
+                    file={
+                        'driver': 'file',
+                        'filename': test_img,
+                    })
 
     def tearDown(self):
         self.vm.shutdown()
@@ -826,28 +794,25 @@ class TestUnbackedSource(iotests.QMPTestCase):
 
     def test_absolute_paths_full(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
-                             sync='full', target=target_img,
-                             mode='absolute-paths')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='drive0', device='drive0',
+                    sync='full', target=target_img,
+                    mode='absolute-paths')
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
     def test_absolute_paths_top(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
-                             sync='top', target=target_img,
-                             mode='absolute-paths')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='drive0', device='drive0',
+                    sync='top', target=target_img,
+                    mode='absolute-paths')
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
     def test_absolute_paths_none(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
-                             sync='none', target=target_img,
-                             mode='absolute-paths')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='drive0', device='drive0',
+                    sync='none', target=target_img,
+                    mode='absolute-paths')
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
@@ -857,14 +822,12 @@ class TestUnbackedSource(iotests.QMPTestCase):
         qemu_io('-c', 'write -P 42 0 64k', target_img)
 
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
-                             sync='full', target=target_img, mode='existing')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='drive0', device='drive0',
+                    sync='full', target=target_img, mode='existing')
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('blockdev-del', node_name='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='drive0')
 
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
@@ -874,26 +837,22 @@ class TestUnbackedSource(iotests.QMPTestCase):
                  str(self.image_len))
         qemu_io('-c', 'write -P 42 0 64k', target_img)
 
-        result = self.vm.qmp('blockdev-add', node_name='target',
-                             driver=iotests.imgfmt,
-                             file={
-                                 'driver': 'file',
-                                 'filename': target_img,
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', node_name='target',
+                    driver=iotests.imgfmt,
+                    file={
+                        'driver': 'file',
+                        'filename': target_img,
+                    })
 
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('blockdev-mirror', job_id='drive0', device='drive0',
-                             sync='full', target='target')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror', job_id='drive0', device='drive0',
+                    sync='full', target='target')
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('blockdev-del', node_name='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='drive0')
 
-        result = self.vm.qmp('blockdev-del', node_name='target')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-del', node_name='target')
 
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
@@ -918,10 +877,9 @@ class TestGranularity(iotests.QMPTestCase):
 
     def test_granularity(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', device='drive0',
-                             sync='full', target=target_img,
-                             mode='absolute-paths', granularity=8192)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', device='drive0',
+                    sync='full', target=target_img,
+                    mode='absolute-paths', granularity=8192)
 
         event = self.vm.get_qmp_event(wait=60.0)
         while event['event'] == 'JOB_STATUS_CHANGE':
@@ -963,8 +921,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         #assemble the quorum block device from the individual files
         args = { "driver": "quorum", "node-name": "quorum0",
                  "vote-threshold": 2, "children": [ "img0", "img1", "img2" ] }
-        result = self.vm.qmp("blockdev-add", **args)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd("blockdev-add", args)
 
 
     def tearDown(self):
@@ -978,10 +935,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
                 pass
 
     def test_complete(self):
-        result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
-                             sync='full', node_name="repair0", replaces="img1",
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='job0', device='quorum0',
+                    sync='full', node_name="repair0", replaces="img1",
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
         self.complete_and_wait(drive="job0")
         self.assert_has_block_node("repair0", quorum_repair_img)
@@ -991,10 +947,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
                         'target image does not match source after mirroring')
 
     def test_cancel(self):
-        result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
-                             sync='full', node_name="repair0", replaces="img1",
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='job0', device='quorum0',
+                    sync='full', node_name="repair0", replaces="img1",
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
         self.cancel_and_wait(drive="job0", force=True)
         # here we check that the last registered quorum file has not been
@@ -1002,10 +957,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.assert_has_block_node(None, quorum_img3)
 
     def test_cancel_after_ready(self):
-        result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
-                             sync='full', node_name="repair0", replaces="img1",
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='job0', device='quorum0',
+                    sync='full', node_name="repair0", replaces="img1",
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
         self.wait_ready_and_cancel(drive="job0")
         # here we check that the last registered quorum file has not been
@@ -1016,10 +970,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
                         'target image does not match source after mirroring')
 
     def test_pause(self):
-        result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
-                             sync='full', node_name="repair0", replaces="img1",
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='job0', device='quorum0',
+                    sync='full', node_name="repair0", replaces="img1",
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
         self.pause_job('job0')
 
@@ -1030,8 +983,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
-        result = self.vm.qmp('block-job-resume', device='job0')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('block-job-resume', device='job0')
 
         self.complete_and_wait(drive="job0")
         self.vm.shutdown()
@@ -1084,19 +1036,18 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_after_a_quorum_snapshot(self):
-        result = self.vm.qmp('blockdev-snapshot-sync', node_name='img1',
-                             snapshot_file=quorum_snapshot_file,
-                             snapshot_node_name="snap1");
+        self.vm.cmd('blockdev-snapshot-sync', node_name='img1',
+                    snapshot_file=quorum_snapshot_file,
+                    snapshot_node_name="snap1")
 
         result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
                              sync='full', node_name='repair0', replaces="img1",
                              target=quorum_repair_img, format=iotests.imgfmt)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        result = self.vm.qmp('drive-mirror', job_id='job0', device='quorum0',
-                             sync='full', node_name='repair0', replaces="snap1",
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='job0', device='quorum0',
+                    sync='full', node_name='repair0', replaces="snap1",
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
         self.complete_and_wait('job0')
         self.assert_has_block_node("repair0", quorum_repair_img)
@@ -1107,15 +1058,13 @@ class TestRepairQuorum(iotests.QMPTestCase):
         Check that we cannot replace a Quorum child when it has other
         parents.
         """
-        result = self.vm.qmp('nbd-server-start',
-                             addr={
-                                 'type': 'unix',
-                                 'data': {'path': nbd_sock_path}
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-start',
+                    addr={
+                        'type': 'unix',
+                        'data': {'path': nbd_sock_path}
+                    })
 
-        result = self.vm.qmp('nbd-server-add', device='img1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-add', device='img1')
 
         result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
                              sync='full', node_name='repair0', replaces='img1',
@@ -1130,20 +1079,17 @@ class TestRepairQuorum(iotests.QMPTestCase):
         The same as test_with_other_parent(), but add the NBD server
         only when the mirror job is already running.
         """
-        result = self.vm.qmp('nbd-server-start',
-                             addr={
-                                 'type': 'unix',
-                                 'data': {'path': nbd_sock_path}
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-start',
+                    addr={
+                        'type': 'unix',
+                        'data': {'path': nbd_sock_path}
+                    })
 
-        result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
-                             sync='full', node_name='repair0', replaces='img1',
-                             target=quorum_repair_img, format=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('drive-mirror', job_id='mirror', device='quorum0',
+                    sync='full', node_name='repair0', replaces='img1',
+                    target=quorum_repair_img, format=iotests.imgfmt)
 
-        result = self.vm.qmp('nbd-server-add', device='img1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('nbd-server-add', device='img1')
 
         # The full error message goes to stderr, we will check it later
         self.complete_and_wait('mirror',
@@ -1199,9 +1145,8 @@ class TestOrphanedSource(iotests.QMPTestCase):
     def test_success(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('blockdev-mirror', job_id='job', device='src',
-                             sync='full', target='dest')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror', job_id='job', device='src',
+                    sync='full', target='dest')
 
         self.complete_and_wait('job')
 
@@ -1217,27 +1162,24 @@ class TestOrphanedSource(iotests.QMPTestCase):
 
         # Unshare consistent-read on the target
         # (The mirror job does not care)
-        result = self.vm.qmp('blockdev-add',
-                             driver='blkdebug',
-                             node_name='dest-perm',
-                             image='dest',
-                             unshare_child_perms=['consistent-read'])
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    driver='blkdebug',
+                    node_name='dest-perm',
+                    image='dest',
+                    unshare_child_perms=['consistent-read'])
 
-        result = self.vm.qmp('blockdev-mirror', job_id='job', device='src',
-                             sync='full', target='dest',
-                             filter_node_name='mirror-filter')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror', job_id='job', device='src',
+                    sync='full', target='dest',
+                    filter_node_name='mirror-filter')
 
         # Require consistent-read on the source
         # (We can only add this node once the job has started, or it
         # will complain that it does not want to run on non-root nodes)
-        result = self.vm.qmp('blockdev-add',
-                             driver='blkdebug',
-                             node_name='src-perm',
-                             image='src',
-                             take_child_perms=['consistent-read'])
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    driver='blkdebug',
+                    node_name='src-perm',
+                    image='src',
+                    take_child_perms=['consistent-read'])
 
         # While completing, mirror will attempt to replace src by
         # dest, which must fail because src-perm requires
@@ -1277,26 +1219,23 @@ class TestReplaces(iotests.QMPTestCase):
         """
         Check that we can replace filter nodes.
         """
-        result = self.vm.qmp('blockdev-add', **{
-                                 'driver': 'copy-on-read',
-                                 'node-name': 'filter0',
-                                 'file': {
-                                     'driver': 'copy-on-read',
-                                     'node-name': 'filter1',
-                                     'file': {
-                                         'driver': 'null-co'
-                                     }
-                                 }
-                             })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', {
+                        'driver': 'copy-on-read',
+                        'node-name': 'filter0',
+                        'file': {
+                            'driver': 'copy-on-read',
+                            'node-name': 'filter1',
+                            'file': {
+                                'driver': 'null-co'
+                            }
+                        }
+                    })
 
-        result = self.vm.qmp('blockdev-add',
-                             node_name='target', driver='null-co')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add',
+                    node_name='target', driver='null-co')
 
-        result = self.vm.qmp('blockdev-mirror', job_id='mirror', device='filter0',
-                             target='target', sync='full', replaces='filter1')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror', job_id='mirror', device='filter0',
+                    target='target', sync='full', replaces='filter1')
 
         self.complete_and_wait('mirror')
 
@@ -1318,16 +1257,15 @@ class TestFilters(iotests.QMPTestCase):
         self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
         self.vm.launch()
 
-        result = self.vm.qmp('blockdev-add', **{
-                                'node-name': 'target',
-                                'driver': iotests.imgfmt,
-                                'file': {
-                                    'driver': 'file',
-                                    'filename': target_img
-                                },
-                                'backing': None
-                            })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', {
+                        'node-name': 'target',
+                        'driver': iotests.imgfmt,
+                        'file': {
+                            'driver': 'file',
+                            'filename': target_img
+                        },
+                        'backing': None
+                    })
 
         self.filterless_chain = {
                 'node-name': 'source',
@@ -1354,19 +1292,17 @@ class TestFilters(iotests.QMPTestCase):
         os.remove(backing_img)
 
     def test_cor(self):
-        result = self.vm.qmp('blockdev-add', **{
-                                'node-name': 'filter',
-                                'driver': 'copy-on-read',
-                                'file': self.filterless_chain
-                            })
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', {
+                        'node-name': 'filter',
+                        'driver': 'copy-on-read',
+                        'file': self.filterless_chain
+                    })
 
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             device='filter',
-                             target='target',
-                             sync='top')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='filter',
+                    target='target',
+                    sync='top')
 
         self.complete_and_wait('mirror')
 
@@ -1383,23 +1319,20 @@ class TestFilters(iotests.QMPTestCase):
         assert target_map[1]['depth'] == 0
 
     def test_implicit_mirror_filter(self):
-        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', self.filterless_chain)
 
         # We need this so we can query from above the mirror node
-        result = self.vm.qmp('device_add',
-                             driver='scsi-hd',
-                             id='virtio',
-                             bus='vio-scsi.0',
-                             drive='source')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('device_add',
+                    driver='scsi-hd',
+                    id='virtio',
+                    bus='vio-scsi.0',
+                    drive='source')
 
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             device='source',
-                             target='target',
-                             sync='top')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    sync='top')
 
         # The mirror filter is now an implicit node, so it should be
         # invisible when querying the backing chain
@@ -1417,24 +1350,21 @@ class TestFilters(iotests.QMPTestCase):
     def test_explicit_mirror_filter(self):
         # Same test as above, but this time we give the mirror filter
         # a node-name so it will not be invisible
-        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-add', self.filterless_chain)
 
         # We need this so we can query from above the mirror node
-        result = self.vm.qmp('device_add',
-                             driver='scsi-hd',
-                             id='virtio',
-                             bus='vio-scsi.0',
-                             drive='source')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('device_add',
+                    driver='scsi-hd',
+                    id='virtio',
+                    bus='vio-scsi.0',
+                    drive='source')
 
-        result = self.vm.qmp('blockdev-mirror',
-                             job_id='mirror',
-                             device='source',
-                             target='target',
-                             sync='top',
-                             filter_node_name='mirror-filter')
-        self.assert_qmp(result, 'return', {})
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    sync='top',
+                    filter_node_name='mirror-filter')
 
         # With a node-name given to it, the mirror filter should now
         # be visible

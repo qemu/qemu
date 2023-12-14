@@ -1,3 +1,5 @@
+.. _QMP Ref:
+
 QEMU QMP Reference Manual
 =========================
 

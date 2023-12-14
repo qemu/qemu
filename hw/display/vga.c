@@ -26,11 +26,14 @@
 #include "qemu/units.h"
 #include "sysemu/reset.h"
 #include "qapi/error.h"
+#include "hw/core/cpu.h"
 #include "hw/display/vga.h"
+#include "hw/i386/x86.h"
 #include "hw/pci/pci.h"
 #include "vga_int.h"
 #include "vga_regs.h"
 #include "ui/pixel_ops.h"
+#include "ui/console.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen.h"
 #include "migration/vmstate.h"
@@ -874,7 +877,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
     uint32_t write_mask, bit_mask, set_mask;
 
 #ifdef DEBUG_VGA_MEM
-    printf("vga: [0x" TARGET_FMT_plx "] = 0x%02x\n", addr, val);
+    printf("vga: [0x" HWADDR_FMT_plx "] = 0x%02x\n", addr, val);
 #endif
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[VGA_GFX_MISC] >> 2) & 3;
@@ -908,7 +911,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             assert(addr < s->vram_size);
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
-            printf("vga: chain4: [0x" TARGET_FMT_plx "]\n", addr);
+            printf("vga: chain4: [0x" HWADDR_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
             memory_region_set_dirty(&s->vram, addr, 1);
@@ -924,7 +927,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             }
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
-            printf("vga: odd/even: [0x" TARGET_FMT_plx "]\n", addr);
+            printf("vga: odd/even: [0x" HWADDR_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
             memory_region_set_dirty(&s->vram, addr, 1);
@@ -1002,7 +1005,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) |
             (val & write_mask);
 #ifdef DEBUG_VGA_MEM
-        printf("vga: latch: [0x" TARGET_FMT_plx "] mask=0x%08x val=0x%08x\n",
+        printf("vga: latch: [0x" HWADDR_FMT_plx "] mask=0x%08x val=0x%08x\n",
                addr * 4, write_mask, val);
 #endif
         memory_region_set_dirty(&s->vram, addr << 2, sizeof(uint32_t));
@@ -2243,11 +2246,8 @@ bool vga_common_init(VGACommonState *s, Object *obj, Error **errp)
      * into a device attribute set by the machine/platform to remove
      * all target endian dependencies from this file.
      */
-#if TARGET_BIG_ENDIAN
-    s->default_endian_fb = true;
-#else
-    s->default_endian_fb = false;
-#endif
+    s->default_endian_fb = target_words_bigendian();
+
     vga_dirty_log_start(s);
 
     return true;
@@ -2262,11 +2262,15 @@ static const MemoryRegionPortio vga_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-static const MemoryRegionPortio vbe_portio_list[] = {
+static const MemoryRegionPortio vbe_portio_list_x86[] = {
     { 0, 1, 2, .read = vbe_ioport_read_index, .write = vbe_ioport_write_index },
-# ifdef TARGET_I386
     { 1, 1, 2, .read = vbe_ioport_read_data, .write = vbe_ioport_write_data },
-# endif
+    { 2, 1, 2, .read = vbe_ioport_read_data, .write = vbe_ioport_write_data },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionPortio vbe_portio_list_no_x86[] = {
+    { 0, 1, 2, .read = vbe_ioport_read_index, .write = vbe_ioport_write_index },
     { 2, 1, 2, .read = vbe_ioport_read_data, .write = vbe_ioport_write_data },
     PORTIO_END_OF_LIST(),
 };
@@ -2277,9 +2281,19 @@ MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vbe_ports)
 {
     MemoryRegion *vga_mem;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    /*
+     * We unfortunately need two VBE lists since non-x86 machines might
+     * not be able to do 16-bit accesses at unaligned addresses (0x1cf)
+     */
+    if (object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
+        *vbe_ports = vbe_portio_list_x86;
+    } else {
+        *vbe_ports = vbe_portio_list_no_x86;
+    }
 
     *vga_ports = vga_portio_list;
-    *vbe_ports = vbe_portio_list;
 
     vga_mem = g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, obj, &vga_mem_ops, s,

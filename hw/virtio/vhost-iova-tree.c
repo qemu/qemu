@@ -104,7 +104,7 @@ int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map)
  * @iova_tree: The vhost iova tree
  * @map: The map to remove
  */
-void vhost_iova_tree_remove(VhostIOVATree *iova_tree, const DMAMap *map)
+void vhost_iova_tree_remove(VhostIOVATree *iova_tree, DMAMap map)
 {
     iova_tree_remove(iova_tree->iova_taddr_map, map);
 }

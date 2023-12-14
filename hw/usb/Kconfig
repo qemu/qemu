@@ -36,7 +36,7 @@ config USB_XHCI
 
 config USB_XHCI_PCI
     bool
-    default y if PCI_DEVICES
+    default y if PCI_DEVICES || PCIE_DEVICES
     depends on PCI
     select USB_XHCI
 
@@ -136,5 +136,4 @@ config USB_DWC3
 
 config XLNX_USB_SUBSYS
     bool
-    default y if XLNX_VERSAL
     select USB_DWC3

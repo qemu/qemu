@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,16 +22,6 @@
 #include "hex_regs.h"
 #include "reg_fields.h"
 
-#ifdef QEMU_GENERATE
-#define READ_REG(dest, NUM)              gen_read_reg(dest, NUM)
-#else
-#define READ_REG(NUM)                    (env->gpr[(NUM)])
-#define READ_PREG(NUM)                   (env->pred[NUM])
-
-#define WRITE_RREG(NUM, VAL)             log_reg_write(env, NUM, VAL, slot)
-#define WRITE_PREG(NUM, VAL)             log_pred_write(env, NUM, VAL)
-#endif
-
 #define PCALIGN 4
 #define PCALIGN_MASK (PCALIGN - 1)
 
@@ -48,22 +38,23 @@
 #define TYPE_INT(X)          __builtin_types_compatible_p(typeof(X), int)
 #define TYPE_TCGV(X)         __builtin_types_compatible_p(typeof(X), TCGv)
 #define TYPE_TCGV_I64(X)     __builtin_types_compatible_p(typeof(X), TCGv_i64)
-
-#define SET_USR_FIELD_FUNC(X) \
-    __builtin_choose_expr(TYPE_INT(X), \
-        gen_set_usr_fieldi, \
-        __builtin_choose_expr(TYPE_TCGV(X), \
-            gen_set_usr_field, (void)0))
-#define SET_USR_FIELD(FIELD, VAL) \
-    SET_USR_FIELD_FUNC(VAL)(FIELD, VAL)
 #else
 #define GET_USR_FIELD(FIELD) \
     fEXTRACTU_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
                    reg_field_info[FIELD].offset)
 
 #define SET_USR_FIELD(FIELD, VAL) \
-    fINSERT_BITS(env->new_value[HEX_REG_USR], reg_field_info[FIELD].width, \
-                 reg_field_info[FIELD].offset, (VAL))
+    do { \
+        if (pkt_need_commit) { \
+            fINSERT_BITS(env->new_value_usr, \
+                        reg_field_info[FIELD].width, \
+                        reg_field_info[FIELD].offset, (VAL)); \
+        } else { \
+            fINSERT_BITS(env->gpr[HEX_REG_USR], \
+                        reg_field_info[FIELD].width, \
+                        reg_field_info[FIELD].offset, (VAL)); \
+        } \
+    } while (0)
 #endif
 
 #ifdef QEMU_GENERATE
@@ -94,9 +85,9 @@
  */
 #define CHECK_NOSHUF(VA, SIZE) \
     do { \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
             probe_noshuf_load(VA, SIZE, ctx->mem_idx); \
-            process_store(ctx, pkt, 1); \
+            process_store(ctx, 1); \
         } \
     } while (0)
 
@@ -105,49 +96,49 @@
         TCGLabel *label = gen_new_label(); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, PRED, 0, label); \
         GET_EA; \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
             probe_noshuf_load(EA, SIZE, ctx->mem_idx); \
         } \
         gen_set_label(label); \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
-            process_store(ctx, pkt, 1); \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
+            process_store(ctx, 1); \
         } \
     } while (0)
 
 #define MEM_LOAD1s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 1); \
-        tcg_gen_qemu_ld8s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_SB); \
     } while (0)
 #define MEM_LOAD1u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 1); \
-        tcg_gen_qemu_ld8u(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_UB); \
     } while (0)
 #define MEM_LOAD2s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 2); \
-        tcg_gen_qemu_ld16s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TESW); \
     } while (0)
 #define MEM_LOAD2u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 2); \
-        tcg_gen_qemu_ld16u(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TEUW); \
     } while (0)
 #define MEM_LOAD4s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 4); \
-        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TESL); \
     } while (0)
 #define MEM_LOAD4u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 4); \
-        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TEUL); \
     } while (0)
 #define MEM_LOAD8u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 8); \
-        tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_i64(DST, VA, ctx->mem_idx, MO_TEUQ); \
     } while (0)
 
 #define MEM_STORE1_FUNC(X) \
@@ -156,7 +147,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store1, (void)0))
 #define MEM_STORE1(VA, DATA, SLOT) \
-    MEM_STORE1_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE1_FUNC(DATA)(tcg_env, VA, DATA, SLOT)
 
 #define MEM_STORE2_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -164,7 +155,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store2, (void)0))
 #define MEM_STORE2(VA, DATA, SLOT) \
-    MEM_STORE2_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE2_FUNC(DATA)(tcg_env, VA, DATA, SLOT)
 
 #define MEM_STORE4_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -172,7 +163,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store4, (void)0))
 #define MEM_STORE4(VA, DATA, SLOT) \
-    MEM_STORE4_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE4_FUNC(DATA)(tcg_env, VA, DATA, SLOT)
 
 #define MEM_STORE8_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -180,43 +171,26 @@
         __builtin_choose_expr(TYPE_TCGV_I64(X), \
             gen_store8, (void)0))
 #define MEM_STORE8(VA, DATA, SLOT) \
-    MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE8_FUNC(DATA)(tcg_env, VA, DATA, SLOT)
 #else
-#define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, slot, VA))
-#define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, slot, VA))
-#define MEM_LOAD2s(VA) ((int16_t)mem_load2(env, slot, VA))
-#define MEM_LOAD2u(VA) ((uint16_t)mem_load2(env, slot, VA))
-#define MEM_LOAD4s(VA) ((int32_t)mem_load4(env, slot, VA))
-#define MEM_LOAD4u(VA) ((uint32_t)mem_load4(env, slot, VA))
-#define MEM_LOAD8s(VA) ((int64_t)mem_load8(env, slot, VA))
-#define MEM_LOAD8u(VA) ((uint64_t)mem_load8(env, slot, VA))
-
 #define MEM_STORE1(VA, DATA, SLOT) log_store32(env, VA, DATA, 1, SLOT)
 #define MEM_STORE2(VA, DATA, SLOT) log_store32(env, VA, DATA, 2, SLOT)
 #define MEM_STORE4(VA, DATA, SLOT) log_store32(env, VA, DATA, 4, SLOT)
 #define MEM_STORE8(VA, DATA, SLOT) log_store64(env, VA, DATA, 8, SLOT)
 #endif
 
-#define CANCEL cancel_slot(env, slot)
+#ifdef QEMU_GENERATE
+static inline void gen_cancel(uint32_t slot)
+{
+    tcg_gen_ori_tl(hex_slot_cancelled, hex_slot_cancelled, 1 << slot);
+}
+
+#define CANCEL gen_cancel(slot);
+#else
+#define CANCEL do { } while (0)
+#endif
 
 #define LOAD_CANCEL(EA) do { CANCEL; } while (0)
-
-#ifdef QEMU_GENERATE
-static inline void gen_pred_cancel(TCGv pred, int slot_num)
- {
-    TCGv slot_mask = tcg_temp_new();
-    TCGv tmp = tcg_temp_new();
-    TCGv zero = tcg_constant_tl(0);
-    tcg_gen_ori_tl(slot_mask, hex_slot_cancelled, 1 << slot_num);
-    tcg_gen_andi_tl(tmp, pred, 1);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
-                       slot_mask, hex_slot_cancelled);
-    tcg_temp_free(slot_mask);
-    tcg_temp_free(tmp);
-}
-#define PRED_LOAD_CANCEL(PRED, EA) \
-    gen_pred_cancel(PRED, insn->is_endloop ? 4 : insn->slot)
-#endif
 
 #define STORE_CANCEL(EA) { env->slot_cancelled |= (1 << slot); }
 
@@ -253,12 +227,8 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
 
 #ifdef QEMU_GENERATE
 #define fLSBNEW(PVAL)   tcg_gen_andi_tl(LSB, (PVAL), 1)
-#define fLSBNEW0        tcg_gen_andi_tl(LSB, hex_new_pred_value[0], 1)
-#define fLSBNEW1        tcg_gen_andi_tl(LSB, hex_new_pred_value[1], 1)
 #else
 #define fLSBNEW(PVAL)   ((PVAL) & 1)
-#define fLSBNEW0        (env->new_pred_value[0] & 1)
-#define fLSBNEW1        (env->new_pred_value[1] & 1)
 #endif
 
 #ifdef QEMU_GENERATE
@@ -367,81 +337,40 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     tcg_gen_deposit_tl(result, msb, lsb, 0, 7);
 
     tcg_gen_shli_tl(result, result, shift);
-
-    tcg_temp_free(msb);
-    tcg_temp_free(lsb);
-
     return result;
 }
-#define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
-#else
-#define fREAD_IREG(VAL) \
-    (fSXTN(11, 64, (((VAL) & 0xf0000000) >> 21) | ((VAL >> 17) & 0x7f)))
 #endif
 
-#define fREAD_LR() (READ_REG(HEX_REG_LR))
+#define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fWRITE_LR(A) WRITE_RREG(HEX_REG_LR, A)
-#define fWRITE_FP(A) WRITE_RREG(HEX_REG_FP, A)
-#define fWRITE_SP(A) WRITE_RREG(HEX_REG_SP, A)
-
-#define fREAD_SP() (READ_REG(HEX_REG_SP))
-#define fREAD_LC0 (READ_REG(HEX_REG_LC0))
-#define fREAD_LC1 (READ_REG(HEX_REG_LC1))
-#define fREAD_SA0 (READ_REG(HEX_REG_SA0))
-#define fREAD_SA1 (READ_REG(HEX_REG_SA1))
-#define fREAD_FP() (READ_REG(HEX_REG_FP))
+#define fREAD_SP() (env->gpr[HEX_REG_SP])
+#define fREAD_LC0 (env->gpr[HEX_REG_LC0])
+#define fREAD_LC1 (env->gpr[HEX_REG_LC1])
+#define fREAD_SA0 (env->gpr[HEX_REG_SA0])
+#define fREAD_SA1 (env->gpr[HEX_REG_SA1])
+#define fREAD_FP() (env->gpr[HEX_REG_FP])
 #ifdef FIXME
 /* Figure out how to get insn->extension_valid to helper */
 #define fREAD_GP() \
-    (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
+    (insn->extension_valid ? 0 : env->gpr[HEX_REG_GP])
 #else
-#define fREAD_GP() READ_REG(HEX_REG_GP)
+#define fREAD_GP() (env->gpr[HEX_REG_GP])
 #endif
-#define fREAD_PC() (READ_REG(HEX_REG_PC))
+#define fREAD_PC() (PC)
 
-#define fREAD_NPC() (env->next_PC & (0xfffffffe))
-
-#define fREAD_P0() (READ_PREG(0))
-#define fREAD_P3() (READ_PREG(3))
+#define fREAD_P0() (env->pred[0])
 
 #define fCHECK_PCALIGN(A)
 
-#define fWRITE_NPC(A) write_new_pc(env, A)
+#define fWRITE_NPC(A) write_new_pc(env, pkt_has_multi_cof != 0, A)
 
 #define fBRANCH(LOC, TYPE)          fWRITE_NPC(LOC)
 #define fJUMPR(REGNO, TARGET, TYPE) fBRANCH(TARGET, COF_TYPE_JUMPR)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
-#define fCALL(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALL); \
-    } while (0)
-#define fCALLR(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALLR); \
-    } while (0)
-#define fWRITE_LOOP_REGS0(START, COUNT) \
-    do { \
-        WRITE_RREG(HEX_REG_LC0, COUNT);  \
-        WRITE_RREG(HEX_REG_SA0, START); \
-    } while (0)
-#define fWRITE_LOOP_REGS1(START, COUNT) \
-    do { \
-        WRITE_RREG(HEX_REG_LC1, COUNT);  \
-        WRITE_RREG(HEX_REG_SA1, START);\
-    } while (0)
-#define fWRITE_LC0(VAL) WRITE_RREG(HEX_REG_LC0, VAL)
-#define fWRITE_LC1(VAL) WRITE_RREG(HEX_REG_LC1, VAL)
 
 #define fSET_OVERFLOW() SET_USR_FIELD(USR_OVF, 1)
 #define fSET_LPCFG(VAL) SET_USR_FIELD(USR_LPCFG, (VAL))
 #define fGET_LPCFG (GET_USR_FIELD(USR_LPCFG))
-#define fWRITE_P0(VAL) WRITE_PREG(0, VAL)
-#define fWRITE_P1(VAL) WRITE_PREG(1, VAL)
-#define fWRITE_P2(VAL) WRITE_PREG(2, VAL)
-#define fWRITE_P3(VAL) WRITE_PREG(3, VAL)
 #define fPART1(WORK) if (part1) { WORK; return; }
 #define fCAST4u(A) ((uint32_t)(A))
 #define fCAST4s(A) ((int32_t)(A))
@@ -503,7 +432,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
         TCGv tmp = tcg_temp_new(); \
         tcg_gen_shli_tl(tmp, REG2, SCALE); \
         tcg_gen_add_tl(EA, REG, tmp); \
-        tcg_temp_free(tmp); \
     } while (0)
 #define fEA_IRs(IMM, REG, SCALE) \
     do { \
@@ -593,13 +521,21 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef QEMU_GENERATE
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) MEM_LOAD##SIZE##SIGN(DST, EA)
 #else
+#define MEM_LOAD1 cpu_ldub_data_ra
+#define MEM_LOAD2 cpu_lduw_data_ra
+#define MEM_LOAD4 cpu_ldl_data_ra
+#define MEM_LOAD8 cpu_ldq_data_ra
+
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) \
-    DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE##SIGN(EA)
+    do { \
+        check_noshuf(env, pkt_has_store_s1, slot, EA, SIZE, GETPC()); \
+        DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(env, EA, GETPC()); \
+    } while (0)
 #endif
 
 #define fMEMOP(NUM, SIZE, SIGN, EA, FNTYPE, VALUE)
 
-#define fGET_FRAMEKEY() READ_REG(HEX_REG_FRAMEKEY)
+#define fGET_FRAMEKEY() (env->gpr[HEX_REG_FRAMEKEY])
 #define fFRAME_SCRAMBLE(VAL) ((VAL) ^ (fCAST8u(fGET_FRAMEKEY()) << 32))
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 
@@ -709,22 +645,14 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     fEXTRACTU_BITS(env->gpr[HEX_REG_##REG], \
                    reg_field_info[FIELD].width, \
                    reg_field_info[FIELD].offset)
-#define fGET_FIELD(VAL, FIELD)
-#define fSET_FIELD(VAL, FIELD, NEWVAL)
-#define fBARRIER()
-#define fSYNCH()
-#define fISYNC()
-#define fDCFETCH(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fICINVA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fL2FETCH(ADDR, HEIGHT, WIDTH, STRIDE, FLAGS)
-#define fDCCLEANA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fDCCLEANINVA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
 
-#define fDCZEROA(REG) do { env->dczero_addr = (REG); } while (0)
+#ifdef QEMU_GENERATE
+#define fDCZEROA(REG) \
+    do { \
+        ctx->dczero_addr = tcg_temp_new(); \
+        tcg_gen_mov_tl(ctx->dczero_addr, (REG)); \
+    } while (0)
+#endif
 
 #define fBRANCH_SPECULATE_STALL(DOTNEWVAL, JUMP_COND, SPEC_DIR, HINTBITNUM, \
                                 STRBITNUM) /* Nothing */

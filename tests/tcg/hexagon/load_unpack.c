@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,41 +31,22 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 int err;
 
-char buf[16] __attribute__((aligned(1 << 16)));
+#include "hex_test.h"
+
+int8_t buf[16] __attribute__((aligned(1 << 16)));
 
 void init_buf(void)
 {
-    int i;
-    for (i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         int sign = i % 2 == 0 ? 0x80 : 0;
         buf[i] = sign | (i + 1);
     }
 }
-
-void __check(int line, long long result, long long expect)
-{
-    if (result != expect) {
-        printf("ERROR at line %d: 0x%08llx != 0x%08llx\n",
-               line, result, expect);
-        err++;
-    }
-}
-
-#define check(RES, EXP) __check(__LINE__, RES, EXP)
-
-void __checkp(int line, void *p, void *expect)
-{
-    if (p != expect) {
-        printf("ERROR at line %d: 0x%p != 0x%p\n", line, p, expect);
-        err++;
-    }
-}
-
-#define checkp(RES, EXP) __checkp(__LINE__, RES, EXP)
 
 /*
  ****************************************************************************
@@ -87,24 +68,24 @@ void test_##NAME(void) \
     TYPE result; \
     init_buf(); \
     BxW_LOAD_io_##SIGN(result, buf, 0 * (SIZE)); \
-    check(result, (EXP1) | (EXT)); \
+    check64(result, (EXP1) | (EXT)); \
     BxW_LOAD_io_##SIGN(result, buf, 1 * (SIZE)); \
-    check(result, (EXP2) | (EXT)); \
+    check64(result, (EXP2) | (EXT)); \
     BxW_LOAD_io_##SIGN(result, buf, 2 * (SIZE)); \
-    check(result, (EXP3) | (EXT)); \
+    check64(result, (EXP3) | (EXT)); \
     BxW_LOAD_io_##SIGN(result, buf, 3 * (SIZE)); \
-    check(result, (EXP4) | (EXT)); \
+    check64(result, (EXP4) | (EXT)); \
 }
 
 
-TEST_io(loadbzw2_io, int, Z, 2, 0x00000000,
+TEST_io(loadbzw2_io, int32_t, Z, 2, 0x00000000,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_io(loadbsw2_io, int, S, 2, 0x0000ff00,
+TEST_io(loadbsw2_io, int32_t, S, 2, 0x0000ff00,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_io(loadbzw4_io, long long, Z,  4, 0x0000000000000000LL,
+TEST_io(loadbzw4_io, int64_t, Z,  4, 0x0000000000000000LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
-TEST_io(loadbsw4_io, long long, S,  4, 0x0000ff000000ff00LL,
+TEST_io(loadbsw4_io, int64_t, S,  4, 0x0000ff000000ff00LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
 
@@ -128,23 +109,23 @@ void test_##NAME(void) \
     TYPE result; \
     init_buf(); \
     BxW_LOAD_ur_##SIGN(result, (SHIFT), 0); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     BxW_LOAD_ur_##SIGN(result, (SHIFT), 1); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     BxW_LOAD_ur_##SIGN(result, (SHIFT), 2); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     BxW_LOAD_ur_##SIGN(result, (SHIFT), 3); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
 } \
 
-TEST_ur(loadbzw2_ur, int, Z, 1, 0x00000000,
+TEST_ur(loadbzw2_ur, int32_t, Z, 1, 0x00000000,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_ur(loadbsw2_ur, int, S, 1, 0x0000ff00,
+TEST_ur(loadbsw2_ur, int32_t, S, 1, 0x0000ff00,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_ur(loadbzw4_ur, long long, Z, 2, 0x0000000000000000LL,
+TEST_ur(loadbzw4_ur, int64_t, Z, 2, 0x0000000000000000LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
-TEST_ur(loadbsw4_ur, long long, S, 2, 0x0000ff000000ff00LL,
+TEST_ur(loadbsw4_ur, int64_t, S, 2, 0x0000ff000000ff00LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
 
@@ -168,27 +149,27 @@ void test_##NAME(void) \
     void *ptr; \
     init_buf(); \
     BxW_LOAD_ap_##SIGN(result, ptr, (buf + 0 * (SIZE))); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     checkp(ptr, &buf[0 * (SIZE)]); \
     BxW_LOAD_ap_##SIGN(result, ptr, (buf + 1 * (SIZE))); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     checkp(ptr, &buf[1 * (SIZE)]); \
     BxW_LOAD_ap_##SIGN(result, ptr, (buf + 2 * (SIZE))); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     checkp(ptr, &buf[2 * (SIZE)]); \
     BxW_LOAD_ap_##SIGN(result, ptr, (buf + 3 * (SIZE))); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
     checkp(ptr, &buf[3 * (SIZE)]); \
 }
 
-TEST_ap(loadbzw2_ap, int, Z, 2, 0x00000000,
+TEST_ap(loadbzw2_ap, int32_t, Z, 2, 0x00000000,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_ap(loadbsw2_ap, int, S, 2, 0x0000ff00,
+TEST_ap(loadbsw2_ap, int32_t, S, 2, 0x0000ff00,
         0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_ap(loadbzw4_ap, long long, Z, 4, 0x0000000000000000LL,
+TEST_ap(loadbzw4_ap, int64_t, Z, 4, 0x0000000000000000LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
-TEST_ap(loadbsw4_ap, long long, S, 4, 0x0000ff000000ff00LL,
+TEST_ap(loadbsw4_ap, int64_t, S, 4, 0x0000ff000000ff00LL,
         0x0004008300020081LL, 0x0008008700060085LL,
         0x000c008b000a0089LL, 0x0010008f000e008dLL)
 
@@ -215,27 +196,27 @@ void test_##NAME(void) \
     void *ptr = buf; \
     init_buf(); \
     BxW_LOAD_pr_##SIGN(result, ptr, (SIZE)); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     checkp(ptr, &buf[1 * (SIZE)]); \
     BxW_LOAD_pr_##SIGN(result, ptr, (SIZE)); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     checkp(ptr, &buf[2 * (SIZE)]); \
     BxW_LOAD_pr_##SIGN(result, ptr, (SIZE)); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     checkp(ptr, &buf[3 * (SIZE)]); \
     BxW_LOAD_pr_##SIGN(result, ptr, (SIZE)); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
     checkp(ptr, &buf[4 * (SIZE)]); \
 }
 
-TEST_pr(loadbzw2_pr, int, Z, 2, 0x00000000,
+TEST_pr(loadbzw2_pr, int32_t, Z, 2, 0x00000000,
     0x00020081, 0x0040083, 0x00060085, 0x00080087)
-TEST_pr(loadbsw2_pr, int, S, 2, 0x0000ff00,
+TEST_pr(loadbsw2_pr, int32_t, S, 2, 0x0000ff00,
     0x00020081, 0x0040083, 0x00060085, 0x00080087)
-TEST_pr(loadbzw4_pr, long long, Z, 4, 0x0000000000000000LL,
+TEST_pr(loadbzw4_pr, int64_t, Z, 4, 0x0000000000000000LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x000c008b000a0089LL, 0x0010008f000e008dLL)
-TEST_pr(loadbsw4_pr, long long, S, 4, 0x0000ff000000ff00LL,
+TEST_pr(loadbsw4_pr, int64_t, S, 4, 0x0000ff000000ff00LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x000c008b000a0089LL, 0x0010008f000e008dLL)
 
@@ -263,23 +244,23 @@ void test_##NAME(void) \
     void *ptr = buf; \
     init_buf(); \
     BxW_LOAD_pbr_##SIGN(result, ptr); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     BxW_LOAD_pbr_##SIGN(result, ptr); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     BxW_LOAD_pbr_##SIGN(result, ptr); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     BxW_LOAD_pbr_##SIGN(result, ptr); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
 }
 
-TEST_pbr(loadbzw2_pbr, int, Z, 0x00000000,
+TEST_pbr(loadbzw2_pbr, int32_t, Z, 0x00000000,
     0x00020081, 0x000a0089, 0x00060085, 0x000e008d)
-TEST_pbr(loadbsw2_pbr, int, S, 0x0000ff00,
+TEST_pbr(loadbsw2_pbr, int32_t, S, 0x0000ff00,
     0x00020081, 0x000aff89, 0x0006ff85, 0x000eff8d)
-TEST_pbr(loadbzw4_pbr, long long, Z, 0x0000000000000000LL,
+TEST_pbr(loadbzw4_pbr, int64_t, Z, 0x0000000000000000LL,
     0x0004008300020081LL, 0x000c008b000a0089LL,
     0x0008008700060085LL, 0x0010008f000e008dLL)
-TEST_pbr(loadbsw4_pbr, long long, S, 0x0000ff000000ff00LL,
+TEST_pbr(loadbsw4_pbr, int64_t, S, 0x0000ff000000ff00LL,
     0x0004008300020081LL, 0x000cff8b000aff89LL,
     0x0008ff870006ff85LL, 0x0010ff8f000eff8dLL)
 
@@ -303,27 +284,27 @@ void test_##NAME(void) \
     void *ptr = buf; \
     init_buf(); \
     BxW_LOAD_pi_##SIGN(result, ptr, (INC)); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     checkp(ptr, &buf[1 * (INC)]); \
     BxW_LOAD_pi_##SIGN(result, ptr, (INC)); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     checkp(ptr, &buf[2 * (INC)]); \
     BxW_LOAD_pi_##SIGN(result, ptr, (INC)); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     checkp(ptr, &buf[3 * (INC)]); \
     BxW_LOAD_pi_##SIGN(result, ptr, (INC)); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
     checkp(ptr, &buf[4 * (INC)]); \
 }
 
-TEST_pi(loadbzw2_pi, int, Z, 2, 0x00000000,
+TEST_pi(loadbzw2_pi, int32_t, Z, 2, 0x00000000,
     0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_pi(loadbsw2_pi, int, S, 2, 0x0000ff00,
+TEST_pi(loadbsw2_pi, int32_t, S, 2, 0x0000ff00,
     0x00020081, 0x00040083, 0x00060085, 0x00080087)
-TEST_pi(loadbzw4_pi, long long, Z, 4, 0x0000000000000000LL,
+TEST_pi(loadbzw4_pi, int64_t, Z, 4, 0x0000000000000000LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x000c008b000a0089LL, 0x0010008f000e008dLL)
-TEST_pi(loadbsw4_pi, long long, S, 4, 0x0000ff000000ff00LL,
+TEST_pi(loadbsw4_pi, int64_t, S, 4, 0x0000ff000000ff00LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x000c008b000a0089LL, 0x0010008f000e008dLL)
 
@@ -352,27 +333,27 @@ void test_##NAME(void) \
     void *ptr = buf; \
     init_buf(); \
     BxW_LOAD_pci_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     checkp(ptr, &buf[(1 * (INC)) % (LEN)]); \
     BxW_LOAD_pci_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     checkp(ptr, &buf[(2 * (INC)) % (LEN)]); \
     BxW_LOAD_pci_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     checkp(ptr, &buf[(3 * (INC)) % (LEN)]); \
     BxW_LOAD_pci_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
     checkp(ptr, &buf[(4 * (INC)) % (LEN)]); \
 }
 
-TEST_pci(loadbzw2_pci, int, Z, 6, 2, 0x00000000,
+TEST_pci(loadbzw2_pci, int32_t, Z, 6, 2, 0x00000000,
     0x00020081, 0x00040083, 0x00060085, 0x00020081)
-TEST_pci(loadbsw2_pci, int, S, 6, 2, 0x0000ff00,
+TEST_pci(loadbsw2_pci, int32_t, S, 6, 2, 0x0000ff00,
     0x00020081, 0x00040083, 0x00060085, 0x00020081)
-TEST_pci(loadbzw4_pci, long long, Z, 8, 4, 0x0000000000000000LL,
+TEST_pci(loadbzw4_pci, int64_t, Z, 8, 4, 0x0000000000000000LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x0004008300020081LL, 0x0008008700060085LL)
-TEST_pci(loadbsw4_pci, long long, S, 8, 4, 0x0000ff000000ff00LL,
+TEST_pci(loadbsw4_pci, int64_t, S, 8, 4, 0x0000ff000000ff00LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x0004008300020081LL, 0x0008008700060085LL)
 
@@ -403,27 +384,27 @@ void test_##NAME(void) \
     void *ptr = buf; \
     init_buf(); \
     BxW_LOAD_pcr_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES1) | (EXT)); \
+    check64(result, (RES1) | (EXT)); \
     checkp(ptr, &buf[(1 * (INC) * (SIZE)) % (LEN)]); \
     BxW_LOAD_pcr_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES2) | (EXT)); \
+    check64(result, (RES2) | (EXT)); \
     checkp(ptr, &buf[(2 * (INC) * (SIZE)) % (LEN)]); \
     BxW_LOAD_pcr_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES3) | (EXT)); \
+    check64(result, (RES3) | (EXT)); \
     checkp(ptr, &buf[(3 * (INC) * (SIZE)) % (LEN)]); \
     BxW_LOAD_pcr_##SIGN(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES4) | (EXT)); \
+    check64(result, (RES4) | (EXT)); \
     checkp(ptr, &buf[(4 * (INC) * (SIZE)) % (LEN)]); \
 }
 
-TEST_pcr(loadbzw2_pcr, int, Z, 2, 8, 2, 0x00000000,
+TEST_pcr(loadbzw2_pcr, int32_t, Z, 2, 8, 2, 0x00000000,
     0x00020081, 0x00060085, 0x00020081, 0x00060085)
-TEST_pcr(loadbsw2_pcr, int, S, 2, 8, 2, 0x0000ff00,
+TEST_pcr(loadbsw2_pcr, int32_t, S, 2, 8, 2, 0x0000ff00,
     0x00020081, 0x00060085, 0x00020081, 0x00060085)
-TEST_pcr(loadbzw4_pcr, long long, Z, 4, 8, 1, 0x0000000000000000LL,
+TEST_pcr(loadbzw4_pcr, int64_t, Z, 4, 8, 1, 0x0000000000000000LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x0004008300020081LL, 0x0008008700060085LL)
-TEST_pcr(loadbsw4_pcr, long long, S, 4, 8, 1, 0x0000ff000000ff00LL,
+TEST_pcr(loadbsw4_pcr, int64_t, S, 4, 8, 1, 0x0000ff000000ff00LL,
     0x0004008300020081LL, 0x0008008700060085LL,
     0x0004008300020081LL, 0x0008008700060085LL)
 

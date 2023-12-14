@@ -8,7 +8,6 @@
 #include "qemu/main-loop.h"
 
 static AioContext *ctx;
-static ThreadPool *pool;
 static int active;
 
 typedef struct {
@@ -47,7 +46,7 @@ static void done_cb(void *opaque, int ret)
 static void test_submit(void)
 {
     WorkerTestData data = { .n = 0 };
-    thread_pool_submit(pool, worker_cb, &data);
+    thread_pool_submit(worker_cb, &data);
     while (data.n == 0) {
         aio_poll(ctx, true);
     }
@@ -57,7 +56,7 @@ static void test_submit(void)
 static void test_submit_aio(void)
 {
     WorkerTestData data = { .n = 0, .ret = -EINPROGRESS };
-    data.aiocb = thread_pool_submit_aio(pool, worker_cb, &data,
+    data.aiocb = thread_pool_submit_aio(worker_cb, &data,
                                         done_cb, &data);
 
     /* The callbacks are not called until after the first wait.  */
@@ -71,14 +70,14 @@ static void test_submit_aio(void)
     g_assert_cmpint(data.ret, ==, 0);
 }
 
-static void co_test_cb(void *opaque)
+static void coroutine_fn co_test_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
 
     active = 1;
     data->n = 0;
     data->ret = -EINPROGRESS;
-    thread_pool_submit_co(pool, worker_cb, data);
+    thread_pool_submit_co(worker_cb, data);
 
     /* The test continues in test_submit_co, after qemu_coroutine_enter... */
 
@@ -122,7 +121,7 @@ static void test_submit_many(void)
     for (i = 0; i < 100; i++) {
         data[i].n = 0;
         data[i].ret = -EINPROGRESS;
-        thread_pool_submit_aio(pool, worker_cb, &data[i], done_cb, &data[i]);
+        thread_pool_submit_aio(worker_cb, &data[i], done_cb, &data[i]);
     }
 
     active = 100;
@@ -150,7 +149,7 @@ static void do_test_cancel(bool sync)
     for (i = 0; i < 100; i++) {
         data[i].n = 0;
         data[i].ret = -EINPROGRESS;
-        data[i].aiocb = thread_pool_submit_aio(pool, long_cb, &data[i],
+        data[i].aiocb = thread_pool_submit_aio(long_cb, &data[i],
                                                done_cb, &data[i]);
     }
 
@@ -235,7 +234,6 @@ int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
     ctx = qemu_get_current_aio_context();
-    pool = aio_get_thread_pool(ctx);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/thread-pool/submit", test_submit);

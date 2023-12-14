@@ -23,11 +23,11 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
+#include "qemu/guest-random.h"
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"
-#include "hw/nmi.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
@@ -37,13 +37,19 @@
 #include "standard-headers/asm-m68k/bootinfo.h"
 #include "standard-headers/asm-m68k/bootinfo-mac.h"
 #include "bootinfo.h"
+#include "hw/m68k/q800.h"
+#include "hw/m68k/q800-glue.h"
 #include "hw/misc/mac_via.h"
+#include "hw/misc/djmemc.h"
+#include "hw/misc/iosb.h"
 #include "hw/input/adb.h"
+#include "hw/audio/asc.h"
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
 #include "hw/block/swim.h"
 #include "net/net.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "sysemu/reset.h"
@@ -56,15 +62,18 @@
 
 #define IO_BASE               0x50000000
 #define IO_SLICE              0x00040000
+#define IO_SLICE_MASK         (IO_SLICE - 1)
 #define IO_SIZE               0x04000000
 
 #define VIA_BASE              (IO_BASE + 0x00000)
 #define SONIC_PROM_BASE       (IO_BASE + 0x08000)
 #define SONIC_BASE            (IO_BASE + 0x0a000)
 #define SCC_BASE              (IO_BASE + 0x0c020)
+#define DJMEMC_BASE           (IO_BASE + 0x0e000)
 #define ESP_BASE              (IO_BASE + 0x10000)
 #define ESP_PDMA              (IO_BASE + 0x10100)
 #define ASC_BASE              (IO_BASE + 0x14000)
+#define IOSB_BASE             (IO_BASE + 0x18000)
 #define SWIM_BASE             (IO_BASE + 0x1E000)
 
 #define SONIC_PROM_SIZE       0x1000
@@ -78,6 +87,9 @@
 
 #define MAC_CLOCK  3686418
 
+/* Size of whole RAM area */
+#define RAM_SIZE              0x40000000
+
 /*
  * Slot 0x9 is reserved for use by the in-built framebuffer whilst only
  * slots 0xc, 0xd and 0xe physically exist on the Quadra 800
@@ -85,240 +97,9 @@
 #define Q800_NUBUS_SLOTS_AVAILABLE    (BIT(0x9) | BIT(0xc) | BIT(0xd) | \
                                        BIT(0xe))
 
-/*
- * The GLUE (General Logic Unit) is an Apple custom integrated circuit chip
- * that performs a variety of functions (RAM management, clock generation, ...).
- * The GLUE chip receives interrupt requests from various devices,
- * assign priority to each, and asserts one or more interrupt line to the
- * CPU.
- */
+/* Quadra 800 machine ID */
+#define Q800_MACHINE_ID    0xa55a2bad
 
-#define TYPE_GLUE "q800-glue"
-OBJECT_DECLARE_SIMPLE_TYPE(GLUEState, GLUE)
-
-struct GLUEState {
-    SysBusDevice parent_obj;
-    M68kCPU *cpu;
-    uint8_t ipr;
-    uint8_t auxmode;
-    qemu_irq irqs[1];
-    QEMUTimer *nmi_release;
-};
-
-#define GLUE_IRQ_IN_VIA1       0
-#define GLUE_IRQ_IN_VIA2       1
-#define GLUE_IRQ_IN_SONIC      2
-#define GLUE_IRQ_IN_ESCC       3
-#define GLUE_IRQ_IN_NMI        4
-
-#define GLUE_IRQ_NUBUS_9       0
-
-/*
- * The GLUE logic on the Quadra 800 supports 2 different IRQ routing modes
- * controlled from the VIA1 auxmode GPIO (port B bit 6) which are documented
- * in NetBSD as follows:
- *
- * A/UX mode (Linux, NetBSD, auxmode GPIO low)
- *
- *   Level 0:        Spurious: ignored
- *   Level 1:        Software
- *   Level 2:        VIA2 (except ethernet, sound)
- *   Level 3:        Ethernet
- *   Level 4:        Serial (SCC)
- *   Level 5:        Sound
- *   Level 6:        VIA1
- *   Level 7:        NMIs: parity errors, RESET button, YANCC error
- *
- * Classic mode (default: used by MacOS, A/UX 3.0.1, auxmode GPIO high)
- *
- *   Level 0:        Spurious: ignored
- *   Level 1:        VIA1 (clock, ADB)
- *   Level 2:        VIA2 (NuBus, SCSI)
- *   Level 3:
- *   Level 4:        Serial (SCC)
- *   Level 5:
- *   Level 6:
- *   Level 7:        Non-maskable: parity errors, RESET button
- *
- * Note that despite references to A/UX mode in Linux and NetBSD, at least
- * A/UX 3.0.1 still uses Classic mode.
- */
-
-static void GLUE_set_irq(void *opaque, int irq, int level)
-{
-    GLUEState *s = opaque;
-    int i;
-
-    if (s->auxmode) {
-        /* Classic mode */
-        switch (irq) {
-        case GLUE_IRQ_IN_VIA1:
-            irq = 0;
-            break;
-
-        case GLUE_IRQ_IN_VIA2:
-            irq = 1;
-            break;
-
-        case GLUE_IRQ_IN_SONIC:
-            /* Route to VIA2 instead */
-            qemu_set_irq(s->irqs[GLUE_IRQ_NUBUS_9], level);
-            return;
-
-        case GLUE_IRQ_IN_ESCC:
-            irq = 3;
-            break;
-
-        case GLUE_IRQ_IN_NMI:
-            irq = 6;
-            break;
-
-        default:
-            g_assert_not_reached();
-        }
-    } else {
-        /* A/UX mode */
-        switch (irq) {
-        case GLUE_IRQ_IN_VIA1:
-            irq = 5;
-            break;
-
-        case GLUE_IRQ_IN_VIA2:
-            irq = 1;
-            break;
-
-        case GLUE_IRQ_IN_SONIC:
-            irq = 2;
-            break;
-
-        case GLUE_IRQ_IN_ESCC:
-            irq = 3;
-            break;
-
-        case GLUE_IRQ_IN_NMI:
-            irq = 6;
-            break;
-
-        default:
-            g_assert_not_reached();
-        }
-    }
-
-    if (level) {
-        s->ipr |= 1 << irq;
-    } else {
-        s->ipr &= ~(1 << irq);
-    }
-
-    for (i = 7; i >= 0; i--) {
-        if ((s->ipr >> i) & 1) {
-            m68k_set_irq_level(s->cpu, i + 1, i + 25);
-            return;
-        }
-    }
-    m68k_set_irq_level(s->cpu, 0, 0);
-}
-
-static void glue_auxmode_set_irq(void *opaque, int irq, int level)
-{
-    GLUEState *s = GLUE(opaque);
-
-    s->auxmode = level;
-}
-
-static void glue_nmi(NMIState *n, int cpu_index, Error **errp)
-{
-    GLUEState *s = GLUE(n);
-
-    /* Hold NMI active for 100ms */
-    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 1);
-    timer_mod(s->nmi_release, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
-}
-
-static void glue_nmi_release(void *opaque)
-{
-    GLUEState *s = GLUE(opaque);
-
-    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 0);
-}
-
-static void glue_reset(DeviceState *dev)
-{
-    GLUEState *s = GLUE(dev);
-
-    s->ipr = 0;
-    s->auxmode = 0;
-
-    timer_del(s->nmi_release);
-}
-
-static const VMStateDescription vmstate_glue = {
-    .name = "q800-glue",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(ipr, GLUEState),
-        VMSTATE_UINT8(auxmode, GLUEState),
-        VMSTATE_TIMER_PTR(nmi_release, GLUEState),
-        VMSTATE_END_OF_LIST(),
-    },
-};
-
-/*
- * If the m68k CPU implemented its inbound irq lines as GPIO lines
- * rather than via the m68k_set_irq_level() function we would not need
- * this cpu link property and could instead provide outbound IRQ lines
- * that the board could wire up to the CPU.
- */
-static Property glue_properties[] = {
-    DEFINE_PROP_LINK("cpu", GLUEState, cpu, TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void glue_finalize(Object *obj)
-{
-    GLUEState *s = GLUE(obj);
-
-    timer_free(s->nmi_release);
-}
-
-static void glue_init(Object *obj)
-{
-    DeviceState *dev = DEVICE(obj);
-    GLUEState *s = GLUE(dev);
-
-    qdev_init_gpio_in(dev, GLUE_set_irq, 8);
-    qdev_init_gpio_in_named(dev, glue_auxmode_set_irq, "auxmode", 1);
-
-    qdev_init_gpio_out(dev, s->irqs, 1);
-
-    /* NMI release timer */
-    s->nmi_release = timer_new_ms(QEMU_CLOCK_VIRTUAL, glue_nmi_release, s);
-}
-
-static void glue_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    NMIClass *nc = NMI_CLASS(klass);
-
-    dc->vmsd = &vmstate_glue;
-    dc->reset = glue_reset;
-    device_class_set_props(dc, glue_properties);
-    nc->nmi_monitor_handler = glue_nmi;
-}
-
-static const TypeInfo glue_info = {
-    .name = TYPE_GLUE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GLUEState),
-    .instance_init = glue_init,
-    .instance_finalize = glue_finalize,
-    .class_init = glue_class_init,
-    .interfaces = (InterfaceInfo[]) {
-         { TYPE_NMI },
-         { }
-    },
-};
 
 static void main_cpu_reset(void *opaque)
 {
@@ -328,6 +109,13 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(cs);
     cpu->env.aregs[7] = ldl_phys(cs->as, 0);
     cpu->env.pc = ldl_phys(cs->as, 4);
+}
+
+static void rerandomize_rng_seed(void *opaque)
+{
+    struct bi_record *rng_seed = opaque;
+    qemu_guest_getrandom_nofail((void *)rng_seed->data + 2,
+                                be16_to_cpu(*(uint16_t *)rng_seed->data));
 }
 
 static uint8_t fake_mac_rom[] = {
@@ -351,9 +139,113 @@ static uint8_t fake_mac_rom[] = {
     0x60, 0xFE                          /* bras [self] */
 };
 
-static void q800_init(MachineState *machine)
+static MemTxResult macio_alias_read(void *opaque, hwaddr addr, uint64_t *data,
+                                    unsigned size, MemTxAttrs attrs)
 {
-    M68kCPU *cpu = NULL;
+    MemTxResult r;
+    uint32_t val;
+
+    addr &= IO_SLICE_MASK;
+    addr |= IO_BASE;
+
+    switch (size) {
+    case 4:
+        val = address_space_ldl_be(&address_space_memory, addr, attrs, &r);
+        break;
+    case 2:
+        val = address_space_lduw_be(&address_space_memory, addr, attrs, &r);
+        break;
+    case 1:
+        val = address_space_ldub(&address_space_memory, addr, attrs, &r);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    *data = val;
+    return r;
+}
+
+static MemTxResult macio_alias_write(void *opaque, hwaddr addr, uint64_t value,
+                                     unsigned size, MemTxAttrs attrs)
+{
+    MemTxResult r;
+
+    addr &= IO_SLICE_MASK;
+    addr |= IO_BASE;
+
+    switch (size) {
+    case 4:
+        address_space_stl_be(&address_space_memory, addr, value, attrs, &r);
+        break;
+    case 2:
+        address_space_stw_be(&address_space_memory, addr, value, attrs, &r);
+        break;
+    case 1:
+        address_space_stb(&address_space_memory, addr, value, attrs, &r);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return r;
+}
+
+static const MemoryRegionOps macio_alias_ops = {
+    .read_with_attrs = macio_alias_read,
+    .write_with_attrs = macio_alias_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
+static uint64_t machine_id_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return Q800_MACHINE_ID;
+}
+
+static void machine_id_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+    return;
+}
+
+static const MemoryRegionOps machine_id_ops = {
+    .read = machine_id_read,
+    .write = machine_id_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static uint64_t ramio_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0x0;
+}
+
+static void ramio_write(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned size)
+{
+    return;
+}
+
+static const MemoryRegionOps ramio_ops = {
+    .read = ramio_read,
+    .write = ramio_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
+static void q800_machine_init(MachineState *machine)
+{
+    Q800MachineState *m = Q800_MACHINE(machine);
     int linux_boot;
     int32_t kernel_size;
     uint64_t elf_entry;
@@ -361,11 +253,8 @@ static void q800_init(MachineState *machine)
     int bios_size;
     ram_addr_t initrd_base;
     int32_t initrd_size;
-    MemoryRegion *rom;
-    MemoryRegion *io;
     MemoryRegion *dp8393x_prom = g_new(MemoryRegion, 1);
     uint8_t *prom;
-    const int io_slice_nb = (IO_SIZE / IO_SLICE) - 1;
     int i, checksum;
     MacFbMode *macfb_mode;
     ram_addr_t ram_size = machine->ram_size;
@@ -376,15 +265,13 @@ static void q800_init(MachineState *machine)
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
-    DeviceState *via1_dev, *via2_dev;
-    DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
     SysBusDevice *sysbus;
     BusState *adb_bus;
     NubusBus *nubus;
-    DeviceState *glue;
     DriveInfo *dinfo;
+    uint8_t rng_seed[32];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -395,58 +282,92 @@ static void q800_init(MachineState *machine)
     }
 
     /* init CPUs */
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
-    qemu_register_reset(main_cpu_reset, cpu);
+    object_initialize_child(OBJECT(machine), "cpu", &m->cpu, machine->cpu_type);
+    qdev_realize(DEVICE(&m->cpu), NULL, &error_fatal);
+    qemu_register_reset(main_cpu_reset, &m->cpu);
 
     /* RAM */
-    memory_region_add_subregion(get_system_memory(), 0, machine->ram);
+    memory_region_init_io(&m->ramio, OBJECT(machine), &ramio_ops, &m->ramio,
+                          "ram", RAM_SIZE);
+    memory_region_add_subregion(get_system_memory(), 0x0, &m->ramio);
+
+    memory_region_add_subregion(&m->ramio, 0, machine->ram);
+
+    /*
+     * Create container for all IO devices
+     */
+    memory_region_init(&m->macio, OBJECT(machine), "mac-io", IO_SLICE);
+    memory_region_add_subregion(get_system_memory(), IO_BASE, &m->macio);
 
     /*
      * Memory from IO_BASE to IO_BASE + IO_SLICE is repeated
      * from IO_BASE + IO_SLICE to IO_BASE + IO_SIZE
      */
-    io = g_new(MemoryRegion, io_slice_nb);
-    for (i = 0; i < io_slice_nb; i++) {
-        char *name = g_strdup_printf("mac_m68k.io[%d]", i + 1);
+    memory_region_init_io(&m->macio_alias, OBJECT(machine), &macio_alias_ops,
+                          &m->macio, "mac-io.alias", IO_SIZE - IO_SLICE);
+    memory_region_add_subregion(get_system_memory(), IO_BASE + IO_SLICE,
+                                &m->macio_alias);
 
-        memory_region_init_alias(&io[i], NULL, name, get_system_memory(),
-                                 IO_BASE, IO_SLICE);
-        memory_region_add_subregion(get_system_memory(),
-                                    IO_BASE + (i + 1) * IO_SLICE, &io[i]);
-        g_free(name);
-    }
+    memory_region_init_io(&m->machine_id, NULL, &machine_id_ops, NULL,
+                          "Machine ID", 4);
+    memory_region_add_subregion(get_system_memory(), 0x5ffffffc,
+                                &m->machine_id);
 
     /* IRQ Glue */
-    glue = qdev_new(TYPE_GLUE);
-    object_property_set_link(OBJECT(glue), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glue), &error_fatal);
+    object_initialize_child(OBJECT(machine), "glue", &m->glue, TYPE_GLUE);
+    object_property_set_link(OBJECT(&m->glue), "cpu", OBJECT(&m->cpu),
+                             &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&m->glue), &error_fatal);
+
+    /* djMEMC memory controller */
+    object_initialize_child(OBJECT(machine), "djmemc", &m->djmemc,
+                            TYPE_DJMEMC);
+    sysbus = SYS_BUS_DEVICE(&m->djmemc);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, DJMEMC_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
+
+    /* IOSB subsystem */
+    object_initialize_child(OBJECT(machine), "iosb", &m->iosb, TYPE_IOSB);
+    sysbus = SYS_BUS_DEVICE(&m->iosb);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, IOSB_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
 
     /* VIA 1 */
-    via1_dev = qdev_new(TYPE_MOS6522_Q800_VIA1);
+    object_initialize_child(OBJECT(machine), "via1", &m->via1,
+                            TYPE_MOS6522_Q800_VIA1);
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
-        qdev_prop_set_drive(via1_dev, "drive", blk_by_legacy_dinfo(dinfo));
+        qdev_prop_set_drive(DEVICE(&m->via1), "drive",
+                            blk_by_legacy_dinfo(dinfo));
     }
-    sysbus = SYS_BUS_DEVICE(via1_dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_mmio_map(sysbus, 1, VIA_BASE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_VIA1));
+    sysbus = SYS_BUS_DEVICE(&m->via1);
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, VIA_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 1));
+    sysbus_connect_irq(sysbus, 0,
+                       qdev_get_gpio_in(DEVICE(&m->glue), GLUE_IRQ_IN_VIA1));
     /* A/UX mode */
-    qdev_connect_gpio_out(via1_dev, 0,
-                          qdev_get_gpio_in_named(glue, "auxmode", 0));
+    qdev_connect_gpio_out(DEVICE(&m->via1), 0,
+                          qdev_get_gpio_in_named(DEVICE(&m->glue),
+                                                 "auxmode", 0));
 
-    adb_bus = qdev_get_child_bus(via1_dev, "adb.0");
+    adb_bus = qdev_get_child_bus(DEVICE(&m->via1), "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
     dev = qdev_new(TYPE_ADB_MOUSE);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     /* VIA 2 */
-    via2_dev = qdev_new(TYPE_MOS6522_Q800_VIA2);
-    sysbus = SYS_BUS_DEVICE(via2_dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_mmio_map(sysbus, 1, VIA_BASE + VIA_SIZE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_VIA2));
+    object_initialize_child(OBJECT(machine), "via2", &m->via2,
+                            TYPE_MOS6522_Q800_VIA2);
+    sysbus = SYS_BUS_DEVICE(&m->via2);
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, VIA_BASE - IO_BASE + VIA_SIZE,
+                                sysbus_mmio_get_region(sysbus, 1));
+    sysbus_connect_irq(sysbus, 0,
+                       qdev_get_gpio_in(DEVICE(&m->glue), GLUE_IRQ_IN_VIA2));
 
     /* MACSONIC */
 
@@ -470,16 +391,20 @@ static void q800_init(MachineState *machine)
     nd_table[0].macaddr.a[1] = 0x00;
     nd_table[0].macaddr.a[2] = 0x07;
 
-    dev = qdev_new("dp8393x");
+    object_initialize_child(OBJECT(machine), "dp8393x", &m->dp8393x,
+                            TYPE_DP8393X);
+    dev = DEVICE(&m->dp8393x);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_prop_set_uint8(dev, "it_shift", 2);
     qdev_prop_set_bit(dev, "big_endian", true);
     object_property_set_link(OBJECT(dev), "dma_mr",
                              OBJECT(get_system_memory()), &error_abort);
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_mmio_map(sysbus, 0, SONIC_BASE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_SONIC));
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, SONIC_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
+    sysbus_connect_irq(sysbus, 0,
+                       qdev_get_gpio_in(DEVICE(&m->glue), GLUE_IRQ_IN_SONIC));
 
     memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-q800.prom",
                            SONIC_PROM_SIZE, &error_fatal);
@@ -497,7 +422,9 @@ static void q800_init(MachineState *machine)
 
     /* SCC */
 
-    dev = qdev_new(TYPE_ESCC);
+    object_initialize_child(OBJECT(machine), "escc", &m->escc,
+                            TYPE_ESCC);
+    dev = DEVICE(&m->escc);
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", MAC_CLOCK);
     qdev_prop_set_uint32(dev, "it_shift", 1);
@@ -507,22 +434,34 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "chnBtype", 0);
     qdev_prop_set_uint32(dev, "chnAtype", 0);
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
 
     /* Logically OR both its IRQs together */
-    escc_orgate = DEVICE(object_new(TYPE_OR_IRQ));
-    object_property_set_int(OBJECT(escc_orgate), "num-lines", 2, &error_fatal);
-    qdev_realize_and_unref(escc_orgate, NULL, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(escc_orgate, 0));
-    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(escc_orgate, 1));
-    qdev_connect_gpio_out(DEVICE(escc_orgate), 0,
-                          qdev_get_gpio_in(glue, GLUE_IRQ_IN_ESCC));
-    sysbus_mmio_map(sysbus, 0, SCC_BASE);
+    object_initialize_child(OBJECT(machine), "escc_orgate", &m->escc_orgate,
+                            TYPE_OR_IRQ);
+    object_property_set_int(OBJECT(&m->escc_orgate), "num-lines", 2,
+                            &error_fatal);
+    dev = DEVICE(&m->escc_orgate);
+    qdev_realize(dev, NULL, &error_fatal);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(dev, 0));
+    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(dev, 1));
+    qdev_connect_gpio_out(dev, 0,
+                          qdev_get_gpio_in(DEVICE(&m->glue),
+                                           GLUE_IRQ_IN_ESCC));
+    memory_region_add_subregion(&m->macio, SCC_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
+
+    /* Create alias for NetBSD */
+    memory_region_init_alias(&m->escc_alias, OBJECT(machine), "escc-alias",
+                             sysbus_mmio_get_region(sysbus, 0), 0, 0x8);
+    memory_region_add_subregion(&m->macio, SCC_BASE - IO_BASE - 0x20,
+                                &m->escc_alias);
 
     /* SCSI */
 
-    dev = qdev_new(TYPE_SYSBUS_ESP);
-    sysbus_esp = SYSBUS_ESP(dev);
+    object_initialize_child(OBJECT(machine), "esp", &m->esp,
+                            TYPE_SYSBUS_ESP);
+    sysbus_esp = SYSBUS_ESP(&m->esp);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = NULL;
     esp->dma_memory_write = NULL;
@@ -530,40 +469,77 @@ static void q800_init(MachineState *machine)
     sysbus_esp->it_shift = 4;
     esp->dma_enabled = 1;
 
-    sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus = SYS_BUS_DEVICE(&m->esp);
+    sysbus_realize(sysbus, &error_fatal);
     /* SCSI and SCSI data IRQs are negative edge triggered */
-    sysbus_connect_irq(sysbus, 0, qemu_irq_invert(qdev_get_gpio_in(via2_dev,
-                                                  VIA2_IRQ_SCSI_BIT)));
-    sysbus_connect_irq(sysbus, 1, qemu_irq_invert(qdev_get_gpio_in(via2_dev,
-                                                  VIA2_IRQ_SCSI_DATA_BIT)));
-    sysbus_mmio_map(sysbus, 0, ESP_BASE);
-    sysbus_mmio_map(sysbus, 1, ESP_PDMA);
+    sysbus_connect_irq(sysbus, 0,
+                       qemu_irq_invert(
+                           qdev_get_gpio_in(DEVICE(&m->via2),
+                                                   VIA2_IRQ_SCSI_BIT)));
+    sysbus_connect_irq(sysbus, 1,
+                       qemu_irq_invert(
+                           qdev_get_gpio_in(DEVICE(&m->via2),
+                                                   VIA2_IRQ_SCSI_DATA_BIT)));
+    memory_region_add_subregion(&m->macio, ESP_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
+    memory_region_add_subregion(&m->macio, ESP_PDMA - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 1));
 
     scsi_bus_legacy_handle_cmdline(&esp->bus);
 
+    /* Apple Sound Chip */
+
+    object_initialize_child(OBJECT(machine), "asc", &m->asc, TYPE_ASC);
+    qdev_prop_set_uint8(DEVICE(&m->asc), "asctype", m->easc ? ASC_TYPE_EASC
+                                                            : ASC_TYPE_ASC);
+    if (machine->audiodev) {
+        qdev_prop_set_string(DEVICE(&m->asc), "audiodev", machine->audiodev);
+    }
+    sysbus = SYS_BUS_DEVICE(&m->asc);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, ASC_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(DEVICE(&m->glue),
+                                                   GLUE_IRQ_IN_ASC));
+
+    /* Wire ASC IRQ via GLUE for use in classic mode */
+    qdev_connect_gpio_out(DEVICE(&m->glue), GLUE_IRQ_ASC,
+                          qdev_get_gpio_in(DEVICE(&m->via2),
+                                           VIA2_IRQ_ASC_BIT));
+
     /* SWIM floppy controller */
 
-    dev = qdev_new(TYPE_SWIM);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SWIM_BASE);
+    object_initialize_child(OBJECT(machine), "swim", &m->swim,
+                            TYPE_SWIM);
+    sysbus = SYS_BUS_DEVICE(&m->swim);
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(&m->macio, SWIM_BASE - IO_BASE,
+                                sysbus_mmio_get_region(sysbus, 0));
 
     /* NuBus */
 
-    dev = qdev_new(TYPE_MAC_NUBUS_BRIDGE);
-    qdev_prop_set_uint32(dev, "slot-available-mask",
+    object_initialize_child(OBJECT(machine), "mac-nubus-bridge",
+                            &m->mac_nubus_bridge,
+                            TYPE_MAC_NUBUS_BRIDGE);
+    sysbus = SYS_BUS_DEVICE(&m->mac_nubus_bridge);
+    dev = DEVICE(&m->mac_nubus_bridge);
+    qdev_prop_set_uint32(DEVICE(&m->mac_nubus_bridge), "slot-available-mask",
                          Q800_NUBUS_SLOTS_AVAILABLE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
-                    MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
-                    MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
+    sysbus_realize(sysbus, &error_fatal);
+    memory_region_add_subregion(get_system_memory(),
+                                MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE,
+                                sysbus_mmio_get_region(sysbus, 0));
+    memory_region_add_subregion(get_system_memory(),
+                                NUBUS_SLOT_BASE +
+                                MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE,
+                                sysbus_mmio_get_region(sysbus, 1));
     qdev_connect_gpio_out(dev, 9,
-                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                          qdev_get_gpio_in_named(DEVICE(&m->via2), "nubus-irq",
                           VIA2_NUBUS_IRQ_INTVIDEO));
     for (i = 1; i < VIA2_NUBUS_IRQ_NB; i++) {
         qdev_connect_gpio_out(dev, 9 + i,
-                              qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                              qdev_get_gpio_in_named(DEVICE(&m->via2),
+                                                     "nubus-irq",
                                                      VIA2_NUBUS_IRQ_9 + i));
     }
 
@@ -571,15 +547,17 @@ static void q800_init(MachineState *machine)
      * Since the framebuffer in slot 0x9 uses a separate IRQ, wire the unused
      * IRQ via GLUE for use by SONIC Ethernet in classic mode
      */
-    qdev_connect_gpio_out(glue, GLUE_IRQ_NUBUS_9,
-                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+    qdev_connect_gpio_out(DEVICE(&m->glue), GLUE_IRQ_NUBUS_9,
+                          qdev_get_gpio_in_named(DEVICE(&m->via2), "nubus-irq",
                                                  VIA2_NUBUS_IRQ_9));
 
-    nubus = &NUBUS_BRIDGE(dev)->bus;
+    nubus = NUBUS_BUS(qdev_get_child_bus(dev, "nubus-bus.0"));
 
     /* framebuffer in nubus slot #9 */
 
-    dev = qdev_new(TYPE_NUBUS_MACFB);
+    object_initialize_child(OBJECT(machine), "macfb", &m->macfb,
+                            TYPE_NUBUS_MACFB);
+    dev = DEVICE(&m->macfb);
     qdev_prop_set_uint32(dev, "slot", 9);
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
@@ -589,13 +567,21 @@ static void q800_init(MachineState *machine)
     } else {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_VGA);
     }
-    qdev_realize_and_unref(dev, BUS(nubus), &error_fatal);
+    qdev_realize(dev, BUS(nubus), &error_fatal);
 
     macfb_mode = (NUBUS_MACFB(dev)->macfb).mode;
 
-    cs = CPU(cpu);
+    cs = CPU(&m->cpu);
     if (linux_boot) {
         uint64_t high;
+        void *param_blob, *param_ptr, *param_rng_seed;
+
+        if (kernel_cmdline) {
+            param_blob = g_malloc(strlen(kernel_cmdline) + 1024);
+        } else {
+            param_blob = g_malloc(1024);
+        }
+
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &elf_entry, NULL, &high, NULL, 1,
                                EM_68K, 0, 0);
@@ -605,34 +591,40 @@ static void q800_init(MachineState *machine)
         }
         stl_phys(cs->as, 4, elf_entry); /* reset initial PC */
         parameters_base = (high + 1) & ~1;
+        param_ptr = param_blob;
 
-        BOOTINFO1(cs->as, parameters_base, BI_MACHTYPE, MACH_MAC);
-        BOOTINFO1(cs->as, parameters_base, BI_FPUTYPE, FPU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MMUTYPE, MMU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_CPUTYPE, CPU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_CPUID, CPUB_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_MODEL, MAC_MODEL_Q800);
-        BOOTINFO1(cs->as, parameters_base,
+        BOOTINFO1(param_ptr, BI_MACHTYPE, MACH_MAC);
+        BOOTINFO1(param_ptr, BI_FPUTYPE, FPU_68040);
+        BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68040);
+        BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68040);
+        BOOTINFO1(param_ptr, BI_MAC_CPUID, CPUB_68040);
+        BOOTINFO1(param_ptr, BI_MAC_MODEL, MAC_MODEL_Q800);
+        BOOTINFO1(param_ptr,
                   BI_MAC_MEMSIZE, ram_size >> 20); /* in MB */
-        BOOTINFO2(cs->as, parameters_base, BI_MEMCHUNK, 0, ram_size);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VADDR,
+        BOOTINFO2(param_ptr, BI_MEMCHUNK, 0, ram_size);
+        BOOTINFO1(param_ptr, BI_MAC_VADDR,
                   VIDEO_BASE + macfb_mode->offset);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VDEPTH, graphic_depth);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VDIM,
+        BOOTINFO1(param_ptr, BI_MAC_VDEPTH, graphic_depth);
+        BOOTINFO1(param_ptr, BI_MAC_VDIM,
                   (graphic_height << 16) | graphic_width);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VROW, macfb_mode->stride);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_SCCBASE, SCC_BASE);
+        BOOTINFO1(param_ptr, BI_MAC_VROW, macfb_mode->stride);
+        BOOTINFO1(param_ptr, BI_MAC_SCCBASE, SCC_BASE);
 
-        rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram_ptr(rom, NULL, "m68k_fake_mac.rom",
+        memory_region_init_ram_ptr(&m->rom, NULL, "m68k_fake_mac.rom",
                                    sizeof(fake_mac_rom), fake_mac_rom);
-        memory_region_set_readonly(rom, true);
-        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, rom);
+        memory_region_set_readonly(&m->rom, true);
+        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, &m->rom);
 
         if (kernel_cmdline) {
-            BOOTINFOSTR(cs->as, parameters_base, BI_COMMAND_LINE,
+            BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,
                         kernel_cmdline);
         }
+
+        /* Pass seed to RNG. */
+        param_rng_seed = param_ptr;
+        qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+        BOOTINFODATA(param_ptr, BI_RNG_SEED,
+                     rng_seed, sizeof(rng_seed));
 
         /* load initrd */
         if (initrd_filename) {
@@ -646,21 +638,32 @@ static void q800_init(MachineState *machine)
             initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base);
-            BOOTINFO2(cs->as, parameters_base, BI_RAMDISK, initrd_base,
+            BOOTINFO2(param_ptr, BI_RAMDISK, initrd_base,
                       initrd_size);
         } else {
             initrd_base = 0;
             initrd_size = 0;
         }
-        BOOTINFO0(cs->as, parameters_base, BI_LAST);
+        BOOTINFO0(param_ptr, BI_LAST);
+        rom_add_blob_fixed_as("bootinfo", param_blob, param_ptr - param_blob,
+                              parameters_base, cs->as);
+        qemu_register_reset_nosnapshotload(rerandomize_rng_seed,
+                            rom_ptr_for_as(cs->as, parameters_base,
+                                           param_ptr - param_blob) +
+                            (param_rng_seed - param_blob));
+        g_free(param_blob);
     } else {
         uint8_t *ptr;
         /* allocate and load BIOS */
-        rom = g_malloc(sizeof(*rom));
-        memory_region_init_rom(rom, NULL, "m68k_mac.rom", MACROM_SIZE,
+        memory_region_init_rom(&m->rom, NULL, "m68k_mac.rom", MACROM_SIZE,
                                &error_abort);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, rom);
+        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, &m->rom);
+
+        memory_region_init_alias(&m->rom_alias, NULL, "m68k_mac.rom-alias",
+                                 &m->rom, 0, MACROM_SIZE);
+        memory_region_add_subregion(get_system_memory(), 0x40000000,
+                                    &m->rom_alias);
 
         /* Load MacROM binary */
         if (filename) {
@@ -686,15 +689,37 @@ static void q800_init(MachineState *machine)
     }
 }
 
+static bool q800_get_easc(Object *obj, Error **errp)
+{
+    Q800MachineState *ms = Q800_MACHINE(obj);
+
+    return ms->easc;
+}
+
+static void q800_set_easc(Object *obj, bool value, Error **errp)
+{
+    Q800MachineState *ms = Q800_MACHINE(obj);
+
+    ms->easc = value;
+}
+
+static void q800_init(Object *obj)
+{
+    Q800MachineState *ms = Q800_MACHINE(obj);
+
+    /* Default to EASC */
+    ms->easc = true;
+}
+
 static GlobalProperty hw_compat_q800[] = {
-    { "scsi-hd", "quirk_mode_page_vendor_specific_apple", "on"},
+    { "scsi-hd", "quirk_mode_page_vendor_specific_apple", "on" },
     { "scsi-hd", "vendor", " SEAGATE" },
     { "scsi-hd", "product", "          ST225N" },
     { "scsi-hd", "ver", "1.0 " },
-    { "scsi-cd", "quirk_mode_page_apple_vendor", "on"},
-    { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on"},
-    { "scsi-cd", "quirk_mode_page_vendor_specific_apple", "on"},
-    { "scsi-cd", "quirk_mode_page_truncated", "on"},
+    { "scsi-cd", "quirk_mode_page_apple_vendor", "on" },
+    { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on" },
+    { "scsi-cd", "quirk_mode_page_vendor_specific_apple", "on" },
+    { "scsi-cd", "quirk_mode_page_truncated", "on" },
     { "scsi-cd", "vendor", "MATSHITA" },
     { "scsi-cd", "product", "CD-ROM CR-8005" },
     { "scsi-cd", "ver", "1.0k" },
@@ -703,26 +728,38 @@ static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
 
 static void q800_machine_class_init(ObjectClass *oc, void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        M68K_CPU_TYPE_NAME("m68040"),
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Macintosh Quadra 800";
-    mc->init = q800_init;
+    mc->init = q800_machine_init;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
+    mc->valid_cpu_types = valid_cpu_types;
     mc->max_cpus = 1;
     mc->block_default_type = IF_SCSI;
     mc->default_ram_id = "m68k_mac.ram";
+    machine_add_audiodev_property(mc);
     compat_props_add(mc->compat_props, hw_compat_q800, hw_compat_q800_len);
+
+    object_class_property_add_bool(oc, "easc", q800_get_easc, q800_set_easc);
+    object_class_property_set_description(oc, "easc",
+        "Set to off to use ASC rather than EASC");
 }
 
 static const TypeInfo q800_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("q800"),
     .parent     = TYPE_MACHINE,
+    .instance_init = q800_init,
+    .instance_size = sizeof(Q800MachineState),
     .class_init = q800_machine_class_init,
 };
 
 static void q800_machine_register_types(void)
 {
     type_register_static(&q800_machine_typeinfo);
-    type_register_static(&glue_info);
 }
 
 type_init(q800_machine_register_types)

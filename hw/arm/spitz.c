@@ -35,6 +35,7 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "qom/object.h"
+#include "audio/audio.h"
 
 enum spitz_model_e { spitz, akita, borzoi, terrier };
 
@@ -774,15 +775,19 @@ static void spitz_wm8750_addr(void *opaque, int line, int level)
         i2c_slave_set_address(wm, SPITZ_WM_ADDRL);
 }
 
-static void spitz_i2c_setup(PXA2xxState *cpu)
+static void spitz_i2c_setup(MachineState *machine, PXA2xxState *cpu)
 {
     /* Attach the CPU on one end of our I2C bus.  */
     I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
 
-    DeviceState *wm;
-
     /* Attach a WM8750 to the bus */
-    wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0));
+    I2CSlave *i2c_dev = i2c_slave_new(TYPE_WM8750, 0);
+    DeviceState *wm = DEVICE(i2c_dev);
+
+    if (machine->audiodev) {
+        qdev_prop_set_string(wm, "audiodev", machine->audiodev);
+    }
+    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
 
     spitz_wm8750_addr(wm, 0, 0);
     qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_WM,
@@ -986,18 +991,16 @@ static void spitz_common_init(MachineState *machine)
     SpitzMachineState *sms = SPITZ_MACHINE(machine);
     enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
-    MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size,
-                      machine->cpu_type);
+    mpu = pxa270_init(spitz_binfo.ram_size, machine->cpu_type);
     sms->mpu = mpu;
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
     memory_region_init_rom(rom, NULL, "spitz.rom", SPITZ_ROM, &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0, rom);
+    memory_region_add_subregion(get_system_memory(), 0, rom);
 
     /* Setup peripherals */
     spitz_keyboard_register(mpu);
@@ -1015,7 +1018,7 @@ static void spitz_common_init(MachineState *machine)
 
     spitz_gpio_setup(mpu, (model == akita) ? 1 : 2);
 
-    spitz_i2c_setup(mpu);
+    spitz_i2c_setup(machine, mpu);
 
     if (model == akita)
         spitz_akita_i2c_setup(mpu);
@@ -1039,6 +1042,8 @@ static void spitz_common_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
     mc->init = spitz_common_init;
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo spitz_common_info = {

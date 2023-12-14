@@ -17,12 +17,10 @@
 #ifndef FSL_IMX6UL_H
 #define FSL_IMX6UL_H
 
-#include "hw/arm/boot.h"
 #include "hw/cpu/a15mpcore.h"
 #include "hw/misc/imx6ul_ccm.h"
 #include "hw/misc/imx6_src.h"
 #include "hw/misc/imx7_snvs.h"
-#include "hw/misc/imx7_gpr.h"
 #include "hw/intc/imx_gpcv2.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "hw/gpio/imx_gpio.h"
@@ -30,7 +28,6 @@
 #include "hw/timer/imx_gpt.h"
 #include "hw/timer/imx_epit.h"
 #include "hw/i2c/imx_i2c.h"
-#include "hw/gpio/imx_gpio.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/imx_spi.h"
 #include "hw/net/imx_fec.h"
@@ -39,6 +36,7 @@
 #include "exec/memory.h"
 #include "cpu.h"
 #include "qom/object.h"
+#include "qemu/units.h"
 
 #define TYPE_FSL_IMX6UL "fsl-imx6ul"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6ULState, FSL_IMX6UL)
@@ -59,6 +57,9 @@ enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_ADCS         = 2,
     FSL_IMX6UL_NUM_USB_PHYS     = 2,
     FSL_IMX6UL_NUM_USBS         = 2,
+    FSL_IMX6UL_NUM_SAIS         = 3,
+    FSL_IMX6UL_NUM_CANS         = 2,
+    FSL_IMX6UL_NUM_PWMS         = 8,
 };
 
 struct FslIMX6ULState {
@@ -75,7 +76,6 @@ struct FslIMX6ULState {
     IMX6SRCState       src;
     IMX7SNVSState      snvs;
     IMXGPCv2State      gpcv2;
-    IMX7GPRState       gpr;
     IMXSPIState        spi[FSL_IMX6UL_NUM_ECSPIS];
     IMXI2CState        i2c[FSL_IMX6UL_NUM_I2CS];
     IMXSerialState     uart[FSL_IMX6UL_NUM_UARTS];
@@ -90,123 +90,232 @@ struct FslIMX6ULState {
     MemoryRegion       ocram_alias;
 
     uint32_t           phy_num[FSL_IMX6UL_NUM_ETHS];
+    bool               phy_connected[FSL_IMX6UL_NUM_ETHS];
 };
 
 enum FslIMX6ULMemoryMap {
     FSL_IMX6UL_MMDC_ADDR            = 0x80000000,
-    FSL_IMX6UL_MMDC_SIZE            = 2 * 1024 * 1024 * 1024UL,
+    FSL_IMX6UL_MMDC_SIZE            = (2 * GiB),
 
     FSL_IMX6UL_QSPI1_MEM_ADDR       = 0x60000000,
-    FSL_IMX6UL_EIM_ALIAS_ADDR       = 0x58000000,
-    FSL_IMX6UL_EIM_CS_ADDR          = 0x50000000,
-    FSL_IMX6UL_AES_ENCRYPT_ADDR     = 0x10000000,
-    FSL_IMX6UL_QSPI1_RX_ADDR        = 0x0C000000,
+    FSL_IMX6UL_QSPI1_MEM_SIZE       = (256 * MiB),
 
-    /* AIPS-2 */
+    FSL_IMX6UL_EIM_ALIAS_ADDR       = 0x58000000,
+    FSL_IMX6UL_EIM_ALIAS_SIZE       = (128 * MiB),
+
+    FSL_IMX6UL_EIM_CS_ADDR          = 0x50000000,
+    FSL_IMX6UL_EIM_CS_SIZE          = (128 * MiB),
+
+    FSL_IMX6UL_AES_ENCRYPT_ADDR     = 0x10000000,
+    FSL_IMX6UL_AES_ENCRYPT_SIZE     = (1 * MiB),
+
+    FSL_IMX6UL_QSPI1_RX_ADDR        = 0x0C000000,
+    FSL_IMX6UL_QSPI1_RX_SIZE        = (32 * MiB),
+
+    /* AIPS-2 Begin */
     FSL_IMX6UL_UART6_ADDR           = 0x021FC000,
+
     FSL_IMX6UL_I2C4_ADDR            = 0x021F8000,
+
     FSL_IMX6UL_UART5_ADDR           = 0x021F4000,
     FSL_IMX6UL_UART4_ADDR           = 0x021F0000,
     FSL_IMX6UL_UART3_ADDR           = 0x021EC000,
     FSL_IMX6UL_UART2_ADDR           = 0x021E8000,
+
     FSL_IMX6UL_WDOG3_ADDR           = 0x021E4000,
+
     FSL_IMX6UL_QSPI_ADDR            = 0x021E0000,
+    FSL_IMX6UL_QSPI_SIZE            = 0x500,
+
     FSL_IMX6UL_SYS_CNT_CTRL_ADDR    = 0x021DC000,
+    FSL_IMX6UL_SYS_CNT_CTRL_SIZE    = (16 * KiB),
+
     FSL_IMX6UL_SYS_CNT_CMP_ADDR     = 0x021D8000,
+    FSL_IMX6UL_SYS_CNT_CMP_SIZE     = (16 * KiB),
+
     FSL_IMX6UL_SYS_CNT_RD_ADDR      = 0x021D4000,
+    FSL_IMX6UL_SYS_CNT_RD_SIZE      = (16 * KiB),
+
     FSL_IMX6UL_TZASC_ADDR           = 0x021D0000,
+    FSL_IMX6UL_TZASC_SIZE           = (16 * KiB),
+
     FSL_IMX6UL_PXP_ADDR             = 0x021CC000,
+    FSL_IMX6UL_PXP_SIZE             = (16 * KiB),
+
     FSL_IMX6UL_LCDIF_ADDR           = 0x021C8000,
+    FSL_IMX6UL_LCDIF_SIZE           = 0x100,
+
     FSL_IMX6UL_CSI_ADDR             = 0x021C4000,
+    FSL_IMX6UL_CSI_SIZE             = 0x100,
+
     FSL_IMX6UL_CSU_ADDR             = 0x021C0000,
+    FSL_IMX6UL_CSU_SIZE             = (16 * KiB),
+
     FSL_IMX6UL_OCOTP_CTRL_ADDR      = 0x021BC000,
+    FSL_IMX6UL_OCOTP_CTRL_SIZE      = (4 * KiB),
+
     FSL_IMX6UL_EIM_ADDR             = 0x021B8000,
+    FSL_IMX6UL_EIM_SIZE             = 0x100,
+
     FSL_IMX6UL_SIM2_ADDR            = 0x021B4000,
+
     FSL_IMX6UL_MMDC_CFG_ADDR        = 0x021B0000,
+    FSL_IMX6UL_MMDC_CFG_SIZE        = (4 * KiB),
+
     FSL_IMX6UL_ROMCP_ADDR           = 0x021AC000,
+    FSL_IMX6UL_ROMCP_SIZE           = 0x300,
+
     FSL_IMX6UL_I2C3_ADDR            = 0x021A8000,
     FSL_IMX6UL_I2C2_ADDR            = 0x021A4000,
     FSL_IMX6UL_I2C1_ADDR            = 0x021A0000,
+
     FSL_IMX6UL_ADC2_ADDR            = 0x0219C000,
     FSL_IMX6UL_ADC1_ADDR            = 0x02198000,
+    FSL_IMX6UL_ADCn_SIZE            = 0x100,
+
     FSL_IMX6UL_USDHC2_ADDR          = 0x02194000,
     FSL_IMX6UL_USDHC1_ADDR          = 0x02190000,
-    FSL_IMX6UL_SIM1_ADDR            = 0x0218C000,
-    FSL_IMX6UL_ENET1_ADDR           = 0x02188000,
-    FSL_IMX6UL_USBO2_USBMISC_ADDR   = 0x02184800,
-    FSL_IMX6UL_USBO2_USB_ADDR       = 0x02184000,
-    FSL_IMX6UL_USBO2_PL301_ADDR     = 0x02180000,
-    FSL_IMX6UL_AIPS2_CFG_ADDR       = 0x0217C000,
-    FSL_IMX6UL_CAAM_ADDR            = 0x02140000,
-    FSL_IMX6UL_A7MPCORE_DAP_ADDR    = 0x02100000,
 
-    /* AIPS-1 */
+    FSL_IMX6UL_SIM1_ADDR            = 0x0218C000,
+    FSL_IMX6UL_SIMn_SIZE            = (16 * KiB),
+
+    FSL_IMX6UL_ENET1_ADDR           = 0x02188000,
+
+    FSL_IMX6UL_USBO2_USBMISC_ADDR   = 0x02184800,
+    FSL_IMX6UL_USBO2_USB1_ADDR      = 0x02184000,
+    FSL_IMX6UL_USBO2_USB2_ADDR      = 0x02184200,
+
+    FSL_IMX6UL_USBO2_PL301_ADDR     = 0x02180000,
+    FSL_IMX6UL_USBO2_PL301_SIZE     = (16 * KiB),
+
+    FSL_IMX6UL_AIPS2_CFG_ADDR       = 0x0217C000,
+    FSL_IMX6UL_AIPS2_CFG_SIZE       = 0x100,
+
+    FSL_IMX6UL_CAAM_ADDR            = 0x02140000,
+    FSL_IMX6UL_CAAM_SIZE            = (16 * KiB),
+
+    FSL_IMX6UL_A7MPCORE_DAP_ADDR    = 0x02100000,
+    FSL_IMX6UL_A7MPCORE_DAP_SIZE    = (4 * KiB),
+    /* AIPS-2 End */
+
+    /* AIPS-1 Begin */
     FSL_IMX6UL_PWM8_ADDR            = 0x020FC000,
     FSL_IMX6UL_PWM7_ADDR            = 0x020F8000,
     FSL_IMX6UL_PWM6_ADDR            = 0x020F4000,
     FSL_IMX6UL_PWM5_ADDR            = 0x020F0000,
+
     FSL_IMX6UL_SDMA_ADDR            = 0x020EC000,
+    FSL_IMX6UL_SDMA_SIZE            = 0x300,
+
     FSL_IMX6UL_GPT2_ADDR            = 0x020E8000,
+
     FSL_IMX6UL_IOMUXC_GPR_ADDR      = 0x020E4000,
+    FSL_IMX6UL_IOMUXC_GPR_SIZE      = 0x40,
+
     FSL_IMX6UL_IOMUXC_ADDR          = 0x020E0000,
+    FSL_IMX6UL_IOMUXC_SIZE          = 0x700,
+
     FSL_IMX6UL_GPC_ADDR             = 0x020DC000,
+
     FSL_IMX6UL_SRC_ADDR             = 0x020D8000,
+
     FSL_IMX6UL_EPIT2_ADDR           = 0x020D4000,
     FSL_IMX6UL_EPIT1_ADDR           = 0x020D0000,
+
     FSL_IMX6UL_SNVS_HP_ADDR         = 0x020CC000,
+
     FSL_IMX6UL_USBPHY2_ADDR         = 0x020CA000,
-    FSL_IMX6UL_USBPHY2_SIZE         = (4 * 1024),
     FSL_IMX6UL_USBPHY1_ADDR         = 0x020C9000,
-    FSL_IMX6UL_USBPHY1_SIZE         = (4 * 1024),
+
     FSL_IMX6UL_ANALOG_ADDR          = 0x020C8000,
+    FSL_IMX6UL_ANALOG_SIZE          = 0x300,
+
     FSL_IMX6UL_CCM_ADDR             = 0x020C4000,
+
     FSL_IMX6UL_WDOG2_ADDR           = 0x020C0000,
     FSL_IMX6UL_WDOG1_ADDR           = 0x020BC000,
+
     FSL_IMX6UL_KPP_ADDR             = 0x020B8000,
+    FSL_IMX6UL_KPP_SIZE             = 0x10,
+
     FSL_IMX6UL_ENET2_ADDR           = 0x020B4000,
+
     FSL_IMX6UL_SNVS_LP_ADDR         = 0x020B0000,
+    FSL_IMX6UL_SNVS_LP_SIZE         = (16 * KiB),
+
     FSL_IMX6UL_GPIO5_ADDR           = 0x020AC000,
     FSL_IMX6UL_GPIO4_ADDR           = 0x020A8000,
     FSL_IMX6UL_GPIO3_ADDR           = 0x020A4000,
     FSL_IMX6UL_GPIO2_ADDR           = 0x020A0000,
     FSL_IMX6UL_GPIO1_ADDR           = 0x0209C000,
+
     FSL_IMX6UL_GPT1_ADDR            = 0x02098000,
+
     FSL_IMX6UL_CAN2_ADDR            = 0x02094000,
     FSL_IMX6UL_CAN1_ADDR            = 0x02090000,
+    FSL_IMX6UL_CANn_SIZE            = (4 * KiB),
+
     FSL_IMX6UL_PWM4_ADDR            = 0x0208C000,
     FSL_IMX6UL_PWM3_ADDR            = 0x02088000,
     FSL_IMX6UL_PWM2_ADDR            = 0x02084000,
     FSL_IMX6UL_PWM1_ADDR            = 0x02080000,
+    FSL_IMX6UL_PWMn_SIZE            = 0x20,
+
     FSL_IMX6UL_AIPS1_CFG_ADDR       = 0x0207C000,
+    FSL_IMX6UL_AIPS1_CFG_SIZE       = (16 * KiB),
+
     FSL_IMX6UL_BEE_ADDR             = 0x02044000,
+    FSL_IMX6UL_BEE_SIZE             = (16 * KiB),
+
     FSL_IMX6UL_TOUCH_CTRL_ADDR      = 0x02040000,
+    FSL_IMX6UL_TOUCH_CTRL_SIZE      = 0x100,
+
     FSL_IMX6UL_SPBA_ADDR            = 0x0203C000,
+    FSL_IMX6UL_SPBA_SIZE            = 0x100,
+
     FSL_IMX6UL_ASRC_ADDR            = 0x02034000,
+    FSL_IMX6UL_ASRC_SIZE            = 0x100,
+
     FSL_IMX6UL_SAI3_ADDR            = 0x02030000,
     FSL_IMX6UL_SAI2_ADDR            = 0x0202C000,
     FSL_IMX6UL_SAI1_ADDR            = 0x02028000,
+    FSL_IMX6UL_SAIn_SIZE            = 0x200,
+
     FSL_IMX6UL_UART8_ADDR           = 0x02024000,
     FSL_IMX6UL_UART1_ADDR           = 0x02020000,
     FSL_IMX6UL_UART7_ADDR           = 0x02018000,
+
     FSL_IMX6UL_ECSPI4_ADDR          = 0x02014000,
     FSL_IMX6UL_ECSPI3_ADDR          = 0x02010000,
     FSL_IMX6UL_ECSPI2_ADDR          = 0x0200C000,
     FSL_IMX6UL_ECSPI1_ADDR          = 0x02008000,
+
     FSL_IMX6UL_SPDIF_ADDR           = 0x02004000,
+    FSL_IMX6UL_SPDIF_SIZE           = 0x100,
+    /* AIPS-1 End */
+
+    FSL_IMX6UL_BCH_ADDR             = 0x01808000,
+    FSL_IMX6UL_BCH_SIZE             = 0x200,
+
+    FSL_IMX6UL_GPMI_ADDR            = 0x01806000,
+    FSL_IMX6UL_GPMI_SIZE            = 0x200,
 
     FSL_IMX6UL_APBH_DMA_ADDR        = 0x01804000,
-    FSL_IMX6UL_APBH_DMA_SIZE        = (32 * 1024),
+    FSL_IMX6UL_APBH_DMA_SIZE        = (4 * KiB),
 
     FSL_IMX6UL_A7MPCORE_ADDR        = 0x00A00000,
 
     FSL_IMX6UL_OCRAM_ALIAS_ADDR     = 0x00920000,
-    FSL_IMX6UL_OCRAM_ALIAS_SIZE     = 0x00060000,
+    FSL_IMX6UL_OCRAM_ALIAS_SIZE     = (384 * KiB),
+
     FSL_IMX6UL_OCRAM_MEM_ADDR       = 0x00900000,
-    FSL_IMX6UL_OCRAM_MEM_SIZE       = 0x00020000,
+    FSL_IMX6UL_OCRAM_MEM_SIZE       = (128 * KiB),
+
     FSL_IMX6UL_CAAM_MEM_ADDR        = 0x00100000,
-    FSL_IMX6UL_CAAM_MEM_SIZE        = 0x00008000,
+    FSL_IMX6UL_CAAM_MEM_SIZE        = (32 * KiB),
+
     FSL_IMX6UL_ROM_ADDR             = 0x00000000,
-    FSL_IMX6UL_ROM_SIZE             = 0x00018000,
+    FSL_IMX6UL_ROM_SIZE             = (96 * KiB),
 };
 
 enum FslIMX6ULIRQs {

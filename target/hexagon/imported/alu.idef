@@ -292,16 +292,16 @@ Q6INSN(A4_combineii,"Rdd32=combine(#s8,#U6)",ATTRIBS(),"Set two small immediates
 
 
 Q6INSN(A2_combine_hh,"Rd32=combine(Rt.H32,Rs.H32)",ATTRIBS(),
-"Combine two halfs into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(1,RsV);})
+"Combine two halves into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(1,RsV);})
 
 Q6INSN(A2_combine_hl,"Rd32=combine(Rt.H32,Rs.L32)",ATTRIBS(),
-"Combine two halfs into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(0,RsV);})
+"Combine two halves into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(0,RsV);})
 
 Q6INSN(A2_combine_lh,"Rd32=combine(Rt.L32,Rs.H32)",ATTRIBS(),
-"Combine two halfs into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(1,RsV);})
+"Combine two halves into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(1,RsV);})
 
 Q6INSN(A2_combine_ll,"Rd32=combine(Rt.L32,Rs.L32)",ATTRIBS(),
-"Combine two halfs into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(0,RsV);})
+"Combine two halves into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(0,RsV);})
 
 Q6INSN(A2_tfril,"Rx.L32=#u16",ATTRIBS(),
 "Set low 16-bits, leave upper 16 unchanged",{ fSETHALF(0,RxV,uiV);})
@@ -1142,9 +1142,9 @@ Q6INSN(A4_cround_rr,"Rd32=cround(Rs32,Rt32)",ATTRIBS(),"Convergent Round", {RdV 
             tmp128 = fSHIFTR128(tmp128, SHIFT);\
             DST =  fCAST16S_8S(tmp128);\
         } else {\
-            size16s_t rndbit_128 =  fCAST8S_16S((1LL << (SHIFT - 1))); \
-            size16s_t src_128 =  fCAST8S_16S(SRC); \
-            size16s_t tmp128 = fADD128(src_128, rndbit_128);\
+            rndbit_128 =  fCAST8S_16S((1LL << (SHIFT - 1))); \
+            src_128 =  fCAST8S_16S(SRC); \
+            tmp128 = fADD128(src_128, rndbit_128);\
             tmp128 = fSHIFTR128(tmp128, SHIFT);\
             DST =  fCAST16S_8S(tmp128);\
         }

@@ -131,7 +131,7 @@ mst_fpga_readb(void *opaque, hwaddr addr, unsigned size)
 		return s->pcmcia1;
 	default:
 		printf("Mainstone - mst_fpga_readb: Bad register offset "
-			"0x" TARGET_FMT_plx "\n", addr);
+			"0x" HWADDR_FMT_plx "\n", addr);
 	}
 	return 0;
 }
@@ -185,7 +185,7 @@ mst_fpga_writeb(void *opaque, hwaddr addr, uint64_t value,
 		break;
 	default:
 		printf("Mainstone - mst_fpga_writeb: Bad register offset "
-			"0x" TARGET_FMT_plx "\n", addr);
+			"0x" HWADDR_FMT_plx "\n", addr);
 	}
 }
 

@@ -18,11 +18,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "tcg/tcg.h"           /* MAX_OPC_PARAM_IARGS */
-#include "exec/cpu_ldst.h"
-#include "tcg/tcg-op.h"
+#include "tcg/tcg.h"
 #include "tcg/tcg-ldst.h"
-#include "qemu/compiler.h"
 #include <ffi.h>
 
 
@@ -109,7 +106,7 @@ static void tci_args_rrm(uint32_t insn, TCGReg *r0,
 {
     *r0 = extract32(insn, 8, 4);
     *r1 = extract32(insn, 12, 4);
-    *m2 = extract32(insn, 20, 12);
+    *m2 = extract32(insn, 16, 16);
 }
 
 static void tci_args_rrr(uint32_t insn, TCGReg *r0, TCGReg *r1, TCGReg *r2)
@@ -142,15 +139,6 @@ static void tci_args_rrrc(uint32_t insn,
     *r1 = extract32(insn, 12, 4);
     *r2 = extract32(insn, 16, 4);
     *c3 = extract32(insn, 20, 4);
-}
-
-static void tci_args_rrrm(uint32_t insn,
-                          TCGReg *r0, TCGReg *r1, TCGReg *r2, MemOpIdx *m3)
-{
-    *r0 = extract32(insn, 8, 4);
-    *r1 = extract32(insn, 12, 4);
-    *r2 = extract32(insn, 16, 4);
-    *m3 = extract32(insn, 20, 12);
 }
 
 static void tci_args_rrrbb(uint32_t insn, TCGReg *r0, TCGReg *r1,
@@ -288,162 +276,54 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
     return result;
 }
 
-static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
+static uint64_t tci_qemu_ld(CPUArchState *env, uint64_t taddr,
                             MemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi);
     uintptr_t ra = (uintptr_t)tb_ptr;
 
-#ifdef CONFIG_SOFTMMU
-    switch (mop & (MO_BSWAP | MO_SSIZE)) {
+    switch (mop & MO_SSIZE) {
     case MO_UB:
-        return helper_ret_ldub_mmu(env, taddr, oi, ra);
+        return helper_ldub_mmu(env, taddr, oi, ra);
     case MO_SB:
-        return helper_ret_ldsb_mmu(env, taddr, oi, ra);
-    case MO_LEUW:
-        return helper_le_lduw_mmu(env, taddr, oi, ra);
-    case MO_LESW:
-        return helper_le_ldsw_mmu(env, taddr, oi, ra);
-    case MO_LEUL:
-        return helper_le_ldul_mmu(env, taddr, oi, ra);
-    case MO_LESL:
-        return helper_le_ldsl_mmu(env, taddr, oi, ra);
-    case MO_LEUQ:
-        return helper_le_ldq_mmu(env, taddr, oi, ra);
-    case MO_BEUW:
-        return helper_be_lduw_mmu(env, taddr, oi, ra);
-    case MO_BESW:
-        return helper_be_ldsw_mmu(env, taddr, oi, ra);
-    case MO_BEUL:
-        return helper_be_ldul_mmu(env, taddr, oi, ra);
-    case MO_BESL:
-        return helper_be_ldsl_mmu(env, taddr, oi, ra);
-    case MO_BEUQ:
-        return helper_be_ldq_mmu(env, taddr, oi, ra);
+        return helper_ldsb_mmu(env, taddr, oi, ra);
+    case MO_UW:
+        return helper_lduw_mmu(env, taddr, oi, ra);
+    case MO_SW:
+        return helper_ldsw_mmu(env, taddr, oi, ra);
+    case MO_UL:
+        return helper_ldul_mmu(env, taddr, oi, ra);
+    case MO_SL:
+        return helper_ldsl_mmu(env, taddr, oi, ra);
+    case MO_UQ:
+        return helper_ldq_mmu(env, taddr, oi, ra);
     default:
         g_assert_not_reached();
     }
-#else
-    void *haddr = g2h(env_cpu(env), taddr);
-    unsigned a_mask = (1u << get_alignment_bits(mop)) - 1;
-    uint64_t ret;
-
-    set_helper_retaddr(ra);
-    if (taddr & a_mask) {
-        helper_unaligned_ld(env, taddr);
-    }
-    switch (mop & (MO_BSWAP | MO_SSIZE)) {
-    case MO_UB:
-        ret = ldub_p(haddr);
-        break;
-    case MO_SB:
-        ret = ldsb_p(haddr);
-        break;
-    case MO_LEUW:
-        ret = lduw_le_p(haddr);
-        break;
-    case MO_LESW:
-        ret = ldsw_le_p(haddr);
-        break;
-    case MO_LEUL:
-        ret = (uint32_t)ldl_le_p(haddr);
-        break;
-    case MO_LESL:
-        ret = (int32_t)ldl_le_p(haddr);
-        break;
-    case MO_LEUQ:
-        ret = ldq_le_p(haddr);
-        break;
-    case MO_BEUW:
-        ret = lduw_be_p(haddr);
-        break;
-    case MO_BESW:
-        ret = ldsw_be_p(haddr);
-        break;
-    case MO_BEUL:
-        ret = (uint32_t)ldl_be_p(haddr);
-        break;
-    case MO_BESL:
-        ret = (int32_t)ldl_be_p(haddr);
-        break;
-    case MO_BEUQ:
-        ret = ldq_be_p(haddr);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    clear_helper_retaddr();
-    return ret;
-#endif
 }
 
-static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
+static void tci_qemu_st(CPUArchState *env, uint64_t taddr, uint64_t val,
                         MemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi);
     uintptr_t ra = (uintptr_t)tb_ptr;
 
-#ifdef CONFIG_SOFTMMU
-    switch (mop & (MO_BSWAP | MO_SIZE)) {
+    switch (mop & MO_SIZE) {
     case MO_UB:
-        helper_ret_stb_mmu(env, taddr, val, oi, ra);
+        helper_stb_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUW:
-        helper_le_stw_mmu(env, taddr, val, oi, ra);
+    case MO_UW:
+        helper_stw_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUL:
-        helper_le_stl_mmu(env, taddr, val, oi, ra);
+    case MO_UL:
+        helper_stl_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUQ:
-        helper_le_stq_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUW:
-        helper_be_stw_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUL:
-        helper_be_stl_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUQ:
-        helper_be_stq_mmu(env, taddr, val, oi, ra);
+    case MO_UQ:
+        helper_stq_mmu(env, taddr, val, oi, ra);
         break;
     default:
         g_assert_not_reached();
     }
-#else
-    void *haddr = g2h(env_cpu(env), taddr);
-    unsigned a_mask = (1u << get_alignment_bits(mop)) - 1;
-
-    set_helper_retaddr(ra);
-    if (taddr & a_mask) {
-        helper_unaligned_st(env, taddr);
-    }
-    switch (mop & (MO_BSWAP | MO_SIZE)) {
-    case MO_UB:
-        stb_p(haddr, val);
-        break;
-    case MO_LEUW:
-        stw_le_p(haddr, val);
-        break;
-    case MO_LEUL:
-        stl_le_p(haddr, val);
-        break;
-    case MO_LEUQ:
-        stq_le_p(haddr, val);
-        break;
-    case MO_BEUW:
-        stw_be_p(haddr, val);
-        break;
-    case MO_BEUL:
-        stl_be_p(haddr, val);
-        break;
-    case MO_BEUQ:
-        stq_be_p(haddr, val);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    clear_helper_retaddr();
-#endif
 }
 
 #if TCG_TARGET_REG_BITS == 64
@@ -471,12 +351,9 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
     tcg_target_ulong regs[TCG_TARGET_NB_REGS];
     uint64_t stack[(TCG_STATIC_CALL_ARGS_SIZE + TCG_STATIC_FRAME_SIZE)
                    / sizeof(uint64_t)];
-    void *call_slots[TCG_STATIC_CALL_ARGS_SIZE / sizeof(uint64_t)];
 
     regs[TCG_AREG0] = (tcg_target_ulong)env;
     regs[TCG_REG_CALL_STACK] = (uintptr_t)stack;
-    /* Other call_slots entries initialized at first use (see below). */
-    call_slots[0] = NULL;
     tci_assert(tb_ptr);
 
     for (;;) {
@@ -485,10 +362,9 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
         TCGReg r0, r1, r2, r3, r4, r5;
         tcg_target_ulong t1;
         TCGCond condition;
-        target_ulong taddr;
         uint8_t pos, len;
         uint32_t tmp32;
-        uint64_t tmp64;
+        uint64_t tmp64, taddr;
         uint64_t T1, T2;
         MemOpIdx oi;
         int32_t ofs;
@@ -499,48 +375,52 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
 
         switch (opc) {
         case INDEX_op_call:
-            /*
-             * Set up the ffi_avalue array once, delayed until now
-             * because many TB's do not make any calls. In tcg_gen_callN,
-             * we arranged for every real argument to be "left-aligned"
-             * in each 64-bit slot.
-             */
-            if (unlikely(call_slots[0] == NULL)) {
-                for (int i = 0; i < ARRAY_SIZE(call_slots); ++i) {
-                    call_slots[i] = &stack[i];
-                }
-            }
-
-            tci_args_nl(insn, tb_ptr, &len, &ptr);
-
-            /* Helper functions may need to access the "return address" */
-            tci_tb_ptr = (uintptr_t)tb_ptr;
-
             {
-                void **pptr = ptr;
-                ffi_call(pptr[1], pptr[0], stack, call_slots);
+                void *call_slots[MAX_CALL_IARGS];
+                ffi_cif *cif;
+                void *func;
+                unsigned i, s, n;
+
+                tci_args_nl(insn, tb_ptr, &len, &ptr);
+                func = ((void **)ptr)[0];
+                cif = ((void **)ptr)[1];
+
+                n = cif->nargs;
+                for (i = s = 0; i < n; ++i) {
+                    ffi_type *t = cif->arg_types[i];
+                    call_slots[i] = &stack[s];
+                    s += DIV_ROUND_UP(t->size, 8);
+                }
+
+                /* Helper functions may need to access the "return address" */
+                tci_tb_ptr = (uintptr_t)tb_ptr;
+                ffi_call(cif, func, stack, call_slots);
             }
 
-            /* Any result winds up "left-aligned" in the stack[0] slot. */
             switch (len) {
             case 0: /* void */
                 break;
             case 1: /* uint32_t */
                 /*
+                 * The result winds up "left-aligned" in the stack[0] slot.
                  * Note that libffi has an odd special case in that it will
                  * always widen an integral result to ffi_arg.
                  */
-                if (sizeof(ffi_arg) == 4) {
-                    regs[TCG_REG_R0] = *(uint32_t *)stack;
-                    break;
-                }
-                /* fall through */
-            case 2: /* uint64_t */
-                if (TCG_TARGET_REG_BITS == 32) {
-                    tci_write_reg64(regs, TCG_REG_R1, TCG_REG_R0, stack[0]);
+                if (sizeof(ffi_arg) == 8) {
+                    regs[TCG_REG_R0] = (uint32_t)stack[0];
                 } else {
-                    regs[TCG_REG_R0] = stack[0];
+                    regs[TCG_REG_R0] = *(uint32_t *)stack;
                 }
+                break;
+            case 2: /* uint64_t */
+                /*
+                 * For TCG_TARGET_REG_BITS == 32, the register pair
+                 * must stay in host memory order.
+                 */
+                memcpy(&regs[TCG_REG_R0], stack, 8);
+                break;
+            case 3: /* Int128 */
+                memcpy(&regs[TCG_REG_R0], stack, 16);
                 break;
             default:
                 g_assert_not_reached();
@@ -853,12 +733,10 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             regs[r0] = ~regs[r1];
             break;
 #endif
-#if TCG_TARGET_HAS_neg_i32 || TCG_TARGET_HAS_neg_i64
         CASE_32_64(neg)
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = -regs[r1];
             break;
-#endif
 #if TCG_TARGET_REG_BITS == 64
             /* Load/store operations (64 bit). */
 
@@ -1031,30 +909,43 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tb_ptr = ptr;
             break;
 
-        case INDEX_op_qemu_ld_i32:
-            if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                taddr = tci_uint64(regs[r2], regs[r1]);
-            }
-            tmp32 = tci_qemu_ld(env, taddr, oi, tb_ptr);
-            regs[r0] = tmp32;
-            break;
-
-        case INDEX_op_qemu_ld_i64:
+        case INDEX_op_qemu_ld_a32_i32:
+            tci_args_rrm(insn, &r0, &r1, &oi);
+            taddr = (uint32_t)regs[r1];
+            goto do_ld_i32;
+        case INDEX_op_qemu_ld_a64_i32:
             if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
                 taddr = regs[r1];
-            } else if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                taddr = regs[r2];
+            } else {
+                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+                taddr = tci_uint64(regs[r2], regs[r1]);
+                oi = regs[r3];
+            }
+        do_ld_i32:
+            regs[r0] = tci_qemu_ld(env, taddr, oi, tb_ptr);
+            break;
+
+        case INDEX_op_qemu_ld_a32_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                taddr = (uint32_t)regs[r1];
+            } else {
+                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+                taddr = (uint32_t)regs[r2];
+                oi = regs[r3];
+            }
+            goto do_ld_i64;
+        case INDEX_op_qemu_ld_a64_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                taddr = regs[r1];
             } else {
                 tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
                 taddr = tci_uint64(regs[r3], regs[r2]);
                 oi = regs[r4];
             }
+        do_ld_i64:
             tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
             if (TCG_TARGET_REG_BITS == 32) {
                 tci_write_reg64(regs, r1, r0, tmp64);
@@ -1063,34 +954,47 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             }
             break;
 
-        case INDEX_op_qemu_st_i32:
-            if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                taddr = tci_uint64(regs[r2], regs[r1]);
-            }
-            tmp32 = regs[r0];
-            tci_qemu_st(env, taddr, tmp32, oi, tb_ptr);
-            break;
-
-        case INDEX_op_qemu_st_i64:
+        case INDEX_op_qemu_st_a32_i32:
+            tci_args_rrm(insn, &r0, &r1, &oi);
+            taddr = (uint32_t)regs[r1];
+            goto do_st_i32;
+        case INDEX_op_qemu_st_a64_i32:
             if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
                 taddr = regs[r1];
-                tmp64 = regs[r0];
             } else {
-                if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                    tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                    taddr = regs[r2];
-                } else {
-                    tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
-                    taddr = tci_uint64(regs[r3], regs[r2]);
-                    oi = regs[r4];
-                }
-                tmp64 = tci_uint64(regs[r1], regs[r0]);
+                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+                taddr = tci_uint64(regs[r2], regs[r1]);
+                oi = regs[r3];
             }
+        do_st_i32:
+            tci_qemu_st(env, taddr, regs[r0], oi, tb_ptr);
+            break;
+
+        case INDEX_op_qemu_st_a32_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                tmp64 = regs[r0];
+                taddr = (uint32_t)regs[r1];
+            } else {
+                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+                tmp64 = tci_uint64(regs[r1], regs[r0]);
+                taddr = (uint32_t)regs[r2];
+                oi = regs[r3];
+            }
+            goto do_st_i64;
+        case INDEX_op_qemu_st_a64_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                tmp64 = regs[r0];
+                taddr = regs[r1];
+            } else {
+                tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
+                tmp64 = tci_uint64(regs[r1], regs[r0]);
+                taddr = tci_uint64(regs[r3], regs[r2]);
+                oi = regs[r4];
+            }
+        do_st_i64:
             tci_qemu_st(env, taddr, tmp64, oi, tb_ptr);
             break;
 
@@ -1360,15 +1264,21 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
                            str_r(r3), str_r(r4), str_r(r5));
         break;
 
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
-        len = DIV_ROUND_UP(64, TCG_TARGET_REG_BITS);
+    case INDEX_op_qemu_ld_a32_i32:
+    case INDEX_op_qemu_st_a32_i32:
+        len = 1 + 1;
         goto do_qemu_ldst;
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
-        len = 1;
+    case INDEX_op_qemu_ld_a32_i64:
+    case INDEX_op_qemu_st_a32_i64:
+    case INDEX_op_qemu_ld_a64_i32:
+    case INDEX_op_qemu_st_a64_i32:
+        len = 1 + DIV_ROUND_UP(64, TCG_TARGET_REG_BITS);
+        goto do_qemu_ldst;
+    case INDEX_op_qemu_ld_a64_i64:
+    case INDEX_op_qemu_st_a64_i64:
+        len = 2 * DIV_ROUND_UP(64, TCG_TARGET_REG_BITS);
+        goto do_qemu_ldst;
     do_qemu_ldst:
-        len += DIV_ROUND_UP(TARGET_LONG_BITS, TCG_TARGET_REG_BITS);
         switch (len) {
         case 2:
             tci_args_rrm(insn, &r0, &r1, &oi);
@@ -1376,9 +1286,10 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
                                op_name, str_r(r0), str_r(r1), oi);
             break;
         case 3:
-            tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-            info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %x",
-                               op_name, str_r(r0), str_r(r1), str_r(r2), oi);
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+            info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
+                               op_name, str_r(r0), str_r(r1),
+                               str_r(r2), str_r(r3));
             break;
         case 4:
             tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);

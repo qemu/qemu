@@ -13,7 +13,7 @@ static void run_test_rtas_get_time_of_day(const char *machine)
     uint64_t ret;
     time_t t1, t2;
 
-    qs = qtest_spapr_boot(machine);
+    qs = qtest_spapr_boot("%s", machine);
 
     t1 = time(NULL);
     ret = qrtas_get_time_of_day(qs->qts, &qs->alloc, &tm, &ns);

@@ -1,0 +1,2 @@
+{ 'struct': 'Stru1', 'data': {} }
+{ 'struct': 'Stru2', 'data': 'Stru1' }

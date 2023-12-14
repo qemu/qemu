@@ -71,9 +71,7 @@ static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
         return;
     }
     bus->next_cad = dev->cad + 1;
-    if (cdc->init(dev) != 0) {
-        error_setg(errp, "HDA audio init failed");
-    }
+    cdc->init(dev, errp);
 }
 
 static void hda_codec_dev_unrealize(DeviceState *qdev)
@@ -219,8 +217,6 @@ struct IntelHDAReg {
     void       (*whandler)(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old);
     void       (*rhandler)(IntelHDAState *d, const IntelHDAReg *reg);
 };
-
-static void intel_hda_reset(DeviceState *dev);
 
 /* --------------------------------------------------------------------- */
 
@@ -516,7 +512,7 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
 static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
     if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
-        intel_hda_reset(DEVICE(d));
+        device_cold_reset(DEVICE(d));
     }
 }
 
@@ -1083,11 +1079,9 @@ static void intel_hda_reset(DeviceState *dev)
     intel_hda_regs_reset(d);
     d->wall_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    /* reset codecs */
     QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
         DeviceState *qdev = kid->child;
         cdev = HDA_CODEC_DEVICE(qdev);
-        device_legacy_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);
     }
     intel_hda_update_irq(d);

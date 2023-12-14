@@ -84,6 +84,8 @@ echo
 echo "=== Testing big twoGbMaxExtentFlat ==="
 _make_test_img -o "subformat=twoGbMaxExtentFlat" 1000G
 _img_info --format-specific | _filter_img_info --format-specific
+$QEMU_IO -c "write 990G 512 -P 89" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read 990G 512 -P 89" "$TEST_IMG" | _filter_qemu_io
 _cleanup_test_img
 
 echo
@@ -182,7 +184,7 @@ done
 echo
 echo "=== Testing afl image with a very large capacity ==="
 _use_sample_img afl9.vmdk.bz2
-_img_info | grep -q 'Cannot allocate memory' && _notrun "Insufficent memory, skipped test"
+_img_info | grep -q 'Cannot allocate memory' && _notrun "Insufficient memory, skipped test"
 _img_info
 _cleanup_test_img
 

@@ -16,13 +16,11 @@
 # else
 #  define TARGET_VIRT_ADDR_SPACE_BITS 44
 # endif
-# define NB_MMU_MODES 6
 #else
 # define TARGET_LONG_BITS 32
 # define TARGET_PAGE_BITS 12 /* 4k */
 # define TARGET_PHYS_ADDR_SPACE_BITS 36
 # define TARGET_VIRT_ADDR_SPACE_BITS 32
-# define NB_MMU_MODES 3
 #endif
 
 #endif

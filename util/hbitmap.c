@@ -331,7 +331,7 @@ bool hbitmap_status(const HBitmap *hb, int64_t start, int64_t count,
 
     assert(next_zero > start);
     *pnum = next_zero - start;
-    return false;
+    return true;
 }
 
 bool hbitmap_empty(const HBitmap *hb)

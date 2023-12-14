@@ -26,4 +26,6 @@ struct target_pt_regs {
 #define TARGET_MCL_FUTURE  2
 #define TARGET_MCL_ONFAULT 4
 
+#define TARGET_DEFAULT_STACK_SIZE	80 * 1024 * 1024UL
+
 #endif /* HPPA_TARGET_SYSCALL_H */

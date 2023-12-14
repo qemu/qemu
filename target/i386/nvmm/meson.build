@@ -1,8 +1,8 @@
-i386_softmmu_ss.add(when: 'CONFIG_NVMM', if_true:
+i386_system_ss.add(when: 'CONFIG_NVMM', if_true:
   files(
   'nvmm-all.c',
   'nvmm-accel-ops.c',
   )
 )
 
-i386_softmmu_ss.add(when: 'CONFIG_NVMM', if_true: nvmm)
+i386_system_ss.add(when: 'CONFIG_NVMM', if_true: nvmm)

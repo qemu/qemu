@@ -17,7 +17,6 @@
 #include "migration.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -78,7 +77,7 @@ FailoverStatus failover_get_state(void)
 void qmp_x_colo_lost_heartbeat(Error **errp)
 {
     if (get_colo_mode() == COLO_MODE_NONE) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "colo");
+        error_setg(errp, "VM is not in COLO mode");
         return;
     }
 

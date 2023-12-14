@@ -1,7 +1,14 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # kvm.c
 kvm_enable_cmma(int rc) "CMMA: enabling with result code %d"
 kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
 kvm_failed_cpu_state_set(int cpu_index, uint8_t state, const char *msg) "Warning: Unable to set cpu %d state %" PRIu8 " to KVM: %s"
 kvm_assign_subch_ioeventfd(int fd, uint32_t addr, bool assign, int datamatch) "fd: %d sch: @0x%x assign: %d vq: %d"
+
+kvm_sw_breakpoint(uint32_t n) "KVM: will use %d-byte sw breakpoints"
+kvm_insn_unhandled_priv(uint32_t x) "KVM: unhandled PRIV: 0x%x"
+kvm_insn_diag(uint32_t x) "KVM: unknown DIAG: 0x%x"
+kvm_insn(uint32_t ipa, uint32_t ipb) "handle_instruction 0x%x 0x%x"
+kvm_intercept(uint32_t icpt_code, uint64_t psw_addr) "intercept: 0x%x (at 0x%"PRIx64"lx)"
+kvm_msi_route_fixup(const char* msg) "%s"

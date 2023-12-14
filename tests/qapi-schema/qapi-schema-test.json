@@ -114,6 +114,38 @@
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
+# this tests that unions can contain other unions in their branches
+{ 'enum': 'TestUnionEnum',
+  'data': [ 'value-a', 'value-b' ] }
+
+{ 'enum': 'TestUnionEnumA',
+  'data': [ 'value-a1', 'value-a2' ] }
+
+{ 'struct': 'TestUnionTypeA1',
+  'data': { 'integer': 'int',
+            'name': 'str'} }
+
+{ 'struct': 'TestUnionTypeA2',
+  'data': { 'integer': 'int',
+            'size': 'int' } }
+
+{ 'union': 'TestUnionTypeA',
+  'base': { 'type-a': 'TestUnionEnumA' },
+  'discriminator': 'type-a',
+  'data': { 'value-a1': 'TestUnionTypeA1',
+            'value-a2': 'TestUnionTypeA2' } }
+
+{ 'struct': 'TestUnionTypeB',
+  'data': { 'integer': 'int',
+            'onoff': 'bool' } }
+
+{ 'union': 'TestUnionInUnion',
+  'base': { 'type': 'TestUnionEnum' },
+  'discriminator': 'type',
+  'data': { 'value-a': 'TestUnionTypeA',
+            'value-b': 'TestUnionTypeB' } }
+
+
 # for testing use of 'number' within alternates
 { 'alternate': 'AltEnumBool', 'data': { 'e': 'EnumOne', 'b': 'bool' } }
 { 'alternate': 'AltEnumNum', 'data': { 'e': 'EnumOne', 'n': 'number' } }
@@ -220,18 +252,19 @@
 
 { 'struct': 'TestIfStruct',
   'data': { 'foo': 'int',
-            'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_BAR'} },
+            'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_MEMBER'},
+            '*baz': { 'type': 'str', 'if': 'TEST_IF_STRUCT_MEMBER'} },
   'if': 'TEST_IF_STRUCT' }
 
 { 'enum': 'TestIfEnum',
-  'data': [ 'foo', { 'name' : 'bar', 'if': 'TEST_IF_ENUM_BAR' } ],
-  'if': 'TEST_IF_ENUM' }
+  'data': [ 'foo', { 'name' : 'bar', 'if': 'TEST_IF_ENUM_MEMBER' } ],
+  'if': 'TEST_IF_UNION' }
 
 { 'union': 'TestIfUnion',
   'base': { 'type': 'TestIfEnum' },
   'discriminator': 'type',
   'data': { 'foo': 'TestStruct',
-            'bar': { 'type': 'UserDefZero', 'if': 'TEST_IF_ENUM_BAR'} },
+            'bar': { 'type': 'UserDefZero', 'if': 'TEST_IF_ENUM_MEMBER'} },
   'if': { 'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-union-cmd',
@@ -240,7 +273,7 @@
 
 { 'alternate': 'TestIfAlternate',
   'data': { 'foo': 'int',
-            'bar': { 'type': 'TestStruct', 'if': 'TEST_IF_ALT_BAR'} },
+            'bar': { 'type': 'TestStruct', 'if': 'TEST_IF_ALT_MEMBER'} },
   'if': { 'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-alternate-cmd',
@@ -248,17 +281,16 @@
   'if': { 'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-cmd',
-  'data': {
-    'foo': 'TestIfStruct',
-    'bar': { 'type': 'TestIfEnum', 'if': 'TEST_IF_CMD_BAR' } },
+  'boxed': true,
+  'data': 'TestIfStruct',
   'returns': 'UserDefThree',
   'if': { 'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-cmd-return-def-three', 'returns': 'UserDefThree' }
 
 { 'event': 'TEST_IF_EVENT',
-  'data': { 'foo': 'TestIfStruct',
-            'bar': { 'type': ['TestIfEnum'], 'if': 'TEST_IF_EVT_BAR' } },
+  'boxed': true,
+  'data': 'TestIfStruct',
   'if': { 'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT'] } }
 
 { 'event': 'TEST_IF_EVENT2', 'data': {},

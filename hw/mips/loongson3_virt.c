@@ -29,11 +29,9 @@
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "elf.h"
-#include "kvm_mips.h"
 #include "hw/char/serial.h"
 #include "hw/intc/loongson_liointc.h"
 #include "hw/mips/mips.h"
-#include "hw/mips/cpudevs.h"
 #include "hw/mips/fw_cfg.h"
 #include "hw/mips/loongson3_bootp.h"
 #include "hw/misc/unimp.h"
@@ -406,6 +404,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     PCIBus *pci_bus;
     DeviceState *dev;
     MemoryRegion *mmio_reg, *ecam_reg;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     LoongsonMachineState *s = LOONGSON_MACHINE(machine);
 
     dev = qdev_new(TYPE_GPEX_HOST);
@@ -446,20 +445,14 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
 
     pci_vga_init(pci_bus);
 
-    if (defaults_enabled()) {
+    if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
         usb_create_simple(usb_bus_find(-1), "usb-kbd");
         usb_create_simple(usb_bus_find(-1), "usb-tablet");
     }
 
     for (i = 0; i < nb_nics; i++) {
-        NICInfo *nd = &nd_table[i];
-
-        if (!nd->model) {
-            nd->model = g_strdup("virtio");
-        }
-
-        pci_nic_init_nofail(nd, pci_bus, nd->model, NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
     }
 }
 
@@ -486,8 +479,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
         if (!machine->cpu_type) {
             machine->cpu_type = MIPS_CPU_TYPE_NAME("Loongson-3A1000");
         }
-        if (!strstr(machine->cpu_type, "Loongson-3A1000")) {
-            error_report("Loongson-3/TCG needs cpu type Loongson-3A1000");
+        if (!cpu_type_supports_isa(machine->cpu_type, INSN_LOONGSON3A)) {
+            error_report("Loongson-3/TCG needs a Loongson-3 series cpu");
             exit(1);
         }
     } else {
@@ -617,8 +610,8 @@ static void loongson3v_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = LOONGSON_MAX_VCPUS;
     mc->default_ram_id = "loongson3.highram";
     mc->default_ram_size = 1600 * MiB;
-    mc->kvm_type = mips_kvm_type;
     mc->minimum_page_bits = 14;
+    mc->default_nic = "virtio-net-pci";
 }
 
 static const TypeInfo loongson3_machine_types[] = {

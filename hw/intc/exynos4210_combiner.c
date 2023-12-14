@@ -120,7 +120,7 @@ exynos4210_combiner_read(void *opaque, hwaddr offset, unsigned size)
     default:
         if (offset >> 2 >= IIC_REGSET_SIZE) {
             hw_error("exynos4210.combiner: overflow of reg_set by 0x"
-                    TARGET_FMT_plx "offset\n", offset);
+                    HWADDR_FMT_plx "offset\n", offset);
         }
         val = s->reg_set[offset >> 2];
     }
@@ -184,19 +184,19 @@ static void exynos4210_combiner_write(void *opaque, hwaddr offset,
 
     if (req_quad_base_n >= IIC_NGRP) {
         hw_error("exynos4210.combiner: unallowed write access at offset 0x"
-                TARGET_FMT_plx "\n", offset);
+                HWADDR_FMT_plx "\n", offset);
         return;
     }
 
     if (reg_n > 1) {
         hw_error("exynos4210.combiner: unallowed write access at offset 0x"
-                TARGET_FMT_plx "\n", offset);
+                HWADDR_FMT_plx "\n", offset);
         return;
     }
 
     if (offset >> 2 >= IIC_REGSET_SIZE) {
         hw_error("exynos4210.combiner: overflow of reg_set by 0x"
-                TARGET_FMT_plx "offset\n", offset);
+                HWADDR_FMT_plx "offset\n", offset);
     }
     s->reg_set[offset >> 2] = val;
 
@@ -246,7 +246,7 @@ static void exynos4210_combiner_write(void *opaque, hwaddr offset,
         break;
     default:
         hw_error("exynos4210.combiner: unallowed write access at offset 0x"
-                TARGET_FMT_plx "\n", offset);
+                HWADDR_FMT_plx "\n", offset);
         break;
     }
 }

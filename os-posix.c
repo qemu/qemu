@@ -29,9 +29,6 @@
 #include <grp.h>
 #include <libgen.h>
 
-/* Needed early for CONFIG_BSD etc. */
-#include "net/slirp.h"
-#include "qemu/qemu-options.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "sysemu/runstate.h"
@@ -41,17 +38,6 @@
 #include <sys/prctl.h>
 #endif
 
-/*
- * Must set all three of these at once.
- * Legal combinations are              unset   by name   by uid
- */
-static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
-static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
-static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
-
-static const char *chroot_dir;
-static int daemonize;
-static int daemon_pipe;
 
 void os_setup_early_signal_handling(void)
 {
@@ -99,7 +85,22 @@ void os_set_proc_name(const char *s)
 }
 
 
-static bool os_parse_runas_uid_gid(const char *optarg)
+/*
+ * Must set all three of these at once.
+ * Legal combinations are              unset   by name   by uid
+ */
+static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
+static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
+static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
+
+/*
+ * Prepare to change user ID. user_id can be one of 3 forms:
+ *   - a username, in which case user ID will be changed to its uid,
+ *     with primary and supplementary groups set up too;
+ *   - a numeric uid, in which case only the uid will be set;
+ *   - a pair of numeric uid:gid.
+ */
+bool os_set_runas(const char *user_id)
 {
     unsigned long lv;
     const char *ep;
@@ -107,7 +108,14 @@ static bool os_parse_runas_uid_gid(const char *optarg)
     gid_t got_gid;
     int rc;
 
-    rc = qemu_strtoul(optarg, &ep, 0, &lv);
+    user_pwd = getpwnam(user_id);
+    if (user_pwd) {
+        user_uid = -1;
+        user_gid = -1;
+        return true;
+    }
+
+    rc = qemu_strtoul(user_id, &ep, 0, &lv);
     got_uid = lv; /* overflow here is ID in C99 */
     if (rc || *ep != ':' || got_uid != lv || got_uid == (uid_t)-1) {
         return false;
@@ -123,38 +131,6 @@ static bool os_parse_runas_uid_gid(const char *optarg)
     user_uid = got_uid;
     user_gid = got_gid;
     return true;
-}
-
-/*
- * Parse OS specific command line options.
- * return 0 if option handled, -1 otherwise
- */
-int os_parse_cmd_args(int index, const char *optarg)
-{
-    switch (index) {
-    case QEMU_OPTION_runas:
-        user_pwd = getpwnam(optarg);
-        if (user_pwd) {
-            user_uid = -1;
-            user_gid = -1;
-        } else if (!os_parse_runas_uid_gid(optarg)) {
-            error_report("User \"%s\" doesn't exist"
-                         " (and is not <uid>:<gid>)",
-                         optarg);
-            exit(1);
-        }
-        break;
-    case QEMU_OPTION_chroot:
-        chroot_dir = optarg;
-        break;
-    case QEMU_OPTION_daemonize:
-        daemonize = 1;
-        break;
-    default:
-        return -1;
-    }
-
-    return 0;
 }
 
 static void change_process_uid(void)
@@ -194,6 +170,14 @@ static void change_process_uid(void)
     }
 }
 
+
+static const char *chroot_dir;
+
+void os_set_chroot(const char *path)
+{
+    chroot_dir = path;
+}
+
 static void change_root(void)
 {
     if (chroot_dir) {
@@ -207,6 +191,21 @@ static void change_root(void)
         }
     }
 
+}
+
+
+static int daemonize;
+static int daemon_pipe;
+
+bool is_daemonized(void)
+{
+    return daemonize;
+}
+
+int os_set_daemonize(bool d)
+{
+    daemonize = d;
+    return 0;
 }
 
 void os_daemonize(void)
@@ -266,7 +265,7 @@ void os_setup_post(void)
             error_report("not able to chdir to /: %s", strerror(errno));
             exit(1);
         }
-        TFR(fd = qemu_open_old("/dev/null", O_RDWR));
+        fd = RETRY_ON_EINTR(qemu_open_old("/dev/null", O_RDWR));
         if (fd == -1) {
             exit(1);
         }
@@ -300,17 +299,6 @@ void os_setup_post(void)
 void os_set_line_buffering(void)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
-}
-
-bool is_daemonized(void)
-{
-    return daemonize;
-}
-
-int os_set_daemonize(bool d)
-{
-    daemonize = d;
-    return 0;
 }
 
 int os_mlock(void)

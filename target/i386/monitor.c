@@ -28,7 +28,7 @@
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qerror.h"
+#include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"
@@ -57,7 +57,7 @@ static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
 {
     addr = addr_canonical(env, addr);
 
-    monitor_printf(mon, TARGET_FMT_plx ": " TARGET_FMT_plx
+    monitor_printf(mon, HWADDR_FMT_plx ": " HWADDR_FMT_plx
                    " %c%c%c%c%c%c%c%c%c\n",
                    addr,
                    pte & mask,
@@ -258,8 +258,8 @@ static void mem_print(Monitor *mon, CPUArchState *env,
     prot1 = *plast_prot;
     if (prot != prot1) {
         if (*pstart != -1) {
-            monitor_printf(mon, TARGET_FMT_plx "-" TARGET_FMT_plx " "
-                           TARGET_FMT_plx " %c%c%c\n",
+            monitor_printf(mon, HWADDR_FMT_plx "-" HWADDR_FMT_plx " "
+                           HWADDR_FMT_plx " %c%c%c\n",
                            addr_canonical(env, *pstart),
                            addr_canonical(env, end),
                            addr_canonical(env, end - *pstart),
@@ -655,7 +655,11 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
 
     if (qdict_haskey(qdict, "apic-id")) {
         int id = qdict_get_try_int(qdict, "apic-id", 0);
+
         cs = cpu_by_arch_id(id);
+        if (cs) {
+            cpu_synchronize_state(cs);
+        }
     } else {
         cs = mon_get_cpu(mon);
     }

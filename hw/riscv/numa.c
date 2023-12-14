@@ -156,15 +156,15 @@ uint64_t riscv_socket_mem_size(const MachineState *ms, int socket_id)
             ms->numa_state->nodes[socket_id].node_mem : 0;
 }
 
-void riscv_socket_fdt_write_id(const MachineState *ms, void *fdt,
-                               const char *node_name, int socket_id)
+void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
+                               int socket_id)
 {
     if (numa_enabled(ms)) {
-        qemu_fdt_setprop_cell(fdt, node_name, "numa-node-id", socket_id);
+        qemu_fdt_setprop_cell(ms->fdt, node_name, "numa-node-id", socket_id);
     }
 }
 
-void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt)
+void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
 {
     int i, j, idx;
     uint32_t *dist_matrix, dist_matrix_size;
@@ -184,10 +184,10 @@ void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt)
             }
         }
 
-        qemu_fdt_add_subnode(fdt, "/distance-map");
-        qemu_fdt_setprop_string(fdt, "/distance-map", "compatible",
+        qemu_fdt_add_subnode(ms->fdt, "/distance-map");
+        qemu_fdt_setprop_string(ms->fdt, "/distance-map", "compatible",
                                 "numa-distance-map-v1");
-        qemu_fdt_setprop(fdt, "/distance-map", "distance-matrix",
+        qemu_fdt_setprop(ms->fdt, "/distance-map", "distance-matrix",
                          dist_matrix, dist_matrix_size);
         g_free(dist_matrix);
     }
@@ -207,6 +207,12 @@ int64_t riscv_numa_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
     int64_t nidx = 0;
 
+    if (ms->numa_state->num_nodes > ms->smp.cpus) {
+        error_report("Number of NUMA nodes (%d)"
+                     " cannot exceed the number of available CPUs (%u).",
+                     ms->numa_state->num_nodes, ms->smp.cpus);
+        exit(EXIT_FAILURE);
+    }
     if (ms->numa_state->num_nodes) {
         nidx = idx / (ms->smp.cpus / ms->numa_state->num_nodes);
         if (ms->numa_state->num_nodes <= nidx) {

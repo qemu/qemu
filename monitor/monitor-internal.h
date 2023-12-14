@@ -94,7 +94,6 @@ typedef struct HMPCommand {
 
 struct Monitor {
     CharBackend chr;
-    int reset_seen;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool is_qmp;
     bool skip_flush;
@@ -115,8 +114,8 @@ struct Monitor {
     QLIST_HEAD(, mon_fd_t) fds;
     GString *outbuf;
     guint out_watch;
-    /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
     int mux_out;
+    int reset_seen;
 };
 
 struct MonitorHMP {
@@ -166,7 +165,6 @@ typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
 extern IOThread *mon_iothread;
 extern Coroutine *qmp_dispatcher_co;
 extern bool qmp_dispatcher_co_shutdown;
-extern bool qmp_dispatcher_co_busy;
 extern QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
@@ -174,7 +172,6 @@ extern int mon_refcount;
 
 extern HMPCommand hmp_cmds[];
 
-int monitor_puts(Monitor *mon, const char *str);
 void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
                        bool use_io_thread);
 void monitor_data_destroy(Monitor *mon);
@@ -185,9 +182,9 @@ void monitor_fdsets_cleanup(void);
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
 void coroutine_fn monitor_qmp_dispatcher_co(void *data);
+void qmp_dispatcher_co_wake(void);
 
 int get_monitor_def(Monitor *mon, int64_t *pval, const char *name);
-void help_cmd(Monitor *mon, const char *name);
 void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
 int hmp_compare_cmd(const char *name, const char *list);
 

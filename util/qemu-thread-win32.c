@@ -19,12 +19,39 @@
 
 static bool name_threads;
 
+typedef HRESULT (WINAPI *pSetThreadDescription) (HANDLE hThread,
+                                                 PCWSTR lpThreadDescription);
+static pSetThreadDescription SetThreadDescriptionFunc;
+static HMODULE kernel32_module;
+
+static bool load_set_thread_description(void)
+{
+    static gsize _init_once = 0;
+
+    if (g_once_init_enter(&_init_once)) {
+        kernel32_module = LoadLibrary("kernel32.dll");
+        if (kernel32_module) {
+            SetThreadDescriptionFunc =
+                (pSetThreadDescription)GetProcAddress(kernel32_module,
+                                                      "SetThreadDescription");
+            if (!SetThreadDescriptionFunc) {
+                FreeLibrary(kernel32_module);
+            }
+        }
+        g_once_init_leave(&_init_once, 1);
+    }
+
+    return !!SetThreadDescriptionFunc;
+}
+
 void qemu_thread_naming(bool enable)
 {
-    /* But note we don't actually name them on Windows yet */
     name_threads = enable;
 
-    fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    if (enable && !load_set_thread_description()) {
+        fprintf(stderr, "qemu: thread naming not supported on this host\n");
+        name_threads = false;
+    }
 }
 
 static void error_exit(int err, const char *msg)
@@ -245,12 +272,20 @@ void qemu_event_destroy(QemuEvent *ev)
 void qemu_event_set(QemuEvent *ev)
 {
     assert(ev->initialized);
-    /* qemu_event_set has release semantics, but because it *loads*
+
+    /*
+     * Pairs with both qemu_event_reset() and qemu_event_wait().
+     *
+     * qemu_event_set has release semantics, but because it *loads*
      * ev->value we need a full memory barrier here.
      */
     smp_mb();
     if (qatomic_read(&ev->value) != EV_SET) {
-        if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+        int old = qatomic_xchg(&ev->value, EV_SET);
+
+        /* Pairs with memory barrier after ResetEvent.  */
+        smp_mb__after_rmw();
+        if (old == EV_BUSY) {
             /* There were waiters, wake them up.  */
             SetEvent(ev->event);
         }
@@ -259,17 +294,19 @@ void qemu_event_set(QemuEvent *ev)
 
 void qemu_event_reset(QemuEvent *ev)
 {
-    unsigned value;
-
     assert(ev->initialized);
-    value = qatomic_read(&ev->value);
-    smp_mb_acquire();
-    if (value == EV_SET) {
-        /* If there was a concurrent reset (or even reset+wait),
-         * do nothing.  Otherwise change EV_SET->EV_FREE.
-         */
-        qatomic_or(&ev->value, EV_FREE);
-    }
+
+    /*
+     * If there was a concurrent reset (or even reset+wait),
+     * do nothing.  Otherwise change EV_SET->EV_FREE.
+     */
+    qatomic_or(&ev->value, EV_FREE);
+
+    /*
+     * Order reset before checking the condition in the caller.
+     * Pairs with the first memory barrier in qemu_event_set().
+     */
+    smp_mb__after_rmw();
 }
 
 void qemu_event_wait(QemuEvent *ev)
@@ -277,29 +314,49 @@ void qemu_event_wait(QemuEvent *ev)
     unsigned value;
 
     assert(ev->initialized);
-    value = qatomic_read(&ev->value);
-    smp_mb_acquire();
+
+    /*
+     * qemu_event_wait must synchronize with qemu_event_set even if it does
+     * not go down the slow path, so this load-acquire is needed that
+     * synchronizes with the first memory barrier in qemu_event_set().
+     *
+     * If we do go down the slow path, there is no requirement at all: we
+     * might miss a qemu_event_set() here but ultimately the memory barrier in
+     * qemu_futex_wait() will ensure the check is done correctly.
+     */
+    value = qatomic_load_acquire(&ev->value);
     if (value != EV_SET) {
         if (value == EV_FREE) {
-            /* qemu_event_set is not yet going to call SetEvent, but we are
-             * going to do another check for EV_SET below when setting EV_BUSY.
-             * At that point it is safe to call WaitForSingleObject.
+            /*
+             * Here the underlying kernel event is reset, but qemu_event_set is
+             * not yet going to call SetEvent.  However, there will be another
+             * check for EV_SET below when setting EV_BUSY.  At that point it
+             * is safe to call WaitForSingleObject.
              */
             ResetEvent(ev->event);
 
-            /* Tell qemu_event_set that there are waiters.  No need to retry
-             * because there cannot be a concurrent busy->free transition.
-             * After the CAS, the event will be either set or busy.
+            /*
+             * It is not clear whether ResetEvent provides this barrier; kernel
+             * APIs (KeResetEvent/KeClearEvent) do not.  Better safe than sorry!
+             */
+            smp_mb();
+
+            /*
+             * Leave the event reset and tell qemu_event_set that there are
+             * waiters.  No need to retry, because there cannot be a concurrent
+             * busy->free transition.  After the CAS, the event will be either
+             * set or busy.
              */
             if (qatomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
-                value = EV_SET;
-            } else {
-                value = EV_BUSY;
+                return;
             }
         }
-        if (value == EV_BUSY) {
-            WaitForSingleObject(ev->event, INFINITE);
-        }
+
+        /*
+         * ev->value is now EV_BUSY.  Since we didn't observe EV_SET,
+         * qemu_event_set() must observe EV_BUSY and call SetEvent().
+         */
+        WaitForSingleObject(ev->event, INFINITE);
     }
 }
 
@@ -400,6 +457,25 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
+static bool set_thread_description(HANDLE h, const char *name)
+{
+    HRESULT hr;
+    g_autofree wchar_t *namew = NULL;
+
+    if (!load_set_thread_description()) {
+        return false;
+    }
+
+    namew = g_utf8_to_utf16(name, -1, NULL, NULL, NULL);
+    if (!namew) {
+        return false;
+    }
+
+    hr = SetThreadDescriptionFunc(h, namew);
+
+    return SUCCEEDED(hr);
+}
+
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
@@ -423,8 +499,24 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (!hThread) {
         error_exit(GetLastError(), __func__);
     }
+    if (name_threads && name && !set_thread_description(hThread, name)) {
+        fprintf(stderr, "qemu: failed to set thread description: %s\n", name);
+    }
     CloseHandle(hThread);
+
     thread->data = data;
+}
+
+int qemu_thread_set_affinity(QemuThread *thread, unsigned long *host_cpus,
+                             unsigned long nbits)
+{
+    return -ENOSYS;
+}
+
+int qemu_thread_get_affinity(QemuThread *thread, unsigned long **host_cpus,
+                             unsigned long *nbits)
+{
+    return -ENOSYS;
 }
 
 void qemu_thread_get_self(QemuThread *thread)

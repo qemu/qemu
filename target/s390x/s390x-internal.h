@@ -11,6 +11,7 @@
 #define S390X_INTERNAL_H
 
 #include "cpu.h"
+#include "fpu/softfloat.h"
 
 #ifndef CONFIG_USER_ONLY
 typedef struct LowCore {
@@ -227,7 +228,7 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
 
 /* arch_dump.c */
 int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                              int cpuid, void *opaque);
+                              int cpuid, DumpState *s);
 
 
 /* cc_helper.c */
@@ -299,7 +300,7 @@ uint32_t set_cc_nz_f128(float128 v);
 uint8_t s390_softfloat_exc_to_ieee(unsigned int exc);
 int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3);
 void s390_restore_bfp_rounding_mode(CPUS390XState *env, int old_mode);
-int float_comp_to_cc(CPUS390XState *env, int float_compare);
+int float_comp_to_cc(CPUS390XState *env, FloatRelation float_compare);
 
 #define DCMASK_ZERO             0x0c00
 #define DCMASK_NORMAL           0x0300
@@ -398,7 +399,9 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3,
 
 /* translate.c */
 void s390x_translate_init(void);
-
+void s390x_restore_state_to_opc(CPUState *cs,
+                                const TranslationBlock *tb,
+                                const uint64_t *data);
 
 /* sigp.c */
 int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3);

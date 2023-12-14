@@ -48,7 +48,7 @@ static void printf_header(unsigned long count)
     uint64_t start_code = qemu_plugin_start_code();
     uint64_t end_code = qemu_plugin_end_code();
     uint64_t entry = qemu_plugin_entry_code();
-    fprintf(fp, "0, 0x%lx, 0x%lx, 0x%lx, %s\n",
+    fprintf(fp, "0, 0x%" PRIx64 ", 0x%" PRIx64 ", 0x%" PRIx64 ", %s\n",
             start_code, end_code, entry, path);
     fprintf(fp, "BB Table: %ld bbs\n", count);
 }
@@ -148,7 +148,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                         int argc, char **argv)
 {
     for (int i = 0; i < argc; i++) {
-        g_autofree char **tokens = g_strsplit(argv[i], "=", 2);
+        g_auto(GStrv) tokens = g_strsplit(argv[i], "=", 2);
         if (g_strcmp0(tokens[0], "filename") == 0) {
             file_name = g_strdup(tokens[1]);
         }

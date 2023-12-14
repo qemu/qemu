@@ -41,8 +41,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA
+ * License along with this library. If not, see <https://www.gnu.org/licenses/>.
  *
  * Authors:
  *    Richard W.M. Jones <rjones@redhat.com>
@@ -53,10 +52,6 @@
 #ifndef QEMU_URI_H
 #define QEMU_URI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * URI:
  *
@@ -64,16 +59,16 @@ extern "C" {
  * as described in RFC 2396 but separated for further processing.
  */
 typedef struct URI {
-    char *scheme;	/* the URI scheme */
-    char *opaque;	/* opaque part */
-    char *authority;	/* the authority part */
-    char *server;	/* the server part */
-    char *user;		/* the user part */
-    int port;		/* the port number */
-    char *path;		/* the path string */
-    char *fragment;	/* the fragment identifier */
-    int  cleanup;	/* parsing potentially unclean URI */
-    char *query;	/* the query string (as it appears in the URI) */
+    char *scheme;      /* the URI scheme */
+    char *opaque;      /* opaque part */
+    char *authority;   /* the authority part */
+    char *server;      /* the server part */
+    char *user;        /* the user part */
+    int port;          /* the port number */
+    char *path;        /* the path string */
+    char *fragment;    /* the fragment identifier */
+    int cleanup;       /* parsing potentially unclean URI */
+    char *query;       /* the query string (as it appears in the URI) */
 } URI;
 
 URI *uri_new(void);
@@ -89,23 +84,20 @@ void uri_free(URI *uri);
 
 /* Single web service query parameter 'name=value'. */
 typedef struct QueryParam {
-  char *name;			/* Name (unescaped). */
-  char *value;			/* Value (unescaped). */
-  int ignore;			/* Ignore this field in qparam_get_query */
+  char *name;          /* Name (unescaped). */
+  char *value;         /* Value (unescaped). */
+  int ignore;          /* Ignore this field in qparam_get_query */
 } QueryParam;
 
 /* Set of parameters. */
 typedef struct QueryParams {
-  int n;			/* number of parameters used */
-  int alloc;			/* allocated space */
-  QueryParam *p;		/* array of parameters */
+  int n;               /* number of parameters used */
+  int alloc;           /* allocated space */
+  QueryParam *p;       /* array of parameters */
 } QueryParams;
 
-struct QueryParams *query_params_new (int init_alloc);
-extern QueryParams *query_params_parse (const char *query);
-extern void query_params_free (QueryParams *ps);
+QueryParams *query_params_new(int init_alloc);
+QueryParams *query_params_parse(const char *query);
+void query_params_free(QueryParams *ps);
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* QEMU_URI_H */

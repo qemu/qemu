@@ -34,7 +34,6 @@
 #
 # -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
 # <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
-#
 ##
 { 'command': 'query-rocker',
   'data': { 'name': 'str' },
@@ -107,7 +106,6 @@
 #                  {"duplex": "full", "enabled": true, "name": "sw1.2",
 #                   "autoneg": "off", "link-up": true, "speed": 10000}
 #    ]}
-#
 ##
 { 'command': 'query-rocker-ports',
   'data': { 'name': 'str' },
@@ -141,7 +139,7 @@
 # @ip-dst: IP header destination address
 #
 # Note: optional members may or may not appear in the flow key
-#       depending if they're relevant to the flow key.
+#     depending if they're relevant to the flow key.
 #
 # Since: 2.4
 ##
@@ -171,7 +169,7 @@
 # @ip-tos: IP header TOS field
 #
 # Note: optional members may or may not appear in the flow mask
-#       depending if they're relevant to the flow mask.
+#     depending if they're relevant to the flow mask.
 #
 # Since: 2.4
 ##
@@ -198,7 +196,7 @@
 # @out-pport: physical output port
 #
 # Note: optional members may or may not appear in the flow action
-#       depending if they're relevant to the flow action.
+#     depending if they're relevant to the flow action.
 #
 # Since: 2.4
 ##
@@ -235,8 +233,8 @@
 #
 # @name: switch name
 #
-# @tbl-id: flow table ID.  If tbl-id is not specified, returns
-#          flow information for all tables.
+# @tbl-id: flow table ID.  If tbl-id is not specified, returns flow
+#     information for all tables.
 #
 # Returns: rocker OF-DPA flow information
 #
@@ -254,7 +252,6 @@
 #                  },
 #                  {...more...},
 #    ]}
-#
 ##
 { 'command': 'query-rocker-of-dpa-flows',
   'data': { 'name': 'str', '*tbl-id': 'uint32' },
@@ -292,7 +289,7 @@
 # @ttl-check: perform TTL check
 #
 # Note: optional members may or may not appear in the group depending
-#       if they're relevant to the group type.
+#     if they're relevant to the group type.
 #
 # Since: 2.4
 ##
@@ -311,8 +308,8 @@
 #
 # @name: switch name
 #
-# @type: group type.  If type is not specified, returns
-#        group information for all group types.
+# @type: group type.  If type is not specified, returns group
+#     information for all group types.
 #
 # Returns: rocker OF-DPA group information
 #
@@ -335,7 +332,6 @@
 #                   "pport": 0, "vlan-id": 3840,
 #                   "pop-vlan": 1, "id": 251658240}
 #    ]}
-#
 ##
 { 'command': 'query-rocker-of-dpa-groups',
   'data': { 'name': 'str', '*type': 'uint8' },

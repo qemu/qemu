@@ -49,11 +49,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(STM32F205State, STM32F205_SOC)
 #define SRAM_SIZE (128 * 1024)
 
 struct STM32F205State {
-    /*< private >*/
     SysBusDevice parent_obj;
-    /*< public >*/
-
-    char *cpu_type;
 
     ARMv7MState armv7m;
 
@@ -63,7 +59,7 @@ struct STM32F205State {
     STM32F2XXADCState adc[STM_NUM_ADCS];
     STM32F2XXSPIState spi[STM_NUM_SPIS];
 
-    qemu_or_irq *adc_irqs;
+    OrIRQState *adc_irqs;
 
     MemoryRegion sram;
     MemoryRegion flash;

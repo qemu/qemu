@@ -23,10 +23,10 @@ import enum
 import tempfile
 import re
 import signal
+import getpass
 from tarfile import TarFile, TarInfo
 from io import StringIO, BytesIO
 from shutil import copy, rmtree
-from pwd import getpwuid
 from datetime import datetime, timedelta
 
 
@@ -186,7 +186,7 @@ def _check_binfmt_misc(executable):
               (binary))
         return None, True
 
-    m = re.search("interpreter (\S+)\n", entry)
+    m = re.search(r"interpreter (\S+)\n", entry)
     interp = m.group(1)
     if interp and interp != executable:
         print("binfmt_misc for %s does not point to %s, using %s" %
@@ -205,22 +205,17 @@ def _read_qemu_dockerfile(img_name):
     return _read_dockerfile(df)
 
 
-def _dockerfile_preprocess(df):
-    out = ""
+def _dockerfile_verify_flat(df):
+    "Verify we do not include other qemu/ layers"
     for l in df.splitlines():
         if len(l.strip()) == 0 or l.startswith("#"):
             continue
         from_pref = "FROM qemu/"
         if l.startswith(from_pref):
-            # TODO: Alternatively we could replace this line with "FROM $ID"
-            # where $ID is the image's hex id obtained with
-            #    $ docker images $IMAGE --format="{{.Id}}"
-            # but unfortunately that's not supported by RHEL 7.
-            inlining = _read_qemu_dockerfile(l[len(from_pref):])
-            out += _dockerfile_preprocess(inlining)
-            continue
-        out += l + "\n"
-    return out
+            print("We no longer support multiple QEMU layers.")
+            print("Dockerfiles should be flat, ideally created by lcitool")
+            return False
+    return True
 
 
 class Docker(object):
@@ -309,23 +304,10 @@ class Docker(object):
         if argv is None:
             argv = []
 
-        # pre-calculate the docker checksum before any
-        # substitutions we make for caching
-        checksum = _text_checksum(_dockerfile_preprocess(dockerfile))
+        if not _dockerfile_verify_flat(dockerfile):
+            return -1
 
-        if registry is not None:
-            sources = re.findall("FROM qemu\/(.*)", dockerfile)
-            # Fetch any cache layers we can, may fail
-            for s in sources:
-                pull_args = ["pull", "%s/qemu/%s" % (registry, s)]
-                if self._do(pull_args, quiet=quiet) != 0:
-                    registry = None
-                    break
-            # Make substitutions
-            if registry is not None:
-                dockerfile = dockerfile.replace("FROM qemu/",
-                                                "FROM %s/qemu/" %
-                                                (registry))
+        checksum = _text_checksum(dockerfile)
 
         tmp_df = tempfile.NamedTemporaryFile(mode="w+t",
                                              encoding='utf-8',
@@ -334,7 +316,7 @@ class Docker(object):
 
         if user:
             uid = os.getuid()
-            uname = getpwuid(uid).pw_name
+            uname = getpass.getuser()
             tmp_df.write("\n")
             tmp_df.write("RUN id %s 2>/dev/null || useradd -u %d -U %s" %
                          (uname, uid, uname))
@@ -371,7 +353,7 @@ class Docker(object):
             checksum = self.get_image_dockerfile_checksum(tag)
         except Exception:
             return False
-        return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
+        return checksum == _text_checksum(dockerfile)
 
     def run(self, cmd, keep, quiet, as_user=False):
         label = uuid.uuid4().hex
@@ -588,7 +570,7 @@ class UpdateCommand(SubCommand):
 
         if args.user:
             uid = os.getuid()
-            uname = getpwuid(uid).pw_name
+            uname = getpass.getuser()
             df.write("\n")
             df.write("RUN id %s 2>/dev/null || useradd -u %d -U %s" %
                      (uname, uid, uname))

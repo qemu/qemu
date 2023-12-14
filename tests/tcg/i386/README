@@ -15,6 +15,15 @@ The Linux system call vm86() is used to test vm86 emulation.
 Various exceptions are raised to test most of the x86 user space
 exception reporting.
 
+test-avx
+--------
+
+This program executes most SSE/AVX instructions and generates a text output,
+for comparison with the output obtained with a real CPU or another emulator.
+
+test-avx.h is generate from x86.csv by test-avx.py
+x86.csv comes from https://github.com/quasilyte/avx512test
+
 linux-test
 ----------
 

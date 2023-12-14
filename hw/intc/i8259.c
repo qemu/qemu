@@ -55,7 +55,7 @@ struct PICClass {
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
-DeviceState *isa_pic;
+PICCommonState *isa_pic;
 static PICCommonState *slave_pic;
 
 /* return the highest priority found in mask (highest = smallest
@@ -133,7 +133,7 @@ static void pic_set_irq(void *opaque, int irq, int level)
     }
 #endif
 
-    if (s->elcr & mask) {
+    if (s->ltim || (s->elcr & mask)) {
         /* level triggered */
         if (level) {
             s->irr |= mask;
@@ -167,15 +167,14 @@ static void pic_intack(PICCommonState *s, int irq)
         s->isr |= (1 << irq);
     }
     /* We don't clear a level sensitive interrupt here */
-    if (!(s->elcr & (1 << irq))) {
+    if (!s->ltim && !(s->elcr & (1 << irq))) {
         s->irr &= ~(1 << irq);
     }
     pic_update_irq(s);
 }
 
-int pic_read_irq(DeviceState *d)
+int pic_read_irq(PICCommonState *s)
 {
-    PICCommonState *s = PIC_COMMON(d);
     int irq, intno;
 
     irq = pic_get_irq(s);
@@ -225,6 +224,7 @@ static void pic_reset(DeviceState *dev)
     PICCommonState *s = PIC_COMMON(dev);
 
     s->elcr = 0;
+    s->ltim = 0;
     pic_init_reset(s);
 }
 
@@ -244,10 +244,7 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
             s->init_state = 1;
             s->init4 = val & 1;
             s->single_mode = val & 2;
-            if (val & 0x08) {
-                qemu_log_mask(LOG_UNIMP,
-                              "i8259: level sensitive irq not supported\n");
-            }
+            s->ltim = val & 8;
         } else if (val & 0x08) {
             if (val & 0x04) {
                 s->poll = 1;
@@ -354,10 +351,8 @@ static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-int pic_get_output(DeviceState *d)
+int pic_get_output(PICCommonState *s)
 {
-    PICCommonState *s = PIC_COMMON(d);
-
     return (pic_get_irq(s) >= 0);
 }
 
@@ -409,7 +404,7 @@ static void pic_realize(DeviceState *dev, Error **errp)
     pc->parent_realize(dev, errp);
 }
 
-qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
+qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
 {
     qemu_irq *irq_set;
     DeviceState *dev;
@@ -421,12 +416,12 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
     isadev = i8259_init_chip(TYPE_I8259, bus, true);
     dev = DEVICE(isadev);
 
-    qdev_connect_gpio_out(dev, 0, parent_irq);
+    qdev_connect_gpio_out(dev, 0, parent_irq_in);
     for (i = 0 ; i < 8; i++) {
         irq_set[i] = qdev_get_gpio_in(dev, i);
     }
 
-    isa_pic = dev;
+    isa_pic = PIC_COMMON(dev);
 
     isadev = i8259_init_chip(TYPE_I8259, bus, false);
     dev = DEVICE(isadev);

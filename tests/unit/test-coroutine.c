@@ -12,9 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
-#include "qemu/lockable.h"
 
 /*
  * Check that qemu_in_coroutine() works
@@ -197,7 +195,7 @@ static void test_no_dangling_access(void)
 }
 
 static bool locked;
-static int done;
+static int done_count;
 
 static void coroutine_fn mutex_fn(void *opaque)
 {
@@ -208,7 +206,7 @@ static void coroutine_fn mutex_fn(void *opaque)
     qemu_coroutine_yield();
     locked = false;
     qemu_co_mutex_unlock(m);
-    done++;
+    done_count++;
 }
 
 static void coroutine_fn lockable_fn(void *opaque)
@@ -220,7 +218,7 @@ static void coroutine_fn lockable_fn(void *opaque)
     qemu_coroutine_yield();
     locked = false;
     qemu_lockable_unlock(x);
-    done++;
+    done_count++;
 }
 
 static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
@@ -228,7 +226,7 @@ static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
     Coroutine *c1 = qemu_coroutine_create(entry, opaque);
     Coroutine *c2 = qemu_coroutine_create(entry, opaque);
 
-    done = 0;
+    done_count = 0;
     qemu_coroutine_enter(c1);
     g_assert(locked);
     qemu_coroutine_enter(c2);
@@ -237,11 +235,11 @@ static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
      * terminates.
      */
     qemu_coroutine_enter(c1);
-    g_assert_cmpint(done, ==, 1);
+    g_assert_cmpint(done_count, ==, 1);
     g_assert(locked);
 
     qemu_coroutine_enter(c2);
-    g_assert_cmpint(done, ==, 2);
+    g_assert_cmpint(done_count, ==, 2);
     g_assert(!locked);
 }
 
@@ -610,7 +608,7 @@ static void perf_baseline(void)
     g_test_message("Function call %u iterations: %f s", maxcycles, duration);
 }
 
-static __attribute__((noinline)) void perf_cost_func(void *opaque)
+static __attribute__((noinline)) void coroutine_fn perf_cost_func(void *opaque)
 {
     qemu_coroutine_yield();
 }
@@ -647,7 +645,7 @@ int main(int argc, char **argv)
      * with a sentinel value.  If there is no freelist this would legitimately
      * crash, so skip it.
      */
-    if (CONFIG_COROUTINE_POOL) {
+    if (IS_ENABLED(CONFIG_COROUTINE_POOL)) {
         g_test_add_func("/basic/no-dangling-access", test_no_dangling_access);
     }
 

@@ -58,6 +58,11 @@ static Notifier mouse_mode_notifier;
 #define SDL2_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
                              / SDL2_REFRESH_INTERVAL_BUSY + 1)
 
+/* introduced in SDL 2.0.10 */
+#ifndef SDL_HINT_RENDER_BATCHING
+#define SDL_HINT_RENDER_BATCHING "SDL_RENDER_BATCHING"
+#endif
+
 static void sdl_update_caption(struct sdl2_console *scon);
 
 static struct sdl2_console *get_scon_from_window(uint32_t window_id)
@@ -99,9 +104,20 @@ void sdl2_window_create(struct sdl2_console *scon)
                                          surface_width(scon->surface),
                                          surface_height(scon->surface),
                                          flags);
-    scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
     if (scon->opengl) {
-        scon->winctx = SDL_GL_GetCurrentContext();
+        const char *driver = "opengl";
+
+        if (scon->opts->gl == DISPLAYGL_MODE_ES) {
+            driver = "opengles2";
+        }
+
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver);
+        SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+
+        scon->winctx = SDL_GL_CreateContext(scon->real_window);
+    } else {
+        /* The SDL renderer is only used by sdl2-2D, when OpenGL is disabled */
+        scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
     }
     sdl_update_caption(scon);
 }
@@ -112,8 +128,14 @@ void sdl2_window_destroy(struct sdl2_console *scon)
         return;
     }
 
-    SDL_DestroyRenderer(scon->real_renderer);
-    scon->real_renderer = NULL;
+    if (scon->winctx) {
+        SDL_GL_DeleteContext(scon->winctx);
+        scon->winctx = NULL;
+    }
+    if (scon->real_renderer) {
+        SDL_DestroyRenderer(scon->real_renderer);
+        scon->real_renderer = NULL;
+    }
     SDL_DestroyWindow(scon->real_window);
     scon->real_window = NULL;
 }
@@ -150,11 +172,19 @@ static void sdl_update_caption(struct sdl2_console *scon)
         status = " [Stopped]";
     } else if (gui_grab) {
         if (alt_grab) {
+#ifdef CONFIG_DARWIN
+            status = " - Press ⌃⌥⇧G to exit grab";
+#else
             status = " - Press Ctrl-Alt-Shift-G to exit grab";
+#endif
         } else if (ctrl_grab) {
             status = " - Press Right-Ctrl-G to exit grab";
         } else {
+#ifdef CONFIG_DARWIN
+            status = " - Press ⌃⌥G to exit grab";
+#else
             status = " - Press Ctrl-Alt-G to exit grab";
+#endif
         }
     }
 
@@ -181,7 +211,7 @@ static void sdl_hide_cursor(struct sdl2_console *scon)
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetCursor(sdl_cursor_hidden);
 
-    if (!qemu_input_is_absolute()) {
+    if (!qemu_input_is_absolute(scon->dcl.con)) {
         SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 }
@@ -192,12 +222,12 @@ static void sdl_show_cursor(struct sdl2_console *scon)
         return;
     }
 
-    if (!qemu_input_is_absolute()) {
+    if (!qemu_input_is_absolute(scon->dcl.con)) {
         SDL_SetRelativeMouseMode(SDL_FALSE);
     }
 
     if (guest_cursor &&
-        (gui_grab || qemu_input_is_absolute() || absolute_enabled)) {
+        (gui_grab || qemu_input_is_absolute(scon->dcl.con) || absolute_enabled)) {
         SDL_SetCursor(guest_sprite);
     } else {
         SDL_SetCursor(sdl_cursor_normal);
@@ -223,7 +253,7 @@ static void sdl_grab_start(struct sdl2_console *scon)
     }
     if (guest_cursor) {
         SDL_SetCursor(guest_sprite);
-        if (!qemu_input_is_absolute() && !absolute_enabled) {
+        if (!qemu_input_is_absolute(scon->dcl.con) && !absolute_enabled) {
             SDL_WarpMouseInWindow(scon->real_window, guest_x, guest_y);
         }
     } else {
@@ -258,7 +288,7 @@ static void absolute_mouse_grab(struct sdl2_console *scon)
 
 static void sdl_mouse_mode_change(Notifier *notify, void *data)
 {
-    if (qemu_input_is_absolute()) {
+    if (qemu_input_is_absolute(sdl2_console[0].dcl.con)) {
         if (!absolute_enabled) {
             absolute_enabled = 1;
             SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -289,7 +319,7 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
         prev_state = state;
     }
 
-    if (qemu_input_is_absolute()) {
+    if (qemu_input_is_absolute(scon->dcl.con)) {
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_X,
                              x, 0, surface_width(scon->surface));
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y,
@@ -461,10 +491,9 @@ static void handle_textinput(SDL_Event *ev)
         return;
     }
 
-    if (qemu_console_is_graphic(con)) {
-        return;
+    if (QEMU_IS_TEXT_CONSOLE(con)) {
+        qemu_text_console_put_string(QEMU_TEXT_CONSOLE(con), ev->text.text, strlen(ev->text.text));
     }
-    kbd_put_string_console(con, ev->text.text, strlen(ev->text.text));
 }
 
 static void handle_mousemotion(SDL_Event *ev)
@@ -476,7 +505,7 @@ static void handle_mousemotion(SDL_Event *ev)
         return;
     }
 
-    if (qemu_input_is_absolute() || absolute_enabled) {
+    if (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
         int scr_w, scr_h;
         SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
         max_x = scr_w - 1;
@@ -492,7 +521,7 @@ static void handle_mousemotion(SDL_Event *ev)
             sdl_grab_start(scon);
         }
     }
-    if (gui_grab || qemu_input_is_absolute() || absolute_enabled) {
+    if (gui_grab || qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
         sdl_send_mouse_event(scon, ev->motion.xrel, ev->motion.yrel,
                              ev->motion.x, ev->motion.y, ev->motion.state);
     }
@@ -509,7 +538,7 @@ static void handle_mousebutton(SDL_Event *ev)
     }
 
     bev = &ev->button;
-    if (!gui_grab && !qemu_input_is_absolute()) {
+    if (!gui_grab && !qemu_input_is_absolute(scon->dcl.con)) {
         if (ev->type == SDL_MOUSEBUTTONUP && bev->button == SDL_BUTTON_LEFT) {
             /* start grabbing all events */
             sdl_grab_start(scon);
@@ -582,7 +611,7 @@ static void handle_windowevent(SDL_Event *ev)
         }
         /* fall through */
     case SDL_WINDOWEVENT_ENTER:
-        if (!gui_grab && (qemu_input_is_absolute() || absolute_enabled)) {
+        if (!gui_grab && (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled)) {
             absolute_mouse_grab(scon);
         }
         /* If a new console window opened using a hotkey receives the
@@ -712,9 +741,9 @@ static void sdl_mouse_warp(DisplayChangeListener *dcl,
         if (!guest_cursor) {
             sdl_show_cursor(scon);
         }
-        if (gui_grab || qemu_input_is_absolute() || absolute_enabled) {
+        if (gui_grab || qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
             SDL_SetCursor(guest_sprite);
-            if (!qemu_input_is_absolute() && !absolute_enabled) {
+            if (!qemu_input_is_absolute(scon->dcl.con) && !absolute_enabled) {
                 SDL_WarpMouseInWindow(scon->real_window, x, y);
             }
         }
@@ -752,7 +781,7 @@ static void sdl_mouse_define(DisplayChangeListener *dcl,
         return;
     }
     if (guest_cursor &&
-        (gui_grab || qemu_input_is_absolute() || absolute_enabled)) {
+        (gui_grab || qemu_input_is_absolute(dcl->con) || absolute_enabled)) {
         SDL_SetCursor(guest_sprite);
     }
 }
@@ -825,21 +854,9 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 
     assert(o->type == DISPLAY_TYPE_SDL);
 
-#ifdef __linux__
-    /* on Linux, SDL may use fbcon|directfb|svgalib when run without
-     * accessible $DISPLAY to open X11 window.  This is often the case
-     * when qemu is run using sudo.  But in this case, and when actually
-     * run in X11 environment, SDL fights with X11 for the video card,
-     * making current display unavailable, often until reboot.
-     * So make x11 the default SDL video driver if this variable is unset.
-     * This is a bit hackish but saves us from bigger problem.
-     * Maybe it's a good idea to fix this in SDL instead.
-     */
-    if (!g_setenv("SDL_VIDEODRIVER", "x11", 0)) {
-        fprintf(stderr, "Could not set SDL_VIDEODRIVER environment variable\n");
-        exit(1);
+    if (SDL_GetHintBoolean("QEMU_ENABLE_SDL_LOGGING", SDL_FALSE)) {
+        SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
     }
-#endif
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
@@ -849,7 +866,14 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
+#ifndef CONFIG_WIN32
+    /* QEMU uses its own low level keyboard hook procedure on Windows */
     SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
+#endif
+#ifdef SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED
+    SDL_SetHint(SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED, "0");
+#endif
+    SDL_SetHint(SDL_HINT_WINDOWS_NO_CLOSE_ON_ALT_F4, "1");
     memset(&info, 0, sizeof(info));
     SDL_VERSION(&info.version);
 

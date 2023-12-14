@@ -16,6 +16,11 @@
 #include "qemu/error-report.h"
 #include "standard-headers/linux/virtio_ids.h"
 
+static const int feature_bits[] = {
+    VIRTIO_F_RING_RESET,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static void vu_rng_start(VirtIODevice *vdev)
 {
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
@@ -42,7 +47,7 @@ static void vu_rng_start(VirtIODevice *vdev)
     }
 
     rng->vhost_dev.acked_features = vdev->guest_features;
-    ret = vhost_dev_start(&rng->vhost_dev, vdev);
+    ret = vhost_dev_start(&rng->vhost_dev, vdev, true);
     if (ret < 0) {
         error_report("Error starting vhost-user-rng: %d", -ret);
         goto err_guest_notifiers;
@@ -76,7 +81,7 @@ static void vu_rng_stop(VirtIODevice *vdev)
         return;
     }
 
-    vhost_dev_stop(&rng->vhost_dev, vdev);
+    vhost_dev_stop(&rng->vhost_dev, vdev, true);
 
     ret = k->set_guest_notifiers(qbus->parent, rng->vhost_dev.nvqs, false);
     if (ret < 0) {
@@ -90,13 +95,9 @@ static void vu_rng_stop(VirtIODevice *vdev)
 static void vu_rng_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
-    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
+    bool should_start = virtio_device_should_start(vdev, status);
 
-    if (!vdev->vm_running) {
-        should_start = false;
-    }
-
-    if (rng->vhost_dev.started == should_start) {
+    if (vhost_dev_is_started(&rng->vhost_dev) == should_start) {
         return;
     }
 
@@ -110,8 +111,10 @@ static void vu_rng_set_status(VirtIODevice *vdev, uint8_t status)
 static uint64_t vu_rng_get_features(VirtIODevice *vdev,
                                     uint64_t requested_features, Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+    VHostUserRNG *rng = VHOST_USER_RNG(vdev);
+
+    return vhost_get_features(&rng->vhost_dev, feature_bits,
+                              requested_features);
 }
 
 static void vu_rng_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -164,7 +167,7 @@ static void vu_rng_disconnect(DeviceState *dev)
 
     rng->connected = false;
 
-    if (rng->vhost_dev.started) {
+    if (vhost_dev_is_started(&rng->vhost_dev)) {
         vu_rng_stop(vdev);
     }
 }
@@ -226,6 +229,7 @@ static void vu_rng_device_realize(DeviceState *dev, Error **errp)
     return;
 
 vhost_dev_init_failed:
+    g_free(rng->vhost_dev.vqs);
     virtio_delete_queue(rng->req_vq);
 virtio_add_queue_failed:
     virtio_cleanup(vdev);
@@ -236,12 +240,12 @@ static void vu_rng_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserRNG *rng = VHOST_USER_RNG(dev);
+    struct vhost_virtqueue *vhost_vqs = rng->vhost_dev.vqs;
 
     vu_rng_set_status(vdev, 0);
 
     vhost_dev_cleanup(&rng->vhost_dev);
-    g_free(rng->vhost_dev.vqs);
-    rng->vhost_dev.vqs = NULL;
+    g_free(vhost_vqs);
     virtio_delete_queue(rng->req_vq);
     virtio_cleanup(vdev);
     vhost_user_cleanup(&rng->vhost_user);

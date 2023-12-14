@@ -71,7 +71,7 @@ typedef struct {
     uint8_t    reserved_2;
     uint64_t   lun;
     uint8_t    cdb[16];
-    uint8_t    add_cdb[1];      /* not supported by QEMU */
+    uint8_t    add_cdb[1];
 } QEMU_PACKED  uas_iu_command;
 
 typedef struct {
@@ -699,6 +699,7 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
     UASRequest *req;
     uint32_t len;
     uint16_t tag = be16_to_cpu(iu->hdr.tag);
+    size_t cdb_len = sizeof(iu->command.cdb) + iu->command.add_cdb_length;
 
     if (iu->command.add_cdb_length > 0) {
         qemu_log_mask(LOG_UNIMP, "additional adb length not yet supported\n");
@@ -729,7 +730,7 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
 
     req->req = scsi_req_new(req->dev, req->tag,
                             usb_uas_get_lun(req->lun),
-                            iu->command.cdb, req);
+                            iu->command.cdb, cdb_len, req);
     if (uas->requestlog) {
         scsi_req_print(req->req);
     }
@@ -790,7 +791,7 @@ static void usb_uas_task(UASDevice *uas, uas_iu *iu)
 
     case UAS_TMF_LOGICAL_UNIT_RESET:
         trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag, lun);
-        qdev_reset_all(&dev->qdev);
+        device_cold_reset(&dev->qdev);
         usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE);
         break;
 
@@ -936,7 +937,8 @@ static void usb_uas_realize(USBDevice *dev, Error **errp)
 
     QTAILQ_INIT(&uas->results);
     QTAILQ_INIT(&uas->requests);
-    uas->status_bh = qemu_bh_new(usb_uas_send_status_bh, uas);
+    uas->status_bh = qemu_bh_new_guarded(usb_uas_send_status_bh, uas,
+                                         &d->mem_reentrancy_guard);
 
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
     scsi_bus_init(&uas->bus, sizeof(uas->bus), DEVICE(dev), &usb_uas_scsi_info);

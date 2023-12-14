@@ -149,6 +149,11 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
+    if (!qtest_has_device("ich9-usb-ehci1") ||
+        !qtest_has_device("ich9-usb-uhci1")) {
+        return 0;
+    }
+
     qtest_add_func("/ehci/pci/uhci-port-1", pci_uhci_port_1);
     qtest_add_func("/ehci/pci/ehci-port-1", pci_ehci_port_1);
     qtest_add_func("/ehci/pci/ehci-config", pci_ehci_config);

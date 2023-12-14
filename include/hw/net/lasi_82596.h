@@ -10,7 +10,7 @@
 
 #include "net/net.h"
 #include "hw/net/i82596.h"
-#include "qom/object.h"
+#include "hw/sysbus.h"
 
 #define TYPE_LASI_82596 "lasi_82596"
 typedef struct SysBusI82596State SysBusI82596State;

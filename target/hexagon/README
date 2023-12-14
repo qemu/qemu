@@ -4,10 +4,10 @@ is a wide vector coprocessor designed for high performance computer vision,
 image processing, machine learning, and other workloads.
 
 The following versions of the Hexagon core are supported
-    Scalar core: v67
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v67-programmer-s-reference-manual
-    HVX extension: v66
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v66-hvx-programmer-s-reference-manual
+    Scalar core: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-programmers-reference-manual-rev-aa
+    HVX extension: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-hvx-programmers-reference-manual-rev-aa
 
 We presented an overview of the project at the 2019 KVM Forum.
     https://kvmforum2019.sched.com/event/Tmwc/qemu-hexagon-automatic-translation-of-the-isa-manual-pseudcode-to-tiny-code-instructions-of-a-vliw-architecture-niccolo-izzo-revng-taylor-simpson-qualcomm-innovation-center
@@ -27,6 +27,10 @@ Hexagon-specific code are
         encode*.def             Encoding patterns for each instruction
         iclass.def              Instruction class definitions used to determine
                                 legal VLIW slots for each instruction
+    qemu/target/hexagon/idef-parser
+        Parser that, given the high-level definitions of an instruction,
+        produces a C function generating equivalent tiny code instructions.
+        See README.rst.
     qemu/linux-user/hexagon
         Helpers for loading the ELF file and making Linux system calls,
         signals, etc
@@ -47,6 +51,8 @@ header files in <BUILD_DIR>/target/hexagon
         gen_tcg_funcs.py                -> tcg_funcs_generated.c.inc
         gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
+        gen_idef_parser_funcs.py        -> idef_parser_input.h
+        gen_analyze_funcs.py            -> analyze_funcs_generated.c.inc
 
 Qemu helper functions have 3 parts
     DEF_HELPER declaration indicates the signature of the helper
@@ -76,14 +82,12 @@ tcg_funcs_generated.c.inc
                     Insn *insn,
                     Packet *pkt)
     {
-        TCGv RdV = tcg_temp_local_new();
+        TCGv RdV = tcg_temp_new();
         const int RdN = insn->regno[0];
         TCGv RsV = hex_gpr[insn->regno[1]];
         TCGv RtV = hex_gpr[insn->regno[2]];
-        gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
-        gen_log_reg_write(RdN, RdV);
-        ctx_log_reg_write(ctx, RdN);
-        tcg_temp_free(RdV);
+        gen_helper_A2_add(RdV, tcg_env, RsV, RtV);
+        gen_log_reg_write(ctx, RdN, RdV);
     }
 
 helper_funcs_generated.c.inc
@@ -132,35 +136,25 @@ For HVX vectors, the generator behaves slightly differently.  The wide vectors
 won't fit in a TCGv or TCGv_i64, so we pass TCGv_ptr variables to pass the
 address to helper functions.  Here's an example for an HVX vector-add-word
 istruction.
-    static void generate_V6_vaddw(
-                    CPUHexagonState *env,
-                    DisasContext *ctx,
-                    Insn *insn,
-                    Packet *pkt)
+    static void generate_V6_vaddw(DisasContext *ctx)
     {
+        Insn *insn __attribute__((unused)) = ctx->insn;
         const int VdN = insn->regno[0];
         const intptr_t VdV_off =
             ctx_future_vreg_off(ctx, VdN, 1, true);
-        TCGv_ptr VdV = tcg_temp_local_new_ptr();
-        tcg_gen_addi_ptr(VdV, cpu_env, VdV_off);
+        TCGv_ptr VdV = tcg_temp_new_ptr();
+        tcg_gen_addi_ptr(VdV, tcg_env, VdV_off);
         const int VuN = insn->regno[1];
         const intptr_t VuV_off =
             vreg_src_off(ctx, VuN);
-        TCGv_ptr VuV = tcg_temp_local_new_ptr();
+        TCGv_ptr VuV = tcg_temp_new_ptr();
         const int VvN = insn->regno[2];
         const intptr_t VvV_off =
             vreg_src_off(ctx, VvN);
-        TCGv_ptr VvV = tcg_temp_local_new_ptr();
-        tcg_gen_addi_ptr(VuV, cpu_env, VuV_off);
-        tcg_gen_addi_ptr(VvV, cpu_env, VvV_off);
-        TCGv slot = tcg_constant_tl(insn->slot);
-        gen_helper_V6_vaddw(cpu_env, VdV, VuV, VvV, slot);
-        tcg_temp_free(slot);
-        gen_log_vreg_write(ctx, VdV_off, VdN, EXT_DFL, insn->slot, false);
-        ctx_log_vreg_write(ctx, VdN, EXT_DFL, false);
-        tcg_temp_free_ptr(VdV);
-        tcg_temp_free_ptr(VuV);
-        tcg_temp_free_ptr(VvV);
+        TCGv_ptr VvV = tcg_temp_new_ptr();
+        tcg_gen_addi_ptr(VuV, tcg_env, VuV_off);
+        tcg_gen_addi_ptr(VvV, tcg_env, VvV_off);
+        gen_helper_V6_vaddw(tcg_env, VdV, VuV, VvV);
     }
 
 Notice that we also generate a variable named <operand>_off for each operand of
@@ -173,12 +167,9 @@ functions from tcg-op-gvec.h.  Here's the override for this instruction.
 Finally, we notice that the override doesn't use the TCGv_ptr variables, so
 we don't generate them when an override is present.  Here is what we generate
 when the override is present.
-    static void generate_V6_vaddw(
-                    CPUHexagonState *env,
-                    DisasContext *ctx,
-                    Insn *insn,
-                    Packet *pkt)
+    static void generate_V6_vaddw(DisasContext *ctx)
     {
+        Insn *insn __attribute__((unused)) = ctx->insn;
         const int VdN = insn->regno[0];
         const intptr_t VdV_off =
             ctx_future_vreg_off(ctx, VdN, 1, true);
@@ -189,9 +180,13 @@ when the override is present.
         const intptr_t VvV_off =
             vreg_src_off(ctx, VvN);
         fGEN_TCG_V6_vaddw({ fHIDE(int i;) fVFOREACH(32, i) { VdV.w[i] = VuV.w[i] + VvV.w[i] ; } });
-        gen_log_vreg_write(ctx, VdV_off, VdN, EXT_DFL, insn->slot, false);
-        ctx_log_vreg_write(ctx, VdN, EXT_DFL, false);
     }
+
+We also generate an analyze_<tag> function for each instruction.  Currently,
+these functions record the writes to registers by calling ctx_log_*.  During
+gen_start_packet, we invoke the analyze_<tag> function for each instruction in
+the packet, and we mark the implicit writes.  After the analysis is performed,
+we initialize the result register for each of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is also a two step process.  The first step is to run
@@ -244,7 +239,7 @@ helper_funcs_generated.c.inc.  There are also several helpers used for debugging
 
 VLIW packet semantics differ from serial semantics in that all input operands
 are read, then the operations are performed, then all the results are written.
-For exmaple, this packet performs a swap of registers r0 and r1
+For example, this packet performs a swap of registers r0 and r1
     { r0 = r1; r1 = r0 }
 Note that the result is different if the instructions are executed serially.
 
@@ -277,10 +272,8 @@ For Hexagon Vector eXtensions (HVX), the following fields are used
     VRegs                       Vector registers
     future_VRegs                Registers to be stored during packet commit
     tmp_VRegs                   Temporary registers *not* stored during commit
-    VRegs_updated               Mask of predicated vector writes
     QRegs                       Q (vector predicate) registers
     future_QRegs                Registers to be stored during packet commit
-    QRegs_updated               Mask of predicated vector writes
 
 *** Debugging ***
 
@@ -311,4 +304,4 @@ Here are some handy places to set breakpoints
         At the start of execution of a packet for a given PC
             br helper_debug_start_packet if env->gpr[41] == 0xdeadbeef
         At the end of execution of a packet for a given PC
-            br helper_debug_commit_end if env->this_PC == 0xdeadbeef
+            br helper_debug_commit_end if this_PC == 0xdeadbeef

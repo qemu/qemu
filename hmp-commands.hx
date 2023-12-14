@@ -11,7 +11,7 @@ HXCOMM HXCOMM can be used for comments, discarded from both rST and C.
         .args_type  = "name:S?",
         .params     = "[cmd]",
         .help       = "show the help",
-        .cmd        = do_help_cmd,
+        .cmd        = hmp_help,
         .flags      = "p",
     },
 
@@ -252,6 +252,7 @@ SRST
 
 ERST
 
+#ifdef CONFIG_PIXMAN
     {
         .name       = "screendump",
         .args_type  = "filename:F,format:-fs,device:s?,head:i?",
@@ -267,6 +268,7 @@ SRST
 ``screendump`` *filename*
   Save screen into PPM image *filename*.
 ERST
+#endif
 
     {
         .name       = "logfile",
@@ -379,17 +381,34 @@ SRST
 ERST
 
     {
+        .name       = "one-insn-per-tb",
+        .args_type  = "option:s?",
+        .params     = "[on|off]",
+        .help       = "run emulation with one guest instruction per translation block",
+        .cmd        = hmp_one_insn_per_tb,
+    },
+
+SRST
+``one-insn-per-tb [off]``
+  Run the emulation with one guest instruction per translation block.
+  This slows down emulation a lot, but can be useful in some situations,
+  such as when trying to analyse the logs produced by the ``-d`` option.
+  This only has an effect when using TCG, not with KVM or other accelerators.
+
+  If called with option off, the emulation returns to normal mode.
+ERST
+
+    {
         .name       = "singlestep",
         .args_type  = "option:s?",
         .params     = "[on|off]",
-        .help       = "run emulation in singlestep mode or switch to normal mode",
-        .cmd        = hmp_singlestep,
+        .help       = "deprecated synonym for one-insn-per-tb",
+        .cmd        = hmp_one_insn_per_tb,
     },
 
 SRST
 ``singlestep [off]``
-  Run the emulation in single step mode.
-  If called with option off, the emulation returns to normal mode.
+  This is a deprecated synonym for the one-insn-per-tb command.
 ERST
 
     {
@@ -563,7 +582,7 @@ ERST
         .args_type  = "fmt:/,val:l",
         .params     = "/fmt expr",
         .help       = "print expression value (use $reg for CPU register access)",
-        .cmd        = do_print,
+        .cmd        = hmp_print,
     },
 
 SRST
@@ -1035,6 +1054,7 @@ SRST
   migration (or once already in postcopy).
 ERST
 
+#ifdef CONFIG_REPLICATION
     {
         .name       = "x_colo_lost_heartbeat",
         .args_type  = "",
@@ -1043,6 +1063,7 @@ ERST
                       "a failover or takeover is needed.",
         .cmd = hmp_x_colo_lost_heartbeat,
     },
+#endif
 
 SRST
 ``x_colo_lost_heartbeat``
@@ -1066,14 +1087,16 @@ ERST
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,detach:-d,windmp:-w,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:l?,length:l?",
-        .params     = "[-p] [-d] [-z|-l|-s|-w] filename [begin length]",
+        .args_type  = "paging:-p,detach:-d,windmp:-w,zlib:-z,lzo:-l,snappy:-s,raw:-R,filename:F,begin:l?,length:l?",
+        .params     = "[-p] [-d] [-z|-l|-s|-w] [-R] filename [begin length]",
         .help       = "dump guest memory into file 'filename'.\n\t\t\t"
                       "-p: do paging to get guest's memory mapping.\n\t\t\t"
                       "-d: return immediately (do not wait for completion).\n\t\t\t"
                       "-z: dump in kdump-compressed format, with zlib compression.\n\t\t\t"
                       "-l: dump in kdump-compressed format, with lzo compression.\n\t\t\t"
                       "-s: dump in kdump-compressed format, with snappy compression.\n\t\t\t"
+                      "-R: when using kdump (-z, -l, -s), use raw rather than makedumpfile-flattened\n\t\t\t"
+                      "    format\n\t\t\t"
                       "-w: dump in Windows crashdump format (can be used instead of ELF-dump converting),\n\t\t\t"
                       "    for Windows x86 and x64 guests with vmcoreinfo driver only.\n\t\t\t"
                       "begin: the starting physical address.\n\t\t\t"
@@ -1096,6 +1119,9 @@ SRST
     dump in kdump-compressed format, with lzo compression.
   ``-s``
     dump in kdump-compressed format, with snappy compression.
+  ``-R``
+    when using kdump (-z, -l, -s), use raw rather than makedumpfile-flattened
+    format
   ``-w``
     dump in Windows crashdump format (can be used instead of ELF-dump converting),
     for Windows x64 guests with vmcoreinfo driver only
@@ -1276,7 +1302,10 @@ ERST
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .params     = "[user|tap|socket|vde|bridge|hubport|netmap|vhost-user"
+        .params     = "[user|tap|socket|stream|dgram|vde|bridge|hubport|netmap|vhost-user"
+#ifdef CONFIG_AF_XDP
+                      "|af-xdp"
+#endif
 #ifdef CONFIG_VMNET
                       "|vmnet-host|vmnet-shared|vmnet-bridged"
 #endif
@@ -1486,6 +1515,7 @@ SRST
   Inject an MCE on the given CPU (x86 only).
 ERST
 
+#ifdef CONFIG_POSIX
     {
         .name       = "getfd",
         .args_type  = "fdname:s",
@@ -1501,6 +1531,7 @@ SRST
   mechanism on unix sockets, it is stored using the name *fdname* for
   later use by other monitor commands.
 ERST
+#endif
 
     {
         .name       = "closefd",
@@ -1743,23 +1774,6 @@ SRST
 ERST
 
     {
-        .name       = "info",
-        .args_type  = "item:s?",
-        .params     = "[subcommand]",
-        .help       = "show various information about the system state",
-        .cmd        = hmp_info_help,
-        .sub_table  = hmp_info_cmds,
-        .flags      = "p",
-    },
-
-SRST
-``calc_dirty_rate`` *second*
-  Start a round of dirty rate measurement with the period specified in *second*.
-  The result of the dirty rate measurement may be observed with ``info
-  dirty_rate`` command.
-ERST
-
-    {
         .name       = "calc_dirty_rate",
         .args_type  = "dirty_ring:-r,dirty_bitmap:-b,second:l,sample_pages_per_GB:l?",
         .params     = "[-r] [-b] second [sample_pages_per_GB]",
@@ -1770,10 +1784,10 @@ ERST
     },
 
 SRST
-``set_vcpu_dirty_limit``
-  Set dirty page rate limit on virtual CPU, the information about all the
-  virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
-  command.
+``calc_dirty_rate`` *second*
+  Start a round of dirty rate measurement with the period specified in *second*.
+  The result of the dirty rate measurement may be observed with ``info
+  dirty_rate`` command.
 ERST
 
     {
@@ -1786,8 +1800,8 @@ ERST
     },
 
 SRST
-``cancel_vcpu_dirty_limit``
-  Cancel dirty page rate limit on virtual CPU, the information about all the
+``set_vcpu_dirty_limit``
+  Set dirty page rate limit on virtual CPU, the information about all the
   virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
   command.
 ERST
@@ -1800,3 +1814,64 @@ ERST
                       "\n\t\t\t\t\t limit on a specified virtual cpu",
         .cmd        = hmp_cancel_vcpu_dirty_limit,
     },
+
+SRST
+``cancel_vcpu_dirty_limit``
+  Cancel dirty page rate limit on virtual CPU, the information about all the
+  virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
+  command.
+ERST
+
+    {
+        .name       = "info",
+        .args_type  = "item:s?",
+        .params     = "[subcommand]",
+        .help       = "show various information about the system state",
+        .cmd        = hmp_info_help,
+        .sub_table  = hmp_info_cmds,
+        .flags      = "p",
+    },
+
+#if defined(CONFIG_FDT)
+    {
+        .name       = "dumpdtb",
+        .args_type  = "filename:F",
+        .params     = "filename",
+        .help       = "dump the FDT in dtb format to 'filename'",
+        .cmd        = hmp_dumpdtb,
+    },
+
+SRST
+``dumpdtb`` *filename*
+  Dump the FDT in dtb format to *filename*.
+ERST
+#endif
+
+#if defined(CONFIG_XEN_EMU)
+    {
+        .name       = "xen-event-inject",
+        .args_type  = "port:i",
+        .params     = "port",
+        .help       = "inject event channel",
+        .cmd        = hmp_xen_event_inject,
+    },
+
+SRST
+``xen-event-inject`` *port*
+  Notify guest via event channel on port *port*.
+ERST
+
+
+    {
+        .name       = "xen-event-list",
+        .args_type  = "",
+        .params     = "",
+        .help       = "list event channel state",
+        .cmd        = hmp_xen_event_list,
+    },
+
+SRST
+``xen-event-list``
+  List event channels in the guest
+ERST
+#endif

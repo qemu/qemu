@@ -10,7 +10,7 @@
 #ifndef LIBQOS_VIRTIO_H
 #define LIBQOS_VIRTIO_H
 
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "standard-headers/linux/virtio_ring.h"
 
 #define QVIRTIO_F_BAD_FEATURE           0x40000000ull

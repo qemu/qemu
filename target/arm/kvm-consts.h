@@ -14,16 +14,16 @@
 #ifndef ARM_KVM_CONSTS_H
 #define ARM_KVM_CONSTS_H
 
+#ifdef NEED_CPU_H
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #include <linux/psci.h>
-
 #define MISMATCH_CHECK(X, Y) QEMU_BUILD_BUG_ON(X != Y)
+#endif
+#endif
 
-#else
-
+#ifndef MISMATCH_CHECK
 #define MISMATCH_CHECK(X, Y) QEMU_BUILD_BUG_ON(0)
-
 #endif
 
 #define CP_REG_SIZE_SHIFT 52
@@ -124,13 +124,10 @@ MISMATCH_CHECK(QEMU_PSCI_RET_INTERNAL_FAILURE, PSCI_RET_INTERNAL_FAILURE);
 MISMATCH_CHECK(QEMU_PSCI_RET_NOT_PRESENT, PSCI_RET_NOT_PRESENT);
 MISMATCH_CHECK(QEMU_PSCI_RET_DISABLED, PSCI_RET_DISABLED);
 
-/* Note that KVM uses overlapping values for AArch32 and AArch64
- * target CPU numbers. AArch32 targets:
+/*
+ * Note that KVM uses overlapping values for AArch32 and AArch64
+ * target CPU numbers. AArch64 targets:
  */
-#define QEMU_KVM_ARM_TARGET_CORTEX_A15 0
-#define QEMU_KVM_ARM_TARGET_CORTEX_A7 1
-
-/* AArch64 targets: */
 #define QEMU_KVM_ARM_TARGET_AEM_V8 0
 #define QEMU_KVM_ARM_TARGET_FOUNDATION_V8 1
 #define QEMU_KVM_ARM_TARGET_CORTEX_A57 2

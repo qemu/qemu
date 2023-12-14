@@ -52,13 +52,18 @@ Supported guest CPU types:
 
 - ``cortex-a7`` (32-bit)
 - ``cortex-a15`` (32-bit; the default)
+- ``cortex-a35`` (64-bit)
 - ``cortex-a53`` (64-bit)
+- ``cortex-a55`` (64-bit)
 - ``cortex-a57`` (64-bit)
 - ``cortex-a72`` (64-bit)
 - ``cortex-a76`` (64-bit)
+- ``cortex-a710`` (64-bit)
 - ``a64fx`` (64-bit)
 - ``host`` (with KVM only)
 - ``neoverse-n1`` (64-bit)
+- ``neoverse-v1`` (64-bit)
+- ``neoverse-n2`` (64-bit)
 - ``max`` (same as ``host`` for KVM; best possible emulation with TCG)
 
 Note that the default is ``cortex-a15``, so for an AArch64 guest you must
@@ -92,6 +97,23 @@ highmem
   Set ``on``/``off`` to enable/disable placing devices and RAM in physical
   address space above 32 bits. The default is ``on`` for machine types
   later than ``virt-2.12``.
+
+compact-highmem
+  Set ``on``/``off`` to enable/disable the compact layout for high memory regions.
+  The default is ``on`` for machine types later than ``virt-7.2``.
+
+highmem-redists
+  Set ``on``/``off`` to enable/disable the high memory region for GICv3 or
+  GICv4 redistributor. The default is ``on``. Setting this to ``off`` will
+  limit the maximum number of CPUs when GICv3 or GICv4 is used.
+
+highmem-ecam
+  Set ``on``/``off`` to enable/disable the high memory region for PCI ECAM.
+  The default is ``on`` for machine types later than ``virt-3.0``.
+
+highmem-mmio
+  Set ``on``/``off`` to enable/disable the high memory region for PCI MMIO.
+  The default is ``on``.
 
 gic-version
   Specify the version of the Generic Interrupt Controller (GIC) to provide.

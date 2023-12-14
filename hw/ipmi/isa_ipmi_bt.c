@@ -68,6 +68,21 @@ static void isa_ipmi_bt_lower_irq(IPMIBT *ib)
     qemu_irq_lower(iib->irq);
 }
 
+static const VMStateDescription vmstate_ISAIPMIBTDevice = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "isa-bt",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    /*
+     * Version 1 had messed up the array transfer, it's not even usable
+     * because it used VMSTATE_VBUFFER_UINT32, but it did not transfer
+     * the buffer length, so random things would happen.
+     */
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT(bt, ISAIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
 {
     Error *err = NULL;
@@ -102,30 +117,15 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iib->bt.io_base, iib->bt.io_length);
 
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
-}
 
-static const VMStateDescription vmstate_ISAIPMIBTDevice = {
-    .name = TYPE_IPMI_INTERFACE_PREFIX "isa-bt",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    /*
-     * Version 1 had messed up the array transfer, it's not even usable
-     * because it used VMSTATE_VBUFFER_UINT32, but it did not transfer
-     * the buffer length, so random things would happen.
-     */
-    .fields      = (VMStateField[]) {
-        VMSTATE_STRUCT(bt, ISAIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
-        VMSTATE_END_OF_LIST()
-    }
-};
+    vmstate_register(NULL, 0, &vmstate_ISAIPMIBTDevice, dev);
+}
 
 static void isa_ipmi_bt_init(Object *obj)
 {
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(obj);
 
     ipmi_bmc_find_and_link(obj, (Object **) &iib->bt.bmc);
-
-    vmstate_register(NULL, 0, &vmstate_ISAIPMIBTDevice, iib);
 }
 
 static void *isa_ipmi_bt_get_backend_data(IPMIInterface *ii)

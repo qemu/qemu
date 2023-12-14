@@ -601,8 +601,8 @@ enum {
 };
 
 enum {
-    FD_STATE_MULTI  = 0x01,	/* multi track flag */
-    FD_STATE_FORMAT = 0x02,	/* format flag */
+    FD_STATE_MULTI  = 0x01, /* multi track flag */
+    FD_STATE_FORMAT = 0x02, /* format flag */
 };
 
 enum {

@@ -123,14 +123,14 @@ typedef struct {
 /* Bytes(!) per pixel */
 static const int blizzard_iformat_bpp[0x10] = {
     0,
-    2,	/* RGB 5:6:5*/
-    3,	/* RGB 6:6:6 mode 1 */
-    3,	/* RGB 8:8:8 mode 1 */
+    2,  /* RGB 5:6:5*/
+    3,  /* RGB 6:6:6 mode 1 */
+    3,  /* RGB 8:8:8 mode 1 */
     0, 0,
-    4,	/* RGB 6:6:6 mode 2 */
-    4,	/* RGB 8:8:8 mode 2 */
-    0,	/* YUV 4:2:2 */
-    0,	/* YUV 4:2:0 */
+    4,  /* RGB 6:6:6 mode 2 */
+    4,  /* RGB 8:8:8 mode 2 */
+    0,  /* YUV 4:2:2 */
+    0,  /* YUV 4:2:0 */
     0, 0, 0, 0, 0, 0,
 };
 
@@ -281,196 +281,196 @@ static uint16_t blizzard_reg_read(void *opaque, uint8_t reg)
     BlizzardState *s = (BlizzardState *) opaque;
 
     switch (reg) {
-    case 0x00:	/* Revision Code */
+    case 0x00:  /* Revision Code */
         return 0xa5;
 
-    case 0x02:	/* Configuration Readback */
-        return 0x83;	/* Macrovision OK, CNF[2:0] = 3 */
+    case 0x02:  /* Configuration Readback */
+        return 0x83;    /* Macrovision OK, CNF[2:0] = 3 */
 
-    case 0x04:	/* PLL M-Divider */
+    case 0x04:  /* PLL M-Divider */
         return (s->pll - 1) | (1 << 7);
-    case 0x06:	/* PLL Lock Range Control */
+    case 0x06:  /* PLL Lock Range Control */
         return s->pll_range;
-    case 0x08:	/* PLL Lock Synthesis Control 0 */
+    case 0x08:  /* PLL Lock Synthesis Control 0 */
         return s->pll_ctrl & 0xff;
-    case 0x0a:	/* PLL Lock Synthesis Control 1 */
+    case 0x0a:  /* PLL Lock Synthesis Control 1 */
         return s->pll_ctrl >> 8;
-    case 0x0c:	/* PLL Mode Control 0 */
+    case 0x0c:  /* PLL Mode Control 0 */
         return s->pll_mode;
 
-    case 0x0e:	/* Clock-Source Select */
+    case 0x0e:  /* Clock-Source Select */
         return s->clksel;
 
-    case 0x10:	/* Memory Controller Activate */
-    case 0x14:	/* Memory Controller Bank 0 Status Flag */
+    case 0x10:  /* Memory Controller Activate */
+    case 0x14:  /* Memory Controller Bank 0 Status Flag */
         return s->memenable;
 
-    case 0x18:	/* Auto-Refresh Interval Setting 0 */
+    case 0x18:  /* Auto-Refresh Interval Setting 0 */
         return s->memrefresh & 0xff;
-    case 0x1a:	/* Auto-Refresh Interval Setting 1 */
+    case 0x1a:  /* Auto-Refresh Interval Setting 1 */
         return s->memrefresh >> 8;
 
-    case 0x1c:	/* Power-On Sequence Timing Control */
+    case 0x1c:  /* Power-On Sequence Timing Control */
         return s->timing[0];
-    case 0x1e:	/* Timing Control 0 */
+    case 0x1e:  /* Timing Control 0 */
         return s->timing[1];
-    case 0x20:	/* Timing Control 1 */
+    case 0x20:  /* Timing Control 1 */
         return s->timing[2];
 
-    case 0x24:	/* Arbitration Priority Control */
+    case 0x24:  /* Arbitration Priority Control */
         return s->priority;
 
-    case 0x28:	/* LCD Panel Configuration */
+    case 0x28:  /* LCD Panel Configuration */
         return s->lcd_config;
 
-    case 0x2a:	/* LCD Horizontal Display Width */
+    case 0x2a:  /* LCD Horizontal Display Width */
         return s->x >> 3;
-    case 0x2c:	/* LCD Horizontal Non-display Period */
+    case 0x2c:  /* LCD Horizontal Non-display Period */
         return s->hndp;
-    case 0x2e:	/* LCD Vertical Display Height 0 */
+    case 0x2e:  /* LCD Vertical Display Height 0 */
         return s->y & 0xff;
-    case 0x30:	/* LCD Vertical Display Height 1 */
+    case 0x30:  /* LCD Vertical Display Height 1 */
         return s->y >> 8;
-    case 0x32:	/* LCD Vertical Non-display Period */
+    case 0x32:  /* LCD Vertical Non-display Period */
         return s->vndp;
-    case 0x34:	/* LCD HS Pulse-width */
+    case 0x34:  /* LCD HS Pulse-width */
         return s->hsync;
-    case 0x36:	/* LCd HS Pulse Start Position */
+    case 0x36:  /* LCd HS Pulse Start Position */
         return s->skipx >> 3;
-    case 0x38:	/* LCD VS Pulse-width */
+    case 0x38:  /* LCD VS Pulse-width */
         return s->vsync;
-    case 0x3a:	/* LCD VS Pulse Start Position */
+    case 0x3a:  /* LCD VS Pulse Start Position */
         return s->skipy;
 
-    case 0x3c:	/* PCLK Polarity */
+    case 0x3c:  /* PCLK Polarity */
         return s->pclk;
 
-    case 0x3e:	/* High-speed Serial Interface Tx Configuration Port 0 */
+    case 0x3e:  /* High-speed Serial Interface Tx Configuration Port 0 */
         return s->hssi_config[0];
-    case 0x40:	/* High-speed Serial Interface Tx Configuration Port 1 */
+    case 0x40:  /* High-speed Serial Interface Tx Configuration Port 1 */
         return s->hssi_config[1];
-    case 0x42:	/* High-speed Serial Interface Tx Mode */
+    case 0x42:  /* High-speed Serial Interface Tx Mode */
         return s->hssi_config[2];
-    case 0x44:	/* TV Display Configuration */
+    case 0x44:  /* TV Display Configuration */
         return s->tv_config;
-    case 0x46 ... 0x4c:	/* TV Vertical Blanking Interval Data bits */
+    case 0x46 ... 0x4c: /* TV Vertical Blanking Interval Data bits */
         return s->tv_timing[(reg - 0x46) >> 1];
-    case 0x4e:	/* VBI: Closed Caption / XDS Control / Status */
+    case 0x4e:  /* VBI: Closed Caption / XDS Control / Status */
         return s->vbi;
-    case 0x50:	/* TV Horizontal Start Position */
+    case 0x50:  /* TV Horizontal Start Position */
         return s->tv_x;
-    case 0x52:	/* TV Vertical Start Position */
+    case 0x52:  /* TV Vertical Start Position */
         return s->tv_y;
-    case 0x54:	/* TV Test Pattern Setting */
+    case 0x54:  /* TV Test Pattern Setting */
         return s->tv_test;
-    case 0x56:	/* TV Filter Setting */
+    case 0x56:  /* TV Filter Setting */
         return s->tv_filter_config;
-    case 0x58:	/* TV Filter Coefficient Index */
+    case 0x58:  /* TV Filter Coefficient Index */
         return s->tv_filter_idx;
-    case 0x5a:	/* TV Filter Coefficient Data */
+    case 0x5a:  /* TV Filter Coefficient Data */
         if (s->tv_filter_idx < 0x20)
             return s->tv_filter_coeff[s->tv_filter_idx ++];
         return 0;
 
-    case 0x60:	/* Input YUV/RGB Translate Mode 0 */
+    case 0x60:  /* Input YUV/RGB Translate Mode 0 */
         return s->yrc[0];
-    case 0x62:	/* Input YUV/RGB Translate Mode 1 */
+    case 0x62:  /* Input YUV/RGB Translate Mode 1 */
         return s->yrc[1];
-    case 0x64:	/* U Data Fix */
+    case 0x64:  /* U Data Fix */
         return s->u;
-    case 0x66:	/* V Data Fix */
+    case 0x66:  /* V Data Fix */
         return s->v;
 
-    case 0x68:	/* Display Mode */
+    case 0x68:  /* Display Mode */
         return s->mode;
 
-    case 0x6a:	/* Special Effects */
+    case 0x6a:  /* Special Effects */
         return s->effect;
 
-    case 0x6c:	/* Input Window X Start Position 0 */
+    case 0x6c:  /* Input Window X Start Position 0 */
         return s->ix[0] & 0xff;
-    case 0x6e:	/* Input Window X Start Position 1 */
+    case 0x6e:  /* Input Window X Start Position 1 */
         return s->ix[0] >> 3;
-    case 0x70:	/* Input Window Y Start Position 0 */
+    case 0x70:  /* Input Window Y Start Position 0 */
         return s->ix[0] & 0xff;
-    case 0x72:	/* Input Window Y Start Position 1 */
+    case 0x72:  /* Input Window Y Start Position 1 */
         return s->ix[0] >> 3;
-    case 0x74:	/* Input Window X End Position 0 */
+    case 0x74:  /* Input Window X End Position 0 */
         return s->ix[1] & 0xff;
-    case 0x76:	/* Input Window X End Position 1 */
+    case 0x76:  /* Input Window X End Position 1 */
         return s->ix[1] >> 3;
-    case 0x78:	/* Input Window Y End Position 0 */
+    case 0x78:  /* Input Window Y End Position 0 */
         return s->ix[1] & 0xff;
-    case 0x7a:	/* Input Window Y End Position 1 */
+    case 0x7a:  /* Input Window Y End Position 1 */
         return s->ix[1] >> 3;
-    case 0x7c:	/* Output Window X Start Position 0 */
+    case 0x7c:  /* Output Window X Start Position 0 */
         return s->ox[0] & 0xff;
-    case 0x7e:	/* Output Window X Start Position 1 */
+    case 0x7e:  /* Output Window X Start Position 1 */
         return s->ox[0] >> 3;
-    case 0x80:	/* Output Window Y Start Position 0 */
+    case 0x80:  /* Output Window Y Start Position 0 */
         return s->oy[0] & 0xff;
-    case 0x82:	/* Output Window Y Start Position 1 */
+    case 0x82:  /* Output Window Y Start Position 1 */
         return s->oy[0] >> 3;
-    case 0x84:	/* Output Window X End Position 0 */
+    case 0x84:  /* Output Window X End Position 0 */
         return s->ox[1] & 0xff;
-    case 0x86:	/* Output Window X End Position 1 */
+    case 0x86:  /* Output Window X End Position 1 */
         return s->ox[1] >> 3;
-    case 0x88:	/* Output Window Y End Position 0 */
+    case 0x88:  /* Output Window Y End Position 0 */
         return s->oy[1] & 0xff;
-    case 0x8a:	/* Output Window Y End Position 1 */
+    case 0x8a:  /* Output Window Y End Position 1 */
         return s->oy[1] >> 3;
 
-    case 0x8c:	/* Input Data Format */
+    case 0x8c:  /* Input Data Format */
         return s->iformat;
-    case 0x8e:	/* Data Source Select */
+    case 0x8e:  /* Data Source Select */
         return s->source;
-    case 0x90:	/* Display Memory Data Port */
+    case 0x90:  /* Display Memory Data Port */
         return 0;
 
-    case 0xa8:	/* Border Color 0 */
+    case 0xa8:  /* Border Color 0 */
         return s->border_r;
-    case 0xaa:	/* Border Color 1 */
+    case 0xaa:  /* Border Color 1 */
         return s->border_g;
-    case 0xac:	/* Border Color 2 */
+    case 0xac:  /* Border Color 2 */
         return s->border_b;
 
-    case 0xb4:	/* Gamma Correction Enable */
+    case 0xb4:  /* Gamma Correction Enable */
         return s->gamma_config;
-    case 0xb6:	/* Gamma Correction Table Index */
+    case 0xb6:  /* Gamma Correction Table Index */
         return s->gamma_idx;
-    case 0xb8:	/* Gamma Correction Table Data */
+    case 0xb8:  /* Gamma Correction Table Data */
         return s->gamma_lut[s->gamma_idx ++];
 
-    case 0xba:	/* 3x3 Matrix Enable */
+    case 0xba:  /* 3x3 Matrix Enable */
         return s->matrix_ena;
-    case 0xbc ... 0xde:	/* Coefficient Registers */
+    case 0xbc ... 0xde: /* Coefficient Registers */
         return s->matrix_coeff[(reg - 0xbc) >> 1];
-    case 0xe0:	/* 3x3 Matrix Red Offset */
+    case 0xe0:  /* 3x3 Matrix Red Offset */
         return s->matrix_r;
-    case 0xe2:	/* 3x3 Matrix Green Offset */
+    case 0xe2:  /* 3x3 Matrix Green Offset */
         return s->matrix_g;
-    case 0xe4:	/* 3x3 Matrix Blue Offset */
+    case 0xe4:  /* 3x3 Matrix Blue Offset */
         return s->matrix_b;
 
-    case 0xe6:	/* Power-save */
+    case 0xe6:  /* Power-save */
         return s->pm;
-    case 0xe8:	/* Non-display Period Control / Status */
+    case 0xe8:  /* Non-display Period Control / Status */
         return s->status | (1 << 5);
-    case 0xea:	/* RGB Interface Control */
+    case 0xea:  /* RGB Interface Control */
         return s->rgbgpio_dir;
-    case 0xec:	/* RGB Interface Status */
+    case 0xec:  /* RGB Interface Status */
         return s->rgbgpio;
-    case 0xee:	/* General-purpose IO Pins Configuration */
+    case 0xee:  /* General-purpose IO Pins Configuration */
         return s->gpio_dir;
-    case 0xf0:	/* General-purpose IO Pins Status / Control */
+    case 0xf0:  /* General-purpose IO Pins Status / Control */
         return s->gpio;
-    case 0xf2:	/* GPIO Positive Edge Interrupt Trigger */
+    case 0xf2:  /* GPIO Positive Edge Interrupt Trigger */
         return s->gpio_edge[0];
-    case 0xf4:	/* GPIO Negative Edge Interrupt Trigger */
+    case 0xf4:  /* GPIO Negative Edge Interrupt Trigger */
         return s->gpio_edge[1];
-    case 0xf6:	/* GPIO Interrupt Status */
+    case 0xf6:  /* GPIO Interrupt Status */
         return s->gpio_irq;
-    case 0xf8:	/* GPIO Pull-down Control */
+    case 0xf8:  /* GPIO Pull-down Control */
         return s->gpio_pdown;
 
     default:
@@ -484,157 +484,157 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
     BlizzardState *s = (BlizzardState *) opaque;
 
     switch (reg) {
-    case 0x04:	/* PLL M-Divider */
+    case 0x04:  /* PLL M-Divider */
         s->pll = (value & 0x3f) + 1;
         break;
-    case 0x06:	/* PLL Lock Range Control */
+    case 0x06:  /* PLL Lock Range Control */
         s->pll_range = value & 3;
         break;
-    case 0x08:	/* PLL Lock Synthesis Control 0 */
+    case 0x08:  /* PLL Lock Synthesis Control 0 */
         s->pll_ctrl &= 0xf00;
         s->pll_ctrl |= (value << 0) & 0x0ff;
         break;
-    case 0x0a:	/* PLL Lock Synthesis Control 1 */
+    case 0x0a:  /* PLL Lock Synthesis Control 1 */
         s->pll_ctrl &= 0x0ff;
         s->pll_ctrl |= (value << 8) & 0xf00;
         break;
-    case 0x0c:	/* PLL Mode Control 0 */
+    case 0x0c:  /* PLL Mode Control 0 */
         s->pll_mode = value & 0x77;
         if ((value & 3) == 0 || (value & 3) == 3)
             fprintf(stderr, "%s: wrong PLL Control bits (%i)\n",
                     __func__, value & 3);
         break;
 
-    case 0x0e:	/* Clock-Source Select */
+    case 0x0e:  /* Clock-Source Select */
         s->clksel = value & 0xff;
         break;
 
-    case 0x10:	/* Memory Controller Activate */
+    case 0x10:  /* Memory Controller Activate */
         s->memenable = value & 1;
         break;
-    case 0x14:	/* Memory Controller Bank 0 Status Flag */
+    case 0x14:  /* Memory Controller Bank 0 Status Flag */
         break;
 
-    case 0x18:	/* Auto-Refresh Interval Setting 0 */
+    case 0x18:  /* Auto-Refresh Interval Setting 0 */
         s->memrefresh &= 0xf00;
         s->memrefresh |= (value << 0) & 0x0ff;
         break;
-    case 0x1a:	/* Auto-Refresh Interval Setting 1 */
+    case 0x1a:  /* Auto-Refresh Interval Setting 1 */
         s->memrefresh &= 0x0ff;
         s->memrefresh |= (value << 8) & 0xf00;
         break;
 
-    case 0x1c:	/* Power-On Sequence Timing Control */
+    case 0x1c:  /* Power-On Sequence Timing Control */
         s->timing[0] = value & 0x7f;
         break;
-    case 0x1e:	/* Timing Control 0 */
+    case 0x1e:  /* Timing Control 0 */
         s->timing[1] = value & 0x17;
         break;
-    case 0x20:	/* Timing Control 1 */
+    case 0x20:  /* Timing Control 1 */
         s->timing[2] = value & 0x35;
         break;
 
-    case 0x24:	/* Arbitration Priority Control */
+    case 0x24:  /* Arbitration Priority Control */
         s->priority = value & 1;
         break;
 
-    case 0x28:	/* LCD Panel Configuration */
+    case 0x28:  /* LCD Panel Configuration */
         s->lcd_config = value & 0xff;
         if (value & (1 << 7))
             fprintf(stderr, "%s: data swap not supported!\n", __func__);
         break;
 
-    case 0x2a:	/* LCD Horizontal Display Width */
+    case 0x2a:  /* LCD Horizontal Display Width */
         s->x = value << 3;
         break;
-    case 0x2c:	/* LCD Horizontal Non-display Period */
+    case 0x2c:  /* LCD Horizontal Non-display Period */
         s->hndp = value & 0xff;
         break;
-    case 0x2e:	/* LCD Vertical Display Height 0 */
+    case 0x2e:  /* LCD Vertical Display Height 0 */
         s->y &= 0x300;
         s->y |= (value << 0) & 0x0ff;
         break;
-    case 0x30:	/* LCD Vertical Display Height 1 */
+    case 0x30:  /* LCD Vertical Display Height 1 */
         s->y &= 0x0ff;
         s->y |= (value << 8) & 0x300;
         break;
-    case 0x32:	/* LCD Vertical Non-display Period */
+    case 0x32:  /* LCD Vertical Non-display Period */
         s->vndp = value & 0xff;
         break;
-    case 0x34:	/* LCD HS Pulse-width */
+    case 0x34:  /* LCD HS Pulse-width */
         s->hsync = value & 0xff;
         break;
-    case 0x36:	/* LCD HS Pulse Start Position */
+    case 0x36:  /* LCD HS Pulse Start Position */
         s->skipx = value & 0xff;
         break;
-    case 0x38:	/* LCD VS Pulse-width */
+    case 0x38:  /* LCD VS Pulse-width */
         s->vsync = value & 0xbf;
         break;
-    case 0x3a:	/* LCD VS Pulse Start Position */
+    case 0x3a:  /* LCD VS Pulse Start Position */
         s->skipy = value & 0xff;
         break;
 
-    case 0x3c:	/* PCLK Polarity */
+    case 0x3c:  /* PCLK Polarity */
         s->pclk = value & 0x82;
         /* Affects calculation of s->hndp, s->hsync and s->skipx.  */
         break;
 
-    case 0x3e:	/* High-speed Serial Interface Tx Configuration Port 0 */
+    case 0x3e:  /* High-speed Serial Interface Tx Configuration Port 0 */
         s->hssi_config[0] = value;
         break;
-    case 0x40:	/* High-speed Serial Interface Tx Configuration Port 1 */
+    case 0x40:  /* High-speed Serial Interface Tx Configuration Port 1 */
         s->hssi_config[1] = value;
         if (((value >> 4) & 3) == 3)
             fprintf(stderr, "%s: Illegal active-data-links value\n",
                             __func__);
         break;
-    case 0x42:	/* High-speed Serial Interface Tx Mode */
+    case 0x42:  /* High-speed Serial Interface Tx Mode */
         s->hssi_config[2] = value & 0xbd;
         break;
 
-    case 0x44:	/* TV Display Configuration */
+    case 0x44:  /* TV Display Configuration */
         s->tv_config = value & 0xfe;
         break;
-    case 0x46 ... 0x4c:	/* TV Vertical Blanking Interval Data bits 0 */
+    case 0x46 ... 0x4c: /* TV Vertical Blanking Interval Data bits 0 */
         s->tv_timing[(reg - 0x46) >> 1] = value;
         break;
-    case 0x4e:	/* VBI: Closed Caption / XDS Control / Status */
+    case 0x4e:  /* VBI: Closed Caption / XDS Control / Status */
         s->vbi = value;
         break;
-    case 0x50:	/* TV Horizontal Start Position */
+    case 0x50:  /* TV Horizontal Start Position */
         s->tv_x = value;
         break;
-    case 0x52:	/* TV Vertical Start Position */
+    case 0x52:  /* TV Vertical Start Position */
         s->tv_y = value & 0x7f;
         break;
-    case 0x54:	/* TV Test Pattern Setting */
+    case 0x54:  /* TV Test Pattern Setting */
         s->tv_test = value;
         break;
-    case 0x56:	/* TV Filter Setting */
+    case 0x56:  /* TV Filter Setting */
         s->tv_filter_config = value & 0xbf;
         break;
-    case 0x58:	/* TV Filter Coefficient Index */
+    case 0x58:  /* TV Filter Coefficient Index */
         s->tv_filter_idx = value & 0x1f;
         break;
-    case 0x5a:	/* TV Filter Coefficient Data */
+    case 0x5a:  /* TV Filter Coefficient Data */
         if (s->tv_filter_idx < 0x20)
             s->tv_filter_coeff[s->tv_filter_idx ++] = value;
         break;
 
-    case 0x60:	/* Input YUV/RGB Translate Mode 0 */
+    case 0x60:  /* Input YUV/RGB Translate Mode 0 */
         s->yrc[0] = value & 0xb0;
         break;
-    case 0x62:	/* Input YUV/RGB Translate Mode 1 */
+    case 0x62:  /* Input YUV/RGB Translate Mode 1 */
         s->yrc[1] = value & 0x30;
         break;
-    case 0x64:	/* U Data Fix */
+    case 0x64:  /* U Data Fix */
         s->u = value & 0xff;
         break;
-    case 0x66:	/* V Data Fix */
+    case 0x66:  /* V Data Fix */
         s->v = value & 0xff;
         break;
 
-    case 0x68:	/* Display Mode */
+    case 0x68:  /* Display Mode */
         if ((s->mode ^ value) & 3)
             s->invalidate = 1;
         s->mode = value & 0xb7;
@@ -644,83 +644,83 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
             fprintf(stderr, "%s: Macrovision enable attempt!\n", __func__);
         break;
 
-    case 0x6a:	/* Special Effects */
+    case 0x6a:  /* Special Effects */
         s->effect = value & 0xfb;
         break;
 
-    case 0x6c:	/* Input Window X Start Position 0 */
+    case 0x6c:  /* Input Window X Start Position 0 */
         s->ix[0] &= 0x300;
         s->ix[0] |= (value << 0) & 0x0ff;
         break;
-    case 0x6e:	/* Input Window X Start Position 1 */
+    case 0x6e:  /* Input Window X Start Position 1 */
         s->ix[0] &= 0x0ff;
         s->ix[0] |= (value << 8) & 0x300;
         break;
-    case 0x70:	/* Input Window Y Start Position 0 */
+    case 0x70:  /* Input Window Y Start Position 0 */
         s->iy[0] &= 0x300;
         s->iy[0] |= (value << 0) & 0x0ff;
         break;
-    case 0x72:	/* Input Window Y Start Position 1 */
+    case 0x72:  /* Input Window Y Start Position 1 */
         s->iy[0] &= 0x0ff;
         s->iy[0] |= (value << 8) & 0x300;
         break;
-    case 0x74:	/* Input Window X End Position 0 */
+    case 0x74:  /* Input Window X End Position 0 */
         s->ix[1] &= 0x300;
         s->ix[1] |= (value << 0) & 0x0ff;
         break;
-    case 0x76:	/* Input Window X End Position 1 */
+    case 0x76:  /* Input Window X End Position 1 */
         s->ix[1] &= 0x0ff;
         s->ix[1] |= (value << 8) & 0x300;
         break;
-    case 0x78:	/* Input Window Y End Position 0 */
+    case 0x78:  /* Input Window Y End Position 0 */
         s->iy[1] &= 0x300;
         s->iy[1] |= (value << 0) & 0x0ff;
         break;
-    case 0x7a:	/* Input Window Y End Position 1 */
+    case 0x7a:  /* Input Window Y End Position 1 */
         s->iy[1] &= 0x0ff;
         s->iy[1] |= (value << 8) & 0x300;
         break;
-    case 0x7c:	/* Output Window X Start Position 0 */
+    case 0x7c:  /* Output Window X Start Position 0 */
         s->ox[0] &= 0x300;
         s->ox[0] |= (value << 0) & 0x0ff;
         break;
-    case 0x7e:	/* Output Window X Start Position 1 */
+    case 0x7e:  /* Output Window X Start Position 1 */
         s->ox[0] &= 0x0ff;
         s->ox[0] |= (value << 8) & 0x300;
         break;
-    case 0x80:	/* Output Window Y Start Position 0 */
+    case 0x80:  /* Output Window Y Start Position 0 */
         s->oy[0] &= 0x300;
         s->oy[0] |= (value << 0) & 0x0ff;
         break;
-    case 0x82:	/* Output Window Y Start Position 1 */
+    case 0x82:  /* Output Window Y Start Position 1 */
         s->oy[0] &= 0x0ff;
         s->oy[0] |= (value << 8) & 0x300;
         break;
-    case 0x84:	/* Output Window X End Position 0 */
+    case 0x84:  /* Output Window X End Position 0 */
         s->ox[1] &= 0x300;
         s->ox[1] |= (value << 0) & 0x0ff;
         break;
-    case 0x86:	/* Output Window X End Position 1 */
+    case 0x86:  /* Output Window X End Position 1 */
         s->ox[1] &= 0x0ff;
         s->ox[1] |= (value << 8) & 0x300;
         break;
-    case 0x88:	/* Output Window Y End Position 0 */
+    case 0x88:  /* Output Window Y End Position 0 */
         s->oy[1] &= 0x300;
         s->oy[1] |= (value << 0) & 0x0ff;
         break;
-    case 0x8a:	/* Output Window Y End Position 1 */
+    case 0x8a:  /* Output Window Y End Position 1 */
         s->oy[1] &= 0x0ff;
         s->oy[1] |= (value << 8) & 0x300;
         break;
 
-    case 0x8c:	/* Input Data Format */
+    case 0x8c:  /* Input Data Format */
         s->iformat = value & 0xf;
         s->bpp = blizzard_iformat_bpp[s->iformat];
         if (!s->bpp)
             fprintf(stderr, "%s: Illegal or unsupported input format %x\n",
                             __func__, s->iformat);
         break;
-    case 0x8e:	/* Data Source Select */
+    case 0x8e:  /* Data Source Select */
         s->source = value & 7;
         /* Currently all windows will be "destructive overlays".  */
         if ((!(s->effect & (1 << 3)) && (s->ix[0] != s->ox[0] ||
@@ -735,7 +735,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         blizzard_transfer_setup(s);
         break;
 
-    case 0x90:	/* Display Memory Data Port */
+    case 0x90:  /* Display Memory Data Port */
         if (!s->data.len && !blizzard_transfer_setup(s))
             break;
 
@@ -744,73 +744,73 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
             blizzard_window(s);
         break;
 
-    case 0xa8:	/* Border Color 0 */
+    case 0xa8:  /* Border Color 0 */
         s->border_r = value;
         break;
-    case 0xaa:	/* Border Color 1 */
+    case 0xaa:  /* Border Color 1 */
         s->border_g = value;
         break;
-    case 0xac:	/* Border Color 2 */
+    case 0xac:  /* Border Color 2 */
         s->border_b = value;
         break;
 
-    case 0xb4:	/* Gamma Correction Enable */
+    case 0xb4:  /* Gamma Correction Enable */
         s->gamma_config = value & 0x87;
         break;
-    case 0xb6:	/* Gamma Correction Table Index */
+    case 0xb6:  /* Gamma Correction Table Index */
         s->gamma_idx = value;
         break;
-    case 0xb8:	/* Gamma Correction Table Data */
+    case 0xb8:  /* Gamma Correction Table Data */
         s->gamma_lut[s->gamma_idx ++] = value;
         break;
 
-    case 0xba:	/* 3x3 Matrix Enable */
+    case 0xba:  /* 3x3 Matrix Enable */
         s->matrix_ena = value & 1;
         break;
-    case 0xbc ... 0xde:	/* Coefficient Registers */
+    case 0xbc ... 0xde: /* Coefficient Registers */
         s->matrix_coeff[(reg - 0xbc) >> 1] = value & ((reg & 2) ? 0x80 : 0xff);
         break;
-    case 0xe0:	/* 3x3 Matrix Red Offset */
+    case 0xe0:  /* 3x3 Matrix Red Offset */
         s->matrix_r = value;
         break;
-    case 0xe2:	/* 3x3 Matrix Green Offset */
+    case 0xe2:  /* 3x3 Matrix Green Offset */
         s->matrix_g = value;
         break;
-    case 0xe4:	/* 3x3 Matrix Blue Offset */
+    case 0xe4:  /* 3x3 Matrix Blue Offset */
         s->matrix_b = value;
         break;
 
-    case 0xe6:	/* Power-save */
+    case 0xe6:  /* Power-save */
         s->pm = value & 0x83;
         if (value & s->mode & 1)
             fprintf(stderr, "%s: The display must be disabled before entering "
                             "Standby Mode\n", __func__);
         break;
-    case 0xe8:	/* Non-display Period Control / Status */
+    case 0xe8:  /* Non-display Period Control / Status */
         s->status = value & 0x1b;
         break;
-    case 0xea:	/* RGB Interface Control */
+    case 0xea:  /* RGB Interface Control */
         s->rgbgpio_dir = value & 0x8f;
         break;
-    case 0xec:	/* RGB Interface Status */
+    case 0xec:  /* RGB Interface Status */
         s->rgbgpio = value & 0xcf;
         break;
-    case 0xee:	/* General-purpose IO Pins Configuration */
+    case 0xee:  /* General-purpose IO Pins Configuration */
         s->gpio_dir = value;
         break;
-    case 0xf0:	/* General-purpose IO Pins Status / Control */
+    case 0xf0:  /* General-purpose IO Pins Status / Control */
         s->gpio = value;
         break;
-    case 0xf2:	/* GPIO Positive Edge Interrupt Trigger */
+    case 0xf2:  /* GPIO Positive Edge Interrupt Trigger */
         s->gpio_edge[0] = value;
         break;
-    case 0xf4:	/* GPIO Negative Edge Interrupt Trigger */
+    case 0xf4:  /* GPIO Negative Edge Interrupt Trigger */
         s->gpio_edge[1] = value;
         break;
-    case 0xf6:	/* GPIO Interrupt Status */
+    case 0xf6:  /* GPIO Interrupt Status */
         s->gpio_irq &= value;
         break;
-    case 0xf8:	/* GPIO Pull-down Control */
+    case 0xf8:  /* GPIO Pull-down Control */
         s->gpio_pdown = value;
         break;
 
@@ -1007,7 +1007,7 @@ static const GraphicHwOps blizzard_ops = {
 
 void *s1d13745_init(qemu_irq gpio_int)
 {
-    BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
+    BlizzardState *s = g_malloc0(sizeof(*s));
     DisplaySurface *surface;
 
     s->fb = g_malloc(0x180000);

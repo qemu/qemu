@@ -169,8 +169,9 @@ and with bitrate switch::
 
   cangen can0 -b
 
-The test can be run viceversa, generate messages in the guest system and capture them
-in the host one and much more combinations.
+The test can also be run the other way around, generating messages in the
+guest system and capturing them in the host system. Other combinations are
+also possible.
 
 Links to other resources
 ------------------------

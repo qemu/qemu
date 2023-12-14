@@ -3,6 +3,9 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#ifndef CONFIG_USER_ONLY
+#include "exec/memory.h"
+#endif
 #include "fpu/softfloat-types.h"
 #include "hw/clock.h"
 #include "mips-defs.h"
@@ -980,6 +983,7 @@ typedef struct CPUArchState {
 #define CP0C6_DATAPREF        0
     int32_t CP0_Config7;
     int64_t CP0_Config7_rw_bitmask;
+#define CP0C7_WII          31
 #define CP0C7_NAPCGEN       2
 #define CP0C7_UNIMUEN       1
 #define CP0C7_VFPUCGEN      0
@@ -1067,6 +1071,33 @@ typedef struct CPUArchState {
  */
     int32_t CP0_DESAVE;
     target_ulong CP0_KScratch[MIPS_KSCRATCH_NUM];
+/*
+ * Loongson CSR CPUCFG registers
+ */
+    uint32_t lcsr_cpucfg1;
+#define CPUCFG1_FP     0
+#define CPUCFG1_FPREV  1
+#define CPUCFG1_MMI    4
+#define CPUCFG1_MSA1   5
+#define CPUCFG1_MSA2   6
+#define CPUCFG1_LSLDR0 16
+#define CPUCFG1_LSPERF 17
+#define CPUCFG1_LSPERFX 18
+#define CPUCFG1_LSSYNCI 19
+#define CPUCFG1_LLEXC   20
+#define CPUCFG1_SCRAND  21
+#define CPUCFG1_MUALP   25
+#define CPUCFG1_KMUALEN 26
+#define CPUCFG1_ITLBT   27
+#define CPUCFG1_SFBP    29
+#define CPUCFG1_CDMAP   30
+    uint32_t lcsr_cpucfg2;
+#define CPUCFG2_LEXT1   0
+#define CPUCFG2_LEXT2   1
+#define CPUCFG2_LEXT3   2
+#define CPUCFG2_LSPW    3
+#define CPUCFG2_LCSRP   27
+#define CPUCFG2_LDISBLIKELY 28
 
     /* We waste some space so we can handle shadow registers like TCs. */
     TCState tcs[MIPS_SHADOW_SET_MAX];
@@ -1155,12 +1186,18 @@ typedef struct CPUArchState {
     void *irq[8];
     struct MIPSITUState *itu;
     MemoryRegion *itc_tag; /* ITC Configuration Tags */
+
+    /* Loongson IOCSR memory */
+    struct {
+        AddressSpace as;
+        MemoryRegion mr;
+    } iocsr;
 #endif
 
     const mips_def_t *cpu_model;
     QEMUTimer *timer; /* Internal timer */
+    Clock *count_clock; /* CP0_Count clock */
     target_ulong exception_base; /* ExceptionBase input to the core */
-    uint64_t cp0_count_ns; /* CP0_Count clock period (in nanoseconds) */
 } CPUMIPSState;
 
 /**
@@ -1172,22 +1209,38 @@ typedef struct CPUArchState {
  * A MIPS CPU.
  */
 struct ArchCPU {
-    /*< private >*/
     CPUState parent_obj;
-    /*< public >*/
+
+    CPUMIPSState env;
 
     Clock *clock;
-    CPUNegativeOffsetState neg;
-    CPUMIPSState env;
+    Clock *count_div; /* Divider for CP0_Count clock */
 };
 
+/**
+ * MIPSCPUClass:
+ * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A MIPS CPU model.
+ */
+struct MIPSCPUClass {
+    CPUClass parent_class;
+
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+    const struct mips_def_t *cpu_def;
+
+    /* Used for the jazz board to modify mips_cpu_do_transaction_failed. */
+    bool no_data_aborts;
+};
 
 void mips_cpu_list(void);
 
 #define cpu_list mips_cpu_list
 
-extern void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
-extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
+void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
+uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
 
 /*
  * MMU modes definitions. We carefully match the indices with our
@@ -1265,8 +1318,6 @@ enum {
  */
 #define CPU_INTERRUPT_WAKE CPU_INTERRUPT_TGT_INT_0
 
-#define MIPS_CPU_TYPE_SUFFIX "-" TYPE_MIPS_CPU
-#define MIPS_CPU_TYPE_NAME(model) model MIPS_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_MIPS_CPU
 
 bool cpu_type_supports_cps_smp(const char *cpu_type);
@@ -1277,6 +1328,12 @@ bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa);
 static inline bool ase_msa_available(CPUMIPSState *env)
 {
     return env->CP0_Config3 & (1 << CP0C3_MSAP);
+}
+
+/* Check presence of Loongson CSR instructions */
+static inline bool ase_lcsr_available(CPUMIPSState *env)
+{
+    return env->lcsr_cpucfg2 & (1 << CPUCFG2_LCSRP);
 }
 
 /* Check presence of multi-threading ASE implementation */
@@ -1296,27 +1353,23 @@ void cpu_set_exception_base(int vp_index, target_ulong address);
 uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr);
 uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr);
 
-uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr);
 uint64_t cpu_mips_kseg1_to_phys(void *opaque, uint64_t addr);
 uint64_t cpu_mips_phys_to_kseg1(void *opaque, uint64_t addr);
-bool mips_um_ksegs_enabled(void);
-void mips_um_ksegs_enable(void);
 
 #if !defined(CONFIG_USER_ONLY)
 
-/* mips_int.c */
+/* HW declaration specific to the MIPS target */
 void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
-
-/* mips_itu.c */
-void itc_reconfigure(struct MIPSITUState *tag);
+void cpu_mips_irq_init_cpu(MIPSCPU *cpu);
+void cpu_mips_clock_init(MIPSCPU *cpu);
 
 #endif /* !CONFIG_USER_ONLY */
 
 /* helper.c */
 target_ulong exception_resume_pc(CPUMIPSState *env);
 
-static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, vaddr *pc,
+                                        uint64_t *cs_base, uint32_t *flags)
 {
     *pc = env->active_tc.PC;
     *cs_base = 0;

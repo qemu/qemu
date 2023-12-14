@@ -22,6 +22,4 @@
 #define TYPE_VFIO_CCW "vfio-ccw"
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOCCWDevice, VFIO_CCW)
 
-#define TYPE_VFIO_CCW "vfio-ccw"
-
 #endif

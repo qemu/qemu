@@ -33,6 +33,7 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
          ++b) {
         switch (b) {
         case VIRTIO_F_ANY_LAYOUT:
+        case VIRTIO_RING_F_EVENT_IDX:
             continue;
 
         case VIRTIO_F_ACCESS_PLATFORM:
@@ -65,9 +66,9 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
  *
  * @svq: The svq
  */
-static uint16_t vhost_svq_available_slots(const VhostShadowVirtqueue *svq)
+uint16_t vhost_svq_available_slots(const VhostShadowVirtqueue *svq)
 {
-    return svq->vring.num - (svq->shadow_avail_idx - svq->shadow_used_idx);
+    return svq->num_free;
 }
 
 /**
@@ -110,7 +111,7 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
         addrs[i] = map->iova + off;
 
         needle_last = int128_add(int128_make64(needle.translated_addr),
-                                 int128_make64(iovec[i].iov_len));
+                                 int128_makes64(iovec[i].iov_len - 1));
         map_last = int128_make64(map->translated_addr + map->size);
         if (unlikely(int128_gt(needle_last, map_last))) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -218,12 +219,22 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
 
 static void vhost_svq_kick(VhostShadowVirtqueue *svq)
 {
+    bool needs_kick;
+
     /*
      * We need to expose the available array entries before checking the used
      * flags
      */
     smp_mb();
-    if (svq->vring.used->flags & VRING_USED_F_NO_NOTIFY) {
+
+    if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        uint16_t avail_event = *(uint16_t *)(&svq->vring.used->ring[svq->vring.num]);
+        needs_kick = vring_need_event(avail_event, svq->shadow_avail_idx, svq->shadow_avail_idx - 1);
+    } else {
+        needs_kick = !(svq->vring.used->flags & VRING_USED_F_NO_NOTIFY);
+    }
+
+    if (!needs_kick) {
         return;
     }
 
@@ -232,9 +243,6 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
 
 /**
  * Add an element to a SVQ.
- *
- * The caller must check that there is enough slots for the new element. It
- * takes ownership of the element: In case of failure not ENOSPC, it is free.
  *
  * Return -EINVAL if element is invalid, -ENOSPC if dev queue is full
  */
@@ -252,10 +260,10 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
 
     ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num, &qemu_head);
     if (unlikely(!ok)) {
-        g_free(elem);
         return -EINVAL;
     }
 
+    svq->num_free -= ndescs;
     svq->desc_state[qemu_head].elem = elem;
     svq->desc_state[qemu_head].ndescs = ndescs;
     vhost_svq_kick(svq);
@@ -293,7 +301,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
         virtio_queue_set_notification(svq->vq, false);
 
         while (true) {
-            VirtQueueElement *elem;
+            g_autofree VirtQueueElement *elem = NULL;
             int r;
 
             if (svq->next_guest_avail_elem) {
@@ -324,12 +332,14 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                      * queue the current guest descriptor and ignore kicks
                      * until some elements are used.
                      */
-                    svq->next_guest_avail_elem = elem;
+                    svq->next_guest_avail_elem = g_steal_pointer(&elem);
                 }
 
                 /* VQ is full or broken, just return and ignore kicks */
                 return;
             }
+            /* elem belongs to SVQ or external caller now */
+            elem = NULL;
         }
 
         virtio_queue_set_notification(svq->vq, true);
@@ -371,15 +381,27 @@ static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
  */
 static bool vhost_svq_enable_notification(VhostShadowVirtqueue *svq)
 {
-    svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
-    /* Make sure the flag is written before the read of used_idx */
+    if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        uint16_t *used_event = (uint16_t *)&svq->vring.avail->ring[svq->vring.num];
+        *used_event = svq->shadow_used_idx;
+    } else {
+        svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    }
+
+    /* Make sure the event is enabled before the read of used_idx */
     smp_mb();
     return !vhost_svq_more_used(svq);
 }
 
 static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
 {
-    svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    /*
+     * No need to disable notification in the event idx case, since used event
+     * index is already an index too far away.
+     */
+    if (!virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    }
 }
 
 static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
@@ -416,7 +438,7 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
-    if (unlikely(!svq->desc_state[used_elem.id].elem)) {
+    if (unlikely(!svq->desc_state[used_elem.id].ndescs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
             "Device %s says index %u is used, but it was not available",
             svq->vdev->name, used_elem.id);
@@ -424,9 +446,11 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     }
 
     num = svq->desc_state[used_elem.id].ndescs;
+    svq->desc_state[used_elem.id].ndescs = 0;
     last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
     svq->desc_next[last_used_chain] = svq->free_head;
     svq->free_head = used_elem.id;
+    svq->num_free += num;
 
     *len = used_elem.len;
     return g_steal_pointer(&svq->desc_state[used_elem.id].elem);
@@ -490,30 +514,38 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 }
 
 /**
- * Poll the SVQ for one device used buffer.
+ * Poll the SVQ to wait for the device to use the specified number
+ * of elements and return the total length written by the device.
  *
  * This function race with main event loop SVQ polling, so extra
  * synchronization is needed.
  *
- * Return the length written by the device.
+ * @svq: The svq
+ * @num: The number of elements that need to be used
  */
-size_t vhost_svq_poll(VhostShadowVirtqueue *svq)
+size_t vhost_svq_poll(VhostShadowVirtqueue *svq, size_t num)
 {
-    int64_t start_us = g_get_monotonic_time();
-    do {
-        uint32_t len;
-        VirtQueueElement *elem = vhost_svq_get_buf(svq, &len);
-        if (elem) {
-            return len;
-        }
+    size_t len = 0;
+    uint32_t r;
 
-        if (unlikely(g_get_monotonic_time() - start_us > 10e6)) {
-            return 0;
-        }
+    while (num--) {
+        int64_t start_us = g_get_monotonic_time();
 
-        /* Make sure we read new used_idx */
-        smp_rmb();
-    } while (true);
+        do {
+            if (vhost_svq_more_used(svq)) {
+                break;
+            }
+
+            if (unlikely(g_get_monotonic_time() - start_us > 10e6)) {
+                return len;
+            }
+        } while (true);
+
+        vhost_svq_get_buf(svq, &r);
+        len += r;
+    }
+
+    return len;
 }
 
 /**
@@ -571,16 +603,16 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
 {
     size_t desc_size = sizeof(vring_desc_t) * svq->vring.num;
-    size_t avail_size = offsetof(vring_avail_t, ring) +
-                                             sizeof(uint16_t) * svq->vring.num;
+    size_t avail_size = offsetof(vring_avail_t, ring[svq->vring.num]) +
+                                                              sizeof(uint16_t);
 
     return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size());
 }
 
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
 {
-    size_t used_size = offsetof(vring_used_t, ring) +
-                                    sizeof(vring_used_elem_t) * svq->vring.num;
+    size_t used_size = offsetof(vring_used_t, ring[svq->vring.num]) +
+                                                              sizeof(uint16_t);
     return ROUND_UP(used_size, qemu_real_host_page_size());
 }
 
@@ -602,13 +634,13 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
         event_notifier_set_handler(svq_kick, NULL);
     }
 
+    event_notifier_init_fd(svq_kick, svq_kick_fd);
     /*
      * event_notifier_set_handler already checks for guest's notifications if
      * they arrive at the new file descriptor in the switch, so there is no
      * need to explicitly check for them.
      */
     if (poll_start) {
-        event_notifier_init_fd(svq_kick, svq_kick_fd);
         event_notifier_set(svq_kick);
         event_notifier_set_handler(svq_kick, vhost_handle_guest_kick_notifier);
     }
@@ -620,28 +652,32 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
  * @svq: Shadow Virtqueue
  * @vdev: VirtIO device
  * @vq: Virtqueue to shadow
+ * @iova_tree: Tree to perform descriptors translations
  */
 void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
-                     VirtQueue *vq)
+                     VirtQueue *vq, VhostIOVATree *iova_tree)
 {
-    size_t desc_size, driver_size, device_size;
+    size_t desc_size;
 
+    event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     svq->next_guest_avail_elem = NULL;
     svq->shadow_avail_idx = 0;
     svq->shadow_used_idx = 0;
     svq->last_used_idx = 0;
     svq->vdev = vdev;
     svq->vq = vq;
+    svq->iova_tree = iova_tree;
 
     svq->vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
-    driver_size = vhost_svq_driver_area_size(svq);
-    device_size = vhost_svq_device_area_size(svq);
-    svq->vring.desc = qemu_memalign(qemu_real_host_page_size(), driver_size);
+    svq->num_free = svq->vring.num;
+    svq->vring.desc = mmap(NULL, vhost_svq_driver_area_size(svq),
+                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                           -1, 0);
     desc_size = sizeof(vring_desc_t) * svq->vring.num;
     svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
-    memset(svq->vring.desc, 0, driver_size);
-    svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
-    memset(svq->vring.used, 0, device_size);
+    svq->vring.used = mmap(NULL, vhost_svq_device_area_size(svq),
+                           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                           -1, 0);
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
@@ -655,7 +691,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
  */
 void vhost_svq_stop(VhostShadowVirtqueue *svq)
 {
-    event_notifier_set_handler(&svq->svq_kick, NULL);
+    vhost_svq_set_svq_kick_fd(svq, VHOST_FILE_UNBIND);
     g_autofree VirtQueueElement *next_avail_elem = NULL;
 
     if (!svq->vq) {
@@ -669,66 +705,42 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         g_autofree VirtQueueElement *elem = NULL;
         elem = g_steal_pointer(&svq->desc_state[i].elem);
         if (elem) {
-            virtqueue_detach_element(svq->vq, elem, 0);
+            /*
+             * TODO: This is ok for networking, but other kinds of devices
+             * might have problems with just unpop these.
+             */
+            virtqueue_unpop(svq->vq, elem, 0);
         }
     }
 
     next_avail_elem = g_steal_pointer(&svq->next_guest_avail_elem);
     if (next_avail_elem) {
-        virtqueue_detach_element(svq->vq, next_avail_elem, 0);
+        virtqueue_unpop(svq->vq, next_avail_elem, 0);
     }
     svq->vq = NULL;
     g_free(svq->desc_next);
     g_free(svq->desc_state);
-    qemu_vfree(svq->vring.desc);
-    qemu_vfree(svq->vring.used);
+    munmap(svq->vring.desc, vhost_svq_driver_area_size(svq));
+    munmap(svq->vring.used, vhost_svq_device_area_size(svq));
+    event_notifier_set_handler(&svq->hdev_call, NULL);
 }
 
 /**
  * Creates vhost shadow virtqueue, and instructs the vhost device to use the
  * shadow methods and file descriptors.
  *
- * @iova_tree: Tree to perform descriptors translations
  * @ops: SVQ owner callbacks
  * @ops_opaque: ops opaque pointer
- *
- * Returns the new virtqueue or NULL.
- *
- * In case of error, reason is reported through error_report.
  */
-VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
-                                    const VhostShadowVirtqueueOps *ops,
+VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
                                     void *ops_opaque)
 {
-    g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
-    int r;
-
-    r = event_notifier_init(&svq->hdev_kick, 0);
-    if (r != 0) {
-        error_report("Couldn't create kick event notifier: %s (%d)",
-                     g_strerror(errno), errno);
-        goto err_init_hdev_kick;
-    }
-
-    r = event_notifier_init(&svq->hdev_call, 0);
-    if (r != 0) {
-        error_report("Couldn't create call event notifier: %s (%d)",
-                     g_strerror(errno), errno);
-        goto err_init_hdev_call;
-    }
+    VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
 
     event_notifier_init_fd(&svq->svq_kick, VHOST_FILE_UNBIND);
-    event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
-    svq->iova_tree = iova_tree;
     svq->ops = ops;
     svq->ops_opaque = ops_opaque;
-    return g_steal_pointer(&svq);
-
-err_init_hdev_call:
-    event_notifier_cleanup(&svq->hdev_kick);
-
-err_init_hdev_kick:
-    return NULL;
+    return svq;
 }
 
 /**
@@ -740,8 +752,5 @@ void vhost_svq_free(gpointer pvq)
 {
     VhostShadowVirtqueue *vq = pvq;
     vhost_svq_stop(vq);
-    event_notifier_cleanup(&vq->hdev_kick);
-    event_notifier_set_handler(&vq->hdev_call, NULL);
-    event_notifier_cleanup(&vq->hdev_call);
     g_free(vq);
 }

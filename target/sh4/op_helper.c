@@ -29,7 +29,7 @@ void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                     MMUAccessType access_type,
                                     int mmu_idx, uintptr_t retaddr)
 {
-    CPUSH4State *env = cs->env_ptr;
+    CPUSH4State *env = cpu_env(cs);
 
     env->tea = addr;
     switch (access_type) {
@@ -114,12 +114,12 @@ void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
     {
         memory_content *r = g_new(memory_content, 1);
 
-	r->address = address;
-	r->value = value;
-	r->next = NULL;
+        r->address = address;
+        r->value = value;
+        r->next = NULL;
 
-	*(env->movcal_backup_tail) = r;
-	env->movcal_backup_tail = &(r->next);
+        *(env->movcal_backup_tail) = r;
+        env->movcal_backup_tail = &(r->next);
     }
 }
 
@@ -129,12 +129,12 @@ void helper_discard_movcal_backup(CPUSH4State *env)
 
     while(current)
     {
-	memory_content *next = current->next;
+        memory_content *next = current->next;
         g_free(current);
-	env->movcal_backup = current = next;
-	if (current == NULL)
-	    env->movcal_backup_tail = &(env->movcal_backup);
-    } 
+        env->movcal_backup = current = next;
+        if (current == NULL)
+            env->movcal_backup_tail = &(env->movcal_backup);
+    }
 }
 
 void helper_ocbi(CPUSH4State *env, uint32_t address)
@@ -142,21 +142,21 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     memory_content **current = &(env->movcal_backup);
     while (*current)
     {
-	uint32_t a = (*current)->address;
-	if ((a & ~0x1F) == (address & ~0x1F))
-	{
-	    memory_content *next = (*current)->next;
+        uint32_t a = (*current)->address;
+        if ((a & ~0x1F) == (address & ~0x1F))
+        {
+            memory_content *next = (*current)->next;
             cpu_stl_data(env, a, (*current)->value);
-	    
-	    if (next == NULL)
-	    {
-		env->movcal_backup_tail = current;
-	    }
+
+            if (next == NULL)
+            {
+                env->movcal_backup_tail = current;
+            }
 
             g_free(*current);
-	    *current = next;
-	    break;
-	}
+            *current = next;
+            break;
+        }
     }
 }
 
@@ -169,10 +169,10 @@ void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
     if (env->sr & (1u << SR_S)) {
-	if (res < 0)
-	    env->mach |= 0xffff0000;
-	else
-	    env->mach &= 0x00007fff;
+        if (res < 0)
+            env->mach |= 0xffff0000;
+        else
+            env->mach &= 0x00007fff;
     }
 }
 
@@ -185,13 +185,13 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
     if (env->sr & (1u << SR_S)) {
-	if (res < -0x80000000) {
-	    env->mach = 1;
-	    env->macl = 0x80000000;
-	} else if (res > 0x000000007fffffff) {
-	    env->mach = 1;
-	    env->macl = 0x7fffffff;
-	}
+        if (res < -0x80000000) {
+            env->mach = 1;
+            env->macl = 0x80000000;
+        } else if (res > 0x000000007fffffff) {
+            env->mach = 1;
+            env->macl = 0x7fffffff;
+        }
     }
 }
 
@@ -199,9 +199,9 @@ void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
 {
     env->fpscr = val & FPSCR_MASK;
     if ((val & FPSCR_RM_MASK) == FPSCR_RM_ZERO) {
-	set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+        set_float_rounding_mode(float_round_to_zero, &env->fp_status);
     } else {
-	set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     }
     set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
 }

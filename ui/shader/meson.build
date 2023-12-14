@@ -10,5 +10,6 @@ foreach e : shaders
                 output: output,
                 capture: true,
                 input: files('@0@.@1@'.format(e[0], e[1])),
+                build_by_default: false,
                 command: [shaderinclude, '@INPUT0@'])
 endforeach

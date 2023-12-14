@@ -16,8 +16,10 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
-/* This file implements emulation of the 32-bit PCI controller found in some
- * 4xx SoCs, such as the 440EP. */
+/*
+ * This file implements emulation of the 32-bit PCI controller found in some
+ * 4xx SoCs, such as the 440EP.
+ */
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
@@ -27,7 +29,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/reset.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "trace.h"
 #include "qom/object.h"
@@ -44,7 +46,7 @@ struct PCITargetMap {
     uint32_t la;
 };
 
-OBJECT_DECLARE_SIMPLE_TYPE(PPC4xxPCIState, PPC4xx_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPC4xxPCIState, PPC4xx_PCI_HOST)
 
 #define PPC4xx_PCI_NR_PMMS 3
 #define PPC4xx_PCI_NR_PTMS 2
@@ -65,8 +67,10 @@ struct PPC4xxPCIState {
 #define PCIC0_CFGADDR       0x0
 #define PCIC0_CFGDATA       0x4
 
-/* PLB Memory Map (PMM) registers specify which PLB addresses are translated to
- * PCI accesses. */
+/*
+ * PLB Memory Map (PMM) registers specify which PLB addresses are translated to
+ * PCI accesses.
+ */
 #define PCIL0_PMM0LA        0x0
 #define PCIL0_PMM0MA        0x4
 #define PCIL0_PMM0PCILA     0x8
@@ -80,8 +84,10 @@ struct PPC4xxPCIState {
 #define PCIL0_PMM2PCILA     0x28
 #define PCIL0_PMM2PCIHA     0x2c
 
-/* PCI Target Map (PTM) registers specify which PCI addresses are translated to
- * PLB accesses. */
+/*
+ * PCI Target Map (PTM) registers specify which PCI addresses are translated to
+ * PLB accesses.
+ */
 #define PCIL0_PTM1MS        0x30
 #define PCIL0_PTM1LA        0x34
 #define PCIL0_PTM2MS        0x38
@@ -96,9 +102,10 @@ static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
 {
     struct PPC4xxPCIState *pci = opaque;
 
-    /* We ignore all target attempts at PCI configuration, effectively
-     * assuming a bidirectional 1:1 mapping of PLB and PCI space. */
-
+    /*
+     * We ignore all target attempts at PCI configuration, effectively
+     * assuming a bidirectional 1:1 mapping of PLB and PCI space.
+     */
     switch (offset) {
     case PCIL0_PMM0LA:
         pci->pmm[0].la = value;
@@ -243,8 +250,10 @@ static void ppc4xx_pci_reset(void *opaque)
     memset(pci->ptm, 0, sizeof(pci->ptm));
 }
 
-/* On Bamboo, all pins from each slot are tied to a single board IRQ. This
- * may need further refactoring for other boards. */
+/*
+ * On Bamboo, all pins from each slot are tied to a single board IRQ.
+ * This may need further refactoring for other boards.
+ */
 static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot = PCI_SLOT(pci_dev->devfn);
@@ -312,7 +321,7 @@ static void ppc4xx_pcihost_realize(DeviceState *dev, Error **errp)
     int i;
 
     h = PCI_HOST_BRIDGE(dev);
-    s = PPC4xx_PCI_HOST_BRIDGE(dev);
+    s = PPC4xx_PCI_HOST(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
@@ -324,7 +333,7 @@ static void ppc4xx_pcihost_realize(DeviceState *dev, Error **errp)
                               TYPE_PCI_BUS);
     h->bus = b;
 
-    pci_create_simple(b, 0, "ppc4xx-host-bridge");
+    pci_create_simple(b, 0, TYPE_PPC4xx_HOST_BRIDGE);
 
     /* XXX split into 2 memory regions, one for config space, one for regs */
     memory_region_init(&s->container, OBJECT(s), "pci-container", PCI_ALL_SIZE);
@@ -358,7 +367,7 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppc4xx_host_bridge_info = {
-    .name          = "ppc4xx-host-bridge",
+    .name          = TYPE_PPC4xx_HOST_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = ppc4xx_host_bridge_class_init,
@@ -377,7 +386,7 @@ static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppc4xx_pcihost_info = {
-    .name          = TYPE_PPC4xx_PCI_HOST_BRIDGE,
+    .name          = TYPE_PPC4xx_PCI_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,

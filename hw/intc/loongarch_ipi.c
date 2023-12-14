@@ -17,6 +17,8 @@
 #include "target/loongarch/internals.h"
 #include "trace.h"
 
+static void loongarch_ipi_writel(void *, hwaddr, uint64_t, unsigned);
+
 static uint64_t loongarch_ipi_readl(void *opaque, hwaddr addr, unsigned size)
 {
     IPICore *s = opaque;
@@ -50,7 +52,7 @@ static uint64_t loongarch_ipi_readl(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void send_ipi_data(CPULoongArchState *env, target_ulong val, target_ulong addr)
+static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
 {
     int i, mask = 0, data = 0;
 
@@ -75,36 +77,74 @@ static void send_ipi_data(CPULoongArchState *env, target_ulong val, target_ulong
                       data, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
+static int archid_cmp(const void *a, const void *b)
+{
+   CPUArchId *archid_a = (CPUArchId *)a;
+   CPUArchId *archid_b = (CPUArchId *)b;
+
+   return archid_a->arch_id - archid_b->arch_id;
+}
+
+static CPUArchId *find_cpu_by_archid(MachineState *ms, uint32_t id)
+{
+    CPUArchId apic_id, *found_cpu;
+
+    apic_id.arch_id = id;
+    found_cpu = bsearch(&apic_id, ms->possible_cpus->cpus,
+        ms->possible_cpus->len, sizeof(*ms->possible_cpus->cpus),
+        archid_cmp);
+
+    return found_cpu;
+}
+
+static CPUState *ipi_getcpu(int arch_id)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    CPUArchId *archid;
+
+    archid = find_cpu_by_archid(machine, arch_id);
+    return CPU(archid->cpu);
+}
+
 static void ipi_send(uint64_t val)
 {
-    int cpuid, data;
-    CPULoongArchState *env;
+    uint32_t cpuid;
+    uint8_t vector;
     CPUState *cs;
     LoongArchCPU *cpu;
+    LoongArchIPI *s;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_IPI_SEND", cpuid);
+        return;
+    }
+
     /* IPI status vector */
-    data = 1 << (val & 0x1f);
-    cs = qemu_get_cpu(cpuid);
-    cpu = LOONGARCH_CPU(cs);
-    env = &cpu->env;
-    loongarch_cpu_set_irq(cpu, IRQ_IPI, 1);
-    address_space_stl(&env->address_space_iocsr, 0x1008,
-                      data, MEMTXATTRS_UNSPECIFIED, NULL);
+    vector = extract8(val, 0, 5);
 
+    cs = ipi_getcpu(cpuid);
+    cpu = LOONGARCH_CPU(cs);
+    s = LOONGARCH_IPI(cpu->env.ipistate);
+    loongarch_ipi_writel(&s->ipi_core, CORE_SET_OFF, BIT(vector), 4);
 }
 
 static void mail_send(uint64_t val)
 {
-    int cpuid;
+    uint32_t cpuid;
     hwaddr addr;
     CPULoongArchState *env;
     CPUState *cs;
     LoongArchCPU *cpu;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_MAIL_SEND", cpuid);
+        return;
+    }
+
     addr = 0x1020 + (val & 0x1c);
-    cs = qemu_get_cpu(cpuid);
+    cs = ipi_getcpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     send_ipi_data(env, val, addr);
@@ -112,14 +152,21 @@ static void mail_send(uint64_t val)
 
 static void any_send(uint64_t val)
 {
-    int cpuid;
+    uint32_t cpuid;
     hwaddr addr;
     CPULoongArchState *env;
+    CPUState *cs;
+    LoongArchCPU *cpu;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_ANY_SEND", cpuid);
+        return;
+    }
+
     addr = val & 0xffff;
-    CPUState *cs = qemu_get_cpu(cpuid);
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    cs = ipi_getcpu(cpuid);
+    cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     send_ipi_data(env, val, addr);
 }
@@ -202,51 +249,43 @@ static const MemoryRegionOps loongarch_ipi64_ops = {
 
 static void loongarch_ipi_init(Object *obj)
 {
-    int cpu;
-    LoongArchMachineState *lams;
     LoongArchIPI *s = LOONGARCH_IPI(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    Object *machine = qdev_get_machine();
-    ObjectClass *mc = object_get_class(machine);
-    /* 'lams' should be initialized */
-    if (!strcmp(MACHINE_CLASS(mc)->name, "none")) {
-        return;
-    }
-    lams = LOONGARCH_MACHINE(machine);
-    for (cpu = 0; cpu < MAX_IPI_CORE_NUM; cpu++) {
-        memory_region_init_io(&s->ipi_iocsr_mem[cpu], obj, &loongarch_ipi_ops,
-                            &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x48);
-        sysbus_init_mmio(sbd, &s->ipi_iocsr_mem[cpu]);
 
-        memory_region_init_io(&s->ipi64_iocsr_mem[cpu], obj, &loongarch_ipi64_ops,
-                              &lams->ipi_core[cpu], "loongarch_ipi64_iocsr", 0x118);
-        sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem[cpu]);
-        qdev_init_gpio_out(DEVICE(obj), &lams->ipi_core[cpu].irq, 1);
-    }
+    memory_region_init_io(&s->ipi_iocsr_mem, obj, &loongarch_ipi_ops,
+                          &s->ipi_core, "loongarch_ipi_iocsr", 0x48);
+
+    /* loongarch_ipi_iocsr performs re-entrant IO through ipi_send */
+    s->ipi_iocsr_mem.disable_reentrancy_guard = true;
+
+    sysbus_init_mmio(sbd, &s->ipi_iocsr_mem);
+
+    memory_region_init_io(&s->ipi64_iocsr_mem, obj, &loongarch_ipi64_ops,
+                          &s->ipi_core, "loongarch_ipi64_iocsr", 0x118);
+    sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem);
+    qdev_init_gpio_out(DEVICE(obj), &s->ipi_core.irq, 1);
 }
 
 static const VMStateDescription vmstate_ipi_core = {
     .name = "ipi-single",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(status, IPICore),
         VMSTATE_UINT32(en, IPICore),
         VMSTATE_UINT32(set, IPICore),
         VMSTATE_UINT32(clear, IPICore),
-        VMSTATE_UINT32_ARRAY(buf, IPICore, MAX_IPI_MBX_NUM * 2),
+        VMSTATE_UINT32_ARRAY(buf, IPICore, IPI_MBX_NUM * 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const VMStateDescription vmstate_loongarch_ipi = {
     .name = TYPE_LOONGARCH_IPI,
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(ipi_core, LoongArchMachineState,
-                             MAX_IPI_CORE_NUM, 0,
-                             vmstate_ipi_core, IPICore),
+        VMSTATE_STRUCT(ipi_core, LoongArchIPI, 0, vmstate_ipi_core, IPICore),
         VMSTATE_END_OF_LIST()
     }
 };

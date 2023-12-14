@@ -20,7 +20,9 @@
 #ifndef PPC_PNV_LPC_H
 #define PPC_PNV_LPC_H
 
-#include "qom/object.h"
+#include "exec/memory.h"
+#include "hw/ppc/pnv.h"
+#include "hw/qdev-core.h"
 
 #define TYPE_PNV_LPC "pnv-lpc"
 typedef struct PnvLpcClass PnvLpcClass;
@@ -92,13 +94,8 @@ struct PnvLpcClass {
     DeviceRealize parent_realize;
 };
 
-/*
- * Old compilers error on typdef forward declarations. Keep them happy.
- */
-struct PnvChip;
-
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp);
-int pnv_dt_lpc(struct PnvChip *chip, void *fdt, int root_offset,
+int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset,
                uint64_t lpcm_addr, uint64_t lpcm_size);
 
 #endif /* PPC_PNV_LPC_H */

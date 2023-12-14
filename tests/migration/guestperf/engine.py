@@ -65,7 +65,6 @@ class Engine(object):
         return records
 
     def _cpu_timing(self, pid):
-        records = []
         now = time.time()
 
         jiffies_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
@@ -78,7 +77,7 @@ class Engine(object):
             return TimingRecord(pid, now, 1000 * (stime + utime) / jiffies_per_sec)
 
     def _migrate_progress(self, vm):
-        info = vm.command("query-migrate")
+        info = vm.cmd("query-migrate")
 
         if "ram" not in info:
             info["ram"] = {}
@@ -103,6 +102,8 @@ class Engine(object):
             info.get("expected-downtime", 0),
             info.get("setup-time", 0),
             info.get("cpu-throttle-percentage", 0),
+            info.get("dirty-limit-throttle-time-per-round", 0),
+            info.get("dirty-limit-ring-full-time", 0),
         )
 
     def _migrate(self, hardware, scenario, src, dst, connect_uri):
@@ -110,7 +111,7 @@ class Engine(object):
         src_vcpu_time = []
         src_pid = src.get_pid()
 
-        vcpus = src.command("query-cpus-fast")
+        vcpus = src.cmd("query-cpus-fast")
         src_threads = []
         for vcpu in vcpus:
             src_threads.append(vcpu["thread-id"])
@@ -129,82 +130,97 @@ class Engine(object):
         if self._verbose:
             print("Starting migration")
         if scenario._auto_converge:
-            resp = src.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "auto-converge",
-                                     "state": True }
-                               ])
-            resp = src.command("migrate-set-parameters",
-                               cpu_throttle_increment=scenario._auto_converge_step)
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "auto-converge",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                           cpu_throttle_increment=scenario._auto_converge_step)
 
         if scenario._post_copy:
-            resp = src.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "postcopy-ram",
-                                     "state": True }
-                               ])
-            resp = dst.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "postcopy-ram",
-                                     "state": True }
-                               ])
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "postcopy-ram",
+                                 "state": True }
+                           ])
+            resp = dst.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "postcopy-ram",
+                                 "state": True }
+                           ])
 
-        resp = src.command("migrate-set-parameters",
-                           max_bandwidth=scenario._bandwidth * 1024 * 1024)
+        resp = src.cmd("migrate-set-parameters",
+                       max_bandwidth=scenario._bandwidth * 1024 * 1024)
 
-        resp = src.command("migrate-set-parameters",
-                           downtime_limit=scenario._downtime)
+        resp = src.cmd("migrate-set-parameters",
+                       downtime_limit=scenario._downtime)
 
         if scenario._compression_mt:
-            resp = src.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "compress",
-                                     "state": True }
-                               ])
-            resp = src.command("migrate-set-parameters",
-                               compress_threads=scenario._compression_mt_threads)
-            resp = dst.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "compress",
-                                     "state": True }
-                               ])
-            resp = dst.command("migrate-set-parameters",
-                               decompress_threads=scenario._compression_mt_threads)
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "compress",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                           compress_threads=scenario._compression_mt_threads)
+            resp = dst.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "compress",
+                                 "state": True }
+                           ])
+            resp = dst.cmd("migrate-set-parameters",
+                           decompress_threads=scenario._compression_mt_threads)
 
         if scenario._compression_xbzrle:
-            resp = src.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "xbzrle",
-                                     "state": True }
-                               ])
-            resp = dst.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "xbzrle",
-                                     "state": True }
-                               ])
-            resp = src.command("migrate-set-parameters",
-                               xbzrle_cache_size=(
-                                   hardware._mem *
-                                   1024 * 1024 * 1024 / 100 *
-                                   scenario._compression_xbzrle_cache))
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "xbzrle",
+                                 "state": True }
+                           ])
+            resp = dst.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "xbzrle",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                           xbzrle_cache_size=(
+                               hardware._mem *
+                               1024 * 1024 * 1024 / 100 *
+                               scenario._compression_xbzrle_cache))
 
         if scenario._multifd:
-            resp = src.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "multifd",
-                                     "state": True }
-                               ])
-            resp = src.command("migrate-set-parameters",
-                               multifd_channels=scenario._multifd_channels)
-            resp = dst.command("migrate-set-capabilities",
-                               capabilities = [
-                                   { "capability": "multifd",
-                                     "state": True }
-                               ])
-            resp = dst.command("migrate-set-parameters",
-                               multifd_channels=scenario._multifd_channels)
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "multifd",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                           multifd_channels=scenario._multifd_channels)
+            resp = dst.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "multifd",
+                                 "state": True }
+                           ])
+            resp = dst.cmd("migrate-set-parameters",
+                           multifd_channels=scenario._multifd_channels)
 
-        resp = src.command("migrate", uri=connect_uri)
+        if scenario._dirty_limit:
+            if not hardware._dirty_ring_size:
+                raise Exception("dirty ring size must be configured when "
+                                "testing dirty limit migration")
+
+            resp = src.cmd("migrate-set-capabilities",
+                           capabilities = [
+                               { "capability": "dirty-limit",
+                                 "state": True }
+                           ])
+            resp = src.cmd("migrate-set-parameters",
+                x_vcpu_dirty_limit_period=scenario._x_vcpu_dirty_limit_period)
+            resp = src.cmd("migrate-set-parameters",
+                           vcpu_dirty_limit=scenario._vcpu_dirty_limit)
+
+        resp = src.cmd("migrate", uri=connect_uri)
 
         post_copy = False
         paused = False
@@ -229,7 +245,7 @@ class Engine(object):
 
             if progress._status in ("completed", "failed", "cancelled"):
                 if progress._status == "completed" and paused:
-                    dst.command("cont")
+                    dst.cmd("cont")
                 if progress_history[-1] != progress:
                     progress_history.append(progress)
 
@@ -257,13 +273,13 @@ class Engine(object):
             if progress._ram._iterations > scenario._max_iters:
                 if self._verbose:
                     print("No completion after %d iterations over RAM" % scenario._max_iters)
-                src.command("migrate_cancel")
+                src.cmd("migrate_cancel")
                 continue
 
             if time.time() > (start + scenario._max_time):
                 if self._verbose:
                     print("No completion after %d seconds" % scenario._max_time)
-                src.command("migrate_cancel")
+                src.cmd("migrate_cancel")
                 continue
 
             if (scenario._post_copy and
@@ -271,7 +287,7 @@ class Engine(object):
                 not post_copy):
                 if self._verbose:
                     print("Switching to post-copy after %d iterations" % scenario._post_copy_iters)
-                resp = src.command("migrate-start-postcopy")
+                resp = src.cmd("migrate-start-postcopy")
                 post_copy = True
 
             if (scenario._pause and
@@ -279,8 +295,28 @@ class Engine(object):
                 not paused):
                 if self._verbose:
                     print("Pausing VM after %d iterations" % scenario._pause_iters)
-                resp = src.command("stop")
+                resp = src.cmd("stop")
                 paused = True
+
+    def _is_ppc64le(self):
+        _, _, _, _, machine = os.uname()
+        if machine == "ppc64le":
+            return True
+        return False
+
+    def _get_guest_console_args(self):
+        if self._is_ppc64le():
+            return "console=hvc0"
+        else:
+            return "console=ttyS0"
+
+    def _get_qemu_serial_args(self):
+        if self._is_ppc64le():
+            return ["-chardev", "stdio,id=cdev0",
+                    "-device", "spapr-vty,chardev=cdev0"]
+        else:
+            return ["-chardev", "stdio,id=cdev0",
+                    "-device", "isa-serial,chardev=cdev0"]
 
     def _get_common_args(self, hardware, tunnelled=False):
         args = [
@@ -290,8 +326,10 @@ class Engine(object):
             "noreplace-smp",
             "cgroup_disable=memory",
             "pci=noearly",
-            "console=ttyS0",
         ]
+
+        args.append(self._get_guest_console_args())
+
         if self._debug:
             args.append("debug")
         else:
@@ -304,19 +342,23 @@ class Engine(object):
             cmdline = "'" + cmdline + "'"
 
         argv = [
-            "-accel", "kvm",
             "-cpu", "host",
             "-kernel", self._kernel,
             "-initrd", self._initrd,
             "-append", cmdline,
-            "-chardev", "stdio,id=cdev0",
-            "-device", "isa-serial,chardev=cdev0",
             "-m", str((hardware._mem * 1024) + 512),
             "-smp", str(hardware._cpus),
         ]
+        if hardware._dirty_ring_size:
+            argv.extend(["-accel", "kvm,dirty-ring-size=%s" %
+                         hardware._dirty_ring_size])
+        else:
+            argv.extend(["-accel", "kvm"])
+
+        argv.extend(self._get_qemu_serial_args())
 
         if self._debug:
-            argv.extend(["-device", "sga"])
+            argv.extend(["-machine", "graphics=off"])
 
         if hardware._prealloc_pages:
             argv_source += ["-mem-path", "/dev/shm",

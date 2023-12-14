@@ -68,7 +68,7 @@ static inline bool virtio_scsi_response_ok(const VirtioScsiCmdResp *r)
 }
 
 int virtio_scsi_read_many(VDev *vdev,
-                          ulong sector, void *load_addr, int sec_num);
+                          unsigned long sector, void *load_addr, int sec_num);
 int virtio_scsi_setup_device(SubChannelId schid);
 
 #endif /* VIRTIO_SCSI_H */

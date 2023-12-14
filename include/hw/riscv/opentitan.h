@@ -24,6 +24,7 @@
 #include "hw/char/ibex_uart.h"
 #include "hw/timer/ibex_timer.h"
 #include "hw/ssi/ibex_spi_host.h"
+#include "hw/boards.h"
 #include "qom/object.h"
 
 #define TYPE_RISCV_IBEX_SOC "riscv.lowrisc.ibex.soc"
@@ -46,14 +47,19 @@ struct LowRISCIbexSoCState {
     IbexTimerState timer;
     IbexSPIHostState spi_host[OPENTITAN_NUM_SPI_HOSTS];
 
+    uint32_t resetvec;
+
     MemoryRegion flash_mem;
     MemoryRegion rom;
     MemoryRegion flash_alias;
 };
 
+#define TYPE_OPENTITAN_MACHINE MACHINE_TYPE_NAME("opentitan")
+OBJECT_DECLARE_SIMPLE_TYPE(OpenTitanState, OPENTITAN_MACHINE)
+
 typedef struct OpenTitanState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    MachineState parent_obj;
 
     /*< public >*/
     LowRISCIbexSoCState soc;
@@ -74,11 +80,12 @@ enum {
     IBEX_DEV_TIMER,
     IBEX_DEV_SENSOR_CTRL,
     IBEX_DEV_OTP_CTRL,
+    IBEX_DEV_LC_CTRL,
     IBEX_DEV_PWRMGR,
     IBEX_DEV_RSTMGR,
     IBEX_DEV_CLKMGR,
     IBEX_DEV_PINMUX,
-    IBEX_DEV_PADCTRL,
+    IBEX_DEV_AON_TIMER,
     IBEX_DEV_USBDEV,
     IBEX_DEV_FLASH_CTRL,
     IBEX_DEV_PLIC,
@@ -91,9 +98,9 @@ enum {
     IBEX_DEV_EDNO,
     IBEX_DEV_EDN1,
     IBEX_DEV_ALERT_HANDLER,
-    IBEX_DEV_NMI_GEN,
+    IBEX_DEV_SRAM_CTRL,
     IBEX_DEV_OTBN,
-    IBEX_DEV_PERI,
+    IBEX_DEV_IBEX_CFG,
 };
 
 enum {
@@ -105,11 +112,11 @@ enum {
     IBEX_UART0_RX_BREAK_ERR_IRQ   = 6,
     IBEX_UART0_RX_TIMEOUT_IRQ     = 7,
     IBEX_UART0_RX_PARITY_ERR_IRQ  = 8,
-    IBEX_TIMER_TIMEREXPIRED0_0    = 126,
-    IBEX_SPI_HOST0_ERR_IRQ        = 150,
-    IBEX_SPI_HOST0_SPI_EVENT_IRQ  = 151,
-    IBEX_SPI_HOST1_ERR_IRQ        = 152,
-    IBEX_SPI_HOST1_SPI_EVENT_IRQ  = 153,
+    IBEX_TIMER_TIMEREXPIRED0_0    = 124,
+    IBEX_SPI_HOST0_ERR_IRQ        = 131,
+    IBEX_SPI_HOST0_SPI_EVENT_IRQ  = 132,
+    IBEX_SPI_HOST1_ERR_IRQ        = 133,
+    IBEX_SPI_HOST1_SPI_EVENT_IRQ  = 134,
 };
 
 #endif

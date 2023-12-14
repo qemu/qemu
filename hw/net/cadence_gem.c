@@ -28,6 +28,7 @@
 #include "hw/irq.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/qdev-properties.h"
+#include "hw/registerfields.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -44,210 +45,310 @@
     } \
 } while (0)
 
-#define GEM_NWCTRL        (0x00000000 / 4) /* Network Control reg */
-#define GEM_NWCFG         (0x00000004 / 4) /* Network Config reg */
-#define GEM_NWSTATUS      (0x00000008 / 4) /* Network Status reg */
-#define GEM_USERIO        (0x0000000C / 4) /* User IO reg */
-#define GEM_DMACFG        (0x00000010 / 4) /* DMA Control reg */
-#define GEM_TXSTATUS      (0x00000014 / 4) /* TX Status reg */
-#define GEM_RXQBASE       (0x00000018 / 4) /* RX Q Base address reg */
-#define GEM_TXQBASE       (0x0000001C / 4) /* TX Q Base address reg */
-#define GEM_RXSTATUS      (0x00000020 / 4) /* RX Status reg */
-#define GEM_ISR           (0x00000024 / 4) /* Interrupt Status reg */
-#define GEM_IER           (0x00000028 / 4) /* Interrupt Enable reg */
-#define GEM_IDR           (0x0000002C / 4) /* Interrupt Disable reg */
-#define GEM_IMR           (0x00000030 / 4) /* Interrupt Mask reg */
-#define GEM_PHYMNTNC      (0x00000034 / 4) /* Phy Maintenance reg */
-#define GEM_RXPAUSE       (0x00000038 / 4) /* RX Pause Time reg */
-#define GEM_TXPAUSE       (0x0000003C / 4) /* TX Pause Time reg */
-#define GEM_TXPARTIALSF   (0x00000040 / 4) /* TX Partial Store and Forward */
-#define GEM_RXPARTIALSF   (0x00000044 / 4) /* RX Partial Store and Forward */
-#define GEM_JUMBO_MAX_LEN (0x00000048 / 4) /* Max Jumbo Frame Size */
-#define GEM_HASHLO        (0x00000080 / 4) /* Hash Low address reg */
-#define GEM_HASHHI        (0x00000084 / 4) /* Hash High address reg */
-#define GEM_SPADDR1LO     (0x00000088 / 4) /* Specific addr 1 low reg */
-#define GEM_SPADDR1HI     (0x0000008C / 4) /* Specific addr 1 high reg */
-#define GEM_SPADDR2LO     (0x00000090 / 4) /* Specific addr 2 low reg */
-#define GEM_SPADDR2HI     (0x00000094 / 4) /* Specific addr 2 high reg */
-#define GEM_SPADDR3LO     (0x00000098 / 4) /* Specific addr 3 low reg */
-#define GEM_SPADDR3HI     (0x0000009C / 4) /* Specific addr 3 high reg */
-#define GEM_SPADDR4LO     (0x000000A0 / 4) /* Specific addr 4 low reg */
-#define GEM_SPADDR4HI     (0x000000A4 / 4) /* Specific addr 4 high reg */
-#define GEM_TIDMATCH1     (0x000000A8 / 4) /* Type ID1 Match reg */
-#define GEM_TIDMATCH2     (0x000000AC / 4) /* Type ID2 Match reg */
-#define GEM_TIDMATCH3     (0x000000B0 / 4) /* Type ID3 Match reg */
-#define GEM_TIDMATCH4     (0x000000B4 / 4) /* Type ID4 Match reg */
-#define GEM_WOLAN         (0x000000B8 / 4) /* Wake on LAN reg */
-#define GEM_IPGSTRETCH    (0x000000BC / 4) /* IPG Stretch reg */
-#define GEM_SVLAN         (0x000000C0 / 4) /* Stacked VLAN reg */
-#define GEM_MODID         (0x000000FC / 4) /* Module ID reg */
-#define GEM_OCTTXLO       (0x00000100 / 4) /* Octects transmitted Low reg */
-#define GEM_OCTTXHI       (0x00000104 / 4) /* Octects transmitted High reg */
-#define GEM_TXCNT         (0x00000108 / 4) /* Error-free Frames transmitted */
-#define GEM_TXBCNT        (0x0000010C / 4) /* Error-free Broadcast Frames */
-#define GEM_TXMCNT        (0x00000110 / 4) /* Error-free Multicast Frame */
-#define GEM_TXPAUSECNT    (0x00000114 / 4) /* Pause Frames Transmitted */
-#define GEM_TX64CNT       (0x00000118 / 4) /* Error-free 64 TX */
-#define GEM_TX65CNT       (0x0000011C / 4) /* Error-free 65-127 TX */
-#define GEM_TX128CNT      (0x00000120 / 4) /* Error-free 128-255 TX */
-#define GEM_TX256CNT      (0x00000124 / 4) /* Error-free 256-511 */
-#define GEM_TX512CNT      (0x00000128 / 4) /* Error-free 512-1023 TX */
-#define GEM_TX1024CNT     (0x0000012C / 4) /* Error-free 1024-1518 TX */
-#define GEM_TX1519CNT     (0x00000130 / 4) /* Error-free larger than 1519 TX */
-#define GEM_TXURUNCNT     (0x00000134 / 4) /* TX under run error counter */
-#define GEM_SINGLECOLLCNT (0x00000138 / 4) /* Single Collision Frames */
-#define GEM_MULTCOLLCNT   (0x0000013C / 4) /* Multiple Collision Frames */
-#define GEM_EXCESSCOLLCNT (0x00000140 / 4) /* Excessive Collision Frames */
-#define GEM_LATECOLLCNT   (0x00000144 / 4) /* Late Collision Frames */
-#define GEM_DEFERTXCNT    (0x00000148 / 4) /* Deferred Transmission Frames */
-#define GEM_CSENSECNT     (0x0000014C / 4) /* Carrier Sense Error Counter */
-#define GEM_OCTRXLO       (0x00000150 / 4) /* Octects Received register Low */
-#define GEM_OCTRXHI       (0x00000154 / 4) /* Octects Received register High */
-#define GEM_RXCNT         (0x00000158 / 4) /* Error-free Frames Received */
-#define GEM_RXBROADCNT    (0x0000015C / 4) /* Error-free Broadcast Frames RX */
-#define GEM_RXMULTICNT    (0x00000160 / 4) /* Error-free Multicast Frames RX */
-#define GEM_RXPAUSECNT    (0x00000164 / 4) /* Pause Frames Received Counter */
-#define GEM_RX64CNT       (0x00000168 / 4) /* Error-free 64 byte Frames RX */
-#define GEM_RX65CNT       (0x0000016C / 4) /* Error-free 65-127B Frames RX */
-#define GEM_RX128CNT      (0x00000170 / 4) /* Error-free 128-255B Frames RX */
-#define GEM_RX256CNT      (0x00000174 / 4) /* Error-free 256-512B Frames RX */
-#define GEM_RX512CNT      (0x00000178 / 4) /* Error-free 512-1023B Frames RX */
-#define GEM_RX1024CNT     (0x0000017C / 4) /* Error-free 1024-1518B Frames RX */
-#define GEM_RX1519CNT     (0x00000180 / 4) /* Error-free 1519-max Frames RX */
-#define GEM_RXUNDERCNT    (0x00000184 / 4) /* Undersize Frames Received */
-#define GEM_RXOVERCNT     (0x00000188 / 4) /* Oversize Frames Received */
-#define GEM_RXJABCNT      (0x0000018C / 4) /* Jabbers Received Counter */
-#define GEM_RXFCSCNT      (0x00000190 / 4) /* Frame Check seq. Error Counter */
-#define GEM_RXLENERRCNT   (0x00000194 / 4) /* Length Field Error Counter */
-#define GEM_RXSYMERRCNT   (0x00000198 / 4) /* Symbol Error Counter */
-#define GEM_RXALIGNERRCNT (0x0000019C / 4) /* Alignment Error Counter */
-#define GEM_RXRSCERRCNT   (0x000001A0 / 4) /* Receive Resource Error Counter */
-#define GEM_RXORUNCNT     (0x000001A4 / 4) /* Receive Overrun Counter */
-#define GEM_RXIPCSERRCNT  (0x000001A8 / 4) /* IP header Checksum Err Counter */
-#define GEM_RXTCPCCNT     (0x000001AC / 4) /* TCP Checksum Error Counter */
-#define GEM_RXUDPCCNT     (0x000001B0 / 4) /* UDP Checksum Error Counter */
+REG32(NWCTRL, 0x0) /* Network Control reg */
+    FIELD(NWCTRL, LOOPBACK , 0, 1)
+    FIELD(NWCTRL, LOOPBACK_LOCAL , 1, 1)
+    FIELD(NWCTRL, ENABLE_RECEIVE, 2, 1)
+    FIELD(NWCTRL, ENABLE_TRANSMIT, 3, 1)
+    FIELD(NWCTRL, MAN_PORT_EN , 4, 1)
+    FIELD(NWCTRL, CLEAR_ALL_STATS_REGS , 5, 1)
+    FIELD(NWCTRL, INC_ALL_STATS_REGS, 6, 1)
+    FIELD(NWCTRL, STATS_WRITE_EN, 7, 1)
+    FIELD(NWCTRL, BACK_PRESSURE, 8, 1)
+    FIELD(NWCTRL, TRANSMIT_START , 9, 1)
+    FIELD(NWCTRL, TRANSMIT_HALT, 10, 1)
+    FIELD(NWCTRL, TX_PAUSE_FRAME_RE, 11, 1)
+    FIELD(NWCTRL, TX_PAUSE_FRAME_ZE, 12, 1)
+    FIELD(NWCTRL, STATS_TAKE_SNAP, 13, 1)
+    FIELD(NWCTRL, STATS_READ_SNAP, 14, 1)
+    FIELD(NWCTRL, STORE_RX_TS, 15, 1)
+    FIELD(NWCTRL, PFC_ENABLE, 16, 1)
+    FIELD(NWCTRL, PFC_PRIO_BASED, 17, 1)
+    FIELD(NWCTRL, FLUSH_RX_PKT_PCLK , 18, 1)
+    FIELD(NWCTRL, TX_LPI_EN, 19, 1)
+    FIELD(NWCTRL, PTP_UNICAST_ENA, 20, 1)
+    FIELD(NWCTRL, ALT_SGMII_MODE, 21, 1)
+    FIELD(NWCTRL, STORE_UDP_OFFSET, 22, 1)
+    FIELD(NWCTRL, EXT_TSU_PORT_EN, 23, 1)
+    FIELD(NWCTRL, ONE_STEP_SYNC_MO, 24, 1)
+    FIELD(NWCTRL, PFC_CTRL , 25, 1)
+    FIELD(NWCTRL, EXT_RXQ_SEL_EN , 26, 1)
+    FIELD(NWCTRL, OSS_CORRECTION_FIELD, 27, 1)
+    FIELD(NWCTRL, SEL_MII_ON_RGMII, 28, 1)
+    FIELD(NWCTRL, TWO_PT_FIVE_GIG, 29, 1)
+    FIELD(NWCTRL, IFG_EATS_QAV_CREDIT, 30, 1)
 
-#define GEM_1588S         (0x000001D0 / 4) /* 1588 Timer Seconds */
-#define GEM_1588NS        (0x000001D4 / 4) /* 1588 Timer Nanoseconds */
-#define GEM_1588ADJ       (0x000001D8 / 4) /* 1588 Timer Adjust */
-#define GEM_1588INC       (0x000001DC / 4) /* 1588 Timer Increment */
-#define GEM_PTPETXS       (0x000001E0 / 4) /* PTP Event Frame Transmitted (s) */
-#define GEM_PTPETXNS      (0x000001E4 / 4) /*
-                                            * PTP Event Frame Transmitted (ns)
-                                            */
-#define GEM_PTPERXS       (0x000001E8 / 4) /* PTP Event Frame Received (s) */
-#define GEM_PTPERXNS      (0x000001EC / 4) /* PTP Event Frame Received (ns) */
-#define GEM_PTPPTXS       (0x000001E0 / 4) /* PTP Peer Frame Transmitted (s) */
-#define GEM_PTPPTXNS      (0x000001E4 / 4) /* PTP Peer Frame Transmitted (ns) */
-#define GEM_PTPPRXS       (0x000001E8 / 4) /* PTP Peer Frame Received (s) */
-#define GEM_PTPPRXNS      (0x000001EC / 4) /* PTP Peer Frame Received (ns) */
+REG32(NWCFG, 0x4) /* Network Config reg */
+    FIELD(NWCFG, SPEED, 0, 1)
+    FIELD(NWCFG, FULL_DUPLEX, 1, 1)
+    FIELD(NWCFG, DISCARD_NON_VLAN_FRAMES, 2, 1)
+    FIELD(NWCFG, JUMBO_FRAMES, 3, 1)
+    FIELD(NWCFG, PROMISC, 4, 1)
+    FIELD(NWCFG, NO_BROADCAST, 5, 1)
+    FIELD(NWCFG, MULTICAST_HASH_EN, 6, 1)
+    FIELD(NWCFG, UNICAST_HASH_EN, 7, 1)
+    FIELD(NWCFG, RECV_1536_BYTE_FRAMES, 8, 1)
+    FIELD(NWCFG, EXTERNAL_ADDR_MATCH_EN, 9, 1)
+    FIELD(NWCFG, GIGABIT_MODE_ENABLE, 10, 1)
+    FIELD(NWCFG, PCS_SELECT, 11, 1)
+    FIELD(NWCFG, RETRY_TEST, 12, 1)
+    FIELD(NWCFG, PAUSE_ENABLE, 13, 1)
+    FIELD(NWCFG, RECV_BUF_OFFSET, 14, 2)
+    FIELD(NWCFG, LEN_ERR_DISCARD, 16, 1)
+    FIELD(NWCFG, FCS_REMOVE, 17, 1)
+    FIELD(NWCFG, MDC_CLOCK_DIV, 18, 3)
+    FIELD(NWCFG, DATA_BUS_WIDTH, 21, 2)
+    FIELD(NWCFG, DISABLE_COPY_PAUSE_FRAMES, 23, 1)
+    FIELD(NWCFG, RECV_CSUM_OFFLOAD_EN, 24, 1)
+    FIELD(NWCFG, EN_HALF_DUPLEX_RX, 25, 1)
+    FIELD(NWCFG, IGNORE_RX_FCS, 26, 1)
+    FIELD(NWCFG, SGMII_MODE_ENABLE, 27, 1)
+    FIELD(NWCFG, IPG_STRETCH_ENABLE, 28, 1)
+    FIELD(NWCFG, NSP_ACCEPT, 29, 1)
+    FIELD(NWCFG, IGNORE_IPG_RX_ER, 30, 1)
+    FIELD(NWCFG, UNI_DIRECTION_ENABLE, 31, 1)
+
+REG32(NWSTATUS, 0x8) /* Network Status reg */
+REG32(USERIO, 0xc) /* User IO reg */
+
+REG32(DMACFG, 0x10) /* DMA Control reg */
+    FIELD(DMACFG, SEND_BCAST_TO_ALL_QS, 31, 1)
+    FIELD(DMACFG, DMA_ADDR_BUS_WIDTH, 30, 1)
+    FIELD(DMACFG, TX_BD_EXT_MODE_EN , 29, 1)
+    FIELD(DMACFG, RX_BD_EXT_MODE_EN , 28, 1)
+    FIELD(DMACFG, FORCE_MAX_AMBA_BURST_TX, 26, 1)
+    FIELD(DMACFG, FORCE_MAX_AMBA_BURST_RX, 25, 1)
+    FIELD(DMACFG, FORCE_DISCARD_ON_ERR, 24, 1)
+    FIELD(DMACFG, RX_BUF_SIZE, 16, 8)
+    FIELD(DMACFG, CRC_ERROR_REPORT, 13, 1)
+    FIELD(DMACFG, INF_LAST_DBUF_SIZE_EN, 12, 1)
+    FIELD(DMACFG, TX_PBUF_CSUM_OFFLOAD, 11, 1)
+    FIELD(DMACFG, TX_PBUF_SIZE, 10, 1)
+    FIELD(DMACFG, RX_PBUF_SIZE, 8, 2)
+    FIELD(DMACFG, ENDIAN_SWAP_PACKET, 7, 1)
+    FIELD(DMACFG, ENDIAN_SWAP_MGNT, 6, 1)
+    FIELD(DMACFG, HDR_DATA_SPLIT_EN, 5, 1)
+    FIELD(DMACFG, AMBA_BURST_LEN , 0, 5)
+#define GEM_DMACFG_RBUFSZ_MUL  64         /* DMA RX Buffer Size multiplier */
+
+REG32(TXSTATUS, 0x14) /* TX Status reg */
+    FIELD(TXSTATUS, TX_USED_BIT_READ_MIDFRAME, 12, 1)
+    FIELD(TXSTATUS, TX_FRAME_TOO_LARGE, 11, 1)
+    FIELD(TXSTATUS, TX_DMA_LOCKUP, 10, 1)
+    FIELD(TXSTATUS, TX_MAC_LOCKUP, 9, 1)
+    FIELD(TXSTATUS, RESP_NOT_OK, 8, 1)
+    FIELD(TXSTATUS, LATE_COLLISION, 7, 1)
+    FIELD(TXSTATUS, TRANSMIT_UNDER_RUN, 6, 1)
+    FIELD(TXSTATUS, TRANSMIT_COMPLETE, 5, 1)
+    FIELD(TXSTATUS, AMBA_ERROR, 4, 1)
+    FIELD(TXSTATUS, TRANSMIT_GO, 3, 1)
+    FIELD(TXSTATUS, RETRY_LIMIT, 2, 1)
+    FIELD(TXSTATUS, COLLISION, 1, 1)
+    FIELD(TXSTATUS, USED_BIT_READ, 0, 1)
+
+REG32(RXQBASE, 0x18) /* RX Q Base address reg */
+REG32(TXQBASE, 0x1c) /* TX Q Base address reg */
+REG32(RXSTATUS, 0x20) /* RX Status reg */
+    FIELD(RXSTATUS, RX_DMA_LOCKUP, 5, 1)
+    FIELD(RXSTATUS, RX_MAC_LOCKUP, 4, 1)
+    FIELD(RXSTATUS, RESP_NOT_OK, 3, 1)
+    FIELD(RXSTATUS, RECEIVE_OVERRUN, 2, 1)
+    FIELD(RXSTATUS, FRAME_RECEIVED, 1, 1)
+    FIELD(RXSTATUS, BUF_NOT_AVAILABLE, 0, 1)
+
+REG32(ISR, 0x24) /* Interrupt Status reg */
+    FIELD(ISR, TX_LOCKUP, 31, 1)
+    FIELD(ISR, RX_LOCKUP, 30, 1)
+    FIELD(ISR, TSU_TIMER, 29, 1)
+    FIELD(ISR, WOL, 28, 1)
+    FIELD(ISR, RECV_LPI, 27, 1)
+    FIELD(ISR, TSU_SEC_INCR, 26, 1)
+    FIELD(ISR, PTP_PDELAY_RESP_XMIT, 25, 1)
+    FIELD(ISR, PTP_PDELAY_REQ_XMIT, 24, 1)
+    FIELD(ISR, PTP_PDELAY_RESP_RECV, 23, 1)
+    FIELD(ISR, PTP_PDELAY_REQ_RECV, 22, 1)
+    FIELD(ISR, PTP_SYNC_XMIT, 21, 1)
+    FIELD(ISR, PTP_DELAY_REQ_XMIT, 20, 1)
+    FIELD(ISR, PTP_SYNC_RECV, 19, 1)
+    FIELD(ISR, PTP_DELAY_REQ_RECV, 18, 1)
+    FIELD(ISR, PCS_LP_PAGE_RECV, 17, 1)
+    FIELD(ISR, PCS_AN_COMPLETE, 16, 1)
+    FIELD(ISR, EXT_IRQ, 15, 1)
+    FIELD(ISR, PAUSE_FRAME_XMIT, 14, 1)
+    FIELD(ISR, PAUSE_TIME_ELAPSED, 13, 1)
+    FIELD(ISR, PAUSE_FRAME_RECV, 12, 1)
+    FIELD(ISR, RESP_NOT_OK, 11, 1)
+    FIELD(ISR, RECV_OVERRUN, 10, 1)
+    FIELD(ISR, LINK_CHANGE, 9, 1)
+    FIELD(ISR, USXGMII_INT, 8, 1)
+    FIELD(ISR, XMIT_COMPLETE, 7, 1)
+    FIELD(ISR, AMBA_ERROR, 6, 1)
+    FIELD(ISR, RETRY_EXCEEDED, 5, 1)
+    FIELD(ISR, XMIT_UNDER_RUN, 4, 1)
+    FIELD(ISR, TX_USED, 3, 1)
+    FIELD(ISR, RX_USED, 2, 1)
+    FIELD(ISR, RECV_COMPLETE, 1, 1)
+    FIELD(ISR, MGNT_FRAME_SENT, 0, 1)
+REG32(IER, 0x28) /* Interrupt Enable reg */
+REG32(IDR, 0x2c) /* Interrupt Disable reg */
+REG32(IMR, 0x30) /* Interrupt Mask reg */
+
+REG32(PHYMNTNC, 0x34) /* Phy Maintenance reg */
+    FIELD(PHYMNTNC, DATA, 0, 16)
+    FIELD(PHYMNTNC, REG_ADDR, 18, 5)
+    FIELD(PHYMNTNC, PHY_ADDR, 23, 5)
+    FIELD(PHYMNTNC, OP, 28, 2)
+    FIELD(PHYMNTNC, ST, 30, 2)
+#define MDIO_OP_READ    0x3
+#define MDIO_OP_WRITE   0x2
+
+REG32(RXPAUSE, 0x38) /* RX Pause Time reg */
+REG32(TXPAUSE, 0x3c) /* TX Pause Time reg */
+REG32(TXPARTIALSF, 0x40) /* TX Partial Store and Forward */
+REG32(RXPARTIALSF, 0x44) /* RX Partial Store and Forward */
+REG32(JUMBO_MAX_LEN, 0x48) /* Max Jumbo Frame Size */
+REG32(HASHLO, 0x80) /* Hash Low address reg */
+REG32(HASHHI, 0x84) /* Hash High address reg */
+REG32(SPADDR1LO, 0x88) /* Specific addr 1 low reg */
+REG32(SPADDR1HI, 0x8c) /* Specific addr 1 high reg */
+REG32(SPADDR2LO, 0x90) /* Specific addr 2 low reg */
+REG32(SPADDR2HI, 0x94) /* Specific addr 2 high reg */
+REG32(SPADDR3LO, 0x98) /* Specific addr 3 low reg */
+REG32(SPADDR3HI, 0x9c) /* Specific addr 3 high reg */
+REG32(SPADDR4LO, 0xa0) /* Specific addr 4 low reg */
+REG32(SPADDR4HI, 0xa4) /* Specific addr 4 high reg */
+REG32(TIDMATCH1, 0xa8) /* Type ID1 Match reg */
+REG32(TIDMATCH2, 0xac) /* Type ID2 Match reg */
+REG32(TIDMATCH3, 0xb0) /* Type ID3 Match reg */
+REG32(TIDMATCH4, 0xb4) /* Type ID4 Match reg */
+REG32(WOLAN, 0xb8) /* Wake on LAN reg */
+REG32(IPGSTRETCH, 0xbc) /* IPG Stretch reg */
+REG32(SVLAN, 0xc0) /* Stacked VLAN reg */
+REG32(MODID, 0xfc) /* Module ID reg */
+REG32(OCTTXLO, 0x100) /* Octets transmitted Low reg */
+REG32(OCTTXHI, 0x104) /* Octets transmitted High reg */
+REG32(TXCNT, 0x108) /* Error-free Frames transmitted */
+REG32(TXBCNT, 0x10c) /* Error-free Broadcast Frames */
+REG32(TXMCNT, 0x110) /* Error-free Multicast Frame */
+REG32(TXPAUSECNT, 0x114) /* Pause Frames Transmitted */
+REG32(TX64CNT, 0x118) /* Error-free 64 TX */
+REG32(TX65CNT, 0x11c) /* Error-free 65-127 TX */
+REG32(TX128CNT, 0x120) /* Error-free 128-255 TX */
+REG32(TX256CNT, 0x124) /* Error-free 256-511 */
+REG32(TX512CNT, 0x128) /* Error-free 512-1023 TX */
+REG32(TX1024CNT, 0x12c) /* Error-free 1024-1518 TX */
+REG32(TX1519CNT, 0x130) /* Error-free larger than 1519 TX */
+REG32(TXURUNCNT, 0x134) /* TX under run error counter */
+REG32(SINGLECOLLCNT, 0x138) /* Single Collision Frames */
+REG32(MULTCOLLCNT, 0x13c) /* Multiple Collision Frames */
+REG32(EXCESSCOLLCNT, 0x140) /* Excessive Collision Frames */
+REG32(LATECOLLCNT, 0x144) /* Late Collision Frames */
+REG32(DEFERTXCNT, 0x148) /* Deferred Transmission Frames */
+REG32(CSENSECNT, 0x14c) /* Carrier Sense Error Counter */
+REG32(OCTRXLO, 0x150) /* Octets Received register Low */
+REG32(OCTRXHI, 0x154) /* Octets Received register High */
+REG32(RXCNT, 0x158) /* Error-free Frames Received */
+REG32(RXBROADCNT, 0x15c) /* Error-free Broadcast Frames RX */
+REG32(RXMULTICNT, 0x160) /* Error-free Multicast Frames RX */
+REG32(RXPAUSECNT, 0x164) /* Pause Frames Received Counter */
+REG32(RX64CNT, 0x168) /* Error-free 64 byte Frames RX */
+REG32(RX65CNT, 0x16c) /* Error-free 65-127B Frames RX */
+REG32(RX128CNT, 0x170) /* Error-free 128-255B Frames RX */
+REG32(RX256CNT, 0x174) /* Error-free 256-512B Frames RX */
+REG32(RX512CNT, 0x178) /* Error-free 512-1023B Frames RX */
+REG32(RX1024CNT, 0x17c) /* Error-free 1024-1518B Frames RX */
+REG32(RX1519CNT, 0x180) /* Error-free 1519-max Frames RX */
+REG32(RXUNDERCNT, 0x184) /* Undersize Frames Received */
+REG32(RXOVERCNT, 0x188) /* Oversize Frames Received */
+REG32(RXJABCNT, 0x18c) /* Jabbers Received Counter */
+REG32(RXFCSCNT, 0x190) /* Frame Check seq. Error Counter */
+REG32(RXLENERRCNT, 0x194) /* Length Field Error Counter */
+REG32(RXSYMERRCNT, 0x198) /* Symbol Error Counter */
+REG32(RXALIGNERRCNT, 0x19c) /* Alignment Error Counter */
+REG32(RXRSCERRCNT, 0x1a0) /* Receive Resource Error Counter */
+REG32(RXORUNCNT, 0x1a4) /* Receive Overrun Counter */
+REG32(RXIPCSERRCNT, 0x1a8) /* IP header Checksum Err Counter */
+REG32(RXTCPCCNT, 0x1ac) /* TCP Checksum Error Counter */
+REG32(RXUDPCCNT, 0x1b0) /* UDP Checksum Error Counter */
+
+REG32(1588S, 0x1d0) /* 1588 Timer Seconds */
+REG32(1588NS, 0x1d4) /* 1588 Timer Nanoseconds */
+REG32(1588ADJ, 0x1d8) /* 1588 Timer Adjust */
+REG32(1588INC, 0x1dc) /* 1588 Timer Increment */
+REG32(PTPETXS, 0x1e0) /* PTP Event Frame Transmitted (s) */
+REG32(PTPETXNS, 0x1e4) /* PTP Event Frame Transmitted (ns) */
+REG32(PTPERXS, 0x1e8) /* PTP Event Frame Received (s) */
+REG32(PTPERXNS, 0x1ec) /* PTP Event Frame Received (ns) */
+REG32(PTPPTXS, 0x1e0) /* PTP Peer Frame Transmitted (s) */
+REG32(PTPPTXNS, 0x1e4) /* PTP Peer Frame Transmitted (ns) */
+REG32(PTPPRXS, 0x1e8) /* PTP Peer Frame Received (s) */
+REG32(PTPPRXNS, 0x1ec) /* PTP Peer Frame Received (ns) */
 
 /* Design Configuration Registers */
-#define GEM_DESCONF       (0x00000280 / 4)
-#define GEM_DESCONF2      (0x00000284 / 4)
-#define GEM_DESCONF3      (0x00000288 / 4)
-#define GEM_DESCONF4      (0x0000028C / 4)
-#define GEM_DESCONF5      (0x00000290 / 4)
-#define GEM_DESCONF6      (0x00000294 / 4)
-#define GEM_DESCONF6_64B_MASK (1U << 23)
-#define GEM_DESCONF7      (0x00000298 / 4)
+REG32(DESCONF, 0x280)
+REG32(DESCONF2, 0x284)
+REG32(DESCONF3, 0x288)
+REG32(DESCONF4, 0x28c)
+REG32(DESCONF5, 0x290)
+REG32(DESCONF6, 0x294)
+    FIELD(DESCONF6, DMA_ADDR_64B, 23, 1)
+REG32(DESCONF7, 0x298)
 
-#define GEM_INT_Q1_STATUS               (0x00000400 / 4)
-#define GEM_INT_Q1_MASK                 (0x00000640 / 4)
+REG32(INT_Q1_STATUS, 0x400)
+REG32(INT_Q1_MASK, 0x640)
 
-#define GEM_TRANSMIT_Q1_PTR             (0x00000440 / 4)
-#define GEM_TRANSMIT_Q7_PTR             (GEM_TRANSMIT_Q1_PTR + 6)
+REG32(TRANSMIT_Q1_PTR, 0x440)
+REG32(TRANSMIT_Q7_PTR, 0x458)
 
-#define GEM_RECEIVE_Q1_PTR              (0x00000480 / 4)
-#define GEM_RECEIVE_Q7_PTR              (GEM_RECEIVE_Q1_PTR + 6)
+REG32(RECEIVE_Q1_PTR, 0x480)
+REG32(RECEIVE_Q7_PTR, 0x498)
 
-#define GEM_TBQPH                       (0x000004C8 / 4)
-#define GEM_RBQPH                       (0x000004D4 / 4)
+REG32(TBQPH, 0x4c8)
+REG32(RBQPH, 0x4d4)
 
-#define GEM_INT_Q1_ENABLE               (0x00000600 / 4)
-#define GEM_INT_Q7_ENABLE               (GEM_INT_Q1_ENABLE + 6)
+REG32(INT_Q1_ENABLE, 0x600)
+REG32(INT_Q7_ENABLE, 0x618)
 
-#define GEM_INT_Q1_DISABLE              (0x00000620 / 4)
-#define GEM_INT_Q7_DISABLE              (GEM_INT_Q1_DISABLE + 6)
+REG32(INT_Q1_DISABLE, 0x620)
+REG32(INT_Q7_DISABLE, 0x638)
 
-#define GEM_INT_Q1_MASK                 (0x00000640 / 4)
-#define GEM_INT_Q7_MASK                 (GEM_INT_Q1_MASK + 6)
+REG32(SCREENING_TYPE1_REG0, 0x500)
+    FIELD(SCREENING_TYPE1_REG0, QUEUE_NUM, 0, 4)
+    FIELD(SCREENING_TYPE1_REG0, DSTC_MATCH, 4, 8)
+    FIELD(SCREENING_TYPE1_REG0, UDP_PORT_MATCH, 12, 16)
+    FIELD(SCREENING_TYPE1_REG0, DSTC_ENABLE, 28, 1)
+    FIELD(SCREENING_TYPE1_REG0, UDP_PORT_MATCH_EN, 29, 1)
+    FIELD(SCREENING_TYPE1_REG0, DROP_ON_MATCH, 30, 1)
 
-#define GEM_SCREENING_TYPE1_REGISTER_0  (0x00000500 / 4)
+REG32(SCREENING_TYPE2_REG0, 0x540)
+    FIELD(SCREENING_TYPE2_REG0, QUEUE_NUM, 0, 4)
+    FIELD(SCREENING_TYPE2_REG0, VLAN_PRIORITY, 4, 3)
+    FIELD(SCREENING_TYPE2_REG0, VLAN_ENABLE, 8, 1)
+    FIELD(SCREENING_TYPE2_REG0, ETHERTYPE_REG_INDEX, 9, 3)
+    FIELD(SCREENING_TYPE2_REG0, ETHERTYPE_ENABLE, 12, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_A, 13, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_A_ENABLE, 18, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_B, 19, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_B_ENABLE, 24, 1)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_C, 25, 5)
+    FIELD(SCREENING_TYPE2_REG0, COMPARE_C_ENABLE, 30, 1)
+    FIELD(SCREENING_TYPE2_REG0, DROP_ON_MATCH, 31, 1)
 
-#define GEM_ST1R_UDP_PORT_MATCH_ENABLE  (1 << 29)
-#define GEM_ST1R_DSTC_ENABLE            (1 << 28)
-#define GEM_ST1R_UDP_PORT_MATCH_SHIFT   (12)
-#define GEM_ST1R_UDP_PORT_MATCH_WIDTH   (27 - GEM_ST1R_UDP_PORT_MATCH_SHIFT + 1)
-#define GEM_ST1R_DSTC_MATCH_SHIFT       (4)
-#define GEM_ST1R_DSTC_MATCH_WIDTH       (11 - GEM_ST1R_DSTC_MATCH_SHIFT + 1)
-#define GEM_ST1R_QUEUE_SHIFT            (0)
-#define GEM_ST1R_QUEUE_WIDTH            (3 - GEM_ST1R_QUEUE_SHIFT + 1)
+REG32(SCREENING_TYPE2_ETHERTYPE_REG0, 0x6e0)
 
-#define GEM_SCREENING_TYPE2_REGISTER_0  (0x00000540 / 4)
+REG32(TYPE2_COMPARE_0_WORD_0, 0x700)
+    FIELD(TYPE2_COMPARE_0_WORD_0, MASK_VALUE, 0, 16)
+    FIELD(TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE, 16, 16)
 
-#define GEM_ST2R_COMPARE_A_ENABLE       (1 << 18)
-#define GEM_ST2R_COMPARE_A_SHIFT        (13)
-#define GEM_ST2R_COMPARE_WIDTH          (17 - GEM_ST2R_COMPARE_A_SHIFT + 1)
-#define GEM_ST2R_ETHERTYPE_ENABLE       (1 << 12)
-#define GEM_ST2R_ETHERTYPE_INDEX_SHIFT  (9)
-#define GEM_ST2R_ETHERTYPE_INDEX_WIDTH  (11 - GEM_ST2R_ETHERTYPE_INDEX_SHIFT \
-                                            + 1)
-#define GEM_ST2R_QUEUE_SHIFT            (0)
-#define GEM_ST2R_QUEUE_WIDTH            (3 - GEM_ST2R_QUEUE_SHIFT + 1)
-
-#define GEM_SCREENING_TYPE2_ETHERTYPE_REG_0     (0x000006e0 / 4)
-#define GEM_TYPE2_COMPARE_0_WORD_0              (0x00000700 / 4)
-
-#define GEM_T2CW1_COMPARE_OFFSET_SHIFT  (7)
-#define GEM_T2CW1_COMPARE_OFFSET_WIDTH  (8 - GEM_T2CW1_COMPARE_OFFSET_SHIFT + 1)
-#define GEM_T2CW1_OFFSET_VALUE_SHIFT    (0)
-#define GEM_T2CW1_OFFSET_VALUE_WIDTH    (6 - GEM_T2CW1_OFFSET_VALUE_SHIFT + 1)
+REG32(TYPE2_COMPARE_0_WORD_1, 0x704)
+    FIELD(TYPE2_COMPARE_0_WORD_1, OFFSET_VALUE, 0, 7)
+    FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_OFFSET, 7, 2)
+    FIELD(TYPE2_COMPARE_0_WORD_1, DISABLE_MASK, 9, 1)
+    FIELD(TYPE2_COMPARE_0_WORD_1, COMPARE_VLAN_ID, 10, 1)
 
 /*****************************************/
-#define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
-#define GEM_NWCTRL_TXENA       0x00000008 /* Transmit Enable */
-#define GEM_NWCTRL_RXENA       0x00000004 /* Receive Enable */
-#define GEM_NWCTRL_LOCALLOOP   0x00000002 /* Local Loopback */
 
-#define GEM_NWCFG_STRIP_FCS    0x00020000 /* Strip FCS field */
-#define GEM_NWCFG_LERR_DISC    0x00010000 /* Discard RX frames with len err */
-#define GEM_NWCFG_BUFF_OFST_M  0x0000C000 /* Receive buffer offset mask */
-#define GEM_NWCFG_BUFF_OFST_S  14         /* Receive buffer offset shift */
-#define GEM_NWCFG_RCV_1538     0x00000100 /* Receive 1538 bytes frame */
-#define GEM_NWCFG_UCAST_HASH   0x00000080 /* accept unicast if hash match */
-#define GEM_NWCFG_MCAST_HASH   0x00000040 /* accept multicast if hash match */
-#define GEM_NWCFG_BCAST_REJ    0x00000020 /* Reject broadcast packets */
-#define GEM_NWCFG_PROMISC      0x00000010 /* Accept all packets */
-#define GEM_NWCFG_JUMBO_FRAME  0x00000008 /* Jumbo Frames enable */
 
-#define GEM_DMACFG_ADDR_64B    (1U << 30)
-#define GEM_DMACFG_TX_BD_EXT   (1U << 29)
-#define GEM_DMACFG_RX_BD_EXT   (1U << 28)
-#define GEM_DMACFG_RBUFSZ_M    0x00FF0000 /* DMA RX Buffer Size mask */
-#define GEM_DMACFG_RBUFSZ_S    16         /* DMA RX Buffer Size shift */
-#define GEM_DMACFG_RBUFSZ_MUL  64         /* DMA RX Buffer Size multiplier */
-#define GEM_DMACFG_TXCSUM_OFFL 0x00000800 /* Transmit checksum offload */
-
-#define GEM_TXSTATUS_TXCMPL    0x00000020 /* Transmit Complete */
-#define GEM_TXSTATUS_USED      0x00000001 /* sw owned descriptor encountered */
-
-#define GEM_RXSTATUS_FRMRCVD   0x00000002 /* Frame received */
-#define GEM_RXSTATUS_NOBUF     0x00000001 /* Buffer unavailable */
-
-/* GEM_ISR GEM_IER GEM_IDR GEM_IMR */
-#define GEM_INT_TXCMPL        0x00000080 /* Transmit Complete */
-#define GEM_INT_AMBA_ERR      0x00000040
-#define GEM_INT_TXUSED         0x00000008
-#define GEM_INT_RXUSED         0x00000004
-#define GEM_INT_RXCMPL        0x00000002
-
-#define GEM_PHYMNTNC_OP_R      0x20000000 /* read operation */
-#define GEM_PHYMNTNC_OP_W      0x10000000 /* write operation */
-#define GEM_PHYMNTNC_ADDR      0x0F800000 /* Address bits */
-#define GEM_PHYMNTNC_ADDR_SHFT 23
-#define GEM_PHYMNTNC_REG       0x007C0000 /* register bits */
-#define GEM_PHYMNTNC_REG_SHIFT 18
 
 /* Marvell PHY definitions */
 #define BOARD_PHY_ADDRESS    0 /* PHY address we will emulate a device at */
@@ -325,7 +426,7 @@ static inline uint64_t tx_desc_get_buffer(CadenceGEMState *s, uint32_t *desc)
 {
     uint64_t ret = desc[0];
 
-    if (s->regs[GEM_DMACFG] & GEM_DMACFG_ADDR_64B) {
+    if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, DMA_ADDR_BUS_WIDTH)) {
         ret |= (uint64_t)desc[2] << 32;
     }
     return ret;
@@ -370,7 +471,7 @@ static inline uint64_t rx_desc_get_buffer(CadenceGEMState *s, uint32_t *desc)
 {
     uint64_t ret = desc[0] & ~0x3UL;
 
-    if (s->regs[GEM_DMACFG] & GEM_DMACFG_ADDR_64B) {
+    if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, DMA_ADDR_BUS_WIDTH)) {
         ret |= (uint64_t)desc[2] << 32;
     }
     return ret;
@@ -380,11 +481,11 @@ static inline int gem_get_desc_len(CadenceGEMState *s, bool rx_n_tx)
 {
     int ret = 2;
 
-    if (s->regs[GEM_DMACFG] & GEM_DMACFG_ADDR_64B) {
+    if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, DMA_ADDR_BUS_WIDTH)) {
         ret += 2;
     }
-    if (s->regs[GEM_DMACFG] & (rx_n_tx ? GEM_DMACFG_RX_BD_EXT
-                                       : GEM_DMACFG_TX_BD_EXT)) {
+    if (s->regs[R_DMACFG] & (rx_n_tx ? R_DMACFG_RX_BD_EXT_MODE_EN_MASK
+                                     : R_DMACFG_TX_BD_EXT_MODE_EN_MASK)) {
         ret += 2;
     }
 
@@ -456,8 +557,8 @@ static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
 {
     uint32_t size;
-    if (s->regs[GEM_NWCFG] & GEM_NWCFG_JUMBO_FRAME) {
-        size = s->regs[GEM_JUMBO_MAX_LEN];
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, JUMBO_FRAMES)) {
+        size = s->regs[R_JUMBO_MAX_LEN];
         if (size > s->jumbo_max_len) {
             size = s->jumbo_max_len;
             qemu_log_mask(LOG_GUEST_ERROR, "GEM_JUMBO_MAX_LEN reg cannot be"
@@ -466,7 +567,8 @@ static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
     } else if (tx) {
         size = 1518;
     } else {
-        size = s->regs[GEM_NWCFG] & GEM_NWCFG_RCV_1538 ? 1538 : 1518;
+        size = FIELD_EX32(s->regs[R_NWCFG],
+                          NWCFG, RECV_1536_BYTE_FRAMES) ? 1538 : 1518;
     }
     return size;
 }
@@ -474,10 +576,10 @@ static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
 static void gem_set_isr(CadenceGEMState *s, int q, uint32_t flag)
 {
     if (q == 0) {
-        s->regs[GEM_ISR] |= flag & ~(s->regs[GEM_IMR]);
+        s->regs[R_ISR] |= flag & ~(s->regs[R_IMR]);
     } else {
-        s->regs[GEM_INT_Q1_STATUS + q - 1] |= flag &
-                                      ~(s->regs[GEM_INT_Q1_MASK + q - 1]);
+        s->regs[R_INT_Q1_STATUS + q - 1] |= flag &
+                                      ~(s->regs[R_INT_Q1_MASK + q - 1]);
     }
 }
 
@@ -491,43 +593,43 @@ static void gem_init_register_masks(CadenceGEMState *s)
     unsigned int i;
     /* Mask of register bits which are read only */
     memset(&s->regs_ro[0], 0, sizeof(s->regs_ro));
-    s->regs_ro[GEM_NWCTRL]   = 0xFFF80000;
-    s->regs_ro[GEM_NWSTATUS] = 0xFFFFFFFF;
-    s->regs_ro[GEM_DMACFG]   = 0x8E00F000;
-    s->regs_ro[GEM_TXSTATUS] = 0xFFFFFE08;
-    s->regs_ro[GEM_RXQBASE]  = 0x00000003;
-    s->regs_ro[GEM_TXQBASE]  = 0x00000003;
-    s->regs_ro[GEM_RXSTATUS] = 0xFFFFFFF0;
-    s->regs_ro[GEM_ISR]      = 0xFFFFFFFF;
-    s->regs_ro[GEM_IMR]      = 0xFFFFFFFF;
-    s->regs_ro[GEM_MODID]    = 0xFFFFFFFF;
+    s->regs_ro[R_NWCTRL]   = 0xFFF80000;
+    s->regs_ro[R_NWSTATUS] = 0xFFFFFFFF;
+    s->regs_ro[R_DMACFG]   = 0x8E00F000;
+    s->regs_ro[R_TXSTATUS] = 0xFFFFFE08;
+    s->regs_ro[R_RXQBASE]  = 0x00000003;
+    s->regs_ro[R_TXQBASE]  = 0x00000003;
+    s->regs_ro[R_RXSTATUS] = 0xFFFFFFF0;
+    s->regs_ro[R_ISR]      = 0xFFFFFFFF;
+    s->regs_ro[R_IMR]      = 0xFFFFFFFF;
+    s->regs_ro[R_MODID]    = 0xFFFFFFFF;
     for (i = 0; i < s->num_priority_queues; i++) {
-        s->regs_ro[GEM_INT_Q1_STATUS + i] = 0xFFFFFFFF;
-        s->regs_ro[GEM_INT_Q1_ENABLE + i] = 0xFFFFF319;
-        s->regs_ro[GEM_INT_Q1_DISABLE + i] = 0xFFFFF319;
-        s->regs_ro[GEM_INT_Q1_MASK + i] = 0xFFFFFFFF;
+        s->regs_ro[R_INT_Q1_STATUS + i] = 0xFFFFFFFF;
+        s->regs_ro[R_INT_Q1_ENABLE + i] = 0xFFFFF319;
+        s->regs_ro[R_INT_Q1_DISABLE + i] = 0xFFFFF319;
+        s->regs_ro[R_INT_Q1_MASK + i] = 0xFFFFFFFF;
     }
 
     /* Mask of register bits which are clear on read */
     memset(&s->regs_rtc[0], 0, sizeof(s->regs_rtc));
-    s->regs_rtc[GEM_ISR]      = 0xFFFFFFFF;
+    s->regs_rtc[R_ISR]      = 0xFFFFFFFF;
     for (i = 0; i < s->num_priority_queues; i++) {
-        s->regs_rtc[GEM_INT_Q1_STATUS + i] = 0x00000CE6;
+        s->regs_rtc[R_INT_Q1_STATUS + i] = 0x00000CE6;
     }
 
     /* Mask of register bits which are write 1 to clear */
     memset(&s->regs_w1c[0], 0, sizeof(s->regs_w1c));
-    s->regs_w1c[GEM_TXSTATUS] = 0x000001F7;
-    s->regs_w1c[GEM_RXSTATUS] = 0x0000000F;
+    s->regs_w1c[R_TXSTATUS] = 0x000001F7;
+    s->regs_w1c[R_RXSTATUS] = 0x0000000F;
 
     /* Mask of register bits which are write only */
     memset(&s->regs_wo[0], 0, sizeof(s->regs_wo));
-    s->regs_wo[GEM_NWCTRL]   = 0x00073E60;
-    s->regs_wo[GEM_IER]      = 0x07FFFFFF;
-    s->regs_wo[GEM_IDR]      = 0x07FFFFFF;
+    s->regs_wo[R_NWCTRL]   = 0x00073E60;
+    s->regs_wo[R_IER]      = 0x07FFFFFF;
+    s->regs_wo[R_IDR]      = 0x07FFFFFF;
     for (i = 0; i < s->num_priority_queues; i++) {
-        s->regs_wo[GEM_INT_Q1_ENABLE + i] = 0x00000CE6;
-        s->regs_wo[GEM_INT_Q1_DISABLE + i] = 0x00000CE6;
+        s->regs_wo[R_INT_Q1_ENABLE + i] = 0x00000CE6;
+        s->regs_wo[R_INT_Q1_DISABLE + i] = 0x00000CE6;
     }
 }
 
@@ -561,7 +663,7 @@ static bool gem_can_receive(NetClientState *nc)
     s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
-    if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
+    if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_RECEIVE)) {
         if (s->can_rx_state != 1) {
             s->can_rx_state = 1;
             DB_PRINT("can't receive - no enable\n");
@@ -598,10 +700,10 @@ static void gem_update_int_status(CadenceGEMState *s)
 {
     int i;
 
-    qemu_set_irq(s->irq[0], !!s->regs[GEM_ISR]);
+    qemu_set_irq(s->irq[0], !!s->regs[R_ISR]);
 
     for (i = 1; i < s->num_priority_queues; ++i) {
-        qemu_set_irq(s->irq[i], !!s->regs[GEM_INT_Q1_STATUS + i - 1]);
+        qemu_set_irq(s->irq[i], !!s->regs[R_INT_Q1_STATUS + i - 1]);
     }
 }
 
@@ -615,39 +717,39 @@ static void gem_receive_updatestats(CadenceGEMState *s, const uint8_t *packet,
     uint64_t octets;
 
     /* Total octets (bytes) received */
-    octets = ((uint64_t)(s->regs[GEM_OCTRXLO]) << 32) |
-             s->regs[GEM_OCTRXHI];
+    octets = ((uint64_t)(s->regs[R_OCTRXLO]) << 32) |
+             s->regs[R_OCTRXHI];
     octets += bytes;
-    s->regs[GEM_OCTRXLO] = octets >> 32;
-    s->regs[GEM_OCTRXHI] = octets;
+    s->regs[R_OCTRXLO] = octets >> 32;
+    s->regs[R_OCTRXHI] = octets;
 
     /* Error-free Frames received */
-    s->regs[GEM_RXCNT]++;
+    s->regs[R_RXCNT]++;
 
     /* Error-free Broadcast Frames counter */
     if (!memcmp(packet, broadcast_addr, 6)) {
-        s->regs[GEM_RXBROADCNT]++;
+        s->regs[R_RXBROADCNT]++;
     }
 
     /* Error-free Multicast Frames counter */
     if (packet[0] == 0x01) {
-        s->regs[GEM_RXMULTICNT]++;
+        s->regs[R_RXMULTICNT]++;
     }
 
     if (bytes <= 64) {
-        s->regs[GEM_RX64CNT]++;
+        s->regs[R_RX64CNT]++;
     } else if (bytes <= 127) {
-        s->regs[GEM_RX65CNT]++;
+        s->regs[R_RX65CNT]++;
     } else if (bytes <= 255) {
-        s->regs[GEM_RX128CNT]++;
+        s->regs[R_RX128CNT]++;
     } else if (bytes <= 511) {
-        s->regs[GEM_RX256CNT]++;
+        s->regs[R_RX256CNT]++;
     } else if (bytes <= 1023) {
-        s->regs[GEM_RX512CNT]++;
+        s->regs[R_RX512CNT]++;
     } else if (bytes <= 1518) {
-        s->regs[GEM_RX1024CNT]++;
+        s->regs[R_RX1024CNT]++;
     } else {
-        s->regs[GEM_RX1519CNT]++;
+        s->regs[R_RX1519CNT]++;
     }
 }
 
@@ -706,13 +808,13 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
     int i, is_mc;
 
     /* Promiscuous mode? */
-    if (s->regs[GEM_NWCFG] & GEM_NWCFG_PROMISC) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, PROMISC)) {
         return GEM_RX_PROMISCUOUS_ACCEPT;
     }
 
     if (!memcmp(packet, broadcast_addr, 6)) {
         /* Reject broadcast packets? */
-        if (s->regs[GEM_NWCFG] & GEM_NWCFG_BCAST_REJ) {
+        if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, NO_BROADCAST)) {
             return GEM_RX_REJECT;
         }
         return GEM_RX_BROADCAST_ACCEPT;
@@ -720,13 +822,13 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
 
     /* Accept packets -w- hash match? */
     is_mc = is_multicast_ether_addr(packet);
-    if ((is_mc && (s->regs[GEM_NWCFG] & GEM_NWCFG_MCAST_HASH)) ||
-        (!is_mc && (s->regs[GEM_NWCFG] & GEM_NWCFG_UCAST_HASH))) {
+    if ((is_mc && (FIELD_EX32(s->regs[R_NWCFG], NWCFG, MULTICAST_HASH_EN))) ||
+        (!is_mc && FIELD_EX32(s->regs[R_NWCFG], NWCFG, UNICAST_HASH_EN))) {
         uint64_t buckets;
         unsigned hash_index;
 
         hash_index = calc_mac_hash(packet);
-        buckets = ((uint64_t)s->regs[GEM_HASHHI] << 32) | s->regs[GEM_HASHLO];
+        buckets = ((uint64_t)s->regs[R_HASHHI] << 32) | s->regs[R_HASHLO];
         if ((buckets >> hash_index) & 1) {
             return is_mc ? GEM_RX_MULTICAST_HASH_ACCEPT
                          : GEM_RX_UNICAST_HASH_ACCEPT;
@@ -734,7 +836,7 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
     }
 
     /* Check all 4 specific addresses */
-    gem_spaddr = (uint8_t *)&(s->regs[GEM_SPADDR1LO]);
+    gem_spaddr = (uint8_t *)&(s->regs[R_SPADDR1LO]);
     for (i = 3; i >= 0; i--) {
         if (s->sar_active[i] && !memcmp(packet, gem_spaddr + 8 * i, 6)) {
             return GEM_RX_SAR_ACCEPT + i;
@@ -754,15 +856,14 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
     int i, j;
 
     for (i = 0; i < s->num_type1_screeners; i++) {
-        reg = s->regs[GEM_SCREENING_TYPE1_REGISTER_0 + i];
+        reg = s->regs[R_SCREENING_TYPE1_REG0 + i];
         matched = false;
         mismatched = false;
 
         /* Screening is based on UDP Port */
-        if (reg & GEM_ST1R_UDP_PORT_MATCH_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE1_REG0, UDP_PORT_MATCH_EN)) {
             uint16_t udp_port = rxbuf_ptr[14 + 22] << 8 | rxbuf_ptr[14 + 23];
-            if (udp_port == extract32(reg, GEM_ST1R_UDP_PORT_MATCH_SHIFT,
-                                           GEM_ST1R_UDP_PORT_MATCH_WIDTH)) {
+            if (udp_port == FIELD_EX32(reg, SCREENING_TYPE1_REG0, UDP_PORT_MATCH)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -770,10 +871,9 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         /* Screening is based on DS/TC */
-        if (reg & GEM_ST1R_DSTC_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE1_REG0, DSTC_ENABLE)) {
             uint8_t dscp = rxbuf_ptr[14 + 1];
-            if (dscp == extract32(reg, GEM_ST1R_DSTC_MATCH_SHIFT,
-                                       GEM_ST1R_DSTC_MATCH_WIDTH)) {
+            if (dscp == FIELD_EX32(reg, SCREENING_TYPE1_REG0, DSTC_MATCH)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -781,25 +881,25 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         if (matched && !mismatched) {
-            return extract32(reg, GEM_ST1R_QUEUE_SHIFT, GEM_ST1R_QUEUE_WIDTH);
+            return FIELD_EX32(reg, SCREENING_TYPE1_REG0, QUEUE_NUM);
         }
     }
 
     for (i = 0; i < s->num_type2_screeners; i++) {
-        reg = s->regs[GEM_SCREENING_TYPE2_REGISTER_0 + i];
+        reg = s->regs[R_SCREENING_TYPE2_REG0 + i];
         matched = false;
         mismatched = false;
 
-        if (reg & GEM_ST2R_ETHERTYPE_ENABLE) {
+        if (FIELD_EX32(reg, SCREENING_TYPE2_REG0, ETHERTYPE_ENABLE)) {
             uint16_t type = rxbuf_ptr[12] << 8 | rxbuf_ptr[13];
-            int et_idx = extract32(reg, GEM_ST2R_ETHERTYPE_INDEX_SHIFT,
-                                        GEM_ST2R_ETHERTYPE_INDEX_WIDTH);
+            int et_idx = FIELD_EX32(reg, SCREENING_TYPE2_REG0,
+                                    ETHERTYPE_REG_INDEX);
 
             if (et_idx > s->num_type2_screeners) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Out of range ethertype "
                               "register index: %d\n", et_idx);
             }
-            if (type == s->regs[GEM_SCREENING_TYPE2_ETHERTYPE_REG_0 +
+            if (type == s->regs[R_SCREENING_TYPE2_ETHERTYPE_REG0 +
                                 et_idx]) {
                 matched = true;
             } else {
@@ -809,27 +909,27 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
 
         /* Compare A, B, C */
         for (j = 0; j < 3; j++) {
-            uint32_t cr0, cr1, mask;
+            uint32_t cr0, cr1, mask, compare;
             uint16_t rx_cmp;
             int offset;
-            int cr_idx = extract32(reg, GEM_ST2R_COMPARE_A_SHIFT + j * 6,
-                                        GEM_ST2R_COMPARE_WIDTH);
+            int cr_idx = extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_SHIFT + j * 6,
+                                   R_SCREENING_TYPE2_REG0_COMPARE_A_LENGTH);
 
-            if (!(reg & (GEM_ST2R_COMPARE_A_ENABLE << (j * 6)))) {
+            if (!extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_ENABLE_SHIFT + j * 6,
+                           R_SCREENING_TYPE2_REG0_COMPARE_A_ENABLE_LENGTH)) {
                 continue;
             }
+
             if (cr_idx > s->num_type2_screeners) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Out of range compare "
                               "register index: %d\n", cr_idx);
             }
 
-            cr0 = s->regs[GEM_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2];
-            cr1 = s->regs[GEM_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2 + 1];
-            offset = extract32(cr1, GEM_T2CW1_OFFSET_VALUE_SHIFT,
-                                    GEM_T2CW1_OFFSET_VALUE_WIDTH);
+            cr0 = s->regs[R_TYPE2_COMPARE_0_WORD_0 + cr_idx * 2];
+            cr1 = s->regs[R_TYPE2_COMPARE_0_WORD_1 + cr_idx * 2];
+            offset = FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, OFFSET_VALUE);
 
-            switch (extract32(cr1, GEM_T2CW1_COMPARE_OFFSET_SHIFT,
-                                   GEM_T2CW1_COMPARE_OFFSET_WIDTH)) {
+            switch (FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, COMPARE_OFFSET)) {
             case 3: /* Skip UDP header */
                 qemu_log_mask(LOG_UNIMP, "TCP compare offsets"
                               "unimplemented - assuming UDP\n");
@@ -847,9 +947,10 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
             }
 
             rx_cmp = rxbuf_ptr[offset] << 8 | rxbuf_ptr[offset];
-            mask = extract32(cr0, 0, 16);
+            mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
+            compare = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
 
-            if ((rx_cmp & mask) == (extract32(cr0, 16, 16) & mask)) {
+            if ((rx_cmp & mask) == (compare & mask)) {
                 matched = true;
             } else {
                 mismatched = true;
@@ -857,7 +958,7 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
         }
 
         if (matched && !mismatched) {
-            return extract32(reg, GEM_ST2R_QUEUE_SHIFT, GEM_ST2R_QUEUE_WIDTH);
+            return FIELD_EX32(reg, SCREENING_TYPE2_REG0, QUEUE_NUM);
         }
     }
 
@@ -871,11 +972,11 @@ static uint32_t gem_get_queue_base_addr(CadenceGEMState *s, bool tx, int q)
 
     switch (q) {
     case 0:
-        base_addr = s->regs[tx ? GEM_TXQBASE : GEM_RXQBASE];
+        base_addr = s->regs[tx ? R_TXQBASE : R_RXQBASE];
         break;
     case 1 ... (MAX_PRIORITY_QUEUES - 1):
-        base_addr = s->regs[(tx ? GEM_TRANSMIT_Q1_PTR :
-                                 GEM_RECEIVE_Q1_PTR) + q - 1];
+        base_addr = s->regs[(tx ? R_TRANSMIT_Q1_PTR :
+                                 R_RECEIVE_Q1_PTR) + q - 1];
         break;
     default:
         g_assert_not_reached();
@@ -898,8 +999,8 @@ static hwaddr gem_get_desc_addr(CadenceGEMState *s, bool tx, int q)
 {
     hwaddr desc_addr = 0;
 
-    if (s->regs[GEM_DMACFG] & GEM_DMACFG_ADDR_64B) {
-        desc_addr = s->regs[tx ? GEM_TBQPH : GEM_RBQPH];
+    if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, DMA_ADDR_BUS_WIDTH)) {
+        desc_addr = s->regs[tx ? R_TBQPH : R_RBQPH];
     }
     desc_addr <<= 32;
     desc_addr |= tx ? s->tx_desc_addr[q] : s->rx_desc_addr[q];
@@ -930,8 +1031,8 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
     /* Descriptor owned by software ? */
     if (rx_desc_get_ownership(s->rx_desc[q]) == 1) {
         DB_PRINT("descriptor 0x%" HWADDR_PRIx " owned by sw.\n", desc_addr);
-        s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_NOBUF;
-        gem_set_isr(s, q, GEM_INT_RXUSED);
+        s->regs[R_RXSTATUS] |= R_RXSTATUS_BUF_NOT_AVAILABLE_MASK;
+        gem_set_isr(s, q, R_ISR_RX_USED_MASK);
         /* Handle interrupt consequences */
         gem_update_int_status(s);
     }
@@ -954,11 +1055,11 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Is this destination MAC address "for us" ? */
     maf = gem_mac_address_filter(s, buf);
     if (maf == GEM_RX_REJECT) {
-        return size;  /* no, drop siliently b/c it's not an error */
+        return size;  /* no, drop silently b/c it's not an error */
     }
 
     /* Discard packets with receive length error enabled ? */
-    if (s->regs[GEM_NWCFG] & GEM_NWCFG_LERR_DISC) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, LEN_ERR_DISCARD)) {
         unsigned type_len;
 
         /* Fish the ethertype / length field out of the RX packet */
@@ -975,14 +1076,14 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /*
      * Determine configured receive buffer offset (probably 0)
      */
-    rxbuf_offset = (s->regs[GEM_NWCFG] & GEM_NWCFG_BUFF_OFST_M) >>
-                   GEM_NWCFG_BUFF_OFST_S;
+    rxbuf_offset = FIELD_EX32(s->regs[R_NWCFG], NWCFG, RECV_BUF_OFFSET);
 
     /* The configure size of each receive buffer.  Determines how many
      * buffers needed to hold this packet.
      */
-    rxbufsize = ((s->regs[GEM_DMACFG] & GEM_DMACFG_RBUFSZ_M) >>
-                 GEM_DMACFG_RBUFSZ_S) * GEM_DMACFG_RBUFSZ_MUL;
+    rxbufsize = FIELD_EX32(s->regs[R_DMACFG], DMACFG, RX_BUF_SIZE);
+    rxbufsize *= GEM_DMACFG_RBUFSZ_MUL;
+
     bytes_to_copy = size;
 
     /* Hardware allows a zero value here but warns against it. To avoid QEMU
@@ -1001,10 +1102,10 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* Strip of FCS field ? (usually yes) */
-    if (s->regs[GEM_NWCFG] & GEM_NWCFG_STRIP_FCS) {
+    if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, FCS_REMOVE)) {
         rxbuf_ptr = (void *)buf;
     } else {
-        unsigned crc_val;
+        uint32_t crc_val;
 
         if (size > MAX_FRAME_SIZE - sizeof(crc_val)) {
             size = MAX_FRAME_SIZE - sizeof(crc_val);
@@ -1031,7 +1132,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     if (size > gem_get_max_buf_len(s, false)) {
         qemu_log_mask(LOG_GUEST_ERROR, "rx frame too long\n");
-        gem_set_isr(s, q, GEM_INT_AMBA_ERR);
+        gem_set_isr(s, q, R_ISR_AMBA_ERROR_MASK);
         return -1;
     }
 
@@ -1107,8 +1208,8 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Count it */
     gem_receive_updatestats(s, buf, size);
 
-    s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_FRMRCVD;
-    gem_set_isr(s, q, GEM_INT_RXCMPL);
+    s->regs[R_RXSTATUS] |= R_RXSTATUS_FRAME_RECEIVED_MASK;
+    gem_set_isr(s, q, R_ISR_RECV_COMPLETE_MASK);
 
     /* Handle interrupt consequences */
     gem_update_int_status(s);
@@ -1126,39 +1227,39 @@ static void gem_transmit_updatestats(CadenceGEMState *s, const uint8_t *packet,
     uint64_t octets;
 
     /* Total octets (bytes) transmitted */
-    octets = ((uint64_t)(s->regs[GEM_OCTTXLO]) << 32) |
-             s->regs[GEM_OCTTXHI];
+    octets = ((uint64_t)(s->regs[R_OCTTXLO]) << 32) |
+             s->regs[R_OCTTXHI];
     octets += bytes;
-    s->regs[GEM_OCTTXLO] = octets >> 32;
-    s->regs[GEM_OCTTXHI] = octets;
+    s->regs[R_OCTTXLO] = octets >> 32;
+    s->regs[R_OCTTXHI] = octets;
 
     /* Error-free Frames transmitted */
-    s->regs[GEM_TXCNT]++;
+    s->regs[R_TXCNT]++;
 
     /* Error-free Broadcast Frames counter */
     if (!memcmp(packet, broadcast_addr, 6)) {
-        s->regs[GEM_TXBCNT]++;
+        s->regs[R_TXBCNT]++;
     }
 
     /* Error-free Multicast Frames counter */
     if (packet[0] == 0x01) {
-        s->regs[GEM_TXMCNT]++;
+        s->regs[R_TXMCNT]++;
     }
 
     if (bytes <= 64) {
-        s->regs[GEM_TX64CNT]++;
+        s->regs[R_TX64CNT]++;
     } else if (bytes <= 127) {
-        s->regs[GEM_TX65CNT]++;
+        s->regs[R_TX65CNT]++;
     } else if (bytes <= 255) {
-        s->regs[GEM_TX128CNT]++;
+        s->regs[R_TX128CNT]++;
     } else if (bytes <= 511) {
-        s->regs[GEM_TX256CNT]++;
+        s->regs[R_TX256CNT]++;
     } else if (bytes <= 1023) {
-        s->regs[GEM_TX512CNT]++;
+        s->regs[R_TX512CNT]++;
     } else if (bytes <= 1518) {
-        s->regs[GEM_TX1024CNT]++;
+        s->regs[R_TX1024CNT]++;
     } else {
-        s->regs[GEM_TX1519CNT]++;
+        s->regs[R_TX1519CNT]++;
     }
 }
 
@@ -1175,7 +1276,7 @@ static void gem_transmit(CadenceGEMState *s)
     int q = 0;
 
     /* Do nothing if transmit is not enabled. */
-    if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_TXENA)) {
+    if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_TRANSMIT)) {
         return;
     }
 
@@ -1200,7 +1301,7 @@ static void gem_transmit(CadenceGEMState *s)
         while (tx_desc_get_used(desc) == 0) {
 
             /* Do nothing if transmit is not enabled. */
-            if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_TXENA)) {
+            if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_TRANSMIT)) {
                 return;
             }
             print_gem_tx_desc(desc, q);
@@ -1221,7 +1322,7 @@ static void gem_transmit(CadenceGEMState *s)
                          HWADDR_PRIx " too large: size 0x%x space 0x%zx\n",
                          packet_desc_addr, tx_desc_get_length(desc),
                          gem_get_max_buf_len(s, true) - (p - s->tx_packet));
-                gem_set_isr(s, q, GEM_INT_AMBA_ERR);
+                gem_set_isr(s, q, R_ISR_AMBA_ERROR_MASK);
                 break;
             }
 
@@ -1258,14 +1359,14 @@ static void gem_transmit(CadenceGEMState *s)
                 }
                 DB_PRINT("TX descriptor next: 0x%08x\n", s->tx_desc_addr[q]);
 
-                s->regs[GEM_TXSTATUS] |= GEM_TXSTATUS_TXCMPL;
-                gem_set_isr(s, q, GEM_INT_TXCMPL);
+                s->regs[R_TXSTATUS] |= R_TXSTATUS_TRANSMIT_COMPLETE_MASK;
+                gem_set_isr(s, q, R_ISR_XMIT_COMPLETE_MASK);
 
                 /* Handle interrupt consequences */
                 gem_update_int_status(s);
 
                 /* Is checksum offload enabled? */
-                if (s->regs[GEM_DMACFG] & GEM_DMACFG_TXCSUM_OFFL) {
+                if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, TX_PBUF_CSUM_OFFLOAD)) {
                     net_checksum_calculate(s->tx_packet, total_bytes, CSUM_ALL);
                 }
 
@@ -1273,8 +1374,8 @@ static void gem_transmit(CadenceGEMState *s)
                 gem_transmit_updatestats(s, s->tx_packet, total_bytes);
 
                 /* Send the packet somewhere */
-                if (s->phy_loop || (s->regs[GEM_NWCTRL] &
-                                    GEM_NWCTRL_LOCALLOOP)) {
+                if (s->phy_loop || FIELD_EX32(s->regs[R_NWCTRL], NWCTRL,
+                                              LOOPBACK_LOCAL)) {
                     qemu_receive_packet(qemu_get_queue(s->nic), s->tx_packet,
                                         total_bytes);
                 } else {
@@ -1289,9 +1390,8 @@ static void gem_transmit(CadenceGEMState *s)
 
             /* read next descriptor */
             if (tx_desc_get_wrap(desc)) {
-
-                if (s->regs[GEM_DMACFG] & GEM_DMACFG_ADDR_64B) {
-                    packet_desc_addr = s->regs[GEM_TBQPH];
+                if (FIELD_EX32(s->regs[R_DMACFG], DMACFG, DMA_ADDR_BUS_WIDTH)) {
+                    packet_desc_addr = s->regs[R_TBQPH];
                     packet_desc_addr <<= 32;
                 } else {
                     packet_desc_addr = 0;
@@ -1307,10 +1407,10 @@ static void gem_transmit(CadenceGEMState *s)
         }
 
         if (tx_desc_get_used(desc)) {
-            s->regs[GEM_TXSTATUS] |= GEM_TXSTATUS_USED;
+            s->regs[R_TXSTATUS] |= R_TXSTATUS_USED_BIT_READ_MASK;
             /* IRQ TXUSED is defined only for queue 0 */
             if (q == 0) {
-                gem_set_isr(s, 0, GEM_INT_TXUSED);
+                gem_set_isr(s, 0, R_ISR_TX_USED_MASK);
             }
             gem_update_int_status(s);
         }
@@ -1353,30 +1453,30 @@ static void gem_reset(DeviceState *d)
 
     /* Set post reset register values */
     memset(&s->regs[0], 0, sizeof(s->regs));
-    s->regs[GEM_NWCFG] = 0x00080000;
-    s->regs[GEM_NWSTATUS] = 0x00000006;
-    s->regs[GEM_DMACFG] = 0x00020784;
-    s->regs[GEM_IMR] = 0x07ffffff;
-    s->regs[GEM_TXPAUSE] = 0x0000ffff;
-    s->regs[GEM_TXPARTIALSF] = 0x000003ff;
-    s->regs[GEM_RXPARTIALSF] = 0x000003ff;
-    s->regs[GEM_MODID] = s->revision;
-    s->regs[GEM_DESCONF] = 0x02D00111;
-    s->regs[GEM_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
-    s->regs[GEM_DESCONF5] = 0x002f2045;
-    s->regs[GEM_DESCONF6] = GEM_DESCONF6_64B_MASK;
-    s->regs[GEM_INT_Q1_MASK] = 0x00000CE6;
-    s->regs[GEM_JUMBO_MAX_LEN] = s->jumbo_max_len;
+    s->regs[R_NWCFG] = 0x00080000;
+    s->regs[R_NWSTATUS] = 0x00000006;
+    s->regs[R_DMACFG] = 0x00020784;
+    s->regs[R_IMR] = 0x07ffffff;
+    s->regs[R_TXPAUSE] = 0x0000ffff;
+    s->regs[R_TXPARTIALSF] = 0x000003ff;
+    s->regs[R_RXPARTIALSF] = 0x000003ff;
+    s->regs[R_MODID] = s->revision;
+    s->regs[R_DESCONF] = 0x02D00111;
+    s->regs[R_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
+    s->regs[R_DESCONF5] = 0x002f2045;
+    s->regs[R_DESCONF6] = R_DESCONF6_DMA_ADDR_64B_MASK;
+    s->regs[R_INT_Q1_MASK] = 0x00000CE6;
+    s->regs[R_JUMBO_MAX_LEN] = s->jumbo_max_len;
 
     if (s->num_priority_queues > 1) {
         queues_mask = MAKE_64BIT_MASK(1, s->num_priority_queues - 1);
-        s->regs[GEM_DESCONF6] |= queues_mask;
+        s->regs[R_DESCONF6] |= queues_mask;
     }
 
     /* Set MAC address */
     a = &s->conf.macaddr.a[0];
-    s->regs[GEM_SPADDR1LO] = a[0] | (a[1] << 8) | (a[2] << 16) | (a[3] << 24);
-    s->regs[GEM_SPADDR1HI] = a[4] | (a[5] << 8);
+    s->regs[R_SPADDR1LO] = a[0] | (a[1] << 8) | (a[2] << 16) | (a[3] << 24);
+    s->regs[R_SPADDR1HI] = a[4] | (a[5] << 8);
 
     for (i = 0; i < 4; i++) {
         s->sar_active[i] = false;
@@ -1421,6 +1521,38 @@ static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
     s->phy_regs[reg_num] = val;
 }
 
+static void gem_handle_phy_access(CadenceGEMState *s)
+{
+    uint32_t val = s->regs[R_PHYMNTNC];
+    uint32_t phy_addr, reg_num;
+
+    phy_addr = FIELD_EX32(val, PHYMNTNC, PHY_ADDR);
+
+    if (phy_addr != s->phy_addr) {
+        /* no phy at this address */
+        if (FIELD_EX32(val, PHYMNTNC, OP) == MDIO_OP_READ) {
+            s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA, 0xffff);
+        }
+        return;
+    }
+
+    reg_num = FIELD_EX32(val, PHYMNTNC, REG_ADDR);
+
+    switch (FIELD_EX32(val, PHYMNTNC, OP)) {
+    case MDIO_OP_READ:
+        s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA,
+                                         gem_phy_read(s, reg_num));
+        break;
+
+    case MDIO_OP_WRITE:
+        gem_phy_write(s, reg_num, val);
+        break;
+
+    default:
+        break; /* only clause 22 operations are supported */
+    }
+}
+
 /*
  * gem_read32:
  * Read a GEM register.
@@ -1429,7 +1561,7 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
     CadenceGEMState *s;
     uint32_t retval;
-    s = (CadenceGEMState *)opaque;
+    s = opaque;
 
     offset >>= 2;
     retval = s->regs[offset];
@@ -1437,23 +1569,9 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     DB_PRINT("offset: 0x%04x read: 0x%08x\n", (unsigned)offset*4, retval);
 
     switch (offset) {
-    case GEM_ISR:
+    case R_ISR:
         DB_PRINT("lowering irqs on ISR read\n");
         /* The interrupts get updated at the end of the function. */
-        break;
-    case GEM_PHYMNTNC:
-        if (retval & GEM_PHYMNTNC_OP_R) {
-            uint32_t phy_addr, reg_num;
-
-            phy_addr = (retval & GEM_PHYMNTNC_ADDR) >> GEM_PHYMNTNC_ADDR_SHFT;
-            if (phy_addr == s->phy_addr) {
-                reg_num = (retval & GEM_PHYMNTNC_REG) >> GEM_PHYMNTNC_REG_SHIFT;
-                retval &= 0xFFFF0000;
-                retval |= gem_phy_read(s, reg_num);
-            } else {
-                retval |= 0xFFFF; /* No device at this address */
-            }
-        }
         break;
     }
 
@@ -1495,16 +1613,16 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
 
     /* Handle register write side effects */
     switch (offset) {
-    case GEM_NWCTRL:
-        if (val & GEM_NWCTRL_RXENA) {
+    case R_NWCTRL:
+        if (FIELD_EX32(val, NWCTRL, ENABLE_RECEIVE)) {
             for (i = 0; i < s->num_priority_queues; ++i) {
                 gem_get_rx_desc(s, i);
             }
         }
-        if (val & GEM_NWCTRL_TXSTART) {
+        if (FIELD_EX32(val, NWCTRL, TRANSMIT_START)) {
             gem_transmit(s);
         }
-        if (!(val & GEM_NWCTRL_TXENA)) {
+        if (!(FIELD_EX32(val, NWCTRL, ENABLE_TRANSMIT))) {
             /* Reset to start of Q when transmit disabled. */
             for (i = 0; i < s->num_priority_queues; i++) {
                 s->tx_desc_addr[i] = gem_get_tx_queue_base_addr(s, i);
@@ -1515,65 +1633,57 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         }
         break;
 
-    case GEM_TXSTATUS:
+    case R_TXSTATUS:
         gem_update_int_status(s);
         break;
-    case GEM_RXQBASE:
+    case R_RXQBASE:
         s->rx_desc_addr[0] = val;
         break;
-    case GEM_RECEIVE_Q1_PTR ... GEM_RECEIVE_Q7_PTR:
-        s->rx_desc_addr[offset - GEM_RECEIVE_Q1_PTR + 1] = val;
+    case R_RECEIVE_Q1_PTR ... R_RECEIVE_Q7_PTR:
+        s->rx_desc_addr[offset - R_RECEIVE_Q1_PTR + 1] = val;
         break;
-    case GEM_TXQBASE:
+    case R_TXQBASE:
         s->tx_desc_addr[0] = val;
         break;
-    case GEM_TRANSMIT_Q1_PTR ... GEM_TRANSMIT_Q7_PTR:
-        s->tx_desc_addr[offset - GEM_TRANSMIT_Q1_PTR + 1] = val;
+    case R_TRANSMIT_Q1_PTR ... R_TRANSMIT_Q7_PTR:
+        s->tx_desc_addr[offset - R_TRANSMIT_Q1_PTR + 1] = val;
         break;
-    case GEM_RXSTATUS:
+    case R_RXSTATUS:
         gem_update_int_status(s);
         break;
-    case GEM_IER:
-        s->regs[GEM_IMR] &= ~val;
+    case R_IER:
+        s->regs[R_IMR] &= ~val;
         gem_update_int_status(s);
         break;
-    case GEM_JUMBO_MAX_LEN:
-        s->regs[GEM_JUMBO_MAX_LEN] = val & MAX_JUMBO_FRAME_SIZE_MASK;
+    case R_JUMBO_MAX_LEN:
+        s->regs[R_JUMBO_MAX_LEN] = val & MAX_JUMBO_FRAME_SIZE_MASK;
         break;
-    case GEM_INT_Q1_ENABLE ... GEM_INT_Q7_ENABLE:
-        s->regs[GEM_INT_Q1_MASK + offset - GEM_INT_Q1_ENABLE] &= ~val;
+    case R_INT_Q1_ENABLE ... R_INT_Q7_ENABLE:
+        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_ENABLE] &= ~val;
         gem_update_int_status(s);
         break;
-    case GEM_IDR:
-        s->regs[GEM_IMR] |= val;
+    case R_IDR:
+        s->regs[R_IMR] |= val;
         gem_update_int_status(s);
         break;
-    case GEM_INT_Q1_DISABLE ... GEM_INT_Q7_DISABLE:
-        s->regs[GEM_INT_Q1_MASK + offset - GEM_INT_Q1_DISABLE] |= val;
+    case R_INT_Q1_DISABLE ... R_INT_Q7_DISABLE:
+        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_DISABLE] |= val;
         gem_update_int_status(s);
         break;
-    case GEM_SPADDR1LO:
-    case GEM_SPADDR2LO:
-    case GEM_SPADDR3LO:
-    case GEM_SPADDR4LO:
-        s->sar_active[(offset - GEM_SPADDR1LO) / 2] = false;
+    case R_SPADDR1LO:
+    case R_SPADDR2LO:
+    case R_SPADDR3LO:
+    case R_SPADDR4LO:
+        s->sar_active[(offset - R_SPADDR1LO) / 2] = false;
         break;
-    case GEM_SPADDR1HI:
-    case GEM_SPADDR2HI:
-    case GEM_SPADDR3HI:
-    case GEM_SPADDR4HI:
-        s->sar_active[(offset - GEM_SPADDR1HI) / 2] = true;
+    case R_SPADDR1HI:
+    case R_SPADDR2HI:
+    case R_SPADDR3HI:
+    case R_SPADDR4HI:
+        s->sar_active[(offset - R_SPADDR1HI) / 2] = true;
         break;
-    case GEM_PHYMNTNC:
-        if (val & GEM_PHYMNTNC_OP_W) {
-            uint32_t phy_addr, reg_num;
-
-            phy_addr = (val & GEM_PHYMNTNC_ADDR) >> GEM_PHYMNTNC_ADDR_SHFT;
-            if (phy_addr == s->phy_addr) {
-                reg_num = (val & GEM_PHYMNTNC_REG) >> GEM_PHYMNTNC_REG_SHIFT;
-                gem_phy_write(s, reg_num, val);
-            }
-        }
+    case R_PHYMNTNC:
+        gem_handle_phy_access(s);
         break;
     }
 
@@ -1633,7 +1743,8 @@ static void gem_realize(DeviceState *dev, Error **errp)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_gem_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id, s);
+                          object_get_typename(OBJECT(dev)), dev->id,
+                          &dev->mem_reentrancy_guard, s);
 
     if (s->jumbo_max_len > MAX_FRAME_SIZE) {
         error_setg(errp, "jumbo-max-len is greater than %d",
@@ -1654,11 +1765,6 @@ static void gem_init(Object *obj)
                           "enet", sizeof(s->regs));
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static const VMStateDescription vmstate_cadence_gem = {
@@ -1691,6 +1797,8 @@ static Property gem_properties[] = {
                       num_type2_screeners, 4),
     DEFINE_PROP_UINT16("jumbo-max-len", CadenceGEMState,
                        jumbo_max_len, 10240),
+    DEFINE_PROP_LINK("dma", CadenceGEMState, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

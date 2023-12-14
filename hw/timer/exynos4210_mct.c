@@ -480,11 +480,14 @@ static int32_t exynos4210_gcomp_find(Exynos4210MCTState *s)
         res = min_comp_i;
     }
 
-    DPRINTF("found comparator %d: comp 0x%llx distance 0x%llx, gfrc 0x%llx\n",
-            res,
-            s->g_timer.reg.comp[res],
-            distance_min,
-            gfrc);
+    if (res >= 0) {
+        DPRINTF("found comparator %d: "
+                "comp 0x%llx distance 0x%llx, gfrc 0x%llx\n",
+                res,
+                s->g_timer.reg.comp[res],
+                distance_min,
+                gfrc);
+    }
 
     return res;
 }
@@ -1445,7 +1448,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
     case L0_ICNTO: case L1_ICNTO:
     case L0_FRCNTO: case L1_FRCNTO:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.mct: write to RO register " TARGET_FMT_plx,
+                      "exynos4210.mct: write to RO register " HWADDR_FMT_plx,
                       offset);
         break;
 

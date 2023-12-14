@@ -30,6 +30,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "trace.h"
@@ -113,13 +114,13 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
     qdict_put_str(options, "path", uri->path);
 
     for (i = 0; i < qp->n; i++) {
-        unsigned long long val;
+        uint64_t val;
         if (!qp->p[i].value) {
             error_setg(errp, "Value for NFS parameter expected: %s",
                        qp->p[i].name);
             goto out;
         }
-        if (parse_uint_full(qp->p[i].value, &val, 0)) {
+        if (parse_uint_full(qp->p[i].value, 0, &val)) {
             error_setg(errp, "Illegal value for NFS parameter: %s",
                        qp->p[i].name);
             goto out;
@@ -194,7 +195,6 @@ static void nfs_set_events(NFSClient *client)
     int ev = nfs_which_events(client->context);
     if (ev != client->events) {
         aio_set_fd_handler(client->aio_context, nfs_get_fd(client->context),
-                           false,
                            (ev & POLLIN) ? nfs_process_read : NULL,
                            (ev & POLLOUT) ? nfs_process_write : NULL,
                            NULL, NULL, client);
@@ -223,7 +223,7 @@ static void nfs_process_write(void *arg)
     qemu_mutex_unlock(&client->mutex);
 }
 
-static void nfs_co_init_task(BlockDriverState *bs, NFSRPC *task)
+static void coroutine_fn nfs_co_init_task(BlockDriverState *bs, NFSRPC *task)
 {
     *task = (NFSRPC) {
         .co             = qemu_coroutine_self(),
@@ -372,7 +372,7 @@ static void nfs_detach_aio_context(BlockDriverState *bs)
     NFSClient *client = bs->opaque;
 
     aio_set_fd_handler(client->aio_context, nfs_get_fd(client->context),
-                       false, NULL, NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL);
     client->events = 0;
 }
 
@@ -390,7 +390,7 @@ static void nfs_client_close(NFSClient *client)
     if (client->context) {
         qemu_mutex_lock(&client->mutex);
         aio_set_fd_handler(client->aio_context, nfs_get_fd(client->context),
-                           false, NULL, NULL, NULL, NULL, NULL);
+                           NULL, NULL, NULL, NULL, NULL);
         qemu_mutex_unlock(&client->mutex);
         if (client->fh) {
             nfs_close(client->context, client->fh);
@@ -418,7 +418,11 @@ static int64_t nfs_client_open(NFSClient *client, BlockdevOptionsNfs *opts,
                                int flags, int open_flags, Error **errp)
 {
     int64_t ret = -EINVAL;
+#ifdef _WIN32
+    struct __stat64 st;
+#else
     struct stat st;
+#endif
     char *file = NULL, *strp = NULL;
 
     qemu_mutex_init(&client->mutex);
@@ -721,13 +725,11 @@ nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
     if (task->ret < 0) {
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
-
-    /* Set task->complete before reading bs->wakeup.  */
-    qatomic_mb_set(&task->complete, 1);
-    bdrv_wakeup(task->bs);
+    replay_bh_schedule_oneshot_event(task->client->aio_context,
+                                     nfs_co_generic_bh_cb, task);
 }
 
-static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
+static int64_t coroutine_fn nfs_co_get_allocated_file_size(BlockDriverState *bs)
 {
     NFSClient *client = bs->opaque;
     NFSRPC task = {0};
@@ -738,15 +740,19 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
         return client->st_blocks * 512;
     }
 
-    task.bs = bs;
+    nfs_co_init_task(bs, &task);
     task.st = &st;
-    if (nfs_fstat_async(client->context, client->fh, nfs_get_allocated_file_size_cb,
-                        &task) != 0) {
-        return -ENOMEM;
-    }
+    WITH_QEMU_LOCK_GUARD(&client->mutex) {
+        if (nfs_fstat_async(client->context, client->fh, nfs_get_allocated_file_size_cb,
+                            &task) != 0) {
+            return -ENOMEM;
+        }
 
-    nfs_set_events(client);
-    BDRV_POLL_WHILE(bs, !task.complete);
+        nfs_set_events(client);
+    }
+    while (!task.complete) {
+        qemu_coroutine_yield();
+    }
 
     return (task.ret < 0 ? task.ret : st.st_blocks * 512);
 }
@@ -781,7 +787,11 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
     NFSClient *client = state->bs->opaque;
+#ifdef _WIN32
+    struct __stat64 st;
+#else
     struct stat st;
+#endif
     int ret = 0;
 
     if (state->flags & BDRV_O_RDWR && bdrv_is_read_only(state->bs)) {
@@ -833,7 +843,7 @@ static void nfs_refresh_filename(BlockDriverState *bs)
     }
 }
 
-static char *nfs_dirname(BlockDriverState *bs, Error **errp)
+static char * GRAPH_RDLOCK nfs_dirname(BlockDriverState *bs, Error **errp)
 {
     NFSClient *client = bs->opaque;
 
@@ -876,7 +886,7 @@ static BlockDriver bdrv_nfs = {
     .bdrv_has_zero_init             = nfs_has_zero_init,
 /* libnfs does not provide the allocated filesize of a file on win32. */
 #if !defined(_WIN32)
-    .bdrv_get_allocated_file_size   = nfs_get_allocated_file_size,
+    .bdrv_co_get_allocated_file_size = nfs_co_get_allocated_file_size,
 #endif
     .bdrv_co_truncate               = nfs_file_co_truncate,
 

@@ -109,20 +109,6 @@ static bool spapr_numa_is_symmetrical(MachineState *ms)
 }
 
 /*
- * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
- * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
- * called from vPHB reset handler so we initialize the counter here.
- * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
- * must be equally distant from any other node.
- * The final value of spapr->gpu_numa_id is going to be written to
- * max-associativity-domains in spapr_build_fdt().
- */
-unsigned int spapr_numa_initial_nvgpu_numa_id(MachineState *machine)
-{
-    return MAX(1, machine->numa_state->num_nodes);
-}
-
-/*
  * This function will translate the user distances into
  * what the kernel understand as possible values: 10
  * (local distance), 20, 40, 80 and 160, and return the equivalent
@@ -277,7 +263,7 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
 {
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
-    int i, j, max_nodes_with_gpus;
+    int i, j;
 
     /*
      * For all associativity arrays: first position is the size,
@@ -293,17 +279,7 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
         spapr->FORM1_assoc_array[i][FORM1_DIST_REF_POINTS] = cpu_to_be32(i);
     }
 
-    /*
-     * Initialize NVLink GPU associativity arrays. We know that
-     * the first GPU will take the first available NUMA id, and
-     * we'll have a maximum of NVGPU_MAX_NUM GPUs in the machine.
-     * At this point we're not sure if there are GPUs or not, but
-     * let's initialize the associativity arrays and allow NVLink
-     * GPUs to be handled like regular NUMA nodes later on.
-     */
-    max_nodes_with_gpus = nb_numa_nodes + NVGPU_MAX_NUM;
-
-    for (i = nb_numa_nodes; i < max_nodes_with_gpus; i++) {
+    for (i = nb_numa_nodes; i < nb_numa_nodes; i++) {
         spapr->FORM1_assoc_array[i][0] = cpu_to_be32(FORM1_DIST_REF_POINTS);
 
         for (j = 1; j < FORM1_DIST_REF_POINTS; j++) {
@@ -345,10 +321,6 @@ static void spapr_numa_FORM2_affinity_init(SpaprMachineState *spapr)
      * CPUs will write an additional 'vcpu_id' on top of the arrays
      * being initialized here. 'numa_id' is represented by the
      * index 'i' of the loop.
-     *
-     * Given that this initialization is also valid for GPU associativity
-     * arrays, handle everything in one single step by populating the
-     * arrays up to NUMA_NODES_MAX_NUM.
      */
     for (i = 0; i < NUMA_NODES_MAX_NUM; i++) {
         spapr->FORM2_assoc_array[i][0] = cpu_to_be32(1);
@@ -461,8 +433,6 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
 {
     MachineState *ms = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    uint32_t number_nvgpus_nodes = spapr->gpu_numa_id -
-                                   spapr_numa_initial_nvgpu_numa_id(ms);
     uint32_t refpoints[] = {
         cpu_to_be32(0x4),
         cpu_to_be32(0x3),
@@ -470,7 +440,7 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
         cpu_to_be32(0x1),
     };
     uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
-    uint32_t maxdomain = ms->numa_state->num_nodes + number_nvgpus_nodes;
+    uint32_t maxdomain = ms->numa_state->num_nodes;
     uint32_t maxdomains[] = {
         cpu_to_be32(4),
         cpu_to_be32(maxdomain),
@@ -486,13 +456,12 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
             cpu_to_be32(0x4),
             cpu_to_be32(0x2),
         };
-        uint32_t legacy_maxdomain = spapr->gpu_numa_id > 1 ? 1 : 0;
         uint32_t legacy_maxdomains[] = {
             cpu_to_be32(4),
-            cpu_to_be32(legacy_maxdomain),
-            cpu_to_be32(legacy_maxdomain),
-            cpu_to_be32(legacy_maxdomain),
-            cpu_to_be32(spapr->gpu_numa_id),
+            cpu_to_be32(0),
+            cpu_to_be32(0),
+            cpu_to_be32(0),
+            cpu_to_be32(maxdomain ? maxdomain : 1),
         };
 
         G_STATIC_ASSERT(sizeof(legacy_refpoints) <= sizeof(refpoints));
@@ -581,8 +550,6 @@ static void spapr_numa_FORM2_write_rtas_dt(SpaprMachineState *spapr,
                                            void *fdt, int rtas)
 {
     MachineState *ms = MACHINE(spapr);
-    uint32_t number_nvgpus_nodes = spapr->gpu_numa_id -
-                                   spapr_numa_initial_nvgpu_numa_id(ms);
 
     /*
      * In FORM2, ibm,associativity-reference-points will point to
@@ -596,7 +563,7 @@ static void spapr_numa_FORM2_write_rtas_dt(SpaprMachineState *spapr,
      */
     uint32_t refpoints[] = { cpu_to_be32(1) };
 
-    uint32_t maxdomain = ms->numa_state->num_nodes + number_nvgpus_nodes;
+    uint32_t maxdomain = ms->numa_state->num_nodes;
     uint32_t maxdomains[] = { cpu_to_be32(1), cpu_to_be32(maxdomain) };
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",

@@ -13,6 +13,8 @@
 #ifndef QEMU_PCIE_SRIOV_H
 #define QEMU_PCIE_SRIOV_H
 
+#include "hw/pci/pci.h"
+
 struct PCIESriovPF {
     uint16_t num_vfs;   /* Number of virtual functions created */
     uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
@@ -73,5 +75,8 @@ PCIDevice *pcie_sriov_get_pf(PCIDevice *dev);
  * Returns NULL if index is invalid
  */
 PCIDevice *pcie_sriov_get_vf_at_index(PCIDevice *dev, int n);
+
+/* Returns the current number of virtual functions. */
+uint16_t pcie_sriov_num_vfs(PCIDevice *dev);
 
 #endif /* QEMU_PCIE_SRIOV_H */

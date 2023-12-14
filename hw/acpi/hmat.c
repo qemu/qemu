@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "sysemu/numa.h"
+#include "hw/acpi/aml-build.h"
 #include "hw/acpi/hmat.h"
 
 /*
@@ -82,7 +83,7 @@ static void build_hmat_lb(GArray *table_data, HMAT_LB_Info *hmat_lb,
     uint32_t base;
     /* Length in bytes for entire structure */
     uint32_t lb_length
-        = 32 /* Table length upto and including Entry Base Unit */
+        = 32 /* Table length up to and including Entry Base Unit */
         + 4 * num_initiator /* Initiator Proximity Domain List */
         + 4 * num_target /* Target Proximity Domain List */
         + 2 * num_initiator * num_target; /* Latency or Bandwidth Entries */

@@ -16,7 +16,7 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qemu/main-loop.h"
 
 static AioContext *ctx;
@@ -127,10 +127,10 @@ static void *test_acquire_thread(void *opaque)
     return NULL;
 }
 
-static void set_event_notifier(AioContext *ctx, EventNotifier *notifier,
+static void set_event_notifier(AioContext *nctx, EventNotifier *notifier,
                                EventNotifierHandler *handler)
 {
-    aio_set_event_notifier(ctx, notifier, false, handler, NULL, NULL);
+    aio_set_event_notifier(nctx, notifier, handler, NULL, NULL);
 }
 
 static void dummy_notifier_read(EventNotifier *n)
@@ -383,30 +383,6 @@ static void test_flush_event_notifier(void)
     event_notifier_cleanup(&data.e);
 }
 
-static void test_aio_external_client(void)
-{
-    int i, j;
-
-    for (i = 1; i < 3; i++) {
-        EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
-        event_notifier_init(&data.e, false);
-        aio_set_event_notifier(ctx, &data.e, true, event_ready_cb, NULL, NULL);
-        event_notifier_set(&data.e);
-        for (j = 0; j < i; j++) {
-            aio_disable_external(ctx);
-        }
-        for (j = 0; j < i; j++) {
-            assert(!aio_poll(ctx, false));
-            assert(event_notifier_test_and_clear(&data.e));
-            event_notifier_set(&data.e);
-            aio_enable_external(ctx);
-        }
-        assert(aio_poll(ctx, false));
-        set_event_notifier(ctx, &data.e, NULL);
-        event_notifier_cleanup(&data.e);
-    }
-}
-
 static void test_wait_event_notifier_noflush(void)
 {
     EventNotifierTestData data = { .n = 0 };
@@ -478,7 +454,7 @@ static void test_timer_schedule(void)
 
     g_assert_cmpint(data.n, ==, 0);
 
-    /* timer_mod may well cause an event notifer to have gone off,
+    /* timer_mod may well cause an event notifier to have gone off,
      * so clear that
      */
     do {} while (aio_poll(ctx, false));
@@ -935,7 +911,6 @@ int main(int argc, char **argv)
     g_test_add_func("/aio/event/wait",              test_wait_event_notifier);
     g_test_add_func("/aio/event/wait/no-flush-cb",  test_wait_event_notifier_noflush);
     g_test_add_func("/aio/event/flush",             test_flush_event_notifier);
-    g_test_add_func("/aio/external-client",         test_aio_external_client);
     g_test_add_func("/aio/timer/schedule",          test_timer_schedule);
 
     g_test_add_func("/aio/coroutine/queue-chaining", test_queue_chaining);

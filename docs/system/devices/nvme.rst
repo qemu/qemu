@@ -212,6 +212,41 @@ The namespace may be configured with additional parameters
   the minimum memory page size (CAP.MPSMIN). The default value (``0``)
   has this property inherit the ``mdts`` value.
 
+Flexible Data Placement
+-----------------------
+
+The device may be configured to support TP4146 ("Flexible Data Placement") by
+configuring it (``fdp=on``) on the subsystem::
+
+    -device nvme-subsys,id=nvme-subsys-0,nqn=subsys0,fdp=on,fdp.nruh=16
+
+The subsystem emulates a single Endurance Group, on which Flexible Data
+Placement will be supported. Also note that the device emulation deviates
+slightly from the specification, by always enabling the "FDP Mode" feature on
+the controller if the subsystems is configured for Flexible Data Placement.
+
+Enabling Flexible Data Placement on the subsyste enables the following
+parameters:
+
+``fdp.nrg`` (default: ``1``)
+  Set the number of Reclaim Groups.
+
+``fdp.nruh`` (default: ``0``)
+  Set the number of Reclaim Unit Handles. This is a mandatory parameter and
+  must be non-zero.
+
+``fdp.runs`` (default: ``96M``)
+  Set the Reclaim Unit Nominal Size. Defaults to 96 MiB.
+
+Namespaces within this subsystem may requests Reclaim Unit Handles::
+
+    -device nvme-ns,drive=nvm-1,fdp.ruhs=RUHLIST
+
+The ``RUHLIST`` is a semicolon separated list (i.e. ``0;1;2;3``) and may
+include ranges (i.e. ``0;8-15``). If no reclaim unit handle list is specified,
+the controller will assign the controller-specified reclaim unit handle to
+placement handle identifier 0.
+
 Metadata
 --------
 
@@ -236,9 +271,15 @@ The virtual namespace device supports DIF- and DIX-based protection information
 
 ``pil=UINT8`` (default: ``0``)
   Controls the location of the protection information within the metadata. Set
-  to ``1`` to transfer protection information as the first eight bytes of
-  metadata. Otherwise, the protection information is transferred as the last
-  eight bytes.
+  to ``1`` to transfer protection information as the first bytes of metadata.
+  Otherwise, the protection information is transferred as the last bytes of
+  metadata.
+
+``pif=UINT8`` (default: ``0``)
+  By default, the namespace device uses 16 bit guard protection information
+  format (``pif=0``). Set to ``2`` to enable 64 bit guard protection
+  information format. This requires at least 16 bytes of metadata. Note that
+  ``pif=1`` (32 bit guards) is currently not supported.
 
 Virtualization Enhancements and SR-IOV (Experimental Support)
 -------------------------------------------------------------

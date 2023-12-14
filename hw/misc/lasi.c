@@ -194,7 +194,7 @@ static const MemoryRegionOps lasi_chip_ops = {
 
 static const VMStateDescription vmstate_lasi = {
     .name = "Lasi",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(irr, LasiState),
@@ -204,6 +204,7 @@ static const VMStateDescription vmstate_lasi = {
         VMSTATE_UINT32(iar, LasiState),
         VMSTATE_UINT32(errlog, LasiState),
         VMSTATE_UINT32(amr, LasiState),
+        VMSTATE_UINT32_V(rtc_ref, LasiState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -233,7 +234,6 @@ static void lasi_reset(DeviceState *dev)
     s->iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
-    s->rtc = time(NULL);
     s->rtc_ref = 0;
 }
 

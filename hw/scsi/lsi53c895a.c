@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/irq.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/scsi/scsi.h"
 #include "migration/vmstate.h"
 #include "sysemu/dma.h"
@@ -864,7 +864,7 @@ static void lsi_do_command(LSIState *s)
     s->current = g_new0(lsi_request, 1);
     s->current->tag = s->select_tag;
     s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun, buf,
-                                   s->current);
+                                   s->dbc, s->current);
 
     n = scsi_req_enqueue(s->current->req);
     if (n) {
@@ -1134,15 +1134,24 @@ static void lsi_execute_script(LSIState *s)
     uint32_t addr, addr_high;
     int opcode;
     int insn_processed = 0;
+    static int reentrancy_level;
+
+    reentrancy_level++;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
-    if (++insn_processed > LSI_MAX_INSN) {
-        /* Some windows drivers make the device spin waiting for a memory
-           location to change.  If we have been executed a lot of code then
-           assume this is the case and force an unexpected device disconnect.
-           This is apparently sufficient to beat the drivers into submission.
-         */
+    /*
+     * Some windows drivers make the device spin waiting for a memory location
+     * to change. If we have executed more than LSI_MAX_INSN instructions then
+     * assume this is the case and force an unexpected device disconnect. This
+     * is apparently sufficient to beat the drivers into submission.
+     *
+     * Another issue (CVE-2023-0330) can occur if the script is programmed to
+     * trigger itself again and again. Avoid this problem by stopping after
+     * being called multiple times in a reentrant way (8 is an arbitrary value
+     * which should be enough for all valid use cases).
+     */
+    if (++insn_processed > LSI_MAX_INSN || reentrancy_level > 8) {
         if (!(s->sien0 & LSI_SIST0_UDC)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "lsi_scsi: inf. loop with UDC masked");
@@ -1312,7 +1321,7 @@ again:
                 }
                 trace_lsi_execute_script_io_selected(id,
                                              insn & (1 << 3) ? " ATN" : "");
-                /* ??? Linux drivers compain when this is set.  Maybe
+                /* ??? Linux drivers complain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
                 s->select_tag = id << 8;
@@ -1596,6 +1605,8 @@ again:
         }
     }
     trace_lsi_execute_script_stop();
+
+    reentrancy_level--;
 }
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
@@ -1868,7 +1879,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         }
         if (val & LSI_SCNTL1_RST) {
             if (!(s->sstat0 & LSI_SSTAT0_RST)) {
-                qbus_reset_all(BUS(&s->bus));
+                bus_cold_reset(BUS(&s->bus));
                 s->sstat0 |= LSI_SSTAT0_RST;
                 lsi_script_scsi_interrupt(s, LSI_SIST0_RST, 0);
             }
@@ -1926,7 +1937,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
-            qdev_reset_all(DEVICE(s));
+            device_cold_reset(DEVICE(s));
         }
         break;
     case 0x16: /* MBOX0 */
@@ -2301,6 +2312,13 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
                           "lsi-ram", 0x2000);
     memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
                           "lsi-io", 256);
+
+    /*
+     * Since we use the address-space API to interact with ram_io, disable the
+     * re-entrancy guard.
+     */
+    s->ram_io.disable_reentrancy_guard = true;
+    s->mmio_io.disable_reentrancy_guard = true;
 
     address_space_init(&s->pci_io_as, pci_address_space_io(dev), "lsi-pci-io");
     qdev_init_gpio_out(d, &s->ext_irq, 1);

@@ -1,25 +1,8 @@
+/* SPDX-License-Identifier: MIT */
 /******************************************************************************
  * blkif.h
  *
  * Unified block-device I/O interface for Xen guest OSes.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  *
  * Copyright (c) 2003-2004, Keir Fraser
  * Copyright (c) 2012, Spectra Logic Corporation
@@ -118,7 +101,7 @@
  *
  *      The underlying storage is not affected by the direct IO memory
  *      lifetime bug.  See:
- *        http://lists.xen.org/archives/html/xen-devel/2012-12/msg01154.html
+ *        https://lists.xen.org/archives/html/xen-devel/2012-12/msg01154.html
  *
  *      Therefore this option gives the backend permission to use
  *      O_DIRECT, notwithstanding that bug.
@@ -341,7 +324,7 @@
  *      access (even when it should be read-only). If the frontend hits the
  *      maximum number of allowed persistently mapped grants, it can fallback
  *      to non persistent mode. This will cause a performance degradation,
- *      since the backend driver will still try to map those grants
+ *      since the the backend driver will still try to map those grants
  *      persistently. Since the persistent grants protocol is compatible with
  *      the previous protocol, a frontend driver can choose to work in
  *      persistent mode even when the backend doesn't support it.
@@ -362,6 +345,14 @@
  *      If this node is not present or its value is "0" then it is assumed
  *      that the frontend requires that the logical block size is 512 as it
  *      is hardcoded (which is the case in some frontend implementations).
+ *
+ * trusted
+ *      Values:         0/1 (boolean)
+ *      Default value:  1
+ *
+ *      A value of "0" indicates that the frontend should not trust the
+ *      backend, and should deploy whatever measures available to protect from
+ *      a malicious backend on the other end.
  *
  *------------------------- Virtual Device Properties -------------------------
  *
@@ -710,3 +701,13 @@ DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
 #define VDISK_READONLY     0x4
 
 #endif /* __XEN_PUBLIC_IO_BLKIF_H__ */
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

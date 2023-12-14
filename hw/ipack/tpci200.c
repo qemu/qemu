@@ -12,7 +12,7 @@
 #include "qemu/units.h"
 #include "hw/ipack/ipack.h"
 #include "hw/irq.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"

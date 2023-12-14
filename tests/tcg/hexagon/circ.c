@@ -16,6 +16,11 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+
+int err;
+
+#include "hex_test.h"
 
 #define DEBUG          0
 #define DEBUG_PRINTF(...) \
@@ -31,10 +36,10 @@
 #define NWORDS         (NBYTES / sizeof(int))
 #define NDOBLS         (NBYTES / sizeof(long long))
 
-long long     dbuf[NDOBLS] __attribute__((aligned(1 << 12))) = {0};
-int           wbuf[NWORDS] __attribute__((aligned(1 << 12))) = {0};
-short         hbuf[NHALFS] __attribute__((aligned(1 << 12))) = {0};
-unsigned char bbuf[NBYTES] __attribute__((aligned(1 << 12))) = {0};
+int64_t       dbuf[NDOBLS] __attribute__((aligned(1 << 12))) = {0};
+int32_t       wbuf[NWORDS] __attribute__((aligned(1 << 12))) = {0};
+int16_t       hbuf[NHALFS] __attribute__((aligned(1 << 12))) = {0};
+uint8_t       bbuf[NBYTES] __attribute__((aligned(1 << 12))) = {0};
 
 /*
  * We use the C preporcessor to deal with the combinations of types
@@ -43,8 +48,7 @@ unsigned char bbuf[NBYTES] __attribute__((aligned(1 << 12))) = {0};
 #define INIT(BUF, N) \
     void init_##BUF(void) \
     { \
-        int i; \
-        for (i = 0; i < N; i++) { \
+        for (int i = 0; i < N; i++) { \
             BUF[i] = i; \
         } \
     } \
@@ -91,7 +95,7 @@ INIT(dbuf, NDOBLS)
  *     mreg[23:17]              increment[6:0]
  *     mreg[16:0]               circular buffer length
  */
-static int build_mreg(int inc, int K, int len)
+static int32_t build_mreg(int32_t inc, int32_t K, int32_t len)
 {
     return ((inc & 0x780) << 21) |
            ((K & 0xf) << 24) |
@@ -213,31 +217,27 @@ static int build_mreg(int inc, int K, int len)
     CIRC_STORE_NEW_REG(w, VAL, ADDR, START, LEN, INC)
 
 
-int err;
-
 /* We'll test increments +1 and -1 */
-void check_load(int i, long long result, int inc, int size)
+void __check_load(int line, int32_t i, int64_t res, int32_t inc, int32_t size)
 {
-    int expect = (i * inc);
+    int32_t expect = (i * inc);
     while (expect >= size) {
         expect -= size;
     }
     while (expect < 0) {
         expect += size;
     }
-    if (result != expect) {
-        printf("ERROR(%d): %lld != %d\n", i, result, expect);
-        err++;
-    }
+    __check32(line, res, expect);
 }
+
+#define check_load(I, RES, INC, SZ) __check_load(__LINE__, I, RES, INC, SZ)
 
 #define TEST_LOAD_IMM(SZ, TYPE, BUF, BUFSIZE, INC, FMT) \
 void circ_test_load_imm_##SZ(void) \
 { \
     TYPE *p = (TYPE *)BUF; \
-    int size = 10; \
-    int i; \
-    for (i = 0; i < BUFSIZE; i++) { \
+    int32_t size = 10; \
+    for (int i = 0; i < BUFSIZE; i++) { \
         TYPE element; \
         CIRC_LOAD_IMM_##SZ(element, p, BUF, size * sizeof(TYPE), (INC)); \
         DEBUG_PRINTF("i = %2d, p = 0x%p, element = %2" #FMT "\n", \
@@ -245,7 +245,7 @@ void circ_test_load_imm_##SZ(void) \
         check_load(i, element, ((INC) / (int)sizeof(TYPE)), size); \
     } \
     p = (TYPE *)BUF; \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         TYPE element; \
         CIRC_LOAD_IMM_##SZ(element, p, BUF, size * sizeof(TYPE), -(INC)); \
         DEBUG_PRINTF("i = %2d, p = 0x%p, element = %2" #FMT "\n", \
@@ -254,20 +254,19 @@ void circ_test_load_imm_##SZ(void) \
     } \
 }
 
-TEST_LOAD_IMM(b,  char,           bbuf, NBYTES, 1, d)
-TEST_LOAD_IMM(ub, unsigned char,  bbuf, NBYTES, 1, d)
-TEST_LOAD_IMM(h,  short,          hbuf, NHALFS, 2, d)
-TEST_LOAD_IMM(uh, unsigned short, hbuf, NHALFS, 2, d)
-TEST_LOAD_IMM(w,  int,            wbuf, NWORDS, 4, d)
-TEST_LOAD_IMM(d,  long long,      dbuf, NDOBLS, 8, lld)
+TEST_LOAD_IMM(b,  int8_t,         bbuf, NBYTES, 1, d)
+TEST_LOAD_IMM(ub, uint8_t,        bbuf, NBYTES, 1, d)
+TEST_LOAD_IMM(h,  int16_t,        hbuf, NHALFS, 2, d)
+TEST_LOAD_IMM(uh, uint16_t,       hbuf, NHALFS, 2, d)
+TEST_LOAD_IMM(w,  int32_t,        wbuf, NWORDS, 4, d)
+TEST_LOAD_IMM(d,  int64_t,        dbuf, NDOBLS, 8, lld)
 
 #define TEST_LOAD_REG(SZ, TYPE, BUF, BUFSIZE, FMT) \
 void circ_test_load_reg_##SZ(void) \
 { \
     TYPE *p = (TYPE *)BUF; \
-    int size = 13; \
-    int i; \
-    for (i = 0; i < BUFSIZE; i++) { \
+    int32_t size = 13; \
+    for (int i = 0; i < BUFSIZE; i++) { \
         TYPE element; \
         CIRC_LOAD_REG_##SZ(element, p, BUF, size * sizeof(TYPE), 1); \
         DEBUG_PRINTF("i = %2d, p = 0x%p, element = %2" #FMT "\n", \
@@ -275,7 +274,7 @@ void circ_test_load_reg_##SZ(void) \
         check_load(i, element, 1, size); \
     } \
     p = (TYPE *)BUF; \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         TYPE element; \
         CIRC_LOAD_REG_##SZ(element, p, BUF, size * sizeof(TYPE), -1); \
         DEBUG_PRINTF("i = %2d, p = 0x%p, element = %2" #FMT "\n", \
@@ -284,16 +283,16 @@ void circ_test_load_reg_##SZ(void) \
     } \
 }
 
-TEST_LOAD_REG(b,  char,           bbuf, NBYTES, d)
-TEST_LOAD_REG(ub, unsigned char,  bbuf, NBYTES, d)
-TEST_LOAD_REG(h,  short,          hbuf, NHALFS, d)
-TEST_LOAD_REG(uh, unsigned short, hbuf, NHALFS, d)
-TEST_LOAD_REG(w,  int,            wbuf, NWORDS, d)
-TEST_LOAD_REG(d,  long long,      dbuf, NDOBLS, lld)
+TEST_LOAD_REG(b,  int8_t,         bbuf, NBYTES, d)
+TEST_LOAD_REG(ub, uint8_t,        bbuf, NBYTES, d)
+TEST_LOAD_REG(h,  int16_t,        hbuf, NHALFS, d)
+TEST_LOAD_REG(uh, uint16_t,       hbuf, NHALFS, d)
+TEST_LOAD_REG(w,  int32_t,        wbuf, NWORDS, d)
+TEST_LOAD_REG(d,  int64_t,        dbuf, NDOBLS, lld)
 
 /* The circular stores will wrap around somewhere inside the buffer */
 #define CIRC_VAL(SZ, TYPE, BUFSIZE) \
-TYPE circ_val_##SZ(int i, int inc, int size) \
+TYPE circ_val_##SZ(int i, int32_t inc, int32_t size) \
 { \
     int mod = BUFSIZE % size; \
     int elem = i * inc; \
@@ -310,33 +309,25 @@ TYPE circ_val_##SZ(int i, int inc, int size) \
     } \
 }
 
-CIRC_VAL(b, unsigned char, NBYTES)
-CIRC_VAL(h, short,         NHALFS)
-CIRC_VAL(w, int,           NWORDS)
-CIRC_VAL(d, long long,     NDOBLS)
+CIRC_VAL(b, uint8_t,       NBYTES)
+CIRC_VAL(h, int16_t,       NHALFS)
+CIRC_VAL(w, int32_t,       NWORDS)
+CIRC_VAL(d, int64_t,       NDOBLS)
 
 /*
  * Circular stores should only write to the first "size" elements of the buffer
  * the remainder of the elements should have BUF[i] == i
  */
 #define CHECK_STORE(SZ, BUF, BUFSIZE, FMT) \
-void check_store_##SZ(int inc, int size) \
+void check_store_##SZ(int32_t inc, int32_t size) \
 { \
-    int i; \
-    for (i = 0; i < size; i++) { \
+    for (int i = 0; i < size; i++) { \
         DEBUG_PRINTF(#BUF "[%3d] = 0x%02" #FMT ", guess = 0x%02" #FMT "\n", \
                      i, BUF[i], circ_val_##SZ(i, inc, size)); \
-        if (BUF[i] != circ_val_##SZ(i, inc, size)) { \
-            printf("ERROR(%3d): 0x%02" #FMT " != 0x%02" #FMT "\n", \
-                   i, BUF[i], circ_val_##SZ(i, inc, size)); \
-            err++; \
-        } \
+        check64(BUF[i], circ_val_##SZ(i, inc, size)); \
     } \
-    for (i = size; i < BUFSIZE; i++) { \
-        if (BUF[i] != i) { \
-            printf("ERROR(%3d): 0x%02" #FMT " != 0x%02x\n", i, BUF[i], i); \
-            err++; \
-        } \
+    for (int i = size; i < BUFSIZE; i++) { \
+        check64(BUF[i], i); \
     } \
 }
 
@@ -348,12 +339,11 @@ CHECK_STORE(d, dbuf, NDOBLS, llx)
 #define CIRC_TEST_STORE_IMM(SZ, CHK, TYPE, BUF, BUFSIZE, SHIFT, INC) \
 void circ_test_store_imm_##SZ(void) \
 { \
-    unsigned int size = 27; \
+    uint32_t size = 27; \
     TYPE *p = BUF; \
     TYPE val = 0; \
-    int i; \
     init_##BUF(); \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         CIRC_STORE_IMM_##SZ(val << SHIFT, p, BUF, size * sizeof(TYPE), INC); \
         val++; \
     } \
@@ -361,7 +351,7 @@ void circ_test_store_imm_##SZ(void) \
     p = BUF; \
     val = 0; \
     init_##BUF(); \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         CIRC_STORE_IMM_##SZ(val << SHIFT, p, BUF, size * sizeof(TYPE), \
                             -(INC)); \
         val++; \
@@ -369,24 +359,23 @@ void circ_test_store_imm_##SZ(void) \
     check_store_##CHK((-(INC) / (int)sizeof(TYPE)), size); \
 }
 
-CIRC_TEST_STORE_IMM(b,    b, unsigned char, bbuf, NBYTES, 0,  1)
-CIRC_TEST_STORE_IMM(h,    h, short,         hbuf, NHALFS, 0,  2)
-CIRC_TEST_STORE_IMM(f,    h, short,         hbuf, NHALFS, 16, 2)
-CIRC_TEST_STORE_IMM(w,    w, int,           wbuf, NWORDS, 0,  4)
-CIRC_TEST_STORE_IMM(d,    d, long long,     dbuf, NDOBLS, 0,  8)
-CIRC_TEST_STORE_IMM(bnew, b, unsigned char, bbuf, NBYTES, 0,  1)
-CIRC_TEST_STORE_IMM(hnew, h, short,         hbuf, NHALFS, 0,  2)
-CIRC_TEST_STORE_IMM(wnew, w, int,           wbuf, NWORDS, 0,  4)
+CIRC_TEST_STORE_IMM(b,    b, uint8_t,       bbuf, NBYTES, 0,  1)
+CIRC_TEST_STORE_IMM(h,    h, int16_t,       hbuf, NHALFS, 0,  2)
+CIRC_TEST_STORE_IMM(f,    h, int16_t,       hbuf, NHALFS, 16, 2)
+CIRC_TEST_STORE_IMM(w,    w, int32_t,       wbuf, NWORDS, 0,  4)
+CIRC_TEST_STORE_IMM(d,    d, int64_t,       dbuf, NDOBLS, 0,  8)
+CIRC_TEST_STORE_IMM(bnew, b, uint8_t,       bbuf, NBYTES, 0,  1)
+CIRC_TEST_STORE_IMM(hnew, h, int16_t,       hbuf, NHALFS, 0,  2)
+CIRC_TEST_STORE_IMM(wnew, w, int32_t,       wbuf, NWORDS, 0,  4)
 
 #define CIRC_TEST_STORE_REG(SZ, CHK, TYPE, BUF, BUFSIZE, SHIFT) \
 void circ_test_store_reg_##SZ(void) \
 { \
     TYPE *p = BUF; \
-    unsigned int size = 19; \
+    uint32_t size = 19; \
     TYPE val = 0; \
-    int i; \
     init_##BUF(); \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         CIRC_STORE_REG_##SZ(val << SHIFT, p, BUF, size * sizeof(TYPE), 1); \
         val++; \
     } \
@@ -394,35 +383,34 @@ void circ_test_store_reg_##SZ(void) \
     p = BUF; \
     val = 0; \
     init_##BUF(); \
-    for (i = 0; i < BUFSIZE; i++) { \
+    for (int i = 0; i < BUFSIZE; i++) { \
         CIRC_STORE_REG_##SZ(val << SHIFT, p, BUF, size * sizeof(TYPE), -1); \
         val++; \
     } \
     check_store_##CHK(-1, size); \
 }
 
-CIRC_TEST_STORE_REG(b,    b, unsigned char, bbuf, NBYTES, 0)
-CIRC_TEST_STORE_REG(h,    h, short,         hbuf, NHALFS, 0)
-CIRC_TEST_STORE_REG(f,    h, short,         hbuf, NHALFS, 16)
-CIRC_TEST_STORE_REG(w,    w, int,           wbuf, NWORDS, 0)
-CIRC_TEST_STORE_REG(d,    d, long long,     dbuf, NDOBLS, 0)
-CIRC_TEST_STORE_REG(bnew, b, unsigned char, bbuf, NBYTES, 0)
-CIRC_TEST_STORE_REG(hnew, h, short,         hbuf, NHALFS, 0)
-CIRC_TEST_STORE_REG(wnew, w, int,           wbuf, NWORDS, 0)
+CIRC_TEST_STORE_REG(b,    b, uint8_t,       bbuf, NBYTES, 0)
+CIRC_TEST_STORE_REG(h,    h, int16_t,       hbuf, NHALFS, 0)
+CIRC_TEST_STORE_REG(f,    h, int16_t,       hbuf, NHALFS, 16)
+CIRC_TEST_STORE_REG(w,    w, int32_t,       wbuf, NWORDS, 0)
+CIRC_TEST_STORE_REG(d,    d, int64_t,       dbuf, NDOBLS, 0)
+CIRC_TEST_STORE_REG(bnew, b, uint8_t,       bbuf, NBYTES, 0)
+CIRC_TEST_STORE_REG(hnew, h, int16_t,       hbuf, NHALFS, 0)
+CIRC_TEST_STORE_REG(wnew, w, int32_t,       wbuf, NWORDS, 0)
 
 /* Test the old scheme used in Hexagon V3 */
 static void circ_test_v3(void)
 {
     int *p = wbuf;
-    int size = 15;
+    int32_t size = 15;
     /* set high bit in K to test unsigned extract in fcirc */
-    int K = 8;      /* 1024 bytes */
-    int element;
-    int i;
+    int32_t K = 8;      /* 1024 bytes */
+    int32_t element;
 
     init_wbuf();
 
-    for (i = 0; i < NWORDS; i++) {
+    for (int i = 0; i < NWORDS; i++) {
         __asm__(
             "r4 = %2\n\t"
             "m1 = r4\n\t"

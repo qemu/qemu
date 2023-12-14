@@ -5,13 +5,9 @@
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 
-<!-- Register numbers are hard-coded in order to maintain backward
-     compatibility with older versions of tools that didn't use xml
-     register descriptions.  -->
-
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.riscv.cpu">
-  <reg name="zero" bitsize="32" type="int" regnum="0"/>
+  <reg name="zero" bitsize="32" type="int"/>
   <reg name="ra" bitsize="32" type="code_ptr"/>
   <reg name="sp" bitsize="32" type="data_ptr"/>
   <reg name="gp" bitsize="32" type="data_ptr"/>

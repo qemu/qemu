@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "crypto/init.h"
 #include "crypto/block.h"
+#include "crypto/block-luks-priv.h"
 #include "qemu/buffer.h"
 #include "qemu/module.h"
 #include "crypto/secret.h"
@@ -30,7 +31,8 @@
 #endif
 
 #if (defined(_WIN32) || defined RUSAGE_THREAD) && \
-    (defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT))
+    (defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT) || \
+     defined(CONFIG_GNUTLS_CRYPTO))
 #define TEST_LUKS
 #else
 #undef TEST_LUKS
@@ -39,7 +41,6 @@
 static QCryptoBlockCreateOptions qcow_create_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_QCOW,
     .u.qcow = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -47,7 +48,6 @@ static QCryptoBlockCreateOptions qcow_create_opts = {
 static QCryptoBlockOpenOptions qcow_open_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_QCOW,
     .u.qcow = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -57,7 +57,6 @@ static QCryptoBlockOpenOptions qcow_open_opts = {
 static QCryptoBlockOpenOptions luks_open_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -67,7 +66,6 @@ static QCryptoBlockOpenOptions luks_open_opts = {
 static QCryptoBlockCreateOptions luks_create_opts_default = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -77,7 +75,6 @@ static QCryptoBlockCreateOptions luks_create_opts_default = {
 static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
@@ -92,7 +89,6 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
 static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
@@ -344,6 +340,230 @@ static void test_block(gconstpointer opaque)
 }
 
 
+#ifdef TEST_LUKS
+typedef const char *(*LuksHeaderDoBadStuff)(QCryptoBlockLUKSHeader *hdr);
+
+static void
+test_luks_bad_header(gconstpointer data)
+{
+    LuksHeaderDoBadStuff badstuff = data;
+    QCryptoBlock *blk;
+    Buffer buf;
+    Object *sec = test_block_secret();
+    QCryptoBlockLUKSHeader hdr;
+    Error *err = NULL;
+    const char *msg;
+
+    memset(&buf, 0, sizeof(buf));
+    buffer_init(&buf, "header");
+
+    /* Correctly create the volume initially */
+    blk = qcrypto_block_create(&luks_create_opts_default, NULL,
+                               test_block_init_func,
+                               test_block_write_func,
+                               &buf,
+                               &error_abort);
+    g_assert(blk);
+
+    qcrypto_block_free(blk);
+
+    /* Mangle it in some unpleasant way */
+    g_assert(buf.offset >= sizeof(hdr));
+    memcpy(&hdr, buf.buffer, sizeof(hdr));
+    qcrypto_block_luks_to_disk_endian(&hdr);
+
+    msg = badstuff(&hdr);
+
+    qcrypto_block_luks_from_disk_endian(&hdr);
+    memcpy(buf.buffer, &hdr, sizeof(hdr));
+
+    /* Check that we fail to open it again */
+    blk = qcrypto_block_open(&luks_open_opts, NULL,
+                             test_block_read_func,
+                             &buf,
+                             0,
+                             1,
+                             &err);
+    g_assert(!blk);
+    g_assert(err);
+
+    g_assert_cmpstr(error_get_pretty(err), ==, msg);
+    error_free(err);
+
+    object_unparent(sec);
+
+    buffer_free(&buf);
+}
+
+static const char *luks_bad_null_term_cipher_name(QCryptoBlockLUKSHeader *hdr)
+{
+    /* Replace NUL termination with spaces */
+    char *offset = hdr->cipher_name + strlen(hdr->cipher_name);
+    memset(offset, ' ', sizeof(hdr->cipher_name) - (offset - hdr->cipher_name));
+
+    return "LUKS header cipher name is not NUL terminated";
+}
+
+static const char *luks_bad_null_term_cipher_mode(QCryptoBlockLUKSHeader *hdr)
+{
+    /* Replace NUL termination with spaces */
+    char *offset = hdr->cipher_mode + strlen(hdr->cipher_mode);
+    memset(offset, ' ', sizeof(hdr->cipher_mode) - (offset - hdr->cipher_mode));
+
+    return "LUKS header cipher mode is not NUL terminated";
+}
+
+static const char *luks_bad_null_term_hash_spec(QCryptoBlockLUKSHeader *hdr)
+{
+    /* Replace NUL termination with spaces */
+    char *offset = hdr->hash_spec + strlen(hdr->hash_spec);
+    memset(offset, ' ', sizeof(hdr->hash_spec) - (offset - hdr->hash_spec));
+
+    return "LUKS header hash spec is not NUL terminated";
+}
+
+static const char *luks_bad_cipher_name_empty(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_name, "", 1);
+
+    return "Algorithm '' with key size 32 bytes not supported";
+}
+
+static const char *luks_bad_cipher_name_unknown(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_name, "aess", 5);
+
+    return "Algorithm 'aess' with key size 32 bytes not supported";
+}
+
+static const char *luks_bad_cipher_xts_size(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->master_key_len = 33;
+
+    return "XTS cipher key length should be a multiple of 2";
+}
+
+static const char *luks_bad_cipher_cbc_size(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->master_key_len = 33;
+    memcpy(hdr->cipher_mode, "cbc-essiv", 10);
+
+    return "Algorithm 'aes' with key size 33 bytes not supported";
+}
+
+static const char *luks_bad_cipher_mode_empty(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "", 1);
+
+    return "Unexpected cipher mode string format ''";
+}
+
+static const char *luks_bad_cipher_mode_unknown(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xfs", 4);
+
+    return "Unexpected cipher mode string format 'xfs'";
+}
+
+static const char *luks_bad_ivgen_separator(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xts:plain64", 12);
+
+    return "Unexpected cipher mode string format 'xts:plain64'";
+}
+
+static const char *luks_bad_ivgen_name_empty(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xts-", 5);
+
+    return "IV generator '' not supported";
+}
+
+static const char *luks_bad_ivgen_name_unknown(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xts-plain65", 12);
+
+    return "IV generator 'plain65' not supported";
+}
+
+static const char *luks_bad_ivgen_hash_empty(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xts-plain65:", 13);
+
+    return "Hash algorithm '' not supported";
+}
+
+static const char *luks_bad_ivgen_hash_unknown(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->cipher_mode, "xts-plain65:sha257", 19);
+
+    return "Hash algorithm 'sha257' not supported";
+}
+
+static const char *luks_bad_hash_spec_empty(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->hash_spec, "", 1);
+
+    return "Hash algorithm '' not supported";
+}
+
+static const char *luks_bad_hash_spec_unknown(QCryptoBlockLUKSHeader *hdr)
+{
+    memcpy(hdr->hash_spec, "sha2566", 8);
+
+    return "Hash algorithm 'sha2566' not supported";
+}
+
+static const char *luks_bad_stripes(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->key_slots[0].stripes = 3999;
+
+    return "Keyslot 0 is corrupted (stripes 3999 != 4000)";
+}
+
+static const char *luks_bad_key_overlap_header(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->key_slots[0].key_offset_sector = 2;
+
+    return "Keyslot 0 is overlapping with the LUKS header";
+}
+
+static const char *luks_bad_key_overlap_key(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->key_slots[0].key_offset_sector = hdr->key_slots[1].key_offset_sector;
+
+    return "Keyslots 0 and 1 are overlapping in the header";
+}
+
+static const char *luks_bad_key_overlap_payload(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->key_slots[0].key_offset_sector = hdr->payload_offset_sector + 42;
+
+    return "Keyslot 0 is overlapping with the encrypted payload";
+}
+
+static const char *luks_bad_payload_overlap_header(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->payload_offset_sector = 2;
+
+    return "LUKS payload is overlapping with the header";
+}
+
+static const char *luks_bad_key_iterations(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->key_slots[0].iterations = 0;
+
+    return "Keyslot 0 iteration count is zero";
+}
+
+static const char *luks_bad_iterations(QCryptoBlockLUKSHeader *hdr)
+{
+    hdr->master_key_iterations = 0;
+
+    return "LUKS key iteration count is zero";
+}
+#endif
+
 int main(int argc, char **argv)
 {
     gsize i;
@@ -363,6 +583,80 @@ int main(int argc, char **argv)
             g_test_add_data_func(test_data[i].path, &test_data[i], test_block);
         }
     }
+
+#ifdef TEST_LUKS
+    if (g_test_slow()) {
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-name-nul-term",
+                             luks_bad_null_term_cipher_name,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-mode-nul-term",
+                             luks_bad_null_term_cipher_mode,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/hash-spec-nul-term",
+                             luks_bad_null_term_hash_spec,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-name-empty",
+                             luks_bad_cipher_name_empty,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-name-unknown",
+                             luks_bad_cipher_name_unknown,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-xts-size",
+                             luks_bad_cipher_xts_size,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-cbc-size",
+                             luks_bad_cipher_cbc_size,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-mode-empty",
+                             luks_bad_cipher_mode_empty,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/cipher-mode-unknown",
+                             luks_bad_cipher_mode_unknown,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/ivgen-separator",
+                             luks_bad_ivgen_separator,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/ivgen-name-empty",
+                             luks_bad_ivgen_name_empty,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/ivgen-name-unknown",
+                             luks_bad_ivgen_name_unknown,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/ivgen-hash-empty",
+                             luks_bad_ivgen_hash_empty,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/ivgen-hash-unknown",
+                             luks_bad_ivgen_hash_unknown,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/hash-spec-empty",
+                             luks_bad_hash_spec_empty,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/hash-spec-unknown",
+                             luks_bad_hash_spec_unknown,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/stripes",
+                             luks_bad_stripes,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/key-overlap-header",
+                             luks_bad_key_overlap_header,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/key-overlap-key",
+                             luks_bad_key_overlap_key,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/key-overlap-payload",
+                             luks_bad_key_overlap_payload,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/payload-overlap-header",
+                             luks_bad_payload_overlap_header,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/iterations",
+                             luks_bad_iterations,
+                             test_luks_bad_header);
+        g_test_add_data_func("/crypto/block/luks/bad/key-iterations",
+                             luks_bad_key_iterations,
+                             test_luks_bad_header);
+    }
+#endif
 
     return g_test_run();
 }

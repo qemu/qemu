@@ -479,15 +479,10 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
                 qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma)
 {
     DeviceState *dev;
-    SysBusDevice *sbd;
 
-    dev = qdev_new(TYPE_PXA2XX_MMCI);
-    sbd = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(sbd, 0, base);
-    sysbus_connect_irq(sbd, 0, irq);
+    dev = sysbus_create_simple(TYPE_PXA2XX_MMCI, base, irq);
     qdev_connect_gpio_out_named(dev, "rx-dma", 0, rx_dma);
     qdev_connect_gpio_out_named(dev, "tx-dma", 0, tx_dma);
-    sysbus_realize_and_unref(sbd, &error_fatal);
 
     return PXA2XX_MMCI(dev);
 }
@@ -580,25 +575,20 @@ static void pxa2xx_mmci_bus_class_init(ObjectClass *klass, void *data)
     sbc->set_readonly = pxa2xx_mmci_set_readonly;
 }
 
-static const TypeInfo pxa2xx_mmci_info = {
-    .name = TYPE_PXA2XX_MMCI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PXA2xxMMCIState),
-    .instance_init = pxa2xx_mmci_instance_init,
-    .class_init = pxa2xx_mmci_class_init,
+static const TypeInfo pxa2xx_mmci_types[] = {
+    {
+        .name           = TYPE_PXA2XX_MMCI,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(PXA2xxMMCIState),
+        .instance_init  = pxa2xx_mmci_instance_init,
+        .class_init     = pxa2xx_mmci_class_init,
+    },
+    {
+        .name           = TYPE_PXA2XX_MMCI_BUS,
+        .parent         = TYPE_SD_BUS,
+        .instance_size  = sizeof(SDBus),
+        .class_init     = pxa2xx_mmci_bus_class_init,
+    },
 };
 
-static const TypeInfo pxa2xx_mmci_bus_info = {
-    .name = TYPE_PXA2XX_MMCI_BUS,
-    .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
-    .class_init = pxa2xx_mmci_bus_class_init,
-};
-
-static void pxa2xx_mmci_register_types(void)
-{
-    type_register_static(&pxa2xx_mmci_info);
-    type_register_static(&pxa2xx_mmci_bus_info);
-}
-
-type_init(pxa2xx_mmci_register_types)
+DEFINE_TYPES(pxa2xx_mmci_types)

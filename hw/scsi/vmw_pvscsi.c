@@ -445,7 +445,7 @@ static void
 pvscsi_reset_adapter(PVSCSIState *s)
 {
     s->resetting++;
-    qbus_reset_all(BUS(&s->bus));
+    bus_cold_reset(BUS(&s->bus));
     s->resetting--;
     pvscsi_process_completion_queue(s);
     assert(QTAILQ_EMPTY(&s->pending_queue));
@@ -730,7 +730,7 @@ pvscsi_process_request_descriptor(PVSCSIState *s,
         r->sg.elemAddr = descr->dataAddr;
     }
 
-    r->sreq = scsi_req_new(d, descr->context, r->lun, descr->cdb, r);
+    r->sreq = scsi_req_new(d, descr->context, r->lun, descr->cdb, descr->cdbLen, r);
     if (r->sreq->cmd.mode == SCSI_XFER_FROM_DEV &&
         (descr->flags & PVSCSI_FLAG_CMD_DIR_TODEVICE)) {
         r->cmp.hostStatus = BTSTAT_BADMSG;
@@ -880,7 +880,7 @@ pvscsi_on_cmd_reset_device(PVSCSIState *s)
 
     if (sdev != NULL) {
         s->resetting++;
-        device_legacy_reset(&sdev->qdev);
+        device_cold_reset(&sdev->qdev);
         s->resetting--;
         return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
     }
@@ -894,7 +894,7 @@ pvscsi_on_cmd_reset_bus(PVSCSIState *s)
     trace_pvscsi_on_cmd_arrived("PVSCSI_CMD_RESET_BUS");
 
     s->resetting++;
-    qbus_reset_all(BUS(&s->bus));
+    bus_cold_reset(BUS(&s->bus));
     s->resetting--;
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
 }
@@ -1184,7 +1184,8 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
         pcie_endpoint_cap_init(pci_dev, PVSCSI_EXP_EP_OFFSET);
     }
 
-    s->completion_worker = qemu_bh_new(pvscsi_process_completion_queue, s);
+    s->completion_worker = qemu_bh_new_guarded(pvscsi_process_completion_queue, s,
+                                               &DEVICE(pci_dev)->mem_reentrancy_guard);
 
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev), &pvscsi_scsi_info);
     /* override default SCSI bus hotplug-handler, with pvscsi's one */

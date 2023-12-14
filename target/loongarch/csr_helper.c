@@ -15,7 +15,6 @@
 #include "exec/cpu_ldst.h"
 #include "hw/irq.h"
 #include "cpu-csr.h"
-#include "tcg/tcg-ldst.h"
 
 target_ulong helper_csrrd_pgd(CPULoongArchState *env)
 {
@@ -34,6 +33,15 @@ target_ulong helper_csrrd_pgd(CPULoongArchState *env)
     }
 
     return v;
+}
+
+target_ulong helper_csrrd_cpuid(CPULoongArchState *env)
+{
+    LoongArchCPU *lac = env_archcpu(env);
+
+    env->CSR_CPUID = CPU(lac)->cpu_index;
+
+    return env->CSR_CPUID;
 }
 
 target_ulong helper_csrrd_tval(CPULoongArchState *env)

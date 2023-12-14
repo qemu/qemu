@@ -40,6 +40,12 @@ int net_init_hubport(const Netdev *netdev, const char *name,
 int net_init_socket(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp);
 
+int net_init_stream(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp);
+
+int net_init_dgram(const Netdev *netdev, const char *name,
+                   NetClientState *peer, Error **errp);
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp);
 
@@ -55,6 +61,11 @@ int net_init_vde(const Netdev *netdev, const char *name,
 
 #ifdef CONFIG_NETMAP
 int net_init_netmap(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp);
+#endif
+
+#ifdef CONFIG_AF_XDP
+int net_init_af_xdp(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp);
 #endif
 

@@ -53,13 +53,28 @@ def generate(filename, cmd, trailer):
         content += trailer
     atomic_write(filename, content)
 
+# Optional user setting, this will always be the last thing added
+# so maximise the number of layers that are cached
+add_user_mapping = [
+    "# As a final step configure the user (if env is defined)",
+    "ARG USER",
+    "ARG UID",
+    "RUN if [ \"${USER}\" ]; then \\",
+    "  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi\n"
+]
 
-def generate_dockerfile(host, target, cross=None, trailer=None):
+def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None):
     filename = Path(src_dir, "tests", "docker", "dockerfiles", host + ".docker")
     cmd = lcitool_cmd + ["dockerfile"]
     if cross is not None:
         cmd.extend(["--cross", cross])
-    cmd.extend([target, "qemu"])
+    cmd.extend([target, project])
+
+    if trailer is not None:
+        trailer += "\n".join(add_user_mapping)
+    else:
+        trailer = "\n".join(add_user_mapping)
+
     generate(filename, cmd, trailer)
 
 
@@ -69,31 +84,33 @@ def generate_cirrus(target, trailer=None):
     generate(filename, cmd, trailer)
 
 
-ubuntu2004_tsanhack = [
-    "# Apply patch https://reviews.llvm.org/D75820\n",
-    "# This is required for TSan in clang-10 to compile with QEMU.\n",
-    "RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h\n"
-]
+def generate_pkglist(vm, target):
+    filename = Path(src_dir, "tests", "vm", "generated", vm + ".json")
+    cmd = lcitool_cmd + ["variables", "--format", "json", target, "qemu"]
+    generate(filename, cmd, None)
 
 
 # Netmap still needs to be manually built as it is yet to be packaged
 # into a distro. We also add cscope and gtags which are used in the CI
 # test
-debian11_extras = [
+debian12_extras = [
     "# netmap/cscope/global\n",
     "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
     "  apt install -y --no-install-recommends \\\n",
     "  cscope\\\n",
     "  global\\\n",
-    "  linux-headers-amd64\n",
+    "  linux-headers-generic\n",
     "RUN git clone https://github.com/luigirizzo/netmap.git /usr/src/netmap\n",
     "RUN cd /usr/src/netmap && git checkout v11.3\n",
-    "RUN cd /usr/src/netmap/LINUX && ./configure --no-drivers --no-apps --kernel-dir=$(ls -d /usr/src/linux-headers-*-amd64) && make install\n",
+    "RUN cd /usr/src/netmap/LINUX && \\\n",
+    "  ./configure --no-drivers --no-apps \\\n",
+    "  --kernel-dir=$(ls -d /usr/src/linux-headers-*-$(dpkg --print-architecture)) \\\n",
+    "  && make install\n",
     "ENV QEMU_CONFIGURE_OPTS --enable-netmap\n"
 ]
 
 
-def debian_cross_build(prefix, targets):
+def cross_build(prefix, targets):
     conf = "ENV QEMU_CONFIGURE_OPTS --cross-prefix=%s\n" % (prefix)
     targets = "ENV DEF_TARGET_LIST %s\n" % (targets)
     return "".join([conf, targets])
@@ -107,59 +124,95 @@ try:
     #
     # Standard native builds
     #
-    generate_dockerfile("alpine", "alpine-edge")
+    generate_dockerfile("alpine", "alpine-318")
     generate_dockerfile("centos8", "centos-stream-8")
-    generate_dockerfile("debian-amd64", "debian-11",
-                        trailer="".join(debian11_extras))
-    generate_dockerfile("fedora", "fedora-35")
-    generate_dockerfile("opensuse-leap", "opensuse-leap-153")
-    generate_dockerfile("ubuntu2004", "ubuntu-2004",
-                        trailer="".join(ubuntu2004_tsanhack))
+    generate_dockerfile("debian", "debian-12",
+                        trailer="".join(debian12_extras))
+    generate_dockerfile("fedora", "fedora-38")
+    generate_dockerfile("opensuse-leap", "opensuse-leap-15")
+    generate_dockerfile("ubuntu2004", "ubuntu-2004")
+    generate_dockerfile("ubuntu2204", "ubuntu-2204")
 
     #
     # Cross compiling builds
     #
-    generate_dockerfile("debian-arm64-cross", "debian-11",
-                        cross="aarch64",
-                        trailer=debian_cross_build("aarch64-linux-gnu-",
-                                                   "aarch64-softmmu,aarch64-linux-user"))
+    generate_dockerfile("debian-amd64-cross", "debian-12",
+                        cross="x86_64",
+                        trailer=cross_build("x86_64-linux-gnu-",
+                                            "x86_64-softmmu,"
+                                            "x86_64-linux-user,"
+                                            "i386-softmmu,i386-linux-user"))
 
+    generate_dockerfile("debian-arm64-cross", "debian-12",
+                        cross="aarch64",
+                        trailer=cross_build("aarch64-linux-gnu-",
+                                            "aarch64-softmmu,aarch64-linux-user"))
+
+    # migration to bookworm stalled: https://lists.debian.org/debian-arm/2023/09/msg00006.html
     generate_dockerfile("debian-armel-cross", "debian-11",
                         cross="armv6l",
-                        trailer=debian_cross_build("arm-linux-gnueabi-",
-                                                   "arm-softmmu,arm-linux-user,armeb-linux-user"))
+                        trailer=cross_build("arm-linux-gnueabi-",
+                                            "arm-softmmu,arm-linux-user,armeb-linux-user"))
 
-    generate_dockerfile("debian-armhf-cross", "debian-11",
+    generate_dockerfile("debian-armhf-cross", "debian-12",
                         cross="armv7l",
-                        trailer=debian_cross_build("arm-linux-gnueabihf-",
-                                                   "arm-softmmu,arm-linux-user"))
+                        trailer=cross_build("arm-linux-gnueabihf-",
+                                            "arm-softmmu,arm-linux-user"))
+
+    generate_dockerfile("debian-i686-cross", "debian-11",
+                        cross="i686",
+                        trailer=cross_build("x86_64-linux-gnu-",
+                                            "x86_64-softmmu,"
+                                            "x86_64-linux-user,"
+                                            "i386-softmmu,i386-linux-user"))
 
     generate_dockerfile("debian-mips64el-cross", "debian-11",
                         cross="mips64el",
-                        trailer=debian_cross_build("mips64el-linux-gnuabi64-",
-                                                  "mips64el-softmmu,mips64el-linux-user"))
+                        trailer=cross_build("mips64el-linux-gnuabi64-",
+                                            "mips64el-softmmu,mips64el-linux-user"))
 
     generate_dockerfile("debian-mipsel-cross", "debian-11",
                         cross="mipsel",
-                        trailer=debian_cross_build("mipsel-linux-gnu-",
-                                                   "mipsel-softmmu,mipsel-linux-user"))
+                        trailer=cross_build("mipsel-linux-gnu-",
+                                            "mipsel-softmmu,mipsel-linux-user"))
 
-    generate_dockerfile("debian-ppc64el-cross", "debian-11",
+    generate_dockerfile("debian-ppc64el-cross", "debian-12",
                         cross="ppc64le",
-                        trailer=debian_cross_build("powerpc64le-linux-gnu-",
-                                                   "ppc64-softmmu,ppc64-linux-user"))
+                        trailer=cross_build("powerpc64le-linux-gnu-",
+                                            "ppc64-softmmu,ppc64-linux-user"))
 
-    generate_dockerfile("debian-s390x-cross", "debian-11",
+    generate_dockerfile("debian-riscv64-cross", "debian-sid",
+                        project="qemu-minimal",
+                        cross="riscv64",
+                        trailer=cross_build("riscv64-linux-gnu-",
+                                            "riscv64-softmmu,riscv64-linux-user"))
+
+    generate_dockerfile("debian-s390x-cross", "debian-12",
                         cross="s390x",
-                        trailer=debian_cross_build("s390x-linux-gnu-",
-                                                   "s390x-softmmu,s390x-linux-user"))
+                        trailer=cross_build("s390x-linux-gnu-",
+                                            "s390x-softmmu,s390x-linux-user"))
+
+    generate_dockerfile("fedora-win32-cross", "fedora-38",
+                        cross="mingw32",
+                        trailer=cross_build("i686-w64-mingw32-",
+                                            "i386-softmmu"))
+
+    generate_dockerfile("fedora-win64-cross", "fedora-38",
+                        cross="mingw64",
+                        trailer=cross_build("x86_64-w64-mingw32-",
+                                            "x86_64-softmmu"))
 
     #
     # Cirrus packages lists for GitLab
     #
-    generate_cirrus("freebsd-12")
     generate_cirrus("freebsd-13")
-    generate_cirrus("macos-11")
+    generate_cirrus("macos-13")
+    generate_cirrus("macos-14")
+
+    #
+    # VM packages lists
+    #
+    generate_pkglist("freebsd", "freebsd-13")
 
     sys.exit(0)
 except Exception as ex:

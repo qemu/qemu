@@ -48,6 +48,7 @@
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/dirty-bitmap.h"
 #include "block/qapi.h"
 #include "crypto/init.h"
 #include "trace/control.h"
@@ -164,8 +165,8 @@ void help(void)
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
            "  'options' is a comma separated list of format specific options in a\n"
-           "    name=value format. Use -o ? for an overview of the options supported by the\n"
-           "    used format\n"
+           "    name=value format. Use -o help for an overview of the options supported by\n"
+           "    the used format\n"
            "  'snapshot_param' is param used for internal snapshot, format\n"
            "    is 'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
            "    '[ID_OR_NAME]'\n"
@@ -234,25 +235,25 @@ void help(void)
 }
 
 /*
- * Is @optarg safe for accumulate_options()?
+ * Is @list safe for accumulate_options()?
  * It is when multiple of them can be joined together separated by ','.
- * To make that work, @optarg must not start with ',' (or else a
+ * To make that work, @list must not start with ',' (or else a
  * separating ',' preceding it gets escaped), and it must not end with
  * an odd number of ',' (or else a separating ',' following it gets
  * escaped), or be empty (or else a separating ',' preceding it can
  * escape a separating ',' following it).
  * 
  */
-static bool is_valid_option_list(const char *optarg)
+static bool is_valid_option_list(const char *list)
 {
-    size_t len = strlen(optarg);
+    size_t len = strlen(list);
     size_t i;
 
-    if (!optarg[0] || optarg[0] == ',') {
+    if (!list[0] || list[0] == ',') {
         return false;
     }
 
-    for (i = len; i > 0 && optarg[i - 1] == ','; i--) {
+    for (i = len; i > 0 && list[i - 1] == ','; i--) {
     }
     if ((len - i) % 2) {
         return false;
@@ -261,19 +262,19 @@ static bool is_valid_option_list(const char *optarg)
     return true;
 }
 
-static int accumulate_options(char **options, char *optarg)
+static int accumulate_options(char **options, char *list)
 {
     char *new_options;
 
-    if (!is_valid_option_list(optarg)) {
-        error_report("Invalid option list: %s", optarg);
+    if (!is_valid_option_list(list)) {
+        error_report("Invalid option list: %s", list);
         return -1;
     }
 
     if (!*options) {
-        *options = g_strdup(optarg);
+        *options = g_strdup(list);
     } else {
-        new_options = g_strdup_printf("%s,%s", *options, optarg);
+        new_options = g_strdup_printf("%s,%s", *options, list);
         g_free(*options);
         *options = new_options;
     }
@@ -449,6 +450,11 @@ static BlockBackend *img_open(bool image_opts,
         blk = img_open_file(filename, NULL, fmt, flags, writethrough, quiet,
                             force_share);
     }
+
+    if (blk) {
+        blk_set_force_allow_inactivate(blk);
+    }
+
     return blk;
 }
 
@@ -911,10 +917,11 @@ static void run_block_job(BlockJob *job, Error **errp)
     AioContext *aio_context = block_job_get_aio_context(job);
     int ret = 0;
 
-    aio_context_acquire(aio_context);
-    job_ref(&job->job);
+    job_lock();
+    job_ref_locked(&job->job);
     do {
         float progress = 0.0f;
+        job_unlock();
         aio_poll(aio_context, true);
 
         progress_get_snapshot(&job->job.progress, &progress_current,
@@ -923,15 +930,17 @@ static void run_block_job(BlockJob *job, Error **errp)
             progress = (float)progress_current / progress_total * 100.f;
         }
         qemu_progress_print(progress, 0);
-    } while (!job_is_ready(&job->job) && !job_is_completed(&job->job));
+        job_lock();
+    } while (!job_is_ready_locked(&job->job) &&
+             !job_is_completed_locked(&job->job));
 
-    if (!job_is_completed(&job->job)) {
-        ret = job_complete_sync(&job->job, errp);
+    if (!job_is_completed_locked(&job->job)) {
+        ret = job_complete_sync_locked(&job->job, errp);
     } else {
         ret = job->job.ret;
     }
-    job_unref(&job->job);
-    aio_context_release(aio_context);
+    job_unref_locked(&job->job);
+    job_unlock();
 
     /* publish completion progress only when success */
     if (!ret) {
@@ -1041,12 +1050,14 @@ static int img_commit(int argc, char **argv)
     qemu_progress_init(progress, 1.f);
     qemu_progress_print(0.f, 100);
 
+    bdrv_graph_rdlock_main_loop();
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
             error_setg(&local_err,
                        "Did not find '%s' in the backing chain of '%s'",
                        base, filename);
+            bdrv_graph_rdunlock_main_loop();
             goto done;
         }
     } else {
@@ -1056,9 +1067,11 @@ static int img_commit(int argc, char **argv)
         base_bs = bdrv_backing_chain_next(bs);
         if (!base_bs) {
             error_setg(&local_err, "Image does not have a backing file");
+            bdrv_graph_rdunlock_main_loop();
             goto done;
         }
     }
+    bdrv_graph_rdunlock_main_loop();
 
     cbi = (CommonBlockJobCBInfo){
         .errp = &local_err,
@@ -1116,6 +1129,14 @@ unref_backing:
 done:
     qemu_progress_end();
 
+    /*
+     * Manually inactivate the image first because this way we can know whether
+     * an error occurred. blk_unref() doesn't tell us about failures.
+     */
+    ret = bdrv_inactivate_all();
+    if (ret < 0 && !local_err) {
+        error_setg_errno(&local_err, -ret, "Error while closing the image");
+    }
     blk_unref(blk);
 
     if (local_err) {
@@ -1257,23 +1278,29 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
 }
 
 /*
- * Compares two buffers sector by sector. Returns 0 if the first
- * sector of each buffer matches, non-zero otherwise.
+ * Compares two buffers chunk by chunk, where @chsize is the chunk size.
+ * If @chsize is 0, default chunk size of BDRV_SECTOR_SIZE is used.
+ * Returns 0 if the first chunk of each buffer matches, non-zero otherwise.
  *
- * pnum is set to the sector-aligned size of the buffer prefix that
- * has the same matching status as the first sector.
+ * @pnum is set to the size of the buffer prefix aligned to @chsize that
+ * has the same matching status as the first chunk.
  */
 static int compare_buffers(const uint8_t *buf1, const uint8_t *buf2,
-                           int64_t bytes, int64_t *pnum)
+                           int64_t bytes, uint64_t chsize, int64_t *pnum)
 {
     bool res;
-    int64_t i = MIN(bytes, BDRV_SECTOR_SIZE);
+    int64_t i;
 
     assert(bytes > 0);
 
+    if (!chsize) {
+        chsize = BDRV_SECTOR_SIZE;
+    }
+    i = MIN(bytes, chsize);
+
     res = !!memcmp(buf1, buf2, i);
     while (i < bytes) {
-        int64_t len = MIN(bytes - i, BDRV_SECTOR_SIZE);
+        int64_t len = MIN(bytes - i, chsize);
 
         if (!!memcmp(buf1 + i, buf2 + i, len) != res) {
             break;
@@ -1542,7 +1569,7 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = compare_buffers(buf1, buf2, chunk, &pnum);
+                ret = compare_buffers(buf1, buf2, chunk, 0, &pnum);
                 if (ret || pnum != chunk) {
                     qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
                             offset + (ret ? 0 : pnum));
@@ -1690,7 +1717,8 @@ static void convert_select_part(ImgConvertState *s, int64_t sector_num,
     }
 }
 
-static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
+static int coroutine_mixed_fn GRAPH_RDLOCK
+convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 {
     int64_t src_cur_offset;
     int ret, n, src_cur;
@@ -1974,7 +2002,9 @@ static void coroutine_fn convert_co_do_copy(void *opaque)
             qemu_co_mutex_unlock(&s->lock);
             break;
         }
-        n = convert_iteration_sectors(s, s->sector_num);
+        WITH_GRAPH_RDLOCK_GUARD() {
+            n = convert_iteration_sectors(s, s->sector_num);
+        }
         if (n < 0) {
             qemu_co_mutex_unlock(&s->lock);
             s->ret = n;
@@ -2022,7 +2052,9 @@ retry:
 
         if (s->ret == -EINPROGRESS) {
             if (copy_range) {
-                ret = convert_co_copy_range(s, sector_num, n);
+                WITH_GRAPH_RDLOCK_GUARD() {
+                    ret = convert_co_copy_range(s, sector_num, n);
+                }
                 if (ret) {
                     s->copy_range = false;
                     goto retry;
@@ -2072,7 +2104,9 @@ static int convert_do_copy(ImgConvertState *s)
     /* Check whether we have zero initialisation or can get it efficiently */
     if (!s->has_zero_init && s->target_is_new && s->min_sparse &&
         !s->target_has_backing) {
+        bdrv_graph_rdlock_main_loop();
         s->has_zero_init = bdrv_has_zero_init(blk_bs(s->target));
+        bdrv_graph_rdunlock_main_loop();
     }
 
     /* Allocate buffer for copied data. For compressed images, only one cluster
@@ -2086,7 +2120,9 @@ static int convert_do_copy(ImgConvertState *s)
     }
 
     while (sector_num < s->total_sectors) {
+        bdrv_graph_rdlock_main_loop();
         n = convert_iteration_sectors(s, sector_num);
+        bdrv_graph_rdunlock_main_loop();
         if (n < 0) {
             return n;
         }
@@ -2728,8 +2764,10 @@ static int img_convert(int argc, char **argv)
          * s.target_backing_sectors has to be negative, which it will
          * be automatically).  The backing file length is used only
          * for optimizations, so such a case is not fatal. */
+        bdrv_graph_rdlock_main_loop();
         s.target_backing_sectors =
             bdrv_nb_sectors(bdrv_backing_chain_next(out_bs));
+        bdrv_graph_rdunlock_main_loop();
     } else {
         s.target_backing_sectors = -1;
     }
@@ -2800,13 +2838,13 @@ static void dump_snapshots(BlockDriverState *bs)
     g_free(sn_tab);
 }
 
-static void dump_json_image_info_list(ImageInfoList *list)
+static void dump_json_block_graph_info_list(BlockGraphInfoList *list)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_ImageInfoList(v, NULL, &list, &error_abort);
+    visit_type_BlockGraphInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2816,13 +2854,13 @@ static void dump_json_image_info_list(ImageInfoList *list)
     g_string_free(str, true);
 }
 
-static void dump_json_image_info(ImageInfo *info)
+static void dump_json_block_graph_info(BlockGraphInfo *info)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_ImageInfo(v, NULL, &info, &error_abort);
+    visit_type_BlockGraphInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2832,9 +2870,30 @@ static void dump_json_image_info(ImageInfo *info)
     g_string_free(str, true);
 }
 
-static void dump_human_image_info_list(ImageInfoList *list)
+static void dump_human_image_info(BlockGraphInfo *info, int indentation,
+                                  const char *path)
 {
-    ImageInfoList *elem;
+    BlockChildInfoList *children_list;
+
+    bdrv_node_info_dump(qapi_BlockGraphInfo_base(info), indentation,
+                        info->children == NULL);
+
+    for (children_list = info->children; children_list;
+         children_list = children_list->next)
+    {
+        BlockChildInfo *child = children_list->value;
+        g_autofree char *child_path = NULL;
+
+        printf("%*sChild node '%s%s':\n",
+               indentation * 4, "", path, child->name);
+        child_path = g_strdup_printf("%s%s/", path, child->name);
+        dump_human_image_info(child->info, indentation + 1, child_path);
+    }
+}
+
+static void dump_human_image_info_list(BlockGraphInfoList *list)
+{
+    BlockGraphInfoList *elem;
     bool delim = false;
 
     for (elem = list; elem; elem = elem->next) {
@@ -2843,7 +2902,7 @@ static void dump_human_image_info_list(ImageInfoList *list)
         }
         delim = true;
 
-        bdrv_image_info_dump(elem->value);
+        dump_human_image_info(elem->value, 0, "/");
     }
 }
 
@@ -2853,24 +2912,24 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 }
 
 /**
- * Open an image file chain and return an ImageInfoList
+ * Open an image file chain and return an BlockGraphInfoList
  *
  * @filename: topmost image filename
  * @fmt: topmost image format (may be NULL to autodetect)
  * @chain: true  - enumerate entire backing file chain
  *         false - only topmost image file
  *
- * Returns a list of ImageInfo objects or NULL if there was an error opening an
- * image file.  If there was an error a message will have been printed to
- * stderr.
+ * Returns a list of BlockNodeInfo objects or NULL if there was an error
+ * opening an image file.  If there was an error a message will have been
+ * printed to stderr.
  */
-static ImageInfoList *collect_image_info_list(bool image_opts,
-                                              const char *filename,
-                                              const char *fmt,
-                                              bool chain, bool force_share)
+static BlockGraphInfoList *collect_image_info_list(bool image_opts,
+                                                   const char *filename,
+                                                   const char *fmt,
+                                                   bool chain, bool force_share)
 {
-    ImageInfoList *head = NULL;
-    ImageInfoList **tail = &head;
+    BlockGraphInfoList *head = NULL;
+    BlockGraphInfoList **tail = &head;
     GHashTable *filenames;
     Error *err = NULL;
 
@@ -2879,7 +2938,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
     while (filename) {
         BlockBackend *blk;
         BlockDriverState *bs;
-        ImageInfo *info;
+        BlockGraphInfo *info;
 
         if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
             error_report("Backing file '%s' creates an infinite loop.",
@@ -2896,7 +2955,17 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         }
         bs = blk_bs(blk);
 
-        bdrv_query_image_info(bs, &info, &err);
+        /*
+         * Note that the returned BlockGraphInfo object will not have
+         * information about this image's backing node, because we have opened
+         * it with BDRV_O_NO_BACKING.  Printing this object will therefore not
+         * duplicate the backing chain information that we obtain by walking
+         * the chain manually here.
+         */
+        bdrv_graph_rdlock_main_loop();
+        bdrv_query_block_graph_info(bs, &info, &err);
+        bdrv_graph_rdunlock_main_loop();
+
         if (err) {
             error_report_err(err);
             blk_unref(blk);
@@ -2912,15 +2981,15 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         image_opts = false;
 
         if (chain) {
-            if (info->has_full_backing_filename) {
+            if (info->full_backing_filename) {
                 filename = info->full_backing_filename;
-            } else if (info->has_backing_filename) {
+            } else if (info->backing_filename) {
                 error_report("Could not determine absolute backing filename,"
                              " but backing filename '%s' present",
                              info->backing_filename);
                 goto err;
             }
-            if (info->has_backing_filename_format) {
+            if (info->backing_filename_format) {
                 fmt = info->backing_filename_format;
             }
         }
@@ -2929,7 +2998,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
     return head;
 
 err:
-    qapi_free_ImageInfoList(head);
+    qapi_free_BlockGraphInfoList(head);
     g_hash_table_destroy(filenames);
     return NULL;
 }
@@ -2940,7 +3009,7 @@ static int img_info(int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
     const char *filename, *fmt, *output;
-    ImageInfoList *list;
+    BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
 
@@ -3019,14 +3088,14 @@ static int img_info(int argc, char **argv)
         break;
     case OFORMAT_JSON:
         if (chain) {
-            dump_json_image_info_list(list);
+            dump_json_block_graph_info_list(list);
         } else {
-            dump_json_image_info(list->value);
+            dump_json_block_graph_info(list->value);
         }
         break;
     }
 
-    qapi_free_ImageInfoList(list);
+    qapi_free_BlockGraphInfoList(list);
     return 0;
 }
 
@@ -3043,7 +3112,7 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
             printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
                    e->start, e->length,
                    e->has_offset ? e->offset : 0,
-                   e->has_filename ? e->filename : "");
+                   e->filename ?: "");
         }
         /* This format ignores the distinction between 0, ZERO and ZERO|DATA.
          * Modify the flags here to allow more coalescing.
@@ -3056,10 +3125,12 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
     case OFORMAT_JSON:
         printf("{ \"start\": %"PRId64", \"length\": %"PRId64","
                " \"depth\": %"PRId64", \"present\": %s, \"zero\": %s,"
-               " \"data\": %s", e->start, e->length, e->depth,
+               " \"data\": %s, \"compressed\": %s",
+               e->start, e->length, e->depth,
                e->present ? "true" : "false",
                e->zero ? "true" : "false",
-               e->data ? "true" : "false");
+               e->data ? "true" : "false",
+               e->compressed ? "true" : "false");
         if (e->has_offset) {
             printf(", \"offset\": %"PRId64"", e->offset);
         }
@@ -3082,6 +3153,9 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     bool has_offset;
     int64_t map;
     char *filename = NULL;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
@@ -3120,11 +3194,11 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         .length = bytes,
         .data = !!(ret & BDRV_BLOCK_DATA),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
+        .compressed = !!(ret & BDRV_BLOCK_COMPRESSED),
         .offset = map,
         .has_offset = has_offset,
         .depth = depth,
         .present = !!(ret & BDRV_BLOCK_ALLOCATED),
-        .has_filename = filename,
         .filename = filename,
     };
 
@@ -3138,13 +3212,14 @@ static inline bool entry_mergeable(const MapEntry *curr, const MapEntry *next)
     }
     if (curr->zero != next->zero ||
         curr->data != next->data ||
+        curr->compressed != next->compressed ||
         curr->depth != next->depth ||
         curr->present != next->present ||
-        curr->has_filename != next->has_filename ||
+        !curr->filename != !next->filename ||
         curr->has_offset != next->has_offset) {
         return false;
     }
-    if (curr->has_filename && strcmp(curr->filename, next->filename)) {
+    if (curr->filename && strcmp(curr->filename, next->filename)) {
         return false;
     }
     if (curr->has_offset && curr->offset + curr->length != next->offset) {
@@ -3415,10 +3490,13 @@ static int img_snapshot(int argc, char **argv)
         sn.date_sec = rt / G_USEC_PER_SEC;
         sn.date_nsec = (rt % G_USEC_PER_SEC) * 1000;
 
+        bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_create(bs, &sn);
+        bdrv_graph_rdunlock_main_loop();
+
         if (ret) {
-            error_report("Could not create snapshot '%s': %d (%s)",
-                snapshot_name, ret, strerror(-ret));
+            error_report("Could not create snapshot '%s': %s",
+                snapshot_name, strerror(-ret));
         }
         break;
 
@@ -3431,6 +3509,7 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
+        bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_find(bs, &sn, snapshot_name);
         if (ret < 0) {
             error_report("Could not delete snapshot '%s': snapshot not "
@@ -3444,6 +3523,7 @@ static int img_snapshot(int argc, char **argv)
                 ret = 1;
             }
         }
+        bdrv_graph_rdunlock_main_loop();
         break;
     }
 
@@ -3461,17 +3541,21 @@ static int img_rebase(int argc, char **argv)
     uint8_t *buf_old = NULL;
     uint8_t *buf_new = NULL;
     BlockDriverState *bs = NULL, *prefix_chain_bs = NULL;
-    BlockDriverState *unfiltered_bs;
+    BlockDriverState *unfiltered_bs, *unfiltered_bs_cow;
+    BlockDriverInfo bdi = {0};
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
+    BdrvRequestFlags write_flags = 0;
     bool writethrough, src_writethrough;
     int unsafe = 0;
     bool force_share = false;
     int progress = 0;
     bool quiet = false;
+    bool compress = false;
     Error *local_err = NULL;
     bool image_opts = false;
+    int64_t write_align;
 
     /* Parse commandline parameters */
     fmt = NULL;
@@ -3485,9 +3569,10 @@ static int img_rebase(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"compress", no_argument, 0, 'c'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qU",
+        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3534,6 +3619,9 @@ static int img_rebase(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'c':
+            compress = true;
             break;
         }
     }
@@ -3585,7 +3673,18 @@ static int img_rebase(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
+    bdrv_graph_rdlock_main_loop();
     unfiltered_bs = bdrv_skip_filters(bs);
+    unfiltered_bs_cow = bdrv_cow_bs(unfiltered_bs);
+    bdrv_graph_rdunlock_main_loop();
+
+    if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
+        error_report("Compression not supported for this file format");
+        ret = -1;
+        goto out;
+    } else if (compress) {
+        write_flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
 
     if (out_basefmt != NULL) {
         if (bdrv_find_format(out_basefmt) == NULL) {
@@ -3595,10 +3694,28 @@ static int img_rebase(int argc, char **argv)
         }
     }
 
+    /*
+     * We need overlay subcluster size (or cluster size in case writes are
+     * compressed) to make sure write requests are aligned.
+     */
+    ret = bdrv_get_info(unfiltered_bs, &bdi);
+    if (ret < 0) {
+        error_report("could not get block driver info");
+        goto out;
+    } else if (bdi.subcluster_size == 0) {
+        bdi.cluster_size = bdi.subcluster_size = 1;
+    }
+
+    write_align = compress ? bdi.cluster_size : bdi.subcluster_size;
+
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
         QDict *options = NULL;
-        BlockDriverState *base_bs = bdrv_cow_bs(unfiltered_bs);
+        BlockDriverState *base_bs;
+
+        bdrv_graph_rdlock_main_loop();
+        base_bs = bdrv_cow_bs(unfiltered_bs);
+        bdrv_graph_rdunlock_main_loop();
 
         if (base_bs) {
             blk_old_backing = blk_new(qemu_get_aio_context(),
@@ -3628,7 +3745,9 @@ static int img_rebase(int argc, char **argv)
                 qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
             }
 
+            bdrv_graph_rdlock_main_loop();
             bdrv_refresh_filename(bs);
+            bdrv_graph_rdunlock_main_loop();
             overlay_filename = bs->exact_filename[0] ? bs->exact_filename
                                                      : bs->filename;
             out_real_path =
@@ -3692,11 +3811,16 @@ static int img_rebase(int argc, char **argv)
         int64_t old_backing_size = 0;
         int64_t new_backing_size = 0;
         uint64_t offset;
-        int64_t n;
+        int64_t n, n_old = 0, n_new = 0;
         float local_progress = 0;
 
-        buf_old = blk_blockalign(blk, IO_BUF_SIZE);
-        buf_new = blk_blockalign(blk, IO_BUF_SIZE);
+        if (blk_old_backing && bdrv_opt_mem_align(blk_bs(blk_old_backing)) >
+            bdrv_opt_mem_align(blk_bs(blk))) {
+            buf_old = blk_blockalign(blk_old_backing, IO_BUF_SIZE);
+        } else {
+            buf_old = blk_blockalign(blk, IO_BUF_SIZE);
+        }
+        buf_new = blk_blockalign(blk_new_backing, IO_BUF_SIZE);
 
         size = blk_getlength(blk);
         if (size < 0) {
@@ -3733,7 +3857,8 @@ static int img_rebase(int argc, char **argv)
         }
 
         for (offset = 0; offset < size; offset += n) {
-            bool buf_old_is_zero = false;
+            bool old_backing_eof = false;
+            int64_t n_alloc;
 
             /* How many bytes can we handle with the next read? */
             n = MIN(IO_BUF_SIZE, size - offset);
@@ -3750,11 +3875,13 @@ static int img_rebase(int argc, char **argv)
             }
 
             if (prefix_chain_bs) {
+                uint64_t bytes = n;
+
                 /*
                  * If cluster wasn't changed since prefix_chain, we don't need
                  * to take action
                  */
-                ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                ret = bdrv_is_allocated_above(unfiltered_bs_cow,
                                               prefix_chain_bs, false,
                                               offset, n, &n);
                 if (ret < 0) {
@@ -3762,38 +3889,60 @@ static int img_rebase(int argc, char **argv)
                                  strerror(-ret));
                     goto out;
                 }
-                if (!ret) {
+                if (!ret && n) {
                     continue;
                 }
+                if (!n) {
+                    /*
+                     * If we've reached EOF of the old backing, it means that
+                     * offsets beyond the old backing size were read as zeroes.
+                     * Now we will need to explicitly zero the cluster in
+                     * order to preserve that state after the rebase.
+                     */
+                    n = bytes;
+                }
             }
+
+            /*
+             * At this point we know that the region [offset; offset + n)
+             * is unallocated within the target image.  This region might be
+             * unaligned to the target image's (sub)cluster boundaries, as
+             * old backing may have smaller clusters (or have subclusters).
+             * We extend it to the aligned boundaries to avoid CoW on
+             * partial writes in blk_pwrite(),
+             */
+            n += offset - QEMU_ALIGN_DOWN(offset, write_align);
+            offset = QEMU_ALIGN_DOWN(offset, write_align);
+            n += QEMU_ALIGN_UP(offset + n, write_align) - (offset + n);
+            n = MIN(n, size - offset);
+            assert(!bdrv_is_allocated(unfiltered_bs, offset, n, &n_alloc) &&
+                   n_alloc == n);
+
+            /*
+             * Much like with the target image, we'll try to read as much
+             * of the old and new backings as we can.
+             */
+            n_old = MIN(n, MAX(0, old_backing_size - (int64_t) offset));
+            n_new = MIN(n, MAX(0, new_backing_size - (int64_t) offset));
 
             /*
              * Read old and new backing file and take into consideration that
              * backing files may be smaller than the COW image.
              */
-            if (offset >= old_backing_size) {
-                memset(buf_old, 0, n);
-                buf_old_is_zero = true;
+            memset(buf_old + n_old, 0, n - n_old);
+            if (!n_old) {
+                old_backing_eof = true;
             } else {
-                if (offset + n > old_backing_size) {
-                    n = old_backing_size - offset;
-                }
-
-                ret = blk_pread(blk_old_backing, offset, n, buf_old, 0);
+                ret = blk_pread(blk_old_backing, offset, n_old, buf_old, 0);
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
                 }
             }
 
-            if (offset >= new_backing_size || !blk_new_backing) {
-                memset(buf_new, 0, n);
-            } else {
-                if (offset + n > new_backing_size) {
-                    n = new_backing_size - offset;
-                }
-
-                ret = blk_pread(blk_new_backing, offset, n, buf_new, 0);
+            memset(buf_new + n_new, 0, n - n_new);
+            if (n_new) {
+                ret = blk_pread(blk_new_backing, offset, n_new, buf_new, 0);
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -3807,13 +3956,14 @@ static int img_rebase(int argc, char **argv)
                 int64_t pnum;
 
                 if (compare_buffers(buf_old + written, buf_new + written,
-                                    n - written, &pnum))
+                                    n - written, write_align, &pnum))
                 {
-                    if (buf_old_is_zero) {
+                    if (old_backing_eof) {
                         ret = blk_pwrite_zeroes(blk, offset + written, pnum, 0);
                     } else {
+                        assert(written + pnum <= IO_BUF_SIZE);
                         ret = blk_pwrite(blk, offset + written, pnum,
-                                         buf_old + written, 0);
+                                         buf_old + written, write_flags);
                     }
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
@@ -3823,6 +3973,9 @@ static int img_rebase(int argc, char **argv)
                 }
 
                 written += pnum;
+                if (offset + written >= old_backing_size) {
+                    old_backing_eof = true;
+                }
             }
             qemu_progress_print(local_progress, 100);
         }
@@ -4065,6 +4218,8 @@ static int print_amend_option_help(const char *format)
 {
     BlockDriver *drv;
 
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     /* Find driver and parse its options */
     drv = bdrv_find_format(format);
     if (!drv) {
@@ -4203,9 +4358,11 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
+    bdrv_graph_rdlock_main_loop();
     if (!bs->drv->bdrv_amend_options) {
         error_report("Format driver '%s' does not support option amendment",
                      fmt);
+        bdrv_graph_rdunlock_main_loop();
         ret = -1;
         goto out;
     }
@@ -4225,6 +4382,7 @@ static int img_amend(int argc, char **argv)
                               "This option is only supported for image creation\n");
         }
 
+        bdrv_graph_rdunlock_main_loop();
         error_report_err(err);
         ret = -1;
         goto out;
@@ -4234,6 +4392,8 @@ static int img_amend(int argc, char **argv)
     qemu_progress_print(0.f, 0);
     ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL, force, &err);
     qemu_progress_print(100.f, 0);
+    bdrv_graph_rdunlock_main_loop();
+
     if (ret < 0) {
         error_report_err(err);
         goto out;
@@ -4368,7 +4528,7 @@ static int img_bench(int argc, char **argv)
     struct timeval t1, t2;
     int i;
     bool force_share = false;
-    size_t buf_size;
+    size_t buf_size = 0;
 
     for (;;) {
         static const struct option long_options[] = {
@@ -4567,7 +4727,7 @@ static int img_bench(int argc, char **argv)
     data.buf = blk_blockalign(blk, buf_size);
     memset(data.buf, pattern, data.nrreq * data.bufsize);
 
-    blk_register_buf(blk, data.buf, buf_size);
+    blk_register_buf(blk, data.buf, buf_size, &error_fatal);
 
     data.qiov = g_new(QEMUIOVector, data.nrreq);
     for (i = 0; i < data.nrreq; i++) {
@@ -4590,7 +4750,7 @@ static int img_bench(int argc, char **argv)
 
 out:
     if (data.buf) {
-        blk_unregister_buf(blk, data.buf);
+        blk_unregister_buf(blk, data.buf, buf_size);
     }
     qemu_vfree(data.buf);
     blk_unref(blk);
@@ -4630,6 +4790,7 @@ static int img_bitmap(int argc, char **argv)
     QSIMPLEQ_HEAD(, ImgBitmapAction) actions;
     ImgBitmapAction *act, *act_next;
     const char *op;
+    int inactivate_ret;
 
     QSIMPLEQ_INIT(&actions);
 
@@ -4814,6 +4975,16 @@ static int img_bitmap(int argc, char **argv)
     ret = 0;
 
  out:
+    /*
+     * Manually inactivate the images first because this way we can know whether
+     * an error occurred. blk_unref() doesn't tell us about failures.
+     */
+    inactivate_ret = bdrv_inactivate_all();
+    if (inactivate_ret < 0) {
+        error_report("Error while closing the image: %s", strerror(-inactivate_ret));
+        ret = 1;
+    }
+
     blk_unref(src);
     blk_unref(blk);
     qemu_opts_del(opts);
@@ -4919,7 +5090,7 @@ static int img_dd(int argc, char **argv)
     const char *out_fmt = "raw";
     const char *fmt = NULL;
     int64_t size = 0;
-    int64_t block_count = 0, out_pos, in_pos;
+    int64_t out_pos, in_pos;
     bool force_share = false;
     struct DdInfo dd = {
         .flags = 0,
@@ -5119,7 +5290,7 @@ static int img_dd(int argc, char **argv)
 
     in.buf = g_new(uint8_t, in.bsz);
 
-    for (out_pos = 0; in_pos < size; block_count++) {
+    for (out_pos = 0; in_pos < size; ) {
         int bytes = (in_pos + in.bsz > size) ? size - in_pos : in.bsz;
 
         ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);

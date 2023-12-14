@@ -34,9 +34,6 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
-/* TODO actually test the results and get rid of this */
-#define qmp_discard_response(q, ...) qobject_unref(qtest_qmp(q, __VA_ARGS__))
-
 #define TEST_IMAGE_SIZE 64 * 1024 * 1024
 
 #define IDE_PCI_DEV     1
@@ -90,6 +87,7 @@ enum {
 
 enum {
     CMD_DSM         = 0x06,
+    CMD_DIAGNOSE    = 0x90,
     CMD_READ_DMA    = 0xc8,
     CMD_WRITE_DMA   = 0xca,
     CMD_FLUSH_CACHE = 0xe7,
@@ -121,9 +119,10 @@ enum {
 static QPCIBus *pcibus = NULL;
 static QGuestAllocator guest_malloc;
 
-static char tmp_path[] = "/tmp/qtest.XXXXXX";
-static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
+static char *tmp_path[2];
+static char *debug_path;
 
+G_GNUC_PRINTF(1, 2)
 static QTestState *ide_test_start(const char *cmdline_fmt, ...)
 {
     QTestState *qts;
@@ -310,7 +309,7 @@ static QTestState *test_bmdma_setup(void)
     qts = ide_test_start(
         "-drive file=%s,if=ide,cache=writeback,format=raw "
         "-global ide-hd.serial=%s -global ide-hd.ver=%s",
-        tmp_path, "testdisk", "version");
+        tmp_path[0], "testdisk", "version");
     qtest_irq_intercept_in(qts, "ioapic");
 
     return qts;
@@ -574,7 +573,7 @@ static void test_identify(void)
     qts = ide_test_start(
         "-drive file=%s,if=ide,cache=writeback,format=raw "
         "-global ide-hd.serial=%s -global ide-hd.ver=%s",
-        tmp_path, "testdisk", "version");
+        tmp_path[0], "testdisk", "version");
 
     dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
 
@@ -609,6 +608,36 @@ static void test_identify(void)
 
     /* Write cache enabled bit */
     assert_bit_set(buf[85], 0x20);
+
+    ide_test_quit(qts);
+    free_pci_device(dev);
+}
+
+static void test_diagnostic(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint8_t data;
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-blockdev driver=file,node-name=hdb,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 "
+        "-device ide-hd,drive=hdb,bus=ide.0,unit=1 ",
+        tmp_path[0], tmp_path[1]);
+
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* DIAGNOSE command on device 1 */
+    qpci_io_writeb(dev, ide_bar, reg_device, DEV);
+    data = qpci_io_readb(dev, ide_bar, reg_device);
+    g_assert_cmphex(data & DEV, ==, DEV);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_DIAGNOSE);
+
+    /* Verify that DEVICE is now 0 */
+    data = qpci_io_readb(dev, ide_bar, reg_device);
+    g_assert_cmphex(data & DEV, ==, 0);
 
     ide_test_quit(qts);
     free_pci_device(dev);
@@ -662,7 +691,7 @@ static void test_flush(void)
 
     qts = ide_test_start(
         "-drive file=blkdebug::%s,if=ide,cache=writeback,format=raw",
-        tmp_path);
+        tmp_path[0]);
 
     dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
 
@@ -713,7 +742,7 @@ static void test_pci_retry_flush(void)
     qts = ide_test_start(
         "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,format=raw,"
         "rerror=stop,werror=stop",
-        debug_path, tmp_path);
+        debug_path, tmp_path[0]);
 
     dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
 
@@ -734,7 +763,7 @@ static void test_pci_retry_flush(void)
     qtest_qmp_eventwait(qts, "STOP");
 
     /* Complete the command */
-    qmp_discard_response(qts, "{'execute':'cont' }");
+    qtest_qmp_assert_success(qts, "{'execute':'cont' }");
 
     /* Check registers */
     data = qpci_io_readb(dev, ide_bar, reg_device);
@@ -757,7 +786,7 @@ static void test_flush_nodev(void)
     QPCIDevice *dev;
     QPCIBar bmdma_bar, ide_bar;
 
-    qts = ide_test_start("");
+    qts = ide_test_start("%s", "");
 
     dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
 
@@ -892,14 +921,14 @@ static void cdrom_pio_impl(int nblocks)
 
     /* Prepopulate the CDROM with an interesting pattern */
     generate_pattern(pattern, patt_len, ATAPI_BLOCK_SIZE);
-    fh = fopen(tmp_path, "w+");
+    fh = fopen(tmp_path[0], "wb+");
     ret = fwrite(pattern, ATAPI_BLOCK_SIZE, patt_blocks, fh);
     g_assert_cmpint(ret, ==, patt_blocks);
     fclose(fh);
 
     qts = ide_test_start(
             "-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
-            "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
+            "-device ide-cd,drive=sr0,bus=ide.0", tmp_path[0]);
     dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
     qtest_irq_intercept_in(qts, "ioapic");
 
@@ -985,7 +1014,7 @@ static void test_cdrom_dma(void)
 
     qts = ide_test_start(
             "-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
-            "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
+            "-device ide-cd,drive=sr0,bus=ide.0", tmp_path[0]);
     qtest_irq_intercept_in(qts, "ioapic");
 
     guest_buf = guest_alloc(&guest_malloc, len);
@@ -993,7 +1022,7 @@ static void test_cdrom_dma(void)
     prdt[0].size = cpu_to_le32(len | PRDT_EOT);
 
     generate_pattern(pattern, ATAPI_BLOCK_SIZE * 16, ATAPI_BLOCK_SIZE);
-    fh = fopen(tmp_path, "w+");
+    fh = fopen(tmp_path[0], "wb+");
     ret = fwrite(pattern, ATAPI_BLOCK_SIZE, 16, fh);
     g_assert_cmpint(ret, ==, 16);
     fclose(fh);
@@ -1011,25 +1040,46 @@ static void test_cdrom_dma(void)
 
 int main(int argc, char **argv)
 {
+    const char *base;
+    int i;
     int fd;
     int ret;
 
+    /*
+     * "base" stores the starting point where we create temporary files.
+     *
+     * On Windows, this is set to the relative path of current working
+     * directory, because the absolute path causes the blkdebug filename
+     * parser fail to parse "blkdebug:path/to/config:path/to/image".
+     */
+#ifndef _WIN32
+    base = g_get_tmp_dir();
+#else
+    base = ".";
+#endif
+
     /* Create temporary blkdebug instructions */
-    fd = mkstemp(debug_path);
+    debug_path = g_strdup_printf("%s/qtest-blkdebug.XXXXXX", base);
+    fd = g_mkstemp(debug_path);
     g_assert(fd >= 0);
     close(fd);
 
     /* Create a temporary raw image */
-    fd = mkstemp(tmp_path);
-    g_assert(fd >= 0);
-    ret = ftruncate(fd, TEST_IMAGE_SIZE);
-    g_assert(ret == 0);
-    close(fd);
+    for (i = 0; i < 2; ++i) {
+        tmp_path[i] = g_strdup_printf("%s/qtest.XXXXXX", base);
+        fd = g_mkstemp(tmp_path[i]);
+        g_assert(fd >= 0);
+        ret = ftruncate(fd, TEST_IMAGE_SIZE);
+        g_assert(ret == 0);
+        close(fd);
+    }
 
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/ide/identify", test_identify);
+
+    qtest_add_func("/ide/diagnostic", test_diagnostic);
 
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
     qtest_add_func("/ide/bmdma/trim", test_bmdma_trim);
@@ -1048,8 +1098,12 @@ int main(int argc, char **argv)
     ret = g_test_run();
 
     /* Cleanup */
-    unlink(tmp_path);
+    for (i = 0; i < 2; ++i) {
+        unlink(tmp_path[i]);
+        g_free(tmp_path[i]);
+    }
     unlink(debug_path);
+    g_free(debug_path);
 
     return ret;
 }

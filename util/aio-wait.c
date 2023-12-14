@@ -82,5 +82,5 @@ void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
     aio_bh_schedule_oneshot(ctx, aio_wait_bh, &data);
-    AIO_WAIT_WHILE(ctx, !data.done);
+    AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
 }

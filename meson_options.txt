@@ -12,8 +12,6 @@ option('pkgversion', type : 'string', value : '',
        description: 'use specified string as sub-version of the package')
 option('smbd', type : 'string', value : '',
        description: 'Path to smbd for slirp networking')
-option('sphinx_build', type : 'string', value : '',
-       description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
 option('tls_priority', type : 'string', value : 'NORMAL',
@@ -21,7 +19,7 @@ option('tls_priority', type : 'string', value : 'NORMAL',
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
 option('audio_drv_list', type: 'array', value: ['default'],
-       choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
+       choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'pipewire', 'sdl', 'sndio'],
        description: 'Set audio driver list')
 option('block_drv_rw_whitelist', type : 'string', value : '',
        description: 'set block driver read-write whitelist (by default affects only QEMU, not tools like qemu-img)')
@@ -33,6 +31,9 @@ option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
        description: 'Trace file prefix for simple backend')
+option('coroutine_backend', type: 'combo',
+       choices: ['ucontext', 'sigaltstack', 'windows', 'auto'],
+       value: 'auto', description: 'coroutine backend to use')
 
 # Everything else can be set via --enable/--disable-* option
 # on the configure script command line.  After adding an option
@@ -44,6 +45,8 @@ option('fuzzing', type : 'boolean', value: false,
        description: 'build fuzzing targets')
 option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
+option('modules', type : 'feature', value : 'disabled',
+       description: 'modules support (non Windows)')
 option('module_upgrades', type : 'boolean', value : false,
        description: 'try to load modules from alternate paths for upgrades')
 option('install_blobs', type : 'boolean', value : true,
@@ -66,8 +69,6 @@ option('malloc', type : 'combo', choices : ['system', 'tcmalloc', 'jemalloc'],
 
 option('kvm', type: 'feature', value: 'auto',
        description: 'KVM acceleration support')
-option('hax', type: 'feature', value: 'auto',
-       description: 'HAX acceleration support')
 option('whpx', type: 'feature', value: 'auto',
        description: 'WHPX acceleration support')
 option('hvf', type: 'feature', value: 'auto',
@@ -80,14 +81,28 @@ option('xen_pci_passthrough', type: 'feature', value: 'auto',
        description: 'Xen PCI passthrough support')
 option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
+option('plugins', type: 'boolean', value: false,
+       description: 'TCG plugins via shared library loading')
+option('debug_tcg', type: 'boolean', value: false,
+       description: 'TCG debugging')
 option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
-option('cfi', type: 'boolean', value: 'false',
+option('safe_stack', type: 'boolean', value: false,
+       description: 'SafeStack Stack Smash Protection (requires clang/llvm and coroutine backend ucontext)')
+option('sanitizers', type: 'boolean', value: false,
+       description: 'enable default sanitizers')
+option('tsan', type: 'boolean', value: false,
+       description: 'enable thread sanitizer')
+option('stack_protector', type: 'feature', value: 'auto',
+       description: 'compiler-provided stack protection')
+option('cfi', type: 'boolean', value: false,
        description: 'Control-Flow Integrity (CFI)')
-option('cfi_debug', type: 'boolean', value: 'false',
+option('cfi_debug', type: 'boolean', value: false,
        description: 'Verbose errors in case of CFI violation')
 option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
+option('relocatable', type : 'boolean', value : 'true',
+       description: 'toggle relocatable install')
 option('vfio_user_server', type: 'feature', value: 'disabled',
        description: 'vfio-user server support')
 option('dbus_display', type: 'feature', value: 'auto',
@@ -104,9 +119,15 @@ option('avx2', type: 'feature', value: 'auto',
        description: 'AVX2 optimizations')
 option('avx512f', type: 'feature', value: 'disabled',
        description: 'AVX512F optimizations')
+option('avx512bw', type: 'feature', value: 'auto',
+       description: 'AVX512BW optimizations')
 option('keyring', type: 'feature', value: 'auto',
        description: 'Linux keyring support')
+option('libkeyutils', type: 'feature', value: 'auto',
+       description: 'Linux keyutils support')
 
+option('af_xdp', type : 'feature', value : 'auto',
+       description: 'AF_XDP network backend support')
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
 option('auth_pam', type : 'feature', value : 'auto',
@@ -117,6 +138,8 @@ option('bzip2', type : 'feature', value : 'auto',
        description: 'bzip2 support for DMG images')
 option('cap_ng', type : 'feature', value : 'auto',
        description: 'cap_ng support')
+option('blkio', type : 'feature', value : 'auto',
+       description: 'libblkio block device driver')
 option('bpf', type : 'feature', value : 'auto',
         description: 'eBPF support')
 option('cocoa', type : 'feature', value : 'auto',
@@ -127,6 +150,10 @@ option('gio', type : 'feature', value : 'auto',
        description: 'use libgio for D-Bus support')
 option('glusterfs', type : 'feature', value : 'auto',
        description: 'Glusterfs block device driver')
+option('hv_balloon', type : 'feature', value : 'auto',
+       description: 'hv-balloon driver (requires Glib 2.68+ GTree API)')
+option('libdw', type : 'feature', value : 'auto',
+       description: 'debuginfo support')
 option('libiscsi', type : 'feature', value : 'auto',
        description: 'libiscsi userspace initiator')
 option('libnfs', type : 'feature', value : 'auto',
@@ -199,12 +226,18 @@ option('l2tpv3', type : 'feature', value : 'auto',
        description: 'l2tpv3 network backend support')
 option('netmap', type : 'feature', value : 'auto',
        description: 'netmap network backend support')
+option('pixman', type : 'feature', value : 'auto',
+       description: 'pixman support')
+option('slirp', type: 'feature', value: 'auto',
+       description: 'libslirp user mode network backend support')
 option('vde', type : 'feature', value : 'auto',
        description: 'vde network backend support')
 option('vmnet', type : 'feature', value : 'auto',
        description: 'vmnet.framework network backend support')
 option('virglrenderer', type : 'feature', value : 'auto',
        description: 'virgl rendering support')
+option('rutabaga_gfx', type : 'feature', value : 'auto',
+       description: 'rutabaga_gfx support')
 option('png', type : 'feature', value : 'auto',
        description: 'PNG support with libpng')
 option('vnc', type : 'feature', value : 'auto',
@@ -215,6 +248,13 @@ option('vnc_sasl', type : 'feature', value : 'auto',
        description: 'SASL authentication for VNC server')
 option('vte', type : 'feature', value : 'auto',
        description: 'vte support for the gtk UI')
+
+# GTK Clipboard implementation is disabled by default, since it may cause hangs
+# of the guest VCPUs. See gitlab issue 1150:
+# https://gitlab.com/qemu-project/qemu/-/issues/1150
+
+option('gtk_clipboard', type: 'feature', value : 'disabled',
+       description: 'clipboard support for the gtk UI (EXPERIMENTAL, MAY HANG)')
 option('xkbcommon', type : 'feature', value : 'auto',
        description: 'xkbcommon support')
 option('zstd', type : 'feature', value : 'auto',
@@ -240,6 +280,10 @@ option('oss', type: 'feature', value: 'auto',
        description: 'OSS sound support')
 option('pa', type: 'feature', value: 'auto',
        description: 'PulseAudio sound support')
+option('pipewire', type: 'feature', value: 'auto',
+       description: 'PipeWire sound support')
+option('sndio', type: 'feature', value: 'auto',
+       description: 'sndio sound support')
 
 option('vhost_kernel', type: 'feature', value: 'auto',
        description: 'vhost kernel backend support')
@@ -255,8 +299,8 @@ option('vhost_user_blk_server', type: 'feature', value: 'auto',
        description: 'build vhost-user-blk server')
 option('virtfs', type: 'feature', value: 'auto',
        description: 'virtio-9p support')
-option('virtiofsd', type: 'feature', value: 'auto',
-       description: 'build virtiofs daemon (virtiofsd)')
+option('virtfs_proxy_helper', type: 'feature', value: 'auto',
+       description: 'virtio-9p proxy helper support')
 option('libvduse', type: 'feature', value: 'auto',
        description: 'build VDUSE Library')
 option('vduse_blk_export', type: 'feature', value: 'auto',
@@ -264,9 +308,6 @@ option('vduse_blk_export', type: 'feature', value: 'auto',
 
 option('capstone', type: 'feature', value: 'auto',
        description: 'Whether and how to find the capstone library')
-option('slirp', type: 'combo', value: 'auto',
-       choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],
-       description: 'Whether and how to find the slirp library')
 option('fdt', type: 'combo', value: 'auto',
        choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],
        description: 'Whether and how to find the libfdt library')
@@ -277,6 +318,8 @@ option('live_block_migration', type: 'feature', value: 'auto',
        description: 'block migration in the main migration stream')
 option('replication', type: 'feature', value: 'auto',
        description: 'replication support')
+option('colo_proxy', type: 'feature', value: 'auto',
+       description: 'colo-proxy support')
 option('bochs', type: 'feature', value: 'auto',
        description: 'bochs image format support')
 option('cloop', type: 'feature', value: 'auto',
@@ -287,6 +330,12 @@ option('qcow1', type: 'feature', value: 'auto',
        description: 'qcow1 image format support')
 option('vdi', type: 'feature', value: 'auto',
        description: 'vdi image format support')
+option('vhdx', type: 'feature', value: 'auto',
+       description: 'vhdx image format support')
+option('vmdk', type: 'feature', value: 'auto',
+       description: 'vmdk image format support')
+option('vpc', type: 'feature', value: 'auto',
+       description: 'vpc image format support')
 option('vvfat', type: 'feature', value: 'auto',
        description: 'vvfat image format support')
 option('qed', type: 'feature', value: 'auto',
@@ -299,15 +348,23 @@ option('rng_none', type: 'boolean', value: false,
        description: 'dummy RNG, avoid using /dev/(u)random and getrandom()')
 option('coroutine_pool', type: 'boolean', value: true,
        description: 'coroutine freelist (better performance)')
+option('debug_graph_lock', type: 'boolean', value: false,
+       description: 'graph lock debugging support')
 option('debug_mutex', type: 'boolean', value: false,
        description: 'mutex debugging support')
 option('debug_stack_usage', type: 'boolean', value: false,
        description: 'measure coroutine stack usage')
-option('qom_cast_debug', type: 'boolean', value: false,
+option('qom_cast_debug', type: 'boolean', value: true,
        description: 'cast debugging support')
-option('gprof', type: 'boolean', value: false,
-       description: 'QEMU profiling with gprof')
-option('profiler', type: 'boolean', value: false,
-       description: 'profiler support')
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
+
+option('qemu_ga_manufacturer', type: 'string', value: 'QEMU',
+       description: '"manufacturer" name for qemu-ga registry entries')
+option('qemu_ga_distro', type: 'string', value: 'Linux',
+       description: 'second path element in qemu-ga registry entries')
+option('qemu_ga_version', type: 'string', value: '',
+       description: 'version number for qemu-ga installer')
+
+option('hexagon_idef_parser', type : 'boolean', value : true,
+       description: 'use idef-parser to automatically generate TCG code for the Hexagon frontend')

@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/irq.h"
 #include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"
@@ -32,9 +32,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(I82378State, I82378)
 struct I82378State {
     PCIDevice parent_obj;
 
-    qemu_irq out[2];
-    qemu_irq *i8259;
-    MemoryRegion io;
+    qemu_irq cpu_intr;
+    qemu_irq *isa_irqs_in;
 };
 
 static const VMStateDescription vmstate_i82378 = {
@@ -50,7 +49,7 @@ static const VMStateDescription vmstate_i82378 = {
 static void i82378_request_out0_irq(void *opaque, int irq, int level)
 {
     I82378State *s = opaque;
-    qemu_set_irq(s->out[0], level);
+    qemu_set_irq(s->cpu_intr, level);
 }
 
 static void i82378_request_pic_irq(void *opaque, int irq, int level)
@@ -58,7 +57,7 @@ static void i82378_request_pic_irq(void *opaque, int irq, int level)
     DeviceState *dev = opaque;
     I82378State *s = I82378(dev);
 
-    qemu_set_irq(s->i8259[irq], level);
+    qemu_set_irq(s->isa_irqs_in[irq], level);
 }
 
 static void i82378_realize(PCIDevice *pci, Error **errp)
@@ -68,6 +67,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
     uint8_t *pci_conf;
     ISABus *isabus;
     ISADevice *pit;
+    ISADevice *pcspk;
 
     pci_conf = pci->config;
     pci_set_word(pci_conf + PCI_COMMAND,
@@ -94,15 +94,20 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
      */
 
     /* 2 82C59 (irq) */
-    s->i8259 = i8259_init(isabus,
-                          qemu_allocate_irq(i82378_request_out0_irq, s, 0));
-    isa_bus_irqs(isabus, s->i8259);
+    s->isa_irqs_in = i8259_init(isabus,
+                                qemu_allocate_irq(i82378_request_out0_irq,
+                                                  s, 0));
+    isa_bus_register_input_irqs(isabus, s->isa_irqs_in);
 
     /* 1 82C54 (pit) */
     pit = i8254_pit_init(isabus, 0x40, 0, NULL);
 
     /* speaker */
-    pcspk_init(isa_new(TYPE_PC_SPEAKER), isabus, pit);
+    pcspk = isa_new(TYPE_PC_SPEAKER);
+    object_property_set_link(OBJECT(pcspk), "pit", OBJECT(pit), &error_fatal);
+    if (!isa_realize_and_unref(pcspk, isabus, errp)) {
+        return;
+    }
 
     /* 2 82C37 (dma) */
     isa_create_simple(isabus, "i82374");
@@ -113,7 +118,7 @@ static void i82378_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     I82378State *s = I82378(obj);
 
-    qdev_init_gpio_out(dev, s->out, 1);
+    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
     qdev_init_gpio_in(dev, i82378_request_pic_irq, 16);
 }
 

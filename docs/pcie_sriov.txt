@@ -9,10 +9,7 @@ virtual functions (VFs) for the main purpose of eliminating software
 overhead in I/O from virtual machines.
 
 QEMU now implements the basic common functionality to enable an emulated device
-to support SR/IOV. Yet no fully implemented devices exists in QEMU, but a
-proof-of-concept hack of the Intel igb can be found here:
-
-git://github.com/knuto/qemu.git sriov_patches_v5
+to support SR/IOV.
 
 Implementation
 ==============
@@ -51,7 +48,7 @@ setting up a BAR for a VF.
       ...
       int ret = pcie_endpoint_cap_init(d, 0x70);
       ...
-      pcie_ari_init(d, 0x100, 1);
+      pcie_ari_init(d, 0x100);
       ...
 
       /* Add and initialize the SR/IOV capability */
@@ -81,7 +78,7 @@ setting up a BAR for a VF.
       ...
       int ret = pcie_endpoint_cap_init(d, 0x60);
       ...
-      pcie_ari_init(d, 0x100, 1);
+      pcie_ari_init(d, 0x100);
       ...
       memory_region_init(mr, ... )
       pcie_sriov_vf_register_bar(d, bar_nr, mr);

@@ -277,7 +277,7 @@ void free_aml_allocator(void);
  * @child: element that is copied into @parent_ctx context
  *
  * Joins Aml elements together and helps to construct AML tables
- * Examle of usage:
+ * Example of usage:
  *   Aml *table = aml_def_block("SSDT", ...);
  *   Aml *sb = aml_scope("\\_SB");
  *   Aml *dev = aml_device("PCI0");

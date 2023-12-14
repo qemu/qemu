@@ -14,21 +14,21 @@
 #ifndef QEMU_VIRTIO_PMEM_PCI_H
 #define QEMU_VIRTIO_PMEM_PCI_H
 
-#include "hw/virtio/virtio-pci.h"
+#include "hw/virtio/virtio-md-pci.h"
 #include "hw/virtio/virtio-pmem.h"
 #include "qom/object.h"
 
 typedef struct VirtIOPMEMPCI VirtIOPMEMPCI;
 
 /*
- * virtio-pmem-pci: This extends VirtioPCIProxy.
+ * virtio-pmem-pci: This extends VirtIOMDPCI.
  */
 #define TYPE_VIRTIO_PMEM_PCI "virtio-pmem-pci-base"
 DECLARE_INSTANCE_CHECKER(VirtIOPMEMPCI, VIRTIO_PMEM_PCI,
                          TYPE_VIRTIO_PMEM_PCI)
 
 struct VirtIOPMEMPCI {
-    VirtIOPCIProxy parent_obj;
+    VirtIOMDPCI parent_obj;
     VirtIOPMEM vdev;
 };
 

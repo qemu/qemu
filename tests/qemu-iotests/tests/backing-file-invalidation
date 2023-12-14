@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+# group: rw migration
+#
+# Migrate a VM with a BDS with backing nodes, which runs
+# bdrv_invalidate_cache(), which for qcow2 and qed triggers reading the
+# backing file string from the image header.  Check whether this
+# interferes with bdrv_backing_overridden().
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import json
+import os
+from typing import Optional
+
+import iotests
+from iotests import qemu_img_create, qemu_img_info
+
+
+image_size = 1 * 1024 * 1024
+imgs = [os.path.join(iotests.test_dir, f'{i}.img') for i in range(0, 4)]
+
+mig_sock = os.path.join(iotests.sock_dir, 'mig.sock')
+
+
+class TestPostMigrateFilename(iotests.QMPTestCase):
+    vm_s: Optional[iotests.VM] = None
+    vm_d: Optional[iotests.VM] = None
+
+    def setUp(self) -> None:
+        # Create backing chain of three images, where the backing file strings
+        # are json:{} filenames
+        qemu_img_create('-f', iotests.imgfmt, imgs[0], str(image_size))
+        for i in range(1, 3):
+            backing = {
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': imgs[i - 1]
+                }
+            }
+            qemu_img_create('-f', iotests.imgfmt, '-F', iotests.imgfmt,
+                            '-b', 'json:' + json.dumps(backing),
+                            imgs[i], str(image_size))
+
+    def tearDown(self) -> None:
+        if self.vm_s is not None:
+            self.vm_s.shutdown()
+        if self.vm_d is not None:
+            self.vm_d.shutdown()
+
+        for img in imgs:
+            try:
+                os.remove(img)
+            except OSError:
+                pass
+        try:
+            os.remove(mig_sock)
+        except OSError:
+            pass
+
+    def test_migration(self) -> None:
+        """
+        Migrate a VM with the backing chain created in setUp() attached.  At
+        the end of the migration process, the destination will run
+        bdrv_invalidate_cache(), which for some image formats (qcow2 and qed)
+        means the backing file string is re-read from the image header.  If
+        this overwrites bs->auto_backing_file, doing so may cause
+        bdrv_backing_overridden() to become true: The image header reports a
+        json:{} filename, but when opening it, bdrv_refresh_filename() will
+        simplify it to a plain simple filename; and when bs->auto_backing_file
+        and bs->backing->bs->filename differ, bdrv_backing_overridden() becomes
+        true.
+        If bdrv_backing_overridden() is true, the BDS will be forced to get a
+        json:{} filename, which in general is not the end of the world, but not
+        great.  Check whether that happens, i.e. whether migration changes the
+        node's filename.
+        """
+
+        blockdev = {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': imgs[2]
+            }
+        }
+
+        self.vm_s = iotests.VM(path_suffix='a') \
+                           .add_blockdev(json.dumps(blockdev))
+        self.vm_d = iotests.VM(path_suffix='b') \
+                           .add_blockdev(json.dumps(blockdev)) \
+                           .add_incoming(f'unix:{mig_sock}')
+
+        assert self.vm_s is not None
+        assert self.vm_d is not None
+
+        self.vm_s.launch()
+        self.vm_d.launch()
+
+        pre_mig_filename = self.vm_s.node_info('node0')['file']
+
+        self.vm_s.qmp('migrate', uri=f'unix:{mig_sock}')
+
+        # Wait for migration to be done
+        self.vm_s.event_wait('STOP')
+        self.vm_d.event_wait('RESUME')
+
+        post_mig_filename = self.vm_d.node_info('node0')['file']
+
+        # Verify that the filename hasn't changed from before the migration
+        self.assertEqual(pre_mig_filename, post_mig_filename)
+
+        self.vm_s.shutdown()
+        self.vm_s = None
+
+        # For good measure, try creating an overlay and check its backing
+        # chain below.  This is how the issue was originally found.
+        self.vm_d.cmd('blockdev-snapshot-sync',
+                      format=iotests.imgfmt,
+                      snapshot_file=imgs[3],
+                      node_name='node0',
+                      snapshot_node_name='node0-overlay')
+
+        self.vm_d.shutdown()
+        self.vm_d = None
+
+        # Check the newly created overlay's backing chain
+        chain = qemu_img_info('--backing-chain', imgs[3])
+        for index, image in enumerate(chain):
+            self.assertEqual(image['filename'], imgs[3 - index])
+
+
+if __name__ == '__main__':
+    # These are the image formats that run their open() function from their
+    # .bdrv_co_invaliate_cache() implementations, so test them
+    iotests.main(supported_fmts=['qcow2', 'qed'],
+                 supported_protocols=['file'])

@@ -278,7 +278,9 @@ typedef struct BulkIn {
 struct CCIDBus {
     BusState qbus;
 };
-typedef struct CCIDBus CCIDBus;
+
+#define TYPE_CCID_BUS "ccid-bus"
+OBJECT_DECLARE_SIMPLE_TYPE(CCIDBus, CCID_BUS)
 
 /*
  * powered - defaults to true, changed by PowerOn/PowerOff messages
@@ -1173,9 +1175,6 @@ static Property ccid_props[] = {
     DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
-
-#define TYPE_CCID_BUS "ccid-bus"
-OBJECT_DECLARE_SIMPLE_TYPE(CCIDBus, CCID_BUS)
 
 static const TypeInfo ccid_bus_info = {
     .name = TYPE_CCID_BUS,

@@ -30,51 +30,9 @@
 #include "sysemu/watchdog.h"
 #include "hw/nmi.h"
 #include "qemu/help_option.h"
+#include "trace.h"
 
 static WatchdogAction watchdog_action = WATCHDOG_ACTION_RESET;
-static QLIST_HEAD(, WatchdogTimerModel) watchdog_list;
-
-void watchdog_add_model(WatchdogTimerModel *model)
-{
-    QLIST_INSERT_HEAD(&watchdog_list, model, entry);
-}
-
-/* Returns:
- *   0 = continue
- *   1 = exit program with error
- *   2 = exit program without error
- */
-int select_watchdog(const char *p)
-{
-    WatchdogTimerModel *model;
-    QemuOpts *opts;
-
-    /* -watchdog ? lists available devices and exits cleanly. */
-    if (is_help_option(p)) {
-        QLIST_FOREACH(model, &watchdog_list, entry) {
-            fprintf(stderr, "\t%s\t%s\n",
-                     model->wdt_name, model->wdt_description);
-        }
-        return 2;
-    }
-
-    QLIST_FOREACH(model, &watchdog_list, entry) {
-        if (strcasecmp(model->wdt_name, p) == 0) {
-            /* add the device */
-            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
-                                    &error_abort);
-            qemu_opt_set(opts, "driver", p, &error_abort);
-            return 0;
-        }
-    }
-
-    fprintf(stderr, "Unknown -watchdog device. Supported devices are:\n");
-    QLIST_FOREACH(model, &watchdog_list, entry) {
-        fprintf(stderr, "\t%s\t%s\n",
-                 model->wdt_name, model->wdt_description);
-    }
-    return 1;
-}
 
 WatchdogAction get_watchdog_action(void)
 {
@@ -86,6 +44,8 @@ WatchdogAction get_watchdog_action(void)
  */
 void watchdog_perform_action(void)
 {
+    trace_watchdog_perform_action(watchdog_action);
+
     switch (watchdog_action) {
     case WATCHDOG_ACTION_RESET:     /* same as 'system_reset' in monitor */
         qapi_event_send_watchdog(WATCHDOG_ACTION_RESET);
@@ -132,4 +92,5 @@ void watchdog_perform_action(void)
 void qmp_watchdog_set_action(WatchdogAction action, Error **errp)
 {
     watchdog_action = action;
+    trace_watchdog_set_action(watchdog_action);
 }

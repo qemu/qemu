@@ -48,8 +48,8 @@ Place only the following kinds of devices directly on the Root Complex:
         strangely when PCI Express devices are integrated
         with the Root Complex.
 
-    (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
-        hierarchies.
+    (2) PCI Express Root Ports (pcie-root-port), for starting exclusively
+        PCI Express hierarchies.
 
     (3) PCI Express to PCI Bridge (pcie-pci-bridge), for starting legacy PCI
         hierarchies.
@@ -70,7 +70,7 @@ Place only the following kinds of devices directly on the Root Complex:
           -device pxb-pcie,id=pcie.1,bus_nr=x[,numa_node=y][,addr=z]
       PCI Express Root Ports and PCI Express to PCI bridges can be
       connected to the pcie.1 bus:
-          -device ioh3420,id=root_port1[,bus=pcie.1][,chassis=x][,slot=y][,addr=z]                                     \
+          -device pcie-root-port,id=root_port1[,bus=pcie.1][,chassis=x][,slot=y][,addr=z] \
           -device pcie-pci-bridge,id=pcie_pci_bridge1,bus=pcie.1
 
 
@@ -112,14 +112,14 @@ Plug only PCI Express devices into PCI Express Ports.
                                              ------------
 
 2.2.1 Plugging a PCI Express device into a PCI Express Root Port:
-          -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
+          -device pcie-root-port,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
           -device <dev>,bus=root_port1
 2.2.2 Using multi-function PCI Express Root Ports:
-      -device ioh3420,id=root_port1,multifunction=on,chassis=x,addr=z.0[,slot=y][,bus=pcie.0] \
-      -device ioh3420,id=root_port2,chassis=x1,addr=z.1[,slot=y1][,bus=pcie.0] \
-      -device ioh3420,id=root_port3,chassis=x2,addr=z.2[,slot=y2][,bus=pcie.0] \
+      -device pcie-root-port,id=root_port1,multifunction=on,chassis=x,addr=z.0[,slot=y][,bus=pcie.0] \
+      -device pcie-root-port,id=root_port2,chassis=x1,addr=z.1[,slot=y1][,bus=pcie.0] \
+      -device pcie-root-port,id=root_port3,chassis=x2,addr=z.2[,slot=y2][,bus=pcie.0] \
 2.2.3 Plugging a PCI Express device into a Switch:
-      -device ioh3420,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
+      -device pcie-root-port,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
       -device x3130-upstream,id=upstream_port1,bus=root_port1[,addr=x]          \
       -device xio3130-downstream,id=downstream_port1,bus=upstream_port1,chassis=x1,slot=y1[,addr=z1]] \
       -device <dev>,bus=downstream_port1

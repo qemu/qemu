@@ -320,7 +320,8 @@ static target_ulong h_scm_write_metadata(PowerPCCPU *cpu,
 
     nvdimm = NVDIMM(drc->dev);
     if ((offset + len < offset) ||
-        (nvdimm->label_size < len + offset)) {
+        (nvdimm->label_size < len + offset) ||
+        nvdimm->readonly) {
         return H_P2;
     }
 
@@ -377,7 +378,7 @@ static target_ulong h_scm_bind_mem(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     /*
      * Currently continue token should be zero qemu has already bound
-     * everything and this hcall doesnt return H_BUSY.
+     * everything and this hcall doesn't return H_BUSY.
      */
     if (continue_token > 0) {
         return H_P5;
@@ -496,7 +497,6 @@ static int spapr_nvdimm_flush_post_load(void *opaque, int version_id)
 {
     SpaprNVDIMMDevice *s_nvdimm = (SpaprNVDIMMDevice *)opaque;
     SpaprNVDIMMDeviceFlushState *state;
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     HostMemoryBackend *backend = MEMORY_BACKEND(PC_DIMM(s_nvdimm)->hostmem);
     bool is_pmem = object_property_get_bool(OBJECT(backend), "pmem", NULL);
     bool pmem_override = object_property_get_bool(OBJECT(s_nvdimm),
@@ -517,7 +517,7 @@ static int spapr_nvdimm_flush_post_load(void *opaque, int version_id)
     }
 
     QLIST_FOREACH(state, &s_nvdimm->pending_nvdimm_flush_states, node) {
-        thread_pool_submit_aio(pool, flush_worker_cb, state,
+        thread_pool_submit_aio(flush_worker_cb, state,
                                spapr_nvdimm_flush_completion_cb, state);
     }
 
@@ -589,7 +589,7 @@ void spapr_nvdimm_finish_flushes(void)
      * Called on reset path, the main loop thread which calls
      * the pending BHs has gotten out running in the reset path,
      * finally reaching here. Other code path being guest
-     * h_client_architecture_support, thats early boot up.
+     * h_client_architecture_support, that's early boot up.
      */
     nvdimms = nvdimm_get_device_list();
     for (list = nvdimms; list; list = list->next) {
@@ -664,7 +664,6 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     PCDIMMDevice *dimm;
     HostMemoryBackend *backend = NULL;
     SpaprNVDIMMDeviceFlushState *state;
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     int fd;
 
     if (!drc || !drc->dev ||
@@ -699,7 +698,7 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
         state->drcidx = drc_index;
 
-        thread_pool_submit_aio(pool, flush_worker_cb, state,
+        thread_pool_submit_aio(flush_worker_cb, state,
                                spapr_nvdimm_flush_completion_cb, state);
 
         continue_token = state->continue_token;
@@ -877,8 +876,7 @@ static void spapr_nvdimm_realize(NVDIMMDevice *dimm, Error **errp)
         s_nvdimm->hcall_flush_required = true;
     }
 
-    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_spapr_nvdimm_states, dimm);
+    vmstate_register_any(NULL, &vmstate_spapr_nvdimm_states, dimm);
 }
 
 static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)

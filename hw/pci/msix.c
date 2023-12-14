@@ -26,6 +26,8 @@
 #include "qapi/error.h"
 #include "trace.h"
 
+#include "hw/i386/kvm/xen_evtchn.h"
+
 /* MSI enable bit and maskall bit are in byte 1 in FLAGS register */
 #define MSIX_CONTROL_OFFSET (PCI_MSIX_FLAGS + 1)
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
@@ -124,6 +126,13 @@ static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
 {
     bool is_masked = msix_is_masked(dev, vector);
 
+    if (xen_mode == XEN_EMULATE) {
+        MSIMessage msg = msix_prepare_message(dev, vector);
+
+        xen_evtchn_snoop_msi(dev, true, vector, msg.address, msg.data,
+                             is_masked);
+    }
+
     if (is_masked == was_masked) {
         return;
     }
@@ -136,17 +145,12 @@ static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
     }
 }
 
-void msix_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp)
+void msix_set_mask(PCIDevice *dev, int vector, bool mask)
 {
-    ERRP_GUARD();
     unsigned offset;
     bool was_masked;
 
-    if (vector > dev->msix_entries_nr) {
-        error_setg(errp, "msix: vector %d not allocated. max vector is %d",
-                   vector, dev->msix_entries_nr);
-        return;
-    }
+    assert(vector < dev->msix_entries_nr);
 
     offset = vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
 
@@ -522,7 +526,9 @@ void msix_notify(PCIDevice *dev, unsigned vector)
 {
     MSIMessage msg;
 
-    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector]) {
+    assert(vector < dev->msix_entries_nr);
+
+    if (!dev->msix_entry_used[vector]) {
         return;
     }
 
@@ -558,20 +564,17 @@ void msix_reset(PCIDevice *dev)
  * don't want to follow the spec suggestion can declare all vectors as used. */
 
 /* Mark vector as used. */
-int msix_vector_use(PCIDevice *dev, unsigned vector)
+void msix_vector_use(PCIDevice *dev, unsigned vector)
 {
-    if (vector >= dev->msix_entries_nr) {
-        return -EINVAL;
-    }
-
+    assert(vector < dev->msix_entries_nr);
     dev->msix_entry_used[vector]++;
-    return 0;
 }
 
 /* Mark vector as unused. */
 void msix_vector_unuse(PCIDevice *dev, unsigned vector)
 {
-    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector]) {
+    assert(vector < dev->msix_entries_nr);
+    if (!dev->msix_entry_used[vector]) {
         return;
     }
     if (--dev->msix_entry_used[vector]) {
@@ -645,6 +648,7 @@ undo:
     }
     dev->msix_vector_use_notifier = NULL;
     dev->msix_vector_release_notifier = NULL;
+    dev->msix_vector_poll_notifier = NULL;
     return ret;
 }
 

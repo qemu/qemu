@@ -4,9 +4,9 @@
  * Copyright 1999 Jeff Garzik <jgarzik@pobox.com>
  *
  * Copyright history from vga16fb.c:
- *	Copyright 1999 Ben Pfaff and Petr Vandrovec
- *	Based on VGA info at http://www.osdever.net/FreeVGA/home.htm
- *	Based on VESA framebuffer (c) 1998 Gerd Knorr
+ *  Copyright 1999 Ben Pfaff and Petr Vandrovec
+ *  Based on VGA info at http://www.osdever.net/FreeVGA/home.htm
+ *  Based on VESA framebuffer (c) 1998 Gerd Knorr
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this

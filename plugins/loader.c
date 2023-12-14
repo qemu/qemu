@@ -29,7 +29,7 @@
 #include "qemu/plugin.h"
 #include "qemu/memalign.h"
 #include "hw/core/cpu.h"
-#include "exec/exec-all.h"
+#include "exec/tb-flush.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif
@@ -140,12 +140,12 @@ static int plugin_add(void *opaque, const char *name, const char *value,
     return 0;
 }
 
-void qemu_plugin_opt_parse(const char *optarg, QemuPluginList *head)
+void qemu_plugin_opt_parse(const char *optstr, QemuPluginList *head)
 {
     struct qemu_plugin_parse_arg arg;
     QemuOpts *opts;
 
-    opts = qemu_opts_parse_noisily(qemu_find_opts("plugin"), optarg, true);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("plugin"), optstr, true);
     if (opts == NULL) {
         exit(1);
     }

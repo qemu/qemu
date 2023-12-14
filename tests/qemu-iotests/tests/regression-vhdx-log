@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# vhdx regression test: Updating the first entry of a BAT sector corrupted the
+# following entries.
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_proto generic
+_unsupported_imgopts "subformat=streamOptimized"
+
+size=64M
+_make_test_img $size
+
+echo
+echo "creating pattern"
+$QEMU_IO -c "write -P 1 32M 4k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 2 0 4k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 1 32M 4k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "checking image for errors"
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

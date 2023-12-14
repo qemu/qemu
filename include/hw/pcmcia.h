@@ -43,22 +43,22 @@ struct PCMCIACardClass {
     void (*io_write)(PCMCIACardState *card, uint32_t address, uint16_t value);
 };
 
-#define CISTPL_DEVICE		0x01	/* 5V Device Information Tuple */
-#define CISTPL_NO_LINK		0x14	/* No Link Tuple */
-#define CISTPL_VERS_1		0x15	/* Level 1 Version Tuple */
-#define CISTPL_JEDEC_C		0x18	/* JEDEC ID Tuple */
-#define CISTPL_JEDEC_A		0x19	/* JEDEC ID Tuple */
-#define CISTPL_CONFIG		0x1a	/* Configuration Tuple */
-#define CISTPL_CFTABLE_ENTRY	0x1b	/* 16-bit PCCard Configuration */
-#define CISTPL_DEVICE_OC	0x1c	/* Additional Device Information */
-#define CISTPL_DEVICE_OA	0x1d	/* Additional Device Information */
-#define CISTPL_DEVICE_GEO	0x1e	/* Additional Device Information */
-#define CISTPL_DEVICE_GEO_A	0x1f	/* Additional Device Information */
-#define CISTPL_MANFID		0x20	/* Manufacture ID Tuple */
-#define CISTPL_FUNCID		0x21	/* Function ID Tuple */
-#define CISTPL_FUNCE		0x22	/* Function Extension Tuple */
-#define CISTPL_END		0xff	/* Tuple End */
-#define CISTPL_ENDMARK		0xff
+#define CISTPL_DEVICE         0x01  /* 5V Device Information Tuple */
+#define CISTPL_NO_LINK        0x14  /* No Link Tuple */
+#define CISTPL_VERS_1         0x15  /* Level 1 Version Tuple */
+#define CISTPL_JEDEC_C        0x18  /* JEDEC ID Tuple */
+#define CISTPL_JEDEC_A        0x19  /* JEDEC ID Tuple */
+#define CISTPL_CONFIG         0x1a  /* Configuration Tuple */
+#define CISTPL_CFTABLE_ENTRY  0x1b  /* 16-bit PCCard Configuration */
+#define CISTPL_DEVICE_OC      0x1c  /* Additional Device Information */
+#define CISTPL_DEVICE_OA      0x1d  /* Additional Device Information */
+#define CISTPL_DEVICE_GEO     0x1e  /* Additional Device Information */
+#define CISTPL_DEVICE_GEO_A   0x1f  /* Additional Device Information */
+#define CISTPL_MANFID         0x20  /* Manufacture ID Tuple */
+#define CISTPL_FUNCID         0x21  /* Function ID Tuple */
+#define CISTPL_FUNCE          0x22  /* Function Extension Tuple */
+#define CISTPL_END            0xff  /* Tuple End */
+#define CISTPL_ENDMARK        0xff
 
 /* dscm1xxxx.c */
 PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv);

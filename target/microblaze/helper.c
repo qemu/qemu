@@ -277,7 +277,7 @@ void mb_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     uint32_t esr, iflags;
 
     /* Recover the pc and iflags from the corresponding insn_start.  */
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
     iflags = cpu->env.iflags;
 
     qemu_log_mask(CPU_LOG_INT,

@@ -19,26 +19,26 @@
 # translate logical CHS to physical; instead, they will use logical
 # block addressing.
 #
-# @auto: If cylinder/heads/sizes are passed, choose between none and LBA
-#        depending on the size of the disk.  If they are not passed,
-#        choose none if QEMU can guess that the disk had 16 or fewer
-#        heads, large if QEMU can guess that the disk had 131072 or
-#        fewer tracks across all heads (i.e. cylinders*heads<131072),
-#        otherwise LBA.
+# @auto: If cylinder/heads/sizes are passed, choose between none and
+#     LBA depending on the size of the disk.  If they are not passed,
+#     choose none if QEMU can guess that the disk had 16 or fewer
+#     heads, large if QEMU can guess that the disk had 131072 or fewer
+#     tracks across all heads (i.e. cylinders*heads<131072), otherwise
+#     LBA.
 #
 # @none: The physical disk geometry is equal to the logical geometry.
 #
 # @lba: Assume 63 sectors per track and one of 16, 32, 64, 128 or 255
-#       heads (if fewer than 255 are enough to cover the whole disk
-#       with 1024 cylinders/head).  The number of cylinders/head is
-#       then computed based on the number of sectors and heads.
+#     heads (if fewer than 255 are enough to cover the whole disk with
+#     1024 cylinders/head).  The number of cylinders/head is then
+#     computed based on the number of sectors and heads.
 #
-# @large: The number of cylinders per head is scaled down to 1024
-#         by correspondingly scaling up the number of heads.
+# @large: The number of cylinders per head is scaled down to 1024 by
+#     correspondingly scaling up the number of heads.
 #
 # @rechs: Same as @large, but first convert a 16-head geometry to
-#         15-head, by proportionally scaling up the number of
-#         cylinders/head.
+#     15-head, by proportionally scaling up the number of
+#     cylinders/head.
 #
 # Since: 2.0
 ##
@@ -51,9 +51,13 @@
 # Type of Floppy drive to be emulated by the Floppy Disk Controller.
 #
 # @144: 1.44MB 3.5" drive
+#
 # @288: 2.88MB 3.5" drive
+#
 # @120: 1.2MB 5.25" drive
+#
 # @none: No drive connected
+#
 # @auto: Automatically determined by inserted media at boot
 #
 # Since: 2.6
@@ -68,8 +72,8 @@
 #
 # @id: the identifier of the persistent reservation manager
 #
-# @connected: true if the persistent reservation manager is connected to
-#             the underlying storage or helper
+# @connected: true if the persistent reservation manager is connected
+#     to the underlying storage or helper
 #
 # Since: 3.0
 ##
@@ -79,9 +83,11 @@
 ##
 # @query-pr-managers:
 #
-# Returns a list of information about each persistent reservation manager.
+# Returns a list of information about each persistent reservation
+# manager.
 #
-# Returns: a list of @PRManagerInfo for each persistent reservation manager
+# Returns: a list of @PRManagerInfo for each persistent reservation
+#     manager
 #
 # Since: 3.0
 ##
@@ -98,13 +104,15 @@
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
 # @force: If true, eject regardless of whether the drive is locked.
-#         If not specified, the default value is false.
+#     If not specified, the default value is false.
 #
 # Features:
+#
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Returns: - Nothing on success
-#          - If @device is not a valid block device, DeviceNotFound
+# Returns:
+#     - Nothing on success
+#     - If @device is not a valid block device, DeviceNotFound
 #
 # Notes: Ejecting a device with no media results in success
 #
@@ -123,32 +131,33 @@
 ##
 # @blockdev-open-tray:
 #
-# Opens a block device's tray. If there is a block driver state tree inserted as
-# a medium, it will become inaccessible to the guest (but it will remain
-# associated to the block device, so closing the tray will make it accessible
-# again).
+# Opens a block device's tray.  If there is a block driver state tree
+# inserted as a medium, it will become inaccessible to the guest (but
+# it will remain associated to the block device, so closing the tray
+# will make it accessible again).
 #
 # If the tray was already open before, this will be a no-op.
 #
-# Once the tray opens, a DEVICE_TRAY_MOVED event is emitted. There are cases in
-# which no such event will be generated, these include:
+# Once the tray opens, a DEVICE_TRAY_MOVED event is emitted.  There
+# are cases in which no such event will be generated, these include:
 #
-# - if the guest has locked the tray, @force is false and the guest does not
-#   respond to the eject request
-# - if the BlockBackend denoted by @device does not have a guest device attached
-#   to it
+# - if the guest has locked the tray, @force is false and the guest
+#   does not respond to the eject request
+# - if the BlockBackend denoted by @device does not have a guest
+#   device attached to it
 # - if the guest device does not have an actual tray
 #
 # @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
-# @force: if false (the default), an eject request will be sent to
-#         the guest if it has locked the tray (and the tray will not be opened
-#         immediately); if true, the tray will be opened regardless of whether
-#         it is locked
+# @force: if false (the default), an eject request will be sent to the
+#     guest if it has locked the tray (and the tray will not be opened
+#     immediately); if true, the tray will be opened regardless of
+#     whether it is locked
 #
 # Features:
+#
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
@@ -166,7 +175,6 @@
 #                "tray-open": true } }
 #
 # <- { "return": {} }
-#
 ##
 { 'command': 'blockdev-open-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -176,9 +184,9 @@
 ##
 # @blockdev-close-tray:
 #
-# Closes a block device's tray. If there is a block driver state tree associated
-# with the block device (which is currently ejected), that tree will be loaded
-# as the medium.
+# Closes a block device's tray.  If there is a block driver state tree
+# associated with the block device (which is currently ejected), that
+# tree will be loaded as the medium.
 #
 # If the tray was already closed before, this will be a no-op.
 #
@@ -187,6 +195,7 @@
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
 # Features:
+#
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
@@ -204,7 +213,6 @@
 #                "tray-open": false } }
 #
 # <- { "return": {} }
-#
 ##
 { 'command': 'blockdev-close-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -213,11 +221,12 @@
 ##
 # @blockdev-remove-medium:
 #
-# Removes a medium (a block driver state tree) from a block device. That block
-# device's tray must currently be open (unless there is no attached guest
-# device).
+# Removes a medium (a block driver state tree) from a block device.
+# That block device's tray must currently be open (unless there is no
+# attached guest device).
 #
-# If the tray is open and there is no medium inserted, this will be a no-op.
+# If the tray is open and there is no medium inserted, this will be a
+# no-op.
 #
 # @id: The name or QOM path of the guest device
 #
@@ -247,7 +256,6 @@
 #      "arguments": { "id": "ide0-1-0" } }
 #
 # <- { "return": {} }
-#
 ##
 { 'command': 'blockdev-remove-medium',
   'data': { 'id': 'str' } }
@@ -255,9 +263,9 @@
 ##
 # @blockdev-insert-medium:
 #
-# Inserts a medium (a block driver state tree) into a block device. That block
-# device's tray must currently be open (unless there is no attached guest
-# device) and there must be no medium inserted already.
+# Inserts a medium (a block driver state tree) into a block device.
+# That block device's tray must currently be open (unless there is no
+# attached guest device) and there must be no medium inserted already.
 #
 # @id: The name or QOM path of the guest device
 #
@@ -280,7 +288,6 @@
 #                     "node-name": "node0" } }
 #
 # <- { "return": {} }
-#
 ##
 { 'command': 'blockdev-insert-medium',
   'data': { 'id': 'str',
@@ -306,30 +313,32 @@
 ##
 # @blockdev-change-medium:
 #
-# Changes the medium inserted into a block device by ejecting the current medium
-# and loading a new image file which is inserted as the new medium (this command
-# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
-# and blockdev-close-tray).
+# Changes the medium inserted into a block device by ejecting the
+# current medium and loading a new image file which is inserted as the
+# new medium (this command combines blockdev-open-tray,
+# blockdev-remove-medium, blockdev-insert-medium and
+# blockdev-close-tray).
 #
 # @device: Block device name
 #
-# @id: The name or QOM path of the guest device
-#      (since: 2.8)
+# @id: The name or QOM path of the guest device (since: 2.8)
 #
 # @filename: filename of the new image to be loaded
 #
-# @format: format to open the new image with (defaults to
-#          the probed format)
+# @format: format to open the new image with (defaults to the probed
+#     format)
 #
 # @read-only-mode: change the read-only mode of the device; defaults
-#                  to 'retain'
+#     to 'retain'
 #
-# @force: if false (the default), an eject request through blockdev-open-tray
-#         will be sent to the guest if it has locked the tray (and the tray
-#         will not be opened immediately); if true, the tray will be opened
-#         regardless of whether it is locked. (since 7.1)
+# @force: if false (the default), an eject request through
+#     blockdev-open-tray will be sent to the guest if it has locked
+#     the tray (and the tray will not be opened immediately); if true,
+#     the tray will be opened regardless of whether it is locked.
+#     (since 7.1)
 #
 # Features:
+#
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
@@ -363,7 +372,6 @@
 #                     "read-only-mode": "read-only" } }
 #
 # <- { "return": {} }
-#
 ##
 { 'command': 'blockdev-change-medium',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -376,16 +384,17 @@
 ##
 # @DEVICE_TRAY_MOVED:
 #
-# Emitted whenever the tray of a removable device is moved by the guest or by
-# HMP/QMP commands
+# Emitted whenever the tray of a removable device is moved by the
+# guest or by HMP/QMP commands
 #
-# @device: Block device name. This is always present for compatibility
-#          reasons, but it can be empty ("") if the image does not
-#          have a device name associated.
+# @device: Block device name.  This is always present for
+#     compatibility reasons, but it can be empty ("") if the image
+#     does not have a device name associated.
 #
 # @id: The name or QOM path of the guest device (since 2.8)
 #
-# @tray-open: true if the tray has been opened or false if it has been closed
+# @tray-open: true if the tray has been opened or false if it has been
+#     closed
 #
 # Since: 1.1
 #
@@ -397,7 +406,6 @@
 #                "tray-open": true
 #      },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-#
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
@@ -421,7 +429,6 @@
 #                "connected": true
 #      },
 #      "timestamp": { "seconds": 1519840375, "microseconds": 450486 } }
-#
 ##
 { 'event': 'PR_MANAGER_STATUS_CHANGED',
   'data': { 'id': 'str', 'connected': 'bool' } }
@@ -436,28 +443,29 @@
 #
 # If two or more devices are members of the same group, the limits
 # will apply to the combined I/O of the whole group in a round-robin
-# fashion. Therefore, setting new I/O limits to a device will affect
+# fashion.  Therefore, setting new I/O limits to a device will affect
 # the whole group.
 #
 # The name of the group can be specified using the 'group' parameter.
 # If the parameter is unset, it is assumed to be the current group of
-# that device. If it's not in any group yet, the name of the device
+# that device.  If it's not in any group yet, the name of the device
 # will be used as the name for its group.
 #
 # The 'group' parameter can also be used to move a device to a
-# different group. In this case the limits specified in the parameters
-# will be applied to the new group only.
+# different group.  In this case the limits specified in the
+# parameters will be applied to the new group only.
 #
 # I/O limits can be disabled by setting all of them to 0. In this case
 # the device will be removed from its group and the rest of its
-# members will not be affected. The 'group' parameter is ignored.
+# members will not be affected.  The 'group' parameter is ignored.
 #
-# Returns: - Nothing on success
-#          - If @device is not a valid block device, DeviceNotFound
+# Returns:
+#     - Nothing on success
+#     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 1.1
 #
-# Example:
+# Examples:
 #
 # -> { "execute": "block_set_io_throttle",
 #      "arguments": { "id": "virtio-blk-pci0/virtio-backend",
@@ -504,37 +512,43 @@
 #
 # Manage read, write and flush latency histograms for the device.
 #
-# If only @id parameter is specified, remove all present latency histograms
-# for the device. Otherwise, add/reset some of (or all) latency histograms.
+# If only @id parameter is specified, remove all present latency
+# histograms for the device.  Otherwise, add/reset some of (or all)
+# latency histograms.
 #
 # @id: The name or QOM path of the guest device.
 #
 # @boundaries: list of interval boundary values (see description in
-#              BlockLatencyHistogramInfo definition). If specified, all
-#              latency histograms are removed, and empty ones created for all
-#              io types with intervals corresponding to @boundaries (except for
-#              io types, for which specific boundaries are set through the
-#              following parameters).
+#     BlockLatencyHistogramInfo definition). If specified, all latency
+#     histograms are removed, and empty ones created for all io types
+#     with intervals corresponding to @boundaries (except for io
+#     types, for which specific boundaries are set through the
+#     following parameters).
 #
 # @boundaries-read: list of interval boundary values for read latency
-#                   histogram. If specified, old read latency histogram is
-#                   removed, and empty one created with intervals
-#                   corresponding to @boundaries-read. The parameter has higher
-#                   priority then @boundaries.
+#     histogram.  If specified, old read latency histogram is removed,
+#     and empty one created with intervals corresponding to
+#     @boundaries-read.  The parameter has higher priority then
+#     @boundaries.
 #
-# @boundaries-write: list of interval boundary values for write latency
-#                    histogram.
+# @boundaries-write: list of interval boundary values for write
+#     latency histogram.
 #
-# @boundaries-flush: list of interval boundary values for flush latency
-#                    histogram.
+# @boundaries-zap: list of interval boundary values for zone append
+#     write latency histogram.
 #
-# Returns: error if device is not found or any boundary arrays are invalid.
+# @boundaries-flush: list of interval boundary values for flush
+#     latency histogram.
+#
+# Returns: error if device is not found or any boundary arrays are
+#     invalid.
 #
 # Since: 4.0
 #
 # Example:
-# set new histograms for all io types with intervals
-# [0, 10), [10, 50), [50, 100), [100, +inf):
+#
+# Set new histograms for all io types with intervals [0, 10), [10,
+# 50), [50, 100), [100, +inf):
 #
 # -> { "execute": "block-latency-histogram-set",
 #      "arguments": { "id": "drive0",
@@ -542,8 +556,9 @@
 # <- { "return": {} }
 #
 # Example:
-# set new histogram only for write, other histograms will remain
-# not changed (or not created):
+#
+# Set new histogram only for write, other histograms will remain not
+# changed (or not created):
 #
 # -> { "execute": "block-latency-histogram-set",
 #      "arguments": { "id": "drive0",
@@ -551,9 +566,10 @@
 # <- { "return": {} }
 #
 # Example:
-# set new histograms with the following intervals:
-#   read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
-#   write: [0, 1000), [1000, 5000), [5000, +inf)
+#
+# Set new histograms with the following intervals:   read, flush: [0,
+# 10), [10, 50), [50, 100), [100, +inf)   write: [0, 1000), [1000,
+# 5000), [5000, +inf)
 #
 # -> { "execute": "block-latency-histogram-set",
 #      "arguments": { "id": "drive0",
@@ -562,7 +578,8 @@
 # <- { "return": {} }
 #
 # Example:
-# remove all latency histograms:
+#
+# Remove all latency histograms:
 #
 # -> { "execute": "block-latency-histogram-set",
 #      "arguments": { "id": "drive0" } }
@@ -573,5 +590,6 @@
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
            '*boundaries-write': ['uint64'],
+           '*boundaries-zap': ['uint64'],
            '*boundaries-flush': ['uint64'] },
   'allow-preconfig': true }

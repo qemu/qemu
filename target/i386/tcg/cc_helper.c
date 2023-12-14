@@ -58,21 +58,21 @@ const uint8_t parity_table[256] = {
 };
 
 #define SHIFT 0
-#include "cc_helper_template.h"
+#include "cc_helper_template.h.inc"
 #undef SHIFT
 
 #define SHIFT 1
-#include "cc_helper_template.h"
+#include "cc_helper_template.h.inc"
 #undef SHIFT
 
 #define SHIFT 2
-#include "cc_helper_template.h"
+#include "cc_helper_template.h.inc"
 #undef SHIFT
 
 #ifdef TARGET_X86_64
 
 #define SHIFT 3
-#include "cc_helper_template.h"
+#include "cc_helper_template.h.inc"
 #undef SHIFT
 
 #endif
@@ -346,44 +346,3 @@ void helper_clts(CPUX86State *env)
     env->cr[0] &= ~CR0_TS_MASK;
     env->hflags &= ~HF_TS_MASK;
 }
-
-void helper_reset_rf(CPUX86State *env)
-{
-    env->eflags &= ~RF_MASK;
-}
-
-void helper_cli(CPUX86State *env)
-{
-    env->eflags &= ~IF_MASK;
-}
-
-void helper_sti(CPUX86State *env)
-{
-    env->eflags |= IF_MASK;
-}
-
-void helper_clac(CPUX86State *env)
-{
-    env->eflags &= ~AC_MASK;
-}
-
-void helper_stac(CPUX86State *env)
-{
-    env->eflags |= AC_MASK;
-}
-
-#if 0
-/* vm86plus instructions */
-void helper_cli_vm(CPUX86State *env)
-{
-    env->eflags &= ~VIF_MASK;
-}
-
-void helper_sti_vm(CPUX86State *env)
-{
-    env->eflags |= VIF_MASK;
-    if (env->eflags & VIP_MASK) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
-    }
-}
-#endif

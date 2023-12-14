@@ -9,95 +9,111 @@ command=$1
 shift
 maybe_modules="$@"
 
-# if --with-git-submodules=ignore, do nothing
-test "$command" = "ignore" && exit 0
-
-test -z "$GIT" && GIT=git
+test -z "$maybe_modules" && exit 0
+test -z "$GIT" && GIT=$(command -v git)
 
 cd "$(dirname "$0")/.."
+
+no_git_error=
+if ! test -e ".git"; then
+    no_git_error='no git checkout exists'
+elif test -z "$GIT"; then
+    no_git_error='git binary not found'
+fi
+
+is_git() {
+    test -z "$no_git_error"
+}
 
 update_error() {
     echo "$0: $*"
     echo
     echo "Unable to automatically checkout GIT submodules '$modules'."
     echo "If you require use of an alternative GIT binary (for example to"
-    echo "enable use of a transparent proxy), then please specify it by"
-    echo "running configure by with the '--with-git' argument. e.g."
+    echo "enable use of a transparent proxy), please disable automatic"
+    echo "GIT submodule checkout with:"
     echo
-    echo " $ ./configure --with-git='tsocks git'"
-    echo
-    echo "Alternatively you may disable automatic GIT submodule checkout"
-    echo "with:"
-    echo
-    echo " $ ./configure --with-git-submodules=validate"
+    echo " $ ./configure --disable-download"
     echo
     echo "and then manually update submodules prior to running make, with:"
     echo
-    echo " $ scripts/git-submodule.sh update $modules"
+    echo " $ GIT='tsocks git' scripts/git-submodule.sh update $modules"
     echo
     exit 1
 }
 
 validate_error() {
-    if test "$1" = "validate"; then
+    if is_git && test "$1" = "validate"; then
         echo "GIT submodules checkout is out of date, and submodules"
         echo "configured for validate only. Please run"
         echo "  scripts/git-submodule.sh update $maybe_modules"
         echo "from the source directory or call configure with"
-        echo "  --with-git-submodules=update"
-        echo "To disable GIT submodules validation, use"
-        echo "  --with-git-submodules=ignore"
+        echo "  --enable-download"
     fi
     exit 1
 }
 
-modules=""
-for m in $maybe_modules
-do
-    $GIT submodule status $m 1> /dev/null 2>&1
-    if test $? = 0
-    then
-        modules="$modules $m"
-    else
-        echo "warn: ignoring non-existent submodule $m"
-    fi
-done
+check_updated() {
+    local CURSTATUS OLDSTATUS
+    CURSTATUS=$($GIT submodule status $module)
+    OLDSTATUS=$(grep $module $substat)
+    test "$CURSTATUS" = "$OLDSTATUS"
+}
 
-if test -n "$maybe_modules" && ! test -e ".git"
-then
-    echo "$0: unexpectedly called with submodules but no git checkout exists"
-    exit 1
+if is_git; then
+    test -e $substat || touch $substat
+    modules=""
+    for m in $maybe_modules
+    do
+        $GIT submodule status $m 1> /dev/null 2>&1
+        if test $? = 0
+        then
+            modules="$modules $m"
+            grep $m $substat > /dev/null 2>&1 || $GIT submodule status $module >> $substat
+        else
+            echo "warn: ignoring non-existent submodule $m"
+        fi
+    done
+else
+    modules=$maybe_modules
 fi
 
 case "$command" in
 status|validate)
-    if test -z "$maybe_modules"
-    then
-         test -s ${substat} && validate_error "$command" || exit 0
-    fi
-
-    test -f "$substat" || validate_error "$command"
     for module in $modules; do
-        CURSTATUS=$($GIT submodule status $module)
-        OLDSTATUS=$(cat $substat | grep $module)
-        if test "$CURSTATUS" != "$OLDSTATUS"; then
+        if is_git; then
+            check_updated $module || validate_error "$command"
+        elif ! (set xyz "$module"/* && test -e "$2"); then
+            # The directory does not exist or it contains no files
+            echo "$0: sources not available for $module and $no_git_error"
             validate_error "$command"
         fi
     done
-    exit 0
     ;;
+
 update)
-    if test -z "$maybe_modules"
-    then
-        test -e $substat || touch $substat
-        exit 0
-    fi
+    is_git || {
+        echo "$0: unexpectedly called with submodules but $no_git_error"
+        exit 1
+    }
 
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
+    for module in $modules; do
+        check_updated $module || echo Updated "$module"
+    done
 
-    $GIT submodule status $modules > "${substat}"
-    test $? -ne 0 && update_error "failed to save git submodule status" >&2
+    (while read -r REPLY; do
+        for module in $modules; do
+            case $REPLY in
+                *" $module "*) continue 2 ;;
+            esac
+        done
+        printf '%s\n' "$REPLY"
+    done
+    $GIT submodule status $modules
+    test $? -ne 0 && update_error "failed to save git submodule status" >&2) < $substat > $substat.new
+    mv -f $substat.new $substat
     ;;
 esac
 

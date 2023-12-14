@@ -32,4 +32,4 @@ class OmittedCPUProps(QemuSystemTest):
         self.vm.add_args('-smp', '1,sockets=2,cores=2,threads=2,maxcpus=8')
         self.vm.add_args('-device', 'qemu64-x86_64-cpu,socket-id=1,core-id=0,thread-id=0')
         self.vm.launch()
-        self.assertEquals(len(self.vm.command('query-cpus-fast')), 2)
+        self.assertEqual(len(self.vm.cmd('query-cpus-fast')), 2)

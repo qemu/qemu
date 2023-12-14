@@ -5,8 +5,7 @@
 const VMStateDescription vmstate_acpi_pcihp_pci_status;
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *s, PCIBus *root_bus,
-                     MemoryRegion *address_space_io, bool bridges_enabled,
-                     uint16_t io_base)
+                     MemoryRegion *address_space_io, uint16_t io_base)
 {
     return;
 }
@@ -36,8 +35,12 @@ void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     return;
 }
 
-void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
+void acpi_pcihp_reset(AcpiPciHpState *s)
 {
     return;
 }
 
+bool acpi_pcihp_is_hotpluggbale_bus(AcpiPciHpState *s, BusState *bus)
+{
+    return true;
+}

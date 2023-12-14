@@ -81,7 +81,7 @@ extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 #define QIPL_FLAG_BM_OPTS_ZIPL  0x40
 
 /*
- * This definition must be kept in sync with the defininition
+ * This definition must be kept in sync with the definition
  * in hw/s390x/ipl.h
  */
 struct QemuIplParameters {

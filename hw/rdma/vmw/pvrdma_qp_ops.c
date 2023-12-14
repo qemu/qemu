@@ -149,7 +149,7 @@ void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
     ring = (PvrdmaRing *)qp->opaque;
 
-    wqe = (struct PvrdmaSqWqe *)pvrdma_ring_next_elem_read(ring);
+    wqe = pvrdma_ring_next_elem_read(ring);
     while (wqe) {
         CompHandlerCtx *comp_ctx;
 
@@ -212,7 +212,7 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
     ring = &((PvrdmaRing *)qp->opaque)[1];
 
-    wqe = (struct PvrdmaRqWqe *)pvrdma_ring_next_elem_read(ring);
+    wqe = pvrdma_ring_next_elem_read(ring);
     while (wqe) {
         CompHandlerCtx *comp_ctx;
 
@@ -254,7 +254,7 @@ void pvrdma_srq_recv(PVRDMADev *dev, uint32_t srq_handle)
 
     ring = (PvrdmaRing *)srq->opaque;
 
-    wqe = (struct PvrdmaRqWqe *)pvrdma_ring_next_elem_read(ring);
+    wqe = pvrdma_ring_next_elem_read(ring);
     while (wqe) {
         CompHandlerCtx *comp_ctx;
 

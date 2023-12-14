@@ -312,7 +312,7 @@ build_prepend_package_length(GArray *package, unsigned length, bool incl_self)
         /*
          * PkgLength is the length of the inclusive length of the data
          * and PkgLength's length itself when used for terms with
-         * explitit length.
+         * explicit length.
          */
         length += length_bytes;
     }
@@ -680,7 +680,7 @@ Aml *aml_store(Aml *val, Aml *target)
  *   "Op Operand Operand Target"
  * pattern.
  *
- * Returns: The newly allocated and composed according to patter Aml object.
+ * Returns: The newly allocated and composed according to pattern Aml object.
  */
 static Aml *
 build_opcode_2arg_dst(uint8_t op, Aml *arg1, Aml *arg2, Aml *dst)
@@ -2030,7 +2030,7 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 0, socket_id, NULL, 0);
         }
 
-        if (mc->smp_props.clusters_supported) {
+        if (mc->smp_props.clusters_supported && mc->smp_props.has_clusters) {
             if (cpus->cpus[n].props.cluster_id != cluster_id) {
                 assert(cpus->cpus[n].props.cluster_id > cluster_id);
                 cluster_id = cpus->cpus[n].props.cluster_id;
@@ -2070,7 +2070,7 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
     acpi_table_end(linker, &table);
 }
 
-/* build rev1/rev3/rev5.1 FADT */
+/* build rev1/rev3/rev5.1/rev6.0 FADT */
 void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
                 const char *oem_id, const char *oem_table_id)
 {
@@ -2159,7 +2159,7 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
         /* FADT Minor Version */
         build_append_int_noprefix(tbl, f->minor_ver, 1);
     } else {
-        build_append_int_noprefix(tbl, 0, 3); /* Reserved upto ACPI 5.0 */
+        build_append_int_noprefix(tbl, 0, 3); /* Reserved up to ACPI 5.0 */
     }
     build_append_int_noprefix(tbl, 0, 8); /* X_FIRMWARE_CTRL */
 
@@ -2193,8 +2193,15 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
     /* SLEEP_STATUS_REG */
     build_append_gas_from_struct(tbl, &f->sleep_sts);
 
-    /* TODO: extra fields need to be added to support revisions above rev5 */
-    assert(f->rev == 5);
+    if (f->rev == 5) {
+        goto done;
+    }
+
+    /* Hypervisor Vendor Identity */
+    build_append_padded_str(tbl, "QEMU", 8, '\0');
+
+    /* TODO: extra fields need to be added to support revisions above rev6 */
+    assert(f->rev == 6);
 
 done:
     acpi_table_end(linker, &table);

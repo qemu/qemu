@@ -53,6 +53,7 @@ def find_free_ports(count: int) -> List[int]:
 class Vnc(QemuSystemTest):
     """
     :avocado: tags=vnc,quick
+    :avocado: tags=machine:none
     """
     def test_no_vnc(self):
         self.vm.add_args('-nodefaults', '-S')
@@ -87,9 +88,8 @@ class Vnc(QemuSystemTest):
         self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password=on')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
-        set_password_response = self.vm.qmp('change-vnc-password',
-                                            password='new_password')
-        self.assertEqual(set_password_response['return'], {})
+        self.vm.cmd('change-vnc-password',
+                    password='new_password')
 
     def test_change_listen(self):
         a, b, c = find_free_ports(3)
@@ -104,12 +104,11 @@ class Vnc(QemuSystemTest):
         self.assertFalse(check_connect(b))
         self.assertFalse(check_connect(c))
 
-        res = self.vm.qmp('display-update', type='vnc',
-                          addresses=[{'type': 'inet', 'host': VNC_ADDR,
-                                      'port': str(b)},
-                                     {'type': 'inet', 'host': VNC_ADDR,
-                                      'port': str(c)}])
-        self.assertEqual(res['return'], {})
+        self.vm.cmd('display-update', type='vnc',
+                    addresses=[{'type': 'inet', 'host': VNC_ADDR,
+                                'port': str(b)},
+                               {'type': 'inet', 'host': VNC_ADDR,
+                                'port': str(c)}])
         self.assertEqual(self.vm.qmp('query-vnc')['return']['service'], str(b))
         self.assertFalse(check_connect(a))
         self.assertTrue(check_connect(b))

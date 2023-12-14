@@ -19,9 +19,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "sysemu/kvm.h"
 #include "sysemu/xen.h"
 #include "sysemu/whpx.h"
-#include "kvm/kvm_i386.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-run-state.h"
 #include "qapi/qmp/qdict.h"
@@ -187,10 +187,8 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     QDict *props = NULL;
     const char *base_name;
 
-    xc = x86_cpu_from_model(model->name,
-                            model->has_props ?
-                                qobject_to(QDict, model->props) :
-                                NULL, &err);
+    xc = x86_cpu_from_model(model->name, qobject_to(QDict, model->props),
+                            &err);
     if (err) {
         goto out;
     }
@@ -198,7 +196,6 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     props = qdict_new();
     ret->model = g_new0(CpuModelInfo, 1);
     ret->model->props = QOBJECT(props);
-    ret->model->has_props = true;
 
     switch (type) {
     case CPU_MODEL_EXPANSION_TYPE_STATIC:
@@ -250,12 +247,16 @@ void x86_cpu_machine_reset_cb(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-APICCommonClass *apic_get_class(void)
+APICCommonClass *apic_get_class(Error **errp)
 {
     const char *apic_type = "apic";
 
     /* TODO: in-kernel irqchip for hvf */
-    if (kvm_apic_in_kernel()) {
+    if (kvm_enabled()) {
+        if (!kvm_irqchip_in_kernel()) {
+            error_setg(errp, "KVM does not support userspace APIC");
+            return NULL;
+        }
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
@@ -269,10 +270,13 @@ APICCommonClass *apic_get_class(void)
 void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 {
     APICCommonState *apic;
-    ObjectClass *apic_class = OBJECT_CLASS(apic_get_class());
+    APICCommonClass *apic_class = apic_get_class(errp);
 
-    cpu->apic_state = DEVICE(object_new_with_class(apic_class));
+    if (!apic_class) {
+        return;
+    }
 
+    cpu->apic_state = DEVICE(object_new_with_class(OBJECT_CLASS(apic_class)));
     object_property_add_child(OBJECT(cpu), "lapic",
                               OBJECT(cpu->apic_state));
     object_unref(OBJECT(cpu->apic_state));

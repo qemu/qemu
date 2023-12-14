@@ -14,11 +14,11 @@
  */
 
 #include "qemu/osdep.h"
-#include <glib/gstdio.h>
 
 #include "libqtest.h"
 #include "qemu/module.h"
 #include "tpm-tests.h"
+#include "tpm-tis-util.h"
 #include "hw/acpi/tpm.h"
 
 uint64_t tpm_tis_base_addr = 0xc000000;
@@ -34,7 +34,7 @@ static void tpm_tis_swtpm_test(const void *data)
 {
     const TestState *ts = data;
 
-    tpm_test_swtpm_test(ts->src_tpm_path, tpm_util_tis_transfer,
+    tpm_test_swtpm_test(ts->src_tpm_path, tpm_tis_transfer,
                         "tpm-tis-device", MACHINE_OPTIONS);
 }
 
@@ -43,7 +43,7 @@ static void tpm_tis_swtpm_migration_test(const void *data)
     const TestState *ts = data;
 
     tpm_test_swtpm_migration_test(ts->src_tpm_path, ts->dst_tpm_path, ts->uri,
-                                  tpm_util_tis_transfer, "tpm-tis-device",
+                                  tpm_tis_transfer, "tpm-tis-device",
                                   MACHINE_OPTIONS);
 }
 
@@ -66,9 +66,9 @@ int main(int argc, char **argv)
                         tpm_tis_swtpm_migration_test);
     ret = g_test_run();
 
-    g_rmdir(ts.dst_tpm_path);
+    tpm_util_rmdir(ts.dst_tpm_path);
     g_free(ts.dst_tpm_path);
-    g_rmdir(ts.src_tpm_path);
+    tpm_util_rmdir(ts.src_tpm_path);
     g_free(ts.src_tpm_path);
     g_free(ts.uri);
 

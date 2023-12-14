@@ -1,0 +1,15 @@
+include $(BUILD_DIR)/tests/tcg/riscv64-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/riscv
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso-32.so $(SUBDIR)/vdso-64.so
+
+LDFLAGS = -nostdlib -shared -fpic -Wl,-h,linux-vdso.so.1 -Wl,--build-id=sha1 \
+	  -Wl,--hash-style=both -Wl,-T,$(SUBDIR)/vdso.ld
+
+$(SUBDIR)/vdso-32.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS) -mabi=ilp32d -march=rv32g $<
+
+$(SUBDIR)/vdso-64.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS) -mabi=lp64d -march=rv64g $<

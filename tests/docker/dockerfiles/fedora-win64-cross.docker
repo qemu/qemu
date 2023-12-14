@@ -1,40 +1,111 @@
-FROM registry.fedoraproject.org/fedora:35
+# THIS FILE WAS AUTO-GENERATED
+#
+#  $ lcitool dockerfile --layers all --cross-arch mingw64 fedora-38 qemu
+#
+# https://gitlab.com/libvirt/libvirt-ci
 
-# Please keep this list sorted alphabetically
-ENV PACKAGES \
-    bc \
-    bzip2 \
-    ccache \
-    diffutils \
-    findutils \
-    gcc \
-    gettext \
-    git \
-    hostname \
-    make \
-    meson \
-    mingw32-nsis \
-    mingw64-bzip2 \
-    mingw64-curl \
-    mingw64-glib2 \
-    mingw64-gmp \
-    mingw64-gtk3 \
-    mingw64-libffi \
-    mingw64-libjpeg-turbo \
-    mingw64-libpng \
-    mingw64-libtasn1 \
-    mingw64-libusbx \
-    mingw64-pixman \
-    mingw64-pkg-config \
-    msitools \
-    perl \
-    python3 \
-    python3-PyYAML \
-    tar \
-    which
+FROM registry.fedoraproject.org/fedora:38
 
-RUN dnf install -y $PACKAGES
-RUN rpm -q $PACKAGES | sort > /packages.txt
+RUN dnf install -y nosync && \
+    printf '#!/bin/sh\n\
+if test -d /usr/lib64\n\
+then\n\
+    export LD_PRELOAD=/usr/lib64/nosync/nosync.so\n\
+else\n\
+    export LD_PRELOAD=/usr/lib/nosync/nosync.so\n\
+fi\n\
+exec "$@"\n' > /usr/bin/nosync && \
+    chmod +x /usr/bin/nosync && \
+    nosync dnf update -y && \
+    nosync dnf install -y \
+               bash \
+               bc \
+               bison \
+               bzip2 \
+               ca-certificates \
+               ccache \
+               ctags \
+               dbus-daemon \
+               diffutils \
+               findutils \
+               flex \
+               gcc \
+               gcovr \
+               git \
+               glib2-devel \
+               glibc-langpack-en \
+               hostname \
+               llvm \
+               make \
+               meson \
+               mtools \
+               ninja-build \
+               nmap-ncat \
+               openssh-clients \
+               pcre-static \
+               python3 \
+               python3-PyYAML \
+               python3-numpy \
+               python3-opencv \
+               python3-pillow \
+               python3-pip \
+               python3-sphinx \
+               python3-sphinx_rtd_theme \
+               sed \
+               socat \
+               sparse \
+               spice-protocol \
+               swtpm \
+               tar \
+               tesseract \
+               tesseract-langpack-eng \
+               util-linux \
+               which \
+               xorriso \
+               zstd && \
+    nosync dnf autoremove -y && \
+    nosync dnf clean all -y
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
-ENV QEMU_CONFIGURE_OPTS --cross-prefix=x86_64-w64-mingw32- --disable-capstone
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+
+RUN nosync dnf install -y \
+               mingw32-nsis \
+               mingw64-SDL2 \
+               mingw64-SDL2_image \
+               mingw64-bzip2 \
+               mingw64-curl \
+               mingw64-gcc \
+               mingw64-gcc-c++ \
+               mingw64-gettext \
+               mingw64-glib2 \
+               mingw64-gnutls \
+               mingw64-gtk3 \
+               mingw64-libepoxy \
+               mingw64-libgcrypt \
+               mingw64-libjpeg-turbo \
+               mingw64-libpng \
+               mingw64-libtasn1 \
+               mingw64-nettle \
+               mingw64-pixman \
+               mingw64-pkg-config && \
+    nosync dnf clean all -y && \
+    rpm -qa | sort > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-gcc
+
+ENV ABI "x86_64-w64-mingw32"
+ENV MESON_OPTS "--cross-file=/usr/share/mingw/toolchain-mingw64.meson"
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=x86_64-w64-mingw32-
+ENV DEF_TARGET_LIST x86_64-softmmu
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

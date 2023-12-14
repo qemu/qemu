@@ -21,6 +21,8 @@
 #include "hw/irq.h"
 #include "cpu.h"
 #include "target/arm/cpregs.h"
+#include "sysemu/tcg.h"
+#include "sysemu/qtest.h"
 
 /*
  * Special case return value from hppvi_index(); must be larger than
@@ -144,7 +146,7 @@ static uint32_t icv_fullprio_mask(GICv3CPUState *cs)
      * with the group priority, whose mask depends on the value of VBPR
      * for the interrupt group.)
      */
-    return ~0U << (8 - cs->vpribits);
+    return (~0U << (8 - cs->vpribits)) & 0xff;
 }
 
 static int ich_highest_active_virt_prio(GICv3CPUState *cs)
@@ -801,7 +803,7 @@ static uint32_t icc_fullprio_mask(GICv3CPUState *cs)
      * with the group priority, whose mask depends on the value of BPR
      * for the interrupt group.)
      */
-    return ~0U << (8 - cs->pribits);
+    return (~0U << (8 - cs->pribits)) & 0xff;
 }
 
 static inline int icc_min_bpr(GICv3CPUState *cs)
@@ -1016,8 +1018,6 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     trace_gicv3_icc_pmr_write(gicv3_redist_affid(cs), value);
 
-    value &= icc_fullprio_mask(cs);
-
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_is_secure(env) &&
         (env->cp15.scr_el3 & SCR_FIQ)) {
         /* NS access and Group 0 is inaccessible to NS: return the
@@ -1029,6 +1029,7 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
         value = (value >> 1) | 0x80;
     }
+    value &= icc_fullprio_mask(cs);
     cs->icc_pmr_el1 = value;
     gicv3_cpuif_update(cs);
 }
@@ -2377,6 +2378,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 12, .opc2 = 6,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = gicv3_fiq_access,
+      .fgt = FGT_ICC_IGRPENN_EL1,
       .readfn = icc_igrpen_read,
       .writefn = icc_igrpen_write,
     },
@@ -2385,6 +2387,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 12, .opc2 = 7,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = gicv3_irq_access,
+      .fgt = FGT_ICC_IGRPENN_EL1,
       .readfn = icc_igrpen_read,
       .writefn = icc_igrpen_write,
     },
@@ -2811,6 +2814,8 @@ void gicv3_init_cpuif(GICv3State *s)
          * which case we'd get the wrong value.
          * So instead we define the regs with no ri->opaque info, and
          * get back to the GICv3CPUState from the CPUARMState.
+         *
+         * These CP regs callbacks can be called from either TCG or HVF code.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
 
@@ -2906,6 +2911,16 @@ void gicv3_init_cpuif(GICv3State *s)
                 define_arm_cp_regs(cpu, gicv3_cpuif_ich_apxr23_reginfo);
             }
         }
-        arm_register_el_change_hook(cpu, gicv3_cpuif_el_change_hook, cs);
+        if (tcg_enabled() || qtest_enabled()) {
+            /*
+             * We can only trap EL changes with TCG. However the GIC interrupt
+             * state only changes on EL changes involving EL2 or EL3, so for
+             * the non-TCG case this is OK, as EL2 and EL3 can't exist.
+             */
+            arm_register_el_change_hook(cpu, gicv3_cpuif_el_change_hook, cs);
+        } else {
+            assert(!arm_feature(&cpu->env, ARM_FEATURE_EL2));
+            assert(!arm_feature(&cpu->env, ARM_FEATURE_EL3));
+        }
     }
 }

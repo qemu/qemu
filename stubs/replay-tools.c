@@ -53,7 +53,7 @@ void replay_register_char_driver(struct Chardev *chr)
 {
 }
 
-void replay_chr_be_write(struct Chardev *s, uint8_t *buf, int len)
+void replay_chr_be_write(struct Chardev *s, const uint8_t *buf, int len)
 {
     abort();
 }

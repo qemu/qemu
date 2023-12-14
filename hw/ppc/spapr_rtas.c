@@ -33,11 +33,11 @@
 #include "sysemu/cpus.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
+#include "sysemu/qtest.h"
 #include "kvm_ppc.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/ppc/spapr_rtas.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 
@@ -214,9 +214,9 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
      * guest.
      * For the same reason, set PSSCR_EC.
      */
-    ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
     env->spr[SPR_PSSCR] |= PSSCR_EC;
     cs->halted = 1;
+    ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
     kvmppc_set_reg_ppc_online(cpu, 0);
     qemu_cpu_kick(cs);
 }
@@ -495,7 +495,7 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
     spapr->fwnmi_machine_check_interlock = -1;
     qemu_cond_signal(&spapr->fwnmi_machine_check_interlock_cond);
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    migrate_del_blocker(spapr->fwnmi_migration_blocker);
+    migrate_del_blocker(&spapr->fwnmi_migration_blocker);
 }
 
 static struct rtas_call {
@@ -530,8 +530,8 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_PARAMETER;
 }
 
-uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
-                         uint32_t nret, uint64_t rets)
+static uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
+                                uint32_t nret, uint64_t rets)
 {
     int token;
 
@@ -546,6 +546,32 @@ uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
         }
     }
     return H_PARAMETER;
+}
+
+static bool spapr_qtest_callback(CharBackend *chr, gchar **words)
+{
+    if (strcmp(words[0], "rtas") == 0) {
+        uint64_t res, args, ret;
+        unsigned long nargs, nret;
+        int rc;
+
+        rc = qemu_strtoul(words[2], NULL, 0, &nargs);
+        g_assert(rc == 0);
+        rc = qemu_strtou64(words[3], NULL, 0, &args);
+        g_assert(rc == 0);
+        rc = qemu_strtoul(words[4], NULL, 0, &nret);
+        g_assert(rc == 0);
+        rc = qemu_strtou64(words[5], NULL, 0, &ret);
+        g_assert(rc == 0);
+        res = qtest_rtas_call(words[1], nargs, args, nret, ret);
+
+        qtest_send_prefix(chr);
+        qtest_sendf(chr, "OK %"PRIu64"\n", res);
+
+        return true;
+    }
+
+    return false;
 }
 
 void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
@@ -630,6 +656,8 @@ static void core_rtas_register_types(void)
                         rtas_ibm_nmi_register);
     spapr_rtas_register(RTAS_IBM_NMI_INTERLOCK, "ibm,nmi-interlock",
                         rtas_ibm_nmi_interlock);
+
+    qtest_set_command_cb(spapr_qtest_callback);
 }
 
 type_init(core_rtas_register_types)

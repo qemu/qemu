@@ -21,9 +21,11 @@
 #include "qemu/units.h"
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-h3.h"
+#include "hw/arm/boot.h"
 
 static struct arm_boot_info orangepi_binfo;
 
@@ -104,7 +106,7 @@ static void orangepi_init(MachineState *machine)
     orangepi_binfo.loader_start = h3->memmap[AW_H3_DEV_SDRAM];
     orangepi_binfo.ram_size = machine->ram_size;
     orangepi_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &orangepi_binfo);
+    arm_load_kernel(&h3->cpus[0], machine, &orangepi_binfo);
 }
 
 static void orangepi_machine_init(MachineClass *mc)

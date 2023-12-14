@@ -23,7 +23,7 @@
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "migration/vmstate.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-dma.h"
 #include "hw/qdev-properties.h"

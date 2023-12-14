@@ -277,10 +277,7 @@ struct NPCM7xxEMCState {
     bool rx_active;
 };
 
-typedef struct NPCM7xxEMCState NPCM7xxEMCState;
-
 #define TYPE_NPCM7XX_EMC "npcm7xx-emc"
-#define NPCM7XX_EMC(obj) \
-    OBJECT_CHECK(NPCM7xxEMCState, (obj), TYPE_NPCM7XX_EMC)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxEMCState, NPCM7XX_EMC)
 
 #endif /* NPCM7XX_EMC_H */

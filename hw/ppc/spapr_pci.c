@@ -780,6 +780,10 @@ static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &phb->iommu_as;
 }
 
+static const PCIIOMMUOps spapr_iommu_ops = {
+    .get_address_space = spapr_pci_dma_iommu,
+};
+
 static char *spapr_phb_vfio_get_loc_code(SpaprPhbState *sphb,  PCIDevice *pdev)
 {
     g_autofree char *path = NULL;
@@ -800,6 +804,7 @@ static char *spapr_phb_vfio_get_loc_code(SpaprPhbState *sphb,  PCIDevice *pdev)
     }
 
     /* Construct and read from host device tree the loc-code */
+    g_free(path);
     path = g_strdup_printf("/proc/device-tree%s/ibm,loc-code", devspec);
     if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         return NULL;
@@ -1360,7 +1365,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 {
     int offset;
     g_autofree gchar *nodename = spapr_pci_fw_dev_name(dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     ResourceProps rp;
     SpaprDrc *drc = drc_from_dev(sphb, dev);
     uint32_t vendor_id = pci_default_read_config(dev, PCI_VENDOR_ID, 2);
@@ -1443,9 +1447,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
     }
 
-    spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
-
-    if (!pc->is_bridge) {
+    if (!IS_PCI_BRIDGE(dev)) {
         /* Properties only for non-bridges */
         uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
         uint32_t max_latency = pci_default_read_config(dev, PCI_MAX_LAT, 1);
@@ -1543,7 +1545,6 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
@@ -1554,12 +1555,12 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
          */
         if (plugged_dev->hotplugged) {
             error_setg(errp, QERR_BUS_NO_HOTPLUG,
-                       object_get_typename(OBJECT(phb)));
+                       phb->parent_obj.bus->qbus.name);
             return;
         }
     }
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         if (!bridge_has_valid_chassis_nr(OBJECT(plugged_dev), errp)) {
             return;
         }
@@ -1588,7 +1589,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
@@ -1602,7 +1602,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 
     g_assert(drc);
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         spapr_pci_bridge_plug(phb, PCI_BRIDGE(plugged_dev));
     }
 
@@ -1645,7 +1645,6 @@ static void spapr_pci_bridge_unplug(SpaprPhbState *phb,
 static void spapr_pci_unplug(HotplugHandler *plug_handler,
                              DeviceState *plugged_dev, Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
 
     /* some version guests do not wait for completion of a device
@@ -1660,7 +1659,7 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
      */
     pci_device_reset(PCI_DEVICE(plugged_dev));
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         spapr_pci_bridge_unplug(phb, PCI_BRIDGE(plugged_dev));
         return;
     }
@@ -1677,7 +1676,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 
     if (!phb->dr_enabled) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG,
-                   object_get_typename(OBJECT(phb)));
+                   phb->parent_obj.bus->qbus.name);
         return;
     }
 
@@ -1685,7 +1684,6 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     g_assert(drc->dev == plugged_dev);
 
     if (!spapr_drc_unplug_requested(drc)) {
-        PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         SpaprDrc *func_drc;
         SpaprDrcClass *func_drck;
@@ -1693,7 +1691,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
         int i;
         uint8_t chassis = chassis_from_bus(pci_get_bus(pdev));
 
-        if (pc->is_bridge) {
+        if (IS_PCI_BRIDGE(plugged_dev)) {
             error_setg(errp, "PCI: Hot unplug of PCI bridges not supported");
             return;
         }
@@ -1760,8 +1758,6 @@ static void spapr_phb_unrealize(DeviceState *dev)
     SpaprTceTable *tcet;
     int i;
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
-
-    spapr_phb_nvgpu_free(sphb);
 
     if (sphb->msi) {
         g_hash_table_unref(sphb->msi);
@@ -1834,9 +1830,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         (SpaprMachineState *) object_dynamic_cast(qdev_get_machine(),
                                                   TYPE_SPAPR_MACHINE);
     SpaprMachineClass *smc = spapr ? SPAPR_MACHINE_GET_CLASS(spapr) : NULL;
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(sbd);
+    PCIHostState *phb = PCI_HOST_BRIDGE(sbd);
     MachineState *ms = MACHINE(spapr);
     char *namebuf;
     int i;
@@ -1986,7 +1982,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&sphb->iommu_root, SPAPR_PCI_MSI_WINDOW,
                                 &sphb->msiwindow);
 
-    pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
+    pci_setup_iommu(bus, &spapr_iommu_ops, sphb);
 
     pci_bus_set_route_irq_fn(bus, spapr_route_intx_pin_to_irq);
 
@@ -2044,7 +2040,7 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
     DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
 
     if (dev) {
-        device_legacy_reset(dev);
+        device_cold_reset(dev);
     }
 
     return 0;
@@ -2073,14 +2069,8 @@ void spapr_phb_dma_reset(SpaprPhbState *sphb)
 static void spapr_phb_reset(DeviceState *qdev)
 {
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
-    Error *err = NULL;
 
     spapr_phb_dma_reset(sphb);
-    spapr_phb_nvgpu_free(sphb);
-    spapr_phb_nvgpu_setup(sphb, &err);
-    if (err) {
-        error_report_err(err);
-    }
 
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
@@ -2116,8 +2106,6 @@ static Property spapr_phb_properties[] = {
                      pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pcie-extended-configuration-space", SpaprPhbState,
                      pcie_ecs, true),
-    DEFINE_PROP_UINT64("gpa", SpaprPhbState, nv2_gpa_win_addr, 0),
-    DEFINE_PROP_UINT64("atsd", SpaprPhbState, nv2_atsd_win_addr, 0),
     DEFINE_PROP_BOOL("pre-5.1-associativity", SpaprPhbState,
                      pre_5_1_assoc, false),
     DEFINE_PROP_END_OF_LIST(),
@@ -2366,7 +2354,6 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
     };
     SpaprTceTable *tcet;
     SpaprDrc *drc;
-    Error *err = NULL;
 
     /* Start populating the FDT */
     _FDT(bus_off = fdt_add_subnode(fdt, 0, phb->dtbusname));
@@ -2446,12 +2433,6 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
     if (ret < 0) {
         return ret;
     }
-
-    spapr_phb_nvgpu_populate_dt(phb, fdt, bus_off, &err);
-    if (err) {
-        error_report_err(err);
-    }
-    spapr_phb_nvgpu_ram_populate_dt(phb, fdt);
 
     return 0;
 }

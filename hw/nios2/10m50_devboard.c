@@ -98,7 +98,7 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
     qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
 
     if (nms->vic) {
-        DeviceState *dev = qdev_new(TYPE_NIOS2_VIC);
+        dev = qdev_new(TYPE_NIOS2_VIC);
         MemoryRegion *dev_mr;
         qemu_irq cpu_irq;
 
@@ -107,7 +107,7 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
 
         cpu_irq = qdev_get_gpio_in_named(DEVICE(cpu), "EIC", 0);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq);
-        for (int i = 0; i < 32; i++) {
+        for (i = 0; i < 32; i++) {
             irq[i] = qdev_get_gpio_in(dev, i);
         }
 
@@ -160,6 +160,7 @@ static void nios2_10m50_ghrd_class_init(ObjectClass *oc, void *data)
     mc->desc = "Altera 10M50 GHRD Nios II design";
     mc->init = nios2_10m50_ghrd_init;
     mc->is_default = true;
+    mc->deprecation_reason = "Nios II architecture is deprecated";
 
     object_class_property_add_bool(oc, "vic", get_vic, set_vic);
     object_class_property_set_description(oc, "vic",

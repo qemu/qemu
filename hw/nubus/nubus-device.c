@@ -80,6 +80,7 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
                                &error_abort);
         ret = load_image_mr(path, &nd->decl_rom);
         g_free(path);
+        g_free(name);
         if (ret < 0) {
             error_setg(errp, "could not load romfile \"%s\"", nd->romfile);
             return;

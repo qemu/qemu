@@ -10,7 +10,7 @@
 #include "hw/ptimer.h"
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/qtest.h"
 #include "block/aio.h"

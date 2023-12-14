@@ -233,11 +233,12 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     int64_t bs_size;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_IMAGE, false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     opts = qemu_opts_create(&vpc_runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
@@ -450,9 +451,9 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vpc format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, errp);
+
+    ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
         goto fail;
     }
 
@@ -487,8 +488,8 @@ static int vpc_reopen_prepare(BDRVReopenState *state,
  * operation (the block bitmaps is updated then), 0 otherwise.
  * If write is true then err must not be NULL.
  */
-static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
-                                       bool write, int *err)
+static int64_t coroutine_fn GRAPH_RDLOCK
+get_image_offset(BlockDriverState *bs, uint64_t offset, bool write, int *err)
 {
     BDRVVPCState *s = bs->opaque;
     uint64_t bitmap_offset, block_offset;
@@ -511,13 +512,12 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
        miss sparse read optimization, but it's not a problem in terms of
        correctness. */
     if (write && (s->last_bitmap_offset != bitmap_offset)) {
-        uint8_t bitmap[s->bitmap_size];
+        g_autofree uint8_t *bitmap = g_malloc(s->bitmap_size);
         int r;
 
         s->last_bitmap_offset = bitmap_offset;
         memset(bitmap, 0xff, s->bitmap_size);
-        r = bdrv_pwrite_sync(bs->file, bitmap_offset, s->bitmap_size, bitmap,
-                             0);
+        r = bdrv_co_pwrite_sync(bs->file, bitmap_offset, s->bitmap_size, bitmap, 0);
         if (r < 0) {
             *err = r;
             return -2;
@@ -533,13 +533,13 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
  *
  * Returns 0 on success and < 0 on error
  */
-static int rewrite_footer(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK rewrite_footer(BlockDriverState *bs)
 {
     int ret;
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite_sync(bs->file, offset, sizeof(s->footer), &s->footer, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, offset, sizeof(s->footer), &s->footer, 0);
     if (ret < 0)
         return ret;
 
@@ -553,13 +553,14 @@ static int rewrite_footer(BlockDriverState *bs)
  *
  * Returns the sectors' offset in the image file on success and < 0 on error
  */
-static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
+static int64_t coroutine_fn GRAPH_RDLOCK
+alloc_block(BlockDriverState *bs, int64_t offset)
 {
     BDRVVPCState *s = bs->opaque;
     int64_t bat_offset;
     uint32_t index, bat_value;
     int ret;
-    uint8_t bitmap[s->bitmap_size];
+    g_autofree uint8_t *bitmap = g_malloc(s->bitmap_size);
 
     /* Check if sector_num is valid */
     if ((offset < 0) || (offset > bs->total_sectors * BDRV_SECTOR_SIZE)) {
@@ -573,8 +574,8 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
 
     /* Initialize the block's bitmap */
     memset(bitmap, 0xff, s->bitmap_size);
-    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset,
-                           s->bitmap_size, bitmap, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, s->free_data_block_offset,
+                              s->bitmap_size, bitmap, 0);
     if (ret < 0) {
         return ret;
     }
@@ -588,7 +589,7 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
     /* Write BAT entry to disk */
     bat_offset = s->bat_offset + (4 * index);
     bat_value = cpu_to_be32(s->pagetable[index]);
-    ret = bdrv_pwrite_sync(bs->file, bat_offset, 4, &bat_value, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, bat_offset, 4, &bat_value, 0);
     if (ret < 0)
         goto fail;
 
@@ -599,7 +600,8 @@ fail:
     return ret;
 }
 
-static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+vpc_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BDRVVPCState *s = (BDRVVPCState *)bs->opaque;
 
@@ -610,7 +612,7 @@ static int vpc_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vpc_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -660,7 +662,7 @@ fail:
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vpc_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -718,11 +720,11 @@ fail:
     return ret;
 }
 
-static int coroutine_fn vpc_co_block_status(BlockDriverState *bs,
-                                            bool want_zero,
-                                            int64_t offset, int64_t bytes,
-                                            int64_t *pnum, int64_t *map,
-                                            BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+vpc_co_block_status(BlockDriverState *bs, bool want_zero,
+                    int64_t offset, int64_t bytes,
+                    int64_t *pnum, int64_t *map,
+                    BlockDriverState **file)
 {
     BDRVVPCState *s = bs->opaque;
     int64_t image_offset;
@@ -820,8 +822,8 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
     return 0;
 }
 
-static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
-                               int64_t total_sectors)
+static int coroutine_fn create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
+                                            int64_t total_sectors)
 {
     VHDDynDiskHeader dyndisk_header;
     uint8_t bat_sector[512];
@@ -834,13 +836,13 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     block_size = 0x200000;
     num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
-    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -850,7 +852,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
 
     memset(bat_sector, 0xFF, 512);
     for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
-        ret = blk_pwrite(blk, offset, 512, bat_sector, 0);
+        ret = blk_co_pwrite(blk, offset, 512, bat_sector, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -878,7 +880,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, sizeof(dyndisk_header), &dyndisk_header, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(dyndisk_header), &dyndisk_header, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -888,21 +890,21 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     return ret;
 }
 
-static int create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
-                             int64_t total_size, Error **errp)
+static int coroutine_fn create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
+                                          int64_t total_size, Error **errp)
 {
     int ret;
 
     /* Add footer to total size */
     total_size += sizeof(*footer);
 
-    ret = blk_truncate(blk, total_size, false, PREALLOC_MODE_OFF, 0, errp);
+    ret = blk_co_truncate(blk, total_size, false, PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - sizeof(*footer), sizeof(*footer),
-                     footer, 0);
+    ret = blk_co_pwrite(blk, total_size - sizeof(*footer), sizeof(*footer),
+                        footer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;
@@ -967,8 +969,8 @@ static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,
     return 0;
 }
 
-static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
-                                      Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vpc_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsVpc *vpc_opts;
     BlockBackend *blk = NULL;
@@ -1005,13 +1007,13 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
     /* Create BlockBackend to write to the image */
-    bs = bdrv_open_blockdev_ref(vpc_opts->file, errp);
+    bs = bdrv_co_open_blockdev_ref(vpc_opts->file, errp);
     if (bs == NULL) {
         return -EIO;
     }
 
-    blk = blk_new_with_bs(bs, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL,
-                          errp);
+    blk = blk_co_new_with_bs(bs, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL,
+                             errp);
     if (!blk) {
         ret = -EPERM;
         goto out;
@@ -1082,15 +1084,14 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
 out:
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     return ret;
 }
 
-static int coroutine_fn vpc_co_create_opts(BlockDriver *drv,
-                                           const char *filename,
-                                           QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vpc_co_create_opts(BlockDriver *drv, const char *filename,
+                   QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;
@@ -1112,13 +1113,13 @@ static int coroutine_fn vpc_co_create_opts(BlockDriver *drv,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, errp);
     if (ret < 0) {
         goto fail;
     }
 
-    bs = bdrv_open(filename, NULL, NULL,
-                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    bs = bdrv_co_open(filename, NULL, NULL,
+                      BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
     if (bs == NULL) {
         ret = -EIO;
         goto fail;
@@ -1163,13 +1164,13 @@ static int coroutine_fn vpc_co_create_opts(BlockDriver *drv,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
 
-static int vpc_has_zero_init(BlockDriverState *bs)
+static int GRAPH_RDLOCK vpc_has_zero_init(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
 
@@ -1188,8 +1189,7 @@ static void vpc_close(BlockDriverState *bs)
     g_free(s->pageentry_u8);
 #endif
 
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
+    migrate_del_blocker(&s->migration_blocker);
 }
 
 static QemuOptsList vpc_create_opts = {
@@ -1241,7 +1241,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_co_pwritev            = vpc_co_pwritev,
     .bdrv_co_block_status       = vpc_co_block_status,
 
-    .bdrv_get_info          = vpc_get_info,
+    .bdrv_co_get_info       = vpc_co_get_info,
 
     .is_format              = true,
     .create_opts            = &vpc_create_opts,

@@ -1,0 +1,5 @@
+#
+# Xtensa system tests
+#
+
+include $(SRC_PATH)/tests/tcg/xtensa/Makefile.softmmu-target

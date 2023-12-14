@@ -87,7 +87,7 @@ Build/%.fat: Build/%.efi
 .NOTPARALLEL:
 
 # In turn, the "build" utility of edk2 BaseTools invokes another "make".
-# Although the outer "make" process advertizes its job server to all child
+# Although the outer "make" process advertises its job server to all child
 # processes via MAKEFLAGS in the environment, the outer "make" closes the job
 # server file descriptors (exposed in MAKEFLAGS) before executing a recipe --
 # unless the recipe is recognized as a recursive "make" recipe. Recipes that

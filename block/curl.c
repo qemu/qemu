@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
@@ -37,8 +38,15 @@
 
 // #define DEBUG_VERBOSE
 
+/* CURL 7.85.0 switches to a string based API for specifying
+ * the desired protocols.
+ */
+#if LIBCURL_VERSION_NUM >= 0x075500
+#define PROTOCOLS "HTTP,HTTPS,FTP,FTPS"
+#else
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
                    CURLPROTO_FTP | CURLPROTO_FTPS)
+#endif
 
 #define CURL_NUM_STATES 8
 #define CURL_NUM_ACB    8
@@ -124,7 +132,7 @@ static gboolean curl_drop_socket(void *key, void *value, void *opaque)
     CURLSocket *socket = value;
     BDRVCURLState *s = socket->s;
 
-    aio_set_fd_handler(s->aio_context, socket->fd, false,
+    aio_set_fd_handler(s->aio_context, socket->fd,
                        NULL, NULL, NULL, NULL, NULL);
     return true;
 }
@@ -172,20 +180,20 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     trace_curl_sock_cb(action, (int)fd);
     switch (action) {
         case CURL_POLL_IN:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                curl_multi_do, NULL, NULL, NULL, socket);
             break;
         case CURL_POLL_OUT:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                NULL, curl_multi_do, NULL, NULL, socket);
             break;
         case CURL_POLL_INOUT:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                curl_multi_do, curl_multi_do,
                                NULL, NULL, socket);
             break;
         case CURL_POLL_REMOVE:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                NULL, NULL, NULL, NULL, NULL);
             break;
     }
@@ -509,9 +517,18 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
          * obscure protocols.  For example, do not allow POP3/SMTP/IMAP see
          * CVE-2013-0249.
          *
-         * Restricting protocols is only supported from 7.19.4 upwards.
+         * Restricting protocols is only supported from 7.19.4 upwards. Note:
+         * version 7.85.0 deprecates CURLOPT_*PROTOCOLS in favour of a string
+         * based CURLOPT_*PROTOCOLS_STR API.
          */
-#if LIBCURL_VERSION_NUM >= 0x071304
+#if LIBCURL_VERSION_NUM >= 0x075500
+        if (curl_easy_setopt(state->curl,
+                             CURLOPT_PROTOCOLS_STR, PROTOCOLS) ||
+            curl_easy_setopt(state->curl,
+                             CURLOPT_REDIR_PROTOCOLS_STR, PROTOCOLS)) {
+            goto err;
+        }
+#elif LIBCURL_VERSION_NUM >= 0x071304
         if (curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS) ||
             curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS)) {
             goto err;
@@ -669,13 +686,20 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     const char *file;
     const char *cookie;
     const char *cookie_secret;
-    double d;
+    /* CURL >= 7.55.0 uses curl_off_t for content length instead of a double */
+#if LIBCURL_VERSION_NUM >= 0x073700
+    curl_off_t cl;
+#else
+    double cl;
+#endif
     const char *secretid;
     const char *protocol_delimiter;
     int ret;
 
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_apply_auto_read_only(bs, "curl driver does not support writes",
                                     errp);
+    bdrv_graph_rdunlock_main_loop();
     if (ret < 0) {
         return ret;
     }
@@ -796,27 +820,36 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     }
     if (curl_easy_perform(state->curl))
         goto out;
-    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d)) {
+    /* CURL 7.55.0 deprecates CURLINFO_CONTENT_LENGTH_DOWNLOAD in favour of
+     * the *_T version which returns a more sensible type for content length.
+     */
+#if LIBCURL_VERSION_NUM >= 0x073700
+    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl)) {
         goto out;
     }
+#else
+    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &cl)) {
+        goto out;
+    }
+#endif
     /* Prior CURL 7.19.4 return value of 0 could mean that the file size is not
      * know or the size is zero. From 7.19.4 CURL returns -1 if size is not
      * known and zero if it is really zero-length file. */
 #if LIBCURL_VERSION_NUM >= 0x071304
-    if (d < 0) {
+    if (cl < 0) {
         pstrcpy(state->errmsg, CURL_ERROR_SIZE,
                 "Server didn't report file size.");
         goto out;
     }
 #else
-    if (d <= 0) {
+    if (cl <= 0) {
         pstrcpy(state->errmsg, CURL_ERROR_SIZE,
                 "Unknown file size or zero-length file.");
         goto out;
     }
 #endif
 
-    s->len = d;
+    s->len = cl;
 
     if ((!strncasecmp(s->url, "http://", strlen("http://"))
         || !strncasecmp(s->url, "https://", strlen("https://")))
@@ -849,13 +882,15 @@ out_noclean:
     g_free(s->username);
     g_free(s->proxyusername);
     g_free(s->proxypassword);
-    curl_drop_all_sockets(s->sockets);
-    g_hash_table_destroy(s->sockets);
+    if (s->sockets) {
+        curl_drop_all_sockets(s->sockets);
+        g_hash_table_destroy(s->sockets);
+    }
     qemu_opts_del(opts);
     return -EINVAL;
 }
 
-static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
+static void coroutine_fn curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
 {
     CURLState *state;
     int running;
@@ -957,7 +992,7 @@ static void curl_close(BlockDriverState *bs)
     g_free(s->proxypassword);
 }
 
-static int64_t curl_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn curl_co_getlength(BlockDriverState *bs)
 {
     BDRVCURLState *s = bs->opaque;
     return s->len;
@@ -1001,7 +1036,7 @@ static BlockDriver bdrv_http = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1020,7 +1055,7 @@ static BlockDriver bdrv_https = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1039,7 +1074,7 @@ static BlockDriver bdrv_ftp = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1058,7 +1093,7 @@ static BlockDriver bdrv_ftps = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 

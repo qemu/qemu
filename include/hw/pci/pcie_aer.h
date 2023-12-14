@@ -40,7 +40,7 @@ struct PCIEAERLog {
      * The specified value will be clipped down to PCIE_AER_LOG_MAX_LIMIT
      * to avoid unreasonable memory usage.
      * I bet that 128 log size would be big enough, otherwise too many errors
-     * for system to function normaly. But could consecutive errors occur?
+     * for system to function normally. But could consecutive errors occur?
      */
 #define PCIE_AER_LOG_MAX_DEFAULT        8
 #define PCIE_AER_LOG_MAX_LIMIT          128
@@ -100,4 +100,5 @@ void pcie_aer_root_write_config(PCIDevice *dev,
                                 uint32_t addr, uint32_t val, int len,
                                 uint32_t root_cmd_prev);
 
+int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err);
 #endif /* QEMU_PCIE_AER_H */

@@ -1,3 +1,5 @@
+.. _tpm-device:
+
 ===============
 QEMU TPM Device
 ===============
@@ -21,11 +23,15 @@ QEMU files related to TPM TIS interface:
  - ``hw/tpm/tpm_tis_common.c``
  - ``hw/tpm/tpm_tis_isa.c``
  - ``hw/tpm/tpm_tis_sysbus.c``
+ - ``hw/tpm/tpm_tis_i2c.c``
  - ``hw/tpm/tpm_tis.h``
 
 Both an ISA device and a sysbus device are available. The former is
 used with pc/q35 machine while the latter can be instantiated in the
 Arm virt machine.
+
+An I2C device support is also provided which can be instantiated in the Arm
+based emulation machines. This device only supports the TPM 2 protocol.
 
 CRB interface
 -------------
@@ -250,24 +256,25 @@ hardware TPM ``/dev/tpm0``:
 
 The following commands should result in similar output inside the VM
 with a Linux kernel that either has the TPM TIS driver built-in or
-available as a module:
+available as a module (assuming a TPM 2 is passed through):
 
 .. code-block:: console
 
   # dmesg | grep -i tpm
-  [    0.711310] tpm_tis 00:06: 1.2 TPM (device=id 0x1, rev-id 1)
-
-  # dmesg | grep TCPA
-  [    0.000000] ACPI: TCPA 0x0000000003FFD191C 000032 (v02 BOCHS  \
-      BXPCTCPA 0000001 BXPC 00000001)
+  [    0.012560] ACPI: TPM2 0x000000000BFFD1900 00004C (v04 BOCHS  \
+      BXPC     0000001 BXPC 00000001)
 
   # ls -l /dev/tpm*
-  crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
+  crw-rw----. 1 tss root  10,   224 Sep  6 12:36 /dev/tpm0
+  crw-rw----. 1 tss rss  253, 65536 Sep  6 12:36 /dev/tpmrm0
 
-  # find /sys/devices/ | grep pcrs$ | xargs cat
-  PCR-00: 35 4E 3B CE 23 9F 38 59 ...
+  Starting with Linux 5.12 there are PCR entries for TPM 2 in sysfs:
+  # find /sys/devices/ -type f | grep pcr-sha
   ...
-  PCR-23: 00 00 00 00 00 00 00 00 ...
+  /sys/devices/LNXSYSTEM:00/LNXSYBUS:00/MSFT0101:00/tpm/tpm0/pcr-sha256/1
+  ...
+  /sys/devices/LNXSYSTEM:00/LNXSYBUS:00/MSFT0101:00/tpm/tpm0/pcr-sha256/9
+  ...
 
 The QEMU TPM emulator device
 ----------------------------
@@ -304,6 +311,7 @@ a socket interface. They do not need to be run as root.
   mkdir /tmp/mytpm1
   swtpm socket --tpmstate dir=/tmp/mytpm1 \
     --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+    --tpm2 \
     --log level=20
 
 Command line to start QEMU with the TPM emulator device communicating
@@ -346,6 +354,23 @@ In case an Arm virt machine is emulated, use the following command line:
     -drive if=pflash,format=raw,file=flash0.img,readonly=on \
     -drive if=pflash,format=raw,file=flash1.img
 
+In case a ast2600-evb bmc machine is emulated and you want to use a TPM device
+attached to I2C bus, use the following command line:
+
+.. code-block:: console
+
+  qemu-system-arm -M ast2600-evb -nographic \
+    -kernel arch/arm/boot/zImage \
+    -dtb arch/arm/boot/dts/aspeed-ast2600-evb.dtb \
+    -initrd rootfs.cpio \
+    -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis-i2c,tpmdev=tpm0,bus=aspeed.i2c.bus.12,address=0x2e
+
+  For testing, use this command to load the driver to the correct address
+
+  echo tpm_tis_i2c 0x2e > /sys/bus/i2c/devices/i2c-12/new_device
+
 In case SeaBIOS is used as firmware, it should show the TPM menu item
 after entering the menu with 'ESC'.
 
@@ -365,19 +390,20 @@ available as a module:
 .. code-block:: console
 
   # dmesg | grep -i tpm
-  [    0.711310] tpm_tis 00:06: 1.2 TPM (device=id 0x1, rev-id 1)
-
-  # dmesg | grep TCPA
-  [    0.000000] ACPI: TCPA 0x0000000003FFD191C 000032 (v02 BOCHS  \
-      BXPCTCPA 0000001 BXPC 00000001)
+  [    0.012560] ACPI: TPM2 0x000000000BFFD1900 00004C (v04 BOCHS  \
+      BXPC     0000001 BXPC 00000001)
 
   # ls -l /dev/tpm*
-  crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
+  crw-rw----. 1 tss root  10,   224 Sep  6 12:36 /dev/tpm0
+  crw-rw----. 1 tss rss  253, 65536 Sep  6 12:36 /dev/tpmrm0
 
-  # find /sys/devices/ | grep pcrs$ | xargs cat
-  PCR-00: 35 4E 3B CE 23 9F 38 59 ...
+  Starting with Linux 5.12 there are PCR entries for TPM 2 in sysfs:
+  # find /sys/devices/ -type f | grep pcr-sha
   ...
-  PCR-23: 00 00 00 00 00 00 00 00 ...
+  /sys/devices/LNXSYSTEM:00/LNXSYBUS:00/MSFT0101:00/tpm/tpm0/pcr-sha256/1
+  ...
+  /sys/devices/LNXSYSTEM:00/LNXSYBUS:00/MSFT0101:00/tpm/tpm0/pcr-sha256/9
+  ...
 
 Migration with the TPM emulator
 ===============================
@@ -398,7 +424,8 @@ In a 1st terminal start an instance of a swtpm using the following command:
   mkdir /tmp/mytpm1
   swtpm socket --tpmstate dir=/tmp/mytpm1 \
     --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
-    --log level=20 --tpm2
+    --tpm2 \
+    --log level=20
 
 In a 2nd terminal start the VM:
 

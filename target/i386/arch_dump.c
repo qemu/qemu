@@ -42,7 +42,7 @@ typedef struct {
 
 static int x86_64_write_elf64_note(WriteCoreDumpFunction f,
                                    CPUX86State *env, int id,
-                                   void *opaque)
+                                   DumpState *s)
 {
     x86_64_user_regs_struct regs;
     Elf64_Nhdr *note;
@@ -94,7 +94,7 @@ static int x86_64_write_elf64_note(WriteCoreDumpFunction f,
     buf += descsz - sizeof(x86_64_user_regs_struct)-sizeof(target_ulong);
     memcpy(buf, &regs, sizeof(x86_64_user_regs_struct));
 
-    ret = f(note, note_size, opaque);
+    ret = f(note, note_size, s);
     g_free(note);
     if (ret < 0) {
         return -1;
@@ -148,7 +148,7 @@ static void x86_fill_elf_prstatus(x86_elf_prstatus *prstatus, CPUX86State *env,
 }
 
 static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
-                                int id, void *opaque)
+                                int id, DumpState *s)
 {
     x86_elf_prstatus prstatus;
     Elf64_Nhdr *note;
@@ -170,7 +170,7 @@ static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
     buf += ROUND_UP(name_size, 4);
     memcpy(buf, &prstatus, sizeof(prstatus));
 
-    ret = f(note, note_size, opaque);
+    ret = f(note, note_size, s);
     g_free(note);
     if (ret < 0) {
         return -1;
@@ -180,7 +180,7 @@ static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
 }
 
 int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque)
+                             int cpuid, DumpState *s)
 {
     X86CPU *cpu = X86_CPU(cs);
     int ret;
@@ -189,10 +189,10 @@ int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     bool lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
 
     if (lma) {
-        ret = x86_64_write_elf64_note(f, &cpu->env, cpuid, opaque);
+        ret = x86_64_write_elf64_note(f, &cpu->env, cpuid, s);
     } else {
 #endif
-        ret = x86_write_elf64_note(f, &cpu->env, cpuid, opaque);
+        ret = x86_write_elf64_note(f, &cpu->env, cpuid, s);
 #ifdef TARGET_X86_64
     }
 #endif
@@ -201,7 +201,7 @@ int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 }
 
 int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque)
+                             int cpuid, DumpState *s)
 {
     X86CPU *cpu = X86_CPU(cs);
     x86_elf_prstatus prstatus;
@@ -224,7 +224,7 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     buf += ROUND_UP(name_size, 4);
     memcpy(buf, &prstatus, sizeof(prstatus));
 
-    ret = f(note, note_size, opaque);
+    ret = f(note, note_size, s);
     g_free(note);
     if (ret < 0) {
         return -1;
@@ -329,7 +329,7 @@ static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
 
 static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
                                       CPUX86State *env,
-                                      void *opaque,
+                                      DumpState *s,
                                       int type)
 {
     QEMUCPUState state;
@@ -369,7 +369,7 @@ static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
     buf += ROUND_UP(name_size, 4);
     memcpy(buf, &state, sizeof(state));
 
-    ret = f(note, note_size, opaque);
+    ret = f(note, note_size, s);
     g_free(note);
     if (ret < 0) {
         return -1;
@@ -379,19 +379,19 @@ static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
 }
 
 int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cs,
-                                 void *opaque)
+                                 DumpState *s)
 {
     X86CPU *cpu = X86_CPU(cs);
 
-    return cpu_write_qemu_note(f, &cpu->env, opaque, 1);
+    return cpu_write_qemu_note(f, &cpu->env, s, 1);
 }
 
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cs,
-                                 void *opaque)
+                                 DumpState *s)
 {
     X86CPU *cpu = X86_CPU(cs);
 
-    return cpu_write_qemu_note(f, &cpu->env, opaque, 0);
+    return cpu_write_qemu_note(f, &cpu->env, s, 0);
 }
 
 int cpu_get_dump_info(ArchDumpInfo *info,

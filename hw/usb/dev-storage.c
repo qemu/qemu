@@ -177,6 +177,37 @@ static const USBDesc desc = {
     .str   = desc_strings,
 };
 
+static void usb_msd_packet_complete(MSDState *s)
+{
+    USBPacket *p = s->packet;
+
+    /*
+     * Set s->packet to NULL before calling usb_packet_complete
+     * because another request may be issued before
+     * usb_packet_complete returns.
+     */
+    trace_usb_msd_packet_complete();
+    s->packet = NULL;
+    usb_packet_complete(&s->dev, p);
+}
+
+static void usb_msd_fatal_error(MSDState *s)
+{
+    trace_usb_msd_fatal_error();
+
+    if (s->packet) {
+        s->packet->status = USB_RET_STALL;
+        usb_msd_packet_complete(s);
+    }
+
+    /*
+     * Guest messed up up device state with illegal requests.  Go
+     * ignore any requests until the guests resets the device (and
+     * brings it into a known state that way).
+     */
+    s->needs_reset = true;
+}
+
 static void usb_msd_copy_data(MSDState *s, USBPacket *p)
 {
     uint32_t len;
@@ -208,24 +239,16 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     memset(&s->csw, 0, sizeof(s->csw));
 }
 
-static void usb_msd_packet_complete(MSDState *s)
-{
-    USBPacket *p = s->packet;
-
-    /* Set s->packet to NULL before calling usb_packet_complete
-       because another request may be issued before
-       usb_packet_complete returns.  */
-    trace_usb_msd_packet_complete();
-    s->packet = NULL;
-    usb_packet_complete(&s->dev, p);
-}
-
 void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
+    if ((s->mode == USB_MSDM_DATAOUT) != (req->cmd.mode == SCSI_XFER_TO_DEV)) {
+        usb_msd_fatal_error(s);
+        return;
+    }
+
     s->scsi_len = len;
     s->scsi_off = 0;
     if (p) {
@@ -315,6 +338,8 @@ void usb_msd_handle_reset(USBDevice *dev)
 
     memset(&s->csw, 0, sizeof(s->csw));
     s->mode = USB_MSDM_CBW;
+
+    s->needs_reset = false;
 }
 
 static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
@@ -378,7 +403,12 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     struct usb_msd_cbw cbw;
     uint8_t devep = p->ep->nr;
     SCSIDevice *scsi_dev;
-    uint32_t len;
+    int len;
+
+    if (s->needs_reset) {
+        p->status = USB_RET_STALL;
+        return;
+    }
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -415,7 +445,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                                      cbw.cmd_len, s->data_len);
             assert(le32_to_cpu(s->csw.residue) == 0);
             s->scsi_len = 0;
-            s->req = scsi_req_new(scsi_dev, tag, cbw.lun, cbw.cmd, NULL);
+            s->req = scsi_req_new(scsi_dev, tag, cbw.lun, cbw.cmd, cbw.cmd_len, NULL);
             if (s->commandlog) {
                 scsi_req_print(s->req);
             }
@@ -435,7 +465,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 usb_msd_copy_data(s, p);
             }
             if (le32_to_cpu(s->csw.residue)) {
-                int len = p->iov.size - p->actual_length;
+                len = p->iov.size - p->actual_length;
                 if (len) {
                     usb_packet_skip(p, len);
                     if (len > s->data_len) {
@@ -496,7 +526,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 usb_msd_copy_data(s, p);
             }
             if (le32_to_cpu(s->csw.residue)) {
-                int len = p->iov.size - p->actual_length;
+                len = p->iov.size - p->actual_length;
                 if (len) {
                     usb_packet_skip(p, len);
                     if (len > s->data_len) {

@@ -41,18 +41,18 @@ Those hosts are officially supported, with various accelerators:
      - Accelerators
    * - Arm
      - kvm (64 bit only), tcg, xen
-   * - MIPS
+   * - MIPS (little endian only)
      - kvm, tcg
    * - PPC
      - kvm, tcg
    * - RISC-V
-     - tcg
+     - kvm, tcg
    * - s390x
      - kvm, tcg
    * - SPARC
      - tcg
    * - x86
-     - hax, hvf (64 bit only), kvm, nvmm, tcg, whpx (64 bit only), xen
+     - hvf (64 bit only), kvm, nvmm, tcg, whpx (64 bit only), xen
 
 Other host architectures are not supported. It is possible to build QEMU system
 emulation on an unsupported host architecture using the configure
@@ -67,7 +67,8 @@ Non-supported architectures may be removed in the future following the
 Linux OS, macOS, FreeBSD, NetBSD, OpenBSD
 -----------------------------------------
 
-The project aims to support the most recent major version at all times. Support
+The project aims to support the most recent major version at all times for
+up to five years after its initial release. Support
 for the previous major version will be dropped 2 years after the new major
 version is released or when the vendor itself drops support, whichever comes
 first. In this context, third-party efforts to extend the lifetime of a distro
@@ -85,6 +86,38 @@ respective ports repository, while NetBSD will use the pkgsrc repository.
 
 For macOS, `Homebrew`_ will be used, although `MacPorts`_ is expected to carry
 similar versions.
+
+Some build dependencies may follow less conservative rules:
+
+Python runtime
+  Distributions with long-term support often provide multiple versions
+  of the Python runtime.  While QEMU will initially aim to support the
+  distribution's default runtime, it may later increase its minimum version
+  to any newer python that is available as an option from the vendor.
+  In this case, it will be necessary to use the ``--python`` command line
+  option of the ``configure`` script to point QEMU to a supported
+  version of the Python runtime.
+
+  As of QEMU |version|, the minimum supported version of Python is 3.7.
+
+Python build dependencies
+  Some of QEMU's build dependencies are written in Python.  Usually these
+  are only packaged by distributions for the default Python runtime.
+  If QEMU bumps its minimum Python version and a non-default runtime is
+  required, it may be necessary to fetch python modules from the Python
+  Package Index (PyPI) via ``pip``, in order to build QEMU.
+
+Optional build dependencies
+  Build components whose absence does not affect the ability to build
+  QEMU may not be available in distros, or may be too old for QEMU's
+  requirements.  Many of these, such as the Avocado testing framework
+  or various linters, are written in Python and therefore can also
+  be installed using ``pip``.  Cross compilers are another example
+  of optional build-time dependency; in this case it is possible to
+  download them from repositories such as EPEL, to use container-based
+  cross compilation using ``docker`` or ``podman``, or to use pre-built
+  binaries distributed with QEMU.
+
 
 Windows
 -------

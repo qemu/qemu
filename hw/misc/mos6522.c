@@ -25,7 +25,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/input/adb.h"
 #include "hw/irq.h"
 #include "hw/misc/mos6522.h"
 #include "hw/qdev-properties.h"
@@ -595,7 +594,7 @@ void hmp_info_via(Monitor *mon, const QDict *qdict)
     if (hmp_handle_error(mon, err)) {
         return;
     }
-    monitor_printf(mon, "%s", info->human_readable_text);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 static const MemoryRegionOps mos6522_ops = {
@@ -643,9 +642,9 @@ const VMStateDescription vmstate_mos6522 = {
     }
 };
 
-static void mos6522_reset(DeviceState *dev)
+static void mos6522_reset_hold(Object *obj)
 {
-    MOS6522State *s = MOS6522(dev);
+    MOS6522State *s = MOS6522(obj);
 
     s->b = 0;
     s->a = 0;
@@ -705,9 +704,10 @@ static Property mos6522_properties[] = {
 static void mos6522_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    dc->reset = mos6522_reset;
+    rc->phases.hold = mos6522_reset_hold;
     dc->vmsd = &vmstate_mos6522;
     device_class_set_props(dc, mos6522_properties);
     mdc->portB_write = mos6522_portB_write;

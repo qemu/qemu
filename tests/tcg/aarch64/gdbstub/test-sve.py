@@ -1,6 +1,6 @@
 from __future__ import print_function
 #
-# Test the SVE registers are visable and changeable via gdbstub
+# Test the SVE registers are visible and changeable via gdbstub
 #
 # This is launched via tests/guest-debug/run-test.py
 #
@@ -66,9 +66,6 @@ except (gdb.error, AttributeError):
     exit(0)
 
 try:
-    # These are not very useful in scripts
-    gdb.execute("set pagination off")
-
     # Run the actual tests
     run_test()
 except:
