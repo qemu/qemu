@@ -91,13 +91,13 @@ static int vhost_scsi_start(VHostSCSI *s)
 
     ret = vhost_scsi_common_start(vsc, &local_err);
     if (ret < 0) {
-        error_reportf_err(local_err, "Error starting vhost-scsi");
+        error_reportf_err(local_err, "Error starting vhost-scsi: ");
         return ret;
     }
 
     ret = vhost_scsi_set_endpoint(s);
     if (ret < 0) {
-        error_reportf_err(local_err, "Error setting vhost-scsi endpoint");
+        error_report("Error setting vhost-scsi endpoint");
         vhost_scsi_common_stop(vsc);
     }
 
