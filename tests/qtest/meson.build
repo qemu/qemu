@@ -6,6 +6,7 @@ endif
 
 slow_qtests = {
   'ahci-test' : 60,
+  'aspeed_smc-test': 360,
   'bios-tables-test' : 120,
   'boot-serial-test' : 60,
   'migration-test' : 150,
