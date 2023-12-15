@@ -110,6 +110,12 @@ static char *ipod_touch_get_bootrom_path(Object *obj, Error **errp)
 
 static void ipod_touch_set_bootrom_path(Object *obj, const char *value, Error **errp)
 {
+    gboolean bootrom_exists = g_file_test(value, G_FILE_TEST_EXISTS);
+    if(!bootrom_exists) {
+        error_report("bootrom at path \"%s\" must exist", value);
+        exit(1);
+    }
+    
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
     g_strlcpy(nms->bootrom_path, value, sizeof(nms->bootrom_path));
 }
@@ -122,6 +128,12 @@ static char *ipod_touch_get_nor_path(Object *obj, Error **errp)
 
 static void ipod_touch_set_nor_path(Object *obj, const char *value, Error **errp)
 {
+    gboolean nor_exists = g_file_test(value, G_FILE_TEST_EXISTS);
+    if(!nor_exists) {
+        error_report("NOR at path \"%s\" must exist", value);
+        exit(1);
+    }
+
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
     g_strlcpy(nms->nor_path, value, sizeof(nms->nor_path));
 }
@@ -134,6 +146,12 @@ static char *ipod_touch_get_nand_path(Object *obj, Error **errp)
 
 static void ipod_touch_set_nand_path(Object *obj, const char *value, Error **errp)
 {
+    gboolean nand_exists = g_file_test(value, G_FILE_TEST_EXISTS & G_FILE_TEST_IS_DIR);
+    if(!nand_exists) {
+        error_report("NAND at path \"%s\" must be a directory", value);
+        exit(1);
+    }
+    
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
     g_strlcpy(nms->nand_path, value, sizeof(nms->nand_path));
 }
