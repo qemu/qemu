@@ -130,12 +130,66 @@ static inline void extioi_enable_irq(LoongArchExtIOI *s, int index,\
     }
 }
 
+static inline void extioi_update_sw_coremap(LoongArchExtIOI *s, int irq,
+                                            uint64_t val, bool notify)
+{
+    int i, cpu;
+
+    /*
+     * loongarch only support little endian,
+     * so we paresd the value with little endian.
+     */
+    val = cpu_to_le64(val);
+
+    for (i = 0; i < 4; i++) {
+        cpu = val & 0xff;
+        cpu = ctz32(cpu);
+        cpu = (cpu >= 4) ? 0 : cpu;
+        val = val >> 8;
+
+        if (s->sw_coremap[irq + i] == cpu) {
+            continue;
+        }
+
+        if (notify && test_bit(irq, (unsigned long *)s->isr)) {
+            /*
+             * lower irq at old cpu and raise irq at new cpu
+             */
+            extioi_update_irq(s, irq + i, 0);
+            s->sw_coremap[irq + i] = cpu;
+            extioi_update_irq(s, irq + i, 1);
+        } else {
+            s->sw_coremap[irq + i] = cpu;
+        }
+    }
+}
+
+static inline void extioi_update_sw_ipmap(LoongArchExtIOI *s, int index,
+                                          uint64_t val)
+{
+    int i;
+    uint8_t ipnum;
+
+    /*
+     * loongarch only support little endian,
+     * so we paresd the value with little endian.
+     */
+    val = cpu_to_le64(val);
+    for (i = 0; i < 4; i++) {
+        ipnum = val & 0xff;
+        ipnum = ctz32(ipnum);
+        ipnum = (ipnum >= 4) ? 0 : ipnum;
+        s->sw_ipmap[index * 4 + i] = ipnum;
+        val = val >> 8;
+    }
+}
+
 static MemTxResult extioi_writew(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size,
                           MemTxAttrs attrs)
 {
     LoongArchExtIOI *s = LOONGARCH_EXTIOI(opaque);
-    int i, cpu, index, old_data, irq;
+    int cpu, index, old_data, irq;
     uint32_t offset;
 
     trace_loongarch_extioi_writew(addr, val);
@@ -153,20 +207,7 @@ static MemTxResult extioi_writew(void *opaque, hwaddr addr,
          */
         index = (offset - EXTIOI_IPMAP_START) >> 2;
         s->ipmap[index] = val;
-        /*
-         * loongarch only support little endian,
-         * so we paresd the value with little endian.
-         */
-        val = cpu_to_le64(val);
-        for (i = 0; i < 4; i++) {
-            uint8_t ipnum;
-            ipnum = val & 0xff;
-            ipnum = ctz32(ipnum);
-            ipnum = (ipnum >= 4) ? 0 : ipnum;
-            s->sw_ipmap[index * 4 + i] = ipnum;
-            val = val >> 8;
-        }
-
+        extioi_update_sw_ipmap(s, index, val);
         break;
     case EXTIOI_ENABLE_START ... EXTIOI_ENABLE_END - 1:
         index = (offset - EXTIOI_ENABLE_START) >> 2;
@@ -205,33 +246,8 @@ static MemTxResult extioi_writew(void *opaque, hwaddr addr,
         irq = offset - EXTIOI_COREMAP_START;
         index = irq / 4;
         s->coremap[index] = val;
-        /*
-         * loongarch only support little endian,
-         * so we paresd the value with little endian.
-         */
-        val = cpu_to_le64(val);
 
-        for (i = 0; i < 4; i++) {
-            cpu = val & 0xff;
-            cpu = ctz32(cpu);
-            cpu = (cpu >= 4) ? 0 : cpu;
-            val = val >> 8;
-
-            if (s->sw_coremap[irq + i] == cpu) {
-                continue;
-            }
-
-            if (test_bit(irq, (unsigned long *)s->isr)) {
-                /*
-                 * lower irq at old cpu and raise irq at new cpu
-                 */
-                extioi_update_irq(s, irq + i, 0);
-                s->sw_coremap[irq + i] = cpu;
-                extioi_update_irq(s, irq + i, 1);
-            } else {
-                s->sw_coremap[irq + i] = cpu;
-            }
-        }
+        extioi_update_sw_coremap(s, irq, val, true);
         break;
     default:
         break;
@@ -288,6 +304,23 @@ static void loongarch_extioi_finalize(Object *obj)
     g_free(s->cpu);
 }
 
+static int vmstate_extioi_post_load(void *opaque, int version_id)
+{
+    LoongArchExtIOI *s = LOONGARCH_EXTIOI(opaque);
+    int i, start_irq;
+
+    for (i = 0; i < (EXTIOI_IRQS / 4); i++) {
+        start_irq = i * 4;
+        extioi_update_sw_coremap(s, start_irq, s->coremap[i], false);
+    }
+
+    for (i = 0; i < (EXTIOI_IRQS_IPMAP_SIZE / 4); i++) {
+        extioi_update_sw_ipmap(s, i, s->ipmap[i]);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_extioi_core = {
     .name = "extioi-core",
     .version_id = 1,
@@ -302,6 +335,7 @@ static const VMStateDescription vmstate_loongarch_extioi = {
     .name = TYPE_LOONGARCH_EXTIOI,
     .version_id = 2,
     .minimum_version_id = 2,
+    .post_load = vmstate_extioi_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(bounce, LoongArchExtIOI, EXTIOI_IRQS_GROUP_COUNT),
         VMSTATE_UINT32_ARRAY(nodetype, LoongArchExtIOI,
@@ -310,8 +344,6 @@ static const VMStateDescription vmstate_loongarch_extioi = {
         VMSTATE_UINT32_ARRAY(isr, LoongArchExtIOI, EXTIOI_IRQS / 32),
         VMSTATE_UINT32_ARRAY(ipmap, LoongArchExtIOI, EXTIOI_IRQS_IPMAP_SIZE / 4),
         VMSTATE_UINT32_ARRAY(coremap, LoongArchExtIOI, EXTIOI_IRQS / 4),
-        VMSTATE_UINT8_ARRAY(sw_ipmap, LoongArchExtIOI, EXTIOI_IRQS_IPMAP_SIZE),
-        VMSTATE_UINT8_ARRAY(sw_coremap, LoongArchExtIOI, EXTIOI_IRQS),
 
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongArchExtIOI, num_cpu,
                          vmstate_extioi_core, ExtIOICore),
