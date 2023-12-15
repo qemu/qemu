@@ -511,6 +511,10 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     if (ret < 0) {
         return ret;
     }
+    if ((s & status) == status) {
+        /* Don't set bits already set */
+        return 0;
+    }
 
     s |= status;
 
