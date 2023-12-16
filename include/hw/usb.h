@@ -584,11 +584,6 @@ static inline USBDevice *usb_new(const char *name)
     return USB_DEVICE(qdev_new(name));
 }
 
-static inline USBDevice *usb_try_new(const char *name)
-{
-    return USB_DEVICE(qdev_try_new(name));
-}
-
 static inline bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
