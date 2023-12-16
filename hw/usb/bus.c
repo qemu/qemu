@@ -662,7 +662,8 @@ USBDevice *usbdevice_create(const char *driver)
         return NULL;
     }
 
-    dev = f->usbdevice_init ? f->usbdevice_init() : usb_new(f->name);
+    dev = f->usbdevice_init ? f->usbdevice_init()
+                            : USB_DEVICE(qdev_new(f->name));
     if (!dev) {
         error_report("Failed to create USB device '%s'", f->name);
         return NULL;
