@@ -832,9 +832,8 @@ static void kvm_riscv_read_multiext_legacy(RISCVCPU *cpu,
                 multi_ext_cfg->supported = false;
                 val = false;
             } else {
-                error_report("Unable to read ISA_EXT KVM register %s, "
-                             "error code: %s", multi_ext_cfg->name,
-                             strerrorname_np(errno));
+                error_report("Unable to read ISA_EXT KVM register %s: %s",
+                             multi_ext_cfg->name, strerror(errno));
                 exit(EXIT_FAILURE);
             }
         } else {
@@ -895,8 +894,8 @@ static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
          *
          * Error out if we get any other errno.
          */
-        error_report("Error when accessing get-reg-list, code: %s",
-                     strerrorname_np(errno));
+        error_report("Error when accessing get-reg-list: %s",
+                     strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -905,8 +904,8 @@ static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
     reglist->n = rl_struct.n;
     ret = ioctl(kvmcpu->cpufd, KVM_GET_REG_LIST, reglist);
     if (ret) {
-        error_report("Error when reading KVM_GET_REG_LIST, code %s ",
-                     strerrorname_np(errno));
+        error_report("Error when reading KVM_GET_REG_LIST: %s",
+                     strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -927,9 +926,8 @@ static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
         reg.addr = (uint64_t)&val;
         ret = ioctl(kvmcpu->cpufd, KVM_GET_ONE_REG, &reg);
         if (ret != 0) {
-            error_report("Unable to read ISA_EXT KVM register %s, "
-                         "error code: %s", multi_ext_cfg->name,
-                         strerrorname_np(errno));
+            error_report("Unable to read ISA_EXT KVM register %s: %s",
+                         multi_ext_cfg->name, strerror(errno));
             exit(EXIT_FAILURE);
         }
 
