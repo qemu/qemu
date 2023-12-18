@@ -1390,21 +1390,24 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
         exit(1);
     }
 
-    socket_bits = find_last_bit(&socket_count, BITS_PER_LONG) + 1;
-    ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
-                            KVM_DEV_RISCV_AIA_CONFIG_GROUP_BITS,
-                            &socket_bits, true, NULL);
-    if (ret < 0) {
-        error_report("KVM AIA: failed to set group_bits");
-        exit(1);
-    }
 
-    ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
-                            KVM_DEV_RISCV_AIA_CONFIG_GROUP_SHIFT,
-                            &group_shift, true, NULL);
-    if (ret < 0) {
-        error_report("KVM AIA: failed to set group_shift");
-        exit(1);
+    if (socket_count > 1) {
+        socket_bits = find_last_bit(&socket_count, BITS_PER_LONG) + 1;
+        ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
+                                KVM_DEV_RISCV_AIA_CONFIG_GROUP_BITS,
+                                &socket_bits, true, NULL);
+        if (ret < 0) {
+            error_report("KVM AIA: failed to set group_bits");
+            exit(1);
+        }
+
+        ret = kvm_device_access(aia_fd, KVM_DEV_RISCV_AIA_GRP_CONFIG,
+                                KVM_DEV_RISCV_AIA_CONFIG_GROUP_SHIFT,
+                                &group_shift, true, NULL);
+        if (ret < 0) {
+            error_report("KVM AIA: failed to set group_shift");
+            exit(1);
+        }
     }
 
     guest_bits = guest_num == 0 ? 0 :
