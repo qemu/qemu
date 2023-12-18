@@ -427,5 +427,9 @@
 #define __NR_set_mempolicy_home_node (__NR_Linux + 450)
 #define __NR_cachestat (__NR_Linux + 451)
 #define __NR_fchmodat2 (__NR_Linux + 452)
+#define __NR_map_shadow_stack (__NR_Linux + 453)
+#define __NR_futex_wake (__NR_Linux + 454)
+#define __NR_futex_wait (__NR_Linux + 455)
+#define __NR_futex_requeue (__NR_Linux + 456)
 
 #endif /* _ASM_UNISTD_O32_H */
