@@ -114,12 +114,29 @@ static int cpu_cfg_ext_get_min_version(uint32_t ext_offset)
     g_assert_not_reached();
 }
 
+static bool cpu_cfg_offset_is_named_feat(uint32_t ext_offset)
+{
+    const RISCVCPUMultiExtConfig *feat;
+
+    for (feat = riscv_cpu_named_features; feat->name != NULL; feat++) {
+        if (feat->offset == ext_offset) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void cpu_bump_multi_ext_priv_ver(CPURISCVState *env,
                                         uint32_t ext_offset)
 {
     int ext_priv_ver;
 
     if (env->priv_ver == PRIV_VERSION_LATEST) {
+        return;
+    }
+
+    if (cpu_cfg_offset_is_named_feat(ext_offset)) {
         return;
     }
 
@@ -291,6 +308,13 @@ static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
 #endif
         }
     }
+}
+
+static void riscv_cpu_update_named_features(RISCVCPU *cpu)
+{
+    cpu->cfg.zic64b = cpu->cfg.cbom_blocksize == 64 &&
+                      cpu->cfg.cbop_blocksize == 64 &&
+                      cpu->cfg.cboz_blocksize == 64;
 }
 
 /*
@@ -661,6 +685,8 @@ void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    riscv_cpu_update_named_features(cpu);
 
     if (cpu->cfg.ext_smepmp && !cpu->cfg.pmp) {
         /*
