@@ -497,10 +497,10 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
 }
 
 /* KVM VCPU properties should be prefixed with "kvm-". */
-void kvm_arm_add_vcpu_properties(Object *obj)
+void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
     CPUARMState *env = &cpu->env;
+    Object *obj = OBJECT(cpu);
 
     if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
         cpu->kvm_adjvtime = true;
