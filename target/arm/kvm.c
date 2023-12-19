@@ -1742,7 +1742,7 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     }
 }
 
-void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
+void kvm_arm_pvtime_init(ARMCPU *cpu, uint64_t ipa)
 {
     struct kvm_device_attr attr = {
         .group = KVM_ARM_VCPU_PVTIME_CTRL,
@@ -1750,10 +1750,10 @@ void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
         .addr = (uint64_t)&ipa,
     };
 
-    if (ARM_CPU(cs)->kvm_steal_time == ON_OFF_AUTO_OFF) {
+    if (cpu->kvm_steal_time == ON_OFF_AUTO_OFF) {
         return;
     }
-    if (!kvm_arm_set_device_attr(ARM_CPU(cs), &attr, "PVTIME IPA")) {
+    if (!kvm_arm_set_device_attr(cpu, &attr, "PVTIME IPA")) {
         error_report("failed to init PVTIME IPA");
         abort();
     }

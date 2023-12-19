@@ -205,12 +205,12 @@ void kvm_arm_pmu_init(CPUState *cs);
 
 /**
  * kvm_arm_pvtime_init:
- * @cs: CPUState
+ * @cpu: ARMCPU
  * @ipa: Per-vcpu guest physical base address of the pvtime structures
  *
  * Initializes PVTIME for the VCPU, setting the PVTIME IPA to @ipa.
  */
-void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa);
+void kvm_arm_pvtime_init(ARMCPU *cpu, uint64_t ipa);
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
@@ -268,7 +268,7 @@ static inline void kvm_arm_pmu_init(CPUState *cs)
     g_assert_not_reached();
 }
 
-static inline void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
+static inline void kvm_arm_pvtime_init(ARMCPU *cpu, uint64_t ipa)
 {
     g_assert_not_reached();
 }

@@ -2003,8 +2003,9 @@ static void virt_cpu_post_init(VirtMachineState *vms, MemoryRegion *sysmem)
                 kvm_arm_pmu_init(cpu);
             }
             if (steal_time) {
-                kvm_arm_pvtime_init(cpu, pvtime_reg_base +
-                                         cpu->cpu_index * PVTIME_SIZE_PER_CPU);
+                kvm_arm_pvtime_init(ARM_CPU(cpu), pvtime_reg_base
+                                                  + cpu->cpu_index
+                                                    * PVTIME_SIZE_PER_CPU);
             }
         }
     } else {
