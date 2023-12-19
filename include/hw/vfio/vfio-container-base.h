@@ -117,5 +117,6 @@ struct VFIOIOMMUOps {
                       Error **errp);
     void (*del_window)(VFIOContainerBase *bcontainer,
                        MemoryRegionSection *section);
+    void (*release)(VFIOContainerBase *bcontainer);
 };
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

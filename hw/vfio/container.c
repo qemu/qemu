@@ -632,9 +632,8 @@ listener_release_exit:
     QLIST_REMOVE(bcontainer, next);
     vfio_kvm_device_del_group(group);
     memory_listener_unregister(&bcontainer->listener);
-    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
-        container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
-        vfio_spapr_container_deinit(container);
+    if (bcontainer->ops->release) {
+        bcontainer->ops->release(bcontainer);
     }
 
 enable_discards_exit:
@@ -667,9 +666,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
      */
     if (QLIST_EMPTY(&container->group_list)) {
         memory_listener_unregister(&bcontainer->listener);
-        if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
-            container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
-            vfio_spapr_container_deinit(container);
+        if (bcontainer->ops->release) {
+            bcontainer->ops->release(bcontainer);
         }
     }
 

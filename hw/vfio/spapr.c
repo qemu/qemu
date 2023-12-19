@@ -440,6 +440,24 @@ vfio_spapr_container_del_section_window(VFIOContainerBase *bcontainer,
     }
 }
 
+static void vfio_spapr_container_release(VFIOContainerBase *bcontainer)
+{
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
+    VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
+                                                  container);
+    VFIOHostDMAWindow *hostwin, *next;
+
+    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+        memory_listener_unregister(&scontainer->prereg_listener);
+    }
+    QLIST_FOREACH_SAFE(hostwin, &scontainer->hostwin_list, hostwin_next,
+                       next) {
+        QLIST_REMOVE(hostwin, hostwin_next);
+        g_free(hostwin);
+    }
+}
+
 static VFIOIOMMUOps vfio_iommu_spapr_ops;
 
 static void setup_spapr_ops(VFIOContainerBase *bcontainer)
@@ -447,6 +465,7 @@ static void setup_spapr_ops(VFIOContainerBase *bcontainer)
     vfio_iommu_spapr_ops = *bcontainer->ops;
     vfio_iommu_spapr_ops.add_window = vfio_spapr_container_add_section_window;
     vfio_iommu_spapr_ops.del_window = vfio_spapr_container_del_section_window;
+    vfio_iommu_spapr_ops.release = vfio_spapr_container_release;
     bcontainer->ops = &vfio_iommu_spapr_ops;
 }
 
@@ -526,20 +545,4 @@ listener_unregister_exit:
         memory_listener_unregister(&scontainer->prereg_listener);
     }
     return ret;
-}
-
-void vfio_spapr_container_deinit(VFIOContainer *container)
-{
-    VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
-                                                  container);
-    VFIOHostDMAWindow *hostwin, *next;
-
-    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
-        memory_listener_unregister(&scontainer->prereg_listener);
-    }
-    QLIST_FOREACH_SAFE(hostwin, &scontainer->hostwin_list, hostwin_next,
-                       next) {
-        QLIST_REMOVE(hostwin, hostwin_next);
-        g_free(hostwin);
-    }
 }
