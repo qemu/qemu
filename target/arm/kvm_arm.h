@@ -454,12 +454,4 @@ static inline uint32_t kvm_arm_sve_get_vls(CPUState *cs)
  */
 bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit);
 
-/**
- * kvm_arm_hw_debug_active:
- * @cs: CPU State
- *
- * Return: TRUE if any hardware breakpoints in use.
- */
-bool kvm_arm_hw_debug_active(CPUState *cs);
-
 #endif

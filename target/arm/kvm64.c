@@ -73,11 +73,6 @@ void kvm_arch_remove_all_hw_breakpoints(void)
     }
 }
 
-bool kvm_arm_hw_debug_active(CPUState *cs)
-{
-    return ((cur_hw_wps > 0) || (cur_hw_bps > 0));
-}
-
 static bool kvm_arm_set_device_attr(CPUState *cs, struct kvm_device_attr *attr,
                                     const char *name)
 {

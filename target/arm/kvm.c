@@ -1022,6 +1022,17 @@ int kvm_arch_process_async_events(CPUState *cs)
 }
 
 /**
+ * kvm_arm_hw_debug_active:
+ * @cs: CPU State
+ *
+ * Return: TRUE if any hardware breakpoints in use.
+ */
+static bool kvm_arm_hw_debug_active(CPUState *cs)
+{
+    return ((cur_hw_wps > 0) || (cur_hw_bps > 0));
+}
+
+/**
  * kvm_arm_copy_hw_debug_data:
  * @ptr: kvm_guest_debug_arch structure
  *
