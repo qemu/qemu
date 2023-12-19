@@ -94,6 +94,7 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer);
 
 
 #define TYPE_VFIO_IOMMU "vfio-iommu"
+#define TYPE_VFIO_IOMMU_LEGACY TYPE_VFIO_IOMMU "-legacy"
 
 /*
  * VFIOContainerBase is not an abstract QOM object because it felt

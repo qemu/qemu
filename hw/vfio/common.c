@@ -1503,13 +1503,17 @@ retry:
 int vfio_attach_device(char *name, VFIODevice *vbasedev,
                        AddressSpace *as, Error **errp)
 {
-    const VFIOIOMMUClass *ops = &vfio_legacy_ops;
+    const VFIOIOMMUClass *ops =
+        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
 
 #ifdef CONFIG_IOMMUFD
     if (vbasedev->iommufd) {
         ops = &vfio_iommufd_ops;
     }
 #endif
+
+    assert(ops);
+
     return ops->attach_device(name, vbasedev, as, errp);
 }
 
