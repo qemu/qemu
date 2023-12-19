@@ -335,22 +335,6 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
  */
 int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
-/**
- * kvm_arm_get_virtual_time:
- * @cs: CPUState
- *
- * Gets the VCPU's virtual counter and stores it in the KVM CPU state.
- */
-void kvm_arm_get_virtual_time(CPUState *cs);
-
-/**
- * kvm_arm_put_virtual_time:
- * @cs: CPUState
- *
- * Sets the VCPU's virtual counter to the value stored in the KVM CPU state.
- */
-void kvm_arm_put_virtual_time(CPUState *cs);
-
 void kvm_arm_vm_state_change(void *opaque, bool running, RunState state);
 
 int kvm_arm_vgic_probe(void);
