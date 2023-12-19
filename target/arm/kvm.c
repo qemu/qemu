@@ -60,7 +60,17 @@ typedef struct ARMHostCPUFeatures {
 
 static ARMHostCPUFeatures arm_host_cpu_features;
 
-int kvm_arm_vcpu_init(CPUState *cs)
+/**
+ * kvm_arm_vcpu_init:
+ * @cs: CPUState
+ *
+ * Initialize (or reinitialize) the VCPU by invoking the
+ * KVM_ARM_VCPU_INIT ioctl with the CPU type and feature
+ * bitmask specified in the CPUState.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+static int kvm_arm_vcpu_init(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     struct kvm_vcpu_init init;

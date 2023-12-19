@@ -19,18 +19,6 @@
 #define KVM_ARM_VGIC_V3   (1 << 1)
 
 /**
- * kvm_arm_vcpu_init:
- * @cs: CPUState
- *
- * Initialize (or reinitialize) the VCPU by invoking the
- * KVM_ARM_VCPU_INIT ioctl with the CPU type and feature
- * bitmask specified in the CPUState.
- *
- * Returns: 0 if success else < 0 error code
- */
-int kvm_arm_vcpu_init(CPUState *cs);
-
-/**
  * kvm_arm_vcpu_finalize:
  * @cs: CPUState
  * @feature: feature to finalize
