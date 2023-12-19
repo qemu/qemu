@@ -275,14 +275,6 @@ void kvm_arm_add_vcpu_properties(Object *obj);
 void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 
 /**
- * kvm_arm_steal_time_supported:
- *
- * Returns: true if KVM can enable steal time reporting
- * and false otherwise.
- */
-bool kvm_arm_steal_time_supported(void);
-
-/**
  * kvm_arm_aarch32_supported:
  *
  * Returns: true if KVM can enable AArch32 mode
@@ -370,11 +362,6 @@ static inline bool kvm_arm_pmu_supported(void)
 }
 
 static inline bool kvm_arm_sve_supported(void)
-{
-    return false;
-}
-
-static inline bool kvm_arm_steal_time_supported(void)
 {
     return false;
 }
