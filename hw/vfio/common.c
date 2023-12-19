@@ -1508,7 +1508,7 @@ int vfio_attach_device(char *name, VFIODevice *vbasedev,
 
 #ifdef CONFIG_IOMMUFD
     if (vbasedev->iommufd) {
-        ops = &vfio_iommufd_ops;
+        ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
     }
 #endif
 
