@@ -16,7 +16,8 @@
 #include "exec/memory.h"
 
 typedef struct VFIODevice VFIODevice;
-typedef struct VFIOIOMMUOps VFIOIOMMUOps;
+typedef struct VFIOIOMMUClass VFIOIOMMUClass;
+#define VFIOIOMMUOps VFIOIOMMUClass /* To remove */
 
 typedef struct {
     unsigned long *bitmap;
@@ -34,7 +35,7 @@ typedef struct VFIOAddressSpace {
  * This is the base object for vfio container backends
  */
 typedef struct VFIOContainerBase {
-    const VFIOIOMMUOps *ops;
+    const VFIOIOMMUClass *ops;
     VFIOAddressSpace *space;
     MemoryListener listener;
     Error *error;
@@ -88,10 +89,24 @@ int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
 
 void vfio_container_init(VFIOContainerBase *bcontainer,
                          VFIOAddressSpace *space,
-                         const VFIOIOMMUOps *ops);
+                         const VFIOIOMMUClass *ops);
 void vfio_container_destroy(VFIOContainerBase *bcontainer);
 
-struct VFIOIOMMUOps {
+
+#define TYPE_VFIO_IOMMU "vfio-iommu"
+
+/*
+ * VFIOContainerBase is not an abstract QOM object because it felt
+ * unnecessary to expose all the IOMMU backends to the QEMU machine
+ * and human interface. However, we can still abstract the IOMMU
+ * backend handlers using a QOM interface class. This provides more
+ * flexibility when referencing the various implementations.
+ */
+DECLARE_CLASS_CHECKERS(VFIOIOMMUClass, VFIO_IOMMU, TYPE_VFIO_IOMMU)
+
+struct VFIOIOMMUClass {
+    InterfaceClass parent_class;
+
     /* basic feature */
     int (*dma_map)(const VFIOContainerBase *bcontainer,
                    hwaddr iova, ram_addr_t size,

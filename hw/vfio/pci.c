@@ -2488,7 +2488,7 @@ int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
-    const VFIOIOMMUOps *ops = vbasedev->bcontainer->ops;
+    const VFIOIOMMUClass *ops = vbasedev->bcontainer->ops;
 
     return ops->pci_hot_reset(vbasedev, single);
 }
