@@ -740,6 +740,25 @@ static uint64_t *kvm_arm_get_cpreg_ptr(ARMCPU *cpu, uint64_t regidx)
     return &cpu->cpreg_values[res - cpu->cpreg_indexes];
 }
 
+/**
+ * kvm_arm_reg_syncs_via_cpreg_list:
+ * @regidx: KVM register index
+ *
+ * Return true if this KVM register should be synchronized via the
+ * cpreg list of arbitrary system registers, false if it is synchronized
+ * by hand using code in kvm_arch_get/put_registers().
+ */
+static bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
+{
+    switch (regidx & KVM_REG_ARM_COPROC_MASK) {
+    case KVM_REG_ARM_CORE:
+    case KVM_REG_ARM64_SVE:
+        return false;
+    default:
+        return true;
+    }
+}
+
 /* Initialize the ARMCPU cpreg list according to the kernel's
  * definition of what CPU registers it knows about (and throw away
  * the previous TCG-created cpreg list).
