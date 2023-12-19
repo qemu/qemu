@@ -200,26 +200,6 @@ bool kvm_arm_sve_supported(void);
  */
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms, bool *fixed_ipa);
 
-/**
- * kvm_arm_sync_mpstate_to_kvm:
- * @cpu: ARMCPU
- *
- * If supported set the KVM MP_STATE based on QEMU's model.
- *
- * Returns 0 on success and -1 on failure.
- */
-int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
-
-/**
- * kvm_arm_sync_mpstate_to_qemu:
- * @cpu: ARMCPU
- *
- * If supported get the MP_STATE from KVM and store in QEMU's model.
- *
- * Returns 0 on success and aborts on failure.
- */
-int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
-
 void kvm_arm_vm_state_change(void *opaque, bool running, RunState state);
 
 int kvm_arm_vgic_probe(void);

@@ -1004,41 +1004,32 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
 /*
  * Update KVM's MP_STATE based on what QEMU thinks it is
  */
-int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu)
+static int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu)
 {
     if (cap_has_mp_state) {
         struct kvm_mp_state mp_state = {
             .mp_state = (cpu->power_state == PSCI_OFF) ?
             KVM_MP_STATE_STOPPED : KVM_MP_STATE_RUNNABLE
         };
-        int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
-        if (ret) {
-            fprintf(stderr, "%s: failed to set MP_STATE %d/%s\n",
-                    __func__, ret, strerror(-ret));
-            return -1;
-        }
+        return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
     }
-
     return 0;
 }
 
 /*
  * Sync the KVM MP_STATE into QEMU
  */
-int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
+static int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
 {
     if (cap_has_mp_state) {
         struct kvm_mp_state mp_state;
         int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MP_STATE, &mp_state);
         if (ret) {
-            fprintf(stderr, "%s: failed to get MP_STATE %d/%s\n",
-                    __func__, ret, strerror(-ret));
-            abort();
+            return ret;
         }
         cpu->power_state = (mp_state.mp_state == KVM_MP_STATE_STOPPED) ?
             PSCI_OFF : PSCI_ON;
     }
-
     return 0;
 }
 
@@ -2182,9 +2173,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    kvm_arm_sync_mpstate_to_kvm(cpu);
-
-    return ret;
+    return kvm_arm_sync_mpstate_to_kvm(cpu);
 }
 
 static int kvm_arch_get_fpsimd(CPUState *cs)
@@ -2365,7 +2354,7 @@ int kvm_arch_get_registers(CPUState *cs)
      */
     write_list_to_cpustate(cpu);
 
-    kvm_arm_sync_mpstate_to_qemu(cpu);
+    ret = kvm_arm_sync_mpstate_to_qemu(cpu);
 
     /* TODO: other registers */
     return ret;
