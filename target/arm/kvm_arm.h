@@ -215,28 +215,6 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
 void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 
 /**
- * ARMHostCPUFeatures: information about the host CPU (identified
- * by asking the host kernel)
- */
-typedef struct ARMHostCPUFeatures {
-    ARMISARegisters isar;
-    uint64_t features;
-    uint32_t target;
-    const char *dtb_compatible;
-} ARMHostCPUFeatures;
-
-/**
- * kvm_arm_get_host_cpu_features:
- * @ahcf: ARMHostCPUClass to fill in
- *
- * Probe the capabilities of the host kernel's preferred CPU and fill
- * in the ARMHostCPUClass struct accordingly.
- *
- * Returns true on success and false otherwise.
- */
-bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf);
-
-/**
  * kvm_arm_sve_get_vls:
  * @cs: CPUState
  *
