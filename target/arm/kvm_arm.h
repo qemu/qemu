@@ -200,8 +200,8 @@ int kvm_arm_get_max_vm_ipa_size(MachineState *ms, bool *fixed_ipa);
 
 int kvm_arm_vgic_probe(void);
 
+void kvm_arm_pmu_init(ARMCPU *cpu);
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
-void kvm_arm_pmu_init(CPUState *cs);
 
 /**
  * kvm_arm_pvtime_init:
@@ -263,7 +263,7 @@ static inline void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     g_assert_not_reached();
 }
 
-static inline void kvm_arm_pmu_init(CPUState *cs)
+static inline void kvm_arm_pmu_init(ARMCPU *cpu)
 {
     g_assert_not_reached();
 }
