@@ -82,7 +82,7 @@ static int kvm_arm_vcpu_init(ARMCPU *cpu)
 
 /**
  * kvm_arm_vcpu_finalize:
- * @cs: CPUState
+ * @cpu: ARMCPU
  * @feature: feature to finalize
  *
  * Finalizes the configuration of the specified VCPU feature by
@@ -92,9 +92,9 @@ static int kvm_arm_vcpu_init(ARMCPU *cpu)
  *
  * Returns: 0 if success else < 0 error code
  */
-static int kvm_arm_vcpu_finalize(CPUState *cs, int feature)
+static int kvm_arm_vcpu_finalize(ARMCPU *cpu, int feature)
 {
-    return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_FINALIZE, &feature);
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_ARM_VCPU_FINALIZE, &feature);
 }
 
 bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
@@ -1921,7 +1921,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (ret) {
             return ret;
         }
-        ret = kvm_arm_vcpu_finalize(cs, KVM_ARM_VCPU_SVE);
+        ret = kvm_arm_vcpu_finalize(cpu, KVM_ARM_VCPU_SVE);
         if (ret) {
             return ret;
         }
