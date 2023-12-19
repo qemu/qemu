@@ -474,6 +474,35 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
     }
 }
 
+static int vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
+{
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
+    g_autofree struct vfio_iommu_type1_info *info = NULL;
+    int ret;
+
+    ret = vfio_get_iommu_info(container, &info);
+    if (ret) {
+        error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
+        return ret;
+    }
+
+    if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
+        bcontainer->pgsizes = info->iova_pgsizes;
+    } else {
+        bcontainer->pgsizes = qemu_real_host_page_size();
+    }
+
+    if (!vfio_get_info_dma_avail(info, &bcontainer->dma_max_mappings)) {
+        bcontainer->dma_max_mappings = 65535;
+    }
+
+    vfio_get_info_iova_range(info, bcontainer);
+
+    vfio_get_iommu_info_migration(container, info);
+    return 0;
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
@@ -570,40 +599,18 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     switch (container->iommu_type) {
     case VFIO_TYPE1v2_IOMMU:
     case VFIO_TYPE1_IOMMU:
-    {
-        struct vfio_iommu_type1_info *info;
-
-        ret = vfio_get_iommu_info(container, &info);
-        if (ret) {
-            error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
-            goto enable_discards_exit;
-        }
-
-        if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
-            bcontainer->pgsizes = info->iova_pgsizes;
-        } else {
-            bcontainer->pgsizes = qemu_real_host_page_size();
-        }
-
-        if (!vfio_get_info_dma_avail(info, &bcontainer->dma_max_mappings)) {
-            bcontainer->dma_max_mappings = 65535;
-        }
-
-        vfio_get_info_iova_range(info, bcontainer);
-
-        vfio_get_iommu_info_migration(container, info);
-        g_free(info);
+        ret = vfio_legacy_setup(bcontainer, errp);
         break;
-    }
     case VFIO_SPAPR_TCE_v2_IOMMU:
     case VFIO_SPAPR_TCE_IOMMU:
-    {
         ret = vfio_spapr_container_init(container, errp);
-        if (ret) {
-            goto enable_discards_exit;
-        }
         break;
+    default:
+        g_assert_not_reached();
     }
+
+    if (ret) {
+        goto enable_discards_exit;
     }
 
     vfio_kvm_device_add_group(group);
