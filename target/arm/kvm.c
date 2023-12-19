@@ -1855,14 +1855,13 @@ uint32_t kvm_arm_sve_get_vls(CPUState *cs)
     return vls[0];
 }
 
-static int kvm_arm_sve_set_vls(CPUState *cs)
+static int kvm_arm_sve_set_vls(ARMCPU *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
     uint64_t vls[KVM_ARM64_SVE_VLS_WORDS] = { cpu->sve_vq.map };
 
     assert(cpu->sve_max_vq <= KVM_ARM64_SVE_VQ_MAX);
 
-    return kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_VLS, &vls[0]);
+    return kvm_set_one_reg(CPU(cpu), KVM_REG_ARM64_SVE_VLS, &vls[0]);
 }
 
 #define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
@@ -1919,7 +1918,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        ret = kvm_arm_sve_set_vls(cs);
+        ret = kvm_arm_sve_set_vls(cpu);
         if (ret) {
             return ret;
         }
