@@ -62,7 +62,7 @@ static ARMHostCPUFeatures arm_host_cpu_features;
 
 /**
  * kvm_arm_vcpu_init:
- * @cs: CPUState
+ * @cpu: ARMCPU
  *
  * Initialize (or reinitialize) the VCPU by invoking the
  * KVM_ARM_VCPU_INIT ioctl with the CPU type and feature
@@ -70,15 +70,14 @@ static ARMHostCPUFeatures arm_host_cpu_features;
  *
  * Returns: 0 if success else < 0 error code
  */
-static int kvm_arm_vcpu_init(CPUState *cs)
+static int kvm_arm_vcpu_init(ARMCPU *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
     struct kvm_vcpu_init init;
 
     init.target = cpu->kvm_target;
     memcpy(init.features, cpu->kvm_init_features, sizeof(init.features));
 
-    return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_ARM_VCPU_INIT, &init);
 }
 
 /**
@@ -982,7 +981,7 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
     /* Re-init VCPU so that all registers are set to
      * their respective reset values.
      */
-    ret = kvm_arm_vcpu_init(CPU(cpu));
+    ret = kvm_arm_vcpu_init(cpu);
     if (ret < 0) {
         fprintf(stderr, "kvm_arm_vcpu_init failed: %s\n", strerror(-ret));
         abort();
@@ -1912,7 +1911,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     /* Do KVM_ARM_VCPU_INIT ioctl */
-    ret = kvm_arm_vcpu_init(cs);
+    ret = kvm_arm_vcpu_init(cpu);
     if (ret) {
         return ret;
     }
