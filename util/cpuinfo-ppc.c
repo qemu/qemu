@@ -6,10 +6,10 @@
 #include "qemu/osdep.h"
 #include "host/cpuinfo.h"
 
+#include <asm/cputable.h>
 #ifdef CONFIG_GETAUXVAL
 # include <sys/auxv.h>
 #else
-# include <asm/cputable.h>
 # include "elf.h"
 #endif
 
@@ -40,7 +40,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
         info |= CPUINFO_V2_06;
     }
 
-    if (hwcap2 & PPC_FEATURE2_HAS_ISEL) {
+    if (hwcap2 & PPC_FEATURE2_ISEL) {
         info |= CPUINFO_ISEL;
     }
     if (hwcap & PPC_FEATURE_HAS_ALTIVEC) {
@@ -53,7 +53,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
              * always have both anyway, since VSX came with Power7
              * and crypto came with Power8.
              */
-            if (hwcap2 & PPC_FEATURE2_HAS_VEC_CRYPTO) {
+            if (hwcap2 & PPC_FEATURE2_VEC_CRYPTO) {
                 info |= CPUINFO_CRYPTO;
             }
         }
