@@ -1453,11 +1453,11 @@ int kvm_arch_process_async_events(CPUState *cs)
 
 /**
  * kvm_arm_hw_debug_active:
- * @cs: CPU State
+ * @cpu: ARMCPU
  *
  * Return: TRUE if any hardware breakpoints in use.
  */
-static bool kvm_arm_hw_debug_active(CPUState *cs)
+static bool kvm_arm_hw_debug_active(ARMCPU *cpu)
 {
     return ((cur_hw_wps > 0) || (cur_hw_bps > 0));
 }
@@ -1491,7 +1491,7 @@ void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
     if (kvm_sw_breakpoints_active(cs)) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
     }
-    if (kvm_arm_hw_debug_active(cs)) {
+    if (kvm_arm_hw_debug_active(ARM_CPU(cs))) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW;
         kvm_arm_copy_hw_debug_data(&dbg->arch);
     }
