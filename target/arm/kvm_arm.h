@@ -98,26 +98,6 @@ void kvm_arm_cpu_post_load(ARMCPU *cpu);
  */
 void kvm_arm_reset_vcpu(ARMCPU *cpu);
 
-/**
- * kvm_get_vcpu_events:
- * @cpu: ARMCPU
- *
- * Get VCPU related state from kvm.
- *
- * Returns: 0 if success else < 0 error code
- */
-int kvm_get_vcpu_events(ARMCPU *cpu);
-
-/**
- * kvm_put_vcpu_events:
- * @cpu: ARMCPU
- *
- * Put VCPU related state to kvm.
- *
- * Returns: 0 if success else < 0 error code
- */
-int kvm_put_vcpu_events(ARMCPU *cpu);
-
 #ifdef CONFIG_KVM
 /**
  * kvm_arm_create_scratch_host_vcpu:

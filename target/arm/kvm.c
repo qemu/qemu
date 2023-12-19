@@ -1090,7 +1090,15 @@ static void kvm_arm_put_virtual_time(CPUState *cs)
     cpu->kvm_vtime_dirty = false;
 }
 
-int kvm_put_vcpu_events(ARMCPU *cpu)
+/**
+ * kvm_put_vcpu_events:
+ * @cpu: ARMCPU
+ *
+ * Put VCPU related state to kvm.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+static int kvm_put_vcpu_events(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
     struct kvm_vcpu_events events;
@@ -1119,7 +1127,15 @@ int kvm_put_vcpu_events(ARMCPU *cpu)
     return ret;
 }
 
-int kvm_get_vcpu_events(ARMCPU *cpu)
+/**
+ * kvm_get_vcpu_events:
+ * @cpu: ARMCPU
+ *
+ * Get VCPU related state from kvm.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+static int kvm_get_vcpu_events(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
     struct kvm_vcpu_events events;
