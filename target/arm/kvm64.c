@@ -361,21 +361,6 @@ bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
     }
 }
 
-int kvm_arm_cpreg_level(uint64_t regidx)
-{
-    /*
-     * All system registers are assumed to be level KVM_PUT_RUNTIME_STATE.
-     * If a register should be written less often, you must add it here
-     * with a state of either KVM_PUT_RESET_STATE or KVM_PUT_FULL_STATE.
-     */
-    switch (regidx) {
-    case KVM_REG_ARM_TIMER_CNT:
-    case KVM_REG_ARM_PTIMER_CNT:
-        return KVM_PUT_FULL_STATE;
-    }
-    return KVM_PUT_RUNTIME_STATE;
-}
-
 /* Callers must hold the iothread mutex lock */
 static void kvm_inject_arm_sea(CPUState *c)
 {

@@ -88,15 +88,6 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu);
 bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx);
 
 /**
- * kvm_arm_cpreg_level:
- * @regidx: KVM register index
- *
- * Return the level of this coprocessor/system register.  Return value is
- * either KVM_PUT_RUNTIME_STATE, KVM_PUT_RESET_STATE, or KVM_PUT_FULL_STATE.
- */
-int kvm_arm_cpreg_level(uint64_t regidx);
-
-/**
  * write_list_to_kvmstate:
  * @cpu: ARMCPU
  * @level: the state level to sync
