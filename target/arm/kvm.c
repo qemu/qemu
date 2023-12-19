@@ -1342,7 +1342,7 @@ static int kvm_arm_handle_dabt_nisv(ARMCPU *cpu, uint64_t esr_iss,
 
 /**
  * kvm_arm_handle_debug:
- * @cs: CPUState
+ * @cpu: ARMCPU
  * @debug_exit: debug part of the KVM exit structure
  *
  * Returns: TRUE if the debug exception was handled.
@@ -1353,11 +1353,11 @@ static int kvm_arm_handle_dabt_nisv(ARMCPU *cpu, uint64_t esr_iss,
  * ABI just provides user-space with the full exception syndrome
  * register value to be decoded in QEMU.
  */
-static bool kvm_arm_handle_debug(CPUState *cs,
+static bool kvm_arm_handle_debug(ARMCPU *cpu,
                                  struct kvm_debug_exit_arch *debug_exit)
 {
     int hsr_ec = syn_get_ec(debug_exit->hsr);
-    ARMCPU *cpu = ARM_CPU(cs);
+    CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
 
     /* Ensure PC is synchronised */
@@ -1424,7 +1424,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 
     switch (run->exit_reason) {
     case KVM_EXIT_DEBUG:
-        if (kvm_arm_handle_debug(cs, &run->debug.arch)) {
+        if (kvm_arm_handle_debug(cpu, &run->debug.arch)) {
             ret = EXCP_DEBUG;
         } /* otherwise return to guest */
         break;
