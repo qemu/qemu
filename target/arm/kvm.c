@@ -1689,18 +1689,18 @@ void kvm_arch_remove_all_hw_breakpoints(void)
     }
 }
 
-static bool kvm_arm_set_device_attr(CPUState *cs, struct kvm_device_attr *attr,
+static bool kvm_arm_set_device_attr(ARMCPU *cpu, struct kvm_device_attr *attr,
                                     const char *name)
 {
     int err;
 
-    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(CPU(cpu), KVM_HAS_DEVICE_ATTR, attr);
     if (err != 0) {
         error_report("%s: KVM_HAS_DEVICE_ATTR: %s", name, strerror(-err));
         return false;
     }
 
-    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_DEVICE_ATTR, attr);
     if (err != 0) {
         error_report("%s: KVM_SET_DEVICE_ATTR: %s", name, strerror(-err));
         return false;
@@ -1719,7 +1719,7 @@ void kvm_arm_pmu_init(CPUState *cs)
     if (!ARM_CPU(cs)->has_pmu) {
         return;
     }
-    if (!kvm_arm_set_device_attr(cs, &attr, "PMU")) {
+    if (!kvm_arm_set_device_attr(ARM_CPU(cs), &attr, "PMU")) {
         error_report("failed to init PMU");
         abort();
     }
@@ -1736,7 +1736,7 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     if (!ARM_CPU(cs)->has_pmu) {
         return;
     }
-    if (!kvm_arm_set_device_attr(cs, &attr, "PMU")) {
+    if (!kvm_arm_set_device_attr(ARM_CPU(cs), &attr, "PMU")) {
         error_report("failed to set irq for PMU");
         abort();
     }
@@ -1753,7 +1753,7 @@ void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
     if (ARM_CPU(cs)->kvm_steal_time == ON_OFF_AUTO_OFF) {
         return;
     }
-    if (!kvm_arm_set_device_attr(cs, &attr, "PVTIME IPA")) {
+    if (!kvm_arm_set_device_attr(ARM_CPU(cs), &attr, "PVTIME IPA")) {
         error_report("failed to init PVTIME IPA");
         abort();
     }
