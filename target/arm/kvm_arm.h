@@ -99,14 +99,6 @@ void kvm_arm_cpu_post_load(ARMCPU *cpu);
 void kvm_arm_reset_vcpu(ARMCPU *cpu);
 
 /**
- * kvm_arm_init_serror_injection:
- * @cs: CPUState
- *
- * Check whether KVM can set guest SError syndrome.
- */
-void kvm_arm_init_serror_injection(CPUState *cs);
-
-/**
  * kvm_get_vcpu_events:
  * @cpu: ARMCPU
  *

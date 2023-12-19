@@ -98,12 +98,6 @@ static int kvm_arm_vcpu_finalize(CPUState *cs, int feature)
     return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_FINALIZE, &feature);
 }
 
-void kvm_arm_init_serror_injection(CPUState *cs)
-{
-    cap_has_inject_serror_esr = kvm_check_extension(cs->kvm_state,
-                                    KVM_CAP_ARM_INJECT_SERROR_ESR);
-}
-
 bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
                                       int *fdarray,
                                       struct kvm_vcpu_init *init)
@@ -563,6 +557,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_halt_in_kernel_allowed = true;
 
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
+
+    /* Check whether user space can specify guest syndrome value */
+    cap_has_inject_serror_esr =
+        kvm_check_extension(s, KVM_CAP_ARM_INJECT_SERROR_ESR);
 
     if (ms->smp.cpus > 256 &&
         !kvm_check_extension(s, KVM_CAP_ARM_IRQ_LINE_LAYOUT_2)) {
@@ -1945,9 +1943,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
     cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
-
-    /* Check whether user space can specify guest syndrome value */
-    kvm_arm_init_serror_injection(cs);
 
     return kvm_arm_init_cpreg_list(cpu);
 }
