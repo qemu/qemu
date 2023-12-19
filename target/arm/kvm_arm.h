@@ -129,13 +129,13 @@ void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 
 /**
  * kvm_arm_sve_get_vls:
- * @cs: CPUState
+ * @cpu: ARMCPU
  *
  * Get all the SVE vector lengths supported by the KVM host, setting
  * the bits corresponding to their length in quadwords minus one
  * (vq - 1) up to ARM_MAX_VQ.  Return the resulting map.
  */
-uint32_t kvm_arm_sve_get_vls(CPUState *cs);
+uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu);
 
 /**
  * kvm_arm_set_cpu_features_from_host:
@@ -278,7 +278,7 @@ static inline void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp)
     g_assert_not_reached();
 }
 
-static inline uint32_t kvm_arm_sve_get_vls(CPUState *cs)
+static inline uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu)
 {
     g_assert_not_reached();
 }

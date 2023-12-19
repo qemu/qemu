@@ -1801,7 +1801,7 @@ bool kvm_arm_sve_supported(void)
 
 QEMU_BUILD_BUG_ON(KVM_ARM64_SVE_VQ_MIN != 1);
 
-uint32_t kvm_arm_sve_get_vls(CPUState *cs)
+uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu)
 {
     /* Only call this function if kvm_arm_sve_supported() returns true. */
     static uint64_t vls[KVM_ARM64_SVE_VLS_WORDS];
