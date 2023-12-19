@@ -462,14 +462,4 @@ bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit);
  */
 bool kvm_arm_hw_debug_active(CPUState *cs);
 
-/**
- * kvm_arm_copy_hw_debug_data:
- * @ptr: kvm_guest_debug_arch structure
- *
- * Copy the architecture specific debug registers into the
- * kvm_guest_debug ioctl structure.
- */
-struct kvm_guest_debug_arch;
-void kvm_arm_copy_hw_debug_data(struct kvm_guest_debug_arch *ptr);
-
 #endif
