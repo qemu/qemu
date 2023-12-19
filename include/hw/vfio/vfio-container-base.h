@@ -109,6 +109,7 @@ struct VFIOIOMMUClass {
     InterfaceClass parent_class;
 
     /* basic feature */
+    int (*setup)(VFIOContainerBase *bcontainer, Error **errp);
     int (*dma_map)(const VFIOContainerBase *bcontainer,
                    hwaddr iova, ram_addr_t size,
                    void *vaddr, bool readonly);
