@@ -21,6 +21,7 @@
 #include "exec/tswap.h"
 #include "hw/qdev-core.h"
 #include "hw/irq.h"
+#include "hw/core/cpu.h"
 #include "qemu/accel.h"
 #include "sysemu/cpu-timers.h"
 #include "qemu/config-file.h"

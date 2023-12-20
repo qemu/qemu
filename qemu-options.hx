@@ -4086,9 +4086,13 @@ DEF("fw_cfg", HAS_ARG, QEMU_OPTION_fwcfg,
 SRST
 ``-fw_cfg [name=]name,file=file``
     Add named fw\_cfg entry with contents from file file.
+    If the filename contains comma, you must double it (for instance,
+    "file=my,,file" to use file "my,file").
 
 ``-fw_cfg [name=]name,string=str``
     Add named fw\_cfg entry with contents from string str.
+    If the string contains comma, you must double it (for instance,
+    "string=my,,string" to use file "my,string").
 
     The terminating NUL character of the contents of str will not be
     included as part of the fw\_cfg item data. To insert contents with

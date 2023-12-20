@@ -2399,8 +2399,13 @@ F: hw/net/net_tx_pkt*
 Vmware
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
+F: docs/specs/vmw_pvscsi-spec.txt
+F: hw/display/vmware_vga.c
 F: hw/net/vmxnet*
 F: hw/scsi/vmw_pvscsi*
+F: pc-bios/efi-vmxnet3.rom
+F: pc-bios/vgabios-vmware.bin
+F: roms/config.vga-vmware
 F: tests/qtest/vmxnet3-test.c
 F: docs/specs/vwm_pvscsi-spec.rst
 

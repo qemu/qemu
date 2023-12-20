@@ -23,7 +23,7 @@
 #include "hw/misc/xlnx-versal-cfu.h"
 #include "qemu/fifo32.h"
 
-#define TYPE_XLNX_VERSAL_CFRAME_REG "xlnx,cframe-reg"
+#define TYPE_XLNX_VERSAL_CFRAME_REG "xlnx-cframe-reg"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalCFrameReg, XLNX_VERSAL_CFRAME_REG)
 
 #define TYPE_XLNX_VERSAL_CFRAME_BCAST_REG "xlnx.cframe-bcast-reg"

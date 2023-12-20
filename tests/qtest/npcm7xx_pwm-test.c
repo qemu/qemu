@@ -606,6 +606,7 @@ static void test_toggle(gconstpointer test_data)
     uint32_t ppr, csr, pcr, cnr, cmr;
     int i, j, k, l;
     uint64_t expected_freq, expected_duty;
+    int cnr_step = g_test_quick() ? 2 : 1;
 
     mft_init(qts, td);
 
@@ -618,7 +619,7 @@ static void test_toggle(gconstpointer test_data)
             csr = csr_list[j];
             pwm_write_csr(qts, td, csr);
 
-            for (k = 0; k < ARRAY_SIZE(cnr_list); ++k) {
+            for (k = 0; k < ARRAY_SIZE(cnr_list); k += cnr_step) {
                 cnr = cnr_list[k];
                 pwm_write_cnr(qts, td, cnr);
 
@@ -678,6 +679,7 @@ static void pwm_add_test(const char *name, const TestData* td,
 int main(int argc, char **argv)
 {
     TestData test_data_list[ARRAY_SIZE(pwm_module_list) * ARRAY_SIZE(pwm_list)];
+    int pwm_module_list_cnt = 1, pwm_list_cnt = 1;
 
     char *v_env = getenv("V");
 
@@ -687,8 +689,13 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    for (int i = 0; i < ARRAY_SIZE(pwm_module_list); ++i) {
-        for (int j = 0; j < ARRAY_SIZE(pwm_list); ++j) {
+    if (!g_test_quick()) {
+        pwm_module_list_cnt = ARRAY_SIZE(pwm_module_list);
+        pwm_list_cnt = ARRAY_SIZE(pwm_list);
+    }
+
+    for (int i = 0; i < pwm_module_list_cnt; ++i) {
+        for (int j = 0; j < pwm_list_cnt; ++j) {
             TestData *td = &test_data_list[i * ARRAY_SIZE(pwm_list) + j];
 
             td->module = &pwm_module_list[i];

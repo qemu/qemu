@@ -30,7 +30,7 @@
 #include "sysemu/block-backend.h"
 #include "hw/qdev-core.h"
 
-#define TYPE_XLNX_EFUSE "xlnx,efuse"
+#define TYPE_XLNX_EFUSE "xlnx-efuse"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxEFuse, XLNX_EFUSE);
 
 struct XlnxEFuse {

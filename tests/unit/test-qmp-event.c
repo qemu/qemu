@@ -24,18 +24,14 @@
 #include "test-qapi-events.h"
 #include "test-qapi-emit-events.h"
 
-typedef struct TestEventData {
-    QDict *expect;
-    bool emitted;
-} TestEventData;
-
-TestEventData *test_event_data;
-static GMutex test_event_lock;
+static QDict *expected_event;
 
 void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 {
     QDict *t;
     int64_t s, ms;
+
+    g_assert(expected_event);
 
     /* Verify that we have timestamp, then remove it to compare other fields */
     t = qdict_get_qdict(d, "timestamp");
@@ -52,71 +48,38 @@ void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 
     qdict_del(d, "timestamp");
 
-    g_assert(qobject_is_equal(QOBJECT(d), QOBJECT(test_event_data->expect)));
-    test_event_data->emitted = true;
+    g_assert(qobject_is_equal(QOBJECT(d), QOBJECT(expected_event)));
+    qobject_unref(expected_event);
+    expected_event = NULL;
 }
 
-static void event_prepare(TestEventData *data,
-                          const void *unused)
+static void test_event_a(void)
 {
-    /* Global variable test_event_data was used to pass the expectation, so
-       test cases can't be executed at same time. */
-    g_mutex_lock(&test_event_lock);
-    test_event_data = data;
-}
-
-static void event_teardown(TestEventData *data,
-                           const void *unused)
-{
-    test_event_data = NULL;
-    g_mutex_unlock(&test_event_lock);
-}
-
-static void event_test_add(const char *testpath,
-                           void (*test_func)(TestEventData *data,
-                                             const void *user_data))
-{
-    g_test_add(testpath, TestEventData, NULL, event_prepare, test_func,
-               event_teardown);
-}
-
-
-/* Test cases */
-
-static void test_event_a(TestEventData *data,
-                         const void *unused)
-{
-    data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_A' }");
+    expected_event = qdict_from_jsonf_nofail("{ 'event': 'EVENT_A' }");
     qapi_event_send_event_a();
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!expected_event);
 }
 
-static void test_event_b(TestEventData *data,
-                         const void *unused)
+static void test_event_b(void)
 {
-    data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_B' }");
+    expected_event = qdict_from_jsonf_nofail("{ 'event': 'EVENT_B' }");
     qapi_event_send_event_b();
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!expected_event);
 }
 
-static void test_event_c(TestEventData *data,
-                         const void *unused)
+static void test_event_c(void)
 {
     UserDefOne b = { .integer = 2, .string = (char *)"test1" };
 
-    data->expect = qdict_from_jsonf_nofail(
+    expected_event = qdict_from_jsonf_nofail(
         "{ 'event': 'EVENT_C', 'data': {"
         " 'a': 1, 'b': { 'integer': 2, 'string': 'test1' }, 'c': 'test2' } }");
     qapi_event_send_event_c(true, 1, &b, "test2");
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!expected_event);
 }
 
 /* Complex type */
-static void test_event_d(TestEventData *data,
-                         const void *unused)
+static void test_event_d(void)
 {
     UserDefOne struct1 = {
         .integer = 2, .string = (char *)"test1",
@@ -129,65 +92,56 @@ static void test_event_d(TestEventData *data,
         .enum2 = ENUM_ONE_VALUE2,
     };
 
-    data->expect = qdict_from_jsonf_nofail(
+    expected_event = qdict_from_jsonf_nofail(
         "{ 'event': 'EVENT_D', 'data': {"
         " 'a': {"
         "  'struct1': { 'integer': 2, 'string': 'test1', 'enum1': 'value1' },"
         "  'string': 'test2', 'enum2': 'value2' },"
         " 'b': 'test3', 'enum3': 'value3' } }");
     qapi_event_send_event_d(&a, "test3", NULL, true, ENUM_ONE_VALUE3);
-    g_assert(data->emitted);
-    qobject_unref(data->expect);
+    g_assert(!expected_event);
 }
 
-static void test_event_deprecated(TestEventData *data, const void *unused)
+static void test_event_deprecated(void)
 {
-    data->expect = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES1' }");
+    expected_event = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES1' }");
 
     memset(&compat_policy, 0, sizeof(compat_policy));
 
     qapi_event_send_test_event_features1();
-    g_assert(data->emitted);
+    g_assert(!expected_event);
 
     compat_policy.has_deprecated_output = true;
     compat_policy.deprecated_output = COMPAT_POLICY_OUTPUT_HIDE;
-    data->emitted = false;
     qapi_event_send_test_event_features1();
-    g_assert(!data->emitted);
-
-    qobject_unref(data->expect);
 }
 
-static void test_event_deprecated_data(TestEventData *data, const void *unused)
+static void test_event_deprecated_data(void)
 {
     memset(&compat_policy, 0, sizeof(compat_policy));
 
-    data->expect = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0',"
+    expected_event = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0',"
                                            " 'data': { 'foo': 42 } }");
     qapi_event_send_test_event_features0(42);
-    g_assert(data->emitted);
+    g_assert(!expected_event);
 
-    qobject_unref(data->expect);
 
     compat_policy.has_deprecated_output = true;
     compat_policy.deprecated_output = COMPAT_POLICY_OUTPUT_HIDE;
-    data->expect = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0' }");
+    expected_event = qdict_from_jsonf_nofail("{ 'event': 'TEST_EVENT_FEATURES0' }");
     qapi_event_send_test_event_features0(42);
-    g_assert(data->emitted);
-
-    qobject_unref(data->expect);
 }
 
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    event_test_add("/event/event_a", test_event_a);
-    event_test_add("/event/event_b", test_event_b);
-    event_test_add("/event/event_c", test_event_c);
-    event_test_add("/event/event_d", test_event_d);
-    event_test_add("/event/deprecated", test_event_deprecated);
-    event_test_add("/event/deprecated_data", test_event_deprecated_data);
+    g_test_add_func("/event/event_a", test_event_a);
+    g_test_add_func("/event/event_b", test_event_b);
+    g_test_add_func("/event/event_c", test_event_c);
+    g_test_add_func("/event/event_d", test_event_d);
+    g_test_add_func("/event/deprecated", test_event_deprecated);
+    g_test_add_func("/event/deprecated_data", test_event_deprecated_data);
     g_test_run();
 
     return 0;

@@ -194,7 +194,7 @@ To use a different index value, N, from default of 0, add:
 
 .. code-block:: bash
 
-  -global xlnx,bbram-ctrl.drive-index=N
+  -global driver=xlnx.bbram-ctrl,property=drive-index,value=N
 
 eFUSE File Backend
 """"""""""""""""""
@@ -212,7 +212,7 @@ To use a different index value, N, from default of 1, add:
 
 .. code-block:: bash
 
-  -global xlnx,efuse.drive-index=N
+  -global xlnx-efuse.drive-index=N
 
 .. warning::
   In actual physical Versal, BBRAM and eFUSE contain sensitive data.

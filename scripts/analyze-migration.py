@@ -263,6 +263,34 @@ class HTABSection(object):
         return ""
 
 
+class S390StorageAttributes(object):
+    STATTR_FLAG_EOS   = 0x01
+    STATTR_FLAG_MORE  = 0x02
+    STATTR_FLAG_ERROR = 0x04
+    STATTR_FLAG_DONE  = 0x08
+
+    def __init__(self, file, version_id, device, section_key):
+        if version_id != 0:
+            raise Exception("Unknown storage_attributes version %d" % version_id)
+
+        self.file = file
+        self.section_key = section_key
+
+    def read(self):
+        while True:
+            addr_flags = self.file.read64()
+            flags = addr_flags & 0xfff
+            if (flags & (self.STATTR_FLAG_DONE | self.STATTR_FLAG_EOS)):
+                return
+            if (flags & self.STATTR_FLAG_ERROR):
+                raise Exception("Error in migration stream")
+            count = self.file.read64()
+            self.file.readvar(count)
+
+    def getDict(self):
+        return ""
+
+
 class ConfigurationSection(object):
     def __init__(self, file, desc):
         self.file = file
@@ -544,8 +572,11 @@ class MigrationDump(object):
     QEMU_VM_SECTION_FOOTER= 0x7e
 
     def __init__(self, filename):
-        self.section_classes = { ( 'ram', 0 ) : [ RamSection, None ],
-                                 ( 'spapr/htab', 0) : ( HTABSection, None ) }
+        self.section_classes = {
+            ( 'ram', 0 ) : [ RamSection, None ],
+            ( 's390-storage_attributes', 0 ) : [ S390StorageAttributes, None],
+            ( 'spapr/htab', 0) : ( HTABSection, None )
+        }
         self.filename = filename
         self.vmsd_desc = None
 

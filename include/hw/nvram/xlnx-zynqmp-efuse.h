@@ -29,7 +29,7 @@
 
 #define XLNX_ZYNQMP_EFUSE_R_MAX ((0x10fc / 4) + 1)
 
-#define TYPE_XLNX_ZYNQMP_EFUSE "xlnx,zynqmp-efuse"
+#define TYPE_XLNX_ZYNQMP_EFUSE "xlnx-zynqmp-efuse"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPEFuse, XLNX_ZYNQMP_EFUSE);
 
 struct XlnxZynqMPEFuse {
