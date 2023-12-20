@@ -255,150 +255,84 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
     old_scr2 = scr2_2;
 }
 
-static uint32_t mmio_readb(NeXTPC *s, hwaddr addr)
+static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    switch (addr) {
-    case 0xc000:
-        return (s->scr1 >> 24) & 0xFF;
-    case 0xc001:
-        return (s->scr1 >> 16) & 0xFF;
-    case 0xc002:
-        return (s->scr1 >> 8)  & 0xFF;
-    case 0xc003:
-        return (s->scr1 >> 0)  & 0xFF;
+    NeXTPC *s = NEXT_PC(opaque);
+    uint64_t val;
 
-    case 0xd000:
-        return (s->scr2 >> 24) & 0xFF;
-    case 0xd001:
-        return (s->scr2 >> 16) & 0xFF;
-    case 0xd002:
-        return (s->scr2 >> 8)  & 0xFF;
-    case 0xd003:
-        return (s->scr2 >> 0)  & 0xFF;
-    case 0x14020:
-        DPRINTF("MMIO Read 0x4020\n");
-        return 0x7f;
-
-    default:
-        DPRINTF("MMIO Read B @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static uint32_t mmio_readw(NeXTPC *s, hwaddr addr)
-{
-    switch (addr) {
-    default:
-        DPRINTF("MMIO Read W @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static uint32_t mmio_readl(NeXTPC *s, hwaddr addr)
-{
     switch (addr) {
     case 0x7000:
         /* DPRINTF("Read INT status: %x\n", s->int_status); */
-        return s->int_status;
+        val = s->int_status;
+        break;
 
     case 0x7800:
         DPRINTF("MMIO Read INT mask: %x\n", s->int_mask);
-        return s->int_mask;
-
-    case 0xc000:
-        return s->scr1;
-
-    case 0xd000:
-        return s->scr2;
-
-    default:
-        DPRINTF("MMIO Read L @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static void mmio_writeb(NeXTPC *s, hwaddr addr, uint32_t val)
-{
-    switch (addr) {
-    case 0xd003:
-        nextscr2_write(s, val, 1);
+        val = s->int_mask;
         break;
+
+    case 0xc000 ... 0xc003:
+        val = extract32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+                        size << 3);
+        break;
+
+    case 0xd000 ... 0xd003:
+        val = extract32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+                        size << 3);
+        break;
+
+    case 0x14020:
+        val = 0x7f;
+        break;
+
     default:
-        DPRINTF("MMIO Write B @ %x with %x\n", (unsigned int)addr, val);
+        val = 0;
+        DPRINTF("MMIO Read @ 0x%"HWADDR_PRIx" size %d\n", addr, size);
+        break;
     }
 
+    return val;
 }
 
-static void mmio_writew(NeXTPC *s, hwaddr addr, uint32_t val)
+static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned size)
 {
-    DPRINTF("MMIO Write W\n");
-}
+    NeXTPC *s = NEXT_PC(opaque);
 
-static void mmio_writel(NeXTPC *s, hwaddr addr, uint32_t val)
-{
     switch (addr) {
     case 0x7000:
-        DPRINTF("INT Status old: %x new: %x\n", s->int_status, val);
+        DPRINTF("INT Status old: %x new: %x\n", s->int_status,
+                (unsigned int)val);
         s->int_status = val;
         break;
+
     case 0x7800:
-        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, val);
+        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, (unsigned int)val);
         s->int_mask  = val;
         break;
-    case 0xc000:
-        DPRINTF("SCR1 Write: %x\n", val);
+
+    case 0xc000 ... 0xc003:
+        DPRINTF("SCR1 Write: %x\n", (unsigned int)val);
+        s->scr1 = deposit32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+                            size << 3, val);
         break;
-    case 0xd000:
-        nextscr2_write(s, val, 4);
+
+    case 0xd000 ... 0xd003:
+        nextscr2_write(s, val, size);
         break;
 
     default:
-        DPRINTF("MMIO Write l @ %x with %x\n", (unsigned int)addr, val);
+        DPRINTF("MMIO Write @ 0x%"HWADDR_PRIx " with 0x%x size %u\n", addr,
+                (unsigned int)val, size);
     }
 }
 
-static uint64_t mmio_readfn(void *opaque, hwaddr addr, unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        return mmio_readb(s, addr);
-    case 2:
-        return mmio_readw(s, addr);
-    case 4:
-        return mmio_readl(s, addr);
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static void mmio_writefn(void *opaque, hwaddr addr, uint64_t value,
-                         unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        mmio_writeb(s, addr, value);
-        break;
-    case 2:
-        mmio_writew(s, addr, value);
-        break;
-    case 4:
-        mmio_writel(s, addr, value);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static const MemoryRegionOps mmio_ops = {
-    .read = mmio_readfn,
-    .write = mmio_writefn,
+static const MemoryRegionOps next_mmio_ops = {
+    .read = next_mmio_read,
+    .write = next_mmio_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint32_t scr_readb(NeXTPC *s, hwaddr addr)
@@ -976,8 +910,8 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, next_irq, NEXT_NUM_IRQS);
 
-    memory_region_init_io(&s->mmiomem, OBJECT(s), &mmio_ops, s,
-                          "next.mmio", 0xD0000);
+    memory_region_init_io(&s->mmiomem, OBJECT(s), &next_mmio_ops, s,
+                          "next.mmio", 0xd0000);
     memory_region_init_io(&s->scrmem, OBJECT(s), &scr_ops, s,
                           "next.scr", 0x20000);
     sysbus_init_mmio(sbd, &s->mmiomem);
