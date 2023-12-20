@@ -429,6 +429,10 @@ static uint32_t scr_readb(NeXTPC *s, hwaddr addr)
         /* Hack: We need to have this change consistently to make it work */
         return 0xFF & clock();
 
+    /* For now return dummy byte to allow the Ethernet test to timeout */
+    case 0x6000:
+        return 0xff;
+
     default:
         DPRINTF("BMAP Read B @ %x\n", (unsigned int)addr);
         return 0;
