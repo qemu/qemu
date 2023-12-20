@@ -2,9 +2,13 @@ vfio_ss = ss.source_set()
 vfio_ss.add(files(
   'helpers.c',
   'common.c',
+  'container-base.c',
   'container.c',
   'spapr.c',
   'migration.c',
+))
+vfio_ss.add(when: 'CONFIG_IOMMUFD', if_true: files(
+  'iommufd.c',
 ))
 vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'display.c',

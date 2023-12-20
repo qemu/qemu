@@ -795,6 +795,23 @@
   'data': { 'socket': 'SocketAddress', 'device': 'str' } }
 
 ##
+# @IOMMUFDProperties:
+#
+# Properties for iommufd objects.
+#
+# @fd: file descriptor name previously passed via 'getfd' command,
+#     which represents a pre-opened /dev/iommu.  This allows the
+#     iommufd object to be shared accross several subsystems
+#     (VFIO, VDPA, ...), and the file descriptor to be shared
+#     with other process, e.g. DPDK.  (default: QEMU opens
+#     /dev/iommu by itself)
+#
+# Since: 9.0
+##
+{ 'struct': 'IOMMUFDProperties',
+  'data': { '*fd': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -934,6 +951,7 @@
     'input-barrier',
     { 'name': 'input-linux',
       'if': 'CONFIG_LINUX' },
+    'iommufd',
     'iothread',
     'main-loop',
     { 'name': 'memory-backend-epc',
@@ -1003,6 +1021,7 @@
       'input-barrier':              'InputBarrierProperties',
       'input-linux':                { 'type': 'InputLinuxProperties',
                                       'if': 'CONFIG_LINUX' },
+      'iommufd':                    'IOMMUFDProperties',
       'iothread':                   'IothreadProperties',
       'main-loop':                  'MainLoopProperties',
       'memory-backend-epc':         { 'type': 'MemoryBackendEpcProperties',
