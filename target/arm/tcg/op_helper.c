@@ -121,6 +121,61 @@ void HELPER(v8m_stackcheck)(CPUARMState *env, uint32_t newvalue)
     }
 }
 
+/* Sign/zero extend */
+uint32_t HELPER(sxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(int8_t)x;
+    res |= (uint32_t)(int8_t)(x >> 16) << 16;
+    return res;
+}
+
+static void handle_possible_div0_trap(CPUARMState *env, uintptr_t ra)
+{
+    /*
+     * Take a division-by-zero exception if necessary; otherwise return
+     * to get the usual non-trapping division behaviour (result of 0)
+     */
+    if (arm_feature(env, ARM_FEATURE_M)
+        && (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_DIV_0_TRP_MASK)) {
+        raise_exception_ra(env, EXCP_DIVBYZERO, 0, 1, ra);
+    }
+}
+
+uint32_t HELPER(uxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(uint8_t)x;
+    res |= (uint32_t)(uint8_t)(x >> 16) << 16;
+    return res;
+}
+
+int32_t HELPER(sdiv)(CPUARMState *env, int32_t num, int32_t den)
+{
+    if (den == 0) {
+        handle_possible_div0_trap(env, GETPC());
+        return 0;
+    }
+    if (num == INT_MIN && den == -1) {
+        return INT_MIN;
+    }
+    return num / den;
+}
+
+uint32_t HELPER(udiv)(CPUARMState *env, uint32_t num, uint32_t den)
+{
+    if (den == 0) {
+        handle_possible_div0_trap(env, GETPC());
+        return 0;
+    }
+    return num / den;
+}
+
+uint32_t HELPER(rbit)(uint32_t x)
+{
+    return revbit32(x);
+}
+
 uint32_t HELPER(add_setq)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;

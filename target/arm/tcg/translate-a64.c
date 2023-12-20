@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 
+#include "exec/exec-all.h"
 #include "translate.h"
 #include "translate-a64.h"
 #include "qemu/log.h"
