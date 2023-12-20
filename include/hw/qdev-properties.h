@@ -230,8 +230,8 @@ void qdev_property_add_static(DeviceState *dev, Property *prop);
  * @target: Device which has properties to be aliased
  * @source: Object to add alias properties to
  *
- * Add alias properties to the @source object for all qdev properties on
- * the @target DeviceState.
+ * Add alias properties to the @source object for all properties on the @target
+ * DeviceState.
  *
  * This is useful when @target is an internal implementation object
  * owned by @source, and you want to expose all the properties of that
