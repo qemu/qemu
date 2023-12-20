@@ -1151,6 +1151,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             return;
         }
     }
+
     virtio_blk_handle_vq(s, vq);
 }
 
@@ -1463,6 +1464,68 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+static bool
+validate_iothread_vq_mapping_list(IOThreadVirtQueueMappingList *list,
+        uint16_t num_queues, Error **errp)
+{
+    g_autofree unsigned long *vqs = bitmap_new(num_queues);
+    g_autoptr(GHashTable) iothreads =
+        g_hash_table_new(g_str_hash, g_str_equal);
+
+    for (IOThreadVirtQueueMappingList *node = list; node; node = node->next) {
+        const char *name = node->value->iothread;
+        uint16List *vq;
+
+        if (!iothread_by_id(name)) {
+            error_setg(errp, "IOThread \"%s\" object does not exist", name);
+            return false;
+        }
+
+        if (!g_hash_table_add(iothreads, (gpointer)name)) {
+            error_setg(errp,
+                    "duplicate IOThread name \"%s\" in iothread-vq-mapping",
+                    name);
+            return false;
+        }
+
+        if (node != list) {
+            if (!!node->value->vqs != !!list->value->vqs) {
+                error_setg(errp, "either all items in iothread-vq-mapping "
+                                 "must have vqs or none of them must have it");
+                return false;
+            }
+        }
+
+        for (vq = node->value->vqs; vq; vq = vq->next) {
+            if (vq->value >= num_queues) {
+                error_setg(errp, "vq index %u for IOThread \"%s\" must be "
+                        "less than num_queues %u in iothread-vq-mapping",
+                        vq->value, name, num_queues);
+                return false;
+            }
+
+            if (test_and_set_bit(vq->value, vqs)) {
+                error_setg(errp, "cannot assign vq %u to IOThread \"%s\" "
+                        "because it is already assigned", vq->value, name);
+                return false;
+            }
+        }
+    }
+
+    if (list->value->vqs) {
+        for (uint16_t i = 0; i < num_queues; i++) {
+            if (!test_bit(i, vqs)) {
+                error_setg(errp,
+                        "missing vq %u IOThread assignment in iothread-vq-mapping",
+                        i);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 static void virtio_resize_cb(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -1487,34 +1550,24 @@ static void virtio_blk_resize(void *opaque)
 static void virtio_blk_drained_begin(void *opaque)
 {
     VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    AioContext *ctx = blk_get_aio_context(s->conf.conf.blk);
 
     if (!s->dataplane || !s->dataplane_started) {
         return;
     }
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
-        VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_detach_host_notifier(vq, ctx);
-    }
+    virtio_blk_data_plane_detach(s->dataplane);
 }
 
 /* Resume virtqueue ioeventfd processing after drain */
 static void virtio_blk_drained_end(void *opaque)
 {
     VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    AioContext *ctx = blk_get_aio_context(s->conf.conf.blk);
 
     if (!s->dataplane || !s->dataplane_started) {
         return;
     }
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
-        VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_attach_host_notifier(vq, ctx);
-    }
+    virtio_blk_data_plane_attach(s->dataplane);
 }
 
 static const BlockDevOps virtio_block_ops = {
@@ -1598,6 +1651,19 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                    conf->max_write_zeroes_sectors,
                    (int)BDRV_REQUEST_MAX_SECTORS);
         return;
+    }
+
+    if (conf->iothread_vq_mapping_list) {
+        if (conf->iothread) {
+            error_setg(errp, "iothread and iothread-vq-mapping properties "
+                             "cannot be set at the same time");
+            return;
+        }
+
+        if (!validate_iothread_vq_mapping_list(conf->iothread_vq_mapping_list,
+                                               conf->num_queues, errp)) {
+            return;
+        }
     }
 
     s->config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
@@ -1702,6 +1768,8 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_BOOL("seg-max-adjust", VirtIOBlock, conf.seg_max_adjust, true),
     DEFINE_PROP_LINK("iothread", VirtIOBlock, conf.iothread, TYPE_IOTHREAD,
                      IOThread *),
+    DEFINE_PROP_IOTHREAD_VQ_MAPPING_LIST("iothread-vq-mapping", VirtIOBlock,
+                                         conf.iothread_vq_mapping_list),
     DEFINE_PROP_BIT64("discard", VirtIOBlock, host_features,
                       VIRTIO_BLK_F_DISCARD, true),
     DEFINE_PROP_BOOL("report-discard-granularity", VirtIOBlock,

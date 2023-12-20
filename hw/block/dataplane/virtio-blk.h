@@ -28,4 +28,7 @@ void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s, VirtQueue *vq);
 int virtio_blk_data_plane_start(VirtIODevice *vdev);
 void virtio_blk_data_plane_stop(VirtIODevice *vdev);
 
+void virtio_blk_data_plane_detach(VirtIOBlockDataPlane *s);
+void virtio_blk_data_plane_attach(VirtIOBlockDataPlane *s);
+
 #endif /* HW_DATAPLANE_VIRTIO_BLK_H */
