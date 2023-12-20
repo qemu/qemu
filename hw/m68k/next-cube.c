@@ -335,56 +335,6 @@ static const MemoryRegionOps next_mmio_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static uint32_t scr_readb(NeXTPC *s, hwaddr addr)
-{
-    switch (addr) {
-    case 0x14108:
-        DPRINTF("FD read @ %x\n", (unsigned int)addr);
-        return 0x40 | 0x04 | 0x2 | 0x1;
-    case 0x14020:
-        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
-        return s->scsi_csr_1;
-
-    case 0x14021:
-        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
-        return 0x40;
-
-    /*
-     * These 4 registers are the hardware timer, not sure which register
-     * is the latch instead of data, but no problems so far
-     */
-    case 0x1a000:
-        return 0xff & (clock() >> 24);
-    case 0x1a001:
-        return 0xff & (clock() >> 16);
-    case 0x1a002:
-        return 0xff & (clock() >> 8);
-    case 0x1a003:
-        /* Hack: We need to have this change consistently to make it work */
-        return 0xFF & clock();
-
-    /* For now return dummy byte to allow the Ethernet test to timeout */
-    case 0x6000:
-        return 0xff;
-
-    default:
-        DPRINTF("BMAP Read B @ %x\n", (unsigned int)addr);
-        return 0;
-    }
-}
-
-static uint32_t scr_readw(NeXTPC *s, hwaddr addr)
-{
-    DPRINTF("BMAP Read W @ %x\n", (unsigned int)addr);
-    return 0;
-}
-
-static uint32_t scr_readl(NeXTPC *s, hwaddr addr)
-{
-    DPRINTF("BMAP Read L @ %x\n", (unsigned int)addr);
-    return 0;
-}
-
 #define SCSICSR_ENABLE  0x01
 #define SCSICSR_RESET   0x02  /* reset scsi dma */
 #define SCSICSR_FIFOFL  0x04
@@ -392,24 +342,73 @@ static uint32_t scr_readl(NeXTPC *s, hwaddr addr)
 #define SCSICSR_CPUDMA  0x10  /* if set, dma enabled */
 #define SCSICSR_INTMASK 0x20  /* if set, interrupt enabled */
 
-static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
+static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
 {
+    NeXTPC *s = NEXT_PC(opaque);
+    uint64_t val;
+
+    switch (addr) {
+    case 0x14108:
+        DPRINTF("FD read @ %x\n", (unsigned int)addr);
+        val = 0x40 | 0x04 | 0x2 | 0x1;
+        break;
+
+    case 0x14020:
+        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
+        val = s->scsi_csr_1;
+        break;
+
+    case 0x14021:
+        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
+        val = 0x40;
+        break;
+
+    /*
+     * These 4 registers are the hardware timer, not sure which register
+     * is the latch instead of data, but no problems so far.
+     *
+     * Hack: We need to have the LSB change consistently to make it work
+     */
+    case 0x1a000 ... 0x1a003:
+        val = extract32(clock(), (4 - (addr - 0x1a000) - size) << 3,
+                        size << 3);
+        break;
+
+    /* For now return dummy byte to allow the Ethernet test to timeout */
+    case 0x6000:
+        val = 0xff;
+        break;
+
+    default:
+        DPRINTF("BMAP Read @ 0x%x size %u\n", (unsigned int)addr, size);
+        val = 0;
+        break;
+    }
+
+    return val;
+}
+
+static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+    NeXTPC *s = NEXT_PC(opaque);
+
     switch (addr) {
     case 0x14108:
         DPRINTF("FDCSR Write: %x\n", value);
-
-        if (value == 0x0) {
+        if (val == 0x0) {
             /* qemu_irq_raise(s->fd_irq[0]); */
         }
         break;
+
     case 0x14020: /* SCSI Control Register */
-        if (value & SCSICSR_FIFOFL) {
+        if (val & SCSICSR_FIFOFL) {
             DPRINTF("SCSICSR FIFO Flush\n");
             /* will have to add another irq to the esp if this is needed */
             /* esp_puflush_fifo(esp_g); */
         }
 
-        if (value & SCSICSR_ENABLE) {
+        if (val & SCSICSR_ENABLE) {
             DPRINTF("SCSICSR Enable\n");
             /*
              * qemu_irq_raise(s->scsi_dma);
@@ -423,17 +422,17 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
          *     s->scsi_csr_1 &= ~SCSICSR_ENABLE;
          */
 
-        if (value & SCSICSR_RESET) {
+        if (val & SCSICSR_RESET) {
             DPRINTF("SCSICSR Reset\n");
             /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
             qemu_irq_raise(s->scsi_reset);
             s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
             qemu_irq_lower(s->scsi_reset);
         }
-        if (value & SCSICSR_DMADIR) {
+        if (val & SCSICSR_DMADIR) {
             DPRINTF("SCSICSR DMAdir\n");
         }
-        if (value & SCSICSR_CPUDMA) {
+        if (val & SCSICSR_CPUDMA) {
             DPRINTF("SCSICSR CPUDMA\n");
             /* qemu_irq_raise(s->scsi_dma); */
             s->int_status |= 0x4000000;
@@ -442,11 +441,11 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
             s->int_status &= ~(0x4000000);
             /* qemu_irq_lower(s->scsi_dma); */
         }
-        if (value & SCSICSR_INTMASK) {
+        if (val & SCSICSR_INTMASK) {
             DPRINTF("SCSICSR INTMASK\n");
             /*
              * int_mask &= ~0x1000;
-             * s->scsi_csr_1 |= value;
+             * s->scsi_csr_1 |= val;
              * s->scsi_csr_1 &= ~SCSICSR_INTMASK;
              * if (s->scsi_queued) {
              *     s->scsi_queued = 0;
@@ -456,72 +455,28 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
         } else {
             /* int_mask |= 0x1000; */
         }
-        if (value & 0x80) {
+        if (val & 0x80) {
             /* int_mask |= 0x1000; */
             /* s->scsi_csr_1 |= 0x80; */
         }
-        DPRINTF("SCSICSR Write: %x\n", value);
-        /* s->scsi_csr_1 = value; */
-        return;
+        DPRINTF("SCSICSR Write: %x\n", val);
+        /* s->scsi_csr_1 = val; */
+        break;
+
     /* Hardware timer latch - not implemented yet */
     case 0x1a000:
     default:
-        DPRINTF("BMAP Write B @ %x with %x\n", (unsigned int)addr, value);
+        DPRINTF("BMAP Write @ 0x%x with 0x%x size %u\n", (unsigned int)addr,
+                val, size);
     }
 }
 
-static void scr_writew(NeXTPC *s, hwaddr addr, uint32_t value)
-{
-    DPRINTF("BMAP Write W @ %x with %x\n", (unsigned int)addr, value);
-}
-
-static void scr_writel(NeXTPC *s, hwaddr addr, uint32_t value)
-{
-    DPRINTF("BMAP Write L @ %x with %x\n", (unsigned int)addr, value);
-}
-
-static uint64_t scr_readfn(void *opaque, hwaddr addr, unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        return scr_readb(s, addr);
-    case 2:
-        return scr_readw(s, addr);
-    case 4:
-        return scr_readl(s, addr);
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static void scr_writefn(void *opaque, hwaddr addr, uint64_t value,
-                        unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        scr_writeb(s, addr, value);
-        break;
-    case 2:
-        scr_writew(s, addr, value);
-        break;
-    case 4:
-        scr_writel(s, addr, value);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static const MemoryRegionOps scr_ops = {
-    .read = scr_readfn,
-    .write = scr_writefn,
+static const MemoryRegionOps next_scr_ops = {
+    .read = next_scr_readfn,
+    .write = next_scr_writefn,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 #define NEXTDMA_SCSI(x)      (0x10 + x)
@@ -912,7 +867,7 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->mmiomem, OBJECT(s), &next_mmio_ops, s,
                           "next.mmio", 0xd0000);
-    memory_region_init_io(&s->scrmem, OBJECT(s), &scr_ops, s,
+    memory_region_init_io(&s->scrmem, OBJECT(s), &next_scr_ops, s,
                           "next.scr", 0x20000);
     sysbus_init_mmio(sbd, &s->mmiomem);
     sysbus_init_mmio(sbd, &s->scrmem);
