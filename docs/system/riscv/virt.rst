@@ -95,6 +95,11 @@ The following machine-specific options are supported:
   SiFive CLINT. When not specified, this option is assumed to be "off".
   This option is restricted to the TCG accelerator.
 
+- acpi=[on|off|auto]
+
+  When this option is "on" (which is the default), ACPI tables are generated and
+  exposed as firmware tables etc/acpi/rsdp and etc/acpi/tables.
+
 - aia=[none|aplic|aplic-imsic]
 
   This option allows selecting interrupt controller defined by the AIA
