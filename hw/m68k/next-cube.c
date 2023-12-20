@@ -92,6 +92,7 @@ struct NeXTPC {
     uint32_t scr2;
     uint32_t int_mask;
     uint32_t int_status;
+    uint32_t led;
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
 
@@ -123,7 +124,6 @@ static const uint8_t rtc_ram2[32] = {
 
 static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 {
-    static int led;
     static int phase;
     static uint8_t old_scr2;
     uint8_t scr2_2;
@@ -137,10 +137,10 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 
     if (val & 0x1) {
         DPRINTF("fault!\n");
-        led++;
-        if (led == 10) {
+        s->led++;
+        if (s->led == 10) {
             DPRINTF("LED flashing, possible fault!\n");
-            led = 0;
+            s->led = 0;
         }
     }
 
@@ -926,13 +926,14 @@ static const VMStateDescription next_rtc_vmstate = {
 
 static const VMStateDescription next_pc_vmstate = {
     .name = "next-pc",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
+        VMSTATE_UINT32(led, NeXTPC),
         VMSTATE_UINT8(scsi_csr_1, NeXTPC),
         VMSTATE_UINT8(scsi_csr_2, NeXTPC),
         VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NextRtc),
