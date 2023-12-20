@@ -928,3 +928,32 @@
   'data': { 'path': 'str', 'queue': 'uint16', '*index': 'uint16' },
   'returns': 'VirtioQueueElement',
   'features': [ 'unstable' ] }
+
+##
+# @IOThreadVirtQueueMapping:
+#
+# Describes the subset of virtqueues assigned to an IOThread.
+#
+# @iothread: the id of IOThread object
+#
+# @vqs: an optional array of virtqueue indices that will be handled by this
+#     IOThread.  When absent, virtqueues are assigned round-robin across all
+#     IOThreadVirtQueueMappings provided.  Either all IOThreadVirtQueueMappings
+#     must have @vqs or none of them must have it.
+#
+# Since: 9.0
+##
+
+{ 'struct': 'IOThreadVirtQueueMapping',
+  'data': { 'iothread': 'str', '*vqs': ['uint16'] } }
+
+##
+# @DummyVirtioForceArrays:
+#
+# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList internally
+#
+# Since: 9.0
+##
+
+{ 'struct': 'DummyVirtioForceArrays',
+  'data': { 'unused-iothread-vq-mapping': ['IOThreadVirtQueueMapping'] } }
