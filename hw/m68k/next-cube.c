@@ -136,18 +136,13 @@ static void next_scr2_led_update(NeXTPC *s)
     }
 }
 
-static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
+static void next_scr2_rtc_update(NeXTPC *s)
 {
     uint8_t old_scr2, scr2_2;
     NextRtc *rtc = &s->rtc;
 
-    if (size == 4) {
-        scr2_2 = (val >> 8) & 0xFF;
-    } else {
-        scr2_2 = val & 0xFF;
-    }
-
-    old_scr2 = (s->old_scr2 >> 8) & 0xff;
+    old_scr2 = extract32(s->old_scr2, 8, 8);
+    scr2_2 = extract32(s->scr2, 8, 8);
 
     if (scr2_2 & 0x1) {
         /* DPRINTF("RTC %x phase %i\n", scr2_2, rtc->phase); */
@@ -255,8 +250,8 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
         rtc->command = 0;
         rtc->value = 0;
     }
-    s->scr2 = val & 0xFFFF00FF;
-    s->scr2 |= scr2_2 << 8;
+
+    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
 }
 
 static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -325,7 +320,7 @@ static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         s->scr2 = deposit32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
                             size << 3, val);
         next_scr2_led_update(s);
-        nextscr2_write(s, val, size);
+        next_scr2_rtc_update(s);
         s->old_scr2 = s->scr2;
         break;
 
