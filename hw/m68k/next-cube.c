@@ -74,6 +74,12 @@ typedef struct NextRtc {
 struct NeXTState {
     MachineState parent;
 
+    MemoryRegion rom;
+    MemoryRegion rom2;
+    MemoryRegion dmamem;
+    MemoryRegion bmapm1;
+    MemoryRegion bmapm2;
+
     next_dma dma[10];
 };
 
@@ -967,13 +973,9 @@ static const TypeInfo next_pc_info = {
 
 static void next_cube_init(MachineState *machine)
 {
+    NeXTState *m = NEXT_MACHINE(machine);
     M68kCPU *cpu;
     CPUM68KState *env;
-    MemoryRegion *rom = g_new(MemoryRegion, 1);
-    MemoryRegion *rom2 = g_new(MemoryRegion, 1);
-    MemoryRegion *dmamem = g_new(MemoryRegion, 1);
-    MemoryRegion *bmapm1 = g_new(MemoryRegion, 1);
-    MemoryRegion *bmapm2 = g_new(MemoryRegion, 1);
     MemoryRegion *sysmem = get_system_memory();
     const char *bios_name = machine->firmware ?: ROM_FILE;
     DeviceState *pcdev;
@@ -1008,21 +1010,23 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
 
     /* BMAP memory */
-    memory_region_init_ram_flags_nomigrate(bmapm1, NULL, "next.bmapmem", 64,
-                                           RAM_SHARED, &error_fatal);
-    memory_region_add_subregion(sysmem, 0x020c0000, bmapm1);
+    memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
+                                           64, RAM_SHARED, &error_fatal);
+    memory_region_add_subregion(sysmem, 0x020c0000, &m->bmapm1);
     /* The Rev_2.5_v66.bin firmware accesses it at 0x820c0020, too */
-    memory_region_init_alias(bmapm2, NULL, "next.bmapmem2", bmapm1, 0x0, 64);
-    memory_region_add_subregion(sysmem, 0x820c0000, bmapm2);
+    memory_region_init_alias(&m->bmapm2, NULL, "next.bmapmem2", &m->bmapm1,
+                             0x0, 64);
+    memory_region_add_subregion(sysmem, 0x820c0000, &m->bmapm2);
 
     /* KBD */
     sysbus_create_simple(TYPE_NEXTKBD, 0x0200e000, NULL);
 
     /* Load ROM here */
-    memory_region_init_rom(rom, NULL, "next.rom", 0x20000, &error_fatal);
-    memory_region_add_subregion(sysmem, 0x01000000, rom);
-    memory_region_init_alias(rom2, NULL, "next.rom2", rom, 0x0, 0x20000);
-    memory_region_add_subregion(sysmem, 0x0, rom2);
+    memory_region_init_rom(&m->rom, NULL, "next.rom", 0x20000, &error_fatal);
+    memory_region_add_subregion(sysmem, 0x01000000, &m->rom);
+    memory_region_init_alias(&m->rom2, NULL, "next.rom2", &m->rom, 0x0,
+                             0x20000);
+    memory_region_add_subregion(sysmem, 0x0, &m->rom2);
     if (load_image_targphys(bios_name, 0x01000000, 0x20000) < 8) {
         if (!qtest_enabled()) {
             error_report("Failed to load firmware '%s'.", bios_name);
@@ -1049,9 +1053,9 @@ static void next_cube_init(MachineState *machine)
     next_scsi_init(pcdev, cpu);
 
     /* DMA */
-    memory_region_init_io(dmamem, NULL, &next_dma_ops, machine, "next.dma",
-                          0x5000);
-    memory_region_add_subregion(sysmem, 0x02000000, dmamem);
+    memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
+                          "next.dma", 0x5000);
+    memory_region_add_subregion(sysmem, 0x02000000, &m->dmamem);
 }
 
 static void next_machine_class_init(ObjectClass *oc, void *data)
