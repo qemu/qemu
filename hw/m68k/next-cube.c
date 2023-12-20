@@ -62,6 +62,7 @@ typedef struct next_dma {
 } next_dma;
 
 typedef struct NextRtc {
+    int8_t phase;
     uint8_t ram[32];
     uint8_t command;
     uint8_t value;
@@ -124,7 +125,6 @@ static const uint8_t rtc_ram2[32] = {
 
 static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 {
-    static int phase;
     static uint8_t old_scr2;
     uint8_t scr2_2;
     NextRtc *rtc = &s->rtc;
@@ -145,25 +145,25 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
     }
 
     if (scr2_2 & 0x1) {
-        /* DPRINTF("RTC %x phase %i\n", scr2_2, phase); */
-        if (phase == -1) {
-            phase = 0;
+        /* DPRINTF("RTC %x phase %i\n", scr2_2, rtc->phase); */
+        if (rtc->phase == -1) {
+            rtc->phase = 0;
         }
         /* If we are in going down clock... do something */
         if (((old_scr2 & SCR2_RTCLK) != (scr2_2 & SCR2_RTCLK)) &&
                 ((scr2_2 & SCR2_RTCLK) == 0)) {
-            if (phase < 8) {
+            if (rtc->phase < 8) {
                 rtc->command = (rtc->command << 1) |
                                ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
             }
-            if (phase >= 8 && phase < 16) {
+            if (rtc->phase >= 8 && rtc->phase < 16) {
                 rtc->value = (rtc->value << 1) |
                              ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
 
                 /* if we read RAM register, output RT_DATA bit */
                 if (rtc->command <= 0x1F) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->ram[rtc->command] & (0x80 >> (phase - 8))) {
+                    if (rtc->ram[rtc->command] & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
@@ -174,7 +174,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
                 if (rtc->command == 0x30) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
                     /* for now status = 0x98 (new rtc + FTU) */
-                    if (rtc->status & (0x80 >> (phase - 8))) {
+                    if (rtc->status & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
@@ -184,7 +184,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
                 /* read the status 0x31 */
                 if (rtc->command == 0x31) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->control & (0x80 >> (phase - 8))) {
+                    if (rtc->control & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
                     rtc->retval = (rtc->retval << 1) |
@@ -220,7 +220,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 
                     }
 
-                    if (ret & (0x80 >> (phase - 8))) {
+                    if (ret & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
                     rtc->retval = (rtc->retval << 1) |
@@ -229,8 +229,8 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 
             }
 
-            phase++;
-            if (phase == 16) {
+            rtc->phase++;
+            if (rtc->phase == 16) {
                 if (rtc->command >= 0x80 && rtc->command <= 0x9F) {
                     rtc->ram[rtc->command - 0x80] = rtc->value;
                 }
@@ -246,7 +246,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
         }
     } else {
         /* else end or abort */
-        phase = -1;
+        rtc->phase = -1;
         rtc->command = 0;
         rtc->value = 0;
     }
@@ -911,9 +911,10 @@ static Property next_pc_properties[] = {
 
 static const VMStateDescription next_rtc_vmstate = {
     .name = "next-rtc",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
+        VMSTATE_INT8(phase, NextRtc),
         VMSTATE_UINT8_ARRAY(ram, NextRtc, 32),
         VMSTATE_UINT8(command, NextRtc),
         VMSTATE_UINT8(value, NextRtc),
