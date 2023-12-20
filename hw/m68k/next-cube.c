@@ -91,6 +91,7 @@ struct NeXTPC {
 
     uint32_t scr1;
     uint32_t scr2;
+    uint32_t old_scr2;
     uint32_t int_mask;
     uint32_t int_status;
     uint32_t led;
@@ -125,8 +126,7 @@ static const uint8_t rtc_ram2[32] = {
 
 static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 {
-    static uint8_t old_scr2;
-    uint8_t scr2_2;
+    uint8_t old_scr2, scr2_2;
     NextRtc *rtc = &s->rtc;
 
     if (size == 4) {
@@ -143,6 +143,8 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
             s->led = 0;
         }
     }
+
+    old_scr2 = (s->old_scr2 >> 8) & 0xff;
 
     if (scr2_2 & 0x1) {
         /* DPRINTF("RTC %x phase %i\n", scr2_2, rtc->phase); */
@@ -252,7 +254,6 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
     }
     s->scr2 = val & 0xFFFF00FF;
     s->scr2 |= scr2_2 << 8;
-    old_scr2 = scr2_2;
 }
 
 static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -318,7 +319,10 @@ static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case 0xd000 ... 0xd003:
+        s->scr2 = deposit32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+                            size << 3, val);
         nextscr2_write(s, val, size);
+        s->old_scr2 = s->scr2;
         break;
 
     default:
@@ -876,6 +880,7 @@ static void next_pc_reset(DeviceState *dev)
     /*     0x0000XX00 << vital bits */
     s->scr1 = 0x00011102;
     s->scr2 = 0x00ff0c80;
+    s->old_scr2 = s->scr2;
 
     s->rtc.status = 0x90;
 
@@ -932,6 +937,7 @@ static const VMStateDescription next_pc_vmstate = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
+        VMSTATE_UINT32(old_scr2, NeXTPC),
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
         VMSTATE_UINT32(led, NeXTPC),
