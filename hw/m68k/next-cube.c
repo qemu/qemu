@@ -491,59 +491,63 @@ static const MemoryRegionOps next_scr_ops = {
 #define NEXTDMA_NEXT_INIT    0x4200
 #define NEXTDMA_SIZE         0x4204
 
-static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
-                       unsigned int size)
+static void next_dma_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned int size)
 {
     NeXTState *next_state = NEXT_MACHINE(opaque);
 
     switch (addr) {
     case NEXTDMA_ENRX(NEXTDMA_CSR):
-        if (value & DMA_DEV2M) {
+        if (val & DMA_DEV2M) {
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_DEV2M;
         }
 
-        if (value & DMA_SETENABLE) {
+        if (val & DMA_SETENABLE) {
             /* DPRINTF("SCSI DMA ENABLE\n"); */
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_ENABLE;
         }
-        if (value & DMA_SETSUPDATE) {
+        if (val & DMA_SETSUPDATE) {
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_SUPDATE;
         }
-        if (value & DMA_CLRCOMPLETE) {
+        if (val & DMA_CLRCOMPLETE) {
             next_state->dma[NEXTDMA_ENRX].csr &= ~DMA_COMPLETE;
         }
 
-        if (value & DMA_RESET) {
+        if (val & DMA_RESET) {
             next_state->dma[NEXTDMA_ENRX].csr &= ~(DMA_COMPLETE | DMA_SUPDATE |
                                                   DMA_ENABLE | DMA_DEV2M);
         }
         /* DPRINTF("RXCSR \tWrite: %x\n",value); */
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        next_state->dma[NEXTDMA_ENRX].next_initbuf = value;
+        next_state->dma[NEXTDMA_ENRX].next_initbuf = val;
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        next_state->dma[NEXTDMA_ENRX].next = value;
+        next_state->dma[NEXTDMA_ENRX].next = val;
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        next_state->dma[NEXTDMA_ENRX].limit = value;
+        next_state->dma[NEXTDMA_ENRX].limit = val;
         break;
+
     case NEXTDMA_SCSI(NEXTDMA_CSR):
-        if (value & DMA_DEV2M) {
+        if (val & DMA_DEV2M) {
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_DEV2M;
         }
-        if (value & DMA_SETENABLE) {
+        if (val & DMA_SETENABLE) {
             /* DPRINTF("SCSI DMA ENABLE\n"); */
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_ENABLE;
         }
-        if (value & DMA_SETSUPDATE) {
+        if (val & DMA_SETSUPDATE) {
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_SUPDATE;
         }
-        if (value & DMA_CLRCOMPLETE) {
+        if (val & DMA_CLRCOMPLETE) {
             next_state->dma[NEXTDMA_SCSI].csr &= ~DMA_COMPLETE;
         }
 
-        if (value & DMA_RESET) {
+        if (val & DMA_RESET) {
             next_state->dma[NEXTDMA_SCSI].csr &= ~(DMA_COMPLETE | DMA_SUPDATE |
                                                   DMA_ENABLE | DMA_DEV2M);
             /* DPRINTF("SCSI DMA RESET\n"); */
@@ -552,23 +556,23 @@ static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT):
-        next_state->dma[NEXTDMA_SCSI].next = value;
+        next_state->dma[NEXTDMA_SCSI].next = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_LIMIT):
-        next_state->dma[NEXTDMA_SCSI].limit = value;
+        next_state->dma[NEXTDMA_SCSI].limit = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_START):
-        next_state->dma[NEXTDMA_SCSI].start = value;
+        next_state->dma[NEXTDMA_SCSI].start = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_STOP):
-        next_state->dma[NEXTDMA_SCSI].stop = value;
+        next_state->dma[NEXTDMA_SCSI].stop = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT_INIT):
-        next_state->dma[NEXTDMA_SCSI].next_initbuf = value;
+        next_state->dma[NEXTDMA_SCSI].next_initbuf = val;
         break;
 
     default:
@@ -576,52 +580,73 @@ static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
-static uint64_t dma_readl(void *opaque, hwaddr addr, unsigned int size)
+static uint64_t next_dma_read(void *opaque, hwaddr addr, unsigned int size)
 {
     NeXTState *next_state = NEXT_MACHINE(opaque);
+    uint64_t val;
 
     switch (addr) {
     case NEXTDMA_SCSI(NEXTDMA_CSR):
         DPRINTF("SCSI DMA CSR READ\n");
-        return next_state->dma[NEXTDMA_SCSI].csr;
+        val = next_state->dma[NEXTDMA_SCSI].csr;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_CSR):
-        return next_state->dma[NEXTDMA_ENRX].csr;
+        val = next_state->dma[NEXTDMA_ENRX].csr;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        return next_state->dma[NEXTDMA_ENRX].next_initbuf;
+        val = next_state->dma[NEXTDMA_ENRX].next_initbuf;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        return next_state->dma[NEXTDMA_ENRX].next;
+        val = next_state->dma[NEXTDMA_ENRX].next;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        return next_state->dma[NEXTDMA_ENRX].limit;
+        val = next_state->dma[NEXTDMA_ENRX].limit;
+        break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT):
-        return next_state->dma[NEXTDMA_SCSI].next;
+        val = next_state->dma[NEXTDMA_SCSI].next;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_NEXT_INIT):
-        return next_state->dma[NEXTDMA_SCSI].next_initbuf;
+        val = next_state->dma[NEXTDMA_SCSI].next_initbuf;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_LIMIT):
-        return next_state->dma[NEXTDMA_SCSI].limit;
+        val = next_state->dma[NEXTDMA_SCSI].limit;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_START):
-        return next_state->dma[NEXTDMA_SCSI].start;
+        val = next_state->dma[NEXTDMA_SCSI].start;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_STOP):
-        return next_state->dma[NEXTDMA_SCSI].stop;
+        val = next_state->dma[NEXTDMA_SCSI].stop;
+        break;
 
     default:
         DPRINTF("DMA read @ %x\n", (unsigned int)addr);
-        return 0;
+        val = 0;
     }
 
     /*
      * once the csr's are done, subtract 0x3FEC from the addr, and that will
      * normalize the upper registers
      */
+
+    return val;
 }
 
-static const MemoryRegionOps dma_ops = {
-    .read = dma_readl,
-    .write = dma_writel,
+static const MemoryRegionOps next_dma_ops = {
+    .read = next_dma_read,
+    .write = next_dma_write,
     .impl.min_access_size = 4,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void next_irq(void *opaque, int number, int level)
@@ -1017,7 +1042,8 @@ static void next_cube_init(MachineState *machine)
     next_scsi_init(pcdev, cpu);
 
     /* DMA */
-    memory_region_init_io(dmamem, NULL, &dma_ops, machine, "next.dma", 0x5000);
+    memory_region_init_io(dmamem, NULL, &next_dma_ops, machine, "next.dma",
+                          0x5000);
     memory_region_add_subregion(sysmem, 0x02000000, dmamem);
 }
 
