@@ -1435,7 +1435,7 @@ static const VMStateDescription vmstate_artist = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = vmstate_artist_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(height, ARTISTState),
         VMSTATE_UINT16(width, ARTISTState),
         VMSTATE_UINT16(depth, ARTISTState),

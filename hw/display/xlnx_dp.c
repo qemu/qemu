@@ -262,7 +262,7 @@ typedef enum DPVideoFmt DPVideoFmt;
 static const VMStateDescription vmstate_dp = {
     .name = TYPE_XLNX_DP,
     .version_id = 2,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(core_registers, XlnxDPState,
                              DP_CORE_REG_ARRAY_SIZE),
         VMSTATE_UINT32_ARRAY(avbufm_registers, XlnxDPState,

@@ -1371,7 +1371,7 @@ static const VMStateDescription vmstate_dma_channel = {
     .name = "dma_channel",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(branch, struct DMAChannel),
         VMSTATE_UINT8(up, struct DMAChannel),
         VMSTATE_BUFFER(pbuffer, struct DMAChannel),
@@ -1398,7 +1398,7 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = pxa2xx_lcdc_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(irqlevel, PXA2xxLCDState),
         VMSTATE_INT32(transp, PXA2xxLCDState),
         VMSTATE_UINT32_ARRAY(control, PXA2xxLCDState, 6),

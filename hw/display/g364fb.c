@@ -455,7 +455,7 @@ static const VMStateDescription vmstate_g364fb = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = g364fb_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BUFFER_UNSAFE(color_palette, G364State, 0, 256 * 3),
         VMSTATE_BUFFER_UNSAFE(cursor_palette, G364State, 0, 9),
         VMSTATE_UINT16_ARRAY(cursor, G364State, 512),
@@ -521,7 +521,7 @@ static const VMStateDescription vmstate_g364fb_sysbus = {
     .name = "g364fb-sysbus",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(g364, G364SysBusState, 2, vmstate_g364fb, G364State),
         VMSTATE_END_OF_LIST()
     }

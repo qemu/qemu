@@ -88,7 +88,7 @@ static void i2c_ddc_init(Object *obj)
 static const VMStateDescription vmstate_i2c_ddc = {
     .name = TYPE_I2CDDC,
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(firstbyte, I2CDDCState),
         VMSTATE_UINT8(reg, I2CDDCState),
         VMSTATE_END_OF_LIST()

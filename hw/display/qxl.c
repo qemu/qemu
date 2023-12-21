@@ -2388,7 +2388,7 @@ static const VMStateDescription qxl_memslot = {
     .name               = "qxl-memslot",
     .version_id         = QXL_SAVE_VERSION,
     .minimum_version_id = QXL_SAVE_VERSION,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(slot.mem_start, struct guest_slots),
         VMSTATE_UINT64(slot.mem_end,   struct guest_slots),
         VMSTATE_UINT32(active,         struct guest_slots),
@@ -2400,7 +2400,7 @@ static const VMStateDescription qxl_surface = {
     .name               = "qxl-surface",
     .version_id         = QXL_SAVE_VERSION,
     .minimum_version_id = QXL_SAVE_VERSION,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(width,      QXLSurfaceCreate),
         VMSTATE_UINT32(height,     QXLSurfaceCreate),
         VMSTATE_INT32(stride,      QXLSurfaceCreate),
@@ -2419,7 +2419,7 @@ static const VMStateDescription qxl_vmstate_monitors_config = {
     .version_id         = 1,
     .minimum_version_id = 1,
     .needed = qxl_monitors_config_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(guest_monitors_config, PCIQXLDevice),
         VMSTATE_END_OF_LIST()
     },
@@ -2432,7 +2432,7 @@ static const VMStateDescription qxl_vmstate = {
     .pre_save           = qxl_pre_save,
     .pre_load           = qxl_pre_load,
     .post_load          = qxl_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(pci, PCIQXLDevice),
         VMSTATE_STRUCT(vga, PCIQXLDevice, 0, vmstate_vga_common, VGACommonState),
         VMSTATE_UINT32(shadow_rom.mode, PCIQXLDevice),
@@ -2452,7 +2452,7 @@ static const VMStateDescription qxl_vmstate = {
         VMSTATE_UINT64(guest_cursor, PCIQXLDevice),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &qxl_vmstate_monitors_config,
         NULL
     }

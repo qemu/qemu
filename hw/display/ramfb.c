@@ -129,7 +129,7 @@ const VMStateDescription ramfb_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ramfb_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BUFFER_UNSAFE(cfg, RAMFBState, 0, sizeof(RAMFBCfg)),
         VMSTATE_END_OF_LIST()
     }

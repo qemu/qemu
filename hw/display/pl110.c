@@ -83,7 +83,7 @@ static const VMStateDescription vmstate_pl110 = {
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = vmstate_pl110_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(version, PL110State),
         VMSTATE_UINT32_ARRAY(timing, PL110State, 4),
         VMSTATE_UINT32(cr, PL110State),
