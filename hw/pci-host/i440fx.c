@@ -125,7 +125,7 @@ static const VMStateDescription vmstate_i440fx = {
     .version_id = 3,
     .minimum_version_id = 3,
     .post_load = i440fx_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),
         /* Used to be smm_enabled, which was basically always zero because
          * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.

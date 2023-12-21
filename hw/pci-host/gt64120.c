@@ -431,7 +431,7 @@ static const VMStateDescription vmstate_gt64120 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = gt64120_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, GT64120State, GT_REGS),
         VMSTATE_END_OF_LIST()
     }

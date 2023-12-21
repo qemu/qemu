@@ -619,7 +619,7 @@ static const VMStateDescription vmstate_bonito = {
     .name = "Bonito",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCIBonitoState),
         VMSTATE_END_OF_LIST()
     }
