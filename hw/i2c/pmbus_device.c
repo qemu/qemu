@@ -1886,7 +1886,7 @@ const VMStateDescription vmstate_pmbus_device = {
     .name = TYPE_PMBUS_DEVICE,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_SMBUS_DEVICE(smb, PMBusDevice),
         VMSTATE_UINT8(num_pages, PMBusDevice),
         VMSTATE_UINT8(code, PMBusDevice),

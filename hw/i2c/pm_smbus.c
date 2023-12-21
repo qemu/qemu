@@ -455,7 +455,7 @@ const VMStateDescription pmsmb_vmstate = {
     .name = "pmsmb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(smb_stat, PMSMBus),
         VMSTATE_UINT8(smb_ctl, PMSMBus),
         VMSTATE_UINT8(smb_cmd, PMSMBus),

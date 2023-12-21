@@ -80,7 +80,7 @@ static const VMStateDescription microbit_i2c_vmstate = {
     .name = TYPE_MICROBIT_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MicrobitI2CState, MICROBIT_I2C_NREGS),
         VMSTATE_UINT32(read_idx, MicrobitI2CState),
         VMSTATE_END_OF_LIST()

@@ -312,7 +312,7 @@ static const VMStateDescription mpc_i2c_vmstate = {
     .name = TYPE_MPC_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(address, MPCI2CState),
         VMSTATE_UINT8(adr, MPCI2CState),
         VMSTATE_UINT8(fdr, MPCI2CState),

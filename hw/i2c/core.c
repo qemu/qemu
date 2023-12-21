@@ -50,7 +50,7 @@ static const VMStateDescription vmstate_i2c_bus = {
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = i2c_bus_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(saved_address, I2CBus),
         VMSTATE_END_OF_LIST()
     }
@@ -359,7 +359,7 @@ const VMStateDescription vmstate_i2c_slave = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = i2c_slave_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(address, I2CSlave),
         VMSTATE_END_OF_LIST()
     }
