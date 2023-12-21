@@ -51,7 +51,7 @@ static const VMStateDescription vmstate_replay = {
     .minimum_version_id = 2,
     .pre_save = replay_pre_save,
     .post_load = replay_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT64_ARRAY(cached_clock, ReplayState, REPLAY_CLOCK_COUNT),
         VMSTATE_UINT64(current_icount, ReplayState),
         VMSTATE_INT32(instruction_count, ReplayState),
