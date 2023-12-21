@@ -221,7 +221,7 @@ static const VMStateDescription vmstate_adb_bus = {
     .name = "adb_bus",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(autopoll_timer, ADBBusState),
         VMSTATE_BOOL(autopoll_enabled, ADBBusState),
         VMSTATE_UINT8(autopoll_rate_ms, ADBBusState),
@@ -279,7 +279,7 @@ const VMStateDescription vmstate_adb_device = {
     .name = "adb_device",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(devaddr, ADBDevice),
         VMSTATE_INT32(handler, ADBDevice),
         VMSTATE_END_OF_LIST()

@@ -441,7 +441,7 @@ static const VMStateDescription vmstate_lm_kbd = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = lm_kbd_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_I2C_SLAVE(parent_obj, LM823KbdState),
         VMSTATE_UINT8(i2c_dir, LM823KbdState),
         VMSTATE_UINT8(i2c_cycle, LM823KbdState),
