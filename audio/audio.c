@@ -1683,7 +1683,7 @@ static const VMStateDescription vmstate_audio = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_audio_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
 };
