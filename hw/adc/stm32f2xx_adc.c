@@ -254,7 +254,7 @@ static const VMStateDescription vmstate_stm32f2xx_adc = {
     .name = TYPE_STM32F2XX_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(adc_sr, STM32F2XXADCState),
         VMSTATE_UINT32(adc_cr1, STM32F2XXADCState),
         VMSTATE_UINT32(adc_cr2, STM32F2XXADCState),

@@ -253,7 +253,7 @@ static const VMStateDescription vmstate_npcm7xx_adc = {
     .name = "npcm7xx-adc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER(conv_timer, NPCM7xxADCState),
         VMSTATE_UINT32(con, NPCM7xxADCState),
         VMSTATE_UINT32(data, NPCM7xxADCState),

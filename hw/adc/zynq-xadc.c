@@ -269,7 +269,7 @@ static const VMStateDescription vmstate_zynq_xadc = {
     .name = "zynq-xadc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, ZynqXADCState, ZYNQ_XADC_NUM_IO_REGS),
         VMSTATE_UINT16_ARRAY(xadc_regs, ZynqXADCState,
                              ZYNQ_XADC_NUM_ADC_REGS),
