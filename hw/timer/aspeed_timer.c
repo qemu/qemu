@@ -645,7 +645,7 @@ static const VMStateDescription vmstate_aspeed_timer = {
     .name = "aspeed.timer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(id, AspeedTimer),
         VMSTATE_INT32(level, AspeedTimer),
         VMSTATE_TIMER(timer, AspeedTimer),
@@ -659,7 +659,7 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
     .name = "aspeed.timerctrl",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
         VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
         VMSTATE_UINT32(ctrl3, AspeedTimerCtrlState),

@@ -447,7 +447,7 @@ static const VMStateDescription vmstate_rtmr = {
     .name = "rx-tmr",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT64(tick, RTMRState),
         VMSTATE_UINT8_ARRAY(tcnt, RTMRState, TMR_CH),
         VMSTATE_UINT8_ARRAY(tcora, RTMRState, TMR_CH),

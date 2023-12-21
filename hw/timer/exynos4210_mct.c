@@ -264,7 +264,7 @@ static const VMStateDescription vmstate_tick_timer = {
     .name = "exynos4210.mct.tick_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cnt_run, struct tick_timer),
         VMSTATE_UINT32(int_run, struct tick_timer),
         VMSTATE_UINT32(last_icnto, struct tick_timer),
@@ -283,7 +283,7 @@ static const VMStateDescription vmstate_lregs = {
     .name = "exynos4210.mct.lregs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(cnt, struct lregs, L_REG_CNT_AMOUNT),
         VMSTATE_UINT32(tcon, struct lregs),
         VMSTATE_UINT32(int_cstat, struct lregs),
@@ -297,7 +297,7 @@ static const VMStateDescription vmstate_exynos4210_mct_lt = {
     .name = "exynos4210.mct.lt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(id, Exynos4210MCTLT),
         VMSTATE_STRUCT(tick_timer, Exynos4210MCTLT, 0,
                 vmstate_tick_timer,
@@ -314,7 +314,7 @@ static const VMStateDescription vmstate_gregs = {
     .name = "exynos4210.mct.lregs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(cnt, struct gregs),
         VMSTATE_UINT32(cnt_wstat, struct gregs),
         VMSTATE_UINT32(tcon, struct gregs),
@@ -332,7 +332,7 @@ static const VMStateDescription vmstate_exynos4210_mct_gt = {
     .name = "exynos4210.mct.lt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(reg, Exynos4210MCTGT, 0, vmstate_gregs,
                 struct gregs),
         VMSTATE_UINT64(count, Exynos4210MCTGT),
@@ -346,7 +346,7 @@ static const VMStateDescription vmstate_exynos4210_mct_state = {
     .name = "exynos4210.mct",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(reg_mct_cfg, Exynos4210MCTState),
         VMSTATE_STRUCT_ARRAY(l_timer, Exynos4210MCTState, 2, 0,
             vmstate_exynos4210_mct_lt, Exynos4210MCTLT),

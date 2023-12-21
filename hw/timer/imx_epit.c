@@ -383,7 +383,7 @@ static const VMStateDescription vmstate_imx_timer_epit = {
     .name = TYPE_IMX_EPIT,
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cr, IMXEPITState),
         VMSTATE_UINT32(sr, IMXEPITState),
         VMSTATE_UINT32(lr, IMXEPITState),

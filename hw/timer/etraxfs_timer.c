@@ -88,7 +88,7 @@ static const VMStateDescription vmstate_etraxfs = {
     .name = "etraxfs",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(ptimer_t0, ETRAXTimerState),
         VMSTATE_PTIMER(ptimer_t1, ETRAXTimerState),
         VMSTATE_PTIMER(ptimer_wd, ETRAXTimerState),

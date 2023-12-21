@@ -242,7 +242,7 @@ static const VMStateDescription vmstate_rcmt = {
     .name = "rx-cmt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(cmstr, RCMTState),
         VMSTATE_UINT16_ARRAY(cmcr, RCMTState, CMT_CH),
         VMSTATE_UINT16_ARRAY(cmcnt, RCMTState, CMT_CH),

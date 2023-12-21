@@ -508,7 +508,7 @@ static const VMStateDescription cmsdk_dualtimermod_vmstate = {
     .name = "cmsdk-apb-dualtimer-module",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, CMSDKAPBDualTimerModule),
         VMSTATE_UINT32(load, CMSDKAPBDualTimerModule),
         VMSTATE_UINT32(value, CMSDKAPBDualTimerModule),
@@ -522,7 +522,7 @@ static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     .name = "cmsdk-apb-dualtimer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(timclk, CMSDKAPBDualTimer),
         VMSTATE_STRUCT_ARRAY(timermod, CMSDKAPBDualTimer,
                              CMSDK_APB_DUALTIMER_NUM_MODULES,

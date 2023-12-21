@@ -260,7 +260,7 @@ static const VMStateDescription vmstate_timers = {
     .name = "mss-timer-block",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(ptimer, struct Msf2Timer),
         VMSTATE_UINT32_ARRAY(regs, struct Msf2Timer, R_TIM1_MAX),
         VMSTATE_END_OF_LIST()
@@ -271,7 +271,7 @@ static const VMStateDescription vmstate_mss_timer = {
     .name = TYPE_MSS_TIMER,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(freq_hz, MSSTimerState),
         VMSTATE_STRUCT_ARRAY(timers, MSSTimerState, NUM_TIMERS, 0,
                 vmstate_timers, struct Msf2Timer),

@@ -39,7 +39,7 @@ static const VMStateDescription vmstate_digic_timer = {
     .name = "digic.timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(ptimer, DigicTimerState),
         VMSTATE_UINT32(control, DigicTimerState),
         VMSTATE_UINT32(relvalue, DigicTimerState),
