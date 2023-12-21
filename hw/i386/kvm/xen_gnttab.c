@@ -127,7 +127,7 @@ static const VMStateDescription xen_gnttab_vmstate = {
     .minimum_version_id = 1,
     .needed = xen_gnttab_is_needed,
     .post_load = xen_gnttab_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(nr_frames, XenGnttabState),
         VMSTATE_VARRAY_UINT32(gnt_frame_gpas, XenGnttabState, nr_frames, 0,
                               vmstate_info_uint64, uint64_t),

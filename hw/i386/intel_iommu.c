@@ -3289,7 +3289,7 @@ static const VMStateDescription vtd_vmstate = {
     .minimum_version_id = 1,
     .priority = MIG_PRI_IOMMU,
     .post_load = vtd_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(root, IntelIOMMUState),
         VMSTATE_UINT64(intr_root, IntelIOMMUState),
         VMSTATE_UINT64(iq, IntelIOMMUState),

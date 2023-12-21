@@ -243,7 +243,7 @@ static const VMStateDescription xen_xenstore_vmstate = {
     .needed = xen_xenstore_is_needed,
     .pre_save = xen_xenstore_pre_save,
     .post_load = xen_xenstore_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(req_data, XenXenstoreState,
                             sizeof_field(XenXenstoreState, req_data)),
         VMSTATE_UINT8_ARRAY(rsp_data, XenXenstoreState,

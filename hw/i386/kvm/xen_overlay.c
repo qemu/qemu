@@ -139,7 +139,7 @@ static const VMStateDescription xen_overlay_vmstate = {
     .needed = xen_overlay_is_needed,
     .pre_save = xen_overlay_pre_save,
     .post_load = xen_overlay_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(shinfo_gpa, XenOverlayState),
         VMSTATE_BOOL(long_mode, XenOverlayState),
         VMSTATE_END_OF_LIST()
