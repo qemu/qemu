@@ -87,7 +87,7 @@ static const VMStateDescription vmstate_cpu_common_exception_index = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cpu_common_exception_index_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(exception_index, CPUState),
         VMSTATE_END_OF_LIST()
     }
@@ -105,7 +105,7 @@ static const VMStateDescription vmstate_cpu_common_crash_occurred = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cpu_common_crash_occurred_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(crash_occurred, CPUState),
         VMSTATE_END_OF_LIST()
     }
@@ -117,12 +117,12 @@ const VMStateDescription vmstate_cpu_common = {
     .minimum_version_id = 1,
     .pre_load = cpu_common_pre_load,
     .post_load = cpu_common_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(halted, CPUState),
         VMSTATE_UINT32(interrupt_request, CPUState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_cpu_common_exception_index,
         &vmstate_cpu_common_crash_occurred,
         NULL
