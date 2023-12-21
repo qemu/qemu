@@ -299,7 +299,7 @@ static const VMStateDescription vmstate_smbus_ipmi = {
     .name = TYPE_SMBUS_IPMI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_SMBUS_DEVICE(parent, SMBusIPMIDevice),
         VMSTATE_UINT8(waiting_rsp, SMBusIPMIDevice),
         VMSTATE_UINT32(outlen, SMBusIPMIDevice),

@@ -379,7 +379,7 @@ const VMStateDescription vmstate_IPMIKCS = {
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = ipmi_kcs_vmstate_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(obf_irq_set, IPMIKCS),
         VMSTATE_BOOL(atn_irq_set, IPMIKCS),
         VMSTATE_UNUSED_TEST(vmstate_kcs_before_version2, 1), /* Was use_irq */

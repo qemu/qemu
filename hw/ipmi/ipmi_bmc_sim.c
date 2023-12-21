@@ -2103,7 +2103,7 @@ static const VMStateDescription vmstate_ipmi_sim = {
     .name = TYPE_IPMI_BMC_SIMULATOR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(bmc_global_enables, IPMIBmcSim),
         VMSTATE_UINT8(msg_flags, IPMIBmcSim),
         VMSTATE_BOOL(watchdog_initialized, IPMIBmcSim),
