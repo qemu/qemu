@@ -358,7 +358,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         mem_region.size = int128_get64(llsize) - 1,
         mem_region.perm = IOMMU_ACCESS_FLAG(true, section->readonly),
 
-        r = vhost_iova_tree_map_alloc(v->iova_tree, &mem_region);
+        r = vhost_iova_tree_map_alloc(v->shared->iova_tree, &mem_region);
         if (unlikely(r != IOVA_OK)) {
             error_report("Can't allocate a mapping (%d)", r);
             goto fail;
@@ -379,7 +379,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
 fail_map:
     if (v->shadow_data) {
-        vhost_iova_tree_remove(v->iova_tree, mem_region);
+        vhost_iova_tree_remove(v->shared->iova_tree, mem_region);
     }
 
 fail:
@@ -441,13 +441,13 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
             .size = int128_get64(llsize) - 1,
         };
 
-        result = vhost_iova_tree_find_iova(v->iova_tree, &mem_region);
+        result = vhost_iova_tree_find_iova(v->shared->iova_tree, &mem_region);
         if (!result) {
             /* The memory listener map wasn't mapped */
             return;
         }
         iova = result->iova;
-        vhost_iova_tree_remove(v->iova_tree, *result);
+        vhost_iova_tree_remove(v->shared->iova_tree, *result);
     }
     vhost_vdpa_iotlb_batch_begin_once(v);
     /*
@@ -1063,7 +1063,8 @@ static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr addr)
     const DMAMap needle = {
         .translated_addr = addr,
     };
-    const DMAMap *result = vhost_iova_tree_find_iova(v->iova_tree, &needle);
+    const DMAMap *result = vhost_iova_tree_find_iova(v->shared->iova_tree,
+                                                     &needle);
     hwaddr size;
     int r;
 
@@ -1079,7 +1080,7 @@ static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr addr)
         return;
     }
 
-    vhost_iova_tree_remove(v->iova_tree, *result);
+    vhost_iova_tree_remove(v->shared->iova_tree, *result);
 }
 
 static void vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
@@ -1107,7 +1108,7 @@ static bool vhost_vdpa_svq_map_ring(struct vhost_vdpa *v, DMAMap *needle,
 {
     int r;
 
-    r = vhost_iova_tree_map_alloc(v->iova_tree, needle);
+    r = vhost_iova_tree_map_alloc(v->shared->iova_tree, needle);
     if (unlikely(r != IOVA_OK)) {
         error_setg(errp, "Cannot allocate iova (%d)", r);
         return false;
@@ -1119,7 +1120,7 @@ static bool vhost_vdpa_svq_map_ring(struct vhost_vdpa *v, DMAMap *needle,
                            needle->perm == IOMMU_RO);
     if (unlikely(r != 0)) {
         error_setg_errno(errp, -r, "Cannot map region to device");
-        vhost_iova_tree_remove(v->iova_tree, *needle);
+        vhost_iova_tree_remove(v->shared->iova_tree, *needle);
     }
 
     return r == 0;
@@ -1220,7 +1221,7 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
             goto err;
         }
 
-        vhost_svq_start(svq, dev->vdev, vq, v->iova_tree);
+        vhost_svq_start(svq, dev->vdev, vq, v->shared->iova_tree);
         ok = vhost_vdpa_svq_map_rings(dev, svq, &addr, &err);
         if (unlikely(!ok)) {
             goto err_map;

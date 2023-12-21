@@ -32,6 +32,8 @@ typedef struct VhostVDPAHostNotifier {
 
 /* Info shared by all vhost_vdpa device models */
 typedef struct vhost_vdpa_shared {
+    /* IOVA mapping used by the Shadow Virtqueue */
+    VhostIOVATree *iova_tree;
 } VhostVDPAShared;
 
 typedef struct vhost_vdpa {
@@ -48,8 +50,6 @@ typedef struct vhost_vdpa {
     bool shadow_data;
     /* Device suspended successfully */
     bool suspended;
-    /* IOVA mapping used by the Shadow Virtqueue */
-    VhostIOVATree *iova_tree;
     VhostVDPAShared *shared;
     GPtrArray *shadow_vqs;
     const VhostShadowVirtqueueOps *shadow_vq_ops;
