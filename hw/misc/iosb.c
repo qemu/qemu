@@ -105,7 +105,7 @@ static const VMStateDescription vmstate_iosb = {
     .name = "IOSB",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, IOSBState, IOSB_REGS),
         VMSTATE_END_OF_LIST()
     }

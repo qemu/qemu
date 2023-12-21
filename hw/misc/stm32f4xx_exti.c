@@ -153,7 +153,7 @@ static const VMStateDescription vmstate_stm32f4xx_exti = {
     .name = TYPE_STM32F4XX_EXTI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(exti_imr, STM32F4xxExtiState),
         VMSTATE_UINT32(exti_emr, STM32F4xxExtiState),
         VMSTATE_UINT32(exti_rtsr, STM32F4xxExtiState),

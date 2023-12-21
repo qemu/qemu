@@ -110,7 +110,7 @@ static const VMStateDescription allwinner_h3_sysctrl_vmstate = {
     .name = "allwinner-h3-sysctrl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AwH3SysCtrlState, AW_H3_SYSCTRL_REGS_NUM),
         VMSTATE_END_OF_LIST()
     }

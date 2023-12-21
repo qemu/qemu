@@ -168,7 +168,7 @@ static const VMStateDescription aspeed_i3c_device_vmstate = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(regs, AspeedI3CDevice, ASPEED_I3C_DEVICE_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }
@@ -349,7 +349,7 @@ static const VMStateDescription vmstate_aspeed_i3c = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedI3CState, ASPEED_I3C_NR_REGS),
         VMSTATE_STRUCT_ARRAY(devices, AspeedI3CState, ASPEED_I3C_NR_DEVICES, 1,
                              aspeed_i3c_device_vmstate, AspeedI3CDevice),

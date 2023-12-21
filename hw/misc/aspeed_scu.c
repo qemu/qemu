@@ -531,7 +531,7 @@ static const VMStateDescription vmstate_aspeed_scu = {
     .name = "aspeed.scu",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSCUState, ASPEED_AST2600_SCU_NR_REGS),
         VMSTATE_END_OF_LIST()
     }

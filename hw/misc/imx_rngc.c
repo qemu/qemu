@@ -245,7 +245,7 @@ static const VMStateDescription vmstate_imx_rngc = {
     .name = RNGC_NAME,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(op_self_test, IMXRNGCState),
         VMSTATE_UINT8(op_seed, IMXRNGCState),
         VMSTATE_UINT8(mask, IMXRNGCState),

@@ -156,7 +156,7 @@ const VMStateDescription vmstate_mphi_state = {
     .name = "mphi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(outdda, BCM2835MphiState),
         VMSTATE_UINT32(outddb, BCM2835MphiState),
         VMSTATE_UINT32(ctrl, BCM2835MphiState),

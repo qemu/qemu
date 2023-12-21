@@ -217,7 +217,7 @@ static int axp2xx_tx(I2CSlave *i2c, uint8_t data)
 static const VMStateDescription vmstate_axp2xx = {
     .name = TYPE_AXP2XX,
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(regs, AXP2xxI2CState, NR_REGS),
         VMSTATE_UINT8(ptr, AXP2xxI2CState),
         VMSTATE_UINT8(count, AXP2xxI2CState),

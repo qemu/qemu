@@ -157,7 +157,7 @@ static const VMStateDescription vmstate_mips_cpc = {
     .name = "mips-cpc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(vp_running, MIPSCPCState),
         VMSTATE_END_OF_LIST()
     },

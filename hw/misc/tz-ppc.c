@@ -290,7 +290,7 @@ static const VMStateDescription tz_ppc_vmstate = {
     .name = "tz-ppc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL_ARRAY(cfg_nonsec, TZPPC, 16),
         VMSTATE_BOOL_ARRAY(cfg_ap, TZPPC, 16),
         VMSTATE_BOOL(cfg_sec_resp, TZPPC),

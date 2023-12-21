@@ -147,7 +147,7 @@ static const VMStateDescription allwinner_a10_dramc_vmstate = {
     .name = "allwinner-a10-dramc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AwA10DramControllerState,
                              AW_A10_DRAMC_REGS_NUM),
         VMSTATE_END_OF_LIST()

@@ -463,7 +463,7 @@ static const VMStateDescription vmstate_cfu_apb = {
     .name = TYPE_XLNX_VERSAL_CFU_APB,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUAPB, 4),
         VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFUAPB, R_MAX),
         VMSTATE_UINT8(fdri_row_addr, XlnxVersalCFUAPB),
@@ -475,7 +475,7 @@ static const VMStateDescription vmstate_cfu_fdro = {
     .name = TYPE_XLNX_VERSAL_CFU_FDRO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_FIFO32(fdro_data, XlnxVersalCFUFDRO),
         VMSTATE_END_OF_LIST(),
     }
@@ -485,7 +485,7 @@ static const VMStateDescription vmstate_cfu_sfr = {
     .name = TYPE_XLNX_VERSAL_CFU_SFR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUSFR, 4),
         VMSTATE_END_OF_LIST(),
     }

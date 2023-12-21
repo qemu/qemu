@@ -77,7 +77,7 @@ static const VMStateDescription vmstate_led = {
     .name = TYPE_LED,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(intensity_percent, LEDState),
         VMSTATE_END_OF_LIST()
     }

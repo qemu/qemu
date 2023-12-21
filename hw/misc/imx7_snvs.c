@@ -30,7 +30,7 @@ static const VMStateDescription vmstate_imx7_snvs = {
     .name = TYPE_IMX7_SNVS,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(tick_offset, IMX7SNVSState),
         VMSTATE_UINT64(lpcr, IMX7SNVSState),
         VMSTATE_END_OF_LIST()

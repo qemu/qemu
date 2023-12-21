@@ -227,7 +227,7 @@ static const VMStateDescription vmstate_mst_fpga_regs = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = mst_fpga_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
 		VMSTATE_UINT32(prev_level, mst_irq_state),
 		VMSTATE_UINT32(leddat1, mst_irq_state),
 		VMSTATE_UINT32(leddat2, mst_irq_state),

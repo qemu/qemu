@@ -227,7 +227,7 @@ static const VMStateDescription vmstate_npcm7xx_gcr = {
     .name = "npcm7xx-gcr",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, NPCM7xxGCRState, NPCM7XX_GCR_NR_REGS),
         VMSTATE_END_OF_LIST(),
     },

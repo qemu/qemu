@@ -107,7 +107,7 @@ static const VMStateDescription vmstate_djmemc = {
     .name = "djMEMC",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, DJMEMCState, DJMEMC_NUM_REGS),
         VMSTATE_END_OF_LIST()
     }

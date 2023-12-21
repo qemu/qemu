@@ -1412,7 +1412,7 @@ static const VMStateDescription vmstate_pmc_iou_slcr = {
     .name = TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxVersalPmcIouSlcr,
                              XILINX_VERSAL_PMC_IOU_SLCR_R_MAX),
         VMSTATE_END_OF_LIST(),

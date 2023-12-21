@@ -99,7 +99,7 @@ static const VMStateDescription vmstate_bcm2835_rng = {
     .name = TYPE_BCM2835_RNG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(rng_ctrl, BCM2835RngState),
         VMSTATE_UINT32(rng_status, BCM2835RngState),
         VMSTATE_END_OF_LIST()

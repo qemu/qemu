@@ -49,7 +49,7 @@ static const VMStateDescription vmstate_l2x0 = {
     .name = "l2x0",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctrl, L2x0State),
         VMSTATE_UINT32(aux_ctrl, L2x0State),
         VMSTATE_UINT32(data_ctrl, L2x0State),
