@@ -41,7 +41,7 @@ const VMStateDescription vmstate_muldiv = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = muldiv_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(multiplier, Clock),
         VMSTATE_UINT32(divider, Clock),
         VMSTATE_END_OF_LIST()
@@ -53,11 +53,11 @@ const VMStateDescription vmstate_clock = {
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_load = clock_pre_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(period, Clock),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_muldiv,
         NULL
     },
