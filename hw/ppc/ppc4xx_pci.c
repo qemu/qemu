@@ -276,7 +276,7 @@ static const VMStateDescription vmstate_pci_master_map = {
     .name = "pci_master_map",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(la, struct PCIMasterMap),
         VMSTATE_UINT32(ma, struct PCIMasterMap),
         VMSTATE_UINT32(pcila, struct PCIMasterMap),
@@ -289,7 +289,7 @@ static const VMStateDescription vmstate_pci_target_map = {
     .name = "pci_target_map",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ms, struct PCITargetMap),
         VMSTATE_UINT32(la, struct PCITargetMap),
         VMSTATE_END_OF_LIST()
@@ -300,7 +300,7 @@ static const VMStateDescription vmstate_ppc4xx_pci = {
     .name = "ppc4xx_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(pmm, PPC4xxPCIState, PPC4xx_PCI_NR_PMMS, 1,
                              vmstate_pci_master_map,
                              struct PCIMasterMap),
