@@ -147,7 +147,7 @@ static const VMStateDescription vmstate_gpe = {
     .name = "gpe",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_GPE_ARRAY(sts, ACPIGPE),
         VMSTATE_GPE_ARRAY(en, ACPIGPE),
         VMSTATE_END_OF_LIST()
@@ -158,7 +158,7 @@ static const VMStateDescription vmstate_pci_status = {
     .name = "pci_status",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(up, struct AcpiPciHpPciStatus),
         VMSTATE_UINT32(down, struct AcpiPciHpPciStatus),
         VMSTATE_END_OF_LIST()
@@ -189,7 +189,7 @@ static const VMStateDescription vmstate_memhp_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_test_use_memhp,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, PIIX4PMState),
         VMSTATE_END_OF_LIST()
     }
@@ -214,7 +214,7 @@ static const VMStateDescription vmstate_cpuhp_state = {
     .minimum_version_id = 1,
     .needed = vmstate_test_use_cpuhp,
     .pre_load = vmstate_cpuhp_pre_load,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CPU_HOTPLUG(cpuhp_state, PIIX4PMState),
         VMSTATE_END_OF_LIST()
     }
@@ -247,7 +247,7 @@ static const VMStateDescription vmstate_acpi = {
     .version_id = 3,
     .minimum_version_id = 3,
     .post_load = vmstate_acpi_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),
         VMSTATE_UINT16(ar.pm1.evt.sts, PIIX4PMState),
         VMSTATE_UINT16(ar.pm1.evt.en, PIIX4PMState),
@@ -269,7 +269,7 @@ static const VMStateDescription vmstate_acpi = {
                             vmstate_test_migrate_acpi_index),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
          &vmstate_memhp_state,
          &vmstate_cpuhp_state,
          NULL

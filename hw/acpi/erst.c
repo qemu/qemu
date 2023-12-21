@@ -932,7 +932,7 @@ static const VMStateDescription erst_vmstate  = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = erst_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(operation, ERSTDeviceState),
         VMSTATE_UINT8(busy_status, ERSTDeviceState),
         VMSTATE_UINT8(command_status, ERSTDeviceState),
