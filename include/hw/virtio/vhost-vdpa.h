@@ -34,6 +34,7 @@ typedef struct VhostVDPAHostNotifier {
 typedef struct vhost_vdpa_shared {
     int device_fd;
     struct vhost_vdpa_iova_range iova_range;
+    QLIST_HEAD(, vdpa_iommu) iommu_list;
 
     /* IOVA mapping used by the Shadow Virtqueue */
     VhostIOVATree *iova_tree;
@@ -62,7 +63,6 @@ typedef struct vhost_vdpa {
     struct vhost_dev *dev;
     Error *migration_blocker;
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
-    QLIST_HEAD(, vdpa_iommu) iommu_list;
     IOMMUNotifier n;
 } VhostVDPA;
 

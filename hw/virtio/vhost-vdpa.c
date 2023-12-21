@@ -279,7 +279,7 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
         return;
     }
 
-    QLIST_INSERT_HEAD(&v->iommu_list, iommu, iommu_next);
+    QLIST_INSERT_HEAD(&v->shared->iommu_list, iommu, iommu_next);
     memory_region_iommu_replay(iommu->iommu_mr, &iommu->n);
 
     return;
@@ -292,7 +292,7 @@ static void vhost_vdpa_iommu_region_del(MemoryListener *listener,
 
     struct vdpa_iommu *iommu;
 
-    QLIST_FOREACH(iommu, &v->iommu_list, iommu_next)
+    QLIST_FOREACH(iommu, &v->shared->iommu_list, iommu_next)
     {
         if (MEMORY_REGION(iommu->iommu_mr) == section->mr &&
             iommu->n.start == section->offset_within_region) {
