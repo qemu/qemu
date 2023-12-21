@@ -222,7 +222,7 @@ static const VMStateDescription vmstate_scoop_regs = {
     .version_id = 1,
     .minimum_version_id = 0,
     .post_load = scoop_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(status, ScoopInfo),
         VMSTATE_UINT16(power, ScoopInfo),
         VMSTATE_UINT32(gpio_level, ScoopInfo),

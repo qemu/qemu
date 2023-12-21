@@ -280,7 +280,7 @@ static const VMStateDescription vmstate_nrf51_gpio = {
     .name = TYPE_NRF51_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(out, NRF51GPIOState),
         VMSTATE_UINT32(in, NRF51GPIOState),
         VMSTATE_UINT32(in_mask, NRF51GPIOState),

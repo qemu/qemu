@@ -277,7 +277,7 @@ static const VMStateDescription vmstate_imx_gpio = {
     .name = TYPE_IMX_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(dr, IMXGPIOState),
         VMSTATE_UINT32(gdir, IMXGPIOState),
         VMSTATE_UINT32(psr, IMXGPIOState),

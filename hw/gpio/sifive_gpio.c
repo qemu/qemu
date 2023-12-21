@@ -326,7 +326,7 @@ static const VMStateDescription vmstate_sifive_gpio = {
     .name = TYPE_SIFIVE_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(value,     SIFIVEGPIOState),
         VMSTATE_UINT32(input_en,  SIFIVEGPIOState),
         VMSTATE_UINT32(output_en, SIFIVEGPIOState),

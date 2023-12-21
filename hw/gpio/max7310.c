@@ -155,7 +155,7 @@ static const VMStateDescription vmstate_max7310 = {
     .name = "max7310",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(i2c_command_byte, MAX7310State),
         VMSTATE_INT32(len, MAX7310State),
         VMSTATE_UINT8(level, MAX7310State),

@@ -377,7 +377,7 @@ static const VMStateDescription vmstate_npcm7xx_gpio = {
     .name = "npcm7xx-gpio",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(pin_level, NPCM7xxGPIOState),
         VMSTATE_UINT32(ext_level, NPCM7xxGPIOState),
         VMSTATE_UINT32(ext_driven, NPCM7xxGPIOState),
