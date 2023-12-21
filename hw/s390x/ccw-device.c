@@ -66,7 +66,7 @@ const VMStateDescription vmstate_ccw_dev = {
     .name = "s390_ccw_dev",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_POINTER(sch, CcwDevice, vmstate_subch_dev, SubchDev),
         VMSTATE_END_OF_LIST()
     }

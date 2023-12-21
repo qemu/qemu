@@ -72,7 +72,7 @@ static const VMStateDescription vmstate_sclpquiesce = {
     .name = TYPE_SCLP_QUIESCE,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(event_pending, SCLPEvent),
         VMSTATE_END_OF_LIST()
      }
