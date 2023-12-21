@@ -201,7 +201,7 @@ static const VMStateField vmstate_env_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
-static const VMStateDescription *vmstate_env_subsections[] = {
+static const VMStateDescription * const vmstate_env_subsections[] = {
     &vmstate_tlb,
     NULL
 };
