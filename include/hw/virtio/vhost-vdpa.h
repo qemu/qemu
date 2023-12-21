@@ -30,6 +30,10 @@ typedef struct VhostVDPAHostNotifier {
     void *addr;
 } VhostVDPAHostNotifier;
 
+/* Info shared by all vhost_vdpa device models */
+typedef struct vhost_vdpa_shared {
+} VhostVDPAShared;
+
 typedef struct vhost_vdpa {
     int device_fd;
     int index;
@@ -46,6 +50,7 @@ typedef struct vhost_vdpa {
     bool suspended;
     /* IOVA mapping used by the Shadow Virtqueue */
     VhostIOVATree *iova_tree;
+    VhostVDPAShared *shared;
     GPtrArray *shadow_vqs;
     const VhostShadowVirtqueueOps *shadow_vq_ops;
     void *shadow_vq_ops_opaque;
