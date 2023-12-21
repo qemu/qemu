@@ -737,9 +737,8 @@ Types, commands, and events share a common namespace.  Therefore,
 generally speaking, type definitions should always use CamelCase for
 user-defined type names, while built-in types are lowercase.
 
-Type names ending with ``Kind`` or ``List`` are reserved for the
-generator, which uses them for implicit union enums and array types,
-respectively.
+Type names ending with ``List`` are reserved for the generator, which
+uses them for array types.
 
 Command names, member names within a type, and feature names should be
 all lower case with words separated by a hyphen.  However, some
