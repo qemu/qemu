@@ -145,7 +145,7 @@ static const VMStateDescription vmstate_or1k_timer = {
     .name = "or1k_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ttcr, OR1KTimerState),
         VMSTATE_UINT64(last_clk, OR1KTimerState),
         VMSTATE_END_OF_LIST()
