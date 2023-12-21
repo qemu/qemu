@@ -226,7 +226,7 @@ static const VMStateDescription vmstate_wdt = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = watchdog_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER(timer, SpaprWatchdog),
         VMSTATE_UINT8(action, SpaprWatchdog),
         VMSTATE_UINT8(leave_others, SpaprWatchdog),
