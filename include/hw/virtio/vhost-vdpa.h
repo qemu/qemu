@@ -38,6 +38,8 @@ typedef struct vhost_vdpa_shared {
     /* IOVA mapping used by the Shadow Virtqueue */
     VhostIOVATree *iova_tree;
 
+    bool iotlb_batch_begin_sent;
+
     /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
     bool shadow_data;
 } VhostVDPAShared;
@@ -45,7 +47,6 @@ typedef struct vhost_vdpa_shared {
 typedef struct vhost_vdpa {
     int index;
     uint32_t msg_type;
-    bool iotlb_batch_begin_sent;
     uint32_t address_space_id;
     MemoryListener listener;
     uint64_t acked_features;
