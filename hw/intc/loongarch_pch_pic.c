@@ -420,7 +420,7 @@ static const VMStateDescription vmstate_loongarch_pch_pic = {
     .name = TYPE_LOONGARCH_PCH_PIC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(int_mask, LoongArchPCHPIC),
         VMSTATE_UINT64(htmsi_en, LoongArchPCHPIC),
         VMSTATE_UINT64(intedge, LoongArchPCHPIC),

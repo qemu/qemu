@@ -156,7 +156,7 @@ static const VMStateDescription vmstate_pic_ltim = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ltim_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(ltim, PICCommonState),
         VMSTATE_END_OF_LIST()
     }
@@ -168,7 +168,7 @@ static const VMStateDescription vmstate_pic_common = {
     .minimum_version_id = 1,
     .pre_save = pic_dispatch_pre_save,
     .post_load = pic_dispatch_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(last_irr, PICCommonState),
         VMSTATE_UINT8(irr, PICCommonState),
         VMSTATE_UINT8(imr, PICCommonState),
@@ -187,7 +187,7 @@ static const VMStateDescription vmstate_pic_common = {
         VMSTATE_UINT8(elcr, PICCommonState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_pic_ltim,
         NULL
     }

@@ -182,7 +182,7 @@ static const VMStateDescription vmstate_ioapic_common = {
     .minimum_version_id = 1,
     .pre_save = ioapic_dispatch_pre_save,
     .post_load = ioapic_dispatch_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(id, IOAPICCommonState),
         VMSTATE_UINT8(ioregsel, IOAPICCommonState),
         VMSTATE_UNUSED_V(2, 8), /* to account for qemu-kvm's v2 format */

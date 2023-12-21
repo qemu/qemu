@@ -137,7 +137,7 @@ static const VMStateDescription vmstate_or1k_ompic_cpu = {
     .name = "or1k_ompic_cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
          VMSTATE_UINT32(status, OR1KOMPICCPUState),
          VMSTATE_UINT32(control, OR1KOMPICCPUState),
          VMSTATE_END_OF_LIST()
@@ -148,7 +148,7 @@ static const VMStateDescription vmstate_or1k_ompic = {
     .name = TYPE_OR1K_OMPIC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
          VMSTATE_STRUCT_ARRAY(cpus, OR1KOMPICState, OMPIC_MAX_CPUS, 1,
              vmstate_or1k_ompic_cpu, OR1KOMPICCPUState),
          VMSTATE_UINT32(num_cpus, OR1KOMPICState),

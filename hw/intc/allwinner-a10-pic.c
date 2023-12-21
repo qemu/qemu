@@ -142,7 +142,7 @@ static const VMStateDescription vmstate_aw_a10_pic = {
     .name = "a10.pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(vector, AwA10PICState),
         VMSTATE_UINT32(base_addr, AwA10PICState),
         VMSTATE_UINT32(protect, AwA10PICState),

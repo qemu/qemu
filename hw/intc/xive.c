@@ -798,7 +798,7 @@ static const VMStateDescription vmstate_xive_tctx = {
     .minimum_version_id = 1,
     .pre_save = vmstate_xive_tctx_pre_save,
     .post_load = vmstate_xive_tctx_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveTCTX),
         VMSTATE_END_OF_LIST()
     },
@@ -1271,7 +1271,7 @@ static const VMStateDescription vmstate_xive_source = {
     .name = TYPE_XIVE_SOURCE,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource, NULL),
         VMSTATE_VBUFFER_UINT32(status, XiveSource, 1, NULL, nr_irqs),
         VMSTATE_END_OF_LIST()

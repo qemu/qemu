@@ -80,7 +80,7 @@ static const VMStateDescription vmstate_m68k_irqc = {
     .name = "m68k-irqc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(ipr, M68KIRQCState),
         VMSTATE_END_OF_LIST()
     }

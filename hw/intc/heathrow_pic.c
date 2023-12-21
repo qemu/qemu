@@ -141,7 +141,7 @@ static const VMStateDescription vmstate_heathrow_pic_one = {
     .name = "heathrow_pic_one",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(events, HeathrowPICState),
         VMSTATE_UINT32(mask, HeathrowPICState),
         VMSTATE_UINT32(levels, HeathrowPICState),
@@ -154,7 +154,7 @@ static const VMStateDescription vmstate_heathrow = {
     .name = "heathrow_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(pics, HeathrowState, 2, 1,
                              vmstate_heathrow_pic_one, HeathrowPICState),
         VMSTATE_END_OF_LIST()

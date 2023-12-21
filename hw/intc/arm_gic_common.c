@@ -62,7 +62,7 @@ static const VMStateDescription vmstate_gic_irq_state = {
     .name = "arm_gic_irq_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(enabled, gic_irq_state),
         VMSTATE_UINT8(pending, gic_irq_state),
         VMSTATE_UINT8(active, gic_irq_state),
@@ -79,7 +79,7 @@ static const VMStateDescription vmstate_gic_virt_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gic_virt_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* Virtual interface */
         VMSTATE_UINT32_ARRAY(h_hcr, GICState, GIC_NCPU),
         VMSTATE_UINT32_ARRAY(h_misr, GICState, GIC_NCPU),
@@ -104,7 +104,7 @@ static const VMStateDescription vmstate_gic = {
     .minimum_version_id = 12,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctlr, GICState),
         VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, 0, GIC_NCPU),
         VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
@@ -122,7 +122,7 @@ static const VMStateDescription vmstate_gic = {
         VMSTATE_UINT32_2DARRAY(nsapr, GICState, GIC_NR_APRS, GIC_NCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_gic_virt_state,
         NULL
     }

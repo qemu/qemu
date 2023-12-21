@@ -96,7 +96,7 @@ static const VMStateDescription vmstate_imx_gpcv2 = {
     .name = TYPE_IMX_GPCV2,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, IMXGPCv2State, GPC_NUM),
         VMSTATE_END_OF_LIST()
     },

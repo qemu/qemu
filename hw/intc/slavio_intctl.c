@@ -353,7 +353,7 @@ static const VMStateDescription vmstate_intctl_cpu = {
     .name ="slavio_intctl_cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(intreg_pending, SLAVIO_CPUINTCTLState),
         VMSTATE_END_OF_LIST()
     }
@@ -364,7 +364,7 @@ static const VMStateDescription vmstate_intctl = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmstate_intctl_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(slaves, SLAVIO_INTCTLState, MAX_CPUS, 1,
                              vmstate_intctl_cpu, SLAVIO_CPUINTCTLState),
         VMSTATE_UINT32(intregm_pending, SLAVIO_INTCTLState),

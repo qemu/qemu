@@ -522,7 +522,7 @@ static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (const VMStateField []) {
         VMSTATE_UINT32(w0, XiveEND),
         VMSTATE_UINT32(w1, XiveEND),
         VMSTATE_UINT32(w2, XiveEND),
@@ -539,7 +539,7 @@ static const VMStateDescription vmstate_spapr_xive_eas = {
     .name = TYPE_SPAPR_XIVE "/eas",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField []) {
+    .fields = (const VMStateField []) {
         VMSTATE_UINT64(w, XiveEAS),
         VMSTATE_END_OF_LIST()
     },
@@ -577,7 +577,7 @@ static const VMStateDescription vmstate_spapr_xive = {
     .minimum_version_id = 1,
     .pre_save = vmstate_spapr_xive_pre_save,
     .post_load = NULL, /* handled at the machine level */
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
                                      vmstate_spapr_xive_eas, XiveEAS),
