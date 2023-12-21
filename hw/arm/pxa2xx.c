@@ -168,7 +168,7 @@ static const VMStateDescription vmstate_pxa2xx_pm = {
     .name = "pxa2xx_pm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(pm_regs, PXA2xxState, 0x40),
         VMSTATE_END_OF_LIST()
     }
@@ -238,7 +238,7 @@ static const VMStateDescription vmstate_pxa2xx_cm = {
     .name = "pxa2xx_cm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(cm_regs, PXA2xxState, 4),
         VMSTATE_UINT32(clkcfg, PXA2xxState),
         VMSTATE_UINT32(pmnc, PXA2xxState),
@@ -465,7 +465,7 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
     .name = "pxa2xx_mm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(mm_regs, PXA2xxState, 0x1a),
         VMSTATE_END_OF_LIST()
     }
@@ -510,7 +510,7 @@ static const VMStateDescription vmstate_pxa2xx_ssp = {
     .name = "pxa2xx-ssp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(enable, PXA2xxSSPState),
         VMSTATE_UINT32_ARRAY(sscr, PXA2xxSSPState, 2),
         VMSTATE_UINT32(sspsp, PXA2xxSSPState),
@@ -1200,7 +1200,7 @@ static const VMStateDescription vmstate_pxa2xx_rtc_regs = {
     .minimum_version_id = 0,
     .pre_save = pxa2xx_rtc_pre_save,
     .post_load = pxa2xx_rtc_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(rttr, PXA2xxRTCState),
         VMSTATE_UINT32(rtsr, PXA2xxRTCState),
         VMSTATE_UINT32(rtar, PXA2xxRTCState),
@@ -1464,7 +1464,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
     .name = "pxa2xx_i2c_slave",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_I2C_SLAVE(parent_obj, PXA2xxI2CSlaveState),
         VMSTATE_END_OF_LIST()
     }
@@ -1474,7 +1474,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
     .name = "pxa2xx_i2c",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(control, PXA2xxI2CState),
         VMSTATE_UINT16(status, PXA2xxI2CState),
         VMSTATE_UINT8(ibmr, PXA2xxI2CState),
@@ -1728,7 +1728,7 @@ static const VMStateDescription vmstate_pxa2xx_i2s = {
     .name = "pxa2xx_i2s",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(control, PXA2xxI2SState, 2),
         VMSTATE_UINT32(status, PXA2xxI2SState),
         VMSTATE_UINT32(mask, PXA2xxI2SState),
@@ -2027,7 +2027,7 @@ static const VMStateDescription pxa2xx_fir_vmsd = {
     .name = "pxa2xx-fir",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(enable, PXA2xxFIrState),
         VMSTATE_UINT8_ARRAY(control, PXA2xxFIrState, 3),
         VMSTATE_UINT8_ARRAY(status, PXA2xxFIrState, 2),

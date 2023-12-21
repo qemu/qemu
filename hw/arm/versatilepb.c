@@ -52,7 +52,7 @@ static const VMStateDescription vmstate_vpb_sic = {
     .name = "versatilepb_sic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(level, vpb_sic_state),
         VMSTATE_UINT32(mask, vpb_sic_state),
         VMSTATE_UINT32(pic_enable, vpb_sic_state),

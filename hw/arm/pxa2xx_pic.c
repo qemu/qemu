@@ -316,7 +316,7 @@ static const VMStateDescription vmstate_pxa2xx_pic_regs = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = pxa2xx_pic_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(int_enabled, PXA2xxPICState, 2),
         VMSTATE_UINT32_ARRAY(int_pending, PXA2xxPICState, 2),
         VMSTATE_UINT32_ARRAY(is_fiq, PXA2xxPICState, 2),
