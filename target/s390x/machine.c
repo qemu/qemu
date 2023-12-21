@@ -66,7 +66,7 @@ static const VMStateDescription vmstate_fpu = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = fpu_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.vregs[0][0], S390CPU),
         VMSTATE_UINT64(env.vregs[1][0], S390CPU),
         VMSTATE_UINT64(env.vregs[2][0], S390CPU),
@@ -98,7 +98,7 @@ static const VMStateDescription vmstate_vregs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vregs_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* vregs[0][0] -> vregs[15][0] and fregs are overlays */
         VMSTATE_UINT64(env.vregs[16][0], S390CPU),
         VMSTATE_UINT64(env.vregs[17][0], S390CPU),
@@ -157,12 +157,12 @@ static bool riccb_needed(void *opaque)
     return s390_has_feat(S390_FEAT_RUNTIME_INSTRUMENTATION);
 }
 
-const VMStateDescription vmstate_riccb = {
+static const VMStateDescription vmstate_riccb = {
     .name = "cpu/riccb",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = riccb_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(env.riccb, S390CPU, 64),
         VMSTATE_END_OF_LIST()
     }
@@ -174,12 +174,12 @@ static bool exval_needed(void *opaque)
     return cpu->env.ex_value != 0;
 }
 
-const VMStateDescription vmstate_exval = {
+static const VMStateDescription vmstate_exval = {
     .name = "cpu/exval",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = exval_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.ex_value, S390CPU),
         VMSTATE_END_OF_LIST()
     }
@@ -190,12 +190,12 @@ static bool gscb_needed(void *opaque)
     return s390_has_feat(S390_FEAT_GUARDED_STORAGE);
 }
 
-const VMStateDescription vmstate_gscb = {
+static const VMStateDescription vmstate_gscb = {
     .name = "cpu/gscb",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gscb_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.gscb, S390CPU, 4),
         VMSTATE_END_OF_LIST()
         }
@@ -206,12 +206,12 @@ static bool bpbc_needed(void *opaque)
     return s390_has_feat(S390_FEAT_BPB);
 }
 
-const VMStateDescription vmstate_bpbc = {
+static const VMStateDescription vmstate_bpbc = {
     .name = "cpu/bpbc",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = bpbc_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(env.bpbc, S390CPU),
         VMSTATE_END_OF_LIST()
     }
@@ -222,12 +222,12 @@ static bool etoken_needed(void *opaque)
     return s390_has_feat(S390_FEAT_ETOKEN);
 }
 
-const VMStateDescription vmstate_etoken = {
+static const VMStateDescription vmstate_etoken = {
     .name = "cpu/etoken",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = etoken_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.etoken, S390CPU),
         VMSTATE_UINT64(env.etoken_extension, S390CPU),
         VMSTATE_END_OF_LIST()
@@ -239,12 +239,12 @@ static bool diag318_needed(void *opaque)
     return s390_has_feat(S390_FEAT_DIAG_318);
 }
 
-const VMStateDescription vmstate_diag318 = {
+static const VMStateDescription vmstate_diag318 = {
     .name = "cpu/diag318",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = diag318_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.diag318_info, S390CPU),
         VMSTATE_END_OF_LIST()
     }
@@ -256,7 +256,7 @@ const VMStateDescription vmstate_s390_cpu = {
     .pre_save = cpu_pre_save,
     .version_id = 4,
     .minimum_version_id = 3,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.regs, S390CPU, 16),
         VMSTATE_UINT64(env.psw.mask, S390CPU),
         VMSTATE_UINT64(env.psw.addr, S390CPU),
@@ -278,7 +278,7 @@ const VMStateDescription vmstate_s390_cpu = {
                                irqstate_saved_size),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_fpu,
         &vmstate_vregs,
         &vmstate_riccb,
