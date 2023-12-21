@@ -36,6 +36,9 @@ typedef struct vhost_vdpa_shared {
 
     /* IOVA mapping used by the Shadow Virtqueue */
     VhostIOVATree *iova_tree;
+
+    /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
+    bool shadow_data;
 } VhostVDPAShared;
 
 typedef struct vhost_vdpa {
@@ -47,8 +50,6 @@ typedef struct vhost_vdpa {
     MemoryListener listener;
     uint64_t acked_features;
     bool shadow_vqs_enabled;
-    /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
-    bool shadow_data;
     /* Device suspended successfully */
     bool suspended;
     VhostVDPAShared *shared;
