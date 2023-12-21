@@ -384,7 +384,7 @@ static const VMStateDescription vmstate_npcm7xx_otp = {
     .name = "npcm7xx-otp",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, NPCM7xxOTPState, NPCM7XX_OTP_NR_REGS),
         VMSTATE_UINT8_ARRAY(array, NPCM7xxOTPState, NPCM7XX_OTP_ARRAY_BYTES),
         VMSTATE_END_OF_LIST(),

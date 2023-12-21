@@ -508,7 +508,7 @@ static const VMStateDescription vmstate_bbram_ctrl = {
     .name = TYPE_XLNX_BBRAM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxBBRam, R_MAX),
         VMSTATE_END_OF_LIST(),
     }

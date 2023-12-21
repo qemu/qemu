@@ -102,7 +102,7 @@ static const VMStateDescription vmstate_nvram = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = nvram_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
                               vmstate_info_uint8, uint8_t),
         VMSTATE_END_OF_LIST()
