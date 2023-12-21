@@ -178,7 +178,7 @@ static const VMStateDescription vmstate_xhci_pci = {
     .name = "xhci",
     .version_id = 1,
     .post_load = xhci_pci_vmstate_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, XHCIPciState),
         VMSTATE_MSIX(parent_obj, XHCIPciState),
         VMSTATE_STRUCT(xhci, XHCIPciState, 1, vmstate_xhci, XHCIState),

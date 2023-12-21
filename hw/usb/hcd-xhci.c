@@ -3522,7 +3522,7 @@ static int usb_xhci_post_load(void *opaque, int version_id)
 static const VMStateDescription vmstate_xhci_ring = {
     .name = "xhci-ring",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(dequeue, XHCIRing),
         VMSTATE_BOOL(ccs, XHCIRing),
         VMSTATE_END_OF_LIST()
@@ -3532,7 +3532,7 @@ static const VMStateDescription vmstate_xhci_ring = {
 static const VMStateDescription vmstate_xhci_port = {
     .name = "xhci-port",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(portsc, XHCIPort),
         VMSTATE_END_OF_LIST()
     }
@@ -3541,7 +3541,7 @@ static const VMStateDescription vmstate_xhci_port = {
 static const VMStateDescription vmstate_xhci_slot = {
     .name = "xhci-slot",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(enabled,   XHCISlot),
         VMSTATE_BOOL(addressed, XHCISlot),
         VMSTATE_END_OF_LIST()
@@ -3551,7 +3551,7 @@ static const VMStateDescription vmstate_xhci_slot = {
 static const VMStateDescription vmstate_xhci_event = {
     .name = "xhci-event",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(type,   XHCIEvent),
         VMSTATE_UINT32(ccode,  XHCIEvent),
         VMSTATE_UINT64(ptr,    XHCIEvent),
@@ -3571,7 +3571,7 @@ static bool xhci_er_full(void *opaque, int version_id)
 static const VMStateDescription vmstate_xhci_intr = {
     .name = "xhci-intr",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* registers */
         VMSTATE_UINT32(iman,          XHCIInterrupter),
         VMSTATE_UINT32(imod,          XHCIInterrupter),
@@ -3604,7 +3604,7 @@ const VMStateDescription vmstate_xhci = {
     .name = "xhci-core",
     .version_id = 1,
     .post_load = usb_xhci_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_VARRAY_UINT32(ports, XHCIState, numports, 1,
                                      vmstate_xhci_port, XHCIPort),
         VMSTATE_STRUCT_VARRAY_UINT32(slots, XHCIState, numslots, 1,

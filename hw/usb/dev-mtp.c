@@ -2072,7 +2072,7 @@ static const VMStateDescription vmstate_usb_mtp = {
     .unmigratable = 1,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, MTPState),
         VMSTATE_END_OF_LIST()
     }

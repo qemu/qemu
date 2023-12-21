@@ -1753,7 +1753,7 @@ static const VMStateDescription vmstate_usb_host = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_host_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_USB_DEVICE(parent_obj, USBHostDevice),
         VMSTATE_END_OF_LIST()
     }

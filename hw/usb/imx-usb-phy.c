@@ -20,7 +20,7 @@ static const VMStateDescription vmstate_imx_usbphy = {
     .name = TYPE_IMX_USBPHY,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(usbphy, IMXUSBPHYState, USBPHY_MAX),
         VMSTATE_END_OF_LIST()
     },
