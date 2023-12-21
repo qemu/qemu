@@ -1119,7 +1119,7 @@ static const VMStateDescription vmstate_ftgmac100 = {
     .name = TYPE_FTGMAC100,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(irq_state, FTGMAC100State),
         VMSTATE_UINT32(isr, FTGMAC100State),
         VMSTATE_UINT32(ier, FTGMAC100State),
@@ -1304,7 +1304,7 @@ static const VMStateDescription vmstate_aspeed_mii = {
     .name = TYPE_ASPEED_MII,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(phycr, FTGMAC100State),
         VMSTATE_UINT32(phydata, FTGMAC100State),
         VMSTATE_END_OF_LIST()

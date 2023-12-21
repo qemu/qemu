@@ -173,7 +173,7 @@ static const VMStateDescription vmstate_lan9118_packet = {
     .name = "lan9118_packet",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(state, LAN9118Packet),
         VMSTATE_UINT32(cmd_a, LAN9118Packet),
         VMSTATE_UINT32(cmd_b, LAN9118Packet),
@@ -271,7 +271,7 @@ static const VMStateDescription vmstate_lan9118 = {
     .name = "lan9118",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, lan9118_state),
         VMSTATE_UINT32(irq_cfg, lan9118_state),
         VMSTATE_UINT32(int_sts, lan9118_state),

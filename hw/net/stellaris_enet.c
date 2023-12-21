@@ -88,7 +88,7 @@ static const VMStateDescription vmstate_rx_frame = {
     .name = "stellaris_enet/rx_frame",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(data, StellarisEnetRxFrame, 2048),
         VMSTATE_UINT32(len, StellarisEnetRxFrame),
         VMSTATE_END_OF_LIST()
@@ -133,7 +133,7 @@ static const VMStateDescription vmstate_stellaris_enet = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = stellaris_enet_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ris, stellaris_enet_state),
         VMSTATE_UINT32(im, stellaris_enet_state),
         VMSTATE_UINT32(rctl, stellaris_enet_state),

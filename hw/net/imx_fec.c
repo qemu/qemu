@@ -195,7 +195,7 @@ static const VMStateDescription vmstate_imx_eth_txdescs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = imx_eth_is_multi_tx_ring,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
          VMSTATE_UINT32(tx_descriptor[1], IMXFECState),
          VMSTATE_UINT32(tx_descriptor[2], IMXFECState),
          VMSTATE_END_OF_LIST()
@@ -206,7 +206,7 @@ static const VMStateDescription vmstate_imx_eth = {
     .name = TYPE_IMX_FEC,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, IMXFECState, ENET_MAX),
         VMSTATE_UINT32(rx_descriptor, IMXFECState),
         VMSTATE_UINT32(tx_descriptor[0], IMXFECState),
@@ -217,7 +217,7 @@ static const VMStateDescription vmstate_imx_eth = {
         VMSTATE_UINT32(phy_int_mask, IMXFECState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_imx_eth_txdescs,
         NULL
     },

@@ -713,7 +713,7 @@ const VMStateDescription vmstate_i82596 = {
     .name = "i82596",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(lnkst, I82596State),
         VMSTATE_TIMER_PTR(flush_queue_timer, I82596State),
         VMSTATE_END_OF_LIST()

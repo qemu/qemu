@@ -1159,7 +1159,7 @@ static const VMStateDescription vmstate_can = {
     .name = TYPE_XLNX_ZYNQMP_CAN,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_FIFO32(rx_fifo, XlnxZynqMPCANState),
         VMSTATE_FIFO32(tx_fifo, XlnxZynqMPCANState),
         VMSTATE_FIFO32(txhpb_fifo, XlnxZynqMPCANState),

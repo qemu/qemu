@@ -851,7 +851,7 @@ static const VMStateDescription vmstate_aw_emac = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = allwinner_sun8i_emac_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(mii_phy_addr, AwSun8iEmacState),
         VMSTATE_UINT32(mii_cmd, AwSun8iEmacState),
         VMSTATE_UINT32(mii_data, AwSun8iEmacState),

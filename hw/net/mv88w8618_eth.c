@@ -358,7 +358,7 @@ static const VMStateDescription mv88w8618_eth_vmsd = {
     .name = "mv88w8618_eth",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(smir, mv88w8618_eth_state),
         VMSTATE_UINT32(icr, mv88w8618_eth_state),
         VMSTATE_UINT32(imr, mv88w8618_eth_state),

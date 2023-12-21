@@ -99,7 +99,7 @@ static const VMStateDescription vmstate_lasi_82596 = {
     .name = "i82596",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(state, SysBusI82596State, 0, vmstate_i82596,
                 I82596State),
         VMSTATE_END_OF_LIST()

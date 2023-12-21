@@ -929,7 +929,7 @@ const VMStateDescription vmstate_qemu_can_filter = {
     .name = "qemu_can_filter",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(can_id, qemu_can_filter),
         VMSTATE_UINT32(can_mask, qemu_can_filter),
         VMSTATE_END_OF_LIST()
@@ -953,7 +953,7 @@ const VMStateDescription vmstate_can_sja = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = can_sja_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(mode, CanSJA1000State),
 
         VMSTATE_UINT8(status_pel, CanSJA1000State),

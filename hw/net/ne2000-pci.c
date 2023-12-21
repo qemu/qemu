@@ -39,7 +39,7 @@ static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCINE2000State),
         VMSTATE_STRUCT(ne2000, PCINE2000State, 0, vmstate_ne2000, NE2000State),
         VMSTATE_END_OF_LIST()

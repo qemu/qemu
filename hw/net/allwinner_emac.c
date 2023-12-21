@@ -472,7 +472,7 @@ static const VMStateDescription vmstate_mii = {
     .name = "rtl8201cp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(bmcr, RTL8201CPState),
         VMSTATE_UINT16(bmsr, RTL8201CPState),
         VMSTATE_UINT16(anar, RTL8201CPState),
@@ -495,7 +495,7 @@ static const VMStateDescription vmstate_aw_emac = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = aw_emac_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(mii, AwEmacState, 1, vmstate_mii, RTL8201CPState),
         VMSTATE_UINT32(ctl, AwEmacState),
         VMSTATE_UINT32(tx_mode, AwEmacState),

@@ -557,7 +557,7 @@ static const VMStateDescription vmstate_msf2_emac = {
     .name = TYPE_MSS_EMAC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(mac_addr, MSF2EmacState, ETH_ALEN),
         VMSTATE_UINT32(rx_desc, MSF2EmacState),
         VMSTATE_UINT16_ARRAY(phy_regs, MSF2EmacState, PHY_MAX_REGS),
