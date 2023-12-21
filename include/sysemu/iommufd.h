@@ -2,7 +2,6 @@
 #define SYSEMU_IOMMUFD_H
 
 #include "qom/object.h"
-#include "qemu/thread.h"
 #include "exec/hwaddr.h"
 #include "exec/cpu-common.h"
 
@@ -19,7 +18,6 @@ struct IOMMUFDBackend {
     /*< protected >*/
     int fd;            /* /dev/iommu file descriptor */
     bool owned;        /* is the /dev/iommu opened internally */
-    QemuMutex lock;
     uint32_t users;
 
     /*< public >*/
