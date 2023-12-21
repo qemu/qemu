@@ -161,7 +161,7 @@ static void vhost_vdpa_listener_begin_batch(struct vhost_vdpa *v)
 
 static void vhost_vdpa_iotlb_batch_begin_once(struct vhost_vdpa *v)
 {
-    if (v->dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH) &&
+    if (v->shared->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH) &&
         !v->shared->iotlb_batch_begin_sent) {
         vhost_vdpa_listener_begin_batch(v);
     }
@@ -172,11 +172,10 @@ static void vhost_vdpa_iotlb_batch_begin_once(struct vhost_vdpa *v)
 static void vhost_vdpa_listener_commit(MemoryListener *listener)
 {
     struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
-    struct vhost_dev *dev = v->dev;
     struct vhost_msg_v2 msg = {};
     int fd = v->shared->device_fd;
 
-    if (!(dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
+    if (!(v->shared->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
         return;
     }
 
@@ -838,6 +837,8 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
 
 static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
 {
+    struct vhost_vdpa *v = dev->opaque;
+
     uint64_t features;
     uint64_t f = 0x1ULL << VHOST_BACKEND_F_IOTLB_MSG_V2 |
         0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH |
@@ -859,6 +860,7 @@ static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
     }
 
     dev->backend_cap = features;
+    v->shared->backend_cap = features;
 
     return 0;
 }
