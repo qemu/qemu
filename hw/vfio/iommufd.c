@@ -121,17 +121,11 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     DIR *dir = NULL;
     struct dirent *dent;
     gchar *contents;
-    struct stat st;
     gsize length;
     int major, minor;
     dev_t vfio_devt;
 
     path = g_strdup_printf("%s/vfio-dev", sysfs_path);
-    if (stat(path, &st) < 0) {
-        error_setg_errno(errp, errno, "no such host device");
-        goto out_free_path;
-    }
-
     dir = opendir(path);
     if (!dir) {
         error_setg_errno(errp, errno, "couldn't open directory %s", path);
