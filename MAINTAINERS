@@ -3356,7 +3356,6 @@ F: scripts/checkpatch.pl
 Migration
 M: Peter Xu <peterx@redhat.com>
 M: Fabiano Rosas <farosas@suse.de>
-R: Leonardo Bras <leobras@redhat.com>
 S: Maintained
 F: hw/core/vmstate-if.c
 F: include/hw/vmstate-if.h
@@ -3375,7 +3374,6 @@ X: migration/rdma*
 RDMA Migration
 R: Li Zhijian <lizhijian@fujitsu.com>
 R: Peter Xu <peterx@redhat.com>
-R: Leonardo Bras <leobras@redhat.com>
 S: Odd Fixes
 F: migration/rdma*
 
