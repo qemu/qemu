@@ -242,7 +242,7 @@ static const VMStateDescription goldfish_rtc_vmstate = {
     .version_id = 2,
     .pre_save = goldfish_rtc_pre_save,
     .post_load = goldfish_rtc_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(tick_offset_vmstate, GoldfishRTCState),
         VMSTATE_UINT64(alarm_next, GoldfishRTCState),
         VMSTATE_UINT32(alarm_running, GoldfishRTCState),
