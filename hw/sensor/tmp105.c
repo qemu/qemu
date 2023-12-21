@@ -238,7 +238,7 @@ static const VMStateDescription vmstate_tmp105_detect_falling = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = detect_falling_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(detect_falling, TMP105State),
         VMSTATE_END_OF_LIST()
     }
@@ -249,7 +249,7 @@ static const VMStateDescription vmstate_tmp105 = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = tmp105_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(len, TMP105State),
         VMSTATE_UINT8_ARRAY(buf, TMP105State, 2),
         VMSTATE_UINT8(pointer, TMP105State),
@@ -260,7 +260,7 @@ static const VMStateDescription vmstate_tmp105 = {
         VMSTATE_I2C_SLAVE(i2c, TMP105State),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_tmp105_detect_falling,
         NULL
     }

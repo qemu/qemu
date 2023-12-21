@@ -654,7 +654,7 @@ static const VMStateDescription vmstate_max34451 = {
     .name = TYPE_MAX34451,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_PMBUS_DEVICE(parent, MAX34451State),
         VMSTATE_UINT16_ARRAY(power_good_on, MAX34451State,
                              MAX34451_NUM_PWR_DEVICES),

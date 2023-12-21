@@ -202,7 +202,7 @@ static const VMStateDescription vmstate_adm1266 = {
     .name = "ADM1266",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_PMBUS_DEVICE(parent, ADM1266State),
         VMSTATE_END_OF_LIST()
     }
