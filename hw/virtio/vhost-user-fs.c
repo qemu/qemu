@@ -373,11 +373,11 @@ static const VMStateDescription vuf_backend_vmstate;
 static const VMStateDescription vuf_vmstate = {
     .name = "vhost-user-fs",
     .version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vuf_backend_vmstate,
         NULL,
     }
@@ -389,7 +389,7 @@ static const VMStateDescription vuf_backend_vmstate = {
     .needed = vuf_is_internal_migration,
     .pre_load = vuf_check_migration_support,
     .pre_save = vuf_check_migration_support,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         {
             .name = "back-end",
             .info = &(const VMStateInfo) {

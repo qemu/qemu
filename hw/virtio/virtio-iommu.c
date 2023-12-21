@@ -1399,7 +1399,7 @@ static void virtio_iommu_instance_init(Object *obj)
     .name = "interval",                                \
     .version_id = 1,                                   \
     .minimum_version_id = 1,                           \
-    .fields = (VMStateField[]) {                       \
+    .fields = (const VMStateField[]) {                 \
         VMSTATE_UINT64(low, VirtIOIOMMUInterval),      \
         VMSTATE_UINT64(high, VirtIOIOMMUInterval),     \
         VMSTATE_END_OF_LIST()                          \
@@ -1411,7 +1411,7 @@ static void virtio_iommu_instance_init(Object *obj)
     .name = "mapping",                                \
     .version_id = 1,                                  \
     .minimum_version_id = 1,                          \
-    .fields = (VMStateField[]) {                      \
+    .fields = (const VMStateField[]) {                \
         VMSTATE_UINT64(phys_addr, VirtIOIOMMUMapping),\
         VMSTATE_UINT32(flags, VirtIOIOMMUMapping),    \
         VMSTATE_END_OF_LIST()                         \
@@ -1436,7 +1436,7 @@ static const VMStateDescription vmstate_endpoint = {
     .name = "endpoint",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(id, VirtIOIOMMUEndpoint),
         VMSTATE_END_OF_LIST()
     }
@@ -1447,7 +1447,7 @@ static const VMStateDescription vmstate_domain = {
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_load = domain_preload,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(id, VirtIOIOMMUDomain),
         VMSTATE_GTREE_V(mappings, VirtIOIOMMUDomain, 1,
                         vmstate_interval_mapping,
@@ -1499,7 +1499,7 @@ static const VMStateDescription vmstate_virtio_iommu_device = {
     .minimum_version_id = 2,
     .version_id = 2,
     .post_load = iommu_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_GTREE_DIRECT_KEY_V(domains, VirtIOIOMMU, 2,
                                    &vmstate_domain, VirtIOIOMMUDomain),
         VMSTATE_UINT8_V(config.bypass, VirtIOIOMMU, 2),
@@ -1512,7 +1512,7 @@ static const VMStateDescription vmstate_virtio_iommu = {
     .minimum_version_id = 2,
     .priority = MIG_PRI_IOMMU,
     .version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },
