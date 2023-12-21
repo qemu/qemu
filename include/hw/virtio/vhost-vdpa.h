@@ -32,6 +32,7 @@ typedef struct VhostVDPAHostNotifier {
 
 /* Info shared by all vhost_vdpa device models */
 typedef struct vhost_vdpa_shared {
+    int device_fd;
     struct vhost_vdpa_iova_range iova_range;
 
     /* IOVA mapping used by the Shadow Virtqueue */
@@ -42,7 +43,6 @@ typedef struct vhost_vdpa_shared {
 } VhostVDPAShared;
 
 typedef struct vhost_vdpa {
-    int device_fd;
     int index;
     uint32_t msg_type;
     bool iotlb_batch_begin_sent;

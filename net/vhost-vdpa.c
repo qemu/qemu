@@ -236,13 +236,10 @@ static void vhost_vdpa_cleanup(NetClientState *nc)
         g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
-     if (s->vhost_vdpa.device_fd >= 0) {
-        qemu_close(s->vhost_vdpa.device_fd);
-        s->vhost_vdpa.device_fd = -1;
-    }
     if (s->vhost_vdpa.index != 0) {
         return;
     }
+    qemu_close(s->vhost_vdpa.shared->device_fd);
     g_free(s->vhost_vdpa.shared);
 }
 
@@ -448,7 +445,7 @@ static int vhost_vdpa_set_address_space_id(struct vhost_vdpa *v,
     };
     int r;
 
-    r = ioctl(v->device_fd, VHOST_VDPA_SET_GROUP_ASID, &asid);
+    r = ioctl(v->shared->device_fd, VHOST_VDPA_SET_GROUP_ASID, &asid);
     if (unlikely(r < 0)) {
         error_report("Can't set vq group %u asid %u, errno=%d (%s)",
                      asid.index, asid.num, errno, g_strerror(errno));
@@ -544,7 +541,7 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
         return 0;
     }
 
-    cvq_group = vhost_vdpa_get_vring_group(v->device_fd,
+    cvq_group = vhost_vdpa_get_vring_group(v->shared->device_fd,
                                            v->dev->vq_index_end - 1,
                                            &err);
     if (unlikely(cvq_group < 0)) {
@@ -1671,7 +1668,6 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     qemu_set_info_str(nc, TYPE_VHOST_VDPA);
     s = DO_UPCAST(VhostVDPAState, nc, nc);
 
-    s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
     s->always_svq = svq;
     s->migration_state.notify = NULL;
@@ -1680,6 +1676,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         vhost_vdpa_net_valid_svq_features(features,
                                           &s->vhost_vdpa.migration_blocker);
         s->vhost_vdpa.shared = g_new0(VhostVDPAShared, 1);
+        s->vhost_vdpa.shared->device_fd = vdpa_device_fd;
         s->vhost_vdpa.shared->iova_range = iova_range;
         s->vhost_vdpa.shared->shadow_data = svq;
     } else if (!is_datapath) {

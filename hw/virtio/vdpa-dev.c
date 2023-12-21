@@ -66,7 +66,6 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     if (*errp) {
         return;
     }
-    v->vdpa.device_fd = v->vhostfd;
 
     v->vdev_id = vhost_vdpa_device_get_u32(v->vhostfd,
                                            VHOST_VDPA_GET_DEVICE_ID, errp);
@@ -115,6 +114,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
         goto free_vqs;
     }
     v->vdpa.shared = g_new0(VhostVDPAShared, 1);
+    v->vdpa.shared->device_fd = v->vhostfd;
     v->vdpa.shared->iova_range = iova_range;
 
     ret = vhost_dev_init(&v->dev, &v->vdpa, VHOST_BACKEND_TYPE_VDPA, 0, NULL);

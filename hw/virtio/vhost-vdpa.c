@@ -90,7 +90,7 @@ int vhost_vdpa_dma_map(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
                        hwaddr size, void *vaddr, bool readonly)
 {
     struct vhost_msg_v2 msg = {};
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
     int ret = 0;
 
     msg.type = v->msg_type;
@@ -122,7 +122,7 @@ int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
                          hwaddr size)
 {
     struct vhost_msg_v2 msg = {};
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
     int ret = 0;
 
     msg.type = v->msg_type;
@@ -145,7 +145,7 @@ int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
 
 static void vhost_vdpa_listener_begin_batch(struct vhost_vdpa *v)
 {
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
     struct vhost_msg_v2 msg = {
         .type = v->msg_type,
         .iotlb.type = VHOST_IOTLB_BATCH_BEGIN,
@@ -174,7 +174,7 @@ static void vhost_vdpa_listener_commit(MemoryListener *listener)
     struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
     struct vhost_dev *dev = v->dev;
     struct vhost_msg_v2 msg = {};
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
 
     if (!(dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
         return;
@@ -499,7 +499,7 @@ static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
     struct vhost_vdpa *v = dev->opaque;
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
     int ret;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
@@ -661,7 +661,7 @@ static int vhost_vdpa_host_notifier_init(struct vhost_dev *dev, int queue_index)
     struct vhost_vdpa *v = dev->opaque;
     VirtIODevice *vdev = dev->vdev;
     VhostVDPAHostNotifier *n;
-    int fd = v->device_fd;
+    int fd = v->shared->device_fd;
     void *addr;
     char *name;
 
@@ -1290,7 +1290,7 @@ static void vhost_vdpa_suspend(struct vhost_dev *dev)
 
     if (dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_SUSPEND)) {
         trace_vhost_vdpa_suspend(dev);
-        r = ioctl(v->device_fd, VHOST_VDPA_SUSPEND);
+        r = ioctl(v->shared->device_fd, VHOST_VDPA_SUSPEND);
         if (unlikely(r)) {
             error_report("Cannot suspend: %s(%d)", g_strerror(errno), errno);
         } else {
