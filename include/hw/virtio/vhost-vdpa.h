@@ -33,6 +33,7 @@ typedef struct VhostVDPAHostNotifier {
 /* Info shared by all vhost_vdpa device models */
 typedef struct vhost_vdpa_shared {
     int device_fd;
+    MemoryListener listener;
     struct vhost_vdpa_iova_range iova_range;
     QLIST_HEAD(, vdpa_iommu) iommu_list;
 
@@ -51,7 +52,6 @@ typedef struct vhost_vdpa_shared {
 typedef struct vhost_vdpa {
     int index;
     uint32_t address_space_id;
-    MemoryListener listener;
     uint64_t acked_features;
     bool shadow_vqs_enabled;
     /* Device suspended successfully */

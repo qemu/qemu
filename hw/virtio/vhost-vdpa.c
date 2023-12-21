@@ -170,28 +170,28 @@ static void vhost_vdpa_iotlb_batch_begin_once(VhostVDPAShared *s)
 
 static void vhost_vdpa_listener_commit(MemoryListener *listener)
 {
-    struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    VhostVDPAShared *s = container_of(listener, VhostVDPAShared, listener);
     struct vhost_msg_v2 msg = {};
-    int fd = v->shared->device_fd;
+    int fd = s->device_fd;
 
-    if (!(v->shared->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
+    if (!(s->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
         return;
     }
 
-    if (!v->shared->iotlb_batch_begin_sent) {
+    if (!s->iotlb_batch_begin_sent) {
         return;
     }
 
     msg.type = VHOST_IOTLB_MSG_V2;
     msg.iotlb.type = VHOST_IOTLB_BATCH_END;
 
-    trace_vhost_vdpa_listener_commit(v->shared, fd, msg.type, msg.iotlb.type);
+    trace_vhost_vdpa_listener_commit(s, fd, msg.type, msg.iotlb.type);
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         error_report("failed to write, fd=%d, errno=%d (%s)",
                      fd, errno, strerror(errno));
     }
 
-    v->shared->iotlb_batch_begin_sent = false;
+    s->iotlb_batch_begin_sent = false;
 }
 
 static void vhost_vdpa_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
@@ -246,7 +246,7 @@ static void vhost_vdpa_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
                                         MemoryRegionSection *section)
 {
-    struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    VhostVDPAShared *s = container_of(listener, VhostVDPAShared, listener);
 
     struct vdpa_iommu *iommu;
     Int128 end;
@@ -270,7 +270,7 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
                         iommu_idx);
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
-    iommu->dev_shared = v->shared;
+    iommu->dev_shared = s;
 
     ret = memory_region_register_iommu_notifier(section->mr, &iommu->n, NULL);
     if (ret) {
@@ -278,7 +278,7 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
         return;
     }
 
-    QLIST_INSERT_HEAD(&v->shared->iommu_list, iommu, iommu_next);
+    QLIST_INSERT_HEAD(&s->iommu_list, iommu, iommu_next);
     memory_region_iommu_replay(iommu->iommu_mr, &iommu->n);
 
     return;
@@ -287,11 +287,11 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
 static void vhost_vdpa_iommu_region_del(MemoryListener *listener,
                                         MemoryRegionSection *section)
 {
-    struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    VhostVDPAShared *s = container_of(listener, VhostVDPAShared, listener);
 
     struct vdpa_iommu *iommu;
 
-    QLIST_FOREACH(iommu, &v->shared->iommu_list, iommu_next)
+    QLIST_FOREACH(iommu, &s->iommu_list, iommu_next)
     {
         if (MEMORY_REGION(iommu->iommu_mr) == section->mr &&
             iommu->n.start == section->offset_within_region) {
@@ -307,7 +307,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
                                            MemoryRegionSection *section)
 {
     DMAMap mem_region = {};
-    struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    VhostVDPAShared *s = container_of(listener, VhostVDPAShared, listener);
     hwaddr iova;
     Int128 llend, llsize;
     void *vaddr;
@@ -315,10 +315,8 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
     int page_size = qemu_target_page_size();
     int page_mask = -page_size;
 
-    if (vhost_vdpa_listener_skipped_section(section,
-                                            v->shared->iova_range.first,
-                                            v->shared->iova_range.last,
-                                            page_mask)) {
+    if (vhost_vdpa_listener_skipped_section(section, s->iova_range.first,
+                                            s->iova_range.last, page_mask)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
@@ -328,8 +326,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~page_mask) !=
                  (section->offset_within_region & ~page_mask))) {
-        trace_vhost_vdpa_listener_region_add_unaligned(v->shared,
-                       section->mr->name,
+        trace_vhost_vdpa_listener_region_add_unaligned(s, section->mr->name,
                        section->offset_within_address_space & ~page_mask,
                        section->offset_within_region & ~page_mask);
         return;
@@ -349,18 +346,18 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
-    trace_vhost_vdpa_listener_region_add(v->shared, iova, int128_get64(llend),
+    trace_vhost_vdpa_listener_region_add(s, iova, int128_get64(llend),
                                          vaddr, section->readonly);
 
     llsize = int128_sub(llend, int128_make64(iova));
-    if (v->shared->shadow_data) {
+    if (s->shadow_data) {
         int r;
 
         mem_region.translated_addr = (hwaddr)(uintptr_t)vaddr,
         mem_region.size = int128_get64(llsize) - 1,
         mem_region.perm = IOMMU_ACCESS_FLAG(true, section->readonly),
 
-        r = vhost_iova_tree_map_alloc(v->shared->iova_tree, &mem_region);
+        r = vhost_iova_tree_map_alloc(s->iova_tree, &mem_region);
         if (unlikely(r != IOVA_OK)) {
             error_report("Can't allocate a mapping (%d)", r);
             goto fail;
@@ -369,8 +366,8 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         iova = mem_region.iova;
     }
 
-    vhost_vdpa_iotlb_batch_begin_once(v->shared);
-    ret = vhost_vdpa_dma_map(v->shared, VHOST_VDPA_GUEST_PA_ASID, iova,
+    vhost_vdpa_iotlb_batch_begin_once(s);
+    ret = vhost_vdpa_dma_map(s, VHOST_VDPA_GUEST_PA_ASID, iova,
                              int128_get64(llsize), vaddr, section->readonly);
     if (ret) {
         error_report("vhost vdpa map fail!");
@@ -380,8 +377,8 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
     return;
 
 fail_map:
-    if (v->shared->shadow_data) {
-        vhost_iova_tree_remove(v->shared->iova_tree, mem_region);
+    if (s->shadow_data) {
+        vhost_iova_tree_remove(s->iova_tree, mem_region);
     }
 
 fail:
@@ -398,17 +395,15 @@ fail:
 static void vhost_vdpa_listener_region_del(MemoryListener *listener,
                                            MemoryRegionSection *section)
 {
-    struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    VhostVDPAShared *s = container_of(listener, VhostVDPAShared, listener);
     hwaddr iova;
     Int128 llend, llsize;
     int ret;
     int page_size = qemu_target_page_size();
     int page_mask = -page_size;
 
-    if (vhost_vdpa_listener_skipped_section(section,
-                                            v->shared->iova_range.first,
-                                            v->shared->iova_range.last,
-                                            page_mask)) {
+    if (vhost_vdpa_listener_skipped_section(section, s->iova_range.first,
+                                            s->iova_range.last, page_mask)) {
         return;
     }
     if (memory_region_is_iommu(section->mr)) {
@@ -417,8 +412,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~page_mask) !=
                  (section->offset_within_region & ~page_mask))) {
-        trace_vhost_vdpa_listener_region_del_unaligned(v->shared,
-                       section->mr->name,
+        trace_vhost_vdpa_listener_region_del_unaligned(s, section->mr->name,
                        section->offset_within_address_space & ~page_mask,
                        section->offset_within_region & ~page_mask);
         return;
@@ -427,7 +421,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     iova = ROUND_UP(section->offset_within_address_space, page_size);
     llend = vhost_vdpa_section_end(section, page_mask);
 
-    trace_vhost_vdpa_listener_region_del(v->shared, iova,
+    trace_vhost_vdpa_listener_region_del(s, iova,
         int128_get64(int128_sub(llend, int128_one())));
 
     if (int128_ge(int128_make64(iova), llend)) {
@@ -436,7 +430,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     llsize = int128_sub(llend, int128_make64(iova));
 
-    if (v->shared->shadow_data) {
+    if (s->shadow_data) {
         const DMAMap *result;
         const void *vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
@@ -446,37 +440,37 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
             .size = int128_get64(llsize) - 1,
         };
 
-        result = vhost_iova_tree_find_iova(v->shared->iova_tree, &mem_region);
+        result = vhost_iova_tree_find_iova(s->iova_tree, &mem_region);
         if (!result) {
             /* The memory listener map wasn't mapped */
             return;
         }
         iova = result->iova;
-        vhost_iova_tree_remove(v->shared->iova_tree, *result);
+        vhost_iova_tree_remove(s->iova_tree, *result);
     }
-    vhost_vdpa_iotlb_batch_begin_once(v->shared);
+    vhost_vdpa_iotlb_batch_begin_once(s);
     /*
      * The unmap ioctl doesn't accept a full 64-bit. need to check it
      */
     if (int128_eq(llsize, int128_2_64())) {
         llsize = int128_rshift(llsize, 1);
-        ret = vhost_vdpa_dma_unmap(v->shared, VHOST_VDPA_GUEST_PA_ASID, iova,
+        ret = vhost_vdpa_dma_unmap(s, VHOST_VDPA_GUEST_PA_ASID, iova,
                                    int128_get64(llsize));
 
         if (ret) {
             error_report("vhost_vdpa_dma_unmap(%p, 0x%" HWADDR_PRIx ", "
                          "0x%" HWADDR_PRIx ") = %d (%m)",
-                         v, iova, int128_get64(llsize), ret);
+                         s, iova, int128_get64(llsize), ret);
         }
         iova += int128_get64(llsize);
     }
-    ret = vhost_vdpa_dma_unmap(v->shared, VHOST_VDPA_GUEST_PA_ASID, iova,
+    ret = vhost_vdpa_dma_unmap(s, VHOST_VDPA_GUEST_PA_ASID, iova,
                                int128_get64(llsize));
 
     if (ret) {
         error_report("vhost_vdpa_dma_unmap(%p, 0x%" HWADDR_PRIx ", "
                      "0x%" HWADDR_PRIx ") = %d (%m)",
-                     v, iova, int128_get64(llsize), ret);
+                     s, iova, int128_get64(llsize), ret);
     }
 
     memory_region_unref(section->mr);
@@ -595,7 +589,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
 
     v->dev = dev;
     dev->opaque =  opaque ;
-    v->listener = vhost_vdpa_memory_listener;
+    v->shared->listener = vhost_vdpa_memory_listener;
     vhost_vdpa_init_svq(dev, v);
 
     error_propagate(&dev->migration_blocker, v->migration_blocker);
@@ -755,10 +749,10 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
     trace_vhost_vdpa_cleanup(dev, v);
     if (vhost_vdpa_first_dev(dev)) {
         ram_block_discard_disable(false);
+        memory_listener_unregister(&v->shared->listener);
     }
 
     vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
-    memory_listener_unregister(&v->listener);
     vhost_vdpa_svq_cleanup(dev);
 
     dev->opaque = NULL;
@@ -1331,7 +1325,7 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
                          "IOMMU and try again");
             return -1;
         }
-        memory_listener_register(&v->listener, dev->vdev->dma_as);
+        memory_listener_register(&v->shared->listener, dev->vdev->dma_as);
 
         return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
     }
@@ -1350,7 +1344,7 @@ static void vhost_vdpa_reset_status(struct vhost_dev *dev)
     vhost_vdpa_reset_device(dev);
     vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
                                VIRTIO_CONFIG_S_DRIVER);
-    memory_listener_unregister(&v->listener);
+    memory_listener_unregister(&v->shared->listener);
 }
 
 static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
