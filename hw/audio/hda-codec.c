@@ -812,7 +812,7 @@ static const VMStateDescription vmstate_hda_audio_stream_buf = {
     .name = "hda-audio-stream/buffer",
     .version_id = 1,
     .needed = vmstate_hda_audio_stream_buf_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BUFFER(buf, HDAAudioStream),
         VMSTATE_INT64(rpos, HDAAudioStream),
         VMSTATE_INT64(wpos, HDAAudioStream),
@@ -825,7 +825,7 @@ static const VMStateDescription vmstate_hda_audio_stream_buf = {
 static const VMStateDescription vmstate_hda_audio_stream = {
     .name = "hda-audio-stream",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(stream, HDAAudioStream),
         VMSTATE_UINT32(channel, HDAAudioStream),
         VMSTATE_UINT32(format, HDAAudioStream),
@@ -837,7 +837,7 @@ static const VMStateDescription vmstate_hda_audio_stream = {
         VMSTATE_BUFFER(compat_buf, HDAAudioStream),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_hda_audio_stream_buf,
         NULL
     }
@@ -847,7 +847,7 @@ static const VMStateDescription vmstate_hda_audio = {
     .name = "hda-audio",
     .version_id = 2,
     .post_load = hda_audio_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(st, HDAAudioState, 4, 0,
                              vmstate_hda_audio_stream,
                              HDAAudioStream),

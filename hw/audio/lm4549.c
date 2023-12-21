@@ -329,7 +329,7 @@ const VMStateDescription vmstate_lm4549_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = lm4549_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(voice_is_active, lm4549_state),
         VMSTATE_UINT16_ARRAY(regfile, lm4549_state, 128),
         VMSTATE_UINT16_ARRAY(buffer, lm4549_state, LM4549_BUFFER_SIZE),

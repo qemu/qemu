@@ -555,7 +555,7 @@ static const VMStateDescription vmstate_asc_fifo = {
     .name = "apple-sound-chip.fifo",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(fifo, ASCFIFOState, ASC_FIFO_SIZE),
         VMSTATE_UINT8(int_status, ASCFIFOState),
         VMSTATE_INT32(cnt, ASCFIFOState),
@@ -575,7 +575,7 @@ static const VMStateDescription vmstate_asc = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = asc_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(fifos, ASCState, 2, 0, vmstate_asc_fifo,
                              ASCFIFOState),
         VMSTATE_UINT8_ARRAY(regs, ASCState, ASC_REG_SIZE),

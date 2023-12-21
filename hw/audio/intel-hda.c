@@ -1158,7 +1158,7 @@ static int intel_hda_post_load(void *opaque, int version)
 static const VMStateDescription vmstate_intel_hda_stream = {
     .name = "intel-hda-stream",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctl, IntelHDAStream),
         VMSTATE_UINT32(lpib, IntelHDAStream),
         VMSTATE_UINT32(cbl, IntelHDAStream),
@@ -1174,7 +1174,7 @@ static const VMStateDescription vmstate_intel_hda = {
     .name = "intel-hda",
     .version_id = 1,
     .post_load = intel_hda_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(pci, IntelHDAState),
 
         /* registers */

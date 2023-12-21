@@ -571,7 +571,7 @@ static const VMStateDescription vmstate_pl041_regfile = {
     .name = "pl041_regfile",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
 #define REGISTER(name, offset) VMSTATE_UINT32(name, pl041_regfile),
         #include "pl041.hx"
 #undef REGISTER
@@ -583,7 +583,7 @@ static const VMStateDescription vmstate_pl041_fifo = {
     .name = "pl041_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(level, pl041_fifo),
         VMSTATE_UINT32_ARRAY(data, pl041_fifo, MAX_FIFO_DEPTH),
         VMSTATE_END_OF_LIST()
@@ -594,7 +594,7 @@ static const VMStateDescription vmstate_pl041_channel = {
     .name = "pl041_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(tx_fifo, pl041_channel, 0,
                        vmstate_pl041_fifo, pl041_fifo),
         VMSTATE_UINT8(tx_enabled, pl041_channel),
@@ -613,7 +613,7 @@ static const VMStateDescription vmstate_pl041 = {
     .name = "pl041",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(fifo_depth, PL041State),
         VMSTATE_STRUCT(regs, PL041State, 0,
                        vmstate_pl041_regfile, pl041_regfile),
