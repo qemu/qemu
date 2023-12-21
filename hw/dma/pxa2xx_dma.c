@@ -529,7 +529,7 @@ static const VMStateDescription vmstate_pxa2xx_dma_chan = {
     .name = "pxa2xx_dma_chan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(descr, PXA2xxDMAChannel),
         VMSTATE_UINT32(src, PXA2xxDMAChannel),
         VMSTATE_UINT32(dest, PXA2xxDMAChannel),
@@ -544,7 +544,7 @@ static const VMStateDescription vmstate_pxa2xx_dma = {
     .name = "pxa2xx_dma",
     .version_id = 1,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UNUSED_TEST(is_version_0, 4),
         VMSTATE_UINT32(stopintr, PXA2xxDMAState),
         VMSTATE_UINT32(eorintr, PXA2xxDMAState),
