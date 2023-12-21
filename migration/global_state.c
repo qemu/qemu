@@ -131,7 +131,7 @@ static const VMStateDescription vmstate_globalstate = {
     .post_load = global_state_post_load,
     .pre_save = global_state_pre_save,
     .needed = global_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(size, GlobalState),
         VMSTATE_BUFFER(runstate, GlobalState),
         VMSTATE_END_OF_LIST()
