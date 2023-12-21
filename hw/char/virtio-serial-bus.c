@@ -1148,7 +1148,7 @@ static const VMStateDescription vmstate_virtio_console = {
     .name = "virtio-console",
     .minimum_version_id = 3,
     .version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },

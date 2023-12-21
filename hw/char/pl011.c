@@ -398,7 +398,7 @@ static const VMStateDescription vmstate_pl011_clock = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pl011_clock_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(clk, PL011State),
         VMSTATE_END_OF_LIST()
     }
@@ -433,7 +433,7 @@ static const VMStateDescription vmstate_pl011 = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = pl011_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(readbuff, PL011State),
         VMSTATE_UINT32(flags, PL011State),
         VMSTATE_UINT32(lcr, PL011State),
@@ -452,7 +452,7 @@ static const VMStateDescription vmstate_pl011 = {
         VMSTATE_INT32(read_trigger, PL011State),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_pl011_clock,
         NULL
     }

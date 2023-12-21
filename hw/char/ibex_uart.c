@@ -488,7 +488,7 @@ static const VMStateDescription vmstate_ibex_uart = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ibex_uart_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(tx_fifo, IbexUartState,
                             IBEX_UART_TX_FIFO_SIZE),
         VMSTATE_UINT32(tx_level, IbexUartState),

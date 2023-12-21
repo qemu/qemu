@@ -165,7 +165,7 @@ static const VMStateDescription vmstate_digic_uart = {
     .name = "digic-uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(reg_rx, DigicUartState),
         VMSTATE_UINT32(reg_st, DigicUartState),
         VMSTATE_END_OF_LIST()

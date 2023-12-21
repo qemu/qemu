@@ -707,7 +707,7 @@ static const VMStateDescription vmstate_serial_thr_ipending = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_thr_ipending_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(thr_ipending, SerialState),
         VMSTATE_END_OF_LIST()
     }
@@ -724,7 +724,7 @@ static const VMStateDescription vmstate_serial_tsr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_tsr_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(tsr_retry, SerialState),
         VMSTATE_UINT8(thr, SerialState),
         VMSTATE_UINT8(tsr, SerialState),
@@ -744,7 +744,7 @@ static const VMStateDescription vmstate_serial_recv_fifo = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_recv_fifo_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(recv_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
         VMSTATE_END_OF_LIST()
     }
@@ -761,7 +761,7 @@ static const VMStateDescription vmstate_serial_xmit_fifo = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_xmit_fifo_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(xmit_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
         VMSTATE_END_OF_LIST()
     }
@@ -778,7 +778,7 @@ static const VMStateDescription vmstate_serial_fifo_timeout_timer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_fifo_timeout_timer_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(fifo_timeout_timer, SerialState),
         VMSTATE_END_OF_LIST()
     }
@@ -795,7 +795,7 @@ static const VMStateDescription vmstate_serial_timeout_ipending = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_timeout_ipending_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(timeout_ipending, SerialState),
         VMSTATE_END_OF_LIST()
     }
@@ -812,7 +812,7 @@ static const VMStateDescription vmstate_serial_poll = {
     .version_id = 1,
     .needed = serial_poll_needed,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(poll_msl, SerialState),
         VMSTATE_TIMER_PTR(modem_status_poll, SerialState),
         VMSTATE_END_OF_LIST()
@@ -826,7 +826,7 @@ const VMStateDescription vmstate_serial = {
     .pre_save = serial_pre_save,
     .pre_load = serial_pre_load,
     .post_load = serial_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16_V(divider, SerialState, 2),
         VMSTATE_UINT8(rbr, SerialState),
         VMSTATE_UINT8(ier, SerialState),
@@ -839,7 +839,7 @@ const VMStateDescription vmstate_serial = {
         VMSTATE_UINT8_V(fcr_vmstate, SerialState, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_serial_thr_ipending,
         &vmstate_serial_tsr,
         &vmstate_serial_recv_fifo,
@@ -1056,7 +1056,7 @@ static const VMStateDescription vmstate_serial_mm = {
     .name = "serial",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(serial, SerialMM, 0, vmstate_serial, SerialState),
         VMSTATE_END_OF_LIST()
     }

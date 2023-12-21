@@ -478,7 +478,7 @@ static const VMStateDescription vmstate_parallel_isa = {
     .name = "parallel_isa",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(state.dataw, ISAParallelState),
         VMSTATE_UINT8(state.datar, ISAParallelState),
         VMSTATE_UINT8(state.status, ISAParallelState),

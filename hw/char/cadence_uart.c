@@ -602,7 +602,7 @@ static const VMStateDescription vmstate_cadence_uart = {
     .minimum_version_id = 2,
     .pre_load = cadence_uart_pre_load,
     .post_load = cadence_uart_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
         VMSTATE_UINT8_ARRAY(rx_fifo, CadenceUARTState,
                             CADENCE_UART_RX_FIFO_SIZE),

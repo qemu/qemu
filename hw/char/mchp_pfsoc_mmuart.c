@@ -114,7 +114,7 @@ static const VMStateDescription mchp_pfsoc_mmuart_vmstate = {
     .name = "mchp.pfsoc.uart",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(reg, MchpPfSoCMMUartState,
                              MCHP_PFSOC_MMUART_REG_COUNT),
         VMSTATE_END_OF_LIST()
