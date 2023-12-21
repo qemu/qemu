@@ -84,7 +84,7 @@ static const VMStateDescription vmstate_pxa2xx_mmci = {
     .name = "pxa2xx-mmci",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(status, PXA2xxMMCIState),
         VMSTATE_UINT32(clkrt, PXA2xxMMCIState),
         VMSTATE_UINT32(spi, PXA2xxMMCIState),
