@@ -49,7 +49,7 @@ static const VMStateDescription vmstate_vfp = {
     .version_id = 3,
     .minimum_version_id = 3,
     .needed = vfp_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* For compatibility, store Qn out of Zn here.  */
         VMSTATE_UINT64_SUB_ARRAY(env.vfp.zregs[0].d, ARMCPU, 0, 2),
         VMSTATE_UINT64_SUB_ARRAY(env.vfp.zregs[1].d, ARMCPU, 0, 2),
@@ -115,7 +115,7 @@ static const VMStateDescription vmstate_iwmmxt = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = iwmmxt_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
         VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
         VMSTATE_END_OF_LIST()
@@ -140,7 +140,7 @@ static const VMStateDescription vmstate_zreg_hi_reg = {
     .name = "cpu/sve/zreg_hi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_SUB_ARRAY(d, ARMVectorReg, 2, ARM_MAX_VQ - 2),
         VMSTATE_END_OF_LIST()
     }
@@ -150,7 +150,7 @@ static const VMStateDescription vmstate_preg_reg = {
     .name = "cpu/sve/preg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(p, ARMPredicateReg, 2 * ARM_MAX_VQ / 8),
         VMSTATE_END_OF_LIST()
     }
@@ -161,7 +161,7 @@ static const VMStateDescription vmstate_sve = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = sve_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(env.vfp.zregs, ARMCPU, 32, 0,
                              vmstate_zreg_hi_reg, ARMVectorReg),
         VMSTATE_STRUCT_ARRAY(env.vfp.pregs, ARMCPU, 17, 0,
@@ -174,7 +174,7 @@ static const VMStateDescription vmstate_vreg = {
     .name = "vreg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(d, ARMVectorReg, ARM_MAX_VQ * 2),
         VMSTATE_END_OF_LIST()
     }
@@ -196,7 +196,7 @@ static const VMStateDescription vmstate_za = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = za_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(env.zarray, ARMCPU, ARM_MAX_VQ * 16, 0,
                              vmstate_vreg, ARMVectorReg),
         VMSTATE_END_OF_LIST()
@@ -217,7 +217,7 @@ static const VMStateDescription vmstate_serror = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serror_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(env.serror.pending, ARMCPU),
         VMSTATE_UINT8(env.serror.has_esr, ARMCPU),
         VMSTATE_UINT64(env.serror.esr, ARMCPU),
@@ -235,7 +235,7 @@ static const VMStateDescription vmstate_irq_line_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = irq_line_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.irq_line_state, ARMCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -254,7 +254,7 @@ static const VMStateDescription vmstate_m_faultmask_primask = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.faultmask[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.primask[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
@@ -289,7 +289,7 @@ static const VMStateDescription vmstate_m_csselr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_csselr_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.v7m.csselr, ARMCPU, M_REG_NUM_BANKS),
         VMSTATE_VALIDATE("CSSELR is valid", csselr_vmstate_validate),
         VMSTATE_END_OF_LIST()
@@ -301,7 +301,7 @@ static const VMStateDescription vmstate_m_scr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.scr[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -312,7 +312,7 @@ static const VMStateDescription vmstate_m_other_sp = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -331,7 +331,7 @@ static const VMStateDescription vmstate_m_v8m = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_v8m_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.v7m.msplim, ARMCPU, M_REG_NUM_BANKS),
         VMSTATE_UINT32_ARRAY(env.v7m.psplim, ARMCPU, M_REG_NUM_BANKS),
         VMSTATE_END_OF_LIST()
@@ -343,7 +343,7 @@ static const VMStateDescription vmstate_m_fp = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vfp_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.v7m.fpcar, ARMCPU, M_REG_NUM_BANKS),
         VMSTATE_UINT32_ARRAY(env.v7m.fpccr, ARMCPU, M_REG_NUM_BANKS),
         VMSTATE_UINT32_ARRAY(env.v7m.fpdscr, ARMCPU, M_REG_NUM_BANKS),
@@ -365,7 +365,7 @@ static const VMStateDescription vmstate_m_mve = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = mve_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.vpr, ARMCPU),
         VMSTATE_UINT32(env.v7m.ltpsize, ARMCPU),
         VMSTATE_END_OF_LIST()
@@ -377,7 +377,7 @@ static const VMStateDescription vmstate_m = {
     .version_id = 4,
     .minimum_version_id = 4,
     .needed = m_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.vecbase[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.basepri[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.control[M_REG_NS], ARMCPU),
@@ -391,7 +391,7 @@ static const VMStateDescription vmstate_m = {
         VMSTATE_INT32(env.v7m.exception, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_m_faultmask_primask,
         &vmstate_m_csselr,
         &vmstate_m_scr,
@@ -416,7 +416,7 @@ static const VMStateDescription vmstate_thumb2ee = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = thumb2ee_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.teecr, ARMCPU),
         VMSTATE_UINT32(env.teehbr, ARMCPU),
         VMSTATE_END_OF_LIST()
@@ -445,7 +445,7 @@ static const VMStateDescription vmstate_pmsav7 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmsav7_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VARRAY_UINT32(env.pmsav7.drbar, ARMCPU, pmsav7_dregion, 0,
                               vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav7.drsr, ARMCPU, pmsav7_dregion, 0,
@@ -474,7 +474,7 @@ static const VMStateDescription vmstate_pmsav7_rnr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmsav7_rnr_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.pmsav7.rnr[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -504,7 +504,7 @@ static const VMStateDescription vmstate_pmsav8r = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmsav8r_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VARRAY_UINT32(env.pmsav8.hprbar, ARMCPU,
                         pmsav8r_hdregion, 0, vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav8.hprlar, ARMCPU,
@@ -518,7 +518,7 @@ static const VMStateDescription vmstate_pmsav8 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmsav8_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VARRAY_UINT32(env.pmsav8.rbar[M_REG_NS], ARMCPU, pmsav7_dregion,
                               0, vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav8.rlar[M_REG_NS], ARMCPU, pmsav7_dregion,
@@ -527,7 +527,7 @@ static const VMStateDescription vmstate_pmsav8 = {
         VMSTATE_UINT32(env.pmsav8.mair1[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_pmsav8r,
         NULL
     }
@@ -560,7 +560,7 @@ static const VMStateDescription vmstate_m_security = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m_security_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.v7m.secure, ARMCPU),
         VMSTATE_UINT32(env.v7m.other_ss_msp, ARMCPU),
         VMSTATE_UINT32(env.v7m.other_ss_psp, ARMCPU),
@@ -888,7 +888,7 @@ const VMStateDescription vmstate_arm_cpu = {
     .post_save = cpu_post_save,
     .pre_load = cpu_pre_load,
     .post_load = cpu_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
         VMSTATE_UINT64_ARRAY(env.xregs, ARMCPU, 32),
         VMSTATE_UINT64(env.pc, ARMCPU),
@@ -937,7 +937,7 @@ const VMStateDescription vmstate_arm_cpu = {
         },
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_vfp,
         &vmstate_iwmmxt,
         &vmstate_m,
