@@ -4,7 +4,6 @@
 
 # TSan reports a double lock on RECURSIVE mutexes.
 # Since the recursive lock is intentional, we choose to ignore it.
-mutex:aio_context_acquire
 mutex:pthread_mutex_lock
 
 # TSan reports a race between pthread_mutex_init() and

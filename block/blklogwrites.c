@@ -251,9 +251,9 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     ret = 0;
 fail_log:
     if (ret < 0) {
-        bdrv_graph_wrlock(NULL);
+        bdrv_graph_wrlock();
         bdrv_unref_child(bs, s->log_file);
-        bdrv_graph_wrunlock(NULL);
+        bdrv_graph_wrunlock();
         s->log_file = NULL;
     }
 fail:
@@ -265,10 +265,10 @@ static void blk_log_writes_close(BlockDriverState *bs)
 {
     BDRVBlkLogWritesState *s = bs->opaque;
 
-    bdrv_graph_wrlock(NULL);
+    bdrv_graph_wrlock();
     bdrv_unref_child(bs, s->log_file);
     s->log_file = NULL;
-    bdrv_graph_wrunlock(NULL);
+    bdrv_graph_wrunlock();
 }
 
 static int64_t coroutine_fn GRAPH_RDLOCK

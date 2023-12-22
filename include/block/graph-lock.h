@@ -110,34 +110,17 @@ void unregister_aiocontext(AioContext *ctx);
  *
  * The wrlock can only be taken from the main loop, with BQL held, as only the
  * main loop is allowed to modify the graph.
- *
- * If @bs is non-NULL, its AioContext is temporarily released.
- *
- * This function polls. Callers must not hold the lock of any AioContext other
- * than the current one and the one of @bs.
  */
 void no_coroutine_fn TSA_ACQUIRE(graph_lock) TSA_NO_TSA
-bdrv_graph_wrlock(BlockDriverState *bs);
+bdrv_graph_wrlock(void);
 
 /*
  * bdrv_graph_wrunlock:
  * Write finished, reset global has_writer to 0 and restart
  * all readers that are waiting.
- *
- * If @bs is non-NULL, its AioContext is temporarily released.
  */
 void no_coroutine_fn TSA_RELEASE(graph_lock) TSA_NO_TSA
-bdrv_graph_wrunlock(BlockDriverState *bs);
-
-/*
- * bdrv_graph_wrunlock_ctx:
- * Write finished, reset global has_writer to 0 and restart
- * all readers that are waiting.
- *
- * If @ctx is non-NULL, its lock is temporarily released.
- */
-void no_coroutine_fn TSA_RELEASE(graph_lock) TSA_NO_TSA
-bdrv_graph_wrunlock_ctx(AioContext *ctx);
+bdrv_graph_wrunlock(void);
 
 /*
  * bdrv_graph_co_rdlock:

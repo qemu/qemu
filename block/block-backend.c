@@ -390,8 +390,6 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
  * Both sets of permissions can be changed later using blk_set_perm().
  *
  * Return the new BlockBackend on success, null on failure.
- *
- * Callers must hold the AioContext lock of @bs.
  */
 BlockBackend *blk_new_with_bs(BlockDriverState *bs, uint64_t perm,
                               uint64_t shared_perm, Error **errp)
@@ -416,8 +414,6 @@ BlockBackend *blk_new_with_bs(BlockDriverState *bs, uint64_t perm,
  * Just as with bdrv_open(), after having called this function the reference to
  * @options belongs to the block layer (even on failure).
  *
- * Called without holding an AioContext lock.
- *
  * TODO: Remove @filename and @flags; it should be possible to specify a whole
  * BDS tree just by specifying the @options QDict (or @reference,
  * alternatively). At the time of adding this function, this is not possible,
@@ -429,7 +425,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    AioContext *ctx;
     uint64_t perm = 0;
     uint64_t shared = BLK_PERM_ALL;
 
@@ -459,23 +454,18 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         shared = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
     }
 
-    aio_context_acquire(qemu_get_aio_context());
     bs = bdrv_open(filename, reference, options, flags, errp);
-    aio_context_release(qemu_get_aio_context());
     if (!bs) {
         return NULL;
     }
 
     /* bdrv_open() could have moved bs to a different AioContext */
-    ctx = bdrv_get_aio_context(bs);
     blk = blk_new(bdrv_get_aio_context(bs), perm, shared);
     blk->perm = perm;
     blk->shared_perm = shared;
 
-    aio_context_acquire(ctx);
     blk_insert_bs(blk, bs, errp);
     bdrv_unref(bs);
-    aio_context_release(ctx);
 
     if (!blk->root) {
         blk_unref(blk);
@@ -577,13 +567,9 @@ void blk_remove_all_bs(void)
     GLOBAL_STATE_CODE();
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *ctx = blk_get_aio_context(blk);
-
-        aio_context_acquire(ctx);
         if (blk->root) {
             blk_remove_bs(blk);
         }
-        aio_context_release(ctx);
     }
 }
 
@@ -882,14 +868,11 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
 
 /*
  * Disassociates the currently associated BlockDriverState from @blk.
- *
- * The caller must hold the AioContext lock for the BlockBackend.
  */
 void blk_remove_bs(BlockBackend *blk)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     BdrvChild *root;
-    AioContext *ctx;
 
     GLOBAL_STATE_CODE();
 
@@ -919,30 +902,26 @@ void blk_remove_bs(BlockBackend *blk)
     root = blk->root;
     blk->root = NULL;
 
-    ctx = bdrv_get_aio_context(root->bs);
-    bdrv_graph_wrlock(root->bs);
+    bdrv_graph_wrlock();
     bdrv_root_unref_child(root);
-    bdrv_graph_wrunlock_ctx(ctx);
+    bdrv_graph_wrunlock();
 }
 
 /*
  * Associates a new BlockDriverState with @blk.
- *
- * Callers must hold the AioContext lock of @bs.
  */
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
-    AioContext *ctx = bdrv_get_aio_context(bs);
 
     GLOBAL_STATE_CODE();
     bdrv_ref(bs);
-    bdrv_graph_wrlock(bs);
+    bdrv_graph_wrlock();
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                                        blk->perm, blk->shared_perm,
                                        blk, errp);
-    bdrv_graph_wrunlock_ctx(ctx);
+    bdrv_graph_wrunlock();
     if (blk->root == NULL) {
         return -EPERM;
     }
@@ -2739,20 +2718,16 @@ int blk_commit_all(void)
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *aio_context = blk_get_aio_context(blk);
         BlockDriverState *unfiltered_bs = bdrv_skip_filters(blk_bs(blk));
 
-        aio_context_acquire(aio_context);
         if (blk_is_inserted(blk) && bdrv_cow_child(unfiltered_bs)) {
             int ret;
 
             ret = bdrv_commit(unfiltered_bs);
             if (ret < 0) {
-                aio_context_release(aio_context);
                 return ret;
             }
         }
-        aio_context_release(aio_context);
     }
     return 0;
 }

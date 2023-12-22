@@ -21,6 +21,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/block-ram-registrar.h"
 #include "qom/object.h"
+#include "qapi/qapi-types-virtio.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBlock, VIRTIO_BLK)
@@ -37,6 +38,7 @@ struct VirtIOBlkConf
 {
     BlockConf conf;
     IOThread *iothread;
+    IOThreadVirtQueueMappingList *iothread_vq_mapping_list;
     char *serial;
     uint32_t request_merging;
     uint16_t num_queues;
@@ -54,7 +56,8 @@ struct VirtIOBlockReq;
 struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockBackend *blk;
-    void *rq;
+    QemuMutex rq_lock;
+    void *rq; /* protected by rq_lock */
     VirtIOBlkConf conf;
     unsigned short sector_mask;
     bool original_wce;

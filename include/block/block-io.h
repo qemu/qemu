@@ -31,8 +31,7 @@
 
 /*
  * I/O API functions. These functions are thread-safe, and therefore
- * can run in any thread as long as the thread has called
- * aio_context_acquire/release().
+ * can run in any thread.
  *
  * These functions can only call functions from I/O and Common categories,
  * but can be invoked by GS, "I/O or GS" and I/O APIs.
@@ -333,11 +332,10 @@ bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
  * "I/O or GS" API functions. These functions can run without
  * the BQL, but only in one specific iothread/main loop.
  *
- * More specifically, these functions use BDRV_POLL_WHILE(bs), which
- * requires the caller to be either in the main thread and hold
- * the BlockdriverState (bs) AioContext lock, or directly in the
- * home thread that runs the bs AioContext. Calling them from
- * another thread in another AioContext would cause deadlocks.
+ * More specifically, these functions use BDRV_POLL_WHILE(bs), which requires
+ * the caller to be either in the main thread or directly in the home thread
+ * that runs the bs AioContext. Calling them from another thread in another
+ * AioContext would cause deadlocks.
  *
  * Therefore, these functions are not proper I/O, because they
  * can't run in *any* iothreads, but only in a specific one.

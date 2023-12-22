@@ -662,7 +662,6 @@ static int mirror_exit_common(Job *job)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
     MirrorBDSOpaque *bs_opaque;
-    AioContext *replace_aio_context = NULL;
     BlockDriverState *src;
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
@@ -677,7 +676,6 @@ static int mirror_exit_common(Job *job)
     }
     s->prepared = true;
 
-    aio_context_acquire(qemu_get_aio_context());
     bdrv_graph_rdlock_main_loop();
 
     mirror_top_bs = s->mirror_top_bs;
@@ -742,11 +740,6 @@ static int mirror_exit_common(Job *job)
     }
     bdrv_graph_rdunlock_main_loop();
 
-    if (s->to_replace) {
-        replace_aio_context = bdrv_get_aio_context(s->to_replace);
-        aio_context_acquire(replace_aio_context);
-    }
-
     if (s->should_complete && !abort) {
         BlockDriverState *to_replace = s->to_replace ?: src;
         bool ro = bdrv_is_read_only(to_replace);
@@ -764,7 +757,7 @@ static int mirror_exit_common(Job *job)
          * check for an op blocker on @to_replace, and we have our own
          * there.
          */
-        bdrv_graph_wrlock(target_bs);
+        bdrv_graph_wrlock();
         if (bdrv_recurse_can_replace(src, to_replace)) {
             bdrv_replace_node(to_replace, target_bs, &local_err);
         } else {
@@ -773,7 +766,7 @@ static int mirror_exit_common(Job *job)
                        "would not lead to an abrupt change of visible data",
                        to_replace->node_name, target_bs->node_name);
         }
-        bdrv_graph_wrunlock(target_bs);
+        bdrv_graph_wrunlock();
         bdrv_drained_end(to_replace);
         if (local_err) {
             error_report_err(local_err);
@@ -785,9 +778,6 @@ static int mirror_exit_common(Job *job)
         error_free(s->replace_blocker);
         bdrv_unref(s->to_replace);
     }
-    if (replace_aio_context) {
-        aio_context_release(replace_aio_context);
-    }
     g_free(s->replaces);
 
     /*
@@ -796,9 +786,9 @@ static int mirror_exit_common(Job *job)
      * valid.
      */
     block_job_remove_all_bdrv(bjob);
-    bdrv_graph_wrlock(mirror_top_bs);
+    bdrv_graph_wrlock();
     bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
-    bdrv_graph_wrunlock(mirror_top_bs);
+    bdrv_graph_wrunlock();
 
     bdrv_drained_end(target_bs);
     bdrv_unref(target_bs);
@@ -810,8 +800,6 @@ static int mirror_exit_common(Job *job)
     s->in_drain = false;
     bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
-
-    aio_context_release(qemu_get_aio_context());
 
     return ret;
 }
@@ -1191,24 +1179,17 @@ static void mirror_complete(Job *job, Error **errp)
 
     /* block all operations on to_replace bs */
     if (s->replaces) {
-        AioContext *replace_aio_context;
-
         s->to_replace = bdrv_find_node(s->replaces);
         if (!s->to_replace) {
             error_setg(errp, "Node name '%s' not found", s->replaces);
             return;
         }
 
-        replace_aio_context = bdrv_get_aio_context(s->to_replace);
-        aio_context_acquire(replace_aio_context);
-
         /* TODO Translate this into child freeze system. */
         error_setg(&s->replace_blocker,
                    "block device is in use by block-job-complete");
         bdrv_op_block_all(s->to_replace, s->replace_blocker);
         bdrv_ref(s->to_replace);
-
-        aio_context_release(replace_aio_context);
     }
 
     s->should_complete = true;
@@ -1914,13 +1895,13 @@ static BlockJob *mirror_start_job(
      */
     bdrv_disable_dirty_bitmap(s->dirty_bitmap);
 
-    bdrv_graph_wrlock(bs);
+    bdrv_graph_wrlock();
     ret = block_job_add_bdrv(&s->common, "source", bs, 0,
                              BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE |
                              BLK_PERM_CONSISTENT_READ,
                              errp);
     if (ret < 0) {
-        bdrv_graph_wrunlock(bs);
+        bdrv_graph_wrunlock();
         goto fail;
     }
 
@@ -1965,17 +1946,17 @@ static BlockJob *mirror_start_job(
             ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                      iter_shared_perms, errp);
             if (ret < 0) {
-                bdrv_graph_wrunlock(bs);
+                bdrv_graph_wrunlock();
                 goto fail;
             }
         }
 
         if (bdrv_freeze_backing_chain(mirror_top_bs, target, errp) < 0) {
-            bdrv_graph_wrunlock(bs);
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
-    bdrv_graph_wrunlock(bs);
+    bdrv_graph_wrunlock();
 
     QTAILQ_INIT(&s->ops_in_flight);
 
@@ -2001,12 +1982,12 @@ fail:
 
     bs_opaque->stop = true;
     bdrv_drained_begin(bs);
-    bdrv_graph_wrlock(bs);
+    bdrv_graph_wrlock();
     assert(mirror_top_bs->backing->bs == bs);
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
     bdrv_replace_node(mirror_top_bs, bs, &error_abort);
-    bdrv_graph_wrunlock(bs);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(bs);
 
     bdrv_unref(mirror_top_bs);

@@ -412,7 +412,6 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t cluster_size;
     g_autoptr(BlockdevOptions) full_opts = NULL;
     BlockdevOptionsCbw *opts;
-    AioContext *ctx;
     int ret;
 
     full_opts = cbw_parse_options(options, errp);
@@ -435,15 +434,11 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
-
     if (opts->bitmap) {
         bitmap = block_dirty_bitmap_lookup(opts->bitmap->node,
                                            opts->bitmap->name, NULL, errp);
         if (!bitmap) {
-            ret = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
     }
     s->on_cbw_error = opts->has_on_cbw_error ? opts->on_cbw_error :
@@ -461,24 +456,21 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     s->bcs = block_copy_state_new(bs->file, s->target, bitmap, errp);
     if (!s->bcs) {
         error_prepend(errp, "Cannot create block-copy-state: ");
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     cluster_size = block_copy_cluster_size(s->bcs);
 
     s->done_bitmap = bdrv_create_dirty_bitmap(bs, cluster_size, NULL, errp);
     if (!s->done_bitmap) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     bdrv_disable_dirty_bitmap(s->done_bitmap);
 
     /* s->access_bitmap starts equal to bcs bitmap */
     s->access_bitmap = bdrv_create_dirty_bitmap(bs, cluster_size, NULL, errp);
     if (!s->access_bitmap) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     bdrv_disable_dirty_bitmap(s->access_bitmap);
     bdrv_dirty_bitmap_merge_internal(s->access_bitmap,
@@ -487,11 +479,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
 
     qemu_co_mutex_init(&s->lock);
     QLIST_INIT(&s->frozen_read_reqs);
-
-    ret = 0;
-out:
-    aio_context_release(ctx);
-    return ret;
+    return 0;
 }
 
 static void cbw_close(BlockDriverState *bs)

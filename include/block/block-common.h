@@ -70,9 +70,6 @@
  * automatically takes the graph rdlock when calling the wrapped function. In
  * the same way, no_co_wrapper_bdrv_wrlock functions automatically take the
  * graph wrlock.
- *
- * If the first parameter of the function is a BlockDriverState, BdrvChild or
- * BlockBackend pointer, the AioContext lock for it is taken in the wrapper.
  */
 #define no_co_wrapper
 #define no_co_wrapper_bdrv_rdlock

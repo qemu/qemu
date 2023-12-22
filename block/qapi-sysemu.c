@@ -174,7 +174,6 @@ blockdev_remove_medium(const char *device, const char *id, Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    AioContext *aio_context;
     bool has_attached_device;
 
     GLOBAL_STATE_CODE();
@@ -204,13 +203,10 @@ blockdev_remove_medium(const char *device, const char *id, Error **errp)
         return;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         bdrv_graph_rdunlock_main_loop();
-        goto out;
+        return;
     }
     bdrv_graph_rdunlock_main_loop();
 
@@ -223,9 +219,6 @@ blockdev_remove_medium(const char *device, const char *id, Error **errp)
          * value passed here (i.e. false). */
         blk_dev_change_media_cb(blk, false, &error_abort);
     }
-
-out:
-    aio_context_release(aio_context);
 }
 
 void qmp_blockdev_remove_medium(const char *id, Error **errp)
@@ -237,7 +230,6 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
     Error *local_err = NULL;
-    AioContext *ctx;
     bool has_device;
     int ret;
 
@@ -259,11 +251,7 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
         return;
     }
 
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
     ret = blk_insert_bs(blk, bs, errp);
-    aio_context_release(ctx);
-
     if (ret < 0) {
         return;
     }
@@ -374,9 +362,7 @@ void qmp_blockdev_change_medium(const char *device,
         qdict_put_str(options, "driver", format);
     }
 
-    aio_context_acquire(qemu_get_aio_context());
     medium_bs = bdrv_open(filename, NULL, options, bdrv_flags, errp);
-    aio_context_release(qemu_get_aio_context());
 
     if (!medium_bs) {
         goto fail;
@@ -437,20 +423,16 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     ThrottleConfig cfg;
     BlockDriverState *bs;
     BlockBackend *blk;
-    AioContext *aio_context;
 
     blk = qmp_get_blk(arg->device, arg->id, errp);
     if (!blk) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
-    aio_context_acquire(aio_context);
-
     bs = blk_bs(blk);
     if (!bs) {
         error_setg(errp, "Device has no medium");
-        goto out;
+        return;
     }
 
     throttle_config_init(&cfg);
@@ -505,7 +487,7 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     }
 
     if (!throttle_is_valid(&cfg, errp)) {
-        goto out;
+        return;
     }
 
     if (throttle_enabled(&cfg)) {
@@ -522,9 +504,6 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
         /* If all throttling settings are set to 0, disable I/O limits */
         blk_io_limits_disable(blk);
     }
-
-out:
-    aio_context_release(aio_context);
 }
 
 void qmp_block_latency_histogram_set(

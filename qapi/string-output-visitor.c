@@ -292,6 +292,20 @@ static bool print_type_null(Visitor *v, const char *name, QNull **obj,
     return true;
 }
 
+static bool start_struct(Visitor *v, const char *name, void **obj,
+                         size_t size, Error **errp)
+{
+    return true;
+}
+
+static void end_struct(Visitor *v, void **obj)
+{
+    StringOutputVisitor *sov = to_sov(v);
+
+    /* TODO actually print struct fields */
+    string_output_set(sov, g_strdup("<omitted>"));
+}
+
 static bool
 start_list(Visitor *v, const char *name, GenericList **list, size_t size,
            Error **errp)
@@ -379,6 +393,8 @@ Visitor *string_output_visitor_new(bool human, char **result)
     v->visitor.type_str = print_type_str;
     v->visitor.type_number = print_type_number;
     v->visitor.type_null = print_type_null;
+    v->visitor.start_struct = start_struct;
+    v->visitor.end_struct = end_struct;
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
     v->visitor.end_list = end_list;

@@ -86,8 +86,6 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
 
 /*
  * Group operations. All block drivers are involved.
- * These functions will properly handle dataplane (take aio_context_acquire
- * when appropriate for appropriate block drivers
  */
 
 bool bdrv_all_can_snapshot(bool has_devices, strList *devices,

@@ -119,13 +119,15 @@ static void dma_blk_cb(void *opaque, int ret)
 
     trace_dma_blk_cb(dbs, ret);
 
-    aio_context_acquire(ctx);
+    /* DMAAIOCB is not thread-safe and must be accessed only from dbs->ctx */
+    assert(ctx == qemu_get_current_aio_context());
+
     dbs->acb = NULL;
     dbs->offset += dbs->iov.size;
 
     if (dbs->sg_cur_index == dbs->sg->nsg || ret < 0) {
         dma_complete(dbs, ret);
-        goto out;
+        return;
     }
     dma_blk_unmap(dbs);
 
@@ -168,7 +170,7 @@ static void dma_blk_cb(void *opaque, int ret)
         trace_dma_map_wait(dbs);
         dbs->bh = aio_bh_new(ctx, reschedule_dma, dbs);
         cpu_register_map_client(dbs->bh);
-        goto out;
+        return;
     }
 
     if (!QEMU_IS_ALIGNED(dbs->iov.size, dbs->align)) {
@@ -179,8 +181,6 @@ static void dma_blk_cb(void *opaque, int ret)
     dbs->acb = dbs->io_func(dbs->offset, &dbs->iov,
                             dma_blk_cb, dbs, dbs->io_func_opaque);
     assert(dbs->acb);
-out:
-    aio_context_release(ctx);
 }
 
 static void dma_aio_cancel(BlockAIOCB *acb)

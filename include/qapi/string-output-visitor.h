@@ -26,9 +26,9 @@ typedef struct StringOutputVisitor StringOutputVisitor;
  * If everything else succeeds, pass @result to visit_complete() to
  * collect the result of the visit.
  *
- * The string output visitor does not implement support for visiting
- * QAPI structs, alternates, null, or arbitrary QTypes.  It also
- * requires a non-null list argument to visit_start_list().
+ * The string output visitor does not implement support for alternates, null,
+ * or arbitrary QTypes.  Struct fields are not shown.  It also requires a
+ * non-null list argument to visit_start_list().
  */
 Visitor *string_output_visitor_new(bool human, char **result);
 

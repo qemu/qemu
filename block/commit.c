@@ -100,9 +100,9 @@ static void commit_abort(Job *job)
     bdrv_graph_rdunlock_main_loop();
 
     bdrv_drained_begin(commit_top_backing_bs);
-    bdrv_graph_wrlock(commit_top_backing_bs);
+    bdrv_graph_wrlock();
     bdrv_replace_node(s->commit_top_bs, commit_top_backing_bs, &error_abort);
-    bdrv_graph_wrunlock(commit_top_backing_bs);
+    bdrv_graph_wrunlock();
     bdrv_drained_end(commit_top_backing_bs);
 
     bdrv_unref(s->commit_top_bs);
@@ -339,7 +339,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      * this is the responsibility of the interface (i.e. whoever calls
      * commit_start()).
      */
-    bdrv_graph_wrlock(top);
+    bdrv_graph_wrlock();
     s->base_overlay = bdrv_find_overlay(top, base);
     assert(s->base_overlay);
 
@@ -370,19 +370,19 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                                  iter_shared_perms, errp);
         if (ret < 0) {
-            bdrv_graph_wrunlock(top);
+            bdrv_graph_wrunlock();
             goto fail;
         }
     }
 
     if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
-        bdrv_graph_wrunlock(top);
+        bdrv_graph_wrunlock();
         goto fail;
     }
     s->chain_frozen = true;
 
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
-    bdrv_graph_wrunlock(top);
+    bdrv_graph_wrunlock();
 
     if (ret < 0) {
         goto fail;
@@ -434,9 +434,9 @@ fail:
      * otherwise this would fail because of lack of permissions. */
     if (commit_top_bs) {
         bdrv_drained_begin(top);
-        bdrv_graph_wrlock(top);
+        bdrv_graph_wrlock();
         bdrv_replace_node(commit_top_bs, top, &error_abort);
-        bdrv_graph_wrunlock(top);
+        bdrv_graph_wrunlock();
         bdrv_drained_end(top);
     }
 }

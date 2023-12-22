@@ -496,10 +496,10 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     block_copy_set_speed(bcs, speed);
 
     /* Required permissions are taken by copy-before-write filter target */
-    bdrv_graph_wrlock(target);
+    bdrv_graph_wrlock();
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
-    bdrv_graph_wrunlock(target);
+    bdrv_graph_wrunlock();
 
     return &job->common;
 

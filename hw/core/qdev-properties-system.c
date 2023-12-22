@@ -18,6 +18,7 @@
 #include "qapi/qapi-types-block.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-migration.h"
+#include "qapi/qapi-visit-virtio.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
@@ -120,9 +121,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
                        "node");
         }
 
-        aio_context_acquire(ctx);
         blk_replace_bs(blk, bs, errp);
-        aio_context_release(ctx);
         return;
     }
 
@@ -148,10 +147,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
                           0, BLK_PERM_ALL);
             blk_created = true;
 
-            aio_context_acquire(ctx);
             ret = blk_insert_bs(blk, bs, errp);
-            aio_context_release(ctx);
-
             if (ret < 0) {
                 goto fail;
             }
@@ -207,12 +203,8 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     BlockBackend **ptr = object_field_prop_ptr(obj, prop);
 
     if (*ptr) {
-        AioContext *ctx = blk_get_aio_context(*ptr);
-
-        aio_context_acquire(ctx);
         blockdev_auto_del(*ptr);
         blk_detach_dev(*ptr, dev);
-        aio_context_release(ctx);
     }
 }
 
@@ -1168,4 +1160,49 @@ const PropertyInfo qdev_prop_cpus390entitlement = {
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_enum,
     .set_default_value = qdev_propinfo_set_default_value_enum,
+};
+
+/* --- IOThreadVirtQueueMappingList --- */
+
+static void get_iothread_vq_mapping_list(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+    IOThreadVirtQueueMappingList **prop_ptr =
+        object_field_prop_ptr(obj, opaque);
+
+    visit_type_IOThreadVirtQueueMappingList(v, name, prop_ptr, errp);
+}
+
+static void set_iothread_vq_mapping_list(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+    IOThreadVirtQueueMappingList **prop_ptr =
+        object_field_prop_ptr(obj, opaque);
+    IOThreadVirtQueueMappingList *list;
+
+    if (!visit_type_IOThreadVirtQueueMappingList(v, name, &list, errp)) {
+        return;
+    }
+
+    qapi_free_IOThreadVirtQueueMappingList(*prop_ptr);
+    *prop_ptr = list;
+}
+
+static void release_iothread_vq_mapping_list(Object *obj,
+        const char *name, void *opaque)
+{
+    IOThreadVirtQueueMappingList **prop_ptr =
+        object_field_prop_ptr(obj, opaque);
+
+    qapi_free_IOThreadVirtQueueMappingList(*prop_ptr);
+    *prop_ptr = NULL;
+}
+
+const PropertyInfo qdev_prop_iothread_vq_mapping_list = {
+    .name = "IOThreadVirtQueueMappingList",
+    .description = "IOThread virtqueue mapping list [{\"iothread\":\"<id>\", "
+                   "\"vqs\":[1,2,3,...]},...]",
+    .get = get_iothread_vq_mapping_list,
+    .set = set_iothread_vq_mapping_list,
+    .release = release_iothread_vq_mapping_list,
 };

@@ -852,14 +852,11 @@ static void vm_completion(ReadLineState *rs, const char *str)
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         SnapshotInfoList *snapshots, *snapshot;
-        AioContext *ctx = bdrv_get_aio_context(bs);
         bool ok = false;
 
-        aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs)) {
             ok = bdrv_query_snapshot_info_list(bs, &snapshots, NULL) == 0;
         }
-        aio_context_release(ctx);
         if (!ok) {
             continue;
         }

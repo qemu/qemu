@@ -31,11 +31,10 @@
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
- * If a function modifies the graph, it also uses drain and/or
- * aio_context_acquire/release to be sure it has unique access.
- * aio_context locking is needed together with BQL because of
- * the thread-safe I/O API that concurrently runs and accesses
- * the graph without the BQL.
+ * If a function modifies the graph, it also uses the graph lock to be sure it
+ * has unique access. The graph lock is needed together with BQL because of the
+ * thread-safe I/O API that concurrently runs and accesses the graph without
+ * the BQL.
  *
  * It is important to note that not all of these functions are
  * necessarily limited to running under the BQL, but they would
@@ -267,20 +266,6 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
 int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
-
-/**
- * Locks the AioContext of @bs if it's not the current AioContext. This avoids
- * double locking which could lead to deadlocks: This is a coroutine_fn, so we
- * know we already own the lock of the current AioContext.
- *
- * May only be called in the main thread.
- */
-void coroutine_fn bdrv_co_lock(BlockDriverState *bs);
-
-/**
- * Unlocks the AioContext of @bs if it's not the current AioContext.
- */
-void coroutine_fn bdrv_co_unlock(BlockDriverState *bs);
 
 bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
                                    GHashTable *visited, Transaction *tran,

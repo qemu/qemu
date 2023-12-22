@@ -106,26 +106,11 @@ static uint32_t reader_count(void)
     return rd;
 }
 
-void no_coroutine_fn bdrv_graph_wrlock(BlockDriverState *bs)
+void no_coroutine_fn bdrv_graph_wrlock(void)
 {
-    AioContext *ctx = NULL;
-
     GLOBAL_STATE_CODE();
     assert(!qatomic_read(&has_writer));
     assert(!qemu_in_coroutine());
-
-    /*
-     * Release only non-mainloop AioContext. The mainloop often relies on the
-     * BQL and doesn't lock the main AioContext before doing things.
-     */
-    if (bs) {
-        ctx = bdrv_get_aio_context(bs);
-        if (ctx != qemu_get_aio_context()) {
-            aio_context_release(ctx);
-        } else {
-            ctx = NULL;
-        }
-    }
 
     /* Make sure that constantly arriving new I/O doesn't cause starvation */
     bdrv_drain_all_begin_nopoll();
@@ -155,26 +140,12 @@ void no_coroutine_fn bdrv_graph_wrlock(BlockDriverState *bs)
     } while (reader_count() >= 1);
 
     bdrv_drain_all_end();
-
-    if (ctx) {
-        aio_context_acquire(bdrv_get_aio_context(bs));
-    }
 }
 
-void no_coroutine_fn bdrv_graph_wrunlock_ctx(AioContext *ctx)
+void no_coroutine_fn bdrv_graph_wrunlock(void)
 {
     GLOBAL_STATE_CODE();
     assert(qatomic_read(&has_writer));
-
-    /*
-     * Release only non-mainloop AioContext. The mainloop often relies on the
-     * BQL and doesn't lock the main AioContext before doing things.
-     */
-    if (ctx && ctx != qemu_get_aio_context()) {
-        aio_context_release(ctx);
-    } else {
-        ctx = NULL;
-    }
 
     WITH_QEMU_LOCK_GUARD(&aio_context_list_lock) {
         /*
@@ -197,17 +168,6 @@ void no_coroutine_fn bdrv_graph_wrunlock_ctx(AioContext *ctx)
      * progress.
      */
     aio_bh_poll(qemu_get_aio_context());
-
-    if (ctx) {
-        aio_context_acquire(ctx);
-    }
-}
-
-void no_coroutine_fn bdrv_graph_wrunlock(BlockDriverState *bs)
-{
-    AioContext *ctx = bs ? bdrv_get_aio_context(bs) : NULL;
-
-    bdrv_graph_wrunlock_ctx(ctx);
 }
 
 void coroutine_fn bdrv_graph_co_rdlock(void)

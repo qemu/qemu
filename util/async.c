@@ -562,12 +562,10 @@ static void co_schedule_bh_cb(void *opaque)
         Coroutine *co = QSLIST_FIRST(&straight);
         QSLIST_REMOVE_HEAD(&straight, co_scheduled_next);
         trace_aio_co_schedule_bh_cb(ctx, co);
-        aio_context_acquire(ctx);
 
         /* Protected by write barrier in qemu_aio_coroutine_enter */
         qatomic_set(&co->scheduled, NULL);
         qemu_aio_coroutine_enter(ctx, co);
-        aio_context_release(ctx);
     }
 }
 
@@ -707,9 +705,7 @@ void aio_co_enter(AioContext *ctx, Coroutine *co)
         assert(self != co);
         QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
     } else {
-        aio_context_acquire(ctx);
         qemu_aio_coroutine_enter(ctx, co);
-        aio_context_release(ctx);
     }
 }
 
@@ -721,16 +717,6 @@ void aio_context_ref(AioContext *ctx)
 void aio_context_unref(AioContext *ctx)
 {
     g_source_unref(&ctx->source);
-}
-
-void aio_context_acquire(AioContext *ctx)
-{
-    qemu_rec_mutex_lock(&ctx->lock);
-}
-
-void aio_context_release(AioContext *ctx)
-{
-    qemu_rec_mutex_unlock(&ctx->lock);
 }
 
 QEMU_DEFINE_STATIC_CO_TLS(AioContext *, my_aiocontext)

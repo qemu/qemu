@@ -82,8 +82,11 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         /* Break the link as the next request is going to be parsed from the
          * ring again. Otherwise we may end up doing a double completion! */
         req->mr_next = NULL;
-        req->next = s->rq;
-        s->rq = req;
+
+        WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+            req->next = s->rq;
+            s->rq = req;
+        }
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         if (acct_failed) {
@@ -102,7 +105,6 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     VirtIOBlock *s = next->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (next) {
         VirtIOBlockReq *req = next;
         next = req->mr_next;
@@ -135,7 +137,6 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         block_acct_done(blk_get_stats(s->blk), &req->acct);
         virtio_blk_free_request(req);
     }
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)
@@ -143,19 +144,13 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     VirtIOBlockReq *req = opaque;
     VirtIOBlock *s = req->dev;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
-    if (ret) {
-        if (virtio_blk_handle_rw_error(req, -ret, 0, true)) {
-            goto out;
-        }
+    if (ret && virtio_blk_handle_rw_error(req, -ret, 0, true)) {
+        return;
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     block_acct_done(blk_get_stats(s->blk), &req->acct);
     virtio_blk_free_request(req);
-
-out:
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
@@ -165,11 +160,8 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
     bool is_write_zeroes = (virtio_ldl_p(VIRTIO_DEVICE(s), &req->out.type) &
                             ~VIRTIO_BLK_T_BARRIER) == VIRTIO_BLK_T_WRITE_ZEROES;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
-    if (ret) {
-        if (virtio_blk_handle_rw_error(req, -ret, false, is_write_zeroes)) {
-            goto out;
-        }
+    if (ret && virtio_blk_handle_rw_error(req, -ret, false, is_write_zeroes)) {
+        return;
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
@@ -177,9 +169,6 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
         block_acct_done(blk_get_stats(s->blk), &req->acct);
     }
     virtio_blk_free_request(req);
-
-out:
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 #ifdef __linux__
@@ -226,10 +215,8 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
     virtio_stl_p(vdev, &scsi->data_len, hdr->dxfer_len);
 
 out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     g_free(ioctl_req);
 }
 
@@ -669,7 +656,6 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
 {
     ZoneCmdData *data = opaque;
     VirtIOBlockReq *req = data->req;
-    VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
     struct iovec *in_iov = data->in_iov;
     unsigned in_num = data->in_num;
@@ -760,10 +746,8 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
     }
 
 out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, err_status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     g_free(data->zone_report_data.zones);
     g_free(data);
 }
@@ -826,10 +810,8 @@ static void virtio_blk_zone_mgmt_complete(void *opaque, int ret)
         err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
     }
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, err_status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static int virtio_blk_handle_zone_mgmt(VirtIOBlockReq *req, BlockZoneOp op)
@@ -879,7 +861,6 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
 {
     ZoneCmdData *data = opaque;
     VirtIOBlockReq *req = data->req;
-    VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
     int64_t append_sector, n;
     uint8_t err_status = VIRTIO_BLK_S_OK;
@@ -902,10 +883,8 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
     trace_virtio_blk_zone_append_complete(vdev, req, append_sector, ret);
 
 out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, err_status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     g_free(data);
 }
 
@@ -941,10 +920,8 @@ static int virtio_blk_handle_zone_append(VirtIOBlockReq *req,
     return 0;
 
 out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, err_status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     return err_status;
 }
 
@@ -1134,7 +1111,6 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     MultiReqBuffer mrb = {};
     bool suppress_notifications = virtio_queue_get_notification(vq);
 
-    aio_context_acquire(blk_get_aio_context(s->blk));
     defer_call_begin();
 
     do {
@@ -1160,7 +1136,6 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     }
 
     defer_call_end();
-    aio_context_release(blk_get_aio_context(s->blk));
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -1176,6 +1151,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             return;
         }
     }
+
     virtio_blk_handle_vq(s, vq);
 }
 
@@ -1183,12 +1159,14 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 {
     VirtIOBlock *s = opaque;
 
-    VirtIOBlockReq *req = s->rq;
+    VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
 
-    s->rq = NULL;
+    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+        req = s->rq;
+        s->rq = NULL;
+    }
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (req) {
         VirtIOBlockReq *next = req->next;
         if (virtio_blk_handle_request(req, &mrb)) {
@@ -1212,8 +1190,6 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     /* Paired with inc in virtio_blk_dma_restart_cb() */
     blk_dec_in_flight(s->conf.conf.blk);
-
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, bool running,
@@ -1235,25 +1211,28 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    AioContext *ctx;
     VirtIOBlockReq *req;
 
-    ctx = blk_get_aio_context(s->blk);
-    aio_context_acquire(ctx);
+    /* Dataplane has stopped... */
+    assert(!s->dataplane_started);
+
+    /* ...but requests may still be in flight. */
     blk_drain(s->blk);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
      * produce them. */
-    while (s->rq) {
-        req = s->rq;
-        s->rq = req->next;
-        virtqueue_detach_element(req->vq, &req->elem, 0);
-        virtio_blk_free_request(req);
+    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+        while (s->rq) {
+            req = s->rq;
+            s->rq = req->next;
+
+            /* No other threads can access req->vq here */
+            virtqueue_detach_element(req->vq, &req->elem, 0);
+
+            virtio_blk_free_request(req);
+        }
     }
 
-    aio_context_release(ctx);
-
-    assert(!s->dataplane_started);
     blk_set_enable_write_cache(s->blk, s->original_wce);
 }
 
@@ -1268,10 +1247,6 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     uint64_t capacity;
     int64_t length;
     int blk_size = conf->logical_block_size;
-    AioContext *ctx;
-
-    ctx = blk_get_aio_context(s->blk);
-    aio_context_acquire(ctx);
 
     blk_get_geometry(s->blk, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
@@ -1295,7 +1270,6 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * per track (cylinder).
      */
     length = blk_getlength(s->blk);
-    aio_context_release(ctx);
     if (length > 0 && length / conf->heads / conf->secs % blk_size) {
         blkcfg.geometry.sectors = conf->secs & ~s->sector_mask;
     } else {
@@ -1362,9 +1336,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     memcpy(&blkcfg, config, s->config_size);
 
-    aio_context_acquire(blk_get_aio_context(s->blk));
     blk_set_enable_write_cache(s->blk, blkcfg.wce != 0);
-    aio_context_release(blk_get_aio_context(s->blk));
 }
 
 static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
@@ -1432,29 +1404,31 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      * s->blk would erroneously be placed in writethrough mode.
      */
     if (!virtio_vdev_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE)) {
-        aio_context_acquire(blk_get_aio_context(s->blk));
         blk_set_enable_write_cache(s->blk,
                                    virtio_vdev_has_feature(vdev,
                                                            VIRTIO_BLK_F_WCE));
-        aio_context_release(blk_get_aio_context(s->blk));
     }
 }
 
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    VirtIOBlockReq *req = s->rq;
 
-    while (req) {
-        qemu_put_sbyte(f, 1);
+    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+        VirtIOBlockReq *req = s->rq;
 
-        if (s->conf.num_queues > 1) {
-            qemu_put_be32(f, virtio_get_queue_index(req->vq));
+        while (req) {
+            qemu_put_sbyte(f, 1);
+
+            if (s->conf.num_queues > 1) {
+                qemu_put_be32(f, virtio_get_queue_index(req->vq));
+            }
+
+            qemu_put_virtqueue_element(vdev, f, &req->elem);
+            req = req->next;
         }
-
-        qemu_put_virtqueue_element(vdev, f, &req->elem);
-        req = req->next;
     }
+
     qemu_put_sbyte(f, 0);
 }
 
@@ -1480,11 +1454,76 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
 
         req = qemu_get_virtqueue_element(vdev, f, sizeof(VirtIOBlockReq));
         virtio_blk_init_request(s, virtio_get_queue(vdev, vq_idx), req);
-        req->next = s->rq;
-        s->rq = req;
+
+        WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+            req->next = s->rq;
+            s->rq = req;
+        }
     }
 
     return 0;
+}
+
+static bool
+validate_iothread_vq_mapping_list(IOThreadVirtQueueMappingList *list,
+        uint16_t num_queues, Error **errp)
+{
+    g_autofree unsigned long *vqs = bitmap_new(num_queues);
+    g_autoptr(GHashTable) iothreads =
+        g_hash_table_new(g_str_hash, g_str_equal);
+
+    for (IOThreadVirtQueueMappingList *node = list; node; node = node->next) {
+        const char *name = node->value->iothread;
+        uint16List *vq;
+
+        if (!iothread_by_id(name)) {
+            error_setg(errp, "IOThread \"%s\" object does not exist", name);
+            return false;
+        }
+
+        if (!g_hash_table_add(iothreads, (gpointer)name)) {
+            error_setg(errp,
+                    "duplicate IOThread name \"%s\" in iothread-vq-mapping",
+                    name);
+            return false;
+        }
+
+        if (node != list) {
+            if (!!node->value->vqs != !!list->value->vqs) {
+                error_setg(errp, "either all items in iothread-vq-mapping "
+                                 "must have vqs or none of them must have it");
+                return false;
+            }
+        }
+
+        for (vq = node->value->vqs; vq; vq = vq->next) {
+            if (vq->value >= num_queues) {
+                error_setg(errp, "vq index %u for IOThread \"%s\" must be "
+                        "less than num_queues %u in iothread-vq-mapping",
+                        vq->value, name, num_queues);
+                return false;
+            }
+
+            if (test_and_set_bit(vq->value, vqs)) {
+                error_setg(errp, "cannot assign vq %u to IOThread \"%s\" "
+                        "because it is already assigned", vq->value, name);
+                return false;
+            }
+        }
+    }
+
+    if (list->value->vqs) {
+        for (uint16_t i = 0; i < num_queues; i++) {
+            if (!test_bit(i, vqs)) {
+                error_setg(errp,
+                        "missing vq %u IOThread assignment in iothread-vq-mapping",
+                        i);
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 static void virtio_resize_cb(void *opaque)
@@ -1511,34 +1550,24 @@ static void virtio_blk_resize(void *opaque)
 static void virtio_blk_drained_begin(void *opaque)
 {
     VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    AioContext *ctx = blk_get_aio_context(s->conf.conf.blk);
 
     if (!s->dataplane || !s->dataplane_started) {
         return;
     }
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
-        VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_detach_host_notifier(vq, ctx);
-    }
+    virtio_blk_data_plane_detach(s->dataplane);
 }
 
 /* Resume virtqueue ioeventfd processing after drain */
 static void virtio_blk_drained_end(void *opaque)
 {
     VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    AioContext *ctx = blk_get_aio_context(s->conf.conf.blk);
 
     if (!s->dataplane || !s->dataplane_started) {
         return;
     }
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
-        VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_attach_host_notifier(vq, ctx);
-    }
+    virtio_blk_data_plane_attach(s->dataplane);
 }
 
 static const BlockDevOps virtio_block_ops = {
@@ -1624,9 +1653,24 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (conf->iothread_vq_mapping_list) {
+        if (conf->iothread) {
+            error_setg(errp, "iothread and iothread-vq-mapping properties "
+                             "cannot be set at the same time");
+            return;
+        }
+
+        if (!validate_iothread_vq_mapping_list(conf->iothread_vq_mapping_list,
+                                               conf->num_queues, errp)) {
+            return;
+        }
+    }
+
     s->config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
                                             s->host_features);
     virtio_init(vdev, VIRTIO_ID_BLOCK, s->config_size);
+
+    qemu_mutex_init(&s->rq_lock);
 
     s->blk = conf->conf.blk;
     s->rq = NULL;
@@ -1679,6 +1723,7 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
         virtio_del_queue(vdev, i);
     }
     qemu_coroutine_dec_pool_size(conf->num_queues * conf->queue_size / 2);
+    qemu_mutex_destroy(&s->rq_lock);
     blk_ram_registrar_destroy(&s->blk_ram_registrar);
     qemu_del_vm_change_state_handler(s->change);
     blockdev_mark_auto_del(s->blk);
@@ -1723,6 +1768,8 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_BOOL("seg-max-adjust", VirtIOBlock, conf.seg_max_adjust, true),
     DEFINE_PROP_LINK("iothread", VirtIOBlock, conf.iothread, TYPE_IOTHREAD,
                      IOThread *),
+    DEFINE_PROP_IOTHREAD_VQ_MAPPING_LIST("iothread-vq-mapping", VirtIOBlock,
+                                         conf.iothread_vq_mapping_list),
     DEFINE_PROP_BIT64("discard", VirtIOBlock, host_features,
                       VIRTIO_BLK_F_DISCARD, true),
     DEFINE_PROP_BOOL("report-discard-granularity", VirtIOBlock,

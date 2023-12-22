@@ -3049,7 +3049,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     int saved_vm_running;
     uint64_t vm_state_size;
     g_autoptr(GDateTime) now = g_date_time_new_now_local();
-    AioContext *aio_context;
 
     GLOBAL_STATE_CODE();
 
@@ -3092,7 +3091,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     if (bs == NULL) {
         return false;
     }
-    aio_context = bdrv_get_aio_context(bs);
 
     saved_vm_running = runstate_is_running();
 
@@ -3100,8 +3098,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     vm_stop(RUN_STATE_SAVE_VM);
 
     bdrv_drain_all_begin();
-
-    aio_context_acquire(aio_context);
 
     memset(sn, 0, sizeof(*sn));
 
@@ -3139,14 +3135,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
         goto the_end;
     }
 
-    /* The bdrv_all_create_snapshot() call that follows acquires the AioContext
-     * for itself.  BDRV_POLL_WHILE() does not support nested locking because
-     * it only releases the lock once.  Therefore synchronous I/O will deadlock
-     * unless we release the AioContext before bdrv_all_create_snapshot().
-     */
-    aio_context_release(aio_context);
-    aio_context = NULL;
-
     ret = bdrv_all_create_snapshot(sn, bs, vm_state_size,
                                    has_devices, devices, errp);
     if (ret < 0) {
@@ -3157,10 +3145,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     ret = 0;
 
  the_end:
-    if (aio_context) {
-        aio_context_release(aio_context);
-    }
-
     bdrv_drain_all_end();
 
     if (saved_vm_running) {
@@ -3258,7 +3242,6 @@ bool load_snapshot(const char *name, const char *vmstate,
     QEMUSnapshotInfo sn;
     QEMUFile *f;
     int ret;
-    AioContext *aio_context;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!bdrv_all_can_snapshot(has_devices, devices, errp)) {
@@ -3278,12 +3261,9 @@ bool load_snapshot(const char *name, const char *vmstate,
     if (!bs_vm_state) {
         return false;
     }
-    aio_context = bdrv_get_aio_context(bs_vm_state);
 
     /* Don't even try to load empty VM states */
-    aio_context_acquire(aio_context);
     ret = bdrv_snapshot_find(bs_vm_state, &sn, name);
-    aio_context_release(aio_context);
     if (ret < 0) {
         return false;
     } else if (sn.vm_state_size == 0) {
@@ -3320,10 +3300,8 @@ bool load_snapshot(const char *name, const char *vmstate,
         ret = -EINVAL;
         goto err_drain;
     }
-    aio_context_acquire(aio_context);
     ret = qemu_loadvm_state(f);
     migration_incoming_state_destroy();
-    aio_context_release(aio_context);
 
     bdrv_drain_all_end();
 

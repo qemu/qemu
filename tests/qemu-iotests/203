@@ -21,7 +21,8 @@
 # Check that QMP 'migrate' with multiple drives on a single IOThread completes
 # successfully.  This particular command triggered a hang in the source QEMU
 # process due to recursive AioContext locking in bdrv_invalidate_all() and
-# BDRV_POLL_WHILE().
+# BDRV_POLL_WHILE().  Protect against regressions even though the AioContext
+# lock no longer exists.
 
 import iotests
 
