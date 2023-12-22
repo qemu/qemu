@@ -3117,15 +3117,15 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
     return true;
 }
 
+static void disas_insn_old(DisasContext *s, CPUState *cpu, int b);
+
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
 static bool disas_insn(DisasContext *s, CPUState *cpu)
 {
     CPUX86State *env = cpu_env(cpu);
     int b, prefixes;
-    int shift;
-    MemOp ot, aflag, dflag;
-    int modrm, reg, rm, mod, op, opreg, val;
+    MemOp aflag, dflag;
     bool orig_cc_op_dirty = s->cc_op_dirty;
     CCOp orig_cc_op = s->cc_op;
     target_ulong orig_pc_save = s->pc_save;
@@ -3270,6 +3270,38 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     s->prefix = prefixes;
     s->aflag = aflag;
     s->dflag = dflag;
+
+    switch (b) {
+    case 0     ... 0xd7:
+    case 0xe0  ... 0xff:
+    case 0x10e ... 0x117:
+    case 0x128 ... 0x12f:
+    case 0x138 ... 0x19f:
+    case 0x1a0 ... 0x1a1:
+    case 0x1a8 ... 0x1a9:
+    case 0x1af:
+    case 0x1b2:
+    case 0x1b4 ... 0x1b7:
+    case 0x1be ... 0x1bf:
+    case 0x1c2 ... 0x1c6:
+    case 0x1c8 ... 0x1ff:
+        disas_insn_new(s, cpu, b);
+        break;
+    default:
+        disas_insn_old(s, cpu, b);
+        break;
+    }
+    return true;
+}
+
+static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
+{
+    CPUX86State *env = cpu_env(cpu);
+    int prefixes = s->prefix;
+    MemOp dflag = s->dflag;
+    int shift;
+    MemOp ot;
+    int modrm, reg, rm, mod, op, opreg, val;
 
     /* now check op code */
     switch (b) {
@@ -4726,31 +4758,15 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 
         set_cc_op(s, CC_OP_POPCNT);
         break;
-    case 0     ... 0xd7:
-    case 0xe0  ... 0xff:
-    case 0x10e ... 0x117:
-    case 0x128 ... 0x12f:
-    case 0x138 ... 0x19f:
-    case 0x1a0 ... 0x1a1:
-    case 0x1a8 ... 0x1a9:
-    case 0x1af:
-    case 0x1b2:
-    case 0x1b4 ... 0x1b7:
-    case 0x1be ... 0x1bf:
-    case 0x1c2 ... 0x1c6:
-    case 0x1c8 ... 0x1ff:
-        disas_insn_new(s, cpu, b);
-        break;
     default:
         goto unknown_op;
     }
-    return true;
+    return;
  illegal_op:
     gen_illegal_opcode(s);
-    return true;
+    return;
  unknown_op:
     gen_unknown_opcode(env, s);
-    return true;
 }
 
 void tcg_x86_init(void)
