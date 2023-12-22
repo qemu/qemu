@@ -4302,6 +4302,12 @@ summary_info += {'curses support':    curses}
 summary_info += {'brlapi support':    brlapi}
 summary(summary_info, bool_yn: true, section: 'User interface')
 
+# Graphics backends
+summary_info = {}
+summary_info += {'VirGL support':     virgl}
+summary_info += {'Rutabaga support':  rutabaga}
+summary(summary_info, bool_yn: true, section: 'Graphics backends')
+
 # Audio backends
 summary_info = {}
 if host_os not in ['darwin', 'haiku', 'windows']
@@ -4337,8 +4343,6 @@ summary_info = {}
 summary_info += {'libtasn1':          tasn1}
 summary_info += {'PAM':               pam}
 summary_info += {'iconv support':     iconv}
-summary_info += {'virgl support':     virgl}
-summary_info += {'rutabaga support':  rutabaga}
 summary_info += {'blkio support':     blkio}
 summary_info += {'curl support':      curl}
 summary_info += {'Multipath support': mpathpersist}
