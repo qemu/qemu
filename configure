@@ -1387,8 +1387,8 @@ probe_target_compiler() {
   done
 
   try=cross
-  # For softmmu/roms we might be able to use the host compiler
-  if [ "${1%softmmu}" != "$1" ]; then
+  # For softmmu/roms also look for a bi-endian or multilib-enabled host compiler
+  if [ "${1%softmmu}" != "$1" ] || test "$target_arch" = "$cpu"; then
       case "$target_arch:$cpu" in
         aarch64_be:aarch64 | \
         armeb:arm | \
