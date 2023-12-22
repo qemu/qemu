@@ -201,6 +201,9 @@ void helper_wrmsr(CPUX86State *env)
         tlb_flush(cs);
         break;
     case MSR_VM_HSAVE_PA:
+        if (val & (0xfff | ((~0ULL) << env_archcpu(env)->phys_bits))) {
+            goto error;
+        }
         env->vm_hsave = val;
         break;
 #ifdef TARGET_X86_64
