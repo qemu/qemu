@@ -556,6 +556,10 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
         break;
 
     default:
+        if (is_mmu_index_32(mmu_idx)) {
+            addr = (uint32_t)addr;
+        }
+
         if (likely(env->cr[0] & CR0_PG_MASK)) {
             in.cr3 = env->cr[3];
             in.mmu_idx = mmu_idx;
@@ -579,14 +583,8 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
         break;
     }
 
-    /* Translation disabled. */
+    /* No translation needed. */
     out->paddr = addr & x86_get_a20_mask(env);
-#ifdef TARGET_X86_64
-    if (!(env->hflags & HF_LMA_MASK)) {
-        /* Without long mode we can only address 32bits in real mode */
-        out->paddr = (uint32_t)out->paddr;
-    }
-#endif
     out->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     out->page_size = TARGET_PAGE_SIZE;
     return true;
