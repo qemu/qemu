@@ -80,11 +80,6 @@ int iommufd_backend_connect(IOMMUFDBackend *be, Error **errp)
     int fd, ret = 0;
 
     qemu_mutex_lock(&be->lock);
-    if (be->users == UINT32_MAX) {
-        error_setg(errp, "too many connections");
-        ret = -E2BIG;
-        goto out;
-    }
     if (be->owned && !be->users) {
         fd = qemu_open_old("/dev/iommu", O_RDWR);
         if (fd < 0) {
