@@ -19,7 +19,7 @@ static inline void qemu_rect_init(QemuRect *rect,
                                   uint16_t width, uint16_t height)
 {
     rect->x = x;
-    rect->y = x;
+    rect->y = y;
     rect->width = width;
     rect->height = height;
 }
