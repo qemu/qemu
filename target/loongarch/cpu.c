@@ -764,6 +764,8 @@ void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "TLBRENTRY=%016" PRIx64 "\n", env->CSR_TLBRENTRY);
     qemu_fprintf(f, "TLBRBADV=%016" PRIx64 "\n", env->CSR_TLBRBADV);
     qemu_fprintf(f, "TLBRERA=%016" PRIx64 "\n", env->CSR_TLBRERA);
+    qemu_fprintf(f, "TCFG=%016" PRIx64 "\n", env->CSR_TCFG);
+    qemu_fprintf(f, "TVAL=%016" PRIx64 "\n", env->CSR_TVAL);
 
     /* fpr */
     if (flags & CPU_DUMP_FPU) {
