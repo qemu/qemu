@@ -41,7 +41,7 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
         dump_format = DUMP_GUEST_MEMORY_FORMAT_WIN_DMP;
     }
 
-    if (zlib && raw) {
+    if (zlib) {
         if (raw) {
             dump_format = DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_ZLIB;
         } else {
