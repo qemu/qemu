@@ -5,6 +5,13 @@ Note that this is an experimental release and the functionality of the device is
 
 ### Building QEMU
 
+Make sure you have the required libraries installed to compile QEMU:
+
+```
+# On MacOS
+brew install glib ninja pixman pkg-config sdl2
+```
+
 Compile QEMU by running the following commands from the root directory:
 
 ```
