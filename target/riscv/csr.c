@@ -697,11 +697,11 @@ static int write_mhpmcounterh(CPURISCVState *env, int csrno, target_ulong val)
 static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                          bool upper_half, uint32_t ctr_idx)
 {
-    PMUCTRState counter = env->pmu_ctrs[ctr_idx];
-    target_ulong ctr_prev = upper_half ? counter.mhpmcounterh_prev :
-                                         counter.mhpmcounter_prev;
-    target_ulong ctr_val = upper_half ? counter.mhpmcounterh_val :
-                                        counter.mhpmcounter_val;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    target_ulong ctr_prev = upper_half ? counter->mhpmcounterh_prev :
+                                         counter->mhpmcounter_prev;
+    target_ulong ctr_val = upper_half ? counter->mhpmcounterh_val :
+                                        counter->mhpmcounter_val;
 
     if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
         /**
@@ -709,12 +709,12 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
          * stop the icount counting. Just return the counter value written by
          * the supervisor to indicate that counter was not incremented.
          */
-        if (!counter.started) {
+        if (!counter->started) {
             *val = ctr_val;
             return RISCV_EXCP_NONE;
         } else {
             /* Mark that the counter has been stopped */
-            counter.started = false;
+            counter->started = false;
         }
     }
 
