@@ -62,6 +62,7 @@ typedef struct next_dma {
 } next_dma;
 
 typedef struct NextRtc {
+    int8_t phase;
     uint8_t ram[32];
     uint8_t command;
     uint8_t value;
@@ -72,6 +73,12 @@ typedef struct NextRtc {
 
 struct NeXTState {
     MachineState parent;
+
+    MemoryRegion rom;
+    MemoryRegion rom2;
+    MemoryRegion dmamem;
+    MemoryRegion bmapm1;
+    MemoryRegion bmapm2;
 
     next_dma dma[10];
 };
@@ -90,8 +97,10 @@ struct NeXTPC {
 
     uint32_t scr1;
     uint32_t scr2;
+    uint32_t old_scr2;
     uint32_t int_mask;
     uint32_t int_status;
+    uint32_t led;
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
 
@@ -121,49 +130,46 @@ static const uint8_t rtc_ram2[32] = {
 #define SCR2_RTDATA 0x4
 #define SCR2_TOBCD(x) (((x / 10) << 4) + (x % 10))
 
-static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
+static void next_scr2_led_update(NeXTPC *s)
 {
-    static int led;
-    static int phase;
-    static uint8_t old_scr2;
-    uint8_t scr2_2;
-    NextRtc *rtc = &s->rtc;
-
-    if (size == 4) {
-        scr2_2 = (val >> 8) & 0xFF;
-    } else {
-        scr2_2 = val & 0xFF;
-    }
-
-    if (val & 0x1) {
+    if (s->scr2 & 0x1) {
         DPRINTF("fault!\n");
-        led++;
-        if (led == 10) {
+        s->led++;
+        if (s->led == 10) {
             DPRINTF("LED flashing, possible fault!\n");
-            led = 0;
+            s->led = 0;
         }
     }
+}
+
+static void next_scr2_rtc_update(NeXTPC *s)
+{
+    uint8_t old_scr2, scr2_2;
+    NextRtc *rtc = &s->rtc;
+
+    old_scr2 = extract32(s->old_scr2, 8, 8);
+    scr2_2 = extract32(s->scr2, 8, 8);
 
     if (scr2_2 & 0x1) {
-        /* DPRINTF("RTC %x phase %i\n", scr2_2, phase); */
-        if (phase == -1) {
-            phase = 0;
+        /* DPRINTF("RTC %x phase %i\n", scr2_2, rtc->phase); */
+        if (rtc->phase == -1) {
+            rtc->phase = 0;
         }
         /* If we are in going down clock... do something */
         if (((old_scr2 & SCR2_RTCLK) != (scr2_2 & SCR2_RTCLK)) &&
                 ((scr2_2 & SCR2_RTCLK) == 0)) {
-            if (phase < 8) {
+            if (rtc->phase < 8) {
                 rtc->command = (rtc->command << 1) |
                                ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
             }
-            if (phase >= 8 && phase < 16) {
+            if (rtc->phase >= 8 && rtc->phase < 16) {
                 rtc->value = (rtc->value << 1) |
                              ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
 
                 /* if we read RAM register, output RT_DATA bit */
                 if (rtc->command <= 0x1F) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->ram[rtc->command] & (0x80 >> (phase - 8))) {
+                    if (rtc->ram[rtc->command] & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
@@ -174,7 +180,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
                 if (rtc->command == 0x30) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
                     /* for now status = 0x98 (new rtc + FTU) */
-                    if (rtc->status & (0x80 >> (phase - 8))) {
+                    if (rtc->status & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
@@ -184,7 +190,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
                 /* read the status 0x31 */
                 if (rtc->command == 0x31) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->control & (0x80 >> (phase - 8))) {
+                    if (rtc->control & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
                     rtc->retval = (rtc->retval << 1) |
@@ -220,7 +226,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 
                     }
 
-                    if (ret & (0x80 >> (phase - 8))) {
+                    if (ret & (0x80 >> (rtc->phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
                     rtc->retval = (rtc->retval << 1) |
@@ -229,8 +235,8 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 
             }
 
-            phase++;
-            if (phase == 16) {
+            rtc->phase++;
+            if (rtc->phase == 16) {
                 if (rtc->command >= 0x80 && rtc->command <= 0x9F) {
                     rtc->ram[rtc->command - 0x80] = rtc->value;
                 }
@@ -246,206 +252,97 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
         }
     } else {
         /* else end or abort */
-        phase = -1;
+        rtc->phase = -1;
         rtc->command = 0;
         rtc->value = 0;
     }
-    s->scr2 = val & 0xFFFF00FF;
-    s->scr2 |= scr2_2 << 8;
-    old_scr2 = scr2_2;
+
+    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
 }
 
-static uint32_t mmio_readb(NeXTPC *s, hwaddr addr)
+static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    switch (addr) {
-    case 0xc000:
-        return (s->scr1 >> 24) & 0xFF;
-    case 0xc001:
-        return (s->scr1 >> 16) & 0xFF;
-    case 0xc002:
-        return (s->scr1 >> 8)  & 0xFF;
-    case 0xc003:
-        return (s->scr1 >> 0)  & 0xFF;
+    NeXTPC *s = NEXT_PC(opaque);
+    uint64_t val;
 
-    case 0xd000:
-        return (s->scr2 >> 24) & 0xFF;
-    case 0xd001:
-        return (s->scr2 >> 16) & 0xFF;
-    case 0xd002:
-        return (s->scr2 >> 8)  & 0xFF;
-    case 0xd003:
-        return (s->scr2 >> 0)  & 0xFF;
-    case 0x14020:
-        DPRINTF("MMIO Read 0x4020\n");
-        return 0x7f;
-
-    default:
-        DPRINTF("MMIO Read B @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static uint32_t mmio_readw(NeXTPC *s, hwaddr addr)
-{
-    switch (addr) {
-    default:
-        DPRINTF("MMIO Read W @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static uint32_t mmio_readl(NeXTPC *s, hwaddr addr)
-{
     switch (addr) {
     case 0x7000:
         /* DPRINTF("Read INT status: %x\n", s->int_status); */
-        return s->int_status;
+        val = s->int_status;
+        break;
 
     case 0x7800:
         DPRINTF("MMIO Read INT mask: %x\n", s->int_mask);
-        return s->int_mask;
-
-    case 0xc000:
-        return s->scr1;
-
-    case 0xd000:
-        return s->scr2;
-
-    default:
-        DPRINTF("MMIO Read L @ %"HWADDR_PRIx"\n", addr);
-        return 0x0;
-    }
-}
-
-static void mmio_writeb(NeXTPC *s, hwaddr addr, uint32_t val)
-{
-    switch (addr) {
-    case 0xd003:
-        nextscr2_write(s, val, 1);
+        val = s->int_mask;
         break;
+
+    case 0xc000 ... 0xc003:
+        val = extract32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+                        size << 3);
+        break;
+
+    case 0xd000 ... 0xd003:
+        val = extract32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+                        size << 3);
+        break;
+
+    case 0x14020:
+        val = 0x7f;
+        break;
+
     default:
-        DPRINTF("MMIO Write B @ %x with %x\n", (unsigned int)addr, val);
+        val = 0;
+        DPRINTF("MMIO Read @ 0x%"HWADDR_PRIx" size %d\n", addr, size);
+        break;
     }
 
+    return val;
 }
 
-static void mmio_writew(NeXTPC *s, hwaddr addr, uint32_t val)
+static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned size)
 {
-    DPRINTF("MMIO Write W\n");
-}
+    NeXTPC *s = NEXT_PC(opaque);
 
-static void mmio_writel(NeXTPC *s, hwaddr addr, uint32_t val)
-{
     switch (addr) {
     case 0x7000:
-        DPRINTF("INT Status old: %x new: %x\n", s->int_status, val);
+        DPRINTF("INT Status old: %x new: %x\n", s->int_status,
+                (unsigned int)val);
         s->int_status = val;
         break;
+
     case 0x7800:
-        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, val);
+        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, (unsigned int)val);
         s->int_mask  = val;
         break;
-    case 0xc000:
-        DPRINTF("SCR1 Write: %x\n", val);
+
+    case 0xc000 ... 0xc003:
+        DPRINTF("SCR1 Write: %x\n", (unsigned int)val);
+        s->scr1 = deposit32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+                            size << 3, val);
         break;
-    case 0xd000:
-        nextscr2_write(s, val, 4);
+
+    case 0xd000 ... 0xd003:
+        s->scr2 = deposit32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+                            size << 3, val);
+        next_scr2_led_update(s);
+        next_scr2_rtc_update(s);
+        s->old_scr2 = s->scr2;
         break;
 
     default:
-        DPRINTF("MMIO Write l @ %x with %x\n", (unsigned int)addr, val);
+        DPRINTF("MMIO Write @ 0x%"HWADDR_PRIx " with 0x%x size %u\n", addr,
+                (unsigned int)val, size);
     }
 }
 
-static uint64_t mmio_readfn(void *opaque, hwaddr addr, unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        return mmio_readb(s, addr);
-    case 2:
-        return mmio_readw(s, addr);
-    case 4:
-        return mmio_readl(s, addr);
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static void mmio_writefn(void *opaque, hwaddr addr, uint64_t value,
-                         unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        mmio_writeb(s, addr, value);
-        break;
-    case 2:
-        mmio_writew(s, addr, value);
-        break;
-    case 4:
-        mmio_writel(s, addr, value);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static const MemoryRegionOps mmio_ops = {
-    .read = mmio_readfn,
-    .write = mmio_writefn,
+static const MemoryRegionOps next_mmio_ops = {
+    .read = next_mmio_read,
+    .write = next_mmio_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
-
-static uint32_t scr_readb(NeXTPC *s, hwaddr addr)
-{
-    switch (addr) {
-    case 0x14108:
-        DPRINTF("FD read @ %x\n", (unsigned int)addr);
-        return 0x40 | 0x04 | 0x2 | 0x1;
-    case 0x14020:
-        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
-        return s->scsi_csr_1;
-
-    case 0x14021:
-        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
-        return 0x40;
-
-    /*
-     * These 4 registers are the hardware timer, not sure which register
-     * is the latch instead of data, but no problems so far
-     */
-    case 0x1a000:
-        return 0xff & (clock() >> 24);
-    case 0x1a001:
-        return 0xff & (clock() >> 16);
-    case 0x1a002:
-        return 0xff & (clock() >> 8);
-    case 0x1a003:
-        /* Hack: We need to have this change consistently to make it work */
-        return 0xFF & clock();
-
-    default:
-        DPRINTF("BMAP Read B @ %x\n", (unsigned int)addr);
-        return 0;
-    }
-}
-
-static uint32_t scr_readw(NeXTPC *s, hwaddr addr)
-{
-    DPRINTF("BMAP Read W @ %x\n", (unsigned int)addr);
-    return 0;
-}
-
-static uint32_t scr_readl(NeXTPC *s, hwaddr addr)
-{
-    DPRINTF("BMAP Read L @ %x\n", (unsigned int)addr);
-    return 0;
-}
 
 #define SCSICSR_ENABLE  0x01
 #define SCSICSR_RESET   0x02  /* reset scsi dma */
@@ -454,25 +351,73 @@ static uint32_t scr_readl(NeXTPC *s, hwaddr addr)
 #define SCSICSR_CPUDMA  0x10  /* if set, dma enabled */
 #define SCSICSR_INTMASK 0x20  /* if set, interrupt enabled */
 
-static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
+static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
 {
+    NeXTPC *s = NEXT_PC(opaque);
+    uint64_t val;
+
+    switch (addr) {
+    case 0x14108:
+        DPRINTF("FD read @ %x\n", (unsigned int)addr);
+        val = 0x40 | 0x04 | 0x2 | 0x1;
+        break;
+
+    case 0x14020:
+        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
+        val = s->scsi_csr_1;
+        break;
+
+    case 0x14021:
+        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
+        val = 0x40;
+        break;
+
+    /*
+     * These 4 registers are the hardware timer, not sure which register
+     * is the latch instead of data, but no problems so far.
+     *
+     * Hack: We need to have the LSB change consistently to make it work
+     */
+    case 0x1a000 ... 0x1a003:
+        val = extract32(clock(), (4 - (addr - 0x1a000) - size) << 3,
+                        size << 3);
+        break;
+
+    /* For now return dummy byte to allow the Ethernet test to timeout */
+    case 0x6000:
+        val = 0xff;
+        break;
+
+    default:
+        DPRINTF("BMAP Read @ 0x%x size %u\n", (unsigned int)addr, size);
+        val = 0;
+        break;
+    }
+
+    return val;
+}
+
+static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+    NeXTPC *s = NEXT_PC(opaque);
+
     switch (addr) {
     case 0x14108:
         DPRINTF("FDCSR Write: %x\n", value);
-
-        if (value == 0x0) {
+        if (val == 0x0) {
             /* qemu_irq_raise(s->fd_irq[0]); */
         }
         break;
+
     case 0x14020: /* SCSI Control Register */
-        if (value & SCSICSR_FIFOFL) {
+        if (val & SCSICSR_FIFOFL) {
             DPRINTF("SCSICSR FIFO Flush\n");
             /* will have to add another irq to the esp if this is needed */
             /* esp_puflush_fifo(esp_g); */
-            qemu_irq_pulse(s->scsi_dma);
         }
 
-        if (value & SCSICSR_ENABLE) {
+        if (val & SCSICSR_ENABLE) {
             DPRINTF("SCSICSR Enable\n");
             /*
              * qemu_irq_raise(s->scsi_dma);
@@ -486,17 +431,17 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
          *     s->scsi_csr_1 &= ~SCSICSR_ENABLE;
          */
 
-        if (value & SCSICSR_RESET) {
+        if (val & SCSICSR_RESET) {
             DPRINTF("SCSICSR Reset\n");
             /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
             qemu_irq_raise(s->scsi_reset);
             s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
             qemu_irq_lower(s->scsi_reset);
         }
-        if (value & SCSICSR_DMADIR) {
+        if (val & SCSICSR_DMADIR) {
             DPRINTF("SCSICSR DMAdir\n");
         }
-        if (value & SCSICSR_CPUDMA) {
+        if (val & SCSICSR_CPUDMA) {
             DPRINTF("SCSICSR CPUDMA\n");
             /* qemu_irq_raise(s->scsi_dma); */
             s->int_status |= 0x4000000;
@@ -505,11 +450,11 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
             s->int_status &= ~(0x4000000);
             /* qemu_irq_lower(s->scsi_dma); */
         }
-        if (value & SCSICSR_INTMASK) {
+        if (val & SCSICSR_INTMASK) {
             DPRINTF("SCSICSR INTMASK\n");
             /*
              * int_mask &= ~0x1000;
-             * s->scsi_csr_1 |= value;
+             * s->scsi_csr_1 |= val;
              * s->scsi_csr_1 &= ~SCSICSR_INTMASK;
              * if (s->scsi_queued) {
              *     s->scsi_queued = 0;
@@ -519,72 +464,28 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
         } else {
             /* int_mask |= 0x1000; */
         }
-        if (value & 0x80) {
+        if (val & 0x80) {
             /* int_mask |= 0x1000; */
             /* s->scsi_csr_1 |= 0x80; */
         }
-        DPRINTF("SCSICSR Write: %x\n", value);
-        /* s->scsi_csr_1 = value; */
-        return;
+        DPRINTF("SCSICSR Write: %x\n", val);
+        /* s->scsi_csr_1 = val; */
+        break;
+
     /* Hardware timer latch - not implemented yet */
     case 0x1a000:
     default:
-        DPRINTF("BMAP Write B @ %x with %x\n", (unsigned int)addr, value);
+        DPRINTF("BMAP Write @ 0x%x with 0x%x size %u\n", (unsigned int)addr,
+                val, size);
     }
 }
 
-static void scr_writew(NeXTPC *s, hwaddr addr, uint32_t value)
-{
-    DPRINTF("BMAP Write W @ %x with %x\n", (unsigned int)addr, value);
-}
-
-static void scr_writel(NeXTPC *s, hwaddr addr, uint32_t value)
-{
-    DPRINTF("BMAP Write L @ %x with %x\n", (unsigned int)addr, value);
-}
-
-static uint64_t scr_readfn(void *opaque, hwaddr addr, unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        return scr_readb(s, addr);
-    case 2:
-        return scr_readw(s, addr);
-    case 4:
-        return scr_readl(s, addr);
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static void scr_writefn(void *opaque, hwaddr addr, uint64_t value,
-                        unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (size) {
-    case 1:
-        scr_writeb(s, addr, value);
-        break;
-    case 2:
-        scr_writew(s, addr, value);
-        break;
-    case 4:
-        scr_writel(s, addr, value);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static const MemoryRegionOps scr_ops = {
-    .read = scr_readfn,
-    .write = scr_writefn,
+static const MemoryRegionOps next_scr_ops = {
+    .read = next_scr_readfn,
+    .write = next_scr_writefn,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 #define NEXTDMA_SCSI(x)      (0x10 + x)
@@ -599,59 +500,63 @@ static const MemoryRegionOps scr_ops = {
 #define NEXTDMA_NEXT_INIT    0x4200
 #define NEXTDMA_SIZE         0x4204
 
-static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
-                       unsigned int size)
+static void next_dma_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned int size)
 {
     NeXTState *next_state = NEXT_MACHINE(opaque);
 
     switch (addr) {
     case NEXTDMA_ENRX(NEXTDMA_CSR):
-        if (value & DMA_DEV2M) {
+        if (val & DMA_DEV2M) {
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_DEV2M;
         }
 
-        if (value & DMA_SETENABLE) {
+        if (val & DMA_SETENABLE) {
             /* DPRINTF("SCSI DMA ENABLE\n"); */
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_ENABLE;
         }
-        if (value & DMA_SETSUPDATE) {
+        if (val & DMA_SETSUPDATE) {
             next_state->dma[NEXTDMA_ENRX].csr |= DMA_SUPDATE;
         }
-        if (value & DMA_CLRCOMPLETE) {
+        if (val & DMA_CLRCOMPLETE) {
             next_state->dma[NEXTDMA_ENRX].csr &= ~DMA_COMPLETE;
         }
 
-        if (value & DMA_RESET) {
+        if (val & DMA_RESET) {
             next_state->dma[NEXTDMA_ENRX].csr &= ~(DMA_COMPLETE | DMA_SUPDATE |
                                                   DMA_ENABLE | DMA_DEV2M);
         }
         /* DPRINTF("RXCSR \tWrite: %x\n",value); */
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        next_state->dma[NEXTDMA_ENRX].next_initbuf = value;
+        next_state->dma[NEXTDMA_ENRX].next_initbuf = val;
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        next_state->dma[NEXTDMA_ENRX].next = value;
+        next_state->dma[NEXTDMA_ENRX].next = val;
         break;
+
     case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        next_state->dma[NEXTDMA_ENRX].limit = value;
+        next_state->dma[NEXTDMA_ENRX].limit = val;
         break;
+
     case NEXTDMA_SCSI(NEXTDMA_CSR):
-        if (value & DMA_DEV2M) {
+        if (val & DMA_DEV2M) {
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_DEV2M;
         }
-        if (value & DMA_SETENABLE) {
+        if (val & DMA_SETENABLE) {
             /* DPRINTF("SCSI DMA ENABLE\n"); */
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_ENABLE;
         }
-        if (value & DMA_SETSUPDATE) {
+        if (val & DMA_SETSUPDATE) {
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_SUPDATE;
         }
-        if (value & DMA_CLRCOMPLETE) {
+        if (val & DMA_CLRCOMPLETE) {
             next_state->dma[NEXTDMA_SCSI].csr &= ~DMA_COMPLETE;
         }
 
-        if (value & DMA_RESET) {
+        if (val & DMA_RESET) {
             next_state->dma[NEXTDMA_SCSI].csr &= ~(DMA_COMPLETE | DMA_SUPDATE |
                                                   DMA_ENABLE | DMA_DEV2M);
             /* DPRINTF("SCSI DMA RESET\n"); */
@@ -660,23 +565,23 @@ static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT):
-        next_state->dma[NEXTDMA_SCSI].next = value;
+        next_state->dma[NEXTDMA_SCSI].next = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_LIMIT):
-        next_state->dma[NEXTDMA_SCSI].limit = value;
+        next_state->dma[NEXTDMA_SCSI].limit = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_START):
-        next_state->dma[NEXTDMA_SCSI].start = value;
+        next_state->dma[NEXTDMA_SCSI].start = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_STOP):
-        next_state->dma[NEXTDMA_SCSI].stop = value;
+        next_state->dma[NEXTDMA_SCSI].stop = val;
         break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT_INIT):
-        next_state->dma[NEXTDMA_SCSI].next_initbuf = value;
+        next_state->dma[NEXTDMA_SCSI].next_initbuf = val;
         break;
 
     default:
@@ -684,52 +589,73 @@ static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
-static uint64_t dma_readl(void *opaque, hwaddr addr, unsigned int size)
+static uint64_t next_dma_read(void *opaque, hwaddr addr, unsigned int size)
 {
     NeXTState *next_state = NEXT_MACHINE(opaque);
+    uint64_t val;
 
     switch (addr) {
     case NEXTDMA_SCSI(NEXTDMA_CSR):
         DPRINTF("SCSI DMA CSR READ\n");
-        return next_state->dma[NEXTDMA_SCSI].csr;
+        val = next_state->dma[NEXTDMA_SCSI].csr;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_CSR):
-        return next_state->dma[NEXTDMA_ENRX].csr;
+        val = next_state->dma[NEXTDMA_ENRX].csr;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        return next_state->dma[NEXTDMA_ENRX].next_initbuf;
+        val = next_state->dma[NEXTDMA_ENRX].next_initbuf;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        return next_state->dma[NEXTDMA_ENRX].next;
+        val = next_state->dma[NEXTDMA_ENRX].next;
+        break;
+
     case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        return next_state->dma[NEXTDMA_ENRX].limit;
+        val = next_state->dma[NEXTDMA_ENRX].limit;
+        break;
 
     case NEXTDMA_SCSI(NEXTDMA_NEXT):
-        return next_state->dma[NEXTDMA_SCSI].next;
+        val = next_state->dma[NEXTDMA_SCSI].next;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_NEXT_INIT):
-        return next_state->dma[NEXTDMA_SCSI].next_initbuf;
+        val = next_state->dma[NEXTDMA_SCSI].next_initbuf;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_LIMIT):
-        return next_state->dma[NEXTDMA_SCSI].limit;
+        val = next_state->dma[NEXTDMA_SCSI].limit;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_START):
-        return next_state->dma[NEXTDMA_SCSI].start;
+        val = next_state->dma[NEXTDMA_SCSI].start;
+        break;
+
     case NEXTDMA_SCSI(NEXTDMA_STOP):
-        return next_state->dma[NEXTDMA_SCSI].stop;
+        val = next_state->dma[NEXTDMA_SCSI].stop;
+        break;
 
     default:
         DPRINTF("DMA read @ %x\n", (unsigned int)addr);
-        return 0;
+        val = 0;
     }
 
     /*
      * once the csr's are done, subtract 0x3FEC from the addr, and that will
      * normalize the upper registers
      */
+
+    return val;
 }
 
-static const MemoryRegionOps dma_ops = {
-    .read = dma_readl,
-    .write = dma_writel,
+static const MemoryRegionOps next_dma_ops = {
+    .read = next_dma_read,
+    .write = next_dma_write,
     .impl.min_access_size = 4,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void next_irq(void *opaque, int number, int level)
@@ -959,6 +885,7 @@ static void next_pc_reset(DeviceState *dev)
     /*     0x0000XX00 << vital bits */
     s->scr1 = 0x00011102;
     s->scr2 = 0x00ff0c80;
+    s->old_scr2 = s->scr2;
 
     s->rtc.status = 0x90;
 
@@ -973,9 +900,9 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, next_irq, NEXT_NUM_IRQS);
 
-    memory_region_init_io(&s->mmiomem, OBJECT(s), &mmio_ops, s,
-                          "next.mmio", 0xD0000);
-    memory_region_init_io(&s->scrmem, OBJECT(s), &scr_ops, s,
+    memory_region_init_io(&s->mmiomem, OBJECT(s), &next_mmio_ops, s,
+                          "next.mmio", 0xd0000);
+    memory_region_init_io(&s->scrmem, OBJECT(s), &next_scr_ops, s,
                           "next.scr", 0x20000);
     sysbus_init_mmio(sbd, &s->mmiomem);
     sysbus_init_mmio(sbd, &s->scrmem);
@@ -994,9 +921,10 @@ static Property next_pc_properties[] = {
 
 static const VMStateDescription next_rtc_vmstate = {
     .name = "next-rtc",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
+        VMSTATE_INT8(phase, NextRtc),
         VMSTATE_UINT8_ARRAY(ram, NextRtc, 32),
         VMSTATE_UINT8(command, NextRtc),
         VMSTATE_UINT8(value, NextRtc),
@@ -1009,13 +937,15 @@ static const VMStateDescription next_rtc_vmstate = {
 
 static const VMStateDescription next_pc_vmstate = {
     .name = "next-pc",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
+        VMSTATE_UINT32(old_scr2, NeXTPC),
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
+        VMSTATE_UINT32(led, NeXTPC),
         VMSTATE_UINT8(scsi_csr_1, NeXTPC),
         VMSTATE_UINT8(scsi_csr_2, NeXTPC),
         VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NextRtc),
@@ -1043,13 +973,9 @@ static const TypeInfo next_pc_info = {
 
 static void next_cube_init(MachineState *machine)
 {
+    NeXTState *m = NEXT_MACHINE(machine);
     M68kCPU *cpu;
     CPUM68KState *env;
-    MemoryRegion *rom = g_new(MemoryRegion, 1);
-    MemoryRegion *rom2 = g_new(MemoryRegion, 1);
-    MemoryRegion *dmamem = g_new(MemoryRegion, 1);
-    MemoryRegion *bmapm1 = g_new(MemoryRegion, 1);
-    MemoryRegion *bmapm2 = g_new(MemoryRegion, 1);
     MemoryRegion *sysmem = get_system_memory();
     const char *bios_name = machine->firmware ?: ROM_FILE;
     DeviceState *pcdev;
@@ -1084,21 +1010,23 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
 
     /* BMAP memory */
-    memory_region_init_ram_flags_nomigrate(bmapm1, NULL, "next.bmapmem", 64,
-                                           RAM_SHARED, &error_fatal);
-    memory_region_add_subregion(sysmem, 0x020c0000, bmapm1);
+    memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
+                                           64, RAM_SHARED, &error_fatal);
+    memory_region_add_subregion(sysmem, 0x020c0000, &m->bmapm1);
     /* The Rev_2.5_v66.bin firmware accesses it at 0x820c0020, too */
-    memory_region_init_alias(bmapm2, NULL, "next.bmapmem2", bmapm1, 0x0, 64);
-    memory_region_add_subregion(sysmem, 0x820c0000, bmapm2);
+    memory_region_init_alias(&m->bmapm2, NULL, "next.bmapmem2", &m->bmapm1,
+                             0x0, 64);
+    memory_region_add_subregion(sysmem, 0x820c0000, &m->bmapm2);
 
     /* KBD */
     sysbus_create_simple(TYPE_NEXTKBD, 0x0200e000, NULL);
 
     /* Load ROM here */
-    memory_region_init_rom(rom, NULL, "next.rom", 0x20000, &error_fatal);
-    memory_region_add_subregion(sysmem, 0x01000000, rom);
-    memory_region_init_alias(rom2, NULL, "next.rom2", rom, 0x0, 0x20000);
-    memory_region_add_subregion(sysmem, 0x0, rom2);
+    memory_region_init_rom(&m->rom, NULL, "next.rom", 0x20000, &error_fatal);
+    memory_region_add_subregion(sysmem, 0x01000000, &m->rom);
+    memory_region_init_alias(&m->rom2, NULL, "next.rom2", &m->rom, 0x0,
+                             0x20000);
+    memory_region_add_subregion(sysmem, 0x0, &m->rom2);
     if (load_image_targphys(bios_name, 0x01000000, 0x20000) < 8) {
         if (!qtest_enabled()) {
             error_report("Failed to load firmware '%s'.", bios_name);
@@ -1125,8 +1053,9 @@ static void next_cube_init(MachineState *machine)
     next_scsi_init(pcdev, cpu);
 
     /* DMA */
-    memory_region_init_io(dmamem, NULL, &dma_ops, machine, "next.dma", 0x5000);
-    memory_region_add_subregion(sysmem, 0x02000000, dmamem);
+    memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
+                          "next.dma", 0x5000);
+    memory_region_add_subregion(sysmem, 0x02000000, &m->dmamem);
 }
 
 static void next_machine_class_init(ObjectClass *oc, void *data)
