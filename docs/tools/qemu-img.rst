@@ -406,7 +406,7 @@ Command description:
   Compare exits with ``0`` in case the images are equal and with ``1``
   in case the images differ. Other exit codes mean an error occurred during
   execution and standard error output should contain an error message.
-  The following table sumarizes all exit codes of the compare subcommand:
+  The following table summarizes all exit codes of the compare subcommand:
 
   0
     Images are identical (or requested help was printed)

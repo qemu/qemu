@@ -2087,6 +2087,8 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #endif
 #if defined(CONFIG_COCOA)
     "-display cocoa[,full-grab=on|off][,swap-opt-cmd=on|off]\n"
+    "              [,show-cursor=on|off][,left-command-key=on|off]\n"
+    "              [,full-screen=on|off][,zoom-to-fit=on|off]\n"
 #endif
 #if defined(CONFIG_OPENGL)
     "-display egl-headless[,rendernode=<file>]\n"
@@ -2094,9 +2096,6 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_DBUS_DISPLAY)
     "-display dbus[,addr=<dbusaddr>]\n"
     "             [,gl=on|core|es|off][,rendernode=<file>]\n"
-#endif
-#if defined(CONFIG_COCOA)
-    "-display cocoa[,show-cursor=on|off][,left-command-key=on|off]\n"
 #endif
     "-display none\n"
     "                select display backend type\n"
@@ -2191,9 +2190,25 @@ SRST
         provides drop-down menus and other UI elements to configure and
         control the VM during runtime. Valid parameters are:
 
+        ``full-grab=on|off`` : Capture all key presses, including system combos.
+                               This requires accessibility permissions, since it
+                               performs a global grab on key events.
+                               (default: off) See
+                               https://support.apple.com/en-in/guide/mac-help/mh32356/mac
+
+        ``swap-opt-cmd=on|off`` : Swap the Option and Command keys so that their
+                                  key codes match their position on non-Mac
+                                  keyboards and you can use Meta/Super and Alt
+                                  where you expect them.  (default: off)
+
         ``show-cursor=on|off`` :  Force showing the mouse cursor
 
         ``left-command-key=on|off`` : Disable forwarding left command key to host
+
+        ``full-screen=on|off`` : Start in fullscreen mode
+
+        ``zoom-to-fit=on|off`` : Expand video output to the window size,
+                                 defaults to "off"
 
     ``egl-headless[,rendernode=<file>]``
         Offload all OpenGL operations to a local DRI device. For any

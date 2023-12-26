@@ -152,7 +152,7 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 {
     VirtIOBlock *vblk;
-    VirtIOBlkConf *conf = s->conf;
+    VirtIOBlkConf *conf;
 
     if (!s) {
         return;
@@ -160,6 +160,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 
     vblk = VIRTIO_BLK(s->vdev);
     assert(!vblk->dataplane_started);
+    conf = s->conf;
 
     if (conf->iothread_vq_mapping_list) {
         IOThreadVirtQueueMappingList *node;
