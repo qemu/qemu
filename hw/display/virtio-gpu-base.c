@@ -251,7 +251,11 @@ void
 virtio_gpu_base_device_unrealize(DeviceState *qdev)
 {
     VirtIOGPUBase *g = VIRTIO_GPU_BASE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
 
+    virtio_del_queue(vdev, 0);
+    virtio_del_queue(vdev, 1);
+    virtio_cleanup(vdev);
     migrate_del_blocker(&g->migration_blocker);
 }
 

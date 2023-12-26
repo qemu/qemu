@@ -30,42 +30,52 @@ typedef struct VhostVDPAHostNotifier {
     void *addr;
 } VhostVDPAHostNotifier;
 
-typedef struct vhost_vdpa {
+/* Info shared by all vhost_vdpa device models */
+typedef struct vhost_vdpa_shared {
     int device_fd;
-    int index;
-    uint32_t msg_type;
-    bool iotlb_batch_begin_sent;
-    uint32_t address_space_id;
     MemoryListener listener;
     struct vhost_vdpa_iova_range iova_range;
-    uint64_t acked_features;
-    bool shadow_vqs_enabled;
-    /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
-    bool shadow_data;
-    /* Device suspended successfully */
-    bool suspended;
+    QLIST_HEAD(, vdpa_iommu) iommu_list;
+
     /* IOVA mapping used by the Shadow Virtqueue */
     VhostIOVATree *iova_tree;
+
+    /* Copy of backend features */
+    uint64_t backend_cap;
+
+    bool iotlb_batch_begin_sent;
+
+    /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
+    bool shadow_data;
+} VhostVDPAShared;
+
+typedef struct vhost_vdpa {
+    int index;
+    uint32_t address_space_id;
+    uint64_t acked_features;
+    bool shadow_vqs_enabled;
+    /* Device suspended successfully */
+    bool suspended;
+    VhostVDPAShared *shared;
     GPtrArray *shadow_vqs;
     const VhostShadowVirtqueueOps *shadow_vq_ops;
     void *shadow_vq_ops_opaque;
     struct vhost_dev *dev;
     Error *migration_blocker;
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
-    QLIST_HEAD(, vdpa_iommu) iommu_list;
     IOMMUNotifier n;
 } VhostVDPA;
 
 int vhost_vdpa_get_iova_range(int fd, struct vhost_vdpa_iova_range *iova_range);
 int vhost_vdpa_set_vring_ready(struct vhost_vdpa *v, unsigned idx);
 
-int vhost_vdpa_dma_map(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
+int vhost_vdpa_dma_map(VhostVDPAShared *s, uint32_t asid, hwaddr iova,
                        hwaddr size, void *vaddr, bool readonly);
-int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
+int vhost_vdpa_dma_unmap(VhostVDPAShared *s, uint32_t asid, hwaddr iova,
                          hwaddr size);
 
 typedef struct vdpa_iommu {
-    struct vhost_vdpa *dev;
+    VhostVDPAShared *dev_shared;
     IOMMUMemoryRegion *iommu_mr;
     hwaddr iommu_offset;
     IOMMUNotifier n;

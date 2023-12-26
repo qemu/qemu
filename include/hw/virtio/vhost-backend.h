@@ -45,6 +45,8 @@ struct vhost_memory;
 struct vhost_vring_file;
 struct vhost_vring_state;
 struct vhost_vring_addr;
+struct vhost_vring_worker;
+struct vhost_worker_state;
 struct vhost_scsi_target;
 struct vhost_iotlb_msg;
 struct vhost_virtqueue;
@@ -85,6 +87,14 @@ typedef int (*vhost_set_vring_err_op)(struct vhost_dev *dev,
                                       struct vhost_vring_file *file);
 typedef int (*vhost_set_vring_busyloop_timeout_op)(struct vhost_dev *dev,
                                                    struct vhost_vring_state *r);
+typedef int (*vhost_attach_vring_worker_op)(struct vhost_dev *dev,
+                                            struct vhost_vring_worker *worker);
+typedef int (*vhost_get_vring_worker_op)(struct vhost_dev *dev,
+                                         struct vhost_vring_worker *worker);
+typedef int (*vhost_new_worker_op)(struct vhost_dev *dev,
+                                   struct vhost_worker_state *worker);
+typedef int (*vhost_free_worker_op)(struct vhost_dev *dev,
+                                    struct vhost_worker_state *worker);
 typedef int (*vhost_set_features_op)(struct vhost_dev *dev,
                                      uint64_t features);
 typedef int (*vhost_get_features_op)(struct vhost_dev *dev,
@@ -172,6 +182,10 @@ typedef struct VhostOps {
     vhost_set_vring_call_op vhost_set_vring_call;
     vhost_set_vring_err_op vhost_set_vring_err;
     vhost_set_vring_busyloop_timeout_op vhost_set_vring_busyloop_timeout;
+    vhost_new_worker_op vhost_new_worker;
+    vhost_free_worker_op vhost_free_worker;
+    vhost_get_vring_worker_op vhost_get_vring_worker;
+    vhost_attach_vring_worker_op vhost_attach_vring_worker;
     vhost_set_features_op vhost_set_features;
     vhost_get_features_op vhost_get_features;
     vhost_set_backend_cap_op vhost_set_backend_cap;

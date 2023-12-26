@@ -129,12 +129,28 @@ static void vu_rng_guest_notifier_mask(VirtIODevice *vdev, int idx, bool mask)
 {
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
 
+    /*
+     * We don't support interrupts, return early if index is set to
+     * VIRTIO_CONFIG_IRQ_IDX.
+     */
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return;
+    }
+
     vhost_virtqueue_mask(&rng->vhost_dev, vdev, idx, mask);
 }
 
 static bool vu_rng_guest_notifier_pending(VirtIODevice *vdev, int idx)
 {
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
+
+    /*
+     * We don't support interrupts, return early if index is set to
+     * VIRTIO_CONFIG_IRQ_IDX.
+     */
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return false;
+    }
 
     return vhost_virtqueue_pending(&rng->vhost_dev, idx);
 }
