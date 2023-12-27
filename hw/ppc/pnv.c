@@ -133,7 +133,7 @@ static int get_cpus_node(void *fdt)
  * device tree, used in XSCOM to address cores and in interrupt
  * servers.
  */
-static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
+static int pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 {
     PowerPCCPU *cpu = pc->threads[0];
     CPUState *cs = CPU(cpu);
@@ -149,11 +149,6 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     uint32_t cpufreq = 1000000000;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
-    const uint8_t pa_features[] = { 24, 0,
-                                    0xf6, 0x3f, 0xc7, 0xc0, 0x00, 0xf0,
-                                    0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                    0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
-                                    0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
     int offset;
     char *nodename;
     int cpus_offset = get_cpus_node(fdt);
@@ -236,15 +231,14 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
                            page_sizes_prop, page_sizes_prop_size)));
     }
 
-    _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
-                       pa_features, sizeof(pa_features))));
-
     /* Build interrupt servers properties */
     for (i = 0; i < smt_threads; i++) {
         servers_prop[i] = cpu_to_be32(pc->pir + i);
     }
     _FDT((fdt_setprop(fdt, offset, "ibm,ppc-interrupt-server#s",
                        servers_prop, sizeof(*servers_prop) * smt_threads)));
+
+    return offset;
 }
 
 static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
@@ -299,6 +293,17 @@ PnvChip *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb)
     return chip;
 }
 
+/*
+ * Same as spapr pa_features_207 except pnv always enables CI largepages bit.
+ * HTM is always enabled because TCG does implement HTM, it's just a
+ * degenerate implementation.
+ */
+static const uint8_t pa_features_207[] = { 24, 0,
+                 0xf6, 0x3f, 0xc7, 0xc0, 0x00, 0xf0,
+                 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+                 0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
     static const char compat[] = "ibm,power8-xscom\0ibm,xscom";
@@ -311,8 +316,12 @@ static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_207, sizeof(pa_features_207))));
 
         /* Interrupt Control Presenters (ICP). One per core. */
         pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
@@ -335,8 +344,12 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_207, sizeof(pa_features_207))));
     }
 
     if (chip->ram_size) {
@@ -358,8 +371,12 @@ static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_207, sizeof(pa_features_207))));
     }
 
     if (chip->ram_size) {
