@@ -1481,6 +1481,41 @@ fail:
     return ret;
 }
 
+static int GRAPH_RDLOCK parallels_inactivate(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int ret;
+
+    if (!(bs->open_flags & BDRV_O_RDWR) || (bs->open_flags & BDRV_O_INACTIVE)) {
+        return 0;
+    }
+
+    ret = bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
+                        PREALLOC_MODE_OFF, 0, NULL);
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->header->inuse = 0;
+    return parallels_update_header(bs);
+}
+
+static void coroutine_fn GRAPH_RDLOCK
+parallels_co_invalidate_cache(BlockDriverState *bs, Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int ret;
+
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return;
+    }
+
+    s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
+    ret = parallels_update_header(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to mark the image in use");
+    }
+}
 
 static void parallels_close(BlockDriverState *bs)
 {
@@ -1488,14 +1523,7 @@ static void parallels_close(BlockDriverState *bs)
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
-        s->header->inuse = 0;
-        parallels_update_header(bs);
-
-        /* errors are ignored, so we might as well pass exact=true */
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
-                      PREALLOC_MODE_OFF, 0, NULL);
-    }
+    parallels_inactivate(bs);
 
     parallels_free_used_bitmap(bs);
 
@@ -1533,6 +1561,8 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_check              = parallels_co_check,
     .bdrv_co_pdiscard           = parallels_co_pdiscard,
     .bdrv_co_pwrite_zeroes      = parallels_co_pwrite_zeroes,
+    .bdrv_co_invalidate_cache   = parallels_co_invalidate_cache,
+    .bdrv_inactivate            = parallels_inactivate,
 };
 
 static void bdrv_parallels_init(void)
