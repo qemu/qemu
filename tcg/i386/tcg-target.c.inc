@@ -244,6 +244,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
 #define P_VEXL          0x80000         /* Set VEX.L = 1 */
 #define P_EVEX          0x100000        /* Requires EVEX encoding */
 
+#define OPC_ARITH_EbIb	(0x80)
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
 #define OPC_ARITH_GvEv	(0x03)		/* ... plus (ARITH_FOO << 3) */
@@ -1367,6 +1368,16 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
         }
         if (val == 0xffffu) {
             tcg_out_ext16u(s, r0, r0);
+            return;
+        }
+        break;
+
+    case ARITH_OR:
+    case ARITH_XOR:
+        if (val >= 0x80 && val <= 0xff
+            && (r0 < 4 || TCG_TARGET_REG_BITS == 64)) {
+            tcg_out_modrm(s, OPC_ARITH_EbIb + P_REXB_RM, c, r0);
+            tcg_out8(s, val);
             return;
         }
         break;
