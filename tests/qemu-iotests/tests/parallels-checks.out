@@ -182,4 +182,21 @@ wrote 512/512 bytes at offset 0
 == data reads back correctly ==
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+== TEST REUSE OF PREALLOCATED SPACE ==
+== write 16 clusters, preallocating 16 of them at a time ==
+clusters written: 16
+== the space preallocated first must have been handed out since ==
+clusters behind the header: 17
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== the second cluster comes from the space preallocated for the first ==
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== both of them survive the close ==
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

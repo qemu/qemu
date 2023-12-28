@@ -301,6 +301,40 @@ echo "$(peek_file_le "$TEST_IMG" $VICTIM_OFFSET 4)"
 echo "== data reads back correctly =="
 { $QEMU_IO -r -c "read -P 0x88 0 $SMALL_CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
+# Clear image
+_make_test_img $((64 * 1024 * 1024))
+
+echo "== TEST REUSE OF PREALLOCATED SPACE =="
+
+echo "== write 16 clusters, preallocating 16 of them at a time =="
+opts=(--image-opts "driver=$IMGFMT,file.filename=$TEST_IMG,prealloc-size=16M")
+for i in $(seq 0 15); do
+    opts+=(-c "write -P 0x11 $(($i * $CLUSTER_SIZE)) $CLUSTER_SIZE")
+done
+# Die before close(), which would truncate the preallocated tail away
+opts+=(-c "sigraise $(kill -l KILL)")
+orig_io_options=$QEMU_IO_OPTIONS
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+echo "clusters written: `$QEMU_IO "${opts[@]}" 2>&1 | grep -c '^wrote'`"
+QEMU_IO_OPTIONS=$orig_io_options
+
+echo "== the space preallocated first must have been handed out since =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "clusters behind the header: $(($file_size / $CLUSTER_SIZE - 1))"
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== the second cluster comes from the space preallocated for the first =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== both of them survive the close =="
+{ $QEMU_IO -r -c "read -P 0x11 0 $CLUSTER_SIZE" \
+              -c "read -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+              "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
