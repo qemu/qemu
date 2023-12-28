@@ -209,13 +209,29 @@ wrote 1048576/1048576 bytes at offset 1048576
 == cut the second one in half ==
 == the check completes and reports the cluster ==
 ERROR cluster 1 is outside image
-ERROR space leaked at the end of the image 524288
 
 1 errors were found on the image.
 Data may be corrupted, or further writes to the image may corrupt it.
+== nothing can be reclaimed behind it ==
+ERROR cluster 1 is outside image
 
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+file size: 2621440
+== a full repair drops the entry and truncates the image ==
+Repairing cluster 1 is outside image
+Repairing space leaked at the end of the image 524288
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+file size: 2097152
+== the first cluster survived ==
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
 == TEST A DUPLICATE IN THE LAST ALLOCATED BAT ENTRY ==
 == write two clusters ==

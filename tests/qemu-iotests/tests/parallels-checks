@@ -352,6 +352,17 @@ truncate -s $((file_size - CLUSTER_SIZE / 2)) "$TEST_IMG"
 echo "== the check completes and reports the cluster =="
 _check_test_img
 
+echo "== nothing can be reclaimed behind it =="
+_check_test_img -r leaks
+echo "file size: `stat --printf="%s" "$TEST_IMG"`"
+
+echo "== a full repair drops the entry and truncates the image =="
+_check_test_img -r all
+echo "file size: `stat --printf="%s" "$TEST_IMG"`"
+
+echo "== the first cluster survived =="
+{ $QEMU_IO -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
 # Clear image
 _make_test_img $SIZE
 
