@@ -108,6 +108,71 @@ endforeach
 # Option validation #
 #####################
 
+# Fuzzing
+if get_option('fuzzing') and get_option('fuzzing_engine') == '' and \
+    not cc.links('''
+          #include <stdint.h>
+          #include <sys/types.h>
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
+        ''',
+        args: ['-Werror', '-fsanitize=fuzzer'])
+  error('Your compiler does not support -fsanitize=fuzzer')
+endif
+
+# Tracing backends
+if 'ftrace' in get_option('trace_backends') and targetos != 'linux'
+  error('ftrace is supported only on Linux')
+endif
+if 'syslog' in get_option('trace_backends') and not cc.compiles('''
+    #include <syslog.h>
+    int main(void) {
+        openlog("qemu", LOG_PID, LOG_DAEMON);
+        syslog(LOG_INFO, "configure");
+        return 0;
+    }''')
+  error('syslog is not supported on this system')
+endif
+
+# Miscellaneous Linux-only features
+get_option('mpath') \
+  .require(targetos == 'linux', error_message: 'Multipath is supported only on Linux')
+
+multiprocess_allowed = get_option('multiprocess') \
+  .require(targetos == 'linux', error_message: 'Multiprocess QEMU is supported only on Linux') \
+  .allowed()
+
+vfio_user_server_allowed = get_option('vfio_user_server') \
+  .require(targetos == 'linux', error_message: 'vfio-user server is supported only on Linux') \
+  .allowed()
+
+have_tpm = get_option('tpm') \
+  .require(targetos != 'windows', error_message: 'TPM emulation only available on POSIX systems') \
+  .allowed()
+
+# vhost
+have_vhost_user = get_option('vhost_user') \
+  .disable_auto_if(targetos != 'linux') \
+  .require(targetos != 'windows',
+           error_message: 'vhost-user is not available on Windows').allowed()
+have_vhost_vdpa = get_option('vhost_vdpa') \
+  .require(targetos == 'linux',
+           error_message: 'vhost-vdpa is only available on Linux').allowed()
+have_vhost_kernel = get_option('vhost_kernel') \
+  .require(targetos == 'linux',
+           error_message: 'vhost-kernel is only available on Linux').allowed()
+have_vhost_user_crypto = get_option('vhost_crypto') \
+  .require(have_vhost_user,
+           error_message: 'vhost-crypto requires vhost-user to be enabled').allowed()
+
+have_vhost = have_vhost_user or have_vhost_vdpa or have_vhost_kernel
+
+have_vhost_net_user = have_vhost_user and get_option('vhost_net').allowed()
+have_vhost_net_vdpa = have_vhost_vdpa and get_option('vhost_net').allowed()
+have_vhost_net_kernel = have_vhost_kernel and get_option('vhost_net').allowed()
+have_vhost_net = have_vhost_net_kernel or have_vhost_net_user or have_vhost_net_vdpa
+
+# type of binaries to build
 have_linux_user = false
 have_bsd_user = false
 have_system = false
@@ -117,6 +182,7 @@ foreach target : target_dirs
   have_system = have_system or target.endswith('-softmmu')
 endforeach
 have_user = have_linux_user or have_bsd_user
+
 have_tools = get_option('tools') \
   .disable_auto_if(not have_system) \
   .allowed()
@@ -125,13 +191,14 @@ have_ga = get_option('guest_agent') \
   .require(targetos in ['sunos', 'linux', 'windows', 'freebsd', 'netbsd', 'openbsd'],
            error_message: 'unsupported OS for QEMU guest agent') \
   .allowed()
+have_block = have_system or have_tools
+
 enable_modules = get_option('modules') \
   .require(targetos != 'windows',
            error_message: 'Modules are not available for Windows') \
   .require(not get_option('prefer_static'),
            error_message: 'Modules are incompatible with static linking') \
   .allowed()
-have_block = have_system or have_tools
 
 #######################################
 # Variables for host and accelerators #
@@ -534,74 +601,6 @@ if sparse.found()
                        '-Wno-transparent-union', '-Wno-old-initializer',
                        '-Wno-non-pointer-null'])
 endif
-
-#####################
-# Option validation #
-#####################
-
-# Fuzzing
-if get_option('fuzzing') and get_option('fuzzing_engine') == '' and \
-    not cc.links('''
-          #include <stdint.h>
-          #include <sys/types.h>
-          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
-          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
-        ''',
-        args: ['-Werror', '-fsanitize=fuzzer'])
-  error('Your compiler does not support -fsanitize=fuzzer')
-endif
-
-# Tracing backends
-if 'ftrace' in get_option('trace_backends') and targetos != 'linux'
-  error('ftrace is supported only on Linux')
-endif
-if 'syslog' in get_option('trace_backends') and not cc.compiles('''
-    #include <syslog.h>
-    int main(void) {
-        openlog("qemu", LOG_PID, LOG_DAEMON);
-        syslog(LOG_INFO, "configure");
-        return 0;
-    }''')
-  error('syslog is not supported on this system')
-endif
-
-# Miscellaneous Linux-only features
-get_option('mpath') \
-  .require(targetos == 'linux', error_message: 'Multipath is supported only on Linux')
-
-multiprocess_allowed = get_option('multiprocess') \
-  .require(targetos == 'linux', error_message: 'Multiprocess QEMU is supported only on Linux') \
-  .allowed()
-
-vfio_user_server_allowed = get_option('vfio_user_server') \
-  .require(targetos == 'linux', error_message: 'vfio-user server is supported only on Linux') \
-  .allowed()
-
-have_tpm = get_option('tpm') \
-  .require(targetos != 'windows', error_message: 'TPM emulation only available on POSIX systems') \
-  .allowed()
-
-# vhost
-have_vhost_user = get_option('vhost_user') \
-  .disable_auto_if(targetos != 'linux') \
-  .require(targetos != 'windows',
-           error_message: 'vhost-user is not available on Windows').allowed()
-have_vhost_vdpa = get_option('vhost_vdpa') \
-  .require(targetos == 'linux',
-           error_message: 'vhost-vdpa is only available on Linux').allowed()
-have_vhost_kernel = get_option('vhost_kernel') \
-  .require(targetos == 'linux',
-           error_message: 'vhost-kernel is only available on Linux').allowed()
-have_vhost_user_crypto = get_option('vhost_crypto') \
-  .require(have_vhost_user,
-           error_message: 'vhost-crypto requires vhost-user to be enabled').allowed()
-
-have_vhost = have_vhost_user or have_vhost_vdpa or have_vhost_kernel
-
-have_vhost_net_user = have_vhost_user and get_option('vhost_net').allowed()
-have_vhost_net_vdpa = have_vhost_vdpa and get_option('vhost_net').allowed()
-have_vhost_net_kernel = have_vhost_kernel and get_option('vhost_net').allowed()
-have_vhost_net = have_vhost_net_kernel or have_vhost_net_user or have_vhost_net_vdpa
 
 # Target-specific libraries and flags
 libm = cc.find_library('m', required: false)
