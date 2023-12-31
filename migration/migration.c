@@ -774,7 +774,7 @@ static bool postcopy_try_recover(void)
     return false;
 }
 
-void migration_fd_process_incoming(QEMUFile *f, Error **errp)
+void migration_fd_process_incoming(QEMUFile *f)
 {
     migration_incoming_setup(f);
     if (postcopy_try_recover()) {
