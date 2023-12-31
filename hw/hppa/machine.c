@@ -276,6 +276,7 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
     unsigned int smp_cpus = machine->smp.cpus;
     TranslateFn *translate;
     MemoryRegion *cpu_region;
+    uint64_t ram_max;
 
     /* Create CPUs.  */
     for (unsigned int i = 0; i < smp_cpus; i++) {
@@ -288,8 +289,10 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
      */
     if (hppa_is_pa20(&cpu[0]->env)) {
         translate = translate_pa20;
+        ram_max = 0xf0000000;      /* 3.75 GB (limited by 32-bit firmware) */
     } else {
         translate = translate_pa10;
+        ram_max = 0xf0000000;      /* 3.75 GB (32-bit CPU) */
     }
 
     for (unsigned int i = 0; i < smp_cpus; i++) {
@@ -311,9 +314,9 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
                                 cpu_region);
 
     /* Main memory region. */
-    if (machine->ram_size > 3 * GiB) {
-        error_report("RAM size is currently restricted to 3GB");
-        exit(EXIT_FAILURE);
+    if (machine->ram_size > ram_max) {
+        info_report("Max RAM size limited to %" PRIu64 " MB", ram_max / MiB);
+        machine->ram_size = ram_max;
     }
     memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
 
