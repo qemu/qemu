@@ -1,0 +1,15 @@
+name: PR
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+      - labeled
+
+jobs:
+  build:
+    needs: [ changes ]
+    if: ${{needs.changes.outputs.src == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/build_linux.yml

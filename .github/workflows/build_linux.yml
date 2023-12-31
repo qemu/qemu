@@ -1,0 +1,50 @@
+name: Ubuntu
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        default: ubuntu-latest
+        type: string
+        required: false
+
+      upload:
+        default: false
+        type: boolean
+        required: false
+
+      ref:
+        default: ${{ github.ref }}
+        type: string
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Environment
+        default: ubuntu-latest
+        type: string
+        required: true
+
+      upload:
+        description: Upload
+        default: true
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ github.event.inputs.os || inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{inputs.ref || github.ref}}
+
+      - name: Install Ubuntu dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install make ninja-build pkg-config libssl-dev libsdl2-dev libpixman-1-dev libpixman-1-0 libglib2.0-dev
