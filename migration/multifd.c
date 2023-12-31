@@ -228,8 +228,8 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     }
 
     if (msg.id > migrate_multifd_channels()) {
-        error_setg(errp, "multifd: received channel version %u "
-                   "expected %u", msg.version, MULTIFD_VERSION);
+        error_setg(errp, "multifd: received channel id %u is greater than "
+                   "number of channels %u", msg.id, migrate_multifd_channels());
         return -1;
     }
 
