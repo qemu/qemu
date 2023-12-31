@@ -847,14 +847,13 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
          * so we mustn't call multifd_send_thread until then
          */
         return multifd_tls_channel_connect(p, ioc, errp);
-
-    } else {
-        migration_ioc_register_yank(ioc);
-        p->registered_yank = true;
-        p->c = ioc;
-        qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                           QEMU_THREAD_JOINABLE);
     }
+
+    migration_ioc_register_yank(ioc);
+    p->registered_yank = true;
+    p->c = ioc;
+    qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+                       QEMU_THREAD_JOINABLE);
     return true;
 }
 
