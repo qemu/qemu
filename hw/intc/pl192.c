@@ -208,7 +208,7 @@ static uint64_t pl192_read(void *opaque, hwaddr offset, unsigned size)
     PL192State *s = (PL192State *) opaque;
 
     if (offset & 3) {
-        fprintf(stderr, "pl192: bad read offset (1) " TARGET_FMT_plx "\n", offset);
+        fprintf(stderr, "pl192: bad read offset (1) " HWADDR_FMT_plx "\n", offset);
         return 0;
     }
 
@@ -247,7 +247,7 @@ static uint64_t pl192_read(void *opaque, hwaddr offset, unsigned size)
 			return 0;
         case PL192_SOFTINTCLEAR:
             fprintf(stderr, "pl192: attempt to read write-only register (offset = "
-                     TARGET_FMT_plx ")\n", offset);
+                     HWADDR_FMT_plx ")\n", offset);
         case PL192_VECTADDR:
             return pl192_irq_ack(s);
         /* Workaround for kernel code using PL190 */
@@ -256,7 +256,7 @@ static uint64_t pl192_read(void *opaque, hwaddr offset, unsigned size)
         case PL190_DEFVECTADDR:
             return 0;
         default:
-            fprintf(stderr, "pl192: bad read offset (2) " TARGET_FMT_plx "\n", offset);
+            fprintf(stderr, "pl192: bad read offset (2) " HWADDR_FMT_plx "\n", offset);
             return 0;
     }
 }
@@ -266,12 +266,12 @@ static void pl192_write(void *opaque, hwaddr offset, uint64_t value, unsigned si
     PL192State *s = (PL192State *) opaque;
 
     if (offset & 3) {
-        hw_error("pl192: bad write offset (1) " TARGET_FMT_plx "\n", offset);
+        hw_error("pl192: bad write offset (1) " HWADDR_FMT_plx "\n", offset);
     }
 
     if (offset >= 0xfe0 && offset < 0x1000) {
         hw_error("pl192: attempt to write to a read-only register (offset = "
-                 TARGET_FMT_plx ")\n", offset);
+                 HWADDR_FMT_plx ")\n", offset);
     }
     if (offset >= 0x100 && offset < 0x180) {
         s->vect_addr[(offset - 0x100) >> 2] = value;
@@ -292,7 +292,7 @@ static void pl192_write(void *opaque, hwaddr offset, uint64_t value, unsigned si
         case PL192_FIQSTATUS:
         case PL192_RAWINTR:
             hw_error("pl192: attempt to write to a read-only register (offset = "
-                     TARGET_FMT_plx ")\n", offset);
+                     HWADDR_FMT_plx ")\n", offset);
             break;
         case PL192_INTSELECT:
             s->intselect = value;
@@ -329,7 +329,7 @@ static void pl192_write(void *opaque, hwaddr offset, uint64_t value, unsigned si
             /* Ignore written value */
             return;
         default:
-            fprintf(stderr, "pl192: bad write offset (2) " TARGET_FMT_plx "\n", offset);
+            fprintf(stderr, "pl192: bad write offset (2) " HWADDR_FMT_plx "\n", offset);
             return;
     }
 

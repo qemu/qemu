@@ -12,6 +12,7 @@
 #include "hw/arm/exynos4210.h"
 #include "hw/arm/ipod_touch_2g.h"
 #include "target/arm/cpregs.h"
+#include "qemu/error-report.h"
 
 #define VMSTATE_IT2G_CPREG(name) \
         VMSTATE_UINT64(IT2G_CPREG_VAR_NAME(name), IPodTouchMachineState)

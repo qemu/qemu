@@ -133,7 +133,7 @@ static uint32_t synopsys_usb_in_ep_read(synopsys_usb_state *_state, uint8_t _ep,
         return _state->in_eps[_ep].dma_buffer;
 
     default:
-        hw_error("usb_synopsys: bad ep read offset 0x" TARGET_FMT_plx "\n", _addr);
+        hw_error("usb_synopsys: bad ep read offset 0x" HWADDR_FMT_plx "\n", _addr);
 		break;
     }
 
@@ -166,7 +166,7 @@ static uint32_t synopsys_usb_out_ep_read(synopsys_usb_state *_state, int _ep, hw
         return _state->out_eps[_ep].dma_buffer;
 
     default:
-        hw_error("usb_synopsys: bad ep read offset 0x" TARGET_FMT_plx "\n", _addr);
+        hw_error("usb_synopsys: bad ep read offset 0x" HWADDR_FMT_plx "\n", _addr);
 		break;
     }
 
@@ -308,7 +308,7 @@ static void synopsys_usb_in_ep_write(synopsys_usb_state *_state, int _ep, hwaddr
 		return;
 
     default:
-        hw_error("usb_synopsys: bad ep write offset 0x" TARGET_FMT_plx "\n", _addr);
+        hw_error("usb_synopsys: bad ep write offset 0x" HWADDR_FMT_plx "\n", _addr);
 		break;
     }
 }
@@ -346,7 +346,7 @@ static void synopsys_usb_out_ep_write(synopsys_usb_state *_state, int _ep, hwadd
 		return;
 
     default:
-        hw_error("usb_synopsys: bad ep write offset 0x" TARGET_FMT_plx "\n", _addr);
+        hw_error("usb_synopsys: bad ep write offset 0x" HWADDR_FMT_plx "\n", _addr);
 		break;
     }
 }
