@@ -117,9 +117,12 @@ int migration_channel_read_peek(QIOChannel *ioc,
         len = qio_channel_readv_full(ioc, &iov, 1, NULL, NULL,
                                      QIO_CHANNEL_READ_FLAG_MSG_PEEK, errp);
 
-        if (len <= 0 && len != QIO_CHANNEL_ERR_BLOCK) {
-            error_setg(errp,
-                       "Failed to peek at channel");
+        if (len < 0 && len != QIO_CHANNEL_ERR_BLOCK) {
+            return -1;
+        }
+
+        if (len == 0) {
+            error_setg(errp, "Failed to peek at channel");
             return -1;
         }
 
