@@ -843,7 +843,6 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     }
 
     if (multifd_load_setup(errp) != 0) {
-        error_setg(errp, "Failed to setup multifd channels");
         return;
     }
 
