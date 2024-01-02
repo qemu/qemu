@@ -199,8 +199,8 @@ REG32(PHYMNTNC, 0x34) /* Phy Maintenance reg */
     FIELD(PHYMNTNC, PHY_ADDR, 23, 5)
     FIELD(PHYMNTNC, OP, 28, 2)
     FIELD(PHYMNTNC, ST, 30, 2)
-#define MDIO_OP_READ    0x3
-#define MDIO_OP_WRITE   0x2
+#define MDIO_OP_READ    0x2
+#define MDIO_OP_WRITE   0x1
 
 REG32(RXPAUSE, 0x38) /* RX Pause Time reg */
 REG32(TXPAUSE, 0x3c) /* TX Pause Time reg */
