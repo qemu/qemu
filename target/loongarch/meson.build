@@ -5,29 +5,16 @@ loongarch_ss.add(files(
   'cpu.c',
   'gdbstub.c',
 ))
-loongarch_tcg_ss = ss.source_set()
-loongarch_tcg_ss.add(gen)
-loongarch_tcg_ss.add(files(
-  'fpu_helper.c',
-  'op_helper.c',
-  'translate.c',
-  'vec_helper.c',
-))
-loongarch_tcg_ss.add(zlib)
 
 loongarch_system_ss = ss.source_set()
 loongarch_system_ss.add(files(
   'loongarch-qmp-cmds.c',
   'machine.c',
-  'tlb_helper.c',
-  'constant_timer.c',
-  'csr_helper.c',
-  'iocsr_helper.c',
 ))
 
 common_ss.add(when: 'CONFIG_LOONGARCH_DIS', if_true: [files('disas.c'), gen])
 
-loongarch_ss.add_all(when: 'CONFIG_TCG', if_true: [loongarch_tcg_ss])
+subdir('tcg')
 
 target_arch += {'loongarch': loongarch_ss}
 target_system_arch += {'loongarch': loongarch_system_ss}
