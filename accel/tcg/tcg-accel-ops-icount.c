@@ -126,9 +126,9 @@ void icount_prepare_for_run(CPUState *cpu, int64_t cpu_budget)
          * We're called without the iothread lock, so must take it while
          * we're calling timer handlers.
          */
-        qemu_mutex_lock_iothread();
+        bql_lock();
         icount_notify_aio_contexts();
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 }
 

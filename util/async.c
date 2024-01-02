@@ -727,7 +727,7 @@ AioContext *qemu_get_current_aio_context(void)
     if (ctx) {
         return ctx;
     }
-    if (qemu_mutex_iothread_locked()) {
+    if (bql_locked()) {
         /* Possibly in a vCPU thread.  */
         return qemu_get_aio_context();
     }

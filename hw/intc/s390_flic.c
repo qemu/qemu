@@ -106,7 +106,7 @@ static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
     QEMUS390FlicIO *cur, *next;
     uint8_t isc;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     if (!(flic->pending & FLIC_PENDING_IO)) {
         return 0;
     }
@@ -223,7 +223,7 @@ uint32_t qemu_s390_flic_dequeue_service(QEMUS390FLICState *flic)
 {
     uint32_t tmp;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     g_assert(flic->pending & FLIC_PENDING_SERVICE);
     tmp = flic->service_param;
     flic->service_param = 0;
@@ -238,7 +238,7 @@ QEMUS390FlicIO *qemu_s390_flic_dequeue_io(QEMUS390FLICState *flic, uint64_t cr6)
     QEMUS390FlicIO *io;
     uint8_t isc;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     if (!(flic->pending & CR6_TO_PENDING_IO(cr6))) {
         return NULL;
     }
@@ -262,7 +262,7 @@ QEMUS390FlicIO *qemu_s390_flic_dequeue_io(QEMUS390FLICState *flic, uint64_t cr6)
 
 void qemu_s390_flic_dequeue_crw_mchk(QEMUS390FLICState *flic)
 {
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     g_assert(flic->pending & FLIC_PENDING_MCHK_CR);
     flic->pending &= ~FLIC_PENDING_MCHK_CR;
 }
@@ -271,7 +271,7 @@ static void qemu_s390_inject_service(S390FLICState *fs, uint32_t parm)
 {
     QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     /* multiplexing is good enough for sclp - kvm does it internally as well */
     flic->service_param |= parm;
     flic->pending |= FLIC_PENDING_SERVICE;
@@ -287,7 +287,7 @@ static void qemu_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
     QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
     QEMUS390FlicIO *io;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     io = g_new0(QEMUS390FlicIO, 1);
     io->id = subchannel_id;
     io->nr = subchannel_nr;
@@ -304,7 +304,7 @@ static void qemu_s390_inject_crw_mchk(S390FLICState *fs)
 {
     QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     flic->pending |= FLIC_PENDING_MCHK_CR;
 
     qemu_s390_flic_notify(FLIC_PENDING_MCHK_CR);
@@ -330,7 +330,7 @@ bool qemu_s390_flic_has_crw_mchk(QEMUS390FLICState *flic)
 
 bool qemu_s390_flic_has_any(QEMUS390FLICState *flic)
 {
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     return !!flic->pending;
 }
 
@@ -340,7 +340,7 @@ static void qemu_s390_flic_reset(DeviceState *dev)
     QEMUS390FlicIO *cur, *next;
     int isc;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     flic->simm = 0;
     flic->nimm = 0;
     flic->pending = 0;

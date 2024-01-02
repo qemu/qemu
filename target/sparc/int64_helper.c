@@ -69,7 +69,7 @@ void cpu_check_irqs(CPUSPARCState *env)
                   (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
 
     /* We should be holding the BQL before we mess with IRQs */
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
 
     /* TT_IVEC has a higher priority (16) than TT_EXTINT (31..17) */
     if (env->ivec_status & 0x20) {
@@ -267,9 +267,9 @@ static bool do_modify_softint(CPUSPARCState *env, uint32_t value)
         env->softint = value;
 #if !defined(CONFIG_USER_ONLY)
         if (cpu_interrupts_enabled(env)) {
-            qemu_mutex_lock_iothread();
+            bql_lock();
             cpu_check_irqs(env);
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
         }
 #endif
         return true;

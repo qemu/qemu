@@ -420,13 +420,13 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     qio_channel_io_seek(QIO_CHANNEL(bioc), 0, 0, NULL);
     bioc->usage = 0;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     if (failover_get_state() != FAILOVER_STATUS_NONE) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         goto out;
     }
     vm_stop_force_state(RUN_STATE_COLO);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("run", "stop");
     /*
      * Failover request bh could be called after vm_stop_force_state(),
@@ -435,23 +435,23 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     if (failover_get_state() != FAILOVER_STATUS_NONE) {
         goto out;
     }
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     replication_do_checkpoint_all(&local_err);
     if (local_err) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         goto out;
     }
 
     colo_send_message(s->to_dst_file, COLO_MESSAGE_VMSTATE_SEND, &local_err);
     if (local_err) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         goto out;
     }
     /* Note: device state is saved into buffer */
     ret = qemu_save_device_state(fb);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     if (ret < 0) {
         goto out;
     }
@@ -504,9 +504,9 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 
     ret = 0;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     vm_start();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("stop", "run");
 
 out:
@@ -557,15 +557,15 @@ static void colo_process_checkpoint(MigrationState *s)
     fb = qemu_file_new_output(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     replication_start_all(REPLICATION_MODE_PRIMARY, &local_err);
     if (local_err) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         goto out;
     }
 
     vm_start();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("stop", "run");
 
     timer_mod(s->colo_delay_timer, qemu_clock_get_ms(QEMU_CLOCK_HOST) +
@@ -639,14 +639,14 @@ out:
 
 void migrate_start_colo_process(MigrationState *s)
 {
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     qemu_event_init(&s->colo_checkpoint_event, false);
     s->colo_delay_timer =  timer_new_ms(QEMU_CLOCK_HOST,
                                 colo_checkpoint_notify, s);
 
     qemu_sem_init(&s->colo_exit_sem, 0);
     colo_process_checkpoint(s);
-    qemu_mutex_lock_iothread();
+    bql_lock();
 }
 
 static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
@@ -657,9 +657,9 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     Error *local_err = NULL;
     int ret;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     vm_stop_force_state(RUN_STATE_COLO);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("run", "stop");
 
     /* FIXME: This is unnecessary for periodic checkpoint mode */
@@ -677,10 +677,10 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
         return;
     }
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     cpu_synchronize_all_states();
     ret = qemu_loadvm_state_main(mis->from_src_file, mis);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     if (ret < 0) {
         error_setg(errp, "Load VM's live state (ram) error");
@@ -719,14 +719,14 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
         return;
     }
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     vmstate_loading = true;
     colo_flush_ram_cache();
     ret = qemu_load_device_state(fb);
     if (ret < 0) {
         error_setg(errp, "COLO: load device state failed");
         vmstate_loading = false;
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         return;
     }
 
@@ -734,7 +734,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     if (local_err) {
         error_propagate(errp, local_err);
         vmstate_loading = false;
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         return;
     }
 
@@ -743,7 +743,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     if (local_err) {
         error_propagate(errp, local_err);
         vmstate_loading = false;
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         return;
     }
     /* Notify all filters of all NIC to do checkpoint */
@@ -752,13 +752,13 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     if (local_err) {
         error_propagate(errp, local_err);
         vmstate_loading = false;
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         return;
     }
 
     vmstate_loading = false;
     vm_start();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("stop", "run");
 
     if (failover_get_state() == FAILOVER_STATUS_RELAUNCH) {
@@ -851,14 +851,14 @@ static void *colo_process_incoming_thread(void *opaque)
     fb = qemu_file_new_input(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     replication_start_all(REPLICATION_MODE_SECONDARY, &local_err);
     if (local_err) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         goto out;
     }
     vm_start();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     trace_colo_vm_state_change("stop", "run");
 
     colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_READY,
@@ -920,7 +920,7 @@ int coroutine_fn colo_incoming_co(void)
     Error *local_err = NULL;
     QemuThread th;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     if (!migration_incoming_colo_enabled()) {
         return 0;
@@ -940,10 +940,10 @@ int coroutine_fn colo_incoming_co(void)
     qemu_coroutine_yield();
     mis->colo_incoming_co = NULL;
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     /* Wait checkpoint incoming thread exit before free resource */
     qemu_thread_join(&th);
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     /* We hold the global iothread lock, so it is safe here */
     colo_release_ram_cache();

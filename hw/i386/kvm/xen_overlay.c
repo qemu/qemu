@@ -194,7 +194,7 @@ int xen_overlay_map_shinfo_page(uint64_t gpa)
         return -ENOENT;
     }
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     if (s->shinfo_gpa) {
         /* If removing shinfo page, turn the kernel magic off first */

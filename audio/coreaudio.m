@@ -547,7 +547,7 @@ static OSStatus handle_voice_change(
 {
     coreaudioVoiceOut *core = in_client_data;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     if (core->outputDeviceID) {
         fini_out_device(core);
@@ -557,7 +557,7 @@ static OSStatus handle_voice_change(
         update_device_playback_state(core);
     }
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     return 0;
 }
 

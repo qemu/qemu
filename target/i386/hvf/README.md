@@ -4,4 +4,4 @@ These sources (and ../hvf-all.c) are adapted from Veertu Inc's vdhh (Veertu Desk
 
 1. Adapt to our current QEMU's `CPUState` structure and `address_space_rw` API; many struct members have been moved around (emulated x86 state, xsave_buf) due to historical differences + QEMU needing to handle more emulation targets.
 2. Removal of `apic_page` and hyperv-related functionality.
-3. More relaxed use of `qemu_mutex_lock_iothread`.
+3. More relaxed use of `bql_lock`.

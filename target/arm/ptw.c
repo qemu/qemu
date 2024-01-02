@@ -772,9 +772,9 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
 #if !TCG_OVERSIZED_GUEST
 # error "Unexpected configuration"
 #endif
-    bool locked = qemu_mutex_iothread_locked();
+    bool locked = bql_locked();
     if (!locked) {
-       qemu_mutex_lock_iothread();
+        bql_lock();
     }
     if (ptw->out_be) {
         cur_val = ldq_be_p(host);
@@ -788,7 +788,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
         }
     }
     if (!locked) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 #endif
 

@@ -61,7 +61,7 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
     return val;
@@ -130,7 +130,7 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
     return val;
@@ -186,7 +186,7 @@ uint8_t glue(address_space_ldub, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
     return val;
@@ -234,7 +234,7 @@ static inline uint16_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
     return val;
@@ -295,7 +295,7 @@ void glue(address_space_stl_notdirty, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
 }
@@ -339,7 +339,7 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
 }
@@ -391,7 +391,7 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
 }
@@ -435,7 +435,7 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
 }
@@ -499,7 +499,7 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
         *result = r;
     }
     if (release_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     RCU_READ_UNLOCK();
 }

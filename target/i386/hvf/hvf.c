@@ -429,9 +429,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         }
         vmx_update_tpr(cpu);
 
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         if (!cpu_is_bsp(X86_CPU(cpu)) && cpu->halted) {
-            qemu_mutex_lock_iothread();
+            bql_lock();
             return EXCP_HLT;
         }
 
@@ -450,7 +450,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         rip = rreg(cpu->accel->fd, HV_X86_RIP);
         env->eflags = rreg(cpu->accel->fd, HV_X86_RFLAGS);
 
-        qemu_mutex_lock_iothread();
+        bql_lock();
 
         update_apic_tpr(cpu);
         current_cpu = cpu;

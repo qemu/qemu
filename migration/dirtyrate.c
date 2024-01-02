@@ -90,13 +90,13 @@ static int64_t do_calculate_dirtyrate(DirtyPageRecord dirty_pages,
 
 void global_dirty_log_change(unsigned int flag, bool start)
 {
-    qemu_mutex_lock_iothread();
+    bql_lock();
     if (start) {
         memory_global_dirty_log_start(flag);
     } else {
         memory_global_dirty_log_stop(flag);
     }
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 }
 
 /*
@@ -106,12 +106,12 @@ void global_dirty_log_change(unsigned int flag, bool start)
  */
 static void global_dirty_log_sync(unsigned int flag, bool one_shot)
 {
-    qemu_mutex_lock_iothread();
+    bql_lock();
     memory_global_dirty_log_sync(false);
     if (one_shot) {
         memory_global_dirty_log_stop(flag);
     }
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 }
 
 static DirtyPageRecord *vcpu_dirty_stat_alloc(VcpuStat *stat)
@@ -609,7 +609,7 @@ static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
     int64_t start_time;
     DirtyPageRecord dirty_pages;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     memory_global_dirty_log_start(GLOBAL_DIRTY_DIRTY_RATE);
 
     /*
@@ -626,7 +626,7 @@ static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
      * KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE cap is enabled.
      */
     dirtyrate_manual_reset_protect();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     record_dirtypages_bitmap(&dirty_pages, true);
 

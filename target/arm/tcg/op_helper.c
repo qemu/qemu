@@ -482,9 +482,9 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
 {
     uint32_t mask;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     arm_call_pre_el_change_hook(env_archcpu(env));
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     mask = aarch32_cpsr_valid_mask(env->features, &env_archcpu(env)->isar);
     cpsr_write(env, val, mask, CPSRWriteExceptionReturn);
@@ -497,9 +497,9 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
     env->regs[15] &= (env->thumb ? ~1 : ~3);
     arm_rebuild_hflags(env);
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     arm_call_el_change_hook(env_archcpu(env));
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 }
 
 /* Access to user mode registers from privileged modes.  */
@@ -858,9 +858,9 @@ void HELPER(set_cp_reg)(CPUARMState *env, const void *rip, uint32_t value)
     const ARMCPRegInfo *ri = rip;
 
     if (ri->type & ARM_CP_IO) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         ri->writefn(env, ri, value);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     } else {
         ri->writefn(env, ri, value);
     }
@@ -872,9 +872,9 @@ uint32_t HELPER(get_cp_reg)(CPUARMState *env, const void *rip)
     uint32_t res;
 
     if (ri->type & ARM_CP_IO) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         res = ri->readfn(env, ri);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     } else {
         res = ri->readfn(env, ri);
     }
@@ -887,9 +887,9 @@ void HELPER(set_cp_reg64)(CPUARMState *env, const void *rip, uint64_t value)
     const ARMCPRegInfo *ri = rip;
 
     if (ri->type & ARM_CP_IO) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         ri->writefn(env, ri, value);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     } else {
         ri->writefn(env, ri, value);
     }
@@ -901,9 +901,9 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, const void *rip)
     uint64_t res;
 
     if (ri->type & ARM_CP_IO) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         res = ri->readfn(env, ri);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     } else {
         res = ri->readfn(env, ri);
     }

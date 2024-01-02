@@ -774,7 +774,7 @@ static void dirty_bitmap_state_pending(void *opaque,
     SaveBitmapState *dbms;
     uint64_t pending = 0;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         uint64_t gran = bdrv_dirty_bitmap_granularity(dbms->bitmap);
@@ -784,7 +784,7 @@ static void dirty_bitmap_state_pending(void *opaque,
         pending += DIV_ROUND_UP(sectors * BDRV_SECTOR_SIZE, gran);
     }
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     trace_dirty_bitmap_state_pending(pending);
 

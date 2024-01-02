@@ -1721,9 +1721,9 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
      * sleeping.
      */
     qatomic_set_mb(&cpu->thread_kicked, false);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     pselect(0, 0, 0, 0, ts, &cpu->accel->unblock_ipi_mask);
-    qemu_mutex_lock_iothread();
+    bql_lock();
 }
 
 static void hvf_wfi(CPUState *cpu)
@@ -1824,7 +1824,7 @@ int hvf_vcpu_exec(CPUState *cpu)
 
     flush_cpu_state(cpu);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     assert_hvf_ok(hv_vcpu_run(cpu->accel->fd));
 
     /* handle VMEXIT */
@@ -1833,7 +1833,7 @@ int hvf_vcpu_exec(CPUState *cpu)
     uint32_t ec = syn_get_ec(syndrome);
 
     ret = 0;
-    qemu_mutex_lock_iothread();
+    bql_lock();
     switch (exit_reason) {
     case HV_EXIT_REASON_EXCEPTION:
         /* This is the main one, handle below. */

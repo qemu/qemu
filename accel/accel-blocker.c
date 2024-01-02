@@ -41,7 +41,7 @@ void accel_blocker_init(void)
 
 void accel_ioctl_begin(void)
 {
-    if (likely(qemu_mutex_iothread_locked())) {
+    if (likely(bql_locked())) {
         return;
     }
 
@@ -51,7 +51,7 @@ void accel_ioctl_begin(void)
 
 void accel_ioctl_end(void)
 {
-    if (likely(qemu_mutex_iothread_locked())) {
+    if (likely(bql_locked())) {
         return;
     }
 
@@ -62,7 +62,7 @@ void accel_ioctl_end(void)
 
 void accel_cpu_ioctl_begin(CPUState *cpu)
 {
-    if (unlikely(qemu_mutex_iothread_locked())) {
+    if (unlikely(bql_locked())) {
         return;
     }
 
@@ -72,7 +72,7 @@ void accel_cpu_ioctl_begin(CPUState *cpu)
 
 void accel_cpu_ioctl_end(CPUState *cpu)
 {
-    if (unlikely(qemu_mutex_iothread_locked())) {
+    if (unlikely(bql_locked())) {
         return;
     }
 
@@ -105,7 +105,7 @@ void accel_ioctl_inhibit_begin(void)
      * We allow to inhibit only when holding the BQL, so we can identify
      * when an inhibitor wants to issue an ioctl easily.
      */
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
 
     /* Block further invocations of the ioctls outside the BQL.  */
     CPU_FOREACH(cpu) {

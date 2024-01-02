@@ -107,7 +107,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
             }
             target_cpu = ARM_CPU(target_cpu_state);
 
-            g_assert(qemu_mutex_iothread_locked());
+            g_assert(bql_locked());
             ret = target_cpu->power_state;
             break;
         default:

@@ -32,9 +32,9 @@ void x86_register_ferr_irq(qemu_irq irq)
 void fpu_check_raise_ferr_irq(CPUX86State *env)
 {
     if (ferr_irq && !(env->hflags2 & HF2_IGNNE_MASK)) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         qemu_irq_raise(ferr_irq);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         return;
     }
 }
@@ -49,7 +49,7 @@ void cpu_set_ignne(void)
 {
     CPUX86State *env = &X86_CPU(first_cpu)->env;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     env->hflags2 |= HF2_IGNNE_MASK;
     /*

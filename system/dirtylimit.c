@@ -148,9 +148,9 @@ void vcpu_dirty_rate_stat_stop(void)
 {
     qatomic_set(&vcpu_dirty_rate_stat->running, 0);
     dirtylimit_state_unlock();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     qemu_thread_join(&vcpu_dirty_rate_stat->thread);
-    qemu_mutex_lock_iothread();
+    bql_lock();
     dirtylimit_state_lock();
 }
 

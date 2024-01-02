@@ -222,7 +222,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      */
     bool need_lock = !qemu_thread_is_self(&me);
     if (need_lock) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
     if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
@@ -260,7 +260,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 
     if (need_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     qapi_free_SpiceServerInfo(server);

@@ -2984,9 +2984,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     migration_ops = g_malloc0(sizeof(MigrationOps));
     migration_ops->ram_save_target_page = ram_save_target_page_legacy;
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     ret = multifd_send_sync_main(f);
-    qemu_mutex_lock_iothread();
+    bql_lock();
     if (ret < 0) {
         return ret;
     }
@@ -3221,11 +3221,11 @@ static void ram_state_pending_exact(void *opaque, uint64_t *must_precopy,
     uint64_t remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
 
     if (!migration_in_postcopy() && remaining_size < s->threshold_size) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         WITH_RCU_READ_LOCK_GUARD() {
             migration_bitmap_sync_precopy(rs, false);
         }
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
     }
 
@@ -3453,7 +3453,7 @@ void colo_incoming_start_dirty_log(void)
 {
     RAMBlock *block = NULL;
     /* For memory_global_dirty_log_start below. */
-    qemu_mutex_lock_iothread();
+    bql_lock();
     qemu_mutex_lock_ramlist();
 
     memory_global_dirty_log_sync(false);
@@ -3467,7 +3467,7 @@ void colo_incoming_start_dirty_log(void)
     }
     ram_state->migration_dirty_pages = 0;
     qemu_mutex_unlock_ramlist();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 }
 
 /* It is need to hold the global lock to call this helper */

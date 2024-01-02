@@ -117,29 +117,29 @@ static QemuEvent cbevent;
 typedef void (^CodeBlock)(void);
 typedef bool (^BoolCodeBlock)(void);
 
-static void with_iothread_lock(CodeBlock block)
+static void with_bql(CodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
+    bool locked = bql_locked();
     if (!locked) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
     block();
     if (!locked) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 }
 
-static bool bool_with_iothread_lock(BoolCodeBlock block)
+static bool bool_with_bql(BoolCodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
+    bool locked = bql_locked();
     bool val;
 
     if (!locked) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
     val = block();
     if (!locked) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     return val;
 }
@@ -605,7 +605,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         return;
     }
 
-    with_iothread_lock(^{
+    with_bql(^{
         [self updateUIInfoLocked];
     });
 }
@@ -790,7 +790,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
 - (bool) handleEvent:(NSEvent *)event
 {
-    return bool_with_iothread_lock(^{
+    return bool_with_bql(^{
         return [self handleEventLocked:event];
     });
 }
@@ -1182,7 +1182,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
  */
 - (void) raiseAllKeys
 {
-    with_iothread_lock(^{
+    with_bql(^{
         qkbd_state_lift_all_keys(kbd);
     });
 }
@@ -1282,7 +1282,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
 
-    with_iothread_lock(^{
+    with_bql(^{
         shutdown_action = SHUTDOWN_ACTION_POWEROFF;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
     });
@@ -1420,7 +1420,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 /* Pause the guest */
 - (void)pauseQEMU:(id)sender
 {
-    with_iothread_lock(^{
+    with_bql(^{
         qmp_stop(NULL);
     });
     [sender setEnabled: NO];
@@ -1431,7 +1431,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 /* Resume running the guest operating system */
 - (void)resumeQEMU:(id) sender
 {
-    with_iothread_lock(^{
+    with_bql(^{
         qmp_cont(NULL);
     });
     [sender setEnabled: NO];
@@ -1461,7 +1461,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 /* Restarts QEMU */
 - (void)restartQEMU:(id)sender
 {
-    with_iothread_lock(^{
+    with_bql(^{
         qmp_system_reset(NULL);
     });
 }
@@ -1469,7 +1469,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 /* Powers down QEMU */
 - (void)powerDownQEMU:(id)sender
 {
-    with_iothread_lock(^{
+    with_bql(^{
         qmp_system_powerdown(NULL);
     });
 }
@@ -1488,7 +1488,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 
     __block Error *err = NULL;
-    with_iothread_lock(^{
+    with_bql(^{
         qmp_eject([drive cStringUsingEncoding: NSASCIIStringEncoding],
                   NULL, false, false, &err);
     });
@@ -1523,7 +1523,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         }
 
         __block Error *err = NULL;
-        with_iothread_lock(^{
+        with_bql(^{
             qmp_blockdev_change_medium([drive cStringUsingEncoding:
                                                   NSASCIIStringEncoding],
                                        NULL,
@@ -1605,7 +1605,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     // get the throttle percentage
     throttle_pct = [sender tag];
 
-    with_iothread_lock(^{
+    with_bql(^{
         cpu_throttle_set(throttle_pct);
     });
     COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
@@ -1819,7 +1819,7 @@ static void addRemovableDevicesMenuItems(void)
         return;
     }
 
-    with_iothread_lock(^{
+    with_bql(^{
         QemuClipboardInfo *info = qemu_clipboard_info_ref(cbinfo);
         qemu_event_reset(&cbevent);
         qemu_clipboard_request(info, QEMU_CLIPBOARD_TYPE_TEXT);
@@ -1827,9 +1827,9 @@ static void addRemovableDevicesMenuItems(void)
         while (info == cbinfo &&
                info->types[QEMU_CLIPBOARD_TYPE_TEXT].available &&
                info->types[QEMU_CLIPBOARD_TYPE_TEXT].data == NULL) {
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             qemu_event_wait(&cbevent);
-            qemu_mutex_lock_iothread();
+            bql_lock();
         }
 
         if (info == cbinfo) {
@@ -1927,9 +1927,9 @@ static void *call_qemu_main(void *opaque)
     int status;
 
     COCOA_DEBUG("Second thread: calling qemu_default_main()\n");
-    qemu_mutex_lock_iothread();
+    bql_lock();
     status = qemu_default_main();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     COCOA_DEBUG("Second thread: qemu_default_main() returned, exiting\n");
     [cbowner release];
     exit(status);
@@ -1941,7 +1941,7 @@ static int cocoa_main(void)
 
     COCOA_DEBUG("Entered %s()\n", __func__);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     qemu_thread_create(&thread, "qemu_main", call_qemu_main,
                        NULL, QEMU_THREAD_DETACHED);
 

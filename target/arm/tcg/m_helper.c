@@ -373,8 +373,8 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
     bool ts = is_secure && (env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_TS_MASK);
     bool take_exception;
 
-    /* Take the iothread lock as we are going to touch the NVIC */
-    qemu_mutex_lock_iothread();
+    /* Take the BQL as we are going to touch the NVIC */
+    bql_lock();
 
     /* Check the background context had access to the FPU */
     if (!v7m_cpacr_pass(env, is_secure, is_priv)) {
@@ -428,7 +428,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
     take_exception = !stacked_ok &&
         armv7m_nvic_can_take_pending_exception(env->nvic);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     if (take_exception) {
         raise_exception_ra(env, EXCP_LAZYFP, 0, 1, GETPC());

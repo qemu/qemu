@@ -124,7 +124,7 @@ static const char * const qsp_typenames[] = {
     [QSP_CONDVAR]   = "condvar",
 };
 
-QemuMutexLockFunc qemu_bql_mutex_lock_func = qemu_mutex_lock_impl;
+QemuMutexLockFunc bql_mutex_lock_func = qemu_mutex_lock_impl;
 QemuMutexLockFunc qemu_mutex_lock_func = qemu_mutex_lock_impl;
 QemuMutexTrylockFunc qemu_mutex_trylock_func = qemu_mutex_trylock_impl;
 QemuRecMutexLockFunc qemu_rec_mutex_lock_func = qemu_rec_mutex_lock_impl;
@@ -439,7 +439,7 @@ void qsp_enable(void)
 {
     qatomic_set(&qemu_mutex_lock_func, qsp_mutex_lock);
     qatomic_set(&qemu_mutex_trylock_func, qsp_mutex_trylock);
-    qatomic_set(&qemu_bql_mutex_lock_func, qsp_bql_mutex_lock);
+    qatomic_set(&bql_mutex_lock_func, qsp_bql_mutex_lock);
     qatomic_set(&qemu_rec_mutex_lock_func, qsp_rec_mutex_lock);
     qatomic_set(&qemu_rec_mutex_trylock_func, qsp_rec_mutex_trylock);
     qatomic_set(&qemu_cond_wait_func, qsp_cond_wait);
@@ -450,7 +450,7 @@ void qsp_disable(void)
 {
     qatomic_set(&qemu_mutex_lock_func, qemu_mutex_lock_impl);
     qatomic_set(&qemu_mutex_trylock_func, qemu_mutex_trylock_impl);
-    qatomic_set(&qemu_bql_mutex_lock_func, qemu_mutex_lock_impl);
+    qatomic_set(&bql_mutex_lock_func, qemu_mutex_lock_impl);
     qatomic_set(&qemu_rec_mutex_lock_func, qemu_rec_mutex_lock_impl);
     qatomic_set(&qemu_rec_mutex_trylock_func, qemu_rec_mutex_trylock_impl);
     qatomic_set(&qemu_cond_wait_func, qemu_cond_wait_impl);

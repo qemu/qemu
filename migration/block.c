@@ -269,7 +269,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     int64_t count;
 
     if (bmds->shared_base) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         /* Skip unallocated sectors; intentionally treats failure or
          * partial sector as an allocated sector */
         while (cur_sector < total_sectors &&
@@ -280,7 +280,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
             }
             cur_sector += count >> BDRV_SECTOR_BITS;
         }
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     if (cur_sector >= total_sectors) {
@@ -316,12 +316,12 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
      * I/O runs in the main loop AioContext (see
      * qemu_get_current_aio_context()).
      */
-    qemu_mutex_lock_iothread();
+    bql_lock();
     bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector * BDRV_SECTOR_SIZE,
                             nr_sectors * BDRV_SECTOR_SIZE);
     blk->aiocb = blk_aio_preadv(bb, cur_sector * BDRV_SECTOR_SIZE, &blk->qiov,
                                 0, blk_mig_read_cb, blk);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     bmds->cur_sector = cur_sector + nr_sectors;
     return (bmds->cur_sector >= total_sectors);
@@ -770,9 +770,9 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
             /* Always called with iothread lock taken for
              * simplicity, block_save_complete also calls it.
              */
-            qemu_mutex_lock_iothread();
+            bql_lock();
             ret = blk_mig_save_dirty_block(f, 1);
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
         }
         if (ret < 0) {
             return ret;
@@ -844,9 +844,9 @@ static void block_state_pending(void *opaque, uint64_t *must_precopy,
     /* Estimate pending number of bytes to send */
     uint64_t pending;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     pending = get_remaining_dirty();
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     blk_mig_lock();
     pending += block_mig_state.submitted * BLK_MIG_BLOCK_SIZE +

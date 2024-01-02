@@ -179,9 +179,9 @@ void helper_wrpsr(CPUSPARCState *env, target_ulong new_psr)
         cpu_raise_exception_ra(env, TT_ILL_INSN, GETPC());
     } else {
         /* cpu_put_psr may trigger interrupts, hence BQL */
-        qemu_mutex_lock_iothread();
+        bql_lock();
         cpu_put_psr(env, new_psr);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 }
 
@@ -407,9 +407,9 @@ void helper_wrpstate(CPUSPARCState *env, target_ulong new_state)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         cpu_check_irqs(env);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 #endif
 }
@@ -422,9 +422,9 @@ void helper_wrpil(CPUSPARCState *env, target_ulong new_pil)
     env->psrpil = new_pil;
 
     if (cpu_interrupts_enabled(env)) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         cpu_check_irqs(env);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 #endif
 }
@@ -451,9 +451,9 @@ void helper_done(CPUSPARCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         cpu_check_irqs(env);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 #endif
 }
@@ -480,9 +480,9 @@ void helper_retry(CPUSPARCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         cpu_check_irqs(env);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 #endif
 }
