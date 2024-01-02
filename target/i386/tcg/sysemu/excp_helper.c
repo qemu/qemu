@@ -136,7 +136,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
 {
     const target_ulong addr = in->addr;
     const int pg_mode = in->pg_mode;
-    const bool is_user = (in->mmu_idx == MMU_USER_IDX);
+    const bool is_user = is_mmu_index_user(in->mmu_idx);
     const MMUAccessType access_type = in->access_type;
     uint64_t ptep, pte, rsvd_mask;
     PTETranslate pte_trans = {
@@ -357,7 +357,7 @@ do_check_protect_pse36:
     }
 
     int prot = 0;
-    if (in->mmu_idx != MMU_KSMAP_IDX || !(ptep & PG_USER_MASK)) {
+    if (!is_mmu_index_smap(in->mmu_idx) || !(ptep & PG_USER_MASK)) {
         prot |= PAGE_READ;
         if ((ptep & PG_RW_MASK) || !(is_user || (pg_mode & PG_MODE_WP))) {
             prot |= PAGE_WRITE;
