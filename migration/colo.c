@@ -945,7 +945,7 @@ int coroutine_fn colo_incoming_co(void)
     qemu_thread_join(&th);
     bql_lock();
 
-    /* We hold the global iothread lock, so it is safe here */
+    /* We hold the global BQL, so it is safe here */
     colo_release_ram_cache();
 
     return 0;

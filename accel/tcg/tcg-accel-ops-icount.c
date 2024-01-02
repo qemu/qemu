@@ -123,7 +123,7 @@ void icount_prepare_for_run(CPUState *cpu, int64_t cpu_budget)
 
     if (cpu->icount_budget == 0) {
         /*
-         * We're called without the iothread lock, so must take it while
+         * We're called without the BQL, so must take it while
          * we're calling timer handlers.
          */
         bql_lock();

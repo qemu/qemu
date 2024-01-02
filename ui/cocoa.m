@@ -113,7 +113,7 @@ static NSInteger cbchangecount = -1;
 static QemuClipboardInfo *cbinfo;
 static QemuEvent cbevent;
 
-// Utility functions to run specified code block with iothread lock held
+// Utility functions to run specified code block with the BQL held
 typedef void (^CodeBlock)(void);
 typedef bool (^BoolCodeBlock)(void);
 
@@ -548,7 +548,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
 - (void) updateUIInfoLocked
 {
-    /* Must be called with the iothread lock, i.e. via updateUIInfo */
+    /* Must be called with the BQL, i.e. via updateUIInfo */
     NSSize frameSize;
     QemuUIInfo info;
 
@@ -2075,7 +2075,7 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
      * Create the menu entries which depend on QEMU state (for consoles
      * and removable devices). These make calls back into QEMU functions,
      * which is OK because at this point we know that the second thread
-     * holds the iothread lock and is synchronously waiting for us to
+     * holds the BQL and is synchronously waiting for us to
      * finish.
      */
     add_console_menu_entries();
