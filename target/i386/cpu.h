@@ -2305,6 +2305,16 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define MMU_NESTED_IDX  3
 #define MMU_PHYS_IDX    4
 
+static inline bool is_mmu_index_smap(int mmu_index)
+{
+    return mmu_index == MMU_KSMAP_IDX;
+}
+
+static inline bool is_mmu_index_user(int mmu_index)
+{
+    return mmu_index == MMU_USER_IDX;
+}
+
 static inline int cpu_mmu_index_kernel(CPUX86State *env)
 {
     return !(env->hflags & HF_SMAP_MASK) ? MMU_KNOSMAP_IDX :
