@@ -57,6 +57,15 @@ void vm_start(void);
  * @step_pending: whether any of the CPUs is about to be single-stepped by gdb
  */
 int vm_prepare_start(bool step_pending);
+
+/**
+ * vm_resume: If @state is a live state, start the vm and set the state,
+ * else just set the state.
+ *
+ * @state: the state to restore
+ */
+void vm_resume(RunState state);
+
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 int vm_shutdown(void);
