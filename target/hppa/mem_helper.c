@@ -55,8 +55,14 @@ hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
         /* I/O address space */
         addr = (int32_t)addr;
     } else {
-        /* PDC address space */
-        addr &= MAKE_64BIT_MASK(0, 24);
+        /*
+         * PDC address space:
+         * Figures H-10 and H-11 of the parisc2.0 spec do not specify
+         * where to map into the 64-bit PDC address space.
+         * We map with an offset which equals the 32-bit address, which
+         * is what can be seen on physical machines too.
+         */
+        addr = (uint32_t)addr;
         addr |= -1ull << (TARGET_PHYS_ADDR_SPACE_BITS - 4);
     }
     return addr;
