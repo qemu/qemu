@@ -18,6 +18,8 @@
 typedef struct QTestMigrationState {
     bool stop_seen;
     bool resume_seen;
+    bool suspend_seen;
+    bool suspend_me;
 } QTestMigrationState;
 
 bool migrate_watch_for_events(QTestState *who, const char *name,
