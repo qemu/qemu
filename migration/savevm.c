@@ -3046,7 +3046,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     QEMUSnapshotInfo sn1, *sn = &sn1;
     int ret = -1, ret2;
     QEMUFile *f;
-    int saved_vm_running;
+    RunState saved_state = runstate_get();
     uint64_t vm_state_size;
     g_autoptr(GDateTime) now = g_date_time_new_now_local();
 
@@ -3091,8 +3091,6 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     if (bs == NULL) {
         return false;
     }
-
-    saved_vm_running = runstate_is_running();
 
     global_state_store();
     vm_stop(RUN_STATE_SAVE_VM);
@@ -3147,9 +3145,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
  the_end:
     bdrv_drain_all_end();
 
-    if (saved_vm_running) {
-        vm_start();
-    }
+    vm_resume(saved_state);
     return ret == 0;
 }
 
@@ -3317,6 +3313,14 @@ err_drain:
     return false;
 }
 
+void load_snapshot_resume(RunState state)
+{
+    vm_resume(state);
+    if (state == RUN_STATE_RUNNING && runstate_get() == RUN_STATE_SUSPENDED) {
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, &error_abort);
+    }
+}
+
 bool delete_snapshot(const char *name, bool has_devices,
                      strList *devices, Error **errp)
 {
@@ -3381,16 +3385,15 @@ static void snapshot_load_job_bh(void *opaque)
 {
     Job *job = opaque;
     SnapshotJob *s = container_of(job, SnapshotJob, common);
-    int orig_vm_running;
+    RunState orig_state = runstate_get();
 
     job_progress_set_remaining(&s->common, 1);
 
-    orig_vm_running = runstate_is_running();
     vm_stop(RUN_STATE_RESTORE_VM);
 
     s->ret = load_snapshot(s->tag, s->vmstate, true, s->devices, s->errp);
-    if (s->ret && orig_vm_running) {
-        vm_start();
+    if (s->ret) {
+        load_snapshot_resume(orig_state);
     }
 
     job_progress_update(&s->common, 1);
