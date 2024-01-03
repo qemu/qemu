@@ -22,7 +22,16 @@
 
 typedef struct {
     uint32_t size;
-    uint8_t runstate[100];
+
+    /*
+     * runstate was 100 bytes, zero padded, but we trimmed it to add a
+     * few fields and maintain backwards compatibility.
+     */
+    uint8_t runstate[32];
+    uint8_t has_vm_was_suspended;
+    uint8_t vm_was_suspended;
+    uint8_t unused[66];
+
     RunState state;
     bool received;
 } GlobalState;
@@ -35,6 +44,10 @@ static void global_state_do_store(RunState state)
     assert(strlen(state_str) < sizeof(global_state.runstate));
     strpadcpy((char *)global_state.runstate, sizeof(global_state.runstate),
               state_str, '\0');
+    global_state.has_vm_was_suspended = true;
+    global_state.vm_was_suspended = vm_get_suspended();
+
+    memset(global_state.unused, 0, sizeof(global_state.unused));
 }
 
 void global_state_store(void)
@@ -59,24 +72,7 @@ RunState global_state_get_runstate(void)
 
 static bool global_state_needed(void *opaque)
 {
-    GlobalState *s = opaque;
-    char *runstate = (char *)s->runstate;
-
-    /* If it is not optional, it is mandatory */
-
-    if (migrate_get_current()->store_global_state) {
-        return true;
-    }
-
-    /* If state is running or paused, it is not needed */
-
-    if (strcmp(runstate, "running") == 0 ||
-        strcmp(runstate, "paused") == 0) {
-        return false;
-    }
-
-    /* for any other state it is needed */
-    return true;
+    return migrate_get_current()->store_global_state;
 }
 
 static int global_state_post_load(void *opaque, int version_id)
@@ -93,7 +89,7 @@ static int global_state_post_load(void *opaque, int version_id)
                 sizeof(s->runstate)) == sizeof(s->runstate)) {
         /*
          * This condition should never happen during migration, because
-         * all runstate names are shorter than 100 bytes (the size of
+         * all runstate names are shorter than 32 bytes (the size of
          * s->runstate). However, a malicious stream could overflow
          * the qapi_enum_parse() call, so we force the last character
          * to a NUL byte.
@@ -109,6 +105,14 @@ static int global_state_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
     s->state = r;
+
+    /*
+     * global_state is saved on the outgoing side before forcing a stopped
+     * state, so it may have saved state=suspended and vm_was_suspended=0.
+     * Now we are in a paused state, and when we later call vm_start, it must
+     * restore the suspended state, so we must set vm_was_suspended=1 here.
+     */
+    vm_set_suspended(s->vm_was_suspended || r == RUN_STATE_SUSPENDED);
 
     return 0;
 }
@@ -134,6 +138,9 @@ static const VMStateDescription vmstate_globalstate = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(size, GlobalState),
         VMSTATE_BUFFER(runstate, GlobalState),
+        VMSTATE_UINT8(has_vm_was_suspended, GlobalState),
+        VMSTATE_UINT8(vm_was_suspended, GlobalState),
+        VMSTATE_BUFFER(unused, GlobalState),
         VMSTATE_END_OF_LIST()
     },
 };
