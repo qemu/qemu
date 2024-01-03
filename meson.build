@@ -552,6 +552,17 @@ if get_option('cfi')
   add_global_link_arguments(cfi_flags, native: false, language: all_languages)
 endif
 
+# Check further flags that make QEMU more robust against malicious parties
+
+hardening_flags = [
+    # Zero out registers used during a function call
+    # upon its return. This makes it harder to assemble
+    # ROP gadgets into something usable
+    '-fzero-call-used-regs=used-gpr',
+]
+
+qemu_common_flags += cc.get_supported_arguments(hardening_flags)
+
 add_global_arguments(qemu_common_flags, native: false, language: all_languages)
 add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
 
