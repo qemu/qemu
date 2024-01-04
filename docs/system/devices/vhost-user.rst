@@ -42,7 +42,7 @@ platform details for what sort of virtio bus to use.
     - See https://github.com/rust-vmm/vhost-device
   * - vhost-user-input
     - Generic input driver
-    - See contrib/vhost-user-input
+    - :ref:`vhost_user_input`
   * - vhost-user-rng
     - Entropy driver
     - :ref:`vhost_user_rng`
@@ -90,6 +90,8 @@ This is a separate process that is connected to by QEMU via a socket
 following the :ref:`vhost_user_proto`. There are a number of daemons
 that can be built when enabled by the project although any daemon that
 meets the specification for a given device can be used.
+
+.. _shared_memory_object:
 
 Shared memory object
 ====================
