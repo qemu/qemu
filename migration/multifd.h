@@ -58,8 +58,6 @@ typedef struct {
     uint32_t num;
     /* number of allocated pages */
     uint32_t allocated;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
     /* offset of each page */
     ram_addr_t *offset;
     RAMBlock *block;
