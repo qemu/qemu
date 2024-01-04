@@ -799,6 +799,7 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
     SMBIOS_SET_DEFAULT(type1.manufacturer, manufacturer);
     SMBIOS_SET_DEFAULT(type1.product, product);
     SMBIOS_SET_DEFAULT(type1.version, version);
+    SMBIOS_SET_DEFAULT(type1.family, "Red Hat Enterprise Linux");
     SMBIOS_SET_DEFAULT(type2.manufacturer, manufacturer);
     SMBIOS_SET_DEFAULT(type2.product, product);
     SMBIOS_SET_DEFAULT(type2.version, version);

@@ -1243,6 +1243,7 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     int pci_region;
     pcibus_t pci_start;
     pcibus_t pci_end;
+    MemoryRegion *mr;
     intptr_t virt_start;
     QXLDevMemSlot memslot;
     int i;
@@ -1289,11 +1290,11 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
 
     switch (pci_region) {
     case QXL_RAM_RANGE_INDEX:
-        virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vga.vram);
+        mr = &d->vga.vram;
         break;
     case QXL_VRAM_RANGE_INDEX:
     case 4 /* vram 64bit */:
-        virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vram_bar);
+        mr = &d->vram_bar;
         break;
     default:
         /* should not happen */
@@ -1301,6 +1302,7 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         return 1;
     }
 
+    virt_start = (intptr_t)memory_region_get_ram_ptr(mr);
     memslot.slot_id = slot_id;
     memslot.slot_group_id = MEMSLOT_GROUP_GUEST; /* guest group */
     memslot.virt_start = virt_start + (guest_start - pci_start);
@@ -1310,7 +1312,8 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     qxl_rom_set_dirty(d);
 
     qemu_spice_add_memslot(&d->ssd, &memslot, async);
-    d->guest_slots[slot_id].ptr = (void*)memslot.virt_start;
+    d->guest_slots[slot_id].mr = mr;
+    d->guest_slots[slot_id].offset = memslot.virt_start - virt_start;
     d->guest_slots[slot_id].size = memslot.virt_end - memslot.virt_start;
     d->guest_slots[slot_id].delta = delta;
     d->guest_slots[slot_id].active = 1;
@@ -1337,39 +1340,60 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
 }
 
 /* can be also called from spice server thread context */
-void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
+static bool qxl_get_check_slot_offset(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,
+                                      uint32_t *s, uint64_t *o)
 {
     uint64_t phys   = le64_to_cpu(pqxl);
     uint32_t slot   = (phys >> (64 -  8)) & 0xff;
     uint64_t offset = phys & 0xffffffffffff;
 
-    switch (group_id) {
-    case MEMSLOT_GROUP_HOST:
-        return (void *)(intptr_t)offset;
-    case MEMSLOT_GROUP_GUEST:
-        if (slot >= NUM_MEMSLOTS) {
-            qxl_set_guest_bug(qxl, "slot too large %d >= %d", slot,
-                              NUM_MEMSLOTS);
-            return NULL;
-        }
-        if (!qxl->guest_slots[slot].active) {
-            qxl_set_guest_bug(qxl, "inactive slot %d\n", slot);
-            return NULL;
-        }
-        if (offset < qxl->guest_slots[slot].delta) {
-            qxl_set_guest_bug(qxl,
+    if (slot >= NUM_MEMSLOTS) {
+        qxl_set_guest_bug(qxl, "slot too large %d >= %d", slot,
+                          NUM_MEMSLOTS);
+        return false;
+    }
+    if (!qxl->guest_slots[slot].active) {
+        qxl_set_guest_bug(qxl, "inactive slot %d\n", slot);
+        return false;
+    }
+    if (offset < qxl->guest_slots[slot].delta) {
+        qxl_set_guest_bug(qxl,
                           "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].delta);
-            return NULL;
-        }
-        offset -= qxl->guest_slots[slot].delta;
-        if (offset > qxl->guest_slots[slot].size) {
-            qxl_set_guest_bug(qxl,
+        return false;
+    }
+    offset -= qxl->guest_slots[slot].delta;
+    if (offset > qxl->guest_slots[slot].size) {
+        qxl_set_guest_bug(qxl,
                           "slot %d offset %"PRIu64" > size %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].size);
+        return false;
+    }
+
+    *s = slot;
+    *o = offset;
+    return true;
+}
+
+/* can be also called from spice server thread context */
+void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
+{
+    uint64_t offset;
+    uint32_t slot;
+    void *ptr;
+
+    switch (group_id) {
+    case MEMSLOT_GROUP_HOST:
+        offset = le64_to_cpu(pqxl) & 0xffffffffffff;
+        return (void *)(intptr_t)offset;
+    case MEMSLOT_GROUP_GUEST:
+        if (!qxl_get_check_slot_offset(qxl, pqxl, &slot, &offset)) {
             return NULL;
         }
-        return qxl->guest_slots[slot].ptr + offset;
+        ptr = memory_region_get_ram_ptr(qxl->guest_slots[slot].mr);
+        ptr += qxl->guest_slots[slot].offset;
+        ptr += offset;
+        return ptr;
     }
     return NULL;
 }
@@ -1784,9 +1808,24 @@ static void qxl_hw_update(void *opaque)
     qxl_render_update(qxl);
 }
 
+static void qxl_dirty_one_surface(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,
+                                  uint32_t height, int32_t stride)
+{
+    uint64_t offset, size;
+    uint32_t slot;
+    bool rc;
+
+    rc = qxl_get_check_slot_offset(qxl, pqxl, &slot, &offset);
+    assert(rc == true);
+    size = (uint64_t)height * abs(stride);
+    trace_qxl_surfaces_dirty(qxl->id, offset, size);
+    qxl_set_dirty(qxl->guest_slots[slot].mr,
+                  qxl->guest_slots[slot].offset + offset,
+                  qxl->guest_slots[slot].offset + offset + size);
+}
+
 static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
 {
-    uintptr_t vram_start;
     int i;
 
     if (qxl->mode != QXL_MODE_NATIVE && qxl->mode != QXL_MODE_COMPAT) {
@@ -1794,16 +1833,13 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
     }
 
     /* dirty the primary surface */
-    qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
-                  qxl->shadow_rom.surface0_area_size);
-
-    vram_start = (uintptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
+    qxl_dirty_one_surface(qxl, qxl->guest_primary.surface.mem,
+                          qxl->guest_primary.surface.height,
+                          qxl->guest_primary.surface.stride);
 
     /* dirty the off-screen surfaces */
     for (i = 0; i < qxl->ssd.num_surfaces; i++) {
         QXLSurfaceCmd *cmd;
-        intptr_t surface_offset;
-        int surface_size;
 
         if (qxl->guest_surfaces.cmds[i] == 0) {
             continue;
@@ -1813,15 +1849,9 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
                             MEMSLOT_GROUP_GUEST);
         assert(cmd);
         assert(cmd->type == QXL_SURFACE_CMD_CREATE);
-        surface_offset = (intptr_t)qxl_phys2virt(qxl,
-                                                 cmd->u.surface_create.data,
-                                                 MEMSLOT_GROUP_GUEST);
-        assert(surface_offset);
-        surface_offset -= vram_start;
-        surface_size = cmd->u.surface_create.height *
-                       abs(cmd->u.surface_create.stride);
-        trace_qxl_surfaces_dirty(qxl->id, i, (int)surface_offset, surface_size);
-        qxl_set_dirty(&qxl->vram_bar, surface_offset, surface_size);
+        qxl_dirty_one_surface(qxl, cmd->u.surface_create.data,
+                              cmd->u.surface_create.height,
+                              cmd->u.surface_create.stride);
     }
 }
 

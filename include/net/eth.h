@@ -67,6 +67,16 @@ typedef struct tcp_header {
     uint16_t th_urp;            /* urgent pointer */
 } tcp_header;
 
+#define TCP_FLAGS_ONLY(flags) ((flags) & 0x3f)
+
+#define TCP_HEADER_FLAGS(tcp) \
+    TCP_FLAGS_ONLY(be16_to_cpu((tcp)->th_offset_flags))
+
+#define TCP_FLAG_ACK  0x10
+
+#define TCP_HEADER_DATA_OFFSET(tcp) \
+    (((be16_to_cpu((tcp)->th_offset_flags) >> 12) & 0xf) << 2)
+
 typedef struct udp_header {
     uint16_t uh_sport; /* source port */
     uint16_t uh_dport; /* destination port */
@@ -108,9 +118,32 @@ struct ip6_header {
     struct in6_address ip6_dst;    /* destination address */
 };
 
+typedef struct ip6_pseudo_header {
+    struct in6_address ip6_src;
+    struct in6_address ip6_dst;
+    uint32_t           len;
+    uint8_t            zero[3];
+    uint8_t            next_hdr;
+} ip6_pseudo_header;
+
 struct ip6_ext_hdr {
     uint8_t        ip6r_nxt;   /* next header */
     uint8_t        ip6r_len;   /* length in units of 8 octets */
+};
+
+struct ip6_ext_hdr_routing {
+    uint8_t     nxt;
+    uint8_t     len;
+    uint8_t     rtype;
+    uint8_t     segleft;
+    uint8_t     rsvd[4];
+};
+
+struct ip6_option_hdr {
+#define IP6_OPT_PAD1   (0x00)
+#define IP6_OPT_HOME   (0xC9)
+    uint8_t type;
+    uint8_t len;
 };
 
 struct udp_hdr {
@@ -161,19 +194,22 @@ struct tcp_hdr {
 #define PKT_GET_IP_HDR(p)         \
     ((struct ip_header *)(((uint8_t *)(p)) + eth_get_l2_hdr_length(p)))
 #define IP_HDR_GET_LEN(p)         \
-    ((((struct ip_header *)p)->ip_ver_len & 0x0F) << 2)
+    ((((struct ip_header *)(p))->ip_ver_len & 0x0F) << 2)
 #define PKT_GET_IP_HDR_LEN(p)     \
     (IP_HDR_GET_LEN(PKT_GET_IP_HDR(p)))
 #define PKT_GET_IP6_HDR(p)        \
     ((struct ip6_header *) (((uint8_t *)(p)) + eth_get_l2_hdr_length(p)))
 #define IP_HEADER_VERSION(ip)     \
-    ((ip->ip_ver_len >> 4)&0xf)
+    (((ip)->ip_ver_len >> 4) & 0xf)
+#define IP4_IS_FRAGMENT(ip) \
+    ((be16_to_cpu((ip)->ip_off) & (IP_OFFMASK | IP_MF)) != 0)
 
 #define ETH_P_IP                  (0x0800)      /* Internet Protocol packet  */
 #define ETH_P_ARP                 (0x0806)      /* Address Resolution packet */
 #define ETH_P_IPV6                (0x86dd)
 #define ETH_P_VLAN                (0x8100)
 #define ETH_P_DVLAN               (0x88a8)
+#define ETH_P_UNKNOWN             (0xffff)
 #define VLAN_VID_MASK             0x0fff
 #define IP_HEADER_VERSION_4       (4)
 #define IP_HEADER_VERSION_6       (6)
@@ -258,7 +294,7 @@ eth_get_l2_hdr_length(const void *p)
     case ETH_P_VLAN:
         return sizeof(struct eth_header) + sizeof(struct vlan_header);
     case ETH_P_DVLAN:
-        if (hvlan->h_proto == ETH_P_VLAN) {
+        if (be16_to_cpu(hvlan->h_proto) == ETH_P_VLAN) {
             return sizeof(struct eth_header) + 2 * sizeof(struct vlan_header);
         } else {
             return sizeof(struct eth_header) + sizeof(struct vlan_header);
@@ -266,6 +302,19 @@ eth_get_l2_hdr_length(const void *p)
     default:
         return sizeof(struct eth_header);
     }
+}
+
+static inline uint32_t
+eth_get_l2_hdr_length_iov(const struct iovec *iov, int iovcnt)
+{
+    uint8_t p[sizeof(struct eth_header) + sizeof(struct vlan_header)];
+    size_t copied = iov_to_buf(iov, iovcnt, 0, p, ARRAY_SIZE(p));
+
+    if (copied < ARRAY_SIZE(p)) {
+        return copied;
+    }
+
+    return eth_get_l2_hdr_length(p);
 }
 
 static inline uint16_t
@@ -282,51 +331,67 @@ eth_get_pkt_tci(const void *p)
     }
 }
 
-static inline bool
-eth_strip_vlan(const void *p, uint8_t *new_ehdr_buf,
-               uint16_t *payload_offset, uint16_t *tci)
-{
-    uint16_t proto = be16_to_cpu(PKT_GET_ETH_HDR(p)->h_proto);
-    struct vlan_header *hvlan = PKT_GET_VLAN_HDR(p);
-    struct eth_header *new_ehdr = (struct eth_header *) new_ehdr_buf;
+bool
+eth_strip_vlan(const struct iovec *iov, int iovcnt, size_t iovoff,
+               uint8_t *new_ehdr_buf,
+               uint16_t *payload_offset, uint16_t *tci);
 
-    switch (proto) {
-    case ETH_P_VLAN:
-    case ETH_P_DVLAN:
-        memcpy(new_ehdr->h_source, PKT_GET_ETH_HDR(p)->h_source, ETH_ALEN);
-        memcpy(new_ehdr->h_dest, PKT_GET_ETH_HDR(p)->h_dest, ETH_ALEN);
-        new_ehdr->h_proto = hvlan->h_proto;
-        *tci = be16_to_cpu(hvlan->h_tci);
-        *payload_offset =
-            sizeof(struct eth_header) + sizeof(struct vlan_header);
-        if (be16_to_cpu(new_ehdr->h_proto) == ETH_P_VLAN) {
-            memcpy(PKT_GET_VLAN_HDR(new_ehdr),
-                   PKT_GET_DVLAN_HDR(p),
-                   sizeof(struct vlan_header));
-            *payload_offset += sizeof(struct vlan_header);
-        }
-        return true;
-    default:
-        return false;
-    }
+bool
+eth_strip_vlan_ex(const struct iovec *iov, int iovcnt, size_t iovoff,
+                  uint16_t vet, uint8_t *new_ehdr_buf,
+                  uint16_t *payload_offset, uint16_t *tci);
+
+uint16_t
+eth_get_l3_proto(const struct iovec *l2hdr_iov, int iovcnt, size_t l2hdr_len);
+
+void eth_setup_vlan_headers_ex(struct eth_header *ehdr, uint16_t vlan_tag,
+    uint16_t vlan_ethtype, bool *is_new);
+
+static inline void
+eth_setup_vlan_headers(struct eth_header *ehdr, uint16_t vlan_tag,
+    bool *is_new)
+{
+    eth_setup_vlan_headers_ex(ehdr, vlan_tag, ETH_P_VLAN, is_new);
 }
 
-static inline uint16_t
-eth_get_l3_proto(const void *l2hdr, size_t l2hdr_len)
-{
-    uint8_t *proto_ptr = (uint8_t *) l2hdr + l2hdr_len - sizeof(uint16_t);
-    return be16_to_cpup((uint16_t *)proto_ptr);
-}
-
-void eth_setup_vlan_headers(struct eth_header *ehdr, uint16_t vlan_tag,
-    bool *is_new);
 
 uint8_t eth_get_gso_type(uint16_t l3_proto, uint8_t *l3_hdr, uint8_t l4proto);
 
-void eth_get_protocols(const uint8_t *headers,
-                       uint32_t hdr_length,
+typedef struct eth_ip6_hdr_info_st {
+    uint8_t l4proto;
+    size_t  full_hdr_len;
+    struct  ip6_header ip6_hdr;
+    bool    has_ext_hdrs;
+    bool    rss_ex_src_valid;
+    struct  in6_address rss_ex_src;
+    bool    rss_ex_dst_valid;
+    struct  in6_address rss_ex_dst;
+    bool    fragment;
+} eth_ip6_hdr_info;
+
+typedef struct eth_ip4_hdr_info_st {
+    struct ip_header ip4_hdr;
+    bool   fragment;
+} eth_ip4_hdr_info;
+
+typedef struct eth_l4_hdr_info_st {
+    union {
+        struct tcp_header tcp;
+        struct udp_header udp;
+    } hdr;
+
+    bool has_tcp_data;
+} eth_l4_hdr_info;
+
+void eth_get_protocols(const struct iovec *iov, int iovcnt,
                        bool *isip4, bool *isip6,
-                       bool *isudp, bool *istcp);
+                       bool *isudp, bool *istcp,
+                       size_t *l3hdr_off,
+                       size_t *l4hdr_off,
+                       size_t *l5hdr_off,
+                       eth_ip6_hdr_info *ip6hdr_info,
+                       eth_ip4_hdr_info *ip4hdr_info,
+                       eth_l4_hdr_info  *l4hdr_info);
 
 void eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
                                  void *l3hdr, size_t l3hdr_len,
@@ -337,11 +402,18 @@ void
 eth_fix_ip4_checksum(void *l3hdr, size_t l3hdr_len);
 
 uint32_t
-eth_calc_pseudo_hdr_csum(struct ip_header *iphdr, uint16_t csl);
+eth_calc_ip4_pseudo_hdr_csum(struct ip_header *iphdr,
+                             uint16_t csl,
+                             uint32_t *cso);
+
+uint32_t
+eth_calc_ip6_pseudo_hdr_csum(struct ip6_header *iphdr,
+                             uint16_t csl,
+                             uint8_t l4_proto,
+                             uint32_t *cso);
 
 bool
-eth_parse_ipv6_hdr(struct iovec *pkt, int pkt_frags,
-                   size_t ip6hdr_off, uint8_t *l4proto,
-                   size_t *full_hdr_len);
+eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
+                   size_t ip6hdr_off, eth_ip6_hdr_info *info);
 
 #endif

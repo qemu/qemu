@@ -34,6 +34,7 @@
 #include "trace.h"
 
 #define MSIX_CAP_LENGTH 12
+#define MAX_DEV_ASSIGN_CMDLINE 32
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
@@ -417,11 +418,11 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 }
 
 static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
-                                  MSIMessage *msg, bool msix)
+                                  int vector_n, bool msix)
 {
     int virq;
 
-    if ((msix && vdev->no_kvm_msix) || (!msix && vdev->no_kvm_msi) || !msg) {
+    if ((msix && vdev->no_kvm_msix) || (!msix && vdev->no_kvm_msi)) {
         return;
     }
 
@@ -429,7 +430,7 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
-    virq = kvm_irqchip_add_msi_route(kvm_state, *msg, &vdev->pdev);
+    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev);
     if (virq < 0) {
         event_notifier_cleanup(&vector->kvm_interrupt);
         return;
@@ -458,6 +459,7 @@ static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg,
                                      PCIDevice *pdev)
 {
     kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg, pdev);
+    kvm_irqchip_commit_routes(kvm_state);
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
@@ -495,7 +497,9 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             vfio_update_kvm_msi_virq(vector, *msg, pdev);
         }
     } else {
-        vfio_add_kvm_msi_virq(vdev, vector, msg, true);
+        if (msg) {
+            vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+        }
     }
 
     /*
@@ -639,7 +643,6 @@ retry:
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
-        MSIMessage msg = msi_get_message(&vdev->pdev, i);
 
         vector->vdev = vdev;
         vector->virq = -1;
@@ -656,7 +659,7 @@ retry:
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vfio_add_kvm_msi_virq(vdev, vector, &msg, false);
+        vfio_add_kvm_msi_virq(vdev, vector, i, false);
     }
 
     /* Set interrupt type prior to possible interrupts */
@@ -1528,6 +1531,21 @@ static uint8_t vfio_std_cap_max_size(PCIDevice *pdev, uint8_t pos)
     return next - pos;
 }
 
+
+static uint16_t vfio_ext_cap_max_size(const uint8_t *config, uint16_t pos)
+{
+    uint16_t tmp, next = PCIE_CONFIG_SPACE_SIZE;
+
+    for (tmp = PCI_CONFIG_SPACE_SIZE; tmp;
+        tmp = PCI_EXT_CAP_NEXT(pci_get_long(config + tmp))) {
+        if (tmp > pos && tmp < next) {
+            next = tmp;
+        }
+    }
+
+    return next - pos;
+}
+
 static void vfio_set_word_bits(uint8_t *buf, uint16_t val, uint16_t mask)
 {
     pci_set_word(buf, (pci_get_word(buf) & ~mask) | val);
@@ -1775,16 +1793,101 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
     return 0;
 }
 
+static int vfio_add_ext_cap(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint32_t header;
+    uint16_t cap_id, next, size;
+    uint8_t cap_ver;
+    uint8_t *config;
+
+    /* Only add extended caps if we have them and the guest can see them */
+    if (!pci_is_express(pdev) || !pci_bus_is_express(pdev->bus) ||
+        !pci_get_long(pdev->config + PCI_CONFIG_SPACE_SIZE)) {
+        return 0;
+    }
+
+    /*
+     * pcie_add_capability always inserts the new capability at the tail
+     * of the chain.  Therefore to end up with a chain that matches the
+     * physical device, we cache the config space to avoid overwriting
+     * the original config space when we parse the extended capabilities.
+     */
+    config = g_memdup(pdev->config, vdev->config_size);
+
+    /*
+     * Extended capabilities are chained with each pointing to the next, so we
+     * can drop anything other than the head of the chain simply by modifying
+     * the previous next pointer.  For the head of the chain, we can modify the
+     * capability ID to something that cannot match a valid capability.  ID
+     * 0 is reserved for this since absence of capabilities is indicated by
+     * 0 for the ID, version, AND next pointer.  However, pcie_add_capability()
+     * uses ID 0 as reserved for list management and will incorrectly match and
+     * assert if we attempt to pre-load the head of the chain with with this
+     * ID.  Use ID 0xFFFF temporarily since it is also seems to be reserved in
+     * part for identifying absence of capabilities in a root complex register
+     * block.  If the ID still exists after adding capabilities, switch back to
+     * zero.  We'll mark this entire first dword as emulated for this purpose.
+     */
+    pci_set_long(pdev->config + PCI_CONFIG_SPACE_SIZE,
+                 PCI_EXT_CAP(0xFFFF, 0, 0));
+    pci_set_long(pdev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
+    pci_set_long(vdev->emulated_config_bits + PCI_CONFIG_SPACE_SIZE, ~0);
+
+    for (next = PCI_CONFIG_SPACE_SIZE; next;
+         next = PCI_EXT_CAP_NEXT(pci_get_long(config + next))) {
+        header = pci_get_long(config + next);
+        cap_id = PCI_EXT_CAP_ID(header);
+        cap_ver = PCI_EXT_CAP_VER(header);
+
+        /*
+         * If it becomes important to configure extended capabilities to their
+         * actual size, use this as the default when it's something we don't
+         * recognize. Since QEMU doesn't actually handle many of the config
+         * accesses, exact size doesn't seem worthwhile.
+         */
+        size = vfio_ext_cap_max_size(config, next);
+
+        /* Use emulated next pointer to allow dropping extended caps */
+        pci_long_test_and_set_mask(vdev->emulated_config_bits + next,
+                                   PCI_EXT_CAP_NEXT_MASK);
+
+        switch (cap_id) {
+        case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
+        case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
+            trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
+            break;
+        default:
+            pcie_add_capability(pdev, cap_id, cap_ver, next, size);
+        }
+
+    }
+
+    /* Cleanup chain head ID if necessary */
+    if (pci_get_word(pdev->config + PCI_CONFIG_SPACE_SIZE) == 0xFFFF) {
+        pci_set_word(pdev->config + PCI_CONFIG_SPACE_SIZE, 0);
+    }
+
+    g_free(config);
+    return 0;
+}
+
 static int vfio_add_capabilities(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
+    int ret;
 
     if (!(pdev->config[PCI_STATUS] & PCI_STATUS_CAP_LIST) ||
         !pdev->config[PCI_CAPABILITY_LIST]) {
         return 0; /* Nothing to add */
     }
 
-    return vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
+    ret = vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
+    if (ret) {
+        return ret;
+    }
+
+    return vfio_add_ext_cap(vdev);
 }
 
 static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
@@ -2398,7 +2501,19 @@ static int vfio_initfn(PCIDevice *pdev)
     ssize_t len;
     struct stat st;
     int groupid;
-    int ret;
+    int ret, i = 0;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
+            i++;
+        }
+    }
+
+    if (i >= MAX_DEV_ASSIGN_CMDLINE) {
+        error_report("vfio: Maximum supported vfio devices (%d) "
+                     "already attached\n", MAX_DEV_ASSIGN_CMDLINE);
+        return -1;
+    }
 
     if (!vdev->vbasedev.sysfsdev) {
         vdev->vbasedev.sysfsdev =

@@ -71,6 +71,9 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
                           int fd,
                           Error **errp)
 {
+    int val;
+    socklen_t len = sizeof(val);
+
     if (sioc->fd != -1) {
         error_setg(errp, "Socket is already open");
         return -1;
@@ -106,6 +109,10 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
         ioc->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
+    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &len) == 0 && val) {
+        QIOChannel *ioc = QIO_CHANNEL(sioc);
+        ioc->features |= (1 << QIO_CHANNEL_FEATURE_LISTEN);
+    }
 
     return 0;
 
@@ -393,7 +400,17 @@ static void qio_channel_socket_init(Object *obj)
 static void qio_channel_socket_finalize(Object *obj)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
+
     if (ioc->fd != -1) {
+        if (QIO_CHANNEL(ioc)->features & QIO_CHANNEL_FEATURE_LISTEN) {
+            Error *err = NULL;
+
+            socket_listen_cleanup(ioc->fd, &err);
+            if (err) {
+                error_report_err(err);
+                err = NULL;
+            }
+        }
 #ifdef WIN32
         WSAEventSelect(ioc->fd, NULL, 0);
 #endif

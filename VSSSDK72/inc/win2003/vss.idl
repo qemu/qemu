@@ -1,0 +1,686 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Copyright (c) 2000-2001 Microsoft Corporation
+//
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//      Imports
+//
+
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+//
+
+interface IVssEnumObject;
+
+// interfaces supported by the provider
+interface IVssSnapshot;
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Constants and enums
+//
+
+typedef enum _VSS_OBJECT_TYPE {
+        VSS_OBJECT_UNKNOWN = 0,
+        VSS_OBJECT_NONE,
+        VSS_OBJECT_SNAPSHOT_SET,
+        VSS_OBJECT_SNAPSHOT,
+        VSS_OBJECT_PROVIDER,
+        VSS_OBJECT_TYPE_COUNT
+} VSS_OBJECT_TYPE, *PVSS_OBJECT_TYPE;
+
+
+typedef enum _VSS_SNAPSHOT_STATE {
+        VSS_SS_UNKNOWN = 0,
+        VSS_SS_PREPARING,
+        VSS_SS_PROCESSING_PREPARE,
+        VSS_SS_PREPARED,
+        VSS_SS_PROCESSING_PRECOMMIT,
+        VSS_SS_PRECOMMITTED,
+        VSS_SS_PROCESSING_COMMIT,
+        VSS_SS_COMMITTED,
+        VSS_SS_PROCESSING_POSTCOMMIT,
+        VSS_SS_PROCESSING_PREFINALCOMMIT,
+        VSS_SS_PREFINALCOMMITTED,
+        VSS_SS_PROCESSING_POSTFINALCOMMIT,
+        VSS_SS_CREATED,
+        VSS_SS_ABORTED,
+        VSS_SS_DELETED,
+        VSS_SS_POSTCOMMITTED,
+        VSS_SS_COUNT
+} VSS_SNAPSHOT_STATE, *PVSS_SNAPSHOT_STATE;
+
+
+enum _VSS_VOLUME_SNAPSHOT_ATTRIBUTES {
+        VSS_VOLSNAP_ATTR_PERSISTENT             = 0x00000001,
+        VSS_VOLSNAP_ATTR_CLIENT_ACCESSIBLE      = 0x00000004,
+        VSS_VOLSNAP_ATTR_NO_AUTO_RELEASE        = 0x00000008,
+        VSS_VOLSNAP_ATTR_NO_WRITERS         = 0x00000010,
+        VSS_VOLSNAP_ATTR_TRANSPORTABLE      = 0x00000020,
+        VSS_VOLSNAP_ATTR_NOT_SURFACED       = 0x00000040,
+        VSS_VOLSNAP_ATTR_HARDWARE_ASSISTED      = 0x00010000,
+        VSS_VOLSNAP_ATTR_DIFFERENTIAL           = 0x00020000,
+        VSS_VOLSNAP_ATTR_PLEX                           = 0x00040000,
+        VSS_VOLSNAP_ATTR_IMPORTED                       = 0x00080000,
+        VSS_VOLSNAP_ATTR_EXPOSED_LOCALLY    = 0x00100000,
+        VSS_VOLSNAP_ATTR_EXPOSED_REMOTELY   = 0x00200000,
+        VSS_VOLSNAP_ATTR_AUTORECOVER             = 0x00400000,
+        VSS_VOLSNAP_ATTR_ROLLBACK_RECOVERY  = 0x00800000
+};
+
+
+enum _VSS_SNAPSHOT_CONTEXT {
+    VSS_CTX_BACKUP                      = 0x00000000,
+    VSS_CTX_FILE_SHARE_BACKUP           = VSS_VOLSNAP_ATTR_NO_WRITERS,
+    VSS_CTX_NAS_ROLLBACK                = VSS_VOLSNAP_ATTR_PERSISTENT |
+                                          VSS_VOLSNAP_ATTR_NO_AUTO_RELEASE |
+                                          VSS_VOLSNAP_ATTR_NO_WRITERS,
+    VSS_CTX_APP_ROLLBACK                = VSS_VOLSNAP_ATTR_PERSISTENT |
+                                          VSS_VOLSNAP_ATTR_NO_AUTO_RELEASE,
+    VSS_CTX_CLIENT_ACCESSIBLE 			= VSS_VOLSNAP_ATTR_PERSISTENT |
+                                          VSS_VOLSNAP_ATTR_CLIENT_ACCESSIBLE |
+                                          VSS_VOLSNAP_ATTR_NO_AUTO_RELEASE |
+                                          VSS_VOLSNAP_ATTR_NO_WRITERS,
+    VSS_CTX_ALL                         = 0xFFFFFFFF,
+};
+
+
+typedef enum _VSS_WRITER_STATE {
+        VSS_WS_UNKNOWN = 0,
+        VSS_WS_STABLE,
+        VSS_WS_WAITING_FOR_FREEZE,
+        VSS_WS_WAITING_FOR_THAW,
+        VSS_WS_WAITING_FOR_POST_SNAPSHOT,
+        VSS_WS_WAITING_FOR_BACKUP_COMPLETE,
+        VSS_WS_FAILED_AT_IDENTIFY,
+        VSS_WS_FAILED_AT_PREPARE_BACKUP,
+        VSS_WS_FAILED_AT_PREPARE_SNAPSHOT,
+        VSS_WS_FAILED_AT_FREEZE,
+        VSS_WS_FAILED_AT_THAW,
+        VSS_WS_FAILED_AT_POST_SNAPSHOT,
+        VSS_WS_FAILED_AT_BACKUP_COMPLETE,
+        VSS_WS_FAILED_AT_PRE_RESTORE,
+        VSS_WS_FAILED_AT_POST_RESTORE,
+        VSS_WS_FAILED_AT_BACKUPSHUTDOWN,
+        VSS_WS_COUNT
+} VSS_WRITER_STATE, *PVSS_WRITER_STATE;
+
+
+typedef enum _VSS_BACKUP_TYPE {
+        VSS_BT_UNDEFINED,
+        VSS_BT_FULL,
+        VSS_BT_INCREMENTAL,
+        VSS_BT_DIFFERENTIAL,
+        VSS_BT_LOG,
+        VSS_BT_COPY,
+        VSS_BT_OTHER
+} VSS_BACKUP_TYPE;
+
+typedef enum _VSS_RESTORE_TYPE  {
+        VSS_RTYPE_UNDEFINED,
+        VSS_RTYPE_BY_COPY,
+        VSS_RTYPE_IMPORT,
+        VSS_RTYPE_OTHER
+} VSS_RESTORE_TYPE;
+
+typedef enum _VSS_PROVIDER_TYPE
+{
+        VSS_PROV_UNKNOWN                        = 0,
+        VSS_PROV_SYSTEM                         = 1,
+        VSS_PROV_SOFTWARE                       = 2,
+        VSS_PROV_HARDWARE                       = 3,
+} VSS_PROVIDER_TYPE, *PVSS_PROVIDER_TYPE;
+
+
+typedef enum _VSS_APPLICATION_LEVEL
+{
+        VSS_APP_UNKNOWN                         = 0,
+        VSS_APP_SYSTEM                          = 1,
+        VSS_APP_BACK_END                        = 2,
+        VSS_APP_FRONT_END                       = 3,
+        VSS_APP_AUTO                            = -1,
+} VSS_APPLICATION_LEVEL, *PVSS_APPLICATION_LEVEL;
+
+
+// mask containing flags indicating what
+typedef enum _VSS_SNAPSHOT_COMPATIBILITY
+        {
+        VSS_SC_DISABLE_DEFRAG = 0x1,
+        VSS_SC_DISABLE_CONTENTINDEX = 0x2
+        } VSS_SNAPSHOT_COMPATIBILITY;
+
+
+typedef enum _VSS_SNAPSHOT_PROPERTY_ID {
+        VSS_SPROPID_UNKNOWN                     = 0x00000000,                                            
+        VSS_SPROPID_SNAPSHOT_ID                 = 0x00000001,                                                            
+        VSS_SPROPID_SNAPSHOT_SET_ID             = 0x00000002,                                                            
+        VSS_SPROPID_SNAPSHOTS_COUNT             = 0x00000003,                                                            
+        VSS_SPROPID_SNAPSHOT_DEVICE             = 0x00000004,                                                            
+        VSS_SPROPID_ORIGINAL_VOLUME             = 0x00000005,                                                            
+        VSS_SPROPID_ORIGINATING_MACHINE = 0x00000006,                                                            
+        VSS_SPROPID_SERVICE_MACHINE             = 0x00000007,                                                            
+        VSS_SPROPID_EXPOSED_NAME                = 0x00000008,                                                            
+        VSS_SPROPID_EXPOSED_PATH                = 0x00000009,                                                            
+        VSS_SPROPID_PROVIDER_ID                 = 0x0000000A,                                                            
+        VSS_SPROPID_SNAPSHOT_ATTRIBUTES = 0x0000000B,                                                            
+        VSS_SPROPID_CREATION_TIMESTAMP  = 0x0000000C,                                                            
+        VSS_SPROPID_STATUS                              = 0x0000000D,
+} VSS_SNAPSHOT_PROPERTY_ID, *PVSS_SNAPSHOT_PROPERTY_ID;
+
+typedef enum _VSS_FILE_SPEC_BACKUP_TYPE {
+        VSS_FSBT_FULL_BACKUP_REQUIRED                       = 0x00000001,
+        VSS_FSBT_DIFFERENTIAL_BACKUP_REQUIRED       = 0x00000002,
+        VSS_FSBT_INCREMENTAL_BACKUP_REQUIRED        = 0x00000004,
+        VSS_FSBT_LOG_BACKUP_REQUIRED                        = 0x00000008,
+        VSS_FSBT_FULL_SNAPSHOT_REQUIRED                  = 0x00000100,
+        VSS_FSBT_DIFFERENTIAL_SNAPSHOT_REQUIRED  = 0x00000200,       
+        VSS_FSBT_INCREMENTAL_SNAPSHOT_REQUIRED   = 0x00000400,
+        VSS_FSBT_LOG_SNAPSHOT_REQUIRED                   = 0x00000800,
+        VSS_FSBT_ALL_BACKUP_REQUIRED                        = 0x0000000F,        
+        VSS_FSBT_ALL_SNAPSHOT_REQUIRED                   = 0x00000F00,       
+}   VSS_FILE_SPEC_BACKUP_TYPE, *PVSS_FILE_SPEC_BACKUP_TYPE;
+        
+typedef enum _VSS_BACKUP_SCHEMA {
+    VSS_BS_UNDEFINED                                                    = 0x00000000,
+    VSS_BS_DIFFERENTIAL                                                = 0x00000001,
+    VSS_BS_INCREMENTAL                                                 = 0x00000002,  
+    VSS_BS_EXCLUSIVE_INCREMENTAL_DIFFERENTIAL   = 0x00000004, 
+    VSS_BS_LOG                                                                = 0x00000008,
+    VSS_BS_COPY                                                              = 0x00000010,
+    VSS_BS_TIMESTAMPED                                               = 0x00000020,
+    VSS_BS_LAST_MODIFY                                               = 0x00000040,
+    VSS_BS_LSN                                                               = 0x00000080,
+    VSS_BS_WRITER_SUPPORTS_NEW_TARGET              = 0x00000100,
+    VSS_BS_WRITER_SUPPORTS_RESTORE_WITH_MOVE =0x00000200 
+}   VSS_BACKUP_SCHEMA, *PVSS_BACKUP_SCHEMA;
+
+////////////////////////////////////////////////////////
+// Typedefs and structures
+//
+
+
+typedef GUID VSS_ID;
+
+
+typedef [unique, string] WCHAR* VSS_PWSZ;
+
+
+typedef LONGLONG  VSS_TIMESTAMP;
+
+
+typedef struct _VSS_SNAPSHOT_PROP {
+        VSS_ID                  m_SnapshotId;
+        VSS_ID                  m_SnapshotSetId;
+        LONG                    m_lSnapshotsCount;
+        VSS_PWSZ                m_pwszSnapshotDeviceObject;
+        VSS_PWSZ                m_pwszOriginalVolumeName;
+        VSS_PWSZ                m_pwszOriginatingMachine;
+    VSS_PWSZ        m_pwszServiceMachine;
+        VSS_PWSZ                m_pwszExposedName;
+        VSS_PWSZ                m_pwszExposedPath;
+        VSS_ID                  m_ProviderId;
+        LONG                    m_lSnapshotAttributes;
+        VSS_TIMESTAMP   m_tsCreationTimestamp;
+        VSS_SNAPSHOT_STATE              m_eStatus;
+} VSS_SNAPSHOT_PROP, *PVSS_SNAPSHOT_PROP;
+
+
+typedef struct _VSS_PROVIDER_PROP {
+        VSS_ID                  m_ProviderId;
+        VSS_PWSZ                m_pwszProviderName;
+        VSS_PROVIDER_TYPE m_eProviderType;
+        VSS_PWSZ                m_pwszProviderVersion;
+        VSS_ID                  m_ProviderVersionId;
+        CLSID                   m_ClassId;
+} VSS_PROVIDER_PROP, *PVSS_PROVIDER_PROP;
+
+
+[ switch_type(VSS_OBJECT_TYPE) ]
+typedef union {
+        [case(VSS_OBJECT_SNAPSHOT)]     VSS_SNAPSHOT_PROP               Snap;
+        [case(VSS_OBJECT_PROVIDER)]     VSS_PROVIDER_PROP               Prov;
+        [default];
+} VSS_OBJECT_UNION;
+
+
+typedef struct _VSS_OBJECT_PROP {
+        VSS_OBJECT_TYPE Type;
+        [ switch_is(Type) ] VSS_OBJECT_UNION Obj;
+} VSS_OBJECT_PROP, *PVSS_OBJECT_PROP;
+
+
+
+[
+        object,
+        uuid(AE1C7110-2F60-11d3-8A39-00C04F72D8E3),
+        helpstring("IVssEnumObject Interface"),
+        pointer_default(unique)
+]
+interface IVssEnumObject : IUnknown
+{
+        HRESULT Next(
+                [in]    ULONG celt,
+                [out, size_is(celt), length_is(*pceltFetched)]
+                                VSS_OBJECT_PROP *rgelt,
+                [out]   ULONG *pceltFetched
+                );
+
+        HRESULT Skip(
+                [in] ULONG celt
+                );
+
+        HRESULT Reset();
+
+        HRESULT Clone(
+                [in, out] IVssEnumObject **ppenum
+                );
+};
+
+
+
+[
+        object,
+        uuid(507C37B4-CF5B-4e95-B0AF-14EB9767467E),
+        helpstring("IVssAsync Interface"),
+        pointer_default(unique)
+]
+interface IVssAsync : IUnknown
+{
+        [helpstring("method Cancel")]
+        HRESULT Cancel();
+
+        [helpstring("method Wait")]
+        HRESULT Wait(
+               [in, defaultvalue(0xFFFFFFFF)] DWORD dwMilliseconds
+               );
+
+        [helpstring("method QueryStatus")]
+        HRESULT QueryStatus(
+                [out]   HRESULT* pHrResult,
+                [in, out, unique]       INT* pReserved
+                );
+};
+
+
+/////////////////////////////////////////////////////////////////////////////
+// VSS HRESULT errors
+
+
+
+//
+// MessageId: VSS_E_BAD_STATE
+//
+// MessageText:
+//
+//  A function call was invalid because of the state of either the
+//  backup extensions or the coordinator.  For example calling AddToSnapshot
+//  set prior to calling StartSnapshotSet.
+//
+const HRESULT VSS_E_BAD_STATE                               = (0x80042301L);
+
+
+//
+// MessageId: VSS_E_PROVIDER_ALREADY_REGISTERED
+//
+// MessageText:
+//
+//  Calling RegisterProvider
+//
+const HRESULT VSS_E_PROVIDER_ALREADY_REGISTERED             = (0x80042303L);
+
+
+//
+// MessageId: VSS_E_PROVIDER_NOT_REGISTERED
+//
+// MessageText:
+//
+//  Calling UnregisterProvider
+//
+const HRESULT VSS_E_PROVIDER_NOT_REGISTERED                 = (0x80042304L);
+
+
+//
+// MessageId: VSS_E_PROVIDER_VETO
+//
+// MessageText:
+//
+//  Calling DoSnapshotSet
+//
+const HRESULT VSS_E_PROVIDER_VETO                                                       = (0x80042306L);
+
+
+//
+// MessageId: VSS_E_PROVIDER_IN_USE
+//
+// MessageText:
+//
+//  Calling UnregisterProvider, StartSnapshotSet
+//
+const HRESULT VSS_E_PROVIDER_IN_USE                                         = (0x80042307L);
+
+
+//
+// MessageId: VSS_E_OBJECT_NOT_FOUND
+//
+// MessageText:
+//
+//  Calling DeleteSnapshots, Query
+//
+const HRESULT VSS_E_OBJECT_NOT_FOUND                                            = (0x80042308L);
+
+
+//
+// MessageId: VSS_S_ASYNC_PENDING
+//
+// MessageText:
+//
+//  Calling IVssAsync::QueryStatus
+//
+const HRESULT VSS_S_ASYNC_PENDING                                                       = (0x00042309L);
+
+
+//
+// MessageId: VSS_S_ASYNC_FINISHED
+//
+// MessageText:
+//
+//  Calling IVssAsync::QueryStatus
+//
+const HRESULT VSS_S_ASYNC_FINISHED                                                      = (0x0004230AL);
+
+
+//
+// MessageId: VSS_S_ASYNC_CANCELLED
+//
+// MessageText:
+//
+//  Calling IVssAsync::QueryStatus
+//
+const HRESULT VSS_S_ASYNC_CANCELLED                                                     = (0x0004230BL);
+
+
+//
+// MessageId: VSS_E_VOLUME_NOT_SUPPORTED
+//
+// MessageText:
+//
+//  Calling AddToSnapshotSet
+//
+const HRESULT VSS_E_VOLUME_NOT_SUPPORTED                                        = (0x8004230CL);
+
+
+
+//
+// MessageId: VSS_E_VOLUME_NOT_SUPPORTED_BY_PROVIDER
+//
+// MessageText:
+//
+//  Calling AddToSnapshotSet
+//
+const HRESULT VSS_E_VOLUME_NOT_SUPPORTED_BY_PROVIDER            = (0x8004230EL);
+
+
+
+//
+// MessageId: VSS_E_OBJECT_ALREADY_EXISTS
+//
+// MessageText:
+//
+//  Calling ExposeCurrentState
+//
+const HRESULT VSS_E_OBJECT_ALREADY_EXISTS                                       = (0x8004230DL);
+
+
+//
+// MessageId: VSS_E_UNEXPECTED_PROVIDER_ERROR
+//
+// MessageText:
+//
+//  Calling several methods supported by the providers.
+//
+const HRESULT VSS_E_UNEXPECTED_PROVIDER_ERROR                           = (0x8004230FL);
+
+
+
+
+//
+// MessageId: VSS_E_CORRUPT_XML_DOCUMENT
+//
+// MessageText:
+//
+//  XML document unexpectedly does not match schema.
+//
+const HRESULT VSS_E_CORRUPT_XML_DOCUMENT                                                = (0x80042310L);
+
+
+//
+// MessageId: VSS_E_CORRUPT_XML_DOCUMENT
+//
+// MessageText:
+//
+//  An XML document passes as an argument is not valid, i.e., is either
+//  not correctly formed XML or does not match the schema
+//
+const HRESULT VSS_E_INVALID_XML_DOCUMENT                                                = (0x80042311L);
+
+
+//
+// MessageId: VSS_E_MAXIMUM_NUMBER_OF_VOLUMES_REACHED
+//
+// MessageText:
+//
+//  We cannot add any more volumes since we passed the maximum limit.
+//
+const HRESULT VSS_E_MAXIMUM_NUMBER_OF_VOLUMES_REACHED                   = (0x80042312L);
+
+
+//
+// MessageId: VSS_E_FLUSH_WRITES_TIMEOUT
+//
+// MessageText:
+//
+//  VSS couldn't flush I/O writes anymore.
+//
+const HRESULT VSS_E_FLUSH_WRITES_TIMEOUT                        = (0x80042313L);
+
+
+//
+// MessageId: VSS_E_HOLD_WRITES_TIMEOUT
+//
+// MessageText:
+//
+//  VSS couldn't hold I/O writes anymore.
+//
+const HRESULT VSS_E_HOLD_WRITES_TIMEOUT                                 = (0x80042314L);
+
+
+//
+// MessageId: VSS_E_UNEXPECTED_WRITER_ERROR
+//
+// MessageText:
+//
+//  VSS encountered problems while sending events to writers
+//
+const HRESULT VSS_E_UNEXPECTED_WRITER_ERROR                     = (0x80042315L);
+
+
+//
+// MessageId: VSS_E_SNAPSHOT_SET_IN_PROGRESS
+//
+// MessageText:
+//
+//  StartSnapshotSet was called when another snapshot set in in the
+//  process of being created.
+//
+const HRESULT VSS_E_SNAPSHOT_SET_IN_PROGRESS                    = (0x80042316L);
+
+
+//
+// MessageId: VSS_E_MAXIMUM_NUMBER_OF_SNAPSHOTS_REACHED
+//
+// MessageText:
+//
+//  AddToSnapshotSet was called on a volume that has already reached
+//  its maxinum number
+//
+const HRESULT VSS_E_MAXIMUM_NUMBER_OF_SNAPSHOTS_REACHED         = (0x80042317L);
+
+//
+// MessageId: VSS_E_WRITER_INFRASTRUCTURE
+//
+// The Writer infrastructure is not operating properly.  Check that the
+// Event Service and the Volume Snapshot Service are started and check for
+// errors associdated with these services in the error log.
+//
+const HRESULT VSS_E_WRITER_INFRASTRUCTURE                                   = (0x80042318L);
+
+//
+// MessageId: VSS_E_WRITER_NOT_RESPONDING
+//
+// A writer did not respond to a GetWriterStatus call.  This means that
+// the process containing the writer died or is hung.
+//
+const HRESULT VSS_E_WRITER_NOT_RESPONDING                                   = (0x80042319L);
+
+
+//
+// MessageId: VSS_E_WRITER_ALREADY_SUBSCRIBED
+//
+// A writer has already sucessfully called the Subscribe function.  It cannot call
+// subscribe multiple times.
+//
+const HRESULT VSS_E_WRITER_ALREADY_SUBSCRIBED                           = (0x8004231AL);
+
+
+//
+// MessageId: VSS_E_UNSUPPORTED_CONTEXT
+//
+// Attempt to use an unsupported context.
+//
+const HRESULT VSS_E_UNSUPPORTED_CONTEXT                         = (0x8004231BL);
+
+
+//
+// MessageId: VSS_E_VOLUME_IN_USE
+//
+// MessageText:
+//
+//  Calling ChangeDiffAreaMaximumSize
+//
+const HRESULT VSS_E_VOLUME_IN_USE                                               = (0x8004231DL);
+
+
+//
+// MessageId: VSS_E_MAXIMUM_DIFFAREA_ASSOCIATIONS_REACHED
+//
+// MessageText:
+//
+//  Calling AddDiffArea
+//
+const HRESULT VSS_E_MAXIMUM_DIFFAREA_ASSOCIATIONS_REACHED       = (0x8004231EL);
+
+
+//
+// MessageId: VSS_E_INSUFFICIENT_STORAGE
+//
+// MessageText:
+//
+//  Calling EndPrepareSnapshots, ChangeDiffAreaMaximumSize
+//
+const HRESULT VSS_E_INSUFFICIENT_STORAGE                                = (0x8004231FL);
+
+
+//
+// MessageId: VSS_E_NO_SNAPSHOTS_IMPORTED
+//
+// MessageText:
+//
+//  Calling ImportSnapshots, no volumes were successfully imported
+//
+const HRESULT VSS_E_NO_SNAPSHOTS_IMPORTED                 = (0x80042320L);
+
+
+// MessageId: VSS_S_SOME_SNAPSHOTS_NOT_IMPORTED
+//
+// MessageText:
+//
+//  Calling ImportSnapshots, some volumes were not successfully imported
+//
+const HRESULT VSS_S_SOME_SNAPSHOTS_NOT_IMPORTED           = (0x00042321L);
+
+// MessageId: VSS_E_SOME_SNAPSHOTS_NOT_IMPORTED
+//
+// MessageText:
+//
+//  Calling ImportSnapshots, some volumes were not successfully imported
+//
+const HRESULT VSS_E_SOME_SNAPSHOTS_NOT_IMPORTED           = (0x80042321L);
+
+//
+// MessageId: VSS_E_MAXIMUM_NUMBER_OF_REMOTE_MACHINES_REACHED
+//
+// MessageText:
+//
+//  While calling AddToSnapshotSet - cannot add shares to snapshot from other machines 
+//  since we passed the maximum remote machines limit.
+//
+const HRESULT VSS_E_MAXIMUM_NUMBER_OF_REMOTE_MACHINES_REACHED       = (0x80042322L);
+
+//
+// MessageId: VSS_E_REMOTE_SERVER_UNAVAILABLE
+//
+// MessageText:
+//
+//  Remote machine that exposes a share to snapshot is not available
+//
+const HRESULT VSS_E_REMOTE_SERVER_UNAVAILABLE       = (0x80042323L);
+
+//
+// MessageId: VSS_E_REMOTE_SERVER_UNSUPPORTED
+//
+// MessageText:
+//
+//  Remote machine that exposes the share to snapshot runs a VSS version 
+//  that does not support creation of snapshots for shares
+//
+const HRESULT VSS_E_REMOTE_SERVER_UNSUPPORTED       = (0x80042324L);
+
+
+//
+// MessageId: VSS_E_REVERT_IN_PROGRESS 
+//
+// MessageText:
+//
+//  A revert is currently in progress for the specified volume.  Another revert
+//  cannot be initiated until the current revert completes
+
+const HRESULT VSS_E_REVERT_IN_PROGRESS = (0x80042325L);
+
+//
+// MessageId: VSS_E_REVERT_VOLUME_LOST 
+//
+// MessageText:
+//
+//  The volume being reverted was lost during revert.
+
+const HRESULT VSS_E_REVERT_VOLUME_LOST = (0x80042326L);
+
+//
+// MessageId: VSS_E_REBOOT_REQUIRED
+//
+// MessageText:
+//
+//  The device could not be dismounted in BreakSnapshotSet. Reboot required.
+//
+const HRESULT VSS_E_REBOOT_REQUIRED                        = (0x80042327L);
+
+
+

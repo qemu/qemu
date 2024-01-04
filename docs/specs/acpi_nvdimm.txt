@@ -1,0 +1,132 @@
+QEMU<->ACPI BIOS NVDIMM interface
+---------------------------------
+
+QEMU supports NVDIMM via ACPI. This document describes the basic concepts of
+NVDIMM ACPI and the interface between QEMU and the ACPI BIOS.
+
+NVDIMM ACPI Background
+----------------------
+NVDIMM is introduced in ACPI 6.0 which defines an NVDIMM root device under
+_SB scope with a _HID of “ACPI0012”. For each NVDIMM present or intended
+to be supported by platform, platform firmware also exposes an ACPI
+Namespace Device under the root device.
+
+The NVDIMM child devices under the NVDIMM root device are defined with _ADR
+corresponding to the NFIT device handle. The NVDIMM root device and the
+NVDIMM devices can have device specific methods (_DSM) to provide additional
+functions specific to a particular NVDIMM implementation.
+
+This is an example from ACPI 6.0, a platform contains one NVDIMM:
+
+Scope (\_SB){
+   Device (NVDR) // Root device
+   {
+      Name (_HID, “ACPI0012”)
+      Method (_STA) {...}
+      Method (_FIT) {...}
+      Method (_DSM, ...) {...}
+      Device (NVD)
+      {
+         Name(_ADR, h) //where h is NFIT Device Handle for this NVDIMM
+         Method (_DSM, ...) {...}
+      }
+   }
+}
+
+Method supported on both NVDIMM root device and NVDIMM device
+_DSM (Device Specific Method)
+   It is a control method that enables devices to provide device specific
+   control functions that are consumed by the device driver.
+   The NVDIMM DSM specification can be found at:
+        http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf
+
+   Arguments:
+   Arg0 – A Buffer containing a UUID (16 Bytes)
+   Arg1 – An Integer containing the Revision ID (4 Bytes)
+   Arg2 – An Integer containing the Function Index (4 Bytes)
+   Arg3 – A package containing parameters for the function specified by the
+          UUID, Revision ID, and Function Index
+
+   Return Value:
+   If Function Index = 0, a Buffer containing a function index bitfield.
+   Otherwise, the return value and type depends on the UUID, revision ID
+   and function index which are described in the DSM specification.
+
+Methods on NVDIMM ROOT Device
+_FIT(Firmware Interface Table)
+   It evaluates to a buffer returning data in the format of a series of NFIT
+   Type Structure.
+
+   Arguments: None
+
+   Return Value:
+   A Buffer containing a list of NFIT Type structure entries.
+
+   The detailed definition of the structure can be found at ACPI 6.0: 5.2.25
+   NVDIMM Firmware Interface Table (NFIT).
+
+QEMU NVDIMM Implemention
+========================
+QEMU uses 4 bytes IO Port starting from 0x0a18 and a RAM-based memory page
+for NVDIMM ACPI.
+
+Memory:
+   QEMU uses BIOS Linker/loader feature to ask BIOS to allocate a memory
+   page and dynamically patch its into a int32 object named "MEMA" in ACPI.
+
+   This page is RAM-based and it is used to transfer data between _DSM
+   method and QEMU. If ACPI has control, this pages is owned by ACPI which
+   writes _DSM input data to it, otherwise, it is owned by QEMU which
+   emulates _DSM access and writes the output data to it.
+
+   ACPI writes _DSM Input Data (based on the offset in the page):
+   [0x0 - 0x3]: 4 bytes, NVDIMM Device Handle, 0 is reserved for NVDIMM
+                Root device.
+   [0x4 - 0x7]: 4 bytes, Revision ID, that is the Arg1 of _DSM method.
+   [0x8 - 0xB]: 4 bytes. Function Index, that is the Arg2 of _DSM method.
+   [0xC - 0xFFF]: 4084 bytes, the Arg3 of _DSM method.
+
+   QEMU Writes Output Data (based on the offset in the page):
+   [0x0 - 0x3]: 4 bytes, the length of result
+   [0x4 - 0xFFF]: 4092 bytes, the DSM result filled by QEMU
+
+IO Port 0x0a18 - 0xa1b:
+   ACPI writes the address of the memory page allocated by BIOS to this
+   port then QEMU gets the control and fills the result in the memory page.
+
+   write Access:
+   [0x0a18 - 0xa1b]: 4 bytes, the address of the memory page allocated
+                     by BIOS.
+
+_DSM process diagram:
+---------------------
+"MEMA" indicates the address of memory page allocated by BIOS.
+
+ +----------------------+      +-----------------------+
+ |    1. OSPM           |      |    2. OSPM            |
+ | save _DSM input data |      |  write "MEMA" to      | Exit to QEMU
+ | to the page          +----->|  IO port 0x0a18       +------------+
+ | indicated by "MEMA"  |      |                       |            |
+ +----------------------+      +-----------------------+            |
+                                                                    |
+                                                                    v
+ +-------------   ----+       +-----------+      +------------------+--------+
+ |      5 QEMU        |       | 4 QEMU    |      |        3. QEMU            |
+ | write _DSM result  |       |  emulate  |      | get _DSM input data from  |
+ | to the page        +<------+ _DSM      +<-----+ the page indicated by the |
+ |                    |       |           |      | value from the IO port    |
+ +--------+-----------+       +-----------+      +---------------------------+
+          |
+          | Enter Guest
+          |
+          v
+ +--------------------------+      +--------------+
+ |     6 OSPM               |      |   7 OSPM     |
+ | result size is returned  |      |  _DSM return |
+ | by reading  DSM          +----->+              |
+ | result from the page     |      |              |
+ +--------------------------+      +--------------+
+
+ _FIT implementation
+ -------------------
+ TODO (will fill it when nvdimm hotplug is introduced)

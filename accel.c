@@ -88,8 +88,8 @@ int configure_accelerator(MachineState *ms)
 
     p = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (p == NULL) {
-        /* Use the default "accelerator", tcg */
-        p = "tcg";
+        /* Use kvm accelerator by default, fail to tcg*/
+        p = "kvm:tcg";
     }
 
     while (!accel_initialised && *p != '\0') {

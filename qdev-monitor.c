@@ -42,7 +42,6 @@ typedef struct QDevAlias
 
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
-    { "e1000", "e1000-82540em" },
     { "ich9-ahci", "ahci" },
     { "kvm-pci-assign", "pci-assign" },
     { "lsi53c895a", "lsi" },

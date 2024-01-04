@@ -1867,11 +1867,6 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
     return 1;
 }
 
-/* structures and macros for task offloading */
-#define TCP_HEADER_DATA_OFFSET(tcp) (((be16_to_cpu(tcp->th_offset_flags) >> 12)&0xf) << 2)
-#define TCP_FLAGS_ONLY(flags) ((flags)&0x3f)
-#define TCP_HEADER_FLAGS(tcp) TCP_FLAGS_ONLY(be16_to_cpu(tcp->th_offset_flags))
-
 #define TCP_HEADER_CLEAR_FLAGS(tcp, off) ((tcp)->th_offset_flags &= cpu_to_be16(~TCP_FLAGS_ONLY(off)))
 
 /* produces ones' complement sum of data */
@@ -3482,7 +3477,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
 
     k->realize = pci_rtl8139_realize;
     k->exit = pci_rtl8139_uninit;
-    k->romfile = "efi-rtl8139.rom";
+    k->romfile = "pxe-rtl8139.rom";
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;
     k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */

@@ -1,0 +1,273 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//  vsmgmt.idl - Interfaces for Snapshots management exposed by VSS and/or providers
+//
+//  Copyright (c) 2005  Microsoft Corporation
+//
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Imports
+//
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+import "vss.idl";
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Constants
+//
+
+
+// Types of returned objects in a Query
+typedef enum _VSS_MGMT_OBJECT_TYPE {
+    VSS_MGMT_OBJECT_UNKNOWN = 0,                            
+    VSS_MGMT_OBJECT_VOLUME,             // Refers to a volume to be snapshotted                 
+    VSS_MGMT_OBJECT_DIFF_VOLUME,        // Refers to a volume to hold a diff area
+    VSS_MGMT_OBJECT_DIFF_AREA,          // Refers to an association between the two objects above.
+} VSS_MGMT_OBJECT_TYPE;
+
+
+// Denotes that no maximum space is specified in AddDiffArea or ChangeDiffAreaMaximumSize
+const LONGLONG VSS_ASSOC_NO_MAX_SPACE = -1;
+
+// If this constant is specified in ChangeDiffAreaMaximumSize then the association is removed
+const LONGLONG VSS_ASSOC_REMOVE = 0;
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Typedefs and structures
+//
+
+
+// Structure containing the properties of a volume as being a volume to be snapshotted.
+typedef struct _VSS_VOLUME_PROP {
+    VSS_PWSZ    m_pwszVolumeName;           // The volume name, in \\?\Volume{GUID} format.
+    VSS_PWSZ    m_pwszVolumeDisplayName;    // The shortest mount point (for example C:\)
+} VSS_VOLUME_PROP, *PVSS_VOLUME_PROP;               
+
+
+// Structure containing the properties of a volume that can be used to keep a diff area
+typedef struct _VSS_DIFF_VOLUME_PROP {
+    VSS_PWSZ    m_pwszVolumeName;           // The volume name, in \\?\Volume{GUID} format.
+    VSS_PWSZ    m_pwszVolumeDisplayName;    // Represents the shortest mount point (for example C:\)
+    LONGLONG    m_llVolumeFreeSpace;        // Free space on that volume
+    LONGLONG    m_llVolumeTotalSpace;       // Total space on that volume
+} VSS_DIFF_VOLUME_PROP, *PVSS_DIFF_VOLUME_PROP;             
+
+
+// Structure containing the properties of a diff area association between
+// a volume to be snapshotted and a diff volume.
+typedef struct _VSS_DIFF_AREA_PROP {
+    VSS_PWSZ  m_pwszVolumeName;             // The original volume name
+    VSS_PWSZ  m_pwszDiffAreaVolumeName;     // The diff area volume name
+    LONGLONG  m_llMaximumDiffSpace;         // Maximum space that on the diff area volume in this association.
+    LONGLONG  m_llAllocatedDiffSpace;       // Allocated space on the diff area volume by this association.
+    LONGLONG  m_llUsedDiffSpace;            // Used space from the allocated area above.
+} VSS_DIFF_AREA_PROP, *PVSS_DIFF_AREA_PROP;             
+
+
+// General-purpose union containing the properties of a volume or diff area
+[ switch_type(VSS_MGMT_OBJECT_TYPE) ]
+typedef union {                     
+    [case(VSS_MGMT_OBJECT_VOLUME)]      VSS_VOLUME_PROP         Vol;
+    [case(VSS_MGMT_OBJECT_DIFF_VOLUME)] VSS_DIFF_VOLUME_PROP    DiffVol;
+    [case(VSS_MGMT_OBJECT_DIFF_AREA)]   VSS_DIFF_AREA_PROP      DiffArea;
+    [default];
+} VSS_MGMT_OBJECT_UNION;
+
+
+typedef struct _VSS_MGMT_OBJECT_PROP {
+    VSS_MGMT_OBJECT_TYPE Type;                          
+    [ switch_is(Type) ] VSS_MGMT_OBJECT_UNION Obj;      
+} VSS_MGMT_OBJECT_PROP, *PVSS_MGMT_OBJECT_PROP;
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Forward declarations
+//
+
+interface IVssSnapshotMgmt;
+interface IVssDifferentialSoftwareSnapshotMgmt;
+interface IVssEnumMgmtObject;
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Interfaces
+//
+
+
+// Used to manage diff areas remotely for Software-based snapshots (using hte copy-on-write mechanism).
+// Implemented by VSS and each provider.
+[
+    object,
+    uuid(FA7DF749-66E7-4986-A27F-E2F04AE53772),
+    helpstring("IVssSnapshotMgmt interface"),
+    pointer_default(unique)
+]
+interface IVssSnapshotMgmt: IUnknown
+{
+    // Returns an interface to further configure a snapshot provider
+    HRESULT GetProviderMgmtInterface(                           
+        [in]    VSS_ID      ProviderId,     //  It might be a software or a system provider.
+        [in]    REFIID      InterfaceId,    //  Might be IID_IVssDifferentialSoftwareSnapshotMgmt
+        [out, iid_is(InterfaceId)]
+                IUnknown**  ppItf
+        );                                              
+
+    //
+    //  Queries
+    //
+
+    // Query volumes that support snapshots
+    HRESULT QueryVolumesSupportedForSnapshots(
+        [in]    VSS_ID      ProviderId,
+        [in]    LONG        lContext,
+        [out]   IVssEnumMgmtObject **ppEnum
+        );                                              
+
+    // Query snapshots on the given volume.
+    HRESULT QuerySnapshotsByVolume(
+        [in]    VSS_PWSZ    pwszVolumeName,
+        [in]    VSS_ID      ProviderId,
+        [out]   IVssEnumObject **ppEnum
+        );                                              
+};
+
+
+
+// More APIs to manage diff areas remotely for Software-based snapshots (using hte copy-on-write mechanism).
+// Implemented by VSS 
+[
+	object,
+	uuid(0f61ec39-fe82-45f2-a3f0-768b5d427102),
+	helpstring("IVssSnapshotMgmt2 interface"),
+	pointer_default(unique)
+]
+interface IVssSnapshotMgmt2: IUnknown
+{
+	// Returns an interface to further configure a snapshot provider
+	HRESULT GetMinDiffAreaSize(							
+		[out]	LONGLONG *   pllMinDiffAreaSize
+		);												
+};
+
+
+
+// Used to manage diff areas remotely for Software-based
+// snapshots (using the copy-on-write mechanism).
+// This is implemented by a Snapshot/System provider and
+// returned by IVssSnapshotMgmt::GetProviderMgmtInterface
+[
+    object,
+    uuid(214A0F28-B737-4026-B847-4F9E37D79529),
+    helpstring("IVssDifferentialSoftwareSnapshotMgmt interface"),
+    pointer_default(unique)
+]
+interface IVssDifferentialSoftwareSnapshotMgmt: IUnknown
+{
+    //
+    //  Diff area management
+    //
+
+    // Adds a diff area association for a certain volume.
+    // If the association is not supported, an error code will be returned.
+    HRESULT AddDiffArea(                            
+        [in]    VSS_PWSZ    pwszVolumeName,
+        [in]    VSS_PWSZ    pwszDiffAreaVolumeName,
+        [in]    LONGLONG    llMaximumDiffSpace
+        );                                              
+
+    // Updates the diff area max size for a certain volume.
+    // This may not have an immediate effect
+    // note that setting llMaximumDiffSpace to 0 will disable the
+    // diff area
+    HRESULT ChangeDiffAreaMaximumSize(                          
+        [in]    VSS_PWSZ    pwszVolumeName,
+        [in]    VSS_PWSZ    pwszDiffAreaVolumeName,
+        [in]    LONGLONG    llMaximumDiffSpace
+        );                                              
+
+    //
+    //  Queries
+    //
+
+    // Query volumes that support diff areas (including the disabled ones)
+    HRESULT QueryVolumesSupportedForDiffAreas(
+        [in]    VSS_PWSZ    pwszOriginalVolumeName,
+        [out]   IVssEnumMgmtObject **ppEnum
+        );                                              
+
+    // Query diff areas that host snapshots on the given (snapshotted) volume
+    HRESULT QueryDiffAreasForVolume(
+        [in]    VSS_PWSZ    pwszVolumeName,
+        [out]   IVssEnumMgmtObject **ppEnum
+        );                                              
+
+    // Query diff areas that physically reside on the given volume
+    HRESULT QueryDiffAreasOnVolume(
+        [in]    VSS_PWSZ    pwszVolumeName,
+        [out]   IVssEnumMgmtObject **ppEnum
+        );                                              
+
+    // Query diff areas in use by the given snapshot
+    HRESULT QueryDiffAreasForSnapshot(
+        [in]    VSS_ID      SnapshotId,     
+        [out]   IVssEnumMgmtObject **ppEnum
+        );                                              
+};
+
+
+
+// This returns a set of volumes that can be snapshotted by Babbage. Returned by Query.
+[
+    object,
+    uuid(01954E6B-9254-4e6e-808C-C9E05D007696),
+    helpstring("IVssEnumMgmtObject Interface"),
+    pointer_default(unique)
+]
+interface IVssEnumMgmtObject : IUnknown
+{
+    HRESULT Next(                                       
+        [in]    ULONG celt,                             
+        [out, size_is(celt), length_is(*pceltFetched)]
+                VSS_MGMT_OBJECT_PROP *rgelt,                
+        [out]   ULONG *pceltFetched                     
+        );                                              
+
+    HRESULT Skip(                                       
+        [in] ULONG celt                                 
+        );                                              
+
+    HRESULT Reset();                                    
+
+    HRESULT Clone(                                      
+        [in, out] IVssEnumMgmtObject **ppenum               
+        );                                              
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Snapshot Mgmt Type Library
+//
+
+[
+    uuid(84015C41-291D-49e6-BF7F-DD40AE93632B),
+    version(1.0),
+    helpstring("Shadow Copy Mgmt 1.0 Type Library")
+]
+library VSMGMT
+{
+    importlib("stdole2.tlb");
+
+    [
+        uuid(0B5A2C52-3EB9-470a-96E2-6C6D4570E40F),
+        helpstring("VssSnapshotMgmt Class")
+    ]
+    coclass VssSnapshotMgmt
+    {
+        [default] interface IVssSnapshotMgmt;
+    }
+}

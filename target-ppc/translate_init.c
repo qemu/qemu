@@ -8363,7 +8363,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     dc->desc = "POWER7";
     dc->props = powerpc_servercpu_properties;
     pcc->pvr_match = ppc_pvr_match_power7;
-    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
+    pcc->pcr_mask = PCR_VEC_DIS | PCR_VSX_DIS | PCR_COMPAT_2_05;
+    pcc->pcr_supported = PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -8443,7 +8444,8 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     dc->desc = "POWER8";
     dc->props = powerpc_servercpu_properties;
     pcc->pvr_match = ppc_pvr_match_power8;
-    pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06;
+    pcc->pcr_mask = PCR_TM_DIS | PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
+    pcc->pcr_supported = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
     pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -9502,26 +9504,35 @@ int ppc_get_compat_smt_threads(PowerPCCPU *cpu)
     return ret;
 }
 
+#ifdef TARGET_PPC64
 void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
 {
     int ret = 0;
     CPUPPCState *env = &cpu->env;
+    PowerPCCPUClass *host_pcc;
 
     cpu->cpu_version = cpu_version;
 
     switch (cpu_version) {
     case CPU_POWERPC_LOGICAL_2_05:
-        env->spr[SPR_PCR] = PCR_COMPAT_2_05;
+        env->spr[SPR_PCR] = PCR_TM_DIS | PCR_VSX_DIS | PCR_COMPAT_2_07 |
+                            PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
         break;
     case CPU_POWERPC_LOGICAL_2_06:
-        env->spr[SPR_PCR] = PCR_COMPAT_2_06;
-        break;
     case CPU_POWERPC_LOGICAL_2_06_PLUS:
-        env->spr[SPR_PCR] = PCR_COMPAT_2_06;
+        env->spr[SPR_PCR] = PCR_TM_DIS | PCR_COMPAT_2_07 | PCR_COMPAT_2_06;
+        break;
+    case CPU_POWERPC_LOGICAL_2_07:
+        env->spr[SPR_PCR] = PCR_COMPAT_2_07;
         break;
     default:
         env->spr[SPR_PCR] = 0;
         break;
+    }
+
+    host_pcc = kvm_ppc_get_host_cpu_class();
+    if (host_pcc) {
+        env->spr[SPR_PCR] &= host_pcc->pcr_mask;
     }
 
     if (kvm_enabled()) {
@@ -9532,6 +9543,7 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp)
         }
     }
 }
+#endif
 
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
 {
@@ -9681,6 +9693,19 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         if (strcmp(ppc_cpu_aliases[i].alias, name) == 0) {
             return ppc_cpu_class_by_alias(&ppc_cpu_aliases[i]);
+        }
+    }
+
+    return NULL;
+}
+
+const char *ppc_cpu_lookup_alias(const char *alias)
+{
+    int ai;
+
+    for (ai = 0; ppc_cpu_aliases[ai].alias != NULL; ai++) {
+        if (strcmp(ppc_cpu_aliases[ai].alias, alias) == 0) {
+            return ppc_cpu_aliases[ai].model;
         }
     }
 

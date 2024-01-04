@@ -394,7 +394,23 @@ static void test_max_is_missing_limit(void)
         cfg.buckets[i].max = 0;
         cfg.buckets[i].avg = 100;
         g_assert(throttle_is_valid(&cfg, NULL));
+
+        cfg.buckets[i].max = 30;
+        cfg.buckets[i].avg = 100;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        cfg.buckets[i].max = 100;
+        cfg.buckets[i].avg = 100;
+        g_assert(throttle_is_valid(&cfg, NULL));
     }
+}
+
+static void test_iops_size_is_missing_limit(void)
+{
+    /* A total/read/write iops limit is required */
+    throttle_config_init(&cfg);
+    cfg.op_size = 4096;
+    g_assert(!throttle_is_valid(&cfg, NULL));
 }
 
 static void test_have_timer(void)
@@ -647,6 +663,8 @@ int main(int argc, char **argv)
     g_test_add_func("/throttle/config/conflicting", test_conflicting_config);
     g_test_add_func("/throttle/config/is_valid",    test_is_valid);
     g_test_add_func("/throttle/config/max",         test_max_is_missing_limit);
+    g_test_add_func("/throttle/config/iops_size",
+                    test_iops_size_is_missing_limit);
     g_test_add_func("/throttle/config_functions",   test_config_functions);
     g_test_add_func("/throttle/accounting",         test_accounting);
     g_test_add_func("/throttle/groups",             test_groups);

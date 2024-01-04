@@ -743,7 +743,7 @@ static int do_vm_stop(RunState state)
     }
 
     bdrv_drain_all();
-    ret = blk_flush_all();
+    ret = bdrv_flush_all();
 
     return ret;
 }
@@ -970,6 +970,18 @@ void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     qemu_cpu_kick(cpu);
 }
 
+static void qemu_kvm_destroy_vcpu(CPUState *cpu)
+{
+    if (kvm_destroy_vcpu(cpu) < 0) {
+        error_report("kvm_destroy_vcpu failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+static void qemu_tcg_destroy_vcpu(CPUState *cpu)
+{
+}
+
 static void flush_queued_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
@@ -1059,7 +1071,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
-    while (1) {
+    do {
         if (cpu_can_run(cpu)) {
             r = kvm_cpu_exec(cpu);
             if (r == EXCP_DEBUG) {
@@ -1067,8 +1079,12 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
             }
         }
         qemu_kvm_wait_io_event(cpu);
-    }
+    } while (!cpu->unplug || cpu_can_run(cpu));
 
+    qemu_kvm_destroy_vcpu(cpu);
+    cpu->created = false;
+    qemu_cond_signal(&qemu_cpu_cond);
+    qemu_mutex_unlock_iothread();
     return NULL;
 }
 
@@ -1122,6 +1138,7 @@ static void tcg_exec_all(void);
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
+    CPUState *remove_cpu = NULL;
 
     rcu_register_thread();
 
@@ -1159,6 +1176,18 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
             }
         }
         qemu_tcg_wait_io_event(QTAILQ_FIRST(&cpus));
+        CPU_FOREACH(cpu) {
+            if (cpu->unplug && !cpu_can_run(cpu)) {
+                remove_cpu = cpu;
+                break;
+            }
+        }
+        if (remove_cpu) {
+            qemu_tcg_destroy_vcpu(remove_cpu);
+            cpu->created = false;
+            qemu_cond_signal(&qemu_cpu_cond);
+            remove_cpu = NULL;
+        }
     }
 
     return NULL;
@@ -1315,6 +1344,21 @@ void resume_all_vcpus(void)
     }
 }
 
+void cpu_remove(CPUState *cpu)
+{
+    cpu->stop = true;
+    cpu->unplug = true;
+    qemu_cpu_kick(cpu);
+}
+
+void cpu_remove_sync(CPUState *cpu)
+{
+    cpu_remove(cpu);
+    while (cpu->created) {
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    }
+}
+
 /* For temporary buffers for forming a name */
 #define VCPU_THREAD_NAME_SIZE 16
 
@@ -1442,7 +1486,7 @@ int vm_stop_force_state(RunState state)
         bdrv_drain_all();
         /* Make sure to return an error if the flush in a previous vm_stop()
          * failed. */
-        return blk_flush_all();
+        return bdrv_flush_all();
     }
 }
 
@@ -1531,6 +1575,9 @@ static void tcg_exec_all(void)
                 break;
             }
         } else if (cpu->stop || cpu->stopped) {
+            if (cpu->unplug) {
+                next_cpu = CPU_NEXT(cpu);
+            }
             break;
         }
     }
@@ -1691,21 +1738,7 @@ exit:
 
 void qmp_inject_nmi(Error **errp)
 {
-#if defined(TARGET_I386)
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        X86CPU *cpu = X86_CPU(cs);
-
-        if (!cpu->apic_state) {
-            cpu_interrupt(cs, CPU_INTERRUPT_NMI);
-        } else {
-            apic_deliver_nmi(cpu->apic_state);
-        }
-    }
-#else
     nmi_monitor_handle(monitor_get_cpu_index(), errp);
-#endif
 }
 
 void dump_drift_info(FILE *f, fprintf_function cpu_fprintf)

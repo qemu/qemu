@@ -229,6 +229,10 @@ int main(int argc, char **argv)
 
     init_clocks();
 
+#ifdef HOST_AARCH64
+    sigaction(SIGIO, &(struct sigaction){ .sa_handler = SIG_IGN }, NULL);
+#endif
+
     ctx = aio_context_new(&local_error);
     if (!ctx) {
         error_reportf_err(local_error, "Failed to create AIO Context: ");

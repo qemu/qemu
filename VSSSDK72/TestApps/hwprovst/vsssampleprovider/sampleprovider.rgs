@@ -1,0 +1,26 @@
+HKCR
+{
+	VssSampleProvider.SampleProvider.1 = s 'SampleProvider Class'
+	{
+		CLSID = s '{423BBC78-9B20-4BBE-A967-B63EC43BC7F3}'
+	}
+	VssSampleProvider.SampleProvider = s 'SampleProvider Class'
+	{
+		CLSID = s '{423BBC78-9B20-4BBE-A967-B63EC43BC7F3}'
+		CurVer = s 'VssSampleProvider.SampleProvider.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {423BBC78-9B20-4BBE-A967-B63EC43BC7F3} = s 'SampleProvider Class'
+		{
+			ProgID = s 'VssSampleProvider.SampleProvider.1'
+			VersionIndependentProgID = s 'VssSampleProvider.SampleProvider'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			val AppID = s '%APPID%'
+			'TypeLib' = s '{F6DDBFFA-4D54-40AC-BD0C-7BCEFEA4779B}'
+		}
+	}
+}

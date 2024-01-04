@@ -80,8 +80,12 @@ struct PCIExpressDevice {
 
 /* PCI express capability helper functions */
 int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port);
+int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset,
+                     uint8_t type, uint8_t port);
 int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset);
 void pcie_cap_exit(PCIDevice *dev);
+int pcie_endpoint_cap_v1_init(PCIDevice *dev, uint8_t offset);
+void pcie_cap_v1_exit(PCIDevice *dev);
 uint8_t pcie_cap_get_type(const PCIDevice *dev);
 void pcie_cap_flags_set_vector(PCIDevice *dev, uint8_t vector);
 uint8_t pcie_cap_flags_get_vector(PCIDevice *dev);
@@ -115,6 +119,7 @@ void pcie_add_capability(PCIDevice *dev,
                          uint16_t offset, uint16_t size);
 
 void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn);
+void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num);
 
 extern const VMStateDescription vmstate_pcie_device;
 

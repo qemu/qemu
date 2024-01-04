@@ -414,7 +414,7 @@ install-doc: $(DOCS)
 	$(INSTALL_DATA) qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
-	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1/qemu-kvm.1"
 ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
@@ -469,6 +469,10 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	$(INSTALL_DATA) $(SRC_PATH)/trace-events "$(DESTDIR)$(qemu_datadir)/trace-events"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/systemtap/script.d"
+	$(INSTALL_DATA) $(SRC_PATH)/scripts/systemtap/script.d/qemu_kvm.stp "$(DESTDIR)$(qemu_datadir)/systemtap/script.d/"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/systemtap/conf.d"
+	$(INSTALL_DATA) $(SRC_PATH)/scripts/systemtap/conf.d/qemu_kvm.conf "$(DESTDIR)$(qemu_datadir)/systemtap/conf.d/"
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) $(SUBDIR_MAKEFLAGS) TARGET_DIR=$$d/ -C $$d $@ || exit 1 ; \
         done

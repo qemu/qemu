@@ -1,0 +1,52 @@
+/*--
+
+Copyright (C) Microsoft Corporation, 2003
+
+Module Name:
+
+    VssSampleProvider.idl
+
+Abstract:
+
+    Definition of SampleProvider specific interfaces.  In our case we only implement
+    the interfaces required of a VSS HW provider and have no extra private interfaces.
+    
+    This file will be processed by the MIDL tool to produce the type library
+    (VssSampleProvider.tlb) and marshalling code that clients other than VSS would use
+    to access the interfaces.
+
+Notes:
+
+Revision History:
+
+--*/
+
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+[
+    object,
+    uuid(C1EA69F7-1026-4969-A5FB-727E601515BF),
+    helpstring("ISampleProvider Interface"),
+    pointer_default(unique)
+]
+interface ISampleProvider : IUnknown{
+};
+[
+    uuid(F6DDBFFA-4D54-40AC-BD0C-7BCEFEA4779B),
+    version(1.0),
+    helpstring("VssSampleProvider 1.0 Type Library")
+]
+library VssSampleProviderLib
+{
+    importlib("stdole2.tlb");
+    [
+        uuid(423BBC78-9B20-4BBE-A967-B63EC43BC7F3),
+        helpstring("SampleProvider Class")
+    ]
+    coclass SampleProvider
+    {
+        [default] interface ISampleProvider;
+    };
+};

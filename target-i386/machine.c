@@ -890,6 +890,26 @@ static const VMStateDescription vmstate_tsc_khz = {
     }
 };
 
+static bool vmstate_xsave_needed(void *opaque)
+{
+    /* The xsave state is already on the main "cpu" section */
+    return false;
+}
+
+static const VMStateDescription vmstate_xsave ={
+    .name = "cpu/xsave",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_xsave_needed,
+    .fields      = (VMStateField []) {
+    VMSTATE_UINT64_V(env.xcr0, X86CPU, 1),
+    VMSTATE_UINT64_V(env.xstate_bv, X86CPU, 1),
+    VMSTATE_YMMH_REGS_VARS(env.xmm_regs, X86CPU, CPU_NB_REGS, 1),
+    VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1016,6 +1036,7 @@ VMStateDescription vmstate_x86_cpu = {
 #ifdef TARGET_X86_64
         &vmstate_pkru,
 #endif
+        &vmstate_xsave,
         NULL
     }
 };

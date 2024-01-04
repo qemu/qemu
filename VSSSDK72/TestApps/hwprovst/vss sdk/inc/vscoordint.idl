@@ -1,0 +1,334 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//	Copyright (c) 2000	Microsoft Corporation
+//
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//	Imports
+//
+
+
+import "oaidl.idl";
+import "ocidl.idl";
+import "vss.idl";
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//	 Interfaces
+//
+
+
+[
+	object,
+	uuid(da9f41d4-1a5d-41d0-a614-6dfd78df5d05),
+	helpstring("IVssCoordinator interface"),
+	pointer_default(unique)
+]
+interface IVssCoordinator : IUnknown
+{
+	[helpstring("method SetContext")] 			
+	HRESULT SetContext(							
+		[in]	LONG 	lContext
+		);												
+
+	[helpstring("method StartSnapshotSet")] 			
+	HRESULT StartSnapshotSet(							
+		[out]	VSS_ID* 	pSnapshotSetId				
+		);												
+
+	[helpstring("method AddToSnapshotSet")] 			
+	HRESULT AddToSnapshotSet(							
+		[in]	VSS_PWSZ	pwszVolumeName, 			
+		[in]	VSS_ID		ProviderId,
+		[out]	VSS_ID		*pSnapshotId
+		);												
+
+	[helpstring("method DoSnapshotSet")]				
+	HRESULT DoSnapshotSet(
+		[in]	IDispatch *pWriterCallback,
+		[out]   IVssAsync** ppAsync 					
+		);												
+
+	[helpstring("method GetSnapshotProperties")]					
+	HRESULT GetSnapshotProperties(								
+    	[in]	VSS_ID			SnapshotId,
+    	[out]	VSS_SNAPSHOT_PROP	*pProp
+    	);
+
+    [helpstring("method ExposeSnapshot")]
+	HRESULT ExposeSnapshot(
+        [in] VSS_ID SnapshotId,
+        [in] VSS_PWSZ wszPathFromRoot,
+        [in] LONG lAttributes,
+        [in] VSS_PWSZ wszExpose,
+        [out] VSS_PWSZ *pwszExposed
+        );
+
+    [helpstring("method ImportSnapshots")]
+    HRESULT ImportSnapshots(
+		[in] BSTR bstrXMLSnapshotSet,
+		[out] IVssAsync** ppAsync
+		);
+
+	[helpstring("method Query")]						
+	HRESULT Query(										
+		[in]	VSS_ID			QueriedObjectId,		
+		[in]	VSS_OBJECT_TYPE eQueriedObjectType, 	
+		[in]	VSS_OBJECT_TYPE eReturnedObjectsType,	
+		[out]	IVssEnumObject **ppEnum 				
+		);												
+
+	[helpstring("method DeleteSnapshots")]				
+	HRESULT DeleteSnapshots(							
+		[in]	VSS_ID			SourceObjectId, 		
+		[in]	VSS_OBJECT_TYPE eSourceObjectType,		
+		[in]	BOOL			bForceDelete,			
+		[out]	LONG*			plDeletedSnapshots,		
+		[out]	VSS_ID*			pNondeletedSnapshotID	
+		);
+
+    [helpstring("method BreakSnapshotSet")]
+	HRESULT BreakSnapshotSet(
+		[in]	VSS_ID		    SnapshotSetId
+		);
+
+    [helpstring("method RevertToSnapshot")]
+	HRESULT RevertToSnapshot(
+		[in] VSS_ID		SnapshotId,
+		[in] BOOL		bForceDismount
+		);
+
+    [helpstring("method QueryRevertStatus")]
+	HRESULT QueryRevertStatus(
+		[in]   VSS_PWSZ		pwszVolume,
+		[out] IVssAsync	**ppAsync
+		);
+		
+	[helpstring("method IsVolumeSupported")]				
+    HRESULT IsVolumeSupported(
+        [in]    VSS_ID		    ProviderId, 				
+        [in]    VSS_PWSZ        pwszVolumeName,
+        [out]   BOOL *          pbSupportedByThisProvider
+        );
+
+	[helpstring("method IsVolumeSnapshotted")]				
+    HRESULT IsVolumeSnapshotted(
+		[in]	VSS_ID		    ProviderId, 				
+        [in]    VSS_PWSZ        pwszVolumeName,
+        [out]   BOOL *          pbSnapshotsPresent,
+    	[out]	LONG *		    plSnapshotCompatibility
+        );
+
+	[helpstring("method SetWriterInstances")]				
+    HRESULT SetWriterInstances(
+		[in]	LONG		    lWriterInstanceIdCount, 				
+        [in, unique, size_is(lWriterInstanceIdCount)]
+                VSS_ID          *rgWriterInstanceId
+        );
+};
+
+[
+	object,
+	uuid(BF5AEED7-92BA-4484-97BE-EF7DA4825680),
+	helpstring("IVssRemoteCoordinator interface"),
+	pointer_default(unique)
+]
+interface IVssRemoteCoordinator : IUnknown
+{
+	[helpstring("method SetContext")] 			
+	HRESULT SetContext(							
+		[in]	LONG 	lContext
+		);												
+
+	[helpstring("method StartSnapshotSet")] 			
+	HRESULT StartSnapshotSet(
+        [in]    VSS_PWSZ    pwszMachineName,
+		[in]	VSS_ID 	    SnapshotSetId	
+        );												
+
+	[helpstring("method AddToSnapshotSet")] 			
+	HRESULT AddToSnapshotSet(							
+		[in]	VSS_PWSZ	pwszShareName, 			
+		[in]	VSS_ID		ProviderId, 				
+		[out]	VSS_ID		*pSnapshotId
+		);												
+
+    [helpstring("method EndPrepareAllSnapshots")]
+    HRESULT EndprepareAllSnapshots(         
+        );
+
+	[helpstring("method DoSnapshotSet")]				
+	HRESULT DoSnapshotSet(
+	    [in]    LONG        lTotalSnapshotsCount,
+		[out]   IVssAsync** ppAsync 
+		);												
+
+	[helpstring("method GetSnapshotProperties")]					
+	HRESULT GetSnapshotProperties(								
+    	[in]	VSS_ID			SnapshotId,             
+    	[out]	VSS_SNAPSHOT_PROP	*pProp
+    	);
+
+    [helpstring("method ExposeSnapshot")]
+	HRESULT ExposeSnapshot(                             
+        [in] VSS_ID SnapshotId,
+        [in] VSS_PWSZ wszPathFromRoot,
+        [in] LONG lContext,     
+        [in] VSS_PWSZ wszExpose,
+        [out] VSS_PWSZ *pwszExposed
+        );
+
+	[helpstring("method Query")]						
+	HRESULT Query(									
+        [in]    VSS_PWSZ        pwszObjectName,         
+		[in]	VSS_ID			QueriedObjectId,		
+		[in]	VSS_OBJECT_TYPE eQueriedObjectType, 	
+		[in]	VSS_OBJECT_TYPE eReturnedObjectsType,	
+		[out]	IVssEnumObject **ppEnum 				
+		);												
+
+	[helpstring("method DeleteSnapshots")]
+	HRESULT DeleteSnapshots(							
+		[in]	VSS_ID			SourceObjectId,
+		[in]	VSS_OBJECT_TYPE eSourceObjectType,		
+		[in]	BOOL			bForceDelete,			
+		[out]	LONG*			plDeletedSnapshots,		
+		[out]	VSS_ID*			pNondeletedSnapshotID	
+		);
+
+    [helpstring("method BreakSnapshotSet")]  
+	HRESULT BreakSnapshotSet(
+		[in]	VSS_ID		    SnapshotSetId
+		);
+
+	[helpstring("method IsVolumeSupported")]				
+    HRESULT IsShareSupported(                 
+		[in]	VSS_ID		    ProviderId, 				
+        [in]    VSS_PWSZ        pwszShareName,
+        [out]   BOOL *          pbSupportedByThisProvider
+        );
+
+	[helpstring("method IsVolumeSnapshotted")]				
+    HRESULT IsShareSnapshotted(               
+		[in]	VSS_ID		    ProviderId, 				
+        [in]    VSS_PWSZ        pwszShareName,
+        [out]   BOOL *          pbSnapshotsPresent,
+    	[out]	LONG *		    plSnapshotCompatibility
+        );
+};
+
+[
+	object,
+	uuid(F2C2787D-95AB-40D4-942D-298F5F757874),
+	helpstring("IVssRemsnapCoordinatorInternal interface"),
+	pointer_default(unique)
+]
+interface IVssRemsnapCoordinatorInternal : IUnknown
+{
+	[helpstring("method OnSnapshotSetDone")]
+	HRESULT OnSnapshotSetDone(
+		);
+		
+	[helpstring("method OnSnapshotSetAbort")]
+	HRESULT OnSnapshotSetAbort(
+		);
+};
+	
+
+[
+	object,
+	uuid(D6222095-05C3-42f3-81D9-A4A0CEC05C26),
+	helpstring("IVssShim interface"),
+	pointer_default(unique)
+]
+interface IVssShim : IUnknown
+{
+	[helpstring("method SimulateSnapshotFreeze")] 			
+	HRESULT SimulateSnapshotFreeze(
+	    [in]    VSS_ID          guidSnapshotSetId,
+		[in]    ULONG           ulOptionFlags,	
+		[in]    ULONG           ulVolumeCount,	
+		[in, unique, size_is(ulVolumeCount, ) ]
+		        VSS_PWSZ*       ppwszVolumeNamesArray,
+		[out]   IVssAsync**     ppAsync 					
+		);												
+
+	[helpstring("method SimulateSnapshotThaw")] 			
+	HRESULT SimulateSnapshotThaw(
+	    [in]    VSS_ID            guidSnapshotSetId
+	    );
+
+	[helpstring("method WaitForSubscribingCompletion")]				
+	HRESULT WaitForSubscribingCompletion();												
+};
+
+[
+	object,
+	uuid(77ED5996-2F63-11d3-8A39-00C04F72D8E3),
+	helpstring("IVssAdmin interface"),
+	pointer_default(unique)
+]
+interface IVssAdmin : IUnknown
+{
+	[helpstring("method RegisterProvider")] 			
+	HRESULT RegisterProvider(							
+		[in]	VSS_ID		pProviderId, 				
+		[in]	CLSID		ClassId,					
+		[in]	VSS_PWSZ	pwszProviderName,			
+		[in]	VSS_PROVIDER_TYPE eProviderType,
+		[in]	VSS_PWSZ	pwszProviderVersion,		
+		[in]	VSS_ID		ProviderVersionId
+		);												
+
+	[helpstring("method UnregisterProvider")]			
+	HRESULT UnregisterProvider( 						
+		[in]	VSS_ID	ProviderId						
+		);												
+
+	[helpstring("method QueryProviders")]				
+	HRESULT QueryProviders( 							
+		[out]	IVssEnumObject**ppEnum					
+		);												
+
+	[helpstring("method AbortAllSnapshotsInProgress")]	
+	HRESULT AbortAllSnapshotsInProgress(				
+		);												
+};
+
+
+////////////////////////////////////////////////////////
+//	VSS Type Library
+
+[
+	uuid(97AEFDD8-2F60-11d3-8A39-00C04F72D8E3),
+	version(1.0),
+	helpstring("Volume Shadow Copy Service 1.0 Type Library")
+]
+library VSS
+{
+	importlib("stdole2.tlb");
+
+	[
+		uuid(E579AB5F-1CC4-44b4-BED9-DE0991FF0623),
+		helpstring("VSSCoordinator Class")
+	]
+	coclass VSSCoordinator
+	{
+		[default] interface IVssCoordinator;
+		interface IVssAdmin;
+        interface IVssRemsnapCoordinatorInternal;
+	}
+	
+    [
+        uuid(95243A62-2F9B-4FDF-B437-40D965F6D17F),
+        helpstring("VSSRemoteCoordinator Class")
+    ]
+    coclass VSSRemoteCoordinator
+    {
+        [default] interface IVssRemoteCoordinator;
+        interface IVssRemsnapCoordinatorInternal;
+    }
+}

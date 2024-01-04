@@ -284,4 +284,6 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf);
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
+int cpu_exec(CPUState *cpu);
+
 #endif /* CPU_ALL_H */

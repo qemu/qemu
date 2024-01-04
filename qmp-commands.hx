@@ -106,6 +106,81 @@ Example:
 Note: The "force" argument defaults to false.
 
 EQMP
+    {
+        .name       = RFQDN_REDHAT "drive_add",
+        .args_type  = "simple-drive:O",
+        .params     = "id=name,[file=file][,format=f][,media=d]...",
+        .help       = "Create a drive similar to -device if=none.",
+        .mhandler.cmd_new = qmp_simple_drive_add,
+    },
+
+SQMP
+__com.redhat_drive_add
+----------------------
+
+Create a drive similar to -device if=none.
+
+Arguments:
+
+- "id": Drive ID, must be unique (json-string)
+- "file": Disk image (json-string, optional)
+- "format": Disk format (json-string, optional)
+- "aio": How to perform asynchronous disk I/O (json-string, optional)
+- "cache": Host cache use policy (json-string, optional)
+- "cyls", "heads", "secs": Disk geometry (json-int, optional)
+- "trans": BIOS translation mode (json-string, optional)
+- "media": Media type (json-string, optional)
+- "readonly": Open image read-only (json-bool, optional)
+- "rerror": What to do on read error (json-string, optional)
+- "werror": What to do on write error (json-string, optional)
+- "serial": Drive serial number (json-string, optional)
+- "snapshot": Enable snapshot mode (json-bool, optional)
+- "copy-on-read": Enable copy-on-read mode (json-bool, optional)
+
+Example:
+
+1. Add a drive without medium:
+
+-> { "execute": "__com.redhat_drive_add", "arguments": { "id": "foo" } }
+<- {"return": {}}
+
+2. Add a drive with medium:
+
+-> { "execute": "__com.redhat_drive_add",
+     "arguments": { "id": "bar", "file": "tmp.qcow2", "format": "qcow2" } }
+<- {"return": {}}
+
+EQMP
+
+    {
+        .name       = RFQDN_REDHAT "drive_del",
+        .args_type  = "id:s",
+        .params     = "device",
+        .help       = "remove host block device",
+        .mhandler.cmd_new = qmp_drive_del,
+    },
+
+SQMP
+__com.redhat_drive_del
+----------
+
+Remove host block device.  The result is that guest generated IO is no longer
+submitted against the host device underlying the disk.  Once a drive has
+been deleted, the QEMU Block layer returns -EIO which results in IO
+errors in the guest for applications that are reading/writing to the device.
+These errors are always reported to the guest, regardless of the drive's error
+actions (drive options rerror, werror).
+
+Arguments:
+
+- "id": the device's ID (json-string)
+
+Example:
+
+-> { "execute": "__com.redhat_drive_del", "arguments": { "id": "block1" } }
+<- { "return": {} }
+
+EQMP
 
     {
         .name       = "change",
@@ -163,6 +238,20 @@ Example:
 
 -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
 <- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "__com.redhat_qxl_screendump",
+        .args_type  = "id:s,filename:F",
+        .mhandler.cmd_new = qmp_marshal___com_redhat_qxl_screendump,
+    },
+
+SQMP
+__com.redhat_qxl_screendump
+---------------------------
+
+Save screen from qxl device @var{id} into PPM image @var{filename}.
 
 EQMP
 
@@ -3747,10 +3836,10 @@ Set migration parameters
 - "compress-level": set compression level during migration (json-int)
 - "compress-threads": set compression thread count for migration (json-int)
 - "decompress-threads": set decompression thread count for migration (json-int)
-- "x-cpu-throttle-initial": set initial percentage of time guest cpus are
-                           throttled for auto-converge (json-int)
-- "x-cpu-throttle-increment": set throttle increasing percentage for
-                             auto-converge (json-int)
+- "cpu-throttle-initial": set initial percentage of time guest cpus are
+                          throttled for auto-converge (json-int)
+- "cpu-throttle-increment": set throttle increasing percentage for
+                            auto-converge (json-int)
 
 Arguments:
 
@@ -3764,7 +3853,7 @@ EQMP
     {
         .name       = "migrate-set-parameters",
         .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?,x-cpu-throttle-initial:i?,x-cpu-throttle-increment:i?",
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?",
         .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP
@@ -3777,10 +3866,10 @@ Query current migration parameters
          - "compress-level" : compression level value (json-int)
          - "compress-threads" : compression thread count value (json-int)
          - "decompress-threads" : decompression thread count value (json-int)
-         - "x-cpu-throttle-initial" : initial percentage of time guest cpus are
-                                      throttled (json-int)
-         - "x-cpu-throttle-increment" : throttle increasing percentage for
-                                        auto-converge (json-int)
+         - "cpu-throttle-initial" : initial percentage of time guest cpus are
+                                    throttled (json-int)
+         - "cpu-throttle-increment" : throttle increasing percentage for
+                                      auto-converge (json-int)
 
 Arguments:
 
@@ -3790,10 +3879,10 @@ Example:
 <- {
       "return": {
          "decompress-threads": 2,
-         "x-cpu-throttle-increment": 10,
+         "cpu-throttle-increment": 10,
          "compress-threads": 8,
          "compress-level": 1,
-         "x-cpu-throttle-initial": 20
+         "cpu-throttle-initial": 20
       }
    }
 
@@ -4880,3 +4969,41 @@ Example:
                 { "version": 3, "emulated": false, "kernel": true } ] }
 
 EQMP
+
+    {
+        .name       = "query-hotpluggable-cpus",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_query_hotpluggable_cpus,
+    },
+
+SQMP
+Show existing/possible CPUs
+---------------------------
+
+Arguments: None.
+
+Example for pseries machine type started with
+-smp 2,cores=2,maxcpus=4 -cpu POWER8:
+
+-> { "execute": "query-hotpluggable-cpus" }
+<- {"return": [
+     { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
+       "vcpus-count": 1 },
+     { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
+       "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+   ]}'
+
+Example for pc machine type started with
+-smp 1,maxcpus=2:
+    -> { "execute": "query-hotpluggable-cpus" }
+    <- {"return": [
+         {
+            "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+            "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
+         },
+         {
+            "qom-path": "/machine/unattached/device[0]",
+            "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+            "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
+         }
+       ]}

@@ -191,7 +191,6 @@ typedef struct CPUSH4State {
 
 void sh4_translate_init(void);
 SuperHCPU *cpu_sh4_init(const char *cpu_model);
-int cpu_sh4_exec(CPUState *s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 int superh_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
@@ -224,7 +223,6 @@ void cpu_load_tlb(CPUSH4State * env);
 
 #define cpu_init(cpu_model) CPU(cpu_sh4_init(cpu_model))
 
-#define cpu_exec cpu_sh4_exec
 #define cpu_signal_handler cpu_sh4_signal_handler
 #define cpu_list sh4_cpu_list
 

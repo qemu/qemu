@@ -1220,8 +1220,8 @@ do {                                            \
 /*****************************************************************************/
 PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
+const char *ppc_cpu_lookup_alias(const char *alias);
 void gen_update_current_nip(void *opaque);
-int cpu_ppc_exec (CPUState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -1239,7 +1239,9 @@ void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 int ppc_get_compat_smt_threads(PowerPCCPU *cpu);
+#if defined(TARGET_PPC64)
 void ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version, Error **errp);
+#endif
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
@@ -1298,7 +1300,6 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
 #define cpu_init(cpu_model) CPU(cpu_ppc_init(cpu_model))
 
-#define cpu_exec cpu_ppc_exec
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
 
@@ -2255,6 +2256,7 @@ enum {
 enum {
     PCR_COMPAT_2_05     = 1ull << (63-62),
     PCR_COMPAT_2_06     = 1ull << (63-61),
+    PCR_COMPAT_2_07     = 1ull << (63-60),
     PCR_VEC_DIS         = 1ull << (63-0), /* Vec. disable (bit NA since POWER8) */
     PCR_VSX_DIS         = 1ull << (63-1), /* VSX disable (bit NA since POWER8) */
     PCR_TM_DIS          = 1ull << (63-2), /* Trans. memory disable (POWER8) */

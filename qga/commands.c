@@ -79,6 +79,14 @@ struct GuestAgentInfo *qmp_guest_info(Error **errp)
     return info;
 }
 
+struct CloudcommuneGuestAgentVersion *qmp_get_cloudcommune_guest_agent_version(Error **errp)
+{
+    CloudcommuneGuestAgentVersion *info = g_new0(CloudcommuneGuestAgentVersion, 1);
+
+    info->version = g_strdup(CLOUDCOMMUNE_GUEST_AGENT_VERSION);
+    return info;
+}
+
 struct GuestExecIOData {
     guchar *data;
     gsize size;

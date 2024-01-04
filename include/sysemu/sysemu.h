@@ -75,6 +75,7 @@ void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);
 
 void qemu_add_machine_init_done_notifier(Notifier *notify);
+void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void hmp_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
@@ -130,6 +131,7 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
                                            uint64_t *length_list);
 
 int qemu_loadvm_state(QEMUFile *f);
+extern bool shadow_bios_after_incoming;
 
 typedef enum DisplayType
 {
@@ -248,6 +250,7 @@ bool usb_enabled(void);
 extern QemuOptsList qemu_legacy_drive_opts;
 extern QemuOptsList qemu_common_drive_opts;
 extern QemuOptsList qemu_drive_opts;
+extern QemuOptsList qemu_simple_drive_opts;
 extern QemuOptsList qemu_chardev_opts;
 extern QemuOptsList qemu_device_opts;
 extern QemuOptsList qemu_netdev_opts;

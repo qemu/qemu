@@ -478,8 +478,21 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
     if (s->stats_vq_elem != NULL) {
+        virtqueue_discard(s->svq, s->stats_vq_elem, 0);
         g_free(s->stats_vq_elem);
         s->stats_vq_elem = NULL;
+    }
+}
+
+static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+
+    if (!s->stats_vq_elem && vdev->vm_running &&
+        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->svq, 1)) {
+        /* poll stats queue for the element we have discarded when the VM
+         * was stopped */
+        virtio_balloon_receive_stats(vdev, s->svq);
     }
 }
 
@@ -517,6 +530,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_balloon_get_features;
     vdc->save = virtio_balloon_save_device;
     vdc->load = virtio_balloon_load_device;
+    vdc->set_status = virtio_balloon_set_status;
 }
 
 static const TypeInfo virtio_balloon_info = {

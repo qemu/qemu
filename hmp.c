@@ -209,6 +209,10 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "dirty pages rate: %" PRIu64 " pages\n",
                            info->ram->dirty_pages_rate);
         }
+        if (info->ram->postcopy_requests) {
+            monitor_printf(mon, "postcopy request count: %" PRIu64 "\n",
+                           info->ram->postcopy_requests);
+        }
     }
 
     if (info->has_disk) {
@@ -235,9 +239,9 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->overflow);
     }
 
-    if (info->has_x_cpu_throttle_percentage) {
+    if (info->has_cpu_throttle_percentage) {
         monitor_printf(mon, "cpu throttle percentage: %" PRIu64 "\n",
-                       info->x_cpu_throttle_percentage);
+                       info->cpu_throttle_percentage);
     }
 
     qapi_free_MigrationInfo(info);
@@ -281,11 +285,11 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             MigrationParameter_lookup[MIGRATION_PARAMETER_DECOMPRESS_THREADS],
             params->decompress_threads);
         monitor_printf(mon, " %s: %" PRId64,
-            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL],
-            params->x_cpu_throttle_initial);
+            MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL],
+            params->cpu_throttle_initial);
         monitor_printf(mon, " %s: %" PRId64,
-            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT],
-            params->x_cpu_throttle_increment);
+            MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT],
+            params->cpu_throttle_increment);
         monitor_printf(mon, "\n");
     }
 
@@ -1240,8 +1244,8 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_compress_level = false;
     bool has_compress_threads = false;
     bool has_decompress_threads = false;
-    bool has_x_cpu_throttle_initial = false;
-    bool has_x_cpu_throttle_increment = false;
+    bool has_cpu_throttle_initial = false;
+    bool has_cpu_throttle_increment = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
@@ -1256,18 +1260,18 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
                 has_decompress_threads = true;
                 break;
-            case MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL:
-                has_x_cpu_throttle_initial = true;
+            case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
+                has_cpu_throttle_initial = true;
                 break;
-            case MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT:
-                has_x_cpu_throttle_increment = true;
+            case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
+                has_cpu_throttle_increment = true;
                 break;
             }
             qmp_migrate_set_parameters(has_compress_level, value,
                                        has_compress_threads, value,
                                        has_decompress_threads, value,
-                                       has_x_cpu_throttle_initial, value,
-                                       has_x_cpu_throttle_increment, value,
+                                       has_cpu_throttle_initial, value,
+                                       has_cpu_throttle_increment, value,
                                        &err);
             break;
         }
@@ -1791,6 +1795,16 @@ void hmp_screendump(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+void hmp___com_redhat_qxl_screen_dump(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp___com_redhat_qxl_screendump(id, filename, &err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
 {
     const char *uri = qdict_get_str(qdict, "uri");
@@ -1887,6 +1901,7 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
         error_setg(&err, "Parsing chardev args failed");
     } else {
         qemu_chr_new_from_opts(opts, NULL, &err);
+        qemu_opts_del(opts);
     }
     hmp_handle_error(mon, &err);
 }
@@ -2380,4 +2395,46 @@ void hmp_info_dump(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_DumpQueryResult(result);
+}
+
+void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    HotpluggableCPUList *l = qmp_query_hotpluggable_cpus(&err);
+    HotpluggableCPUList *saved = l;
+    CpuInstanceProperties *c;
+
+    if (err != NULL) {
+        hmp_handle_error(mon, &err);
+        return;
+    }
+
+    monitor_printf(mon, "Hotpluggable CPUs:\n");
+    while (l) {
+        monitor_printf(mon, "  type: \"%s\"\n", l->value->type);
+        monitor_printf(mon, "  vcpus_count: \"%" PRIu64 "\"\n",
+                       l->value->vcpus_count);
+        if (l->value->has_qom_path) {
+            monitor_printf(mon, "  qom_path: \"%s\"\n", l->value->qom_path);
+        }
+
+        c = l->value->props;
+        monitor_printf(mon, "  CPUInstance Properties:\n");
+        if (c->has_node_id) {
+            monitor_printf(mon, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
+        }
+        if (c->has_socket_id) {
+            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
+        }
+        if (c->has_core_id) {
+            monitor_printf(mon, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
+        }
+        if (c->has_thread_id) {
+            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
+        }
+
+        l = l->next;
+    }
+
+    qapi_free_HotpluggableCPUList(saved);
 }

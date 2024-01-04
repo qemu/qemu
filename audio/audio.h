@@ -162,4 +162,6 @@ static inline void *advance (void *p, int incr)
 int wav_start_capture (CaptureState *s, const char *path, int freq,
                        int bits, int nchannels);
 
+bool audio_is_cleaning_up(void);
+void audio_cleanup(void);
 #endif  /* audio.h */

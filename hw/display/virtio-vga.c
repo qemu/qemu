@@ -4,6 +4,7 @@
 #include "ui/console.h"
 #include "vga_int.h"
 #include "hw/virtio/virtio-pci.h"
+#include "qapi/error.h"
 
 /*
  * virtio-vga: This extends VirtioPCIProxy.
@@ -89,6 +90,7 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOVGA *vvga = VIRTIO_VGA(vpci_dev);
     VirtIOGPU *g = &vvga->vdev;
     VGACommonState *vga = &vvga->vga;
+    Error *err = NULL;
     uint32_t offset;
     int i;
 
@@ -109,6 +111,17 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
      */
     vpci_dev->modern_mem_bar = 2;
     vpci_dev->msix_bar = 4;
+
+    if (!(vpci_dev->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ)) {
+        /*
+         * with page-per-vq=off there is no padding space we can use
+         * for the stdvga registers.  Make the common and isr regions
+         * smaller then.
+         */
+        vpci_dev->common.size /= 2;
+        vpci_dev->isr.size /= 2;
+    }
+
     offset = memory_region_size(&vpci_dev->modern_bar);
     offset -= vpci_dev->notify.size;
     vpci_dev->notify.offset = offset;
@@ -121,10 +134,12 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 
     /* init virtio bits */
     qdev_set_parent_bus(DEVICE(g), BUS(&vpci_dev->bus));
-    /* force virtio-1.0 */
-    vpci_dev->flags &= ~VIRTIO_PCI_FLAG_DISABLE_MODERN;
-    vpci_dev->flags |= VIRTIO_PCI_FLAG_DISABLE_LEGACY;
-    object_property_set_bool(OBJECT(g), true, "realized", errp);
+    virtio_pci_force_virtio_1(vpci_dev);
+    object_property_set_bool(OBJECT(g), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* add stdvga mmio regions */
     pci_std_vga_mmio_region_init(vga, &vpci_dev->modern_bar,

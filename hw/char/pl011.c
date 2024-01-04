@@ -186,6 +186,18 @@ static void pl011_write(void *opaque, hwaddr offset,
         pl011_update(s);
         break;
     case 17: /* UARTICR */
+        /*
+         * RHEL-only, fixes BZ1266048
+         *
+         * Look for the "signature" of a driver init or shutdown in
+         * order to know that we need to reset the SBSA UART. Yes,
+         * this is hacky, but as SBSA drivers aren't required to write
+         * UARTLCR_H or UARTCR, then we don't have much choice...
+         */
+        if (s->int_enabled == 0 && value == 0xffff) {
+            s->read_count = 0;
+            s->read_pos = 0;
+        }
         s->int_level &= ~value;
         pl011_update(s);
         break;

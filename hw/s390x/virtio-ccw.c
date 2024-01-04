@@ -1466,6 +1466,16 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     return 0;
 }
 
+static void virtio_ccw_pre_plugged(DeviceState *d, Error **errp)
+{
+   VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+   VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+
+    if (dev->max_rev >= 1) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+    }
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 {
@@ -1473,6 +1483,10 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
     SubchDev *sch = dev->sch;
     int n = virtio_get_num_queues(vdev);
+
+    if (!virtio_has_feature(vdev->host_features, VIRTIO_F_VERSION_1)) {
+        dev->max_rev = 0;
+    }
 
     if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
         error_setg(errp, "The nubmer of virtqueues %d "
@@ -1487,23 +1501,9 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
-    if (dev->max_rev >= 1) {
-        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
-    }
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
-}
-
-static void virtio_ccw_post_plugged(DeviceState *d, Error **errp)
-{
-   VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-   VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
-
-   if (!virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-        /* A backend didn't support modern virtio. */
-       dev->max_rev = 0;
-   }
 }
 
 static void virtio_ccw_device_unplugged(DeviceState *d)
@@ -1841,8 +1841,8 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->load_queue = virtio_ccw_load_queue;
     k->save_config = virtio_ccw_save_config;
     k->load_config = virtio_ccw_load_config;
+    k->pre_plugged = virtio_ccw_pre_plugged;
     k->device_plugged = virtio_ccw_device_plugged;
-    k->post_plugged = virtio_ccw_post_plugged;
     k->device_unplugged = virtio_ccw_device_unplugged;
 }
 

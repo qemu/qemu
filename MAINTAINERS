@@ -953,6 +953,14 @@ S: Maintained
 F: hw/*/xilinx_*
 F: include/hw/xilinx.h
 
+Network packet abstractions
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: include/net/eth.h
+F: net/eth.c
+F: hw/net/net_rx_pkt*
+F: hw/net/net_tx_pkt*
+
 Vmware
 M: Dmitry Fleytman <dmitry@daynix.com>
 S: Maintained
@@ -971,6 +979,16 @@ S: Maintained
 F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
 F: include/hw/mem/nvdimm.h
+
+e1000x
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: hw/net/e1000x*
+
+e1000e
+M: Dmitry Fleytman <dmitry@daynix.com>
+S: Maintained
+F: hw/net/e1000e*
 
 Subsystems
 ----------

@@ -134,7 +134,7 @@ typedef struct CPUClass {
     /*< public >*/
 
     ObjectClass *(*class_by_name)(const char *cpu_model);
-    void (*parse_features)(CPUState *cpu, char *str, Error **errp);
+    void (*parse_features)(const char *typename, char *str, Error **errp);
 
     void (*reset)(CPUState *cpu);
     int reset_dump_flags;
@@ -235,6 +235,7 @@ struct kvm_run;
  * @halted: Nonzero if the CPU is in suspended state.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
+ * @unplug: Indicates a pending CPU unplug request.
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
@@ -287,6 +288,7 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
+    bool unplug;
     bool crash_occurred;
     bool exit_request;
     uint32_t interrupt_request;
@@ -754,6 +756,22 @@ void cpu_exit(CPUState *cpu);
 void cpu_resume(CPUState *cpu);
 
 /**
+ * cpu_remove:
+ * @cpu: The CPU to remove.
+ *
+ * Requests the CPU to be removed.
+ */
+void cpu_remove(CPUState *cpu);
+
+ /**
+ * cpu_remove_sync:
+ * @cpu: The CPU to remove.
+ *
+ * Requests the CPU to be removed and waits till it is removed.
+ */
+void cpu_remove_sync(CPUState *cpu);
+
+/**
  * qemu_init_vcpu:
  * @cpu: The vCPU to initialize.
  *
@@ -832,5 +850,7 @@ extern const struct VMStateDescription vmstate_cpu_common;
     .flags = VMS_STRUCT,                                                    \
     .offset = 0,                                                            \
 }
+
+#define UNASSIGNED_CPU_INDEX -1
 
 #endif

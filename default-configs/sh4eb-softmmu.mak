@@ -3,6 +3,7 @@
 include pci.mak
 include usb.mak
 CONFIG_SERIAL=y
+CONFIG_SERIAL_ISA=y
 CONFIG_PTIMER=y
 CONFIG_PFLASH_CFI02=y
 CONFIG_SH4=y

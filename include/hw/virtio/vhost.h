@@ -64,7 +64,8 @@ struct vhost_dev {
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type);
+                   VhostBackendType backend_type,
+                   uint32_t busyloop_timeout);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);
@@ -85,4 +86,8 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
                         uint64_t features);
 bool vhost_has_free_slot(void);
+
+int vhost_net_set_backend(struct vhost_dev *hdev,
+                          struct vhost_vring_file *file);
+
 #endif

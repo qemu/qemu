@@ -325,6 +325,7 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     if (ret < 0) {
         return ret;
     }
+    kvm_irqchip_commit_routes(kvm_state);
 
     return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
 }
@@ -444,13 +445,12 @@ static void ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector,
                                      Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(s);
-    MSIMessage msg = msix_get_message(pdev, vector);
     int ret;
 
     IVSHMEM_DPRINTF("ivshmem_add_kvm_msi_virq vector:%d\n", vector);
     assert(!s->msi_vectors[vector].pdev);
 
-    ret = kvm_irqchip_add_msi_route(kvm_state, msg, pdev);
+    ret = kvm_irqchip_add_msi_route(kvm_state, vector, pdev);
     if (ret < 0) {
         error_setg(errp, "kvm_irqchip_add_msi_route failed");
         return;
@@ -852,6 +852,13 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
+    /* Migration disabled for Red Hat Enterprise Linux: */
+    if (s->master == ON_OFF_AUTO_ON) {
+        error_setg(errp, "master=on is not supported");
+        return;
+    }
+    s->master = ON_OFF_AUTO_OFF;
+
     pci_conf = dev->config;
     pci_conf[PCI_COMMAND] = PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
 
@@ -1135,6 +1142,8 @@ static void ivshmem_doorbell_class_init(ObjectClass *klass, void *data)
     k->realize = ivshmem_doorbell_realize;
     dc->props = ivshmem_doorbell_properties;
     dc->vmsd = &ivshmem_doorbell_vmsd;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo ivshmem_doorbell_info = {
@@ -1303,6 +1312,8 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     dc->desc = "Inter-VM shared memory (legacy)";
     dc->props = ivshmem_properties;
     dc->vmsd = &ivshmem_vmsd;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo ivshmem_info = {

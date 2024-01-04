@@ -26,7 +26,9 @@
 #include "trace.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
+#include "qapi/error.h"
 
+#define MAX_APICS 255
 #define MAX_APIC_WORDS 8
 
 #define SYNC_FROM_VAPIC                 0x1
@@ -417,7 +419,7 @@ static int apic_find_dest(uint8_t dest)
     int i;
 
     if (apic && apic->id == dest)
-        return dest;  /* shortcut in case apic->id == apic->idx */
+        return dest;  /* shortcut in case apic->id == local_apics[dest]->id */
 
     for (i = 0; i < MAX_APICS; i++) {
         apic = local_apics[i];
@@ -500,14 +502,14 @@ static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
         break;
     case 1:
         memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
-        apic_set_bit(deliver_bitmask, s->idx);
+        apic_set_bit(deliver_bitmask, s->id);
         break;
     case 2:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
         break;
     case 3:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
-        apic_reset_bit(deliver_bitmask, s->idx);
+        apic_reset_bit(deliver_bitmask, s->id);
         break;
     }
 
@@ -868,13 +870,28 @@ static void apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
 
+    if (s->id >= MAX_APICS) {
+        error_setg(errp, "%s initialization failed. APIC ID %d is invalid",
+                   object_get_typename(OBJECT(dev)), s->id);
+        return;
+    }
+
     memory_region_init_io(&s->io_memory, OBJECT(s), &apic_io_ops, s, "apic-msi",
                           APIC_SPACE_SIZE);
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, apic_timer, s);
-    local_apics[s->idx] = s;
+    local_apics[s->id] = s;
 
     msi_nonbroken = true;
+}
+
+static void apic_unrealize(DeviceState *dev, Error **errp)
+{
+    APICCommonState *s = APIC_COMMON(dev);
+
+    timer_del(s->timer);
+    timer_free(s->timer);
+    local_apics[s->id] = NULL;
 }
 
 static void apic_class_init(ObjectClass *klass, void *data)
@@ -882,6 +899,7 @@ static void apic_class_init(ObjectClass *klass, void *data)
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = apic_realize;
+    k->unrealize = apic_unrealize;
     k->set_base = apic_set_base;
     k->set_tpr = apic_set_tpr;
     k->get_tpr = apic_get_tpr;

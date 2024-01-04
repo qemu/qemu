@@ -21,7 +21,6 @@
 #define QEMU_ALPHA_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
 

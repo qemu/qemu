@@ -1,0 +1,12 @@
+QA output created by 173
+Formatting 'TEST_DIR/image.base', fmt=IMGFMT size=104857600
+Formatting 'TEST_DIR/image.snp1', fmt=IMGFMT size=104857600
+
+=== Running QEMU, using block-stream to find backing image ===
+
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "disk2", "len": 104857600, "offset": 104857600, "speed": 0, "type": "stream"}}
+*** done

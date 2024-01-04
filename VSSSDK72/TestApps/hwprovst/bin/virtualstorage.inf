@@ -1,0 +1,79 @@
+;******************************************************
+; Virtual Storage Driver
+;******************************************************
+
+[Version] 
+Signature = "$Windows NT$" 
+Class=System
+ClassGUID={4d36e97d-e325-11ce-bfc1-08002be10318} 
+Provider=%MSFT% 
+
+CatalogFile=virtualstorage.cat
+DriverVer= 02/17/2003, 5.2.3770
+
+[DestinationDirs] 
+DefaultDestDir = 12 
+
+[SourceDisksNames]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+virtualstorage.sys = 1,,
+
+[Manufacturer] 
+%StdMfg%=Standard
+
+[Standard]
+;
+; These are the virtual bus pnp ids
+;
+%VirtualBus.DeviceDesc%=VirtualBus_Device, root\virtualbus
+
+[VirtualBus_Device.NT] 
+CopyFiles = Drivers_Dir
+
+[Drivers_Dir]
+virtualstorage.sys
+
+;----------------- Service installation ---------------------
+[VirtualBus_Device.NT.Services] 
+AddService = virtualbus,%SPSVCINST_ASSOCSERVICE%,virtualbus_Service_Inst, 
+
+;----------------- Virtual Bus install sections -------------
+[virtualbus_Service_Inst]
+DisplayName    = %VirtualBus.SVCDESC% 
+ServiceType    = %SERVICE_KERNEL_DRIVER% 
+StartType      = %SERVICE_DEMAND_START% 
+ErrorControl   = %SERVICE_ERROR_NORMAL% 
+ServiceBinary  = %12%\virtualstorage.sys 
+LoadOrderGroup = Extended Base
+
+
+
+[Strings] 
+
+;  *******Localizable Strings******* 
+MSFT= "Microsoft" 
+StdMfg = "(Standard system devices)"
+DiskId1 = "Virtual Storage Installation Disk"
+VirtualBus.DeviceDesc = "Virtual Storage" 
+VirtualBus.SVCDESC = "Virtual Storage"
+
+;  *******Non Localizable Strings******* 
+
+SPSVCINST_ASSOCSERVICE= 0x00000002
+
+SERVICE_BOOT_START = 0x0 
+SERVICE_SYSTEM_START = 0x1 
+SERVICE_AUTO_START = 0x2 
+SERVICE_DEMAND_START = 0x3 
+SERVICE_DISABLED = 0x4 
+
+SERVICE_KERNEL_DRIVER = 0x1 
+SERVICE_ERROR_IGNORE = 0x0 
+SERVICE_ERROR_NORMAL = 0x1 
+SERVICE_ERROR_SEVERE = 0x2 
+SERVICE_ERROR_CRITICAL = 0x3 
+
+REG_EXPAND_SZ = 0x00020000 
+REG_DWORD = 0x00010001 

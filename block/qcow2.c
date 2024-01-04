@@ -967,10 +967,16 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->crypt_method_header) {
         if (bdrv_uses_whitelist() &&
             s->crypt_method_header == QCOW_CRYPT_AES) {
-            error_report("qcow2 built-in AES encryption is deprecated");
-            error_printf("Support for it will be removed in a future release.\n"
-                         "You can use 'qemu-img convert' to switch to an\n"
-                         "unencrypted qcow2 image, or a LUKS raw image.\n");
+            error_setg(errp,
+                       "Use of AES-CBC encrypted qcow2 images is no longer "
+                       "supported in system emulators");
+            error_append_hint(errp,
+                              "You can use 'qemu-img convert' to convert your "
+                              "image to an alternative supported format, such "
+                              "as unencrypted qcow2, or raw with the LUKS "
+                              "format instead.\n");
+            ret = -ENOSYS;
+            goto fail;
         }
 
         bs->encrypted = 1;
@@ -1756,13 +1762,6 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     s->cipher = NULL;
 
     qcow2_close(bs);
-
-    bdrv_invalidate_cache(bs->file->bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        bs->drv = NULL;
-        return;
-    }
 
     memset(s, 0, sizeof(BDRVQcow2State));
     options = qdict_clone_shallow(bs->options);

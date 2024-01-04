@@ -286,20 +286,6 @@ static void machine_set_firmware(Object *obj, const char *value, Error **errp)
     ms->firmware = g_strdup(value);
 }
 
-static bool machine_get_iommu(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->iommu;
-}
-
-static void machine_set_iommu(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->iommu = value;
-}
-
 static void machine_set_suppress_vmdesc(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -472,12 +458,6 @@ static void machine_initfn(Object *obj)
     object_property_set_description(obj, "firmware",
                                     "Firmware image",
                                     NULL);
-    object_property_add_bool(obj, "iommu",
-                             machine_get_iommu,
-                             machine_set_iommu, NULL);
-    object_property_set_description(obj, "iommu",
-                                    "Set on/off to enable/disable Intel IOMMU (VT-d)",
-                                    NULL);
     object_property_add_bool(obj, "suppress-vmdesc",
                              machine_get_suppress_vmdesc,
                              machine_set_suppress_vmdesc, NULL);
@@ -550,6 +530,33 @@ bool machine_mem_merge(MachineState *machine)
     return machine->mem_merge;
 }
 
+static void machine_class_finalize(ObjectClass *klass, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(klass);
+
+    if (mc->compat_props) {
+        g_array_free(mc->compat_props, true);
+    }
+}
+
+void machine_register_compat_props(MachineState *machine)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    int i;
+    GlobalProperty *p;
+
+    if (!mc->compat_props) {
+        return;
+    }
+
+    for (i = 0; i < mc->compat_props->len; i++) {
+        p = g_array_index(mc->compat_props, GlobalProperty *, i);
+        /* Machine compat_props must never cause errors: */
+        p->errp = &error_abort;
+        qdev_prop_register_global(p);
+    }
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
@@ -557,6 +564,7 @@ static const TypeInfo machine_info = {
     .class_size = sizeof(MachineClass),
     .class_init    = machine_class_init,
     .class_base_init = machine_class_base_init,
+    .class_finalize = machine_class_finalize,
     .instance_size = sizeof(MachineState),
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,

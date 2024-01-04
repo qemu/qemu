@@ -29,6 +29,7 @@ int msix_present(PCIDevice *dev);
 
 bool msix_is_masked(PCIDevice *dev, unsigned vector);
 void msix_set_pending(PCIDevice *dev, unsigned vector);
+void msix_clr_pending(PCIDevice *dev, int vector);
 
 int msix_vector_use(PCIDevice *dev, unsigned vector);
 void msix_vector_unuse(PCIDevice *dev, unsigned vector);

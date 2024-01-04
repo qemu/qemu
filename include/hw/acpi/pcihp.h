@@ -29,6 +29,7 @@
 
 #include "hw/acpi/acpi.h"
 #include "migration/vmstate.h"
+#include "hw/hotplug.h"
 
 #define ACPI_PCIHP_IO_BASE_PROP "acpi-pcihp-io-base"
 #define ACPI_PCIHP_IO_LEN_PROP "acpi-pcihp-io-len"
@@ -56,9 +57,9 @@ typedef struct AcpiPciHpState {
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
                      MemoryRegion *address_space_io, bool bridges_enabled);
 
-void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp);
-void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                  DeviceState *dev, Error **errp);
 
 /* Called on reset */

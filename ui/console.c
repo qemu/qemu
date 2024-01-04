@@ -345,6 +345,30 @@ void qmp_screendump(const char *filename, Error **errp)
     ppm_save(filename, surface, errp);
 }
 
+void qmp___com_redhat_qxl_screendump(const char *id, const char *filename, Error **errp)
+{
+    DeviceState *dev;
+    QemuConsole *con;
+    DisplaySurface *surface;
+
+    dev = qdev_find_recursive(sysbus_get_default(), id);
+    if (NULL == dev) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", id);
+        return;
+    }
+
+    con = qemu_console_lookup_by_device(dev, 0);
+    if (con == NULL) {
+        error_setg(errp, "Device %s has no QemuConsole attached to it.", id);
+        return;
+    }
+
+    graphic_hw_update(con);
+    surface = qemu_console_surface(con);
+    ppm_save(filename, surface, errp);
+}
+
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
 {
     if (!con) {
@@ -1553,27 +1577,6 @@ static void dpy_refresh(DisplayState *s)
     }
 }
 
-void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
-                  int dst_x, int dst_y, int w, int h)
-{
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
-    if (!qemu_console_is_visible(con)) {
-        return;
-    }
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
-            continue;
-        }
-        if (dcl->ops->dpy_gfx_copy) {
-            dcl->ops->dpy_gfx_copy(dcl, src_x, src_y, dst_x, dst_y, w, h);
-        } else { /* TODO */
-            dcl->ops->dpy_gfx_update(dcl, dst_x, dst_y, w, h);
-        }
-    }
-}
-
 void dpy_text_cursor(QemuConsole *con, int x, int y)
 {
     DisplayState *s = con->ds;
@@ -2095,13 +2098,6 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
     assert(s->console_type == GRAPHIC_CONSOLE);
     surface = qemu_create_displaysurface(width, height);
     dpy_gfx_replace_surface(s, surface);
-}
-
-void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
-                       int dst_x, int dst_y, int w, int h)
-{
-    assert(con->console_type == GRAPHIC_CONSOLE);
-    dpy_gfx_copy(con, src_x, src_y, dst_x, dst_y, w, h);
 }
 
 DisplaySurface *qemu_console_surface(QemuConsole *console)

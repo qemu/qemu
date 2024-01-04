@@ -70,6 +70,7 @@
 #define POWERPC_DEF(_name, _pvr, _type, _desc)                              \
     POWERPC_DEF_SVR(_name, _desc, _pvr, POWERPC_SVR_NONE, _type)
 
+#if 0  /* Embedded and 32-bit CPUs disabled for Red Hat Enterprise Linux */
     /* Embedded PowerPC                                                      */
     /* PowerPC 401 family                                                    */
     POWERPC_DEF("401",           CPU_POWERPC_401,                    401,
@@ -1101,8 +1102,10 @@
                 "PowerPC 7447A v1.2 (G4)")
     POWERPC_DEF("7457A_v1.2",    CPU_POWERPC_74x7A_v12,              7455,
                 "PowerPC 7457A v1.2 (G4)")
+#endif
     /* 64 bits PowerPC                                                       */
 #if defined (TARGET_PPC64)
+#if 0  /* Disabled for Red Hat Enterprise Linux */
 #if defined(TODO)
     POWERPC_DEF("620",           CPU_POWERPC_620,                    620,
                 "PowerPC 620")
@@ -1135,6 +1138,7 @@
     POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6,
                 "POWER6A")
 #endif
+#endif
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
     POWERPC_DEF("POWER7+_v2.1",  CPU_POWERPC_POWER7P_v21,            POWER7,
@@ -1145,6 +1149,7 @@
                 "POWER8 v2.0")
     POWERPC_DEF("POWER8NVL_v1.0",CPU_POWERPC_POWER8NVL_v10,          POWER8,
                 "POWER8NVL v1.0")
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     POWERPC_DEF("970_v2.2",      CPU_POWERPC_970_v22,                970,
                 "PowerPC 970 v2.2")
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
@@ -1161,6 +1166,7 @@
                 "PowerPC 970MP v1.0")
     POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970,
                 "PowerPC 970MP v1.1")
+#endif
 #if defined(TODO)
     POWERPC_DEF("Cell",          CPU_POWERPC_CELL,                   970,
                 "PowerPC Cell")
@@ -1226,6 +1232,7 @@
 /* PowerPC CPU aliases                                                     */
 
 PowerPCCPUAlias ppc_cpu_aliases[] = {
+#if 0  /* Embedded and 32-bit CPUs disabled for Red Hat Enterprise Linux */
     { "403", "403GC" },
     { "405", "405D4" },
     { "405CR", "405CRc" },
@@ -1381,7 +1388,9 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "7447A", "7447A_v1.2" },
     { "7457A", "7457A_v1.2" },
     { "Apollo7PM", "7457A_v1.0" },
+#endif
 #if defined(TARGET_PPC64)
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     { "Trident", "620" },
     { "POWER3", "630" },
     { "Boxer", "POWER3" },
@@ -1390,11 +1399,13 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "POWER5gr", "POWER5" },
     { "POWER5+", "POWER5+_v2.1" },
     { "POWER5gs", "POWER5+_v2.1" },
+#endif
     { "POWER7", "POWER7_v2.3" },
     { "POWER7+", "POWER7+_v2.1" },
     { "POWER8E", "POWER8E_v2.1" },
     { "POWER8", "POWER8_v2.0" },
     { "POWER8NVL", "POWER8NVL_v1.0" },
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     { "970", "970_v2.2" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
@@ -1407,6 +1418,8 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "IStar",   "RS64-IV" },
     { "SStar",   "RS64-IV" },
 #endif
+#endif
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     { "RIOS",    "POWER" },
     { "RSC",     "POWER" },
     { "RSC3308", "POWER" },
@@ -1421,5 +1434,6 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "ppc32", "604" },
     { "ppc", "ppc32" },
     { "default", "ppc" },
+#endif
     { NULL, NULL }
 };

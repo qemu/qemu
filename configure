@@ -317,6 +317,7 @@ virglrenderer=""
 tpm="yes"
 libssh2=""
 vhdx=""
+live_block_migration="no"
 numa=""
 tcmalloc="no"
 jemalloc="no"
@@ -1147,6 +1148,10 @@ for opt do
   ;;
   --enable-jemalloc) jemalloc="yes"
   ;;
+  --disable-live-block-migration) live_block_migration="no"
+  ;;
+  --enable-live-block-migration) live_block_migration="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1277,6 +1282,7 @@ Advanced options (experts only):
   --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
+  --enable-stack-protector enable compiler-provided stack protection
   --audio-drv-list=LIST    set audio drivers list:
                            Available drivers: $audio_possible_drivers
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
@@ -1366,6 +1372,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   tpm             TPM support
   libssh2         ssh block device support
   vhdx            support for the Microsoft VHDX image format
+  live-block-migration disable live block migration
+  live-block-migration  enable live block migration
   numa            libnuma support
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
@@ -1781,13 +1789,20 @@ fi
 # avx2 optimization requirement check
 
 cat > $TMPC << EOF
-static void bar(void) {}
+#pragma GCC push_options
+#pragma GCC target("avx2")
+#include <cpuid.h>
+#include <immintrin.h>
+
+static int bar(void *a) {
+    return _mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i *)a, (__m256i){0}));
+}
 static void *bar_ifunc(void) {return (void*) bar;}
-static void foo(void) __attribute__((ifunc("bar_ifunc")));
-int main(void) { foo(); return 0; }
+int foo(void *a) __attribute__((ifunc("bar_ifunc")));
+int main(int argc, char *argv[]) { return foo(argv[0]);}
 EOF
-if compile_prog "-mavx2" "" ; then
-    if readelf --syms $TMPE |grep "IFUNC.*foo" >/dev/null 2>&1; then
+if compile_object "" ; then
+    if readelf --syms $TMPO |grep "IFUNC.*foo" >/dev/null 2>&1; then
         avx2_opt="yes"
     fi
 fi
@@ -1870,13 +1885,13 @@ fi
 
 if test "$seccomp" != "no" ; then
     case "$cpu" in
-    i386|x86_64)
+    i386|x86_64|aarch64)
         libseccomp_minver="2.1.0"
         ;;
     mips)
         libseccomp_minver="2.2.0"
         ;;
-    arm|aarch64)
+    arm)
         libseccomp_minver="2.2.3"
         ;;
     *)
@@ -2342,6 +2357,7 @@ if test "$nettle" != "no"; then
         nettle="yes"
 
         cat > $TMPC << EOF
+#include <stddef.h>
 #include <nettle/pbkdf2.h>
 int main(void) {
      pbkdf2_hmac_sha256(8, NULL, 1000, 8, NULL, 8, NULL);
@@ -2936,6 +2952,10 @@ glib_req_ver=2.22
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-2.0"
+fi
+
+if test "$static" = yes; then
+    QEMU_CFLAGS="-DGLIB_STATIC_COMPILATION $QEMU_CFLAGS"
 fi
 
 for i in $glib_modules; do
@@ -4861,6 +4881,7 @@ echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
 echo "vhdx              $vhdx"
+echo "Live block migration $live_block_migration"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -5394,6 +5415,10 @@ fi
 
 if test "$vhdx" = "yes" ; then
   echo "CONFIG_VHDX=y" >> $config_host_mak
+fi
+
+if test "$live_block_migration" = "yes" ; then
+  echo "CONFIG_LIVE_BLOCK_MIGRATION=y" >> $config_host_mak
 fi
 
 # USB host support

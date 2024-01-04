@@ -119,6 +119,7 @@ int main(int argc, char **argv)
 #include "crypto/init.h"
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
+#include "sysemu/iothread.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -160,7 +161,7 @@ int max_cpus = 0;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
-int no_hpet = 0;
+int no_hpet = 1; /* Always disabled for Red Hat Enterprise Linux */
 int fd_bootchk = 1;
 static int no_reboot;
 int no_shutdown = 0;
@@ -692,6 +693,10 @@ void runstate_set(RunState new_state)
 {
     assert(new_state < RUN_STATE__MAX);
 
+    if (current_run_state == new_state) {
+        return;
+    }
+
     if (!runstate_valid_transitions[current_run_state][new_state]) {
         error_report("invalid runstate transition: '%s' -> '%s'",
                      RunState_lookup[current_run_state],
@@ -890,16 +895,13 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            static GlobalProperty slew_lost_ticks[] = {
-                {
-                    .driver   = "mc146818rtc",
-                    .property = "lost_tick_policy",
-                    .value    = "slew",
-                },
-                { /* end of list */ }
+            static GlobalProperty slew_lost_ticks = {
+                .driver   = "mc146818rtc",
+                .property = "lost_tick_policy",
+                .value    = "slew",
             };
 
-            qdev_prop_register_global_list(slew_lost_ticks);
+            qdev_prop_register_global(&slew_lost_ticks);
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
@@ -1533,6 +1535,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
 
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
+        info->hotpluggable_cpus = !!mc->query_hotpluggable_cpus;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
@@ -1943,9 +1946,17 @@ static void version(void)
     printf("QEMU emulator version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n");
 }
 
+static void print_rh_warning(void)
+{
+    printf("\nWARNING: Direct use of qemu-kvm from the command line is not supported by Red Hat.\n"
+             "WARNING: Use libvirt as the stable management interface.\n"
+             "WARNING: Some command line options listed here may not be available in future releases.\n\n");
+}
+
 static void help(int exitcode)
 {
     version();
+    print_rh_warning();
     printf("usage: %s [options] [disk_image]\n\n"
            "'disk_image' is a raw hard disk image for IDE hard disk 0\n\n",
             error_get_progname());
@@ -1960,6 +1971,7 @@ static void help(int exitcode)
            "\n"
            "When using -nographic, press 'ctrl-a h' to get some help.\n");
 
+    print_rh_warning();
     exit(exitcode);
 }
 
@@ -2722,6 +2734,11 @@ void qemu_add_machine_init_done_notifier(Notifier *notify)
     }
 }
 
+void qemu_remove_machine_init_done_notifier(Notifier *notify)
+{
+    notifier_remove(notify);
+}
+
 static void qemu_run_machine_init_done_notifiers(void)
 {
     notifier_list_notify(&machine_init_done_notifiers, NULL);
@@ -2851,6 +2868,19 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
+    /* Memory allocation by backends needs to be done
+     * after configure_accelerator() (due to the tcg_enabled()
+     * checks at memory_region_init_*()).
+     *
+     * Also, allocation of large amounts of memory may delay
+     * chardev initialization for too long, and trigger timeouts
+     * on software that waits for a monitor socket to be created
+     * (e.g. libvirt).
+     */
+    if (g_str_has_prefix(type, "memory-backend-")) {
+        return false;
+    }
+
     return true;
 }
 
@@ -2906,6 +2936,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     }
 
     sz = QEMU_ALIGN_UP(sz, 8192);
+    sz = MAX(sz, 2 * 1024 * 1024);
     ram_size = sz;
     if (ram_size != sz) {
         error_report("ram size too large");
@@ -2953,6 +2984,20 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     }
 
     loc_pop(&loc);
+}
+
+static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    GlobalProperty *g;
+
+    g = g_malloc0(sizeof(*g));
+    g->driver   = qemu_opt_get(opts, "driver");
+    g->property = qemu_opt_get(opts, "property");
+    g->value    = qemu_opt_get(opts, "value");
+    g->user_provided = true;
+    g->errp = &error_fatal;
+    qdev_prop_register_global(g);
+    return 0;
 }
 
 int main(int argc, char **argv, char **envp)
@@ -3004,6 +3049,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
     qemu_add_drive_opts(&qemu_drive_opts);
+    qemu_add_opts(&qemu_simple_drive_opts);
     qemu_add_opts(&qemu_chardev_opts);
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_netdev_opts);
@@ -3633,16 +3679,13 @@ int main(int argc, char **argv, char **envp)
                 win2k_install_hack = 1;
                 break;
             case QEMU_OPTION_rtc_td_hack: {
-                static GlobalProperty slew_lost_ticks[] = {
-                    {
-                        .driver   = "mc146818rtc",
-                        .property = "lost_tick_policy",
-                        .value    = "slew",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty slew_lost_ticks = {
+                    .driver   = "mc146818rtc",
+                    .property = "lost_tick_policy",
+                    .value    = "slew",
                 };
 
-                qdev_prop_register_global_list(slew_lost_ticks);
+                qdev_prop_register_global(&slew_lost_ticks);
                 break;
             }
             case QEMU_OPTION_acpitable:
@@ -3689,18 +3732,15 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
-                static GlobalProperty kvm_pit_lost_tick_policy[] = {
-                    {
-                        .driver   = "kvm-pit",
-                        .property = "lost_tick_policy",
-                        .value    = "discard",
-                    },
-                    { /* end of list */ }
+                static GlobalProperty kvm_pit_lost_tick_policy = {
+                    .driver   = "kvm-pit",
+                    .property = "lost_tick_policy",
+                    .value    = "discard",
                 };
 
                 error_report("warning: deprecated, replaced by "
                              "-global kvm-pit.lost_tick_policy=discard");
-                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                qdev_prop_register_global(&kvm_pit_lost_tick_policy);
                 break;
             }
             case QEMU_OPTION_usb:
@@ -4400,9 +4440,6 @@ int main(int argc, char **argv, char **envp)
         qemu_opts_del(icount_opts);
     }
 
-    /* clean up network at qemu process termination */
-    atexit(&net_cleanup);
-
     if (net_init_clients() < 0) {
         exit(1);
     }
@@ -4495,10 +4532,10 @@ int main(int argc, char **argv, char **envp)
             exit (i == 1 ? 1 : 0);
     }
 
-    if (machine_class->compat_props) {
-        qdev_prop_register_global_list(machine_class->compat_props);
-    }
-    qemu_add_globals();
+    machine_register_compat_props(current_machine);
+
+    qemu_opts_foreach(qemu_find_opts("global"),
+                      global_init_func, NULL, NULL);
 
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
@@ -4655,6 +4692,7 @@ int main(int argc, char **argv, char **envp)
 
     main_loop();
     replay_disable_events();
+    iothread_stop_all();
 
     bdrv_close_all();
     pause_all_vcpus();
@@ -4662,6 +4700,11 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_TPM
     tpm_cleanup();
 #endif
+    net_cleanup();
+
+    audio_cleanup();
+    monitor_cleanup();
+    qemu_chr_cleanup();
 
     return 0;
 }

@@ -15,6 +15,7 @@
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define PCI_BUILD_BDF(bus, devfn)     ((bus << 8) | (devfn))
 #define PCI_SLOT_MAX            32
 #define PCI_FUNC_MAX            8
 
@@ -173,6 +174,9 @@ enum {
     /* PCI Express capability - Power Controller Present */
 #define QEMU_PCIE_SLTCAP_PCP_BITNR 7
     QEMU_PCIE_SLTCAP_PCP = (1 << QEMU_PCIE_SLTCAP_PCP_BITNR),
+    /* Link active status in endpoint capability is always set */
+#define QEMU_PCIE_LNKSTA_DLLLA_BITNR 8
+    QEMU_PCIE_LNKSTA_DLLLA = (1 << QEMU_PCIE_LNKSTA_DLLLA_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -230,6 +234,20 @@ typedef void (*MSIVectorPollNotifier)(PCIDevice *dev,
                                       unsigned int vector_start,
                                       unsigned int vector_end);
 
+enum PCIReqIDType {
+    PCI_REQ_ID_INVALID = 0,
+    PCI_REQ_ID_BDF,
+    PCI_REQ_ID_SECONDARY_BUS,
+    PCI_REQ_ID_MAX,
+};
+typedef enum PCIReqIDType PCIReqIDType;
+
+struct PCIReqIDCache {
+    PCIDevice *dev;
+    PCIReqIDType type;
+};
+typedef struct PCIReqIDCache PCIReqIDCache;
+
 struct PCIDevice {
     DeviceState qdev;
 
@@ -252,6 +270,11 @@ struct PCIDevice {
     /* the following fields are read only */
     PCIBus *bus;
     int32_t devfn;
+    /* Cached device to fetch requester ID from, to avoid the PCI
+     * tree walking every time we invoke PCI request (e.g.,
+     * MSI). For conventional PCI root complex, this field is
+     * meaningless. */
+    PCIReqIDCache requester_id_cache;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
     AddressSpace bus_master_as;
@@ -465,16 +488,23 @@ pci_get_long(const uint8_t *config)
     return ldl_le_p(config);
 }
 
+/*
+ * PCI capabilities and/or their fields
+ * are generally DWORD aligned only so
+ * mechanism used by pci_set/get_quad()
+ * must be tolerant to unaligned pointers
+ *
+ */
 static inline void
 pci_set_quad(uint8_t *config, uint64_t val)
 {
-    cpu_to_le64w((uint64_t *)config, val);
+    stq_le_p(config, val);
 }
 
 static inline uint64_t
 pci_get_quad(const uint8_t *config)
 {
-    return le64_to_cpup((const uint64_t *)config);
+    return ldq_le_p(config);
 }
 
 static inline void
@@ -685,10 +715,12 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
-static inline uint16_t pci_requester_id(PCIDevice *dev)
+static inline uint16_t pci_get_bdf(PCIDevice *dev)
 {
-    return (pci_bus_num(dev->bus) << 8) | dev->devfn;
+    return PCI_BUILD_BDF(pci_bus_num(dev->bus), dev->devfn);
 }
+
+uint16_t pci_requester_id(PCIDevice *dev);
 
 /* DMA access functions */
 static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
@@ -775,5 +807,7 @@ extern const VMStateDescription vmstate_pci_device;
     .flags      = VMS_STRUCT|VMS_POINTER,                            \
     .offset     = vmstate_offset_pointer(_state, _field, PCIDevice), \
 }
+
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector);
 
 #endif

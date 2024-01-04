@@ -60,14 +60,21 @@ typedef struct PCDIMMDevice {
 
 /**
  * PCDIMMDeviceClass:
- * @get_memory_region: returns #MemoryRegion associated with @dimm
+ * @realize: called after common dimm is realized so that the dimm based
+ * devices get the chance to do specified operations.
+ * @get_memory_region: returns #MemoryRegion associated with @dimm which
+ * is directly mapped into the physical address space of guest.
+ * @get_vmstate_memory_region: returns #MemoryRegion which indicates the
+ * memory of @dimm should be kept during live migration.
  */
 typedef struct PCDIMMDeviceClass {
     /* private */
     DeviceClass parent_class;
 
     /* public */
+    void (*realize)(PCDIMMDevice *dimm, Error **errp);
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm);
+    MemoryRegion *(*get_vmstate_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
 
 /**

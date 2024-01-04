@@ -775,6 +775,11 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     }
 
     if (ivalg == QCRYPTO_IVGEN_ALG_ESSIV) {
+        if (!ivhash_name) {
+            ret = -EINVAL;
+            error_setg(errp, "Missing IV generator hash specification");
+            goto fail;
+        }
         ivcipheralg = qcrypto_block_luks_essiv_cipher(cipheralg,
                                                       ivhash,
                                                       &local_err);
@@ -784,6 +789,13 @@ qcrypto_block_luks_open(QCryptoBlock *block,
             goto fail;
         }
     } else {
+        /* Note we parsed the ivhash_name earlier in the cipher_mode
+         * spec string even with plain/plain64 ivgens, but we
+         * will ignore it, since it is irrelevant for these ivgens.
+         * This is for compat with dm-crypt which will silently
+         * ignore hash names with these ivgens rather than report
+         * an error about the invalid usage
+         */
         ivcipheralg = cipheralg;
     }
 
@@ -903,6 +915,15 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     if (!luks_opts.has_hash_alg) {
         luks_opts.hash_alg = QCRYPTO_HASH_ALG_SHA256;
     }
+    if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+        if (!luks_opts.has_ivgen_hash_alg) {
+            luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALG_SHA256;
+            luks_opts.has_ivgen_hash_alg = true;
+        }
+    }
+    /* Note we're allowing ivgen_hash_alg to be set even for
+     * non-essiv iv generators that don't need a hash. It will
+     * be silently ignored, for compatibility with dm-crypt */
 
     if (!options->u.luks.key_secret) {
         error_setg(errp, "Parameter 'key-secret' is required for cipher");

@@ -250,7 +250,8 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->hotpluggable = false;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo piix3_ide_info = {
@@ -277,6 +278,8 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo piix4_ide_info = {

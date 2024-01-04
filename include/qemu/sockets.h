@@ -51,6 +51,7 @@ SocketAddress *socket_parse(const char *str, Error **errp);
 int socket_connect(SocketAddress *addr, Error **errp,
                    NonBlockingConnectHandler *callback, void *opaque);
 int socket_listen(SocketAddress *addr, Error **errp);
+void socket_listen_cleanup(int fd, Error **errp);
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
 
 /* Old, ipv4 only bits.  Don't use for new code. */

@@ -96,134 +96,170 @@ enum {
 };
 
 /*
- * bios_linker_loader_init: allocate a new linker file blob array.
+ * BiosLinkerFileEntry:
+ *
+ * An internal type used for book-keeping file entries
+ */
+typedef struct BiosLinkerFileEntry {
+    char *name; /* file name */
+    GArray *blob; /* data accosiated with @name */
+} BiosLinkerFileEntry;
+
+/*
+ * bios_linker_loader_init: allocate a new linker object instance.
  *
  * After initialization, linker commands can be added, and will
- * be stored in the array.
+ * be stored in the linker.cmd_blob array.
  */
-GArray *bios_linker_loader_init(void)
+BIOSLinker *bios_linker_loader_init(void)
 {
-    return g_array_new(false, true /* clear */, 1);
+    BIOSLinker *linker = g_new(BIOSLinker, 1);
+
+    linker->cmd_blob = g_array_new(false, true /* clear */, 1);
+    linker->file_list = g_array_new(false, true /* clear */,
+                                    sizeof(BiosLinkerFileEntry));
+    return linker;
 }
 
-/* Free linker wrapper and return the linker array. */
-void *bios_linker_loader_cleanup(GArray *linker)
+/* Free linker wrapper */
+void bios_linker_loader_cleanup(BIOSLinker *linker)
 {
-    return g_array_free(linker, false);
+    int i;
+    BiosLinkerFileEntry *entry;
+
+    g_array_free(linker->cmd_blob, true);
+
+    for (i = 0; i < linker->file_list->len; i++) {
+        entry = &g_array_index(linker->file_list, BiosLinkerFileEntry, i);
+        g_free(entry->name);
+    }
+    g_array_free(linker->file_list, true);
+    g_free(linker);
+}
+
+static const BiosLinkerFileEntry *
+bios_linker_find_file(const BIOSLinker *linker, const char *name)
+{
+    int i;
+    BiosLinkerFileEntry *entry;
+
+    for (i = 0; i < linker->file_list->len; i++) {
+        entry = &g_array_index(linker->file_list, BiosLinkerFileEntry, i);
+        if (!strcmp(entry->name, name)) {
+            return entry;
+        }
+    }
+    return NULL;
 }
 
 /*
  * bios_linker_loader_alloc: ask guest to load file into guest memory.
  *
- * @linker: linker file blob array
- * @file: file to be loaded
+ * @linker: linker object instance
+ * @file_name: name of the file blob to be loaded
+ * @file_blob: pointer to blob corresponding to @file_name
  * @alloc_align: required minimal alignment in bytes. Must be a power of 2.
  * @alloc_fseg: request allocation in FSEG zone (useful for the RSDP ACPI table)
  *
  * Note: this command must precede any other linker command using this file.
  */
-void bios_linker_loader_alloc(GArray *linker,
-                              const char *file,
+void bios_linker_loader_alloc(BIOSLinker *linker,
+                              const char *file_name,
+                              GArray *file_blob,
                               uint32_t alloc_align,
                               bool alloc_fseg)
 {
     BiosLinkerLoaderEntry entry;
+    BiosLinkerFileEntry file = { g_strdup(file_name), file_blob};
 
     assert(!(alloc_align & (alloc_align - 1)));
 
+    assert(!bios_linker_find_file(linker, file_name));
+    g_array_append_val(linker->file_list, file);
+
     memset(&entry, 0, sizeof entry);
-    strncpy(entry.alloc.file, file, sizeof entry.alloc.file - 1);
+    strncpy(entry.alloc.file, file_name, sizeof entry.alloc.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ALLOCATE);
     entry.alloc.align = cpu_to_le32(alloc_align);
     entry.alloc.zone = alloc_fseg ? BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG :
                                     BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH;
 
     /* Alloc entries must come first, so prepend them */
-    g_array_prepend_vals(linker, &entry, sizeof entry);
+    g_array_prepend_vals(linker->cmd_blob, &entry, sizeof entry);
 }
 
 /*
- * bios_linker_loader_add_checksum: ask guest to add checksum of file data
- * into (same) file at the specified pointer.
+ * bios_linker_loader_add_checksum: ask guest to add checksum of ACPI
+ * table in the specified file at the specified offset.
  *
  * Checksum calculation simply sums -X for each byte X in the range
  * using 8-bit math (i.e. ACPI checksum).
  *
- * @linker: linker file blob array
+ * @linker: linker object instance
  * @file: file that includes the checksum to be calculated
  *        and the data to be checksummed
- * @table: @file blob contents
- * @start, @size: range of data to checksum
- * @checksum: location of the checksum to be patched within file blob
- *
- * Notes:
- * - checksum byte initial value must have been pushed into @table
- *   and reside at address @checksum.
- * - @size bytes must have been pushed into @table and reside at address
- *   @start.
- * - Guest calculates checksum of specified range of data, result is added to
- *   initial value at @checksum into copy of @file in Guest memory.
- * - Range might include the checksum itself.
- * - To avoid confusion, caller must always put 0x0 at @checksum.
- * - @file must be loaded into Guest memory using bios_linker_loader_alloc
+ * @start_offset, @size: range of data in the file to checksum,
+ *                       relative to the start of file blob
+ * @checksum_offset: location of the checksum to be patched within file blob,
+ *                   relative to the start of file blob
  */
-void bios_linker_loader_add_checksum(GArray *linker, const char *file,
-                                     GArray *table,
-                                     void *start, unsigned size,
-                                     uint8_t *checksum)
+void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file_name,
+                                     unsigned start_offset, unsigned size,
+                                     unsigned checksum_offset)
 {
     BiosLinkerLoaderEntry entry;
-    ptrdiff_t checksum_offset = (gchar *)checksum - table->data;
-    ptrdiff_t start_offset = (gchar *)start - table->data;
+    const BiosLinkerFileEntry *file = bios_linker_find_file(linker, file_name);
 
-    assert(checksum_offset >= 0);
-    assert(start_offset >= 0);
-    assert(checksum_offset + 1 <= table->len);
-    assert(start_offset + size <= table->len);
-    assert(*checksum == 0x0);
+    assert(file);
+    assert(start_offset < file->blob->len);
+    assert(start_offset + size <= file->blob->len);
+    assert(checksum_offset >= start_offset);
+    assert(checksum_offset + 1 <= start_offset + size);
 
+    *(file->blob->data + checksum_offset) = 0;
     memset(&entry, 0, sizeof entry);
-    strncpy(entry.cksum.file, file, sizeof entry.cksum.file - 1);
+    strncpy(entry.cksum.file, file_name, sizeof entry.cksum.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM);
     entry.cksum.offset = cpu_to_le32(checksum_offset);
     entry.cksum.start = cpu_to_le32(start_offset);
     entry.cksum.length = cpu_to_le32(size);
 
-    g_array_append_vals(linker, &entry, sizeof entry);
+    g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }
 
 /*
- * bios_linker_loader_add_pointer: ask guest to add address of source file
- * into destination file at the specified pointer.
+ * bios_linker_loader_add_pointer: ask guest to patch address in
+ * destination file with a pointer to source file
  *
- * @linker: linker file blob array
+ * @linker: linker object instance
  * @dest_file: destination file that must be changed
+ * @dst_patched_offset: location within destination file blob to be patched
+ *                      with the pointer to @src_file+@src_offset (i.e. source
+ *                      blob allocated in guest memory + @src_offset), in bytes
+ * @dst_patched_offset_size: size of the pointer to be patched
+ *                      at @dst_patched_offset in @dest_file blob, in bytes
  * @src_file: source file who's address must be taken
- * @table: @dest_file blob contents array
- * @pointer: location of the pointer to be patched within destination file blob
- * @pointer_size: size of pointer to be patched, in bytes
- *
- * Notes:
- * - @pointer_size bytes must have been pushed into @table
- *   and reside at address @pointer.
- * - Guest address is added to initial value at @pointer
- *   into copy of @dest_file in Guest memory.
- *   e.g. to get start of src_file in guest memory, put 0x0 there
- *   to get address of a field at offset 0x10 in src_file, put 0x10 there
- * - Both @dest_file and @src_file must be
- *   loaded into Guest memory using bios_linker_loader_alloc
+ * @src_offset: location within source file blob to which
+ *              @dest_file+@dst_patched_offset will point to after
+ *              firmware's executed ADD_POINTER command
  */
-void bios_linker_loader_add_pointer(GArray *linker,
+void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *dest_file,
+                                    uint32_t dst_patched_offset,
+                                    uint8_t dst_patched_size,
                                     const char *src_file,
-                                    GArray *table, void *pointer,
-                                    uint8_t pointer_size)
+                                    uint32_t src_offset)
 {
+    uint64_t le_src_offset;
     BiosLinkerLoaderEntry entry;
-    ptrdiff_t offset = (gchar *)pointer - table->data;
+    const BiosLinkerFileEntry *dst_file =
+        bios_linker_find_file(linker, dest_file);
+    const BiosLinkerFileEntry *source_file =
+        bios_linker_find_file(linker, src_file);
 
-    assert(offset >= 0);
-    assert(offset + pointer_size <= table->len);
+    assert(dst_patched_offset < dst_file->blob->len);
+    assert(dst_patched_offset + dst_patched_size <= dst_file->blob->len);
+    assert(src_offset < source_file->blob->len);
 
     memset(&entry, 0, sizeof entry);
     strncpy(entry.pointer.dest_file, dest_file,
@@ -231,10 +267,14 @@ void bios_linker_loader_add_pointer(GArray *linker,
     strncpy(entry.pointer.src_file, src_file,
             sizeof entry.pointer.src_file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_POINTER);
-    entry.pointer.offset = cpu_to_le32(offset);
-    entry.pointer.size = pointer_size;
-    assert(pointer_size == 1 || pointer_size == 2 ||
-           pointer_size == 4 || pointer_size == 8);
+    entry.pointer.offset = cpu_to_le32(dst_patched_offset);
+    entry.pointer.size = dst_patched_size;
+    assert(dst_patched_size == 1 || dst_patched_size == 2 ||
+           dst_patched_size == 4 || dst_patched_size == 8);
 
-    g_array_append_vals(linker, &entry, sizeof entry);
+    le_src_offset = cpu_to_le64(src_offset);
+    memcpy(dst_file->blob->data + dst_patched_offset,
+           &le_src_offset, dst_patched_size);
+
+    g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }

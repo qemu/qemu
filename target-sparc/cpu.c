@@ -100,9 +100,11 @@ static void cpu_sparc_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
 }
 
+static void sparc_cpu_parse_features(CPUState *cs, char *features,
+                                     Error **errp);
+
 static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUSPARCState *env = &cpu->env;
     char *s = g_strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
@@ -118,7 +120,7 @@ static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
     memcpy(env->def, def, sizeof(*def));
 
     featurestr = strtok(NULL, ",");
-    cc->parse_features(CPU(cpu), featurestr, &err);
+    sparc_cpu_parse_features(CPU(cpu), featurestr, &err);
     g_free(s);
     if (err) {
         error_report_err(err);
@@ -839,7 +841,6 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
 
-    cc->parse_features = sparc_cpu_parse_features;
     cc->has_work = sparc_cpu_has_work;
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->cpu_exec_interrupt = sparc_cpu_exec_interrupt;

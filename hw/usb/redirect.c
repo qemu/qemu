@@ -109,6 +109,7 @@ struct USBRedirDevice {
     uint8_t debug;
     char *filter_str;
     int32_t bootindex;
+    bool enable_streams;
     /* Data passed from chardev the fd_read cb to the usbredirparser read cb */
     const uint8_t *read_buf;
     int read_buf_size;
@@ -1229,7 +1230,9 @@ static void usbredir_create_parser(USBRedirDevice *dev)
     usbredirparser_caps_set_cap(caps, usb_redir_cap_32bits_bulk_length);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_bulk_receiving);
 #if USBREDIR_VERSION >= 0x000700
-    usbredirparser_caps_set_cap(caps, usb_redir_cap_bulk_streams);
+    if (dev->enable_streams) {
+        usbredirparser_caps_set_cap(caps, usb_redir_cap_bulk_streams);
+    }
 #endif
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -2476,6 +2479,7 @@ static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
     DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, usbredirparser_warning),
     DEFINE_PROP_STRING("filter", USBRedirDevice, filter_str),
+    DEFINE_PROP_BOOL("streams", USBRedirDevice, enable_streams, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

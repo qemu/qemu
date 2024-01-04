@@ -865,6 +865,8 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->realize = i440fx_pcihost_realize;
     dc->fw_name = "pci";
     dc->props = i440fx_props;
+    /* Reason: needs to be wired up by pc_init1 */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo i440fx_pcihost_info = {
@@ -878,7 +880,9 @@ static const TypeInfo i440fx_pcihost_info = {
 static void i440fx_register_types(void)
 {
     type_register_static(&i440fx_info);
+#if 0 /*  Disabled in Red Hat Enterprise Linux */
     type_register_static(&igd_passthrough_i440fx_info);
+#endif
     type_register_static(&piix3_pci_type_info);
     type_register_static(&piix3_info);
     type_register_static(&piix3_xen_info);

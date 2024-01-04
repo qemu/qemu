@@ -36,8 +36,6 @@
 #define MAC_OS_X_VERSION_10_6 1060
 #endif
 
-static int isAtexit;
-
 typedef struct {
     int buffer_frames;
     int nbuffers;
@@ -378,11 +376,6 @@ static inline UInt32 isPlaying (AudioDeviceID outputDeviceID)
     return result;
 }
 
-static void coreaudio_atexit (void)
-{
-    isAtexit = 1;
-}
-
 static int coreaudio_lock (coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
@@ -630,7 +623,7 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (!isAtexit) {
+    if (!audio_is_cleaning_up()) {
         /* stop playback */
         if (isPlaying(core->outputDeviceID)) {
             status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
@@ -673,7 +666,7 @@ static int coreaudio_ctl_out (HWVoiceOut *hw, int cmd, ...)
 
     case VOICE_DISABLE:
         /* stop playback */
-        if (!isAtexit) {
+        if (!audio_is_cleaning_up()) {
             if (isPlaying(core->outputDeviceID)) {
                 status = AudioDeviceStop(core->outputDeviceID,
                                          core->ioprocid);
@@ -697,7 +690,6 @@ static void *coreaudio_audio_init (void)
     CoreaudioConf *conf = g_malloc(sizeof(CoreaudioConf));
     *conf = glob_conf;
 
-    atexit(coreaudio_atexit);
     return conf;
 }
 

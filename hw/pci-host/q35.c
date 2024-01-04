@@ -52,6 +52,7 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     pci->bus = pci_bus_new(DEVICE(s), "pcie.0",
                            s->mch.pci_address_space, s->mch.address_space_io,
                            0, TYPE_PCIE_BUS);
+    PC_MACHINE(qdev_get_machine())->bus = pci->bus;
     qdev_set_parent_bus(DEVICE(&s->mch), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->mch));
 }
@@ -138,8 +139,11 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
     hc->root_bus_path = q35_host_root_bus_path;
     dc->realize = q35_host_realize;
     dc->props = mch_props;
+    /* Reason: needs to be wired up by pc_q35_init */
+    dc->cannot_instantiate_with_device_add_yet = true;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
+    dc->cannot_instantiate_with_device_add_yet = true; /* RH state preserve */
 }
 
 static void q35_host_initfn(Object *obj)
@@ -424,30 +428,6 @@ static void mch_reset(DeviceState *qdev)
     mch_update(mch);
 }
 
-static AddressSpace *q35_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
-{
-    IntelIOMMUState *s = opaque;
-    VTDAddressSpace *vtd_as;
-
-    assert(0 <= devfn && devfn <= VTD_PCI_DEVFN_MAX);
-
-    vtd_as = vtd_find_add_as(s, bus, devfn);
-    return &vtd_as->as;
-}
-
-static void mch_init_dmar(MCHPCIState *mch)
-{
-    PCIBus *pci_bus = PCI_BUS(qdev_get_parent_bus(DEVICE(mch)));
-
-    mch->iommu = INTEL_IOMMU_DEVICE(qdev_create(NULL, TYPE_INTEL_IOMMU_DEVICE));
-    object_property_add_child(OBJECT(mch), "intel-iommu",
-                              OBJECT(mch->iommu), NULL);
-    qdev_init_nofail(DEVICE(mch->iommu));
-    sysbus_mmio_map(SYS_BUS_DEVICE(mch->iommu), 0, Q35_HOST_BRIDGE_IOMMU_ADDR);
-
-    pci_setup_iommu(pci_bus, q35_host_dma_iommu, mch->iommu);
-}
-
 static void mch_realize(PCIDevice *d, Error **errp)
 {
     int i;
@@ -505,10 +485,6 @@ static void mch_realize(PCIDevice *d, Error **errp)
         init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
                  mch->pci_address_space, &mch->pam_regions[i+1],
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
-    }
-    /* Intel IOMMU (VT-d) */
-    if (object_property_get_bool(qdev_get_machine(), "iommu", NULL)) {
-        mch_init_dmar(mch);
     }
 }
 

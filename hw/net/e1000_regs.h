@@ -85,6 +85,7 @@
 #define E1000_DEV_ID_82573E              0x108B
 #define E1000_DEV_ID_82573E_IAMT         0x108C
 #define E1000_DEV_ID_82573L              0x109A
+#define E1000_DEV_ID_82574L              0x10D3
 #define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT     0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT     0x1098
@@ -104,6 +105,7 @@
 #define E1000_PHY_ID2_82544x 0xC30
 #define E1000_PHY_ID2_8254xx_DEFAULT 0xC20 /* 82540x, 82545x, and 82546x */
 #define E1000_PHY_ID2_82573x 0xCC0
+#define E1000_PHY_ID2_82574x 0xCB1
 
 /* Register Set. (82543, 82544)
  *
@@ -135,8 +137,11 @@
 #define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
+#define E1000_EIAC     0x000DC  /* Ext. Interrupt Auto Clear - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
+#define E1000_IVAR     0x000E4  /* Interrupt Vector Allocation Register - RW */
+#define E1000_EITR     0x000E8  /* Extended Interrupt Throttling Rate - RW */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_RDTR1    0x02820  /* RX Delay Timer (1) - RW */
 #define E1000_RDBAL1   0x02900  /* RX Descriptor Base Address Low (1) - RW */
@@ -145,6 +150,7 @@
 #define E1000_RDH1     0x02910  /* RX Descriptor Head (1) - RW */
 #define E1000_RDT1     0x02918  /* RX Descriptor Tail (1) - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
+#define E1000_FCRTV    0x05F40  /* Flow Control Refresh Timer Value - RW */
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* RX Configuration Word - RO */
 #define E1000_TCTL     0x00400  /* TX Control - RW */
@@ -161,6 +167,10 @@
 #define E1000_PBM      0x10000  /* Packet Buffer Memory - RW */
 #define E1000_PBS      0x01008  /* Packet Buffer Size - RW */
 #define E1000_EEMNGCTL 0x01010  /* MNG EEprom Control */
+#define E1000_EEMNGDATA    0x01014 /* MNG EEPROM Read/Write data */
+#define E1000_FLMNGCTL     0x01018 /* MNG Flash Control */
+#define E1000_FLMNGDATA    0x0101C /* MNG FLASH Read data */
+#define E1000_FLMNGCNT     0x01020 /* MNG FLASH Read Counter */
 #define E1000_FLASH_UPDATES 1000
 #define E1000_EEARBC   0x01024  /* EEPROM Auto Read Bus Control */
 #define E1000_FLASHT   0x01028  /* FLASH Timer Register */
@@ -169,9 +179,12 @@
 #define E1000_FLSWDATA 0x01034  /* FLASH data register */
 #define E1000_FLSWCNT  0x01038  /* FLASH Access Counter */
 #define E1000_FLOP     0x0103C  /* FLASH Opcode Register */
+#define E1000_FLOL     0x01050  /* FEEP Auto Load */
 #define E1000_ERT      0x02008  /* Early Rx Threshold - RW */
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
+#define E1000_FCRTL_A  0x00168  /* Alias to FCRTL */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
+#define E1000_FCRTH_A  0x00160  /* Alias to FCRTH */
 #define E1000_PSRCTL   0x02170  /* Packet Split Receive Control - RW */
 #define E1000_RDBAL    0x02800  /* RX Descriptor Base Address Low - RW */
 #define E1000_RDBAH    0x02804  /* RX Descriptor Base Address High - RW */
@@ -179,11 +192,17 @@
 #define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
 #define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 #define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
+#define E1000_RDTR_A   0x00108  /* Alias to RDTR */
 #define E1000_RDBAL0   E1000_RDBAL /* RX Desc Base Address Low (0) - RW */
+#define E1000_RDBAL0_A 0x00110     /* Alias to RDBAL0 */
 #define E1000_RDBAH0   E1000_RDBAH /* RX Desc Base Address High (0) - RW */
+#define E1000_RDBAH0_A 0x00114     /* Alias to RDBAH0 */
 #define E1000_RDLEN0   E1000_RDLEN /* RX Desc Length (0) - RW */
+#define E1000_RDLEN0_A 0x00118     /* Alias to RDLEN0 */
 #define E1000_RDH0     E1000_RDH   /* RX Desc Head (0) - RW */
+#define E1000_RDH0_A   0x00120     /* Alias to RDH0 */
 #define E1000_RDT0     E1000_RDT   /* RX Desc Tail (0) - RW */
+#define E1000_RDT0_A   0x00128     /* Alias to RDT0 */
 #define E1000_RDTR0    E1000_RDTR  /* RX Delay Timer (0) - RW */
 #define E1000_RXDCTL   0x02828  /* RX Descriptor Control queue 0 - RW */
 #define E1000_RXDCTL1  0x02928  /* RX Descriptor Control queue 1 - RW */
@@ -192,22 +211,33 @@
 #define E1000_RAID     0x02C08  /* Receive Ack Interrupt Delay - RW */
 #define E1000_TXDMAC   0x03000  /* TX DMA Control - RW */
 #define E1000_KABGTXD  0x03004  /* AFE Band Gap Transmit Ref Data */
+#define E1000_POEMB    0x00F10  /* PHY OEM Bits Register - RW */
 #define E1000_RDFH     0x02410  /* Receive Data FIFO Head Register - RW */
+#define E1000_RDFH_A   0x08000  /* Alias to RDFH */
 #define E1000_RDFT     0x02418  /* Receive Data FIFO Tail Register - RW */
+#define E1000_RDFT_A   0x08008  /* Alias to RDFT */
 #define E1000_RDFHS    0x02420  /* Receive Data FIFO Head Saved Register - RW */
 #define E1000_RDFTS    0x02428  /* Receive Data FIFO Tail Saved Register - RW */
 #define E1000_RDFPC    0x02430  /* Receive Data FIFO Packet Count - RW */
 #define E1000_TDFH     0x03410  /* TX Data FIFO Head - RW */
+#define E1000_TDFH_A   0x08010  /* Alias to TDFH */
 #define E1000_TDFT     0x03418  /* TX Data FIFO Tail - RW */
+#define E1000_TDFT_A   0x08018  /* Alias to TDFT */
 #define E1000_TDFHS    0x03420  /* TX Data FIFO Head Saved - RW */
 #define E1000_TDFTS    0x03428  /* TX Data FIFO Tail Saved - RW */
 #define E1000_TDFPC    0x03430  /* TX Data FIFO Packet Count - RW */
 #define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
+#define E1000_TDBAL_A  0x00420  /* Alias to TDBAL */
 #define E1000_TDBAH    0x03804  /* TX Descriptor Base Address High - RW */
+#define E1000_TDBAH_A  0x00424  /* Alias to TDBAH */
 #define E1000_TDLEN    0x03808  /* TX Descriptor Length - RW */
+#define E1000_TDLEN_A  0x00428  /* Alias to TDLEN */
 #define E1000_TDH      0x03810  /* TX Descriptor Head - RW */
+#define E1000_TDH_A    0x00430  /* Alias to TDH */
 #define E1000_TDT      0x03818  /* TX Descripotr Tail - RW */
+#define E1000_TDT_A    0x00438  /* Alias to TDT */
 #define E1000_TIDV     0x03820  /* TX Interrupt Delay Value - RW */
+#define E1000_TIDV_A   0x00440  /* Alias to TIDV */
 #define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
 #define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
@@ -288,9 +318,15 @@
 #define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
 #define E1000_RXCSUM   0x05000  /* RX Checksum Control - RW */
 #define E1000_RFCTL    0x05008  /* Receive Filter Control*/
+#define E1000_MAVTV0   0x05010  /* Management VLAN TAG Value 0 */
+#define E1000_MAVTV1   0x05014  /* Management VLAN TAG Value 1 */
+#define E1000_MAVTV2   0x05018  /* Management VLAN TAG Value 2 */
+#define E1000_MAVTV3   0x0501c  /* Management VLAN TAG Value 3 */
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
+#define E1000_RA_A     0x00040  /* Alias to RA */
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
+#define E1000_VFTA_A   0x00600  /* Alias to VFTA */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC     0x05808  /* Wakeup Filter Control - RW */
 #define E1000_WUS      0x05810  /* Wakeup Status - RO */
@@ -300,26 +336,56 @@
 #define E1000_IP6AT    0x05880  /* IPv6 Address Table - RW Array */
 #define E1000_WUPL     0x05900  /* Wakeup Packet Length - RW */
 #define E1000_WUPM     0x05A00  /* Wakeup Packet Memory - RO A */
+#define E1000_MFUTP01  0x05828  /* Management Flex UDP/TCP Ports 0/1 - RW */
+#define E1000_MFUTP23  0x05830  /* Management Flex UDP/TCP Ports 2/3 - RW */
+#define E1000_MFVAL    0x05824  /* Manageability Filters Valid - RW */
+#define E1000_MDEF     0x05890  /* Manageability Decision Filters - RW Array */
 #define E1000_FFLT     0x05F00  /* Flexible Filter Length Table - RW Array */
 #define E1000_HOST_IF  0x08800  /* Host Interface */
 #define E1000_FFMT     0x09000  /* Flexible Filter Mask Table - RW Array */
+#define E1000_FTFT     0x09400  /* Flexible TCO Filter Table - RW Array */
 #define E1000_FFVT     0x09800  /* Flexible Filter Value Table - RW Array */
 
 #define E1000_KUMCTRLSTA 0x00034 /* MAC-PHY interface - RW */
-#define E1000_MDPHYA     0x0003C  /* PHY address - RW */
-#define E1000_MANC2H     0x05860  /* Management Control To Host - RW */
+#define E1000_MDPHYA     0x0003C /* PHY address - RW */
+#define E1000_MANC2H     0x05860 /* Management Control To Host - RW */
 #define E1000_SW_FW_SYNC 0x05B5C /* Software-Firmware Synchronization - RW */
 
 #define E1000_GCR       0x05B00 /* PCI-Ex Control */
+#define E1000_FUNCTAG   0x05B08 /* Function-Tag Register */
 #define E1000_GSCL_1    0x05B10 /* PCI-Ex Statistic Control #1 */
 #define E1000_GSCL_2    0x05B14 /* PCI-Ex Statistic Control #2 */
 #define E1000_GSCL_3    0x05B18 /* PCI-Ex Statistic Control #3 */
 #define E1000_GSCL_4    0x05B1C /* PCI-Ex Statistic Control #4 */
+#define E1000_GSCN_0    0x05B20 /* 3GIO Statistic Counter Register #0 */
+#define E1000_GSCN_1    0x05B24 /* 3GIO Statistic Counter Register #1 */
+#define E1000_GSCN_2    0x05B28 /* 3GIO Statistic Counter Register #2 */
+#define E1000_GSCN_3    0x05B2C /* 3GIO Statistic Counter Register #3 */
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
+#define E1000_GCR2      0x05B64 /* 3GIO Control Register 2 */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
+#define E1000_PBACLR    0x05B68 /* MSI-X PBA Clear */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
 #define E1000_HICR      0x08F00 /* Host Inteface Control */
+
+#define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
+#define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */
+#define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_RXSTMPL    0x0B624 /* Rx timestamp Low - RO */
+#define E1000_RXSTMPH    0x0B628 /* Rx timestamp High - RO */
+#define E1000_TXSTMPL    0x0B618 /* Tx timestamp value Low - RO */
+#define E1000_TXSTMPH    0x0B61C /* Tx timestamp value High - RO */
+#define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
+#define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
+#define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_RXMTRL     0x0B634 /* Time sync Rx EtherType and Msg Type - RW */
+#define E1000_RXUDP      0x0B638 /* Time Sync Rx UDP Port - RW */
+#define E1000_RXSATRL    0x0B62C /* Rx timestamp attribute low - RO */
+#define E1000_RXSATRH    0x0B630 /* Rx timestamp attribute high - RO */
+#define E1000_TIMADJL    0x0B60C /* Time Adjustment Offset register Low - RW */
+#define E1000_TIMADJH    0x0B610 /* Time Adjustment Offset register High - RW */
+#define E1000_RXCFGL     0x0B634 /* RX Ethertype and Message Type - RW*/
 
 /* RSS registers */
 #define E1000_CPUVEC    0x02C10 /* CPU Vector Register - RW */
@@ -328,6 +394,85 @@
 #define E1000_RSSRK     0x05C80 /* RSS Random Key - RW Array */
 #define E1000_RSSIM     0x05864 /* RSS Interrupt Mask */
 #define E1000_RSSIR     0x05868 /* RSS Interrupt Request */
+
+#define E1000_MRQC_ENABLED(mrqc) (((mrqc) & (BIT(0) | BIT(1))) == BIT(0))
+
+#define E1000_RETA_IDX(hash)        ((hash) & (BIT(7) - 1))
+#define E1000_RETA_VAL(reta, hash)  (((uint8_t *)(reta))[E1000_RETA_IDX(hash)])
+#define E1000_RSS_QUEUE(reta, hash) ((E1000_RETA_VAL(reta, hash) & BIT(7)) >> 7)
+
+#define E1000_MRQC_EN_TCPIPV4(mrqc) ((mrqc) & BIT(16))
+#define E1000_MRQC_EN_IPV4(mrqc)    ((mrqc) & BIT(17))
+#define E1000_MRQC_EN_TCPIPV6(mrqc) ((mrqc) & BIT(18))
+#define E1000_MRQC_EN_IPV6EX(mrqc)  ((mrqc) & BIT(19))
+#define E1000_MRQC_EN_IPV6(mrqc)    ((mrqc) & BIT(20))
+
+#define E1000_MRQ_RSS_TYPE_NONE     (0)
+#define E1000_MRQ_RSS_TYPE_IPV4TCP  (1)
+#define E1000_MRQ_RSS_TYPE_IPV4     (2)
+#define E1000_MRQ_RSS_TYPE_IPV6TCP  (3)
+#define E1000_MRQ_RSS_TYPE_IPV6EX   (4)
+#define E1000_MRQ_RSS_TYPE_IPV6     (5)
+
+#define E1000_ICR_ASSERTED BIT(31)
+#define E1000_EIAC_MASK    0x01F00000
+
+/* [TR]DBAL and [TR]DLEN masks */
+#define E1000_XDBAL_MASK            (~(BIT(4) - 1))
+#define E1000_XDLEN_MASK            ((BIT(20) - 1) & (~(BIT(7) - 1)))
+
+/* IVAR register parsing helpers */
+#define E1000_IVAR_INT_ALLOC_VALID  (0x8)
+
+#define E1000_IVAR_RXQ0_SHIFT       (0)
+#define E1000_IVAR_RXQ1_SHIFT       (4)
+#define E1000_IVAR_TXQ0_SHIFT       (8)
+#define E1000_IVAR_TXQ1_SHIFT       (12)
+#define E1000_IVAR_OTHER_SHIFT      (16)
+
+#define E1000_IVAR_ENTRY_MASK       (0xF)
+#define E1000_IVAR_ENTRY_VALID_MASK E1000_IVAR_INT_ALLOC_VALID
+#define E1000_IVAR_ENTRY_VEC_MASK   (0x7)
+
+#define E1000_IVAR_RXQ0(x)          ((x) >> E1000_IVAR_RXQ0_SHIFT)
+#define E1000_IVAR_RXQ1(x)          ((x) >> E1000_IVAR_RXQ1_SHIFT)
+#define E1000_IVAR_TXQ0(x)          ((x) >> E1000_IVAR_TXQ0_SHIFT)
+#define E1000_IVAR_TXQ1(x)          ((x) >> E1000_IVAR_TXQ1_SHIFT)
+#define E1000_IVAR_OTHER(x)         ((x) >> E1000_IVAR_OTHER_SHIFT)
+
+#define E1000_IVAR_ENTRY_VALID(x)   ((x) & E1000_IVAR_ENTRY_VALID_MASK)
+#define E1000_IVAR_ENTRY_VEC(x)     ((x) & E1000_IVAR_ENTRY_VEC_MASK)
+
+#define E1000_IVAR_TX_INT_EVERY_WB  BIT(31)
+
+/* RFCTL register bits */
+#define E1000_RFCTL_ISCSI_DIS           0x00000001
+#define E1000_RFCTL_NFSW_DIS            0x00000040
+#define E1000_RFCTL_NFSR_DIS            0x00000080
+#define E1000_RFCTL_IPV6_DIS            0x00000400
+#define E1000_RFCTL_IPV6_XSUM_DIS       0x00000800
+#define E1000_RFCTL_ACK_DIS             0x00001000
+#define E1000_RFCTL_ACK_DATA_DIS        0x00002000
+#define E1000_RFCTL_IPFRSP_DIS          0x00004000
+#define E1000_RFCTL_EXTEN               0x00008000
+#define E1000_RFCTL_IPV6_EX_DIS         0x00010000
+#define E1000_RFCTL_NEW_IPV6_EXT_DIS    0x00020000
+
+/* PSRCTL parsing */
+#define E1000_PSRCTL_BSIZE0_MASK   0x0000007F
+#define E1000_PSRCTL_BSIZE1_MASK   0x00003F00
+#define E1000_PSRCTL_BSIZE2_MASK   0x003F0000
+#define E1000_PSRCTL_BSIZE3_MASK   0x3F000000
+
+#define E1000_PSRCTL_BSIZE0_SHIFT  0
+#define E1000_PSRCTL_BSIZE1_SHIFT  8
+#define E1000_PSRCTL_BSIZE2_SHIFT  16
+#define E1000_PSRCTL_BSIZE3_SHIFT  24
+
+#define E1000_PSRCTL_BUFFS_PER_DESC 4
+
+/* TARC* parsing */
+#define E1000_TARC_ENABLE BIT(10)
 
 /* PHY 1000 MII Register/Bit Definitions */
 /* PHY Registers defined by IEEE */
@@ -343,6 +488,40 @@
 #define PHY_1000T_CTRL   0x09 /* 1000Base-T Control Reg */
 #define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
 #define PHY_EXT_STATUS   0x0F /* Extended Status Reg */
+
+/* 82574-specific registers */
+#define PHY_COPPER_CTRL1      0x10 /* Copper Specific Control Register 1 */
+#define PHY_COPPER_STAT1      0x11 /* Copper Specific Status Register 1 */
+#define PHY_COPPER_INT_ENABLE 0x12  /* Interrupt Enable Register */
+#define PHY_COPPER_STAT2      0x13 /* Copper Specific Status Register 2 */
+#define PHY_COPPER_CTRL3      0x14 /* Copper Specific Control Register 3 */
+#define PHY_COPPER_CTRL2      0x1A /* Copper Specific Control Register 2 */
+#define PHY_RX_ERR_CNTR       0x15  /* Receive Error Counter */
+#define PHY_PAGE              0x16 /* Page Address (Any page) */
+#define PHY_OEM_BITS          0x19 /* OEM Bits (Page 0) */
+#define PHY_BIAS_1            0x1d /* Bias Setting Register */
+#define PHY_BIAS_2            0x1e /* Bias Setting Register */
+
+/* 82574-specific registers - page 2 */
+#define PHY_MAC_CTRL1         0x10 /* MAC Specific Control Register 1 */
+#define PHY_MAC_INT_ENABLE    0x12 /* MAC Interrupt Enable Register */
+#define PHY_MAC_STAT          0x13 /* MAC Specific Status Register */
+#define PHY_MAC_CTRL2         0x15 /* MAC Specific Control Register 2 */
+
+/* 82574-specific registers - page 3 */
+#define PHY_LED_03_FUNC_CTRL1 0x10 /* LED[3:0] Function Control */
+#define PHY_LED_03_POL_CTRL   0x11 /* LED[3:0] Polarity Control */
+#define PHY_LED_TIMER_CTRL    0x12 /* LED Timer Control */
+#define PHY_LED_45_CTRL       0x13 /* LED[5:4] Function Control and Polarity */
+
+/* 82574-specific registers - page 5 */
+#define PHY_1000T_SKEW        0x14 /* 1000 BASE - T Pair Skew Register */
+#define PHY_1000T_SWAP        0x15 /* 1000 BASE - T Pair Swap and Polarity */
+
+/* 82574-specific registers - page 6 */
+#define PHY_CRC_COUNTERS      0x11 /* CRC Counters */
+
+#define PHY_PAGE_RW_MASK 0x7F /* R/W part of page address register */
 
 #define MAX_PHY_REG_ADDRESS        0x1F  /* 5 bit address bus (0-0x1F) */
 #define MAX_PHY_MULTI_PAGE_REG     0xF   /* Registers equal on all pages */
@@ -423,6 +602,18 @@
 #define E1000_ICR_DSW           0x00000020 /* FW changed the status of DISSW bit in the FWSM */
 #define E1000_ICR_PHYINT        0x00001000 /* LAN connected device generates an interrupt */
 #define E1000_ICR_EPRST         0x00100000 /* ME handware reset occurs */
+#define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
+#define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
+#define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
+#define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
+#define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
+
+#define E1000_ICR_OTHER_CAUSES (E1000_ICR_LSC  | \
+                                E1000_ICR_RXO  | \
+                                E1000_ICR_MDAC | \
+                                E1000_ICR_SRPD | \
+                                E1000_ICR_ACK  | \
+                                E1000_ICR_MNG)
 
 /* Interrupt Cause Set */
 #define E1000_ICS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -471,6 +662,11 @@
 #define E1000_IMS_SRPD      E1000_ICR_SRPD
 #define E1000_IMS_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_IMS_MNG       E1000_ICR_MNG       /* Manageability event */
+#define E1000_IMS_RXQ0      E1000_ICR_RXQ0
+#define E1000_IMS_RXQ1      E1000_ICR_RXQ1
+#define E1000_IMS_TXQ0      E1000_ICR_TXQ0
+#define E1000_IMS_TXQ1      E1000_ICR_TXQ1
+#define E1000_IMS_OTHER     E1000_ICR_OTHER
 #define E1000_IMS_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
 #define E1000_IMS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
 #define E1000_IMS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
@@ -562,6 +758,15 @@
 #define E1000_EEPROM_RW_ADDR_SHIFT 8    /* Shift to the address bits */
 #define E1000_EEPROM_POLL_WRITE    1    /* Flag for polling for write complete */
 #define E1000_EEPROM_POLL_READ     0    /* Flag for polling for read complete */
+
+/* 82574 EERD/EEWR registers layout */
+#define E1000_EERW_START        BIT(0)
+#define E1000_EERW_DONE         BIT(1)
+#define E1000_EERW_ADDR_SHIFT   2
+#define E1000_EERW_ADDR_MASK    ((1L << 14) - 1)
+#define E1000_EERW_DATA_SHIFT   16
+#define E1000_EERW_DATA_MASK   ((1L << 16) - 1)
+
 /* Register Bit Masks */
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
@@ -584,7 +789,17 @@
 #define E1000_CTRL_D_UD_EN  0x00002000  /* Dock/Undock enable */
 #define E1000_CTRL_D_UD_POLARITY 0x00004000 /* Defined polarity of Dock/Undock indication in SDP[0] */
 #define E1000_CTRL_FORCE_PHY_RESET 0x00008000 /* Reset both PHY ports, through PHYRST_N pin */
+#define E1000_CTRL_SPD_SHIFT 8          /* Speed Select Shift */
+
+#define E1000_CTRL_EXT_ASDCHK  0x00001000 /* auto speed detection check */
+#define E1000_CTRL_EXT_EE_RST  0x00002000 /* EEPROM reset */
 #define E1000_CTRL_EXT_LINK_EN 0x00010000 /* enable link status from external LINK_0 and LINK_1 pins */
+#define E1000_CTRL_EXT_EIAME   0x01000000
+#define E1000_CTRL_EXT_IAME    0x08000000 /* Int ACK Auto-mask */
+#define E1000_CTRL_EXT_PBA_CLR 0x80000000 /* PBA Clear */
+#define E1000_CTRL_EXT_INT_TIMERS_CLEAR_ENA 0x20000000
+#define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
+
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIN2  0x00100000  /* SWDPIN 2 value */
@@ -593,6 +808,7 @@
 #define E1000_CTRL_SWDPIO1  0x00800000  /* SWDPIN 1 input or output */
 #define E1000_CTRL_SWDPIO2  0x01000000  /* SWDPIN 2 input or output */
 #define E1000_CTRL_SWDPIO3  0x02000000  /* SWDPIN 3 input or output */
+#define E1000_CTRL_ADVD3WUC 0x00100000  /* D3 WUC */
 #define E1000_CTRL_RST      0x04000000  /* Global reset */
 #define E1000_CTRL_RFCE     0x08000000  /* Receive Flow Control enable */
 #define E1000_CTRL_TFCE     0x10000000  /* Transmit flow control enable */
@@ -617,9 +833,13 @@
 #define E1000_STATUS_LAN_INIT_DONE 0x00000200   /* Lan Init Completion
                                                    by EEPROM/Flash */
 #define E1000_STATUS_ASDV       0x00000300      /* Auto speed detect value */
+#define E1000_STATUS_ASDV_10    0x00000000      /* ASDV 10Mb */
+#define E1000_STATUS_ASDV_100   0x00000100      /* ASDV 100Mb */
+#define E1000_STATUS_ASDV_1000  0x00000200      /* ASDV 1Gb */
 #define E1000_STATUS_DOCK_CI    0x00000800      /* Change in Dock/Undock state. Clear on write '0'. */
 #define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Status of Master requests. */
 #define E1000_STATUS_MTXCKOK    0x00000400      /* MTX clock running OK */
+#define E1000_STATUS_PHYRA      0x00000400      /* PHY Reset Asserted */
 #define E1000_STATUS_PCI66      0x00000800      /* In 66Mhz slot */
 #define E1000_STATUS_BUS64      0x00001000      /* In 64 bit slot */
 #define E1000_STATUS_PCIX_MODE  0x00002000      /* PCI-X mode */
@@ -634,6 +854,8 @@
 #define E1000_STATUS_FUSE_9       0x08000000
 #define E1000_STATUS_SERDES0_DIS  0x10000000 /* SERDES disabled on port 0 */
 #define E1000_STATUS_SERDES1_DIS  0x20000000 /* SERDES disabled on port 1 */
+#define E1000_STATUS_SPEED_SHIFT  6
+#define E1000_STATUS_ASDV_SHIFT   8
 
 /* EEPROM/Flash Control */
 #define E1000_EECD_SK        0x00000001 /* EEPROM Clock */
@@ -664,6 +886,8 @@
 #define E1000_EECD_AUPDEN    0x00100000 /* Enable Autonomous FLASH update */
 #define E1000_EECD_SHADV     0x00200000 /* Shadow RAM Data Valid */
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
+
+
 #define E1000_EECD_SECVAL_SHIFT      22
 #define E1000_STM_OPCODE     0xDB00
 #define E1000_HICR_FW_RESET  0xC0
@@ -683,6 +907,18 @@
 #define E1000_MDIC_READY     0x10000000
 #define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
+
+/* Rx Interrupt Delay Timer */
+#define E1000_RDTR_FPD       BIT(31)
+
+/* Tx Interrupt Delay Timer */
+#define E1000_TIDV_FPD       BIT(31)
+
+/* Delay increments in nanoseconds for delayed interrupts registers */
+#define E1000_INTR_DELAY_NS_RES (1024)
+
+/* Delay increments in nanoseconds for interrupt throttling registers */
+#define E1000_INTR_THROTTLING_NS_RES (256)
 
 /* EEPROM Commands - Microwire */
 #define EEPROM_READ_OPCODE_MICROWIRE  0x6  /* EEPROM read opcode */
@@ -710,6 +946,21 @@
 
 #define E1000_EEPROM_CFG_DONE         0x00040000   /* MNG config cycle done */
 #define E1000_EEPROM_CFG_DONE_PORT_1  0x00080000   /* ...for second port */
+
+/* PCI Express Control */
+/* 3GIO Control Register - GCR (0x05B00; RW) */
+#define E1000_L0S_ADJUST              (1 << 9)
+#define E1000_L1_ENTRY_LATENCY_MSB    (1 << 23)
+#define E1000_L1_ENTRY_LATENCY_LSB    (1 << 25 | 1 << 26)
+
+#define E1000_L0S_ADJUST              (1 << 9)
+#define E1000_L1_ENTRY_LATENCY_MSB    (1 << 23)
+#define E1000_L1_ENTRY_LATENCY_LSB    (1 << 25 | 1 << 26)
+
+#define E1000_GCR_RO_BITS             (1 << 23 | 1 << 25 | 1 << 26)
+
+/* MSI-X PBA Clear register */
+#define E1000_PBACLR_VALID_MASK       (BIT(5) - 1)
 
 /* Transmit Descriptor */
 struct e1000_tx_desc {
@@ -752,7 +1003,9 @@ struct e1000_tx_desc {
 #define E1000_TXD_CMD_TCP    0x01000000 /* TCP packet */
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
+#define E1000_TXD_CMD_SNAP   0x40000000 /* Update SNAP header */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
+#define E1000_TXD_EXTCMD_TSTAMP 0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_RST    0x00000001    /* software reset */
@@ -767,7 +1020,7 @@ struct e1000_tx_desc {
 #define E1000_TCTL_NRTU   0x02000000    /* No Re-transmit on underrun */
 #define E1000_TCTL_MULR   0x10000000    /* Multiple request support */
 
-/* Receive Descriptor */
+/* Legacy Receive Descriptor */
 struct e1000_rx_desc {
     uint64_t buffer_addr; /* Address of the descriptor's data buffer */
     uint16_t length;     /* Length of data DMAed into data buffer */
@@ -776,6 +1029,78 @@ struct e1000_rx_desc {
     uint8_t errors;      /* Descriptor Errors */
     uint16_t special;
 };
+
+/* Extended Receive Descriptor */
+union e1000_rx_desc_extended {
+    struct {
+        uint64_t buffer_addr;
+        uint64_t reserved;
+    } read;
+    struct {
+        struct {
+            uint32_t mrq;           /* Multiple Rx Queues */
+            union {
+                uint32_t rss;       /* RSS Hash */
+                struct {
+                    uint16_t ip_id; /* IP id */
+                    uint16_t csum;  /* Packet Checksum */
+                } csum_ip;
+            } hi_dword;
+        } lower;
+        struct {
+            uint32_t status_error;  /* ext status/error */
+            uint16_t length;
+            uint16_t vlan;          /* VLAN tag */
+        } upper;
+    } wb;                           /* writeback */
+};
+
+#define MAX_PS_BUFFERS 4
+
+/* Number of packet split data buffers (not including the header buffer) */
+#define PS_PAGE_BUFFERS    (MAX_PS_BUFFERS - 1)
+
+/* Receive Descriptor - Packet Split */
+union e1000_rx_desc_packet_split {
+    struct {
+        /* one buffer for protocol header(s), three data buffers */
+        uint64_t buffer_addr[MAX_PS_BUFFERS];
+    } read;
+    struct {
+        struct {
+            uint32_t mrq;          /* Multiple Rx Queues */
+            union {
+                uint32_t rss;          /* RSS Hash */
+                struct {
+                    uint16_t ip_id;    /* IP id */
+                    uint16_t csum;     /* Packet Checksum */
+                } csum_ip;
+            } hi_dword;
+        } lower;
+        struct {
+            uint32_t status_error;     /* ext status/error */
+            uint16_t length0;      /* length of buffer 0 */
+            uint16_t vlan;         /* VLAN tag */
+        } middle;
+        struct {
+            uint16_t header_status;
+            /* length of buffers 1-3 */
+            uint16_t length[PS_PAGE_BUFFERS];
+        } upper;
+        uint64_t reserved;
+    } wb; /* writeback */
+};
+
+/* Receive Checksum Control bits */
+#define E1000_RXCSUM_IPOFLD     0x100   /* IP Checksum Offload Enable */
+#define E1000_RXCSUM_TUOFLD     0x200   /* TCP/UDP Checksum Offload Enable */
+#define E1000_RXCSUM_PCSD       0x2000  /* Packet Checksum Disable */
+
+#define E1000_RING_DESC_LEN       (16)
+#define E1000_RING_DESC_LEN_SHIFT (4)
+
+#define E1000_MIN_RX_DESC_LEN   E1000_RING_DESC_LEN
+#define E1000_MAX_RX_DESC_LEN   (sizeof(union e1000_rx_desc_packet_split))
 
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
@@ -801,6 +1126,15 @@ struct e1000_rx_desc {
 #define E1000_RXD_SPC_PRI_SHIFT 13
 #define E1000_RXD_SPC_CFI_MASK  0x1000  /* CFI is bit 12 */
 #define E1000_RXD_SPC_CFI_SHIFT 12
+
+/* RX packet types */
+#define E1000_RXD_PKT_MAC       (0)
+#define E1000_RXD_PKT_IP4       (1)
+#define E1000_RXD_PKT_IP4_XDP   (2)
+#define E1000_RXD_PKT_IP6       (5)
+#define E1000_RXD_PKT_IP6_XDP   (6)
+
+#define E1000_RXD_PKT_TYPE(t) ((t) << 16)
 
 #define E1000_RXDEXT_STATERR_CE    0x01000000
 #define E1000_RXDEXT_STATERR_SE    0x02000000
@@ -879,6 +1213,8 @@ struct e1000_data_desc {
 #define E1000_MANC_NEIGHBOR_EN   0x00004000 /* Enable Neighbor Discovery
                                              * Filtering */
 #define E1000_MANC_ARP_RES_EN    0x00008000 /* Enable ARP response Filtering */
+#define E1000_MANC_DIS_IP_CHK_ARP  0x10000000 /* Disable IP address chacking */
+                                              /*for ARP packets - in 82574 */
 #define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_REPORT_STATUS 0x00040000 /* Status Reporting Enabled */
@@ -902,7 +1238,14 @@ struct e1000_data_desc {
 #define E1000_MANC_SMB_DATA_OUT_SHIFT  28 /* SMBus Data Out Shift */
 #define E1000_MANC_SMB_CLK_OUT_SHIFT   29 /* SMBus Clock Out Shift */
 
+/* FACTPS Control */
+#define E1000_FACTPS_LAN0_ON     0x00000004 /* Lan 0 enable */
+
 /* For checksumming, the sum of all words in the EEPROM should equal 0xBABA. */
 #define EEPROM_SUM 0xBABA
+
+/* I/O-Mapped Access to Internal Registers, Memories, and Flash */
+#define E1000_IOADDR 0x00
+#define E1000_IODATA 0x04
 
 #endif /* _E1000_HW_H_ */

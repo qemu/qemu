@@ -24,6 +24,11 @@
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+#include <sys/vfs.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "qga/error_code.h"
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__
@@ -2356,6 +2361,449 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return info;
 }
 
+// Cloudcommune Guest Agent: guest get disk used
+GuestDiskUsed *qmp_guest_get_disk_used(const char *device, Error **errp)
+{
+    uint16_t devLen = strlen(device);
+    if (devLen != 8) // 8 is the len of format /dev/sdx
+    {    
+        error_setg(errp, "device string format error");
+        return NULL;
+    }
+
+    GuestDiskUsed *info;
+    char buf[256];
+    char cmd[256] = "lsblk ";
+    strcat(cmd, device);
+    strcat(cmd, " | awk '{print $7} {print $8}' | awk '/^\\//'");
+    FILE *pp;
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "lsblk(\"%s\")", device);
+        return NULL;
+    }
+
+    info = g_new0(GuestDiskUsed, 1);
+    while(fgets(buf, sizeof buf, pp)) {
+        strtok(buf, "\n");
+        struct statfs diskInfo;
+        memset(&diskInfo, 0, sizeof(statfs));
+        statfs(buf, &diskInfo);
+        uint64_t blocksize = diskInfo.f_bsize;
+        uint64_t totalsize = blocksize * diskInfo.f_blocks; 
+        uint64_t freeDisk = diskInfo.f_bfree * blocksize;
+        uint64_t usedDisk = totalsize - freeDisk;
+        info->size += usedDisk;
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: linux os gpu drive check
+static int guest_get_gpu_monitor_check(const char *device)
+{
+    uint16_t devLen = strlen(device);
+    FILE *pp;
+    char buf[256];
+    if (devLen == 0) // 0 is the len of format 0,1,2
+    {
+        return 2;
+    }
+    pp = popen("nvidia-smi", "r");
+    if (fgets(buf,sizeof(buf),pp) == NULL || ferror(pp)) {
+        pclose(pp);
+        return 1;
+    }else {
+        pclose(pp);
+        return 0;
+    }
+}
+
+// Cloudcommune Guest Agent: linux os gpu counts
+GuestGpuCounts *qmp_guest_get_gpu_counts(Error **errp)
+{
+    FILE *pp;
+    char buf[256];
+    GuestGpuCounts *info;
+    char cmd[256] = "nvidia-smi -L|wc -l";
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu counts error!");
+        return NULL;
+    }
+    info = g_new0(GuestGpuCounts, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+
+// Cloudcommune Guest Agent: get gpu memory used
+GuestGpuMemoryUsed *qmp_guest_get_gpu_memory_used(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    FILE *pp;
+    char buf[256];
+    GuestGpuMemoryUsed *info;
+    char cmd[256] = "nvidia-smi -q -d MEMORY -i ";
+    strcat(cmd, device);
+    strcat(cmd, "|grep -E 'Used'|head -1 |awk '{print $3}'");
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuMemoryUsed, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: get gpu memory total
+GuestGpuMemoryTotal *qmp_guest_get_gpu_memory_total(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    FILE *pp;
+    char buf[256];
+    GuestGpuMemoryTotal *info;
+    char cmd[256] = "nvidia-smi -q -d MEMORY -i ";
+    strcat(cmd, device);
+    strcat(cmd, "|grep -E 'Total'|head -1 |awk '{print $3}'");
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuMemoryTotal, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: get gpu Temperature
+GuestGpuTemperature *qmp_guest_get_gpu_temperature(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    FILE *pp;
+    char buf[256];
+    GuestGpuTemperature *info;
+    char cmd[256] = "nvidia-smi -q -d Temperature -i ";
+    strcat(cmd, device);
+    strcat(cmd, "|grep -E 'GPU Current'|head -1 |awk '{print $5}'");
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuTemperature, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: get gpu utilization
+GuestGpuUtilization *qmp_guest_get_gpu_utilization(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    FILE *pp;
+    char buf[256];
+    GuestGpuUtilization *info;
+    char cmd[256] = "nvidia-smi -q -x -i ";
+    strcat(cmd, device);
+    strcat(cmd, "|grep gpu_util |awk '{print $1}'|awk -F '>' '{print $2}' ");
+    if( (pp = popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu utilization error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuUtilization, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: add sshkey
+ExecuStatus  *qmp_guest_add_sshkey(const char *username,
+                                   const char *sshkey,
+                                   Error **errp)
+{
+    ExecuStatus *sta = g_new0(ExecuStatus,1);
+    sta->version = g_strdup(CLOUDCOMMUNE_GUEST_AGENT_VERSION);
+    
+    char  *sshkeydata = NULL;
+    size_t sshkeylen = 0; 
+    FILE *fh = NULL;
+    int ret; 
+
+    sshkeydata = (char *)g_base64_decode(sshkey,&sshkeylen);
+    if(!sshkeydata)
+    {    
+        sta->status = g_strdup(ERROR_DECODE);
+        goto out; 
+    }    
+    if(sshkeylen < 169 || strlen(username) <= 0)// 169 is test simple sshkey after base64 encode length   
+    {    
+        sta->status = g_strdup(ERROR_FAILED);
+        goto out; 
+    }    
+    sshkeydata = g_renew(char, sshkeydata, sshkeylen + 1);
+    sshkeydata[sshkeylen] = '\0';
+
+
+    if (strchr(username, '\n') ||
+        strchr(username, ':')) 
+    {    
+        sta->status = g_strdup(ERROR_USERNAME);
+        goto out; 
+    }    
+    //write to /username/.ssh/filename
+    char  filename[128];
+    
+    memset(filename,0,sizeof(filename));
+    if(strcmp("root",username) == 0)
+    {
+        if(opendir("/root/.ssh") == NULL)//.ssh is not exist
+        {
+            mkdir("/root/.ssh",0666);
+        }
+        snprintf(filename,sizeof(filename),"/%s/.ssh/authorized_keys",username);
+    }
+    else
+    {
+        char  dirname[128];
+        memset(dirname,0,sizeof(dirname));
+        snprintf(dirname,sizeof(dirname),"/home/%s",username);
+        if(opendir(dirname) == NULL)//user is not exist
+        {
+            sta->status = g_strdup(ERROR_NOEXIST);
+            goto out;
+        }
+        memset(dirname,0,sizeof(dirname));
+        snprintf(dirname,sizeof(dirname),"/home/%s/.ssh",username);
+        if(opendir(dirname) == NULL)//.ssh is not exist
+        {
+            mkdir(dirname,0666);
+        }
+        memset(dirname,0,sizeof(dirname));
+        snprintf(filename,sizeof(filename),"/home/%s/.ssh/authorized_keys",username);
+    }
+
+    fh = fopen(filename, "a+");
+
+    if ( fh == NULL)
+    {
+        sta->status = g_strdup(ERROR_OPENFILE);
+        goto out ;
+    }
+
+    ret = fseek(fh, 0L, SEEK_END);
+    if (ret == -1)
+    {
+        sta->status = g_strdup(ERROR_FSEEK);
+        fclose(fh);
+        goto out;
+    }
+    fwrite(sshkeydata, 1, sshkeylen, fh);
+    fwrite("\n", 1, 1, fh);
+    if (ferror(fh))
+    {
+        sta->status = g_strdup(ERROR_WRITEFILE);
+        fclose(fh);
+        goto out;
+    }
+
+    fclose(fh);
+    sta->status = g_strdup(SUCCESS);
+
+out:
+    g_free(sshkeydata);
+    return sta;
+}
+
+// Cloudcommune Guest Agent: delete sshkey
+ExecuStatus  *qmp_guest_delete_sshkey(const char *username,
+                                      const char *sshkey,
+                                      Error **errp)
+{
+    ExecuStatus *sta = g_new0(ExecuStatus,1);
+    sta->version = g_strdup(CLOUDCOMMUNE_GUEST_AGENT_VERSION);
+
+    char  *sshkeydata = NULL;
+    size_t sshkeylen = 0;
+    sshkeydata = (char *)g_base64_decode(sshkey,&sshkeylen);
+    if(!sshkeydata)
+    {
+        sta->status = g_strdup(ERROR_DECODE);
+        goto out;
+    }
+    if(sshkeylen < 169 || strlen(username) <= 0)// 169 is test simple sshkey after base64 encode length
+    {
+        sta->status = g_strdup(ERROR_FAILED);
+        goto out;
+    }
+    sshkeydata = g_renew(char, sshkeydata, sshkeylen + 1);
+    sshkeydata[sshkeylen] = '\0';
+
+
+    if (strchr(username, '\n') ||
+        strchr(username, ':'))
+    {
+        sta->status = g_strdup(ERROR_USERNAME);
+        goto out;
+    }
+
+
+    char    filename[128],tempfile[128],bakfile[128];
+    memset(filename,0,sizeof(filename));
+    memset(tempfile,0,sizeof(tempfile));
+    memset(bakfile,0,sizeof(bakfile));
+
+    time_t now;
+    struct tm *timenow;
+    time(&now);
+    timenow = localtime(&now);
+
+    snprintf(tempfile,sizeof(tempfile),"/tmp/.tmpsshkey%d%d%d%d%d%d",1900+timenow->tm_year, 1+timenow->tm_mon, timenow->tm_mday, timenow->tm_hour, timenow->tm_min, timenow->tm_sec);
+
+    if(strcmp("root",username) == 0)
+    {
+        snprintf(filename,sizeof(filename),"/%s/.ssh/authorized_keys",username);
+    }
+    else
+    {
+        char dirname[128];
+        memset(dirname,0,sizeof(dirname));
+        snprintf(dirname,sizeof(dirname),"/home/%s",username);
+        if(opendir(dirname) == NULL)//user is not exist
+        {
+            sta->status = g_strdup(ERROR_NOEXIST);
+            goto out;
+        }
+        snprintf(filename,sizeof(filename),"/home/%s/.ssh/authorized_keys",username);
+    }
+
+
+    FILE *fh = fopen(filename, "r+");
+    if ( fh == NULL)
+    {
+        sta->status = g_strdup(ERROR_OPENFILE);
+        goto out ;
+    }
+    ssize_t read;
+    size_t  len = 0;
+    char  *line = NULL;
+    int  flag = 0;//check if sshkey if exist in the authorized_keys
+
+    while((read = getline(&line,&len,fh)) != -1)
+    {
+            if(strncmp(line,sshkeydata,sshkeylen) == 0)
+            {
+                fseek(fh,0L,SEEK_SET);
+                flag = 1;
+                break;
+            }
+    }
+
+    if(flag == 1)//if sshkey is exist
+    {
+        snprintf(bakfile,sizeof(bakfile),"%s.bak",filename);
+
+        FILE  *fr = fopen(tempfile,"w+");
+        if ( fr == NULL)
+        {
+            sta->status = g_strdup(ERROR_OPENFILE);
+            goto out ;
+        }
+        while((read = getline(&line,&len,fh)) != -1)
+        {
+            if(strncmp(line,sshkeydata,sshkeylen) == 0)
+            {
+                continue;
+            }
+            if(strncmp(line,"\n",1) == 0)
+            {
+                continue;
+            }
+            fwrite(line,read,1,fr);
+        }
+        if(fr)
+            fclose(fr);
+    }
+    if(line)
+        free(line);
+    if(fh)
+        fclose(fh);
+    if(flag == 1)//if sshkey is exist
+    {
+        int ret = rename(filename,bakfile);
+        if(ret < 0)
+        {
+            sta->status = g_strdup(ERROR_FAILED);
+            goto out ;
+        }
+        ret = rename(tempfile,filename);
+        if(ret < 0)
+        {
+            sta->status = g_strdup(ERROR_FAILED);
+            goto out ;
+        }
+        sta->status = g_strdup(SUCCESS);
+    }
+    else
+    {
+        sta->status = g_strdup(ERROR_FAILED);
+    }
+out:
+    g_free(sshkeydata);
+    return sta;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -2416,6 +2864,41 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
+}
+
+// Cloudcommune Guest Agent: guest get disk used
+GuestDiskUsed *qmp_guest_get_disk_used(const char *device, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+// Cloudcommune Guest Agent: guest get gpu memory used
+GuestGpuMemoryUsed *qmp_guest_get_gpu_memory_used(const char *device, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+// Cloudcommune Guest Agent: guest get gpu memory total
+GuestGpuMemoryTotal *qmp_guest_get_gpu_memory_Total(const char *device, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+// Cloudcommune Guest Agent: guest get gpu temperature
+GuestGpuTemperature *qmp_guest_get_gpu_temperature(const char *device, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+// Cloudcommune Guest Agent: guest get gpu utilization
+GuestGpuTemperature *qmp_guest_get_gpu_utilization(const char *device, Error **errp)
+{
+     error_setg(errp, QERR_UNSUPPORTED);
+         return NULL;
 }
 
 #endif

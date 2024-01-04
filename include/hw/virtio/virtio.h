@@ -91,6 +91,7 @@ struct VirtIODevice
     char *bus_name;
     uint8_t device_endian;
     bool use_guest_notifier_mask;
+    bool rhel6_ctrl_guest_workaround;
     QLIST_HEAD(, VirtQueue) *vector_queues;
 };
 
@@ -150,6 +151,7 @@ void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
 void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
                        unsigned int len);
+bool virtqueue_rewind(VirtQueue *vq, unsigned int num);
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx);
 

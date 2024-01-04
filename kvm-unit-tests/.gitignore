@@ -1,0 +1,16 @@
+.gdbinit
+*.a
+*.d
+*.o
+*.flat
+*.elf
+.pc
+patches
+.stgit-*
+cscope.*
+*.swp
+/lib/asm
+/config.mak
+/*-run
+/test.log
+/msr.out

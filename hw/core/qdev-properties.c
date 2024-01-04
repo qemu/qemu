@@ -1020,12 +1020,11 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-static QTAILQ_HEAD(, GlobalProperty) global_props =
-        QTAILQ_HEAD_INITIALIZER(global_props);
+static GList *global_props;
 
 void qdev_prop_register_global(GlobalProperty *prop)
 {
-    QTAILQ_INSERT_TAIL(&global_props, prop, next);
+    global_props = g_list_append(global_props, prop);
 }
 
 void qdev_prop_register_global_list(GlobalProperty *props)
@@ -1039,10 +1038,11 @@ void qdev_prop_register_global_list(GlobalProperty *props)
 
 int qdev_prop_check_globals(void)
 {
-    GlobalProperty *prop;
+    GList *l;
     int ret = 0;
 
-    QTAILQ_FOREACH(prop, &global_props, next) {
+    for (l = global_props; l; l = l->next) {
+        GlobalProperty *prop = l->data;
         ObjectClass *oc;
         DeviceClass *dc;
         if (prop->used) {
@@ -1071,11 +1071,12 @@ int qdev_prop_check_globals(void)
 }
 
 static void qdev_prop_set_globals_for_type(DeviceState *dev,
-                                const char *typename)
+                                           const char *typename)
 {
-    GlobalProperty *prop;
+    GList *l;
 
-    QTAILQ_FOREACH(prop, &global_props, next) {
+    for (l = global_props; l; l = l->next) {
+        GlobalProperty *prop = l->data;
         Error *err = NULL;
 
         if (strcmp(typename, prop->driver) != 0) {
@@ -1084,10 +1085,14 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
         prop->used = true;
         object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
-            assert(prop->user_provided);
-            error_reportf_err(err, "Warning: global %s.%s=%s ignored: ",
-                              prop->driver, prop->property, prop->value);
-            return;
+            error_prepend(&err, "can't apply global %s.%s=%s: ",
+                          prop->driver, prop->property, prop->value);
+            if (!dev->hotplugged && prop->errp) {
+                error_propagate(prop->errp, err);
+            } else {
+                assert(prop->user_provided);
+                error_reportf_err(err, "Warning: ");
+            }
         }
     }
 }

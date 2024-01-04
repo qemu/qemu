@@ -36,9 +36,7 @@ static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALG__MAX] = {
 
 size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg)
 {
-    if (alg >= G_N_ELEMENTS(qcrypto_hash_alg_size)) {
-        return 0;
-    }
+    assert(alg < G_N_ELEMENTS(qcrypto_hash_alg_size));
     return qcrypto_hash_alg_size[alg];
 }
 

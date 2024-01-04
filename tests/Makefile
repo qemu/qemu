@@ -111,8 +111,6 @@ check-qtest-generic-y = tests/device-introspect-test$(EXESUF)
 gcov-files-generic-y = qdev-monitor.c qmp.c
 
 gcov-files-ipack-y += hw/ipack/ipack.c
-check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
-gcov-files-ipack-y += hw/char/ipoctal232.c
 
 check-qtest-virtioserial-y += tests/virtio-console-test$(EXESUF)
 gcov-files-virtioserial-y += hw/char/virtio-console.c
@@ -142,23 +140,10 @@ check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
 check-qtest-pci-y += tests/rtl8139-test$(EXESUF)
 gcov-files-pci-y += hw/net/rtl8139.c
-check-qtest-pci-y += tests/pcnet-test$(EXESUF)
-gcov-files-pci-y += hw/net/pcnet.c
-gcov-files-pci-y += hw/net/pcnet-pci.c
-check-qtest-pci-y += tests/eepro100-test$(EXESUF)
-gcov-files-pci-y += hw/net/eepro100.c
-check-qtest-pci-y += tests/ne2000-test$(EXESUF)
-gcov-files-pci-y += hw/net/ne2000.c
-check-qtest-pci-y += tests/nvme-test$(EXESUF)
-gcov-files-pci-y += hw/block/nvme.c
 check-qtest-pci-y += tests/ac97-test$(EXESUF)
 gcov-files-pci-y += hw/audio/ac97.c
-check-qtest-pci-y += tests/es1370-test$(EXESUF)
-gcov-files-pci-y += hw/audio/es1370.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
-check-qtest-pci-y += tests/tpci200-test$(EXESUF)
-gcov-files-pci-y += hw/ipack/tpci200.c
 check-qtest-pci-y += $(check-qtest-ipack-y)
 gcov-files-pci-y += $(gcov-files-ipack-y)
 check-qtest-pci-y += tests/display-vga-test$(EXESUF)
@@ -184,8 +169,6 @@ check-qtest-i386-y += tests/boot-order-test$(EXESUF)
 check-qtest-i386-y += tests/bios-tables-test$(EXESUF)
 check-qtest-i386-y += tests/pxe-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
-check-qtest-i386-y += tests/ipmi-kcs-test$(EXESUF)
-check-qtest-i386-y += tests/ipmi-bt-test$(EXESUF)
 check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
 check-qtest-i386-y += tests/drive_del-test$(EXESUF)
@@ -194,18 +177,14 @@ check-qtest-i386-y += tests/tco-test$(EXESUF)
 gcov-files-i386-y += hw/watchdog/watchdog.c hw/watchdog/wdt_ib700.c
 check-qtest-i386-y += $(check-qtest-pci-y)
 gcov-files-i386-y += $(gcov-files-pci-y)
-check-qtest-i386-y += tests/vmxnet3-test$(EXESUF)
-gcov-files-i386-y += hw/net/vmxnet3.c
-gcov-files-i386-y += hw/net/vmxnet_rx_pkt.c
-gcov-files-i386-y += hw/net/vmxnet_tx_pkt.c
+gcov-files-i386-y += hw/net/net_rx_pkt.c
+gcov-files-i386-y += hw/net/net_tx_pkt.c
 check-qtest-i386-y += tests/pvpanic-test$(EXESUF)
 gcov-files-i386-y += i386-softmmu/hw/misc/pvpanic.c
 check-qtest-i386-y += tests/i82801b11-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/i82801b11.c
 check-qtest-i386-y += tests/ioh3420-test$(EXESUF)
 gcov-files-i386-y += hw/pci-bridge/ioh3420.c
-check-qtest-i386-y += tests/usb-hcd-ohci-test$(EXESUF)
-gcov-files-i386-y += hw/usb/hcd-ohci.c
 check-qtest-i386-y += tests/usb-hcd-uhci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-uhci.c
 check-qtest-i386-y += tests/usb-hcd-ehci-test$(EXESUF)
@@ -224,7 +203,8 @@ endif
 check-qtest-i386-y += tests/test-netfilter$(EXESUF)
 check-qtest-i386-y += tests/test-filter-mirror$(EXESUF)
 check-qtest-i386-y += tests/test-filter-redirector$(EXESUF)
-check-qtest-x86_64-y = $(check-qtest-i386-y)
+check-qtest-i386-y += tests/postcopy-test$(EXESUF)
+check-qtest-x86_64-y += $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
 check-qtest-mips-y = tests/endianness-test$(EXESUF)
@@ -533,8 +513,6 @@ tests/spapr-phb-test$(EXESUF): tests/spapr-phb-test.o $(libqos-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
 tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y)
-tests/ipmi-kcs-test$(EXESUF): tests/ipmi-kcs-test.o
-tests/ipmi-bt-test$(EXESUF): tests/ipmi-bt-test.o
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
 tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o \
@@ -547,10 +525,7 @@ tests/q35-test$(EXESUF): tests/q35-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 tests/e1000-test$(EXESUF): tests/e1000-test.o
 tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o $(libqos-pc-obj-y)
-tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
-tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
-tests/ne2000-test$(EXESUF): tests/ne2000-test.o
 tests/wdt_ib700-test$(EXESUF): tests/wdt_ib700-test.o
 tests/tco-test$(EXESUF): tests/tco-test.o $(libqos-pc-obj-y)
 tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
@@ -561,25 +536,22 @@ tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o $(libqos-virtio-obj-y)
 tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
 tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
-tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/display-vga-test$(EXESUF): tests/display-vga-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/drive_del-test$(EXESUF): tests/drive_del-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
-tests/nvme-test$(EXESUF): tests/nvme-test.o
 tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
 tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
 tests/ac97-test$(EXESUF): tests/ac97-test.o
-tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
-tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o $(libqos-usb-obj-y)
 tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o $(libqos-usb-obj-y)
 tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-usb-obj-y)
 tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
 tests/pc-cpu-test$(EXESUF): tests/pc-cpu-test.o
-tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y) $(test-io-obj-y)
+tests/postcopy-test$(EXESUF): tests/postcopy-test.o
+tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y) $(test-io-obj-y) $(libqos-virtio-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o $(test-util-obj-y)
 tests/test-write-threshold$(EXESUF): tests/test-write-threshold.o $(test-block-obj-y)

@@ -228,6 +228,8 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_2x_serial_pci_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
@@ -243,6 +245,8 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_4x_serial_pci_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo serial_pci_info = {

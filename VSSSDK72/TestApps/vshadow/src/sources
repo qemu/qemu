@@ -1,0 +1,62 @@
+#revisions
+# name      date        Comment
+# aoltean   10/27/98    Added debug linker & compiler flags
+
+
+TARGETNAME = vshadow
+TARGETPATH = ..\bin\$(_OBJ_DIR)
+TARGETTYPE = PROGRAM
+
+UMTYPE=console
+UMENTRY=wmain
+
+
+SOURCES = \
+        tracing.cpp 	\
+        vssclient.cpp 	\
+        create.cpp	\
+	expose.cpp	\
+        query.cpp	\
+        delete.cpp	\
+	revert.cpp	\
+        break.cpp	\
+        writer.cpp	\
+	select.cpp	\
+	stdafx.cpp	\
+        shadow.cpp
+
+INCLUDES = ..\inc\ws03
+
+ 
+C_DEFINES=-DWIN_32 -D_WINDOWS -DNT -D_WIN32_DCOM -DUNICODE -D_UNICODE  -D_ATL_NO_DEBUG_CRT -DVSS_SERVER
+
+!if !$(FREEBUILD)
+C_DEFINES=$(C_DEFINES) -D_DEBUG
+!endif
+
+SUBSYSTEM_VERSION = 5.00
+
+USE_STL=1
+USE_ATL=1
+ATL_VER=30
+USE_IOSTREAM = 1
+USE_NATIVE_EH = 1
+USE_MSVCRT = 1
+
+TARGETLIBS = \
+    $(SDK_LIB_PATH)\kernel32.lib \
+    $(SDK_LIB_PATH)\oleaut32.lib \
+    $(SDK_LIB_PATH)\ole32.lib \
+    $(SDK_LIB_PATH)\uuid.lib \
+    $(SDK_LIB_PATH)\advapi32.lib \
+    $(SDK_LIB_PATH)\user32.lib \
+    $(SDK_LIB_PATH)\rpcns4.lib \
+    $(SDK_LIB_PATH)\rpcrt4.lib \
+    $(SDK_LIB_PATH)\vssapi.lib \
+    $(SDK_LIB_PATH)\ntdll.lib \
+    $(SDK_LIB_PATH)\vssapi.lib	\
+    $(SDK_LIB_PATH)\vss_uuid.lib
+
+PRECOMPILED_CXX = 1
+PRECOMPILED_INCLUDE = stdafx.h
+PRECOMPILED_OBJ = precomp.obj

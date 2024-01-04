@@ -62,6 +62,8 @@ static Property pci_props[] = {
                     QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
     DEFINE_PROP_BIT("command_serr_enable", PCIDevice, cap_present,
                     QEMU_PCI_CAP_SERR_BITNR, true),
+    DEFINE_PROP_BIT("x-pcie-lnksta-dllla", PCIDevice, cap_present,
+                    QEMU_PCIE_LNKSTA_DLLLA_BITNR, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -78,9 +80,36 @@ static const VMStateDescription vmstate_pcibus = {
     }
 };
 
+static void pci_init_bus_master(PCIDevice *pci_dev)
+{
+    AddressSpace *dma_as = pci_device_iommu_address_space(pci_dev);
+
+    memory_region_init_alias(&pci_dev->bus_master_enable_region,
+                             OBJECT(pci_dev), "bus master",
+                             dma_as->root, 0, memory_region_size(dma_as->root));
+    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
+    address_space_init(&pci_dev->bus_master_as,
+                       &pci_dev->bus_master_enable_region, pci_dev->name);
+}
+
+static void pcibus_machine_done(Notifier *notifier, void *data)
+{
+    PCIBus *bus = container_of(notifier, PCIBus, machine_done);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        if (bus->devices[i]) {
+            pci_init_bus_master(bus->devices[i]);
+        }
+    }
+}
+
 static void pci_bus_realize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
+
+    bus->machine_done.notify = pcibus_machine_done;
+    qemu_add_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
@@ -88,6 +117,8 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
 static void pci_bus_unrealize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
+
+    qemu_remove_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
@@ -836,6 +867,81 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     address_space_destroy(&pci_dev->bus_master_as);
 }
 
+/* Extract PCIReqIDCache into BDF format */
+static uint16_t pci_req_id_cache_extract(PCIReqIDCache *cache)
+{
+    uint8_t bus_n;
+    uint16_t result;
+
+    switch (cache->type) {
+    case PCI_REQ_ID_BDF:
+        result = pci_get_bdf(cache->dev);
+        break;
+    case PCI_REQ_ID_SECONDARY_BUS:
+        bus_n = pci_bus_num(cache->dev->bus);
+        result = PCI_BUILD_BDF(bus_n, 0);
+        break;
+    default:
+        error_printf("Invalid PCI requester ID cache type: %d\n",
+                     cache->type);
+        exit(1);
+        break;
+    }
+
+    return result;
+}
+
+/* Parse bridges up to the root complex and return requester ID
+ * cache for specific device.  For full PCIe topology, the cache
+ * result would be exactly the same as getting BDF of the device.
+ * However, several tricks are required when system mixed up with
+ * legacy PCI devices and PCIe-to-PCI bridges.
+ *
+ * Here we cache the proxy device (and type) not requester ID since
+ * bus number might change from time to time.
+ */
+static PCIReqIDCache pci_req_id_cache_get(PCIDevice *dev)
+{
+    PCIDevice *parent;
+    PCIReqIDCache cache = {
+        .dev = dev,
+        .type = PCI_REQ_ID_BDF,
+    };
+
+    while (!pci_bus_is_root(dev->bus)) {
+        /* We are under PCI/PCIe bridges */
+        parent = dev->bus->parent_dev;
+        if (pci_is_express(parent)) {
+            if (pcie_cap_get_type(parent) == PCI_EXP_TYPE_PCI_BRIDGE) {
+                /* When we pass through PCIe-to-PCI/PCIX bridges, we
+                 * override the requester ID using secondary bus
+                 * number of parent bridge with zeroed devfn
+                 * (pcie-to-pci bridge spec chap 2.3). */
+                cache.type = PCI_REQ_ID_SECONDARY_BUS;
+                cache.dev = dev;
+            }
+        } else {
+            /* Legacy PCI, override requester ID with the bridge's
+             * BDF upstream.  When the root complex connects to
+             * legacy PCI devices (including buses), it can only
+             * obtain requester ID info from directly attached
+             * devices.  If devices are attached under bridges, only
+             * the requester ID of the bridge that is directly
+             * attached to the root complex can be recognized. */
+            cache.type = PCI_REQ_ID_BDF;
+            cache.dev = parent;
+        }
+        dev = parent;
+    }
+
+    return cache;
+}
+
+uint16_t pci_requester_id(PCIDevice *dev)
+{
+    return pci_req_id_cache_extract(&dev->requester_id_cache);
+}
+
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
@@ -845,7 +951,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
     Error *local_err = NULL;
-    AddressSpace *dma_as;
     DeviceState *dev = DEVICE(pci_dev);
 
     pci_dev->bus = bus;
@@ -885,15 +990,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
 
     pci_dev->devfn = devfn;
-    dma_as = pci_device_iommu_address_space(pci_dev);
+    pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
 
-    memory_region_init_alias(&pci_dev->bus_master_enable_region,
-                             OBJECT(pci_dev), "bus master",
-                             dma_as->root, 0, memory_region_size(dma_as->root));
-    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
-    address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
-                       name);
-
+    if (qdev_hotplug) {
+        pci_init_bus_master(pci_dev);
+    }
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
@@ -2098,7 +2199,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
     }
     pdev->has_rom = true;
-    memory_region_init_ram(&pdev->rom, OBJECT(pdev), name, size, &error_fatal);
+    memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, size, &error_fatal);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);
@@ -2496,6 +2597,21 @@ PCIDevice *pci_get_function_0(PCIDevice *pci_dev)
         /* Other bus types might support multiple devices at slots 0-31 */
         return pci_dev->bus->devices[PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 0)];
     }
+}
+
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
+{
+    MSIMessage msg;
+    if (msix_enabled(dev)) {
+        msg = msix_get_message(dev, vector);
+    } else if (msi_enabled(dev)) {
+        msg = msi_get_message(dev, vector);
+    } else {
+        /* Should never happen */
+        error_report("%s: unknown interrupt type", __func__);
+        abort();
+    }
+    return msg;
 }
 
 static const TypeInfo pci_device_type_info = {

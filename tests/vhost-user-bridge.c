@@ -946,6 +946,13 @@ vubr_set_vring_addr_exec(VubrDev *dev, VhostUserMsg *vmsg)
     DPRINT("    vring_avail at %p\n", vq->avail);
 
     vq->last_used_index = vq->used->idx;
+
+    if (vq->last_avail_index != vq->used->idx) {
+        DPRINT("Last avail index != used index: %d != %d, resuming",
+               vq->last_avail_index, vq->used->idx);
+        vq->last_avail_index = vq->used->idx;
+    }
+
     return 0;
 }
 
@@ -1204,12 +1211,13 @@ vubr_accept_cb(int sock, void *ctx)
 }
 
 static VubrDev *
-vubr_new(const char *path)
+vubr_new(const char *path, bool client)
 {
     VubrDev *dev = (VubrDev *) calloc(1, sizeof(VubrDev));
     dev->nregions = 0;
     int i;
     struct sockaddr_un un;
+    CallbackFunc cb;
     size_t len;
 
     for (i = 0; i < MAX_NR_VIRTQUEUE; i++) {
@@ -1238,21 +1246,30 @@ vubr_new(const char *path)
     un.sun_family = AF_UNIX;
     strcpy(un.sun_path, path);
     len = sizeof(un.sun_family) + strlen(path);
-    unlink(path);
 
-    if (bind(dev->sock, (struct sockaddr *) &un, len) == -1) {
-        vubr_die("bind");
-    }
+    if (!client) {
+        unlink(path);
 
-    if (listen(dev->sock, 1) == -1) {
-        vubr_die("listen");
+        if (bind(dev->sock, (struct sockaddr *) &un, len) == -1) {
+            vubr_die("bind");
+        }
+
+        if (listen(dev->sock, 1) == -1) {
+            vubr_die("listen");
+        }
+        cb = vubr_accept_cb;
+
+        DPRINT("Waiting for connections on UNIX socket %s ...\n", path);
+    } else {
+        if (connect(dev->sock, (struct sockaddr *)&un, len) == -1) {
+            vubr_die("connect");
+        }
+        cb = vubr_receive_cb;
     }
 
     dispatcher_init(&dev->dispatcher);
-    dispatcher_add(&dev->dispatcher, dev->sock, (void *)dev,
-                   vubr_accept_cb);
+    dispatcher_add(&dev->dispatcher, dev->sock, (void *)dev, cb);
 
-    DPRINT("Waiting for connections on UNIX socket %s ...\n", path);
     return dev;
 }
 
@@ -1369,8 +1386,9 @@ main(int argc, char *argv[])
 {
     VubrDev *dev;
     int opt;
+    bool client = false;
 
-    while ((opt = getopt(argc, argv, "l:r:u:")) != -1) {
+    while ((opt = getopt(argc, argv, "l:r:u:c")) != -1) {
 
         switch (opt) {
         case 'l':
@@ -1386,16 +1404,20 @@ main(int argc, char *argv[])
         case 'u':
             ud_socket_path = strdup(optarg);
             break;
+        case 'c':
+            client = true;
+            break;
         default:
             goto out;
         }
     }
 
-    DPRINT("ud socket: %s\n", ud_socket_path);
+    DPRINT("ud socket: %s (%s)\n", ud_socket_path,
+           client ? "client" : "server");
     DPRINT("local:     %s:%s\n", lhost, lport);
     DPRINT("remote:    %s:%s\n", rhost, rport);
 
-    dev = vubr_new(ud_socket_path);
+    dev = vubr_new(ud_socket_path, client);
     if (!dev) {
         return 1;
     }
@@ -1406,13 +1428,14 @@ main(int argc, char *argv[])
 
 out:
     fprintf(stderr, "Usage: %s ", argv[0]);
-    fprintf(stderr, "[-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
+    fprintf(stderr, "[-c] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
     fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
             DEFAULT_UD_SOCKET);
     fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
             DEFAULT_LHOST, DEFAULT_LPORT);
     fprintf(stderr, "\t-r remote host and port. default: %s:%s\n",
             DEFAULT_RHOST, DEFAULT_RPORT);
+    fprintf(stderr, "\t-c client mode\n");
 
     return 1;
 }

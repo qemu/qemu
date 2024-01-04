@@ -1594,12 +1594,6 @@ static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
 
     bdrv_qed_close(bs);
 
-    bdrv_invalidate_cache(bs->file->bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
     memset(s, 0, sizeof(BDRVQEDState));
     ret = bdrv_qed_open(bs, NULL, bs->open_flags, &local_err);
     if (local_err) {

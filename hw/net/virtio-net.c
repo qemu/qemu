@@ -31,6 +31,11 @@
 #define MAC_TABLE_ENTRIES    64
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
 
+/* previously fixed value */
+#define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 256
+/* for now, only allow larger queues; with virtio-1, guest can downsize */
+#define VIRTIO_NET_RX_QUEUE_MIN_SIZE VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE
+
 /*
  * Calculate the number of bytes up to and including the given 'field' of
  * 'container'.
@@ -1412,7 +1417,8 @@ static void virtio_net_add_queue(VirtIONet *n, int index)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
 
-    n->vqs[index].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
+    n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
+                                           virtio_net_handle_rx);
     if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[index].tx_vq =
             virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
@@ -1542,33 +1548,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
-    int ret;
 
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
-    ret = virtio_load(vdev, f, version_id);
-    if (ret) {
-        return ret;
-    }
-
-    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
-        n->curr_guest_offloads = qemu_get_be64(f);
-    } else {
-        n->curr_guest_offloads = virtio_net_supported_guest_offloads(n);
-    }
-
-    if (peer_has_vnet_hdr(n)) {
-        virtio_net_apply_guest_offloads(n);
-    }
-
-    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_ANNOUNCE) &&
-        virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ)) {
-        n->announce_counter = SELF_ANNOUNCE_ROUNDS;
-        timer_mod(n->announce_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL));
-    }
-
-    return 0;
+    return virtio_load(vdev, f, version_id);
 }
 
 static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -1665,6 +1649,16 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
         }
     }
 
+    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
+        n->curr_guest_offloads = qemu_get_be64(f);
+    } else {
+        n->curr_guest_offloads = virtio_net_supported_guest_offloads(n);
+    }
+
+    if (peer_has_vnet_hdr(n)) {
+        virtio_net_apply_guest_offloads(n);
+    }
+
     virtio_net_set_queues(n);
 
     /* Find the first multicast entry in the saved MAC filter */
@@ -1680,6 +1674,12 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
     link_down = (n->status & VIRTIO_NET_S_LINK_UP) == 0;
     for (i = 0; i < n->max_queues; i++) {
         qemu_get_subqueue(n->nic, i)->link_down = link_down;
+    }
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_ANNOUNCE) &&
+        virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ)) {
+        n->announce_counter = SELF_ANNOUNCE_ROUNDS;
+        timer_mod(n->announce_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL));
     }
 
     return 0;
@@ -1747,6 +1747,22 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     virtio_net_set_config_size(n, n->host_features);
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
+
+    /*
+     * We set a lower limit on RX queue size to what it always was.
+     * Guests that want a smaller ring can always resize it without
+     * help from us (using virtio 1 and up).
+     */
+    if (n->net_conf.rx_queue_size < VIRTIO_NET_RX_QUEUE_MIN_SIZE ||
+        n->net_conf.rx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        (n->net_conf.rx_queue_size & (n->net_conf.rx_queue_size - 1))) {
+        error_setg(errp, "Invalid rx_queue_size (= %" PRIu16 "), "
+                   "must be a power of 2 between %d and %d.",
+                   n->net_conf.rx_queue_size, VIRTIO_NET_RX_QUEUE_MIN_SIZE,
+                   VIRTQUEUE_MAX_SIZE);
+        virtio_cleanup(vdev);
+        return;
+    }
 
     n->max_queues = MAX(n->nic_conf.peers.queues, 1);
     if (n->max_queues * 2 + 1 > VIRTIO_QUEUE_MAX) {
@@ -1909,6 +1925,8 @@ static Property virtio_net_properties[] = {
                        TX_TIMER_INTERVAL),
     DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
+    DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
+                       VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

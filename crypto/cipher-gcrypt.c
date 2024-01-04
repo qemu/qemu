@@ -192,6 +192,12 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     }
 
     if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        if (ctx->blocksize != XTS_BLOCK_SIZE) {
+            error_setg(errp,
+                       "Cipher block size %zu must equal XTS block size %d",
+                       ctx->blocksize, XTS_BLOCK_SIZE);
+            goto error;
+        }
         ctx->iv = g_new0(uint8_t, ctx->blocksize);
     }
 

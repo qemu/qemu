@@ -1481,6 +1481,30 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
                              BDRV_REQ_ZERO_WRITE | flags);
 }
 
+/*
+ * Flush ALL BDSes regardless of if they are reachable via a BlkBackend or not.
+ */
+int bdrv_flush_all(void)
+{
+    BlockDriverState *bs = NULL;
+    int result = 0;
+
+    while ((bs = bdrv_next(bs))) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        int ret;
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_flush(bs);
+        if (ret < 0 && !result) {
+            result = ret;
+        }
+        aio_context_release(aio_context);
+   }
+
+    return result;
+}
+
+
 typedef struct BdrvCoGetBlockStatusData {
     BlockDriverState *bs;
     BlockDriverState *base;
@@ -2514,9 +2538,13 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    tracked_request_begin(&req, bs, sector_num, nb_sectors,
-                          BDRV_TRACKED_DISCARD);
-    bdrv_set_dirty(bs, sector_num, nb_sectors);
+    tracked_request_begin(&req, bs, sector_num << BDRV_SECTOR_BITS,
+                          nb_sectors << BDRV_SECTOR_BITS, BDRV_TRACKED_DISCARD);
+
+    ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
+    if (ret < 0) {
+        goto out;
+    }
 
     max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
@@ -2565,6 +2593,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     }
     ret = 0;
 out:
+    bdrv_set_dirty(bs, req.offset >> BDRV_SECTOR_BITS,
+                   req.bytes >> BDRV_SECTOR_BITS);
     tracked_request_end(&req);
     return ret;
 }

@@ -223,14 +223,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     if (err) {
-        goto error;
+        goto end;
     }
 
     switch (object->type) {
     case NUMA_OPTIONS_KIND_NODE:
         numa_node_parse(object->u.node.data, opts, &err);
         if (err) {
-            goto error;
+            goto end;
         }
         nb_numa_nodes++;
         break;
@@ -238,13 +238,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         abort();
     }
 
-    return 0;
-
-error:
-    error_report_err(err);
+end:
     qapi_free_NumaOptions(object);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
 
-    return -1;
+    return 0;
 }
 
 static char *enumerate_cpus(unsigned long *cpus, int max_cpus)
@@ -443,6 +444,19 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
     if (nb_numa_nodes == 0 || !have_memdevs) {
         allocate_system_memory_nonnuma(mr, owner, name, ram_size);
         return;
+    }
+
+    /* The shadow_bios_after_incoming hack at savevm.c:shadow_bios() is not
+     * able to handle the multiple memory blocks added when using NUMA
+     * memdevs. We can disallow -numa memdev= when using rhel6.* machine-types
+     * because RHEL-6 didn't support the NUMA memdev option.
+     */
+    if (shadow_bios_after_incoming) {
+        MachineClass *mc;
+        mc = MACHINE_GET_CLASS(current_machine);
+        error_report("-numa memdev is not supported by machine %s",
+                     mc->name);
+        exit(1);
     }
 
     memory_region_init(mr, owner, name, ram_size);

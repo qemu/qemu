@@ -1632,15 +1632,16 @@
 # Drivers that are supported in block device operations.
 #
 # @host_device, @host_cdrom: Since 2.1
+# @gluster: Since 2.7
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
-            'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-            'http', 'https', 'luks', 'null-aio', 'null-co', 'parallels',
-            'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
-            'vmdk', 'vpc', 'vvfat' ] }
+            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
+            'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
+            'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp',
+            'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -2032,6 +2033,63 @@
             '*read-pattern': 'QuorumReadPattern' } }
 
 ##
+# @GlusterTransport
+#
+# An enumeration of Gluster transport types
+#
+# @tcp:   TCP   - Transmission Control Protocol
+#
+# @unix:  UNIX  - Unix domain socket
+#
+# Since: 2.7
+##
+{ 'enum': 'GlusterTransport',
+  'data': [ 'unix', 'tcp' ] }
+
+
+##
+# @GlusterServer
+#
+# Captures the address of a socket
+#
+# Details for connecting to a gluster server
+#
+# @type:       Transport type used for gluster connection
+#
+# @unix:       socket file
+#
+# @tcp:        host address and port number
+#
+# Since: 2.7
+##
+{ 'union': 'GlusterServer',
+  'base': { 'type': 'GlusterTransport' },
+  'discriminator': 'type',
+  'data': { 'unix': 'UnixSocketAddress',
+            'tcp': 'InetSocketAddress' } }
+
+##
+# @BlockdevOptionsGluster
+#
+# Driver specific block device options for Gluster
+#
+# @volume:      name of gluster volume where VM image resides
+#
+# @path:        absolute path to image file in gluster volume
+#
+# @server:      gluster servers description
+#
+# @debug-level: #optional libgfapi log level (default '4' which is Error)
+#
+# Since: 2.7
+##
+{ 'struct': 'BlockdevOptionsGluster',
+  'data': { 'volume': 'str',
+            'path': 'str',
+            'server': ['GlusterServer'],
+            '*debug-level': 'int' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2094,7 +2152,7 @@
       'file':       'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsFile',
       'ftps':       'BlockdevOptionsFile',
-# TODO gluster: Wait for structured options
+      'gluster':    'BlockdevOptionsGluster',
       'host_cdrom': 'BlockdevOptionsFile',
       'host_device':'BlockdevOptionsFile',
       'http':       'BlockdevOptionsFile',
@@ -2368,6 +2426,14 @@
             'fatal'      : 'bool' } }
 
 ##
+# @RHEL7BlockErrorReason
+#
+# Block I/O error reason
+##
+{ 'enum': 'RHEL7BlockErrorReason',
+  'data': [ 'enospc', 'eperm', 'eio', 'eother' ] }
+
+##
 # @BLOCK_IO_ERROR
 #
 # Emitted when a disk I/O error occurs
@@ -2387,6 +2453,8 @@
 #          (This field is a debugging aid for humans, it should not
 #           be parsed by applications) (since: 2.2)
 #
+# @__com.redhat_reason: error reason (RHEL7 vendor extension)
+#
 # Note: If action is "stop", a STOP event will eventually follow the
 # BLOCK_IO_ERROR event
 #
@@ -2395,7 +2463,7 @@
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', 'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
-            'reason': 'str' } }
+            'reason': 'str', '__com.redhat_reason': 'RHEL7BlockErrorReason' } }
 
 ##
 # @BLOCK_JOB_COMPLETED

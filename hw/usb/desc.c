@@ -574,6 +574,7 @@ void usb_desc_create_serial(USBDevice *dev)
     }
     dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", dev->port->path);
     usb_desc_set_string(dev, index, serial);
+    g_free(path);
 }
 
 const char *usb_desc_get_string(USBDevice *dev, uint8_t index)

@@ -31,6 +31,10 @@
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "block/block_int.h"
+#include "qemu/error-report.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/error.h"
+
 
 static DriveInfo *add_init_drive(const char *optstr)
 {
@@ -87,5 +91,74 @@ err:
         BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
         monitor_remove_blk(blk);
         blk_unref(blk);
+    }
+}
+
+static void check_parm(const char *key, QObject *obj, void *opaque)
+{
+    static const char *unwanted_keys[] = {
+        "bus", "unit", "index", "if", "boot", "addr",
+        NULL
+
+    };
+    int *stopped = opaque;
+    const char **p;
+
+    if (*stopped) {
+        return;
+    }
+
+    for (p = unwanted_keys; *p; p++) {
+        if (!strcmp(key, *p)) {
+            error_report(QERR_INVALID_PARAMETER, key);
+            *stopped = 1;
+            return;
+        }
+    }
+}
+
+void qmp_simple_drive_add(QDict *qdict, QObject **ret_data, Error **errp)
+{
+    int stopped;
+    Error *local_err = NULL;
+    QemuOpts *opts;
+    DriveInfo *dinfo;
+    MachineClass *mc;
+
+    if (!qdict_haskey(qdict, "id")) {
+        error_setg(errp, QERR_MISSING_PARAMETER, "id");
+        return;
+    }
+
+    stopped = 0;
+    qdict_iter(qdict, check_parm, &stopped);
+    if (stopped) {
+        return;
+    }
+
+    opts = qemu_opts_from_qdict(&qemu_drive_opts, qdict, &local_err);
+    if (!opts) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    qemu_opt_set(opts, "if", "none", &error_abort);
+    mc = MACHINE_GET_CLASS(current_machine);
+    dinfo = drive_new(opts, mc->block_default_type);
+    if (!dinfo) {
+        error_setg(errp, QERR_DEVICE_INIT_FAILED, qemu_opts_id(opts));
+        qemu_opts_del(opts);
+        return;
+    }
+
+    return;
+}
+
+void hmp_simple_drive_add(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_simple_drive_add((QDict *)qdict, NULL, &err);
+    if (err) {
+        error_report_err(err);
     }
 }

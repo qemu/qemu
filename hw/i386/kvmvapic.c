@@ -849,6 +849,7 @@ static void vapic_class_init(ObjectClass *klass, void *data)
     dc->reset   = vapic_reset;
     dc->vmsd    = &vmstate_vapic;
     dc->realize = vapic_realize;
+    dc->cannot_instantiate_with_device_add_yet = true; /* RH state preserve */
 }
 
 static const TypeInfo vapic_type = {

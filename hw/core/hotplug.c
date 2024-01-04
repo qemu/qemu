@@ -13,6 +13,17 @@
 #include "hw/hotplug.h"
 #include "qemu/module.h"
 
+void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
+                              DeviceState *plugged_dev,
+                              Error **errp)
+{
+    HotplugHandlerClass *hdc = HOTPLUG_HANDLER_GET_CLASS(plug_handler);
+
+    if (hdc->pre_plug) {
+        hdc->pre_plug(plug_handler, plugged_dev, errp);
+    }
+}
+
 void hotplug_handler_plug(HotplugHandler *plug_handler,
                           DeviceState *plugged_dev,
                           Error **errp)

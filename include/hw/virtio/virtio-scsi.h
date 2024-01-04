@@ -68,13 +68,6 @@ typedef struct VirtIOSCSICommon {
     VirtQueue **cmd_vqs;
 } VirtIOSCSICommon;
 
-typedef struct VirtIOSCSIBlkChangeNotifier {
-    Notifier n;
-    struct VirtIOSCSI *s;
-    SCSIDevice *sd;
-    QTAILQ_ENTRY(VirtIOSCSIBlkChangeNotifier) next;
-} VirtIOSCSIBlkChangeNotifier;
-
 typedef struct VirtIOSCSI {
     VirtIOSCSICommon parent_obj;
 
@@ -85,14 +78,10 @@ typedef struct VirtIOSCSI {
     /* Fields for dataplane below */
     AioContext *ctx; /* one iothread per virtio-scsi-pci for now */
 
-    QTAILQ_HEAD(, VirtIOSCSIBlkChangeNotifier) insert_notifiers;
-    QTAILQ_HEAD(, VirtIOSCSIBlkChangeNotifier) remove_notifiers;
-
     bool dataplane_started;
     bool dataplane_starting;
     bool dataplane_stopping;
     bool dataplane_fenced;
-    Error *blocker;
     uint32_t host_features;
 } VirtIOSCSI;
 

@@ -259,13 +259,21 @@ static void backup_abort(BlockJob *job)
     }
 }
 
+static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+
+    bdrv_set_aio_context(s->target, aio_context);
+}
+
 static const BlockJobDriver backup_job_driver = {
-    .instance_size  = sizeof(BackupBlockJob),
-    .job_type       = BLOCK_JOB_TYPE_BACKUP,
-    .set_speed      = backup_set_speed,
-    .iostatus_reset = backup_iostatus_reset,
-    .commit         = backup_commit,
-    .abort          = backup_abort,
+    .instance_size          = sizeof(BackupBlockJob),
+    .job_type               = BLOCK_JOB_TYPE_BACKUP,
+    .set_speed              = backup_set_speed,
+    .iostatus_reset         = backup_iostatus_reset,
+    .commit                 = backup_commit,
+    .abort                  = backup_abort,
+    .attached_aio_context   = backup_attached_aio_context,
 };
 
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
@@ -415,9 +423,7 @@ static void coroutine_fn backup_run(void *opaque)
         while (!block_job_is_cancelled(&job->common)) {
             /* Yield until the job is cancelled.  We just let our before_write
              * notify callback service CoW requests. */
-            job->common.busy = false;
-            qemu_coroutine_yield();
-            job->common.busy = true;
+            block_job_yield(&job->common);
         }
     } else if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         ret = backup_run_incremental(job);

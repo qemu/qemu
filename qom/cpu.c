@@ -28,6 +28,7 @@
 #include "exec/log.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
 
 bool cpu_exists(int64_t id)
 {
@@ -46,7 +47,7 @@ bool cpu_exists(int64_t id)
 CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
 {
     char *str, *name, *featurestr;
-    CPUState *cpu;
+    CPUState *cpu = NULL;
     ObjectClass *oc;
     CPUClass *cc;
     Error *err = NULL;
@@ -60,16 +61,18 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
         return NULL;
     }
 
-    cpu = CPU(object_new(object_class_get_name(oc)));
-    cc = CPU_GET_CLASS(cpu);
-
+    cc = CPU_CLASS(oc);
     featurestr = strtok(NULL, ",");
-    cc->parse_features(cpu, featurestr, &err);
+    /* TODO: all callers of cpu_generic_init() need to be converted to
+     * call parse_features() only once, before calling cpu_generic_init().
+     */
+    cc->parse_features(object_class_get_name(oc), featurestr, &err);
     g_free(str);
     if (err != NULL) {
         goto out;
     }
 
+    cpu = CPU(object_new(object_class_get_name(oc)));
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
 
 out:
@@ -283,25 +286,37 @@ static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
     return NULL;
 }
 
-static void cpu_common_parse_features(CPUState *cpu, char *features,
+static void cpu_common_parse_features(const char *typename, char *features,
                                       Error **errp)
 {
     char *featurestr; /* Single "key=value" string being parsed */
     char *val;
-    Error *err = NULL;
+    static bool cpu_globals_initialized;
+
+    /* TODO: all callers of ->parse_features() need to be changed to
+     * call it only once, so we can remove this check (or change it
+     * to assert(!cpu_globals_initialized).
+     * Current callers of ->parse_features() are:
+     * - cpu_generic_init()
+     */
+    if (cpu_globals_initialized) {
+        return;
+    }
+    cpu_globals_initialized = true;
 
     featurestr = features ? strtok(features, ",") : NULL;
 
     while (featurestr) {
         val = strchr(featurestr, '=');
         if (val) {
+            GlobalProperty *prop = g_new0(typeof(*prop), 1);
             *val = 0;
             val++;
-            object_property_parse(OBJECT(cpu), val, featurestr, &err);
-            if (err) {
-                error_propagate(errp, err);
-                return;
-            }
+            prop->driver = typename;
+            prop->property = g_strdup(featurestr);
+            prop->value = g_strdup(val);
+            prop->errp = &error_fatal;
+            qdev_prop_register_global(prop);
         } else {
             error_setg(errp, "Expected key=value format, found %s.",
                        featurestr);
@@ -326,7 +341,7 @@ static void cpu_common_initfn(Object *obj)
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(obj);
 
-    cpu->cpu_index = -1;
+    cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
     qemu_mutex_init(&cpu->work_mutex);
     QTAILQ_INIT(&cpu->breakpoints);

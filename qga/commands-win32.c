@@ -19,6 +19,11 @@
 #include <ws2tcpip.h>
 #include <iptypes.h>
 #include <iphlpapi.h>
+#include <windows.h>
+#include <stdio.h>
+#include <winioctl.h>
+#include <string.h>
+#include "qga/error_code.h"
 #ifdef CONFIG_QGA_NTDDSCSI
 #include <winioctl.h>
 #include <ntddscsi.h>
@@ -1452,4 +1457,302 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
     if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
+}
+
+/*
+ * Cloudcommune Guest Agent function
+ */
+
+// Cloudcommune Guest Agent:
+static DWORD get_physical_drive_from_partition_letter(char letter)
+{
+    HANDLE hDevice;               // handle to the drive to be examined
+    BOOL result;                 // results flag
+    DWORD readed;                   // discard results
+    STORAGE_DEVICE_NUMBER number;   //use this to get disk numbers
+ 
+    char path[20];
+    sprintf(path, "\\\\.\\%c:", letter);
+    hDevice = CreateFile(path, // drive to open
+                         GENERIC_READ | GENERIC_WRITE,    // access to the drive
+                         FILE_SHARE_READ | FILE_SHARE_WRITE,    //share mode
+                         NULL,             // default security attributes
+                         OPEN_EXISTING,    // disposition
+                         0,                // file attributes
+                         NULL);            // do not copy file attribute
+    if (hDevice == INVALID_HANDLE_VALUE) // cannot open the drive
+    {
+        return (DWORD)-1;
+    }
+ 
+    result = DeviceIoControl(
+                hDevice,                // handle to device
+                IOCTL_STORAGE_GET_DEVICE_NUMBER, // dwIoControlCode
+                NULL,                            // lpInBuffer
+                0,                               // nInBufferSize
+                &number,           // output buffer
+                sizeof(number),         // size of output buffer
+                &readed,       // number of bytes returned
+                NULL      // OVERLAPPED structure
+            );
+    if (!result) // fail
+    {
+        (void)CloseHandle(hDevice);
+        return (DWORD)-1;
+    }
+     
+    (void)CloseHandle(hDevice);
+    return number.DeviceNumber;
+}
+
+// Cloudcommune Guest Agent: guest get disk used
+GuestDiskUsed *qmp_guest_get_disk_used(const char *device, Error **errp)
+{
+    uint16_t devLen = strlen(device);
+    if (devLen != 8) // 8 is the len of format /dev/sdx
+    {
+        error_setg(errp, "device string format error");
+        return NULL;
+    }
+
+    int32_t dsLength = GetLogicalDriveStrings(0, NULL);
+    char dsStr[dsLength];
+    GetLogicalDriveStrings(dsLength, (LPTSTR)dsStr);
+
+    GuestDiskUsed *info;
+    info = g_new0(GuestDiskUsed, 1);
+    uint16_t si = 0;
+    uint16_t i = 0;
+    while (i < dsLength/4)
+    {
+        char dir[3] = {dsStr[si], ':', '\0'};
+        DWORD diskNumber;
+        char letter = dsStr[si];
+        diskNumber = get_physical_drive_from_partition_letter(letter);
+
+        if (diskNumber == (DWORD)-1) 
+        {
+            error_setg(errp, "get disk number from partition error");
+            g_free(info);
+            return NULL;
+        }
+        if (diskNumber == (DWORD)(device[devLen - 1] - 'a'))
+        {
+            uint64_t freeBytesToCaller, totalBytes, freeBytes;
+            int result = GetDiskFreeSpaceEx((LPCSTR)dir,
+                            (PULARGE_INTEGER)&freeBytesToCaller,
+                            (PULARGE_INTEGER)&totalBytes,
+                        (PULARGE_INTEGER)&freeBytes);
+            if (!result)
+            {
+                error_setg(errp, "get disk free error, %d, %s, %s", result, dir, dsStr);
+                g_free(info);
+                return NULL;
+            }
+            info->size += totalBytes - freeBytes;
+        }
+        si += 4;
+        i++;
+    }
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows os gpu drive check
+static int guest_get_gpu_monitor_check(const char *device)
+{
+    int devLen = strlen(device);
+    char cmd[256] = "C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe";
+    if (devLen == 0) // 0 is the len of format 0,1,2
+    {
+        return 2;
+    }
+    if (access(cmd,06)) {
+        return 1;
+    }else {
+        return 0;
+    }
+}
+
+
+// Cloudcommune Guest Agent: windows os get gpu counts
+GuestGpuCounts *qmp_guest_get_gpu_counts(Error **errp)
+{
+    char cmd[256] = "\"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe\" -L";
+    char buf[256];
+    char result[1024*4]="";
+    GuestGpuCounts *info;
+    FILE *pp;
+    if( (pp = _popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu counts error!");
+        return NULL;
+    }
+    while(fgets(buf,sizeof(buf),pp)!=NULL){
+        strcat(result,buf);
+    }
+    _pclose(pp);
+
+    if((pp = fopen("C:\\Program Files\\NVIDIA Corporation\\NVSMI\\tmp.txt","wb"))==NULL){
+        error_setg_errno(errp, errno, "get gpu counts error!");
+        return NULL;
+    }
+    fputs(result,pp);
+    fclose(pp);
+    int flag = 0,  count = 0;
+    if((pp = fopen("C:\\Program Files\\NVIDIA Corporation\\NVSMI\\tmp.txt", "r")) == NULL){
+        error_setg_errno(errp, errno, "get gpu counts error!");
+        return NULL;
+    }
+    while(!feof(pp)){
+        flag = fgetc(pp);
+        if(flag == '\n')
+             count++;
+    }
+    info = g_new0(GuestGpuCounts, 1);
+    info->size = (uint64_t)(count);
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows os get gpu memory used
+GuestGpuMemoryUsed *qmp_guest_get_gpu_memory_used(const char *device, Error **errp)
+{
+    char cmd[256] = "\"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe\" --query-gpu=memory.used --format=csv,noheader,nounits -i ";
+    char buf[256];
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    GuestGpuMemoryUsed *info;
+    FILE *pp;
+    strcat(cmd, device);
+    if( (pp = _popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuMemoryUsed, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows get gpu memory total
+GuestGpuMemoryTotal *qmp_guest_get_gpu_memory_total(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    GuestGpuMemoryTotal *info;
+    char cmd[256] = "\"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe\" --query-gpu=memory.total --format=csv,noheader,nounits -i ";
+    char buf[256];
+    strcat(cmd, device);
+    FILE *pp;
+    if( (pp = _popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuMemoryTotal, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows os get gpu teamperture
+GuestGpuTemperature *qmp_guest_get_gpu_temperature(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    GuestGpuTemperature *info;
+    char cmd[256] = "\"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe\" --query-gpu=temperature.gpu --format=csv,noheader,nounits -i ";
+    char buf[256];
+    strcat(cmd, device);
+    FILE *pp;
+    if( (pp = _popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuTemperature, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows os get gpu utilization
+GuestGpuUtilization *qmp_guest_get_gpu_utilization(const char *device, Error **errp)
+{
+    int check = guest_get_gpu_monitor_check(device);
+    if ( check == 2 ){
+        error_setg_errno(errp, errno, "device string format error");
+        return NULL;
+    }
+    if ( check == 1 ){
+        error_setg_errno(errp, errno, "not found gpu drive %s", device);
+        return NULL;
+    }
+    GuestGpuUtilization *info;
+    char cmd[256] = "\"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe\" --query-gpu=utilization.gpu --format=csv,noheader,nounits -i ";
+    char buf[256];
+    strcat(cmd, device);
+    FILE *pp;
+    if( (pp = _popen(cmd, "r")) == NULL ) {
+        error_setg_errno(errp, errno, "get gpu memory error %s", device);
+        return NULL;
+    }
+    info = g_new0(GuestGpuUtilization, 1);
+    while(fgets(buf,sizeof(buf),pp)!=NULL)
+    {
+        strtok(buf, "\n");
+        info->size = (uint64_t)(atoi(buf));
+    }
+    pclose(pp);
+    return info;
+}
+
+// Cloudcommune Guest Agent: windows os has no this API
+ExecuStatus  *qmp_guest_delete_sshkey(const char *username,
+                                      const char *sshkey,
+                                      Error **errp)
+{
+    ExecuStatus *sta = g_new0(ExecuStatus,1);
+    sta->version = g_strdup(QEMU_VERSION);
+    sta->status = g_strdup(ERROR_NOSUPPERT);
+    return sta; 
+}
+
+// Cloudcommune Guest Agent: windows os has no this API
+ExecuStatus  *qmp_guest_add_sshkey(const char *username,
+                                   const char *sshkey,
+                                   Error **errp)
+{
+    ExecuStatus *sta = g_new0(ExecuStatus,1);
+    sta->version = g_strdup(QEMU_VERSION);
+    sta->status = g_strdup(ERROR_NOSUPPERT);
+    return sta; 
 }

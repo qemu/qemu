@@ -177,11 +177,12 @@
 
 struct CirrusVGAState;
 typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
-                                     uint8_t * dst, const uint8_t * src,
+                                     uint32_t dstaddr, uint32_t srcaddr,
 				     int dstpitch, int srcpitch,
 				     int bltwidth, int bltheight);
 typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
-                              uint8_t *dst, int dst_pitch, int width, int height);
+                              uint32_t dstaddr, int dst_pitch,
+                              int width, int height);
 
 typedef struct CirrusVGAState {
     VGACommonState vga;
@@ -204,6 +205,7 @@ typedef struct CirrusVGAState {
     uint32_t cirrus_bank_base[2];
     uint32_t cirrus_bank_limit[2];
     uint8_t cirrus_hidden_palette[48];
+    bool enable_blitter;
     int cirrus_blt_pixelwidth;
     int cirrus_blt_width;
     int cirrus_blt_height;
@@ -272,12 +274,14 @@ static void cirrus_update_memory_access(CirrusVGAState *s);
 static bool blit_region_is_unsafe(struct CirrusVGAState *s,
                                   int32_t pitch, int32_t addr)
 {
+    if (!pitch) {
+        return true;
+    }
     if (pitch < 0) {
         int64_t min = addr
-            + ((int64_t)s->cirrus_blt_height-1) * pitch;
-        int32_t max = addr
-            + s->cirrus_blt_width;
-        if (min < 0 || max > s->vga.vram_size) {
+            + ((int64_t)s->cirrus_blt_height - 1) * pitch
+            - s->cirrus_blt_width;
+        if (min < -1 || addr >= s->vga.vram_size) {
             return true;
         }
     } else {
@@ -291,7 +295,7 @@ static bool blit_region_is_unsafe(struct CirrusVGAState *s,
     return false;
 }
 
-static bool blit_is_unsafe(struct CirrusVGAState *s)
+static bool blit_is_unsafe(struct CirrusVGAState *s, bool dst_only)
 {
     /* should be the case, see cirrus_bitblt_start */
     assert(s->cirrus_blt_width > 0);
@@ -302,11 +306,14 @@ static bool blit_is_unsafe(struct CirrusVGAState *s)
     }
 
     if (blit_region_is_unsafe(s, s->cirrus_blt_dstpitch,
-                              s->cirrus_blt_dstaddr & s->cirrus_addr_mask)) {
+                              s->cirrus_blt_dstaddr)) {
         return true;
     }
+    if (dst_only) {
+        return false;
+    }
     if (blit_region_is_unsafe(s, s->cirrus_blt_srcpitch,
-                              s->cirrus_blt_srcaddr & s->cirrus_addr_mask)) {
+                              s->cirrus_blt_srcaddr)) {
         return true;
     }
 
@@ -314,16 +321,55 @@ static bool blit_is_unsafe(struct CirrusVGAState *s)
 }
 
 static void cirrus_bitblt_rop_nop(CirrusVGAState *s,
-                                  uint8_t *dst,const uint8_t *src,
+                                  uint32_t dstaddr, uint32_t srcaddr,
                                   int dstpitch,int srcpitch,
                                   int bltwidth,int bltheight)
 {
 }
 
 static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
-                                   uint8_t *dst,
+                                   uint32_t dstaddr,
                                    int dstpitch, int bltwidth,int bltheight)
 {
+}
+
+static inline uint8_t cirrus_src(CirrusVGAState *s, uint32_t srcaddr)
+{
+    if (s->cirrus_srccounter) {
+        /* cputovideo */
+        return s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1)];
+    } else {
+        /* videotovideo */
+        return s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask];
+    }
+}
+
+static inline uint16_t cirrus_src16(CirrusVGAState *s, uint32_t srcaddr)
+{
+    uint16_t *src;
+
+    if (s->cirrus_srccounter) {
+        /* cputovideo */
+        src = (void *)&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~1];
+    } else {
+        /* videotovideo */
+        src = (void *)&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~1];
+    }
+    return *src;
+}
+
+static inline uint32_t cirrus_src32(CirrusVGAState *s, uint32_t srcaddr)
+{
+    uint32_t *src;
+
+    if (s->cirrus_srccounter) {
+        /* cputovideo */
+        src = (void *)&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~3];
+    } else {
+        /* videotovideo */
+        src = (void *)&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~3];
+    }
+    return *src;
 }
 
 #define ROP_NAME 0
@@ -655,25 +701,51 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     int off_cur;
     int off_cur_end;
 
+    if (off_pitch < 0) {
+        off_begin -= bytesperline - 1;
+    }
+
     for (y = 0; y < lines; y++) {
-	off_cur = off_begin;
-	off_cur_end = (off_cur + bytesperline) & s->cirrus_addr_mask;
+        off_cur = off_begin;
+        off_cur_end = ((off_cur + bytesperline - 1) & s->cirrus_addr_mask) + 1;
+        assert(off_cur_end >= off_cur);
         memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
-	off_begin += off_pitch;
+        off_begin += off_pitch;
     }
 }
 
-static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
-					    const uint8_t * src)
+static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s)
 {
-    uint8_t *dst;
+    uint32_t patternsize;
+    bool videosrc = !s->cirrus_srccounter;
 
-    dst = s->vga.vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask);
+    if (videosrc) {
+        switch (s->vga.get_bpp(&s->vga)) {
+        case 8:
+            patternsize = 64;
+            break;
+        case 15:
+        case 16:
+            patternsize = 128;
+            break;
+        case 24:
+        case 32:
+        default:
+            patternsize = 256;
+            break;
+        }
+        s->cirrus_blt_srcaddr &= ~(patternsize - 1);
+        if (s->cirrus_blt_srcaddr + patternsize > s->vga.vram_size) {
+            return 0;
+        }
+    }
 
-    if (blit_is_unsafe(s))
+    if (blit_is_unsafe(s, true)) {
         return 0;
+    }
 
-    (*s->cirrus_rop) (s, dst, src,
+    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr,
+                      videosrc ? s->cirrus_blt_srcaddr : 0,
                       s->cirrus_blt_dstpitch, 0,
                       s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
@@ -688,11 +760,11 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 {
     cirrus_fill_t rop_func;
 
-    if (blit_is_unsafe(s)) {
+    if (blit_is_unsafe(s, true)) {
         return 0;
     }
     rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
-    rop_func(s, s->vga.vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
+    rop_func(s, s->cirrus_blt_dstaddr,
              s->cirrus_blt_dstpitch,
              s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
@@ -710,12 +782,10 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 
 static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 {
-    return cirrus_bitblt_common_patterncopy(s,
-					    s->vga.vram_ptr + ((s->cirrus_blt_srcaddr & ~7) &
-                                            s->cirrus_addr_mask));
+    return cirrus_bitblt_common_patterncopy(s);
 }
 
-static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
+static int cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 {
     int sx = 0, sy = 0;
     int dx = 0, dy = 0;
@@ -729,6 +799,9 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
         int width, height;
 
         depth = s->vga.get_bpp(&s->vga) / 8;
+        if (!depth) {
+            return 0;
+        }
         s->vga.get_resolution(&s->vga, &width, &height);
 
         /* extra x, y */
@@ -758,23 +831,15 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
         }
     }
 
-    /* we have to flush all pending changes so that the copy
-       is generated at the appropriate moment in time */
-    if (notify)
-        graphic_hw_update(s->vga.con);
-
-    (*s->cirrus_rop) (s, s->vga.vram_ptr +
-		      (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
-		      s->vga.vram_ptr +
-		      (s->cirrus_blt_srcaddr & s->cirrus_addr_mask),
+    (*s->cirrus_rop) (s, s->cirrus_blt_dstaddr,
+                      s->cirrus_blt_srcaddr,
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
 
     if (notify) {
-        qemu_console_copy(s->vga.con,
-			  sx, sy, dx, dy,
-			  s->cirrus_blt_width / depth,
-			  s->cirrus_blt_height);
+        dpy_gfx_update(s->vga.con, dx, dy,
+                       s->cirrus_blt_width / depth,
+                       s->cirrus_blt_height);
     }
 
     /* we don't have to notify the display that this portion has
@@ -783,18 +848,18 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
 				s->cirrus_blt_dstpitch, s->cirrus_blt_width,
 				s->cirrus_blt_height);
+
+    return 1;
 }
 
 static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
 {
-    if (blit_is_unsafe(s))
+    if (blit_is_unsafe(s, false))
         return 0;
 
-    cirrus_do_copy(s, s->cirrus_blt_dstaddr - s->vga.start_addr,
+    return cirrus_do_copy(s, s->cirrus_blt_dstaddr - s->vga.start_addr,
             s->cirrus_blt_srcaddr - s->vga.start_addr,
             s->cirrus_blt_width, s->cirrus_blt_height);
-
-    return 1;
 }
 
 /***************************************
@@ -810,16 +875,15 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
 
     if (s->cirrus_srccounter > 0) {
         if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
-            cirrus_bitblt_common_patterncopy(s, s->cirrus_bltbuf);
+            cirrus_bitblt_common_patterncopy(s);
         the_end:
             s->cirrus_srccounter = 0;
             cirrus_bitblt_reset(s);
         } else {
             /* at least one scan line */
             do {
-                (*s->cirrus_rop)(s, s->vga.vram_ptr +
-                                 (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
-                                  s->cirrus_bltbuf, 0, 0, s->cirrus_blt_width, 1);
+                (*s->cirrus_rop)(s, s->cirrus_blt_dstaddr,
+                                 0, 0, 0, s->cirrus_blt_width, 1);
                 cirrus_invalidate_region(s, s->cirrus_blt_dstaddr, 0,
                                          s->cirrus_blt_width, 1);
                 s->cirrus_blt_dstaddr += s->cirrus_blt_dstpitch;
@@ -865,6 +929,10 @@ static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
 {
     int w;
 
+    if (blit_is_unsafe(s, true)) {
+        return 0;
+    }
+
     s->cirrus_blt_mode &= ~CIRRUS_BLTMODE_MEMSYSSRC;
     s->cirrus_srcptr = &s->cirrus_bltbuf[0];
     s->cirrus_srcptr_end = &s->cirrus_bltbuf[0];
@@ -890,6 +958,10 @@ static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
 	}
         s->cirrus_srccounter = s->cirrus_blt_srcpitch * s->cirrus_blt_height;
     }
+
+    /* the blit_is_unsafe call above should catch this */
+    assert(s->cirrus_blt_srcpitch <= CIRRUS_BLTBUFSIZE);
+
     s->cirrus_srcptr = s->cirrus_bltbuf;
     s->cirrus_srcptr_end = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;
     cirrus_update_memory_access(s);
@@ -923,6 +995,10 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
 {
     uint8_t blt_rop;
 
+    if (!s->enable_blitter) {
+        goto bitblt_ignore;
+    }
+
     s->vga.gr[0x31] |= CIRRUS_BLT_BUSY;
 
     s->cirrus_blt_width = (s->vga.gr[0x20] | (s->vga.gr[0x21] << 8)) + 1;
@@ -936,6 +1012,9 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
     s->cirrus_blt_mode = s->vga.gr[0x30];
     s->cirrus_blt_modeext = s->vga.gr[0x33];
     blt_rop = s->vga.gr[0x32];
+
+    s->cirrus_blt_dstaddr &= s->cirrus_addr_mask;
+    s->cirrus_blt_srcaddr &= s->cirrus_addr_mask;
 
 #ifdef DEBUG_BITBLT
     printf("rop=0x%02x mode=0x%02x modeext=0x%02x w=%d h=%d dpitch=%d spitch=%d daddr=0x%08x saddr=0x%08x writemask=0x%02x\n",
@@ -2985,7 +3064,9 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
 
 static Property isa_cirrus_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
-                       cirrus_vga.vga.vram_size_mb, 8),
+                       cirrus_vga.vga.vram_size_mb, 16),
+    DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
+                       cirrus_vga.enable_blitter, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2997,6 +3078,8 @@ static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->realize = isa_cirrus_vga_realizefn;
     dc->props = isa_cirrus_vga_properties;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo isa_cirrus_vga_info = {
@@ -3054,7 +3137,9 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
 
 static Property pci_vga_cirrus_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct PCICirrusVGAState,
-                       cirrus_vga.vga.vram_size_mb, 8),
+                       cirrus_vga.vga.vram_size_mb, 16),
+    DEFINE_PROP_BOOL("blitter", struct PCICirrusVGAState,
+                     cirrus_vga.enable_blitter, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

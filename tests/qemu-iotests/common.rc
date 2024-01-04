@@ -164,11 +164,11 @@ _cleanup_test_img()
     case "$IMGPROTO" in
 
         nbd)
-            if [ -f "${TEST_DIR}/qemu-nbd.pid" ]; then
+            if [ -f "${QEMU_TEST_DIR}/qemu-nbd.pid" ]; then
                 local QEMU_NBD_PID
-                read QEMU_NBD_PID < "${TEST_DIR}/qemu-nbd.pid"
+                read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
                 kill ${QEMU_NBD_PID}
-                rm -f "${TEST_DIR}/qemu-nbd.pid"
+                rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
             fi
             rm -f "$TEST_IMG_FILE"
             ;;

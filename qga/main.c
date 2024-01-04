@@ -213,6 +213,8 @@ static void usage(const char *cmd)
 "                    only, default is %s)\n"
 "  -v, --verbose     log extra debugging information\n"
 "  -V, --version     print version information and exit\n"
+"  -y, --cloudcommune-version\n"
+"                    print cloudcommune version information and exit\n"
 "  -d, --daemonize   become a daemon\n"
 #ifdef _WIN32
 "  -s, --service     service commands: install, uninstall, vss-install, vss-uninstall\n"
@@ -1052,11 +1054,12 @@ static void config_dump(GAConfig *config)
 
 static void config_parse(GAConfig *config, int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:F::b:s:t:D";
+    const char *sopt = "hVvydm:p:l:f:F::b:s:t:D";
     int opt_ind = 0, ch;
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
+        { "cloudcommune-version", 0, NULL, 'y' },
         { "dump-conf", 0, NULL, 'D' },
         { "logfile", 1, NULL, 'l' },
         { "pidfile", 1, NULL, 'f' },
@@ -1109,6 +1112,9 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             break;
         case 'V':
             printf("QEMU Guest Agent %s\n", QEMU_VERSION);
+            exit(EXIT_SUCCESS);
+        case 'y':
+            printf("CLOUDCOMMUNE Guest Agent %s\n", CLOUDCOMMUNE_GUEST_AGENT_VERSION);
             exit(EXIT_SUCCESS);
         case 'd':
             config->daemonize = 1;

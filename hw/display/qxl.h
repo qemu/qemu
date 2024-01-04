@@ -53,7 +53,8 @@ typedef struct PCIQXLDevice {
 
     struct guest_slots {
         QXLMemSlot     slot;
-        void           *ptr;
+        MemoryRegion   *mr;
+        uint64_t       offset;
         uint64_t       size;
         uint64_t       delta;
         uint32_t       active;

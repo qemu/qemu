@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
+#include "trace.h"
 
 #include "hw/qdev.h"
 #include "hw/virtio/virtio.h"
@@ -47,7 +48,7 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     virtqueue_get_avail_bytes(vinput->evt, &have, NULL, need, 0);
     if (have < need) {
         vinput->qindex = 0;
-        fprintf(stderr, "%s: ENOSPC in vq, dropping events\n", __func__);
+        trace_virtio_input_queue_full();
         return;
     }
 
@@ -284,6 +285,16 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
                     virtio_input_save, virtio_input_load, vinput);
 }
 
+static void virtio_input_finalize(Object *obj)
+{
+    VirtIOInput *vinput = VIRTIO_INPUT(obj);
+    VirtIOInputConfig *cfg, *next;
+
+    QTAILQ_FOREACH_SAFE(cfg, &vinput->cfg_list, node, next) {
+        QTAILQ_REMOVE(&vinput->cfg_list, cfg, node);
+        g_free(cfg);
+    }
+}
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
@@ -331,6 +342,7 @@ static const TypeInfo virtio_input_info = {
     .class_size    = sizeof(VirtIOInputClass),
     .class_init    = virtio_input_class_init,
     .abstract      = true,
+    .instance_finalize = virtio_input_finalize,
 };
 
 /* ----------------------------------------------------------------- */

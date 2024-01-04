@@ -256,13 +256,7 @@ static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
     return i * sizeof(VECTYPE);
 }
 
-/*
- * GCC before version 4.9 has a bug which will cause the target
- * attribute work incorrectly and failed to compile in some case,
- * restrict the gcc version to 4.9+ to prevent the failure.
- */
-
-#if defined CONFIG_AVX2_OPT && QEMU_GNUC_PREREQ(4, 9)
+#if defined CONFIG_AVX2_OPT
 #pragma GCC push_options
 #pragma GCC target("avx2")
 #include <cpuid.h>

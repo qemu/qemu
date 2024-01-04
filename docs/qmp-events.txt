@@ -71,13 +71,20 @@ Data:
     "ignore": error has been ignored
     "report": error has been reported to the device
     "stop": the VM is going to stop because of the error
+- "__com.redhat_reason": error reason, this is a RHEL7 extension, it's one of
+  the following (json-string):
+    "eio": errno EIO
+	"eperm": errno EPERM
+	"enospc": errno ENOSPC
+	"eother": any other errno (other than EIO, EPERM, ENOSPC)
 
 Example:
 
 { "event": "BLOCK_IO_ERROR",
     "data": { "device": "ide0-hd1",
               "operation": "write",
-              "action": "stop" },
+              "action": "stop",
+              "__com.redhat_reason": "enospc" },
     "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
 Note: If action is "stop", a STOP event will eventually follow the

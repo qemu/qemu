@@ -540,7 +540,7 @@ int getpagesize(void)
     return system_info.dwPageSize;
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory)
+void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
 {
     int i;
     size_t pagesize = getpagesize();

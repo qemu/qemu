@@ -3,13 +3,14 @@ obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o spapr_vio.o spapr_events.o
 obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_iommu.o spapr_rtas.o
-obj-$(CONFIG_PSERIES) += spapr_pci.o spapr_rtc.o spapr_drc.o spapr_rng.o
+obj-$(CONFIG_PSERIES) += spapr_pci.o spapr_rtc.o spapr_drc.o
+obj-$(CONFIG_PSERIES) += spapr_cpu_core.o
 ifeq ($(CONFIG_PCI)$(CONFIG_PSERIES)$(CONFIG_LINUX), yyy)
 obj-y += spapr_pci_vfio.o
 endif
+obj-$(CONFIG_PSERIES) += spapr_rtas_ddw.o
 # PowerPC 4xx boards
-obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
-obj-y += ppc4xx_pci.o
+obj-y += ppc4xx_devs.o ppc405_uc.o
 # PReP
 obj-$(CONFIG_PREP) += prep.o
 # OldWorld PowerMac

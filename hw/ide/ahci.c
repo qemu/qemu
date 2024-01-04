@@ -919,6 +919,7 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ide_state->error = ABRT_ERR;
     ide_state->status = READY_STAT | ERR_STAT;
     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+    qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
 }
 
@@ -947,6 +948,7 @@ static void ncq_cb(void *opaque, int ret)
     NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
     IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
 
+    ncq_tfs->aiocb = NULL;
     if (ret == -ECANCELED) {
         return;
     }
@@ -1023,7 +1025,6 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
     default:
         DPRINTF(port, "error: unsupported NCQ command (0x%02x) received\n",
                 ncq_tfs->cmd);
-        qemu_sglist_destroy(&ncq_tfs->sglist);
         ncq_err(ncq_tfs);
     }
 }
@@ -1090,7 +1091,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         error_report("ahci: PRDT length for NCQ command (0x%zx) "
                      "is smaller than the requested size (0x%zx)",
                      ncq_tfs->sglist.size, size);
-        qemu_sglist_destroy(&ncq_tfs->sglist);
         ncq_err(ncq_tfs);
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
         return;
@@ -1476,6 +1476,7 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
         ad->port.dma->ops = &ahci_dma_ops;
         ide_register_restart_cb(&ad->port);
     }
+    g_free(irqs);
 }
 
 void ahci_uninit(AHCIState *s)
@@ -1703,6 +1704,7 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sysbus_ahci;
     dc->props = sysbus_ahci_properties;
     dc->reset = sysbus_ahci_reset;
+    dc->cannot_instantiate_with_device_add_yet = true; /* RH state preserve */
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -1811,7 +1813,9 @@ static const TypeInfo allwinner_ahci_info = {
 static void sysbus_ahci_register_types(void)
 {
     type_register_static(&sysbus_ahci_info);
+#if 0  /* Disabled in Red Hat Enterprise Linux */
     type_register_static(&allwinner_ahci_info);
+#endif
 }
 
 type_init(sysbus_ahci_register_types)

@@ -1,0 +1,35 @@
+#ifndef    __ERROR_CDOE_H__
+#define    __ERROR_CDOE_H__
+#ifdef    ERROR_INFO
+#define   ERROR_OPENFILE         "open file failed."
+#define   SUCCESS                "success." 
+#define   ERROR_FAILED           "failed." 
+#define   ERROR_USERNAME         "forbidden characters in username."
+#define   ERROR_PERMISSION       "forbidden shell script control:Permission denied."
+#define   ERROR_NOSUPPERT        "no support"
+#define   ERROR_NOEXIST          "user is not exist"
+#define   ERROR_FILENOEXIST      "file is not exist"
+#define   ERROR_DECODE           "qbase64_decode is failed."
+#define   ERROR_FSEEK            "failed to seek file."
+#define   ERROR_WRITEFILE        "failed to write to file." 
+#define   ERROR_POWERSHELL       "powershell is not find in the begin."
+#define   ERROR_GETADAPTERINFO   "get adapter info failed."
+#define   ERROR_MALLOCFAILD      "heap malloc failed."
+#else
+#define   ERROR_OPENFILE         "1"
+#define   ERROR_FAILED           "-1" 
+#define   ERROR_DATA             "-2" 
+#define   SUCCESS                "0"
+#define   ERROR_USERNAME         "2"
+#define   ERROR_PERMISSION       "3"
+#define   ERROR_NOSUPPERT        "4"
+#define   ERROR_NOEXIST          "5"
+#define   ERROR_DECODE           "6"
+#define   ERROR_FSEEK            "7"
+#define   ERROR_WRITEFILE        "8"
+#define   ERROR_POWERSHELL       "9"
+#define   ERROR_FILENOEXIST      "10"
+#define   ERROR_GETADAPTERINFO   "11"
+#define   ERROR_MALLOCFAILD      "12"
+#endif
+#endif

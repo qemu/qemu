@@ -766,6 +766,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     acb->ioh->driver_status = 0;
     acb->ioh->host_status   = 0;
     acb->ioh->resid         = 0;
+    acb->ioh->status        = status;
 
 #define SG_ERR_DRIVER_SENSE    0x08
 
@@ -835,6 +836,13 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     if (req != SG_IO) {
         iscsi_ioctl_handle_emulated(acb, req, buf);
         return &acb->common;
+    }
+
+    if (acb->ioh->cmd_len > SCSI_CDB_MAX_SIZE) {
+        error_report("iSCSI: ioctl error CDB exceeds max size (%d > %d)",
+                     acb->ioh->cmd_len, SCSI_CDB_MAX_SIZE);
+        qemu_aio_unref(acb);
+        return NULL;
     }
 
     acb->task = malloc(sizeof(struct scsi_task));

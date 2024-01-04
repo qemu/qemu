@@ -149,6 +149,11 @@ static inline bool vbe_enabled(VGACommonState *s)
     return s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED;
 }
 
+static inline uint8_t sr(VGACommonState *s, int idx)
+{
+    return vbe_enabled(s) ? s->sr_vbe[idx] : s->sr[idx];
+}
+
 static void vga_update_memory_access(VGACommonState *s)
 {
     hwaddr base, offset, size;
@@ -163,8 +168,8 @@ static void vga_update_memory_access(VGACommonState *s)
         s->has_chain4_alias = false;
         s->plane_updated = 0xf;
     }
-    if ((s->sr[VGA_SEQ_PLANE_WRITE] & VGA_SR02_ALL_PLANES) ==
-        VGA_SR02_ALL_PLANES && s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
+    if ((sr(s, VGA_SEQ_PLANE_WRITE) & VGA_SR02_ALL_PLANES) ==
+        VGA_SR02_ALL_PLANES && sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
         offset = 0;
         switch ((s->gr[VGA_GFX_MISC] >> 2) & 3) {
         case 0:
@@ -234,7 +239,7 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
           ((s->cr[VGA_CRTC_OVERFLOW] >> 6) & 2)) << 8);
     vretr_end_line = s->cr[VGA_CRTC_V_SYNC_END] & 0xf;
 
-    clocking_mode = (s->sr[VGA_SEQ_CLOCK_MODE] >> 3) & 1;
+    clocking_mode = (sr(s, VGA_SEQ_CLOCK_MODE) >> 3) & 1;
     clock_sel = (s->msr >> 2) & 3;
     dots = (s->msr & 1) ? 8 : 9;
 
@@ -486,7 +491,6 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
-        vbe_update_vgaregs(s);
         if (s->sr_index == VGA_SEQ_CLOCK_MODE) {
             s->update_retrace_info(s);
         }
@@ -680,13 +684,13 @@ static void vbe_update_vgaregs(VGACommonState *s)
 
     if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4) {
         shift_control = 0;
-        s->sr[VGA_SEQ_CLOCK_MODE] &= ~8; /* no double line */
+        s->sr_vbe[VGA_SEQ_CLOCK_MODE] &= ~8; /* no double line */
     } else {
         shift_control = 2;
         /* set chain 4 mode */
-        s->sr[VGA_SEQ_MEMORY_MODE] |= VGA_SR04_CHN_4M;
+        s->sr_vbe[VGA_SEQ_MEMORY_MODE] |= VGA_SR04_CHN_4M;
         /* activate all planes */
-        s->sr[VGA_SEQ_PLANE_WRITE] |= VGA_SR02_ALL_PLANES;
+        s->sr_vbe[VGA_SEQ_PLANE_WRITE] |= VGA_SR02_ALL_PLANES;
     }
     s->gr[VGA_GFX_MODE] = (s->gr[VGA_GFX_MODE] & ~0x60) |
         (shift_control << 5);
@@ -836,7 +840,7 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
         break;
     }
 
-    if (s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
+    if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
         /* chain 4 mode : simplest access */
         assert(addr < s->vram_size);
         ret = s->vram_ptr[addr];
@@ -904,11 +908,11 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         break;
     }
 
-    if (s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
+    if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
         /* chain 4 mode : simplest access */
         plane = addr & 3;
         mask = (1 << plane);
-        if (s->sr[VGA_SEQ_PLANE_WRITE] & mask) {
+        if (sr(s, VGA_SEQ_PLANE_WRITE) & mask) {
             assert(addr < s->vram_size);
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
@@ -921,7 +925,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
         mask = (1 << plane);
-        if (s->sr[VGA_SEQ_PLANE_WRITE] & mask) {
+        if (sr(s, VGA_SEQ_PLANE_WRITE) & mask) {
             addr = ((addr & ~1) << 1) | plane;
             if (addr >= s->vram_size) {
                 return;
@@ -996,7 +1000,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 
     do_write:
         /* mask data according to sr[2] */
-        mask = s->sr[VGA_SEQ_PLANE_WRITE];
+        mask = sr(s, VGA_SEQ_PLANE_WRITE);
         s->plane_updated |= mask; /* only used to detect font change */
         write_mask = mask16[mask];
         if (addr * sizeof(uint32_t) >= s->vram_size) {
@@ -1152,10 +1156,10 @@ static void vga_get_text_resolution(VGACommonState *s, int *pwidth, int *pheight
     /* total width & height */
     cheight = (s->cr[VGA_CRTC_MAX_SCAN] & 0x1f) + 1;
     cwidth = 8;
-    if (!(s->sr[VGA_SEQ_CLOCK_MODE] & VGA_SR01_CHAR_CLK_8DOTS)) {
+    if (!(sr(s, VGA_SEQ_CLOCK_MODE) & VGA_SR01_CHAR_CLK_8DOTS)) {
         cwidth = 9;
     }
-    if (s->sr[VGA_SEQ_CLOCK_MODE] & 0x08) {
+    if (sr(s, VGA_SEQ_CLOCK_MODE) & 0x08) {
         cwidth = 16; /* NOTE: no 18 pixel wide */
     }
     width = (s->cr[VGA_CRTC_H_DISP] + 1);
@@ -1197,7 +1201,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
 
     /* compute font data address (in plane 2) */
-    v = s->sr[VGA_SEQ_CHARACTER_MAP];
+    v = sr(s, VGA_SEQ_CHARACTER_MAP);
     offset = (((v >> 4) & 1) | ((v << 1) & 6)) * 8192 * 4 + 2;
     if (offset != s->font_offsets[0]) {
         s->font_offsets[0] = offset;
@@ -1506,11 +1510,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
 
     if (shift_control == 0) {
-        if (s->sr[VGA_SEQ_CLOCK_MODE] & 8) {
+        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
         }
     } else if (shift_control == 1) {
-        if (s->sr[VGA_SEQ_CLOCK_MODE] & 8) {
+        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
         }
     }
@@ -1574,7 +1578,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     if (shift_control == 0) {
         full_update |= update_palette16(s);
-        if (s->sr[VGA_SEQ_CLOCK_MODE] & 8) {
+        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             v = VGA_DRAW_LINE4D2;
         } else {
             v = VGA_DRAW_LINE4;
@@ -1582,7 +1586,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         bits = 4;
     } else if (shift_control == 1) {
         full_update |= update_palette16(s);
-        if (s->sr[VGA_SEQ_CLOCK_MODE] & 8) {
+        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             v = VGA_DRAW_LINE2D2;
         } else {
             v = VGA_DRAW_LINE2;
@@ -1629,7 +1633,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 #if 0
     printf("w=%d h=%d v=%d line_offset=%d cr[0x09]=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=0x%02x\n",
            width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
-           s->line_compare, s->sr[VGA_SEQ_CLOCK_MODE]);
+           s->line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
     addr1 = (s->start_addr * 4);
     bwidth = (width * bits + 7) / 8;
@@ -1781,6 +1785,7 @@ void vga_common_reset(VGACommonState *s)
 {
     s->sr_index = 0;
     memset(s->sr, '\0', sizeof(s->sr));
+    memset(s->sr_vbe, '\0', sizeof(s->sr_vbe));
     s->gr_index = 0;
     memset(s->gr, '\0', sizeof(s->gr));
     s->ar_index = 0;
@@ -1883,10 +1888,10 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
         /* total width & height */
         cheight = (s->cr[VGA_CRTC_MAX_SCAN] & 0x1f) + 1;
         cw = 8;
-        if (!(s->sr[VGA_SEQ_CLOCK_MODE] & VGA_SR01_CHAR_CLK_8DOTS)) {
+        if (!(sr(s, VGA_SEQ_CLOCK_MODE) & VGA_SR01_CHAR_CLK_8DOTS)) {
             cw = 9;
         }
-        if (s->sr[VGA_SEQ_CLOCK_MODE] & 0x08) {
+        if (sr(s, VGA_SEQ_CLOCK_MODE) & 0x08) {
             cw = 16; /* NOTE: no 18 pixel wide */
         }
         width = (s->cr[VGA_CRTC_H_DISP] + 1);
@@ -2053,6 +2058,7 @@ static int vga_common_post_load(void *opaque, int version_id)
 
     /* force refresh */
     s->graphic_mode = -1;
+    vbe_update_vgaregs(s);
     return 0;
 }
 

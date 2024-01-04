@@ -1,0 +1,43 @@
+QEMU tracing using systemtap-initscript
+---------------------------------------
+
+You can capture QEMU trace data all the time using systemtap-initscript.  This
+uses SystemTap's flight recorder mode to trace all running guests to a
+fixed-size buffer on the host.  Old trace entries are overwritten by new
+entries when the buffer size wraps.
+
+1. Install the systemtap-initscript package:
+  # yum install systemtap-initscript
+
+2. Install the systemtap scripts and the conf file:
+  # cp /usr/share/qemu-kvm/systemtap/script.d/qemu_kvm.stp /etc/systemtap/script.d/
+  # cp /usr/share/qemu-kvm/systemtap/conf.d/qemu_kvm.conf /etc/systemtap/conf.d/
+
+The set of trace events to enable is given in qemu_kvm.stp.  This SystemTap
+script can be customized to add or remove trace events provided in
+/usr/share/systemtap/tapset/qemu-kvm-simpletrace.stp.
+
+SystemTap customizations can be made to qemu_kvm.conf to control the flight
+recorder buffer size and whether to store traces in memory only or disk too.
+See stap(1) for option documentation.
+
+3. Start the systemtap service.
+　# service systemtap start qemu_kvm
+
+4. Make the service start at boot time.
+　# chkconfig systemtap on
+
+5. Confirm that the service works.
+  # service systemtap status qemu_kvm
+  qemu_kvm is running...
+
+When you want to inspect the trace buffer, perform the following steps:
+
+1. Dump the trace buffer.
+  # staprun -A qemu_kvm >/tmp/trace.log
+
+2. Start the systemtap service because the preceding step stops the service.
+  # service systemtap start qemu_kvm
+
+3. Translate the trace record to readable format.
+  # /usr/share/qemu-kvm/simpletrace.py --no-header /usr/share/qemu-kvm/trace-events /tmp/trace.log

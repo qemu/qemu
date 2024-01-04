@@ -15,6 +15,7 @@
 #include "qga-qmp-commands.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096
+#define CLOUDCOMMUNE_GUEST_AGENT_VERSION "1.1"
 
 typedef struct GAState GAState;
 typedef struct GACommandState GACommandState;

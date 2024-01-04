@@ -20,9 +20,15 @@
 #define MAX_TOKEN_COUNT (2ULL << 20)
 #define MAX_NESTING (1ULL << 10)
 
+static void json_message_free_token(void *token, void *opaque)
+{
+    g_free(token);
+}
+
 static void json_message_free_tokens(JSONMessageParser *parser)
 {
     if (parser->tokens) {
+        g_queue_foreach(parser->tokens, json_message_free_token, NULL);
         g_queue_free(parser->tokens);
         parser->tokens = NULL;
     }
@@ -33,6 +39,7 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     JSONToken *token;
+    GQueue *tokens;
 
     switch (type) {
     case JSON_LCURLY:
@@ -90,9 +97,12 @@ out_emit:
     /* send current list of tokens to parser and reset tokenizer */
     parser->brace_count = 0;
     parser->bracket_count = 0;
-    /* parser->emit takes ownership of parser->tokens.  */
-    parser->emit(parser, parser->tokens);
+    /* parser->emit takes ownership of parser->tokens.  Remove our own
+     * reference to parser->tokens before handing it out to parser->emit.
+     */
+    tokens = parser->tokens;
     parser->tokens = g_queue_new();
+    parser->emit(parser, tokens);
     parser->token_size = 0;
 }
 

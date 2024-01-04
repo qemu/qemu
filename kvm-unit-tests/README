@@ -1,0 +1,27 @@
+This directory contains sources for a kvm test suite.
+
+To create the test images do
+  ./configure
+  make
+in this directory. Test images are created in ./<ARCH>/*.flat
+
+Then use the runner script to detect the correct invocation and
+invoke the test, e.g.
+  ./x86-run ./x86/msr.flat
+or
+  ./run_tests.sh
+to run them all.
+
+To select a specific qemu binary, specify the QEMU=<path>
+environment variable, e.g.
+  QEMU=/tmp/qemu/x86_64-softmmu/qemu-system-x86_64 ./x86-run ./x86/msr.flat
+
+Directory structure:
+.:		configure script, top-level Makefile, and run_tests.sh
+./config:	collection of architecture dependent makefiles
+./docs:		documentation files
+./lib:		general architecture neutral services for the tests
+./lib/<ARCH>:	architecture dependent services for the tests
+./<ARCH>:	the sources of the tests and the created objects/images
+
+See <ARCH>/README for architecture specific documentation.

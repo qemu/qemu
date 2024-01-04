@@ -126,7 +126,11 @@ typedef struct AssignedDevice {
     MemoryRegion mmio;
     char *configfd_name;
     int32_t bootindex;
+    QLIST_ENTRY(AssignedDevice) next;
 } AssignedDevice;
+
+#define MAX_DEV_ASSIGN_CMDLINE 8
+static QLIST_HEAD(, AssignedDevice) devs = QLIST_HEAD_INITIALIZER(devs);
 
 #define TYPE_PCI_ASSIGN "kvm-pci-assign"
 #define PCI_ASSIGN(obj) OBJECT_CHECK(AssignedDevice, (obj), TYPE_PCI_ASSIGN)
@@ -974,10 +978,9 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
     }
 
     if (ctrl_byte & PCI_MSI_FLAGS_ENABLE) {
-        MSIMessage msg = msi_get_message(pci_dev, 0);
         int virq;
 
-        virq = kvm_irqchip_add_msi_route(kvm_state, msg, pci_dev);
+        virq = kvm_irqchip_add_msi_route(kvm_state, 0, pci_dev);
         if (virq < 0) {
             perror("assigned_dev_update_msi: kvm_irqchip_add_msi_route");
             return;
@@ -1016,6 +1019,7 @@ static void assigned_dev_update_msi_msg(PCIDevice *pci_dev)
 
     kvm_irqchip_update_msi_route(kvm_state, assigned_dev->msi_virq[0],
                                  msi_get_message(pci_dev, 0), pci_dev);
+    kvm_irqchip_commit_routes(kvm_state);
 }
 
 static bool assigned_dev_msix_masked(MSIXTableEntry *entry)
@@ -1042,7 +1046,6 @@ static int assigned_dev_update_msix_mmio(PCIDevice *pci_dev)
     uint16_t entries_nr = 0;
     int i, r = 0;
     MSIXTableEntry *entry = adev->msix_table;
-    MSIMessage msg;
 
     /* Get the usable entry number for allocating */
     for (i = 0; i < adev->msix_max; i++, entry++) {
@@ -1079,9 +1082,7 @@ static int assigned_dev_update_msix_mmio(PCIDevice *pci_dev)
             continue;
         }
 
-        msg.address = entry->addr_lo | ((uint64_t)entry->addr_hi << 32);
-        msg.data = entry->data;
-        r = kvm_irqchip_add_msi_route(kvm_state, msg, pci_dev);
+        r = kvm_irqchip_add_msi_route(kvm_state, i, pci_dev);
         if (r < 0) {
             return r;
         }
@@ -1481,7 +1482,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
          * error bits, leave the rest. */
         status = pci_get_long(pci_dev->config + pos + PCI_X_STATUS);
         status &= ~(PCI_X_STATUS_BUS | PCI_X_STATUS_DEVFN);
-        status |= pci_requester_id(pci_dev);
+        status |= pci_get_bdf(pci_dev);
         status &= ~(PCI_X_STATUS_SPL_DISC | PCI_X_STATUS_UNX_SPL |
                     PCI_X_STATUS_SPL_ERR);
         pci_set_long(pci_dev->config + pos + PCI_X_STATUS, status);
@@ -1605,6 +1606,7 @@ static void assigned_dev_msix_mmio_write(void *opaque, hwaddr addr,
                 if (ret) {
                     error_report("Error updating irq routing entry (%d)", ret);
                 }
+                kvm_irqchip_commit_routes(kvm_state);
             }
         }
     }
@@ -1732,12 +1734,23 @@ static void reset_assigned_device(DeviceState *dev)
 static void assigned_realize(struct PCIDevice *pci_dev, Error **errp)
 {
     AssignedDevice *dev = PCI_ASSIGN(pci_dev);
+    AssignedDevice *adev;
     uint8_t e_intx;
-    int r;
+    int r, i = 0;
     Error *local_err = NULL;
 
     if (!kvm_enabled()) {
         error_setg(&local_err, "pci-assign requires KVM support");
+        goto exit_with_error;
+    }
+
+    QLIST_FOREACH(adev, &devs, next) {
+        i++;
+    }
+
+    if (i >= MAX_DEV_ASSIGN_CMDLINE) {
+        error_setg(&local_err, "pci-assign: Maximum supported assigned devices"
+                     " (%d) already attached\n", MAX_DEV_ASSIGN_CMDLINE);
         goto exit_with_error;
     }
 
@@ -1810,6 +1823,7 @@ static void assigned_realize(struct PCIDevice *pci_dev, Error **errp)
         goto assigned_out;
     }
 
+    QLIST_INSERT_HEAD(&devs, dev, next);
     assigned_dev_load_option_rom(dev);
 
     return;
@@ -1829,6 +1843,7 @@ static void assigned_exitfn(struct PCIDevice *pci_dev)
 {
     AssignedDevice *dev = PCI_ASSIGN(pci_dev);
 
+    QLIST_REMOVE(dev, next);
     deassign_device(dev);
     free_assigned_device(dev);
 }

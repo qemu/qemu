@@ -383,7 +383,7 @@ static void test_io_channel_unix(bool async)
 
     qapi_free_SocketAddress(listen_addr);
     qapi_free_SocketAddress(connect_addr);
-    unlink(TEST_SOCKET);
+    g_assert(g_file_test(TEST_SOCKET, G_FILE_TEST_EXISTS) == FALSE);
 }
 
 

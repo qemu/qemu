@@ -529,7 +529,6 @@ int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 void gen_intermediate_code_init(CPUSPARCState *env);
 
 /* cpu-exec.c */
-int cpu_sparc_exec(CPUState *cpu);
 
 /* win_helper.c */
 target_ulong cpu_get_psr(CPUSPARCState *env1);
@@ -590,7 +589,6 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_init(cpu_model) CPU(cpu_sparc_init(cpu_model))
 #endif
 
-#define cpu_exec cpu_sparc_exec
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 

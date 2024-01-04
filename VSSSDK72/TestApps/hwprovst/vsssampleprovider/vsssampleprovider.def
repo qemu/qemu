@@ -1,0 +1,9 @@
+; VssSampleProvider.def : Declares the module parameters.
+
+LIBRARY      "VssSampleProvider.DLL"
+
+EXPORTS
+	DllCanUnloadNow		PRIVATE
+	DllGetClassObject	PRIVATE
+	DllRegisterServer	PRIVATE
+	DllUnregisterServer	PRIVATE

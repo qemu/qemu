@@ -232,8 +232,8 @@ static void pmac_dma_trim(BlockBackend *blk,
     s->io_buffer_index += io->len;
     io->len = 0;
 
-    s->bus->dma->aiocb = ide_issue_trim(blk, (offset >> 9), &io->iov,
-                             (bytes >> 9), cb, io);
+    s->bus->dma->aiocb = ide_issue_trim((offset >> 9), &io->iov,
+                             (bytes >> 9), cb, io, blk);
 }
 
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)

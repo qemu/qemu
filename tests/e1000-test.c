@@ -30,8 +30,10 @@ static void test_device(gconstpointer data)
 static const char *models[] = {
     "e1000",
     "e1000-82540em",
+#if 0 /* Disabled in Red Hat Enterprise Linux 7 */
     "e1000-82544gc",
     "e1000-82545em",
+#endif
 };
 
 int main(int argc, char **argv)

@@ -36,6 +36,8 @@
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
+#include "hw/i386/intel_iommu.h"
+#include "hw/i386/x86-iommu.h"
 
 #include "exec/ioport.h"
 #include "standard-headers/asm-x86/hyperv.h"
@@ -43,6 +45,7 @@
 #include "hw/pci/msi.h"
 #include "migration/migration.h"
 #include "exec/memattrs.h"
+#include "trace.h"
 
 //#define DEBUG_KVM
 
@@ -314,6 +317,13 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
          */
         cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
         ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
+    } else if (function == KVM_CPUID_FEATURES && reg == R_EAX) {
+        /* kvm_pv_unhalt is reported by GET_SUPPORTED_CPUID, but it can't
+         * be enabled without the in-kernel irqchip
+         */
+        if (!kvm_irqchip_in_kernel()) {
+            ret &= ~(1U << KVM_FEATURE_PV_UNHALT);
+        }
     }
 
     g_free(cpuid);
@@ -556,7 +566,9 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
                        -ENOTSUP;
         if (cur_freq <= 0 || cur_freq != env->tsc_khz) {
             error_report("warning: TSC frequency mismatch between "
-                         "VM and host, and TSC scaling unavailable");
+                         "VM (%" PRId64 " kHz) and host (%d kHz), "
+                         "and TSC scaling unavailable",
+                         env->tsc_khz, cur_freq);
             return r;
         }
     }
@@ -1439,27 +1451,40 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
     entry->data = value;
 }
 
-static int kvm_put_tscdeadline_msr(X86CPU *cpu)
+static int kvm_put_one_msr(X86CPU *cpu, int index, uint64_t value)
 {
-    CPUX86State *env = &cpu->env;
     struct {
         struct kvm_msrs info;
         struct kvm_msr_entry entries[1];
     } msr_data;
-    struct kvm_msr_entry *msrs = msr_data.entries;
+
+    kvm_msr_entry_set(&msr_data.entries[0], index, value);
+
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = 1,
+    };
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+}
+
+void kvm_put_apicbase(X86CPU *cpu, uint64_t value)
+{
+    int ret;
+
+    ret = kvm_put_one_msr(cpu, MSR_IA32_APICBASE, value);
+    assert(ret == 1);
+}
+
+static int kvm_put_tscdeadline_msr(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
     int ret;
 
     if (!has_msr_tsc_deadline) {
         return 0;
     }
 
-    kvm_msr_entry_set(&msrs[0], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
-
-    msr_data.info = (struct kvm_msrs) {
-        .nmsrs = 1,
-    };
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_put_one_msr(cpu, MSR_IA32_TSCDEADLINE, env->tsc_deadline);
     if (ret < 0) {
         return ret;
     }
@@ -1476,24 +1501,14 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
  */
 static int kvm_put_msr_feature_control(X86CPU *cpu)
 {
-    struct {
-        struct kvm_msrs info;
-        struct kvm_msr_entry entry;
-    } msr_data;
     int ret;
 
     if (!has_msr_feature_control) {
         return 0;
     }
 
-    kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
-                      cpu->env.msr_ia32_feature_control);
-
-    msr_data.info = (struct kvm_msrs) {
-        .nmsrs = 1,
-    };
-
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_put_one_msr(cpu, MSR_IA32_FEATURE_CONTROL,
+                          cpu->env.msr_ia32_feature_control);
     if (ret < 0) {
         return ret;
     }
@@ -1657,6 +1672,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             }
         }
         if (has_msr_mtrr) {
+            uint64_t phys_mask = MAKE_64BIT_MASK(0, cpu->phys_bits);
+
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
                               MSR_MTRRfix64K_00000, env->mtrr_fixed[0]);
@@ -1681,10 +1698,16 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++],
                               MSR_MTRRfix4K_F8000, env->mtrr_fixed[10]);
             for (i = 0; i < MSR_MTRRcap_VCNT; i++) {
+                /* The CPU GPs if we write to a bit above the physical limit of
+                 * the host CPU (and KVM emulates that)
+                 */
+                uint64_t mask = env->mtrr_var[i].mask;
+                mask &= phys_mask;
+
                 kvm_msr_entry_set(&msrs[n++],
                                   MSR_MTRRphysBase(i), env->mtrr_var[i].base);
                 kvm_msr_entry_set(&msrs[n++],
-                                  MSR_MTRRphysMask(i), env->mtrr_var[i].mask);
+                                  MSR_MTRRphysMask(i), mask);
             }
         }
 
@@ -1929,6 +1952,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
     int ret, i, n;
+    uint64_t mtrr_top_bits;
 
     n = 0;
     msrs[n++].index = MSR_IA32_SYSENTER_CS;
@@ -2081,6 +2105,30 @@ static int kvm_get_msrs(X86CPU *cpu)
     }
 
     assert(ret == n);
+    /*
+     * MTRR masks: Each mask consists of 5 parts
+     * a  10..0: must be zero
+     * b  11   : valid bit
+     * c n-1.12: actual mask bits
+     * d  51..n: reserved must be zero
+     * e  63.52: reserved must be zero
+     *
+     * 'n' is the number of physical bits supported by the CPU and is
+     * apparently always <= 52.   We know our 'n' but don't know what
+     * the destinations 'n' is; it might be smaller, in which case
+     * it masks (c) on loading. It might be larger, in which case
+     * we fill 'd' so that d..c is consistent irrespetive of the 'n'
+     * we're migrating to.
+     */
+
+    if (cpu->fill_mtrr_mask) {
+        QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > 52);
+        assert(cpu->phys_bits <= TARGET_PHYS_ADDR_SPACE_BITS);
+        mtrr_top_bits = MAKE_64BIT_MASK(cpu->phys_bits, 52 - cpu->phys_bits);
+    } else {
+        mtrr_top_bits = 0;
+    }
+
     for (i = 0; i < ret; i++) {
         uint32_t index = msrs[i].index;
         switch (index) {
@@ -2276,7 +2324,8 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_MTRRphysBase(0) ... MSR_MTRRphysMask(MSR_MTRRcap_VCNT - 1):
             if (index & 1) {
-                env->mtrr_var[MSR_MTRRphysIndex(index)].mask = msrs[i].data;
+                env->mtrr_var[MSR_MTRRphysIndex(index)].mask = msrs[i].data |
+                                                               mtrr_top_bits;
             } else {
                 env->mtrr_var[MSR_MTRRphysIndex(index)].base = msrs[i].data;
             }
@@ -2325,19 +2374,6 @@ static int kvm_get_apic(X86CPU *cpu)
         }
 
         kvm_get_apic_state(apic, &kapic);
-    }
-    return 0;
-}
-
-static int kvm_put_apic(X86CPU *cpu)
-{
-    DeviceState *apic = cpu->apic_state;
-    struct kvm_lapic_state kapic;
-
-    if (apic && kvm_irqchip_in_kernel()) {
-        kvm_put_apic_state(apic, &kapic);
-
-        return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_LAPIC, &kapic);
     }
     return 0;
 }
@@ -2580,10 +2616,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     }
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_mp_state(x86_cpu);
-        if (ret < 0) {
-            return ret;
-        }
-        ret = kvm_put_apic(x86_cpu);
         if (ret < 0) {
             return ret;
         }
@@ -3156,8 +3188,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
         /* If the ioapic is in QEMU and the lapics are in KVM, reserve
            MSI routes for signaling interrupts to the local apics. */
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-            struct MSIMessage msg = { 0x0, 0x0 };
-            if (kvm_irqchip_add_msi_route(s, msg, NULL) < 0) {
+            if (kvm_irqchip_add_msi_route(s, 0, NULL) < 0) {
                 error_report("Could not enable split IRQ mode.");
                 exit(1);
             }
@@ -3327,6 +3358,109 @@ int kvm_device_msix_deassign(KVMState *s, uint32_t dev_id)
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
+    X86IOMMUState *iommu = x86_iommu_get_default();
+
+    if (iommu) {
+        int ret;
+        MSIMessage src, dst;
+        X86IOMMUClass *class = X86_IOMMU_GET_CLASS(iommu);
+
+        src.address = route->u.msi.address_hi;
+        src.address <<= VTD_MSI_ADDR_HI_SHIFT;
+        src.address |= route->u.msi.address_lo;
+        src.data = route->u.msi.data;
+
+        ret = class->int_remap(iommu, &src, &dst, dev ? \
+                               pci_requester_id(dev) : \
+                               X86_IOMMU_SID_INVALID);
+        if (ret) {
+            trace_kvm_x86_fixup_msi_error(route->gsi);
+            return 1;
+        }
+
+        route->u.msi.address_hi = dst.address >> VTD_MSI_ADDR_HI_SHIFT;
+        route->u.msi.address_lo = dst.address & VTD_MSI_ADDR_LO_MASK;
+        route->u.msi.data = dst.data;
+    }
+
+    return 0;
+}
+
+typedef struct MSIRouteEntry MSIRouteEntry;
+
+struct MSIRouteEntry {
+    PCIDevice *dev;             /* Device pointer */
+    int vector;                 /* MSI/MSIX vector index */
+    int virq;                   /* Virtual IRQ index */
+    QLIST_ENTRY(MSIRouteEntry) list;
+};
+
+/* List of used GSI routes */
+static QLIST_HEAD(, MSIRouteEntry) msi_route_list = \
+    QLIST_HEAD_INITIALIZER(msi_route_list);
+
+static void kvm_update_msi_routes_all(void *private, bool global,
+                                      uint32_t index, uint32_t mask)
+{
+    int cnt = 0;
+    MSIRouteEntry *entry;
+    MSIMessage msg;
+    /* TODO: explicit route update */
+    QLIST_FOREACH(entry, &msi_route_list, list) {
+        cnt++;
+        msg = pci_get_msi_message(entry->dev, entry->vector);
+        kvm_irqchip_update_msi_route(kvm_state, entry->virq,
+                                     msg, entry->dev);
+    }
+    kvm_irqchip_commit_routes(kvm_state);
+    trace_kvm_x86_update_msi_routes(cnt);
+}
+
+int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
+                                int vector, PCIDevice *dev)
+{
+    static bool notify_list_inited = false;
+    MSIRouteEntry *entry;
+
+    if (!dev) {
+        /* These are (possibly) IOAPIC routes only used for split
+         * kernel irqchip mode, while what we are housekeeping are
+         * PCI devices only. */
+        return 0;
+    }
+
+    entry = g_new0(MSIRouteEntry, 1);
+    entry->dev = dev;
+    entry->vector = vector;
+    entry->virq = route->gsi;
+    QLIST_INSERT_HEAD(&msi_route_list, entry, list);
+
+    trace_kvm_x86_add_msi_route(route->gsi);
+
+    if (!notify_list_inited) {
+        /* For the first time we do add route, add ourselves into
+         * IOMMU's IEC notify list if needed. */
+        X86IOMMUState *iommu = x86_iommu_get_default();
+        if (iommu) {
+            x86_iommu_iec_register_notifier(iommu,
+                                            kvm_update_msi_routes_all,
+                                            NULL);
+        }
+        notify_list_inited = true;
+    }
+    return 0;
+}
+
+int kvm_arch_release_virq_post(int virq)
+{
+    MSIRouteEntry *entry, *next;
+    QLIST_FOREACH_SAFE(entry, &msi_route_list, list, next) {
+        if (entry->virq == virq) {
+            trace_kvm_x86_remove_msi_route(virq);
+            QLIST_REMOVE(entry, list);
+            break;
+        }
+    }
     return 0;
 }
 

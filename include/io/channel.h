@@ -42,6 +42,7 @@ typedef enum QIOChannelFeature QIOChannelFeature;
 enum QIOChannelFeature {
     QIO_CHANNEL_FEATURE_FD_PASS  = (1 << 0),
     QIO_CHANNEL_FEATURE_SHUTDOWN = (1 << 1),
+    QIO_CHANNEL_FEATURE_LISTEN   = (1 << 2),
 };
 
 

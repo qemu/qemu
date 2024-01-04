@@ -589,6 +589,8 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "emulated smartcard";
     dc->props = emulated_card_properties;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo emulated_card_info = {

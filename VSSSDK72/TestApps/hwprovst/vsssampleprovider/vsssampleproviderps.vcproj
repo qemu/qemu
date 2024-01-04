@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="7.10"
+	Name="VssSampleProviderPS"
+	ProjectGUID="{A7423635-A322-443C-AC11-F4A67F196480}"
+	Keyword="AtlPSProj">
+	<Platforms>
+		<Platform
+			Name="Win32"/>
+	</Platforms>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="DebugPS"
+			IntermediateDirectory="DebugPS"
+			ConfigurationType="2">
+			<Tool
+				Name="VCCLCompilerTool"
+				PreprocessorDefinitions="WIN32;_WIN32_WINNT=0x0500;REGISTER_PROXY_DLL;_DEBUG"
+				RuntimeLibrary="3"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="kernel32.lib rpcndr.lib rpcns4.lib rpcrt4.lib oleaut32.lib uuid.lib"
+				ModuleDefinitionFile="VssSampleProviderPS.def"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Performing registration"
+				CommandLine="regsvr32 /s /c &quot;$(TargetPath)&quot;"/>
+			<Tool
+				Name="VCPreBuildEventTool"
+				Description="Checking for required files"
+				CommandLine="if exist dlldata.c goto :END
+echo Error: MIDL will not generate DLLDATA.C unless you have at least 1 interface in the main project.
+Exit 1
+:END
+"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="ReleasePS"
+			IntermediateDirectory="ReleasePS"
+			ConfigurationType="2">
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="3"
+				PreprocessorDefinitions="WIN32;_WIN32_WINNT=0x0500;REGISTER_PROXY_DLL;NDEBUG"
+				RuntimeLibrary="2"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="kernel32.lib rpcndr.lib rpcns4.lib rpcrt4.lib oleaut32.lib uuid.lib"
+				ModuleDefinitionFile="VssSampleProviderPS.def"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Performing registration"
+				CommandLine="regsvr32 /s /c &quot;$(TargetPath)&quot;"/>
+			<Tool
+				Name="VCPreBuildEventTool"
+				Description="Checking for required files"
+				CommandLine="if exist dlldata.c goto :END
+echo Error: MIDL will not generate DLLDATA.C unless you have at least 1 interface in the main project.
+Exit 1
+:END
+"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="">
+		</Filter>
+		<Filter
+			Name="Generated Files"
+			SourceControlFiles="FALSE">
+			<File
+				RelativePath=".\dlldata.c">
+			</File>
+			<File
+				RelativePath=".\VssSampleProvider_i.c">
+			</File>
+			<File
+				RelativePath=".\VssSampleProvider_p.c">
+			</File>
+		</Filter>
+		<File
+			RelativePath=".\VssSampleProviderps.def">
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

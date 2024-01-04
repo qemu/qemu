@@ -682,6 +682,10 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     /* For temporary files, unconditional cache=unsafe is fine */
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
+
+    /* aio=native doesn't work for cache.direct=off, so disable it for the
+     * temporary snapshot */
+    *child_flags &= ~BDRV_O_NATIVE_AIO;
 }
 
 /*
@@ -3122,6 +3126,7 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     int is_protocol = 0;
     BlockDriverState *curr_bs = NULL;
     BlockDriverState *retval = NULL;
+    Error *local_error = NULL;
 
     if (!bs || !bs->drv || !backing_file) {
         return NULL;
@@ -3141,6 +3146,18 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
             if (strcmp(backing_file, curr_bs->backing_file) == 0) {
                 retval = curr_bs->backing->bs;
                 break;
+            }
+            /* Also check against the full backing filename for the image */
+            bdrv_get_full_backing_filename(curr_bs, backing_file_full, PATH_MAX,
+                                           &local_error);
+            if (local_error == NULL) {
+                if (strcmp(backing_file, backing_file_full) == 0) {
+                    retval = curr_bs->backing->bs;
+                    break;
+                }
+            } else {
+                error_free(local_error);
+                local_error = NULL;
             }
         } else {
             /* If not an absolute filename path, make it relative to the current
@@ -3201,6 +3218,7 @@ void bdrv_init_with_whitelist(void)
 
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    BdrvChild *child;
     Error *local_err = NULL;
     int ret;
 
@@ -3215,13 +3233,20 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
-    } else if (bs->file) {
-        bdrv_invalidate_cache(bs->file->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-    if (local_err) {
-        bs->open_flags |= BDRV_O_INACTIVE;
-        error_propagate(errp, local_err);
-        return;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_invalidate_cache(child->bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
@@ -3250,38 +3275,63 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
-static int bdrv_inactivate(BlockDriverState *bs)
+static int bdrv_inactivate_recurse(BlockDriverState *bs,
+                                   bool setting_flag)
 {
+    BdrvChild *child;
     int ret;
 
-    if (bs->drv->bdrv_inactivate) {
+    if (!setting_flag && bs->drv->bdrv_inactivate) {
         ret = bs->drv->bdrv_inactivate(bs);
         if (ret < 0) {
             return ret;
         }
     }
 
-    bs->open_flags |= BDRV_O_INACTIVE;
+    QLIST_FOREACH(child, &bs->children, next) {
+        ret = bdrv_inactivate_recurse(child->bs, setting_flag);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (setting_flag) {
+        bs->open_flags |= BDRV_O_INACTIVE;
+    }
     return 0;
 }
 
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;
-    int ret;
+    int ret = 0;
+    int pass;
 
     while ((bs = bdrv_next(bs)) != NULL) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(bdrv_get_aio_context(bs));
+    }
 
-        aio_context_acquire(aio_context);
-        ret = bdrv_inactivate(bs);
-        aio_context_release(aio_context);
-        if (ret < 0) {
-            return ret;
+    /* We do two passes of inactivation. The first pass calls to drivers'
+     * .bdrv_inactivate callbacks recursively so all cache is flushed to disk;
+     * the second pass sets the BDRV_O_INACTIVE flag so that no further write
+     * is allowed. */
+    for (pass = 0; pass < 2; pass++) {
+        bs = NULL;
+        while ((bs = bdrv_next(bs)) != NULL) {
+            ret = bdrv_inactivate_recurse(bs, pass);
+            if (ret < 0) {
+                goto out;
+            }
         }
     }
 
-    return 0;
+out:
+    bs = NULL;
+    while ((bs = bdrv_next(bs)) != NULL) {
+        aio_context_release(bdrv_get_aio_context(bs));
+    }
+
+    return ret;
 }
 
 /**************************************************************/
@@ -3620,17 +3670,33 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs)
     return bs->aio_context;
 }
 
+static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)
+{
+    QLIST_REMOVE(ban, list);
+    g_free(ban);
+}
+
 void bdrv_detach_aio_context(BlockDriverState *bs)
 {
-    BdrvAioNotifier *baf;
+    BdrvAioNotifier *baf, *baf_tmp;
 
     if (!bs->drv) {
         return;
     }
 
-    QLIST_FOREACH(baf, &bs->aio_notifiers, list) {
-        baf->detach_aio_context(baf->opaque);
+    assert(!bs->walking_aio_notifiers);
+    bs->walking_aio_notifiers = true;
+    QLIST_FOREACH_SAFE(baf, &bs->aio_notifiers, list, baf_tmp) {
+        if (baf->deleted) {
+            bdrv_do_remove_aio_context_notifier(baf);
+        } else {
+            baf->detach_aio_context(baf->opaque);
+        }
     }
+    /* Never mind iterating again to check for ->deleted.  bdrv_close() will
+     * remove remaining aio notifiers if we aren't called again.
+     */
+    bs->walking_aio_notifiers = false;
 
     if (bs->throttle_state) {
         throttle_timers_detach_aio_context(&bs->throttle_timers);
@@ -3651,7 +3717,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
 void bdrv_attach_aio_context(BlockDriverState *bs,
                              AioContext *new_context)
 {
-    BdrvAioNotifier *ban;
+    BdrvAioNotifier *ban, *ban_tmp;
 
     if (!bs->drv) {
         return;
@@ -3672,9 +3738,16 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
         throttle_timers_attach_aio_context(&bs->throttle_timers, new_context);
     }
 
-    QLIST_FOREACH(ban, &bs->aio_notifiers, list) {
-        ban->attached_aio_context(new_context, ban->opaque);
+    assert(!bs->walking_aio_notifiers);
+    bs->walking_aio_notifiers = true;
+    QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_tmp) {
+        if (ban->deleted) {
+            bdrv_do_remove_aio_context_notifier(ban);
+        } else {
+            ban->attached_aio_context(new_context, ban->opaque);
+        }
     }
+    bs->walking_aio_notifiers = false;
 }
 
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
@@ -3716,11 +3789,14 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
     QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {
         if (ban->attached_aio_context == attached_aio_context &&
             ban->detach_aio_context   == detach_aio_context   &&
-            ban->opaque               == opaque)
+            ban->opaque               == opaque               &&
+            ban->deleted              == false)
         {
-            QLIST_REMOVE(ban, list);
-            g_free(ban);
-
+            if (bs->walking_aio_notifiers) {
+                ban->deleted = true;
+            } else {
+                bdrv_do_remove_aio_context_notifier(ban);
+            }
             return;
         }
     }

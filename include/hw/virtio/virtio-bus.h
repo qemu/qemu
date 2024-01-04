@@ -55,15 +55,15 @@ typedef struct VirtioBusClass {
     int (*set_host_notifier)(DeviceState *d, int n, bool assigned);
     void (*vmstate_change)(DeviceState *d, bool running);
     /*
+     * Expose the features the transport layer supports before
+     * the negotiation takes place.
+     */
+    void (*pre_plugged)(DeviceState *d, Error **errp);
+    /*
      * transport independent init function.
      * This is called by virtio-bus just after the device is plugged.
      */
     void (*device_plugged)(DeviceState *d, Error **errp);
-    /*
-     * Re-evaluate setup after feature bits have been validated
-     * by the device backend.
-     */
-    void (*post_plugged)(DeviceState *d, Error **errp);
     /*
      * transport independent exit function.
      * This is called by virtio-bus just before the device is unplugged.

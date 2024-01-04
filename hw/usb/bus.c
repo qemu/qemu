@@ -279,6 +279,13 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
 static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
 {
     USBDevice *dev = USB_DEVICE(qdev);
+    USBDescString *s, *next;
+
+    QLIST_FOREACH_SAFE(s, &dev->strings, next, next) {
+        QLIST_REMOVE(s, next);
+        g_free(s->str);
+        g_free(s);
+    }
 
     if (dev->attached) {
         usb_device_detach(dev);

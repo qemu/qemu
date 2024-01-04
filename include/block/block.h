@@ -370,6 +370,7 @@ int bdrv_inactivate_all(void);
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
+int bdrv_flush_all(void);
 void bdrv_close_all(void);
 void bdrv_drain(BlockDriverState *bs);
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs);

@@ -157,6 +157,8 @@ struct MigrationState
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;
+    /* Count of requests incoming from destination */
+    int64_t postcopy_requests;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
@@ -329,4 +331,9 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
 PostcopyState postcopy_state_get(void);
 /* Set the state and return the old state */
 PostcopyState postcopy_state_set(PostcopyState new_state);
+/*
+ * Disables a load of subsections that were added in 2.2/rh7.2 for backwards
+ * migration compatibility.
+ */
+extern bool migrate_pre_2_2;
 #endif

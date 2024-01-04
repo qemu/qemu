@@ -1,0 +1,64 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//	Copyright (c) 2000	Microsoft Corporation
+//
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Imports
+//
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+import "vss.idl";
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Constants and enums
+//
+
+
+#pragma midl_echo( "const GUID VSS_SWPRV_ProviderId = { 0xb5946137, 0x7b9f, 0x4925, { 0xaf, 0x80, 0x51, 0xab, 0xd6, 0xb, 0x20, 0xd5 } };" )
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Typedefs and structures
+//
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Forward declarations
+//
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  Interfaces
+//
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Snapshot Software Type Library
+//  @doc
+
+[
+    uuid(93BB06B6-B6DA-43c8-BC9B-E32DB49AA6F7),
+    version(1.0),
+    helpstring("Software Shadow Copy provider 1.0 Type Library")
+]
+library VSSW
+{
+    importlib("stdole2.tlb");
+
+    [
+        uuid(65EE1DBA-8FF4-4a58-AC1C-3470EE2F376A),
+        helpstring("VSSoftwareProvider Class")
+    ]
+    coclass VSSoftwareProvider
+    {
+        [default] interface IUnknown;
+    }
+}

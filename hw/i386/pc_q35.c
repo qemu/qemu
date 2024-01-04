@@ -133,8 +133,8 @@ static void pc_q35_init(MachineState *machine)
 
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                            mc->name, pcmc->smbios_legacy_mode,
+        smbios_set_defaults("Red Hat", "KVM",
+                            mc->desc, pcmc->smbios_legacy_mode,
                             pcmc->smbios_uuid_encoded,
                             SMBIOS_ENTRY_POINT_21);
     }
@@ -169,7 +169,6 @@ static void pc_q35_init(MachineState *machine)
     qdev_init_nofail(DEVICE(q35_host));
     phb = PCI_HOST_BRIDGE(q35_host);
     host_bus = phb->bus;
-    pcms->bus = phb->bus;
     /* create ISA bus */
     lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
                                           ICH9_LPC_FUNC), true,
@@ -272,6 +271,7 @@ static void pc_q35_init(MachineState *machine)
     DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
 
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static void pc_q35_machine_options(MachineClass *m)
 {
     m->family = "pc_q35";
@@ -281,6 +281,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
+    m->has_dynamic_sysbus = true;
 }
 
 static void pc_q35_2_6_machine_options(MachineClass *m)
@@ -316,3 +317,31 @@ static void pc_q35_2_4_machine_options(MachineClass *m)
 
 DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,
                    pc_q35_2_4_machine_options);
+#endif  /* Disabled for Red Hat Enterprise Linux */
+
+/* Red Hat Enterprise Linux machine types */
+
+static void pc_q35_compat_rhel730(MachineState *machine)
+{
+}
+
+static void pc_q35_init_rhel730(MachineState *machine)
+{
+    pc_q35_compat_rhel730(machine);
+    pc_q35_init(machine);
+}
+
+static void pc_q35_machine_rhel730_options(MachineClass *m)
+{
+    m->family = "pc_q35_Z";
+    m->desc = "RHEL-7.3.0 PC (Q35 + ICH9, 2009)";
+    m->alias = "q35";
+    m->default_machine_opts = "firmware=bios-256k.bin";
+    m->default_display = "std";
+    m->no_floppy = 1;
+    m->has_dynamic_sysbus = true;
+    SET_MACHINE_COMPAT(m, PC_RHEL_COMPAT);
+}
+
+DEFINE_PC_MACHINE(q35_rhel730, "pc-q35-rhel7.3.0", pc_q35_init_rhel730,
+                  pc_q35_machine_rhel730_options);

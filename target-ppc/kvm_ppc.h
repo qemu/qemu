@@ -56,6 +56,7 @@ void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
 bool kvmppc_has_cap_fixup_hcalls(void);
 int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
+PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
 
 #else
 
@@ -163,7 +164,7 @@ static inline bool kvmppc_spapr_use_multitce(void)
 
 static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
                                             uint32_t window_size, int *fd,
-                                            bool vfio_accel)
+                                            bool need_vfio)
 {
     return NULL;
 }
@@ -252,6 +253,12 @@ static inline int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 {
     abort();
 }
+
+static inline PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
+{
+    return NULL;
+}
+
 #endif
 
 #ifndef CONFIG_KVM

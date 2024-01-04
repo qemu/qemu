@@ -20,6 +20,7 @@
 #define CPU_I386_H
 
 #include "qemu-common.h"
+#include "cpu-qom.h"
 #include "standard-headers/asm-x86/hyperv.h"
 
 #ifdef TARGET_X86_64
@@ -595,16 +596,21 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_RTM      (1U << 11)
 #define CPUID_7_0_EBX_MPX      (1U << 14)
 #define CPUID_7_0_EBX_AVX512F  (1U << 16) /* AVX-512 Foundation */
+#define CPUID_7_0_EBX_AVX512DQ (1U << 17) /* AVX-512 Doubleword & Quadword Instrs */
 #define CPUID_7_0_EBX_RDSEED   (1U << 18)
 #define CPUID_7_0_EBX_ADX      (1U << 19)
 #define CPUID_7_0_EBX_SMAP     (1U << 20)
+#define CPUID_7_0_EBX_AVX512IFMA (1U << 21) /* AVX-512 Integer Fused Multiply Add */
 #define CPUID_7_0_EBX_PCOMMIT  (1U << 22) /* Persistent Commit */
 #define CPUID_7_0_EBX_CLFLUSHOPT (1U << 23) /* Flush a Cache Line Optimized */
 #define CPUID_7_0_EBX_CLWB     (1U << 24) /* Cache Line Write Back */
 #define CPUID_7_0_EBX_AVX512PF (1U << 26) /* AVX-512 Prefetch */
 #define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
 #define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
+#define CPUID_7_0_EBX_AVX512BW (1U << 30) /* AVX-512 Byte and Word Instructions */
+#define CPUID_7_0_EBX_AVX512VL (1U << 31) /* AVX-512 Vector Length Extensions */
 
+#define CPUID_7_0_ECX_VBMI     (1U << 1)  /* AVX-512 Vector Byte Manipulation Instrs */
 #define CPUID_7_0_ECX_PKU      (1U << 3)
 #define CPUID_7_0_ECX_OSPKE    (1U << 4)
 
@@ -829,6 +835,11 @@ typedef struct {
 
 #define NB_OPMASK_REGS 8
 
+/* CPU can't have 0xFFFFFFFF APIC ID, use that value to distinguish
+ * that APIC ID hasn't been set yet
+ */
+#define UNASSIGNED_APIC_ID 0xFFFFFFFF
+
 typedef enum TPRAccess {
     TPR_ACCESS_READ,
     TPR_ACCESS_WRITE,
@@ -1028,11 +1039,122 @@ typedef struct CPUX86State {
     TPRAccess tpr_access_type;
 } CPUX86State;
 
-#include "cpu-qom.h"
+/**
+ * X86CPU:
+ * @env: #CPUX86State
+ * @migratable: If set, only migratable flags will be accepted when "enforce"
+ * mode is used, and only migratable flags will be included in the "host"
+ * CPU model.
+ *
+ * An x86 CPU.
+ */
+struct X86CPU {
+    /*< private >*/
+    CPUState parent_obj;
+    /*< public >*/
+
+    CPUX86State env;
+
+    bool hyperv_vapic;
+    bool hyperv_relaxed_timing;
+    int hyperv_spinlock_attempts;
+    char *hyperv_vendor_id;
+    bool hyperv_time;
+    bool hyperv_crash;
+    bool hyperv_reset;
+    bool hyperv_vpindex;
+    bool hyperv_runtime;
+    bool hyperv_synic;
+    bool hyperv_stimer;
+    bool check_cpuid;
+    bool enforce_cpuid;
+    bool expose_kvm;
+    bool migratable;
+    bool host_features;
+    uint32_t apic_id;
+
+    /* if true the CPUID code directly forward host cache leaves to the guest */
+    bool cache_info_passthrough;
+
+    /* Features that were filtered out because of missing host capabilities */
+    uint32_t filtered_features[FEATURE_WORDS];
+
+    /* Number of physical address bits supported */
+    uint32_t phys_bits;
+
+    /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
+    bool fill_mtrr_mask;
+    /* if true override the phys_bits value with a value read from the host */
+    bool host_phys_bits;
+
+    /* Enable PMU CPUID bits. This can't be enabled by default yet because
+     * it doesn't have ABI stability guarantees, as it passes all PMU CPUID
+     * bits returned by GET_SUPPORTED_CPUID (that depend on host CPU and kernel
+     * capabilities) directly to the guest.
+     */
+    bool enable_pmu;
+
+    /* Compatibility bits for old machine types.
+     * If true present virtual l3 cache for VM, the vcpus in the same virtual
+     * socket share an virtual l3 cache.
+     */
+    bool enable_l3_cache;
+
+    /* in order to simplify APIC support, we leave this pointer to the
+       user */
+    struct DeviceState *apic_state;
+    struct MemoryRegion *cpu_as_root, *cpu_as_mem, *smram;
+    Notifier machine_done;
+
+    int32_t socket_id;
+    int32_t core_id;
+    int32_t thread_id;
+};
+
+static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
+{
+    return container_of(env, X86CPU, env);
+}
+
+#define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
+
+#define ENV_OFFSET offsetof(X86CPU, env)
+
+#ifndef CONFIG_USER_ONLY
+extern struct VMStateDescription vmstate_x86_cpu;
+#endif
+
+/**
+ * x86_cpu_do_interrupt:
+ * @cpu: vCPU the interrupt is to be handled by.
+ */
+void x86_cpu_do_interrupt(CPUState *cpu);
+bool x86_cpu_exec_interrupt(CPUState *cpu, int int_req);
+
+int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                             int cpuid, void *opaque);
+int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                             int cpuid, void *opaque);
+int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                                 void *opaque);
+int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                                 void *opaque);
+
+void x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
+                                Error **errp);
+
+void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags);
+
+hwaddr x86_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
+int x86_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int x86_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
+void x86_cpu_exec_enter(CPUState *cpu);
+void x86_cpu_exec_exit(CPUState *cpu);
 
 X86CPU *cpu_x86_init(const char *cpu_model);
-X86CPU *cpu_x86_create(const char *cpu_model, Error **errp);
-int cpu_x86_exec(CPUState *cpu);
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void x86_cpudef_setup(void);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
@@ -1202,14 +1324,15 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 /* XXX: This value should match the one returned by CPUID
  * and in exec.c */
 # if defined(TARGET_X86_64)
-# define PHYS_ADDR_MASK 0xffffffffffLL
+# define TCG_PHYS_ADDR_BITS 40
 # else
-# define PHYS_ADDR_MASK 0xfffffffffLL
+# define TCG_PHYS_ADDR_BITS 36
 # endif
+
+#define PHYS_ADDR_MASK MAKE_64BIT_MASK(0, TCG_PHYS_ADDR_BITS)
 
 #define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
 
-#define cpu_exec cpu_x86_exec
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 #define cpudef_setup x86_cpudef_setup

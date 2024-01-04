@@ -1194,7 +1194,7 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
     .tcq = true,
     .max_channel = 7, /* logical unit addressing format */
     .max_target = 63,
-    .max_lun = 31,
+    .max_lun = 7,
 
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,

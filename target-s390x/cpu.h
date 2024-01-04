@@ -416,7 +416,6 @@ S390CPU *cpu_s390x_init(const char *cpu_model);
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
 S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp);
 void s390x_translate_init(void);
-int cpu_s390x_exec(CPUState *cpu);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -590,7 +589,6 @@ bool css_present(uint8_t cssid);
 #endif
 
 #define cpu_init(model) CPU(cpu_s390x_init(model))
-#define cpu_exec cpu_s390x_exec
 #define cpu_signal_handler cpu_s390x_signal_handler
 
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);

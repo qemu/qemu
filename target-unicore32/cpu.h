@@ -119,7 +119,6 @@ void cpu_asr_write(CPUUniCore32State *env1, target_ulong val, target_ulong mask)
 #define UC32_HWCAP_CMOV                 4 /* 1 << 2 */
 #define UC32_HWCAP_UCF64                8 /* 1 << 3 */
 
-#define cpu_exec                        uc32_cpu_exec
 #define cpu_signal_handler              uc32_cpu_signal_handler
 
 int uc32_cpu_signal_handler(int host_signum, void *pinfo, void *puc);
@@ -136,8 +135,6 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 #include "exec/cpu-all.h"
 #include "cpu-qom.h"
 #include "exec/exec-all.h"
-
-int uc32_cpu_exec(CPUState *s);
 
 UniCore32CPU *uc32_cpu_init(const char *cpu_model);
 

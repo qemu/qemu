@@ -1,0 +1,167 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Copyright (c) 2000-2001 Microsoft Corporation
+//
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//	Imports
+//
+
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+
+
+// mode page 83 data types from ntddstor.h
+typedef enum _VDS_STORAGE_IDENTIFIER_CODE_SET
+	{
+    VDSStorageIdCodeSetReserved = 0,
+    VDSStorageIdCodeSetBinary = 1,
+    VDSStorageIdCodeSetAscii = 2
+	} VDS_STORAGE_IDENTIFIER_CODE_SET;
+
+
+// mode page 83 identifier types from ntddstor.h
+typedef enum _VDS_STORAGE_IDENTIFIER_TYPE
+	{
+    VDSStorageIdTypeVendorSpecific = 0,
+    VDSStorageIdTypeVendorId = 1,
+    VDSStorageIdTypeEUI64 = 2,
+    VDSStorageIdTypeFCPHName = 3
+	} VDS_STORAGE_IDENTIFIER_TYPE;
+
+
+// bus types from ntddstor.h
+typedef enum _VDS_STORAGE_BUS_TYPE
+	{
+    VDSBusTypeUnknown = 0x00,
+    VDSBusTypeScsi,
+    VDSBusTypeAtapi,
+    VDSBusTypeAta,
+    VDSBusType1394,
+    VDSBusTypeSsa,
+    VDSBusTypeFibre,
+    VDSBusTypeUsb,
+    VDSBusTypeRAID,
+	VDSBusTypeIScsi = 9,	// Not defined in NTDDSTOR.H
+    VDSBusTypeMaxReserved = 0x7F
+	} VDS_STORAGE_BUS_TYPE;
+
+
+// midlized STORAGE_IDENTIFIER from ntddstor.h
+typedef struct _VDS_STORAGE_IDENTIFIER
+	{
+	// whether ascii or binary data
+	VDS_STORAGE_IDENTIFIER_CODE_SET m_CodeSet;
+
+	// type of identifier
+	VDS_STORAGE_IDENTIFIER_TYPE m_Type;
+
+	// length of identifier in bytes
+	ULONG m_cbIdentifier;
+
+	// actual identintifier
+	[size_is(m_cbIdentifier)] BYTE *m_rgbIdentifier;
+	} VDS_STORAGE_IDENTIFIER;
+
+// mode page 83 (STORAGE_DEVICE_ID_DESCRIPTOR from ntddstor.h)
+typedef struct _VDS_STORAGE_DEVICE_ID_DESCRIPTOR
+	{
+	// version of structure
+	ULONG m_version;
+
+	// number of identifiers
+	ULONG m_cIdentifiers;
+
+	[size_is(m_cIdentifiers)] VDS_STORAGE_IDENTIFIER *m_rgIdentifiers;
+	} VDS_STORAGE_DEVICE_ID_DESCRIPTOR;
+
+// interconnect address types
+typedef enum _VDS_INTERCONNECT_ADDRESS_TYPE
+	{
+	VDS_IA_UNKNOWN = 0,
+	VDS_IA_FCFS,
+	VDS_IA_FCPH,
+	VDS_IA_FCPH3,
+	VDS_IA_MAC,
+	VDS_IA_SCSI
+	} VDS_INTERCONNECT_ADDRESS_TYPE;
+
+typedef struct _VDS_INTERCONNECT
+	{
+    // address type
+    VDS_INTERCONNECT_ADDRESS_TYPE m_addressType;
+
+    // port that address refers to
+    ULONG m_cbPort;
+
+	// actual address of port
+	[size_is(m_cbPort)] BYTE *m_pbPort;
+
+	// size of address
+    ULONG m_cbAddress;
+
+	// address relative to the port
+	[size_is(m_cbAddress)] BYTE *m_pbAddress;
+	} VDS_INTERCONNECT;
+
+
+
+// information about a lun.  Includes STORAGE_DEVICE_DESCRIPTOR
+// (from ntddstor.h) STORAGE_DEVICE_ID_DESCRIPTOR, interconnect address type,
+// and interconnect address.
+typedef struct _VDS_LUN_INFORMATION
+	{
+	// version of structure
+	ULONG m_version;
+
+    // The SCSI-2 device type
+    BYTE m_DeviceType;
+
+    // The SCSI-2 device type modifier (if any) - this may be zero
+    BYTE m_DeviceTypeModifier;
+
+    // Flag indicating whether the device can support mulitple outstanding
+    // commands.  The actual synchronization in this case is the responsibility
+    // of the port driver.
+    BOOL m_bCommandQueueing;
+
+	// Contains the bus type (as defined above) of the device.  It should be
+    // used to interpret the raw device properties at the end of this structure
+    // (if any)
+    VDS_STORAGE_BUS_TYPE m_BusType;
+
+
+    // vendor id string.  For devices with no such ID this will be zero
+    [string] char *m_szVendorId;
+
+    // device's product id string.  For devices with no such ID this will be zero
+    [string] char *m_szProductId;
+
+    // zero-terminated ascii string containing the device's
+    // product revision string.  For devices with no such string this will be
+    // zero
+    [string] char *m_szProductRevision;
+
+    // zero-terminated ascii string containing the device's
+    // serial number.  For devices with no serial number this will be zero
+    [string] char *m_szSerialNumber;
+
+	// disk signature
+	GUID m_diskSignature;
+
+    // device id descriptor
+    VDS_STORAGE_DEVICE_ID_DESCRIPTOR m_deviceIdDescriptor;
+
+	// number of interconnects
+	ULONG m_cInterconnects;
+
+	// array of interconnects
+	[size_is(m_cInterconnects)] VDS_INTERCONNECT *m_rgInterconnects;
+	} VDS_LUN_INFORMATION;
+
+const ULONG VER_VDS_LUN_INFORMATION = 1;
+

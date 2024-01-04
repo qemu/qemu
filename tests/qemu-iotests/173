@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Test QAPI commands looking up protocol based images with relative
+# filename backing strings
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm  -f "${QEMU_TEST_DIR}/image.base" "${QEMU_TEST_DIR}/image.snp1"
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto nfs
+_supported_os Linux
+
+size=100M
+
+BASE_IMG="${TEST_DIR}/image.base"
+TOP_IMG="${TEST_DIR}/image.snp1"
+
+TEST_IMG="${BASE_IMG}" _make_test_img $size
+
+TEST_IMG="${TOP_IMG}" _make_test_img $size
+
+echo
+echo === Running QEMU, using block-stream to find backing image ===
+echo
+
+qemu_comm_method="qmp"
+_launch_qemu -drive file="${BASE_IMG}",if=virtio,id=disk2
+h=$QEMU_HANDLE
+
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+_send_qemu_cmd $h "{ 'arguments': {
+                        'device': 'disk2',
+                        'format': '${IMGFMT}',
+                        'mode': 'existing',
+                        'snapshot-file': '${TOP_IMG}',
+                        'snapshot-node-name': 'snp1'
+                     },
+                     'execute': 'blockdev-snapshot-sync'
+                   }" "return"
+
+
+_send_qemu_cmd $h "{ 'arguments': {
+                        'backing-file': 'image.base',
+                        'device': 'disk2',
+                        'image-node-name': 'snp1'
+                     },
+                     'execute': 'change-backing-file'
+                   }" "return"
+
+_send_qemu_cmd $h "{ 'arguments': {
+                        'base': '${BASE_IMG}',
+                        'device': 'disk2'
+                      },
+                      'execute': 'block-stream'
+                   }" "BLOCK_JOB_COMPLETED"
+
+_cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

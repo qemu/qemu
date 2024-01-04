@@ -589,6 +589,8 @@ static void i8257_class_init(ObjectClass *klass, void *data)
     dc->reset = i8257_reset;
     dc->vmsd = &vmstate_i8257;
     dc->props = i8257_properties;
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->cannot_instantiate_with_device_add_yet = true;
 
     idc->get_transfer_mode = i8257_dma_get_transfer_mode;
     idc->has_autoinitialization = i8257_dma_has_autoinitialization;

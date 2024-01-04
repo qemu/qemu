@@ -348,7 +348,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
 
     k->realize = pci_pcnet_realize;
     k->exit = pci_pcnet_uninit;
-    k->romfile = "efi-pcnet.rom",
+    k->romfile = "pxe-pcnet.rom",
     k->vendor_id = PCI_VENDOR_ID_AMD;
     k->device_id = PCI_DEVICE_ID_AMD_LANCE;
     k->revision = 0x10;

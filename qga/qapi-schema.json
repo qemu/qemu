@@ -1026,3 +1026,224 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+## Cloudcommune
+# @GuestDiskUsed:
+#
+# @size: the size (in Bytes) of the guest disk used,
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'struct': 'GuestDiskUsed',
+  'data': {'size': 'uint64'} }
+
+## Cloudcommune
+# @guest-get-disk-used:
+#
+# Get guest disk used size
+# @device: device of the disk, like /dev/sda, /dev/sdb
+#
+# Returns: GuestDiskUsed on success
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'command': 'guest-get-disk-used',
+  'data':   { 'device': 'str'},
+  'returns': 'GuestDiskUsed'}
+
+## Cloudcommune
+# @GuestGpuCounts:
+#
+# @size: the size of the guest gpu counts,
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'struct': 'GuestGpuCounts',
+  'data': {'size': 'uint64'} }
+
+## Cloudcommune
+# @guest-get-gpu-counts:
+#
+# Get guest gpu counts
+# @device: id of the gpu, like 0, 1
+#
+# Returns: GuestGpuCounts on success
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'command': 'guest-get-gpu-counts',
+  'returns': 'GuestGpuCounts'}
+
+## Cloudcommune
+# @GuestGpuMemoryUsed:
+#
+# @size: the size (in Bytes) of the guest gpu memory used,
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'struct': 'GuestGpuMemoryUsed',
+  'data': {'size': 'uint64'} }
+
+
+## Cloudcommune
+# @guest-get-gpu-memory-used:
+#
+# Get guest disk used size
+# @device: id of the gpu, like 0, 1
+#
+# Returns: GuestGpuMemoryUsed on success
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'command': 'guest-get-gpu-memory-used',
+  'data':   { 'device': 'str'},
+  'returns': 'GuestGpuMemoryUsed'}
+
+
+## Cloudcommune
+# @GuestGpuMemoryTotal:
+#
+# @size: the size (in Bytes) of the guest gpu memory total,
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'struct': 'GuestGpuMemoryTotal',
+  'data': {'size': 'uint64'} }
+
+
+## Cloudcommune
+# @guest-get-gpu-memory-total:
+#
+# Get guest disk used size
+# @device: id of the gpu, like 0, 1
+#
+# Returns: GuestGpuMemoryUsed on success
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'command': 'guest-get-gpu-memory-total',
+  'data':   { 'device': 'str'},
+  'returns': 'GuestGpuMemoryTotal'}
+
+## Cloudcommune
+# @GuestGpuTemperature:
+#
+# @size: the size (in Bytes) of the guest gpu Temperature,
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'struct': 'GuestGpuTemperature',
+  'data': {'size': 'uint64'} }
+
+
+## Cloudcommune
+# @guest-get-gpu-temperature:
+#
+# Get guest gup temperature
+# @device: id of the gpu, like 0, 1
+#
+# Returns: GuestGpuTemperature on success
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'command': 'guest-get-gpu-temperature',
+  'data':   { 'device': 'str'},
+  'returns': 'GuestGpuTemperature'}
+
+
+## Cloudcommune
+# @GuestGpuUtilization:
+#
+# @size: the size (in Bytes) of the guest gpu utilization,
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'struct': 'GuestGpuUtilization',
+  'data': {'size': 'uint64'} }
+
+
+## Cloudcommune
+# @guest-get-gpu-utilization:
+#
+# Get guest gup utilization
+# @device: id of the gpu, like 0, 1
+#
+# Returns: GuestGpuUtilization on success
+#
+# Since: Cloudcommune Guest Agent 1.1
+##
+{ 'command': 'guest-get-gpu-utilization',
+  'data':   { 'device': 'str'},
+  'returns': 'GuestGpuUtilization'}
+
+
+## Cloudcommune
+# @CloudcommuneGuestAgentVersion:
+#
+# @version: version of cloudcommune guest agent
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'struct': 'CloudcommuneGuestAgentVersion',
+  'data': {'version': 'str'} }
+
+## Cloudcommune
+# @get-cloudcommune-guest-agent-version:
+#
+# Get cloudcommune guest agent version
+# 
+# Returns: CloudcommuneGuestAgentVersion on success
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'command': 'get-cloudcommune-guest-agent-version',
+  'returns': 'CloudcommuneGuestAgentVersion'}
+
+## Cloudcommune
+# @ExecuStatus:
+#
+# Information about guest agent.
+#
+# @version: guest agent version
+#
+# @status: Information about guest agent commands execute result.
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'struct': 'ExecuStatus',     
+  'data': { 'version': 'str',
+            'status': 'str' } }
+
+## Cloudcommune
+# @guest-add-sshkey:
+#
+# add sshkey value to guest .ssh/authorized_keys file.
+#
+# @username:the user account whose add sshkey into .ssh/authorized_keys file 
+#
+# @sshkey:the add sshkey entry string, base64 encoded 
+#
+# Returns: @ExecuStatus
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'command': 'guest-add-sshkey',
+  'data': { 'username': 'str', 'sshkey': 'str'}, 
+  'returns': 'ExecuStatus'}
+
+## Cloudcommune
+# @guest-delete-sshkey:
+#
+# remove sshkey value to guest .ssh/authorized_keys file.
+#
+# @username:the user account whose remove sshkey from .ssh/authorized_keys file 
+#
+# @sshkey:the delete sshkey entry string, base64 encoded
+#
+# Returns: @ExecuStatus
+#
+# Since: Cloudcommune Guest Agent 1.0
+##
+{ 'command': 'guest-delete-sshkey',
+  'data': { 'username': 'str', 'sshkey': 'str'},
+  'returns': 'ExecuStatus'}

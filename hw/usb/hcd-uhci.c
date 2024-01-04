@@ -152,6 +152,8 @@ typedef struct UHCI_QH {
     uint32_t el_link;
 } UHCI_QH;
 
+bool ich9_uhci123_irqpin_override;
+
 static void uhci_async_cancel(UHCIAsync *async);
 static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td);
 static void uhci_resume(void *opaque);
@@ -1214,12 +1216,23 @@ static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     UHCIState *s = UHCI(dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
+    int irq_pin;
 
     pci_conf[PCI_CLASS_PROG] = 0x00;
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    pci_config_set_interrupt_pin(pci_conf, u->info.irq_pin + 1);
+    if (ich9_uhci123_irqpin_override &&
+        u->info.vendor_id == PCI_VENDOR_ID_INTEL &&
+        (u->info.device_id == PCI_DEVICE_ID_INTEL_82801I_UHCI1 ||
+         u->info.device_id == PCI_DEVICE_ID_INTEL_82801I_UHCI2 ||
+         u->info.device_id == PCI_DEVICE_ID_INTEL_82801I_UHCI3)) {
+        fprintf(stderr, "RHEL-6 compat: %s: irq_pin = 3\n", u->info.name);
+        irq_pin = 3;
+    } else {
+        irq_pin = u->info.irq_pin;
+    }
+    pci_config_set_interrupt_pin(pci_conf, irq_pin + 1);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];

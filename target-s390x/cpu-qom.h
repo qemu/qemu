@@ -21,7 +21,6 @@
 #define QEMU_S390_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #define TYPE_S390_CPU "s390-cpu"
 

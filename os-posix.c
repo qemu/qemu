@@ -78,7 +78,7 @@ void os_setup_signal_handling(void)
 /* Find a likely location for support files using the location of the binary.
    For installed binaries this will be "$bindir/../share/qemu".  When
    running from the build tree this will be "$bindir/../pc-bios".  */
-#define SHARE_SUFFIX "/share/qemu"
+#define SHARE_SUFFIX "/share/qemu-kvm"
 #define BUILD_SUFFIX "/pc-bios"
 char *os_find_datadir(void)
 {

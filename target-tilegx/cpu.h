@@ -158,14 +158,12 @@ static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
 #include "exec/cpu-all.h"
 
 void tilegx_tcg_init(void);
-int cpu_tilegx_exec(CPUState *s);
 int cpu_tilegx_signal_handler(int host_signum, void *pinfo, void *puc);
 
 TileGXCPU *cpu_tilegx_init(const char *cpu_model);
 
 #define cpu_init(cpu_model) CPU(cpu_tilegx_init(cpu_model))
 
-#define cpu_exec cpu_tilegx_exec
 #define cpu_signal_handler cpu_tilegx_signal_handler
 
 static inline void cpu_get_tb_cpu_state(CPUTLGState *env, target_ulong *pc,

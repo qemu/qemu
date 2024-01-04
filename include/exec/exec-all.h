@@ -78,6 +78,18 @@ void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
+#if defined(CONFIG_USER_ONLY)
+void cpu_list_lock(void);
+void cpu_list_unlock(void);
+#else
+static inline void cpu_list_unlock(void)
+{
+}
+static inline void cpu_list_lock(void)
+{
+}
+#endif
+
 void cpu_exec_init(CPUState *cpu, Error **errp);
 void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
 void QEMU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);

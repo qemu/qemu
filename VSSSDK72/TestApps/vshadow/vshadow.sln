@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shadow", "src\src.vcproj", "{A05DCA4B-486C-4260-A6F6-519880C5DBFA}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug-Server = Debug-Server
+		Debug-XP = Debug-XP
+		Release-Server = Release-Server
+		Release-XP = Release-XP
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Debug-Server.ActiveCfg = Debug-Server|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Debug-Server.Build.0 = Debug-Server|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Debug-XP.ActiveCfg = Debug-XP|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Debug-XP.Build.0 = Debug-XP|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Release-Server.ActiveCfg = Release-Server|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Release-Server.Build.0 = Release-Server|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Release-XP.ActiveCfg = Release-XP|Win32
+		{A05DCA4B-486C-4260-A6F6-519880C5DBFA}.Release-XP.Build.0 = Release-XP|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

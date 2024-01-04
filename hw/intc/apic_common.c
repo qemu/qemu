@@ -292,19 +292,14 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_apic_common;
+
 static void apic_common_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
     static DeviceState *vapic;
-    static int apic_no;
-
-    if (apic_no >= MAX_APICS) {
-        error_setg(errp, "%s initialization failed.",
-                   object_get_typename(OBJECT(dev)));
-        return;
-    }
-    s->idx = apic_no++;
+    int instance_id = s->id;
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
@@ -319,6 +314,24 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
         info->enable_tpr_reporting(s, true);
     }
 
+    if (s->legacy_instance_id) {
+        instance_id = -1;
+    }
+    vmstate_register_with_alias_id(NULL, instance_id, &vmstate_apic_common,
+                                   s, -1, 0);
+}
+
+static void apic_common_unrealize(DeviceState *dev, Error **errp)
+{
+    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    vmstate_unregister(NULL, &vmstate_apic_common, s);
+    info->unrealize(dev, errp);
+
+    if (apic_report_tpr_access && info->enable_tpr_reporting) {
+        info->enable_tpr_reporting(s, false);
+    }
 }
 
 static int apic_pre_load(void *opaque)
@@ -416,6 +429,8 @@ static Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("version", APICCommonState, version, 0x14),
     DEFINE_PROP_BIT("vapic", APICCommonState, vapic_control, VAPIC_ENABLE_BIT,
                     true),
+    DEFINE_PROP_BOOL("legacy-instance-id", APICCommonState, legacy_instance_id,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -423,10 +438,10 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->vmsd = &vmstate_apic_common;
     dc->reset = apic_reset_common;
     dc->props = apic_properties_common;
     dc->realize = apic_common_realize;
+    dc->unrealize = apic_common_unrealize;
     /*
      * Reason: APIC and CPU need to be wired up by
      * x86_cpu_apic_create()

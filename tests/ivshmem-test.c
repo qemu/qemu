@@ -235,6 +235,7 @@ static void test_ivshmem_pair(void)
     g_free(data);
 }
 
+#if 0 /* Disabled for Red Hat Enterprise Linux: */
 typedef struct ServerThread {
     GThread *thread;
     IvshmemServer *server;
@@ -392,9 +393,11 @@ static void test_ivshmem_server_irq(void)
 {
     test_ivshmem_server(false);
 }
+#endif
 
 #define PCI_SLOT_HP             0x06
 
+#if 0 /* Test uses legacy ivshmem, which is disabled for Red Hat Enterprise Linux: */
 static void test_ivshmem_hotplug(void)
 {
     gchar *opts;
@@ -409,6 +412,7 @@ static void test_ivshmem_hotplug(void)
     qtest_end();
     g_free(opts);
 }
+#endif
 
 static void test_ivshmem_memdev(void)
 {
@@ -502,12 +506,16 @@ int main(int argc, char **argv)
     tmpserver = g_strconcat(tmpdir, "/server", NULL);
 
     qtest_add_func("/ivshmem/single", test_ivshmem_single);
+#if 0 /* Test uses legacy ivshmem, which is disabled for Red Hat Enterprise Linux: */
     qtest_add_func("/ivshmem/hotplug", test_ivshmem_hotplug);
+#endif
     qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
     if (g_test_slow()) {
         qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
+#if 0 /* Disabled for Red Hat Enterprise Linux: */
         qtest_add_func("/ivshmem/server-msi", test_ivshmem_server_msi);
         qtest_add_func("/ivshmem/server-irq", test_ivshmem_server_irq);
+#endif
     }
 
     ret = g_test_run();

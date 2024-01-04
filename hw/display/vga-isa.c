@@ -76,7 +76,7 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property vga_isa_properties[] = {
-    DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
+    DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 16),
     DEFINE_PROP_END_OF_LIST(),
 };
 

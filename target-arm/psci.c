@@ -17,7 +17,6 @@
  */
 #include "qemu/osdep.h"
 #include <cpu.h>
-#include <cpu-qom.h>
 #include <exec/helper-proto.h>
 #include <kvm-consts.h>
 #include <sysemu/sysemu.h>

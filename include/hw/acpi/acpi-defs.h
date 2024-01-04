@@ -556,6 +556,18 @@ enum {
 /*
  * Sub-structures for DMAR
  */
+
+/* Device scope structure for DRHD. */
+struct AcpiDmarDeviceScope {
+    uint8_t entry_type;
+    uint8_t length;
+    uint16_t reserved;
+    uint8_t enumeration_id;
+    uint8_t bus;
+    uint16_t path[0];           /* list of dev:func pairs */
+} QEMU_PACKED;
+typedef struct AcpiDmarDeviceScope AcpiDmarDeviceScope;
+
 /* Type 0: Hardware Unit Definition */
 struct AcpiDmarHardwareUnit {
     uint16_t type;
@@ -564,6 +576,7 @@ struct AcpiDmarHardwareUnit {
     uint8_t reserved;
     uint16_t pci_segment;   /* The PCI Segment associated with this unit */
     uint64_t address;   /* Base address of remapping hardware register-set */
+    AcpiDmarDeviceScope scope[0];
 } QEMU_PACKED;
 typedef struct AcpiDmarHardwareUnit AcpiDmarHardwareUnit;
 

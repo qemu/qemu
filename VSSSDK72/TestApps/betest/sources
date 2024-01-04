@@ -1,0 +1,59 @@
+!IF 0
+
+Copyright (C) Microsoft Corporation, 1989 - 1999
+
+NOTE:   Commented description of this file is in \nt\bak\bin\sources.tpl
+
+!ENDIF
+
+TARGETNAME=BETEST
+TARGETTYPE=PROGRAM
+TARGETPATH=..\..\bin\$(_OBJ_DIR)
+
+MSC_WARNING_LEVEL=/W4 /WX
+
+
+UMTYPE=console
+UMENTRY=wmain
+
+NOT_LEAN_AND_MEAN=1
+USE_IOSTREAM = 1
+USE_NATIVE_EH=ASYNC
+USE_ATL=1
+ATL_VER=30
+USE_MSVCRT=1
+
+!if $(FREEBUILD)
+C_DEFINES=-D_MT -DWIN_32 -DWIN32 -D_WINDOWS -DNT -D_WIN32_DCOM -DUNICODE -D_UNICODE -D_ATL_NO_DEBUG_CRT
+!else
+C_DEFINES=-D_MT -DWIN_32 -DWIN32 -D_WINDOWS -DNT -D_WIN32_DCOM -DUNICODE -D_UNICODE -D_ATL_NO_DEBUG_CRT -D_DEBUG
+!endif
+
+SUBSYSTEM_VERSION = 5.00
+
+SOURCES= main.cpp \
+         cwriter.cpp \
+         debug.cpp \
+         compont.cpp \
+         saverest.cpp
+
+
+INCLUDES = \
+  ..\..\inc;..\..\..\inc\derived
+
+TARGETLIBS= \
+    $(SDK_LIB_PATH)\kernel32.lib \
+    $(SDK_LIB_PATH)\advapi32.lib \
+    $(SDK_LIB_PATH)\user32.lib \
+    $(SDK_LIB_PATH)\netlib.lib \
+    $(SDK_LIB_PATH)\ole32.lib \
+    $(SDK_LIB_PATH)\oleaut32.lib \
+    $(SDK_LIB_PATH)\ntmsapi.lib \
+    $(SDK_LIB_PATH)\uuid.lib \
+    $(SDK_LIB_PATH)\user32.lib \
+    $(SDK_LIB_PATH)\ntdll.lib \
+    $(SDK_LIB_PATH)\rpcrt4.lib \
+    $(SDK_LIB_PATH)\vssapi.lib \
+    $(SDK_LIB_PATH)\vss_uuid.lib	\
+    ..\..\lib\$(O)\tracing.lib
+

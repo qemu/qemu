@@ -428,9 +428,9 @@ static void mig_throttle_guest_down(void)
 {
     MigrationState *s = migrate_get_current();
     uint64_t pct_initial =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
+            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL];
     uint64_t pct_icrement =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
+            s->parameters[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT];
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {
@@ -774,7 +774,9 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
              * page would be stale
              */
             xbzrle_cache_zero_page(current_addr);
-        } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
+        } else if (!ram_bulk_stage &&
+                   !migration_in_postcopy(migrate_get_current()) &&
+                   migrate_use_xbzrle()) {
             pages = save_xbzrle_page(f, &p, current_addr, block,
                                      offset, last_stage, bytes_transferred);
             if (!last_stage) {
@@ -1169,6 +1171,7 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
 {
     RAMBlock *ramblock;
 
+    ms->postcopy_requests++;
     rcu_read_lock();
     if (!rbname) {
         /* Reuse last RAMBlock */
@@ -1557,7 +1560,9 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
             } else {
                 discard_length = zero - one;
             }
-            postcopy_discard_send_range(ms, pds, one, discard_length);
+            if (discard_length) {
+                postcopy_discard_send_range(ms, pds, one, discard_length);
+            }
             current = one + discard_length;
         } else {
             current = one;

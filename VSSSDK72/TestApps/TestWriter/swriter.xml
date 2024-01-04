@@ -1,0 +1,340 @@
+<Schema name="VssTestWriterConfig"
+        xmlns="urn:schemas-microsoft-com:xml-data"
+	xmlns:dt="urn:schemas-microsoft-com:datatypes">
+
+<!-- Here we define all attributes that may be used across different elements of the document -->
+<AttributeType name="filespec" dt:type="string">
+	<description>
+	File specification.  Can include wildcard characters ? and *
+	</description>
+</AttributeType>
+
+<AttributeType name="path" dt:type="string">
+	<description>
+	Path to a file.  The path can include environment variables or
+	values extracted from registry keys.
+	</description>
+</AttributeType>
+
+<AttributeType name="recursive" dt:type="enumeration"
+               dt:values="yes no">
+	<description>
+	Is path specified recursive or limited to the directory that is specified.
+	</description>
+</AttributeType>
+
+<AttributeType name="alternatePath" dt:type="string">
+	<description>
+	Alternate path in which to find the file.  Files in a file group may
+	have been copied to an alternative location by the writer.  Backup should
+	pick up the files from the alternative location instead of the original
+	location but should restore the files to their original location
+	</description>
+</AttributeType>
+
+<AttributeType name="logicalPath" dt:type="string">
+   <description>
+   Logical path for a Writer component.  This logical name uses backslash
+   as separators to form a logical namespace hierarchy
+   </description>
+</AttributeType>
+
+<AttributeType name="componentName" dt:type="string">
+   <description>
+   Name used to identify a Writer component.  May be qualified by a
+   logical path.
+   </description>
+</AttributeType>
+
+<!-- Here we define all of the possible elements of the document -->
+<ElementType name="TestWriter" content="eltOnly" model="closed">
+	<description>
+	Configuration information for the VSS Test Writer.
+	</description>
+
+	<AttributeType name="usage" dt:type="enumeration"
+		dt:values="USER_DATA
+				   BOOTABLE_SYSTEM_STATE 
+				   SYSTEM_SERVICE 
+				   OTHER">
+	      <description>
+	      How the data associated with the writer is used.  
+	      </description>
+	</AttributeType>
+
+	<AttributeType name="verbosity" dt:type="enumeration"
+	      dt:values="low medium high">
+	      <description>
+		Whether verbose output is enabled.      
+		low:  	Messages are not printed if files are not properly restored
+		medium:	Most general messages are printed, including warnings if files are not restored
+		high:	Extremely verbose output is enabled.
+	      </description>
+	</AttributeType>
+
+	<AttributeType name="checkExcludes" dt:type="enumeration"
+		dt:values="yes no">
+		<description>
+		Whether to check that excluded files are not restored at restore time.  
+		If restoring to a location that may contain files matching the exclude list,
+		set this to false to prevent spurious warnings.
+		</description>
+	</AttributeType>
+
+	<AttributeType name="checkIncludes" dt:type="enumeration"
+		dt:values="yes no">
+		<description>
+		Whether to check that included files are restored at restore time.  
+		</description>
+	</AttributeType>
+
+	<attribute type="usage"  default="OTHER" />
+	<attribute type="verbosity" default="medium" />
+	<attribute type="checkExcludes" default="yes" />
+	<attribute type="checkIncludes" default="yes" />
+	<element type="RestoreMethod"   />
+ 
+	<group order="many">
+		<element type="ExcludeFile" minOccurs="0" maxOccurs="*" />
+		<element type="Component" minOccurs="0" maxOccurs="*" />
+		<element type="FailEvent" minOccurs="0" maxOccurs="*" />
+	</group>
+</ElementType>
+
+<ElementType name="RestoreMethod" content="eltOnly" model="closed">
+	<description>
+	How restore should be performed.  Includes specification of how files
+	should be restored as well as special steps that should occur in order
+	 to complete the restore.
+	</description>
+
+	<AttributeType name="method" dt:type="enumeration"
+	         dt:values="RESTORE_IF_NONE_THERE
+	                          RESTORE_IF_CAN_BE_REPLACED
+	                          STOP_RESTART_SERVICE
+	                          REPLACE_AT_REBOOT
+	                          REPLACE_AT_REBOOT_IF_CANNOT_REPLACE
+	                          RESTORE_TO_ALTERNATE_LOCATION
+	                          CUSTOM">
+		<description>
+	       RESTORE_IF_NONE_THERE: i.e., can restore data if it is not at the
+	          location where it was backed up from.  This essentially allows
+		  data to be restored to a clean system
+	       RESTORE_IF_CAN_BE_REPLACED: Restore data if all of the files can
+	          be replaced in the orgiginal backup location.  Fails if any of
+		  the files are open.  If an alternate location is provided, files
+		  will be placed there if they cannot be restored to their original
+		  location.
+	       STOP_RESTART_SERVICE: stop service (service attribute must be
+	          specified). Restore files to original backup location.
+		  Restart service.  Fails if any of the files are open after the
+		  service is stopped.
+	       REPLACE_AT_REBOOT: Restore files to a temporary location.  Use
+	          MoveFileEx to replace the files at reboot.
+              REPLACE_AT_REBOOT_IF_CANNOT_REPLACE:  Similiar to REPLACE_AT_REBOOT
+		   however files may be restored in place in they are not busy.  All files
+		   within a component must be either completely replaced in place or
+		   completely replaced at reboot, so if one component file is busy, all files
+		   in that component must be replaced at reboot.
+	          
+	       RESTORE_TO_ALTERNATIVE_LOCATION: Restore files to an alternate
+	          location.  Typically writerRestore will indicate that the writer
+		  will participate in the restore process
+		CUSTOM:  Custom restore method.  Requestor's should not handle this
+		case at all for this writer.
+	       </description>
+	</AttributeType>
+
+	<AttributeType name="service" dt:type="string">
+		<description>
+		Must be specified if method="STOP_RESTART_SERVICE", indicates
+	      service to be stopped before restoring files.
+		</description>
+	</AttributeType>
+
+	<AttributeType name="writerRestore" dt:type="enumeration"
+                  dt:values="always never ifReplaceFails">
+		<description>
+		Whether writer should be invoked after files are restored to
+		disk.  Options are always, never, and ifReplaceFails.  The latter means
+		that the files will be restored to their original location.  If one
+		or more of the files cannot be replaced, then the files will be
+		restored to an alternate location (must be specified via
+		ALTERNATE_LOCATION_MAPPING.  After the files are restored, the writer
+		is invoked.
+		</description>
+	</AttributeType>
+
+	<AttributeType name="rebootRequired" dt:type="enumeration"
+                 dt:values="yes no">
+		<description>
+		Should a reboot be performed after restoring the data for this
+		writer
+		</description>
+	</AttributeType>
+	
+	<attribute type="method" required="yes" />
+	<attribute type="service" required="no" />
+	<attribute type="writerRestore" default="never" />
+	<attribute type="rebootRequired" default="no" />
+
+	<element type="AlternateLocationMapping" minOccurs="0" maxOccurs="*" />
+</ElementType>
+
+<ElementType name="Dependency" content="empty" model="closed">
+    <description>
+    A dependency from one component to another component in another writer.
+    </description>
+    
+  <AttributeType name="writerId" dt:type="uuid" required="yes">
+    <description>
+    Id of writer that this component is dependent on.
+    </description>
+  </AttributeType>
+
+
+  <attribute type="writerId" required="yes" />
+  <attribute type="logicalPath" required="no" />
+  <attribute type="componentName" required="yes" />
+</ElementType>
+
+<ElementType name="ComponentFile" content="empty" model="closed">
+	<description>
+	Location of a file in a component.  For database components, the alternatePath
+	attribute is ignored.
+	</description>
+	
+	<attribute type ="path" required="yes" />
+	<attribute type="filespec" required="yes" />
+	<attribute type="recursive" required="yes" />
+	<attribute type="alternatePath" required="no" />	
+</ElementType>
+
+<ElementType name="ExcludeFile" content="empty" model="closed">
+	<description>
+	Location of a file that the writer should mark as excluded from backup.
+	</description>
+	
+	<attribute type ="path" required="yes" />
+	<attribute type="filespec" required="yes" />
+	<attribute type="recursive" required="yes" />
+</ElementType>
+
+<ElementType name="Component" content="eltOnly" model="closed">
+	<description>
+	Description of a Writer component.  Currently this can describe either a file-group 
+	component or a database component.
+	</description>
+
+	<AttributeType name="componentType" dt:type="enumeration"
+		dt:values="database filegroup">
+		<description>
+		specified the type of a Writer component
+		</description>
+	</AttributeType>
+
+	<AttributeType name="selectable" dt:type="enumeration"
+		dt:values="yes no">
+		<description>
+		Is this component selectable for backup or is it always backed up.
+		If no, then the component is always backed up if any other components of
+		the application/service are backed up.  If yes, then the
+		component may be selectively backed up.
+		</description>
+	</AttributeType>
+
+	<AttributeType name="selectableForRestore" dt:type="enumeration"
+		dt:values="yes no" >
+		<description>
+		Is this component selectable for restore
+		</description>
+	</AttributeType>
+
+	<AttributeType name="restoreTarget" dt:type="enumeration"
+		dt:values="VSS_RT_ORIGINAL
+				   VSS_RT_ALTERNATE">
+		<description>
+		Allows the writer to override the restore method for this component in the PreRestore event.
+		VSS_RT_ORIGINAL:   all files in this component should be restored to their original locations.
+		VSS_RT_ALTERNATE: all files in this component should be restored to the previously specified alternate location
+		</description>
+	</AttributeType>
+				   
+
+	<attribute type="componentType" required="yes" />
+	<attribute type="logicalPath" required="no" />
+	<attribute type="componentName" required="yes" />
+	<attribute type="selectable" default="yes" />
+	<attribute type="selectableForRestore" default="no" />
+	<attribute type="restoreTarget" required="no" />
+	
+	<group order="many">
+		<element type="ComponentFile" minOccurs="0" maxOccurs="*" />
+		<element type="Dependency" minOccurs="0" maxOccurs="*" />
+	</group>
+</ElementType>
+
+<ElementType name="FailEvent" content="empty" model="closed">
+	<description>
+	Specifies an event that the Test Writer will fail.
+	</description>
+
+	<AttributeType name="writerEvent" dt:type="enumeration"
+		dt:values="Identify
+				   PrepareForBackup
+				   PrepareForSnapshot
+				   Freeze
+				   Thaw
+				   PostSnapshot
+				   Abort
+				   BackupComplete
+				   BackupShutdown
+				   PreRestore
+				   PostRestore">
+		<description>
+		Defines the list of events that a Writer can fail.
+		</description>
+	</AttributeType>		
+
+	<AttributeType name="retryable" dt:type="enumeration"
+		dt:values="yes no">
+		<description>
+		Whether the failure should be retryable or not
+		</description>
+	</AttributeType>
+
+	<AttributeType name="numFailures" dt:type="number">
+	<description>
+	If the failure is retryable, then this parameter indicates the number of times the writer should
+	fail the event.
+	</description>
+	</AttributeType>
+	
+	<attribute type="writerEvent" required="yes" />
+	<attribute type="retryable" default="yes" />
+	<attribute type="numFailures" default="1" />
+</ElementType>
+
+<ElementType name="AlternateLocationMapping" content="empty" model="closed">
+	<description>
+	Mapping from a location that was backed up to a location to restore to.
+	</description>
+	
+	<attribute type="path" required="yes" />
+	<attribute type="filespec" required="yes" />
+	<attribute type="recursive" default="no" />
+	<attribute type="alternatePath" required="yes" />
+</ElementType>
+
+<ElementType name="NewTarget" content="empty" model="closed">
+	<description>
+	A new target path for a file that the Writer specifies at restore time.
+	</description>
+	
+	<attribute type="path" required="yes" />
+	<attribute type="filespec" required="yes" />
+	<attribute type="recursive" required="yes" />
+	<attribute type="alternatePath" required="no" />	
+</ElementType>
+
+</Schema>

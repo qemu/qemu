@@ -167,5 +167,6 @@ int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align,
 void xics_free(XICSState *icp, int irq, int num);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
+void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
 
 #endif /* __XICS_H__ */

@@ -507,7 +507,6 @@ typedef struct CPUARMState {
 #include "cpu-qom.h"
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
-int cpu_arm_exec(CPUState *cpu);
 target_ulong do_arm_semihosting(CPUARMState *env);
 void aarch64_sync_32_to_64(CPUARMState *env);
 void aarch64_sync_64_to_32(CPUARMState *env);
@@ -1686,7 +1685,6 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
 
 #define cpu_init(cpu_model) CPU(cpu_arm_init(cpu_model))
 
-#define cpu_exec cpu_arm_exec
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 

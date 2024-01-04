@@ -32,6 +32,8 @@
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
 
+#define SPAPR_PCI_DMA_MAX_WINDOWS    2
+
 typedef struct sPAPRPHBState sPAPRPHBState;
 
 typedef struct spapr_pci_msi {
@@ -56,7 +58,7 @@ struct sPAPRPHBState {
     hwaddr mem_win_addr, mem_win_size, io_win_addr, io_win_size;
     MemoryRegion memwindow, iowindow, msiwindow;
 
-    uint32_t dma_liobn;
+    uint32_t dma_liobn[SPAPR_PCI_DMA_MAX_WINDOWS];
     hwaddr dma_win_addr, dma_win_size;
     AddressSpace iommu_as;
     MemoryRegion iommu_root;
@@ -71,6 +73,10 @@ struct sPAPRPHBState {
     spapr_pci_msi_mig *msi_devs;
 
     QLIST_ENTRY(sPAPRPHBState) list;
+
+    bool ddw_enabled;
+    uint64_t page_size_mask;
+    uint64_t dma64_win_addr;
 };
 
 #define SPAPR_PCI_MAX_INDEX          255
@@ -146,5 +152,7 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 {
 }
 #endif
+
+void spapr_phb_dma_reset(sPAPRPHBState *sphb);
 
 #endif /* __HW_SPAPR_PCI_H__ */

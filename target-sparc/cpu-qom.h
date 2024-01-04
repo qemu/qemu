@@ -21,7 +21,6 @@
 #define QEMU_SPARC_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #ifdef TARGET_SPARC64
 #define TYPE_SPARC_CPU "sparc64-cpu"

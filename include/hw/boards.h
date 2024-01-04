@@ -40,6 +40,7 @@ int machine_kvm_shadow_mem(MachineState *machine);
 int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
+void machine_register_compat_props(MachineState *machine);
 
 /**
  * CPUArchId:
@@ -81,6 +82,10 @@ typedef struct {
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
  *    Caller is responsible for freeing returned list.
+ * @query_hotpluggable_cpus:
+ *    Returns a @HotpluggableCPUList, which describes CPUs objects which
+ *    could be added with -device/device_add.
+ *    Caller is responsible for freeing returned list.
  */
 struct MachineClass {
     /*< private >*/
@@ -114,7 +119,7 @@ struct MachineClass {
     const char *default_machine_opts;
     const char *default_boot_order;
     const char *default_display;
-    GlobalProperty *compat_props;
+    GArray *compat_props;
     const char *hw_version;
     ram_addr_t default_ram_size;
     bool option_rom_has_mr;
@@ -124,6 +129,7 @@ struct MachineClass {
                                            DeviceState *dev);
     unsigned (*cpu_index_to_socket_id)(unsigned cpu_index);
     CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
+    HotpluggableCPUList *(*query_hotpluggable_cpus)(MachineState *machine);
 };
 
 /**
@@ -185,11 +191,17 @@ struct MachineState {
 
 #define SET_MACHINE_COMPAT(m, COMPAT) \
     do {                              \
+        int i;                        \
         static GlobalProperty props[] = {       \
             COMPAT                              \
             { /* end of list */ }               \
         };                                      \
-        (m)->compat_props = props;              \
+        if (!m->compat_props) { \
+            m->compat_props = g_array_new(false, false, sizeof(void *)); \
+        } \
+        for (i = 0; props[i].driver != NULL; i++) {    \
+            GlobalProperty *prop = &props[i];          \
+            g_array_append_val(m->compat_props, prop); \
+        }                                              \
     } while (0)
-
 #endif

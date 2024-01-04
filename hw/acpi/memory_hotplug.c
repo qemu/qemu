@@ -228,7 +228,7 @@ acpi_memory_slot_status(MemHotplugState *mem_st,
     return &mem_st->devs[slot];
 }
 
-void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
+void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp)
 {
     MemStatus *mdev;
@@ -247,13 +247,11 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
     mdev->is_enabled = true;
     if (dev->hotplugged) {
         mdev->is_inserting = true;
-
-        /* do ACPI magic */
-        acpi_send_gpe_event(ar, irq, ACPI_MEMORY_HOTPLUG_STATUS);
+        acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
     }
 }
 
-void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
+void acpi_memory_unplug_request_cb(HotplugHandler *hotplug_dev,
                                    MemHotplugState *mem_st,
                                    DeviceState *dev, Error **errp)
 {
@@ -265,9 +263,7 @@ void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
     }
 
     mdev->is_removing = true;
-
-    /* Do ACPI magic */
-    acpi_send_gpe_event(ar, irq, ACPI_MEMORY_HOTPLUG_STATUS);
+    acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
 }
 
 void acpi_memory_unplug_cb(MemHotplugState *mem_st,

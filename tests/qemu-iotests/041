@@ -754,6 +754,36 @@ class TestUnbackedSource(iotests.QMPTestCase):
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
+class TestGranularity(iotests.QMPTestCase):
+    image_len = 10 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img,
+                 str(TestGranularity.image_len))
+        qemu_io('-c', 'write 0 %d' % (self.image_len),
+                test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+        os.remove(test_img)
+        os.remove(target_img)
+
+    def test_granularity(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-mirror', device='drive0',
+                             sync='full', target=target_img,
+                             mode='absolute-paths', granularity=8192)
+        self.assert_qmp(result, 'return', {})
+        event = self.vm.get_qmp_event(wait=60.0)
+        # Failures will manifest as COMPLETED/ERROR.
+        self.assert_qmp(event, 'event', 'BLOCK_JOB_READY')
+        self.complete_and_wait(drive='drive0', wait_ready=False)
+        self.assert_no_active_block_jobs()
+
 class TestRepairQuorum(iotests.QMPTestCase):
     """ This class test quorum file repair using drive-mirror.
         It's mostly a fork of TestSingleDrive """

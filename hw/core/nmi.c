@@ -73,25 +73,6 @@ void nmi_monitor_handle(int cpu_index, Error **errp)
     }
 }
 
-void inject_nmi(void)
-{
-#if defined(TARGET_I386)
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        X86CPU *cpu = X86_CPU(cs);
-
-        if (!cpu->apic_state) {
-            cpu_interrupt(cs, CPU_INTERRUPT_NMI);
-        } else {
-            apic_deliver_nmi(cpu->apic_state);
-        }
-    }
-#else
-    nmi_monitor_handle(0, NULL);
-#endif
-}
-
 static const TypeInfo nmi_info = {
     .name          = TYPE_NMI,
     .parent        = TYPE_INTERFACE,

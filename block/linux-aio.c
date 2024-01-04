@@ -206,7 +206,13 @@ static void ioq_submit(struct qemu_laio_state *s)
             break;
         }
         if (ret < 0) {
-            abort();
+            /* Fail the first request, retry the rest */
+            aiocb = QSIMPLEQ_FIRST(&s->io_q.pending);
+            QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
+            s->io_q.n--;
+            aiocb->ret = ret;
+            qemu_laio_process_completion(s, aiocb);
+            continue;
         }
 
         s->io_q.n -= ret;

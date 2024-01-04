@@ -217,7 +217,9 @@ static inline void mirror_wait_for_io(MirrorBlockJob *s)
 }
 
 /* Submit async read while handling COW.
- * Returns: nb_sectors if no alignment is necessary, or
+ * Returns: The number of sectors copied after and including sector_num,
+ *          excluding any sectors copied prior to sector_num due to alignment.
+ *          This will be nb_sectors if no alignment is necessary, or
  *          (new_end - sector_num) if tail is rounded up or down due to
  *          alignment or buffer limit.
  */
@@ -226,14 +228,18 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
 {
     BlockDriverState *source = s->common.bs;
     int sectors_per_chunk, nb_chunks;
-    int ret = nb_sectors;
+    int ret;
     MirrorOp *op;
+    int max_sectors;
 
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
+    max_sectors = sectors_per_chunk * s->max_iov;
 
     /* We can only handle as much as buf_size at a time. */
     nb_sectors = MIN(s->buf_size >> BDRV_SECTOR_BITS, nb_sectors);
+    nb_sectors = MIN(max_sectors, nb_sectors);
     assert(nb_sectors);
+    ret = nb_sectors;
 
     if (s->cow_bitmap) {
         ret += mirror_cow_align(s, &sector_num, &nb_sectors);
@@ -328,6 +334,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         trace_mirror_yield_in_flight(s, first_chunk, s->in_flight);
         mirror_wait_for_io(s);
     }
+
+    block_job_pause_point(&s->common);
 
     /* Find the number of consective dirty chunks following the first dirty
      * one, and wait for in flight requests in them. */
@@ -578,6 +586,8 @@ static void coroutine_fn mirror_run(void *opaque)
             if (now - last_pause_ns > SLICE_TIME) {
                 last_pause_ns = now;
                 block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, 0);
+            } else {
+                block_job_pause_point(&s->common);
             }
 
             if (block_job_is_cancelled(&s->common)) {
@@ -608,6 +618,8 @@ static void coroutine_fn mirror_run(void *opaque)
             ret = s->ret;
             goto immediate_exit;
         }
+
+        block_job_pause_point(&s->common);
 
         cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         /* s->common.offset contains the number of bytes already processed so
@@ -789,21 +801,41 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_enter(&s->common);
 }
 
+/* There is no matching mirror_resume() because mirror_run() will begin
+ * iterating again when the job is resumed.
+ */
+static void coroutine_fn mirror_pause(BlockJob *job)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+
+    mirror_drain(s);
+}
+
+static void mirror_attached_aio_context(BlockJob *job, AioContext *new_context)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+
+    bdrv_set_aio_context(s->target, new_context);
+}
+
 static const BlockJobDriver mirror_job_driver = {
-    .instance_size = sizeof(MirrorBlockJob),
-    .job_type      = BLOCK_JOB_TYPE_MIRROR,
-    .set_speed     = mirror_set_speed,
-    .iostatus_reset= mirror_iostatus_reset,
-    .complete      = mirror_complete,
+    .instance_size          = sizeof(MirrorBlockJob),
+    .job_type               = BLOCK_JOB_TYPE_MIRROR,
+    .set_speed              = mirror_set_speed,
+    .iostatus_reset         = mirror_iostatus_reset,
+    .complete               = mirror_complete,
+    .pause                  = mirror_pause,
+    .attached_aio_context   = mirror_attached_aio_context,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
-    .instance_size = sizeof(MirrorBlockJob),
-    .job_type      = BLOCK_JOB_TYPE_COMMIT,
-    .set_speed     = mirror_set_speed,
-    .iostatus_reset
-                   = mirror_iostatus_reset,
-    .complete      = mirror_complete,
+    .instance_size          = sizeof(MirrorBlockJob),
+    .job_type               = BLOCK_JOB_TYPE_COMMIT,
+    .set_speed              = mirror_set_speed,
+    .iostatus_reset         = mirror_iostatus_reset,
+    .complete               = mirror_complete,
+    .pause                  = mirror_pause,
+    .attached_aio_context   = mirror_attached_aio_context,
 };
 
 static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
