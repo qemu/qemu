@@ -28,7 +28,7 @@ arm_system_ss.add(files(
 
 subdir('hvf')
 
-if 'CONFIG_TCG' in config_all
+if 'CONFIG_TCG' in config_all_accel
    subdir('tcg')
 else
     arm_ss.add(files('tcg-stubs.c'))

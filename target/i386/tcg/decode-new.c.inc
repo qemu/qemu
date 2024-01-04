@@ -26,6 +26,13 @@
  * size (X86_SIZE_*) codes used in the manual.  There are a few differences
  * though.
  *
+ * Operand sizes
+ * -------------
+ *
+ * The manual lists d64 ("cannot encode 32-bit size in 64-bit mode") and f64
+ * ("cannot encode 16-bit or 32-bit size in 64-bit mode") as modifiers of the
+ * "v" or "z" sizes.  The decoder simply makes them separate operand sizes.
+ *
  * Vector operands
  * ---------------
  *
@@ -43,6 +50,11 @@
  * In addition, the ss/ps/sd/pd types are sometimes mushed together as "x"
  * if the difference is expressed via prefixes.  Individual instructions
  * are separated by prefix in the generator functions.
+ *
+ * There is a custom size "xh" used to address half of a SSE/AVX operand.
+ * This points to a 64-bit operand for SSE operations, 128-bit operand
+ * for 256-bit AVX operands, etc.  It is used for conversion operations
+ * such as VCVTPH2PS or VCVTSS2SD.
  *
  * There are a couple cases in which instructions (e.g. MOVD) write the
  * whole XMM or MM register but are established incorrectly in the manual
@@ -139,10 +151,13 @@
 
 #define cpuid(feat) .cpuid = X86_FEAT_##feat,
 #define xchg .special = X86_SPECIAL_Locked,
+#define lock .special = X86_SPECIAL_HasLock,
 #define mmx .special = X86_SPECIAL_MMX,
-#define zext0 .special = X86_SPECIAL_ZExtOp0,
-#define zext2 .special = X86_SPECIAL_ZExtOp2,
+#define op0_Rd .special = X86_SPECIAL_Op0_Rd,
+#define op2_Ry .special = X86_SPECIAL_Op2_Ry,
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
+#define sextT0 .special = X86_SPECIAL_SExtT0,
+#define zextT0 .special = X86_SPECIAL_ZExtT0,
 
 #define vex1 .vex_class = 1,
 #define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
@@ -523,6 +538,28 @@ static const X86OpEntry opcodes_0F38_00toEF[240] = {
     [0xdd] = X86_OP_ENTRY3(VAESENCLAST, V,x,  H,x,       W,x,  vex4 cpuid(AES) p_66),
     [0xde] = X86_OP_ENTRY3(VAESDEC,     V,x,  H,x,       W,x,  vex4 cpuid(AES) p_66),
     [0xdf] = X86_OP_ENTRY3(VAESDECLAST, V,x,  H,x,       W,x,  vex4 cpuid(AES) p_66),
+
+    /*
+     * REG selects srcdest2 operand, VEX.vvvv selects src3.  VEX class not found
+     * in manual, assumed to be 13 from the VEX.L0 constraint.
+     */
+    [0xe0] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe1] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe2] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe3] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe4] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe5] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe6] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe7] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+
+    [0xe8] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xe9] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xea] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xeb] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xec] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xed] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xee] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
+    [0xef] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
 };
 
 /* five rows for no prefix, 66, F3, F2, 66+F2  */
@@ -558,8 +595,8 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
     [5] = {
         X86_OP_ENTRY3(BZHI, G,y, E,y, B,y, vex13 cpuid(BMI1)),
         {},
-        X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 cpuid(BMI2)),
-        X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 cpuid(BMI2)),
+        X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
+        X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
         {},
     },
     [6] = {
@@ -570,10 +607,10 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
         {},
     },
     [7] = {
-        X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
         X86_OP_ENTRY3(SHLX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
-        X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
-        X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 sextT0 cpuid(BMI1)),
+        X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
         {},
     },
 };
@@ -619,13 +656,13 @@ static const X86OpEntry opcodes_0F3A[256] = {
     [0x05] = X86_OP_ENTRY3(VPERMILPD_i, V,x,  W,x,  I,b,  vex6 chk(W0) cpuid(AVX) p_66),
     [0x06] = X86_OP_ENTRY4(VPERM2x128,  V,qq, H,qq, W,qq, vex6 chk(W0) cpuid(AVX) p_66),
 
-    [0x14] = X86_OP_ENTRY3(PEXTRB,     E,b,  V,dq, I,b,  vex5 cpuid(SSE41) zext0 p_66),
-    [0x15] = X86_OP_ENTRY3(PEXTRW,     E,w,  V,dq, I,b,  vex5 cpuid(SSE41) zext0 p_66),
+    [0x14] = X86_OP_ENTRY3(PEXTRB,     E,b,  V,dq, I,b,  vex5 cpuid(SSE41) op0_Rd p_66),
+    [0x15] = X86_OP_ENTRY3(PEXTRW,     E,w,  V,dq, I,b,  vex5 cpuid(SSE41) op0_Rd p_66),
     [0x16] = X86_OP_ENTRY3(PEXTR,      E,y,  V,dq, I,b,  vex5 cpuid(SSE41) p_66),
     [0x17] = X86_OP_ENTRY3(VEXTRACTPS, E,d,  V,dq, I,b,  vex5 cpuid(SSE41) p_66),
     [0x1d] = X86_OP_ENTRY3(VCVTPS2PH,  W,xh, V,x,  I,b,  vex11 chk(W0) cpuid(F16C) p_66),
 
-    [0x20] = X86_OP_ENTRY4(PINSRB,     V,dq, H,dq, E,b,  vex5 cpuid(SSE41) zext2 p_66),
+    [0x20] = X86_OP_ENTRY4(PINSRB,     V,dq, H,dq, E,b,  vex5 cpuid(SSE41) op2_Ry p_66),
     [0x21] = X86_OP_GROUP0(VINSERTPS),
     [0x22] = X86_OP_ENTRY4(PINSR,      V,dq, H,dq, E,y,  vex5 cpuid(SSE41) p_66),
 
@@ -1091,10 +1128,6 @@ static int decode_modrm(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 {
     int modrm = get_modrm(s, env);
     if ((modrm >> 6) == 3) {
-        if (s->prefix & PREFIX_LOCK) {
-            decode->e.gen = gen_illegal;
-            return 0xff;
-        }
         op->n = (modrm & 7);
         if (type != X86_TYPE_Q && type != X86_TYPE_N) {
             op->n |= REX_B(s);
@@ -1201,6 +1234,8 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     case X86_TYPE_None:  /* Implicit or absent */
     case X86_TYPE_A:  /* Implicit */
     case X86_TYPE_F:  /* EFLAGS/RFLAGS */
+    case X86_TYPE_X:  /* string source */
+    case X86_TYPE_Y:  /* string destination */
         break;
 
     case X86_TYPE_B:  /* VEX.vvvv selects a GPR */
@@ -1316,41 +1351,13 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         }
 
     case X86_TYPE_I:  /* Immediate */
-        op->unit = X86_OP_IMM;
-        decode->immediate = insn_get_signed(env, s, op->ot);
-        break;
-
     case X86_TYPE_J:  /* Relative offset for a jump */
         op->unit = X86_OP_IMM;
         decode->immediate = insn_get_signed(env, s, op->ot);
-        decode->immediate += s->pc - s->cs_base;
-        if (s->dflag == MO_16) {
-            decode->immediate &= 0xffff;
-        } else if (!CODE64(s)) {
-            decode->immediate &= 0xffffffffu;
-        }
         break;
 
     case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
         op->n = insn_get(env, s, op->ot) >> 4;
-        break;
-
-    case X86_TYPE_X:  /* string source */
-        op->n = -1;
-        decode->mem = (AddressParts) {
-            .def_seg = R_DS,
-            .base = R_ESI,
-            .index = -1,
-        };
-        break;
-
-    case X86_TYPE_Y:  /* string destination */
-        op->n = -1;
-        decode->mem = (AddressParts) {
-            .def_seg = R_ES,
-            .base = R_EDI,
-            .index = -1,
-        };
         break;
 
     case X86_TYPE_2op:
@@ -1518,6 +1525,9 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
         return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_AVX2);
     case X86_FEAT_SHA_NI:
         return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SHA_NI);
+
+    case X86_FEAT_CMPCCXADD:
+        return (s->cpuid_7_1_eax_features & CPUID_7_1_EAX_CMPCCXADD);
     }
     g_assert_not_reached();
 }
@@ -1677,6 +1687,7 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     bool first = true;
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
+    uint8_t cc_live;
 
     s->has_modrm = false;
 
@@ -1830,6 +1841,7 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     }
 
     memset(&decode, 0, sizeof(decode));
+    decode.cc_op = -1;
     decode.b = b;
     if (!decode_insn(s, env, decode_func, &decode)) {
         goto illegal_op;
@@ -1869,19 +1881,22 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         if (decode.op[0].has_ea) {
             s->prefix |= PREFIX_LOCK;
         }
+        decode.e.special = X86_SPECIAL_HasLock;
+        /* fallthrough */
+    case X86_SPECIAL_HasLock:
         break;
 
-    case X86_SPECIAL_ZExtOp0:
+    case X86_SPECIAL_Op0_Rd:
         assert(decode.op[0].unit == X86_OP_INT);
         if (!decode.op[0].has_ea) {
             decode.op[0].ot = MO_32;
         }
         break;
 
-    case X86_SPECIAL_ZExtOp2:
+    case X86_SPECIAL_Op2_Ry:
         assert(decode.op[2].unit == X86_OP_INT);
         if (!decode.op[2].has_ea) {
-            decode.op[2].ot = MO_32;
+            decode.op[2].ot = s->dflag == MO_16 ? MO_32 : s->dflag;
         }
         break;
 
@@ -1893,8 +1908,20 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         }
         break;
 
+    case X86_SPECIAL_SExtT0:
+    case X86_SPECIAL_ZExtT0:
+        /* Handled in gen_load.  */
+        assert(decode.op[1].unit == X86_OP_INT);
+        break;
+
     default:
         break;
+    }
+
+    if (s->prefix & PREFIX_LOCK) {
+        if (decode.e.special != X86_SPECIAL_HasLock || !decode.op[0].has_ea) {
+            goto illegal_op;
+        }
     }
 
     if (!validate_vex(s, &decode)) {
@@ -1940,9 +1967,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         gen_load_ea(s, &decode.mem, decode.e.vex_class == 12);
     }
     if (s->prefix & PREFIX_LOCK) {
-        if (decode.op[0].unit != X86_OP_INT || !decode.op[0].has_ea) {
-            goto illegal_op;
-        }
         gen_load(s, &decode, 2, s->T1);
         decode.e.gen(s, env, &decode);
     } else {
@@ -1956,6 +1980,38 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         decode.e.gen(s, env, &decode);
         gen_writeback(s, &decode, 0, s->T0);
     }
+
+    /*
+     * Write back flags after last memory access.  Some newer ALU instructions, as
+     * well as SSE instructions, write flags in the gen_* function, but that can
+     * cause incorrect tracking of CC_OP for instructions that write to both memory
+     * and flags.
+     */
+    if (decode.cc_op != -1) {
+        if (decode.cc_dst) {
+            tcg_gen_mov_tl(cpu_cc_dst, decode.cc_dst);
+        }
+        if (decode.cc_src) {
+            tcg_gen_mov_tl(cpu_cc_src, decode.cc_src);
+        }
+        if (decode.cc_src2) {
+            tcg_gen_mov_tl(cpu_cc_src2, decode.cc_src2);
+        }
+        if (decode.cc_op == CC_OP_DYNAMIC) {
+            tcg_gen_mov_i32(cpu_cc_op, decode.cc_op_dynamic);
+        }
+        set_cc_op(s, decode.cc_op);
+        cc_live = cc_op_live[decode.cc_op];
+    } else {
+        cc_live = 0;
+    }
+    if (decode.cc_op != CC_OP_DYNAMIC) {
+        assert(!decode.cc_op_dynamic);
+        assert(!!decode.cc_dst == !!(cc_live & USES_CC_DST));
+        assert(!!decode.cc_src == !!(cc_live & USES_CC_SRC));
+        assert(!!decode.cc_src2 == !!(cc_live & USES_CC_SRC2));
+    }
+
     return;
  gp_fault:
     gen_exception_gpf(s);

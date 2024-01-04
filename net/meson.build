@@ -41,23 +41,21 @@ system_ss.add(when: libxdp, if_true: files('af-xdp.c'))
 
 if have_vhost_net_user
   system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-user.c'), if_false: files('vhost-user-stub.c'))
-  system_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-user-stub.c'))
 endif
 
-if targetos == 'windows'
+if host_os == 'windows'
   system_ss.add(files('tap-win32.c'))
-elif targetos == 'linux'
+elif host_os == 'linux'
   system_ss.add(files('tap.c', 'tap-linux.c'))
-elif targetos in bsd_oses
+elif host_os in bsd_oses
   system_ss.add(files('tap.c', 'tap-bsd.c'))
-elif targetos == 'sunos'
+elif host_os == 'sunos'
   system_ss.add(files('tap.c', 'tap-solaris.c'))
 else
   system_ss.add(files('tap.c', 'tap-stub.c'))
 endif
 if have_vhost_net_vdpa
   system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-vdpa.c'), if_false: files('vhost-vdpa-stub.c'))
-  system_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-vdpa-stub.c'))
 endif
 
 vmnet_files = files(

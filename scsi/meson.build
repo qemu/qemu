@@ -1,4 +1,6 @@
 block_ss.add(files('utils.c'))
-block_ss.add(when: 'CONFIG_LINUX',
-             if_true: files('pr-manager.c', 'pr-manager-helper.c'),
-             if_false: files('pr-manager-stub.c'))
+if host_os == 'linux'
+  block_ss.add(files('pr-manager.c', 'pr-manager-helper.c'))
+else
+  block_ss.add(files('pr-manager-stub.c'))
+endif

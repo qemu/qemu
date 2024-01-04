@@ -11,5 +11,3 @@ system_ss.add(when: 'CONFIG_CXL',
                if_false: files(
                    'cxl-host-stubs.c',
                ))
-
-system_ss.add(when: 'CONFIG_ALL', if_true: files('cxl-host-stubs.c'))

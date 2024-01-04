@@ -71,7 +71,7 @@
         :dbus:iface:`org.qemu.Display1.Listener` interface.
     -->
     <method name="RegisterListener">
-      <?if $(env.TARGETOS) == windows?>
+      <?if $(env.HOST_OS) == windows?>
       <arg type="ay" name="listener" direction="in">
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
@@ -370,7 +370,7 @@
       </arg>
     </method>
 
-    <?if $(env.TARGETOS) != windows?>
+    <?if $(env.HOST_OS) != windows?>
     <!--
         ScanoutDMABUF:
         @dmabuf: the DMABUF file descriptor.
@@ -694,7 +694,7 @@
         :dbus:iface:`org.qemu.Display1.AudioOutListener` interface.
     -->
     <method name="RegisterOutListener">
-      <?if $(env.TARGETOS) == windows?>
+      <?if $(env.HOST_OS) == windows?>
       <arg type="ay" name="listener" direction="in">
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
@@ -715,7 +715,7 @@
         :dbus:iface:`org.qemu.Display1.AudioInListener` interface.
     -->
     <method name="RegisterInListener">
-      <?if $(env.TARGETOS) == windows?>
+      <?if $(env.HOST_OS) == windows?>
       <arg type="ay" name="listener" direction="in">
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>
@@ -976,7 +976,7 @@
         The current handler, if any, will be replaced.
     -->
     <method name="Register">
-      <?if $(env.TARGETOS) == windows?>
+      <?if $(env.HOST_OS) == windows?>
       <arg type="ay" name="listener" direction="in">
         <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
       </arg>

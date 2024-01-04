@@ -25,10 +25,9 @@ endif
 system_ss.add([spice_headers, files('spice-module.c')])
 system_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 
-system_ss.add(when: 'CONFIG_LINUX', if_true: files(
-  'input-linux.c',
-  'udmabuf.c',
-))
+if host_os == 'linux'
+  system_ss.add(files('input-linux.c', 'udmabuf.c'))
+endif
 system_ss.add(when: cocoa, if_true: files('cocoa.m'))
 
 vnc_ss = ss.source_set()
@@ -76,7 +75,7 @@ endif
 if dbus_display
   dbus_ss = ss.source_set()
   env = environment()
-  env.set('TARGETOS', targetos)
+  env.set('HOST_OS', host_os)
   xml = custom_target('dbus-display preprocess',
                       input: 'dbus-display1.xml',
                       output: 'dbus-display1.xml',
@@ -106,7 +105,9 @@ if dbus_display
 endif
 
 if gtk.found()
-  system_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
+  if host_os == 'windows'
+    system_ss.add(files('win32-kbd-hook.c'))
+  endif
 
   gtk_ss = ss.source_set()
   gtk_ss.add(gtk, vte, pixman, files('gtk.c'))
@@ -120,7 +121,9 @@ if gtk.found()
 endif
 
 if sdl.found()
-  system_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
+  if host_os == 'windows'
+    system_ss.add(files('win32-kbd-hook.c'))
+  endif
 
   sdl_ss = ss.source_set()
   sdl_ss.add(sdl, sdl_image, pixman, glib, files(

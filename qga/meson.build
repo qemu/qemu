@@ -7,7 +7,7 @@ if not have_ga
 endif
 
 have_qga_vss = get_option('qga_vss') \
-  .require(targetos == 'windows',
+  .require(host_os == 'windows',
            error_message: 'VSS support requires Windows') \
   .require('cpp' in all_languages,
            error_message: 'VSS support requires a C++ compiler') \
@@ -67,29 +67,31 @@ qga_ss.add(files(
   'main.c',
   'cutils.c',
 ))
-qga_ss.add(when: 'CONFIG_POSIX', if_true: files(
-  'channel-posix.c',
-  'commands-posix.c',
-  'commands-posix-ssh.c',
-))
-qga_ss.add(when: 'CONFIG_LINUX', if_true: files(
-  'commands-linux.c',
-))
-qga_ss.add(when: 'CONFIG_BSD', if_true: files(
-  'commands-bsd.c',
-))
-qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
-  'channel-win32.c',
-  'commands-win32.c',
-  'service-win32.c',
-  'vss-win32.c'
-))
+if host_os == 'windows'
+  qga_ss.add(files(
+    'channel-win32.c',
+    'commands-win32.c',
+    'service-win32.c',
+    'vss-win32.c'
+  ))
+else
+  qga_ss.add(files(
+    'channel-posix.c',
+    'commands-posix.c',
+    'commands-posix-ssh.c',
+  ))
+  if host_os == 'linux'
+    qga_ss.add(files('commands-linux.c'))
+  elif host_os in bsd_oses
+    qga_ss.add(files('commands-bsd.c'))
+  endif
+endif
 
-qga_ss = qga_ss.apply(config_targetos, strict: false)
+qga_ss = qga_ss.apply({})
 
 gen_tlb = []
 qga_libs = []
-if targetos == 'windows'
+if host_os == 'windows'
   qga_libs += ['-lws2_32', '-lwinmm', '-lpowrprof', '-lwtsapi32', '-lwininet', '-liphlpapi', '-lnetapi32',
                '-lsetupapi', '-lcfgmgr32']
   if have_qga_vss
@@ -99,7 +101,7 @@ if targetos == 'windows'
 endif
 
 qga_objs = []
-if targetos == 'windows'
+if host_os == 'windows'
   windmc = find_program('windmc', required: true)
   windres = find_program('windres', required: true)
 
@@ -121,7 +123,7 @@ qga = executable('qemu-ga', qga_ss.sources() + qga_objs,
                  install: true)
 all_qga += qga
 
-if targetos == 'windows'
+if host_os == 'windows'
   qemu_ga_msi_arch = {
     'x86': ['-D', 'Arch=32'],
     'x86_64': ['-a', 'x64', '-D', 'Arch=64']
@@ -140,7 +142,7 @@ if targetos == 'windows'
       qemu_ga_msi_vss = ['-D', 'InstallVss']
       deps += qga_vss
     endif
-    if glib.version() < '2.73.2'
+    if glib.version().version_compare('<2.73.2')
       libpcre = 'libpcre1'
     else
       libpcre = 'libpcre2'
@@ -183,7 +185,7 @@ test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 # the leak detector in build-oss-fuzz Gitlab CI test. we should re-enable
 # this when an alternative is implemented or when the underlying glib
 # issue is identified/fix
-#if targetos != 'windows'
+#if host_os != 'windows'
 if false
   srcs = [files('commands-posix-ssh.c')]
   i = 0

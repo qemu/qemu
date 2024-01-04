@@ -50,7 +50,6 @@ specific_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('virtio-net.c'))
 
 if have_vhost_net
   system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost_net.c'), if_false: files('vhost_net-stub.c'))
-  system_ss.add(when: 'CONFIG_ALL', if_true: files('vhost_net-stub.c'))
 else
   system_ss.add(files('vhost_net-stub.c'))
 endif
@@ -69,7 +68,6 @@ system_ss.add(when: 'CONFIG_ROCKER', if_true: files(
   'rocker/rocker_of_dpa.c',
   'rocker/rocker_world.c',
 ), if_false: files('rocker/qmp-norocker.c'))
-system_ss.add(when: 'CONFIG_ALL', if_true: files('rocker/qmp-norocker.c'))
 system_ss.add(files('rocker/rocker-hmp-cmds.c'))
 
 subdir('can')

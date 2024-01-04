@@ -17,7 +17,9 @@ if get_option('plugins')
   tcg_ss.add(files('plugin-gen.c'))
 endif
 tcg_ss.add(when: libdw, if_true: files('debuginfo.c'))
-tcg_ss.add(when: 'CONFIG_LINUX', if_true: files('perf.c'))
+if host_os == 'linux'
+  tcg_ss.add(files('perf.c'))
+endif
 specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_ss)
 
 specific_ss.add(when: ['CONFIG_SYSTEM_ONLY', 'CONFIG_TCG'], if_true: files(
