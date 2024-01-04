@@ -2290,8 +2290,8 @@ virtio-input
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: docs/system/devices/vhost-user-input.rst
-F: hw/input/vhost-user-input.c
 F: hw/input/virtio-input*.c
+F: hw/virtio/vhost-user-input.c
 F: include/hw/virtio/virtio-input.h
 F: contrib/vhost-user-input/*
 
