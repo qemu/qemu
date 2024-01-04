@@ -526,7 +526,7 @@ int main(int argc, char **argv)
 #ifndef _WIN32
         qtest_add_func("/netdev/dgram/unix", test_dgram_unix);
 #endif
-        qtest_add_func("/netdev/stream/unix", test_stream_unix);
+        qtest_add_func("/netdev/stream/unix/oneshot", test_stream_unix);
         qtest_add_func("/netdev/stream/unix/reconnect",
                        test_stream_unix_reconnect);
 #ifdef CONFIG_LINUX
