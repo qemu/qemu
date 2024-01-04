@@ -2342,6 +2342,13 @@ F: hw/virtio/vhost-user-gpio*
 F: include/hw/virtio/vhost-user-gpio.h
 F: tests/qtest/libqos/virtio-gpio.*
 
+vhost-user-snd
+M: Alex Bennée <alex.bennee@linaro.org>
+R: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+S: Maintained
+F: hw/virtio/vhost-user-snd*
+F: include/hw/virtio/vhost-user-snd.h
+
 vhost-user-scmi
 R: mzamazal@redhat.com
 S: Supported
