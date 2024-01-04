@@ -97,7 +97,7 @@ static const VMStateDescription vmstate_allwinner_ahci = {
     .name = "allwinner-ahci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AllwinnerAHCIState,
                              ALLWINNER_AHCI_MMIO_SIZE / 4),
         VMSTATE_END_OF_LIST()

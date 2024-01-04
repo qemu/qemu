@@ -142,7 +142,7 @@ static void npcm7xx_sdhci_reset(DeviceState *dev)
 static const VMStateDescription vmstate_npcm7xx_sdhci = {
     .name = TYPE_NPCM7XX_SDHCI,
     .version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(regs.boottoctrl, NPCM7xxSDHCIState),
         VMSTATE_END_OF_LIST(),
     },

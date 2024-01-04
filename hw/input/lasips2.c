@@ -39,7 +39,7 @@ static const VMStateDescription vmstate_lasips2_port = {
     .name = "lasips2-port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(control, LASIPS2Port),
         VMSTATE_UINT8(buf, LASIPS2Port),
         VMSTATE_BOOL(loopback_rbne, LASIPS2Port),
@@ -51,7 +51,7 @@ static const VMStateDescription vmstate_lasips2 = {
     .name = "lasips2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(int_status, LASIPS2State),
         VMSTATE_STRUCT(kbd_port.parent_obj, LASIPS2State, 1,
                        vmstate_lasips2_port, LASIPS2Port),

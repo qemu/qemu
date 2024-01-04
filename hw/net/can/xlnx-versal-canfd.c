@@ -2060,7 +2060,7 @@ static const VMStateDescription vmstate_canfd = {
     .name = TYPE_XILINX_CANFD,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxVersalCANFDState,
                              XLNX_VERSAL_CANFD_R_MAX),
         VMSTATE_PTIMER(canfd_timer, XlnxVersalCANFDState),

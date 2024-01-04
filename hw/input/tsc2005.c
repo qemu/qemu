@@ -454,7 +454,7 @@ static const VMStateDescription vmstate_tsc2005 = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = tsc2005_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (const VMStateField []) {
         VMSTATE_BOOL(pressure, TSC2005State),
         VMSTATE_BOOL(irq, TSC2005State),
         VMSTATE_BOOL(command, TSC2005State),

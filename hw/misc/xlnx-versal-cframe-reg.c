@@ -697,7 +697,7 @@ static const VMStateDescription vmstate_cframe = {
     .name = "cframe",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(data, XlnxCFrame, FRAME_NUM_WORDS),
         VMSTATE_END_OF_LIST()
     }
@@ -707,7 +707,7 @@ static const VMStateDescription vmstate_cframe_reg = {
     .name = TYPE_XLNX_VERSAL_CFRAME_REG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameReg, 4),
         VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFrameReg, CFRAME_REG_R_MAX),
         VMSTATE_BOOL(rowon, XlnxVersalCFrameReg),
@@ -765,7 +765,7 @@ static const VMStateDescription vmstate_cframe_bcast_reg = {
     .name = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameBcastReg, 4),
         VMSTATE_END_OF_LIST(),
     }

@@ -230,7 +230,7 @@ static const VMStateDescription vmstate_piix3_rcr = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = piix3_rcr_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(rcr, PIIXState),
         VMSTATE_END_OF_LIST()
     }
@@ -242,13 +242,13 @@ static const VMStateDescription vmstate_piix3 = {
     .minimum_version_id = 2,
     .post_load = piix_post_load,
     .pre_save = piix3_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIXState),
         VMSTATE_INT32_ARRAY_V(pci_irq_levels_vmstate, PIIXState,
                               PIIX_NUM_PIRQS, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_piix3_rcr,
         NULL
     }
@@ -259,7 +259,7 @@ static const VMStateDescription vmstate_piix4 = {
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = piix4_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIXState),
         VMSTATE_UINT8_V(rcr, PIIXState, 3),
         VMSTATE_END_OF_LIST()

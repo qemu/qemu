@@ -366,7 +366,7 @@ static const VMStateDescription qemu_s390_flic_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ais_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(simm, QEMUS390FLICState),
         VMSTATE_UINT8(nimm, QEMUS390FLICState),
         VMSTATE_END_OF_LIST()
@@ -465,7 +465,7 @@ const VMStateDescription vmstate_adapter_info_so = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = adapter_info_so_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(summary_offset, AdapterInfo),
         VMSTATE_END_OF_LIST()
     }
@@ -475,7 +475,7 @@ const VMStateDescription vmstate_adapter_info = {
     .name = "s390_adapter_info",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(ind_offset, AdapterInfo),
         /*
          * We do not have to migrate neither the id nor the addresses.
@@ -484,7 +484,7 @@ const VMStateDescription vmstate_adapter_info = {
          */
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_adapter_info_so,
         NULL
     }
@@ -495,7 +495,7 @@ const VMStateDescription vmstate_adapter_routes = {
     .name = "s390_adapter_routes",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(adapter, AdapterRoutes, 1, vmstate_adapter_info,
                        AdapterInfo),
         VMSTATE_END_OF_LIST()

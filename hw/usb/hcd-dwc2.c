@@ -1391,7 +1391,7 @@ static const VMStateDescription vmstate_dwc2_state_packet = {
     .name = "dwc2/packet",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(devadr, DWC2Packet),
         VMSTATE_UINT32(epnum, DWC2Packet),
         VMSTATE_UINT32(epdir, DWC2Packet),
@@ -1411,7 +1411,7 @@ const VMStateDescription vmstate_dwc2_state = {
     .name = "dwc2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(glbreg, DWC2State,
                              DWC2_GLBREG_SIZE / sizeof(uint32_t)),
         VMSTATE_UINT32_ARRAY(fszreg, DWC2State,

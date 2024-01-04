@@ -135,7 +135,7 @@ static const VMStateDescription exynos4210_clk_vmstate = {
     .name = TYPE_EXYNOS4210_CLK,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(reg, Exynos4210ClkState, EXYNOS4210_REGS_NUM),
         VMSTATE_END_OF_LIST()
     }

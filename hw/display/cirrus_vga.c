@@ -2739,7 +2739,7 @@ const VMStateDescription vmstate_cirrus_vga = {
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = cirrus_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(vga.latch, CirrusVGAState),
         VMSTATE_UINT8(vga.sr_index, CirrusVGAState),
         VMSTATE_BUFFER(vga.sr, CirrusVGAState),
@@ -2777,7 +2777,7 @@ static const VMStateDescription vmstate_pci_cirrus_vga = {
     .name = "cirrus_vga",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCICirrusVGAState),
         VMSTATE_STRUCT(cirrus_vga, PCICirrusVGAState, 0,
                        vmstate_cirrus_vga, CirrusVGAState),

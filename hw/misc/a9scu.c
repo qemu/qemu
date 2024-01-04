@@ -116,7 +116,7 @@ static const VMStateDescription vmstate_a9_scu = {
     .name = "a9-scu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9SCUState),
         VMSTATE_UINT32(status, A9SCUState),
         VMSTATE_END_OF_LIST()

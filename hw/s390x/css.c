@@ -32,7 +32,7 @@ static const VMStateDescription vmstate_crw = {
     .name = "s390_crw",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(flags, CRW),
         VMSTATE_UINT16(rsid, CRW),
         VMSTATE_END_OF_LIST()
@@ -43,7 +43,7 @@ static const VMStateDescription vmstate_crw_container = {
     .name = "s390_crw_container",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(crw, CrwContainer, 0, vmstate_crw, CRW),
         VMSTATE_END_OF_LIST()
     },
@@ -59,7 +59,7 @@ static const VMStateDescription vmstate_chp_info = {
     .name = "s390_chp_info",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(in_use, ChpInfo),
         VMSTATE_UINT8(type, ChpInfo),
         VMSTATE_UINT8(is_virtual, ChpInfo),
@@ -77,7 +77,7 @@ static const VMStateDescription vmstate_scsw = {
     .name = "s390_scsw",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT16(flags, SCSW),
         VMSTATE_UINT16(ctrl, SCSW),
         VMSTATE_UINT32(cpa, SCSW),
@@ -92,7 +92,7 @@ static const VMStateDescription vmstate_pmcw = {
     .name = "s390_pmcw",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(intparm, PMCW),
         VMSTATE_UINT16(flags, PMCW),
         VMSTATE_UINT16(devno, PMCW),
@@ -113,7 +113,7 @@ static const VMStateDescription vmstate_schib = {
     .name = "s390_schib",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(pmcw, SCHIB, 0, vmstate_pmcw, PMCW),
         VMSTATE_STRUCT(scsw, SCHIB, 0, vmstate_scsw, SCSW),
         VMSTATE_UINT64(mba, SCHIB),
@@ -127,7 +127,7 @@ static const VMStateDescription vmstate_ccw1 = {
     .name = "s390_ccw1",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(cmd_code, CCW1),
         VMSTATE_UINT8(flags, CCW1),
         VMSTATE_UINT16(count, CCW1),
@@ -140,7 +140,7 @@ static const VMStateDescription vmstate_ciw = {
     .name = "s390_ciw",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(type, CIW),
         VMSTATE_UINT8(command, CIW),
         VMSTATE_UINT16(count, CIW),
@@ -152,7 +152,7 @@ static const VMStateDescription vmstate_sense_id = {
     .name = "s390_sense_id",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(reserved, SenseId),
         VMSTATE_UINT16(cu_type, SenseId),
         VMSTATE_UINT8(cu_model, SenseId),
@@ -168,7 +168,7 @@ static const VMStateDescription vmstate_orb = {
     .name = "s390_orb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(intparm, ORB),
         VMSTATE_UINT16(ctrl0, ORB),
         VMSTATE_UINT8(lpm, ORB),
@@ -188,7 +188,7 @@ static const VMStateDescription vmstate_schdev_orb = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_schdev_orb_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(orb, SubchDev, 1, vmstate_orb, ORB),
         VMSTATE_END_OF_LIST()
     }
@@ -207,7 +207,7 @@ const VMStateDescription vmstate_subch_dev = {
     .minimum_version_id = 1,
     .post_load = subch_dev_post_load,
     .pre_save = subch_dev_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_EQUAL(cssid, SubchDev, "Bug!"),
         VMSTATE_UINT8_EQUAL(ssid, SubchDev, "Bug!"),
         VMSTATE_UINT16(migrated_schid, SubchDev),
@@ -223,7 +223,7 @@ const VMStateDescription vmstate_subch_dev = {
         VMSTATE_UINT8(ccw_no_data_cnt, SubchDev),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_schdev_orb,
         NULL
     }
@@ -264,12 +264,12 @@ static int pre_save_ind_addr(void *opaque)
     return 0;
 }
 
-const VMStateDescription vmstate_ind_addr_tmp = {
+static const VMStateDescription vmstate_ind_addr_tmp = {
     .name = "s390_ind_addr_tmp",
     .pre_save = pre_save_ind_addr,
     .post_load = post_load_ind_addr,
 
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(len, IndAddrPtrTmp),
         VMSTATE_UINT64(addr, IndAddrPtrTmp),
         VMSTATE_END_OF_LIST()
@@ -278,7 +278,7 @@ const VMStateDescription vmstate_ind_addr_tmp = {
 
 const VMStateDescription vmstate_ind_addr = {
     .name = "s390_ind_addr_tmp",
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_WITH_TMP(IndAddr*, IndAddrPtrTmp, vmstate_ind_addr_tmp),
         VMSTATE_END_OF_LIST()
     }
@@ -293,7 +293,7 @@ static const VMStateDescription vmstate_css_img = {
     .name = "s390_css_img",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* Subchannel sets have no relevant state. */
         VMSTATE_STRUCT_ARRAY(chpids, CssImage, MAX_CHPID + 1, 0,
                              vmstate_chp_info, ChpInfo),
@@ -330,7 +330,7 @@ static const VMStateDescription vmstate_css = {
     .name = "s390_css",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_QTAILQ_V(pending_crws, ChannelSubSys, 1, vmstate_crw_container,
                          CrwContainer, sibling),
         VMSTATE_BOOL(sei_pending, ChannelSubSys),

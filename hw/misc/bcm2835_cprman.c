@@ -125,7 +125,7 @@ static const VMStateDescription pll_vmstate = {
     .name = TYPE_CPRMAN_PLL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(xosc_in, CprmanPllState),
         VMSTATE_END_OF_LIST()
     }
@@ -229,7 +229,7 @@ static const VMStateDescription pll_channel_vmstate = {
     .name = TYPE_CPRMAN_PLL_CHANNEL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(pll_in, CprmanPllChannelState),
         VMSTATE_END_OF_LIST()
     }
@@ -349,7 +349,7 @@ static const VMStateDescription clock_mux_vmstate = {
     .name = TYPE_CPRMAN_CLOCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_ARRAY_CLOCK(srcs, CprmanClockMuxState,
                             CPRMAN_NUM_CLOCK_MUX_SRC),
         VMSTATE_END_OF_LIST()
@@ -404,7 +404,7 @@ static const VMStateDescription dsi0hsck_mux_vmstate = {
     .name = TYPE_CPRMAN_DSI0HSCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(plla_in, CprmanDsi0HsckMuxState),
         VMSTATE_CLOCK(plld_in, CprmanDsi0HsckMuxState),
         VMSTATE_END_OF_LIST()
@@ -772,7 +772,7 @@ static const VMStateDescription cprman_vmstate = {
     .name = TYPE_BCM2835_CPRMAN,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, BCM2835CprmanState, CPRMAN_NUM_REGS),
         VMSTATE_END_OF_LIST()
     }

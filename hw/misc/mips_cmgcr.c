@@ -205,7 +205,7 @@ static const VMStateDescription vmstate_mips_gcr = {
     .name = "mips-gcr",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(cpc_base, MIPSGCRState),
         VMSTATE_END_OF_LIST()
     },

@@ -574,7 +574,7 @@ static const VMStateDescription tz_mpc_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = tz_mpc_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctrl, TZMPC),
         VMSTATE_UINT32(blk_idx, TZMPC),
         VMSTATE_UINT32(int_stat, TZMPC),

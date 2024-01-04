@@ -395,7 +395,7 @@ static const VMStateDescription vmstate_sifive_pwm = {
     .name = TYPE_SIFIVE_PWM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_ARRAY(timer, SiFivePwmState, 4),
         VMSTATE_UINT64(tick_offset, SiFivePwmState),
         VMSTATE_UINT32(pwmcfg, SiFivePwmState),

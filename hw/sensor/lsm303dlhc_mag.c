@@ -442,7 +442,7 @@ static const VMStateDescription vmstate_lsm303dlhc_mag = {
     .name = "LSM303DLHC_MAG",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
 
         VMSTATE_I2C_SLAVE(parent_obj, LSM303DLHCMagState),
         VMSTATE_UINT8(len, LSM303DLHCMagState),

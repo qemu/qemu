@@ -232,7 +232,7 @@ static const VMStateDescription vmstate_goldfish_tty = {
     .name = "goldfish_tty",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(data_len, GoldfishTTYState),
         VMSTATE_UINT64(data_ptr, GoldfishTTYState),
         VMSTATE_BOOL(int_enabled, GoldfishTTYState),

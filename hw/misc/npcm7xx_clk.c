@@ -976,7 +976,7 @@ static const VMStateDescription vmstate_npcm7xx_clk_pll = {
     .name = "npcm7xx-clock-pll",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields =  (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(clock_in, NPCM7xxClockPLLState),
         VMSTATE_END_OF_LIST(),
     },
@@ -986,7 +986,7 @@ static const VMStateDescription vmstate_npcm7xx_clk_sel = {
     .name = "npcm7xx-clock-sel",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields =  (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(clock_in, NPCM7xxClockSELState,
                 NPCM7XX_CLK_SEL_MAX_INPUT, 0, vmstate_clock, Clock),
         VMSTATE_END_OF_LIST(),
@@ -997,7 +997,7 @@ static const VMStateDescription vmstate_npcm7xx_clk_divider = {
     .name = "npcm7xx-clock-divider",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields =  (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(clock_in, NPCM7xxClockDividerState),
         VMSTATE_END_OF_LIST(),
     },
@@ -1008,7 +1008,7 @@ static const VMStateDescription vmstate_npcm7xx_clk = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = npcm7xx_clk_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, NPCM7xxCLKState, NPCM7XX_CLK_NR_REGS),
         VMSTATE_INT64(ref_ns, NPCM7xxCLKState),
         VMSTATE_CLOCK(clkref, NPCM7xxCLKState),

@@ -447,7 +447,7 @@ static const VMStateDescription vmstate_aspeed_lpc = {
     .name = TYPE_ASPEED_LPC,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedLPCState, ASPEED_LPC_NR_REGS),
         VMSTATE_UINT32(subdevice_irqs_pending, AspeedLPCState),
         VMSTATE_END_OF_LIST(),

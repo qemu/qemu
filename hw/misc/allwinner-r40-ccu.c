@@ -179,7 +179,7 @@ static const VMStateDescription allwinner_r40_ccu_vmstate = {
     .name = "allwinner-r40-ccu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AwR40ClockCtlState, AW_R40_CCU_REGS_NUM),
         VMSTATE_END_OF_LIST()
     }

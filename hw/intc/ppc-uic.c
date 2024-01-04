@@ -269,7 +269,7 @@ static const VMStateDescription ppc_uic_vmstate = {
     .name = "ppc-uic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(level, PPCUIC),
         VMSTATE_UINT32(uicsr, PPCUIC),
         VMSTATE_UINT32(uicer, PPCUIC),

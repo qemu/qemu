@@ -178,7 +178,7 @@ static const VMStateDescription vmstate_vmgenid = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmgenid_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(vmgenid_addr_le, VmGenIdState, sizeof(uint64_t)),
         VMSTATE_END_OF_LIST()
     },

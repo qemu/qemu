@@ -73,7 +73,7 @@ static const VMStateDescription vmstate_vmcoreinfo = {
     .name = "vmcoreinfo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(has_vmcoreinfo, VMCoreInfoState),
         VMSTATE_UINT16(vmcoreinfo.host_format, VMCoreInfoState),
         VMSTATE_UINT16(vmcoreinfo.guest_format, VMCoreInfoState),

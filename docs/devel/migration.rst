@@ -158,7 +158,7 @@ An example (from hw/input/pckbd.c)
       .name = "pckbd",
       .version_id = 3,
       .minimum_version_id = 3,
-      .fields = (VMStateField[]) {
+      .fields = (const VMStateField[]) {
           VMSTATE_UINT8(write_cmd, KBDState),
           VMSTATE_UINT8(status, KBDState),
           VMSTATE_UINT8(mode, KBDState),
@@ -294,7 +294,7 @@ Example:
       .pre_save = ide_drive_pio_pre_save,
       .post_load = ide_drive_pio_post_load,
       .needed = ide_drive_pio_state_needed,
-      .fields = (VMStateField[]) {
+      .fields = (const VMStateField[]) {
           VMSTATE_INT32(req_nb_sectors, IDEState),
           VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
                                vmstate_info_uint8, uint8_t),
@@ -312,11 +312,11 @@ Example:
       .version_id = 3,
       .minimum_version_id = 0,
       .post_load = ide_drive_post_load,
-      .fields = (VMStateField[]) {
+      .fields = (const VMStateField[]) {
           .... several fields ....
           VMSTATE_END_OF_LIST()
       },
-      .subsections = (const VMStateDescription*[]) {
+      .subsections = (const VMStateDescription * const []) {
           &vmstate_ide_drive_pio_state,
           NULL
       }

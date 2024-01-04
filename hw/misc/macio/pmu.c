@@ -668,7 +668,7 @@ static const VMStateDescription vmstate_pmu_adb = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmu_adb_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(adb_reply_size, PMUState),
         VMSTATE_BUFFER(adb_reply, PMUState),
         VMSTATE_END_OF_LIST()
@@ -679,7 +679,7 @@ static const VMStateDescription vmstate_pmu = {
     .name = "pmu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(mos6522_pmu.parent_obj, PMUState, 0, vmstate_mos6522,
                        MOS6522State),
         VMSTATE_UINT8(last_b, PMUState),
@@ -698,7 +698,7 @@ static const VMStateDescription vmstate_pmu = {
         VMSTATE_INT64(one_sec_target, PMUState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_pmu_adb,
         NULL
     }

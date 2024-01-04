@@ -878,7 +878,7 @@ static const VMStateDescription vmstate_riscv_aplic = {
     .name = "riscv_aplic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
             VMSTATE_UINT32(domaincfg, RISCVAPLICState),
             VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
             VMSTATE_UINT32(mmsicfgaddrH, RISCVAPLICState),

@@ -179,7 +179,7 @@ static const VMStateDescription vmstate_onenand = {
     .minimum_version_id = 1,
     .pre_save = onenand_pre_save,
     .post_load = onenand_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(current_direction, OneNANDState),
         VMSTATE_INT32(cycle, OneNANDState),
         VMSTATE_INT32(otpmode, OneNANDState),

@@ -637,7 +637,7 @@ static const VMStateDescription vmstate_npcm7xx_base_timer = {
     .name = "npcm7xx-base-timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER(qtimer, NPCM7xxBaseTimer),
         VMSTATE_INT64(expires_ns, NPCM7xxBaseTimer),
         VMSTATE_INT64(remaining_ns, NPCM7xxBaseTimer),
@@ -649,7 +649,7 @@ static const VMStateDescription vmstate_npcm7xx_timer = {
     .name = "npcm7xx-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(base_timer, NPCM7xxTimer,
                              0, vmstate_npcm7xx_base_timer,
                              NPCM7xxBaseTimer),
@@ -663,7 +663,7 @@ static const VMStateDescription vmstate_npcm7xx_watchdog_timer = {
     .name = "npcm7xx-watchdog-timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(base_timer, NPCM7xxWatchdogTimer,
                              0, vmstate_npcm7xx_base_timer,
                              NPCM7xxBaseTimer),
@@ -676,7 +676,7 @@ static const VMStateDescription vmstate_npcm7xx_timer_ctrl = {
     .name = "npcm7xx-timer-ctrl",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(tisr, NPCM7xxTimerCtrlState),
         VMSTATE_CLOCK(clock, NPCM7xxTimerCtrlState),
         VMSTATE_STRUCT_ARRAY(timer, NPCM7xxTimerCtrlState,

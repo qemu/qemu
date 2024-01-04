@@ -617,7 +617,7 @@ const VMStateDescription vmstate_qemu_ctucan_tx_buffer = {
     .name = "qemu_ctucan_tx_buffer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(data, CtuCanCoreMsgBuffer, CTUCAN_CORE_MSG_MAX_LEN),
         VMSTATE_END_OF_LIST()
     }
@@ -636,7 +636,7 @@ const VMStateDescription vmstate_ctucan = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ctucan_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(mode_settings.u32, CtuCanCoreState),
         VMSTATE_UINT32(status.u32, CtuCanCoreState),
         VMSTATE_UINT32(int_stat.u32, CtuCanCoreState),

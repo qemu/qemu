@@ -502,7 +502,7 @@ This is typically used to migrate an input clock state. For example:
 
     VMStateDescription my_device_vmstate = {
         .name = "my_device",
-        .fields = (VMStateField[]) {
+        .fields = (const VMStateField[]) {
             [...], /* other migrated fields */
             VMSTATE_CLOCK(clk, MyDeviceState),
             VMSTATE_END_OF_LIST()

@@ -98,7 +98,7 @@ static const VMStateDescription vmstate_imx31_ccm = {
     .name = TYPE_IMX31_CCM,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(reg, IMX31CCMState, IMX31_CCM_MAX_REG),
         VMSTATE_END_OF_LIST()
     },

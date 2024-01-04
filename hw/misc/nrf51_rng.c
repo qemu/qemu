@@ -231,7 +231,7 @@ static const VMStateDescription vmstate_rng = {
     .name = "nrf51_soc.rng",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(active, NRF51RNGState),
         VMSTATE_UINT32(event_valrdy, NRF51RNGState),
         VMSTATE_UINT32(shortcut_stop_on_valrdy, NRF51RNGState),

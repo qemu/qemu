@@ -2106,7 +2106,7 @@ static const VMStateDescription vmstate_vga_endian = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vga_endian_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_BOOL(big_endian_fb, VGACommonState),
         VMSTATE_END_OF_LIST()
     }
@@ -2117,7 +2117,7 @@ const VMStateDescription vmstate_vga_common = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = vga_common_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(latch, VGACommonState),
         VMSTATE_UINT8(sr_index, VGACommonState),
         VMSTATE_PARTIAL_BUFFER(sr, VGACommonState, 8),
@@ -2149,7 +2149,7 @@ const VMStateDescription vmstate_vga_common = {
         VMSTATE_UINT32(vbe_bank_mask, VGACommonState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_vga_endian,
         NULL
     }

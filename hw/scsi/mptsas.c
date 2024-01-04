@@ -1366,7 +1366,7 @@ static const VMStateDescription vmstate_mptsas = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = mptsas_post_load,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
         VMSTATE_BOOL(msi_in_use, MPTSASState),
         VMSTATE_UINT32(state, MPTSASState),

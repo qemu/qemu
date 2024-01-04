@@ -87,7 +87,7 @@ const VMStateDescription vmstate_PCIIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "pci-kcs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PCIIPMIKCSDevice),
         VMSTATE_STRUCT(kcs, PCIIPMIKCSDevice, 1, vmstate_IPMIKCS, IPMIKCS),
         VMSTATE_END_OF_LIST()

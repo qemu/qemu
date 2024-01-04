@@ -63,7 +63,7 @@ static const VMStateDescription vmstate_integratorcm = {
     .name = "integratorcm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cm_osc, IntegratorCMState),
         VMSTATE_UINT32(cm_ctrl, IntegratorCMState),
         VMSTATE_UINT32(cm_lock, IntegratorCMState),
@@ -346,7 +346,7 @@ static const VMStateDescription vmstate_icp_pic = {
     .name = "icp_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(level, icp_pic_state),
         VMSTATE_UINT32(irq_enabled, icp_pic_state),
         VMSTATE_UINT32(fiq_enabled, icp_pic_state),
@@ -488,7 +488,7 @@ static const VMStateDescription vmstate_icp_control = {
     .name = "icp_control",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields      = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(intreg_state, ICPCtrlRegsState),
         VMSTATE_END_OF_LIST()
     }

@@ -120,7 +120,7 @@ static const VMStateDescription vmstate_ohci = {
     .name = "ohci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, OHCIPCIState),
         VMSTATE_STRUCT(state, OHCIPCIState, 1, vmstate_ohci_state, OHCIState),
         VMSTATE_END_OF_LIST()

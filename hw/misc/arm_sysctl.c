@@ -57,7 +57,7 @@ static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
     .version_id = 4,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(leds, arm_sysctl_state),
         VMSTATE_UINT16(lockval, arm_sysctl_state),
         VMSTATE_UINT32(cfgdata1, arm_sysctl_state),

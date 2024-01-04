@@ -30,7 +30,7 @@ static const VMStateDescription vmstate_pl050 = {
     .name = "pl050",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(cr, PL050State),
         VMSTATE_UINT32(clk, PL050State),
         VMSTATE_UINT32(last, PL050State),

@@ -344,7 +344,7 @@ static const VMStateDescription vmstate_vhost_vdpa_device = {
     .unmigratable = 1,
     .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },

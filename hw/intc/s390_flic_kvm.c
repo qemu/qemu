@@ -525,7 +525,7 @@ static const VMStateDescription kvm_s390_flic_ais_tmp = {
     .name = "s390-flic-ais-tmp",
     .pre_save = kvm_flic_ais_pre_save,
     .post_load = kvm_flic_ais_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(simm, KVMS390FLICStateMigTmp),
         VMSTATE_UINT8(nimm, KVMS390FLICStateMigTmp),
         VMSTATE_END_OF_LIST()
@@ -537,7 +537,7 @@ static const VMStateDescription kvm_s390_flic_vmstate_ais = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ais_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_WITH_TMP(KVMS390FLICState, KVMS390FLICStateMigTmp,
                          kvm_s390_flic_ais_tmp),
         VMSTATE_END_OF_LIST()
@@ -550,7 +550,7 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
     .name = "s390-flic",
     .version_id = FLIC_SAVEVM_VERSION,
     .minimum_version_id = FLIC_SAVEVM_VERSION,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         {
             .name = "irqs",
             .info = &(const VMStateInfo) {
@@ -562,7 +562,7 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
         },
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &kvm_s390_flic_vmstate_ais,
         NULL
     }

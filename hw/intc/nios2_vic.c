@@ -275,7 +275,7 @@ static const VMStateDescription nios2_vic_vmstate = {
     .name = "nios2-vic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(int_config, Nios2VIC, 32),
         VMSTATE_UINT32(vic_config, Nios2VIC),
         VMSTATE_UINT32(int_raw_status, Nios2VIC),

@@ -62,7 +62,7 @@ static const VMStateDescription vmstate_imx_spi = {
     .name = TYPE_IMX_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_FIFO32(tx_fifo, IMXSPIState),
         VMSTATE_FIFO32(rx_fifo, IMXSPIState),
         VMSTATE_INT16(burst_length, IMXSPIState),

@@ -161,7 +161,7 @@ static const VMStateDescription vmstate_goldfish_pic = {
     .name = "goldfish_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(pending, GoldfishPICState),
         VMSTATE_UINT32(enabled, GoldfishPICState),
         VMSTATE_END_OF_LIST()

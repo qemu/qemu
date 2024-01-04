@@ -512,7 +512,7 @@ static const VMStateDescription u2f_passthru_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = u2f_passthru_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_U2F_KEY(base, U2FPassthruState),
         VMSTATE_END_OF_LIST()
     }

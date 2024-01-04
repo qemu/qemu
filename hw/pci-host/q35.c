@@ -520,7 +520,7 @@ static const VMStateDescription vmstate_mch = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = mch_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, MCHPCIState),
         /* Used to be smm_enabled, which was basically always zero because
          * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.

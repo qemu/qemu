@@ -235,7 +235,7 @@ static const VMStateDescription vmstate_imx6_ccm = {
     .name = TYPE_IMX6_CCM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(ccm, IMX6CCMState, CCM_MAX),
         VMSTATE_UINT32_ARRAY(analog, IMX6CCMState, CCM_ANALOG_MAX),
         VMSTATE_END_OF_LIST()

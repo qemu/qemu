@@ -217,7 +217,7 @@ static const VMStateDescription vmstate_adb_mouse = {
     .name = "adb_mouse",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(parent_obj, MouseState, 0, vmstate_adb_device,
                        ADBDevice),
         VMSTATE_INT32(buttons_state, MouseState),

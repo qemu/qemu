@@ -250,7 +250,7 @@ static const VMStateDescription allwinner_cpucfg_vmstate = {
     .name = "allwinner-cpucfg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(gen_ctrl, AwCpuCfgState),
         VMSTATE_UINT32(super_standby, AwCpuCfgState),
         VMSTATE_UINT32(entry_addr, AwCpuCfgState),

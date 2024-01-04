@@ -753,7 +753,7 @@ static const VMStateDescription iotkit_secctl_ppc_vmstate = {
     .name = "iotkit-secctl-ppc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ns, IoTKitSecCtlPPC),
         VMSTATE_UINT32(sp, IoTKitSecCtlPPC),
         VMSTATE_UINT32(nsp, IoTKitSecCtlPPC),
@@ -765,7 +765,7 @@ static const VMStateDescription iotkit_secctl_mpcintstatus_vmstate = {
     .name = "iotkit-secctl-mpcintstatus",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(mpcintstatus, IoTKitSecCtl),
         VMSTATE_END_OF_LIST()
     }
@@ -781,7 +781,7 @@ static const VMStateDescription iotkit_secctl_msc_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = needed_always,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(secmscintstat, IoTKitSecCtl),
         VMSTATE_UINT32(secmscinten, IoTKitSecCtl),
         VMSTATE_UINT32(nsmscexp, IoTKitSecCtl),
@@ -793,7 +793,7 @@ static const VMStateDescription iotkit_secctl_vmstate = {
     .name = "iotkit-secctl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(secppcintstat, IoTKitSecCtl),
         VMSTATE_UINT32(secppcinten, IoTKitSecCtl),
         VMSTATE_UINT32(secrespcfg, IoTKitSecCtl),
@@ -807,7 +807,7 @@ static const VMStateDescription iotkit_secctl_vmstate = {
                              iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &iotkit_secctl_mpcintstatus_vmstate,
         &iotkit_secctl_msc_vmstate,
         NULL

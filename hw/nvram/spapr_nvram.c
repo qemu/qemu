@@ -245,7 +245,7 @@ static const VMStateDescription vmstate_spapr_nvram = {
     .minimum_version_id = 1,
     .pre_load = spapr_nvram_pre_load,
     .post_load = spapr_nvram_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(size, SpaprNvram),
         VMSTATE_VBUFFER_ALLOC_UINT32(buf, SpaprNvram, 1, NULL, size),
         VMSTATE_END_OF_LIST()

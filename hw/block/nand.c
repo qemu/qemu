@@ -345,7 +345,7 @@ static const VMStateDescription vmstate_nand = {
     .minimum_version_id = 1,
     .pre_save = nand_pre_save,
     .post_load = nand_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(cle, NANDFlashState),
         VMSTATE_UINT8(ale, NANDFlashState),
         VMSTATE_UINT8(ce, NANDFlashState),

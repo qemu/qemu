@@ -288,7 +288,7 @@ static const VMStateDescription vmstate_pxa2xx_keypad = {
     .name = "pxa2xx_keypad",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(kpc, PXA2xxKeyPadState),
         VMSTATE_UINT32(kpdk, PXA2xxKeyPadState),
         VMSTATE_UINT32(kprec, PXA2xxKeyPadState),

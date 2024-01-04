@@ -82,7 +82,7 @@ static const VMStateDescription vmstate_acpi = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmstate_acpi_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, ViaPMState),
         VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
         VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
@@ -563,7 +563,7 @@ static const VMStateDescription vmstate_via = {
     .name = "via-isa",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, ViaISAState),
         VMSTATE_END_OF_LIST()
     }

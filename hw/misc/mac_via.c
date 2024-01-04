@@ -1292,7 +1292,7 @@ static const VMStateDescription vmstate_q800_via1 = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = via1_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
                        MOS6522State),
         VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
@@ -1411,7 +1411,7 @@ static const VMStateDescription vmstate_q800_via2 = {
     .name = "q800-via2",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA2State, 0, vmstate_mos6522,
                        MOS6522State),
         VMSTATE_END_OF_LIST()

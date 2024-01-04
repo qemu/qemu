@@ -108,7 +108,7 @@ static const VMStateDescription vmstate_virt_ctrl = {
     .name = "virt-ctrl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(irq_enabled, VirtCtrlState),
         VMSTATE_END_OF_LIST()
     }

@@ -606,7 +606,7 @@ const VMStateDescription vmstate_ne2000 = {
     .version_id = 2,
     .minimum_version_id = 0,
     .post_load = ne2000_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_V(rxcr, NE2000State, 2),
         VMSTATE_UINT8(cmd, NE2000State),
         VMSTATE_UINT32(start, NE2000State),

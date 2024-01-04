@@ -280,7 +280,7 @@ static const VMStateDescription vmstate_aspeed_adc_engine = {
     .name = TYPE_ASPEED_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedADCEngineState, ASPEED_ADC_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }

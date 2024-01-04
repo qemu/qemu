@@ -135,7 +135,7 @@ static const VMStateDescription vmstate_dpcd = {
     .name = TYPE_DPCD,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY_V(dpcd_info, DPCDState, DPCD_READABLE_AREA, 0),
         VMSTATE_END_OF_LIST()
     }

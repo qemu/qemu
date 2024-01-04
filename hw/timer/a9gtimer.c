@@ -328,7 +328,7 @@ static const VMStateDescription vmstate_a9_gtimer_per_cpu = {
     .name = "arm.cortex-a9-global-timer.percpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9GTimerPerCPU),
         VMSTATE_UINT64(compare, A9GTimerPerCPU),
         VMSTATE_UINT32(status, A9GTimerPerCPU),
@@ -342,7 +342,7 @@ static const VMStateDescription vmstate_a9_gtimer_control = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_a9_gtimer_control_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9GTimerState),
         VMSTATE_END_OF_LIST()
     }
@@ -352,7 +352,7 @@ static const VMStateDescription vmstate_a9_gtimer = {
     .name = "arm.cortex-a9-global-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(timer, A9GTimerState),
         VMSTATE_UINT64(counter, A9GTimerState),
         VMSTATE_UINT64(ref_counter, A9GTimerState),
@@ -362,7 +362,7 @@ static const VMStateDescription vmstate_a9_gtimer = {
                                      A9GTimerPerCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_a9_gtimer_control,
         NULL
     }

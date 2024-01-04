@@ -144,7 +144,7 @@ static void aspeed_xdma_reset(DeviceState *dev)
 static const VMStateDescription aspeed_xdma_vmstate = {
     .name = TYPE_ASPEED_XDMA,
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedXDMAState, ASPEED_XDMA_NUM_REGS),
         VMSTATE_END_OF_LIST(),
     },

@@ -26,7 +26,7 @@ static const VMStateDescription vmstate_tlbset = {
     .name = "cpu/tlbset",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(lo, TLBSet),
         VMSTATE_UINT32(hi, TLBSet),
         VMSTATE_END_OF_LIST()
@@ -37,7 +37,7 @@ static const VMStateDescription vmstate_cris_env = {
     .name = "env",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CPUCRISState, 16),
         VMSTATE_UINT32_ARRAY(pregs, CPUCRISState, 16),
         VMSTATE_UINT32(pc, CPUCRISState),
@@ -85,7 +85,7 @@ const VMStateDescription vmstate_cris_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CPU(),
         VMSTATE_STRUCT(env, CRISCPU, 1, vmstate_cris_env, CPUCRISState),
         VMSTATE_END_OF_LIST()

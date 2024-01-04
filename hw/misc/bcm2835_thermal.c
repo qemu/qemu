@@ -105,7 +105,7 @@ static const VMStateDescription bcm2835_thermal_vmstate = {
     .name = "bcm2835_thermal",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctl, Bcm2835ThermalState),
         VMSTATE_END_OF_LIST()
     }

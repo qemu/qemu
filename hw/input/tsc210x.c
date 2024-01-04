@@ -1017,7 +1017,7 @@ static int tsc210x_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static VMStateField vmstatefields_tsc210x[] = {
+static const VMStateField vmstatefields_tsc210x[] = {
     VMSTATE_BOOL(enabled, TSC210xState),
     VMSTATE_BOOL(host_mode, TSC210xState),
     VMSTATE_BOOL(irq, TSC210xState),

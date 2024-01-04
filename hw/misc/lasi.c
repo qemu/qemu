@@ -196,7 +196,7 @@ static const VMStateDescription vmstate_lasi = {
     .name = "Lasi",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(irr, LasiState),
         VMSTATE_UINT32(imr, LasiState),
         VMSTATE_UINT32(ipr, LasiState),

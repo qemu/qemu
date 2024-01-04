@@ -383,7 +383,7 @@ static const VMStateDescription vmstate_raven = {
     .name = "raven",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, RavenPCIState),
         VMSTATE_END_OF_LIST()
     },

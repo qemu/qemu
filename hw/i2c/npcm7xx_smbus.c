@@ -1046,7 +1046,7 @@ static const VMStateDescription vmstate_npcm7xx_smbus = {
     .name = "npcm7xx-smbus",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(sda, NPCM7xxSMBusState),
         VMSTATE_UINT8(st, NPCM7xxSMBusState),
         VMSTATE_UINT8(cst, NPCM7xxSMBusState),

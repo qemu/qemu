@@ -390,7 +390,7 @@ static const VMStateDescription vmstate_mss_spi = {
     .name = TYPE_MSS_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_FIFO32(tx_fifo, MSSSpiState),
         VMSTATE_FIFO32(rx_fifo, MSSSpiState),
         VMSTATE_UINT32_ARRAY(regs, MSSSpiState, R_SPI_MAX),

@@ -2373,7 +2373,7 @@ static const VMStateDescription usbredir_bulk_receiving_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = usbredir_bulk_receiving_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(bulk_receiving_started, struct endp_data),
         VMSTATE_END_OF_LIST()
     }
@@ -2391,7 +2391,7 @@ static const VMStateDescription usbredir_stream_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = usbredir_stream_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(max_streams, struct endp_data),
         VMSTATE_END_OF_LIST()
     }
@@ -2401,7 +2401,7 @@ static const VMStateDescription usbredir_ep_vmstate = {
     .name = "usb-redir-ep",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(type, struct endp_data),
         VMSTATE_UINT8(interval, struct endp_data),
         VMSTATE_UINT8(interface, struct endp_data),
@@ -2424,7 +2424,7 @@ static const VMStateDescription usbredir_ep_vmstate = {
         VMSTATE_INT32(bufpq_target_size, struct endp_data),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &usbredir_bulk_receiving_vmstate,
         &usbredir_stream_vmstate,
         NULL
@@ -2481,7 +2481,7 @@ static const VMStateDescription usbredir_ep_packet_id_queue_vmstate = {
     .name = "usb-redir-packet-id-queue",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         {
             .name         = "queue",
             .version_id   = 0,
@@ -2501,7 +2501,7 @@ static const VMStateDescription usbredir_device_info_vmstate = {
     .name = "usb-redir-device-info",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(speed, struct usb_redir_device_connect_header),
         VMSTATE_UINT8(device_class, struct usb_redir_device_connect_header),
         VMSTATE_UINT8(device_subclass, struct usb_redir_device_connect_header),
@@ -2520,7 +2520,7 @@ static const VMStateDescription usbredir_interface_info_vmstate = {
     .name = "usb-redir-interface-info",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(interface_count,
                        struct usb_redir_interface_info_header),
         VMSTATE_UINT8_ARRAY(interface,
@@ -2543,7 +2543,7 @@ static const VMStateDescription usbredir_vmstate = {
     .minimum_version_id = 1,
     .pre_save = usbredir_pre_save,
     .post_load = usbredir_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, USBRedirDevice),
         VMSTATE_TIMER_PTR(attach_timer, USBRedirDevice),
         {

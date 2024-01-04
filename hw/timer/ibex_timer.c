@@ -252,7 +252,7 @@ static const VMStateDescription vmstate_ibex_timer = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ibex_timer_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(timer_ctrl, IbexTimerState),
         VMSTATE_UINT32(timer_cfg0, IbexTimerState),
         VMSTATE_UINT32(timer_compare_lower0, IbexTimerState),

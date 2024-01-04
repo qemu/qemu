@@ -243,7 +243,7 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
     .name = "aspeed.sdmc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSDMCState, ASPEED_SDMC_NR_REGS),
         VMSTATE_END_OF_LIST()
     }

@@ -49,7 +49,7 @@ static const VMStateDescription vmstate_pmp_entry = {
     .name = "cpu/pmp/entry",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(addr_reg, pmp_entry_t),
         VMSTATE_UINT8(cfg_reg, pmp_entry_t),
         VMSTATE_END_OF_LIST()
@@ -62,7 +62,7 @@ static const VMStateDescription vmstate_pmp = {
     .minimum_version_id = 1,
     .needed = pmp_needed,
     .post_load = pmp_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(env.pmp_state.pmp, RISCVCPU, MAX_RISCV_PMPS,
                              0, vmstate_pmp_entry, pmp_entry_t),
         VMSTATE_END_OF_LIST()
@@ -82,7 +82,7 @@ static const VMStateDescription vmstate_hyper = {
     .version_id = 3,
     .minimum_version_id = 3,
     .needed = hyper_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(env.hstatus, RISCVCPU),
         VMSTATE_UINTTL(env.hedeleg, RISCVCPU),
         VMSTATE_UINT64(env.hideleg, RISCVCPU),
@@ -138,7 +138,7 @@ static const VMStateDescription vmstate_vector = {
     .version_id = 2,
     .minimum_version_id = 2,
     .needed = vector_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.vreg, RISCVCPU, 32 * RV_VLEN_MAX / 64),
         VMSTATE_UINTTL(env.vxrm, RISCVCPU),
         VMSTATE_UINTTL(env.vxsat, RISCVCPU),
@@ -163,7 +163,7 @@ static const VMStateDescription vmstate_pointermasking = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pointermasking_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(env.mmte, RISCVCPU),
         VMSTATE_UINTTL(env.mpmmask, RISCVCPU),
         VMSTATE_UINTTL(env.mpmbase, RISCVCPU),
@@ -189,7 +189,7 @@ static const VMStateDescription vmstate_rv128 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = rv128_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gprh, RISCVCPU, 32),
         VMSTATE_UINT64(env.mscratchh, RISCVCPU),
         VMSTATE_UINT64(env.sscratchh, RISCVCPU),
@@ -218,7 +218,7 @@ static const VMStateDescription vmstate_kvmtimer = {
     .minimum_version_id = 1,
     .needed = kvmtimer_needed,
     .post_load = cpu_kvmtimer_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.kvm_timer_time, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_compare, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_state, RISCVCPU),
@@ -252,7 +252,7 @@ static const VMStateDescription vmstate_debug = {
     .minimum_version_id = 2,
     .needed = debug_needed,
     .post_load = debug_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(env.trigger_cur, RISCVCPU),
         VMSTATE_UINTTL_ARRAY(env.tdata1, RISCVCPU, RV_MAX_TRIGGERS),
         VMSTATE_UINTTL_ARRAY(env.tdata2, RISCVCPU, RV_MAX_TRIGGERS),
@@ -283,7 +283,7 @@ static const VMStateDescription vmstate_smstateen = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = smstateen_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.mstateen, RISCVCPU, 4),
         VMSTATE_UINT64_ARRAY(env.hstateen, RISCVCPU, 4),
         VMSTATE_UINT64_ARRAY(env.sstateen, RISCVCPU, 4),
@@ -304,7 +304,7 @@ static const VMStateDescription vmstate_envcfg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = envcfg_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(env.menvcfg, RISCVCPU),
         VMSTATE_UINTTL(env.senvcfg, RISCVCPU),
         VMSTATE_UINT64(env.henvcfg, RISCVCPU),
@@ -324,7 +324,7 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmu_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(mhpmcounter_val, PMUCTRState),
         VMSTATE_UINTTL(mhpmcounterh_val, PMUCTRState),
         VMSTATE_UINTTL(mhpmcounter_prev, PMUCTRState),
@@ -346,7 +346,7 @@ static const VMStateDescription vmstate_jvt = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = jvt_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL(env.jvt, RISCVCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -357,7 +357,7 @@ const VMStateDescription vmstate_riscv_cpu = {
     .version_id = 9,
     .minimum_version_id = 9,
     .post_load = riscv_cpu_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gpr, RISCVCPU, 32),
         VMSTATE_UINT64_ARRAY(env.fpr, RISCVCPU, 32),
         VMSTATE_UINT8_ARRAY(env.miprio, RISCVCPU, 64),
@@ -411,7 +411,7 @@ const VMStateDescription vmstate_riscv_cpu = {
 
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_pmp,
         &vmstate_hyper,
         &vmstate_vector,

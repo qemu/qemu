@@ -122,7 +122,7 @@ static const VMStateDescription vmstate_exynos4210_rtc_state = {
     .name = "exynos4210.rtc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(reg_intp, Exynos4210RTCState),
         VMSTATE_UINT32(reg_rtccon, Exynos4210RTCState),
         VMSTATE_UINT32(reg_ticcnt, Exynos4210RTCState),

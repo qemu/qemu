@@ -37,7 +37,7 @@ static const VMStateDescription vmstate_pvpanic_pci = {
     .name = "pvpanic-pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PVPanicPCIState),
         VMSTATE_END_OF_LIST()
     }

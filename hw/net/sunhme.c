@@ -925,7 +925,7 @@ static const VMStateDescription vmstate_hme = {
     .name = "sunhme",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, SunHMEState),
         VMSTATE_MACADDR(conf.macaddr, SunHMEState),
         VMSTATE_UINT32_ARRAY(sebregs, SunHMEState, (HME_SEB_REG_SIZE >> 2)),

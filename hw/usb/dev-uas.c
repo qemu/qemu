@@ -947,7 +947,7 @@ static void usb_uas_realize(USBDevice *dev, Error **errp)
 static const VMStateDescription vmstate_usb_uas = {
     .name = "usb-uas",
     .unmigratable = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, UASDevice),
         VMSTATE_END_OF_LIST()
     }

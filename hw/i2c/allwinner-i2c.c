@@ -415,7 +415,7 @@ static const VMStateDescription allwinner_i2c_vmstate = {
     .name = TYPE_AW_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(addr, AWI2CState),
         VMSTATE_UINT8(xaddr, AWI2CState),
         VMSTATE_UINT8(data, AWI2CState),

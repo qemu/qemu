@@ -23,7 +23,7 @@ static const VMStateDescription vmstate_diag288 = {
     .name = "vmstate_diag288",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(timer, DIAG288State),
         VMSTATE_BOOL(enabled, DIAG288State),
         VMSTATE_END_OF_LIST()

@@ -517,7 +517,7 @@ const VMStateDescription vmstate_acpi_pcihp_pci_status = {
     .name = "acpi_pcihp_pci_status",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(up, AcpiPciHpPciStatus),
         VMSTATE_UINT32(down, AcpiPciHpPciStatus),
         VMSTATE_END_OF_LIST()

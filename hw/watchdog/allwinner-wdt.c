@@ -313,7 +313,7 @@ static const VMStateDescription allwinner_wdt_vmstate = {
     .name = "allwinner-wdt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, AwWdtState),
         VMSTATE_UINT32_ARRAY(regs, AwWdtState, AW_WDT_REGS_NUM),
         VMSTATE_END_OF_LIST()

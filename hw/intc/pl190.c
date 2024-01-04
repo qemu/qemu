@@ -258,7 +258,7 @@ static const VMStateDescription vmstate_pl190 = {
     .name = "pl190",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(level, PL190State),
         VMSTATE_UINT32(soft_level, PL190State),
         VMSTATE_UINT32(irq_enable, PL190State),

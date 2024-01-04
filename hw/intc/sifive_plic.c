@@ -406,7 +406,7 @@ static const VMStateDescription vmstate_sifive_plic = {
     .name = "riscv_sifive_plic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
             VMSTATE_VARRAY_UINT32(source_priority, SiFivePLICState,
                                   num_sources, 0,
                                   vmstate_info_uint32, uint32_t),

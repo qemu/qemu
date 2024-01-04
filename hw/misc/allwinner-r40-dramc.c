@@ -474,7 +474,7 @@ static const VMStateDescription allwinner_r40_dramc_vmstate = {
     .name = "allwinner-r40-dramc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(dramcom, AwR40DramCtlState,
                              AW_R40_DRAMCOM_REGS_NUM),
         VMSTATE_UINT32_ARRAY(dramctl, AwR40DramCtlState,

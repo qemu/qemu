@@ -112,7 +112,7 @@ static const VMStateDescription vmstate_msf2_sysreg = {
     .name = TYPE_MSF2_SYSREG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MSF2SysregState, MSF2_SYSREG_MMIO_SIZE / 4),
         VMSTATE_END_OF_LIST()
     }

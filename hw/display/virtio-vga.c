@@ -88,7 +88,7 @@ static const VMStateDescription vmstate_virtio_vga_base = {
     .name = "virtio-vga",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* no pci stuff here, saving the virtio device will handle that */
         VMSTATE_STRUCT(vga, VirtIOVGABase, 0,
                        vmstate_vga_common, VGACommonState),

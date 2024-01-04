@@ -442,7 +442,7 @@ static const VMStateDescription sse_counter_vmstate = {
     .name = "sse-counter",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_CLOCK(clk, SSECounter),
         VMSTATE_END_OF_LIST()
     }

@@ -510,7 +510,7 @@ static const VMStateDescription vmstate_kbd_outport = {
     .minimum_version_id = 1,
     .post_load = kbd_outport_post_load,
     .needed = kbd_outport_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(outport, KBDState),
         VMSTATE_END_OF_LIST()
     }
@@ -552,7 +552,7 @@ static const VMStateDescription vmstate_kbd_extended_state = {
     .post_load = kbd_extended_state_post_load,
     .pre_save = kbd_extended_state_pre_save,
     .needed = kbd_extended_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(migration_flags, KBDState),
         VMSTATE_UINT32(obsrc, KBDState),
         VMSTATE_UINT8(obdata, KBDState),
@@ -619,14 +619,14 @@ static const VMStateDescription vmstate_kbd = {
     .pre_load = kbd_pre_load,
     .post_load = kbd_post_load,
     .pre_save = kbd_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
         VMSTATE_UINT8(mode, KBDState),
         VMSTATE_UINT8(pending_tmp, KBDState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_kbd_outport,
         &vmstate_kbd_extended_state,
         NULL
@@ -745,7 +745,7 @@ static const VMStateDescription vmstate_kbd_mmio = {
     .name = "pckbd-mmio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(kbd, MMIOKBDState, 0, vmstate_kbd, KBDState),
         VMSTATE_END_OF_LIST()
     }
@@ -786,7 +786,7 @@ static const VMStateDescription vmstate_kbd_isa = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(kbd, ISAKBDState, 0, vmstate_kbd, KBDState),
         VMSTATE_END_OF_LIST()
     }
