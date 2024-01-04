@@ -201,6 +201,8 @@ static int vub_connect(DeviceState *dev)
     return 0;
 }
 
+static void vub_event(void *opaque, QEMUChrEvent event);
+
 static void vub_disconnect(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -211,9 +213,13 @@ static void vub_disconnect(DeviceState *dev)
     }
     vub->connected = false;
 
-    if (vhost_dev_is_started(&vub->vhost_dev)) {
-        vub_stop(vdev);
-    }
+    vub_stop(vdev);
+    vhost_dev_cleanup(&vub->vhost_dev);
+
+    /* Re-instate the event handler for new connections */
+    qemu_chr_fe_set_handlers(&vub->chardev,
+                             NULL, NULL, vub_event,
+                             NULL, dev, NULL, true);
 }
 
 static void vub_event(void *opaque, QEMUChrEvent event)
@@ -230,7 +236,9 @@ static void vub_event(void *opaque, QEMUChrEvent event)
         }
         break;
     case CHR_EVENT_CLOSED:
-        vub_disconnect(dev);
+        /* defer close until later to avoid circular close */
+        vhost_user_async_close(dev, &vub->chardev, &vub->vhost_dev,
+                               vub_disconnect, vub_event);
         break;
     case CHR_EVENT_BREAK:
     case CHR_EVENT_MUX_IN:
