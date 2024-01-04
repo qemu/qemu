@@ -111,6 +111,12 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
 
     rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
                     args);
+
+    if (!qdict_haskey(rsp, "return")) {
+        g_autoptr(GString) s = qobject_to_json_pretty(QOBJECT(rsp), true);
+        g_test_message("%s", s->str);
+    }
+
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
