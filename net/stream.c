@@ -173,7 +173,7 @@ static gboolean net_stream_send(QIOChannel *ioc,
 
         net_socket_rs_init(&s->rs, net_stream_rs_finalize, false);
         s->nc.link_down = true;
-        qemu_set_info_str(&s->nc, "%s", "");
+        qemu_set_info_str(&s->nc, "listening");
 
         qapi_event_send_netdev_stream_disconnected(s->nc.name);
         net_stream_arm_reconnect(s);
@@ -292,6 +292,7 @@ static void net_stream_server_listening(QIOTask *task, gpointer opaque)
     s->nc.link_down = true;
     s->listener = qio_net_listener_new();
 
+    qemu_set_info_str(&s->nc, "listening");
     net_socket_rs_init(&s->rs, net_stream_rs_finalize, false);
     qio_net_listener_set_client_func(s->listener, net_stream_listen, s, NULL);
     qio_net_listener_add(s->listener, listen_sioc);
@@ -309,6 +310,7 @@ static int net_stream_server_init(NetClientState *peer,
 
     nc = qemu_new_net_client(&net_stream_info, peer, model, name);
     s = DO_UPCAST(NetStreamState, nc, nc);
+    qemu_set_info_str(&s->nc, "initializing");
 
     s->listen_ioc = QIO_CHANNEL(listen_sioc);
     qio_channel_socket_listen_async(listen_sioc, addr, 0,
@@ -400,6 +402,7 @@ static int net_stream_client_init(NetClientState *peer,
 
     nc = qemu_new_net_client(&net_stream_info, peer, model, name);
     s = DO_UPCAST(NetStreamState, nc, nc);
+    qemu_set_info_str(&s->nc, "connecting");
 
     s->ioc = QIO_CHANNEL(sioc);
     s->nc.link_down = true;
