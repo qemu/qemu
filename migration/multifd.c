@@ -236,12 +236,12 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     return msg.id;
 }
 
-static MultiFDPages_t *multifd_pages_init(size_t size)
+static MultiFDPages_t *multifd_pages_init(uint32_t n)
 {
     MultiFDPages_t *pages = g_new0(MultiFDPages_t, 1);
 
-    pages->allocated = size;
-    pages->offset = g_new0(ram_addr_t, size);
+    pages->allocated = n;
+    pages->offset = g_new0(ram_addr_t, n);
 
     return pages;
 }
