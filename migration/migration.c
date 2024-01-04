@@ -697,6 +697,13 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
+        MigrationState *s = migrate_get_current();
+
+        if (migrate_has_error(s)) {
+            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+                error_report_err(s->error);
+            }
+        }
         error_report("load of migration failed: %s", strerror(-ret));
         goto fail;
     }
