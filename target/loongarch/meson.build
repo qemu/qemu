@@ -18,3 +18,4 @@ subdir('tcg')
 
 target_arch += {'loongarch': loongarch_ss}
 target_system_arch += {'loongarch': loongarch_system_ss}
+subdir('kvm')

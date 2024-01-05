@@ -229,6 +229,8 @@ elif cpu in ['riscv32']
   kvm_targets = ['riscv32-softmmu']
 elif cpu in ['riscv64']
   kvm_targets = ['riscv64-softmmu']
+elif cpu in ['loongarch64']
+  kvm_targets = ['loongarch64-softmmu']
 else
   kvm_targets = []
 endif
