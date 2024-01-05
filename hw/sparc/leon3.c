@@ -164,9 +164,9 @@ static void leon3_cache_control_int(CPUSPARCState *env)
     }
 }
 
-static void leon3_irq_ack(void *irq_manager, int intno)
+static void leon3_irq_ack(CPUSPARCState *env, int intno)
 {
-    grlib_irqmp_ack((DeviceState *)irq_manager, intno);
+    grlib_irqmp_ack(env->irq_manager, intno);
 }
 
 /*
@@ -208,9 +208,9 @@ static void leon3_set_pil_in(void *opaque, int n, int level)
     }
 }
 
-static void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno)
+static void leon3_irq_manager(CPUSPARCState *env, int intno)
 {
-    leon3_irq_ack(irq_manager, intno);
+    leon3_irq_ack(env, intno);
     leon3_cache_control_int(env);
 }
 

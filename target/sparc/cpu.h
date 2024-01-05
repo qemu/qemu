@@ -549,7 +549,7 @@ struct CPUArchState {
     sparc_def_t def;
 
     void *irq_manager;
-    void (*qemu_irq_ack)(CPUSPARCState *env, void *irq_manager, int intno);
+    void (*qemu_irq_ack)(CPUSPARCState *env, int intno);
 
     /* Leon3 cache control */
     uint32_t cache_control;
