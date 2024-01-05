@@ -160,38 +160,8 @@ static void hppa_cpu_initfn(Object *obj)
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 {
     g_autofree char *typename = g_strconcat(cpu_model, "-cpu", NULL);
-    ObjectClass *oc = object_class_by_name(typename);
 
-    if (oc &&
-        !object_class_is_abstract(oc) &&
-        object_class_dynamic_cast(oc, TYPE_HPPA_CPU)) {
-        return oc;
-    }
-    return NULL;
-}
-
-static void hppa_cpu_list_entry(gpointer data, gpointer user_data)
-{
-    ObjectClass *oc = data;
-    CPUClass *cc = CPU_CLASS(oc);
-    const char *tname = object_class_get_name(oc);
-    g_autofree char *name = g_strndup(tname, strchr(tname, '-') - tname);
-
-    if (cc->deprecation_note) {
-        qemu_printf("  %s (deprecated)\n", name);
-    } else {
-        qemu_printf("  %s\n", name);
-    }
-}
-
-void hppa_cpu_list(void)
-{
-    GSList *list;
-
-    list = object_class_get_list_sorted(TYPE_HPPA_CPU, false);
-    qemu_printf("Available CPUs:\n");
-    g_slist_foreach(list, hppa_cpu_list_entry, NULL);
-    g_slist_free(list);
+    return object_class_by_name(typename);
 }
 
 #ifndef CONFIG_USER_ONLY

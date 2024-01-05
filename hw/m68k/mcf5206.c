@@ -148,15 +148,11 @@ static void m5206_timer_write(m5206_timer_state *s, uint32_t addr, uint32_t val)
     m5206_timer_update(s);
 }
 
-static m5206_timer_state *m5206_timer_init(qemu_irq irq)
+static void m5206_timer_init(m5206_timer_state *s, qemu_irq irq)
 {
-    m5206_timer_state *s;
-
-    s = g_new0(m5206_timer_state, 1);
     s->timer = ptimer_init(m5206_timer_trigger, s, PTIMER_POLICY_LEGACY);
     s->irq = irq;
     m5206_timer_reset(s);
-    return s;
 }
 
 /* System Integration Module.  */
@@ -167,7 +163,7 @@ typedef struct {
     M68kCPU *cpu;
     MemoryRegion iomem;
     qemu_irq *pic;
-    m5206_timer_state *timer[2];
+    m5206_timer_state timer[2];
     DeviceState *uart[2];
     uint8_t scr;
     uint8_t icr[14];
@@ -293,9 +289,9 @@ static uint64_t m5206_mbar_read(m5206_mbar_state *s,
                                 uint16_t offset, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
-        return m5206_timer_read(s->timer[0], offset - 0x100);
+        return m5206_timer_read(&s->timer[0], offset - 0x100);
     } else if (offset >= 0x120 && offset < 0x140) {
-        return m5206_timer_read(s->timer[1], offset - 0x120);
+        return m5206_timer_read(&s->timer[1], offset - 0x120);
     } else if (offset >= 0x140 && offset < 0x160) {
         return mcf_uart_read(s->uart[0], offset - 0x140, size);
     } else if (offset >= 0x180 && offset < 0x1a0) {
@@ -333,10 +329,10 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint16_t offset,
                              uint64_t value, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
-        m5206_timer_write(s->timer[0], offset - 0x100, value);
+        m5206_timer_write(&s->timer[0], offset - 0x100, value);
         return;
     } else if (offset >= 0x120 && offset < 0x140) {
-        m5206_timer_write(s->timer[1], offset - 0x120, value);
+        m5206_timer_write(&s->timer[1], offset - 0x120, value);
         return;
     } else if (offset >= 0x140 && offset < 0x160) {
         mcf_uart_write(s->uart[0], offset - 0x140, value, size);
@@ -598,8 +594,8 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
     s->pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
-    s->timer[0] = m5206_timer_init(s->pic[9]);
-    s->timer[1] = m5206_timer_init(s->pic[10]);
+    m5206_timer_init(&s->timer[0], s->pic[9]);
+    m5206_timer_init(&s->timer[1], s->pic[10]);
     s->uart[0] = mcf_uart_create(s->pic[12], serial_hd(0));
     s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
 }

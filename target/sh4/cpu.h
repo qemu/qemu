@@ -238,7 +238,6 @@ G_NORETURN void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                                uintptr_t retaddr);
 
 void sh4_translate_init(void);
-void sh4_cpu_list(void);
 
 #if !defined(CONFIG_USER_ONLY)
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
@@ -271,8 +270,6 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr);
 void cpu_load_tlb(CPUSH4State * env);
 
 #define CPU_RESOLVING_TYPE TYPE_SUPERH_CPU
-
-#define cpu_list sh4_cpu_list
 
 /* MMU modes definitions */
 #define MMU_USER_IDX 1

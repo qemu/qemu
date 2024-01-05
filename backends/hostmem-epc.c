@@ -17,31 +17,29 @@
 #include "sysemu/hostmem.h"
 #include "hw/i386/hostmem-epc.h"
 
-static void
+static bool
 sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
+    g_autofree char *name = NULL;
     uint32_t ram_flags;
-    char *name;
     int fd;
 
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
-        return;
+        return false;
     }
 
     fd = qemu_open_old("/dev/sgx_vepc", O_RDWR);
     if (fd < 0) {
         error_setg_errno(errp, errno,
                          "failed to open /dev/sgx_vepc to alloc SGX EPC");
-        return;
+        return false;
     }
 
     name = object_get_canonical_path(OBJECT(backend));
     ram_flags = (backend->share ? RAM_SHARED : 0) | RAM_PROTECTED;
-    memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
-                                   name, backend->size, ram_flags,
-                                   fd, 0, errp);
-    g_free(name);
+    return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
+                                          backend->size, ram_flags, fd, 0, errp);
 }
 
 static void sgx_epc_backend_instance_init(Object *obj)

@@ -19,12 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+
+#include "hw/core/cpu.h"
 #include "hw/cpu/cluster.h"
 #include "hw/qdev-properties.h"
-#include "hw/core/cpu.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
-#include "qemu/cutils.h"
 
 static Property cpu_cluster_properties[] = {
     DEFINE_PROP_UINT32("cluster-id", CPUClusterState, cluster_id, 0),

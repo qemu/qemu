@@ -143,7 +143,6 @@ static void rs6000mc_realize(DeviceState *dev, Error **errp)
     RS6000MCState *s = RS6000MC(dev);
     int socket = 0;
     unsigned int ram_size = s->ram_size / MiB;
-    Error *local_err = NULL;
 
     while (socket < 6) {
         if (ram_size >= 64) {
@@ -165,10 +164,8 @@ static void rs6000mc_realize(DeviceState *dev, Error **errp)
         if (s->simm_size[socket]) {
             char name[] = "simm.?";
             name[5] = socket + '0';
-            memory_region_init_ram(&s->simm[socket], OBJECT(dev), name,
-                                   s->simm_size[socket] * MiB, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (!memory_region_init_ram(&s->simm[socket], OBJECT(dev), name,
+                                        s->simm_size[socket] * MiB, errp)) {
                 return;
             }
             memory_region_add_subregion_overlap(get_system_memory(), 0,
