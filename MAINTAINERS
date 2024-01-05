@@ -70,7 +70,6 @@ R: Daniel P. Berrangé <berrange@redhat.com>
 R: Thomas Huth <thuth@redhat.com>
 R: Markus Armbruster <armbru@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
-R: Juan Quintela <quintela@redhat.com>
 W: https://www.qemu.org/docs/master/devel/index.html
 S: Odd Fixes
 F: docs/devel/style.rst
@@ -3355,10 +3354,8 @@ S: Odd Fixes
 F: scripts/checkpatch.pl
 
 Migration
-M: Juan Quintela <quintela@redhat.com>
 M: Peter Xu <peterx@redhat.com>
 M: Fabiano Rosas <farosas@suse.de>
-R: Leonardo Bras <leobras@redhat.com>
 S: Maintained
 F: hw/core/vmstate-if.c
 F: include/hw/vmstate-if.h
@@ -3375,10 +3372,8 @@ F: util/userfaultfd.c
 X: migration/rdma*
 
 RDMA Migration
-M: Juan Quintela <quintela@redhat.com>
 R: Li Zhijian <lizhijian@fujitsu.com>
 R: Peter Xu <peterx@redhat.com>
-R: Leonardo Bras <leobras@redhat.com>
 S: Odd Fixes
 F: migration/rdma*
 

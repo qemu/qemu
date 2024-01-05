@@ -228,8 +228,8 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     }
 
     if (msg.id > migrate_multifd_channels()) {
-        error_setg(errp, "multifd: received channel version %u "
-                   "expected %u", msg.version, MULTIFD_VERSION);
+        error_setg(errp, "multifd: received channel id %u is greater than "
+                   "number of channels %u", msg.id, migrate_multifd_channels());
         return -1;
     }
 
@@ -787,6 +787,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
 
     trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
 
+    migrate_set_error(migrate_get_current(), err);
     /*
      * Error happen, mark multifd_send_thread status as 'quit' although it
      * is not created, and then tell who pay attention to me.
@@ -794,6 +795,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     p->quit = true;
     qemu_sem_post(&multifd_send_state->channels_ready);
     qemu_sem_post(&p->sem_sync);
+    error_free(err);
 }
 
 static void *multifd_tls_handshake_thread(void *opaque)
@@ -847,14 +849,13 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
          * so we mustn't call multifd_send_thread until then
          */
         return multifd_tls_channel_connect(p, ioc, errp);
-
-    } else {
-        migration_ioc_register_yank(ioc);
-        p->registered_yank = true;
-        p->c = ioc;
-        qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                           QEMU_THREAD_JOINABLE);
     }
+
+    migration_ioc_register_yank(ioc);
+    p->registered_yank = true;
+    p->c = ioc;
+    qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+                       QEMU_THREAD_JOINABLE);
     return true;
 }
 
@@ -950,12 +951,10 @@ int multifd_save_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
-        Error *local_err = NULL;
         int ret;
 
-        ret = multifd_send_state->ops->send_setup(p, &local_err);
+        ret = multifd_send_state->ops->send_setup(p, errp);
         if (ret) {
-            error_propagate(errp, local_err);
             return ret;
         }
     }
@@ -1194,12 +1193,10 @@ int multifd_load_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
-        Error *local_err = NULL;
         int ret;
 
-        ret = multifd_recv_state->ops->recv_setup(p, &local_err);
+        ret = multifd_recv_state->ops->recv_setup(p, errp);
         if (ret) {
-            error_propagate(errp, local_err);
             return ret;
         }
     }

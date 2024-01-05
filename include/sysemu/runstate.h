@@ -40,6 +40,15 @@ static inline bool shutdown_caused_by_guest(ShutdownCause cause)
     return cause >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN;
 }
 
+/*
+ * In a "live" state, the vcpu clock is ticking, and the runstate notifiers
+ * think we are running.
+ */
+static inline bool runstate_is_live(RunState state)
+{
+    return state == RUN_STATE_RUNNING || state == RUN_STATE_SUSPENDED;
+}
+
 void vm_start(void);
 
 /**
@@ -48,9 +57,20 @@ void vm_start(void);
  * @step_pending: whether any of the CPUs is about to be single-stepped by gdb
  */
 int vm_prepare_start(bool step_pending);
+
+/**
+ * vm_resume: If @state is a live state, start the vm and set the state,
+ * else just set the state.
+ *
+ * @state: the state to restore
+ */
+void vm_resume(RunState state);
+
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 int vm_shutdown(void);
+void vm_set_suspended(bool suspended);
+bool vm_get_suspended(void);
 
 typedef enum WakeupReason {
     /* Always keep QEMU_WAKEUP_REASON_NONE = 0 */

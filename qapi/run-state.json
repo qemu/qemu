@@ -102,7 +102,7 @@
 ##
 # @StatusInfo:
 #
-# Information about VCPU run state
+# Information about VM run state
 #
 # @running: true if all VCPUs are runnable, false if not runnable
 #
@@ -130,9 +130,9 @@
 ##
 # @query-status:
 #
-# Query the run status of all VCPUs
+# Query the run status of the VM
 #
-# Returns: @StatusInfo reflecting all VCPUs
+# Returns: @StatusInfo reflecting the VM
 #
 # Since: 0.14
 #

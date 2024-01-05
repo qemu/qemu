@@ -16,6 +16,7 @@
 #define QEMU_MIGRATION_SNAPSHOT_H
 
 #include "qapi/qapi-builtin-types.h"
+#include "qapi/qapi-types-run-state.h"
 
 /**
  * save_snapshot: Save an internal snapshot.
@@ -60,5 +61,11 @@ bool load_snapshot(const char *name,
 bool delete_snapshot(const char *name,
                     bool has_devices, strList *devices,
                     Error **errp);
+
+/**
+ * load_snapshot_resume: Restore runstate after loading snapshot.
+ * @state: state to restore
+ */
+void load_snapshot_resume(RunState state);
 
 #endif

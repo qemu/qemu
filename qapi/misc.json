@@ -134,7 +134,7 @@
 ##
 # @stop:
 #
-# Stop all guest VCPU execution.
+# Stop guest VM execution.
 #
 # Since: 0.14
 #
@@ -142,6 +142,9 @@
 #     the stopped state.  In "inmigrate" state, it will ensure that
 #     the guest remains paused once migration finishes, as if the -S
 #     option was passed on the command line.
+#
+#     In the "suspended" state, it will completely stop the VM and
+#     cause a transition to the "paused" state. (Since 9.0)
 #
 # Example:
 #
@@ -153,7 +156,7 @@
 ##
 # @cont:
 #
-# Resume guest VCPU execution.
+# Resume guest VM execution.
 #
 # Since: 0.14
 #
@@ -164,6 +167,10 @@
 #     in this case, the effect of the command is to make sure the
 #     guest starts once migration finishes, removing the effect of the
 #     -S command line option if it was passed.
+#
+#     If the VM was previously suspended, and not been reset or woken,
+#     this command will transition back to the "suspended" state.
+#     (Since 9.0)
 #
 # Example:
 #

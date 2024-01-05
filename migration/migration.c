@@ -604,7 +604,7 @@ static void process_incoming_migration_bh(void *opaque)
      */
     if (!migrate_late_block_activate() ||
          (autostart && (!global_state_received() ||
-            global_state_get_runstate() == RUN_STATE_RUNNING))) {
+            runstate_is_live(global_state_get_runstate())))) {
         /* Make sure all file formats throw away their mutable metadata.
          * If we get an error here, just don't restart the VM yet. */
         bdrv_activate_all(&local_err);
@@ -628,7 +628,7 @@ static void process_incoming_migration_bh(void *opaque)
     dirty_bitmap_mig_before_vm_start();
 
     if (!global_state_received() ||
-        global_state_get_runstate() == RUN_STATE_RUNNING) {
+        runstate_is_live(global_state_get_runstate())) {
         if (autostart) {
             vm_start();
         } else {
@@ -724,11 +724,8 @@ fail:
 /**
  * migration_incoming_setup: Setup incoming migration
  * @f: file for main migration channel
- * @errp: where to put errors
- *
- * Returns: %true on success, %false on error.
  */
-static bool migration_incoming_setup(QEMUFile *f, Error **errp)
+static void migration_incoming_setup(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
 
@@ -736,7 +733,6 @@ static bool migration_incoming_setup(QEMUFile *f, Error **errp)
         mis->from_src_file = f;
     }
     qemu_file_set_blocking(f, false);
-    return true;
 }
 
 void migration_incoming_process(void)
@@ -778,11 +774,9 @@ static bool postcopy_try_recover(void)
     return false;
 }
 
-void migration_fd_process_incoming(QEMUFile *f, Error **errp)
+void migration_fd_process_incoming(QEMUFile *f)
 {
-    if (!migration_incoming_setup(f, errp)) {
-        return;
-    }
+    migration_incoming_setup(f);
     if (postcopy_try_recover()) {
         return;
     }
@@ -836,10 +830,9 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
          * issue is not possible.
          */
         ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
-                                          sizeof(channel_magic), &local_err);
+                                          sizeof(channel_magic), errp);
 
         if (ret != 0) {
-            error_propagate(errp, local_err);
             return;
         }
 
@@ -849,16 +842,12 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     }
 
     if (multifd_load_setup(errp) != 0) {
-        error_setg(errp, "Failed to setup multifd channels");
         return;
     }
 
     if (default_channel) {
         f = qemu_file_new_input(ioc);
-
-        if (!migration_incoming_setup(f, errp)) {
-            return;
-        }
+        migration_incoming_setup(f);
     } else {
         /* Multiple connections */
         assert(migration_needs_multiple_sockets());
@@ -1588,7 +1577,6 @@ int migrate_init(MigrationState *s, Error **errp)
     s->migration_thread_running = false;
     error_free(s->error);
     s->error = NULL;
-    s->hostname = NULL;
     s->vmdesc = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
@@ -1836,8 +1824,6 @@ bool migration_is_blocked(Error **errp)
 static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                             bool resume, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (blk_inc) {
         warn_report("parameter 'inc' is deprecated;"
                     " use blockdev-mirror with NBD instead");
@@ -1907,8 +1893,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                        "current migration capabilities");
             return false;
         }
-        if (!migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, true, &local_err)) {
-            error_propagate(errp, local_err);
+        if (!migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, true, errp)) {
             return false;
         }
         s->must_remove_block_options = true;
@@ -2416,7 +2401,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     migration_downtime_start(ms);
 
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     global_state_store();
     ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
     if (ret < 0) {
@@ -2615,7 +2599,6 @@ static int migration_completion_precopy(MigrationState *s,
 
     qemu_mutex_lock_iothread();
     migration_downtime_start(s);
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
     s->vm_old_state = runstate_get();
     global_state_store();
@@ -3136,7 +3119,7 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_FAILED:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
-        if (s->vm_old_state == RUN_STATE_RUNNING) {
+        if (runstate_is_live(s->vm_old_state)) {
             if (!runstate_check(RUN_STATE_SHUTDOWN)) {
                 vm_start();
             }
@@ -3392,7 +3375,7 @@ static void bg_migration_vm_start_bh(void *opaque)
     qemu_bh_delete(s->vm_start_bh);
     s->vm_start_bh = NULL;
 
-    vm_start();
+    vm_resume(s->vm_old_state);
     migration_downtime_end(s);
 }
 
@@ -3464,11 +3447,6 @@ static void *bg_migration_thread(void *opaque)
 
     qemu_mutex_lock_iothread();
 
-    /*
-     * If VM is currently in suspended state, then, to make a valid runstate
-     * transition in vm_stop_force_state() we need to wakeup it up.
-     */
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     s->vm_old_state = runstate_get();
 
     global_state_store();
