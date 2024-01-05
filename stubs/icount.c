@@ -6,10 +6,6 @@
 
 ICountMode use_icount = ICOUNT_DISABLED;
 
-void icount_update(CPUState *cpu)
-{
-    abort();
-}
 bool icount_configure(QemuOpts *opts, Error **errp)
 {
     /* signal error */
@@ -18,21 +14,6 @@ bool icount_configure(QemuOpts *opts, Error **errp)
     return false;
 }
 int64_t icount_get_raw(void)
-{
-    abort();
-    return 0;
-}
-int64_t icount_get(void)
-{
-    abort();
-    return 0;
-}
-int64_t icount_to_ns(int64_t icount)
-{
-    abort();
-    return 0;
-}
-int64_t icount_round(int64_t count)
 {
     abort();
     return 0;
