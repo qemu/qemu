@@ -2179,7 +2179,7 @@ static const CPUCaches epyc_genoa_cache_info = {
  *  Conceal VM entries from PT
  *  Enable ENCLS exiting
  *  Mode-based execute control (XS/XU)
- s  TSC scaling (Skylake Server and newer)
+ *  TSC scaling (Skylake Server and newer)
  *  GPA translation for PT (IceLake and newer)
  *  User wait and pause
  *  ENCLV exiting
