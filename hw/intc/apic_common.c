@@ -62,6 +62,19 @@ uint64_t cpu_get_apic_base(DeviceState *dev)
     }
 }
 
+bool cpu_is_apic_enabled(DeviceState *dev)
+{
+    APICCommonState *s;
+
+    if (!dev) {
+        return false;
+    }
+
+    s = APIC_COMMON(dev);
+
+    return s->apicbase & MSR_IA32_APICBASE_ENABLE;
+}
+
 void cpu_set_apic_tpr(DeviceState *dev, uint8_t val)
 {
     APICCommonState *s;

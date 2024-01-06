@@ -10,6 +10,7 @@ void apic_deliver_nmi(DeviceState *d);
 int apic_get_interrupt(DeviceState *s);
 int cpu_set_apic_base(DeviceState *s, uint64_t val);
 uint64_t cpu_get_apic_base(DeviceState *s);
+bool cpu_is_apic_enabled(DeviceState *s);
 void cpu_set_apic_tpr(DeviceState *s, uint8_t val);
 uint8_t cpu_get_apic_tpr(DeviceState *s);
 void apic_init_reset(DeviceState *s);
