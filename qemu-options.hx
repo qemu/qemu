@@ -5462,7 +5462,7 @@ SRST
             KVM COLO
 
             primary:
-            -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
+            -netdev tap,id=hn0,vhost=off
             -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
             -chardev socket,id=mirror0,host=3.3.3.3,port=9003,server=on,wait=off
             -chardev socket,id=compare1,host=3.3.3.3,port=9004,server=on,wait=off
@@ -5477,7 +5477,7 @@ SRST
             -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,iothread=iothread1
 
             secondary:
-            -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,down script=/etc/qemu-ifdown
+            -netdev tap,id=hn0,vhost=off
             -device e1000,netdev=hn0,mac=52:a4:00:12:78:66
             -chardev socket,id=red0,host=3.3.3.3,port=9003
             -chardev socket,id=red1,host=3.3.3.3,port=9004
@@ -5488,7 +5488,7 @@ SRST
             Xen COLO
 
             primary:
-            -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
+            -netdev tap,id=hn0,vhost=off
             -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
             -chardev socket,id=mirror0,host=3.3.3.3,port=9003,server=on,wait=off
             -chardev socket,id=compare1,host=3.3.3.3,port=9004,server=on,wait=off
@@ -5504,7 +5504,7 @@ SRST
             -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,notify_dev=nofity_way,iothread=iothread1
 
             secondary:
-            -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,down script=/etc/qemu-ifdown
+            -netdev tap,id=hn0,vhost=off
             -device e1000,netdev=hn0,mac=52:a4:00:12:78:66
             -chardev socket,id=red0,host=3.3.3.3,port=9003
             -chardev socket,id=red1,host=3.3.3.3,port=9004
