@@ -12,7 +12,8 @@ fdctrl_tc_pulse(int level) "TC pulse: %u"
 pflash_chip_erase_invalid(const char *name, uint64_t offset) "%s: chip erase: invalid address 0x%" PRIx64
 pflash_chip_erase_start(const char *name) "%s: start chip erase"
 pflash_data_read(const char *name, uint64_t offset, unsigned size, uint32_t value) "%s: data offset:0x%04"PRIx64" size:%u value:0x%04x"
-pflash_data_write(const char *name, uint64_t offset, unsigned size, uint32_t value, uint64_t counter) "%s: data offset:0x%04"PRIx64" size:%u value:0x%04x counter:0x%016"PRIx64
+pflash_data_write(const char *name, uint64_t offset, unsigned size, uint32_t value) "%s: data offset:0x%04"PRIx64" size:%u value:0x%04x"
+pflash_data_write_block(const char *name, uint64_t offset, unsigned size, uint32_t value, uint64_t counter) "%s: data offset:0x%04"PRIx64" size:%u value:0x%04x counter:0x%016"PRIx64
 pflash_device_id(const char *name, uint16_t id) "%s: read device ID: 0x%04x"
 pflash_device_info(const char *name, uint64_t offset) "%s: read device information offset:0x%04" PRIx64
 pflash_erase_complete(const char *name) "%s: sector erase complete"
@@ -32,7 +33,9 @@ pflash_unlock0_failed(const char *name, uint64_t offset, uint8_t cmd, uint16_t a
 pflash_unlock1_failed(const char *name, uint64_t offset, uint8_t cmd) "%s: unlock0 failed 0x%" PRIx64 " 0x%02x"
 pflash_unsupported_device_configuration(const char *name, uint8_t width, uint8_t max) "%s: unsupported device configuration: device_width:%d max_device_width:%d"
 pflash_write(const char *name, const char *str) "%s: %s"
-pflash_write_block(const char *name, uint32_t value) "%s: block write: bytes:0x%x"
+pflash_write_block_start(const char *name, uint32_t value) "%s: block write start: bytes:0x%x"
+pflash_write_block_flush(const char *name) "%s: block write flush"
+pflash_write_block_abort(const char *name) "%s: block write abort"
 pflash_write_block_erase(const char *name, uint64_t offset, uint64_t len) "%s: block erase offset:0x%" PRIx64 " bytes:0x%" PRIx64
 pflash_write_failed(const char *name, uint64_t offset, uint8_t cmd) "%s: command failed 0x%" PRIx64 " 0x%02x"
 pflash_write_invalid(const char *name, uint8_t cmd) "%s: invalid write for command 0x%02x"
