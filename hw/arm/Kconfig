@@ -547,6 +547,7 @@ config FSL_IMX31
 
 config FSL_IMX6
     bool
+    imply PCIE_DEVICES
     imply I2C_DEVICES
     select A9MPCORE
     select IMX
@@ -555,6 +556,7 @@ config FSL_IMX6
     select IMX_USBPHY
     select WDT_IMX2
     select PL310  # cache controller
+    select PCI_EXPRESS_DESIGNWARE
     select SDHCI
 
 config ASPEED_SOC
