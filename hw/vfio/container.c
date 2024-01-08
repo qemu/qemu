@@ -369,10 +369,34 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
-static int vfio_init_container(VFIOContainer *container, int group_fd,
-                               Error **errp)
+/*
+ * vfio_get_iommu_ops - get a VFIOIOMMUClass associated with a type
+ */
+static const VFIOIOMMUClass *vfio_get_iommu_class(int iommu_type, Error **errp)
+{
+    ObjectClass *klass = NULL;
+
+    switch (iommu_type) {
+    case VFIO_TYPE1v2_IOMMU:
+    case VFIO_TYPE1_IOMMU:
+        klass = object_class_by_name(TYPE_VFIO_IOMMU_LEGACY);
+        break;
+    case VFIO_SPAPR_TCE_v2_IOMMU:
+    case VFIO_SPAPR_TCE_IOMMU:
+        klass = object_class_by_name(TYPE_VFIO_IOMMU_SPAPR);
+        break;
+    default:
+        g_assert_not_reached();
+    };
+
+    return VFIO_IOMMU_CLASS(klass);
+}
+
+static int vfio_set_iommu(VFIOContainer *container, int group_fd,
+                          VFIOAddressSpace *space, Error **errp)
 {
     int iommu_type, ret;
+    const VFIOIOMMUClass *vioc;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
@@ -401,6 +425,14 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
     }
 
     container->iommu_type = iommu_type;
+
+    vioc = vfio_get_iommu_class(iommu_type, errp);
+    if (!vioc) {
+        error_setg(errp, "No available IOMMU models");
+        return -EINVAL;
+    }
+
+    vfio_container_init(&container->bcontainer, space, vioc);
     return 0;
 }
 
@@ -472,6 +504,35 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
         bcontainer->max_dirty_bitmap_size = cap_mig->max_dirty_bitmap_size;
         bcontainer->dirty_pgsizes = cap_mig->pgsize_bitmap;
     }
+}
+
+static int vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
+{
+    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
+                                            bcontainer);
+    g_autofree struct vfio_iommu_type1_info *info = NULL;
+    int ret;
+
+    ret = vfio_get_iommu_info(container, &info);
+    if (ret) {
+        error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
+        return ret;
+    }
+
+    if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
+        bcontainer->pgsizes = info->iova_pgsizes;
+    } else {
+        bcontainer->pgsizes = qemu_real_host_page_size();
+    }
+
+    if (!vfio_get_info_dma_avail(info, &bcontainer->dma_max_mappings)) {
+        bcontainer->dma_max_mappings = 65535;
+    }
+
+    vfio_get_info_iova_range(info, bcontainer);
+
+    vfio_get_iommu_info_migration(container, info);
+    return 0;
 }
 
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
@@ -554,9 +615,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container = g_malloc0(sizeof(*container));
     container->fd = fd;
     bcontainer = &container->bcontainer;
-    vfio_container_init(bcontainer, space, &vfio_legacy_ops);
 
-    ret = vfio_init_container(container, group->fd, errp);
+    ret = vfio_set_iommu(container, group->fd, space, errp);
     if (ret) {
         goto free_container_exit;
     }
@@ -567,43 +627,11 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto free_container_exit;
     }
 
-    switch (container->iommu_type) {
-    case VFIO_TYPE1v2_IOMMU:
-    case VFIO_TYPE1_IOMMU:
-    {
-        struct vfio_iommu_type1_info *info;
+    assert(bcontainer->ops->setup);
 
-        ret = vfio_get_iommu_info(container, &info);
-        if (ret) {
-            error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
-            goto enable_discards_exit;
-        }
-
-        if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
-            bcontainer->pgsizes = info->iova_pgsizes;
-        } else {
-            bcontainer->pgsizes = qemu_real_host_page_size();
-        }
-
-        if (!vfio_get_info_dma_avail(info, &bcontainer->dma_max_mappings)) {
-            bcontainer->dma_max_mappings = 65535;
-        }
-
-        vfio_get_info_iova_range(info, bcontainer);
-
-        vfio_get_iommu_info_migration(container, info);
-        g_free(info);
-        break;
-    }
-    case VFIO_SPAPR_TCE_v2_IOMMU:
-    case VFIO_SPAPR_TCE_IOMMU:
-    {
-        ret = vfio_spapr_container_init(container, errp);
-        if (ret) {
-            goto enable_discards_exit;
-        }
-        break;
-    }
+    ret = bcontainer->ops->setup(bcontainer, errp);
+    if (ret) {
+        goto enable_discards_exit;
     }
 
     vfio_kvm_device_add_group(group);
@@ -632,9 +660,8 @@ listener_release_exit:
     QLIST_REMOVE(bcontainer, next);
     vfio_kvm_device_del_group(group);
     memory_listener_unregister(&bcontainer->listener);
-    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
-        container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
-        vfio_spapr_container_deinit(container);
+    if (bcontainer->ops->release) {
+        bcontainer->ops->release(bcontainer);
     }
 
 enable_discards_exit:
@@ -667,9 +694,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
      */
     if (QLIST_EMPTY(&container->group_list)) {
         memory_listener_unregister(&bcontainer->listener);
-        if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
-            container->iommu_type == VFIO_SPAPR_TCE_IOMMU) {
-            vfio_spapr_container_deinit(container);
+        if (bcontainer->ops->release) {
+            bcontainer->ops->release(bcontainer);
         }
     }
 
@@ -843,7 +869,8 @@ static void vfio_put_base_device(VFIODevice *vbasedev)
 
 static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
 {
-    char *tmp, group_path[PATH_MAX], *group_name;
+    char *tmp, group_path[PATH_MAX];
+    g_autofree char *group_name = NULL;
     int ret, groupid;
     ssize_t len;
 
@@ -859,7 +886,7 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
 
     group_path[len] = 0;
 
-    group_name = basename(group_path);
+    group_name = g_path_get_basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
         error_setg_errno(errp, errno, "failed to read %s", group_path);
         return -errno;
@@ -1093,12 +1120,26 @@ out_single:
     return ret;
 }
 
-const VFIOIOMMUOps vfio_legacy_ops = {
-    .dma_map = vfio_legacy_dma_map,
-    .dma_unmap = vfio_legacy_dma_unmap,
-    .attach_device = vfio_legacy_attach_device,
-    .detach_device = vfio_legacy_detach_device,
-    .set_dirty_page_tracking = vfio_legacy_set_dirty_page_tracking,
-    .query_dirty_bitmap = vfio_legacy_query_dirty_bitmap,
-    .pci_hot_reset = vfio_legacy_pci_hot_reset,
+static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
+{
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
+
+    vioc->setup = vfio_legacy_setup;
+    vioc->dma_map = vfio_legacy_dma_map;
+    vioc->dma_unmap = vfio_legacy_dma_unmap;
+    vioc->attach_device = vfio_legacy_attach_device;
+    vioc->detach_device = vfio_legacy_detach_device;
+    vioc->set_dirty_page_tracking = vfio_legacy_set_dirty_page_tracking;
+    vioc->query_dirty_bitmap = vfio_legacy_query_dirty_bitmap;
+    vioc->pci_hot_reset = vfio_legacy_pci_hot_reset;
 };
+
+static const TypeInfo types[] = {
+    {
+        .name = TYPE_VFIO_IOMMU_LEGACY,
+        .parent = TYPE_VFIO_IOMMU,
+        .class_init = vfio_iommu_legacy_class_init,
+    },
+};
+
+DEFINE_TYPES(types)

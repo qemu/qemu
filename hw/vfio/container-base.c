@@ -72,7 +72,7 @@ int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
 }
 
 void vfio_container_init(VFIOContainerBase *bcontainer, VFIOAddressSpace *space,
-                         const VFIOIOMMUOps *ops)
+                         const VFIOIOMMUClass *ops)
 {
     bcontainer->ops = ops;
     bcontainer->space = space;
@@ -99,3 +99,13 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer)
 
     g_list_free_full(bcontainer->iova_ranges, g_free);
 }
+
+static const TypeInfo types[] = {
+    {
+        .name = TYPE_VFIO_IOMMU,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(VFIOIOMMUClass),
+    },
+};
+
+DEFINE_TYPES(types)

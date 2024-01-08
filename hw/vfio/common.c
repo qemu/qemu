@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include CONFIG_DEVICES /* CONFIG_IOMMUFD */
 #include <sys/ioctl.h>
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -74,7 +73,7 @@ bool vfio_mig_active(void)
         return false;
     }
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->migration_blocker) {
             return false;
         }
@@ -95,7 +94,7 @@ static bool vfio_multiple_devices_migration_is_supported(void)
     unsigned int device_num = 0;
     bool all_support_p2p = true;
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->migration) {
             device_num++;
 
@@ -1367,13 +1366,13 @@ void vfio_reset_handler(void *opaque)
 {
     VFIODevice *vbasedev;
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);
         }
     }
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized && vbasedev->needs_reset) {
             vbasedev->ops->vfio_hot_reset_multi(vbasedev);
         }
@@ -1503,13 +1502,15 @@ retry:
 int vfio_attach_device(char *name, VFIODevice *vbasedev,
                        AddressSpace *as, Error **errp)
 {
-    const VFIOIOMMUOps *ops = &vfio_legacy_ops;
+    const VFIOIOMMUClass *ops =
+        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
 
-#ifdef CONFIG_IOMMUFD
     if (vbasedev->iommufd) {
-        ops = &vfio_iommufd_ops;
+        ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
     }
-#endif
+
+    assert(ops);
+
     return ops->attach_device(name, vbasedev, as, errp);
 }
 

@@ -121,17 +121,11 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     DIR *dir = NULL;
     struct dirent *dent;
     gchar *contents;
-    struct stat st;
     gsize length;
     int major, minor;
     dev_t vfio_devt;
 
     path = g_strdup_printf("%s/vfio-dev", sysfs_path);
-    if (stat(path, &st) < 0) {
-        error_setg_errno(errp, errno, "no such host device");
-        goto out_free_path;
-    }
-
     dir = opendir(path);
     if (!dir) {
         error_setg_errno(errp, errno, "couldn't open directory %s", path);
@@ -319,6 +313,8 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     int ret, devfd;
     uint32_t ioas_id;
     Error *err = NULL;
+    const VFIOIOMMUClass *iommufd_vioc =
+        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
 
     if (vbasedev->fd < 0) {
         devfd = iommufd_cdev_getfd(vbasedev->sysfsdev, errp);
@@ -340,7 +336,7 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
-        if (bcontainer->ops != &vfio_iommufd_ops ||
+        if (bcontainer->ops != iommufd_vioc ||
             vbasedev->iommufd != container->be) {
             continue;
         }
@@ -374,7 +370,7 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     container->ioas_id = ioas_id;
 
     bcontainer = &container->bcontainer;
-    vfio_container_init(bcontainer, space, &vfio_iommufd_ops);
+    vfio_container_init(bcontainer, space, iommufd_vioc);
     QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
 
     ret = iommufd_cdev_attach_container(vbasedev, container, errp);
@@ -476,9 +472,11 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
 static VFIODevice *iommufd_cdev_pci_find_by_devid(__u32 devid)
 {
     VFIODevice *vbasedev_iter;
+    const VFIOIOMMUClass *iommufd_vioc =
+        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
 
     QLIST_FOREACH(vbasedev_iter, &vfio_device_list, global_next) {
-        if (vbasedev_iter->bcontainer->ops != &vfio_iommufd_ops) {
+        if (vbasedev_iter->bcontainer->ops != iommufd_vioc) {
             continue;
         }
         if (devid == vbasedev_iter->devid) {
@@ -621,10 +619,23 @@ out_single:
     return ret;
 }
 
-const VFIOIOMMUOps vfio_iommufd_ops = {
-    .dma_map = iommufd_cdev_map,
-    .dma_unmap = iommufd_cdev_unmap,
-    .attach_device = iommufd_cdev_attach,
-    .detach_device = iommufd_cdev_detach,
-    .pci_hot_reset = iommufd_cdev_pci_hot_reset,
+static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
+{
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
+
+    vioc->dma_map = iommufd_cdev_map;
+    vioc->dma_unmap = iommufd_cdev_unmap;
+    vioc->attach_device = iommufd_cdev_attach;
+    vioc->detach_device = iommufd_cdev_detach;
+    vioc->pci_hot_reset = iommufd_cdev_pci_hot_reset;
 };
+
+static const TypeInfo types[] = {
+    {
+        .name = TYPE_VFIO_IOMMU_IOMMUFD,
+        .parent = TYPE_VFIO_IOMMU,
+        .class_init = vfio_iommu_iommufd_class_init,
+    },
+};
+
+DEFINE_TYPES(types)
