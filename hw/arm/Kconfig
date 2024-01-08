@@ -537,6 +537,7 @@ config FSL_IMX6
     select IMX_I2C
     select IMX_USBPHY
     select WDT_IMX2
+    select PL310  # cache controller
     select SDHCI
 
 config ASPEED_SOC
