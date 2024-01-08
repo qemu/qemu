@@ -3808,6 +3808,7 @@ if host_os == 'darwin'
   entitlement = find_program('scripts/entitlement.sh')
 endif
 
+traceable = []
 emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
@@ -3976,27 +3977,11 @@ foreach target : target_dirs
       emulators += {exe['name']: emulator}
     endif
 
-    if stap.found()
-      foreach stp: [
-        {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / exe['name'], 'install': false},
-        {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / exe['name'], 'install': true},
-        {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
-        {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
-      ]
-        custom_target(exe['name'] + stp['ext'],
-                      input: trace_events_all,
-                      output: exe['name'] + stp['ext'],
-                      install: stp['install'],
-                      install_dir: get_option('datadir') / 'systemtap/tapset',
-                      command: [
-                        tracetool, '--group=all', '--format=' + stp['fmt'],
-                        '--binary=' + stp['bin'],
-                        '--probe-prefix=qemu.' + target_type + '.' + target_name,
-                        '@INPUT@', '@OUTPUT@'
-                      ],
-                      depend_files: tracetool_depends)
-      endforeach
-    endif
+    traceable += [{
+      'exe': exe['name'],
+      'probe-prefix': 'qemu.' + target_type + '.' + target_name,
+    }]
+
   endforeach
 endforeach
 
@@ -4031,6 +4016,14 @@ if have_tools
                install: true)
 
   subdir('storage-daemon')
+
+  foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
+    traceable += [{
+      'exe': exe,
+      'probe-prefix': 'qemu.' + exe.substring(5).replace('-', '_')
+    }]
+  endforeach
+
   subdir('contrib/rdmacm-mux')
   subdir('contrib/elf2dmp')
 
@@ -4061,6 +4054,32 @@ if have_tools
     subdir('contrib/ivshmem-client')
     subdir('contrib/ivshmem-server')
   endif
+endif
+
+if stap.found()
+  foreach t: traceable
+    foreach stp: [
+      {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / t['exe'], 'install': false},
+      {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / t['exe'], 'install': true},
+      {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
+      {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
+    ]
+      cmd = [
+        tracetool, '--group=all', '--format=' + stp['fmt'],
+        '--binary=' + stp['bin'],
+        '--probe-prefix=' + t['probe-prefix'],
+        '@INPUT@', '@OUTPUT@'
+      ]
+
+      custom_target(t['exe'] + stp['ext'],
+                    input: trace_events_all,
+                    output: t['exe'] + stp['ext'],
+                    install: stp['install'],
+                    install_dir: get_option('datadir') / 'systemtap/tapset',
+                    command: cmd,
+                    depend_files: tracetool_depends)
+    endforeach
+  endforeach
 endif
 
 subdir('scripts')
