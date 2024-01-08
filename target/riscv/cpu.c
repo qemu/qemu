@@ -932,6 +932,14 @@ static void riscv_cpu_reset_hold(Object *obj)
     env->mmte |= (EXT_STATUS_INITIAL | MMTE_M_PM_CURRENT);
 
     /*
+     * Bits 10, 6, 2 and 12 of mideleg are read only 1 when the Hypervisor
+     * extension is enabled.
+     */
+    if (riscv_has_ext(env, RVH)) {
+        env->mideleg |= HS_MODE_INTERRUPTS;
+    }
+
+    /*
      * Clear mseccfg and unlock all the PMP entries upon reset.
      * This is allowed as per the priv and smepmp specifications
      * and is needed to clear stale entries across reboots.
