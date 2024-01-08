@@ -3991,8 +3991,6 @@ foreach target : target_dirs
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
-                        '--target-name=' + target_name,
-                        '--target-type=' + target_type,
                         '--probe-prefix=qemu.' + target_type + '.' + target_name,
                         '@INPUT@', '@OUTPUT@'
                       ],

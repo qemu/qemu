@@ -44,12 +44,9 @@ Options:
     --help                   This help message.
     --list-backends          Print list of available backends.
     --check-backends         Check if the given backend is valid.
-    --binary <path>          Full path to QEMU binary.
-    --target-type <type>     QEMU emulator target type ('system' or 'user').
-    --target-name <name>     QEMU emulator target name.
-    --group <name>           Name of the event group
-    --probe-prefix <prefix>  Prefix for dtrace probe names
-                             (default: qemu-<target-type>-<target-name>).\
+    --binary <path>          Full path to QEMU binary (required for 'stap' backend).
+    --group <name>           Name of the event group.
+    --probe-prefix <prefix>  Prefix for dtrace probe names (required for 'stap' backend).
 """ % {
             "script" : _SCRIPT,
             "backends" : backend_descr,
@@ -67,7 +64,7 @@ def main(args):
 
     long_opts = ["backends=", "format=", "help", "list-backends",
                  "check-backends", "group="]
-    long_opts += ["binary=", "target-type=", "target-name=", "probe-prefix="]
+    long_opts += ["binary=", "probe-prefix="]
 
     try:
         opts, args = getopt.getopt(args[1:], "", long_opts)
@@ -79,8 +76,6 @@ def main(args):
     arg_format = ""
     arg_group = None
     binary = None
-    target_type = None
-    target_name = None
     probe_prefix = None
     for opt, arg in opts:
         if opt == "--help":
@@ -102,10 +97,6 @@ def main(args):
 
         elif opt == "--binary":
             binary = arg
-        elif opt == '--target-type':
-            target_type = arg
-        elif opt == '--target-name':
-            target_name = arg
         elif opt == '--probe-prefix':
             probe_prefix = arg
 
@@ -127,13 +118,8 @@ def main(args):
     if arg_format == "stap":
         if binary is None:
             error_opt("--binary is required for SystemTAP tapset generator")
-        if probe_prefix is None and target_type is None:
-            error_opt("--target-type is required for SystemTAP tapset generator")
-        if probe_prefix is None and target_name is None:
-            error_opt("--target-name is required for SystemTAP tapset generator")
-
         if probe_prefix is None:
-            probe_prefix = ".".join(["qemu", target_type, target_name])
+            error_opt("--probe-prefix is required for SystemTAP tapset generator")
 
     if len(args) < 2:
         error_opt("missing trace-events and output filepaths")
