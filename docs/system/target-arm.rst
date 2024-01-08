@@ -84,6 +84,7 @@ undocumented; you can get a complete list by running
    arm/vexpress
    arm/aspeed
    arm/bananapi_m2u.rst
+   arm/b-l475e-iot01a.rst
    arm/sabrelite
    arm/digic
    arm/cubieboard
