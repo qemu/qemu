@@ -32,4 +32,4 @@ The clamshell PDA models emulation includes the following peripherals:
 
 -  Three on-chip UARTs
 
--  WM8750 audio CODEC on |I2C| and |I2S| busses
+-  WM8750 audio CODEC on |I2C| and |I2S| buses

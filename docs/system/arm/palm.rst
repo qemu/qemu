@@ -14,7 +14,7 @@ following elements:
 -  On-chip Real Time Clock
 
 -  TI TSC2102i touchscreen controller / analog-digital converter /
-   Audio CODEC, connected through MicroWire and |I2S| busses
+   Audio CODEC, connected through MicroWire and |I2S| buses
 
 -  GPIO-connected matrix keypad
 
