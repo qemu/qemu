@@ -2133,6 +2133,7 @@ static void handle_sys(DisasContext *s, bool isread,
     const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
     bool need_exit_tb = false;
     bool nv_trap_to_el2 = false;
+    bool nv_redirect_reg = false;
     bool skip_fp_access_checks = false;
     TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
@@ -2174,7 +2175,14 @@ static void handle_sys(DisasContext *s, bool isread,
          * for registers accessible at EL1).
          */
         skip_fp_access_checks = true;
-        if (s->nv && arm_cpreg_traps_in_nv(ri)) {
+        if (s->nv2 && (ri->type & ARM_CP_NV2_REDIRECT)) {
+            /*
+             * This is one of the few EL2 registers which should redirect
+             * to the equivalent EL1 register. We do that after running
+             * the EL2 register's accessfn.
+             */
+            nv_redirect_reg = true;
+        } else if (s->nv && arm_cpreg_traps_in_nv(ri)) {
             /*
              * This register / instruction exists and is an EL2 register, so
              * we must trap to EL2 if accessed in nested virtualization EL1
@@ -2224,6 +2232,27 @@ static void handle_sys(DisasContext *s, bool isread,
     if (nv_trap_to_el2) {
         gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
         return;
+    }
+
+    if (nv_redirect_reg) {
+        /*
+         * FEAT_NV2 redirection of an EL2 register to an EL1 register.
+         * Conveniently in all cases the encoding of the EL1 register is
+         * identical to the EL2 register except that opc1 is 0.
+         * Get the reginfo for the EL1 register to use for the actual access.
+         * We don't use the EL1 register's access function, and
+         * fine-grained-traps on EL1 also do not apply here.
+         */
+        key = ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP,
+                                 crn, crm, op0, 0, op2);
+        ri = get_arm_cp_reginfo(s->cp_regs, key);
+        assert(ri);
+        assert(cp_access_ok(s->current_el, ri, isread));
+        /*
+         * We might not have done an update_pc earlier, so check we don't
+         * need it. We could support this in future if necessary.
+         */
+        assert(!(ri->type & ARM_CP_RAISES_EXC));
     }
 
     /* Handle special cases first */
@@ -14032,6 +14061,8 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->sme_trap_nonstreaming = EX_TBFLAG_A64(tb_flags, SME_TRAP_NONSTREAMING);
     dc->naa = EX_TBFLAG_A64(tb_flags, NAA);
     dc->nv = EX_TBFLAG_A64(tb_flags, NV);
+    dc->nv1 = EX_TBFLAG_A64(tb_flags, NV1);
+    dc->nv2 = EX_TBFLAG_A64(tb_flags, NV2);
     dc->vec_len = 0;
     dc->vec_stride = 0;
     dc->cp_regs = arm_cpu->cp_regs;

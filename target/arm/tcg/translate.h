@@ -146,6 +146,10 @@ typedef struct DisasContext {
     bool naa;
     /* True if FEAT_NV HCR_EL2.NV is enabled */
     bool nv;
+    /* True if NV enabled and HCR_EL2.NV1 is set */
+    bool nv1;
+    /* True if NV enabled and HCR_EL2.NV2 is set */
+    bool nv2;
     /*
      * >= 0, a copy of PSTATE.BTYPE, which will be 0 without v8.5-BTI.
      *  < 0, set by the current instruction.

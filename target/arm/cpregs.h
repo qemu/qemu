@@ -118,6 +118,11 @@ enum {
      * ARM pseudocode function CheckSMEAccess().
      */
     ARM_CP_SME                   = 1 << 19,
+    /*
+     * Flag: one of the four EL2 registers which redirect to the
+     * equivalent EL1 register when FEAT_NV2 is enabled.
+     */
+    ARM_CP_NV2_REDIRECT          = 1 << 20,
 };
 
 /*
