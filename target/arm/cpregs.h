@@ -937,7 +937,7 @@ struct ARMCPRegInfo {
     CPResetFn *resetfn;
 
     /*
-     * "Original" writefn and readfn.
+     * "Original" readfn, writefn, accessfn.
      * For ARMv8.1-VHE register aliases, we overwrite the read/write
      * accessor functions of various EL1/EL0 to perform the runtime
      * check for which sysreg should actually be modified, and then
@@ -948,6 +948,7 @@ struct ARMCPRegInfo {
      */
     CPReadFn *orig_readfn;
     CPWriteFn *orig_writefn;
+    CPAccessFn *orig_accessfn;
 };
 
 /*

@@ -6535,6 +6535,20 @@ static void el2_e2h_e12_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return ri->orig_writefn(env, ri->opaque, value);
 }
 
+static CPAccessResult el2_e2h_e12_access(CPUARMState *env,
+                                         const ARMCPRegInfo *ri,
+                                         bool isread)
+{
+    /* FOO_EL12 aliases only exist when E2H is 1; otherwise they UNDEF */
+    if (!(arm_hcr_el2_eff(env) & HCR_E2H)) {
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    if (ri->orig_accessfn) {
+        return ri->orig_accessfn(env, ri->opaque, isread);
+    }
+    return CP_ACCESS_OK;
+}
+
 static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
 {
     struct E2HAlias {
@@ -6648,6 +6662,7 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
         new_reg->opaque = src_reg;
         new_reg->orig_readfn = src_reg->readfn ?: raw_read;
         new_reg->orig_writefn = src_reg->writefn ?: raw_write;
+        new_reg->orig_accessfn = src_reg->accessfn;
         if (!new_reg->raw_readfn) {
             new_reg->raw_readfn = raw_read;
         }
@@ -6656,6 +6671,7 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
         }
         new_reg->readfn = el2_e2h_e12_read;
         new_reg->writefn = el2_e2h_e12_write;
+        new_reg->accessfn = el2_e2h_e12_access;
 
         ok = g_hash_table_insert(cpu->cp_regs,
                                  (gpointer)(uintptr_t)a->new_key, new_reg);
