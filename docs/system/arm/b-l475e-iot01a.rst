@@ -16,6 +16,7 @@ Currently B-L475E-IOT01A machine's only supports the following devices:
 
 - Cortex-M4F based STM32L4x5 SoC
 - STM32L4x5 EXTI (Extended interrupts and events controller)
+- STM32L4x5 SYSCFG (System configuration controller)
 
 Missing devices
 """""""""""""""
@@ -24,7 +25,6 @@ The B-L475E-IOT01A does *not* support the following devices:
 
 - Reset and clock control (RCC)
 - Serial ports (UART)
-- System configuration controller (SYSCFG)
 - General-purpose I/Os (GPIO)
 - Analog to Digital Converter (ADC)
 - SPI controller
