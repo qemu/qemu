@@ -321,22 +321,39 @@ typedef struct {
 static void coroutine_fn blk_log_writes_co_do_log(BlkLogWritesLogReq *lr)
 {
     BDRVBlkLogWritesState *s = lr->bs->opaque;
-    uint64_t cur_log_offset = s->cur_log_sector << s->sectorbits;
+
+    /*
+     * Determine the offsets and sizes of different parts of the entry, and
+     * update the state of the driver.
+     *
+     * This needs to be done in one go, before any actual I/O is done, as the
+     * log entry may have to be written in two parts, and the state of the
+     * driver may be modified by other driver operations while waiting for the
+     * I/O to complete.
+     */
+    const uint64_t entry_start_sector = s->cur_log_sector;
+    const uint64_t entry_offset = entry_start_sector << s->sectorbits;
+    const uint64_t qiov_aligned_size = ROUND_UP(lr->qiov->size, s->sectorsize);
+    const uint64_t entry_aligned_size = qiov_aligned_size +
+        ROUND_UP(lr->zero_size, s->sectorsize);
+    const uint64_t entry_nr_sectors = entry_aligned_size >> s->sectorbits;
 
     s->nr_entries++;
-    s->cur_log_sector +=
-            ROUND_UP(lr->qiov->size, s->sectorsize) >> s->sectorbits;
+    s->cur_log_sector += entry_nr_sectors;
 
-    lr->log_ret = bdrv_co_pwritev(s->log_file, cur_log_offset, lr->qiov->size,
+    /*
+     * Write the log entry. Note that if this is a "write zeroes" operation,
+     * only the entry header is written here, with the zeroing being done
+     * separately below.
+     */
+    lr->log_ret = bdrv_co_pwritev(s->log_file, entry_offset, lr->qiov->size,
                                   lr->qiov, 0);
 
     /* Logging for the "write zeroes" operation */
     if (lr->log_ret == 0 && lr->zero_size) {
-        cur_log_offset = s->cur_log_sector << s->sectorbits;
-        s->cur_log_sector +=
-                ROUND_UP(lr->zero_size, s->sectorsize) >> s->sectorbits;
+        const uint64_t zeroes_offset = entry_offset + qiov_aligned_size;
 
-        lr->log_ret = bdrv_co_pwrite_zeroes(s->log_file, cur_log_offset,
+        lr->log_ret = bdrv_co_pwrite_zeroes(s->log_file, zeroes_offset,
                                             lr->zero_size, 0);
     }
 
