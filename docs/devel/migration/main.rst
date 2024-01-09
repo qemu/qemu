@@ -1,6 +1,6 @@
-=========
-Migration
-=========
+===================
+Migration framework
+===================
 
 QEMU has code to load/save the state of the guest that it is running.
 These are two complementary operations.  Saving the state just does

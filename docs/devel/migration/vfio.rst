@@ -1,5 +1,5 @@
 =====================
-VFIO device Migration
+VFIO device migration
 =====================
 
 Migration of virtual machine involves saving the state for each device that
