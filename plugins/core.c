@@ -533,7 +533,7 @@ void exec_inline_op(struct qemu_plugin_dyn_cb *cb, int cpu_index)
 void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
-    GArray *arr = cpu->plugin_mem_cbs;
+    GArray *arr = cpu->neg.plugin_mem_cbs;
     size_t i;
 
     if (arr == NULL) {

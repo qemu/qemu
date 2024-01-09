@@ -35,7 +35,7 @@ static inline bool cpu_in_serial_context(CPUState *cs)
 static inline bool cpu_plugin_mem_cbs_enabled(const CPUState *cpu)
 {
 #ifdef CONFIG_PLUGIN
-    return !!cpu->plugin_mem_cbs;
+    return !!cpu->neg.plugin_mem_cbs;
 #else
     return false;
 #endif
