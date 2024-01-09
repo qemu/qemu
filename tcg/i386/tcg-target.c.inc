@@ -1501,6 +1501,10 @@ static int tcg_out_cmp(TCGContext *s, TCGCond cond, TCGArg arg1,
             tcg_out_modrm(s, OPC_TESTB | P_REXB_R, arg1, arg1);
             return js;
         }
+        if (arg2 == 0xff) {
+            tcg_out_modrm(s, OPC_TESTB | P_REXB_R, arg1, arg1);
+            return jz;
+        }
         tcg_out_modrm(s, OPC_GRP3_Eb | P_REXB_RM, EXT3_TESTi, arg1);
         tcg_out8(s, arg2);
         return jz;
@@ -1511,8 +1515,21 @@ static int tcg_out_cmp(TCGContext *s, TCGCond cond, TCGArg arg1,
             tcg_out_modrm(s, OPC_TESTB, arg1 + 4, arg1 + 4);
             return js;
         }
+        if (arg2 == 0xff00) {
+            tcg_out_modrm(s, OPC_TESTB, arg1 + 4, arg1 + 4);
+            return jz;
+        }
         tcg_out_modrm(s, OPC_GRP3_Eb, EXT3_TESTi, arg1 + 4);
         tcg_out8(s, arg2 >> 8);
+        return jz;
+    }
+
+    if (arg2 == 0xffff) {
+        tcg_out_modrm(s, OPC_TESTL | P_DATA16, arg1, arg1);
+        return jz;
+    }
+    if (arg2 == 0xffffffffu) {
+        tcg_out_modrm(s, OPC_TESTL, arg1, arg1);
         return jz;
     }
 
