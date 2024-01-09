@@ -8,6 +8,7 @@ QEMU live migration works.
    :maxdepth: 2
 
    main
+   features
    compatibility
    vfio
    virtio
