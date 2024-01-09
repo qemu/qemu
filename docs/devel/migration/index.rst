@@ -9,3 +9,4 @@ QEMU live migration works.
 
    main
    vfio
+   virtio
