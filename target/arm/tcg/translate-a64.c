@@ -2294,6 +2294,7 @@ static void handle_sys(DisasContext *s, bool isread,
         MemOp mop = MO_64 | MO_ALIGN | MO_ATOM_IFALIGN;
         ARMMMUIdx armmemidx = s->nv2_mem_e20 ? ARMMMUIdx_E20_2 : ARMMMUIdx_E2;
         int memidx = arm_to_core_mmu_idx(armmemidx);
+        uint32_t syn;
 
         mop |= (s->nv2_mem_be ? MO_BE : MO_LE);
 
@@ -2301,6 +2302,9 @@ static void handle_sys(DisasContext *s, bool isread,
         tcg_gen_addi_i64(ptr, ptr,
                          (ri->nv2_redirect_offset & ~NV2_REDIR_FLAG_MASK));
         tcg_rt = cpu_reg(s, rt);
+
+        syn = syn_data_abort_vncr(0, !isread, 0);
+        disas_set_insn_syndrome(s, syn);
         if (isread) {
             tcg_gen_qemu_ld_i64(tcg_rt, ptr, memidx, mop);
         } else {
