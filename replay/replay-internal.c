@@ -175,11 +175,12 @@ void replay_fetch_data_kind(void)
     if (replay_file) {
         if (!replay_state.has_unread_data) {
             replay_state.data_kind = replay_get_byte();
+            replay_state.current_event++;
             if (replay_state.data_kind == EVENT_INSTRUCTION) {
                 replay_state.instruction_count = replay_get_dword();
             }
             replay_check_error();
-            replay_state.has_unread_data = 1;
+            replay_state.has_unread_data = true;
             if (replay_state.data_kind >= EVENT_COUNT) {
                 error_report("Replay: unknown event kind %d",
                              replay_state.data_kind);
@@ -191,7 +192,7 @@ void replay_fetch_data_kind(void)
 
 void replay_finish_event(void)
 {
-    replay_state.has_unread_data = 0;
+    replay_state.has_unread_data = false;
     replay_fetch_data_kind();
 }
 

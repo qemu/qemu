@@ -82,13 +82,26 @@ class ReplayKernelBase(LinuxKernelTest):
 
 class ReplayKernelNormal(ReplayKernelBase):
 
-    # See https://gitlab.com/qemu-project/qemu/-/issues/2010
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test sometimes gets stuck')
+    def test_i386_pc(self):
+        """
+        :avocado: tags=arch:i386
+        :avocado: tags=machine:pc
+        """
+        kernel_url = ('https://storage.tuxboot.com/20230331/i386/bzImage')
+        kernel_hash = 'a3e5b32a354729e65910f5a1ffcda7c14a6c12a55e8213fb86e277f1b76ed956'
+        kernel_path = self.fetch_asset(kernel_url,
+                                       asset_hash=kernel_hash,
+                                       algorithm = "sha256")
+
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        console_pattern = 'VFS: Cannot open root device'
+
+        self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=5)
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
         :avocado: tags=machine:pc
-        :avocado: tags=flaky
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
@@ -119,8 +132,6 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=5)
 
-    # See https://gitlab.com/qemu-project/qemu/-/issues/2013
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_mips64el_malta(self):
         """
         This test requires the ar tool to extract "data.tar.gz" from
@@ -136,7 +147,6 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         :avocado: tags=arch:mips64el
         :avocado: tags=machine:malta
-        :avocado: tags=flaky
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20130217T032700Z/pool/main/l/linux-2.6/'
@@ -184,13 +194,10 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1)
 
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_arm_cubieboard_initrd(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
-        :avocado: tags=flaky
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -338,7 +345,6 @@ class ReplayKernelNormal(ReplayKernelBase):
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'sanity-clause.elf')
 
-    @skip("Test currently broken") # Console stuck as of 5.2-rc1
     def test_microblaze_s3adsp1800(self):
         """
         :avocado: tags=arch:microblaze
@@ -373,7 +379,6 @@ class ReplayKernelNormal(ReplayKernelBase):
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'vmlinux')
 
-    @skip("nios2 emulation is buggy under record/replay")
     def test_nios2_10m50(self):
         """
         :avocado: tags=arch:nios2

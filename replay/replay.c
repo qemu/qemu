@@ -38,6 +38,107 @@ static GSList *replay_blockers;
 uint64_t replay_break_icount = -1ULL;
 QEMUTimer *replay_break_timer;
 
+/* Pretty print event names */
+
+static const char *replay_async_event_name(ReplayAsyncEventKind event)
+{
+    switch (event) {
+#define ASYNC_EVENT(_x) case REPLAY_ASYNC_EVENT_ ## _x: return "ASYNC_EVENT_"#_x
+        ASYNC_EVENT(BH);
+        ASYNC_EVENT(BH_ONESHOT);
+        ASYNC_EVENT(INPUT);
+        ASYNC_EVENT(INPUT_SYNC);
+        ASYNC_EVENT(CHAR_READ);
+        ASYNC_EVENT(BLOCK);
+        ASYNC_EVENT(NET);
+#undef ASYNC_EVENT
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static const char *replay_clock_event_name(ReplayClockKind clock)
+{
+    switch (clock) {
+#define CLOCK_EVENT(_x) case REPLAY_CLOCK_ ## _x: return "CLOCK_" #_x
+        CLOCK_EVENT(HOST);
+        CLOCK_EVENT(VIRTUAL_RT);
+#undef CLOCK_EVENT
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* Pretty print shutdown event names */
+static const char *replay_shutdown_event_name(ShutdownCause cause)
+{
+    switch (cause) {
+#define SHUTDOWN_EVENT(_x) case SHUTDOWN_CAUSE_ ## _x: return "SHUTDOWN_CAUSE_" #_x
+        SHUTDOWN_EVENT(NONE);
+        SHUTDOWN_EVENT(HOST_ERROR);
+        SHUTDOWN_EVENT(HOST_QMP_QUIT);
+        SHUTDOWN_EVENT(HOST_QMP_SYSTEM_RESET);
+        SHUTDOWN_EVENT(HOST_SIGNAL);
+        SHUTDOWN_EVENT(HOST_UI);
+        SHUTDOWN_EVENT(GUEST_SHUTDOWN);
+        SHUTDOWN_EVENT(GUEST_RESET);
+        SHUTDOWN_EVENT(GUEST_PANIC);
+        SHUTDOWN_EVENT(SUBSYSTEM_RESET);
+        SHUTDOWN_EVENT(SNAPSHOT_LOAD);
+#undef SHUTDOWN_EVENT
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static const char *replay_checkpoint_event_name(enum ReplayCheckpoint checkpoint)
+{
+    switch (checkpoint) {
+#define CHECKPOINT_EVENT(_x) case CHECKPOINT_ ## _x: return "CHECKPOINT_" #_x
+        CHECKPOINT_EVENT(CLOCK_WARP_START);
+        CHECKPOINT_EVENT(CLOCK_WARP_ACCOUNT);
+        CHECKPOINT_EVENT(RESET_REQUESTED);
+        CHECKPOINT_EVENT(SUSPEND_REQUESTED);
+        CHECKPOINT_EVENT(CLOCK_VIRTUAL);
+        CHECKPOINT_EVENT(CLOCK_HOST);
+        CHECKPOINT_EVENT(CLOCK_VIRTUAL_RT);
+        CHECKPOINT_EVENT(INIT);
+        CHECKPOINT_EVENT(RESET);
+#undef CHECKPOINT_EVENT
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static const char *replay_event_name(enum ReplayEvents event)
+{
+    /* First deal with the simple ones */
+    switch (event) {
+#define EVENT(_x) case EVENT_ ## _x: return "EVENT_"#_x
+        EVENT(INSTRUCTION);
+        EVENT(INTERRUPT);
+        EVENT(EXCEPTION);
+        EVENT(CHAR_WRITE);
+        EVENT(CHAR_READ_ALL);
+        EVENT(AUDIO_OUT);
+        EVENT(AUDIO_IN);
+        EVENT(RANDOM);
+#undef EVENT
+    default:
+        if (event >= EVENT_ASYNC && event <= EVENT_ASYNC_LAST) {
+            return replay_async_event_name(event - EVENT_ASYNC);
+        } else if (event >= EVENT_SHUTDOWN && event <= EVENT_SHUTDOWN_LAST) {
+            return replay_shutdown_event_name(event - EVENT_SHUTDOWN);
+        } else if (event >= EVENT_CLOCK && event <= EVENT_CLOCK_LAST) {
+            return replay_clock_event_name(event - EVENT_CLOCK);
+        } else if (event >= EVENT_CHECKPOINT && event <= EVENT_CHECKPOINT_LAST) {
+            return replay_checkpoint_event_name(event - EVENT_CHECKPOINT);
+        }
+    }
+
+    g_assert_not_reached();
+}
+
 bool replay_next_event_is(int event)
 {
     bool res = false;
@@ -226,6 +327,15 @@ bool replay_has_event(void)
     return res;
 }
 
+G_NORETURN void replay_sync_error(const char *error)
+{
+    error_report("%s (insn total %"PRId64"/%d left, event %d is %s)", error,
+                 replay_state.current_icount, replay_state.instruction_count,
+                 replay_state.current_event,
+                 replay_event_name(replay_state.data_kind));
+    abort();
+}
+
 static void replay_enable(const char *fname, int mode)
 {
     const char *fmode = NULL;
@@ -258,6 +368,7 @@ static void replay_enable(const char *fname, int mode)
     replay_state.data_kind = -1;
     replay_state.instruction_count = 0;
     replay_state.current_icount = 0;
+    replay_state.current_event = 0;
     replay_state.has_unread_data = 0;
 
     /* skip file header for RECORD and check it for PLAY */
@@ -337,6 +448,27 @@ void replay_start(void)
 
     replay_enable_events();
 }
+
+/*
+ * For none/record the answer is yes.
+ */
+bool replay_can_wait(void)
+{
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        /*
+         * For playback we shouldn't ever be at a point we wait. If
+         * the instruction count has reached zero and we have an
+         * unconsumed event we should go around again and consume it.
+         */
+        if (replay_state.instruction_count == 0 && replay_state.has_unread_data) {
+            return false;
+        } else {
+            replay_sync_error("Playback shouldn't have to iowait");
+        }
+    }
+    return true;
+}
+
 
 void replay_finish(void)
 {

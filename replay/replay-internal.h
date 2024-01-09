@@ -25,7 +25,12 @@ typedef enum ReplayAsyncEventKind {
     REPLAY_ASYNC_COUNT
 } ReplayAsyncEventKind;
 
-/* Any changes to order/number of events will need to bump REPLAY_VERSION */
+/*
+ * Any changes to order/number of events will need to bump
+ * REPLAY_VERSION to prevent confusion with old logs. Also don't
+ * forget to update replay_event_name() to make your debugging life
+ * easier.
+ */
 enum ReplayEvents {
     /* for instruction event */
     EVENT_INSTRUCTION,
@@ -63,26 +68,33 @@ enum ReplayEvents {
     EVENT_COUNT
 };
 
+/**
+ * typedef ReplayState - global tracking Replay state
+ *
+ * This structure tracks where we are in the current ReplayState
+ * including the logged events from the recorded replay stream. Some
+ * of the data is also stored/restored from VMStateDescription when VM
+ * save/restore events take place.
+ *
+ * @cached_clock: Cached clocks values
+ * @current_icount: number of processed instructions
+ * @instruction_count: number of instructions until next event
+ * @current_event: current event index
+ * @data_kind: current event
+ * @has_unread_data: true if event not yet processed
+ * @file_offset: offset into replay log at replay snapshot
+ * @block_request_id: current serialised block request id
+ * @read_event_id: current async read event id
+ */
 typedef struct ReplayState {
-    /*! Cached clock values. */
     int64_t cached_clock[REPLAY_CLOCK_COUNT];
-    /*! Current icount - number of processed instructions. */
     uint64_t current_icount;
-    /*! Number of instructions to be executed before other events happen. */
     int instruction_count;
-    /*! Type of the currently executed event. */
+    unsigned int current_event;
     unsigned int data_kind;
-    /*! Flag which indicates that event is not processed yet. */
-    unsigned int has_unread_data;
-    /*! Temporary variable for saving current log offset. */
+    bool has_unread_data;
     uint64_t file_offset;
-    /*! Next block operation id.
-        This counter is global, because requests from different
-        block devices should not get overlapping ids. */
     uint64_t block_request_id;
-    /*! Prior value of the host clock */
-    uint64_t host_clock_last;
-    /*! Asynchronous event id read from the log */
     uint64_t read_event_id;
 } ReplayState;
 extern ReplayState replay_state;
@@ -182,6 +194,16 @@ void replay_event_net_run(void *opaque);
 void replay_event_net_save(void *opaque);
 /*! Reads network from the file. */
 void *replay_event_net_load(void);
+
+/* Diagnostics */
+
+/**
+ * replay_sync_error(): report sync error and exit
+ *
+ * When we reach an error condition we want to report it centrally so
+ * we can also dump some useful information into the logs.
+ */
+G_NORETURN void replay_sync_error(const char *error);
 
 /* VMState-related functions */
 

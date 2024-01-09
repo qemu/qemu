@@ -47,16 +47,17 @@ static int replay_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_replay = {
     .name = "replay",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .pre_save = replay_pre_save,
     .post_load = replay_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_INT64_ARRAY(cached_clock, ReplayState, REPLAY_CLOCK_COUNT),
         VMSTATE_UINT64(current_icount, ReplayState),
         VMSTATE_INT32(instruction_count, ReplayState),
+        VMSTATE_UINT32(current_event, ReplayState),
         VMSTATE_UINT32(data_kind, ReplayState),
-        VMSTATE_UINT32(has_unread_data, ReplayState),
+        VMSTATE_BOOL(has_unread_data, ReplayState),
         VMSTATE_UINT64(file_offset, ReplayState),
         VMSTATE_UINT64(block_request_id, ReplayState),
         VMSTATE_UINT64(read_event_id, ReplayState),

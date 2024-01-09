@@ -48,11 +48,14 @@ class ReplayLinux(LinuxTest):
         bus_string = ''
         if self.bus:
             bus_string = ',bus=%s.%d' % (self.bus, id,)
-        vm.add_args('-drive', 'file=%s,snapshot,id=disk%s,if=none' % (path, id))
+        vm.add_args('-drive', 'file=%s,snapshot=on,id=disk%s,if=none' % (path, id))
         vm.add_args('-drive',
             'driver=blkreplay,id=disk%s-rr,if=none,image=disk%s' % (id, id))
         vm.add_args('-device',
             '%s,drive=disk%s-rr%s' % (device, id, bus_string))
+
+    def vm_add_cdrom(self, vm, path, id, device):
+        vm.add_args('-drive', 'file=%s,id=disk%s,if=none,media=cdrom' % (path, id))
 
     def launch_and_wait(self, record, args, shift):
         self.require_netdev('user')
@@ -65,7 +68,7 @@ class ReplayLinux(LinuxTest):
         if args:
             vm.add_args(*args)
         self.vm_add_disk(vm, self.boot_path, 0, self.hdd)
-        self.vm_add_disk(vm, self.cloudinit_path, 1, self.cd)
+        self.vm_add_cdrom(vm, self.cloudinit_path, 1, self.cd)
         logger = logging.getLogger('replay')
         if record:
             logger.info('recording the execution...')
@@ -94,7 +97,7 @@ class ReplayLinux(LinuxTest):
         else:
             vm.event_wait('SHUTDOWN', self.timeout)
             vm.wait()
-            logger.info('successfully fihished the replay')
+            logger.info('successfully finished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
         return elapsed
