@@ -26,6 +26,7 @@
 
 #include "exec/memory.h"
 #include "hw/arm/armv7m.h"
+#include "hw/misc/stm32l4x5_syscfg.h"
 #include "hw/misc/stm32l4x5_exti.h"
 #include "qom/object.h"
 
@@ -41,6 +42,7 @@ struct Stm32l4x5SocState {
     ARMv7MState armv7m;
 
     Stm32l4x5ExtiState exti;
+    Stm32l4x5SyscfgState syscfg;
 
     MemoryRegion sram1;
     MemoryRegion sram2;
