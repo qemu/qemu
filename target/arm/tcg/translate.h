@@ -138,10 +138,10 @@ typedef struct DisasContext {
     bool mve_no_pred;
     /* True if fine-grained traps are active */
     bool fgt_active;
-    /* True if fine-grained trap on ERET is enabled */
-    bool fgt_eret;
     /* True if fine-grained trap on SVC is enabled */
     bool fgt_svc;
+    /* True if a trap on ERET is enabled (FGT or NV) */
+    bool trap_eret;
     /* True if FEAT_LSE2 SCTLR_ELx.nAA is set */
     bool naa;
     /*
