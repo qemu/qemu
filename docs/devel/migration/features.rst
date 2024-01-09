@@ -9,3 +9,4 @@ Migration has plenty of features to support different use cases.
    postcopy
    dirty-limit
    vfio
+   virtio
