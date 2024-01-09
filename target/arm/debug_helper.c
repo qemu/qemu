@@ -844,6 +844,16 @@ static CPAccessResult access_tda(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static CPAccessResult access_dbgvcr32(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
+{
+    /* MCDR_EL3.TDMA doesn't apply for FEAT_NV traps */
+    if (arm_current_el(env) == 2 && (env->cp15.mdcr_el3 & MDCR_TDA)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
 /*
  * Check for traps to Debug Comms Channel registers. If FEAT_FGT
  * is implemented then these are controlled by MDCR_EL2.TDCC for
@@ -1062,7 +1072,7 @@ static const ARMCPRegInfo debug_aa32_el1_reginfo[] = {
      */
     { .name = "DBGVCR32_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 4, .crn = 0, .crm = 7, .opc2 = 0,
-      .access = PL2_RW, .accessfn = access_tda,
+      .access = PL2_RW, .accessfn = access_dbgvcr32,
       .type = ARM_CP_NOP | ARM_CP_EL3_NO_EL2_KEEP },
 };
 
