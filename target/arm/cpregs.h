@@ -1080,4 +1080,38 @@ void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
 
 CPAccessResult access_tvm_trvm(CPUARMState *, const ARMCPRegInfo *, bool);
 
+/**
+ * arm_cpreg_trap_in_nv: Return true if cpreg traps in nested virtualization
+ *
+ * Return true if this cpreg is one which should be trapped to EL2 if
+ * it is executed at EL1 when nested virtualization is enabled via HCR_EL2.NV.
+ */
+static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
+{
+    /*
+     * The Arm ARM defines the registers to be trapped in terms of
+     * their names (I_TZTZL). However the underlying principle is "if
+     * it would UNDEF at EL1 but work at EL2 then it should trap", and
+     * the way the encoding of sysregs and system instructions is done
+     * means that the right set of registers is exactly those where
+     * the opc1 field is 4 or 5. (You can see this also in the assert
+     * we do that the opc1 field and the permissions mask line up in
+     * define_one_arm_cp_reg_with_opaque().)
+     * Checking the opc1 field is easier for us and avoids the problem
+     * that we do not consistently use the right architectural names
+     * for all sysregs, since we treat the name field as largely for debug.
+     *
+     * However we do this check, it is going to be at least potentially
+     * fragile to future new sysregs, but this seems the least likely
+     * to break.
+     *
+     * In particular, note that the released sysreg XML defines that
+     * the FEAT_MEC sysregs and instructions do not follow this FEAT_NV
+     * trapping rule, so we will need to add an ARM_CP_* flag to indicate
+     * "register does not trap on NV" to handle those if/when we implement
+     * FEAT_MEC.
+     */
+    return ri->opc1 == 4 || ri->opc1 == 5;
+}
+
 #endif /* TARGET_ARM_CPREGS_H */
