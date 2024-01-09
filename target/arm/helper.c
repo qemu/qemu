@@ -11249,6 +11249,12 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         old_mode = pstate_read(env);
         aarch64_save_sp(env, arm_current_el(env));
         env->elr_el[new_el] = env->pc;
+
+        if (cur_el == 1 && new_el == 1 &&
+            ((arm_hcr_el2_eff(env) & (HCR_NV | HCR_NV1)) == HCR_NV)) {
+            /* I_ZJRNN: report EL2 in the SPSR by setting M[3:2] to 0b10 */
+            old_mode = deposit32(old_mode, 2, 2, 2);
+        }
     } else {
         old_mode = cpsr_read_for_spsr_elx(env);
         env->elr_el[new_el] = env->regs[15];
