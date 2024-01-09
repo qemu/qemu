@@ -826,6 +826,11 @@ typedef void CPResetFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 
 #define CP_ANY 0xff
 
+/* Flags in the high bits of nv2_redirect_offset */
+#define NV2_REDIR_NV1 0x4000 /* Only redirect when HCR_EL2.NV1 == 1 */
+#define NV2_REDIR_NO_NV1 0x8000 /* Only redirect when HCR_EL2.NV1 == 0 */
+#define NV2_REDIR_FLAG_MASK 0xc000
+
 /* Definition of an ARM coprocessor register */
 struct ARMCPRegInfo {
     /* Name of register (useful mainly for debugging, need not be unique) */
@@ -867,6 +872,13 @@ struct ARMCPRegInfo {
      * value encodes both the trap register and bit within it.
      */
     FGTBit fgt;
+
+    /*
+     * Offset from VNCR_EL2 when FEAT_NV2 redirects access to memory;
+     * may include an NV2_REDIR_* flag.
+     */
+    uint32_t nv2_redirect_offset;
+
     /*
      * The opaque pointer passed to define_arm_cp_regs_with_opaque() when
      * this register was defined: can be used to hand data through to the

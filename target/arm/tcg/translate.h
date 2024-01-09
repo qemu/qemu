@@ -150,6 +150,10 @@ typedef struct DisasContext {
     bool nv1;
     /* True if NV enabled and HCR_EL2.NV2 is set */
     bool nv2;
+    /* True if NV2 enabled and NV2 RAM accesses use EL2&0 translation regime */
+    bool nv2_mem_e20;
+    /* True if NV2 enabled and NV2 RAM accesses are big-endian */
+    bool nv2_mem_be;
     /*
      * >= 0, a copy of PSTATE.BTYPE, which will be 0 without v8.5-BTI.
      *  < 0, set by the current instruction.
@@ -165,6 +169,8 @@ typedef struct DisasContext {
     int c15_cpar;
     /* TCG op of the current insn_start.  */
     TCGOp *insn_start;
+    /* Offset from VNCR_EL2 when FEAT_NV2 redirects this reg to memory */
+    uint32_t nv2_redirect_offset;
 } DisasContext;
 
 typedef struct DisasCompare {
