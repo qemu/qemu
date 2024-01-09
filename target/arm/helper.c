@@ -266,6 +266,9 @@ void init_cpreg_list(ARMCPU *cpu)
 static bool arm_pan_enabled(CPUARMState *env)
 {
     if (is_a64(env)) {
+        if ((arm_hcr_el2_eff(env) & (HCR_NV | HCR_NV1)) == (HCR_NV | HCR_NV1)) {
+            return false;
+        }
         return env->pstate & PSTATE_PAN;
     } else {
         return env->uncached_cpsr & CPSR_PAN;
