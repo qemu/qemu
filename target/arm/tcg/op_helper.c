@@ -985,7 +985,14 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
      *
      *  Conduit SMC, valid call  Trap to EL2         PSCI Call
      *  Conduit SMC, inval call  Trap to EL2         Undef insn
-     *  Conduit not SMC          Undef insn          Undef insn
+     *  Conduit not SMC          Undef or trap[1]    Undef insn
+     *
+     * [1] In this case:
+     *  - if HCR_EL2.NV == 1 we must trap to EL2
+     *  - if HCR_EL2.NV == 0 then newer architecture revisions permit
+     *    AArch64 (but not AArch32) to trap to EL2 as an IMPDEF choice
+     *  - otherwise we must UNDEF
+     * We take the IMPDEF choice to always UNDEF if HCR_EL2.NV == 0.
      */
 
     /* On ARMv8 with EL3 AArch64, SMD applies to both S and NS state.
@@ -999,9 +1006,12 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
                                                      : smd_flag && !secure;
 
     if (!arm_feature(env, ARM_FEATURE_EL3) &&
+        !(arm_hcr_el2_eff(env) & HCR_NV) &&
         cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
-        /* If we have no EL3 then SMC always UNDEFs and can't be
-         * trapped to EL2. PSCI-via-SMC is a sort of ersatz EL3
+        /*
+         * If we have no EL3 then traditionally SMC always UNDEFs and can't be
+         * trapped to EL2. For nested virtualization, SMC can be trapped to
+         * the outer hypervisor. PSCI-via-SMC is a sort of ersatz EL3
          * firmware within QEMU, and we want an EL2 guest to be able
          * to forbid its EL1 from making PSCI calls into QEMU's
          * "firmware" via HCR.TSC, so for these purposes treat
