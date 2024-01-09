@@ -2190,6 +2190,14 @@ static void handle_sys(DisasContext *s, bool isread,
         gen_a64_update_pc(s, 0);
     }
 
+    if ((ri->type & ARM_CP_FPU) && !fp_access_check_only(s)) {
+        return;
+    } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
+        return;
+    } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
+        return;
+    }
+
     /* Handle special cases first */
     switch (ri->type & ARM_CP_SPECIAL_MASK) {
     case 0:
@@ -2267,13 +2275,6 @@ static void handle_sys(DisasContext *s, bool isread,
         return;
     default:
         g_assert_not_reached();
-    }
-    if ((ri->type & ARM_CP_FPU) && !fp_access_check_only(s)) {
-        return;
-    } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
-        return;
-    } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
-        return;
     }
 
     if (ri->type & ARM_CP_IO) {
