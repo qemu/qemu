@@ -96,7 +96,13 @@ mte
 highmem
   Set ``on``/``off`` to enable/disable placing devices and RAM in physical
   address space above 32 bits. The default is ``on`` for machine types
-  later than ``virt-2.12``.
+  later than ``virt-2.12`` when the CPU supports an address space
+  bigger than 32 bits (i.e. 64-bit CPUs, and 32-bit CPUs with the
+  Large Physical Address Extension (LPAE) feature). If you want to
+  boot a 32-bit kernel which does not have ``CONFIG_LPAE`` enabled on
+  a CPU type which implements LPAE, you will need to manually set
+  this to ``off``; otherwise some devices, such as the PCI controller,
+  will not be accessible.
 
 compact-highmem
   Set ``on``/``off`` to enable/disable the compact layout for high memory regions.
