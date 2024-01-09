@@ -819,7 +819,7 @@ void qemu_init_subsystems(void)
 
     qemu_init_cpu_list();
     qemu_init_cpu_loop();
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     atexit(qemu_run_exit_notifiers);
 

@@ -1665,7 +1665,7 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
 {
     bool use_iommu, pt;
     /* Whether we need to take the BQL on our own */
-    bool take_bql = !qemu_mutex_iothread_locked();
+    bool take_bql = !bql_locked();
 
     assert(as);
 
@@ -1683,7 +1683,7 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
      * it. We'd better make sure we have had it already, or, take it.
      */
     if (take_bql) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
     /* Turn off first then on the other */
@@ -1738,7 +1738,7 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     }
 
     if (take_bql) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     return use_iommu;

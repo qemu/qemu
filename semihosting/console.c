@@ -43,7 +43,7 @@ static SemihostingConsole console;
 static int console_can_read(void *opaque)
 {
     SemihostingConsole *c = opaque;
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     return (int)fifo8_num_free(&c->fifo);
 }
 
@@ -58,7 +58,7 @@ static void console_wake_up(gpointer data, gpointer user_data)
 static void console_read(void *opaque, const uint8_t *buf, int size)
 {
     SemihostingConsole *c = opaque;
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     while (size-- && !fifo8_is_full(&c->fifo)) {
         fifo8_push(&c->fifo, *buf++);
     }
@@ -70,7 +70,7 @@ bool qemu_semihosting_console_ready(void)
 {
     SemihostingConsole *c = &console;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
     return !fifo8_is_empty(&c->fifo);
 }
 
@@ -78,7 +78,7 @@ void qemu_semihosting_console_block_until_ready(CPUState *cs)
 {
     SemihostingConsole *c = &console;
 
-    g_assert(qemu_mutex_iothread_locked());
+    g_assert(bql_locked());
 
     /* Block if the fifo is completely empty. */
     if (fifo8_is_empty(&c->fifo)) {

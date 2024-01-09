@@ -558,8 +558,8 @@ static void cpu_exec_longjmp_cleanup(CPUState *cpu)
         tcg_ctx->gen_tb = NULL;
     }
 #endif
-    if (qemu_mutex_iothread_locked()) {
-        qemu_mutex_unlock_iothread();
+    if (bql_locked()) {
+        bql_unlock();
     }
     assert_no_pages_locked();
 }
@@ -680,10 +680,10 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 #if defined(TARGET_I386)
         if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
             X86CPU *x86_cpu = X86_CPU(cpu);
-            qemu_mutex_lock_iothread();
+            bql_lock();
             apic_poll_irq(x86_cpu->apic_state);
             cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
         }
 #endif /* TARGET_I386 */
         if (!cpu_has_work(cpu)) {
@@ -749,9 +749,9 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #else
         if (replay_exception()) {
             CPUClass *cc = CPU_GET_CLASS(cpu);
-            qemu_mutex_lock_iothread();
+            bql_lock();
             cc->tcg_ops->do_interrupt(cpu);
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             cpu->exception_index = -1;
 
             if (unlikely(cpu->singlestep_enabled)) {
@@ -812,7 +812,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 
     if (unlikely(qatomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
-        qemu_mutex_lock_iothread();
+        bql_lock();
         interrupt_request = cpu->interrupt_request;
         if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
             /* Mask out external interrupts for this step. */
@@ -821,7 +821,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         if (interrupt_request & CPU_INTERRUPT_DEBUG) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
             cpu->exception_index = EXCP_DEBUG;
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             return true;
         }
 #if !defined(CONFIG_USER_ONLY)
@@ -832,7 +832,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
             cpu->halted = 1;
             cpu->exception_index = EXCP_HLT;
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             return true;
         }
 #if defined(TARGET_I386)
@@ -843,14 +843,14 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
             do_cpu_init(x86_cpu);
             cpu->exception_index = EXCP_HALTED;
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             return true;
         }
 #else
         else if (interrupt_request & CPU_INTERRUPT_RESET) {
             replay_interrupt();
             cpu_reset(cpu);
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             return true;
         }
 #endif /* !TARGET_I386 */
@@ -873,7 +873,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                  */
                 if (unlikely(cpu->singlestep_enabled)) {
                     cpu->exception_index = EXCP_DEBUG;
-                    qemu_mutex_unlock_iothread();
+                    bql_unlock();
                     return true;
                 }
                 cpu->exception_index = -1;
@@ -892,7 +892,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         }
 
         /* If we exit via cpu_loop_exit/longjmp it is reset in cpu_exec */
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     /* Finally, check if we need to exit to the main loop.  */

@@ -76,7 +76,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
     rcu_add_force_rcu_notifier(&force_rcu.notifier);
     tcg_register_thread();
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
@@ -91,9 +91,9 @@ static void *mttcg_cpu_thread_fn(void *arg)
     do {
         if (cpu_can_run(cpu)) {
             int r;
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             r = tcg_cpus_exec(cpu);
-            qemu_mutex_lock_iothread();
+            bql_lock();
             switch (r) {
             case EXCP_DEBUG:
                 cpu_handle_guest_debug(cpu);
@@ -105,9 +105,9 @@ static void *mttcg_cpu_thread_fn(void *arg)
                  */
                 break;
             case EXCP_ATOMIC:
-                qemu_mutex_unlock_iothread();
+                bql_unlock();
                 cpu_exec_step_atomic(cpu);
-                qemu_mutex_lock_iothread();
+                bql_lock();
             default:
                 /* Ignore everything else? */
                 break;
@@ -119,7 +119,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     tcg_cpus_destroy(cpu);
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     rcu_remove_force_rcu_notifier(&force_rcu.notifier);
     rcu_unregister_thread();
     return NULL;

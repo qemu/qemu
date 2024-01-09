@@ -1341,7 +1341,7 @@ static void fire_watch_cb(void *opaque, const char *path, const char *token)
 {
     XenXenstoreState *s = opaque;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     /*
      * If there's a response pending, we obviously can't scribble over

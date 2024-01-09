@@ -403,7 +403,7 @@ void kvm_xen_maybe_deassert_callback(CPUState *cs)
 
     /* If the evtchn_upcall_pending flag is cleared, turn the GSI off. */
     if (!vi->evtchn_upcall_pending) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
         /*
          * Check again now we have the lock, because it may have been
          * asserted in the interim. And we don't want to take the lock
@@ -413,7 +413,7 @@ void kvm_xen_maybe_deassert_callback(CPUState *cs)
             X86_CPU(cs)->env.xen_callback_asserted = false;
             xen_evtchn_set_callback_level(0);
         }
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 }
 
@@ -581,7 +581,7 @@ static int xen_set_shared_info(uint64_t gfn)
     uint64_t gpa = gfn << TARGET_PAGE_BITS;
     int i, err;
 
-    QEMU_IOTHREAD_LOCK_GUARD();
+    BQL_LOCK_GUARD();
 
     /*
      * The xen_overlay device tells KVM about it too, since it had to
@@ -773,9 +773,9 @@ static bool handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
 
     switch (hp.index) {
     case HVM_PARAM_CALLBACK_IRQ:
-        qemu_mutex_lock_iothread();
+        bql_lock();
         err = xen_evtchn_set_callback_param(hp.value);
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         xen_set_long_mode(exit->u.hcall.longmode);
         break;
     default:
@@ -1408,7 +1408,7 @@ int kvm_xen_soft_reset(void)
     CPUState *cpu;
     int err;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     trace_kvm_xen_soft_reset();
 
@@ -1481,9 +1481,9 @@ static int schedop_shutdown(CPUState *cs, uint64_t arg)
         break;
 
     case SHUTDOWN_soft_reset:
-        qemu_mutex_lock_iothread();
+        bql_lock();
         ret = kvm_xen_soft_reset();
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         break;
 
     default:

@@ -217,7 +217,7 @@ void replay_mutex_lock(void)
 {
     if (replay_mode != REPLAY_MODE_NONE) {
         unsigned long id;
-        g_assert(!qemu_mutex_iothread_locked());
+        g_assert(!bql_locked());
         g_assert(!replay_mutex_locked());
         qemu_mutex_lock(&lock);
         id = mutex_tail++;

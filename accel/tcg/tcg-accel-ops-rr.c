@@ -111,7 +111,7 @@ static void rr_wait_io_event(void)
 
     while (all_cpu_threads_idle() && replay_can_wait()) {
         rr_stop_kick_timer();
-        qemu_cond_wait_iothread(first_cpu->halt_cond);
+        qemu_cond_wait_bql(first_cpu->halt_cond);
     }
 
     rr_start_kick_timer();
@@ -188,7 +188,7 @@ static void *rr_cpu_thread_fn(void *arg)
     rcu_add_force_rcu_notifier(&force_rcu);
     tcg_register_thread();
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
@@ -198,7 +198,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
     /* wait for initial kick-off after machine start */
     while (first_cpu->stopped) {
-        qemu_cond_wait_iothread(first_cpu->halt_cond);
+        qemu_cond_wait_bql(first_cpu->halt_cond);
 
         /* process any pending work */
         CPU_FOREACH(cpu) {
@@ -218,9 +218,9 @@ static void *rr_cpu_thread_fn(void *arg)
         /* Only used for icount_enabled() */
         int64_t cpu_budget = 0;
 
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
         replay_mutex_lock();
-        qemu_mutex_lock_iothread();
+        bql_lock();
 
         if (icount_enabled()) {
             int cpu_count = rr_cpu_count();
@@ -254,7 +254,7 @@ static void *rr_cpu_thread_fn(void *arg)
             if (cpu_can_run(cpu)) {
                 int r;
 
-                qemu_mutex_unlock_iothread();
+                bql_unlock();
                 if (icount_enabled()) {
                     icount_prepare_for_run(cpu, cpu_budget);
                 }
@@ -262,15 +262,15 @@ static void *rr_cpu_thread_fn(void *arg)
                 if (icount_enabled()) {
                     icount_process_data(cpu);
                 }
-                qemu_mutex_lock_iothread();
+                bql_lock();
 
                 if (r == EXCP_DEBUG) {
                     cpu_handle_guest_debug(cpu);
                     break;
                 } else if (r == EXCP_ATOMIC) {
-                    qemu_mutex_unlock_iothread();
+                    bql_unlock();
                     cpu_exec_step_atomic(cpu);
-                    qemu_mutex_lock_iothread();
+                    bql_lock();
                     break;
                 }
             } else if (cpu->stop) {

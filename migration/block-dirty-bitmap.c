@@ -464,7 +464,7 @@ static void send_bitmap_bits(QEMUFile *f, DBMSaveState *s,
     g_free(buf);
 }
 
-/* Called with iothread lock taken.  */
+/* Called with the BQL taken.  */
 static void dirty_bitmap_do_save_cleanup(DBMSaveState *s)
 {
     SaveBitmapState *dbms;
@@ -479,7 +479,7 @@ static void dirty_bitmap_do_save_cleanup(DBMSaveState *s)
     }
 }
 
-/* Called with iothread lock taken. */
+/* Called with the BQL taken. */
 static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
                                const char *bs_name, GHashTable *alias_map)
 {
@@ -598,7 +598,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     return 0;
 }
 
-/* Called with iothread lock taken. */
+/* Called with the BQL taken. */
 static int init_dirty_bitmap_migration(DBMSaveState *s)
 {
     BlockDriverState *bs;
@@ -607,7 +607,7 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
     BlockBackend *blk;
     GHashTable *alias_map = NULL;
 
-    /* Runs in the migration thread, but holds the iothread lock */
+    /* Runs in the migration thread, but holds the BQL */
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
@@ -742,7 +742,7 @@ static int dirty_bitmap_save_iterate(QEMUFile *f, void *opaque)
     return s->bulk_completed;
 }
 
-/* Called with iothread lock taken.  */
+/* Called with the BQL taken.  */
 
 static int dirty_bitmap_save_complete(QEMUFile *f, void *opaque)
 {
@@ -774,7 +774,7 @@ static void dirty_bitmap_state_pending(void *opaque,
     SaveBitmapState *dbms;
     uint64_t pending = 0;
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         uint64_t gran = bdrv_dirty_bitmap_granularity(dbms->bitmap);
@@ -784,7 +784,7 @@ static void dirty_bitmap_state_pending(void *opaque,
         pending += DIV_ROUND_UP(sectors * BDRV_SECTOR_SIZE, gran);
     }
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     trace_dirty_bitmap_state_pending(pending);
 

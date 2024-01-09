@@ -153,7 +153,7 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         goto out;
     }
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
     guest_phys_blocks_init(&guest_phys_blocks);
     guest_phys_blocks_append(&guest_phys_blocks);
 

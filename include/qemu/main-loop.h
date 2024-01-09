@@ -248,19 +248,19 @@ GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
 
 /**
- * qemu_mutex_iothread_locked: Return lock status of the main loop mutex.
+ * bql_locked: Return lock status of the Big QEMU Lock (BQL)
  *
- * The main loop mutex is the coarsest lock in QEMU, and as such it
+ * The Big QEMU Lock (BQL) is the coarsest lock in QEMU, and as such it
  * must always be taken outside other locks.  This function helps
  * functions take different paths depending on whether the current
- * thread is running within the main loop mutex.
+ * thread is running within the BQL.
  *
  * This function should never be used in the block layer, because
  * unit tests, block layer tools and qemu-storage-daemon do not
  * have a BQL.
  * Please instead refer to qemu_in_main_thread().
  */
-bool qemu_mutex_iothread_locked(void);
+bool bql_locked(void);
 
 /**
  * qemu_in_main_thread: return whether it's possible to safely access
@@ -312,78 +312,76 @@ bool qemu_in_main_thread(void);
     } while (0)
 
 /**
- * qemu_mutex_lock_iothread: Lock the main loop mutex.
+ * bql_lock: Lock the Big QEMU Lock (BQL).
  *
- * This function locks the main loop mutex.  The mutex is taken by
+ * This function locks the Big QEMU Lock (BQL).  The lock is taken by
  * main() in vl.c and always taken except while waiting on
- * external events (such as with select).  The mutex should be taken
+ * external events (such as with select).  The lock should be taken
  * by threads other than the main loop thread when calling
  * qemu_bh_new(), qemu_set_fd_handler() and basically all other
  * functions documented in this file.
  *
- * NOTE: tools currently are single-threaded and qemu_mutex_lock_iothread
+ * NOTE: tools currently are single-threaded and bql_lock
  * is a no-op there.
  */
-#define qemu_mutex_lock_iothread()                      \
-    qemu_mutex_lock_iothread_impl(__FILE__, __LINE__)
-void qemu_mutex_lock_iothread_impl(const char *file, int line);
+#define bql_lock() bql_lock_impl(__FILE__, __LINE__)
+void bql_lock_impl(const char *file, int line);
 
 /**
- * qemu_mutex_unlock_iothread: Unlock the main loop mutex.
+ * bql_unlock: Unlock the Big QEMU Lock (BQL).
  *
- * This function unlocks the main loop mutex.  The mutex is taken by
+ * This function unlocks the Big QEMU Lock.  The lock is taken by
  * main() in vl.c and always taken except while waiting on
- * external events (such as with select).  The mutex should be unlocked
+ * external events (such as with select).  The lock should be unlocked
  * as soon as possible by threads other than the main loop thread,
  * because it prevents the main loop from processing callbacks,
  * including timers and bottom halves.
  *
- * NOTE: tools currently are single-threaded and qemu_mutex_unlock_iothread
+ * NOTE: tools currently are single-threaded and bql_unlock
  * is a no-op there.
  */
-void qemu_mutex_unlock_iothread(void);
+void bql_unlock(void);
 
 /**
- * QEMU_IOTHREAD_LOCK_GUARD
+ * BQL_LOCK_GUARD
  *
- * Wrap a block of code in a conditional qemu_mutex_{lock,unlock}_iothread.
+ * Wrap a block of code in a conditional bql_{lock,unlock}.
  */
-typedef struct IOThreadLockAuto IOThreadLockAuto;
+typedef struct BQLLockAuto BQLLockAuto;
 
-static inline IOThreadLockAuto *qemu_iothread_auto_lock(const char *file,
-                                                        int line)
+static inline BQLLockAuto *bql_auto_lock(const char *file, int line)
 {
-    if (qemu_mutex_iothread_locked()) {
+    if (bql_locked()) {
         return NULL;
     }
-    qemu_mutex_lock_iothread_impl(file, line);
+    bql_lock_impl(file, line);
     /* Anything non-NULL causes the cleanup function to be called */
-    return (IOThreadLockAuto *)(uintptr_t)1;
+    return (BQLLockAuto *)(uintptr_t)1;
 }
 
-static inline void qemu_iothread_auto_unlock(IOThreadLockAuto *l)
+static inline void bql_auto_unlock(BQLLockAuto *l)
 {
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 }
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(IOThreadLockAuto, qemu_iothread_auto_unlock)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(BQLLockAuto, bql_auto_unlock)
 
-#define QEMU_IOTHREAD_LOCK_GUARD() \
-    g_autoptr(IOThreadLockAuto) _iothread_lock_auto __attribute__((unused)) \
-        = qemu_iothread_auto_lock(__FILE__, __LINE__)
+#define BQL_LOCK_GUARD() \
+    g_autoptr(BQLLockAuto) _bql_lock_auto __attribute__((unused)) \
+        = bql_auto_lock(__FILE__, __LINE__)
 
 /*
- * qemu_cond_wait_iothread: Wait on condition for the main loop mutex
+ * qemu_cond_wait_bql: Wait on condition for the Big QEMU Lock (BQL)
  *
- * This function atomically releases the main loop mutex and causes
+ * This function atomically releases the Big QEMU Lock (BQL) and causes
  * the calling thread to block on the condition.
  */
-void qemu_cond_wait_iothread(QemuCond *cond);
+void qemu_cond_wait_bql(QemuCond *cond);
 
 /*
- * qemu_cond_timedwait_iothread: like the previous, but with timeout
+ * qemu_cond_timedwait_bql: like the previous, but with timeout
  */
-void qemu_cond_timedwait_iothread(QemuCond *cond, int ms);
+void qemu_cond_timedwait_bql(QemuCond *cond, int ms);
 
 /* internal interfaces */
 

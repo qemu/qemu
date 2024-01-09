@@ -143,7 +143,7 @@ static inline bool in_aio_context_home_thread(AioContext *ctx)
     }
 
     if (ctx == qemu_get_aio_context()) {
-        return qemu_mutex_iothread_locked();
+        return bql_locked();
     } else {
         return false;
     }

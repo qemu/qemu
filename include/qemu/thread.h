@@ -47,7 +47,7 @@ typedef void (*QemuCondWaitFunc)(QemuCond *c, QemuMutex *m, const char *f,
 typedef bool (*QemuCondTimedWaitFunc)(QemuCond *c, QemuMutex *m, int ms,
                                       const char *f, int l);
 
-extern QemuMutexLockFunc qemu_bql_mutex_lock_func;
+extern QemuMutexLockFunc bql_mutex_lock_func;
 extern QemuMutexLockFunc qemu_mutex_lock_func;
 extern QemuMutexTrylockFunc qemu_mutex_trylock_func;
 extern QemuRecMutexLockFunc qemu_rec_mutex_lock_func;

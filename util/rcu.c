@@ -283,24 +283,24 @@ static void *call_rcu_thread(void *opaque)
 
         qatomic_sub(&rcu_call_count, n);
         synchronize_rcu();
-        qemu_mutex_lock_iothread();
+        bql_lock();
         while (n > 0) {
             node = try_dequeue();
             while (!node) {
-                qemu_mutex_unlock_iothread();
+                bql_unlock();
                 qemu_event_reset(&rcu_call_ready_event);
                 node = try_dequeue();
                 if (!node) {
                     qemu_event_wait(&rcu_call_ready_event);
                     node = try_dequeue();
                 }
-                qemu_mutex_lock_iothread();
+                bql_lock();
             }
 
             n--;
             node->func(node);
         }
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
     abort();
 }
@@ -337,13 +337,13 @@ static void drain_rcu_callback(struct rcu_head *node)
 void drain_call_rcu(void)
 {
     struct rcu_drain rcu_drain;
-    bool locked = qemu_mutex_iothread_locked();
+    bool locked = bql_locked();
 
     memset(&rcu_drain, 0, sizeof(struct rcu_drain));
     qemu_event_init(&rcu_drain.drain_complete_event, false);
 
     if (locked) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
 
@@ -365,7 +365,7 @@ void drain_call_rcu(void)
     qatomic_dec(&in_drain_call_rcu);
 
     if (locked) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
 }
@@ -409,7 +409,7 @@ static void rcu_init_complete(void)
 
     qemu_event_init(&rcu_call_ready_event, false);
 
-    /* The caller is assumed to have iothread lock, so the call_rcu thread
+    /* The caller is assumed to have BQL, so the call_rcu thread
      * must have been quiescent even after forking, just recreate it.
      */
     qemu_thread_create(&thread, "call_rcu", call_rcu_thread,

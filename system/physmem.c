@@ -799,7 +799,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
     abort();
 
 found:
-    /* It is safe to write mru_block outside the iothread lock.  This
+    /* It is safe to write mru_block outside the BQL.  This
      * is what happens:
      *
      *     mru_block = xxx
@@ -1597,7 +1597,7 @@ int qemu_ram_get_fd(RAMBlock *rb)
     return rb->fd;
 }
 
-/* Called with iothread lock held.  */
+/* Called with the BQL held.  */
 void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
     RAMBlock *block;
@@ -1625,7 +1625,7 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
     }
 }
 
-/* Called with iothread lock held.  */
+/* Called with the BQL held.  */
 void qemu_ram_unset_idstr(RAMBlock *block)
 {
     /* FIXME: arch_init.c assumes that this is not called throughout
@@ -2639,8 +2639,8 @@ bool prepare_mmio_access(MemoryRegion *mr)
 {
     bool release_lock = false;
 
-    if (!qemu_mutex_iothread_locked()) {
-        qemu_mutex_lock_iothread();
+    if (!bql_locked()) {
+        bql_lock();
         release_lock = true;
     }
     if (mr->flush_coalesced_mmio) {
@@ -2721,7 +2721,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
         }
 
         if (release_lock) {
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             release_lock = false;
         }
 
@@ -2799,7 +2799,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
         }
 
         if (release_lock) {
-            qemu_mutex_unlock_iothread();
+            bql_unlock();
             release_lock = false;
         }
 

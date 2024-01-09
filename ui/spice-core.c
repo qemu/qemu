@@ -217,12 +217,12 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * not do that.  It isn't that easy to fix it in spice and even
      * when it is fixed we still should cover the already released
      * spice versions.  So detect that we've been called from another
-     * thread and grab the iothread lock if so before calling qemu
+     * thread and grab the BQL if so before calling qemu
      * functions.
      */
     bool need_lock = !qemu_thread_is_self(&me);
     if (need_lock) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
     if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
@@ -260,7 +260,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 
     if (need_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     qapi_free_SpiceServerInfo(server);

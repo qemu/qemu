@@ -24,7 +24,7 @@ static void *dummy_cpu_thread_fn(void *arg)
 
     rcu_register_thread();
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
     cpu->neg.can_do_io = true;
@@ -43,7 +43,7 @@ static void *dummy_cpu_thread_fn(void *arg)
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
 #ifndef _WIN32
         do {
             int sig;
@@ -56,11 +56,11 @@ static void *dummy_cpu_thread_fn(void *arg)
 #else
         qemu_sem_wait(&cpu->sem);
 #endif
-        qemu_mutex_lock_iothread();
+        bql_lock();
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     rcu_unregister_thread();
     return NULL;
 }

@@ -133,7 +133,7 @@ static bool net_tx_packets(struct XenNetDev *netdev)
     void *page;
     void *tmpbuf = NULL;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     for (;;) {
         rc = netdev->tx_ring.req_cons;
@@ -260,7 +260,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
     RING_IDX rc, rp;
     void *page;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     if (xen_device_backend_get_state(&netdev->xendev) != XenbusStateConnected) {
         return -1;
@@ -354,7 +354,7 @@ static bool xen_netdev_connect(XenDevice *xendev, Error **errp)
     XenNetDev *netdev = XEN_NET_DEVICE(xendev);
     unsigned int port, rx_copy;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     if (xen_device_frontend_scanf(xendev, "tx-ring-ref", "%u",
                                   &netdev->tx_ring_ref) != 1) {
@@ -425,7 +425,7 @@ static void xen_netdev_disconnect(XenDevice *xendev, Error **errp)
 
     trace_xen_netdev_disconnect(netdev->dev);
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     netdev->tx_ring.sring = NULL;
     netdev->rx_ring.sring = NULL;

@@ -33,7 +33,7 @@
  */
 bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 {
-    bool iolock = qemu_mutex_iothread_locked();
+    bool drop_bql = bql_locked();
     bool iothread = qemu_in_iothread();
     struct iovec send[2] = {};
     int *fds = NULL;
@@ -58,13 +58,13 @@ bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
     assert(qemu_in_coroutine() || !iothread);
 
     /*
-     * Skip unlocking/locking iothread lock when the IOThread is running
+     * Skip unlocking/locking BQL when the IOThread is running
      * in co-routine context. Co-routine context is asserted above
      * for IOThread case.
      * Also skip lock handling while in a co-routine in the main context.
      */
-    if (iolock && !iothread && !qemu_in_coroutine()) {
-        qemu_mutex_unlock_iothread();
+    if (drop_bql && !iothread && !qemu_in_coroutine()) {
+        bql_unlock();
     }
 
     if (!qio_channel_writev_full_all(ioc, send, G_N_ELEMENTS(send),
@@ -74,9 +74,9 @@ bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
         trace_mpqemu_send_io_error(msg->cmd, msg->size, nfds);
     }
 
-    if (iolock && !iothread && !qemu_in_coroutine()) {
+    if (drop_bql && !iothread && !qemu_in_coroutine()) {
         /* See above comment why skip locking here. */
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
     return ret;
@@ -96,7 +96,7 @@ static ssize_t mpqemu_read(QIOChannel *ioc, void *buf, size_t len, int **fds,
                            size_t *nfds, Error **errp)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = len };
-    bool iolock = qemu_mutex_iothread_locked();
+    bool drop_bql = bql_locked();
     bool iothread = qemu_in_iothread();
     int ret = -1;
 
@@ -106,14 +106,14 @@ static ssize_t mpqemu_read(QIOChannel *ioc, void *buf, size_t len, int **fds,
      */
     assert(qemu_in_coroutine() || !iothread);
 
-    if (iolock && !iothread && !qemu_in_coroutine()) {
-        qemu_mutex_unlock_iothread();
+    if (drop_bql && !iothread && !qemu_in_coroutine()) {
+        bql_unlock();
     }
 
     ret = qio_channel_readv_full_all_eof(ioc, &iov, 1, fds, nfds, errp);
 
-    if (iolock && !iothread && !qemu_in_coroutine()) {
-        qemu_mutex_lock_iothread();
+    if (drop_bql && !iothread && !qemu_in_coroutine()) {
+        bql_lock();
     }
 
     return (ret <= 0) ? ret : iov.iov_len;

@@ -809,9 +809,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         goto illegal_return;
     }
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     arm_call_pre_el_change_hook(env_archcpu(env));
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     if (!return_to_aa64) {
         env->aarch64 = false;
@@ -876,9 +876,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
      */
     aarch64_sve_change_el(env, cur_el, new_el, return_to_aa64);
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     arm_call_el_change_hook(env_archcpu(env));
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     return;
 
