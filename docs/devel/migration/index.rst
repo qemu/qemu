@@ -10,6 +10,5 @@ QEMU live migration works.
    main
    features
    compatibility
-   vfio
    virtio
    best-practices
