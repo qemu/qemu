@@ -12,6 +12,8 @@
 #include "qemu/module.h"
 #include "sysemu/qtest.h"
 #include "sysemu/tcg.h"
+#include "sysemu/kvm.h"
+#include "kvm/kvm_loongarch.h"
 #include "exec/exec-all.h"
 #include "cpu.h"
 #include "internals.h"
@@ -21,6 +23,9 @@
 #include "sysemu/reset.h"
 #endif
 #include "vec.h"
+#ifdef CONFIG_KVM
+#include <linux/kvm.h>
+#endif
 #ifdef CONFIG_TCG
 #include "exec/cpu_ldst.h"
 #include "tcg/tcg.h"
@@ -113,7 +118,9 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
         return;
     }
 
-    if (tcg_enabled()) {
+    if (kvm_enabled()) {
+        kvm_loongarch_set_interrupt(cpu, irq, level);
+    } else if (tcg_enabled()) {
         env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
         if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
