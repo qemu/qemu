@@ -1655,7 +1655,7 @@ TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t off, const char *name)
     return temp_tcgv_ptr(ts);
 }
 
-static TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
+TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
 {
     TCGContext *s = tcg_ctx;
     TCGTemp *ts;

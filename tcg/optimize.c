@@ -364,6 +364,13 @@ static TCGArg arg_new_constant(OptContext *ctx, uint64_t val)
     return temp_arg(ts);
 }
 
+static TCGArg arg_new_temp(OptContext *ctx)
+{
+    TCGTemp *ts = tcg_temp_new_internal(ctx->type, TEMP_EBB);
+    init_ts_info(ctx, ts);
+    return temp_arg(ts);
+}
+
 static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
 {
     TCGTemp *dst_ts = arg_temp(dst);
@@ -782,7 +789,7 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
  * Return -1 if the condition can't be simplified,
  * and the result of the condition (0 or 1) if it can.
  */
-static int do_constant_folding_cond1(OptContext *ctx, TCGArg dest,
+static int do_constant_folding_cond1(OptContext *ctx, TCGOp *op, TCGArg dest,
                                      TCGArg *p1, TCGArg *p2, TCGArg *pcond)
 {
     TCGCond cond;
@@ -818,11 +825,28 @@ static int do_constant_folding_cond1(OptContext *ctx, TCGArg dest,
                                ? INT32_MIN : INT64_MIN))) {
         *p2 = arg_new_constant(ctx, 0);
         *pcond = tcg_tst_ltge_cond(cond);
+        return -1;
+    }
+
+    /* Expand to AND with a temporary if no backend support. */
+    if (!TCG_TARGET_HAS_tst) {
+        TCGOpcode and_opc = (ctx->type == TCG_TYPE_I32
+                             ? INDEX_op_and_i32 : INDEX_op_and_i64);
+        TCGOp *op2 = tcg_op_insert_before(ctx->tcg, op, and_opc, 3);
+        TCGArg tmp = arg_new_temp(ctx);
+
+        op2->args[0] = tmp;
+        op2->args[1] = *p1;
+        op2->args[2] = *p2;
+
+        *p1 = tmp;
+        *p2 = arg_new_constant(ctx, 0);
+        *pcond = tcg_tst_eqne_cond(cond);
     }
     return -1;
 }
 
-static int do_constant_folding_cond2(OptContext *ctx, TCGArg *args)
+static int do_constant_folding_cond2(OptContext *ctx, TCGOp *op, TCGArg *args)
 {
     TCGArg al, ah, bl, bh;
     TCGCond c;
@@ -897,6 +921,26 @@ static int do_constant_folding_cond2(OptContext *ctx, TCGArg *args)
             args[4] = tcg_tst_eqne_cond(c);
             return -1;
         }
+    }
+
+    /* Expand to AND with a temporary if no backend support. */
+    if (!TCG_TARGET_HAS_tst && is_tst_cond(c)) {
+        TCGOp *op1 = tcg_op_insert_before(ctx->tcg, op, INDEX_op_and_i32, 3);
+        TCGOp *op2 = tcg_op_insert_before(ctx->tcg, op, INDEX_op_and_i32, 3);
+        TCGArg t1 = arg_new_temp(ctx);
+        TCGArg t2 = arg_new_temp(ctx);
+
+        op1->args[0] = t1;
+        op1->args[1] = al;
+        op1->args[2] = bl;
+        op2->args[0] = t2;
+        op2->args[1] = ah;
+        op2->args[2] = bh;
+
+        args[0] = t1;
+        args[1] = t2;
+        args[3] = args[2] = arg_new_constant(ctx, 0);
+        args[4] = tcg_tst_eqne_cond(c);
     }
     return -1;
 }
@@ -1298,7 +1342,7 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
 
 static bool fold_brcond(OptContext *ctx, TCGOp *op)
 {
-    int i = do_constant_folding_cond1(ctx, NO_DEST, &op->args[0],
+    int i = do_constant_folding_cond1(ctx, op, NO_DEST, &op->args[0],
                                       &op->args[1], &op->args[2]);
     if (i == 0) {
         tcg_op_remove(ctx->tcg, op);
@@ -1317,7 +1361,7 @@ static bool fold_brcond2(OptContext *ctx, TCGOp *op)
     TCGArg label;
     int i, inv = 0;
 
-    i = do_constant_folding_cond2(ctx, &op->args[0]);
+    i = do_constant_folding_cond2(ctx, op, &op->args[0]);
     cond = op->args[4];
     label = op->args[5];
     if (i >= 0) {
@@ -1815,7 +1859,7 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
         op->args[5] = tcg_invert_cond(op->args[5]);
     }
 
-    i = do_constant_folding_cond1(ctx, NO_DEST, &op->args[1],
+    i = do_constant_folding_cond1(ctx, op, NO_DEST, &op->args[1],
                                   &op->args[2], &op->args[5]);
     if (i >= 0) {
         return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[4 - i]);
@@ -2151,7 +2195,7 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
 
 static bool fold_setcond(OptContext *ctx, TCGOp *op)
 {
-    int i = do_constant_folding_cond1(ctx, op->args[0], &op->args[1],
+    int i = do_constant_folding_cond1(ctx, op, op->args[0], &op->args[1],
                                       &op->args[2], &op->args[3]);
     if (i >= 0) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], i);
@@ -2165,7 +2209,7 @@ static bool fold_setcond(OptContext *ctx, TCGOp *op)
 
 static bool fold_negsetcond(OptContext *ctx, TCGOp *op)
 {
-    int i = do_constant_folding_cond1(ctx, op->args[0], &op->args[1],
+    int i = do_constant_folding_cond1(ctx, op, op->args[0], &op->args[1],
                                       &op->args[2], &op->args[3]);
     if (i >= 0) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], -i);
@@ -2182,7 +2226,7 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
     TCGCond cond;
     int i, inv = 0;
 
-    i = do_constant_folding_cond2(ctx, &op->args[1]);
+    i = do_constant_folding_cond2(ctx, op, &op->args[1]);
     cond = op->args[5];
     if (i >= 0) {
         goto do_setcond_const;
