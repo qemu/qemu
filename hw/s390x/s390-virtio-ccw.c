@@ -391,7 +391,7 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     }
 
     /* Set SE header and unpack */
-    rc = s390_ipl_prepare_pv_header();
+    rc = s390_ipl_prepare_pv_header(&local_err);
     if (rc) {
         goto out_err;
     }
@@ -410,6 +410,9 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     return rc;
 
 out_err:
+    if (local_err) {
+        error_report_err(local_err);
+    }
     s390_machine_unprotect(ms);
     return rc;
 }
