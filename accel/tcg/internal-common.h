@@ -9,6 +9,7 @@
 #ifndef ACCEL_TCG_INTERNAL_COMMON_H
 #define ACCEL_TCG_INTERNAL_COMMON_H
 
+#include "exec/cpu-common.h"
 #include "exec/translation-block.h"
 
 extern int64_t max_delay;
@@ -20,7 +21,7 @@ extern int64_t max_advance;
  */
 static inline bool cpu_in_serial_context(CPUState *cs)
 {
-    return !(cs->tcg_cflags & CF_PARALLEL) || cpu_in_exclusive_context(cs);
+    return !tcg_cflags_has(cs, CF_PARALLEL) || cpu_in_exclusive_context(cs);
 }
 
 #endif

@@ -960,8 +960,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
      */
     if (ret != -1 && (flags & MAP_TYPE) != MAP_PRIVATE) {
         CPUState *cpu = thread_cpu;
-        if (!(cpu->tcg_cflags & CF_PARALLEL)) {
-            cpu->tcg_cflags |= CF_PARALLEL;
+        if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
+            tcg_cflags_set(cpu, CF_PARALLEL);
             tb_flush(cpu);
         }
     }
@@ -1400,8 +1400,8 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
      * supported by the host -- anything that requires EXCP_ATOMIC will not
      * be atomic with respect to an external process.
      */
-    if (!(cpu->tcg_cflags & CF_PARALLEL)) {
-        cpu->tcg_cflags |= CF_PARALLEL;
+    if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
+        tcg_cflags_set(cpu, CF_PARALLEL);
         tb_flush(cpu);
     }
 
