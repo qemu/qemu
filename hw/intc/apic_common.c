@@ -287,6 +287,10 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     }
     vmstate_register_with_alias_id(NULL, instance_id, &vmstate_apic_common,
                                    s, -1, 0, NULL);
+
+    /* APIC LDR in x2APIC mode */
+    s->extended_log_dest = ((s->initial_apic_id >> 4) << 16) |
+                            (1 << (s->initial_apic_id & 0xf));
 }
 
 static void apic_common_unrealize(DeviceState *dev)
@@ -424,6 +428,11 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
     }
 
     if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    if (value >= 255 && !cpu_has_x2apic_feature(&s->cpu->env)) {
+        error_setg(errp, "APIC ID %d requires x2APIC feature in CPU", value);
         return;
     }
 
