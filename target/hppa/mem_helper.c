@@ -305,14 +305,8 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return excp == EXCP_DTLB_MISS ? -1 : phys;
 }
 
-G_NORETURN static void
-raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
-                         vaddr addr, bool mmu_disabled)
+void hppa_set_ior_and_isr(CPUHPPAState *env, vaddr addr, bool mmu_disabled)
 {
-    CPUState *cs = env_cpu(env);
-
-    cs->exception_index = excp;
-
     if (env->psw & PSW_Q) {
         /*
          * For pa1.x, the offset and space never overlap, and so we
@@ -339,16 +333,23 @@ raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
                  */
                 uint64_t b;
 
-                cpu_restore_state(cs, retaddr);
-
                 b = env->unwind_breg ? env->gr[env->unwind_breg] : 0;
                 b >>= (env->psw & PSW_W ? 62 : 30);
                 env->cr[CR_IOR] |= b << 62;
-
-                cpu_loop_exit(cs);
             }
         }
     }
+}
+
+G_NORETURN static void
+raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
+                         vaddr addr, bool mmu_disabled)
+{
+    CPUState *cs = env_cpu(env);
+
+    cs->exception_index = excp;
+    hppa_set_ior_and_isr(env, addr, mmu_disabled);
+
     cpu_loop_exit_restore(cs, retaddr);
 }
 
