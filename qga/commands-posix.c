@@ -45,9 +45,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(CONFIG_SOLARIS)
 #include <net/if_arp.h>
 #include <netinet/if_ether.h>
+#if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
+#define ETHER_ADDR_LEN ETHERADDRL
+#endif
 #else
 #include <net/ethernet.h>
 #endif
