@@ -244,6 +244,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
 #define P_VEXL          0x80000         /* Set VEX.L = 1 */
 #define P_EVEX          0x100000        /* Requires EVEX encoding */
 
+#define OPC_ARITH_EbIb	(0x80)
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
 #define OPC_ARITH_GvEv	(0x03)		/* ... plus (ARITH_FOO << 3) */
@@ -1316,23 +1317,41 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
         c &= 7;
     }
 
-    /* ??? While INC is 2 bytes shorter than ADDL $1, they also induce
-       partial flags update stalls on Pentium4 and are not recommended
-       by current Intel optimization manuals.  */
-    if (!cf && (c == ARITH_ADD || c == ARITH_SUB) && (val == 1 || val == -1)) {
-        int is_inc = (c == ARITH_ADD) ^ (val < 0);
-        if (TCG_TARGET_REG_BITS == 64) {
-            /* The single-byte increment encodings are re-tasked as the
-               REX prefixes.  Use the MODRM encoding.  */
-            tcg_out_modrm(s, OPC_GRP5 + rexw,
-                          (is_inc ? EXT5_INC_Ev : EXT5_DEC_Ev), r0);
-        } else {
-            tcg_out8(s, (is_inc ? OPC_INC_r32 : OPC_DEC_r32) + r0);
+    switch (c) {
+    case ARITH_ADD:
+    case ARITH_SUB:
+        if (!cf) {
+            /*
+             * ??? While INC is 2 bytes shorter than ADDL $1, they also induce
+             * partial flags update stalls on Pentium4 and are not recommended
+             * by current Intel optimization manuals.
+             */
+            if (val == 1 || val == -1) {
+                int is_inc = (c == ARITH_ADD) ^ (val < 0);
+                if (TCG_TARGET_REG_BITS == 64) {
+                    /*
+                     * The single-byte increment encodings are re-tasked
+                     * as the REX prefixes.  Use the MODRM encoding.
+                     */
+                    tcg_out_modrm(s, OPC_GRP5 + rexw,
+                                  (is_inc ? EXT5_INC_Ev : EXT5_DEC_Ev), r0);
+                } else {
+                    tcg_out8(s, (is_inc ? OPC_INC_r32 : OPC_DEC_r32) + r0);
+                }
+                return;
+            }
+            if (val == 128) {
+                /*
+                 * Facilitate using an 8-bit immediate.  Carry is inverted
+                 * by this transformation, so do it only if cf == 0.
+                 */
+                c ^= ARITH_ADD ^ ARITH_SUB;
+                val = -128;
+            }
         }
-        return;
-    }
+        break;
 
-    if (c == ARITH_AND) {
+    case ARITH_AND:
         if (TCG_TARGET_REG_BITS == 64) {
             if (val == 0xffffffffu) {
                 tcg_out_ext32u(s, r0, r0);
@@ -1351,6 +1370,17 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
             tcg_out_ext16u(s, r0, r0);
             return;
         }
+        break;
+
+    case ARITH_OR:
+    case ARITH_XOR:
+        if (val >= 0x80 && val <= 0xff
+            && (r0 < 4 || TCG_TARGET_REG_BITS == 64)) {
+            tcg_out_modrm(s, OPC_ARITH_EbIb + P_REXB_RM, c, r0);
+            tcg_out8(s, val);
+            return;
+        }
+        break;
     }
 
     if (val == (int8_t)val) {

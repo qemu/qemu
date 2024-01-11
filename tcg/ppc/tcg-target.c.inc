@@ -2595,6 +2595,7 @@ static void tcg_out_qemu_ldst_i128(TCGContext *s, TCGReg datalo, TCGReg datahi,
         tcg_debug_assert(!need_bswap);
         tcg_debug_assert(datalo & 1);
         tcg_debug_assert(datahi == datalo - 1);
+        tcg_debug_assert(!is_ld || datahi != index);
         insn = is_ld ? LQ : STQ;
         tcg_out32(s, insn | TAI(datahi, index, 0));
     } else {
@@ -4071,7 +4072,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_qemu_ld_a32_i128:
     case INDEX_op_qemu_ld_a64_i128:
-        return C_O2_I1(o, m, r);
+        return C_N1O1_I1(o, m, r);
     case INDEX_op_qemu_st_a32_i128:
     case INDEX_op_qemu_st_a64_i128:
         return C_O0_I3(o, m, r);
