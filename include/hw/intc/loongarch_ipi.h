@@ -47,7 +47,8 @@ struct LoongArchIPI {
     SysBusDevice parent_obj;
     MemoryRegion ipi_iocsr_mem;
     MemoryRegion ipi64_iocsr_mem;
-    IPICore ipi_core;
+    uint32_t num_cpu;
+    IPICore *cpu;
 };
 
 #endif

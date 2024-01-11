@@ -50,6 +50,9 @@ struct LoongArchMachineState {
     DeviceState *platform_bus_dev;
     PCIBus       *pci_bus;
     PFlashCFI01  *flash;
+    MemoryRegion system_iocsr;
+    MemoryRegion iocsr_mem;
+    AddressSpace as_iocsr;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
