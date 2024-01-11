@@ -3394,6 +3394,7 @@ static DisasJumpType op_mov2e(DisasContext *s, DisasOps *o)
 {
     int b2 = get_field(s, b2);
     TCGv ar1 = tcg_temp_new_i64();
+    int r1 = get_field(s, r1);
 
     o->out = o->in2;
     o->g_out = o->g_in2;
@@ -3419,7 +3420,7 @@ static DisasJumpType op_mov2e(DisasContext *s, DisasOps *o)
         break;
     }
 
-    tcg_gen_st32_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[1]));
+    tcg_gen_st32_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[r1]));
     tcg_temp_free_i64(ar1);
 
     return DISAS_NEXT;
