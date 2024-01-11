@@ -169,6 +169,7 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     CPUARMTBFlags flags = {};
     ARMMMUIdx stage1 = stage_1_mmu_idx(mmu_idx);
     uint64_t tcr = regime_tcr(env, mmu_idx);
+    uint64_t hcr = arm_hcr_el2_eff(env);
     uint64_t sctlr;
     int tbii, tbid;
 
@@ -260,8 +261,10 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
         switch (mmu_idx) {
         case ARMMMUIdx_E10_1:
         case ARMMMUIdx_E10_1_PAN:
-            /* TODO: ARMv8.3-NV */
-            DP_TBFLAG_A64(flags, UNPRIV, 1);
+            /* FEAT_NV: NV,NV1 == 1,1 means we don't do UNPRIV accesses */
+            if ((hcr & (HCR_NV | HCR_NV1)) != (HCR_NV | HCR_NV1)) {
+                DP_TBFLAG_A64(flags, UNPRIV, 1);
+            }
             break;
         case ARMMMUIdx_E20_2:
         case ARMMMUIdx_E20_2_PAN:
@@ -285,10 +288,31 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     if (arm_fgt_active(env, el)) {
         DP_TBFLAG_ANY(flags, FGT_ACTIVE, 1);
         if (FIELD_EX64(env->cp15.fgt_exec[FGTREG_HFGITR], HFGITR_EL2, ERET)) {
-            DP_TBFLAG_A64(flags, FGT_ERET, 1);
+            DP_TBFLAG_A64(flags, TRAP_ERET, 1);
         }
         if (fgt_svc(env, el)) {
             DP_TBFLAG_ANY(flags, FGT_SVC, 1);
+        }
+    }
+
+    /*
+     * ERET can also be trapped for FEAT_NV. arm_hcr_el2_eff() takes care
+     * of "is EL2 enabled" and the NV bit can only be set if FEAT_NV is present.
+     */
+    if (el == 1 && (hcr & HCR_NV)) {
+        DP_TBFLAG_A64(flags, TRAP_ERET, 1);
+        DP_TBFLAG_A64(flags, NV, 1);
+        if (hcr & HCR_NV1) {
+            DP_TBFLAG_A64(flags, NV1, 1);
+        }
+        if (hcr & HCR_NV2) {
+            DP_TBFLAG_A64(flags, NV2, 1);
+            if (hcr & HCR_E2H) {
+                DP_TBFLAG_A64(flags, NV2_MEM_E20, 1);
+            }
+            if (env->cp15.sctlr_el[2] & SCTLR_EE) {
+                DP_TBFLAG_A64(flags, NV2_MEM_BE, 1);
+            }
         }
     }
 

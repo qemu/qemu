@@ -50,7 +50,15 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
      * ST64BV, or ST64BV0 insns report syndrome info even for stage-1
      * faults and regardless of the target EL.
      */
-    if (!(template_syn & ARM_EL_ISV) || target_el != 2
+    if (template_syn & ARM_EL_VNCR) {
+        /*
+         * FEAT_NV2 faults on accesses via VNCR_EL2 are a special case:
+         * they are always reported as "same EL", even though we are going
+         * from EL1 to EL2.
+         */
+        assert(!fi->stage2);
+        syn = syn_data_abort_vncr(fi->ea, is_write, fsc);
+    } else if (!(template_syn & ARM_EL_ISV) || target_el != 2
         || fi->s1ptw || !fi->stage2) {
         syn = syn_data_abort_no_iss(same_el, 0,
                                     fi->ea, 0, fi->s1ptw, is_write, fsc);
@@ -169,6 +177,20 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
     int current_el = arm_current_el(env);
     bool same_el;
     uint32_t syn, exc, fsr, fsc;
+    /*
+     * We know this must be a data or insn abort, and that
+     * env->exception.syndrome contains the template syndrome set
+     * up at translate time. So we can check only the VNCR bit
+     * (and indeed syndrome does not have the EC field in it,
+     * because we masked that out in disas_set_insn_syndrome())
+     */
+    bool is_vncr = (mmu_idx != MMU_INST_FETCH) &&
+        (env->exception.syndrome & ARM_EL_VNCR);
+
+    if (is_vncr) {
+        /* FEAT_NV2 faults on accesses via VNCR_EL2 go to EL2 */
+        target_el = 2;
+    }
 
     if (report_as_gpc_exception(cpu, current_el, fi)) {
         target_el = 3;
@@ -177,7 +199,8 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
 
         syn = syn_gpc(fi->stage2 && fi->type == ARMFault_GPCFOnWalk,
                       access_type == MMU_INST_FETCH,
-                      encode_gpcsc(fi), 0, fi->s1ptw,
+                      encode_gpcsc(fi), is_vncr,
+                      0, fi->s1ptw,
                       access_type == MMU_DATA_STORE, fsc);
 
         env->cp15.mfar_el3 = fi->paddr;

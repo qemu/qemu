@@ -1059,6 +1059,7 @@ static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     uint32_t psr = pstate_read(env);
     int i, j;
     int el = arm_current_el(env);
+    uint64_t hcr = arm_hcr_el2_eff(env);
     const char *ns_status;
     bool sve;
 
@@ -1096,6 +1097,10 @@ static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     if (cpu_isar_feature(aa64_bti, cpu)) {
         qemu_fprintf(f, "  BTYPE=%d", (psr & PSTATE_BTYPE) >> 10);
     }
+    qemu_fprintf(f, "%s%s%s",
+                 (hcr & HCR_NV) ? " NV" : "",
+                 (hcr & HCR_NV1) ? " NV1" : "",
+                 (hcr & HCR_NV2) ? " NV2" : "");
     if (!(flags & CPU_DUMP_FPU)) {
         qemu_fprintf(f, "\n");
         return;
@@ -2238,9 +2243,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         /* FEAT_MPAM (Memory Partitioning and Monitoring Extension) */
         cpu->isar.id_aa64pfr0 =
             FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, MPAM, 0);
-        /* FEAT_NV (Nested Virtualization) */
-        cpu->isar.id_aa64mmfr2 =
-            FIELD_DP64(cpu->isar.id_aa64mmfr2, ID_AA64MMFR2, NV, 0);
     }
 
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu

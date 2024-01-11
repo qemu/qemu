@@ -154,6 +154,9 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_FIQ));
     }
 
+    /* L2 cache controller */
+    sysbus_create_simple("l2x0", FSL_IMX6_PL310_ADDR, NULL);
+
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), errp)) {
         return;
     }

@@ -263,6 +263,18 @@ void init_cpreg_list(ARMCPU *cpu)
     g_list_free(keys);
 }
 
+static bool arm_pan_enabled(CPUARMState *env)
+{
+    if (is_a64(env)) {
+        if ((arm_hcr_el2_eff(env) & (HCR_NV | HCR_NV1)) == (HCR_NV | HCR_NV1)) {
+            return false;
+        }
+        return env->pstate & PSTATE_PAN;
+    } else {
+        return env->uncached_cpsr & CPSR_PAN;
+    }
+}
+
 /*
  * Some registers are not accessible from AArch32 EL3 if SCR.NS == 0.
  */
@@ -635,6 +647,7 @@ static const ARMCPRegInfo cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 13, .crm = 0, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_CONTEXTIDR_EL1,
+      .nv2_redirect_offset = 0x108 | NV2_REDIR_NV1,
       .secure = ARM_CP_SECSTATE_NS,
       .fieldoffset = offsetof(CPUARMState, cp15.contextidr_el[1]),
       .resetvalue = 0, .writefn = contextidr_write, .raw_writefn = raw_write, },
@@ -871,6 +884,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
       .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2, .accessfn = cpacr_access,
       .fgt = FGT_CPACR_EL1,
+      .nv2_redirect_offset = 0x100 | NV2_REDIR_NV1,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpacr_el1),
       .resetfn = cpacr_reset, .writefn = cpacr_write, .readfn = cpacr_read },
 };
@@ -2238,11 +2252,13 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 5, .crm = 1, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_AFSR0_EL1,
+      .nv2_redirect_offset = 0x128 | NV2_REDIR_NV1,
       .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "AFSR1_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 5, .crm = 1, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_AFSR1_EL1,
+      .nv2_redirect_offset = 0x130 | NV2_REDIR_NV1,
       .type = ARM_CP_CONST, .resetvalue = 0 },
     /*
      * MAIR can just read-as-written because we don't implement caches
@@ -2252,6 +2268,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_MAIR_EL1,
+      .nv2_redirect_offset = 0x140 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.mair_el[1]),
       .resetvalue = 0 },
     { .name = "MAIR_EL3", .state = ARM_CP_STATE_AA64,
@@ -3174,6 +3191,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 1,
       .type = ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_ptimer_access,
+      .nv2_redirect_offset = 0x180 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].ctl),
       .resetvalue = 0,
       .readfn = gt_phys_redir_ctl_read, .raw_readfn = raw_read,
@@ -3191,6 +3209,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 1,
       .type = ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_vtimer_access,
+      .nv2_redirect_offset = 0x170 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].ctl),
       .resetvalue = 0,
       .readfn = gt_virt_redir_ctl_read, .raw_readfn = raw_read,
@@ -3270,6 +3289,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 2,
       .access = PL0_RW,
       .type = ARM_CP_IO,
+      .nv2_redirect_offset = 0x178 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
       .resetvalue = 0, .accessfn = gt_ptimer_access,
       .readfn = gt_phys_redir_cval_read, .raw_readfn = raw_read,
@@ -3287,6 +3307,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 2,
       .access = PL0_RW,
       .type = ARM_CP_IO,
+      .nv2_redirect_offset = 0x168 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].cval),
       .resetvalue = 0, .accessfn = gt_vtimer_access,
       .readfn = gt_virt_redir_cval_read, .raw_readfn = raw_read,
@@ -3324,6 +3345,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static CPAccessResult e2h_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                  bool isread)
 {
+    if (arm_current_el(env) == 1) {
+        /* This must be a FEAT_NV access */
+        /* TODO: FEAT_ECV will need to check CNTHCTL_EL2 here */
+        return CP_ACCESS_OK;
+    }
     if (!(arm_hcr_el2_eff(env) & HCR_E2H)) {
         return CP_ACCESS_TRAP;
     }
@@ -3609,7 +3635,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             g_assert(ss != ARMSS_Secure);  /* ARMv8.4-SecEL2 is 64-bit only */
             /* fall through */
         case 1:
-            if (ri->crm == 9 && (env->uncached_cpsr & CPSR_PAN)) {
+            if (ri->crm == 9 && arm_pan_enabled(env)) {
                 mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
             } else {
                 mmu_idx = ARMMMUIdx_Stage1_E1;
@@ -3703,6 +3729,15 @@ static CPAccessResult at_s1e2_access(CPUARMState *env, const ARMCPRegInfo *ri,
     return at_e012_access(env, ri, isread);
 }
 
+static CPAccessResult at_s1e01_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
+{
+    if (arm_current_el(env) == 1 && (arm_hcr_el2_eff(env) & HCR_AT)) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    return at_e012_access(env, ri, isread);
+}
+
 static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
@@ -3716,7 +3751,7 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
     case 0:
         switch (ri->opc1) {
         case 0: /* AT S1E1R, AT S1E1W, AT S1E1RP, AT S1E1WP */
-            if (ri->crm == 9 && (env->pstate & PSTATE_PAN)) {
+            if (ri->crm == 9 && arm_pan_enabled(env)) {
                 mmu_idx = regime_e20 ?
                           ARMMMUIdx_E20_2_PAN : ARMMMUIdx_Stage1_E1_PAN;
             } else {
@@ -4252,6 +4287,7 @@ static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
       .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_FAR_EL1,
+      .nv2_redirect_offset = 0x220 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.far_el[1]),
       .resetvalue = 0, },
 };
@@ -4261,11 +4297,13 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_ESR_EL1,
+      .nv2_redirect_offset = 0x138 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_TTBR0_EL1,
+      .nv2_redirect_offset = 0x200 | NV2_REDIR_NV1,
       .writefn = vmsa_ttbr_write, .resetvalue = 0, .raw_writefn = raw_write,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr0_s),
                              offsetof(CPUARMState, cp15.ttbr0_ns) } },
@@ -4273,6 +4311,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_TTBR1_EL1,
+      .nv2_redirect_offset = 0x210 | NV2_REDIR_NV1,
       .writefn = vmsa_ttbr_write, .resetvalue = 0, .raw_writefn = raw_write,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr1_s),
                              offsetof(CPUARMState, cp15.ttbr1_ns) } },
@@ -4280,6 +4319,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_TCR_EL1,
+      .nv2_redirect_offset = 0x120 | NV2_REDIR_NV1,
       .writefn = vmsa_tcr_el12_write,
       .raw_writefn = raw_write,
       .resetvalue = 0,
@@ -4519,6 +4559,7 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .opc0 = 3, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_AMAIR_EL1,
+      .nv2_redirect_offset = 0x148 | NV2_REDIR_NV1,
       .type = ARM_CP_CONST, .resetvalue = 0 },
     /* AMAIR1 is mapped to AMAIR_EL1[63:32] */
     { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
@@ -5341,6 +5382,19 @@ static void mdcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+static CPAccessResult access_nv1(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 bool isread)
+{
+    if (arm_current_el(env) == 1) {
+        uint64_t hcr_nv = arm_hcr_el2_eff(env) & (HCR_NV | HCR_NV1 | HCR_NV2);
+
+        if (hcr_nv == (HCR_NV | HCR_NV1)) {
+            return CP_ACCESS_TRAP_EL2;
+        }
+    }
+    return CP_ACCESS_OK;
+}
+
 #ifdef CONFIG_USER_ONLY
 /*
  * `IC IVAU` is handled to improve compatibility with JITs that dual-map their
@@ -5568,22 +5622,22 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1R,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E1W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1W,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E0R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E0R,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E0W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E0W,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S12E1R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 4,
       .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
@@ -5689,12 +5743,14 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "ELR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
-      .access = PL1_RW,
+      .access = PL1_RW, .accessfn = access_nv1,
+      .nv2_redirect_offset = 0x230 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, elr_el[1]) },
     { .name = "SPSR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 0,
-      .access = PL1_RW,
+      .access = PL1_RW, .accessfn = access_nv1,
+      .nv2_redirect_offset = 0x160 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_SVC]) },
     /*
      * We rely on the access checks not allowing the guest to write to the
@@ -5708,6 +5764,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, sp_el[0]) },
     { .name = "SP_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 1, .opc2 = 0,
+      .nv2_redirect_offset = 0x240,
       .access = PL2_RW, .type = ARM_CP_ALIAS | ARM_CP_EL3_NO_EL2_KEEP,
       .fieldoffset = offsetof(CPUARMState, sp_el[1]) },
     { .name = "SPSel", .state = ARM_CP_STATE_AA64,
@@ -5815,6 +5872,12 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
         if (cpu_isar_feature(aa64_rme, cpu)) {
             valid_mask |= HCR_GPF;
         }
+        if (cpu_isar_feature(aa64_nv, cpu)) {
+            valid_mask |= HCR_NV | HCR_NV1 | HCR_AT;
+        }
+        if (cpu_isar_feature(aa64_nv2, cpu)) {
+            valid_mask |= HCR_NV2;
+        }
     }
 
     if (cpu_isar_feature(any_evt, cpu)) {
@@ -5833,9 +5896,10 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
      * HCR_DC disables stage1 and enables stage2 translation
      * HCR_DCT enables tagging on (disabled) stage1 translation
      * HCR_FWB changes the interpretation of stage2 descriptor bits
+     * HCR_NV and HCR_NV1 affect interpretation of descriptor bits
      */
     if ((env->cp15.hcr_el2 ^ value) &
-        (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB)) {
+        (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB | HCR_NV | HCR_NV1)) {
         tlb_flush(CPU(cpu));
     }
     env->cp15.hcr_el2 = value;
@@ -6001,7 +6065,7 @@ static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static CPAccessResult access_hxen(CPUARMState *env, const ARMCPRegInfo *ri,
                                   bool isread)
 {
-    if (arm_current_el(env) < 3
+    if (arm_current_el(env) == 2
         && arm_feature(env, ARM_FEATURE_EL3)
         && !(env->cp15.scr_el3 & SCR_HXEN)) {
         return CP_ACCESS_TRAP_EL3;
@@ -6013,6 +6077,7 @@ static const ARMCPRegInfo hcrx_el2_reginfo = {
     .name = "HCRX_EL2", .state = ARM_CP_STATE_AA64,
     .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 2, .opc2 = 2,
     .access = PL2_RW, .writefn = hcrx_write, .accessfn = access_hxen,
+    .nv2_redirect_offset = 0xa0,
     .fieldoffset = offsetof(CPUARMState, cp15.hcrx_el2),
 };
 
@@ -6079,6 +6144,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .type = ARM_CP_IO,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
+      .nv2_redirect_offset = 0x78,
       .writefn = hcr_write, .raw_writefn = raw_write },
     { .name = "HCR", .state = ARM_CP_STATE_AA32,
       .type = ARM_CP_ALIAS | ARM_CP_IO,
@@ -6089,14 +6155,16 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 7,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
+      .type = ARM_CP_ALIAS | ARM_CP_NV2_REDIRECT,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, elr_el[2]) },
     { .name = "ESR_EL2", .state = ARM_CP_STATE_BOTH,
+      .type = ARM_CP_NV2_REDIRECT,
       .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 2, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.esr_el[2]) },
     { .name = "FAR_EL2", .state = ARM_CP_STATE_BOTH,
+      .type = ARM_CP_NV2_REDIRECT,
       .opc0 = 3, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[2]) },
     { .name = "HIFAR", .state = ARM_CP_STATE_AA32,
@@ -6105,7 +6173,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .access = PL2_RW,
       .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el[2]) },
     { .name = "SPSR_EL2", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
+      .type = ARM_CP_ALIAS | ARM_CP_NV2_REDIRECT,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_HYP]) },
@@ -6161,6 +6229,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "VTCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
       .access = PL2_RW,
+      .nv2_redirect_offset = 0x40,
       /* no .writefn needed as this can't cause an ASID change */
       .fieldoffset = offsetof(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTTBR", .state = ARM_CP_STATE_AA32,
@@ -6172,6 +6241,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "VTTBR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .writefn = vttbr_write, .raw_writefn = raw_write,
+      .nv2_redirect_offset = 0x20,
       .fieldoffset = offsetof(CPUARMState, cp15.vttbr_el2) },
     { .name = "SCTLR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 0,
@@ -6180,6 +6250,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "TPIDR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 13, .crm = 0, .opc2 = 2,
       .access = PL2_RW, .resetvalue = 0,
+      .nv2_redirect_offset = 0x90,
       .fieldoffset = offsetof(CPUARMState, cp15.tpidr_el[2]) },
     { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
@@ -6275,6 +6346,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 0, .opc2 = 3,
       .access = PL2_RW, .type = ARM_CP_IO, .resetvalue = 0,
       .writefn = gt_cntvoff_write,
+      .nv2_redirect_offset = 0x60,
       .fieldoffset = offsetof(CPUARMState, cp15.cntvoff_el2) },
     { .name = "CNTVOFF", .cp = 15, .opc1 = 4, .crm = 14,
       .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS | ARM_CP_IO,
@@ -6313,6 +6385,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "HSTR_EL2", .state = ARM_CP_STATE_BOTH,
       .cp = 15, .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 3,
       .access = PL2_RW,
+      .nv2_redirect_offset = 0x80,
       .fieldoffset = offsetof(CPUARMState, cp15.hstr_el2) },
 };
 
@@ -6338,10 +6411,12 @@ static const ARMCPRegInfo el2_sec_cp_reginfo[] = {
     { .name = "VSTTBR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 6, .opc2 = 0,
       .access = PL2_RW, .accessfn = sel2_access,
+      .nv2_redirect_offset = 0x30,
       .fieldoffset = offsetof(CPUARMState, cp15.vsttbr_el2) },
     { .name = "VSTCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 6, .opc2 = 2,
       .access = PL2_RW, .accessfn = sel2_access,
+      .nv2_redirect_offset = 0x48,
       .fieldoffset = offsetof(CPUARMState, cp15.vstcr_el2) },
 };
 
@@ -6509,6 +6584,42 @@ static void el2_e2h_write(CPUARMState *env, const ARMCPRegInfo *ri,
     writefn(env, ri, value);
 }
 
+static uint64_t el2_e2h_e12_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* Pass the EL1 register accessor its ri, not the EL12 alias ri */
+    return ri->orig_readfn(env, ri->opaque);
+}
+
+static void el2_e2h_e12_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t value)
+{
+    /* Pass the EL1 register accessor its ri, not the EL12 alias ri */
+    return ri->orig_writefn(env, ri->opaque, value);
+}
+
+static CPAccessResult el2_e2h_e12_access(CPUARMState *env,
+                                         const ARMCPRegInfo *ri,
+                                         bool isread)
+{
+    if (arm_current_el(env) == 1) {
+        /*
+         * This must be a FEAT_NV access (will either trap or redirect
+         * to memory). None of the registers with _EL12 aliases want to
+         * apply their trap controls for this kind of access, so don't
+         * call the orig_accessfn or do the "UNDEF when E2H is 0" check.
+         */
+        return CP_ACCESS_OK;
+    }
+    /* FOO_EL12 aliases only exist when E2H is 1; otherwise they UNDEF */
+    if (!(arm_hcr_el2_eff(env) & HCR_E2H)) {
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    if (ri->orig_accessfn) {
+        return ri->orig_accessfn(env, ri->opaque, isread);
+    }
+    return CP_ACCESS_OK;
+}
+
 static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
 {
     struct E2HAlias {
@@ -6608,6 +6719,41 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
         new_reg->type |= ARM_CP_ALIAS;
         /* Remove PL1/PL0 access, leaving PL2/PL3 R/W in place.  */
         new_reg->access &= PL2_RW | PL3_RW;
+        /* The new_reg op fields are as per new_key, not the target reg */
+        new_reg->crn = (a->new_key & CP_REG_ARM64_SYSREG_CRN_MASK)
+            >> CP_REG_ARM64_SYSREG_CRN_SHIFT;
+        new_reg->crm = (a->new_key & CP_REG_ARM64_SYSREG_CRM_MASK)
+            >> CP_REG_ARM64_SYSREG_CRM_SHIFT;
+        new_reg->opc0 = (a->new_key & CP_REG_ARM64_SYSREG_OP0_MASK)
+            >> CP_REG_ARM64_SYSREG_OP0_SHIFT;
+        new_reg->opc1 = (a->new_key & CP_REG_ARM64_SYSREG_OP1_MASK)
+            >> CP_REG_ARM64_SYSREG_OP1_SHIFT;
+        new_reg->opc2 = (a->new_key & CP_REG_ARM64_SYSREG_OP2_MASK)
+            >> CP_REG_ARM64_SYSREG_OP2_SHIFT;
+        new_reg->opaque = src_reg;
+        new_reg->orig_readfn = src_reg->readfn ?: raw_read;
+        new_reg->orig_writefn = src_reg->writefn ?: raw_write;
+        new_reg->orig_accessfn = src_reg->accessfn;
+        if (!new_reg->raw_readfn) {
+            new_reg->raw_readfn = raw_read;
+        }
+        if (!new_reg->raw_writefn) {
+            new_reg->raw_writefn = raw_write;
+        }
+        new_reg->readfn = el2_e2h_e12_read;
+        new_reg->writefn = el2_e2h_e12_write;
+        new_reg->accessfn = el2_e2h_e12_access;
+
+        /*
+         * If the _EL1 register is redirected to memory by FEAT_NV2,
+         * then it shares the offset with the _EL12 register,
+         * and which one is redirected depends on HCR_EL2.NV1.
+         */
+        if (new_reg->nv2_redirect_offset) {
+            assert(new_reg->nv2_redirect_offset & NV2_REDIR_NV1);
+            new_reg->nv2_redirect_offset &= ~NV2_REDIR_NV1;
+            new_reg->nv2_redirect_offset |= NV2_REDIR_NO_NV1;
+        }
 
         ok = g_hash_table_insert(cpu->cp_regs,
                                  (gpointer)(uintptr_t)a->new_key, new_reg);
@@ -6741,9 +6887,11 @@ static const ARMCPRegInfo minimal_ras_reginfo[] = {
       .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "VDISR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 1, .opc2 = 1,
+      .nv2_redirect_offset = 0x500,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.vdisr_el2) },
     { .name = "VSESR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 2, .opc2 = 3,
+      .nv2_redirect_offset = 0x508,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.vsesr_el2) },
 };
 
@@ -6915,6 +7063,7 @@ static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo zcr_reginfo[] = {
     { .name = "ZCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 2, .opc2 = 0,
+      .nv2_redirect_offset = 0x1e0 | NV2_REDIR_NV1,
       .access = PL1_RW, .type = ARM_CP_SVE,
       .fieldoffset = offsetof(CPUARMState, vfp.zcr_el[1]),
       .writefn = zcr_write, .raw_writefn = raw_write },
@@ -6951,10 +7100,21 @@ static CPAccessResult access_tpidr2(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
-static CPAccessResult access_esm(CPUARMState *env, const ARMCPRegInfo *ri,
-                                 bool isread)
+static CPAccessResult access_smprimap(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
 {
-    /* TODO: FEAT_FGT for SMPRI_EL1 but not SMPRIMAP_EL2 */
+    /* If EL1 this is a FEAT_NV access and CPTR_EL3.ESM doesn't apply */
+    if (arm_current_el(env) == 2
+        && arm_feature(env, ARM_FEATURE_EL3)
+        && !FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, ESM)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult access_smpri(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
+{
     if (arm_current_el(env) < 3
         && arm_feature(env, ARM_FEATURE_EL3)
         && !FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, ESM)) {
@@ -7045,6 +7205,7 @@ static const ARMCPRegInfo sme_reginfo[] = {
       .writefn = svcr_write, .raw_writefn = raw_write },
     { .name = "SMCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 2, .opc2 = 6,
+      .nv2_redirect_offset = 0x1f0 | NV2_REDIR_NV1,
       .access = PL1_RW, .type = ARM_CP_SME,
       .fieldoffset = offsetof(CPUARMState, vfp.smcr_el[1]),
       .writefn = smcr_write, .raw_writefn = raw_write },
@@ -7073,12 +7234,13 @@ static const ARMCPRegInfo sme_reginfo[] = {
      */
     { .name = "SMPRI_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 2, .opc2 = 4,
-      .access = PL1_RW, .accessfn = access_esm,
+      .access = PL1_RW, .accessfn = access_smpri,
       .fgt = FGT_NSMPRI_EL1,
       .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "SMPRIMAP_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 2, .opc2 = 5,
-      .access = PL2_RW, .accessfn = access_esm,
+      .nv2_redirect_offset = 0x1f8,
+      .access = PL2_RW, .accessfn = access_smprimap,
       .type = ARM_CP_CONST, .resetvalue = 0 },
 };
 
@@ -7728,7 +7890,46 @@ static CPAccessResult access_mte(CPUARMState *env, const ARMCPRegInfo *ri,
                                  bool isread)
 {
     int el = arm_current_el(env);
+    if (el < 2 && arm_is_el2_enabled(env)) {
+        uint64_t hcr = arm_hcr_el2_eff(env);
+        if (!(hcr & HCR_ATA) && (!(hcr & HCR_E2H) || !(hcr & HCR_TGE))) {
+            return CP_ACCESS_TRAP_EL2;
+        }
+    }
+    if (el < 3 &&
+        arm_feature(env, ARM_FEATURE_EL3) &&
+        !(env->cp15.scr_el3 & SCR_ATA)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
 
+static CPAccessResult access_tfsr_el1(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
+{
+    CPAccessResult nv1 = access_nv1(env, ri, isread);
+
+    if (nv1 != CP_ACCESS_OK) {
+        return nv1;
+    }
+    return access_mte(env, ri, isread);
+}
+
+static CPAccessResult access_tfsr_el2(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      bool isread)
+{
+    /*
+     * TFSR_EL2: similar to generic access_mte(), but we need to
+     * account for FEAT_NV. At EL1 this must be a FEAT_NV access;
+     * if NV2 is enabled then we will redirect this to TFSR_EL1
+     * after doing the HCR and SCR ATA traps; otherwise this will
+     * be a trap to EL2 and the HCR/SCR traps do not apply.
+     */
+    int el = arm_current_el(env);
+
+    if (el == 1 && (arm_hcr_el2_eff(env) & HCR_NV2)) {
+        return CP_ACCESS_OK;
+    }
     if (el < 2 && arm_is_el2_enabled(env)) {
         uint64_t hcr = arm_hcr_el2_eff(env);
         if (!(hcr & HCR_ATA) && (!(hcr & HCR_E2H) || !(hcr & HCR_TGE))) {
@@ -7760,11 +7961,13 @@ static const ARMCPRegInfo mte_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.tfsr_el[0]) },
     { .name = "TFSR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 5, .crm = 6, .opc2 = 0,
-      .access = PL1_RW, .accessfn = access_mte,
+      .access = PL1_RW, .accessfn = access_tfsr_el1,
+      .nv2_redirect_offset = 0x190 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.tfsr_el[1]) },
     { .name = "TFSR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NV2_REDIRECT,
       .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 6, .opc2 = 0,
-      .access = PL2_RW, .accessfn = access_mte,
+      .access = PL2_RW, .accessfn = access_tfsr_el2,
       .fieldoffset = offsetof(CPUARMState, cp15.tfsr_el[2]) },
     { .name = "TFSR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 5, .crm = 6, .opc2 = 0,
@@ -7912,6 +8115,18 @@ static CPAccessResult access_scxtnum(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static CPAccessResult access_scxtnum_el1(CPUARMState *env,
+                                         const ARMCPRegInfo *ri,
+                                         bool isread)
+{
+    CPAccessResult nv1 = access_nv1(env, ri, isread);
+
+    if (nv1 != CP_ACCESS_OK) {
+        return nv1;
+    }
+    return access_scxtnum(env, ri, isread);
+}
+
 static const ARMCPRegInfo scxtnum_reginfo[] = {
     { .name = "SCXTNUM_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 13, .crm = 0, .opc2 = 7,
@@ -7920,8 +8135,9 @@ static const ARMCPRegInfo scxtnum_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, scxtnum_el[0]) },
     { .name = "SCXTNUM_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 13, .crm = 0, .opc2 = 7,
-      .access = PL1_RW, .accessfn = access_scxtnum,
+      .access = PL1_RW, .accessfn = access_scxtnum_el1,
       .fgt = FGT_SCXTNUM_EL1,
+      .nv2_redirect_offset = 0x188 | NV2_REDIR_NV1,
       .fieldoffset = offsetof(CPUARMState, scxtnum_el[1]) },
     { .name = "SCXTNUM_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 13, .crm = 0, .opc2 = 7,
@@ -7946,25 +8162,53 @@ static CPAccessResult access_fgt(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo fgt_reginfo[] = {
     { .name = "HFGRTR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 4,
+      .nv2_redirect_offset = 0x1b8,
       .access = PL2_RW, .accessfn = access_fgt,
       .fieldoffset = offsetof(CPUARMState, cp15.fgt_read[FGTREG_HFGRTR]) },
     { .name = "HFGWTR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 5,
+      .nv2_redirect_offset = 0x1c0,
       .access = PL2_RW, .accessfn = access_fgt,
       .fieldoffset = offsetof(CPUARMState, cp15.fgt_write[FGTREG_HFGWTR]) },
     { .name = "HDFGRTR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 3, .crm = 1, .opc2 = 4,
+      .nv2_redirect_offset = 0x1d0,
       .access = PL2_RW, .accessfn = access_fgt,
       .fieldoffset = offsetof(CPUARMState, cp15.fgt_read[FGTREG_HDFGRTR]) },
     { .name = "HDFGWTR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 3, .crm = 1, .opc2 = 5,
+      .nv2_redirect_offset = 0x1d8,
       .access = PL2_RW, .accessfn = access_fgt,
       .fieldoffset = offsetof(CPUARMState, cp15.fgt_write[FGTREG_HDFGWTR]) },
     { .name = "HFGITR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 6,
+      .nv2_redirect_offset = 0x1c8,
       .access = PL2_RW, .accessfn = access_fgt,
       .fieldoffset = offsetof(CPUARMState, cp15.fgt_exec[FGTREG_HFGITR]) },
 };
+
+static void vncr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
+{
+    /*
+     * Clear the RES0 bottom 12 bits; this means at runtime we can guarantee
+     * that VNCR_EL2 + offset is 64-bit aligned. We don't need to do anything
+     * about the RESS bits at the top -- we choose the "generate an EL2
+     * translation abort on use" CONSTRAINED UNPREDICTABLE option (i.e. let
+     * the ptw.c code detect the resulting invalid address).
+     */
+    env->cp15.vncr_el2 = value & ~0xfffULL;
+}
+
+static const ARMCPRegInfo nv2_reginfo[] = {
+    { .name = "VNCR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 2, .opc2 = 0,
+      .access = PL2_RW,
+      .writefn = vncr_write,
+      .nv2_redirect_offset = 0xb0,
+      .fieldoffset = offsetof(CPUARMState, cp15.vncr_el2) },
+};
+
 #endif /* TARGET_AARCH64 */
 
 static CPAccessResult access_predinv(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -8125,12 +8369,14 @@ static const ARMCPRegInfo vhe_reginfo[] = {
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 2, .opc2 = 1,
       .type = ARM_CP_IO | ARM_CP_ALIAS,
       .access = PL2_RW, .accessfn = e2h_access,
+      .nv2_redirect_offset = 0x180 | NV2_REDIR_NO_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].ctl),
       .writefn = gt_phys_ctl_write, .raw_writefn = raw_write },
     { .name = "CNTV_CTL_EL02", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 3, .opc2 = 1,
       .type = ARM_CP_IO | ARM_CP_ALIAS,
       .access = PL2_RW, .accessfn = e2h_access,
+      .nv2_redirect_offset = 0x170 | NV2_REDIR_NO_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].ctl),
       .writefn = gt_virt_ctl_write, .raw_writefn = raw_write },
     { .name = "CNTP_TVAL_EL02", .state = ARM_CP_STATE_AA64,
@@ -8147,11 +8393,13 @@ static const ARMCPRegInfo vhe_reginfo[] = {
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 2, .opc2 = 2,
       .type = ARM_CP_IO | ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
+      .nv2_redirect_offset = 0x178 | NV2_REDIR_NO_NV1,
       .access = PL2_RW, .accessfn = e2h_access,
       .writefn = gt_phys_cval_write, .raw_writefn = raw_write },
     { .name = "CNTV_CVAL_EL02", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 3, .opc2 = 2,
       .type = ARM_CP_IO | ARM_CP_ALIAS,
+      .nv2_redirect_offset = 0x168 | NV2_REDIR_NO_NV1,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].cval),
       .access = PL2_RW, .accessfn = e2h_access,
       .writefn = gt_virt_cval_write, .raw_writefn = raw_write },
@@ -8164,12 +8412,12 @@ static const ARMCPRegInfo ats1e1_reginfo[] = {
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1RP,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E1WP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1WP,
-      .accessfn = at_e012_access, .writefn = ats_write64 },
+      .accessfn = at_s1e01_access, .writefn = ats_write64 },
 };
 
 static const ARMCPRegInfo ats1cp_reginfo[] = {
@@ -8793,6 +9041,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
               .access = PL2_RW, .resetvalue = cpu->midr,
               .type = ARM_CP_EL3_NO_EL2_C_NZ,
+              .nv2_redirect_offset = 0x88,
               .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
             { .name = "VMPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
@@ -8804,6 +9053,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
               .access = PL2_RW, .resetvalue = vmpidr_def,
               .type = ARM_CP_EL3_NO_EL2_C_NZ,
+              .nv2_redirect_offset = 0x50,
               .fieldoffset = offsetof(CPUARMState, cp15.vmpidr_el2) },
         };
         /*
@@ -9233,6 +9483,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             { .name = "ACTLR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 1,
               .access = PL1_RW, .accessfn = access_tacr,
+              .nv2_redirect_offset = 0x118,
               .type = ARM_CP_CONST, .resetvalue = cpu->reset_auxcr },
             { .name = "ACTLR_EL2", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 1,
@@ -9302,7 +9553,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
               .access = PL1_RW, .writefn = vbar_write,
+              .accessfn = access_nv1,
               .fgt = FGT_VBAR_EL1,
+              .nv2_redirect_offset = 0x250 | NV2_REDIR_NV1,
               .bank_fieldoffsets = { offsetof(CPUARMState, cp15.vbar_s),
                                      offsetof(CPUARMState, cp15.vbar_ns) },
               .resetvalue = 0 },
@@ -9317,6 +9570,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 0,
             .access = PL1_RW, .accessfn = access_tvm_trvm,
             .fgt = FGT_SCTLR_EL1,
+            .nv2_redirect_offset = 0x110 | NV2_REDIR_NV1,
             .bank_fieldoffsets = { offsetof(CPUARMState, cp15.sctlr_s),
                                    offsetof(CPUARMState, cp15.sctlr_ns) },
             .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr,
@@ -9446,6 +9700,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         if (cpu_isar_feature(aa64_mte, cpu)) {
             define_arm_cp_regs(cpu, rme_mte_reginfo);
         }
+    }
+
+    if (cpu_isar_feature(aa64_nv2, cpu)) {
+        define_arm_cp_regs(cpu, nv2_reginfo);
     }
 #endif
 
@@ -11134,6 +11392,20 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         old_mode = pstate_read(env);
         aarch64_save_sp(env, arm_current_el(env));
         env->elr_el[new_el] = env->pc;
+
+        if (cur_el == 1 && new_el == 1) {
+            uint64_t hcr = arm_hcr_el2_eff(env);
+            if ((hcr & (HCR_NV | HCR_NV1 | HCR_NV2)) == HCR_NV ||
+                (hcr & (HCR_NV | HCR_NV2)) == (HCR_NV | HCR_NV2)) {
+                /*
+                 * FEAT_NV, FEAT_NV2 may need to report EL2 in the SPSR
+                 * by setting M[3:2] to 0b10.
+                 * If NV2 is disabled, change SPSR when NV,NV1 == 1,0 (I_ZJRNN)
+                 * If NV2 is enabled, change SPSR when NV is 1 (I_DBTLM)
+                 */
+                old_mode = deposit32(old_mode, 2, 2, 2);
+            }
+        }
     } else {
         old_mode = cpsr_read_for_spsr_elx(env);
         env->elr_el[new_el] = env->regs[15];
@@ -11144,6 +11416,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     }
     env->banked_spsr[aarch64_banked_spsr_index(new_el)] = old_mode;
 
+    qemu_log_mask(CPU_LOG_INT, "...with SPSR 0x%x\n", old_mode);
     qemu_log_mask(CPU_LOG_INT, "...with ELR 0x%" PRIx64 "\n",
                   env->elr_el[new_el]);
 
@@ -11986,15 +12259,6 @@ ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
     g_assert_not_reached();
 }
 #endif
-
-static bool arm_pan_enabled(CPUARMState *env)
-{
-    if (is_a64(env)) {
-        return env->pstate & PSTATE_PAN;
-    } else {
-        return env->uncached_cpsr & CPSR_PAN;
-    }
-}
 
 ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
 {

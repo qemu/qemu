@@ -1606,7 +1606,7 @@ static bool trans_ERET(DisasContext *s, arg_ERET *a)
     if (s->current_el == 0) {
         return false;
     }
-    if (s->fgt_eret) {
+    if (s->trap_eret) {
         gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(0), 2);
         return true;
     }
@@ -1633,7 +1633,7 @@ static bool trans_ERETA(DisasContext *s, arg_reta *a)
         return false;
     }
     /* The FGT trap takes precedence over an auth trap. */
-    if (s->fgt_eret) {
+    if (s->trap_eret) {
         gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(a->m ? 3 : 2), 2);
         return true;
     }
@@ -2132,16 +2132,19 @@ static void handle_sys(DisasContext *s, bool isread,
                                       crn, crm, op0, op1, op2);
     const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
     bool need_exit_tb = false;
+    bool nv_trap_to_el2 = false;
+    bool nv_redirect_reg = false;
+    bool skip_fp_access_checks = false;
+    bool nv2_mem_redirect = false;
     TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
-    uint32_t syndrome;
+    uint32_t syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
 
     if (crn == 11 || crn == 15) {
         /*
          * Check for TIDCP trap, which must take precedence over
          * the UNDEF for "no such register" etc.
          */
-        syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
         switch (s->current_el) {
         case 0:
             if (dc_isar_feature(aa64_tidcp1, s)) {
@@ -2165,17 +2168,65 @@ static void handle_sys(DisasContext *s, bool isread,
         return;
     }
 
+    if (s->nv2 && ri->nv2_redirect_offset) {
+        /*
+         * Some registers always redirect to memory; some only do so if
+         * HCR_EL2.NV1 is 0, and some only if NV1 is 1 (these come in
+         * pairs which share an offset; see the table in R_CSRPQ).
+         */
+        if (ri->nv2_redirect_offset & NV2_REDIR_NV1) {
+            nv2_mem_redirect = s->nv1;
+        } else if (ri->nv2_redirect_offset & NV2_REDIR_NO_NV1) {
+            nv2_mem_redirect = !s->nv1;
+        } else {
+            nv2_mem_redirect = true;
+        }
+    }
+
     /* Check access permissions */
     if (!cp_access_ok(s->current_el, ri, isread)) {
-        gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
-        return;
+        /*
+         * FEAT_NV/NV2 handling does not do the usual FP access checks
+         * for registers only accessible at EL2 (though it *does* do them
+         * for registers accessible at EL1).
+         */
+        skip_fp_access_checks = true;
+        if (s->nv2 && (ri->type & ARM_CP_NV2_REDIRECT)) {
+            /*
+             * This is one of the few EL2 registers which should redirect
+             * to the equivalent EL1 register. We do that after running
+             * the EL2 register's accessfn.
+             */
+            nv_redirect_reg = true;
+            assert(!nv2_mem_redirect);
+        } else if (nv2_mem_redirect) {
+            /*
+             * NV2 redirect-to-memory takes precedence over trap to EL2 or
+             * UNDEF to EL1.
+             */
+        } else if (s->nv && arm_cpreg_traps_in_nv(ri)) {
+            /*
+             * This register / instruction exists and is an EL2 register, so
+             * we must trap to EL2 if accessed in nested virtualization EL1
+             * instead of UNDEFing. We'll do that after the usual access checks.
+             * (This makes a difference only for a couple of registers like
+             * VSTTBR_EL2 where the "UNDEF if NonSecure" should take priority
+             * over the trap-to-EL2. Most trapped-by-FEAT_NV registers have
+             * an accessfn which does nothing when called from EL1, because
+             * the trap-to-EL3 controls which would apply to that register
+             * at EL2 don't take priority over the FEAT_NV trap-to-EL2.)
+             */
+            nv_trap_to_el2 = true;
+        } else {
+            gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
+            return;
+        }
     }
 
     if (ri->accessfn || (ri->fgt && s->fgt_active)) {
         /* Emit code to perform further access permissions checks at
          * runtime; this may result in an exception.
          */
-        syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
         gen_a64_update_pc(s, 0);
         tcg_ri = tcg_temp_new_ptr();
         gen_helper_access_check_cp_reg(tcg_ri, tcg_env,
@@ -2188,6 +2239,78 @@ static void handle_sys(DisasContext *s, bool isread,
          * synchronize the CPU state in case it does.
          */
         gen_a64_update_pc(s, 0);
+    }
+
+    if (!skip_fp_access_checks) {
+        if ((ri->type & ARM_CP_FPU) && !fp_access_check_only(s)) {
+            return;
+        } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
+            return;
+        } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
+            return;
+        }
+    }
+
+    if (nv_trap_to_el2) {
+        gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
+        return;
+    }
+
+    if (nv_redirect_reg) {
+        /*
+         * FEAT_NV2 redirection of an EL2 register to an EL1 register.
+         * Conveniently in all cases the encoding of the EL1 register is
+         * identical to the EL2 register except that opc1 is 0.
+         * Get the reginfo for the EL1 register to use for the actual access.
+         * We don't use the EL1 register's access function, and
+         * fine-grained-traps on EL1 also do not apply here.
+         */
+        key = ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP,
+                                 crn, crm, op0, 0, op2);
+        ri = get_arm_cp_reginfo(s->cp_regs, key);
+        assert(ri);
+        assert(cp_access_ok(s->current_el, ri, isread));
+        /*
+         * We might not have done an update_pc earlier, so check we don't
+         * need it. We could support this in future if necessary.
+         */
+        assert(!(ri->type & ARM_CP_RAISES_EXC));
+    }
+
+    if (nv2_mem_redirect) {
+        /*
+         * This system register is being redirected into an EL2 memory access.
+         * This means it is not an IO operation, doesn't change hflags,
+         * and need not end the TB, because it has no side effects.
+         *
+         * The access is 64-bit single copy atomic, guaranteed aligned because
+         * of the definition of VCNR_EL2. Its endianness depends on
+         * SCTLR_EL2.EE, not on the data endianness of EL1.
+         * It is done under either the EL2 translation regime or the EL2&0
+         * translation regime, depending on HCR_EL2.E2H. It behaves as if
+         * PSTATE.PAN is 0.
+         */
+        TCGv_i64 ptr = tcg_temp_new_i64();
+        MemOp mop = MO_64 | MO_ALIGN | MO_ATOM_IFALIGN;
+        ARMMMUIdx armmemidx = s->nv2_mem_e20 ? ARMMMUIdx_E20_2 : ARMMMUIdx_E2;
+        int memidx = arm_to_core_mmu_idx(armmemidx);
+        uint32_t syn;
+
+        mop |= (s->nv2_mem_be ? MO_BE : MO_LE);
+
+        tcg_gen_ld_i64(ptr, tcg_env, offsetof(CPUARMState, cp15.vncr_el2));
+        tcg_gen_addi_i64(ptr, ptr,
+                         (ri->nv2_redirect_offset & ~NV2_REDIR_FLAG_MASK));
+        tcg_rt = cpu_reg(s, rt);
+
+        syn = syn_data_abort_vncr(0, !isread, 0);
+        disas_set_insn_syndrome(s, syn);
+        if (isread) {
+            tcg_gen_qemu_ld_i64(tcg_rt, ptr, memidx, mop);
+        } else {
+            tcg_gen_qemu_st_i64(tcg_rt, ptr, memidx, mop);
+        }
+        return;
     }
 
     /* Handle special cases first */
@@ -2205,12 +2328,17 @@ static void handle_sys(DisasContext *s, bool isread,
         }
         return;
     case ARM_CP_CURRENTEL:
-        /* Reads as current EL value from pstate, which is
+    {
+        /*
+         * Reads as current EL value from pstate, which is
          * guaranteed to be constant by the tb flags.
+         * For nested virt we should report EL2.
          */
+        int el = s->nv ? 2 : s->current_el;
         tcg_rt = cpu_reg(s, rt);
-        tcg_gen_movi_i64(tcg_rt, s->current_el << 2);
+        tcg_gen_movi_i64(tcg_rt, el << 2);
         return;
+    }
     case ARM_CP_DC_ZVA:
         /* Writes clear the aligned block of memory which rt points into. */
         if (s->mte_active[0]) {
@@ -2267,13 +2395,6 @@ static void handle_sys(DisasContext *s, bool isread,
         return;
     default:
         g_assert_not_reached();
-    }
-    if ((ri->type & ARM_CP_FPU) && !fp_access_check_only(s)) {
-        return;
-    } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
-        return;
-    } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
-        return;
     }
 
     if (ri->type & ARM_CP_IO) {
@@ -13980,7 +14101,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->pstate_il = EX_TBFLAG_ANY(tb_flags, PSTATE__IL);
     dc->fgt_active = EX_TBFLAG_ANY(tb_flags, FGT_ACTIVE);
     dc->fgt_svc = EX_TBFLAG_ANY(tb_flags, FGT_SVC);
-    dc->fgt_eret = EX_TBFLAG_A64(tb_flags, FGT_ERET);
+    dc->trap_eret = EX_TBFLAG_A64(tb_flags, TRAP_ERET);
     dc->sve_excp_el = EX_TBFLAG_A64(tb_flags, SVEEXC_EL);
     dc->sme_excp_el = EX_TBFLAG_A64(tb_flags, SMEEXC_EL);
     dc->vl = (EX_TBFLAG_A64(tb_flags, VL) + 1) * 16;
@@ -13997,6 +14118,11 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->pstate_za = EX_TBFLAG_A64(tb_flags, PSTATE_ZA);
     dc->sme_trap_nonstreaming = EX_TBFLAG_A64(tb_flags, SME_TRAP_NONSTREAMING);
     dc->naa = EX_TBFLAG_A64(tb_flags, NAA);
+    dc->nv = EX_TBFLAG_A64(tb_flags, NV);
+    dc->nv1 = EX_TBFLAG_A64(tb_flags, NV1);
+    dc->nv2 = EX_TBFLAG_A64(tb_flags, NV2);
+    dc->nv2_mem_e20 = EX_TBFLAG_A64(tb_flags, NV2_MEM_E20);
+    dc->nv2_mem_be = EX_TBFLAG_A64(tb_flags, NV2_MEM_BE);
     dc->vec_len = 0;
     dc->vec_stride = 0;
     dc->cp_regs = arm_cpu->cp_regs;
