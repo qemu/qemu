@@ -40,7 +40,7 @@ struct ESPState {
     uint8_t lun;
     uint32_t do_cmd;
 
-    bool data_in_ready;
+    bool data_ready;
     uint8_t ti_cmd;
     int dma_enabled;
 
