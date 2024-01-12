@@ -555,14 +555,16 @@ static void do_dma_pdma_cb(ESPState *s)
                 }
             }
             break;
-        }
 
-        /* ATN remains asserted until TC == 0 */
-        if (esp_get_tc(s) == 0) {
-            esp_set_phase(s, STAT_CD);
-            s->rregs[ESP_RSEQ] = SEQ_CD;
-            s->rregs[ESP_RINTR] |= INTR_BS;
-            esp_raise_irq(s);
+        case CMD_TI | CMD_DMA:
+            /* ATN remains asserted until TC == 0 */
+            if (esp_get_tc(s) == 0) {
+                esp_set_phase(s, STAT_CD);
+                s->rregs[ESP_RSEQ] = SEQ_CD;
+                s->rregs[ESP_RINTR] |= INTR_BS;
+                esp_raise_irq(s);
+            }
+            break;
         }
         break;
 
@@ -675,14 +677,16 @@ static void esp_do_dma(ESPState *s)
                 }
             }
             break;
-        }
 
-        /* ATN remains asserted until TC == 0 */
-        if (esp_get_tc(s) == 0) {
-            esp_set_phase(s, STAT_CD);
-            s->rregs[ESP_RSEQ] = SEQ_CD;
-            s->rregs[ESP_RINTR] |= INTR_BS;
-            esp_raise_irq(s);
+        case CMD_TI | CMD_DMA:
+            /* ATN remains asserted until TC == 0 */
+            if (esp_get_tc(s) == 0) {
+                esp_set_phase(s, STAT_CD);
+                s->rregs[ESP_RSEQ] = SEQ_CD;
+                s->rregs[ESP_RINTR] |= INTR_BS;
+                esp_raise_irq(s);
+            }
+            break;
         }
         break;
 
