@@ -408,23 +408,6 @@ static void handle_satn(ESPState *s)
     }
 }
 
-static void s_without_satn_pdma_cb(ESPState *s)
-{
-    uint8_t buf[ESP_FIFO_SZ];
-    int n;
-
-    /* Copy FIFO into cmdfifo */
-    n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-    n = MIN(fifo8_num_free(&s->cmdfifo), n);
-    fifo8_push_all(&s->cmdfifo, buf, n);
-
-    if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
-        s->cmdfifo_cdb_offset = 0;
-        s->do_cmd = 0;
-        do_cmd(s);
-    }
-}
-
 static void handle_s_without_atn(ESPState *s)
 {
     int32_t cmdlen;
@@ -433,7 +416,7 @@ static void handle_s_without_atn(ESPState *s)
         s->dma_cb = handle_s_without_atn;
         return;
     }
-    esp_set_pdma_cb(s, S_WITHOUT_SATN_PDMA_CB);
+    esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
     if (esp_select(s) < 0) {
         return;
     }
@@ -855,9 +838,6 @@ static void esp_pdma_cb(ESPState *s)
     switch (s->pdma_cb) {
     case SATN_PDMA_CB:
         satn_pdma_cb(s);
-        break;
-    case S_WITHOUT_SATN_PDMA_CB:
-        s_without_satn_pdma_cb(s);
         break;
     case SATN_STOP_PDMA_CB:
         satn_stop_pdma_cb(s);
