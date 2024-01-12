@@ -199,11 +199,7 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
         return;
     }
 
-    if (s->do_cmd) {
-        esp_fifo_push(&s->cmdfifo, val);
-    } else {
-        esp_fifo_push(&s->fifo, val);
-    }
+    esp_fifo_push(&s->fifo, val);
 
     dmalen--;
     esp_set_tc(s, dmalen);
@@ -358,6 +354,14 @@ static void do_cmd(ESPState *s)
 
 static void satn_pdma_cb(ESPState *s)
 {
+    uint8_t buf[ESP_FIFO_SZ];
+    int n;
+
+    /* Copy FIFO into cmdfifo */
+    n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+    n = MIN(fifo8_num_free(&s->cmdfifo), n);
+    fifo8_push_all(&s->cmdfifo, buf, n);
+
     if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         s->cmdfifo_cdb_offset = 1;
         s->do_cmd = 0;
@@ -395,6 +399,14 @@ static void handle_satn(ESPState *s)
 
 static void s_without_satn_pdma_cb(ESPState *s)
 {
+    uint8_t buf[ESP_FIFO_SZ];
+    int n;
+
+    /* Copy FIFO into cmdfifo */
+    n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+    n = MIN(fifo8_num_free(&s->cmdfifo), n);
+    fifo8_push_all(&s->cmdfifo, buf, n);
+
     if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         s->cmdfifo_cdb_offset = 0;
         s->do_cmd = 0;
@@ -432,6 +444,14 @@ static void handle_s_without_atn(ESPState *s)
 
 static void satn_stop_pdma_cb(ESPState *s)
 {
+    uint8_t buf[ESP_FIFO_SZ];
+    int n;
+
+    /* Copy FIFO into cmdfifo */
+    n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+    n = MIN(fifo8_num_free(&s->cmdfifo), n);
+    fifo8_push_all(&s->cmdfifo, buf, n);
+
     if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         trace_esp_handle_satn_stop(fifo8_num_used(&s->cmdfifo));
         s->do_cmd = 1;
@@ -523,10 +543,16 @@ static void esp_dma_done(ESPState *s)
 static void do_dma_pdma_cb(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    uint8_t buf[ESP_CMDFIFO_SZ];
     int len;
     uint32_t n;
 
     if (s->do_cmd) {
+        /* Copy FIFO into cmdfifo */
+        n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+        n = MIN(fifo8_num_free(&s->cmdfifo), n);
+        fifo8_push_all(&s->cmdfifo, buf, n);
+
         /* Ensure we have received complete command after SATN and stop */
         if (esp_get_tc(s) || fifo8_is_empty(&s->cmdfifo)) {
             return;
@@ -754,10 +780,16 @@ static void esp_do_dma(ESPState *s)
 static void esp_do_nodma(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    uint8_t buf[ESP_FIFO_SZ];
     uint32_t cmdlen;
-    int len;
+    int len, n;
 
     if (s->do_cmd) {
+        /* Copy FIFO into cmdfifo */
+        n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+        n = MIN(fifo8_num_free(&s->cmdfifo), n);
+        fifo8_push_all(&s->cmdfifo, buf, n);
+
         cmdlen = fifo8_num_used(&s->cmdfifo);
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
@@ -1159,7 +1191,10 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
-            esp_fifo_push(&s->cmdfifo, val);
+            if (!fifo8_is_full(&s->fifo)) {
+                esp_fifo_push(&s->fifo, val);
+                esp_fifo_push(&s->cmdfifo, fifo8_pop(&s->fifo));
+            }
 
             /*
              * If any unexpected message out/command phase data is
