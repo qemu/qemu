@@ -196,6 +196,11 @@ static void esp_set_phase(ESPState *s, uint8_t phase)
     trace_esp_set_phase(esp_phase_names[phase]);
 }
 
+static uint8_t esp_get_phase(ESPState *s)
+{
+    return s->rregs[ESP_RSTAT] & 7;
+}
+
 static uint8_t esp_pdma_read(ESPState *s)
 {
     uint8_t val;
@@ -537,7 +542,7 @@ static void esp_dma_ti_check(ESPState *s)
 
 static void do_dma_pdma_cb(ESPState *s)
 {
-    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_CMDFIFO_SZ];
     int len;
     uint32_t n;
@@ -554,7 +559,7 @@ static void do_dma_pdma_cb(ESPState *s)
         }
 
         s->ti_size = 0;
-        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+        if (esp_get_phase(s) == STAT_CD) {
             /* No command received */
             if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
                 return;
@@ -621,7 +626,7 @@ static void do_dma_pdma_cb(ESPState *s)
 static void esp_do_dma(ESPState *s)
 {
     uint32_t len, cmdlen;
-    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_CMDFIFO_SZ];
     int n;
 
@@ -654,7 +659,7 @@ static void esp_do_dma(ESPState *s)
         }
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
-        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+        if (esp_get_phase(s) == STAT_CD) {
             /* No command received */
             if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
                 return;
@@ -762,7 +767,7 @@ static void esp_do_dma(ESPState *s)
 
 static void esp_do_nodma(ESPState *s)
 {
-    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_FIFO_SZ];
     uint32_t cmdlen;
     int len, n;
@@ -776,7 +781,7 @@ static void esp_do_nodma(ESPState *s)
         cmdlen = fifo8_num_used(&s->cmdfifo);
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
-        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+        if (esp_get_phase(s) == STAT_CD) {
             /* No command received */
             if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
                 return;
@@ -856,7 +861,7 @@ static void esp_pdma_cb(ESPState *s)
 void esp_command_complete(SCSIRequest *req, size_t resid)
 {
     ESPState *s = req->hba_private;
-    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    int to_device = (esp_get_phase(s) == STAT_DO);
 
     trace_esp_command_complete();
 
@@ -909,7 +914,7 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
 void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
-    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    int to_device = (esp_get_phase(s) == STAT_DO);
     uint32_t dmalen = esp_get_tc(s);
 
     assert(!s->do_cmd);
@@ -1103,7 +1108,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
-            if ((s->rregs[ESP_RSTAT] & 0x7) == STAT_DI) {
+            if (esp_get_phase(s) == STAT_DI) {
                 if (s->ti_size) {
                     esp_do_nodma(s);
                 } else {
