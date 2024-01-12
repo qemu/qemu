@@ -491,141 +491,6 @@ static void esp_dma_ti_check(ESPState *s)
     }
 }
 
-static void do_dma_pdma_cb(ESPState *s)
-{
-    uint8_t buf[ESP_CMDFIFO_SZ];
-    int len;
-    uint32_t n, cmdlen;
-
-    len = esp_get_tc(s);
-
-    switch (esp_get_phase(s)) {
-    case STAT_MO:
-        if (s->dma_memory_read) {
-            len = MIN(len, fifo8_num_free(&s->cmdfifo));
-            s->dma_memory_read(s->dma_opaque, buf, len);
-            fifo8_push_all(&s->cmdfifo, buf, len);
-            esp_set_tc(s, esp_get_tc(s) - len);
-            s->cmdfifo_cdb_offset += len;
-        } else {
-            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-            n = MIN(fifo8_num_free(&s->cmdfifo), n);
-            fifo8_push_all(&s->cmdfifo, buf, n);
-            s->cmdfifo_cdb_offset += n;
-        }
-
-        esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
-        esp_raise_drq(s);
-
-        switch (s->rregs[ESP_CMD]) {
-        case CMD_SELATN | CMD_DMA:
-            if (fifo8_num_used(&s->cmdfifo) >= 1) {
-                /* First byte received, switch to command phase */
-                esp_set_phase(s, STAT_CD);
-                s->cmdfifo_cdb_offset = 1;
-
-                if (fifo8_num_used(&s->cmdfifo) > 1) {
-                    /* Process any additional command phase data */
-                    esp_do_dma(s);
-                }
-            }
-            break;
-
-        case CMD_SELATNS | CMD_DMA:
-            if (fifo8_num_used(&s->cmdfifo) == 1) {
-                /* First byte received, stop in message out phase */
-                esp_set_phase(s, STAT_CD);
-                s->cmdfifo_cdb_offset = 1;
-
-                /* Raise command completion interrupt */
-                s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-                s->rregs[ESP_RSEQ] = SEQ_CD;
-                esp_raise_irq(s);
-            }
-            break;
-
-        case CMD_TI | CMD_DMA:
-            /* ATN remains asserted until TC == 0 */
-            if (esp_get_tc(s) == 0) {
-                esp_set_phase(s, STAT_CD);
-                s->rregs[ESP_RSEQ] = SEQ_CD;
-                s->rregs[ESP_RINTR] |= INTR_BS;
-                esp_raise_irq(s);
-            }
-            break;
-        }
-        break;
-
-    case STAT_CD:
-        cmdlen = fifo8_num_used(&s->cmdfifo);
-        trace_esp_do_dma(cmdlen, len);
-        if (s->dma_memory_read) {
-            len = MIN(len, fifo8_num_free(&s->cmdfifo));
-            s->dma_memory_read(s->dma_opaque, buf, len);
-            fifo8_push_all(&s->cmdfifo, buf, len);
-            esp_set_tc(s, esp_get_tc(s) - len);
-        } else {
-            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-            n = MIN(fifo8_num_free(&s->cmdfifo), n);
-            fifo8_push_all(&s->cmdfifo, buf, n);
-
-            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
-            esp_raise_drq(s);
-        }
-        trace_esp_handle_ti_cmd(cmdlen);
-        s->ti_size = 0;
-        if (esp_get_tc(s) == 0) {
-            /* Command has been received */
-            do_cmd(s);
-        }
-        break;
-
-    case STAT_DO:
-        if (!s->current_req) {
-            return;
-        }
-        /* Copy FIFO data to device */
-        len = MIN(s->async_len, ESP_FIFO_SZ);
-        len = MIN(len, fifo8_num_used(&s->fifo));
-        n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
-        s->async_buf += n;
-        s->async_len -= n;
-        s->ti_size += n;
-
-        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-            /* Defer until the scsi layer has completed */
-            scsi_req_continue(s->current_req);
-            return;
-        }
-
-        esp_dma_ti_check(s);
-        break;
-
-    case STAT_DI:
-        if (!s->current_req) {
-            return;
-        }
-        /* Copy device data to FIFO */
-        len = MIN(s->async_len, esp_get_tc(s));
-        len = MIN(len, fifo8_num_free(&s->fifo));
-        fifo8_push_all(&s->fifo, s->async_buf, len);
-        s->async_buf += len;
-        s->async_len -= len;
-        s->ti_size -= len;
-        esp_set_tc(s, esp_get_tc(s) - len);
-
-        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-            /* Defer until the scsi layer has completed */
-            scsi_req_continue(s->current_req);
-            s->data_in_ready = false;
-            return;
-        }
-
-        esp_dma_ti_check(s);
-        break;
-    }
-}
-
 static void esp_do_dma(ESPState *s)
 {
     uint32_t len, cmdlen;
@@ -669,7 +534,6 @@ static void esp_do_dma(ESPState *s)
         case CMD_SELATNS | CMD_DMA:
             if (fifo8_num_used(&s->cmdfifo) == 1) {
                 /* First byte received, stop in message out phase */
-                esp_set_phase(s, STAT_CD);
                 s->cmdfifo_cdb_offset = 1;
 
                 /* Raise command completion interrupt */
@@ -913,7 +777,7 @@ static void esp_pdma_cb(ESPState *s)
         write_response_pdma_cb(s);
         break;
     case DO_DMA_PDMA_CB:
-        do_dma_pdma_cb(s);
+        esp_do_dma(s);
         break;
     default:
         g_assert_not_reached();
