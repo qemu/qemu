@@ -557,51 +557,34 @@ static void esp_do_dma(ESPState *s)
         if (len > s->async_len) {
             len = s->async_len;
         }
+
         if (s->dma_memory_write) {
             s->dma_memory_write(s->dma_opaque, s->async_buf, len);
-
-            esp_set_tc(s, esp_get_tc(s) - len);
-            s->async_buf += len;
-            s->async_len -= len;
-            s->ti_size -= len;
-
-            if (s->async_len == 0 && s->ti_size == 0 && esp_get_tc(s)) {
-                /* If the guest underflows TC then terminate SCSI request */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            esp_dma_ti_check(s);
         } else {
             /* Copy device data to FIFO */
             len = MIN(len, fifo8_num_free(&s->fifo));
             fifo8_push_all(&s->fifo, s->async_buf, len);
-            s->async_buf += len;
-            s->async_len -= len;
-            s->ti_size -= len;
-            esp_set_tc(s, esp_get_tc(s) - len);
             esp_raise_drq(s);
-
-            if (s->async_len == 0 && s->ti_size == 0 && esp_get_tc(s)) {
-                /* If the guest underflows TC then terminate SCSI request */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            esp_dma_ti_check(s);
         }
+
+        s->async_buf += len;
+        s->async_len -= len;
+        s->ti_size -= len;
+        esp_set_tc(s, esp_get_tc(s) - len);
+
+        if (s->async_len == 0 && s->ti_size == 0 && esp_get_tc(s)) {
+            /* If the guest underflows TC then terminate SCSI request */
+            scsi_req_continue(s->current_req);
+            return;
+        }
+
+        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+            /* Defer until the scsi layer has completed */
+            scsi_req_continue(s->current_req);
+            return;
+        }
+
+        esp_dma_ti_check(s);
         break;
 
     case STAT_ST:
