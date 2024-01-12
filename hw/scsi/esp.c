@@ -396,8 +396,6 @@ static void handle_satn(ESPState *s)
 
 static void handle_s_without_atn(ESPState *s)
 {
-    int32_t cmdlen;
-
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
         return;
@@ -406,17 +404,17 @@ static void handle_s_without_atn(ESPState *s)
     if (esp_select(s) < 0) {
         return;
     }
-    cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
-    if (cmdlen > 0) {
-        s->cmdfifo_cdb_offset = 0;
-        do_cmd(s);
-    } else if (cmdlen == 0) {
-        if (s->dma) {
-            esp_raise_drq(s);
+
+    esp_set_phase(s, STAT_CD);
+    s->rregs[ESP_RSEQ] = SEQ_CD;
+    s->cmdfifo_cdb_offset = 0;
+
+    if (s->dma) {
+        esp_do_dma(s);
+    } else {
+        if (get_cmd(s, ESP_CMDFIFO_SZ)) {
+            do_cmd(s);
         }
-        /* Target present, but no cmd yet - switch to command phase */
-        s->rregs[ESP_RSEQ] = SEQ_CD;
-        esp_set_phase(s, STAT_CD);
     }
 }
 
