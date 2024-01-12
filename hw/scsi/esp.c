@@ -925,16 +925,10 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
      */
 
     if (s->ti_cmd == (CMD_TI | CMD_DMA)) {
-        if (dmalen) {
-            esp_do_dma(s);
-        } else if (s->ti_size <= 0) {
-            /*
-             * If this was the last part of a DMA transfer then the
-             * completion interrupt is deferred to here.
-             */
-            esp_dma_done(s);
-            esp_lower_drq(s);
-        }
+        /* When the SCSI layer returns more data, raise deferred INTR_BS */
+        esp_dma_done(s);
+
+        esp_do_dma(s);
     } else if (s->ti_cmd == CMD_TI) {
         esp_do_nodma(s);
     }
