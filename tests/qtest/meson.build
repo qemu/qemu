@@ -1,14 +1,15 @@
 slow_qtests = {
-  'ahci-test' : 60,
-  'bios-tables-test' : 120,
-  'boot-serial-test' : 60,
-  'migration-test' : 150,
-  'npcm7xx_pwm-test': 150,
-  'prom-env-test' : 60,
-  'pxe-test' : 60,
-  'qos-test' : 60,
-  'qom-test' : 300,
-  'test-hmp' : 120,
+  'aspeed_smc-test': 360,
+  'bios-tables-test' : 540,
+  'device-introspect-test' : 720,
+  'migration-test' : 480,
+  'npcm7xx_pwm-test': 300,
+  'qom-test' : 900,
+  'test-hmp' : 240,
+  'pxe-test': 600,
+  'prom-env-test': 360,
+  'boot-serial-test': 180,
+  'qos-test': 120,
 }
 
 qtests_generic = [
@@ -383,8 +384,8 @@ foreach dir : target_dirs
          env: qtest_env,
          args: ['--tap', '-k'],
          protocol: 'tap',
-         timeout: slow_qtests.get(test, 30),
-         priority: slow_qtests.get(test, 30),
+         timeout: slow_qtests.get(test, 60),
+         priority: slow_qtests.get(test, 60),
          suite: ['qtest', 'qtest-' + target_base])
   endforeach
 endforeach
