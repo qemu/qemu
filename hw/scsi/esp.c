@@ -712,14 +712,13 @@ static void esp_do_nodma(ESPState *s)
 
     switch (esp_get_phase(s)) {
     case STAT_MO:
-        /* Copy FIFO into cmdfifo */
-        n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-        n = MIN(fifo8_num_free(&s->cmdfifo), n);
-        fifo8_push_all(&s->cmdfifo, buf, n);
-        s->cmdfifo_cdb_offset += n;
-
         switch (s->rregs[ESP_CMD]) {
         case CMD_SELATN:
+            /* Copy FIFO into cmdfifo */
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+
             if (fifo8_num_used(&s->cmdfifo) >= 1) {
                 /* First byte received, switch to command phase */
                 esp_set_phase(s, STAT_CD);
@@ -734,6 +733,11 @@ static void esp_do_nodma(ESPState *s)
             break;
 
         case CMD_SELATNS:
+            /* Copy one byte from FIFO into cmdfifo */
+            n = esp_fifo_pop_buf(&s->fifo, buf, 1);
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+
             if (fifo8_num_used(&s->cmdfifo) >= 1) {
                 /* First byte received, stop in message out phase */
                 s->rregs[ESP_RSEQ] = SEQ_MO;
@@ -746,6 +750,11 @@ static void esp_do_nodma(ESPState *s)
             break;
 
         case CMD_TI:
+            /* Copy FIFO into cmdfifo */
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+
             /* ATN remains asserted until FIFO empty */
             s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
             esp_set_phase(s, STAT_CD);
