@@ -519,6 +519,7 @@ static void esp_do_dma(ESPState *s)
             /* ATN remains asserted until TC == 0 */
             if (esp_get_tc(s) == 0) {
                 esp_set_phase(s, STAT_CD);
+                s->rregs[ESP_CMD] = 0;
                 s->rregs[ESP_RSEQ] = SEQ_CD;
                 s->rregs[ESP_RINTR] |= INTR_BS;
                 esp_raise_irq(s);
@@ -717,6 +718,7 @@ static void esp_do_nodma(ESPState *s)
          */
         s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
         esp_set_phase(s, STAT_CD);
+        s->rregs[ESP_CMD] = 0;
         s->rregs[ESP_RSEQ] = SEQ_CD;
         s->rregs[ESP_RINTR] |= INTR_BS;
         esp_raise_irq(s);
@@ -831,6 +833,11 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
          */
         s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
         break;
+
+    case CMD_TI | CMD_DMA:
+    case CMD_TI:
+        s->rregs[ESP_CMD] = 0;
+        break;
     }
 
     /* Raise bus service interrupt to indicate change to STATUS phase */
@@ -885,6 +892,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
              * Bus service interrupt raised because of initial change to
              * DATA phase
              */
+            s->rregs[ESP_CMD] = 0;
             s->rregs[ESP_RINTR] |= INTR_BS;
             break;
         }
