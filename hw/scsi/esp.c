@@ -1127,6 +1127,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
          */
         val = s->rregs[ESP_RINTR];
         s->rregs[ESP_RINTR] = 0;
+        esp_lower_irq(s);
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         /*
          * According to the datasheet ESP_RSEQ should be cleared, but as the
@@ -1137,7 +1138,6 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
          *
          * s->rregs[ESP_RSEQ] = SEQ_0;
          */
-        esp_lower_irq(s);
         break;
     case ESP_TCHI:
         /* Return the unique id if the value has never been written */
