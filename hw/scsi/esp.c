@@ -521,40 +521,29 @@ static void esp_do_dma(ESPState *s)
         if (len > s->async_len) {
             len = s->async_len;
         }
+
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
-
             esp_set_tc(s, esp_get_tc(s) - len);
-            s->async_buf += len;
-            s->async_len -= len;
-            s->ti_size += len;
-
-            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            esp_dma_ti_check(s);
         } else {
             /* Copy FIFO data to device */
             len = MIN(s->async_len, ESP_FIFO_SZ);
             len = MIN(len, fifo8_num_used(&s->fifo));
-            n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
-            s->async_buf += n;
-            s->async_len -= n;
-            s->ti_size += n;
-
+            len = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
             esp_raise_drq(s);
-
-            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                return;
-            }
-
-            esp_dma_ti_check(s);
         }
+
+        s->async_buf += len;
+        s->async_len -= len;
+        s->ti_size += len;
+
+        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+            /* Defer until the scsi layer has completed */
+            scsi_req_continue(s->current_req);
+            return;
+        }
+
+        esp_dma_ti_check(s);
         break;
 
     case STAT_DI:
