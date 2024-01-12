@@ -152,7 +152,6 @@ struct SysBusESPState {
 
 /* PDMA callbacks */
 enum pdma_cb {
-    WRITE_RESPONSE_PDMA_CB = 3,
     DO_DMA_PDMA_CB = 4
 };
 

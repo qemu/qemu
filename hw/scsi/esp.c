@@ -446,40 +446,23 @@ static void handle_satn_stop(ESPState *s)
     }
 }
 
-static void write_response_pdma_cb(ESPState *s)
-{
-    esp_set_phase(s, STAT_ST);
-    s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-    s->rregs[ESP_RSEQ] = SEQ_CD;
-    esp_raise_irq(s);
-}
-
 static void write_response(ESPState *s)
 {
     uint8_t buf[2];
 
     trace_esp_write_response(s->status);
 
-    buf[0] = s->status;
-    buf[1] = 0;
-
     if (s->dma) {
-        if (s->dma_memory_write) {
-            s->dma_memory_write(s->dma_opaque, buf, 2);
-            esp_set_phase(s, STAT_ST);
-            s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-            s->rregs[ESP_RSEQ] = SEQ_CD;
-        } else {
-            esp_set_pdma_cb(s, WRITE_RESPONSE_PDMA_CB);
-            esp_raise_drq(s);
-            return;
-        }
+        esp_do_dma(s);
     } else {
+        buf[0] = s->status;
+        buf[1] = 0;
+
         fifo8_reset(&s->fifo);
         fifo8_push_all(&s->fifo, buf, 2);
         s->rregs[ESP_RFLAGS] = 2;
+        esp_raise_irq(s);
     }
-    esp_raise_irq(s);
 }
 
 static void esp_dma_ti_check(ESPState *s)
@@ -673,6 +656,58 @@ static void esp_do_dma(ESPState *s)
             esp_dma_ti_check(s);
         }
         break;
+
+    case STAT_ST:
+        switch (s->rregs[ESP_CMD]) {
+        case CMD_ICCS | CMD_DMA:
+            len = MIN(len, 1);
+
+            if (len) {
+                buf[0] = s->status;
+
+                if (s->dma_memory_write) {
+                    s->dma_memory_write(s->dma_opaque, buf, len);
+                    esp_set_tc(s, esp_get_tc(s) - len);
+                } else {
+                    fifo8_push_all(&s->fifo, buf, len);
+                    esp_set_tc(s, esp_get_tc(s) - len);
+                }
+
+                esp_set_phase(s, STAT_MI);
+
+                if (esp_get_tc(s) > 0) {
+                    /* Process any message in phase data */
+                    esp_do_dma(s);
+                }
+            }
+            break;
+        }
+        break;
+
+    case STAT_MI:
+        switch (s->rregs[ESP_CMD]) {
+        case CMD_ICCS | CMD_DMA:
+            len = MIN(len, 1);
+
+            if (len) {
+                buf[0] = 0;
+
+                if (s->dma_memory_write) {
+                    s->dma_memory_write(s->dma_opaque, buf, len);
+                    esp_set_tc(s, esp_get_tc(s) - len);
+                } else {
+                    fifo8_push_all(&s->fifo, buf, len);
+                    esp_set_tc(s, esp_get_tc(s) - len);
+                }
+
+                /* Raise end of command interrupt */
+                s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
+                s->rregs[ESP_RSEQ] = SEQ_CD;
+                esp_raise_irq(s);
+            }
+            break;
+        }
+        break;
     }
 }
 
@@ -773,9 +808,6 @@ static void esp_do_nodma(ESPState *s)
 static void esp_pdma_cb(ESPState *s)
 {
     switch (s->pdma_cb) {
-    case WRITE_RESPONSE_PDMA_CB:
-        write_response_pdma_cb(s);
-        break;
     case DO_DMA_PDMA_CB:
         esp_do_dma(s);
         break;
