@@ -25,7 +25,7 @@ struct ESPState {
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
     qemu_irq irq;
-    qemu_irq irq_data;
+    qemu_irq drq_irq;
     uint8_t chip_id;
     bool tchi_written;
     int32_t ti_size;

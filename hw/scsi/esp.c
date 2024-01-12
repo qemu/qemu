@@ -62,13 +62,13 @@ static void esp_lower_irq(ESPState *s)
 
 static void esp_raise_drq(ESPState *s)
 {
-    qemu_irq_raise(s->irq_data);
+    qemu_irq_raise(s->drq_irq);
     trace_esp_raise_drq();
 }
 
 static void esp_lower_drq(ESPState *s)
 {
-    qemu_irq_lower(s->irq_data);
+    qemu_irq_lower(s->drq_irq);
     trace_esp_lower_drq();
 }
 
@@ -1062,7 +1062,7 @@ void esp_hard_reset(ESPState *s)
 static void esp_soft_reset(ESPState *s)
 {
     qemu_irq_lower(s->irq);
-    qemu_irq_lower(s->irq_data);
+    qemu_irq_lower(s->drq_irq);
     esp_hard_reset(s);
 }
 
@@ -1489,7 +1489,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
     }
 
     sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->irq_data);
+    sysbus_init_irq(sbd, &s->drq_irq);
     assert(sysbus->it_shift != -1);
 
     s->chip_id = TCHI_FAS100A;
