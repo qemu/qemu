@@ -111,9 +111,9 @@ A vring state description
 A vring address description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-+-------+-------+------+------------+------+-----------+-----+
-| index | flags | size | descriptor | used | available | log |
-+-------+-------+------+------------+------+-----------+-----+
++-------+-------+------------+------+-----------+-----+
+| index | flags | descriptor | used | available | log |
++-------+-------+------------+------+-----------+-----+
 
 :index: a 32-bit vring index
 
