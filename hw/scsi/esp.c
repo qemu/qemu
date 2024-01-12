@@ -887,7 +887,6 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
         if (s->ti_size != 0) {
             trace_esp_command_complete_unexpected();
         }
-        s->ti_size = 0;
     }
 
     s->async_len = 0;
@@ -897,13 +896,26 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
     s->status = req->status;
 
     /*
-     * If the transfer is finished, switch to status phase. For non-DMA
-     * transfers from the target the last byte is still in the FIFO
+     * Switch to status phase. For non-DMA transfers from the target the last
+     * byte is still in the FIFO
      */
+    esp_set_phase(s, STAT_ST);
     if (s->ti_size == 0) {
-        esp_set_phase(s, STAT_ST);
+        /*
+         * Transfer complete: force TC to zero just in case a TI command was
+         * requested for more data than the command returns (Solaris 8 does
+         * this)
+         */
+        esp_set_tc(s, 0);
         esp_dma_done(s);
-        esp_lower_drq(s);
+    } else {
+        /*
+         * Transfer truncated: raise INTR_BS to indicate early change of
+         * phase
+         */
+        s->rregs[ESP_RINTR] |= INTR_BS;
+        esp_raise_irq(s);
+        s->ti_size = 0;
     }
 
     if (s->current_req) {
