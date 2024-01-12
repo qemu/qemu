@@ -807,13 +807,7 @@ static void esp_do_nodma(ESPState *s)
 
 static void esp_pdma_cb(ESPState *s)
 {
-    switch (s->pdma_cb) {
-    case DO_DMA_PDMA_CB:
-        esp_do_dma(s);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    esp_do_dma(s);
 }
 
 void esp_command_complete(SCSIRequest *req, size_t resid)
