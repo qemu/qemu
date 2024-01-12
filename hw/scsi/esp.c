@@ -604,12 +604,13 @@ static void do_dma_pdma_cb(ESPState *s)
         s->async_len -= n;
         s->ti_size += n;
 
-        if (s->async_len == 0) {
+        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+            /* Defer until the scsi layer has completed */
             scsi_req_continue(s->current_req);
             return;
         }
 
-        if (esp_get_tc(s) == 0) {
+        if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
             esp_lower_drq(s);
             esp_dma_done(s);
         }
@@ -706,24 +707,30 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= len;
             s->ti_size += len;
 
-            if (s->async_len == 0) {
+            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+                /* Defer until the scsi layer has completed */
                 scsi_req_continue(s->current_req);
-                /*
-                 * If there is still data to be read from the device then
-                 * complete the DMA operation immediately.  Otherwise defer
-                 * until the scsi layer has completed.
-                 */
                 return;
             }
 
-            if (esp_get_tc(s) == 0) {
-                /* Partially filled a scsi buffer. Complete immediately.  */
+            if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
                 esp_dma_done(s);
                 esp_lower_drq(s);
             }
         } else {
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
+
+            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+                /* Defer until the scsi layer has completed */
+                scsi_req_continue(s->current_req);
+                return;
+            }
+
+            if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
+                esp_dma_done(s);
+                esp_lower_drq(s);
+            }
         }
     } else {
         if (s->dma_memory_write) {
@@ -734,13 +741,13 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= len;
             s->ti_size -= len;
 
-            if (s->async_len == 0) {
+            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+                /* Defer until the scsi layer has completed */
                 scsi_req_continue(s->current_req);
                 return;
             }
 
-            if (esp_get_tc(s) == 0) {
-                /* Partially filled a scsi buffer. Complete immediately.  */
+            if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
                 esp_dma_done(s);
                 esp_lower_drq(s);
             }
@@ -754,6 +761,17 @@ static void esp_do_dma(ESPState *s)
             esp_set_tc(s, esp_get_tc(s) - len);
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
+
+            if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+                /* Defer until the scsi layer has completed */
+                scsi_req_continue(s->current_req);
+                return;
+            }
+
+            if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
+                esp_lower_drq(s);
+                esp_dma_done(s);
+            }
         }
     }
 }
