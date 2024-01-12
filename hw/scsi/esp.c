@@ -121,15 +121,28 @@ static uint8_t esp_fifo_pop(Fifo8 *fifo)
 static uint32_t esp_fifo_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
 {
     const uint8_t *buf;
-    uint32_t n;
+    uint32_t n, n2;
+    int len;
 
     if (maxlen == 0) {
         return 0;
     }
 
-    buf = fifo8_pop_buf(fifo, maxlen, &n);
+    len = maxlen;
+    buf = fifo8_pop_buf(fifo, len, &n);
     if (dest) {
         memcpy(dest, buf, n);
+    }
+
+    /* Add FIFO wraparound if needed */
+    len -= n;
+    len = MIN(len, fifo8_num_used(fifo));
+    if (len) {
+        buf = fifo8_pop_buf(fifo, len, &n2);
+        if (dest) {
+            memcpy(&dest[n], buf, n2);
+        }
+        n += n2;
     }
 
     return n;
