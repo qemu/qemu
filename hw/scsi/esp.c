@@ -626,7 +626,6 @@ static void do_dma_pdma_cb(ESPState *s)
 static void esp_do_dma(ESPState *s)
 {
     uint32_t len, cmdlen;
-    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_CMDFIFO_SZ];
     int n;
 
@@ -681,17 +680,19 @@ static void esp_do_dma(ESPState *s)
         }
         return;
     }
-    if (!s->current_req) {
-        return;
-    }
-    if (s->async_len == 0 && esp_get_tc(s) && s->ti_size) {
-        /* Defer until data is available.  */
-        return;
-    }
-    if (len > s->async_len) {
-        len = s->async_len;
-    }
-    if (to_device) {
+
+    switch (esp_get_phase(s)) {
+    case STAT_DO:
+        if (!s->current_req) {
+            return;
+        }
+        if (s->async_len == 0 && esp_get_tc(s) && s->ti_size) {
+            /* Defer until data is available.  */
+            return;
+        }
+        if (len > s->async_len) {
+            len = s->async_len;
+        }
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
 
@@ -727,7 +728,19 @@ static void esp_do_dma(ESPState *s)
 
             esp_dma_ti_check(s);
         }
-    } else {
+        break;
+
+    case STAT_DI:
+        if (!s->current_req) {
+            return;
+        }
+        if (s->async_len == 0 && esp_get_tc(s) && s->ti_size) {
+            /* Defer until data is available.  */
+            return;
+        }
+        if (len > s->async_len) {
+            len = s->async_len;
+        }
         if (s->dma_memory_write) {
             s->dma_memory_write(s->dma_opaque, s->async_buf, len);
 
@@ -762,6 +775,7 @@ static void esp_do_dma(ESPState *s)
 
             esp_dma_ti_check(s);
         }
+        break;
     }
 }
 
