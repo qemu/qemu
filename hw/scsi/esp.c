@@ -696,7 +696,7 @@ static void esp_do_dma(ESPState *s)
     if (!s->current_req) {
         return;
     }
-    if (s->async_len == 0) {
+    if (s->async_len == 0 && esp_get_tc(s) && s->ti_size) {
         /* Defer until data is available.  */
         return;
     }
