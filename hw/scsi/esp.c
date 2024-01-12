@@ -745,6 +745,7 @@ static void esp_do_dma(ESPState *s)
 
             if (s->async_len == 0) {
                 scsi_req_continue(s->current_req);
+                return;
             }
 
             if (esp_get_tc(s) == 0) {
