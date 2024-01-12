@@ -640,6 +640,7 @@ static void esp_do_dma(ESPState *s)
     uint32_t len, cmdlen;
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
     uint8_t buf[ESP_CMDFIFO_SZ];
+    int n;
 
     len = esp_get_tc(s);
     if (s->do_cmd) {
@@ -710,6 +711,14 @@ static void esp_do_dma(ESPState *s)
 
             esp_dma_ti_check(s);
         } else {
+            /* Copy FIFO data to device */
+            len = MIN(s->async_len, ESP_FIFO_SZ);
+            len = MIN(len, fifo8_num_used(&s->fifo));
+            n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
+            s->async_buf += n;
+            s->async_len -= n;
+            s->ti_size += n;
+
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
 
