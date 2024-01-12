@@ -629,6 +629,31 @@ static void esp_do_dma(ESPState *s)
 
     switch (esp_get_phase(s)) {
     case STAT_MO:
+        if (s->dma_memory_read) {
+            len = MIN(len, fifo8_num_free(&s->cmdfifo));
+            s->dma_memory_read(s->dma_opaque, buf, len);
+            fifo8_push_all(&s->cmdfifo, buf, len);
+            esp_set_tc(s, esp_get_tc(s) - len);
+            s->cmdfifo_cdb_offset += len;
+        } else {
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+            s->cmdfifo_cdb_offset += n;
+        }
+
+        esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+        esp_raise_drq(s);
+
+        /* ATN remains asserted until TC == 0 */
+        if (esp_get_tc(s) == 0) {
+            esp_set_phase(s, STAT_CD);
+            s->rregs[ESP_RSEQ] = SEQ_CD;
+            s->rregs[ESP_RINTR] |= INTR_BS;
+            esp_raise_irq(s);
+        }
+        break;
+
     case STAT_CD:
         cmdlen = fifo8_num_used(&s->cmdfifo);
         trace_esp_do_dma(cmdlen, len);
@@ -641,36 +666,15 @@ static void esp_do_dma(ESPState *s)
             n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
             n = MIN(fifo8_num_free(&s->cmdfifo), n);
             fifo8_push_all(&s->cmdfifo, buf, n);
-            esp_set_tc(s, esp_get_tc(s) - n);
 
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
-
-            /* Ensure we have received complete command after SATN and stop */
-            if (esp_get_tc(s) || fifo8_is_empty(&s->cmdfifo)) {
-                return;
-            }
         }
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
-        if (esp_get_phase(s) == STAT_CD) {
-            /* No command received */
-            if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
-                return;
-            }
-
+        if (esp_get_tc(s) == 0) {
             /* Command has been received */
             do_cmd(s);
-        } else {
-            /*
-             * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to command phase
-             */
-            s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
-            esp_set_phase(s, STAT_CD);
-            s->rregs[ESP_RSEQ] = SEQ_CD;
-            s->rregs[ESP_RINTR] |= INTR_BS;
-            esp_raise_irq(s);
         }
         break;
 
