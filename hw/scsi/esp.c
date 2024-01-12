@@ -602,21 +602,19 @@ static void do_dma_pdma_cb(ESPState *s)
             return;
         }
 
-        if (esp_get_tc(s) != 0) {
-            /* Copy device data to FIFO */
-            len = MIN(s->async_len, esp_get_tc(s));
-            len = MIN(len, fifo8_num_free(&s->fifo));
-            fifo8_push_all(&s->fifo, s->async_buf, len);
-            s->async_buf += len;
-            s->async_len -= len;
-            s->ti_size -= len;
-            esp_set_tc(s, esp_get_tc(s) - len);
-            return;
+        if (esp_get_tc(s) == 0) {
+            esp_lower_drq(s);
+            esp_dma_done(s);
         }
 
-        /* Partially filled a scsi buffer. Complete immediately.  */
-        esp_lower_drq(s);
-        esp_dma_done(s);
+        /* Copy device data to FIFO */
+        len = MIN(s->async_len, esp_get_tc(s));
+        len = MIN(len, fifo8_num_free(&s->fifo));
+        fifo8_push_all(&s->fifo, s->async_buf, len);
+        s->async_buf += len;
+        s->async_len -= len;
+        s->ti_size -= len;
+        esp_set_tc(s, esp_get_tc(s) - len);
     }
 }
 
