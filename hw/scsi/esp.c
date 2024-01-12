@@ -786,6 +786,11 @@ static void esp_do_nodma(ESPState *s)
             return;
         }
 
+        /* If preloading the FIFO, defer until TI command issued */
+        if (s->rregs[ESP_CMD] != CMD_TI) {
+            return;
+        }
+
         s->rregs[ESP_RINTR] |= INTR_BS;
         esp_raise_irq(s);
         break;
