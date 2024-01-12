@@ -615,15 +615,6 @@ static void do_dma_pdma_cb(ESPState *s)
 
         esp_dma_ti_check(s);
     } else {
-        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
-            /* Defer until the scsi layer has completed */
-            scsi_req_continue(s->current_req);
-            s->data_in_ready = false;
-            return;
-        }
-
-        esp_dma_ti_check(s);
-
         /* Copy device data to FIFO */
         len = MIN(s->async_len, esp_get_tc(s));
         len = MIN(len, fifo8_num_free(&s->fifo));
@@ -632,6 +623,15 @@ static void do_dma_pdma_cb(ESPState *s)
         s->async_len -= len;
         s->ti_size -= len;
         esp_set_tc(s, esp_get_tc(s) - len);
+
+        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
+            /* Defer until the scsi layer has completed */
+            scsi_req_continue(s->current_req);
+            s->data_in_ready = false;
+            return;
+        }
+
+        esp_dma_ti_check(s);
     }
 }
 
