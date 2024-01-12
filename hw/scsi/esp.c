@@ -754,11 +754,6 @@ static void esp_do_dma(ESPState *s)
                 esp_lower_drq(s);
             }
         } else {
-            /* Adjust TC for any leftover data in the FIFO */
-            if (!fifo8_is_empty(&s->fifo)) {
-                esp_set_tc(s, esp_get_tc(s) - fifo8_num_used(&s->fifo));
-            }
-
             /* Copy device data to FIFO */
             len = MIN(len, fifo8_num_free(&s->fifo));
             fifo8_push_all(&s->fifo, s->async_buf, len);
