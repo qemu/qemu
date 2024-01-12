@@ -161,9 +161,15 @@ static uint32_t esp_get_tc(ESPState *s)
 
 static void esp_set_tc(ESPState *s, uint32_t dmalen)
 {
+    uint32_t old_tc = esp_get_tc(s);
+
     s->rregs[ESP_TCLO] = dmalen;
     s->rregs[ESP_TCMID] = dmalen >> 8;
     s->rregs[ESP_TCHI] = dmalen >> 16;
+
+    if (old_tc && dmalen == 0) {
+        s->rregs[ESP_RSTAT] |= STAT_TC;
+    }
 }
 
 static uint32_t esp_get_stc(ESPState *s)
