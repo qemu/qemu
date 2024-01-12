@@ -248,10 +248,8 @@ static int esp_select(ESPState *s)
 
     /*
      * Note that we deliberately don't raise the IRQ here: this will be done
-     * either in do_command_phase() for DATA OUT transfers or by the deferred
-     * IRQ mechanism in esp_transfer_data() for DATA IN transfers
+     * either in esp_transfer_data() or esp_command_complete()
      */
-    s->rregs[ESP_RINTR] |= INTR_FC;
     s->rregs[ESP_RSEQ] = SEQ_CD;
     return 0;
 }
@@ -321,20 +319,17 @@ static void do_command_phase(ESPState *s)
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     fifo8_reset(&s->cmdfifo);
+    s->data_ready = false;
     if (datalen != 0) {
         s->ti_cmd = 0;
+        /*
+         * Switch to DATA phase but wait until initial data xfer is
+         * complete before raising the command completion interrupt
+         */
         if (datalen > 0) {
-            /*
-             * Switch to DATA IN phase but wait until initial data xfer is
-             * complete before raising the command completion interrupt
-             */
-            s->data_ready = false;
             esp_set_phase(s, STAT_DI);
         } else {
             esp_set_phase(s, STAT_DO);
-            s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-            esp_raise_irq(s);
-            esp_lower_drq(s);
         }
         scsi_req_continue(s->current_req);
         return;
@@ -832,9 +827,9 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
     case CMD_SELATN:
         /*
          * No data phase for sequencer command so raise deferred bus service
-         * interrupt
+         * and function complete interrupt
          */
-        s->rregs[ESP_RINTR] |= INTR_BS;
+        s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
         break;
     }
 
@@ -854,14 +849,13 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
 void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
-    int to_device = (esp_get_phase(s) == STAT_DO);
     uint32_t dmalen = esp_get_tc(s);
 
     trace_esp_transfer_data(dmalen, s->ti_size);
     s->async_len = len;
     s->async_buf = scsi_req_get_buf(req);
 
-    if (!to_device && !s->data_ready) {
+    if (!s->data_ready) {
         s->data_ready = true;
 
         switch (s->rregs[ESP_CMD]) {
@@ -869,6 +863,13 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
         case CMD_SEL:
         case CMD_SELATN | CMD_DMA:
         case CMD_SELATN:
+            /*
+             * Initial incoming data xfer is complete for sequencer command
+             * so raise deferred bus service and function complete interrupt
+             */
+             s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
+             break;
+
         case CMD_SELATNS | CMD_DMA:
         case CMD_SELATNS:
             /*
@@ -876,7 +877,6 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
              * completion interrupt
              */
              s->rregs[ESP_RINTR] |= INTR_BS;
-             esp_raise_irq(s);
              break;
 
         case CMD_TI | CMD_DMA:
@@ -886,9 +886,10 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
              * DATA phase
              */
             s->rregs[ESP_RINTR] |= INTR_BS;
-            esp_raise_irq(s);
             break;
         }
+
+        esp_raise_irq(s);
     }
 
     /*
