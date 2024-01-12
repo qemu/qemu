@@ -625,14 +625,14 @@ static void do_dma_pdma_cb(ESPState *s)
 
         return;
     } else {
-        if (s->async_len == 0) {
+        if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
             /* Defer until the scsi layer has completed */
             scsi_req_continue(s->current_req);
             s->data_in_ready = false;
             return;
         }
 
-        if (esp_get_tc(s) == 0) {
+        if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
             esp_lower_drq(s);
             esp_dma_done(s);
         }
@@ -1419,9 +1419,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         val = (val << 8) | esp_pdma_read(s);
         break;
     }
-    if (fifo8_num_used(&s->fifo) < 2) {
-        esp_pdma_cb(s);
-    }
+    esp_pdma_cb(s);
     return val;
 }
 
