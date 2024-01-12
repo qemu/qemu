@@ -536,40 +536,58 @@ static void do_dma_pdma_cb(ESPState *s)
 {
     uint8_t buf[ESP_CMDFIFO_SZ];
     int len;
-    uint32_t n;
+    uint32_t n, cmdlen;
+
+    len = esp_get_tc(s);
 
     switch (esp_get_phase(s)) {
     case STAT_MO:
-    case STAT_CD:
-        /* Copy FIFO into cmdfifo */
-        n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-        n = MIN(fifo8_num_free(&s->cmdfifo), n);
-        fifo8_push_all(&s->cmdfifo, buf, n);
-
-        /* Ensure we have received complete command after SATN and stop */
-        if (esp_get_tc(s) || fifo8_is_empty(&s->cmdfifo)) {
-            return;
+        if (s->dma_memory_read) {
+            len = MIN(len, fifo8_num_free(&s->cmdfifo));
+            s->dma_memory_read(s->dma_opaque, buf, len);
+            fifo8_push_all(&s->cmdfifo, buf, len);
+            esp_set_tc(s, esp_get_tc(s) - len);
+            s->cmdfifo_cdb_offset += len;
+        } else {
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+            s->cmdfifo_cdb_offset += n;
         }
 
-        s->ti_size = 0;
-        if (esp_get_phase(s) == STAT_CD) {
-            /* No command received */
-            if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
-                return;
-            }
+        esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+        esp_raise_drq(s);
 
-            /* Command has been received */
-            do_cmd(s);
-        } else {
-            /*
-             * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to command phase
-             */
-            s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
+        /* ATN remains asserted until TC == 0 */
+        if (esp_get_tc(s) == 0) {
             esp_set_phase(s, STAT_CD);
             s->rregs[ESP_RSEQ] = SEQ_CD;
             s->rregs[ESP_RINTR] |= INTR_BS;
             esp_raise_irq(s);
+        }
+        break;
+
+    case STAT_CD:
+        cmdlen = fifo8_num_used(&s->cmdfifo);
+        trace_esp_do_dma(cmdlen, len);
+        if (s->dma_memory_read) {
+            len = MIN(len, fifo8_num_free(&s->cmdfifo));
+            s->dma_memory_read(s->dma_opaque, buf, len);
+            fifo8_push_all(&s->cmdfifo, buf, len);
+            esp_set_tc(s, esp_get_tc(s) - len);
+        } else {
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+
+            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+            esp_raise_drq(s);
+        }
+        trace_esp_handle_ti_cmd(cmdlen);
+        s->ti_size = 0;
+        if (esp_get_tc(s) == 0) {
+            /* Command has been received */
+            do_cmd(s);
         }
         break;
 
