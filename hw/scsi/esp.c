@@ -1207,7 +1207,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         break;
     case ESP_FIFO:
-        if (s->do_cmd) {
+        if (esp_get_phase(s) == STAT_MO || esp_get_phase(s) == STAT_CD) {
             if (!fifo8_is_full(&s->fifo)) {
                 esp_fifo_push(&s->fifo, val);
                 esp_fifo_push(&s->cmdfifo, fifo8_pop(&s->fifo));
