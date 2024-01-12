@@ -656,9 +656,18 @@ static void esp_do_dma(ESPState *s)
             fifo8_push_all(&s->cmdfifo, buf, len);
             esp_set_tc(s, esp_get_tc(s) - len);
         } else {
+            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            n = MIN(fifo8_num_free(&s->cmdfifo), n);
+            fifo8_push_all(&s->cmdfifo, buf, n);
+            esp_set_tc(s, esp_get_tc(s) - n);
+
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
-            return;
+
+            /* Ensure we have received complete command after SATN and stop */
+            if (esp_get_tc(s) || fifo8_is_empty(&s->cmdfifo)) {
+                return;
+            }
         }
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
