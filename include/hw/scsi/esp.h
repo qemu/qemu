@@ -41,7 +41,6 @@ struct ESPState {
     uint32_t do_cmd;
 
     bool data_ready;
-    uint8_t ti_cmd;
     int dma_enabled;
 
     uint32_t async_len;
@@ -62,6 +61,8 @@ struct ESPState {
     uint8_t mig_ti_buf[ESP_FIFO_SZ];
     uint8_t mig_cmdbuf[ESP_CMDFIFO_SZ];
     uint32_t mig_cmdlen;
+
+    uint8_t mig_ti_cmd;
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
