@@ -4,6 +4,7 @@ slow_qtests = {
   'device-introspect-test' : 720,
   'migration-test' : 480,
   'npcm7xx_pwm-test': 300,
+  'npcm7xx_watchdog_timer-test': 120,
   'qom-test' : 900,
   'test-hmp' : 240,
   'pxe-test': 600,
