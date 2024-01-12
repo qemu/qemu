@@ -319,10 +319,7 @@ static void do_command_phase(ESPState *s)
     s->ti_size = datalen;
     fifo8_reset(&s->cmdfifo);
     if (datalen != 0) {
-        s->rregs[ESP_RSTAT] = STAT_TC;
-        s->rregs[ESP_RSEQ] = SEQ_CD;
         s->ti_cmd = 0;
-        esp_set_tc(s, 0);
         if (datalen > 0) {
             /*
              * Switch to DATA IN phase but wait until initial data xfer is
