@@ -823,24 +823,26 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
      * Switch to status phase. For non-DMA transfers from the target the last
      * byte is still in the FIFO
      */
-    esp_set_phase(s, STAT_ST);
-    if (s->ti_size == 0) {
+    s->ti_size = 0;
+
+    switch (s->rregs[ESP_CMD]) {
+    case CMD_SEL | CMD_DMA:
+    case CMD_SEL:
+    case CMD_SELATN | CMD_DMA:
+    case CMD_SELATN:
         /*
-         * Transfer complete: force TC to zero just in case a TI command was
-         * requested for more data than the command returns (Solaris 8 does
-         * this)
-         */
-        esp_set_tc(s, 0);
-        esp_dma_ti_check(s);
-    } else {
-        /*
-         * Transfer truncated: raise INTR_BS to indicate early change of
-         * phase
+         * No data phase for sequencer command so raise deferred bus service
+         * interrupt
          */
         s->rregs[ESP_RINTR] |= INTR_BS;
-        esp_raise_irq(s);
-        s->ti_size = 0;
+        break;
     }
+
+    /* Raise bus service interrupt to indicate change to STATUS phase */
+    esp_set_phase(s, STAT_ST);
+    s->rregs[ESP_RINTR] |= INTR_BS;
+    esp_raise_irq(s);
+    esp_lower_drq(s);
 
     if (s->current_req) {
         scsi_req_unref(s->current_req);
