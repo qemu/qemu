@@ -786,7 +786,6 @@ static void esp_do_dma(ESPState *s)
 
 static void esp_do_nodma(ESPState *s)
 {
-    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_FIFO_SZ];
     uint32_t cmdlen;
     int len, n;
@@ -823,38 +822,55 @@ static void esp_do_nodma(ESPState *s)
         return;
     }
 
-    if (!s->current_req) {
-        return;
-    }
-
-    if (s->async_len == 0) {
-        /* Defer until data is available.  */
-        return;
-    }
-
-    if (to_device) {
+    switch (esp_get_phase(s)) {
+    case STAT_DO:
+        if (!s->current_req) {
+            return;
+        }
+        if (s->async_len == 0) {
+            /* Defer until data is available.  */
+            return;
+        }
         len = MIN(s->async_len, ESP_FIFO_SZ);
         len = MIN(len, fifo8_num_used(&s->fifo));
         esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += len;
         s->async_len -= len;
         s->ti_size += len;
-    } else {
+
+        if (s->async_len == 0) {
+            scsi_req_continue(s->current_req);
+            return;
+        }
+
+        s->rregs[ESP_RINTR] |= INTR_BS;
+        esp_raise_irq(s);
+        break;
+
+    case STAT_DI:
+        if (!s->current_req) {
+            return;
+        }
+        if (s->async_len == 0) {
+            /* Defer until data is available.  */
+            return;
+        }
         if (fifo8_is_empty(&s->fifo)) {
             fifo8_push(&s->fifo, s->async_buf[0]);
             s->async_buf++;
             s->async_len--;
             s->ti_size--;
         }
-    }
 
-    if (s->async_len == 0) {
-        scsi_req_continue(s->current_req);
-        return;
-    }
+        if (s->async_len == 0) {
+            scsi_req_continue(s->current_req);
+            return;
+        }
 
-    s->rregs[ESP_RINTR] |= INTR_BS;
-    esp_raise_irq(s);
+        s->rregs[ESP_RINTR] |= INTR_BS;
+        esp_raise_irq(s);
+        break;
+    }
 }
 
 static void esp_pdma_cb(ESPState *s)
