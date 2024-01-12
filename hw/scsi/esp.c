@@ -252,11 +252,9 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
             fifo8_push_all(&s->cmdfifo, buf, dmalen);
         } else {
             if (esp_select(s) < 0) {
-                fifo8_reset(&s->cmdfifo);
                 return -1;
             }
             esp_raise_drq(s);
-            fifo8_reset(&s->cmdfifo);
             return 0;
         }
     } else {
@@ -271,7 +269,6 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
     trace_esp_get_cmd(dmalen, target);
 
     if (esp_select(s) < 0) {
-        fifo8_reset(&s->cmdfifo);
         return -1;
     }
     return dmalen;
