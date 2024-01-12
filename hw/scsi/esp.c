@@ -1549,14 +1549,6 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo sysbus_esp_info = {
-    .name          = TYPE_SYSBUS_ESP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = sysbus_esp_init,
-    .instance_size = sizeof(SysBusESPState),
-    .class_init    = sysbus_esp_class_init,
-};
-
 static void esp_finalize(Object *obj)
 {
     ESPState *s = ESP(obj);
@@ -1582,19 +1574,22 @@ static void esp_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo esp_info = {
-    .name = TYPE_ESP,
-    .parent = TYPE_DEVICE,
-    .instance_init = esp_init,
-    .instance_finalize = esp_finalize,
-    .instance_size = sizeof(ESPState),
-    .class_init = esp_class_init,
+static const TypeInfo esp_info_types[] = {
+    {
+        .name          = TYPE_SYSBUS_ESP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_init = sysbus_esp_init,
+        .instance_size = sizeof(SysBusESPState),
+        .class_init    = sysbus_esp_class_init,
+    },
+    {
+        .name = TYPE_ESP,
+        .parent = TYPE_DEVICE,
+        .instance_init = esp_init,
+        .instance_finalize = esp_finalize,
+        .instance_size = sizeof(ESPState),
+        .class_init = esp_class_init,
+    },
 };
 
-static void esp_register_types(void)
-{
-    type_register_static(&sysbus_esp_info);
-    type_register_static(&esp_info);
-}
-
-type_init(esp_register_types)
+DEFINE_TYPES(esp_info_types)
