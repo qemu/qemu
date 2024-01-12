@@ -436,17 +436,15 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             len = MIN(len, fifo8_num_free(&s->cmdfifo));
             s->dma_memory_read(s->dma_opaque, buf, len);
-            fifo8_push_all(&s->cmdfifo, buf, len);
             esp_set_tc(s, esp_get_tc(s) - len);
-            s->cmdfifo_cdb_offset += len;
         } else {
-            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-            n = MIN(fifo8_num_free(&s->cmdfifo), n);
-            fifo8_push_all(&s->cmdfifo, buf, n);
-            s->cmdfifo_cdb_offset += n;
+            len = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            len = MIN(fifo8_num_free(&s->cmdfifo), len);
+            esp_raise_drq(s);
         }
 
-        esp_raise_drq(s);
+        fifo8_push_all(&s->cmdfifo, buf, len);
+        s->cmdfifo_cdb_offset += len;
 
         switch (s->rregs[ESP_CMD]) {
         case CMD_SELATN | CMD_DMA:
