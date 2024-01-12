@@ -101,12 +101,12 @@ endf __vdso_flush_icache
 	.cfi_startproc simple
 	.cfi_signal_frame
 
-#define sizeof_reg	(__riscv_xlen / 4)
+#define sizeof_reg	(__riscv_xlen / 8)
 #define sizeof_freg	8
-#define B_GR	(offsetof_uc_mcontext - sizeof_rt_sigframe)
-#define B_FR	(offsetof_uc_mcontext - sizeof_rt_sigframe + offsetof_freg0)
+#define B_GR	0
+#define B_FR	offsetof_freg0
 
-	.cfi_def_cfa	2, sizeof_rt_sigframe
+	.cfi_def_cfa	2, offsetof_uc_mcontext
 
 	/* Return address */
 	.cfi_return_column 64
