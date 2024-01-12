@@ -787,6 +787,16 @@ static void esp_do_nodma(ESPState *s)
             }
             break;
 
+        case CMD_SEL | CMD_DMA:
+        case CMD_SELATN | CMD_DMA:
+            /* Handle when DMA transfer is terminated by non-DMA FIFO write */
+            if (esp_cdb_length(s) && esp_cdb_length(s) ==
+                fifo8_num_used(&s->cmdfifo) - s->cmdfifo_cdb_offset) {
+                    /* Command has been received */
+                    do_cmd(s);
+            }
+            break;
+
         case CMD_SEL:
         case CMD_SELATN:
             /* FIFO already contain entire CDB */
