@@ -261,6 +261,9 @@ static int esp_select(ESPState *s)
     return 0;
 }
 
+static void esp_do_dma(ESPState *s);
+static void esp_do_nodma(ESPState *s);
+
 static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
 {
     uint8_t buf[ESP_CMDFIFO_SZ];
@@ -368,45 +371,26 @@ static void do_cmd(ESPState *s)
     do_command_phase(s);
 }
 
-static void satn_pdma_cb(ESPState *s)
-{
-    uint8_t buf[ESP_FIFO_SZ];
-    int n;
-
-    /* Copy FIFO into cmdfifo */
-    n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-    n = MIN(fifo8_num_free(&s->cmdfifo), n);
-    fifo8_push_all(&s->cmdfifo, buf, n);
-
-    if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
-        s->cmdfifo_cdb_offset = 1;
-        do_cmd(s);
-    }
-}
-
 static void handle_satn(ESPState *s)
 {
-    int32_t cmdlen;
-
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
         return;
     }
-    esp_set_pdma_cb(s, SATN_PDMA_CB);
+    esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
     if (esp_select(s) < 0) {
         return;
     }
-    cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
-    if (cmdlen > 0) {
-        s->cmdfifo_cdb_offset = 1;
-        do_cmd(s);
-    } else if (cmdlen == 0) {
-        if (s->dma) {
-            esp_raise_drq(s);
+
+    esp_set_phase(s, STAT_MO);
+
+    if (s->dma) {
+        esp_do_dma(s);
+    } else {
+        if (get_cmd(s, ESP_CMDFIFO_SZ)) {
+            s->cmdfifo_cdb_offset = 1;
+            do_cmd(s);
         }
-        /* Target present, but no cmd yet - switch to command phase */
-        s->rregs[ESP_RSEQ] = SEQ_CD;
-        esp_set_phase(s, STAT_CD);
     }
 }
 
@@ -558,6 +542,21 @@ static void do_dma_pdma_cb(ESPState *s)
         esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
         esp_raise_drq(s);
 
+        switch (s->rregs[ESP_CMD]) {
+        case CMD_SELATN | CMD_DMA:
+            if (fifo8_num_used(&s->cmdfifo) >= 1) {
+                /* First byte received, switch to command phase */
+                esp_set_phase(s, STAT_CD);
+                s->cmdfifo_cdb_offset = 1;
+
+                if (fifo8_num_used(&s->cmdfifo) > 1) {
+                    /* Process any additional command phase data */
+                    esp_do_dma(s);
+                }
+            }
+            break;
+        }
+
         /* ATN remains asserted until TC == 0 */
         if (esp_get_tc(s) == 0) {
             esp_set_phase(s, STAT_CD);
@@ -662,6 +661,21 @@ static void esp_do_dma(ESPState *s)
 
         esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
         esp_raise_drq(s);
+
+        switch (s->rregs[ESP_CMD]) {
+        case CMD_SELATN | CMD_DMA:
+            if (fifo8_num_used(&s->cmdfifo) >= 1) {
+                /* First byte received, switch to command phase */
+                esp_set_phase(s, STAT_CD);
+                s->cmdfifo_cdb_offset = 1;
+
+                if (fifo8_num_used(&s->cmdfifo) > 1) {
+                    /* Process any additional command phase data */
+                    esp_do_dma(s);
+                }
+            }
+            break;
+        }
 
         /* ATN remains asserted until TC == 0 */
         if (esp_get_tc(s) == 0) {
@@ -890,9 +904,6 @@ static void esp_do_nodma(ESPState *s)
 static void esp_pdma_cb(ESPState *s)
 {
     switch (s->pdma_cb) {
-    case SATN_PDMA_CB:
-        satn_pdma_cb(s);
-        break;
     case SATN_STOP_PDMA_CB:
         satn_stop_pdma_cb(s);
         break;
