@@ -748,7 +748,7 @@ static void esp_do_dma(ESPState *s)
                  * complete the DMA operation immediately.  Otherwise defer
                  * until the scsi layer has completed.
                  */
-                if (esp_get_tc(s) != 0 || s->ti_size == 0) {
+                if (esp_get_tc(s) != 0) {
                     return;
                 }
             }
