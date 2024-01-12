@@ -916,16 +916,13 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
         esp_raise_irq(s);
     }
 
-    if (s->ti_cmd == 0) {
-        /*
-         * Always perform the initial transfer upon reception of the next TI
-         * command to ensure the DMA/non-DMA status of the command is correct.
-         * It is not possible to use s->dma directly in the section below as
-         * some OSs send non-DMA NOP commands after a DMA transfer. Hence if the
-         * async data transfer is delayed then s->dma is set incorrectly.
-         */
-        return;
-    }
+    /*
+     * Always perform the initial transfer upon reception of the next TI
+     * command to ensure the DMA/non-DMA status of the command is correct.
+     * It is not possible to use s->dma directly in the section below as
+     * some OSs send non-DMA NOP commands after a DMA transfer. Hence if the
+     * async data transfer is delayed then s->dma is set incorrectly.
+     */
 
     if (s->ti_cmd == (CMD_TI | CMD_DMA)) {
         if (dmalen) {
