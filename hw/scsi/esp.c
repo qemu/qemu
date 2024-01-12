@@ -542,7 +542,6 @@ static void esp_dma_ti_check(ESPState *s)
 
 static void do_dma_pdma_cb(ESPState *s)
 {
-    int to_device = (esp_get_phase(s) == STAT_DO);
     uint8_t buf[ESP_CMDFIFO_SZ];
     int len;
     uint32_t n;
@@ -582,11 +581,11 @@ static void do_dma_pdma_cb(ESPState *s)
         return;
     }
 
-    if (!s->current_req) {
-        return;
-    }
-
-    if (to_device) {
+    switch (esp_get_phase(s)) {
+    case STAT_DO:
+        if (!s->current_req) {
+            return;
+        }
         /* Copy FIFO data to device */
         len = MIN(s->async_len, ESP_FIFO_SZ);
         len = MIN(len, fifo8_num_used(&s->fifo));
@@ -602,7 +601,12 @@ static void do_dma_pdma_cb(ESPState *s)
         }
 
         esp_dma_ti_check(s);
-    } else {
+        break;
+
+    case STAT_DI:
+        if (!s->current_req) {
+            return;
+        }
         /* Copy device data to FIFO */
         len = MIN(s->async_len, esp_get_tc(s));
         len = MIN(len, fifo8_num_free(&s->fifo));
@@ -620,6 +624,7 @@ static void do_dma_pdma_cb(ESPState *s)
         }
 
         esp_dma_ti_check(s);
+        break;
     }
 }
 
