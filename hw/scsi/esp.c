@@ -611,11 +611,6 @@ static void do_dma_pdma_cb(ESPState *s)
             s->async_len -= len;
             s->ti_size -= len;
             esp_set_tc(s, esp_get_tc(s) - len);
-
-            if (esp_get_tc(s) == 0) {
-                /* Indicate transfer to FIFO is complete */
-                 s->rregs[ESP_RSTAT] |= STAT_TC;
-            }
             return;
         }
 
@@ -720,9 +715,6 @@ static void esp_do_dma(ESPState *s)
             esp_set_tc(s, esp_get_tc(s) - len);
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
-
-            /* Indicate transfer to FIFO is complete */
-            s->rregs[ESP_RSTAT] |= STAT_TC;
             return;
         }
     }
@@ -870,7 +862,8 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
      * transfers from the target the last byte is still in the FIFO
      */
     if (s->ti_size == 0) {
-        s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
+        s->rregs[ESP_RSTAT] &= ~7;
+        s->rregs[ESP_RSTAT] |= STAT_ST;
         esp_dma_done(s);
         esp_lower_drq(s);
     }
