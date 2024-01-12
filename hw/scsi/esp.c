@@ -223,11 +223,6 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     esp_set_tc(s, dmalen);
 }
 
-static void esp_set_pdma_cb(ESPState *s, enum pdma_cb cb)
-{
-    s->pdma_cb = cb;
-}
-
 static int esp_select(ESPState *s)
 {
     int target;
@@ -377,7 +372,7 @@ static void handle_satn(ESPState *s)
         s->dma_cb = handle_satn;
         return;
     }
-    esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+
     if (esp_select(s) < 0) {
         return;
     }
@@ -400,7 +395,7 @@ static void handle_s_without_atn(ESPState *s)
         s->dma_cb = handle_s_without_atn;
         return;
     }
-    esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+
     if (esp_select(s) < 0) {
         return;
     }
@@ -424,7 +419,7 @@ static void handle_satn_stop(ESPState *s)
         s->dma_cb = handle_satn_stop;
         return;
     }
-    esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
+
     if (esp_select(s) < 0) {
         return;
     }
@@ -497,7 +492,6 @@ static void esp_do_dma(ESPState *s)
             s->cmdfifo_cdb_offset += n;
         }
 
-        esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
         esp_raise_drq(s);
 
         switch (s->rregs[ESP_CMD]) {
@@ -551,7 +545,6 @@ static void esp_do_dma(ESPState *s)
             n = MIN(fifo8_num_free(&s->cmdfifo), n);
             fifo8_push_all(&s->cmdfifo, buf, n);
 
-            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
         }
         trace_esp_handle_ti_cmd(cmdlen);
@@ -597,7 +590,6 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= n;
             s->ti_size += n;
 
-            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
 
             if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
@@ -644,7 +636,6 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= len;
             s->ti_size -= len;
             esp_set_tc(s, esp_get_tc(s) - len);
-            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
 
             if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
@@ -803,11 +794,6 @@ static void esp_do_nodma(ESPState *s)
         esp_raise_irq(s);
         break;
     }
-}
-
-static void esp_pdma_cb(ESPState *s)
-{
-    esp_do_dma(s);
 }
 
 void esp_command_complete(SCSIRequest *req, size_t resid)
@@ -1229,33 +1215,6 @@ static int esp_post_load(void *opaque, int version_id)
     return 0;
 }
 
-/*
- * PDMA (or pseudo-DMA) is only used on the Macintosh and requires the
- * guest CPU to perform the transfers between the SCSI bus and memory
- * itself. This is indicated by the dma_memory_read and dma_memory_write
- * functions being NULL (in contrast to the ESP PCI device) whilst
- * dma_enabled is still set.
- */
-
-static bool esp_pdma_needed(void *opaque)
-{
-    ESPState *s = ESP(opaque);
-
-    return s->dma_memory_read == NULL && s->dma_memory_write == NULL &&
-           s->dma_enabled;
-}
-
-static const VMStateDescription vmstate_esp_pdma = {
-    .name = "esp/pdma",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .needed = esp_pdma_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(pdma_cb, ESPState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 const VMStateDescription vmstate_esp = {
     .name = "esp",
     .version_id = 6,
@@ -1290,10 +1249,6 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_esp_pdma,
-        NULL
-    }
 };
 
 static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
@@ -1342,7 +1297,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         esp_pdma_write(s, val);
         break;
     }
-    esp_pdma_cb(s);
+    esp_do_dma(s);
 }
 
 static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
@@ -1363,7 +1318,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         val = (val << 8) | esp_pdma_read(s);
         break;
     }
-    esp_pdma_cb(s);
+    esp_do_dma(s);
     return val;
 }
 
