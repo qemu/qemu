@@ -165,6 +165,7 @@ static gboolean net_stream_send(QIOChannel *ioc,
             s->ioc_write_tag = 0;
         }
         if (s->listener) {
+            qemu_set_info_str(&s->nc, "listening");
             qio_net_listener_set_client_func(s->listener, net_stream_listen,
                                              s, NULL);
         }
@@ -173,7 +174,6 @@ static gboolean net_stream_send(QIOChannel *ioc,
 
         net_socket_rs_init(&s->rs, net_stream_rs_finalize, false);
         s->nc.link_down = true;
-        qemu_set_info_str(&s->nc, "%s", "");
 
         qapi_event_send_netdev_stream_disconnected(s->nc.name);
         net_stream_arm_reconnect(s);
@@ -272,9 +272,11 @@ static void net_stream_server_listening(QIOTask *task, gpointer opaque)
     QIOChannelSocket *listen_sioc = QIO_CHANNEL_SOCKET(s->listen_ioc);
     SocketAddress *addr;
     int ret;
+    Error *err = NULL;
 
-    if (listen_sioc->fd < 0) {
-        qemu_set_info_str(&s->nc, "connection error");
+    if (qio_task_propagate_error(task, &err)) {
+        qemu_set_info_str(&s->nc, "error: %s", error_get_pretty(err));
+        error_free(err);
         return;
     }
 
@@ -292,6 +294,7 @@ static void net_stream_server_listening(QIOTask *task, gpointer opaque)
     s->nc.link_down = true;
     s->listener = qio_net_listener_new();
 
+    qemu_set_info_str(&s->nc, "listening");
     net_socket_rs_init(&s->rs, net_stream_rs_finalize, false);
     qio_net_listener_set_client_func(s->listener, net_stream_listen, s, NULL);
     qio_net_listener_add(s->listener, listen_sioc);
@@ -309,6 +312,7 @@ static int net_stream_server_init(NetClientState *peer,
 
     nc = qemu_new_net_client(&net_stream_info, peer, model, name);
     s = DO_UPCAST(NetStreamState, nc, nc);
+    qemu_set_info_str(&s->nc, "initializing");
 
     s->listen_ioc = QIO_CHANNEL(listen_sioc);
     qio_channel_socket_listen_async(listen_sioc, addr, 0,
@@ -325,9 +329,11 @@ static void net_stream_client_connected(QIOTask *task, gpointer opaque)
     SocketAddress *addr;
     gchar *uri;
     int ret;
+    Error *err = NULL;
 
-    if (sioc->fd < 0) {
-        qemu_set_info_str(&s->nc, "connection error");
+    if (qio_task_propagate_error(task, &err)) {
+        qemu_set_info_str(&s->nc, "error: %s", error_get_pretty(err));
+        error_free(err);
         goto error;
     }
 
@@ -382,6 +388,7 @@ static gboolean net_stream_reconnect(gpointer data)
 static void net_stream_arm_reconnect(NetStreamState *s)
 {
     if (s->reconnect && s->timer_tag == 0) {
+        qemu_set_info_str(&s->nc, "connecting");
         s->timer_tag = g_timeout_add_seconds(s->reconnect,
                                              net_stream_reconnect, s);
     }
@@ -400,6 +407,7 @@ static int net_stream_client_init(NetClientState *peer,
 
     nc = qemu_new_net_client(&net_stream_info, peer, model, name);
     s = DO_UPCAST(NetStreamState, nc, nc);
+    qemu_set_info_str(&s->nc, "connecting");
 
     s->ioc = QIO_CHANNEL(sioc);
     s->nc.link_down = true;

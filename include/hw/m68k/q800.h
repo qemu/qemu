@@ -55,6 +55,7 @@ struct Q800MachineState {
     MOS6522Q800VIA1State via1;
     MOS6522Q800VIA2State via2;
     dp8393xState dp8393x;
+    MemoryRegion dp8393x_prom;
     ESCCState escc;
     OrIRQState escc_orgate;
     SysBusESPState esp;

@@ -16,33 +16,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
 
-#define CONNECTION_TIMEOUT    120
-
-static double connection_timeout(void)
-{
-    double load;
-    int ret = getloadavg(&load, 1);
-
-    /*
-     * If we can't get load data, or load is low because we just started
-     * running, assume load of 1 (we are alone in this system).
-     */
-    if (ret < 1 || load < 1.0) {
-        load = 1.0;
-    }
-    /*
-     * No one wants to wait more than 10 minutes for this test. Higher load?
-     * Too bad.
-     */
-    if (load > 10.0) {
-        fprintf(stderr, "Warning: load %f higher than 10 - test might timeout\n",
-                load);
-        load = 10.0;
-    }
-
-    /* if load is high increase timeout as we might not get a chance to run */
-    return load * CONNECTION_TIMEOUT;
-}
+#define CONNECTION_TIMEOUT    60
 
 #define EXPECT_STATE(q, e, t)                             \
 do {                                                      \
@@ -57,7 +31,7 @@ do {                                                      \
         if (g_str_equal(resp, e)) {                       \
             break;                                        \
         }                                                 \
-    } while (g_test_timer_elapsed() < connection_timeout()); \
+    } while (g_test_timer_elapsed() < CONNECTION_TIMEOUT); \
     g_assert_cmpstr(resp, ==, e);                         \
     g_free(resp);                                         \
 } while (0)
@@ -153,7 +127,7 @@ static void test_stream_inet_ipv4(void)
                        "addr.ipv4=on,addr.ipv6=off,"
                        "addr.host=127.0.0.1,addr.port=%d", port);
 
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,\r\n", 0);
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,server=false,id=st0,addr.type=inet,"
@@ -226,7 +200,7 @@ static void test_stream_unix_reconnect(void)
                        "-netdev stream,id=st0,server=true,addr.type=unix,"
                        "addr.path=%s", path);
 
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,\r\n", 0);
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,server=false,id=st0,addr.type=unix,"
@@ -276,7 +250,7 @@ static void test_stream_inet_ipv6(void)
                        "addr.ipv4=off,addr.ipv6=on,"
                        "addr.host=::1,addr.port=%d", port);
 
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,\r\n", 0);
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,server=false,id=st0,addr.type=inet,"
@@ -308,7 +282,7 @@ static void test_stream_unix(void)
                        "addr.type=unix,addr.path=%s,",
                        path);
 
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,\r\n", 0);
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,id=st0,server=false,"
@@ -340,7 +314,7 @@ static void test_stream_unix_abstract(void)
                        "addr.abstract=on",
                        path);
 
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,\r\n", 0);
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,id=st0,server=false,"
@@ -552,7 +526,7 @@ int main(int argc, char **argv)
 #ifndef _WIN32
         qtest_add_func("/netdev/dgram/unix", test_dgram_unix);
 #endif
-        qtest_add_func("/netdev/stream/unix", test_stream_unix);
+        qtest_add_func("/netdev/stream/unix/oneshot", test_stream_unix);
         qtest_add_func("/netdev/stream/unix/reconnect",
                        test_stream_unix_reconnect);
 #ifdef CONFIG_LINUX

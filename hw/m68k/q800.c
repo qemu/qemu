@@ -253,7 +253,6 @@ static void q800_machine_init(MachineState *machine)
     int bios_size;
     ram_addr_t initrd_base;
     int32_t initrd_size;
-    MemoryRegion *dp8393x_prom = g_new(MemoryRegion, 1);
     uint8_t *prom;
     int i, checksum;
     MacFbMode *macfb_mode;
@@ -406,13 +405,13 @@ static void q800_machine_init(MachineState *machine)
     sysbus_connect_irq(sysbus, 0,
                        qdev_get_gpio_in(DEVICE(&m->glue), GLUE_IRQ_IN_SONIC));
 
-    memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-q800.prom",
+    memory_region_init_rom(&m->dp8393x_prom, NULL, "dp8393x-q800.prom",
                            SONIC_PROM_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), SONIC_PROM_BASE,
-                                dp8393x_prom);
+                                &m->dp8393x_prom);
 
     /* Add MAC address with valid checksum to PROM */
-    prom = memory_region_get_ram_ptr(dp8393x_prom);
+    prom = memory_region_get_ram_ptr(&m->dp8393x_prom);
     checksum = 0;
     for (i = 0; i < 6; i++) {
         prom[i] = revbit8(nd_table[0].macaddr.a[i]);

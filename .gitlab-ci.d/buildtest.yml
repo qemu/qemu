@@ -184,7 +184,7 @@ avocado-system-centos:
   variables:
     IMAGE: centos8
     MAKE_CHECK_ARGS: check-avocado
-    AVOCADO_TAGS: arch:ppc64 arch:or1k arch:390x arch:x86_64 arch:rx
+    AVOCADO_TAGS: arch:ppc64 arch:or1k arch:s390x arch:x86_64 arch:rx
       arch:sh4 arch:nios2
 
 build-system-opensuse:
@@ -647,7 +647,10 @@ pages:
     - mkdir -p public
     # HTML-ised source tree
     - make gtags
-    - htags -anT --tree-view=filetree -m qemu_init
+    # We unset variables to work around a bug in some htags versions
+    # which causes it to fail when the environment is large
+    - CI_COMMIT_MESSAGE= CI_COMMIT_TAG_MESSAGE= htags
+        -anT --tree-view=filetree -m qemu_init
         -t "Welcome to the QEMU sourcecode"
     - mv HTML public/src
     # Project documentation

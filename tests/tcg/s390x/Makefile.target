@@ -44,6 +44,7 @@ TESTS+=clgebr
 TESTS+=clc
 TESTS+=laalg
 TESTS+=add-logical-with-carry
+TESTS+=lae
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread

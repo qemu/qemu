@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     if (qtest_has_device("virtio-rng-ccw")) {
         qtest_add_func("/virtio/rng/nop", virtio_rng_nop);
     }
-    if (qtest_has_device("virtio-rng-ccw")) {
+    if (qtest_has_device("virtio-scsi-ccw")) {
         qtest_add_func("/virtio/scsi/nop", virtio_scsi_nop);
         qtest_add_func("/virtio/scsi/hotplug", virtio_scsi_hotplug);
     }
