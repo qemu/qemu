@@ -1067,17 +1067,6 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
-            if (esp_get_phase(s) == STAT_DI) {
-                if (s->ti_size) {
-                    esp_do_nodma(s);
-                } else {
-                    /*
-                     * The last byte of a non-DMA transfer has been read out
-                     * of the FIFO so switch to status phase
-                     */
-                    esp_set_phase(s, STAT_ST);
-                }
-            }
             s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         }
         val = s->rregs[ESP_FIFO];
