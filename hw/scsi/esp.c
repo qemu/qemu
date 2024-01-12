@@ -1133,14 +1133,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 
     switch (saddr) {
     case ESP_FIFO:
-        if (s->dma_memory_read && s->dma_memory_write &&
-                (s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
-            /* Data out.  */
-            qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
-            s->rregs[ESP_FIFO] = 0;
-        } else {
-            s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
-        }
+        s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         val = s->rregs[ESP_FIFO];
         break;
     case ESP_RINTR:
