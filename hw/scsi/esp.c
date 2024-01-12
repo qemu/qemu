@@ -862,13 +862,33 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
     s->async_buf = scsi_req_get_buf(req);
 
     if (!to_device && !s->data_ready) {
-        /*
-         * Initial incoming data xfer is complete so raise command
-         * completion interrupt
-         */
         s->data_ready = true;
-        s->rregs[ESP_RINTR] |= INTR_BS;
-        esp_raise_irq(s);
+
+        switch (s->rregs[ESP_CMD]) {
+        case CMD_SEL | CMD_DMA:
+        case CMD_SEL:
+        case CMD_SELATN | CMD_DMA:
+        case CMD_SELATN:
+        case CMD_SELATNS | CMD_DMA:
+        case CMD_SELATNS:
+            /*
+             * Initial incoming data xfer is complete so raise command
+             * completion interrupt
+             */
+             s->rregs[ESP_RINTR] |= INTR_BS;
+             esp_raise_irq(s);
+             break;
+
+        case CMD_TI | CMD_DMA:
+        case CMD_TI:
+            /*
+             * Bus service interrupt raised because of initial change to
+             * DATA phase
+             */
+            s->rregs[ESP_RINTR] |= INTR_BS;
+            esp_raise_irq(s);
+            break;
+        }
     }
 
     /*
