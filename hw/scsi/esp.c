@@ -427,7 +427,6 @@ static void esp_do_dma(ESPState *s)
 {
     uint32_t len, cmdlen;
     uint8_t buf[ESP_CMDFIFO_SZ];
-    int n;
 
     len = esp_get_tc(s);
 
@@ -494,10 +493,9 @@ static void esp_do_dma(ESPState *s)
             fifo8_push_all(&s->cmdfifo, buf, len);
             esp_set_tc(s, esp_get_tc(s) - len);
         } else {
-            n = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
-            n = MIN(fifo8_num_free(&s->cmdfifo), n);
-            fifo8_push_all(&s->cmdfifo, buf, n);
-
+            len = esp_fifo_pop_buf(&s->fifo, buf, fifo8_num_used(&s->fifo));
+            len = MIN(fifo8_num_free(&s->cmdfifo), len);
+            fifo8_push_all(&s->cmdfifo, buf, len);
             esp_raise_drq(s);
         }
         trace_esp_handle_ti_cmd(cmdlen);
