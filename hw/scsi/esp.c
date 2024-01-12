@@ -593,12 +593,11 @@ static void esp_do_dma(ESPState *s)
 
                 if (s->dma_memory_write) {
                     s->dma_memory_write(s->dma_opaque, buf, len);
-                    esp_set_tc(s, esp_get_tc(s) - len);
                 } else {
                     fifo8_push_all(&s->fifo, buf, len);
-                    esp_set_tc(s, esp_get_tc(s) - len);
                 }
 
+                esp_set_tc(s, esp_get_tc(s) - len);
                 esp_set_phase(s, STAT_MI);
 
                 if (esp_get_tc(s) > 0) {
@@ -629,11 +628,11 @@ static void esp_do_dma(ESPState *s)
 
                 if (s->dma_memory_write) {
                     s->dma_memory_write(s->dma_opaque, buf, len);
-                    esp_set_tc(s, esp_get_tc(s) - len);
                 } else {
                     fifo8_push_all(&s->fifo, buf, len);
-                    esp_set_tc(s, esp_get_tc(s) - len);
                 }
+
+                esp_set_tc(s, esp_get_tc(s) - len);
 
                 /* Raise end of command interrupt */
                 s->rregs[ESP_RINTR] |= INTR_FC;
