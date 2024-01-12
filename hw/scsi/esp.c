@@ -579,6 +579,12 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= len;
             s->ti_size -= len;
 
+            if (s->async_len == 0 && s->ti_size == 0 && esp_get_tc(s)) {
+                /* If the guest underflows TC then terminate SCSI request */
+                scsi_req_continue(s->current_req);
+                return;
+            }
+
             if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
                 /* Defer until the scsi layer has completed */
                 scsi_req_continue(s->current_req);
@@ -595,6 +601,12 @@ static void esp_do_dma(ESPState *s)
             s->ti_size -= len;
             esp_set_tc(s, esp_get_tc(s) - len);
             esp_raise_drq(s);
+
+            if (s->async_len == 0 && s->ti_size == 0 && esp_get_tc(s)) {
+                /* If the guest underflows TC then terminate SCSI request */
+                scsi_req_continue(s->current_req);
+                return;
+            }
 
             if (s->async_len == 0 && fifo8_num_used(&s->fifo) < 2) {
                 /* Defer until the scsi layer has completed */
@@ -628,6 +640,15 @@ static void esp_do_dma(ESPState *s)
                     /* Process any message in phase data */
                     esp_do_dma(s);
                 }
+            }
+            break;
+
+        default:
+            /* Consume remaining data if the guest underflows TC */
+            if (fifo8_num_used(&s->fifo) < 2) {
+                s->rregs[ESP_RINTR] |= INTR_BS;
+                esp_raise_irq(s);
+                esp_lower_drq(s);
             }
             break;
         }
@@ -884,7 +905,9 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
     esp_set_phase(s, STAT_ST);
     s->rregs[ESP_RINTR] |= INTR_BS;
     esp_raise_irq(s);
-    esp_lower_drq(s);
+
+    /* Ensure DRQ is set correctly for TC underflow or normal completion */
+    esp_dma_ti_check(s);
 
     if (s->current_req) {
         scsi_req_unref(s->current_req);
