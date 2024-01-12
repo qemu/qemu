@@ -62,14 +62,20 @@ static void esp_lower_irq(ESPState *s)
 
 static void esp_raise_drq(ESPState *s)
 {
-    qemu_irq_raise(s->drq_irq);
-    trace_esp_raise_drq();
+    if (!(s->drq_state)) {
+        qemu_irq_raise(s->drq_irq);
+        trace_esp_raise_drq();
+        s->drq_state = true;
+    }
 }
 
 static void esp_lower_drq(ESPState *s)
 {
-    qemu_irq_lower(s->drq_irq);
-    trace_esp_lower_drq();
+    if (s->drq_state) {
+        qemu_irq_lower(s->drq_irq);
+        trace_esp_lower_drq();
+        s->drq_state = false;
+    }
 }
 
 void esp_dma_enable(ESPState *s, int irq, int level)
@@ -1358,6 +1364,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT8_TEST(mig_ti_cmd, ESPState,
                            esp_is_between_version_5_and_6),
         VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
+        VMSTATE_BOOL(drq_state, ESPState),
         VMSTATE_END_OF_LIST()
     },
 };
