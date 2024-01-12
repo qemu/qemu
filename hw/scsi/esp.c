@@ -220,7 +220,6 @@ static int esp_select(ESPState *s)
     target = s->wregs[ESP_WBUSID] & BUSID_DID;
 
     s->ti_size = 0;
-    fifo8_reset(&s->fifo);
 
     if (s->current_req) {
         /* Started a new command before the old one finished. Cancel it. */
