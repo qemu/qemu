@@ -259,6 +259,7 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
             dmalen = MIN(fifo8_num_free(&s->cmdfifo), dmalen);
             fifo8_push_all(&s->cmdfifo, buf, dmalen);
+            esp_set_tc(s, esp_get_tc(s) - dmalen);
         } else {
             return 0;
         }
@@ -657,6 +658,7 @@ static void esp_do_dma(ESPState *s)
             len = MIN(len, fifo8_num_free(&s->cmdfifo));
             s->dma_memory_read(s->dma_opaque, buf, len);
             fifo8_push_all(&s->cmdfifo, buf, len);
+            esp_set_tc(s, esp_get_tc(s) - len);
         } else {
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
