@@ -635,11 +635,10 @@ static void esp_do_dma(ESPState *s)
     int n;
 
     len = esp_get_tc(s);
-    if (s->do_cmd) {
-        /*
-         * handle_ti_cmd() case: esp_do_dma() is called only from
-         * handle_ti_cmd() with do_cmd != NULL (see the assert())
-         */
+
+    switch (esp_get_phase(s)) {
+    case STAT_MO:
+    case STAT_CD:
         cmdlen = fifo8_num_used(&s->cmdfifo);
         trace_esp_do_dma(cmdlen, len);
         if (s->dma_memory_read) {
@@ -683,10 +682,8 @@ static void esp_do_dma(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS;
             esp_raise_irq(s);
         }
-        return;
-    }
+        break;
 
-    switch (esp_get_phase(s)) {
     case STAT_DO:
         if (!s->current_req) {
             return;
