@@ -743,19 +743,13 @@ static void esp_do_dma(ESPState *s)
 
             if (s->async_len == 0) {
                 scsi_req_continue(s->current_req);
-                /*
-                 * If there is still data to be read from the device then
-                 * complete the DMA operation immediately.  Otherwise defer
-                 * until the scsi layer has completed.
-                 */
-                if (esp_get_tc(s) != 0) {
-                    return;
-                }
             }
 
-            /* Partially filled a scsi buffer. Complete immediately.  */
-            esp_dma_done(s);
-            esp_lower_drq(s);
+            if (esp_get_tc(s) == 0) {
+                /* Partially filled a scsi buffer. Complete immediately.  */
+                esp_dma_done(s);
+                esp_lower_drq(s);
+            }
         } else {
             /* Adjust TC for any leftover data in the FIFO */
             if (!fifo8_is_empty(&s->fifo)) {
