@@ -772,18 +772,6 @@ static void esp_do_dma(ESPState *s)
             s->async_buf += len;
             s->async_len -= len;
             s->ti_size -= len;
-
-            /*
-             * MacOS toolbox uses a TI length of 16 bytes for all commands, so
-             * commands shorter than this must be padded accordingly
-             */
-            if (len < esp_get_tc(s) && esp_get_tc(s) <= ESP_FIFO_SZ) {
-                while (fifo8_num_used(&s->fifo) < ESP_FIFO_SZ) {
-                    esp_fifo_push(&s->fifo, 0);
-                    len++;
-                }
-            }
-
             esp_set_tc(s, esp_get_tc(s) - len);
             esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
