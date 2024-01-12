@@ -257,40 +257,6 @@ static int esp_select(ESPState *s)
 static void esp_do_dma(ESPState *s);
 static void esp_do_nodma(ESPState *s);
 
-static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
-{
-    uint8_t buf[ESP_CMDFIFO_SZ];
-    uint32_t dmalen, n;
-    int target;
-
-    target = s->wregs[ESP_WBUSID] & BUSID_DID;
-    if (s->dma) {
-        dmalen = MIN(esp_get_tc(s), maxlen);
-        if (dmalen == 0) {
-            return 0;
-        }
-        if (s->dma_memory_read) {
-            s->dma_memory_read(s->dma_opaque, buf, dmalen);
-            dmalen = MIN(fifo8_num_free(&s->cmdfifo), dmalen);
-            fifo8_push_all(&s->cmdfifo, buf, dmalen);
-            esp_set_tc(s, esp_get_tc(s) - dmalen);
-        } else {
-            return 0;
-        }
-    } else {
-        dmalen = MIN(fifo8_num_used(&s->fifo), maxlen);
-        if (dmalen == 0) {
-            return 0;
-        }
-        n = esp_fifo_pop_buf(&s->fifo, buf, dmalen);
-        n = MIN(fifo8_num_free(&s->cmdfifo), n);
-        fifo8_push_all(&s->cmdfifo, buf, n);
-    }
-    trace_esp_get_cmd(dmalen, target);
-
-    return dmalen;
-}
-
 static void do_command_phase(ESPState *s)
 {
     uint32_t cmdlen;
@@ -376,10 +342,7 @@ static void handle_satn(ESPState *s)
     if (s->dma) {
         esp_do_dma(s);
     } else {
-        if (get_cmd(s, ESP_CMDFIFO_SZ)) {
-            s->cmdfifo_cdb_offset = 1;
-            do_cmd(s);
-        }
+        esp_do_nodma(s);
     }
 }
 
@@ -401,9 +364,7 @@ static void handle_s_without_atn(ESPState *s)
     if (s->dma) {
         esp_do_dma(s);
     } else {
-        if (get_cmd(s, ESP_CMDFIFO_SZ)) {
-            do_cmd(s);
-        }
+        esp_do_nodma(s);
     }
 }
 
@@ -425,14 +386,7 @@ static void handle_satn_stop(ESPState *s)
     if (s->dma) {
         esp_do_dma(s);
     } else {
-        if (get_cmd(s, 1)) {
-            trace_esp_handle_satn_stop(fifo8_num_used(&s->cmdfifo));
-
-            /* Raise command completion interrupt */
-            s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-            s->rregs[ESP_RSEQ] = SEQ_MO;
-            esp_raise_irq(s);
-        }
+        esp_do_nodma(s);
     }
 }
 
@@ -770,7 +724,7 @@ static void esp_do_nodma(ESPState *s)
             break;
 
         case CMD_SELATNS:
-            if (fifo8_num_used(&s->cmdfifo) == 1) {
+            if (fifo8_num_used(&s->cmdfifo) >= 1) {
                 /* First byte received, stop in message out phase */
                 s->cmdfifo_cdb_offset = 1;
 
