@@ -219,6 +219,10 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
         new_cr4 &= ~CR4_PKS_MASK;
     }
 
+    if (!(env->features[FEAT_7_1_EAX] & CPUID_7_1_EAX_LAM)) {
+        new_cr4 &= ~CR4_LAM_SUP_MASK;
+    }
+
     env->cr[4] = new_cr4;
     env->hflags = hflags;
 
