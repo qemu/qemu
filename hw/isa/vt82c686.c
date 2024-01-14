@@ -15,6 +15,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/vt82c686.h"
+#include "hw/block/fdc.h"
+#include "hw/char/parallel-isa.h"
+#include "hw/char/serial.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/ide/pci.h"
@@ -323,6 +326,17 @@ static uint64_t via_superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
+static void via_superio_devices_enable(ViaSuperIOState *s, uint8_t data)
+{
+    ISASuperIOClass *ic = ISA_SUPERIO_GET_CLASS(s);
+
+    isa_parallel_set_enabled(s->superio.parallel[0], (data & 0x3) != 3);
+    for (int i = 0; i < ic->serial.count; i++) {
+        isa_serial_set_enabled(s->superio.serial[i], data & BIT(i + 2));
+    }
+    isa_fdc_set_enabled(s->superio.floppy, data & BIT(4));
+}
+
 static void via_superio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -368,7 +382,25 @@ static void vt82c686b_superio_cfg_write(void *opaque, hwaddr addr,
     case 0xfd ... 0xff:
         /* ignore write to read only registers */
         return;
-    /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
+    case 0xe2:
+        data &= 0x1f;
+        via_superio_devices_enable(sc, data);
+        break;
+    case 0xe3:
+        data &= 0xfc;
+        isa_fdc_set_iobase(sc->superio.floppy, data << 2);
+        break;
+    case 0xe6:
+        isa_parallel_set_iobase(sc->superio.parallel[0], data << 2);
+        break;
+    case 0xe7:
+        data &= 0xfe;
+        isa_serial_set_iobase(sc->superio.serial[0], data << 2);
+        break;
+    case 0xe8:
+        data &= 0xfe;
+        isa_serial_set_iobase(sc->superio.serial[1], data << 2);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "via_superio_cfg: unimplemented register 0x%x\n", idx);
@@ -395,9 +427,14 @@ static void vt82c686b_superio_reset(DeviceState *dev)
     /* Device ID */
     vt82c686b_superio_cfg_write(s, 0, 0xe0, 1);
     vt82c686b_superio_cfg_write(s, 1, 0x3c, 1);
-    /* Function select - all disabled */
+    /*
+     * Function select - only serial enabled
+     * Fuloong 2e's rescue-yl prints to the serial console w/o enabling it. This
+     * suggests that the serial ports are enabled by default, so override the
+     * datasheet.
+     */
     vt82c686b_superio_cfg_write(s, 0, 0xe2, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0x03, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0x0f, 1);
     /* Floppy ctrl base addr 0x3f0-7 */
     vt82c686b_superio_cfg_write(s, 0, 0xe3, 1);
     vt82c686b_superio_cfg_write(s, 1, 0xfc, 1);
@@ -465,6 +502,21 @@ static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
     case 0xfd:
         /* ignore write to read only registers */
         return;
+    case 0xf2:
+        data &= 0x17;
+        via_superio_devices_enable(sc, data);
+        break;
+    case 0xf4:
+        data &= 0xfe;
+        isa_serial_set_iobase(sc->superio.serial[0], data << 2);
+        break;
+    case 0xf6:
+        isa_parallel_set_iobase(sc->superio.parallel[0], data << 2);
+        break;
+    case 0xf7:
+        data &= 0xfc;
+        isa_fdc_set_iobase(sc->superio.floppy, data << 2);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "via_superio_cfg: unimplemented register 0x%x\n", idx);
@@ -513,12 +565,6 @@ static void vt8231_superio_init(Object *obj)
     VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
 }
 
-static uint16_t vt8231_superio_serial_iobase(ISASuperIODevice *sio,
-                                             uint8_t index)
-{
-        return 0x2f8; /* FIXME: This should be settable via registers f2-f4 */
-}
-
 static void vt8231_superio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -526,7 +572,6 @@ static void vt8231_superio_class_init(ObjectClass *klass, void *data)
 
     dc->reset = vt8231_superio_reset;
     sc->serial.count = 1;
-    sc->serial.get_iobase = vt8231_superio_serial_iobase;
     sc->parallel.count = 1;
     sc->ide.count = 0; /* emulated by via-ide */
     sc->floppy.count = 1;
