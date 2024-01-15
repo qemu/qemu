@@ -52,6 +52,34 @@ DEF_REGMAP(R_8,   8,  0, 1, 2, 3, 4, 5, 6, 7)
 #define DECODE_MAPPED_REG(OPNUM, NAME) \
     insn->regno[OPNUM] = DECODE_REGISTER_##NAME[insn->regno[OPNUM]];
 
+/* Helper functions for decode_*_generated.c.inc */
+#define DECODE_MAPPED(NAME) \
+static int decode_mapped_reg_##NAME(DisasContext *ctx, int x) \
+{ \
+    return DECODE_REGISTER_##NAME[x]; \
+}
+DECODE_MAPPED(R_16)
+DECODE_MAPPED(R_8)
+
+/* Helper function for decodetree_trans_funcs_generated.c.inc */
+static int shift_left(DisasContext *ctx, int x, int n, int immno)
+{
+    int ret = x;
+    Insn *insn = ctx->insn;
+    if (!insn->extension_valid ||
+        insn->which_extended != immno) {
+        ret <<= n;
+    }
+    return ret;
+}
+
+/* Include the generated decoder for 32 bit insn */
+#include "decode_normal_generated.c.inc"
+#include "decode_hvx_generated.c.inc"
+
+/* Include the generated helpers for the decoder */
+#include "decodetree_trans_funcs_generated.c.inc"
+
 typedef struct {
     const struct DectreeTable *table_link;
     const struct DectreeTable *table_link_b;
@@ -550,7 +578,8 @@ apply_extender(Packet *pkt, int i, uint32_t extender)
     int immed_num;
     uint32_t base_immed;
 
-    immed_num = opcode_which_immediate_is_extended(pkt->insn[i].opcode);
+    immed_num = pkt->insn[i].which_extended;
+    g_assert(immed_num == opcode_which_immediate_is_extended(pkt->insn[i].opcode));
     base_immed = pkt->insn[i].immed[immed_num];
 
     pkt->insn[i].immed[immed_num] = extender | fZXTN(6, 32, base_immed);
@@ -762,12 +791,19 @@ decode_insns_tablewalk(Insn *insn, const DectreeTable *table,
 }
 
 static unsigned int
-decode_insns(Insn *insn, uint32_t encoding)
+decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 {
     const DectreeTable *table;
     if (parse_bits(encoding) != 0) {
+        if (decode_normal(ctx, encoding) ||
+            decode_hvx(ctx, encoding)) {
+            insn->generate = opcode_genptr[insn->opcode];
+            insn->iclass = iclass_bits(encoding);
+            return 1;
+        }
         /* Start with PP table - 32 bit instructions */
         table = &dectree_table_DECODE_ROOT_32;
+        g_assert_not_reached();
     } else {
         /* start with EE table - duplex instructions */
         table = &dectree_table_DECODE_ROOT_EE;
@@ -916,8 +952,8 @@ decode_set_slot_number(Packet *pkt)
  * or number of words used on success
  */
 
-int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
-                  bool disas_only)
+int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
+                  Packet *pkt, bool disas_only)
 {
     int num_insns = 0;
     int words_read = 0;
@@ -930,9 +966,11 @@ int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
     memset(pkt, 0, sizeof(*pkt));
     /* Try to build packet */
     while (!end_of_packet && (words_read < max_words)) {
+        Insn *insn = &pkt->insn[num_insns];
+        ctx->insn = insn;
         encoding32 = words[words_read];
         end_of_packet = is_packet_end(encoding32);
-        new_insns = decode_insns(&pkt->insn[num_insns], encoding32);
+        new_insns = decode_insns(ctx, insn, encoding32);
         g_assert(new_insns > 0);
         /*
          * If we saw an extender, mark next word extended so immediate
@@ -1006,9 +1044,13 @@ int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
 int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
                         GString *buf)
 {
+    DisasContext ctx;
     Packet pkt;
 
-    if (decode_packet(nwords, words, &pkt, true) > 0) {
+    memset(&ctx, 0, sizeof(DisasContext));
+    ctx.pkt = &pkt;
+
+    if (decode_packet(&ctx, nwords, words, &pkt, true) > 0) {
         snprint_a_pkt_disas(buf, &pkt, words, pc);
         return pkt.encod_pkt_size_in_bytes;
     } else {

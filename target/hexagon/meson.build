@@ -133,6 +133,61 @@ dectree_generated = custom_target(
 )
 hexagon_ss.add(dectree_generated)
 
+#
+# Generate the input to the QEMU decodetree.py script
+#
+normal_decode_generated = custom_target(
+    'normal_decode_generated',
+    output: 'normal_decode_generated',
+    depends: [iset_py, semantics_generated],
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files('gen_decodetree.py'), semantics_generated, 'NORMAL', '@OUTPUT@'],
+)
+hexagon_ss.add(normal_decode_generated)
+
+hvx_decode_generated = custom_target(
+    'hvx_decode_generated',
+    output: 'hvx_decode_generated',
+    depends: [iset_py, semantics_generated],
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files('gen_decodetree.py'), semantics_generated, 'EXT_mmvec', '@OUTPUT@'],
+)
+hexagon_ss.add(hvx_decode_generated)
+
+#
+# Run the QEMU decodetree.py script to produce the instruction decoder
+#
+decodetree_py = meson.current_source_dir() / '../../scripts/decodetree.py'
+decode_normal_generated = custom_target(
+    'decode_normal_generated.c.inc',
+    output: 'decode_normal_generated.c.inc',
+    input: normal_decode_generated,
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files(decodetree_py), normal_decode_generated, '--static-decode=decode_normal', '-o', '@OUTPUT@'],
+)
+hexagon_ss.add(decode_normal_generated)
+
+decode_hvx_generated = custom_target(
+    'decode_hvx_generated.c.inc',
+    output: 'decode_hvx_generated.c.inc',
+    input: hvx_decode_generated,
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files(decodetree_py), hvx_decode_generated, '--static-decode=decode_hvx', '-o', '@OUTPUT@'],
+)
+hexagon_ss.add(decode_hvx_generated)
+
+#
+# Generate the trans_* functions that the decoder will use
+#
+decodetree_trans_funcs_generated = custom_target(
+    'decodetree_trans_funcs_generated.c.inc',
+    output: 'decodetree_trans_funcs_generated.c.inc',
+    depends: [iset_py, semantics_generated],
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files('gen_trans_funcs.py'), semantics_generated, '@OUTPUT@'],
+)
+hexagon_ss.add(decodetree_trans_funcs_generated)
+
 hexagon_ss.add(files(
     'cpu.c',
     'translate.c',
