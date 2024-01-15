@@ -411,6 +411,7 @@ config ALLWINNER_R40
     select AHCI
     select ALLWINNER_SRAMC
     select ALLWINNER_A10_PIT
+    select ALLWINNER_WDT
     select AXP2XX_PMU
     select SERIAL
     select ARM_TIMER

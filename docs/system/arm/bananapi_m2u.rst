@@ -25,6 +25,7 @@ The Banana Pi M2U machine supports the following devices:
  * SATA
  * TWI (I2C)
  * USB 2.0
+ * Hardware Watchdog
 
 Limitations
 """""""""""
@@ -33,7 +34,6 @@ Currently, Banana Pi M2U does *not* support the following features:
 
 - Graphical output via HDMI, GPU and/or the Display Engine
 - Audio output
-- Hardware Watchdog
 - Real Time Clock
 
 Also see the 'unimplemented' array in the Allwinner R40 SoC module

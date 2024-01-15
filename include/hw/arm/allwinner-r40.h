@@ -33,6 +33,7 @@
 #include "hw/net/allwinner-sun8i-emac.h"
 #include "hw/usb/hcd-ohci.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/watchdog/allwinner-wdt.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -54,6 +55,7 @@ enum {
     AW_R40_DEV_OHCI2,
     AW_R40_DEV_CCU,
     AW_R40_DEV_PIT,
+    AW_R40_DEV_WDT,
     AW_R40_DEV_UART0,
     AW_R40_DEV_UART1,
     AW_R40_DEV_UART2,
@@ -114,6 +116,7 @@ struct AwR40State {
     const hwaddr *memmap;
     AwSRAMCState sramc;
     AwA10PITState timer;
+    AwWdtState wdt;
     AllwinnerAHCIState sata;
     AwSdHostState mmc[AW_R40_NUM_MMCS];
     EHCISysBusState ehci[AW_R40_NUM_USB];

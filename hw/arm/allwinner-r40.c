@@ -53,6 +53,7 @@ const hwaddr allwinner_r40_memmap[] = {
     [AW_R40_DEV_OHCI2]      = 0x01c1c400,
     [AW_R40_DEV_CCU]        = 0x01c20000,
     [AW_R40_DEV_PIT]        = 0x01c20c00,
+    [AW_R40_DEV_WDT]        = 0x01c20c90,
     [AW_R40_DEV_UART0]      = 0x01c28000,
     [AW_R40_DEV_UART1]      = 0x01c28400,
     [AW_R40_DEV_UART2]      = 0x01c28800,
@@ -278,6 +279,8 @@ static void allwinner_r40_init(Object *obj)
                               "clk0-freq");
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
                               "clk1-freq");
+
+    object_initialize_child(obj, "wdt", &s->wdt, TYPE_AW_WDT_SUN4I);
 
     object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_R40_CCU);
 
@@ -544,6 +547,11 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_R40_DEV_EMAC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_EMAC));
+
+    /* WDT */
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->wdt), 0,
+                            allwinner_r40_memmap[AW_R40_DEV_WDT], 1);
 
     /* Unimplemented devices */
     for (unsigned i = 0; i < ARRAY_SIZE(r40_unimplemented); i++) {
