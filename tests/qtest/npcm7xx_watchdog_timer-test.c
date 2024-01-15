@@ -172,9 +172,10 @@ static void test_reset_action(gconstpointer watchdog)
 static void test_prescaler(gconstpointer watchdog)
 {
     const Watchdog *wd = watchdog;
+    int inc = g_test_quick() ? 3 : 1;
 
-    for (int wtclk = 0; wtclk < 4; ++wtclk) {
-        for (int wtis = 0; wtis < 4; ++wtis) {
+    for (int wtclk = 0; wtclk < 4; wtclk += inc) {
+        for (int wtis = 0; wtis < 4; wtis += inc) {
             QTestState *qts = qtest_init("-machine quanta-gsj");
 
             qtest_irq_intercept_in(qts, "/machine/soc/a9mpcore/gic");
