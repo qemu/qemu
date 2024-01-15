@@ -23,6 +23,7 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "hw/boards.h"
 #include "hw/qdev-core.h"
 #include "hw/sysbus.h"
 #include "hw/char/serial.h"
@@ -45,6 +46,10 @@ const hwaddr allwinner_r40_memmap[] = {
     [AW_R40_DEV_MMC1]       = 0x01c10000,
     [AW_R40_DEV_MMC2]       = 0x01c11000,
     [AW_R40_DEV_MMC3]       = 0x01c12000,
+    [AW_R40_DEV_EHCI1]      = 0x01c19000,
+    [AW_R40_DEV_OHCI1]      = 0x01c19400,
+    [AW_R40_DEV_EHCI2]      = 0x01c1c000,
+    [AW_R40_DEV_OHCI2]      = 0x01c1c400,
     [AW_R40_DEV_CCU]        = 0x01c20000,
     [AW_R40_DEV_PIT]        = 0x01c20c00,
     [AW_R40_DEV_UART0]      = 0x01c28000,
@@ -89,9 +94,9 @@ static struct AwR40Unimplemented r40_unimplemented[] = {
     { "crypto",     0x01c15000, 4 * KiB },
     { "spi2",       0x01c17000, 4 * KiB },
     { "sata",       0x01c18000, 4 * KiB },
-    { "usb1-host",  0x01c19000, 4 * KiB },
+    { "usb1-phy",   0x01c19800, 2 * KiB },
     { "sid",        0x01c1b000, 4 * KiB },
-    { "usb2-host",  0x01c1c000, 4 * KiB },
+    { "usb2-phy",   0x01c1c800, 2 * KiB },
     { "cs1",        0x01c1d000, 4 * KiB },
     { "spi3",       0x01c1f000, 4 * KiB },
     { "rtc",        0x01c20400, 1 * KiB },
@@ -181,6 +186,10 @@ enum {
     AW_R40_GIC_SPI_MMC2      = 34,
     AW_R40_GIC_SPI_MMC3      = 35,
     AW_R40_GIC_SPI_EMAC      = 55,
+    AW_R40_GIC_SPI_OHCI1     = 64,
+    AW_R40_GIC_SPI_OHCI2     = 65,
+    AW_R40_GIC_SPI_EHCI1     = 76,
+    AW_R40_GIC_SPI_EHCI2     = 78,
     AW_R40_GIC_SPI_GMAC      = 85,
 };
 
@@ -274,6 +283,13 @@ static void allwinner_r40_init(Object *obj)
     for (int i = 0; i < AW_R40_NUM_MMCS; i++) {
         object_initialize_child(obj, mmc_names[i], &s->mmc[i],
                                 TYPE_AW_SDHOST_SUN50I_A64);
+    }
+
+    for (size_t i = 0; i < AW_R40_NUM_USB; i++) {
+        object_initialize_child(obj, "ehci[*]", &s->ehci[i],
+                                TYPE_PLATFORM_EHCI);
+        object_initialize_child(obj, "ohci[*]", &s->ohci[i],
+                                TYPE_SYSBUS_OHCI);
     }
 
     object_initialize_child(obj, "twi0", &s->i2c0, TYPE_AW_I2C_SUN6I);
@@ -406,6 +422,33 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
     /* Clock Control Unit */
     sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_R40_DEV_CCU]);
+
+    /* USB */
+    for (size_t i = 0; i < AW_R40_NUM_USB; i++) {
+        g_autofree char *bus = g_strdup_printf("usb-bus.%zu", i);
+
+        object_property_set_bool(OBJECT(&s->ehci[i]), "companion-enable", true,
+                                 &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+                        allwinner_r40_memmap[i ? AW_R40_DEV_EHCI2
+                                               : AW_R40_DEV_EHCI1]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->gic),
+                                            i ? AW_R40_GIC_SPI_EHCI2
+                                              : AW_R40_GIC_SPI_EHCI1));
+
+        object_property_set_str(OBJECT(&s->ohci[i]), "masterbus", bus,
+                                &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(&s->ohci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ohci[i]), 0,
+                        allwinner_r40_memmap[i ? AW_R40_DEV_OHCI2
+                                               : AW_R40_DEV_OHCI1]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ohci[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->gic),
+                                            i ? AW_R40_GIC_SPI_OHCI2
+                                              : AW_R40_GIC_SPI_OHCI1));
+    }
 
     /* SD/MMC */
     for (int i = 0; i < AW_R40_NUM_MMCS; i++) {

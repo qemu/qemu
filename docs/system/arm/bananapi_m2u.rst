@@ -23,6 +23,7 @@ The Banana Pi M2U machine supports the following devices:
  * GMAC ethernet
  * Clock Control Unit
  * TWI (I2C)
+ * USB 2.0
 
 Limitations
 """""""""""
@@ -33,7 +34,6 @@ Currently, Banana Pi M2U does *not* support the following features:
 - Audio output
 - Hardware Watchdog
 - Real Time Clock
-- USB 2.0 interfaces
 
 Also see the 'unimplemented' array in the Allwinner R40 SoC module
 for a complete list of unimplemented I/O devices: ``./hw/arm/allwinner-r40.c``

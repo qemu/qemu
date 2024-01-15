@@ -30,6 +30,8 @@
 #include "hw/i2c/allwinner-i2c.h"
 #include "hw/net/allwinner_emac.h"
 #include "hw/net/allwinner-sun8i-emac.h"
+#include "hw/usb/hcd-ohci.h"
+#include "hw/usb/hcd-ehci.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -44,6 +46,10 @@ enum {
     AW_R40_DEV_MMC1,
     AW_R40_DEV_MMC2,
     AW_R40_DEV_MMC3,
+    AW_R40_DEV_EHCI1,
+    AW_R40_DEV_OHCI1,
+    AW_R40_DEV_EHCI2,
+    AW_R40_DEV_OHCI2,
     AW_R40_DEV_CCU,
     AW_R40_DEV_PIT,
     AW_R40_DEV_UART0,
@@ -88,6 +94,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(AwR40State, AW_R40)
  * which are currently emulated by the R40 SoC code.
  */
 #define AW_R40_NUM_MMCS         4
+#define AW_R40_NUM_USB          2
 #define AW_R40_NUM_UARTS        8
 
 struct AwR40State {
@@ -106,6 +113,8 @@ struct AwR40State {
     AwSRAMCState sramc;
     AwA10PITState timer;
     AwSdHostState mmc[AW_R40_NUM_MMCS];
+    EHCISysBusState ehci[AW_R40_NUM_USB];
+    OHCISysBusState ohci[AW_R40_NUM_USB];
     AwR40ClockCtlState ccu;
     AwR40DramCtlState dramc;
     AWI2CState i2c0;
