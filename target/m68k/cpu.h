@@ -550,6 +550,8 @@ enum m68k_features {
     M68K_FEATURE_TRAPCC,
     /* MOVE from SR privileged (from 68010) */
     M68K_FEATURE_MOVEFROMSR_PRIV,
+    /* Exception frame with format+vector (from 68010) */
+    M68K_FEATURE_EXCEPTION_FORMAT_VEC,
 };
 
 static inline bool m68k_feature(CPUM68KState *env, int feature)
