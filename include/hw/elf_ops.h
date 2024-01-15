@@ -500,7 +500,7 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
             }
 
             if (data_swab) {
-                int j;
+                elf_word j;
                 for (j = 0; j < file_size; j += (1 << data_swab)) {
                     uint8_t *dp = data + j;
                     switch (data_swab) {
