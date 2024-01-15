@@ -111,33 +111,4 @@ void opcode_init(void)
 #include "op_attribs_generated.h.inc"
 #undef OP_ATTRIB
 #undef ATTRIBS
-
-    decode_init();
-}
-
-
-#define NEEDLE "IMMEXT("
-
-int opcode_which_immediate_is_extended(Opcode opcode)
-{
-    const char *p;
-
-    g_assert(opcode < XX_LAST_OPCODE);
-    g_assert(GET_ATTRIB(opcode, A_EXTENDABLE));
-
-    p = opcode_short_semantics[opcode];
-    p = strstr(p, NEEDLE);
-    g_assert(p);
-    p += strlen(NEEDLE);
-    while (isspace(*p)) {
-        p++;
-    }
-    /* lower is always imm 0, upper always imm 1. */
-    if (islower(*p)) {
-        return 0;
-    } else if (isupper(*p)) {
-        return 1;
-    } else {
-        g_assert_not_reached();
-    }
 }

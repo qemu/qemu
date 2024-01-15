@@ -122,18 +122,6 @@ hexagon_ss.add(iset_py)
 
 #
 # Step 4
-# We use the dectree.py script to generate the decode tree header file
-#
-dectree_generated = custom_target(
-    'dectree_generated.h.inc',
-    output: 'dectree_generated.h.inc',
-    depends: [iset_py],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('dectree.py'), '@OUTPUT@'],
-)
-hexagon_ss.add(dectree_generated)
-
-#
 # Generate the input to the QEMU decodetree.py script
 #
 normal_decode_generated = custom_target(

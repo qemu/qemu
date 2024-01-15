@@ -88,175 +88,6 @@ static int shift_left(DisasContext *ctx, int x, int n, int immno)
 /* Include the generated helpers for the decoder */
 #include "decodetree_trans_funcs_generated.c.inc"
 
-typedef struct {
-    const struct DectreeTable *table_link;
-    const struct DectreeTable *table_link_b;
-    Opcode opcode;
-    enum {
-        DECTREE_ENTRY_INVALID,
-        DECTREE_TABLE_LINK,
-        DECTREE_SUBINSNS,
-        DECTREE_EXTSPACE,
-        DECTREE_TERMINAL
-    } type;
-} DectreeEntry;
-
-typedef struct DectreeTable {
-    unsigned int (*lookup_function)(int startbit, int width, uint32_t opcode);
-    unsigned int size;
-    unsigned int startbit;
-    unsigned int width;
-    const DectreeEntry table[];
-} DectreeTable;
-
-#define DECODE_NEW_TABLE(TAG, SIZE, WHATNOT) \
-    static const DectreeTable dectree_table_##TAG;
-#define TABLE_LINK(TABLE)                     /* NOTHING */
-#define TERMINAL(TAG, ENC)                    /* NOTHING */
-#define SUBINSNS(TAG, CLASSA, CLASSB, ENC)    /* NOTHING */
-#define EXTSPACE(TAG, ENC)                    /* NOTHING */
-#define INVALID()                             /* NOTHING */
-#define DECODE_END_TABLE(...)                 /* NOTHING */
-#define DECODE_MATCH_INFO(...)                /* NOTHING */
-#define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
-#define DECODE_OPINFO(...)                    /* NOTHING */
-
-#include "dectree_generated.h.inc"
-
-#undef DECODE_OPINFO
-#undef DECODE_MATCH_INFO
-#undef DECODE_LEGACY_MATCH_INFO
-#undef DECODE_END_TABLE
-#undef INVALID
-#undef TERMINAL
-#undef SUBINSNS
-#undef EXTSPACE
-#undef TABLE_LINK
-#undef DECODE_NEW_TABLE
-#undef DECODE_SEPARATOR_BITS
-
-#define DECODE_SEPARATOR_BITS(START, WIDTH) NULL, START, WIDTH
-#define DECODE_NEW_TABLE_HELPER(TAG, SIZE, FN, START, WIDTH) \
-    static const DectreeTable dectree_table_##TAG = { \
-        .size = SIZE, \
-        .lookup_function = FN, \
-        .startbit = START, \
-        .width = WIDTH, \
-        .table = {
-#define DECODE_NEW_TABLE(TAG, SIZE, WHATNOT) \
-    DECODE_NEW_TABLE_HELPER(TAG, SIZE, WHATNOT)
-
-#define TABLE_LINK(TABLE) \
-    { .type = DECTREE_TABLE_LINK, .table_link = &dectree_table_##TABLE },
-#define TERMINAL(TAG, ENC) \
-    { .type = DECTREE_TERMINAL, .opcode = TAG  },
-#define SUBINSNS(TAG, CLASSA, CLASSB, ENC) \
-    { \
-        .type = DECTREE_SUBINSNS, \
-        .table_link = &dectree_table_DECODE_SUBINSN_##CLASSA, \
-        .table_link_b = &dectree_table_DECODE_SUBINSN_##CLASSB \
-    },
-#define EXTSPACE(TAG, ENC) { .type = DECTREE_EXTSPACE },
-#define INVALID() { .type = DECTREE_ENTRY_INVALID, .opcode = XX_LAST_OPCODE },
-
-#define DECODE_END_TABLE(...) } };
-
-#define DECODE_MATCH_INFO(...)                /* NOTHING */
-#define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
-#define DECODE_OPINFO(...)                    /* NOTHING */
-
-#include "dectree_generated.h.inc"
-
-#undef DECODE_OPINFO
-#undef DECODE_MATCH_INFO
-#undef DECODE_LEGACY_MATCH_INFO
-#undef DECODE_END_TABLE
-#undef INVALID
-#undef TERMINAL
-#undef SUBINSNS
-#undef EXTSPACE
-#undef TABLE_LINK
-#undef DECODE_NEW_TABLE
-#undef DECODE_NEW_TABLE_HELPER
-#undef DECODE_SEPARATOR_BITS
-
-static const DectreeTable dectree_table_DECODE_EXT_EXT_noext = {
-    .size = 1, .lookup_function = NULL, .startbit = 0, .width = 0,
-    .table = {
-        { .type = DECTREE_ENTRY_INVALID, .opcode = XX_LAST_OPCODE },
-    }
-};
-
-static const DectreeTable *ext_trees[XX_LAST_EXT_IDX];
-
-static void decode_ext_init(void)
-{
-    int i;
-    for (i = EXT_IDX_noext; i < EXT_IDX_noext_AFTER; i++) {
-        ext_trees[i] = &dectree_table_DECODE_EXT_EXT_noext;
-    }
-    for (i = EXT_IDX_mmvec; i < EXT_IDX_mmvec_AFTER; i++) {
-        ext_trees[i] = &dectree_table_DECODE_EXT_EXT_mmvec;
-    }
-}
-
-typedef struct {
-    uint32_t mask;
-    uint32_t match;
-} DecodeITableEntry;
-
-#define DECODE_NEW_TABLE(TAG, SIZE, WHATNOT)  /* NOTHING */
-#define TABLE_LINK(TABLE)                     /* NOTHING */
-#define TERMINAL(TAG, ENC)                    /* NOTHING */
-#define SUBINSNS(TAG, CLASSA, CLASSB, ENC)    /* NOTHING */
-#define EXTSPACE(TAG, ENC)                    /* NOTHING */
-#define INVALID()                             /* NOTHING */
-#define DECODE_END_TABLE(...)                 /* NOTHING */
-#define DECODE_OPINFO(...)                    /* NOTHING */
-
-#define DECODE_MATCH_INFO_NORMAL(TAG, MASK, MATCH) \
-    [TAG] = { \
-        .mask = MASK, \
-        .match = MATCH, \
-    },
-
-#define DECODE_MATCH_INFO_NULL(TAG, MASK, MATCH) \
-    [TAG] = { .match = ~0 },
-
-#define DECODE_MATCH_INFO(...) DECODE_MATCH_INFO_NORMAL(__VA_ARGS__)
-#define DECODE_LEGACY_MATCH_INFO(...) /* NOTHING */
-
-static const DecodeITableEntry decode_itable[XX_LAST_OPCODE] = {
-#include "dectree_generated.h.inc"
-};
-
-#undef DECODE_MATCH_INFO
-#define DECODE_MATCH_INFO(...) DECODE_MATCH_INFO_NULL(__VA_ARGS__)
-
-#undef DECODE_LEGACY_MATCH_INFO
-#define DECODE_LEGACY_MATCH_INFO(...) DECODE_MATCH_INFO_NORMAL(__VA_ARGS__)
-
-static const DecodeITableEntry decode_legacy_itable[XX_LAST_OPCODE] = {
-#include "dectree_generated.h.inc"
-};
-
-#undef DECODE_OPINFO
-#undef DECODE_MATCH_INFO
-#undef DECODE_LEGACY_MATCH_INFO
-#undef DECODE_END_TABLE
-#undef INVALID
-#undef TERMINAL
-#undef SUBINSNS
-#undef EXTSPACE
-#undef TABLE_LINK
-#undef DECODE_NEW_TABLE
-#undef DECODE_SEPARATOR_BITS
-
-void decode_init(void)
-{
-    decode_ext_init();
-}
-
 void decode_send_insn_to(Packet *packet, int start, int newloc)
 {
     Insn tmpinsn;
@@ -587,7 +418,6 @@ apply_extender(Packet *pkt, int i, uint32_t extender)
     uint32_t base_immed;
 
     immed_num = pkt->insn[i].which_extended;
-    g_assert(immed_num == opcode_which_immediate_is_extended(pkt->insn[i].opcode));
     base_immed = pkt->insn[i].immed[immed_num];
 
     pkt->insn[i].immed[immed_num] = extender | fZXTN(6, 32, base_immed);
@@ -627,174 +457,6 @@ static SlotMask get_valid_slots(const Packet *pkt, unsigned int slot)
     } else {
         return find_iclass_slots(pkt->insn[slot].opcode,
                                  pkt->insn[slot].iclass);
-    }
-}
-
-#define DECODE_NEW_TABLE(TAG, SIZE, WHATNOT)     /* NOTHING */
-#define TABLE_LINK(TABLE)                        /* NOTHING */
-#define TERMINAL(TAG, ENC)                       /* NOTHING */
-#define SUBINSNS(TAG, CLASSA, CLASSB, ENC)       /* NOTHING */
-#define EXTSPACE(TAG, ENC)                       /* NOTHING */
-#define INVALID()                                /* NOTHING */
-#define DECODE_END_TABLE(...)                    /* NOTHING */
-#define DECODE_MATCH_INFO(...)                   /* NOTHING */
-#define DECODE_LEGACY_MATCH_INFO(...)            /* NOTHING */
-
-#define DECODE_REG(REGNO, WIDTH, STARTBIT) \
-    insn->regno[REGNO] = ((encoding >> STARTBIT) & ((1 << WIDTH) - 1));
-
-#define DECODE_IMPL_REG(REGNO, VAL) \
-    insn->regno[REGNO] = VAL;
-
-#define DECODE_IMM(IMMNO, WIDTH, STARTBIT, VALSTART) \
-    insn->immed[IMMNO] |= (((encoding >> STARTBIT) & ((1 << WIDTH) - 1))) << \
-                          (VALSTART);
-
-#define DECODE_IMM_SXT(IMMNO, WIDTH) \
-    insn->immed[IMMNO] = ((((int32_t)insn->immed[IMMNO]) << (32 - WIDTH)) >> \
-                          (32 - WIDTH));
-
-#define DECODE_IMM_NEG(IMMNO, WIDTH) \
-    insn->immed[IMMNO] = -insn->immed[IMMNO];
-
-#define DECODE_IMM_SHIFT(IMMNO, SHAMT)                                 \
-    if ((!insn->extension_valid) || \
-        (insn->which_extended != IMMNO)) { \
-        insn->immed[IMMNO] <<= SHAMT; \
-    }
-
-#define DECODE_OPINFO(TAG, BEH) \
-    case TAG: \
-        { BEH  } \
-        break; \
-
-/*
- * Fill in the operands of the instruction
- * dectree_generated.h.inc has a DECODE_OPINFO entry for each opcode
- * For example,
- *     DECODE_OPINFO(A2_addi,
- *          DECODE_REG(0,5,0)
- *          DECODE_REG(1,5,16)
- *          DECODE_IMM(0,7,21,9)
- *          DECODE_IMM(0,9,5,0)
- *          DECODE_IMM_SXT(0,16)
- * with the macros defined above, we'll fill in a switch statement
- * where each case is an opcode tag.
- */
-static void
-decode_op(Insn *insn, Opcode tag, uint32_t encoding)
-{
-    insn->immed[0] = 0;
-    insn->immed[1] = 0;
-    insn->opcode = tag;
-    if (insn->extension_valid) {
-        insn->which_extended = opcode_which_immediate_is_extended(tag);
-    }
-
-    switch (tag) {
-#include "dectree_generated.h.inc"
-    default:
-        break;
-    }
-
-    insn->generate = opcode_genptr[tag];
-
-    insn->iclass = iclass_bits(encoding);
-}
-
-#undef DECODE_REG
-#undef DECODE_IMPL_REG
-#undef DECODE_IMM
-#undef DECODE_IMM_SHIFT
-#undef DECODE_OPINFO
-#undef DECODE_MATCH_INFO
-#undef DECODE_LEGACY_MATCH_INFO
-#undef DECODE_END_TABLE
-#undef INVALID
-#undef TERMINAL
-#undef SUBINSNS
-#undef EXTSPACE
-#undef TABLE_LINK
-#undef DECODE_NEW_TABLE
-#undef DECODE_SEPARATOR_BITS
-
-static unsigned int
-decode_subinsn_tablewalk(Insn *insn, const DectreeTable *table,
-                         uint32_t encoding)
-{
-    unsigned int i;
-    Opcode opc;
-    if (table->lookup_function) {
-        i = table->lookup_function(table->startbit, table->width, encoding);
-    } else {
-        i = extract32(encoding, table->startbit, table->width);
-    }
-    if (table->table[i].type == DECTREE_TABLE_LINK) {
-        return decode_subinsn_tablewalk(insn, table->table[i].table_link,
-                                        encoding);
-    } else if (table->table[i].type == DECTREE_TERMINAL) {
-        opc = table->table[i].opcode;
-        if ((encoding & decode_itable[opc].mask) != decode_itable[opc].match) {
-            return 0;
-        }
-        decode_op(insn, opc, encoding);
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-static unsigned int get_insn_a(uint32_t encoding)
-{
-    return extract32(encoding, 0, 13);
-}
-
-static unsigned int get_insn_b(uint32_t encoding)
-{
-    return extract32(encoding, 16, 13);
-}
-
-static unsigned int
-decode_insns_tablewalk(Insn *insn, const DectreeTable *table,
-                       uint32_t encoding)
-{
-    unsigned int i;
-    unsigned int a, b;
-    Opcode opc;
-    if (table->lookup_function) {
-        i = table->lookup_function(table->startbit, table->width, encoding);
-    } else {
-        i = extract32(encoding, table->startbit, table->width);
-    }
-    if (table->table[i].type == DECTREE_TABLE_LINK) {
-        return decode_insns_tablewalk(insn, table->table[i].table_link,
-                                      encoding);
-    } else if (table->table[i].type == DECTREE_SUBINSNS) {
-        a = get_insn_a(encoding);
-        b = get_insn_b(encoding);
-        b = decode_subinsn_tablewalk(insn, table->table[i].table_link_b, b);
-        a = decode_subinsn_tablewalk(insn + 1, table->table[i].table_link, a);
-        if ((a == 0) || (b == 0)) {
-            return 0;
-        }
-        return 2;
-    } else if (table->table[i].type == DECTREE_TERMINAL) {
-        opc = table->table[i].opcode;
-        if ((encoding & decode_itable[opc].mask) != decode_itable[opc].match) {
-            if ((encoding & decode_legacy_itable[opc].mask) !=
-                decode_legacy_itable[opc].match) {
-                return 0;
-            }
-        }
-        decode_op(insn, opc, encoding);
-        return 1;
-    } else if (table->table[i].type == DECTREE_EXTSPACE) {
-        /*
-         * For now, HVX will be the only coproc
-         */
-        return decode_insns_tablewalk(insn, ext_trees[EXT_IDX_mmvec], encoding);
-    } else {
-        return 0;
     }
 }
 
@@ -858,7 +520,6 @@ static uint16_t get_slot1_subinsn(uint32_t encoding)
 static unsigned int
 decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 {
-    const DectreeTable *table;
     if (parse_bits(encoding) != 0) {
         if (decode_normal(ctx, encoding) ||
             decode_hvx(ctx, encoding)) {
@@ -866,8 +527,6 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
             insn->iclass = iclass_bits(encoding);
             return 1;
         }
-        /* Start with PP table - 32 bit instructions */
-        table = &dectree_table_DECODE_ROOT_32;
         g_assert_not_reached();
     } else {
         uint32_t iclass = get_duplex_iclass(encoding);
@@ -889,11 +548,8 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
                 return 2;
             }
         }
-        /* start with EE table - duplex instructions */
-        table = &dectree_table_DECODE_ROOT_EE;
         g_assert_not_reached();
     }
-    return decode_insns_tablewalk(insn, table, encoding);
 }
 
 static void decode_add_endloop_insn(Insn *insn, int loopnum)
