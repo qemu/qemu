@@ -195,6 +195,7 @@ Step 1 is to run target/hexagon/gen_dectree_import.c to produce
 Step 2 is to import iset.py into target/hexagon/gen_decodetree.py to produce
     <BUILD_DIR>/target/hexagon/normal_decode_generated
     <BUILD_DIR>/target/hexagon/hvx_decode_generated
+    <BUILD_DIR>/target/hexagon/subinsn_*_decode_generated
 Step 3 is to process the above files with QEMU's decodetree.py to produce
     <BUILD_DIR>/target/hexagon/decode_*_generated.c.inc
 Step 4 is to import iset.py into target/hexagon/gen_trans_funcs.py to produce

@@ -60,6 +60,7 @@ static int decode_mapped_reg_##NAME(DisasContext *ctx, int x) \
 }
 DECODE_MAPPED(R_16)
 DECODE_MAPPED(R_8)
+DECODE_MAPPED(R__8)
 
 /* Helper function for decodetree_trans_funcs_generated.c.inc */
 static int shift_left(DisasContext *ctx, int x, int n, int immno)
@@ -76,6 +77,13 @@ static int shift_left(DisasContext *ctx, int x, int n, int immno)
 /* Include the generated decoder for 32 bit insn */
 #include "decode_normal_generated.c.inc"
 #include "decode_hvx_generated.c.inc"
+
+/* Include the generated decoder for 16 bit insn */
+#include "decode_subinsn_a_generated.c.inc"
+#include "decode_subinsn_l1_generated.c.inc"
+#include "decode_subinsn_l2_generated.c.inc"
+#include "decode_subinsn_s1_generated.c.inc"
+#include "decode_subinsn_s2_generated.c.inc"
 
 /* Include the generated helpers for the decoder */
 #include "decodetree_trans_funcs_generated.c.inc"
@@ -790,6 +798,63 @@ decode_insns_tablewalk(Insn *insn, const DectreeTable *table,
     }
 }
 
+/*
+ * Section 10.3 of the Hexagon V73 Programmer's Reference Manual
+ *
+ * A duplex is encoded as a 32-bit instruction with bits [15:14] set to 00.
+ * The sub-instructions that comprise a duplex are encoded as 13-bit fields
+ * in the duplex.
+ *
+ * Per table 10-4, the 4-bit duplex iclass is encoded in bits 31:29, 13
+ */
+static uint32_t get_duplex_iclass(uint32_t encoding)
+{
+    uint32_t iclass = extract32(encoding, 13, 1);
+    iclass = deposit32(iclass, 1, 3, extract32(encoding, 29, 3));
+    return iclass;
+}
+
+/*
+ * Per table 10-5, the duplex ICLASS field values that specify the group of
+ * each sub-instruction in a duplex
+ *
+ * This table points to the decode instruction for each entry in the table
+ */
+typedef bool (*subinsn_decode_func)(DisasContext *ctx, uint16_t insn);
+typedef struct {
+    subinsn_decode_func decode_slot0_subinsn;
+    subinsn_decode_func decode_slot1_subinsn;
+} subinsn_decode_groups;
+
+static const subinsn_decode_groups decode_groups[16] = {
+    [0x0] = { decode_subinsn_l1, decode_subinsn_l1 },
+    [0x1] = { decode_subinsn_l2, decode_subinsn_l1 },
+    [0x2] = { decode_subinsn_l2, decode_subinsn_l2 },
+    [0x3] = { decode_subinsn_a,  decode_subinsn_a },
+    [0x4] = { decode_subinsn_l1, decode_subinsn_a },
+    [0x5] = { decode_subinsn_l2, decode_subinsn_a },
+    [0x6] = { decode_subinsn_s1, decode_subinsn_a },
+    [0x7] = { decode_subinsn_s2, decode_subinsn_a },
+    [0x8] = { decode_subinsn_s1, decode_subinsn_l1 },
+    [0x9] = { decode_subinsn_s1, decode_subinsn_l2 },
+    [0xa] = { decode_subinsn_s1, decode_subinsn_s1 },
+    [0xb] = { decode_subinsn_s2, decode_subinsn_s1 },
+    [0xc] = { decode_subinsn_s2, decode_subinsn_l1 },
+    [0xd] = { decode_subinsn_s2, decode_subinsn_l2 },
+    [0xe] = { decode_subinsn_s2, decode_subinsn_s2 },
+    [0xf] = { NULL,              NULL },              /* Reserved */
+};
+
+static uint16_t get_slot0_subinsn(uint32_t encoding)
+{
+    return extract32(encoding, 0, 13);
+}
+
+static uint16_t get_slot1_subinsn(uint32_t encoding)
+{
+    return extract32(encoding, 16, 13);
+}
+
 static unsigned int
 decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 {
@@ -805,8 +870,28 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
         table = &dectree_table_DECODE_ROOT_32;
         g_assert_not_reached();
     } else {
+        uint32_t iclass = get_duplex_iclass(encoding);
+        unsigned int slot0_subinsn = get_slot0_subinsn(encoding);
+        unsigned int slot1_subinsn = get_slot1_subinsn(encoding);
+        subinsn_decode_func decode_slot0_subinsn =
+            decode_groups[iclass].decode_slot0_subinsn;
+        subinsn_decode_func decode_slot1_subinsn =
+            decode_groups[iclass].decode_slot1_subinsn;
+
+        /* The slot1 subinsn needs to be in the packet first */
+        if (decode_slot1_subinsn(ctx, slot1_subinsn)) {
+            insn->generate = opcode_genptr[insn->opcode];
+            insn->iclass = iclass_bits(encoding);
+            ctx->insn = ++insn;
+            if (decode_slot0_subinsn(ctx, slot0_subinsn)) {
+                insn->generate = opcode_genptr[insn->opcode];
+                insn->iclass = iclass_bits(encoding);
+                return 2;
+            }
+        }
         /* start with EE table - duplex instructions */
         table = &dectree_table_DECODE_ROOT_EE;
+        g_assert_not_reached();
     }
     return decode_insns_tablewalk(insn, table, encoding);
 }
