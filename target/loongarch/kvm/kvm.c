@@ -250,7 +250,7 @@ static int kvm_loongarch_get_csr(CPUState *cs)
     return ret;
 }
 
-static int kvm_loongarch_put_csr(CPUState *cs)
+static int kvm_loongarch_put_csr(CPUState *cs, int level)
 {
     int ret = 0;
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
@@ -322,8 +322,11 @@ static int kvm_loongarch_put_csr(CPUState *cs)
     ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_RVACFG),
                            &env->CSR_RVACFG);
 
-    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_CPUID),
+    /* CPUID is constant after poweron, it should be set only once */
+    if (level >= KVM_PUT_FULL_STATE) {
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_CPUID),
                            &env->CSR_CPUID);
+    }
 
     ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PRCFG1),
                            &env->CSR_PRCFG1);
@@ -598,7 +601,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    ret = kvm_loongarch_put_csr(cs);
+    ret = kvm_loongarch_put_csr(cs, level);
     if (ret) {
         return ret;
     }
