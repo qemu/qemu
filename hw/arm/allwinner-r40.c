@@ -46,6 +46,7 @@ const hwaddr allwinner_r40_memmap[] = {
     [AW_R40_DEV_MMC1]       = 0x01c10000,
     [AW_R40_DEV_MMC2]       = 0x01c11000,
     [AW_R40_DEV_MMC3]       = 0x01c12000,
+    [AW_R40_DEV_AHCI]       = 0x01c18000,
     [AW_R40_DEV_EHCI1]      = 0x01c19000,
     [AW_R40_DEV_OHCI1]      = 0x01c19400,
     [AW_R40_DEV_EHCI2]      = 0x01c1c000,
@@ -93,7 +94,6 @@ static struct AwR40Unimplemented r40_unimplemented[] = {
     { "usb0-host",  0x01c14000, 4 * KiB },
     { "crypto",     0x01c15000, 4 * KiB },
     { "spi2",       0x01c17000, 4 * KiB },
-    { "sata",       0x01c18000, 4 * KiB },
     { "usb1-phy",   0x01c19800, 2 * KiB },
     { "sid",        0x01c1b000, 4 * KiB },
     { "usb2-phy",   0x01c1c800, 2 * KiB },
@@ -186,6 +186,7 @@ enum {
     AW_R40_GIC_SPI_MMC2      = 34,
     AW_R40_GIC_SPI_MMC3      = 35,
     AW_R40_GIC_SPI_EMAC      = 55,
+    AW_R40_GIC_SPI_AHCI      = 56,
     AW_R40_GIC_SPI_OHCI1     = 64,
     AW_R40_GIC_SPI_OHCI2     = 65,
     AW_R40_GIC_SPI_EHCI1     = 76,
@@ -284,6 +285,8 @@ static void allwinner_r40_init(Object *obj)
         object_initialize_child(obj, mmc_names[i], &s->mmc[i],
                                 TYPE_AW_SDHOST_SUN50I_A64);
     }
+
+    object_initialize_child(obj, "sata", &s->sata, TYPE_ALLWINNER_AHCI);
 
     for (size_t i = 0; i < AW_R40_NUM_USB; i++) {
         object_initialize_child(obj, "ehci[*]", &s->ehci[i],
@@ -422,6 +425,13 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
     /* Clock Control Unit */
     sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_R40_DEV_CCU]);
+
+    /* SATA / AHCI */
+    sysbus_realize(SYS_BUS_DEVICE(&s->sata), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0,
+                    allwinner_r40_memmap[AW_R40_DEV_AHCI]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_AHCI));
 
     /* USB */
     for (size_t i = 0; i < AW_R40_NUM_USB; i++) {

@@ -408,6 +408,7 @@ config ALLWINNER_H3
 config ALLWINNER_R40
     bool
     default y if TCG && ARM
+    select AHCI
     select ALLWINNER_SRAMC
     select ALLWINNER_A10_PIT
     select AXP2XX_PMU

@@ -22,6 +22,7 @@ The Banana Pi M2U machine supports the following devices:
  * EMAC ethernet
  * GMAC ethernet
  * Clock Control Unit
+ * SATA
  * TWI (I2C)
  * USB 2.0
 
