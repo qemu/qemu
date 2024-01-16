@@ -36,8 +36,8 @@
 
 #define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
 
-/* Power button address at &PAGE0->pad[4] */
-#define HPA_POWER_BUTTON (0x40 + 4 * sizeof(uint32_t))
+#define HPA_POWER_BUTTON        (FIRMWARE_END - 0x10)
+static hwaddr soft_power_reg;
 
 #define enable_lasi_lan()       0
 
@@ -45,7 +45,6 @@ static DeviceState *lasi_dev;
 
 static void hppa_powerdown_req(Notifier *n, void *opaque)
 {
-    hwaddr soft_power_reg = HPA_POWER_BUTTON;
     uint32_t val;
 
     val = ldl_be_phys(&address_space_memory, soft_power_reg);
@@ -221,7 +220,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus,
     fw_cfg_add_file(fw_cfg, "/etc/hppa/machine",
                     g_memdup(mc->name, len), len);
 
-    val = cpu_to_le64(HPA_POWER_BUTTON);
+    val = cpu_to_le64(soft_power_reg);
     fw_cfg_add_file(fw_cfg, "/etc/hppa/power-button-addr",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
@@ -276,6 +275,7 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
     unsigned int smp_cpus = machine->smp.cpus;
     TranslateFn *translate;
     MemoryRegion *cpu_region;
+    uint64_t ram_max;
 
     /* Create CPUs.  */
     for (unsigned int i = 0; i < smp_cpus; i++) {
@@ -288,9 +288,13 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
      */
     if (hppa_is_pa20(&cpu[0]->env)) {
         translate = translate_pa20;
+        ram_max = 0xf0000000;      /* 3.75 GB (limited by 32-bit firmware) */
     } else {
         translate = translate_pa10;
+        ram_max = 0xf0000000;      /* 3.75 GB (32-bit CPU) */
     }
+
+    soft_power_reg = translate(NULL, HPA_POWER_BUTTON);
 
     for (unsigned int i = 0; i < smp_cpus; i++) {
         g_autofree char *name = g_strdup_printf("cpu%u-io-eir", i);
@@ -311,9 +315,9 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
                                 cpu_region);
 
     /* Main memory region. */
-    if (machine->ram_size > 3 * GiB) {
-        error_report("RAM size is currently restricted to 3GB");
-        exit(EXIT_FAILURE);
+    if (machine->ram_size > ram_max) {
+        info_report("Max RAM size limited to %" PRIu64 " MB", ram_max / MiB);
+        machine->ram_size = ram_max;
     }
     memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
 
@@ -343,8 +347,10 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     SysBusDevice *s;
 
     /* SCSI disk setup. */
-    dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
-    lsi53c8xx_handle_legacy_cmdline(dev);
+    if (drive_get_max_bus(IF_SCSI) >= 0) {
+        dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        lsi53c8xx_handle_legacy_cmdline(dev);
+    }
 
     /* Graphics setup. */
     if (machine->enable_graphics && vga_interface_type != VGA_NONE) {
@@ -357,7 +363,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     }
 
     /* Network setup. */
-    if (enable_lasi_lan()) {
+    if (nd_table[0].used && enable_lasi_lan()) {
         lasi_82596_init(addr_space, translate(NULL, LASI_LAN_HPA),
                         qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
     }
@@ -382,7 +388,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     pci_set_word(&pci_dev->config[PCI_SUBSYSTEM_ID], 0x1227); /* Powerbar */
 
     /* create a second serial PCI card when running Astro */
-    if (!lasi_dev) {
+    if (serial_hd(1) && !lasi_dev) {
         pci_dev = pci_new(-1, "pci-serial-4x");
         qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(1));
         qdev_prop_set_chr(DEVICE(pci_dev), "chardev2", serial_hd(2));

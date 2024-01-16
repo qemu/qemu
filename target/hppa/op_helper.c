@@ -351,11 +351,7 @@ target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
     excp = hppa_get_physical_address(env, addr, mmu_idx, 0, &phys,
                                      &prot, NULL);
     if (excp >= 0) {
-        if (env->psw & PSW_Q) {
-            /* ??? Needs tweaking for hppa64.  */
-            env->cr[CR_IOR] = addr;
-            env->cr[CR_ISR] = addr >> 32;
-        }
+        hppa_set_ior_and_isr(env, addr, MMU_IDX_MMU_DISABLED(mmu_idx));
         if (excp == EXCP_DTLB_MISS) {
             excp = EXCP_NA_DTLB_MISS;
         }
