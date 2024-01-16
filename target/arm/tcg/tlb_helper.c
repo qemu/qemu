@@ -184,7 +184,7 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
      * (and indeed syndrome does not have the EC field in it,
      * because we masked that out in disas_set_insn_syndrome())
      */
-    bool is_vncr = (mmu_idx != MMU_INST_FETCH) &&
+    bool is_vncr = (access_type != MMU_INST_FETCH) &&
         (env->exception.syndrome & ARM_EL_VNCR);
 
     if (is_vncr) {
