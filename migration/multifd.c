@@ -236,12 +236,12 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     return msg.id;
 }
 
-static MultiFDPages_t *multifd_pages_init(size_t size)
+static MultiFDPages_t *multifd_pages_init(uint32_t n)
 {
     MultiFDPages_t *pages = g_new0(MultiFDPages_t, 1);
 
-    pages->allocated = size;
-    pages->offset = g_new0(ram_addr_t, size);
+    pages->allocated = n;
+    pages->offset = g_new0(ram_addr_t, n);
 
     return pages;
 }
@@ -250,7 +250,6 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
 {
     pages->num = 0;
     pages->allocated = 0;
-    pages->packet_num = 0;
     pages->block = NULL;
     g_free(pages->offset);
     pages->offset = NULL;
@@ -391,7 +390,7 @@ struct {
  * false.
  */
 
-static int multifd_send_pages(QEMUFile *f)
+static int multifd_send_pages(void)
 {
     int i;
     static int next_channel;
@@ -437,7 +436,7 @@ static int multifd_send_pages(QEMUFile *f)
     return 1;
 }
 
-int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
+int multifd_queue_page(RAMBlock *block, ram_addr_t offset)
 {
     MultiFDPages_t *pages = multifd_send_state->pages;
     bool changed = false;
@@ -457,12 +456,12 @@ int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
         changed = true;
     }
 
-    if (multifd_send_pages(f) < 0) {
+    if (multifd_send_pages() < 0) {
         return -1;
     }
 
     if (changed) {
-        return multifd_queue_page(f, block, offset);
+        return multifd_queue_page(block, offset);
     }
 
     return 1;
@@ -584,7 +583,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
     return ret;
 }
 
-int multifd_send_sync_main(QEMUFile *f)
+int multifd_send_sync_main(void)
 {
     int i;
     bool flush_zero_copy;
@@ -593,7 +592,7 @@ int multifd_send_sync_main(QEMUFile *f)
         return 0;
     }
     if (multifd_send_state->pages->num) {
-        if (multifd_send_pages(f) < 0) {
+        if (multifd_send_pages() < 0) {
             error_report("%s: multifd_send_pages fail", __func__);
             return -1;
         }

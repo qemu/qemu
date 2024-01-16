@@ -523,28 +523,26 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
     /*
      * Having preliminary checks for uri and channel
      */
-    if (uri && has_channels) {
-        error_setg(errp, "'uri' and 'channels' arguments are mutually "
-                   "exclusive; exactly one of the two should be present in "
-                   "'migrate-incoming' qmp command ");
+    if (!uri == !channels) {
+        error_setg(errp, "need either 'uri' or 'channels' argument");
         return;
-    } else if (channels) {
+    }
+
+    if (channels) {
         /* To verify that Migrate channel list has only item */
         if (channels->next) {
             error_setg(errp, "Channel list has more than one entries");
             return;
         }
         addr = channels->value->addr;
-    } else if (uri) {
+    }
+
+    if (uri) {
         /* caller uses the old URI syntax */
         if (!migrate_uri_parse(uri, &channel, errp)) {
             return;
         }
         addr = channel->addr;
-    } else {
-        error_setg(errp, "neither 'uri' or 'channels' argument are "
-                   "specified in 'migrate-incoming' qmp command ");
-        return;
     }
 
     /* transport mechanism not suitable for migration? */
@@ -699,6 +697,13 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
+        MigrationState *s = migrate_get_current();
+
+        if (migrate_has_error(s)) {
+            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+                error_report_err(s->error);
+            }
+        }
         error_report("load of migration failed: %s", strerror(-ret));
         goto fail;
     }
@@ -1924,28 +1929,26 @@ void qmp_migrate(const char *uri, bool has_channels,
     /*
      * Having preliminary checks for uri and channel
      */
-    if (uri && has_channels) {
-        error_setg(errp, "'uri' and 'channels' arguments are mutually "
-                   "exclusive; exactly one of the two should be present in "
-                   "'migrate' qmp command ");
+    if (!uri == !channels) {
+        error_setg(errp, "need either 'uri' or 'channels' argument");
         return;
-    } else if (channels) {
+    }
+
+    if (channels) {
         /* To verify that Migrate channel list has only item */
         if (channels->next) {
             error_setg(errp, "Channel list has more than one entries");
             return;
         }
         addr = channels->value->addr;
-    } else if (uri) {
+    }
+
+    if (uri) {
         /* caller uses the old URI syntax */
         if (!migrate_uri_parse(uri, &channel, errp)) {
             return;
         }
         addr = channel->addr;
-    } else {
-        error_setg(errp, "neither 'uri' or 'channels' argument are "
-                   "specified in 'migrate' qmp command ");
-        return;
     }
 
     /* transport mechanism not suitable for migration? */
