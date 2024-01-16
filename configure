@@ -445,6 +445,7 @@ case "$cpu" in
   loongarch*)
     cpu=loongarch64
     host_arch=loongarch64
+    linux_arch=loongarch
     ;;
 
   mips64*)
