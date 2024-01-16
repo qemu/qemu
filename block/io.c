@@ -2595,6 +2595,16 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
                 ret |= (ret2 & BDRV_BLOCK_ZERO);
             }
         }
+
+        /*
+         * Now that the recursive search was done, clear the flag. Otherwise,
+         * with more complicated block graphs like snapshot-access ->
+         * copy-before-write -> qcow2, where the return value will be propagated
+         * further up to a parent bdrv_co_do_block_status() call, both the
+         * BDRV_BLOCK_RECURSE and BDRV_BLOCK_ZERO flags would be set, which is
+         * not allowed.
+         */
+        ret &= ~BDRV_BLOCK_RECURSE;
     }
 
 out:
