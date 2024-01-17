@@ -160,10 +160,6 @@ static bool type_name_is_valid(const char *name)
 
     /* Allow some legacy names with '+' in it for compatibility reasons */
     if (name[plen] == '+') {
-        if (plen == 6 && g_str_has_prefix(name, "power")) {
-            /* Allow "power5+" and "power7+" CPU names*/
-            return true;
-        }
         if (plen >= 17 && g_str_has_prefix(name, "Sun-UltraSparc-I")) {
             /* Allow "Sun-UltraSparc-IV+" and "Sun-UltraSparc-IIIi+" */
             return true;
