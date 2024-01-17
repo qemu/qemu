@@ -296,7 +296,7 @@ struct MigrationState {
      * this threshold; it's calculated from the requested downtime and
      * measured bandwidth, or avail-switchover-bandwidth if specified.
      */
-    int64_t threshold_size;
+    uint64_t threshold_size;
 
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
