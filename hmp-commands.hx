@@ -399,19 +399,6 @@ SRST
 ERST
 
     {
-        .name       = "singlestep",
-        .args_type  = "option:s?",
-        .params     = "[on|off]",
-        .help       = "deprecated synonym for one-insn-per-tb",
-        .cmd        = hmp_one_insn_per_tb,
-    },
-
-SRST
-``singlestep [off]``
-  This is a deprecated synonym for the one-insn-per-tb command.
-ERST
-
-    {
         .name       = "stop|s",
         .args_type  = "",
         .params     = "",

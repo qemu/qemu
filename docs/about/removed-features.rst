@@ -635,6 +635,12 @@ Use ``migrate-set-parameters`` instead.
 
 This command didn't produce any output already. Removed with no replacement.
 
+``singlestep`` (removed in 9.0)
+'''''''''''''''''''''''''''''''
+
+The ``singlestep`` command has been replaced by the ``one-insn-per-tb``
+command, which has the same behaviour but a less misleading name.
+
 Guest Emulator ISAs
 -------------------
 
