@@ -183,6 +183,15 @@ Nios II CPU (since 8.2)
 The Nios II architecture is orphan. The ``nios2`` guest CPU support is
 deprecated and will be removed in a future version of QEMU.
 
+``power5+`` and ``power7+`` CPU names (since 9.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+The character "+" in device (and thus also CPU) names is not allowed
+in the QEMU object model anymore. ``power5+``, ``power5+_v2.1``,
+``power7+`` and ``power7+_v2.1`` are currently still supported via
+an alias, but for consistency these will get removed in a future
+release, too. Use ``power5p_v2.1`` and ``power7p_v2.1`` instead.
+
 
 System emulator machines
 ------------------------
