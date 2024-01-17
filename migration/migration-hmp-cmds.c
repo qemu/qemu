@@ -762,7 +762,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
-    MigrationChannelList *caps = NULL;
+    g_autoptr(MigrationChannelList) caps = NULL;
     g_autoptr(MigrationChannel) channel = NULL;
 
     if (inc) {
@@ -786,8 +786,6 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     if (hmp_handle_error(mon, err)) {
         return;
     }
-
-    qapi_free_MigrationChannelList(caps);
 
     if (!detach) {
         HMPMigrationStatus *status;
