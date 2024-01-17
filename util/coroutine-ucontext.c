@@ -119,13 +119,11 @@ void finish_switch_fiber(void *fake_stack_save)
 
 /* always_inline is required to avoid TSan runtime fatal errors. */
 static inline __attribute__((always_inline))
-void start_switch_fiber_asan(CoroutineAction action, void **fake_stack_save,
+void start_switch_fiber_asan(void **fake_stack_save,
                              const void *bottom, size_t size)
 {
 #ifdef CONFIG_ASAN
-    __sanitizer_start_switch_fiber(
-            action == COROUTINE_TERMINATE ? NULL : fake_stack_save,
-            bottom, size);
+    __sanitizer_start_switch_fiber(fake_stack_save, bottom, size);
 #endif
 }
 
@@ -165,7 +163,7 @@ static void coroutine_trampoline(int i0, int i1)
     if (!sigsetjmp(self->env, 0)) {
         CoroutineUContext *leaderp = get_ptr_leader();
 
-        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save,
+        start_switch_fiber_asan(&fake_stack_save,
                                 leaderp->stack, leaderp->stack_size);
         start_switch_fiber_tsan(&fake_stack_save, self, true); /* true=caller */
         siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
@@ -226,8 +224,7 @@ Coroutine *qemu_coroutine_new(void)
 
     /* swapcontext() in, siglongjmp() back out */
     if (!sigsetjmp(old_env, 0)) {
-        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save, co->stack,
-                                co->stack_size);
+        start_switch_fiber_asan(&fake_stack_save, co->stack, co->stack_size);
         start_switch_fiber_tsan(&fake_stack_save,
                                 co, false); /* false=not caller */
 
@@ -269,9 +266,27 @@ static inline void valgrind_stack_deregister(CoroutineUContext *co)
 #endif
 #endif
 
+#if defined(CONFIG_ASAN) && defined(CONFIG_COROUTINE_POOL)
+static void coroutine_fn terminate_asan(void *opaque)
+{
+    CoroutineUContext *to = DO_UPCAST(CoroutineUContext, base, opaque);
+
+    set_current(opaque);
+    start_switch_fiber_asan(NULL, to->stack, to->stack_size);
+    G_STATIC_ASSERT(!IS_ENABLED(CONFIG_TSAN));
+    siglongjmp(to->env, COROUTINE_ENTER);
+}
+#endif
+
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
+
+#if defined(CONFIG_ASAN) && defined(CONFIG_COROUTINE_POOL)
+    co_->entry_arg = qemu_coroutine_self();
+    co_->entry = terminate_asan;
+    qemu_coroutine_switch(co_->entry_arg, co_, COROUTINE_ENTER);
+#endif
 
 #ifdef CONFIG_VALGRIND_H
     valgrind_stack_deregister(co);
@@ -305,8 +320,10 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
     ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
-        start_switch_fiber_asan(action, &fake_stack_save, to->stack,
-                                to->stack_size);
+        start_switch_fiber_asan(IS_ENABLED(CONFIG_COROUTINE_POOL) ||
+                                action != COROUTINE_TERMINATE ?
+                                    &fake_stack_save : NULL,
+                                to->stack, to->stack_size);
         start_switch_fiber_tsan(&fake_stack_save,
                                 to, false); /* false=not caller */
         siglongjmp(to->env, action);
