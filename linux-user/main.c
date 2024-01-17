@@ -500,8 +500,6 @@ static const struct qemu_argument arg_table[] = {
     {"one-insn-per-tb",
                    "QEMU_ONE_INSN_PER_TB",  false, handle_arg_one_insn_per_tb,
      "",           "run with one guest instruction per emulated TB"},
-    {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_one_insn_per_tb,
-     "",           "deprecated synonym for -one-insn-per-tb"},
     {"strace",     "QEMU_STRACE",      false, handle_arg_strace,
      "",           "log system calls"},
     {"seed",       "QEMU_RAND_SEED",   true,  handle_arg_seed,

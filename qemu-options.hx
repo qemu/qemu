@@ -4359,14 +4359,6 @@ SRST
     from a script.
 ERST
 
-DEF("singlestep", 0, QEMU_OPTION_singlestep, \
-    "-singlestep     deprecated synonym for -accel tcg,one-insn-per-tb=on\n", QEMU_ARCH_ALL)
-SRST
-``-singlestep``
-    This is a deprecated synonym for the TCG accelerator property
-    ``one-insn-per-tb``.
-ERST
-
 DEF("preconfig", 0, QEMU_OPTION_preconfig, \
     "--preconfig     pause QEMU before machine is initialized (experimental)\n",
     QEMU_ARCH_ALL)
