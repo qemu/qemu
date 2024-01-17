@@ -1118,7 +1118,7 @@ static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
                         sizeof(struct vfio_device_feature_dma_logging_report),
-                        sizeof(__u64))] = {};
+                        sizeof(uint64_t))] = {};
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
     struct vfio_device_feature_dma_logging_report *report =
         (struct vfio_device_feature_dma_logging_report *)feature->data;
