@@ -242,15 +242,7 @@ bool runstate_needs_reset(void)
 StatusInfo *qmp_query_status(Error **errp)
 {
     StatusInfo *info = g_malloc0(sizeof(*info));
-    AccelState *accel = current_accel();
 
-    /*
-     * We ignore errors, which will happen if the accelerator
-     * is not TCG. "singlestep" is meaningless for other accelerators,
-     * so we will set the StatusInfo field to false for those.
-     */
-    info->singlestep = object_property_get_bool(OBJECT(accel),
-                                                "one-insn-per-tb", NULL);
     info->running = runstate_is_running();
     info->status = current_run_state;
 

@@ -12,7 +12,7 @@ Enabling migration QMP events on VM...
 VM is now stopped:
 completed
 {"execute": "query-status", "arguments": {}}
-{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
+{"return": {"running": false, "status": "postmigrate"}}
 
 === Create a snapshot of the disk image ===
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-top", "size": 0}}}
