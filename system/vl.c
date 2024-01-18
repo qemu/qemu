@@ -3600,12 +3600,6 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_daemonize:
                 os_set_daemonize(true);
                 break;
-#if defined(CONFIG_LINUX)
-            /* deprecated */
-            case QEMU_OPTION_asyncteardown:
-                init_async_teardown();
-                break;
-#endif
             case QEMU_OPTION_run_with: {
                 const char *str;
                 opts = qemu_opts_parse_noisily(qemu_find_opts("run-with"),

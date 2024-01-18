@@ -472,6 +472,11 @@ Use ``-machine hpet=off`` instead.
 The ``-no-acpi`` setting has been turned into a machine property.
 Use ``-machine acpi=off`` instead.
 
+``-async-teardown`` (removed in 9.0)
+''''''''''''''''''''''''''''''''''''
+
+Use ``-run-with async-teardown=on`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
