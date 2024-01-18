@@ -1771,8 +1771,8 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     /* Base address of the high IO region */
     memtop = base = device_memory_base + ROUND_UP(device_memory_size, GiB);
     if (memtop > BIT_ULL(pa_bits)) {
-	    error_report("Addressing limited to %d bits, but memory exceeds it by %llu bytes\n",
-			 pa_bits, memtop - BIT_ULL(pa_bits));
+        error_report("Addressing limited to %d bits, but memory exceeds it by %llu bytes",
+                     pa_bits, memtop - BIT_ULL(pa_bits));
         exit(EXIT_FAILURE);
     }
     if (base < device_memory_base) {
