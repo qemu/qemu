@@ -151,20 +151,12 @@ static void s390_pci_shutdown_notifier(Notifier *n, void *opaque)
     pci_device_reset(pbdev->pdev);
 }
 
-static void s390_pci_reset_cb(void *opaque)
-{
-    S390PCIBusDevice *pbdev = opaque;
-
-    pci_device_reset(pbdev->pdev);
-}
-
 static void s390_pci_perform_unplug(S390PCIBusDevice *pbdev)
 {
     HotplugHandler *hotplug_ctrl;
 
     if (pbdev->pft == ZPCI_PFT_ISM) {
         notifier_remove(&pbdev->shutdown_notifier);
-        qemu_unregister_reset(s390_pci_reset_cb, pbdev);
     }
 
     /* Unplug the PCI device */
@@ -1132,7 +1124,6 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             if (pbdev->pft == ZPCI_PFT_ISM) {
                 pbdev->shutdown_notifier.notify = s390_pci_shutdown_notifier;
                 qemu_register_shutdown_notifier(&pbdev->shutdown_notifier);
-                qemu_register_reset(s390_pci_reset_cb, pbdev);
             }
         } else {
             pbdev->fh |= FH_SHM_EMUL;
@@ -1277,6 +1268,23 @@ static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
     /* Assign numbers to all child bridges. The last is the highest number. */
     pci_for_each_device_under_bus(sec_bus, s390_pci_enumerate_bridge, s);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, s->bus_no, 1);
+}
+
+void s390_pci_ism_reset(void)
+{
+    S390pciState *s = s390_get_phb();
+
+    S390PCIBusDevice *pbdev, *next;
+
+    /* Trigger reset event for each passthrough ISM device currently in-use */
+    QTAILQ_FOREACH_SAFE(pbdev, &s->zpci_devs, link, next) {
+        if (pbdev->interp && pbdev->pft == ZPCI_PFT_ISM &&
+            pbdev->fh & FH_MASK_ENABLE) {
+            s390_pci_kvm_aif_disable(pbdev);
+
+            pci_device_reset(pbdev->pdev);
+        }
+    }
 }
 
 static void s390_pcihost_reset(DeviceState *dev)

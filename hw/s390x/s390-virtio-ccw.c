@@ -118,6 +118,14 @@ static void subsystem_reset(void)
     DeviceState *dev;
     int i;
 
+    /*
+     * ISM firmware is sensitive to unexpected changes to the IOMMU, which can
+     * occur during reset of the vfio-pci device (unmap of entire aperture).
+     * Ensure any passthrough ISM devices are reset now, while CPUs are paused
+     * but before vfio-pci cleanup occurs.
+     */
+    s390_pci_ism_reset();
+
     for (i = 0; i < ARRAY_SIZE(reset_dev_types); i++) {
         dev = DEVICE(object_resolve_path_type("", reset_dev_types[i], NULL));
         if (dev) {
