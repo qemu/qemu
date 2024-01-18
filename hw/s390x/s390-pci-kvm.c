@@ -27,6 +27,7 @@ bool s390_pci_kvm_interp_allowed(void)
 
 int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist)
 {
+    int rc;
     struct kvm_s390_zpci_op args = {
         .fh = pbdev->fh,
         .op = KVM_S390_ZPCIOP_REG_AEN,
@@ -38,15 +39,35 @@ int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist)
         .u.reg_aen.flags = (assist) ? 0 : KVM_S390_ZPCIOP_REGAEN_HOST
     };
 
-    return kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+    if (pbdev->aif) {
+        return -EINVAL;
+    }
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+    if (rc == 0) {
+        pbdev->aif = true;
+    }
+
+    return rc;
 }
 
 int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev)
 {
+    int rc;
+
     struct kvm_s390_zpci_op args = {
         .fh = pbdev->fh,
         .op = KVM_S390_ZPCIOP_DEREG_AEN
     };
 
-    return kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+    if (!pbdev->aif) {
+        return -EINVAL;
+    }
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+    if (rc == 0) {
+        pbdev->aif = false;
+    }
+
+    return rc;
 }
