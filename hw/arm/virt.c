@@ -2905,6 +2905,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_TCG
         ARM_CPU_TYPE_NAME("cortex-a7"),
         ARM_CPU_TYPE_NAME("cortex-a15"),
+#ifdef TARGET_AARCH64
         ARM_CPU_TYPE_NAME("cortex-a35"),
         ARM_CPU_TYPE_NAME("cortex-a55"),
         ARM_CPU_TYPE_NAME("cortex-a72"),
@@ -2914,12 +2915,15 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
         ARM_CPU_TYPE_NAME("neoverse-n1"),
         ARM_CPU_TYPE_NAME("neoverse-v1"),
         ARM_CPU_TYPE_NAME("neoverse-n2"),
-#endif
+#endif /* TARGET_AARCH64 */
+#endif /* CONFIG_TCG */
+#ifdef TARGET_AARCH64
         ARM_CPU_TYPE_NAME("cortex-a53"),
         ARM_CPU_TYPE_NAME("cortex-a57"),
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
         ARM_CPU_TYPE_NAME("host"),
-#endif
+#endif /* CONFIG_KVM || CONFIG_HVF */
+#endif /* TARGET_AARCH64 */
         ARM_CPU_TYPE_NAME("max"),
         NULL
     };

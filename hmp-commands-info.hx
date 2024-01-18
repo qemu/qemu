@@ -1,8 +1,8 @@
-HXCOMM Use DEFHEADING() to define headings in both help text and rST.
-HXCOMM Text between SRST and ERST is copied to the rST version and
-HXCOMM discarded from C version.
-HXCOMM DEF(command, args, callback, arg_string, help) is used to construct
-HXCOMM monitor info commands
+HXCOMM See docs/devel/docs.rst for the format of this file.
+HXCOMM
+HXCOMM This file defines the contents of an array of HMPCommand structs
+HXCOMM which specify the name, behaviour and help text for HMP commands.
+HXCOMM Text between SRST and ERST is rST format documentation.
 HXCOMM HXCOMM can be used for comments, discarded from both rST and C.
 HXCOMM
 HXCOMM In this file, generally SRST fragments should have two extra

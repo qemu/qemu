@@ -95,7 +95,10 @@ static const uint8_t pamax_map[] = {
     [6] = 52,
 };
 
-/* The cpu-specific constant value of PAMax; also used by hw/arm/virt. */
+/*
+ * The cpu-specific constant value of PAMax; also used by hw/arm/virt.
+ * Note that machvirt_init calls this on a CPU that is inited but not realized!
+ */
 unsigned int arm_pamax(ARMCPU *cpu)
 {
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
@@ -110,13 +113,8 @@ unsigned int arm_pamax(ARMCPU *cpu)
         return pamax_map[parange];
     }
 
-    /*
-     * In machvirt_init, we call arm_pamax on a cpu that is not fully
-     * initialized, so we can't rely on the propagation done in realize.
-     */
-    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE) ||
-        arm_feature(&cpu->env, ARM_FEATURE_V7VE)) {
-        /* v7 with LPAE */
+    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
+        /* v7 or v8 with LPAE */
         return 40;
     }
     /* Anything else */
