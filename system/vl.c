@@ -3369,10 +3369,6 @@ void qemu_init(int argc, char **argv)
                 display_remote++;
                 break;
 #endif
-            case QEMU_OPTION_no_acpi:
-                warn_report("-no-acpi is deprecated, use '-machine acpi=off' instead");
-                qdict_put_str(machine_opts_dict, "acpi", "off");
-                break;
             case QEMU_OPTION_no_reboot:
                 olist = qemu_find_opts("action");
                 qemu_opts_parse_noisily(olist, "reboot=shutdown", false);

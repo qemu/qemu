@@ -2647,15 +2647,6 @@ SRST
     needed to boot from old floppy disks.
 ERST
 
-DEF("no-acpi", 0, QEMU_OPTION_no_acpi,
-           "-no-acpi        disable ACPI\n", QEMU_ARCH_I386 | QEMU_ARCH_ARM)
-SRST
-``-no-acpi``
-    Disable ACPI (Advanced Configuration and Power Interface) support.
-    Use it if your guest OS complains about ACPI problems (PC target
-    machine only).
-ERST
-
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
     "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,{data|file}=file1[:file2]...]\n"
     "                ACPI table description\n", QEMU_ARCH_I386)

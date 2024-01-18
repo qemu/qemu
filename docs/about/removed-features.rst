@@ -466,6 +466,11 @@ line if the ``-nodefaults`` options is used.
 The HPET setting has been turned into a machine property.
 Use ``-machine hpet=off`` instead.
 
+``-no-acpi`` (removed in 9.0)
+'''''''''''''''''''''''''''''
+
+The ``-no-acpi`` setting has been turned into a machine property.
+Use ``-machine acpi=off`` instead.
 
 
 QEMU Machine Protocol (QMP) commands
