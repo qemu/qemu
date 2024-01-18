@@ -378,7 +378,7 @@ static void cancel_hpt_prepare(SpaprMachineState *spapr)
     free_pending_hpt(pending);
 }
 
-target_ulong softmmu_resize_hpt_prepare(PowerPCCPU *cpu,
+target_ulong vhyp_mmu_resize_hpt_prepare(PowerPCCPU *cpu,
                                          SpaprMachineState *spapr,
                                          target_ulong shift)
 {
@@ -562,7 +562,7 @@ static int rehash_hpt(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-target_ulong softmmu_resize_hpt_commit(PowerPCCPU *cpu,
+target_ulong vhyp_mmu_resize_hpt_commit(PowerPCCPU *cpu,
                                         SpaprMachineState *spapr,
                                         target_ulong flags,
                                         target_ulong shift)
