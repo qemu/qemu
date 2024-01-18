@@ -123,9 +123,11 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
 
     if (kvm_enabled()) {
         return H_HARDWARE;
+    } else if (tcg_enabled()) {
+        return softmmu_resize_hpt_prepare(cpu, spapr, shift);
+    } else {
+        g_assert_not_reached();
     }
-
-    return softmmu_resize_hpt_prepare(cpu, spapr, shift);
 }
 
 static void do_push_sregs_to_kvm_pr(CPUState *cs, run_on_cpu_data data)
@@ -191,9 +193,11 @@ static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
 
     if (kvm_enabled()) {
         return H_HARDWARE;
+    } else if (tcg_enabled()) {
+        return softmmu_resize_hpt_commit(cpu, spapr, flags, shift);
+    } else {
+        g_assert_not_reached();
     }
-
-    return softmmu_resize_hpt_commit(cpu, spapr, flags, shift);
 }
 
 
