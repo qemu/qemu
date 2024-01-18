@@ -31,6 +31,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/arm/allwinner-h3.h"
 #include "target/arm/cpu-qom.h"
+#include "target/arm/gtimer.h"
 
 /* Memory map */
 const hwaddr allwinner_h3_memmap[] = {

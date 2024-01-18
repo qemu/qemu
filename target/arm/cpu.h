@@ -27,6 +27,7 @@
 #include "exec/cpu-defs.h"
 #include "qapi/qapi-types-common.h"
 #include "target/arm/multiprocessing.h"
+#include "target/arm/gtimer.h"
 
 /* ARM processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
@@ -139,13 +140,6 @@ typedef struct ARMGenericTimer {
     uint64_t cval; /* Timer CompareValue register */
     uint64_t ctl; /* Timer Control register */
 } ARMGenericTimer;
-
-#define GTIMER_PHYS     0
-#define GTIMER_VIRT     1
-#define GTIMER_HYP      2
-#define GTIMER_SEC      3
-#define GTIMER_HYPVIRT  4
-#define NUM_GTIMERS     5
 
 #define VTCR_NSW (1u << 29)
 #define VTCR_NSA (1u << 30)

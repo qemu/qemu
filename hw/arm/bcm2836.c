@@ -16,6 +16,7 @@
 #include "hw/arm/raspi_platform.h"
 #include "hw/sysbus.h"
 #include "target/arm/cpu-qom.h"
+#include "target/arm/gtimer.h"
 
 struct BCM283XClass {
     /*< private >*/
