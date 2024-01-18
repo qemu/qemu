@@ -1,9 +1,12 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # group: rw auto quick
 #
 # Test case for ejecting BDSs with block jobs still running on them
 #
-# Copyright (C) 2016 Red Hat, Inc.
+# Originally written in bash by Hanna Czenczek, ported to Python by Stefan
+# Hajnoczi.
+#
+# Copyright Red Hat
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,177 +22,129 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# creator
-owner=hreitz@redhat.com
+import iotests
 
-seq="$(basename $0)"
-echo "QA output created by $seq"
-
-status=1	# failure is the default!
-
-_cleanup()
-{
-    _cleanup_qemu
-    _cleanup_test_img
-    for img in "$TEST_DIR"/{b,m,o}.$IMGFMT; do
-        _rm_test_img "$img"
-    done
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
-
-# get standard environment, filters and checks
-. ./common.rc
-. ./common.filter
-. ./common.qemu
-
-# Needs backing file and backing format support
-_supported_fmt qcow2 qed
-_supported_proto file
-_supported_os Linux
+# Common filters to mask values that vary in the test output
+QMP_FILTERS = [iotests.filter_qmp_testfiles, \
+               iotests.filter_qmp_imgfmt]
 
 
-test_blockjob()
-{
-    _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': '$IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': '$TEST_IMG'
-              }}}" \
-        'return'
+class TestCase:
+    def __init__(self, name, vm, image_path, cancel_event):
+        self.name = name
+        self.vm = vm
+        self.image_path = image_path
+        self.cancel_event = cancel_event
 
-    # If "$2" is an event, we may or may not see it before the
-    # {"return": {}}.  Therefore, filter the {"return": {}} out both
-    # here and in the next command.  (Naturally, if we do not see it
-    # here, we will see it before the next command can be executed,
-    # so it will appear in the next _send_qemu_cmd's output.)
-    _send_qemu_cmd $QEMU_HANDLE \
-        "$1" \
-        "$2" \
-        | _filter_img_create | _filter_qmp_empty_return
+    def __enter__(self):
+        iotests.log(f'=== Testing {self.name} ===')
+        self.vm.qmp_log('blockdev-add', \
+                        node_name='drv0', \
+                        driver=iotests.imgfmt, \
+                        file={'driver': 'file', 'filename': self.image_path}, \
+                        filters=QMP_FILTERS)
 
-    # We want this to return an error because the block job is still running
-    _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}" \
-        'error' | _filter_generated_node_ids | _filter_qmp_empty_return
+    def __exit__(self, *exc_details):
+        # This is expected to fail because the job still exists
+        self.vm.qmp_log('blockdev-del', node_name='drv0', \
+                        filters=[iotests.filter_qmp_generated_node_ids])
 
-    _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}" \
-        "$3"
+        self.vm.qmp_log('block-job-cancel', device='job0')
+        event = self.vm.event_wait(self.cancel_event)
+        iotests.log(event, filters=[iotests.filter_qmp_event])
 
-    _send_qemu_cmd $QEMU_HANDLE \
-        "{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}" \
-        'return'
-}
+        # This time it succeeds
+        self.vm.qmp_log('blockdev-del', node_name='drv0')
+
+        # Separate test cases in output
+        iotests.log('')
 
 
-TEST_IMG="$TEST_DIR/b.$IMGFMT" _make_test_img 1M
-TEST_IMG="$TEST_DIR/m.$IMGFMT" _make_test_img -b "$TEST_DIR/b.$IMGFMT" -F $IMGFMT 1M
-_make_test_img -b "$TEST_DIR/m.$IMGFMT" 1M -F $IMGFMT
+def main() -> None:
+    with iotests.FilePath('bottom', 'middle', 'top', 'target') as \
+            (bottom_path, middle_path, top_path, target_path), \
+         iotests.VM() as vm:
 
-_launch_qemu -nodefaults
+        iotests.log('Creating bottom <- middle <- top backing file chain...')
+        IMAGE_SIZE='1M'
+        iotests.qemu_img_create('-f', iotests.imgfmt, bottom_path, IMAGE_SIZE)
+        iotests.qemu_img_create('-f', iotests.imgfmt, \
+                                '-F', iotests.imgfmt, \
+                                '-b', bottom_path, \
+                                middle_path, \
+                                IMAGE_SIZE)
+        iotests.qemu_img_create('-f', iotests.imgfmt, \
+                                '-F', iotests.imgfmt, \
+                                '-b', middle_path, \
+                                top_path, \
+                                IMAGE_SIZE)
 
-_send_qemu_cmd $QEMU_HANDLE \
-    "{'execute': 'qmp_capabilities'}" \
-    'return'
+        iotests.log('Starting VM...')
+        vm.add_args('-nodefaults')
+        vm.launch()
 
-echo
-echo '=== Testing drive-backup ==='
-echo
+        # drive-backup will not send BLOCK_JOB_READY by itself, and cancelling
+        # the job will consequently result in BLOCK_JOB_CANCELLED being
+        # emitted.
+        with TestCase('drive-backup', vm, top_path, 'BLOCK_JOB_CANCELLED'):
+            vm.qmp_log('drive-backup', \
+                       job_id='job0', \
+                       device='drv0', \
+                       target=target_path, \
+                       format=iotests.imgfmt, \
+                       sync='none', \
+                       filters=QMP_FILTERS)
 
-# drive-backup will not send BLOCK_JOB_READY by itself, and cancelling the job
-# will consequently result in BLOCK_JOB_CANCELLED being emitted.
+        # drive-mirror will send BLOCK_JOB_READY basically immediately, and
+        # cancelling the job will consequently result in BLOCK_JOB_COMPLETED
+        # being emitted.
+        with TestCase('drive-mirror', vm, top_path, 'BLOCK_JOB_COMPLETED'):
+            vm.qmp_log('drive-mirror', \
+                       job_id='job0', \
+                       device='drv0', \
+                       target=target_path, \
+                       format=iotests.imgfmt, \
+                       sync='none', \
+                       filters=QMP_FILTERS)
+            event = vm.event_wait('BLOCK_JOB_READY')
+            assert event is not None # silence mypy
+            iotests.log(event, filters=[iotests.filter_qmp_event])
 
-test_blockjob \
-    "{'execute': 'drive-backup',
-      'arguments': {'job-id': 'job0',
-                    'device': 'drv0',
-                    'target': '$TEST_DIR/o.$IMGFMT',
-                    'format': '$IMGFMT',
-                    'sync': 'none'}}" \
-    'return' \
-    '"status": "null"'
+        # An active block-commit will send BLOCK_JOB_READY basically
+        # immediately, and cancelling the job will consequently result in
+        # BLOCK_JOB_COMPLETED being emitted.
+        with TestCase('active block-commit', vm, top_path, \
+                      'BLOCK_JOB_COMPLETED'):
+            vm.qmp_log('block-commit', \
+                       job_id='job0', \
+                       device='drv0')
+            event = vm.event_wait('BLOCK_JOB_READY')
+            assert event is not None # silence mypy
+            iotests.log(event, filters=[iotests.filter_qmp_event])
 
-echo
-echo '=== Testing drive-mirror ==='
-echo
+        # Give block-commit something to work on, otherwise it would be done
+        # immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would
+        # work just fine without the block job still running.
+        iotests.qemu_io(middle_path, '-c', f'write 0 {IMAGE_SIZE}')
+        with TestCase('non-active block-commit', vm, top_path, \
+                      'BLOCK_JOB_CANCELLED'):
+            vm.qmp_log('block-commit', \
+                       job_id='job0', \
+                       device='drv0', \
+                       top=middle_path, \
+                       speed=1, \
+                       filters=[iotests.filter_qmp_testfiles])
 
-# drive-mirror will send BLOCK_JOB_READY basically immediately, and cancelling
-# the job will consequently result in BLOCK_JOB_COMPLETED being emitted.
+        # Give block-stream something to work on, otherwise it would be done
+        # immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would
+        # work just fine without the block job still running.
+        iotests.qemu_io(bottom_path, '-c', f'write 0 {IMAGE_SIZE}')
+        with TestCase('block-stream', vm, top_path, 'BLOCK_JOB_CANCELLED'):
+            vm.qmp_log('block-stream', \
+                       job_id='job0', \
+                       device='drv0', \
+                       speed=1)
 
-test_blockjob \
-    "{'execute': 'drive-mirror',
-      'arguments': {'job-id': 'job0',
-                    'device': 'drv0',
-                    'target': '$TEST_DIR/o.$IMGFMT',
-                    'format': '$IMGFMT',
-                    'sync': 'none'}}" \
-    'BLOCK_JOB_READY' \
-    '"status": "null"'
-
-echo
-echo '=== Testing active block-commit ==='
-echo
-
-# An active block-commit will send BLOCK_JOB_READY basically immediately, and
-# cancelling the job will consequently result in BLOCK_JOB_COMPLETED being
-# emitted.
-
-test_blockjob \
-    "{'execute': 'block-commit',
-      'arguments': {'job-id': 'job0', 'device': 'drv0'}}" \
-    'BLOCK_JOB_READY' \
-    '"status": "null"'
-
-echo
-echo '=== Testing non-active block-commit ==='
-echo
-
-# Give block-commit something to work on, otherwise it would be done
-# immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would work just
-# fine without the block job still running.
-
-$QEMU_IO -c 'write 0 1M' "$TEST_DIR/m.$IMGFMT" | _filter_qemu_io
-
-test_blockjob \
-    "{'execute': 'block-commit',
-      'arguments': {'job-id': 'job0',
-                    'device': 'drv0',
-                    'top':    '$TEST_DIR/m.$IMGFMT',
-                    'speed':  1}}" \
-    'return' \
-    '"status": "null"'
-
-echo
-echo '=== Testing block-stream ==='
-echo
-
-# Give block-stream something to work on, otherwise it would be done
-# immediately, send a BLOCK_JOB_COMPLETED and ejecting the BDS would work just
-# fine without the block job still running.
-
-$QEMU_IO -c 'write 0 1M' "$TEST_DIR/b.$IMGFMT" | _filter_qemu_io
-
-# With some data to stream (and @speed set to 1), block-stream will not complete
-# until we send the block-job-cancel command.
-
-test_blockjob \
-    "{'execute': 'block-stream',
-      'arguments': {'job-id': 'job0',
-                    'device': 'drv0',
-                    'speed': 1}}" \
-    'return' \
-    '"status": "null"'
-
-_cleanup_qemu
-
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+if __name__ == '__main__':
+    iotests.script_main(main, supported_fmts=['qcow2', 'qed'],
+                        supported_protocols=['file'])

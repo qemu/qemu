@@ -1,179 +1,69 @@
-QA output created by 141
-Formatting 'TEST_DIR/b.IMGFMT', fmt=IMGFMT size=1048576
-Formatting 'TEST_DIR/m.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/b.IMGFMT backing_fmt=IMGFMT
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/m.IMGFMT backing_fmt=IMGFMT
-{'execute': 'qmp_capabilities'}
-{"return": {}}
-
+Creating bottom <- middle <- top backing file chain...
+Starting VM...
 === Testing drive-backup ===
-
-{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': 'IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': 'TEST_DIR/t.IMGFMT'
-              }}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top"}, "node-name": "drv0"}}
 {"return": {}}
-{'execute': 'drive-backup',
-'arguments': {'job-id': 'job0',
-'device': 'drv0',
-'target': 'TEST_DIR/o.IMGFMT',
-'format': 'IMGFMT',
-'sync': 'none'}}
-Formatting 'TEST_DIR/o.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "paused", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"execute": "drive-backup", "arguments": {"device": "drv0", "format": "IMGFMT", "job-id": "job0", "sync": "none", "target": "TEST_DIR/PID-target"}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: node is used as backing hd of 'NODE_NAME'"}}
-{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}
+{"execute": "block-job-cancel", "arguments": {"device": "job0"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "aborting", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "job0", "len": 1048576, "offset": 0, "speed": 0, "type": "backup"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "concluded", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"data": {"device": "job0", "len": 1048576, "offset": 0, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"return": {}}
 
 === Testing drive-mirror ===
-
-{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': 'IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': 'TEST_DIR/t.IMGFMT'
-              }}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top"}, "node-name": "drv0"}}
 {"return": {}}
-{'execute': 'drive-mirror',
-'arguments': {'job-id': 'job0',
-'device': 'drv0',
-'target': 'TEST_DIR/o.IMGFMT',
-'format': 'IMGFMT',
-'sync': 'none'}}
-Formatting 'TEST_DIR/o.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"execute": "drive-mirror", "arguments": {"device": "drv0", "format": "IMGFMT", "job-id": "job0", "sync": "none", "target": "TEST_DIR/PID-target"}}
+{"return": {}}
+{"data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}, "event": "BLOCK_JOB_READY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: mirror"}}
-{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}
+{"execute": "block-job-cancel", "arguments": {"device": "job0"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "waiting", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "pending", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "concluded", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "mirror"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"return": {}}
 
 === Testing active block-commit ===
-
-{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': 'IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': 'TEST_DIR/t.IMGFMT'
-              }}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top"}, "node-name": "drv0"}}
 {"return": {}}
-{'execute': 'block-commit',
-'arguments': {'job-id': 'job0', 'device': 'drv0'}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"execute": "block-commit", "arguments": {"device": "drv0", "job-id": "job0"}}
+{"return": {}}
+{"data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_READY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: commit"}}
-{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}
+{"execute": "block-job-cancel", "arguments": {"device": "job0"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "waiting", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "pending", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "concluded", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"data": {"device": "job0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"return": {}}
 
 === Testing non-active block-commit ===
-
-wrote 1048576/1048576 bytes at offset 0
-1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': 'IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': 'TEST_DIR/t.IMGFMT'
-              }}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top"}, "node-name": "drv0"}}
 {"return": {}}
-{'execute': 'block-commit',
-'arguments': {'job-id': 'job0',
-'device': 'drv0',
-'top':    'TEST_DIR/m.IMGFMT',
-'speed':  1}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"execute": "block-commit", "arguments": {"device": "drv0", "job-id": "job0", "speed": 1, "top": "TEST_DIR/PID-middle"}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: commit"}}
-{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}
+{"execute": "block-job-cancel", "arguments": {"device": "job0"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "aborting", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "job0", "len": 1048576, "offset": 524288, "speed": 1, "type": "commit"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "concluded", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"data": {"device": "job0", "len": 1048576, "offset": 524288, "speed": 1, "type": "commit"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"return": {}}
 
 === Testing block-stream ===
-
-wrote 1048576/1048576 bytes at offset 0
-1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-{'execute': 'blockdev-add',
-          'arguments': {
-              'node-name': 'drv0',
-              'driver': 'IMGFMT',
-              'file': {
-                  'driver': 'file',
-                  'filename': 'TEST_DIR/t.IMGFMT'
-              }}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top"}, "node-name": "drv0"}}
 {"return": {}}
-{'execute': 'block-stream',
-'arguments': {'job-id': 'job0',
-'device': 'drv0',
-'speed': 1}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"execute": "block-stream", "arguments": {"device": "drv0", "job-id": "job0", "speed": 1}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"error": {"class": "GenericError", "desc": "Node 'drv0' is busy: block device is in use by block job: stream"}}
-{'execute': 'block-job-cancel',
-          'arguments': {'device': 'job0'}}
+{"execute": "block-job-cancel", "arguments": {"device": "job0"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "aborting", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_CANCELLED", "data": {"device": "job0", "len": 1048576, "offset": 524288, "speed": 1, "type": "stream"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "concluded", "id": "job0"}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
-{'execute': 'blockdev-del',
-          'arguments': {'node-name': 'drv0'}}
+{"data": {"device": "job0", "len": 1048576, "offset": 524288, "speed": 1, "type": "stream"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "blockdev-del", "arguments": {"node-name": "drv0"}}
 {"return": {}}
-*** done
+
