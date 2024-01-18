@@ -90,10 +90,6 @@ Testing:
     ]
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -102,6 +98,10 @@ Testing:
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -170,10 +170,6 @@ Testing:
     }
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -182,6 +178,10 @@ Testing:
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -212,10 +212,6 @@ Testing:
     }
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -224,6 +220,10 @@ Testing:
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -248,10 +248,6 @@ Testing:
     }
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -260,6 +256,10 @@ Testing:
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 

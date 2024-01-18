@@ -344,14 +344,14 @@ wait_for_job_and_quit() {
 
     sleep 1
 
+    # List of expected events
+    capture_events='BLOCK_JOB_CANCELLED JOB_STATUS_CHANGE SHUTDOWN'
+
     _send_qemu_cmd $h \
         '{"execute": "quit"}' \
         'return'
 
-    # List of expected events
-    capture_events='BLOCK_JOB_CANCELLED JOB_STATUS_CHANGE SHUTDOWN'
     _wait_event $h 'SHUTDOWN'
-    QEMU_EVENTS= # Ignore all JOB_STATUS_CHANGE events that came before SHUTDOWN
     _wait_event $h 'JOB_STATUS_CHANGE' # standby
     _wait_event $h 'JOB_STATUS_CHANGE' # ready
     _wait_event $h 'JOB_STATUS_CHANGE' # standby
