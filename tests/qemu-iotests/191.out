@@ -379,10 +379,6 @@ wrote 65536/65536 bytes at offset 1048576
 }
 { 'execute': 'quit' }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -391,6 +387,10 @@ wrote 65536/65536 bytes at offset 1048576
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 image: TEST_DIR/t.IMGFMT
@@ -797,10 +797,6 @@ wrote 65536/65536 bytes at offset 1048576
 }
 { 'execute': 'quit' }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -809,6 +805,10 @@ wrote 65536/65536 bytes at offset 1048576
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 image: TEST_DIR/t.IMGFMT
