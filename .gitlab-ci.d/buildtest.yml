@@ -217,10 +217,14 @@ build-previous-qemu:
     - QTEST_QEMU_BINARY_DST=./qemu-system-${TARGET}
           QTEST_QEMU_BINARY=../build/qemu-system-${TARGET} ./tests/qtest/migration-test
 
+# This job is disabled until we release 9.0. The existing
+# migration-test in 8.2 is broken on aarch64. The fix was already
+# commited, but it will only take effect once 9.0 is out.
 migration-compat-aarch64:
   extends: .migration-compat-common
   variables:
     TARGET: aarch64
+    QEMU_JOB_SKIPPED: 1
 
 migration-compat-x86_64:
   extends: .migration-compat-common
