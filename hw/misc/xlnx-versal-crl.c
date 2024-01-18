@@ -18,6 +18,7 @@
 #include "hw/register.h"
 #include "hw/resettable.h"
 
+#include "target/arm/cpu.h"
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/multiprocessing.h"
 #include "hw/misc/xlnx-versal-crl.h"
