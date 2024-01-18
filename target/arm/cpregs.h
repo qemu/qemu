@@ -22,6 +22,7 @@
 #define TARGET_ARM_CPREGS_H
 
 #include "hw/registerfields.h"
+#include "target/arm/kvm-consts.h"
 
 /*
  * ARMCPRegInfo type field bits:
