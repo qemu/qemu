@@ -38,6 +38,7 @@
 #include "sysemu/reset.h"
 #include "qom/object.h"
 #include "exec/tswap.h"
+#include "target/arm/cpu-qom.h"
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
 OBJECT_DECLARE_SIMPLE_TYPE(ZynqMachineState, ZYNQ_MACHINE)

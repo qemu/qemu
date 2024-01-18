@@ -46,6 +46,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qom/object.h"
 #include "audio/audio.h"
+#include "target/arm/cpu-qom.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)

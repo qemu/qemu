@@ -46,6 +46,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "target/arm/cpu-qom.h"
 
 //#define DEBUG
 

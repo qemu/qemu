@@ -39,6 +39,7 @@
 #include "hw/net/mv88w8618_eth.h"
 #include "audio/audio.h"
 #include "qemu/error-report.h"
+#include "target/arm/cpu-qom.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000

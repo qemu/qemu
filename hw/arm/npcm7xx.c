@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "sysemu/sysemu.h"
+#include "target/arm/cpu-qom.h"
 
 /*
  * This covers the whole MMIO space. We'll use this to catch any MMIO accesses

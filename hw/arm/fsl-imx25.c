@@ -28,6 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
+#include "target/arm/cpu-qom.h"
 
 #define IMX25_ESDHC_CAPABILITIES     0x07e20000
 

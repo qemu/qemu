@@ -39,6 +39,7 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "audio/audio.h"
+#include "target/arm/cpu-qom.h"
 
 /* Enhanced Audio Controller (CODEC only) */
 struct omap_eac_s {

@@ -25,6 +25,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "kvm_arm.h"
+#include "target/arm/cpu-qom.h"
 
 #define GIC_NUM_SPI_INTR 160
 

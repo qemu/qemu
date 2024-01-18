@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/arm/allwinner-r40.h"
 #include "hw/misc/allwinner-r40-dramc.h"
+#include "target/arm/cpu-qom.h"
 
 /* Memory map */
 const hwaddr allwinner_r40_memmap[] = {

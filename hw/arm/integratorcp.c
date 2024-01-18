@@ -28,6 +28,7 @@
 #include "hw/sd/sd.h"
 #include "qom/object.h"
 #include "audio/audio.h"
+#include "target/arm/cpu-qom.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
 OBJECT_DECLARE_SIMPLE_TYPE(IntegratorCMState, INTEGRATOR_CM)

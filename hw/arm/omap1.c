@@ -40,6 +40,7 @@
 #include "hw/sysbus.h"
 #include "qemu/cutils.h"
 #include "qemu/bcd.h"
+#include "target/arm/cpu-qom.h"
 
 static inline void omap_log_badwidth(const char *funcname, hwaddr addr, int sz)
 {
