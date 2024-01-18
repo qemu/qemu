@@ -24,6 +24,7 @@
 #include "sysemu/runstate.h"
 #include "internals.h"
 #include "arm-powerctl.h"
+#include "target/arm/multiprocessing.h"
 
 bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {

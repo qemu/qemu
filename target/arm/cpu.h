@@ -26,6 +26,7 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "qapi/qapi-types-common.h"
+#include "target/arm/multiprocessing.h"
 
 /* ARM processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
@@ -1172,11 +1173,6 @@ void arm_cpu_post_init(Object *obj);
 #define ARM64_AFFINITY_INVALID (~ARM64_AFFINITY_MASK)
 
 uint64_t arm_build_mp_affinity(int idx, uint8_t clustersz);
-
-static inline uint64_t arm_cpu_mp_affinity(ARMCPU *cpu)
-{
-    return cpu->mp_affinity;
-}
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_arm_cpu;

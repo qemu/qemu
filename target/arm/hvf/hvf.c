@@ -28,6 +28,7 @@
 #include "arm-powerctl.h"
 #include "target/arm/cpu.h"
 #include "target/arm/internals.h"
+#include "target/arm/multiprocessing.h"
 #include "trace/trace-target_arm_hvf.h"
 #include "migration/vmstate.h"
 

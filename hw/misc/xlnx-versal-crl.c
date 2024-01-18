@@ -19,6 +19,7 @@
 #include "hw/resettable.h"
 
 #include "target/arm/arm-powerctl.h"
+#include "target/arm/multiprocessing.h"
 #include "hw/misc/xlnx-versal-crl.h"
 
 #ifndef XLNX_VERSAL_CRL_ERR_DEBUG
