@@ -1,3 +1,12 @@
+/*
+ * MMU hypercalls for the sPAPR (pseries) vHyp hypervisor that is used by TCG
+ *
+ * Copyright (c) 2004-2007 Fabrice Bellard
+ * Copyright (c) 2007 Jocelyn Mayer
+ * Copyright (c) 2010 David Gibson, IBM Corporation.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
