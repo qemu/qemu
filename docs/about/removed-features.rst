@@ -477,6 +477,11 @@ Use ``-machine acpi=off`` instead.
 
 Use ``-run-with async-teardown=on`` instead.
 
+``-chroot`` (removed in 9.0)
+''''''''''''''''''''''''''''
+
+Use ``-run-with chroot=dir`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
