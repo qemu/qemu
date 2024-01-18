@@ -77,6 +77,7 @@ fuse_export_add()
 # $1: Export ID
 fuse_export_del()
 {
+    capture_events="BLOCK_EXPORT_DELETED" \
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'block-export-del',
           'arguments': {
@@ -84,8 +85,7 @@ fuse_export_del()
           } }" \
         'return'
 
-    _send_qemu_cmd $QEMU_HANDLE \
-        '' \
+    _wait_event $QEMU_HANDLE \
         'BLOCK_EXPORT_DELETED'
 }
 

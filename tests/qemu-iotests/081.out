@@ -35,8 +35,8 @@ QMP_VERSION
 read 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 
 == using quorum rewrite corrupted mode ==
@@ -67,8 +67,8 @@ QMP_VERSION
 read 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 -- checking that the image has been corrected --
 read 10485760/10485760 bytes at offset 0
@@ -106,8 +106,8 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 Testing:
 QMP_VERSION
@@ -115,8 +115,8 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Cannot add a child to a quorum in blkverify mode"}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 
 == dynamically removing a child from a quorum ==
@@ -125,31 +125,31 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 Testing:
 QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "The number of children cannot be lower than the vote threshold 2"}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 Testing:
 QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "blkverify=on can only be set if there are exactly two files and vote-threshold is 2"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device='drive0-quorum' nor node-name='drive0-quorum'"}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 Testing:
 QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "The number of children cannot be lower than the vote threshold 2"}}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 
 *** done

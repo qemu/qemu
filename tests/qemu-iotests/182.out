@@ -53,6 +53,6 @@ Formatting 'TEST_DIR/t.qcow2.overlay', fmt=qcow2 cluster_size=65536 extended_l2=
 {'execute': 'qmp_capabilities'}
 {"return": {}}
 {'execute': 'quit'}
-{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
 *** done

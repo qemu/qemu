@@ -49,10 +49,6 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
     ]
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -61,6 +57,10 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -113,10 +113,6 @@ Testing: -drive driver=null-co,if=none
     ]
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -125,6 +121,10 @@ Testing: -drive driver=null-co,if=none
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -144,10 +144,6 @@ Testing: -blockdev driver=null-co,node-name=null
     ]
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -156,6 +152,10 @@ Testing: -blockdev driver=null-co,node-name=null
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
@@ -209,10 +209,6 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
     ]
 }
 {
-    "return": {
-    }
-}
-{
     "timestamp": {
         "seconds":  TIMESTAMP,
         "microseconds":  TIMESTAMP
@@ -221,6 +217,10 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
     "data": {
         "guest": false,
         "reason": "host-qmp-quit"
+    }
+}
+{
+    "return": {
     }
 }
 
