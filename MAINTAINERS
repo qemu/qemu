@@ -3630,7 +3630,6 @@ F: tests/uefi-test-tools/
 
 VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
-M: Peter Xu <peterx@redhat.com>
 R: Jason Wang <jasowang@redhat.com>
 S: Supported
 F: hw/i386/intel_iommu.c
