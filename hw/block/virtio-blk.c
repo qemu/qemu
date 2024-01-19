@@ -1608,7 +1608,7 @@ apply_vq_mapping(IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
         IOThread *iothread = iothread_by_id(node->value->iothread);
         AioContext *ctx = iothread_get_aio_context(iothread);
 
-        /* Released in virtio_blk_data_plane_destroy() */
+        /* Released in virtio_blk_vq_aio_context_cleanup() */
         object_ref(OBJECT(iothread));
 
         if (node->value->vqs) {
@@ -1631,7 +1631,7 @@ apply_vq_mapping(IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
 }
 
 /* Context: BQL held */
-static bool virtio_blk_data_plane_create(VirtIOBlock *s, Error **errp)
+static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     VirtIOBlkConf *conf = &s->conf;
@@ -1659,11 +1659,6 @@ static bool virtio_blk_data_plane_create(VirtIOBlock *s, Error **errp)
             return false;
         }
     }
-    /* Don't try if transport does not support notifiers. */
-    if (!virtio_device_ioeventfd_enabled(vdev)) {
-        s->dataplane_disabled = true;
-        return false;
-    }
 
     s->vq_aio_context = g_new(AioContext *, conf->num_queues);
 
@@ -1676,7 +1671,7 @@ static bool virtio_blk_data_plane_create(VirtIOBlock *s, Error **errp)
             s->vq_aio_context[i] = ctx;
         }
 
-        /* Released in virtio_blk_data_plane_destroy() */
+        /* Released in virtio_blk_vq_aio_context_cleanup() */
         object_ref(OBJECT(conf->iothread));
     } else {
         AioContext *ctx = qemu_get_aio_context();
@@ -1689,7 +1684,7 @@ static bool virtio_blk_data_plane_create(VirtIOBlock *s, Error **errp)
 }
 
 /* Context: BQL held */
-static void virtio_blk_data_plane_destroy(VirtIOBlock *s)
+static void virtio_blk_vq_aio_context_cleanup(VirtIOBlock *s)
 {
     VirtIOBlkConf *conf = &s->conf;
 
@@ -2015,7 +2010,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         virtio_add_queue(vdev, conf->queue_size, virtio_blk_handle_output);
     }
     qemu_coroutine_inc_pool_size(conf->num_queues * conf->queue_size / 2);
-    virtio_blk_data_plane_create(s, &err);
+
+    /* Don't start dataplane if transport does not support notifiers. */
+    if (!virtio_device_ioeventfd_enabled(vdev)) {
+        s->dataplane_disabled = true;
+    }
+
+    virtio_blk_vq_aio_context_init(s, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         for (i = 0; i < conf->num_queues; i++) {
@@ -2052,7 +2053,7 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
 
     blk_drain(s->blk);
     del_boot_device_lchs(dev, "/disk@0,0");
-    virtio_blk_data_plane_destroy(s);
+    virtio_blk_vq_aio_context_cleanup(s);
     for (i = 0; i < conf->num_queues; i++) {
         virtio_del_queue(vdev, i);
     }
