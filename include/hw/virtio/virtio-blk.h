@@ -50,8 +50,6 @@ struct VirtIOBlkConf
     bool x_enable_wce_if_config_wce;
 };
 
-struct VirtIOBlockDataPlane;
-
 struct VirtIOBlockReq;
 struct VirtIOBlock {
     VirtIODevice parent_obj;
@@ -64,7 +62,15 @@ struct VirtIOBlock {
     VMChangeStateEntry *change;
     bool dataplane_disabled;
     bool dataplane_started;
-    struct VirtIOBlockDataPlane *dataplane;
+    bool dataplane_starting;
+    bool dataplane_stopping;
+
+    /*
+     * The AioContext for each virtqueue. The BlockDriverState will use the
+     * first element as its AioContext.
+     */
+    AioContext **vq_aio_context;
+
     uint64_t host_features;
     size_t config_size;
     BlockRAMRegistrar blk_ram_registrar;
