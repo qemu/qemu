@@ -2171,10 +2171,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
         runstate_set(RUN_STATE_PAUSED);
     }
 
-    qemu_bh_delete(mis->bh);
-
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-vm-started");
-    object_unref(OBJECT(migration_get_current()));
 }
 
 /* After all discards we can start running and asking for pages */
@@ -2189,9 +2186,7 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
     }
 
     postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
-    mis->bh = qemu_bh_new(loadvm_postcopy_handle_run_bh, mis);
-    object_ref(OBJECT(migration_get_current()));
-    qemu_bh_schedule(mis->bh);
+    migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
 
     /* We need to finish reading the stream from the package
      * and also stop reading anything more from the stream that loaded the
