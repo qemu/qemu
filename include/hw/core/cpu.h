@@ -22,8 +22,8 @@
 
 #include "hw/qdev-core.h"
 #include "disas/dis-asm.h"
-#include "exec/cpu-common.h"
 #include "exec/hwaddr.h"
+#include "exec/vaddr.h"
 #include "exec/memattrs.h"
 #include "exec/tlb-common.h"
 #include "qapi/qapi-types-run-state.h"
