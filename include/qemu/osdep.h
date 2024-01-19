@@ -547,6 +547,14 @@ int madvise(char *, size_t, int);
 #  define QEMU_VMALLOC_ALIGN (256 * 4096)
 #elif defined(__linux__) && defined(__sparc__)
 #  define QEMU_VMALLOC_ALIGN MAX(qemu_real_host_page_size(), SHMLBA)
+#elif defined(__linux__) && defined(__loongarch__)
+   /*
+    * For transparent hugepage optimization, it has better be huge page
+    * aligned. LoongArch host system supports two kinds of pagesize: 4K
+    * and 16K, here calculate huge page size from host page size
+    */
+#  define QEMU_VMALLOC_ALIGN (qemu_real_host_page_size() * \
+                         qemu_real_host_page_size() / sizeof(long))
 #else
 #  define QEMU_VMALLOC_ALIGN qemu_real_host_page_size()
 #endif

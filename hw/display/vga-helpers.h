@@ -98,17 +98,22 @@ static void vga_draw_glyph9(uint8_t *d, int linesize,
 /*
  * 4 color mode
  */
-static void vga_draw_line2(VGACommonState *vga, uint8_t *d,
-                           uint32_t addr, int width)
+static void *vga_draw_line2(VGACommonState *vga, uint8_t *d,
+                            uint32_t addr, int width, int hpel)
 {
     uint32_t plane_mask, *palette, data, v;
     int x;
 
     palette = vga->last_palette;
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    hpel &= 7;
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -126,6 +131,7 @@ static void vga_draw_line2(VGACommonState *vga, uint8_t *d,
         d += 32;
         addr += 4;
     }
+    return hpel ? vga->panning_buf + 4 * hpel : NULL;
 }
 
 #define PUT_PIXEL2(d, n, v) \
@@ -134,17 +140,22 @@ static void vga_draw_line2(VGACommonState *vga, uint8_t *d,
 /*
  * 4 color mode, dup2 horizontal
  */
-static void vga_draw_line2d2(VGACommonState *vga, uint8_t *d,
-                             uint32_t addr, int width)
+static void *vga_draw_line2d2(VGACommonState *vga, uint8_t *d,
+                              uint32_t addr, int width, int hpel)
 {
     uint32_t plane_mask, *palette, data, v;
     int x;
 
     palette = vga->last_palette;
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    hpel &= 7;
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -162,22 +173,28 @@ static void vga_draw_line2d2(VGACommonState *vga, uint8_t *d,
         d += 64;
         addr += 4;
     }
+    return hpel ? vga->panning_buf + 8 * hpel : NULL;
 }
 
 /*
  * 16 color mode
  */
-static void vga_draw_line4(VGACommonState *vga, uint8_t *d,
-                           uint32_t addr, int width)
+static void *vga_draw_line4(VGACommonState *vga, uint8_t *d,
+                            uint32_t addr, int width, int hpel)
 {
     uint32_t plane_mask, data, v, *palette;
     int x;
 
     palette = vga->last_palette;
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    hpel &= 7;
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -194,22 +211,28 @@ static void vga_draw_line4(VGACommonState *vga, uint8_t *d,
         d += 32;
         addr += 4;
     }
+    return hpel ? vga->panning_buf + 4 * hpel : NULL;
 }
 
 /*
  * 16 color mode, dup2 horizontal
  */
-static void vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
-                             uint32_t addr, int width)
+static void *vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
+                              uint32_t addr, int width, int hpel)
 {
     uint32_t plane_mask, data, v, *palette;
     int x;
 
     palette = vga->last_palette;
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    hpel &= 7;
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -226,6 +249,7 @@ static void vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
         d += 64;
         addr += 4;
     }
+    return hpel ? vga->panning_buf + 8 * hpel : NULL;
 }
 
 /*
@@ -233,15 +257,33 @@ static void vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
-                             uint32_t addr, int width)
+static void *vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
+                              uint32_t addr, int width, int hpel)
 {
     uint32_t *palette;
     int x;
 
     palette = vga->last_palette;
+    hpel = (hpel >> 1) & 3;
+
+    /* For 256 color modes, we can adjust the source address and write directly
+     * to the destination, even if horizontal pel panning is active.  However,
+     * the loop below assumes that the address does not wrap in the middle of a
+     * plane.  If that happens...
+     */
+    if (addr + (width >> 3) * 4 < VGA_VRAM_SIZE) {
+        addr += hpel * 4;
+        hpel = 0;
+    }
+
+    /* ... use the panning buffer as in planar modes.  */
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
+        addr &= VGA_VRAM_SIZE - 1;
         PUT_PIXEL2(d, 0, palette[vga_read_byte(vga, addr + 0)]);
         PUT_PIXEL2(d, 1, palette[vga_read_byte(vga, addr + 1)]);
         PUT_PIXEL2(d, 2, palette[vga_read_byte(vga, addr + 2)]);
@@ -249,6 +291,7 @@ static void vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
         d += 32;
         addr += 4;
     }
+    return hpel ? vga->panning_buf + 8 * hpel : NULL;
 }
 
 /*
@@ -256,13 +299,18 @@ static void vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void vga_draw_line8(VGACommonState *vga, uint8_t *d,
-                           uint32_t addr, int width)
+static void *vga_draw_line8(VGACommonState *vga, uint8_t *d,
+                            uint32_t addr, int width, int hpel)
 {
     uint32_t *palette;
     int x;
 
     palette = vga->last_palette;
+    hpel = (hpel >> 1) & 3;
+    if (hpel) {
+        width += 8;
+        d = vga->panning_buf;
+    }
     width >>= 3;
     for(x = 0; x < width; x++) {
         ((uint32_t *)d)[0] = palette[vga_read_byte(vga, addr + 0)];
@@ -276,13 +324,14 @@ static void vga_draw_line8(VGACommonState *vga, uint8_t *d,
         d += 32;
         addr += 8;
     }
+    return hpel ? vga->panning_buf + 4 * hpel : NULL;
 }
 
 /*
  * 15 bit color
  */
-static void vga_draw_line15_le(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line15_le(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t v, r, g, b;
@@ -297,10 +346,11 @@ static void vga_draw_line15_le(VGACommonState *vga, uint8_t *d,
         addr += 2;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
-static void vga_draw_line15_be(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line15_be(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t v, r, g, b;
@@ -315,13 +365,14 @@ static void vga_draw_line15_be(VGACommonState *vga, uint8_t *d,
         addr += 2;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
 /*
  * 16 bit color
  */
-static void vga_draw_line16_le(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line16_le(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t v, r, g, b;
@@ -336,10 +387,11 @@ static void vga_draw_line16_le(VGACommonState *vga, uint8_t *d,
         addr += 2;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
-static void vga_draw_line16_be(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line16_be(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t v, r, g, b;
@@ -354,13 +406,14 @@ static void vga_draw_line16_be(VGACommonState *vga, uint8_t *d,
         addr += 2;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
 /*
  * 24 bit color
  */
-static void vga_draw_line24_le(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line24_le(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t r, g, b;
@@ -374,10 +427,11 @@ static void vga_draw_line24_le(VGACommonState *vga, uint8_t *d,
         addr += 3;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
-static void vga_draw_line24_be(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line24_be(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t r, g, b;
@@ -391,13 +445,14 @@ static void vga_draw_line24_be(VGACommonState *vga, uint8_t *d,
         addr += 3;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
 /*
  * 32 bit color
  */
-static void vga_draw_line32_le(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line32_le(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t r, g, b;
@@ -411,10 +466,11 @@ static void vga_draw_line32_le(VGACommonState *vga, uint8_t *d,
         addr += 4;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
 
-static void vga_draw_line32_be(VGACommonState *vga, uint8_t *d,
-                               uint32_t addr, int width)
+static void *vga_draw_line32_be(VGACommonState *vga, uint8_t *d,
+                                uint32_t addr, int width, int hpel)
 {
     int w;
     uint32_t r, g, b;
@@ -428,4 +484,5 @@ static void vga_draw_line32_be(VGACommonState *vga, uint8_t *d,
         addr += 4;
         d += 4;
     } while (--w != 0);
+    return NULL;
 }
