@@ -3382,6 +3382,7 @@ static void bg_migration_vm_start_bh(void *opaque)
 
     vm_resume(s->vm_old_state);
     migration_downtime_end(s);
+    object_unref(OBJECT(s));
 }
 
 /**
@@ -3486,6 +3487,7 @@ static void *bg_migration_thread(void *opaque)
      * writes to virtio VQs memory which is in write-protected region.
      */
     s->vm_start_bh = qemu_bh_new(bg_migration_vm_start_bh, s);
+    object_ref(OBJECT(s));
     qemu_bh_schedule(s->vm_start_bh);
 
     bql_unlock();
