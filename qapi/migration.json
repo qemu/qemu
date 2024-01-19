@@ -534,7 +534,7 @@
 # Features:
 #
 # @deprecated: Member @block is deprecated.  Use blockdev-mirror with
-#     NBD instead.  Member @compression is deprecated because it is
+#     NBD instead.  Member @compress is deprecated because it is
 #     unreliable and untested.  It is recommended to use multifd
 #     migration, which offers an alternative compression
 #     implementation that is reliable and tested.
