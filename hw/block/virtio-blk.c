@@ -1809,14 +1809,14 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
     smp_wmb(); /* paired with aio_notify_accept() on the read side */
 
     /* Get this show started by hooking up our callbacks */
-    if (!blk_in_drain(s->conf.conf.blk)) {
-        for (i = 0; i < nvqs; i++) {
-            VirtQueue *vq = virtio_get_queue(vdev, i);
-            AioContext *ctx = s->vq_aio_context[i];
+    for (i = 0; i < nvqs; i++) {
+        VirtQueue *vq = virtio_get_queue(vdev, i);
+        AioContext *ctx = s->vq_aio_context[i];
 
-            /* Kick right away to begin processing requests already in vring */
-            event_notifier_set(virtio_queue_get_host_notifier(vq));
+        /* Kick right away to begin processing requests already in vring */
+        event_notifier_set(virtio_queue_get_host_notifier(vq));
 
+        if (!blk_in_drain(s->conf.conf.blk)) {
             virtio_queue_aio_attach_host_notifier(vq, ctx);
         }
     }
