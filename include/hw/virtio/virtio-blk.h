@@ -60,10 +60,10 @@ struct VirtIOBlock {
     unsigned short sector_mask;
     bool original_wce;
     VMChangeStateEntry *change;
-    bool dataplane_disabled;
-    bool dataplane_started;
-    bool dataplane_starting;
-    bool dataplane_stopping;
+    bool ioeventfd_disabled;
+    bool ioeventfd_started;
+    bool ioeventfd_starting;
+    bool ioeventfd_stopping;
 
     /*
      * The AioContext for each virtqueue. The BlockDriverState will use the
