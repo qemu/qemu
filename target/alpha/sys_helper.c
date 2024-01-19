@@ -27,23 +27,7 @@
 #include "qemu/timer.h"
 
 
-uint64_t helper_load_pcc(CPUAlphaState *env)
-{
-#ifndef CONFIG_USER_ONLY
-    /* In system mode we have access to a decent high-resolution clock.
-       In order to make OS-level time accounting work with the RPCC,
-       present it with a well-timed clock fixed at 250MHz.  */
-    return (((uint64_t)env->pcc_ofs << 32)
-            | (uint32_t)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2));
-#else
-    /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.  Just pass through the host cpu
-       clock ticks.  Also, don't bother taking PCC_OFS into account.  */
-    return (uint32_t)cpu_get_host_ticks();
-#endif
-}
-
 /* PALcode support special instructions */
-#ifndef CONFIG_USER_ONLY
 void helper_tbia(CPUAlphaState *env)
 {
     tlb_flush(env_cpu(env));
@@ -89,5 +73,3 @@ void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
         timer_del(cpu->alarm_timer);
     }
 }
-
-#endif /* CONFIG_USER_ONLY */

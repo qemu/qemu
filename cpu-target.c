@@ -204,6 +204,7 @@ static Property cpu_common_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+#ifndef CONFIG_USER_ONLY
 static bool cpu_get_start_powered_off(Object *obj, Error **errp)
 {
     CPUState *cpu = CPU(obj);
@@ -215,12 +216,13 @@ static void cpu_set_start_powered_off(Object *obj, bool value, Error **errp)
     CPUState *cpu = CPU(obj);
     cpu->start_powered_off = value;
 }
+#endif
 
 void cpu_class_init_props(DeviceClass *dc)
 {
+#ifndef CONFIG_USER_ONLY
     ObjectClass *oc = OBJECT_CLASS(dc);
 
-    device_class_set_props(dc, cpu_common_props);
     /*
      * We can't use DEFINE_PROP_BOOL in the Property array for this
      * property, because we want this to be settable after realize.
@@ -228,6 +230,9 @@ void cpu_class_init_props(DeviceClass *dc)
     object_class_property_add_bool(oc, "start-powered-off",
                                    cpu_get_start_powered_off,
                                    cpu_set_start_powered_off);
+#endif
+
+    device_class_set_props(dc, cpu_common_props);
 }
 
 void cpu_exec_initfn(CPUState *cpu)
@@ -313,35 +318,6 @@ void list_cpus(void)
 {
     cpu_list();
 }
-
-#if defined(CONFIG_USER_ONLY)
-void tb_invalidate_phys_addr(hwaddr addr)
-{
-    mmap_lock();
-    tb_invalidate_phys_page(addr);
-    mmap_unlock();
-}
-#else
-void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
-{
-    ram_addr_t ram_addr;
-    MemoryRegion *mr;
-    hwaddr l = 1;
-
-    if (!tcg_enabled()) {
-        return;
-    }
-
-    RCU_READ_LOCK_GUARD();
-    mr = address_space_translate(as, addr, &addr, &l, false, attrs);
-    if (!(memory_region_is_ram(mr)
-          || memory_region_is_romd(mr))) {
-        return;
-    }
-    ram_addr = memory_region_get_ram_addr(mr) + addr;
-    tb_invalidate_phys_page(ram_addr);
-}
-#endif
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
    CPU loop after each instruction */

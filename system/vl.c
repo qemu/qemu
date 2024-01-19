@@ -2270,8 +2270,7 @@ static void user_register_global_props(void)
 
 static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
 {
-    icount_configure(opts, errp);
-    return 0;
+    return !icount_configure(opts, errp);
 }
 
 static int accelerator_set_property(void *opaque,

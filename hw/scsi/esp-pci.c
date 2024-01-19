@@ -77,6 +77,41 @@ struct PCIESPState {
     ESPState esp;
 };
 
+static void esp_pci_update_irq(PCIESPState *pci)
+{
+    int scsi_level = !!(pci->dma_regs[DMA_STAT] & DMA_STAT_SCSIINT);
+    int dma_level = (pci->dma_regs[DMA_CMD] & DMA_CMD_INTE_D) ?
+                    !!(pci->dma_regs[DMA_STAT] & DMA_STAT_DONE) : 0;
+    int level = scsi_level || dma_level;
+
+    pci_set_irq(PCI_DEVICE(pci), level);
+}
+
+static void esp_irq_handler(void *opaque, int irq_num, int level)
+{
+    PCIESPState *pci = PCI_ESP(opaque);
+
+    if (level) {
+        pci->dma_regs[DMA_STAT] |= DMA_STAT_SCSIINT;
+
+        /*
+         * If raising the ESP IRQ to indicate end of DMA transfer, set
+         * DMA_STAT_DONE at the same time. In theory this should be done in
+         * esp_pci_dma_memory_rw(), however there is a delay between setting
+         * DMA_STAT_DONE and the ESP IRQ arriving which is visible to the
+         * guest that can cause confusion e.g. Linux
+         */
+        if ((pci->dma_regs[DMA_CMD] & DMA_CMD_MASK) == 0x3 &&
+            pci->dma_regs[DMA_WBC] == 0) {
+                pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
+        }
+    } else {
+        pci->dma_regs[DMA_STAT] &= ~DMA_STAT_SCSIINT;
+    }
+
+    esp_pci_update_irq(pci);
+}
+
 static void esp_pci_handle_idle(PCIESPState *pci, uint32_t val)
 {
     ESPState *s = &pci->esp;
@@ -89,6 +124,7 @@ static void esp_pci_handle_blast(PCIESPState *pci, uint32_t val)
 {
     trace_esp_pci_dma_blast(val);
     qemu_log_mask(LOG_UNIMP, "am53c974: cmd BLAST not implemented\n");
+    pci->dma_regs[DMA_STAT] |= DMA_STAT_BCMBLT;
 }
 
 static void esp_pci_handle_abort(PCIESPState *pci, uint32_t val)
@@ -151,6 +187,7 @@ static void esp_pci_dma_write(PCIESPState *pci, uint32_t saddr, uint32_t val)
             /* clear some bits on write */
             uint32_t mask = DMA_STAT_ERROR | DMA_STAT_ABORT | DMA_STAT_DONE;
             pci->dma_regs[DMA_STAT] &= ~(val & mask);
+            esp_pci_update_irq(pci);
         }
         break;
     default:
@@ -161,17 +198,14 @@ static void esp_pci_dma_write(PCIESPState *pci, uint32_t saddr, uint32_t val)
 
 static uint32_t esp_pci_dma_read(PCIESPState *pci, uint32_t saddr)
 {
-    ESPState *s = &pci->esp;
     uint32_t val;
 
     val = pci->dma_regs[saddr];
     if (saddr == DMA_STAT) {
-        if (s->rregs[ESP_RSTAT] & STAT_INT) {
-            val |= DMA_STAT_SCSIINT;
-        }
         if (!(pci->sbac & SBAC_STATUS)) {
             pci->dma_regs[DMA_STAT] &= ~(DMA_STAT_ERROR | DMA_STAT_ABORT |
                                          DMA_STAT_DONE);
+            esp_pci_update_irq(pci);
         }
     }
 
@@ -275,7 +309,7 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
         qemu_log_mask(LOG_UNIMP, "am53c974: MDL transfer not implemented\n");
     }
 
-    addr = pci->dma_regs[DMA_SPA];
+    addr = pci->dma_regs[DMA_WAC];
     if (pci->dma_regs[DMA_WBC] < len) {
         len = pci->dma_regs[DMA_WBC];
     }
@@ -285,9 +319,6 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
     /* update status registers */
     pci->dma_regs[DMA_WBC] -= len;
     pci->dma_regs[DMA_WAC] += len;
-    if (pci->dma_regs[DMA_WBC] == 0) {
-        pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
-    }
 }
 
 static void esp_pci_dma_memory_read(void *opaque, uint8_t *buf, int len)
@@ -342,23 +373,13 @@ static const VMStateDescription vmstate_esp_pci_scsi = {
     }
 };
 
-static void esp_pci_command_complete(SCSIRequest *req, size_t resid)
-{
-    ESPState *s = req->hba_private;
-    PCIESPState *pci = container_of(s, PCIESPState, esp);
-
-    esp_command_complete(req, resid);
-    pci->dma_regs[DMA_WBC] = 0;
-    pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
-}
-
 static const struct SCSIBusInfo esp_pci_scsi_info = {
     .tcq = false,
     .max_target = ESP_MAX_DEVS,
     .max_lun = 7,
 
     .transfer_data = esp_transfer_data,
-    .complete = esp_pci_command_complete,
+    .complete = esp_command_complete,
     .cancel = esp_request_cancelled,
 };
 
@@ -386,7 +407,7 @@ static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
                           "esp-io", 0x80);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
-    s->irq = pci_allocate_irq(dev);
+    s->irq = qemu_allocate_irq(esp_irq_handler, pci, 0);
 
     scsi_bus_init(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info);
 }

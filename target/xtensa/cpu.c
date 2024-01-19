@@ -233,6 +233,7 @@ static const struct TCGCPUOps xtensa_tcg_ops = {
     .do_interrupt = xtensa_cpu_do_interrupt,
     .do_transaction_failed = xtensa_cpu_do_transaction_failed,
     .do_unaligned_access = xtensa_cpu_do_unaligned_access,
+    .debug_check_breakpoint = xtensa_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
 };
 

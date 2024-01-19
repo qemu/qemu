@@ -1123,19 +1123,6 @@ static inline unsigned xtensa_insn_len(CPUXtensaState *env, DisasContext *dc)
     return xtensa_op0_insn_len(dc, b0);
 }
 
-static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
-{
-    unsigned i;
-
-    for (i = 0; i < dc->config->nibreak; ++i) {
-        if ((env->sregs[IBREAKENABLE] & (1 << i)) &&
-                env->sregs[IBREAKA + i] == dc->pc) {
-            gen_debug_exception(dc, DEBUGCAUSE_IB);
-            break;
-        }
-    }
-}
-
 static void xtensa_tr_init_disas_context(DisasContextBase *dcbase,
                                          CPUState *cpu)
 {
@@ -1203,10 +1190,6 @@ static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
             gen_debug_exception(dc, DEBUGCAUSE_IC);
         }
         gen_set_label(label);
-    }
-
-    if (dc->debug) {
-        gen_ibreak_check(env, dc);
     }
 
     disas_xtensa_insn(env, dc);

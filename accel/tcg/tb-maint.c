@@ -1021,7 +1021,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
  * Called with mmap_lock held for user-mode emulation
  * NOTE: this function must not be called while a TB is running.
  */
-void tb_invalidate_phys_page(tb_page_addr_t addr)
+static void tb_invalidate_phys_page(tb_page_addr_t addr)
 {
     tb_page_addr_t start, last;
 
@@ -1158,28 +1158,6 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
         cpu_loop_exit_noexc(current_cpu);
     }
 #endif
-}
-
-/*
- * Invalidate all TBs which intersect with the target physical
- * address page @addr.
- */
-void tb_invalidate_phys_page(tb_page_addr_t addr)
-{
-    struct page_collection *pages;
-    tb_page_addr_t start, last;
-    PageDesc *p;
-
-    p = page_find(addr >> TARGET_PAGE_BITS);
-    if (p == NULL) {
-        return;
-    }
-
-    start = addr & TARGET_PAGE_MASK;
-    last = addr | ~TARGET_PAGE_MASK;
-    pages = page_collection_lock(start, last);
-    tb_invalidate_phys_page_range__locked(pages, p, start, last, 0);
-    page_collection_unlock(pages);
 }
 
 /*

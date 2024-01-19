@@ -231,6 +231,18 @@ void xtensa_breakpoint_handler(CPUState *cs)
             }
             cpu_loop_exit_noexc(cs);
         }
+    } else {
+        if (cpu_breakpoint_test(cs, env->pc, BP_GDB)
+            || !cpu_breakpoint_test(cs, env->pc, BP_CPU)) {
+            return;
+        }
+        if (env->sregs[ICOUNT] == 0xffffffff &&
+            xtensa_get_cintlevel(env) < env->sregs[ICOUNTLEVEL]) {
+            debug_exception_env(env, DEBUGCAUSE_IC);
+        } else {
+            debug_exception_env(env, DEBUGCAUSE_IB);
+        }
+        cpu_loop_exit_noexc(cs);
     }
 }
 
