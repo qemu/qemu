@@ -1786,11 +1786,14 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
+    /*
+     * Try to change the AioContext so that block jobs and other operations can
+     * co-locate their activity in the same AioContext. If it fails, nevermind.
+     */
     r = blk_set_aio_context(s->conf.conf.blk, s->vq_aio_context[0],
                             &local_err);
     if (r < 0) {
-        error_report_err(local_err);
-        goto fail_aio_context;
+        warn_report_err(local_err);
     }
 
     /*
@@ -1819,18 +1822,6 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
     }
     return 0;
 
-  fail_aio_context:
-    memory_region_transaction_begin();
-
-    for (i = 0; i < nvqs; i++) {
-        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-    }
-
-    memory_region_transaction_commit();
-
-    for (i = 0; i < nvqs; i++) {
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-    }
   fail_host_notifiers:
     k->set_guest_notifiers(qbus->parent, nvqs, false);
   fail_guest_notifiers:
