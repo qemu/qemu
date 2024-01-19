@@ -199,6 +199,16 @@ void migration_object_init(void)
     dirty_bitmap_mig_init();
 }
 
+static void migration_bh_schedule(MigrationState *s, QEMUBH *bh)
+{
+    /*
+     * Ref the state for bh, because it may be called when
+     * there're already no other refs
+     */
+    object_ref(OBJECT(s));
+    qemu_bh_schedule(bh);
+}
+
 void migration_cancel(const Error *error)
 {
     if (error) {
@@ -714,8 +724,7 @@ process_incoming_migration_co(void *opaque)
     }
 
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
-    object_ref(OBJECT(migrate_get_current()));
-    qemu_bh_schedule(mis->bh);
+    migration_bh_schedule(migrate_get_current(), mis->bh);
     return;
 fail:
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
@@ -1330,16 +1339,6 @@ static void migrate_fd_cleanup(MigrationState *s)
     migration_call_notifiers(s);
     block_cleanup_parameters();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
-}
-
-static void migrate_fd_cleanup_schedule(MigrationState *s)
-{
-    /*
-     * Ref the state for bh, because it may be called when
-     * there're already no other refs
-     */
-    object_ref(OBJECT(s));
-    qemu_bh_schedule(s->cleanup_bh);
 }
 
 static void migrate_fd_cleanup_bh(void *opaque)
@@ -3140,7 +3139,7 @@ static void migration_iteration_finish(MigrationState *s)
         error_report("%s: Unknown ending state %d", __func__, s->state);
         break;
     }
-    migrate_fd_cleanup_schedule(s);
+    migration_bh_schedule(s, s->cleanup_bh);
     bql_unlock();
 }
 
@@ -3171,7 +3170,7 @@ static void bg_migration_iteration_finish(MigrationState *s)
         break;
     }
 
-    migrate_fd_cleanup_schedule(s);
+    migration_bh_schedule(s, s->cleanup_bh);
     bql_unlock();
 }
 
@@ -3487,9 +3486,7 @@ static void *bg_migration_thread(void *opaque)
      * writes to virtio VQs memory which is in write-protected region.
      */
     s->vm_start_bh = qemu_bh_new(bg_migration_vm_start_bh, s);
-    object_ref(OBJECT(s));
-    qemu_bh_schedule(s->vm_start_bh);
-
+    migration_bh_schedule(s, s->vm_start_bh);
     bql_unlock();
 
     while (migration_is_active(s)) {
