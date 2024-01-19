@@ -33,7 +33,7 @@
  * the target-specific DisasContext, and then invoke translator_loop.
  */
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                           target_ulong pc, void *host_pc);
+                           vaddr pc, void *host_pc);
 
 /**
  * DisasJumpType:
