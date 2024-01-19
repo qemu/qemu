@@ -105,6 +105,18 @@ static bool reloc_pc19(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
+static bool reloc_pc14(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    ptrdiff_t offset = target - src_rx;
+
+    if (offset == sextract64(offset, 0, 14)) {
+        *src_rw = deposit32(*src_rw, 5, 14, offset);
+        return true;
+    }
+    return false;
+}
+
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -115,6 +127,8 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
         return reloc_pc26(code_ptr, (const tcg_insn_unit *)value);
     case R_AARCH64_CONDBR19:
         return reloc_pc19(code_ptr, (const tcg_insn_unit *)value);
+    case R_AARCH64_TSTBR14:
+        return reloc_pc14(code_ptr, (const tcg_insn_unit *)value);
     default:
         g_assert_not_reached();
     }
@@ -379,6 +393,10 @@ typedef enum {
 
     /* Conditional branch (immediate).  */
     I3202_B_C       = 0x54000000,
+
+    /* Test and branch (immediate).  */
+    I3205_TBZ       = 0x36000000,
+    I3205_TBNZ      = 0x37000000,
 
     /* Unconditional branch (immediate).  */
     I3206_B         = 0x14000000,
@@ -658,6 +676,14 @@ static void tcg_out_insn_3202(TCGContext *s, AArch64Insn insn,
                               TCGCond c, int imm19)
 {
     tcg_out32(s, insn | tcg_cond_to_aarch64[c] | (imm19 & 0x7ffff) << 5);
+}
+
+static void tcg_out_insn_3205(TCGContext *s, AArch64Insn insn,
+                              TCGReg rt, int imm6, int imm14)
+{
+    insn |= (imm6 & 0x20) << (31 - 5);
+    insn |= (imm6 & 0x1f) << 19;
+    tcg_out32(s, insn | (imm14 & 0x3fff) << 5 | rt);
 }
 
 static void tcg_out_insn_3206(TCGContext *s, AArch64Insn insn, int imm26)
@@ -1415,13 +1441,31 @@ static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
 static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
                            TCGArg b, bool b_const, TCGLabel *l)
 {
-    intptr_t offset;
+    int tbit = -1;
     bool need_cmp = true;
 
     switch (c) {
     case TCG_COND_EQ:
     case TCG_COND_NE:
+        /* cmp xN,0; b.ne L -> cbnz xN,L */
         if (b_const && b == 0) {
+            need_cmp = false;
+        }
+        break;
+    case TCG_COND_LT:
+    case TCG_COND_GE:
+        /* cmp xN,0; b.mi L -> tbnz xN,63,L */
+        if (b_const && b == 0) {
+            c = (c == TCG_COND_LT ? TCG_COND_TSTNE : TCG_COND_TSTEQ);
+            tbit = ext ? 63 : 31;
+            need_cmp = false;
+        }
+        break;
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        /* tst xN,1<<B; b.ne L -> tbnz xN,B,L */
+        if (b_const && is_power_of_2(b)) {
+            tbit = ctz64(b);
             need_cmp = false;
         }
         break;
@@ -1431,25 +1475,31 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
 
     if (need_cmp) {
         tcg_out_cmp(s, ext, c, a, b, b_const);
-    }
-
-    if (!l->has_value) {
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
-        offset = tcg_in32(s) >> 5;
-    } else {
-        offset = tcg_pcrel_diff(s, l->u.value_ptr) >> 2;
-        tcg_debug_assert(offset == sextract64(offset, 0, 19));
+        tcg_out_insn(s, 3202, B_C, c, 0);
+        return;
     }
 
-    if (need_cmp) {
-        tcg_out_insn(s, 3202, B_C, c, offset);
+    if (tbit >= 0) {
+        tcg_out_reloc(s, s->code_ptr, R_AARCH64_TSTBR14, l, 0);
+        switch (c) {
+        case TCG_COND_TSTEQ:
+            tcg_out_insn(s, 3205, TBZ, a, tbit, 0);
+            break;
+        case TCG_COND_TSTNE:
+            tcg_out_insn(s, 3205, TBNZ, a, tbit, 0);
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
+        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
         switch (c) {
         case TCG_COND_EQ:
-            tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+            tcg_out_insn(s, 3201, CBZ, ext, a, 0);
             break;
         case TCG_COND_NE:
-            tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+            tcg_out_insn(s, 3201, CBNZ, ext, a, 0);
             break;
         default:
             g_assert_not_reached();
