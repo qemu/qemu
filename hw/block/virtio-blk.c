@@ -1156,15 +1156,10 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_blk_dma_restart_bh(void *opaque)
 {
-    VirtIOBlock *s = opaque;
+    VirtIOBlockReq *req = opaque;
+    VirtIOBlock *s = req->dev; /* we're called with at least one request */
 
-    VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
-
-    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
-        req = s->rq;
-        s->rq = NULL;
-    }
 
     while (req) {
         VirtIOBlockReq *next = req->next;
@@ -1195,16 +1190,43 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
                                       RunState state)
 {
     VirtIOBlock *s = opaque;
+    uint16_t num_queues = s->conf.num_queues;
 
     if (!running) {
         return;
     }
 
-    /* Paired with dec in virtio_blk_dma_restart_bh() */
-    blk_inc_in_flight(s->conf.conf.blk);
+    /* Split the device-wide s->rq request list into per-vq request lists */
+    g_autofree VirtIOBlockReq **vq_rq = g_new0(VirtIOBlockReq *, num_queues);
+    VirtIOBlockReq *rq;
 
-    aio_bh_schedule_oneshot(blk_get_aio_context(s->conf.conf.blk),
-            virtio_blk_dma_restart_bh, s);
+    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
+        rq = s->rq;
+        s->rq = NULL;
+    }
+
+    while (rq) {
+        VirtIOBlockReq *next = rq->next;
+        uint16_t idx = virtio_get_queue_index(rq->vq);
+
+        rq->next = vq_rq[idx];
+        vq_rq[idx] = rq;
+        rq = next;
+    }
+
+    /* Schedule a BH to submit the requests in each vq's AioContext */
+    for (uint16_t i = 0; i < num_queues; i++) {
+        if (!vq_rq[i]) {
+            continue;
+        }
+
+        /* Paired with dec in virtio_blk_dma_restart_bh() */
+        blk_inc_in_flight(s->conf.conf.blk);
+
+        aio_bh_schedule_oneshot(s->vq_aio_context[i],
+                                virtio_blk_dma_restart_bh,
+                                vq_rq[i]);
+    }
 }
 
 static void virtio_blk_reset(VirtIODevice *vdev)
