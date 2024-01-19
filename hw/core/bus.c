@@ -232,57 +232,6 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
-/**
- * bus_phases_reset:
- * Transition reset method for buses to allow moving
- * smoothly from legacy reset method to multi-phases
- */
-static void bus_phases_reset(BusState *bus)
-{
-    ResettableClass *rc = RESETTABLE_GET_CLASS(bus);
-
-    if (rc->phases.enter) {
-        rc->phases.enter(OBJECT(bus), RESET_TYPE_COLD);
-    }
-    if (rc->phases.hold) {
-        rc->phases.hold(OBJECT(bus));
-    }
-    if (rc->phases.exit) {
-        rc->phases.exit(OBJECT(bus));
-    }
-}
-
-static void bus_transitional_reset(Object *obj)
-{
-    BusClass *bc = BUS_GET_CLASS(obj);
-
-    /*
-     * This will call either @bus_phases_reset (for multi-phases transitioned
-     * buses) or a bus's specific method for not-yet transitioned buses.
-     * In both case, it does not reset children.
-     */
-    if (bc->reset) {
-        bc->reset(BUS(obj));
-    }
-}
-
-/**
- * bus_get_transitional_reset:
- * check if the bus's class is ready for multi-phase
- */
-static ResettableTrFunction bus_get_transitional_reset(Object *obj)
-{
-    BusClass *dc = BUS_GET_CLASS(obj);
-    if (dc->reset != bus_phases_reset) {
-        /*
-         * dc->reset has been overridden by a subclass,
-         * the bus is not ready for multi phase yet.
-         */
-        return bus_transitional_reset;
-    }
-    return NULL;
-}
-
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
@@ -293,22 +242,6 @@ static void bus_class_init(ObjectClass *class, void *data)
 
     rc->get_state = bus_get_reset_state;
     rc->child_foreach = bus_reset_child_foreach;
-
-    /*
-     * @bus_phases_reset is put as the default reset method below, allowing
-     * to do the multi-phase transition from base classes to leaf classes. It
-     * allows a legacy-reset Bus class to extend a multi-phases-reset
-     * Bus class for the following reason:
-     * + If a base class B has been moved to multi-phase, then it does not
-     *   override this default reset method and may have defined phase methods.
-     * + A child class C (extending class B) which uses
-     *   bus_class_set_parent_reset() (or similar means) to override the
-     *   reset method will still work as expected. @bus_phases_reset function
-     *   will be registered as the parent reset method and effectively call
-     *   parent reset phases.
-     */
-    bc->reset = bus_phases_reset;
-    rc->get_transitional_function = bus_get_transitional_reset;
 }
 
 static void qbus_finalize(Object *obj)
