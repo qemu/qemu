@@ -77,8 +77,8 @@
 # Takes a list of @YankInstance as argument.
 #
 # Returns:
-# - Nothing on success
-# - @DeviceNotFound error, if any of the YankInstances doesn't exist
+#     - Nothing on success
+#     - @DeviceNotFound error, if any of the YankInstances doesn't exist
 #
 # Example:
 #

@@ -1059,10 +1059,10 @@
 #     From it we have: balloon_size = vm_ram_size - @value
 #
 # Returns:
-# - Nothing on success
-# - If the balloon driver is enabled but not functional because the
-#   KVM kernel module cannot support it, KVMMissingCap
-# - If no balloon device is present, DeviceNotActive
+#     - Nothing on success
+#     - If the balloon driver is enabled but not functional because
+#       the KVM kernel module cannot support it, KVMMissingCap
+#     - If no balloon device is present, DeviceNotActive
 #
 # Notes: This command just issues a request to the guest.  When it
 #     returns, the balloon size may not have changed.  A guest can
@@ -1097,10 +1097,10 @@
 # Return information about the balloon device.
 #
 # Returns:
-# - @BalloonInfo on success
-# - If the balloon driver is enabled but not functional because the
-#   KVM kernel module cannot support it, KVMMissingCap
-# - If no balloon device is present, DeviceNotActive
+#     - @BalloonInfo on success
+#     - If the balloon driver is enabled but not functional because
+#       the KVM kernel module cannot support it, KVMMissingCap
+#     - If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14
 #
@@ -1161,10 +1161,10 @@
 # message from the guest.
 #
 # Returns:
-# - @HvBalloonInfo on success
-# - If no hv-balloon device is present, guest memory status reporting
-#   is not enabled or no guest memory status report received yet,
-#   GenericError
+#     - @HvBalloonInfo on success
+#     - If no hv-balloon device is present, guest memory status
+#       reporting is not enabled or no guest memory status report
+#       received yet, GenericError
 #
 # Since: 8.2
 #
