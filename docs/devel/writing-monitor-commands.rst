@@ -8,7 +8,7 @@ This document doesn't discuss QMP protocol level details, nor does it dive
 into the QAPI framework implementation.
 
 For an in-depth introduction to the QAPI framework, please refer to
-docs/devel/qapi-code-gen.txt.  For the QMP protocol, see the
+:doc:`qapi-code-gen`.  For the QMP protocol, see the
 :doc:`/interop/qmp-spec`.
 
 New commands may be implemented in QMP only.  New HMP commands should be

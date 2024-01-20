@@ -39,7 +39,7 @@
  * limitations; see the documentation for each visitor for more
  * details on what it supports.  Also, see visitor-impl.h for the
  * callback contracts implemented by each visitor, and
- * docs/devel/qapi-code-gen.txt for more about the QAPI code
+ * docs/devel/qapi-code-gen.rst for more about the QAPI code
  * generator.
  *
  * All of the visitors are created via:
