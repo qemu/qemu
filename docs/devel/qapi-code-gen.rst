@@ -989,8 +989,8 @@ this::
   # @feature: Description text
 
 A tagged section starts with one of the following words:
-"Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
-The section ends with the start of a new section.
+"Note:"/"Notes:", "Since:", "Example:"/"Examples:", "Returns:",
+"TODO:".  The section ends with the start of a new section.
 
 The second and subsequent lines of sections other than
 "Example"/"Examples" should be indented like this::
