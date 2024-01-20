@@ -89,8 +89,9 @@
 #
 # @id: the device's ID or QOM path
 #
-# Returns: Nothing on success If @id is not a valid device,
-#     DeviceNotFound
+# Returns:
+#     - Nothing on success
+#     - If @id is not a valid device, DeviceNotFound
 #
 # Notes: When this command completes, the device may not be removed
 #     from the guest.  Hot removal is an operation that requires guest
