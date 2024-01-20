@@ -167,8 +167,8 @@ Basic QMP Usage
 
 The primary interface to manipulating bitmap objects is via the QMP
 interface. If you are not familiar, see the :doc:`qmp-spec` for the
-protocol, and `qemu-qmp-ref <qemu-qmp-ref.html>`_ for a full
-reference of all QMP commands.
+protocol, and :doc:`qemu-qmp-ref` for a full reference of all QMP
+commands.
 
 Supported Commands
 ~~~~~~~~~~~~~~~~~~
