@@ -30,13 +30,13 @@ read 65536/65536 bytes at offset 0
        'arguments': { 'uri': 'unix:SOCK_DIR/migrate', 'blk': true } }
 {"return": {}}
 { 'execute': 'query-status' }
-{"return": {"status": "postmigrate", "singlestep": false, "running": false}}
+{"return": {"status": "postmigrate", "running": false}}
 
 === Do some I/O on the destination ===
 
 { 'execute': 'query-status' }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "RESUME"}
-{"return": {"status": "running", "singlestep": false, "running": true}}
+{"return": {"status": "running", "running": true}}
 { 'execute': 'human-monitor-command',
        'arguments': { 'command-line':
                       'qemu-io disk "read -P 0x55 0 64k"' } }

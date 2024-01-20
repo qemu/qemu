@@ -460,6 +460,47 @@ in this case.
 Note that the default audio backend must be configured on the command
 line if the ``-nodefaults`` options is used.
 
+``-no-hpet`` (removed in 9.0)
+'''''''''''''''''''''''''''''
+
+The HPET setting has been turned into a machine property.
+Use ``-machine hpet=off`` instead.
+
+``-no-acpi`` (removed in 9.0)
+'''''''''''''''''''''''''''''
+
+The ``-no-acpi`` setting has been turned into a machine property.
+Use ``-machine acpi=off`` instead.
+
+``-async-teardown`` (removed in 9.0)
+''''''''''''''''''''''''''''''''''''
+
+Use ``-run-with async-teardown=on`` instead.
+
+``-chroot`` (removed in 9.0)
+''''''''''''''''''''''''''''
+
+Use ``-run-with chroot=dir`` instead.
+
+``-singlestep`` (removed in 9.0)
+''''''''''''''''''''''''''''''''
+
+The ``-singlestep`` option has been turned into an accelerator property,
+and given a name that better reflects what it actually does.
+Use ``-accel tcg,one-insn-per-tb=on`` instead.
+
+
+User-mode emulator command line arguments
+-----------------------------------------
+
+``-singlestep`` (removed in 9.0)
+''''''''''''''''''''''''''''''''
+
+The ``-singlestep`` option has been given a name that better reflects
+what it actually does. For both linux-user and bsd-user, use the
+``-one-insn-per-tb`` option instead.
+
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
@@ -611,6 +652,12 @@ Use ``migrate-set-parameters`` instead.
 ''''''''''''''''''''''''''''''''''
 
 This command didn't produce any output already. Removed with no replacement.
+
+``singlestep`` (removed in 9.0)
+'''''''''''''''''''''''''''''''
+
+The ``singlestep`` command has been replaced by the ``one-insn-per-tb``
+command, which has the same behaviour but a less misleading name.
 
 Guest Emulator ISAs
 -------------------

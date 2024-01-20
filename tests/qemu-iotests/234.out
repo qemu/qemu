@@ -15,8 +15,8 @@ Starting migration to B...
 {"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 completed
 completed
-{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
-{"return": {"running": true, "singlestep": false, "status": "running"}}
+{"return": {"running": false, "status": "postmigrate"}}
+{"return": {"running": true, "status": "running"}}
 Add a second parent to drive0-file...
 {"return": {}}
 Restart A with -incoming and second parent...
@@ -32,5 +32,5 @@ Starting migration back to A...
 {"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 completed
 completed
-{"return": {"running": true, "singlestep": false, "status": "running"}}
-{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
+{"return": {"running": true, "status": "running"}}
+{"return": {"running": false, "status": "postmigrate"}}

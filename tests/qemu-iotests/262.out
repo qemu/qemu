@@ -13,5 +13,5 @@ Starting migration to B...
 {"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 completed
 completed
-{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
-{"return": {"running": true, "singlestep": false, "status": "running"}}
+{"return": {"running": false, "status": "postmigrate"}}
+{"return": {"running": true, "status": "running"}}
