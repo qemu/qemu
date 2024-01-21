@@ -1662,6 +1662,9 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
             } else {
                 tcg_out_strd_r(s, h.cond, datalo, h.base, h.index);
             }
+        } else if (h.index < 0) {
+            tcg_out_st32_12(s, h.cond, datalo, h.base, 0);
+            tcg_out_st32_12(s, h.cond, datahi, h.base, 4);
         } else if (h.index_scratch) {
             tcg_out_st32_rwb(s, h.cond, datalo, h.index, h.base);
             tcg_out_st32_12(s, h.cond, datahi, h.index, 4);
