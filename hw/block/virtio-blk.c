@@ -65,7 +65,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     iov_discard_undo(&req->inhdr_undo);
     iov_discard_undo(&req->outhdr_undo);
     virtqueue_push(req->vq, &req->elem, req->in_len);
-    if (s->dataplane_started && !s->dataplane_disabled) {
+    if (qemu_in_iothread()) {
         virtio_blk_data_plane_notify(s->dataplane, req->vq);
     } else {
         virtio_notify(vdev, req->vq);
