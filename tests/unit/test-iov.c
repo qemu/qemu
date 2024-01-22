@@ -197,15 +197,17 @@ static void test_io(void)
                    s = g_test_rand_int_range(0, j - k + 1);
                    r = iov_send(sv[1], iov, niov, k, s);
                    g_assert(memcmp(iov, siov, sizeof(*iov)*niov) == 0);
-                   if (r >= 0) {
-                       k += r;
-                       usleep(g_test_rand_int_range(0, 30));
-                   } else if (errno == EAGAIN) {
-                       select(sv[1]+1, NULL, &fds, NULL, NULL);
-                       continue;
-                   } else {
-                       perror("send");
-                       exit(1);
+                   if (r < 0) {
+                        if (errno == EAGAIN) {
+                            r = 0;
+                        } else {
+                            perror("send");
+                            exit(1);
+                        }
+                   }
+                   k += r;
+                   if (k < j) {
+                        select(sv[1] + 1, NULL, &fds, NULL, NULL);
                    }
                } while(k < j);
            }
