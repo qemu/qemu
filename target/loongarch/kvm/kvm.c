@@ -540,6 +540,38 @@ static int kvm_loongarch_get_cpucfg(CPUState *cs)
     return ret;
 }
 
+static int kvm_check_cpucfg2(CPUState *cs)
+{
+    int ret;
+    uint64_t val;
+    struct kvm_device_attr attr = {
+        .group = KVM_LOONGARCH_VCPU_CPUCFG,
+        .attr = 2,
+        .addr = (uint64_t)&val,
+    };
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    CPULoongArchState *env = &cpu->env;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
+
+    if (!ret) {
+        kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+        env->cpucfg[2] &= val;
+
+        if (FIELD_EX32(env->cpucfg[2], CPUCFG2, FP)) {
+            /* The FP minimal version is 1. */
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, FP_VER, 1);
+        }
+
+        if (FIELD_EX32(env->cpucfg[2], CPUCFG2, LLFTP)) {
+            /* The LLFTP minimal version is 1. */
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LLFTP_VER, 1);
+        }
+    }
+
+    return ret;
+}
+
 static int kvm_loongarch_put_cpucfg(CPUState *cs)
 {
     int i, ret = 0;
@@ -548,14 +580,13 @@ static int kvm_loongarch_put_cpucfg(CPUState *cs)
     uint64_t val;
 
     for (i = 0; i < 21; i++) {
+	if (i == 2) {
+            ret = kvm_check_cpucfg2(cs);
+            if (ret) {
+                return ret;
+            }
+	}
         val = env->cpucfg[i];
-        /* LSX and LASX and LBT are not supported in kvm now */
-        if (i == 2) {
-            val &= ~(BIT(R_CPUCFG2_LSX_SHIFT) | BIT(R_CPUCFG2_LASX_SHIFT));
-            val &= ~(BIT(R_CPUCFG2_LBT_X86_SHIFT) |
-                     BIT(R_CPUCFG2_LBT_ARM_SHIFT) |
-                     BIT(R_CPUCFG2_LBT_MIPS_SHIFT));
-        }
         ret = kvm_set_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
         if (ret < 0) {
             trace_kvm_failed_put_cpucfg(strerror(errno));
