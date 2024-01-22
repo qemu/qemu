@@ -721,11 +721,11 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
                                uint32_t *irq_virtio_phandle,
                                uint32_t *msi_pcie_phandle)
 {
-    char *clust_name;
     int socket, phandle_pos;
     MachineState *ms = MACHINE(s);
     uint32_t msi_m_phandle = 0, msi_s_phandle = 0;
-    uint32_t *intc_phandles, xplic_phandles[MAX_NODES];
+    uint32_t xplic_phandles[MAX_NODES];
+    g_autofree uint32_t *intc_phandles = NULL;
     int socket_count = riscv_socket_count(ms);
 
     qemu_fdt_add_subnode(ms->fdt, "/cpus");
@@ -739,6 +739,7 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
 
     phandle_pos = ms->smp.cpus;
     for (socket = (socket_count - 1); socket >= 0; socket--) {
+        g_autofree char *clust_name = NULL;
         phandle_pos -= s->soc[socket].num_harts;
 
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
@@ -748,8 +749,6 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
                                &intc_phandles[phandle_pos]);
 
         create_fdt_socket_memory(s, memmap, socket);
-
-        g_free(clust_name);
 
         if (tcg_enabled()) {
             if (s->have_aclint) {
@@ -792,8 +791,6 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
             }
         }
     }
-
-    g_free(intc_phandles);
 
     if (kvm_enabled() && virt_use_kvm_aia(s)) {
         *irq_mmio_phandle = xplic_phandles[0];
