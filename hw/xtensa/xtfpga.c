@@ -356,7 +356,6 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
             cur_tagptr = put_tag(cur_tagptr, BP_TAG_COMMAND_LINE,
                                  strlen(kernel_cmdline) + 1, kernel_cmdline);
         }
-#ifdef CONFIG_FDT
         if (dtb_filename) {
             int fdt_size;
             void *fdt = load_device_tree(dtb_filename, &fdt_size);
@@ -373,14 +372,6 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
             cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + fdt_size, 4 * KiB);
             g_free(fdt);
         }
-#else
-        if (dtb_filename) {
-            error_report("could not load DTB '%s': "
-                         "FDT support is not configured in QEMU",
-                         dtb_filename);
-            exit(EXIT_FAILURE);
-        }
-#endif
         if (initrd_filename) {
             BpMemInfo initrd_location = { 0 };
             int initrd_size = load_ramdisk(initrd_filename, cur_lowmem,

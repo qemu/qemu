@@ -14,8 +14,8 @@ config XTENSA_VIRT
 config XTENSA_XTFPGA
     bool
     default y
-    depends on XTENSA
-    imply DEVICE_TREE
+    depends on XTENSA && FDT
+    select DEVICE_TREE
     select OPENCORES_ETH
     select PFLASH_CFI01
     select SERIAL
