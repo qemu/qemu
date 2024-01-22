@@ -69,6 +69,19 @@ Supported guest CPU types:
 Note that the default is ``cortex-a15``, so for an AArch64 guest you must
 specify a CPU type.
 
+Also, please note that passing ``max`` CPU (i.e. ``-cpu max``) won't
+enable all the CPU features for a given ``virt`` machine. Where a CPU
+architectural feature requires support in both the CPU itself and in the
+wider system (e.g. the MTE feature), it may not be enabled by default,
+but instead requires a machine option to enable it.
+
+For example, MTE support must be enabled with ``-machine virt,mte=on``,
+as well as by selecting an MTE-capable CPU (e.g., ``max``) with the
+``-cpu`` option.
+
+See the machine-specific options below, or check them for a given machine
+by passing the ``help`` suboption, like: ``-machine virt-9.0,help``.
+
 Graphics output is available, but unlike the x86 PC machine types
 there is no default display device enabled: you should select one from
 the Display devices section of "-device help". The recommended option
