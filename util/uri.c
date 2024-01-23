@@ -164,19 +164,6 @@ static void uri_clean(URI *uri);
      ((*(p) == '=')) || ((*(p) == '\'')))
 
 /*
- *    gen-delims    = ":" / "/" / "?" / "#" / "[" / "]" / "@"
- */
-#define ISA_GEN_DELIM(p)                                                       \
-    (((*(p) == ':')) || ((*(p) == '/')) || ((*(p) == '?')) ||                  \
-     ((*(p) == '#')) || ((*(p) == '[')) || ((*(p) == ']')) ||                  \
-     ((*(p) == '@')))
-
-/*
- *    reserved      = gen-delims / sub-delims
- */
-#define ISA_RESERVED(p) (ISA_GEN_DELIM(p) || (ISA_SUB_DELIM(p)))
-
-/*
  *    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
  */
 #define ISA_UNRESERVED(p)                                                      \
