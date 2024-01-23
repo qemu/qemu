@@ -145,7 +145,7 @@ typedef struct KVMCPUConfig {
     const char *name;
     const char *description;
     target_ulong offset;
-    int kvm_reg_id;
+    uint64_t kvm_reg_id;
     bool user_set;
     bool supported;
 } KVMCPUConfig;
