@@ -267,7 +267,7 @@ static int rfc3986_parse_fragment(URI *uri, const char **str)
         if (uri->cleanup & 2) {
             uri->fragment = g_strndup(*str, cur - *str);
         } else {
-            uri->fragment = uri_string_unescape(*str, cur - *str, NULL);
+            uri->fragment = g_uri_unescape_segment(*str, cur, NULL);
         }
     }
     *str = cur;
@@ -368,7 +368,7 @@ static int rfc3986_parse_user_info(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->user = g_strndup(*str, cur - *str);
             } else {
-                uri->user = uri_string_unescape(*str, cur - *str, NULL);
+                uri->user = g_uri_unescape_segment(*str, cur, NULL);
             }
         }
         *str = cur;
@@ -496,7 +496,7 @@ found:
             if (uri->cleanup & 2) {
                 uri->server = g_strndup(host, cur - host);
             } else {
-                uri->server = uri_string_unescape(host, cur - host, NULL);
+                uri->server = g_uri_unescape_segment(host, cur, NULL);
             }
         } else {
             uri->server = NULL;
@@ -614,7 +614,7 @@ static int rfc3986_parse_path_ab_empty(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = g_uri_unescape_segment(*str, cur, NULL);
             }
         } else {
             uri->path = NULL;
@@ -663,7 +663,7 @@ static int rfc3986_parse_path_absolute(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = g_uri_unescape_segment(*str, cur, NULL);
             }
         } else {
             uri->path = NULL;
@@ -709,7 +709,7 @@ static int rfc3986_parse_path_rootless(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = g_uri_unescape_segment(*str, cur, NULL);
             }
         } else {
             uri->path = NULL;
@@ -755,7 +755,7 @@ static int rfc3986_parse_path_no_scheme(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = g_uri_unescape_segment(*str, cur, NULL);
             }
         } else {
             uri->path = NULL;
@@ -1561,81 +1561,6 @@ done_cd:
     return 0;
 }
 
-static int is_hex(char c)
-{
-    if (((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')) ||
-        ((c >= 'A') && (c <= 'F'))) {
-        return 1;
-    }
-    return 0;
-}
-
-/**
- * uri_string_unescape:
- * @str:  the string to unescape
- * @len:   the length in bytes to unescape (or <= 0 to indicate full string)
- * @target:  optional destination buffer
- *
- * Unescaping routine, but does not check that the string is an URI. The
- * output is a direct unsigned char translation of %XX values (no encoding)
- * Note that the length of the result can only be smaller or same size as
- * the input string.
- *
- * Returns a copy of the string, but unescaped, will return NULL only in case
- * of error
- */
-char *uri_string_unescape(const char *str, int len, char *target)
-{
-    char *ret, *out;
-    const char *in;
-
-    if (str == NULL) {
-        return NULL;
-    }
-    if (len <= 0) {
-        len = strlen(str);
-    }
-    if (len < 0) {
-        return NULL;
-    }
-
-    if (target == NULL) {
-        ret = g_malloc(len + 1);
-    } else {
-        ret = target;
-    }
-    in = str;
-    out = ret;
-    while (len > 0) {
-        if ((len > 2) && (*in == '%') && (is_hex(in[1])) && (is_hex(in[2]))) {
-            in++;
-            if ((*in >= '0') && (*in <= '9')) {
-                *out = (*in - '0');
-            } else if ((*in >= 'a') && (*in <= 'f')) {
-                *out = (*in - 'a') + 10;
-            } else if ((*in >= 'A') && (*in <= 'F')) {
-                *out = (*in - 'A') + 10;
-            }
-            in++;
-            if ((*in >= '0') && (*in <= '9')) {
-                *out = *out * 16 + (*in - '0');
-            } else if ((*in >= 'a') && (*in <= 'f')) {
-                *out = *out * 16 + (*in - 'a') + 10;
-            } else if ((*in >= 'A') && (*in <= 'F')) {
-                *out = *out * 16 + (*in - 'A') + 10;
-            }
-            in++;
-            len -= 3;
-            out++;
-        } else {
-            *out++ = *in++;
-            len--;
-        }
-    }
-    *out = 0;
-    return ret;
-}
-
 /**
  * uri_string_escape:
  * @str:  string to escape
@@ -2274,14 +2199,14 @@ struct QueryParams *query_params_parse(const char *query)
          * and consistent with CGI.pm we assume value is "".
          */
         else if (!eq) {
-            name = uri_string_unescape(query, end - query, NULL);
+            name = g_uri_unescape_segment(query, end, NULL);
             value = NULL;
         }
         /* Or if we have "name=" here (works around annoying
          * problem when calling uri_string_unescape with len = 0).
          */
         else if (eq + 1 == end) {
-            name = uri_string_unescape(query, eq - query, NULL);
+            name = g_uri_unescape_segment(query, eq, NULL);
             value = g_new0(char, 1);
         }
         /* If the '=' character is at the beginning then we have
@@ -2293,8 +2218,8 @@ struct QueryParams *query_params_parse(const char *query)
 
         /* Otherwise it's "name=value". */
         else {
-            name = uri_string_unescape(query, eq - query, NULL);
-            value = uri_string_unescape(eq + 1, end - (eq + 1), NULL);
+            name = g_uri_unescape_segment(query, eq, NULL);
+            value = g_uri_unescape_segment(eq + 1, end, NULL);
         }
 
         /* Append to the parameter set. */
