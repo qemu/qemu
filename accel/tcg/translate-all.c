@@ -818,9 +818,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
-#if !TARGET_TB_PCREL
     tb->pc = pc;
-#endif
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;

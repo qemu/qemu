@@ -503,7 +503,6 @@ struct tb_tc {
 };
 
 struct TranslationBlock {
-#if !TARGET_TB_PCREL
     /*
      * Guest PC corresponding to this block.  This must be the true
      * virtual address.  Therefore e.g. x86 stores EIP + CS_BASE, and
@@ -518,7 +517,6 @@ struct TranslationBlock {
      * deposited into the "current" PC.
      */
     target_ulong pc;
-#endif
 
     /*
      * Target-specific data associated with the TranslationBlock, e.g.:
@@ -604,11 +602,7 @@ struct TranslationBlock {
 /* Hide the read to avoid ifdefs for TARGET_TB_PCREL. */
 static inline target_ulong tb_pc(const TranslationBlock *tb)
 {
-#if TARGET_TB_PCREL
-    qemu_build_not_reached();
-#else
     return tb->pc;
-#endif
 }
 
 /* Hide the qatomic_read to make code a little easier on the eyes */
