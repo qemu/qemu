@@ -72,8 +72,6 @@ typedef struct URI {
 } URI;
 
 URI *uri_new(void);
-char *uri_resolve(const char *URI, const char *base);
-char *uri_resolve_relative(const char *URI, const char *base);
 URI *uri_parse(const char *str);
 URI *uri_parse_raw(const char *str, int raw);
 int uri_parse_into(URI *uri, const char *str);
