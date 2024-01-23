@@ -46,6 +46,7 @@ def main():
     hex_common.read_semantics_file(sys.argv[1])
     hex_common.read_attribs_file(sys.argv[2])
     hex_common.calculate_attribs()
+    hex_common.init_registers()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
@@ -132,22 +133,9 @@ def main():
 
             arguments = []
             for regtype, regid in regs:
-                prefix = "in " if hex_common.is_read(regid) else ""
-
-                is_pair = hex_common.is_pair(regid)
-                is_single_old = hex_common.is_single(regid) and hex_common.is_old_val(
-                    regtype, regid, tag
-                )
-                is_single_new = hex_common.is_single(regid) and hex_common.is_new_val(
-                    regtype, regid, tag
-                )
-
-                if is_pair or is_single_old:
-                    arguments.append(f"{prefix}{regtype}{regid}V")
-                elif is_single_new:
-                    arguments.append(f"{prefix}{regtype}{regid}N")
-                else:
-                    hex_common.bad_register(regtype, regid)
+                reg = hex_common.get_register(tag, regtype, regid)
+                prefix = "in " if reg.is_read() else ""
+                arguments.append(f"{prefix}{reg.reg_tcg()}")
 
             for immlett, bits, immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))

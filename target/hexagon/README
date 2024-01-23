@@ -189,11 +189,17 @@ the packet, and we mark the implicit writes.  After the analysis is performed,
 we initialize the result register for each of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
-tree.  This generation is also a two step process.  The first step is to run
-target/hexagon/gen_dectree_import.c to produce
+tree.  This generation is a four step process.
+Step 1 is to run target/hexagon/gen_dectree_import.c to produce
     <BUILD_DIR>/target/hexagon/iset.py
-This file is imported by target/hexagon/dectree.py to produce
-    <BUILD_DIR>/target/hexagon/dectree_generated.h.inc
+Step 2 is to import iset.py into target/hexagon/gen_decodetree.py to produce
+    <BUILD_DIR>/target/hexagon/normal_decode_generated
+    <BUILD_DIR>/target/hexagon/hvx_decode_generated
+    <BUILD_DIR>/target/hexagon/subinsn_*_decode_generated
+Step 3 is to process the above files with QEMU's decodetree.py to produce
+    <BUILD_DIR>/target/hexagon/decode_*_generated.c.inc
+Step 4 is to import iset.py into target/hexagon/gen_trans_funcs.py to produce
+    <BUILD_DIR>/target/hexagon/decodetree_trans_funcs_generated.c.inc
 
 *** Key Files ***
 

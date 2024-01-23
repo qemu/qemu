@@ -1541,10 +1541,8 @@ void gen_circ_op(Context *c,
                  HexValue *increment,
                  HexValue *modifier)
 {
-    HexValue cs = gen_tmp(c, locp, 32, UNSIGNED);
     HexValue increment_m = *increment;
     increment_m = rvalue_materialize(c, locp, &increment_m);
-    OUT(c, locp, "gen_read_reg(", &cs, ", HEX_REG_CS0 + MuN);\n");
     OUT(c,
         locp,
         "gen_helper_fcircadd(",
@@ -1555,7 +1553,7 @@ void gen_circ_op(Context *c,
         &increment_m,
         ", ",
         modifier);
-    OUT(c, locp, ", ", &cs, ");\n");
+    OUT(c, locp, ", CS);\n");
 }
 
 HexValue gen_locnt_op(Context *c, YYLTYPE *locp, HexValue *src)
@@ -2080,9 +2078,9 @@ void emit_arg(Context *c, YYLTYPE *locp, HexValue *arg)
             char reg_id[5];
             reg_compose(c, locp, &(arg->reg), reg_id);
             EMIT_SIG(c, ", %s %s", type, reg_id);
-            /* MuV register requires also MuN to provide its index */
+            /* MuV register requires also CS for circular addressing*/
             if (arg->reg.type == MODIFIER) {
-                EMIT_SIG(c, ", int MuN");
+                EMIT_SIG(c, ", TCGv CS");
             }
         }
         break;

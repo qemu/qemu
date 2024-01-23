@@ -53,6 +53,4 @@ extern const OpcodeEncoding opcode_encodings[XX_LAST_OPCODE];
 
 void opcode_init(void);
 
-int opcode_which_immediate_is_extended(Opcode opcode);
-
 #endif
