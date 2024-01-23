@@ -352,6 +352,13 @@ static KVMCPUConfig kvm_cboz_blocksize = {
     .kvm_reg_id = KVM_REG_RISCV_CONFIG_REG(zicboz_block_size)
 };
 
+static KVMCPUConfig kvm_v_vlenb = {
+    .name = "vlenb",
+    .offset = CPU_CFG_OFFSET(vlenb),
+    .kvm_reg_id =  KVM_REG_RISCV | KVM_REG_SIZE_U64 | KVM_REG_RISCV_VECTOR |
+                   KVM_REG_RISCV_VECTOR_CSR_REG(vlenb)
+};
+
 static void kvm_riscv_update_cpu_cfg_isa_ext(RISCVCPU *cpu, CPUState *cs)
 {
     CPURISCVState *env = &cpu->env;
@@ -684,7 +691,8 @@ static void kvm_riscv_put_regs_timer(CPUState *cs)
 
 static int kvm_riscv_get_regs_vector(CPUState *cs)
 {
-    CPURISCVState *env = &RISCV_CPU(cs)->env;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
     target_ulong reg;
     int ret = 0;
 
@@ -710,12 +718,21 @@ static int kvm_riscv_get_regs_vector(CPUState *cs)
     }
     env->vtype = reg;
 
+    if (kvm_v_vlenb.supported) {
+        ret = kvm_get_one_reg(cs, RISCV_VECTOR_CSR_REG(env, vlenb), &reg);
+        if (ret) {
+            return ret;
+        }
+        cpu->cfg.vlenb = reg;
+    }
+
     return 0;
 }
 
 static int kvm_riscv_put_regs_vector(CPUState *cs)
 {
-    CPURISCVState *env = &RISCV_CPU(cs)->env;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
     target_ulong reg;
     int ret = 0;
 
@@ -737,6 +754,14 @@ static int kvm_riscv_put_regs_vector(CPUState *cs)
 
     reg = env->vtype;
     ret = kvm_set_one_reg(cs, RISCV_VECTOR_CSR_REG(env, vtype), &reg);
+    if (ret) {
+        return ret;
+    }
+
+    if (kvm_v_vlenb.supported) {
+        reg = cpu->cfg.vlenb;
+        ret = kvm_set_one_reg(cs, RISCV_VECTOR_CSR_REG(env, vlenb), &reg);
+    }
 
     return ret;
 }
@@ -921,6 +946,33 @@ static int uint64_cmp(const void *a, const void *b)
     return 0;
 }
 
+static void kvm_riscv_read_vlenb(RISCVCPU *cpu, KVMScratchCPU *kvmcpu,
+                                 struct kvm_reg_list *reglist)
+{
+    struct kvm_one_reg reg;
+    struct kvm_reg_list *reg_search;
+    uint64_t val;
+    int ret;
+
+    reg_search = bsearch(&kvm_v_vlenb.kvm_reg_id, reglist->reg, reglist->n,
+                         sizeof(uint64_t), uint64_cmp);
+
+    if (reg_search) {
+        reg.id = kvm_v_vlenb.kvm_reg_id;
+        reg.addr = (uint64_t)&val;
+
+        ret = ioctl(kvmcpu->cpufd, KVM_GET_ONE_REG, &reg);
+        if (ret != 0) {
+            error_report("Unable to read vlenb register, error code: %s",
+                         strerrorname_np(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        kvm_v_vlenb.supported = true;
+        cpu->cfg.vlenb = val;
+    }
+}
+
 static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
 {
     KVMCPUConfig *multi_ext_cfg;
@@ -994,6 +1046,10 @@ static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
 
     if (cpu->cfg.ext_zicboz) {
         kvm_riscv_read_cbomz_blksize(cpu, kvmcpu, &kvm_cboz_blocksize);
+    }
+
+    if (riscv_has_ext(&cpu->env, RVV)) {
+        kvm_riscv_read_vlenb(cpu, kvmcpu, reglist);
     }
 }
 
@@ -1566,7 +1622,8 @@ void riscv_kvm_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
     int ret;
 
     /* short-circuit without spinning the scratch CPU */
-    if (!cpu->cfg.ext_zicbom && !cpu->cfg.ext_zicboz) {
+    if (!cpu->cfg.ext_zicbom && !cpu->cfg.ext_zicboz &&
+        !riscv_has_ext(env, RVV)) {
         return;
     }
 
@@ -1609,6 +1666,28 @@ void riscv_kvm_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
         if (cpu->cfg.cboz_blocksize != val) {
             error_setg(errp, "Unable to set cboz_blocksize to a different "
                        "value than the host (%lu)", val);
+            return;
+        }
+    }
+
+    /* Users are setting vlen, not vlenb */
+    if (riscv_has_ext(env, RVV) && riscv_cpu_option_set("vlen")) {
+        if (!kvm_v_vlenb.supported) {
+            error_setg(errp, "Unable to set 'vlenb': register not supported");
+            return;
+        }
+
+        reg.id = kvm_v_vlenb.kvm_reg_id;
+        reg.addr = (uint64_t)&val;
+        ret = ioctl(kvmcpu.cpufd, KVM_GET_ONE_REG, &reg);
+        if (ret != 0) {
+            error_setg(errp, "Unable to read vlenb register, error %d", errno);
+            return;
+        }
+
+        if (cpu->cfg.vlenb != val) {
+            error_setg(errp, "Unable to set 'vlen' to a different "
+                       "value than the host (%lu)", val * 8);
             return;
         }
     }
