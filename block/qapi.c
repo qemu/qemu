@@ -742,15 +742,15 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
     char *sizing = NULL;
 
     if (!sn) {
-        qemu_printf("%-10s%-17s%8s%20s%13s%11s",
-                    "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK", "ICOUNT");
+        qemu_printf("%-7s %-16s %8s %19s %15s %10s",
+                    "ID", "TAG", "VM_SIZE", "DATE", "VM_CLOCK", "ICOUNT");
     } else {
         g_autoptr(GDateTime) date = g_date_time_new_from_unix_local(sn->date_sec);
         g_autofree char *date_buf = g_date_time_format(date, "%Y-%m-%d %H:%M:%S");
 
         secs = sn->vm_clock_nsec / 1000000000;
         snprintf(clock_buf, sizeof(clock_buf),
-                 "%02d:%02d:%02d.%03d",
+                 "%04d:%02d:%02d.%03d",
                  (int)(secs / 3600),
                  (int)((secs / 60) % 60),
                  (int)(secs % 60),
@@ -759,8 +759,10 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
         if (sn->icount != -1ULL) {
             snprintf(icount_buf, sizeof(icount_buf),
                 "%"PRId64, sn->icount);
+        } else {
+            snprintf(icount_buf, sizeof(icount_buf), "--");
         }
-        qemu_printf("%-9s %-16s %8s%20s%13s%11s",
+        qemu_printf("%-7s %-16s %8s %19s %15s %10s",
                     sn->id_str, sn->name,
                     sizing,
                     date_buf,

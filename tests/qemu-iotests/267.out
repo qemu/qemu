@@ -33,8 +33,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -44,8 +44,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -69,8 +69,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -94,8 +94,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -105,8 +105,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -119,8 +119,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -134,8 +134,8 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
@@ -145,15 +145,15 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
 Internal snapshots on overlay:
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 Internal snapshots on backing file:
 
 === -blockdev with NBD server on the backing file ===
@@ -166,17 +166,17 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
 (qemu) info snapshots
 List of snapshots present on all disks:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
---        snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+--      snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 (qemu) loadvm snap0
 (qemu) quit
 
 Internal snapshots on overlay:
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 Internal snapshots on backing file:
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000           
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 *** done
