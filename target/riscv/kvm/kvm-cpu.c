@@ -86,6 +86,27 @@ static uint64_t kvm_riscv_reg_id_u64(uint64_t type, uint64_t idx)
     return KVM_REG_RISCV | KVM_REG_SIZE_U64 | type | idx;
 }
 
+static uint64_t kvm_encode_reg_size_id(uint64_t id, size_t size_b)
+{
+    uint64_t size_ctz = __builtin_ctz(size_b);
+
+    return id | (size_ctz << KVM_REG_SIZE_SHIFT);
+}
+
+static uint64_t kvm_riscv_vector_reg_id(RISCVCPU *cpu,
+                                        uint64_t idx)
+{
+    uint64_t id;
+    size_t size_b;
+
+    g_assert(idx < 32);
+
+    id = KVM_REG_RISCV | KVM_REG_RISCV_VECTOR | KVM_REG_RISCV_VECTOR_REG(idx);
+    size_b = cpu->cfg.vlenb;
+
+    return kvm_encode_reg_size_id(id, size_b);
+}
+
 #define RISCV_CORE_REG(env, name) \
     kvm_riscv_reg_id_ulong(env, KVM_REG_RISCV_CORE, \
                            KVM_REG_RISCV_CORE_REG(name))
@@ -694,7 +715,8 @@ static int kvm_riscv_get_regs_vector(CPUState *cs)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     target_ulong reg;
-    int ret = 0;
+    uint64_t vreg_id;
+    int vreg_idx, ret = 0;
 
     if (!riscv_has_ext(env, RVV)) {
         return 0;
@@ -724,6 +746,21 @@ static int kvm_riscv_get_regs_vector(CPUState *cs)
             return ret;
         }
         cpu->cfg.vlenb = reg;
+
+        for (int i = 0; i < 32; i++) {
+            /*
+             * vreg[] is statically allocated using RV_VLEN_MAX.
+             * Use it instead of vlenb to calculate vreg_idx for
+             * simplicity.
+             */
+            vreg_idx = i * RV_VLEN_MAX / 64;
+            vreg_id = kvm_riscv_vector_reg_id(cpu, i);
+
+            ret = kvm_get_one_reg(cs, vreg_id, &env->vreg[vreg_idx]);
+            if (ret) {
+                return ret;
+            }
+        }
     }
 
     return 0;
@@ -734,7 +771,8 @@ static int kvm_riscv_put_regs_vector(CPUState *cs)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     target_ulong reg;
-    int ret = 0;
+    uint64_t vreg_id;
+    int vreg_idx, ret = 0;
 
     if (!riscv_has_ext(env, RVV)) {
         return 0;
@@ -761,6 +799,21 @@ static int kvm_riscv_put_regs_vector(CPUState *cs)
     if (kvm_v_vlenb.supported) {
         reg = cpu->cfg.vlenb;
         ret = kvm_set_one_reg(cs, RISCV_VECTOR_CSR_REG(env, vlenb), &reg);
+
+        for (int i = 0; i < 32; i++) {
+            /*
+             * vreg[] is statically allocated using RV_VLEN_MAX.
+             * Use it instead of vlenb to calculate vreg_idx for
+             * simplicity.
+             */
+            vreg_idx = i * RV_VLEN_MAX / 64;
+            vreg_id = kvm_riscv_vector_reg_id(cpu, i);
+
+            ret = kvm_set_one_reg(cs, vreg_id, &env->vreg[vreg_idx]);
+            if (ret) {
+                return ret;
+            }
+        }
     }
 
     return ret;
