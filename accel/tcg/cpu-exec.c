@@ -777,6 +777,17 @@ static inline bool need_replay_interrupt(int interrupt_request)
 }
 #endif /* !CONFIG_USER_ONLY */
 
+static inline bool icount_exit_request(CPUState *cpu)
+{
+    if (!icount_enabled()) {
+        return false;
+    }
+    if (cpu->cflags_next_tb != -1 && !(cpu->cflags_next_tb & CF_USE_ICOUNT)) {
+        return false;
+    }
+    return cpu->neg.icount_decr.u16.low + cpu->icount_extra == 0;
+}
+
 static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
@@ -882,10 +893,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     }
 
     /* Finally, check if we need to exit to the main loop.  */
-    if (unlikely(qatomic_read(&cpu->exit_request))
-        || (icount_enabled()
-            && (cpu->cflags_next_tb == -1 || cpu->cflags_next_tb & CF_USE_ICOUNT)
-            && cpu->neg.icount_decr.u16.low + cpu->icount_extra == 0)) {
+    if (unlikely(qatomic_read(&cpu->exit_request)) || icount_exit_request(cpu)) {
         qatomic_set(&cpu->exit_request, 0);
         if (cpu->exception_index == -1) {
             cpu->exception_index = EXCP_INTERRUPT;
