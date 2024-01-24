@@ -118,7 +118,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
-    tcg_cpus_destroy(cpu);
+    tcg_cpu_destroy(cpu);
     bql_unlock();
     rcu_remove_force_rcu_notifier(&force_rcu.notifier);
     rcu_unregister_thread();

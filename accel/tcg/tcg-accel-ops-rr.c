@@ -131,7 +131,7 @@ static void rr_deal_with_unplugged_cpus(void)
 
     CPU_FOREACH(cpu) {
         if (cpu->unplug && !cpu_can_run(cpu)) {
-            tcg_cpus_destroy(cpu);
+            tcg_cpu_destroy(cpu);
             break;
         }
     }
