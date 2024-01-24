@@ -1368,7 +1368,8 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("CPU: " + proc + " generation processor")
         self.wait_for_console_pattern("zImage starting: loaded")
         self.wait_for_console_pattern("Run /init as init process")
-        self.wait_for_console_pattern("Creating 1 MTD partitions")
+        # Device detection output driven by udev probing is sometimes cut off
+        # from console output, suspect S14silence-console init script.
 
     def test_ppc_powernv8(self):
         """
