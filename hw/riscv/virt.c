@@ -220,7 +220,6 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
 
     for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
         RISCVCPU *cpu_ptr = &s->soc[socket].harts[cpu];
-        g_autofree char *name = NULL;
         g_autofree char *cpu_name = NULL;
         g_autofree char *core_name = NULL;
         g_autofree char *intc_name = NULL;
@@ -239,8 +238,7 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
             qemu_fdt_setprop_string(ms->fdt, cpu_name, "mmu-type", sv_name);
         }
 
-        name = riscv_isa_string(cpu_ptr);
-        qemu_fdt_setprop_string(ms->fdt, cpu_name, "riscv,isa", name);
+        riscv_isa_write_fdt(cpu_ptr, ms->fdt, cpu_name);
 
         if (cpu_ptr->cfg.ext_zicbom) {
             qemu_fdt_setprop_cell(ms->fdt, cpu_name, "riscv,cbom-block-size",
