@@ -481,11 +481,37 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
     g_free(entry);
 }
 
-void xen_invalidate_map_cache_entry(uint8_t *buffer)
+typedef struct XenMapCacheData {
+    Coroutine *co;
+    uint8_t *buffer;
+} XenMapCacheData;
+
+static void xen_invalidate_map_cache_entry_bh(void *opaque)
 {
+    XenMapCacheData *data = opaque;
+
     mapcache_lock();
-    xen_invalidate_map_cache_entry_unlocked(buffer);
+    xen_invalidate_map_cache_entry_unlocked(data->buffer);
     mapcache_unlock();
+
+    aio_co_wake(data->co);
+}
+
+void coroutine_mixed_fn xen_invalidate_map_cache_entry(uint8_t *buffer)
+{
+    if (qemu_in_coroutine()) {
+        XenMapCacheData data = {
+            .co = qemu_coroutine_self(),
+            .buffer = buffer,
+        };
+        aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
+                                xen_invalidate_map_cache_entry_bh, &data);
+        qemu_coroutine_yield();
+    } else {
+        mapcache_lock();
+        xen_invalidate_map_cache_entry_unlocked(buffer);
+        mapcache_unlock();
+    }
 }
 
 void xen_invalidate_map_cache(void)
