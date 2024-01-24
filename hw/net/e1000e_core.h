@@ -100,8 +100,6 @@ struct E1000Core {
     E1000IntrDelayTimer eitr[E1000E_MSIX_VEC_NUM];
     bool eitr_intr_pending[E1000E_MSIX_VEC_NUM];
 
-    VMChangeStateEntry *vmstate;
-
     uint32_t itr_guest_value;
     uint32_t eitr_guest_value[E1000E_MSIX_VEC_NUM];
 
