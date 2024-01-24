@@ -166,6 +166,11 @@ struct TCGCPUOps {
      */
     bool (*io_recompile_replay_branch)(CPUState *cpu,
                                        const TranslationBlock *tb);
+    /**
+     * @need_replay_interrupt: Return %true if @interrupt_request
+     * needs to be recorded for replay purposes.
+     */
+    bool (*need_replay_interrupt)(int interrupt_request);
 #endif /* !CONFIG_USER_ONLY */
 #endif /* NEED_CPU_H */
 

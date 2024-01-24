@@ -771,12 +771,14 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
  * "real" interrupt event later. It does not need to be recorded for
  * replay purposes.
  */
-static inline bool need_replay_interrupt(int interrupt_request)
+static inline bool need_replay_interrupt(CPUState *cpu, int interrupt_request)
 {
 #if defined(TARGET_I386)
     return !(interrupt_request & CPU_INTERRUPT_POLL);
 #else
-    return true;
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+    return !tcg_ops->need_replay_interrupt
+           || tcg_ops->need_replay_interrupt(interrupt_request);
 #endif
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -864,7 +866,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 
             if (tcg_ops->cpu_exec_interrupt &&
                 tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
-                if (need_replay_interrupt(interrupt_request)) {
+                if (need_replay_interrupt(cpu, interrupt_request)) {
                     replay_interrupt();
                 }
                 /*
