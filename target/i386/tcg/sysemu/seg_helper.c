@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
@@ -124,6 +125,18 @@ void x86_cpu_do_interrupt(CPUState *cs)
                          env->exception_next_eip, 0);
         /* successfully delivered */
         env->old_exception = -1;
+    }
+}
+
+void x86_cpu_exec_halt(CPUState *cpu)
+{
+    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
+        X86CPU *x86_cpu = X86_CPU(cpu);
+
+        bql_lock();
+        apic_poll_irq(x86_cpu->apic_state);
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
+        bql_unlock();
     }
 }
 
