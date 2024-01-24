@@ -221,7 +221,7 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     CPURISCVState *env = &cpu->env;
     GString *s = g_string_new(NULL);
     riscv_csr_predicate_fn predicate;
-    int bitsize = 16 << mcc->misa_mxl_max;
+    int bitsize = riscv_cpu_max_xlen(mcc);
     int i;
 
 #if !defined(CONFIG_USER_ONLY)

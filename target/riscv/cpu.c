@@ -308,6 +308,11 @@ void riscv_cpu_set_misa_ext(CPURISCVState *env, uint32_t ext)
     env->misa_ext_mask = env->misa_ext = ext;
 }
 
+int riscv_cpu_max_xlen(RISCVCPUClass *mcc)
+{
+    return 16 << mcc->misa_mxl_max;
+}
+
 #ifndef CONFIG_USER_ONLY
 static uint8_t satp_mode_from_str(const char *satp_mode_str)
 {
@@ -2357,10 +2362,13 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str,
 
 char *riscv_isa_string(RISCVCPU *cpu)
 {
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
     int i;
     const size_t maxlen = sizeof("rv128") + sizeof(riscv_single_letter_exts);
     char *isa_str = g_new(char, maxlen);
-    char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
+    int xlen = riscv_cpu_max_xlen(mcc);
+    char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", xlen);
+
     for (i = 0; i < sizeof(riscv_single_letter_exts) - 1; i++) {
         if (cpu->env.misa_ext & RV(riscv_single_letter_exts[i])) {
             *p++ = qemu_tolower(riscv_single_letter_exts[i]);
