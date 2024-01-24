@@ -773,13 +773,9 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
  */
 static inline bool need_replay_interrupt(CPUState *cpu, int interrupt_request)
 {
-#if defined(TARGET_I386)
-    return !(interrupt_request & CPU_INTERRUPT_POLL);
-#else
     const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
     return !tcg_ops->need_replay_interrupt
            || tcg_ops->need_replay_interrupt(interrupt_request);
-#endif
 }
 #endif /* !CONFIG_USER_ONLY */
 

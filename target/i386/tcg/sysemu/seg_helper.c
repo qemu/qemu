@@ -127,6 +127,16 @@ void x86_cpu_do_interrupt(CPUState *cs)
     }
 }
 
+bool x86_need_replay_interrupt(int interrupt_request)
+{
+    /*
+     * CPU_INTERRUPT_POLL is a virtual event which gets converted into a
+     * "real" interrupt event later. It does not need to be recorded for
+     * replay purposes.
+     */
+    return !(interrupt_request & CPU_INTERRUPT_POLL);
+}
+
 bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
