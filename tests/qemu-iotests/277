@@ -27,7 +27,8 @@ from iotests import file_path, log
 iotests.script_initialize()
 
 
-nbd_sock, conf_file = file_path('nbd-sock', 'nbd-fault-injector.conf')
+conf_file = file_path('nbd-fault-injector.conf')
+nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
 
 
 def make_conf_file(event):
