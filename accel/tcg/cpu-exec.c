@@ -1050,7 +1050,7 @@ int cpu_exec(CPUState *cpu)
         return EXCP_HALTED;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     cpu_exec_enter(cpu);
 
     /*
@@ -1064,8 +1064,6 @@ int cpu_exec(CPUState *cpu)
     ret = cpu_exec_setjmp(cpu, &sc);
 
     cpu_exec_exit(cpu);
-    rcu_read_unlock();
-
     return ret;
 }
 
