@@ -664,6 +664,8 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 {
 #ifndef CONFIG_USER_ONLY
     if (cpu->halted) {
+        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+
 #if defined(TARGET_I386)
         if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
             X86CPU *x86_cpu = X86_CPU(cpu);
@@ -673,6 +675,9 @@ static inline bool cpu_handle_halt(CPUState *cpu)
             bql_unlock();
         }
 #endif /* TARGET_I386 */
+        if (tcg_ops->cpu_exec_halt) {
+            tcg_ops->cpu_exec_halt(cpu);
+        }
         if (!cpu_has_work(cpu)) {
             return true;
         }
