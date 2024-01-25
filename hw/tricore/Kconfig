@@ -1,8 +1,12 @@
 config TRICORE_TESTBOARD
+    default y
+    depends on TRICORE
     bool
 
 config TRIBOARD
     bool
+    default y
+    depends on TRICORE
     select TC27X_SOC
 
 config TC27X_SOC
