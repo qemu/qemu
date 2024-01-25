@@ -10,7 +10,6 @@
 #ifndef HW_HYPERV_HV_BALLOON_PAGE_RANGE_TREE_H
 #define HW_HYPERV_HV_BALLOON_PAGE_RANGE_TREE_H
 
-#include "qemu/osdep.h"
 
 /* PageRange */
 typedef struct PageRange {
