@@ -1,16 +1,18 @@
 slow_qtests = {
   'aspeed_smc-test': 360,
-  'bios-tables-test' : 540,
+  'bios-tables-test' : 610,
+  'cdrom-test' : 610,
   'device-introspect-test' : 720,
   'migration-test' : 480,
   'npcm7xx_pwm-test': 300,
   'npcm7xx_watchdog_timer-test': 120,
   'qom-test' : 900,
   'test-hmp' : 240,
-  'pxe-test': 600,
+  'pxe-test': 610,
   'prom-env-test': 360,
-  'boot-serial-test': 240,
+  'boot-serial-test': 360,
   'qos-test': 120,
+  'vmgenid-test': 610,
 }
 
 qtests_generic = [

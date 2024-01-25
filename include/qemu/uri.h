@@ -72,14 +72,10 @@ typedef struct URI {
 } URI;
 
 URI *uri_new(void);
-char *uri_resolve(const char *URI, const char *base);
-char *uri_resolve_relative(const char *URI, const char *base);
 URI *uri_parse(const char *str);
 URI *uri_parse_raw(const char *str, int raw);
 int uri_parse_into(URI *uri, const char *str);
 char *uri_to_string(URI *uri);
-char *uri_string_escape(const char *str, const char *list);
-char *uri_string_unescape(const char *str, int len, char *target);
 void uri_free(URI *uri);
 
 /* Single web service query parameter 'name=value'. */
