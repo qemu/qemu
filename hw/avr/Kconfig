@@ -5,5 +5,8 @@ config AVR_ATMEGA_MCU
     select AVR_POWER
 
 config ARDUINO
+    bool
+    default y
+    depends on AVR
     select AVR_ATMEGA_MCU
     select UNIMP
