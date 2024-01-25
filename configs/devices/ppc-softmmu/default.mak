@@ -1,5 +1,9 @@
 # Default configuration for ppc-softmmu
 
+# Uncomment the following lines to disable these optional devices:
+# CONFIG_PCI_DEVICES=n
+# CONFIG_TEST_DEVICES=n
+
 # For embedded PPCs:
 CONFIG_E500PLAT=y
 CONFIG_MPC8544DS=y

@@ -1,5 +1,7 @@
 # Default configuration for arm-softmmu
 
+# Uncomment the following lines to disable these optional devices:
+# CONFIG_I2C_DEVICES=n
 # CONFIG_PCI_DEVICES=n
 # CONFIG_TEST_DEVICES=n
 
