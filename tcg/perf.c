@@ -11,12 +11,11 @@
 #include "qemu/osdep.h"
 #include "elf.h"
 #include "exec/target_page.h"
-#include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "qemu/timer.h"
+#include "tcg/debuginfo.h"
+#include "tcg/perf.h"
 #include "tcg/tcg.h"
-
-#include "debuginfo.h"
-#include "perf.h"
 
 static FILE *safe_fopen_w(const char *path)
 {
