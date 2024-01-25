@@ -149,3 +149,8 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         return -1;
     }
 }
+
+void hyperv_x86_set_vmbus_recommended_features_enabled(void)
+{
+    hyperv_set_vmbus_recommended_features_enabled();
+}

@@ -139,4 +139,8 @@ typedef struct HvSynDbgMsg {
 } HvSynDbgMsg;
 typedef uint16_t (*HvSynDbgHandler)(void *context, HvSynDbgMsg *msg);
 void hyperv_set_syndbg_handler(HvSynDbgHandler handler, void *context);
+
+bool hyperv_are_vmbus_recommended_features_enabled(void);
+void hyperv_set_vmbus_recommended_features_enabled(void);
+
 #endif
