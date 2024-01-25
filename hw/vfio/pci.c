@@ -824,9 +824,11 @@ static void vfio_msix_disable(VFIOPCIDevice *vdev)
         }
     }
 
-    if (vdev->nr_vectors) {
-        vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
-    }
+    /*
+     * Always clear MSI-X IRQ index. A PF device could have enabled
+     * MSI-X with no vectors. See vfio_msix_enable().
+     */
+    vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
 
     vfio_msi_disable_common(vdev);
     vfio_intx_enable(vdev, &err);
