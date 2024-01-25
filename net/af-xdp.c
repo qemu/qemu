@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include <bpf/bpf.h>
-#include <inttypes.h>
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <net/if.h>
