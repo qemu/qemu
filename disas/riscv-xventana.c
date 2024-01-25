@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "qemu/osdep.h"
 #include "disas/riscv.h"
 #include "disas/riscv-xventana.h"
 
