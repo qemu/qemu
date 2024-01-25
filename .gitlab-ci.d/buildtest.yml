@@ -648,6 +648,7 @@ build-tci:
     - make check-tcg
 
 # Check our reduced build configurations
+# requires libfdt: aarch64, arm
 build-without-defaults:
   extends: .native_build_job_template
   needs:

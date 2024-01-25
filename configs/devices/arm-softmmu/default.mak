@@ -5,7 +5,8 @@
 # CONFIG_PCI_DEVICES=n
 # CONFIG_TEST_DEVICES=n
 
-CONFIG_ARM_VIRT=y
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_ARM_VIRT=n
 
 # These are selected by default when TCG is enabled, uncomment them to
 # keep out of the build.
