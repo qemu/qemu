@@ -10,7 +10,6 @@
 #ifndef INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H_
 #define INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H_
 
-#include "qemu/osdep.h"
 
 enum rpi_firmware_property_tag {
     RPI_FWREQ_PROPERTY_END =                           0,
