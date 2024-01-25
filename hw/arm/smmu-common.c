@@ -675,6 +675,8 @@ static void smmu_base_reset_hold(Object *obj)
 {
     SMMUState *s = ARM_SMMU(obj);
 
+    memset(s->smmu_pcibus_by_bus_num, 0, sizeof(s->smmu_pcibus_by_bus_num));
+
     g_hash_table_remove_all(s->configs);
     g_hash_table_remove_all(s->iotlb);
 }
