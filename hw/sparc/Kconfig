@@ -1,5 +1,7 @@
 config SUN4M
     bool
+    default y
+    depends on SPARC && !SPARC64
     imply TCX
     imply CG3
     select CS4231
@@ -18,6 +20,8 @@ config SUN4M
 
 config LEON3
     bool
+    default y
+    depends on SPARC && !SPARC64
     select GRLIB
 
 config GRLIB
