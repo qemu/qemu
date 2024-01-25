@@ -19,7 +19,6 @@
 #ifndef TARGET_RISCV_VECTOR_INTERNALS_H
 #define TARGET_RISCV_VECTOR_INTERNALS_H
 
-#include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "cpu.h"
 #include "tcg/tcg-gvec-desc.h"
