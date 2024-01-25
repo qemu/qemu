@@ -1,20 +1,28 @@
 config AN5206
     bool
+    default y
+    depends on M68K
     select COLDFIRE
     select PTIMER
 
 config MCF5208
     bool
+    default y
+    depends on M68K
     select COLDFIRE
     select PTIMER
 
 config NEXTCUBE
     bool
+    default y
+    depends on M68K
     select FRAMEBUFFER
     select ESCC
 
 config Q800
     bool
+    default y
+    depends on M68K
     select MAC_VIA
     select NUBUS
     select MACFB
@@ -29,6 +37,8 @@ config Q800
 
 config M68K_VIRT
     bool
+    default y
+    depends on M68K
     select M68K_IRQC
     select VIRT_CTRL
     select GOLDFISH_PIC
