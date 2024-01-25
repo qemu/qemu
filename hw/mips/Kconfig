@@ -1,5 +1,7 @@
 config MALTA
     bool
+    default y
+    depends on MIPS
     imply PCNET_PCI
     imply PCI_DEVICES
     imply TEST_DEVICES
@@ -13,11 +15,15 @@ config MALTA
 
 config MIPSSIM
     bool
+    default y
+    depends on MIPS
     select SERIAL
     select MIPSNET
 
 config JAZZ
     bool
+    default y
+    depends on MIPS64
     select ISA_BUS
     select RC4030
     select I8259
@@ -38,6 +44,8 @@ config JAZZ
 
 config FULOONG
     bool
+    default y
+    depends on MIPS64 && !TARGET_BIG_ENDIAN
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply ATI_VGA
@@ -48,6 +56,8 @@ config FULOONG
 
 config LOONGSON3V
     bool
+    default y
+    depends on MIPS64 && !TARGET_BIG_ENDIAN
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VIRTIO_PCI
@@ -69,6 +79,8 @@ config MIPS_CPS
 
 config MIPS_BOSTON
     bool
+    default y
+    depends on MIPS64 && !TARGET_BIG_ENDIAN
     imply PCI_DEVICES
     imply TEST_DEVICES
     select FITLOADER
