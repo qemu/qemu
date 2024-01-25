@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
+#include "qemu/osdep.h"
 #include "aspeed_eeprom.h"
 
 /* Tiogapass BMC FRU */
