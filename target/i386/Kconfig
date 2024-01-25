@@ -5,3 +5,4 @@ config I386
 
 config X86_64
     bool
+    select I386

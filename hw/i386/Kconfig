@@ -66,6 +66,8 @@ config PC_ACPI
 
 config I440FX
     bool
+    default y
+    depends on I386
     imply E1000_PCI
     imply VMPORT
     imply VMMOUSE
@@ -81,6 +83,8 @@ config I440FX
 
 config ISAPC
     bool
+    default y
+    depends on I386
     imply VGA_ISA
     select ISA_BUS
     select PC
@@ -91,6 +95,8 @@ config ISAPC
 
 config Q35
     bool
+    default y
+    depends on I386
     imply VTD
     imply AMD_IOMMU
     imply E1000E_PCI_EXPRESS
@@ -108,6 +114,8 @@ config Q35
 
 config MICROVM
     bool
+    default y
+    depends on I386
     select SERIAL_ISA # for serial_hds_isa_init()
     select ISA_BUS
     select APIC
@@ -142,4 +150,4 @@ config VMMOUSE
 config XEN_EMU
     bool
     default y
-    depends on KVM && (I386 || X86_64)
+    depends on KVM && I386
