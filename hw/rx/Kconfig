@@ -7,4 +7,6 @@ config RX62N_MCU
 
 config RX_GDBSIM
     bool
+    default y
+    depends on RX
     select RX62N_MCU
