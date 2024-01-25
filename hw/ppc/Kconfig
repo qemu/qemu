@@ -1,5 +1,7 @@
 config PSERIES
     bool
+    default y
+    depends on PPC64
     imply USB_OHCI_PCI
     imply PCI_DEVICES
     imply TEST_DEVICES
@@ -23,6 +25,8 @@ config SPAPR_RNG
 
 config POWERNV
     bool
+    default y
+    depends on PPC64
     imply PCI_DEVICES
     imply TEST_DEVICES
     select ISA_IPMI_BT
@@ -38,6 +42,8 @@ config POWERNV
 
 config PPC405
     bool
+    default y
+    depends on PPC
     select M48T59
     select PFLASH_CFI02
     select PPC4XX
@@ -45,6 +51,8 @@ config PPC405
 
 config PPC440
     bool
+    default y
+    depends on PPC
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply E1000_PCI
@@ -62,6 +70,8 @@ config PPC4XX
 
 config SAM460EX
     bool
+    default y
+    depends on PPC
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
@@ -75,6 +85,8 @@ config SAM460EX
 
 config AMIGAONE
     bool
+    default y
+    depends on PPC
     imply ATI_VGA
     select ARTICIA
     select VT82C686
@@ -82,6 +94,8 @@ config AMIGAONE
 
 config PEGASOS2
     bool
+    default y
+    depends on PPC
     imply ATI_VGA
     select MV64361
     select VT82C686
@@ -90,6 +104,8 @@ config PEGASOS2
 
 config PREP
     bool
+    default y
+    depends on PPC
     imply PCI_DEVICES
     imply TEST_DEVICES
     select CS4231A
@@ -106,6 +122,8 @@ config RS6000_MC
 
 config MAC_OLDWORLD
     bool
+    default y
+    depends on PPC
     imply PCI_DEVICES
     imply SUNGEM
     imply TEST_DEVICES
@@ -117,6 +135,8 @@ config MAC_OLDWORLD
 
 config MAC_NEWWORLD
     bool
+    default y
+    depends on PPC
     imply PCI_DEVICES
     imply SUNGEM
     imply TEST_DEVICES
@@ -147,14 +167,20 @@ config E500
 
 config E500PLAT
     bool
+    default y
+    depends on PPC
     select E500
 
 config MPC8544DS
     bool
+    default y
+    depends on PPC
     select E500
 
 config VIRTEX
     bool
+    default y
+    depends on PPC
     select PPC4XX
     select PFLASH_CFI01
     select SERIAL
