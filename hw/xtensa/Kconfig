@@ -1,14 +1,20 @@
 config XTENSA_SIM
+    default y
+    depends on XTENSA
     bool
 
 config XTENSA_VIRT
     bool
+    default y
+    depends on XTENSA
     select XTENSA_SIM
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PCI_DEVICES
 
 config XTENSA_XTFPGA
     bool
+    default y
+    depends on XTENSA
     select OPENCORES_ETH
     select PFLASH_CFI01
     select SERIAL
