@@ -39,6 +39,7 @@ typedef struct StreamBlockJob {
     BlockDriverState *target_bs;
     BlockdevOnError on_error;
     char *backing_file_str;
+    bool backing_mask_protocol;
     bool bs_read_only;
 } StreamBlockJob;
 
@@ -95,7 +96,12 @@ static int stream_prepare(Job *job)
         if (unfiltered_base) {
             base_id = s->backing_file_str ?: unfiltered_base->filename;
             if (unfiltered_base->drv) {
-                base_fmt = unfiltered_base->drv->format_name;
+                if (s->backing_mask_protocol &&
+                    unfiltered_base->drv->protocol_name) {
+                    base_fmt = "raw";
+                } else {
+                    base_fmt = unfiltered_base->drv->format_name;
+                }
             }
         }
 
@@ -247,6 +253,7 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
+                  bool backing_mask_protocol,
                   BlockDriverState *bottom,
                   int creation_flags, int64_t speed,
                   BlockdevOnError on_error,
@@ -398,6 +405,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->base_overlay = base_overlay;
     s->above_base = above_base;
     s->backing_file_str = g_strdup(backing_file_str);
+    s->backing_mask_protocol = backing_mask_protocol;
     s->cor_filter_bs = cor_filter_bs;
     s->target_bs = bs;
     s->bs_read_only = bs_read_only;

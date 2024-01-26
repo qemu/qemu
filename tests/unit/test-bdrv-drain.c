@@ -1591,6 +1591,7 @@ static const BlockJobDriver test_simple_job_driver = {
 static int drop_intermediate_poll_update_filename(BdrvChild *child,
                                                   BlockDriverState *new_base,
                                                   const char *filename,
+                                                  bool backing_mask_protocol,
                                                   Error **errp)
 {
     /*
@@ -1702,7 +1703,7 @@ static void test_drop_intermediate_poll(void)
     job->should_complete = true;
 
     g_assert(!job_has_completed);
-    ret = bdrv_drop_intermediate(chain[1], chain[0], NULL);
+    ret = bdrv_drop_intermediate(chain[1], chain[0], NULL, false);
     aio_poll(qemu_get_aio_context(), false);
     g_assert(ret == 0);
     g_assert(job_has_completed);

@@ -1810,6 +1810,11 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
+# @backing-mask-protocol: If true, replace any protocol mentioned in the
+#     'backing file format' with 'raw', rather than storing the protocol
+#     name as the backing format.  Can be used even when no image header
+#     will be updated (default false; since 9.0).
+#
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error.  'ignore' means that the
@@ -1856,7 +1861,8 @@
             '*base': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*top-node': 'str',
             '*top': { 'type': 'str', 'features': [ 'deprecated' ] },
-            '*backing-file': 'str', '*speed': 'int',
+            '*backing-file': 'str', '*backing-mask-protocol': 'bool',
+            '*speed': 'int',
             '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
@@ -2820,6 +2826,11 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
+# @backing-mask-protocol: If true, replace any protocol mentioned in the
+#     'backing file format' with 'raw', rather than storing the protocol
+#     name as the backing format.  Can be used even when no image header
+#     will be updated (default false; since 9.0).
+#
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error (default report). 'stop'
@@ -2858,7 +2869,9 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*bottom': 'str',
+            '*base-node': 'str', '*backing-file': 'str',
+            '*backing-mask-protocol': 'bool',
+            '*bottom': 'str',
             '*speed': 'int', '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },

@@ -25,7 +25,8 @@ import os
 import iotests
 from iotests import qemu_img_create, file_path, qemu_nbd_popen
 
-disk_a, disk_b, nbd_sock = file_path('disk_a', 'disk_b', 'nbd-sock')
+disk_a, disk_b = file_path('disk_a', 'disk_b')
+nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
 nbd_uri = 'nbd+unix:///?socket=' + nbd_sock
 wait_limit = 3.0
 wait_step = 0.2

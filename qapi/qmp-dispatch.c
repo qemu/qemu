@@ -206,9 +206,31 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
     assert(!(oob && qemu_in_coroutine()));
     assert(monitor_cur() == NULL);
     if (!!(cmd->options & QCO_COROUTINE) == qemu_in_coroutine()) {
+        if (qemu_in_coroutine()) {
+            /*
+             * Move the coroutine from iohandler_ctx to qemu_aio_context for
+             * executing the command handler so that it can make progress if it
+             * involves an AIO_WAIT_WHILE().
+             */
+            aio_co_schedule(qemu_get_aio_context(), qemu_coroutine_self());
+            qemu_coroutine_yield();
+        }
+
         monitor_set_cur(qemu_coroutine_self(), cur_mon);
         cmd->fn(args, &ret, &err);
         monitor_set_cur(qemu_coroutine_self(), NULL);
+
+        if (qemu_in_coroutine()) {
+            /*
+             * Yield and reschedule so the main loop stays responsive.
+             *
+             * Move back to iohandler_ctx so that nested event loops for
+             * qemu_aio_context don't start new monitor commands.
+             */
+            aio_co_schedule(iohandler_get_aio_context(),
+                            qemu_coroutine_self());
+            qemu_coroutine_yield();
+        }
     } else {
        /*
         * Actual context doesn't match the one the command needs.
@@ -232,7 +254,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
             .errp       = &err,
             .co         = qemu_coroutine_self(),
         };
-        aio_bh_schedule_oneshot(qemu_get_aio_context(), do_qmp_dispatch_bh,
+        aio_bh_schedule_oneshot(iohandler_get_aio_context(), do_qmp_dispatch_bh,
                                 &data);
         qemu_coroutine_yield();
     }
