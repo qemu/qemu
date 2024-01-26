@@ -189,7 +189,7 @@ typedef struct cxl_device_state {
         };
     };
 
-    /* mmio for the mailbox registers 8.2.8.4 */
+    /* CXL r3.1 Section 8.2.8.4: Mailbox Registers */
     struct {
         MemoryRegion mailbox;
         uint16_t payload_size;
@@ -310,39 +310,42 @@ void cxl_initialize_t3_ld_cci(CXLCCI *cci, DeviceState *d,
 REG64(CXL_DEV_EVENT_STATUS, 0)
     FIELD(CXL_DEV_EVENT_STATUS, EVENT_STATUS, 0, 32)
 
-/* CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register */
+#define CXL_DEV_MAILBOX_VERSION 1
+/* CXL r3.1 Section 8.2.8.4.3: Mailbox Capabilities Register */
 REG32(CXL_DEV_MAILBOX_CAP, 0)
     FIELD(CXL_DEV_MAILBOX_CAP, PAYLOAD_SIZE, 0, 5)
     FIELD(CXL_DEV_MAILBOX_CAP, INT_CAP, 5, 1)
     FIELD(CXL_DEV_MAILBOX_CAP, BG_INT_CAP, 6, 1)
     FIELD(CXL_DEV_MAILBOX_CAP, MSI_N, 7, 4)
+    FIELD(CXL_DEV_MAILBOX_CAP, MBOX_READY_TIME, 11, 8)
+    FIELD(CXL_DEV_MAILBOX_CAP, TYPE, 19, 4)
 
-/* CXL 2.0 8.2.8.4.4 Mailbox Control Register */
+/* CXL r3.1 Section 8.2.8.4.4: Mailbox Control Register */
 REG32(CXL_DEV_MAILBOX_CTRL, 4)
     FIELD(CXL_DEV_MAILBOX_CTRL, DOORBELL, 0, 1)
     FIELD(CXL_DEV_MAILBOX_CTRL, INT_EN, 1, 1)
     FIELD(CXL_DEV_MAILBOX_CTRL, BG_INT_EN, 2, 1)
 
-/* CXL 2.0 8.2.8.4.5 Command Register */
+/* CXL r3.1 Section 8.2.8.4.5: Command Register */
 REG64(CXL_DEV_MAILBOX_CMD, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, COMMAND, 0, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, COMMAND_SET, 8, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, LENGTH, 16, 20)
 
-/* CXL 2.0 8.2.8.4.6 Mailbox Status Register */
+/* CXL r3.1 Section 8.2.8.4.6: Mailbox Status Register */
 REG64(CXL_DEV_MAILBOX_STS, 0x10)
     FIELD(CXL_DEV_MAILBOX_STS, BG_OP, 0, 1)
     FIELD(CXL_DEV_MAILBOX_STS, ERRNO, 32, 16)
     FIELD(CXL_DEV_MAILBOX_STS, VENDOR_ERRNO, 48, 16)
 
-/* CXL 2.0 8.2.8.4.7 Background Command Status Register */
+/* CXL r3.1 Section 8.2.8.4.7: Background Command Status Register */
 REG64(CXL_DEV_BG_CMD_STS, 0x18)
     FIELD(CXL_DEV_BG_CMD_STS, OP, 0, 16)
     FIELD(CXL_DEV_BG_CMD_STS, PERCENTAGE_COMP, 16, 7)
     FIELD(CXL_DEV_BG_CMD_STS, RET_CODE, 32, 16)
     FIELD(CXL_DEV_BG_CMD_STS, VENDOR_RET_CODE, 48, 16)
 
-/* CXL 2.0 8.2.8.4.8 Command Payload Registers */
+/* CXL r3.1 Section 8.2.8.4.8: Command Payload Registers */
 REG32(CXL_DEV_CMD_PAYLOAD, 0x20)
 
 REG64(CXL_MEM_DEV_STS, 0)
