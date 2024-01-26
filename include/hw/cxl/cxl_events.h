@@ -13,7 +13,7 @@
 #include "qemu/uuid.h"
 
 /*
- * CXL rev 3.0 section 8.2.9.2.2; Table 8-49
+ * CXL r3.1 section 8.2.9.2.2: Get Event Records (Opcode 0100h); Table 8-52
  *
  * Define these as the bit position for the event status register for ease of
  * setting the status.
@@ -29,7 +29,7 @@ typedef enum CXLEventLogType {
 
 /*
  * Common Event Record Format
- * CXL rev 3.0 section 8.2.9.2.1; Table 8-42
+ * CXL r3.1 section 8.2.9.2.1: Event Records; Table 8-43
  */
 #define CXL_EVENT_REC_HDR_RES_LEN 0xf
 typedef struct CXLEventRecordHdr {
@@ -52,7 +52,7 @@ typedef struct CXLEventRecordRaw {
 
 /*
  * Get Event Records output payload
- * CXL rev 3.0 section 8.2.9.2.2; Table 8-50
+ * CXL r3.1 section 8.2.9.2.2; Table 8-53
  */
 #define CXL_GET_EVENT_FLAG_OVERFLOW     BIT(0)
 #define CXL_GET_EVENT_FLAG_MORE_RECORDS BIT(1)
@@ -70,7 +70,7 @@ typedef struct CXLGetEventPayload {
 
 /*
  * Clear Event Records input payload
- * CXL rev 3.0 section 8.2.9.2.3; Table 8-51
+ * CXL r3.1 section 8.2.9.2.3; Table 8-54
  */
 typedef struct CXLClearEventPayload {
     uint8_t event_log;      /* CXLEventLogType */
@@ -80,10 +80,10 @@ typedef struct CXLClearEventPayload {
     uint16_t handle[];
 } CXLClearEventPayload;
 
-/**
+/*
  * Event Interrupt Policy
  *
- * CXL rev 3.0 section 8.2.9.2.4; Table 8-52
+ * CXL r3.1 section 8.2.9.2.4; Table 8-55
  */
 typedef enum CXLEventIntMode {
     CXL_INT_NONE     = 0x00,
@@ -106,7 +106,7 @@ typedef struct CXLEventInterruptPolicy {
 
 /*
  * General Media Event Record
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ * CXL r3.1 Section 8.2.9.2.1.1; Table 8-45
  */
 #define CXL_EVENT_GEN_MED_COMP_ID_SIZE  0x10
 #define CXL_EVENT_GEN_MED_RES_SIZE      0x2e
@@ -126,7 +126,7 @@ typedef struct CXLEventGenMedia {
 
 /*
  * DRAM Event Record
- * CXL Rev 3.0 Section 8.2.9.2.1.2: Table 8-44
+ * CXL r3.1 Section 8.2.9.2.1.2: Table 8-46
  * All fields little endian.
  */
 typedef struct CXLEventDram {
@@ -149,7 +149,7 @@ typedef struct CXLEventDram {
 
 /*
  * Memory Module Event Record
- * CXL Rev 3.0 Section 8.2.9.2.1.3: Table 8-45
+ * CXL r3.1 Section 8.2.9.2.1.3: Table 8-47
  * All fields little endian.
  */
 typedef struct CXLEventMemoryModule {

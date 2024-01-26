@@ -319,7 +319,7 @@ static void build_dvsecs(CXLType3Dev *ct3d)
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                PCIE_CXL_DEVICE_DVSEC_LENGTH,
                                PCIE_CXL_DEVICE_DVSEC,
-                               PCIE_CXL2_DEVICE_DVSEC_REVID, dvsec);
+                               PCIE_CXL31_DEVICE_DVSEC_REVID, dvsec);
 
     dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
         .rsvd         = 0,
@@ -346,9 +346,9 @@ static void build_dvsecs(CXLType3Dev *ct3d)
         .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
     };
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
-                               PCIE_FLEXBUS_PORT_DVSEC_LENGTH_2_0,
+                               PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
-                               PCIE_FLEXBUS_PORT_DVSEC_REVID_2_0, dvsec);
+                               PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 }
 
 static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)

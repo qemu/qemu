@@ -13,7 +13,7 @@
 
 /*
  * Device registers have no restrictions per the spec, and so fall back to the
- * default memory mapped register rules in 8.2:
+ * default memory mapped register rules in CXL r3.1 Section 8.2:
  *   Software shall use CXL.io Memory Read and Write to access memory mapped
  *   register defined in this section. Unless otherwise specified, software
  *   shall restrict the accesses width based on the following:
@@ -393,13 +393,15 @@ void cxl_device_register_init_t3(CXLType3Dev *ct3d)
     ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_VERSION, 1);
     ARRAY_FIELD_DP64(cap_h, CXL_DEV_CAP_ARRAY, CAP_COUNT, cap_count);
 
-    cxl_device_cap_init(cxl_dstate, DEVICE_STATUS, 1, 2);
+    cxl_device_cap_init(cxl_dstate, DEVICE_STATUS, 1,
+                        CXL_DEVICE_STATUS_VERSION);
     device_reg_init_common(cxl_dstate);
 
     cxl_device_cap_init(cxl_dstate, MAILBOX, 2, CXL_DEV_MAILBOX_VERSION);
     mailbox_reg_init_common(cxl_dstate);
 
-    cxl_device_cap_init(cxl_dstate, MEMORY_DEVICE, 0x4000, 1);
+    cxl_device_cap_init(cxl_dstate, MEMORY_DEVICE, 0x4000,
+        CXL_MEM_DEV_STATUS_VERSION);
     memdev_reg_init_common(cxl_dstate);
 
     cxl_initialize_mailbox_t3(&ct3d->cci, DEVICE(ct3d),

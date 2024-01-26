@@ -10,7 +10,7 @@
 #ifndef CXL_COMPONENT_H
 #define CXL_COMPONENT_H
 
-/* CXL 2.0 - 8.2.4 */
+/* CXL r3.1 Section 8.2.4: CXL.cache and CXL.mem Registers  */
 #define CXL2_COMPONENT_IO_REGION_SIZE 0x1000
 #define CXL2_COMPONENT_CM_REGION_SIZE 0x1000
 #define CXL2_COMPONENT_BLOCK_SIZE 0x10000
@@ -34,10 +34,11 @@ enum reg_type {
  * Capability registers are defined at the top of the CXL.cache/mem region and
  * are packed. For our purposes we will always define the caps in the same
  * order.
- * CXL 2.0 - 8.2.5 Table 142 for details.
+ * CXL r3.1 Table 8-22: CXL_CAPABILITY_ID Assignment for details.
  */
 
-/* CXL 2.0 - 8.2.5.1 */
+/* CXL r3.1 Section 8.2.4.1: CXL Capability Header Register */
+#define CXL_CAPABILITY_VERSION 1
 REG32(CXL_CAPABILITY_HEADER, 0)
     FIELD(CXL_CAPABILITY_HEADER, ID, 0, 16)
     FIELD(CXL_CAPABILITY_HEADER, VERSION, 16, 4)
@@ -102,12 +103,13 @@ REG32(CXL_RAS_ERR_HEADER0, CXL_RAS_REGISTERS_OFFSET + 0x18)
 #define CXL_RAS_ERR_HEADER_NUM 32
 /* Offset 0x18 - 0x58 reserved for RAS logs */
 
-/* 8.2.5.10 - CXL Security Capability Structure */
+/* CXL r3.1 Section 8.2.4.18: CXL Security Capability Structure */
 #define CXL_SEC_REGISTERS_OFFSET \
     (CXL_RAS_REGISTERS_OFFSET + CXL_RAS_REGISTERS_SIZE)
 #define CXL_SEC_REGISTERS_SIZE   0 /* We don't implement 1.1 downstream ports */
 
 /* CXL r3.1 Section 8.2.4.19: CXL Link Capability Structure */
+#define CXL_LINK_CAPABILITY_VERSION 2
 #define CXL_LINK_REGISTERS_OFFSET \
     (CXL_SEC_REGISTERS_OFFSET + CXL_SEC_REGISTERS_SIZE)
 #define CXL_LINK_REGISTERS_SIZE   0x50
@@ -175,18 +177,24 @@ HDM_DECODER_INIT(1);
 HDM_DECODER_INIT(2);
 HDM_DECODER_INIT(3);
 
-/* 8.2.5.13 - CXL Extended Security Capability Structure (Root complex only) */
+/*
+ * CXL r3.1 Section 8.2.4.21: CXL Extended Security Capability Structure
+ * (Root complex only)
+ */
 #define EXTSEC_ENTRY_MAX        256
+#define CXL_EXTSEC_CAP_VERSION 2
 #define CXL_EXTSEC_REGISTERS_OFFSET \
     (CXL_HDM_REGISTERS_OFFSET + CXL_HDM_REGISTERS_SIZE)
 #define CXL_EXTSEC_REGISTERS_SIZE   (8 * EXTSEC_ENTRY_MAX + 4)
 
-/* 8.2.5.14 - CXL IDE Capability Structure */
+/* CXL r3.1 Section 8.2.4.22: CXL IDE Capability Structure */
+#define CXL_IDE_CAP_VERSION 2
 #define CXL_IDE_REGISTERS_OFFSET \
     (CXL_EXTSEC_REGISTERS_OFFSET + CXL_EXTSEC_REGISTERS_SIZE)
-#define CXL_IDE_REGISTERS_SIZE   0x20
+#define CXL_IDE_REGISTERS_SIZE   0x24
 
-/* 8.2.5.15 - CXL Snoop Filter Capability Structure */
+/* CXL r3.1 Section 8.2.4.23 - CXL Snoop Filter Capability Structure */
+#define CXL_SNOOP_CAP_VERSION 1
 #define CXL_SNOOP_REGISTERS_OFFSET \
     (CXL_IDE_REGISTERS_OFFSET + CXL_IDE_REGISTERS_SIZE)
 #define CXL_SNOOP_REGISTERS_SIZE   0x8
@@ -202,7 +210,7 @@ typedef struct component_registers {
     MemoryRegion component_registers;
 
     /*
-     * 8.2.4 Table 141:
+     * CXL r3.1 Table 8-21: CXL Subsystem Component Register Ranges
      *   0x0000 - 0x0fff CXL.io registers
      *   0x1000 - 0x1fff CXL.cache and CXL.mem
      *   0x2000 - 0xdfff Implementation specific

@@ -13,7 +13,7 @@
 #include "hw/pci/pci.h"
 #include "hw/cxl/cxl.h"
 
-/* CXL r3.0 Section 8.2.4.19.1 CXL HDM Decoder Capability Register */
+/* CXL r3.1 Section 8.2.4.20.1 CXL HDM Decoder Capability Register */
 int cxl_decoder_count_enc(int count)
 {
     switch (count) {
@@ -160,11 +160,11 @@ static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
 }
 
 /*
- * 8.2.3
+ * CXL r3.1 Section 8.2.3: Component Register Layout and Definition
  *   The access restrictions specified in Section 8.2.2 also apply to CXL 2.0
  *   Component Registers.
  *
- * 8.2.2
+ * CXL r3.1 Section 8.2.2: Accessing Component Registers
  *   • A 32 bit register shall be accessed as a 4 Bytes quantity. Partial
  *   reads are not permitted.
  *   • A 64 bit register shall be accessed as a 8 Bytes quantity. Partial
@@ -308,7 +308,8 @@ void cxl_component_register_init_common(uint32_t *reg_state,
 
     /* CXL Capability Header Register */
     ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, ID, 1);
-    ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, VERSION, 1);
+    ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, VERSION,
+        CXL_CAPABILITY_VERSION);
     ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, CACHE_MEM_VERSION, 1);
     ARRAY_FIELD_DP32(reg_state, CXL_CAPABILITY_HEADER, ARRAY_SIZE, caps);
 
@@ -328,7 +329,7 @@ void cxl_component_register_init_common(uint32_t *reg_state,
     init_cap_reg(RAS, 2, CXL_RAS_CAPABILITY_VERSION);
     ras_init_common(reg_state, write_msk);
 
-    init_cap_reg(LINK, 4, 2);
+    init_cap_reg(LINK, 4, CXL_LINK_CAPABILITY_VERSION);
 
     if (caps < 3) {
         return;
@@ -341,8 +342,8 @@ void cxl_component_register_init_common(uint32_t *reg_state,
         return;
     }
 
-    init_cap_reg(EXTSEC, 6, 1);
-    init_cap_reg(SNOOP, 8, 1);
+    init_cap_reg(EXTSEC, 6, CXL_EXTSEC_CAP_VERSION);
+    init_cap_reg(SNOOP, 8, CXL_SNOOP_CAP_VERSION);
 
 #undef init_cap_reg
 }
@@ -467,7 +468,7 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
     cxl->dvsec_offset += length;
 }
 
-/* CXL r3.0 Section 8.2.4.19.7 CXL HDM Decoder n Control Register */
+/* CXL r3.1 Section 8.2.4.20.7 CXL HDM Decoder n Control Register */
 uint8_t cxl_interleave_ways_enc(int iw, Error **errp)
 {
     switch (iw) {
