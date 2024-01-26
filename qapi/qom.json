@@ -1056,8 +1056,9 @@
 #
 # Create a QOM object.
 #
-# Returns: Nothing on success Error if @qom-type is not a valid class
-#     name
+# Returns:
+#     - Nothing on success
+#     - Error if @qom-type is not a valid class name
 #
 # Since: 2.0
 #
@@ -1078,8 +1079,9 @@
 #
 # @id: the name of the QOM object to remove
 #
-# Returns: Nothing on success Error if @id is not a valid id for a QOM
-#     object
+# Returns:
+#     - Nothing on success
+#     - Error if @id is not a valid id for a QOM object
 #
 # Since: 2.0
 #

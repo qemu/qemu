@@ -344,9 +344,9 @@
 # @opaque: A free-form string that can be used to describe the fd.
 #
 # Returns:
-# - @AddfdInfo on success
-# - If file descriptor was not received, GenericError
-# - If @fdset-id is a negative value, GenericError
+#     - @AddfdInfo on success
+#     - If file descriptor was not received, GenericError
+#     - If @fdset-id is a negative value, GenericError
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
@@ -374,8 +374,8 @@
 # @fd: The file descriptor that is to be removed.
 #
 # Returns:
-# - Nothing on success
-# - If @fdset-id or @fd is not found, GenericError
+#     - Nothing on success
+#     - If @fdset-id or @fd is not found, GenericError
 #
 # Since: 1.2
 #

@@ -1597,7 +1597,7 @@
 #
 # @file: Direct the migration stream to a file.
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'enum': 'MigrationAddressType',
   'data': [ 'socket', 'exec', 'rdma', 'file' ] }
@@ -1609,7 +1609,7 @@
 #
 # @offset: The file offset where the migration stream will start
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'struct': 'FileMigrationArgs',
   'data': { 'filename': 'str',
@@ -1620,7 +1620,7 @@
 #
 # @args: command (list head) and arguments to execute.
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'struct': 'MigrationExecCommand',
   'data': {'args': [ 'str' ] } }
@@ -1630,7 +1630,7 @@
 #
 # Migration endpoint configuration.
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'union': 'MigrationAddress',
   'base': { 'transport' : 'MigrationAddressType'},
@@ -1648,7 +1648,7 @@
 #
 # @main: Main outbound migration channel.
 #
-# Since 8.1
+# Since: 8.1
 ##
 { 'enum': 'MigrationChannelType',
   'data': [ 'main' ] }
@@ -1662,7 +1662,7 @@
 #
 # @addr: Migration endpoint configuration on destination interface.
 #
-# Since 8.1
+# Since: 8.1
 ##
 { 'struct': 'MigrationChannel',
   'data': {
@@ -2126,7 +2126,7 @@
 #
 # @millisecond: value is in milliseconds
 #
-# Since 8.2
+# Since: 8.2
 #
 ##
 { 'enum': 'TimeUnit',

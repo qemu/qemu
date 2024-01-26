@@ -1361,7 +1361,7 @@
 #     target, i.e. same data and new writes are done synchronously to
 #     both.
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'struct': 'BlockJobInfoMirror',
   'data': { 'actively-synced': 'bool' } }
@@ -3080,7 +3080,7 @@
 #
 # @type: The job type
 #
-# Since 8.2
+# Since: 8.2
 ##
 { 'union': 'BlockJobChangeOptions',
   'base': { 'id': 'str', 'type': 'JobType' },

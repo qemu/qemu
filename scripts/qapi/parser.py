@@ -71,7 +71,7 @@ class QAPISchemaParser:
     Parse QAPI schema source.
 
     Parse a JSON-esque schema file and process directives.  See
-    qapi-code-gen.txt section "Schema Syntax" for the exact syntax.
+    qapi-code-gen.rst section "Schema Syntax" for the exact syntax.
     Grammatical validation is handled later by `expr.check_exprs()`.
 
     :param fname: Source file name.

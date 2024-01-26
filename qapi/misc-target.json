@@ -475,7 +475,7 @@
 # @port: The port number
 #
 # Returns:
-# - Nothing on success.
+#     - Nothing on success.
 #
 # Since: 8.0
 #
