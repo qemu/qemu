@@ -21,7 +21,6 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "exec/address-spaces.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/qtest.h"
@@ -39,6 +38,7 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "audio/audio.h"
+#include "target/arm/cpu-qom.h"
 
 /* Enhanced Audio Controller (CODEC only) */
 struct omap_eac_s {

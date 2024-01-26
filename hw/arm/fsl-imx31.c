@@ -26,6 +26,7 @@
 #include "exec/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
+#include "target/arm/cpu-qom.h"
 
 static void fsl_imx31_init(Object *obj)
 {

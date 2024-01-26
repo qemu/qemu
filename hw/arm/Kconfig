@@ -408,13 +408,17 @@ config ALLWINNER_H3
 config ALLWINNER_R40
     bool
     default y if TCG && ARM
+    select AHCI
     select ALLWINNER_SRAMC
     select ALLWINNER_A10_PIT
+    select ALLWINNER_WDT
     select AXP2XX_PMU
     select SERIAL
     select ARM_TIMER
     select ARM_GIC
     select UNIMP
+    select USB_OHCI
+    select USB_EHCI_SYSBUS
     select SD
 
 config RASPI
@@ -543,6 +547,7 @@ config FSL_IMX31
 
 config FSL_IMX6
     bool
+    imply PCIE_DEVICES
     imply I2C_DEVICES
     select A9MPCORE
     select IMX
@@ -551,6 +556,7 @@ config FSL_IMX6
     select IMX_USBPHY
     select WDT_IMX2
     select PL310  # cache controller
+    select PCI_EXPRESS_DESIGNWARE
     select SDHCI
 
 config ASPEED_SOC
