@@ -29,4 +29,15 @@ typedef struct FSILBus {
     MemoryRegion mr;
 } FSILBus;
 
+#define TYPE_FSI_SCRATCHPAD "fsi.scratchpad"
+#define SCRATCHPAD(obj) OBJECT_CHECK(FSIScratchPad, (obj), TYPE_FSI_SCRATCHPAD)
+
+#define FSI_SCRATCHPAD_NR_REGS 4
+
+typedef struct FSIScratchPad {
+        FSILBusDevice parent;
+
+        uint32_t regs[FSI_SCRATCHPAD_NR_REGS];
+} FSIScratchPad;
+
 #endif /* FSI_LBUS_H */
