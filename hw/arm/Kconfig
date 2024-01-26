@@ -580,6 +580,7 @@ config ASPEED_SOC
     select LED
     select PMBUS
     select MAX31785
+    select FSI_APB2OPB_ASPEED
 
 config MPS2
     bool
