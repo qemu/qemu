@@ -104,10 +104,10 @@ REG32(CXL_RAS_ERR_HEADER0, CXL_RAS_REGISTERS_OFFSET + 0x18)
     (CXL_RAS_REGISTERS_OFFSET + CXL_RAS_REGISTERS_SIZE)
 #define CXL_SEC_REGISTERS_SIZE   0 /* We don't implement 1.1 downstream ports */
 
-/* 8.2.5.11 - CXL Link Capability Structure */
+/* CXL r3.1 Section 8.2.4.19: CXL Link Capability Structure */
 #define CXL_LINK_REGISTERS_OFFSET \
     (CXL_SEC_REGISTERS_OFFSET + CXL_SEC_REGISTERS_SIZE)
-#define CXL_LINK_REGISTERS_SIZE   0x38
+#define CXL_LINK_REGISTERS_SIZE   0x50
 
 /* CXL r3.1 Section 8.2.4.20: CXL HDM Decoder Capability Structure */
 #define HDM_DECODE_MAX 10 /* Maximum decoders for Devices */
