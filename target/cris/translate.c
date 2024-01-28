@@ -94,6 +94,7 @@ typedef struct DisasContext {
 
     CRISCPU *cpu;
     target_ulong pc, ppc;
+    int mem_index;
 
     /* Decoder.  */
         unsigned int (*decoder)(CPUCRISState *env, struct DisasContext *dc);
@@ -1008,37 +1009,31 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 
 static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
     if (dc->delayed_branch == 1) {
         cris_store_direct_jmp(dc);
     }
 
-    tcg_gen_qemu_ld_i64(dst, addr, mem_index, MO_TEUQ);
+    tcg_gen_qemu_ld_i64(dst, addr, dc->mem_index, MO_TEUQ);
 }
 
 static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
              unsigned int size, int sign)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
     if (dc->delayed_branch == 1) {
         cris_store_direct_jmp(dc);
     }
 
-    tcg_gen_qemu_ld_tl(dst, addr, mem_index,
+    tcg_gen_qemu_ld_tl(dst, addr, dc->mem_index,
                        MO_TE + ctz32(size) + (sign ? MO_SIGN : 0));
 }
 
 static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
                unsigned int size)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
     if (dc->delayed_branch == 1) {
@@ -1055,7 +1050,7 @@ static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
         return;
     }
 
-    tcg_gen_qemu_st_tl(val, addr, mem_index, MO_TE + ctz32(size));
+    tcg_gen_qemu_st_tl(val, addr, dc->mem_index, MO_TE + ctz32(size));
 
     if (dc->flags_x) {
         cris_evaluate_flags(dc);
@@ -2971,6 +2966,7 @@ static void cris_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->cpu = env_archcpu(env);
     dc->ppc = pc_start;
     dc->pc = pc_start;
+    dc->mem_index = cpu_mmu_index(env, false);
     dc->flags_uptodate = 1;
     dc->flags_x = tb_flags & X_FLAG;
     dc->cc_x_uptodate = 0;
