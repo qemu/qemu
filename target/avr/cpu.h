@@ -184,9 +184,7 @@ static inline void set_avr_feature(CPUAVRState *env, int feature)
     env->features |= (1U << feature);
 }
 
-#define cpu_mmu_index avr_cpu_mmu_index
-
-static inline int avr_cpu_mmu_index(CPUAVRState *env, bool ifetch)
+static inline int cpu_mmu_index(CPUAVRState *env, bool ifetch)
 {
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
