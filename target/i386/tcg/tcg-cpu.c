@@ -106,7 +106,7 @@ static bool x86_debug_check_breakpoint(CPUState *cs)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static const struct TCGCPUOps x86_tcg_ops = {
+static const TCGCPUOps x86_tcg_ops = {
     .initialize = tcg_x86_init,
     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
     .restore_state_to_opc = x86_restore_state_to_opc,

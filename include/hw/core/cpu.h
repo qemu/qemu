@@ -90,9 +90,6 @@ typedef enum MMUAccessType {
 
 typedef struct CPUWatchpoint CPUWatchpoint;
 
-/* see tcg-cpu-ops.h */
-struct TCGCPUOps;
-
 /* see accel-cpu.h */
 struct AccelCPUClass;
 
@@ -177,7 +174,7 @@ struct CPUClass {
     const struct SysemuCPUOps *sysemu_ops;
 
     /* when TCG is not available, this pointer is NULL */
-    const struct TCGCPUOps *tcg_ops;
+    const TCGCPUOps *tcg_ops;
 
     /*
      * if not NULL, this is called in order for the CPUClass to initialize
