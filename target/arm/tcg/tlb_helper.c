@@ -281,7 +281,7 @@ void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
 {
     ARMMMUFaultInfo fi = { .type = ARMFault_Alignment };
     int target_el = exception_target_el(env);
-    int mmu_idx = cpu_mmu_index(env, true);
+    int mmu_idx = arm_env_mmu_index(env);
     uint32_t fsc;
 
     env->exception.vaddress = pc;

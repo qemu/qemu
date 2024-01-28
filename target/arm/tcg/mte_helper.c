@@ -291,7 +291,7 @@ static int load_tag1(uint64_t ptr, uint8_t *mem)
 
 uint64_t HELPER(ldg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uint8_t *mem;
     int rtag = 0;
 
@@ -311,7 +311,7 @@ static void check_tag_aligned(CPUARMState *env, uint64_t ptr, uintptr_t ra)
 {
     if (unlikely(!QEMU_IS_ALIGNED(ptr, TAG_GRANULE))) {
         arm_cpu_do_unaligned_access(env_cpu(env), ptr, MMU_DATA_STORE,
-                                    cpu_mmu_index(env, false), ra);
+                                    arm_env_mmu_index(env), ra);
         g_assert_not_reached();
     }
 }
@@ -344,7 +344,7 @@ typedef void stg_store1(uint64_t, uint8_t *, int);
 static inline void do_stg(CPUARMState *env, uint64_t ptr, uint64_t xt,
                           uintptr_t ra, stg_store1 store1)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uint8_t *mem;
 
     check_tag_aligned(env, ptr, ra);
@@ -371,7 +371,7 @@ void HELPER(stg_parallel)(CPUARMState *env, uint64_t ptr, uint64_t xt)
 
 void HELPER(stg_stub)(CPUARMState *env, uint64_t ptr)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
 
     check_tag_aligned(env, ptr, ra);
@@ -381,7 +381,7 @@ void HELPER(stg_stub)(CPUARMState *env, uint64_t ptr)
 static inline void do_st2g(CPUARMState *env, uint64_t ptr, uint64_t xt,
                            uintptr_t ra, stg_store1 store1)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     int tag = allocation_tag_from_addr(xt);
     uint8_t *mem1, *mem2;
 
@@ -429,7 +429,7 @@ void HELPER(st2g_parallel)(CPUARMState *env, uint64_t ptr, uint64_t xt)
 
 void HELPER(st2g_stub)(CPUARMState *env, uint64_t ptr)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
     int in_page = -(ptr | TARGET_PAGE_MASK);
 
@@ -445,7 +445,7 @@ void HELPER(st2g_stub)(CPUARMState *env, uint64_t ptr)
 
 uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
     int gm_bs = env_archcpu(env)->gm_blocksize;
     int gm_bs_bytes = 4 << gm_bs;
@@ -505,7 +505,7 @@ uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
 
 void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
 {
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
     int gm_bs = env_archcpu(env)->gm_blocksize;
     int gm_bs_bytes = 4 << gm_bs;
@@ -555,7 +555,7 @@ void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
 void HELPER(stzgm_tags)(CPUARMState *env, uint64_t ptr, uint64_t val)
 {
     uintptr_t ra = GETPC();
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     int log2_dcz_bytes, log2_tag_bytes;
     intptr_t dcz_bytes, tag_bytes;
     uint8_t *mem;
