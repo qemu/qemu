@@ -765,20 +765,6 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
-#ifndef CONFIG_USER_ONLY
-/*
- * CPU_INTERRUPT_POLL is a virtual event which gets converted into a
- * "real" interrupt event later. It does not need to be recorded for
- * replay purposes.
- */
-static inline bool need_replay_interrupt(CPUState *cpu, int interrupt_request)
-{
-    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-    return !tcg_ops->need_replay_interrupt
-           || tcg_ops->need_replay_interrupt(interrupt_request);
-}
-#endif /* !CONFIG_USER_ONLY */
-
 static inline bool icount_exit_request(CPUState *cpu)
 {
     if (!icount_enabled()) {
@@ -862,7 +848,8 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 
             if (tcg_ops->cpu_exec_interrupt &&
                 tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
-                if (need_replay_interrupt(cpu, interrupt_request)) {
+                if (!tcg_ops->need_replay_interrupt ||
+                    tcg_ops->need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
                 /*
