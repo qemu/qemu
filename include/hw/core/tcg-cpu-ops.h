@@ -58,11 +58,6 @@ struct TCGCPUOps {
      * cpu execution loop (hack for x86 user mode).
      */
     void (*fake_user_interrupt)(CPUState *cpu);
-#else
-    /**
-     * @do_interrupt: Callback for interrupt handling.
-     */
-    void (*do_interrupt)(CPUState *cpu);
 #endif /* !CONFIG_USER_ONLY || !TARGET_I386 */
 #ifdef CONFIG_USER_ONLY
     /**
@@ -114,6 +109,8 @@ struct TCGCPUOps {
     void (*record_sigbus)(CPUState *cpu, vaddr addr,
                           MMUAccessType access_type, uintptr_t ra);
 #else
+    /** @do_interrupt: Callback for interrupt handling.  */
+    void (*do_interrupt)(CPUState *cpu);
     /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
     /**
