@@ -343,9 +343,9 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
 #ifdef CONFIG_USER_ONLY
                 g_assert_not_reached();
 #else
-                CPUClass *cc = CPU_GET_CLASS(cpu);
-                assert(cc->tcg_ops->debug_check_breakpoint);
-                match_bp = cc->tcg_ops->debug_check_breakpoint(cpu);
+                const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+                assert(tcg_ops->debug_check_breakpoint);
+                match_bp = tcg_ops->debug_check_breakpoint(cpu);
 #endif
             }
 
@@ -462,10 +462,11 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
-        CPUClass *cc = CPU_GET_CLASS(cpu);
+        CPUClass *cc = cpu->cc;
+        const TCGCPUOps *tcg_ops = cc->tcg_ops;
 
-        if (cc->tcg_ops->synchronize_from_tb) {
-            cc->tcg_ops->synchronize_from_tb(cpu, last_tb);
+        if (tcg_ops->synchronize_from_tb) {
+            tcg_ops->synchronize_from_tb(cpu, last_tb);
         } else {
             tcg_debug_assert(!(tb_cflags(last_tb) & CF_PCREL));
             assert(cc->set_pc);
@@ -497,19 +498,19 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
 
 static void cpu_exec_enter(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
-    if (cc->tcg_ops->cpu_exec_enter) {
-        cc->tcg_ops->cpu_exec_enter(cpu);
+    if (tcg_ops->cpu_exec_enter) {
+        tcg_ops->cpu_exec_enter(cpu);
     }
 }
 
 static void cpu_exec_exit(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
-    if (cc->tcg_ops->cpu_exec_exit) {
-        cc->tcg_ops->cpu_exec_exit(cpu);
+    if (tcg_ops->cpu_exec_exit) {
+        tcg_ops->cpu_exec_exit(cpu);
     }
 }
 
@@ -685,7 +686,7 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
     CPUWatchpoint *wp;
 
     if (!cpu->watchpoint_hit) {
@@ -694,8 +695,8 @@ static inline void cpu_handle_debug_exception(CPUState *cpu)
         }
     }
 
-    if (cc->tcg_ops->debug_excp_handler) {
-        cc->tcg_ops->debug_excp_handler(cpu);
+    if (tcg_ops->debug_excp_handler) {
+        tcg_ops->debug_excp_handler(cpu);
     }
 }
 
@@ -712,6 +713,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #endif
         return false;
     }
+
     if (cpu->exception_index >= EXCP_INTERRUPT) {
         /* exit request from the cpu execution loop */
         *ret = cpu->exception_index;
@@ -720,43 +722,45 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         }
         cpu->exception_index = -1;
         return true;
-    } else {
-#if defined(CONFIG_USER_ONLY)
-        /* if user mode only, we simulate a fake exception
-           which will be handled outside the cpu execution
-           loop */
-#if defined(TARGET_I386)
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        cc->tcg_ops->fake_user_interrupt(cpu);
-#endif /* TARGET_I386 */
-        *ret = cpu->exception_index;
-        cpu->exception_index = -1;
-        return true;
-#else
-        if (replay_exception()) {
-            CPUClass *cc = CPU_GET_CLASS(cpu);
-            bql_lock();
-            cc->tcg_ops->do_interrupt(cpu);
-            bql_unlock();
-            cpu->exception_index = -1;
+    }
 
-            if (unlikely(cpu->singlestep_enabled)) {
-                /*
-                 * After processing the exception, ensure an EXCP_DEBUG is
-                 * raised when single-stepping so that GDB doesn't miss the
-                 * next instruction.
-                 */
-                *ret = EXCP_DEBUG;
-                cpu_handle_debug_exception(cpu);
-                return true;
-            }
-        } else if (!replay_has_interrupt()) {
-            /* give a chance to iothread in replay mode */
-            *ret = EXCP_INTERRUPT;
+#if defined(CONFIG_USER_ONLY)
+    /*
+     * If user mode only, we simulate a fake exception which will be
+     * handled outside the cpu execution loop.
+     */
+#if defined(TARGET_I386)
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+    tcg_ops->fake_user_interrupt(cpu);
+#endif /* TARGET_I386 */
+    *ret = cpu->exception_index;
+    cpu->exception_index = -1;
+    return true;
+#else
+    if (replay_exception()) {
+        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+
+        bql_lock();
+        tcg_ops->do_interrupt(cpu);
+        bql_unlock();
+        cpu->exception_index = -1;
+
+        if (unlikely(cpu->singlestep_enabled)) {
+            /*
+             * After processing the exception, ensure an EXCP_DEBUG is
+             * raised when single-stepping so that GDB doesn't miss the
+             * next instruction.
+             */
+            *ret = EXCP_DEBUG;
+            cpu_handle_debug_exception(cpu);
             return true;
         }
-#endif
+    } else if (!replay_has_interrupt()) {
+        /* give a chance to iothread in replay mode */
+        *ret = EXCP_INTERRUPT;
+        return true;
     }
+#endif
 
     return false;
 }
@@ -856,10 +860,10 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
            True when it is, and we should restart on a new TB,
            and via longjmp via cpu_loop_exit.  */
         else {
-            CPUClass *cc = CPU_GET_CLASS(cpu);
+            const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
-            if (cc->tcg_ops->cpu_exec_interrupt &&
-                cc->tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
+            if (tcg_ops->cpu_exec_interrupt &&
+                tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
                 if (need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
@@ -1078,10 +1082,9 @@ int cpu_exec(CPUState *cpu)
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
 {
     static bool tcg_target_initialized;
-    CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (!tcg_target_initialized) {
-        cc->tcg_ops->initialize();
+        cpu->cc->tcg_ops->initialize();
         tcg_target_initialized = true;
     }
 
