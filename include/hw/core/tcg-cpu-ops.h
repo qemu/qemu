@@ -50,7 +50,7 @@ struct TCGCPUOps {
     void (*debug_excp_handler)(CPUState *cpu);
 
 #ifdef NEED_CPU_H
-#if defined(CONFIG_USER_ONLY) && defined(TARGET_I386)
+#ifdef CONFIG_USER_ONLY
     /**
      * @fake_user_interrupt: Callback for 'fake exception' handling.
      *
@@ -58,8 +58,7 @@ struct TCGCPUOps {
      * cpu execution loop (hack for x86 user mode).
      */
     void (*fake_user_interrupt)(CPUState *cpu);
-#endif /* !CONFIG_USER_ONLY || !TARGET_I386 */
-#ifdef CONFIG_USER_ONLY
+
     /**
      * record_sigsegv:
      * @cpu: cpu context
