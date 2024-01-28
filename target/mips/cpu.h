@@ -1255,9 +1255,14 @@ static inline int hflags_mmu_index(uint32_t hflags)
     }
 }
 
-static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
+static inline int mips_env_mmu_index(CPUMIPSState *env)
 {
     return hflags_mmu_index(env->hflags);
+}
+
+static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
+{
+    return mips_env_mmu_index(env);
 }
 
 #include "exec/cpu-all.h"

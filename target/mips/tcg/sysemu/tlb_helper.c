@@ -973,7 +973,7 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
 
     /* data access */
     ret = get_physical_address(env, &physical, &prot, address, access_type,
-                               cpu_mmu_index(env, false));
+                               mips_env_mmu_index(env));
     if (ret == TLBRET_MATCH) {
         return physical;
     }
