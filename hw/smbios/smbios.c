@@ -347,6 +347,11 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
 
 static const QemuOptDesc qemu_smbios_type8_opts[] = {
     {
+        .name = "type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "SMBIOS element type",
+    },
+    {
         .name = "internal_reference",
         .type = QEMU_OPT_STRING,
         .help = "internal reference designator",
@@ -366,6 +371,7 @@ static const QemuOptDesc qemu_smbios_type8_opts[] = {
         .type = QEMU_OPT_NUMBER,
         .help = "port type",
     },
+    { /* end of list */ }
 };
 
 static const QemuOptDesc qemu_smbios_type11_opts[] = {
