@@ -14,11 +14,6 @@
 
 /* UARTs (compatible with NS16450 or PC16550) */
 
-static bool is_serial_enabled(ISASuperIODevice *sio, uint8_t index)
-{
-    return index < 2;
-}
-
 static uint16_t get_serial_iobase(ISASuperIODevice *sio, uint8_t index)
 {
     return index ? 0x2f8 : 0x3f8;
@@ -30,11 +25,6 @@ static unsigned int get_serial_irq(ISASuperIODevice *sio, uint8_t index)
 }
 
 /* Parallel port */
-
-static bool is_parallel_enabled(ISASuperIODevice *sio, uint8_t index)
-{
-    return index < 1;
-}
 
 static uint16_t get_parallel_iobase(ISASuperIODevice *sio, uint8_t index)
 {
@@ -52,11 +42,6 @@ static unsigned int get_parallel_dma(ISASuperIODevice *sio, uint8_t index)
 }
 
 /* Diskette controller (Software compatible with the Intel PC8477) */
-
-static bool is_fdc_enabled(ISASuperIODevice *sio, uint8_t index)
-{
-    return index < 1;
-}
 
 static uint16_t get_fdc_iobase(ISASuperIODevice *sio, uint8_t index)
 {
@@ -79,20 +64,17 @@ static void smc37c669_class_init(ObjectClass *klass, void *data)
 
     sc->parallel = (ISASuperIOFuncs){
         .count = 1,
-        .is_enabled = is_parallel_enabled,
         .get_iobase = get_parallel_iobase,
         .get_irq    = get_parallel_irq,
         .get_dma    = get_parallel_dma,
     };
     sc->serial = (ISASuperIOFuncs){
         .count = 2,
-        .is_enabled = is_serial_enabled,
         .get_iobase = get_serial_iobase,
         .get_irq    = get_serial_irq,
     };
     sc->floppy = (ISASuperIOFuncs){
         .count = 1,
-        .is_enabled = is_fdc_enabled,
         .get_iobase = get_fdc_iobase,
         .get_irq    = get_fdc_irq,
         .get_dma    = get_fdc_dma,
