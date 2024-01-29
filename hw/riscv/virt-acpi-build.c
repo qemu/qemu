@@ -564,11 +564,61 @@ static void build_madt(GArray *table_data,
     acpi_table_end(linker, &table);
 }
 
+/*
+ * ACPI spec, Revision 6.5+
+ * 5.2.16 System Resource Affinity Table (SRAT)
+ * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/25
+ *      https://drive.google.com/file/d/1YTdDx2IPm5IeZjAW932EYU-tUtgS08tX/view
+ */
+static void
+build_srat(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
+{
+    int i;
+    uint64_t mem_base;
+    MachineClass *mc = MACHINE_GET_CLASS(vms);
+    MachineState *ms = MACHINE(vms);
+    const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
+    AcpiTable table = { .sig = "SRAT", .rev = 3, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
+
+    acpi_table_begin(&table, table_data);
+    build_append_int_noprefix(table_data, 1, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 0, 8); /* Reserved */
+
+    for (i = 0; i < cpu_list->len; ++i) {
+        uint32_t nodeid = cpu_list->cpus[i].props.node_id;
+        /*
+         * 5.2.16.8 RINTC Affinity Structure
+         */
+        build_append_int_noprefix(table_data, 7, 1);      /* Type */
+        build_append_int_noprefix(table_data, 20, 1);     /* Length */
+        build_append_int_noprefix(table_data, 0, 2);        /* Reserved */
+        build_append_int_noprefix(table_data, nodeid, 4); /* Proximity Domain */
+        build_append_int_noprefix(table_data, i, 4); /* ACPI Processor UID */
+        /* Flags, Table 5-70 */
+        build_append_int_noprefix(table_data, 1 /* Flags: Enabled */, 4);
+        build_append_int_noprefix(table_data, 0, 4); /* Clock Domain */
+    }
+
+    mem_base = vms->memmap[VIRT_DRAM].base;
+    for (i = 0; i < ms->numa_state->num_nodes; ++i) {
+        if (ms->numa_state->nodes[i].node_mem > 0) {
+            build_srat_memory(table_data, mem_base,
+                              ms->numa_state->nodes[i].node_mem, i,
+                              MEM_AFFINITY_ENABLED);
+            mem_base += ms->numa_state->nodes[i].node_mem;
+        }
+    }
+
+    acpi_table_end(linker, &table);
+}
+
 static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
 {
     GArray *table_offsets;
     unsigned dsdt, xsdt;
     GArray *tables_blob = tables->table_data;
+    MachineState *ms = MACHINE(s);
 
     table_offsets = g_array_new(false, true,
                                 sizeof(uint32_t));
@@ -602,6 +652,16 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
         };
         build_mcfg(tables_blob, tables->linker, &mcfg, s->oem_id,
                    s->oem_table_id);
+    }
+
+    if (ms->numa_state->num_nodes > 0) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_srat(tables_blob, tables->linker, s);
+        if (ms->numa_state->have_numa_distance) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_slit(tables_blob, tables->linker, ms, s->oem_id,
+                       s->oem_table_id);
+        }
     }
 
     /* XSDT is pointed to by RSDP */
