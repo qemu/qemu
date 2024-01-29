@@ -684,7 +684,7 @@ generate_faults(VuDev *dev) {
                      dev->postcopy_ufd, strerror(errno));
             return false;
         }
-        if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
+        if (!(reg_struct.ioctls & (1ULL << _UFFDIO_COPY))) {
             vu_panic(dev, "%s Region (%d) doesn't support COPY",
                      __func__, i);
             return false;

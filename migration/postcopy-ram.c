@@ -102,11 +102,9 @@ void postcopy_thread_create(MigrationIncomingState *mis,
  * are target OS specific.
  */
 #if defined(__linux__)
-
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
-#include <asm/types.h> /* for __u64 */
 #endif
 
 #if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
@@ -272,8 +270,8 @@ static bool request_ufd_features(int ufd, uint64_t features)
         return false;
     }
 
-    ioctl_mask = (__u64)1 << _UFFDIO_REGISTER |
-                 (__u64)1 << _UFFDIO_UNREGISTER;
+    ioctl_mask = 1ULL << _UFFDIO_REGISTER |
+                 1ULL << _UFFDIO_UNREGISTER;
     if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
         error_report("Missing userfault features: %" PRIx64,
                      (uint64_t)(~api_struct.ioctls & ioctl_mask));
@@ -462,9 +460,9 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
         goto out;
     }
 
-    feature_mask = (__u64)1 << _UFFDIO_WAKE |
-                   (__u64)1 << _UFFDIO_COPY |
-                   (__u64)1 << _UFFDIO_ZEROPAGE;
+    feature_mask = 1ULL << _UFFDIO_WAKE |
+                   1ULL << _UFFDIO_COPY |
+                   1ULL << _UFFDIO_ZEROPAGE;
     if ((reg_struct.ioctls & feature_mask) != feature_mask) {
         error_setg(errp, "Missing userfault map features: %" PRIx64,
                    (uint64_t)(~reg_struct.ioctls & feature_mask));
@@ -733,11 +731,11 @@ static int ram_block_enable_notify(RAMBlock *rb, void *opaque)
         error_report("%s userfault register: %s", __func__, strerror(errno));
         return -1;
     }
-    if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
+    if (!(reg_struct.ioctls & (1ULL << _UFFDIO_COPY))) {
         error_report("%s userfault: Region doesn't support COPY", __func__);
         return -1;
     }
-    if (reg_struct.ioctls & ((__u64)1 << _UFFDIO_ZEROPAGE)) {
+    if (reg_struct.ioctls & (1ULL << _UFFDIO_ZEROPAGE)) {
         qemu_ram_set_uf_zeroable(rb);
     }
 
